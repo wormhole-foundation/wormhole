@@ -8,7 +8,7 @@ module token_bridge::asset_meta {
 
     use token_bridge::string32::{Self, String32};
 
-    friend token_bridge::bridge_state;
+    friend token_bridge::state;
     friend token_bridge::create_wrapped;
 
     //#[test_only]

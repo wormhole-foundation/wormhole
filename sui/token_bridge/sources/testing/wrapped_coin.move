@@ -28,10 +28,10 @@ module token_bridge::coin_witness {
 module token_bridge::coin_witness_test {
     use sui::test_scenario::{Self, Scenario, ctx, next_tx, take_from_address, return_shared, take_shared};
 
-    use wormhole::state::{State};
+    use wormhole::state::{State as WormholeState};
     use wormhole::external_address::{Self};
 
-    use token_bridge::bridge_state::{BridgeState, is_wrapped_asset, is_registered_native_asset, origin_info, get_token_chain_from_origin_info, get_token_address_from_origin_info};
+    use token_bridge::state::{State, is_wrapped_asset, is_registered_native_asset, origin_info, get_token_chain_from_origin_info, get_token_address_from_origin_info};
     use token_bridge::bridge_state_test::{set_up_wormhole_core_and_token_bridges};
     use token_bridge::create_wrapped::{NewWrappedCoin, register_wrapped_coin};
     use token_bridge::register_chain::{submit_vaa};
@@ -72,16 +72,16 @@ module token_bridge::coin_witness_test {
         };
         // register chain
         next_tx(&mut test, admin); {
-            let wormhole_state = take_shared<State>(&test);
-            let bridge_state = take_shared<BridgeState>(&test);
+            let wormhole_state = take_shared<WormholeState>(&test);
+            let bridge_state = take_shared<State>(&test);
             submit_vaa(&mut wormhole_state, &mut bridge_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
-            return_shared<State>(wormhole_state);
-            return_shared<BridgeState>(bridge_state);
+            return_shared<WormholeState>(wormhole_state);
+            return_shared<State>(bridge_state);
         };
         // register wrapped coin with token bridge, handing it the treasury cap and storing metadata
         next_tx(&mut test, admin);{
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
             let wrapped_coin = take_from_address<NewWrappedCoin<COIN_WITNESS>>(&test, admin);
             register_wrapped_coin<COIN_WITNESS>(
                 &mut worm_state,
@@ -103,8 +103,8 @@ module token_bridge::coin_witness_test {
             let address = get_token_address_from_origin_info(&origin_info);
             assert!(chain == 2, 0);
             assert!(address == external_address::from_bytes(x"beefface"), 0);
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
         };
         return test
     }

@@ -6,7 +6,7 @@ module token_bridge::complete_transfer {
     use wormhole::state::{State as WormholeState};
     use wormhole::external_address::{Self};
 
-    use token_bridge::bridge_state::{Self, BridgeState, VerifiedCoinType};
+    use token_bridge::state::{Self, State, VerifiedCoinType};
     use token_bridge::vaa::{Self};
     use token_bridge::transfer::{Self, Transfer};
     use token_bridge::normalized_amount::{denormalize};
@@ -15,7 +15,7 @@ module token_bridge::complete_transfer {
 
     public entry fun submit_vaa_entry<CoinType>(
         wormhole_state: &mut WormholeState,
-        bridge_state: &mut BridgeState,
+        bridge_state: &mut State,
         vaa: vector<u8>,
         fee_recipient: address,
         ctx: &mut TxContext
@@ -31,7 +31,7 @@ module token_bridge::complete_transfer {
 
     public fun submit_vaa<CoinType>(
         wormhole_state: &mut WormholeState,
-        bridge_state: &mut BridgeState,
+        bridge_state: &mut State,
         vaa: vector<u8>,
         fee_recipient: address,
         ctx: &mut TxContext
@@ -48,7 +48,7 @@ module token_bridge::complete_transfer {
 
         let token_chain = transfer::token_chain(&transfer);
         let token_address = transfer::token_address(&transfer);
-        let verified_coin_witness = bridge_state::verify_coin_type<CoinType>(
+        let verified_coin_witness = state::verify_coin_type<CoinType>(
             bridge_state,
             token_chain,
             token_address
@@ -70,13 +70,13 @@ module token_bridge::complete_transfer {
     public fun test_complete_transfer<CoinType>(
         my_transfer: Transfer,
         wormhole_state: &mut WormholeState,
-        bridge_state: &mut BridgeState,
+        bridge_state: &mut State,
         fee_recipient: address,
         ctx: &mut TxContext
     ): Transfer {
         let token_chain = transfer::token_chain(&my_transfer);
         let token_address = transfer::token_address(&my_transfer);
-        let verified_coin_witness = bridge_state::verify_coin_type<CoinType>(
+        let verified_coin_witness = state::verify_coin_type<CoinType>(
             bridge_state,
             token_chain,
             token_address
@@ -95,7 +95,7 @@ module token_bridge::complete_transfer {
         verified_coin_witness: VerifiedCoinType<CoinType>,
         my_transfer: Transfer,
         wormhole_state: &mut WormholeState,
-        bridge_state: &mut BridgeState,
+        bridge_state: &mut State,
         fee_recipient: address,
         ctx: &mut TxContext
     ): Transfer { // TODO: why return transfer?
@@ -110,15 +110,15 @@ module token_bridge::complete_transfer {
         let recipient_coins;
         let amount;
         let fee_amount;
-        if (bridge_state::is_wrapped_asset<CoinType>(bridge_state)) {
+        if (state::is_wrapped_asset<CoinType>(bridge_state)) {
             let decimals =
-                bridge_state::get_wrapped_decimals<CoinType>(bridge_state);
+                state::get_wrapped_decimals<CoinType>(bridge_state);
             amount = denormalize(transfer::amount(&my_transfer), decimals);
             fee_amount = denormalize(
                 transfer::relayer_fee(&my_transfer),
                 decimals
             );
-            recipient_coins = bridge_state::mint<CoinType>(
+            recipient_coins = state::mint<CoinType>(
                 verified_coin_witness,
                 bridge_state,
                 amount,
@@ -126,13 +126,13 @@ module token_bridge::complete_transfer {
             );
         } else {
             let decimals =
-                bridge_state::get_native_decimals<CoinType>(bridge_state);
+                state::get_native_decimals<CoinType>(bridge_state);
             amount = denormalize(transfer::amount(&my_transfer), decimals);
             fee_amount = denormalize(
                 transfer::relayer_fee(&my_transfer),
                 decimals
             );
-            recipient_coins = bridge_state::withdraw<CoinType>(
+            recipient_coins = state::withdraw<CoinType>(
                 verified_coin_witness,
                 bridge_state,
                 amount,
@@ -159,7 +159,7 @@ module token_bridge::complete_transfer_test {
 
     use token_bridge::normalized_amount::{Self};
     use token_bridge::transfer::{Self};
-    use token_bridge::bridge_state::{Self, BridgeState};
+    use token_bridge::state::{Self, State};
     use token_bridge::coin_witness::{Self, COIN_WITNESS};
     use token_bridge::coin_witness_test::{test_register_wrapped_};
     use token_bridge::complete_transfer::{Self};
@@ -167,7 +167,7 @@ module token_bridge::complete_transfer_test {
     use token_bridge::native_coin_witness_v2::{Self, NATIVE_COIN_WITNESS_V2};
     use token_bridge::bridge_state_test::{set_up_wormhole_core_and_token_bridges};
 
-    use wormhole::state::{Self as wormhole_state, State};
+    use wormhole::state::{Self as wormhole_state, State as WormholeState};
 
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
@@ -184,35 +184,35 @@ module token_bridge::complete_transfer_test {
         };
         // register native asset type with the token bridge
         next_tx(&mut test, admin);{
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
             let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
-            bridge_state::register_native_asset<NATIVE_COIN_WITNESS>(
+            state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut worm_state,
                 &mut bridge_state,
                 &coin_meta,
                 ctx(&mut test)
             );
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
             return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
         };
         // create a treasury cap for the native asset type, mint some tokens,
         // and deposit the native tokens into the token bridge
         next_tx(&mut test, admin); {
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
             let t_cap = take_shared<coin::TreasuryCap<NATIVE_COIN_WITNESS>>(&test);
             let coins = coin::mint<NATIVE_COIN_WITNESS>(&mut t_cap, 10000000000, ctx(&mut test));
-            bridge_state::deposit<NATIVE_COIN_WITNESS>(&mut bridge_state, coins);
+            state::deposit<NATIVE_COIN_WITNESS>(&mut bridge_state, coins);
             return_shared<coin::TreasuryCap<NATIVE_COIN_WITNESS>>(t_cap);
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
         };
         // complete transfer, sending native tokens to a recipient address
         next_tx(&mut test, admin); {
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
 
             let to = admin;
             let amount = 1000000000;
@@ -238,8 +238,8 @@ module token_bridge::complete_transfer_test {
                 fee_recipient_person,
                 ctx(&mut test)
             );
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
         };
 
         // check balances after
@@ -266,9 +266,9 @@ module token_bridge::complete_transfer_test {
         // register native asset type with the token bridge
         next_tx(&mut test, admin);{
             let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
-            bridge_state::register_native_asset<NATIVE_COIN_WITNESS>(
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
+            state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut worm_state,
                 &mut bridge_state,
                 &coin_meta,
@@ -276,25 +276,25 @@ module token_bridge::complete_transfer_test {
             );
             native_coin_witness::test_init(ctx(&mut test));
             return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
         };
         // create a treasury cap for the native asset type, mint some tokens,
         // and deposit the native tokens into the token bridge
         next_tx(&mut test, admin); {
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
             let t_cap = take_shared<coin::TreasuryCap<NATIVE_COIN_WITNESS>>(&test);
             let coins = coin::mint<NATIVE_COIN_WITNESS>(&mut t_cap, 10000000000, ctx(&mut test));
-            bridge_state::deposit<NATIVE_COIN_WITNESS>(&mut bridge_state, coins);
+            state::deposit<NATIVE_COIN_WITNESS>(&mut bridge_state, coins);
             return_shared<coin::TreasuryCap<NATIVE_COIN_WITNESS>>(t_cap);
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
         };
         // complete transfer, sending native tokens to a recipient address
         next_tx(&mut test, admin); {
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
 
             let to = admin;
             // dust at the end gets rounded to nothing, since 10-8=2 digits are lopped off
@@ -321,8 +321,8 @@ module token_bridge::complete_transfer_test {
                 fee_recipient_person,
                 ctx(&mut test)
             );
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
         };
 
         // check balances after
@@ -349,34 +349,34 @@ module token_bridge::complete_transfer_test {
         // register native asset type with the token bridge
         next_tx(&mut test, admin);{
             let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS_V2>>(&test);
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
-            bridge_state::register_native_asset<NATIVE_COIN_WITNESS_V2>(
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
+            state::register_native_asset<NATIVE_COIN_WITNESS_V2>(
                 &mut worm_state,
                 &mut bridge_state,
                 &coin_meta,
                 ctx(&mut test)
             );
             return_shared<CoinMetadata<NATIVE_COIN_WITNESS_V2>>(coin_meta);
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
         };
         // create a treasury cap for the native asset type, mint some tokens,
         // and deposit the native tokens into the token bridge
         next_tx(&mut test, admin); {
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
             let t_cap = take_shared<coin::TreasuryCap<NATIVE_COIN_WITNESS_V2>>(&test);
             let coins = coin::mint<NATIVE_COIN_WITNESS_V2>(&mut t_cap, 10000000000, ctx(&mut test));
-            bridge_state::deposit<NATIVE_COIN_WITNESS_V2>(&mut bridge_state, coins);
+            state::deposit<NATIVE_COIN_WITNESS_V2>(&mut bridge_state, coins);
             return_shared<coin::TreasuryCap<NATIVE_COIN_WITNESS_V2>>(t_cap);
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
         };
         // complete transfer, sending native tokens to a recipient address
         next_tx(&mut test, admin); {
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
 
             let to = admin;
             let amount = 100;
@@ -402,8 +402,8 @@ module token_bridge::complete_transfer_test {
                 fee_recipient_person,
                 ctx(&mut test)
             );
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
         };
 
         // check balances after
@@ -420,7 +420,7 @@ module token_bridge::complete_transfer_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 4, location=token_bridge::bridge_state)] // E_ORIGIN_CHAIN_MISMATCH
+    #[expected_failure(abort_code = 4, location=token_bridge::state)] // E_ORIGIN_CHAIN_MISMATCH
     fun test_complete_native_transfer_wrong_origin_chain(){
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
@@ -431,9 +431,9 @@ module token_bridge::complete_transfer_test {
         // register native asset type with the token bridge
         next_tx(&mut test, admin);{
             let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
-            bridge_state::register_native_asset<NATIVE_COIN_WITNESS>(
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
+            state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut worm_state,
                 &mut bridge_state,
                 &coin_meta,
@@ -441,25 +441,30 @@ module token_bridge::complete_transfer_test {
             );
             native_coin_witness::test_init(ctx(&mut test));
             return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
         };
         // create a treasury cap for the native asset type, mint some tokens,
         // and deposit the native tokens into the token bridge
         next_tx(&mut test, admin); {
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
             let t_cap = take_shared<coin::TreasuryCap<NATIVE_COIN_WITNESS>>(&test);
-            let coins = coin::mint<NATIVE_COIN_WITNESS>(&mut t_cap, 10000000000, ctx(&mut test));
-            bridge_state::deposit<NATIVE_COIN_WITNESS>(&mut bridge_state, coins);
+            let coins =
+                coin::mint<NATIVE_COIN_WITNESS>(
+                    &mut t_cap,
+                    10000000000, // amount
+                    ctx(&mut test)
+                );
+            state::deposit<NATIVE_COIN_WITNESS>(&mut bridge_state, coins);
             return_shared<coin::TreasuryCap<NATIVE_COIN_WITNESS>>(t_cap);
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
         };
         // attempt complete transfer
         next_tx(&mut test, admin); {
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
 
             let to = admin;
             let amount = 1000000000;
@@ -485,14 +490,14 @@ module token_bridge::complete_transfer_test {
                 fee_recipient_person,
                 ctx(&mut test)
             );
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
         };
         test_scenario::end(test);
     }
 
     #[test]
-    #[expected_failure(abort_code = 5, location=token_bridge::bridge_state)] // E_ORIGIN_ADDRESS_MISMATCH
+    #[expected_failure(abort_code = 5, location=token_bridge::state)] // E_ORIGIN_ADDRESS_MISMATCH
     fun test_complete_native_transfer_wrong_coin_address(){
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
@@ -502,10 +507,10 @@ module token_bridge::complete_transfer_test {
         };
         // register native asset type with the token bridge
         next_tx(&mut test, admin);{
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
             let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
-            bridge_state::register_native_asset<NATIVE_COIN_WITNESS>(
+            state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut worm_state,
                 &mut bridge_state,
                 &coin_meta,
@@ -513,25 +518,25 @@ module token_bridge::complete_transfer_test {
             );
             native_coin_witness::test_init(ctx(&mut test));
             return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
         };
         // create a treasury cap for the native asset type, mint some tokens,
         // and deposit the native tokens into the token bridge
         next_tx(&mut test, admin); {
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
             let t_cap = take_shared<coin::TreasuryCap<NATIVE_COIN_WITNESS>>(&test);
             let coins = coin::mint<NATIVE_COIN_WITNESS>(&mut t_cap, 10000000000, ctx(&mut test));
-            bridge_state::deposit<NATIVE_COIN_WITNESS>(&mut bridge_state, coins);
+            state::deposit<NATIVE_COIN_WITNESS>(&mut bridge_state, coins);
             return_shared<coin::TreasuryCap<NATIVE_COIN_WITNESS>>(t_cap);
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
         };
         // attempt complete transfer
         next_tx(&mut test, admin); {
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
 
             let to = admin;
             let amount = 1000000000;
@@ -558,8 +563,8 @@ module token_bridge::complete_transfer_test {
                 ctx(&mut test)
             );
 
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
         };
         test_scenario::end(test);
     }
@@ -575,10 +580,10 @@ module token_bridge::complete_transfer_test {
         };
         // register native asset type with the token bridge
         next_tx(&mut test, admin);{
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
             let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
-            bridge_state::register_native_asset<NATIVE_COIN_WITNESS>(
+            state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut worm_state,
                 &mut bridge_state,
                 &coin_meta,
@@ -586,25 +591,25 @@ module token_bridge::complete_transfer_test {
             );
             native_coin_witness::test_init(ctx(&mut test));
             return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
         };
         // create a treasury cap for the native asset type, mint some tokens,
         // and deposit the native tokens into the token bridge
         next_tx(&mut test, admin); {
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
             let t_cap = take_shared<coin::TreasuryCap<NATIVE_COIN_WITNESS>>(&test);
             let coins = coin::mint<NATIVE_COIN_WITNESS>(&mut t_cap, 10000000000, ctx(&mut test));
-            bridge_state::deposit<NATIVE_COIN_WITNESS>(&mut bridge_state, coins);
+            state::deposit<NATIVE_COIN_WITNESS>(&mut bridge_state, coins);
             return_shared<coin::TreasuryCap<NATIVE_COIN_WITNESS>>(t_cap);
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
         };
         // attempt complete transfer
         next_tx(&mut test, admin); {
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
 
             let to = admin;
             let amount = 1000000000;
@@ -630,8 +635,8 @@ module token_bridge::complete_transfer_test {
                 fee_recipient_person,
                 ctx(&mut test)
             );
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
         };
         test_scenario::end(test);
     }
@@ -650,10 +655,10 @@ module token_bridge::complete_transfer_test {
         };
         // register native asset type with the token bridge
         next_tx(&mut test, admin);{
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
             let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
-            bridge_state::register_native_asset<NATIVE_COIN_WITNESS>(
+            state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut worm_state,
                 &mut bridge_state,
                 &coin_meta,
@@ -661,25 +666,25 @@ module token_bridge::complete_transfer_test {
             );
             native_coin_witness::test_init(ctx(&mut test));
             return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
         };
         // create a treasury cap for the native asset type, mint some tokens,
         // and deposit the native tokens into the token bridge
         next_tx(&mut test, admin); {
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
             let t_cap = take_shared<coin::TreasuryCap<NATIVE_COIN_WITNESS>>(&test);
             let coins = coin::mint<NATIVE_COIN_WITNESS>(&mut t_cap, 10000000000, ctx(&mut test));
-            bridge_state::deposit<NATIVE_COIN_WITNESS>(&mut bridge_state, coins);
+            state::deposit<NATIVE_COIN_WITNESS>(&mut bridge_state, coins);
             return_shared<coin::TreasuryCap<NATIVE_COIN_WITNESS>>(t_cap);
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
         };
         // attempt complete transfer with wrong coin type (NATIVE_COIN_WITNESS_V2)
         next_tx(&mut test, admin); {
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
 
             let to = admin;
             let amount = 1000000000;
@@ -705,8 +710,8 @@ module token_bridge::complete_transfer_test {
                 fee_recipient_person,
                 ctx(&mut test)
             );
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
         };
         test_scenario::end(test);
     }
@@ -724,8 +729,8 @@ module token_bridge::complete_transfer_test {
         };
         // Complete transfer of wrapped asset from foreign chain to this chain.
         next_tx(&mut test, admin); {
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
 
             let to = admin;
             let amount = 1000000000;
@@ -750,8 +755,8 @@ module token_bridge::complete_transfer_test {
                 fee_recipient_person,
                 ctx(&mut test)
             );
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
         };
 
         // check balances after

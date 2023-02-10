@@ -5,7 +5,7 @@ module token_bridge::transfer_tokens {
     use wormhole::state::{State as WormholeState};
     use wormhole::external_address::{Self};
 
-    use token_bridge::bridge_state::{Self, BridgeState};
+    use token_bridge::state::{Self, State};
     use token_bridge::transfer_result::{Self, TransferResult};
     use token_bridge::transfer::{Self};
     use token_bridge::normalized_amount::{Self};
@@ -17,7 +17,7 @@ module token_bridge::transfer_tokens {
 
     public entry fun transfer_tokens<CoinType>(
         wormhole_state: &mut WormholeState,
-        bridge_state: &mut BridgeState,
+        bridge_state: &mut State,
         coins: Coin<CoinType>,
         wormhole_fee_coins: Coin<SUI>,
         recipient_chain: u16,
@@ -44,7 +44,7 @@ module token_bridge::transfer_tokens {
             recipient_chain,
             normalized_relayer_fee,
         );
-        bridge_state::publish_message(
+        state::publish_message(
             wormhole_state,
             bridge_state,
             nonce,
@@ -54,33 +54,33 @@ module token_bridge::transfer_tokens {
     }
 
     public(friend) fun handle_transfer_tokens<CoinType>(
-        bridge_state: &mut BridgeState,
+        bridge_state: &mut State,
         coins: Coin<CoinType>,
         relayer_fee: u64,
     ): TransferResult {
         let amount = coin::value<CoinType>(&coins);
         assert!(relayer_fee <= amount, E_TOO_MUCH_RELAYER_FEE);
 
-        if (bridge_state::is_wrapped_asset<CoinType>(bridge_state)) {
+        if (state::is_wrapped_asset<CoinType>(bridge_state)) {
             // now we burn the wrapped coins to remove them from circulation
-            bridge_state::burn<CoinType>(bridge_state, coins);
+            state::burn<CoinType>(bridge_state, coins);
         } else {
             // deposit native assets. this call to deposit requires the native
             // asset to have been attested
-            bridge_state::deposit<CoinType>(bridge_state, coins);
+            state::deposit<CoinType>(bridge_state, coins);
         };
 
-        let origin_info = bridge_state::origin_info<CoinType>(bridge_state);
-        let token_chain = bridge_state::get_token_chain_from_origin_info(&origin_info);
-        let token_address = bridge_state::get_token_address_from_origin_info(&origin_info);
+        let origin_info = state::origin_info<CoinType>(bridge_state);
+        let token_chain = state::get_token_chain_from_origin_info(&origin_info);
+        let token_address = state::get_token_address_from_origin_info(&origin_info);
 
         let decimals;
-        if (bridge_state::is_wrapped_asset<CoinType>(bridge_state)) {
+        if (state::is_wrapped_asset<CoinType>(bridge_state)) {
             decimals =
-                bridge_state::get_wrapped_decimals<CoinType>(bridge_state);
+                state::get_wrapped_decimals<CoinType>(bridge_state);
         } else {
             decimals =
-                bridge_state::get_native_decimals<CoinType>(bridge_state);
+                state::get_native_decimals<CoinType>(bridge_state);
         };
         let normalized_amount = normalized_amount::normalize(amount, decimals);
         let normalized_relayer_fee = normalized_amount::normalize(relayer_fee, decimals);
@@ -96,7 +96,7 @@ module token_bridge::transfer_tokens {
 
     #[test_only]
     public fun transfer_tokens_test<CoinType>(
-        bridge_state: &mut BridgeState,
+        bridge_state: &mut State,
         coins: Coin<CoinType>,
         relayer_fee: u64,
     ): TransferResult {
@@ -111,19 +111,33 @@ module token_bridge::transfer_tokens {
 #[test_only]
 module token_bridge::transfer_token_test {
     use sui::sui::{SUI};
-    use sui::test_scenario::{Self, Scenario, next_tx, return_shared, take_shared, take_from_address, ctx};
+    use sui::test_scenario::{
+        Self,
+        Scenario,
+        next_tx,
+        return_shared,
+        take_shared,
+        take_from_address,
+        ctx
+    };
     use sui::coin::{Self, CoinMetadata, TreasuryCap};
 
-    use token_bridge::transfer_result::Self;
-    use token_bridge::transfer_tokens::{E_TOO_MUCH_RELAYER_FEE, transfer_tokens, transfer_tokens_test};
-    use token_bridge::bridge_state::{Self, BridgeState};
+    use token_bridge::transfer_result::{Self};
+    use token_bridge::transfer_tokens::{
+        E_TOO_MUCH_RELAYER_FEE,
+        transfer_tokens,
+        transfer_tokens_test
+    };
+    use token_bridge::state::{Self, State};
     use token_bridge::coin_witness::{Self, COIN_WITNESS};
     use token_bridge::create_wrapped::{Self, NewWrappedCoin};
     use token_bridge::normalized_amount::{Self};
     use token_bridge::native_coin_witness::{Self, NATIVE_COIN_WITNESS};
-    use token_bridge::bridge_state_test::{set_up_wormhole_core_and_token_bridges};
+    use token_bridge::bridge_state_test::{
+        set_up_wormhole_core_and_token_bridges
+    };
 
-    use wormhole::state::{State};
+    use wormhole::state::{State as WormholeState};
     use wormhole::external_address::{Self};
 
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
@@ -142,11 +156,11 @@ module token_bridge::transfer_token_test {
         };
         // register native asset type with the token bridge, mint some coins, initiate transfer
         next_tx(&mut test, admin);{
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
             let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
             let treasury_cap = take_shared<TreasuryCap<NATIVE_COIN_WITNESS>>(&test);
-            bridge_state::register_native_asset<NATIVE_COIN_WITNESS>(
+            state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut worm_state,
                 &mut bridge_state,
                 &coin_meta,
@@ -164,8 +178,8 @@ module token_bridge::transfer_token_test {
                 100000000, // relayer fee (too much)
                 0 // nonce is unused field for now
             );
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
             return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
             return_shared<TreasuryCap<NATIVE_COIN_WITNESS>>(treasury_cap);
         };
@@ -184,11 +198,11 @@ module token_bridge::transfer_token_test {
         };
         // register native asset type with the token bridge, mint some coins, initiate transfer
         next_tx(&mut test, admin);{
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
             let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
             let treasury_cap = take_shared<TreasuryCap<NATIVE_COIN_WITNESS>>(&test);
-            bridge_state::register_native_asset<NATIVE_COIN_WITNESS>(
+            state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut worm_state,
                 &mut bridge_state,
                 &coin_meta,
@@ -206,17 +220,17 @@ module token_bridge::transfer_token_test {
                 0, // relayer fee
                 0 // unused field for now
             );
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
             return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
             return_shared<TreasuryCap<NATIVE_COIN_WITNESS>>(treasury_cap);
         };
         // check that custody of the coins is indeed transferred to token bridge
         next_tx(&mut test, admin);{
-            let bridge_state = take_shared<BridgeState>(&test);
-            let cur_bal = bridge_state::balance<NATIVE_COIN_WITNESS>(&mut bridge_state);
+            let bridge_state = take_shared<State>(&test);
+            let cur_bal = state::balance<NATIVE_COIN_WITNESS>(&mut bridge_state);
             assert!(cur_bal==10000, 0);
-            return_shared<BridgeState>(bridge_state);
+            return_shared<State>(bridge_state);
         };
         test_scenario::end(test);
     }
@@ -234,11 +248,11 @@ module token_bridge::transfer_token_test {
         };
         // register native asset type with the token bridge, mint some coins, initiate transfer
         next_tx(&mut test, admin);{
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
             let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
             let treasury_cap = take_shared<TreasuryCap<NATIVE_COIN_WITNESS>>(&test);
-            bridge_state::register_native_asset<NATIVE_COIN_WITNESS>(
+            state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut worm_state,
                 &mut bridge_state,
                 &coin_meta,
@@ -257,8 +271,8 @@ module token_bridge::transfer_token_test {
             assert!(normalized_amount::value(&normalized_amount)==100, 0); // 10 - 8 = 2 decimals are removed from 10000, resulting in 100
             assert!(normalized_amount::value(&normalized_relayer_fee)==0, 0);
 
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
             return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
             return_shared<TreasuryCap<NATIVE_COIN_WITNESS>>(treasury_cap);
         };
@@ -277,20 +291,20 @@ module token_bridge::transfer_token_test {
         };
         // register chain emitter (chain id x emitter address) that attested the wrapped token
         next_tx(&mut test, admin);{
-            let bridge_state = take_shared<BridgeState>(&test);
-            bridge_state::set_registered_emitter(
+            let bridge_state = take_shared<State>(&test);
+            state::set_registered_emitter(
                 &mut bridge_state,
                 2, // chain ID
                 external_address::from_bytes(
                     x"00000000000000000000000000000000000000000000000000000000deadbeef"
                 )
             );
-            return_shared<BridgeState>(bridge_state);
+            return_shared<State>(bridge_state);
         };
         // register wrapped asset type with the token bridge, mint some coins, initiate transfer
         next_tx(&mut test, admin);{
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
             let coin_meta = take_shared<CoinMetadata<COIN_WITNESS>>(&test);
             let new_wrapped_coin =
                 take_from_address<NewWrappedCoin<COIN_WITNESS>>(&test, admin);
@@ -304,7 +318,7 @@ module token_bridge::transfer_token_test {
             );
 
             let verified_coin_witness =
-                bridge_state::verify_coin_type<COIN_WITNESS>(
+                state::verify_coin_type<COIN_WITNESS>(
                     &mut bridge_state,
                     2, // chain ID
                     external_address::from_bytes(
@@ -313,7 +327,7 @@ module token_bridge::transfer_token_test {
                 );
 
             let coins =
-                bridge_state::mint<COIN_WITNESS>(
+                state::mint<COIN_WITNESS>(
                     verified_coin_witness,
                     &mut bridge_state,
                     1000, // amount
@@ -330,8 +344,8 @@ module token_bridge::transfer_token_test {
                 0, // relayer fee
                 0 // unused field for now
             );
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
             return_shared<CoinMetadata<COIN_WITNESS>>(coin_meta);
         };
         // How to check if token was actually burned?
@@ -350,20 +364,20 @@ module token_bridge::transfer_token_test {
         };
         // register chain emitter (chain id x emitter address) that attested the wrapped token
         next_tx(&mut test, admin);{
-            let bridge_state = take_shared<BridgeState>(&test);
-            bridge_state::set_registered_emitter(
+            let bridge_state = take_shared<State>(&test);
+            state::set_registered_emitter(
                 &mut bridge_state,
                 2, // chain ID
                 external_address::from_bytes(
                     x"00000000000000000000000000000000000000000000000000000000deadbeef"
                 )
             );
-            return_shared<BridgeState>(bridge_state);
+            return_shared<State>(bridge_state);
         };
         // register wrapped asset type with the token bridge, mint some coins, initiate transfer
         next_tx(&mut test, admin);{
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
             let coin_meta = take_shared<CoinMetadata<COIN_WITNESS>>(&test);
             let new_wrapped_coin = take_from_address<NewWrappedCoin<COIN_WITNESS>>(&test, admin);
 
@@ -376,7 +390,7 @@ module token_bridge::transfer_token_test {
             );
 
             let verified_coin_witness =
-                bridge_state::verify_coin_type<COIN_WITNESS>(
+                state::verify_coin_type<COIN_WITNESS>(
                     &mut bridge_state,
                     2, // chain ID
                     external_address::from_bytes(
@@ -385,7 +399,7 @@ module token_bridge::transfer_token_test {
                 );
 
             let coins =
-                bridge_state::mint<COIN_WITNESS>(
+                state::mint<COIN_WITNESS>(
                     verified_coin_witness,
                     &mut bridge_state,
                     10000000000, // amount
@@ -420,8 +434,8 @@ module token_bridge::transfer_token_test {
                 0
             );
 
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
             return_shared<CoinMetadata<COIN_WITNESS>>(coin_meta);
         };
         test_scenario::end(test);

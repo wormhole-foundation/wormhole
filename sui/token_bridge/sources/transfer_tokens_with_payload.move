@@ -5,7 +5,7 @@ module token_bridge::transfer_tokens_with_payload {
     use wormhole::external_address::{ExternalAddress};
     use wormhole::state::{State as WormholeState};
 
-    use token_bridge::bridge_state::{Self, BridgeState};
+    use token_bridge::state::{Self, State};
     use token_bridge::transfer_result::{Self};
     use token_bridge::transfer_tokens::{handle_transfer_tokens};
     use token_bridge::transfer_with_payload::{Self};
@@ -13,7 +13,7 @@ module token_bridge::transfer_tokens_with_payload {
     public fun transfer_tokens_with_payload<CoinType>(
         emitter_cap: &EmitterCapability,
         wormhole_state: &mut WormholeState,
-        bridge_state: &mut BridgeState,
+        bridge_state: &mut State,
         coins: Coin<CoinType>,
         wormhole_fee_coins: Coin<SUI>,
         recipient_chain: u16,
@@ -38,7 +38,7 @@ module token_bridge::transfer_tokens_with_payload {
             emitter::get_external_address(emitter_cap),
             payload
         );
-        bridge_state::publish_message(
+        state::publish_message(
             wormhole_state,
             bridge_state,
             nonce,

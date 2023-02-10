@@ -6,7 +6,7 @@ module token_bridge::complete_transfer_with_payload {
     use wormhole::external_address::{Self};
     use wormhole::emitter::{Self, EmitterCapability};
 
-    use token_bridge::bridge_state::{Self, BridgeState, VerifiedCoinType};
+    use token_bridge::state::{Self, State, VerifiedCoinType};
     use token_bridge::vaa::{Self};
     use token_bridge::transfer_with_payload::{Self, TransferWithPayload};
     use token_bridge::normalized_amount::{denormalize};
@@ -17,7 +17,7 @@ module token_bridge::complete_transfer_with_payload {
     public fun complete_transfer_with_payload<CoinType>(
         emitter: &EmitterCapability,
         wormhole_state: &mut WormholeState,
-        bridge_state: &mut BridgeState,
+        bridge_state: &mut State,
         vaa: vector<u8>,
         ctx: &mut TxContext
     ): (Coin<CoinType>, TransferWithPayload) {
@@ -35,7 +35,7 @@ module token_bridge::complete_transfer_with_payload {
         let token_address =
             transfer_with_payload::token_address(&transfer);
         let verified_coin_witness =
-            bridge_state::verify_coin_type<CoinType>(
+            state::verify_coin_type<CoinType>(
                 bridge_state,
                 token_chain,
                 token_address
@@ -58,13 +58,13 @@ module token_bridge::complete_transfer_with_payload {
     public fun test_complete_transfer_with_payload<CoinType>(
         transfer: TransferWithPayload,
         wormhole_state: &mut WormholeState,
-        bridge_state: &mut BridgeState,
+        bridge_state: &mut State,
         emitter: &EmitterCapability,
         ctx: &mut TxContext
     ): (Coin<CoinType>, TransferWithPayload) {
         let token_chain = transfer_with_payload::token_chain(&transfer);
         let token_address = transfer_with_payload::token_address(&transfer);
-        let verified_coin_witness = bridge_state::verify_coin_type<CoinType>(
+        let verified_coin_witness = state::verify_coin_type<CoinType>(
             bridge_state,
             token_chain,
             token_address
@@ -83,7 +83,7 @@ module token_bridge::complete_transfer_with_payload {
         verified_coin_witness: VerifiedCoinType<CoinType>,
         transfer: TransferWithPayload,
         wormhole_state: &mut WormholeState,
-        bridge_state: &mut BridgeState,
+        bridge_state: &mut State,
         emitter_cap: &EmitterCapability,
         ctx: &mut TxContext
     ): (Coin<CoinType>, TransferWithPayload) {
@@ -105,15 +105,15 @@ module token_bridge::complete_transfer_with_payload {
         );
 
         let recipient_coins;
-        if (bridge_state::is_wrapped_asset<CoinType>(bridge_state)) {
+        if (state::is_wrapped_asset<CoinType>(bridge_state)) {
             let decimals =
-                bridge_state::get_wrapped_decimals<CoinType>(bridge_state);
+                state::get_wrapped_decimals<CoinType>(bridge_state);
             let amount =
                 denormalize(
                     transfer_with_payload::amount(&transfer),
                     decimals
                 );
-            recipient_coins = bridge_state::mint<CoinType>(
+            recipient_coins = state::mint<CoinType>(
                 verified_coin_witness,
                 bridge_state,
                 amount,
@@ -121,13 +121,13 @@ module token_bridge::complete_transfer_with_payload {
             );
         } else {
             let decimals =
-                bridge_state::get_native_decimals<CoinType>(bridge_state);
+                state::get_native_decimals<CoinType>(bridge_state);
             let amount = 
                 denormalize(
                     transfer_with_payload::amount(&transfer),
                     decimals
                 );
-            recipient_coins = bridge_state::withdraw<CoinType>(
+            recipient_coins = state::withdraw<CoinType>(
                 verified_coin_witness,
                 bridge_state,
                 amount,
@@ -150,7 +150,7 @@ module token_bridge::complete_transfer_with_payload_test {
 
     use token_bridge::normalized_amount::{Self};
     use token_bridge::transfer_with_payload::{Self, TransferWithPayload};
-    use token_bridge::bridge_state::{Self, BridgeState};
+    use token_bridge::state::{Self, State};
     use token_bridge::complete_transfer_with_payload::{
         test_complete_transfer_with_payload
     };
@@ -159,7 +159,7 @@ module token_bridge::complete_transfer_with_payload_test {
         set_up_wormhole_core_and_token_bridges
     };
 
-    use wormhole::state::{Self as wormhole_state, State};
+    use wormhole::state::{Self as wormhole_state, State as WormholeState};
     use wormhole::wormhole::Self;
 
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
@@ -175,25 +175,25 @@ module token_bridge::complete_transfer_with_payload_test {
         };
         // register native asset type with the token bridge
         next_tx(&mut test, admin);{
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
             let coin_meta =
                 take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
-            bridge_state::register_native_asset<NATIVE_COIN_WITNESS>(
+            state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut worm_state,
                 &mut bridge_state,
                 &coin_meta,
                 ctx(&mut test)
             );
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
             return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
         };
         // create a treasury cap for the native asset type, mint some tokens,
         // and deposit the native tokens into the token bridge
         next_tx(&mut test, admin); {
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
             let t_cap =
                 take_shared<coin::TreasuryCap<NATIVE_COIN_WITNESS>>(&test);
             let coins =
@@ -202,18 +202,18 @@ module token_bridge::complete_transfer_with_payload_test {
                     10000000000, // amount
                     ctx(&mut test)
                 );
-            bridge_state::deposit<NATIVE_COIN_WITNESS>(
+            state::deposit<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
                 coins
             );
             return_shared<coin::TreasuryCap<NATIVE_COIN_WITNESS>>(t_cap);
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
         };
         // complete transfer with payload (send native tokens + payload)
         next_tx(&mut test, admin); {
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
 
             let amount = 1000000000;
             let decimals = 10;
@@ -278,8 +278,8 @@ module token_bridge::complete_transfer_with_payload_test {
             assert!(transfer_with_payload::payload(&transfer_res)==payload, 0);
 
             transfer::transfer(emitter_cap, admin);
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
         };
         test_scenario::end(test);
     }

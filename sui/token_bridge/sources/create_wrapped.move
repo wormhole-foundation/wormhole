@@ -10,12 +10,12 @@ module token_bridge::create_wrapped {
     use sui::url::{Url};
     use sui::transfer::{Self};
 
-    use token_bridge::bridge_state::{Self, BridgeState};
+    use token_bridge::state::{Self, State};
     use token_bridge::asset_meta::{Self, AssetMeta};
     use token_bridge::vaa;
     use token_bridge::string32::{Self};
 
-    use wormhole::state::{Self as state, State as WormholeState};
+    use wormhole::state::{Self as wormhole_state, State as WormholeState};
     use wormhole::myvaa as core_vaa;
 
     const E_WRAPPING_NATIVE_COIN: u64 = 0;
@@ -111,7 +111,7 @@ module token_bridge::create_wrapped {
 
     public entry fun register_wrapped_coin<CoinType>(
         state: &mut WormholeState,
-        bridge_state: &mut BridgeState,
+        bridge_state: &mut State,
         new_wrapped_coin: NewWrappedCoin<CoinType>,
         ctx: &mut TxContext,
     ) {
@@ -135,7 +135,7 @@ module token_bridge::create_wrapped {
         let origin_chain = asset_meta::get_token_chain(&metadata);
         let external_address = asset_meta::get_token_address(&metadata);
         let wrapped_asset_info =
-            bridge_state::create_wrapped_asset_info(
+            state::create_wrapped_asset_info(
                 origin_chain,
                 external_address,
                 treasury_cap,
@@ -143,18 +143,18 @@ module token_bridge::create_wrapped {
                 ctx
             );
         assert!(
-            origin_chain != state::get_chain_id(state),
+            origin_chain != wormhole_state::get_chain_id(state),
             E_WRAPPING_NATIVE_COIN
         );
         assert!(
-            !bridge_state::is_registered_native_asset<CoinType>(bridge_state),
+            !state::is_registered_native_asset<CoinType>(bridge_state),
             E_WRAPPING_REGISTERED_NATIVE_COIN
         );
         assert!(
-            !bridge_state::is_wrapped_asset<CoinType>(bridge_state),
+            !state::is_wrapped_asset<CoinType>(bridge_state),
             E_WRAPPED_COIN_ALREADY_INITIALIZED
         );
-        bridge_state::register_wrapped_asset<CoinType>(
+        state::register_wrapped_asset<CoinType>(
             bridge_state,
             wrapped_asset_info
         );

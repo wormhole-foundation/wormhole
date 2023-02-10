@@ -7,7 +7,7 @@ module token_bridge::vaa {
     use wormhole::state::{State as WormholeState};
     use wormhole::external_address::{ExternalAddress};
 
-    use token_bridge::bridge_state::{Self as bridge_state, BridgeState};
+    use token_bridge::state::{Self, State};
 
     //friend token_bridge::contract_upgrade;
     friend token_bridge::register_chain;
@@ -26,17 +26,17 @@ module token_bridge::vaa {
     /// Aborts if the VAA has already been consumed. Marks the VAA as consumed
     /// the first time around.
     public(friend) fun replay_protect(
-        bridge_state: &mut BridgeState,
+        bridge_state: &mut State,
         vaa: &VAA
     ) {
         // this calls set::add which aborts if the element already exists
-        bridge_state::store_consumed_vaa(bridge_state, corevaa::get_hash(vaa));
+        state::store_consumed_vaa(bridge_state, corevaa::get_hash(vaa));
     }
 
     /// Asserts that the VAA is from a known token bridge.
-    public fun assert_known_emitter(state: &BridgeState, vm: &VAA) {
+    public fun assert_known_emitter(state: &State, vm: &VAA) {
         let maybe_emitter =
-            bridge_state::get_registered_emitter(
+            state::get_registered_emitter(
                 state,
                 corevaa::get_emitter_chain(vm)
             );
@@ -56,7 +56,7 @@ module token_bridge::vaa {
     /// (otherwise the replay protection could be abused to DoS the bridge)
     public(friend) fun parse_verify_and_replay_protect(
         wormhole_state: &mut WormholeState,
-        bridge_state: &mut BridgeState,
+        bridge_state: &mut State,
         vaa: vector<u8>,
         ctx: &mut TxContext
     ): VAA {
@@ -69,7 +69,7 @@ module token_bridge::vaa {
     /// Aborts if the VAA is not from a known token bridge emitter.
     public fun parse_and_verify(
         wormhole_state: &mut WormholeState,
-        bridge_state: &BridgeState,
+        bridge_state: &State,
         vaa: vector<u8>,
         ctx:&mut TxContext
     ): VAA {
@@ -90,11 +90,11 @@ module token_bridge::token_bridge_vaa_test{
         return_shared
     };
 
-    use wormhole::state::{State};
+    use wormhole::state::{State as WormholeState};
     use wormhole::myvaa::{Self as corevaa};
     use wormhole::external_address::{Self};
 
-    use token_bridge::bridge_state::{Self, BridgeState};
+    use token_bridge::state::{Self, State};
     use token_bridge::vaa::{Self};
     use token_bridge::bridge_state_test::{set_up_wormhole_core_and_token_bridges};
 
@@ -112,8 +112,8 @@ module token_bridge::token_bridge_vaa_test{
         let test = scenario();
         test = set_up_wormhole_core_and_token_bridges(admin, test);
         next_tx(&mut test, admin); {
-            let state = take_shared<BridgeState>(&test);
-            let w_state = take_shared<State>(&test);
+            let state = take_shared<State>(&test);
+            let w_state = take_shared<WormholeState>(&test);
             let vaa =
                 vaa::parse_verify_and_replay_protect(
                     &mut w_state,
@@ -122,8 +122,8 @@ module token_bridge::token_bridge_vaa_test{
                     ctx(&mut test)
                 );
             corevaa::destroy(vaa);
-            return_shared<BridgeState>(state);
-            return_shared<State>(w_state);
+            return_shared<State>(state);
+            return_shared<WormholeState>(w_state);
         };
         test_scenario::end(test);
     }
@@ -137,18 +137,18 @@ module token_bridge::token_bridge_vaa_test{
         test = set_up_wormhole_core_and_token_bridges(admin, test);
 
         next_tx(&mut test, admin); {
-            let state = take_shared<BridgeState>(&test);
-            bridge_state::set_registered_emitter(
+            let state = take_shared<State>(&test);
+            state::set_registered_emitter(
                 &mut state,
                 2, // chain ID
                 external_address::from_bytes(x"deadbeed"), // not deadbeef
             );
-            return_shared<BridgeState>(state);
+            return_shared<State>(state);
         };
 
         next_tx(&mut test, admin); {
-            let state = take_shared<BridgeState>(&test);
-            let w_state = take_shared<State>(&test);
+            let state = take_shared<State>(&test);
+            let w_state = take_shared<WormholeState>(&test);
             let vaa =
                 vaa::parse_verify_and_replay_protect(
                     &mut w_state,
@@ -157,8 +157,8 @@ module token_bridge::token_bridge_vaa_test{
                     ctx(&mut test)
                 );
             corevaa::destroy(vaa);
-            return_shared<BridgeState>(state);
-            return_shared<State>(w_state);
+            return_shared<State>(state);
+            return_shared<WormholeState>(w_state);
         };
         test_scenario::end(test);
     }
@@ -170,18 +170,18 @@ module token_bridge::token_bridge_vaa_test{
         test = set_up_wormhole_core_and_token_bridges(admin, test);
 
         next_tx(&mut test, admin); {
-            let state = take_shared<BridgeState>(&test);
-            bridge_state::set_registered_emitter(
+            let state = take_shared<State>(&test);
+            state::set_registered_emitter(
                 &mut state,
                 2, // chain ID
                 external_address::from_bytes(x"deadbeef"),
             );
-            return_shared<BridgeState>(state);
+            return_shared<State>(state);
         };
 
         next_tx(&mut test, admin); {
-            let state = take_shared<BridgeState>(&test);
-            let w_state = take_shared<State>(&test);
+            let state = take_shared<State>(&test);
+            let w_state = take_shared<WormholeState>(&test);
             let vaa =
                 vaa::parse_verify_and_replay_protect(
                     &mut w_state,
@@ -190,8 +190,8 @@ module token_bridge::token_bridge_vaa_test{
                     ctx(&mut test)
                 );
             corevaa::destroy(vaa);
-            return_shared<BridgeState>(state);
-            return_shared<State>(w_state);
+            return_shared<State>(state);
+            return_shared<WormholeState>(w_state);
         };
         test_scenario::end(test);
     }
@@ -204,18 +204,18 @@ module token_bridge::token_bridge_vaa_test{
         test = set_up_wormhole_core_and_token_bridges(admin, test);
 
         next_tx(&mut test, admin); {
-            let state = take_shared<BridgeState>(&test);
-            bridge_state::set_registered_emitter(
+            let state = take_shared<State>(&test);
+            state::set_registered_emitter(
                 &mut state,
                 2, // chain ID
                 external_address::from_bytes(x"deadbeef"),
             );
-            return_shared<BridgeState>(state);
+            return_shared<State>(state);
         };
 
         next_tx(&mut test, admin); {
-            let state = take_shared<BridgeState>(&test);
-            let w_state = take_shared<State>(&test);
+            let state = take_shared<State>(&test);
+            let w_state = take_shared<WormholeState>(&test);
 
             // try to use the VAA twice
             let vaa =
@@ -234,8 +234,8 @@ module token_bridge::token_bridge_vaa_test{
                     ctx(&mut test)
                 );
             corevaa::destroy(vaa);
-            return_shared<BridgeState>(state);
-            return_shared<State>(w_state);
+            return_shared<State>(state);
+            return_shared<WormholeState>(w_state);
         };
         test_scenario::end(test);
     }
@@ -247,18 +247,18 @@ module token_bridge::token_bridge_vaa_test{
         test = set_up_wormhole_core_and_token_bridges(admin, test);
 
         next_tx(&mut test, admin); {
-            let state = take_shared<BridgeState>(&test);
-            bridge_state::set_registered_emitter(
+            let state = take_shared<State>(&test);
+            state::set_registered_emitter(
                 &mut state,
                 2, // chain ID
                 external_address::from_bytes(x"deadbeef"),
             );
-            return_shared<BridgeState>(state);
+            return_shared<State>(state);
         };
 
         next_tx(&mut test, admin); {
-            let state = take_shared<BridgeState>(&test);
-            let w_state = take_shared<State>(&test);
+            let state = take_shared<State>(&test);
+            let w_state = take_shared<WormholeState>(&test);
 
             // parse and verify and replay protect VAA the first time, don't
             // replay protect the second time
@@ -277,8 +277,8 @@ module token_bridge::token_bridge_vaa_test{
                 ctx(&mut test)
             );
             corevaa::destroy(vaa);
-            return_shared<BridgeState>(state);
-            return_shared<State>(w_state);
+            return_shared<State>(state);
+            return_shared<WormholeState>(w_state);
         };
         test_scenario::end(test);
     }

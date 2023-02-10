@@ -9,7 +9,7 @@ module token_bridge::register_chain {
     use wormhole::state::{State as WormholeState};
 
     use token_bridge::vaa as token_bridge_vaa;
-    use token_bridge::bridge_state::{Self as bridge_state, BridgeState};
+    use token_bridge::state::{Self as bridge_state, State};
 
     /// "TokenBridge" (left padded)
     const TOKEN_BRIDGE: vector<u8> = x"000000000000000000000000000000000000000000546f6b656e427269646765";
@@ -53,7 +53,7 @@ module token_bridge::register_chain {
         RegisterChain { emitter_chain_id, emitter_address }
     }
 
-    public entry fun submit_vaa(wormhole_state: &mut WormholeState, bridge_state: &mut BridgeState, vaa: vector<u8>, ctx: &mut TxContext) {
+    public entry fun submit_vaa(wormhole_state: &mut WormholeState, bridge_state: &mut State, vaa: vector<u8>, ctx: &mut TxContext) {
         let vaa = corevaa::parse_and_verify(wormhole_state, vaa, ctx);
         corevaa::assert_governance(wormhole_state, &vaa);
         token_bridge_vaa::replay_protect(bridge_state, &vaa);
@@ -76,14 +76,14 @@ module token_bridge::register_chain_test {
 
     use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_shared, return_shared};
 
-    use wormhole::state::{State};
+    use wormhole::state::{State as WormholeState};
     //use wormhole::test_state::{init_wormhole_state};
     //use wormhole::wormhole::{Self};
 
     use wormhole::external_address::{Self};
     use wormhole::myvaa::{Self as corevaa};
 
-    use token_bridge::bridge_state::{Self as bridge_state, BridgeState};
+    use token_bridge::state::{Self, State};
     use token_bridge::register_chain::{Self, submit_vaa};
     use token_bridge::bridge_state_test::{set_up_wormhole_core_and_token_bridges};
 
@@ -158,17 +158,17 @@ module token_bridge::register_chain_test {
         let (admin, _, _) = people();
         test = set_up_wormhole_core_and_token_bridges(admin, test);
         next_tx(&mut test, admin); {
-            let wormhole_state = take_shared<State>(&test);
-            let bridge_state = take_shared<BridgeState>(&test);
-            submit_vaa(&mut wormhole_state, &mut bridge_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
-            return_shared<State>(wormhole_state);
-            return_shared<BridgeState>(bridge_state);
+            let worm_state = take_shared<WormholeState>(&test);
+            let bridge_state = take_shared<State>(&test);
+            submit_vaa(&mut worm_state, &mut bridge_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
+            return_shared<WormholeState>(worm_state);
+            return_shared<State>(bridge_state);
         };
         next_tx(&mut test, admin); {
-            let bridge_state = take_shared<BridgeState>(&test);
-            let addr = bridge_state::get_registered_emitter(&bridge_state, CHAIN_ID_ETH);
+            let bridge_state = take_shared<State>(&test);
+            let addr = state::get_registered_emitter(&bridge_state, CHAIN_ID_ETH);
             assert!(addr == option::some(external_address::from_bytes(x"deadbeef")), 0);
-            return_shared<BridgeState>(bridge_state);
+            return_shared<State>(bridge_state);
         };
         test_scenario::end(test);
     }
@@ -177,13 +177,13 @@ module token_bridge::register_chain_test {
         let (admin, _, _) = people();
         test = set_up_wormhole_core_and_token_bridges(admin, test);
         next_tx(&mut test, admin); {
-            let wormhole_state = take_shared<State>(&test);
-            let bridge_state = take_shared<BridgeState>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
+            let bridge_state = take_shared<State>(&test);
             // submit vaa (register chain) twice - triggering replay protection
-            submit_vaa(&mut wormhole_state, &mut bridge_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
-            submit_vaa(&mut wormhole_state, &mut bridge_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
-            return_shared<State>(wormhole_state);
-            return_shared<BridgeState>(bridge_state);
+            submit_vaa(&mut worm_state, &mut bridge_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
+            submit_vaa(&mut worm_state, &mut bridge_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
+            return_shared<WormholeState>(worm_state);
+            return_shared<State>(bridge_state);
         };
         test_scenario::end(test);
     }
@@ -193,30 +193,30 @@ module token_bridge::register_chain_test {
         let (admin, _, _) = people();
         test = set_up_wormhole_core_and_token_bridges(admin, test);
         next_tx(&mut test, admin); {
-            let wormhole_state = take_shared<State>(&test);
-            let bridge_state = take_shared<BridgeState>(&test);
-            submit_vaa(&mut wormhole_state, &mut bridge_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
-            return_shared<State>(wormhole_state);
-            return_shared<BridgeState>(bridge_state);
+            let worm_state = take_shared<WormholeState>(&test);
+            let bridge_state = take_shared<State>(&test);
+            submit_vaa(&mut worm_state, &mut bridge_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
+            return_shared<WormholeState>(worm_state);
+            return_shared<State>(bridge_state);
         };
         next_tx(&mut test, admin); {
-            let bridge_state = take_shared<BridgeState>(&test);
-            let addr = bridge_state::get_registered_emitter(&bridge_state, CHAIN_ID_ETH);
+            let bridge_state = take_shared<State>(&test);
+            let addr = state::get_registered_emitter(&bridge_state, CHAIN_ID_ETH);
             assert!(addr == option::some(external_address::from_bytes(x"deadbeef")), 0);
-            return_shared<BridgeState>(bridge_state);
+            return_shared<State>(bridge_state);
         };
         next_tx(&mut test, admin); {
-            let wormhole_state = take_shared<State>(&test);
-            let bridge_state = take_shared<BridgeState>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
+            let bridge_state = take_shared<State>(&test);
             // TODO(csongor): we register ethereum again, which overrides the
             // previous one. This deviates from other chains (where this is
             // rejected), but I think this is the right behaviour.
             // Easy to change, should be discussed.
-            submit_vaa(&mut wormhole_state, &mut bridge_state, ETHEREUM_TOKEN_REG_2, ctx(&mut test));
-            let address = bridge_state::get_registered_emitter(&bridge_state, CHAIN_ID_ETH);
+            submit_vaa(&mut worm_state, &mut bridge_state, ETHEREUM_TOKEN_REG_2, ctx(&mut test));
+            let address = state::get_registered_emitter(&bridge_state, CHAIN_ID_ETH);
             assert!(address == option::some(external_address::from_bytes(x"beefface")), 0);
-            return_shared<State>(wormhole_state);
-            return_shared<BridgeState>(bridge_state);
+            return_shared<WormholeState>(worm_state);
+            return_shared<State>(bridge_state);
         };
         test_scenario::end(test);
     }
