@@ -19,7 +19,7 @@ module token_bridge::complete_transfer {
         vaa: vector<u8>,
         fee_recipient: address,
         ctx: &mut TxContext
-    ){
+    ) {
         submit_vaa<CoinType>(
             wormhole_state,
             bridge_state,
