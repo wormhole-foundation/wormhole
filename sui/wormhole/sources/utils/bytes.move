@@ -41,70 +41,70 @@ module wormhole::bytes {
         vector::append(buf, other)
     }
     
-    public fun deserialize_u8(cursor: &mut Cursor<u8>): u8 {
-        cursor::poke(cursor)
+    public fun deserialize_u8(cur: &mut Cursor<u8>): u8 {
+        cursor::poke(cur)
     }
 
-    public fun deserialize_u16_be(cursor: &mut Cursor<u8>): u16 {
+    public fun deserialize_u16_be(cur: &mut Cursor<u8>): u16 {
         let res: u64 = 0;
         let i = 0;
         while (i < 2) {
-            let b = cursor::poke(cursor);
+            let b = cursor::poke(cur);
             res = (res << 8) + (b as u64);
             i = i + 1;
         };
         (res as u16)
     }
 
-    public fun deserialize_u32_be(cursor: &mut Cursor<u8>): u32 {
+    public fun deserialize_u32_be(cur: &mut Cursor<u8>): u32 {
         let res: u64 = 0;
         let i = 0;
         while (i < 4) {
-            let b = cursor::poke(cursor);
+            let b = cursor::poke(cur);
             res = (res << 8) + (b as u64);
             i = i + 1;
         };
         (res as u32)
     }
 
-    public fun deserialize_u64_be(cursor: &mut Cursor<u8>): u64 {
+    public fun deserialize_u64_be(cur: &mut Cursor<u8>): u64 {
         let res: u64 = 0;
         let i = 0;
         while (i < 8) {
-            let b = cursor::poke(cursor);
+            let b = cursor::poke(cur);
             res = (res << 8) + (b as u64);
             i = i + 1;
         };
         res
     }
 
-    public fun deserialize_u128_be(cursor: &mut Cursor<u8>): u128 {
+    public fun deserialize_u128_be(cur: &mut Cursor<u8>): u128 {
         let res: u128 = 0;
         let i = 0;
         while (i < 16) {
-            let b = cursor::poke(cursor);
+            let b = cursor::poke(cur);
             res = (res << 8) + (b as u128);
             i = i + 1;
         };
         res
     }
 
-    public fun deserialize_u256_be(cursor: &mut Cursor<u8>): u256 {
+    public fun deserialize_u256_be(cur: &mut Cursor<u8>): u256 {
         let res: u256 = 0;
         let i = 0;
         while (i < 32) {
-            let b = cursor::poke(cursor);
+            let b = cursor::poke(cur);
             res = (res << 8) + (b as u256);
             i = i + 1;
         };
         res
     }
 
-    public fun to_bytes(cursor: &mut Cursor<u8>, num_bytes: u64): vector<u8> {
+    public fun to_bytes(cur: &mut Cursor<u8>, num_bytes: u64): vector<u8> {
         let result = vector::empty();
         let i = 0;
         while (i < num_bytes) {
-            vector::push_back(&mut result, cursor::poke(cursor));
+            vector::push_back(&mut result, cursor::poke(cur));
             i = i + 1;
         };
         result
