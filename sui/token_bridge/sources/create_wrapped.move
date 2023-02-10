@@ -1,6 +1,6 @@
 /// This module uses the one-time witness (OTW)
 /// Sui one-time witness pattern reference: https://examples.sui.io/basics/one-time-witness.html
-module token_bridge::wrapped {
+module token_bridge::create_wrapped {
     use std::option::{Self};
 
     use sui::tx_context::{TxContext};
@@ -21,6 +21,18 @@ module token_bridge::wrapped {
     const E_WRAPPING_NATIVE_COIN: u64 = 0;
     const E_WRAPPING_REGISTERED_NATIVE_COIN: u64 = 1;
     const E_WRAPPED_COIN_ALREADY_INITIALIZED: u64 = 2;
+
+    /// The amounts in the token bridge payload are truncated to 8 decimals
+    /// in each of the contracts when sending tokens out, so there's no
+    /// precision beyond 10^-8. We could preserve the original number of
+    /// decimals when creating wrapped assets, and "untruncate" the amounts
+    /// on the way out by scaling back appropriately. This is what most
+    /// other chains do, but untruncating from 8 decimals to 18 decimals
+    /// loses log2(10^10) ~ 33 bits of precision, which we cannot afford on
+    /// Aptos (and Solana), as the coin type only has 64bits to begin with.
+    /// Contrast with Ethereum, where amounts are 256 bits.
+    /// So we cap the maximum decimals at 8 when creating a wrapped token.
+    const MAX_WRAPPED_DECIMALS: u8 = 8;
 
     /// Wrapped assets are created in two steps.
     /// 1) The coin is initialised by calling `create_wrapped_coin` in the
@@ -68,25 +80,13 @@ module token_bridge::wrapped {
         let payload = core_vaa::parse_and_get_payload(vaa_bytes);
         let asset_meta: AssetMeta = asset_meta::parse(payload);
 
-        // The amounts in the token bridge payload are truncated to 8 decimals
-        // in each of the contracts when sending tokens out, so there's no
-        // precision beyond 10^-8. We could preserve the original number of
-        // decimals when creating wrapped assets, and "untruncate" the amounts
-        // on the way out by scaling back appropriately. This is what most
-        // other chains do, but untruncating from 8 decimals to 18 decimals
-        // loses log2(10^10) ~ 33 bits of precision, which we cannot afford on
-        // Aptos (and Solana), as the coin type only has 64bits to begin with.
-        // Contrast with Ethereum, where amounts are 256 bits.
-        // So we cap the maximum decimals at 8 when creating a wrapped token.
-        let max_decimals: u8 = 8;
-
         let parsed_decimals = asset_meta::get_decimals(&asset_meta);
         let symbol = asset_meta::get_symbol(&asset_meta);
         let name = asset_meta::get_name(&asset_meta);
 
         let decimals = (
             sui::math::min(
-                (max_decimals as u64),
+                (MAX_WRAPPED_DECIMALS as u64),
                 (parsed_decimals as u64)
             ) as u8
         );
@@ -99,7 +99,7 @@ module token_bridge::wrapped {
             option::none<Url>(), //empty url
             ctx
         );
-        let decimals = coin::get_decimals<CoinType>(&coin_metadata);
+
         transfer::share_object(coin_metadata);
         NewWrappedCoin {
             id: object::new(ctx),

@@ -30,7 +30,7 @@ module token_bridge::bridge_state {
 
     friend token_bridge::vaa;
     friend token_bridge::register_chain;
-    friend token_bridge::wrapped;
+    friend token_bridge::create_wrapped;
     friend token_bridge::complete_transfer;
     friend token_bridge::complete_transfer_with_payload;
     friend token_bridge::transfer_tokens;

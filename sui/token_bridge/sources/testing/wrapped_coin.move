@@ -3,7 +3,7 @@ module token_bridge::coin_witness {
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
 
-    use token_bridge::wrapped;
+    use token_bridge::create_wrapped::{Self};
 
     struct COIN_WITNESS has drop {}
 
@@ -11,7 +11,7 @@ module token_bridge::coin_witness {
         // Step 1. Paste token attestation VAA below. This example is ethereum beefface token.
         let vaa_bytes = x"0100000000010080366065746148420220f25a6275097370e8db40984529a6676b7a5fc9feb11755ec49ca626b858ddfde88d15601f85ab7683c5f161413b0412143241c700aff010000000100000001000200000000000000000000000000000000000000000000000000000000deadbeef000000000150eb23000200000000000000000000000000000000000000000000000000000000beefface00020c424545460000000000000000000000000000000000000000000000000000000042656566206661636520546f6b656e0000000000000000000000000000000000";
 
-        let new_wrapped_coin = wrapped::create_wrapped_coin(vaa_bytes, coin_witness, ctx);
+        let new_wrapped_coin = create_wrapped::create_wrapped_coin(vaa_bytes, coin_witness, ctx);
         transfer::transfer(
             new_wrapped_coin,
             tx_context::sender(ctx)
@@ -33,7 +33,7 @@ module token_bridge::coin_witness_test {
 
     use token_bridge::bridge_state::{BridgeState, is_wrapped_asset, is_registered_native_asset, origin_info, get_token_chain_from_origin_info, get_token_address_from_origin_info};
     use token_bridge::bridge_state_test::{set_up_wormhole_core_and_token_bridges};
-    use token_bridge::wrapped::{NewWrappedCoin, register_wrapped_coin};
+    use token_bridge::create_wrapped::{NewWrappedCoin, register_wrapped_coin};
     use token_bridge::register_chain::{submit_vaa};
 
     use token_bridge::coin_witness::{test_init, COIN_WITNESS};

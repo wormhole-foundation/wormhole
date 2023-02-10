@@ -154,7 +154,7 @@ module token_bridge::transfer_token_test {
     use token_bridge::transfer_tokens::{E_TOO_MUCH_RELAYER_FEE, transfer_tokens, transfer_tokens_test};
     use token_bridge::bridge_state::{Self, BridgeState};
     use token_bridge::coin_witness::{Self, COIN_WITNESS};
-    use token_bridge::wrapped::{Self, NewWrappedCoin};
+    use token_bridge::create_wrapped::{Self, NewWrappedCoin};
     use token_bridge::normalized_amount::{Self};
     use token_bridge::native_coin_witness::{Self, NATIVE_COIN_WITNESS};
     use token_bridge::bridge_state_test::{set_up_wormhole_core_and_token_bridges};
@@ -332,7 +332,7 @@ module token_bridge::transfer_token_test {
                 take_from_address<NewWrappedCoin<COIN_WITNESS>>(&test, admin);
 
             // register wrapped asset with the token bridge
-            wrapped::register_wrapped_coin<COIN_WITNESS>(
+            create_wrapped::register_wrapped_coin<COIN_WITNESS>(
                 &mut worm_state,
                 &mut bridge_state,
                 new_wrapped_coin,
@@ -404,7 +404,7 @@ module token_bridge::transfer_token_test {
             let new_wrapped_coin = take_from_address<NewWrappedCoin<COIN_WITNESS>>(&test, admin);
 
             // register wrapped asset with the token bridge
-            wrapped::register_wrapped_coin<COIN_WITNESS>(
+            create_wrapped::register_wrapped_coin<COIN_WITNESS>(
                 &mut worm_state,
                 &mut bridge_state,
                 new_wrapped_coin,
