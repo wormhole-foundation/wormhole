@@ -73,6 +73,7 @@ module token_bridge::state {
         wrapped_asset_info: &WrappedAssetInfo<CoinType>
     ): TokenInfo<CoinType> {
         token_info::new(
+            true, // is_wrapped
             wrapped_asset_info.token_chain,
             wrapped_asset_info.token_address
         )
@@ -83,6 +84,7 @@ module token_bridge::state {
     ): TokenInfo<CoinType> {
         let asset_meta = &native_asset_info.asset_meta;
         token_info::new(
+            false, // is_wrapped
             asset_meta::get_token_chain(asset_meta),
             asset_meta::get_token_address(asset_meta)
         )
@@ -183,52 +185,50 @@ module token_bridge::state {
     }
 
     public(friend) fun deposit<CoinType>(
-        bridge_state: &mut State,
+        self: &mut State,
         coin: Coin<CoinType>,
     ) {
         // TODO: create custom errors for each dynamic_set::borrow_mut
         let native_asset =
             dynamic_set::borrow_mut<NativeAssetInfo<CoinType>>(
-                &mut bridge_state.id
+                &mut self.id
             );
         coin::join<CoinType>(&mut native_asset.custody, coin);
     }
 
     public(friend) fun withdraw<CoinType>(
-        _verified_coin_witness: VerifiedCoinType<CoinType>,
-        bridge_state: &mut State,
+        self: &mut State,
         value: u64,
        ctx: &mut TxContext
     ): Coin<CoinType> {
         let native_asset =
             dynamic_set::borrow_mut<NativeAssetInfo<CoinType>>(
-                &mut bridge_state.id
+                &mut self.id
             );
         coin::split<CoinType>(&mut native_asset.custody, value, ctx)
     }
 
+    public(friend) fun burn<CoinType>(
+        self: &mut State,
+        coin: Coin<CoinType>,
+    ) {
+        let wrapped_info =
+            dynamic_set::borrow_mut<WrappedAssetInfo<CoinType>>(
+                &mut self.id
+            );
+        coin::burn<CoinType>(&mut wrapped_info.treasury_cap, coin);
+    }
+
     public(friend) fun mint<CoinType>(
-        _verified_coin_witness: VerifiedCoinType<CoinType>,
-        bridge_state: &mut State,
+        self: &mut State,
         value: u64,
         ctx: &mut TxContext,
     ): Coin<CoinType> {
         let wrapped_info =
             dynamic_set::borrow_mut<WrappedAssetInfo<CoinType>>(
-                &mut bridge_state.id
+                &mut self.id
             );
         coin::mint<CoinType>(&mut wrapped_info.treasury_cap, value, ctx)
-    }
-
-    public(friend) fun burn<CoinType>(
-        bridge_state: &mut State,
-        coin: Coin<CoinType>,
-    ) {
-        let wrapped_info =
-            dynamic_set::borrow_mut<WrappedAssetInfo<CoinType>>(
-                &mut bridge_state.id
-            );
-        coin::burn<CoinType>(&mut wrapped_info.treasury_cap, coin);
     }
 
     // Note: we only examine the balance of native assets, because the token

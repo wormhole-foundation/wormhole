@@ -68,7 +68,7 @@ module token_bridge::transfer_tokens {
         // Get info about the token
         let info = state::origin_info<CoinType>(bridge_state);
 
-        if (state::is_wrapped_asset<CoinType>(bridge_state)) {
+        if (token_info::is_wrapped(&info)) {
             // now we burn the wrapped coins to remove them from circulation
             state::burn<CoinType>(bridge_state, coins);
         } else {
@@ -78,7 +78,7 @@ module token_bridge::transfer_tokens {
         };
 
         let decimals = {
-            if (state::is_wrapped_asset<CoinType>(bridge_state)) {
+            if (token_info::is_wrapped(&info)) {
                 state::get_wrapped_decimals<CoinType>(bridge_state)
             } else {
                 state::get_native_decimals<CoinType>(bridge_state)
@@ -316,18 +316,8 @@ module token_bridge::transfer_token_test {
                 ctx(&mut test)
             );
 
-            let verified_coin_witness =
-                state::verify_coin_type<COIN_WITNESS>(
-                    &mut bridge_state,
-                    2, // chain ID
-                    external_address::from_bytes(
-                        x"00000000000000000000000000000000000000000000000000000000beefface"
-                    )
-                );
-
             let coins =
                 state::mint<COIN_WITNESS>(
-                    verified_coin_witness,
                     &mut bridge_state,
                     1000, // amount
                     ctx(&mut test)
@@ -388,18 +378,8 @@ module token_bridge::transfer_token_test {
                 ctx(&mut test)
             );
 
-            let verified_coin_witness =
-                state::verify_coin_type<COIN_WITNESS>(
-                    &mut bridge_state,
-                    2, // chain ID
-                    external_address::from_bytes(
-                        x"00000000000000000000000000000000000000000000000000000000beefface"
-                    )
-                );
-
             let coins =
                 state::mint<COIN_WITNESS>(
-                    verified_coin_witness,
                     &mut bridge_state,
                     10000000000, // amount
                     ctx(&mut test)

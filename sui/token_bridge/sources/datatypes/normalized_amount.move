@@ -29,7 +29,7 @@ module token_bridge::normalized_amount {
         self.value
     }
 
-    public fun as_u256(self: &NormalizedAmount): u256 {
+    public fun to_u256(self: &NormalizedAmount): u256 {
         (self.value as u256)
     }
 
@@ -39,19 +39,23 @@ module token_bridge::normalized_amount {
     }
 
     public fun from_raw(amount: u64, decimals: u8): NormalizedAmount {
-        let normalized = {
-            if (decimals > 8) {
-                amount / math::pow(10, decimals - 8)
-            } else {
-                amount
-            }
-        };
-        new(normalized)
+        if (amount == 0) {
+            default()
+        } else {
+            let normalized = {
+                if (decimals > 8) {
+                    amount / math::pow(10, decimals - 8)
+                } else {
+                    amount
+                }
+            };
+            new(normalized)
+        }
     }
 
     public fun to_raw(normalized: NormalizedAmount, decimals: u8): u64 {
         let NormalizedAmount { value } = normalized;
-         if (decimals > 8) {
+         if (value > 0 && decimals > 8) {
             value * math::pow(10, decimals - 8)
          } else {
             value
@@ -64,7 +68,7 @@ module token_bridge::normalized_amount {
     }
 
     public fun serialize_be(buf: &mut vector<u8>, normalized: NormalizedAmount) {
-        bytes::serialize_u256_be(buf, as_u256(&normalized))
+        bytes::serialize_u256_be(buf, to_u256(&normalized))
     }
 }
 

@@ -6,96 +6,43 @@ module token_bridge::complete_transfer_with_payload {
     use wormhole::external_address::{Self};
     use wormhole::emitter::{Self, EmitterCapability};
 
-    use token_bridge::state::{Self, State, VerifiedCoinType};
-    use token_bridge::vaa::{Self};
+    use token_bridge::complete_transfer::{handle_complete_transfer};
+    use token_bridge::state::{State};
     use token_bridge::transfer_with_payload::{Self, TransferWithPayload};
-    use token_bridge::normalized_amount::{Self};
+    use token_bridge::vaa::{Self};
 
     const E_INVALID_TARGET: u64 = 0;
     const E_INVALID_RECIPIENT: u64 = 1;
 
     public fun complete_transfer_with_payload<CoinType>(
-        emitter: &EmitterCapability,
-        wormhole_state: &mut WormholeState,
+        emitter_cap: &EmitterCapability,
+        worm_state: &mut WormholeState,
         bridge_state: &mut State,
         vaa: vector<u8>,
         ctx: &mut TxContext
     ): (Coin<CoinType>, TransferWithPayload) {
-        let vaa = vaa::parse_verify_and_replay_protect(
-            wormhole_state,
-            bridge_state,
-            vaa,
-            ctx
-        );
-
-        let transfer =
-            transfer_with_payload::deserialize(wormhole::myvaa::destroy(vaa));
-
-        let token_chain = transfer_with_payload::token_chain(&transfer);
-        let token_address =
-            transfer_with_payload::token_address(&transfer);
-        let verified_coin_witness =
-            state::verify_coin_type<CoinType>(
+        // Parse and verify Token Bridge transfer message. This method
+        // guarantees that a verified transfer message cannot be redeemed again.
+        let transfer_vaa =
+            vaa::parse_verify_and_replay_protect(
+                worm_state,
                 bridge_state,
-                token_chain,
-                token_address
+                vaa,
+                ctx
             );
 
-        handle_complete_transfer_with_payload<CoinType>(
-            verified_coin_witness,
-            transfer,
-            wormhole_state,
-            bridge_state,
-            emitter,
-            ctx
-        )
-    }
-
-    // complete transfer with arbitrary TransferWithPayload request and without
-    // the VAA for native tokens
-    #[test_only]
-    public fun test_complete_transfer_with_payload<CoinType>(
-        transfer: TransferWithPayload,
-        wormhole_state: &mut WormholeState,
-        bridge_state: &mut State,
-        emitter: &EmitterCapability,
-        ctx: &mut TxContext
-    ): (Coin<CoinType>, TransferWithPayload) {
-        let token_chain = transfer_with_payload::token_chain(&transfer);
-        let token_address = transfer_with_payload::token_address(&transfer);
-        let verified_coin_witness = state::verify_coin_type<CoinType>(
-            bridge_state,
-            token_chain,
-            token_address
-        );
-        handle_complete_transfer_with_payload<CoinType>(
-            verified_coin_witness,
-            transfer,
-            wormhole_state,
-            bridge_state,
-            emitter,
-            ctx
-        )
-    }
-
-    fun handle_complete_transfer_with_payload<CoinType>(
-        verified_coin_witness: VerifiedCoinType<CoinType>,
-        transfer: TransferWithPayload,
-        wormhole_state: &mut WormholeState,
-        bridge_state: &mut State,
-        emitter_cap: &EmitterCapability,
-        ctx: &mut TxContext
-    ): (Coin<CoinType>, TransferWithPayload) {
-        let to_chain = transfer_with_payload::recipient_chain(&transfer);
-        let this_chain = wormhole::state::get_chain_id(wormhole_state);
-        assert!(to_chain == this_chain, E_INVALID_TARGET);
+        // Deserialize for processing.
+        let my_transfer =
+            transfer_with_payload::deserialize(
+                wormhole::myvaa::destroy(transfer_vaa)
+            );
 
         let recipient =
             external_address::to_address(
-                &transfer_with_payload::recipient(&transfer)
+                &transfer_with_payload::recipient(&my_transfer)
             );
 
-        // payload 3 must be redeemed by the designated wormhole emitter
+        // Transfer must be redeemed by the designated wormhole emitter.
         assert!(
             external_address::to_address(
                 &emitter::get_external_address(emitter_cap)
@@ -103,37 +50,54 @@ module token_bridge::complete_transfer_with_payload {
             E_INVALID_RECIPIENT
         );
 
-        let recipient_coins;
-        if (state::is_wrapped_asset<CoinType>(bridge_state)) {
-            let decimals =
-                state::get_wrapped_decimals<CoinType>(bridge_state);
-            let amount =
-                normalized_amount::to_raw(
-                    transfer_with_payload::amount(&transfer),
-                    decimals
-                );
-            recipient_coins = state::mint<CoinType>(
-                verified_coin_witness,
+        let (my_coins, _) =
+            handle_complete_transfer<CoinType>(
+                worm_state,
                 bridge_state,
-                amount,
+                transfer_with_payload::token_chain(&my_transfer),
+                transfer_with_payload::token_address(&my_transfer),
+                transfer_with_payload::recipient_chain(&my_transfer),
+                transfer_with_payload::amount(&my_transfer),
                 ctx
             );
-        } else {
-            let decimals =
-                state::get_native_decimals<CoinType>(bridge_state);
-            let amount = 
-                normalized_amount::to_raw(
-                    transfer_with_payload::amount(&transfer),
-                    decimals
-                );
-            recipient_coins = state::withdraw<CoinType>(
-                verified_coin_witness,
+
+        (my_coins, my_transfer)
+    }
+
+    // TODO: remove this and make test with public method above
+    #[test_only]
+    public fun test_complete_transfer_with_payload<CoinType>(
+        my_transfer: TransferWithPayload,
+        worm_state: &mut WormholeState,
+        bridge_state: &mut State,
+        emitter_cap: &EmitterCapability,
+        ctx: &mut TxContext
+    ): (Coin<CoinType>, TransferWithPayload) {
+        let recipient =
+            external_address::to_address(
+                &transfer_with_payload::recipient(&my_transfer)
+            );
+
+        // Transfer must be redeemed by the designated wormhole emitter.
+        assert!(
+            external_address::to_address(
+                &emitter::get_external_address(emitter_cap)
+            ) == recipient,
+            E_INVALID_RECIPIENT
+        );
+
+        let (my_coins, _) =
+            handle_complete_transfer<CoinType>(
+                worm_state,
                 bridge_state,
-                amount,
+                transfer_with_payload::token_chain(&my_transfer),
+                transfer_with_payload::token_address(&my_transfer),
+                transfer_with_payload::recipient_chain(&my_transfer),
+                transfer_with_payload::amount(&my_transfer),
                 ctx
             );
-        };
-        (recipient_coins, transfer)
+
+        (my_coins, my_transfer)
     }
 }
 

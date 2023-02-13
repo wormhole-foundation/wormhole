@@ -1,152 +1,170 @@
 module token_bridge::complete_transfer {
     use sui::tx_context::{TxContext};
-    use sui::transfer::{Self as transfer_object};
-    use sui::coin::{Self};
+    use sui::coin::{Self, Coin};
 
     use wormhole::state::{State as WormholeState};
-    use wormhole::external_address::{Self};
+    use wormhole::external_address::{Self, ExternalAddress};
 
-    use token_bridge::state::{Self, State, VerifiedCoinType};
-    use token_bridge::vaa::{Self};
+    use token_bridge::normalized_amount::{Self, NormalizedAmount};
+    use token_bridge::state::{Self, State};
+    use token_bridge::token_info::{Self};
     use token_bridge::transfer::{Self, Transfer};
-    use token_bridge::normalized_amount::{Self};
+    use token_bridge::vaa::{Self};
+
+    // Requires `handle_complete_transfer`
+    friend token_bridge::complete_transfer_with_payload;
 
     const E_INVALID_TARGET: u64 = 0;
+    const E_UNREGISTERED_TOKEN: u64 = 1;
 
-    public entry fun submit_vaa_entry<CoinType>(
-        wormhole_state: &mut WormholeState,
+    public entry fun complete_transfer<CoinType>(
+        worm_state: &mut WormholeState,
         bridge_state: &mut State,
         vaa: vector<u8>,
-        fee_recipient: address,
+        relayer: address, // consider removing in favor of tx_context::sender?
         ctx: &mut TxContext
     ) {
-        submit_vaa<CoinType>(
-            wormhole_state,
+        // Parse and verify Token Bridge transfer message. This method
+        // guarantees that a verified transfer message cannot be redeemed again.
+        let transfer_vaa = vaa::parse_verify_and_replay_protect(
+            worm_state,
             bridge_state,
             vaa,
-            fee_recipient,
             ctx
         );
+
+        // Deserialize for processing.
+        let my_transfer =
+            transfer::deserialize(wormhole::myvaa::destroy(transfer_vaa)
+        );
+
+        let (my_coins, decimals) =
+            handle_complete_transfer<CoinType>(
+                worm_state,
+                bridge_state,
+                transfer::token_chain(&my_transfer),
+                transfer::token_address(&my_transfer),
+                transfer::recipient_chain(&my_transfer),
+                transfer::amount(&my_transfer),
+                ctx
+            );
+
+        let recipient =
+            external_address::to_address(
+                &transfer::recipient(&my_transfer)
+            );
+
+        // If the recipient did not redeem his own transfer, Token Bridge will
+        // split the withdrawn coins and send a portion to the transaction
+        // relayer.
+        if (recipient != relayer) {
+            let fee =
+                normalized_amount::to_raw(
+                    transfer::relayer_fee(&my_transfer),
+                    decimals
+                );
+            sui::transfer::transfer(
+                coin::split(&mut my_coins, fee, ctx),
+                relayer
+            );
+        };
+
+        // Finally transfer tokens to the recipient.
+        sui::transfer::transfer(my_coins, recipient);
     }
 
-    public fun submit_vaa<CoinType>(
-        wormhole_state: &mut WormholeState,
+    public(friend) fun handle_complete_transfer<CoinType>(
+        worm_state: &mut WormholeState,
         bridge_state: &mut State,
-        vaa: vector<u8>,
-        fee_recipient: address,
+        token_chain: u16,
+        token_address: ExternalAddress,
+        recipient_chain: u16,
+        amount: NormalizedAmount,
         ctx: &mut TxContext
-    ): Transfer {
-
-        let vaa = vaa::parse_verify_and_replay_protect(
-            wormhole_state,
-            bridge_state,
-            vaa,
-            ctx
+    ): (Coin<CoinType>, u8) {
+        // Verify that the intended chain ID for this transfer is for Sui.
+        assert!(
+            recipient_chain == wormhole::state::get_chain_id(worm_state),
+            E_INVALID_TARGET
         );
 
-        let transfer = transfer::deserialize(wormhole::myvaa::destroy(vaa));
+        // Get info about the transferred token.
+        let info = state::origin_info<CoinType>(bridge_state);
 
-        let token_chain = transfer::token_chain(&transfer);
-        let token_address = transfer::token_address(&transfer);
-        let verified_coin_witness = state::verify_coin_type<CoinType>(
-            bridge_state,
-            token_chain,
-            token_address
+        // Verify that the token info agrees with the info encoded in this
+        // transfer.
+        assert!(
+            token_info::equals(&info, token_chain, token_address),
+            E_UNREGISTERED_TOKEN
         );
 
-        complete_transfer<CoinType>(
-            verified_coin_witness,
-            transfer,
-            wormhole_state,
-            bridge_state,
-            fee_recipient,
-            ctx
-        )
+        // If the token is wrapped by Token Bridge, we will mint these tokens.
+        // Otherwise, we will withdraw from custody.
+        if (token_info::is_wrapped(&info)) {
+            let decimals = state::get_wrapped_decimals<CoinType>(bridge_state);
+            (
+                state::mint<CoinType>(
+                    bridge_state,
+                    normalized_amount::to_raw(amount, decimals),
+                    ctx
+                ),
+                decimals
+            )
+        } else {
+            let decimals = state::get_native_decimals<CoinType>(bridge_state);
+            (
+                state::withdraw<CoinType>(
+                    bridge_state,
+                    normalized_amount::to_raw(amount, decimals),
+                    ctx
+                ),
+                decimals
+            )
+        }
     }
 
-    // complete transfer with arbitrary Transfer request and without the VAA
-    // for native tokens
+    // TODO: remove this and make test using public method above.
     #[test_only]
     public fun test_complete_transfer<CoinType>(
         my_transfer: Transfer,
-        wormhole_state: &mut WormholeState,
+        worm_state: &mut WormholeState,
         bridge_state: &mut State,
-        fee_recipient: address,
+        relayer: address,
         ctx: &mut TxContext
-    ): Transfer {
-        let token_chain = transfer::token_chain(&my_transfer);
-        let token_address = transfer::token_address(&my_transfer);
-        let verified_coin_witness = state::verify_coin_type<CoinType>(
-            bridge_state,
-            token_chain,
-            token_address
-        );
-        complete_transfer<CoinType>(
-            verified_coin_witness,
-            my_transfer,
-            wormhole_state,
-            bridge_state,
-            fee_recipient,
-            ctx
-        )
-    }
+    ) {
+        let (my_coins, decimals) =
+            handle_complete_transfer<CoinType>(
+                worm_state,
+                bridge_state,
+                transfer::token_chain(&my_transfer),
+                transfer::token_address(&my_transfer),
+                transfer::recipient_chain(&my_transfer),
+                transfer::amount(&my_transfer),
+                ctx
+            );
 
-    fun complete_transfer<CoinType>(
-        verified_coin_witness: VerifiedCoinType<CoinType>,
-        my_transfer: Transfer,
-        wormhole_state: &mut WormholeState,
-        bridge_state: &mut State,
-        fee_recipient: address,
-        ctx: &mut TxContext
-    ): Transfer { // TODO: why return transfer?
-        let to_chain = transfer::recipient_chain(&my_transfer);
-        let this_chain = wormhole::state::get_chain_id(wormhole_state);
-        assert!(to_chain == this_chain, E_INVALID_TARGET);
+        let recipient =
+            external_address::to_address(
+                &transfer::recipient(&my_transfer)
+            );
 
-        let recipient = external_address::to_address(
-            &transfer::recipient(&my_transfer)
-        );
-        let normed_amount = transfer::amount(&my_transfer);
-        let normed_fee = transfer::relayer_fee(&my_transfer);
-
-        let recipient_coins;
-        let amount;
-        let fee_amount;
-        if (state::is_wrapped_asset<CoinType>(bridge_state)) {
-            let decimals =
-                state::get_wrapped_decimals<CoinType>(bridge_state);
-            amount =
-                normalized_amount::to_raw(normed_amount, decimals);
-            fee_amount =
-                normalized_amount::to_raw(normed_fee, decimals);
-            recipient_coins =
-                state::mint<CoinType>(
-                    verified_coin_witness,
-                    bridge_state,
-                    amount,
-                    ctx
+        // If the recipient did not redeem his own transfer, Token Bridge will
+        // split the withdrawn coins and send a portion to the transaction
+        // relayer.
+        if (recipient != relayer) {
+            let fee =
+                normalized_amount::to_raw(
+                    transfer::relayer_fee(&my_transfer),
+                    decimals
                 );
-        } else {
-            let decimals =
-                state::get_native_decimals<CoinType>(bridge_state);
-            amount =
-                normalized_amount::to_raw(normed_amount, decimals);
-            fee_amount =
-                normalized_amount::to_raw(normed_fee, decimals);
-            recipient_coins =
-                state::withdraw<CoinType>(
-                    verified_coin_witness,
-                    bridge_state,
-                    amount,
-                    ctx
-                );
+            sui::transfer::transfer(
+                coin::split(&mut my_coins, fee, ctx),
+                relayer
+            );
         };
-        // take out fee from the recipient's coins. `extract` will revert
-        // if fee > amount
-        let fee_coins = coin::split(&mut recipient_coins, fee_amount, ctx);
-        transfer_object::transfer(recipient_coins, recipient);
-        transfer_object::transfer(fee_coins, fee_recipient);
-        my_transfer
+
+        // Finally transfer tokens to the recipient.
+        sui::transfer::transfer(my_coins, recipient);
     }
 }
 
@@ -422,7 +440,10 @@ module token_bridge::complete_transfer_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 4, location=token_bridge::state)] // E_ORIGIN_CHAIN_MISMATCH
+    #[expected_failure(
+        abort_code = token_bridge::complete_transfer::E_UNREGISTERED_TOKEN,
+        location=token_bridge::complete_transfer
+    )]
     fun test_complete_native_transfer_wrong_origin_chain(){
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
@@ -499,7 +520,10 @@ module token_bridge::complete_transfer_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 5, location=token_bridge::state)] // E_ORIGIN_ADDRESS_MISMATCH
+    #[expected_failure(
+        abort_code = token_bridge::complete_transfer::E_UNREGISTERED_TOKEN,
+        location=token_bridge::complete_transfer
+    )]
     fun test_complete_native_transfer_wrong_coin_address(){
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
