@@ -11,8 +11,8 @@ module token_bridge::complete_transfer_with_payload {
     use token_bridge::transfer_with_payload::{Self, TransferWithPayload};
     use token_bridge::normalized_amount::{denormalize};
 
-
     const E_INVALID_TARGET: u64 = 0;
+    const E_INVALID_RECIPIENT: u64 = 1;
 
     public fun complete_transfer_with_payload<CoinType>(
         emitter: &EmitterCapability,
@@ -46,7 +46,6 @@ module token_bridge::complete_transfer_with_payload {
             transfer,
             wormhole_state,
             bridge_state,
-            //coin_meta,
             emitter,
             ctx
         )
@@ -101,7 +100,7 @@ module token_bridge::complete_transfer_with_payload {
             external_address::to_address(
                 &emitter::get_external_address(emitter_cap)
             ) == recipient,
-            0
+            E_INVALID_RECIPIENT
         );
 
         let recipient_coins;
