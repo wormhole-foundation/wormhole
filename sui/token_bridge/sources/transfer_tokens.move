@@ -59,7 +59,15 @@ module token_bridge::transfer_tokens {
         relayer_fee: u64,
     ): TransferResult {
         let amount = coin::value<CoinType>(&coins);
+
+        // It doesn't make sense to specify a `relayer_fee` larger than the
+        // total amount bridged over.
         assert!(relayer_fee <= amount, E_TOO_MUCH_RELAYER_FEE);
+
+        // Get info about the token
+        let origin_info = state::origin_info<CoinType>(bridge_state);
+        let token_chain = state::get_token_chain_from_origin_info(&origin_info);
+        let token_address = state::get_token_address_from_origin_info(&origin_info);
 
         if (state::is_wrapped_asset<CoinType>(bridge_state)) {
             // now we burn the wrapped coins to remove them from circulation
@@ -70,28 +78,20 @@ module token_bridge::transfer_tokens {
             state::deposit<CoinType>(bridge_state, coins);
         };
 
-        let origin_info = state::origin_info<CoinType>(bridge_state);
-        let token_chain = state::get_token_chain_from_origin_info(&origin_info);
-        let token_address = state::get_token_address_from_origin_info(&origin_info);
-
-        let decimals;
-        if (state::is_wrapped_asset<CoinType>(bridge_state)) {
-            decimals =
-                state::get_wrapped_decimals<CoinType>(bridge_state);
-        } else {
-            decimals =
-                state::get_native_decimals<CoinType>(bridge_state);
+        let decimals = {
+            if (state::is_wrapped_asset<CoinType>(bridge_state)) {
+                state::get_wrapped_decimals<CoinType>(bridge_state)
+            } else {
+                state::get_native_decimals<CoinType>(bridge_state)
+            }
         };
-        let normalized_amount = normalized_amount::normalize(amount, decimals);
-        let normalized_relayer_fee = normalized_amount::normalize(relayer_fee, decimals);
 
-        let transfer_result: TransferResult = transfer_result::create(
+        transfer_result::new(
             token_chain,
             token_address,
-            normalized_amount,
-            normalized_relayer_fee,
-        );
-        transfer_result
+            normalized_amount::normalize(amount, decimals),
+            normalized_amount::normalize(relayer_fee, decimals),
+        )
     }
 
     #[test_only]
