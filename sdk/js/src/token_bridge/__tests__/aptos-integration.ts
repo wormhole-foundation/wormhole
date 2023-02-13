@@ -1,3 +1,4 @@
+import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 import { describe, expect, jest, test } from "@jest/globals";
 import {
   AptosAccount,
@@ -6,6 +7,8 @@ import {
   HexString,
   Types,
 } from "aptos";
+import { ethers } from "ethers";
+import { parseUnits } from "ethers/lib/utils";
 import {
   approveEth,
   APTOS_TOKEN_BRIDGE_EMITTER_ADDRESS,
@@ -17,7 +20,8 @@ import {
   createWrappedOnAptos,
   createWrappedOnEth,
   createWrappedTypeOnAptos,
-  getAssetFullyQualifiedType,
+  generateSignAndSubmitEntryFunction,
+  generateSignAndSubmitScript,
   getEmitterAddressEth,
   getExternalAddressFromType,
   getForeignAssetAptos,
@@ -30,55 +34,45 @@ import {
   hexToUint8Array,
   redeemOnAptos,
   redeemOnEth,
-  generateSignAndSubmitEntryFunction,
-  generateSignAndSubmitScript,
   transferFromAptos,
   transferFromEth,
   tryNativeToHexString,
   tryNativeToUint8Array,
   uint8ArrayToHex,
 } from "../..";
+import { registerCoin } from "../../aptos";
+import {
+  parseSequenceFromLogAptos,
+  parseSequenceFromLogEth,
+} from "../../bridge/parseSequenceFromLog";
+import { TokenImplementation__factory } from "../../ethers-contracts";
 import {
   APTOS_FAUCET_URL,
   APTOS_NODE_URL,
-  APTOS_PRIVATE_KEY,
   ETH_NODE_URL,
   ETH_PRIVATE_KEY6,
   TEST_ERC20,
   WORMHOLE_RPC_HOSTS,
 } from "./consts";
-import {
-  parseSequenceFromLogAptos,
-  parseSequenceFromLogEth,
-} from "../../bridge/parseSequenceFromLog";
-import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
-import { ethers } from "ethers";
-import { parseUnits } from "ethers/lib/utils";
-import { registerCoin } from "../../aptos";
-import { TokenImplementation__factory } from "../../ethers-contracts";
 
 const JEST_TEST_TIMEOUT = 60000;
 jest.setTimeout(JEST_TEST_TIMEOUT);
 
 describe("Aptos SDK tests", () => {
   test("Transfer native token from Aptos to Ethereum", async () => {
+    const APTOS_TOKEN_BRIDGE = CONTRACTS.DEVNET.aptos.token_bridge;
+    const APTOS_CORE_BRIDGE = CONTRACTS.DEVNET.aptos.core;
+    const COIN_TYPE = "0x1::aptos_coin::AptosCoin";
+
     // setup aptos
     const client = new AptosClient(APTOS_NODE_URL);
+    const sender = new AptosAccount();
     const faucet = new FaucetClient(APTOS_NODE_URL, APTOS_FAUCET_URL);
-    const sender = new AptosAccount(hexToUint8Array(APTOS_PRIVATE_KEY));
-    const aptosTokenBridge = CONTRACTS.DEVNET.aptos.token_bridge;
-    const aptosCoreBridge = CONTRACTS.DEVNET.aptos.core;
-
-    // sanity check funds in the account
-    const COIN_TYPE = "0x1::aptos_coin::AptosCoin";
-    const before = await getBalanceAptos(client, COIN_TYPE, sender.address());
     await faucet.fundAccount(sender.address(), 100_000_000);
-    const after = await getBalanceAptos(client, COIN_TYPE, sender.address());
-    expect(Number(after) - Number(before)).toEqual(100_000_000);
 
     // attest native aptos token
     const attestPayload = attestFromAptos(
-      aptosTokenBridge,
+      APTOS_TOKEN_BRIDGE,
       CHAIN_ID_APTOS,
       COIN_TYPE
     );
@@ -90,7 +84,7 @@ describe("Aptos SDK tests", () => {
     await client.waitForTransaction(tx.hash);
 
     // get signed attest vaa
-    let sequence = parseSequenceFromLogAptos(aptosCoreBridge, tx);
+    let sequence = parseSequenceFromLogAptos(APTOS_CORE_BRIDGE, tx);
     expect(sequence).toBeTruthy();
 
     const { vaaBytes: attestVAA } = await getSignedVAAWithRetry(
@@ -135,7 +129,7 @@ describe("Aptos SDK tests", () => {
       await getBalanceAptos(client, COIN_TYPE, sender.address())
     );
     const transferPayload = transferFromAptos(
-      aptosTokenBridge,
+      APTOS_TOKEN_BRIDGE,
       COIN_TYPE,
       (10_000_000).toString(),
       CHAIN_ID_ETH,
@@ -157,7 +151,7 @@ describe("Aptos SDK tests", () => {
     ).toBe(true);
 
     // get signed transfer vaa
-    sequence = parseSequenceFromLogAptos(aptosCoreBridge, tx);
+    sequence = parseSequenceFromLogAptos(APTOS_CORE_BRIDGE, tx);
     expect(sequence).toBeTruthy();
 
     const { vaaBytes: transferVAA } = await getSignedVAAWithRetry(
@@ -243,7 +237,9 @@ describe("Aptos SDK tests", () => {
 
     // setup aptos
     const client = new AptosClient(APTOS_NODE_URL);
-    const recipient = new AptosAccount(hexToUint8Array(APTOS_PRIVATE_KEY));
+    const recipient = new AptosAccount();
+    const faucet = new FaucetClient(APTOS_NODE_URL, APTOS_FAUCET_URL);
+    await faucet.fundAccount(recipient.address(), 100_000_000);
     const aptosTokenBridge = CONTRACTS.DEVNET.aptos.token_bridge;
     const createWrappedCoinTypePayload = createWrappedTypeOnAptos(
       aptosTokenBridge,

@@ -104,6 +104,12 @@ case "$chain_name" in
   solana)
     chain=1
     explorer="https://explorer.solana.com/address/"
+    extra=""
+    ;;
+  pythnet)
+    chain=26
+    explorer="https://explorer.solana.com/address/"
+    extra="Be sure to choose \"Custom RPC\" as the cluster in the explorer and set it to https://pythnet.rpcpool.com"
     ;;
   ethereum)
     chain=2
@@ -398,7 +404,7 @@ if [ "$evm" = true ]; then
 	\`\`\`
 
 EOF
-elif [ "$chain_name" = "solana" ]; then
+elif [ "$chain_name" = "solana" ] || [ "$chain_name" = "pythnet" ]; then
   cat <<-EOF >> "$instructions_file"
 	## Build
 	\`\`\`shell
@@ -410,6 +416,8 @@ elif [ "$chain_name" = "solana" ]; then
 
 	## Verify
 	Contract at [$explorer$address]($explorer$address)
+  
+  $extra
 
 	Next, use the \`verify\` script to verify that the deployed bytecodes we are upgrading to match the build artifacts:
 

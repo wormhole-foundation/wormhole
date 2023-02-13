@@ -297,39 +297,12 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
-	ce, exists := gov.chains[msg.EmitterChain]
-
-	// If we don't care about this chain, the VAA can be published.
-	if !exists {
-		if msg.EmitterChain != vaa.ChainIDPythNet {
-			gov.logger.Info("cgov: ignoring vaa because the emitter chain is not configured", zap.String("msgID", msg.MessageIDString()))
-		}
-		return true, nil
-	}
-
-	// If we don't care about this emitter, the VAA can be published.
-	if msg.EmitterAddress != ce.emitterAddr {
-		gov.logger.Info("cgov: ignoring vaa because the emitter address is not configured", zap.String("msgID", msg.MessageIDString()))
-		return true, nil
-	}
-
-	// We only care about transfers.
-	if !vaa.IsTransfer(msg.Payload) {
-		gov.logger.Info("cgov: ignoring vaa because it is not a transfer", zap.String("msgID", msg.MessageIDString()))
-		return true, nil
-	}
-
-	payload, err := vaa.DecodeTransferPayloadHdr(msg.Payload)
+	msgIsGoverned, ce, token, payload, err := gov.parseMsgAlreadyLocked(msg)
 	if err != nil {
-		gov.logger.Error("cgov: failed to decode vaa", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
-		return true, err
+		return false, err
 	}
 
-	// If we don't care about this token, the VAA can be published.
-	tk := tokenKey{chain: payload.OriginChain, addr: payload.OriginAddress}
-	token, exists := gov.tokens[tk]
-	if !exists {
-		gov.logger.Info("cgov: ignoring vaa because the token is not in the list", zap.String("msgID", msg.MessageIDString()))
+	if !msgIsGoverned {
 		return true, nil
 	}
 
@@ -466,6 +439,54 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 	ce.transfers = append(ce.transfers, &xfer)
 	gov.msgsSeen[hash] = transferComplete
 	return true, nil
+}
+
+// IsGovernedMsg determines if the message applies to the governor. It grabs the lock.
+func (gov *ChainGovernor) IsGovernedMsg(msg *common.MessagePublication) (msgIsGoverned bool, err error) {
+	gov.mutex.Lock()
+	defer gov.mutex.Unlock()
+	msgIsGoverned, _, _, _, err = gov.parseMsgAlreadyLocked(msg)
+	return
+}
+
+// parseMsgAlreadyLocked determines if the message applies to the governor and also returns data useful to the governor. It assumes the caller holds the lock.
+func (gov *ChainGovernor) parseMsgAlreadyLocked(msg *common.MessagePublication) (bool, *chainEntry, *tokenEntry, *vaa.TransferPayloadHdr, error) {
+	// If we don't care about this chain, the VAA can be published.
+	ce, exists := gov.chains[msg.EmitterChain]
+	if !exists {
+		if msg.EmitterChain != vaa.ChainIDPythNet {
+			gov.logger.Info("cgov: ignoring vaa because the emitter chain is not configured", zap.String("msgID", msg.MessageIDString()))
+		}
+		return false, nil, nil, nil, nil
+	}
+
+	// If we don't care about this emitter, the VAA can be published.
+	if msg.EmitterAddress != ce.emitterAddr {
+		gov.logger.Info("cgov: ignoring vaa because the emitter address is not configured", zap.String("msgID", msg.MessageIDString()))
+		return false, nil, nil, nil, nil
+	}
+
+	// We only care about transfers.
+	if !vaa.IsTransfer(msg.Payload) {
+		gov.logger.Info("cgov: ignoring vaa because it is not a transfer", zap.String("msgID", msg.MessageIDString()))
+		return false, nil, nil, nil, nil
+	}
+
+	payload, err := vaa.DecodeTransferPayloadHdr(msg.Payload)
+	if err != nil {
+		gov.logger.Error("cgov: failed to decode vaa", zap.String("msgID", msg.MessageIDString()), zap.Error(err))
+		return false, nil, nil, nil, err
+	}
+
+	// If we don't care about this token, the VAA can be published.
+	tk := tokenKey{chain: payload.OriginChain, addr: payload.OriginAddress}
+	token, exists := gov.tokens[tk]
+	if !exists {
+		gov.logger.Info("cgov: ignoring vaa because the token is not in the list", zap.String("msgID", msg.MessageIDString()))
+		return false, nil, nil, nil, nil
+	}
+
+	return true, ce, token, payload, nil
 }
 
 func (gov *ChainGovernor) CheckPending() ([]*common.MessagePublication, error) {

@@ -703,3 +703,41 @@ func (s *nodePrivilegedService) SignExistingVAA(ctx context.Context, req *nodev1
 
 	return &nodev1.SignExistingVAAResponse{Vaa: newVAABytes}, nil
 }
+
+func (s *nodePrivilegedService) DumpRPCs(ctx context.Context, req *nodev1.DumpRPCsRequest) (*nodev1.DumpRPCsResponse, error) {
+	rpcMap := make(map[string]string)
+
+	rpcMap["acalaRPC"] = *acalaRPC
+	rpcMap["algorandIndexerRPC"] = *algorandIndexerRPC
+	rpcMap["algorandAlgodRPC"] = *algorandAlgodRPC
+	rpcMap["aptosRPC"] = *aptosRPC
+	rpcMap["arbitrumRPC"] = *arbitrumRPC
+	rpcMap["auroraRPC"] = *auroraRPC
+	rpcMap["avalancheRPC"] = *avalancheRPC
+	rpcMap["bscRPC"] = *bscRPC
+	rpcMap["celoRPC"] = *celoRPC
+	rpcMap["ethRPC"] = *ethRPC
+	rpcMap["fantomRPC"] = *fantomRPC
+	rpcMap["karuraRPC"] = *karuraRPC
+	rpcMap["klaytnRPC"] = *klaytnRPC
+	rpcMap["moonbeamRPC"] = *moonbeamRPC
+	rpcMap["nearRPC"] = *nearRPC
+	rpcMap["neonRPC"] = *neonRPC
+	rpcMap["oasisRPC"] = *oasisRPC
+	rpcMap["polygonRPC"] = *polygonRPC
+	rpcMap["pythnetRPC"] = *pythnetRPC
+	rpcMap["pythnetWS"] = *pythnetWS
+	rpcMap["solanaRPC"] = *solanaRPC
+	rpcMap["terraWS"] = *terraWS
+	rpcMap["terraLCD"] = *terraLCD
+	rpcMap["terra2WS"] = *terra2WS
+	rpcMap["terra2LCD"] = *terra2LCD
+	rpcMap["wormchainWS"] = *wormchainWS
+	rpcMap["wormchainLCD"] = *wormchainLCD
+	rpcMap["xplaWS"] = *xplaWS
+	rpcMap["xplaLCD"] = *xplaLCD
+
+	return &nodev1.DumpRPCsResponse{
+		Response: rpcMap,
+	}, nil
+}
