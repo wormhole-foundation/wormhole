@@ -38,18 +38,18 @@ module token_bridge::normalized_amount {
         new((value as u64))
     }
 
-    public fun normalize(raw_amount: u64, decimals: u8): NormalizedAmount {
+    public fun from_raw(amount: u64, decimals: u8): NormalizedAmount {
         let normalized = {
             if (decimals > 8) {
-                raw_amount / math::pow(10, decimals - 8)
+                amount / math::pow(10, decimals - 8)
             } else {
-                raw_amount
+                amount
             }
         };
         new(normalized)
     }
 
-    public fun denormalize(normalized: NormalizedAmount, decimals: u8): u64 {
+    public fun to_raw(normalized: NormalizedAmount, decimals: u8): u64 {
         let NormalizedAmount { value } = normalized;
          if (decimals > 8) {
             value * math::pow(10, decimals - 8)
@@ -75,13 +75,13 @@ module token_bridge::normalized_amount_test {
     #[test]
     fun test_normalize_denormalize_amount() {
         let a = 12345678910111;
-        let b = normalized_amount::normalize(a, 9);
-        let c = normalized_amount::denormalize(b, 9);
+        let b = normalized_amount::from_raw(a, 9);
+        let c = normalized_amount::to_raw(b, 9);
         assert!(c == 12345678910110, 0);
 
         let x = 12345678910111;
-        let y = normalized_amount::normalize(x, 5);
-        let z = normalized_amount::denormalize(y, 5);
+        let y = normalized_amount::from_raw(x, 5);
+        let z = normalized_amount::to_raw(y, 5);
         assert!(z == x, 0);
     }
 }

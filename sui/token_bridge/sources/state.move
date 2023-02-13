@@ -10,8 +10,9 @@ module token_bridge::state {
     use sui::tx_context::{Self};
     use sui::sui::{SUI};
 
-    use token_bridge::string32;
     use token_bridge::asset_meta::{Self, AssetMeta};
+    use token_bridge::string32::{Self};
+    use token_bridge::token_info::{Self, TokenInfo};
 
     use wormhole::dynamic_set::{Self};
     use wormhole::external_address::{Self, ExternalAddress};
@@ -68,30 +69,23 @@ module token_bridge::state {
         asset_meta: AssetMeta,
     }
 
-    /// OriginInfo is a non-Sui object that stores info about a tokens native token
-    /// chain and address
-    struct OriginInfo<phantom CoinType> has store, copy, drop {
-        token_chain: u16,
-        token_address: ExternalAddress
+    public fun get_origin_info_from_wrapped_asset_info<CoinType>(
+        wrapped_asset_info: &WrappedAssetInfo<CoinType>
+    ): TokenInfo<CoinType> {
+        token_info::new(
+            wrapped_asset_info.token_chain,
+            wrapped_asset_info.token_address
+        )
     }
 
-    public fun get_token_chain_from_origin_info<CoinType>(origin_info: &OriginInfo<CoinType>): u16 {
-        return origin_info.token_chain
-    }
-
-    public fun get_token_address_from_origin_info<CoinType>(origin_info: &OriginInfo<CoinType>): ExternalAddress {
-        return origin_info.token_address
-    }
-
-    public fun get_origin_info_from_wrapped_asset_info<CoinType>(wrapped_asset_info: &WrappedAssetInfo<CoinType>): OriginInfo<CoinType> {
-        OriginInfo { token_chain: wrapped_asset_info.token_chain, token_address: wrapped_asset_info.token_address }
-    }
-
-    public fun get_origin_info_from_native_asset_info<CoinType>(native_asset_info: &NativeAssetInfo<CoinType>): OriginInfo<CoinType> {
+    public fun get_origin_info_from_native_asset_info<CoinType>(
+        native_asset_info: &NativeAssetInfo<CoinType>
+    ): TokenInfo<CoinType> {
         let asset_meta = &native_asset_info.asset_meta;
-        let token_chain = asset_meta::get_token_chain(asset_meta);
-        let token_address = asset_meta::get_token_address(asset_meta);
-        OriginInfo { token_chain, token_address }
+        token_info::new(
+            asset_meta::get_token_chain(asset_meta),
+            asset_meta::get_token_address(asset_meta)
+        )
     }
 
     public(friend) fun create_wrapped_asset_info<CoinType>(
@@ -292,7 +286,7 @@ module token_bridge::state {
     }
 
     /// Returns the origin information for a CoinType
-    public fun origin_info<CoinType>(bridge_state: &State): OriginInfo<CoinType> {
+    public fun origin_info<CoinType>(bridge_state: &State): TokenInfo<CoinType> {
         if (is_wrapped_asset<CoinType>(bridge_state)) {
             get_wrapped_asset_origin_info<CoinType>(bridge_state)
         } else {
@@ -331,9 +325,15 @@ module token_bridge::state {
         token_chain: u16,
         token_address: ExternalAddress
     ): VerifiedCoinType<CoinType> {
-        let coin_origin = origin_info<CoinType>(bridge_state);
-        assert!(coin_origin.token_chain == token_chain, E_ORIGIN_CHAIN_MISMATCH);
-        assert!(coin_origin.token_address == token_address, E_ORIGIN_ADDRESS_MISMATCH);
+        let info = origin_info<CoinType>(bridge_state);
+        assert!(
+            token_info::chain(&info) == token_chain,
+            E_ORIGIN_CHAIN_MISMATCH
+        );
+        assert!(
+            token_info::addr(&info) == token_address,
+            E_ORIGIN_ADDRESS_MISMATCH
+        );
         VerifiedCoinType {}
     }
 
@@ -347,13 +347,13 @@ module token_bridge::state {
         asset_meta::get_decimals(&native_asset_info.asset_meta)
     }
 
-    public fun get_wrapped_asset_origin_info<CoinType>(bridge_state: &State): OriginInfo<CoinType> {
+    public fun get_wrapped_asset_origin_info<CoinType>(bridge_state: &State): TokenInfo<CoinType> {
         assert!(is_wrapped_asset<CoinType>(bridge_state), E_IS_NOT_WRAPPED_ASSET);
         let wrapped_asset_info = dynamic_set::borrow<WrappedAssetInfo<CoinType>>(&bridge_state.id);
         get_origin_info_from_wrapped_asset_info(wrapped_asset_info)
     }
 
-    public fun get_registered_native_asset_origin_info<CoinType>(bridge_state: &State): OriginInfo<CoinType> {
+    public fun get_registered_native_asset_origin_info<CoinType>(bridge_state: &State): TokenInfo<CoinType> {
         let native_asset_info = dynamic_set::borrow<NativeAssetInfo<CoinType>>(&bridge_state.id);
         get_origin_info_from_native_asset_info(native_asset_info)
     }
@@ -414,6 +414,7 @@ module token_bridge::bridge_state_test{
     use token_bridge::state::{Self, State, DeployerCapability};
     use token_bridge::native_coin_witness::{Self, NATIVE_COIN_WITNESS};
     use token_bridge::native_coin_witness_v2::{Self, NATIVE_COIN_WITNESS_V2};
+    use token_bridge::token_info::{Self};
 
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
@@ -431,7 +432,7 @@ module token_bridge::bridge_state_test{
     }
 
     #[test]
-    #[expected_failure(abort_code = 0, location=0000000000000000000000000000000000000002::dynamic_field)]
+    #[expected_failure(abort_code = 0, location=sui::dynamic_field)]
     fun test_coin_type_addressing_failure_case(){
         test_coin_type_addressing_failure_case_(scenario())
     }
@@ -495,27 +496,31 @@ module token_bridge::bridge_state_test{
         next_tx(&mut test, admin); {
             let wormhole_state = take_shared<WormholeState>(&test);
             let bridge_state = take_shared<State>(&test);
-            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
+            let coin_meta =
+                take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
+
             state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut wormhole_state,
                 &mut bridge_state,
                 &coin_meta,
                 ctx(&mut test)
             );
-            let origin_info = state::origin_info<NATIVE_COIN_WITNESS>(&bridge_state);
-            let address = state::get_token_address_from_origin_info(&origin_info);
-            assert!(address == external_address::from_bytes(x"01"), 0);
+            let info = state::origin_info<NATIVE_COIN_WITNESS>(&bridge_state);
+            let expected_addr = external_address::from_bytes(x"01");
+            assert!(token_info::addr(&info) == expected_addr, 0);
 
-            let coin_meta_v2 = take_shared<CoinMetadata<NATIVE_COIN_WITNESS_V2>>(&test);
+            let coin_meta_v2 =
+                take_shared<CoinMetadata<NATIVE_COIN_WITNESS_V2>>(&test);
             state::register_native_asset<NATIVE_COIN_WITNESS_V2>(
                 &mut wormhole_state,
                 &mut bridge_state,
                 &coin_meta_v2,
                 ctx(&mut test)
             );
-            let origin_info = state::origin_info<NATIVE_COIN_WITNESS_V2>(&bridge_state);
-            let address = state::get_token_address_from_origin_info(&origin_info);
-            assert!(address == external_address::from_bytes(x"02"), 0);
+            let info =
+                state::origin_info<NATIVE_COIN_WITNESS_V2>(&bridge_state);
+            let expected_addr = external_address::from_bytes(x"02");
+            assert!(token_info::addr(&info) == expected_addr, 0);
 
             return_shared<WormholeState>(wormhole_state);
             return_shared<State>(bridge_state);
@@ -546,9 +551,9 @@ module token_bridge::bridge_state_test{
                 &coin_meta,
                 ctx(&mut test)
             );
-            let origin_info = state::origin_info<NATIVE_COIN_WITNESS>(&bridge_state);
-            let address = state::get_token_address_from_origin_info(&origin_info);
-            assert!(address == external_address::from_bytes(x"01"), 0);
+            let info = state::origin_info<NATIVE_COIN_WITNESS>(&bridge_state);
+            let expected_addr = external_address::from_bytes(x"01");
+            assert!(token_info::addr(&info) == expected_addr, 0);
 
             // aborts because trying to re-register native coin
             state::register_native_asset<NATIVE_COIN_WITNESS>(

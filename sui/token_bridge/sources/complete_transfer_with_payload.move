@@ -9,7 +9,7 @@ module token_bridge::complete_transfer_with_payload {
     use token_bridge::state::{Self, State, VerifiedCoinType};
     use token_bridge::vaa::{Self};
     use token_bridge::transfer_with_payload::{Self, TransferWithPayload};
-    use token_bridge::normalized_amount::{denormalize};
+    use token_bridge::normalized_amount::{Self};
 
     const E_INVALID_TARGET: u64 = 0;
     const E_INVALID_RECIPIENT: u64 = 1;
@@ -108,7 +108,7 @@ module token_bridge::complete_transfer_with_payload {
             let decimals =
                 state::get_wrapped_decimals<CoinType>(bridge_state);
             let amount =
-                denormalize(
+                normalized_amount::to_raw(
                     transfer_with_payload::amount(&transfer),
                     decimals
                 );
@@ -122,7 +122,7 @@ module token_bridge::complete_transfer_with_payload {
             let decimals =
                 state::get_native_decimals<CoinType>(bridge_state);
             let amount = 
-                denormalize(
+                normalized_amount::to_raw(
                     transfer_with_payload::amount(&transfer),
                     decimals
                 );
@@ -148,7 +148,7 @@ module token_bridge::complete_transfer_with_payload_test {
     use wormhole::external_address::{Self};
 
     use token_bridge::normalized_amount::{Self};
-    use token_bridge::transfer_with_payload::{Self, TransferWithPayload};
+    use token_bridge::transfer_with_payload::{Self};
     use token_bridge::state::{Self, State};
     use token_bridge::complete_transfer_with_payload::{
         test_complete_transfer_with_payload
@@ -226,8 +226,8 @@ module token_bridge::complete_transfer_with_payload_test {
             let from_address = external_address::from_bytes(x"111122");
             let payload = x"beefbeef22";
 
-            let transfer: TransferWithPayload = transfer_with_payload::new(
-                normalized_amount::normalize(amount, decimals),
+            let transfer = transfer_with_payload::new(
+                normalized_amount::from_raw(amount, decimals),
                 token_address,
                 token_chain,
                 to,

@@ -9,7 +9,7 @@ module token_bridge::complete_transfer {
     use token_bridge::state::{Self, State, VerifiedCoinType};
     use token_bridge::vaa::{Self};
     use token_bridge::transfer::{Self, Transfer};
-    use token_bridge::normalized_amount::{denormalize};
+    use token_bridge::normalized_amount::{Self};
 
     const E_INVALID_TARGET: u64 = 0;
 
@@ -106,6 +106,8 @@ module token_bridge::complete_transfer {
         let recipient = external_address::to_address(
             &transfer::recipient(&my_transfer)
         );
+        let normed_amount = transfer::amount(&my_transfer);
+        let normed_fee = transfer::relayer_fee(&my_transfer);
 
         let recipient_coins;
         let amount;
@@ -113,31 +115,31 @@ module token_bridge::complete_transfer {
         if (state::is_wrapped_asset<CoinType>(bridge_state)) {
             let decimals =
                 state::get_wrapped_decimals<CoinType>(bridge_state);
-            amount = denormalize(transfer::amount(&my_transfer), decimals);
-            fee_amount = denormalize(
-                transfer::relayer_fee(&my_transfer),
-                decimals
-            );
-            recipient_coins = state::mint<CoinType>(
-                verified_coin_witness,
-                bridge_state,
-                amount,
-                ctx
-            );
+            amount =
+                normalized_amount::to_raw(normed_amount, decimals);
+            fee_amount =
+                normalized_amount::to_raw(normed_fee, decimals);
+            recipient_coins =
+                state::mint<CoinType>(
+                    verified_coin_witness,
+                    bridge_state,
+                    amount,
+                    ctx
+                );
         } else {
             let decimals =
                 state::get_native_decimals<CoinType>(bridge_state);
-            amount = denormalize(transfer::amount(&my_transfer), decimals);
-            fee_amount = denormalize(
-                transfer::relayer_fee(&my_transfer),
-                decimals
-            );
-            recipient_coins = state::withdraw<CoinType>(
-                verified_coin_witness,
-                bridge_state,
-                amount,
-                ctx
-            );
+            amount =
+                normalized_amount::to_raw(normed_amount, decimals);
+            fee_amount =
+                normalized_amount::to_raw(normed_fee, decimals);
+            recipient_coins =
+                state::withdraw<CoinType>(
+                    verified_coin_witness,
+                    bridge_state,
+                    amount,
+                    ctx
+                );
         };
         // take out fee from the recipient's coins. `extract` will revert
         // if fee > amount
@@ -223,12 +225,12 @@ module token_bridge::complete_transfer_test {
             let to_chain = wormhole_state::get_chain_id(&worm_state);
 
             let my_transfer = transfer::new(
-                normalized_amount::normalize(amount, decimals),
+                normalized_amount::from_raw(amount, decimals),
                 token_address,
                 token_chain,
                 external_address::from_bytes(bcs::to_bytes(&to)),
                 to_chain,
-                normalized_amount::normalize(fee_amount, decimals),
+                normalized_amount::from_raw(fee_amount, decimals),
             );
 
             complete_transfer::test_complete_transfer<NATIVE_COIN_WITNESS>(
@@ -306,12 +308,12 @@ module token_bridge::complete_transfer_test {
             let to_chain = wormhole_state::get_chain_id(&worm_state);
 
             let my_transfer = transfer::new(
-                normalized_amount::normalize(amount, decimals),
+                normalized_amount::from_raw(amount, decimals),
                 token_address,
                 token_chain,
                 external_address::from_bytes(bcs::to_bytes(&to)),
                 to_chain,
-                normalized_amount::normalize(fee_amount, decimals),
+                normalized_amount::from_raw(fee_amount, decimals),
             );
 
             complete_transfer::test_complete_transfer<NATIVE_COIN_WITNESS>(
@@ -387,12 +389,12 @@ module token_bridge::complete_transfer_test {
             let to_chain = wormhole_state::get_chain_id(&worm_state);
 
             let my_transfer = transfer::new(
-                normalized_amount::normalize(amount, decimals),
+                normalized_amount::from_raw(amount, decimals),
                 token_address,
                 token_chain,
                 external_address::from_bytes(bcs::to_bytes(&to)),
                 to_chain,
-                normalized_amount::normalize(fee_amount, decimals),
+                normalized_amount::from_raw(fee_amount, decimals),
             );
 
             complete_transfer::test_complete_transfer<NATIVE_COIN_WITNESS_V2>(
@@ -475,12 +477,12 @@ module token_bridge::complete_transfer_test {
             let to_chain = wormhole_state::get_chain_id(&worm_state);
 
             let my_transfer = transfer::new(
-                normalized_amount::normalize(amount, decimals),
+                normalized_amount::from_raw(amount, decimals),
                 token_address,
                 token_chain,
                 external_address::from_bytes(bcs::to_bytes(&to)),
                 to_chain,
-                normalized_amount::normalize(fee_amount, decimals),
+                normalized_amount::from_raw(fee_amount, decimals),
             );
 
             complete_transfer::test_complete_transfer<NATIVE_COIN_WITNESS>(
@@ -547,12 +549,12 @@ module token_bridge::complete_transfer_test {
             let to_chain = wormhole_state::get_chain_id(&worm_state);
 
             let my_transfer = transfer::new(
-                normalized_amount::normalize(amount, decimals),
+                normalized_amount::from_raw(amount, decimals),
                 token_address,
                 token_chain,
                 external_address::from_bytes(bcs::to_bytes(&to)),
                 to_chain,
-                normalized_amount::normalize(fee_amount, decimals),
+                normalized_amount::from_raw(fee_amount, decimals),
             );
 
             complete_transfer::test_complete_transfer<NATIVE_COIN_WITNESS>(
@@ -620,12 +622,12 @@ module token_bridge::complete_transfer_test {
             let to_chain = wormhole_state::get_chain_id(&worm_state);
 
             let my_transfer = transfer::new(
-                normalized_amount::normalize(amount, decimals),
+                normalized_amount::from_raw(amount, decimals),
                 token_address,
                 token_chain,
                 external_address::from_bytes(bcs::to_bytes(&to)),
                 to_chain,
-                normalized_amount::normalize(fee_amount, decimals),
+                normalized_amount::from_raw(fee_amount, decimals),
             );
 
             complete_transfer::test_complete_transfer<NATIVE_COIN_WITNESS>(
@@ -695,12 +697,12 @@ module token_bridge::complete_transfer_test {
             let to_chain = wormhole_state::get_chain_id(&worm_state);
 
             let my_transfer = transfer::new(
-                normalized_amount::normalize(amount, decimals),
+                normalized_amount::from_raw(amount, decimals),
                 token_address,
                 token_chain,
                 external_address::from_bytes(bcs::to_bytes(&to)),
                 to_chain,
-                normalized_amount::normalize(fee_amount, decimals),
+                normalized_amount::from_raw(fee_amount, decimals),
             );
 
             complete_transfer::test_complete_transfer<NATIVE_COIN_WITNESS_V2>(
@@ -741,12 +743,12 @@ module token_bridge::complete_transfer_test {
             let to_chain = wormhole_state::get_chain_id(&worm_state);
 
             let my_transfer = transfer::new(
-                normalized_amount::normalize(amount, decimals),
+                normalized_amount::from_raw(amount, decimals),
                 token_address,
                 token_chain,
                 external_address::from_bytes(bcs::to_bytes(&to)),
                 to_chain,
-                normalized_amount::normalize(fee_amount, decimals),
+                normalized_amount::from_raw(fee_amount, decimals),
             );
             complete_transfer::test_complete_transfer<COIN_WITNESS>(
                 my_transfer,

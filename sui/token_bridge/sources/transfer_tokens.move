@@ -5,10 +5,11 @@ module token_bridge::transfer_tokens {
     use wormhole::state::{State as WormholeState};
     use wormhole::external_address::{Self};
 
+    use token_bridge::normalized_amount::{Self};
     use token_bridge::state::{Self, State};
+    use token_bridge::token_info::{Self};
     use token_bridge::transfer_result::{Self, TransferResult};
     use token_bridge::transfer::{Self};
-    use token_bridge::normalized_amount::{Self};
 
     // `transfer_tokens_with_payload` requires `handle_transfer_tokens`
     friend token_bridge::transfer_tokens_with_payload;
@@ -65,9 +66,7 @@ module token_bridge::transfer_tokens {
         assert!(relayer_fee <= amount, E_TOO_MUCH_RELAYER_FEE);
 
         // Get info about the token
-        let origin_info = state::origin_info<CoinType>(bridge_state);
-        let token_chain = state::get_token_chain_from_origin_info(&origin_info);
-        let token_address = state::get_token_address_from_origin_info(&origin_info);
+        let info = state::origin_info<CoinType>(bridge_state);
 
         if (state::is_wrapped_asset<CoinType>(bridge_state)) {
             // now we burn the wrapped coins to remove them from circulation
@@ -87,10 +86,10 @@ module token_bridge::transfer_tokens {
         };
 
         transfer_result::new(
-            token_chain,
-            token_address,
-            normalized_amount::normalize(amount, decimals),
-            normalized_amount::normalize(relayer_fee, decimals),
+            token_info::chain(&info),
+            token_info::addr(&info),
+            normalized_amount::from_raw(amount, decimals),
+            normalized_amount::from_raw(relayer_fee, decimals),
         )
     }
 

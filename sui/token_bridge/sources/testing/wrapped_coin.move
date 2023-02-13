@@ -31,12 +31,13 @@ module token_bridge::coin_witness_test {
     use wormhole::state::{State as WormholeState};
     use wormhole::external_address::{Self};
 
-    use token_bridge::state::{State, is_wrapped_asset, is_registered_native_asset, origin_info, get_token_chain_from_origin_info, get_token_address_from_origin_info};
+    use token_bridge::state::{State, is_wrapped_asset, is_registered_native_asset, origin_info};
     use token_bridge::bridge_state_test::{set_up_wormhole_core_and_token_bridges};
     use token_bridge::create_wrapped::{NewWrappedCoin, register_wrapped_coin};
     use token_bridge::register_chain::{submit_vaa};
 
     use token_bridge::coin_witness::{test_init, COIN_WITNESS};
+    use token_bridge::token_info::{Self};
 
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
@@ -98,11 +99,12 @@ module token_bridge::coin_witness_test {
             assert!(!is_native, 0);
 
             // assert origin info is correct
-            let origin_info = origin_info<COIN_WITNESS>(&bridge_state);
-            let chain = get_token_chain_from_origin_info(&origin_info);
-            let address = get_token_address_from_origin_info(&origin_info);
-            assert!(chain == 2, 0);
-            assert!(address == external_address::from_bytes(x"beefface"), 0);
+            let info = origin_info<COIN_WITNESS>(&bridge_state);
+            assert!(token_info::chain(&info) == 2, 0);
+
+            let expected_addr = external_address::from_bytes(x"beefface");
+            assert!(token_info::addr(&info) == expected_addr, 0);
+
             return_shared<State>(bridge_state);
             return_shared<WormholeState>(worm_state);
         };
