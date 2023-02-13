@@ -54,6 +54,11 @@ var (
 			Name: "wormhole_p2p_broadcast_messages_received_total",
 			Help: "Total number of p2p pubsub broadcast messages received",
 		}, []string{"type"})
+	p2pReceiveChannelOverflow = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "wormhole_p2p_receive_channel_overflow",
+			Help: "Total number of p2p received messages dropped due to channel overflow",
+		}, []string{"type"})
 )
 
 var heartbeatMessagePrefix = []byte("heartbeat|")
@@ -89,6 +94,10 @@ func Run(
 	signedGovSt chan *gossipv1.SignedChainGovernorStatus,
 ) func(ctx context.Context) error {
 	return func(ctx context.Context) (re error) {
+		p2pReceiveChannelOverflow.WithLabelValues("observation").Add(0)
+		p2pReceiveChannelOverflow.WithLabelValues("signed_vaa_with_quorum").Add(0)
+		p2pReceiveChannelOverflow.WithLabelValues("signed_observation_request").Add(0)
+
 		logger := supervisor.Logger(ctx)
 
 		mgr, err := connmgr.NewConnManager(
@@ -399,11 +408,19 @@ func Run(
 						zap.String("from", envelope.GetFrom().String()))
 				}
 			case *gossipv1.GossipMessage_SignedObservation:
-				obsvC <- m.SignedObservation
-				p2pMessagesReceived.WithLabelValues("observation").Inc()
+				select {
+				case obsvC <- m.SignedObservation:
+					p2pMessagesReceived.WithLabelValues("observation").Inc()
+				default:
+					p2pReceiveChannelOverflow.WithLabelValues("observation").Inc()
+				}
 			case *gossipv1.GossipMessage_SignedVaaWithQuorum:
-				signedInC <- m.SignedVaaWithQuorum
-				p2pMessagesReceived.WithLabelValues("signed_vaa_with_quorum").Inc()
+				select {
+				case signedInC <- m.SignedVaaWithQuorum:
+					p2pMessagesReceived.WithLabelValues("signed_vaa_with_quorum").Inc()
+				default:
+					p2pReceiveChannelOverflow.WithLabelValues("signed_vaa_with_quorum").Inc()
+				}
 			case *gossipv1.GossipMessage_SignedObservationRequest:
 				s := m.SignedObservationRequest
 				gs := gst.Get()
@@ -423,12 +440,16 @@ func Run(
 						zap.Binary("raw", envelope.Data),
 						zap.String("from", envelope.GetFrom().String()))
 				} else {
-					p2pMessagesReceived.WithLabelValues("signed_observation_request").Inc()
 					logger.Info("valid signed observation request received",
 						zap.Any("value", r),
 						zap.String("from", envelope.GetFrom().String()))
 
-					obsvReqC <- r
+					select {
+					case obsvReqC <- r:
+						p2pMessagesReceived.WithLabelValues("signed_observation_request").Inc()
+					default:
+						p2pReceiveChannelOverflow.WithLabelValues("signed_observation_request").Inc()
+					}
 				}
 			case *gossipv1.GossipMessage_SignedChainGovernorConfig:
 				logger.Debug("cgov: received config message")
