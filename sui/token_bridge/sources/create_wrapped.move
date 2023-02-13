@@ -12,8 +12,9 @@ module token_bridge::create_wrapped {
 
     use token_bridge::state::{Self, State};
     use token_bridge::asset_meta::{Self, AssetMeta};
-    use token_bridge::vaa;
+    use token_bridge::vaa::{Self};
     use token_bridge::string32::{Self};
+    use token_bridge::wrapped_asset::{Self};
 
     use wormhole::state::{Self as wormhole_state, State as WormholeState};
     use wormhole::myvaa as core_vaa;
@@ -135,7 +136,7 @@ module token_bridge::create_wrapped {
         let origin_chain = asset_meta::get_token_chain(&metadata);
         let external_address = asset_meta::get_token_address(&metadata);
         let wrapped_asset_info =
-            state::create_wrapped_asset_info(
+            wrapped_asset::new(
                 origin_chain,
                 external_address,
                 treasury_cap,
