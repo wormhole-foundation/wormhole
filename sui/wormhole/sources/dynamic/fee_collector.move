@@ -15,7 +15,11 @@ module wormhole::fee_collector {
         coin::join(borrow_mut(parent_id), coin);
     }
 
-    public fun withdraw(parent_id: &mut UID, amount: u64, ctx: &mut TxContext): Coin<SUI> {
+    public fun withdraw(
+        parent_id: &mut UID,
+        amount: u64,
+        ctx: &mut TxContext
+    ): Coin<SUI> {
         coin::split(borrow_mut(parent_id), amount, ctx)
     }
 
