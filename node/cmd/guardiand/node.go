@@ -812,8 +812,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	logger.Info("Loaded guardian key", zap.String(
 		"address", guardianAddr))
 
-	p2p.DefaultRegistry.SetGuardianAddress(guardianAddr)
-
 	// Node's main lifecycle context.
 	rootCtx, rootCtxCancel = context.WithCancel(context.Background())
 	defer rootCtxCancel()

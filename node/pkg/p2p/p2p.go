@@ -276,6 +276,7 @@ func Run(
 			if nodeName == "" {
 				return
 			}
+			guardianAddr := ethcrypto.PubkeyToAddress(gk.PublicKey).String()
 
 			ctr := int64(0)
 			tick := time.NewTicker(15 * time.Second)
@@ -312,7 +313,7 @@ func Run(
 							Timestamp:     time.Now().UnixNano(),
 							Networks:      networks,
 							Version:       version.Version(),
-							GuardianAddr:  DefaultRegistry.guardianAddress,
+							GuardianAddr:  guardianAddr,
 							BootTimestamp: bootTime.UnixNano(),
 							Features:      features,
 						}
