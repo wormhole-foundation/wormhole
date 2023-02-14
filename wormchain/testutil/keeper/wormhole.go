@@ -31,6 +31,11 @@ import (
 )
 
 func WormholeKeeper(t testing.TB) (*keeper.Keeper, sdk.Context) {
+	k, _, _, ctx := WormholeKeeperAndWasmd(t)
+	return k, ctx
+}
+
+func WormholeKeeperAndWasmd(t testing.TB) (*keeper.Keeper, wasmkeeper.Keeper, *wasmkeeper.PermissionedKeeper, sdk.Context) {
 	keys := sdk.NewKVStoreKeys(
 		authtypes.StoreKey,
 		paramstypes.StoreKey,
@@ -86,7 +91,7 @@ func WormholeKeeper(t testing.TB) (*keeper.Keeper, sdk.Context) {
 		nil,
 	)
 
-	supportedFeatures := "iterator,staking,stargate"
+	supportedFeatures := "iterator,staking,stargate,wormhole"
 	appapp.WormholeKeeper = *k
 
 	appapp.CapabilityKeeper = capabilitykeeper.NewKeeper(appCodec, keys[capabilitytypes.StoreKey], memKeys[capabilitytypes.MemStoreKey])
@@ -113,6 +118,7 @@ func WormholeKeeper(t testing.TB) (*keeper.Keeper, sdk.Context) {
 		wasmDir,
 		wasm.DefaultWasmConfig(),
 		supportedFeatures,
+		wasmkeeper.WithQueryPlugins(keeper.NewCustomQueryHandler(appapp.WormholeKeeper)),
 	)
 	ctx := sdk.NewContext(stateStore, tmproto.Header{
 		Time: time.Now(),
@@ -132,5 +138,5 @@ func WormholeKeeper(t testing.TB) (*keeper.Keeper, sdk.Context) {
 	appapp.WormholeKeeper.SetWasmdKeeper(permissionedWasmKeeper)
 	k.SetWasmdKeeper(permissionedWasmKeeper)
 
-	return k, ctx
+	return k, wasmKeeper, permissionedWasmKeeper, ctx
 }
