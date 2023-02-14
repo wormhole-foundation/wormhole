@@ -267,23 +267,14 @@ pub enum Action {
     // Modify balance for tokenbridge
     #[serde(rename = "3")]
     ModifyBalance {
-        // module:  \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00TokenBridge (32)
-        // chainId: \x03\x0c (2)
-        // action: \x03 (1)
-
-        // \x00\x00\x00\x00\x00\x00\x00$
-        sequence: u64, // 8
-
-        // \x00\x01
-        chain_id: u16, // 10
-        // \x00\x01
-        token_chain: u16, // 12
-        // ||||||||||||||||||||||||||||||||
-        token_address: Address, // 44
-        // \x01
-        kind: ModificationKind, // 45
-        amount: Amount,         // 78
-        reason: [u8; 32],       // 110
+        sequence: u64,
+        chain_id: u16,
+        token_chain: u16,
+        token_address: Address,
+        kind: ModificationKind,
+        amount: Amount,
+        #[serde(with = "crate::arraystring")]
+        reason: BString,
     },
 }
 
@@ -367,7 +358,8 @@ mod governance_packet_impl {
         token_address: Address,
         kind: super::ModificationKind,
         amount: Amount,
-        reason: [u8; 32],
+        #[serde(with = "crate::arraystring")]
+        reason: bstr::BString,
     }
 
     impl Serialize for GovernancePacket {
@@ -380,7 +372,7 @@ mod governance_packet_impl {
 
             // The wire format encodes the action before the chain and then appends the actual
             // action payload.
-            match self.action {
+            match self.action.clone() {
                 Action::RegisterChain {
                     chain,
                     emitter_address,

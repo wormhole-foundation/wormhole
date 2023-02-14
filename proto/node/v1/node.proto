@@ -158,7 +158,8 @@ message BridgeModifyBalance {
   string token_address = 6;
   // The kind of modification to be made.
   ModificationKind kind = 7;
-  // The amount to be modified.
+  // The amount to be modified.  This should be a decimal formatted string indicating the
+  // "raw" amount, not adjusted by the decimals of the token.
   string amount = 8;
   // A human-readable reason for the modification (max 32 bytes).
   string reason = 9;

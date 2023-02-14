@@ -6,11 +6,11 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"math/big"
 	"testing"
 	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/crypto/sha3"
@@ -482,7 +482,7 @@ func TestWasmdAccountantContractModify(t *testing.T) {
 		TokenChain:    vaa.ChainIDSolana,
 		TokenAddress:  token_address,
 		Kind:          1, // Add
-		Amount:        big.NewInt(1),
+		Amount:        uint256.NewInt(50),
 		Reason:        "test modify",
 	}
 	ts := time.Date(2012, 12, 12, 12, 12, 12, 12, time.UTC)

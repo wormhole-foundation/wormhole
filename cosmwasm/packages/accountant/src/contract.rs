@@ -400,7 +400,7 @@ mod tests {
                 token_address: [i as u8; 32].into(),
                 kind: if i % 2 == 0 { Kind::Add } else { Kind::Sub },
                 amount: Uint256::from(i as u128),
-                reason: [0x20u8; 32].into(),
+                reason: "test".into(),
             };
             out.push(m);
         }
@@ -547,7 +547,7 @@ mod tests {
             token_address: tx.data.token_address,
             kind: Kind::Add,
             amount: wrapped,
-            reason: [0x20u8; 32].into(),
+            reason: "test".into(),
         };
         modify_balance(deps.as_mut(), m).unwrap();
 
@@ -960,7 +960,7 @@ mod tests {
             token_address: [3u8; 32].into(),
             kind: Kind::Add,
             amount: Uint256::from(4u128),
-            reason: [0x20u8; 32].into(),
+            reason: "test".into(),
         };
 
         let evt = modify_balance(deps.as_mut(), m.clone()).unwrap();
@@ -997,7 +997,7 @@ mod tests {
             token_address: [3u8; 32].into(),
             kind: Kind::Add,
             amount: Uint256::from(4u128),
-            reason: [0x20u8; 32].into(),
+            reason: "test".into(),
         };
 
         modify_balance(deps.as_mut(), m.clone()).unwrap();
@@ -1020,7 +1020,7 @@ mod tests {
             token_address: [3u8; 32].into(),
             kind: Kind::Add,
             amount: Uint256::from(4u128),
-            reason: [0x20u8; 32].into(),
+            reason: "test".into(),
         };
 
         modify_balance(deps.as_mut(), m.clone()).unwrap();
@@ -1044,7 +1044,7 @@ mod tests {
             token_address: [3u8; 32].into(),
             kind: Kind::Add,
             amount: Uint256::from(4u128),
-            reason: [0x20u8; 32].into(),
+            reason: "test".into(),
         };
 
         for i in 0..ITERATIONS {
@@ -1069,7 +1069,7 @@ mod tests {
             token_address: [3u8; 32].into(),
             kind: Kind::Sub,
             amount: Uint256::from(4u128),
-            reason: [0x20u8; 32].into(),
+            reason: "test".into(),
         };
 
         let e = modify_balance(deps.as_mut(), m)
@@ -1251,7 +1251,7 @@ mod tests {
                 token_address: [i as u8; 32].into(),
                 kind: if i % 2 == 0 { Kind::Add } else { Kind::Sub },
                 amount: Uint256::from(i as u128),
-                reason: [0x20u8; 32].into(),
+                reason: "test".into(),
             };
 
             let key = i as u64;

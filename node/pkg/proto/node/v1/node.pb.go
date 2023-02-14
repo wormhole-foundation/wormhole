@@ -565,7 +565,8 @@ type BridgeModifyBalance struct {
 	TokenAddress string `protobuf:"bytes,6,opt,name=token_address,json=tokenAddress,proto3" json:"token_address,omitempty"`
 	// The kind of modification to be made.
 	Kind ModificationKind `protobuf:"varint,7,opt,name=kind,proto3,enum=node.v1.ModificationKind" json:"kind,omitempty"`
-	// The amount to be modified.
+	// The amount to be modified.  This should be a decimal formatted string indicating the
+	// "raw" amount, not adjusted by the decimals of the token.
 	Amount string `protobuf:"bytes,8,opt,name=amount,proto3" json:"amount,omitempty"`
 	// A human-readable reason for the modification (max 32 bytes).
 	Reason string `protobuf:"bytes,9,opt,name=reason,proto3" json:"reason,omitempty"`
