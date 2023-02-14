@@ -7,24 +7,24 @@ module token_bridge::wrapped_asset {
     use token_bridge::token_info::{Self, TokenInfo};
 
     // For `burn` and `mint`
-    friend token_bridge::state;
+    friend token_bridge::registered_tokens;
 
-    /// WrappedAsset<CoinType> stores all the metadata about a wrapped asset
-    struct WrappedAsset<phantom CoinType> has key, store {
+    /// WrappedAsset<C> stores all the metadata about a wrapped asset
+    struct WrappedAsset<phantom C> has key, store {
         id: UID,
         token_chain: u16,
         token_address: ExternalAddress,
-        treasury_cap: TreasuryCap<CoinType>,
+        treasury_cap: TreasuryCap<C>,
         decimals: u8,
     }
 
-    public fun new<CoinType>(
+    public fun new<C>(
         token_chain: u16,
         token_address: ExternalAddress,
-        treasury_cap: TreasuryCap<CoinType>,
+        treasury_cap: TreasuryCap<C>,
         decimals: u8,
         ctx: &mut TxContext
-    ): WrappedAsset<CoinType> {
+    ): WrappedAsset<C> {
         return WrappedAsset {
             id: object::new(ctx),
             token_chain,
@@ -34,29 +34,23 @@ module token_bridge::wrapped_asset {
         }
     }
 
-    public fun token_chain<CoinType>(self: &WrappedAsset<CoinType>): u16 {
+    public fun token_chain<C>(self: &WrappedAsset<C>): u16 {
         self.token_chain
     }
 
-    public fun token_address<CoinType>(
-        self: &WrappedAsset<CoinType>
-    ): ExternalAddress {
+    public fun token_address<C>(self: &WrappedAsset<C>): ExternalAddress {
         self.token_address
     }
 
-    public fun treasury_cap<CoinType>(
-        self: &WrappedAsset<CoinType>
-    ): &TreasuryCap<CoinType> {
+    public fun treasury_cap<C>(self: &WrappedAsset<C>): &TreasuryCap<C> {
         &self.treasury_cap
     }
 
-    public fun decimals<CoinType>(self: &WrappedAsset<CoinType>): u8 {
+    public fun decimals<C>(self: &WrappedAsset<C>): u8 {
         self.decimals
     }
 
-    public fun to_token_info<CoinType>(
-        self: &WrappedAsset<CoinType>
-    ): TokenInfo<CoinType> {
+    public fun to_token_info<C>(self: &WrappedAsset<C>): TokenInfo<C> {
         token_info::new(
             true, // is_wrapped
             self.token_chain,
@@ -64,18 +58,18 @@ module token_bridge::wrapped_asset {
         )
     }
 
-    public(friend) fun burn<CoinType>(
-        self: &mut WrappedAsset<CoinType>,
-        some_coin: Coin<CoinType>
+    public(friend) fun burn<C>(
+        self: &mut WrappedAsset<C>,
+        some_coin: Coin<C>
     ): u64 {
         coin::burn(&mut self.treasury_cap, some_coin)
     }
 
-    public(friend) fun mint<CoinType>(
-        self: &mut WrappedAsset<CoinType>,
+    public(friend) fun mint<C>(
+        self: &mut WrappedAsset<C>,
         amount: u64,
         ctx: &mut TxContext
-    ): Coin<CoinType> {
+    ): Coin<C> {
         coin::mint(&mut self.treasury_cap, amount, ctx)
     }
 }

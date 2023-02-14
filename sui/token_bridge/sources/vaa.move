@@ -26,11 +26,11 @@ module token_bridge::vaa {
     /// Aborts if the VAA has already been consumed. Marks the VAA as consumed
     /// the first time around.
     public(friend) fun replay_protect(
-        bridge_state: &mut State,
+        token_bridge_state: &mut State,
         vaa: &VAA
     ) {
         // this calls set::add which aborts if the element already exists
-        state::store_consumed_vaa(bridge_state, corevaa::get_hash(vaa));
+        state::store_consumed_vaa(token_bridge_state, corevaa::get_hash(vaa));
     }
 
     /// Asserts that the VAA is from a known token bridge.
@@ -55,26 +55,26 @@ module token_bridge::vaa {
     /// Has a 'friend' visibility so that it's only callable by the token bridge
     /// (otherwise the replay protection could be abused to DoS the bridge)
     public(friend) fun parse_verify_and_replay_protect(
-        wormhole_state: &mut WormholeState,
-        bridge_state: &mut State,
+        token_bridge_state: &mut State,
+        worm_state: &mut WormholeState,
         vaa: vector<u8>,
         ctx: &mut TxContext
     ): VAA {
-        let vaa = parse_and_verify(wormhole_state, bridge_state, vaa, ctx);
-        replay_protect(bridge_state, &vaa);
+        let vaa = parse_and_verify(token_bridge_state, worm_state, vaa, ctx);
+        replay_protect(token_bridge_state, &vaa);
         vaa
     }
 
     /// Parses, and verifies a token bridge VAA.
     /// Aborts if the VAA is not from a known token bridge emitter.
     public fun parse_and_verify(
-        wormhole_state: &mut WormholeState,
-        bridge_state: &State,
+        token_bridge_state: &State,
+        worm_state: &mut WormholeState,
         vaa: vector<u8>,
         ctx:&mut TxContext
     ): VAA {
-        let vaa = corevaa::parse_and_verify(wormhole_state, vaa, ctx);
-        assert_known_emitter(bridge_state, &vaa);
+        let vaa = corevaa::parse_and_verify(worm_state, vaa, ctx);
+        assert_known_emitter(token_bridge_state, &vaa);
         vaa
     }
 }
@@ -116,8 +116,8 @@ module token_bridge::token_bridge_vaa_test{
             let w_state = take_shared<WormholeState>(&test);
             let vaa =
                 vaa::parse_verify_and_replay_protect(
-                    &mut w_state,
                     &mut state,
+                    &mut w_state,
                     VAA,
                     ctx(&mut test)
                 );
@@ -151,8 +151,8 @@ module token_bridge::token_bridge_vaa_test{
             let w_state = take_shared<WormholeState>(&test);
             let vaa =
                 vaa::parse_verify_and_replay_protect(
-                    &mut w_state,
                     &mut state,
+                    &mut w_state,
                     VAA,
                     ctx(&mut test)
                 );
@@ -184,8 +184,8 @@ module token_bridge::token_bridge_vaa_test{
             let w_state = take_shared<WormholeState>(&test);
             let vaa =
                 vaa::parse_verify_and_replay_protect(
-                    &mut w_state,
                     &mut state,
+                    &mut w_state,
                     VAA,
                     ctx(&mut test)
                 );
@@ -220,16 +220,16 @@ module token_bridge::token_bridge_vaa_test{
             // try to use the VAA twice
             let vaa =
                 vaa::parse_verify_and_replay_protect(
-                    &mut w_state,
                     &mut state,
+                    &mut w_state,
                     VAA,
                     ctx(&mut test)
                 );
             corevaa::destroy(vaa);
             let vaa =
                 vaa::parse_verify_and_replay_protect(
-                    &mut w_state,
                     &mut state,
+                    &mut w_state,
                     VAA,
                     ctx(&mut test)
                 );
@@ -264,15 +264,15 @@ module token_bridge::token_bridge_vaa_test{
             // replay protect the second time
             let vaa =
                 vaa::parse_verify_and_replay_protect(
-                    &mut w_state,
                     &mut state,
+                    &mut w_state,
                     VAA,
                     ctx(&mut test)
                 );
             corevaa::destroy(vaa);
             let vaa = vaa::parse_and_verify(
-                &mut w_state,
                 &mut state,
+                &mut w_state,
                 VAA,
                 ctx(&mut test)
             );

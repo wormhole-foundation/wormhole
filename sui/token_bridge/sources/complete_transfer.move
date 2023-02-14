@@ -18,8 +18,8 @@ module token_bridge::complete_transfer {
     const E_UNREGISTERED_TOKEN: u64 = 1;
 
     public entry fun complete_transfer<CoinType>(
+        token_bridge_state: &mut State,
         worm_state: &mut WormholeState,
-        bridge_state: &mut State,
         vaa: vector<u8>,
         relayer: address, // consider removing in favor of tx_context::sender?
         ctx: &mut TxContext
@@ -27,8 +27,8 @@ module token_bridge::complete_transfer {
         // Parse and verify Token Bridge transfer message. This method
         // guarantees that a verified transfer message cannot be redeemed again.
         let transfer_vaa = vaa::parse_verify_and_replay_protect(
+            token_bridge_state,
             worm_state,
-            bridge_state,
             vaa,
             ctx
         );
@@ -40,8 +40,8 @@ module token_bridge::complete_transfer {
 
         let (my_coins, decimals) =
             handle_complete_transfer<CoinType>(
+                token_bridge_state,
                 worm_state,
-                bridge_state,
                 transfer::token_chain(&my_transfer),
                 transfer::token_address(&my_transfer),
                 transfer::recipient_chain(&my_transfer),
@@ -74,8 +74,8 @@ module token_bridge::complete_transfer {
     }
 
     public(friend) fun handle_complete_transfer<CoinType>(
+        token_bridge_state: &mut State,
         worm_state: &mut WormholeState,
-        bridge_state: &mut State,
         token_chain: u16,
         token_address: ExternalAddress,
         recipient_chain: u16,
@@ -89,7 +89,7 @@ module token_bridge::complete_transfer {
         );
 
         // Get info about the transferred token.
-        let info = state::origin_info<CoinType>(bridge_state);
+        let info = state::token_info<CoinType>(token_bridge_state);
 
         // Verify that the token info agrees with the info encoded in this
         // transfer.
@@ -98,23 +98,23 @@ module token_bridge::complete_transfer {
             E_UNREGISTERED_TOKEN
         );
 
+        let decimals = state::coin_decimals<CoinType>(token_bridge_state);
+
         // If the token is wrapped by Token Bridge, we will mint these tokens.
         // Otherwise, we will withdraw from custody.
         if (token_info::is_wrapped(&info)) {
-            let decimals = state::get_wrapped_decimals<CoinType>(bridge_state);
             (
                 state::mint<CoinType>(
-                    bridge_state,
+                    token_bridge_state,
                     normalized_amount::to_raw(amount, decimals),
                     ctx
                 ),
                 decimals
             )
         } else {
-            let decimals = state::get_native_decimals<CoinType>(bridge_state);
             (
                 state::withdraw<CoinType>(
-                    bridge_state,
+                    token_bridge_state,
                     normalized_amount::to_raw(amount, decimals),
                     ctx
                 ),
@@ -134,8 +134,8 @@ module token_bridge::complete_transfer {
     ) {
         let (my_coins, decimals) =
             handle_complete_transfer<CoinType>(
-                worm_state,
                 bridge_state,
+                worm_state,
                 transfer::token_chain(&my_transfer),
                 transfer::token_address(&my_transfer),
                 transfer::recipient_chain(&my_transfer),
@@ -208,8 +208,8 @@ module token_bridge::complete_transfer_test {
             let worm_state = take_shared<WormholeState>(&test);
             let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
             state::register_native_asset<NATIVE_COIN_WITNESS>(
-                &mut worm_state,
                 &mut bridge_state,
+                &mut worm_state,
                 &coin_meta,
                 ctx(&mut test)
             );
@@ -289,8 +289,8 @@ module token_bridge::complete_transfer_test {
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
             state::register_native_asset<NATIVE_COIN_WITNESS>(
-                &mut worm_state,
                 &mut bridge_state,
+                &mut worm_state,
                 &coin_meta,
                 ctx(&mut test)
             );
@@ -372,8 +372,8 @@ module token_bridge::complete_transfer_test {
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
             state::register_native_asset<NATIVE_COIN_WITNESS_V2>(
-                &mut worm_state,
                 &mut bridge_state,
+                &mut worm_state,
                 &coin_meta,
                 ctx(&mut test)
             );
@@ -457,8 +457,8 @@ module token_bridge::complete_transfer_test {
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
             state::register_native_asset<NATIVE_COIN_WITNESS>(
-                &mut worm_state,
                 &mut bridge_state,
+                &mut worm_state,
                 &coin_meta,
                 ctx(&mut test)
             );
@@ -537,8 +537,8 @@ module token_bridge::complete_transfer_test {
             let worm_state = take_shared<WormholeState>(&test);
             let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
             state::register_native_asset<NATIVE_COIN_WITNESS>(
-                &mut worm_state,
                 &mut bridge_state,
+                &mut worm_state,
                 &coin_meta,
                 ctx(&mut test)
             );
@@ -610,8 +610,8 @@ module token_bridge::complete_transfer_test {
             let worm_state = take_shared<WormholeState>(&test);
             let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
             state::register_native_asset<NATIVE_COIN_WITNESS>(
-                &mut worm_state,
                 &mut bridge_state,
+                &mut worm_state,
                 &coin_meta,
                 ctx(&mut test)
             );
@@ -668,7 +668,10 @@ module token_bridge::complete_transfer_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 1, location=sui::dynamic_field)] // E_WRONG_COIN_TYPE
+    #[expected_failure(
+        abort_code = token_bridge::registered_tokens::E_UNREGISTERED,
+        location = token_bridge::registered_tokens
+    )]
     fun test_complete_native_transfer_wrong_coin(){
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
@@ -685,8 +688,8 @@ module token_bridge::complete_transfer_test {
             let worm_state = take_shared<WormholeState>(&test);
             let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
             state::register_native_asset<NATIVE_COIN_WITNESS>(
-                &mut worm_state,
                 &mut bridge_state,
+                &mut worm_state,
                 &coin_meta,
                 ctx(&mut test)
             );

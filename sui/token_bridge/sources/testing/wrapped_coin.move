@@ -31,7 +31,7 @@ module token_bridge::coin_witness_test {
     use wormhole::state::{State as WormholeState};
     use wormhole::external_address::{Self};
 
-    use token_bridge::state::{State, is_wrapped_asset, is_registered_native_asset, origin_info};
+    use token_bridge::state::{State, is_registered_asset, is_wrapped_asset, token_info};
     use token_bridge::bridge_state_test::{set_up_wormhole_core_and_token_bridges};
     use token_bridge::create_wrapped::{NewWrappedCoin, register_wrapped_coin};
     use token_bridge::register_chain::{submit_vaa};
@@ -85,21 +85,21 @@ module token_bridge::coin_witness_test {
             let worm_state = take_shared<WormholeState>(&test);
             let wrapped_coin = take_from_address<NewWrappedCoin<COIN_WITNESS>>(&test, admin);
             register_wrapped_coin<COIN_WITNESS>(
-                &mut worm_state,
                 &mut bridge_state,
+                &mut worm_state,
                 wrapped_coin,
                 ctx(&mut test)
             );
             // assert that wrapped asset is indeed recognized by token bridge
+            let is_registered = is_registered_asset<COIN_WITNESS>(&bridge_state);
+            assert!(is_registered, 0);
+
+            // assert that wrapped asset is not recognized as a native asset by token bridge
             let is_wrapped = is_wrapped_asset<COIN_WITNESS>(&bridge_state);
             assert!(is_wrapped, 0);
 
-            // assert that wrapped asset is not recognized as a native asset by token bridge
-            let is_native = is_registered_native_asset<COIN_WITNESS>(&bridge_state);
-            assert!(!is_native, 0);
-
             // assert origin info is correct
-            let info = origin_info<COIN_WITNESS>(&bridge_state);
+            let info = token_info<COIN_WITNESS>(&bridge_state);
             assert!(token_info::chain(&info) == 2, 0);
 
             let expected_addr = external_address::from_bytes(x"beefface");

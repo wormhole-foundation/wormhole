@@ -16,9 +16,9 @@ module token_bridge::complete_transfer_with_payload {
     const E_INVALID_RECIPIENT: u64 = 1;
 
     public fun complete_transfer_with_payload<CoinType>(
+        token_bridge_state: &mut State,
         emitter_cap: &EmitterCapability,
         worm_state: &mut WormholeState,
-        bridge_state: &mut State,
         vaa: vector<u8>,
         ctx: &mut TxContext
     ): (Coin<CoinType>, TransferWithPayload, u16) {
@@ -26,8 +26,8 @@ module token_bridge::complete_transfer_with_payload {
         // guarantees that a verified transfer message cannot be redeemed again.
         let transfer_vaa =
             vaa::parse_verify_and_replay_protect(
+                token_bridge_state,
                 worm_state,
-                bridge_state,
                 vaa,
                 ctx
             );
@@ -56,8 +56,8 @@ module token_bridge::complete_transfer_with_payload {
 
         let (my_coins, _) =
             handle_complete_transfer<CoinType>(
+                token_bridge_state,
                 worm_state,
-                bridge_state,
                 transfer_with_payload::token_chain(&my_transfer),
                 transfer_with_payload::token_address(&my_transfer),
                 transfer_with_payload::recipient_chain(&my_transfer),
@@ -73,7 +73,7 @@ module token_bridge::complete_transfer_with_payload {
     public fun test_complete_transfer_with_payload<CoinType>(
         my_transfer: TransferWithPayload,
         worm_state: &mut WormholeState,
-        bridge_state: &mut State,
+        token_bridge_state: &mut State,
         emitter_cap: &EmitterCapability,
         ctx: &mut TxContext
     ): (Coin<CoinType>, TransferWithPayload) {
@@ -92,8 +92,8 @@ module token_bridge::complete_transfer_with_payload {
 
         let (my_coins, _) =
             handle_complete_transfer<CoinType>(
+                token_bridge_state,
                 worm_state,
-                bridge_state,
                 transfer_with_payload::token_chain(&my_transfer),
                 transfer_with_payload::token_address(&my_transfer),
                 transfer_with_payload::recipient_chain(&my_transfer),
@@ -147,8 +147,8 @@ module token_bridge::complete_transfer_with_payload_test {
             let coin_meta =
                 take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
             state::register_native_asset<NATIVE_COIN_WITNESS>(
-                &mut worm_state,
                 &mut bridge_state,
+                &mut worm_state,
                 &coin_meta,
                 ctx(&mut test)
             );
