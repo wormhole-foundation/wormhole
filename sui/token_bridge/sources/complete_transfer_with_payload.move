@@ -5,6 +5,7 @@ module token_bridge::complete_transfer_with_payload {
     use wormhole::state::{State as WormholeState};
     use wormhole::external_address::{Self};
     use wormhole::emitter::{Self, EmitterCapability};
+    use wormhole::myvaa::{get_emitter_chain};
 
     use token_bridge::complete_transfer::{handle_complete_transfer};
     use token_bridge::state::{State};
@@ -20,7 +21,7 @@ module token_bridge::complete_transfer_with_payload {
         bridge_state: &mut State,
         vaa: vector<u8>,
         ctx: &mut TxContext
-    ): (Coin<CoinType>, TransferWithPayload) {
+    ): (Coin<CoinType>, TransferWithPayload, u16) {
         // Parse and verify Token Bridge transfer message. This method
         // guarantees that a verified transfer message cannot be redeemed again.
         let transfer_vaa =
@@ -30,6 +31,9 @@ module token_bridge::complete_transfer_with_payload {
                 vaa,
                 ctx
             );
+
+        // Store the emitter chain ID to return to the caller.
+        let emitter_chain_id = get_emitter_chain(&transfer_vaa);
 
         // Deserialize for processing.
         let my_transfer =
@@ -61,7 +65,7 @@ module token_bridge::complete_transfer_with_payload {
                 ctx
             );
 
-        (my_coins, my_transfer)
+        (my_coins, my_transfer, emitter_chain_id)
     }
 
     // TODO: remove this and make test with public method above
