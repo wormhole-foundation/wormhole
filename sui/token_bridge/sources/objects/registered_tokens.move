@@ -10,7 +10,6 @@ module token_bridge::registered_tokens {
     use token_bridge::token_info::{TokenInfo};
     use token_bridge::wrapped_asset::{Self, WrappedAsset};
 
-    // Needs `burn` and `mint`
     friend token_bridge::state;
 
     const E_UNREGISTERED: u64 = 0;

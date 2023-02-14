@@ -26,12 +26,13 @@ module token_bridge::complete_transfer {
     ) {
         // Parse and verify Token Bridge transfer message. This method
         // guarantees that a verified transfer message cannot be redeemed again.
-        let transfer_vaa = vaa::parse_verify_and_replay_protect(
-            token_bridge_state,
-            worm_state,
-            vaa,
-            ctx
-        );
+        let transfer_vaa =
+            vaa::parse_verify_and_replay_protect(
+                token_bridge_state,
+                worm_state,
+                vaa,
+                ctx
+            );
 
         // Deserialize for processing.
         let my_transfer =

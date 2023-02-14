@@ -1,14 +1,12 @@
 module token_bridge::register_chain {
-
     use sui::tx_context::TxContext;
-
-    use wormhole::cursor;
     use wormhole::bytes::{Self};
-    use wormhole::myvaa::{Self as corevaa};
+    use wormhole::cursor::{Self};
     use wormhole::external_address::{Self, ExternalAddress};
+    use wormhole::myvaa::{Self as corevaa};
     use wormhole::state::{State as WormholeState};
 
-    use token_bridge::vaa as token_bridge_vaa;
+    use token_bridge::vaa::{Self as token_bridge_vaa};
     use token_bridge::state::{Self as bridge_state, State};
 
     /// "TokenBridge" (left padded)
@@ -58,7 +56,7 @@ module token_bridge::register_chain {
         corevaa::assert_governance(wormhole_state, &vaa);
         token_bridge_vaa::replay_protect(bridge_state, &vaa);
         let RegisterChain { emitter_chain_id, emitter_address } = parse_payload(corevaa::destroy(vaa));
-        bridge_state::set_registered_emitter(bridge_state, emitter_chain_id, emitter_address);
+        bridge_state::register_emitter(bridge_state, emitter_chain_id, emitter_address);
     }
 
     public fun get_emitter_chain_id(a: &RegisterChain): u16 {
@@ -72,9 +70,14 @@ module token_bridge::register_chain {
 
 #[test_only]
 module token_bridge::register_chain_test {
-    use std::option::{Self};
-
-    use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_shared, return_shared};
+    use sui::test_scenario::{
+        Self,
+        Scenario,
+        next_tx,
+        ctx,
+        take_shared,
+        return_shared
+    };
 
     use wormhole::state::{State as WormholeState};
     //use wormhole::test_state::{init_wormhole_state};
@@ -120,12 +123,16 @@ module token_bridge::register_chain_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = 0, location=0000000000000000000000000000000000000002::dynamic_field)]
+    #[expected_failure(abort_code = 0, location=sui::dynamic_field)]
     fun test_replay_protect(){
         test_replay_protect_(scenario())
     }
 
     #[test]
+    #[expected_failure(
+        abort_code = token_bridge::state::E_EMITTER_ALREADY_REGISTERED,
+        location = token_bridge::state
+    )]
     fun test_re_registration(){
         test_re_registration_(scenario())
     }
@@ -166,8 +173,8 @@ module token_bridge::register_chain_test {
         };
         next_tx(&mut test, admin); {
             let bridge_state = take_shared<State>(&test);
-            let addr = state::get_registered_emitter(&bridge_state, CHAIN_ID_ETH);
-            assert!(addr == option::some(external_address::from_bytes(x"deadbeef")), 0);
+            let addr = state::registered_emitter(&bridge_state, CHAIN_ID_ETH);
+            assert!(addr == external_address::from_bytes(x"deadbeef"), 0);
             return_shared<State>(bridge_state);
         };
         test_scenario::end(test);
@@ -201,8 +208,8 @@ module token_bridge::register_chain_test {
         };
         next_tx(&mut test, admin); {
             let bridge_state = take_shared<State>(&test);
-            let addr = state::get_registered_emitter(&bridge_state, CHAIN_ID_ETH);
-            assert!(addr == option::some(external_address::from_bytes(x"deadbeef")), 0);
+            let addr = state::registered_emitter(&bridge_state, CHAIN_ID_ETH);
+            assert!(addr == external_address::from_bytes(x"deadbeef"), 0);
             return_shared<State>(bridge_state);
         };
         next_tx(&mut test, admin); {
@@ -213,8 +220,8 @@ module token_bridge::register_chain_test {
             // rejected), but I think this is the right behaviour.
             // Easy to change, should be discussed.
             submit_vaa(&mut worm_state, &mut bridge_state, ETHEREUM_TOKEN_REG_2, ctx(&mut test));
-            let address = state::get_registered_emitter(&bridge_state, CHAIN_ID_ETH);
-            assert!(address == option::some(external_address::from_bytes(x"beefface")), 0);
+            let address = state::registered_emitter(&bridge_state, CHAIN_ID_ETH);
+            assert!(address == external_address::from_bytes(x"beefface"), 0);
             return_shared<WormholeState>(worm_state);
             return_shared<State>(bridge_state);
         };

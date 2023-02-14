@@ -1,11 +1,9 @@
 /// Token Bridge VAA utilities
 module token_bridge::vaa {
-    use std::option;
     use sui::tx_context::{TxContext};
 
     use wormhole::myvaa::{Self as corevaa, VAA};
     use wormhole::state::{State as WormholeState};
-    use wormhole::external_address::{ExternalAddress};
 
     use token_bridge::state::{Self, State};
 
@@ -34,19 +32,17 @@ module token_bridge::vaa {
     }
 
     /// Asserts that the VAA is from a known token bridge.
-    public fun assert_known_emitter(state: &State, vm: &VAA) {
-        let maybe_emitter =
-            state::get_registered_emitter(
-                state,
+    public fun verify_emitter(token_bridge_state: &State, vm: &VAA) {
+        let foreign_emitter =
+            state::registered_emitter(
+                token_bridge_state,
                 corevaa::get_emitter_chain(vm)
             );
-        assert!(
-            option::is_some<ExternalAddress>(&maybe_emitter),
-            E_UNKNOWN_CHAIN
-        );
 
-        let emitter = option::extract(&mut maybe_emitter);
-        assert!(emitter == corevaa::get_emitter_address(vm), E_UNKNOWN_EMITTER);
+        assert!(
+            foreign_emitter == corevaa::get_emitter_address(vm),
+            E_UNKNOWN_EMITTER
+        );
     }
 
     /// Parses, verifies, and replay protects a token bridge VAA.
@@ -74,7 +70,7 @@ module token_bridge::vaa {
         ctx:&mut TxContext
     ): VAA {
         let vaa = corevaa::parse_and_verify(worm_state, vaa, ctx);
-        assert_known_emitter(token_bridge_state, &vaa);
+        verify_emitter(token_bridge_state, &vaa);
         vaa
     }
 }
@@ -106,7 +102,10 @@ module token_bridge::token_bridge_vaa_test{
         x"01000000000100102d399190fa61daccb11c2ea4f7a3db3a9365e5936bcda4cded87c1b9eeb095173514f226256d5579af71d4089eb89496befb998075ba94cd1d4460c5c57b84000000000100000001000200000000000000000000000000000000000000000000000000000000deadbeef0000000002634973000200000000000000000000000000000000000000000000000000000000beefface00020c0000000000000000000000000000000000000000000000000000000042454546000000000000000000000000000000000042656566206661636520546f6b656e";
 
     #[test]
-    #[expected_failure(abort_code = vaa::E_UNKNOWN_CHAIN)]
+    #[expected_failure(
+        abort_code = token_bridge::state::E_UNREGISTERED_EMITTER,
+        location = token_bridge::state
+    )]
     fun test_unknown_chain() {
         let (admin, _, _) = people();
         let test = scenario();
@@ -138,7 +137,7 @@ module token_bridge::token_bridge_vaa_test{
 
         next_tx(&mut test, admin); {
             let state = take_shared<State>(&test);
-            state::set_registered_emitter(
+            state::register_emitter(
                 &mut state,
                 2, // chain ID
                 external_address::from_bytes(x"deadbeed"), // not deadbeef
@@ -171,7 +170,7 @@ module token_bridge::token_bridge_vaa_test{
 
         next_tx(&mut test, admin); {
             let state = take_shared<State>(&test);
-            state::set_registered_emitter(
+            state::register_emitter(
                 &mut state,
                 2, // chain ID
                 external_address::from_bytes(x"deadbeef"),
@@ -205,7 +204,7 @@ module token_bridge::token_bridge_vaa_test{
 
         next_tx(&mut test, admin); {
             let state = take_shared<State>(&test);
-            state::set_registered_emitter(
+            state::register_emitter(
                 &mut state,
                 2, // chain ID
                 external_address::from_bytes(x"deadbeef"),
@@ -248,7 +247,7 @@ module token_bridge::token_bridge_vaa_test{
 
         next_tx(&mut test, admin); {
             let state = take_shared<State>(&test);
-            state::set_registered_emitter(
+            state::register_emitter(
                 &mut state,
                 2, // chain ID
                 external_address::from_bytes(x"deadbeef"),

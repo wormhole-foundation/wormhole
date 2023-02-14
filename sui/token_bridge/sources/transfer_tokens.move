@@ -286,7 +286,7 @@ module token_bridge::transfer_token_test {
         // register chain emitter (chain id x emitter address) that attested the wrapped token
         next_tx(&mut test, admin);{
             let bridge_state = take_shared<State>(&test);
-            state::set_registered_emitter(
+            state::register_emitter(
                 &mut bridge_state,
                 2, // chain ID
                 external_address::from_bytes(
@@ -349,7 +349,7 @@ module token_bridge::transfer_token_test {
         // register chain emitter (chain id x emitter address) that attested the wrapped token
         next_tx(&mut test, admin);{
             let bridge_state = take_shared<State>(&test);
-            state::set_registered_emitter(
+            state::register_emitter(
                 &mut bridge_state,
                 2, // chain ID
                 external_address::from_bytes(

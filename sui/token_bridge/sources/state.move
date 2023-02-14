@@ -1,33 +1,24 @@
 module token_bridge::state {
-    use std::option::{Self, Option};
     use std::ascii::{Self};
-
-    use sui::object::{Self, UID};
-    use sui::vec_map::{Self, VecMap};
-    use sui::tx_context::{TxContext};
     use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
-    use sui::transfer::{Self};
-    use sui::tx_context::{Self};
+    use sui::object::{Self, UID};
     use sui::sui::{SUI};
-
-    use token_bridge::asset_meta::{Self, AssetMeta};
-    use token_bridge::registered_tokens::{Self, RegisteredTokens};
-    use token_bridge::string32::{Self};
-    use token_bridge::token_info::{TokenInfo};
-
+    use sui::transfer::{Self};
+    use sui::tx_context::{Self, TxContext};
     use wormhole::external_address::{ExternalAddress};
     use wormhole::wormhole::{Self};
     use wormhole::state::{Self as wormhole_state, State as WormholeState};
     use wormhole::emitter::{EmitterCapability};
     use wormhole::set::{Self, Set};
 
-    const E_IS_NOT_WRAPPED_ASSET: u64 = 0;
-    const E_IS_NOT_REGISTERED_NATIVE_ASSET: u64 = 1;
-    const E_COIN_TYPE_HAS_NO_REGISTERED_INTEGER_ADDRESS: u64 = 2;
-    const E_COIN_TYPE_HAS_REGISTERED_INTEGER_ADDRESS: u64 = 3;
-    const E_ORIGIN_CHAIN_MISMATCH: u64 = 4;
-    const E_ORIGIN_ADDRESS_MISMATCH: u64 = 5;
-    const E_IS_WRAPPED_ASSET: u64 = 6;
+    use token_bridge::asset_meta::{Self, AssetMeta};
+    use token_bridge::registered_emitters::{Self};
+    use token_bridge::registered_tokens::{Self, RegisteredTokens};
+    use token_bridge::string32::{Self};
+    use token_bridge::token_info::{TokenInfo};
+
+    const E_UNREGISTERED_EMITTER: u64 = 0;
+    const E_EMITTER_ALREADY_REGISTERED: u64 = 1;
 
     friend token_bridge::vaa;
     friend token_bridge::register_chain;
@@ -64,9 +55,6 @@ module token_bridge::state {
 
         /// Token bridge owned emitter capability
         emitter_cap: EmitterCapability,
-
-        /// Mapping of bridge contracts on other chains
-        registered_emitters: VecMap<u16, ExternalAddress>,
 
         registered_tokens: RegisteredTokens,
     }
@@ -106,9 +94,10 @@ module token_bridge::state {
             id: object::new(ctx),
             consumed_vaas: set::new(ctx),
             emitter_cap,
-            registered_emitters: vec_map::empty(),
             registered_tokens: registered_tokens::new(ctx)
         };
+
+        registered_emitters::new(&mut state.id, ctx);
 
         // permanently shares state
         transfer::share_object(state);
@@ -119,14 +108,6 @@ module token_bridge::state {
         coin: Coin<CoinType>,
     ) {
         registered_tokens::deposit(&mut self.registered_tokens, coin)
-    }
-
-    #[test_only]
-    public fun test_deposit<CoinType>(
-        self: &mut State,
-        coin: Coin<CoinType>
-    ) {
-        deposit(self, coin);
     }
 
     public(friend) fun withdraw<CoinType>(
@@ -175,21 +156,19 @@ module token_bridge::state {
         )
     }
 
-    /// getters
-
     public fun vaa_is_consumed(state: &State, hash: vector<u8>): bool {
         set::contains(&state.consumed_vaas, hash)
     }
 
-    public fun get_registered_emitter(
+    public fun registered_emitter(
         state: &State,
-        chain_id: u16
-    ): Option<ExternalAddress> {
-        if (vec_map::contains(&state.registered_emitters, &chain_id)) {
-            option::some(*vec_map::get(&state.registered_emitters, &chain_id))
-        } else {
-            option::none()
-        }
+        chain: u16
+    ): ExternalAddress {
+        assert!(
+            registered_emitters::has(&state.id, chain),
+            E_UNREGISTERED_EMITTER
+        );
+        registered_emitters::external_address(&state.id, chain)
     }
 
     public fun is_registered_asset<CoinType>(self: &State): bool {
@@ -215,18 +194,25 @@ module token_bridge::state {
         registered_tokens::decimals<CoinType>(&self.registered_tokens)
     }
 
-    /// setters
-
-    public(friend) fun set_registered_emitter(state: &mut State, chain_id: u16, emitter: ExternalAddress) {
-        if (vec_map::contains<u16, ExternalAddress>(&mut state.registered_emitters, &chain_id)){
-            vec_map::remove<u16, ExternalAddress>(&mut state.registered_emitters, &chain_id);
-        };
-        vec_map::insert<u16, ExternalAddress>(&mut state.registered_emitters, chain_id, emitter);
+    public(friend) fun register_emitter(
+        self: &mut State,
+        chain: u16,
+        contract_address: ExternalAddress
+    ) {
+        assert!(
+            !registered_emitters::has(&self.id, chain),
+            E_EMITTER_ALREADY_REGISTERED
+        );
+        registered_emitters::add(&mut self.id, chain, contract_address);
     }
 
     #[test_only]
-    public fun test_set_registered_emitter(state: &mut State, chain_id: u16, emitter: ExternalAddress) {
-        set_registered_emitter(state, chain_id, emitter);
+    public fun register_emitter_test_only(
+        self: &mut State,
+        chain: u16,
+        contract_address: ExternalAddress
+    ) {
+        register_emitter(self, chain, contract_address);
     }
 
     /// dynamic ops
