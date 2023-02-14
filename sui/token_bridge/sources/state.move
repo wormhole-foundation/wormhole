@@ -127,6 +127,14 @@ module token_bridge::state {
         native_asset::deposit(asset, coin);
     }
 
+    #[test_only]
+    public fun test_deposit<CoinType>(
+        self: &mut State,
+        coin: Coin<CoinType>
+    ) {
+        deposit(self, coin);
+    }
+
     public(friend) fun withdraw<CoinType>(
         self: &mut State,
         amount: u64,
@@ -303,6 +311,11 @@ module token_bridge::state {
             vec_map::remove<u16, ExternalAddress>(&mut state.registered_emitters, &chain_id);
         };
         vec_map::insert<u16, ExternalAddress>(&mut state.registered_emitters, chain_id, emitter);
+    }
+
+    #[test_only]
+    public fun test_set_registered_emitter(state: &mut State, chain_id: u16, emitter: ExternalAddress) {
+        set_registered_emitter(state, chain_id, emitter);
     }
 
     /// dynamic ops
