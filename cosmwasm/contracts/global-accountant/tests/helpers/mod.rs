@@ -89,7 +89,6 @@ impl Contract {
             Kind::Sub => ModificationKind::Subtract,
         };
         let amount = Amount(amount.to_be_bytes());
-        let reason = reason.0;
         let body = Body {
             timestamp: self.sequence as u32,
             nonce: self.sequence as u32,
@@ -106,7 +105,7 @@ impl Contract {
                     token_address,
                     kind,
                     amount,
-                    reason,
+                    reason: reason.into(),
                 },
             },
         };
@@ -132,24 +131,6 @@ impl Contract {
         self.modify_balance_with(modification, wh, |vaa| {
             serde_wormhole::to_vec(&vaa).map(From::from).unwrap()
         })
-    }
-
-    pub fn upgrade_contract(
-        &mut self,
-        upgrade: Binary,
-        guardian_set_index: u32,
-        signatures: Vec<Signature>,
-    ) -> anyhow::Result<AppResponse> {
-        self.app.execute_contract(
-            Addr::unchecked(ADMIN),
-            self.addr(),
-            &ExecuteMsg::UpgradeContract {
-                upgrade,
-                guardian_set_index,
-                signatures,
-            },
-            &[],
-        )
     }
 
     pub fn submit_vaas(&mut self, vaas: Vec<Binary>) -> anyhow::Result<AppResponse> {

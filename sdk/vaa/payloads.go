@@ -3,9 +3,9 @@ package vaa
 import (
 	"bytes"
 	"encoding/binary"
-	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/holiman/uint256"
 )
 
 // CoreModule is the identifier of the Core module (which is used for governance messages)
@@ -69,7 +69,7 @@ type (
 		TokenChain    ChainID
 		TokenAddress  Address
 		Kind          uint8
-		Amount        *big.Int
+		Amount        *uint256.Int
 		Reason        string
 	}
 
@@ -143,12 +143,9 @@ func (r BodyTokenBridgeModifyBalance) Serialize() []byte {
 	payload.Write(r.TokenAddress[:])
 	payload.WriteByte(r.Kind)
 
-	amount_bytes := r.Amount.Bytes()
-	// zero pad big endian big-int
-	for i := 0; i < 32-len(amount_bytes); i++ {
-		payload.WriteByte(0)
-	}
-	payload.Write(amount_bytes)
+	amount_bytes := r.Amount.Bytes32()
+	payload.Write(amount_bytes[:])
+
 	reason := make([]byte, 32)
 
 	// truncate or pad "reason"

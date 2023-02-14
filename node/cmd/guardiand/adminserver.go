@@ -20,6 +20,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/holiman/uint256"
 	"golang.org/x/exp/slices"
 
 	"github.com/certusone/wormhole/node/pkg/db"
@@ -171,8 +172,14 @@ func tokenBridgeModifyBalance(req *nodev1.BridgeModifyBalance, timestamp time.Ti
 		return nil, errors.New("the reason should not be larger than 32 bytes")
 	}
 
-	amount := big.NewInt(0)
-	_, ok := amount.SetString(req.Amount, 10)
+	amount_big := big.NewInt(0)
+	amount_big, ok := amount_big.SetString(req.Amount, 10)
+	if !ok {
+		return nil, errors.New("invalid amount")
+	}
+
+	// uint256 has Bytes32 method for easier serialization
+	amount, ok := uint256.FromBig(amount_big)
 	if !ok {
 		return nil, errors.New("invalid amount")
 	}

@@ -26,7 +26,7 @@ var ACCOUNTANT_WASM_B64_GZIP = []byte{}
 //     strip = true
 //
 // 3. Compile: `cargo build --target wasm32-unknown-unknown --release`
-// 4. Generate base64 gzip: `cat target/wasm32-unknown-unknown/release/cw_nameservice.wasm|gzip |base64`
+// 4. Generate base64 gzip: `cat target/wasm32-unknown-unknown/release/global_accountant.wasm|gzip |base64`
 // 5. Copy here.
 var _ACCOUNTANT_WASM_B64_GZIP = `H4sIAKDC6mMAA+w6W5BVRZKVWVXnnHtPNxwU3XZkd869w0cTMYTthHa7GrHLZXWcDT92Z2P+mxZ6
 hEZAm8foxkR3izx8jU9EEEReCiJgo6iooO0bEBUVFRWfgDaIgoqKqLCZVed1uxtoR/2YDW8/zqmq

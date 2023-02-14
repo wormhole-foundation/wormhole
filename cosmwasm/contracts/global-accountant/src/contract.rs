@@ -2,15 +2,15 @@ use std::marker::PhantomData;
 
 use accountant::{
     query_balance, query_modification,
-    state::{account, transfer, Kind, Modification, Reason, TokenAddress, Transfer},
+    state::{account, transfer, Kind, Modification, TokenAddress, Transfer},
     validate_transfer,
 };
 use anyhow::{ensure, Context};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    from_binary, to_binary, Binary, ConversionOverflowError, CosmosMsg, Deps, DepsMut, Empty, Env,
-    Event, MessageInfo, Order, Response, StdError, StdResult, Uint256, WasmMsg,
+    from_binary, to_binary, Binary, ConversionOverflowError, Deps, DepsMut, Empty, Env, Event,
+    MessageInfo, Order, Response, StdError, StdResult, Uint256,
 };
 use cw2::set_contract_version;
 use cw_storage_plus::Bound;
@@ -31,7 +31,7 @@ use crate::{
         AllTransfersResponse, BatchTransferStatusResponse, ChainRegistrationResponse, ExecuteMsg,
         MigrateMsg, MissingObservation, MissingObservationsResponse, Observation, ObservationError,
         ObservationStatus, QueryMsg, SubmitObservationResponse, TransferDetails, TransferStatus,
-        Upgrade, SUBMITTED_OBSERVATIONS_PREFIX,
+        SUBMITTED_OBSERVATIONS_PREFIX,
     },
     state::{Data, PendingTransfer, CHAIN_REGISTRATIONS, DIGESTS, PENDING_TRANSFERS},
 };
@@ -64,7 +64,7 @@ pub fn migrate(_deps: DepsMut<WormholeQuery>, _env: Env, _msg: MigrateMsg) -> St
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut<WormholeQuery>,
-    env: Env,
+    _env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, AnyError> {
@@ -74,16 +74,7 @@ pub fn execute(
             guardian_set_index,
             signature,
         } => submit_observations(deps, info, observations, guardian_set_index, signature),
-        // ExecuteMsg::ModifyBalance {
-        //     modification,
-        //     guardian_set_index,
-        //     signatures,
-        // } => modify_balance(deps, info, modification, guardian_set_index, signatures),
-        ExecuteMsg::UpgradeContract {
-            upgrade,
-            guardian_set_index,
-            signatures,
-        } => upgrade_contract(deps, env, info, upgrade, guardian_set_index, signatures),
+
         ExecuteMsg::SubmitVaas { vaas } => submit_vaas(deps, info, vaas),
     }
 }
@@ -289,41 +280,6 @@ fn modify_balance(
     Ok(event)
 }
 
-fn upgrade_contract(
-    deps: DepsMut<WormholeQuery>,
-    env: Env,
-    info: MessageInfo,
-    upgrade: Binary,
-    guardian_set_index: u32,
-    signatures: Vec<Signature>,
-) -> Result<Response, AnyError> {
-    deps.querier
-        .query::<Empty>(
-            &WormholeQuery::VerifyQuorum {
-                data: upgrade.clone(),
-                guardian_set_index,
-                signatures: signatures.into_iter().map(From::from).collect(),
-            }
-            .into(),
-        )
-        .context(ContractError::VerifyQuorum)?;
-
-    let Upgrade { new_addr } = from_binary(&upgrade).context("failed to parse `Upgrade`")?;
-
-    let mut buf = 0u64.to_ne_bytes();
-    buf.copy_from_slice(&new_addr[24..]);
-    let new_contract = u64::from_be_bytes(buf);
-
-    Ok(Response::new()
-        .add_message(CosmosMsg::Wasm(WasmMsg::Migrate {
-            contract_addr: env.contract.address.to_string(),
-            new_code_id: new_contract,
-            msg: to_binary(&MigrateMsg {})?,
-        }))
-        .add_attribute("action", "contract_upgrade")
-        .add_attribute("owner", info.sender))
-}
-
 fn submit_vaas(
     mut deps: DepsMut<WormholeQuery>,
     info: MessageInfo,
@@ -384,7 +340,8 @@ fn handle_vaa(
         bail!(ContractError::DuplicateMessage);
     }
 
-    let evt = if (body.emitter_chain == Chain::Solana || body.emitter_chain == Chain::Wormchain)
+    // We may also accept governance messages from wormchain in the future
+    let mut evt = if body.emitter_chain == Chain::Solana
         && body.emitter_address == wormhole::GOVERNANCE_EMITTER
     {
         let govpacket = serde_wormhole::from_slice(body.payload)
@@ -399,6 +356,8 @@ fn handle_vaa(
     digest_key
         .save(deps.storage, &digest)
         .context("failed to save message digest")?;
+
+    evt = evt.add_attribute("vaa_digest", hex::encode(digest.as_slice()));
 
     Ok(evt)
 }
@@ -445,7 +404,6 @@ fn handle_governance_vaa(
                 ModificationKind::Unknown => bail!("unsupported governance action"),
             };
             let amount = Uint256::from_be_bytes(amount.0);
-            let reason = Reason::new(reason);
             let modification = Modification {
                 sequence,
                 chain_id,
@@ -453,7 +411,7 @@ fn handle_governance_vaa(
                 token_address,
                 kind,
                 amount,
-                reason,
+                reason: reason.to_string(),
             };
             modify_balance(deps, info, modification).map_err(|e| e.into())
         }
