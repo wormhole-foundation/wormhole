@@ -86,6 +86,7 @@ message GovernanceMessage {
 
     BridgeRegisterChain bridge_register_chain = 12;
     BridgeUpgradeContract bridge_contract_upgrade = 13;
+    BridgeModifyBalance bridge_modify_balance = 17;
 
     // Wormchain
 
@@ -132,6 +133,35 @@ message BridgeRegisterChain {
 
   // Hex-encoded emitter address to be registered (without leading 0x).
   string emitter_address = 3;
+}
+
+enum ModificationKind {
+  MODIFICATION_KIND_UNSPECIFIED = 0;
+  MODIFICATION_KIND_ADD = 1;
+  MODIFICATION_KIND_SUBTRACT = 2;
+}
+
+message BridgeModifyBalance {
+  // Module identifier of the token or NFT bridge (typically "TokenBridge" or "NFTBridge")
+  string module = 1;
+  // ID of the chain to receive this modify.
+  uint32 target_chain_id = 2;
+
+  // The sequence number of this modification.  Each modification must be
+  // uniquely identifiable just by its sequnce number.
+  uint64 sequence = 3;
+  // U16 chain id of the account to be modified.
+  uint32 chain_id = 4;
+  // U16 the chain id of the native chain for the token.
+  uint32 token_chain = 5;
+  // The address of the token on its native chain, hex string encoded.
+  string token_address = 6;
+  // The kind of modification to be made.
+  ModificationKind kind = 7;
+  // The amount to be modified.
+  string amount = 8;
+  // A human-readable reason for the modification (max 32 bytes).
+  string reason = 9;
 }
 
 // ContractUpgrade represents a Wormhole contract update to be submitted to and signed by the node.
