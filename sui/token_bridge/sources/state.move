@@ -5,11 +5,11 @@ module token_bridge::state {
     use sui::sui::{SUI};
     use sui::transfer::{Self};
     use sui::tx_context::{Self, TxContext};
-    use wormhole::external_address::{ExternalAddress};
-    use wormhole::wormhole::{Self};
-    use wormhole::state::{Self as wormhole_state, State as WormholeState};
     use wormhole::emitter::{EmitterCapability};
+    use wormhole::external_address::{ExternalAddress};
     use wormhole::set::{Self, Set};
+    use wormhole::state::{Self as wormhole_state, State as WormholeState};
+    use wormhole::wormhole::{Self};
 
     use token_bridge::asset_meta::{Self, AssetMeta};
     use token_bridge::registered_emitters::{Self};
@@ -20,14 +20,15 @@ module token_bridge::state {
     const E_UNREGISTERED_EMITTER: u64 = 0;
     const E_EMITTER_ALREADY_REGISTERED: u64 = 1;
 
-    friend token_bridge::vaa;
-    friend token_bridge::register_chain;
-    friend token_bridge::create_wrapped;
+    friend token_bridge::attest_token;
     friend token_bridge::complete_transfer;
     friend token_bridge::complete_transfer_with_payload;
+    friend token_bridge::create_wrapped;
+    friend token_bridge::register_chain;
     friend token_bridge::transfer_tokens;
     friend token_bridge::transfer_tokens_with_payload;
-    friend token_bridge::attest_token;
+    friend token_bridge::vaa;
+
     #[test_only]
     friend token_bridge::bridge_state_test;
     #[test_only]
@@ -88,12 +89,10 @@ module token_bridge::state {
         let DeployerCapability{ id } = deployer;
         object::delete(id);
     
-        let emitter_cap = wormhole::register_emitter(worm_state, ctx);
-    
         let state = State {
             id: object::new(ctx),
             consumed_vaas: set::new(ctx),
-            emitter_cap,
+            emitter_cap: wormhole::register_emitter(worm_state, ctx),
             registered_tokens: registered_tokens::new(ctx)
         };
 
