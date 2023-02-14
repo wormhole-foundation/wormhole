@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 	"math/rand"
 	"net"
 	"net/http"
@@ -146,6 +147,58 @@ func tokenBridgeRegisterChain(req *nodev1.BridgeRegisterChain, timestamp time.Ti
 
 // tokenBridgeUpgradeContract converts a nodev1.TokenBridgeRegisterChain message to its canonical VAA representation.
 // Returns an error if the data is invalid.
+func tokenBridgeModifyBalance(req *nodev1.BridgeModifyBalance, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	if req.TargetChainId > math.MaxUint16 {
+		return nil, errors.New("invalid target_chain_id")
+	}
+	if req.ChainId > math.MaxUint16 {
+		return nil, errors.New("invalid chain_id")
+	}
+	if req.TokenChain > math.MaxUint16 {
+		return nil, errors.New("invalid token_chain")
+	}
+
+	b, err := hex.DecodeString(req.TokenAddress)
+	if err != nil {
+		return nil, errors.New("invalid token address (expected hex)")
+	}
+
+	if len(b) != 32 {
+		return nil, errors.New("invalid new token address (expected 32 bytes)")
+	}
+
+	if len(req.Reason) > 32 {
+		return nil, errors.New("the reason should not be larger than 32 bytes")
+	}
+
+	amount := big.NewInt(0)
+	_, ok := amount.SetString(req.Amount, 10)
+	if !ok {
+		return nil, errors.New("invalid amount")
+	}
+
+	tokenAdress := vaa.Address{}
+	copy(tokenAdress[:], b)
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
+		vaa.BodyTokenBridgeModifyBalance{
+			Module:        req.Module,
+			TargetChainID: vaa.ChainID(req.TargetChainId),
+
+			Sequence:     req.Sequence,
+			ChainId:      vaa.ChainID(req.ChainId),
+			TokenChain:   vaa.ChainID(req.TokenChain),
+			TokenAddress: tokenAdress,
+			Kind:         uint8(req.Kind),
+			Amount:       amount,
+			Reason:       req.Reason,
+		}.Serialize())
+
+	return v, nil
+}
+
+// tokenBridgeUpgradeContract converts a nodev1.TokenBridgeRegisterChain message to its canonical VAA representation.
+// Returns an error if the data is invalid.
 func tokenBridgeUpgradeContract(req *nodev1.BridgeUpgradeContract, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
 	if req.TargetChainId > math.MaxUint16 {
 		return nil, errors.New("invalid target_chain_id")
@@ -244,6 +297,8 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 			v, err = tokenBridgeRegisterChain(payload.BridgeRegisterChain, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		case *nodev1.GovernanceMessage_BridgeContractUpgrade:
 			v, err = tokenBridgeUpgradeContract(payload.BridgeContractUpgrade, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_BridgeModifyBalance:
+			v, err = tokenBridgeModifyBalance(payload.BridgeModifyBalance, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		case *nodev1.GovernanceMessage_WormchainStoreCode:
 			v, err = wormchainStoreCode(payload.WormchainStoreCode, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		case *nodev1.GovernanceMessage_WormchainInstantiateContract:

@@ -3,6 +3,7 @@ package vaa
 import (
 	"bytes"
 	"encoding/binary"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -25,6 +26,11 @@ var (
 	ActionStoreCode           GovernanceAction = 1
 	ActionInstantiateContract GovernanceAction = 2
 	ActionMigrateContract     GovernanceAction = 3
+
+	// Wormhole tokenbridge governance actions
+	ActionRegisterChain      GovernanceAction = 1
+	ActionUpgradeTokenBridge GovernanceAction = 2
+	ActionModifyBalance      GovernanceAction = 3
 )
 
 type (
@@ -52,6 +58,19 @@ type (
 		Module        string
 		TargetChainID ChainID
 		NewContract   Address
+	}
+
+	// BodyTokenBridgeModifyBalance is a governance message to modify accountant balances for the tokenbridge.
+	BodyTokenBridgeModifyBalance struct {
+		Module        string
+		TargetChainID ChainID
+		Sequence      uint64
+		ChainId       ChainID
+		TokenChain    ChainID
+		TokenAddress  Address
+		Kind          uint8
+		Amount        *big.Int
+		Reason        string
 	}
 
 	// BodyWormchainStoreCode is a governance message to upload a new cosmwasm contract to wormchain
@@ -109,11 +128,40 @@ func (r BodyTokenBridgeRegisterChain) Serialize() []byte {
 	MustWrite(payload, binary.BigEndian, r.ChainID)
 	payload.Write(r.EmitterAddress[:])
 	// target chain 0 = universal
-	return serializeBridgeGovernanceVaa(r.Module, 1, 0, payload.Bytes())
+	return serializeBridgeGovernanceVaa(r.Module, ActionRegisterChain, 0, payload.Bytes())
 }
 
 func (r BodyTokenBridgeUpgradeContract) Serialize() []byte {
-	return serializeBridgeGovernanceVaa(r.Module, 2, r.TargetChainID, r.NewContract[:])
+	return serializeBridgeGovernanceVaa(r.Module, ActionUpgradeTokenBridge, r.TargetChainID, r.NewContract[:])
+}
+
+func (r BodyTokenBridgeModifyBalance) Serialize() []byte {
+	payload := &bytes.Buffer{}
+	MustWrite(payload, binary.BigEndian, r.Sequence)
+	MustWrite(payload, binary.BigEndian, r.ChainId)
+	MustWrite(payload, binary.BigEndian, r.TokenChain)
+	payload.Write(r.TokenAddress[:])
+	payload.WriteByte(r.Kind)
+
+	amount_bytes := r.Amount.Bytes()
+	// zero pad big endian big-int
+	for i := 0; i < 32-len(amount_bytes); i++ {
+		payload.WriteByte(0)
+	}
+	payload.Write(amount_bytes)
+	reason := make([]byte, 32)
+
+	// truncate or pad "reason"
+	for i := 0; i < len(reason); i += 1 {
+		if i < len(r.Reason) {
+			reason[i] = r.Reason[i]
+		} else {
+			reason[i] = ' '
+		}
+	}
+	payload.Write(reason)
+
+	return serializeBridgeGovernanceVaa(r.Module, ActionModifyBalance, r.TargetChainID, payload.Bytes())
 }
 
 func (r BodyWormchainStoreCode) Serialize() []byte {
