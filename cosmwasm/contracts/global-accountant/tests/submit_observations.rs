@@ -515,19 +515,20 @@ fn missing_native_account() {
         .calculate_quorum(index, contract.app().block_info().height)
         .unwrap() as usize;
 
+    // increase the sequence to be large than the vaa's used to register emitters.
+    contract.sequence += 100;
+
     // We need to set up a fake wrapped account so that the initial check succeeds.
-    let m = to_binary(&Modification {
+    let m = Modification {
         sequence: 0,
         chain_id: emitter_chain,
         token_chain,
         token_address: token_address.into(),
         kind: Kind::Add,
         amount: Uint256::new(amount.0),
-        reason: "fake wrapped balance for testing".into(),
-    })
-    .unwrap();
-    let signatures = wh.sign(&m);
-    contract.modify_balance(m, index, signatures).unwrap();
+        reason: "fake wrapped balance for testing".try_into().unwrap(),
+    };
+    contract.modify_balance(m, &wh).unwrap();
 
     let key = transfer::Key::new(emitter_chain, [emitter_chain as u8; 32].into(), 37);
     let msg = Message::Transfer {
@@ -633,20 +634,20 @@ fn wrapped_to_wrapped() {
     register_emitters(&wh, &mut contract, 15);
     let index = wh.guardian_set_index();
     let num_guardians = wh.num_guardians();
+    // increase the sequence to be large than the vaa's used to register emitters.
+    contract.sequence += 100;
 
     // We need an initial fake wrapped account.
-    let m = to_binary(&Modification {
+    let m = Modification {
         sequence: 0,
         chain_id: emitter_chain,
         token_chain,
         token_address: token_address.into(),
         kind: Kind::Add,
         amount: Uint256::new(amount.0),
-        reason: "fake wrapped balance for testing".into(),
-    })
-    .unwrap();
-    let signatures = wh.sign(&m);
-    contract.modify_balance(m, index, signatures).unwrap();
+        reason: "fake wrapped balance for testing".try_into().unwrap(),
+    };
+    contract.modify_balance(m, &wh).unwrap();
 
     let key = transfer::Key::new(emitter_chain, [emitter_chain as u8; 32].into(), 37);
     let msg = Message::Transfer {

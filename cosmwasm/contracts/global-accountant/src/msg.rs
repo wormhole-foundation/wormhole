@@ -106,18 +106,17 @@ pub enum ExecuteMsg {
         signature: Signature,
     },
 
-    /// Modifies the balance of a single account.  Used to manually override the balance.
-    ModifyBalance {
-        // A serialized `Modification` message.
-        modification: Binary,
+    // /// Modifies the balance of a single account.  Used to manually override the balance.
+    // ModifyBalance {
+    //     // A serialized governance vaa containing a serialized `Modification` message.
+    //     // modification_vaa: Binary,
 
-        // The index of the guardian set used to sign this modification.
-        guardian_set_index: u32,
+    //     // The index of the guardian set used to sign this modification.
+    //     // guardian_set_index: u32,
 
-        // A quorum of signatures for `modification`.
-        signatures: Vec<Signature>,
-    },
-
+    //     // A quorum of signatures for `modification`.
+    //     // signatures: Vec<Signature>,
+    // },
     UpgradeContract {
         // A serialized `Upgrade` message.
         upgrade: Binary,
@@ -131,7 +130,7 @@ pub enum ExecuteMsg {
 
     /// Submit one or more signed VAAs to update the on-chain state.  If processing any of the VAAs
     /// returns an error, the entire transaction is aborted and none of the VAAs are committed.
-    SubmitVAAs {
+    SubmitVaas {
         /// One or more VAAs to be submitted.  Each VAA should be encoded in the standard wormhole
         /// wire format.
         vaas: Vec<Binary>,

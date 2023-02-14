@@ -1,14 +1,13 @@
 mod helpers;
 
 use accountant::state::{account, Kind, Modification};
-use cosmwasm_std::{to_binary, Event, Uint256};
+use cosmwasm_std::{Event, Uint256};
 use helpers::*;
 
 #[test]
 fn simple_modify() {
     let (wh, mut contract) = proper_instantiate();
 
-    let index = wh.guardian_set_index();
     let m = Modification {
         sequence: 0,
         chain_id: 1,
@@ -16,14 +15,10 @@ fn simple_modify() {
         token_address: [0x7c; 32].into(),
         kind: Kind::Add,
         amount: Uint256::from(300u128),
-        reason: "test".into(),
+        reason: "test".try_into().unwrap(),
     };
-    let modification = to_binary(&m).unwrap();
 
-    let signatures = wh.sign(&modification);
-    let resp = contract
-        .modify_balance(modification, index, signatures)
-        .unwrap();
+    let resp = contract.modify_balance(m.clone(), &wh).unwrap();
 
     let evt = Event::new("wasm-Modification")
         .add_attribute("sequence", serde_json_wasm::to_string(&m.sequence).unwrap())
@@ -59,7 +54,6 @@ fn simple_modify() {
 fn duplicate_modify() {
     let (wh, mut contract) = proper_instantiate();
 
-    let index = wh.guardian_set_index();
     let m = Modification {
         sequence: 0,
         chain_id: 1,
@@ -67,17 +61,13 @@ fn duplicate_modify() {
         token_address: [0x7c; 32].into(),
         kind: Kind::Add,
         amount: Uint256::from(300u128),
-        reason: "test".into(),
+        reason: "test".try_into().unwrap(),
     };
-    let modification = to_binary(&m).unwrap();
 
-    let signatures = wh.sign(&modification);
-    contract
-        .modify_balance(modification.clone(), index, signatures.clone())
-        .unwrap();
+    contract.modify_balance(m.clone(), &wh).unwrap();
 
     contract
-        .modify_balance(modification, index, signatures)
+        .modify_balance(m, &wh)
         .expect_err("successfully submitted duplicate modification");
 }
 
@@ -85,7 +75,6 @@ fn duplicate_modify() {
 fn round_trip() {
     let (wh, mut contract) = proper_instantiate();
 
-    let index = wh.guardian_set_index();
     let mut m = Modification {
         sequence: 0,
         chain_id: 1,
@@ -93,14 +82,10 @@ fn round_trip() {
         token_address: [0x7c; 32].into(),
         kind: Kind::Add,
         amount: Uint256::from(300u128),
-        reason: "test".into(),
+        reason: "test".try_into().unwrap(),
     };
-    let modification = to_binary(&m).unwrap();
 
-    let signatures = wh.sign(&modification);
-    contract
-        .modify_balance(modification, index, signatures)
-        .unwrap();
+    contract.modify_balance(m.clone(), &wh).unwrap();
 
     let actual = contract.query_modification(m.sequence).unwrap();
     assert_eq!(m, actual);
@@ -108,14 +93,9 @@ fn round_trip() {
     // Now reverse the modification.
     m.sequence += 1;
     m.kind = Kind::Sub;
-    m.reason = "reverse".into();
+    m.reason = "reverse".try_into().unwrap();
 
-    let modification = to_binary(&m).unwrap();
-
-    let signatures = wh.sign(&modification);
-    contract
-        .modify_balance(modification, index, signatures)
-        .unwrap();
+    contract.modify_balance(m.clone(), &wh).unwrap();
 
     let actual = contract.query_modification(m.sequence).unwrap();
     assert_eq!(m, actual);
@@ -134,7 +114,6 @@ fn round_trip() {
 fn missing_guardian_set() {
     let (wh, mut contract) = proper_instantiate();
 
-    let index = wh.guardian_set_index();
     let m = Modification {
         sequence: 0,
         chain_id: 1,
@@ -142,13 +121,14 @@ fn missing_guardian_set() {
         token_address: [0x7c; 32].into(),
         kind: Kind::Add,
         amount: Uint256::from(300u128),
-        reason: "test".into(),
+        reason: "test".try_into().unwrap(),
     };
-    let modification = to_binary(&m).unwrap();
 
-    let signatures = wh.sign(&modification);
     contract
-        .modify_balance(modification, index + 1, signatures)
+        .modify_balance_with(m, &wh, |mut vaa| {
+            vaa.guardian_set_index += 1;
+            serde_wormhole::to_vec(&vaa).map(From::from).unwrap()
+        })
         .expect_err("successfully modified balance with invalid guardian set");
 }
 
@@ -156,7 +136,6 @@ fn missing_guardian_set() {
 fn expired_guardian_set() {
     let (wh, mut contract) = proper_instantiate();
 
-    let index = wh.guardian_set_index();
     let mut block = contract.app().block_info();
     wh.set_expiration(block.height);
     block.height += 1;
@@ -169,13 +148,10 @@ fn expired_guardian_set() {
         token_address: [0x7c; 32].into(),
         kind: Kind::Add,
         amount: Uint256::from(300u128),
-        reason: "test".into(),
+        reason: "test".try_into().unwrap(),
     };
-    let modification = to_binary(&m).unwrap();
-
-    let signatures = wh.sign(&modification);
     contract
-        .modify_balance(modification, index, signatures)
+        .modify_balance(m, &wh)
         .expect_err("successfully modified balance with expired guardian set");
 }
 
@@ -183,7 +159,6 @@ fn expired_guardian_set() {
 fn no_quorum() {
     let (wh, mut contract) = proper_instantiate();
 
-    let index = wh.guardian_set_index();
     let m = Modification {
         sequence: 0,
         chain_id: 1,
@@ -191,19 +166,19 @@ fn no_quorum() {
         token_address: [0x7c; 32].into(),
         kind: Kind::Add,
         amount: Uint256::from(300u128),
-        reason: "test".into(),
+        reason: "test".try_into().unwrap(),
     };
-    let modification = to_binary(&m).unwrap();
 
-    let mut signatures = wh.sign(&modification);
     let newlen = wh
         .calculate_quorum(0, contract.app().block_info().height)
         .map(|q| (q - 1) as usize)
         .unwrap();
-    signatures.truncate(newlen);
 
     contract
-        .modify_balance(modification, index, signatures)
+        .modify_balance_with(m, &wh, |mut vaa| {
+            vaa.signatures.truncate(newlen);
+            serde_wormhole::to_vec(&vaa).map(From::from).unwrap()
+        })
         .expect_err("successfully submitted modification without quorum");
 }
 
@@ -213,7 +188,6 @@ fn repeat() {
 
     let (wh, mut contract) = proper_instantiate();
 
-    let index = wh.guardian_set_index();
     let mut m = Modification {
         sequence: 0,
         chain_id: 1,
@@ -221,18 +195,13 @@ fn repeat() {
         token_address: [0x7c; 32].into(),
         kind: Kind::Add,
         amount: Uint256::from(300u128),
-        reason: "test".into(),
+        reason: "test".try_into().unwrap(),
     };
 
     for _ in 0..ITERATIONS {
         m.sequence += 1;
 
-        let modification = to_binary(&m).unwrap();
-
-        let signatures = wh.sign(&modification);
-        contract
-            .modify_balance(modification, index, signatures)
-            .unwrap();
+        contract.modify_balance(m.clone(), &wh).unwrap();
 
         let actual = contract.query_modification(m.sequence).unwrap();
         assert_eq!(m, actual);
