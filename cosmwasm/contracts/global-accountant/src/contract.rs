@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use accountant::{
     query_balance, query_modification,
-    state::{account, transfer, Modification, TokenAddress, Transfer},
+    state::{account, transfer, Kind, Modification, Reason, TokenAddress, Transfer},
     validate_transfer,
 };
 use anyhow::{ensure, Context};
@@ -17,7 +17,7 @@ use cw_storage_plus::Bound;
 use serde_wormhole::RawMessage;
 use tinyvec::{Array, TinyVec};
 use wormhole::{
-    token::{Action, GovernancePacket, Message},
+    token::{Action, GovernancePacket, Message, ModificationKind},
     vaa::{self, Body, Header, Signature},
     Chain,
 };
@@ -74,17 +74,17 @@ pub fn execute(
             guardian_set_index,
             signature,
         } => submit_observations(deps, info, observations, guardian_set_index, signature),
-        ExecuteMsg::ModifyBalance {
-            modification,
-            guardian_set_index,
-            signatures,
-        } => modify_balance(deps, info, modification, guardian_set_index, signatures),
+        // ExecuteMsg::ModifyBalance {
+        //     modification,
+        //     guardian_set_index,
+        //     signatures,
+        // } => modify_balance(deps, info, modification, guardian_set_index, signatures),
         ExecuteMsg::UpgradeContract {
             upgrade,
             guardian_set_index,
             signatures,
         } => upgrade_contract(deps, env, info, upgrade, guardian_set_index, signatures),
-        ExecuteMsg::SubmitVAAs { vaas } => submit_vaas(deps, info, vaas),
+        ExecuteMsg::SubmitVaas { vaas } => submit_vaas(deps, info, vaas),
     }
 }
 
@@ -276,31 +276,17 @@ fn handle_observation(
 
 fn modify_balance(
     deps: DepsMut<WormholeQuery>,
-    info: MessageInfo,
-    modification: Binary,
-    guardian_set_index: u32,
-    signatures: Vec<Signature>,
-) -> Result<Response, AnyError> {
-    deps.querier
-        .query::<Empty>(
-            &WormholeQuery::VerifyQuorum {
-                data: modification.clone(),
-                guardian_set_index,
-                signatures: signatures.into_iter().map(From::from).collect(),
-            }
-            .into(),
-        )
-        .context(ContractError::VerifyQuorum)?;
+    info: &MessageInfo,
+    modification: Modification,
+) -> Result<Event, AnyError> {
+    let mut event = accountant::modify_balance(deps, modification)
+        .context("failed to modify account balance")?;
 
-    let msg: Modification = from_binary(&modification).context("failed to parse `Modification`")?;
-
-    let event =
-        accountant::modify_balance(deps, msg).context("failed to modify account balance")?;
-
-    Ok(Response::new()
+    event = event
         .add_attribute("action", "modify_balance")
-        .add_attribute("owner", info.sender)
-        .add_event(event))
+        .add_attribute("owner", info.sender.clone());
+
+    Ok(event)
 }
 
 fn upgrade_contract(
@@ -345,7 +331,7 @@ fn submit_vaas(
 ) -> Result<Response, AnyError> {
     let evts = vaas
         .into_iter()
-        .map(|v| handle_vaa(deps.branch(), v))
+        .map(|v| handle_vaa(deps.branch(), &info, v))
         .collect::<anyhow::Result<Vec<_>>>()?;
     Ok(Response::new()
         .add_attribute("action", "submit_vaas")
@@ -353,7 +339,11 @@ fn submit_vaas(
         .add_events(evts))
 }
 
-fn handle_vaa(mut deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<Event> {
+fn handle_vaa(
+    mut deps: DepsMut<WormholeQuery>,
+    info: &MessageInfo,
+    vaa: Binary,
+) -> anyhow::Result<Event> {
     let (header, data) = serde_wormhole::from_slice::<(Header, &RawMessage)>(&vaa)
         .context("failed to parse VAA header")?;
 
@@ -394,12 +384,12 @@ fn handle_vaa(mut deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<E
         bail!(ContractError::DuplicateMessage);
     }
 
-    let evt = if body.emitter_chain == Chain::Solana
+    let evt = if (body.emitter_chain == Chain::Solana || body.emitter_chain == Chain::Wormchain)
         && body.emitter_address == wormhole::GOVERNANCE_EMITTER
     {
         let govpacket = serde_wormhole::from_slice(body.payload)
             .context("failed to parse governance packet")?;
-        handle_governance_vaa(deps.branch(), body.with_payload(govpacket))?
+        handle_governance_vaa(deps.branch(), info, body.with_payload(govpacket))?
     } else {
         let msg = serde_wormhole::from_slice(body.payload)
             .context("failed to parse tokenbridge message")?;
@@ -415,6 +405,7 @@ fn handle_vaa(mut deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<E
 
 fn handle_governance_vaa(
     deps: DepsMut<WormholeQuery>,
+    info: &MessageInfo,
     body: Body<GovernancePacket>,
 ) -> anyhow::Result<Event> {
     ensure!(
@@ -437,6 +428,34 @@ fn handle_governance_vaa(
             Ok(Event::new("RegisterChain")
                 .add_attribute("chain", chain.to_string())
                 .add_attribute("emitter_address", emitter_address.to_string()))
+        }
+        Action::ModifyBalance {
+            sequence,
+            chain_id,
+            token_chain,
+            token_address,
+            kind,
+            amount,
+            reason,
+        } => {
+            let token_address = TokenAddress::new(token_address.0);
+            let kind = match kind {
+                ModificationKind::Add => Kind::Add,
+                ModificationKind::Subtract => Kind::Sub,
+                ModificationKind::Unknown => bail!("unsupported governance action"),
+            };
+            let amount = Uint256::from_be_bytes(amount.0);
+            let reason = Reason::new(reason);
+            let modification = Modification {
+                sequence,
+                chain_id,
+                token_chain,
+                token_address,
+                kind,
+                amount,
+                reason,
+            };
+            modify_balance(deps, info, modification).map_err(|e| e.into())
         }
         _ => bail!("unsupported governance action"),
     }
