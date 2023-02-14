@@ -174,6 +174,12 @@ func TestVerifySignature(t *testing.T) {
 
 var lastestSequence = 1
 
+func signVaa(vaaToSign vaa.VAA, signers []*ecdsa.PrivateKey) vaa.VAA {
+	for i, key := range signers {
+		vaaToSign.AddSignature(key, uint8(i))
+	}
+	return vaaToSign
+}
 func generateVaa(index uint32, signers []*ecdsa.PrivateKey, emitterChain vaa.ChainID, payload []byte) vaa.VAA {
 	v := vaa.VAA{
 		Version:          uint8(1),
@@ -188,10 +194,7 @@ func generateVaa(index uint32, signers []*ecdsa.PrivateKey, emitterChain vaa.Cha
 		Payload:          payload,
 	}
 	lastestSequence = lastestSequence + 1
-	for i, key := range signers {
-		v.AddSignature(key, uint8(i))
-	}
-	return v
+	return signVaa(v, signers)
 }
 func resignVaa(v vaa.VAA, signers []*ecdsa.PrivateKey) vaa.VAA {
 	v.Signatures = []*vaa.Signature{}

@@ -250,7 +250,7 @@ async function main() {
         contract: addresses["global_accountant.wasm"],
         msg: toUtf8(
             JSON.stringify({
-                submit_v_a_as: {
+                submit_vaas: {
                     vaas: accountingRegistrations,
                 },
             })
