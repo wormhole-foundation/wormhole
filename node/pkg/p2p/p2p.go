@@ -276,7 +276,7 @@ func Run(
 			if nodeName == "" {
 				return
 			}
-			guardianAddr := ethcrypto.PubkeyToAddress(gk.PublicKey).String()
+			ourAddr := ethcrypto.PubkeyToAddress(gk.PublicKey)
 
 			ctr := int64(0)
 			tick := time.NewTicker(15 * time.Second)
@@ -313,7 +313,7 @@ func Run(
 							Timestamp:     time.Now().UnixNano(),
 							Networks:      networks,
 							Version:       version.Version(),
-							GuardianAddr:  guardianAddr,
+							GuardianAddr:  ourAddr.String(),
 							BootTimestamp: bootTime.UnixNano(),
 							Features:      features,
 						}
@@ -322,7 +322,6 @@ func Run(
 							heartbeat.P2PNodeId = nodeIdBytes
 						}
 
-						ourAddr := ethcrypto.PubkeyToAddress(gk.PublicKey)
 						if err := gst.SetHeartbeat(ourAddr, h.ID(), heartbeat); err != nil {
 							panic(err)
 						}
