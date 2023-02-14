@@ -24,7 +24,7 @@ module token_bridge::transfer_tokens {
         recipient_chain: u16,
         recipient: vector<u8>,
         relayer_fee: u64,
-        nonce: u64,
+        nonce: u32,
     ) {
         let result = handle_transfer_tokens<CoinType>(
             bridge_state,
@@ -45,9 +45,10 @@ module token_bridge::transfer_tokens {
             recipient_chain,
             normalized_relayer_fee,
         );
-        state::publish_message(
-            wormhole_state,
+
+        state::publish_wormhole_message(
             bridge_state,
+            wormhole_state,
             nonce,
             transfer::serialize(transfer),
             wormhole_fee_coins,

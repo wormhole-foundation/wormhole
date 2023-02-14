@@ -27,7 +27,7 @@ module wormhole::state {
     struct WormholeMessage has store, copy, drop {
         sender: u64,
         sequence: u64,
-        nonce: u64,
+        nonce: u32,
         payload: vector<u8>,
         consistency_level: u8
     }
@@ -140,14 +140,14 @@ module wormhole::state {
     public(friend) entry fun publish_event(
         sender: u64,
         sequence: u64,
-        nonce: u64,
+        nonce: u32,
         payload: vector<u8>
      ) {
         event::emit(
             WormholeMessage {
-                sender: sender,
-                sequence: sequence,
-                nonce: nonce,
+                sender,
+                sequence,
+                nonce,
                 payload: payload,
                 // Sui is an instant finality chain, so we don't need
                 // confirmations

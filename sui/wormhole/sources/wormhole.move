@@ -16,7 +16,7 @@ module wormhole::wormhole {
     public fun publish_message(
         emitter_cap: &mut emitter::EmitterCapability,
         state: &mut State,
-        nonce: u64,
+        nonce: u32,
         payload: vector<u8>,
         message_fee: Coin<SUI>,
     ): u64 {
@@ -49,7 +49,7 @@ module wormhole::wormhole {
     public entry fun publish_message_entry(
         emitter_cap: &mut emitter::EmitterCapability,
         state: &mut State,
-        nonce: u64,
+        nonce: u32,
         payload: vector<u8>,
         message_fee: Coin<SUI>,
     ) {
@@ -59,7 +59,7 @@ module wormhole::wormhole {
     public entry fun publish_message_free(
         emitter_cap: &mut emitter::EmitterCapability,
         state: &mut State,
-        nonce: u64,
+        nonce: u32,
         payload: vector<u8>,
     ) {
         // ensure that provided fee is sufficient to cover message fees

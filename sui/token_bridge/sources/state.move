@@ -183,16 +183,16 @@ module token_bridge::state {
         native_asset::balance(asset)
     }
 
-    public(friend) fun publish_message(
-        wormhole_state: &mut WormholeState,
-        bridge_state: &mut State,
-        nonce: u64,
+    public(friend) fun publish_wormhole_message(
+        self: &mut State,
+        worm_state: &mut WormholeState,
+        nonce: u32,
         payload: vector<u8>,
         message_fee: Coin<SUI>,
     ): u64 {
         wormhole::publish_message(
-            &mut bridge_state.emitter_cap,
-            wormhole_state,
+            &mut self.emitter_cap,
+            worm_state,
             nonce,
             payload,
             message_fee,
@@ -231,49 +231,6 @@ module token_bridge::state {
         } else {
             get_registered_native_asset_origin_info(bridge_state)
         }
-    }
-
-    /// A value of type `VerifiedCoinType<T>` witnesses the fact that the type
-    /// `T` has been verified to correspond to a particular chain id and token
-    /// address (may be either a wrapped or native asset).
-    /// The verification is performed by `verify_coin_type`.
-    ///
-    /// This is important because the coin type is an input to several
-    /// functions, and is thus untrusted. Most coin-related functionality
-    /// requires passing in a coin type generic argument.
-    /// When transferring tokens *out*, that type instantiation determines the
-    /// token bridge's behaviour, and thus we just take whatever was supplied.
-    /// When transferring tokens *in*, it's the transfer VAA that determines
-    /// which coin should be used via the origin chain and origin address
-    /// fields.
-    ///
-    /// For technical reasons, the latter case still requires a type argument to
-    /// be passed in (since Move does not support existential types, so we must
-    /// rely on old school universal quantification). We must thus verify that
-    /// the supplied type corresponds to the origin info in the VAA.
-    ///
-    /// Accordingly, the `mint` and `withdraw` operations are gated by this
-    /// witness type, since these two operations require a VAA to supply the
-    /// token information. This ensures that those two functions can't be called
-    /// without first verifying the `CoinType`.
-    struct VerifiedCoinType<phantom CoinType> has copy, drop {}
-
-    /// See the documentation for `VerifiedCoinType` above.
-    public fun verify_coin_type<CoinType>(
-        self: &State,
-        token_chain: u16,
-        token_address: ExternalAddress
-    ): VerifiedCoinType<CoinType> {
-        let info = origin_info<CoinType>(self);
-        assert!(
-            token_info::chain(&info) == token_chain,
-            E_ORIGIN_CHAIN_MISMATCH
-        );
-        assert!(
-            token_info::addr(&info) == token_address,
-            E_ORIGIN_ADDRESS_MISMATCH
-        );
-        VerifiedCoinType {}
     }
 
     public fun get_wrapped_decimals<CoinType>(bridge_state: &State): u8 {

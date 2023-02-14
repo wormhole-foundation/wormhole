@@ -13,6 +13,7 @@ module token_bridge::attest_token {
         bridge_state: &mut State,
         coin_meta: &CoinMetadata<CoinType>,
         fee_coins: Coin<SUI>,
+        nonce: u32,
         ctx: &mut TxContext
     ) {
         let asset_meta = attest_token_internal(
@@ -22,10 +23,9 @@ module token_bridge::attest_token {
             ctx
         );
         let payload = asset_meta::encode(asset_meta);
-        let nonce = 0;
-        state::publish_message(
-            wormhole_state,
+        state::publish_wormhole_message(
             bridge_state,
+            wormhole_state,
             nonce,
             payload,
             fee_coins

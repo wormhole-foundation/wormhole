@@ -18,7 +18,7 @@ module token_bridge::transfer_tokens_with_payload {
         wormhole_fee_coins: Coin<SUI>,
         recipient_chain: u16,
         recipient: ExternalAddress,
-        nonce: u64,
+        nonce: u32,
         payload: vector<u8>,
     ): u64 {
         let result = handle_transfer_tokens<CoinType>(
@@ -38,9 +38,10 @@ module token_bridge::transfer_tokens_with_payload {
             emitter::get_external_address(emitter_cap),
             payload
         );
-        state::publish_message(
-            wormhole_state,
+
+        state::publish_wormhole_message(
             bridge_state,
+            wormhole_state,
             nonce,
             transfer_with_payload::serialize(transfer),
             wormhole_fee_coins
