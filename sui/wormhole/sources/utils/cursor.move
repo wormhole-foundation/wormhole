@@ -12,7 +12,7 @@ module wormhole::cursor {
     }
 
     /// Initialises a cursor from a vector.
-    public fun cursor_init<T>(data: vector<T>): Cursor<T> {
+    public fun new<T>(data: vector<T>): Cursor<T> {
         // reverse the array so we have access to the first element easily
         vector::reverse(&mut data);
         Cursor<T> {
@@ -22,8 +22,8 @@ module wormhole::cursor {
 
     /// Destroys an empty cursor.
     /// Aborts if the cursor is not empty.
-    public fun destroy_empty<T>(cur: Cursor<T>) {
-        let Cursor { data } = cur;
+    public fun destroy_empty<T>(cursor: Cursor<T>) {
+        let Cursor { data } = cursor;
         vector::destroy_empty(data);
     }
 
@@ -32,16 +32,15 @@ module wormhole::cursor {
     /// NOTE: Only use this function if you intend to consume the rest of the
     /// bytes. Since the result is a vector, which can be dropped, it is not
     /// possible to statically guarantee that the rest will be used.
-    public fun rest<T>(cur: Cursor<T>): vector<T> {
-        let Cursor { data } = cur;
+    public fun rest<T>(cursor: Cursor<T>): vector<T> {
+        let Cursor { data } = cursor;
         // re-reverse the data so it is in the same order as the original input
         vector::reverse(&mut data);
         data
     }
 
     /// Returns the first element of the cursor and advances it.
-    public fun poke<T>(cur: &mut Cursor<T>): T {
-        vector::pop_back(&mut cur.data)
+    public fun poke<T>(self: &mut Cursor<T>): T {
+        vector::pop_back(&mut self.data)
     }
-
 }

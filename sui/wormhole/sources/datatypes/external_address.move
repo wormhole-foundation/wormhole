@@ -1,13 +1,12 @@
 /// 32 byte, left-padded address representing an arbitrary address, to be used in VAAs to
 /// refer to addresses.
 module wormhole::external_address {
-    use std::vector;
+    use std::vector::{Self};
 
-    use sui::address;
+    use sui::address::{Self};
 
     use wormhole::cursor::Cursor;
-    use wormhole::deserialize;
-    use wormhole::serialize;
+    use wormhole::bytes::{Self};
 
     const E_VECTOR_TOO_LONG: u64 = 0;
     const E_INVALID_EXTERNAL_ADDRESS: u64 = 1;
@@ -43,12 +42,12 @@ module wormhole::external_address {
     }
 
     public fun deserialize(cur: &mut Cursor<u8>): ExternalAddress {
-        let bytes = deserialize::deserialize_vector(cur, 32);
+        let bytes = bytes::to_bytes(cur, 32);
         from_bytes(bytes)
     }
 
     public fun serialize(buf: &mut vector<u8>, e: ExternalAddress) {
-        serialize::serialize_vector(buf, e.external_address)
+        bytes::from_bytes(buf, e.external_address)
     }
 
     /// Convert an `ExternalAddress` to a native Sui address.
