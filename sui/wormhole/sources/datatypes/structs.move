@@ -2,7 +2,7 @@ module wormhole::structs {
     use sui::tx_context::{Self, TxContext};
 
     friend wormhole::state;
-    use wormhole::guardian_pubkey::{Self};
+    use wormhole::guardian_pubkey::{Self, GuardianPubkey};
 
     struct Signature has store, copy, drop {
         sig: vector<u8>,
@@ -11,7 +11,7 @@ module wormhole::structs {
     }
 
     struct Guardian has store, drop, copy {
-        address: guardian_pubkey::Address
+        addr: GuardianPubkey
     }
 
     struct GuardianSet has store, copy, drop {
@@ -20,9 +20,9 @@ module wormhole::structs {
         expiration_time: u32,
     }
 
-    public fun create_guardian(address: vector<u8>): Guardian {
+    public fun create_guardian(addr: vector<u8>): Guardian {
         Guardian {
-            address: guardian_pubkey::from_bytes(address)
+            addr: guardian_pubkey::new(addr)
         }
     }
 
@@ -50,8 +50,8 @@ module wormhole::structs {
         Signature{ sig, recovery_id, guardian_index }
     }
 
-    public fun get_address(guardian: &Guardian): guardian_pubkey::Address {
-        guardian.address
+    public fun get_address(guardian: &Guardian): GuardianPubkey {
+        guardian.addr
     }
 
     public fun get_guardian_set_index(guardian_set: &GuardianSet): u32 {
