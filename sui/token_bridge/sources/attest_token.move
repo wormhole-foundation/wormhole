@@ -26,7 +26,7 @@ module token_bridge::attest_token {
             token_bridge_state,
             worm_state,
             nonce,
-            asset_meta::encode(asset_meta),
+            asset_meta::serialize(asset_meta),
             fee_coins
         );
     }
@@ -103,9 +103,15 @@ module token_bridge::attest_token_test{
                 ctx(&mut test)
             );
 
-            assert!(asset_meta::get_decimals(&asset_meta)==10, 0);
-            assert!(asset_meta::get_symbol(&asset_meta)==string32::from_bytes(x"00"), 0);
-            assert!(asset_meta::get_name(&asset_meta)==string32::from_bytes(x"11"), 0);
+            assert!(asset_meta::native_decimals(&asset_meta) == 10, 0);
+            assert!(
+                asset_meta::symbol(&asset_meta) == string32::from_bytes(x"00"),
+                0
+            );
+            assert!(
+                asset_meta::name(&asset_meta) == string32::from_bytes(x"11"),
+                0
+            );
 
             return_shared<WormholeState>(wormhole_state);
             return_shared<State>(bridge_state);

@@ -1,22 +1,19 @@
 /// This module uses the one-time witness (OTW)
 /// Sui one-time witness pattern reference: https://examples.sui.io/basics/one-time-witness.html
 module token_bridge::create_wrapped {
-    use std::option::{Self};
-
-    use sui::tx_context::{TxContext};
-    use sui::coin::{TreasuryCap};
-    use sui::object::{Self, UID};
     use sui::coin::{Self};
-    use sui::url::{Url};
+    use std::string::{Self};
+    use std::option::{Self};
     use sui::transfer::{Self};
-
-    use token_bridge::asset_meta::{Self, AssetMeta};
-    use token_bridge::state::{Self, State};
-    use token_bridge::string32::{Self};
-    use token_bridge::vaa::{Self};
-
+    use sui::tx_context::{TxContext};
+    use sui::url::{Url};
     use wormhole::state::{Self as wormhole_state, State as WormholeState};
     use wormhole::myvaa as core_vaa;
+
+    use token_bridge::asset_meta::{Self};
+    use token_bridge::wrapped_coin::{Self, WrappedCoin};
+    use token_bridge::state::{Self, State};
+    use token_bridge::vaa::{Self};
 
     const E_WRAPPING_NATIVE_COIN: u64 = 0;
     const E_WRAPPING_REGISTERED_NATIVE_COIN: u64 = 1;
@@ -34,31 +31,6 @@ module token_bridge::create_wrapped {
     /// So we cap the maximum decimals at 8 when creating a wrapped token.
     const MAX_WRAPPED_DECIMALS: u8 = 8;
 
-    /// Wrapped assets are created in two steps.
-    /// 1) The coin is initialised by calling `create_wrapped_coin` in the
-    /// `init` function of a OTW module.
-    /// 2) The coin is registered in the token bridge in
-    /// `register_wrapped_coin`.
-    ///
-    /// Since Step 1. takes places in an untrusted context, we want to remove
-    /// all degrees of freedom. To this end, `create_wrapped_coin` just takes a
-    /// VAA, and returns a `NewWrappedCoin` object. That's the only way to
-    /// create a `NewWrappedCoin` object. Then this object can be passed to
-    /// `register_wrapped_coin` in Step 2.
-    ///
-    /// This setup ensures that we don't have to trust (or verify) that the OTW
-    /// initialiser did the right thing.
-    ///
-    /// TODO: it would be nice if we could also enforce that the OTW struct's
-    /// name matches the token symbol being registered. Currently there's no way
-    /// to do this in the sui framework.
-    struct NewWrappedCoin<phantom CoinType> has key, store {
-        id: UID,
-        vaa_bytes: vector<u8>,
-        treasury_cap: TreasuryCap<CoinType>,
-        decimals: u8
-    }
-
     /// This function will be called from the `init` function of a module that
     /// defines a OTW type. Due to the nature of `init` functions, this function
     /// must be stateless.
@@ -71,57 +43,51 @@ module token_bridge::create_wrapped {
     /// 2) the treasury total supply will be 0
     ///
     /// Thanks to the above properties, `register_wrapped_coin` does not need to
-    /// do any checks other than the VAA in `NewWrappedCoin` is valid.
+    /// do any checks other than the VAA in `WrappedCoin` is valid.
     public fun create_wrapped_coin<CoinType: drop>(
         vaa_bytes: vector<u8>,
         coin_witness: CoinType,
         ctx: &mut TxContext
-    ): NewWrappedCoin<CoinType> {
+    ): WrappedCoin<CoinType> {
         let payload = core_vaa::parse_and_get_payload(vaa_bytes);
-        let asset_meta: AssetMeta = asset_meta::parse(payload);
+        let meta = asset_meta::deserialize(payload);
 
-        let parsed_decimals = asset_meta::get_decimals(&asset_meta);
-        let symbol = asset_meta::get_symbol(&asset_meta);
-        let name = asset_meta::get_name(&asset_meta);
-
-        let decimals = (
+        let coin_decimals = (
             sui::math::min(
                 (MAX_WRAPPED_DECIMALS as u64),
-                (parsed_decimals as u64)
+                (asset_meta::native_decimals(&meta) as u64)
             ) as u8
         );
-        let (treasury_cap, coin_metadata) = coin::create_currency<CoinType>(
-            coin_witness,
-            decimals,
-            string32::to_bytes(&symbol),
-            string32::to_bytes(&name),
-            x"", //empty description
-            option::none<Url>(), //empty url
-            ctx
-        );
+
+        let (treasury_cap, coin_metadata) =
+            coin::create_currency<CoinType>(
+                coin_witness,
+                coin_decimals,
+                *string::bytes(&asset_meta::symbol_to_string(&meta)),
+                *string::bytes(&asset_meta::name_to_string(&meta)),
+                b"", // no description necessary
+                option::none<Url>(), // no url necessary
+                ctx
+            );
 
         transfer::share_object(coin_metadata);
-        NewWrappedCoin {
-            id: object::new(ctx),
+
+        wrapped_coin::new(
             vaa_bytes,
             treasury_cap,
-            decimals
-        }
+            coin_decimals,
+            ctx
+        )
     }
 
     public entry fun register_wrapped_coin<CoinType>(
         token_bridge_state: &mut State,
         worm_state: &mut WormholeState,
-        new_wrapped_coin: NewWrappedCoin<CoinType>,
+        new_wrapped_coin: WrappedCoin<CoinType>,
         ctx: &mut TxContext,
     ) {
-        let NewWrappedCoin {
-            id,
-            vaa_bytes,
-            treasury_cap,
-            decimals
-        } = new_wrapped_coin;
-        object::delete(id);
+        let (vaa_bytes, treasury_cap, decimals) =
+            wrapped_coin::destroy(new_wrapped_coin);
 
         let vaa = vaa::parse_verify_and_replay_protect(
             token_bridge_state,
@@ -131,9 +97,9 @@ module token_bridge::create_wrapped {
         );
         let payload = core_vaa::destroy(vaa);
 
-        let metadata = asset_meta::parse(payload);
-        let origin_chain = asset_meta::get_token_chain(&metadata);
-        let external_address = asset_meta::get_token_address(&metadata);
+        let meta = asset_meta::deserialize(payload);
+        let origin_chain = asset_meta::token_chain(&meta);
+        let external_address = asset_meta::token_address(&meta);
 
         assert!(
             origin_chain != wormhole_state::chain_id(),

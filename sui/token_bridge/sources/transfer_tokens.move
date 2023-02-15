@@ -104,6 +104,7 @@ module token_bridge::transfer_tokens {
 
 #[test_only]
 module token_bridge::transfer_token_test {
+    use sui::coin::{Self, CoinMetadata, TreasuryCap};
     use sui::sui::{SUI};
     use sui::test_scenario::{
         Self,
@@ -114,25 +115,24 @@ module token_bridge::transfer_token_test {
         take_from_address,
         ctx
     };
-    use sui::coin::{Self, CoinMetadata, TreasuryCap};
+    use wormhole::external_address::{Self};
+    use wormhole::state::{State as WormholeState};
 
+    use token_bridge::bridge_state_test::{
+        set_up_wormhole_core_and_token_bridges
+    };
+    use token_bridge::create_wrapped::{Self};
+    use token_bridge::coin_witness::{Self, COIN_WITNESS};
+    use token_bridge::native_coin_witness::{Self, NATIVE_COIN_WITNESS};
+    use token_bridge::normalized_amount::{Self};
+    use token_bridge::state::{Self, State};
     use token_bridge::transfer_result::{Self};
     use token_bridge::transfer_tokens::{
         E_TOO_MUCH_RELAYER_FEE,
         transfer_tokens,
         transfer_tokens_test
     };
-    use token_bridge::state::{Self, State};
-    use token_bridge::coin_witness::{Self, COIN_WITNESS};
-    use token_bridge::create_wrapped::{Self, NewWrappedCoin};
-    use token_bridge::normalized_amount::{Self};
-    use token_bridge::native_coin_witness::{Self, NATIVE_COIN_WITNESS};
-    use token_bridge::bridge_state_test::{
-        set_up_wormhole_core_and_token_bridges
-    };
-
-    use wormhole::state::{State as WormholeState};
-    use wormhole::external_address::{Self};
+    use token_bridge::wrapped_coin::{WrappedCoin};
 
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
@@ -298,7 +298,7 @@ module token_bridge::transfer_token_test {
             let worm_state = take_shared<WormholeState>(&test);
             let coin_meta = take_shared<CoinMetadata<COIN_WITNESS>>(&test);
             let new_wrapped_coin =
-                take_from_address<NewWrappedCoin<COIN_WITNESS>>(&test, admin);
+                take_from_address<WrappedCoin<COIN_WITNESS>>(&test, admin);
 
             // register wrapped asset with the token bridge
             create_wrapped::register_wrapped_coin<COIN_WITNESS>(
@@ -360,7 +360,7 @@ module token_bridge::transfer_token_test {
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
             let coin_meta = take_shared<CoinMetadata<COIN_WITNESS>>(&test);
-            let new_wrapped_coin = take_from_address<NewWrappedCoin<COIN_WITNESS>>(&test, admin);
+            let new_wrapped_coin = take_from_address<WrappedCoin<COIN_WITNESS>>(&test, admin);
 
             // register wrapped asset with the token bridge
             create_wrapped::register_wrapped_coin<COIN_WITNESS>(

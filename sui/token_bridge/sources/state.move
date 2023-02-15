@@ -252,9 +252,9 @@ module token_bridge::state {
             ctx
         );
 
-        asset_meta::create(
-            registered_tokens::token_address<CoinType>(&self.registered_tokens),
+        asset_meta::new(
             chain,
+            registered_tokens::token_address<CoinType>(&self.registered_tokens),
             decimals,
             string32::from_bytes(
                 ascii::into_bytes(coin::get_symbol<CoinType>(coin_metadata))

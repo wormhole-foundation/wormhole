@@ -33,8 +33,9 @@ module token_bridge::coin_witness_test {
 
     use token_bridge::state::{State, is_registered_asset, is_wrapped_asset, token_info};
     use token_bridge::bridge_state_test::{set_up_wormhole_core_and_token_bridges};
-    use token_bridge::create_wrapped::{NewWrappedCoin, register_wrapped_coin};
+    use token_bridge::create_wrapped::{register_wrapped_coin};
     use token_bridge::register_chain::{submit_vaa};
+    use token_bridge::wrapped_coin::{WrappedCoin};
 
     use token_bridge::coin_witness::{test_init, COIN_WITNESS};
     use token_bridge::token_info::{Self};
@@ -83,7 +84,7 @@ module token_bridge::coin_witness_test {
         next_tx(&mut test, admin);{
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
-            let wrapped_coin = take_from_address<NewWrappedCoin<COIN_WITNESS>>(&test, admin);
+            let wrapped_coin = take_from_address<WrappedCoin<COIN_WITNESS>>(&test, admin);
             register_wrapped_coin<COIN_WITNESS>(
                 &mut bridge_state,
                 &mut worm_state,
