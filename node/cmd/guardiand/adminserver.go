@@ -786,6 +786,7 @@ func (s *nodePrivilegedService) DumpRPCs(ctx context.Context, req *nodev1.DumpRP
 	rpcMap["nearRPC"] = *nearRPC
 	rpcMap["neonRPC"] = *neonRPC
 	rpcMap["oasisRPC"] = *oasisRPC
+	rpcMap["optimismRPC"] = *optimismRPC
 	rpcMap["polygonRPC"] = *polygonRPC
 	rpcMap["pythnetRPC"] = *pythnetRPC
 	rpcMap["pythnetWS"] = *pythnetWS
