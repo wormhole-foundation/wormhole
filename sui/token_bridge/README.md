@@ -40,7 +40,7 @@ struct CoinStore<T> {
 }
 ```
 
-Accordingly, we define the following functions for initiating and completing transfers. There is a version of each for wrapped and native coins, because we can't store info about `CoinType` within `BridgeState`. There does not seem to be a way of introspecting the CoinType to determine whether it represents a native or wrapped asset. In addition, we have to use either a `TreasuryCapStore` or `CoinStore` depending on whether we want to initiate or complete a transfer for a native or wrapped asset, which leads to different function signatures.
+Accordingly, we define the following functions for initiating and completing transfers. There is a version of each for wrapped and native coins, because we can't store info about `CoinType` within `State`. There does not seem to be a way of introspecting the CoinType to determine whether it represents a native or wrapped asset. In addition, we have to use either a `TreasuryCapStore` or `CoinStore` depending on whether we want to initiate or complete a transfer for a native or wrapped asset, which leads to different function signatures.
 
 ### `complete_transfer_wrapped<T>(treasury_cap_store: &mut TreasuryCapStore<T>)`
 - Use treasury cap to mint wrapped assets to recipient
