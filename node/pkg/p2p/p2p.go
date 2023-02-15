@@ -477,6 +477,11 @@ func Run(
 								prevPeerId, ok := components.ProtectedHostByGuardianKey[guardianAddr]
 								if ok {
 									if prevPeerId != peerId {
+										logger.Info("p2p_guardian_peer_changed",
+											zap.String("guardian_addr", guardianAddr.String()),
+											zap.String("prevPeerId", prevPeerId.String()),
+											zap.String("newPeerId", peerId.String()),
+										)
 										components.ConnMgr.Unprotect(prevPeerId, "heartbeat")
 										components.ConnMgr.Protect(peerId, "heartbeat")
 										components.ProtectedHostByGuardianKey[guardianAddr] = peerId
