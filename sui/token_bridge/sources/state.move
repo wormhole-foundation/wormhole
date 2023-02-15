@@ -70,13 +70,8 @@ module token_bridge::state {
     }
 
     #[test_only]
-    public fun test_init(ctx: &mut TxContext) {
-        transfer::transfer(
-            DeployerCapability{
-                id: object::new(ctx)
-            },
-            tx_context::sender(ctx)
-        );
+    public fun init_test_only(ctx: &mut TxContext) {
+        init(ctx)
     }
 
     // converts owned state object into a shared object, so that anyone can get
@@ -109,6 +104,15 @@ module token_bridge::state {
         registered_tokens::deposit(&mut self.registered_tokens, coin)
     }
 
+    #[test_only]
+    /// Exposing method so an integrator can test redeeming native tokens.
+    public fun deposit_test_only<CoinType>(
+        self: &mut State,
+        coin: Coin<CoinType>
+    ) {
+        deposit(self, coin)
+    }
+
     public(friend) fun withdraw<CoinType>(
         self: &mut State,
         amount: u64,
@@ -117,11 +121,30 @@ module token_bridge::state {
         registered_tokens::withdraw(&mut self.registered_tokens, amount, ctx)
     }
 
+    #[test_only]
+    /// Exposing method so an integrator can test sending native tokens.
+    public fun withdraw_test_only<CoinType>(
+        self: &mut State,
+        amount: u64,
+        ctx: &mut TxContext
+    ): Coin<CoinType> {
+        withdraw(self, amount, ctx)
+    }
+
     public(friend) fun burn<CoinType>(
         self: &mut State,
         coin: Coin<CoinType>,
     ): u64 {
         registered_tokens::burn(&mut self.registered_tokens, coin)
+    }
+
+    #[test_only]
+    /// Exposing method so an integrator can test redeeming wrapped tokens.
+    public fun burn_test_only<CoinType>(
+        self: &mut State,
+        coin: Coin<CoinType>
+    ): u64 {
+        burn(self, coin)
     }
 
     public(friend) fun mint<CoinType>(
@@ -132,9 +155,18 @@ module token_bridge::state {
         registered_tokens::mint(&mut self.registered_tokens, amount, ctx)
     }
 
-    // Note: we only examine the balance of native assets, because the token
-    // bridge does not custody wrapped assets (only mints and burns them)
     #[test_only]
+    /// Exposing method so an integrator can test sending wrapped tokens.
+    public fun mint_test_only<CoinType>(
+        self: &mut State,
+        amount: u64,
+        ctx: &mut TxContext
+    ): Coin<CoinType> {
+        mint(self, amount, ctx)
+    }
+
+    // We only examine the balance of native assets, because the token
+    // bridge does not custody wrapped assets (only mints and burns them).
     public fun balance<CoinType>(self: &State): u64 {
         registered_tokens::balance<CoinType>(&self.registered_tokens)
     }
@@ -309,7 +341,7 @@ module token_bridge::bridge_state_test{
 
         // call init for token bridge to get deployer cap
         next_tx(&mut test, admin); {
-            state::test_init(ctx(&mut test));
+            state::init_test_only(ctx(&mut test));
         };
 
         // register for emitter cap and init_and_share token bridge
