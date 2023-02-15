@@ -2,7 +2,7 @@ module wormhole::emitter {
     use sui::object::{Self, UID};
     use sui::tx_context::{TxContext};
 
-    use wormhole::serialize;
+    use wormhole::bytes;
     use wormhole::external_address::{Self, ExternalAddress};
 
     friend wormhole::state;
@@ -65,7 +65,7 @@ module wormhole::emitter {
     /// The 16 byte (u128) emitter id left-padded to u256
     public fun get_external_address(emitter_cap: &EmitterCapability): ExternalAddress {
         let emitter_bytes = vector<u8>[];
-        serialize::serialize_u64(&mut emitter_bytes, emitter_cap.emitter);
+        bytes::serialize_u64_be(&mut emitter_bytes, emitter_cap.emitter);
         external_address::from_bytes(emitter_bytes)
     }
 

@@ -5,55 +5,54 @@ module token_bridge::attest_token {
 
     use wormhole::state::{State as WormholeState};
 
-    use token_bridge::bridge_state::{Self as state, BridgeState};
+    use token_bridge::state::{Self, State};
     use token_bridge::asset_meta::{Self, AssetMeta};
 
     public entry fun attest_token<CoinType>(
-        wormhole_state: &mut WormholeState,
-        bridge_state: &mut BridgeState,
+        token_bridge_state: &mut State,
+        worm_state: &mut WormholeState,
         coin_meta: &CoinMetadata<CoinType>,
         fee_coins: Coin<SUI>,
+        nonce: u32,
         ctx: &mut TxContext
     ) {
-        let asset_meta = attest_token_internal(
-            wormhole_state,
-            bridge_state,
+        let asset_meta = handle_attest_token(
+            token_bridge_state,
             coin_meta,
             ctx
         );
-        let payload = asset_meta::encode(asset_meta);
-        let nonce = 0;
-        state::publish_message(
-            wormhole_state,
-            bridge_state,
+
+        state::publish_wormhole_message(
+            token_bridge_state,
+            worm_state,
             nonce,
-            payload,
+            asset_meta::serialize(asset_meta),
             fee_coins
         );
     }
 
-    fun attest_token_internal<CoinType>(
-        wormhole_state: &mut WormholeState,
-        bridge_state: &mut BridgeState,
-        coin_meta: &CoinMetadata<CoinType>,
+    fun handle_attest_token<CoinType>(
+        token_bridge_state: &mut State,
+        coin_metadata: &CoinMetadata<CoinType>,
         ctx: &mut TxContext
     ): AssetMeta {
-        let asset_meta =
-            state::register_native_asset<CoinType>(wormhole_state, bridge_state, coin_meta, ctx);
-        return asset_meta
+        state::register_native_asset<CoinType>(
+            token_bridge_state,
+            coin_metadata,
+            ctx
+        )
     }
 
     #[test_only]
-    public fun test_attest_token_internal<CoinType>(
-        wormhole_state: &mut WormholeState,
-        bridge_state: &mut BridgeState,
-        coin_meta: &CoinMetadata<CoinType>,
+    public fun test_handle_attest_token<CoinType>(
+        token_bridge_state: &mut State,
+        _worm_state: &mut WormholeState,
+        coin_metadata: &CoinMetadata<CoinType>,
         ctx: &mut TxContext
     ): AssetMeta {
-        attest_token_internal<CoinType>(
-            wormhole_state,
-            bridge_state,
-            coin_meta,
+        handle_attest_token(
+            token_bridge_state,
+            coin_metadata,
             ctx
         )
     }
@@ -64,11 +63,11 @@ module token_bridge::attest_token_test{
     use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_shared, return_shared};
     use sui::coin::{CoinMetadata};
 
-    use wormhole::state::{State};
+    use wormhole::state::{State as WormholeState};
 
     use token_bridge::string32::{Self};
-    use token_bridge::bridge_state::{BridgeState};
-    use token_bridge::attest_token::{test_attest_token_internal};
+    use token_bridge::state::{Self, State};
+    use token_bridge::attest_token::{test_handle_attest_token};
     use token_bridge::bridge_state_test::{set_up_wormhole_core_and_token_bridges};
     use token_bridge::native_coin_witness::{Self, NATIVE_COIN_WITNESS};
     use token_bridge::asset_meta::{Self};
@@ -79,38 +78,69 @@ module token_bridge::attest_token_test{
     #[test]
     fun test_attest_token(){
         let test = scenario();
-        let (admin, _, _) = people();
+        let (admin, someone, _) = people();
 
         test = set_up_wormhole_core_and_token_bridges(admin, test);
 
+        // Init the native coin
         next_tx(&mut test, admin); {
             native_coin_witness::test_init(ctx(&mut test));
         };
-        next_tx(&mut test, admin); {
-            let wormhole_state = take_shared<State>(&test);
-            let bridge_state = take_shared<BridgeState>(&test);
+        
+        // Proceed to next operation.
+        next_tx(&mut test, someone);
+        
+        // 
+        {
+            let wormhole_state = take_shared<WormholeState>(&test);
+            let bridge_state = take_shared<State>(&test);
             let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
 
-            let asset_meta = test_attest_token_internal<NATIVE_COIN_WITNESS>(
-                &mut wormhole_state,
+            let asset_meta = test_handle_attest_token<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
+                &mut wormhole_state,
                 &coin_meta,
                 ctx(&mut test)
             );
 
-            assert!(asset_meta::get_decimals(&asset_meta)==10, 0);
-            assert!(asset_meta::get_symbol(&asset_meta)==string32::from_bytes(x"00"), 0);
-            assert!(asset_meta::get_name(&asset_meta)==string32::from_bytes(x"11"), 0);
+            assert!(asset_meta::native_decimals(&asset_meta) == 10, 0);
+            assert!(
+                asset_meta::symbol(&asset_meta) == string32::from_bytes(x"00"),
+                0
+            );
+            assert!(
+                asset_meta::name(&asset_meta) == string32::from_bytes(x"11"),
+                0
+            );
 
-            return_shared<State>(wormhole_state);
-            return_shared<BridgeState>(bridge_state);
+            return_shared<WormholeState>(wormhole_state);
+            return_shared<State>(bridge_state);
             return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
+        };
+
+        // check that native token is registered
+        let effects = next_tx(&mut test, someone);
+
+        // TODO: write comment of what we expect
+        let written_ids = test_scenario::written(&effects);
+        assert!(std::vector::length(&written_ids) == 3, 0);
+
+        {
+            let bridge_state = take_shared<State>(&test);
+            let is_registered =
+                state::is_registered_asset<NATIVE_COIN_WITNESS>(&mut bridge_state);
+            assert!(is_registered, 0);
+            return_shared<State>(bridge_state);
         };
         test_scenario::end(test);
     }
 
+    // TODO: consider throwing token bridge error instead of sui::dynamic_field
     #[test]
-    #[expected_failure(abort_code = 0, location=0000000000000000000000000000000000000002::dynamic_field)]
+    #[expected_failure(
+        abort_code = token_bridge::registered_tokens::E_ALREADY_REGISTERED,
+        location=token_bridge::registered_tokens
+    )]
     fun test_attest_token_twice_fails(){
         let test = scenario();
         let (admin, _, _) = people();
@@ -121,24 +151,24 @@ module token_bridge::attest_token_test{
             native_coin_witness::test_init(ctx(&mut test));
         };
         next_tx(&mut test, admin); {
-            let wormhole_state = take_shared<State>(&test);
-            let bridge_state = take_shared<BridgeState>(&test);
+            let wormhole_state = take_shared<WormholeState>(&test);
+            let bridge_state = take_shared<State>(&test);
             let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
 
-            let _asset_meta_1 = test_attest_token_internal<NATIVE_COIN_WITNESS>(
-                &mut wormhole_state,
+            let _asset_meta_1 = test_handle_attest_token<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
+                &mut wormhole_state,
                 &coin_meta,
                 ctx(&mut test)
             );
-            let _asset_meta_2 = test_attest_token_internal<NATIVE_COIN_WITNESS>(
-                &mut wormhole_state,
+            let _asset_meta_2 = test_handle_attest_token<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
+                &mut wormhole_state,
                 &coin_meta,
                 ctx(&mut test)
             );
-            return_shared<State>(wormhole_state);
-            return_shared<BridgeState>(bridge_state);
+            return_shared<WormholeState>(wormhole_state);
+            return_shared<State>(bridge_state);
             return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
         };
         test_scenario::end(test);
