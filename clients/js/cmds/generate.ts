@@ -1,27 +1,27 @@
 import {
-  CHAINS,
   assertChain,
-  toChainId,
   ChainName,
+  CHAINS,
   isCosmWasmChain,
   isEVMChain,
+  toChainId,
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+import { fromBech32, toHex } from "@cosmjs/encoding";
+import base58 from "bs58";
 import { sha3_256 } from "js-sha3";
 import yargs from "yargs";
+import { evm_address, hex } from "../consts";
 import {
   ContractUpgrade,
+  impossible,
   Payload,
   PortalRegisterChain,
   RecoverChainId,
-  TokenBridgeAttestMeta,
-  VAA,
-  impossible,
   serialiseVAA,
   sign,
+  TokenBridgeAttestMeta,
+  VAA,
 } from "../vaa";
-import { fromBech32, toHex } from "@cosmjs/encoding";
-import base58 from "bs58";
-import { evm_address, hex } from "../consts";
 
 function makeVAA(
   emitterChain: number,
