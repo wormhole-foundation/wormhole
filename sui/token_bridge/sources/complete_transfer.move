@@ -17,6 +17,13 @@ module token_bridge::complete_transfer {
     const E_INVALID_TARGET: u64 = 0;
     const E_UNREGISTERED_TOKEN: u64 = 1;
 
+    /// `complete_transfer` takes a verified Wormhole message and validates
+    /// that this message was sent by a registered foreign Token Bridge contract
+    /// and has a Token Bridge transfer payload.
+    ///
+    /// After processing the token transfer payload, coins are sent to the
+    /// encoded recipient. If the specified `relayer` differs from this
+    /// recipient, a relayer fee is split from this coin and sent to `relayer`.
     public entry fun complete_transfer<CoinType>(
         token_bridge_state: &mut State,
         worm_state: &mut WormholeState,
@@ -34,47 +41,27 @@ module token_bridge::complete_transfer {
                 ctx
             );
 
-        // Deserialize for processing.
-        let my_transfer =
-            transfer::deserialize(wormhole::myvaa::destroy(transfer_vaa)
-        );
-
-        let (my_coins, decimals) =
-            handle_complete_transfer<CoinType>(
-                token_bridge_state,
-                worm_state,
-                transfer::token_chain(&my_transfer),
-                transfer::token_address(&my_transfer),
-                transfer::recipient_chain(&my_transfer),
-                transfer::amount(&my_transfer),
-                ctx
-            );
-
-        let recipient =
-            external_address::to_address(
-                &transfer::recipient(&my_transfer)
-            );
-
-        // If the recipient did not redeem his own transfer, Token Bridge will
-        // split the withdrawn coins and send a portion to the transaction
-        // relayer.
-        if (recipient != relayer) {
-            let fee =
-                normalized_amount::to_raw(
-                    transfer::relayer_fee(&my_transfer),
-                    decimals
-                );
-            sui::transfer::transfer(
-                coin::split(&mut my_coins, fee, ctx),
-                relayer
-            );
-        };
-
-        // Finally transfer tokens to the recipient.
-        sui::transfer::transfer(my_coins, recipient);
+        // Deserialize transfer message and process.
+        handle_complete_transfer<CoinType>(
+            token_bridge_state,
+            worm_state,
+            &transfer::deserialize(wormhole::myvaa::destroy(transfer_vaa)),
+            relayer,
+            ctx
+        )
     }
 
-    public(friend) fun handle_complete_transfer<CoinType>(
+    /// `verify_transfer_details` is only friendly with this module and the
+    /// `complete_transfer` module. For inbound transfers, the deserialized
+    /// transfer message needs to be validated.
+    ///
+    /// This method also de-normalizes the amount encoded in the transfer based
+    /// on the coin's decimals.
+    ///
+    /// Depending on whether this coin is a Token Bridge wrapped asset or a
+    /// natively existing asset on Sui, the coin is either minted or withdrawn
+    /// from Token Bridge's custody.
+    public(friend) fun verify_transfer_details<CoinType>(
         token_bridge_state: &mut State,
         worm_state: &mut WormholeState,
         token_chain: u16,
@@ -103,50 +90,46 @@ module token_bridge::complete_transfer {
 
         // If the token is wrapped by Token Bridge, we will mint these tokens.
         // Otherwise, we will withdraw from custody.
-        if (token_info::is_wrapped(&info)) {
-            (
+        let token_coin = {
+            if (token_info::is_wrapped(&info)) {
                 state::mint<CoinType>(
                     token_bridge_state,
                     normalized_amount::to_raw(amount, decimals),
                     ctx
-                ),
-                decimals
-            )
-        } else {
-            (
+                )
+            } else {
                 state::withdraw<CoinType>(
                     token_bridge_state,
                     normalized_amount::to_raw(amount, decimals),
                     ctx
-                ),
-                decimals
-            )
-        }
+                )
+            }
+        };
+
+        (token_coin, decimals)
     }
 
-    // TODO: remove this and make test using public method above.
-    #[test_only]
-    public fun test_complete_transfer<CoinType>(
-        my_transfer: Transfer,
+    fun handle_complete_transfer<CoinType>(
+        token_bridge_state: &mut State,
         worm_state: &mut WormholeState,
-        bridge_state: &mut State,
+        parsed_transfer: &Transfer,
         relayer: address,
         ctx: &mut TxContext
     ) {
         let (my_coins, decimals) =
-            handle_complete_transfer<CoinType>(
-                bridge_state,
+            verify_transfer_details<CoinType>(
+                token_bridge_state,
                 worm_state,
-                transfer::token_chain(&my_transfer),
-                transfer::token_address(&my_transfer),
-                transfer::recipient_chain(&my_transfer),
-                transfer::amount(&my_transfer),
+                transfer::token_chain(parsed_transfer),
+                transfer::token_address(parsed_transfer),
+                transfer::recipient_chain(parsed_transfer),
+                transfer::amount(parsed_transfer),
                 ctx
             );
 
         let recipient =
             external_address::to_address(
-                &transfer::recipient(&my_transfer)
+                &transfer::recipient(parsed_transfer)
             );
 
         // If the recipient did not redeem his own transfer, Token Bridge will
@@ -155,7 +138,7 @@ module token_bridge::complete_transfer {
         if (recipient != relayer) {
             let fee =
                 normalized_amount::to_raw(
-                    transfer::relayer_fee(&my_transfer),
+                    transfer::relayer_fee(parsed_transfer),
                     decimals
                 );
             sui::transfer::transfer(
@@ -166,6 +149,26 @@ module token_bridge::complete_transfer {
 
         // Finally transfer tokens to the recipient.
         sui::transfer::transfer(my_coins, recipient);
+    }
+
+
+    #[test_only]
+    /// This method is exists to expose `handle_complete_transfer` and validate
+    /// its job. `handle_complete_transfer` is used by `complete_transfer`.
+    public fun complete_transfer_test_only<CoinType>(
+        token_bridge_state: &mut State,
+        worm_state: &mut WormholeState,
+        parsed_transfer: Transfer,
+        relayer: address,
+        ctx: &mut TxContext
+    ) {
+        handle_complete_transfer<CoinType>(
+            token_bridge_state,
+            worm_state,
+            &parsed_transfer,
+            relayer,
+            ctx
+        )
     }
 }
 
@@ -252,10 +255,10 @@ module token_bridge::complete_transfer_test {
                 normalized_amount::from_raw(fee_amount, decimals),
             );
 
-            complete_transfer::test_complete_transfer<NATIVE_COIN_WITNESS>(
-                my_transfer,
-                &mut worm_state,
+            complete_transfer::complete_transfer_test_only<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
+                &mut worm_state,
+                my_transfer,
                 fee_recipient_person,
                 ctx(&mut test)
             );
@@ -335,10 +338,10 @@ module token_bridge::complete_transfer_test {
                 normalized_amount::from_raw(fee_amount, decimals),
             );
 
-            complete_transfer::test_complete_transfer<NATIVE_COIN_WITNESS>(
-                my_transfer,
-                &mut worm_state,
+            complete_transfer::complete_transfer_test_only<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
+                &mut worm_state,
+                my_transfer,
                 fee_recipient_person,
                 ctx(&mut test)
             );
@@ -416,10 +419,10 @@ module token_bridge::complete_transfer_test {
                 normalized_amount::from_raw(fee_amount, decimals),
             );
 
-            complete_transfer::test_complete_transfer<NATIVE_COIN_WITNESS_V2>(
-                my_transfer,
-                &mut worm_state,
+            complete_transfer::complete_transfer_test_only<NATIVE_COIN_WITNESS_V2>(
                 &mut bridge_state,
+                &mut worm_state,
+                my_transfer,
                 fee_recipient_person,
                 ctx(&mut test)
             );
@@ -507,10 +510,10 @@ module token_bridge::complete_transfer_test {
                 normalized_amount::from_raw(fee_amount, decimals),
             );
 
-            complete_transfer::test_complete_transfer<NATIVE_COIN_WITNESS>(
-                my_transfer,
-                &mut worm_state,
+            complete_transfer::complete_transfer_test_only<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
+                &mut worm_state,
+                my_transfer,
                 fee_recipient_person,
                 ctx(&mut test)
             );
@@ -582,10 +585,10 @@ module token_bridge::complete_transfer_test {
                 normalized_amount::from_raw(fee_amount, decimals),
             );
 
-            complete_transfer::test_complete_transfer<NATIVE_COIN_WITNESS>(
-                my_transfer,
-                &mut worm_state,
+            complete_transfer::complete_transfer_test_only<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
+                &mut worm_state,
+                my_transfer,
                 fee_recipient_person,
                 ctx(&mut test)
             );
@@ -655,10 +658,10 @@ module token_bridge::complete_transfer_test {
                 normalized_amount::from_raw(fee_amount, decimals),
             );
 
-            complete_transfer::test_complete_transfer<NATIVE_COIN_WITNESS>(
-                my_transfer,
-                &mut worm_state,
+            complete_transfer::complete_transfer_test_only<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
+                &mut worm_state,
+                my_transfer,
                 fee_recipient_person,
                 ctx(&mut test)
             );
@@ -733,10 +736,10 @@ module token_bridge::complete_transfer_test {
                 normalized_amount::from_raw(fee_amount, decimals),
             );
 
-            complete_transfer::test_complete_transfer<NATIVE_COIN_WITNESS_V2>(
-                my_transfer,
-                &mut worm_state,
+            complete_transfer::complete_transfer_test_only<NATIVE_COIN_WITNESS_V2>(
                 &mut bridge_state,
+                &mut worm_state,
+                my_transfer,
                 fee_recipient_person,
                 ctx(&mut test)
             );
@@ -778,10 +781,10 @@ module token_bridge::complete_transfer_test {
                 to_chain,
                 normalized_amount::from_raw(fee_amount, decimals),
             );
-            complete_transfer::test_complete_transfer<COIN_WITNESS>(
-                my_transfer,
-                &mut worm_state,
+            complete_transfer::complete_transfer_test_only<COIN_WITNESS>(
                 &mut bridge_state,
+                &mut worm_state,
+                my_transfer,
                 fee_recipient_person,
                 ctx(&mut test)
             );

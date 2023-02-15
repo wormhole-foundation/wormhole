@@ -33,6 +33,10 @@ module token_bridge::registered_tokens {
         }
     }
 
+    public fun num_native(self: &RegisteredTokens): u64 {
+        self.num_native
+    }
+
     public fun num_wrapped(self: &RegisteredTokens): u64 {
         self.num_wrapped
     }
@@ -82,14 +86,6 @@ module token_bridge::registered_tokens {
             self,
             native_asset::new(chain, addr, decimals, ctx)
         )
-    }
-
-    public fun borrow_wrapped<C>(self: &RegisteredTokens): &WrappedAsset<C> {
-        dynamic_field::borrow(&self.id, Key<C>{})
-    }
-
-    public fun borrow_native<C>(self: &RegisteredTokens): &NativeAsset<C> {
-        dynamic_field::borrow(&self.id, Key<C>{})
     }
 
     public(friend) fun burn<C>(
@@ -188,5 +184,11 @@ module token_bridge::registered_tokens {
         self.num_wrapped = self.num_wrapped + 1;
     }
 
+    fun borrow_wrapped<C>(self: &RegisteredTokens): &WrappedAsset<C> {
+        dynamic_field::borrow(&self.id, Key<C>{})
+    }
 
+    fun borrow_native<C>(self: &RegisteredTokens): &NativeAsset<C> {
+        dynamic_field::borrow(&self.id, Key<C>{})
+    }
 }
