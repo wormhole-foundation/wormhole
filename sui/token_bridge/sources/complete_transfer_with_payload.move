@@ -45,7 +45,6 @@ module token_bridge::complete_transfer_with_payload {
             handle_complete_transfer_with_payload(
                 token_bridge_state,
                 emitter_cap,
-                worm_state,
                 &parsed_transfer,
                 ctx
             );
@@ -56,7 +55,6 @@ module token_bridge::complete_transfer_with_payload {
     fun handle_complete_transfer_with_payload<CoinType>(
         token_bridge_state: &mut State,
         emitter_cap: &EmitterCapability,
-        worm_state: &mut WormholeState,
         parsed_transfer: &TransferWithPayload,
         ctx: &mut TxContext
     ): Coin<CoinType> {
@@ -77,7 +75,6 @@ module token_bridge::complete_transfer_with_payload {
         let (token_coin, _) =
             verify_transfer_details<CoinType>(
                 token_bridge_state,
-                worm_state,
                 transfer_with_payload::token_chain(parsed_transfer),
                 transfer_with_payload::token_address(parsed_transfer),
                 transfer_with_payload::recipient_chain(parsed_transfer),
@@ -95,14 +92,13 @@ module token_bridge::complete_transfer_with_payload {
     public fun complete_transfer_with_payload_test_only<CoinType>(
         token_bridge_state: &mut State,
         emitter_cap: &EmitterCapability,
-        worm_state: &mut WormholeState,
+        _worm_state: &mut WormholeState,
         parsed_transfer: TransferWithPayload,
         ctx: &mut TxContext
     ): Coin<CoinType> {
         handle_complete_transfer_with_payload<CoinType>(
                 token_bridge_state,
                 emitter_cap,
-                worm_state,
                 &parsed_transfer,
                 ctx
             )
@@ -111,10 +107,8 @@ module token_bridge::complete_transfer_with_payload {
 
 #[test_only]
 module token_bridge::complete_transfer_with_payload_test {
-    use sui::test_scenario::{Self, Scenario};
     use sui::coin::{Self, CoinMetadata};
-    use sui::transfer::{Self};
-    use wormhole::emitter::{EmitterCapability};
+    use sui::test_scenario::{Self, Scenario};
     use wormhole::external_address::{Self};
     use wormhole::state::{Self as wormhole_state, State as WormholeState};
     use wormhole::wormhole::{Self};
@@ -149,7 +143,6 @@ module token_bridge::complete_transfer_with_payload_test {
                 test_scenario::take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
             state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
-                &mut worm_state,
                 &coin_meta,
                 test_scenario::ctx(&mut test)
             );
@@ -186,8 +179,8 @@ module token_bridge::complete_transfer_with_payload_test {
             let amount = 1000000000;
             let decimals = 10;
             let token_address = external_address::from_bytes(x"01");
-            let token_chain = wormhole_state::get_chain_id(&worm_state);
-            let to_chain = wormhole_state::get_chain_id(&worm_state);
+            let token_chain = wormhole_state::chain_id();
+            let to_chain = wormhole_state::chain_id();
             // The emitter_cap defined below corresponds to the second wormhole-
             // registered emitter. As per naming conventions, we know that the
             // address of the emitter is precisely "0x2".
@@ -221,11 +214,12 @@ module token_bridge::complete_transfer_with_payload_test {
 
             // assert coin value is as expected
             assert!(coin::value(&token_coins) == amount, 0);
-            transfer::transfer(token_coins, admin);
-
-            test_scenario::return_to_address<EmitterCapability>(admin, emitter_cap);
             test_scenario::return_shared<State>(bridge_state);
             test_scenario::return_shared<WormholeState>(worm_state);
+
+            // Trash remaining objects.
+            sui::transfer::transfer(token_coins, @0x0);
+            sui::transfer::transfer(emitter_cap, @0x0);
         };
         test_scenario::end(test);
     }

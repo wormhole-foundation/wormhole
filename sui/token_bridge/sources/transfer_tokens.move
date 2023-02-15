@@ -156,7 +156,6 @@ module token_bridge::transfer_token_test {
             let treasury_cap = take_shared<TreasuryCap<NATIVE_COIN_WITNESS>>(&test);
             state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
-                &mut worm_state,
                 &coin_meta,
                 ctx(&mut test)
             );
@@ -198,7 +197,6 @@ module token_bridge::transfer_token_test {
             let treasury_cap = take_shared<TreasuryCap<NATIVE_COIN_WITNESS>>(&test);
             state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
-                &mut worm_state,
                 &coin_meta,
                 ctx(&mut test)
             );
@@ -248,7 +246,6 @@ module token_bridge::transfer_token_test {
             let treasury_cap = take_shared<TreasuryCap<NATIVE_COIN_WITNESS>>(&test);
             state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
-                &worm_state,
                 &coin_meta,
                 ctx(&mut test)
             );

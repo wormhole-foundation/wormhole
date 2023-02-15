@@ -239,11 +239,10 @@ module token_bridge::state {
 
     public(friend) fun register_native_asset<CoinType>(
         self: &mut State,
-        worm_state: &WormholeState,
         coin_metadata: &CoinMetadata<CoinType>,
         ctx: &mut TxContext
     ): AssetMeta {
-        let chain = wormhole_state::get_chain_id(worm_state);
+        let chain = wormhole_state::chain_id();
         let decimals = coin::get_decimals(coin_metadata);
 
         registered_tokens::add_new_native<CoinType>(
@@ -368,7 +367,6 @@ module token_bridge::bridge_state_test{
 
             state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
-                &mut wormhole_state,
                 &coin_meta,
                 ctx(&mut test)
             );
@@ -380,7 +378,6 @@ module token_bridge::bridge_state_test{
                 take_shared<CoinMetadata<NATIVE_COIN_WITNESS_V2>>(&test);
             state::register_native_asset<NATIVE_COIN_WITNESS_V2>(
                 &mut bridge_state,
-                &mut wormhole_state,
                 &coin_meta_v2,
                 ctx(&mut test)
             );
@@ -414,7 +411,6 @@ module token_bridge::bridge_state_test{
             let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
             state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
-                &mut wormhole_state,
                 &coin_meta,
                 ctx(&mut test)
             );
@@ -425,7 +421,6 @@ module token_bridge::bridge_state_test{
             // aborts because trying to re-register native coin
             state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
-                &mut wormhole_state,
                 &coin_meta,
                 ctx(&mut test)
             );

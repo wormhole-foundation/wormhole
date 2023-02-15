@@ -136,7 +136,7 @@ module token_bridge::create_wrapped {
         let external_address = asset_meta::get_token_address(&metadata);
 
         assert!(
-            origin_chain != wormhole_state::get_chain_id(worm_state),
+            origin_chain != wormhole_state::chain_id(),
             E_WRAPPING_NATIVE_COIN
         );
         assert!(

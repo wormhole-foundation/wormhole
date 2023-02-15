@@ -18,7 +18,6 @@ module token_bridge::attest_token {
     ) {
         let asset_meta = handle_attest_token(
             token_bridge_state,
-            worm_state,
             coin_meta,
             ctx
         );
@@ -34,13 +33,11 @@ module token_bridge::attest_token {
 
     fun handle_attest_token<CoinType>(
         token_bridge_state: &mut State,
-        worm_state: &mut WormholeState,
         coin_metadata: &CoinMetadata<CoinType>,
         ctx: &mut TxContext
     ): AssetMeta {
         state::register_native_asset<CoinType>(
             token_bridge_state,
-            worm_state,
             coin_metadata,
             ctx
         )
@@ -49,13 +46,12 @@ module token_bridge::attest_token {
     #[test_only]
     public fun test_handle_attest_token<CoinType>(
         token_bridge_state: &mut State,
-        worm_state: &mut WormholeState,
+        _worm_state: &mut WormholeState,
         coin_metadata: &CoinMetadata<CoinType>,
         ctx: &mut TxContext
     ): AssetMeta {
         handle_attest_token(
             token_bridge_state,
-            worm_state,
             coin_metadata,
             ctx
         )

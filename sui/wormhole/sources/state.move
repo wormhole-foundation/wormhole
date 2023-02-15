@@ -16,11 +16,12 @@ module wormhole::state {
     use wormhole::emitter::{Self};
 
     friend wormhole::guardian_set_upgrade;
-    //friend wormhole::contract_upgrade;
     friend wormhole::wormhole;
     friend wormhole::myvaa;
     #[test_only]
     friend wormhole::vaa_test;
+
+    const CHAIN_ID: u16 = 21;
 
     struct DeployerCapability has key, store {id: UID}
 
@@ -39,9 +40,6 @@ module wormhole::state {
 
     struct State has key, store {
         id: UID,
-
-        /// chain id
-        chain_id: u16,
 
         /// guardian chain ID
         governance_chain_id: u16,
@@ -77,7 +75,6 @@ module wormhole::state {
     // and pass it into various functions
     public entry fun init_and_share_state(
         deployer: DeployerCapability,
-        chain_id: u16,
         governance_chain_id: u16,
         governance_contract: vector<u8>,
         initial_guardians: vector<vector<u8>>,
@@ -88,7 +85,6 @@ module wormhole::state {
         object::delete(id);
         let state = State {
             id: object::new(ctx),
-            chain_id,
             governance_chain_id,
             governance_contract: external_address::from_bytes(
                 governance_contract
@@ -156,17 +152,6 @@ module wormhole::state {
         );
     }
 
-    // setters
-
-    public(friend) fun set_chain_id(state: &mut State, chain_id: u16){
-        state.chain_id = chain_id;
-    }
-
-    #[test_only]
-    public fun test_set_chain_id(state: &mut State, chain_id: u16) {
-        set_chain_id(state, chain_id);
-    }
-
     public(friend) fun set_governance_chain_id(
         state: &mut State,
         chain_id: u16
@@ -231,8 +216,8 @@ module wormhole::state {
         return state.governance_contract
     }
 
-    public fun get_chain_id(state: &State): u16 {
-        return state.chain_id
+    public fun chain_id(): u16 {
+        CHAIN_ID
     }
 
     public fun get_message_fee(state: &State): u64 {
@@ -256,11 +241,9 @@ module wormhole::test_state{
         next_tx,
         ctx,
         take_from_address,
-        take_shared,
-        return_shared
     };
 
-    use wormhole::state::{Self, test_init, State, DeployerCapability};
+    use wormhole::state::{Self, test_init, DeployerCapability};
 
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
@@ -273,7 +256,6 @@ module wormhole::test_state{
             let deployer = take_from_address<DeployerCapability>(&test, admin);
             state::init_and_share_state(
                 deployer,
-                21,
                 1, // governance chain
                 x"0000000000000000000000000000000000000000000000000000000000000004", // governance_contract
                 vector[x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"], // initial_guardian(s)
@@ -281,31 +263,5 @@ module wormhole::test_state{
                 ctx(&mut test));
         };
         return test
-    }
-
-    #[test]
-    fun test_state_setters() {
-        test_state_setters_(scenario())
-    }
-
-    fun test_state_setters_(test: Scenario) {
-        let (admin, _, _) = people();
-        test = init_wormhole_state(test, admin, 0);
-
-        // test setters
-        next_tx(&mut test, admin); {
-            let state = take_shared<State>(&test);
-
-            // test set chain id
-            state::test_set_chain_id(&mut state, 5);
-            assert!(state::get_chain_id(&state) == 5, 0);
-
-            // test set governance chain id
-            state::test_set_governance_chain_id(&mut state, 100);
-            assert!(state::get_governance_chain(&state) == 100, 0);
-
-            return_shared<State>(state);
-        };
-        test_scenario::end(test);
     }
 }
