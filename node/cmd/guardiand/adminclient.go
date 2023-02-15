@@ -1,6 +1,7 @@
 package guardiand
 
 import (
+	"bufio"
 	"context"
 	"encoding/csv"
 	"encoding/hex"
@@ -18,6 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/mr-tron/base58"
 	"github.com/spf13/pflag"
+	"golang.org/x/crypto/sha3"
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
@@ -82,6 +84,7 @@ func init() {
 	AdminCmd.AddCommand(PurgePythNetVaasCmd)
 	AdminCmd.AddCommand(SignExistingVaaCmd)
 	AdminCmd.AddCommand(SignExistingVaasFromCSVCmd)
+	AdminCmd.AddCommand(Keccak256Hash)
 }
 
 var AdminCmd = &cobra.Command{
@@ -184,6 +187,13 @@ var DumpRPCs = &cobra.Command{
 	Use:   "dump-rpcs",
 	Short: "Displays the RPCs in use by the guardian",
 	Run:   runDumpRPCs,
+	Args:  cobra.ExactArgs(0),
+}
+
+var Keccak256Hash = &cobra.Command{
+	Use:   "keccak256",
+	Short: "Compute legacy keccak256 hash",
+	Run:   runKeccak256Hash,
 	Args:  cobra.ExactArgs(0),
 }
 
@@ -672,4 +682,29 @@ func runSignExistingVaasFromCSV(cmd *cobra.Command, args []string) {
 
 	log.Printf("Successfully signed %d out of %d VAAs", counter, numOldVAAs)
 	newVAAWriter.Flush()
+}
+
+// This exposes keccak256 as a command line utility, mostly for validating goverance messages
+// that use this hash.  There isn't any common utility that computes this since this is nonstandard outside of evm.
+// It is used similar to other hashing utilities, e.g. `cat <file> | guardiand admin keccak256`.
+func runKeccak256Hash(cmd *cobra.Command, args []string) {
+	reader := bufio.NewReader(os.Stdin)
+	hash := sha3.NewLegacyKeccak256()
+	// ~10 MB chunks
+	buf := make([]byte, 10*1024*1024)
+	for {
+		count, err := reader.Read(buf)
+		if err != nil && err != io.EOF {
+			log.Fatalf("could not read: %v", err)
+		}
+		_, errHash := hash.Write(buf[:count])
+		if errHash != nil {
+			log.Fatalf("could not hash: %v", errHash)
+		}
+		if err == io.EOF {
+			break
+		}
+	}
+	digest := hash.Sum([]byte{})
+	fmt.Printf("%s", hex.EncodeToString(digest))
 }
