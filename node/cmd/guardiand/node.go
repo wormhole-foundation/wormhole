@@ -1232,21 +1232,20 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 		if shouldStart(optimismRPC) {
-			if ethWatcher == nil {
-				log.Fatalf("if optimism is enabled then ethereum must also be enabled.")
-			}
-			if !*unsafeDevMode {
-				if *optimismCtcRpc == "" || *optimismCtcContractAddress == "" {
-					log.Fatalf("--optimismCtcRpc and --optimismCtcContractAddress both need to be set.")
-				}
-			}
 			logger.Info("Starting Optimism watcher")
 			readiness.RegisterComponent(common.ReadinessOptimismSyncing)
 			chainObsvReqC[vaa.ChainIDOptimism] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			optimismWatcher := evm.NewEthWatcher(*optimismRPC, optimismContractAddr, "optimism", common.ReadinessOptimismSyncing, vaa.ChainIDOptimism, chainMsgC[vaa.ChainIDOptimism], nil, chainObsvReqC[vaa.ChainIDOptimism], *unsafeDevMode)
-			optimismWatcher.SetL1Finalizer(ethWatcher)
-			if err := optimismWatcher.SetRootChainParams(*optimismCtcRpc, *optimismCtcContractAddress); err != nil {
-				return err
+
+			// If rootChainParams are set, pass them in for pre-Bedrock mode
+			if *optimismCtcRpc != "" || *optimismCtcContractAddress != "" {
+				if ethWatcher == nil {
+					log.Fatalf("if optimism (pre-bedrock) is enabled then ethereum must also be enabled.")
+				}
+				optimismWatcher.SetL1Finalizer(ethWatcher)
+				if err := optimismWatcher.SetRootChainParams(*optimismCtcRpc, *optimismCtcContractAddress); err != nil {
+					return err
+				}
 			}
 			if err := supervisor.Run(ctx, "optimismwatch", common.WrapWithScissors(optimismWatcher.Run, "optimismwatch")); err != nil {
 				return err
