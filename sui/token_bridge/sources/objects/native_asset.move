@@ -3,6 +3,7 @@ module token_bridge::native_asset {
     use sui::object::{Self, UID};
     use sui::tx_context::{TxContext};
     use wormhole::external_address::{ExternalAddress};
+    use wormhole::state::{chain_id};
 
     use token_bridge::token_info::{Self, TokenInfo};
 
@@ -12,16 +13,11 @@ module token_bridge::native_asset {
     struct NativeAsset<phantom C> has key, store {
         id: UID,
         custody: Coin<C>,
-        // Even though we can look up token_chain at any time from wormhole
-        // state, it can be more efficient to store it here locally so we don't
-        // have to do lookups.
-        token_chain: u16,
         token_address: ExternalAddress,
         decimals: u8
     }
 
     public fun new<C>(
-        token_chain: u16,
         token_address: ExternalAddress,
         decimals: u8,
         ctx: &mut TxContext
@@ -29,14 +25,9 @@ module token_bridge::native_asset {
         NativeAsset {
             id: object::new(ctx),
             custody: coin::zero(ctx),
-            token_chain,
             token_address,
             decimals
         }
-    }
-
-    public fun token_chain<C>(self: &NativeAsset<C>): u16 {
-        self.token_chain
     }
 
     public fun token_address<C>(
@@ -56,16 +47,16 @@ module token_bridge::native_asset {
     public fun to_token_info<C>(self: &NativeAsset<C>): TokenInfo<C> {
         token_info::new(
             false, // is_wrapped
-            self.token_chain,
+            chain_id(),
             self.token_address
         )
     }
 
     public(friend) fun deposit<C>(
         self: &mut NativeAsset<C>,
-        some_coin: Coin<C>
+        depositable: Coin<C>
     ) {
-        coin::join(&mut self.custody, some_coin)
+        coin::join(&mut self.custody, depositable)
     }
 
     public(friend) fun withdraw<C>(

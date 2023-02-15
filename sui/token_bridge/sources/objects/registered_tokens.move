@@ -4,6 +4,7 @@ module token_bridge::registered_tokens {
     use sui::object::{Self, UID};
     use sui::tx_context::{TxContext};
     use wormhole::external_address::{ExternalAddress};
+    use wormhole::state::{chain_id};
 
     use token_bridge::native_asset::{Self, NativeAsset};
     use token_bridge::native_id_registry::{Self, NativeIdRegistry};
@@ -76,7 +77,6 @@ module token_bridge::registered_tokens {
 
     public(friend) fun add_new_native<C>(
         self: &mut RegisteredTokens,
-        chain: u16,
         decimals: u8,
         ctx: &mut TxContext
     ) {
@@ -84,7 +84,7 @@ module token_bridge::registered_tokens {
         let addr = native_id_registry::next_id(&mut self.native_id_registry);
         add_native<C>(
             self,
-            native_asset::new(chain, addr, decimals, ctx)
+            native_asset::new(addr, decimals, ctx)
         )
     }
 
@@ -156,7 +156,7 @@ module token_bridge::registered_tokens {
         if (is_wrapped<C>(self)) {
             wrapped_asset::token_chain(borrow_wrapped<C>(self))
         } else {
-            native_asset::token_chain(borrow_native<C>(self))
+            chain_id()
         }
     }
 

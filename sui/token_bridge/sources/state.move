@@ -274,18 +274,16 @@ module token_bridge::state {
         coin_metadata: &CoinMetadata<CoinType>,
         ctx: &mut TxContext
     ): AssetMeta {
-        let chain = wormhole_state::chain_id();
         let decimals = coin::get_decimals(coin_metadata);
 
         registered_tokens::add_new_native<CoinType>(
             &mut self.registered_tokens,
-            chain,
             decimals,
             ctx
         );
 
         asset_meta::new(
-            chain,
+            wormhole_state::chain_id(),
             registered_tokens::token_address<CoinType>(&self.registered_tokens),
             decimals,
             string32::from_bytes(

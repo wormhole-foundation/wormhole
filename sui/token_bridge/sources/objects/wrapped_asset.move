@@ -60,9 +60,9 @@ module token_bridge::wrapped_asset {
 
     public(friend) fun burn<C>(
         self: &mut WrappedAsset<C>,
-        some_coin: Coin<C>
+        burnable: Coin<C>
     ): u64 {
-        coin::burn(&mut self.treasury_cap, some_coin)
+        coin::burn(&mut self.treasury_cap, burnable)
     }
 
     public(friend) fun mint<C>(
