@@ -279,25 +279,53 @@ func (w *Watcher) Run(ctx context.Context) error {
 			return fmt.Errorf("creating arbitrum connector failed: %w", err)
 		}
 	} else if w.chainID == vaa.ChainIDOptimism && !w.unsafeDevMode {
-		if w.l1Finalizer == nil {
-			return fmt.Errorf("unable to create optimism watcher because the l1 finalizer is not set")
-		}
-		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("dialing eth client failed: %w", err)
-		}
-		finalizer, err := finalizers.NewOptimismFinalizer(timeout, logger, w.l1Finalizer, w.rootChainRpc, w.rootChainContract)
-		if err != nil {
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("creating optimism finalizer failed: %w", err)
-		}
-		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond, false, false)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("creating block poll connector failed: %w", err)
+		if w.rootChainRpc != "" && w.rootChainContract != "" {
+			// We are in pre-Bedrock mode
+			if w.l1Finalizer == nil {
+				return fmt.Errorf("unable to create optimism watcher because the l1 finalizer is not set")
+			}
+			baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
+			if err != nil {
+				ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+				return fmt.Errorf("dialing eth client failed: %w", err)
+			}
+			finalizer, err := finalizers.NewOptimismFinalizer(timeout, logger, w.l1Finalizer, w.rootChainRpc, w.rootChainContract)
+			if err != nil {
+				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+				return fmt.Errorf("creating optimism finalizer failed: %w", err)
+			}
+			w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond, false, false)
+			if err != nil {
+				ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+				return fmt.Errorf("creating block poll connector failed: %w", err)
+			}
+		} else {
+			// We are in Bedrock mode
+			useFinalizedBlocks = true
+			safeBlocksSupported := true
+			logger.Info("using finalized blocks, will publish safe blocks")
+			baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
+			if err != nil {
+				ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+				return fmt.Errorf("dialing eth client failed: %w", err)
+			}
+			pollConnector, err := connectors.NewBlockPollConnector(ctx, baseConnector, finalizers.NewDefaultFinalizer(), 250*time.Millisecond, useFinalizedBlocks, safeBlocksSupported)
+			if err != nil {
+				ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+				return fmt.Errorf("creating block poll connector failed: %w", err)
+			}
+			// I know this says Arbitrum.  That's just what the type is called.
+			// But we need it the TimeOfBlockByHash() implementation.
+			w.ethConn, err = connectors.NewArbitrumConnector(ctx, pollConnector)
+			if err != nil {
+				ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+				return fmt.Errorf("creating optimism connector failed: %w", err)
+			}
 		}
 	} else if w.chainID == vaa.ChainIDPolygon && w.usePolygonCheckpointing() {
 		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
