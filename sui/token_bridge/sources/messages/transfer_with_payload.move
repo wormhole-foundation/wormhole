@@ -1,0 +1,120 @@
+module token_bridge::transfer_with_payload {
+    use std::vector;
+    use wormhole::bytes::{
+        serialize_u8,
+        serialize_u16_be,
+        from_bytes,
+    };
+    use wormhole::bytes::{
+        deserialize_u8,
+        deserialize_u16_be,
+    };
+    use wormhole::cursor;
+
+    use wormhole::external_address::{Self, ExternalAddress};
+
+    use token_bridge::normalized_amount::{Self, NormalizedAmount};
+
+    const E_INVALID_ACTION: u64 = 0;
+
+    const PAYLOAD_ID: u8 = 3;
+
+    struct TransferWithPayload has store, drop {
+        /// Amount being transferred (big-endian uint256)
+        amount: NormalizedAmount,
+        /// Address of the token. Left-zero-padded if shorter than 32 bytes
+        token_address: ExternalAddress,
+        /// Chain ID of the token
+        token_chain: u16,
+        /// Address of the recipient. Left-zero-padded if shorter than 32 bytes
+        recipient: ExternalAddress,
+        /// Chain ID of the recipient
+        recipient_chain: u16,
+        /// Address of the message sender. Left-zero-padded if shorter than 32 bytes
+        sender: ExternalAddress,
+        /// An arbitrary payload
+        payload: vector<u8>,
+    }
+
+    public fun new(
+        amount: NormalizedAmount,
+        token_address: ExternalAddress,
+        token_chain: u16,
+        recipient: ExternalAddress,
+        recipient_chain: u16,
+        sender: ExternalAddress,
+        payload: vector<u8>
+    ): TransferWithPayload {
+        TransferWithPayload {
+            amount,
+            token_address,
+            token_chain,
+            recipient,
+            recipient_chain,
+            sender,
+            payload,
+        }
+    }
+
+    public fun amount(self: &TransferWithPayload): NormalizedAmount {
+        self.amount
+    }
+
+    public fun token_address(self: &TransferWithPayload): ExternalAddress {
+        self.token_address
+    }
+
+    public fun token_chain(self: &TransferWithPayload): u16 {
+        self.token_chain
+    }
+
+    public fun recipient(self: &TransferWithPayload): ExternalAddress {
+        self.recipient
+    }
+
+    public fun recipient_chain(self: &TransferWithPayload): u16 {
+        self.recipient_chain
+    }
+
+    public fun sender(self: &TransferWithPayload): ExternalAddress {
+        self.sender
+    }
+
+    public fun payload(self: &TransferWithPayload): vector<u8> {
+        self.payload
+    }
+
+    public fun serialize(transfer: TransferWithPayload): vector<u8> {
+        let encoded = vector::empty<u8>();
+        serialize_u8(&mut encoded, PAYLOAD_ID);
+        normalized_amount::serialize_be(&mut encoded, transfer.amount);
+        external_address::serialize(&mut encoded, transfer.token_address);
+        serialize_u16_be(&mut encoded, transfer.token_chain);
+        external_address::serialize(&mut encoded, transfer.recipient);
+        serialize_u16_be(&mut encoded, transfer.recipient_chain);
+        external_address::serialize(&mut encoded, transfer.sender);
+        from_bytes(&mut encoded, transfer.payload);
+        encoded
+    }
+
+    public fun deserialize(transfer: vector<u8>): TransferWithPayload {
+        let cur = cursor::new(transfer);
+        assert!(deserialize_u8(&mut cur) == PAYLOAD_ID, E_INVALID_ACTION);
+        let amount = normalized_amount::deserialize_be(&mut cur);
+        let token_address = external_address::deserialize(&mut cur);
+        let token_chain = deserialize_u16_be(&mut cur);
+        let recipient = external_address::deserialize(&mut cur);
+        let recipient_chain = deserialize_u16_be(&mut cur);
+        let sender = external_address::deserialize(&mut cur);
+        let payload = cursor::rest(cur);
+        new(
+            amount,
+            token_address,
+            token_chain,
+            recipient,
+            recipient_chain,
+            sender,
+            payload
+        )
+    }
+}

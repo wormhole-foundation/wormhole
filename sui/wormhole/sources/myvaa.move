@@ -1,13 +1,13 @@
 module wormhole::myvaa {
-    use std::vector;
-    use sui::tx_context::TxContext;
-    //use 0x1::secp256k1;
+    use sui::ecdsa_k1::{keccak256};
+    use sui::tx_context::{TxContext};
+    use std::vector::{Self};
 
-    use wormhole::myu16::{U16};
-    use wormhole::myu32::{U32};
-    use wormhole::deserialize;
+    use wormhole::bytes::{Self};
     use wormhole::cursor;
+    use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::guardian_pubkey;
+    use wormhole::state::{Self, State};
     use wormhole::structs::{
         Guardian,
         GuardianSet,
@@ -17,12 +17,8 @@ module wormhole::myvaa {
         unpack_signature,
         get_address,
     };
-    use wormhole::state::{Self, State};
-    use wormhole::external_address::{Self, ExternalAddress};
-    use wormhole::keccak256::keccak256;
 
-    friend wormhole::guardian_set_upgrade;
-    //friend wormhole::contract_upgrade;
+    friend wormhole::update_guardian_set;
 
     const E_NO_QUORUM: u64 = 0x0;
     const E_TOO_MANY_SIGNATURES: u64 = 0x1;
@@ -36,13 +32,13 @@ module wormhole::myvaa {
 
     struct VAA {
         /// Header
-        guardian_set_index: U32,
+        guardian_set_index: u32,
         signatures:         vector<Signature>,
 
         /// Body
-        timestamp:          U32,
-        nonce:              U32,
-        emitter_chain:      U16,
+        timestamp:          u32,
+        nonce:              u32,
+        emitter_chain:      u16,
         emitter_address:    ExternalAddress,
         sequence:           u64,
         consistency_level:  u8,
@@ -63,33 +59,33 @@ module wormhole::myvaa {
     /// object, its signatures must have been verified, because the only public
     /// function that returns a VAA is `parse_and_verify`
     fun parse(bytes: vector<u8>): VAA {
-        let cur = cursor::cursor_init(bytes);
-        let version = deserialize::deserialize_u8(&mut cur);
+        let cur = cursor::new(bytes);
+        let version = bytes::deserialize_u8(&mut cur);
         assert!(version == 1, E_WRONG_VERSION);
-        let guardian_set_index = deserialize::deserialize_u32(&mut cur);
+        let guardian_set_index = bytes::deserialize_u32_be(&mut cur);
 
-        let signatures_len = deserialize::deserialize_u8(&mut cur);
+        let signatures_len = bytes::deserialize_u8(&mut cur);
         let signatures = vector::empty<Signature>();
 
         while (signatures_len > 0) {
-            let guardian_index = deserialize::deserialize_u8(&mut cur);
-            let sig = deserialize::deserialize_vector(&mut cur, 64);
-            let recovery_id = deserialize::deserialize_u8(&mut cur);
+            let guardian_index = bytes::deserialize_u8(&mut cur);
+            let sig = bytes::to_bytes(&mut cur, 64);
+            let recovery_id = bytes::deserialize_u8(&mut cur);
             vector::push_back(&mut signatures, create_signature(sig, recovery_id, guardian_index));
             signatures_len = signatures_len - 1;
         };
 
         let body = cursor::rest(cur);
-        let hash = keccak256(keccak256(body));
+        let hash = keccak256(&keccak256(&body));
 
-        let cur = cursor::cursor_init(body);
+        let cur = cursor::new(body);
 
-        let timestamp = deserialize::deserialize_u32(&mut cur);
-        let nonce = deserialize::deserialize_u32(&mut cur);
-        let emitter_chain = deserialize::deserialize_u16(&mut cur);
+        let timestamp = bytes::deserialize_u32_be(&mut cur);
+        let nonce = bytes::deserialize_u32_be(&mut cur);
+        let emitter_chain = bytes::deserialize_u16_be(&mut cur);
         let emitter_address = external_address::deserialize(&mut cur);
-        let sequence = deserialize::deserialize_u64(&mut cur);
-        let consistency_level = deserialize::deserialize_u8(&mut cur);
+        let sequence = bytes::deserialize_u64_be(&mut cur);
+        let consistency_level = bytes::deserialize_u8(&mut cur);
 
         let payload = cursor::rest(cur);
 
@@ -107,11 +103,11 @@ module wormhole::myvaa {
         }
     }
 
-    public fun get_guardian_set_index(vaa: &VAA): U32 {
+    public fun get_guardian_set_index(vaa: &VAA): u32 {
          vaa.guardian_set_index
     }
 
-    public fun get_timestamp(vaa: &VAA): U32 {
+    public fun get_timestamp(vaa: &VAA): u32 {
          vaa.timestamp
     }
 
@@ -123,7 +119,7 @@ module wormhole::myvaa {
          vaa.hash
     }
 
-    public fun get_emitter_chain(vaa: &VAA): U16 {
+    public fun get_emitter_chain(vaa: &VAA): u16 {
          vaa.emitter_chain
     }
 
@@ -251,11 +247,10 @@ module wormhole::vaa_test {
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
-    use wormhole::guardian_set_upgrade::{Self, do_upgrade_test};
+    use wormhole::update_guardian_set::{Self, do_upgrade_test};
     use wormhole::state::{Self, State};
     use wormhole::test_state::{init_wormhole_state};
     use wormhole::structs::{Self, create_guardian};
-    use wormhole::myu32::{Self as u32};
     use wormhole::myvaa::{Self as vaa};
 
     /// A test VAA signed by the first guardian set (index 0) containing guardian a single
@@ -284,10 +279,15 @@ module wormhole::vaa_test {
         test = init_wormhole_state(test, admin, 0);
         next_tx(&mut test, admin);{
             let state = take_shared<State>(&mut test);
-            let new_guardians = vector[structs::create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c4")];
+            let new_guardians =
+                vector[
+                    structs::create_guardian(
+                        x"71aa1be1d36cafe3867910f99c09e347899c19c4"
+                    )
+                ];
             // upgrade guardian set
-            do_upgrade_test(&mut state, u32::from_u64(1), new_guardians, ctx(&mut test));
-            assert!(state::get_current_guardian_set_index(&state)==u32::from_u64(1), 0);
+            do_upgrade_test(&mut state, 1, new_guardians, ctx(&mut test));
+            assert!(state::get_current_guardian_set_index(&state) == 1, 0);
             return_shared<State>(state);
         };
         test_scenario::end(test);
@@ -304,10 +304,12 @@ module wormhole::vaa_test {
             let state = take_shared<State>(&test);
 
             // do an upgrade
-            guardian_set_upgrade::do_upgrade_test(
+            update_guardian_set::do_upgrade_test(
                 &mut state,
-                u32::from_u64(1),
-                vector[create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c3")],
+                1, // guardian set index
+                vector[
+                    create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c3")
+                ],
                 ctx(&mut test)
             );
 
@@ -315,7 +317,9 @@ module wormhole::vaa_test {
             increment_epoch_number(ctx(&mut test));
 
             // we still expect this to verify
-            vaa::destroy(vaa::parse_and_verify(&mut state, GOV_VAA, ctx(&mut test)));
+            vaa::destroy(
+                vaa::parse_and_verify(&mut state, GOV_VAA, ctx(&mut test))
+            );
             return_shared<State>(state);
         };
         test_scenario::end(test);
@@ -333,10 +337,12 @@ module wormhole::vaa_test {
             let state = take_shared<State>(&test);
 
             // do an upgrade
-            guardian_set_upgrade::do_upgrade_test(
+            update_guardian_set::do_upgrade_test(
                 &mut state,
-                u32::from_u64(1),
-                vector[create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c3")],
+                1, // guardian set index
+                vector[
+                    create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c3")
+                ],
                 ctx(&mut test)
             );
 
@@ -346,7 +352,9 @@ module wormhole::vaa_test {
             increment_epoch_number(ctx(&mut test));
 
             // we expect this to fail because guardian set has expired
-            vaa::destroy(vaa::parse_and_verify(&mut state, GOV_VAA, ctx(&mut test)));
+            vaa::destroy(
+                vaa::parse_and_verify(&mut state, GOV_VAA, ctx(&mut test))
+            );
             return_shared<State>(state);
         };
         test_scenario::end(test);
@@ -364,10 +372,12 @@ module wormhole::vaa_test {
             let state = take_shared<State>(&test);
 
             // do an upgrade
-            guardian_set_upgrade::do_upgrade_test(
+            update_guardian_set::do_upgrade_test(
                 &mut state,
-                u32::from_u64(1),
-                vector[create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c3")],
+                1, // guardian set index
+                vector[
+                    create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c3")
+                ],
                 ctx(&mut test)
             );
 
@@ -375,7 +385,8 @@ module wormhole::vaa_test {
             increment_epoch_number(ctx(&mut test));
 
             //still expect this to verify
-            let vaa = vaa::parse_and_verify(&mut state, GOV_VAA, ctx(&mut test));
+            let vaa =
+                vaa::parse_and_verify(&mut state, GOV_VAA, ctx(&mut test));
 
             // expect this to fail
             vaa::assert_governance(&mut state, &vaa);
@@ -389,17 +400,22 @@ module wormhole::vaa_test {
 
     #[test]
     #[expected_failure(abort_code = vaa::E_INVALID_GOVERNANCE_EMITTER)]
-    /// Ensures that governance GOV_VAAs can only be sent from the correct governance emitter
+    /// Ensures that governance GOV_VAAs can only be sent from the correct
+    /// governance emitter
     public fun test_invalid_governance_emitter() {
         let (admin, _, _) = people();
         let test = init_wormhole_state(scenario(), admin, 0);
 
         next_tx(&mut test, admin);{
             let state = take_shared<State>(&test);
-            state::set_governance_contract(&mut state,  x"0000000000000000000000000000000000000000000000000000000000000005"); // set emitter contract to wrong contract
+            state::set_governance_contract(
+                &mut state,
+                x"0000000000000000000000000000000000000000000000000000000000000005"
+            ); // set emitter contract to wrong contract
 
             // expect this to succeed
-            let vaa = vaa::parse_and_verify(&mut state, GOV_VAA, ctx(&mut test));
+            let vaa =
+                vaa::parse_and_verify(&mut state, GOV_VAA, ctx(&mut test));
 
             // expect this to fail
             vaa::assert_governance(&mut state, &vaa);
@@ -413,7 +429,8 @@ module wormhole::vaa_test {
 
     #[test]
     #[expected_failure(abort_code = vaa::E_INVALID_GOVERNANCE_CHAIN)]
-    /// Ensures that governance GOV_VAAs can only be sent from the correct governance chain
+    /// Ensures that governance GOV_VAAs can only be sent from the correct
+    /// governance chain
     public fun test_invalid_governance_chain() {
         let (admin, _, _) = people();
         let test = init_wormhole_state(scenario(), admin, 0);
@@ -423,7 +440,8 @@ module wormhole::vaa_test {
             state::set_governance_chain_id(&mut state,  200); // set governance chain to wrong chain
 
             // expect this to succeed
-            let vaa = vaa::parse_and_verify(&mut state, GOV_VAA, ctx(&mut test));
+            let vaa =
+                vaa::parse_and_verify(&mut state, GOV_VAA, ctx(&mut test));
 
             // expect this to fail
             vaa::assert_governance(&mut state, &vaa);
@@ -444,9 +462,9 @@ module wormhole::vaa_test {
             let state = take_shared<State>(&test);
 
             // do an upgrade
-            guardian_set_upgrade::do_upgrade_test(
+            update_guardian_set::do_upgrade_test(
                 &mut state,
-                u32::from_u64(1),
+                1, // guardian set index
                 vector[
                     create_guardian(x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"),
                     create_guardian(x"90F8bf6A479f320ead074411a4B0e7944Ea8c9C1")
@@ -455,7 +473,9 @@ module wormhole::vaa_test {
             );
 
             // we expect this to succeed because both guardians signed in the correct order
-            vaa::destroy(vaa::parse_and_verify(&mut state, GOV_VAA_2, ctx(&mut test)));
+            vaa::destroy(
+                vaa::parse_and_verify(&mut state, GOV_VAA_2, ctx(&mut test))
+            );
             return_shared<State>(state);
         };
         test_scenario::end(test);
@@ -471,9 +491,9 @@ module wormhole::vaa_test {
             let state = take_shared<State>(&test);
 
             // do an upgrade
-            guardian_set_upgrade::do_upgrade_test(
+            update_guardian_set::do_upgrade_test(
                 &mut state,
-                u32::from_u64(1),
+                1, // guardian set index
                 vector[
                     create_guardian(x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"),
                     create_guardian(x"90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"),
@@ -499,9 +519,9 @@ module wormhole::vaa_test {
             let state = take_shared<State>(&test);
 
             // do an upgrade
-            guardian_set_upgrade::do_upgrade_test(
+            update_guardian_set::do_upgrade_test(
                 &mut state,
-                u32::from_u64(1),
+                1, // guardian set index
                 vector[
                     create_guardian(x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"),
                     create_guardian(x"90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"),
@@ -511,7 +531,13 @@ module wormhole::vaa_test {
 
             // we expect this to fail because
             // beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe signed this twice
-            vaa::destroy(vaa::parse_and_verify(&mut state, GOV_VAA_DOUBLE_SIGNED, ctx(&mut test)));
+            vaa::destroy(
+                vaa::parse_and_verify(
+                    &mut state,
+                    GOV_VAA_DOUBLE_SIGNED,
+                    ctx(&mut test)
+                )
+            );
             return_shared<State>(state);
         };
         test_scenario::end(test);
@@ -527,9 +553,9 @@ module wormhole::vaa_test {
             let state = take_shared<State>(&test);
 
             // do an upgrade
-            guardian_set_upgrade::do_upgrade_test(
+            update_guardian_set::do_upgrade_test(
                 &mut state,
-                u32::from_u64(1),
+                1, // guardian set index
                 vector[
                     // guardians are set up in opposite order
                     create_guardian(x"90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"),
@@ -539,7 +565,9 @@ module wormhole::vaa_test {
             );
 
             // we expect this to fail because signatures are out of order
-            vaa::destroy(vaa::parse_and_verify(&mut state, GOV_VAA_2, ctx(&mut test)));
+            vaa::destroy(
+                vaa::parse_and_verify(&mut state, GOV_VAA_2, ctx(&mut test))
+            );
             return_shared<State>(state);
         };
         test_scenario::end(test);

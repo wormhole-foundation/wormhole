@@ -3,7 +3,7 @@ module token_bridge::coin_witness {
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
 
-    use token_bridge::wrapped;
+    use token_bridge::create_wrapped::{Self};
 
     struct COIN_WITNESS has drop {}
 
@@ -11,7 +11,7 @@ module token_bridge::coin_witness {
         // Step 1. Paste token attestation VAA below. This example is ethereum beefface token.
         let vaa_bytes = x"0100000000010080366065746148420220f25a6275097370e8db40984529a6676b7a5fc9feb11755ec49ca626b858ddfde88d15601f85ab7683c5f161413b0412143241c700aff010000000100000001000200000000000000000000000000000000000000000000000000000000deadbeef000000000150eb23000200000000000000000000000000000000000000000000000000000000beefface00020c424545460000000000000000000000000000000000000000000000000000000042656566206661636520546f6b656e0000000000000000000000000000000000";
 
-        let new_wrapped_coin = wrapped::create_wrapped_coin(vaa_bytes, coin_witness, ctx);
+        let new_wrapped_coin = create_wrapped::create_wrapped_coin(vaa_bytes, coin_witness, ctx);
         transfer::transfer(
             new_wrapped_coin,
             tx_context::sender(ctx)
@@ -28,16 +28,17 @@ module token_bridge::coin_witness {
 module token_bridge::coin_witness_test {
     use sui::test_scenario::{Self, Scenario, ctx, next_tx, take_from_address, return_shared, take_shared};
 
-    use wormhole::state::{State};
-    use wormhole::myu16::{Self as u16};
+    use wormhole::state::{State as WormholeState};
     use wormhole::external_address::{Self};
 
-    use token_bridge::bridge_state::{BridgeState, is_wrapped_asset, is_registered_native_asset, origin_info, get_token_chain_from_origin_info, get_token_address_from_origin_info};
+    use token_bridge::state::{State, is_registered_asset, is_wrapped_asset, token_info};
     use token_bridge::bridge_state_test::{set_up_wormhole_core_and_token_bridges};
-    use token_bridge::wrapped::{NewWrappedCoin, register_wrapped_coin};
+    use token_bridge::create_wrapped::{register_wrapped_coin};
     use token_bridge::register_chain::{submit_vaa};
+    use token_bridge::wrapped_coin::{WrappedCoin};
 
     use token_bridge::coin_witness::{test_init, COIN_WITNESS};
+    use token_bridge::token_info::{Self};
 
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
@@ -73,39 +74,40 @@ module token_bridge::coin_witness_test {
         };
         // register chain
         next_tx(&mut test, admin); {
-            let wormhole_state = take_shared<State>(&test);
-            let bridge_state = take_shared<BridgeState>(&test);
+            let wormhole_state = take_shared<WormholeState>(&test);
+            let bridge_state = take_shared<State>(&test);
             submit_vaa(&mut wormhole_state, &mut bridge_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
-            return_shared<State>(wormhole_state);
-            return_shared<BridgeState>(bridge_state);
+            return_shared<WormholeState>(wormhole_state);
+            return_shared<State>(bridge_state);
         };
         // register wrapped coin with token bridge, handing it the treasury cap and storing metadata
         next_tx(&mut test, admin);{
-            let bridge_state = take_shared<BridgeState>(&test);
-            let worm_state = take_shared<State>(&test);
-            let wrapped_coin = take_from_address<NewWrappedCoin<COIN_WITNESS>>(&test, admin);
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
+            let wrapped_coin = take_from_address<WrappedCoin<COIN_WITNESS>>(&test, admin);
             register_wrapped_coin<COIN_WITNESS>(
-                &mut worm_state,
                 &mut bridge_state,
+                &mut worm_state,
                 wrapped_coin,
                 ctx(&mut test)
             );
             // assert that wrapped asset is indeed recognized by token bridge
+            let is_registered = is_registered_asset<COIN_WITNESS>(&bridge_state);
+            assert!(is_registered, 0);
+
+            // assert that wrapped asset is not recognized as a native asset by token bridge
             let is_wrapped = is_wrapped_asset<COIN_WITNESS>(&bridge_state);
             assert!(is_wrapped, 0);
 
-            // assert that wrapped asset is not recognized as a native asset by token bridge
-            let is_native = is_registered_native_asset<COIN_WITNESS>(&bridge_state);
-            assert!(!is_native, 0);
-
             // assert origin info is correct
-            let origin_info = origin_info<COIN_WITNESS>(&bridge_state);
-            let chain = get_token_chain_from_origin_info(&origin_info);
-            let address = get_token_address_from_origin_info(&origin_info);
-            assert!(chain == u16::from_u64(2), 0);
-            assert!(address == external_address::from_bytes(x"beefface"), 0);
-            return_shared<BridgeState>(bridge_state);
-            return_shared<State>(worm_state);
+            let info = token_info<COIN_WITNESS>(&bridge_state);
+            assert!(token_info::chain(&info) == 2, 0);
+
+            let expected_addr = external_address::from_bytes(x"beefface");
+            assert!(token_info::addr(&info) == expected_addr, 0);
+
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
         };
         return test
     }

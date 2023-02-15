@@ -2,9 +2,20 @@
 name = "TokenBridge"
 version = "0.0.1"
 
-[dependencies]
-Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework", rev = "0fe3e5c237f2f6410c66617cede5733015a17a36" }
-Wormhole = { local = "../wormhole" }
+[dependencies.Sui]
+git = "https://github.com/MystenLabs/sui.git"
+subdir = "crates/sui-framework"
+rev = "0fe3e5c237f2f6410c66617cede5733015a17a36"
+
+[dependencies.Wormhole]
+local = "../wormhole"
 
 [addresses]
-token_bridge = "0x0"
+token_bridge = "_"
+
+[dev-dependencies.Wormhole]
+local = "../wormhole"
+
+[dev-addresses]
+wormhole = "0x100"
+token_bridge = "0x200"
