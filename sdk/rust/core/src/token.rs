@@ -493,7 +493,7 @@ mod governance_packet_impl {
                 }
                 v => {
                     return Err(Error::custom(format_args!(
-                        "invalid value: {v}, expected one of 1, 2"
+                        "invalid value: {v}, expected one of 1, 2, 3"
                     )))
                 }
             };
