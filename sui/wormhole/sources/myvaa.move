@@ -18,7 +18,7 @@ module wormhole::myvaa {
         get_address,
     };
 
-    friend wormhole::guardian_set_upgrade;
+    friend wormhole::update_guardian_set;
 
     const E_NO_QUORUM: u64 = 0x0;
     const E_TOO_MANY_SIGNATURES: u64 = 0x1;
@@ -247,7 +247,7 @@ module wormhole::vaa_test {
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
-    use wormhole::guardian_set_upgrade::{Self, do_upgrade_test};
+    use wormhole::update_guardian_set::{Self, do_upgrade_test};
     use wormhole::state::{Self, State};
     use wormhole::test_state::{init_wormhole_state};
     use wormhole::structs::{Self, create_guardian};
@@ -304,7 +304,7 @@ module wormhole::vaa_test {
             let state = take_shared<State>(&test);
 
             // do an upgrade
-            guardian_set_upgrade::do_upgrade_test(
+            update_guardian_set::do_upgrade_test(
                 &mut state,
                 1, // guardian set index
                 vector[
@@ -337,7 +337,7 @@ module wormhole::vaa_test {
             let state = take_shared<State>(&test);
 
             // do an upgrade
-            guardian_set_upgrade::do_upgrade_test(
+            update_guardian_set::do_upgrade_test(
                 &mut state,
                 1, // guardian set index
                 vector[
@@ -372,7 +372,7 @@ module wormhole::vaa_test {
             let state = take_shared<State>(&test);
 
             // do an upgrade
-            guardian_set_upgrade::do_upgrade_test(
+            update_guardian_set::do_upgrade_test(
                 &mut state,
                 1, // guardian set index
                 vector[
@@ -462,7 +462,7 @@ module wormhole::vaa_test {
             let state = take_shared<State>(&test);
 
             // do an upgrade
-            guardian_set_upgrade::do_upgrade_test(
+            update_guardian_set::do_upgrade_test(
                 &mut state,
                 1, // guardian set index
                 vector[
@@ -491,7 +491,7 @@ module wormhole::vaa_test {
             let state = take_shared<State>(&test);
 
             // do an upgrade
-            guardian_set_upgrade::do_upgrade_test(
+            update_guardian_set::do_upgrade_test(
                 &mut state,
                 1, // guardian set index
                 vector[
@@ -519,7 +519,7 @@ module wormhole::vaa_test {
             let state = take_shared<State>(&test);
 
             // do an upgrade
-            guardian_set_upgrade::do_upgrade_test(
+            update_guardian_set::do_upgrade_test(
                 &mut state,
                 1, // guardian set index
                 vector[
@@ -553,7 +553,7 @@ module wormhole::vaa_test {
             let state = take_shared<State>(&test);
 
             // do an upgrade
-            guardian_set_upgrade::do_upgrade_test(
+            update_guardian_set::do_upgrade_test(
                 &mut state,
                 1, // guardian set index
                 vector[

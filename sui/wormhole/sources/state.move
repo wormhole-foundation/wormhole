@@ -15,7 +15,7 @@ module wormhole::state {
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::emitter::{Self};
 
-    friend wormhole::guardian_set_upgrade;
+    friend wormhole::update_guardian_set;
     friend wormhole::wormhole;
     friend wormhole::myvaa;
     #[test_only]

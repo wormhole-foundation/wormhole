@@ -1,4 +1,4 @@
-module wormhole::guardian_set_upgrade {
+module wormhole::update_guardian_set {
     use std::vector::{Self};
     use sui::tx_context::{TxContext};
 
@@ -19,7 +19,7 @@ module wormhole::guardian_set_upgrade {
     const E_INVALID_TARGET: u64 = 0x4;
     const E_NON_INCREMENTAL_GUARDIAN_SETS: u64 = 0x5;
 
-    struct GuardianSetUpgrade {
+    struct UpdateGuardianSet {
         new_index: u32,
         guardians: vector<Guardian>,
     }
@@ -38,12 +38,12 @@ module wormhole::guardian_set_upgrade {
 
     fun do_upgrade(
         state: &mut State,
-        upgrade: GuardianSetUpgrade,
+        upgrade: UpdateGuardianSet,
         ctx: &TxContext
     ) {
         let current_index = state::get_current_guardian_set_index(state);
 
-        let GuardianSetUpgrade {
+        let UpdateGuardianSet {
             new_index,
             guardians,
         } = upgrade;
@@ -69,10 +69,10 @@ module wormhole::guardian_set_upgrade {
         guardians: vector<Guardian>,
         ctx: &mut TxContext
     ) {
-        do_upgrade(s, GuardianSetUpgrade { new_index, guardians }, ctx)
+        do_upgrade(s, UpdateGuardianSet { new_index, guardians }, ctx)
     }
 
-    public fun parse_payload(bytes: vector<u8>): GuardianSetUpgrade {
+    public fun parse_payload(bytes: vector<u8>): UpdateGuardianSet {
         let cur = cursor::new(bytes);
         let guardians = vector::empty<Guardian>();
 
@@ -98,15 +98,15 @@ module wormhole::guardian_set_upgrade {
 
         cursor::destroy_empty(cur);
 
-        GuardianSetUpgrade {
+        UpdateGuardianSet {
             new_index,
             guardians
         }
     }
 
     #[test_only]
-    public fun split(upgrade: GuardianSetUpgrade): (u32, vector<Guardian>) {
-        let GuardianSetUpgrade { new_index, guardians } = upgrade;
+    public fun split(upgrade: UpdateGuardianSet): (u32, vector<Guardian>) {
+        let UpdateGuardianSet { new_index, guardians } = upgrade;
         (new_index, guardians)
     }
 }
@@ -116,7 +116,7 @@ module wormhole::guardian_set_upgrade_test {
     use std::vector;
 
     use wormhole::structs::{create_guardian};
-    use wormhole::guardian_set_upgrade::{Self};
+    use wormhole::update_guardian_set::{Self};
 
     use sui::test_scenario::{
         Self,
@@ -136,7 +136,7 @@ module wormhole::guardian_set_upgrade_test {
         let b =
             x"00000000000000000000000000000000000000000000000000000000436f7265020000000000011358cc3ae5c097b213ce3c81979e1b9f9570746aa5ff6cb952589bde862c25ef4392132fb9d4a42157114de8460193bdf3a2fcf81f86a09765f4762fd1107a0086b32d7a0977926a205131d8731d39cbeb8c82b2fd82faed2711d59af0f2499d16e726f6b211b39756c042441be6d8650b69b54ebe715e234354ce5b4d348fb74b958e8966e2ec3dbd4958a7cdeb5f7389fa26941519f0863349c223b73a6ddee774a3bf913953d695260d88bc1aa25a4eee363ef0000ac0076727b35fbea2dac28fee5ccb0fea768eaf45ced136b9d9e24903464ae889f5c8a723fc14f93124b7c738843cbb89e864c862c38cddcccf95d2cc37a4dc036a8d232b48f62cdd4731412f4890da798f6896a3331f64b48c12d1d57fd9cbe7081171aa1be1d36cafe3867910f99c09e347899c19c38192b6e7387ccd768277c17dab1b7a5027c0b3cf178e21ad2e77ae06711549cfbb1f9c7a9d8096e85e1487f35515d02a92753504a8d75471b9f49edb6fbebc898f403e4773e95feb15e80c9a99c8348d";
         let (new_index, guardians) =
-            guardian_set_upgrade::split(guardian_set_upgrade::parse_payload(b));
+            update_guardian_set::split(update_guardian_set::parse_payload(b));
         assert!(new_index == 1, 0);
         assert!(vector::length(&guardians) == 19, 0);
         let expected = vector[
@@ -186,7 +186,7 @@ module wormhole::guardian_set_upgrade_test {
             );
 
             // do an upgrade
-            guardian_set_upgrade::do_upgrade_test(
+            update_guardian_set::do_upgrade_test(
                 &mut state,
                 1, // guardian set index
                 vector[
