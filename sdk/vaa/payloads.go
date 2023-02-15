@@ -149,12 +149,9 @@ func (r BodyTokenBridgeModifyBalance) Serialize() []byte {
 	reason := make([]byte, 32)
 
 	// truncate or pad "reason"
-	for i := 0; i < len(reason); i += 1 {
-		if i < len(r.Reason) {
-			reason[i] = r.Reason[i]
-		} else {
-			reason[i] = ' '
-		}
+	count := copy(reason, r.Reason)
+	for i := range reason[count:] {
+		reason[i] = ' '
 	}
 	payload.Write(reason)
 
