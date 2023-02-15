@@ -12,24 +12,39 @@ cd "$(dirname "$0")"/..
 #  - ID: 0x73fc05ae6f172f90b12a98cf3ad0b669d6b70e5b <= PACKAGE , Owner: Immutable
 
 cd wormhole
-sed -i -e 's/wormhole = .*/wormhole = "0x0"/' Move.toml
+sed -i -e "s/wormhole = \"_\"/wormhole = \"0x0\"/" Move.toml
+echo "build wormhole"
 make build
+echo "publishing"
 sui client publish --gas-budget 10000 | tee publish.log
-grep ID: publish.log  | head -2 > ids.log
+echo "published"
+grep "ID:" publish.log  | head -2 > ids.log
 
 WORM_PACKAGE=$(grep "Immutable" ids.log  | sed -e 's/^.*: \(.*\) ,.*/\1/')
-sed -i -e "s/wormhole = .*/wormhole = \"$WORM_PACKAGE\"/" Move.toml
+echo "yeah buddy?"
+sed -i -e "s/wormhole = \"0x0\"/wormhole = \"${WORM_PACKAGE}\"/" Move.toml
+echo "okay"
 WORM_DEPLOYER_CAPABILITY=$(grep -v "Immutable" ids.log  | sed -e 's/^.*: \(.*\) ,.*/\1/')
 WORM_OWNER=$(grep -v "Immutable" ids.log | sed -e 's/^.*( \(.*\) )/\1/')
 
 cd ../token_bridge
-sed -i -e 's/token_bridge = .*/token_bridge = "0x0"/' Move.toml
+sed -i -e 's/token_bridge = "_"/token_bridge = "0x0"/' Move.toml
+echo "build token_bridge"
 make build
+echo "publishing"
 sui client publish --gas-budget 10000 | tee publish.log
+echo "published"
 grep ID: publish.log  | head -2 > ids.log
 
+cd ..
+echo "wrap up"
+sed -i -e "s/wormhole = \"${WORM_PACKAGE}\"/wormhole = \"_\"/" wormhole/Move.toml
+sed -i -e "s/token_bridge = \"0x0\"/token_bridge = \"_\"/" token_bridge/Move.toml
+
+exit 0
+
 TOKEN_PACKAGE=$(grep "Immutable" ids.log  | sed -e 's/^.*: \(.*\) ,.*/\1/')
-sed -i -e "s/token_bridge = .*/token_bridge = \"$TOKEN_PACKAGE\"/" Move.toml
+#sed -i -e "s/token_bridge = .*/token_bridge = \"$TOKEN_PACKAGE\"/" Move.toml
 TOKEN_DEPLOYER_CAPABILITY=$(grep -v "Immutable" ids.log  | sed -e 's/^.*: \(.*\) ,.*/\1/')
 TOKEN_OWNER=$(grep -v "Immutable" ids.log | sed -e 's/^.*( \(.*\) )/\1/')
 
