@@ -1,22 +1,15 @@
 module wormhole::myvaa {
+    use std::vector::{Self};
     use sui::hash::{keccak256};
     use sui::tx_context::{TxContext};
-    use std::vector::{Self};
 
     use wormhole::bytes::{Self};
-    use wormhole::cursor;
+    use wormhole::cursor::{Self};
     use wormhole::external_address::{Self, ExternalAddress};
-    use wormhole::guardian_pubkey;
+    use wormhole::guardian::{Self, Guardian};
+    use wormhole::guardian_set::{Self, GuardianSet};
+    use wormhole::guardian_signature::{Self, GuardianSignature};
     use wormhole::state::{Self, State};
-    use wormhole::structs::{
-        Guardian,
-        GuardianSet,
-        Signature,
-        create_signature,
-        get_guardians,
-        unpack_signature,
-        get_address,
-    };
 
     friend wormhole::update_guardian_set;
 
@@ -33,7 +26,7 @@ module wormhole::myvaa {
     struct VAA {
         /// Header
         guardian_set_index: u32,
-        signatures:         vector<Signature>,
+        signatures:         vector<GuardianSignature>,
 
         /// Body
         timestamp:          u32,
@@ -64,15 +57,19 @@ module wormhole::myvaa {
         assert!(version == 1, E_WRONG_VERSION);
         let guardian_set_index = bytes::deserialize_u32_be(&mut cur);
 
-        let signatures_len = bytes::deserialize_u8(&mut cur);
-        let signatures = vector::empty<Signature>();
+        let num_signatures = bytes::deserialize_u8(&mut cur);
+        let signatures = vector::empty();
 
-        while (signatures_len > 0) {
+        let i = 0;
+        while (i < num_signatures) {
             let guardian_index = bytes::deserialize_u8(&mut cur);
-            let sig = bytes::to_bytes(&mut cur, 64);
+            let rs = bytes::to_bytes(&mut cur, 64);
             let recovery_id = bytes::deserialize_u8(&mut cur);
-            vector::push_back(&mut signatures, create_signature(sig, recovery_id, guardian_index));
-            signatures_len = signatures_len - 1;
+            vector::push_back(
+                &mut signatures,
+                guardian_signature::new(rs, recovery_id, guardian_index)
+            );
+            i = i + 1;
         };
 
         let body = cursor::rest(cur);
@@ -156,34 +153,39 @@ module wormhole::myvaa {
     /// Verifies the signatures of a VAA.
     /// It's private, because there's no point calling it externally, since VAAs
     /// external to this module have already been verified (by construction).
-    fun verify(vaa: &VAA, state: &State, guardian_set: &GuardianSet, ctx: &TxContext) {
-        assert!(state::guardian_set_is_active(state, guardian_set, ctx), E_GUARDIAN_SET_EXPIRED);
+    fun verify(vaa: &VAA, state: &State, t_guardian_set: &GuardianSet, ctx: &TxContext) {
+        assert!(state::guardian_set_is_active(state, t_guardian_set, ctx), E_GUARDIAN_SET_EXPIRED);
 
-        let guardians = get_guardians(guardian_set);
+        let guardians = guardian_set::guardians(t_guardian_set);
         let hash = vaa.hash;
-        let sigs_len = vector::length<Signature>(&vaa.signatures);
-        let guardians_len = vector::length<Guardian>(&guardians);
+        let signatures = vaa.signatures;
+        vector::reverse(&mut signatures);
 
-        assert!(sigs_len >= quorum(guardians_len), E_NO_QUORUM);
+        let num_signatures = vector::length(&signatures);
+        let num_guardians = vector::length(&guardians);
 
-        let sig_i = 0;
+        assert!(num_signatures >= quorum(num_guardians), E_NO_QUORUM);
+
+        let i = 0;
         let last_index = 0;
-        while (sig_i < sigs_len) {
-            let (sig, recovery_id, guardian_index) = unpack_signature(vector::borrow(&vaa.signatures, sig_i));
+        while (i < num_signatures) {
+            let signature = vector::pop_back(&mut signatures);
+            let guardian_index = guardian_signature::index_as_u64(&signature);
 
             // Ensure that the provided signatures are strictly increasing.
             // This check makes sure that no duplicate signers occur. The
             // increasing order is guaranteed by the guardians, or can always be
             // reordered by the client.
-            assert!(sig_i == 0 || guardian_index > last_index, E_NON_INCREASING_SIGNERS);
+            assert!(i == 0 || guardian_index > last_index, E_NON_INCREASING_SIGNERS);
             last_index = guardian_index;
 
-            let address = guardian_pubkey::from_signature(hash, recovery_id, sig);
+            //let address = guardian_pubkey::from_signature(hash, recovery_id, sig);
 
-            let cur_guardian = vector::borrow<Guardian>(&guardians, (guardian_index as u64));
-            let cur_address = get_address(cur_guardian);
-            assert!(address == cur_address, E_INVALID_SIGNATURE);
-            sig_i = sig_i + 1;
+            let cur_guardian = vector::borrow<Guardian>(&guardians, guardian_index);
+
+            assert!(guardian::verify(cur_guardian, signature, hash), E_INVALID_SIGNATURE);
+
+            i = i + 1;
         };
     }
 
@@ -245,10 +247,10 @@ module wormhole::vaa_test {
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
+    use wormhole::guardian::{Self};
     use wormhole::update_guardian_set::{Self, do_upgrade_test};
     use wormhole::state::{Self, State};
     use wormhole::test_state::{init_wormhole_state};
-    use wormhole::structs::{Self, create_guardian};
     use wormhole::myvaa::{Self as vaa};
 
     /// A test VAA signed by the first guardian set (index 0) containing guardian a single
@@ -279,7 +281,7 @@ module wormhole::vaa_test {
             let state = take_shared<State>(&mut test);
             let new_guardians =
                 vector[
-                    structs::create_guardian(
+                    guardian::new(
                         x"71aa1be1d36cafe3867910f99c09e347899c19c4"
                     )
                 ];
@@ -306,7 +308,7 @@ module wormhole::vaa_test {
                 &mut state,
                 1, // guardian set index
                 vector[
-                    create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c3")
+                    guardian::new(x"71aa1be1d36cafe3867910f99c09e347899c19c3")
                 ],
                 ctx(&mut test)
             );
@@ -339,7 +341,7 @@ module wormhole::vaa_test {
                 &mut state,
                 1, // guardian set index
                 vector[
-                    create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c3")
+                    guardian::new(x"71aa1be1d36cafe3867910f99c09e347899c19c3")
                 ],
                 ctx(&mut test)
             );
@@ -374,7 +376,7 @@ module wormhole::vaa_test {
                 &mut state,
                 1, // guardian set index
                 vector[
-                    create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c3")
+                    guardian::new(x"71aa1be1d36cafe3867910f99c09e347899c19c3")
                 ],
                 ctx(&mut test)
             );
@@ -464,8 +466,8 @@ module wormhole::vaa_test {
                 &mut state,
                 1, // guardian set index
                 vector[
-                    create_guardian(x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"),
-                    create_guardian(x"90F8bf6A479f320ead074411a4B0e7944Ea8c9C1")
+                    guardian::new(x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"),
+                    guardian::new(x"90F8bf6A479f320ead074411a4B0e7944Ea8c9C1")
                 ],
                 ctx(&mut test),
             );
@@ -493,9 +495,9 @@ module wormhole::vaa_test {
                 &mut state,
                 1, // guardian set index
                 vector[
-                    create_guardian(x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"),
-                    create_guardian(x"90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"),
-                    create_guardian(x"5e1487f35515d02a92753504a8d75471b9f49edb")
+                    guardian::new(x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"),
+                    guardian::new(x"90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"),
+                    guardian::new(x"5e1487f35515d02a92753504a8d75471b9f49edb")
                 ],
                 ctx(&mut test),
             );
@@ -521,8 +523,8 @@ module wormhole::vaa_test {
                 &mut state,
                 1, // guardian set index
                 vector[
-                    create_guardian(x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"),
-                    create_guardian(x"90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"),
+                    guardian::new(x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"),
+                    guardian::new(x"90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"),
                 ],
                 ctx(&mut test),
             );
@@ -556,8 +558,8 @@ module wormhole::vaa_test {
                 1, // guardian set index
                 vector[
                     // guardians are set up in opposite order
-                    create_guardian(x"90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"),
-                    create_guardian(x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"),
+                    guardian::new(x"90F8bf6A479f320ead074411a4B0e7944Ea8c9C1"),
+                    guardian::new(x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"),
                 ],
                 ctx(&mut test),
             );
