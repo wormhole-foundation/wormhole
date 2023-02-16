@@ -7,6 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/p2p/heartbeat"
+
 	"github.com/golang/groupcache/lru"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
@@ -14,7 +16,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/finalizers"
 	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
 
-	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -180,7 +181,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 	}
 
 	// Initialize gossip metrics (we want to broadcast the address even if we're not yet syncing)
-	p2p.DefaultRegistry.SetNetworkStats(w.chainID, &gossipv1.Heartbeat_Network{
+	heartbeat.DefaultRegistry.SetNetworkStats(w.chainID, &gossipv1.Heartbeat_Network{
 		ContractAddress: w.contract.Hex(),
 	})
 
@@ -196,7 +197,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 		w.ethConn, err = connectors.NewCeloConnector(timeout, w.networkName, w.url, w.contract, logger)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			heartbeat.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
 	} else if useFinalizedBlocks {
@@ -210,27 +211,27 @@ func (w *Watcher) Run(ctx context.Context) error {
 		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			heartbeat.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
 		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizers.NewDefaultFinalizer(), 250*time.Millisecond, true, safeBlocksSupported)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			heartbeat.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("creating block poll connector failed: %w", err)
 		}
 	} else if w.chainID == vaa.ChainIDMoonbeam && !w.unsafeDevMode {
 		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			heartbeat.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
 		finalizer := finalizers.NewMoonbeamFinalizer(logger, baseConnector)
 		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond, false, false)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			heartbeat.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("creating block poll connector failed: %w", err)
 		}
 	} else if w.chainID == vaa.ChainIDNeon && !w.unsafeDevMode {
@@ -240,20 +241,20 @@ func (w *Watcher) Run(ctx context.Context) error {
 		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			heartbeat.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
 		finalizer := finalizers.NewNeonFinalizer(logger, w.l1Finalizer)
 		pollConnector, err := connectors.NewBlockPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond, false, false)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			heartbeat.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("creating block poll connector failed: %w", err)
 		}
 		w.ethConn, err = connectors.NewLogPollConnector(ctx, pollConnector, baseConnector.Client())
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			heartbeat.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("creating poll connector failed: %w", err)
 		}
 	} else if w.chainID == vaa.ChainIDArbitrum && !w.unsafeDevMode {
@@ -263,20 +264,20 @@ func (w *Watcher) Run(ctx context.Context) error {
 		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			heartbeat.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
 		finalizer := finalizers.NewArbitrumFinalizer(logger, w.l1Finalizer)
 		pollConnector, err := connectors.NewBlockPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond, false, false)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			heartbeat.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("creating block poll connector failed: %w", err)
 		}
 		w.ethConn, err = connectors.NewArbitrumConnector(ctx, pollConnector)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			heartbeat.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("creating arbitrum connector failed: %w", err)
 		}
 	} else if w.chainID == vaa.ChainIDOptimism && !w.unsafeDevMode {
@@ -286,25 +287,25 @@ func (w *Watcher) Run(ctx context.Context) error {
 		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			heartbeat.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
 		finalizer, err := finalizers.NewOptimismFinalizer(timeout, logger, w.l1Finalizer, w.rootChainRpc, w.rootChainContract)
 		if err != nil {
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			heartbeat.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("creating optimism finalizer failed: %w", err)
 		}
 		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond, false, false)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			heartbeat.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("creating block poll connector failed: %w", err)
 		}
 	} else if w.chainID == vaa.ChainIDPolygon && w.usePolygonCheckpointing() {
 		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			heartbeat.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("failed to connect to polygon: %w", err)
 		}
 		w.ethConn, err = connectors.NewPolygonConnector(ctx,
@@ -314,14 +315,14 @@ func (w *Watcher) Run(ctx context.Context) error {
 		)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			heartbeat.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("failed to create polygon connector: %w", err)
 		}
 	} else {
 		w.ethConn, err = connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			heartbeat.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
 	}
@@ -334,7 +335,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 	messageSub, err := w.ethConn.WatchLogMessagePublished(ctx, errC, messageC)
 	if err != nil {
 		ethConnectionErrors.WithLabelValues(w.networkName, "subscribe_error").Inc()
-		p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+		heartbeat.DefaultRegistry.AddErrorCount(w.chainID, 1)
 		return fmt.Errorf("failed to subscribe to message publication events: %w", err)
 	}
 	defer messageSub.Unsubscribe()
@@ -499,7 +500,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 			case err := <-messageSub.Err():
 				ethConnectionErrors.WithLabelValues(w.networkName, "subscription_error").Inc()
 				errC <- fmt.Errorf("error while processing message publication subscription: %w", err)
-				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+				heartbeat.DefaultRegistry.AddErrorCount(w.chainID, 1)
 				return nil
 			case ev := <-messageC:
 				if _, exists := txProcessed.Get(ev.Raw.TxHash.String()); exists {
@@ -513,7 +514,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 				_, msgs, err := MessageEventsForTransaction(timeout, w.ethConn, w.contract, w.chainID, ev.Raw.TxHash)
 				if err != nil {
 					ethConnectionErrors.WithLabelValues(w.networkName, "messages_by_tx_hash").Inc()
-					p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+					heartbeat.DefaultRegistry.AddErrorCount(w.chainID, 1)
 					errC <- fmt.Errorf("failed to request messages for tx, hash %s: %w",
 						ev.Raw.TxHash.String(), err)
 					return nil
@@ -569,7 +570,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 	headerSubscription, err := w.ethConn.SubscribeForBlocks(ctx, errC, headSink)
 	if err != nil {
 		ethConnectionErrors.WithLabelValues(w.networkName, "header_subscribe_error").Inc()
-		p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+		heartbeat.DefaultRegistry.AddErrorCount(w.chainID, 1)
 		return fmt.Errorf("failed to subscribe to header events: %w", err)
 	}
 
@@ -581,7 +582,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 			case err := <-headerSubscription.Err():
 				ethConnectionErrors.WithLabelValues(w.networkName, "header_subscription_error").Inc()
 				errC <- fmt.Errorf("error while processing header subscription: %w", err)
-				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+				heartbeat.DefaultRegistry.AddErrorCount(w.chainID, 1)
 				return nil
 			case ev := <-headSink:
 				// These two pointers should have been checked before the event was placed on the channel, but just being safe.
@@ -603,7 +604,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 					zap.String("eth_network", w.networkName))
 				currentEthHeight.WithLabelValues(w.networkName).Set(float64(ev.Number.Int64()))
 				readiness.SetReady(w.readiness)
-				p2p.DefaultRegistry.SetNetworkStats(w.chainID, &gossipv1.Heartbeat_Network{
+				heartbeat.DefaultRegistry.SetNetworkStats(w.chainID, &gossipv1.Heartbeat_Network{
 					Height:          ev.Number.Int64(),
 					ContractAddress: w.contract.Hex(),
 				})
@@ -777,7 +778,7 @@ func (w *Watcher) fetchAndUpdateGuardianSet(
 	idx, gs, err := fetchCurrentGuardianSet(timeout, ethConn)
 	if err != nil {
 		ethConnectionErrors.WithLabelValues(w.networkName, "guardian_set_fetch_error").Inc()
-		p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+		heartbeat.DefaultRegistry.AddErrorCount(w.chainID, 1)
 		return err
 	}
 

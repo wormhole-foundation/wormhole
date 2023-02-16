@@ -7,8 +7,10 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -22,8 +24,8 @@ type Manager[K Observation] struct {
 	// observationC is a channel of observed emitted messages
 	observationC <-chan K
 
-	// confirmationC is a channel of inbound decoded observations from p2p
-	confirmationC <-chan *gossipv1.SignedObservation
+	// consensusIO is a channel of inbound decoded observations from p2p
+	consensusIO p2p.GossipIO
 
 	// setC is a channel of guardian set updates
 	setC <-chan *common.GuardianSet
@@ -58,17 +60,17 @@ type ManagerEventHandler[K Observation] interface {
 }
 
 // NewManager creates a new reactor manager
-func NewManager[K Observation](group string, observationC <-chan K, confirmationC <-chan *gossipv1.SignedObservation, setC <-chan *common.GuardianSet, gst *common.GuardianSetState, config Config, handler ManagerEventHandler[K], storage ConsensusStorage[K]) *Manager[K] {
+func NewManager[K Observation](group string, observationC <-chan K, consensusIO p2p.GossipIO, setC <-chan *common.GuardianSet, gst *common.GuardianSetState, config Config, handler ManagerEventHandler[K], storage ConsensusStorage[K]) *Manager[K] {
 	m := &Manager[K]{
-		group:         group,
-		observationC:  observationC,
-		confirmationC: confirmationC,
-		setC:          setC,
-		reactors:      map[ethcommon.Hash]*ConsensusReactor[K]{},
-		gst:           gst,
-		config:        config,
-		handler:       handler,
-		storage:       storage,
+		group:        group,
+		observationC: observationC,
+		consensusIO:  consensusIO,
+		setC:         setC,
+		reactors:     map[ethcommon.Hash]*ConsensusReactor[K]{},
+		gst:          gst,
+		config:       config,
+		handler:      handler,
+		storage:      storage,
 	}
 	m.gs.Store(gst.Get())
 
@@ -78,6 +80,13 @@ func NewManager[K Observation](group string, observationC <-chan K, confirmation
 func (p *Manager[K]) Run(ctx context.Context) error {
 	p.logger = supervisor.Logger(ctx)
 	p.logger = p.logger.With(zap.String("group", p.group))
+
+	signedObsC := make(chan *gossipv1.GossipMessage_SignedObservation, 100)
+	err := p2p.SubscribeFiltered(ctx, p.consensusIO, signedObsC)
+	if err != nil {
+		return err
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -101,7 +110,8 @@ func (p *Manager[K]) Run(ctx context.Context) error {
 				continue
 			}
 			r.ObservationChannel() <- k
-		case m := <-p.confirmationC:
+		case s := <-signedObsC:
+			m := s.SignedObservation
 			digest := ethcommon.BytesToHash(m.Hash)
 
 			gs := p.gs.Load()
@@ -196,7 +206,7 @@ func (p *Manager[K]) loadOrCreateReactor(ctx context.Context, digest ethcommon.H
 		}
 
 		p.logger.Debug("creating new reactor", zap.Stringer("digest", digest))
-		r = NewReactor[K](p.group, p.config, gs, func(reactor *ConsensusReactor[K], oldState, newState State) {
+		r = NewReactor[K](p.group, p.config, gs, p.consensusIO, func(reactor *ConsensusReactor[K], oldState, newState State) {
 			p.transitionHook(digest, reactor, oldState, newState)
 		})
 		err := supervisor.Run(ctx, fmt.Sprintf("reactor-%s", digest.String()), r.Run)

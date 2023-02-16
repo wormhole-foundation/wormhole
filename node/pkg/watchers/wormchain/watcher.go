@@ -11,7 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/p2p"
+	"github.com/certusone/wormhole/node/pkg/p2p/heartbeat"
+
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
@@ -81,7 +82,7 @@ func NewWatcher(
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
-	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDWormchain, &gossipv1.Heartbeat_Network{})
+	heartbeat.DefaultRegistry.SetNetworkStats(vaa.ChainIDWormchain, &gossipv1.Heartbeat_Network{})
 
 	errC := make(chan error)
 	logger := supervisor.Logger(ctx)
@@ -90,7 +91,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	c, _, err := websocket.DefaultDialer.DialContext(ctx, e.urlWS, nil)
 	if err != nil {
-		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDWormchain, 1)
+		heartbeat.DefaultRegistry.AddErrorCount(vaa.ChainIDWormchain, 1)
 		wormchainConnectionErrors.WithLabelValues("websocket_dial_error").Inc()
 		return fmt.Errorf("websocket dial failed: %w", err)
 	}
@@ -107,7 +108,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	}
 	err = c.WriteJSON(command)
 	if err != nil {
-		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDWormchain, 1)
+		heartbeat.DefaultRegistry.AddErrorCount(vaa.ChainIDWormchain, 1)
 		wormchainConnectionErrors.WithLabelValues("websocket_subscription_error").Inc()
 		return fmt.Errorf("websocket subscription failed: %w", err)
 	}
@@ -115,7 +116,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	// Wait for the success response
 	_, _, err = c.ReadMessage()
 	if err != nil {
-		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDWormchain, 1)
+		heartbeat.DefaultRegistry.AddErrorCount(vaa.ChainIDWormchain, 1)
 		wormchainConnectionErrors.WithLabelValues("event_subscription_error").Inc()
 		return fmt.Errorf("event subscription failed: %w", err)
 	}
@@ -151,7 +152,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			latestBlock := gjson.Get(blockJSON, "block.header.height")
 			logger.Debug("current Wormchain height", zap.Int64("block", latestBlock.Int()))
 			currentWormchainHeight.Set(float64(latestBlock.Int()))
-			p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDWormchain, &gossipv1.Heartbeat_Network{
+			heartbeat.DefaultRegistry.SetNetworkStats(vaa.ChainIDWormchain, &gossipv1.Heartbeat_Network{
 				Height: latestBlock.Int(),
 			})
 		}
@@ -222,7 +223,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			_, message, err := c.ReadMessage()
 
 			if err != nil {
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDWormchain, 1)
+				heartbeat.DefaultRegistry.AddErrorCount(vaa.ChainIDWormchain, 1)
 				wormchainConnectionErrors.WithLabelValues("channel_read_error").Inc()
 				logger.Error("error reading channel", zap.Error(err))
 				errC <- err

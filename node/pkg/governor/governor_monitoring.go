@@ -75,10 +75,13 @@
 package governor
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"fmt"
 	"sort"
 	"time"
+
+	"github.com/certusone/wormhole/node/pkg/p2p"
 
 	"github.com/certusone/wormhole/node/pkg/db"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -396,7 +399,7 @@ var (
 		})
 )
 
-func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat, sendC chan<- []byte, gk *ecdsa.PrivateKey, ourAddr ethCommon.Address) {
+func (gov *ChainGovernor) Heartbeat(hb *gossipv1.Heartbeat, io p2p.GossipSender, gk *ecdsa.PrivateKey, ourAddr ethCommon.Address) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
@@ -451,12 +454,12 @@ func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat, sendC chan<- []
 	metricTotalEnqueuedVAAs.Set(float64(totalPending))
 
 	if startTime.After(gov.nextConfigPublishTime) {
-		gov.publishConfig(hb, sendC, gk, ourAddr)
+		gov.publishConfig(hb, io, gk, ourAddr)
 		gov.nextConfigPublishTime = startTime.Add(time.Minute * time.Duration(5))
 	}
 
 	if startTime.After(gov.nextStatusPublishTime) {
-		gov.publishStatus(hb, sendC, startTime, gk, ourAddr)
+		gov.publishStatus(hb, io, startTime, gk, ourAddr)
 		gov.nextStatusPublishTime = startTime.Add(time.Minute)
 	}
 }
@@ -464,7 +467,7 @@ func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat, sendC chan<- []
 var governorMessagePrefixConfig = []byte("governor_config_000000000000000000|")
 var governorMessagePrefixStatus = []byte("governor_status_000000000000000000|")
 
-func (gov *ChainGovernor) publishConfig(hb *gossipv1.Heartbeat, sendC chan<- []byte, gk *ecdsa.PrivateKey, ourAddr ethCommon.Address) {
+func (gov *ChainGovernor) publishConfig(hb *gossipv1.Heartbeat, io p2p.GossipSender, gk *ecdsa.PrivateKey, ourAddr ethCommon.Address) {
 	chains := make([]*gossipv1.ChainGovernorConfig_Chain, 0)
 	for _, ce := range gov.chains {
 		chains = append(chains, &gossipv1.ChainGovernorConfig_Chain{
@@ -506,22 +509,17 @@ func (gov *ChainGovernor) publishConfig(hb *gossipv1.Heartbeat, sendC chan<- []b
 		panic(err)
 	}
 
-	msg := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedChainGovernorConfig{
+	if err := io.Send(context.Background(), &gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedChainGovernorConfig{
 		SignedChainGovernorConfig: &gossipv1.SignedChainGovernorConfig{
 			Config:       b,
 			Signature:    sig,
 			GuardianAddr: ourAddr.Bytes(),
-		}}}
-
-	b, err = proto.Marshal(&msg)
-	if err != nil {
-		panic(err)
+		}}}); err != nil {
+		gov.logger.Error("cgov: failed to send config message", zap.Error(err))
 	}
-
-	sendC <- b
 }
 
-func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan<- []byte, startTime time.Time, gk *ecdsa.PrivateKey, ourAddr ethCommon.Address) {
+func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, io p2p.GossipSender, startTime time.Time, gk *ecdsa.PrivateKey, ourAddr ethCommon.Address) {
 	chains := make([]*gossipv1.ChainGovernorStatus_Chain, 0)
 	numEnqueued := 0
 	for _, ce := range gov.chains {
@@ -585,17 +583,12 @@ func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan<- []b
 		panic(err)
 	}
 
-	msg := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedChainGovernorStatus{
+	if err := io.Send(context.Background(), &gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedChainGovernorStatus{
 		SignedChainGovernorStatus: &gossipv1.SignedChainGovernorStatus{
 			Status:       b,
 			Signature:    sig,
 			GuardianAddr: ourAddr.Bytes(),
-		}}}
-
-	b, err = proto.Marshal(&msg)
-	if err != nil {
-		panic(err)
+		}}}); err != nil {
+		gov.logger.Error("cgov: failed to send status message", zap.Error(err))
 	}
-
-	sendC <- b
 }

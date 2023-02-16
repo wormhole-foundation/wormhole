@@ -4,7 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/p2p"
+	"github.com/certusone/wormhole/node/pkg/p2p/heartbeat"
+
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -87,7 +88,7 @@ func (e *Watcher) runMetrics(ctx context.Context) error {
 				nearMessagesConfirmed.Inc()
 			case EVENT_NEAR_WATCHER_TOO_FAR_BEHIND:
 				logger.Error("NEAR Watcher fell behind too far", zap.String("log_msg_type", "watcher_behind"))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
+				heartbeat.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
 			case EVENT_NEAR_API_HTTP_ERR:
 				nearRpcErrorCounter.Inc()
 			}

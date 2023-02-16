@@ -17,6 +17,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/p2p"
+
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"golang.org/x/exp/slices"
@@ -43,7 +45,7 @@ type nodePrivilegedService struct {
 	injectC         chan<- common.MessagePublication
 	obsvReqSendC    chan<- *gossipv1.ObservationRequest
 	logger          *zap.Logger
-	signedInC       chan<- *gossipv1.SignedVAAWithQuorum
+	vaaSender       p2p.GossipSender
 	governor        *governor.ChainGovernor
 	evmConnector    connectors.Connector
 	gsCache         sync.Map
@@ -365,8 +367,19 @@ func (s *nodePrivilegedService) fetchMissing(
 			// Inject into the gossip signed VAA receive path.
 			// This has the same effect as if the VAA was received from the network
 			// (verifying signature, publishing to BigTable, storing in local DB...).
-			s.signedInC <- &gossipv1.SignedVAAWithQuorum{
+			err = s.vaaSender.Send(ctx, &gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedVaaWithQuorum{SignedVaaWithQuorum: &gossipv1.SignedVAAWithQuorum{
 				Vaa: vaaBytes,
+			}}})
+			if err != nil {
+				resp.Body.Close()
+				s.logger.Warn("failed to broadcast VAA",
+					zap.String("node", node),
+					zap.String("chain", chain.String()),
+					zap.String("address", addr),
+					zap.Uint64("sequence", seq),
+					zap.Error(err),
+				)
+				continue
 			}
 
 			resp.Body.Close()
@@ -425,7 +438,7 @@ func adminServiceRunnable(
 	logger *zap.Logger,
 	socketPath string,
 	injectC chan<- common.MessagePublication,
-	signedInC chan<- *gossipv1.SignedVAAWithQuorum,
+	vaaIO p2p.GossipSender,
 	obsvReqSendC chan<- *gossipv1.ObservationRequest,
 	db *db.Database,
 	gst *common.GuardianSetState,
@@ -482,7 +495,7 @@ func adminServiceRunnable(
 		injectC:         injectC,
 		obsvReqSendC:    obsvReqSendC,
 		logger:          logger.Named("adminservice"),
-		signedInC:       signedInC,
+		vaaSender:       vaaIO,
 		governor:        gov,
 		gk:              gk,
 		guardianAddress: ethcrypto.PubkeyToAddress(gk.PublicKey),

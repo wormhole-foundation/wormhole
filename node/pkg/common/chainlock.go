@@ -195,6 +195,69 @@ type BatchPublication struct {
 	Components []*SinglePublication
 }
 
+func (b *BatchPublication) MessageID() []byte {
+	return []byte(b.MessageIDString())
+}
+
+func (b *BatchPublication) MessageIDString() string {
+	return fmt.Sprintf("%v/%s/%d", uint16(b.EmitterChain), hex.EncodeToString(b.TxHash[:]), b.Nonce)
+}
+
+func (b *BatchPublication) Marshal() ([]byte, error) {
+	return b.CreateVAA(0).Marshal()
+}
+
+func (b *BatchPublication) MarshalJSON() ([]byte, error) {
+	type Alias BatchPublication
+	return json.Marshal(&struct {
+		Timestamp int64
+		*Alias
+	}{
+		Timestamp: b.Timestamp.Unix(),
+		Alias:     (*Alias)(b),
+	})
+}
+
+func (b *BatchPublication) UnmarshalJSON(data []byte) error {
+	type Alias BatchPublication
+	aux := &struct {
+		Timestamp int64
+		*Alias
+	}{
+		Alias: (*Alias)(b),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	b.Timestamp = time.Unix(aux.Timestamp, 0)
+	return nil
+}
+
+func (b *BatchPublication) CreateVAA(gsIndex uint32) *vaa.BatchVAA {
+	if len(b.Components) > vaa.MaxBatchObservations {
+		panic("too many observations in batch")
+	}
+	observations := make([]*vaa.Observation, len(b.Components))
+	for i, c := range b.Components {
+		observations = append(observations, &vaa.Observation{
+			Index:       uint8(i),
+			Observation: c.CreateVAA(gsIndex),
+		})
+	}
+	return &vaa.BatchVAA{
+		Version:          vaa.BatchVAAVersion,
+		GuardianSetIndex: gsIndex,
+		EmitterChain:     b.EmitterChain,
+		Observations:     observations,
+	}
+}
+
+func (b *BatchPublication) CreateDigest() string {
+	v := b.CreateVAA(0) // The guardian set index is not part of the digest, so we can pass in zero.
+	db := v.SigningMsg()
+	return hex.EncodeToString(db.Bytes())
+}
+
 func (b *BatchPublication) GetTxHash() common.Hash {
 	return b.TxHash
 }
@@ -229,4 +292,11 @@ type MessagePublication interface {
 	// IsUnreliable indicates if this message can be reobserved. If a message is considered unreliable it cannot be
 	// reobserved.
 	IsUnreliable() bool
+
+	MessageID() []byte
+	MessageIDString() string
+	Marshal() ([]byte, error)
+	MarshalJSON() ([]byte, error)
+	UnmarshalJSON(data []byte) error
+	CreateDigest() string
 }

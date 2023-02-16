@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/p2p"
+
 	"github.com/certusone/wormhole/node/pkg/accountant"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
@@ -21,7 +23,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 )
 
 type VAAReactor struct {
@@ -31,10 +32,9 @@ type VAAReactor struct {
 	obsC chan *vaaObservation
 	// obsvReqSendC is a send-only channel of outbound re-observation requests to broadcast on p2p
 	obsvReqSendC chan<- *gossipv1.ObservationRequest
-	// signedInC is a channel of inbound signed VAA observations from p2p
-	signedInC <-chan *gossipv1.SignedVAAWithQuorum
-	// gossipSendC is a channel of outbound messages to broadcast on p2p
-	gossipSendC chan<- []byte
+
+	consensusIO p2p.GossipIO
+	vaaIO       p2p.GossipIO
 
 	attestationEvents *reporter.AttestationEventReporter
 	logger            *zap.Logger
@@ -57,10 +57,9 @@ func NewVAAReactor(
 	db *db.Database,
 	msgC <-chan *common.SinglePublication,
 	setC <-chan *common.GuardianSet,
-	gossipSendC chan<- []byte,
-	obsvC chan *gossipv1.SignedObservation,
 	obsvReqSendC chan<- *gossipv1.ObservationRequest,
-	signedInC <-chan *gossipv1.SignedVAAWithQuorum,
+	consensusIO p2p.GossipIO,
+	vaaIO p2p.GossipIO,
 	gk *ecdsa.PrivateKey,
 	gst *common.GuardianSetState,
 	attestationEvents *reporter.AttestationEventReporter,
@@ -72,10 +71,10 @@ func NewVAAReactor(
 
 	r := &VAAReactor{
 		obsvReqSendC:      obsvReqSendC,
-		signedInC:         signedInC,
+		consensusIO:       consensusIO,
+		vaaIO:             vaaIO,
 		msgC:              msgC,
 		obsC:              obsC,
-		gossipSendC:       gossipSendC,
 		gst:               gst,
 		db:                db,
 		attestationEvents: attestationEvents,
@@ -85,13 +84,12 @@ func NewVAAReactor(
 		pythnetVaas:       map[string]PythNetVaaEntry{},
 	}
 
-	manager := reactor.NewManager[*vaaObservation]("vaa", obsC, obsvC, setC, gst, reactor.Config{
+	manager := reactor.NewManager[*vaaObservation]("vaa", obsC, consensusIO, setC, gst, reactor.Config{
 		RetransmitFrequency: 5 * time.Minute,
 		QuorumGracePeriod:   2 * time.Minute,
 		QuorumTimeout:       24 * time.Hour,
 		UnobservedTimeout:   24 * time.Hour,
 		Signer:              reactor.NewEcdsaKeySigner(gk),
-		NetworkAdapter:      reactor.NewChannelNetworkAdapter(gossipSendC),
 	}, r, r)
 	r.manager = manager
 
@@ -115,6 +113,12 @@ func (p *VAAReactor) Run(ctx context.Context) error {
 	// Always initialize the timer so don't have a nil pointer in the case below. It won't get rearmed after that.
 	govTimer := time.NewTicker(time.Minute)
 	defer govTimer.Stop()
+
+	signedInC := make(chan *gossipv1.GossipMessage_SignedVaaWithQuorum, 10)
+	err = p2p.SubscribeFiltered(ctx, p.vaaIO, signedInC)
+	if err != nil {
+		return err
+	}
 
 	for {
 		select {
@@ -210,8 +214,8 @@ func (p *VAAReactor) Run(ctx context.Context) error {
 					p.logger.Warn("failed to broadcast re-observation request", zap.Error(err))
 				}
 			})
-		case s := <-p.signedInC:
-			p.handleSignedVAA(s)
+		case s := <-signedInC:
+			p.handleSignedVAA(s.SignedVaaWithQuorum)
 		case <-govTimer.C:
 			if p.governor != nil {
 				toBePublished, err := p.governor.CheckPending()
@@ -317,7 +321,11 @@ func (p *VAAReactor) HandleQuorum(observation *vaaObservation, signatures []*vaa
 	v := observation.VAA()
 	v.Signatures = signatures
 
-	p.broadcastSignedVAA(v)
+	timeout, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	if err := p.broadcastSignedVAA(timeout, v); err != nil {
+		p.logger.Warn("failed to broadcast signed VAA", zap.Error(err))
+	}
 	p.attestationEvents.ReportVAAQuorum(v)
 }
 
@@ -415,22 +423,20 @@ func (p *VAAReactor) getSignedVAA(id db.VAAID) (*vaa.VAA, error) {
 	return v, err
 }
 
-func (p *VAAReactor) broadcastSignedVAA(v *vaa.VAA) {
+func (p *VAAReactor) broadcastSignedVAA(ctx context.Context, v *vaa.VAA) error {
 	b, err := v.Marshal()
 	if err != nil {
 		panic(err)
 	}
 
-	w := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedVaaWithQuorum{
+	err = p.vaaIO.Send(ctx, &gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedVaaWithQuorum{
 		SignedVaaWithQuorum: &gossipv1.SignedVAAWithQuorum{Vaa: b},
-	}}
-
-	msg, err := proto.Marshal(&w)
+	}})
 	if err != nil {
-		panic(err)
+		return err
 	}
 
-	p.gossipSendC <- msg
+	return nil
 }
 
 // vaaObservation is used to wrap common.SinglePublication as a reactor.Observation.

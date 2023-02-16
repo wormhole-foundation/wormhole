@@ -8,12 +8,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/p2p/heartbeat"
+
 	"github.com/algorand/go-algorand-sdk/client/v2/algod"
 	"github.com/algorand/go-algorand-sdk/client/v2/indexer"
 	"github.com/algorand/go-algorand-sdk/crypto"
 	"github.com/algorand/go-algorand-sdk/types"
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
@@ -143,7 +144,7 @@ func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.
 
 func (e *Watcher) Run(ctx context.Context) error {
 	// an odd thing to broadcast...
-	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDAlgorand, &gossipv1.Heartbeat_Network{
+	heartbeat.DefaultRegistry.SetNetworkStats(vaa.ChainIDAlgorand, &gossipv1.Heartbeat_Network{
 		ContractAddress: fmt.Sprintf("%d", e.appid),
 	})
 
@@ -158,21 +159,21 @@ func (e *Watcher) Run(ctx context.Context) error {
 	indexerClient, err := indexer.MakeClient(e.indexerRPC, e.indexerToken)
 	if err != nil {
 		logger.Error("indexer make client", zap.Error(err))
-		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
+		heartbeat.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
 		return err
 	}
 
 	algodClient, err := algod.MakeClient(e.algodRPC, e.algodToken)
 	if err != nil {
 		logger.Error("algod client", zap.Error(err))
-		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
+		heartbeat.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
 		return err
 	}
 
 	status, err := algodClient.StatusAfterBlock(0).Do(context.Background())
 	if err != nil {
 		logger.Error("StatusAfterBlock", zap.Error(err))
-		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
+		heartbeat.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
 		return err
 	}
 
@@ -196,7 +197,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			result, err := indexerClient.SearchForTransactions().TXID(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(r.TxHash)).Do(context.Background())
 			if err != nil {
 				logger.Error("SearchForTransactions", zap.Error(err))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
+				heartbeat.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
 				break
 			}
 			for _, t := range result.Transactions {
@@ -205,7 +206,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				block, err := algodClient.Block(r).Do(context.Background())
 				if err != nil {
 					logger.Error("SearchForTransactions", zap.Error(err))
-					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
+					heartbeat.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
 					break
 				}
 
@@ -218,7 +219,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			status, err := algodClient.Status().Do(context.Background())
 			if err != nil {
 				logger.Error(fmt.Sprintf("algodClient.Status: %s", err.Error()))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
+				heartbeat.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
 				continue
 			}
 
@@ -227,7 +228,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					block, err := algodClient.Block(e.next_round).Do(context.Background())
 					if err != nil {
 						logger.Error(fmt.Sprintf("algodClient.Block %d: %s", e.next_round, err.Error()))
-						p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
+						heartbeat.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
 						break
 					}
 
@@ -247,7 +248,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			}
 
 			currentAlgorandHeight.Set(float64(status.LastRound))
-			p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDAlgorand, &gossipv1.Heartbeat_Network{
+			heartbeat.DefaultRegistry.SetNetworkStats(vaa.ChainIDAlgorand, &gossipv1.Heartbeat_Network{
 				Height:          int64(status.LastRound),
 				ContractAddress: fmt.Sprintf("%d", e.appid),
 			})

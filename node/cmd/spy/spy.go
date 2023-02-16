@@ -457,69 +457,8 @@ func runSpy(cmd *cobra.Command, args []string) {
 	rootCtx, rootCtxCancel = context.WithCancel(context.Background())
 	defer rootCtxCancel()
 
-	// Outbound gossip message queue
-	sendC := make(chan []byte)
-
-	// Inbound observations
-	obsvC := make(chan *gossipv1.SignedObservation, 50)
-
-	// Inbound observation requests
-	obsvReqC := make(chan *gossipv1.ObservationRequest, 50)
-
-	// Inbound signed VAAs
-	signedInC := make(chan *gossipv1.SignedVAAWithQuorum, 50)
-
 	// Guardian set state managed by processor
 	gst := common.NewGuardianSetState(nil)
-
-	// RPC server
-	s := newSpyServer(logger)
-	rpcSvc, _, err := spyServerRunnable(s, logger, *spyRPC)
-	if err != nil {
-		logger.Fatal("failed to start RPC server", zap.Error(err))
-	}
-
-	// Ignore observations
-	go func() {
-		for {
-			select {
-			case <-rootCtx.Done():
-				return
-			case <-obsvC:
-			}
-		}
-	}()
-
-	// Ignore observation requests
-	// Note: without this, the whole program hangs on observation requests
-	go func() {
-		for {
-			select {
-			case <-rootCtx.Done():
-				return
-			case <-obsvReqC:
-			}
-		}
-	}()
-
-	// Log signed VAAs
-	go func() {
-		for {
-			select {
-			case <-rootCtx.Done():
-				return
-			case v := <-signedInC:
-				logger.Info("Received signed VAA",
-					zap.Any("vaa", v.Vaa))
-				if err := s.PublishSignedVAA(v.Vaa); err != nil {
-					logger.Error("failed to publish signed VAA", zap.Error(err))
-				}
-				if err := s.HandleGossipVAA(v); err != nil {
-					logger.Error("failed to HandleGossipVAA", zap.Error(err))
-				}
-			}
-		}
-	}()
 
 	// Load p2p private key
 	var priv crypto.PrivKey
@@ -530,11 +469,56 @@ func runSpy(cmd *cobra.Command, args []string) {
 
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
-		if err := supervisor.Run(ctx, "p2p", p2p.Run(obsvC, obsvReqC, nil, sendC, signedInC, priv, nil, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, "", false, rootCtxCancel, nil, nil, nil, nil)); err != nil {
-			return err
-		}
+		if err := supervisor.Run(ctx, "p2p", p2p.Runnable(priv, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, "", func(ctx context.Context, gossip *p2p.Gossip) supervisor.Runnable {
+			return func(ctx context.Context) error {
+				// RPC server
+				s := newSpyServer(logger)
+				rpcSvc, _, err := spyServerRunnable(s, logger, *spyRPC)
+				if err != nil {
+					logger.Fatal("failed to start RPC server", zap.Error(err))
+				}
 
-		if err := supervisor.Run(ctx, "spyrpc", rpcSvc); err != nil {
+				io, err := gossip.Topic("vaa")
+				if err != nil {
+					return err
+				}
+
+				signedInC := make(chan *gossipv1.GossipMessage_SignedVaaWithQuorum, 50)
+				err = p2p.SubscribeFiltered(ctx, io, signedInC)
+				if err != nil {
+					return err
+				}
+
+				// Log signed VAAs
+				go func() {
+					for {
+						select {
+						case <-rootCtx.Done():
+							return
+						case m := <-signedInC:
+							v := m.SignedVaaWithQuorum
+							logger.Info("Received signed VAA",
+								zap.Any("vaa", v.Vaa))
+							if err := s.PublishSignedVAA(v.Vaa); err != nil {
+								logger.Error("failed to publish signed VAA", zap.Error(err))
+							}
+							if err := s.HandleGossipVAA(v); err != nil {
+								logger.Error("failed to HandleGossipVAA", zap.Error(err))
+							}
+						}
+					}
+				}()
+
+				if err := supervisor.Run(ctx, "spyrpc", rpcSvc); err != nil {
+					return err
+				}
+
+				supervisor.Signal(ctx, supervisor.SignalHealthy)
+				supervisor.Signal(ctx, supervisor.SignalDone)
+
+				return nil
+			}
+		})); err != nil {
 			return err
 		}
 

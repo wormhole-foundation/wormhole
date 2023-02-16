@@ -6,8 +6,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/p2p/heartbeat"
+
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
@@ -145,7 +146,7 @@ func (e *Watcher) runBlockPoll(ctx context.Context) error {
 				logger.Warn("NEAR poll error", zap.String("log_msg_type", "block_poll_error"), zap.String("error", err.Error()))
 			}
 
-			p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDNear, &gossipv1.Heartbeat_Network{
+			heartbeat.DefaultRegistry.SetNetworkStats(vaa.ChainIDNear, &gossipv1.Heartbeat_Network{
 				Height:          int64(highestFinalBlockHeightObserved),
 				ContractAddress: e.wormholeAccount,
 			})
@@ -168,7 +169,7 @@ func (e *Watcher) runChunkFetcher(ctx context.Context) error {
 			newJobs, err := e.fetchAndParseChunk(logger, ctx, chunkHeader)
 			if err != nil {
 				logger.Warn("near.processChunk failed", zap.String("log_msg_type", "chunk_processing_failed"), zap.String("error", err.Error()))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
+				heartbeat.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
 				continue
 			}
 			for _, job := range newJobs {
@@ -235,7 +236,7 @@ func (e *Watcher) runTxProcessor(ctx context.Context) error {
 						zap.String("tx_hash", job.txHash),
 						zap.String("error", err.Error()),
 					)
-					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
+					heartbeat.DefaultRegistry.AddErrorCount(vaa.ChainIDNear, 1)
 				}
 			}
 
@@ -256,7 +257,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	e.nearAPI = nearapi.NewNearApiImpl(nearapi.NewHttpNearRpc(e.nearRPC))
 	e.finalizer = newFinalizer(e.eventChan, e.nearAPI, e.mainnet)
 
-	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDNear, &gossipv1.Heartbeat_Network{
+	heartbeat.DefaultRegistry.SetNetworkStats(vaa.ChainIDNear, &gossipv1.Heartbeat_Network{
 		ContractAddress: e.wormholeAccount,
 	})
 
