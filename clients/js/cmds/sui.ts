@@ -216,10 +216,10 @@ exports.builder = function (y: typeof yargs) {
           [],
           [
             deployer,
-            chainId,
             governanceChainId,
             [...Buffer.from(governanceContract, "hex")],
             [[...Buffer.from(initialGuardian, "hex")]],
+            "0" //message fee
           ]
         );
       }
