@@ -1,5 +1,4 @@
 import { CONTRACTS as SDK_CONTRACTS } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
-import { ethers } from "ethers";
 
 const OVERRIDES = {
   MAINNET: {
@@ -37,10 +36,23 @@ export const CONTRACTS = {
   DEVNET: { ...SDK_CONTRACTS.DEVNET, ...OVERRIDES.DEVNET },
 };
 
-export function evm_address(x: string): string {
-  return hex(x).substring(2).padStart(64, "0");
-}
+export const NAMED_ADDRESSES_OPTIONS = {
+  describe: "Named addresses in the format addr1=0x0,addr2=0x1,...",
+  type: "string",
+  require: false,
+} as const;
 
-export function hex(x: string): string {
-  return ethers.utils.hexlify(x, { allowMissingPrefix: true });
-}
+export const NETWORK_OPTIONS = {
+  alias: "n",
+  describe: "network",
+  type: "string",
+  choices: ["mainnet", "testnet", "devnet"],
+  required: true,
+} as const;
+
+export const RPC_OPTIONS = {
+  alias: "r",
+  describe: "Override default rpc endpoint url",
+  type: "string",
+  required: false,
+} as const;
