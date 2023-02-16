@@ -15,14 +15,15 @@ import (
 )
 
 type Telemetry struct {
-	encoder            *encoder
+	encoder            *guardianTelemetryEncoder
 	serviceAccountJSON []byte
 }
 
-type encoder struct {
-	zapcore.Encoder
-	logger *logging.Logger
-	labels map[string]string
+// guardianTelemetryEncoder is a wrapper around zapcore.jsonEncoder that logs to google cloud logging
+type guardianTelemetryEncoder struct {
+	zapcore.Encoder                   // zapcore.jsonEncoder
+	logger          *logging.Logger   // Google Cloud logger
+	labels          map[string]string // labels to add to each cloud log
 }
 
 // Mirrors the conversion done by zapdriver. We need to convert this
@@ -38,7 +39,7 @@ var logLevelSeverity = map[zapcore.Level]logging.Severity{
 	zapcore.FatalLevel:  logging.Emergency,
 }
 
-func (enc *encoder) EncodeEntry(entry zapcore.Entry, fields []zapcore.Field) (*buffer.Buffer, error) {
+func (enc *guardianTelemetryEncoder) EncodeEntry(entry zapcore.Entry, fields []zapcore.Field) (*buffer.Buffer, error) {
 	buf, err := enc.Encoder.EncodeEntry(entry, fields)
 	if err != nil {
 		return nil, err
@@ -62,6 +63,13 @@ func (enc *encoder) EncodeEntry(entry zapcore.Entry, fields []zapcore.Field) (*b
 	return buf, nil
 }
 
+func (enc *guardianTelemetryEncoder) Clone() zapcore.Encoder {
+	return &guardianTelemetryEncoder{
+		Encoder: enc.Encoder.Clone(),
+		labels:  enc.labels,
+	}
+}
+
 func New(ctx context.Context, project string, serviceAccountJSON []byte, labels map[string]string) (*Telemetry, error) {
 	gc, err := logging.NewClient(ctx, project, option.WithCredentialsJSON(serviceAccountJSON))
 	if err != nil {
@@ -74,7 +82,7 @@ func New(ctx context.Context, project string, serviceAccountJSON []byte, labels 
 
 	return &Telemetry{
 		serviceAccountJSON: serviceAccountJSON,
-		encoder: &encoder{
+		encoder: &guardianTelemetryEncoder{
 			Encoder: zapcore.NewJSONEncoder(zapdriver.NewProductionEncoderConfig()),
 			logger:  gc.Logger("wormhole"),
 			labels:  labels,
