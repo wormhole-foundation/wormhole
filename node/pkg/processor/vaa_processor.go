@@ -114,8 +114,8 @@ func (p *VAAReactor) Run(ctx context.Context) error {
 	govTimer := time.NewTicker(time.Minute)
 	defer govTimer.Stop()
 
-	signedInC := make(chan *gossipv1.GossipMessage_SignedVaaWithQuorum, 10)
-	err = p2p.SubscribeFiltered(ctx, p.vaaIO, signedInC)
+	signedInProducer, signedInConsumer := p2p.MeteredBufferedChannelPair[*gossipv1.GossipMessage_SignedVaaWithQuorum](ctx, 50, "vaa_processor_signed_in")
+	err = p2p.SubscribeFiltered(ctx, p.vaaIO, signedInProducer)
 	if err != nil {
 		return err
 	}
@@ -214,7 +214,7 @@ func (p *VAAReactor) Run(ctx context.Context) error {
 					p.logger.Warn("failed to broadcast re-observation request", zap.Error(err))
 				}
 			})
-		case s := <-signedInC:
+		case s := <-signedInConsumer:
 			p.handleSignedVAA(s.SignedVaaWithQuorum)
 		case <-govTimer.C:
 			if p.governor != nil {
