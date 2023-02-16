@@ -116,7 +116,7 @@ exports.builder = function (y: typeof yargs) {
         const wormState = argv["worm-state"];
         const deployer = findDeployerCapability(
           packageId,
-          "bridge_state",
+          "state",
           objects
         );
 
@@ -130,7 +130,7 @@ exports.builder = function (y: typeof yargs) {
           network,
           rpc,
           String(packageId),
-          "bridge_state",
+          "state",
           "init_and_share_state",
           [],
           [deployer, wormState]
@@ -216,10 +216,10 @@ exports.builder = function (y: typeof yargs) {
           [],
           [
             deployer,
-            chainId,
             governanceChainId,
             [...Buffer.from(governanceContract, "hex")],
             [[...Buffer.from(initialGuardian, "hex")]],
+            "0" //message fee
           ]
         );
       }
