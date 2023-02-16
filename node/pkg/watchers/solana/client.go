@@ -36,7 +36,7 @@ type (
 		rpcUrl      string
 		wsUrl       *string
 		commitment  rpc.CommitmentType
-		msgC        chan<- *common.MessagePublication
+		msgC        chan<- common.MessagePublication
 		obsvReqC    <-chan *gossipv1.ObservationRequest
 		errC        chan error
 		pumpData    chan []byte
@@ -178,7 +178,7 @@ func NewSolanaWatcher(
 	wsUrl *string,
 	contractAddress solana.PublicKey,
 	rawContract string,
-	msgC chan<- *common.MessagePublication,
+	msgC chan<- common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
 	commitment rpc.CommitmentType,
 	readiness readiness.Component,
@@ -798,7 +798,7 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 		panic("invalid prefix")
 	}
 
-	observation := &common.MessagePublication{
+	observation := &common.SinglePublication{
 		TxHash:           txHash,
 		Timestamp:        time.Unix(int64(proposal.SubmissionTime), 0),
 		Nonce:            proposal.Nonce,

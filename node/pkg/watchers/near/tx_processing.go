@@ -232,7 +232,7 @@ func (e *Watcher) processWormholeLog(logger *zap.Logger, ctx context.Context, jo
 	// SECURITY the timestamp of an observation is the timestamp of the block in which the wormhole core receipt has been finalized.
 	ts := outcomeBlockHeader.Timestamp
 
-	observation := &common.MessagePublication{
+	observation := &common.SinglePublication{
 		TxHash:           txHashEthFormat,
 		Timestamp:        time.Unix(int64(ts), 0),
 		Nonce:            pubEvent.Nonce,

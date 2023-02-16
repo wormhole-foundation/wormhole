@@ -50,7 +50,7 @@ func TestSerializeAndDeserializeOfMessagePublication(t *testing.T) {
 
 	payloadBytes1 := encodePayloadBytes(payload1)
 
-	msg1 := &MessagePublication{
+	msg1 := &SinglePublication{
 		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654516425), 0),
 		Nonce:            123456,
@@ -95,7 +95,7 @@ func TestMarshalUnmarshalJSONOfMessagePublication(t *testing.T) {
 
 	payloadBytes1 := encodePayloadBytes(payload1)
 
-	msg1 := &MessagePublication{
+	msg1 := &SinglePublication{
 		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654516425), 0),
 		Nonce:            123456,
@@ -109,7 +109,7 @@ func TestMarshalUnmarshalJSONOfMessagePublication(t *testing.T) {
 	bytes, err := msg1.MarshalJSON()
 	require.NoError(t, err)
 
-	var msg2 MessagePublication
+	var msg2 SinglePublication
 	err = msg2.UnmarshalJSON(bytes)
 	require.NoError(t, err)
 	assert.Equal(t, *msg1, msg2)
@@ -126,25 +126,25 @@ func TestMessageIDString(t *testing.T) {
 
 	type test struct {
 		label  string
-		input  MessagePublication
+		input  SinglePublication
 		output string
 	}
 
 	tests := []test{
 		{label: "simple",
-			input:  MessagePublication{Sequence: 1, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: addr},
+			input:  SinglePublication{Sequence: 1, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: addr},
 			output: "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/1"},
 		{label: "missing sequence",
-			input:  MessagePublication{EmitterChain: vaa.ChainIDEthereum, EmitterAddress: addr},
+			input:  SinglePublication{EmitterChain: vaa.ChainIDEthereum, EmitterAddress: addr},
 			output: "2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0"},
 		{label: "missing chain id",
-			input:  MessagePublication{Sequence: 1, EmitterAddress: addr},
+			input:  SinglePublication{Sequence: 1, EmitterAddress: addr},
 			output: "0/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/1"},
 		{label: "missing emitter address",
-			input:  MessagePublication{Sequence: 1, EmitterChain: vaa.ChainIDEthereum},
+			input:  SinglePublication{Sequence: 1, EmitterChain: vaa.ChainIDEthereum},
 			output: "2/0000000000000000000000000000000000000000000000000000000000000000/1"},
 		{label: "empty message",
-			input:  MessagePublication{},
+			input:  SinglePublication{},
 			output: "0/0000000000000000000000000000000000000000000000000000000000000000/0"},
 	}
 
@@ -161,25 +161,25 @@ func TestMessageID(t *testing.T) {
 
 	type test struct {
 		label  string
-		input  MessagePublication
+		input  SinglePublication
 		output []byte
 	}
 
 	tests := []test{
 		{label: "simple",
-			input:  MessagePublication{Sequence: 1, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: addr},
+			input:  SinglePublication{Sequence: 1, EmitterChain: vaa.ChainIDEthereum, EmitterAddress: addr},
 			output: []byte("2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/1")},
 		{label: "missing sequence",
-			input:  MessagePublication{EmitterChain: vaa.ChainIDEthereum, EmitterAddress: addr},
+			input:  SinglePublication{EmitterChain: vaa.ChainIDEthereum, EmitterAddress: addr},
 			output: []byte("2/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/0")},
 		{label: "missing chain id",
-			input:  MessagePublication{Sequence: 1, EmitterAddress: addr},
+			input:  SinglePublication{Sequence: 1, EmitterAddress: addr},
 			output: []byte("0/0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16/1")},
 		{label: "missing emitter address",
-			input:  MessagePublication{Sequence: 1, EmitterChain: vaa.ChainIDEthereum},
+			input:  SinglePublication{Sequence: 1, EmitterChain: vaa.ChainIDEthereum},
 			output: []byte("2/0000000000000000000000000000000000000000000000000000000000000000/1")},
 		{label: "empty message",
-			input:  MessagePublication{},
+			input:  SinglePublication{},
 			output: []byte("0/0000000000000000000000000000000000000000000000000000000000000000/0")},
 	}
 

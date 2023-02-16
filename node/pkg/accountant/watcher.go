@@ -164,7 +164,7 @@ func (acct *Accountant) processPendingTransfer(xfer *WasmObservation) {
 		zap.String("payload", hex.EncodeToString(xfer.Payload)),
 	)
 
-	msg := &common.MessagePublication{
+	msg := &common.SinglePublication{
 		TxHash:           ethCommon.BytesToHash(xfer.TxHash),
 		Timestamp:        time.Unix(int64(xfer.Timestamp), 0),
 		Nonce:            xfer.Nonce,

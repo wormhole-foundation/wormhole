@@ -31,7 +31,7 @@ func newAccountantForTest(
 	ctx context.Context,
 	accountantCheckEnabled bool,
 	obsvReqWriteC chan<- *gossipv1.ObservationRequest,
-	acctWriteC chan<- *common.MessagePublication,
+	acctWriteC chan<- *common.SinglePublication,
 ) *Accountant {
 	logger := zap.NewNop()
 	var db db.MockAccountantDB
@@ -104,14 +104,14 @@ func buildMockTransferPayloadBytes(
 func TestVaaFromUninterestingEmitter(t *testing.T) {
 	ctx := context.Background()
 	obsvReqWriteC := make(chan *gossipv1.ObservationRequest, 10)
-	acctChan := make(chan *common.MessagePublication, 10)
+	acctChan := make(chan *common.SinglePublication, 10)
 	acct := newAccountantForTest(t, ctx, enforceAccountant, obsvReqWriteC, acctChan)
 	require.NotNil(t, acct)
 
 	emitterAddr, _ := vaa.StringToAddress("0x00")
 	var payload = []byte{1, 97, 97, 97, 97, 97}
 
-	msg := common.MessagePublication{
+	msg := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -131,14 +131,14 @@ func TestVaaFromUninterestingEmitter(t *testing.T) {
 func TestVaaForUninterestingPayloadType(t *testing.T) {
 	ctx := context.Background()
 	obsvReqWriteC := make(chan *gossipv1.ObservationRequest, 10)
-	acctChan := make(chan *common.MessagePublication, 10)
+	acctChan := make(chan *common.SinglePublication, 10)
 	acct := newAccountantForTest(t, ctx, enforceAccountant, obsvReqWriteC, acctChan)
 	require.NotNil(t, acct)
 
 	emitterAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 	var payload = []byte{2, 97, 97, 97, 97, 97}
 
-	msg := common.MessagePublication{
+	msg := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -158,7 +158,7 @@ func TestVaaForUninterestingPayloadType(t *testing.T) {
 func TestInterestingTransferShouldNotBeBlockedWhenNotEnforcingAccountant(t *testing.T) {
 	ctx := context.Background()
 	obsvReqWriteC := make(chan *gossipv1.ObservationRequest, 10)
-	acctChan := make(chan *common.MessagePublication, 10)
+	acctChan := make(chan *common.SinglePublication, 10)
 	acct := newAccountantForTest(t, ctx, dontEnforceAccountant, obsvReqWriteC, acctChan)
 	require.NotNil(t, acct)
 
@@ -172,7 +172,7 @@ func TestInterestingTransferShouldNotBeBlockedWhenNotEnforcingAccountant(t *test
 		1.25,
 	)
 
-	msg := common.MessagePublication{
+	msg := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -201,7 +201,7 @@ func TestInterestingTransferShouldNotBeBlockedWhenNotEnforcingAccountant(t *test
 func TestInterestingTransferShouldBeBlockedWhenEnforcingAccountant(t *testing.T) {
 	ctx := context.Background()
 	obsvReqWriteC := make(chan *gossipv1.ObservationRequest, 10)
-	acctChan := make(chan *common.MessagePublication, 10)
+	acctChan := make(chan *common.SinglePublication, 10)
 	acct := newAccountantForTest(t, ctx, enforceAccountant, obsvReqWriteC, acctChan)
 	require.NotNil(t, acct)
 
@@ -215,7 +215,7 @@ func TestInterestingTransferShouldBeBlockedWhenEnforcingAccountant(t *testing.T)
 		1.25,
 	)
 
-	msg := common.MessagePublication{
+	msg := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),

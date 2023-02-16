@@ -26,7 +26,7 @@ import (
 
 type VAAReactor struct {
 	// msgC is a channel of observed emitted messages
-	msgC <-chan *common.MessagePublication
+	msgC <-chan *common.SinglePublication
 	// obsC is a channel of VAAs used to forward to the reactor manager
 	obsC chan *vaaObservation
 	// obsvReqSendC is a send-only channel of outbound re-observation requests to broadcast on p2p
@@ -48,14 +48,14 @@ type VAAReactor struct {
 
 	governor        *governor.ChainGovernor
 	acct            *accountant.Accountant
-	acctReadC       <-chan *common.MessagePublication
+	acctReadC       <-chan *common.SinglePublication
 	pythnetVaas     map[string]PythNetVaaEntry
 	pythnetVAAsLock sync.Mutex
 }
 
 func NewVAAReactor(
 	db *db.Database,
-	msgC <-chan *common.MessagePublication,
+	msgC <-chan *common.SinglePublication,
 	setC <-chan *common.GuardianSet,
 	gossipSendC chan<- []byte,
 	obsvC chan *gossipv1.SignedObservation,
@@ -66,7 +66,7 @@ func NewVAAReactor(
 	attestationEvents *reporter.AttestationEventReporter,
 	g *governor.ChainGovernor,
 	acct *accountant.Accountant,
-	acctReadC <-chan *common.MessagePublication,
+	acctReadC <-chan *common.SinglePublication,
 ) *VAAReactor {
 	obsC := make(chan *vaaObservation, 10)
 
@@ -165,8 +165,8 @@ func (p *VAAReactor) Run(ctx context.Context) error {
 				InitiatingTxID: k.TxHash,
 			})
 			p.obsC <- &vaaObservation{
-				MessagePublication: k,
-				gsIndex:            gs.Index,
+				SinglePublication: k,
+				gsIndex:           gs.Index,
 			}
 		case k := <-p.acctReadC:
 			if p.acct == nil {
@@ -178,8 +178,8 @@ func (p *VAAReactor) Run(ctx context.Context) error {
 				continue
 			}
 			p.obsC <- &vaaObservation{
-				MessagePublication: k,
-				gsIndex:            gs.Index,
+				SinglePublication: k,
+				gsIndex:           gs.Index,
 			}
 		case <-cleanup.C:
 			// Clean up old pythnet VAAs.
@@ -241,8 +241,8 @@ func (p *VAAReactor) Run(ctx context.Context) error {
 							continue
 						}
 						p.obsC <- &vaaObservation{
-							MessagePublication: k,
-							gsIndex:            gs.Index,
+							SinglePublication: k,
+							gsIndex:           gs.Index,
 						}
 					}
 				}
@@ -358,7 +358,7 @@ func (p *VAAReactor) GetSignedObservation(id string) (observation *vaaObservatio
 	// This is lossy and loses the txHash and reliability status. This is not an issue at this point because the
 	// data is only used to persist completed VAAs.
 	return &vaaObservation{
-		MessagePublication: &common.MessagePublication{
+		SinglePublication: &common.SinglePublication{
 			TxHash:           ethcommon.Hash{},
 			Timestamp:        v.Timestamp,
 			Nonce:            v.Nonce,
@@ -433,14 +433,14 @@ func (p *VAAReactor) broadcastSignedVAA(v *vaa.VAA) {
 	p.gossipSendC <- msg
 }
 
-// vaaObservation is used to wrap common.MessagePublication as a reactor.Observation.
+// vaaObservation is used to wrap common.SinglePublication as a reactor.Observation.
 type vaaObservation struct {
-	*common.MessagePublication
+	*common.SinglePublication
 	gsIndex uint32
 }
 
 func (v *vaaObservation) MessageID() string {
-	return v.MessagePublication.MessageIDString()
+	return v.SinglePublication.MessageIDString()
 }
 
 func (v *vaaObservation) SigningMsg() ethcommon.Hash {

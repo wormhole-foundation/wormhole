@@ -47,7 +47,7 @@ func (acct *Accountant) handleBatch(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, delayInMS)
 	defer cancel()
 
-	msgs, err := readFromChannel[*common.MessagePublication](ctx, acct.subChan, batchSize)
+	msgs, err := readFromChannel[*common.SinglePublication](ctx, acct.subChan, batchSize)
 	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
 		return fmt.Errorf("failed to read messages from `acct.subChan`: %w", err)
 	}
@@ -92,11 +92,11 @@ func readFromChannel[T any](ctx context.Context, ch <-chan T, count int) ([]T, e
 
 // removeCompleted drops any messages that are no longer in the pending transfer map. This is to handle the case where the contract reports
 // that a transfer is committed while it is in the channel. There is no point in submitting the observation once the transfer is committed.
-func (acct *Accountant) removeCompleted(msgs []*common.MessagePublication) []*common.MessagePublication {
+func (acct *Accountant) removeCompleted(msgs []*common.SinglePublication) []*common.SinglePublication {
 	acct.pendingTransfersLock.Lock()
 	defer acct.pendingTransfersLock.Unlock()
 
-	out := make([]*common.MessagePublication, 0, len(msgs))
+	out := make([]*common.SinglePublication, 0, len(msgs))
 	for _, msg := range msgs {
 		if _, exists := acct.pendingTransfers[msg.MessageIDString()]; exists {
 			out = append(out, msg)
@@ -193,7 +193,7 @@ func (sb SignatureBytes) MarshalJSON() ([]byte, error) {
 
 // submitObservationsToContract makes a call to the smart contract to submit a batch of observation requests.
 // It should be called from a go routine because it can block.
-func (acct *Accountant) submitObservationsToContract(msgs []*common.MessagePublication, gsIndex uint32, guardianIndex uint32) {
+func (acct *Accountant) submitObservationsToContract(msgs []*common.SinglePublication, gsIndex uint32, guardianIndex uint32) {
 	txResp, err := SubmitObservationsToContract(acct.ctx, acct.logger, acct.gk, gsIndex, guardianIndex, acct.wormchainConn, acct.contract, msgs)
 	if err != nil {
 		// This means the whole batch failed. They will all get retried the next audit cycle.
@@ -298,7 +298,7 @@ func SubmitObservationsToContract(
 	guardianIndex uint32,
 	wormchainConn *wormconn.ClientConn,
 	contract string,
-	msgs []*common.MessagePublication,
+	msgs []*common.SinglePublication,
 ) (*sdktx.BroadcastTxResponse, error) {
 	obs := make([]Observation, len(msgs))
 	for idx, msg := range msgs {

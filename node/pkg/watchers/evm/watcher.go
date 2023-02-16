@@ -77,7 +77,7 @@ type (
 		chainID vaa.ChainID
 
 		// Channel to send new messages to.
-		msgC chan<- *common.MessagePublication
+		msgC chan<- common.MessagePublication
 
 		// Channel to send guardian set changes to.
 		// setC can be set to nil if no guardian set changes are needed.
@@ -130,7 +130,7 @@ type (
 	}
 
 	pendingMessage struct {
-		message *common.MessagePublication
+		message *common.SinglePublication
 		height  uint64
 	}
 )
@@ -141,7 +141,7 @@ func NewEthWatcher(
 	networkName string,
 	readiness readiness.Component,
 	chainID vaa.ChainID,
-	msgC chan<- *common.MessagePublication,
+	msgC chan<- common.MessagePublication,
 	setC chan<- *common.GuardianSet,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
 	unsafeDevMode bool,
@@ -520,7 +520,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 					return nil
 				}
 
-				message := &common.MessagePublication{
+				message := &common.SinglePublication{
 					TxHash:           ev.Raw.TxHash,
 					Timestamp:        time.Unix(int64(blockTime), 0),
 					Nonce:            ev.Nonce,

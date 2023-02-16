@@ -115,8 +115,8 @@ func getSequencesForTxhash(txhash string, fcd string, contractAddressLogKey stri
 }
 
 // This was stolen from pkg/cosmwasm/watcher.go
-func EventsToMessagePublications(contract string, txHash string, events []gjson.Result, chainID vaa.ChainID, contractAddressLogKey string) []*common.MessagePublication {
-	msgs := make([]*common.MessagePublication, 0, len(events))
+func EventsToMessagePublications(contract string, txHash string, events []gjson.Result, chainID vaa.ChainID, contractAddressLogKey string) []*common.SinglePublication {
+	msgs := make([]*common.SinglePublication, 0, len(events))
 	for _, event := range events {
 		if !event.IsObject() {
 			log.Println("event is invalid", zap.String("tx_hash", txHash), zap.String("event", event.String()))
@@ -235,7 +235,7 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 			log.Println("sequence cannot be parsed as int", zap.String("tx_hash", txHash), zap.String("value", blockTime))
 			continue
 		}
-		messagePublication := &common.MessagePublication{
+		messagePublication := &common.SinglePublication{
 			TxHash:           txHashValue,
 			Timestamp:        time.Unix(blockTimeInt, 0),
 			Nonce:            uint32(nonceInt),

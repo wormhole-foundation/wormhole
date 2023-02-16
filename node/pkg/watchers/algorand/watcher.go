@@ -33,7 +33,7 @@ type (
 		algodToken   string
 		appid        uint64
 
-		msgC     chan<- *common.MessagePublication
+		msgC     chan<- common.MessagePublication
 		obsvReqC <-chan *gossipv1.ObservationRequest
 
 		next_round uint64
@@ -60,7 +60,7 @@ func NewWatcher(
 	algodRPC string,
 	algodToken string,
 	appid uint64,
-	msgC chan<- *common.MessagePublication,
+	msgC chan<- common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
 ) *Watcher {
 	return &Watcher{
@@ -114,7 +114,7 @@ func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.
 
 		var txHash = eth_common.BytesToHash(id) // 32 bytes = d3b136a6a182a40554b2fafbc8d12a7a22737c10c81e33b33d1dcb74c532708b
 
-		observation := &common.MessagePublication{
+		observation := &common.SinglePublication{
 			TxHash:           txHash,
 			Timestamp:        time.Unix(int64(b.TimeStamp), 0),
 			Nonce:            uint32(binary.BigEndian.Uint64(at.ApplicationArgs[2])),

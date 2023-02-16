@@ -20,13 +20,13 @@ var (
 )
 
 // MessageEventsForTransaction returns the lockup events for a given transaction.
-// Returns the block number and a list of MessagePublication events.
+// Returns the block number and a list of SinglePublication events.
 func MessageEventsForTransaction(
 	ctx context.Context,
 	ethConn connectors.Connector,
 	contract eth_common.Address,
 	chainId vaa.ChainID,
-	tx eth_common.Hash) (uint64, []*common.MessagePublication, error) {
+	tx eth_common.Hash) (uint64, []*common.SinglePublication, error) {
 
 	// Get transactions logs from transaction
 	receipt, err := ethConn.TransactionReceipt(ctx, tx)
@@ -52,7 +52,7 @@ func MessageEventsForTransaction(
 		return 0, nil, fmt.Errorf("failed to get block time: %w", err)
 	}
 
-	msgs := make([]*common.MessagePublication, 0, len(receipt.Logs))
+	msgs := make([]*common.SinglePublication, 0, len(receipt.Logs))
 
 	// Extract logs
 	for _, l := range receipt.Logs {
@@ -74,7 +74,7 @@ func MessageEventsForTransaction(
 			return 0, nil, fmt.Errorf("failed to parse log: %w", err)
 		}
 
-		message := &common.MessagePublication{
+		message := &common.SinglePublication{
 			TxHash:           ev.Raw.TxHash,
 			Timestamp:        time.Unix(int64(blockTime), 0),
 			Nonce:            ev.Nonce,

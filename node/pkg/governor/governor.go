@@ -124,7 +124,7 @@ type ChainGovernor struct {
 	tokensByCoinGeckoId   map[string][]*tokenEntry
 	chains                map[vaa.ChainID]*chainEntry
 	msgsSeen              map[string]bool // Key is hash, payload is consts transferComplete and transferEnqueued.
-	msgsToPublish         []*common.MessagePublication
+	msgsToPublish         []*common.SinglePublication
 	dayLengthInMinutes    int
 	coinGeckoQuery        string
 	env                   int
@@ -279,7 +279,7 @@ func (gov *ChainGovernor) initConfig() error {
 }
 
 // Returns true if the message can be published, false if it has been added to the pending list.
-func (gov *ChainGovernor) ProcessMsg(msg *common.MessagePublication) bool {
+func (gov *ChainGovernor) ProcessMsg(msg *common.SinglePublication) bool {
 	publish, err := gov.ProcessMsgForTime(msg, time.Now())
 	if err != nil {
 		gov.logger.Error("cgov: failed to process VAA: %v", zap.Error(err))
@@ -289,7 +289,7 @@ func (gov *ChainGovernor) ProcessMsg(msg *common.MessagePublication) bool {
 	return publish
 }
 
-func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now time.Time) (bool, error) {
+func (gov *ChainGovernor) ProcessMsgForTime(msg *common.SinglePublication, now time.Time) (bool, error) {
 	if msg == nil {
 		return false, fmt.Errorf("msg is nil")
 	}
@@ -442,7 +442,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 }
 
 // IsGovernedMsg determines if the message applies to the governor. It grabs the lock.
-func (gov *ChainGovernor) IsGovernedMsg(msg *common.MessagePublication) (msgIsGoverned bool, err error) {
+func (gov *ChainGovernor) IsGovernedMsg(msg *common.SinglePublication) (msgIsGoverned bool, err error) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 	msgIsGoverned, _, _, _, err = gov.parseMsgAlreadyLocked(msg)
@@ -450,7 +450,7 @@ func (gov *ChainGovernor) IsGovernedMsg(msg *common.MessagePublication) (msgIsGo
 }
 
 // parseMsgAlreadyLocked determines if the message applies to the governor and also returns data useful to the governor. It assumes the caller holds the lock.
-func (gov *ChainGovernor) parseMsgAlreadyLocked(msg *common.MessagePublication) (bool, *chainEntry, *tokenEntry, *vaa.TransferPayloadHdr, error) {
+func (gov *ChainGovernor) parseMsgAlreadyLocked(msg *common.SinglePublication) (bool, *chainEntry, *tokenEntry, *vaa.TransferPayloadHdr, error) {
 	// If we don't care about this chain, the VAA can be published.
 	ce, exists := gov.chains[msg.EmitterChain]
 	if !exists {
@@ -489,18 +489,18 @@ func (gov *ChainGovernor) parseMsgAlreadyLocked(msg *common.MessagePublication) 
 	return true, ce, token, payload, nil
 }
 
-func (gov *ChainGovernor) CheckPending() ([]*common.MessagePublication, error) {
+func (gov *ChainGovernor) CheckPending() ([]*common.SinglePublication, error) {
 	return gov.CheckPendingForTime(time.Now())
 }
 
-func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.MessagePublication, error) {
+func (gov *ChainGovernor) CheckPendingForTime(now time.Time) ([]*common.SinglePublication, error) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
 	// Note: Using Add() with a negative value because Sub() takes a time and returns a duration, which is not what we want.
 	startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
 
-	var msgsToPublish []*common.MessagePublication
+	var msgsToPublish []*common.SinglePublication
 	if len(gov.msgsToPublish) != 0 {
 		gov.logger.Info("cgov: posting released vaas", zap.Int("num", len(gov.msgsToPublish)))
 		msgsToPublish = gov.msgsToPublish
@@ -678,7 +678,7 @@ func (tk tokenKey) String() string {
 	return tk.chain.String() + ":" + tk.addr.String()
 }
 
-func (gov *ChainGovernor) HashFromMsg(msg *common.MessagePublication) string {
+func (gov *ChainGovernor) HashFromMsg(msg *common.SinglePublication) string {
 	v := msg.CreateVAA(0) // We can pass zero in as the guardian set index because it is not part of the digest.
 	digest := v.SigningMsg()
 	return hex.EncodeToString(digest.Bytes())

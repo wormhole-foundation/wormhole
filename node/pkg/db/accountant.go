@@ -11,15 +11,15 @@ import (
 )
 
 type AccountantDB interface {
-	AcctStorePendingTransfer(msg *common.MessagePublication) error
+	AcctStorePendingTransfer(msg *common.SinglePublication) error
 	AcctDeletePendingTransfer(msgId string) error
-	AcctGetData(logger *zap.Logger) ([]*common.MessagePublication, error)
+	AcctGetData(logger *zap.Logger) ([]*common.SinglePublication, error)
 }
 
 type MockAccountantDB struct {
 }
 
-func (d *MockAccountantDB) AcctStorePendingTransfer(msg *common.MessagePublication) error {
+func (d *MockAccountantDB) AcctStorePendingTransfer(msg *common.SinglePublication) error {
 	return nil
 }
 
@@ -27,7 +27,7 @@ func (d *MockAccountantDB) AcctDeletePendingTransfer(msgId string) error {
 	return nil
 }
 
-func (d *MockAccountantDB) AcctGetData(logger *zap.Logger) ([]*common.MessagePublication, error) {
+func (d *MockAccountantDB) AcctGetData(logger *zap.Logger) ([]*common.SinglePublication, error) {
 	return nil, nil
 }
 
@@ -45,8 +45,8 @@ func acctIsPendingTransfer(keyBytes []byte) bool {
 }
 
 // This is called by the accountant on start up to reload pending transfers.
-func (d *Database) AcctGetData(logger *zap.Logger) ([]*common.MessagePublication, error) {
-	pendingTransfers := []*common.MessagePublication{}
+func (d *Database) AcctGetData(logger *zap.Logger) ([]*common.SinglePublication, error) {
+	pendingTransfers := []*common.SinglePublication{}
 	prefixBytes := []byte(acctPendingTransfer)
 	err := d.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
@@ -62,7 +62,7 @@ func (d *Database) AcctGetData(logger *zap.Logger) ([]*common.MessagePublication
 			}
 
 			if acctIsPendingTransfer(key) {
-				var pt common.MessagePublication
+				var pt common.SinglePublication
 				err := json.Unmarshal(val, &pt)
 				if err != nil {
 					logger.Error("acct: failed to unmarshal pending transfer for key", zap.String("key", string(key[:])), zap.Error(err))
@@ -81,7 +81,7 @@ func (d *Database) AcctGetData(logger *zap.Logger) ([]*common.MessagePublication
 	return pendingTransfers, err
 }
 
-func (d *Database) AcctStorePendingTransfer(msg *common.MessagePublication) error {
+func (d *Database) AcctStorePendingTransfer(msg *common.SinglePublication) error {
 	b, _ := json.Marshal(msg)
 
 	err := d.db.Update(func(txn *badger.Txn) error {

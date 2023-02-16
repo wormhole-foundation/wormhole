@@ -191,7 +191,7 @@ func unmarshalOldTransfer(data []byte) (*Transfer, error) {
 
 type PendingTransfer struct {
 	ReleaseTime time.Time
-	Msg         common.MessagePublication
+	Msg         common.SinglePublication
 }
 
 func (p *PendingTransfer) Marshal() ([]byte, error) {
@@ -262,11 +262,11 @@ func oldTransferMsgID(t *Transfer) []byte {
 	return []byte(fmt.Sprintf("%v%v", oldTransfer, t.MsgID))
 }
 
-func PendingMsgID(k *common.MessagePublication) []byte {
+func PendingMsgID(k *common.SinglePublication) []byte {
 	return []byte(fmt.Sprintf("%v%v", pending, k.MessageIDString()))
 }
 
-func oldPendingMsgID(k *common.MessagePublication) []byte {
+func oldPendingMsgID(k *common.SinglePublication) []byte {
 	return []byte(fmt.Sprintf("%v%v", oldPending, k.MessageIDString()))
 }
 

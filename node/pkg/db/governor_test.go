@@ -59,7 +59,7 @@ func TestPendingMsgID(t *testing.T) {
 	tokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 	require.NoError(t, err)
 
-	msg1 := &common.MessagePublication{
+	msg1 := &common.SinglePublication{
 		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654516425), 0),
 		Nonce:            123456,
@@ -219,7 +219,7 @@ func TestStorePendingMsg(t *testing.T) {
 	tokenBridgeAddr, err2 := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 	assert.NoError(t, err2)
 
-	msg := &common.MessagePublication{
+	msg := &common.SinglePublication{
 		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654516425), 0),
 		Nonce:            123456,
@@ -247,7 +247,7 @@ func TestDeletePendingMsg(t *testing.T) {
 	tokenBridgeAddr, err2 := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 	assert.NoError(t, err2)
 
-	msg := &common.MessagePublication{
+	msg := &common.SinglePublication{
 		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654516425), 0),
 		Nonce:            123456,
@@ -277,7 +277,7 @@ func TestSerializeAndDeserializeOfPendingTransfer(t *testing.T) {
 	tokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 	require.NoError(t, err)
 
-	msg := common.MessagePublication{
+	msg := common.SinglePublication{
 		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654516425), 0),
 		Nonce:            123456,
@@ -350,7 +350,7 @@ func TestStoreAndReloadTransfers(t *testing.T) {
 
 	pending1 := &PendingTransfer{
 		ReleaseTime: time.Unix(int64(1654516435+72*60*60), 0),
-		Msg: common.MessagePublication{
+		Msg: common.SinglePublication{
 			TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 			Timestamp:        time.Unix(int64(1654516435), 0),
 			Nonce:            123456,
@@ -367,7 +367,7 @@ func TestStoreAndReloadTransfers(t *testing.T) {
 
 	pending2 := &PendingTransfer{
 		ReleaseTime: time.Unix(int64(1654516440+72*60*60), 0),
-		Msg: common.MessagePublication{
+		Msg: common.SinglePublication{
 			TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 			Timestamp:        time.Unix(int64(1654516440), 0),
 			Nonce:            123456,
@@ -395,7 +395,7 @@ func TestStoreAndReloadTransfers(t *testing.T) {
 	assert.Equal(t, pending2, pending[1])
 }
 
-func (d *Database) storeOldPendingMsg(t *testing.T, k *common.MessagePublication) {
+func (d *Database) storeOldPendingMsg(t *testing.T, k *common.SinglePublication) {
 	b, _ := k.Marshal()
 
 	err := d.db.Update(func(txn *badger.Txn) error {
@@ -455,7 +455,7 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 	// Write the first pending event in the old format.
 	pending1 := &PendingTransfer{
 		ReleaseTime: now.Add(time.Duration(time.Hour * 72)), // Since we are writing this in the old format, this will not get stored, but computed on reload.
-		Msg: common.MessagePublication{
+		Msg: common.SinglePublication{
 			TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 			Timestamp:        now,
 			Nonce:            123456,
@@ -475,7 +475,7 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 	// Write the second one in the new format.
 	pending2 := &PendingTransfer{
 		ReleaseTime: now2.Add(time.Duration(time.Hour * 71)), // Setting it to 71 hours so we can confirm it didn't get set to the default.
-		Msg: common.MessagePublication{
+		Msg: common.SinglePublication{
 			TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 			Timestamp:        now2,
 			Nonce:            123456,

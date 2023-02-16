@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-type MessagePublication struct {
+type SinglePublication struct {
 	TxHash    common.Hash // TODO: rename to identifier? on Solana, this isn't actually the tx hash
 	Timestamp time.Time
 
@@ -29,17 +29,33 @@ type MessagePublication struct {
 	Unreliable bool
 }
 
-func (msg *MessagePublication) MessageID() []byte {
+func (msg *SinglePublication) GetTxHash() common.Hash {
+	return msg.TxHash
+}
+
+func (msg *SinglePublication) GetTimestamp() time.Time {
+	return msg.Timestamp
+}
+
+func (msg *SinglePublication) GetEmitterChain() vaa.ChainID {
+	return msg.EmitterChain
+}
+
+func (msg *SinglePublication) IsUnreliable() bool {
+	return msg.Unreliable
+}
+
+func (msg *SinglePublication) MessageID() []byte {
 	return []byte(msg.MessageIDString())
 }
 
-func (msg *MessagePublication) MessageIDString() string {
+func (msg *SinglePublication) MessageIDString() string {
 	return fmt.Sprintf("%v/%v/%v", uint16(msg.EmitterChain), msg.EmitterAddress, msg.Sequence)
 }
 
 const minMsgLength = 88
 
-func (msg *MessagePublication) Marshal() ([]byte, error) {
+func (msg *SinglePublication) Marshal() ([]byte, error) {
 	buf := new(bytes.Buffer)
 
 	buf.Write(msg.TxHash[:])
@@ -55,12 +71,12 @@ func (msg *MessagePublication) Marshal() ([]byte, error) {
 }
 
 // Unmarshal deserializes the binary representation of a VAA
-func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
+func UnmarshalMessagePublication(data []byte) (*SinglePublication, error) {
 	if len(data) < minMsgLength {
 		return nil, fmt.Errorf("message is too short")
 	}
 
-	msg := &MessagePublication{}
+	msg := &SinglePublication{}
 
 	reader := bytes.NewReader(data[:])
 
@@ -109,8 +125,8 @@ func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
 }
 
 // The standard json Marshal / Unmarshal of time.Time gets confused between local and UTC time.
-func (msg *MessagePublication) MarshalJSON() ([]byte, error) {
-	type Alias MessagePublication
+func (msg *SinglePublication) MarshalJSON() ([]byte, error) {
+	type Alias SinglePublication
 	return json.Marshal(&struct {
 		Timestamp int64
 		*Alias
@@ -120,8 +136,8 @@ func (msg *MessagePublication) MarshalJSON() ([]byte, error) {
 	})
 }
 
-func (msg *MessagePublication) UnmarshalJSON(data []byte) error {
-	type Alias MessagePublication
+func (msg *SinglePublication) UnmarshalJSON(data []byte) error {
+	type Alias SinglePublication
 	aux := &struct {
 		Timestamp int64
 		*Alias
@@ -135,7 +151,7 @@ func (msg *MessagePublication) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (msg *MessagePublication) CreateVAA(gsIndex uint32) *vaa.VAA {
+func (msg *SinglePublication) CreateVAA(gsIndex uint32) *vaa.VAA {
 	return &vaa.VAA{
 		Version:          vaa.SupportedVAAVersion,
 		GuardianSetIndex: gsIndex,
@@ -150,8 +166,18 @@ func (msg *MessagePublication) CreateVAA(gsIndex uint32) *vaa.VAA {
 	}
 }
 
-func (msg *MessagePublication) CreateDigest() string {
+func (msg *SinglePublication) CreateDigest() string {
 	v := msg.CreateVAA(0) // The guardian set index is not part of the digest, so we can pass in zero.
 	db := v.SigningMsg()
 	return hex.EncodeToString(db.Bytes())
+}
+
+type MessagePublication interface {
+	GetTxHash() common.Hash
+	GetTimestamp() time.Time
+	GetEmitterChain() vaa.ChainID
+
+	// IsUnreliable indicates if this message can be reobserved. If a message is considered unreliable it cannot be
+	// reobserved.
+	IsUnreliable() bool
 }

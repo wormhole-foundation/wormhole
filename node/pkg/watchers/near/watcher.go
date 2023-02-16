@@ -67,7 +67,7 @@ type (
 		nearRPC         string
 
 		// external channels
-		msgC     chan<- *common.MessagePublication   // validated (SECURITY: and only validated!) observations go into this channel
+		msgC     chan<- common.MessagePublication    // validated (SECURITY: and only validated!) observations go into this channel
 		obsvReqC <-chan *gossipv1.ObservationRequest // observation requests are coming from this channel
 
 		// internal queues
@@ -92,7 +92,7 @@ type (
 func NewWatcher(
 	nearRPC string,
 	wormholeContract string,
-	msgC chan<- *common.MessagePublication,
+	msgC chan<- common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
 	mainnet bool,
 ) *Watcher {

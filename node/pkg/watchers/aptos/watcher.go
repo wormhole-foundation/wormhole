@@ -29,7 +29,7 @@ type (
 		aptosAccount string
 		aptosHandle  string
 
-		msgC     chan<- *common.MessagePublication
+		msgC     chan<- common.MessagePublication
 		obsvReqC <-chan *gossipv1.ObservationRequest
 	}
 )
@@ -52,7 +52,7 @@ func NewWatcher(
 	aptosRPC string,
 	aptosAccount string,
 	aptosHandle string,
-	msgC chan<- *common.MessagePublication,
+	msgC chan<- common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
 ) *Watcher {
 	return &Watcher{
@@ -294,7 +294,7 @@ func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq u
 		return
 	}
 
-	observation := &common.MessagePublication{
+	observation := &common.SinglePublication{
 		TxHash:           txHash,
 		Timestamp:        time.Unix(int64(ts.Uint()), 0),
 		Nonce:            uint32(nonce.Uint()), // uint32

@@ -34,7 +34,7 @@ type (
 		urlWS  string
 		urlLCD string
 
-		msgC chan<- *common.MessagePublication
+		msgC chan<- common.MessagePublication
 
 		// Incoming re-observation requests from the network. Pre-filtered to only
 		// include requests for our chainID.
@@ -75,7 +75,7 @@ type clientRequest struct {
 func NewWatcher(
 	urlWS string,
 	urlLCD string,
-	msgC chan<- *common.MessagePublication,
+	msgC chan<- common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest) *Watcher {
 	return &Watcher{urlWS: urlWS, urlLCD: urlLCD, msgC: msgC, obsvReqC: obsvReqC}
 }
@@ -265,8 +265,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 }
 
 // TODO adjust this function as needed for wormchain
-func EventsToMessagePublications(txHash string, events []gjson.Result, logger *zap.Logger) []*common.MessagePublication {
-	msgs := make([]*common.MessagePublication, 0, len(events))
+func EventsToMessagePublications(txHash string, events []gjson.Result, logger *zap.Logger) []*common.SinglePublication {
+	msgs := make([]*common.SinglePublication, 0, len(events))
 	for _, event := range events {
 		if !event.IsObject() {
 			logger.Warn("wormchain event is invalid", zap.String("tx_hash", txHash), zap.String("event", event.String()))
@@ -395,7 +395,7 @@ func EventsToMessagePublications(txHash string, events []gjson.Result, logger *z
 			logger.Error("sequence cannot be parsed as int", zap.String("tx_hash", txHash), zap.String("value", sequence))
 			continue
 		}
-		messagePublication := &common.MessagePublication{
+		messagePublication := &common.SinglePublication{
 			TxHash:           txHashValue,
 			Timestamp:        time.Unix(blockTimeInt, 0), //TODO read off emitted message
 			Nonce:            uint32(nonceInt),

@@ -826,7 +826,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	obsvC := make(chan *gossipv1.SignedObservation, 50)
 
 	// Finalized guardian observations aggregated across all chains
-	msgReadC, msgWriteC := makeChannelPair[*common.MessagePublication](0)
+	msgReadC, msgWriteC := makeChannelPair[common.MessagePublication](0)
 
 	// Ethereum incoming guardian set updates
 	setReadC, setWriteC := makeChannelPair[*common.GuardianSet](0)
@@ -847,26 +847,24 @@ func runNode(cmd *cobra.Command, args []string) {
 	chainObsvReqC := make(map[vaa.ChainID]chan *gossipv1.ObservationRequest)
 
 	// Per-chain msgC
-	chainMsgC := make(map[vaa.ChainID]chan *common.MessagePublication)
+	chainMsgC := make(map[vaa.ChainID]chan common.MessagePublication)
 	// aggregate per-chain msgC into msgC.
 	// SECURITY defense-in-depth: This way we enforce that a watcher must set the msg.EmitterChain to its chainId, which makes the code easier to audit
 	for _, chainId := range vaa.GetAllNetworkIDs() {
-		chainMsgC[chainId] = make(chan *common.MessagePublication)
-		go func(c <-chan *common.MessagePublication, chainId vaa.ChainID) {
+		chainMsgC[chainId] = make(chan common.MessagePublication)
+		go func(c <-chan common.MessagePublication, chainId vaa.ChainID) {
 			for {
 				select {
 				case <-rootCtx.Done():
 					return
 				case msg := <-c:
-					if msg.EmitterChain == chainId {
+					if msg.GetEmitterChain() == chainId {
 						msgWriteC <- msg
 					} else {
 						// SECURITY: This should never happen. If it does, a watcher has been compromised.
 						logger.Fatal("SECURITY CRITICAL: Received observation from a chain that was not marked as originating from that chain",
-							zap.Stringer("tx", msg.TxHash),
-							zap.Stringer("emitter_address", msg.EmitterAddress),
-							zap.Uint64("sequence", msg.Sequence),
-							zap.Stringer("msgChainId", msg.EmitterChain),
+							zap.Stringer("tx", msg.GetTxHash()),
+							zap.Stringer("msgChainId", msg.GetEmitterChain()),
 							zap.Stringer("watcherChainId", chainId),
 						)
 					}
@@ -972,7 +970,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	// will be passed to it for processing. It will forward all token bridge transfers to the accountant contract.
 	// If accountantCheckEnabled is set to true, token bridge transfers will not be signed and published until they
 	// are approved by the accountant smart contract.
-	acctReadC, acctWriteC := makeChannelPair[*common.MessagePublication](0)
+	acctReadC, acctWriteC := makeChannelPair[*common.SinglePublication](0)
 
 	var acct *accountant.Accountant
 	if *accountantContract != "" {
@@ -1342,9 +1340,24 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 
+		singlePubReadC, singlePubWriteC := makeChannelPair[*common.SinglePublication](50)
+		go func() {
+			for {
+				select {
+				case m := <-msgReadC:
+					switch cMsg := m.(type) {
+					case *common.SinglePublication:
+						singlePubWriteC <- cMsg
+					default:
+						panic("unexpected message type")
+					}
+				}
+			}
+		}()
+
 		if err := supervisor.Run(ctx, "processor", processor.NewVAAReactor(
 			db,
-			msgReadC,
+			singlePubReadC,
 			setReadC,
 			gossipSendC,
 			obsvC,

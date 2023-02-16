@@ -47,7 +47,7 @@ type (
 
 	// pendingEntry is the payload for each pending transfer
 	pendingEntry struct {
-		msg    *common.MessagePublication
+		msg    *common.SinglePublication
 		msgId  string
 		digest string
 
@@ -79,11 +79,11 @@ type Accountant struct {
 	gk                   *ecdsa.PrivateKey
 	gst                  *common.GuardianSetState
 	guardianAddr         ethCommon.Address
-	msgChan              chan<- *common.MessagePublication
+	msgChan              chan<- *common.SinglePublication
 	tokenBridges         map[tokenBridgeKey]*tokenBridgeEntry
 	pendingTransfersLock sync.Mutex
 	pendingTransfers     map[string]*pendingEntry // Key is the message ID (emitterChain/emitterAddr/seqNo)
-	subChan              chan *common.MessagePublication
+	subChan              chan *common.SinglePublication
 	env                  int
 }
 
@@ -101,7 +101,7 @@ func NewAccountant(
 	enforceFlag bool, // whether or not accountant should be enforced
 	gk *ecdsa.PrivateKey, // the guardian key used for signing observation requests
 	gst *common.GuardianSetState, // used to get the current guardian set index when sending observation requests
-	msgChan chan<- *common.MessagePublication, // the channel where transfers received by the accountant runnable should be published
+	msgChan chan<- *common.SinglePublication, // the channel where transfers received by the accountant runnable should be published
 	env int, // Controls the set of token bridges to be monitored
 ) *Accountant {
 	return &Accountant{
@@ -119,7 +119,7 @@ func NewAccountant(
 		msgChan:          msgChan,
 		tokenBridges:     make(map[tokenBridgeKey]*tokenBridgeEntry),
 		pendingTransfers: make(map[string]*pendingEntry),
-		subChan:          make(chan *common.MessagePublication, subChanSize),
+		subChan:          make(chan *common.SinglePublication, subChanSize),
 		env:              env,
 	}
 }
@@ -195,7 +195,7 @@ func (acct *Accountant) FeatureString() string {
 // SubmitObservation will submit token bridge transfers to the accountant smart contract. This is called from the processor
 // loop when a local observation is received from a watcher. It returns true if the observation can be published immediately,
 // false if not (because it has been submitted to accountant).
-func (acct *Accountant) SubmitObservation(msg *common.MessagePublication) (bool, error) {
+func (acct *Accountant) SubmitObservation(msg *common.SinglePublication) (bool, error) {
 	msgId := msg.MessageIDString()
 	acct.logger.Debug("acct: in SubmitObservation", zap.String("msgID", msgId))
 	// We only care about token bridges.
@@ -349,7 +349,7 @@ func (acct *Accountant) submitObservation(pe *pendingEntry) bool {
 
 // clearSubmitPendingFlags is called after a batch is finished being submitted (success or fail). It clears the submit pending flag for everything in the batch.
 // It grabs the pending transfer and state locks.
-func (acct *Accountant) clearSubmitPendingFlags(msgs []*common.MessagePublication) {
+func (acct *Accountant) clearSubmitPendingFlags(msgs []*common.SinglePublication) {
 	acct.pendingTransfersLock.Lock()
 	defer acct.pendingTransfersLock.Unlock()
 	for _, msg := range msgs {

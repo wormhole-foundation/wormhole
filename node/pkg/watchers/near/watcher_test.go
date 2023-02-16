@@ -32,8 +32,8 @@ type (
 		cacheDir              string
 		latestFinalBlocks     []string
 		obsvReq               []gossipv1.ObservationRequest
-		expectedMsgObserved   []*common.MessagePublication
-		expectedMsgReObserved []*common.MessagePublication
+		expectedMsgObserved   []*common.SinglePublication
+		expectedMsgReObserved []*common.SinglePublication
 
 		// storage
 		t     *testing.T
@@ -86,7 +86,7 @@ func (testCase *testCase) run(ctx context.Context) error {
 	mockHttpServer := httptest.NewServer(mockServer)
 
 	// Setup a watcher
-	msgC := make(chan *common.MessagePublication)
+	msgC := make(chan common.MessagePublication)
 	obsvReqC := make(chan *gossipv1.ObservationRequest)
 	w := NewWatcher(mockHttpServer.URL, testCase.wormholeContract, msgC, obsvReqC, true)
 
@@ -172,7 +172,7 @@ func TestWatcherSimple(t *testing.T) {
 		latestFinalBlocks: []string{
 			BLOCKCHAIN_1[3],
 		},
-		expectedMsgObserved: []*common.MessagePublication{
+		expectedMsgObserved: []*common.SinglePublication{
 			{
 				TxHash:           eth_common.BytesToHash(txHashBytes),
 				EmitterAddress:   portalEmitterAddress(),
@@ -207,7 +207,7 @@ func TestWatcherReobservation(t *testing.T) {
 		latestFinalBlocks: []string{
 			"FdJXkyscWxFk8zrZHgahTGCBEcpo4huJNNnuxQ9hgFbW",
 		},
-		expectedMsgReObserved: []*common.MessagePublication{
+		expectedMsgReObserved: []*common.SinglePublication{
 			{
 				TxHash:           eth_common.BytesToHash(txHashBytes),
 				EmitterAddress:   portalEmitterAddress(),
@@ -255,7 +255,7 @@ func TestWatcherSimple2(t *testing.T) {
 			BLOCKCHAIN_1[6],
 			BLOCKCHAIN_1[7],
 		},
-		expectedMsgObserved: []*common.MessagePublication{
+		expectedMsgObserved: []*common.SinglePublication{
 			{
 				TxHash:           eth_common.BytesToHash(txHashBytes),
 				EmitterAddress:   portalEmitterAddress(),
@@ -297,7 +297,7 @@ func TestWatcherDelayedFinal(t *testing.T) {
 			BLOCKCHAIN_1[6],
 			BLOCKCHAIN_1[7],
 		},
-		expectedMsgObserved: []*common.MessagePublication{
+		expectedMsgObserved: []*common.SinglePublication{
 			{
 				TxHash:           eth_common.BytesToHash(txHashBytes),
 				EmitterAddress:   portalEmitterAddress(),
@@ -335,7 +335,7 @@ func TestWatcherDelayedFinalAndGaps(t *testing.T) {
 			BLOCKCHAIN_1[1],
 			BLOCKCHAIN_1[7],
 		},
-		expectedMsgObserved: []*common.MessagePublication{
+		expectedMsgObserved: []*common.SinglePublication{
 			{
 				TxHash:           eth_common.BytesToHash(txHashBytes),
 				EmitterAddress:   portalEmitterAddress(),
@@ -380,7 +380,7 @@ func TestWatcherSynthetic(t *testing.T) {
 			BLOCKCHAIN_1[1],
 			BLOCKCHAIN_1[7],
 		},
-		expectedMsgReObserved: []*common.MessagePublication{
+		expectedMsgReObserved: []*common.SinglePublication{
 			{
 				TxHash:           eth_common.BytesToHash([]byte("_____________________________TX1")),
 				EmitterAddress:   portalEmitterAddress(),
@@ -472,7 +472,7 @@ func TestWatcherUnfinalized(t *testing.T) {
 			BLOCKCHAIN_1[1],
 			BLOCKCHAIN_1[7],
 		},
-		expectedMsgReObserved: []*common.MessagePublication{
+		expectedMsgReObserved: []*common.SinglePublication{
 			{
 				TxHash:           eth_common.BytesToHash([]byte("_____________________________TX1")),
 				EmitterAddress:   portalEmitterAddress(),

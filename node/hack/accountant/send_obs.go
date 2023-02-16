@@ -110,7 +110,7 @@ func testSubmit(
 	TxHash, _ := vaa.StringToHash("82ea2536c5d1671830cb49120f94479e34b54596a8dd369fbc2666667a765f4b")
 	Payload, _ := hex.DecodeString("010000000000000000000000000000000000000000000000000de0b6b3a76400000000000000000000000000002d8be6bf0baa74e0a907016679cae9190e80dd0a0002000000000000000000000000c10820983f33456ce7beb3a046f5a83fa34f027d0c200000000000000000000000000000000000000000000000000000000000000000")
 
-	msg := common.MessagePublication{
+	msg := common.SinglePublication{
 		TxHash:           TxHash,
 		Timestamp:        timestamp,
 		Nonce:            uint32(0),
@@ -121,7 +121,7 @@ func testSubmit(
 		Payload:          Payload,
 	}
 
-	msgs := []*common.MessagePublication{&msg}
+	msgs := []*common.SinglePublication{&msg}
 	txResp, err := submit(ctx, logger, gk, wormchainConn, contract, msgs)
 	if err != nil {
 		logger.Error("acct: failed to broadcast Observation request", zap.String("test", tag), zap.Error(err))
@@ -173,9 +173,9 @@ func testBatch(
 
 	nonce := uint32(123456)
 
-	msgs := []*common.MessagePublication{}
+	msgs := []*common.SinglePublication{}
 
-	msg1 := common.MessagePublication{
+	msg1 := common.SinglePublication{
 		TxHash:           TxHash,
 		Timestamp:        timestamp,
 		Nonce:            nonce,
@@ -189,7 +189,7 @@ func testBatch(
 
 	nonce = nonce + 1
 	sequence = sequence + 1
-	msg2 := common.MessagePublication{
+	msg2 := common.SinglePublication{
 		TxHash:           TxHash,
 		Timestamp:        time.Now(),
 		Nonce:            nonce,
@@ -251,10 +251,10 @@ func testBatchWithcommitted(
 
 	nonce := uint32(123456)
 
-	msgs := []*common.MessagePublication{}
+	msgs := []*common.SinglePublication{}
 
 	logger.Info("submitting a single transfer that should work")
-	msg1 := common.MessagePublication{
+	msg1 := common.SinglePublication{
 		TxHash:           TxHash,
 		Timestamp:        timestamp,
 		Nonce:            nonce,
@@ -277,7 +277,7 @@ func testBatchWithcommitted(
 
 	nonce = nonce + 1
 	sequence = sequence + 1
-	msg2 := common.MessagePublication{
+	msg2 := common.SinglePublication{
 		TxHash:           TxHash,
 		Timestamp:        time.Now(),
 		Nonce:            nonce,
@@ -343,10 +343,10 @@ func testBatchWithDigestError(
 
 	nonce := uint32(123456)
 
-	msgs := []*common.MessagePublication{}
+	msgs := []*common.SinglePublication{}
 
 	logger.Info("submitting a single transfer that should work")
-	msg1 := common.MessagePublication{
+	msg1 := common.SinglePublication{
 		TxHash:           TxHash,
 		Timestamp:        timestamp,
 		Nonce:            nonce,
@@ -369,7 +369,7 @@ func testBatchWithDigestError(
 
 	nonce = nonce + 1
 	sequence = sequence + 1
-	msg2 := common.MessagePublication{
+	msg2 := common.SinglePublication{
 		TxHash:           TxHash,
 		Timestamp:        time.Now(),
 		Nonce:            nonce,
@@ -442,7 +442,7 @@ func submit(
 	gk *ecdsa.PrivateKey,
 	wormchainConn *wormconn.ClientConn,
 	contract string,
-	msgs []*common.MessagePublication,
+	msgs []*common.SinglePublication,
 ) (*sdktx.BroadcastTxResponse, error) {
 	gsIndex := uint32(0)
 	guardianIndex := uint32(0)

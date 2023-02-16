@@ -42,7 +42,7 @@ type (
 
 		unsafeDevMode bool
 
-		msgChan  chan *common.MessagePublication
+		msgChan  chan common.MessagePublication
 		obsvReqC chan *gossipv1.ObservationRequest
 
 		subId      int64
@@ -125,7 +125,7 @@ func NewWatcher(
 	suiAccount string,
 	suiPackage string,
 	unsafeDevMode bool,
-	messageEvents chan *common.MessagePublication,
+	messageEvents chan common.MessagePublication,
 	obsvReqC chan *gossipv1.ObservationRequest,
 ) *Watcher {
 	return &Watcher{
@@ -190,7 +190,7 @@ func (e *Watcher) inspectBody(logger *zap.Logger, body SuiResult) error {
 
 	}
 
-	observation := &common.MessagePublication{
+	observation := &common.SinglePublication{
 		TxHash: txHash,
 		// We do NOT have a useful source of timestamp
 		// information.  Every node has its own concept of a

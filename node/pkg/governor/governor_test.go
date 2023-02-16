@@ -297,7 +297,7 @@ func TestVaaForUninterestingEmitterChain(t *testing.T) {
 	emitterAddr, _ := vaa.StringToAddress("0x00")
 	var payload = []byte{1, 97, 97, 97, 97, 97}
 
-	msg := common.MessagePublication{
+	msg := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -329,7 +329,7 @@ func TestVaaForUninterestingEmitterAddress(t *testing.T) {
 	emitterAddr, _ := vaa.StringToAddress("0x00")
 	var payload = []byte{1, 97, 97, 97, 97, 97}
 
-	msg := common.MessagePublication{
+	msg := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -362,7 +362,7 @@ func TestVaaForUninterestingPayloadType(t *testing.T) {
 	emitterAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 	var payload = []byte{2, 97, 97, 97, 97, 97}
 
-	msg := common.MessagePublication{
+	msg := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -466,7 +466,7 @@ func TestVaaForUninterestingToken(t *testing.T) {
 
 	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 
-	msg := common.MessagePublication{
+	msg := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -517,7 +517,7 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 	)
 
 	// The first two transfers should be accepted.
-	msg1 := common.MessagePublication{
+	msg1 := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -528,7 +528,7 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 		Payload:          payloadBytes1,
 	}
 
-	msg2 := common.MessagePublication{
+	msg2 := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -570,7 +570,7 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 		1250,
 	)
 
-	msg3 := common.MessagePublication{
+	msg3 := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -593,7 +593,7 @@ func TestTransfersUpToAndOverTheLimit(t *testing.T) {
 	assert.Equal(t, 3, len(gov.msgsSeen))
 
 	// But a small one should still go through.
-	msg4 := common.MessagePublication{
+	msg4 := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -644,7 +644,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 		270,
 	)
 
-	msg1 := common.MessagePublication{
+	msg1 := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -676,7 +676,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 		275,
 	)
 
-	msg2 := common.MessagePublication{
+	msg2 := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -708,7 +708,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 		280,
 	)
 
-	msg3 := common.MessagePublication{
+	msg3 := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -740,7 +740,7 @@ func TestPendingTransferBeingReleased(t *testing.T) {
 		300,
 	)
 
-	msg4 := common.MessagePublication{
+	msg4 := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -811,7 +811,7 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 	require.NoError(t, err)
 
 	// The first VAA should be accepted.
-	msg1 := common.MessagePublication{
+	msg1 := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -841,7 +841,7 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 	assert.Equal(t, 1, len(gov.msgsSeen))
 
 	// And so should the second.
-	msg2 := common.MessagePublication{
+	msg2 := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -871,7 +871,7 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 	assert.Equal(t, 2, len(gov.msgsSeen))
 
 	// But the third, big one should be queued up.
-	msg3 := common.MessagePublication{
+	msg3 := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -901,7 +901,7 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 	assert.Equal(t, 3, len(gov.msgsSeen))
 
 	// A fourth, smaller, but still too big one, should get enqueued.
-	msg4 := common.MessagePublication{
+	msg4 := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -931,7 +931,7 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 	assert.Equal(t, 4, len(gov.msgsSeen))
 
 	// A fifth, smaller, but still too big one, should also get enqueued.
-	msg5 := common.MessagePublication{
+	msg5 := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -961,7 +961,7 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 	assert.Equal(t, 5, len(gov.msgsSeen))
 
 	// A sixth, big one should also get enqueued.
-	msg6 := common.MessagePublication{
+	msg6 := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -1058,7 +1058,7 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 	require.NoError(t, err)
 
 	// The first small transfer should be accepted.
-	msg1 := common.MessagePublication{
+	msg1 := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -1088,7 +1088,7 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 	assert.Equal(t, 1, len(gov.msgsSeen))
 
 	// And so should the second.
-	msg2 := common.MessagePublication{
+	msg2 := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -1118,7 +1118,7 @@ func TestLargeTransactionGetsEnqueuedAndReleasedWhenTheTimerExpires(t *testing.T
 	assert.Equal(t, 2, len(gov.msgsSeen))
 
 	// But the third big one should get enqueued.
-	msg3 := common.MessagePublication{
+	msg3 := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -1273,7 +1273,7 @@ func TestSmallTransactionsGetReleasedWhenTheTimerExpires(t *testing.T) {
 	require.NoError(t, err)
 
 	// Submit a small transfer that will get enqueued due to the low daily limit.
-	msg1 := common.MessagePublication{
+	msg1 := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -1377,7 +1377,7 @@ func TestTransferPayloadTooShort(t *testing.T) {
 
 	payloadBytes1 = payloadBytes1[0 : len(payloadBytes1)-1]
 
-	msg := common.MessagePublication{
+	msg := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -1468,7 +1468,7 @@ func TestDontReloadDuplicates(t *testing.T) {
 	var pendings []*db.PendingTransfer
 	pending1 := &db.PendingTransfer{
 		ReleaseTime: now.Add(time.Hour * 24),
-		Msg: common.MessagePublication{
+		Msg: common.SinglePublication{
 			TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 			Timestamp:        time.Unix(int64(1654543099), 0),
 			Nonce:            uint32(1),
@@ -1483,7 +1483,7 @@ func TestDontReloadDuplicates(t *testing.T) {
 
 	pending2 := &db.PendingTransfer{
 		ReleaseTime: now.Add(time.Hour * 24),
-		Msg: common.MessagePublication{
+		Msg: common.SinglePublication{
 			TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 			Timestamp:        time.Unix(int64(1654543099), 0),
 			Nonce:            uint32(1),
@@ -1536,7 +1536,7 @@ func TestReobservationOfPublishedMsg(t *testing.T) {
 	require.NoError(t, err)
 
 	// The first transfer should be accepted.
-	msg := common.MessagePublication{
+	msg := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -1599,7 +1599,7 @@ func TestReobservationOfEnqueued(t *testing.T) {
 	require.NoError(t, err)
 
 	// A big transfer should get enqueued.
-	msg := common.MessagePublication{
+	msg := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -1661,7 +1661,7 @@ func TestReusedMsgIdWithDifferentPayloadGetsProcessed(t *testing.T) {
 	require.NoError(t, err)
 
 	// The first transfer should be accepted.
-	msg1 := common.MessagePublication{
+	msg1 := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),
@@ -1691,7 +1691,7 @@ func TestReusedMsgIdWithDifferentPayloadGetsProcessed(t *testing.T) {
 	assert.Equal(t, 1, len(gov.msgsSeen))
 
 	// A second message with the same msgId but a different payload should also get published and apply to the notional value.
-	msg2 := common.MessagePublication{
+	msg2 := common.SinglePublication{
 		TxHash:           hashFromString("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654543099), 0),
 		Nonce:            uint32(1),

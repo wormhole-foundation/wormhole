@@ -90,9 +90,9 @@ func (re *AttestationEventReporter) ReportMessagePublication(msg *MessagePublica
 	for client, sub := range re.subs {
 		select {
 		case sub.MessagePublicationC <- msg:
-			re.logger.Debug("published MessagePublication to client", zap.Int("client", client))
+			re.logger.Debug("published SinglePublication to client", zap.Int("client", client))
 		default:
-			re.logger.Error("channel overflow when attempting to publish MessagePublication to client", zap.Int("client", client))
+			re.logger.Error("channel overflow when attempting to publish SinglePublication to client", zap.Int("client", client))
 		}
 	}
 }

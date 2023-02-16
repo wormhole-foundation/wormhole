@@ -19,7 +19,7 @@ func TestAcctPendingTransferMsgID(t *testing.T) {
 	tokenBridgeAddr, err := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 	require.NoError(t, err)
 
-	msg1 := &common.MessagePublication{
+	msg1 := &common.SinglePublication{
 		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654516425), 0),
 		Nonce:            123456,
@@ -56,7 +56,7 @@ func TestAcctStoreAndDeletePendingTransfers(t *testing.T) {
 	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 	require.NoError(t, err)
 
-	msg1 := &common.MessagePublication{
+	msg1 := &common.SinglePublication{
 		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654516425), 0),
 		Nonce:            123456,
@@ -67,7 +67,7 @@ func TestAcctStoreAndDeletePendingTransfers(t *testing.T) {
 		ConsistencyLevel: 16,
 	}
 
-	msg2 := &common.MessagePublication{
+	msg2 := &common.SinglePublication{
 		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4064"),
 		Timestamp:        time.Unix(int64(1654516425), 0),
 		Nonce:            123457,
@@ -95,7 +95,7 @@ func TestAcctStoreAndDeletePendingTransfers(t *testing.T) {
 	assert.Error(t, db.rowExistsInDB(acctPendingTransferMsgID(msg2.MessageIDString())))
 
 	// Delete something that doesn't exist.
-	msg3 := &common.MessagePublication{
+	msg3 := &common.SinglePublication{
 		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4064"),
 		Timestamp:        time.Unix(int64(1654516425), 0),
 		Nonce:            123457,
@@ -150,7 +150,7 @@ func TestAcctGetData(t *testing.T) {
 	tokenBridgeAddr, _ := vaa.StringToAddress("0x0290fb167208af455bb137780163b7b7a9a10c16")
 	require.NoError(t, err)
 
-	msg1 := &common.MessagePublication{
+	msg1 := &common.SinglePublication{
 		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 		Timestamp:        time.Unix(int64(1654516425), 0),
 		Nonce:            123456,
@@ -161,7 +161,7 @@ func TestAcctGetData(t *testing.T) {
 		ConsistencyLevel: 16,
 	}
 
-	msg2 := &common.MessagePublication{
+	msg2 := &common.SinglePublication{
 		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4064"),
 		Timestamp:        time.Unix(int64(1654516425), 0),
 		Nonce:            123457,

@@ -36,7 +36,7 @@ type (
 		urlLCD   string
 		contract string
 
-		msgC chan<- *common.MessagePublication
+		msgC chan<- common.MessagePublication
 
 		// Incoming re-observation requests from the network. Pre-filtered to only
 		// include requests for our chainID.
@@ -95,7 +95,7 @@ func NewWatcher(
 	urlWS string,
 	urlLCD string,
 	contract string,
-	msgC chan<- *common.MessagePublication,
+	msgC chan<- common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
 	readiness readiness.Component,
 	chainID vaa.ChainID) *Watcher {
@@ -330,9 +330,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 	}
 }
 
-func EventsToMessagePublications(contract string, txHash string, events []gjson.Result, logger *zap.Logger, chainID vaa.ChainID, contractAddressKey string) []*common.MessagePublication {
+func EventsToMessagePublications(contract string, txHash string, events []gjson.Result, logger *zap.Logger, chainID vaa.ChainID, contractAddressKey string) []*common.SinglePublication {
 	networkName := vaa.ChainID(chainID).String()
-	msgs := make([]*common.MessagePublication, 0, len(events))
+	msgs := make([]*common.SinglePublication, 0, len(events))
 	for _, event := range events {
 		if !event.IsObject() {
 			logger.Warn("event is invalid", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("event", event.String()))
@@ -466,7 +466,7 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 			logger.Error("sequence cannot be parsed as int", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("value", blockTime))
 			continue
 		}
-		messagePublication := &common.MessagePublication{
+		messagePublication := &common.SinglePublication{
 			TxHash:           txHashValue,
 			Timestamp:        time.Unix(blockTimeInt, 0),
 			Nonce:            uint32(nonceInt),

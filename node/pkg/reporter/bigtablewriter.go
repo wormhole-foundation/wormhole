@@ -77,7 +77,7 @@ func BigTableWriter(events *AttestationEventReporter, connectionConfig *BigTable
 				case <-ctx.Done():
 					return
 				case msg := <-sub.Channels.MessagePublicationC:
-					colFam := "MessagePublication"
+					colFam := "SinglePublication"
 					mutation := bigtable.NewMutation()
 					ts := bigtable.Now()
 
