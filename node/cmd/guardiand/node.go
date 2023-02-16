@@ -180,6 +180,7 @@ var (
 
 	logLevel              *string
 	logLevel              *string
+	logPublicRPC          *string
 	logPublicRPCTelemetry *bool
 
 	unsafeDevMode   *bool
@@ -331,6 +332,7 @@ func init() {
 	baseContract = NodeCmd.Flags().String("baseContract", "", "Base contract address")
 
 	logLevel = NodeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
+	logPublicRPC = NodeCmd.Flags().String("logPublicRPC", "minimal", "Logging of public RPC requests (false=no logging, minimal=only log gRPC methods and payload (up to 200 bytes), full=additionally log HTTP method, path (up to 100 bytes), and user agent (up to 200 bytes))")
 	logPublicRPCTelemetry = NodeCmd.Flags().Bool("logPublicRPCTelemetry", true, "false=do not include publicRpc request logs in telemetry")
 
 	unsafeDevMode = NodeCmd.Flags().Bool("unsafeDevMode", false, "Launch node in unsafe, deterministic devnet mode")
@@ -669,6 +671,11 @@ func runNode(cmd *cobra.Command, args []string) {
 			logger.Fatal("Please do not specify --baseContract")
 		}
 	}
+
+	if *logPublicRPC != "false" && *logPublicRPC != "minimal" && *logPublicRPC != "true" {
+		logger.Fatal("--logPublicRPC should be one of (false, minimal, true)")
+	}
+
 	if *nodeName == "" {
 		logger.Fatal("Please specify --nodeName")
 	}
@@ -1455,7 +1462,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 
 			if shouldStart(publicRPC) {
-				publicrpcService, err := publicrpcTcpServiceRunnable(logger, *publicRPC, db, gst, gov)
+				publicrpcService, err := publicrpcTcpServiceRunnable(logger, *publicRPC, *logPublicRPC, db, gst, gov)
 				if err != nil {
 					log.Fatal("failed to create publicrpc tcp service", zap.Error(err))
 				}
@@ -1465,7 +1472,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 
 			if shouldStart(publicWeb) {
-				publicwebService, err := publicwebServiceRunnable(logger, *publicWeb, *publicGRPCSocketPath, publicrpcServer,
+				publicwebService, err := publicwebServiceRunnable(logger, *publicWeb, *publicGRPCSocketPath, *logPublicRPC, publicrpcServer,
 					*tlsHostname, *tlsProdEnv, path.Join(*dataDir, "autocert"))
 				if err != nil {
 					log.Fatal("failed to create publicrpc web service", zap.Error(err))

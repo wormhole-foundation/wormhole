@@ -15,7 +15,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func publicrpcTcpServiceRunnable(logger *zap.Logger, listenAddr string, db *db.Database, gst *common.GuardianSetState, gov *governor.ChainGovernor) (supervisor.Runnable, error) {
+func publicrpcTcpServiceRunnable(logger *zap.Logger, listenAddr string, logPublicRPC string, db *db.Database, gst *common.GuardianSetState, gov *governor.ChainGovernor) (supervisor.Runnable, error) {
 	l, err := net.Listen("tcp", listenAddr)
 
 	if err != nil {
@@ -25,7 +25,14 @@ func publicrpcTcpServiceRunnable(logger *zap.Logger, listenAddr string, db *db.D
 	logger.Info("publicrpc server listening", zap.String("addr", l.Addr().String()))
 
 	rpcServer := publicrpc.NewPublicrpcServer(logger, db, gst, gov)
-	grpcServer := common.NewInstrumentedGRPCServer(logger)
+	var grpcServer *grpc.Server
+
+	if logPublicRPC == "false" {
+		grpcServer = common.NewInstrumentedGRPCServer(nil)
+	} else {
+		grpcServer = common.NewInstrumentedGRPCServer(logger)
+	}
+
 	publicrpcv1.RegisterPublicRPCServiceServer(grpcServer, rpcServer)
 
 	return supervisor.GRPCServer(grpcServer, l, false), nil
