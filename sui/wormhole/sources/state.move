@@ -10,8 +10,9 @@ module wormhole::state {
     use sui::sui::{SUI};
 
     use wormhole::fee_collector::{Self};
+    use wormhole::guardian::{Self, Guardian};
     use wormhole::set::{Self, Set};
-    use wormhole::structs::{Self, create_guardian, Guardian, GuardianSet};
+    use wormhole::guardian_set::{Self, GuardianSet};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::emitter::{Self};
 
@@ -53,8 +54,12 @@ module wormhole::state {
         /// guardian sets
         guardian_sets: VecMap<u32, GuardianSet>,
 
-        /// Period for which a guardian set stays active after it has been replaced
-        guardian_set_expiry: u32,
+        /// Period for which a guardian set stays active after it has been
+        /// replaced.
+        /// 
+        /// Currently in terms of Sui epochs until we have access to a clock
+        /// with unix timestamp.
+        guardian_set_time_to_live: u32,
 
         /// Consumed governance actions
         consumed_governance_actions: Set<vector<u8>>,
@@ -83,6 +88,8 @@ module wormhole::state {
     ) {
         let DeployerCapability{ id } = deployer;
         object::delete(id);
+
+        let guardian_set_time_to_live = 2; // how long is an epoch? 
         let state = State {
             id: object::new(ctx),
             governance_chain_id,
@@ -91,7 +98,7 @@ module wormhole::state {
             ),
             guardian_set_index: 0,
             guardian_sets: vec_map::empty<u32, GuardianSet>(),
-            guardian_set_expiry: 2, // TODO - what is the right #epochs to set this to?
+            guardian_set_time_to_live,
             consumed_governance_actions: set::new(ctx),
             emitter_registry: emitter::init_emitter_registry(),
             message_fee,
@@ -102,17 +109,12 @@ module wormhole::state {
         while (!vector::is_empty(&initial_guardians)) {
             vector::push_back(
                 &mut guardians,
-                create_guardian(vector::pop_back(&mut initial_guardians))
+                guardian::new(vector::pop_back(&mut initial_guardians))
             );
         };
 
         // the initial guardian set with index 0
-        let initial_index = 0;
-        store_guardian_set(
-            &mut state,
-            initial_index,
-            structs::create_guardian_set(initial_index, guardians)
-        );
+        store_guardian_set(&mut state, guardian_set::new(0, guardians));
 
         // add wormhole fee collector
         fee_collector::new(&mut state.id, ctx);
@@ -176,14 +178,17 @@ module wormhole::state {
         state.guardian_set_index = new_index;
     }
 
-    public(friend) fun expire_guardian_set(state: &mut State, index: u32, ctx: &TxContext) {
-        let expiry = state.guardian_set_expiry;
-        let guardian_set = vec_map::get_mut<u32, GuardianSet>(&mut state.guardian_sets, &index);
-        structs::expire_guardian_set(guardian_set, expiry, ctx);
+    public(friend) fun expire_guardian_set(state: &mut State, ctx: &TxContext) {
+        let set =
+            vec_map::get_mut<u32, GuardianSet>(
+                &mut state.guardian_sets,
+                &state.guardian_set_index
+            );
+        guardian_set::set_expiration(set, state.guardian_set_time_to_live, ctx);
     }
 
-    public(friend) fun store_guardian_set(state: &mut State, index: u32, set: GuardianSet) {
-        vec_map::insert<u32, GuardianSet>(&mut state.guardian_sets, index, set);
+    public(friend) fun store_guardian_set(state: &mut State, set: GuardianSet) {
+        vec_map::insert<u32, GuardianSet>(&mut state.guardian_sets, guardian_set::index(&set), set);
     }
 
     // getters
@@ -198,14 +203,13 @@ module wormhole::state {
 
     public fun guardian_set_is_active(
         state: &State,
-        guardian_set: &GuardianSet,
+        set: &GuardianSet,
         ctx: &TxContext
     ): bool {
-        let cur_epoch = (tx_context::epoch(ctx) as u32);
-        let index = structs::get_guardian_set_index(guardian_set);
-        let current_index = get_current_guardian_set_index(state);
-        index == current_index ||
-             structs::get_guardian_set_expiry(guardian_set) > cur_epoch
+        (
+            state.guardian_set_index == guardian_set::index(set) ||
+            guardian_set::is_active(set, ctx)
+        )
     }
 
     public fun get_governance_chain(state: &State): u16 {

@@ -4,13 +4,10 @@ module wormhole::update_guardian_set {
 
     use wormhole::bytes::{Self};
     use wormhole::cursor::{Self};
-    use wormhole::myvaa::{Self as vaa};
+    use wormhole::guardian::{Self, Guardian};
+    use wormhole::guardian_set::{Self};
     use wormhole::state::{Self, State};
-    use wormhole::structs::{
-        Guardian,
-        create_guardian,
-        create_guardian_set
-    };
+    use wormhole::myvaa::{Self as vaa};
 
     const E_WRONG_GUARDIAN_LEN: u64 = 0x0;
     const E_NO_GUARDIAN_SET: u64 = 0x1;
@@ -53,13 +50,13 @@ module wormhole::update_guardian_set {
             E_NON_INCREMENTAL_GUARDIAN_SETS
         );
 
+        state::expire_guardian_set(state, ctx);
+        
         state::update_guardian_set_index(state, new_index);
         state::store_guardian_set(
             state,
-            new_index,
-            create_guardian_set(new_index, guardians)
+            guardian_set::new(new_index, guardians)
         );
-        state::expire_guardian_set(state, current_index, ctx);
     }
 
     #[test_only]
@@ -92,7 +89,7 @@ module wormhole::update_guardian_set {
 
         while (guardian_len > 0) {
             let key = bytes::to_bytes(&mut cur, 20);
-            vector::push_back(&mut guardians, create_guardian(key));
+            vector::push_back(&mut guardians, guardian::new(key));
             guardian_len = guardian_len - 1;
         };
 
@@ -115,7 +112,7 @@ module wormhole::update_guardian_set {
 module wormhole::guardian_set_upgrade_test {
     use std::vector;
 
-    use wormhole::structs::{create_guardian};
+    use wormhole::guardian::{Self};
     use wormhole::update_guardian_set::{Self};
 
     use sui::test_scenario::{
@@ -140,25 +137,25 @@ module wormhole::guardian_set_upgrade_test {
         assert!(new_index == 1, 0);
         assert!(vector::length(&guardians) == 19, 0);
         let expected = vector[
-            create_guardian(x"58cc3ae5c097b213ce3c81979e1b9f9570746aa5"),
-            create_guardian(x"ff6cb952589bde862c25ef4392132fb9d4a42157"),
-            create_guardian(x"114de8460193bdf3a2fcf81f86a09765f4762fd1"),
-            create_guardian(x"107a0086b32d7a0977926a205131d8731d39cbeb"),
-            create_guardian(x"8c82b2fd82faed2711d59af0f2499d16e726f6b2"),
-            create_guardian(x"11b39756c042441be6d8650b69b54ebe715e2343"),
-            create_guardian(x"54ce5b4d348fb74b958e8966e2ec3dbd4958a7cd"),
-            create_guardian(x"eb5f7389fa26941519f0863349c223b73a6ddee7"),
-            create_guardian(x"74a3bf913953d695260d88bc1aa25a4eee363ef0"),
-            create_guardian(x"000ac0076727b35fbea2dac28fee5ccb0fea768e"),
-            create_guardian(x"af45ced136b9d9e24903464ae889f5c8a723fc14"),
-            create_guardian(x"f93124b7c738843cbb89e864c862c38cddcccf95"),
-            create_guardian(x"d2cc37a4dc036a8d232b48f62cdd4731412f4890"),
-            create_guardian(x"da798f6896a3331f64b48c12d1d57fd9cbe70811"),
-            create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c3"),
-            create_guardian(x"8192b6e7387ccd768277c17dab1b7a5027c0b3cf"),
-            create_guardian(x"178e21ad2e77ae06711549cfbb1f9c7a9d8096e8"),
-            create_guardian(x"5e1487f35515d02a92753504a8d75471b9f49edb"),
-            create_guardian(x"6fbebc898f403e4773e95feb15e80c9a99c8348d"),
+            guardian::new(x"58cc3ae5c097b213ce3c81979e1b9f9570746aa5"),
+            guardian::new(x"ff6cb952589bde862c25ef4392132fb9d4a42157"),
+            guardian::new(x"114de8460193bdf3a2fcf81f86a09765f4762fd1"),
+            guardian::new(x"107a0086b32d7a0977926a205131d8731d39cbeb"),
+            guardian::new(x"8c82b2fd82faed2711d59af0f2499d16e726f6b2"),
+            guardian::new(x"11b39756c042441be6d8650b69b54ebe715e2343"),
+            guardian::new(x"54ce5b4d348fb74b958e8966e2ec3dbd4958a7cd"),
+            guardian::new(x"eb5f7389fa26941519f0863349c223b73a6ddee7"),
+            guardian::new(x"74a3bf913953d695260d88bc1aa25a4eee363ef0"),
+            guardian::new(x"000ac0076727b35fbea2dac28fee5ccb0fea768e"),
+            guardian::new(x"af45ced136b9d9e24903464ae889f5c8a723fc14"),
+            guardian::new(x"f93124b7c738843cbb89e864c862c38cddcccf95"),
+            guardian::new(x"d2cc37a4dc036a8d232b48f62cdd4731412f4890"),
+            guardian::new(x"da798f6896a3331f64b48c12d1d57fd9cbe70811"),
+            guardian::new(x"71aa1be1d36cafe3867910f99c09e347899c19c3"),
+            guardian::new(x"8192b6e7387ccd768277c17dab1b7a5027c0b3cf"),
+            guardian::new(x"178e21ad2e77ae06711549cfbb1f9c7a9d8096e8"),
+            guardian::new(x"5e1487f35515d02a92753504a8d75471b9f49edb"),
+            guardian::new(x"6fbebc898f403e4773e95feb15e80c9a99c8348d"),
         ];
         assert!(expected == guardians, 0);
     }
@@ -190,7 +187,7 @@ module wormhole::guardian_set_upgrade_test {
                 &mut state,
                 1, // guardian set index
                 vector[
-                    create_guardian(x"71aa1be1d36cafe3867910f99c09e347899c19c3")
+                    guardian::new(x"71aa1be1d36cafe3867910f99c09e347899c19c3")
                 ], // new guardian set
                 ctx(&mut test),
             );
