@@ -42,29 +42,68 @@ module token_bridge::token_info {
 
 #[test_only]
 module token_bridge::token_info_test{
+<<<<<<< HEAD
+=======
+    use sui::test_scenario::{Self, Scenario, next_tx};
+
+>>>>>>> ee208a44 (tests for: native_id_registry.move and token_info.move)
     use wormhole::external_address::{Self};
 
     use token_bridge::token_info::{Self};
 
+<<<<<<< HEAD
+=======
+    fun scenario(): Scenario { test_scenario::begin(@0x123233) }
+    fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
+
+>>>>>>> ee208a44 (tests for: native_id_registry.move and token_info.move)
     struct MyCoinType {}
 
     #[test]
     fun test_create_token_info_1(){
+<<<<<<< HEAD
         let addr_bytes = x"0000000000000000000000000000000000000000000000000000000000110011";
         let token_info = token_info::new<MyCoinType>(false, 2, external_address::from_bytes(addr_bytes));
         assert!(token_info::is_wrapped<MyCoinType>(&token_info)==false, 0);
         assert!(token_info::chain<MyCoinType>(&token_info)==2, 0);
         assert!(external_address::get_bytes(&token_info::addr<MyCoinType>(&token_info))==addr_bytes, 0);
         assert!(token_info::equals<MyCoinType>(&token_info, 2, external_address::from_bytes(addr_bytes)), 0);
+=======
+        let test = scenario();
+        let (admin, _, _) = people();
+        next_tx(&mut test, admin); {
+            let addr_bytes = x"0000000000000000000000000000000000000000000000000000000000110011";
+            let token_info = token_info::new<MyCoinType>(false, 2, external_address::from_bytes(addr_bytes));
+            assert!(token_info::is_wrapped<MyCoinType>(&token_info)==false, 0);
+            assert!(token_info::chain<MyCoinType>(&token_info)==2, 0);
+            assert!(external_address::get_bytes(&token_info::addr<MyCoinType>(&token_info))==addr_bytes, 0);
+            assert!(token_info::equals<MyCoinType>(&token_info, 2, external_address::from_bytes(addr_bytes)), 0);
+        };
+        test_scenario::end(test);
+>>>>>>> ee208a44 (tests for: native_id_registry.move and token_info.move)
     }
 
     #[test]
     fun test_create_token_info_2(){
+<<<<<<< HEAD
         let addr_bytes = x"2300000000000000000000000000000000000000000000000000000000110011";
         let token_info = token_info::new<MyCoinType>(true, 155, external_address::from_bytes(addr_bytes));
         assert!(token_info::is_wrapped<MyCoinType>(&token_info)==true, 0);
         assert!(token_info::chain<MyCoinType>(&token_info)==155, 0);
         assert!(external_address::get_bytes(&token_info::addr<MyCoinType>(&token_info))==addr_bytes, 0);
         assert!(token_info::equals<MyCoinType>(&token_info, 155, external_address::from_bytes(addr_bytes)), 0);
+=======
+        let test = scenario();
+        let (admin, _, _) = people();
+        next_tx(&mut test, admin); {
+            let addr_bytes = x"2300000000000000000000000000000000000000000000000000000000110011";
+            let token_info = token_info::new<MyCoinType>(true, 155, external_address::from_bytes(addr_bytes));
+            assert!(token_info::is_wrapped<MyCoinType>(&token_info)==true, 0);
+            assert!(token_info::chain<MyCoinType>(&token_info)==155, 0);
+            assert!(external_address::get_bytes(&token_info::addr<MyCoinType>(&token_info))==addr_bytes, 0);
+            assert!(token_info::equals<MyCoinType>(&token_info, 155, external_address::from_bytes(addr_bytes)), 0);
+        };
+        test_scenario::end(test);
+>>>>>>> ee208a44 (tests for: native_id_registry.move and token_info.move)
     }
 }
