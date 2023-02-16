@@ -1,6 +1,7 @@
 import { JsonRpcProvider } from "@mysten/sui.js";
 import yargs from "yargs";
 import { config } from "../config";
+import { NETWORK_OPTIONS, RPC_OPTIONS } from "../consts";
 import { NETWORKS } from "../networks";
 import { callEntryFunc, loadSigner, publishPackage } from "../sui";
 import { assertNetwork } from "../utils";
@@ -23,21 +24,6 @@ function findDeployerCapability(
   );
 }
 
-const network_options = {
-  alias: "n",
-  describe: "network",
-  type: "string",
-  choices: ["mainnet", "testnet", "devnet"],
-  required: true,
-} as const;
-
-const rpc_description = {
-  alias: "r",
-  describe: "override default rpc endpoint url",
-  type: "string",
-  required: false,
-} as const;
-
 const dir = `${config.wormholeDir}/sui`;
 
 exports.command = "sui";
@@ -49,8 +35,8 @@ exports.builder = function (y: typeof yargs) {
       "Get owned objects by owner",
       (yargs) => {
         return yargs
-          .option("network", network_options)
-          .option("rpc", rpc_description)
+          .option("network", NETWORK_OPTIONS)
+          .option("rpc", RPC_OPTIONS)
           .option("owner", {
             alias: "o",
             describe: "Owner address",
@@ -74,8 +60,8 @@ exports.builder = function (y: typeof yargs) {
       "Init token bridge contract",
       (yargs) => {
         return yargs
-          .option("network", network_options)
-          .option("rpc", rpc_description)
+          .option("network", NETWORK_OPTIONS)
+          .option("rpc", RPC_OPTIONS)
           .option("package-id", {
             describe: "Package/module ID",
             required: true,
@@ -127,8 +113,8 @@ exports.builder = function (y: typeof yargs) {
       "Init wormhole core contract",
       (yargs) => {
         return yargs
-          .option("network", network_options)
-          .option("rpc", rpc_description)
+          .option("network", NETWORK_OPTIONS)
+          .option("rpc", RPC_OPTIONS)
           .option("package-id", {
             describe: "Package/module ID",
             required: true,
@@ -214,8 +200,8 @@ exports.builder = function (y: typeof yargs) {
       "Publish coin contract",
       (yargs) => {
         return yargs
-          .option("network", network_options)
-          .option("rpc", rpc_description);
+          .option("network", NETWORK_OPTIONS)
+          .option("rpc", RPC_OPTIONS);
       },
       async (argv) => {
         const network = argv.network.toUpperCase();
@@ -231,8 +217,8 @@ exports.builder = function (y: typeof yargs) {
       "Publish Wormhole token bridge contract",
       (yargs) => {
         return yargs
-          .option("network", network_options)
-          .option("rpc", rpc_description);
+          .option("network", NETWORK_OPTIONS)
+          .option("rpc", RPC_OPTIONS);
       },
       async (argv) => {
         const network = argv.network.toUpperCase();
@@ -248,8 +234,8 @@ exports.builder = function (y: typeof yargs) {
       "Publish Wormhole core contract",
       (yargs) => {
         return yargs
-          .option("network", network_options)
-          .option("rpc", rpc_description);
+          .option("network", NETWORK_OPTIONS)
+          .option("rpc", RPC_OPTIONS);
       },
       async (argv) => {
         const network = argv.network.toUpperCase();

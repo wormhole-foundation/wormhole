@@ -1,6 +1,6 @@
-import yargs from "yargs";
 import { ethers } from "ethers";
-import { hex } from "../consts";
+import yargs from "yargs";
+import { hex } from "../utils";
 
 exports.command = "recover <digest> <signature>";
 exports.desc = "Recover an address from a signature";
