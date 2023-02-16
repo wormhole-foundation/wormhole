@@ -41,6 +41,14 @@ func (msg *SinglePublication) GetEmitterChain() vaa.ChainID {
 	return msg.EmitterChain
 }
 
+func (msg *SinglePublication) GetNonce() uint32 {
+	return msg.Nonce
+}
+
+func (msg *SinglePublication) GetConsistencyLevel() uint8 {
+	return msg.ConsistencyLevel
+}
+
 func (msg *SinglePublication) IsUnreliable() bool {
 	return msg.Unreliable
 }
@@ -172,10 +180,51 @@ func (msg *SinglePublication) CreateDigest() string {
 	return hex.EncodeToString(db.Bytes())
 }
 
+type BatchPublication struct {
+	TxHash    common.Hash // TODO: rename to identifier? on Solana, this isn't actually the tx hash
+	Timestamp time.Time
+
+	Nonce            uint32
+	ConsistencyLevel uint8
+	EmitterChain     vaa.ChainID
+
+	// Unreliable indicates if this message can be reobserved. If a message is considered unreliable it cannot be
+	// reobserved.
+	Unreliable bool
+
+	Components []*SinglePublication
+}
+
+func (b *BatchPublication) GetTxHash() common.Hash {
+	return b.TxHash
+}
+
+func (b *BatchPublication) GetTimestamp() time.Time {
+	return b.Timestamp
+}
+
+func (b *BatchPublication) GetEmitterChain() vaa.ChainID {
+	return b.EmitterChain
+}
+
+func (b *BatchPublication) GetNonce() uint32 {
+	return b.Nonce
+}
+
+func (b *BatchPublication) GetConsistencyLevel() uint8 {
+	return b.ConsistencyLevel
+}
+
+func (b *BatchPublication) IsUnreliable() bool {
+	return b.Unreliable
+}
+
 type MessagePublication interface {
 	GetTxHash() common.Hash
 	GetTimestamp() time.Time
 	GetEmitterChain() vaa.ChainID
+	GetNonce() uint32
+	GetConsistencyLevel() uint8
 
 	// IsUnreliable indicates if this message can be reobserved. If a message is considered unreliable it cannot be
 	// reobserved.

@@ -7,6 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/golang/groupcache/lru"
+
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors/ethabi"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/finalizers"
@@ -123,14 +125,13 @@ type (
 	}
 
 	pendingKey struct {
-		TxHash         eth_common.Hash
-		BlockHash      eth_common.Hash
-		EmitterAddress vaa.Address
-		Sequence       uint64
+		TxHash    eth_common.Hash
+		BlockHash eth_common.Hash
+		Nonce     uint32
 	}
 
 	pendingMessage struct {
-		message *common.SinglePublication
+		message common.MessagePublication
 		height  uint64
 	}
 )
@@ -402,12 +403,11 @@ func (w *Watcher) Run(ctx context.Context) error {
 					continue
 				}
 
-				for _, msg := range msgs {
-					if msg.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
+				for _, msg := range groupBatchPublications(msgs) {
+					if msg.GetConsistencyLevel() == vaa.ConsistencyLevelPublishImmediately {
 						logger.Info("re-observed message publication transaction, publishing it immediately",
-							zap.Stringer("tx", msg.TxHash),
-							zap.Stringer("emitter_address", msg.EmitterAddress),
-							zap.Uint64("sequence", msg.Sequence),
+							zap.Stringer("tx", msg.GetTxHash()),
+							zap.Uint32("nonce", msg.GetNonce()),
 							zap.Uint64("current_block", blockNumberU),
 							zap.Uint64("observed_block", blockNumber),
 							zap.String("eth_network", w.networkName),
@@ -416,7 +416,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 						continue
 					}
 
-					if msg.ConsistencyLevel == vaa.ConsistencyLevelSafe && safeBlocksSupported {
+					if msg.GetConsistencyLevel() == vaa.ConsistencyLevelSafe && safeBlocksSupported {
 						if safeBlockNumberU == 0 {
 							logger.Error("no safe block number available, ignoring observation request",
 								zap.String("eth_network", w.networkName))
@@ -425,9 +425,8 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 						if blockNumber <= safeBlockNumberU {
 							logger.Info("re-observed message publication transaction",
-								zap.Stringer("tx", msg.TxHash),
-								zap.Stringer("emitter_address", msg.EmitterAddress),
-								zap.Uint64("sequence", msg.Sequence),
+								zap.Stringer("tx", msg.GetTxHash()),
+								zap.Uint32("nonce", msg.GetNonce()),
 								zap.Uint64("current_safe_block", safeBlockNumberU),
 								zap.Uint64("observed_block", blockNumber),
 								zap.String("eth_network", w.networkName),
@@ -435,9 +434,8 @@ func (w *Watcher) Run(ctx context.Context) error {
 							w.msgC <- msg
 						} else {
 							logger.Info("ignoring re-observed message publication transaction",
-								zap.Stringer("tx", msg.TxHash),
-								zap.Stringer("emitter_address", msg.EmitterAddress),
-								zap.Uint64("sequence", msg.Sequence),
+								zap.Stringer("tx", msg.GetTxHash()),
+								zap.Uint32("nonce", msg.GetNonce()),
 								zap.Uint64("current_safe_block", safeBlockNumberU),
 								zap.Uint64("observed_block", blockNumber),
 								zap.String("eth_network", w.networkName),
@@ -455,7 +453,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 					var expectedConfirmations uint64
 					if w.waitForConfirmations {
-						expectedConfirmations = uint64(msg.ConsistencyLevel)
+						expectedConfirmations = uint64(msg.GetConsistencyLevel())
 					}
 
 					// SECURITY: In the recovery flow, we already know which transaction to
@@ -470,9 +468,8 @@ func (w *Watcher) Run(ctx context.Context) error {
 					// larger than the message observation's block number.
 					if blockNumber+expectedConfirmations <= blockNumberU {
 						logger.Info("re-observed message publication transaction",
-							zap.Stringer("tx", msg.TxHash),
-							zap.Stringer("emitter_address", msg.EmitterAddress),
-							zap.Uint64("sequence", msg.Sequence),
+							zap.Stringer("tx", msg.GetTxHash()),
+							zap.Uint32("nonce", msg.GetNonce()),
 							zap.Uint64("current_block", blockNumberU),
 							zap.Uint64("observed_block", blockNumber),
 							zap.String("eth_network", w.networkName),
@@ -480,9 +477,8 @@ func (w *Watcher) Run(ctx context.Context) error {
 						w.msgC <- msg
 					} else {
 						logger.Info("ignoring re-observed message publication transaction",
-							zap.Stringer("tx", msg.TxHash),
-							zap.Stringer("emitter_address", msg.EmitterAddress),
-							zap.Uint64("sequence", msg.Sequence),
+							zap.Stringer("tx", msg.GetTxHash()),
+							zap.Uint32("nonce", msg.GetNonce()),
 							zap.Uint64("current_block", blockNumberU),
 							zap.Uint64("observed_block", blockNumber),
 							zap.Uint64("expected_confirmations", expectedConfirmations),
@@ -495,6 +491,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 	})
 
 	common.RunWithScissors(ctx, errC, "evm_fetch_messages", func(ctx context.Context) error {
+		txProcessed := lru.New(1000)
 		for {
 			select {
 			case <-ctx.Done():
@@ -505,71 +502,64 @@ func (w *Watcher) Run(ctx context.Context) error {
 				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 				return nil
 			case ev := <-messageC:
-				// Request timestamp for block
-				msm := time.Now()
-				timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
-				blockTime, err := w.ethConn.TimeOfBlockByHash(timeout, ev.Raw.BlockHash)
-				cancel()
-				queryLatency.WithLabelValues(w.networkName, "block_by_number").Observe(time.Since(msm).Seconds())
-
-				if err != nil {
-					ethConnectionErrors.WithLabelValues(w.networkName, "block_by_number_error").Inc()
-					p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-					errC <- fmt.Errorf("failed to request timestamp for block %d, hash %s: %w",
-						ev.Raw.BlockNumber, ev.Raw.BlockHash.String(), err)
-					return nil
-				}
-
-				message := &common.SinglePublication{
-					TxHash:           ev.Raw.TxHash,
-					Timestamp:        time.Unix(int64(blockTime), 0),
-					Nonce:            ev.Nonce,
-					Sequence:         ev.Sequence,
-					EmitterChain:     w.chainID,
-					EmitterAddress:   PadAddress(ev.Sender),
-					Payload:          ev.Payload,
-					ConsistencyLevel: ev.ConsistencyLevel,
-				}
-
-				ethMessagesObserved.WithLabelValues(w.networkName).Inc()
-
-				if message.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
-					logger.Info("found new message publication transaction, publishing it immediately",
-						zap.Stringer("tx", ev.Raw.TxHash),
-						zap.Uint64("block", ev.Raw.BlockNumber),
-						zap.Stringer("blockhash", ev.Raw.BlockHash),
-						zap.Uint64("Sequence", ev.Sequence),
-						zap.Uint32("Nonce", ev.Nonce),
-						zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
-						zap.String("eth_network", w.networkName))
-
-					w.msgC <- message
-					ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
+				if _, exists := txProcessed.Get(ev.Raw.TxHash.String()); exists {
 					continue
 				}
 
-				logger.Info("found new message publication transaction",
-					zap.Stringer("tx", ev.Raw.TxHash),
-					zap.Uint64("block", ev.Raw.BlockNumber),
-					zap.Stringer("blockhash", ev.Raw.BlockHash),
-					zap.Uint64("Sequence", ev.Sequence),
-					zap.Uint32("Nonce", ev.Nonce),
-					zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
-					zap.String("eth_network", w.networkName))
+				msm := time.Now()
+				timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+				cancel()
 
-				key := pendingKey{
-					TxHash:         message.TxHash,
-					BlockHash:      ev.Raw.BlockHash,
-					EmitterAddress: message.EmitterAddress,
-					Sequence:       message.Sequence,
+				_, msgs, err := MessageEventsForTransaction(timeout, w.ethConn, w.contract, w.chainID, ev.Raw.TxHash)
+				if err != nil {
+					ethConnectionErrors.WithLabelValues(w.networkName, "messages_by_tx_hash").Inc()
+					p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+					errC <- fmt.Errorf("failed to request messages for tx, hash %s: %w",
+						ev.Raw.TxHash.String(), err)
+					return nil
+				}
+				queryLatency.WithLabelValues(w.networkName, "messages_by_tx_hash").Observe(time.Since(msm).Seconds())
+
+				for _, message := range groupBatchPublications(msgs) {
+					ethMessagesObserved.WithLabelValues(w.networkName).Inc()
+
+					if message.GetConsistencyLevel() == vaa.ConsistencyLevelPublishImmediately {
+						logger.Info("found new message publication transaction, publishing it immediately",
+							zap.Stringer("tx", ev.Raw.TxHash),
+							zap.Uint64("block", ev.Raw.BlockNumber),
+							zap.Stringer("blockhash", ev.Raw.BlockHash),
+							zap.Uint32("Nonce", ev.Nonce),
+							zap.Uint8("ConsistencyLevel", message.GetConsistencyLevel()),
+							zap.String("eth_network", w.networkName))
+
+						w.msgC <- message
+						ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
+						continue
+					}
+
+					logger.Info("found new message publication transaction",
+						zap.Stringer("tx", ev.Raw.TxHash),
+						zap.Uint64("block", ev.Raw.BlockNumber),
+						zap.Stringer("blockhash", ev.Raw.BlockHash),
+						zap.Uint32("Nonce", ev.Nonce),
+						zap.Uint8("ConsistencyLevel", message.GetConsistencyLevel()),
+						zap.String("eth_network", w.networkName))
+
+					key := pendingKey{
+						TxHash:    message.GetTxHash(),
+						BlockHash: ev.Raw.BlockHash,
+						Nonce:     message.GetNonce(),
+					}
+
+					w.pendingMu.Lock()
+					w.pending[key] = &pendingMessage{
+						message: message,
+						height:  ev.Raw.BlockNumber,
+					}
+					w.pendingMu.Unlock()
 				}
 
-				w.pendingMu.Lock()
-				w.pending[key] = &pendingMessage{
-					message: message,
-					height:  ev.Raw.BlockNumber,
-				}
-				w.pendingMu.Unlock()
+				txProcessed.Add(ev.Raw.TxHash.String(), struct{}{})
 			}
 		}
 	})
@@ -632,23 +622,22 @@ func (w *Watcher) Run(ctx context.Context) error {
 					// If this block is safe, only process messages wanting safe.
 					// If it's not safe, only process messages wanting finalized.
 					if safeBlocksSupported {
-						if ev.Safe != (pLock.message.ConsistencyLevel == vaa.ConsistencyLevelSafe) {
+						if ev.Safe != (pLock.message.GetConsistencyLevel() == vaa.ConsistencyLevelSafe) {
 							continue
 						}
 					}
 
 					var expectedConfirmations uint64
 					if w.waitForConfirmations && !ev.Safe {
-						expectedConfirmations = uint64(pLock.message.ConsistencyLevel)
+						expectedConfirmations = uint64(pLock.message.GetConsistencyLevel())
 					}
 
 					// Transaction was dropped and never picked up again
 					if pLock.height+expectedConfirmations+w.maxWaitConfirmations <= blockNumberU {
 						logger.Info("observation timed out",
-							zap.Stringer("tx", pLock.message.TxHash),
+							zap.Stringer("tx", pLock.message.GetTxHash()),
 							zap.Stringer("blockhash", key.BlockHash),
-							zap.Stringer("emitter_address", key.EmitterAddress),
-							zap.Uint64("sequence", key.Sequence),
+							zap.Uint32("nonce", key.Nonce),
 							zap.Stringer("current_block", ev.Number),
 							zap.Bool("is_safe_block", ev.Safe),
 							zap.Stringer("current_blockhash", currentHash),
@@ -664,7 +653,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 					// Transaction is now ready
 					if pLock.height+expectedConfirmations <= blockNumberU {
 						timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
-						tx, err := w.ethConn.TransactionReceipt(timeout, pLock.message.TxHash)
+						tx, err := w.ethConn.TransactionReceipt(timeout, pLock.message.GetTxHash())
 						cancel()
 
 						// If the node returns an error after waiting expectedConfirmation blocks,
@@ -677,10 +666,9 @@ func (w *Watcher) Run(ctx context.Context) error {
 						// return a nil tx or rpc.ErrNoResult.
 						if tx == nil || err == rpc.ErrNoResult || (err != nil && err.Error() == "not found") {
 							logger.Warn("tx was orphaned",
-								zap.Stringer("tx", pLock.message.TxHash),
+								zap.Stringer("tx", pLock.message.GetTxHash()),
 								zap.Stringer("blockhash", key.BlockHash),
-								zap.Stringer("emitter_address", key.EmitterAddress),
-								zap.Uint64("sequence", key.Sequence),
+								zap.Uint32("nonce", key.Nonce),
 								zap.Stringer("current_block", ev.Number),
 								zap.Bool("is_safe_block", ev.Safe),
 								zap.Stringer("current_blockhash", currentHash),
@@ -696,10 +684,9 @@ func (w *Watcher) Run(ctx context.Context) error {
 						// in case the EVM implementation is buggy.
 						if tx.Status != 1 {
 							logger.Error("transaction receipt with non-success status",
-								zap.Stringer("tx", pLock.message.TxHash),
+								zap.Stringer("tx", pLock.message.GetTxHash()),
 								zap.Stringer("blockhash", key.BlockHash),
-								zap.Stringer("emitter_address", key.EmitterAddress),
-								zap.Uint64("sequence", key.Sequence),
+								zap.Uint32("nonce", key.Nonce),
 								zap.Stringer("current_block", ev.Number),
 								zap.Bool("is_safe_block", ev.Safe),
 								zap.Stringer("current_blockhash", currentHash),
@@ -713,10 +700,9 @@ func (w *Watcher) Run(ctx context.Context) error {
 						// Any error other than "not found" is likely transient - we retry next block.
 						if err != nil {
 							logger.Warn("transaction could not be fetched",
-								zap.Stringer("tx", pLock.message.TxHash),
+								zap.Stringer("tx", pLock.message.GetTxHash()),
 								zap.Stringer("blockhash", key.BlockHash),
-								zap.Stringer("emitter_address", key.EmitterAddress),
-								zap.Uint64("sequence", key.Sequence),
+								zap.Uint32("nonce", key.Nonce),
 								zap.Stringer("current_block", ev.Number),
 								zap.Bool("is_safe_block", ev.Safe),
 								zap.Stringer("current_blockhash", currentHash),
@@ -730,10 +716,9 @@ func (w *Watcher) Run(ctx context.Context) error {
 						// wait for the full confirmation time again).
 						if tx.BlockHash != key.BlockHash {
 							logger.Info("tx got dropped and mined in a different block; the message should have been reobserved",
-								zap.Stringer("tx", pLock.message.TxHash),
+								zap.Stringer("tx", pLock.message.GetTxHash()),
 								zap.Stringer("blockhash", key.BlockHash),
-								zap.Stringer("emitter_address", key.EmitterAddress),
-								zap.Uint64("sequence", key.Sequence),
+								zap.Uint32("nonce", key.Nonce),
 								zap.Stringer("current_block", ev.Number),
 								zap.Bool("is_safe_block", ev.Safe),
 								zap.Stringer("current_blockhash", currentHash),
@@ -744,10 +729,9 @@ func (w *Watcher) Run(ctx context.Context) error {
 						}
 
 						logger.Info("observation confirmed",
-							zap.Stringer("tx", pLock.message.TxHash),
+							zap.Stringer("tx", pLock.message.GetTxHash()),
 							zap.Stringer("blockhash", key.BlockHash),
-							zap.Stringer("emitter_address", key.EmitterAddress),
-							zap.Uint64("sequence", key.Sequence),
+							zap.Uint32("nonce", key.Nonce),
 							zap.Stringer("current_block", ev.Number),
 							zap.Bool("is_safe_block", ev.Safe),
 							zap.Stringer("current_blockhash", currentHash),
@@ -906,4 +890,42 @@ func (w *Watcher) SetWaitForConfirmations(waitForConfirmations bool) {
 // SetMaxWaitConfirmations is used to override the maximum number of confirmations to wait before declaring a transaction abandoned.
 func (w *Watcher) SetMaxWaitConfirmations(maxWaitConfirmations uint64) {
 	w.maxWaitConfirmations = maxWaitConfirmations
+}
+
+func groupBatchPublications(msgs []*common.SinglePublication) (publications []common.MessagePublication) {
+	msgMap := map[uint32][]*common.SinglePublication{}
+	for _, msg := range msgs {
+		if _, ok := msgMap[msg.Nonce]; !ok {
+			msgMap[msg.Nonce] = []*common.SinglePublication{}
+		}
+		msgMap[msg.Nonce] = append(msgMap[msg.Nonce], msg)
+	}
+
+	for nonce, msgs := range msgMap {
+		if len(msgs) == 1 {
+			publications = append(publications, msgs[0])
+		} else {
+			commonConsistency := uint8(0)
+			unreliable := false
+			for _, msg := range msgs {
+				if msg.ConsistencyLevel > commonConsistency {
+					commonConsistency = msg.ConsistencyLevel
+				}
+				if msg.Unreliable {
+					unreliable = true
+				}
+			}
+			publications = append(publications, &common.BatchPublication{
+				TxHash:           msgs[0].TxHash,
+				Timestamp:        msgs[0].Timestamp,
+				EmitterChain:     msgs[0].EmitterChain,
+				Unreliable:       unreliable,
+				Nonce:            nonce,
+				ConsistencyLevel: commonConsistency,
+				Components:       msgs,
+			})
+		}
+	}
+
+	return
 }
