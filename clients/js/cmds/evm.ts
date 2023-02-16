@@ -8,8 +8,8 @@ import {
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 import { ethers } from "ethers";
 import yargs from "yargs";
-import { evm_address } from "../consts";
 import { NETWORKS } from "../networks";
+import { evm_address } from "../utils";
 
 exports.command = "evm";
 exports.desc = "EVM utilities";
