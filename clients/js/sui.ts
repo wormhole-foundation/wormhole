@@ -46,9 +46,8 @@ export async function publishPackage(
   console.log("publishTxn", publishTxn);
   console.log(
     "effects: ",
-    JSON.stringify(publishTxn["EffectsCert"]["effects"])
+    JSON.stringify(publishTxn["effects"]["effects"])
   );
-
   //console.log('publishTxn effects', publishTxn["EffectsCert"]["effects"]["effects"]);
 }
 
@@ -77,6 +76,6 @@ export async function callEntryFunc(
   console.log("moveCallTxn: ", moveCallTxn);
   console.log(
     "effects: ",
-    JSON.stringify(moveCallTxn["EffectsCert"]["effects"])
+    JSON.stringify(moveCallTxn["effects"]["effects"])
   );
 }
