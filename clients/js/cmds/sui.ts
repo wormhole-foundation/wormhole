@@ -4,7 +4,7 @@ import { config } from "../config";
 import { NETWORK_OPTIONS, RPC_OPTIONS } from "../consts";
 import { NETWORKS } from "../networks";
 import { callEntryFunc, loadSigner, publishPackage } from "../sui";
-import { assertNetwork } from "../utils";
+import { assertNetwork, checkBinary } from "../utils";
 
 /*
   Loop through a list of Sui objects and look for the DeployerCapability that should
@@ -24,12 +24,41 @@ function findDeployerCapability(
   );
 }
 
-const dir = `${config.wormholeDir}/sui`;
-
 exports.command = "sui";
 exports.desc = "Sui utilities ";
 exports.builder = function (y: typeof yargs) {
   return y
+    .command(
+      "deploy <package-dir>",
+      "Deploy a Sui package",
+      (yargs) => {
+        return yargs
+          .positional("package-dir", {
+            type: "string",
+          })
+          .option("network", NETWORK_OPTIONS)
+          .option("rpc", RPC_OPTIONS);
+      },
+      async (argv) => {
+        checkBinary("sui", "sui");
+
+        const network = argv.network.toUpperCase();
+        assertNetwork(network);
+        const packageDir = argv["package-dir"];
+        const rpc = argv.rpc ?? NETWORKS[network]["sui"].rpc;
+
+        console.log("package: ", packageDir);
+        console.log("network: ", network);
+        console.log("rpc: ", rpc);
+
+        // TODO(aki): should user pass in entire path to package?
+        await publishPackage(
+          network,
+          rpc,
+          `${config.wormholeDir}/sui/${packageDir}`
+        );
+      }
+    )
     .command(
       "get-owned-objects",
       "Get owned objects by owner",
@@ -193,57 +222,6 @@ exports.builder = function (y: typeof yargs) {
             [[...Buffer.from(initialGuardian, "hex")]],
           ]
         );
-      }
-    )
-    .command(
-      "publish-coin",
-      "Publish coin contract",
-      (yargs) => {
-        return yargs
-          .option("network", NETWORK_OPTIONS)
-          .option("rpc", RPC_OPTIONS);
-      },
-      async (argv) => {
-        const network = argv.network.toUpperCase();
-        assertNetwork(network);
-        const rpc = argv.rpc ?? NETWORKS[network]["sui"].rpc;
-        console.log("network: ", network);
-        console.log("rpc: ", rpc);
-        await publishPackage(network, rpc, `${dir}/coin`);
-      }
-    )
-    .command(
-      "publish-token-bridge",
-      "Publish Wormhole token bridge contract",
-      (yargs) => {
-        return yargs
-          .option("network", NETWORK_OPTIONS)
-          .option("rpc", RPC_OPTIONS);
-      },
-      async (argv) => {
-        const network = argv.network.toUpperCase();
-        assertNetwork(network);
-        const rpc = argv.rpc ?? NETWORKS[network]["sui"].rpc;
-        console.log("network: ", network);
-        console.log("rpc: ", rpc);
-        await publishPackage(network, rpc, `${dir}/token_bridge`);
-      }
-    )
-    .command(
-      "publish-wormhole",
-      "Publish Wormhole core contract",
-      (yargs) => {
-        return yargs
-          .option("network", NETWORK_OPTIONS)
-          .option("rpc", RPC_OPTIONS);
-      },
-      async (argv) => {
-        const network = argv.network.toUpperCase();
-        assertNetwork(network);
-        const rpc = argv.rpc ?? NETWORKS[network]["sui"].rpc;
-        console.log("network: ", network);
-        console.log("rpc: ", rpc);
-        await publishPackage(network, rpc, `${dir}/wormhole`);
       }
     )
     .strict()
