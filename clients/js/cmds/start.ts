@@ -1,6 +1,7 @@
 import { spawnSync } from "child_process";
 import yargs from "yargs";
 import { config } from "../config";
+import { checkBinary } from "../utils";
 
 exports.command = "start-validator";
 exports.desc = "Start a local validator";
@@ -19,7 +20,7 @@ exports.builder = function (y: typeof yargs) {
       (_yargs) => {},
       (argv) => {
         const dir = `${config.wormholeDir}/aptos`;
-        checkAptosBinary();
+        checkBinary("aptos", "aptos");
         const cmd = `cd ${dir} && aptos node run-local-testnet --with-faucet --force-restart --assume-yes`;
         runCommand(cmd, argv["validator-args"]);
       }
