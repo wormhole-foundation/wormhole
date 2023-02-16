@@ -1,4 +1,4 @@
-package p2p
+package heartbeat
 
 import (
 	"context"
@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/p2p"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/test-go/testify/require"
 
-	"github.com/certusone/wormhole/node/pkg/accountant"
 	node_common "github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/governor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -38,11 +38,9 @@ type G struct {
 	nodeName               string
 	disableHeartbeatVerify bool
 	rootCtxCancel          context.CancelFunc
-	gov                    *governor.ChainGovernor
-	acct                   *accountant.Accountant
 	signedGovCfg           chan *gossipv1.SignedChainGovernorConfig
 	signedGovSt            chan *gossipv1.SignedChainGovernorStatus
-	components             *Components
+	components             *p2p.Components
 }
 
 func NewG(t *testing.T, nodeName string) *G {
@@ -71,10 +69,9 @@ func NewG(t *testing.T, nodeName string) *G {
 		nodeName:               nodeName,
 		disableHeartbeatVerify: false,
 		rootCtxCancel:          nil,
-		gov:                    nil,
 		signedGovCfg:           make(chan *gossipv1.SignedChainGovernorConfig, cs),
 		signedGovSt:            make(chan *gossipv1.SignedChainGovernorStatus, cs),
-		components:             DefaultComponents(),
+		components:             p2p.DefaultComponents(),
 	}
 
 	// Consume all output channels
@@ -163,22 +160,30 @@ func TestWatermark(t *testing.T) {
 func startGuardian(t *testing.T, ctx context.Context, g *G) {
 	t.Helper()
 	supervisor.New(ctx, zap.L(),
-		Run(g.obsvC,
-			g.obsvReqC,
-			g.obsvReqSendC,
-			g.sendC,
-			g.signedInC,
+		p2p.Runnable(
 			g.priv,
-			g.gk,
 			g.gst,
 			g.networkID,
 			g.bootstrapPeers,
 			g.nodeName,
-			g.disableHeartbeatVerify,
-			g.rootCtxCancel,
-			g.acct,
-			g.gov,
-			g.signedGovCfg,
-			g.signedGovSt,
-			g.components))
+			g.components,
+			func(ctx context.Context, gossip *p2p.Gossip) supervisor.Runnable {
+				return func(ctx context.Context) error {
+					heartbeatTopic, err := gossip.Topic("heartbeat")
+					if err != nil {
+						return err
+					}
+					var features []string
+					if err := supervisor.Run(ctx, "heartbeat_sender", HeartbeatSenderRunnable(g.nodeName, features, g.gk, heartbeatTopic, gossip.PeerID(), g.gst, nil, g.components)); err != nil {
+						return err
+					}
+					if err := supervisor.Run(ctx, "heartbeat_processor", HeartbeatProcessorRunnable(g.gst, false, heartbeatTopic, g.components)); err != nil {
+						return err
+					}
+
+					supervisor.Signal(ctx, supervisor.SignalHealthy)
+					supervisor.Signal(ctx, supervisor.SignalDone)
+					return nil
+				}
+			}))
 }

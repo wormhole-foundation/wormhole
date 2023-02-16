@@ -27,8 +27,8 @@ type (
 		guardianKeys []*ecdsa.PrivateKey
 		gs           *common2.GuardianSet
 
-		obsC       chan<- *testObservation
-		signedObsC chan<- *gossipv1.SignedObservation
+		obsC     chan<- *testObservation
+		gossipIO *testGossipIO
 
 		storage      *testConsensusStorage
 		eventHandler *testManagerEventHandler[*testObservation]
@@ -179,7 +179,7 @@ func (i managerInjectForeignObservationAction) Evaluate(t *testing.T, m *Manager
 		require.NoError(t, err, m)
 		require.Equal(t, 65, n, m)
 	}
-	testContext.signedObsC <- signedObservation
+	testContext.gossipIO.publishObservation(signedObservation)
 }
 
 func (w managerWaitAction) Evaluate(t *testing.T, r *Manager[*testObservation], testContext *managerTestContext) {
@@ -427,22 +427,22 @@ func TestManager(t *testing.T) {
 				}
 			}
 			obsC := make(chan *testObservation, 10)
-			signedObsC := make(chan *gossipv1.SignedObservation, 10)
 			storage := &testConsensusStorage{
 				signatures: make(map[string]testConsensusStorageEntry),
 			}
 			eventHandler := &testManagerEventHandler[*testObservation]{}
+			gossipIO := NewTestGossipIO(t)
 			tCtx := &managerTestContext{
 				guardianKeys: keys,
 				gs:           gs,
 				obsC:         obsC,
-				signedObsC:   signedObsC,
+				gossipIO:     gossipIO,
 				storage:      storage,
 				eventHandler: eventHandler,
 				clock:        clock.NewMock(),
 			}
 
-			r := NewManager[*testObservation]("test", obsC, signedObsC, gst, *config, eventHandler, storage)
+			r := NewManager[*testObservation]("test", obsC, gossipIO, gst, *config, eventHandler, storage)
 			r.clock = tCtx.clock
 
 			func() {

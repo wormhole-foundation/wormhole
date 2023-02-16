@@ -1,4 +1,4 @@
-package p2p
+package heartbeat
 
 import (
 	"crypto/ecdsa"
@@ -16,7 +16,6 @@ import (
 )
 
 func TestSignedHeartbeat(t *testing.T) {
-
 	type testCase struct {
 		timestamp             int64
 		gk                    *ecdsa.PrivateKey

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/benbjohnson/clock"
+	"github.com/certusone/wormhole/node/pkg/p2p"
 
 	"go.uber.org/zap"
 
@@ -26,6 +27,7 @@ type testContext struct {
 	gs               *wormhole_common.GuardianSet
 	clock            *clock.Mock
 	stateTransitions chan *StateTransition[*testObservation]
+	gossipIO         *testGossipIO
 }
 
 // testObservation is a mock implementation of the Observation interface that returns the constant `testObservationHash()` as SigningDigest().
@@ -54,20 +56,6 @@ func (t *testObservation) SigningDigest() ethereum_common.Hash {
 		copy(out[:], t.id)
 		return out
 	}
-}
-
-// testGossipSender is a mock implementation of the NetworkAdapter interface.
-// Instead of sending out observations, it keeps them in the sentMessages array.
-type testGossipSender struct {
-	sentMessages     []*gossipv1.SignedObservation
-	sentMessagesLock sync.Mutex
-}
-
-func (t *testGossipSender) BroadcastObservation(ctx context.Context, observation *gossipv1.SignedObservation) error {
-	t.sentMessagesLock.Lock()
-	defer t.sentMessagesLock.Unlock()
-	t.sentMessages = append(t.sentMessages, observation)
-	return nil
 }
 
 type testSigner struct {
@@ -182,19 +170,19 @@ func (a assertSignedObservationOnGossip) Evaluate(t *testing.T, r *ConsensusReac
 	// Sleep a little to make sure timeouts can process
 	time.Sleep(time.Millisecond * 10)
 
-	r.config.NetworkAdapter.(*testGossipSender).sentMessagesLock.Lock()
-	defer r.config.NetworkAdapter.(*testGossipSender).sentMessagesLock.Unlock()
+	testContext.gossipIO.sentMessagesLock.Lock()
+	defer testContext.gossipIO.sentMessagesLock.Unlock()
 	if a.observation == nil {
-		require.Len(t, r.config.NetworkAdapter.(*testGossipSender).sentMessages, 0, a)
+		require.Len(t, testContext.gossipIO.sentMessages, 0, a)
 		return
 	}
-	require.Len(t, r.config.NetworkAdapter.(*testGossipSender).sentMessages, 1, a)
+	require.Len(t, testContext.gossipIO.sentMessages, 1, a)
 
-	msg := r.config.NetworkAdapter.(*testGossipSender).sentMessages[0]
+	msg := testContext.gossipIO.sentMessages[0]
 	require.Equal(t, a.observation.SigningDigest().Bytes(), msg.Hash, a)
 	require.Equal(t, a.observation.MessageID(), msg.MessageId, a)
 
-	r.config.NetworkAdapter.(*testGossipSender).sentMessages = nil
+	testContext.gossipIO.sentMessages = nil
 }
 
 func (a assertStateAction) Evaluate(t *testing.T, r *ConsensusReactor[*testObservation], testContext *testContext) {
@@ -228,6 +216,54 @@ func (a assertNoStateTransitionAction) Evaluate(t *testing.T, r *ConsensusReacto
 	case <-time.After(timeout):
 		return
 	}
+}
+
+// testGossipIO is a mock implementation of the GossipIO interface.
+// Instead of sending out observations, it keeps them in the sentMessages array.
+type testGossipIO struct {
+	sentMessages     []*gossipv1.SignedObservation
+	sentMessagesLock sync.Mutex
+	msgChan          chan *gossipv1.SignedObservation
+	t                *testing.T
+}
+
+func NewTestGossipIO(t *testing.T) *testGossipIO {
+	return &testGossipIO{
+		t:       t,
+		msgChan: make(chan *gossipv1.SignedObservation, 10),
+	}
+}
+
+func (t *testGossipIO) publishObservation(observation *gossipv1.SignedObservation) error {
+	t.msgChan <- observation
+	return nil
+}
+func (t *testGossipIO) Subscribe(ctx context.Context, ch chan<- *p2p.GossipEnvelope) error {
+	go func() {
+		for {
+			select {
+			case msg := <-t.msgChan:
+				ch <- &p2p.GossipEnvelope{
+					Message: &gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedObservation{SignedObservation: msg}},
+					From:    "test",
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	return nil
+}
+
+func (t *testGossipIO) Send(ctx context.Context, msg *gossipv1.GossipMessage) error {
+	t.sentMessagesLock.Lock()
+	defer t.sentMessagesLock.Unlock()
+	so, ok := msg.Message.(*gossipv1.GossipMessage_SignedObservation)
+	if !ok {
+		t.t.Fatal("not a signed observation")
+	}
+	t.sentMessages = append(t.sentMessages, so.SignedObservation)
+	return nil
 }
 
 func Test(t *testing.T) {
@@ -569,12 +605,10 @@ func Test(t *testing.T) {
 				test.config.Signer = signer
 			}
 
-			// Set the NetworkAdapter to &testGossipSender{} unless it was overwritten in the test config
-			if test.config.NetworkAdapter == nil {
-				test.config.NetworkAdapter = &testGossipSender{}
-			}
+			gossipIO := NewTestGossipIO(t)
+			tCtx.gossipIO = gossipIO
 
-			r := NewReactor[*testObservation]("test", test.config, gs, tCtx.stateTransitions)
+			r := NewReactor[*testObservation]("test", test.config, gs, gossipIO, tCtx.stateTransitions)
 			r.clock = tCtx.clock
 
 			func() {

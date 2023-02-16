@@ -126,7 +126,7 @@ func setupAdminServerForVAASigning(gsIndex uint32, gsAddrs []common.Address) *no
 		injectC:         nil,
 		obsvReqSendC:    nil,
 		logger:          zap.L(),
-		signedInC:       nil,
+		vaaSender:       nil,
 		governor:        nil,
 		evmConnector:    connector,
 		gk:              gk,

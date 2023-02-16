@@ -13,13 +13,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/p2p/heartbeat"
+
 	"encoding/base64"
 	"encoding/json"
 
 	"github.com/gorilla/websocket"
 
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
@@ -228,7 +229,7 @@ func (e *Watcher) inspectBody(logger *zap.Logger, body SuiResult) error {
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
-	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDSui, &gossipv1.Heartbeat_Network{
+	heartbeat.DefaultRegistry.SetNetworkStats(vaa.ChainIDSui, &gossipv1.Heartbeat_Network{
 		ContractAddress: e.suiAccount,
 	})
 
@@ -315,14 +316,14 @@ func (e *Watcher) Run(ctx context.Context) error {
 			resp, err := http.Post(e.suiRPC, "application/json", strings.NewReader(buf))
 			if err != nil {
 				logger.Error("getEvents API failed", zap.String("suiRPC", e.suiRPC), zap.Error(err))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
+				heartbeat.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
 				continue
 			}
 
 			body, err := io.ReadAll(resp.Body)
 			if err != nil {
 				logger.Error("unexpected truncated body when calling getEvents", zap.Error(err))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
+				heartbeat.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
 				continue
 
 			}
@@ -334,7 +335,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			err = json.Unmarshal(body, &res)
 			if err != nil {
 				logger.Error("failed to unmarshal event message", zap.Error(err))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
+				heartbeat.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
 				continue
 
 			}
@@ -378,14 +379,14 @@ func (e *Watcher) Run(ctx context.Context) error {
 			resp, err := http.Post(e.suiRPC, "application/json", strings.NewReader(`{"jsonrpc":"2.0", "id": 1, "method": "sui_getCommitteeInfo", "params": []}`))
 			if err != nil {
 				logger.Error("sui_getCommitteeInfo failed", zap.Error(err))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
+				heartbeat.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
 				break
 
 			}
 			body, err := io.ReadAll(resp.Body)
 			if err != nil {
 				logger.Error("sui_getCommitteeInfo failed", zap.Error(err))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
+				heartbeat.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
 				break
 			}
 			resp.Body.Close()
@@ -394,7 +395,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			err = json.Unmarshal(body, &res)
 			if err != nil {
 				logger.Error("unmarshal failed into SuiCommitteeInfo", zap.String("body", string(body)), zap.Error(err))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
+				heartbeat.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
 				continue
 
 			}
@@ -404,7 +405,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			// proper block height as we traditionally
 			// understand it...
 			currentSuiHeight.Set(float64(res.Result.Epoch))
-			p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDSui, &gossipv1.Heartbeat_Network{
+			heartbeat.DefaultRegistry.SetNetworkStats(vaa.ChainIDSui, &gossipv1.Heartbeat_Network{
 				Height:          int64(res.Result.Epoch),
 				ContractAddress: e.suiAccount,
 			})

@@ -2,25 +2,16 @@ package p2p
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"errors"
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 
-	"github.com/certusone/wormhole/node/pkg/accountant"
 	node_common "github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/governor"
-	"github.com/certusone/wormhole/node/pkg/version"
 	"github.com/ethereum/go-ethereum/common"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/wormhole-foundation/wormhole/sdk/vaa"
-
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	"github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
@@ -42,11 +33,6 @@ import (
 const DefaultPort = 8999
 
 var (
-	p2pHeartbeatsSent = promauto.NewCounter(
-		prometheus.CounterOpts{
-			Name: "wormhole_p2p_heartbeats_sent_total",
-			Help: "Total number of p2p heartbeats sent",
-		})
 	p2pMessagesSent = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "wormhole_p2p_broadcast_messages_sent_total",
@@ -56,27 +42,254 @@ var (
 		prometheus.CounterOpts{
 			Name: "wormhole_p2p_broadcast_messages_received_total",
 			Help: "Total number of p2p pubsub broadcast messages received",
-		}, []string{"type"})
-	p2pReceiveChannelOverflow = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "wormhole_p2p_receive_channel_overflow",
-			Help: "Total number of p2p received messages dropped due to channel overflow",
-		}, []string{"type"})
+		}, []string{"topic"})
 )
 
-var heartbeatMessagePrefix = []byte("heartbeat|")
+type Gossip struct {
+	priv           crypto.PrivKey
+	gst            *node_common.GuardianSetState
+	networkID      string
+	bootstrapPeers string
+	nodeName       string
 
-var signedObservationRequestPrefix = []byte("signed_observation_request|")
+	p2pHost host.Host
+	ps      *pubsub.PubSub
 
-// heartbeatMaxTimeDifference specifies the maximum time difference between the local clock and the timestamp in incoming heartbeat messages. Heartbeats that are this old or this much into the future will be dropped. This value should encompass clock skew and network delay.
-var heartbeatMaxTimeDifference = time.Minute * 15
+	topics    map[string]*pubsub.Topic
+	topicLock sync.Mutex
 
-func heartbeatDigest(b []byte) common.Hash {
-	return ethcrypto.Keccak256Hash(append(heartbeatMessagePrefix, b...))
+	logger *zap.Logger
 }
 
-func signedObservationRequestDigest(b []byte) common.Hash {
-	return ethcrypto.Keccak256Hash(append(signedObservationRequestPrefix, b...))
+func Runnable(
+	priv crypto.PrivKey,
+	gst *node_common.GuardianSetState,
+	networkID string,
+	bootstrapPeers string,
+	nodeName string,
+	components *Components,
+	postBoot func(context.Context, *Gossip) supervisor.Runnable,
+) supervisor.Runnable {
+	return func(ctx context.Context) error {
+		g := &Gossip{
+			priv:           priv,
+			gst:            gst,
+			networkID:      networkID,
+			bootstrapPeers: bootstrapPeers,
+			nodeName:       nodeName,
+			topics:         map[string]*pubsub.Topic{},
+		}
+		g.logger = supervisor.Logger(ctx)
+
+		logger := supervisor.Logger(ctx)
+
+		h, err := libp2p.New(
+			// Use the keypair we generated
+			libp2p.Identity(priv),
+
+			// Multiple listen addresses
+			libp2p.ListenAddrStrings(
+				components.ListeningAddresses()...,
+			),
+
+			// Enable TLS security as the only security protocol.
+			libp2p.Security(libp2ptls.ID, libp2ptls.New),
+
+			// Enable QUIC transport as the only transport.
+			libp2p.Transport(libp2pquic.NewTransport),
+
+			// Let's prevent our peer from having too many
+			// connections by attaching a connection manager.
+			libp2p.ConnectionManager(components.ConnMgr),
+
+			// Let this host use the DHT to find other hosts
+			libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
+				logger.Info("Connecting to bootstrap peers", zap.String("bootstrap_peers", bootstrapPeers))
+				bootstrappers := make([]peer.AddrInfo, 0)
+				for _, addr := range strings.Split(bootstrapPeers, ",") {
+					if addr == "" {
+						continue
+					}
+					ma, err := multiaddr.NewMultiaddr(addr)
+					if err != nil {
+						logger.Error("Invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
+						continue
+					}
+					pi, err := peer.AddrInfoFromP2pAddr(ma)
+					if err != nil {
+						logger.Error("Invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
+						continue
+					}
+					if pi.ID == h.ID() {
+						logger.Info("We're a bootstrap node")
+						continue
+					}
+					bootstrappers = append(bootstrappers, *pi)
+				}
+				// TODO(leo): Persistent data store (i.e. address book)
+				idht, err := dht.New(ctx, h, dht.Mode(dht.ModeServer),
+					// This intentionally makes us incompatible with the global IPFS DHT
+					dht.ProtocolPrefix(protocol.ID("/"+networkID)),
+					dht.BootstrapPeers(bootstrappers...),
+				)
+				return idht, err
+			}),
+		)
+		if err != nil {
+			panic(err)
+		}
+		defer h.Close()
+		g.p2pHost = h
+
+		ps, err := pubsub.NewGossipSub(ctx, h)
+		if err != nil {
+			panic(err)
+		}
+		g.ps = ps
+
+		// Make sure we connect to at least 1 bootstrap node (this is particularly important in a local devnet and CI
+		// as peer discovery can take a long time).
+
+		// Count number of successful connection attempts. If we fail to connect to any bootstrap peer, kill
+		// the service and have supervisor retry it.
+		successes := 0
+		// Are we a bootstrap node? If so, it's okay to not have any peers.
+		bootstrapNode := false
+
+		for _, addr := range strings.Split(g.bootstrapPeers, ",") {
+			if addr == "" {
+				continue
+			}
+			ma, err := multiaddr.NewMultiaddr(addr)
+			if err != nil {
+				logger.Error("Invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
+				continue
+			}
+			pi, err := peer.AddrInfoFromP2pAddr(ma)
+			if err != nil {
+				logger.Error("Invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
+				continue
+			}
+
+			if pi.ID == h.ID() {
+				logger.Info("We're a bootstrap node")
+				bootstrapNode = true
+				continue
+			}
+
+			if err = h.Connect(ctx, *pi); err != nil {
+				logger.Error("Failed to connect to bootstrap peer", zap.String("peer", addr), zap.Error(err))
+			} else {
+				successes += 1
+			}
+		}
+
+		if successes == 0 && !bootstrapNode {
+			return fmt.Errorf("failed to connect to any bootstrap peer")
+		} else {
+			logger.Info("Connected to bootstrap peers", zap.Int("num", successes))
+		}
+
+		logger.Info("Node has been started", zap.String("peer_id", h.ID().String()),
+			zap.String("addrs", fmt.Sprintf("%v", h.Addrs())))
+
+		err = supervisor.Run(ctx, "children", postBoot(ctx, g))
+		if err != nil {
+			return err
+		}
+		supervisor.Signal(ctx, supervisor.SignalHealthy)
+
+		<-ctx.Done()
+
+		return nil
+	}
+}
+
+func (g *Gossip) Topic(handle string) (GossipIO, error) {
+	g.topicLock.Lock()
+	defer g.topicLock.Unlock()
+	topic := fmt.Sprintf("%s/%s", g.networkID, handle)
+
+	g.logger.Info("Subscribing pubsub topic", zap.String("topic", topic))
+
+	if th, exists := g.topics[topic]; exists {
+		return &GossipTopicHandle{th: th, gossip: g, logger: g.logger.With(zap.String("topic", handle))}, nil
+	}
+	th, err := g.ps.Join(topic)
+	if err != nil {
+		return nil, fmt.Errorf("failed to join topic: %w", err)
+	}
+
+	g.topics[topic] = th
+	return &GossipTopicHandle{th: th, gossip: g, logger: g.logger.With(zap.String("topic", topic))}, nil
+}
+
+func (g *Gossip) PeerID() peer.ID {
+	return g.p2pHost.ID()
+}
+
+type GossipTopicHandle struct {
+	th     *pubsub.Topic
+	gossip *Gossip
+	logger *zap.Logger
+}
+
+func (g *GossipTopicHandle) Subscribe(ctx context.Context, ch chan<- *GossipEnvelope) error {
+	sub, err := g.th.Subscribe()
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to topic: %w", err)
+	}
+
+	go func() {
+		for {
+			envelope, err := sub.Next(ctx)
+			if err != nil {
+				sub.Cancel()
+				return
+			}
+			p2pMessagesReceived.WithLabelValues(g.th.String()).Inc()
+
+			var msg gossipv1.GossipMessage
+			err = proto.Unmarshal(envelope.Data, &msg)
+			if err != nil {
+				g.logger.Info("received invalid message",
+					zap.Binary("data", envelope.Data),
+					zap.String("from", envelope.GetFrom().String()))
+				p2pMessagesReceived.WithLabelValues("invalid").Inc()
+				continue
+			}
+
+			if envelope.GetFrom() == g.gossip.p2pHost.ID() {
+				g.logger.Debug("received message from ourselves, ignoring",
+					zap.Any("payload", msg.Message))
+				p2pMessagesReceived.WithLabelValues("loopback").Inc()
+				continue
+			}
+
+			g.logger.Debug("received message",
+				zap.Any("payload", msg.Message),
+				zap.Binary("raw", envelope.Data),
+				zap.String("from", envelope.GetFrom().String()))
+
+			ch <- &GossipEnvelope{
+				Message: &msg,
+				From:    envelope.GetFrom(),
+			}
+		}
+	}()
+
+	return nil
+}
+
+func (g *GossipTopicHandle) Send(ctx context.Context, msg *gossipv1.GossipMessage) error {
+	b, err := proto.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("failed to marshal message: %w", err)
+	}
+
+	p2pMessagesSent.Inc()
+
+	return g.th.Publish(ctx, b)
 }
 
 type Components struct {
@@ -133,588 +346,4 @@ func DefaultConnectionManager() (*connmgr.BasicConnMgr, error) {
 		// GracePeriod set to 0 means that new peers are not protected by a grace period
 		connmgr.WithGracePeriod(0),
 	)
-}
-
-func Run(
-	obsvC chan<- *gossipv1.SignedObservation,
-	obsvReqC chan<- *gossipv1.ObservationRequest,
-	obsvReqSendC <-chan *gossipv1.ObservationRequest,
-	gossipSendC chan []byte,
-	signedInC chan<- *gossipv1.SignedVAAWithQuorum,
-	priv crypto.PrivKey,
-	gk *ecdsa.PrivateKey,
-	gst *node_common.GuardianSetState,
-	networkID string,
-	bootstrapPeers string,
-	nodeName string,
-	disableHeartbeatVerify bool,
-	rootCtxCancel context.CancelFunc,
-	acct *accountant.Accountant,
-	gov *governor.ChainGovernor,
-	signedGovCfg chan *gossipv1.SignedChainGovernorConfig,
-	signedGovSt chan *gossipv1.SignedChainGovernorStatus,
-	components *Components,
-) func(ctx context.Context) error {
-	if components == nil {
-		components = DefaultComponents()
-	}
-
-	return func(ctx context.Context) (re error) {
-		p2pReceiveChannelOverflow.WithLabelValues("observation").Add(0)
-		p2pReceiveChannelOverflow.WithLabelValues("signed_vaa_with_quorum").Add(0)
-		p2pReceiveChannelOverflow.WithLabelValues("signed_observation_request").Add(0)
-
-		logger := supervisor.Logger(ctx)
-
-		h, err := libp2p.New(
-			// Use the keypair we generated
-			libp2p.Identity(priv),
-
-			// Multiple listen addresses
-			libp2p.ListenAddrStrings(
-				components.ListeningAddresses()...,
-			),
-
-			// Enable TLS security as the only security protocol.
-			libp2p.Security(libp2ptls.ID, libp2ptls.New),
-
-			// Enable QUIC transport as the only transport.
-			libp2p.Transport(libp2pquic.NewTransport),
-
-			// Let's prevent our peer from having too many
-			// connections by attaching a connection manager.
-			libp2p.ConnectionManager(components.ConnMgr),
-
-			// Let this host use the DHT to find other hosts
-			libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
-				logger.Info("Connecting to bootstrap peers", zap.String("bootstrap_peers", bootstrapPeers))
-				bootstrappers := make([]peer.AddrInfo, 0)
-				for _, addr := range strings.Split(bootstrapPeers, ",") {
-					if addr == "" {
-						continue
-					}
-					ma, err := multiaddr.NewMultiaddr(addr)
-					if err != nil {
-						logger.Error("Invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
-						continue
-					}
-					pi, err := peer.AddrInfoFromP2pAddr(ma)
-					if err != nil {
-						logger.Error("Invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
-						continue
-					}
-					if pi.ID == h.ID() {
-						logger.Info("We're a bootstrap node")
-						continue
-					}
-					bootstrappers = append(bootstrappers, *pi)
-				}
-				// TODO(leo): Persistent data store (i.e. address book)
-				idht, err := dht.New(ctx, h, dht.Mode(dht.ModeServer),
-					// This intentionally makes us incompatible with the global IPFS DHT
-					dht.ProtocolPrefix(protocol.ID("/"+networkID)),
-					dht.BootstrapPeers(bootstrappers...),
-				)
-				return idht, err
-			}),
-		)
-
-		if err != nil {
-			panic(err)
-		}
-
-		defer func() {
-			// TODO: libp2p cannot be cleanly restarted (https://github.com/libp2p/go-libp2p/issues/992)
-			logger.Error("p2p routine has exited, cancelling root context...", zap.Error(re))
-			rootCtxCancel()
-		}()
-
-		nodeIdBytes, err := h.ID().Marshal()
-		if err != nil {
-			panic(err)
-		}
-
-		topic := fmt.Sprintf("%s/%s", networkID, "broadcast")
-
-		logger.Info("Subscribing pubsub topic", zap.String("topic", topic))
-		ps, err := pubsub.NewGossipSub(ctx, h)
-		if err != nil {
-			panic(err)
-		}
-
-		th, err := ps.Join(topic)
-		if err != nil {
-			return fmt.Errorf("failed to join topic: %w", err)
-		}
-
-		sub, err := th.Subscribe()
-		if err != nil {
-			return fmt.Errorf("failed to subscribe topic: %w", err)
-		}
-
-		// Make sure we connect to at least 1 bootstrap node (this is particularly important in a local devnet and CI
-		// as peer discovery can take a long time).
-
-		// Count number of successful connection attempts. If we fail to connect to any bootstrap peer, kill
-		// the service and have supervisor retry it.
-		successes := 0
-		// Are we a bootstrap node? If so, it's okay to not have any peers.
-		bootstrapNode := false
-
-		for _, addr := range strings.Split(bootstrapPeers, ",") {
-			if addr == "" {
-				continue
-			}
-			ma, err := multiaddr.NewMultiaddr(addr)
-			if err != nil {
-				logger.Error("Invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
-				continue
-			}
-			pi, err := peer.AddrInfoFromP2pAddr(ma)
-			if err != nil {
-				logger.Error("Invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
-				continue
-			}
-
-			if pi.ID == h.ID() {
-				logger.Info("We're a bootstrap node")
-				bootstrapNode = true
-				continue
-			}
-
-			if err = h.Connect(ctx, *pi); err != nil {
-				logger.Error("Failed to connect to bootstrap peer", zap.String("peer", addr), zap.Error(err))
-			} else {
-				successes += 1
-			}
-		}
-
-		if successes == 0 && !bootstrapNode {
-			return fmt.Errorf("failed to connect to any bootstrap peer")
-		} else {
-			logger.Info("Connected to bootstrap peers", zap.Int("num", successes))
-		}
-
-		logger.Info("Node has been started", zap.String("peer_id", h.ID().String()),
-			zap.String("addrs", fmt.Sprintf("%v", h.Addrs())))
-
-		bootTime := time.Now()
-
-		// Periodically run guardian state set cleanup.
-		go func() {
-			ticker := time.NewTicker(15 * time.Second)
-			defer ticker.Stop()
-			for {
-				select {
-				case <-ticker.C:
-					gst.Cleanup()
-				case <-ctx.Done():
-					return
-				}
-			}
-		}()
-
-		go func() {
-			// Disable heartbeat when no node name is provided (spy mode)
-			if nodeName == "" {
-				return
-			}
-			ourAddr := ethcrypto.PubkeyToAddress(gk.PublicKey)
-
-			ctr := int64(0)
-			tick := time.NewTicker(15 * time.Second)
-			defer tick.Stop()
-
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-tick.C:
-
-					// create a heartbeat
-					b := func() []byte {
-						DefaultRegistry.mu.Lock()
-						defer DefaultRegistry.mu.Unlock()
-						networks := make([]*gossipv1.Heartbeat_Network, 0, len(DefaultRegistry.networkStats))
-						for _, v := range DefaultRegistry.networkStats {
-							errCtr := DefaultRegistry.GetErrorCount(vaa.ChainID(v.Id))
-							v.ErrorCount = errCtr
-							networks = append(networks, v)
-						}
-
-						features := make([]string, 0)
-						if gov != nil {
-							features = append(features, "governor")
-						}
-						if acct != nil {
-							features = append(features, acct.FeatureString())
-						}
-
-						heartbeat := &gossipv1.Heartbeat{
-							NodeName:      nodeName,
-							Counter:       ctr,
-							Timestamp:     time.Now().UnixNano(),
-							Networks:      networks,
-							Version:       version.Version(),
-							GuardianAddr:  ourAddr.String(),
-							BootTimestamp: bootTime.UnixNano(),
-							Features:      features,
-						}
-
-						if components.P2PIDInHeartbeat {
-							heartbeat.P2PNodeId = nodeIdBytes
-						}
-
-						if err := gst.SetHeartbeat(ourAddr, h.ID(), heartbeat); err != nil {
-							panic(err)
-						}
-						collectNodeMetrics(ourAddr, h.ID(), heartbeat)
-
-						if gov != nil {
-							gov.CollectMetrics(heartbeat, gossipSendC, gk, ourAddr)
-						}
-
-						msg := gossipv1.GossipMessage{
-							Message: &gossipv1.GossipMessage_SignedHeartbeat{
-								SignedHeartbeat: createSignedHeartbeat(gk, heartbeat),
-							},
-						}
-
-						b, err := proto.Marshal(&msg)
-						if err != nil {
-							panic(err)
-						}
-						return b
-					}()
-
-					err = th.Publish(ctx, b)
-					if err != nil {
-						logger.Warn("failed to publish heartbeat message", zap.Error(err))
-					}
-
-					p2pHeartbeatsSent.Inc()
-					ctr += 1
-				}
-			}
-		}()
-
-		go func() {
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case msg := <-gossipSendC:
-					err := th.Publish(ctx, msg)
-					p2pMessagesSent.Inc()
-					if err != nil {
-						logger.Error("failed to publish message from queue", zap.Error(err))
-					}
-				case msg := <-obsvReqSendC:
-					b, err := proto.Marshal(msg)
-					if err != nil {
-						panic(err)
-					}
-
-					// Sign the observation request using our node's guardian key.
-					digest := signedObservationRequestDigest(b)
-					sig, err := ethcrypto.Sign(digest.Bytes(), gk)
-					if err != nil {
-						panic(err)
-					}
-
-					sReq := &gossipv1.SignedObservationRequest{
-						ObservationRequest: b,
-						Signature:          sig,
-						GuardianAddr:       ethcrypto.PubkeyToAddress(gk.PublicKey).Bytes(),
-					}
-
-					envelope := &gossipv1.GossipMessage{
-						Message: &gossipv1.GossipMessage_SignedObservationRequest{
-							SignedObservationRequest: sReq}}
-
-					b, err = proto.Marshal(envelope)
-					if err != nil {
-						panic(err)
-					}
-
-					// Send to local observation request queue (the loopback message is ignored)
-					obsvReqC <- msg
-
-					err = th.Publish(ctx, b)
-					p2pMessagesSent.Inc()
-					if err != nil {
-						logger.Error("failed to publish observation request", zap.Error(err))
-					} else {
-						logger.Info("published signed observation request", zap.Any("signed_observation_request", sReq))
-					}
-				}
-			}
-		}()
-
-		for {
-			envelope, err := sub.Next(ctx)
-			if err != nil {
-				return fmt.Errorf("failed to receive pubsub message: %w", err)
-			}
-
-			var msg gossipv1.GossipMessage
-			err = proto.Unmarshal(envelope.Data, &msg)
-			if err != nil {
-				logger.Info("received invalid message",
-					zap.Binary("data", envelope.Data),
-					zap.String("from", envelope.GetFrom().String()))
-				p2pMessagesReceived.WithLabelValues("invalid").Inc()
-				continue
-			}
-
-			if envelope.GetFrom() == h.ID() {
-				logger.Debug("received message from ourselves, ignoring",
-					zap.Any("payload", msg.Message))
-				p2pMessagesReceived.WithLabelValues("loopback").Inc()
-				continue
-			}
-
-			logger.Debug("received message",
-				zap.Any("payload", msg.Message),
-				zap.Binary("raw", envelope.Data),
-				zap.String("from", envelope.GetFrom().String()))
-
-			switch m := msg.Message.(type) {
-			case *gossipv1.GossipMessage_SignedHeartbeat:
-				s := m.SignedHeartbeat
-				gs := gst.Get()
-				if gs == nil {
-					// No valid guardian set yet - dropping heartbeat
-					logger.Debug("skipping heartbeat - no guardian set",
-						zap.Any("value", s),
-						zap.String("from", envelope.GetFrom().String()))
-					break
-				}
-				if heartbeat, err := processSignedHeartbeat(envelope.GetFrom(), s, gs, gst, disableHeartbeatVerify); err != nil {
-					p2pMessagesReceived.WithLabelValues("invalid_heartbeat").Inc()
-					logger.Debug("invalid signed heartbeat received",
-						zap.Error(err),
-						zap.Any("payload", msg.Message),
-						zap.Any("value", s),
-						zap.Binary("raw", envelope.Data),
-						zap.String("from", envelope.GetFrom().String()))
-				} else {
-					p2pMessagesReceived.WithLabelValues("valid_heartbeat").Inc()
-					logger.Debug("valid signed heartbeat received",
-						zap.Any("value", heartbeat),
-						zap.String("from", envelope.GetFrom().String()))
-
-					func() {
-						if len(heartbeat.P2PNodeId) != 0 {
-							components.ProtectedHostByGuardianKeyLock.Lock()
-							defer components.ProtectedHostByGuardianKeyLock.Unlock()
-							var peerId peer.ID
-							if err = peerId.Unmarshal(heartbeat.P2PNodeId); err != nil {
-								logger.Error("p2p_node_id_in_heartbeat_invalid",
-									zap.Any("payload", msg.Message),
-									zap.Any("value", s),
-									zap.Binary("raw", envelope.Data),
-									zap.String("from", envelope.GetFrom().String()))
-							} else {
-								guardianAddr := common.BytesToAddress(s.GuardianAddr)
-								prevPeerId, ok := components.ProtectedHostByGuardianKey[guardianAddr]
-								if ok {
-									if prevPeerId != peerId {
-										logger.Info("p2p_guardian_peer_changed",
-											zap.String("guardian_addr", guardianAddr.String()),
-											zap.String("prevPeerId", prevPeerId.String()),
-											zap.String("newPeerId", peerId.String()),
-										)
-										components.ConnMgr.Unprotect(prevPeerId, "heartbeat")
-										components.ConnMgr.Protect(peerId, "heartbeat")
-										components.ProtectedHostByGuardianKey[guardianAddr] = peerId
-									}
-								} else {
-									components.ConnMgr.Protect(peerId, "heartbeat")
-									components.ProtectedHostByGuardianKey[guardianAddr] = peerId
-								}
-							}
-						} else {
-							logger.Debug("p2p_node_id_not_in_heartbeat",
-								zap.Error(err),
-								zap.Any("payload", heartbeat.NodeName))
-						}
-					}()
-				}
-			case *gossipv1.GossipMessage_SignedObservation:
-				select {
-				case obsvC <- m.SignedObservation:
-					p2pMessagesReceived.WithLabelValues("observation").Inc()
-				default:
-					p2pReceiveChannelOverflow.WithLabelValues("observation").Inc()
-				}
-			case *gossipv1.GossipMessage_SignedVaaWithQuorum:
-				select {
-				case signedInC <- m.SignedVaaWithQuorum:
-					p2pMessagesReceived.WithLabelValues("signed_vaa_with_quorum").Inc()
-				default:
-					p2pReceiveChannelOverflow.WithLabelValues("signed_vaa_with_quorum").Inc()
-				}
-			case *gossipv1.GossipMessage_SignedObservationRequest:
-				s := m.SignedObservationRequest
-				gs := gst.Get()
-				if gs == nil {
-					logger.Debug("dropping SignedObservationRequest - no guardian set",
-						zap.Any("value", s),
-						zap.String("from", envelope.GetFrom().String()))
-					break
-				}
-				r, err := processSignedObservationRequest(s, gs)
-				if err != nil {
-					p2pMessagesReceived.WithLabelValues("invalid_signed_observation_request").Inc()
-					logger.Debug("invalid signed observation request received",
-						zap.Error(err),
-						zap.Any("payload", msg.Message),
-						zap.Any("value", s),
-						zap.Binary("raw", envelope.Data),
-						zap.String("from", envelope.GetFrom().String()))
-				} else {
-					logger.Info("valid signed observation request received",
-						zap.Any("value", r),
-						zap.String("from", envelope.GetFrom().String()))
-
-					select {
-					case obsvReqC <- r:
-						p2pMessagesReceived.WithLabelValues("signed_observation_request").Inc()
-					default:
-						p2pReceiveChannelOverflow.WithLabelValues("signed_observation_request").Inc()
-					}
-				}
-			case *gossipv1.GossipMessage_SignedChainGovernorConfig:
-				logger.Debug("cgov: received config message")
-				if signedGovCfg != nil {
-					signedGovCfg <- m.SignedChainGovernorConfig
-				}
-			case *gossipv1.GossipMessage_SignedChainGovernorStatus:
-				logger.Debug("cgov: received status message")
-				if signedGovSt != nil {
-					signedGovSt <- m.SignedChainGovernorStatus
-				}
-			default:
-				p2pMessagesReceived.WithLabelValues("unknown").Inc()
-				logger.Warn("received unknown message type (running outdated software?)",
-					zap.Any("payload", msg.Message),
-					zap.Binary("raw", envelope.Data),
-					zap.String("from", envelope.GetFrom().String()))
-			}
-		}
-	}
-}
-
-func createSignedHeartbeat(gk *ecdsa.PrivateKey, heartbeat *gossipv1.Heartbeat) *gossipv1.SignedHeartbeat {
-	ourAddr := ethcrypto.PubkeyToAddress(gk.PublicKey)
-
-	b, err := proto.Marshal(heartbeat)
-	if err != nil {
-		panic(err)
-	}
-
-	// Sign the heartbeat using our node's guardian key.
-	digest := heartbeatDigest(b)
-	sig, err := ethcrypto.Sign(digest.Bytes(), gk)
-	if err != nil {
-		panic(err)
-	}
-
-	return &gossipv1.SignedHeartbeat{
-		Heartbeat:    b,
-		Signature:    sig,
-		GuardianAddr: ourAddr.Bytes(),
-	}
-}
-
-func processSignedHeartbeat(from peer.ID, s *gossipv1.SignedHeartbeat, gs *node_common.GuardianSet, gst *node_common.GuardianSetState, disableVerify bool) (*gossipv1.Heartbeat, error) {
-	envelopeAddr := common.BytesToAddress(s.GuardianAddr)
-	idx, ok := gs.KeyIndex(envelopeAddr)
-	var pk common.Address
-	if !ok {
-		if !disableVerify {
-			return nil, fmt.Errorf("invalid message: %s not in guardian set", envelopeAddr)
-		}
-	} else {
-		pk = gs.Keys[idx]
-	}
-
-	digest := heartbeatDigest(s.Heartbeat)
-
-	// SECURITY: see whitepapers/0009_guardian_key.md
-	if len(heartbeatMessagePrefix)+len(s.Heartbeat) < 34 {
-		return nil, fmt.Errorf("invalid message: too short")
-	}
-
-	pubKey, err := ethcrypto.Ecrecover(digest.Bytes(), s.Signature)
-	if err != nil {
-		return nil, errors.New("failed to recover public key")
-	}
-
-	signerAddr := common.BytesToAddress(ethcrypto.Keccak256(pubKey[1:])[12:])
-	if pk != signerAddr && !disableVerify {
-		return nil, fmt.Errorf("invalid signer: %v", signerAddr)
-	}
-
-	var h gossipv1.Heartbeat
-	err = proto.Unmarshal(s.Heartbeat, &h)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal heartbeat: %w", err)
-	}
-
-	if time.Until(time.Unix(0, h.Timestamp)).Abs() > heartbeatMaxTimeDifference {
-		return nil, fmt.Errorf("heartbeat is too old or too far into the future")
-	}
-
-	if h.GuardianAddr != signerAddr.String() {
-		return nil, fmt.Errorf("GuardianAddr in heartbeat does not match signerAddr")
-	}
-
-	// Store verified heartbeat in global guardian set state.
-	if err := gst.SetHeartbeat(signerAddr, from, &h); err != nil {
-		return nil, fmt.Errorf("failed to store in guardian set state: %w", err)
-	}
-
-	collectNodeMetrics(signerAddr, from, &h)
-
-	return &h, nil
-}
-
-func processSignedObservationRequest(s *gossipv1.SignedObservationRequest, gs *node_common.GuardianSet) (*gossipv1.ObservationRequest, error) {
-	envelopeAddr := common.BytesToAddress(s.GuardianAddr)
-	idx, ok := gs.KeyIndex(envelopeAddr)
-	var pk common.Address
-	if !ok {
-		return nil, fmt.Errorf("invalid message: %s not in guardian set", envelopeAddr)
-	} else {
-		pk = gs.Keys[idx]
-	}
-
-	// SECURITY: see whitepapers/0009_guardian_key.md
-	if len(signedObservationRequestPrefix)+len(s.ObservationRequest) < 34 {
-		return nil, fmt.Errorf("invalid observation request: too short")
-	}
-
-	digest := signedObservationRequestDigest(s.ObservationRequest)
-
-	pubKey, err := ethcrypto.Ecrecover(digest.Bytes(), s.Signature)
-	if err != nil {
-		return nil, errors.New("failed to recover public key")
-	}
-
-	signerAddr := common.BytesToAddress(ethcrypto.Keccak256(pubKey[1:])[12:])
-	if pk != signerAddr {
-		return nil, fmt.Errorf("invalid signer: %v", signerAddr)
-	}
-
-	var h gossipv1.ObservationRequest
-	err = proto.Unmarshal(s.ObservationRequest, &h)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal observation request: %w", err)
-	}
-
-	// TODO: implement per-guardian rate limiting
-
-	return &h, nil
 }

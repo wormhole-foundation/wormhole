@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/p2p"
+
 	"github.com/benbjohnson/clock"
 
 	"github.com/certusone/wormhole/node/pkg/supervisor"
@@ -34,6 +36,9 @@ type (
 		observationChannel chan K
 		// Channel for receiving foreign observations
 		foreignObservationChannel chan *gossipv1.SignedObservation
+
+		// consensusSender is an interface to send local signatures to the network
+		consensusSender p2p.GossipSender
 
 		// Hook to be called on a state transition
 		stateTransitionChan chan<- *StateTransition[K]
@@ -93,9 +98,6 @@ type Config struct {
 	UnobservedTimeout time.Duration
 	// Signer to use for local observations. If Signer is nil, the reactor will not participate in consensus.
 	Signer Signer
-	// NetworkAdapter used for broadcasting signatures. If NetworkAdapter is nil, the reactor will not broadcast local
-	// signatures.
-	NetworkAdapter NetworkAdapter
 }
 
 // Observation defines the interface for any message observed by the guardian.
@@ -135,13 +137,14 @@ const (
 	StateTimedOut State = "timed_out"
 )
 
-func NewReactor[K Observation](group string, config *Config, gs *node_common.GuardianSet, s chan *StateTransition[K]) *ConsensusReactor[K] {
+func NewReactor[K Observation](group string, config *Config, gs *node_common.GuardianSet, consensusSender p2p.GossipSender, s chan *StateTransition[K]) *ConsensusReactor[K] {
 	c := &ConsensusReactor[K]{
 		group: group,
 		state: reactorState[K]{
 			currentState: StateInitialized,
 			signatures:   map[ethcommon.Address][]byte{},
 		},
+		consensusSender:           consensusSender,
 		gs:                        gs,
 		stateTransitionChan:       s,
 		config:                    config,
@@ -484,8 +487,8 @@ func (c *ConsensusReactor[K]) transmitSignature(ctx context.Context) error {
 	if c.config.Signer == nil {
 		return fmt.Errorf("can't broadcast signature without signer")
 	}
-	if c.config.NetworkAdapter == nil {
-		return fmt.Errorf("can't broadcast signature without network adapter")
+	if c.consensusSender == nil {
+		return fmt.Errorf("can't broadcast signature without consensus sender")
 	}
 
 	timeout, cancel := context.WithTimeout(ctx, time.Second*5)
@@ -503,7 +506,7 @@ func (c *ConsensusReactor[K]) transmitSignature(ctx context.Context) error {
 	}
 	timeout, cancel = context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
-	err = c.config.NetworkAdapter.BroadcastObservation(timeout, signedO)
+	err = c.consensusSender.Send(timeout, &gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedObservation{SignedObservation: signedO}})
 	if err != nil {
 		return fmt.Errorf("failed to broadcast observation: %w", err)
 	}

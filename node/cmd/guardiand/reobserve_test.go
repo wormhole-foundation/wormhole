@@ -5,7 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/benbjohnson/clock"
+	"github.com/certusone/wormhole/node/pkg/p2p"
+	"github.com/certusone/wormhole/node/pkg/supervisor"
+
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,15 +17,19 @@ import (
 
 type reobservationTestContext struct {
 	context.Context
-	clock         *clock.Mock
 	obsvReqC      chan *gossipv1.ObservationRequest
 	chainObsvReqC map[vaa.ChainID]chan *gossipv1.ObservationRequest
 }
 
+type gossipMock struct {
+}
+
+func (g gossipMock) Subscribe(ctx context.Context, ch chan<- *p2p.GossipEnvelope) error {
+	return nil
+}
+
 func setUpReobservationTest() (reobservationTestContext, func()) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-
-	clock := clock.NewMock()
 
 	obsvReqC := make(chan *gossipv1.ObservationRequest)
 
@@ -32,11 +38,19 @@ func setUpReobservationTest() (reobservationTestContext, func()) {
 		chainObsvReqC[vaa.ChainID(i)] = make(chan *gossipv1.ObservationRequest, 1)
 	}
 
-	go handleReobservationRequests(ctx, clock, zap.NewNop(), obsvReqC, chainObsvReqC)
+	supervisor.New(context.Background(), zap.L(), func(ctx context.Context) error {
+		err := supervisor.Run(ctx, "reobserve", reobservationRequestsHandler(nil, &gossipMock{}, chainObsvReqC, obsvReqC))
+		if err != nil {
+			return err
+		}
+		supervisor.Signal(ctx, supervisor.SignalHealthy)
+		supervisor.Signal(ctx, supervisor.SignalDone)
+
+		return nil
+	})
 
 	tc := reobservationTestContext{
 		Context:       ctx,
-		clock:         clock,
 		obsvReqC:      obsvReqC,
 		chainObsvReqC: chainObsvReqC,
 	}
@@ -140,42 +154,6 @@ func TestReobserveUnknownChainId(t *testing.T) {
 
 	_, ok := readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)])
 	assert.False(t, ok)
-}
-
-func TestReobservationCacheEviction(t *testing.T) {
-	ctx, cancel := setUpReobservationTest()
-	defer cancel()
-
-	req := &gossipv1.ObservationRequest{
-		ChainId: 1,
-		TxHash:  []byte{0xe5, 0x9c, 0x1b, 0xe5, 0x0b, 0xe7, 0xe4, 0x7e},
-	}
-
-	ctx.obsvReqC <- req
-
-	actual, ok := readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)])
-	require.True(t, ok)
-	assert.Equal(t, req, actual)
-
-	// Advance the clock by 7.5 minutes, which should trigger the ticker but not cause eviction.
-	ctx.clock.Add(7*time.Minute + 30*time.Second)
-
-	// Receiving the same request again should not trigger another re-observation.
-	ctx.obsvReqC <- req
-
-	_, ok = readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)])
-	assert.False(t, ok)
-
-	// Advance the clock by another 7 minutes, which should evict the re-observation request
-	// from the cache.
-	ctx.clock.Add(7 * time.Minute)
-
-	// This time the request should be passed through.
-	ctx.obsvReqC <- req
-
-	actual, ok = readFromChannel(ctx, ctx.chainObsvReqC[vaa.ChainID(req.ChainId)])
-	require.True(t, ok)
-	assert.Equal(t, req, actual)
 }
 
 func TestBlockingSend(t *testing.T) {

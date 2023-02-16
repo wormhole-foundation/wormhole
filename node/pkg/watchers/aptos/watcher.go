@@ -9,8 +9,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/p2p/heartbeat"
+
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
@@ -65,7 +66,7 @@ func NewWatcher(
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
-	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDAptos, &gossipv1.Heartbeat_Network{
+	heartbeat.DefaultRegistry.SetNetworkStats(vaa.ChainIDAptos, &gossipv1.Heartbeat_Network{
 		ContractAddress: e.aptosAccount,
 	})
 
@@ -108,13 +109,13 @@ func (e *Watcher) Run(ctx context.Context) error {
 			body, err := e.retrievePayload(s)
 			if err != nil {
 				logger.Error("retrievePayload", zap.Error(err))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
+				heartbeat.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
 				continue
 			}
 
 			if !gjson.Valid(string(body)) {
 				logger.Error("InvalidJson: " + string(body))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
+				heartbeat.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
 				break
 
 			}
@@ -156,7 +157,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			eventsJson, err := e.retrievePayload(s)
 			if err != nil {
 				logger.Error("retrievePayload", zap.Error(err))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
+				heartbeat.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
 				continue
 			}
 
@@ -169,7 +170,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 			if !gjson.Valid(string(eventsJson)) {
 				logger.Error("InvalidJson: " + string(eventsJson))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
+				heartbeat.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
 				continue
 
 			}
@@ -198,13 +199,13 @@ func (e *Watcher) Run(ctx context.Context) error {
 			health, err := e.retrievePayload(aptosHealth)
 			if err != nil {
 				logger.Error("health", zap.Error(err))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
+				heartbeat.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
 				continue
 			}
 
 			if !gjson.Valid(string(health)) {
 				logger.Error("Invalid JSON in health response: " + string(health))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
+				heartbeat.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
 				continue
 
 			}
@@ -218,7 +219,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 			if blockHeight.Exists() {
 				currentAptosHeight.Set(float64(blockHeight.Uint()))
-				p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDAptos, &gossipv1.Heartbeat_Network{
+				heartbeat.DefaultRegistry.SetNetworkStats(vaa.ChainIDAptos, &gossipv1.Heartbeat_Network{
 					Height:          int64(blockHeight.Uint()),
 					ContractAddress: e.aptosAccount,
 				})

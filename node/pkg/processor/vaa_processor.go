@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/certusone/wormhole/node/pkg/p2p"
+
 	"github.com/certusone/wormhole/node/pkg/accountant"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
@@ -22,7 +24,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 )
 
 // VAAConsensusProcessor is a reactor for performing consensus on v1 VAA messages. It sits on top of a reactor.Manager and implements
@@ -34,10 +35,9 @@ type VAAConsensusProcessor struct {
 	obsC chan *vaaObservation
 	// obsvReqSendC is a send-only channel of outbound re-observation requests to broadcast on p2p
 	obsvReqSendC chan<- *gossipv1.ObservationRequest
-	// signedInC is a channel of inbound signed VAA observations from p2p
-	signedInC <-chan *gossipv1.SignedVAAWithQuorum
-	// gossipSendC is a channel of outbound messages to broadcast on p2p
-	gossipSendC chan<- []byte
+
+	consensusIO p2p.GossipIO
+	vaaIO       p2p.GossipIO
 
 	attestationEvents *reporter.AttestationEventReporter
 	logger            *zap.Logger
@@ -57,10 +57,9 @@ type VAAConsensusProcessor struct {
 func NewVAAConsensusProcessor(
 	db *db.Database,
 	msgC <-chan *common.MessagePublication,
-	gossipSendC chan<- []byte,
-	obsvC <-chan *gossipv1.SignedObservation,
 	obsvReqSendC chan<- *gossipv1.ObservationRequest,
-	signedInC <-chan *gossipv1.SignedVAAWithQuorum,
+	consensusIO p2p.GossipIO,
+	vaaIO p2p.GossipIO,
 	gk *ecdsa.PrivateKey,
 	gst *common.GuardianSetState,
 	attestationEvents *reporter.AttestationEventReporter,
@@ -74,10 +73,10 @@ func NewVAAConsensusProcessor(
 
 	r := &VAAConsensusProcessor{
 		obsvReqSendC:      obsvReqSendC,
-		signedInC:         signedInC,
+		consensusIO:       consensusIO,
+		vaaIO:             vaaIO,
 		msgC:              msgC,
 		obsC:              obsC,
-		gossipSendC:       gossipSendC,
 		db:                db,
 		attestationEvents: attestationEvents,
 		governor:          g,
@@ -87,13 +86,12 @@ func NewVAAConsensusProcessor(
 		gst:               gst,
 	}
 
-	manager := reactor.NewManager[*vaaObservation]("vaa", obsC, obsvC, gst, reactor.Config{
+	manager := reactor.NewManager[*vaaObservation]("vaa", obsC, consensusIO, gst, reactor.Config{
 		RetransmitFrequency: 5 * time.Minute,
 		QuorumGracePeriod:   2 * time.Minute,
 		QuorumTimeout:       24 * time.Hour,
 		UnobservedTimeout:   24 * time.Hour,
 		Signer:              reactor.NewEcdsaKeySigner(gk),
-		NetworkAdapter:      reactor.NewChannelNetworkAdapter(gossipSendC),
 	}, r, r)
 	r.manager = manager
 
@@ -115,8 +113,14 @@ func (p *VAAConsensusProcessor) Run(ctx context.Context) error {
 	}
 
 	// Processors for inbound signed VAAs
+	signedInC := make(chan *gossipv1.GossipMessage_SignedVaaWithQuorum, 10)
+	err = p2p.SubscribeFiltered(ctx, p.vaaIO, signedInC)
+	if err != nil {
+		return err
+	}
+
 	for i := 0; i < runtime.NumCPU()/2; i++ {
-		spawnChannelProcessor(ctx, wg, p.signedInC, p.handleSignedVAA)
+		spawnChannelProcessor(ctx, wg, signedInC, p.handleSignedVAA)
 	}
 
 	// Processor for accountant messages
@@ -289,7 +293,8 @@ func (p *VAAConsensusProcessor) checkReobservations() {
 	})
 }
 
-func (p *VAAConsensusProcessor) handleSignedVAA(m *gossipv1.SignedVAAWithQuorum) {
+func (p *VAAConsensusProcessor) handleSignedVAA(k *gossipv1.GossipMessage_SignedVaaWithQuorum) {
+	m := k.SignedVaaWithQuorum
 	v, err := vaa.Unmarshal(m.Vaa)
 	if err != nil {
 		p.logger.Warn("received invalid VAA in SignedVAAWithQuorum message",
@@ -355,7 +360,11 @@ func (p *VAAConsensusProcessor) HandleQuorum(observation *vaaObservation, signat
 	v := observation.VAA()
 	v.Signatures = signatures
 
-	p.broadcastSignedVAA(v)
+	timeout, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+	if err := p.broadcastSignedVAA(timeout, v); err != nil {
+		p.logger.Warn("failed to broadcast signed VAA", zap.Error(err))
+	}
 	p.attestationEvents.ReportVAAQuorum(v)
 }
 
@@ -453,22 +462,20 @@ func (p *VAAConsensusProcessor) getSignedVAA(id db.VAAID) (*vaa.VAA, error) {
 	return v, err
 }
 
-func (p *VAAConsensusProcessor) broadcastSignedVAA(v *vaa.VAA) {
+func (p *VAAConsensusProcessor) broadcastSignedVAA(ctx context.Context, v *vaa.VAA) error {
 	b, err := v.Marshal()
 	if err != nil {
 		panic(err)
 	}
 
-	w := gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedVaaWithQuorum{
+	err = p.vaaIO.Send(ctx, &gossipv1.GossipMessage{Message: &gossipv1.GossipMessage_SignedVaaWithQuorum{
 		SignedVaaWithQuorum: &gossipv1.SignedVAAWithQuorum{Vaa: b},
-	}}
-
-	msg, err := proto.Marshal(&w)
+	}})
 	if err != nil {
-		panic(err)
+		return err
 	}
 
-	p.gossipSendC <- msg
+	return nil
 }
 
 // vaaObservation is used to wrap common.MessagePublication as a reactor.Observation.

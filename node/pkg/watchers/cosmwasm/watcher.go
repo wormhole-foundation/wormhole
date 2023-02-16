@@ -10,7 +10,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/p2p"
+	"github.com/certusone/wormhole/node/pkg/p2p/heartbeat"
+
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
@@ -134,7 +135,7 @@ func NewWatcher(
 func (e *Watcher) Run(ctx context.Context) error {
 	networkName := vaa.ChainID(e.chainID).String()
 
-	p2p.DefaultRegistry.SetNetworkStats(e.chainID, &gossipv1.Heartbeat_Network{
+	heartbeat.DefaultRegistry.SetNetworkStats(e.chainID, &gossipv1.Heartbeat_Network{
 		ContractAddress: e.contract,
 	})
 
@@ -145,7 +146,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	c, _, err := websocket.Dial(ctx, e.urlWS, nil)
 	if err != nil {
-		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
+		heartbeat.DefaultRegistry.AddErrorCount(e.chainID, 1)
 		connectionErrors.WithLabelValues(networkName, "websocket_dial_error").Inc()
 		return fmt.Errorf("websocket dial failed: %w", err)
 	}
@@ -166,7 +167,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	}
 	err = wsjson.Write(ctx, c, command)
 	if err != nil {
-		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
+		heartbeat.DefaultRegistry.AddErrorCount(e.chainID, 1)
 		connectionErrors.WithLabelValues(networkName, "websocket_subscription_error").Inc()
 		return fmt.Errorf("websocket subscription failed: %w", err)
 	}
@@ -174,7 +175,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	// Wait for the success response
 	_, _, err = c.Read(ctx)
 	if err != nil {
-		p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
+		heartbeat.DefaultRegistry.AddErrorCount(e.chainID, 1)
 		connectionErrors.WithLabelValues(networkName, "event_subscription_error").Inc()
 		return fmt.Errorf("event subscription failed: %w", err)
 	}
@@ -216,7 +217,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				latestBlock := gjson.Get(blockJSON, "block.header.height")
 				logger.Debug("current height", zap.String("network", networkName), zap.Int64("block", latestBlock.Int()))
 				currentSlotHeight.WithLabelValues(networkName).Set(float64(latestBlock.Int()))
-				p2p.DefaultRegistry.SetNetworkStats(e.chainID, &gossipv1.Heartbeat_Network{
+				heartbeat.DefaultRegistry.SetNetworkStats(e.chainID, &gossipv1.Heartbeat_Network{
 					Height:          latestBlock.Int(),
 					ContractAddress: e.contract,
 				})
@@ -288,7 +289,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			default:
 				_, message, err := c.Read(ctx)
 				if err != nil {
-					p2p.DefaultRegistry.AddErrorCount(e.chainID, 1)
+					heartbeat.DefaultRegistry.AddErrorCount(e.chainID, 1)
 					connectionErrors.WithLabelValues(networkName, "channel_read_error").Inc()
 					logger.Error("error reading channel", zap.String("network", networkName), zap.Error(err))
 					errC <- err
