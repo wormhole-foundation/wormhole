@@ -113,14 +113,13 @@ func (p *VAAConsensusProcessor) Run(ctx context.Context) error {
 	}
 
 	// Processors for inbound signed VAAs
-	signedInC := make(chan *gossipv1.GossipMessage_SignedVaaWithQuorum, 10)
-	err = p2p.SubscribeFiltered(ctx, p.vaaIO, signedInC)
+	signedInProducer, signedInConsumer := p2p.MeteredBufferedChannelPair[*gossipv1.GossipMessage_SignedVaaWithQuorum](ctx, 1000, "vaa_processor_signed_in")
+	err = p2p.SubscribeFiltered(ctx, p.vaaIO, signedInProducer)
 	if err != nil {
 		return err
 	}
-
 	for i := 0; i < runtime.NumCPU()/2; i++ {
-		spawnChannelProcessor(ctx, wg, signedInC, p.handleSignedVAA)
+		spawnChannelProcessor(ctx, wg, signedInConsumer, p.handleSignedVAA)
 	}
 
 	// Processor for accountant messages

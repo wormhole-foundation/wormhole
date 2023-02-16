@@ -858,7 +858,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	// Setup various channels...
 
 	// Finalized guardian observations aggregated across all chains
-	msgReadC, msgWriteC := makeChannelPair[*common.MessagePublication](0)
+	msgWriteC, msgReadC := p2p.MeteredBufferedChannelPair[*common.MessagePublication](rootCtx, 1000, "root_messages")
 
 	// Ethereum incoming guardian set updates
 	setReadC, setWriteC := makeChannelPair[*common.GuardianSet](0)
@@ -1016,7 +1016,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	// will be passed to it for processing. It will forward all token bridge transfers to the accountant contract.
 	// If accountantCheckEnabled is set to true, token bridge transfers will not be signed and published until they
 	// are approved by the accountant smart contract.
-	acctReadC, acctWriteC := makeChannelPair[*common.MessagePublication](0)
+	acctWriteC, acctReadC := p2p.MeteredBufferedChannelPair[*common.MessagePublication](rootCtx, 1000, "accountant_messages")
 
 	var acct *accountant.Accountant
 	if *accountantContract != "" {

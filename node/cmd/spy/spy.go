@@ -486,8 +486,8 @@ func runSpy(cmd *cobra.Command, args []string) {
 					return err
 				}
 
-				signedInC := make(chan *gossipv1.GossipMessage_SignedVaaWithQuorum, 50)
-				err = p2p.SubscribeFiltered(ctx, io, signedInC)
+				signedInProducer, signedInConsumer := p2p.MeteredBufferedChannelPair[*gossipv1.GossipMessage_SignedVaaWithQuorum](ctx, 1000, "spy_signed_vaa_in")
+				err = p2p.SubscribeFiltered(ctx, io, signedInProducer)
 				if err != nil {
 					return err
 				}
@@ -498,7 +498,7 @@ func runSpy(cmd *cobra.Command, args []string) {
 						select {
 						case <-rootCtx.Done():
 							return
-						case m := <-signedInC:
+						case m := <-signedInConsumer:
 							v := m.SignedVaaWithQuorum
 							logger.Info("Received signed VAA",
 								zap.Any("vaa", v.Vaa))

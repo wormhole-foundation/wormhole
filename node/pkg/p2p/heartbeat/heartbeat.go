@@ -126,8 +126,8 @@ func HeartbeatProcessorRunnable(
 ) supervisor.Runnable {
 	return func(ctx context.Context) error {
 		logger := supervisor.Logger(ctx)
-		heartbeatChan := make(chan *p2p.FilteredEnvelope[*gossipv1.GossipMessage_SignedHeartbeat], 50)
-		err := p2p.SubscribeFilteredWithEnvelope(ctx, io, heartbeatChan)
+		heartbeatProducer, heartbeatConsumer := p2p.MeteredBufferedChannelPair[*p2p.FilteredEnvelope[*gossipv1.GossipMessage_SignedHeartbeat]](ctx, 1000, "heartbeat")
+		err := p2p.SubscribeFilteredWithEnvelope(ctx, io, heartbeatProducer)
 		if err != nil {
 			return fmt.Errorf("failed to subscribe to heartbeats: %w", err)
 		}
@@ -136,7 +136,7 @@ func HeartbeatProcessorRunnable(
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-			case h := <-heartbeatChan:
+			case h := <-heartbeatConsumer:
 				s := h.Message.SignedHeartbeat
 				gs := gst.Get()
 				if gs == nil {

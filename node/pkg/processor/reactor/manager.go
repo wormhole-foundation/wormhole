@@ -85,8 +85,8 @@ func (p *Manager[K]) Run(ctx context.Context) error {
 	p.logger = supervisor.Logger(ctx)
 	p.logger = p.logger.With(zap.String("group", p.group))
 
-	signedObsC := make(chan *gossipv1.GossipMessage_SignedObservation, 100)
-	err := p2p.SubscribeFiltered(ctx, p.consensusIO, signedObsC)
+	signedInProducer, signedInConsumer := p2p.MeteredBufferedChannelPair[*gossipv1.GossipMessage_SignedObservation](ctx, 1000, fmt.Sprintf("manager_%s_signed_observation", p.group))
+	err := p2p.SubscribeFiltered(ctx, p.consensusIO, signedInProducer)
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func (p *Manager[K]) Run(ctx context.Context) error {
 						continue
 					}
 					r.ObservationChannel() <- k
-				case s := <-signedObsC:
+				case s := <-signedInConsumer:
 					m := s.SignedObservation
 					digest := ethcommon.BytesToHash(m.Hash)
 

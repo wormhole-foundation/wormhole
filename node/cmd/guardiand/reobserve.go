@@ -37,8 +37,8 @@ func reobservationRequestsHandler(
 			txHash  string
 		}
 
-		obsvReqC := make(chan *p2p.FilteredEnvelope[*gossipv1.GossipMessage_SignedObservationRequest], 100)
-		err := p2p.SubscribeFilteredWithEnvelope(ctx, receiver, obsvReqC)
+		obsvReqProducer, obsvReqConsumer := p2p.MeteredBufferedChannelPair[*p2p.FilteredEnvelope[*gossipv1.GossipMessage_SignedObservationRequest]](ctx, 1000, "reobervation_requests")
+		err := p2p.SubscribeFilteredWithEnvelope(ctx, receiver, obsvReqProducer)
 		if err != nil {
 			return err
 		}
@@ -90,7 +90,7 @@ func reobservationRequestsHandler(
 						delete(cache, r)
 					}
 				}
-			case m := <-obsvReqC:
+			case m := <-obsvReqConsumer:
 				s := m.Message.SignedObservationRequest
 				gs := gst.Get()
 				if gs == nil {

@@ -2,6 +2,10 @@ package p2p
 
 import (
 	"context"
+	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -44,13 +48,10 @@ func SubscribeFiltered[K any](ctx context.Context, in GossipReceiver, ch chan<- 
 	}
 
 	go func() {
-		for {
-			select {
-			case k := <-msgInCh:
-				switch pK := k.Message.Message.(type) {
-				case K:
-					ch <- pK
-				}
+		for k := range msgInCh {
+			switch pK := k.Message.Message.(type) {
+			case K:
+				ch <- pK
 			}
 		}
 	}()
@@ -68,19 +69,86 @@ func SubscribeFilteredWithEnvelope[K any](ctx context.Context, in GossipReceiver
 	}
 
 	go func() {
-		for {
-			select {
-			case k := <-msgInCh:
-				switch pK := k.Message.Message.(type) {
-				case K:
-					ch <- &FilteredEnvelope[K]{
-						Message: pK,
-						From:    k.From,
-					}
+		for k := range msgInCh {
+			switch pK := k.Message.Message.(type) {
+			case K:
+				ch <- &FilteredEnvelope[K]{
+					Message: pK,
+					From:    k.From,
 				}
 			}
 		}
 	}()
 
 	return nil
+}
+
+var meteredChannelBufferSize = promauto.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "wormhole_metered_channel_buffer_size",
+		Help: "Total number of items currently queued in the metered channel buffer",
+	}, []string{"name"})
+
+var meteredChannelBufferDropped = promauto.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "wormhole_metered_channel_buffer_dropped",
+		Help: "Total number of items dropped by the metered channel buffer",
+	}, []string{"name"})
+
+var meteredChannelBufferProcessingTime = promauto.NewHistogramVec(
+	prometheus.HistogramOpts{
+		Name: "wormhole_metered_channel_buffer_processing",
+		Help: "Histogram of consumption times for items in the metered channel buffer",
+	}, []string{"name"})
+
+// MeteredBufferedChannelPair creates a buffered channel pair that is metered. This means it will track the number of
+// pending items, the time it takes to process items and how many items are dropped.
+// The channel pair is intended to be used as follows:
+// - The first channel is used to send items to the buffer. It will never block as dropping items is handled by the buffer.
+// - The second channel is used to receive items from the buffer
+// - The buffer will drop items if the buffer is full and track the number of dropped items
+// - The buffer will track the number of pending items in the buffer
+// - The buffer will track the time it takes to process items
+// - The buffer will stop processing items if the context is cancelled
+func MeteredBufferedChannelPair[K any](ctx context.Context, bufferSize int, name string) (chan<- K, <-chan K) {
+	inCh := make(chan K, bufferSize)
+	bufferCh := make(chan K, bufferSize)
+
+	ticker := time.NewTicker(1 * time.Second)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				pending := len(bufferCh)
+				meteredChannelBufferSize.WithLabelValues(name).Set(float64(pending))
+			case k := <-inCh:
+				select {
+				case bufferCh <- k:
+				default:
+					// Drop the message if the buffer is full
+					meteredChannelBufferDropped.WithLabelValues(name).Inc()
+				}
+			}
+		}
+	}()
+
+	out := make(chan K)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case k := <-bufferCh:
+				start := time.Now()
+				out <- k
+				took := time.Since(start)
+				meteredChannelBufferProcessingTime.WithLabelValues(name).Observe(took.Seconds())
+			}
+		}
+	}()
+
+	return inCh, out
 }
