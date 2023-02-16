@@ -10,7 +10,7 @@ import { fromBech32, toHex } from "@cosmjs/encoding";
 import base58 from "bs58";
 import { sha3_256 } from "js-sha3";
 import yargs from "yargs";
-import { evm_address, hex } from "../consts";
+import { evm_address, hex } from "../utils";
 import {
   ContractUpgrade,
   impossible,
