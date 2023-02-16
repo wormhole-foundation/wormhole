@@ -118,3 +118,35 @@ module token_bridge::transfer_with_payload {
         )
     }
 }
+
+#[test_only]
+module token_bridge::transfer_with_payload_test{
+    use wormhole::external_address::{Self};
+
+    use token_bridge::transfer_with_payload::{Self};
+    use token_bridge::normalized_amount::{Self};
+
+    struct MyCoinType {}
+
+    #[test]
+    fun test_transfer_with_payload(){
+        let transfer_with_payload = transfer_with_payload::new(
+            normalized_amount::default(), // amount
+            external_address::from_bytes(x"0011223344"), // token address
+            3, // token chain
+            external_address::from_bytes(x"003456"), // recipient
+            6, // recipient chain
+            external_address::from_bytes(x"99887766"), // sender
+            x"12334435345345234234" // payload
+        );
+        // serialize and deserialize
+        let se = transfer_with_payload::serialize(transfer_with_payload);
+        let de = transfer_with_payload::deserialize(se);
+
+        assert!(transfer_with_payload::amount(&de) == normalized_amount::default(), 0);
+        assert!(transfer_with_payload::token_address(&de) == external_address::from_bytes(x"0011223344"), 0);
+        assert!(transfer_with_payload::token_chain(&de) == 3, 0);
+
+    }
+}
+
