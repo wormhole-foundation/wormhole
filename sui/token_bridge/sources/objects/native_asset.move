@@ -35,7 +35,7 @@ module token_bridge::native_asset {
     ): ExternalAddress {
         self.token_address
     }
-    
+
     public fun decimals<C>(self: &NativeAsset<C>): u8 {
         self.decimals
     }
