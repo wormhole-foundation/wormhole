@@ -116,7 +116,6 @@ module token_bridge::create_wrapped {
             external_address,
             treasury_cap,
             decimals,
-            ctx
         );
     }
 }
