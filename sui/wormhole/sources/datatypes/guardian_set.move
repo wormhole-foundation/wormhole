@@ -1,4 +1,5 @@
 module wormhole::guardian_set {
+    use std::vector::{Self};
     use sui::tx_context::{Self, TxContext};
     use wormhole::guardian::{Guardian};
 
@@ -32,6 +33,15 @@ module wormhole::guardian_set {
             self.expiration_time == 0 ||
             self.expiration_time > (tx_context::epoch(ctx) as u32)
         )
+    }
+
+    public fun num_guardians(self: &GuardianSet): u64 {
+        vector::length(&self.guardians)
+    }
+
+    /// Returns the minimum number of signatures required for a VAA to be valid.
+    public fun quorum(self: &GuardianSet): u64 {
+        (num_guardians(self) * 2) / 3 + 1
     }
 
     public(friend) fun set_expiration(
