@@ -1,6 +1,5 @@
 module token_bridge::wrapped_asset {
     use sui::coin::{Self, Coin, TreasuryCap};
-    use sui::object::{Self, UID};
     use sui::tx_context::{TxContext};
     use wormhole::external_address::{ExternalAddress};
 
@@ -10,8 +9,7 @@ module token_bridge::wrapped_asset {
     friend token_bridge::registered_tokens;
 
     /// WrappedAsset<C> stores all the metadata about a wrapped asset
-    struct WrappedAsset<phantom C> has key, store {
-        id: UID,
+    struct WrappedAsset<phantom C> has store {
         token_chain: u16,
         token_address: ExternalAddress,
         treasury_cap: TreasuryCap<C>,
@@ -23,10 +21,8 @@ module token_bridge::wrapped_asset {
         token_address: ExternalAddress,
         treasury_cap: TreasuryCap<C>,
         decimals: u8,
-        ctx: &mut TxContext
     ): WrappedAsset<C> {
         return WrappedAsset {
-            id: object::new(ctx),
             token_chain,
             token_address,
             treasury_cap,
