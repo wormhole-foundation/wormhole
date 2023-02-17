@@ -1,29 +1,37 @@
 module wormhole::fee_collector {
     use sui::coin::{Self, Coin};
-    use sui::dynamic_object_field::{Self};
-    use sui::object::{UID};
     use sui::sui::{SUI};
     use sui::tx_context::{TxContext};
 
-    const KEY: vector<u8> = b"fee_collector";
+    const E_INCORRECT_FEE: u64 = 0;
 
-    public fun new(parent_id: &mut UID, ctx: &mut TxContext) {
-        dynamic_object_field::add(parent_id, KEY, coin::zero<SUI>(ctx));
+    struct FeeCollector has store {
+        amount: u64,
+        coin: Coin<SUI>
     }
 
-    public fun deposit(parent_id: &mut UID, coin: Coin<SUI>) {
-        coin::join(borrow_mut(parent_id), coin);
+    public fun new(amount: u64, ctx: &mut TxContext): FeeCollector {
+        FeeCollector { amount, coin: coin::zero(ctx) }
+    }
+
+    public fun amount(self: &FeeCollector): u64 {
+        self.amount
+    }
+
+    public fun coin_value(self: &FeeCollector): u64 {
+        coin::value(&self.coin)
+    }
+
+    public fun deposit(self: &mut FeeCollector, fee: Coin<SUI>) {
+        assert!(coin::value(&fee) == self.amount, E_INCORRECT_FEE);
+        coin::join(&mut self.coin, fee);
     }
 
     public fun withdraw(
-        parent_id: &mut UID,
+        self: &mut FeeCollector,
         amount: u64,
         ctx: &mut TxContext
     ): Coin<SUI> {
-        coin::split(borrow_mut(parent_id), amount, ctx)
-    }
-
-    fun borrow_mut(parent_id: &mut UID): &mut Coin<SUI> {
-        dynamic_object_field::borrow_mut(parent_id, KEY)
+        coin::split(&mut self.coin, amount, ctx)
     }
 }

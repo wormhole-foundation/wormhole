@@ -6,7 +6,7 @@ module wormhole::myvaa {
     use wormhole::bytes::{Self};
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self, ExternalAddress};
-    use wormhole::guardian::{Self, Guardian};
+    use wormhole::guardian::{Self};
     use wormhole::guardian_set::{Self, GuardianSet};
     use wormhole::guardian_signature::{Self, GuardianSignature};
     use wormhole::state::{Self, State};
@@ -132,8 +132,6 @@ module wormhole::myvaa {
         vaa.consistency_level
     }
 
-    //  break
-
     public fun destroy(vaa: VAA): vector<u8> {
          let VAA {
             guardian_set_index: _,
@@ -153,21 +151,21 @@ module wormhole::myvaa {
     /// Verifies the signatures of a VAA.
     /// It's private, because there's no point calling it externally, since VAAs
     /// external to this module have already been verified (by construction).
-    fun verify(vaa: &VAA, state: &State, t_guardian_set: &GuardianSet, ctx: &TxContext) {
-        assert!(state::guardian_set_is_active(state, t_guardian_set, ctx), E_GUARDIAN_SET_EXPIRED);
+    fun verify(vaa: &VAA, set: &GuardianSet, ctx: &TxContext) {
+        assert!(guardian_set::is_active(set, ctx), E_GUARDIAN_SET_EXPIRED);
 
-        let guardians = guardian_set::guardians(t_guardian_set);
-        let hash = vaa.hash;
         let signatures = vaa.signatures;
+        let num_signatures = vector::length(&signatures);
+        assert!(num_signatures >= guardian_set::quorum(set), E_NO_QUORUM);
+
+        // Reverse to pop in increasing guardian index order.
         vector::reverse(&mut signatures);
 
-        let num_signatures = vector::length(&signatures);
-        let num_guardians = vector::length(&guardians);
-
-        assert!(num_signatures >= quorum(num_guardians), E_NO_QUORUM);
+        let guardians = guardian_set::guardians(set);
+        let hash = vaa.hash;
 
         let i = 0;
-        let last_index = 0;
+        let last_guardian_index = 0;
         while (i < num_signatures) {
             let signature = vector::pop_back(&mut signatures);
             let guardian_index = guardian_signature::index_as_u64(&signature);
@@ -176,16 +174,25 @@ module wormhole::myvaa {
             // This check makes sure that no duplicate signers occur. The
             // increasing order is guaranteed by the guardians, or can always be
             // reordered by the client.
-            assert!(i == 0 || guardian_index > last_index, E_NON_INCREASING_SIGNERS);
-            last_index = guardian_index;
+            assert!(
+                i == 0 || guardian_index > last_guardian_index,
+                E_NON_INCREASING_SIGNERS
+            );
 
-            //let address = guardian_pubkey::from_signature(hash, recovery_id, sig);
+            // If the guardian pubkey cannot be recovered using the signature
+            // and message hash, revert.
+            assert!(
+                guardian::verify(
+                    vector::borrow(&guardians, guardian_index),
+                    signature,
+                    hash
+                ),
+                E_INVALID_SIGNATURE
+            );
 
-            let cur_guardian = vector::borrow<Guardian>(&guardians, guardian_index);
-
-            assert!(guardian::verify(cur_guardian, signature, hash), E_INVALID_SIGNATURE);
-
+            // Continue.
             i = i + 1;
+            last_guardian_index = guardian_index;
         };
     }
 
@@ -195,8 +202,8 @@ module wormhole::myvaa {
     /// `VAA`, it has been verified.
     public fun parse_and_verify(state: &mut State, bytes: vector<u8>, ctx: &TxContext): VAA {
         let vaa = parse(bytes);
-        let guardian_set = state::get_guardian_set(state, vaa.guardian_set_index);
-        verify(&vaa, state, &guardian_set, ctx);
+        let guardian_set = state::guardian_set_at(state, vaa.guardian_set_index);
+        verify(&vaa, &guardian_set, ctx);
         vaa
     }
 
@@ -211,11 +218,11 @@ module wormhole::myvaa {
 
     /// Aborts if the VAA is not governance (i.e. sent from the governance
     /// emitter on the governance chain)
-    public fun assert_governance(state: &State, vaa: &VAA) {
-        let latest_guardian_set_index = state::get_current_guardian_set_index(state);
+    public fun assert_governance(wormhole_state: &State, vaa: &VAA) {
+        let latest_guardian_set_index = state::guardian_set_index(wormhole_state);
         assert!(vaa.guardian_set_index == latest_guardian_set_index, E_OLD_GUARDIAN_SET_GOVERNANCE);
-        assert!(vaa.emitter_chain == state::get_governance_chain(state), E_INVALID_GOVERNANCE_CHAIN);
-        assert!(vaa.emitter_address == state::get_governance_contract(state), E_INVALID_GOVERNANCE_EMITTER);
+        assert!(vaa.emitter_chain == state::governance_chain(wormhole_state), E_INVALID_GOVERNANCE_CHAIN);
+        assert!(vaa.emitter_address == state::governance_contract(wormhole_state), E_INVALID_GOVERNANCE_EMITTER);
     }
 
     /// Aborts if the VAA has already been consumed. Marks the VAA as consumed
@@ -225,11 +232,6 @@ module wormhole::myvaa {
     public(friend) fun replay_protect(state: &mut State, vaa: &VAA) {
         // this calls table::add which aborts if the key already exists
         state::set_governance_action_consumed(state, vaa.hash);
-    }
-
-    /// Returns the minimum number of signatures required for a VAA to be valid.
-    public fun quorum(num_guardians: u64): u64 {
-        (num_guardians * 2) / 3 + 1
     }
 
 }
@@ -287,7 +289,7 @@ module wormhole::vaa_test {
                 ];
             // upgrade guardian set
             do_upgrade_test(&mut state, 1, new_guardians, ctx(&mut test));
-            assert!(state::get_current_guardian_set_index(&state) == 1, 0);
+            assert!(state::guardian_set_index(&state) == 1, 0);
             return_shared<State>(state);
         };
         test_scenario::end(test);
@@ -437,7 +439,7 @@ module wormhole::vaa_test {
 
         next_tx(&mut test, admin);{
             let state = take_shared<State>(&test);
-            state::set_governance_chain_id(&mut state,  200); // set governance chain to wrong chain
+            state::set_governance_chain(&mut state, 200); // set governance chain to wrong chain
 
             // expect this to succeed
             let vaa =

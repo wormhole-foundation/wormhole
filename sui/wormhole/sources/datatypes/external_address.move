@@ -30,6 +30,10 @@ module wormhole::external_address {
         new(bytes32::from_bytes(buf))
     }
 
+    public fun from_nonzero_bytes(buf: vector<u8>): ExternalAddress{
+        new_nonzero(bytes32::from_bytes(buf))
+    }
+
     public fun to_bytes(ext: ExternalAddress): vector<u8> {
         bytes32::to_bytes(ext.value)
     }

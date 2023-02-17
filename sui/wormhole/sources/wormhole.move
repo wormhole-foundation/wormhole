@@ -1,6 +1,6 @@
 module wormhole::wormhole {
     use sui::sui::{SUI};
-    use sui::coin::{Self, Coin};
+    use sui::coin::{Coin};
     use sui::tx_context::{Self, TxContext};
     use sui::transfer::{Self};
 
@@ -15,23 +15,13 @@ module wormhole::wormhole {
 // Sending messages
     public fun publish_message(
         emitter_cap: &mut emitter::EmitterCapability,
-        state: &mut State,
+        wormhole_state: &mut State,
         nonce: u32,
         payload: vector<u8>,
         message_fee: Coin<SUI>,
     ): u64 {
-        // ensure that provided fee is sufficient to cover message fees
-        let expected_fee = state::get_message_fee(state);
-        let val = coin::value(&message_fee);
-        if (expected_fee != val){
-            if (expected_fee < val){
-                assert!(expected_fee > val, E_TOO_MUCH_FEE);
-            } else {
-                assert!(expected_fee < val, E_INSUFFICIENT_FEE);
-            }
-        };
         // deposit the fees into wormhole
-        state::deposit_fee_coins(state, message_fee);
+        state::deposit_fee(wormhole_state, message_fee);
 
         // get sequence number
         let sequence = emitter::use_sequence(emitter_cap);
@@ -54,28 +44,6 @@ module wormhole::wormhole {
         message_fee: Coin<SUI>,
     ) {
         publish_message(emitter_cap, state, nonce, payload, message_fee);
-    }
-
-    public entry fun publish_message_free(
-        emitter_cap: &mut emitter::EmitterCapability,
-        state: &mut State,
-        nonce: u32,
-        payload: vector<u8>,
-    ) {
-        // ensure that provided fee is sufficient to cover message fees
-        let expected_fee = state::get_message_fee(state);
-        assert!(expected_fee == 0, E_INSUFFICIENT_FEE);
-
-        // get sender and sequence number
-        let sequence = emitter::use_sequence(emitter_cap);
-
-        // emit event
-        state::publish_event(
-            emitter::get_emitter(emitter_cap),
-            sequence,
-            nonce,
-            payload,
-        );
     }
 
     // -----------------------------------------------------------------------------
@@ -107,9 +75,10 @@ module wormhole::test_wormhole{
     use sui::sui::{SUI};
     use sui::transfer::{Self};
 
+    use wormhole::fee_collector::{Self};
     use wormhole::test_state::{init_wormhole_state};
     use wormhole::state::{State};
-    use wormhole::wormhole::{Self, E_TOO_MUCH_FEE, E_INSUFFICIENT_FEE};
+    use wormhole::wormhole::{Self};
 
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
@@ -137,7 +106,7 @@ module wormhole::test_wormhole{
     }
 
     #[test]
-    #[expected_failure(abort_code = E_TOO_MUCH_FEE)] // E_TOO_MUCH_FEE
+    #[expected_failure(abort_code = fee_collector::E_INCORRECT_FEE)]
     public fun test_publish_wormhole_message_too_much_fee(){
         let test = scenario();
         let (admin, _, _) = people();
@@ -160,7 +129,7 @@ module wormhole::test_wormhole{
     }
 
     #[test]
-    #[expected_failure(abort_code = E_INSUFFICIENT_FEE)] // E_INSUFFICIENT_FEE
+    #[expected_failure(abort_code = fee_collector::E_INCORRECT_FEE)]
     public fun test_publish_wormhole_message_insufficient_fee(){
         let test = scenario();
         let (admin, _, _) = people();
