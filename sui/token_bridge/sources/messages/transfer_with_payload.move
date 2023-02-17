@@ -157,4 +157,3 @@ module token_bridge::transfer_with_payload_test{
         assert!(transfer_with_payload::payload(&de) == payload, 0);
     }
 }
-
