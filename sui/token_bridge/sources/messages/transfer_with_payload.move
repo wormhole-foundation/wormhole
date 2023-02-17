@@ -152,6 +152,7 @@ module token_bridge::transfer_with_payload_test{
         assert!(transfer_with_payload::token_address(&de) == token_address, 0);
         assert!(transfer_with_payload::token_chain(&de) == 3, 0);
         assert!(transfer_with_payload::recipient(&de) == recipient, 0);
+        assert!(transfer_with_payload::recipient_chain(&de) == 6, 0);
         assert!(transfer_with_payload::sender(&de) == sender, 0);
         assert!(transfer_with_payload::payload(&de) == payload, 0);
     }
