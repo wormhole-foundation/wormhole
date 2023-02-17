@@ -66,12 +66,11 @@ module token_bridge::registered_tokens {
         addr: ExternalAddress,
         treasury_cap: TreasuryCap<C>,
         decimals: u8,
-        ctx: &mut TxContext
     ) {
         assert!(!has<C>(self), E_ALREADY_REGISTERED);
         add_wrapped<C>(
             self,
-            wrapped_asset::new(chain, addr, treasury_cap, decimals, ctx)
+            wrapped_asset::new(chain, addr, treasury_cap, decimals)
         )
     }
 
