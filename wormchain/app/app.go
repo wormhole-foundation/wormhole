@@ -565,7 +565,8 @@ func New(
 	if err != nil {
 		panic(err)
 	}
-	wrappedAnteHandler := WrapAnteHandler(anteHandlerSdk, app.WormholeKeeper)
+	migrationHandler := NewMigrationDecorator(app.SlashingKeeper)
+	wrappedAnteHandler := WrapAnteHandler(anteHandlerSdk, app.WormholeKeeper, migrationHandler)
 
 	app.SetAnteHandler(wrappedAnteHandler)
 	app.SetEndBlocker(app.EndBlocker)
@@ -585,16 +586,19 @@ func New(
 }
 
 // Wrap the standard cosmos-sdk antehandlers with our wormhole allowlist antehandler.
-func WrapAnteHandler(originalHandler sdk.AnteHandler, wormKeeper wormholemodulekeeper.Keeper) sdk.AnteHandler {
+func WrapAnteHandler(originalHandler sdk.AnteHandler, wormKeeper wormholemodulekeeper.Keeper, migrator MigrationDecorator) sdk.AnteHandler {
 	whHandler := wormholemoduleante.NewWormholeAllowlistDecorator(wormKeeper)
+	newHandlers := sdk.ChainAnteDecorators(whHandler, migrator)
 	return func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
 		newCtx, err := originalHandler(ctx, tx, simulate)
 		if err != nil {
 			return newCtx, err
 		}
-		return whHandler.AnteHandle(newCtx, tx, simulate, func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
-			return ctx, nil
-		})
+		newCtx, err = newHandlers(newCtx, tx, simulate)
+		if err != nil {
+			return newCtx, err
+		}
+		return newCtx, err
 	}
 }
 
