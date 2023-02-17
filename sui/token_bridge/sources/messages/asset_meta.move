@@ -121,8 +121,6 @@ module token_bridge::asset_meta_test{
     use token_bridge::asset_meta::{Self};
     use token_bridge::string32::{Self};
 
-    struct MyCoinType {}
-
     #[test]
     fun test_asset_meta(){
         let symbol = string::utf8(b"a creative symbol");

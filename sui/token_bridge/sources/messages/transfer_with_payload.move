@@ -126,8 +126,6 @@ module token_bridge::transfer_with_payload_test{
     use token_bridge::transfer_with_payload::{Self};
     use token_bridge::normalized_amount::{Self};
 
-    struct MyCoinType {}
-
     #[test]
     fun test_transfer_with_payload(){
         let transfer_with_payload = transfer_with_payload::new(
