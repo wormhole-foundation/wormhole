@@ -25,44 +25,40 @@ module token_bridge::native_id_registry {
         self.index = self.index + 1;
         external_address::from_bytes(bytes)
     }
+
+    #[test_only]
+    public fun destroy(r: NativeIdRegistry): u64 {
+        let NativeIdRegistry { index } = r;
+        return index
+    }
 }
 
 #[test_only]
 module token_bridge::native_registry_test{
-    use sui::test_scenario::{Self, Scenario, next_tx, ctx};
-    use sui::transfer::transfer;
-    use sui::object::{Self, UID};
+    use sui::test_scenario::{Self, Scenario};
 
     use wormhole::bytes::{Self};
     use wormhole::external_address::{Self};
     use wormhole::cursor::{Self};
 
-    use token_bridge::native_id_registry::{Self, NativeIdRegistry};
+    use token_bridge::native_id_registry::{Self, destroy};
 
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
-    struct MyCoinType {}
-
-    struct RegistryContainer has key, store {id: UID, registry: NativeIdRegistry}
 
     #[test]
-    fun test_create_token_info_1(){
-        let test = scenario();
-        let (admin, _, _) = people();
-        next_tx(&mut test, admin); {
-            let registry = native_id_registry::new();
-            let i = 1;
-            while (i < 1000){
-                let addr = native_id_registry::next_id(&mut registry);
-                let cursor = cursor::new<u8>(external_address::get_bytes(&addr));
-                let w = bytes::deserialize_u256_be(&mut cursor);
-                cursor::destroy_empty<u8>(cursor);
-                assert!(w==i, 0);
-                i = i + 1;
-            };
-            transfer(RegistryContainer{id: object::new(ctx(&mut test)), registry: registry}, admin);
+    fun test_native_id_registry(){
+        let registry = native_id_registry::new();
+        let i = 1;
+        while (i < 1000){
+            let addr = native_id_registry::next_id(&mut registry);
+            let cursor = cursor::new<u8>(external_address::get_bytes(&addr));
+            let w = bytes::deserialize_u256_be(&mut cursor);
+            cursor::destroy_empty<u8>(cursor);
+            assert!(w==i, 0);
+            i = i + 1;
         };
-        test_scenario::end(test);
+        destroy(registry);
     }
 }
