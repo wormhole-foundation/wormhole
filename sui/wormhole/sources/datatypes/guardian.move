@@ -2,24 +2,31 @@ module wormhole::guardian {
     use std::vector::{Self};
     use sui::ecdsa_k1::{Self};
 
+    use wormhole::bytes20::{Self, Bytes20};
     use wormhole::guardian_signature::{Self, GuardianSignature};
 
-    const E_INVALID_NEW_LENGTH: u64 = 0;
-    const E_INVALID_EC_PUBKEY_LENGTH: u64 = 1;
+    const E_INVALID_EC_PUBKEY_LENGTH: u64 = 0;
 
     const PUBKEY_LENGTH: u64 = 20;
 
     struct Guardian has store, drop, copy {
-        pubkey: vector<u8>
+        pubkey: Bytes20
     }
 
     public fun new(pubkey: vector<u8>): Guardian {
-        assert!(vector::length(&pubkey) == PUBKEY_LENGTH, E_INVALID_NEW_LENGTH);
-        Guardian { pubkey }
+        Guardian { pubkey: bytes20::new(pubkey) }
     }
 
-    public fun pubkey(self: &Guardian): vector<u8> {
+    public fun pubkey(self: &Guardian): Bytes20 {
         self.pubkey
+    }
+
+    public fun as_bytes(self: &Guardian): vector<u8> {
+        bytes20::data(&self.pubkey)
+    }
+
+    public fun to_bytes(value: Guardian): vector<u8> {
+        bytes20::to_bytes(value.pubkey)
     }
 
     public fun verify(
@@ -28,7 +35,7 @@ module wormhole::guardian {
         message_hash: vector<u8>
     ): bool {
         let (rs, recovery_id, _) = guardian_signature::destroy(signature);
-        self.pubkey == ecrecover(message_hash, recovery_id, rs)
+        as_bytes(self) == ecrecover(message_hash, recovery_id, rs)
     }
 
     /// Same as 'ecrecover' in EVM.

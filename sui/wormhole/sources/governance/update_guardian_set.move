@@ -51,7 +51,7 @@ module wormhole::update_guardian_set {
         );
 
         state::expire_guardian_set(state, ctx);
-        
+
         state::update_guardian_set_index(state, new_index);
         state::store_guardian_set(
             state,
