@@ -332,8 +332,8 @@ func init() {
 	baseContract = NodeCmd.Flags().String("baseContract", "", "Base contract address")
 
 	logLevel = NodeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
-	logPublicRPC = NodeCmd.Flags().String("logPublicRPC", "minimal", "Logging of public RPC requests (false=no logging, minimal=only log gRPC methods and payload (up to 200 bytes), full=additionally log HTTP method, path (up to 100 bytes), and user agent (up to 200 bytes))")
-	logPublicRPCTelemetry = NodeCmd.Flags().Bool("logPublicRPCTelemetry", true, "false=do not include publicRpc request logs in telemetry")
+	logPublicRPC = NodeCmd.Flags().String("logPublicRPC", "full", "Logging of public RPC requests (false=no logging, minimal=only log gRPC methods, full=log gRPC method, payload (up to 200 bytes) and user agent (up to 200 bytes))")
+	logPublicRPCTelemetry = NodeCmd.Flags().Bool("logPublicRPCTelemetry", true, "whether or not to include publicRpc request logs in telemetry")
 
 	unsafeDevMode = NodeCmd.Flags().Bool("unsafeDevMode", false, "Launch node in unsafe, deterministic devnet mode")
 	testnetMode = NodeCmd.Flags().Bool("testnetMode", false, "Launch node in testnet mode (enables testnet-only features)")
@@ -672,7 +672,15 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	if *logPublicRPC != "false" && *logPublicRPC != "minimal" && *logPublicRPC != "true" {
+	var logPublicRpcDetail common.GrpcLogDetail
+	switch *logPublicRPC {
+	case "false":
+		logPublicRpcDetail = common.GrpcLogDetailNone
+	case "minimal":
+		logPublicRpcDetail = common.GrpcLogDetailMinimal
+	case "full":
+		logPublicRpcDetail = common.GrpcLogDetailFull
+	default:
 		logger.Fatal("--logPublicRPC should be one of (false, minimal, true)")
 	}
 
@@ -1452,7 +1460,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		if shouldStart(publicGRPCSocketPath) {
 
 			// local public grpc service socket
-			publicrpcUnixService, publicrpcServer, err := publicrpcUnixServiceRunnable(logger, *publicGRPCSocketPath, db, gst, gov)
+			publicrpcUnixService, publicrpcServer, err := publicrpcUnixServiceRunnable(logger, *publicGRPCSocketPath, logPublicRpcDetail, db, gst, gov)
 			if err != nil {
 				logger.Fatal("failed to create publicrpc service socket", zap.Error(err))
 			}
@@ -1462,7 +1470,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 
 			if shouldStart(publicRPC) {
-				publicrpcService, err := publicrpcTcpServiceRunnable(logger, *publicRPC, *logPublicRPC, db, gst, gov)
+				publicrpcService, err := publicrpcTcpServiceRunnable(logger, *publicRPC, logPublicRpcDetail, db, gst, gov)
 				if err != nil {
 					log.Fatal("failed to create publicrpc tcp service", zap.Error(err))
 				}
@@ -1472,7 +1480,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 
 			if shouldStart(publicWeb) {
-				publicwebService, err := publicwebServiceRunnable(logger, *publicWeb, *publicGRPCSocketPath, *logPublicRPC, publicrpcServer,
+				publicwebService, err := publicwebServiceRunnable(logger, *publicWeb, *publicGRPCSocketPath, publicrpcServer,
 					*tlsHostname, *tlsProdEnv, path.Join(*dataDir, "autocert"))
 				if err != nil {
 					log.Fatal("failed to create publicrpc web service", zap.Error(err))

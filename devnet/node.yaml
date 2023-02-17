@@ -166,7 +166,7 @@ spec:
             - --dataDir
             - /tmp/data
             - --logPublicRPC
-            - 'true'
+            - "full"
           # - --chainGovernorEnabled=true
           #            - --logLevel=debug
           securityContext:

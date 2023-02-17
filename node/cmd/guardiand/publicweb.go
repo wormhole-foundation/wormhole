@@ -10,7 +10,6 @@ import (
 
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
-	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"go.uber.org/zap"
@@ -18,7 +17,6 @@ import (
 	"golang.org/x/crypto/acme/autocert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
 )
 
 func allowCORSWrapper(h http.Handler) http.Handler {
@@ -49,18 +47,10 @@ func corsPreflightHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Methods", strings.Join(methods, ","))
 }
 
-func cutStr(s string, maxLen int) string {
-	if len(s) > maxLen {
-		return s[0:maxLen] + "[...]"
-	}
-	return s
-}
-
 func publicwebServiceRunnable(
 	logger *zap.Logger,
 	listenAddr string,
 	upstreamAddr string,
-	logPublicRPC string,
 	grpcServer *grpc.Server,
 	tlsHostname string,
 	tlsProd bool,
@@ -85,25 +75,6 @@ func publicwebServiceRunnable(
 		mux := http.NewServeMux()
 		grpcWebServer := grpcweb.WrapServer(grpcServer)
 		mux.Handle("/", allowCORSWrapper(http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-
-			if logPublicRPC == "true" {
-				trace := uuid.New()
-
-				if md, ok := metadata.FromIncomingContext(ctx); ok {
-					md.Set("x-trace-id", trace.String())
-				}
-
-				req.Header.Set("Grpc-Metadata-x-trace-id", trace.String())
-
-				logger.Info("public rpc request",
-					zap.String("method", req.Method),
-					zap.String("path", cutStr(req.URL.Path, 100)),
-					zap.String("remote_addr", req.RemoteAddr),
-					zap.String("user-agent", cutStr(req.Header.Get("user-agent"), 200)),
-					zap.String("x-trace-id", trace.String()),
-				)
-			}
-
 			if grpcWebServer.IsGrpcWebRequest(req) {
 				grpcWebServer.ServeHTTP(resp, req)
 			} else {
