@@ -80,7 +80,7 @@ module token_bridge::registered_emitters_test{
         object::delete(id);
     }
 
-    // write a test exercising the creation of a new registered emitters table,
+    // write a test exercising the creation of a new registered emitters table
     // and adding several (chain_id, external_address) key-value pairs to it
     #[test]
     fun test_registered_emitters(){
@@ -109,8 +109,7 @@ module token_bridge::registered_emitters_test{
         // emitters table were indeed added
         i = 1;
         while (i < 1000) {
-            let cur_external_addr = vector::empty<u8>();
-            bytes::serialize_u16_be(&mut cur_external_addr, i);
+            // check that key (chain id) exists
             assert!(
                 has(
                     &mock_state.id,
@@ -118,12 +117,22 @@ module token_bridge::registered_emitters_test{
                 ),
                 0
             );
+
+            // check that values (external addresses) are correct
+            let cur_external_addr = vector::empty<u8>();
+            bytes::serialize_u16_be(&mut cur_external_addr, i);
+            assert!(
+                external_address(&mock_state.id,i) ==
+                from_bytes(cur_external_addr),
+            0);
             i = i + 1;
         };
         destroy_mock_state(mock_state);
         test_scenario::end(test);
     }
 
+    // test that creating two registered emitter tables for the same UID
+    // fails
     #[test]
     #[expected_failure(
         abort_code = E_REGISTERED_EMITTER_TABLE_ALREADY_EXISTS,
@@ -146,6 +155,7 @@ module token_bridge::registered_emitters_test{
         test_scenario::end(test);
     }
 
+    // test that only one external address can be registered for a chain
     #[test]
     #[expected_failure(
         abort_code = E_EMITTER_EXTERNAL_ADDRESS_ALREADY_EXISTS_FOR_CHAIN,
@@ -201,7 +211,7 @@ module token_bridge::registered_emitters_test{
         };
         let _nonexistent_external_address = external_address(
             &mut mock_state.id,
-            10022 // this chain id is not registered
+            10022 // this chain id is not registered (only 1-100 are registered)
         );
         destroy_mock_state(mock_state);
         test_scenario::end(test);
