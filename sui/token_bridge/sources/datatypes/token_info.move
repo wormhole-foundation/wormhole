@@ -39,3 +39,46 @@ module token_bridge::token_info {
         self.chain == chain && self.addr == addr
     }
 }
+
+#[test_only]
+module token_bridge::token_info_test{
+    use wormhole::external_address::{Self, get_bytes, from_bytes};
+
+    use token_bridge::token_info::{Self, equals, is_wrapped, chain, addr};
+
+    struct MyCoinType {}
+
+    #[test]
+    fun test_create_token_info_1(){
+        let addr_bytes =
+            x"0000000000000000000000000000000000000000000000000000000000110011";
+        let token_info = token_info::new<MyCoinType>(
+            false,
+            2, // chain
+            external_address::from_bytes(addr_bytes)
+        );
+
+        // assert that created TokenInfo has correct fields
+        assert!(is_wrapped<MyCoinType>(&token_info)==false, 0);
+        assert!(chain<MyCoinType>(&token_info)==2, 0);
+        assert!(get_bytes(&addr<MyCoinType>(&token_info))==addr_bytes, 0);
+        assert!(equals<MyCoinType>(&token_info, 2, from_bytes(addr_bytes)), 0);
+    }
+
+    #[test]
+    fun test_create_token_info_2(){
+        let addr_bytes =
+            x"2300000000000000000000000000000000000000000000000000000000110011";
+        let token_info = token_info::new<MyCoinType>(
+            true,
+            15, // chain
+            from_bytes(addr_bytes)
+        );
+
+        // assert that created TokenInfo has correct fields
+        assert!(is_wrapped<MyCoinType>(&token_info)==true, 0);
+        assert!(chain<MyCoinType>(&token_info)==15, 0);
+        assert!(get_bytes(&addr<MyCoinType>(&token_info))==addr_bytes, 0);
+        assert!(equals<MyCoinType>(&token_info, 15, from_bytes(addr_bytes)), 0);
+    }
+}
