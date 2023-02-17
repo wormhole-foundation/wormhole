@@ -86,11 +86,10 @@ module token_bridge::attest_token_test{
         next_tx(&mut test, admin); {
             native_coin_witness::test_init(ctx(&mut test));
         };
-        
+
         // Proceed to next operation.
         next_tx(&mut test, someone);
-        
-        // 
+
         {
             let wormhole_state = take_shared<WormholeState>(&test);
             let bridge_state = take_shared<State>(&test);
