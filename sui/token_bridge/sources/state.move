@@ -258,14 +258,12 @@ module token_bridge::state {
         token_address: ExternalAddress,
         treasury_cap: TreasuryCap<CoinType>,
         decimals: u8,
-        ctx: &mut TxContext
     ) {
-        registered_tokens::add_new_wrapped(&mut self.registered_tokens, 
+        registered_tokens::add_new_wrapped(&mut self.registered_tokens,
             token_chain,
             token_address,
             treasury_cap,
             decimals,
-            ctx
         )
     }
 
