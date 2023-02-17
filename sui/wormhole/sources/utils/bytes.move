@@ -40,7 +40,7 @@ module wormhole::bytes {
     public fun from_bytes(buf: &mut vector<u8>, other: vector<u8>){
         vector::append(buf, other)
     }
-    
+
     public fun deserialize_u8(cur: &mut Cursor<u8>): u8 {
         cursor::poke(cur)
     }
