@@ -83,7 +83,7 @@ module token_bridge::asset_meta {
         bytes::serialize_u8(&mut buf, PAYLOAD_ID);
         bytes::from_bytes(
             &mut buf,
-            external_address::get_bytes(&meta.token_address)
+            external_address::to_bytes(meta.token_address)
         );
         bytes::serialize_u16_be(&mut buf, meta.token_chain);
         bytes::serialize_u8(&mut buf, meta.native_decimals);

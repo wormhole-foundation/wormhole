@@ -12,11 +12,7 @@ module wormhole::guardian_set {
     }
 
     public fun new(index: u32, guardians: vector<Guardian>): GuardianSet {
-       GuardianSet {
-            index,
-            guardians,
-            expiration_time: 0,
-        }
+       GuardianSet { index, guardians, expiration_time: 0 }
     }
 
     public fun index(self: &GuardianSet): u32 {

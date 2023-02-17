@@ -125,7 +125,7 @@ module token_bridge::complete_transfer {
 
         let recipient =
             external_address::to_address(
-                &transfer::recipient(parsed_transfer)
+                transfer::recipient(parsed_transfer)
             );
 
         // If the recipient did not redeem his own transfer, Token Bridge will
