@@ -35,25 +35,24 @@ module token_bridge::native_id_registry {
 
 #[test_only]
 module token_bridge::native_registry_test{
-    use sui::test_scenario::{Self, Scenario};
-
     use wormhole::bytes::{Self};
     use wormhole::external_address::{Self};
     use wormhole::cursor::{Self};
 
     use token_bridge::native_id_registry::{Self, destroy};
 
-    fun scenario(): Scenario { test_scenario::begin(@0x123233) }
-    fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
-
-
     #[test]
     fun test_native_id_registry(){
         let registry = native_id_registry::new();
         let i = 1;
-        while (i < 1000){
+        // generate a large number of IDs using native_id_registry::next_id
+        // and check that they are indeed generated in monotonic increasing
+        // order in increments of one
+        while (i < 2000){
             let addr = native_id_registry::next_id(&mut registry);
             let cursor = cursor::new<u8>(external_address::get_bytes(&addr));
+
+            // deserialize the 32-byte representation of the ID into an integer
             let w = bytes::deserialize_u256_be(&mut cursor);
             cursor::destroy_empty<u8>(cursor);
             assert!(w==i, 0);
