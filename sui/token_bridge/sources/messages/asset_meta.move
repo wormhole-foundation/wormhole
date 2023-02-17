@@ -125,12 +125,15 @@ module token_bridge::asset_meta_test{
     fun test_asset_meta(){
         let symbol = string::utf8(b"a creative symbol");
         let name = string::utf8(b"a creative name");
+        let token_address = external_address::from_bytes(x"001122");
+        let symbol =  string32::from_string(&symbol);
+        let name = string32::from_string(&name);
         let asset_meta = asset_meta::new(
             3, // token chain
-            external_address::from_bytes(x"0011223344"), //token address
+            token_address, //token address
             4, //native decimals
-            string32::from_string(&symbol), // symbol
-            string32::from_string(&name), // name
+            symbol, // symbol
+            name, // name
         );
         // serialize and deserialize TransferWithPayload object
         let se = asset_meta::serialize(asset_meta);
@@ -138,9 +141,9 @@ module token_bridge::asset_meta_test{
 
         // test that the object fields are unchanged
         assert!(asset_meta::token_chain(&de) == 3, 0);
-        assert!(asset_meta::token_address(&de) == external_address::from_bytes(x"0011223344"), 0);
+        assert!(asset_meta::token_address(&de) == token_address, 0);
         assert!(asset_meta::native_decimals(&de) == 4, 0);
-        assert!(asset_meta::symbol(&de) ==  string32::from_string(&symbol), 0);
-        assert!(asset_meta::name(&de) == string32::from_string(&name), 0);
+        assert!(asset_meta::symbol(&de) ==  symbol, 0);
+        assert!(asset_meta::name(&de) == name, 0);
     }
 }

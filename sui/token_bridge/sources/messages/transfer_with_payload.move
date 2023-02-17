@@ -128,26 +128,32 @@ module token_bridge::transfer_with_payload_test{
 
     #[test]
     fun test_transfer_with_payload(){
+        let amount = normalized_amount::default();
+        let token_address = external_address::from_bytes(x"0011223344");
+        let recipient = external_address::from_bytes(x"003456");
+        let sender = external_address::from_bytes(x"99887766");
+        let payload = x"12334435345345234234";
+
         let transfer_with_payload = transfer_with_payload::new(
-            normalized_amount::default(), // amount
-            external_address::from_bytes(x"0011223344"), // token address
+            amount, // amount
+            token_address, // token address
             3, // token chain
-            external_address::from_bytes(x"003456"), // recipient
+            recipient, // recipient
             6, // recipient chain
-            external_address::from_bytes(x"99887766"), // sender
-            x"12334435345345234234" // payload
+            sender, // sender
+            payload // payload
         );
         // serialize and deserialize TransferWithPayload object
         let se = transfer_with_payload::serialize(transfer_with_payload);
         let de = transfer_with_payload::deserialize(se);
 
         // test that the object fields are unchanged
-        assert!(transfer_with_payload::amount(&de) == normalized_amount::default(), 0);
-        assert!(transfer_with_payload::token_address(&de) == external_address::from_bytes(x"0011223344"), 0);
+        assert!(transfer_with_payload::amount(&de) == amount, 0);
+        assert!(transfer_with_payload::token_address(&de) == token_address, 0);
         assert!(transfer_with_payload::token_chain(&de) == 3, 0);
-        assert!(transfer_with_payload::recipient(&de) == external_address::from_bytes(x"003456"), 0);
-        assert!(transfer_with_payload::sender(&de) == external_address::from_bytes(x"99887766"), 0);
-        assert!(transfer_with_payload::payload(&de) == x"12334435345345234234", 0);
+        assert!(transfer_with_payload::recipient(&de) == recipient, 0);
+        assert!(transfer_with_payload::sender(&de) == sender, 0);
+        assert!(transfer_with_payload::payload(&de) == payload, 0);
     }
 }
 
