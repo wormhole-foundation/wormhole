@@ -192,12 +192,10 @@ func (acct *Accountant) FeatureString() string {
 	return "acct:enforced"
 }
 
-// SubmitObservation will submit token bridge transfers to the accountant smart contract. This is called from the processor
-// loop when a local observation is received from a watcher. It returns true if the observation can be published immediately,
-// false if not (because it has been submitted to accountant).
-func (acct *Accountant) SubmitObservation(msg *common.MessagePublication) (bool, error) {
+// IsMessageCoveredByAccountant returns `true` if a message should be processed by the Global Accountant, `false` if not.
+func (acct *Accountant) IsMessageCoveredByAccountant(msg *common.MessagePublication) bool {
 	msgId := msg.MessageIDString()
-	acct.logger.Debug("acct: in SubmitObservation", zap.String("msgID", msgId))
+
 	// We only care about token bridges.
 	tbk := tokenBridgeKey{emitterChainId: msg.EmitterChain, emitterAddr: msg.EmitterAddress}
 	if _, exists := acct.tokenBridges[tbk]; !exists {
@@ -205,12 +203,26 @@ func (acct *Accountant) SubmitObservation(msg *common.MessagePublication) (bool,
 			acct.logger.Debug("acct: ignoring vaa because it is not a token bridge", zap.String("msgID", msgId))
 		}
 
-		return true, nil
+		return false
 	}
 
 	// We only care about transfers.
 	if !vaa.IsTransfer(msg.Payload) {
 		acct.logger.Info("acct: ignoring vaa because it is not a transfer", zap.String("msgID", msgId))
+		return false
+	}
+
+	return true
+}
+
+// SubmitObservation will submit token bridge transfers to the accountant smart contract. This is called from the processor
+// loop when a local observation is received from a watcher. It returns true if the observation can be published immediately,
+// false if not (because it has been submitted to accountant).
+func (acct *Accountant) SubmitObservation(msg *common.MessagePublication) (bool, error) {
+	msgId := msg.MessageIDString()
+	acct.logger.Debug("acct: in SubmitObservation", zap.String("msgID", msgId))
+
+	if !acct.IsMessageCoveredByAccountant(msg) {
 		return true, nil
 	}
 
