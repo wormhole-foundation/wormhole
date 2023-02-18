@@ -110,7 +110,7 @@ module token_bridge::complete_transfer_with_payload_test {
     use sui::test_scenario::{Self, Scenario};
     use wormhole::external_address::{Self};
     use wormhole::state::{State as WormholeState};
-    use wormhole::wormhole::{Self};
+    use wormhole::publish_message::{Self as wormhole};
 
     use token_bridge::bridge_state_test::{
         set_up_wormhole_core_and_token_bridges
