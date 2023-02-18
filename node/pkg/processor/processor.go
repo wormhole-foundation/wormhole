@@ -230,6 +230,10 @@ func (p *Processor) Run(ctx context.Context) error {
 			if p.acct == nil {
 				return fmt.Errorf("acct: received an accountant event when accountant is not configured")
 			}
+			// SECURITY defense-in-depth: Make sure the accountant did not generate an unexpected message.
+			if !p.acct.IsMessageCoveredByAccountant(k) {
+				return fmt.Errorf("acct: accountant published a message that is not covered by it: `%s`", k.MessageIDString())
+			}
 			p.handleMessage(ctx, k)
 		case v := <-p.injectC:
 			p.handleInjection(ctx, v)
