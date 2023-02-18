@@ -1,12 +1,10 @@
 module wormhole::state {
     use std::vector::{Self};
+    use sui::coin::{Coin};
     use sui::dynamic_field::{Self};
     use sui::object::{Self, UID};
-    use sui::tx_context::{Self, TxContext};
-    use sui::transfer::{Self};
+    use sui::tx_context::{TxContext};
     use sui::vec_map::{Self, VecMap};
-    use sui::event::{Self};
-    use sui::coin::{Coin};
     use sui::sui::{SUI};
 
     use wormhole::fee_collector::{Self};
@@ -17,8 +15,9 @@ module wormhole::state {
     use wormhole::emitter::{Self};
 
     friend wormhole::update_guardian_set;
-    friend wormhole::wormhole;
+    friend wormhole::publish_message;
     friend wormhole::myvaa;
+    friend wormhole::setup;
     #[test_only]
     friend wormhole::vaa_test;
 
@@ -27,21 +26,6 @@ module wormhole::state {
 
     /// Dynamic field key for `FeeCollector`
     const FIELD_FEE_COLLECTOR: vector<u8> = b"fee_collector";
-
-    /// Capability created at `init`, which will be destroyed once
-    /// `init_and_share_state` is called. This ensures only the deployer can
-    /// create the shared `State`.
-    struct DeployerCapability has key, store {
-        id: UID
-    }
-
-    struct WormholeMessage has store, copy, drop {
-        sender: u64,
-        sequence: u64,
-        nonce: u32,
-        payload: vector<u8>,
-        consistency_level: u8
-    }
 
     struct State has key, store {
         id: UID,
@@ -75,27 +59,14 @@ module wormhole::state {
         message_fee: u64,
     }
 
-    /// Called automatically when module is first published. Transfers deployer
-    /// cap to sender.
-    fun init(ctx: &mut TxContext) {
-        let cap = DeployerCapability{ id: object::new(ctx) };
-        transfer::transfer(cap, tx_context::sender(ctx));
-    }
-
-    // creates a shared state object, so that anyone can get a reference to &mut State
-    // and pass it into various functions
-    public entry fun init_and_share_state(
-        deployer: DeployerCapability,
+    public(friend) fun new(
         governance_chain: u16,
         governance_contract: vector<u8>,
         initial_guardians: vector<vector<u8>>,
         guardian_set_epochs_to_live: u32,
         message_fee: u64,
         ctx: &mut TxContext
-    ) {
-        let DeployerCapability{ id } = deployer;
-        object::delete(id);
-
+    ): State {
         let state = State {
             id: object::new(ctx),
             governance_chain,
@@ -129,8 +100,7 @@ module wormhole::state {
             fee_collector::new(message_fee, ctx)
         );
 
-        // permanently shares state
-        transfer::share_object<State>(state);
+        state
     }
 
     public fun chain_id(): u16 {
@@ -170,32 +140,6 @@ module wormhole::state {
         );
     }
 
-    // TODO - later on, can perform contract upgrade and add a governance-gated withdraw function to
-    //        extract fee coins from the store
-
-    #[test_only]
-    public fun init_test_only(ctx: &mut TxContext) {
-        init(ctx)
-    }
-
-    public(friend) entry fun publish_event(
-        sender: u64,
-        sequence: u64,
-        nonce: u32,
-        payload: vector<u8>
-     ) {
-        event::emit(
-            WormholeMessage {
-                sender,
-                sequence,
-                nonce,
-                payload: payload,
-                // Sui is an instant finality chain, so we don't need
-                // confirmations
-                consistency_level: 0,
-            }
-        );
-    }
     public(friend) fun set_governance_action_consumed(self: &mut State, hash: vector<u8>){
         set::add<vector<u8>>(&mut self.consumed_governance_actions, hash);
     }
@@ -258,18 +202,18 @@ module wormhole::test_state{
         take_from_address,
     };
 
-    use wormhole::state::{Self, init_test_only, DeployerCapability};
+    use wormhole::setup::{DeployerCapability};
 
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
     public fun init_wormhole_state(test: Scenario, admin: address, message_fee: u64): Scenario {
         next_tx(&mut test, admin); {
-            init_test_only(ctx(&mut test));
+            wormhole::wormhole::init_test_only(ctx(&mut test));
         };
         next_tx(&mut test, admin); {
             let deployer = take_from_address<DeployerCapability>(&test, admin);
-            state::init_and_share_state(
+            wormhole::setup::init_and_share_state(
                 deployer,
                 1, // governance chain
                 x"0000000000000000000000000000000000000000000000000000000000000004", // governance_contract

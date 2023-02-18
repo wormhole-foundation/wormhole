@@ -9,7 +9,7 @@ module token_bridge::state {
     use wormhole::external_address::{ExternalAddress};
     use wormhole::set::{Self, Set};
     use wormhole::state::{Self as wormhole_state, State as WormholeState};
-    use wormhole::wormhole::{Self};
+    use wormhole::publish_message::{Self, publish_message};
 
     use token_bridge::asset_meta::{Self, AssetMeta};
     use token_bridge::registered_emitters::{Self};
@@ -87,7 +87,7 @@ module token_bridge::state {
         let state = State {
             id: object::new(ctx),
             consumed_vaas: set::new(ctx),
-            emitter_cap: wormhole::register_emitter(worm_state, ctx),
+            emitter_cap: publish_message::register_emitter(worm_state, ctx),
             registered_tokens: registered_tokens::new(ctx)
         };
 
@@ -178,9 +178,9 @@ module token_bridge::state {
         payload: vector<u8>,
         message_fee: Coin<SUI>,
     ): u64 {
-        wormhole::publish_message(
-            &mut self.emitter_cap,
+        publish_message(
             worm_state,
+            &mut self.emitter_cap,
             nonce,
             payload,
             message_fee,

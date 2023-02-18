@@ -1,3 +1,4 @@
+// TODO: remove in favor of wormhole::id_registry
 module token_bridge::native_id_registry {
     use wormhole::external_address::{Self, ExternalAddress};
 
