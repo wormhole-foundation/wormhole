@@ -4,10 +4,10 @@ module token_bridge::registered_tokens {
     use sui::object::{Self, UID};
     use sui::tx_context::{TxContext};
     use wormhole::external_address::{ExternalAddress};
+    use wormhole::id_registry::{Self, IdRegistry};
     use wormhole::state::{chain_id};
 
     use token_bridge::native_asset::{Self, NativeAsset};
-    use token_bridge::native_id_registry::{Self, NativeIdRegistry};
     use token_bridge::token_info::{TokenInfo};
     use token_bridge::wrapped_asset::{Self, WrappedAsset};
 
@@ -23,7 +23,7 @@ module token_bridge::registered_tokens {
 
     struct RegisteredTokens has key, store {
         id: UID,
-        native_id_registry: NativeIdRegistry,
+        native_id_registry: IdRegistry,
         num_wrapped: u64,
         num_native: u64
     }
@@ -33,7 +33,7 @@ module token_bridge::registered_tokens {
     public fun new(ctx: &mut TxContext): RegisteredTokens {
         RegisteredTokens {
             id: object::new(ctx),
-            native_id_registry: native_id_registry::new(),
+            native_id_registry: id_registry::new(),
             num_wrapped: 0,
             num_native: 0
         }
@@ -113,7 +113,7 @@ module token_bridge::registered_tokens {
         decimals: u8,
     ) {
         assert!(!has<C>(self), E_ALREADY_REGISTERED);
-        let addr = native_id_registry::next_id(&mut self.native_id_registry);
+        let addr = id_registry::next_address(&mut self.native_id_registry);
         add_native<C>(
             self,
             native_asset::new(addr, decimals)
