@@ -43,12 +43,12 @@ module token_bridge::registered_tokens {
     public fun destroy(r: RegisteredTokens){
         let RegisteredTokens {
             id: id,
-            native_id_registry: native_id_registry,
+            native_id_registry,
             num_wrapped: _,
             num_native: _
         } = r;
         object::delete(id);
-        native_id_registry::destroy(native_id_registry);
+        id_registry::destroy(native_id_registry);
     }
 
     public fun num_native(self: &RegisteredTokens): u64 {

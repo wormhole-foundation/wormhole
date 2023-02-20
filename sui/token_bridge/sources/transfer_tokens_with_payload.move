@@ -66,8 +66,7 @@ module token_bridge::transfer_tokens_with_payload_test {
     use sui::transfer::{Self};
 
     use wormhole::external_address::{Self};
-    use wormhole::state::{State as WormholeState};
-    use wormhole::publish_message::{Self as wormhole};
+    use wormhole::state::{Self as wormhole_state, State as WormholeState};
 
     use token_bridge::bridge_state_test::{
         set_up_wormhole_core_and_token_bridges
@@ -112,7 +111,7 @@ module token_bridge::transfer_tokens_with_payload_test {
 
             // Register and obtain a new wormhole emitter cap.
             let emitter_cap =
-                wormhole::register_emitter(
+                wormhole_state::new_emitter(
                     &mut worm_state, test_scenario::ctx(&mut test)
                 );
 
@@ -201,7 +200,7 @@ module token_bridge::transfer_tokens_with_payload_test {
 
             // Register and obtain a new wormhole emitter cap.
             let emitter_cap =
-                wormhole::register_emitter(
+                wormhole_state::new_emitter(
                     &mut worm_state, test_scenario::ctx(&mut test)
                 );
 

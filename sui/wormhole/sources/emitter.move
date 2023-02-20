@@ -37,7 +37,7 @@ module wormhole::emitter {
         id_registry::destroy(registry);
     }
 
-    public(friend) fun new_emitter(
+    public(friend) fun new_emitter_cap(
         self: &mut EmitterRegistry,
         ctx: &mut TxContext
     ): EmitterCapability {
@@ -52,7 +52,7 @@ module wormhole::emitter {
     ///
     /// Note that this operation removes the ability to send messages using the
     /// emitter id, and is irreversible.
-    public fun destroy_emitter_cap(emitter_cap: EmitterCapability) {
+    public fun destroy_emitter(emitter_cap: EmitterCapability) {
         let EmitterCapability { id: id, emitter: _, sequence: _ } = emitter_cap;
         object::delete(id);
     }
