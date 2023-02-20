@@ -13,10 +13,7 @@ module wormhole::wormhole {
     ///
     /// Only `setup::init_and_share_state` requires `DeployerCapability`.
     fun init(ctx: &mut TxContext) {
-        transfer::transfer(
-            setup::new_capability(ctx),
-            tx_context::sender(ctx)
-        );
+        transfer::transfer(setup::new_capability(ctx), tx_context::sender(ctx));
     }
 
     #[test_only]
@@ -43,6 +40,28 @@ module wormhole::wormhole {
             nonce,
             payload,
             message_fee
+        );
+    }
+
+    // -----------------------------------------------------------------------------
+    // get_new_emitter
+    //
+    // Honestly, unsure if this should survive once we get into code review but it
+    // sure makes writing my test script work quite well
+    //
+    // This creates a new emitter object and stores it away into the senders context.
+    //
+    // You can then use this to call publish_message_free and generate a vaa
+
+    public entry fun new_emitter(
+        wormhole_state: &mut State,
+        ctx: &mut TxContext
+    ) {
+        use wormhole::state::{new_emitter};
+
+        transfer::transfer(
+            new_emitter(wormhole_state, ctx),
+            tx_context::sender(ctx)
         );
     }
 }

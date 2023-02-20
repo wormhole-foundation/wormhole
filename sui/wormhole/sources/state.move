@@ -12,7 +12,7 @@ module wormhole::state {
     use wormhole::set::{Self, Set};
     use wormhole::guardian_set::{Self, GuardianSet};
     use wormhole::external_address::{Self, ExternalAddress};
-    use wormhole::emitter::{Self};
+    use wormhole::emitter::{Self, EmitterCapability};
 
     friend wormhole::update_guardian_set;
     friend wormhole::publish_message;
@@ -183,11 +183,11 @@ module wormhole::state {
         )
     }
 
-    public(friend) fun new_emitter(
-        state: &mut State,
+    public fun new_emitter(
+        self: &mut State,
         ctx: &mut TxContext
-    ): emitter::EmitterCapability{
-        emitter::new_emitter(&mut state.emitter_registry, ctx)
+    ): EmitterCapability{
+        emitter::new_emitter_cap(&mut self.emitter_registry, ctx)
     }
 
 }

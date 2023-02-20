@@ -2,17 +2,13 @@ module wormhole::publish_message {
     use sui::sui::{SUI};
     use sui::coin::{Coin};
     use sui::event::{Self};
-    use sui::tx_context::{Self, TxContext};
-    use sui::transfer::{Self};
 
     //use wormhole::structs::{create_guardian, create_guardian_set};
     use wormhole::state::{Self, State};
     use wormhole::emitter::{Self, EmitterCapability};
     use wormhole::external_address::{ExternalAddress};
 
-    const E_INSUFFICIENT_FEE: u64 = 3;
-    const E_TOO_MUCH_FEE: u64 = 4;
-
+    /// `WormholeMessage` to be emitted via sui::event::emit.
     struct WormholeMessage has store, copy, drop {
         sender: ExternalAddress,
         sequence: u64,
@@ -21,6 +17,9 @@ module wormhole::publish_message {
         consistency_level: u8 // do we need this if Sui is instant finality?
     }
 
+    /// `publish_message` emits a message as a Sui event. This method uses the
+    /// input `EmitterCapability` as the registered sender of the
+    /// `WormholeMessage`. It also produces a new sequence for this emitter.
     public fun publish_message(
         wormhole_state: &mut State,
         emitter_cap: &mut EmitterCapability,
@@ -28,13 +27,16 @@ module wormhole::publish_message {
         payload: vector<u8>,
         message_fee: Coin<SUI>,
     ): u64 {
-        // deposit the fees into wormhole
+        // Deposit `message_fee`. This method interacts with the `FeeCollector`,
+        // which will abort if `message_fee` does not equal the collector's
+        // expected fee amount.
         state::deposit_fee(wormhole_state, message_fee);
 
-        // get sequence number
+        // Produce sequence number for this message. This will also be the
+        // return value for this method.
         let sequence = emitter::use_sequence(emitter_cap);
 
-        // emit event
+        // Emit Sui event with `WormholeMessage`.
         event::emit(
             WormholeMessage {
                 sender: emitter::get_external_address(emitter_cap),
@@ -47,27 +49,8 @@ module wormhole::publish_message {
             }
         );
 
+        // Done.
         sequence
-    }
-    // -----------------------------------------------------------------------------
-    // Emitter registration
-
-    public fun register_emitter(state: &mut State, ctx: &mut TxContext): emitter::EmitterCapability {
-        state::new_emitter(state, ctx)
-    }
-
-    // -----------------------------------------------------------------------------
-    // get_new_emitter
-    //
-    // Honestly, unsure if this should survive once we get into code review but it
-    // sure makes writing my test script work quite well
-    //
-    // This creates a new emitter object and stores it away into the senders context.
-    //
-    // You can then use this to call publish_message_free and generate a vaa
-
-    public entry fun get_new_emitter(state: &mut State, ctx: &mut TxContext) {
-        transfer::transfer(state::new_emitter(state, ctx), tx_context::sender(ctx));
     }
 }
 
@@ -93,7 +76,7 @@ module wormhole::publish_message_test{
         test = init_wormhole_state(test, admin, 100000000); // wormhole fee set to 100000000 SUI
         next_tx(&mut test, admin); {
             let state = take_shared<State>(&test);
-            let emitter = wormhole::register_emitter(&mut state, ctx(&mut test));
+            let emitter = wormhole::state::new_emitter(&mut state, ctx(&mut test));
             let message_fee = coin::mint_for_testing<SUI>(100000000, ctx(&mut test)); // fee amount == expected amount
             wormhole::publish_message(
                 &mut state,
@@ -116,7 +99,7 @@ module wormhole::publish_message_test{
         test = init_wormhole_state(test, admin, 100000000); // wormhole fee set to 100000000 SUI
         next_tx(&mut test, admin); {
             let state = take_shared<State>(&test);
-            let emitter = wormhole::register_emitter(&mut state, ctx(&mut test));
+            let emitter = wormhole::state::new_emitter(&mut state, ctx(&mut test));
             let message_fee = coin::mint_for_testing<SUI>(100000001, ctx(&mut test)); // fee amount > expected amount
             wormhole::publish_message(
                 &mut state,
@@ -139,7 +122,7 @@ module wormhole::publish_message_test{
         test = init_wormhole_state(test, admin, 100000000); // wormhole fee set to 100000000 SUI
         next_tx(&mut test, admin); {
             let state = take_shared<State>(&test);
-            let emitter = wormhole::register_emitter(&mut state, ctx(&mut test));
+            let emitter = wormhole::state::new_emitter(&mut state, ctx(&mut test));
             let message_fee = coin::mint_for_testing<SUI>(99999999, ctx(&mut test)); // fee amount < expected amount
             wormhole::publish_message(
                 &mut state,
