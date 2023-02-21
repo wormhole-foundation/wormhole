@@ -12,6 +12,8 @@ module token_bridge::registered_tokens {
     use token_bridge::wrapped_asset::{Self, WrappedAsset};
 
     friend token_bridge::state;
+    #[test_only]
+    friend token_bridge::registered_tokens_test;
 
     const E_UNREGISTERED: u64 = 0;
     const E_ALREADY_REGISTERED: u64 = 1;
@@ -32,6 +34,18 @@ module token_bridge::registered_tokens {
             num_wrapped: 0,
             num_native: 0
         }
+    }
+
+    #[test_only]
+    public fun destroy(r: RegisteredTokens){
+        let RegisteredTokens {
+            id: id,
+            native_id_registry: native_id_registry,
+            num_wrapped: _,
+            num_native: _
+        } = r;
+        object::delete(id);
+        native_id_registry::destroy(native_id_registry);
     }
 
     public fun num_native(self: &RegisteredTokens): u64 {
@@ -189,5 +203,67 @@ module token_bridge::registered_tokens {
 
     fun borrow_native<C>(self: &RegisteredTokens): &NativeAsset<C> {
         dynamic_field::borrow(&self.id, Key<C>{})
+    }
+}
+
+#[test_only]
+module token_bridge::registered_tokens_test{
+    use sui::test_scenario::{Self, Scenario, ctx,
+        take_from_address};
+    use sui::coin::{TreasuryCap};
+
+    use wormhole::external_address::{Self};
+    //use wormhole::state::{chain_id};
+
+    //use token_bridge::token_info::{Self};
+    use token_bridge::registered_tokens::{Self, new, num_wrapped, num_native,
+        is_wrapped, is_native, add_new_wrapped, add_new_native, burn, mint,
+        deposit, withdraw, balance, decimals, token_chain, token_address,
+        destroy};
+    use token_bridge::native_coin_witness::{Self, NATIVE_COIN_WITNESS};
+    use token_bridge::coin_witness::{Self, COIN_WITNESS};
+
+    fun scenario(): Scenario { test_scenario::begin(@0x123233) }
+    fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
+
+    #[test]
+    fun test_registered_tokens(){
+        let test = scenario();
+        let (admin, _, _) = people();
+
+        // 1) initialize RegisteredTokens object, native and wrapped coins
+        let registered_tokens = new(ctx(&mut test));
+        coin_witness::test_init(ctx(&mut test));
+        native_coin_witness::test_init(ctx(&mut test));
+
+        // 2) check initial state
+        assert!(num_wrapped(&registered_tokens)==0, 0);
+        assert!(num_native(&registered_tokens)==0, 0);
+
+        // 3) register wrapped and native tokens
+        let tcap = take_from_address<TreasuryCap<COIN_WITNESS>>(&test, admin);
+
+        add_new_wrapped<COIN_WITNESS>(
+            &mut registered_tokens,
+            2,
+            external_address::from_bytes(x"beefface"),
+            tcap,
+            8,
+        );
+
+        add_new_native<NATIVE_COIN_WITNESS>(
+            &mut registered_tokens,
+            10, // if this is wrong, this function should fail?
+            ctx(&mut test)
+        );
+
+        // 4) more assertions
+        assert!(balance<NATIVE_COIN_WITNESS>(&registered_tokens)==0, 0);
+        assert!(is_native<NATIVE_COIN_WITNESS>(&registered_tokens), 0);
+        assert!(is_wrapped<COIN_WITNESS>(&registered_tokens), 0);
+
+        //?. cleanup
+        destroy(registered_tokens);
+        test_scenario::end(test);
     }
 }
