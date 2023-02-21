@@ -1,0 +1,38 @@
+{
+  "name": "@wormhole-foundation/relayer-contracts-ethereum",
+  "version": "1.0.0",
+  "description": "",
+  "main": "networks.js",
+  "devDependencies": {
+    "@poanet/solidity-flattener": "^3.0.8",
+    "@typechain/ethers-v5": "^10.1.1",
+    "@types/chai": "^4.3.3",
+    "@types/mocha": "^9.1.1",
+    "chai": "^4.3.6",
+    "dotenv": "^16.0.3",
+    "ethers": "^5.7.1",
+    "mocha": "^10.0.0",
+    "ts-mocha": "^10.0.0",
+    "ts-node": "^10.9.1"
+  },
+  "scripts": {
+    "build": "forge build -o build",
+    "unit-test": "forge test -vvvvv",
+    "typechain": "bash sdk/scripts/make_ethers_types.sh",
+    "flatten": "mkdir -p node_modules/@poanet/solidity-flattener/contracts && cp -r contracts/* node_modules/@poanet/solidity-flattener/contracts/ && poa-solidity-flattener",
+    "deployAndConfigureTilt": "ENV=tilt bash ./ts-scripts/shell/deployConfigureTest.sh",
+    "readContractsTestnet": "ENV=testnet bash ./ts-scripts/shell/readContractStatus.sh",
+    "evm1": "ENV=evm1 bash ./ts-scripts/shell/deployConfigureTest.sh",
+    "evm2": "ENV=evm2 bash ./ts-scripts/shell/deployConfigureTest.sh",
+    "size": "forge build --sizes --force"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@certusone/wormhole-sdk": "^0.9.6",
+    "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
+    "elliptic": "^6.5.4",
+    "jsonfile": "^6.1.0",
+    "typescript": "^4.8.3"
+  }
+}
