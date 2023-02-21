@@ -71,6 +71,11 @@ func portalEmitterAddress() vaa.Address {
 	return a
 }
 
+type testMessageTracker struct {
+	*common.MessagePublication
+	seen bool
+}
+
 /*
 Stages of the test:
 1) The watcher is allowed to make some RPC calls and observe messages
@@ -98,9 +103,23 @@ func (testCase *testCase) run(ctx context.Context) error {
 	supervisor.Signal(ctx, supervisor.SignalHealthy)
 
 	// assert that messages were observed correctly...
+	expectedMsgObserved := map[string]*testMessageTracker{}
 	for _, em := range testCase.expectedMsgObserved {
+		expectedMsgObserved[em.MessageIDString()] = &testMessageTracker{MessagePublication: em, seen: false}
+	}
+
+	for i := 0; i < len(expectedMsgObserved); i++ {
 		msg := <-msgC
-		assert.Equal(testCase.t, msg, em)
+		assert.Contains(testCase.t, expectedMsgObserved, msg.MessageIDString(), "unexpected message: %v", msg)
+		assert.Equal(testCase.t, expectedMsgObserved[msg.MessageIDString()].seen, false, "already observed message: %v", msg)
+		assert.Equal(testCase.t, expectedMsgObserved[msg.MessageIDString()].MessagePublication, msg)
+		expectedMsgObserved[msg.MessageIDString()].seen = true
+	}
+
+	for publication, b := range expectedMsgObserved {
+		if !b.seen {
+			assert.Fail(testCase.t, "message not observed: %v", publication)
+		}
 	}
 
 	// feed in the observation requests
@@ -109,10 +128,26 @@ func (testCase *testCase) run(ctx context.Context) error {
 	}
 
 	// assert that messages were re-observed correctly...
+	expectedMsgReObserved := map[string]*testMessageTracker{}
 	for _, em := range testCase.expectedMsgReObserved {
-		msg := <-msgC
-		assert.Equal(testCase.t, msg, em)
+		expectedMsgReObserved[em.MessageIDString()] = &testMessageTracker{MessagePublication: em, seen: false}
 	}
+
+	for i := 0; i < len(expectedMsgReObserved); i++ {
+		msg := <-msgC
+		assert.Contains(testCase.t, expectedMsgReObserved, msg.MessageIDString(), "unexpected message: %v", msg)
+		assert.Equal(testCase.t, expectedMsgReObserved[msg.MessageIDString()].seen, false, "already reobserved message: %v", msg)
+		assert.Equal(testCase.t, expectedMsgReObserved[msg.MessageIDString()].MessagePublication, msg)
+		expectedMsgReObserved[msg.MessageIDString()].seen = true
+	}
+
+	for publication, b := range expectedMsgReObserved {
+		if !b.seen {
+			assert.Fail(testCase.t, "message not reobserved: %v", publication)
+		}
+	}
+
+	println("reobserved messages ok")
 
 	// there should be no messages left now
 	assert.Equal(testCase.t, len(msgC), 0)
