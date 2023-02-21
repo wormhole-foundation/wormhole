@@ -171,7 +171,8 @@ module token_bridge::complete_transfer {
 module token_bridge::complete_transfer_test {
     use std::bcs::{Self};
 
-    use sui::test_scenario::{Self, Scenario, next_tx, return_shared, take_shared, ctx, take_from_address, return_to_address};
+    use sui::test_scenario::{Self, Scenario, next_tx, return_shared,
+        take_shared, ctx, take_from_address, return_to_address};
     use sui::coin::{Self, Coin, CoinMetadata};
 
     use wormhole::external_address::{Self};
