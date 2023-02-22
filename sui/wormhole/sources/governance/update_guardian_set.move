@@ -111,21 +111,15 @@ module wormhole::update_guardian_set {
 #[test_only]
 module wormhole::guardian_set_upgrade_test {
     use std::vector;
+    use sui::test_scenario::{Self};
 
     use wormhole::guardian::{Self};
+    use wormhole::guardian_set::{Self};
+    use wormhole::state::{Self, State};
     use wormhole::update_guardian_set::{Self};
+    use wormhole::wormhole_scenario::{set_up_wormhole};
 
-    use sui::test_scenario::{
-        Self,
-        Scenario,
-        next_tx,
-        take_shared,
-        return_shared,
-        ctx
-    };
-    use sui::tx_context::{increment_epoch_number};
 
-    fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
     #[test]
@@ -162,19 +156,24 @@ module wormhole::guardian_set_upgrade_test {
 
     #[test]
     public fun test_guardian_set_expiry() {
-        use wormhole::guardian_set::{Self};
-        use wormhole::state::{Self, State};
-        use wormhole::test_state::{init_wormhole_state};
+        let (admin, caller, _) = people();
+        let my_scenario = test_scenario::begin(admin);
+        let scenario = &mut my_scenario;
 
-        let (admin, _, _) = people();
-        let test = init_wormhole_state(scenario(), admin, 0);
+        let wormhole_fee = 0;
+        set_up_wormhole(scenario, wormhole_fee);
 
-        next_tx(&mut test, admin);{
-            let worm_state = take_shared<State>(&test);
+        test_scenario::next_tx(scenario, caller);
+
+        {
+            let worm_state = test_scenario::take_shared<State>(scenario);
             let first_index = state::guardian_set_index(&worm_state);
             let set = state::guardian_set_at(&worm_state, first_index);
             // make sure guardian set is active
-            assert!(guardian_set::is_active(&set, ctx(&mut test)), 0);
+            assert!(
+                guardian_set::is_active(&set, test_scenario::ctx(scenario)),
+                0
+            );
 
             // do an upgrade
             update_guardian_set::do_upgrade_test(
@@ -183,27 +182,32 @@ module wormhole::guardian_set_upgrade_test {
                 vector[
                     guardian::new(x"71aa1be1d36cafe3867910f99c09e347899c19c3")
                 ], // new guardian set
-                ctx(&mut test),
+                test_scenario::ctx(scenario),
             );
 
             // make sure old guardian set is still active
             set = state::guardian_set_at(&worm_state, first_index);
-            assert!(guardian_set::is_active(&set, ctx(&mut test)), 0);
+            assert!(
+                guardian_set::is_active(&set, test_scenario::ctx(scenario)),
+                0
+            );
 
-            // fast forward time beyond expiration
-
-            // increment by 3 epochs
-            increment_epoch_number(ctx(&mut test));
-            increment_epoch_number(ctx(&mut test));
-            increment_epoch_number(ctx(&mut test));
+            // Fast forward time beyond expiration by 3 epochs
+            test_scenario::next_epoch(scenario, caller);
+            test_scenario::next_epoch(scenario, caller);
+            test_scenario::next_epoch(scenario, caller);
 
             // make sure old guardian set is no longer active
-            assert!(!guardian_set::is_active(&set, ctx(&mut test)), 0);
+            assert!(
+                !guardian_set::is_active(&set, test_scenario::ctx(scenario)),
+                0
+            );
 
-            return_shared<State>(worm_state);
+            test_scenario::return_shared<State>(worm_state);
         };
 
-        test_scenario::end(test);
+        // Done.
+        test_scenario::end(my_scenario);
     }
 
 }

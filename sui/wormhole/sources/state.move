@@ -191,37 +191,3 @@ module wormhole::state {
     }
 
 }
-
-#[test_only]
-module wormhole::test_state{
-    use sui::test_scenario::{
-        Self,
-        Scenario,
-        next_tx,
-        ctx,
-        take_from_address,
-    };
-
-    use wormhole::setup::{DeployerCapability};
-
-    fun scenario(): Scenario { test_scenario::begin(@0x123233) }
-    fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
-
-    public fun init_wormhole_state(test: Scenario, admin: address, message_fee: u64): Scenario {
-        next_tx(&mut test, admin); {
-            wormhole::wormhole::init_test_only(ctx(&mut test));
-        };
-        next_tx(&mut test, admin); {
-            let deployer = take_from_address<DeployerCapability>(&test, admin);
-            wormhole::setup::init_and_share_state(
-                deployer,
-                1, // governance chain
-                x"0000000000000000000000000000000000000000000000000000000000000004", // governance_contract
-                vector[x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"], // initial_guardian(s)
-                2, // guardian_set_epochs_to_live
-                message_fee, // message fee
-                ctx(&mut test));
-        };
-        return test
-    }
-}

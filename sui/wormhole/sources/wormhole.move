@@ -5,21 +5,7 @@ module wormhole::wormhole {
     use sui::tx_context::{Self, TxContext};
 
     use wormhole::emitter::{EmitterCapability};
-    use wormhole::setup::{Self};
     use wormhole::state::{State};
-
-    /// Called automatically when module is first published. Transfers
-    /// `DeployerCapability` to sender.
-    ///
-    /// Only `setup::init_and_share_state` requires `DeployerCapability`.
-    fun init(ctx: &mut TxContext) {
-        transfer::transfer(setup::new_capability(ctx), tx_context::sender(ctx));
-    }
-
-    #[test_only]
-    public fun init_test_only(ctx: &mut TxContext) {
-        init(ctx)
-    }
 
     /// `publish_message` exposes `wormhole::publish_message` as an entry method
     /// to publish Wormhole messages via RPC transaction.
