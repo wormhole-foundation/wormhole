@@ -208,22 +208,22 @@ module token_bridge::registered_tokens {
     }
 }
 
+// In this test, we exercise the various functionalities of RegisteredTokens,
+// including registering native and wrapped coins via add_new_native, and
+// add_new_wrapped, minting/burning/depositing/withdrawing said tokens, and also
+// storing metadata about the tokens.
 #[test_only]
 module token_bridge::registered_tokens_test{
     use sui::test_scenario::{Self, Scenario, ctx, take_shared, return_shared,
     next_tx, take_from_address};
     use sui::coin::{Self, TreasuryCap};
 
-    //use std::debug::print;
-
     use wormhole::external_address::{Self};
-    //use wormhole::state::{chain_id};
+    use wormhole::state::{chain_id};
 
-    //use token_bridge::token_info::{Self};
-    use token_bridge::registered_tokens::{new, num_wrapped, num_native,
-        is_native, add_new_native, is_wrapped,
-        deposit, balance, add_new_wrapped,
-        destroy};
+    use token_bridge::registered_tokens::{Self, new, num_wrapped, num_native,
+        is_native, add_new_native, is_wrapped, token_chain, withdraw,
+        deposit, balance, add_new_wrapped, decimals, token_address, destroy};
     use token_bridge::native_coin_witness::{Self, NATIVE_COIN_WITNESS};
     use token_bridge::native_coin_witness_v3::{Self, NATIVE_COIN_WITNESS_V3};
 
@@ -234,6 +234,7 @@ module token_bridge::registered_tokens_test{
     fun test_registered_tokens(){
         let test = scenario();
         let (admin, _, _) = people();
+
         // 1) initialize RegisteredTokens object, native and wrapped coins
         next_tx(&mut test, admin);{
             //coin_witness::test_init(ctx(&mut test));
@@ -242,14 +243,18 @@ module token_bridge::registered_tokens_test{
         };
         next_tx(&mut test, admin);{
             let registered_tokens = new(ctx(&mut test));
+
             // 2) check initial state
             assert!(num_wrapped(&registered_tokens)==0, 0);
             assert!(num_native(&registered_tokens)==0, 0);
 
-            // 3) register wrapped and native tokens
-            //    (for testing purposes, we tread native_coin_witness_v2 as a
-            //    wrapped coin type)
-            let tcap = take_from_address<TreasuryCap<NATIVE_COIN_WITNESS_V3>>(&mut test, admin);
+            // 3) register wrapped and native tokens, then mint/burn/deposit
+            //   (for testing purposes, we create a wrapped coin type from
+            //   native_coin_witness_v3)
+            let tcap = take_from_address<TreasuryCap<NATIVE_COIN_WITNESS_V3>>(
+                &mut test,
+                admin
+            );
             add_new_wrapped<NATIVE_COIN_WITNESS_V3>(
                 &mut registered_tokens,
                 2, // chain
@@ -265,18 +270,65 @@ module token_bridge::registered_tokens_test{
             );
 
             // mint some native coins, then deposit them into the token registry
-            let native_tcap = take_shared<TreasuryCap<NATIVE_COIN_WITNESS>>(&mut test);
-            let coins = coin::mint<NATIVE_COIN_WITNESS>(&mut native_tcap, 999, ctx(&mut test));
+            let native_tcap = take_shared<TreasuryCap<NATIVE_COIN_WITNESS>>(
+                &mut test
+            );
+            let coins = coin::mint<NATIVE_COIN_WITNESS>(
+                &mut native_tcap,
+                999,
+                ctx(&mut test)
+            );
             assert!(coin::value(&coins)==999, 0);
             deposit<NATIVE_COIN_WITNESS>(&mut registered_tokens, coins);
-            //print(&x"06");
 
-            // 4) more assertions
+            // withdraw, check value, and re-deposit native coins into registry
+            coins = withdraw<NATIVE_COIN_WITNESS>(
+                &mut registered_tokens,
+                499,
+                ctx(&mut test)
+            );
+            assert!(coin::value(&coins)==499, 0);
+            deposit<NATIVE_COIN_WITNESS>(&mut registered_tokens, coins);
+
+            // mint some wrapped coins, then burn them
+            let wcoins = registered_tokens::mint<NATIVE_COIN_WITNESS_V3>(
+                &mut registered_tokens,
+                420420420,
+                ctx(&mut test)
+            );
+            assert!(coin::value(&wcoins)==420420420, 0);
+            registered_tokens::burn<NATIVE_COIN_WITNESS_V3>(
+                &mut registered_tokens,
+                wcoins
+            );
+
+            // 4) more checks and assertions on registered_tokens
+
+            // check amount in native coin custody is equal to amount deposited
             assert!(balance<NATIVE_COIN_WITNESS>(&registered_tokens)==999, 0);
+
+            // check that native/wrapped classification is correct
             assert!(is_native<NATIVE_COIN_WITNESS>(&registered_tokens), 0);
             assert!(is_wrapped<NATIVE_COIN_WITNESS_V3>(&registered_tokens), 0);
 
-            //?. cleanup
+            // check decimals are correct
+            assert!(decimals<NATIVE_COIN_WITNESS>(&registered_tokens)==10, 0);
+            assert!(decimals<NATIVE_COIN_WITNESS_V3>(&registered_tokens)==6, 0);
+
+            // check token addresses are correct
+            assert!(token_address<NATIVE_COIN_WITNESS>(&registered_tokens)==
+                external_address::from_bytes(x"01"), 0);
+            assert!(token_address<NATIVE_COIN_WITNESS_V3>(&registered_tokens)==
+                external_address::from_bytes(x"001234"), 0);
+
+            // check token chains are correct
+            assert!(token_chain<NATIVE_COIN_WITNESS>(&registered_tokens)==
+                chain_id(), 0);
+            assert!(token_chain<NATIVE_COIN_WITNESS_V3>(&registered_tokens)==
+                2, 0);
+
+            // 5) cleanup
+
             return_shared(native_tcap);
             destroy(registered_tokens);
         };
@@ -285,49 +337,63 @@ module token_bridge::registered_tokens_test{
         };
     }
 
-    // #[test]
-    // #[expected_failure(
-    //     abort_code = token_bridge::registered_tokens::E_CANNOT_DEPOSIT_WRAPPED_COIN,
-    //     location=token_bridge::registered_tokens
-    // )]
-    // fun test_registered_tokens_deposit_wrapped_fail(){
-    //     let test = scenario();
-    //     let (admin, _, _) = people();
+    // In this negative test case, we attempt to deposit a wrapped token into
+    // a RegisteredTokens object, resulting in failure. A wrapped coin can
+    // only be minted and burned, not deposited.
+    #[test]
+    #[expected_failure(
+        abort_code = token_bridge::registered_tokens::E_CANNOT_DEPOSIT_WRAPPED_COIN,
+        location=token_bridge::registered_tokens
+    )]
+    fun test_registered_tokens_deposit_wrapped_fail(){
+        let test = scenario();
+        let (admin, _, _) = people();
 
-    //     // 1) initialize RegisteredTokens object, native and wrapped coins
-    //     let registered_tokens = new(ctx(&mut test));
-    //     //coin_witness::test_init(ctx(&mut test));
-    //     native_coin_witness::test_init(ctx(&mut test));
-    //     native_coin_witness_v2::test_init(ctx(&mut test));
-    //     next_tx(&mut test, admin);{
-    //         // 2) check initial state
-    //         assert!(num_wrapped(&registered_tokens)==0, 0);
-    //         assert!(num_native(&registered_tokens)==0, 0);
+        // 1) initialize RegisteredTokens object, native and wrapped coins
+        next_tx(&mut test, admin);{
+            //coin_witness::test_init(ctx(&mut test));
+            native_coin_witness_v3::test_init(ctx(&mut test));
+        };
+        next_tx(&mut test, admin);{
+            let registered_tokens = new(ctx(&mut test));
 
-    //         // 3) register wrapped and native tokens
-    //         //    (for testing purposes, we tread native_coin_witness_v2 as a
-    //         //    wrapped coin type)
-    //         // let tcap = take_shared<TreasuryCap<NATIVE_COIN_WITNESS_V2>>(&mut test);
-    //         // add_new_wrapped<NATIVE_COIN_WITNESS_V2>(
-    //         //     &mut registered_tokens,
-    //         //     2, // chain
-    //         //     external_address::from_bytes(x"33"), // external address
-    //         //     tcap, // treasury cap
-    //         //     4 // decimals
-    //         // );
+            // 2) check initial state
+            assert!(num_wrapped(&registered_tokens)==0, 0);
+            assert!(num_native(&registered_tokens)==0, 0);
 
-    //         // mint some wrapped coins, then attempt to deposit them, resulting
-    //         // in failure
-    //         let coins = mint<NATIVE_COIN_WITNESS_V2>(
-    //             &mut registered_tokens,
-    //             1000,
-    //             ctx(&mut test)
-    //         );
-    //         deposit<NATIVE_COIN_WITNESS_V2>(&mut registered_tokens, coins);
+            // 3) register wrapped tokens, then mint/burn/deposit
+            //   (for testing purposes, we create a wrapped coin type from
+            //   native_coin_witness_v3)
+            let tcap = take_from_address<TreasuryCap<NATIVE_COIN_WITNESS_V3>>(
+                &mut test,
+                admin
+            );
+            add_new_wrapped<NATIVE_COIN_WITNESS_V3>(
+                &mut registered_tokens,
+                2, // chain
+                external_address::from_bytes(x"001234"), // external address
+                tcap, // treasury cap
+                6 // decimals
+            );
 
-    //         // clean up
-    //         destroy(registered_tokens);
-    //         test_scenario::end(test);
-    //     }
-    // }
+            // mint some wrapped coins, then attempt to deposit them
+            let wcoins = registered_tokens::mint<NATIVE_COIN_WITNESS_V3>(
+                &mut registered_tokens,
+                420420420,
+                ctx(&mut test)
+            );
+            assert!(coin::value(&wcoins)==420420420, 0);
+            // the line below will fail
+            registered_tokens::deposit<NATIVE_COIN_WITNESS_V3>(
+                &mut registered_tokens,
+                wcoins
+            );
+
+            //4) cleanup
+            destroy(registered_tokens);
+        };
+         next_tx(&mut test, admin);{
+            test_scenario::end(test);
+        };
+    }
 }
