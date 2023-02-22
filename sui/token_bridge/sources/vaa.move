@@ -2,7 +2,7 @@
 module token_bridge::vaa {
     use sui::tx_context::{TxContext};
 
-    use wormhole::myvaa::{Self as corevaa, VAA};
+    use wormhole::vaa::{Self as corevaa, VAA};
     use wormhole::state::{State as WormholeState};
 
     use token_bridge::state::{Self, State};
@@ -85,7 +85,7 @@ module token_bridge::token_bridge_vaa_test{
     };
 
     use wormhole::state::{State as WormholeState};
-    use wormhole::myvaa::{Self as corevaa};
+    use wormhole::vaa::{Self as corevaa};
     use wormhole::external_address::{Self};
 
     use token_bridge::state::{Self, State};

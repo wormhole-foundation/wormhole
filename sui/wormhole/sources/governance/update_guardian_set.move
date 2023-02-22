@@ -7,7 +7,7 @@ module wormhole::update_guardian_set {
     use wormhole::guardian::{Self, Guardian};
     use wormhole::guardian_set::{Self};
     use wormhole::state::{Self, State};
-    use wormhole::myvaa::{Self as vaa};
+    use wormhole::vaa::{Self};
 
     const E_WRONG_GUARDIAN_LEN: u64 = 0x0;
     const E_NO_GUARDIAN_SET: u64 = 0x1;

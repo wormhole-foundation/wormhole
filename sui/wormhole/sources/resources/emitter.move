@@ -18,7 +18,7 @@ module wormhole::emitter {
         id: UID,
 
         /// Unique identifier of the emitter
-        emitter: ExternalAddress,
+        addr: ExternalAddress,
 
         /// Sequence number of the next wormhole message
         sequence: u64
@@ -36,7 +36,7 @@ module wormhole::emitter {
     ): EmitterCapability {
         EmitterCapability {
             id: object::new(ctx),
-            emitter: id_registry::next_address(&mut self.registry),
+            addr: id_registry::next_address(&mut self.registry),
             sequence: 0
         }
     }
@@ -46,7 +46,7 @@ module wormhole::emitter {
     /// Note that this operation removes the ability to send messages using the
     /// emitter id, and is irreversible.
     public fun destroy_emitter(emitter_cap: EmitterCapability) {
-        let EmitterCapability { id: id, emitter: _, sequence: _ } = emitter_cap;
+        let EmitterCapability { id: id, addr: _, sequence: _ } = emitter_cap;
         object::delete(id);
     }
 
@@ -56,10 +56,7 @@ module wormhole::emitter {
     public fun get_external_address(
         emitter_cap: &EmitterCapability
     ): ExternalAddress {
-        // let emitter_bytes = vector<u8>[];
-        // bytes::serialize_u64_be(&mut emitter_bytes, emitter_cap.emitter);
-        // external_address::from_bytes(emitter_bytes)
-        emitter_cap.emitter
+        emitter_cap.addr
     }
 
     public(friend) fun use_sequence(emitter_cap: &mut EmitterCapability): u64 {

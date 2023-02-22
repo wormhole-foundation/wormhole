@@ -40,7 +40,7 @@ module token_bridge::registered_tokens {
     }
 
     #[test_only]
-    public fun destroy(r: RegisteredTokens){
+    public fun destroy(r: RegisteredTokens) {
         let RegisteredTokens {
             id: id,
             native_id_registry,
