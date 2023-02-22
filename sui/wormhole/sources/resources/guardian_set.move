@@ -6,7 +6,7 @@ module wormhole::guardian_set {
     // Needs `set_expiration`
     friend wormhole::state;
 
-    struct GuardianSet has store, copy, drop {
+    struct GuardianSet has store {
         index: u32,
         guardians: vector<Guardian>,
         expiration_time: u32,
@@ -20,8 +20,8 @@ module wormhole::guardian_set {
         self.index
     }
 
-    public fun guardians(self: &GuardianSet): vector<Guardian> {
-        self.guardians
+    public fun guardians(self: &GuardianSet): &vector<Guardian> {
+        &self.guardians
     }
 
     public fun expiration_time(self: &GuardianSet): u32 {
@@ -50,5 +50,17 @@ module wormhole::guardian_set {
         ctx: &TxContext
     ) {
         self.expiration_time = (tx_context::epoch(ctx) as u32) + epochs_to_live;
+    }
+
+    #[test_only]
+    public fun destroy(set: GuardianSet) {
+        use wormhole::guardian::{Self};
+
+        let GuardianSet { index: _, guardians, expiration_time: _ } = set;
+        while (!vector::is_empty(&guardians)) {
+            guardian::destroy(vector::pop_back(&mut guardians));
+        };
+
+        vector::destroy_empty(guardians);
     }
 }

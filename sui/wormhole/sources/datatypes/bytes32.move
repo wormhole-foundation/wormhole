@@ -2,7 +2,9 @@ module wormhole::bytes32 {
     use std::vector::{Self};
     use sui::bcs::{Self};
 
+    use wormhole::bytes::{Self};
     use wormhole::bytes20::{Self};
+    use wormhole::cursor::{Cursor};
 
     // Errors.
     const E_INVALID_BYTES32: u64 = 0;
@@ -60,6 +62,10 @@ module wormhole::bytes32 {
     public fun to_bytes(value: Bytes32): vector<u8> {
         let Bytes32 { data } = value;
         data
+    }
+
+    public fun from_cursor(cur: &mut Cursor<u8>): Bytes32 {
+        new(bytes::to_bytes(cur, 32))
     }
 
     public fun from_address(addr: address): Bytes32 {

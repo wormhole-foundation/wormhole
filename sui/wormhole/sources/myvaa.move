@@ -4,6 +4,7 @@ module wormhole::myvaa {
     use sui::tx_context::{TxContext};
 
     use wormhole::bytes::{Self};
+    use wormhole::bytes32::{Self};
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::guardian::{Self};
@@ -63,11 +64,12 @@ module wormhole::myvaa {
         let i = 0;
         while (i < num_signatures) {
             let guardian_index = bytes::deserialize_u8(&mut cur);
-            let rs = bytes::to_bytes(&mut cur, 64);
+            let r = bytes32::from_cursor(&mut cur);
+            let s = bytes32::from_cursor(&mut cur);
             let recovery_id = bytes::deserialize_u8(&mut cur);
             vector::push_back(
                 &mut signatures,
-                guardian_signature::new(rs, recovery_id, guardian_index)
+                guardian_signature::new(r, s, recovery_id, guardian_index)
             );
             i = i + 1;
         };
@@ -183,7 +185,7 @@ module wormhole::myvaa {
             // and message hash, revert.
             assert!(
                 guardian::verify(
-                    vector::borrow(&guardians, guardian_index),
+                    vector::borrow(guardians, guardian_index),
                     signature,
                     hash
                 ),
@@ -202,8 +204,8 @@ module wormhole::myvaa {
     /// `VAA`, it has been verified.
     public fun parse_and_verify(state: &mut State, bytes: vector<u8>, ctx: &TxContext): VAA {
         let vaa = parse(bytes);
-        let guardian_set = state::guardian_set_at(state, vaa.guardian_set_index);
-        verify(&vaa, &guardian_set, ctx);
+        let guardian_set = state::guardian_set_at(state, &vaa.guardian_set_index);
+        verify(&vaa, guardian_set, ctx);
         vaa
     }
 

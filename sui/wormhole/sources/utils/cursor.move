@@ -15,9 +15,15 @@ module wormhole::cursor {
     public fun new<T>(data: vector<T>): Cursor<T> {
         // reverse the array so we have access to the first element easily
         vector::reverse(&mut data);
-        Cursor<T> {
-            data,
-        }
+        Cursor<T> { data }
+    }
+
+    public fun data<T>(self: &Cursor<T>): &vector<T> {
+        &self.data
+    }
+
+    public fun is_empty<T>(self: &Cursor<T>): bool {
+        vector::is_empty(&self.data)
     }
 
     /// Destroys an empty cursor.

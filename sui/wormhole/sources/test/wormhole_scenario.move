@@ -21,15 +21,34 @@ module wormhole::wormhole_scenario {
         // to destroy the `DeployerCapability` to create a sharable `State`.
         test_scenario::next_tx(scenario, DEPLOYER);
 
+        // Parameters for Wormhole's `State` are common in the Wormhole testing
+        // environment aside from the `guardian_set_epochs_to_live`, which at
+        // the moment needs to be discussed on how to configure. As of now,
+        // there is no clock with unix timestamp to expire guardian sets in
+        // terms of human-interpretable time.
         {
-            setup::init_and_share_state_test_only(
+            let governance_chain = 1;
+            let governance_contract =
+                x"0000000000000000000000000000000000000000000000000000000000000004";
+            let initial_guardians =
+                vector[x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"];
+            let guardian_set_epochs_to_live = 2;
+
+            // Share `State`.
+            setup::init_and_share_state(
                 test_scenario::take_from_address<DeployerCapability>(
                     scenario, DEPLOYER
                 ),
+                governance_chain,
+                governance_contract,
+                initial_guardians,
+                guardian_set_epochs_to_live,
                 message_fee,
                 test_scenario::ctx(scenario)
             );
         };
+
+        // Done.
     }
 
     public fun deployer(): address {

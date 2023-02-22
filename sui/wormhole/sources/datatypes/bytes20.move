@@ -9,7 +9,7 @@ module wormhole::bytes20 {
     const LEN: u64 = 20;
 
     struct Bytes20 has copy, drop, store {
-        data: vector<u8>,
+        data: vector<u8>
     }
 
     public fun new(data: vector<u8>): Bytes20 {
