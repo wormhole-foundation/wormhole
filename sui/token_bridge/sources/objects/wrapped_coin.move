@@ -5,7 +5,8 @@ module token_bridge::wrapped_coin {
 
     // Exclusive access to this object.
     friend token_bridge::create_wrapped;
-
+    #[test_only]
+    friend token_bridge::wrapped_coin_test;
     /// Wrapped assets are created in two steps.
     /// 1) The coin is initialised by calling `create_wrapped_coin` in the
     /// `init` function of a OTW module.
@@ -57,5 +58,48 @@ module token_bridge::wrapped_coin {
         object::delete(id);
 
         (vaa_bytes, treasury_cap, decimals)
+    }
+}
+
+
+#[test_only]
+module token_bridge::wrapped_coin_test {
+    use sui::transfer::{Self};
+    use sui::coin::{Self, TreasuryCap};
+    use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_from_address};
+
+    use token_bridge::native_coin_witness_v3::{Self, NATIVE_COIN_WITNESS_V3};
+    use token_bridge::wrapped_coin::{Self};
+
+    fun scenario(): Scenario { test_scenario::begin(@0x123233) }
+    fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
+
+    #[test]
+    public fun test_wrapped_coin_creation(){
+        let test = scenario();
+        let (admin, _, _) = people();
+        next_tx(&mut test, admin); {
+            native_coin_witness_v3::test_init(ctx(&mut test));
+        };
+        next_tx(&mut test, admin);{
+            let tcap = take_from_address<TreasuryCap<NATIVE_COIN_WITNESS_V3>>(
+                &mut test,
+                admin
+            );
+            let wrapped_coin = wrapped_coin::new(
+                x"112233", //vaa bytes
+                tcap, // treasury cap
+                6, // decimals
+                ctx(&mut test)
+            );
+            let (vaa_bytes, tcap, decimals) = wrapped_coin::destroy(
+                wrapped_coin
+            );
+            assert!(vaa_bytes == x"112233", 0);
+            assert!(decimals == 6, 0);
+            assert!(coin::total_supply<NATIVE_COIN_WITNESS_V3>(&tcap)==0, 0);
+            transfer::transfer(tcap, admin);
+        };
+        test_scenario::end(test);
     }
 }
