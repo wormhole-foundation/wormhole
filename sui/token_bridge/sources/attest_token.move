@@ -62,7 +62,7 @@ module token_bridge::attest_token_test{
     use token_bridge::state::{Self, State};
     use token_bridge::attest_token::{test_handle_attest_token};
     use token_bridge::bridge_state_test::{set_up_wormhole_core_and_token_bridges};
-    use token_bridge::native_coin_witness::{Self, NATIVE_COIN_WITNESS};
+    use token_bridge::native_coin_10_decimals::{Self, NATIVE_COIN_10_DECIMALS};
     use token_bridge::asset_meta::{Self};
 
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
@@ -77,7 +77,7 @@ module token_bridge::attest_token_test{
 
         // Init the native coin
         next_tx(&mut test, admin); {
-            native_coin_witness::test_init(ctx(&mut test));
+            native_coin_10_decimals::test_init(ctx(&mut test));
         };
 
         // Proceed to next operation.
@@ -86,9 +86,9 @@ module token_bridge::attest_token_test{
         {
             let wormhole_state = take_shared<WormholeState>(&test);
             let bridge_state = take_shared<State>(&test);
-            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
+            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_10_DECIMALS>>(&test);
 
-            let asset_meta = test_handle_attest_token<NATIVE_COIN_WITNESS>(
+            let asset_meta = test_handle_attest_token<NATIVE_COIN_10_DECIMALS>(
                 &mut bridge_state,
                 &mut wormhole_state,
                 &coin_meta,
@@ -106,7 +106,7 @@ module token_bridge::attest_token_test{
 
             return_shared<WormholeState>(wormhole_state);
             return_shared<State>(bridge_state);
-            return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
+            return_shared<CoinMetadata<NATIVE_COIN_10_DECIMALS>>(coin_meta);
         };
 
         // check that native token is registered
@@ -119,7 +119,7 @@ module token_bridge::attest_token_test{
         {
             let bridge_state = take_shared<State>(&test);
             let is_registered =
-                state::is_registered_asset<NATIVE_COIN_WITNESS>(&mut bridge_state);
+                state::is_registered_asset<NATIVE_COIN_10_DECIMALS>(&mut bridge_state);
             assert!(is_registered, 0);
             return_shared<State>(bridge_state);
         };
@@ -139,26 +139,26 @@ module token_bridge::attest_token_test{
         test = set_up_wormhole_core_and_token_bridges(admin, test);
 
         next_tx(&mut test, admin); {
-            native_coin_witness::test_init(ctx(&mut test));
+            native_coin_10_decimals::test_init(ctx(&mut test));
         };
         next_tx(&mut test, admin); {
             let wormhole_state = take_shared<WormholeState>(&test);
             let bridge_state = take_shared<State>(&test);
-            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
+            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_10_DECIMALS>>(&test);
 
-            let _asset_meta_1 = test_handle_attest_token<NATIVE_COIN_WITNESS>(
+            let _asset_meta_1 = test_handle_attest_token<NATIVE_COIN_10_DECIMALS>(
                 &mut bridge_state,
                 &mut wormhole_state,
                 &coin_meta,
             );
-            let _asset_meta_2 = test_handle_attest_token<NATIVE_COIN_WITNESS>(
+            let _asset_meta_2 = test_handle_attest_token<NATIVE_COIN_10_DECIMALS>(
                 &mut bridge_state,
                 &mut wormhole_state,
                 &coin_meta,
             );
             return_shared<WormholeState>(wormhole_state);
             return_shared<State>(bridge_state);
-            return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
+            return_shared<CoinMetadata<NATIVE_COIN_10_DECIMALS>>(coin_meta);
         };
         test_scenario::end(test);
     }
