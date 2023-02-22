@@ -84,7 +84,7 @@ module wormhole::state {
             guardian_sets: vec_map::empty(),
             guardian_set_epochs_to_live,
             consumed_governance_actions: set::new(ctx),
-            emitter_registry: emitter::init_emitter_registry(),
+            emitter_registry: emitter::new_registry(),
             fee_collector: fee_collector::new(message_fee)
         };
 
@@ -197,7 +197,13 @@ module wormhole::state {
         self: &mut State,
         ctx: &mut TxContext
     ): EmitterCapability{
-        emitter::new_emitter_cap(&mut self.emitter_registry, ctx)
+        emitter::new_emitter(&mut self.emitter_registry, ctx)
+    }
+
+    public(friend) fun use_emitter_sequence(
+        emitter_cap: &mut EmitterCapability
+    ): u64 {
+        emitter::use_sequence(emitter_cap)
     }
 
 }

@@ -6,11 +6,11 @@ module wormhole::publish_message {
     //use wormhole::structs::{create_guardian, create_guardian_set};
     use wormhole::state::{Self, State};
     use wormhole::emitter::{Self, EmitterCapability};
-    use wormhole::external_address::{ExternalAddress};
+    use wormhole::external_address::{Self};
 
     /// `WormholeMessage` to be emitted via sui::event::emit.
     struct WormholeMessage has store, copy, drop {
-        sender: ExternalAddress,
+        sender: vector<u8>,
         sequence: u64,
         nonce: u32,
         payload: vector<u8>,
@@ -34,12 +34,17 @@ module wormhole::publish_message {
 
         // Produce sequence number for this message. This will also be the
         // return value for this method.
-        let sequence = emitter::use_sequence(emitter_cap);
+        let sequence = state::use_emitter_sequence(emitter_cap);
+
+        let sender =
+            external_address::to_bytes(
+                emitter::get_external_address(emitter_cap)
+            );
 
         // Emit Sui event with `WormholeMessage`.
         event::emit(
             WormholeMessage {
-                sender: emitter::get_external_address(emitter_cap),
+                sender,
                 sequence,
                 nonce,
                 payload: payload,
