@@ -223,8 +223,8 @@ module token_bridge::registered_tokens_test {
     use token_bridge::registered_tokens::{Self, new, num_wrapped, num_native,
         is_native, add_new_native, is_wrapped, token_chain, withdraw,
         deposit, balance, add_new_wrapped, decimals, token_address, destroy};
-    use token_bridge::native_coin_witness::{Self, NATIVE_COIN_WITNESS};
-    use token_bridge::native_coin_witness_v3::{Self, NATIVE_COIN_WITNESS_V3};
+    use token_bridge::native_coin_10_decimals::{Self, NATIVE_COIN_10_DECIMALS};
+    use token_bridge::wrapped_coin_7_decimals::{Self, WRAPPED_COIN_7_DECIMALS};
 
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
@@ -237,8 +237,8 @@ module token_bridge::registered_tokens_test {
         // 1) initialize RegisteredTokens object, native and wrapped coins
         next_tx(&mut test, admin);{
             //coin_witness::test_init(ctx(&mut test));
-            native_coin_witness::test_init(ctx(&mut test));
-            native_coin_witness_v3::test_init(ctx(&mut test));
+            native_coin_10_decimals::test_init(ctx(&mut test));
+            wrapped_coin_7_decimals::test_init(ctx(&mut test));
         };
         next_tx(&mut test, admin);{
             let registered_tokens = new(ctx(&mut test));
@@ -248,13 +248,11 @@ module token_bridge::registered_tokens_test {
             assert!(num_native(&registered_tokens)==0, 0);
 
             // 3) register wrapped and native tokens, then mint/burn/deposit
-            //   (for testing purposes, we create a wrapped coin type from
-            //   native_coin_witness_v3)
-            let tcap = take_from_address<TreasuryCap<NATIVE_COIN_WITNESS_V3>>(
+            let tcap = take_from_address<TreasuryCap<WRAPPED_COIN_7_DECIMALS>>(
                 &mut test,
                 admin
             );
-            add_new_wrapped<NATIVE_COIN_WITNESS_V3>(
+            add_new_wrapped<WRAPPED_COIN_7_DECIMALS>(
                 &mut registered_tokens,
                 2, // chain
                 external_address::from_bytes(x"001234"), // external address
@@ -262,41 +260,40 @@ module token_bridge::registered_tokens_test {
                 6 // decimals
             );
 
-            add_new_native<NATIVE_COIN_WITNESS>(
+            add_new_native<NATIVE_COIN_10_DECIMALS>(
                 &mut registered_tokens,
                 10,
-                ctx(&mut test)
             );
 
             // mint some native coins, then deposit them into the token registry
-            let native_tcap = take_shared<TreasuryCap<NATIVE_COIN_WITNESS>>(
+            let native_tcap = take_shared<TreasuryCap<NATIVE_COIN_10_DECIMALS>>(
                 &mut test
             );
-            let coins = coin::mint<NATIVE_COIN_WITNESS>(
+            let coins = coin::mint<NATIVE_COIN_10_DECIMALS>(
                 &mut native_tcap,
                 999,
                 ctx(&mut test)
             );
             assert!(coin::value(&coins)==999, 0);
-            deposit<NATIVE_COIN_WITNESS>(&mut registered_tokens, coins);
+            deposit<NATIVE_COIN_10_DECIMALS>(&mut registered_tokens, coins);
 
             // withdraw, check value, and re-deposit native coins into registry
-            coins = withdraw<NATIVE_COIN_WITNESS>(
+            coins = withdraw<NATIVE_COIN_10_DECIMALS>(
                 &mut registered_tokens,
                 499,
                 ctx(&mut test)
             );
             assert!(coin::value(&coins)==499, 0);
-            deposit<NATIVE_COIN_WITNESS>(&mut registered_tokens, coins);
+            deposit<NATIVE_COIN_10_DECIMALS>(&mut registered_tokens, coins);
 
             // mint some wrapped coins, then burn them
-            let wcoins = registered_tokens::mint<NATIVE_COIN_WITNESS_V3>(
+            let wcoins = registered_tokens::mint<WRAPPED_COIN_7_DECIMALS>(
                 &mut registered_tokens,
                 420420420,
                 ctx(&mut test)
             );
             assert!(coin::value(&wcoins)==420420420, 0);
-            registered_tokens::burn<NATIVE_COIN_WITNESS_V3>(
+            registered_tokens::burn<WRAPPED_COIN_7_DECIMALS>(
                 &mut registered_tokens,
                 wcoins
             );
@@ -304,26 +301,26 @@ module token_bridge::registered_tokens_test {
             // 4) more checks and assertions on registered_tokens
 
             // check amount in native coin custody is equal to amount deposited
-            assert!(balance<NATIVE_COIN_WITNESS>(&registered_tokens)==999, 0);
+            assert!(balance<NATIVE_COIN_10_DECIMALS>(&registered_tokens)==999, 0);
 
             // check that native/wrapped classification is correct
-            assert!(is_native<NATIVE_COIN_WITNESS>(&registered_tokens), 0);
-            assert!(is_wrapped<NATIVE_COIN_WITNESS_V3>(&registered_tokens), 0);
+            assert!(is_native<NATIVE_COIN_10_DECIMALS>(&registered_tokens), 0);
+            assert!(is_wrapped<WRAPPED_COIN_7_DECIMALS>(&registered_tokens), 0);
 
             // check decimals are correct
-            assert!(decimals<NATIVE_COIN_WITNESS>(&registered_tokens)==10, 0);
-            assert!(decimals<NATIVE_COIN_WITNESS_V3>(&registered_tokens)==6, 0);
+            assert!(decimals<NATIVE_COIN_10_DECIMALS>(&registered_tokens)==10, 0);
+            assert!(decimals<WRAPPED_COIN_7_DECIMALS>(&registered_tokens)==6, 0);
 
             // check token addresses are correct
-            assert!(token_address<NATIVE_COIN_WITNESS>(&registered_tokens)==
+            assert!(token_address<NATIVE_COIN_10_DECIMALS>(&registered_tokens)==
                 external_address::from_bytes(x"01"), 0);
-            assert!(token_address<NATIVE_COIN_WITNESS_V3>(&registered_tokens)==
+            assert!(token_address<WRAPPED_COIN_7_DECIMALS>(&registered_tokens)==
                 external_address::from_bytes(x"001234"), 0);
 
             // check token chains are correct
-            assert!(token_chain<NATIVE_COIN_WITNESS>(&registered_tokens)==
+            assert!(token_chain<NATIVE_COIN_10_DECIMALS>(&registered_tokens)==
                 chain_id(), 0);
-            assert!(token_chain<NATIVE_COIN_WITNESS_V3>(&registered_tokens)==
+            assert!(token_chain<WRAPPED_COIN_7_DECIMALS>(&registered_tokens)==
                 2, 0);
 
             // 5) cleanup
@@ -351,7 +348,7 @@ module token_bridge::registered_tokens_test {
         // 1) initialize RegisteredTokens object, native and wrapped coins
         next_tx(&mut test, admin);{
             //coin_witness::test_init(ctx(&mut test));
-            native_coin_witness_v3::test_init(ctx(&mut test));
+            wrapped_coin_7_decimals::test_init(ctx(&mut test));
         };
         next_tx(&mut test, admin);{
             let registered_tokens = new(ctx(&mut test));
@@ -363,11 +360,11 @@ module token_bridge::registered_tokens_test {
             // 3) register wrapped tokens, then mint/burn/deposit
             //   (for testing purposes, we create a wrapped coin type from
             //   native_coin_witness_v3)
-            let tcap = take_from_address<TreasuryCap<NATIVE_COIN_WITNESS_V3>>(
+            let tcap = take_from_address<TreasuryCap<WRAPPED_COIN_7_DECIMALS>>(
                 &mut test,
                 admin
             );
-            add_new_wrapped<NATIVE_COIN_WITNESS_V3>(
+            add_new_wrapped<WRAPPED_COIN_7_DECIMALS>(
                 &mut registered_tokens,
                 2, // chain
                 external_address::from_bytes(x"001234"), // external address
@@ -376,14 +373,14 @@ module token_bridge::registered_tokens_test {
             );
 
             // mint some wrapped coins, then attempt to deposit them
-            let wcoins = registered_tokens::mint<NATIVE_COIN_WITNESS_V3>(
+            let wcoins = registered_tokens::mint<WRAPPED_COIN_7_DECIMALS>(
                 &mut registered_tokens,
                 420420420,
                 ctx(&mut test)
             );
             assert!(coin::value(&wcoins)==420420420, 0);
             // the line below will fail
-            registered_tokens::deposit<NATIVE_COIN_WITNESS_V3>(
+            registered_tokens::deposit<WRAPPED_COIN_7_DECIMALS>(
                 &mut registered_tokens,
                 wcoins
             );
