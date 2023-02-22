@@ -3,7 +3,7 @@ module token_bridge::register_chain {
     use wormhole::bytes::{Self};
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self, ExternalAddress};
-    use wormhole::myvaa::{Self as corevaa};
+    use wormhole::vaa::{Self as corevaa};
     use wormhole::state::{State as WormholeState};
 
     use token_bridge::vaa::{Self as token_bridge_vaa};
@@ -94,7 +94,7 @@ module token_bridge::register_chain_test {
     use wormhole::state::{State as WormholeState};
 
     use wormhole::external_address::{Self};
-    use wormhole::myvaa::{Self as corevaa};
+    use wormhole::vaa::{Self as corevaa};
 
     use token_bridge::state::{Self, State};
     use token_bridge::register_chain::{Self, submit_vaa};

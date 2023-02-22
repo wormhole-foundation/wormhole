@@ -8,7 +8,7 @@ module token_bridge::create_wrapped {
     use sui::tx_context::{TxContext};
     use sui::url::{Url};
     use wormhole::state::{Self as wormhole_state, State as WormholeState};
-    use wormhole::myvaa as core_vaa;
+    use wormhole::vaa::{Self as core_vaa};
 
     use token_bridge::asset_meta::{Self};
     use token_bridge::wrapped_coin::{Self, WrappedCoin};

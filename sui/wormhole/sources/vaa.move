@@ -1,4 +1,4 @@
-module wormhole::myvaa {
+module wormhole::vaa {
     use std::vector::{Self};
     use sui::ecdsa_k1::{keccak256};
     use sui::tx_context::{TxContext};

@@ -16,7 +16,7 @@ module wormhole::state {
 
     friend wormhole::update_guardian_set;
     friend wormhole::publish_message;
-    friend wormhole::myvaa;
+    friend wormhole::vaa;
     friend wormhole::setup;
     #[test_only]
     friend wormhole::vaa_test;

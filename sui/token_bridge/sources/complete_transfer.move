@@ -44,7 +44,7 @@ module token_bridge::complete_transfer {
         // Deserialize transfer message and process.
         handle_complete_transfer<CoinType>(
             token_bridge_state,
-            &transfer::deserialize(wormhole::myvaa::destroy(transfer_vaa)),
+            &transfer::deserialize(wormhole::vaa::destroy(transfer_vaa)),
             relayer,
             ctx
         )
