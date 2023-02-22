@@ -1,5 +1,6 @@
 module token_bridge::native_asset {
     use sui::coin::{Self, Coin};
+    use sui::balance::{Self, Balance};
     use sui::tx_context::{TxContext};
     use wormhole::external_address::{ExternalAddress};
     use wormhole::state::{chain_id};
@@ -12,7 +13,7 @@ module token_bridge::native_asset {
     friend token_bridge::native_asset_test;
 
     struct NativeAsset<phantom C> has store {
-        custody: Coin<C>,
+        custody: Balance<C>,
         token_address: ExternalAddress,
         decimals: u8
     }
@@ -20,10 +21,9 @@ module token_bridge::native_asset {
     public fun new<C>(
         token_address: ExternalAddress,
         decimals: u8,
-        ctx: &mut TxContext
     ): NativeAsset<C> {
         NativeAsset {
-            custody: coin::zero(ctx),
+            custody: balance::zero(),
             token_address,
             decimals
         }
@@ -33,13 +33,13 @@ module token_bridge::native_asset {
     public fun destroy<C>(
         self: NativeAsset<C>
     ){
-        assert!(coin::value<C>(&self.custody)==0, 0);
+        assert!(balance::value<C>(&self.custody)==0, 0);
         let NativeAsset<C>{
             custody: custody,
             token_address: _,
             decimals: _
         } = self;
-        coin::destroy_zero<C>(custody);
+        balance::destroy_zero<C>(custody);
     }
 
     public fun token_address<C>(
@@ -53,7 +53,7 @@ module token_bridge::native_asset {
     }
 
     public fun balance<C>(self: &NativeAsset<C>): u64 {
-        coin::value(&self.custody)
+        balance::value(&self.custody)
     }
 
     public fun to_token_info<C>(self: &NativeAsset<C>): TokenInfo<C> {
@@ -68,7 +68,7 @@ module token_bridge::native_asset {
         self: &mut NativeAsset<C>,
         depositable: Coin<C>
     ) {
-        coin::join(&mut self.custody, depositable)
+        coin::put(&mut self.custody, depositable);
     }
 
     public(friend) fun withdraw<C>(
@@ -76,7 +76,7 @@ module token_bridge::native_asset {
         amount: u64,
         ctx: &mut TxContext
     ): Coin<C> {
-        coin::split(&mut self.custody, amount, ctx)
+        coin::take(&mut self.custody, amount, ctx)
     }
 }
 
@@ -108,7 +108,6 @@ module token_bridge::native_asset_test{
         let native_asset = new<NATIVE_COIN_WITNESS>(
             addr,
             3,
-            ctx(&mut test)
         );
 
         // assert token address and decimals are correct
