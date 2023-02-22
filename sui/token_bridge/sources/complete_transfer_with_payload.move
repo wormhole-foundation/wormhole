@@ -144,7 +144,6 @@ module token_bridge::complete_transfer_with_payload_test {
             state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
                 &coin_meta,
-                test_scenario::ctx(&mut test)
             );
             test_scenario::return_shared<State>(bridge_state);
             test_scenario::return_shared<WormholeState>(worm_state);
