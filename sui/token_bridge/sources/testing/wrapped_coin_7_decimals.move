@@ -1,22 +1,22 @@
 #[test_only]
-module token_bridge::native_coin_witness_v3 {
+module token_bridge::wrapped_coin_7_decimals {
     use std::option::{Self};
     use sui::tx_context::{TxContext, sender};
     use sui::coin::{Self};
     use sui::transfer::{Self};
 
-    struct NATIVE_COIN_WITNESS_V3 has drop {}
+    struct WRAPPED_COIN_7_DECIMALS has drop {}
 
     // This module creates a Sui-native token for testing purposes,
     // and subsequently transfers the token cap and coin meta to the
     // sender of the transaction
-    fun init(coin_witness: NATIVE_COIN_WITNESS_V3, ctx: &mut TxContext) {
-        let (treasury_cap, coin_metadata) = coin::create_currency<NATIVE_COIN_WITNESS_V3>(
+    fun init(coin_witness: WRAPPED_COIN_7_DECIMALS, ctx: &mut TxContext) {
+        let (treasury_cap, coin_metadata) = coin::create_currency<WRAPPED_COIN_7_DECIMALS>(
             coin_witness,
-            6,
-            x"001234",
-            x"221111",
-            x"4444",
+            7,
+            b"7777", // symbol
+            b"seven decimals wow", // name
+            b"I have seven decimals", // description
             option::none(),
             ctx
         );
@@ -26,6 +26,6 @@ module token_bridge::native_coin_witness_v3 {
 
     #[test_only]
     public fun test_init(ctx: &mut TxContext) {
-        init(NATIVE_COIN_WITNESS_V3 {}, ctx)
+        init(WRAPPED_COIN_7_DECIMALS {}, ctx)
     }
 }
