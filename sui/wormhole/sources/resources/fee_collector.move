@@ -7,16 +7,16 @@ module wormhole::fee_collector {
     const E_INCORRECT_FEE: u64 = 0;
 
     struct FeeCollector has store {
-        amount: u64,
+        fee_amount: u64,
         balance: Balance<SUI>
     }
 
-    public fun new(amount: u64): FeeCollector {
-        FeeCollector { amount, balance: balance::zero() }
+    public fun new(fee_amount: u64): FeeCollector {
+        FeeCollector { fee_amount, balance: balance::zero() }
     }
 
-    public fun amount(self: &FeeCollector): u64 {
-        self.amount
+    public fun fee_amount(self: &FeeCollector): u64 {
+        self.fee_amount
     }
 
     public fun balance_value(self: &FeeCollector): u64 {
@@ -24,7 +24,7 @@ module wormhole::fee_collector {
     }
 
     public fun deposit(self: &mut FeeCollector, fee: Coin<SUI>) {
-        assert!(coin::value(&fee) == self.amount, E_INCORRECT_FEE);
+        assert!(coin::value(&fee) == self.fee_amount, E_INCORRECT_FEE);
         coin::put(&mut self.balance, fee);
     }
 
