@@ -1,4 +1,5 @@
 module wormhole::fee_collector {
+    use sui::balance::{Self, Balance};
     use sui::coin::{Self, Coin};
     use sui::sui::{SUI};
     use sui::tx_context::{TxContext};
@@ -7,24 +8,24 @@ module wormhole::fee_collector {
 
     struct FeeCollector has store {
         amount: u64,
-        coin: Coin<SUI>
+        balance: Balance<SUI>
     }
 
-    public fun new(amount: u64, ctx: &mut TxContext): FeeCollector {
-        FeeCollector { amount, coin: coin::zero(ctx) }
+    public fun new(amount: u64): FeeCollector {
+        FeeCollector { amount, balance: balance::zero() }
     }
 
     public fun amount(self: &FeeCollector): u64 {
         self.amount
     }
 
-    public fun coin_value(self: &FeeCollector): u64 {
-        coin::value(&self.coin)
+    public fun balance_value(self: &FeeCollector): u64 {
+        balance::value(&self.balance)
     }
 
     public fun deposit(self: &mut FeeCollector, fee: Coin<SUI>) {
         assert!(coin::value(&fee) == self.amount, E_INCORRECT_FEE);
-        coin::join(&mut self.coin, fee);
+        coin::put(&mut self.balance, fee);
     }
 
     public fun withdraw(
@@ -32,6 +33,6 @@ module wormhole::fee_collector {
         amount: u64,
         ctx: &mut TxContext
     ): Coin<SUI> {
-        coin::split(&mut self.coin, amount, ctx)
+        coin::take(&mut self.balance, amount, ctx)
     }
 }

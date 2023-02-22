@@ -113,6 +113,7 @@ module wormhole::guardian_set_upgrade_test {
     use std::vector;
     use sui::test_scenario::{Self};
 
+    use wormhole::cursor::{Self};
     use wormhole::guardian::{Self};
     use wormhole::guardian_set::{Self};
     use wormhole::state::{Self, State};
@@ -128,9 +129,10 @@ module wormhole::guardian_set_upgrade_test {
             x"00000000000000000000000000000000000000000000000000000000436f7265020000000000011358cc3ae5c097b213ce3c81979e1b9f9570746aa5ff6cb952589bde862c25ef4392132fb9d4a42157114de8460193bdf3a2fcf81f86a09765f4762fd1107a0086b32d7a0977926a205131d8731d39cbeb8c82b2fd82faed2711d59af0f2499d16e726f6b211b39756c042441be6d8650b69b54ebe715e234354ce5b4d348fb74b958e8966e2ec3dbd4958a7cdeb5f7389fa26941519f0863349c223b73a6ddee774a3bf913953d695260d88bc1aa25a4eee363ef0000ac0076727b35fbea2dac28fee5ccb0fea768eaf45ced136b9d9e24903464ae889f5c8a723fc14f93124b7c738843cbb89e864c862c38cddcccf95d2cc37a4dc036a8d232b48f62cdd4731412f4890da798f6896a3331f64b48c12d1d57fd9cbe7081171aa1be1d36cafe3867910f99c09e347899c19c38192b6e7387ccd768277c17dab1b7a5027c0b3cf178e21ad2e77ae06711549cfbb1f9c7a9d8096e85e1487f35515d02a92753504a8d75471b9f49edb6fbebc898f403e4773e95feb15e80c9a99c8348d";
         let (new_index, guardians) =
             update_guardian_set::split(update_guardian_set::parse_payload(b));
+        let guardians = cursor::new(guardians);
         assert!(new_index == 1, 0);
-        assert!(vector::length(&guardians) == 19, 0);
-        let expected = vector[
+        assert!(vector::length(cursor::data(&guardians)) == 19, 0);
+        let expected = cursor::new(vector[
             guardian::new(x"58cc3ae5c097b213ce3c81979e1b9f9570746aa5"),
             guardian::new(x"ff6cb952589bde862c25ef4392132fb9d4a42157"),
             guardian::new(x"114de8460193bdf3a2fcf81f86a09765f4762fd1"),
@@ -150,8 +152,14 @@ module wormhole::guardian_set_upgrade_test {
             guardian::new(x"178e21ad2e77ae06711549cfbb1f9c7a9d8096e8"),
             guardian::new(x"5e1487f35515d02a92753504a8d75471b9f49edb"),
             guardian::new(x"6fbebc898f403e4773e95feb15e80c9a99c8348d"),
-        ];
-        assert!(expected == guardians, 0);
+        ]);
+        while (!cursor::is_empty(&guardians) && !cursor::is_empty(&expected)) {
+            let left = guardian::to_bytes(cursor::poke(&mut guardians));
+            let right = guardian::to_bytes(cursor::poke(&mut expected));
+            assert!(left == right, 0);
+        };
+        cursor::destroy_empty(guardians);
+        cursor::destroy_empty(expected);
     }
 
     #[test]
@@ -168,10 +176,10 @@ module wormhole::guardian_set_upgrade_test {
         {
             let worm_state = test_scenario::take_shared<State>(scenario);
             let first_index = state::guardian_set_index(&worm_state);
-            let set = state::guardian_set_at(&worm_state, first_index);
+            let set = state::guardian_set_at(&worm_state, &first_index);
             // make sure guardian set is active
             assert!(
-                guardian_set::is_active(&set, test_scenario::ctx(scenario)),
+                guardian_set::is_active(set, test_scenario::ctx(scenario)),
                 0
             );
 
@@ -186,9 +194,9 @@ module wormhole::guardian_set_upgrade_test {
             );
 
             // make sure old guardian set is still active
-            set = state::guardian_set_at(&worm_state, first_index);
+            let set = state::guardian_set_at(&worm_state, &first_index);
             assert!(
-                guardian_set::is_active(&set, test_scenario::ctx(scenario)),
+                guardian_set::is_active(set, test_scenario::ctx(scenario)),
                 0
             );
 
@@ -199,7 +207,7 @@ module wormhole::guardian_set_upgrade_test {
 
             // make sure old guardian set is no longer active
             assert!(
-                !guardian_set::is_active(&set, test_scenario::ctx(scenario)),
+                !guardian_set::is_active(set, test_scenario::ctx(scenario)),
                 0
             );
 

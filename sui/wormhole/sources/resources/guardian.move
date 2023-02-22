@@ -6,15 +6,18 @@ module wormhole::guardian {
     use wormhole::guardian_signature::{Self, GuardianSignature};
 
     const E_INVALID_EC_PUBKEY_LENGTH: u64 = 0;
+    const E_ZERO_ADDRESS: u64 = 1;
 
     const PUBKEY_LENGTH: u64 = 20;
 
-    struct Guardian has store, drop, copy {
+    struct Guardian has store {
         pubkey: Bytes20
     }
 
     public fun new(pubkey: vector<u8>): Guardian {
-        Guardian { pubkey: bytes20::new(pubkey) }
+        let data = bytes20::new(pubkey);
+        assert!(bytes20::is_nonzero(&data), E_ZERO_ADDRESS);
+        Guardian { pubkey: data }
     }
 
     public fun pubkey(self: &Guardian): Bytes20 {
@@ -25,28 +28,17 @@ module wormhole::guardian {
         bytes20::data(&self.pubkey)
     }
 
-    public fun to_bytes(value: Guardian): vector<u8> {
-        bytes20::to_bytes(value.pubkey)
-    }
-
     public fun verify(
         self: &Guardian,
         signature: GuardianSignature,
         message_hash: vector<u8>
     ): bool {
-        let (rs, recovery_id, _) = guardian_signature::destroy(signature);
-        as_bytes(self) == ecrecover(message_hash, recovery_id, rs)
+        let sig = guardian_signature::to_rsv(signature);
+        as_bytes(self) == ecrecover(message_hash, sig)
     }
 
     /// Same as 'ecrecover' in EVM.
-    fun ecrecover(
-        message: vector<u8>,
-        recovery_id: u8,
-        sig: vector<u8>,
-    ): vector<u8> {
-        // sui's ecrecover function takes a 65 byte array (signature + recovery byte)
-        vector::push_back(&mut sig, recovery_id);
-
+    fun ecrecover(message: vector<u8>, sig: vector<u8>): vector<u8> {
         let pubkey =
             ecdsa_k1::decompress_pubkey(&ecdsa_k1::ecrecover(&sig, &message));
 
@@ -67,5 +59,16 @@ module wormhole::guardian {
         vector::reverse(&mut guardian_pubkey);
 
         guardian_pubkey
+    }
+
+    #[test_only]
+    public fun destroy(g: Guardian) {
+        let Guardian { pubkey: _ } = g;
+    }
+
+    #[test_only]
+    public fun to_bytes(value: Guardian): vector<u8> {
+        let Guardian { pubkey } = value;
+        bytes20::to_bytes(pubkey)
     }
 }
