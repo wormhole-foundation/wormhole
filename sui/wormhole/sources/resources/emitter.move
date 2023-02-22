@@ -6,7 +6,6 @@ module wormhole::emitter {
     use wormhole::id_registry::{Self, IdRegistry};
 
     friend wormhole::state;
-    friend wormhole::publish_message;
 
     #[test_only]
     friend wormhole::emitter_test;
@@ -27,17 +26,11 @@ module wormhole::emitter {
 
     // TODO(csongor): document that this has to be globally unique.
     // The friend modifier is very important here.
-    public(friend) fun init_emitter_registry(): EmitterRegistry {
+    public(friend) fun new_registry(): EmitterRegistry {
         EmitterRegistry { registry: id_registry::new() }
     }
 
-    #[test_only]
-    public fun destroy(registry: EmitterRegistry) {
-        let EmitterRegistry { registry } = registry;
-        id_registry::destroy(registry);
-    }
-
-    public(friend) fun new_emitter_cap(
+    public(friend) fun new_emitter(
         self: &mut EmitterRegistry,
         ctx: &mut TxContext
     ): EmitterCapability {
@@ -60,7 +53,9 @@ module wormhole::emitter {
     /// Returns the external address of the emitter.
     ///
     /// The 16 byte (u128) emitter id left-padded to u256
-    public fun get_external_address(emitter_cap: &EmitterCapability): ExternalAddress {
+    public fun get_external_address(
+        emitter_cap: &EmitterCapability
+    ): ExternalAddress {
         // let emitter_bytes = vector<u8>[];
         // bytes::serialize_u64_be(&mut emitter_bytes, emitter_cap.emitter);
         // external_address::from_bytes(emitter_bytes)
@@ -71,6 +66,12 @@ module wormhole::emitter {
         let sequence = emitter_cap.sequence;
         emitter_cap.sequence = sequence + 1;
         sequence
+    }
+
+    #[test_only]
+    public fun destroy_registry(registry: EmitterRegistry) {
+        let EmitterRegistry { registry } = registry;
+        id_registry::destroy(registry);
     }
 }
 
