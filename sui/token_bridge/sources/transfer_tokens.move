@@ -157,7 +157,6 @@ module token_bridge::transfer_token_test {
             state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
                 &coin_meta,
-                ctx(&mut test)
             );
             let coins = coin::mint<NATIVE_COIN_WITNESS>(&mut treasury_cap, 10000, ctx(&mut test));
 
@@ -198,7 +197,6 @@ module token_bridge::transfer_token_test {
             state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
                 &coin_meta,
-                ctx(&mut test)
             );
             let coins = coin::mint<NATIVE_COIN_WITNESS>(&mut treasury_cap, 10000, ctx(&mut test));
 
@@ -247,7 +245,6 @@ module token_bridge::transfer_token_test {
             state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
                 &coin_meta,
-                ctx(&mut test)
             );
             let coins = coin::mint<NATIVE_COIN_WITNESS>(&mut treasury_cap, 10000, ctx(&mut test));
 
