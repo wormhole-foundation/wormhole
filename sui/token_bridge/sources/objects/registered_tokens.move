@@ -213,7 +213,7 @@ module token_bridge::registered_tokens {
 // add_new_wrapped, minting/burning/depositing/withdrawing said tokens, and also
 // storing metadata about the tokens.
 #[test_only]
-module token_bridge::registered_tokens_test{
+module token_bridge::registered_tokens_test {
     use sui::test_scenario::{Self, Scenario, ctx, take_shared, return_shared,
     next_tx, take_from_address};
     use sui::coin::{Self, TreasuryCap};
