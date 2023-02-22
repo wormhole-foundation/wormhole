@@ -118,20 +118,8 @@ module wormhole::state {
         self.governance_chain
     }
 
-    #[test_only]
-    // TODO: possibly remove
-    public fun set_governance_chain(self: &mut State, chain: u16) {
-        self.governance_chain = chain;
-    }
-
     public fun governance_contract(self: &State): ExternalAddress {
         self.governance_contract
-    }
-
-    #[test_only]
-    // TODO: possibly remove
-    public fun set_governance_contract(self: &mut State, contract: vector<u8>) {
-        self.governance_contract = external_address::from_bytes(contract);
     }
 
     public fun guardian_set_index(self: &State): u32 {
@@ -143,7 +131,7 @@ module wormhole::state {
     }
 
     public fun message_fee(self: &State): u64 {
-        return fee_collector::amount(&self.fee_collector)
+        return fee_collector::fee_amount(&self.fee_collector)
     }
 
     public fun deposit_fee(self: &mut State, coin: Coin<SUI>) {

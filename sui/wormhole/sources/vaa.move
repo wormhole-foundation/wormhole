@@ -4,43 +4,39 @@ module wormhole::vaa {
     use sui::tx_context::{TxContext};
 
     use wormhole::bytes::{Self};
-    use wormhole::bytes32::{Self};
+    use wormhole::bytes32::{Self, Bytes32};
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self, ExternalAddress};
-    use wormhole::guardian::{Self};
-    use wormhole::guardian_set::{Self, GuardianSet};
+    use wormhole::guardian_set::{Self};
     use wormhole::guardian_signature::{Self, GuardianSignature};
     use wormhole::state::{Self, State};
 
     friend wormhole::update_guardian_set;
 
-    const E_NO_QUORUM: u64 = 0x0;
-    const E_TOO_MANY_SIGNATURES: u64 = 0x1;
-    const E_INVALID_SIGNATURE: u64 = 0x2;
-    const E_GUARDIAN_SET_EXPIRED: u64 = 0x3;
-    const E_INVALID_GOVERNANCE_CHAIN: u64 = 0x4;
-    const E_INVALID_GOVERNANCE_EMITTER: u64 = 0x5;
-    const E_WRONG_VERSION: u64 = 0x6;
-    const E_NON_INCREASING_SIGNERS: u64 = 0x7;
-    const E_OLD_GUARDIAN_SET_GOVERNANCE: u64 = 0x8;
+    const E_INVALID_GOVERNANCE_CHAIN: u64 = 4;
+    const E_INVALID_GOVERNANCE_EMITTER: u64 = 5;
+    const E_WRONG_VERSION: u64 = 6;
+    const E_OLD_GUARDIAN_SET_GOVERNANCE: u64 = 8;
+
+    const VERSION_VAA: u8 = 1;
 
     struct VAA {
-        /// Header
+        // Header
         guardian_set_index: u32,
-        signatures:         vector<GuardianSignature>,
+        signatures: vector<GuardianSignature>,
 
-        /// Body
-        timestamp:          u32,
-        nonce:              u32,
-        emitter_chain:      u16,
-        emitter_address:    ExternalAddress,
-        sequence:           u64,
-        consistency_level:  u8,
-        hash:               vector<u8>, // 32 bytes
-        payload:            vector<u8>, // variable bytes
+        // Body
+        timestamp: u32,
+        nonce: u32,
+        emitter_chain: u16,
+        emitter_address: ExternalAddress,
+        sequence: u64,
+        consistency_level: u8,
+        payload: vector<u8>,
+
+        // Cache
+        hash: Bytes32
     }
-
-    //break
 
     #[test_only]
     public fun parse_test(bytes: vector<u8>): VAA {
@@ -52,15 +48,20 @@ module wormhole::vaa {
     /// This ensures the invariant that if an external module receives a `VAA`
     /// object, its signatures must have been verified, because the only public
     /// function that returns a VAA is `parse_and_verify`
-    fun parse(bytes: vector<u8>): VAA {
-        let cur = cursor::new(bytes);
-        let version = bytes::deserialize_u8(&mut cur);
-        assert!(version == 1, E_WRONG_VERSION);
+    fun parse(buf: vector<u8>): VAA {
+        let cur = cursor::new(buf);
+
+        // Check version.
+        assert!(
+            bytes::deserialize_u8(&mut cur) == VERSION_VAA,
+            E_WRONG_VERSION
+        );
+
         let guardian_set_index = bytes::deserialize_u32_be(&mut cur);
 
+        // Deserialize guardian signatures.
         let num_signatures = bytes::deserialize_u8(&mut cur);
         let signatures = vector::empty();
-
         let i = 0;
         while (i < num_signatures) {
             let guardian_index = bytes::deserialize_u8(&mut cur);
@@ -74,8 +75,9 @@ module wormhole::vaa {
             i = i + 1;
         };
 
+        // Deserialize message body.
         let body = cursor::rest(cur);
-        let hash = keccak256(&keccak256(&body));
+        let hash = bytes32::new(keccak256(&keccak256(&body)));
 
         let cur = cursor::new(body);
 
@@ -85,7 +87,6 @@ module wormhole::vaa {
         let emitter_address = external_address::deserialize(&mut cur);
         let sequence = bytes::deserialize_u64_be(&mut cur);
         let consistency_level = bytes::deserialize_u8(&mut cur);
-
         let payload = cursor::rest(cur);
 
         VAA {
@@ -102,36 +103,52 @@ module wormhole::vaa {
         }
     }
 
-    public fun get_guardian_set_index(vaa: &VAA): u32 {
-         vaa.guardian_set_index
+    public fun guardian_set_index(self: &VAA): u32 {
+         self.guardian_set_index
     }
 
-    public fun get_timestamp(vaa: &VAA): u32 {
-         vaa.timestamp
+    public fun signatures(self: &VAA): &vector<GuardianSignature> {
+        &self.signatures
     }
 
-    public fun get_payload(vaa: &VAA): vector<u8> {
-         vaa.payload
+    public fun timestamp(self: &VAA): u32 {
+         self.timestamp
     }
 
-    public fun get_hash(vaa: &VAA): vector<u8> {
-         vaa.hash
+    public fun nonce(self: &VAA): u32 {
+        self.nonce
     }
 
-    public fun get_emitter_chain(vaa: &VAA): u16 {
-         vaa.emitter_chain
+    public fun batch_id(self: &VAA): u32 {
+        nonce(self)
     }
 
-    public fun get_emitter_address(vaa: &VAA): ExternalAddress {
-         vaa.emitter_address
+    public fun payload(self: &VAA): vector<u8> {
+         self.payload
     }
 
-    public fun get_sequence(vaa: &VAA): u64 {
-         vaa.sequence
+    public fun hash(self: &VAA): Bytes32 {
+         self.hash
     }
 
-    public fun get_consistency_level(vaa: &VAA): u8 {
-        vaa.consistency_level
+    public fun emitter_chain(self: &VAA): u16 {
+         self.emitter_chain
+    }
+
+    public fun emitter_address(self: &VAA): ExternalAddress {
+         self.emitter_address
+    }
+
+    public fun sequence(self: &VAA): u64 {
+         self.sequence
+    }
+
+    public fun consistency_level(self: &VAA): u8 {
+        self.consistency_level
+    }
+
+    public fun finality(self: &VAA): u8 {
+        consistency_level(self)
     }
 
     public fun destroy(vaa: VAA): vector<u8> {
@@ -150,62 +167,19 @@ module wormhole::vaa {
         payload
     }
 
-    /// Verifies the signatures of a VAA.
-    /// It's private, because there's no point calling it externally, since VAAs
-    /// external to this module have already been verified (by construction).
-    fun verify(vaa: &VAA, set: &GuardianSet, ctx: &TxContext) {
-        assert!(guardian_set::is_active(set, ctx), E_GUARDIAN_SET_EXPIRED);
-
-        let signatures = vaa.signatures;
-        let num_signatures = vector::length(&signatures);
-        assert!(num_signatures >= guardian_set::quorum(set), E_NO_QUORUM);
-
-        // Reverse to pop in increasing guardian index order.
-        vector::reverse(&mut signatures);
-
-        let guardians = guardian_set::guardians(set);
-        let hash = vaa.hash;
-
-        let i = 0;
-        let last_guardian_index = 0;
-        while (i < num_signatures) {
-            let signature = vector::pop_back(&mut signatures);
-            let guardian_index = guardian_signature::index_as_u64(&signature);
-
-            // Ensure that the provided signatures are strictly increasing.
-            // This check makes sure that no duplicate signers occur. The
-            // increasing order is guaranteed by the guardians, or can always be
-            // reordered by the client.
-            assert!(
-                i == 0 || guardian_index > last_guardian_index,
-                E_NON_INCREASING_SIGNERS
-            );
-
-            // If the guardian pubkey cannot be recovered using the signature
-            // and message hash, revert.
-            assert!(
-                guardian::verify(
-                    vector::borrow(guardians, guardian_index),
-                    signature,
-                    hash
-                ),
-                E_INVALID_SIGNATURE
-            );
-
-            // Continue.
-            i = i + 1;
-            last_guardian_index = guardian_index;
-        };
-    }
-
     /// Parses and verifies the signatures of a VAA.
     /// NOTE: this is the only public function that returns a VAA, and it should
     /// be kept that way. This ensures that if an external module receives a
     /// `VAA`, it has been verified.
-    public fun parse_and_verify(state: &mut State, bytes: vector<u8>, ctx: &TxContext): VAA {
-        let vaa = parse(bytes);
+    public fun parse_and_verify(
+        state: &mut State,
+        buf: vector<u8>,
+        ctx: &TxContext
+    ): VAA {
+        let vaa = parse(buf);
         let guardian_set = state::guardian_set_at(state, &vaa.guardian_set_index);
-        verify(&vaa, guardian_set, ctx);
+
+        guardian_set::verify_signatures(guardian_set, vaa.signatures, bytes32::to_bytes(vaa.hash), ctx);
         vaa
     }
 
@@ -233,7 +207,7 @@ module wormhole::vaa {
     /// their own replay protection.
     public(friend) fun replay_protect(state: &mut State, vaa: &VAA) {
         // this calls table::add which aborts if the key already exists
-        state::set_governance_action_consumed(state, vaa.hash);
+        state::set_governance_action_consumed(state, bytes32::to_bytes(vaa.hash));
     }
 
 }

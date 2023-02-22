@@ -37,10 +37,11 @@ module wormhole::setup {
         message_fee: u64,
         ctx: &mut TxContext
     ) {
+        // Destroy deployer cap.
         let DeployerCapability{ id } = deployer;
         object::delete(id);
 
-        // permanently shares state
+        // Share new state.
         transfer::share_object(
             state::new(
                 governance_chain,
