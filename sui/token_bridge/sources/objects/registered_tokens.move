@@ -75,6 +75,15 @@ module token_bridge::registered_tokens {
         !is_wrapped<C>(self)
     }
 
+    public(friend) fun treasury_cap<C>(
+        self: &mut RegisteredTokens
+    ): &TreasuryCap<C> {
+        assert!(is_wrapped<C>(self), 0);
+        wrapped_asset::treasury_cap<C>(
+            dynamic_field::borrow_mut(&mut self.id, Key<C>{})
+        )
+    }
+
     public(friend) fun add_new_wrapped<C>(
         self: &mut RegisteredTokens,
         chain: u16,

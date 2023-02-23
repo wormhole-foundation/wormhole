@@ -1,5 +1,6 @@
 module token_bridge::state {
     use std::ascii::{Self};
+    use std::string::{Self};
     use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
     use sui::object::{Self, UID};
     use sui::sui::{SUI};
@@ -19,6 +20,7 @@ module token_bridge::state {
 
     const E_UNREGISTERED_EMITTER: u64 = 0;
     const E_EMITTER_ALREADY_REGISTERED: u64 = 1;
+    const E_CAN_ONLY_UPDATE_METADATA_FOR_REGISTERED_WRAPPED_ASSET: u64 = 2;
 
     friend token_bridge::attest_token;
     friend token_bridge::complete_transfer;
@@ -211,7 +213,6 @@ module token_bridge::state {
         registered_tokens::is_native<CoinType>(&self.registered_tokens)
     }
 
-    #[test_only]
     public fun is_wrapped_asset<CoinType>(self: &State): bool {
         registered_tokens::is_wrapped<CoinType>(&self.registered_tokens)
     }
@@ -268,6 +269,26 @@ module token_bridge::state {
             treasury_cap,
             decimals,
         )
+    }
+
+    public(friend) fun update_registered_wrapped_asset_metadata<CoinType>(
+        self: &mut State,
+        metadata: &mut CoinMetadata<CoinType>,
+        symbol: ascii::String,
+        name: string::String
+    ){
+        assert!(is_wrapped_asset<CoinType>(self),
+            E_CAN_ONLY_UPDATE_METADATA_FOR_REGISTERED_WRAPPED_ASSET);
+        coin::update_symbol<CoinType>(
+            registered_tokens::treasury_cap<CoinType>(&mut self.registered_tokens),
+            metadata,
+            symbol
+        );
+        coin::update_name<CoinType>(
+            registered_tokens::treasury_cap<CoinType>(&mut self.registered_tokens),
+            metadata,
+            name
+        );
     }
 
     public(friend) fun register_native_asset<CoinType>(
