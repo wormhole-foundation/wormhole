@@ -118,7 +118,7 @@ module token_bridge::wrapped_asset_test {
             assert!(token_chain(&wrapped_asset) == 2, 0);
             assert!(decimals(&wrapped_asset) == 6, 0);
             assert!(token_address(&wrapped_asset)==addr, 0);
-            let tcap = wrapped_asset::destroy<NATIVE_COIN_WITNESS_V3>(
+            let tcap = wrapped_asset::destroy(
                 wrapped_asset
             );
             transfer::transfer(tcap, admin);
