@@ -17,9 +17,9 @@ module token_bridge::register_chain {
     const E_INVALID_TARGET: u64 = 2;
 
     struct RegisterChain has copy, drop {
-        /// Chain ID
+        // Chain ID
         emitter_chain_id: u16,
-        /// Emitter address. Left-zero-padded if shorter than 32 bytes
+        // Emitter address. Left-zero-padded if shorter than 32 bytes
         emitter_address: ExternalAddress,
     }
 

@@ -46,8 +46,9 @@ module token_bridge::coin_witness_test {
     /// Registration VAA for the etheruem token bridge 0xdeadbeef
     const ETHEREUM_TOKEN_REG: vector<u8> = x"0100000000010015d405c74be6d93c3c33ed6b48d8db70dfb31e0981f8098b2a6c7583083e0c3343d4a1abeb3fc1559674fa067b0c0e2e9de2fafeaecdfeae132de2c33c9d27cc0100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000016911ae00000000000000000000000000000000000000000000546f6b656e427269646765010000000200000000000000000000000000000000000000000000000000000000deadbeef";
 
-    // call coin init to create wrapped coin and traasfer to sender
     #[test]
+    /// this helper function calls coin init to create wrapped coin and
+    /// subsequently traasfers it to sender
     fun test_create_wrapped() {
         let test = scenario();
         let (admin, _, _) = people();
@@ -57,8 +58,8 @@ module token_bridge::coin_witness_test {
         test_scenario::end(test);
     }
 
-    // call token bridge register wrapped coin
     #[test]
+    /// this helper function calls token bridge register wrapped coin
     fun test_register_wrapped() {
         let (admin, _, _) = people();
         let scenario = scenario();

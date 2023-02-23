@@ -227,8 +227,8 @@ module token_bridge::transfer_token_test {
         test_scenario::end(test);
     }
 
-    // check transfer result for native token transfer is constructed properly
     #[test]
+    /// check transfer result for native token transfer is constructed properly
     fun test_transfer_native_token_internal(){
         let (admin, _, _) = people();
         let test = scenario();
@@ -333,7 +333,7 @@ module token_bridge::transfer_token_test {
         test_scenario::end(test);
     }
 
-     #[test]
+    #[test]
     fun test_transfer_wrapped_token_internal(){
         let (admin, _, _) = people();
         let test = scenario();

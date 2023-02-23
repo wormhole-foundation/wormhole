@@ -134,12 +134,12 @@ module token_bridge::attest_token_test{
         test_scenario::end(test);
     }
 
-    // TODO: consider throwing token bridge error instead of sui::dynamic_field
     #[test]
     #[expected_failure(
         abort_code = token_bridge::registered_tokens::E_ALREADY_REGISTERED,
         location=token_bridge::registered_tokens
     )]
+    /// TODO: consider throwing token bridge error instead of sui::dynamic_field
     fun test_attest_token_twice_fails(){
         let test = scenario();
         let (admin, _, _) = people();

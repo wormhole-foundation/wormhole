@@ -81,7 +81,7 @@ module token_bridge::token_bridge_vaa_test{
         Self,
         Scenario,
         next_tx,
-        ctx, 
+        ctx,
         take_shared,
         return_shared
     };

@@ -46,15 +46,15 @@ module token_bridge::state {
         id: UID
     }
 
-    // Treasury caps, token stores, consumed VAAs, registered emitters, etc.
-    // are stored as dynamic fields of bridge state.
+    /// Treasury caps, token stores, consumed VAAs, registered emitters, etc.
+    /// are stored as dynamic fields of bridge state.
     struct State has key, store {
         id: UID,
 
-        /// Set of consumed VAA hashes
+        // Set of consumed VAA hashes
         consumed_vaas: Set<vector<u8>>,
 
-        /// Token bridge owned emitter capability
+        // Token bridge owned emitter capability
         emitter_cap: EmitterCapability,
 
         registered_tokens: RegisteredTokens,
@@ -74,8 +74,8 @@ module token_bridge::state {
         init(ctx)
     }
 
-    // converts owned state object into a shared object, so that anyone can get
-    // a reference to &mut State and pass it into various functions
+    /// converts owned state object into a shared object, so that anyone can get
+    /// a reference to &mut State and pass it into various functions
     public entry fun init_and_share_state(
         deployer: DeployerCapability,
         worm_state: &mut WormholeState,
@@ -83,7 +83,7 @@ module token_bridge::state {
     ) {
         let DeployerCapability{ id } = deployer;
         object::delete(id);
-    
+
         let state = State {
             id: object::new(ctx),
             consumed_vaas: set::new(ctx),
@@ -165,8 +165,8 @@ module token_bridge::state {
         mint(self, amount, ctx)
     }
 
-    // We only examine the balance of native assets, because the token
-    // bridge does not custody wrapped assets (only mints and burns them).
+    /// We only examine the balance of native assets, because the token
+    /// bridge does not custody wrapped assets (only mints and burns them).
     public fun balance<CoinType>(self: &State): u64 {
         registered_tokens::balance<CoinType>(&self.registered_tokens)
     }
