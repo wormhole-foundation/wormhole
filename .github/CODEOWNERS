@@ -5,13 +5,13 @@
 # Chains
 
 /algorand/ @jumpsiegel
-/aptos/ @kcsongor
+/aptos/ @kcsongor @a5-pickle
 /bitcoin/ @conorpp @jumpsiegel
 /cosmwasm/ @jynnantonix @kcsongor @a5-pickle
 /ethereum/ @a5-pickle @calebrate @gator-boi @hendrikhofstadt @kcsongor
 /near/ @jumpsiegel
 /solana/ @hendrikhofstadt @kcsongor @a5-pickle
-/sui/ @kcsongor
+/sui/ @kcsongor @a5-pickle
 /terra/ @kcsongor @a5-pickle
 /wormchain/ @conorpp @hendrikhofstadt
 
