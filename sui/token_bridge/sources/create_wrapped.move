@@ -146,7 +146,7 @@ module token_bridge::create_wrapped {
             E_WRAPPED_COIN_ALREADY_INITIALIZED
         );
 
-        state::update_registered_wrapped_asset_metadata<CoinType>(
+        state::update_registered_wrapped_coin_metadata<CoinType>(
             token_bridge_state,
             metadata,
             symbol_to_string(&meta),
