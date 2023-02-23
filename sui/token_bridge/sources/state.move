@@ -268,7 +268,7 @@ module token_bridge::state {
         )
     }
 
-    public(friend) fun update_registered_wrapped_asset_metadata<CoinType>(
+    public(friend) fun update_registered_wrapped_coin_metadata<CoinType>(
         self: &mut State,
         metadata: &mut CoinMetadata<CoinType>,
         symbol: ascii::String,
