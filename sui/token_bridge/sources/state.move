@@ -269,7 +269,7 @@ module token_bridge::state {
     }
 
     public(friend) fun update_registered_wrapped_coin_metadata<CoinType>(
-        self: &mut State,
+        self: &State,
         metadata: &mut CoinMetadata<CoinType>,
         symbol: ascii::String,
         name: string::String
@@ -277,12 +277,12 @@ module token_bridge::state {
         assert!(is_wrapped_asset<CoinType>(self),
             E_CAN_ONLY_UPDATE_METADATA_FOR_REGISTERED_WRAPPED_ASSET);
         coin::update_symbol<CoinType>(
-            registered_tokens::treasury_cap<CoinType>(&mut self.registered_tokens),
+            registered_tokens::treasury_cap<CoinType>(&self.registered_tokens),
             metadata,
             symbol
         );
         coin::update_name<CoinType>(
-            registered_tokens::treasury_cap<CoinType>(&mut self.registered_tokens),
+            registered_tokens::treasury_cap<CoinType>(&self.registered_tokens),
             metadata,
             name
         );
