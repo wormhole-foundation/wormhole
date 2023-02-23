@@ -776,7 +776,6 @@ func (s *nodePrivilegedService) DumpRPCs(ctx context.Context, req *nodev1.DumpRP
 	rpcMap["arbitrumRPC"] = *arbitrumRPC
 	rpcMap["auroraRPC"] = *auroraRPC
 	rpcMap["avalancheRPC"] = *avalancheRPC
-	rpcMap["baseRPC"] = *baseRPC
 	rpcMap["bscRPC"] = *bscRPC
 	rpcMap["celoRPC"] = *celoRPC
 	rpcMap["ethRPC"] = *ethRPC
