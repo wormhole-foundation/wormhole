@@ -190,6 +190,13 @@ case "$chain_name" in
     explorer="https://optimistic.etherscan.io/address/"
     evm=true
     ;;
+  base)
+    echo "Need to specify the base explorer URL!"
+    exit 1  
+    chain=30
+    explorer="??/address/"
+    evm=true
+    ;;    
   *)
     echo "Unknown chain: $chain_name" >&2
     exit 1
