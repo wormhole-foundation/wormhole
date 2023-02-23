@@ -1,12 +1,10 @@
 module wormhole::publish_message {
-    use sui::sui::{SUI};
     use sui::coin::{Coin};
     use sui::event::{Self};
+    use sui::sui::{SUI};
 
-    //use wormhole::structs::{create_guardian, create_guardian_set};
-    use wormhole::state::{Self, State};
     use wormhole::emitter::{Self, EmitterCapability};
-    use wormhole::external_address::{Self};
+    use wormhole::state::{Self, State};
 
     /// `WormholeMessage` to be emitted via sui::event::emit.
     struct WormholeMessage has store, copy, drop {
@@ -36,15 +34,10 @@ module wormhole::publish_message {
         // return value for this method.
         let sequence = state::use_emitter_sequence(emitter_cap);
 
-        let sender =
-            external_address::to_bytes(
-                emitter::get_external_address(emitter_cap)
-            );
-
         // Emit Sui event with `WormholeMessage`.
         event::emit(
             WormholeMessage {
-                sender,
+                sender: emitter::emitter_address(emitter_cap),
                 sequence,
                 nonce,
                 payload: payload,
@@ -61,9 +54,9 @@ module wormhole::publish_message {
 
 #[test_only]
 module wormhole::publish_message_test{
-    use sui::test_scenario::{Self};
     use sui::coin::{Self};
     use sui::sui::{SUI};
+    use sui::test_scenario::{Self};
 
     use wormhole::emitter::{Self};
     use wormhole::fee_collector::{Self};
