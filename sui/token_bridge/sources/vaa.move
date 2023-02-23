@@ -16,9 +16,9 @@ module token_bridge::vaa {
     #[test_only]
     friend token_bridge::token_bridge_vaa_test;
 
-    /// We have no registration for this chain
+    // We have no registration for this chain
     const E_UNKNOWN_CHAIN: u64 = 0;
-    /// We have a registration, but it's different from what's given
+    // We have a registration, but it's different from what's given
     const E_UNKNOWN_EMITTER: u64 = 1;
 
     /// Aborts if the VAA has already been consumed. Marks the VAA as consumed
