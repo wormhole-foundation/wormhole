@@ -104,7 +104,7 @@ func (d *DiscordNotifier) LookupGroupID(groupName string) (string, error) {
 type Observation interface {
 	GetEmitterChain() vaa.ChainID
 	MessageID() string
-	SigningMsg() common.Hash
+	SigningDigest() common.Hash
 }
 
 func (d *DiscordNotifier) MissingSignaturesOnObservation(o Observation, hasSigs, wantSigs int, quorum bool, missing []string) error {
@@ -145,7 +145,7 @@ func (d *DiscordNotifier) MissingSignaturesOnObservation(o Observation, hasSigs,
 				Title: "Message with missing signatures",
 				Fields: []discord.EmbedField{
 					{Name: "Message ID", Value: wrapCode(o.MessageID()), Inline: true},
-					{Name: "Digest", Value: wrapCode(hex.EncodeToString(o.SigningMsg().Bytes())), Inline: true},
+					{Name: "Digest", Value: wrapCode(hex.EncodeToString(o.SigningDigest().Bytes())), Inline: true},
 					{Name: "Quorum", Value: quorumText, Inline: true},
 					{Name: "Source Chain", Value: caser.String(o.GetEmitterChain().String()), Inline: false},
 					{Name: "Missing Guardians", Value: missingText.String(), Inline: false},

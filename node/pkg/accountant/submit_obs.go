@@ -331,7 +331,10 @@ func SubmitObservationsToContract(
 		return nil, fmt.Errorf("acct: failed to marshal accountant observation request: %w", err)
 	}
 
-	digest := vaa.SigningMsg(append(submitObservationPrefix, bytes...))
+	digest, err := vaa.MessageSigningDigest(submitObservationPrefix, bytes)
+	if err != nil {
+		return nil, fmt.Errorf("acct: failed to sign accountant Observation request: %w", err)
+	}
 
 	sigBytes, err := ethCrypto.Sign(digest.Bytes(), gk)
 	if err != nil {

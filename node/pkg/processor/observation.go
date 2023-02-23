@@ -227,7 +227,7 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 	}
 
 	// Calculate digest for logging
-	digest := v.SigningMsg()
+	digest := v.SigningDigest()
 	hash := hex.EncodeToString(digest.Bytes())
 
 	if p.gs == nil {
