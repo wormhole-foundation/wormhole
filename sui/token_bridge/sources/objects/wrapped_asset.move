@@ -1,6 +1,7 @@
 module token_bridge::wrapped_asset {
     use sui::coin::{Self, Coin, TreasuryCap};
     use sui::tx_context::{TxContext};
+    use sui::balance::{Self};
     use wormhole::external_address::{ExternalAddress};
 
     use token_bridge::token_info::{Self, TokenInfo};
@@ -31,14 +32,15 @@ module token_bridge::wrapped_asset {
     }
 
     #[test_only]
-    public fun destroy<C>(wrapped_asset: WrappedAsset<C>): TreasuryCap<C>{
+    public fun destroy<C>(wrapped_asset: WrappedAsset<C>) {
         let WrappedAsset {
             token_chain: _,
             token_address: _,
             treasury_cap: tcap,
             decimals: _
         } = wrapped_asset;
-        tcap
+        let supply = coin::treasury_into_supply(tcap);
+        balance::destroy_supply_for_testing(supply);
     }
 
     public fun token_chain<C>(self: &WrappedAsset<C>): u16 {
@@ -83,7 +85,6 @@ module token_bridge::wrapped_asset {
 
 #[test_only]
 module token_bridge::wrapped_asset_test {
-    use sui::transfer::{Self};
     use sui::coin::{TreasuryCap};
     use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_from_address};
 
@@ -118,10 +119,7 @@ module token_bridge::wrapped_asset_test {
             assert!(token_chain(&wrapped_asset) == 2, 0);
             assert!(decimals(&wrapped_asset) == 6, 0);
             assert!(token_address(&wrapped_asset)==addr, 0);
-            let tcap = wrapped_asset::destroy(
-                wrapped_asset
-            );
-            transfer::transfer(tcap, admin);
+            wrapped_asset::destroy(wrapped_asset);
         };
         test_scenario::end(test);
     }
