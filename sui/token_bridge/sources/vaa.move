@@ -26,8 +26,11 @@ module token_bridge::vaa {
         token_bridge_state: &mut State,
         vaa: &VAA
     ) {
-        // This calls set::add which aborts if the element already exists.
-        state::store_consumed_vaa(token_bridge_state, corevaa::get_hash(vaa));
+        // this calls set::add which aborts if the element already exists
+        state::store_consumed_vaa(
+            token_bridge_state,
+            corevaa::hash_as_bytes(vaa)
+        );
     }
 
     /// Asserts that the VAA is from a known token bridge.
@@ -35,11 +38,11 @@ module token_bridge::vaa {
         let foreign_emitter =
             state::registered_emitter(
                 token_bridge_state,
-                corevaa::get_emitter_chain(vm)
+                corevaa::emitter_chain(vm)
             );
 
         assert!(
-            foreign_emitter == corevaa::get_emitter_address(vm),
+            foreign_emitter == corevaa::emitter_address(vm),
             E_UNKNOWN_EMITTER
         );
     }

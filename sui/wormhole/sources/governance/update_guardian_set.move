@@ -30,7 +30,7 @@ module wormhole::update_guardian_set {
         vaa::assert_governance(state, &vaa);
         vaa::replay_protect(state, &vaa);
 
-        do_upgrade(state, parse_payload(vaa::destroy(vaa)), ctx)
+        do_upgrade(state, parse_payload(vaa::take_payload(vaa)), ctx)
     }
 
     fun do_upgrade(

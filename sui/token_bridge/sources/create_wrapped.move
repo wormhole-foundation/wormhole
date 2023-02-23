@@ -49,7 +49,7 @@ module token_bridge::create_wrapped {
         coin_witness: CoinType,
         ctx: &mut TxContext
     ): WrappedCoin<CoinType> {
-        let payload = core_vaa::parse_and_get_payload(vaa_bytes);
+        let payload = core_vaa::peel_payload_from_vaa(&vaa_bytes);
         let meta = asset_meta::deserialize(payload);
 
         let coin_decimals = (
@@ -89,15 +89,15 @@ module token_bridge::create_wrapped {
         let (vaa_bytes, treasury_cap, decimals) =
             wrapped_coin::destroy(new_wrapped_coin);
 
-        let vaa = vaa::parse_verify_and_replay_protect(
-            token_bridge_state,
-            worm_state,
-            vaa_bytes,
-            ctx
-        );
-        let payload = core_vaa::destroy(vaa);
+        let parsed_vaa =
+            vaa::parse_verify_and_replay_protect(
+                token_bridge_state,
+                worm_state,
+                vaa_bytes,
+                ctx
+            );
 
-        let meta = asset_meta::deserialize(payload);
+        let meta = asset_meta::deserialize(core_vaa::take_payload(parsed_vaa));
         let origin_chain = asset_meta::token_chain(&meta);
         let external_address = asset_meta::token_address(&meta);
 
