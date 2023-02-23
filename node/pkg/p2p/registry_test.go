@@ -13,15 +13,8 @@ import (
 
 func TestNewRegistry(t *testing.T) {
 	registry := NewRegistry()
-	assert.Equal(t, "", registry.guardianAddress)
 	assert.Equal(t, 0, len(registry.errorCounters))
 	assert.Equal(t, 0, len(registry.networkStats))
-}
-
-func TestSetGuardianAddress(t *testing.T) {
-	registry := NewRegistry()
-	registry.SetGuardianAddress("foo")
-	assert.Equal(t, "foo", registry.guardianAddress)
 }
 
 func TestSetNetworkStats(t *testing.T) {

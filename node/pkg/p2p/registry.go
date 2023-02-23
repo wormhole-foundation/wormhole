@@ -18,9 +18,6 @@ type registry struct {
 	// Per-chain error counters
 	errorCounters  map[vaa.ChainID]uint64
 	errorCounterMu sync.Mutex
-
-	// Value of Heartbeat.guardian_addr.
-	guardianAddress string
 }
 
 func NewRegistry() *registry {
@@ -33,14 +30,6 @@ func NewRegistry() *registry {
 var (
 	DefaultRegistry = NewRegistry()
 )
-
-// SetGuardianAddress stores the node's guardian address to broadcast in Heartbeat messages.
-// This should be called once during startup, when the guardian key is loaded.
-func (r *registry) SetGuardianAddress(addr string) {
-	r.mu.Lock()
-	r.guardianAddress = addr
-	r.mu.Unlock()
-}
 
 // SetNetworkStats sets the current network status to be broadcast in Heartbeat messages.
 // The "Id" field is automatically set to the specified chain ID.

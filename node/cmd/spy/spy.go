@@ -530,7 +530,28 @@ func runSpy(cmd *cobra.Command, args []string) {
 
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
-		if err := supervisor.Run(ctx, "p2p", p2p.Run(obsvC, obsvReqC, nil, sendC, signedInC, priv, nil, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, "", false, rootCtxCancel, nil, nil, nil, nil)); err != nil {
+		components := p2p.DefaultComponents()
+		components.Port = *p2pPort
+		if err := supervisor.Run(ctx,
+			"p2p",
+			p2p.Run(obsvC,
+				obsvReqC,
+				nil,
+				sendC,
+				signedInC,
+				priv,
+				nil,
+				gst,
+				*p2pNetworkID,
+				*p2pBootstrap,
+				"",
+				false,
+				rootCtxCancel,
+				nil,
+				nil,
+				nil,
+				nil,
+				components)); err != nil {
 			return err
 		}
 
