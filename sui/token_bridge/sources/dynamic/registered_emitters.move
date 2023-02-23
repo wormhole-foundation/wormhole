@@ -52,8 +52,8 @@ module token_bridge::registered_emitters {
 #[test_only]
 module token_bridge::registered_emitters_test{
     use std::vector::{Self};
-    use sui::test_scenario::{Self, Scenario, ctx};
     use sui::object::{Self, UID};
+    use sui::tx_context::{dummy};
 
     use wormhole::external_address::{from_bytes};
     use wormhole::bytes::{Self};
@@ -68,7 +68,6 @@ module token_bridge::registered_emitters_test{
         E_REGISTERED_EMITTER_TABLE_ALREADY_EXISTS
     };
 
-    fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
     struct MockState has key {
@@ -84,12 +83,11 @@ module token_bridge::registered_emitters_test{
     // and adding several (chain_id, external_address) key-value pairs to it
     #[test]
     fun test_registered_emitters(){
-        let test = scenario();
-        let mock_state = MockState{id: object::new(ctx(&mut test))};
+        let mock_state = MockState{id: object::new(&mut dummy())};
 
         // create table of registered emitters as a dynamic field of our
         // mock state
-        new(&mut mock_state.id, ctx(&mut test));
+        new(&mut mock_state.id, &mut dummy());
 
         // add many (chain id, external address) key-value pairs to the
         // registered emitters table attached to mock state
@@ -128,7 +126,6 @@ module token_bridge::registered_emitters_test{
             i = i + 1;
         };
         destroy_mock_state(mock_state);
-        test_scenario::end(test);
     }
 
     // test that creating two registered emitter tables for the same UID
@@ -139,20 +136,18 @@ module token_bridge::registered_emitters_test{
         location=token_bridge::registered_emitters
     )]
     fun test_registered_emitters_table_already_exists(){
-        let test = scenario();
-        let mock_state = MockState{id: object::new(ctx(&mut test))};
+        let mock_state = MockState{id: object::new(&mut dummy())};
 
         // create table of registered emitters as a dynamic field of our
         // mock state
-        new(&mut mock_state.id, ctx(&mut test));
+        new(&mut mock_state.id, &mut dummy());
 
         // attempt to create another table for storing registered
         // emitters and attach it to mock_state under key b"registered_emitters"
         // resulting in failure, because that key already exists
-        new(&mut mock_state.id, ctx(&mut test));
+        new(&mut mock_state.id, &mut dummy());
 
         destroy_mock_state(mock_state);
-        test_scenario::end(test);
     }
 
     // test that only one external address can be registered for a chain
@@ -162,12 +157,11 @@ module token_bridge::registered_emitters_test{
         location=token_bridge::registered_emitters
     )]
     fun test_register_chain_id_twice(){
-        let test = scenario();
-        let mock_state = MockState{id: object::new(ctx(&mut test))};
+        let mock_state = MockState{id: object::new(&mut dummy())};
 
         // create table of registered emitters as a dynamic field of our
         // mock state
-        new(&mut mock_state.id, ctx(&mut test));
+        new(&mut mock_state.id, &mut dummy());
 
         // try to add chain_id 1 more than once, resulting in failure
         let i = 1;
@@ -181,7 +175,6 @@ module token_bridge::registered_emitters_test{
             );
         };
         destroy_mock_state(mock_state);
-        test_scenario::end(test);
     }
 
     #[test]
@@ -190,12 +183,11 @@ module token_bridge::registered_emitters_test{
         location=token_bridge::registered_emitters
     )]
     fun test_registered_emitters_nonexistent_external_address(){
-        let test = scenario();
-        let mock_state = MockState{id: object::new(ctx(&mut test))};
+        let mock_state = MockState{id: object::new(&mut dummy())};
 
         // create table of registered emitters as a dynamic field of our
         // mock state
-        new(&mut mock_state.id, ctx(&mut test));
+        new(&mut mock_state.id, &mut dummy());
 
         // register chain ids 1-100
         let i = 1;
@@ -214,6 +206,5 @@ module token_bridge::registered_emitters_test{
             10022 // this chain id is not registered (only 1-100 are registered)
         );
         destroy_mock_state(mock_state);
-        test_scenario::end(test);
     }
 }
