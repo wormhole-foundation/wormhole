@@ -127,7 +127,8 @@ module token_bridge::string32_test {
     #[test]
     #[expected_failure(abort_code = string32::E_STRING_TOO_LONG)]
     public fun test_right_pad_fail() {
-        let too_long = string::utf8(b"this string is very very very very very very very very very very very very very very very long");
+        let too_long = string::utf8(
+            b"this string is very very very very very very very very very very very very very very very long");
         string32::right_pad(&too_long);
     }
 
@@ -139,8 +140,10 @@ module token_bridge::string32_test {
 
     #[test]
     public fun test_from_string_long() {
-        let long = string32::from_string(&string::utf8(b"this string is very very very very very very very very very very very very very very very long"));
-        assert!(string32::to_string(&long) == string::utf8(b"this string is very very very ve"), 0)
+        let long = string32::from_string(&string::utf8(
+            b"this string is very very very very very very very very very very very very very very very long"));
+        assert!(string32::to_string(&long) == string::utf8(
+            b"this string is very very very ve"), 0)
     }
 
     #[test]

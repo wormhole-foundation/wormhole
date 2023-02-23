@@ -332,15 +332,15 @@ module token_bridge::bridge_state_test{
     }
 
     public fun set_up_wormhole_core_and_token_bridges(admin: address, test: Scenario): Scenario {
-        // init and share wormhole core bridge
+        // Init and share wormhole core bridge.
         test =  init_wormhole_state(test, admin, 0);
 
-        // call init for token bridge to get deployer cap
+        // Call init for token bridge to get deployer cap.
         next_tx(&mut test, admin); {
             state::init_test_only(ctx(&mut test));
         };
 
-        // register for emitter cap and init_and_share token bridge
+        // Register for emitter cap and init_and_share token bridge.
         next_tx(&mut test, admin); {
             let wormhole_state = take_shared<WormholeState>(&test);
             let deployer = take_from_address<DeployerCapability>(&test, admin);
@@ -361,11 +361,11 @@ module token_bridge::bridge_state_test{
 
         test = set_up_wormhole_core_and_token_bridges(admin, test);
 
-        //test State setter and getter functions
+        // Test State setter and getter functions.
         next_tx(&mut test, admin); {
             let state = take_shared<State>(&test);
 
-            // test store consumed vaa
+            // Test store consumed vaa.
             state::store_consumed_vaa(&mut state, x"1234");
             assert!(state::vaa_is_consumed(&state, x"1234"), 0);
 
@@ -382,7 +382,7 @@ module token_bridge::bridge_state_test{
 
         test = set_up_wormhole_core_and_token_bridges(admin, test);
 
-        //test coin type addressing
+        // Test coin type addressing.
         next_tx(&mut test, admin); {
             native_coin_witness::test_init(ctx(&mut test));
             native_coin_witness_v2::test_init(ctx(&mut test));
@@ -428,7 +428,7 @@ module token_bridge::bridge_state_test{
 
         test = set_up_wormhole_core_and_token_bridges(admin, test);
 
-        //test coin type addressing
+        // Test coin type addressing.
         next_tx(&mut test, admin); {
             native_coin_witness::test_init(ctx(&mut test));
             native_coin_witness_v2::test_init(ctx(&mut test));
@@ -446,7 +446,7 @@ module token_bridge::bridge_state_test{
             let expected_addr = external_address::from_bytes(x"01");
             assert!(token_info::addr(&info) == expected_addr, 0);
 
-            // aborts because trying to re-register native coin
+            // Aborts because trying to re-register native coin.
             state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
                 &coin_meta,

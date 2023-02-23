@@ -17,9 +17,9 @@ module token_bridge::register_chain {
     const E_INVALID_TARGET: u64 = 2;
 
     struct RegisterChain has copy, drop {
-        // Chain ID
+        /// Chain ID
         emitter_chain_id: u16,
-        // Emitter address. Left-zero-padded if shorter than 32 bytes
+        /// Emitter address. Left-zero-padded if shorter than 32 bytes
         emitter_address: ExternalAddress,
     }
 
@@ -80,8 +80,6 @@ module token_bridge::register_chain_test {
     };
 
     use wormhole::state::{State as WormholeState};
-    //use wormhole::test_state::{init_wormhole_state};
-    //use wormhole::wormhole::{Self};
 
     use wormhole::external_address::{Self};
     use wormhole::myvaa::{Self as corevaa};

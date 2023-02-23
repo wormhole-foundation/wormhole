@@ -4,14 +4,14 @@ module token_bridge::transfer_result {
     use token_bridge::normalized_amount::NormalizedAmount;
 
     struct TransferResult {
-        // Chain ID of the token
+        /// Chain ID of the token
         token_chain: u16,
-        // Address of the token. Left-zero-padded if shorter than 32 bytes
+        /// Address of the token. Left-zero-padded if shorter than 32 bytes
         token_address: ExternalAddress,
-        // Amount being transferred
+        /// Amount being transferred
         amount: NormalizedAmount,
-        // Amount of tokens that the user is willing to pay as relayer fee.
-        // Must be <= Amount.
+        /// Amount of tokens that the user is willing to pay as relayer fee.
+        /// Must be <= Amount.
         relayer_fee: NormalizedAmount,
     }
 
