@@ -18,6 +18,7 @@ module token_bridge::registered_tokens {
     const E_UNREGISTERED: u64 = 0;
     const E_ALREADY_REGISTERED: u64 = 1;
     const E_CANNOT_DEPOSIT_WRAPPED_COIN: u64 = 2;
+    const E_CANNOT_GET_TREASURY_CAP_FOR_NON_WRAPPED_COIN: u64 = 3;
 
     struct RegisteredTokens has key, store {
         id: UID,
@@ -78,7 +79,8 @@ module token_bridge::registered_tokens {
     public(friend) fun treasury_cap<C>(
         self: &RegisteredTokens
     ): &TreasuryCap<C> {
-        assert!(is_wrapped<C>(self), 0);
+        assert!(is_wrapped<C>(self),
+            E_CANNOT_GET_TREASURY_CAP_FOR_NON_WRAPPED_COIN);
         wrapped_asset::treasury_cap<C>(
             dynamic_field::borrow(&self.id, Key<C>{})
         )

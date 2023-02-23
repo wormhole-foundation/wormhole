@@ -1,6 +1,5 @@
 module token_bridge::state {
     use std::ascii::{Self};
-    use std::string::{Self};
     use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
     use sui::object::{Self, UID};
     use sui::sui::{SUI};
@@ -20,7 +19,6 @@ module token_bridge::state {
 
     const E_UNREGISTERED_EMITTER: u64 = 0;
     const E_EMITTER_ALREADY_REGISTERED: u64 = 1;
-    const E_CAN_ONLY_UPDATE_METADATA_FOR_REGISTERED_WRAPPED_ASSET: u64 = 2;
 
     friend token_bridge::attest_token;
     friend token_bridge::complete_transfer;
@@ -226,6 +224,18 @@ module token_bridge::state {
         registered_tokens::decimals<CoinType>(&self.registered_tokens)
     }
 
+    /// This function returns an immutable reference to the treasury cap
+    /// for a wrapped coin that the token bridge manages. Note that there
+    /// is no danger of the returned reference being used to mint coins
+    /// outside of the bridge mint/burn mechanism, because a mutable reference
+    /// to the TreasuryCap is required for mint/burn.
+    ///
+    /// This function is only used in create_wrapped.move to update coin
+    /// metadata (only an immutable reference is needed).
+    public fun treasury_cap<CoinType>(self: &State): &TreasuryCap<CoinType> {
+        registered_tokens::treasury_cap<CoinType>(&self.registered_tokens)
+    }
+
     public(friend) fun register_emitter(
         self: &mut State,
         chain: u16,
@@ -269,26 +279,6 @@ module token_bridge::state {
             treasury_cap,
             decimals,
         )
-    }
-
-    public(friend) fun update_registered_wrapped_coin_metadata<CoinType>(
-        self: &State,
-        metadata: &mut CoinMetadata<CoinType>,
-        symbol: ascii::String,
-        name: string::String
-    ){
-        assert!(is_wrapped_asset<CoinType>(self),
-            E_CAN_ONLY_UPDATE_METADATA_FOR_REGISTERED_WRAPPED_ASSET);
-        coin::update_symbol<CoinType>(
-            registered_tokens::treasury_cap<CoinType>(&self.registered_tokens),
-            metadata,
-            symbol
-        );
-        coin::update_name<CoinType>(
-            registered_tokens::treasury_cap<CoinType>(&self.registered_tokens),
-            metadata,
-            name
-        );
     }
 
     public(friend) fun register_native_asset<CoinType>(

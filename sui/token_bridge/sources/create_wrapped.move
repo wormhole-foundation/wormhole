@@ -11,16 +11,20 @@ module token_bridge::create_wrapped {
     use wormhole::state::{Self as wormhole_state, State as WormholeState};
     use wormhole::myvaa as core_vaa;
 
-    use token_bridge::asset_meta::{Self, symbol_to_string, name_to_string};
+    use token_bridge::asset_meta::{Self};
     use token_bridge::wrapped_coin::{Self, WrappedCoin};
     use token_bridge::state::{Self, State};
     use token_bridge::vaa::{Self};
+    use token_bridge::token_info::{Self};
 
     const E_WRAPPING_NATIVE_COIN: u64 = 0;
     const E_WRAPPING_REGISTERED_NATIVE_COIN: u64 = 1;
     const E_WRAPPED_COIN_ALREADY_INITIALIZED: u64 = 2;
     const E_UPDATING_NATIVE_COIN_META: u64 = 3;
-    const E_WRAPPED_COIN_NOT_INITIALIZED: u64 = 4;
+    const E_COIN_NOT_REGISTERED_AS_WRAPPED: u64 = 4;
+    const E_ORIGIN_ADDRESS_MISMATCH: u64 = 5;
+    const E_ORIGIN_CHAIN_MISMATCH: u64 = 6;
+    const E_CAN_ONLY_UPDATE_METADATA_FOR_REGISTERED_WRAPPED_ASSET: u64 = 7;
 
     /// The amounts in the token bridge payload are truncated to 8 decimals
     /// in each of the contracts when sending tokens out, so there's no
@@ -138,21 +142,33 @@ module token_bridge::create_wrapped {
         let payload = core_vaa::destroy(vaa);
         let meta = asset_meta::deserialize(payload);
         let origin_chain = asset_meta::token_chain(&meta);
+        let origin_address = asset_meta::token_address(&meta);
 
+        let info = state::token_info<CoinType>(token_bridge_state);
+
+        assert!(token_info::addr(&info)==origin_address,
+            E_ORIGIN_ADDRESS_MISMATCH);
+        assert!(token_info::chain(&info)==origin_chain,
+            E_ORIGIN_CHAIN_MISMATCH);
         assert!(
             origin_chain != wormhole_state::chain_id(),
             E_UPDATING_NATIVE_COIN_META
         );
-        assert!(
-            state::is_registered_asset<CoinType>(token_bridge_state),
-            E_WRAPPED_COIN_NOT_INITIALIZED
-        );
+        assert!(state::is_wrapped_asset<CoinType>(token_bridge_state),
+            E_CAN_ONLY_UPDATE_METADATA_FOR_REGISTERED_WRAPPED_ASSET);
 
-        state::update_registered_wrapped_coin_metadata<CoinType>(
-            token_bridge_state,
+        // obtain a read-only reference to the treasury cap for CoinType
+        let tcap = state::treasury_cap<CoinType>(token_bridge_state);
+
+        coin::update_symbol<CoinType>(
+            tcap,
             metadata,
-            symbol_to_string(&meta),
-            name_to_string(&meta)
+            asset_meta::symbol_to_string(&meta)
+        );
+        coin::update_name<CoinType>(
+            tcap,
+            metadata,
+            asset_meta::name_to_string(&meta)
         );
     }
 }
