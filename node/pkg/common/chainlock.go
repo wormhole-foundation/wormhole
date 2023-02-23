@@ -152,6 +152,6 @@ func (msg *MessagePublication) CreateVAA(gsIndex uint32) *vaa.VAA {
 
 func (msg *MessagePublication) CreateDigest() string {
 	v := msg.CreateVAA(0) // The guardian set index is not part of the digest, so we can pass in zero.
-	db := v.SigningMsg()
+	db := v.SigningDigest()
 	return hex.EncodeToString(db.Bytes())
 }

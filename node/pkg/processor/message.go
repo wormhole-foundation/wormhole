@@ -129,7 +129,7 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 	}
 
 	// Generate digest of the unsigned VAA.
-	digest := v.SigningMsg()
+	digest := v.SigningDigest()
 
 	// Sign the digest using our node's guardian key.
 	s, err := crypto.Sign(digest.Bytes(), p.gk)

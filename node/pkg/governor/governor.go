@@ -680,6 +680,6 @@ func (tk tokenKey) String() string {
 
 func (gov *ChainGovernor) HashFromMsg(msg *common.MessagePublication) string {
 	v := msg.CreateVAA(0) // We can pass zero in as the guardian set index because it is not part of the digest.
-	digest := v.SigningMsg()
+	digest := v.SigningDigest()
 	return hex.EncodeToString(digest.Bytes())
 }
