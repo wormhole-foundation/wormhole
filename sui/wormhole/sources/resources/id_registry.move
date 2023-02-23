@@ -1,8 +1,9 @@
 module wormhole::id_registry {
     use wormhole::external_address::{Self, ExternalAddress};
 
+    /// Resource to keep track of an increasing `index` value, which is used to
+    /// generate a new `ExternalAddress`.
     struct IdRegistry has store {
-        /// Integer label for coin types registered with Wormhole
         index: u64
     }
 
@@ -10,7 +11,7 @@ module wormhole::id_registry {
         IdRegistry { index: 0 }
     }
 
-    public fun value(self: &IdRegistry): u64 {
+    public fun index(self: &IdRegistry): u64 {
         self.index
     }
 
@@ -32,29 +33,46 @@ module wormhole::id_registry {
 
 #[test_only]
 module wormhole::id_registry_test{
-    use wormhole::bytes::{Self};
+    use wormhole::bytes32::{Self};
+    use wormhole::id_registry::{Self};
     use wormhole::external_address::{Self};
-    use wormhole::cursor::{Self};
-
-    use wormhole::id_registry::{Self, destroy};
 
     #[test]
-    fun test_native_id_registry(){
+    fun test_native_id_registry() {
         let registry = id_registry::new();
-        let i = 1;
-        // generate a large number of IDs using native_id_registry::next_id
-        // and check that they are indeed generated in monotonic increasing
-        // order in increments of one
-        while (i < 2000){
-            let addr = id_registry::next_address(&mut registry);
-            let cursor = cursor::new<u8>(external_address::to_bytes(addr));
+        let i = 0;
+        assert!(id_registry::index(&registry) == i, 0);
 
-            // deserialize the 32-byte representation of the ID into an integer
-            let w = bytes::deserialize_u256_be(&mut cursor);
-            cursor::destroy_empty<u8>(cursor);
-            assert!(w==i, 0);
+        // Generate multiple IDs using `next_address` and check that they are
+        // indeed generated in monotonic increasing order in increments of one.
+        while (i < 10) {
+            let left = external_address::to_bytes32(
+                id_registry::next_address(&mut registry)
+            );
+
             i = i + 1;
+            assert!(id_registry::index(&registry) == i, 0);
+
+            let right = bytes32::from_u64_be(i);
+            assert!(left == right, 0);
         };
-        destroy(registry);
+
+        // Skip ahead by some arbitrary amount and repeat.
+        let i = 1000;
+        id_registry::skip_to(&mut registry, i);
+        while (i < 10) {
+            let left = external_address::to_bytes32(
+                id_registry::next_address(&mut registry)
+            );
+
+            i = i + 1;
+            assert!(id_registry::index(&registry) == i, 0);
+
+            let right = bytes32::from_u64_be(i);
+            assert!(left == right, 0);
+        };
+
+        // Clean up.
+        id_registry::destroy(registry);
     }
 }

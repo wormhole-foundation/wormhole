@@ -5,9 +5,7 @@ module wormhole::external_address {
     use wormhole::bytes::{Self};
     use wormhole::bytes32::{Self, Bytes32};
 
-    const E_VECTOR_TOO_LONG: u64 = 0;
-    const E_INVALID_EXTERNAL_ADDRESS: u64 = 1;
-    const E_ZERO_ADDRESS: u64 = 2;
+    const E_ZERO_ADDRESS: u64 = 0;
 
     struct ExternalAddress has drop, copy, store {
         value: Bytes32,
