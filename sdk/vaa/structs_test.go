@@ -328,7 +328,7 @@ func TestSigningBody(t *testing.T) {
 func TestSigningMsg(t *testing.T) {
 	vaa := getVaa()
 	expected := common.HexToHash("4fae136bb1fd782fe1b5180ba735cdc83bcece3f9b7fd0e5e35300a61c8acd8f")
-	assert.Equal(t, vaa.SigningMsg(), expected)
+	assert.Equal(t, vaa.SigningDigest(), expected)
 }
 
 func TestMessageID(t *testing.T) {

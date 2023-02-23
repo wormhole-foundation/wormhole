@@ -30,9 +30,9 @@ type (
 		GetEmitterChain() vaa.ChainID
 		// MessageID returns a human-readable emitter_chain/emitter_address/sequence tuple.
 		MessageID() string
-		// SigningMsg returns the hash of the signing body of the observation. This is used
+		// SigningDigest returns the hash of the hash signing body of the observation. This is used
 		// for signature generation and verification.
-		SigningMsg() ethcommon.Hash
+		SigningDigest() ethcommon.Hash
 		// IsReliable returns whether this message is considered reliable meaning it can be reobserved.
 		IsReliable() bool
 		// HandleQuorum finishes processing the observation once a quorum of signatures have
