@@ -143,9 +143,7 @@ module wormhole::bytes20_tests {
     }
 
     #[test]
-    #[expected_failure(
-        abort_code = bytes20::E_INVALID_BYTES20, location=bytes20
-    )]
+    #[expected_failure(abort_code = bytes20::E_INVALID_BYTES20)]
     public fun cannot_new_non_20_byte_vector() {
         let data =
             x"deadbeefdeadbeefdeadbeefdeadbeefdeadbe";

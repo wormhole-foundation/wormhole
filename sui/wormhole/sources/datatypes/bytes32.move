@@ -178,10 +178,7 @@ module wormhole::bytes32_tests {
     }
 
     #[test]
-    #[expected_failure(
-        abort_code = bytes32::E_INVALID_BYTES32,
-        location=bytes32
-    )]
+    #[expected_failure(abort_code = bytes32::E_INVALID_BYTES32)]
     public fun cannot_new_non_32_byte_vector() {
         let data =
             x"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbe";
