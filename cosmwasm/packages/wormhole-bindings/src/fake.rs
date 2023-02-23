@@ -1,3 +1,4 @@
+// use core::slice::SlicePattern;
 use std::{cell::RefCell, collections::BTreeSet, fmt::Debug, rc::Rc};
 
 use anyhow::{anyhow, bail, ensure, Context};
@@ -6,7 +7,8 @@ use cw_multi_test::{AppResponse, CosmosRouter, Module};
 use k256::ecdsa::{recoverable, signature::Signer, SigningKey};
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
-use wormhole::vaa::{digest, Signature};
+use serde_wormhole::RawMessage;
+use wormhole::vaa::{digest, Header, Signature};
 
 use crate::WormholeQuery;
 
@@ -84,20 +86,36 @@ impl WormholeKeeper {
             .collect()
     }
 
-    pub fn verify_quorum(
-        &self,
-        data: &[u8],
-        index: u32,
-        signatures: &[Signature],
-        block_time: u64,
-    ) -> anyhow::Result<Empty> {
+    pub fn sign_message(&self, msg: &[u8]) -> Vec<Signature> {
+        self.0
+            .borrow()
+            .guardians
+            .iter()
+            .map(|g| {
+                let sig: recoverable::Signature = g.sign(&msg);
+                sig.as_ref().try_into().unwrap()
+            })
+            .enumerate()
+            .map(|(idx, sig)| Signature {
+                index: idx as u8,
+                signature: sig,
+            })
+            .collect()
+    }
+
+    pub fn verify_vaa(&self, vaa: &[u8], block_time: u64) -> anyhow::Result<Empty> {
+        let (header, data) = serde_wormhole::from_slice::<(Header, &RawMessage)>(&vaa)
+            .context("failed to parse VAA header")?;
+
         let mut signers = BTreeSet::new();
-        for s in signatures {
-            self.verify_signature(data, index, s, block_time)?;
+        for s in &header.signatures {
+            // Vaa's are double hashed
+            let digest = digest(data).context("unable to create digest of vaa body")?;
+            self.verify_signature(&[], &digest.hash, header.guardian_set_index, s, block_time)?;
             signers.insert(s.index);
         }
 
-        if signers.len() as u32 >= self.calculate_quorum(index, block_time)? {
+        if signers.len() as u32 >= self.calculate_quorum(header.guardian_set_index, block_time)? {
             Ok(Empty {})
         } else {
             Err(anyhow!("no quorum"))
@@ -106,6 +124,7 @@ impl WormholeKeeper {
 
     pub fn verify_signature(
         &self,
+        prefix: &[u8],
         data: &[u8],
         index: u32,
         sig: &Signature,
@@ -117,13 +136,16 @@ impl WormholeKeeper {
             this.expiration == 0 || block_time < this.expiration,
             "guardian set expired"
         );
+        let mut prepended = Vec::with_capacity(prefix.len() + data.len());
+        prepended.extend_from_slice(prefix);
+        prepended.extend_from_slice(data);
 
-        let d = digest(data).context("failed to calculate digest for data")?;
+        let d = digest(prepended.as_slice()).context("failed to calculate digest for data")?;
         if let Some(g) = this.guardians.get(sig.index as usize) {
             let s = recoverable::Signature::try_from(&sig.signature[..])
                 .context("failed to decode signature")?;
             let verifying_key = s
-                .recover_verify_key_from_digest_bytes(&d.secp256k_hash.into())
+                .recover_verify_key_from_digest_bytes(&d.hash.into())
                 .context("failed to recover verifying key")?;
             ensure!(
                 g.verifying_key() == verifying_key,
@@ -148,19 +170,16 @@ impl WormholeKeeper {
 
     pub fn query(&self, request: WormholeQuery, block: &BlockInfo) -> anyhow::Result<Binary> {
         match request {
-            WormholeQuery::VerifyQuorum {
-                data,
-                guardian_set_index,
-                signatures,
-            } => self
-                .verify_quorum(&data, guardian_set_index, &signatures, block.height)
+            WormholeQuery::VerifyVaa { vaa } => self
+                .verify_vaa(&vaa, block.height)
                 .and_then(|e| to_binary(&e).map_err(From::from)),
-            WormholeQuery::VerifySignature {
+            WormholeQuery::VerifyMessageSignature {
+                prefix,
                 data,
                 guardian_set_index,
                 signature,
             } => self
-                .verify_signature(&data, guardian_set_index, &signature, block.height)
+                .verify_signature(&prefix, &data, guardian_set_index, &signature, block.height)
                 .and_then(|e| to_binary(&e).map_err(From::from)),
             WormholeQuery::CalculateQuorum { guardian_set_index } => self
                 .calculate_quorum(guardian_set_index, block.height)

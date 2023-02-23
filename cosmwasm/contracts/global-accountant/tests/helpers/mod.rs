@@ -351,7 +351,7 @@ pub fn sign_observations(wh: &fake::WormholeKeeper, observations: &[u8]) -> Vec<
     prepended.extend_from_slice(SUBMITTED_OBSERVATIONS_PREFIX);
     prepended.extend_from_slice(observations);
 
-    let mut signatures = wh.sign(&prepended);
+    let mut signatures = wh.sign_message(&prepended);
     signatures.sort_by_key(|s| s.index);
 
     signatures

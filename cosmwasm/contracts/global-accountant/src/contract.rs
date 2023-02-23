@@ -89,15 +89,12 @@ fn submit_observations(
     // We need to prepend an observation prefix to `observations`, which is the
     // same prefix used by the guardians to sign these observations. This
     // prefix specifies this type as global accountant observations.
-    let mut prepended =
-        Vec::with_capacity(SUBMITTED_OBSERVATIONS_PREFIX.len() + observations.len());
-    prepended.extend_from_slice(SUBMITTED_OBSERVATIONS_PREFIX);
-    prepended.extend_from_slice(observations.as_slice());
 
     deps.querier
         .query::<Empty>(
-            &WormholeQuery::VerifySignature {
-                data: prepended.into(),
+            &WormholeQuery::VerifyMessageSignature {
+                prefix: SUBMITTED_OBSERVATIONS_PREFIX.into(),
+                data: observations.clone(),
                 guardian_set_index,
                 signature,
             }
@@ -306,14 +303,7 @@ fn handle_vaa(
     ensure!(header.version == 1, "unsupported VAA version");
 
     deps.querier
-        .query::<Empty>(
-            &WormholeQuery::VerifyQuorum {
-                data: data.to_vec().into(),
-                guardian_set_index: header.guardian_set_index,
-                signatures: header.signatures,
-            }
-            .into(),
-        )
+        .query::<Empty>(&WormholeQuery::VerifyVaa { vaa: vaa.clone() }.into())
         .context(ContractError::VerifyQuorum)?;
 
     let digest = vaa::digest(data)
