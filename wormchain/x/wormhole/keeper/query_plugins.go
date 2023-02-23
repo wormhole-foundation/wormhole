@@ -2,7 +2,6 @@ package keeper
 
 import (
 	"encoding/json"
-	"fmt"
 
 	wasmkeeper "github.com/CosmWasm/wasmd/x/wasm/keeper"
 	wasmvmtypes "github.com/CosmWasm/wasmvm/types"
@@ -63,7 +62,6 @@ func WormholeQuerier(keeper Keeper) func(ctx sdk.Context, data json.RawMessage) 
 		if err != nil {
 			return nil, sdkerrors.Wrap(sdkerrors.ErrJSONUnmarshal, err.Error())
 		}
-		fmt.Println("-- WE GOT QUERIED")
 
 		if wormholeQuery.VerifyQuorum != nil {
 			// verify vaa using deprecated method

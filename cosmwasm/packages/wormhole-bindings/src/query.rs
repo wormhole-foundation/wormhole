@@ -7,15 +7,12 @@ use wormhole::vaa::Signature;
 pub enum WormholeQuery {
     /// Verifies that `data` has been signed by a quorum of guardians from `guardian_set_index`.
     #[returns(Empty)]
-    VerifyQuorum {
-        data: Binary,
-        guardian_set_index: u32,
-        signatures: Vec<Signature>,
-    },
+    VerifyVaa { vaa: Binary },
 
     /// Verifies that `data` has been signed by a guardian from `guardian_set_index`.
     #[returns(Empty)]
-    VerifySignature {
+    VerifyMessageSignature {
+        prefix: Binary,
         data: Binary,
         guardian_set_index: u32,
         signature: Signature,

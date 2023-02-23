@@ -2284,6 +2284,7 @@ dependencies = [
  "k256 0.9.6",
  "schemars",
  "serde",
+ "serde_wormhole",
  "wormhole-core",
 ]
 
