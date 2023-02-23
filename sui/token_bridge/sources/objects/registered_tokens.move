@@ -257,7 +257,7 @@ module token_bridge::registered_tokens_test {
                 2, // chain
                 external_address::from_bytes(x"001234"), // external address
                 tcap, // treasury cap
-                6 // decimals
+                7 // decimals
             );
 
             add_new_native<NATIVE_COIN_10_DECIMALS>(
@@ -309,7 +309,7 @@ module token_bridge::registered_tokens_test {
 
             // check decimals are correct
             assert!(decimals<NATIVE_COIN_10_DECIMALS>(&registered_tokens)==10, 0);
-            assert!(decimals<WRAPPED_COIN_7_DECIMALS>(&registered_tokens)==6, 0);
+            assert!(decimals<WRAPPED_COIN_7_DECIMALS>(&registered_tokens)==7, 0);
 
             // check token addresses are correct
             assert!(token_address<NATIVE_COIN_10_DECIMALS>(&registered_tokens)==
@@ -358,8 +358,6 @@ module token_bridge::registered_tokens_test {
             assert!(num_native(&registered_tokens)==0, 0);
 
             // 3) register wrapped tokens, then mint/burn/deposit
-            //   (for testing purposes, we create a wrapped coin type from
-            //   native_coin_witness_v3)
             let tcap = take_from_address<TreasuryCap<WRAPPED_COIN_7_DECIMALS>>(
                 &mut test,
                 admin
@@ -369,7 +367,7 @@ module token_bridge::registered_tokens_test {
                 2, // chain
                 external_address::from_bytes(x"001234"), // external address
                 tcap, // treasury cap
-                6 // decimals
+                7 // decimals
             );
 
             // mint some wrapped coins, then attempt to deposit them
