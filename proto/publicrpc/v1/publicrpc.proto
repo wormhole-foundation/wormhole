@@ -37,6 +37,7 @@ enum ChainID {
   CHAIN_ID_PYTHNET = 26;
   CHAIN_ID_XPLA = 28;
   CHAIN_ID_BTC = 29;
+  CHAIN_ID_BASE = 30;
 }
 
 // MessageID is a VAA's globally unique identifier (see data availability design document).
