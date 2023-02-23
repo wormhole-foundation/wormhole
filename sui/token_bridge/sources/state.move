@@ -83,7 +83,7 @@ module token_bridge::state {
     ) {
         let DeployerCapability{ id } = deployer;
         object::delete(id);
-    
+
         let state = State {
             id: object::new(ctx),
             consumed_vaas: set::new(ctx),
