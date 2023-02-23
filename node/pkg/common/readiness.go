@@ -28,5 +28,6 @@ const (
 	ReadinessPythNetSyncing   readiness.Component = "pythnetSyncing"
 	ReadinessArbitrumSyncing  readiness.Component = "arbitrumSyncing"
 	ReadinessOptimismSyncing  readiness.Component = "optimismSyncing"
+	ReadinessBaseSyncing      readiness.Component = "baseSyncing"
 	ReadinessWormchainSyncing readiness.Component = "wormchainSyncing"
 )
