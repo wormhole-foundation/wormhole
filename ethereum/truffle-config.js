@@ -348,6 +348,15 @@ module.exports = {
       },
       network_id: 77,
     },
+    base_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://goerli.base.org"
+        );
+      },
+      network_id: 84531,
+    },
   },
 
   compilers: {

@@ -53,6 +53,7 @@ contract Implementation is Governance {
             } else if (chain == 23) { evmChainId = 42161;      // arbitrum
             } else if (chain == 24) { evmChainId = 10;         // optimism
             } else if (chain == 25) { evmChainId = 100;        // gnosis
+            } else if (chain == 30) { evmChainId = 84531;      // base
             } else {
                 revert("Unknown chain id.");
             }
