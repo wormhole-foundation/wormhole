@@ -10,6 +10,10 @@ module wormhole::emitter {
     #[test_only]
     friend wormhole::emitter_test;
 
+    /// `EmitterRegistry` keeps track of auto-assigned IDs using the
+    /// `IdRegistry` resource. For every new `EmitterCapability` created, its
+    /// registry will uptick an internal value for the next call to
+    /// `new_emitter`.
     struct EmitterRegistry has store {
         registry: IdRegistry
     }
@@ -30,7 +34,12 @@ module wormhole::emitter {
         EmitterRegistry { registry: id_registry::new() }
     }
 
-    public(friend) fun new_emitter(
+    #[test_only]
+    public fun new_registry_test_only(): EmitterRegistry {
+        new_registry()
+    }
+
+    public fun new_emitter(
         self: &mut EmitterRegistry,
         ctx: &mut TxContext
     ): EmitterCapability {
@@ -78,7 +87,7 @@ module wormhole::emitter_test {
     // use sui::tx_context;
 
     #[test]
-    public fun test_increasing_emitters() {
+    public fun test_new_registry() {
         // let ctx = tx_context::dummy();
 
         // let registry = emitter::init_emitter_registry();

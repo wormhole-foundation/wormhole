@@ -60,15 +60,9 @@ module token_bridge::register_chain {
         let vaa = corevaa::parse_and_verify(wormhole_state, vaa, ctx);
         corevaa::assert_governance(wormhole_state, &vaa);
         token_bridge_vaa::replay_protect(bridge_state, &vaa);
-        let RegisterChain {
-            emitter_chain_id,
-            emitter_address
-        } = parse_payload(corevaa::destroy(vaa));
-        bridge_state::register_emitter(
-            bridge_state,
-            emitter_chain_id,
-            emitter_address
-        );
+        let RegisterChain { emitter_chain_id, emitter_address } =
+            parse_payload(corevaa::take_payload(vaa));
+        bridge_state::register_emitter(bridge_state, emitter_chain_id, emitter_address);
     }
 
     public fun get_emitter_chain_id(a: &RegisterChain): u16 {
@@ -151,9 +145,8 @@ module token_bridge::register_chain_test {
         let (admin, _, _) = people();
         next_tx(&mut test, admin); {
             let vaa = corevaa::parse_test(ETHEREUM_TOKEN_REG);
-            let register_chain = register_chain::parse_payload_test(
-                corevaa::destroy(vaa)
-            );
+            let register_chain =
+                register_chain::parse_payload_test(corevaa::take_payload(vaa));
             let chain = register_chain::get_emitter_chain_id(&register_chain);
             let address = register_chain::get_emitter_address(&register_chain);
 
@@ -167,10 +160,9 @@ module token_bridge::register_chain_test {
         let (admin, _, _) = people();
         next_tx(&mut test, admin); {
             let vaa = corevaa::parse_test(ETHEREUM_NFT_REG);
-            // This should fail because it's an NFT registration.
-            let _register_chain = register_chain::parse_payload_test(
-                corevaa::destroy(vaa)
-            );
+            // this should fail because it's an NFT registration
+            let _register_chain =
+                register_chain::parse_payload_test(corevaa::take_payload(vaa));
         };
         test_scenario::end(test);
     }

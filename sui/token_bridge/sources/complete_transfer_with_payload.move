@@ -5,7 +5,7 @@ module token_bridge::complete_transfer_with_payload {
     use wormhole::state::{State as WormholeState};
     use wormhole::external_address::{Self};
     use wormhole::emitter::{Self, EmitterCapability};
-    use wormhole::vaa::{get_emitter_chain};
+    use wormhole::vaa::{emitter_chain};
 
     use token_bridge::complete_transfer::{verify_transfer_details};
     use token_bridge::state::{State};
@@ -33,12 +33,12 @@ module token_bridge::complete_transfer_with_payload {
             );
 
         // Before destroying VAA, store the emitter chain ID for the caller.
-        let source_chain = get_emitter_chain(&transfer_vaa);
+        let source_chain = emitter_chain(&transfer_vaa);
 
         // Deserialize for processing.
         let parsed_transfer =
             transfer_with_payload::deserialize(
-                wormhole::vaa::destroy(transfer_vaa)
+                wormhole::vaa::take_payload(transfer_vaa)
             );
         let token_coin =
             handle_complete_transfer_with_payload(

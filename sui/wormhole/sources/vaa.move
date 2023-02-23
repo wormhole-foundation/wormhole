@@ -38,9 +38,176 @@ module wormhole::vaa {
         hash: Bytes32
     }
 
+    public fun guardian_set_index(self: &VAA): u32 {
+         self.guardian_set_index
+    }
+
+    public fun signatures(self: &VAA): &vector<GuardianSignature> {
+        &self.signatures
+    }
+
+    public fun timestamp(self: &VAA): u32 {
+         self.timestamp
+    }
+
+    public fun nonce(self: &VAA): u32 {
+        self.nonce
+    }
+
+    public fun batch_id(self: &VAA): u32 {
+        nonce(self)
+    }
+
+    public fun payload(self: &VAA): vector<u8> {
+         self.payload
+    }
+
+    public fun hash(self: &VAA): Bytes32 {
+         self.hash
+    }
+
+    public fun hash_as_bytes(self: &VAA): vector<u8> {
+        bytes32::to_bytes(self.hash)
+    }
+
+    public fun emitter_chain(self: &VAA): u16 {
+         self.emitter_chain
+    }
+
+    public fun emitter_address(self: &VAA): ExternalAddress {
+         self.emitter_address
+    }
+
+    public fun sequence(self: &VAA): u64 {
+         self.sequence
+    }
+
+    public fun consistency_level(self: &VAA): u8 {
+        self.consistency_level
+    }
+
+    public fun finality(self: &VAA): u8 {
+        consistency_level(self)
+    }
+
+    /// Destroy the `VAA` and take the Wormhole message payload.
+    public fun take_payload(vaa: VAA): vector<u8> {
+         let VAA {
+            guardian_set_index: _,
+            signatures: _,
+            timestamp: _,
+            nonce: _,
+            emitter_chain: _,
+            emitter_address: _,
+            sequence: _,
+            consistency_level: _,
+            hash: _,
+            payload,
+         } = vaa;
+        payload
+    }
+
+    /// Destroy the `VAA` and take emitter info (chain and address) and Wormhole
+    /// message payload.
+    public fun take_emitter_info_and_payload(
+        vaa: VAA
+    ): (u16, ExternalAddress, vector<u8>) {
+        let VAA {
+            guardian_set_index: _,
+            signatures: _,
+            timestamp: _,
+            nonce: _,
+            emitter_chain,
+            emitter_address,
+            sequence: _,
+            consistency_level: _,
+            hash: _,
+            payload,
+         } = vaa;
+        (emitter_chain, emitter_address, payload)
+    }
+
+    /// This method only grabs the Wormhole message payload from a VAA.
+    ///
+    /// THIS DOES NOT PERFORM ANY VERIFICATION OF THE VAA!
+    ///
+    /// This method may be useful if there is a multi-step process that assumes
+    /// information in a VAA is legitimate and verification will happen in one
+    /// of its steps.
+    public fun peel_payload_from_vaa(buf: &vector<u8>): vector<u8> {
+        // Just make sure that we are passing version 1 VAAs to this method.
+        assert!(*vector::borrow(buf, 0) == VERSION_VAA, E_WRONG_VERSION);
+
+        // Find the location of the payload.
+        let num_signatures = (*vector::borrow(buf, 5) as u64);
+        let i = 57 + num_signatures * 66;
+
+        // Push the payload bytes to `out` and return.
+        let out = vector::empty();
+        let len = vector::length(buf);
+        while (i < len) {
+            vector::push_back(&mut out, *vector::borrow(buf, i));
+            i = i + 1;
+        };
+
+        // Return the payload.
+        out
+    }
+
+    /// Parses and verifies the signatures of a VAA.
+    /// NOTE: this is the only public function that returns a VAA, and it should
+    /// be kept that way. This ensures that if an external module receives a
+    /// `VAA`, it has been verified.
+    public fun parse_and_verify(
+        state: &mut State,
+        buf: vector<u8>,
+        ctx: &TxContext
+    ): VAA {
+        // Deserialize VAA buffer (and return `VAA` after verifying signatures).
+        let vaa = parse(buf);
+
+        // Fetch the guardian set which this VAA was supposedly signed with.
+        let guardian_set =
+            state::guardian_set_at(state, &vaa.guardian_set_index);
+
+        // Verify signatures using guardian set.
+        guardian_set::verify_signatures(
+            guardian_set,
+            vaa.signatures,
+            hash_as_bytes(&vaa),
+            ctx
+        );
+
+        // Done.
+        vaa
+    }
+
+    /// Aborts if the VAA is not governance (i.e. sent from the governance
+    /// emitter on the governance chain)
+    public fun assert_governance(wormhole_state: &State, vaa: &VAA) {
+        let latest_guardian_set_index = state::guardian_set_index(wormhole_state);
+        assert!(vaa.guardian_set_index == latest_guardian_set_index, E_OLD_GUARDIAN_SET_GOVERNANCE);
+        assert!(vaa.emitter_chain == state::governance_chain(wormhole_state), E_INVALID_GOVERNANCE_CHAIN);
+        assert!(vaa.emitter_address == state::governance_contract(wormhole_state), E_INVALID_GOVERNANCE_EMITTER);
+    }
+
+    /// Aborts if the VAA has already been consumed. Marks the VAA as consumed
+    /// the first time around.
+    /// Only to be used for core bridge messages. Protocols should implement
+    /// their own replay protection.
+    public(friend) fun replay_protect(state: &mut State, vaa: &VAA) {
+        // this calls table::add which aborts if the key already exists
+        state::set_governance_action_consumed(state, hash_as_bytes(vaa));
+    }
+
     #[test_only]
     public fun parse_test(bytes: vector<u8>): VAA {
         parse(bytes)
+    }
+
+    #[test_only]
+    public fun destroy(vaa: VAA) {
+        take_payload(vaa);
     }
 
     /// Parses a VAA.
@@ -101,113 +268,6 @@ module wormhole::vaa {
             hash,
             payload,
         }
-    }
-
-    public fun guardian_set_index(self: &VAA): u32 {
-         self.guardian_set_index
-    }
-
-    public fun signatures(self: &VAA): &vector<GuardianSignature> {
-        &self.signatures
-    }
-
-    public fun timestamp(self: &VAA): u32 {
-         self.timestamp
-    }
-
-    public fun nonce(self: &VAA): u32 {
-        self.nonce
-    }
-
-    public fun batch_id(self: &VAA): u32 {
-        nonce(self)
-    }
-
-    public fun payload(self: &VAA): vector<u8> {
-         self.payload
-    }
-
-    public fun hash(self: &VAA): Bytes32 {
-         self.hash
-    }
-
-    public fun emitter_chain(self: &VAA): u16 {
-         self.emitter_chain
-    }
-
-    public fun emitter_address(self: &VAA): ExternalAddress {
-         self.emitter_address
-    }
-
-    public fun sequence(self: &VAA): u64 {
-         self.sequence
-    }
-
-    public fun consistency_level(self: &VAA): u8 {
-        self.consistency_level
-    }
-
-    public fun finality(self: &VAA): u8 {
-        consistency_level(self)
-    }
-
-    public fun destroy(vaa: VAA): vector<u8> {
-         let VAA {
-            guardian_set_index: _,
-            signatures: _,
-            timestamp: _,
-            nonce: _,
-            emitter_chain: _,
-            emitter_address: _,
-            sequence: _,
-            consistency_level: _,
-            hash: _,
-            payload,
-         } = vaa;
-        payload
-    }
-
-    /// Parses and verifies the signatures of a VAA.
-    /// NOTE: this is the only public function that returns a VAA, and it should
-    /// be kept that way. This ensures that if an external module receives a
-    /// `VAA`, it has been verified.
-    public fun parse_and_verify(
-        state: &mut State,
-        buf: vector<u8>,
-        ctx: &TxContext
-    ): VAA {
-        let vaa = parse(buf);
-        let guardian_set = state::guardian_set_at(state, &vaa.guardian_set_index);
-
-        guardian_set::verify_signatures(guardian_set, vaa.signatures, bytes32::to_bytes(vaa.hash), ctx);
-        vaa
-    }
-
-    /// Gets a VAA payload without doing verififcation on the VAA. This method is
-    /// used for convenience in the Coin package, for example, for creating new tokens
-    /// with asset metadata in a token attestation VAA payload.
-    public fun parse_and_get_payload(bytes: vector<u8>): vector<u8> {
-        let vaa = parse(bytes);
-        let payload = destroy(vaa);
-        return payload
-    }
-
-    /// Aborts if the VAA is not governance (i.e. sent from the governance
-    /// emitter on the governance chain)
-    public fun assert_governance(wormhole_state: &State, vaa: &VAA) {
-        let latest_guardian_set_index = state::guardian_set_index(wormhole_state);
-        assert!(vaa.guardian_set_index == latest_guardian_set_index, E_OLD_GUARDIAN_SET_GOVERNANCE);
-        assert!(vaa.emitter_chain == state::governance_chain(wormhole_state), E_INVALID_GOVERNANCE_CHAIN);
-        assert!(vaa.emitter_address == state::governance_contract(wormhole_state), E_INVALID_GOVERNANCE_EMITTER);
-    }
-
-    /// Aborts if the VAA has already been consumed. Marks the VAA as consumed
-    /// the first time around.
-    /// Only to be used for core bridge messages. Protocols should implement
-    /// their own replay protection.
-    public(friend) fun replay_protect(state: &mut State, vaa: &VAA) {
-        // this calls table::add which aborts if the key already exists
-        state::set_governance_action_consumed(state, bytes32::to_bytes(vaa.hash));
     }
 
 }
