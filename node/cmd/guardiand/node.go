@@ -175,6 +175,9 @@ var (
 	optimismCtcRpc             *string
 	optimismCtcContractAddress *string
 
+	baseRPC      *string
+	baseContract *string
+
 	logLevel *string
 
 	unsafeDevMode   *bool
@@ -321,6 +324,9 @@ func init() {
 	optimismContract = NodeCmd.Flags().String("optimismContract", "", "Optimism contract address")
 	optimismCtcRpc = NodeCmd.Flags().String("optimismCtcRpc", "", "Optimism CTC RPC")
 	optimismCtcContractAddress = NodeCmd.Flags().String("optimismCtcContractAddress", "", "Optimism CTC contract address")
+
+	baseRPC = NodeCmd.Flags().String("baseRPC", "", "Base RPC URL")
+	baseContract = NodeCmd.Flags().String("baseContract", "", "Base contract address")
 
 	logLevel = NodeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
 
@@ -492,6 +498,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		*neonContract = unsafeDevModeEvmContractAddress(*neonContract)
 		*arbitrumContract = unsafeDevModeEvmContractAddress(*arbitrumContract)
 		*optimismContract = unsafeDevModeEvmContractAddress(*optimismContract)
+		*baseContract = unsafeDevModeEvmContractAddress(*baseContract)
 	}
 
 	// Verify flags
@@ -639,12 +646,24 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *neonContract == "" {
 			logger.Fatal("Please specify --neonContract")
 		}
+		if *baseRPC == "" {
+			logger.Fatal("Please specify --baseRPC")
+		}
+		if *baseContract == "" {
+			logger.Fatal("Please specify --baseContract")
+		}
 	} else {
 		if *neonRPC != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --neonRPC")
 		}
 		if *neonContract != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --neonContract")
+		}
+		if *baseRPC != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --baseRPC")
+		}
+		if *baseContract != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --baseContract")
 		}
 	}
 	if *nodeName == "" {
@@ -768,6 +787,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	neonContractAddr := eth_common.HexToAddress(*neonContract)
 	arbitrumContractAddr := eth_common.HexToAddress(*arbitrumContract)
 	optimismContractAddr := eth_common.HexToAddress(*optimismContract)
+	baseContractAddr := eth_common.HexToAddress(*baseContract)
 	solAddress, err := solana_types.PublicKeyFromBase58(*solanaContract)
 	if err != nil {
 		logger.Fatal("invalid Solana contract address", zap.Error(err))
@@ -1342,6 +1362,16 @@ func runNode(cmd *cobra.Command, args []string) {
 				neonWatcher := evm.NewEthWatcher(*neonRPC, neonContractAddr, "neon", common.ReadinessNeonSyncing, vaa.ChainIDNeon, chainMsgC[vaa.ChainIDNeon], nil, chainObsvReqC[vaa.ChainIDNeon], *unsafeDevMode)
 				neonWatcher.SetL1Finalizer(solanaFinalizedWatcher)
 				if err := supervisor.Run(ctx, "neonwatch", common.WrapWithScissors(neonWatcher.Run, "neonwatch")); err != nil {
+					return err
+				}
+			}
+			logger.Info("checking for base")
+			if shouldStart(baseRPC) {
+				logger.Info("Starting Base watcher")
+				readiness.RegisterComponent(common.ReadinessBaseSyncing)
+				chainObsvReqC[vaa.ChainIDBase] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
+				baseWatcher := evm.NewEthWatcher(*baseRPC, baseContractAddr, "base", common.ReadinessBaseSyncing, vaa.ChainIDBase, chainMsgC[vaa.ChainIDBase], nil, chainObsvReqC[vaa.ChainIDBase], *unsafeDevMode)
+				if err := supervisor.Run(ctx, "basewatch", common.WrapWithScissors(baseWatcher.Run, "basewatch")); err != nil {
 					return err
 				}
 			}

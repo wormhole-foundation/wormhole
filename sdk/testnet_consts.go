@@ -31,6 +31,7 @@ var knownTestnetTokenbridgeEmitters = map[vaa.ChainID]string{
 	vaa.ChainIDNeon:      "000000000000000000000000c7a204bdbfe983fcd8d8e61d02b475d4073ff97e",
 	vaa.ChainIDXpla:      "b66da121bd3621c8d2604c08c82965640fe682d606af26a302ee09094f5e62cf",
 	vaa.ChainIDInjective: "00000000000000000000000003f3e7b2e363f51cf6e57ef85f43a2b91dbce501",
+	vaa.ChainIDBase:      "000000000000000000000000A31aa3FDb7aF7Db93d18DDA4e19F811342EDF780",
 }
 
 // KnownTestnetNFTBridgeEmitters is a map  of known NFT emitters on the various L1 testnets.
@@ -52,4 +53,5 @@ var knownTestnetNFTBridgeEmitters = map[vaa.ChainID]string{
 	vaa.ChainIDArbitrum:  "000000000000000000000000Ee3dB83916Ccdc3593b734F7F2d16D630F39F1D0",
 	vaa.ChainIDOptimism:  "00000000000000000000000023908A62110e21C04F3A4e011d24F901F911744A",
 	vaa.ChainIDNeon:      "00000000000000000000000023908a62110e21c04f3a4e011d24f901f911744a",
+	vaa.ChainIDBase:      "000000000000000000000000F681d1cc5F25a3694E348e7975d7564Aa581db59",
 }
