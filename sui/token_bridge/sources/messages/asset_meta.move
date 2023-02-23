@@ -17,15 +17,15 @@ module token_bridge::asset_meta {
     const PAYLOAD_ID: u8 = 2;
 
     struct AssetMeta has copy, store, drop {
-        /// Address of the token. Left-zero-padded if shorter than 32 bytes
+        // Address of the token. Left-zero-padded if shorter than 32 bytes
         token_address: ExternalAddress,
-        /// Chain ID of the token
+        // Chain ID of the token
         token_chain: u16,
-        /// Number of decimals of the token (big-endian uint256)
+        // Number of decimals of the token (big-endian uint256)
         native_decimals: u8,
-        /// Symbol of the token (UTF-8)
+        // Symbol of the token (UTF-8)
         symbol: String32,
-        /// Name of the token (UTF-8)
+        // Name of the token (UTF-8)
         name: String32,
     }
 

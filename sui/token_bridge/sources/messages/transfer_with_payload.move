@@ -20,19 +20,19 @@ module token_bridge::transfer_with_payload {
     const PAYLOAD_ID: u8 = 3;
 
     struct TransferWithPayload has store, drop {
-        /// Amount being transferred (big-endian uint256)
+        // Amount being transferred (big-endian uint256)
         amount: NormalizedAmount,
-        /// Address of the token. Left-zero-padded if shorter than 32 bytes
+        // Address of the token. Left-zero-padded if shorter than 32 bytes
         token_address: ExternalAddress,
-        /// Chain ID of the token
+        // Chain ID of the token
         token_chain: u16,
-        /// Address of the recipient. Left-zero-padded if shorter than 32 bytes
+        // Address of the recipient. Left-zero-padded if shorter than 32 bytes
         recipient: ExternalAddress,
-        /// Chain ID of the recipient
+        // Chain ID of the recipient
         recipient_chain: u16,
-        /// Address of the message sender. Left-zero-padded if shorter than 32 bytes
+        // Address of the message sender. Left-zero-padded if shorter than 32 bytes
         sender: ExternalAddress,
-        /// An arbitrary payload
+        // An arbitrary payload
         payload: vector<u8>,
     }
 

@@ -6,7 +6,7 @@ module token_bridge::native_id_registry {
     friend token_bridge::state;
 
     struct NativeIdRegistry has store {
-        /// Integer label for coin types registered with Wormhole
+        // Integer label for coin types registered with Wormhole
         index: u64
     }
 

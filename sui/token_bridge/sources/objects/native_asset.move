@@ -35,7 +35,7 @@ module token_bridge::native_asset {
     ){
         assert!(coin::value<C>(&self.custody)==0, 0);
         let NativeAsset<C>{
-            custody: custody,
+            custody,
             token_address: _,
             decimals: _
         } = self;
@@ -97,10 +97,10 @@ module token_bridge::native_asset_test{
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
-    // in this test, we exercise all the functionalities of a native asset
-    // object, including new, deposit, withdraw, to_token_info, as well as
-    // getting fields token_address, decimals, balan.ce
     #[test]
+    /// in this test, we exercise all the functionalities of a native asset
+    /// object, including new, deposit, withdraw, to_token_info, as well as
+    /// getting fields token_address, decimals, balan.ce
     fun test_native_asset(){
         let test = scenario();
         let (admin, _, _) = people();
