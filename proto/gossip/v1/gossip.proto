@@ -62,6 +62,9 @@ message Heartbeat {
 
   // List of features enabled on this node.
   repeated string features = 8;
+
+  // (Optional) libp2p address of this node.
+  bytes p2p_node_id = 9;
 }
 
 // A SignedObservation is a signed statement by a given guardian node

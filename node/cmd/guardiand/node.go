@@ -211,7 +211,7 @@ var (
 
 func init() {
 	p2pNetworkID = NodeCmd.Flags().String("network", "/wormhole/dev", "P2P network identifier")
-	p2pPort = NodeCmd.Flags().Uint("port", 8999, "P2P UDP listener port")
+	p2pPort = NodeCmd.Flags().Uint("port", p2p.DefaultPort, "P2P UDP listener port")
 	p2pBootstrap = NodeCmd.Flags().String("bootstrap", "", "P2P bootstrap peers (comma-separated)")
 
 	statusAddr = NodeCmd.Flags().String("statusAddr", "[::]:6060", "Listen address for status server (disabled if blank)")
@@ -832,8 +832,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	logger.Info("Loaded guardian key", zap.String(
 		"address", guardianAddr))
 
-	p2p.DefaultRegistry.SetGuardianAddress(guardianAddr)
-
 	// Node's main lifecycle context.
 	rootCtx, rootCtxCancel = context.WithCancel(context.Background())
 	defer rootCtxCancel()
@@ -1067,10 +1065,28 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Info("chain governor is disabled")
 	}
 
+	components := p2p.DefaultComponents()
+	components.Port = *p2pPort
+
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
 		if err := supervisor.Run(ctx, "p2p", p2p.Run(
-			(chan<- *gossipv1.SignedObservation)(obsvC), obsvReqWriteC, obsvReqSendReadC, gossipSendC, signedInWriteC, priv, gk, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, rootCtxCancel, acct, gov, nil, nil)); err != nil {
+			obsvC,
+			obsvReqWriteC,
+			obsvReqSendReadC,
+			gossipSendC,
+			signedInWriteC,
+			priv,
+			gk,
+			gst,
+			*p2pNetworkID,
+			*p2pBootstrap,
+			*nodeName,
+			*disableHeartbeatVerify,
+			rootCtxCancel,
+			acct,
+			gov,
+			nil, nil, components)); err != nil {
 			return err
 		}
 

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/accountant"
@@ -37,6 +38,8 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 )
+
+const DefaultPort = 8999
 
 var (
 	p2pHeartbeatsSent = promauto.NewCounter(
@@ -76,6 +79,62 @@ func signedObservationRequestDigest(b []byte) common.Hash {
 	return ethcrypto.Keccak256Hash(append(signedObservationRequestPrefix, b...))
 }
 
+type Components struct {
+	// P2PIDInHeartbeat determines if the guardian will put it's libp2p node ID in the authenticated heartbeat payload
+	P2PIDInHeartbeat           bool
+	ListeningAddressesPatterns []string
+	// Port on which the Guardian is going to bind
+	Port uint
+	// ConnMgr is the ConnectionManager that the Guardian is going to use
+	ConnMgr *connmgr.BasicConnMgr
+	// ProtectedHostByGuardianKey is used to ensure that only one p2p peer can be protected by any given known guardian key
+	ProtectedHostByGuardianKey map[common.Address]peer.ID
+	// ProtectedHostByGuardianKeyLock is only useful to prevent a race condition in test as ProtectedHostByGuardianKey
+	// is only accessed by a single routine at any given time in a running Guardian.
+	ProtectedHostByGuardianKeyLock sync.Mutex
+}
+
+func (f *Components) ListeningAddresses() []string {
+	la := make([]string, 0, len(f.ListeningAddressesPatterns))
+	for _, pattern := range f.ListeningAddressesPatterns {
+		la = append(la, fmt.Sprintf(pattern, f.Port))
+	}
+	return la
+}
+
+func DefaultComponents() *Components {
+	mgr, err := DefaultConnectionManager()
+	if err != nil {
+		panic(err)
+	}
+
+	return &Components{
+		P2PIDInHeartbeat: true,
+		ListeningAddressesPatterns: []string{
+			// Listen on QUIC only.
+			// https://github.com/libp2p/go-libp2p/issues/688
+			"/ip4/0.0.0.0/udp/%d/quic",
+			"/ip6/::/udp/%d/quic",
+		},
+		Port:                       DefaultPort,
+		ConnMgr:                    mgr,
+		ProtectedHostByGuardianKey: make(map[common.Address]peer.ID),
+	}
+}
+
+const LowWaterMarkDefault = 100
+const HighWaterMarkDefault = 400
+
+func DefaultConnectionManager() (*connmgr.BasicConnMgr, error) {
+	return connmgr.NewConnManager(
+		LowWaterMarkDefault,
+		HighWaterMarkDefault,
+
+		// GracePeriod set to 0 means that new peers are not protected by a grace period
+		connmgr.WithGracePeriod(0),
+	)
+}
+
 func Run(
 	obsvC chan<- *gossipv1.SignedObservation,
 	obsvReqC chan<- *gossipv1.ObservationRequest,
@@ -85,7 +144,6 @@ func Run(
 	priv crypto.PrivKey,
 	gk *ecdsa.PrivateKey,
 	gst *node_common.GuardianSetState,
-	port uint,
 	networkID string,
 	bootstrapPeers string,
 	nodeName string,
@@ -95,7 +153,12 @@ func Run(
 	gov *governor.ChainGovernor,
 	signedGovCfg chan *gossipv1.SignedChainGovernorConfig,
 	signedGovSt chan *gossipv1.SignedChainGovernorStatus,
+	components *Components,
 ) func(ctx context.Context) error {
+	if components == nil {
+		components = DefaultComponents()
+	}
+
 	return func(ctx context.Context) (re error) {
 		p2pReceiveChannelOverflow.WithLabelValues("observation").Add(0)
 		p2pReceiveChannelOverflow.WithLabelValues("signed_vaa_with_quorum").Add(0)
@@ -103,25 +166,13 @@ func Run(
 
 		logger := supervisor.Logger(ctx)
 
-		mgr, err := connmgr.NewConnManager(
-			100, // LowWater
-			400, // HighWater,
-			connmgr.WithGracePeriod(time.Minute),
-		)
-		if err != nil {
-			return fmt.Errorf("failed to create p2p connection manager: %w", err)
-		}
-
 		h, err := libp2p.New(
 			// Use the keypair we generated
 			libp2p.Identity(priv),
 
 			// Multiple listen addresses
 			libp2p.ListenAddrStrings(
-				// Listen on QUIC only.
-				// https://github.com/libp2p/go-libp2p/issues/688
-				fmt.Sprintf("/ip4/0.0.0.0/udp/%d/quic", port),
-				fmt.Sprintf("/ip6/::/udp/%d/quic", port),
+				components.ListeningAddresses()...,
 			),
 
 			// Enable TLS security as the only security protocol.
@@ -132,7 +183,7 @@ func Run(
 
 			// Let's prevent our peer from having too many
 			// connections by attaching a connection manager.
-			libp2p.ConnectionManager(mgr),
+			libp2p.ConnectionManager(components.ConnMgr),
 
 			// Let this host use the DHT to find other hosts
 			libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
@@ -178,6 +229,11 @@ func Run(
 			rootCtxCancel()
 		}()
 
+		nodeIdBytes, err := h.ID().Marshal()
+		if err != nil {
+			panic(err)
+		}
+
 		topic := fmt.Sprintf("%s/%s", networkID, "broadcast")
 
 		logger.Info("Subscribing pubsub topic", zap.String("topic", topic))
@@ -220,6 +276,7 @@ func Run(
 			if nodeName == "" {
 				return
 			}
+			ourAddr := ethcrypto.PubkeyToAddress(gk.PublicKey)
 
 			ctr := int64(0)
 			tick := time.NewTicker(15 * time.Second)
@@ -256,12 +313,15 @@ func Run(
 							Timestamp:     time.Now().UnixNano(),
 							Networks:      networks,
 							Version:       version.Version(),
-							GuardianAddr:  DefaultRegistry.guardianAddress,
+							GuardianAddr:  ourAddr.String(),
 							BootTimestamp: bootTime.UnixNano(),
 							Features:      features,
 						}
 
-						ourAddr := ethcrypto.PubkeyToAddress(gk.PublicKey)
+						if components.P2PIDInHeartbeat {
+							heartbeat.P2PNodeId = nodeIdBytes
+						}
+
 						if err := gst.SetHeartbeat(ourAddr, h.ID(), heartbeat); err != nil {
 							panic(err)
 						}
@@ -400,6 +460,43 @@ func Run(
 					logger.Debug("valid signed heartbeat received",
 						zap.Any("value", heartbeat),
 						zap.String("from", envelope.GetFrom().String()))
+
+					func() {
+						if len(heartbeat.P2PNodeId) != 0 {
+							components.ProtectedHostByGuardianKeyLock.Lock()
+							defer components.ProtectedHostByGuardianKeyLock.Unlock()
+							var peerId peer.ID
+							if err = peerId.Unmarshal(heartbeat.P2PNodeId); err != nil {
+								logger.Error("p2p_node_id_in_heartbeat_invalid",
+									zap.Any("payload", msg.Message),
+									zap.Any("value", s),
+									zap.Binary("raw", envelope.Data),
+									zap.String("from", envelope.GetFrom().String()))
+							} else {
+								guardianAddr := common.BytesToAddress(s.GuardianAddr)
+								prevPeerId, ok := components.ProtectedHostByGuardianKey[guardianAddr]
+								if ok {
+									if prevPeerId != peerId {
+										logger.Info("p2p_guardian_peer_changed",
+											zap.String("guardian_addr", guardianAddr.String()),
+											zap.String("prevPeerId", prevPeerId.String()),
+											zap.String("newPeerId", peerId.String()),
+										)
+										components.ConnMgr.Unprotect(prevPeerId, "heartbeat")
+										components.ConnMgr.Protect(peerId, "heartbeat")
+										components.ProtectedHostByGuardianKey[guardianAddr] = peerId
+									}
+								} else {
+									components.ConnMgr.Protect(peerId, "heartbeat")
+									components.ProtectedHostByGuardianKey[guardianAddr] = peerId
+								}
+							}
+						} else {
+							logger.Debug("p2p_node_id_not_in_heartbeat",
+								zap.Error(err),
+								zap.Any("payload", heartbeat.NodeName))
+						}
+					}()
 				}
 			case *gossipv1.GossipMessage_SignedObservation:
 				select {
