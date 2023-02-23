@@ -6,6 +6,7 @@ module token_bridge::string32 {
     use std::string::{Self, String};
     use std::option;
     use std::vector;
+    use std::ascii;
 
     use wormhole::cursor::Cursor;
     use wormhole::bytes::{Self};
@@ -94,6 +95,18 @@ module token_bridge::string32 {
             vector::pop_back(&mut bytes);
         };
         string::utf8(bytes)
+    }
+
+    public fun to_ascii_string(s: &String32): ascii::String {
+        let String32 { string } = s;
+        let bytes = *string::bytes(string);
+        // keep dropping the last character while it's 0
+        while (!vector::is_empty(&bytes) &&
+               *vector::borrow(&bytes, vector::length(&bytes) - 1) == 0
+        ) {
+            vector::pop_back(&mut bytes);
+        };
+        ascii::string(bytes)
     }
 
     /// Converts `String32` to a byte vector of length 32.

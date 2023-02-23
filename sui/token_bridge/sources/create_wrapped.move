@@ -1,16 +1,17 @@
 /// This module uses the one-time witness (OTW)
 /// Sui one-time witness pattern reference: https://examples.sui.io/basics/one-time-witness.html
 module token_bridge::create_wrapped {
-    use sui::coin::{Self};
     use std::string::{Self};
+    use std::ascii::{Self};
     use std::option::{Self};
+    use sui::coin::{Self, CoinMetadata};
     use sui::transfer::{Self};
     use sui::tx_context::{TxContext};
     use sui::url::{Url};
     use wormhole::state::{Self as wormhole_state, State as WormholeState};
     use wormhole::myvaa as core_vaa;
 
-    use token_bridge::asset_meta::{Self};
+    use token_bridge::asset_meta::{Self, symbol_to_string, name_to_string};
     use token_bridge::wrapped_coin::{Self, WrappedCoin};
     use token_bridge::state::{Self, State};
     use token_bridge::vaa::{Self};
@@ -63,7 +64,7 @@ module token_bridge::create_wrapped {
             coin::create_currency<CoinType>(
                 coin_witness,
                 coin_decimals,
-                *string::bytes(&asset_meta::symbol_to_string(&meta)),
+                *ascii::as_bytes(&asset_meta::symbol_to_string(&meta)),
                 *string::bytes(&asset_meta::name_to_string(&meta)),
                 b"", // no description necessary
                 option::none<Url>(), // no url necessary
@@ -116,6 +117,40 @@ module token_bridge::create_wrapped {
             external_address,
             treasury_cap,
             decimals,
+        );
+    }
+
+    public entry fun update_registered_wrapped_coin_metadata<CoinType>(
+        token_bridge_state: &mut State,
+        worm_state: &mut WormholeState,
+        vaa_bytes: vector<u8>,
+        metadata: &mut CoinMetadata<CoinType>,
+        ctx: &mut TxContext
+    ) {
+        let vaa = vaa::parse_verify_and_replay_protect(
+            token_bridge_state,
+            worm_state,
+            vaa_bytes,
+            ctx
+        );
+        let payload = core_vaa::destroy(vaa);
+        let meta = asset_meta::deserialize(payload);
+        let origin_chain = asset_meta::token_chain(&meta);
+
+        assert!(
+            origin_chain != wormhole_state::chain_id(),
+            E_WRAPPING_NATIVE_COIN
+        );
+        assert!(
+            !state::is_registered_asset<CoinType>(token_bridge_state),
+            E_WRAPPED_COIN_ALREADY_INITIALIZED
+        );
+
+        state::update_registered_wrapped_asset_metadata<CoinType>(
+            token_bridge_state,
+            metadata,
+            symbol_to_string(&meta),
+            name_to_string(&meta)
         );
     }
 }
