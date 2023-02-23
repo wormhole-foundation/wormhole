@@ -99,20 +99,14 @@ module wormhole::external_address_test {
     }
 
     #[test]
-    #[expected_failure(
-        abort_code = bytes32::E_INVALID_BYTES32,
-        location = bytes32
-    )]
+    #[expected_failure(abort_code = bytes32::E_INVALID_BYTES32)]
     public fun test_left_pad_vector_too_long() {
         let v = x"123456789123456789123456789123451234567891234567891234567891234500"; //33 bytes
         external_address::from_bytes(v);
     }
 
     #[test]
-    #[expected_failure(
-        abort_code = bytes20::E_INVALID_FROM_BYTES,
-        location = bytes20
-    )]
+    #[expected_failure(abort_code = bytes20::E_INVALID_FROM_BYTES)]
     public fun test_to_address_too_long() {
         // non-0 bytes in first 12 bytes
         let v = x"0000010000000000000000000000000000000000000000000000000000001234";
