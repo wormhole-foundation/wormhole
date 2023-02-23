@@ -19,6 +19,8 @@ module token_bridge::create_wrapped {
     const E_WRAPPING_NATIVE_COIN: u64 = 0;
     const E_WRAPPING_REGISTERED_NATIVE_COIN: u64 = 1;
     const E_WRAPPED_COIN_ALREADY_INITIALIZED: u64 = 2;
+    const E_UPDATING_NATIVE_COIN_META: u64 = 3;
+    const E_WRAPPED_COIN_NOT_INITIALIZED: u64 = 4;
 
     /// The amounts in the token bridge payload are truncated to 8 decimals
     /// in each of the contracts when sending tokens out, so there's no
@@ -139,11 +141,11 @@ module token_bridge::create_wrapped {
 
         assert!(
             origin_chain != wormhole_state::chain_id(),
-            E_WRAPPING_NATIVE_COIN
+            E_UPDATING_NATIVE_COIN_META
         );
         assert!(
-            !state::is_registered_asset<CoinType>(token_bridge_state),
-            E_WRAPPED_COIN_ALREADY_INITIALIZED
+            state::is_registered_asset<CoinType>(token_bridge_state),
+            E_WRAPPED_COIN_NOT_INITIALIZED
         );
 
         state::update_registered_wrapped_coin_metadata<CoinType>(
