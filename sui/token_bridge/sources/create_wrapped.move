@@ -146,10 +146,15 @@ module token_bridge::create_wrapped {
 
         let info = state::token_info<CoinType>(token_bridge_state);
 
+        // The following two assertions check that CoinType indeed corresponds
+        // to the coin specified in vaa_bytes.
         assert!(token_info::addr(&info)==origin_address,
             E_ORIGIN_ADDRESS_MISMATCH);
         assert!(token_info::chain(&info)==origin_chain,
             E_ORIGIN_CHAIN_MISMATCH);
+
+        // The following two assertions make sure that we are updating metadata
+        // for a previously registered non-native asset.
         assert!(
             origin_chain != wormhole_state::chain_id(),
             E_UPDATING_NATIVE_COIN_META
