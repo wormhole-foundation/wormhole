@@ -324,11 +324,11 @@ module token_bridge::transfer_token_test {
                 &mut bridge_state,
                 &mut worm_state,
                 coins,
-                coin::zero<SUI>(ctx(&mut test)), // zero fee paid to wormhole
-                3, // recipient chain id
-                x"deadbeef0000beef", // recipient address
-                0, // relayer fee
-                0 // unused field for now
+                coin::zero<SUI>(ctx(&mut test)), // Zero fee paid to wormhole.
+                3, // Recipient chain id.
+                x"deadbeef0000beef", // Recipient address.
+                0, // Relayer fee.
+                0 // Nonce is unused field for now.
             );
             return_shared<State>(bridge_state);
             return_shared<WormholeState>(worm_state);
@@ -380,14 +380,14 @@ module token_bridge::transfer_token_test {
             let coins =
                 state::mint<COIN_WITNESS>(
                     &mut bridge_state,
-                    10000000000, // amount
+                    10000000000,
                     ctx(&mut test)
                 );
 
             let transfer_result = transfer_tokens_test<COIN_WITNESS>(
                 &mut bridge_state,
                 coins,
-                0 // relayer fee is zero
+                0 // Relayer fee is zero.
             );
 
             let (

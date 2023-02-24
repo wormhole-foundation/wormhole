@@ -2,11 +2,11 @@ module token_bridge::native_id_registry {
     use std::vector::{Self};
     use wormhole::external_address::{Self, ExternalAddress};
 
-    // Needs `next_id`
+    // Needs `next_id`.
     friend token_bridge::state;
 
     struct NativeIdRegistry has store {
-        /// Integer label for coin types registered with Wormhole
+        /// Integer label for coin types registered with Wormhole.
         index: u64
     }
 
@@ -45,14 +45,14 @@ module token_bridge::native_registry_test{
     fun test_native_id_registry(){
         let registry = native_id_registry::new();
         let i = 1;
-        // generate a large number of IDs using native_id_registry::next_id
+        // Generate a large number of IDs using native_id_registry::next_id
         // and check that they are indeed generated in monotonic increasing
-        // order in increments of one
+        // order in increments of one.
         while (i < 2000){
             let addr = native_id_registry::next_id(&mut registry);
             let cursor = cursor::new<u8>(external_address::get_bytes(&addr));
 
-            // deserialize the 32-byte representation of the ID into an integer
+            // Deserialize the 32-byte representation of the ID into an integer.
             let w = bytes::deserialize_u256_be(&mut cursor);
             cursor::destroy_empty<u8>(cursor);
             assert!(w==i, 0);
