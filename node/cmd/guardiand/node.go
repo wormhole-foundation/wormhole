@@ -178,7 +178,9 @@ var (
 	baseRPC      *string
 	baseContract *string
 
-	logLevel *string
+	logLevel              *string
+	logLevel              *string
+	logPublicRPCTelemetry *bool
 
 	unsafeDevMode   *bool
 	testnetMode     *bool
@@ -329,6 +331,7 @@ func init() {
 	baseContract = NodeCmd.Flags().String("baseContract", "", "Base contract address")
 
 	logLevel = NodeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
+	logPublicRPCTelemetry = NodeCmd.Flags().Bool("logPublicRPCTelemetry", true, "false=do not include publicRpc request logs in telemetry")
 
 	unsafeDevMode = NodeCmd.Flags().Bool("unsafeDevMode", false, "Launch node in unsafe, deterministic devnet mode")
 	testnetMode = NodeCmd.Flags().Bool("testnetMode", false, "Launch node in testnet mode (enables testnet-only features)")
@@ -947,7 +950,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			logger.Fatal("Failed to get peer ID from private key", zap.Error(err))
 		}
 
-		tm, err := telemetry.New(context.Background(), telemetryProject, creds, map[string]string{
+		tm, err := telemetry.New(context.Background(), telemetryProject, creds, *logPublicRPCTelemetry, map[string]string{
 			"node_name":     *nodeName,
 			"node_key":      peerID.Pretty(),
 			"guardian_addr": guardianAddr,

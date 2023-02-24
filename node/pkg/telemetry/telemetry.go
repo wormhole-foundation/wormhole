@@ -24,6 +24,7 @@ type guardianTelemetryEncoder struct {
 	zapcore.Encoder                   // zapcore.jsonEncoder
 	logger          *logging.Logger   // Google Cloud logger
 	labels          map[string]string // labels to add to each cloud log
+	skipPrivateLogs bool
 }
 
 // Mirrors the conversion done by zapdriver. We need to convert this
@@ -40,6 +41,22 @@ var logLevelSeverity = map[zapcore.Level]logging.Severity{
 }
 
 func (enc *guardianTelemetryEncoder) EncodeEntry(entry zapcore.Entry, fields []zapcore.Field) (*buffer.Buffer, error) {
+
+	// if skipPrivateLogs==true, then private logs don't go to telemetry
+	if enc.skipPrivateLogs {
+		for _, f := range fields {
+			if f.Type == zapcore.BoolType {
+				if f.Key == "_privateLogEntry" {
+					if f.Integer == 1 {
+						return enc.Encoder.EncodeEntry(entry, fields)
+					} else {
+						break
+					}
+				}
+			}
+		}
+	}
+
 	buf, err := enc.Encoder.EncodeEntry(entry, fields)
 	if err != nil {
 		return nil, err
@@ -70,7 +87,9 @@ func (enc *guardianTelemetryEncoder) Clone() zapcore.Encoder {
 	}
 }
 
-func New(ctx context.Context, project string, serviceAccountJSON []byte, labels map[string]string) (*Telemetry, error) {
+// New creates a new Telemetry logger.
+// skipPrivateLogs: if set to `true`, logs with the field zap.Bool("_privateLogEntry", true) will not be logged by telemetry.
+func New(ctx context.Context, project string, serviceAccountJSON []byte, skipPrivateLogs bool, labels map[string]string) (*Telemetry, error) {
 	gc, err := logging.NewClient(ctx, project, option.WithCredentialsJSON(serviceAccountJSON))
 	if err != nil {
 		return nil, fmt.Errorf("unable to create logging client: %v", err)
@@ -83,9 +102,10 @@ func New(ctx context.Context, project string, serviceAccountJSON []byte, labels 
 	return &Telemetry{
 		serviceAccountJSON: serviceAccountJSON,
 		encoder: &guardianTelemetryEncoder{
-			Encoder: zapcore.NewJSONEncoder(zapdriver.NewProductionEncoderConfig()),
-			logger:  gc.Logger("wormhole"),
-			labels:  labels,
+			Encoder:         zapcore.NewJSONEncoder(zapdriver.NewProductionEncoderConfig()),
+			logger:          gc.Logger("wormhole"),
+			labels:          labels,
+			skipPrivateLogs: skipPrivateLogs,
 		},
 	}, nil
 }

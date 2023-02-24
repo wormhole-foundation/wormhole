@@ -39,6 +39,9 @@ func xForwardedForServerInterceptor(ctx context.Context, req interface{}, info *
 }
 
 func NewInstrumentedGRPCServer(logger *zap.Logger) *grpc.Server {
+
+	logger = logger.With(zap.Bool("_privateLogEntry", true))
+
 	server := grpc.NewServer(
 		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
 			grpc_ctxtags.StreamServerInterceptor(),
