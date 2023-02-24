@@ -668,12 +668,12 @@ func DeprecatedSigningDigest(bz []byte) common.Hash {
 
 // MessageSigningDigest returns the hash of the data prepended with it's signing prefix.
 // This is intending to be used for signing messages of different types from VAA's.
-// The message prefix help protect from message collisions.
+// The message prefix helps protect from message collisions.
 func MessageSigningDigest(prefix []byte, data []byte) (common.Hash, error) {
 	if len(prefix) < 32 {
 		// Prefixes must be at least 32 bytes
 		// https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0009_guardian_key.md
-		return common.Hash([32]byte{}), errors.New("prefix must be atleast 32 bytes")
+		return common.Hash([32]byte{}), errors.New("prefix must be at least 32 bytes")
 	}
 	return crypto.Keccak256Hash(prefix[:], data), nil
 }
