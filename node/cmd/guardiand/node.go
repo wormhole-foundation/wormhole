@@ -20,6 +20,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers/algorand"
 	"github.com/certusone/wormhole/node/pkg/watchers/aptos"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm"
+	"github.com/certusone/wormhole/node/pkg/watchers/ibc"
 	"github.com/certusone/wormhole/node/pkg/watchers/near"
 	"github.com/certusone/wormhole/node/pkg/watchers/solana"
 	"github.com/certusone/wormhole/node/pkg/watchers/sui"
@@ -146,6 +147,8 @@ var (
 	wormchainURL           *string
 	wormchainKeyPath       *string
 	wormchainKeyPassPhrase *string
+
+	ibcContract *string
 
 	accountantContract     *string
 	accountantWS           *string
@@ -297,6 +300,8 @@ func init() {
 	wormchainURL = NodeCmd.Flags().String("wormchainURL", "", "wormhole-chain gRPC URL")
 	wormchainKeyPath = NodeCmd.Flags().String("wormchainKeyPath", "", "path to wormhole-chain private key for signing transactions")
 	wormchainKeyPassPhrase = NodeCmd.Flags().String("wormchainKeyPassPhrase", "", "pass phrase used to unarmor the wormchain key file")
+
+	ibcContract = NodeCmd.Flags().String("ibcContract", "", "Address of the IBC smart contract on wormchain")
 
 	accountantWS = NodeCmd.Flags().String("accountantWS", "", "Websocket used to listen to the accountant smart contract on wormchain")
 	accountantContract = NodeCmd.Flags().String("accountantContract", "", "Address of the accountant smart contract on wormchain")
@@ -615,6 +620,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 	} else if *wormchainLCD != "" {
 		logger.Fatal("If --wormchainWS is not specified, then --wormchainLCD must not be specified")
+	}
+
+	if *ibcContract != "" {
+		if *wormchainWS == "" {
+			logger.Fatal("If --ibcContract is specified, then --wormchainWS must be specified")
+		}
 	}
 
 	if *aptosRPC != "" {
@@ -1281,26 +1292,48 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 
-		if shouldStart(terraWS) {
-			logger.Info("Starting Terra watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDTerra)
-			chainObsvReqC[vaa.ChainIDTerra] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			if err := supervisor.Run(ctx, "terrawatch",
-				common.WrapWithScissors(cosmwasm.NewWatcher(*terraWS, *terraLCD, *terraContract, chainMsgC[vaa.ChainIDTerra], chainObsvReqC[vaa.ChainIDTerra], vaa.ChainIDTerra).Run, "terrawatch")); err != nil {
-				return err
-			}
-		}
+		if shouldStart(ibcContract) {
+			// TODO: Add each cosmwasm chain here as we want to migrate it to IBC.
+			chainsToMonitor := make(ibc.ChainsToMonitor, 0)
 
-		if shouldStart(terra2WS) {
-			logger.Info("Starting Terra 2 watcher")
+			// Terra2
 			common.MustRegisterReadinessSyncing(vaa.ChainIDTerra2)
 			chainObsvReqC[vaa.ChainIDTerra2] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			if err := supervisor.Run(ctx, "terra2watch",
-				common.WrapWithScissors(cosmwasm.NewWatcher(*terra2WS, *terra2LCD, *terra2Contract, chainMsgC[vaa.ChainIDTerra2], chainObsvReqC[vaa.ChainIDTerra2], vaa.ChainIDTerra2).Run, "terra2watch")); err != nil {
+			chainsToMonitor = append(chainsToMonitor,
+				ibc.ChainToMonitor{
+					ChainID:            vaa.ChainIDTerra2,
+					ReadinessComponent: common.ReadinessTerra2Syncing,
+					MsgC:               chainMsgC[vaa.ChainIDTerra2],
+					ObsvReqC:           chainObsvReqC[vaa.ChainIDTerra2],
+				})
+
+			logger.Info("Starting IBC watcher")
+			readiness.RegisterComponent(common.ReadinessIBCSyncing)
+			if err := supervisor.Run(ctx, "ibcwatch",
+				ibc.NewWatcher(*wormchainWS, *wormchainLCD, *ibcContract, chainsToMonitor).Run); err != nil {
 				return err
+			}
+		} else {
+			if shouldStart(terra2WS) {
+				logger.Info("Starting Terra 2 watcher")
+				readiness.RegisterComponent(common.ReadinessTerra2Syncing)
+				chainObsvReqC[vaa.ChainIDTerra2] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
+				if err := supervisor.Run(ctx, "terra2watch",
+					common.WrapWithScissors(cosmwasm.NewWatcher(*terra2WS, *terra2LCD, *terra2Contract, chainMsgC[vaa.ChainIDTerra2], chainObsvReqC[vaa.ChainIDTerra2], common.ReadinessTerra2Syncing, vaa.ChainIDTerra2).Run, "terra2watch")); err != nil {
+					return err
+				}
 			}
 		}
 
+		if shouldStart(terraWS) {
+			logger.Info("Starting Terra watcher")
+			readiness.RegisterComponent(common.ReadinessTerraSyncing)
+			chainObsvReqC[vaa.ChainIDTerra] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
+			if err := supervisor.Run(ctx, "terrawatch",
+				common.WrapWithScissors(cosmwasm.NewWatcher(*terraWS, *terraLCD, *terraContract, chainMsgC[vaa.ChainIDTerra], chainObsvReqC[vaa.ChainIDTerra], common.ReadinessTerraSyncing, vaa.ChainIDTerra).Run, "terrawatch")); err != nil {
+				return err
+			}
+		}
 		if shouldStart(xplaWS) {
 			logger.Info("Starting XPLA watcher")
 			common.MustRegisterReadinessSyncing(vaa.ChainIDXpla)
@@ -1310,7 +1343,6 @@ func runNode(cmd *cobra.Command, args []string) {
 				return err
 			}
 		}
-
 		if shouldStart(algorandIndexerRPC) {
 			logger.Info("Starting Algorand watcher")
 			common.MustRegisterReadinessSyncing(vaa.ChainIDAlgorand)
