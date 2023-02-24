@@ -28,7 +28,7 @@ If token bridge transfers are unlimited and instantaneous, a bug in a single con
 If a Guardian decides to enable this feature:
 * Delay Wormhole messages from registered token bridges for 24h, if their notional value is excessively large.
 * This gives the Guardian the opportunity to delete pending messages, if they were created through a software bug and not accurately represent the state of the origin chain.
-* Protect against sybil attacks.
+* Protect against sybil attacks, i.e. this feature should work even if an attacker tries to make one large transfer look like organic activity by splitting it into many small transfers.
 
 ## Non-Goals
 
@@ -38,7 +38,9 @@ If a Guardian decides to enable this feature:
 ## High-Level Design
 
 ### Delay Decision Logic
-*Configuration*: For each chain, a _single-transaction-threshold_ and a *24h-threshold* denominated in a base currency (e.g. USD) is specified [here](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/mainnet_chains.go).
+*Configuration*:
+* For each chain, a _single-transaction-threshold_ and a *24h-threshold* denominated in a base currency (U.S. Dollar) is specified in [mainnet_chains.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/mainnet_chains.go).
+* A list of prominent tokens is specified in [manual_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/manual_tokens.go) and [generated_mainnet_tokens.go](https://github.com/wormhole-foundation/wormhole/blob/main/node/pkg/governor/generated_mainnet_tokens.go). Tokens that are not on this list are not being tracked by the Governor. This list is opt-in in order to prevent thinly-traded tokens with unreliable price feeds to count towards the thresholds.
 
 Governor divides token-based transactions into two categories: small transactions, and large transactions.
 
@@ -65,7 +67,7 @@ Each Guardian publishes its Governor configuration and status on the Wormhole go
 * Guardians need to manually respond to erroneous messages within the 24h time window. It is expected that all Guardians operate collateralization monitoring for the protocol, taking into account the Governor queue. All Guardians should have alerting and incident response procedures in case of an undercollateralization.
 * An attacker could utilize liquidity pools and other bridges to launder illicitly minted wrapped assets.
 
-## FAQ
+## User FAQ
 - **Who is the Governor?**
     - The Governor is not a person, but a software feature built into the guardian reference implementation.
 - **When does the Governor step in?**
@@ -86,6 +88,10 @@ Each Guardian publishes its Governor configuration and status on the Wormhole go
     - Two sources determine the notional value of the transfer.  One source is the hard coded floor price shipped with the Guardian software (which is polled from Coingecko at release time) and the other is a dynamic polling of Coingecko on 5-10min intervals.  The notional value of the transfer will be the higher of the two sources.  This is designed in such a way to ensure that if Coingecko reports a nil, zero, or meager price for an asset, it won’t allow an attacker to move effectively infinite amounts of a governed token.
 - **Why doesn’t the Governor use a price oracle like Pyth or Chainlink for notional value computation?**
     - This is mainly because neither Chainlink or Pyth currently support price feeds for all the registered tokens the Wormhole Guardians wish to Governor.  As price oracles mature to support a broader set of tokens, this may become more viable to use on-chain price oracles for this computation.
+
+## Operator FAQ
+- **I have identified a potentially inaccurate message in the Governor queue. Can I extend the release time to give me more time to investigate?**
+    - Yes. You can use the `ChainGovernorResetReleaseTimer` admin RPC or `governor-reset-release-timer [VAA_ID]` admin command to reset the delay to 24h. Another option would be to drop the message first with the `ChainGovernorDropPendingVAA` admin RPC or `governor-drop-pending-vaa [VAA_ID]` admin command and after the investigation is concluded and it is determined that the message was (and still is) an accurate representation of the source chain state, you can issue a re-observation request.
 
 ## Detailed Design
 
