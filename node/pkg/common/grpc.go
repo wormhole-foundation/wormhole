@@ -24,6 +24,13 @@ const (
 	GrpcLogDetailFull    GrpcLogDetail = "full"
 )
 
+func truncateStr(str string, maxLen int) string {
+	if len(str) > maxLen {
+		return str[:maxLen] + "..."
+	}
+	return str
+}
+
 func addDetail(ctx context.Context, logDetail GrpcLogDetail) {
 	if logDetail == GrpcLogDetailNone {
 		return
@@ -34,7 +41,7 @@ func addDetail(ctx context.Context, logDetail GrpcLogDetail) {
 
 		if logDetail == GrpcLogDetailFull {
 			if len(md.Get("grpcgateway-user-agent")) > 0 {
-				tags.Set("user-agent", md.Get("grpcgateway-user-agent"))
+				tags.Set("user-agent", truncateStr(md.Get("grpcgateway-user-agent")[0], 200))
 			}
 		}
 	}

@@ -178,10 +178,9 @@ var (
 	baseRPC      *string
 	baseContract *string
 
-	logLevel              *string
-	logLevel              *string
-	logPublicRPC          *string
-	logPublicRPCTelemetry *bool
+	logLevel                *string
+	publicRpcLogDetailStr   *string
+	publicRpcLogToTelemetry *bool
 
 	unsafeDevMode   *bool
 	testnetMode     *bool
@@ -332,8 +331,8 @@ func init() {
 	baseContract = NodeCmd.Flags().String("baseContract", "", "Base contract address")
 
 	logLevel = NodeCmd.Flags().String("logLevel", "info", "Logging level (debug, info, warn, error, dpanic, panic, fatal)")
-	logPublicRPC = NodeCmd.Flags().String("logPublicRPC", "full", "Logging of public RPC requests (false=no logging, minimal=only log gRPC methods, full=log gRPC method, payload (up to 200 bytes) and user agent (up to 200 bytes))")
-	logPublicRPCTelemetry = NodeCmd.Flags().Bool("logPublicRPCTelemetry", true, "whether or not to include publicRpc request logs in telemetry")
+	publicRpcLogDetailStr = NodeCmd.Flags().String("publicRpcLogDetail", "full", "The detail with which public RPC requests shall be logged (none=no logging, minimal=only log gRPC methods, full=log gRPC method, payload (up to 200 bytes) and user agent (up to 200 bytes))")
+	publicRpcLogToTelemetry = NodeCmd.Flags().Bool("logPublicRpcToTelemetry", true, "whether or not to include publicRpc request logs in telemetry")
 
 	unsafeDevMode = NodeCmd.Flags().Bool("unsafeDevMode", false, "Launch node in unsafe, deterministic devnet mode")
 	testnetMode = NodeCmd.Flags().Bool("testnetMode", false, "Launch node in testnet mode (enables testnet-only features)")
@@ -672,16 +671,16 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	var logPublicRpcDetail common.GrpcLogDetail
-	switch *logPublicRPC {
-	case "false":
-		logPublicRpcDetail = common.GrpcLogDetailNone
+	var publicRpcLogDetail common.GrpcLogDetail
+	switch *publicRpcLogDetailStr {
+	case "none":
+		publicRpcLogDetail = common.GrpcLogDetailNone
 	case "minimal":
-		logPublicRpcDetail = common.GrpcLogDetailMinimal
+		publicRpcLogDetail = common.GrpcLogDetailMinimal
 	case "full":
-		logPublicRpcDetail = common.GrpcLogDetailFull
+		publicRpcLogDetail = common.GrpcLogDetailFull
 	default:
-		logger.Fatal("--logPublicRPC should be one of (false, minimal, true)")
+		logger.Fatal("--publicRpcLogDetail should be one of (none, minimal, full)")
 	}
 
 	if *nodeName == "" {
@@ -965,7 +964,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			logger.Fatal("Failed to get peer ID from private key", zap.Error(err))
 		}
 
-		tm, err := telemetry.New(context.Background(), telemetryProject, creds, *logPublicRPCTelemetry, map[string]string{
+		tm, err := telemetry.New(context.Background(), telemetryProject, creds, *publicRpcLogToTelemetry, map[string]string{
 			"node_name":     *nodeName,
 			"node_key":      peerID.Pretty(),
 			"guardian_addr": guardianAddr,
@@ -1460,7 +1459,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		if shouldStart(publicGRPCSocketPath) {
 
 			// local public grpc service socket
-			publicrpcUnixService, publicrpcServer, err := publicrpcUnixServiceRunnable(logger, *publicGRPCSocketPath, logPublicRpcDetail, db, gst, gov)
+			publicrpcUnixService, publicrpcServer, err := publicrpcUnixServiceRunnable(logger, *publicGRPCSocketPath, publicRpcLogDetail, db, gst, gov)
 			if err != nil {
 				logger.Fatal("failed to create publicrpc service socket", zap.Error(err))
 			}
@@ -1470,7 +1469,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 
 			if shouldStart(publicRPC) {
-				publicrpcService, err := publicrpcTcpServiceRunnable(logger, *publicRPC, logPublicRpcDetail, db, gst, gov)
+				publicrpcService, err := publicrpcTcpServiceRunnable(logger, *publicRPC, publicRpcLogDetail, db, gst, gov)
 				if err != nil {
 					log.Fatal("failed to create publicrpc tcp service", zap.Error(err))
 				}

@@ -48,6 +48,7 @@ func (enc *guardianTelemetryEncoder) EncodeEntry(entry zapcore.Entry, fields []z
 			if f.Type == zapcore.BoolType {
 				if f.Key == "_privateLogEntry" {
 					if f.Integer == 1 {
+						// do not forward to telemetry by short-circuiting to the underlying encoder.
 						return enc.Encoder.EncodeEntry(entry, fields)
 					} else {
 						break
@@ -80,6 +81,8 @@ func (enc *guardianTelemetryEncoder) EncodeEntry(entry zapcore.Entry, fields []z
 	return buf, nil
 }
 
+// Clone() clones the encoder. This function is not used by the Guardian itself, but it is used by zapcore.
+// Without this implementation, a guardianTelemetryEncoder could get silently converted into the underlying zapcore.Encoder at some point, leading to missing telemetry logs.
 func (enc *guardianTelemetryEncoder) Clone() zapcore.Encoder {
 	return &guardianTelemetryEncoder{
 		Encoder: enc.Encoder.Clone(),
