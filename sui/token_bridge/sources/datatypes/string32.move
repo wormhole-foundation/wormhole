@@ -97,6 +97,11 @@ module token_bridge::string32 {
         string::utf8(bytes)
     }
 
+    /// Converts a String32 to an ascii string if possible, otherwise errors
+    /// out at `ascii::string(bytes)`. For input strings that contain non-ascii
+    /// characters, this function fails. Note that while the Sui spec limits
+    /// symbols to only use ascii characters, the token bridge spec does allow
+    /// utf8 symbols.
     public fun to_ascii_string(s: &String32): ascii::String {
         let String32 { string } = s;
         let bytes = *string::bytes(string);
