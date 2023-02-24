@@ -1,4 +1,3 @@
-// use core::slice::SlicePattern;
 use std::{cell::RefCell, collections::BTreeSet, fmt::Debug, rc::Rc};
 
 use anyhow::{anyhow, bail, ensure, Context};
@@ -92,7 +91,7 @@ impl WormholeKeeper {
             .guardians
             .iter()
             .map(|g| {
-                let sig: recoverable::Signature = g.sign(&msg);
+                let sig: recoverable::Signature = g.sign(msg);
                 sig.as_ref().try_into().unwrap()
             })
             .enumerate()
@@ -104,7 +103,7 @@ impl WormholeKeeper {
     }
 
     pub fn verify_vaa(&self, vaa: &[u8], block_time: u64) -> anyhow::Result<Empty> {
-        let (header, data) = serde_wormhole::from_slice::<(Header, &RawMessage)>(&vaa)
+        let (header, data) = serde_wormhole::from_slice::<(Header, &RawMessage)>(vaa)
             .context("failed to parse VAA header")?;
 
         let mut signers = BTreeSet::new();
