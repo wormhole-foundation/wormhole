@@ -1,4 +1,4 @@
-// On Arbitrum we are unable to get blocks by transaction hash using the go-ethereum library
+// On some chains we are unable to get blocks by transaction hash using the go-ethereum library
 // because it fails with "transaction type not supported". However, calling the underlying
 // eth_getBlockByHash directly works. The sole function of this connector is to implement
 // TimeOfBlockByHash using the raw connection.
@@ -13,16 +13,16 @@ import (
 	ethCommon "github.com/ethereum/go-ethereum/common"
 )
 
-type ArbitrumConnector struct {
+type ConnectorWithGetTimeOfBlock struct {
 	Connector
 }
 
-func NewArbitrumConnector(ctx context.Context, baseConnector Connector) (*ArbitrumConnector, error) {
-	connector := &ArbitrumConnector{Connector: baseConnector}
+func NewConnectorWithGetTimeOfBlock(ctx context.Context, baseConnector Connector) (*ConnectorWithGetTimeOfBlock, error) {
+	connector := &ConnectorWithGetTimeOfBlock{Connector: baseConnector}
 	return connector, nil
 }
 
-func (a *ArbitrumConnector) TimeOfBlockByHash(ctx context.Context, hash ethCommon.Hash) (uint64, error) {
+func (a *ConnectorWithGetTimeOfBlock) TimeOfBlockByHash(ctx context.Context, hash ethCommon.Hash) (uint64, error) {
 	type Marshaller struct {
 		Time string `json:"timestamp"        gencodec:"required"`
 	}
