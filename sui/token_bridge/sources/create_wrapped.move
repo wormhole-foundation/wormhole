@@ -157,7 +157,7 @@ module token_bridge::create_wrapped {
         assert!(state::is_wrapped_asset<CoinType>(token_bridge_state),
             E_CAN_ONLY_UPDATE_METADATA_FOR_REGISTERED_WRAPPED_ASSET);
 
-        // obtain a read-only reference to the treasury cap for CoinType
+        // Obtain a read-only reference to the treasury cap for CoinType.
         let tcap = state::treasury_cap<CoinType>(token_bridge_state);
 
         coin::update_symbol<CoinType>(
