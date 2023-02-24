@@ -232,7 +232,7 @@ module token_bridge::state {
     ///
     /// This function is only used in create_wrapped.move to update coin
     /// metadata (only an immutable reference is needed).
-    public fun treasury_cap<CoinType>(self: &State): &TreasuryCap<CoinType> {
+    public(friend) fun treasury_cap<CoinType>(self: &State): &TreasuryCap<CoinType> {
         registered_tokens::treasury_cap<CoinType>(&self.registered_tokens)
     }
 
