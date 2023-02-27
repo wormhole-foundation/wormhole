@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/notify/discord"
-
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
 
@@ -130,7 +128,6 @@ type Processor struct {
 	// cleanup triggers periodic state cleanup
 	cleanup *time.Ticker
 
-	notifier    *discord.DiscordNotifier
 	governor    *governor.ChainGovernor
 	acct        *accountant.Accountant
 	acctReadC   <-chan *common.MessagePublication
@@ -154,7 +151,6 @@ func NewProcessor(
 	devnetEthRPC string,
 	wormchainLCD string,
 	attestationEvents *reporter.AttestationEventReporter,
-	notifier *discord.DiscordNotifier,
 	g *governor.ChainGovernor,
 	acct *accountant.Accountant,
 	acctReadC <-chan *common.MessagePublication,
@@ -178,8 +174,6 @@ func NewProcessor(
 		wormchainLCD: wormchainLCD,
 
 		attestationEvents: attestationEvents,
-
-		notifier: notifier,
 
 		logger:      supervisor.Logger(ctx),
 		state:       &aggregationState{observationMap{}},
