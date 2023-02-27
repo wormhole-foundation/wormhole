@@ -19,7 +19,7 @@ import (
 type GrpcLogDetail string
 
 const (
-	GrpcLogDetailNone    GrpcLogDetail = "false"
+	GrpcLogDetailNone    GrpcLogDetail = "none"
 	GrpcLogDetailMinimal GrpcLogDetail = "minimal"
 	GrpcLogDetailFull    GrpcLogDetail = "full"
 )
