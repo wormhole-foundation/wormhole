@@ -100,13 +100,6 @@ type Processor struct {
 	// gk is the node's guardian private key
 	gk *ecdsa.PrivateKey
 
-	// devnetMode specified whether to submit transactions to the hardcoded Ethereum devnet
-	devnetMode         bool
-	devnetNumGuardians uint
-	devnetEthRPC       string
-
-	wormchainLCD string
-
 	attestationEvents *reporter.AttestationEventReporter
 
 	logger *zap.Logger
@@ -146,10 +139,6 @@ func NewProcessor(
 	signedInC <-chan *gossipv1.SignedVAAWithQuorum,
 	gk *ecdsa.PrivateKey,
 	gst *common.GuardianSetState,
-	devnetMode bool,
-	devnetNumGuardians uint,
-	devnetEthRPC string,
-	wormchainLCD string,
 	attestationEvents *reporter.AttestationEventReporter,
 	g *governor.ChainGovernor,
 	acct *accountant.Accountant,
@@ -157,21 +146,16 @@ func NewProcessor(
 ) *Processor {
 
 	return &Processor{
-		msgC:               msgC,
-		setC:               setC,
-		gossipSendC:        gossipSendC,
-		obsvC:              obsvC,
-		obsvReqSendC:       obsvReqSendC,
-		signedInC:          signedInC,
-		injectC:            injectC,
-		gk:                 gk,
-		gst:                gst,
-		devnetMode:         devnetMode,
-		devnetNumGuardians: devnetNumGuardians,
-		devnetEthRPC:       devnetEthRPC,
-		db:                 db,
-
-		wormchainLCD: wormchainLCD,
+		msgC:         msgC,
+		setC:         setC,
+		gossipSendC:  gossipSendC,
+		obsvC:        obsvC,
+		obsvReqSendC: obsvReqSendC,
+		signedInC:    signedInC,
+		injectC:      injectC,
+		gk:           gk,
+		gst:          gst,
+		db:           db,
 
 		attestationEvents: attestationEvents,
 

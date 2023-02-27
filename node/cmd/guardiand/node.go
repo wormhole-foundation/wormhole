@@ -181,10 +181,9 @@ var (
 	publicRpcLogDetailStr   *string
 	publicRpcLogToTelemetry *bool
 
-	unsafeDevMode   *bool
-	testnetMode     *bool
-	devNumGuardians *uint
-	nodeName        *string
+	unsafeDevMode *bool
+	testnetMode   *bool
+	nodeName      *string
 
 	publicRPC *string
 	publicWeb *string
@@ -332,7 +331,6 @@ func init() {
 
 	unsafeDevMode = NodeCmd.Flags().Bool("unsafeDevMode", false, "Launch node in unsafe, deterministic devnet mode")
 	testnetMode = NodeCmd.Flags().Bool("testnetMode", false, "Launch node in testnet mode (enables testnet-only features)")
-	devNumGuardians = NodeCmd.Flags().Uint("devNumGuardians", 5, "Number of devnet guardians to include in guardian set")
 	nodeName = NodeCmd.Flags().String("nodeName", "", "Node name to announce in gossip heartbeats")
 
 	publicRPC = NodeCmd.Flags().String("publicRPC", "", "Listen address for public gRPC interface")
@@ -1419,10 +1417,6 @@ func runNode(cmd *cobra.Command, args []string) {
 			signedInReadC,
 			gk,
 			gst,
-			*unsafeDevMode,
-			*devNumGuardians,
-			*ethRPC,
-			*wormchainLCD,
 			attestationEvents,
 			gov,
 			acct,
