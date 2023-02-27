@@ -144,6 +144,10 @@ const MAINNET = {
     rpc: "https://rpc.gnosischain.com/",
     key: get_env_var("ETH_KEY"),
   },
+  base: {
+    rpc: undefined,
+    key: get_env_var("ETH_KEY"),
+  },
 };
 
 const TESTNET = {
@@ -274,6 +278,10 @@ const TESTNET = {
     rpc: "https://sokol.poa.network/",
     key: get_env_var("ETH_KEY_TESTNET"),
   },
+  base: {
+    rpc: "https://goerli.base.org",
+    key: get_env_var("ETH_KEY_TESTNET"),
+  },
 };
 
 const DEVNET = {
@@ -400,6 +408,10 @@ const DEVNET = {
     key: undefined,
   },
   gnosis: {
+    rpc: undefined,
+    key: undefined,
+  },
+  base: {
     rpc: undefined,
     key: undefined,
   },
