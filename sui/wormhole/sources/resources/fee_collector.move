@@ -4,6 +4,9 @@ module wormhole::fee_collector {
     use sui::sui::{SUI};
     use sui::tx_context::{TxContext};
 
+    // Needs `change_fee`.
+    friend wormhole::state;
+
     const E_INCORRECT_FEE: u64 = 0;
     const E_WITHDRAW_EXCEEDS_BALANCE: u64 = 1;
 
@@ -36,6 +39,10 @@ module wormhole::fee_collector {
     ): Coin<SUI> {
         assert!(amount <= balance_value(self), E_WITHDRAW_EXCEEDS_BALANCE);
         coin::take(&mut self.balance, amount, ctx)
+    }
+
+    public(friend) fun change_fee(self: &mut FeeCollector, new_amount: u64) {
+        self.fee_amount = new_amount;
     }
 
     #[test_only]

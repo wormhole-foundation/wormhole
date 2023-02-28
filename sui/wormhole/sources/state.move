@@ -15,12 +15,11 @@ module wormhole::state {
     use wormhole::guardian_set::{Self, GuardianSet};
     use wormhole::set::{Self, Set};
 
-    friend wormhole::update_guardian_set;
     friend wormhole::publish_message;
-    friend wormhole::vaa;
+    friend wormhole::set_fee;
     friend wormhole::setup;
-    #[test_only]
-    friend wormhole::vaa_test;
+    friend wormhole::update_guardian_set;
+    friend wormhole::vaa;
 
     const E_ZERO_GUARDIANS: u64 = 0;
     const E_VAA_ALREADY_CONSUMED: u64 = 1;
@@ -174,6 +173,10 @@ module wormhole::state {
             self.guardian_set_index,
             new_guardian_set
         );
+    }
+
+    public(friend) fun set_message_fee(self: &mut State, amount: u64) {
+        fee_collector::change_fee(&mut self.fee_collector, amount);
     }
 
     public fun guardian_set_at(self: &State, index: u32): &GuardianSet {
