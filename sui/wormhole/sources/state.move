@@ -6,6 +6,7 @@ module wormhole::state {
     use sui::tx_context::{TxContext};
     use sui::vec_map::{Self, VecMap};
 
+    use wormhole::bytes32::{Self, Bytes32};
     use wormhole::cursor::{Self};
     use wormhole::emitter::{Self, EmitterCapability};
     use wormhole::external_address::{Self, ExternalAddress};
@@ -22,12 +23,10 @@ module wormhole::state {
     friend wormhole::vaa_test;
 
     const E_ZERO_GUARDIANS: u64 = 0;
+    const E_VAA_ALREADY_CONSUMED: u64 = 1;
 
     /// Sui's chain ID is hard-coded to one value.
     const CHAIN_ID: u16 = 21;
-
-    /// Dynamic field key for `FeeCollector`
-    //const FIELD_FEE_COLLECTOR: vector<u8> = b"fee_collector";
 
     struct State has key, store {
         id: UID,
@@ -51,10 +50,11 @@ module wormhole::state {
         /// with unix timestamp.
         guardian_set_epochs_to_live: u32,
 
-        /// Consumed governance VAAs.
-        consumed_governance_actions: Set<vector<u8>>,
+        /// Consumed VAA hashes to protect against replay. VAAs relevant to
+        /// Wormhole are just governance VAAs.
+        consumed_vaa_hashes: Set<Bytes32>,
 
-        /// Capability for creating new emitters
+        /// Registry for new emitter caps (`EmitterCapability`).
         emitter_registry: emitter::EmitterRegistry,
 
         /// Wormhole fee collector.
@@ -71,11 +71,14 @@ module wormhole::state {
     ): State {
         assert!(vector::length(&initial_guardians) > 0, E_ZERO_GUARDIANS);
 
+        // First guardian set index is zero. New guardian sets must increment
+        // from the last recorded index.
+        let guardian_set_index = 0;
+
         let governance_contract =
             external_address::from_nonzero_bytes(
                 governance_contract
             );
-        let guardian_set_index = 0;
         let state = State {
             id: object::new(ctx),
             governance_chain,
@@ -83,7 +86,7 @@ module wormhole::state {
             guardian_set_index,
             guardian_sets: vec_map::empty(),
             guardian_set_epochs_to_live,
-            consumed_governance_actions: set::new(ctx),
+            consumed_vaa_hashes: set::new(ctx),
             emitter_registry: emitter::new_registry(),
             fee_collector: fee_collector::new(message_fee)
         };
@@ -114,6 +117,13 @@ module wormhole::state {
         CHAIN_ID
     }
 
+    public fun governance_module(): Bytes32 {
+        // A.K.A. "Core".
+        bytes32::new(
+            x"00000000000000000000000000000000000000000000000000000000436f7265"
+        )
+    }
+
     public fun governance_chain(self: &State): u16 {
         self.governance_chain
     }
@@ -138,8 +148,10 @@ module wormhole::state {
         fee_collector::deposit(&mut self.fee_collector, coin);
     }
 
-    public(friend) fun set_governance_action_consumed(self: &mut State, hash: vector<u8>){
-        set::add<vector<u8>>(&mut self.consumed_governance_actions, hash);
+    public(friend) fun consume_vaa_hash(self: &mut State, vaa_hash: Bytes32) {
+        let consumed = &mut self.consumed_vaa_hashes;
+        assert!(!set::contains(consumed, vaa_hash), E_VAA_ALREADY_CONSUMED);
+        set::add(consumed, vaa_hash);
     }
 
     public(friend) fun update_guardian_set_index(self: &mut State, new_index: u32) {
@@ -193,5 +205,4 @@ module wormhole::state {
     ): u64 {
         emitter::use_sequence(emitter_cap)
     }
-
 }

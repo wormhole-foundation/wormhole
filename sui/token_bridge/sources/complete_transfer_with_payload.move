@@ -66,7 +66,7 @@ module token_bridge::complete_transfer_with_payload {
         // emitter.
         assert!(
             external_address::to_address(
-                emitter::get_external_address(emitter_cap)
+                emitter::external_address(emitter_cap)
             ) == recipient,
             E_INVALID_RECIPIENT
         );
@@ -201,8 +201,8 @@ module token_bridge::complete_transfer_with_payload_test {
             let wormhole_state = test_scenario::take_shared<WormholeState>(&test);
             let bridge_state = test_scenario::take_shared<State>(&test);
             register_chain::submit_vaa(
-                &mut wormhole_state,
                 &mut bridge_state,
+                &mut wormhole_state,
                 SUI_REGISTRATION_VAA,
                 test_scenario::ctx(&mut test)
             );

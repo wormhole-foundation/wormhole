@@ -1,8 +1,7 @@
 /// Token Bridge VAA utilities.
 module token_bridge::vaa {
     use sui::tx_context::{TxContext};
-
-    use wormhole::vaa::{Self as corevaa, VAA};
+    use wormhole::vaa::{Self, VAA};
     use wormhole::state::{State as WormholeState};
 
     use token_bridge::state::{Self, State};
@@ -20,32 +19,6 @@ module token_bridge::vaa {
     // We have a registration, but it's different from what's given.
     const E_UNKNOWN_EMITTER: u64 = 1;
 
-    /// Aborts if the VAA has already been consumed. Marks the VAA as consumed
-    /// the first time around.
-    public(friend) fun replay_protect(
-        token_bridge_state: &mut State,
-        vaa: &VAA
-    ) {
-        // this calls set::add which aborts if the element already exists
-        state::store_consumed_vaa(
-            token_bridge_state,
-            corevaa::hash_as_bytes(vaa)
-        );
-    }
-
-    /// Asserts that the VAA is from a known token bridge.
-    public fun verify_emitter(token_bridge_state: &State, vm: &VAA) {
-        let foreign_emitter =
-            state::registered_emitter(
-                token_bridge_state,
-                corevaa::emitter_chain(vm)
-            );
-        assert!(
-            foreign_emitter == corevaa::emitter_address(vm),
-            E_UNKNOWN_EMITTER
-        );
-    }
-
     /// Parses, verifies, and replay protects a token bridge VAA.
     /// Aborts if the VAA is not from a known token bridge emitter.
     ///
@@ -54,12 +27,16 @@ module token_bridge::vaa {
     public(friend) fun parse_verify_and_replay_protect(
         token_bridge_state: &mut State,
         worm_state: &mut WormholeState,
-        vaa: vector<u8>,
-        ctx: &mut TxContext
+        vaa_buf: vector<u8>,
+        ctx: &TxContext
     ): VAA {
-        let vaa = parse_and_verify(token_bridge_state, worm_state, vaa, ctx);
-        replay_protect(token_bridge_state, &vaa);
-        vaa
+        let verified =
+            parse_and_verify(token_bridge_state, worm_state, vaa_buf, ctx);
+
+        // Consume the VAA hash to prevent replay.
+        state::consume_vaa_hash(token_bridge_state, vaa::hash(&verified));
+
+        verified
     }
 
     /// Parses, and verifies a token bridge VAA.
@@ -68,11 +45,26 @@ module token_bridge::vaa {
         token_bridge_state: &State,
         worm_state: &mut WormholeState,
         vaa: vector<u8>,
-        ctx:&mut TxContext
+        ctx: &TxContext
     ): VAA {
-        let vaa = corevaa::parse_and_verify(worm_state, vaa, ctx);
-        verify_emitter(token_bridge_state, &vaa);
-        vaa
+        let parsed = vaa::parse_and_verify(worm_state, vaa, ctx);
+        verify_emitter(token_bridge_state, &parsed);
+
+        parsed
+    }
+
+    /// Asserts that the VAA is from a known token bridge.
+    fun verify_emitter(token_bridge_state: &State, vm: &VAA) {
+        let foreign_emitter =
+            state::registered_emitter(
+                token_bridge_state,
+                vaa::emitter_chain(vm)
+            );
+
+        assert!(
+            foreign_emitter == vaa::emitter_address(vm),
+            E_UNKNOWN_EMITTER
+        );
     }
 }
 
@@ -197,7 +189,7 @@ module token_bridge::token_bridge_vaa_test{
     }
 
     #[test]
-    #[expected_failure(abort_code = 0, location=sui::dynamic_field)]
+    #[expected_failure(abort_code = state::E_VAA_ALREADY_CONSUMED)]
     fun test_replay_protection_works() {
         let (admin, _, _) = people();
         let test = scenario();

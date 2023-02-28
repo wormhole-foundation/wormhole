@@ -222,7 +222,7 @@ module token_bridge::wrapped_coin_12_decimals_test {
         next_tx(&mut test, admin); {
             let wormhole_state = take_shared<WormholeState>(&test);
             let bridge_state = take_shared<State>(&test);
-            submit_vaa(&mut wormhole_state, &mut bridge_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
+            submit_vaa(&mut bridge_state, &mut wormhole_state,ETHEREUM_TOKEN_REG, ctx(&mut test));
             return_shared<WormholeState>(wormhole_state);
             return_shared<State>(bridge_state);
         };
@@ -262,8 +262,8 @@ module token_bridge::wrapped_coin_12_decimals_test {
             let wormhole_state = take_shared<WormholeState>(&test);
             let bridge_state = take_shared<State>(&test);
             submit_vaa(
-                &mut wormhole_state,
                 &mut bridge_state,
+                &mut wormhole_state,
                 ETHEREUM_TOKEN_REG,
                 ctx(&mut test)
             );
