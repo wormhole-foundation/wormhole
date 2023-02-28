@@ -273,7 +273,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 			return fmt.Errorf("creating block poll connector failed: %w", err)
 		}
 		// The standard geth BlockByHash() does not work on Arbitrum.
-		w.ethConn, err = connectors.NewConnectorWithGetTimeOfBlock(ctx, pollConnector)
+		w.ethConn, err = connectors.NewConnectorWithGetTimeOfBlockOverride(ctx, pollConnector)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
@@ -320,7 +320,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 				return fmt.Errorf("creating block poll connector failed: %w", err)
 			}
 			// The standard geth BlockByHash() does not work on Optimism Bedrock.
-			w.ethConn, err = connectors.NewConnectorWithGetTimeOfBlock(ctx, pollConnector)
+			w.ethConn, err = connectors.NewConnectorWithGetTimeOfBlockOverride(ctx, pollConnector)
 			if err != nil {
 				ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
@@ -358,7 +358,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 			return fmt.Errorf("creating block poll connector failed: %w", err)
 		}
 		// The standard geth BlockByHash() does not work on Base.
-		w.ethConn, err = connectors.NewConnectorWithGetTimeOfBlock(ctx, pollConnector)
+		w.ethConn, err = connectors.NewConnectorWithGetTimeOfBlockOverride(ctx, pollConnector)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)

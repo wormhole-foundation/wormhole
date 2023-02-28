@@ -1,8 +1,3 @@
-// On some chains we are unable to get blocks by transaction hash using the go-ethereum library
-// because it fails with "transaction type not supported". However, calling the underlying
-// eth_getBlockByHash directly works. The sole function of this connector is to implement
-// TimeOfBlockByHash using the raw connection.
-
 package connectors
 
 import (
@@ -13,16 +8,19 @@ import (
 	ethCommon "github.com/ethereum/go-ethereum/common"
 )
 
-type ConnectorWithGetTimeOfBlock struct {
+// ConnectorWithGetTimeOfBlockOverride is used to override the implementation of TimeOfBlockByHash() as defined in
+// the go-ethereum library because on some chains it fails with "transaction type not supported". Calling the underlying
+// eth_getBlockByHash directly works, so the sole function of this connector is to implement TimeOfBlockByHash() using the raw connection.
+type ConnectorWithGetTimeOfBlockOverride struct {
 	Connector
 }
 
-func NewConnectorWithGetTimeOfBlock(ctx context.Context, baseConnector Connector) (*ConnectorWithGetTimeOfBlock, error) {
-	connector := &ConnectorWithGetTimeOfBlock{Connector: baseConnector}
+func NewConnectorWithGetTimeOfBlockOverride(ctx context.Context, baseConnector Connector) (*ConnectorWithGetTimeOfBlockOverride, error) {
+	connector := &ConnectorWithGetTimeOfBlockOverride{Connector: baseConnector}
 	return connector, nil
 }
 
-func (a *ConnectorWithGetTimeOfBlock) TimeOfBlockByHash(ctx context.Context, hash ethCommon.Hash) (uint64, error) {
+func (a *ConnectorWithGetTimeOfBlockOverride) TimeOfBlockByHash(ctx context.Context, hash ethCommon.Hash) (uint64, error) {
 	type Marshaller struct {
 		Time string `json:"timestamp"        gencodec:"required"`
 	}
