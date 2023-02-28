@@ -34,7 +34,7 @@
 # Guardiand node
 
 ## Fallback
-/node/ @bruce-riley @leoluk @hendrikhofstadt
+/node/ @bruce-riley @evan-gray @hendrikhofstadt
 
 ## Entrypoint / RPC
 /node/cmd/ @bruce-riley @panoel
@@ -49,7 +49,7 @@
 /node/pkg/governor/ @bruce-riley @claudijd
 
 ## P2P
-/node/pkg/p2p/ @leoluk @hendrikhofstadt
+/node/pkg/p2p/ @bruce-riley @hendrikhofstadt
 
 ## Consensus / Processor
 /node/pkg/processor/ @bruce-riley @hendrikhofstadt
@@ -58,7 +58,7 @@
 /node/pkg/publicrpc/ @bruce-riley
 
 ## Supervisor Framework
-/node/pkg/supervisor/ @hendrikhofstadt @leoluk
+/node/pkg/supervisor/ @hendrikhofstadt @bruce-riley
 
 ## Watcher - Algorand
 /node/pkg/watchers/algorand/ @evan-gray @jumpsiegel
