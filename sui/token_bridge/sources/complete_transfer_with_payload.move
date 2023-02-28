@@ -67,7 +67,7 @@ module token_bridge::complete_transfer_with_payload {
         // emitter.
         assert!(
             external_address::to_address(
-                emitter::get_external_address(emitter_cap)
+                emitter::external_address(emitter_cap)
             ) == recipient,
             E_INVALID_RECIPIENT
         );

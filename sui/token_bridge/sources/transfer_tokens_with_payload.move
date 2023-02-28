@@ -35,7 +35,7 @@ module token_bridge::transfer_tokens_with_payload {
             token_chain,
             recipient,
             recipient_chain,
-            emitter::get_external_address(emitter_cap),
+            emitter::external_address(emitter_cap),
             payload
         );
 

@@ -13,10 +13,7 @@ module wormhole::vaa {
 
     friend wormhole::update_guardian_set;
 
-    const E_INVALID_GOVERNANCE_CHAIN: u64 = 4;
-    const E_INVALID_GOVERNANCE_EMITTER: u64 = 5;
-    const E_WRONG_VERSION: u64 = 6;
-    const E_OLD_GUARDIAN_SET_GOVERNANCE: u64 = 8;
+    const E_WRONG_VERSION: u64 = 0;
 
     const VERSION_VAA: u8 = 1;
 
@@ -159,7 +156,7 @@ module wormhole::vaa {
     /// be kept that way. This ensures that if an external module receives a
     /// `VAA`, it has been verified.
     public fun parse_and_verify(
-        state: &mut State,
+        wormhole_state: &mut State,
         buf: vector<u8>,
         ctx: &TxContext
     ): VAA {
@@ -168,7 +165,7 @@ module wormhole::vaa {
 
         // Fetch the guardian set which this VAA was supposedly signed with.
         let guardian_set =
-            state::guardian_set_at(state, &vaa.guardian_set_index);
+            state::guardian_set_at(wormhole_state, &vaa.guardian_set_index);
 
         // Verify signatures using guardian set.
         guardian_set::verify_signatures(
@@ -180,24 +177,6 @@ module wormhole::vaa {
 
         // Done.
         vaa
-    }
-
-    /// Aborts if the VAA is not governance (i.e. sent from the governance
-    /// emitter on the governance chain)
-    public fun assert_governance(wormhole_state: &State, vaa: &VAA) {
-        let latest_guardian_set_index = state::guardian_set_index(wormhole_state);
-        assert!(vaa.guardian_set_index == latest_guardian_set_index, E_OLD_GUARDIAN_SET_GOVERNANCE);
-        assert!(vaa.emitter_chain == state::governance_chain(wormhole_state), E_INVALID_GOVERNANCE_CHAIN);
-        assert!(vaa.emitter_address == state::governance_contract(wormhole_state), E_INVALID_GOVERNANCE_EMITTER);
-    }
-
-    /// Aborts if the VAA has already been consumed. Marks the VAA as consumed
-    /// the first time around.
-    /// Only to be used for core bridge messages. Protocols should implement
-    /// their own replay protection.
-    public(friend) fun replay_protect(state: &mut State, vaa: &VAA) {
-        // this calls table::add which aborts if the key already exists
-        state::set_governance_action_consumed(state, hash_as_bytes(vaa));
     }
 
     #[test_only]
