@@ -175,9 +175,7 @@ module wormhole::setup_test {
         );
 
         let guardians =
-            guardian_set::guardians(
-                state::guardian_set_at(&worm_state, &0)
-            );
+            guardian_set::guardians(state::guardian_set_at(&worm_state, 0));
         let num_guardians = vector::length(guardians);
         assert!(num_guardians == vector::length(&initial_guardians), 0);
 

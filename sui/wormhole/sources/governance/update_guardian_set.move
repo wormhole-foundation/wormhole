@@ -4,13 +4,12 @@ module wormhole::update_guardian_set {
 
     use wormhole::bytes::{Self};
     use wormhole::cursor::{Self};
-    use wormhole::governance_message::{Self};
+    use wormhole::governance_message::{Self, GovernanceMessage};
     use wormhole::guardian::{Self, Guardian};
     use wormhole::guardian_set::{Self};
     use wormhole::state::{Self, State};
 
-    const E_WRONG_GUARDIAN_LEN: u64 = 0;
-    const E_NO_GUARDIAN_SET: u64 = 1;
+    const E_NO_GUARDIANS: u64 = 1;
     const E_INVALID_GOVERNANCE_MODULE: u64 = 2;
     const E_INVALID_GOVERNANCE_ACTION: u64 = 3;
     const E_INVALID_TARGET_CHAIN: u64 = 4;
@@ -24,13 +23,62 @@ module wormhole::update_guardian_set {
     }
 
     public entry fun update_guardian_set(
-        state: &mut State,
+        wormhole_state: &mut State,
         vaa_buf: vector<u8>,
-        ctx: &mut TxContext
+        ctx: &TxContext
     ) {
-        let msg = governance_message::parse_and_verify_vaa(state, vaa_buf, ctx);
-        state::consume_vaa_hash(state, governance_message::vaa_hash(&msg));
+        let msg =
+            governance_message::parse_and_verify_vaa(
+                wormhole_state,
+                vaa_buf,
+                ctx
+            );
 
+        // Do not allow this VAA to be replayed (although it may be impossible
+        // to do so due to the guardian set of a previous VAA being illegitimate
+        // since `governance_message` requires new governance VAAs being signed
+        // by the most recent guardian set).
+        state::consume_vaa_hash(
+            wormhole_state,
+            governance_message::vaa_hash(&msg)
+        );
+
+        // Proceed with the update.
+        handle_update_guardian_set(wormhole_state, msg, ctx)
+    }
+
+    fun handle_update_guardian_set(
+        wormhole_state: &mut State,
+        msg: GovernanceMessage,
+        ctx: &TxContext
+    ) {
+        // Verify that this governance message is to update the guardian set.
+        let governance_payload = verify_and_take_payload(msg);
+
+        // Deserialize the payload as the updated guardian set.
+        let UpdateGuardianSet {
+            new_index,
+            guardians
+        } = deserialize(governance_payload);
+
+        // Every new guardian set index must be incremental from the last known
+        // guardian set.
+        assert!(
+            new_index == state::guardian_set_index(wormhole_state) + 1,
+            E_NON_INCREMENTAL_GUARDIAN_SETS
+        );
+
+        // Expire the existing guardian set.
+        state::expire_guardian_set(wormhole_state, ctx);
+
+        // And store the new one.
+        state::store_guardian_set(
+            wormhole_state,
+            guardian_set::new(new_index, guardians)
+        );
+    }
+
+    fun verify_and_take_payload(msg: GovernanceMessage): vector<u8> {
         // Governance action must be for Wormhole (Core Bridge).
         assert!(
             governance_message::module_name(&msg) == state::governance_module(),
@@ -49,185 +97,408 @@ module wormhole::update_guardian_set {
             E_INVALID_TARGET_CHAIN
         );
 
-        do_upgrade(
-            state,
-            parse_payload(governance_message::take_payload(msg)),
-            ctx
-        )
+        governance_message::take_payload(msg)
     }
 
-    fun do_upgrade(
-        state: &mut State,
-        upgrade: UpdateGuardianSet,
-        ctx: &TxContext
-    ) {
-        let current_index = state::guardian_set_index(state);
-
-        let UpdateGuardianSet {
-            new_index,
-            guardians,
-        } = upgrade;
-
-        assert!(
-            new_index == current_index + 1,
-            E_NON_INCREMENTAL_GUARDIAN_SETS
-        );
-
-        state::expire_guardian_set(state, ctx);
-
-        state::update_guardian_set_index(state, new_index);
-        state::store_guardian_set(
-            state,
-            guardian_set::new(new_index, guardians)
-        );
-    }
-
-    #[test_only]
-    public fun do_upgrade_test(
-        s: &mut State,
-        new_index: u32,
-        guardians: vector<Guardian>,
-        ctx: &mut TxContext
-    ) {
-        do_upgrade(s, UpdateGuardianSet { new_index, guardians }, ctx)
-    }
-
-    public fun parse_payload(bytes: vector<u8>): UpdateGuardianSet {
-        let cur = cursor::new(bytes);
-        let guardians = vector::empty<Guardian>();
-
+    fun deserialize(payload: vector<u8>): UpdateGuardianSet {
+        let cur = cursor::new(payload);
         let new_index = bytes::deserialize_u32_be(&mut cur);
-        let guardian_len = bytes::deserialize_u8(&mut cur);
+        let num_guardians = bytes::deserialize_u8(&mut cur);
+        assert!(num_guardians > 0, E_NO_GUARDIANS);
 
-        while (guardian_len > 0) {
+        let guardians = vector::empty<Guardian>();
+        let i = 0;
+        while (i < num_guardians) {
             let key = bytes::to_bytes(&mut cur, 20);
             vector::push_back(&mut guardians, guardian::new(key));
-            guardian_len = guardian_len - 1;
+            i = i + 1;
         };
-
         cursor::destroy_empty(cur);
 
-        UpdateGuardianSet {
-            new_index,
-            guardians
-        }
+        UpdateGuardianSet { new_index, guardians }
     }
 
     #[test_only]
-    public fun split(upgrade: UpdateGuardianSet): (u32, vector<Guardian>) {
-        let UpdateGuardianSet { new_index, guardians } = upgrade;
-        (new_index, guardians)
+    public fun expcted_action(): u8 {
+        ACTION_UPDATE_GUARDIAN_SET
     }
 }
 
 #[test_only]
 module wormhole::guardian_set_upgrade_test {
-    use std::vector;
+    use std::vector::{Self};
     use sui::test_scenario::{Self};
 
+    use wormhole::bytes::{Self};
     use wormhole::cursor::{Self};
+    use wormhole::governance_message::{Self};
     use wormhole::guardian::{Self};
     use wormhole::guardian_set::{Self};
     use wormhole::state::{Self, State};
     use wormhole::update_guardian_set::{Self};
-    use wormhole::wormhole_scenario::{set_up_wormhole};
+    use wormhole::wormhole_scenario::{set_up_wormhole, person};
 
+    const VAA_UPDATE_GUARDIAN_SET_1: vector<u8> =
+        x"010000000001004f74e9596bd8246ef456918594ae16e81365b52c0cf4490b2a029fb101b058311f4a5592baeac014dc58215faad36453467a85a4c3e1c6cf5166e80f6e4dc50b0100bc614e000000000001000000000000000000000000000000000000000000000000000000000000000400000000000000010100000000000000000000000000000000000000000000000000000000436f72650200000000000113befa429d57cd18b7f8a4d91a2da9ab4af05d0fbe88d7d8b32a9105d228100e72dffe2fae0705d31c58076f561cc62a47087b567c86f986426dfcd000bd6e9833490f8fa87c733a183cd076a6cbd29074b853fcf0a5c78c1b56d15fce7a154e6ebe9ed7a2af3503dbd2e37518ab04d7ce78b630f98b15b78a785632dea5609064803b1c8ea8bb2c77a6004bd109a281a698c0f5ba31f158585b41f4f33659e54d3178443ab76a60e21690dbfb17f7f59f09ae3ea1647ec26ae49b14060660504f4da1c2059e1c5ab6810ac3d8e1258bd2f004a94ca0cd4c68fc1c061180610e96d645b12f47ae5cf4546b18538739e90f2edb0d8530e31a218e72b9480202acbaeb06178da78858e5e5c4705cdd4b668ffe3be5bae4867c9d5efe3a05efc62d60e1d19faeb56a80223cdd3472d791b7d32c05abb1cc00b6381fa0c4928f0c56fc14bc029b8809069093d712a3fd4dfab31963597e246ab29fc6ebedf2d392a51ab2dc5c59d0902a03132a84dfd920b35a3d0ba5f7a0635df298f9033e";
 
-    fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
+    const VAA_UPDATE_GUARDIAN_SET_2A: vector<u8> =
+        x"010000000001005fb17d5e0e736e3014756bf7e7335722c4fe3ad18b5b1b566e8e61e562cc44555f30b298bc6a21ea4b192a6f1877a5e638ecf90a77b0b028f297a3a70d93614d0100bc614e000000000001000000000000000000000000000000000000000000000000000000000000000400000000000000010100000000000000000000000000000000000000000000000000000000436f72650200000000000101befa429d57cd18b7f8a4d91a2da9ab4af05d0fbe";
 
-    #[test]
-    public fun test_parse_guardian_set_upgrade() {
-        let b =
-            x"000000011358cc3ae5c097b213ce3c81979e1b9f9570746aa5ff6cb952589bde862c25ef4392132fb9d4a42157114de8460193bdf3a2fcf81f86a09765f4762fd1107a0086b32d7a0977926a205131d8731d39cbeb8c82b2fd82faed2711d59af0f2499d16e726f6b211b39756c042441be6d8650b69b54ebe715e234354ce5b4d348fb74b958e8966e2ec3dbd4958a7cdeb5f7389fa26941519f0863349c223b73a6ddee774a3bf913953d695260d88bc1aa25a4eee363ef0000ac0076727b35fbea2dac28fee5ccb0fea768eaf45ced136b9d9e24903464ae889f5c8a723fc14f93124b7c738843cbb89e864c862c38cddcccf95d2cc37a4dc036a8d232b48f62cdd4731412f4890da798f6896a3331f64b48c12d1d57fd9cbe7081171aa1be1d36cafe3867910f99c09e347899c19c38192b6e7387ccd768277c17dab1b7a5027c0b3cf178e21ad2e77ae06711549cfbb1f9c7a9d8096e85e1487f35515d02a92753504a8d75471b9f49edb6fbebc898f403e4773e95feb15e80c9a99c8348d";
-        let (new_index, guardians) =
-            update_guardian_set::split(update_guardian_set::parse_payload(b));
-        let guardians = cursor::new(guardians);
-        assert!(new_index == 1, 0);
-        assert!(vector::length(cursor::data(&guardians)) == 19, 0);
-        let expected = cursor::new(vector[
-            guardian::new(x"58cc3ae5c097b213ce3c81979e1b9f9570746aa5"),
-            guardian::new(x"ff6cb952589bde862c25ef4392132fb9d4a42157"),
-            guardian::new(x"114de8460193bdf3a2fcf81f86a09765f4762fd1"),
-            guardian::new(x"107a0086b32d7a0977926a205131d8731d39cbeb"),
-            guardian::new(x"8c82b2fd82faed2711d59af0f2499d16e726f6b2"),
-            guardian::new(x"11b39756c042441be6d8650b69b54ebe715e2343"),
-            guardian::new(x"54ce5b4d348fb74b958e8966e2ec3dbd4958a7cd"),
-            guardian::new(x"eb5f7389fa26941519f0863349c223b73a6ddee7"),
-            guardian::new(x"74a3bf913953d695260d88bc1aa25a4eee363ef0"),
-            guardian::new(x"000ac0076727b35fbea2dac28fee5ccb0fea768e"),
-            guardian::new(x"af45ced136b9d9e24903464ae889f5c8a723fc14"),
-            guardian::new(x"f93124b7c738843cbb89e864c862c38cddcccf95"),
-            guardian::new(x"d2cc37a4dc036a8d232b48f62cdd4731412f4890"),
-            guardian::new(x"da798f6896a3331f64b48c12d1d57fd9cbe70811"),
-            guardian::new(x"71aa1be1d36cafe3867910f99c09e347899c19c3"),
-            guardian::new(x"8192b6e7387ccd768277c17dab1b7a5027c0b3cf"),
-            guardian::new(x"178e21ad2e77ae06711549cfbb1f9c7a9d8096e8"),
-            guardian::new(x"5e1487f35515d02a92753504a8d75471b9f49edb"),
-            guardian::new(x"6fbebc898f403e4773e95feb15e80c9a99c8348d"),
-        ]);
-        while (!cursor::is_empty(&guardians) && !cursor::is_empty(&expected)) {
-            let left = guardian::to_bytes(cursor::poke(&mut guardians));
-            let right = guardian::to_bytes(cursor::poke(&mut expected));
-            assert!(left == right, 0);
-        };
-        cursor::destroy_empty(guardians);
-        cursor::destroy_empty(expected);
-    }
+    const VAA_UPDATE_GUARDIAN_SET_2B: vector<u8> =
+        x"01000000010100195f37abd29438c74db6e57bf527646b36fa96e36392221e869debe0e911f2f319abc0fd5c5a454da76fc0ffdd23a71a60bca40aa4289a841ad07f2964cde9290000bc614e000000000001000000000000000000000000000000000000000000000000000000000000000400000000000000020100000000000000000000000000000000000000000000000000000000436f72650200000000000201befa429d57cd18b7f8a4d91a2da9ab4af05d0fbe";
+
+    const VAA_BOGUS_MODULE_NAME: vector<u8> =
+        x"01000000000100cb98438c5b77f48dc45b67e9a66aafa07b90bce1519403c0b11489b97615c641613782560408f760f575cf41cebe3b6e9e8e62ac31f9f598bb6a42a3999e45b20100bc614e000000000001000000000000000000000000000000000000000000000000000000000000000400000000000000010100000000000000000000000000000000000000000000000000000000436f72640200000000000101befa429d57cd18b7f8a4d91a2da9ab4af05d0fbe";
+
+    const VAA_BOGUS_TARGET_CHAIN: vector<u8> =
+        x"0100000000010004b514098f76a23591c7b65dc65320e40a0c402e0b429fb5d7608f7f97b9f5cb04fa5b25f80c546a2236f4109a542d87cd86a54db1ee94317d39863194dff8f00100bc614e000000000001000000000000000000000000000000000000000000000000000000000000000400000000000000010100000000000000000000000000000000000000000000000000000000436f72650200150000000101befa429d57cd18b7f8a4d91a2da9ab4af05d0fbe";
+
+    const VAA_BOGUS_ACTION: vector<u8> =
+        x"01000000000100bd1aa227e7b3b9d3776105cb383c6197c8761266c895c478d9d30f5932447b156f2307df6fc7ca955806a618ef757cc061b29ee33657d638a33343c907fad4a30100bc614e000000000001000000000000000000000000000000000000000000000000000000000000000400000000000000010100000000000000000000000000000000000000000000000000000000436f72654500000000000101befa429d57cd18b7f8a4d91a2da9ab4af05d0fbe";
+
+    const VAA_UPDATE_GUARDIAN_SET_EMPTY: vector<u8> =
+        x"0100000000010098f9e45f836661d2932def9c74c587168f4f75d0282201ee6f5a98557e6212ff19b0f8881c2750646250f60dd5d565530779ecbf9442aa5ffc2d6afd7303aaa40000bc614e000000000001000000000000000000000000000000000000000000000000000000000000000400000000000000010100000000000000000000000000000000000000000000000000000000436f72650200000000000100";
 
     #[test]
-    public fun test_guardian_set_expiry() {
-        let (admin, caller, _) = people();
-        let my_scenario = test_scenario::begin(admin);
+    public fun test_update_guardian_set() {
+        // Testing this method.
+        use wormhole::update_guardian_set::{update_guardian_set};
+
+        // Set up.
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
         let wormhole_fee = 0;
         set_up_wormhole(scenario, wormhole_fee);
 
+        // Prepare test to execute `update_guardian_set`.
         test_scenario::next_tx(scenario, caller);
 
-        {
-            let worm_state = test_scenario::take_shared<State>(scenario);
-            let first_index = state::guardian_set_index(&worm_state);
-            let set = state::guardian_set_at(&worm_state, &first_index);
-            // make sure guardian set is active
-            assert!(
-                guardian_set::is_active(set, test_scenario::ctx(scenario)),
-                0
-            );
+        let worm_state = test_scenario::take_shared<State>(scenario);
+        update_guardian_set(
+            &mut worm_state,
+            VAA_UPDATE_GUARDIAN_SET_1,
+            test_scenario::ctx(scenario)
+        );
 
-            // do an upgrade
-            update_guardian_set::do_upgrade_test(
-                &mut worm_state,
-                1, // guardian set index
-                vector[
-                    guardian::new(x"71aa1be1d36cafe3867910f99c09e347899c19c3")
-                ], // new guardian set
-                test_scenario::ctx(scenario),
-            );
+        let new_guardian_set = state::guardian_set_at(&worm_state, 1);
 
-            // make sure old guardian set is still active
-            let set = state::guardian_set_at(&worm_state, &first_index);
-            assert!(
-                guardian_set::is_active(set, test_scenario::ctx(scenario)),
-                0
-            );
+        // Verify new guardian set index.
+        assert!(state::guardian_set_index(&worm_state) == 1, 0);
+        assert!(
+            guardian_set::index(new_guardian_set) == state::guardian_set_index(&worm_state),
+            0
+        );
 
-            // Fast forward time beyond expiration by 3 epochs
-            test_scenario::next_epoch(scenario, caller);
-            test_scenario::next_epoch(scenario, caller);
-            test_scenario::next_epoch(scenario, caller);
+        // Check that the guardians agree with what we expect.
+        let guardians = guardian_set::guardians(new_guardian_set);
+        let expected = vector[
+            guardian::new(x"befa429d57cd18b7f8a4d91a2da9ab4af05d0fbe"),
+            guardian::new(x"88d7d8b32a9105d228100e72dffe2fae0705d31c"),
+            guardian::new(x"58076f561cc62a47087b567c86f986426dfcd000"),
+            guardian::new(x"bd6e9833490f8fa87c733a183cd076a6cbd29074"),
+            guardian::new(x"b853fcf0a5c78c1b56d15fce7a154e6ebe9ed7a2"),
+            guardian::new(x"af3503dbd2e37518ab04d7ce78b630f98b15b78a"),
+            guardian::new(x"785632dea5609064803b1c8ea8bb2c77a6004bd1"),
+            guardian::new(x"09a281a698c0f5ba31f158585b41f4f33659e54d"),
+            guardian::new(x"3178443ab76a60e21690dbfb17f7f59f09ae3ea1"),
+            guardian::new(x"647ec26ae49b14060660504f4da1c2059e1c5ab6"),
+            guardian::new(x"810ac3d8e1258bd2f004a94ca0cd4c68fc1c0611"),
+            guardian::new(x"80610e96d645b12f47ae5cf4546b18538739e90f"),
+            guardian::new(x"2edb0d8530e31a218e72b9480202acbaeb06178d"),
+            guardian::new(x"a78858e5e5c4705cdd4b668ffe3be5bae4867c9d"),
+            guardian::new(x"5efe3a05efc62d60e1d19faeb56a80223cdd3472"),
+            guardian::new(x"d791b7d32c05abb1cc00b6381fa0c4928f0c56fc"),
+            guardian::new(x"14bc029b8809069093d712a3fd4dfab31963597e"),
+            guardian::new(x"246ab29fc6ebedf2d392a51ab2dc5c59d0902a03"),
+            guardian::new(x"132a84dfd920b35a3d0ba5f7a0635df298f9033e"),
+        ];
+        assert!(vector::length(&expected) == vector::length(guardians), 0);
 
-            // make sure old guardian set is no longer active
-            assert!(
-                !guardian_set::is_active(set, test_scenario::ctx(scenario)),
-                0
-            );
-
-            test_scenario::return_shared<State>(worm_state);
+        let cur = cursor::new(expected);
+        let i = 0;
+        while (!cursor::is_empty(&cur)) {
+            let left = guardian::as_bytes(vector::borrow(guardians, i));
+            let right = guardian::to_bytes(cursor::poke(&mut cur));
+            assert!(left == right, 0);
+            i = i + 1;
         };
+        cursor::destroy_empty(cur);
+
+
+        // Make sure old guardian set is still active.
+        let old_guardian_set = state::guardian_set_at(&worm_state, 0);
+        assert!(
+            guardian_set::is_active(
+                old_guardian_set,
+                test_scenario::ctx(scenario)
+            ),
+            0
+        );
+
+        // Fast forward time beyond expiration by 3 epochs
+        test_scenario::next_epoch(scenario, caller);
+        test_scenario::next_epoch(scenario, caller);
+        test_scenario::next_epoch(scenario, caller);
+
+        // Now the old guardian set should be expired (because in the test setup
+        // time to live is set to 2 epochs).
+        assert!(
+            !guardian_set::is_active(
+                old_guardian_set,
+                test_scenario::ctx(scenario)
+            ),
+            0
+        );
+        // Clean up.
+        test_scenario::return_shared(worm_state);
 
         // Done.
         test_scenario::end(my_scenario);
     }
 
+    #[test]
+    #[expected_failure(
+        abort_code = governance_message::E_OLD_GUARDIAN_SET_GOVERNANCE
+    )]
+    public fun test_cannot_update_guardian_set_again_with_same_vaa() {
+        // Testing this method.
+        use wormhole::update_guardian_set::{update_guardian_set};
+
+        // Set up.
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
+
+        let wormhole_fee = 0;
+        set_up_wormhole(scenario, wormhole_fee);
+
+        // Prepare test to execute `update_guardian_set`.
+        test_scenario::next_tx(scenario, caller);
+
+        let worm_state = test_scenario::take_shared<State>(scenario);
+        update_guardian_set(
+            &mut worm_state,
+            VAA_UPDATE_GUARDIAN_SET_2A,
+            test_scenario::ctx(scenario)
+        );
+
+        // Update guardian set again with new VAA.
+        update_guardian_set(
+            &mut worm_state,
+            VAA_UPDATE_GUARDIAN_SET_2B,
+            test_scenario::ctx(scenario)
+        );
+        assert!(state::guardian_set_index(&worm_state) == 2, 0);
+
+        // Cannot replay first VAA due to stale guardian set index.
+        update_guardian_set(
+            &mut worm_state,
+            VAA_UPDATE_GUARDIAN_SET_2A,
+            test_scenario::ctx(scenario)
+        );
+
+        // Clean up even though we should have failed by this point.
+        test_scenario::return_shared(worm_state);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(
+        abort_code = update_guardian_set::E_INVALID_GOVERNANCE_MODULE
+    )]
+    public fun test_cannot_use_governance_vaa_invalid_module_name() {
+        // Testing this method.
+        use wormhole::update_guardian_set::{update_guardian_set};
+
+        // Set up.
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
+
+        let wormhole_fee = 0;
+        set_up_wormhole(scenario, wormhole_fee);
+
+        // Prepare test to execute `update_guardian_set`.
+        test_scenario::next_tx(scenario, caller);
+
+        let worm_state = test_scenario::take_shared<State>(scenario);
+
+        // Show that the governance module is incorrect.
+        let msg =
+            governance_message::parse_and_verify_vaa(
+                &mut worm_state,
+                VAA_BOGUS_MODULE_NAME,
+                test_scenario::ctx(scenario)
+            );
+        assert!(
+            governance_message::module_name(&msg) != state::governance_module(),
+            0
+        );
+        governance_message::destroy(msg);
+
+        // You shall not pass!
+        update_guardian_set(
+            &mut worm_state,
+            VAA_BOGUS_MODULE_NAME,
+            test_scenario::ctx(scenario)
+        );
+
+        // Clean up even though we should have failed by this point.
+        test_scenario::return_shared(worm_state);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(
+        abort_code = update_guardian_set::E_INVALID_TARGET_CHAIN
+    )]
+    public fun test_cannot_use_governance_vaa_invalid_target_chain() {
+        // Testing this method.
+        use wormhole::update_guardian_set::{update_guardian_set};
+
+        // Set up.
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
+
+        let wormhole_fee = 0;
+        set_up_wormhole(scenario, wormhole_fee);
+
+        // Prepare test to execute `update_guardian_set`.
+        test_scenario::next_tx(scenario, caller);
+
+        let worm_state = test_scenario::take_shared<State>(scenario);
+
+        // Updating the guardidan set must be applied globally (not for just
+        // one chain).
+        let msg =
+            governance_message::parse_and_verify_vaa(
+                &mut worm_state,
+                VAA_BOGUS_TARGET_CHAIN,
+                test_scenario::ctx(scenario)
+            );
+        assert!(!governance_message::is_global_action(&msg), 0);
+        governance_message::destroy(msg);
+
+        // You shall not pass!
+        update_guardian_set(
+            &mut worm_state,
+            VAA_BOGUS_TARGET_CHAIN,
+            test_scenario::ctx(scenario)
+        );
+
+        // Clean up even though we should have failed by this point.
+        test_scenario::return_shared(worm_state);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(
+        abort_code = update_guardian_set::E_INVALID_GOVERNANCE_ACTION
+    )]
+    public fun test_cannot_use_governance_vaa_invalid_governance_action() {
+        // Testing this method.
+        use wormhole::update_guardian_set::{update_guardian_set};
+
+        // Set up.
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
+
+        let wormhole_fee = 0;
+        set_up_wormhole(scenario, wormhole_fee);
+
+        // Prepare test to execute `update_guardian_set`.
+        test_scenario::next_tx(scenario, caller);
+
+        let worm_state = test_scenario::take_shared<State>(scenario);
+
+        // Updating the guardidan set must be applied globally (not for just
+        // one chain).
+        let msg =
+            governance_message::parse_and_verify_vaa(
+                &mut worm_state,
+                VAA_BOGUS_ACTION,
+                test_scenario::ctx(scenario)
+            );
+        assert!(
+            governance_message::action(&msg) != update_guardian_set::expcted_action(),
+            0
+        );
+        governance_message::destroy(msg);
+
+        // You shall not pass!
+        update_guardian_set(
+            &mut worm_state,
+            VAA_BOGUS_ACTION,
+            test_scenario::ctx(scenario)
+        );
+
+        // Clean up even though we should have failed by this point.
+        test_scenario::return_shared(worm_state);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(
+        abort_code = update_guardian_set::E_NO_GUARDIANS
+    )]
+    public fun test_cannot_update_guardian_set_with_no_guardians() {
+        // Testing this method.
+        use wormhole::update_guardian_set::{update_guardian_set};
+
+        // Set up.
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
+
+        let wormhole_fee = 0;
+        set_up_wormhole(scenario, wormhole_fee);
+
+        // Prepare test to execute `update_guardian_set`.
+        test_scenario::next_tx(scenario, caller);
+
+        let worm_state = test_scenario::take_shared<State>(scenario);
+
+        // Show that the encoded number of guardians is zero.
+        let msg =
+            governance_message::parse_and_verify_vaa(
+                &mut worm_state,
+                VAA_UPDATE_GUARDIAN_SET_EMPTY,
+                test_scenario::ctx(scenario)
+            );
+        let payload = governance_message::take_payload(msg);
+        let cur = cursor::new(payload);
+
+        let new_guardian_set_index = bytes::deserialize_u32_be(&mut cur);
+        assert!(new_guardian_set_index == 1, 0);
+
+        let num_guardians = bytes::deserialize_u8(&mut cur);
+        assert!(num_guardians == 0, 0);
+
+        cursor::destroy_empty(cur);
+
+        // You shall not pass!
+        update_guardian_set(
+            &mut worm_state,
+            VAA_UPDATE_GUARDIAN_SET_EMPTY,
+            test_scenario::ctx(scenario)
+        );
+
+        // Clean up even though we should have failed by this point.
+        test_scenario::return_shared(worm_state);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
 }
