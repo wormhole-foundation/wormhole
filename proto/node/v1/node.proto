@@ -222,7 +222,7 @@ message CircleIntegrationUpdateWormholeFinality {
 }
 
 message CircleIntegrationRegisterEmitterAndDomain {
-  uint32 foreign_emitter_chain_id	= 1;
+  uint32 foreign_emitter_chain_id = 1;
   string foreign_emitter_address = 2;
   uint32 circle_domain = 3;
 }
