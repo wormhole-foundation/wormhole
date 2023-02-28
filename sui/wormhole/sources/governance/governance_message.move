@@ -100,6 +100,11 @@ module wormhole::governance_message {
             E_INVALID_GOVERNANCE_EMITTER
         );
     }
+
+    #[test_only]
+    public fun destroy(msg: GovernanceMessage) {
+        take_payload(msg);
+    }
 }
 
 module wormhole::governance_action_test {

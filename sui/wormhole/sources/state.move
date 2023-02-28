@@ -3,12 +3,12 @@ module wormhole::state {
     use sui::coin::{Coin};
     use sui::object::{Self, UID};
     use sui::sui::{SUI};
+    use sui::table::{Self, Table};
     use sui::tx_context::{TxContext};
-    use sui::vec_map::{Self, VecMap};
 
     use wormhole::bytes32::{Self, Bytes32};
     use wormhole::cursor::{Self};
-    use wormhole::emitter::{Self, EmitterCapability};
+    use wormhole::emitter::{Self, EmitterCapability, EmitterRegistry};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::fee_collector::{Self, FeeCollector};
     use wormhole::guardian::{Self};
@@ -41,7 +41,7 @@ module wormhole::state {
         guardian_set_index: u32,
 
         /// All guardian sets (including expired ones).
-        guardian_sets: VecMap<u32, GuardianSet>,
+        guardian_sets: Table<u32, GuardianSet>,
 
         /// Period for which a guardian set stays active after it has been
         /// replaced.
@@ -55,7 +55,7 @@ module wormhole::state {
         consumed_vaa_hashes: Set<Bytes32>,
 
         /// Registry for new emitter caps (`EmitterCapability`).
-        emitter_registry: emitter::EmitterRegistry,
+        emitter_registry: EmitterRegistry,
 
         /// Wormhole fee collector.
         fee_collector: FeeCollector,
@@ -84,7 +84,7 @@ module wormhole::state {
             governance_chain,
             governance_contract,
             guardian_set_index,
-            guardian_sets: vec_map::empty(),
+            guardian_sets: table::new(ctx),
             guardian_set_epochs_to_live,
             consumed_vaa_hashes: set::new(ctx),
             emitter_registry: emitter::new_registry(),
@@ -154,32 +154,30 @@ module wormhole::state {
         set::add(consumed, vaa_hash);
     }
 
-    public(friend) fun update_guardian_set_index(self: &mut State, new_index: u32) {
-        self.guardian_set_index = new_index;
-    }
-
     public(friend) fun expire_guardian_set(self: &mut State, ctx: &TxContext) {
-        let set =
-            vec_map::get_mut<u32, GuardianSet>(
-                &mut self.guardian_sets,
-                &self.guardian_set_index
-            );
+        let expiring =
+            table::borrow_mut(&mut self.guardian_sets, self.guardian_set_index);
         guardian_set::set_expiration(
-            set,
+            expiring,
             self.guardian_set_epochs_to_live,
             ctx
         );
     }
 
-    public(friend) fun store_guardian_set(self: &mut State, set: GuardianSet) {
-        vec_map::insert<u32, GuardianSet>(
-            &mut self.guardian_sets, guardian_set::index(&set),
-            set
+    public(friend) fun store_guardian_set(
+        self: &mut State,
+        new_guardian_set: GuardianSet
+    ) {
+        self.guardian_set_index = guardian_set::index(&new_guardian_set);
+        table::add(
+            &mut self.guardian_sets,
+            self.guardian_set_index,
+            new_guardian_set
         );
     }
 
-    public fun guardian_set_at(self: &State, index: &u32): &GuardianSet {
-        vec_map::get(&self.guardian_sets, index)
+    public fun guardian_set_at(self: &State, index: u32): &GuardianSet {
+        table::borrow(&self.guardian_sets, index)
     }
 
     public fun is_guardian_set_active(

@@ -28,6 +28,10 @@ module wormhole::guardian_set {
         self.index
     }
 
+    public fun index_as_u64(self: &GuardianSet): u64 {
+        (self.index as u64)
+    }
+
     public fun guardians(self: &GuardianSet): &vector<Guardian> {
         &self.guardians
     }

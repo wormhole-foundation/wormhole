@@ -165,7 +165,7 @@ module wormhole::vaa {
 
         // Fetch the guardian set which this VAA was supposedly signed with.
         let guardian_set =
-            state::guardian_set_at(wormhole_state, &vaa.guardian_set_index);
+            state::guardian_set_at(wormhole_state, vaa.guardian_set_index);
 
         // Verify signatures using guardian set.
         guardian_set::verify_signatures(
