@@ -75,13 +75,6 @@ func publicwebServiceRunnable(
 		mux := http.NewServeMux()
 		grpcWebServer := grpcweb.WrapServer(grpcServer)
 		mux.Handle("/", allowCORSWrapper(http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-
-			logger.Info("public rpc request",
-				zap.String("method", req.Method),
-				zap.String("path", req.URL.Path),
-				zap.String("remote_addr", req.RemoteAddr),
-				zap.Any("headers", req.Header))
-
 			if grpcWebServer.IsGrpcWebRequest(req) {
 				grpcWebServer.ServeHTTP(resp, req)
 			} else {

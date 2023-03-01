@@ -543,7 +543,7 @@ func adminServiceRunnable(
 
 	publicrpcService := publicrpc.NewPublicrpcServer(logger, db, gst, gov)
 
-	grpcServer := common.NewInstrumentedGRPCServer(logger)
+	grpcServer := common.NewInstrumentedGRPCServer(logger, common.GrpcLogDetailMinimal)
 	nodev1.RegisterNodePrivilegedServiceServer(grpcServer, nodeService)
 	publicrpcv1.RegisterPublicRPCServiceServer(grpcServer, publicrpcService)
 	return supervisor.GRPCServer(grpcServer, l, false), nil

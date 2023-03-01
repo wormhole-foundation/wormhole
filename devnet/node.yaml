@@ -165,6 +165,8 @@ spec:
             - /tmp/publicrpc.sock
             - --dataDir
             - /tmp/data
+            - --publicRpcLogDetail
+            - "full"
           # - --chainGovernorEnabled=true
           #            - --logLevel=debug
           securityContext:
