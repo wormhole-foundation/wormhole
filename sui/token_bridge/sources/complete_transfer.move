@@ -195,7 +195,9 @@ module token_bridge::complete_transfer_test {
     struct OTHER_COIN_WITNESS has drop {}
 
     #[test]
-    fun test_complete_native_transfer(){
+    /// A basic test for the internal handler function handle_complete_transfer,
+    /// which is called directly by complete_transfer_test_only
+    fun test_complete_native_transfer_internal(){
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
         test = set_up_wormhole_core_and_token_bridges(admin, test);
@@ -274,7 +276,9 @@ module token_bridge::complete_transfer_test {
     }
 
     #[test]
-    fun test_complete_native_transfer_10_decimals(){
+    /// A test for the internal function handle_complete_transfer.
+    /// Test that we can complete the transfer of a native token with 10 decimals.
+    fun test_complete_native_transfer_internal_10_decimals(){
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
         test = set_up_wormhole_core_and_token_bridges(admin, test);
@@ -356,7 +360,9 @@ module token_bridge::complete_transfer_test {
     }
 
     #[test]
-    fun test_complete_native_transfer_4_decimals(){
+    /// A test for the internal function handle_complete_transfer.
+    /// Test that we can complete the transfer of a native token with 4 decimals.
+    fun test_complete_native_transfer_internal_4_decimals(){
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
         test = set_up_wormhole_core_and_token_bridges(admin, test);
@@ -439,7 +445,10 @@ module token_bridge::complete_transfer_test {
         abort_code = token_bridge::complete_transfer::E_UNREGISTERED_TOKEN,
         location=token_bridge::complete_transfer
     )]
-    fun test_complete_native_transfer_wrong_origin_chain(){
+    /// A negative test for the internal function handle_complete_transfer.
+    /// Test that transfer fails if the origin chain is not specified correctly,
+    /// causing the bridge to think that the token is unregistered.
+    fun test_complete_native_transfer_internal_wrong_origin_chain(){
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
         test = set_up_wormhole_core_and_token_bridges(admin, test);
@@ -517,7 +526,7 @@ module token_bridge::complete_transfer_test {
         abort_code = token_bridge::complete_transfer::E_UNREGISTERED_TOKEN,
         location=token_bridge::complete_transfer
     )]
-    fun test_complete_native_transfer_wrong_coin_address(){
+    fun test_complete_native_transfer_internal_wrong_coin_address(){
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
         test = set_up_wormhole_core_and_token_bridges(admin, test);
@@ -588,7 +597,7 @@ module token_bridge::complete_transfer_test {
 
     #[test]
     #[expected_failure(abort_code = 2, location=sui::balance)] // E_TOO_MUCH_FEE
-    fun test_complete_native_transfer_too_much_fee(){
+    fun test_complete_native_transfer_internal_too_much_fee(){
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
         test = set_up_wormhole_core_and_token_bridges(admin, test);
@@ -661,7 +670,7 @@ module token_bridge::complete_transfer_test {
         abort_code = token_bridge::registered_tokens::E_UNREGISTERED,
         location = token_bridge::registered_tokens
     )]
-    fun test_complete_native_transfer_wrong_coin(){
+    fun test_complete_native_transfer_internal_wrong_coin(){
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
         test = set_up_wormhole_core_and_token_bridges(admin, test);
@@ -732,10 +741,11 @@ module token_bridge::complete_transfer_test {
         test_scenario::end(test);
     }
 
-    // The following test is for the "beefface" token from ethereum (chain id = 2),
-    // which has 8 decimals.
     #[test]
-    fun complete_wrapped_transfer_test(){
+    /// The following test is for the "beefface" token from ethereum (chain id = 2),
+    /// which has 8 decimals.
+    /// It tests the internal handler function complete_transfer_test_only.
+    fun complete_wrapped_internal_transfer_test(){
         let (admin, fee_recipient_person, _) = people();
         let scenario = scenario();
         // First register foreign chain, create wrapped asset, register wrapped asset.
@@ -784,6 +794,111 @@ module token_bridge::complete_transfer_test {
             let fee_coins = take_from_address<Coin<WRAPPED_COIN_12_DECIMALS>>(&test, fee_recipient_person);
             assert!(coin::value<WRAPPED_COIN_12_DECIMALS>(&fee_coins) == 100000000, 0);
             return_to_address<Coin<WRAPPED_COIN_12_DECIMALS>>(fee_recipient_person, fee_coins);
+        };
+        test_scenario::end(test);
+    }
+
+    #[test]
+    /// Test the external-facing function complete_transfer using a real VAA.
+    /// Check balance of recipient (admin = @0x124323) after complete_transfer
+    /// is called.
+    fun complete_wrapped_transfer_external_no_fee_test(){
+        // transfer token VAA (details below)
+        let vaa = x"010000000001001d7c73fe9d1fd168fd8b4e767557724f82c56469560ccffd5f5dc6c49afd15007e27d1ed19a83ae11c68b28e848d67e8674ad29b19ee8d097c3ccc78ab292813010000000000000000000200000000000000000000000000000000000000000000000000000000deadbeef00000000000000010f010000000000000000000000000000000000000000000000000000000000000bb800000000000000000000000000000000000000000000000000000000beefface0002000000000000000000000000000000000000000000000000000000000012432300150000000000000000000000000000000000000000000000000000000000000000";
+        // ============================ VAA details ============================
+        // emitterChain: 2,
+        // emitterAddress: '0x00000000000000000000000000000000000000000000000000000000deadbeef',
+        // module: 'TokenBridge',
+        // type: 'Transfer',
+        // amount: 3000n,
+        // tokenAddress: '0x00000000000000000000000000000000000000000000000000000000beefface',
+        // tokenChain: 2,
+        // toAddress: '0x0000000000000000000000000000000000000000000000000000000000124323',
+        // chain: 21,
+        // fee: 0n
+        // ============================ VAA details ============================
+        let (admin, _fee_recipient_person, _) = people();
+        let scenario = scenario();
+        // First register foreign chain, create wrapped asset, register wrapped asset.
+        let test = test_register_wrapped_(admin, scenario);
+        next_tx(&mut test, admin);{
+            coin_witness::test_init(ctx(&mut test));
+        };
+        // Complete transfer of wrapped asset from foreign chain to this chain.
+        next_tx(&mut test, admin); {
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
+
+            complete_transfer::complete_transfer<COIN_WITNESS>(
+                &mut bridge_state,
+                &mut worm_state,
+                vaa,
+                @0x0, // relayer
+                ctx(&mut test)
+            );
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
+        };
+
+        // Check balances after.
+        next_tx(&mut test, admin);{
+            let coins = take_from_address<Coin<COIN_WITNESS>>(&test, admin);
+            assert!(coin::value<COIN_WITNESS>(&coins) == 3000, 0);
+            return_to_address<Coin<COIN_WITNESS>>(admin, coins);
+        };
+        test_scenario::end(test);
+    }
+
+    #[test]
+    /// Test the external-facing function complete_transfer using a real VAA.
+    /// This time include a relayer fee when calling complete_transfer.
+    fun complete_wrapped_transfer_external_relayer_fee_test(){
+        // transfer token VAA (details below)
+        let vaa = x"01000000000100f90d171a2c4ffde9cf214ce2ed94b384e5ee8384ef3129e1342bf6b10db8201122fb9ff501e9f28367a48f191cf5fb8ff51ff58e8091745a392ec8053a05b55e010000000000000000000200000000000000000000000000000000000000000000000000000000deadbeef00000000000000010f010000000000000000000000000000000000000000000000000000000000000bb800000000000000000000000000000000000000000000000000000000beefface00020000000000000000000000000000000000000000000000000000000000124323001500000000000000000000000000000000000000000000000000000000000003e8";
+        // ============================ VAA details ============================
+        // emitterChain: 2,
+        // emitterAddress: '0x00000000000000000000000000000000000000000000000000000000deadbeef',
+        // module: 'TokenBridge',
+        // type: 'Transfer',
+        // amount: 3000n,
+        // tokenAddress: '0x00000000000000000000000000000000000000000000000000000000beefface',
+        // tokenChain: 2,
+        // toAddress: '0x0000000000000000000000000000000000000000000000000000000000124323',
+        // chain: 21,
+        // fee: 1000n
+        // ============================ VAA details ============================
+        let (admin, fee_recipient_person, _) = people();
+        let scenario = scenario();
+        // First register foreign chain, create wrapped asset, register wrapped asset.
+        let test = test_register_wrapped_(admin, scenario);
+        next_tx(&mut test, admin);{
+            coin_witness::test_init(ctx(&mut test));
+        };
+        // Complete transfer of wrapped asset from foreign chain to this chain.
+        next_tx(&mut test, admin); {
+            let bridge_state = take_shared<State>(&test);
+            let worm_state = take_shared<WormholeState>(&test);
+
+            complete_transfer::complete_transfer<COIN_WITNESS>(
+                &mut bridge_state,
+                &mut worm_state,
+                vaa,
+                fee_recipient_person, // relayer
+                ctx(&mut test)
+            );
+            return_shared<State>(bridge_state);
+            return_shared<WormholeState>(worm_state);
+        };
+
+        // Check balances after.
+        next_tx(&mut test, admin);{
+            let coins = take_from_address<Coin<COIN_WITNESS>>(&test, admin);
+            assert!(coin::value<COIN_WITNESS>(&coins) == 2000, 0);
+            return_to_address<Coin<COIN_WITNESS>>(admin, coins);
+
+            let fee_coins = take_from_address<Coin<COIN_WITNESS>>(&test, fee_recipient_person);
+            assert!(coin::value<COIN_WITNESS>(&fee_coins) == 1000, 0);
+            return_to_address<Coin<COIN_WITNESS>>(fee_recipient_person, fee_coins);
         };
         test_scenario::end(test);
     }
