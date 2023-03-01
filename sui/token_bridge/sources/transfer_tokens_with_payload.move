@@ -124,9 +124,9 @@ module token_bridge::transfer_tokens_with_payload_test {
                 coins,
                 coin::zero<SUI>(ctx(&mut test)), // zero fee paid to wormhole
                 3, // recipient chain id
-                external_address::from_bytes(x"deadbeef0000beef"), // recipient 
+                external_address::from_bytes(x"deadbeef0000beef"), // recipient
                 0, // relayer fee
-                payload, // unused field for now
+                payload,
             );
 
             // Clean up!
