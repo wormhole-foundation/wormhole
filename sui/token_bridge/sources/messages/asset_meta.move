@@ -80,13 +80,13 @@ module token_bridge::asset_meta {
 
     public fun serialize(meta: AssetMeta): vector<u8> {
         let buf = vector::empty<u8>();
-        bytes::serialize_u8(&mut buf, PAYLOAD_ID);
-        bytes::from_bytes(
+        bytes::push_u8(&mut buf, PAYLOAD_ID);
+        vector::append(
             &mut buf,
             external_address::to_bytes(meta.token_address)
         );
-        bytes::serialize_u16_be(&mut buf, meta.token_chain);
-        bytes::serialize_u8(&mut buf, meta.native_decimals);
+        bytes::push_u16_be(&mut buf, meta.token_chain);
+        bytes::push_u8(&mut buf, meta.native_decimals);
         string32::serialize(&mut buf, meta.symbol);
         string32::serialize(&mut buf, meta.name);
 
@@ -96,13 +96,13 @@ module token_bridge::asset_meta {
     public fun deserialize(buf: vector<u8>): AssetMeta {
         let cur = cursor::new(buf);
         assert!(
-            bytes::deserialize_u8(&mut cur) == PAYLOAD_ID,
+            bytes::take_u8(&mut cur) == PAYLOAD_ID,
             E_INVALID_ACTION
         );
         let token_address =
-            external_address::from_bytes(bytes::to_bytes(&mut cur, 32));
-        let token_chain = bytes::deserialize_u16_be(&mut cur);
-        let native_decimals = bytes::deserialize_u8(&mut cur);
+            external_address::from_bytes(bytes::take_bytes(&mut cur, 32));
+        let token_chain = bytes::take_u16_be(&mut cur);
+        let native_decimals = bytes::take_u8(&mut cur);
         let symbol = string32::deserialize(&mut cur);
         let name = string32::deserialize(&mut cur);
         cursor::destroy_empty(cur);

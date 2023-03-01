@@ -199,21 +199,21 @@ module wormhole::vaa {
 
         // Check version.
         assert!(
-            bytes::deserialize_u8(&mut cur) == VERSION_VAA,
+            bytes::take_u8(&mut cur) == VERSION_VAA,
             E_WRONG_VERSION
         );
 
-        let guardian_set_index = bytes::deserialize_u32_be(&mut cur);
+        let guardian_set_index = bytes::take_u32_be(&mut cur);
 
         // Deserialize guardian signatures.
-        let num_signatures = bytes::deserialize_u8(&mut cur);
+        let num_signatures = bytes::take_u8(&mut cur);
         let signatures = vector::empty();
         let i = 0;
         while (i < num_signatures) {
-            let guardian_index = bytes::deserialize_u8(&mut cur);
+            let guardian_index = bytes::take_u8(&mut cur);
             let r = bytes32::deserialize(&mut cur);
             let s = bytes32::deserialize(&mut cur);
-            let recovery_id = bytes::deserialize_u8(&mut cur);
+            let recovery_id = bytes::take_u8(&mut cur);
             vector::push_back(
                 &mut signatures,
                 guardian_signature::new(r, s, recovery_id, guardian_index)
@@ -227,12 +227,12 @@ module wormhole::vaa {
 
         let cur = cursor::new(body);
 
-        let timestamp = bytes::deserialize_u32_be(&mut cur);
-        let nonce = bytes::deserialize_u32_be(&mut cur);
-        let emitter_chain = bytes::deserialize_u16_be(&mut cur);
+        let timestamp = bytes::take_u32_be(&mut cur);
+        let nonce = bytes::take_u32_be(&mut cur);
+        let emitter_chain = bytes::take_u16_be(&mut cur);
         let emitter_address = external_address::deserialize(&mut cur);
-        let sequence = bytes::deserialize_u64_be(&mut cur);
-        let consistency_level = bytes::deserialize_u8(&mut cur);
+        let sequence = bytes::take_u64_be(&mut cur);
+        let consistency_level = bytes::take_u8(&mut cur);
         let payload = cursor::rest(cur);
 
         VAA {

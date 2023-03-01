@@ -65,7 +65,7 @@ module wormhole::bytes32 {
     }
 
     public fun deserialize(cur: &mut Cursor<u8>): Bytes32 {
-        new(bytes::to_bytes(cur, 32))
+        new(bytes::take_bytes(cur, 32))
     }
 
     public fun from_address(addr: address): Bytes32 {

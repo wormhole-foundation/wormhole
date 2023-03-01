@@ -52,7 +52,7 @@ module token_bridge::register_chain {
         );
 
         let cur = cursor::new(governance_message::take_payload(msg));
-        let emitter_chain = bytes::deserialize_u16_be(&mut cur);
+        let emitter_chain = bytes::take_u16_be(&mut cur);
         let emitter_address = external_address::deserialize(&mut cur);
         cursor::destroy_empty(cur);
 

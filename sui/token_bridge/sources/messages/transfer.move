@@ -78,14 +78,14 @@ module token_bridge::transfer {
     public fun deserialize(buf: vector<u8>): Transfer {
         let cur = cursor::new(buf);
         assert!(
-            bytes::deserialize_u8(&mut cur) == PAYLOAD_ID,
+            bytes::take_u8(&mut cur) == PAYLOAD_ID,
             E_INVALID_ACTION
         );
         let amount = normalized_amount::deserialize_be(&mut cur);
         let token_address = external_address::deserialize(&mut cur);
-        let token_chain = bytes::deserialize_u16_be(&mut cur);
+        let token_chain = bytes::take_u16_be(&mut cur);
         let recipient = external_address::deserialize(&mut cur);
-        let recipient_chain = bytes::deserialize_u16_be(&mut cur);
+        let recipient_chain = bytes::take_u16_be(&mut cur);
         let relayer_fee = normalized_amount::deserialize_be(&mut cur);
         cursor::destroy_empty(cur);
         new(
@@ -100,12 +100,12 @@ module token_bridge::transfer {
 
     public fun serialize(transfer: Transfer): vector<u8> {
         let buf = vector::empty<u8>();
-        bytes::serialize_u8(&mut buf, PAYLOAD_ID);
+        bytes::push_u8(&mut buf, PAYLOAD_ID);
         normalized_amount::serialize_be(&mut buf, transfer.amount);
         external_address::serialize(&mut buf, transfer.token_address);
-        bytes::serialize_u16_be(&mut buf, transfer.token_chain);
+        bytes::push_u16_be(&mut buf, transfer.token_chain);
         external_address::serialize(&mut buf, transfer.recipient);
-        bytes::serialize_u16_be(&mut buf, transfer.recipient_chain);
+        bytes::push_u16_be(&mut buf, transfer.recipient_chain);
         normalized_amount::serialize_be(&mut buf, transfer.relayer_fee);
         buf
     }
