@@ -61,7 +61,7 @@ module wormhole::set_fee {
         let cur = cursor::new(payload);
 
         // This amount cannot be greater than max u64.
-        let amount = bytes::deserialize_u256_be(&mut cur);
+        let amount = bytes::take_u256_be(&mut cur);
         assert!(amount < (1u256 << 64), E_FEE_OVERFLOW);
 
         cursor::destroy_empty(cur);
@@ -318,7 +318,7 @@ module wormhole::set_fee_test {
         let payload = governance_message::take_payload(msg);
         let cur = cursor::new(payload);
 
-        let fee_amount = bytes::deserialize_u256_be(&mut cur);
+        let fee_amount = bytes::take_u256_be(&mut cur);
         assert!(fee_amount > 0xffffffffffffffff, 0);
 
         cursor::destroy_empty(cur);

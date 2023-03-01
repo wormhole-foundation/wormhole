@@ -85,14 +85,14 @@ module wormhole::update_guardian_set {
 
     fun deserialize(payload: vector<u8>): UpdateGuardianSet {
         let cur = cursor::new(payload);
-        let new_index = bytes::deserialize_u32_be(&mut cur);
-        let num_guardians = bytes::deserialize_u8(&mut cur);
+        let new_index = bytes::take_u32_be(&mut cur);
+        let num_guardians = bytes::take_u8(&mut cur);
         assert!(num_guardians > 0, E_NO_GUARDIANS);
 
         let guardians = vector::empty<Guardian>();
         let i = 0;
         while (i < num_guardians) {
-            let key = bytes::to_bytes(&mut cur, 20);
+            let key = bytes::take_bytes(&mut cur, 20);
             vector::push_back(&mut guardians, guardian::new(key));
             i = i + 1;
         };
@@ -407,10 +407,10 @@ module wormhole::guardian_set_upgrade_test {
         let payload = governance_message::take_payload(msg);
         let cur = cursor::new(payload);
 
-        let new_guardian_set_index = bytes::deserialize_u32_be(&mut cur);
+        let new_guardian_set_index = bytes::take_u32_be(&mut cur);
         assert!(new_guardian_set_index == 1, 0);
 
-        let num_guardians = bytes::deserialize_u8(&mut cur);
+        let num_guardians = bytes::take_u8(&mut cur);
         assert!(num_guardians == 0, 0);
 
         cursor::destroy_empty(cur);

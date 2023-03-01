@@ -69,7 +69,7 @@ module wormhole::transfer_fee {
         let cur = cursor::new(payload);
 
         // This amount cannot be greater than max u64.
-        let amount = bytes::deserialize_u256_be(&mut cur);
+        let amount = bytes::take_u256_be(&mut cur);
         assert!(amount < (1u256 << 64), E_WITHDRAW_AMOUNT_OVERFLOW);
 
         // Recipient must be non-zero address.
@@ -361,7 +361,7 @@ module wormhole::transfer_fee_test {
         let payload = governance_message::take_payload(msg);
         let cur = cursor::new(payload);
 
-        let amount = bytes::deserialize_u256_be(&mut cur);
+        let amount = bytes::take_u256_be(&mut cur);
         assert!(amount > 0, 0);
         cursor::rest(cur);
 
@@ -411,7 +411,7 @@ module wormhole::transfer_fee_test {
         let payload = governance_message::take_payload(msg);
         let cur = cursor::new(payload);
 
-        bytes::deserialize_u256_be(&mut cur);
+        bytes::take_u256_be(&mut cur);
 
         // Confirm recipient is zero address.
         let addr = bytes32::deserialize(&mut cur);
@@ -464,7 +464,7 @@ module wormhole::transfer_fee_test {
         let payload = governance_message::take_payload(msg);
         let cur = cursor::new(payload);
 
-        let amount = bytes::deserialize_u256_be(&mut cur);
+        let amount = bytes::take_u256_be(&mut cur);
         assert!(amount > 0xffffffffffffffff, 0);
         cursor::rest(cur);
 
