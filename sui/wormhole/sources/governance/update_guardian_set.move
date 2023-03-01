@@ -20,11 +20,11 @@ module wormhole::update_guardian_set {
         guardians: vector<Guardian>,
     }
 
-    public entry fun update_guardian_set(
+    public fun update_guardian_set(
         wormhole_state: &mut State,
         vaa_buf: vector<u8>,
         ctx: &TxContext
-    ) {
+    ): u32 {
         let msg =
             governance_message::parse_and_verify_vaa(
                 wormhole_state,
@@ -49,7 +49,7 @@ module wormhole::update_guardian_set {
         wormhole_state: &mut State,
         msg: GovernanceMessage,
         ctx: &TxContext
-    ) {
+    ): u32 {
         // Verify that this governance message is to update the guardian set.
         let governance_payload =
             governance_message::take_global_action(
@@ -79,6 +79,8 @@ module wormhole::update_guardian_set {
             wormhole_state,
             guardian_set::new(new_index, guardians)
         );
+
+        new_index
     }
 
     fun deserialize(payload: vector<u8>): UpdateGuardianSet {
@@ -149,16 +151,17 @@ module wormhole::guardian_set_upgrade_test {
         test_scenario::next_tx(scenario, caller);
 
         let worm_state = test_scenario::take_shared<State>(scenario);
-        update_guardian_set(
+        let new_index = update_guardian_set(
             &mut worm_state,
             VAA_UPDATE_GUARDIAN_SET_1,
             test_scenario::ctx(scenario)
         );
+        assert!(new_index == 1, 0);
 
-        let new_guardian_set = state::guardian_set_at(&worm_state, 1);
+        let new_guardian_set = state::guardian_set_at(&worm_state, new_index);
 
         // Verify new guardian set index.
-        assert!(state::guardian_set_index(&worm_state) == 1, 0);
+        assert!(state::guardian_set_index(&worm_state) == new_index, 0);
         assert!(
             guardian_set::index(new_guardian_set) == state::guardian_set_index(&worm_state),
             0
@@ -200,7 +203,8 @@ module wormhole::guardian_set_upgrade_test {
         cursor::destroy_empty(cur);
 
         // Make sure old guardian set is still active.
-        let old_guardian_set = state::guardian_set_at(&worm_state, 0);
+        let old_guardian_set =
+            state::guardian_set_at(&worm_state, new_index - 1);
         assert!(
             guardian_set::is_active(
                 old_guardian_set,
