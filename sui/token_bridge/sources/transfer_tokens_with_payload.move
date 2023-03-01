@@ -124,7 +124,7 @@ module token_bridge::transfer_tokens_with_payload_test {
                 coins,
                 coin::zero<SUI>(ctx(&mut test)), // Zero fee paid to wormhole.
                 3, // Recipient chain id.
-                external_address::from_bytes(x"deadbeef0000beef"), // recipient
+                external_address::from_bytes(x"deadbeef0000beef"), // Recipient.
                 0, // Relayer fee.
                 payload,
             );
@@ -184,7 +184,7 @@ module token_bridge::transfer_tokens_with_payload_test {
             let payload = x"ddddaaaabbbb";
 
             // Register wrapped asset with the token bridge.
-            create_wrapped::register_wrapped_coin<COIN_WITNESS>(
+            create_wrapped::register_new_coin<WRAPPED_COIN_12_DECIMALS>(
                 &mut bridge_state,
                 &mut worm_state,
                 new_wrapped_coin,
