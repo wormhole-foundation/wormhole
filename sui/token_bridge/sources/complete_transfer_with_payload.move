@@ -333,4 +333,53 @@ module token_bridge::complete_transfer_with_payload_test {
         };
         test_scenario::end(test);
     }
+
+    #[test]
+    #[expected_failure(
+        abort_code = token_bridge::complete_transfer_with_payload::E_INVALID_RECIPIENT,
+        location=token_bridge::complete_transfer_with_payload
+    )]
+    /// Test the public-facing function complete_transfer_with_payload.
+    /// This test fails because the ecmitter_cap (recipient) is incorrect (0x2 instead of 0x3).
+    ///
+    fun test_complete_transfer_wrapped_wrong_recipient(){
+        let (admin, _, _) = people();
+        let test = scenario();
+        // Initializes core and token bridge, registers devnet Ethereum token bridge,
+        // and registers wrapped token COIN_WITNESS with Sui token bridge
+        test = coin_witness_test::test_register_wrapped_(admin, test);
+
+        // complete transfer with payload (send native tokens + payload)
+        test_scenario::next_tx(&mut test, admin); {
+            let bridge_state = test_scenario::take_shared<State>(&test);
+            let worm_state = test_scenario::take_shared<WormholeState>(&test);
+
+            // Register and obtain a new emitter capability.
+            // Attempt to complete transfer with payload using emitter_cap_1, but
+            // it is not the intended recipient.
+            let emitter_cap_1 =
+                wormhole::register_emitter(
+                    &mut worm_state, test_scenario::ctx(&mut test)
+                );
+
+            // Execute complete_transfer_with_payload.
+            let (token_coins, _parsed_transfer, _source_chain) =
+                complete_transfer_with_payload::complete_transfer_with_payload<COIN_WITNESS>(
+                    &mut bridge_state,
+                    &emitter_cap_1, // Incorrect recipient.
+                    &mut worm_state,
+                    VAA,
+                    test_scenario::ctx(&mut test)
+                );
+
+            // Clean-up!
+            test_scenario::return_shared<State>(bridge_state);
+            test_scenario::return_shared<WormholeState>(worm_state);
+
+            // Trash remaining objects.
+            sui::transfer::transfer(token_coins, @0x0);
+            sui::transfer::transfer(emitter_cap_1, @0x0);
+        };
+        test_scenario::end(test);
+    }
 }
