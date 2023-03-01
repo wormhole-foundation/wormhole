@@ -15,11 +15,11 @@ module wormhole::set_fee {
         amount: u64
     }
 
-    public entry fun set_fee(
+    public fun set_fee(
         wormhole_state: &mut State,
         vaa_buf: vector<u8>,
         ctx: &TxContext
-    ) {
+    ): u64 {
         let msg =
             governance_message::parse_and_verify_vaa(
                 wormhole_state,
@@ -37,7 +37,10 @@ module wormhole::set_fee {
         handle_set_fee(wormhole_state, msg)
     }
 
-    fun handle_set_fee(wormhole_state: &mut State, msg: GovernanceMessage) {
+    fun handle_set_fee(
+        wormhole_state: &mut State,
+        msg: GovernanceMessage
+    ): u64 {
         // Verify that this governance message is to update the Wormhole fee.
         let governance_payload =
             governance_message::take_local_action(
@@ -50,6 +53,8 @@ module wormhole::set_fee {
         let SetFee { amount } = deserialize(governance_payload);
 
         state::set_message_fee(wormhole_state, amount);
+
+        amount
     }
 
     fun deserialize(payload: vector<u8>): SetFee {
@@ -115,14 +120,13 @@ module wormhole::set_fee_test {
         // Current fee (from setup) is zero.
         assert!(state::message_fee(&worm_state) == 0, 0);
 
-        set_fee(
+        let fee_amount = set_fee(
             &mut worm_state,
             VAA_SET_FEE_1,
             test_scenario::ctx(scenario)
         );
 
         // Confirm the fee changed.
-        let fee_amount = 350;
         assert!(state::message_fee(&worm_state) == fee_amount, 0);
 
         // And confirm that we can deposit the new fee amount.
@@ -137,14 +141,13 @@ module wormhole::set_fee_test {
         // Finally set the fee again to max u64 (this will effectively pause
         // Wormhole message publishing until the fee gets adjusted back to a
         // reasonable level again).
-        set_fee(
+        let fee_amount = set_fee(
             &mut worm_state,
             VAA_SET_FEE_MAX,
             test_scenario::ctx(scenario)
         );
 
         // Confirm.
-        let fee_amount = 0xffffffffffffffff;
         assert!(state::message_fee(&worm_state) == fee_amount, 0);
 
         // Clean up.

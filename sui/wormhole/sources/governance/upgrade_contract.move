@@ -1,3 +1,8 @@
 module wormhole::upgrade_contract {
-    // JK
+    // TODO
+}
+
+#[test_only]
+module wormhole::upgrade_contract_test {
+    // TODO
 }
