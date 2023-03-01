@@ -122,10 +122,10 @@ module token_bridge::transfer_tokens_with_payload_test {
                 &mut bridge_state,
                 &mut worm_state,
                 coins,
-                coin::zero<SUI>(ctx(&mut test)), // zero fee paid to wormhole
-                3, // recipient chain id
+                coin::zero<SUI>(ctx(&mut test)), // Zero fee paid to wormhole.
+                3, // Recipient chain id.
                 external_address::from_bytes(x"deadbeef0000beef"), // recipient
-                0, // relayer fee
+                0, // Relayer fee.
                 payload,
             );
 
@@ -139,7 +139,7 @@ module token_bridge::transfer_tokens_with_payload_test {
 
         let tx_effects = next_tx(&mut test, admin);
         // A single user event should be emitted, corresponding to
-        // publishing a Wormhole message for the token transfer with payload
+        // publishing a Wormhole message for the token transfer with payload.
         assert!(num_user_events(&tx_effects)==1, 0);
 
         // Check that custody of the coins is indeed transferred to token bridge.
@@ -166,14 +166,15 @@ module token_bridge::transfer_tokens_with_payload_test {
             let bridge_state = take_shared<State>(&test);
             state::register_emitter(
                 &mut bridge_state,
-                2, // chain ID
+                2, // Chain ID.
                 external_address::from_bytes(
                     x"00000000000000000000000000000000000000000000000000000000deadbeef"
                 )
             );
             return_shared<State>(bridge_state);
         };
-        // register wrapped asset type with the token bridge, mint some coins, initiate transfer
+        // Register wrapped asset type with the token bridge, mint some coins,
+        // initiate transfer.
         next_tx(&mut test, admin);{
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
@@ -181,8 +182,9 @@ module token_bridge::transfer_tokens_with_payload_test {
             let new_wrapped_coin =
                 take_from_address<WrappedCoin<WRAPPED_COIN_12_DECIMALS>>(&test, admin);
             let payload = x"ddddaaaabbbb";
-            // register wrapped asset with the token bridge
-            create_wrapped::register_new_coin<WRAPPED_COIN_12_DECIMALS>(
+
+            // Register wrapped asset with the token bridge.
+            create_wrapped::register_wrapped_coin<COIN_WITNESS>(
                 &mut bridge_state,
                 &mut worm_state,
                 new_wrapped_coin,
@@ -193,7 +195,7 @@ module token_bridge::transfer_tokens_with_payload_test {
             let coins =
                 state::mint<WRAPPED_COIN_12_DECIMALS>(
                     &mut bridge_state,
-                    1000, // amount
+                    1000, // Amount.
                     ctx(&mut test)
                 );
 
@@ -209,10 +211,10 @@ module token_bridge::transfer_tokens_with_payload_test {
                 &mut bridge_state,
                 &mut worm_state,
                 coins,
-                coin::zero<SUI>(ctx(&mut test)), // zero fee paid to wormhole
-                3, // recipient chain id
-                external_address::from_bytes(x"deadbeef0000beef"), // recipient
-                0, // relayer fee
+                coin::zero<SUI>(ctx(&mut test)), // Zero fee paid to wormhole.
+                3, // Recipient chain id.
+                external_address::from_bytes(x"deadbeef0000beef"), // Recipient.
+                0, // Relayer fee.
                 payload,
             );
 
