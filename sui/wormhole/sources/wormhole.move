@@ -84,4 +84,19 @@ module wormhole::wormhole {
 
         set_fee(wormhole_state, vaa_buf, ctx);
     }
+
+    /// `transfer_fee` exposes `transfer_fee::transfer_fee` as an entry method
+    /// to perform Guardian governance to transfer fees to a specified
+    /// recipient.
+    ///
+    /// See `transfer_fee` module for more details.
+    public entry fun transfer_fee(
+        wormhole_state: &mut State,
+        vaa_buf: vector<u8>,
+        ctx: &mut TxContext
+    ) {
+        use wormhole::transfer_fee::{transfer_fee};
+
+        transfer_fee(wormhole_state, vaa_buf, ctx);
+    }
 }
