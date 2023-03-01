@@ -413,7 +413,7 @@ func spyServerRunnable(s *spyServer, logger *zap.Logger, listenAddr string) (sup
 
 	logger.Info("spy server listening", zap.String("addr", l.Addr().String()))
 
-	grpcServer := common.NewInstrumentedGRPCServer(logger)
+	grpcServer := common.NewInstrumentedGRPCServer(logger, common.GrpcLogDetailFull)
 	spyv1.RegisterSpyRPCServiceServer(grpcServer, s)
 
 	return supervisor.GRPCServer(grpcServer, l, false), grpcServer, nil
