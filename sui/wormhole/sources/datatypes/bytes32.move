@@ -64,7 +64,7 @@ module wormhole::bytes32 {
         data
     }
 
-    public fun from_cursor(cur: &mut Cursor<u8>): Bytes32 {
+    public fun deserialize(cur: &mut Cursor<u8>): Bytes32 {
         new(bytes::to_bytes(cur, 32))
     }
 

@@ -18,6 +18,7 @@ module wormhole::state {
     friend wormhole::publish_message;
     friend wormhole::set_fee;
     friend wormhole::setup;
+    friend wormhole::transfer_fee;
     friend wormhole::update_guardian_set;
     friend wormhole::vaa;
 
@@ -145,6 +146,18 @@ module wormhole::state {
 
     public fun deposit_fee(self: &mut State, coin: Coin<SUI>) {
         fee_collector::deposit(&mut self.fee_collector, coin);
+    }
+
+    public(friend) fun withdraw_fee(
+        self: &mut State,
+        amount: u64,
+        ctx: &mut TxContext
+    ): Coin<SUI> {
+        fee_collector::withdraw(&mut self.fee_collector, amount, ctx)
+    }
+
+    public fun fees_collected(self: &State): u64 {
+        fee_collector::balance_value(&self.fee_collector)
     }
 
     public(friend) fun consume_vaa_hash(self: &mut State, vaa_hash: Bytes32) {

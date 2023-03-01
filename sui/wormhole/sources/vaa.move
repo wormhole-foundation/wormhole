@@ -211,8 +211,8 @@ module wormhole::vaa {
         let i = 0;
         while (i < num_signatures) {
             let guardian_index = bytes::deserialize_u8(&mut cur);
-            let r = bytes32::from_cursor(&mut cur);
-            let s = bytes32::from_cursor(&mut cur);
+            let r = bytes32::deserialize(&mut cur);
+            let s = bytes32::deserialize(&mut cur);
             let recovery_id = bytes::deserialize_u8(&mut cur);
             vector::push_back(
                 &mut signatures,
