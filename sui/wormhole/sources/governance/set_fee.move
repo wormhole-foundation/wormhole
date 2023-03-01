@@ -49,7 +49,7 @@ module wormhole::set_fee {
                 ACTION_SET_FEE
             );
 
-        // Deserialize the payload as the updated guardian set.
+        // Deserialize the payload as amount to change the Wormhole fee.
         let SetFee { amount } = deserialize(governance_payload);
 
         state::set_message_fee(wormhole_state, amount);
@@ -59,9 +59,9 @@ module wormhole::set_fee {
 
     fun deserialize(payload: vector<u8>): SetFee {
         let cur = cursor::new(payload);
-        let amount = bytes::deserialize_u256_be(&mut cur);
 
         // This amount cannot be greater than max u64.
+        let amount = bytes::deserialize_u256_be(&mut cur);
         assert!(amount < (1u256 << 64), E_FEE_OVERFLOW);
 
         cursor::destroy_empty(cur);
@@ -117,8 +117,8 @@ module wormhole::set_fee_test {
 
         let worm_state = test_scenario::take_shared<State>(scenario);
 
-        // Current fee (from setup) is zero.
-        assert!(state::message_fee(&worm_state) == 0, 0);
+        // Double-check current fee (from setup).
+        assert!(state::message_fee(&worm_state) == wormhole_fee, 0);
 
         let fee_amount = set_fee(
             &mut worm_state,

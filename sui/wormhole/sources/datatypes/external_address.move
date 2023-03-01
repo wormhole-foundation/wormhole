@@ -50,8 +50,11 @@ module wormhole::external_address {
     }
 
     public fun deserialize(cur: &mut Cursor<u8>): ExternalAddress {
-        let bytes = bytes::to_bytes(cur, 32);
-        from_bytes(bytes)
+        new(bytes32::deserialize(cur))
+    }
+
+    public fun deserialize_nonzero(cur: &mut Cursor<u8>): ExternalAddress {
+        new_nonzero(bytes32::deserialize(cur))
     }
 
     public fun serialize(buf: &mut vector<u8>, ext: ExternalAddress) {

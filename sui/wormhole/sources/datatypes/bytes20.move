@@ -31,8 +31,7 @@ module wormhole::bytes20 {
         let len = vector::length(&buf);
         if (len > LEN) {
             vector::reverse(&mut buf);
-            let i = 0;
-            let n = len - LEN;
+            let (i, n) = (0, len - LEN);
             while (i < n) {
                 assert!(vector::pop_back(&mut buf) == 0, E_INVALID_FROM_BYTES);
                 i = i + 1;
