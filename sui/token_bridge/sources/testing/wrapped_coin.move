@@ -40,7 +40,7 @@ module token_bridge::coin_witness_test {
     use token_bridge::register_chain::{submit_vaa};
     use token_bridge::wrapped_coin::{WrappedCoin};
 
-    use token_bridge::coin_witness::{test_init, COIN_WITNESS};
+    use token_bridge::coin_witness::{Self, COIN_WITNESS};
     use token_bridge::token_info::{Self};
 
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
@@ -57,7 +57,7 @@ module token_bridge::coin_witness_test {
         let test = scenario();
         let (admin, _, _) = people();
         next_tx(&mut test, admin); {
-            test_init(ctx(&mut test))
+            coin_witness::test_init(ctx(&mut test))
         };
         test_scenario::end(test);
     }
@@ -75,7 +75,7 @@ module token_bridge::coin_witness_test {
         test = set_up_wormhole_core_and_token_bridges(admin, test);
         // Create and transfer new wrapped coin to sender.
         next_tx(&mut test, admin); {
-            test_init(ctx(&mut test))
+            coin_witness::test_init(ctx(&mut test))
         };
         // Register chain.
         next_tx(&mut test, admin); {

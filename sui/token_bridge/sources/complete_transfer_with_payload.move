@@ -116,19 +116,58 @@ module token_bridge::complete_transfer_with_payload_test {
     use token_bridge::bridge_state_test::{
         set_up_wormhole_core_and_token_bridges
     };
-    use token_bridge::complete_transfer_with_payload::{
+    use token_bridge::complete_transfer_with_payload::{Self,
         complete_transfer_with_payload_test_only
     };
     use token_bridge::native_coin_witness::{Self, NATIVE_COIN_WITNESS};
+    use token_bridge::coin_witness::{COIN_WITNESS};
+
     use token_bridge::normalized_amount::{Self};
     use token_bridge::state::{Self, State};
     use token_bridge::transfer_with_payload::{Self};
+    use token_bridge::coin_witness_test::{Self};
 
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
+    /// Transfer token with payload VAA.
+    /// This VAA is used to test complete_transfer_with_payload::complete_transfer_with_payload
+    /// in the test_complete_transfer_wrapped test below.
+    /// This VAA is signed by the guardian with public key beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe.
+    const VAA : vector<u8> = x"01000000000100d8e4e04ac55ed24773a31b0a89bab8c1b9201e76bd03fe0de9da1506058ab30c01344cf11a47005bdfbe47458cb289388e4a87ed271fb8306fd83656172b19dc010000000000000000000200000000000000000000000000000000000000000000000000000000deadbeef00000000000000010f030000000000000000000000000000000000000000000000000000000000000bb800000000000000000000000000000000000000000000000000000000beefface00020000000000000000000000000000000000000000000000000000000000000003001500000000000000000000000000000000000000000000000000000000deadbeefaaaa";
+
+    // ========================================= VAA Details =========================================
+    //   signatures: [
+    //     {
+    //       guardianSetIndex: 0,
+    //       signature: 'd8e4e04ac55ed24773a31b0a89bab8c1b9201e76bd03fe0de9da1506058ab30c01344cf11a47005bdfbe47458cb289388e4a87ed271fb8306fd83656172b19dc01'
+    //     }
+    //   ],
+    //   emitterChain: 2,
+    //   emitterAddress: '0x00000000000000000000000000000000000000000000000000000000deadbeef',
+    //   sequence: 1n,
+    //   consistencyLevel: 15,
+    //   payload: {
+    //     module: 'TokenBridge',
+    //     type: 'TransferWithPayload',
+    //     amount: 3000n,
+    //     tokenAddress: '0x00000000000000000000000000000000000000000000000000000000beefface',
+    //     tokenChain: 2,
+    //     toAddress: '0x0000000000000000000000000000000000000000000000000000000000000003',
+    //     chain: 21,
+    //     fromAddress: '0x00000000000000000000000000000000000000000000000000000000deadbeef',
+    //     payload: '0xaaaa'
+    //   },
+    //
+
     #[test]
-    fun test_complete_native_transfer(){
+    /// Test the internal function handle_complete_transfer_with_payload. This test
+    /// does not require a VAA, because we are directly constructing a TransferWithPayload
+    /// object and calling the internal handler with it as an arg, instead of deconstructing
+    /// a VAA and using the bytes to construct the TransferWithPayload object.
+    ///
+    /// This test confirms that the internal handler is working correctly.
+    fun test_complete_native_transfer_internal(){
         let (admin, _, _) = people();
         let test = scenario();
         test = set_up_wormhole_core_and_token_bridges(admin, test);
@@ -223,6 +262,74 @@ module token_bridge::complete_transfer_with_payload_test {
             // Trash remaining objects.
             sui::transfer::transfer(token_coins, @0x0);
             sui::transfer::transfer(emitter_cap, @0x0);
+        };
+        test_scenario::end(test);
+    }
+
+    #[test]
+    /// Test the public-facing function complete_transfer_with_payload.
+    /// Use an actual devnet Wormhole complete transfer with payload VAA.
+    ///
+    /// This test confirms that:
+    ///   - complete_transfer_with_payload function deserializes
+    ///     the encoded Transfer object and recovers the source chain, payload,
+    ///     and additional transfer details correctly.
+    ///   - a wrapped coin with the correct value is minted by the bridge
+    ///     and returned by complete_transfer_with_payload
+    ///
+    fun test_complete_transfer_wrapped(){
+        use token_bridge::transfer_with_payload::{Self};
+
+        let (admin, _, _) = people();
+        let test = scenario();
+        // Initializes core and token bridge, registers devnet Ethereum token bridge,
+        // and registers wrapped token COIN_WITNESS with Sui token bridge
+        test = coin_witness_test::test_register_wrapped_(admin, test);
+
+        // complete transfer with payload (send native tokens + payload)
+        test_scenario::next_tx(&mut test, admin); {
+            let bridge_state = test_scenario::take_shared<State>(&test);
+            let worm_state = test_scenario::take_shared<WormholeState>(&test);
+
+            // Register and obtain a new emitter capability.
+            // Emitter_cap_1 is discarded and not used.
+            let emitter_cap_1 =
+                wormhole::register_emitter(
+                    &mut worm_state, test_scenario::ctx(&mut test)
+                );
+            // Emitter_cap_2 has the address 0x03 (because it is the third emitter to be
+            // registered with wormhole), which coincidentally is the recipient address
+            // of the transfer_with_payload VAA defined above.
+            let emitter_cap_2 =
+                wormhole::register_emitter(
+                    &mut worm_state, test_scenario::ctx(&mut test)
+                );
+
+            // Execute complete_transfer_with_payload.
+            let (token_coins, parsed_transfer, source_chain) =
+                complete_transfer_with_payload::complete_transfer_with_payload<COIN_WITNESS>(
+                    &mut bridge_state,
+                    &emitter_cap_2,
+                    &mut worm_state,
+                    VAA,
+                    test_scenario::ctx(&mut test)
+                );
+
+            // Assert coin value, source chain, and parsed transfer details are correct.
+            assert!(coin::value(&token_coins) == 3000, 0);
+            assert!(source_chain == 2, 0);
+            assert!(transfer_with_payload::token_address(&parsed_transfer)==external_address::from_bytes(x"beefface"), 0);
+            assert!(transfer_with_payload::sender(&parsed_transfer)==external_address::from_bytes(x"deadbeef"), 0);
+            assert!(transfer_with_payload::payload(&parsed_transfer)==x"aaaa", 0);
+
+            // Clean-up!
+            test_scenario::return_shared<State>(bridge_state);
+            test_scenario::return_shared<WormholeState>(worm_state);
+
+            // Trash remaining objects.
+            sui::transfer::transfer(token_coins, @0x0);
+            sui::transfer::transfer(emitter_cap_1, @0x0);
+            sui::transfer::transfer(emitter_cap_2, @0x0);
         };
         test_scenario::end(test);
     }
