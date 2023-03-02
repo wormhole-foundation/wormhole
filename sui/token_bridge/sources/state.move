@@ -6,7 +6,7 @@ module token_bridge::state {
     use sui::transfer::{Self};
     use sui::tx_context::{Self, TxContext};
     use wormhole::bytes32::{Self, Bytes32};
-    use wormhole::emitter::{EmitterCapability};
+    use wormhole::emitter::{EmitterCap};
     use wormhole::external_address::{ExternalAddress};
     use wormhole::set::{Self, Set};
     use wormhole::state::{Self as wormhole_state, State as WormholeState};
@@ -44,9 +44,9 @@ module token_bridge::state {
     #[test_only]
     friend token_bridge::transfer_tokens_with_payload_test;
 
-    /// Capability for creating a bridge state object, granted to sender when
-    /// this module is deployed.
-    struct DeployerCapability has key, store {
+    /// Capability for creating a bridge state object, granted to sender when this
+    /// module is deployed
+    struct DeployerCap has key, store {
         id: UID
     }
 
@@ -58,15 +58,15 @@ module token_bridge::state {
         /// Set of consumed VAA hashes
         consumed_vaa_hashes: Set<Bytes32>,
 
-        // Token bridge owned emitter capability.
-        emitter_cap: EmitterCapability,
+        /// Token bridge owned emitter capability
+        emitter_cap: EmitterCap,
 
         registered_tokens: RegisteredTokens,
     }
 
     fun init(ctx: &mut TxContext) {
         transfer::transfer(
-            DeployerCapability{
+            DeployerCap{
                 id: object::new(ctx)
             },
             tx_context::sender(ctx)
@@ -81,11 +81,11 @@ module token_bridge::state {
     /// Converts owned state object into a shared object, so that anyone can get
     /// a reference to &mut State and pass it into various functions.
     public entry fun init_and_share_state(
-        deployer: DeployerCapability,
+        deployer: DeployerCap,
         worm_state: &mut WormholeState,
         ctx: &mut TxContext
     ) {
-        let DeployerCapability{ id } = deployer;
+        let DeployerCap{ id } = deployer;
         object::delete(id);
 
         let state = State {
@@ -318,7 +318,7 @@ module token_bridge::bridge_state_test{
     use wormhole::wormhole_scenario::{set_up_wormhole, three_people as people};
     use wormhole::external_address::{Self};
 
-    use token_bridge::state::{Self, State, DeployerCapability};
+    use token_bridge::state::{Self, State, DeployerCap};
     use token_bridge::native_coin_10_decimals::{Self, NATIVE_COIN_10_DECIMALS};
     use token_bridge::native_coin_4_decimals::{Self, NATIVE_COIN_4_DECIMALS};
     use token_bridge::token_info::{Self};
@@ -359,12 +359,8 @@ module token_bridge::bridge_state_test{
         // Register for emitter cap and init_and_share token bridge.
         next_tx(&mut test, admin); {
             let wormhole_state = take_shared<WormholeState>(&test);
-            let deployer = take_from_address<DeployerCapability>(&test, admin);
-            state::init_and_share_state(
-                deployer,
-                &mut wormhole_state,
-                ctx(&mut test)
-            );
+            let deployer = take_from_address<DeployerCap>(&test, admin);
+            state::init_and_share_state(deployer, &mut wormhole_state, ctx(&mut test));
             return_shared<WormholeState>(wormhole_state);
         };
 

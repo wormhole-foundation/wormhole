@@ -8,16 +8,16 @@ module wormhole::setup {
     /// Capability created at `init`, which will be destroyed once
     /// `init_and_share_state` is called. This ensures only the deployer can
     /// create the shared `State`.
-    struct DeployerCapability has key, store {
+    struct DeployerCap has key, store {
         id: UID
     }
 
     /// Called automatically when module is first published. Transfers
-    /// `DeployerCapability` to sender.
+    /// `DeployerCap` to sender.
     ///
-    /// Only `setup::init_and_share_state` requires `DeployerCapability`.
+    /// Only `setup::init_and_share_state` requires `DeployerCap`.
     fun init(ctx: &mut TxContext) {
-        let deployer = DeployerCapability { id: object::new(ctx) };
+        let deployer = DeployerCap { id: object::new(ctx) };
         transfer::transfer(deployer, tx_context::sender(ctx));
     }
 
@@ -26,10 +26,10 @@ module wormhole::setup {
         init(ctx)
     }
 
-    /// Only the owner of the `DeployerCapability` can call this method. This
+    /// Only the owner of the `DeployerCap` can call this method. This
     /// method destroys the capability and shares the `State` object.
     public entry fun init_and_share_state(
-        deployer: DeployerCapability,
+        deployer: DeployerCap,
         governance_chain: u16,
         governance_contract: vector<u8>,
         initial_guardians: vector<vector<u8>>,
@@ -38,7 +38,7 @@ module wormhole::setup {
         ctx: &mut TxContext
     ) {
         // Destroy deployer cap.
-        let DeployerCapability{ id } = deployer;
+        let DeployerCap{ id } = deployer;
         object::delete(id);
 
         // Share new state.
@@ -66,7 +66,7 @@ module wormhole::setup_test {
     use wormhole::external_address::{Self};
     use wormhole::guardian::{Self};
     use wormhole::guardian_set::{Self};
-    use wormhole::setup::{Self, DeployerCapability};
+    use wormhole::setup::{Self, DeployerCap};
     use wormhole::state::{Self, State};
     use wormhole::wormhole_scenario::{person};
 
@@ -82,13 +82,13 @@ module wormhole::setup_test {
         // Process effects of `init`.
         let effects = test_scenario::next_tx(scenario, deployer);
 
-        // We expect one object is created: `DeployerCapability`.
+        // We expect one object is created: `DeployerCap`.
         assert!(vector::length(&test_scenario::created(&effects)) == 1, 0);
 
-        // We should be able to take the `DeployerCapability` from the sender
+        // We should be able to take the `DeployerCap` from the sender
         // of the transaction.
         let cap =
-            test_scenario::take_from_address<DeployerCapability>(
+            test_scenario::take_from_address<DeployerCap>(
                 scenario,
                 deployer
             );
@@ -124,9 +124,9 @@ module wormhole::setup_test {
         let guardian_set_epochs_to_live = 5678;
         let message_fee = 350;
 
-        // Take the `DeployerCapability` and move it to `init_and_share_state`.
+        // Take the `DeployerCap` and move it to `init_and_share_state`.
         let deployer_cap =
-            test_scenario::take_from_address<DeployerCapability>(
+            test_scenario::take_from_address<DeployerCap>(
                 scenario,
                 deployer
             );
@@ -192,7 +192,7 @@ module wormhole::setup_test {
         // Clean up.
         test_scenario::return_shared(worm_state);
 
-        // We expect `DeployerCapability` to be destroyed. There are other
+        // We expect `DeployerCap` to be destroyed. There are other
         // objects deleted, but we only care about the deployer cap for this
         // test.
         let deleted = cursor::new(test_scenario::deleted(&effects));

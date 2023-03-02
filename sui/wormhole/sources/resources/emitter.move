@@ -8,7 +8,7 @@ module wormhole::emitter {
     friend wormhole::state;
 
     /// `EmitterRegistry` keeps track of auto-assigned IDs using the
-    /// `IdRegistry` resource. For every new `EmitterCapability` created, its
+    /// `IdRegistry` resource. For every new `EmitterCap` created, its
     /// registry will uptick an internal value for the next call to
     /// `new_emitter`.
     ///
@@ -19,10 +19,10 @@ module wormhole::emitter {
         registry: IdRegistry
     }
 
-    /// `EmitterCapability` gives a user or smart contract the capability to
+    /// `EmitterCap` gives a user or smart contract the capability to
     /// send Wormhole messages. For every Wormhole message emitted, a unique
     /// `sequence` is used.
-    struct EmitterCapability has key, store {
+    struct EmitterCap has key, store {
         id: UID,
 
         /// Unique identifier of the emitter
@@ -47,44 +47,44 @@ module wormhole::emitter {
         id_registry::index(&self.registry)
     }
 
-    /// Generate a new `EmitterCapability` via the registry.
+    /// Generate a new `EmitterCap` via the registry.
     public fun new_emitter(
         self: &mut EmitterRegistry,
         ctx: &mut TxContext
-    ): EmitterCapability {
-        EmitterCapability {
+    ): EmitterCap {
+        EmitterCap {
             id: object::new(ctx),
             addr: id_registry::next_address(&mut self.registry),
             sequence: 0
         }
     }
 
-    /// Destroys an `EmitterCapability`.
+    /// Destroys an `EmitterCap`.
     ///
     /// Note that this operation removes the ability to send messages using the
     /// emitter id, and is irreversible.
-    public fun destroy_emitter(emitter_cap: EmitterCapability) {
-        let EmitterCapability { id, addr: _, sequence: _ } = emitter_cap;
+    public fun destroy_emitter(emitter_cap: EmitterCap) {
+        let EmitterCap { id, addr: _, sequence: _ } = emitter_cap;
         object::delete(id);
     }
 
     /// Returns the `ExternalAddress` of the emitter (32-bytes).
     public fun external_address(
-        emitter_cap: &EmitterCapability
+        emitter_cap: &EmitterCap
     ): ExternalAddress {
         emitter_cap.addr
     }
 
     /// Returns the address of the emitter as 32-element vector<u8>.
     public fun emitter_address(
-        emitter_cap: &EmitterCapability
+        emitter_cap: &EmitterCap
     ): vector<u8> {
         external_address::to_bytes(emitter_cap.addr)
     }
 
-    /// Once a Wormhole message is emitted, an `EmitterCapability` upticks its
+    /// Once a Wormhole message is emitted, an `EmitterCap` upticks its
     /// internal `sequence` for the next message.
-    public(friend) fun use_sequence(emitter_cap: &mut EmitterCapability): u64 {
+    public(friend) fun use_sequence(emitter_cap: &mut EmitterCap): u64 {
         let sequence = emitter_cap.sequence;
         emitter_cap.sequence = sequence + 1;
         sequence

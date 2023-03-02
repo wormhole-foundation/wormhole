@@ -3,7 +3,7 @@ module wormhole::publish_message {
     use sui::event::{Self};
     use sui::sui::{SUI};
 
-    use wormhole::emitter::{Self, EmitterCapability};
+    use wormhole::emitter::{Self, EmitterCap};
     use wormhole::state::{Self, State};
 
     /// `WormholeMessage` to be emitted via sui::event::emit.
@@ -16,11 +16,11 @@ module wormhole::publish_message {
     }
 
     /// `publish_message` emits a message as a Sui event. This method uses the
-    /// input `EmitterCapability` as the registered sender of the
+    /// input `EmitterCap` as the registered sender of the
     /// `WormholeMessage`. It also produces a new sequence for this emitter.
     public fun publish_message(
         wormhole_state: &mut State,
-        emitter_cap: &mut EmitterCapability,
+        emitter_cap: &mut EmitterCap,
         nonce: u32,
         payload: vector<u8>,
         message_fee: Coin<SUI>,
@@ -83,7 +83,7 @@ module wormhole::publish_message_test{
         {
             let worm_state = test_scenario::take_shared<State>(scenario);
 
-            // User needs an `EmitterCapability` so he can send a message.
+            // User needs an `EmitterCap` so he can send a message.
             let emitter =
                 wormhole::state::new_emitter(
                     &mut worm_state,
@@ -155,7 +155,7 @@ module wormhole::publish_message_test{
         {
             let worm_state = test_scenario::take_shared<State>(scenario);
 
-            // User needs an `EmitterCapability` so he can send a message.
+            // User needs an `EmitterCap` so he can send a message.
             let emitter =
                 wormhole::state::new_emitter(
                     &mut worm_state,

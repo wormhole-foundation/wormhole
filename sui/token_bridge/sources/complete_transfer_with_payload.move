@@ -4,7 +4,7 @@ module token_bridge::complete_transfer_with_payload {
 
     use wormhole::state::{State as WormholeState};
     use wormhole::external_address::{Self};
-    use wormhole::emitter::{Self, EmitterCapability};
+    use wormhole::emitter::{Self, EmitterCap};
     use wormhole::vaa::{emitter_chain};
 
     use token_bridge::complete_transfer::{verify_transfer_details};
@@ -17,7 +17,7 @@ module token_bridge::complete_transfer_with_payload {
 
     public fun complete_transfer_with_payload<CoinType>(
         token_bridge_state: &mut State,
-        emitter_cap: &EmitterCapability,
+        emitter_cap: &EmitterCap,
         worm_state: &mut WormholeState,
         vaa: vector<u8>,
         ctx: &mut TxContext
@@ -53,7 +53,7 @@ module token_bridge::complete_transfer_with_payload {
 
     fun handle_complete_transfer_with_payload<CoinType>(
         token_bridge_state: &mut State,
-        emitter_cap: &EmitterCapability,
+        emitter_cap: &EmitterCap,
         parsed_transfer: &TransferWithPayload,
         ctx: &mut TxContext
     ): Coin<CoinType> {
@@ -90,7 +90,7 @@ module token_bridge::complete_transfer_with_payload {
     /// `complete_transfer_with_payload`.
     public fun complete_transfer_with_payload_test_only<CoinType>(
         token_bridge_state: &mut State,
-        emitter_cap: &EmitterCapability,
+        emitter_cap: &EmitterCap,
         _worm_state: &mut WormholeState,
         parsed_transfer: TransferWithPayload,
         ctx: &mut TxContext
