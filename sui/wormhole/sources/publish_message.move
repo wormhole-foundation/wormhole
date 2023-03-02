@@ -25,6 +25,8 @@ module wormhole::publish_message {
         payload: vector<u8>,
         message_fee: Coin<SUI>,
     ): u64 {
+        state::assert_publish_message_control(wormhole_state);
+
         // Deposit `message_fee`. This method interacts with the `FeeCollector`,
         // which will abort if `message_fee` does not equal the collector's
         // expected fee amount.
@@ -118,7 +120,7 @@ module wormhole::publish_message_test{
 
             // Clean up.
             test_scenario::return_shared<State>(worm_state);
-            emitter::destroy_emitter(emitter);
+            emitter::destroy_cap(emitter);
         };
 
         // Grab the `TransactionEffects` of the previous transaction.
@@ -176,7 +178,7 @@ module wormhole::publish_message_test{
 
             // Clean up.
             test_scenario::return_shared<State>(worm_state);
-            emitter::destroy_emitter(emitter);
+            emitter::destroy_cap(emitter);
         };
 
         // Done.

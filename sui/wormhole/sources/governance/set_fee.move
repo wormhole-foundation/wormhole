@@ -20,6 +20,8 @@ module wormhole::set_fee {
         vaa_buf: vector<u8>,
         ctx: &TxContext
     ): u64 {
+        state::assert_set_fee_control(wormhole_state);
+
         let msg =
             governance_message::parse_and_verify_vaa(
                 wormhole_state,

@@ -23,6 +23,8 @@ module wormhole::transfer_fee {
         vaa_buf: vector<u8>,
         ctx: &mut TxContext
     ): u64 {
+        state::assert_transfer_fee_control(wormhole_state);
+
         let msg =
             governance_message::parse_and_verify_vaa(
                 wormhole_state,
@@ -73,7 +75,7 @@ module wormhole::transfer_fee {
         assert!(amount < (1u256 << 64), E_WITHDRAW_AMOUNT_OVERFLOW);
 
         // Recipient must be non-zero address.
-        let recipient = external_address::deserialize_nonzero(&mut cur);
+        let recipient = external_address::take_nonzero(&mut cur);
 
         cursor::destroy_empty(cur);
 
@@ -414,7 +416,7 @@ module wormhole::transfer_fee_test {
         bytes::take_u256_be(&mut cur);
 
         // Confirm recipient is zero address.
-        let addr = bytes32::deserialize(&mut cur);
+        let addr = bytes32::take(&mut cur);
         assert!(!bytes32::is_nonzero(&addr), 0);
         cursor::destroy_empty(cur);
 

@@ -78,7 +78,7 @@ module wormhole::governance_message {
 
         let cur = cursor::new(vaa::take_payload(parsed));
 
-        let module_name = bytes32::deserialize(&mut cur);
+        let module_name = bytes32::take(&mut cur);
         let action = bytes::take_u8(&mut cur);
         let chain = bytes::take_u16_be(&mut cur);
         let payload = cursor::rest(cur);

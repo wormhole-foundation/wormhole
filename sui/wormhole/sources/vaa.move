@@ -11,18 +11,18 @@ module wormhole::vaa {
     use wormhole::guardian_signature::{Self, GuardianSignature};
     use wormhole::state::{Self, State};
 
-    friend wormhole::update_guardian_set;
-
     const E_WRONG_VERSION: u64 = 0;
 
     const VERSION_VAA: u8 = 1;
 
     struct VAA {
         // Header
+
         guardian_set_index: u32,
         signatures: vector<GuardianSignature>,
 
         // Body
+
         timestamp: u32,
         nonce: u32,
         emitter_chain: u16,
@@ -31,7 +31,7 @@ module wormhole::vaa {
         consistency_level: u8,
         payload: vector<u8>,
 
-        // Cache
+        /// Cache of keccak256 of the message body.
         hash: Bytes32
     }
 
@@ -160,6 +160,8 @@ module wormhole::vaa {
         buf: vector<u8>,
         ctx: &TxContext
     ): VAA {
+        state::assert_parse_and_verify_control(wormhole_state);
+
         // Deserialize VAA buffer (and return `VAA` after verifying signatures).
         let vaa = parse(buf);
 
@@ -211,8 +213,8 @@ module wormhole::vaa {
         let i = 0;
         while (i < num_signatures) {
             let guardian_index = bytes::take_u8(&mut cur);
-            let r = bytes32::deserialize(&mut cur);
-            let s = bytes32::deserialize(&mut cur);
+            let r = bytes32::take(&mut cur);
+            let s = bytes32::take(&mut cur);
             let recovery_id = bytes::take_u8(&mut cur);
             vector::push_back(
                 &mut signatures,
@@ -230,7 +232,7 @@ module wormhole::vaa {
         let timestamp = bytes::take_u32_be(&mut cur);
         let nonce = bytes::take_u32_be(&mut cur);
         let emitter_chain = bytes::take_u16_be(&mut cur);
-        let emitter_address = external_address::deserialize(&mut cur);
+        let emitter_address = external_address::take(&mut cur);
         let sequence = bytes::take_u64_be(&mut cur);
         let consistency_level = bytes::take_u8(&mut cur);
         let payload = cursor::rest(cur);

@@ -25,6 +25,8 @@ module wormhole::update_guardian_set {
         vaa_buf: vector<u8>,
         ctx: &TxContext
     ): u32 {
+        state::assert_update_guardian_set_control(wormhole_state);
+
         let msg =
             governance_message::parse_and_verify_vaa(
                 wormhole_state,

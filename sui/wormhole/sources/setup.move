@@ -5,6 +5,9 @@ module wormhole::setup {
 
     use wormhole::state::{Self};
 
+    // NOTE: This exists to mock up sui::package for proposed ugprades.
+    use wormhole::dummy_sui_package::{UpgradeCap};
+
     /// Capability created at `init`, which will be destroyed once
     /// `init_and_share_state` is called. This ensures only the deployer can
     /// create the shared `State`.
@@ -30,6 +33,7 @@ module wormhole::setup {
     /// method destroys the capability and shares the `State` object.
     public entry fun init_and_share_state(
         deployer: DeployerCap,
+        upgrade_cap: UpgradeCap,
         governance_chain: u16,
         governance_contract: vector<u8>,
         initial_guardians: vector<vector<u8>>,
@@ -44,6 +48,7 @@ module wormhole::setup {
         // Share new state.
         transfer::share_object(
             state::new(
+                upgrade_cap,
                 governance_chain,
                 governance_contract,
                 initial_guardians,
@@ -69,6 +74,9 @@ module wormhole::setup_test {
     use wormhole::setup::{Self, DeployerCap};
     use wormhole::state::{Self, State};
     use wormhole::wormhole_scenario::{person};
+
+    // NOTE: This exists to mock up sui::package for proposed ugprades.
+    use wormhole::dummy_sui_package::{Self as package};
 
     #[test]
     public fun test_init() {
@@ -132,8 +140,18 @@ module wormhole::setup_test {
             );
         let deployer_cap_id = object::id(&deployer_cap);
 
+        // This will be created and sent to the transaction sender automatically
+        // when the contract is published. This exists in place of grabbing
+        // it from the sender.
+        let upgrade_cap =
+            package::test_publish(
+                object::id_from_address(@0x0),
+                test_scenario::ctx(scenario)
+            );
+
         setup::init_and_share_state(
             deployer_cap,
+            upgrade_cap,
             governance_chain,
             governance_contract,
             initial_guardians,

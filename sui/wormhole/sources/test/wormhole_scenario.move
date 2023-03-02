@@ -1,8 +1,12 @@
 #[test_only]
 module wormhole::wormhole_scenario {
+    use sui::object::{Self};
     use sui::test_scenario::{Self, Scenario};
 
     use wormhole::setup::{Self, DeployerCap};
+
+    // NOTE: This exists to mock up sui::package for proposed ugprades.
+    use wormhole::dummy_sui_package::{Self as package};
 
     const DEPLOYER: address = @0xDEADBEEF;
     const WALLET_1: address = @0xB0B1;
@@ -27,6 +31,15 @@ module wormhole::wormhole_scenario {
         // there is no clock with unix timestamp to expire guardian sets in
         // terms of human-interpretable time.
         {
+            // This will be created and sent to the transaction sender
+            // automatically when the contract is published. This exists in
+            // place of grabbing it from the sender.
+            let upgrade_cap =
+                package::test_publish(
+                    object::id_from_address(@0x0),
+                    test_scenario::ctx(scenario)
+                );
+
             let governance_chain = 1;
             let governance_contract =
                 x"0000000000000000000000000000000000000000000000000000000000000004";
@@ -39,6 +52,7 @@ module wormhole::wormhole_scenario {
                 test_scenario::take_from_address<DeployerCap>(
                     scenario, DEPLOYER
                 ),
+                upgrade_cap,
                 governance_chain,
                 governance_contract,
                 initial_guardians,
