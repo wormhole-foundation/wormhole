@@ -153,12 +153,8 @@ module token_bridge::create_wrapped {
         assert!(token_info::chain(&info)==origin_chain,
             E_ORIGIN_CHAIN_MISMATCH);
 
-        // The following two assertions make sure that we are updating metadata
-        // for a previously registered non-native asset.
-        assert!(
-            origin_chain != wormhole_state::chain_id(),
-            E_UPDATING_NATIVE_COIN_META
-        );
+        // The following assertions ensures that we are updating metadata for
+        // a previously registered wrapped asset
         assert!(state::is_wrapped_asset<CoinType>(token_bridge_state),
             E_CAN_ONLY_UPDATE_METADATA_FOR_REGISTERED_WRAPPED_ASSET);
 
