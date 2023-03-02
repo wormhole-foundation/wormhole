@@ -5,6 +5,7 @@ module wormhole::emitter {
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::id_registry::{Self, IdRegistry};
 
+    // Needs `new_registry`.
     friend wormhole::state;
 
     /// `EmitterRegistry` keeps track of auto-assigned IDs using the
@@ -48,7 +49,7 @@ module wormhole::emitter {
     }
 
     /// Generate a new `EmitterCap` via the registry.
-    public fun new_emitter(
+    public fun new_cap(
         self: &mut EmitterRegistry,
         ctx: &mut TxContext
     ): EmitterCap {
@@ -63,22 +64,18 @@ module wormhole::emitter {
     ///
     /// Note that this operation removes the ability to send messages using the
     /// emitter id, and is irreversible.
-    public fun destroy_emitter(emitter_cap: EmitterCap) {
+    public fun destroy_cap(emitter_cap: EmitterCap) {
         let EmitterCap { id, addr: _, sequence: _ } = emitter_cap;
         object::delete(id);
     }
 
     /// Returns the `ExternalAddress` of the emitter (32-bytes).
-    public fun external_address(
-        emitter_cap: &EmitterCap
-    ): ExternalAddress {
+    public fun external_address(emitter_cap: &EmitterCap): ExternalAddress {
         emitter_cap.addr
     }
 
     /// Returns the address of the emitter as 32-element vector<u8>.
-    public fun emitter_address(
-        emitter_cap: &EmitterCap
-    ): vector<u8> {
+    public fun emitter_address(emitter_cap: &EmitterCap): vector<u8> {
         external_address::to_bytes(emitter_cap.addr)
     }
 
@@ -116,26 +113,26 @@ module wormhole::emitter_test {
         assert!(emitter::registry_index(&registry) == 0, 0);
 
         // Generate new emitter and check that the registry value upticked.
-        let cap = emitter::new_emitter(&mut registry, ctx);
+        let cap = emitter::new_cap(&mut registry, ctx);
         assert!(emitter::registry_index(&registry) == 1, 0);
 
         // And check emitter cap's address.
         let expected =
             x"0000000000000000000000000000000000000000000000000000000000000001";
         assert!(emitter::emitter_address(&cap) == expected, 0);
-        emitter::destroy_emitter(cap);
+        emitter::destroy_cap(cap);
 
         // Skip ahead to ID = 256, create new emitter and check registry value
         // again.
         emitter::skip_to(&mut registry, 256);
-        let cap = emitter::new_emitter(&mut registry, ctx);
+        let cap = emitter::new_cap(&mut registry, ctx);
         assert!(emitter::registry_index(&registry) == 257, 0);
 
         // And check emitter cap's address.
         let expected =
             x"0000000000000000000000000000000000000000000000000000000000000101";
         assert!(emitter::emitter_address(&cap) == expected, 0);
-        emitter::destroy_emitter(cap);
+        emitter::destroy_cap(cap);
 
         // Clean up.
         emitter::destroy_registry(registry);

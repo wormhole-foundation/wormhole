@@ -82,9 +82,9 @@ module token_bridge::transfer {
             E_INVALID_ACTION
         );
         let amount = normalized_amount::deserialize_be(&mut cur);
-        let token_address = external_address::deserialize(&mut cur);
+        let token_address = external_address::take(&mut cur);
         let token_chain = bytes::take_u16_be(&mut cur);
-        let recipient = external_address::deserialize(&mut cur);
+        let recipient = external_address::take(&mut cur);
         let recipient_chain = bytes::take_u16_be(&mut cur);
         let relayer_fee = normalized_amount::deserialize_be(&mut cur);
         cursor::destroy_empty(cur);

@@ -1,6 +1,7 @@
 module wormhole::state {
     use std::vector::{Self};
     use sui::coin::{Coin};
+    use sui::dynamic_field::{Self as field};
     use sui::object::{Self, UID};
     use sui::sui::{SUI};
     use sui::table::{Self, Table};
@@ -14,19 +15,44 @@ module wormhole::state {
     use wormhole::guardian::{Self};
     use wormhole::guardian_set::{Self, GuardianSet};
     use wormhole::set::{Self, Set};
+    use wormhole::upgrade_tracker::{Self, UpgradeTracker};
 
+    // NOTE: This exists to mock up sui::package for proposed ugprades.
+    use wormhole::dummy_sui_package::{
+        Self as package,
+        UpgradeCap,
+        UpgradeReceipt,
+        UpgradeTicket
+    };
+
+    friend wormhole::migrate;
     friend wormhole::publish_message;
     friend wormhole::set_fee;
     friend wormhole::setup;
     friend wormhole::transfer_fee;
     friend wormhole::update_guardian_set;
+    friend wormhole::upgrade_contract;
     friend wormhole::vaa;
 
-    const E_ZERO_GUARDIANS: u64 = 0;
-    const E_VAA_ALREADY_CONSUMED: u64 = 1;
+    const E_INVALID_UPGRADE_CAP_VERSION: u64 = 0;
+    const E_ZERO_GUARDIANS: u64 = 1;
+    const E_VAA_ALREADY_CONSUMED: u64 = 2;
+    const E_IMPLEMENTATION_VERSION_MISMATCH: u64 = 3;
 
     /// Sui's chain ID is hard-coded to one value.
     const CHAIN_ID: u16 = 21;
+
+    /// This value tracks the current version of the Wormhole version.
+    const DECLARED_IMPLEMENTATION_VERSION: u64 = 1;
+
+    const KEY_MIGRATION_CONTROL: vector<u8> = b"migration_control";
+
+    const KEY_VERSION_NEW_EMITTER: vector<u8> = b"new_emitter";
+    const KEY_VERSION_PARSE_AND_VERIFY: vector<u8> = b"parse_and_verify";
+    const KEY_VERSION_PUBLISH_MESSAGE: vector<u8> = b"publish_message";
+    const KEY_VERSION_SET_FEE: vector<u8> = b"set_fee";
+    const KEY_VERSION_TRANSFER_FEE: vector<u8> = b"transfer_fee";
+    const KEY_VERSION_UPDATE_GUARDIAN_SET: vector<u8> = b"update_guardian_set";
 
     struct State has key, store {
         id: UID,
@@ -59,9 +85,15 @@ module wormhole::state {
 
         /// Wormhole fee collector.
         fee_collector: FeeCollector,
+
+        upgrade_cap: UpgradeCap,
+
+        /// Contract upgrade tracker.
+        upgrade_tracker: UpgradeTracker
     }
 
     public(friend) fun new(
+        upgrade_cap: UpgradeCap,
         governance_chain: u16,
         governance_contract: vector<u8>,
         initial_guardians: vector<vector<u8>>,
@@ -69,6 +101,10 @@ module wormhole::state {
         message_fee: u64,
         ctx: &mut TxContext
     ): State {
+        assert!(
+            package::version(&upgrade_cap) == DECLARED_IMPLEMENTATION_VERSION,
+            E_INVALID_UPGRADE_CAP_VERSION
+        );
         assert!(vector::length(&initial_guardians) > 0, E_ZERO_GUARDIANS);
 
         // First guardian set index is zero. New guardian sets must increment
@@ -88,7 +124,12 @@ module wormhole::state {
             guardian_set_epochs_to_live,
             consumed_vaa_hashes: set::new(ctx),
             emitter_registry: emitter::new_registry(),
-            fee_collector: fee_collector::new(message_fee)
+            fee_collector: fee_collector::new(message_fee),
+            upgrade_cap,
+            upgrade_tracker: upgrade_tracker::new(
+                DECLARED_IMPLEMENTATION_VERSION,
+                ctx
+            )
         };
 
         let guardians = {
@@ -104,11 +145,25 @@ module wormhole::state {
             out
         };
 
-        // the initial guardian set with index 0
+        // Store the initial guardian set.
         store_guardian_set(
             &mut state,
             guardian_set::new(guardian_set_index, guardians)
         );
+
+        // Add dynamic field to control whether someone can call `migrate`. Set
+        // this value to `false` by default.
+        //
+        // See `migrate` module for more info.
+        field::add(&mut state.id, KEY_MIGRATION_CONTROL, false);
+
+        let tracker = &mut state.upgrade_tracker;
+        upgrade_tracker::add(tracker, KEY_VERSION_NEW_EMITTER);
+        upgrade_tracker::add(tracker, KEY_VERSION_PARSE_AND_VERIFY);
+        upgrade_tracker::add(tracker, KEY_VERSION_PUBLISH_MESSAGE);
+        upgrade_tracker::add(tracker, KEY_VERSION_SET_FEE);
+        upgrade_tracker::add(tracker, KEY_VERSION_TRANSFER_FEE);
+        upgrade_tracker::add(tracker, KEY_VERSION_UPDATE_GUARDIAN_SET);
 
         state
     }
@@ -117,11 +172,108 @@ module wormhole::state {
         CHAIN_ID
     }
 
+    public fun version(): u64 {
+         DECLARED_IMPLEMENTATION_VERSION
+    }
+
     public fun governance_module(): Bytes32 {
         // A.K.A. "Core".
         bytes32::new(
             x"00000000000000000000000000000000000000000000000000000000436f7265"
         )
+    }
+
+    /// Issue an `UpgradeTicket` for the upgrade.
+    public(friend) fun authorize_upgrade(
+        self: &mut State,
+        implementation_digest: Bytes32
+    ): UpgradeTicket {
+        let policy = package::upgrade_policy(&self.upgrade_cap);
+        package::authorize_upgrade(
+            &mut self.upgrade_cap,
+            policy,
+            bytes32::to_bytes(implementation_digest),
+        )
+    }
+
+    /// Finalize the upgrade that ran to produce the given `receipt`.
+    public(friend) fun commit_upgrade(
+        self: &mut State,
+        receipt: UpgradeReceipt
+    ) {
+        // Uptick the upgrade cap version number using this receipt.
+        package::commit_upgrade(&mut self.upgrade_cap, receipt);
+
+        // Check that the hard-coded version version agrees with the
+        // upticked version number.
+        assert!(
+            package::version(&self.upgrade_cap) == DECLARED_IMPLEMENTATION_VERSION,
+            E_IMPLEMENTATION_VERSION_MISMATCH
+        );
+
+        // Update global version.
+        upgrade_tracker::update_global(
+            &mut self.upgrade_tracker,
+            DECLARED_IMPLEMENTATION_VERSION
+        );
+
+        // Enable `migrate` to be called after commiting the upgrade.
+        //
+        // A separate method is required because `state` is a dependency of
+        // `migrate`. This method warehouses state modifications required
+        // for the new implementation plus enabling any methods required to be
+        // gated by the current implementation version. In most cases `migrate`
+        // is a no-op. But it still must be called in order to reset the
+        // migration control to `false`.
+        //
+        // See `migrate` module for more info.
+       enable_migration(self);
+    }
+
+    public(friend) fun require_current_version_for(
+        self: &mut State,
+        control_key: vector<u8>
+    ) {
+        upgrade_tracker::require_current_version(
+            &mut self.upgrade_tracker,
+            control_key
+        )
+    }
+
+    public fun can_migrate(self: &State): bool {
+        *field::borrow(&self.id, KEY_MIGRATION_CONTROL)
+    }
+
+    public(friend) fun enable_migration(self: &mut State) {
+        *field::borrow_mut(&mut self.id, KEY_MIGRATION_CONTROL) = true;
+    }
+
+    public(friend) fun disable_migration(self: &mut State) {
+        *field::borrow_mut(&mut self.id, KEY_MIGRATION_CONTROL) = false;
+    }
+
+    public fun assert_new_emitter_control(self: &State) {
+        assert_control(self, KEY_VERSION_NEW_EMITTER)
+    }
+
+    public fun assert_parse_and_verify_control(self: &State) {
+        assert_control(self, KEY_VERSION_PARSE_AND_VERIFY)
+    }
+
+    public fun assert_publish_message_control(self: &State) {
+        assert_control(self, KEY_VERSION_PUBLISH_MESSAGE)
+    }
+
+    public fun assert_set_fee_control(self: &State) {
+        assert_control(self, KEY_VERSION_SET_FEE)
+    }
+
+    public fun assert_transfer_fee_control(self: &State) {
+        assert_control(self, KEY_VERSION_TRANSFER_FEE)
+    }
+
+    public fun assert_update_guardian_set_control(self: &State) {
+        assert_control(self, KEY_VERSION_UPDATE_GUARDIAN_SET)
     }
 
     public fun governance_chain(self: &State): u16 {
@@ -211,12 +363,22 @@ module wormhole::state {
         self: &mut State,
         ctx: &mut TxContext
     ): EmitterCap{
-        emitter::new_emitter(&mut self.emitter_registry, ctx)
+        assert_new_emitter_control(self);
+
+        emitter::new_cap(&mut self.emitter_registry, ctx)
     }
 
     public(friend) fun use_emitter_sequence(
         emitter_cap: &mut EmitterCap
     ): u64 {
         emitter::use_sequence(emitter_cap)
+    }
+
+    fun assert_control(self: &State, key: vector<u8>) {
+        upgrade_tracker::assert_current(
+            &self.upgrade_tracker,
+            key,
+            DECLARED_IMPLEMENTATION_VERSION
+        )
     }
 }

@@ -49,12 +49,12 @@ module wormhole::external_address {
         bytes32::to_u64_be(ext.value)
     }
 
-    public fun deserialize(cur: &mut Cursor<u8>): ExternalAddress {
-        new(bytes32::deserialize(cur))
+    public fun take(cur: &mut Cursor<u8>): ExternalAddress {
+        new(bytes32::take(cur))
     }
 
-    public fun deserialize_nonzero(cur: &mut Cursor<u8>): ExternalAddress {
-        new_nonzero(bytes32::deserialize(cur))
+    public fun take_nonzero(cur: &mut Cursor<u8>): ExternalAddress {
+        new_nonzero(bytes32::take(cur))
     }
 
     public fun serialize(buf: &mut vector<u8>, ext: ExternalAddress) {
