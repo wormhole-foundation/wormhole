@@ -2,7 +2,7 @@
 module wormhole::wormhole_scenario {
     use sui::test_scenario::{Self, Scenario};
 
-    use wormhole::setup::{Self, DeployerCapability};
+    use wormhole::setup::{Self, DeployerCap};
 
     const DEPLOYER: address = @0xDEADBEEF;
     const WALLET_1: address = @0xB0B1;
@@ -18,7 +18,7 @@ module wormhole::wormhole_scenario {
         wormhole::setup::init_test_only(test_scenario::ctx(scenario));
 
         // `init_and_share_state` will also be executed as the Wormhole deployer
-        // to destroy the `DeployerCapability` to create a sharable `State`.
+        // to destroy the `DeployerCap` to create a sharable `State`.
         test_scenario::next_tx(scenario, DEPLOYER);
 
         // Parameters for Wormhole's `State` are common in the Wormhole testing
@@ -36,7 +36,7 @@ module wormhole::wormhole_scenario {
 
             // Share `State`.
             setup::init_and_share_state(
-                test_scenario::take_from_address<DeployerCapability>(
+                test_scenario::take_from_address<DeployerCap>(
                     scenario, DEPLOYER
                 ),
                 governance_chain,

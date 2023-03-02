@@ -1,7 +1,7 @@
 module token_bridge::transfer_tokens_with_payload {
     use sui::sui::{SUI};
     use sui::coin::{Coin};
-    use wormhole::emitter::{Self, EmitterCapability};
+    use wormhole::emitter::{Self, EmitterCap};
     use wormhole::external_address::{ExternalAddress};
     use wormhole::state::{State as WormholeState};
 
@@ -11,7 +11,7 @@ module token_bridge::transfer_tokens_with_payload {
     use token_bridge::transfer_with_payload::{Self};
 
     public fun transfer_tokens_with_payload<CoinType>(
-        emitter_cap: &EmitterCapability,
+        emitter_cap: &EmitterCap,
         wormhole_state: &mut WormholeState,
         bridge_state: &mut State,
         coins: Coin<CoinType>,

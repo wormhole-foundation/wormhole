@@ -4,7 +4,7 @@ module wormhole::wormhole {
     use sui::transfer::{Self};
     use sui::tx_context::{Self, TxContext};
 
-    use wormhole::emitter::{EmitterCapability};
+    use wormhole::emitter::{EmitterCap};
     use wormhole::state::{State};
 
     /// `publish_message` exposes `publish_message::publish_message` as an entry
@@ -14,7 +14,7 @@ module wormhole::wormhole {
     /// See `publish_message` module for more details.
     public entry fun publish_message(
         wormhole_state: &mut State,
-        emitter_cap: &mut EmitterCapability,
+        emitter_cap: &mut EmitterCap,
         nonce: u32,
         payload: vector<u8>,
         message_fee: Coin<SUI>,

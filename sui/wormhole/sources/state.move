@@ -8,7 +8,7 @@ module wormhole::state {
 
     use wormhole::bytes32::{Self, Bytes32};
     use wormhole::cursor::{Self};
-    use wormhole::emitter::{Self, EmitterCapability, EmitterRegistry};
+    use wormhole::emitter::{Self, EmitterCap, EmitterRegistry};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::fee_collector::{Self, FeeCollector};
     use wormhole::guardian::{Self};
@@ -54,7 +54,7 @@ module wormhole::state {
         /// Wormhole are just governance VAAs.
         consumed_vaa_hashes: Set<Bytes32>,
 
-        /// Registry for new emitter caps (`EmitterCapability`).
+        /// Registry for new emitter caps (`EmitterCap`).
         emitter_registry: EmitterRegistry,
 
         /// Wormhole fee collector.
@@ -210,12 +210,12 @@ module wormhole::state {
     public fun new_emitter(
         self: &mut State,
         ctx: &mut TxContext
-    ): EmitterCapability{
+    ): EmitterCap{
         emitter::new_emitter(&mut self.emitter_registry, ctx)
     }
 
     public(friend) fun use_emitter_sequence(
-        emitter_cap: &mut EmitterCapability
+        emitter_cap: &mut EmitterCap
     ): u64 {
         emitter::use_sequence(emitter_cap)
     }
