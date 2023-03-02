@@ -114,7 +114,7 @@ module wormhole::test_bytes {
     use wormhole::cursor::{Self};
 
     #[test]
-    fun test_serialize_u8(){
+    fun test_push_u8(){
         let u = 0x12;
         let s = vector::empty();
         bytes::push_u8(&mut s, u);
@@ -125,7 +125,7 @@ module wormhole::test_bytes {
     }
 
     #[test]
-    fun test_serialize_u16_be(){
+    fun test_push_u16_be(){
         let u = 0x1234;
         let s = vector::empty();
         bytes::push_u16_be(&mut s, u);
@@ -136,7 +136,7 @@ module wormhole::test_bytes {
     }
 
     #[test]
-    fun test_serialize_u32_be(){
+    fun test_push_u32_be(){
         let u = 0x12345678;
         let s = vector::empty();
         bytes::push_u32_be(&mut s, u);
@@ -147,7 +147,7 @@ module wormhole::test_bytes {
     }
 
     #[test]
-    fun test_serialize_u64_be(){
+    fun test_push_u64_be(){
         let u = 0x1234567812345678;
         let s = vector::empty();
         bytes::push_u64_be(&mut s, u);
@@ -158,7 +158,7 @@ module wormhole::test_bytes {
     }
 
      #[test]
-    fun test_serialize_u128_be(){
+    fun test_push_u128_be(){
         let u = 0x12345678123456781234567812345678;
         let s = vector::empty();
         bytes::push_u128_be(&mut s, u);
@@ -169,7 +169,7 @@ module wormhole::test_bytes {
     }
 
     #[test]
-    fun test_serialize_u256_be(){
+    fun test_push_u256_be(){
         let u =
             0x4738691759099793746170047375612500000000000000000000000000009876;
         let s = vector::empty();
@@ -181,7 +181,7 @@ module wormhole::test_bytes {
     }
 
     #[test]
-    fun test_deserialize_u8() {
+    fun test_take_u8() {
         let cursor = cursor::new(x"99");
         let byte = bytes::take_u8(&mut cursor);
         assert!(byte==0x99, 0);
@@ -189,7 +189,7 @@ module wormhole::test_bytes {
     }
 
     #[test]
-    fun test_deserialize_u16_be() {
+    fun test_take_u16_be() {
         let cursor = cursor::new(x"9987");
         let u = bytes::take_u16_be(&mut cursor);
         assert!(u == 0x9987, 0);
@@ -197,7 +197,7 @@ module wormhole::test_bytes {
     }
 
     #[test]
-    fun test_deserialize_u32_be() {
+    fun test_take_u32_be() {
         let cursor = cursor::new(x"99876543");
         let u = bytes::take_u32_be(&mut cursor);
         assert!(u == 0x99876543, 0);
@@ -205,7 +205,7 @@ module wormhole::test_bytes {
     }
 
     #[test]
-    fun test_deserialize_u64_be() {
+    fun test_take_u64_be() {
         let cursor = cursor::new(x"1300000025000001");
         let u = bytes::take_u64_be(&mut cursor);
         assert!(u == 0x1300000025000001, 0);
@@ -213,7 +213,7 @@ module wormhole::test_bytes {
     }
 
     #[test]
-    fun test_deserialize_u128_be() {
+    fun test_take_u128_be() {
         let cursor = cursor::new(x"130209AB2500FA0113CD00AE25000001");
         let u = bytes::take_u128_be(&mut cursor);
         assert!(u == 0x130209AB2500FA0113CD00AE25000001, 0);
