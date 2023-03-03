@@ -10,12 +10,13 @@ WORKDIR /tmp
 
 RUN sui genesis -f
 COPY scripts/start_node.sh  .
-COPY scripts/funder.sh  .
+COPY scripts/import_default_account.sh .
 
 COPY wormhole/ wormhole
 COPY token_bridge/ token_bridge
-# COPY examples/ examples
 COPY Makefile Makefile
+
+RUN ./import_default_account.sh
 
 FROM sui AS tests
 
