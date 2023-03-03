@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/certusone/wormhole/node/pkg/notify/discord"
-
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
 
@@ -102,13 +100,6 @@ type Processor struct {
 	// gk is the node's guardian private key
 	gk *ecdsa.PrivateKey
 
-	// devnetMode specified whether to submit transactions to the hardcoded Ethereum devnet
-	devnetMode         bool
-	devnetNumGuardians uint
-	devnetEthRPC       string
-
-	wormchainLCD string
-
 	attestationEvents *reporter.AttestationEventReporter
 
 	logger *zap.Logger
@@ -130,7 +121,6 @@ type Processor struct {
 	// cleanup triggers periodic state cleanup
 	cleanup *time.Ticker
 
-	notifier    *discord.DiscordNotifier
 	governor    *governor.ChainGovernor
 	acct        *accountant.Accountant
 	acctReadC   <-chan *common.MessagePublication
@@ -149,37 +139,25 @@ func NewProcessor(
 	signedInC <-chan *gossipv1.SignedVAAWithQuorum,
 	gk *ecdsa.PrivateKey,
 	gst *common.GuardianSetState,
-	devnetMode bool,
-	devnetNumGuardians uint,
-	devnetEthRPC string,
-	wormchainLCD string,
 	attestationEvents *reporter.AttestationEventReporter,
-	notifier *discord.DiscordNotifier,
 	g *governor.ChainGovernor,
 	acct *accountant.Accountant,
 	acctReadC <-chan *common.MessagePublication,
 ) *Processor {
 
 	return &Processor{
-		msgC:               msgC,
-		setC:               setC,
-		gossipSendC:        gossipSendC,
-		obsvC:              obsvC,
-		obsvReqSendC:       obsvReqSendC,
-		signedInC:          signedInC,
-		injectC:            injectC,
-		gk:                 gk,
-		gst:                gst,
-		devnetMode:         devnetMode,
-		devnetNumGuardians: devnetNumGuardians,
-		devnetEthRPC:       devnetEthRPC,
-		db:                 db,
-
-		wormchainLCD: wormchainLCD,
+		msgC:         msgC,
+		setC:         setC,
+		gossipSendC:  gossipSendC,
+		obsvC:        obsvC,
+		obsvReqSendC: obsvReqSendC,
+		signedInC:    signedInC,
+		injectC:      injectC,
+		gk:           gk,
+		gst:          gst,
+		db:           db,
 
 		attestationEvents: attestationEvents,
-
-		notifier: notifier,
 
 		logger:      supervisor.Logger(ctx),
 		state:       &aggregationState{observationMap{}},
