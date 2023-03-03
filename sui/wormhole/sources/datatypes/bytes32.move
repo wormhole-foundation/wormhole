@@ -9,6 +9,7 @@ module wormhole::bytes32 {
     // Errors.
     const E_INVALID_BYTES32: u64 = 0;
     const E_INVALID_U64_BE: u64 = 1;
+    const E_INVALID_FROM_BYTES: u64 = 2;
 
     // Of course LEN == 32.
     const LEN: u64 = 32;
@@ -28,7 +29,7 @@ module wormhole::bytes32 {
         let data = vector::empty();
         let i = 0;
         while (i < LEN) {
-            vector::push_back(&mut data, 0u8);
+            vector::push_back(&mut data, 0);
             i = i + 1;
         };
         new(data)
@@ -56,7 +57,21 @@ module wormhole::bytes32 {
     }
 
     public fun from_bytes(buf: vector<u8>): Bytes32 {
-        new(pad_left(&buf, false))
+        let len = vector::length(&buf);
+        if (len > LEN) {
+            // Trim bytes from the left if they are zero. If any of these bytes
+            // are non-zero, abort.
+            vector::reverse(&mut buf);
+            let (i, n) = (0, len - LEN);
+            while (i < n) {
+                assert!(vector::pop_back(&mut buf) == 0, E_INVALID_FROM_BYTES);
+                i = i + 1;
+            };
+            vector::reverse(&mut buf);
+            new(buf)
+        } else {
+            new(pad_left(&buf, false))
+        }
     }
 
     public fun to_bytes(value: Bytes32): vector<u8> {
