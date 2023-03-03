@@ -14,7 +14,7 @@ func TestTokenListSize(t *testing.T) {
 
 	/* Assuming that governed tokens will need to be updated every time
 	   we regenerate it */
-	assert.Equal(t, 134, len(tokenConfigEntries))
+	assert.Equal(t, 145, len(tokenConfigEntries))
 }
 
 func TestTokenListAddressSize(t *testing.T) {
@@ -70,7 +70,11 @@ func TestTokenListDecimalRange(t *testing.T) {
 	/* Assume that all governed token entries will have decimals of 6 or 8 */
 	for _, tokenConfigEntry := range tokenConfigEntries {
 		d := tokenConfigEntry.decimals
-		assert.Condition(t, func() bool { return d == 6 || d == 8 })
+		if tokenConfigEntry.chain == 2 && tokenConfigEntry.addr == "000000000000000000000000aaaebe6fe48e54f431b0c390cfaf0b017d09d42d" {
+			assert.Equal(t, int64(4), d) // celsius-degree-token has only four decimals.
+		} else {
+			assert.Condition(t, func() bool { return d == 6 || d == 8 })
+		}
 	}
 }
 
