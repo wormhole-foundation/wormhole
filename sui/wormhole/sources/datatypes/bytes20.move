@@ -21,7 +21,7 @@ module wormhole::bytes20 {
         let data = vector::empty();
         let i = 0;
         while (i < LEN) {
-            vector::push_back(&mut data, 0u8);
+            vector::push_back(&mut data, 0);
             i = i + 1;
         };
         new(data)
@@ -30,6 +30,8 @@ module wormhole::bytes20 {
     public fun from_bytes(buf: vector<u8>): Bytes20 {
         let len = vector::length(&buf);
         if (len > LEN) {
+            // Trim bytes from the left if they are zero. If any of these bytes
+            // are non-zero, abort.
             vector::reverse(&mut buf);
             let (i, n) = (0, len - LEN);
             while (i < n) {
