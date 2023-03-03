@@ -27,7 +27,6 @@ import (
 
 	"github.com/benbjohnson/clock"
 	"github.com/certusone/wormhole/node/pkg/db"
-	"github.com/certusone/wormhole/node/pkg/notify/discord"
 	"github.com/certusone/wormhole/node/pkg/telemetry"
 	"github.com/certusone/wormhole/node/pkg/version"
 	"github.com/gagliardetto/solana-go/rpc"
@@ -182,10 +181,9 @@ var (
 	publicRpcLogDetailStr   *string
 	publicRpcLogToTelemetry *bool
 
-	unsafeDevMode   *bool
-	testnetMode     *bool
-	devNumGuardians *uint
-	nodeName        *string
+	unsafeDevMode *bool
+	testnetMode   *bool
+	nodeName      *string
 
 	publicRPC *string
 	publicWeb *string
@@ -197,9 +195,6 @@ var (
 	disableTelemetry       *bool
 
 	telemetryKey *string
-
-	discordToken   *string
-	discordChannel *string
 
 	bigTablePersistenceEnabled *bool
 	bigTableGCPProject         *string
@@ -336,7 +331,6 @@ func init() {
 
 	unsafeDevMode = NodeCmd.Flags().Bool("unsafeDevMode", false, "Launch node in unsafe, deterministic devnet mode")
 	testnetMode = NodeCmd.Flags().Bool("testnetMode", false, "Launch node in testnet mode (enables testnet-only features)")
-	devNumGuardians = NodeCmd.Flags().Uint("devNumGuardians", 5, "Number of devnet guardians to include in guardian set")
 	nodeName = NodeCmd.Flags().String("nodeName", "", "Node name to announce in gossip heartbeats")
 
 	publicRPC = NodeCmd.Flags().String("publicRPC", "", "Listen address for public gRPC interface")
@@ -353,9 +347,6 @@ func init() {
 
 	telemetryKey = NodeCmd.Flags().String("telemetryKey", "",
 		"Telemetry write key")
-
-	discordToken = NodeCmd.Flags().String("discordToken", "", "Discord bot token (optional)")
-	discordChannel = NodeCmd.Flags().String("discordChannel", "", "Discord channel name (optional)")
 
 	bigTablePersistenceEnabled = NodeCmd.Flags().Bool("bigTablePersistenceEnabled", false, "Turn on forwarding events to BigTable")
 	bigTableGCPProject = NodeCmd.Flags().String("bigTableGCPProject", "", "Google Cloud project ID for storing events")
@@ -921,14 +912,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		}(chainMsgC[chainId], chainId)
 	}
 
-	var notifier *discord.DiscordNotifier
-	if *discordToken != "" {
-		notifier, err = discord.NewDiscordNotifier(*discordToken, *discordChannel, logger)
-		if err != nil {
-			logger.Error("failed to initialize Discord bot", zap.Error(err))
-		}
-	}
-
 	// Load p2p private key
 	var priv crypto.PrivKey
 	if *unsafeDevMode {
@@ -1434,12 +1417,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			signedInReadC,
 			gk,
 			gst,
-			*unsafeDevMode,
-			*devNumGuardians,
-			*ethRPC,
-			*wormchainLCD,
 			attestationEvents,
-			notifier,
 			gov,
 			acct,
 			acctReadC,

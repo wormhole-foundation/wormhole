@@ -151,7 +151,6 @@ def build_node_yaml():
             container = obj["spec"]["template"]["spec"]["containers"][0]
             if container["name"] != "guardiand":
                 fail("container 0 is not guardiand")
-            container["command"] += ["--devNumGuardians", str(num_guardians)]
 
             if guardiand_debug:
                 container["command"] = command_with_dlv(container["command"])
