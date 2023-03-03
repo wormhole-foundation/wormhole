@@ -113,7 +113,7 @@ type (
 		CircleDomain          uint32
 	}
 
-	// BodyCircleIntegrationUpgradeContractImplementation is a governance message to ugrade the contract implementation for Circle Integration.
+	// BodyCircleIntegrationUpgradeContractImplementation is a governance message to upgrade the contract implementation for Circle Integration.
 	BodyCircleIntegrationUpgradeContractImplementation struct {
 		NewImplementationAddress [32]byte
 	}

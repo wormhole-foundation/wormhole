@@ -285,6 +285,9 @@ func wormchainMigrateContract(req *nodev1.WormchainMigrateContract, timestamp ti
 // circleIntegrationUpdateWormholeFinality converts a nodev1.CircleIntegrationUpdateWormholeFinality to its canonical VAA representation
 // Returns an error if the data is invalid
 func circleIntegrationUpdateWormholeFinality(req *nodev1.CircleIntegrationUpdateWormholeFinality, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	if req.Finality > math.MaxUint8 {
+		return nil, fmt.Errorf("invalid finality, must be <= %d", math.MaxUint8)
+	}
 	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
 		vaa.BodyCircleIntegrationUpdateWormholeFinality{
 			Finality: uint8(req.Finality),
@@ -296,6 +299,9 @@ func circleIntegrationUpdateWormholeFinality(req *nodev1.CircleIntegrationUpdate
 // circleIntegrationRegisterEmitterAndDomain converts a nodev1.CircleIntegrationRegisterEmitterAndDomain to its canonical VAA representation
 // Returns an error if the data is invalid
 func circleIntegrationRegisterEmitterAndDomain(req *nodev1.CircleIntegrationRegisterEmitterAndDomain, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	if req.ForeignEmitterChainId > math.MaxUint16 {
+		return nil, fmt.Errorf("invalid foreign emitter chain id, must be <= %d", math.MaxUint16)
+	}
 	b, err := hex.DecodeString(req.ForeignEmitterAddress)
 	if err != nil {
 		return nil, errors.New("invalid foreign emitter address encoding (expected hex)")
