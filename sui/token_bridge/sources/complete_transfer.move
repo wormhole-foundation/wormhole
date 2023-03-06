@@ -210,7 +210,6 @@ module token_bridge::complete_transfer_test {
             state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
                 &coin_meta,
-                ctx(&mut test)
             );
             return_shared<State>(bridge_state);
             return_shared<WormholeState>(worm_state);
@@ -306,7 +305,6 @@ module token_bridge::complete_transfer_test {
             state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
                 &coin_meta,
-                ctx(&mut test)
             );
             native_coin_witness::test_init(ctx(&mut test));
             return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
@@ -407,7 +405,6 @@ module token_bridge::complete_transfer_test {
             state::register_native_asset<NATIVE_COIN_WITNESS_V2>(
                 &mut bridge_state,
                 &coin_meta,
-                ctx(&mut test)
             );
             return_shared<CoinMetadata<NATIVE_COIN_WITNESS_V2>>(coin_meta);
             return_shared<State>(bridge_state);
@@ -507,8 +504,7 @@ module token_bridge::complete_transfer_test {
             let worm_state = take_shared<WormholeState>(&test);
             state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
-                &coin_meta,
-                ctx(&mut test)
+                &coin_meta
             );
             native_coin_witness::test_init(ctx(&mut test));
             return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
@@ -589,7 +585,6 @@ module token_bridge::complete_transfer_test {
             state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
                 &coin_meta,
-                ctx(&mut test)
             );
             native_coin_witness::test_init(ctx(&mut test));
             return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
@@ -667,7 +662,6 @@ module token_bridge::complete_transfer_test {
             state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
                 &coin_meta,
-                ctx(&mut test)
             );
             native_coin_witness::test_init(ctx(&mut test));
             return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
@@ -744,7 +738,6 @@ module token_bridge::complete_transfer_test {
             state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
                 &coin_meta,
-                ctx(&mut test)
             );
             native_coin_witness::test_init(ctx(&mut test));
             return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);

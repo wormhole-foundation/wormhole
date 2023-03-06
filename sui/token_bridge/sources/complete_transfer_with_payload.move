@@ -127,7 +127,7 @@ module token_bridge::complete_transfer_with_payload_test {
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
-     #[test]
+    #[test]
     fun test_complete_native_transfer(){
         let (admin, _, _) = people();
         let test = scenario();
@@ -146,7 +146,6 @@ module token_bridge::complete_transfer_with_payload_test {
             state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
                 &coin_meta,
-                test_scenario::ctx(&mut test)
             );
             test_scenario::return_shared<State>(bridge_state);
             test_scenario::return_shared<WormholeState>(worm_state);

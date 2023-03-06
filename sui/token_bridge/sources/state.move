@@ -273,14 +273,12 @@ module token_bridge::state {
     public(friend) fun register_native_asset<CoinType>(
         self: &mut State,
         coin_metadata: &CoinMetadata<CoinType>,
-        ctx: &mut TxContext
     ): AssetMeta {
         let decimals = coin::get_decimals(coin_metadata);
 
         registered_tokens::add_new_native<CoinType>(
             &mut self.registered_tokens,
             decimals,
-            ctx
         );
 
         asset_meta::new(
@@ -405,7 +403,6 @@ module token_bridge::bridge_state_test{
             state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
                 &coin_meta,
-                ctx(&mut test)
             );
             let info = state::token_info<NATIVE_COIN_WITNESS>(&bridge_state);
             let expected_addr = external_address::from_bytes(x"01");
@@ -416,7 +413,6 @@ module token_bridge::bridge_state_test{
             state::register_native_asset<NATIVE_COIN_WITNESS_V2>(
                 &mut bridge_state,
                 &coin_meta_v2,
-                ctx(&mut test)
             );
             let info =
                 state::token_info<NATIVE_COIN_WITNESS_V2>(&bridge_state);
@@ -449,7 +445,6 @@ module token_bridge::bridge_state_test{
             state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
                 &coin_meta,
-                ctx(&mut test)
             );
             let info = state::token_info<NATIVE_COIN_WITNESS>(&bridge_state);
             let expected_addr = external_address::from_bytes(x"01");
@@ -459,7 +454,6 @@ module token_bridge::bridge_state_test{
             state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
                 &coin_meta,
-                ctx(&mut test)
             );
 
             return_shared<WormholeState>(wormhole_state);
