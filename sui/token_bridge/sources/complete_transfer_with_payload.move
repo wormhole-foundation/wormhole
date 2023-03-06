@@ -127,7 +127,7 @@ module token_bridge::complete_transfer_with_payload_test {
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
-     #[test]
+    #[test]
     fun test_complete_native_transfer(){
         let (admin, _, _) = people();
         let test = scenario();
@@ -140,14 +140,18 @@ module token_bridge::complete_transfer_with_payload_test {
             let bridge_state = test_scenario::take_shared<State>(&test);
             let worm_state = test_scenario::take_shared<WormholeState>(&test);
             let coin_meta =
-                test_scenario::take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
+                test_scenario::take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(
+                    &test
+                );
             state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
                 &coin_meta,
             );
             test_scenario::return_shared<State>(bridge_state);
             test_scenario::return_shared<WormholeState>(worm_state);
-            test_scenario::return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
+            test_scenario::return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(
+                coin_meta
+            );
         };
         // create a treasury cap for the native asset type, mint some tokens,
         // and deposit the native tokens into the token bridge
@@ -170,7 +174,7 @@ module token_bridge::complete_transfer_with_payload_test {
             test_scenario::return_shared<State>(bridge_state);
             test_scenario::return_shared<WormholeState>(worm_state);
         };
-        // complete transfer with payload (send native tokens + payload)
+        // Complete transfer with payload (send native tokens + payload).
         test_scenario::next_tx(&mut test, admin); {
             let bridge_state = test_scenario::take_shared<State>(&test);
             let worm_state = test_scenario::take_shared<WormholeState>(&test);
