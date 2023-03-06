@@ -58,7 +58,7 @@ module token_bridge::token_info_test{
             external_address::from_bytes(addr_bytes)
         );
 
-        // assert that created TokenInfo has correct fields
+        // Assert that created TokenInfo has correct fields.
         assert!(is_wrapped<MyCoinType>(&token_info)==false, 0);
         assert!(chain<MyCoinType>(&token_info)==2, 0);
         assert!(get_bytes(&addr<MyCoinType>(&token_info))==addr_bytes, 0);
@@ -75,7 +75,7 @@ module token_bridge::token_info_test{
             from_bytes(addr_bytes)
         );
 
-        // assert that created TokenInfo has correct fields
+        // Assert that created TokenInfo has correct fields.
         assert!(is_wrapped<MyCoinType>(&token_info)==true, 0);
         assert!(chain<MyCoinType>(&token_info)==15, 0);
         assert!(get_bytes(&addr<MyCoinType>(&token_info))==addr_bytes, 0);
