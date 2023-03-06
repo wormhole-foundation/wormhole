@@ -121,9 +121,9 @@ module token_bridge::transfer_test {
     #[test]
     public fun parse_roundtrip() {
         let amount = normalized_amount::from_raw(100, 8);
-        let token_address = external_address::from_bytes(x"beef");
+        let token_address = external_address::from_any_bytes(x"beef");
         let token_chain = 1;
-        let recipient = external_address::from_bytes(x"cafe");
+        let recipient = external_address::from_any_bytes(x"cafe");
         let recipient_chain = 7;
         let fee = normalized_amount::from_raw(50, 8);
         let transfer = transfer::new(

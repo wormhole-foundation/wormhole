@@ -123,7 +123,7 @@ module token_bridge::transfer_tokens_with_payload_test {
                 coins,
                 coin::zero<SUI>(ctx(&mut test)), // Zero fee paid to wormhole.
                 3, // Recipient chain id.
-                external_address::from_bytes(x"deadbeef0000beef"), // Recipient.
+                external_address::from_any_bytes(x"deadbeef0000beef"), // Recipient.
                 0, // Relayer fee.
                 payload,
             );
@@ -166,7 +166,7 @@ module token_bridge::transfer_tokens_with_payload_test {
             state::register_emitter(
                 &mut bridge_state,
                 2, // Chain ID.
-                external_address::from_bytes(
+                external_address::from_any_bytes(
                     x"00000000000000000000000000000000000000000000000000000000deadbeef"
                 )
             );
@@ -212,7 +212,7 @@ module token_bridge::transfer_tokens_with_payload_test {
                 coins,
                 coin::zero<SUI>(ctx(&mut test)), // Zero fee paid to wormhole.
                 3, // Recipient chain id.
-                external_address::from_bytes(x"deadbeef0000beef"), // Recipient.
+                external_address::from_any_bytes(x"deadbeef0000beef"), // Recipient.
                 0, // Relayer fee.
                 payload,
             );

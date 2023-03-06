@@ -25,11 +25,11 @@ module wormhole::external_address {
     }
 
     public fun from_bytes(buf: vector<u8>): ExternalAddress {
-        new(bytes32::from_bytes(buf))
+        new(bytes32::new(buf))
     }
 
     public fun from_nonzero_bytes(buf: vector<u8>): ExternalAddress{
-        new_nonzero(bytes32::from_bytes(buf))
+        new_nonzero(bytes32::new(buf))
     }
 
     public fun to_bytes(ext: ExternalAddress): vector<u8> {
@@ -71,25 +71,21 @@ module wormhole::external_address {
         bytes32::to_address(ext.value)
     }
 
+    public fun from_address(addr: address): ExternalAddress {
+        new(bytes32::from_address(addr))
+    }
+
+    #[test_only]
+    public fun from_any_bytes(buf: vector<u8>): ExternalAddress {
+        new(bytes32::from_bytes(buf))
+    }
 }
 
 #[test_only]
 module wormhole::external_address_test {
-    use std::vector::{Self};
     use wormhole::bytes20::{Self};
     use wormhole::bytes32::{Self};
     use wormhole::external_address::{Self};
-
-    // test get_bytes and left_pad
-    #[test]
-    public fun test_left_pad() {
-        let v = x"123456789123456789123456789123451234567891234567891234"; // less than 32 bytes
-        let res = external_address::from_bytes(v);
-        let bytes = external_address::to_bytes(res);
-        let m = x"0000000000";
-        vector::append(&mut m, v);
-        assert!(bytes == m, 0);
-    }
 
     #[test]
     public fun test_left_pad_length_32_vector() {
@@ -100,7 +96,7 @@ module wormhole::external_address_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = bytes32::E_INVALID_FROM_BYTES)]
+    #[expected_failure(abort_code = bytes32::E_INVALID_BYTES32)]
     public fun test_left_pad_vector_too_long() {
         let v = x"123456789123456789123456789123451234567891234567891234567891234500"; //33 bytes
         external_address::from_bytes(v);

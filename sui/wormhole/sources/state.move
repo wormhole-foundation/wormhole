@@ -377,7 +377,7 @@ module wormhole::state {
 
     #[test_only]
     public fun test_upgrade(self: &mut State) {
-        use sui::ecdsa_k1::{keccak256};
+        use sui::hash::{keccak256};
 
         let ticket =
             authorize_upgrade(self, bytes32::new(keccak256(&b"new build")));

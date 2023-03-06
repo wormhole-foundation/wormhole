@@ -55,7 +55,7 @@ module token_bridge::registered_emitters_test{
     use sui::object::{Self, UID};
     use sui::tx_context::{dummy};
 
-    use wormhole::external_address::{from_bytes};
+    use wormhole::external_address::{from_any_bytes};
     use wormhole::bytes::{Self};
 
     use token_bridge::registered_emitters::{
@@ -98,7 +98,7 @@ module token_bridge::registered_emitters_test{
             add(
                 &mut mock_state.id,
                 i,
-                from_bytes(cur_external_addr)
+                from_any_bytes(cur_external_addr)
             );
             i = i + 1;
         };
@@ -121,7 +121,7 @@ module token_bridge::registered_emitters_test{
             bytes::push_u16_be(&mut cur_external_addr, i);
             assert!(
                 external_address(&mock_state.id,i) ==
-                from_bytes(cur_external_addr),
+                from_any_bytes(cur_external_addr),
             0);
             i = i + 1;
         };
@@ -171,7 +171,7 @@ module token_bridge::registered_emitters_test{
             add(
                 &mut mock_state.id,
                 i,
-                from_bytes(cur_external_addr)
+                from_any_bytes(cur_external_addr)
             );
         };
         destroy_mock_state(mock_state);
@@ -197,7 +197,7 @@ module token_bridge::registered_emitters_test{
             add(
                 &mut mock_state.id,
                 i,
-                from_bytes(cur_external_addr)
+                from_any_bytes(cur_external_addr)
             );
             i = i + 1;
         };

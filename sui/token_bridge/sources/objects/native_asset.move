@@ -103,7 +103,7 @@ module token_bridge::native_asset_test{
     fun test_native_asset(){
         let test = scenario();
         let (admin, _, _) = people();
-        let addr = external_address::from_bytes(x"00112233");
+        let addr = external_address::from_any_bytes(x"00112233");
         let native_asset = new<NATIVE_COIN_10_DECIMALS>(
             addr,
             3,

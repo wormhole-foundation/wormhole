@@ -279,8 +279,8 @@ module token_bridge::complete_transfer_with_payload_test {
             // in terms of 8 decimals.
             assert!(coin::value(&token_coins) == 300000, 0);
             assert!(source_chain == 21, 0);
-            assert!(transfer_with_payload::token_address(&parsed_transfer)==external_address::from_bytes(x"01"), 0);
-            assert!(transfer_with_payload::sender(&parsed_transfer)==external_address::from_bytes(x"deadbeef"), 0);
+            assert!(transfer_with_payload::token_address(&parsed_transfer)==external_address::from_any_bytes(x"01"), 0);
+            assert!(transfer_with_payload::sender(&parsed_transfer)==external_address::from_any_bytes(x"deadbeef"), 0);
             assert!(transfer_with_payload::payload(&parsed_transfer)==x"aaaa", 0);
 
             // Clean-up!
@@ -347,8 +347,8 @@ module token_bridge::complete_transfer_with_payload_test {
             // Assert coin value, source chain, and parsed transfer details are correct.
             assert!(coin::value(&token_coins) == 3000, 0);
             assert!(source_chain == 2, 0);
-            assert!(transfer_with_payload::token_address(&parsed_transfer)==external_address::from_bytes(x"beefface"), 0);
-            assert!(transfer_with_payload::sender(&parsed_transfer)==external_address::from_bytes(x"deadbeef"), 0);
+            assert!(transfer_with_payload::token_address(&parsed_transfer)==external_address::from_any_bytes(x"beefface"), 0);
+            assert!(transfer_with_payload::sender(&parsed_transfer)==external_address::from_any_bytes(x"deadbeef"), 0);
             assert!(transfer_with_payload::payload(&parsed_transfer)==x"aaaa", 0);
 
             // Clean-up!

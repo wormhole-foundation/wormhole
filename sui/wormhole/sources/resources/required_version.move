@@ -96,7 +96,7 @@ module wormhole::required_version {
 
 #[test_only]
 module wormhole::required_version_test {
-    use sui::ecdsa_k1::{keccak256};
+    use sui::hash::{keccak256};
     use sui::object::{Self};
     use sui::tx_context::{Self};
 

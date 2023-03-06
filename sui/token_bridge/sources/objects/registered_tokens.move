@@ -274,7 +274,7 @@ module token_bridge::registered_tokens_test {
             add_new_wrapped<WRAPPED_COIN_7_DECIMALS>(
                 &mut registered_tokens,
                 2, // chain
-                external_address::from_bytes(x"001234"), // external address
+                external_address::from_any_bytes(x"001234"), // external address
                 tcap, // treasury cap
                 7 // decimals
             );
@@ -332,9 +332,9 @@ module token_bridge::registered_tokens_test {
 
             // check token addresses are correct
             assert!(token_address<NATIVE_COIN_10_DECIMALS>(&registered_tokens)==
-                external_address::from_bytes(x"01"), 0);
+                external_address::from_any_bytes(x"01"), 0);
             assert!(token_address<WRAPPED_COIN_7_DECIMALS>(&registered_tokens)==
-                external_address::from_bytes(x"001234"), 0);
+                external_address::from_any_bytes(x"001234"), 0);
 
             // check token chains are correct
             assert!(token_chain<NATIVE_COIN_10_DECIMALS>(&registered_tokens)==
@@ -421,7 +421,7 @@ module token_bridge::registered_tokens_test {
             add_new_wrapped<NATIVE_COIN_10_DECIMALS>(
                 &mut registered_tokens,
                 21, // Chain.
-                external_address::from_bytes(x"001234"), // External address.
+                external_address::from_any_bytes(x"001234"), // External address.
                 tcap, // Treasury cap.
                 7 // Decimals.
             );
@@ -466,7 +466,7 @@ module token_bridge::registered_tokens_test {
             add_new_wrapped<WRAPPED_COIN_7_DECIMALS>(
                 &mut registered_tokens,
                 2, // chain
-                external_address::from_bytes(x"001234"), // external address
+                external_address::from_any_bytes(x"001234"), // external address
                 tcap, // treasury cap
                 7 // decimals
             );

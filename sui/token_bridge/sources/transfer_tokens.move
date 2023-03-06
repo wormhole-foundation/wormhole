@@ -206,7 +206,7 @@ module token_bridge::transfer_token_test {
                 coins,
                 coin::zero<SUI>(ctx(&mut test)), // zero fee paid to wormhole
                 3, // recipient chain id
-                x"deadbeef0000beef", // recipient address
+                x"000000000000000000000000000000000000000000000000deadbeef0000beef", // recipient address
                 0, // relayer fee
                 0 // unused field for now
             );
@@ -259,7 +259,7 @@ module token_bridge::transfer_token_test {
             );
             let (token_chain, token_address, normalized_amount, normalized_relayer_fee) = transfer_result::destroy(transfer_result);
             assert!(token_chain == 21, 0);
-            assert!(token_address==external_address::from_bytes(x"01"), 0); // wormhole addresses of coins are selected from a monotonic sequence starting from 1
+            assert!(token_address==external_address::from_any_bytes(x"01"), 0); // wormhole addresses of coins are selected from a monotonic sequence starting from 1
             assert!(normalized_amount::value(&normalized_amount)==100, 0); // 10 - 8 = 2 decimals are removed from 10000, resulting in 100
             assert!(normalized_amount::value(&normalized_relayer_fee)==0, 0);
 
@@ -327,11 +327,11 @@ module token_bridge::transfer_token_test {
                 &mut bridge_state,
                 &mut worm_state,
                 coins,
-                coin::zero<SUI>(ctx(&mut test)), // Zero fee paid to wormhole.
-                3, // Recipient chain id.
-                x"deadbeef0000beef", // Recipient address.
-                0, // Relayer fee.
-                0 // Nonce is unused field for now.
+                coin::zero<SUI>(ctx(&mut test)), // zero fee paid to wormhole
+                3, // recipient chain id
+                x"000000000000000000000000000000000000000000000000deadbeef0000beef", // recipient address
+                0, // relayer fee
+                0 // unused field for now
             );
             return_shared<State>(bridge_state);
             return_shared<WormholeState>(worm_state);

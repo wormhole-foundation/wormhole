@@ -205,7 +205,7 @@ module token_bridge::complete_transfer_test {
         next_tx(&mut test, admin); {
             let wormhole_state = take_shared<WormholeState>(&test);
             let bridge_state = take_shared<State>(&test);
-            register_chain::submit_vaa(&mut wormhole_state, &mut bridge_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
+            register_chain::submit_vaa(&mut bridge_state, &mut wormhole_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
             return_shared<WormholeState>(wormhole_state);
             return_shared<State>(bridge_state);
         };
@@ -280,7 +280,7 @@ module token_bridge::complete_transfer_test {
         next_tx(&mut test, admin); {
             let wormhole_state = take_shared<WormholeState>(&test);
             let bridge_state = take_shared<State>(&test);
-            register_chain::submit_vaa(&mut wormhole_state, &mut bridge_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
+            register_chain::submit_vaa(&mut bridge_state, &mut wormhole_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
             return_shared<WormholeState>(wormhole_state);
             return_shared<State>(bridge_state);
         };
@@ -372,7 +372,7 @@ module token_bridge::complete_transfer_test {
         next_tx(&mut test, admin); {
             let wormhole_state = take_shared<WormholeState>(&test);
             let bridge_state = take_shared<State>(&test);
-            register_chain::submit_vaa(&mut wormhole_state, &mut bridge_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
+            register_chain::submit_vaa(&mut bridge_state, &mut wormhole_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
             return_shared<WormholeState>(wormhole_state);
             return_shared<State>(bridge_state);
         };
@@ -458,7 +458,7 @@ module token_bridge::complete_transfer_test {
         next_tx(&mut test, admin); {
             let wormhole_state = take_shared<WormholeState>(&test);
             let bridge_state = take_shared<State>(&test);
-            register_chain::submit_vaa(&mut wormhole_state, &mut bridge_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
+            register_chain::submit_vaa(&mut bridge_state, &mut wormhole_state,  ETHEREUM_TOKEN_REG, ctx(&mut test));
             return_shared<WormholeState>(wormhole_state);
             return_shared<State>(bridge_state);
         };
@@ -533,7 +533,7 @@ module token_bridge::complete_transfer_test {
         next_tx(&mut test, admin); {
             let wormhole_state = take_shared<WormholeState>(&test);
             let bridge_state = take_shared<State>(&test);
-            register_chain::submit_vaa(&mut wormhole_state, &mut bridge_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
+            register_chain::submit_vaa(&mut bridge_state, &mut wormhole_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
             return_shared<WormholeState>(wormhole_state);
             return_shared<State>(bridge_state);
         };
@@ -599,7 +599,7 @@ module token_bridge::complete_transfer_test {
         next_tx(&mut test, admin); {
             let wormhole_state = take_shared<WormholeState>(&test);
             let bridge_state = take_shared<State>(&test);
-            register_chain::submit_vaa(&mut wormhole_state, &mut bridge_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
+            register_chain::submit_vaa(&mut bridge_state, &mut wormhole_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
             return_shared<WormholeState>(wormhole_state);
             return_shared<State>(bridge_state);
         };
