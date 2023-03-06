@@ -3,6 +3,9 @@ module wormhole::update_guardian_set {
     use sui::tx_context::{TxContext};
 
     use wormhole::bytes::{Self};
+    use wormhole::version_control::{
+        UpdateGuardianSet as UpdateGuardianSetControl
+    };
     use wormhole::cursor::{Self};
     use wormhole::governance_message::{Self, GovernanceMessage};
     use wormhole::guardian::{Self, Guardian};
@@ -25,7 +28,9 @@ module wormhole::update_guardian_set {
         vaa_buf: vector<u8>,
         ctx: &TxContext
     ): u32 {
-        state::assert_update_guardian_set_control(wormhole_state);
+        state::check_minimum_requirement<UpdateGuardianSetControl>(
+            wormhole_state
+        );
 
         let msg =
             governance_message::parse_and_verify_vaa(

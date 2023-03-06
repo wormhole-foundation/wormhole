@@ -108,7 +108,14 @@ module wormhole::dummy_sui_package {
     public fun upgrade_policy(cap: &UpgradeCap): u8 {
         cap.policy
     }
-        /// Consume an `UpgradeReceipt` to update its `UpgradeCap`, finalizing
+
+    /// Discard the `UpgradeCap` to make a package immutable.
+    public entry fun make_immutable(cap: UpgradeCap) {
+        let UpgradeCap { id, package: _, version: _, policy: _ } = cap;
+        object::delete(id);
+    }
+
+    /// Consume an `UpgradeReceipt` to update its `UpgradeCap`, finalizing
     /// the upgrade.
     public fun commit_upgrade(
         cap: &mut UpgradeCap,
@@ -132,6 +139,35 @@ module wormhole::dummy_sui_package {
             package,
             version: 1,
             policy: COMPATIBLE,
+        }
+    }
+
+    #[test_only]
+    /// Test-only function that takes the role of the actual `Upgrade`
+    /// command, converting the ticket for the pending upgrade to a
+    /// receipt for a completed upgrade.
+    public fun test_upgrade(ticket: UpgradeTicket): UpgradeReceipt {
+        use std::vector::{Self};
+
+        let UpgradeTicket { cap, package, policy: _, digest: _ } = ticket;
+
+        // Generate a fake package ID for the upgraded package by
+        // hashing the existing package and cap ID.
+        let data = object::id_to_bytes(&cap);
+        std::vector::append(&mut data, object::id_to_bytes(&package));
+
+        let hash = std::hash::sha3_256(data);
+        vector::reverse(&mut hash);
+        let i = 0;
+        while (i < 12) {
+            vector::pop_back(&mut hash);
+            i = i + 1;
+        };
+        vector::reverse(&mut hash);
+        let package = object::id_from_bytes(hash);
+
+        UpgradeReceipt {
+            cap, package
         }
     }
 }

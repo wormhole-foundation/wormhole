@@ -3,6 +3,7 @@ module wormhole::transfer_fee {
     use sui::tx_context::{TxContext};
 
     use wormhole::bytes::{Self};
+    use wormhole::version_control::{TransferFee as TransferFeeControl};
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self};
     use wormhole::governance_message::{Self, GovernanceMessage};
@@ -23,7 +24,7 @@ module wormhole::transfer_fee {
         vaa_buf: vector<u8>,
         ctx: &mut TxContext
     ): u64 {
-        state::assert_transfer_fee_control(wormhole_state);
+        state::check_minimum_requirement<TransferFeeControl>(wormhole_state);
 
         let msg =
             governance_message::parse_and_verify_vaa(

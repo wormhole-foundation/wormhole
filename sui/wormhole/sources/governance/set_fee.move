@@ -2,6 +2,7 @@ module wormhole::set_fee {
     use sui::tx_context::{TxContext};
 
     use wormhole::bytes::{Self};
+    use wormhole::version_control::{SetFee as SetFeeControl};
     use wormhole::cursor::{Self};
     use wormhole::governance_message::{Self, GovernanceMessage};
     use wormhole::state::{Self, State};
@@ -20,7 +21,7 @@ module wormhole::set_fee {
         vaa_buf: vector<u8>,
         ctx: &TxContext
     ): u64 {
-        state::assert_set_fee_control(wormhole_state);
+        state::check_minimum_requirement<SetFeeControl>(wormhole_state);
 
         let msg =
             governance_message::parse_and_verify_vaa(

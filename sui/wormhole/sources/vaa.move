@@ -5,6 +5,7 @@ module wormhole::vaa {
 
     use wormhole::bytes::{Self};
     use wormhole::bytes32::{Self, Bytes32};
+    use wormhole::version_control::{ParseAndVerify as ParseAndVerifyControl};
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::guardian_set::{Self};
@@ -160,7 +161,7 @@ module wormhole::vaa {
         buf: vector<u8>,
         ctx: &TxContext
     ): VAA {
-        state::assert_parse_and_verify_control(wormhole_state);
+        state::check_minimum_requirement<ParseAndVerifyControl>(wormhole_state);
 
         // Deserialize VAA buffer (and return `VAA` after verifying signatures).
         let vaa = parse(buf);
