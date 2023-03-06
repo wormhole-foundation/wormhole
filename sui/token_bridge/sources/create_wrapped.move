@@ -1,5 +1,5 @@
-/// This module uses the one-time witness (OTW)
-/// Sui one-time witness pattern reference: https://examples.sui.io/basics/one-time-witness.html
+/// This module uses the one-time witness (OTW).
+/// Sui OTW eference: https://examples.sui.io/basics/one-time-witness.html
 module token_bridge::create_wrapped {
     use sui::coin::{Self};
     use std::string::{Self};
@@ -65,8 +65,8 @@ module token_bridge::create_wrapped {
                 coin_decimals,
                 *string::bytes(&asset_meta::symbol_to_string(&meta)),
                 *string::bytes(&asset_meta::name_to_string(&meta)),
-                b"", // no description necessary
-                option::none<Url>(), // no url necessary
+                b"", // No description necessary.
+                option::none<Url>(), // No url necessary.
                 ctx
             );
 
