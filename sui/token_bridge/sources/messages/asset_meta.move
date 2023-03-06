@@ -125,7 +125,7 @@ module token_bridge::asset_meta_test{
     fun test_asset_meta(){
         let symbol = string::utf8(b"a creative symbol");
         let name = string::utf8(b"a creative name");
-        let token_address = external_address::from_bytes(x"001122");
+        let token_address = external_address::from_any_bytes(x"001122");
         let symbol =  string32::from_string(&symbol);
         let name = string32::from_string(&name);
         let asset_meta = asset_meta::new(

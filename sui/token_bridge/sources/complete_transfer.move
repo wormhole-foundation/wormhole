@@ -240,7 +240,7 @@ module token_bridge::complete_transfer_test {
             let amount = 1000000000;
             let fee_amount = 100000000;
             let decimals = 10;
-            let token_address = external_address::from_bytes(x"01");
+            let token_address = external_address::from_any_bytes(x"01");
             let token_chain = wormhole_state::chain_id();
             let to_chain = wormhole_state::chain_id();
 
@@ -248,7 +248,7 @@ module token_bridge::complete_transfer_test {
                 normalized_amount::from_raw(amount, decimals),
                 token_address,
                 token_chain,
-                external_address::from_bytes(bcs::to_bytes(&to)),
+                external_address::from_any_bytes(bcs::to_bytes(&to)),
                 to_chain,
                 normalized_amount::from_raw(fee_amount, decimals),
             );
@@ -340,7 +340,7 @@ module token_bridge::complete_transfer_test {
             let amount = 1000000079;
             let fee_amount = 100000000;
             let decimals = 10;
-            let token_address = external_address::from_bytes(x"01");
+            let token_address = external_address::from_any_bytes(x"01");
             let token_chain = wormhole_state::chain_id();
             let to_chain = wormhole_state::chain_id();
 
@@ -348,7 +348,7 @@ module token_bridge::complete_transfer_test {
                 normalized_amount::from_raw(amount, decimals),
                 token_address,
                 token_chain,
-                external_address::from_bytes(bcs::to_bytes(&to)),
+                external_address::from_any_bytes(bcs::to_bytes(&to)),
                 to_chain,
                 normalized_amount::from_raw(fee_amount, decimals),
             );
@@ -437,7 +437,7 @@ module token_bridge::complete_transfer_test {
             let amount = 100;
             let fee_amount = 40;
             let decimals = 4;
-            let token_address = external_address::from_bytes(x"01");
+            let token_address = external_address::from_any_bytes(x"01");
             let token_chain = wormhole_state::chain_id();
             let to_chain = wormhole_state::chain_id();
 
@@ -445,7 +445,7 @@ module token_bridge::complete_transfer_test {
                 normalized_amount::from_raw(amount, decimals),
                 token_address,
                 token_chain,
-                external_address::from_bytes(bcs::to_bytes(&to)),
+                external_address::from_any_bytes(bcs::to_bytes(&to)),
                 to_chain,
                 normalized_amount::from_raw(fee_amount, decimals),
             );
@@ -539,7 +539,7 @@ module token_bridge::complete_transfer_test {
             let amount = 1000000000;
             let fee_amount = 100000000;
             let decimals = 8;
-            let token_address = external_address::from_bytes(x"01");
+            let token_address = external_address::from_any_bytes(x"01");
             let token_chain = 34; // wrong chain!
             let to_chain = wormhole_state::chain_id();
 
@@ -547,7 +547,7 @@ module token_bridge::complete_transfer_test {
                 normalized_amount::from_raw(amount, decimals),
                 token_address,
                 token_chain,
-                external_address::from_bytes(bcs::to_bytes(&to)),
+                external_address::from_any_bytes(bcs::to_bytes(&to)),
                 to_chain,
                 normalized_amount::from_raw(fee_amount, decimals),
             );
@@ -618,7 +618,7 @@ module token_bridge::complete_transfer_test {
             let amount = 1000000000;
             let fee_amount = 100000000;
             let decimals = 8;
-            let token_address = external_address::from_bytes(x"1111"); // wrong address!
+            let token_address = external_address::from_any_bytes(x"1111"); // wrong address!
             let token_chain = wormhole_state::chain_id();
             let to_chain = wormhole_state::chain_id();
 
@@ -626,7 +626,7 @@ module token_bridge::complete_transfer_test {
                 normalized_amount::from_raw(amount, decimals),
                 token_address,
                 token_chain,
-                external_address::from_bytes(bcs::to_bytes(&to)),
+                external_address::from_any_bytes(bcs::to_bytes(&to)),
                 to_chain,
                 normalized_amount::from_raw(fee_amount, decimals),
             );
@@ -689,7 +689,7 @@ module token_bridge::complete_transfer_test {
             let amount = 1000000000;
             let fee_amount = 1000000001; // Too much fee! Can't be greater than amount
             let decimals = 8;
-            let token_address = external_address::from_bytes(x"01");
+            let token_address = external_address::from_any_bytes(x"01");
             let token_chain = wormhole_state::chain_id();
             let to_chain = wormhole_state::chain_id();
 
@@ -697,7 +697,7 @@ module token_bridge::complete_transfer_test {
                 normalized_amount::from_raw(amount, decimals),
                 token_address,
                 token_chain,
-                external_address::from_bytes(bcs::to_bytes(&to)),
+                external_address::from_any_bytes(bcs::to_bytes(&to)),
                 to_chain,
                 normalized_amount::from_raw(fee_amount, decimals),
             );
@@ -765,7 +765,7 @@ module token_bridge::complete_transfer_test {
             let amount = 1000000000;
             let fee_amount = 10000000;
             let decimals = 8;
-            let token_address = external_address::from_bytes(x"01");
+            let token_address = external_address::from_any_bytes(x"01");
             let token_chain = wormhole_state::chain_id();
             let to_chain = wormhole_state::chain_id();
 
@@ -773,7 +773,7 @@ module token_bridge::complete_transfer_test {
                 normalized_amount::from_raw(amount, decimals),
                 token_address,
                 token_chain,
-                external_address::from_bytes(bcs::to_bytes(&to)),
+                external_address::from_any_bytes(bcs::to_bytes(&to)),
                 to_chain,
                 normalized_amount::from_raw(fee_amount, decimals),
             );
@@ -811,7 +811,7 @@ module token_bridge::complete_transfer_test {
             let amount = 1000000000;
             let fee_amount = 100000000;
             let decimals = 8;
-            let token_address = external_address::from_bytes(x"beefface");
+            let token_address = external_address::from_any_bytes(x"beefface");
             let token_chain = 2;
             let to_chain = wormhole_state::chain_id();
 
@@ -819,7 +819,7 @@ module token_bridge::complete_transfer_test {
                 normalized_amount::from_raw(amount, decimals),
                 token_address,
                 token_chain,
-                external_address::from_bytes(bcs::to_bytes(&to)),
+                external_address::from_any_bytes(bcs::to_bytes(&to)),
                 to_chain,
                 normalized_amount::from_raw(fee_amount, decimals),
             );

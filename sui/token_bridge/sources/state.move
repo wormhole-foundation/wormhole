@@ -402,7 +402,7 @@ module token_bridge::bridge_state_test{
                 &coin_meta,
             );
             let info = state::token_info<NATIVE_COIN_WITNESS>(&bridge_state);
-            let expected_addr = external_address::from_bytes(x"01");
+            let expected_addr = external_address::from_any_bytes(x"01");
             assert!(token_info::addr(&info) == expected_addr, 0);
 
             let coin_meta_v2 =
@@ -413,7 +413,7 @@ module token_bridge::bridge_state_test{
             );
             let info =
                 state::token_info<NATIVE_COIN_WITNESS_V2>(&bridge_state);
-            let expected_addr = external_address::from_bytes(x"02");
+            let expected_addr = external_address::from_any_bytes(x"02");
             assert!(token_info::addr(&info) == expected_addr, 0);
 
             return_shared<WormholeState>(wormhole_state);
@@ -444,7 +444,7 @@ module token_bridge::bridge_state_test{
                 &coin_meta,
             );
             let info = state::token_info<NATIVE_COIN_WITNESS>(&bridge_state);
-            let expected_addr = external_address::from_bytes(x"01");
+            let expected_addr = external_address::from_any_bytes(x"01");
             assert!(token_info::addr(&info) == expected_addr, 0);
 
             // Aborts because trying to re-register native coin.

@@ -128,9 +128,9 @@ module token_bridge::transfer_with_payload_test{
     #[test]
     fun test_transfer_with_payload(){
         let amount = normalized_amount::default();
-        let token_address = external_address::from_bytes(x"0011223344");
-        let recipient = external_address::from_bytes(x"003456");
-        let sender = external_address::from_bytes(x"99887766");
+        let token_address = external_address::from_any_bytes(x"0011223344");
+        let recipient = external_address::from_any_bytes(x"003456");
+        let sender = external_address::from_any_bytes(x"99887766");
         let payload = x"12334435345345234234";
 
         let transfer_with_payload = transfer_with_payload::new(

@@ -180,14 +180,14 @@ module token_bridge::complete_transfer_with_payload_test {
 
             let amount = 1000000000;
             let decimals = 10;
-            let token_address = external_address::from_bytes(x"01");
+            let token_address = external_address::from_any_bytes(x"01");
             let token_chain = wormhole_state::chain_id();
             let to_chain = wormhole_state::chain_id();
             // The emitter_cap defined below corresponds to the second wormhole-
             // registered emitter. As per naming conventions, we know that the
             // address of the emitter is precisely "0x2".
-            let to = external_address::from_bytes(x"02");
-            let from_address = external_address::from_bytes(x"111122");
+            let to = external_address::from_any_bytes(x"02");
+            let from_address = external_address::from_any_bytes(x"111122");
             let payload = x"beefbeef22";
 
             let transfer = transfer_with_payload::new(

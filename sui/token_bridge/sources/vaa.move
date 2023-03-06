@@ -133,7 +133,7 @@ module token_bridge::token_bridge_vaa_test{
             state::register_emitter(
                 &mut state,
                 2, // chain ID
-                external_address::from_bytes(x"deadbeed"), // not deadbeef
+                external_address::from_any_bytes(x"deadbeed"), // not deadbeef
             );
             return_shared<State>(state);
         };
@@ -166,7 +166,7 @@ module token_bridge::token_bridge_vaa_test{
             state::register_emitter(
                 &mut state,
                 2, // chain ID
-                external_address::from_bytes(x"deadbeef"),
+                external_address::from_any_bytes(x"deadbeef"),
             );
             return_shared<State>(state);
         };
@@ -200,7 +200,7 @@ module token_bridge::token_bridge_vaa_test{
             state::register_emitter(
                 &mut state,
                 2, // chain ID
-                external_address::from_bytes(x"deadbeef"),
+                external_address::from_any_bytes(x"deadbeef"),
             );
             return_shared<State>(state);
         };
@@ -243,7 +243,7 @@ module token_bridge::token_bridge_vaa_test{
             state::register_emitter(
                 &mut state,
                 2, // chain ID
-                external_address::from_bytes(x"deadbeef"),
+                external_address::from_any_bytes(x"deadbeef"),
             );
             return_shared<State>(state);
         };

@@ -153,7 +153,7 @@ module token_bridge::register_chain_test {
     //         let addr = register_chain::emitter_address(&register_chain);
 
     //         assert!(chain == CHAIN_ID_ETH, 0);
-    //         assert!(addr == external_address::from_bytes(x"deadbeef"), 0);
+    //         assert!(addr == external_address::from_any_bytes(x"deadbeef"), 0);
     //     };
     //     test_scenario::end(test);
     // }
@@ -182,7 +182,7 @@ module token_bridge::register_chain_test {
     //     next_tx(&mut test, admin); {
     //         let bridge_state = take_shared<State>(&test);
     //         let addr = state::registered_emitter(&bridge_state, CHAIN_ID_ETH);
-    //         assert!(addr == external_address::from_bytes(x"deadbeef"), 0);
+    //         assert!(addr == external_address::from_any_bytes(x"deadbeef"), 0);
     //         return_shared<State>(bridge_state);
     //     };
     //     test_scenario::end(test);
@@ -217,7 +217,7 @@ module token_bridge::register_chain_test {
     //     next_tx(&mut test, admin); {
     //         let bridge_state = take_shared<State>(&test);
     //         let addr = state::registered_emitter(&bridge_state, CHAIN_ID_ETH);
-    //         assert!(addr == external_address::from_bytes(x"deadbeef"), 0);
+    //         assert!(addr == external_address::from_any_bytes(x"deadbeef"), 0);
     //         return_shared<State>(bridge_state);
     //     };
     //     next_tx(&mut test, admin); {
@@ -229,7 +229,7 @@ module token_bridge::register_chain_test {
     //         // Easy to change, should be discussed.
     //         submit_vaa(&mut worm_state, &mut bridge_state, ETHEREUM_TOKEN_REG_2, ctx(&mut test));
     //         let address = state::registered_emitter(&bridge_state, CHAIN_ID_ETH);
-    //         assert!(address == external_address::from_bytes(x"beefface"), 0);
+    //         assert!(address == external_address::from_any_bytes(x"beefface"), 0);
     //         return_shared<WormholeState>(worm_state);
     //         return_shared<State>(bridge_state);
     //     };

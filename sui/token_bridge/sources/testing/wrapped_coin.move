@@ -113,7 +113,7 @@ module token_bridge::coin_witness_test {
             let info = token_info<COIN_WITNESS>(&bridge_state);
             assert!(token_info::chain(&info) == 2, 0);
 
-            let expected_addr = external_address::from_bytes(x"beefface");
+            let expected_addr = external_address::from_any_bytes(x"beefface");
             assert!(token_info::addr(&info) == expected_addr, 0);
 
             return_shared<State>(bridge_state);
