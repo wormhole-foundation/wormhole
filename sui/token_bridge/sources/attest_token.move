@@ -1,7 +1,6 @@
 module token_bridge::attest_token {
     use sui::sui::SUI;
     use sui::coin::{Coin, CoinMetadata};
-    use sui::tx_context::TxContext;
 
     use wormhole::state::{State as WormholeState};
 
@@ -14,12 +13,10 @@ module token_bridge::attest_token {
         coin_meta: &CoinMetadata<CoinType>,
         fee_coins: Coin<SUI>,
         nonce: u32,
-        ctx: &mut TxContext
     ) {
         let asset_meta = handle_attest_token(
             token_bridge_state,
             coin_meta,
-            ctx
         );
 
         state::publish_wormhole_message(
@@ -34,12 +31,10 @@ module token_bridge::attest_token {
     fun handle_attest_token<CoinType>(
         token_bridge_state: &mut State,
         coin_metadata: &CoinMetadata<CoinType>,
-        ctx: &mut TxContext
     ): AssetMeta {
         state::register_native_asset<CoinType>(
             token_bridge_state,
             coin_metadata,
-            ctx
         )
     }
 
@@ -48,12 +43,10 @@ module token_bridge::attest_token {
         token_bridge_state: &mut State,
         _worm_state: &mut WormholeState,
         coin_metadata: &CoinMetadata<CoinType>,
-        ctx: &mut TxContext
     ): AssetMeta {
         handle_attest_token(
             token_bridge_state,
             coin_metadata,
-            ctx
         )
     }
 }
@@ -99,7 +92,6 @@ module token_bridge::attest_token_test{
                 &mut bridge_state,
                 &mut wormhole_state,
                 &coin_meta,
-                ctx(&mut test)
             );
 
             assert!(asset_meta::native_decimals(&asset_meta) == 10, 0);
@@ -158,13 +150,11 @@ module token_bridge::attest_token_test{
                 &mut bridge_state,
                 &mut wormhole_state,
                 &coin_meta,
-                ctx(&mut test)
             );
             let _asset_meta_2 = test_handle_attest_token<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
                 &mut wormhole_state,
                 &coin_meta,
-                ctx(&mut test)
             );
             return_shared<WormholeState>(wormhole_state);
             return_shared<State>(bridge_state);

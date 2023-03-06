@@ -66,25 +66,23 @@ module token_bridge::registered_tokens {
         addr: ExternalAddress,
         treasury_cap: TreasuryCap<C>,
         decimals: u8,
-        ctx: &mut TxContext
     ) {
         assert!(!has<C>(self), E_ALREADY_REGISTERED);
         add_wrapped<C>(
             self,
-            wrapped_asset::new(chain, addr, treasury_cap, decimals, ctx)
+            wrapped_asset::new(chain, addr, treasury_cap, decimals)
         )
     }
 
     public(friend) fun add_new_native<C>(
         self: &mut RegisteredTokens,
         decimals: u8,
-        ctx: &mut TxContext
     ) {
         assert!(!has<C>(self), E_ALREADY_REGISTERED);
         let addr = native_id_registry::next_id(&mut self.native_id_registry);
         add_native<C>(
             self,
-            native_asset::new(addr, decimals, ctx)
+            native_asset::new(addr, decimals)
         )
     }
 
