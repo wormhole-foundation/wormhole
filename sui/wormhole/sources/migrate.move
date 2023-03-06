@@ -1,5 +1,6 @@
 module wormhole::migrate {
     use wormhole::state::{Self, State};
+    //use wormhole::version_control::{Self as control};
 
     const E_CANNOT_MIGRATE: u64 = 0;
 
@@ -7,6 +8,22 @@ module wormhole::migrate {
         wormhole_state: &mut State,
     ) {
         assert!(state::can_migrate(wormhole_state), E_CANNOT_MIGRATE);
+        ////////////////////////////////////////////////////////////////////////
+        //
+        // If there are any methods that require the current build, we need to
+        // explicity require them here.
+        //
+        // Calls to `require_current_version` are commented out for convenience.
+        //
+        ////////////////////////////////////////////////////////////////////////
+
+        // state::require_current_version<control::NewEmitter>(wormhole_state);
+        // state::require_current_version<control::ParseAndVerify>(wormhole_state);
+        // state::require_current_version<control::PublishMessage>(wormhole_state);
+        // state::require_current_version<control::SetFee>(wormhole_state);
+        // state::require_current_version<control::TransferFee>(wormhole_state);
+        // state::require_current_version<control::UpdateGuardianSet>(wormhole_state);
+
         ////////////////////////////////////////////////////////////////////////
         //
         // NOTE: Put any one-off migration logic here.
@@ -20,9 +37,6 @@ module wormhole::migrate {
         // If the nature of your migration absolutely requires the migration to
         // happen before certain other functionality is available, then guard
         // that functionality with the `assert!` from above.
-
-        // TODO: write an example of how a particular method can be disabled
-        // with a breaking change.
         //
         ////////////////////////////////////////////////////////////////////////
 

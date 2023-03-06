@@ -3,6 +3,7 @@ module wormhole::publish_message {
     use sui::event::{Self};
     use sui::sui::{SUI};
 
+    use wormhole::version_control::{PublishMessage as PublishMessageControl};
     use wormhole::emitter::{Self, EmitterCap};
     use wormhole::state::{Self, State};
 
@@ -25,7 +26,7 @@ module wormhole::publish_message {
         payload: vector<u8>,
         message_fee: Coin<SUI>,
     ): u64 {
-        state::assert_publish_message_control(wormhole_state);
+        state::check_minimum_requirement<PublishMessageControl>(wormhole_state);
 
         // Deposit `message_fee`. This method interacts with the `FeeCollector`,
         // which will abort if `message_fee` does not equal the collector's
