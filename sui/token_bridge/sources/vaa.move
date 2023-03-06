@@ -1,4 +1,4 @@
-/// Token Bridge VAA utilities
+/// Token Bridge VAA utilities.
 module token_bridge::vaa {
     use sui::tx_context::{TxContext};
 
@@ -7,7 +7,6 @@ module token_bridge::vaa {
 
     use token_bridge::state::{Self, State};
 
-    //friend token_bridge::contract_upgrade;
     friend token_bridge::register_chain;
     friend token_bridge::create_wrapped;
     friend token_bridge::complete_transfer;
@@ -16,9 +15,9 @@ module token_bridge::vaa {
     #[test_only]
     friend token_bridge::token_bridge_vaa_test;
 
-    /// We have no registration for this chain
+    // We have no registration for this chain.
     const E_UNKNOWN_CHAIN: u64 = 0;
-    /// We have a registration, but it's different from what's given
+    // We have a registration, but it's different from what's given.
     const E_UNKNOWN_EMITTER: u64 = 1;
 
     /// Aborts if the VAA has already been consumed. Marks the VAA as consumed
@@ -27,7 +26,7 @@ module token_bridge::vaa {
         token_bridge_state: &mut State,
         vaa: &VAA
     ) {
-        // this calls set::add which aborts if the element already exists
+        // This calls set::add which aborts if the element already exists.
         state::store_consumed_vaa(token_bridge_state, corevaa::get_hash(vaa));
     }
 
@@ -49,7 +48,7 @@ module token_bridge::vaa {
     /// Aborts if the VAA is not from a known token bridge emitter.
     ///
     /// Has a 'friend' visibility so that it's only callable by the token bridge
-    /// (otherwise the replay protection could be abused to DoS the bridge)
+    /// (otherwise the replay protection could be abused to DoS the bridge).
     public(friend) fun parse_verify_and_replay_protect(
         token_bridge_state: &mut State,
         worm_state: &mut WormholeState,
@@ -81,7 +80,7 @@ module token_bridge::token_bridge_vaa_test{
         Self,
         Scenario,
         next_tx,
-        ctx, 
+        ctx,
         take_shared,
         return_shared
     };
@@ -97,7 +96,7 @@ module token_bridge::token_bridge_vaa_test{
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
-    /// VAA sent from the ethereum token bridge 0xdeadbeef
+    /// VAA sent from the ethereum token bridge 0xdeadbeef.
     const VAA: vector<u8> =
         x"01000000000100102d399190fa61daccb11c2ea4f7a3db3a9365e5936bcda4cded87c1b9eeb095173514f226256d5579af71d4089eb89496befb998075ba94cd1d4460c5c57b84000000000100000001000200000000000000000000000000000000000000000000000000000000deadbeef0000000002634973000200000000000000000000000000000000000000000000000000000000beefface00020c0000000000000000000000000000000000000000000000000000000042454546000000000000000000000000000000000042656566206661636520546f6b656e";
 
@@ -216,7 +215,7 @@ module token_bridge::token_bridge_vaa_test{
             let state = take_shared<State>(&test);
             let w_state = take_shared<WormholeState>(&test);
 
-            // try to use the VAA twice
+            // Try to use the VAA twice.
             let vaa =
                 vaa::parse_verify_and_replay_protect(
                     &mut state,
@@ -259,8 +258,8 @@ module token_bridge::token_bridge_vaa_test{
             let state = take_shared<State>(&test);
             let w_state = take_shared<WormholeState>(&test);
 
-            // parse and verify and replay protect VAA the first time, don't
-            // replay protect the second time
+            // Parse and verify and replay protect VAA the first time, don't
+            // replay protect the second time.
             let vaa =
                 vaa::parse_verify_and_replay_protect(
                     &mut state,

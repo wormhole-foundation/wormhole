@@ -40,21 +40,21 @@ module token_bridge::state {
     #[test_only]
     friend token_bridge::transfer_token_test;
 
-    /// Capability for creating a bridge state object, granted to sender when this
-    /// module is deployed
+    /// Capability for creating a bridge state object, granted to sender when
+    /// this module is deployed.
     struct DeployerCapability has key, store {
         id: UID
     }
 
-    // Treasury caps, token stores, consumed VAAs, registered emitters, etc.
-    // are stored as dynamic fields of bridge state.
+    /// Treasury caps, token stores, consumed VAAs, registered emitters, etc.
+    /// are stored as dynamic fields of bridge state.
     struct State has key, store {
         id: UID,
 
-        /// Set of consumed VAA hashes
+        // Set of consumed VAA hashes.
         consumed_vaas: Set<vector<u8>>,
 
-        /// Token bridge owned emitter capability
+        // Token bridge owned emitter capability.
         emitter_cap: EmitterCapability,
 
         registered_tokens: RegisteredTokens,
@@ -74,8 +74,8 @@ module token_bridge::state {
         init(ctx)
     }
 
-    // converts owned state object into a shared object, so that anyone can get
-    // a reference to &mut State and pass it into various functions
+    /// Converts owned state object into a shared object, so that anyone can get
+    /// a reference to &mut State and pass it into various functions.
     public entry fun init_and_share_state(
         deployer: DeployerCapability,
         worm_state: &mut WormholeState,
@@ -83,7 +83,7 @@ module token_bridge::state {
     ) {
         let DeployerCapability{ id } = deployer;
         object::delete(id);
-    
+
         let state = State {
             id: object::new(ctx),
             consumed_vaas: set::new(ctx),
@@ -93,7 +93,7 @@ module token_bridge::state {
 
         registered_emitters::new(&mut state.id, ctx);
 
-        // permanently shares state
+        // Permanently shares state.
         transfer::share_object(state);
     }
 
@@ -165,8 +165,8 @@ module token_bridge::state {
         mint(self, amount, ctx)
     }
 
-    // We only examine the balance of native assets, because the token
-    // bridge does not custody wrapped assets (only mints and burns them).
+    /// We only examine the balance of native assets, because the token
+    /// bridge does not custody wrapped assets (only mints and burns them).
     public fun balance<CoinType>(self: &State): u64 {
         registered_tokens::balance<CoinType>(&self.registered_tokens)
     }
@@ -216,7 +216,7 @@ module token_bridge::state {
         registered_tokens::is_wrapped<CoinType>(&self.registered_tokens)
     }
 
-    /// Returns the origin information for a CoinType
+    /// Returns the origin information for a CoinType.
     public fun token_info<CoinType>(self: &State): TokenInfo<CoinType> {
         registered_tokens::to_token_info<CoinType>(&self.registered_tokens)
     }
@@ -248,7 +248,10 @@ module token_bridge::state {
 
     /// dynamic ops
 
-    public(friend) fun store_consumed_vaa(bridge_state: &mut State, vaa: vector<u8>) {
+    public(friend) fun store_consumed_vaa(
+        bridge_state: &mut State,
+        vaa: vector<u8>)
+    {
         set::add(&mut bridge_state.consumed_vaas, vaa);
     }
 
@@ -293,7 +296,8 @@ module token_bridge::state {
 
 #[test_only]
 module token_bridge::bridge_state_test{
-    use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_from_address, take_shared, return_shared};
+    use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_from_address,
+        take_shared, return_shared};
     use sui::coin::{CoinMetadata};
 
     use wormhole::state::{State as WormholeState};
@@ -308,7 +312,8 @@ module token_bridge::bridge_state_test{
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
-    const ETHEREUM_TOKEN_REG: vector<u8> = x"0100000000010015d405c74be6d93c3c33ed6b48d8db70dfb31e0981f8098b2a6c7583083e0c3343d4a1abeb3fc1559674fa067b0c0e2e9de2fafeaecdfeae132de2c33c9d27cc0100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000016911ae00000000000000000000000000000000000000000000546f6b656e427269646765010000000200000000000000000000000000000000000000000000000000000000deadbeef";
+    const ETHEREUM_TOKEN_REG: vector<u8> =
+        x"0100000000010015d405c74be6d93c3c33ed6b48d8db70dfb31e0981f8098b2a6c7583083e0c3343d4a1abeb3fc1559674fa067b0c0e2e9de2fafeaecdfeae132de2c33c9d27cc0100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000016911ae00000000000000000000000000000000000000000000546f6b656e427269646765010000000200000000000000000000000000000000000000000000000000000000deadbeef";
 
     #[test]
     fun test_state_setters() {
@@ -330,19 +335,23 @@ module token_bridge::bridge_state_test{
     }
 
     public fun set_up_wormhole_core_and_token_bridges(admin: address, test: Scenario): Scenario {
-        // init and share wormhole core bridge
+        // Init and share wormhole core bridge.
         test =  init_wormhole_state(test, admin, 0);
 
-        // call init for token bridge to get deployer cap
+        // Call init for token bridge to get deployer cap.
         next_tx(&mut test, admin); {
             state::init_test_only(ctx(&mut test));
         };
 
-        // register for emitter cap and init_and_share token bridge
+        // Register for emitter cap and init_and_share token bridge.
         next_tx(&mut test, admin); {
             let wormhole_state = take_shared<WormholeState>(&test);
             let deployer = take_from_address<DeployerCapability>(&test, admin);
-            state::init_and_share_state(deployer, &mut wormhole_state, ctx(&mut test));
+            state::init_and_share_state(
+                deployer,
+                &mut wormhole_state,
+                ctx(&mut test)
+            );
             return_shared<WormholeState>(wormhole_state);
         };
 
@@ -359,11 +368,11 @@ module token_bridge::bridge_state_test{
 
         test = set_up_wormhole_core_and_token_bridges(admin, test);
 
-        //test State setter and getter functions
+        // Test State setter and getter functions.
         next_tx(&mut test, admin); {
             let state = take_shared<State>(&test);
 
-            // test store consumed vaa
+            // Test store consumed vaa.
             state::store_consumed_vaa(&mut state, x"1234");
             assert!(state::vaa_is_consumed(&state, x"1234"), 0);
 
@@ -380,7 +389,7 @@ module token_bridge::bridge_state_test{
 
         test = set_up_wormhole_core_and_token_bridges(admin, test);
 
-        //test coin type addressing
+        // Test coin type addressing.
         next_tx(&mut test, admin); {
             native_coin_witness::test_init(ctx(&mut test));
             native_coin_witness_v2::test_init(ctx(&mut test));
@@ -424,7 +433,7 @@ module token_bridge::bridge_state_test{
 
         test = set_up_wormhole_core_and_token_bridges(admin, test);
 
-        //test coin type addressing
+        // Test coin type addressing.
         next_tx(&mut test, admin); {
             native_coin_witness::test_init(ctx(&mut test));
             native_coin_witness_v2::test_init(ctx(&mut test));
@@ -441,7 +450,7 @@ module token_bridge::bridge_state_test{
             let expected_addr = external_address::from_bytes(x"01");
             assert!(token_info::addr(&info) == expected_addr, 0);
 
-            // aborts because trying to re-register native coin
+            // Aborts because trying to re-register native coin.
             state::register_native_asset<NATIVE_COIN_WITNESS>(
                 &mut bridge_state,
                 &coin_meta,
