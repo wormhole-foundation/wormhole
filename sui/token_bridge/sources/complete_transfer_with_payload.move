@@ -127,7 +127,7 @@ module token_bridge::complete_transfer_with_payload_test {
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
-     #[test]
+    #[test]
     fun test_complete_native_transfer(){
         let (admin, _, _) = people();
         let test = scenario();
