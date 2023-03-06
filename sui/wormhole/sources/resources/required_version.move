@@ -3,7 +3,7 @@ module wormhole::required_version {
     use sui::object::{Self, UID};
     use sui::tx_context::{TxContext};
 
-    // NOTE: This exists to mock up sui::package for proposed ugprades.
+    // NOTE: This exists to mock up sui::package for proposed upgrades.
     use wormhole::dummy_sui_package::{Self as package, UpgradeCap};
 
     const E_OUTDATED_VERSION: u64 = 0;
@@ -102,7 +102,7 @@ module wormhole::required_version_test {
 
     use wormhole::required_version::{Self};
 
-    // NOTE: This exists to mock up sui::package for proposed ugprades.
+    // NOTE: This exists to mock up sui::package for proposed upgrades.
     use wormhole::dummy_sui_package::{Self as package};
 
     struct SomeMethod {}

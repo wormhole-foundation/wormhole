@@ -3,11 +3,11 @@ module wormhole::transfer_fee {
     use sui::tx_context::{TxContext};
 
     use wormhole::bytes::{Self};
-    use wormhole::version_control::{TransferFee as TransferFeeControl};
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self};
     use wormhole::governance_message::{Self, GovernanceMessage};
     use wormhole::state::{Self, State};
+    use wormhole::version_control::{TransferFee as TransferFeeControl};
 
     const E_WITHDRAW_AMOUNT_OVERFLOW: u64 = 0;
 
@@ -104,9 +104,16 @@ module wormhole::transfer_fee_test {
     use wormhole::external_address::{Self};
     use wormhole::fee_collector::{Self};
     use wormhole::governance_message::{Self};
+    use wormhole::required_version::{Self};
     use wormhole::state::{Self, State};
     use wormhole::transfer_fee::{Self};
-    use wormhole::wormhole_scenario::{set_up_wormhole, person, two_people};
+    use wormhole::version_control::{Self as control};
+    use wormhole::wormhole_scenario::{
+        person,
+        set_up_wormhole,
+        two_people,
+        upgrade_wormhole
+    };
 
     const VAA_TRANSFER_FEE_1: vector<u8> =
         x"01000000000100a96aee105d7683266d98c9b274eddb20391378adddcefbc7a5266b4be78bc6eb582797741b65617d796c6c613ae7a4dad52a8b4aa4659842dcc4c9b3891549820100bc614e000000000001000000000000000000000000000000000000000000000000000000000000000400000000000000010100000000000000000000000000000000000000000000000000000000436f726504001500000000000000000000000000000000000000000000000000000000000004b0000000000000000000000000000000000000000000000000000000000000b0b2";
@@ -178,6 +185,61 @@ module wormhole::transfer_fee_test {
 
         // Clean up.
         test_scenario::return_to_address(recipient, withdrawn_coin);
+        test_scenario::return_shared(worm_state);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    public fun test_transfer_fee_after_upgrade() {
+        // Testing this method.
+        use wormhole::transfer_fee::{transfer_fee};
+
+        // Set up.
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
+
+        let wormhole_fee = 350;
+        set_up_wormhole(scenario, wormhole_fee);
+
+        // Upgrade.
+        upgrade_wormhole(scenario);
+
+        // Prepare test to execute `update_guardian_set`.
+        test_scenario::next_tx(scenario, caller);
+
+        let worm_state = test_scenario::take_shared<State>(scenario);
+
+        // Double-check current fee (from setup).
+        assert!(state::message_fee(&worm_state) == wormhole_fee, 0);
+
+        // Deposit fee several times.
+        let (i, n) = (0, 8);
+        while (i < n) {
+            state::deposit_fee(
+                &mut worm_state,
+                coin::mint_for_testing<SUI>(
+                    wormhole_fee,
+                    test_scenario::ctx(scenario)
+                )
+            );
+            i = i + 1;
+        };
+
+        // Double-check balance.
+        let total_deposited = n * wormhole_fee;
+        assert!(state::fees_collected(&worm_state) == total_deposited, 0);
+
+        let withdrawn = transfer_fee(
+            &mut worm_state,
+            VAA_TRANSFER_FEE_1,
+            test_scenario::ctx(scenario)
+        );
+        assert!(withdrawn == 1200, 0);
+
+        // Clean up.
         test_scenario::return_shared(worm_state);
 
         // Done.
@@ -475,6 +537,70 @@ module wormhole::transfer_fee_test {
         transfer_fee(
             &mut worm_state,
             VAA_TRANSFER_FEE_OVERFLOW,
+            test_scenario::ctx(scenario)
+        );
+
+        // Clean up even though we should have failed by this point.
+        test_scenario::return_shared(worm_state);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = required_version::E_OUTDATED_VERSION)]
+    public fun test_cannot_set_fee_outdated_build() {
+        // Testing this method.
+        use wormhole::transfer_fee::{transfer_fee};
+
+        // Set up.
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
+
+        let wormhole_fee = 350;
+        set_up_wormhole(scenario, wormhole_fee);
+
+        // Prepare test to execute `update_guardian_set`.
+        test_scenario::next_tx(scenario, caller);
+
+        let worm_state = test_scenario::take_shared<State>(scenario);
+
+        // Double-check current fee (from setup).
+        assert!(state::message_fee(&worm_state) == wormhole_fee, 0);
+
+        // Deposit fee several times.
+        let (i, n) = (0, 8);
+        while (i < n) {
+            state::deposit_fee(
+                &mut worm_state,
+                coin::mint_for_testing<SUI>(
+                    wormhole_fee,
+                    test_scenario::ctx(scenario)
+                )
+            );
+            i = i + 1;
+        };
+
+        // Double-check balance.
+        let total_deposited = n * wormhole_fee;
+        assert!(state::fees_collected(&worm_state) == total_deposited, 0);
+
+        // Prepare test to execute `update_guardian_set`.
+        test_scenario::next_tx(scenario, caller);
+
+        // Simulate executing with an outdated build by upticking the minimum
+        // required version for `publish_message` to something greater than
+        // this build.
+        state::set_required_version<control::TransferFee>(
+            &mut worm_state,
+            control::version() + 1
+        );
+
+        // You shall not pass!
+        transfer_fee(
+            &mut worm_state,
+            VAA_TRANSFER_FEE_1,
             test_scenario::ctx(scenario)
         );
 

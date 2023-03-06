@@ -5,7 +5,7 @@ module wormhole::setup {
 
     use wormhole::state::{Self};
 
-    // NOTE: This exists to mock up sui::package for proposed ugprades.
+    // NOTE: This exists to mock up sui::package for proposed upgrades.
     use wormhole::dummy_sui_package::{UpgradeCap};
 
     /// Capability created at `init`, which will be destroyed once
@@ -26,7 +26,17 @@ module wormhole::setup {
 
     #[test_only]
     public fun init_test_only(ctx: &mut TxContext) {
-        init(ctx)
+        // NOTE: This exists to mock up sui::package for proposed upgrades.
+        use wormhole::dummy_sui_package::{Self as package};
+
+        init(ctx);
+
+        // This will be created and sent to the transaction sender
+        // automatically when the contract is published.
+        transfer::transfer(
+            package::test_publish(object::id_from_address(@wormhole), ctx),
+            tx_context::sender(ctx)
+        );
     }
 
     /// Only the owner of the `DeployerCap` can call this method. This
@@ -75,7 +85,7 @@ module wormhole::setup_test {
     use wormhole::state::{Self, State};
     use wormhole::wormhole_scenario::{person};
 
-    // NOTE: This exists to mock up sui::package for proposed ugprades.
+    // NOTE: This exists to mock up sui::package for proposed upgrades.
     use wormhole::dummy_sui_package::{Self as package};
 
     #[test]
@@ -90,8 +100,8 @@ module wormhole::setup_test {
         // Process effects of `init`.
         let effects = test_scenario::next_tx(scenario, deployer);
 
-        // We expect one object is created: `DeployerCap`.
-        assert!(vector::length(&test_scenario::created(&effects)) == 1, 0);
+        // We expect two objects to be created: `DeployerCap` and `UpgradeCap`.
+        assert!(vector::length(&test_scenario::created(&effects)) == 2, 0);
 
         // We should be able to take the `DeployerCap` from the sender
         // of the transaction.

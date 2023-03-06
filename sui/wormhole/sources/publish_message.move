@@ -3,9 +3,9 @@ module wormhole::publish_message {
     use sui::event::{Self};
     use sui::sui::{SUI};
 
-    use wormhole::version_control::{PublishMessage as PublishMessageControl};
     use wormhole::emitter::{Self, EmitterCap};
     use wormhole::state::{Self, State};
+    use wormhole::version_control::{PublishMessage as PublishMessageControl};
 
     /// `WormholeMessage` to be emitted via sui::event::emit.
     struct WormholeMessage has store, copy, drop {
@@ -61,18 +61,24 @@ module wormhole::publish_message_test{
     use sui::sui::{SUI};
     use sui::test_scenario::{Self};
 
-    use wormhole::emitter::{Self};
+    use wormhole::emitter::{Self, EmitterCap};
     use wormhole::fee_collector::{Self};
-    use wormhole::state::{State};
+    use wormhole::required_version::{Self};
+    use wormhole::state::{Self, State};
     use wormhole::publish_message::{publish_message};
-    use wormhole::wormhole_scenario::{set_up_wormhole, three_people as people};
+    use wormhole::version_control::{Self as control};
+    use wormhole::wormhole_scenario::{
+        person,
+        set_up_wormhole,
+        upgrade_wormhole
+    };
 
     #[test]
     /// This test verifies that `publish_message` is successfully called when
     /// the specified message fee is used.
     public fun test_publish_message() {
-        let (admin, user, _) = people();
-        let my_scenario = test_scenario::begin(admin);
+        let user = person();
+        let my_scenario = test_scenario::begin(user);
         let scenario = &mut my_scenario;
 
         let wormhole_message_fee = 100000000;
@@ -87,7 +93,7 @@ module wormhole::publish_message_test{
             let worm_state = test_scenario::take_shared<State>(scenario);
 
             // User needs an `EmitterCap` so he can send a message.
-            let emitter =
+            let emitter_cap =
                 wormhole::state::new_emitter(
                     &mut worm_state,
                     test_scenario::ctx(scenario)
@@ -96,7 +102,7 @@ module wormhole::publish_message_test{
             // Finally publish Wormhole message.
             let sequence = publish_message(
                 &mut worm_state,
-                &mut emitter,
+                &mut emitter_cap,
                 0, // nonce
                 b"Hello World",
                 coin::mint_for_testing<SUI>(
@@ -109,7 +115,7 @@ module wormhole::publish_message_test{
             // Publish again to check sequence uptick.
             let another_sequence = publish_message(
                 &mut worm_state,
-                &mut emitter,
+                &mut emitter_cap,
                 0, // nonce
                 b"Hello World... again",
                 coin::mint_for_testing<SUI>(
@@ -121,7 +127,7 @@ module wormhole::publish_message_test{
 
             // Clean up.
             test_scenario::return_shared<State>(worm_state);
-            emitter::destroy_cap(emitter);
+            sui::transfer::transfer(emitter_cap, user);
         };
 
         // Grab the `TransactionEffects` of the previous transaction.
@@ -133,6 +139,34 @@ module wormhole::publish_message_test{
         // transaction.
         assert!(test_scenario::num_user_events(&effects) == 2, 0);
 
+        // Simulate upgrade and confirm that publish message still works.
+        {
+            upgrade_wormhole(scenario);
+
+            // Ignore effects from upgrade.
+            test_scenario::next_tx(scenario, user);
+
+            let worm_state = test_scenario::take_shared<State>(scenario);
+            let emitter_cap =
+                test_scenario::take_from_sender<EmitterCap>(scenario);
+
+            let sequence = publish_message(
+                &mut worm_state,
+                &mut emitter_cap,
+                0, // nonce
+                b"Hello?",
+                coin::mint_for_testing<SUI>(
+                    wormhole_message_fee,
+                    test_scenario::ctx(scenario)
+                )
+            );
+            assert!(sequence == 2, 0);
+
+            // Clean up.
+            test_scenario::return_to_sender(scenario, emitter_cap);
+            test_scenario::return_shared(worm_state);
+        };
+
         // Done.
         test_scenario::end(my_scenario);
     }
@@ -142,8 +176,8 @@ module wormhole::publish_message_test{
     /// This test verifies that `publish_message` fails when the fee is not the
     /// correct amount. `FeeCollector` will be the reason for this abort.
     public fun test_cannot_publish_message_with_incorrect_fee() {
-        let (admin, user, _) = people();
-        let my_scenario = test_scenario::begin(admin);
+        let user = person();
+        let my_scenario = test_scenario::begin(user);
         let scenario = &mut my_scenario;
 
         let wormhole_message_fee = 100000000;
@@ -155,32 +189,84 @@ module wormhole::publish_message_test{
         // Next transaction should be conducted as an ordinary user.
         test_scenario::next_tx(scenario, user);
 
-        {
-            let worm_state = test_scenario::take_shared<State>(scenario);
+        let worm_state = test_scenario::take_shared<State>(scenario);
 
-            // User needs an `EmitterCap` so he can send a message.
-            let emitter =
-                wormhole::state::new_emitter(
-                    &mut worm_state,
-                    test_scenario::ctx(scenario)
-                );
-
-            // Finally publish Wormhole message.
-            publish_message(
+        // User needs an `EmitterCap` so he can send a message.
+        let emitter =
+            wormhole::state::new_emitter(
                 &mut worm_state,
-                &mut emitter,
-                0, // nonce
-                b"Hello World",
-                coin::mint_for_testing<SUI>(
-                    wrong_fee_amount,
-                    test_scenario::ctx(scenario)
-                )
+                test_scenario::ctx(scenario)
             );
 
-            // Clean up.
-            test_scenario::return_shared<State>(worm_state);
-            emitter::destroy_cap(emitter);
-        };
+        // You shall not pass!
+        publish_message(
+            &mut worm_state,
+            &mut emitter,
+            0, // nonce
+            b"Hello World",
+            coin::mint_for_testing<SUI>(
+                wrong_fee_amount,
+                test_scenario::ctx(scenario)
+            )
+        );
+
+        // Clean up even though we should have failed by this point.
+        test_scenario::return_shared(worm_state);
+        emitter::destroy_cap(emitter);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = required_version::E_OUTDATED_VERSION)]
+    /// This test verifies that `publish_message` will fail if the minimum
+    /// required version is greater than the current build's.
+    public fun test_cannot_publish_message_outdated_build() {
+        let user = person();
+        let my_scenario = test_scenario::begin(user);
+        let scenario = &mut my_scenario;
+
+        let wormhole_message_fee = 100000000;
+
+        // Initialize Wormhole.
+        set_up_wormhole(scenario, wormhole_message_fee);
+
+        // Next transaction should be conducted as an ordinary user.
+        test_scenario::next_tx(scenario, user);
+
+        let worm_state = test_scenario::take_shared<State>(scenario);
+
+        // Simulate executing with an outdated build by upticking the minimum
+        // required version for `publish_message` to something greater than
+        // this build.
+        state::set_required_version<control::PublishMessage>(
+            &mut worm_state,
+            control::version() + 1
+        );
+
+        // User needs an `EmitterCap` so he can send a message.
+        let emitter =
+            wormhole::state::new_emitter(
+                &mut worm_state,
+                test_scenario::ctx(scenario)
+            );
+
+        // You shall not pass!
+        publish_message(
+            &mut worm_state,
+            &mut emitter,
+            0, // nonce
+            b"Hello World",
+            coin::mint_for_testing<SUI>(
+                wormhole_message_fee,
+                test_scenario::ctx(scenario)
+            )
+        );
+
+        // Clean up even though we should have failed by this point.
+        test_scenario::return_shared(worm_state);
+        emitter::destroy_cap(emitter);
 
         // Done.
         test_scenario::end(my_scenario);
