@@ -87,7 +87,7 @@ module token_bridge::string32 {
     public fun to_string(s: &String32): String {
         let String32 { string } = s;
         let bytes = *string::bytes(string);
-        // keep dropping the last character while it's 0
+        // Keep dropping the last character while it's 0.
         while (!vector::is_empty(&bytes) &&
                *vector::borrow(&bytes, vector::length(&bytes) - 1) == 0
         ) {
@@ -127,7 +127,8 @@ module token_bridge::string32_test {
     #[test]
     #[expected_failure(abort_code = string32::E_STRING_TOO_LONG)]
     public fun test_right_pad_fail() {
-        let too_long = string::utf8(b"this string is very very very very very very very very very very very very very very very long");
+        let too_long = string::utf8(
+            b"this string is very very very very very very very very very very very very very very very long");
         string32::right_pad(&too_long);
     }
 
@@ -139,25 +140,28 @@ module token_bridge::string32_test {
 
     #[test]
     public fun test_from_string_long() {
-        let long = string32::from_string(&string::utf8(b"this string is very very very very very very very very very very very very very very very long"));
-        assert!(string32::to_string(&long) == string::utf8(b"this string is very very very ve"), 0)
+        let long = string32::from_string(&string::utf8(
+            b"this string is very very very very very very very very very very very very very very very long"));
+        assert!(string32::to_string(&long) == string::utf8(
+            b"this string is very very very ve"), 0)
     }
 
     #[test]
     public fun test_from_string_weird_utf8() {
         let string = b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
         assert!(vector::length(&string) == 31, 0);
-        // append the samaritan letter Alaf, a 3-byte utf8 character the move
+        // Append the samaritan letter Alaf, a 3-byte utf8 character the move
         // parser only allows ascii characters unfortunately (the character
-        // looks nice)
+        // looks nice).
         vector::append(&mut string, x"e0a080");
-        // it's valid utf8
+        // It's valid utf8.
         let string = string::utf8(string);
-        // string length is bytes, not characters
+        // String length is bytes, not characters.
         assert!(string::length(&string) == 34, 0);
         let padded = string32::from_string(&string);
-        // notice that the e0 byte got dropped at the end
-        assert!(string32::to_string(&padded) == string::utf8(b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), 0)
+        // Notice that the e0 byte got dropped at the end.
+        assert!(string32::to_string(&padded) ==
+            string::utf8(b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), 0)
     }
 
     #[test]

@@ -18,18 +18,18 @@ module token_bridge::transfer {
     const PAYLOAD_ID: u8 = 1;
 
     struct Transfer has drop {
-        /// Amount being transferred
+        // Amount being transferred.
         amount: NormalizedAmount,
-        /// Address of the token. Left-zero-padded if shorter than 32 bytes
+        // Address of the token. Left-zero-padded if shorter than 32 bytes.
         token_address: ExternalAddress,
-        /// Chain ID of the token
+        // Chain ID of the token.
         token_chain: u16,
-        /// Address of the recipient. Left-zero-padded if shorter than 32 bytes
+        // Address of the recipient. Left-zero-padded if shorter than 32 bytes.
         recipient: ExternalAddress,
-        /// Chain ID of the recipient
+        // Chain ID of the recipient.
         recipient_chain: u16,
-        /// Amount of tokens that the user is willing to pay as relayer fee.
-        /// Must be <= amount.
+        // Amount of tokens that the user is willing to pay as relayer fee.
+        // Must be <= amount.
         relayer_fee: NormalizedAmount,
     }
 

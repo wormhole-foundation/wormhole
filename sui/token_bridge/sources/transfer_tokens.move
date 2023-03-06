@@ -11,7 +11,7 @@ module token_bridge::transfer_tokens {
     use token_bridge::transfer_result::{Self, TransferResult};
     use token_bridge::transfer::{Self};
 
-    // `transfer_tokens_with_payload` requires `handle_transfer_tokens`
+    // `transfer_tokens_with_payload` requires `handle_transfer_tokens`.
     friend token_bridge::transfer_tokens_with_payload;
 
     const E_TOO_MUCH_RELAYER_FEE: u64 = 0;
@@ -66,15 +66,15 @@ module token_bridge::transfer_tokens {
         // total amount bridged over.
         assert!(relayer_fee <= amount, E_TOO_MUCH_RELAYER_FEE);
 
-        // Get info about the token
+        // Get info about the token.
         let info = state::token_info<CoinType>(token_bridge_state);
 
         if (token_info::is_wrapped(&info)) {
-            // now we burn the wrapped coins to remove them from circulation
+            // Now we burn the wrapped coins to remove them from circulation.
             state::burn<CoinType>(token_bridge_state, coins);
         } else {
-            // deposit native assets. this call to deposit requires the native
-            // asset to have been attested
+            // Deposit native assets. This call to deposit requires the native
+            // asset to have been attested.
             state::deposit<CoinType>(token_bridge_state, coins);
         };
 
@@ -142,13 +142,14 @@ module token_bridge::transfer_token_test {
     fun test_transfer_native_token_too_much_relayer_fee(){
         let (admin, _, _) = people();
         let test = scenario();
-        // set up core and token bridges
+        // Set up core and token bridges.
         test = set_up_wormhole_core_and_token_bridges(admin, test);
-        // initialize the coin
+        // Initialize the coin.
         next_tx(&mut test, admin);{
             native_coin_witness::test_init(ctx(&mut test));
         };
-        // register native asset type with the token bridge, mint some coins, initiate transfer
+        // Register native asset type with the token bridge, mint some coins,
+        // and initiate transfer.
         next_tx(&mut test, admin);{
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
@@ -182,13 +183,14 @@ module token_bridge::transfer_token_test {
     fun test_transfer_native_token(){
         let (admin, _, _) = people();
         let test = scenario();
-        // set up core and token bridges
+        // Set up core and token bridges.
         test = set_up_wormhole_core_and_token_bridges(admin, test);
-        // initialize the coin
+        // Initialize the coin.
         next_tx(&mut test, admin);{
             native_coin_witness::test_init(ctx(&mut test));
         };
-        // register native asset type with the token bridge, mint some coins, initiate transfer
+        // Register native asset type with the token bridge, mint some coins,
+        // and finally initiate transfer.
         next_tx(&mut test, admin);{
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
@@ -215,7 +217,7 @@ module token_bridge::transfer_token_test {
             return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
             return_shared<TreasuryCap<NATIVE_COIN_WITNESS>>(treasury_cap);
         };
-        // check that custody of the coins is indeed transferred to token bridge
+        // Check that custody of the coins is indeed transferred to token bridge.
         next_tx(&mut test, admin);{
             let bridge_state = take_shared<State>(&test);
             let cur_bal = state::balance<NATIVE_COIN_WITNESS>(&mut bridge_state);
@@ -225,18 +227,19 @@ module token_bridge::transfer_token_test {
         test_scenario::end(test);
     }
 
-    // check transfer result for native token transfer is constructed properly
     #[test]
+    /// Check transfer result for native token transfer is constructed properly.
     fun test_transfer_native_token_internal(){
         let (admin, _, _) = people();
         let test = scenario();
-        // set up core and token bridges
+        // Set up core and token bridges.
         test = set_up_wormhole_core_and_token_bridges(admin, test);
-        // initialize the coin
+        // Initialize the coin.
         next_tx(&mut test, admin);{
             native_coin_witness::test_init(ctx(&mut test));
         };
-        // register native asset type with the token bridge, mint some coins, initiate transfer
+        // Register native asset type with the token bridge, mint some coins,
+        // and finally initiate transfer.
         next_tx(&mut test, admin);{
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
@@ -271,13 +274,14 @@ module token_bridge::transfer_token_test {
     fun test_transfer_wrapped_token(){
         let (admin, _, _) = people();
         let test = scenario();
-        // set up core and token bridges
+        // Set up core and token bridges.
         test = set_up_wormhole_core_and_token_bridges(admin, test);
-        // initialize the wrapped coin and register the eth chain
+        // Initialize the wrapped coin and register the eth chain.
         next_tx(&mut test, admin);{
             coin_witness::test_init(ctx(&mut test));
         };
-        // register chain emitter (chain id x emitter address) that attested the wrapped token
+        // Register chain emitter (chain id x emitter address) that attested
+        // the wrapped token.
         next_tx(&mut test, admin);{
             let bridge_state = take_shared<State>(&test);
             state::register_emitter(
@@ -289,7 +293,8 @@ module token_bridge::transfer_token_test {
             );
             return_shared<State>(bridge_state);
         };
-        // register wrapped asset type with the token bridge, mint some coins, initiate transfer
+        // Register wrapped asset type with the token bridge, mint some coins,
+        // and finally initiate transfer.
         next_tx(&mut test, admin);{
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
@@ -297,7 +302,7 @@ module token_bridge::transfer_token_test {
             let new_wrapped_coin =
                 take_from_address<WrappedCoin<COIN_WITNESS>>(&test, admin);
 
-            // register wrapped asset with the token bridge
+            // Register wrapped asset with the token bridge.
             create_wrapped::register_wrapped_coin<COIN_WITNESS>(
                 &mut bridge_state,
                 &mut worm_state,
@@ -316,11 +321,11 @@ module token_bridge::transfer_token_test {
                 &mut bridge_state,
                 &mut worm_state,
                 coins,
-                coin::zero<SUI>(ctx(&mut test)), // zero fee paid to wormhole
-                3, // recipient chain id
-                x"deadbeef0000beef", // recipient address
-                0, // relayer fee
-                0 // unused field for now
+                coin::zero<SUI>(ctx(&mut test)), // Zero fee paid to wormhole.
+                3, // Recipient chain id.
+                x"deadbeef0000beef", // Recipient address.
+                0, // Relayer fee.
+                0 // Nonce is unused field for now.
             );
             return_shared<State>(bridge_state);
             return_shared<WormholeState>(worm_state);
@@ -330,17 +335,18 @@ module token_bridge::transfer_token_test {
         test_scenario::end(test);
     }
 
-     #[test]
+    #[test]
     fun test_transfer_wrapped_token_internal(){
         let (admin, _, _) = people();
         let test = scenario();
-        // set up core and token bridges
+        // Set up core and token bridges.
         test = set_up_wormhole_core_and_token_bridges(admin, test);
-        // initialize the wrapped coin and register the eth chain
+        // Initialize the wrapped coin and register the eth chain.
         next_tx(&mut test, admin);{
             coin_witness::test_init(ctx(&mut test));
         };
-        // register chain emitter (chain id x emitter address) that attested the wrapped token
+        // Register chain emitter (chain id x emitter address) that attested
+        // the wrapped token.
         next_tx(&mut test, admin);{
             let bridge_state = take_shared<State>(&test);
             state::register_emitter(
@@ -352,14 +358,15 @@ module token_bridge::transfer_token_test {
             );
             return_shared<State>(bridge_state);
         };
-        // register wrapped asset type with the token bridge, mint some coins, initiate transfer
+        // Register wrapped asset type with the token bridge, mint some coins,
+        // and finally initiate transfer.
         next_tx(&mut test, admin);{
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
             let coin_meta = take_shared<CoinMetadata<COIN_WITNESS>>(&test);
             let new_wrapped_coin = take_from_address<WrappedCoin<COIN_WITNESS>>(&test, admin);
 
-            // register wrapped asset with the token bridge
+            // Register wrapped asset with the token bridge.
             create_wrapped::register_wrapped_coin<COIN_WITNESS>(
                 &mut bridge_state,
                 &mut worm_state,
@@ -370,14 +377,14 @@ module token_bridge::transfer_token_test {
             let coins =
                 state::mint<COIN_WITNESS>(
                     &mut bridge_state,
-                    10000000000, // amount
+                    10000000000,
                     ctx(&mut test)
                 );
 
             let transfer_result = transfer_tokens_test<COIN_WITNESS>(
                 &mut bridge_state,
                 coins,
-                0 // relayer fee is zero
+                0 // Relayer fee is zero.
             );
 
             let (
@@ -392,11 +399,11 @@ module token_bridge::transfer_token_test {
                     x"00000000000000000000000000000000000000000000000000000000beefface"
                 ),
                 0
-            ); // wrapped token native address
+            ); // Wrapped token native address.
             assert!(
                 normalized_amount::value(&normalized_amount) == 10000000000,
                 0
-            ); // wrapped coin is created with maximum of 8 decimals (see wrapped.move)
+            ); // Wrapped coin is created with maximum of 8 decimals (see wrapped.move).
             assert!(
                 normalized_amount::value(&normalized_relayer_fee) == 0,
                 0
