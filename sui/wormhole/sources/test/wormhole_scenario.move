@@ -1,19 +1,27 @@
 #[test_only]
 module wormhole::wormhole_scenario {
-    use sui::object::{Self};
+    use std::vector::{Self};
     use sui::test_scenario::{Self, Scenario};
 
     use wormhole::setup::{Self, DeployerCap};
+    use wormhole::state::{Self, State};
+    use wormhole::version_control::{Self as control};
 
-    // NOTE: This exists to mock up sui::package for proposed ugprades.
-    use wormhole::dummy_sui_package::{Self as package};
+    // NOTE: This exists to mock up sui::package for proposed upgrades.
+    use wormhole::dummy_sui_package::{UpgradeCap};
 
     const DEPLOYER: address = @0xDEADBEEF;
     const WALLET_1: address = @0xB0B1;
     const WALLET_2: address = @0xB0B2;
     const WALLET_3: address = @0xB0B3;
 
-    public fun set_up_wormhole(scenario: &mut Scenario, message_fee: u64) {
+    /// Set up Wormhole with any guardian pubkeys. For most testing purposes,
+    /// please use `set_up_wormhole` which only uses one guardian.
+    public fun set_up_wormhole_with_guardians(
+        scenario: &mut Scenario,
+        message_fee: u64,
+        initial_guardians: vector<vector<u8>>,
+    ) {
         // Process effects prior. `init_test_only` will be executed as the
         // Wormhole contract deployer.
         test_scenario::next_tx(scenario, DEPLOYER);
@@ -35,16 +43,11 @@ module wormhole::wormhole_scenario {
             // automatically when the contract is published. This exists in
             // place of grabbing it from the sender.
             let upgrade_cap =
-                package::test_publish(
-                    object::id_from_address(@0x0),
-                    test_scenario::ctx(scenario)
-                );
+                test_scenario::take_from_sender<UpgradeCap>(scenario);
 
             let governance_chain = 1;
             let governance_contract =
                 x"0000000000000000000000000000000000000000000000000000000000000004";
-            let initial_guardians =
-                vector[x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"];
             let guardian_set_epochs_to_live = 2;
 
             // Share `State`.
@@ -65,6 +68,40 @@ module wormhole::wormhole_scenario {
         // Done.
     }
 
+    /// Set up Wormhole with only the first devnet guardian.
+    public fun set_up_wormhole(scenario: &mut Scenario, message_fee: u64) {
+        let initial_guardians = vector::empty();
+        vector::push_back(
+            &mut initial_guardians,
+            *vector::borrow(&guardians(), 0)
+        );
+
+        set_up_wormhole_with_guardians(scenario, message_fee, initial_guardians)
+    }
+
+    /// Perform an upgrade (which just upticks the current version of what the
+    /// `State` believes is true).
+    public fun upgrade_wormhole(scenario: &mut Scenario) {
+        use wormhole::migrate::{migrate};
+
+        // Clean up from activity prior.
+        test_scenario::next_tx(scenario, person());
+
+        let worm_state = test_scenario::take_shared<State>(scenario);
+        state::test_upgrade(&mut worm_state);
+        assert!(
+            state::current_version(&worm_state) > control::version(),
+            0
+        );
+
+        // Call `migrate` to wrap things up.
+        migrate(&mut worm_state);
+
+        // Clean up.
+        test_scenario::return_shared(worm_state);
+    }
+
+    /// Address of wallet that published Wormhole contract.
     public fun deployer(): address {
         DEPLOYER
     }
@@ -79,5 +116,30 @@ module wormhole::wormhole_scenario {
 
     public fun three_people(): (address, address, address) {
         (WALLET_1, WALLET_2, WALLET_3)
+    }
+
+    /// All guardians that exist in devnet (Tilt) environment.
+    public fun guardians(): vector<vector<u8>> {
+        vector[
+            x"befa429d57cd18b7f8a4d91a2da9ab4af05d0fbe",
+            x"88d7d8b32a9105d228100e72dffe2fae0705d31c",
+            x"58076f561cc62a47087b567c86f986426dfcd000",
+            x"bd6e9833490f8fa87c733a183cd076a6cbd29074",
+            x"b853fcf0a5c78c1b56d15fce7a154e6ebe9ed7a2",
+            x"af3503dbd2e37518ab04d7ce78b630f98b15b78a",
+            x"785632dea5609064803b1c8ea8bb2c77a6004bd1",
+            x"09a281a698c0f5ba31f158585b41f4f33659e54d",
+            x"3178443ab76a60e21690dbfb17f7f59f09ae3ea1",
+            x"647ec26ae49b14060660504f4da1c2059e1c5ab6",
+            x"810ac3d8e1258bd2f004a94ca0cd4c68fc1c0611",
+            x"80610e96d645b12f47ae5cf4546b18538739e90f",
+            x"2edb0d8530e31a218e72b9480202acbaeb06178d",
+            x"a78858e5e5c4705cdd4b668ffe3be5bae4867c9d",
+            x"5efe3a05efc62d60e1d19faeb56a80223cdd3472",
+            x"d791b7d32c05abb1cc00b6381fa0c4928f0c56fc",
+            x"14bc029b8809069093d712a3fd4dfab31963597e",
+            x"246ab29fc6ebedf2d392a51ab2dc5c59d0902a03",
+            x"132a84dfd920b35a3d0ba5f7a0635df298f9033e",
+        ]
     }
 }

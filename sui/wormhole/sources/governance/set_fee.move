@@ -2,10 +2,10 @@ module wormhole::set_fee {
     use sui::tx_context::{TxContext};
 
     use wormhole::bytes::{Self};
-    use wormhole::version_control::{SetFee as SetFeeControl};
     use wormhole::cursor::{Self};
     use wormhole::governance_message::{Self, GovernanceMessage};
     use wormhole::state::{Self, State};
+    use wormhole::version_control::{SetFee as SetFeeControl};
 
     const E_FEE_OVERFLOW: u64 = 0;
 
@@ -87,9 +87,15 @@ module wormhole::set_fee_test {
     use wormhole::bytes::{Self};
     use wormhole::cursor::{Self};
     use wormhole::governance_message::{Self};
+    use wormhole::required_version::{Self};
     use wormhole::set_fee::{Self};
     use wormhole::state::{Self, State};
-    use wormhole::wormhole_scenario::{set_up_wormhole, person};
+    use wormhole::version_control::{Self as control};
+    use wormhole::wormhole_scenario::{
+        person,
+        set_up_wormhole,
+        upgrade_wormhole
+    };
 
     const VAA_SET_FEE_1: vector<u8> =
         x"01000000000100181aa27fd44f3060fad0ae72895d42f97c45f7a5d34aa294102911370695e91e17ae82caa59f779edde2356d95cd46c2c381cdeba7a8165901a562374f212d750000bc614e000000000001000000000000000000000000000000000000000000000000000000000000000400000000000000010100000000000000000000000000000000000000000000000000000000436f7265030015000000000000000000000000000000000000000000000000000000000000015e";
@@ -151,6 +157,46 @@ module wormhole::set_fee_test {
         );
 
         // Confirm.
+        assert!(state::message_fee(&worm_state) == fee_amount, 0);
+
+        // Clean up.
+        test_scenario::return_shared(worm_state);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    public fun test_set_fee_after_upgrade() {
+        // Testing this method.
+        use wormhole::set_fee::{set_fee};
+
+        // Set up.
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
+
+        let wormhole_fee = 0;
+        set_up_wormhole(scenario, wormhole_fee);
+
+        // Upgrade.
+        upgrade_wormhole(scenario);
+
+        // Prepare test to execute `update_guardian_set`.
+        test_scenario::next_tx(scenario, caller);
+
+        let worm_state = test_scenario::take_shared<State>(scenario);
+
+        // Double-check current fee (from setup).
+        assert!(state::message_fee(&worm_state) == wormhole_fee, 0);
+
+        let fee_amount = set_fee(
+            &mut worm_state,
+            VAA_SET_FEE_1,
+            test_scenario::ctx(scenario)
+        );
+
+        // Confirm the fee changed.
         assert!(state::message_fee(&worm_state) == fee_amount, 0);
 
         // Clean up.
@@ -330,6 +376,47 @@ module wormhole::set_fee_test {
         set_fee(
             &mut worm_state,
             VAA_SET_FEE_OVERFLOW,
+            test_scenario::ctx(scenario)
+        );
+
+        // Clean up even though we should have failed by this point.
+        test_scenario::return_shared(worm_state);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = required_version::E_OUTDATED_VERSION)]
+    public fun test_cannot_set_fee_outdated_build() {
+        // Testing this method.
+        use wormhole::set_fee::{set_fee};
+
+        // Set up.
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
+
+        let wormhole_fee = 0;
+        set_up_wormhole(scenario, wormhole_fee);
+
+        // Prepare test to execute `update_guardian_set`.
+        test_scenario::next_tx(scenario, caller);
+
+        let worm_state = test_scenario::take_shared<State>(scenario);
+
+        // Simulate executing with an outdated build by upticking the minimum
+        // required version for `publish_message` to something greater than
+        // this build.
+        state::set_required_version<control::SetFee>(
+            &mut worm_state,
+            control::version() + 1
+        );
+
+        // You shall not pass!
+        set_fee(
+            &mut worm_state,
+            VAA_SET_FEE_1,
             test_scenario::ctx(scenario)
         );
 

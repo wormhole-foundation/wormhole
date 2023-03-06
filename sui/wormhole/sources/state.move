@@ -8,20 +8,20 @@ module wormhole::state {
     use sui::tx_context::{TxContext};
 
     use wormhole::bytes32::{Self, Bytes32};
-    use wormhole::version_control::{
-        Self as control,
-        NewEmitter as NewEmitterControl
-    };
     use wormhole::cursor::{Self};
     use wormhole::emitter::{Self, EmitterCap, EmitterRegistry};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::fee_collector::{Self, FeeCollector};
     use wormhole::guardian::{Self};
     use wormhole::guardian_set::{Self, GuardianSet};
-    use wormhole::set::{Self, Set};
     use wormhole::required_version::{Self, RequiredVersion};
+    use wormhole::set::{Self, Set};
+    use wormhole::version_control::{
+        Self as control,
+        NewEmitter as NewEmitterControl
+    };
 
-    // NOTE: This exists to mock up sui::package for proposed ugprades.
+    // NOTE: This exists to mock up sui::package for proposed upgrades.
     use wormhole::dummy_sui_package::{
         Self as package,
         UpgradeCap,
@@ -185,6 +185,10 @@ module wormhole::state {
         )
     }
 
+    public fun current_version(self: &State): u64 {
+        required_version::current(&self.required_version)
+    }
+
     /// Issue an `UpgradeTicket` for the upgrade.
     public(friend) fun authorize_upgrade(
         self: &mut State,
@@ -203,33 +207,7 @@ module wormhole::state {
         self: &mut State,
         receipt: UpgradeReceipt
     ) {
-        // Uptick the upgrade cap version number using this receipt.
-        package::commit_upgrade(&mut self.upgrade_cap, receipt);
-
-        // Check that the hard-coded version version agrees with the
-        // upticked version number.
-        assert!(
-            package::version(&self.upgrade_cap) == control::version(),
-            E_BUILD_VERSION_MISMATCH
-        );
-
-        // Update global version.
-        required_version::update_latest(
-            &mut self.required_version,
-            &self.upgrade_cap
-        );
-
-        // Enable `migrate` to be called after commiting the upgrade.
-        //
-        // A separate method is required because `state` is a dependency of
-        // `migrate`. This method warehouses state modifications required
-        // for the new implementation plus enabling any methods required to be
-        // gated by the current implementation version. In most cases `migrate`
-        // is a no-op. But it still must be called in order to reset the
-        // migration control to `false`.
-        //
-        // See `migrate` module for more info.
-       enable_migration(self);
+        commit_upgrade_to_version(self, receipt, control::version())
     }
 
     public(friend) fun require_current_version<ControlType>(self: &mut State) {
@@ -352,6 +330,40 @@ module wormhole::state {
         emitter::use_sequence(emitter_cap)
     }
 
+    fun commit_upgrade_to_version(
+        self: &mut State,
+        receipt: UpgradeReceipt,
+        version: u64,
+    ) {
+        // Uptick the upgrade cap version number using this receipt.
+        package::commit_upgrade(&mut self.upgrade_cap, receipt);
+
+        // Check that the hard-coded version version agrees with the
+        // upticked version number.
+        assert!(
+            package::version(&self.upgrade_cap) == version,
+            E_BUILD_VERSION_MISMATCH
+        );
+
+        // Update global version.
+        required_version::update_latest(
+            &mut self.required_version,
+            &self.upgrade_cap
+        );
+
+        // Enable `migrate` to be called after commiting the upgrade.
+        //
+        // A separate method is required because `state` is a dependency of
+        // `migrate`. This method warehouses state modifications required
+        // for the new implementation plus enabling any methods required to be
+        // gated by the current implementation version. In most cases `migrate`
+        // is a no-op. But it still must be called in order to reset the
+        // migration control to `false`.
+        //
+        // See `migrate` module for more info.
+       enable_migration(self);
+    }
+
     #[test_only]
     public fun set_required_version<ControlType>(
         self: &mut State,
@@ -361,5 +373,16 @@ module wormhole::state {
             &mut self.required_version,
             version
         )
+    }
+
+    #[test_only]
+    public fun test_upgrade(self: &mut State) {
+        use sui::ecdsa_k1::{keccak256};
+
+        let ticket =
+            authorize_upgrade(self, bytes32::new(keccak256(&b"new build")));
+        let receipt = package::test_upgrade(ticket);
+        let new_version = package::version(&self.upgrade_cap) + 1;
+        commit_upgrade_to_version(self, receipt, new_version)
     }
 }

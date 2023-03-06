@@ -121,7 +121,7 @@ module wormhole::vaa {
             consistency_level: _,
             hash: _,
             payload,
-         } = vaa;
+        } = vaa;
         (emitter_chain, emitter_address, payload)
     }
 
@@ -180,16 +180,6 @@ module wormhole::vaa {
 
         // Done.
         vaa
-    }
-
-    #[test_only]
-    public fun parse_test(bytes: vector<u8>): VAA {
-        parse(bytes)
-    }
-
-    #[test_only]
-    public fun destroy(vaa: VAA) {
-        take_payload(vaa);
     }
 
     /// Parses a VAA.
@@ -252,13 +242,17 @@ module wormhole::vaa {
         }
     }
 
+    #[test_only]
+    public fun parse_test_only(buf: vector<u8>): VAA {
+        parse(buf)
+    }
+
+    #[test_only]
+    public fun destroy(vaa: VAA) {
+        take_payload(vaa);
+    }
 }
 
-// tests
-// - do_upgrade (upgrade active guardian set to new set)
-
-// TODO: fast forward test, check that previous guardian set gets expired
-// TODO: adapt the tests from the aptos contracts test suite
 #[test_only]
 module wormhole::vaa_test {
     // use sui::test_scenario::{Self};

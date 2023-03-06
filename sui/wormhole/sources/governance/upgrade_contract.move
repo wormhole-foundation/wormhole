@@ -6,7 +6,7 @@ module wormhole::upgrade_contract {
     use wormhole::governance_message::{Self, GovernanceMessage};
     use wormhole::state::{Self, State};
 
-    // NOTE: This exists to mock up sui::package for proposed ugprades.
+    // NOTE: This exists to mock up sui::package for proposed upgrades.
     use wormhole::dummy_sui_package::{UpgradeReceipt, UpgradeTicket};
 
     const E_DIGEST_ZERO_BYTES: u64 = 0;
