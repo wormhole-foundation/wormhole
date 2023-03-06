@@ -114,6 +114,10 @@ func (l *LogPollConnector) processBlock(ctx context.Context, logger *zap.Logger,
 		FromBlock: l.prevBlockNum,
 		ToBlock:   block.Number,
 		Addresses: []ethCommon.Address{l.ContractAddress()},
+
+		// Although https://pkg.go.dev/github.com/ethereum/go-ethereum#FilterQuery says leaving Topics nil should give us everything,
+		// it has started returning "bad topics None" on Neon, so we need to pass in an empty slice instead.
+		Topics: [][]ethCommon.Hash{},
 	}
 
 	*l.prevBlockNum = *block.Number
