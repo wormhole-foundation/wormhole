@@ -93,6 +93,11 @@ message GovernanceMessage {
     WormchainStoreCode wormchain_store_code = 14;
     WormchainInstantiateContract wormchain_instantiate_contract = 15;
     WormchainMigrateContract wormchain_migrate_contract = 16;
+
+    // Circle Integration
+    CircleIntegrationUpdateWormholeFinality circle_integration_update_wormhole_finality = 18;
+    CircleIntegrationRegisterEmitterAndDomain circle_integration_register_emitter_and_domain = 19;
+    CircleIntegrationUpgradeContractImplementation circle_integration_upgrade_contract_implementation = 20;
   }
 }
 
@@ -210,6 +215,20 @@ message WormchainMigrateContract {
 
   // Msg json encoded message to be passed to the contract on migration
   string instantiation_msg = 3;
+}
+
+message CircleIntegrationUpdateWormholeFinality {
+  uint32 finality = 1;
+}
+
+message CircleIntegrationRegisterEmitterAndDomain {
+  uint32 foreign_emitter_chain_id = 1;
+  string foreign_emitter_address = 2;
+  uint32 circle_domain = 3;
+}
+
+message CircleIntegrationUpgradeContractImplementation {
+  string new_implementation_address = 1;
 }
 
 message FindMissingMessagesRequest {

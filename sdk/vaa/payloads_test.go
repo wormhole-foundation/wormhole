@@ -123,3 +123,27 @@ func TestBodyWormchainMigrateContractSerialize(t *testing.T) {
 	expected := "0000000000000000000000000000000000000000005761736d644d6f64756c65030c200102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
 	assert.Equal(t, expected, hex.EncodeToString(actual.Serialize()))
 }
+
+func TestBodyCircleIntegrationUpdateWormholeFinalitySerialize(t *testing.T) {
+	expected := "000000000000000000000000000000436972636c65496e746567726174696f6e0100002a"
+	bodyCircleIntegrationUpdateWormholeFinality := BodyCircleIntegrationUpdateWormholeFinality{Finality: 42}
+	assert.Equal(t, expected, hex.EncodeToString(bodyCircleIntegrationUpdateWormholeFinality.Serialize()))
+}
+
+func TestBodyCircleIntegrationRegisterEmitterAndDomainSerialize(t *testing.T) {
+	expected := "000000000000000000000000000000436972636c65496e746567726174696f6e020000000200000000000000000000000000000000000000000000000000000000000000040000002a"
+	bodyCircleIntegrationRegisterEmitterAndDomain := BodyCircleIntegrationRegisterEmitterAndDomain{
+		ForeignEmitterChainId: ChainIDEthereum,
+		ForeignEmitterAddress: addr,
+		CircleDomain:          42,
+	}
+	assert.Equal(t, expected, hex.EncodeToString(bodyCircleIntegrationRegisterEmitterAndDomain.Serialize()))
+}
+
+func TestBodyCircleIntegrationUpgradeContractImplementationSerialize(t *testing.T) {
+	expected := "000000000000000000000000000000436972636c65496e746567726174696f6e0300000000000000000000000000000000000000000000000000000000000000000004"
+	bodyCircleIntegrationUpgradeContractImplementation := BodyCircleIntegrationUpgradeContractImplementation{
+		NewImplementationAddress: addr,
+	}
+	assert.Equal(t, expected, hex.EncodeToString(bodyCircleIntegrationUpgradeContractImplementation.Serialize()))
+}

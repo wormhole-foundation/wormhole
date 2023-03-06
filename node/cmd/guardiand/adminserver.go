@@ -282,6 +282,71 @@ func wormchainMigrateContract(req *nodev1.WormchainMigrateContract, timestamp ti
 	return v, nil
 }
 
+// circleIntegrationUpdateWormholeFinality converts a nodev1.CircleIntegrationUpdateWormholeFinality to its canonical VAA representation
+// Returns an error if the data is invalid
+func circleIntegrationUpdateWormholeFinality(req *nodev1.CircleIntegrationUpdateWormholeFinality, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	if req.Finality > math.MaxUint8 {
+		return nil, fmt.Errorf("invalid finality, must be <= %d", math.MaxUint8)
+	}
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
+		vaa.BodyCircleIntegrationUpdateWormholeFinality{
+			Finality: uint8(req.Finality),
+		}.Serialize())
+
+	return v, nil
+}
+
+// circleIntegrationRegisterEmitterAndDomain converts a nodev1.CircleIntegrationRegisterEmitterAndDomain to its canonical VAA representation
+// Returns an error if the data is invalid
+func circleIntegrationRegisterEmitterAndDomain(req *nodev1.CircleIntegrationRegisterEmitterAndDomain, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	if req.ForeignEmitterChainId > math.MaxUint16 {
+		return nil, fmt.Errorf("invalid foreign emitter chain id, must be <= %d", math.MaxUint16)
+	}
+	b, err := hex.DecodeString(req.ForeignEmitterAddress)
+	if err != nil {
+		return nil, errors.New("invalid foreign emitter address encoding (expected hex)")
+	}
+
+	if len(b) != 32 {
+		return nil, errors.New("invalid foreign emitter address (expected 32 bytes)")
+	}
+
+	foreignEmitterAddress := vaa.Address{}
+	copy(foreignEmitterAddress[:], b)
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
+		vaa.BodyCircleIntegrationRegisterEmitterAndDomain{
+			ForeignEmitterChainId: vaa.ChainID(req.ForeignEmitterChainId),
+			ForeignEmitterAddress: foreignEmitterAddress,
+			CircleDomain:          req.CircleDomain,
+		}.Serialize())
+
+	return v, nil
+}
+
+// circleIntegrationUpgradeContractImplementation converts a nodev1.CircleIntegrationUpgradeContractImplementation to its canonical VAA representation
+// Returns an error if the data is invalid
+func circleIntegrationUpgradeContractImplementation(req *nodev1.CircleIntegrationUpgradeContractImplementation, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	b, err := hex.DecodeString(req.NewImplementationAddress)
+	if err != nil {
+		return nil, errors.New("invalid new implementation address encoding (expected hex)")
+	}
+
+	if len(b) != 32 {
+		return nil, errors.New("invalid new implementation address (expected 32 bytes)")
+	}
+
+	newImplementationAddress := vaa.Address{}
+	copy(newImplementationAddress[:], b)
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
+		vaa.BodyCircleIntegrationUpgradeContractImplementation{
+			NewImplementationAddress: newImplementationAddress,
+		}.Serialize())
+
+	return v, nil
+}
+
 func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *nodev1.InjectGovernanceVAARequest) (*nodev1.InjectGovernanceVAAResponse, error) {
 	s.logger.Info("governance VAA injected via admin socket", zap.String("request", req.String()))
 
@@ -312,6 +377,12 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 			v, err = wormchainInstantiateContract(payload.WormchainInstantiateContract, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		case *nodev1.GovernanceMessage_WormchainMigrateContract:
 			v, err = wormchainMigrateContract(payload.WormchainMigrateContract, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_CircleIntegrationUpdateWormholeFinality:
+			v, err = circleIntegrationUpdateWormholeFinality(payload.CircleIntegrationUpdateWormholeFinality, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_CircleIntegrationRegisterEmitterAndDomain:
+			v, err = circleIntegrationRegisterEmitterAndDomain(payload.CircleIntegrationRegisterEmitterAndDomain, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_CircleIntegrationUpgradeContractImplementation:
+			v, err = circleIntegrationUpgradeContractImplementation(payload.CircleIntegrationUpgradeContractImplementation, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		default:
 			panic(fmt.Sprintf("unsupported VAA type: %T", payload))
 		}
