@@ -46,14 +46,7 @@ module wormhole::state {
     /// Sui's chain ID is hard-coded to one value.
     const CHAIN_ID: u16 = 21;
 
-    const KEY_MIGRATION_CONTROL: vector<u8> = b"migration_control";
-
-    const KEY_VERSION_NEW_EMITTER: vector<u8> = b"new_emitter";
-    const KEY_VERSION_PARSE_AND_VERIFY: vector<u8> = b"parse_and_verify";
-    const KEY_VERSION_PUBLISH_MESSAGE: vector<u8> = b"publish_message";
-    const KEY_VERSION_SET_FEE: vector<u8> = b"set_fee";
-    const KEY_VERSION_TRANSFER_FEE: vector<u8> = b"transfer_fee";
-    const KEY_VERSION_UPDATE_GUARDIAN_SET: vector<u8> = b"update_guardian_set";
+    struct MigrationControl has store, drop, copy {}
 
     struct State has key, store {
         id: UID,
@@ -161,7 +154,7 @@ module wormhole::state {
         // this value to `false` by default.
         //
         // See `migrate` module for more info.
-        field::add(&mut state.id, KEY_MIGRATION_CONTROL, false);
+        field::add(&mut state.id, MigrationControl{}, false);
 
         let tracker = &mut state.required_version;
         required_version::add<control::NewEmitter>(tracker);
@@ -226,15 +219,15 @@ module wormhole::state {
     }
 
     public fun can_migrate(self: &State): bool {
-        *field::borrow(&self.id, KEY_MIGRATION_CONTROL)
+        *field::borrow(&self.id, MigrationControl{})
     }
 
     public(friend) fun enable_migration(self: &mut State) {
-        *field::borrow_mut(&mut self.id, KEY_MIGRATION_CONTROL) = true;
+        *field::borrow_mut(&mut self.id, MigrationControl{}) = true;
     }
 
     public(friend) fun disable_migration(self: &mut State) {
-        *field::borrow_mut(&mut self.id, KEY_MIGRATION_CONTROL) = false;
+        *field::borrow_mut(&mut self.id, MigrationControl{}) = false;
     }
 
     public fun governance_chain(self: &State): u16 {
