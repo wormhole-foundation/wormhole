@@ -24,7 +24,7 @@ module token_bridge::create_wrapped {
     const E_COIN_NOT_REGISTERED_AS_WRAPPED: u64 = 4;
     const E_ORIGIN_ADDRESS_MISMATCH: u64 = 5;
     const E_ORIGIN_CHAIN_MISMATCH: u64 = 6;
-    const E_CAN_ONLY_UPDATE_METADATA_FOR_REGISTERED_WRAPPED_ASSET: u64 = 7;
+    const E_UNREGISTERED_WRAPPED_ASSET: u64 = 7;
 
     /// The amounts in the token bridge payload are truncated to 8 decimals
     /// in each of the contracts when sending tokens out, so there's no
@@ -105,11 +105,11 @@ module token_bridge::create_wrapped {
         let payload = core_vaa::destroy(vaa);
 
         let meta = asset_meta::deserialize(payload);
-        let origin_chain = asset_meta::token_chain(&meta);
-        let external_address = asset_meta::token_address(&meta);
+        let token_chain = asset_meta::token_chain(&meta);
+        let token_address = asset_meta::token_address(&meta);
 
         assert!(
-            origin_chain != wormhole_state::chain_id(),
+            token_chain != wormhole_state::chain_id(),
             E_WRAPPING_NATIVE_COIN
         );
         assert!(
@@ -119,8 +119,8 @@ module token_bridge::create_wrapped {
 
         state::register_wrapped_asset<CoinType>(
             token_bridge_state,
-            origin_chain,
-            external_address,
+            token_chain,
+            token_address,
             treasury_cap,
             decimals,
         );
@@ -141,37 +141,34 @@ module token_bridge::create_wrapped {
         );
         let payload = core_vaa::destroy(vaa);
         let meta = asset_meta::deserialize(payload);
-        let origin_chain = asset_meta::token_chain(&meta);
-        let origin_address = asset_meta::token_address(&meta);
 
+        // Verify that the token info agrees with the info encoded in this
+        // transfer. Checking whether this asset is wrapped may be superfluous,
+        // but we want to ensure that this VAA was not generated from a native
+        // Sui coin.
         let info = state::token_info<CoinType>(token_bridge_state);
-
-        // The following two assertions check that CoinType indeed corresponds
-        // to the coin specified in vaa_bytes.
-        assert!(token_info::addr(&info)==origin_address,
-            E_ORIGIN_ADDRESS_MISMATCH);
-        assert!(token_info::chain(&info)==origin_chain,
-            E_ORIGIN_CHAIN_MISMATCH);
-
-        // The following two assertions make sure that we are updating metadata
-        // for a previously registered non-native asset.
         assert!(
-            origin_chain != wormhole_state::chain_id(),
-            E_UPDATING_NATIVE_COIN_META
+            (
+                token_info::is_wrapped(&info) &&
+                token_info::equals(
+                    &info,
+                    asset_meta::token_chain(&meta),
+                    asset_meta::token_address(&meta)
+                )
+            ),
+            E_UNREGISTERED_WRAPPED_ASSET
         );
-        assert!(state::is_wrapped_asset<CoinType>(token_bridge_state),
-            E_CAN_ONLY_UPDATE_METADATA_FOR_REGISTERED_WRAPPED_ASSET);
 
-        // Obtain a read-only reference to the treasury cap for CoinType.
-        let tcap = state::treasury_cap<CoinType>(token_bridge_state);
-
-        coin::update_symbol<CoinType>(
-            tcap,
+        // We need `TreasuryCap` to grant us access to update the symbol and
+        // name for a given `CoinType`.
+        let treasury_cap = state::treasury_cap<CoinType>(token_bridge_state);
+        coin::update_symbol(
+            treasury_cap,
             metadata,
             asset_meta::symbol_to_string(&meta)
         );
-        coin::update_name<CoinType>(
-            tcap,
+        coin::update_name(
+            treasury_cap,
             metadata,
             asset_meta::name_to_string(&meta)
         );
