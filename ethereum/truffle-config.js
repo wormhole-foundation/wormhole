@@ -182,7 +182,7 @@ module.exports = {
       provider: () => {
         return new HDWalletProvider(
           process.env.MNEMONIC,
-          "https://karura-dev.aca-dev.network/eth/http"
+          "https://eth-rpc-karura-testnet.aca-staging.network"
         );
       },
       network_id: 596,
@@ -208,7 +208,7 @@ module.exports = {
       provider: () => {
         return new HDWalletProvider(
           process.env.MNEMONIC,
-          "https://acala-dev.aca-dev.network/eth/http"
+          "https://eth-rpc-acala-testnet.aca-staging.network"
         );
       },
       network_id: 597,
