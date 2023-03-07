@@ -116,7 +116,7 @@ module token_bridge::wrapped_coin_12_decimals_test {
 
     #[test]
     #[expected_failure(
-        abort_code = token_bridge::create_wrapped::E_ORIGIN_ADDRESS_MISMATCH,
+        abort_code = token_bridge::create_wrapped::E_UNREGISTERED_WRAPPED_ASSET,
         location=token_bridge::create_wrapped
     )]
     /// In this test, we attempt to update coin metadata for an asset that
@@ -157,7 +157,7 @@ module token_bridge::wrapped_coin_12_decimals_test {
 
     #[test]
     #[expected_failure(
-        abort_code = token_bridge::create_wrapped::E_ORIGIN_CHAIN_MISMATCH,
+        abort_code = token_bridge::create_wrapped::E_UNREGISTERED_WRAPPED_ASSET,
         location=token_bridge::create_wrapped
     )]
     /// In this test, we attempt to update coin metadata for an asset that
