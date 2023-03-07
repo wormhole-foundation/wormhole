@@ -46,15 +46,6 @@ module wormhole::wormhole {
         );
     }
 
-    /// Placeholder for upgrade contract logic.
-    public entry fun upgrade_contract(
-        _wormhole_state: &mut State,
-        _vaa_buf: vector<u8>,
-        _ctx: &TxContext
-    ) {
-        abort 0
-    }
-
     /// `update_guardian_set` exposes `update_guardian_set::update_guardian_set`
     /// as an entry method to perform Guardian governance to update the existing
     /// guardian set to a new one, specifying the latest guardian set index and
