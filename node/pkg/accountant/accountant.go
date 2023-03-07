@@ -87,7 +87,8 @@ type Accountant struct {
 	env                  int
 }
 
-const subChanSize = 50
+// On startup, there can be a large number of re-submission requests.
+const subChanSize = 500
 
 // NewAccountant creates a new instance of the Accountant object.
 func NewAccountant(
