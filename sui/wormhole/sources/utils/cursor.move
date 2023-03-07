@@ -2,8 +2,9 @@ module wormhole::cursor {
     use std::vector::{Self};
 
     /// A cursor allows consuming a vector incrementally for parsing operations.
-    /// It has no drop ability, and the only way to deallocate it is by calling the
-    /// `destroy_empty` method, which will fail if the whole input hasn't been consumed.
+    /// It has no drop ability, and the only way to deallocate it is by calling
+    /// the `destroy_empty` method, which will fail if the whole input hasn't
+    /// been consumed.
     ///
     /// This setup statically guarantees that the parsing methods consume the
     /// full input.
