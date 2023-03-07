@@ -1016,9 +1016,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *accountantWS == "" {
 			logger.Fatal("acct: if accountantContract is specified, accountantWS is required")
 		}
-		if *wormchainLCD == "" {
-			logger.Fatal("acct: if accountantContract is specified, wormchainLCD is required")
-		}
 		if wormchainConn == nil {
 			logger.Fatal("acct: if accountantContract is specified, the wormchain sending connection must be enabled")
 		}
