@@ -90,7 +90,7 @@ module token_bridge::wrapped_asset_test {
 
     use wormhole::external_address::{Self};
 
-    use token_bridge::native_coin_witness_v3::{Self, NATIVE_COIN_WITNESS_V3};
+    use token_bridge::wrapped_coin_7_decimals::{Self, WRAPPED_COIN_7_DECIMALS};
     use token_bridge::wrapped_asset::{Self, token_chain, token_address,
         decimals};
 
@@ -102,10 +102,10 @@ module token_bridge::wrapped_asset_test {
         let test = scenario();
         let (admin, _, _) = people();
         next_tx(&mut test, admin); {
-            native_coin_witness_v3::test_init(ctx(&mut test));
+            wrapped_coin_7_decimals::test_init(ctx(&mut test));
         };
         next_tx(&mut test, admin);{
-            let tcap = take_from_address<TreasuryCap<NATIVE_COIN_WITNESS_V3>>(
+            let tcap = take_from_address<TreasuryCap<WRAPPED_COIN_7_DECIMALS>>(
                 &mut test,
                 admin
             );
