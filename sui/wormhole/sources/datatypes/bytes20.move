@@ -5,7 +5,7 @@ module wormhole::bytes20 {
     const E_INVALID_BYTES20: u64 = 0;
     const E_INVALID_FROM_BYTES: u64 = 1;
 
-    // Of course LEN == 20.
+    /// 20.
     const LEN: u64 = 20;
 
     struct Bytes20 has copy, drop, store {
@@ -30,15 +30,7 @@ module wormhole::bytes20 {
     public fun from_bytes(buf: vector<u8>): Bytes20 {
         let len = vector::length(&buf);
         if (len > LEN) {
-            // Trim bytes from the left if they are zero. If any of these bytes
-            // are non-zero, abort.
-            vector::reverse(&mut buf);
-            let (i, n) = (0, len - LEN);
-            while (i < n) {
-                assert!(vector::pop_back(&mut buf) == 0, E_INVALID_FROM_BYTES);
-                i = i + 1;
-            };
-            vector::reverse(&mut buf);
+            trim_nonzero_left(&mut buf);
             new(buf)
         } else {
             new(pad_left(&buf, false))
@@ -101,6 +93,18 @@ module wormhole::bytes20 {
         };
 
         out
+    }
+
+    /// Trim bytes from the left if they are zero. If any of these bytes
+    /// are non-zero, abort.
+    fun trim_nonzero_left(data: &mut vector<u8>) {
+        vector::reverse(data);
+        let (i, n) = (0, vector::length(data) - LEN);
+        while (i < n) {
+            assert!(vector::pop_back(data) == 0, E_INVALID_FROM_BYTES);
+            i = i + 1;
+        };
+        vector::reverse(data);
     }
 }
 
