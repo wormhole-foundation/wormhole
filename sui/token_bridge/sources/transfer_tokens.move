@@ -303,10 +303,11 @@ module token_bridge::transfer_token_test {
                 take_from_address<WrappedCoin<WRAPPED_COIN_12_DECIMALS>>(&test, admin);
 
             // register wrapped asset with the token bridge
-            create_wrapped::register_wrapped_coin<WRAPPED_COIN_12_DECIMALS>(
+            create_wrapped::register_new_coin<WRAPPED_COIN_12_DECIMALS>(
                 &mut bridge_state,
                 &mut worm_state,
                 new_wrapped_coin,
+                &mut coin_meta,
                 ctx(&mut test)
             );
 
@@ -367,10 +368,11 @@ module token_bridge::transfer_token_test {
             let new_wrapped_coin = take_from_address<WrappedCoin<WRAPPED_COIN_12_DECIMALS>>(&test, admin);
 
             // register wrapped asset with the token bridge
-            create_wrapped::register_wrapped_coin<WRAPPED_COIN_12_DECIMALS>(
+            create_wrapped::register_new_coin<WRAPPED_COIN_12_DECIMALS>(
                 &mut bridge_state,
                 &mut worm_state,
                 new_wrapped_coin,
+                &mut coin_meta,
                 ctx(&mut test)
             );
 

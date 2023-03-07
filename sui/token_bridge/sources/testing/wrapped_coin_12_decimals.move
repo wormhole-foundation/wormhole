@@ -11,7 +11,7 @@ module token_bridge::wrapped_coin_12_decimals {
         // Step 1. Paste token attestation VAA below. This example is ethereum beefface token.
         let vaa_bytes = x"0100000000010080366065746148420220f25a6275097370e8db40984529a6676b7a5fc9feb11755ec49ca626b858ddfde88d15601f85ab7683c5f161413b0412143241c700aff010000000100000001000200000000000000000000000000000000000000000000000000000000deadbeef000000000150eb23000200000000000000000000000000000000000000000000000000000000beefface00020c424545460000000000000000000000000000000000000000000000000000000042656566206661636520546f6b656e0000000000000000000000000000000000";
 
-        let new_wrapped_coin = create_wrapped::create_wrapped_coin(vaa_bytes, coin_witness, ctx);
+        let new_wrapped_coin = create_wrapped::create_unregistered_currency(vaa_bytes, coin_witness, ctx);
         transfer::transfer(
             new_wrapped_coin,
             tx_context::sender(ctx)
@@ -38,7 +38,7 @@ module token_bridge::wrapped_coin_12_decimals_test {
     use token_bridge::state::{State, is_registered_asset, is_wrapped_asset,
         token_info};
     use token_bridge::bridge_state_test::{set_up_wormhole_core_and_token_bridges};
-    use token_bridge::create_wrapped::{register_wrapped_coin};
+    use token_bridge::create_wrapped::{register_new_coin};
     use token_bridge::register_chain::{submit_vaa};
     use token_bridge::wrapped_coin::{WrappedCoin};
 
@@ -79,7 +79,7 @@ module token_bridge::wrapped_coin_12_decimals_test {
     /// wrapped asset with the name "BEEF face Token" and symbol "BEEF".
     /// We then modify the CoinMetadata associated with this token to update
     /// the name to "BEEAA" and symbol to "BEE" by calling the function
-    /// update_registered_wrapped_coin_metadata with a new vaa.
+    /// update_registered_metadata with a new vaa.
     fun test_update_registered_wrapped_coin_metadata() {
         // New vaa corresponding to beefface token but with updated name
         // and symbol.
@@ -89,13 +89,13 @@ module token_bridge::wrapped_coin_12_decimals_test {
         // First, register the wrapped coin corresponding to the VAA defined
         // above for the beefface token.
         let test = test_register_wrapped_(admin, scenario);
-        // Second, call create_wrapped::update_registered_wrapped_coin_metadata
+        // Second, call create_wrapped::update_registered_metadata
         // to update token metadata.
         next_tx(&mut test, admin); {
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
             let coin_meta = take_shared<CoinMetadata<WRAPPED_COIN_12_DECIMALS>>(&test);
-            create_wrapped::update_registered_wrapped_coin_metadata<WRAPPED_COIN_12_DECIMALS>(
+            create_wrapped::update_registered_metadata<WRAPPED_COIN_12_DECIMALS>(
                 &mut bridge_state,
                 &mut worm_state,
                 new_vaa,
@@ -135,7 +135,7 @@ module token_bridge::wrapped_coin_12_decimals_test {
         // First, register the wrapped coin corresponding to the VAA defined
         // above for the beefface token.
         let test = test_register_wrapped_(admin, scenario);
-        // Second, call create_wrapped::update_registered_wrapped_coin_metadata
+        // Second, call create_wrapped::update_registered_metadata
         // to update token metadata.
         next_tx(&mut test, admin); {
             let bridge_state = take_shared<State>(&test);
@@ -144,7 +144,7 @@ module token_bridge::wrapped_coin_12_decimals_test {
             // This call fails because we cannot update the Coinmetadata for
             // WRAPPED_COIN_12_DECIMALS using a vaa that does not correspond to
             // it (origin address mismatch).
-            create_wrapped::update_registered_wrapped_coin_metadata<WRAPPED_COIN_12_DECIMALS>(
+            create_wrapped::update_registered_metadata<WRAPPED_COIN_12_DECIMALS>(
                 &mut bridge_state,
                 &mut worm_state,
                 new_vaa,
@@ -175,7 +175,7 @@ module token_bridge::wrapped_coin_12_decimals_test {
         // First, register the wrapped coin corresponding to the VAA defined
         // above for the beefface token.
         let test = test_register_wrapped_(admin, scenario);
-        // Second, call create_wrapped::update_registered_wrapped_coin_metadata
+        // Second, call create_wrapped::update_registered_metadata
         // to update token metadata.
         next_tx(&mut test, admin); {
             let bridge_state = take_shared<State>(&test);
@@ -184,7 +184,7 @@ module token_bridge::wrapped_coin_12_decimals_test {
             // This call fails because we cannot update the Coinmetadata for
             // WRAPPED_COIN_12_DECIMALS using a vaa that does not correspond to
             // it (origin chain mismatch).
-            create_wrapped::update_registered_wrapped_coin_metadata<WRAPPED_COIN_12_DECIMALS>(
+            create_wrapped::update_registered_metadata<WRAPPED_COIN_12_DECIMALS>(
                 &mut bridge_state,
                 &mut worm_state,
                 new_vaa,
@@ -226,7 +226,7 @@ module token_bridge::wrapped_coin_12_decimals_test {
             return_shared<WormholeState>(wormhole_state);
             return_shared<State>(bridge_state);
         };
-        // Third, attempt to call create_wrapped::update_registered_wrapped_coin_metadata
+        // Third, attempt to call create_wrapped::update_registered_metadata
         // to update token metadata.
         next_tx(&mut test, admin); {
             let bridge_state = take_shared<State>(&test);
@@ -235,7 +235,7 @@ module token_bridge::wrapped_coin_12_decimals_test {
             // This call fails because we WRAPPED_COIN_12_DECIMALS has not been
             // previously registered with the token bridge either as a native
             // or wrapped asset.
-            create_wrapped::update_registered_wrapped_coin_metadata<WRAPPED_COIN_12_DECIMALS>(
+            create_wrapped::update_registered_metadata<WRAPPED_COIN_12_DECIMALS>(
                 &mut bridge_state,
                 &mut worm_state,
                 new_vaa,
@@ -275,11 +275,13 @@ module token_bridge::wrapped_coin_12_decimals_test {
         next_tx(&mut test, admin);{
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
+            let coin_meta = take_shared<CoinMetadata<WRAPPED_COIN_12_DECIMALS>>(&test);
             let wrapped_coin = take_from_address<WrappedCoin<WRAPPED_COIN_12_DECIMALS>>(&test, admin);
-            register_wrapped_coin<WRAPPED_COIN_12_DECIMALS>(
+            register_new_coin<WRAPPED_COIN_12_DECIMALS>(
                 &mut bridge_state,
                 &mut worm_state,
                 wrapped_coin,
+                &mut coin_meta,
                 ctx(&mut test)
             );
             // assert that wrapped asset is indeed recognized by token bridge
@@ -299,6 +301,7 @@ module token_bridge::wrapped_coin_12_decimals_test {
 
             return_shared<State>(bridge_state);
             return_shared<WormholeState>(worm_state);
+            return_shared<CoinMetadata<WRAPPED_COIN_12_DECIMALS>>(coin_meta);
         };
         return test
     }

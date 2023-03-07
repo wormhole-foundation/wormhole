@@ -19,6 +19,7 @@ module token_bridge::registered_tokens {
     const E_ALREADY_REGISTERED: u64 = 1;
     const E_CANNOT_DEPOSIT_WRAPPED_COIN: u64 = 2;
     const E_CANNOT_GET_TREASURY_CAP_FOR_NON_WRAPPED_COIN: u64 = 3;
+    const E_CANNOT_REGISTER_NATIVE_COIN: u64 = 4;
 
     struct RegisteredTokens has key, store {
         id: UID,
@@ -94,6 +95,7 @@ module token_bridge::registered_tokens {
         decimals: u8,
     ) {
         assert!(!has<C>(self), E_ALREADY_REGISTERED);
+        assert!(chain != chain_id(), E_CANNOT_REGISTER_NATIVE_COIN);
         add_wrapped<C>(
             self,
             wrapped_asset::new(chain, addr, treasury_cap, decimals)

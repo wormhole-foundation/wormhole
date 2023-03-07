@@ -1,30 +1,21 @@
 /// This module uses the one-time witness (OTW).
 /// Sui OTW eference: https://examples.sui.io/basics/one-time-witness.html
 module token_bridge::create_wrapped {
-    use std::string::{Self};
-    use std::ascii::{Self};
     use std::option::{Self};
     use sui::coin::{Self, CoinMetadata};
     use sui::transfer::{Self};
     use sui::tx_context::{TxContext};
     use sui::url::{Url};
-    use wormhole::state::{Self as wormhole_state, State as WormholeState};
+    use wormhole::state::{State as WormholeState};
     use wormhole::myvaa as core_vaa;
 
-    use token_bridge::asset_meta::{Self};
+    use token_bridge::asset_meta::{Self, AssetMeta};
     use token_bridge::wrapped_coin::{Self, WrappedCoin};
     use token_bridge::state::{Self, State};
     use token_bridge::vaa::{Self};
     use token_bridge::token_info::{Self};
 
-    const E_WRAPPING_NATIVE_COIN: u64 = 0;
-    const E_WRAPPING_REGISTERED_NATIVE_COIN: u64 = 1;
-    const E_WRAPPED_COIN_ALREADY_INITIALIZED: u64 = 2;
-    const E_UPDATING_NATIVE_COIN_META: u64 = 3;
-    const E_COIN_NOT_REGISTERED_AS_WRAPPED: u64 = 4;
-    const E_ORIGIN_ADDRESS_MISMATCH: u64 = 5;
-    const E_ORIGIN_CHAIN_MISMATCH: u64 = 6;
-    const E_UNREGISTERED_WRAPPED_ASSET: u64 = 7;
+    const E_UNREGISTERED_WRAPPED_ASSET: u64 = 0;
 
     /// The amounts in the token bridge payload are truncated to 8 decimals
     /// in each of the contracts when sending tokens out, so there's no
@@ -42,21 +33,21 @@ module token_bridge::create_wrapped {
     /// defines a OTW type. Due to the nature of `init` functions, this function
     /// must be stateless.
     /// This means that it performs no verification of the VAA beyond parsing
-    /// it. It is the responsbility of `register_wrapped_coin` to perform the
+    /// it. It is the responsbility of `register_new_coin` to perform the
     /// validation.
     /// This function guarantees that if the VAA is valid, then a new currency
     /// `CoinType` will be created such that:
     /// 1) the asset metadata matches the VAA
     /// 2) the treasury total supply will be 0
     ///
-    /// Thanks to the above properties, `register_wrapped_coin` does not need to
+    /// Thanks to the above properties, `register_new_coin` does not need to
     /// do any checks other than the VAA in `WrappedCoin` is valid.
-    public fun create_wrapped_coin<CoinType: drop>(
-        vaa_bytes: vector<u8>,
+    public fun create_unregistered_currency<CoinType: drop>(
+        vaa_buf: vector<u8>,
         coin_witness: CoinType,
         ctx: &mut TxContext
     ): WrappedCoin<CoinType> {
-        let payload = core_vaa::parse_and_get_payload(vaa_bytes);
+        let payload = core_vaa::parse_and_get_payload(vaa_buf);
         let meta = asset_meta::deserialize(payload);
 
         let coin_decimals = (
@@ -70,8 +61,8 @@ module token_bridge::create_wrapped {
             coin::create_currency<CoinType>(
                 coin_witness,
                 coin_decimals,
-                *ascii::as_bytes(&asset_meta::symbol_to_string(&meta)),
-                *string::bytes(&asset_meta::name_to_string(&meta)),
+                b"UNREGISTERED",
+                b"Pending Token Bridge Registration",
                 b"", // No description necessary.
                 option::none<Url>(), // No url necessary.
                 ctx
@@ -80,67 +71,78 @@ module token_bridge::create_wrapped {
         transfer::share_object(coin_metadata);
 
         wrapped_coin::new(
-            vaa_bytes,
+            vaa_buf,
             treasury_cap,
             coin_decimals,
             ctx
         )
     }
 
-    public entry fun register_wrapped_coin<CoinType>(
+    /// After executing `create_unregistered_currency`, user needs to complete
+    /// the registration process by calling this method.
+    ///
+    /// This method destroys `WrappedCoin<CoinType>`, which warehouses the asset
+    /// meta VAA and `TreasuryCap`, which are used to update the symbol and name
+    /// to what was encoded in the asset meta VAA payload.
+    public entry fun register_new_coin<CoinType>(
         token_bridge_state: &mut State,
         worm_state: &mut WormholeState,
         new_wrapped_coin: WrappedCoin<CoinType>,
+        coin_metadata: &mut CoinMetadata<CoinType>,
         ctx: &mut TxContext,
     ) {
-        let (vaa_bytes, treasury_cap, decimals) =
+        let (vaa_buf, treasury_cap, decimals) =
             wrapped_coin::destroy(new_wrapped_coin);
 
-        let vaa = vaa::parse_verify_and_replay_protect(
-            token_bridge_state,
-            worm_state,
-            vaa_bytes,
-            ctx
-        );
-        let payload = core_vaa::destroy(vaa);
+        // Deserialize to `AssetMeta`.
+        let meta =
+            parse_and_verify_asset_meta(
+                token_bridge_state,
+                worm_state,
+                vaa_buf,
+                ctx
+            );
 
-        let meta = asset_meta::deserialize(payload);
-        let token_chain = asset_meta::token_chain(&meta);
-        let token_address = asset_meta::token_address(&meta);
-
-        assert!(
-            token_chain != wormhole_state::chain_id(),
-            E_WRAPPING_NATIVE_COIN
-        );
-        assert!(
-            !state::is_registered_asset<CoinType>(token_bridge_state),
-            E_WRAPPED_COIN_ALREADY_INITIALIZED
-        );
-
+        // `register_wrapped_asset` uses `registered_tokens::add_new_wrapped`,
+        // which will check whether the asset has already been registered and if
+        // the token chain ID is not Sui's.
+        //
+        // If both of these conditions are met, `register_wrapped_asset` will
+        // succeed and the new wrapped coin will be registered.
         state::register_wrapped_asset<CoinType>(
             token_bridge_state,
-            token_chain,
-            token_address,
+            asset_meta::token_chain(&meta),
+            asset_meta::token_address(&meta),
             treasury_cap,
             decimals,
         );
+
+        // Proceed to update coin's metadata.
+        handle_update_metadata<CoinType>(
+            token_bridge_state,
+            &meta,
+            coin_metadata
+        );
     }
 
-    public entry fun update_registered_wrapped_coin_metadata<CoinType>(
+    /// For existing wrapped assets, we can update the existing `CoinMetadata`
+    /// for a given `CoinType` (one that belongs to Token Bridge's wrapped
+    /// registry) with a new asset meta VAA emitted from a foreign network.
+    public entry fun update_registered_metadata<CoinType>(
         token_bridge_state: &mut State,
         worm_state: &mut WormholeState,
-        vaa_bytes: vector<u8>,
-        metadata: &mut CoinMetadata<CoinType>,
+        vaa_buf: vector<u8>,
+        coin_metadata: &mut CoinMetadata<CoinType>,
         ctx: &mut TxContext
     ) {
-        let vaa = vaa::parse_verify_and_replay_protect(
-            token_bridge_state,
-            worm_state,
-            vaa_bytes,
-            ctx
-        );
-        let payload = core_vaa::destroy(vaa);
-        let meta = asset_meta::deserialize(payload);
+        // Deserialize to `AssetMeta`.
+        let meta =
+            parse_and_verify_asset_meta(
+                token_bridge_state,
+                worm_state,
+                vaa_buf,
+                ctx
+            );
 
         // Verify that the token info agrees with the info encoded in this
         // transfer. Checking whether this asset is wrapped may be superfluous,
@@ -159,18 +161,47 @@ module token_bridge::create_wrapped {
             E_UNREGISTERED_WRAPPED_ASSET
         );
 
+        // Proceed to update coin's metadata.
+        handle_update_metadata<CoinType>(
+            token_bridge_state,
+            &meta,
+            coin_metadata
+        );
+    }
+
+    fun parse_and_verify_asset_meta(
+        token_bridge_state: &mut State,
+        worm_state: &mut WormholeState,
+        vaa_buf: vector<u8>,
+        ctx: &mut TxContext
+    ): AssetMeta {
+        let parsed = vaa::parse_verify_and_replay_protect(
+            token_bridge_state,
+            worm_state,
+            vaa_buf,
+            ctx
+        );
+
+        asset_meta::deserialize(core_vaa::destroy(parsed))
+    }
+
+    fun handle_update_metadata<CoinType>(
+        token_bridge_state: &State,
+        meta: &AssetMeta,
+        coin_metadata: &mut CoinMetadata<CoinType>,
+    ) {
         // We need `TreasuryCap` to grant us access to update the symbol and
         // name for a given `CoinType`.
         let treasury_cap = state::treasury_cap<CoinType>(token_bridge_state);
         coin::update_symbol(
             treasury_cap,
-            metadata,
-            asset_meta::symbol_to_string(&meta)
+            coin_metadata,
+            asset_meta::symbol_to_string(meta)
         );
         coin::update_name(
             treasury_cap,
-            metadata,
-            asset_meta::name_to_string(&meta)
+            coin_metadata,
+            asset_meta::name_to_string(meta)
         );
     }
 }
