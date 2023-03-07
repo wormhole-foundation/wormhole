@@ -113,6 +113,7 @@ module token_bridge::transfer_token_test {
         return_shared,
         take_shared,
         take_from_address,
+        num_user_events,
         ctx
     };
     use wormhole::external_address::{Self};
@@ -144,12 +145,9 @@ module token_bridge::transfer_token_test {
         let test = scenario();
         // Set up core and token bridges.
         test = set_up_wormhole_core_and_token_bridges(admin, test);
-        // Initialize the coin.
-        next_tx(&mut test, admin);{
-            native_coin_witness::test_init(ctx(&mut test));
-        };
-        // Register native asset type with the token bridge, mint some coins,
-        // and initiate transfer.
+        // initialize the coin
+        native_coin_witness::test_init(ctx(&mut test));
+        // register native asset type with the token bridge, mint some coins, initiate transfer
         next_tx(&mut test, admin);{
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
@@ -185,12 +183,9 @@ module token_bridge::transfer_token_test {
         let test = scenario();
         // Set up core and token bridges.
         test = set_up_wormhole_core_and_token_bridges(admin, test);
-        // Initialize the coin.
-        next_tx(&mut test, admin);{
-            native_coin_witness::test_init(ctx(&mut test));
-        };
-        // Register native asset type with the token bridge, mint some coins,
-        // and finally initiate transfer.
+        // initialize the coin
+        native_coin_witness::test_init(ctx(&mut test));
+        // register native asset type with the token bridge, mint some coins, initiate transfer
         next_tx(&mut test, admin);{
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
@@ -217,7 +212,12 @@ module token_bridge::transfer_token_test {
             return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
             return_shared<TreasuryCap<NATIVE_COIN_WITNESS>>(treasury_cap);
         };
-        // Check that custody of the coins is indeed transferred to token bridge.
+        let tx_effects = next_tx(&mut test, admin);
+        // A single user event should be emitted, corresponding to
+        // publishing a Wormhole message for the token transfer
+        assert!(num_user_events(&tx_effects)==1, 0);
+
+        // check that custody of the coins is indeed transferred to token bridge
         next_tx(&mut test, admin);{
             let bridge_state = take_shared<State>(&test);
             let cur_bal = state::balance<NATIVE_COIN_WITNESS>(&mut bridge_state);
@@ -234,12 +234,9 @@ module token_bridge::transfer_token_test {
         let test = scenario();
         // Set up core and token bridges.
         test = set_up_wormhole_core_and_token_bridges(admin, test);
-        // Initialize the coin.
-        next_tx(&mut test, admin);{
-            native_coin_witness::test_init(ctx(&mut test));
-        };
-        // Register native asset type with the token bridge, mint some coins,
-        // and finally initiate transfer.
+        // initialize the coin
+        native_coin_witness::test_init(ctx(&mut test));
+        // register native asset type with the token bridge, mint some coins, initiate transfer
         next_tx(&mut test, admin);{
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
@@ -267,6 +264,12 @@ module token_bridge::transfer_token_test {
             return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
             return_shared<TreasuryCap<NATIVE_COIN_WITNESS>>(treasury_cap);
         };
+        let tx_effects = next_tx(&mut test, admin);
+        // Zero user event should be emitted, because instead of calling the
+        // entry transfer token function (which emits a WH message), we call
+        // the internal handler only.
+        assert!(num_user_events(&tx_effects)==0, 0);
+
         test_scenario::end(test);
     }
 
@@ -276,12 +279,9 @@ module token_bridge::transfer_token_test {
         let test = scenario();
         // Set up core and token bridges.
         test = set_up_wormhole_core_and_token_bridges(admin, test);
-        // Initialize the wrapped coin and register the eth chain.
-        next_tx(&mut test, admin);{
-            coin_witness::test_init(ctx(&mut test));
-        };
-        // Register chain emitter (chain id x emitter address) that attested
-        // the wrapped token.
+        // initialize the wrapped coin and register the eth chain
+        coin_witness::test_init(ctx(&mut test));
+        // register chain emitter (chain id x emitter address) that attested the wrapped token
         next_tx(&mut test, admin);{
             let bridge_state = take_shared<State>(&test);
             state::register_emitter(
@@ -331,6 +331,10 @@ module token_bridge::transfer_token_test {
             return_shared<WormholeState>(worm_state);
             return_shared<CoinMetadata<COIN_WITNESS>>(coin_meta);
         };
+        let tx_effects = next_tx(&mut test, admin);
+        // A single user event should be emitted, corresponding to
+        // publishing a Wormhole message for the token transfer
+        assert!(num_user_events(&tx_effects)==1, 0);
         // How to check if token was actually burned?
         test_scenario::end(test);
     }
@@ -341,12 +345,9 @@ module token_bridge::transfer_token_test {
         let test = scenario();
         // Set up core and token bridges.
         test = set_up_wormhole_core_and_token_bridges(admin, test);
-        // Initialize the wrapped coin and register the eth chain.
-        next_tx(&mut test, admin);{
-            coin_witness::test_init(ctx(&mut test));
-        };
-        // Register chain emitter (chain id x emitter address) that attested
-        // the wrapped token.
+        // initialize the wrapped coin and register the eth chain
+        coin_witness::test_init(ctx(&mut test));
+        // register chain emitter (chain id x emitter address) that attested the wrapped token
         next_tx(&mut test, admin);{
             let bridge_state = take_shared<State>(&test);
             state::register_emitter(
