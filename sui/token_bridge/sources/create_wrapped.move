@@ -63,7 +63,7 @@ module token_bridge::create_wrapped {
                 coin_decimals,
                 b"UNREGISTERED",
                 b"Pending Token Bridge Registration",
-                b"", // No description necessary.
+                b"UNREGISTERED",
                 option::none<Url>(), // No url necessary.
                 ctx
             );
@@ -196,12 +196,20 @@ module token_bridge::create_wrapped {
         coin::update_symbol(
             treasury_cap,
             coin_metadata,
-            asset_meta::symbol_to_string(meta)
+            asset_meta::symbol_to_ascii(meta)
         );
         coin::update_name(
             treasury_cap,
             coin_metadata,
-            asset_meta::name_to_string(meta)
+            asset_meta::name_to_utf8(meta)
+        );
+        // We are using the description of `CoinMetadata` as a convenient spot
+        // to preserve a UTF-8 symbol, if it has any characters that are not in
+        // the ASCII character set.
+        coin::update_description(
+            treasury_cap,
+            coin_metadata,
+            asset_meta::symbol_to_utf8(meta)
         );
     }
 }
