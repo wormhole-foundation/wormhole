@@ -98,7 +98,7 @@ func (enc *guardianTelemetryEncoder) EncodeEntry(entry zapcore.Entry, fields []z
 		}
 	}
 
-	// Write raw message to log
+	// Write raw message to telemetry logger
 	enc.logger.log(entry.Time, json.RawMessage(bufCopy), entry.Level)
 
 	return buf, nil

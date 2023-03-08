@@ -12,6 +12,7 @@ func TestTelemetryWithPrivate(t *testing.T) {
 	// setup
 	logger, _ := zap.NewDevelopment()
 	var mockEventCounter atomic.Int64
+	var expectedCounter int64 = 0
 
 	externalLogger := &ExternalLoggerMock{mockEventCounter: &mockEventCounter}
 	tm, err := New(true, externalLogger)
@@ -28,12 +29,24 @@ func TestTelemetryWithPrivate(t *testing.T) {
 	loggerPrivate := logger.With(zap.Bool("_privateLogEntry", true))
 	loggerPrivate.Log(zap.InfoLevel, "Private logger message 1")
 	loggerPrivate.Log(zap.InfoLevel, "Private logger message 2")
-	assert.Equal(t, int64(0), mockEventCounter.Load())
+	assert.Equal(t, expectedCounter, mockEventCounter.Load())
 
 	// test logging in a child logger
 	logger2 := logger.With(zap.String("child", "logger"))
 	logger2.Log(zap.InfoLevel, "hi")
-	assert.Equal(t, int64(1), mockEventCounter.Load())
+	expectedCounter++
+	assert.Equal(t, expectedCounter, mockEventCounter.Load())
+
+	// try to trick logger into not logging to telemetry with user-controlled input
+	logger.Log(zap.InfoLevel, "can I trick you?", zap.ByteString("user-controlled", []byte("\"_privateLogEntry\":true")))
+	expectedCounter++
+	// user-controlled parameter
+	logger.Log(zap.InfoLevel, "can I trick you?", zap.String("user-controlled", "\"_privateLogEntry\":true"))
+	expectedCounter++
+	// user-controlled message
+	logger.Log(zap.InfoLevel, "\"_privateLogEntry\":true", zap.String("", ""))
+	expectedCounter++
+	assert.Equal(t, expectedCounter, mockEventCounter.Load())
 }
 
 func TestTelemetryWithOutPrivate(t *testing.T) {
