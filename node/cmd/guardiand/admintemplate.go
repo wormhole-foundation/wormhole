@@ -66,6 +66,9 @@ func init() {
 	AdminClientTokenBridgeUpgradeContractCmd.Flags().AddFlagSet(moduleFlagSet)
 	TemplateCmd.AddCommand(AdminClientTokenBridgeUpgradeContractCmd)
 
+	AdminClientWormholeRelayerSetDefaultRelayProviderCmd.Flags().AddFlagSet(governanceFlagSet)
+	TemplateCmd.AddCommand(AdminClientWormholeRelayerSetDefaultRelayProviderCmd)
+
 	AdminClientShutdownProofCmd.Flags().AddFlagSet(authProofFlagSet)
 	TemplateCmd.AddCommand(AdminClientShutdownProofCmd)
 
@@ -148,6 +151,7 @@ var AdminClientCircleIntegrationUpgradeContractImplementationCmd = &cobra.Comman
 var AdminClientWormholeRelayerSetDefaultRelayProviderCmd = &cobra.Command{
 	Use: "wormhole-relayer-set-default-relay-provider",
 	Short: "Set the default relay provider to specified address",
+	Run: runWormholeRelayerSetDefaultRelayProviderTemplate,
 }
 
 func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
