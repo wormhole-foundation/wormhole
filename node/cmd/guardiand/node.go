@@ -962,7 +962,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	} else {
 		logger.Info("Telemetry disabled")
 
-		externalLogger := &telemetry.ExternalLoggerMock{}
+		externalLogger := &telemetry.ExternalLoggerNil{}
 		tm, err := telemetry.New(*publicRpcLogToTelemetry, externalLogger)
 		if err != nil {
 			logger.Fatal("Failed to initialize telemetry", zap.Error(err))

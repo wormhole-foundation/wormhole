@@ -46,17 +46,17 @@ func (logger *ExternalLoggerGoogleCloud) flush() error {
 	return logger.Flush()
 }
 
-// Mock external logger for integration tests
-type ExternalLoggerMock struct {
-	mockEventCounter *atomic.Int64
+// ExternalLoggerNil doesn't log anything. It can optionally increase an atomic counter `eventCounter` if provided.
+type ExternalLoggerNil struct {
+	eventCounter *atomic.Int64
 }
 
-func (logger *ExternalLoggerMock) log(time time.Time, message []byte, level zapcore.Level) {
-	if logger.mockEventCounter != nil {
-		logger.mockEventCounter.Add(1)
+func (logger *ExternalLoggerNil) log(time time.Time, message []byte, level zapcore.Level) {
+	if logger.eventCounter != nil {
+		logger.eventCounter.Add(1)
 	}
 }
-func (logger *ExternalLoggerMock) flush() error {
+func (logger *ExternalLoggerNil) flush() error {
 	return nil
 }
 
