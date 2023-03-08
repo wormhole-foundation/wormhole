@@ -346,6 +346,89 @@ module token_bridge::registered_tokens_test {
         };
     }
 
+    // In this negative test case, we try to register a native token twice.
+    #[test]
+    #[expected_failure(
+        abort_code = token_bridge::registered_tokens::E_ALREADY_REGISTERED,
+        location=token_bridge::registered_tokens
+    )]
+    fun test_registered_tokens_already_registered(){
+        let test = scenario();
+        let (admin, _, _) = people();
+
+        // 1) Initialize RegisteredTokens object, native and wrapped coins.
+        next_tx(&mut test, admin);{
+            //coin_witness::test_init(ctx(&mut test));
+            native_coin_10_decimals::test_init(ctx(&mut test));
+        };
+        next_tx(&mut test, admin);{
+            let registered_tokens = new(ctx(&mut test));
+
+            // 2) Check initial state.
+            assert!(num_wrapped(&registered_tokens)==0, 0);
+            assert!(num_native(&registered_tokens)==0, 0);
+
+            // 3)  Attempt to register native coin twice.
+            add_new_native<NATIVE_COIN_10_DECIMALS>(
+                &mut registered_tokens,
+                10, // Decimals.
+            );
+            add_new_native<NATIVE_COIN_10_DECIMALS>(
+                &mut registered_tokens,
+                10, // Decimals.
+            );
+
+            //4) Cleanup.
+            destroy(registered_tokens);
+        };
+         next_tx(&mut test, admin);{
+            test_scenario::end(test);
+        };
+    }
+
+    // In this negative test case, we attempt to register a native coin as a
+    // wrapped coin.
+    #[test]
+    #[expected_failure(
+        abort_code = token_bridge::registered_tokens::E_CANNOT_REGISTER_NATIVE_COIN,
+        location=token_bridge::registered_tokens
+    )]
+    fun test_registered_tokens_cannot_register_native(){
+        let test = scenario();
+        let (admin, _, _) = people();
+
+        // 1) Initialize RegisteredTokens object, native and wrapped coins.
+        next_tx(&mut test, admin);{
+            wrapped_coin_7_decimals::test_init(ctx(&mut test));
+        };
+        next_tx(&mut test, admin);{
+            let registered_tokens = new(ctx(&mut test));
+
+            // 2) Check initial state.
+            assert!(num_wrapped(&registered_tokens)==0, 0);
+            assert!(num_native(&registered_tokens)==0, 0);
+
+            // 3) Attempt to register a native coin as wrapped.
+            let tcap = take_from_address<TreasuryCap<WRAPPED_COIN_7_DECIMALS>>(
+                &mut test,
+                admin
+            );
+            add_new_wrapped<WRAPPED_COIN_7_DECIMALS>(
+                &mut registered_tokens,
+                21, // Chain.
+                external_address::from_bytes(x"001234"), // External address.
+                tcap, // Treasury cap.
+                7 // Decimals.
+            );
+
+            //4) Cleanup.
+            destroy(registered_tokens);
+        };
+         next_tx(&mut test, admin);{
+            test_scenario::end(test);
+        };
+    }
+
     // In this negative test case, we attempt to deposit a wrapped token into
     // a RegisteredTokens object, resulting in failure. A wrapped coin can
     // only be minted and burned, not deposited.
