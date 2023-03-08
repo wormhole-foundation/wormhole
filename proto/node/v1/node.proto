@@ -82,7 +82,7 @@ message GovernanceMessage {
     GuardianSetUpdate guardian_set = 10;
     ContractUpgrade contract_upgrade = 11;
 
-    // Token bridge and NFT module
+    // Token bridge, NFT module, and Wormhole Relayer module (for the first two) 
 
     BridgeRegisterChain bridge_register_chain = 12;
     BridgeUpgradeContract bridge_contract_upgrade = 13;
@@ -100,6 +100,9 @@ message GovernanceMessage {
     CircleIntegrationUpdateWormholeFinality circle_integration_update_wormhole_finality = 18;
     CircleIntegrationRegisterEmitterAndDomain circle_integration_register_emitter_and_domain = 19;
     CircleIntegrationUpgradeContractImplementation circle_integration_upgrade_contract_implementation = 20;
+
+    // Wormhole Relayer module
+    WormholeRelayerSetDefaultRelayProvider wormhole_relayer_set_default_relay_provider = 21;
   }
 }
 
@@ -222,6 +225,9 @@ message WormchainMigrateContract {
 message CircleIntegrationUpdateWormholeFinality {
   uint32 finality = 1;
   uint32 target_chain_id = 2;
+
+message CircleIntegrationUpdateWormholeFinality {
+  uint32 finality = 1;
 }
 
 message CircleIntegrationRegisterEmitterAndDomain {
@@ -234,6 +240,16 @@ message CircleIntegrationRegisterEmitterAndDomain {
 message CircleIntegrationUpgradeContractImplementation {
   string new_implementation_address = 1;
   uint32 target_chain_id = 2;
+}
+
+}
+
+message WormholeRelayerSetDefaultRelayProvider {
+  // ID of the chain of the Wormhole Relayer contract where the default relay provider should be updated (uint16).
+  uint32 target_chain_id = 1;
+
+  // Hex-encoded address (without leading 0x) of the new default relay provider contract address.
+  string new_default_relay_provider_address = 2;
 }
 
 message FindMissingMessagesRequest {

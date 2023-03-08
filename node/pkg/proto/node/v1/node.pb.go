@@ -158,10 +158,20 @@ type GovernanceMessage struct {
 	//	*GovernanceMessage_WormchainStoreCode
 	//	*GovernanceMessage_WormchainInstantiateContract
 	//	*GovernanceMessage_WormchainMigrateContract
+<<<<<<< HEAD
 	//	*GovernanceMessage_AccountantModifyBalance
 	//	*GovernanceMessage_CircleIntegrationUpdateWormholeFinality
 	//	*GovernanceMessage_CircleIntegrationRegisterEmitterAndDomain
 	//	*GovernanceMessage_CircleIntegrationUpgradeContractImplementation
+=======
+<<<<<<< HEAD
+=======
+	//	*GovernanceMessage_CircleIntegrationUpdateWormholeFinality
+	//	*GovernanceMessage_CircleIntegrationRegisterEmitterAndDomain
+	//	*GovernanceMessage_CircleIntegrationUpgradeContractImplementation
+	//	*GovernanceMessage_WormholeRelayerSetDefaultRelayProvider
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	Payload isGovernanceMessage_Payload `protobuf_oneof:"payload"`
 }
 
@@ -267,6 +277,7 @@ func (x *GovernanceMessage) GetWormchainMigrateContract() *WormchainMigrateContr
 	return nil
 }
 
+<<<<<<< HEAD
 func (x *GovernanceMessage) GetAccountantModifyBalance() *AccountantModifyBalance {
 	if x, ok := x.GetPayload().(*GovernanceMessage_AccountantModifyBalance); ok {
 		return x.AccountantModifyBalance
@@ -274,6 +285,10 @@ func (x *GovernanceMessage) GetAccountantModifyBalance() *AccountantModifyBalanc
 	return nil
 }
 
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 func (x *GovernanceMessage) GetCircleIntegrationUpdateWormholeFinality() *CircleIntegrationUpdateWormholeFinality {
 	if x, ok := x.GetPayload().(*GovernanceMessage_CircleIntegrationUpdateWormholeFinality); ok {
 		return x.CircleIntegrationUpdateWormholeFinality
@@ -295,6 +310,17 @@ func (x *GovernanceMessage) GetCircleIntegrationUpgradeContractImplementation() 
 	return nil
 }
 
+<<<<<<< HEAD
+=======
+func (x *GovernanceMessage) GetWormholeRelayerSetDefaultRelayProvider() *WormholeRelayerSetDefaultRelayProvider {
+	if x, ok := x.GetPayload().(*GovernanceMessage_WormholeRelayerSetDefaultRelayProvider); ok {
+		return x.WormholeRelayerSetDefaultRelayProvider
+	}
+	return nil
+}
+
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 type isGovernanceMessage_Payload interface {
 	isGovernanceMessage_Payload()
 }
@@ -327,11 +353,16 @@ type GovernanceMessage_WormchainMigrateContract struct {
 	WormchainMigrateContract *WormchainMigrateContract `protobuf:"bytes,16,opt,name=wormchain_migrate_contract,json=wormchainMigrateContract,proto3,oneof"`
 }
 
+<<<<<<< HEAD
 type GovernanceMessage_AccountantModifyBalance struct {
 	// Global Accountant
 	AccountantModifyBalance *AccountantModifyBalance `protobuf:"bytes,17,opt,name=accountant_modify_balance,json=accountantModifyBalance,proto3,oneof"`
 }
 
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 type GovernanceMessage_CircleIntegrationUpdateWormholeFinality struct {
 	// Circle Integration
 	CircleIntegrationUpdateWormholeFinality *CircleIntegrationUpdateWormholeFinality `protobuf:"bytes,18,opt,name=circle_integration_update_wormhole_finality,json=circleIntegrationUpdateWormholeFinality,proto3,oneof"`
@@ -345,6 +376,15 @@ type GovernanceMessage_CircleIntegrationUpgradeContractImplementation struct {
 	CircleIntegrationUpgradeContractImplementation *CircleIntegrationUpgradeContractImplementation `protobuf:"bytes,20,opt,name=circle_integration_upgrade_contract_implementation,json=circleIntegrationUpgradeContractImplementation,proto3,oneof"`
 }
 
+<<<<<<< HEAD
+=======
+type GovernanceMessage_WormholeRelayerSetDefaultRelayProvider struct {
+	// Wormhole Relayer module
+	WormholeRelayerSetDefaultRelayProvider *WormholeRelayerSetDefaultRelayProvider `protobuf:"bytes,21,opt,name=wormhole_relayer_set_default_relay_provider,json=wormholeRelayerSetDefaultRelayProvider,proto3,oneof"`
+}
+
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 func (*GovernanceMessage_GuardianSet) isGovernanceMessage_Payload() {}
 
 func (*GovernanceMessage_ContractUpgrade) isGovernanceMessage_Payload() {}
@@ -359,8 +399,13 @@ func (*GovernanceMessage_WormchainInstantiateContract) isGovernanceMessage_Paylo
 
 func (*GovernanceMessage_WormchainMigrateContract) isGovernanceMessage_Payload() {}
 
+<<<<<<< HEAD
 func (*GovernanceMessage_AccountantModifyBalance) isGovernanceMessage_Payload() {}
 
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 func (*GovernanceMessage_CircleIntegrationUpdateWormholeFinality) isGovernanceMessage_Payload() {}
 
 func (*GovernanceMessage_CircleIntegrationRegisterEmitterAndDomain) isGovernanceMessage_Payload() {}
@@ -368,6 +413,12 @@ func (*GovernanceMessage_CircleIntegrationRegisterEmitterAndDomain) isGovernance
 func (*GovernanceMessage_CircleIntegrationUpgradeContractImplementation) isGovernanceMessage_Payload() {
 }
 
+<<<<<<< HEAD
+=======
+func (*GovernanceMessage_WormholeRelayerSetDefaultRelayProvider) isGovernanceMessage_Payload() {}
+
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 type InjectGovernanceVAAResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1016,13 +1067,22 @@ func (x *WormchainMigrateContract) GetInstantiationMsg() string {
 	return ""
 }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 type CircleIntegrationUpdateWormholeFinality struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+<<<<<<< HEAD
 	Finality      uint32 `protobuf:"varint,1,opt,name=finality,proto3" json:"finality,omitempty"`
 	TargetChainId uint32 `protobuf:"varint,2,opt,name=target_chain_id,json=targetChainId,proto3" json:"target_chain_id,omitempty"`
+=======
+	Finality uint32 `protobuf:"varint,1,opt,name=finality,proto3" json:"finality,omitempty"`
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 }
 
 func (x *CircleIntegrationUpdateWormholeFinality) Reset() {
@@ -1064,6 +1124,7 @@ func (x *CircleIntegrationUpdateWormholeFinality) GetFinality() uint32 {
 	return 0
 }
 
+<<<<<<< HEAD
 func (x *CircleIntegrationUpdateWormholeFinality) GetTargetChainId() uint32 {
 	if x != nil {
 		return x.TargetChainId
@@ -1071,6 +1132,8 @@ func (x *CircleIntegrationUpdateWormholeFinality) GetTargetChainId() uint32 {
 	return 0
 }
 
+=======
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 type CircleIntegrationRegisterEmitterAndDomain struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1079,7 +1142,10 @@ type CircleIntegrationRegisterEmitterAndDomain struct {
 	ForeignEmitterChainId uint32 `protobuf:"varint,1,opt,name=foreign_emitter_chain_id,json=foreignEmitterChainId,proto3" json:"foreign_emitter_chain_id,omitempty"`
 	ForeignEmitterAddress string `protobuf:"bytes,2,opt,name=foreign_emitter_address,json=foreignEmitterAddress,proto3" json:"foreign_emitter_address,omitempty"`
 	CircleDomain          uint32 `protobuf:"varint,3,opt,name=circle_domain,json=circleDomain,proto3" json:"circle_domain,omitempty"`
+<<<<<<< HEAD
 	TargetChainId         uint32 `protobuf:"varint,4,opt,name=target_chain_id,json=targetChainId,proto3" json:"target_chain_id,omitempty"`
+=======
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 }
 
 func (x *CircleIntegrationRegisterEmitterAndDomain) Reset() {
@@ -1135,6 +1201,7 @@ func (x *CircleIntegrationRegisterEmitterAndDomain) GetCircleDomain() uint32 {
 	return 0
 }
 
+<<<<<<< HEAD
 func (x *CircleIntegrationRegisterEmitterAndDomain) GetTargetChainId() uint32 {
 	if x != nil {
 		return x.TargetChainId
@@ -1142,13 +1209,18 @@ func (x *CircleIntegrationRegisterEmitterAndDomain) GetTargetChainId() uint32 {
 	return 0
 }
 
+=======
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 type CircleIntegrationUpgradeContractImplementation struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
 	NewImplementationAddress string `protobuf:"bytes,1,opt,name=new_implementation_address,json=newImplementationAddress,proto3" json:"new_implementation_address,omitempty"`
+<<<<<<< HEAD
 	TargetChainId            uint32 `protobuf:"varint,2,opt,name=target_chain_id,json=targetChainId,proto3" json:"target_chain_id,omitempty"`
+=======
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 }
 
 func (x *CircleIntegrationUpgradeContractImplementation) Reset() {
@@ -1190,13 +1262,71 @@ func (x *CircleIntegrationUpgradeContractImplementation) GetNewImplementationAdd
 	return ""
 }
 
+<<<<<<< HEAD
 func (x *CircleIntegrationUpgradeContractImplementation) GetTargetChainId() uint32 {
+=======
+type WormholeRelayerSetDefaultRelayProvider struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// ID of the chain of the Wormhole Relayer contract where the default relay provider should be updated (uint16).
+	TargetChainId uint32 `protobuf:"varint,1,opt,name=target_chain_id,json=targetChainId,proto3" json:"target_chain_id,omitempty"`
+	// Hex-encoded address (without leading 0x) of the new default relay provider contract address.
+	NewDefaultRelayProviderAddress string `protobuf:"bytes,2,opt,name=new_default_relay_provider_address,json=newDefaultRelayProviderAddress,proto3" json:"new_default_relay_provider_address,omitempty"`
+}
+
+func (x *WormholeRelayerSetDefaultRelayProvider) Reset() {
+	*x = WormholeRelayerSetDefaultRelayProvider{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_node_v1_node_proto_msgTypes[15]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *WormholeRelayerSetDefaultRelayProvider) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WormholeRelayerSetDefaultRelayProvider) ProtoMessage() {}
+
+func (x *WormholeRelayerSetDefaultRelayProvider) ProtoReflect() protoreflect.Message {
+	mi := &file_node_v1_node_proto_msgTypes[15]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WormholeRelayerSetDefaultRelayProvider.ProtoReflect.Descriptor instead.
+func (*WormholeRelayerSetDefaultRelayProvider) Descriptor() ([]byte, []int) {
+	return file_node_v1_node_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *WormholeRelayerSetDefaultRelayProvider) GetTargetChainId() uint32 {
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	if x != nil {
 		return x.TargetChainId
 	}
 	return 0
 }
 
+<<<<<<< HEAD
+=======
+func (x *WormholeRelayerSetDefaultRelayProvider) GetNewDefaultRelayProviderAddress() string {
+	if x != nil {
+		return x.NewDefaultRelayProviderAddress
+	}
+	return ""
+}
+
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 type FindMissingMessagesRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1215,7 +1345,15 @@ type FindMissingMessagesRequest struct {
 func (x *FindMissingMessagesRequest) Reset() {
 	*x = FindMissingMessagesRequest{}
 	if protoimpl.UnsafeEnabled {
+<<<<<<< HEAD
 		mi := &file_node_v1_node_proto_msgTypes[15]
+=======
+<<<<<<< HEAD
+		mi := &file_node_v1_node_proto_msgTypes[12]
+=======
+		mi := &file_node_v1_node_proto_msgTypes[16]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1228,7 +1366,15 @@ func (x *FindMissingMessagesRequest) String() string {
 func (*FindMissingMessagesRequest) ProtoMessage() {}
 
 func (x *FindMissingMessagesRequest) ProtoReflect() protoreflect.Message {
+<<<<<<< HEAD
 	mi := &file_node_v1_node_proto_msgTypes[15]
+=======
+<<<<<<< HEAD
+	mi := &file_node_v1_node_proto_msgTypes[12]
+=======
+	mi := &file_node_v1_node_proto_msgTypes[16]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1241,7 +1387,15 @@ func (x *FindMissingMessagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindMissingMessagesRequest.ProtoReflect.Descriptor instead.
 func (*FindMissingMessagesRequest) Descriptor() ([]byte, []int) {
+<<<<<<< HEAD
 	return file_node_v1_node_proto_rawDescGZIP(), []int{15}
+=======
+<<<<<<< HEAD
+	return file_node_v1_node_proto_rawDescGZIP(), []int{12}
+=======
+	return file_node_v1_node_proto_rawDescGZIP(), []int{16}
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 }
 
 func (x *FindMissingMessagesRequest) GetEmitterChain() uint32 {
@@ -1287,7 +1441,15 @@ type FindMissingMessagesResponse struct {
 func (x *FindMissingMessagesResponse) Reset() {
 	*x = FindMissingMessagesResponse{}
 	if protoimpl.UnsafeEnabled {
+<<<<<<< HEAD
 		mi := &file_node_v1_node_proto_msgTypes[16]
+=======
+<<<<<<< HEAD
+		mi := &file_node_v1_node_proto_msgTypes[13]
+=======
+		mi := &file_node_v1_node_proto_msgTypes[17]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1300,7 +1462,15 @@ func (x *FindMissingMessagesResponse) String() string {
 func (*FindMissingMessagesResponse) ProtoMessage() {}
 
 func (x *FindMissingMessagesResponse) ProtoReflect() protoreflect.Message {
+<<<<<<< HEAD
 	mi := &file_node_v1_node_proto_msgTypes[16]
+=======
+<<<<<<< HEAD
+	mi := &file_node_v1_node_proto_msgTypes[13]
+=======
+	mi := &file_node_v1_node_proto_msgTypes[17]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1313,7 +1483,15 @@ func (x *FindMissingMessagesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindMissingMessagesResponse.ProtoReflect.Descriptor instead.
 func (*FindMissingMessagesResponse) Descriptor() ([]byte, []int) {
+<<<<<<< HEAD
 	return file_node_v1_node_proto_rawDescGZIP(), []int{16}
+=======
+<<<<<<< HEAD
+	return file_node_v1_node_proto_rawDescGZIP(), []int{13}
+=======
+	return file_node_v1_node_proto_rawDescGZIP(), []int{17}
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 }
 
 func (x *FindMissingMessagesResponse) GetMissingMessages() []string {
@@ -1348,7 +1526,15 @@ type SendObservationRequestRequest struct {
 func (x *SendObservationRequestRequest) Reset() {
 	*x = SendObservationRequestRequest{}
 	if protoimpl.UnsafeEnabled {
+<<<<<<< HEAD
 		mi := &file_node_v1_node_proto_msgTypes[17]
+=======
+<<<<<<< HEAD
+		mi := &file_node_v1_node_proto_msgTypes[14]
+=======
+		mi := &file_node_v1_node_proto_msgTypes[18]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1361,7 +1547,15 @@ func (x *SendObservationRequestRequest) String() string {
 func (*SendObservationRequestRequest) ProtoMessage() {}
 
 func (x *SendObservationRequestRequest) ProtoReflect() protoreflect.Message {
+<<<<<<< HEAD
 	mi := &file_node_v1_node_proto_msgTypes[17]
+=======
+<<<<<<< HEAD
+	mi := &file_node_v1_node_proto_msgTypes[14]
+=======
+	mi := &file_node_v1_node_proto_msgTypes[18]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1374,7 +1568,15 @@ func (x *SendObservationRequestRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendObservationRequestRequest.ProtoReflect.Descriptor instead.
 func (*SendObservationRequestRequest) Descriptor() ([]byte, []int) {
+<<<<<<< HEAD
 	return file_node_v1_node_proto_rawDescGZIP(), []int{17}
+=======
+<<<<<<< HEAD
+	return file_node_v1_node_proto_rawDescGZIP(), []int{14}
+=======
+	return file_node_v1_node_proto_rawDescGZIP(), []int{18}
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 }
 
 func (x *SendObservationRequestRequest) GetObservationRequest() *v1.ObservationRequest {
@@ -1393,7 +1595,15 @@ type SendObservationRequestResponse struct {
 func (x *SendObservationRequestResponse) Reset() {
 	*x = SendObservationRequestResponse{}
 	if protoimpl.UnsafeEnabled {
+<<<<<<< HEAD
 		mi := &file_node_v1_node_proto_msgTypes[18]
+=======
+<<<<<<< HEAD
+		mi := &file_node_v1_node_proto_msgTypes[15]
+=======
+		mi := &file_node_v1_node_proto_msgTypes[19]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1406,7 +1616,15 @@ func (x *SendObservationRequestResponse) String() string {
 func (*SendObservationRequestResponse) ProtoMessage() {}
 
 func (x *SendObservationRequestResponse) ProtoReflect() protoreflect.Message {
+<<<<<<< HEAD
 	mi := &file_node_v1_node_proto_msgTypes[18]
+=======
+<<<<<<< HEAD
+	mi := &file_node_v1_node_proto_msgTypes[15]
+=======
+	mi := &file_node_v1_node_proto_msgTypes[19]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1419,7 +1637,15 @@ func (x *SendObservationRequestResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendObservationRequestResponse.ProtoReflect.Descriptor instead.
 func (*SendObservationRequestResponse) Descriptor() ([]byte, []int) {
+<<<<<<< HEAD
 	return file_node_v1_node_proto_rawDescGZIP(), []int{18}
+=======
+<<<<<<< HEAD
+	return file_node_v1_node_proto_rawDescGZIP(), []int{15}
+=======
+	return file_node_v1_node_proto_rawDescGZIP(), []int{19}
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 }
 
 type ChainGovernorStatusRequest struct {
@@ -1431,7 +1657,15 @@ type ChainGovernorStatusRequest struct {
 func (x *ChainGovernorStatusRequest) Reset() {
 	*x = ChainGovernorStatusRequest{}
 	if protoimpl.UnsafeEnabled {
+<<<<<<< HEAD
 		mi := &file_node_v1_node_proto_msgTypes[19]
+=======
+<<<<<<< HEAD
+		mi := &file_node_v1_node_proto_msgTypes[16]
+=======
+		mi := &file_node_v1_node_proto_msgTypes[20]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1444,7 +1678,15 @@ func (x *ChainGovernorStatusRequest) String() string {
 func (*ChainGovernorStatusRequest) ProtoMessage() {}
 
 func (x *ChainGovernorStatusRequest) ProtoReflect() protoreflect.Message {
+<<<<<<< HEAD
 	mi := &file_node_v1_node_proto_msgTypes[19]
+=======
+<<<<<<< HEAD
+	mi := &file_node_v1_node_proto_msgTypes[16]
+=======
+	mi := &file_node_v1_node_proto_msgTypes[20]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1457,7 +1699,15 @@ func (x *ChainGovernorStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChainGovernorStatusRequest.ProtoReflect.Descriptor instead.
 func (*ChainGovernorStatusRequest) Descriptor() ([]byte, []int) {
+<<<<<<< HEAD
 	return file_node_v1_node_proto_rawDescGZIP(), []int{19}
+=======
+<<<<<<< HEAD
+	return file_node_v1_node_proto_rawDescGZIP(), []int{16}
+=======
+	return file_node_v1_node_proto_rawDescGZIP(), []int{20}
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 }
 
 type ChainGovernorStatusResponse struct {
@@ -1471,7 +1721,15 @@ type ChainGovernorStatusResponse struct {
 func (x *ChainGovernorStatusResponse) Reset() {
 	*x = ChainGovernorStatusResponse{}
 	if protoimpl.UnsafeEnabled {
+<<<<<<< HEAD
 		mi := &file_node_v1_node_proto_msgTypes[20]
+=======
+<<<<<<< HEAD
+		mi := &file_node_v1_node_proto_msgTypes[17]
+=======
+		mi := &file_node_v1_node_proto_msgTypes[21]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1484,7 +1742,15 @@ func (x *ChainGovernorStatusResponse) String() string {
 func (*ChainGovernorStatusResponse) ProtoMessage() {}
 
 func (x *ChainGovernorStatusResponse) ProtoReflect() protoreflect.Message {
+<<<<<<< HEAD
 	mi := &file_node_v1_node_proto_msgTypes[20]
+=======
+<<<<<<< HEAD
+	mi := &file_node_v1_node_proto_msgTypes[17]
+=======
+	mi := &file_node_v1_node_proto_msgTypes[21]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1497,7 +1763,15 @@ func (x *ChainGovernorStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChainGovernorStatusResponse.ProtoReflect.Descriptor instead.
 func (*ChainGovernorStatusResponse) Descriptor() ([]byte, []int) {
+<<<<<<< HEAD
 	return file_node_v1_node_proto_rawDescGZIP(), []int{20}
+=======
+<<<<<<< HEAD
+	return file_node_v1_node_proto_rawDescGZIP(), []int{17}
+=======
+	return file_node_v1_node_proto_rawDescGZIP(), []int{21}
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 }
 
 func (x *ChainGovernorStatusResponse) GetResponse() string {
@@ -1516,7 +1790,15 @@ type ChainGovernorReloadRequest struct {
 func (x *ChainGovernorReloadRequest) Reset() {
 	*x = ChainGovernorReloadRequest{}
 	if protoimpl.UnsafeEnabled {
+<<<<<<< HEAD
 		mi := &file_node_v1_node_proto_msgTypes[21]
+=======
+<<<<<<< HEAD
+		mi := &file_node_v1_node_proto_msgTypes[18]
+=======
+		mi := &file_node_v1_node_proto_msgTypes[22]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1529,7 +1811,15 @@ func (x *ChainGovernorReloadRequest) String() string {
 func (*ChainGovernorReloadRequest) ProtoMessage() {}
 
 func (x *ChainGovernorReloadRequest) ProtoReflect() protoreflect.Message {
+<<<<<<< HEAD
 	mi := &file_node_v1_node_proto_msgTypes[21]
+=======
+<<<<<<< HEAD
+	mi := &file_node_v1_node_proto_msgTypes[18]
+=======
+	mi := &file_node_v1_node_proto_msgTypes[22]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1542,7 +1832,15 @@ func (x *ChainGovernorReloadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChainGovernorReloadRequest.ProtoReflect.Descriptor instead.
 func (*ChainGovernorReloadRequest) Descriptor() ([]byte, []int) {
+<<<<<<< HEAD
 	return file_node_v1_node_proto_rawDescGZIP(), []int{21}
+=======
+<<<<<<< HEAD
+	return file_node_v1_node_proto_rawDescGZIP(), []int{18}
+=======
+	return file_node_v1_node_proto_rawDescGZIP(), []int{22}
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 }
 
 type ChainGovernorReloadResponse struct {
@@ -1556,7 +1854,15 @@ type ChainGovernorReloadResponse struct {
 func (x *ChainGovernorReloadResponse) Reset() {
 	*x = ChainGovernorReloadResponse{}
 	if protoimpl.UnsafeEnabled {
+<<<<<<< HEAD
 		mi := &file_node_v1_node_proto_msgTypes[22]
+=======
+<<<<<<< HEAD
+		mi := &file_node_v1_node_proto_msgTypes[19]
+=======
+		mi := &file_node_v1_node_proto_msgTypes[23]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1569,7 +1875,15 @@ func (x *ChainGovernorReloadResponse) String() string {
 func (*ChainGovernorReloadResponse) ProtoMessage() {}
 
 func (x *ChainGovernorReloadResponse) ProtoReflect() protoreflect.Message {
+<<<<<<< HEAD
 	mi := &file_node_v1_node_proto_msgTypes[22]
+=======
+<<<<<<< HEAD
+	mi := &file_node_v1_node_proto_msgTypes[19]
+=======
+	mi := &file_node_v1_node_proto_msgTypes[23]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1582,7 +1896,15 @@ func (x *ChainGovernorReloadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChainGovernorReloadResponse.ProtoReflect.Descriptor instead.
 func (*ChainGovernorReloadResponse) Descriptor() ([]byte, []int) {
+<<<<<<< HEAD
 	return file_node_v1_node_proto_rawDescGZIP(), []int{22}
+=======
+<<<<<<< HEAD
+	return file_node_v1_node_proto_rawDescGZIP(), []int{19}
+=======
+	return file_node_v1_node_proto_rawDescGZIP(), []int{23}
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 }
 
 func (x *ChainGovernorReloadResponse) GetResponse() string {
@@ -1603,7 +1925,15 @@ type ChainGovernorDropPendingVAARequest struct {
 func (x *ChainGovernorDropPendingVAARequest) Reset() {
 	*x = ChainGovernorDropPendingVAARequest{}
 	if protoimpl.UnsafeEnabled {
+<<<<<<< HEAD
 		mi := &file_node_v1_node_proto_msgTypes[23]
+=======
+<<<<<<< HEAD
+		mi := &file_node_v1_node_proto_msgTypes[20]
+=======
+		mi := &file_node_v1_node_proto_msgTypes[24]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1616,7 +1946,15 @@ func (x *ChainGovernorDropPendingVAARequest) String() string {
 func (*ChainGovernorDropPendingVAARequest) ProtoMessage() {}
 
 func (x *ChainGovernorDropPendingVAARequest) ProtoReflect() protoreflect.Message {
+<<<<<<< HEAD
 	mi := &file_node_v1_node_proto_msgTypes[23]
+=======
+<<<<<<< HEAD
+	mi := &file_node_v1_node_proto_msgTypes[20]
+=======
+	mi := &file_node_v1_node_proto_msgTypes[24]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1629,7 +1967,15 @@ func (x *ChainGovernorDropPendingVAARequest) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use ChainGovernorDropPendingVAARequest.ProtoReflect.Descriptor instead.
 func (*ChainGovernorDropPendingVAARequest) Descriptor() ([]byte, []int) {
+<<<<<<< HEAD
 	return file_node_v1_node_proto_rawDescGZIP(), []int{23}
+=======
+<<<<<<< HEAD
+	return file_node_v1_node_proto_rawDescGZIP(), []int{20}
+=======
+	return file_node_v1_node_proto_rawDescGZIP(), []int{24}
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 }
 
 func (x *ChainGovernorDropPendingVAARequest) GetVaaId() string {
@@ -1650,7 +1996,15 @@ type ChainGovernorDropPendingVAAResponse struct {
 func (x *ChainGovernorDropPendingVAAResponse) Reset() {
 	*x = ChainGovernorDropPendingVAAResponse{}
 	if protoimpl.UnsafeEnabled {
+<<<<<<< HEAD
 		mi := &file_node_v1_node_proto_msgTypes[24]
+=======
+<<<<<<< HEAD
+		mi := &file_node_v1_node_proto_msgTypes[21]
+=======
+		mi := &file_node_v1_node_proto_msgTypes[25]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1663,7 +2017,15 @@ func (x *ChainGovernorDropPendingVAAResponse) String() string {
 func (*ChainGovernorDropPendingVAAResponse) ProtoMessage() {}
 
 func (x *ChainGovernorDropPendingVAAResponse) ProtoReflect() protoreflect.Message {
+<<<<<<< HEAD
 	mi := &file_node_v1_node_proto_msgTypes[24]
+=======
+<<<<<<< HEAD
+	mi := &file_node_v1_node_proto_msgTypes[21]
+=======
+	mi := &file_node_v1_node_proto_msgTypes[25]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1676,7 +2038,15 @@ func (x *ChainGovernorDropPendingVAAResponse) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use ChainGovernorDropPendingVAAResponse.ProtoReflect.Descriptor instead.
 func (*ChainGovernorDropPendingVAAResponse) Descriptor() ([]byte, []int) {
+<<<<<<< HEAD
 	return file_node_v1_node_proto_rawDescGZIP(), []int{24}
+=======
+<<<<<<< HEAD
+	return file_node_v1_node_proto_rawDescGZIP(), []int{21}
+=======
+	return file_node_v1_node_proto_rawDescGZIP(), []int{25}
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 }
 
 func (x *ChainGovernorDropPendingVAAResponse) GetResponse() string {
@@ -1697,7 +2067,15 @@ type ChainGovernorReleasePendingVAARequest struct {
 func (x *ChainGovernorReleasePendingVAARequest) Reset() {
 	*x = ChainGovernorReleasePendingVAARequest{}
 	if protoimpl.UnsafeEnabled {
+<<<<<<< HEAD
 		mi := &file_node_v1_node_proto_msgTypes[25]
+=======
+<<<<<<< HEAD
+		mi := &file_node_v1_node_proto_msgTypes[22]
+=======
+		mi := &file_node_v1_node_proto_msgTypes[26]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1710,7 +2088,15 @@ func (x *ChainGovernorReleasePendingVAARequest) String() string {
 func (*ChainGovernorReleasePendingVAARequest) ProtoMessage() {}
 
 func (x *ChainGovernorReleasePendingVAARequest) ProtoReflect() protoreflect.Message {
+<<<<<<< HEAD
 	mi := &file_node_v1_node_proto_msgTypes[25]
+=======
+<<<<<<< HEAD
+	mi := &file_node_v1_node_proto_msgTypes[22]
+=======
+	mi := &file_node_v1_node_proto_msgTypes[26]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1723,7 +2109,15 @@ func (x *ChainGovernorReleasePendingVAARequest) ProtoReflect() protoreflect.Mess
 
 // Deprecated: Use ChainGovernorReleasePendingVAARequest.ProtoReflect.Descriptor instead.
 func (*ChainGovernorReleasePendingVAARequest) Descriptor() ([]byte, []int) {
+<<<<<<< HEAD
 	return file_node_v1_node_proto_rawDescGZIP(), []int{25}
+=======
+<<<<<<< HEAD
+	return file_node_v1_node_proto_rawDescGZIP(), []int{22}
+=======
+	return file_node_v1_node_proto_rawDescGZIP(), []int{26}
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 }
 
 func (x *ChainGovernorReleasePendingVAARequest) GetVaaId() string {
@@ -1744,7 +2138,15 @@ type ChainGovernorReleasePendingVAAResponse struct {
 func (x *ChainGovernorReleasePendingVAAResponse) Reset() {
 	*x = ChainGovernorReleasePendingVAAResponse{}
 	if protoimpl.UnsafeEnabled {
+<<<<<<< HEAD
 		mi := &file_node_v1_node_proto_msgTypes[26]
+=======
+<<<<<<< HEAD
+		mi := &file_node_v1_node_proto_msgTypes[23]
+=======
+		mi := &file_node_v1_node_proto_msgTypes[27]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1757,7 +2159,15 @@ func (x *ChainGovernorReleasePendingVAAResponse) String() string {
 func (*ChainGovernorReleasePendingVAAResponse) ProtoMessage() {}
 
 func (x *ChainGovernorReleasePendingVAAResponse) ProtoReflect() protoreflect.Message {
+<<<<<<< HEAD
 	mi := &file_node_v1_node_proto_msgTypes[26]
+=======
+<<<<<<< HEAD
+	mi := &file_node_v1_node_proto_msgTypes[23]
+=======
+	mi := &file_node_v1_node_proto_msgTypes[27]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1770,7 +2180,15 @@ func (x *ChainGovernorReleasePendingVAAResponse) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use ChainGovernorReleasePendingVAAResponse.ProtoReflect.Descriptor instead.
 func (*ChainGovernorReleasePendingVAAResponse) Descriptor() ([]byte, []int) {
+<<<<<<< HEAD
 	return file_node_v1_node_proto_rawDescGZIP(), []int{26}
+=======
+<<<<<<< HEAD
+	return file_node_v1_node_proto_rawDescGZIP(), []int{23}
+=======
+	return file_node_v1_node_proto_rawDescGZIP(), []int{27}
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 }
 
 func (x *ChainGovernorReleasePendingVAAResponse) GetResponse() string {
@@ -1791,7 +2209,15 @@ type ChainGovernorResetReleaseTimerRequest struct {
 func (x *ChainGovernorResetReleaseTimerRequest) Reset() {
 	*x = ChainGovernorResetReleaseTimerRequest{}
 	if protoimpl.UnsafeEnabled {
+<<<<<<< HEAD
 		mi := &file_node_v1_node_proto_msgTypes[27]
+=======
+<<<<<<< HEAD
+		mi := &file_node_v1_node_proto_msgTypes[24]
+=======
+		mi := &file_node_v1_node_proto_msgTypes[28]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1804,7 +2230,15 @@ func (x *ChainGovernorResetReleaseTimerRequest) String() string {
 func (*ChainGovernorResetReleaseTimerRequest) ProtoMessage() {}
 
 func (x *ChainGovernorResetReleaseTimerRequest) ProtoReflect() protoreflect.Message {
+<<<<<<< HEAD
 	mi := &file_node_v1_node_proto_msgTypes[27]
+=======
+<<<<<<< HEAD
+	mi := &file_node_v1_node_proto_msgTypes[24]
+=======
+	mi := &file_node_v1_node_proto_msgTypes[28]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1817,7 +2251,15 @@ func (x *ChainGovernorResetReleaseTimerRequest) ProtoReflect() protoreflect.Mess
 
 // Deprecated: Use ChainGovernorResetReleaseTimerRequest.ProtoReflect.Descriptor instead.
 func (*ChainGovernorResetReleaseTimerRequest) Descriptor() ([]byte, []int) {
+<<<<<<< HEAD
 	return file_node_v1_node_proto_rawDescGZIP(), []int{27}
+=======
+<<<<<<< HEAD
+	return file_node_v1_node_proto_rawDescGZIP(), []int{24}
+=======
+	return file_node_v1_node_proto_rawDescGZIP(), []int{28}
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 }
 
 func (x *ChainGovernorResetReleaseTimerRequest) GetVaaId() string {
@@ -1838,7 +2280,15 @@ type ChainGovernorResetReleaseTimerResponse struct {
 func (x *ChainGovernorResetReleaseTimerResponse) Reset() {
 	*x = ChainGovernorResetReleaseTimerResponse{}
 	if protoimpl.UnsafeEnabled {
+<<<<<<< HEAD
 		mi := &file_node_v1_node_proto_msgTypes[28]
+=======
+<<<<<<< HEAD
+		mi := &file_node_v1_node_proto_msgTypes[25]
+=======
+		mi := &file_node_v1_node_proto_msgTypes[29]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1851,7 +2301,15 @@ func (x *ChainGovernorResetReleaseTimerResponse) String() string {
 func (*ChainGovernorResetReleaseTimerResponse) ProtoMessage() {}
 
 func (x *ChainGovernorResetReleaseTimerResponse) ProtoReflect() protoreflect.Message {
+<<<<<<< HEAD
 	mi := &file_node_v1_node_proto_msgTypes[28]
+=======
+<<<<<<< HEAD
+	mi := &file_node_v1_node_proto_msgTypes[25]
+=======
+	mi := &file_node_v1_node_proto_msgTypes[29]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1864,7 +2322,15 @@ func (x *ChainGovernorResetReleaseTimerResponse) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use ChainGovernorResetReleaseTimerResponse.ProtoReflect.Descriptor instead.
 func (*ChainGovernorResetReleaseTimerResponse) Descriptor() ([]byte, []int) {
+<<<<<<< HEAD
 	return file_node_v1_node_proto_rawDescGZIP(), []int{28}
+=======
+<<<<<<< HEAD
+	return file_node_v1_node_proto_rawDescGZIP(), []int{25}
+=======
+	return file_node_v1_node_proto_rawDescGZIP(), []int{29}
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 }
 
 func (x *ChainGovernorResetReleaseTimerResponse) GetResponse() string {
@@ -1886,7 +2352,15 @@ type PurgePythNetVaasRequest struct {
 func (x *PurgePythNetVaasRequest) Reset() {
 	*x = PurgePythNetVaasRequest{}
 	if protoimpl.UnsafeEnabled {
+<<<<<<< HEAD
 		mi := &file_node_v1_node_proto_msgTypes[29]
+=======
+<<<<<<< HEAD
+		mi := &file_node_v1_node_proto_msgTypes[26]
+=======
+		mi := &file_node_v1_node_proto_msgTypes[30]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1899,7 +2373,15 @@ func (x *PurgePythNetVaasRequest) String() string {
 func (*PurgePythNetVaasRequest) ProtoMessage() {}
 
 func (x *PurgePythNetVaasRequest) ProtoReflect() protoreflect.Message {
+<<<<<<< HEAD
 	mi := &file_node_v1_node_proto_msgTypes[29]
+=======
+<<<<<<< HEAD
+	mi := &file_node_v1_node_proto_msgTypes[26]
+=======
+	mi := &file_node_v1_node_proto_msgTypes[30]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1912,7 +2394,15 @@ func (x *PurgePythNetVaasRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PurgePythNetVaasRequest.ProtoReflect.Descriptor instead.
 func (*PurgePythNetVaasRequest) Descriptor() ([]byte, []int) {
+<<<<<<< HEAD
 	return file_node_v1_node_proto_rawDescGZIP(), []int{29}
+=======
+<<<<<<< HEAD
+	return file_node_v1_node_proto_rawDescGZIP(), []int{26}
+=======
+	return file_node_v1_node_proto_rawDescGZIP(), []int{30}
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 }
 
 func (x *PurgePythNetVaasRequest) GetDaysOld() uint64 {
@@ -1940,7 +2430,15 @@ type PurgePythNetVaasResponse struct {
 func (x *PurgePythNetVaasResponse) Reset() {
 	*x = PurgePythNetVaasResponse{}
 	if protoimpl.UnsafeEnabled {
+<<<<<<< HEAD
 		mi := &file_node_v1_node_proto_msgTypes[30]
+=======
+<<<<<<< HEAD
+		mi := &file_node_v1_node_proto_msgTypes[27]
+=======
+		mi := &file_node_v1_node_proto_msgTypes[31]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1953,7 +2451,15 @@ func (x *PurgePythNetVaasResponse) String() string {
 func (*PurgePythNetVaasResponse) ProtoMessage() {}
 
 func (x *PurgePythNetVaasResponse) ProtoReflect() protoreflect.Message {
+<<<<<<< HEAD
 	mi := &file_node_v1_node_proto_msgTypes[30]
+=======
+<<<<<<< HEAD
+	mi := &file_node_v1_node_proto_msgTypes[27]
+=======
+	mi := &file_node_v1_node_proto_msgTypes[31]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1966,7 +2472,15 @@ func (x *PurgePythNetVaasResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PurgePythNetVaasResponse.ProtoReflect.Descriptor instead.
 func (*PurgePythNetVaasResponse) Descriptor() ([]byte, []int) {
+<<<<<<< HEAD
 	return file_node_v1_node_proto_rawDescGZIP(), []int{30}
+=======
+<<<<<<< HEAD
+	return file_node_v1_node_proto_rawDescGZIP(), []int{27}
+=======
+	return file_node_v1_node_proto_rawDescGZIP(), []int{31}
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 }
 
 func (x *PurgePythNetVaasResponse) GetResponse() string {
@@ -1989,7 +2503,15 @@ type SignExistingVAARequest struct {
 func (x *SignExistingVAARequest) Reset() {
 	*x = SignExistingVAARequest{}
 	if protoimpl.UnsafeEnabled {
+<<<<<<< HEAD
 		mi := &file_node_v1_node_proto_msgTypes[31]
+=======
+<<<<<<< HEAD
+		mi := &file_node_v1_node_proto_msgTypes[28]
+=======
+		mi := &file_node_v1_node_proto_msgTypes[32]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2002,7 +2524,15 @@ func (x *SignExistingVAARequest) String() string {
 func (*SignExistingVAARequest) ProtoMessage() {}
 
 func (x *SignExistingVAARequest) ProtoReflect() protoreflect.Message {
+<<<<<<< HEAD
 	mi := &file_node_v1_node_proto_msgTypes[31]
+=======
+<<<<<<< HEAD
+	mi := &file_node_v1_node_proto_msgTypes[28]
+=======
+	mi := &file_node_v1_node_proto_msgTypes[32]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2015,7 +2545,15 @@ func (x *SignExistingVAARequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignExistingVAARequest.ProtoReflect.Descriptor instead.
 func (*SignExistingVAARequest) Descriptor() ([]byte, []int) {
+<<<<<<< HEAD
 	return file_node_v1_node_proto_rawDescGZIP(), []int{31}
+=======
+<<<<<<< HEAD
+	return file_node_v1_node_proto_rawDescGZIP(), []int{28}
+=======
+	return file_node_v1_node_proto_rawDescGZIP(), []int{32}
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 }
 
 func (x *SignExistingVAARequest) GetVaa() []byte {
@@ -2050,7 +2588,15 @@ type SignExistingVAAResponse struct {
 func (x *SignExistingVAAResponse) Reset() {
 	*x = SignExistingVAAResponse{}
 	if protoimpl.UnsafeEnabled {
+<<<<<<< HEAD
 		mi := &file_node_v1_node_proto_msgTypes[32]
+=======
+<<<<<<< HEAD
+		mi := &file_node_v1_node_proto_msgTypes[29]
+=======
+		mi := &file_node_v1_node_proto_msgTypes[33]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2063,7 +2609,15 @@ func (x *SignExistingVAAResponse) String() string {
 func (*SignExistingVAAResponse) ProtoMessage() {}
 
 func (x *SignExistingVAAResponse) ProtoReflect() protoreflect.Message {
+<<<<<<< HEAD
 	mi := &file_node_v1_node_proto_msgTypes[32]
+=======
+<<<<<<< HEAD
+	mi := &file_node_v1_node_proto_msgTypes[29]
+=======
+	mi := &file_node_v1_node_proto_msgTypes[33]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2076,7 +2630,15 @@ func (x *SignExistingVAAResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignExistingVAAResponse.ProtoReflect.Descriptor instead.
 func (*SignExistingVAAResponse) Descriptor() ([]byte, []int) {
+<<<<<<< HEAD
 	return file_node_v1_node_proto_rawDescGZIP(), []int{32}
+=======
+<<<<<<< HEAD
+	return file_node_v1_node_proto_rawDescGZIP(), []int{29}
+=======
+	return file_node_v1_node_proto_rawDescGZIP(), []int{33}
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 }
 
 func (x *SignExistingVAAResponse) GetVaa() []byte {
@@ -2095,7 +2657,15 @@ type DumpRPCsRequest struct {
 func (x *DumpRPCsRequest) Reset() {
 	*x = DumpRPCsRequest{}
 	if protoimpl.UnsafeEnabled {
+<<<<<<< HEAD
 		mi := &file_node_v1_node_proto_msgTypes[33]
+=======
+<<<<<<< HEAD
+		mi := &file_node_v1_node_proto_msgTypes[30]
+=======
+		mi := &file_node_v1_node_proto_msgTypes[34]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2108,7 +2678,15 @@ func (x *DumpRPCsRequest) String() string {
 func (*DumpRPCsRequest) ProtoMessage() {}
 
 func (x *DumpRPCsRequest) ProtoReflect() protoreflect.Message {
+<<<<<<< HEAD
 	mi := &file_node_v1_node_proto_msgTypes[33]
+=======
+<<<<<<< HEAD
+	mi := &file_node_v1_node_proto_msgTypes[30]
+=======
+	mi := &file_node_v1_node_proto_msgTypes[34]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2121,7 +2699,15 @@ func (x *DumpRPCsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DumpRPCsRequest.ProtoReflect.Descriptor instead.
 func (*DumpRPCsRequest) Descriptor() ([]byte, []int) {
+<<<<<<< HEAD
 	return file_node_v1_node_proto_rawDescGZIP(), []int{33}
+=======
+<<<<<<< HEAD
+	return file_node_v1_node_proto_rawDescGZIP(), []int{30}
+=======
+	return file_node_v1_node_proto_rawDescGZIP(), []int{34}
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 }
 
 type DumpRPCsResponse struct {
@@ -2135,7 +2721,15 @@ type DumpRPCsResponse struct {
 func (x *DumpRPCsResponse) Reset() {
 	*x = DumpRPCsResponse{}
 	if protoimpl.UnsafeEnabled {
+<<<<<<< HEAD
 		mi := &file_node_v1_node_proto_msgTypes[34]
+=======
+<<<<<<< HEAD
+		mi := &file_node_v1_node_proto_msgTypes[31]
+=======
+		mi := &file_node_v1_node_proto_msgTypes[35]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2148,7 +2742,15 @@ func (x *DumpRPCsResponse) String() string {
 func (*DumpRPCsResponse) ProtoMessage() {}
 
 func (x *DumpRPCsResponse) ProtoReflect() protoreflect.Message {
+<<<<<<< HEAD
 	mi := &file_node_v1_node_proto_msgTypes[34]
+=======
+<<<<<<< HEAD
+	mi := &file_node_v1_node_proto_msgTypes[31]
+=======
+	mi := &file_node_v1_node_proto_msgTypes[35]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2161,7 +2763,15 @@ func (x *DumpRPCsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DumpRPCsResponse.ProtoReflect.Descriptor instead.
 func (*DumpRPCsResponse) Descriptor() ([]byte, []int) {
+<<<<<<< HEAD
 	return file_node_v1_node_proto_rawDescGZIP(), []int{34}
+=======
+<<<<<<< HEAD
+	return file_node_v1_node_proto_rawDescGZIP(), []int{31}
+=======
+	return file_node_v1_node_proto_rawDescGZIP(), []int{35}
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 }
 
 func (x *DumpRPCsResponse) GetResponse() map[string]string {
@@ -2187,7 +2797,15 @@ type GuardianSetUpdate_Guardian struct {
 func (x *GuardianSetUpdate_Guardian) Reset() {
 	*x = GuardianSetUpdate_Guardian{}
 	if protoimpl.UnsafeEnabled {
+<<<<<<< HEAD
 		mi := &file_node_v1_node_proto_msgTypes[35]
+=======
+<<<<<<< HEAD
+		mi := &file_node_v1_node_proto_msgTypes[32]
+=======
+		mi := &file_node_v1_node_proto_msgTypes[36]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -2200,7 +2818,15 @@ func (x *GuardianSetUpdate_Guardian) String() string {
 func (*GuardianSetUpdate_Guardian) ProtoMessage() {}
 
 func (x *GuardianSetUpdate_Guardian) ProtoReflect() protoreflect.Message {
+<<<<<<< HEAD
 	mi := &file_node_v1_node_proto_msgTypes[35]
+=======
+<<<<<<< HEAD
+	mi := &file_node_v1_node_proto_msgTypes[32]
+=======
+	mi := &file_node_v1_node_proto_msgTypes[36]
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2246,7 +2872,15 @@ var file_node_v1_node_proto_rawDesc = []byte{
 	0x65, 0x72, 0x6e, 0x61, 0x6e, 0x63, 0x65, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x52, 0x08,
 	0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x73, 0x12, 0x1c, 0x0a, 0x09, 0x74, 0x69, 0x6d, 0x65,
 	0x73, 0x74, 0x61, 0x6d, 0x70, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x09, 0x74, 0x69, 0x6d,
+<<<<<<< HEAD
 	0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x22, 0xde, 0x09, 0x0a, 0x11, 0x47, 0x6f, 0x76, 0x65, 0x72,
+=======
+<<<<<<< HEAD
+	0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x22, 0xfd, 0x05, 0x0a, 0x11, 0x47, 0x6f, 0x76, 0x65, 0x72,
+=======
+	0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x22, 0xe3, 0x0a, 0x0a, 0x11, 0x47, 0x6f, 0x76, 0x65, 0x72,
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	0x6e, 0x61, 0x6e, 0x63, 0x65, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x12, 0x1a, 0x0a, 0x08,
 	0x73, 0x65, 0x71, 0x75, 0x65, 0x6e, 0x63, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x04, 0x52, 0x08,
 	0x73, 0x65, 0x71, 0x75, 0x65, 0x6e, 0x63, 0x65, 0x12, 0x14, 0x0a, 0x05, 0x6e, 0x6f, 0x6e, 0x63,
@@ -2270,6 +2904,7 @@ var file_node_v1_node_proto_rawDesc = []byte{
 	0x64, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x42, 0x72, 0x69, 0x64, 0x67, 0x65, 0x55, 0x70, 0x67, 0x72,
 	0x61, 0x64, 0x65, 0x43, 0x6f, 0x6e, 0x74, 0x72, 0x61, 0x63, 0x74, 0x48, 0x00, 0x52, 0x15, 0x62,
 	0x72, 0x69, 0x64, 0x67, 0x65, 0x43, 0x6f, 0x6e, 0x74, 0x72, 0x61, 0x63, 0x74, 0x55, 0x70, 0x67,
+<<<<<<< HEAD
 	0x72, 0x61, 0x64, 0x65, 0x12, 0x4f, 0x0a, 0x14, 0x77, 0x6f, 0x72, 0x6d, 0x63, 0x68, 0x61, 0x69,
 	0x6e, 0x5f, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x5f, 0x63, 0x6f, 0x64, 0x65, 0x18, 0x0e, 0x20, 0x01,
 	0x28, 0x0b, 0x32, 0x1b, 0x2e, 0x6e, 0x6f, 0x64, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x57, 0x6f, 0x72,
@@ -2424,11 +3059,251 @@ var file_node_v1_node_proto_rawDesc = []byte{
 	0x5f, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x5f, 0x69, 0x64, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0d, 0x52,
 	0x0d, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x49, 0x64, 0x22, 0x96,
 	0x01, 0x0a, 0x2e, 0x43, 0x69, 0x72, 0x63, 0x6c, 0x65, 0x49, 0x6e, 0x74, 0x65, 0x67, 0x72, 0x61,
+=======
+	0x72, 0x61, 0x64, 0x65, 0x12, 0x52, 0x0a, 0x15, 0x62, 0x72, 0x69, 0x64, 0x67, 0x65, 0x5f, 0x6d,
+	0x6f, 0x64, 0x69, 0x66, 0x79, 0x5f, 0x62, 0x61, 0x6c, 0x61, 0x6e, 0x63, 0x65, 0x18, 0x11, 0x20,
+	0x01, 0x28, 0x0b, 0x32, 0x1c, 0x2e, 0x6e, 0x6f, 0x64, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x42, 0x72,
+	0x69, 0x64, 0x67, 0x65, 0x4d, 0x6f, 0x64, 0x69, 0x66, 0x79, 0x42, 0x61, 0x6c, 0x61, 0x6e, 0x63,
+	0x65, 0x48, 0x00, 0x52, 0x13, 0x62, 0x72, 0x69, 0x64, 0x67, 0x65, 0x4d, 0x6f, 0x64, 0x69, 0x66,
+	0x79, 0x42, 0x61, 0x6c, 0x61, 0x6e, 0x63, 0x65, 0x12, 0x4f, 0x0a, 0x14, 0x77, 0x6f, 0x72, 0x6d,
+	0x63, 0x68, 0x61, 0x69, 0x6e, 0x5f, 0x73, 0x74, 0x6f, 0x72, 0x65, 0x5f, 0x63, 0x6f, 0x64, 0x65,
+	0x18, 0x0e, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1b, 0x2e, 0x6e, 0x6f, 0x64, 0x65, 0x2e, 0x76, 0x31,
+	0x2e, 0x57, 0x6f, 0x72, 0x6d, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x53, 0x74, 0x6f, 0x72, 0x65, 0x43,
+	0x6f, 0x64, 0x65, 0x48, 0x00, 0x52, 0x12, 0x77, 0x6f, 0x72, 0x6d, 0x63, 0x68, 0x61, 0x69, 0x6e,
+	0x53, 0x74, 0x6f, 0x72, 0x65, 0x43, 0x6f, 0x64, 0x65, 0x12, 0x6d, 0x0a, 0x1e, 0x77, 0x6f, 0x72,
+	0x6d, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x5f, 0x69, 0x6e, 0x73, 0x74, 0x61, 0x6e, 0x74, 0x69, 0x61,
+	0x74, 0x65, 0x5f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x61, 0x63, 0x74, 0x18, 0x0f, 0x20, 0x01, 0x28,
+	0x0b, 0x32, 0x25, 0x2e, 0x6e, 0x6f, 0x64, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x57, 0x6f, 0x72, 0x6d,
+	0x63, 0x68, 0x61, 0x69, 0x6e, 0x49, 0x6e, 0x73, 0x74, 0x61, 0x6e, 0x74, 0x69, 0x61, 0x74, 0x65,
+	0x43, 0x6f, 0x6e, 0x74, 0x72, 0x61, 0x63, 0x74, 0x48, 0x00, 0x52, 0x1c, 0x77, 0x6f, 0x72, 0x6d,
+	0x63, 0x68, 0x61, 0x69, 0x6e, 0x49, 0x6e, 0x73, 0x74, 0x61, 0x6e, 0x74, 0x69, 0x61, 0x74, 0x65,
+	0x43, 0x6f, 0x6e, 0x74, 0x72, 0x61, 0x63, 0x74, 0x12, 0x61, 0x0a, 0x1a, 0x77, 0x6f, 0x72, 0x6d,
+	0x63, 0x68, 0x61, 0x69, 0x6e, 0x5f, 0x6d, 0x69, 0x67, 0x72, 0x61, 0x74, 0x65, 0x5f, 0x63, 0x6f,
+	0x6e, 0x74, 0x72, 0x61, 0x63, 0x74, 0x18, 0x10, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x21, 0x2e, 0x6e,
+	0x6f, 0x64, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x57, 0x6f, 0x72, 0x6d, 0x63, 0x68, 0x61, 0x69, 0x6e,
+	0x4d, 0x69, 0x67, 0x72, 0x61, 0x74, 0x65, 0x43, 0x6f, 0x6e, 0x74, 0x72, 0x61, 0x63, 0x74, 0x48,
+	0x00, 0x52, 0x18, 0x77, 0x6f, 0x72, 0x6d, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x4d, 0x69, 0x67, 0x72,
+<<<<<<< HEAD
+	0x61, 0x74, 0x65, 0x43, 0x6f, 0x6e, 0x74, 0x72, 0x61, 0x63, 0x74, 0x42, 0x09, 0x0a, 0x07, 0x70,
+	0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x22, 0x37, 0x0a, 0x1b, 0x49, 0x6e, 0x6a, 0x65, 0x63, 0x74,
+	0x47, 0x6f, 0x76, 0x65, 0x72, 0x6e, 0x61, 0x6e, 0x63, 0x65, 0x56, 0x41, 0x41, 0x52, 0x65, 0x73,
+	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x18, 0x0a, 0x07, 0x64, 0x69, 0x67, 0x65, 0x73, 0x74, 0x73,
+	0x18, 0x01, 0x20, 0x03, 0x28, 0x0c, 0x52, 0x07, 0x64, 0x69, 0x67, 0x65, 0x73, 0x74, 0x73, 0x22,
+	0x8e, 0x01, 0x0a, 0x11, 0x47, 0x75, 0x61, 0x72, 0x64, 0x69, 0x61, 0x6e, 0x53, 0x65, 0x74, 0x55,
+	0x70, 0x64, 0x61, 0x74, 0x65, 0x12, 0x41, 0x0a, 0x09, 0x67, 0x75, 0x61, 0x72, 0x64, 0x69, 0x61,
+	0x6e, 0x73, 0x18, 0x03, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x23, 0x2e, 0x6e, 0x6f, 0x64, 0x65, 0x2e,
+	0x76, 0x31, 0x2e, 0x47, 0x75, 0x61, 0x72, 0x64, 0x69, 0x61, 0x6e, 0x53, 0x65, 0x74, 0x55, 0x70,
+	0x64, 0x61, 0x74, 0x65, 0x2e, 0x47, 0x75, 0x61, 0x72, 0x64, 0x69, 0x61, 0x6e, 0x52, 0x09, 0x67,
+	0x75, 0x61, 0x72, 0x64, 0x69, 0x61, 0x6e, 0x73, 0x1a, 0x36, 0x0a, 0x08, 0x47, 0x75, 0x61, 0x72,
+	0x64, 0x69, 0x61, 0x6e, 0x12, 0x16, 0x0a, 0x06, 0x70, 0x75, 0x62, 0x6b, 0x65, 0x79, 0x18, 0x01,
+	0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x70, 0x75, 0x62, 0x6b, 0x65, 0x79, 0x12, 0x12, 0x0a, 0x04,
+	0x6e, 0x61, 0x6d, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65,
+	0x22, 0x5b, 0x0a, 0x0b, 0x47, 0x75, 0x61, 0x72, 0x64, 0x69, 0x61, 0x6e, 0x4b, 0x65, 0x79, 0x12,
+	0x12, 0x0a, 0x04, 0x64, 0x61, 0x74, 0x61, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x04, 0x64,
+	0x61, 0x74, 0x61, 0x12, 0x38, 0x0a, 0x18, 0x75, 0x6e, 0x73, 0x61, 0x66, 0x65, 0x5f, 0x64, 0x65,
+	0x74, 0x65, 0x72, 0x6d, 0x69, 0x6e, 0x69, 0x73, 0x74, 0x69, 0x63, 0x5f, 0x6b, 0x65, 0x79, 0x18,
+	0x02, 0x20, 0x01, 0x28, 0x08, 0x52, 0x16, 0x75, 0x6e, 0x73, 0x61, 0x66, 0x65, 0x44, 0x65, 0x74,
+	0x65, 0x72, 0x6d, 0x69, 0x6e, 0x69, 0x73, 0x74, 0x69, 0x63, 0x4b, 0x65, 0x79, 0x22, 0x71, 0x0a,
+	0x13, 0x42, 0x72, 0x69, 0x64, 0x67, 0x65, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x43,
+	0x68, 0x61, 0x69, 0x6e, 0x12, 0x16, 0x0a, 0x06, 0x6d, 0x6f, 0x64, 0x75, 0x6c, 0x65, 0x18, 0x01,
+	0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x6d, 0x6f, 0x64, 0x75, 0x6c, 0x65, 0x12, 0x19, 0x0a, 0x08,
+	0x63, 0x68, 0x61, 0x69, 0x6e, 0x5f, 0x69, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x07,
+	0x63, 0x68, 0x61, 0x69, 0x6e, 0x49, 0x64, 0x12, 0x27, 0x0a, 0x0f, 0x65, 0x6d, 0x69, 0x74, 0x74,
+	0x65, 0x72, 0x5f, 0x61, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x0e, 0x65, 0x6d, 0x69, 0x74, 0x74, 0x65, 0x72, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73,
+	0x22, 0xb1, 0x02, 0x0a, 0x13, 0x42, 0x72, 0x69, 0x64, 0x67, 0x65, 0x4d, 0x6f, 0x64, 0x69, 0x66,
+	0x79, 0x42, 0x61, 0x6c, 0x61, 0x6e, 0x63, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x6d, 0x6f, 0x64, 0x75,
+	0x6c, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x6d, 0x6f, 0x64, 0x75, 0x6c, 0x65,
+	0x12, 0x26, 0x0a, 0x0f, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x5f, 0x63, 0x68, 0x61, 0x69, 0x6e,
+	0x5f, 0x69, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x0d, 0x74, 0x61, 0x72, 0x67, 0x65,
+	0x74, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x49, 0x64, 0x12, 0x1a, 0x0a, 0x08, 0x73, 0x65, 0x71, 0x75,
+	0x65, 0x6e, 0x63, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x04, 0x52, 0x08, 0x73, 0x65, 0x71, 0x75,
+	0x65, 0x6e, 0x63, 0x65, 0x12, 0x19, 0x0a, 0x08, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x5f, 0x69, 0x64,
+	0x18, 0x04, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x07, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x49, 0x64, 0x12,
+	0x1f, 0x0a, 0x0b, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x5f, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x18, 0x05,
+	0x20, 0x01, 0x28, 0x0d, 0x52, 0x0a, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x43, 0x68, 0x61, 0x69, 0x6e,
+	0x12, 0x23, 0x0a, 0x0d, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x5f, 0x61, 0x64, 0x64, 0x72, 0x65, 0x73,
+	0x73, 0x18, 0x06, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0c, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x41, 0x64,
+	0x64, 0x72, 0x65, 0x73, 0x73, 0x12, 0x2d, 0x0a, 0x04, 0x6b, 0x69, 0x6e, 0x64, 0x18, 0x07, 0x20,
+	0x01, 0x28, 0x0e, 0x32, 0x19, 0x2e, 0x6e, 0x6f, 0x64, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x4d, 0x6f,
+	0x64, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x4b, 0x69, 0x6e, 0x64, 0x52, 0x04,
+	0x6b, 0x69, 0x6e, 0x64, 0x12, 0x16, 0x0a, 0x06, 0x61, 0x6d, 0x6f, 0x75, 0x6e, 0x74, 0x18, 0x08,
+	0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x61, 0x6d, 0x6f, 0x75, 0x6e, 0x74, 0x12, 0x16, 0x0a, 0x06,
+	0x72, 0x65, 0x61, 0x73, 0x6f, 0x6e, 0x18, 0x09, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x72, 0x65,
+	0x61, 0x73, 0x6f, 0x6e, 0x22, 0x4f, 0x0a, 0x0f, 0x43, 0x6f, 0x6e, 0x74, 0x72, 0x61, 0x63, 0x74,
+	0x55, 0x70, 0x67, 0x72, 0x61, 0x64, 0x65, 0x12, 0x19, 0x0a, 0x08, 0x63, 0x68, 0x61, 0x69, 0x6e,
+	0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x07, 0x63, 0x68, 0x61, 0x69, 0x6e,
+	0x49, 0x64, 0x12, 0x21, 0x0a, 0x0c, 0x6e, 0x65, 0x77, 0x5f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x61,
+	0x63, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0b, 0x6e, 0x65, 0x77, 0x43, 0x6f, 0x6e,
+	0x74, 0x72, 0x61, 0x63, 0x74, 0x22, 0x7a, 0x0a, 0x15, 0x42, 0x72, 0x69, 0x64, 0x67, 0x65, 0x55,
+	0x70, 0x67, 0x72, 0x61, 0x64, 0x65, 0x43, 0x6f, 0x6e, 0x74, 0x72, 0x61, 0x63, 0x74, 0x12, 0x16,
+	0x0a, 0x06, 0x6d, 0x6f, 0x64, 0x75, 0x6c, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06,
+	0x6d, 0x6f, 0x64, 0x75, 0x6c, 0x65, 0x12, 0x26, 0x0a, 0x0f, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74,
+	0x5f, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x5f, 0x69, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0d, 0x52,
+	0x0d, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x49, 0x64, 0x12, 0x21,
+	0x0a, 0x0c, 0x6e, 0x65, 0x77, 0x5f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x61, 0x63, 0x74, 0x18, 0x03,
+	0x20, 0x01, 0x28, 0x09, 0x52, 0x0b, 0x6e, 0x65, 0x77, 0x43, 0x6f, 0x6e, 0x74, 0x72, 0x61, 0x63,
+	0x74, 0x22, 0x31, 0x0a, 0x12, 0x57, 0x6f, 0x72, 0x6d, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x53, 0x74,
+	0x6f, 0x72, 0x65, 0x43, 0x6f, 0x64, 0x65, 0x12, 0x1b, 0x0a, 0x09, 0x77, 0x61, 0x73, 0x6d, 0x5f,
+	0x68, 0x61, 0x73, 0x68, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x77, 0x61, 0x73, 0x6d,
+	0x48, 0x61, 0x73, 0x68, 0x22, 0x7a, 0x0a, 0x1c, 0x57, 0x6f, 0x72, 0x6d, 0x63, 0x68, 0x61, 0x69,
+	0x6e, 0x49, 0x6e, 0x73, 0x74, 0x61, 0x6e, 0x74, 0x69, 0x61, 0x74, 0x65, 0x43, 0x6f, 0x6e, 0x74,
+	0x72, 0x61, 0x63, 0x74, 0x12, 0x17, 0x0a, 0x07, 0x63, 0x6f, 0x64, 0x65, 0x5f, 0x69, 0x64, 0x18,
+	0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x06, 0x63, 0x6f, 0x64, 0x65, 0x49, 0x64, 0x12, 0x14, 0x0a,
+	0x05, 0x6c, 0x61, 0x62, 0x65, 0x6c, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x6c, 0x61,
+	0x62, 0x65, 0x6c, 0x12, 0x2b, 0x0a, 0x11, 0x69, 0x6e, 0x73, 0x74, 0x61, 0x6e, 0x74, 0x69, 0x61,
+	0x74, 0x69, 0x6f, 0x6e, 0x5f, 0x6d, 0x73, 0x67, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x10,
+	0x69, 0x6e, 0x73, 0x74, 0x61, 0x6e, 0x74, 0x69, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x4d, 0x73, 0x67,
+	0x22, 0x7c, 0x0a, 0x18, 0x57, 0x6f, 0x72, 0x6d, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x4d, 0x69, 0x67,
+	0x72, 0x61, 0x74, 0x65, 0x43, 0x6f, 0x6e, 0x74, 0x72, 0x61, 0x63, 0x74, 0x12, 0x17, 0x0a, 0x07,
+	0x63, 0x6f, 0x64, 0x65, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x06, 0x63,
+	0x6f, 0x64, 0x65, 0x49, 0x64, 0x12, 0x1a, 0x0a, 0x08, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x61, 0x63,
+	0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x61, 0x63,
+	0x74, 0x12, 0x2b, 0x0a, 0x11, 0x69, 0x6e, 0x73, 0x74, 0x61, 0x6e, 0x74, 0x69, 0x61, 0x74, 0x69,
+	0x6f, 0x6e, 0x5f, 0x6d, 0x73, 0x67, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x10, 0x69, 0x6e,
+	0x73, 0x74, 0x61, 0x6e, 0x74, 0x69, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x4d, 0x73, 0x67, 0x22, 0xb4,
+=======
+	0x61, 0x74, 0x65, 0x43, 0x6f, 0x6e, 0x74, 0x72, 0x61, 0x63, 0x74, 0x12, 0x90, 0x01, 0x0a, 0x2b,
+	0x63, 0x69, 0x72, 0x63, 0x6c, 0x65, 0x5f, 0x69, 0x6e, 0x74, 0x65, 0x67, 0x72, 0x61, 0x74, 0x69,
+	0x6f, 0x6e, 0x5f, 0x75, 0x70, 0x64, 0x61, 0x74, 0x65, 0x5f, 0x77, 0x6f, 0x72, 0x6d, 0x68, 0x6f,
+	0x6c, 0x65, 0x5f, 0x66, 0x69, 0x6e, 0x61, 0x6c, 0x69, 0x74, 0x79, 0x18, 0x12, 0x20, 0x01, 0x28,
+	0x0b, 0x32, 0x30, 0x2e, 0x6e, 0x6f, 0x64, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x43, 0x69, 0x72, 0x63,
+	0x6c, 0x65, 0x49, 0x6e, 0x74, 0x65, 0x67, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x55, 0x70, 0x64,
+	0x61, 0x74, 0x65, 0x57, 0x6f, 0x72, 0x6d, 0x68, 0x6f, 0x6c, 0x65, 0x46, 0x69, 0x6e, 0x61, 0x6c,
+	0x69, 0x74, 0x79, 0x48, 0x00, 0x52, 0x27, 0x63, 0x69, 0x72, 0x63, 0x6c, 0x65, 0x49, 0x6e, 0x74,
+	0x65, 0x67, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x55, 0x70, 0x64, 0x61, 0x74, 0x65, 0x57, 0x6f,
+	0x72, 0x6d, 0x68, 0x6f, 0x6c, 0x65, 0x46, 0x69, 0x6e, 0x61, 0x6c, 0x69, 0x74, 0x79, 0x12, 0x97,
+	0x01, 0x0a, 0x2e, 0x63, 0x69, 0x72, 0x63, 0x6c, 0x65, 0x5f, 0x69, 0x6e, 0x74, 0x65, 0x67, 0x72,
+	0x61, 0x74, 0x69, 0x6f, 0x6e, 0x5f, 0x72, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x5f, 0x65,
+	0x6d, 0x69, 0x74, 0x74, 0x65, 0x72, 0x5f, 0x61, 0x6e, 0x64, 0x5f, 0x64, 0x6f, 0x6d, 0x61, 0x69,
+	0x6e, 0x18, 0x13, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x32, 0x2e, 0x6e, 0x6f, 0x64, 0x65, 0x2e, 0x76,
+	0x31, 0x2e, 0x43, 0x69, 0x72, 0x63, 0x6c, 0x65, 0x49, 0x6e, 0x74, 0x65, 0x67, 0x72, 0x61, 0x74,
+	0x69, 0x6f, 0x6e, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x45, 0x6d, 0x69, 0x74, 0x74,
+	0x65, 0x72, 0x41, 0x6e, 0x64, 0x44, 0x6f, 0x6d, 0x61, 0x69, 0x6e, 0x48, 0x00, 0x52, 0x29, 0x63,
+	0x69, 0x72, 0x63, 0x6c, 0x65, 0x49, 0x6e, 0x74, 0x65, 0x67, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e,
+	0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x45, 0x6d, 0x69, 0x74, 0x74, 0x65, 0x72, 0x41,
+	0x6e, 0x64, 0x44, 0x6f, 0x6d, 0x61, 0x69, 0x6e, 0x12, 0xa5, 0x01, 0x0a, 0x32, 0x63, 0x69, 0x72,
+	0x63, 0x6c, 0x65, 0x5f, 0x69, 0x6e, 0x74, 0x65, 0x67, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x5f,
+	0x75, 0x70, 0x67, 0x72, 0x61, 0x64, 0x65, 0x5f, 0x63, 0x6f, 0x6e, 0x74, 0x72, 0x61, 0x63, 0x74,
+	0x5f, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x18,
+	0x14, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x37, 0x2e, 0x6e, 0x6f, 0x64, 0x65, 0x2e, 0x76, 0x31, 0x2e,
+	0x43, 0x69, 0x72, 0x63, 0x6c, 0x65, 0x49, 0x6e, 0x74, 0x65, 0x67, 0x72, 0x61, 0x74, 0x69, 0x6f,
+	0x6e, 0x55, 0x70, 0x67, 0x72, 0x61, 0x64, 0x65, 0x43, 0x6f, 0x6e, 0x74, 0x72, 0x61, 0x63, 0x74,
+	0x49, 0x6d, 0x70, 0x6c, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x48, 0x00,
+	0x52, 0x2e, 0x63, 0x69, 0x72, 0x63, 0x6c, 0x65, 0x49, 0x6e, 0x74, 0x65, 0x67, 0x72, 0x61, 0x74,
+	0x69, 0x6f, 0x6e, 0x55, 0x70, 0x67, 0x72, 0x61, 0x64, 0x65, 0x43, 0x6f, 0x6e, 0x74, 0x72, 0x61,
+	0x63, 0x74, 0x49, 0x6d, 0x70, 0x6c, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x61, 0x74, 0x69, 0x6f, 0x6e,
+	0x12, 0x8e, 0x01, 0x0a, 0x2b, 0x77, 0x6f, 0x72, 0x6d, 0x68, 0x6f, 0x6c, 0x65, 0x5f, 0x72, 0x65,
+	0x6c, 0x61, 0x79, 0x65, 0x72, 0x5f, 0x73, 0x65, 0x74, 0x5f, 0x64, 0x65, 0x66, 0x61, 0x75, 0x6c,
+	0x74, 0x5f, 0x72, 0x65, 0x6c, 0x61, 0x79, 0x5f, 0x70, 0x72, 0x6f, 0x76, 0x69, 0x64, 0x65, 0x72,
+	0x18, 0x15, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x2f, 0x2e, 0x6e, 0x6f, 0x64, 0x65, 0x2e, 0x76, 0x31,
+	0x2e, 0x57, 0x6f, 0x72, 0x6d, 0x68, 0x6f, 0x6c, 0x65, 0x52, 0x65, 0x6c, 0x61, 0x79, 0x65, 0x72,
+	0x53, 0x65, 0x74, 0x44, 0x65, 0x66, 0x61, 0x75, 0x6c, 0x74, 0x52, 0x65, 0x6c, 0x61, 0x79, 0x50,
+	0x72, 0x6f, 0x76, 0x69, 0x64, 0x65, 0x72, 0x48, 0x00, 0x52, 0x26, 0x77, 0x6f, 0x72, 0x6d, 0x68,
+	0x6f, 0x6c, 0x65, 0x52, 0x65, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x53, 0x65, 0x74, 0x44, 0x65, 0x66,
+	0x61, 0x75, 0x6c, 0x74, 0x52, 0x65, 0x6c, 0x61, 0x79, 0x50, 0x72, 0x6f, 0x76, 0x69, 0x64, 0x65,
+	0x72, 0x42, 0x09, 0x0a, 0x07, 0x70, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x22, 0x37, 0x0a, 0x1b,
+	0x49, 0x6e, 0x6a, 0x65, 0x63, 0x74, 0x47, 0x6f, 0x76, 0x65, 0x72, 0x6e, 0x61, 0x6e, 0x63, 0x65,
+	0x56, 0x41, 0x41, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x18, 0x0a, 0x07, 0x64,
+	0x69, 0x67, 0x65, 0x73, 0x74, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0c, 0x52, 0x07, 0x64, 0x69,
+	0x67, 0x65, 0x73, 0x74, 0x73, 0x22, 0x8e, 0x01, 0x0a, 0x11, 0x47, 0x75, 0x61, 0x72, 0x64, 0x69,
+	0x61, 0x6e, 0x53, 0x65, 0x74, 0x55, 0x70, 0x64, 0x61, 0x74, 0x65, 0x12, 0x41, 0x0a, 0x09, 0x67,
+	0x75, 0x61, 0x72, 0x64, 0x69, 0x61, 0x6e, 0x73, 0x18, 0x03, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x23,
+	0x2e, 0x6e, 0x6f, 0x64, 0x65, 0x2e, 0x76, 0x31, 0x2e, 0x47, 0x75, 0x61, 0x72, 0x64, 0x69, 0x61,
+	0x6e, 0x53, 0x65, 0x74, 0x55, 0x70, 0x64, 0x61, 0x74, 0x65, 0x2e, 0x47, 0x75, 0x61, 0x72, 0x64,
+	0x69, 0x61, 0x6e, 0x52, 0x09, 0x67, 0x75, 0x61, 0x72, 0x64, 0x69, 0x61, 0x6e, 0x73, 0x1a, 0x36,
+	0x0a, 0x08, 0x47, 0x75, 0x61, 0x72, 0x64, 0x69, 0x61, 0x6e, 0x12, 0x16, 0x0a, 0x06, 0x70, 0x75,
+	0x62, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x70, 0x75, 0x62, 0x6b,
+	0x65, 0x79, 0x12, 0x12, 0x0a, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x22, 0x5b, 0x0a, 0x0b, 0x47, 0x75, 0x61, 0x72, 0x64, 0x69,
+	0x61, 0x6e, 0x4b, 0x65, 0x79, 0x12, 0x12, 0x0a, 0x04, 0x64, 0x61, 0x74, 0x61, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x0c, 0x52, 0x04, 0x64, 0x61, 0x74, 0x61, 0x12, 0x38, 0x0a, 0x18, 0x75, 0x6e, 0x73,
+	0x61, 0x66, 0x65, 0x5f, 0x64, 0x65, 0x74, 0x65, 0x72, 0x6d, 0x69, 0x6e, 0x69, 0x73, 0x74, 0x69,
+	0x63, 0x5f, 0x6b, 0x65, 0x79, 0x18, 0x02, 0x20, 0x01, 0x28, 0x08, 0x52, 0x16, 0x75, 0x6e, 0x73,
+	0x61, 0x66, 0x65, 0x44, 0x65, 0x74, 0x65, 0x72, 0x6d, 0x69, 0x6e, 0x69, 0x73, 0x74, 0x69, 0x63,
+	0x4b, 0x65, 0x79, 0x22, 0x71, 0x0a, 0x13, 0x42, 0x72, 0x69, 0x64, 0x67, 0x65, 0x52, 0x65, 0x67,
+	0x69, 0x73, 0x74, 0x65, 0x72, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x12, 0x16, 0x0a, 0x06, 0x6d, 0x6f,
+	0x64, 0x75, 0x6c, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x6d, 0x6f, 0x64, 0x75,
+	0x6c, 0x65, 0x12, 0x19, 0x0a, 0x08, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x5f, 0x69, 0x64, 0x18, 0x02,
+	0x20, 0x01, 0x28, 0x0d, 0x52, 0x07, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x49, 0x64, 0x12, 0x27, 0x0a,
+	0x0f, 0x65, 0x6d, 0x69, 0x74, 0x74, 0x65, 0x72, 0x5f, 0x61, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73,
+	0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0e, 0x65, 0x6d, 0x69, 0x74, 0x74, 0x65, 0x72, 0x41,
+	0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x22, 0xb1, 0x02, 0x0a, 0x13, 0x42, 0x72, 0x69, 0x64, 0x67,
+	0x65, 0x4d, 0x6f, 0x64, 0x69, 0x66, 0x79, 0x42, 0x61, 0x6c, 0x61, 0x6e, 0x63, 0x65, 0x12, 0x16,
+	0x0a, 0x06, 0x6d, 0x6f, 0x64, 0x75, 0x6c, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06,
+	0x6d, 0x6f, 0x64, 0x75, 0x6c, 0x65, 0x12, 0x26, 0x0a, 0x0f, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74,
+	0x5f, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x5f, 0x69, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0d, 0x52,
+	0x0d, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x49, 0x64, 0x12, 0x1a,
+	0x0a, 0x08, 0x73, 0x65, 0x71, 0x75, 0x65, 0x6e, 0x63, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x04,
+	0x52, 0x08, 0x73, 0x65, 0x71, 0x75, 0x65, 0x6e, 0x63, 0x65, 0x12, 0x19, 0x0a, 0x08, 0x63, 0x68,
+	0x61, 0x69, 0x6e, 0x5f, 0x69, 0x64, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x07, 0x63, 0x68,
+	0x61, 0x69, 0x6e, 0x49, 0x64, 0x12, 0x1f, 0x0a, 0x0b, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x5f, 0x63,
+	0x68, 0x61, 0x69, 0x6e, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x0a, 0x74, 0x6f, 0x6b, 0x65,
+	0x6e, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x12, 0x23, 0x0a, 0x0d, 0x74, 0x6f, 0x6b, 0x65, 0x6e, 0x5f,
+	0x61, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x18, 0x06, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0c, 0x74,
+	0x6f, 0x6b, 0x65, 0x6e, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x12, 0x2d, 0x0a, 0x04, 0x6b,
+	0x69, 0x6e, 0x64, 0x18, 0x07, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x19, 0x2e, 0x6e, 0x6f, 0x64, 0x65,
+	0x2e, 0x76, 0x31, 0x2e, 0x4d, 0x6f, 0x64, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e,
+	0x4b, 0x69, 0x6e, 0x64, 0x52, 0x04, 0x6b, 0x69, 0x6e, 0x64, 0x12, 0x16, 0x0a, 0x06, 0x61, 0x6d,
+	0x6f, 0x75, 0x6e, 0x74, 0x18, 0x08, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x61, 0x6d, 0x6f, 0x75,
+	0x6e, 0x74, 0x12, 0x16, 0x0a, 0x06, 0x72, 0x65, 0x61, 0x73, 0x6f, 0x6e, 0x18, 0x09, 0x20, 0x01,
+	0x28, 0x09, 0x52, 0x06, 0x72, 0x65, 0x61, 0x73, 0x6f, 0x6e, 0x22, 0x4f, 0x0a, 0x0f, 0x43, 0x6f,
+	0x6e, 0x74, 0x72, 0x61, 0x63, 0x74, 0x55, 0x70, 0x67, 0x72, 0x61, 0x64, 0x65, 0x12, 0x19, 0x0a,
+	0x08, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0d, 0x52,
+	0x07, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x49, 0x64, 0x12, 0x21, 0x0a, 0x0c, 0x6e, 0x65, 0x77, 0x5f,
+	0x63, 0x6f, 0x6e, 0x74, 0x72, 0x61, 0x63, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0b,
+	0x6e, 0x65, 0x77, 0x43, 0x6f, 0x6e, 0x74, 0x72, 0x61, 0x63, 0x74, 0x22, 0x7a, 0x0a, 0x15, 0x42,
+	0x72, 0x69, 0x64, 0x67, 0x65, 0x55, 0x70, 0x67, 0x72, 0x61, 0x64, 0x65, 0x43, 0x6f, 0x6e, 0x74,
+	0x72, 0x61, 0x63, 0x74, 0x12, 0x16, 0x0a, 0x06, 0x6d, 0x6f, 0x64, 0x75, 0x6c, 0x65, 0x18, 0x01,
+	0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x6d, 0x6f, 0x64, 0x75, 0x6c, 0x65, 0x12, 0x26, 0x0a, 0x0f,
+	0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x5f, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x5f, 0x69, 0x64, 0x18,
+	0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x0d, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x43, 0x68, 0x61,
+	0x69, 0x6e, 0x49, 0x64, 0x12, 0x21, 0x0a, 0x0c, 0x6e, 0x65, 0x77, 0x5f, 0x63, 0x6f, 0x6e, 0x74,
+	0x72, 0x61, 0x63, 0x74, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0b, 0x6e, 0x65, 0x77, 0x43,
+	0x6f, 0x6e, 0x74, 0x72, 0x61, 0x63, 0x74, 0x22, 0x31, 0x0a, 0x12, 0x57, 0x6f, 0x72, 0x6d, 0x63,
+	0x68, 0x61, 0x69, 0x6e, 0x53, 0x74, 0x6f, 0x72, 0x65, 0x43, 0x6f, 0x64, 0x65, 0x12, 0x1b, 0x0a,
+	0x09, 0x77, 0x61, 0x73, 0x6d, 0x5f, 0x68, 0x61, 0x73, 0x68, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
+	0x52, 0x08, 0x77, 0x61, 0x73, 0x6d, 0x48, 0x61, 0x73, 0x68, 0x22, 0x7a, 0x0a, 0x1c, 0x57, 0x6f,
+	0x72, 0x6d, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x49, 0x6e, 0x73, 0x74, 0x61, 0x6e, 0x74, 0x69, 0x61,
+	0x74, 0x65, 0x43, 0x6f, 0x6e, 0x74, 0x72, 0x61, 0x63, 0x74, 0x12, 0x17, 0x0a, 0x07, 0x63, 0x6f,
+	0x64, 0x65, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x06, 0x63, 0x6f, 0x64,
+	0x65, 0x49, 0x64, 0x12, 0x14, 0x0a, 0x05, 0x6c, 0x61, 0x62, 0x65, 0x6c, 0x18, 0x02, 0x20, 0x01,
+	0x28, 0x09, 0x52, 0x05, 0x6c, 0x61, 0x62, 0x65, 0x6c, 0x12, 0x2b, 0x0a, 0x11, 0x69, 0x6e, 0x73,
+	0x74, 0x61, 0x6e, 0x74, 0x69, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x5f, 0x6d, 0x73, 0x67, 0x18, 0x03,
+	0x20, 0x01, 0x28, 0x09, 0x52, 0x10, 0x69, 0x6e, 0x73, 0x74, 0x61, 0x6e, 0x74, 0x69, 0x61, 0x74,
+	0x69, 0x6f, 0x6e, 0x4d, 0x73, 0x67, 0x22, 0x7c, 0x0a, 0x18, 0x57, 0x6f, 0x72, 0x6d, 0x63, 0x68,
+	0x61, 0x69, 0x6e, 0x4d, 0x69, 0x67, 0x72, 0x61, 0x74, 0x65, 0x43, 0x6f, 0x6e, 0x74, 0x72, 0x61,
+	0x63, 0x74, 0x12, 0x17, 0x0a, 0x07, 0x63, 0x6f, 0x64, 0x65, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x04, 0x52, 0x06, 0x63, 0x6f, 0x64, 0x65, 0x49, 0x64, 0x12, 0x1a, 0x0a, 0x08, 0x63,
+	0x6f, 0x6e, 0x74, 0x72, 0x61, 0x63, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x63,
+	0x6f, 0x6e, 0x74, 0x72, 0x61, 0x63, 0x74, 0x12, 0x2b, 0x0a, 0x11, 0x69, 0x6e, 0x73, 0x74, 0x61,
+	0x6e, 0x74, 0x69, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x5f, 0x6d, 0x73, 0x67, 0x18, 0x03, 0x20, 0x01,
+	0x28, 0x09, 0x52, 0x10, 0x69, 0x6e, 0x73, 0x74, 0x61, 0x6e, 0x74, 0x69, 0x61, 0x74, 0x69, 0x6f,
+	0x6e, 0x4d, 0x73, 0x67, 0x22, 0x45, 0x0a, 0x27, 0x43, 0x69, 0x72, 0x63, 0x6c, 0x65, 0x49, 0x6e,
+	0x74, 0x65, 0x67, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x55, 0x70, 0x64, 0x61, 0x74, 0x65, 0x57,
+	0x6f, 0x72, 0x6d, 0x68, 0x6f, 0x6c, 0x65, 0x46, 0x69, 0x6e, 0x61, 0x6c, 0x69, 0x74, 0x79, 0x12,
+	0x1a, 0x0a, 0x08, 0x66, 0x69, 0x6e, 0x61, 0x6c, 0x69, 0x74, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x0d, 0x52, 0x08, 0x66, 0x69, 0x6e, 0x61, 0x6c, 0x69, 0x74, 0x79, 0x22, 0xc1, 0x01, 0x0a, 0x29,
+	0x43, 0x69, 0x72, 0x63, 0x6c, 0x65, 0x49, 0x6e, 0x74, 0x65, 0x67, 0x72, 0x61, 0x74, 0x69, 0x6f,
+	0x6e, 0x52, 0x65, 0x67, 0x69, 0x73, 0x74, 0x65, 0x72, 0x45, 0x6d, 0x69, 0x74, 0x74, 0x65, 0x72,
+	0x41, 0x6e, 0x64, 0x44, 0x6f, 0x6d, 0x61, 0x69, 0x6e, 0x12, 0x37, 0x0a, 0x18, 0x66, 0x6f, 0x72,
+	0x65, 0x69, 0x67, 0x6e, 0x5f, 0x65, 0x6d, 0x69, 0x74, 0x74, 0x65, 0x72, 0x5f, 0x63, 0x68, 0x61,
+	0x69, 0x6e, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x15, 0x66, 0x6f, 0x72,
+	0x65, 0x69, 0x67, 0x6e, 0x45, 0x6d, 0x69, 0x74, 0x74, 0x65, 0x72, 0x43, 0x68, 0x61, 0x69, 0x6e,
+	0x49, 0x64, 0x12, 0x36, 0x0a, 0x17, 0x66, 0x6f, 0x72, 0x65, 0x69, 0x67, 0x6e, 0x5f, 0x65, 0x6d,
+	0x69, 0x74, 0x74, 0x65, 0x72, 0x5f, 0x61, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x18, 0x02, 0x20,
+	0x01, 0x28, 0x09, 0x52, 0x15, 0x66, 0x6f, 0x72, 0x65, 0x69, 0x67, 0x6e, 0x45, 0x6d, 0x69, 0x74,
+	0x74, 0x65, 0x72, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x12, 0x23, 0x0a, 0x0d, 0x63, 0x69,
+	0x72, 0x63, 0x6c, 0x65, 0x5f, 0x64, 0x6f, 0x6d, 0x61, 0x69, 0x6e, 0x18, 0x03, 0x20, 0x01, 0x28,
+	0x0d, 0x52, 0x0c, 0x63, 0x69, 0x72, 0x63, 0x6c, 0x65, 0x44, 0x6f, 0x6d, 0x61, 0x69, 0x6e, 0x22,
+	0x6e, 0x0a, 0x2e, 0x43, 0x69, 0x72, 0x63, 0x6c, 0x65, 0x49, 0x6e, 0x74, 0x65, 0x67, 0x72, 0x61,
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	0x74, 0x69, 0x6f, 0x6e, 0x55, 0x70, 0x67, 0x72, 0x61, 0x64, 0x65, 0x43, 0x6f, 0x6e, 0x74, 0x72,
 	0x61, 0x63, 0x74, 0x49, 0x6d, 0x70, 0x6c, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x61, 0x74, 0x69, 0x6f,
 	0x6e, 0x12, 0x3c, 0x0a, 0x1a, 0x6e, 0x65, 0x77, 0x5f, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x6d, 0x65,
 	0x6e, 0x74, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x5f, 0x61, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x18,
 	0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x18, 0x6e, 0x65, 0x77, 0x49, 0x6d, 0x70, 0x6c, 0x65, 0x6d,
+<<<<<<< HEAD
 	0x65, 0x6e, 0x74, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x12,
 	0x26, 0x0a, 0x0f, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x5f, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x5f,
 	0x69, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x0d, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74,
@@ -2464,6 +3339,57 @@ var file_node_v1_node_proto_rawDesc = []byte{
 	0x73, 0x65, 0x72, 0x76, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
 	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x1c, 0x0a, 0x1a, 0x43, 0x68, 0x61, 0x69,
 	0x6e, 0x47, 0x6f, 0x76, 0x65, 0x72, 0x6e, 0x6f, 0x72, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x52,
+=======
+	0x65, 0x6e, 0x74, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x22,
+	0x9c, 0x01, 0x0a, 0x26, 0x57, 0x6f, 0x72, 0x6d, 0x68, 0x6f, 0x6c, 0x65, 0x52, 0x65, 0x6c, 0x61,
+	0x79, 0x65, 0x72, 0x53, 0x65, 0x74, 0x44, 0x65, 0x66, 0x61, 0x75, 0x6c, 0x74, 0x52, 0x65, 0x6c,
+	0x61, 0x79, 0x50, 0x72, 0x6f, 0x76, 0x69, 0x64, 0x65, 0x72, 0x12, 0x26, 0x0a, 0x0f, 0x74, 0x61,
+	0x72, 0x67, 0x65, 0x74, 0x5f, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x0d, 0x52, 0x0d, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x43, 0x68, 0x61, 0x69, 0x6e,
+	0x49, 0x64, 0x12, 0x4a, 0x0a, 0x22, 0x6e, 0x65, 0x77, 0x5f, 0x64, 0x65, 0x66, 0x61, 0x75, 0x6c,
+	0x74, 0x5f, 0x72, 0x65, 0x6c, 0x61, 0x79, 0x5f, 0x70, 0x72, 0x6f, 0x76, 0x69, 0x64, 0x65, 0x72,
+	0x5f, 0x61, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x1e,
+	0x6e, 0x65, 0x77, 0x44, 0x65, 0x66, 0x61, 0x75, 0x6c, 0x74, 0x52, 0x65, 0x6c, 0x61, 0x79, 0x50,
+	0x72, 0x6f, 0x76, 0x69, 0x64, 0x65, 0x72, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x22, 0xb4,
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+	0x01, 0x0a, 0x1a, 0x46, 0x69, 0x6e, 0x64, 0x4d, 0x69, 0x73, 0x73, 0x69, 0x6e, 0x67, 0x4d, 0x65,
+	0x73, 0x73, 0x61, 0x67, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x23, 0x0a,
+	0x0d, 0x65, 0x6d, 0x69, 0x74, 0x74, 0x65, 0x72, 0x5f, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x18, 0x01,
+	0x20, 0x01, 0x28, 0x0d, 0x52, 0x0c, 0x65, 0x6d, 0x69, 0x74, 0x74, 0x65, 0x72, 0x43, 0x68, 0x61,
+	0x69, 0x6e, 0x12, 0x27, 0x0a, 0x0f, 0x65, 0x6d, 0x69, 0x74, 0x74, 0x65, 0x72, 0x5f, 0x61, 0x64,
+	0x64, 0x72, 0x65, 0x73, 0x73, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0e, 0x65, 0x6d, 0x69,
+	0x74, 0x74, 0x65, 0x72, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x12, 0x21, 0x0a, 0x0c, 0x72,
+	0x70, 0x63, 0x5f, 0x62, 0x61, 0x63, 0x6b, 0x66, 0x69, 0x6c, 0x6c, 0x18, 0x03, 0x20, 0x01, 0x28,
+	0x08, 0x52, 0x0b, 0x72, 0x70, 0x63, 0x42, 0x61, 0x63, 0x6b, 0x66, 0x69, 0x6c, 0x6c, 0x12, 0x25,
+	0x0a, 0x0e, 0x62, 0x61, 0x63, 0x6b, 0x66, 0x69, 0x6c, 0x6c, 0x5f, 0x6e, 0x6f, 0x64, 0x65, 0x73,
+	0x18, 0x04, 0x20, 0x03, 0x28, 0x09, 0x52, 0x0d, 0x62, 0x61, 0x63, 0x6b, 0x66, 0x69, 0x6c, 0x6c,
+	0x4e, 0x6f, 0x64, 0x65, 0x73, 0x22, 0x94, 0x01, 0x0a, 0x1b, 0x46, 0x69, 0x6e, 0x64, 0x4d, 0x69,
+	0x73, 0x73, 0x69, 0x6e, 0x67, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x73, 0x52, 0x65, 0x73,
+	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x29, 0x0a, 0x10, 0x6d, 0x69, 0x73, 0x73, 0x69, 0x6e, 0x67,
+	0x5f, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x09, 0x52,
+	0x0f, 0x6d, 0x69, 0x73, 0x73, 0x69, 0x6e, 0x67, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x73,
+	0x12, 0x25, 0x0a, 0x0e, 0x66, 0x69, 0x72, 0x73, 0x74, 0x5f, 0x73, 0x65, 0x71, 0x75, 0x65, 0x6e,
+	0x63, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x04, 0x52, 0x0d, 0x66, 0x69, 0x72, 0x73, 0x74, 0x53,
+	0x65, 0x71, 0x75, 0x65, 0x6e, 0x63, 0x65, 0x12, 0x23, 0x0a, 0x0d, 0x6c, 0x61, 0x73, 0x74, 0x5f,
+	0x73, 0x65, 0x71, 0x75, 0x65, 0x6e, 0x63, 0x65, 0x18, 0x03, 0x20, 0x01, 0x28, 0x04, 0x52, 0x0c,
+	0x6c, 0x61, 0x73, 0x74, 0x53, 0x65, 0x71, 0x75, 0x65, 0x6e, 0x63, 0x65, 0x22, 0x6f, 0x0a, 0x1d,
+	0x53, 0x65, 0x6e, 0x64, 0x4f, 0x62, 0x73, 0x65, 0x72, 0x76, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x4e, 0x0a,
+	0x13, 0x6f, 0x62, 0x73, 0x65, 0x72, 0x76, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x5f, 0x72, 0x65, 0x71,
+	0x75, 0x65, 0x73, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1d, 0x2e, 0x67, 0x6f, 0x73,
+	0x73, 0x69, 0x70, 0x2e, 0x76, 0x31, 0x2e, 0x4f, 0x62, 0x73, 0x65, 0x72, 0x76, 0x61, 0x74, 0x69,
+	0x6f, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x52, 0x12, 0x6f, 0x62, 0x73, 0x65, 0x72,
+	0x76, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x20, 0x0a,
+	0x1e, 0x53, 0x65, 0x6e, 0x64, 0x4f, 0x62, 0x73, 0x65, 0x72, 0x76, 0x61, 0x74, 0x69, 0x6f, 0x6e,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22,
+	0x1c, 0x0a, 0x1a, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x47, 0x6f, 0x76, 0x65, 0x72, 0x6e, 0x6f, 0x72,
+	0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x39, 0x0a,
+	0x1b, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x47, 0x6f, 0x76, 0x65, 0x72, 0x6e, 0x6f, 0x72, 0x53, 0x74,
+	0x61, 0x74, 0x75, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x1a, 0x0a, 0x08,
+	0x72, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08,
+	0x72, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x1c, 0x0a, 0x1a, 0x43, 0x68, 0x61, 0x69,
+	0x6e, 0x47, 0x6f, 0x76, 0x65, 0x72, 0x6e, 0x6f, 0x72, 0x52, 0x65, 0x6c, 0x6f, 0x61, 0x64, 0x52,
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x39, 0x0a, 0x1b, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x47,
 	0x6f, 0x76, 0x65, 0x72, 0x6e, 0x6f, 0x72, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x52, 0x65, 0x73,
 	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x1a, 0x0a, 0x08, 0x72, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73,
@@ -2628,8 +3554,53 @@ func file_node_v1_node_proto_rawDescGZIP() []byte {
 }
 
 var file_node_v1_node_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+<<<<<<< HEAD
 var file_node_v1_node_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
 var file_node_v1_node_proto_goTypes = []interface{}{
+=======
+<<<<<<< HEAD
+var file_node_v1_node_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
+var file_node_v1_node_proto_goTypes = []interface{}{
+	(ModificationKind)(0),                          // 0: node.v1.ModificationKind
+	(*InjectGovernanceVAARequest)(nil),             // 1: node.v1.InjectGovernanceVAARequest
+	(*GovernanceMessage)(nil),                      // 2: node.v1.GovernanceMessage
+	(*InjectGovernanceVAAResponse)(nil),            // 3: node.v1.InjectGovernanceVAAResponse
+	(*GuardianSetUpdate)(nil),                      // 4: node.v1.GuardianSetUpdate
+	(*GuardianKey)(nil),                            // 5: node.v1.GuardianKey
+	(*BridgeRegisterChain)(nil),                    // 6: node.v1.BridgeRegisterChain
+	(*BridgeModifyBalance)(nil),                    // 7: node.v1.BridgeModifyBalance
+	(*ContractUpgrade)(nil),                        // 8: node.v1.ContractUpgrade
+	(*BridgeUpgradeContract)(nil),                  // 9: node.v1.BridgeUpgradeContract
+	(*WormchainStoreCode)(nil),                     // 10: node.v1.WormchainStoreCode
+	(*WormchainInstantiateContract)(nil),           // 11: node.v1.WormchainInstantiateContract
+	(*WormchainMigrateContract)(nil),               // 12: node.v1.WormchainMigrateContract
+	(*FindMissingMessagesRequest)(nil),             // 13: node.v1.FindMissingMessagesRequest
+	(*FindMissingMessagesResponse)(nil),            // 14: node.v1.FindMissingMessagesResponse
+	(*SendObservationRequestRequest)(nil),          // 15: node.v1.SendObservationRequestRequest
+	(*SendObservationRequestResponse)(nil),         // 16: node.v1.SendObservationRequestResponse
+	(*ChainGovernorStatusRequest)(nil),             // 17: node.v1.ChainGovernorStatusRequest
+	(*ChainGovernorStatusResponse)(nil),            // 18: node.v1.ChainGovernorStatusResponse
+	(*ChainGovernorReloadRequest)(nil),             // 19: node.v1.ChainGovernorReloadRequest
+	(*ChainGovernorReloadResponse)(nil),            // 20: node.v1.ChainGovernorReloadResponse
+	(*ChainGovernorDropPendingVAARequest)(nil),     // 21: node.v1.ChainGovernorDropPendingVAARequest
+	(*ChainGovernorDropPendingVAAResponse)(nil),    // 22: node.v1.ChainGovernorDropPendingVAAResponse
+	(*ChainGovernorReleasePendingVAARequest)(nil),  // 23: node.v1.ChainGovernorReleasePendingVAARequest
+	(*ChainGovernorReleasePendingVAAResponse)(nil), // 24: node.v1.ChainGovernorReleasePendingVAAResponse
+	(*ChainGovernorResetReleaseTimerRequest)(nil),  // 25: node.v1.ChainGovernorResetReleaseTimerRequest
+	(*ChainGovernorResetReleaseTimerResponse)(nil), // 26: node.v1.ChainGovernorResetReleaseTimerResponse
+	(*PurgePythNetVaasRequest)(nil),                // 27: node.v1.PurgePythNetVaasRequest
+	(*PurgePythNetVaasResponse)(nil),               // 28: node.v1.PurgePythNetVaasResponse
+	(*SignExistingVAARequest)(nil),                 // 29: node.v1.SignExistingVAARequest
+	(*SignExistingVAAResponse)(nil),                // 30: node.v1.SignExistingVAAResponse
+	(*DumpRPCsRequest)(nil),                        // 31: node.v1.DumpRPCsRequest
+	(*DumpRPCsResponse)(nil),                       // 32: node.v1.DumpRPCsResponse
+	(*GuardianSetUpdate_Guardian)(nil),             // 33: node.v1.GuardianSetUpdate.Guardian
+	nil,                                            // 34: node.v1.DumpRPCsResponse.ResponseEntry
+	(*v1.ObservationRequest)(nil),                  // 35: gossip.v1.ObservationRequest
+=======
+var file_node_v1_node_proto_msgTypes = make([]protoimpl.MessageInfo, 38)
+var file_node_v1_node_proto_goTypes = []interface{}{
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	(ModificationKind)(0),                                  // 0: node.v1.ModificationKind
 	(*InjectGovernanceVAARequest)(nil),                     // 1: node.v1.InjectGovernanceVAARequest
 	(*GovernanceMessage)(nil),                              // 2: node.v1.GovernanceMessage
@@ -2637,7 +3608,11 @@ var file_node_v1_node_proto_goTypes = []interface{}{
 	(*GuardianSetUpdate)(nil),                              // 4: node.v1.GuardianSetUpdate
 	(*GuardianKey)(nil),                                    // 5: node.v1.GuardianKey
 	(*BridgeRegisterChain)(nil),                            // 6: node.v1.BridgeRegisterChain
+<<<<<<< HEAD
 	(*AccountantModifyBalance)(nil),                        // 7: node.v1.AccountantModifyBalance
+=======
+	(*BridgeModifyBalance)(nil),                            // 7: node.v1.BridgeModifyBalance
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	(*ContractUpgrade)(nil),                                // 8: node.v1.ContractUpgrade
 	(*BridgeUpgradeContract)(nil),                          // 9: node.v1.BridgeUpgradeContract
 	(*WormchainStoreCode)(nil),                             // 10: node.v1.WormchainStoreCode
@@ -2646,6 +3621,7 @@ var file_node_v1_node_proto_goTypes = []interface{}{
 	(*CircleIntegrationUpdateWormholeFinality)(nil),        // 13: node.v1.CircleIntegrationUpdateWormholeFinality
 	(*CircleIntegrationRegisterEmitterAndDomain)(nil),      // 14: node.v1.CircleIntegrationRegisterEmitterAndDomain
 	(*CircleIntegrationUpgradeContractImplementation)(nil), // 15: node.v1.CircleIntegrationUpgradeContractImplementation
+<<<<<<< HEAD
 	(*FindMissingMessagesRequest)(nil),                     // 16: node.v1.FindMissingMessagesRequest
 	(*FindMissingMessagesResponse)(nil),                    // 17: node.v1.FindMissingMessagesResponse
 	(*SendObservationRequestRequest)(nil),                  // 18: node.v1.SendObservationRequestRequest
@@ -2669,6 +3645,33 @@ var file_node_v1_node_proto_goTypes = []interface{}{
 	(*GuardianSetUpdate_Guardian)(nil),                     // 36: node.v1.GuardianSetUpdate.Guardian
 	nil,                                                    // 37: node.v1.DumpRPCsResponse.ResponseEntry
 	(*v1.ObservationRequest)(nil),                          // 38: gossip.v1.ObservationRequest
+=======
+	(*WormholeRelayerSetDefaultRelayProvider)(nil),         // 16: node.v1.WormholeRelayerSetDefaultRelayProvider
+	(*FindMissingMessagesRequest)(nil),                     // 17: node.v1.FindMissingMessagesRequest
+	(*FindMissingMessagesResponse)(nil),                    // 18: node.v1.FindMissingMessagesResponse
+	(*SendObservationRequestRequest)(nil),                  // 19: node.v1.SendObservationRequestRequest
+	(*SendObservationRequestResponse)(nil),                 // 20: node.v1.SendObservationRequestResponse
+	(*ChainGovernorStatusRequest)(nil),                     // 21: node.v1.ChainGovernorStatusRequest
+	(*ChainGovernorStatusResponse)(nil),                    // 22: node.v1.ChainGovernorStatusResponse
+	(*ChainGovernorReloadRequest)(nil),                     // 23: node.v1.ChainGovernorReloadRequest
+	(*ChainGovernorReloadResponse)(nil),                    // 24: node.v1.ChainGovernorReloadResponse
+	(*ChainGovernorDropPendingVAARequest)(nil),             // 25: node.v1.ChainGovernorDropPendingVAARequest
+	(*ChainGovernorDropPendingVAAResponse)(nil),            // 26: node.v1.ChainGovernorDropPendingVAAResponse
+	(*ChainGovernorReleasePendingVAARequest)(nil),          // 27: node.v1.ChainGovernorReleasePendingVAARequest
+	(*ChainGovernorReleasePendingVAAResponse)(nil),         // 28: node.v1.ChainGovernorReleasePendingVAAResponse
+	(*ChainGovernorResetReleaseTimerRequest)(nil),          // 29: node.v1.ChainGovernorResetReleaseTimerRequest
+	(*ChainGovernorResetReleaseTimerResponse)(nil),         // 30: node.v1.ChainGovernorResetReleaseTimerResponse
+	(*PurgePythNetVaasRequest)(nil),                        // 31: node.v1.PurgePythNetVaasRequest
+	(*PurgePythNetVaasResponse)(nil),                       // 32: node.v1.PurgePythNetVaasResponse
+	(*SignExistingVAARequest)(nil),                         // 33: node.v1.SignExistingVAARequest
+	(*SignExistingVAAResponse)(nil),                        // 34: node.v1.SignExistingVAAResponse
+	(*DumpRPCsRequest)(nil),                                // 35: node.v1.DumpRPCsRequest
+	(*DumpRPCsResponse)(nil),                               // 36: node.v1.DumpRPCsResponse
+	(*GuardianSetUpdate_Guardian)(nil),                     // 37: node.v1.GuardianSetUpdate.Guardian
+	nil,                                                    // 38: node.v1.DumpRPCsResponse.ResponseEntry
+	(*v1.ObservationRequest)(nil),                          // 39: gossip.v1.ObservationRequest
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 }
 var file_node_v1_node_proto_depIdxs = []int32{
 	2,  // 0: node.v1.InjectGovernanceVAARequest.messages:type_name -> node.v1.GovernanceMessage
@@ -2676,6 +3679,7 @@ var file_node_v1_node_proto_depIdxs = []int32{
 	8,  // 2: node.v1.GovernanceMessage.contract_upgrade:type_name -> node.v1.ContractUpgrade
 	6,  // 3: node.v1.GovernanceMessage.bridge_register_chain:type_name -> node.v1.BridgeRegisterChain
 	9,  // 4: node.v1.GovernanceMessage.bridge_contract_upgrade:type_name -> node.v1.BridgeUpgradeContract
+<<<<<<< HEAD
 	10, // 5: node.v1.GovernanceMessage.wormchain_store_code:type_name -> node.v1.WormchainStoreCode
 	11, // 6: node.v1.GovernanceMessage.wormchain_instantiate_contract:type_name -> node.v1.WormchainInstantiateContract
 	12, // 7: node.v1.GovernanceMessage.wormchain_migrate_contract:type_name -> node.v1.WormchainMigrateContract
@@ -2714,6 +3718,81 @@ var file_node_v1_node_proto_depIdxs = []int32{
 	16, // [16:16] is the sub-list for extension type_name
 	16, // [16:16] is the sub-list for extension extendee
 	0,  // [0:16] is the sub-list for field type_name
+=======
+	7,  // 5: node.v1.GovernanceMessage.bridge_modify_balance:type_name -> node.v1.BridgeModifyBalance
+	10, // 6: node.v1.GovernanceMessage.wormchain_store_code:type_name -> node.v1.WormchainStoreCode
+	11, // 7: node.v1.GovernanceMessage.wormchain_instantiate_contract:type_name -> node.v1.WormchainInstantiateContract
+	12, // 8: node.v1.GovernanceMessage.wormchain_migrate_contract:type_name -> node.v1.WormchainMigrateContract
+<<<<<<< HEAD
+	33, // 9: node.v1.GuardianSetUpdate.guardians:type_name -> node.v1.GuardianSetUpdate.Guardian
+	0,  // 10: node.v1.BridgeModifyBalance.kind:type_name -> node.v1.ModificationKind
+	35, // 11: node.v1.SendObservationRequestRequest.observation_request:type_name -> gossip.v1.ObservationRequest
+	34, // 12: node.v1.DumpRPCsResponse.response:type_name -> node.v1.DumpRPCsResponse.ResponseEntry
+	1,  // 13: node.v1.NodePrivilegedService.InjectGovernanceVAA:input_type -> node.v1.InjectGovernanceVAARequest
+	13, // 14: node.v1.NodePrivilegedService.FindMissingMessages:input_type -> node.v1.FindMissingMessagesRequest
+	15, // 15: node.v1.NodePrivilegedService.SendObservationRequest:input_type -> node.v1.SendObservationRequestRequest
+	17, // 16: node.v1.NodePrivilegedService.ChainGovernorStatus:input_type -> node.v1.ChainGovernorStatusRequest
+	19, // 17: node.v1.NodePrivilegedService.ChainGovernorReload:input_type -> node.v1.ChainGovernorReloadRequest
+	21, // 18: node.v1.NodePrivilegedService.ChainGovernorDropPendingVAA:input_type -> node.v1.ChainGovernorDropPendingVAARequest
+	23, // 19: node.v1.NodePrivilegedService.ChainGovernorReleasePendingVAA:input_type -> node.v1.ChainGovernorReleasePendingVAARequest
+	25, // 20: node.v1.NodePrivilegedService.ChainGovernorResetReleaseTimer:input_type -> node.v1.ChainGovernorResetReleaseTimerRequest
+	27, // 21: node.v1.NodePrivilegedService.PurgePythNetVaas:input_type -> node.v1.PurgePythNetVaasRequest
+	29, // 22: node.v1.NodePrivilegedService.SignExistingVAA:input_type -> node.v1.SignExistingVAARequest
+	31, // 23: node.v1.NodePrivilegedService.DumpRPCs:input_type -> node.v1.DumpRPCsRequest
+	3,  // 24: node.v1.NodePrivilegedService.InjectGovernanceVAA:output_type -> node.v1.InjectGovernanceVAAResponse
+	14, // 25: node.v1.NodePrivilegedService.FindMissingMessages:output_type -> node.v1.FindMissingMessagesResponse
+	16, // 26: node.v1.NodePrivilegedService.SendObservationRequest:output_type -> node.v1.SendObservationRequestResponse
+	18, // 27: node.v1.NodePrivilegedService.ChainGovernorStatus:output_type -> node.v1.ChainGovernorStatusResponse
+	20, // 28: node.v1.NodePrivilegedService.ChainGovernorReload:output_type -> node.v1.ChainGovernorReloadResponse
+	22, // 29: node.v1.NodePrivilegedService.ChainGovernorDropPendingVAA:output_type -> node.v1.ChainGovernorDropPendingVAAResponse
+	24, // 30: node.v1.NodePrivilegedService.ChainGovernorReleasePendingVAA:output_type -> node.v1.ChainGovernorReleasePendingVAAResponse
+	26, // 31: node.v1.NodePrivilegedService.ChainGovernorResetReleaseTimer:output_type -> node.v1.ChainGovernorResetReleaseTimerResponse
+	28, // 32: node.v1.NodePrivilegedService.PurgePythNetVaas:output_type -> node.v1.PurgePythNetVaasResponse
+	30, // 33: node.v1.NodePrivilegedService.SignExistingVAA:output_type -> node.v1.SignExistingVAAResponse
+	32, // 34: node.v1.NodePrivilegedService.DumpRPCs:output_type -> node.v1.DumpRPCsResponse
+	24, // [24:35] is the sub-list for method output_type
+	13, // [13:24] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
+=======
+	13, // 9: node.v1.GovernanceMessage.circle_integration_update_wormhole_finality:type_name -> node.v1.CircleIntegrationUpdateWormholeFinality
+	14, // 10: node.v1.GovernanceMessage.circle_integration_register_emitter_and_domain:type_name -> node.v1.CircleIntegrationRegisterEmitterAndDomain
+	15, // 11: node.v1.GovernanceMessage.circle_integration_upgrade_contract_implementation:type_name -> node.v1.CircleIntegrationUpgradeContractImplementation
+	16, // 12: node.v1.GovernanceMessage.wormhole_relayer_set_default_relay_provider:type_name -> node.v1.WormholeRelayerSetDefaultRelayProvider
+	37, // 13: node.v1.GuardianSetUpdate.guardians:type_name -> node.v1.GuardianSetUpdate.Guardian
+	0,  // 14: node.v1.BridgeModifyBalance.kind:type_name -> node.v1.ModificationKind
+	39, // 15: node.v1.SendObservationRequestRequest.observation_request:type_name -> gossip.v1.ObservationRequest
+	38, // 16: node.v1.DumpRPCsResponse.response:type_name -> node.v1.DumpRPCsResponse.ResponseEntry
+	1,  // 17: node.v1.NodePrivilegedService.InjectGovernanceVAA:input_type -> node.v1.InjectGovernanceVAARequest
+	17, // 18: node.v1.NodePrivilegedService.FindMissingMessages:input_type -> node.v1.FindMissingMessagesRequest
+	19, // 19: node.v1.NodePrivilegedService.SendObservationRequest:input_type -> node.v1.SendObservationRequestRequest
+	21, // 20: node.v1.NodePrivilegedService.ChainGovernorStatus:input_type -> node.v1.ChainGovernorStatusRequest
+	23, // 21: node.v1.NodePrivilegedService.ChainGovernorReload:input_type -> node.v1.ChainGovernorReloadRequest
+	25, // 22: node.v1.NodePrivilegedService.ChainGovernorDropPendingVAA:input_type -> node.v1.ChainGovernorDropPendingVAARequest
+	27, // 23: node.v1.NodePrivilegedService.ChainGovernorReleasePendingVAA:input_type -> node.v1.ChainGovernorReleasePendingVAARequest
+	29, // 24: node.v1.NodePrivilegedService.ChainGovernorResetReleaseTimer:input_type -> node.v1.ChainGovernorResetReleaseTimerRequest
+	31, // 25: node.v1.NodePrivilegedService.PurgePythNetVaas:input_type -> node.v1.PurgePythNetVaasRequest
+	33, // 26: node.v1.NodePrivilegedService.SignExistingVAA:input_type -> node.v1.SignExistingVAARequest
+	35, // 27: node.v1.NodePrivilegedService.DumpRPCs:input_type -> node.v1.DumpRPCsRequest
+	3,  // 28: node.v1.NodePrivilegedService.InjectGovernanceVAA:output_type -> node.v1.InjectGovernanceVAAResponse
+	18, // 29: node.v1.NodePrivilegedService.FindMissingMessages:output_type -> node.v1.FindMissingMessagesResponse
+	20, // 30: node.v1.NodePrivilegedService.SendObservationRequest:output_type -> node.v1.SendObservationRequestResponse
+	22, // 31: node.v1.NodePrivilegedService.ChainGovernorStatus:output_type -> node.v1.ChainGovernorStatusResponse
+	24, // 32: node.v1.NodePrivilegedService.ChainGovernorReload:output_type -> node.v1.ChainGovernorReloadResponse
+	26, // 33: node.v1.NodePrivilegedService.ChainGovernorDropPendingVAA:output_type -> node.v1.ChainGovernorDropPendingVAAResponse
+	28, // 34: node.v1.NodePrivilegedService.ChainGovernorReleasePendingVAA:output_type -> node.v1.ChainGovernorReleasePendingVAAResponse
+	30, // 35: node.v1.NodePrivilegedService.ChainGovernorResetReleaseTimer:output_type -> node.v1.ChainGovernorResetReleaseTimerResponse
+	32, // 36: node.v1.NodePrivilegedService.PurgePythNetVaas:output_type -> node.v1.PurgePythNetVaasResponse
+	34, // 37: node.v1.NodePrivilegedService.SignExistingVAA:output_type -> node.v1.SignExistingVAAResponse
+	36, // 38: node.v1.NodePrivilegedService.DumpRPCs:output_type -> node.v1.DumpRPCsResponse
+	28, // [28:39] is the sub-list for method output_type
+	17, // [17:28] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 }
 
 func init() { file_node_v1_node_proto_init() }
@@ -2867,6 +3946,12 @@ func file_node_v1_node_proto_init() {
 			}
 		}
 		file_node_v1_node_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+			switch v := v.(*FindMissingMessagesRequest); i {
+=======
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 			switch v := v.(*CircleIntegrationUpdateWormholeFinality); i {
 			case 0:
 				return &v.state
@@ -2880,6 +3965,8 @@ func file_node_v1_node_proto_init() {
 		}
 		file_node_v1_node_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*CircleIntegrationRegisterEmitterAndDomain); i {
+<<<<<<< HEAD
+=======
 			case 0:
 				return &v.state
 			case 1:
@@ -2903,7 +3990,8 @@ func file_node_v1_node_proto_init() {
 			}
 		}
 		file_node_v1_node_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*FindMissingMessagesRequest); i {
+			switch v := v.(*WormholeRelayerSetDefaultRelayProvider); i {
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
 			case 0:
 				return &v.state
 			case 1:
@@ -2914,8 +4002,14 @@ func file_node_v1_node_proto_init() {
 				return nil
 			}
 		}
-		file_node_v1_node_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+		file_node_v1_node_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*FindMissingMessagesResponse); i {
+=======
+		file_node_v1_node_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*FindMissingMessagesRequest); i {
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 			case 0:
 				return &v.state
 			case 1:
@@ -2926,8 +4020,17 @@ func file_node_v1_node_proto_init() {
 				return nil
 			}
 		}
-		file_node_v1_node_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+		file_node_v1_node_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+			switch v := v.(*CircleIntegrationUpgradeContractImplementation); i {
+=======
 			switch v := v.(*SendObservationRequestRequest); i {
+=======
+		file_node_v1_node_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*FindMissingMessagesResponse); i {
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 			case 0:
 				return &v.state
 			case 1:
@@ -2938,8 +4041,17 @@ func file_node_v1_node_proto_init() {
 				return nil
 			}
 		}
-		file_node_v1_node_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+		file_node_v1_node_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+			switch v := v.(*FindMissingMessagesRequest); i {
+=======
 			switch v := v.(*SendObservationRequestResponse); i {
+=======
+		file_node_v1_node_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*SendObservationRequestRequest); i {
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 			case 0:
 				return &v.state
 			case 1:
@@ -2950,8 +4062,17 @@ func file_node_v1_node_proto_init() {
 				return nil
 			}
 		}
-		file_node_v1_node_proto_msgTypes[19].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+		file_node_v1_node_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+			switch v := v.(*FindMissingMessagesResponse); i {
+=======
 			switch v := v.(*ChainGovernorStatusRequest); i {
+=======
+		file_node_v1_node_proto_msgTypes[19].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*SendObservationRequestResponse); i {
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 			case 0:
 				return &v.state
 			case 1:
@@ -2962,8 +4083,17 @@ func file_node_v1_node_proto_init() {
 				return nil
 			}
 		}
-		file_node_v1_node_proto_msgTypes[20].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+		file_node_v1_node_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+			switch v := v.(*SendObservationRequestRequest); i {
+=======
 			switch v := v.(*ChainGovernorStatusResponse); i {
+=======
+		file_node_v1_node_proto_msgTypes[20].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ChainGovernorStatusRequest); i {
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 			case 0:
 				return &v.state
 			case 1:
@@ -2974,8 +4104,17 @@ func file_node_v1_node_proto_init() {
 				return nil
 			}
 		}
-		file_node_v1_node_proto_msgTypes[21].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+		file_node_v1_node_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+			switch v := v.(*SendObservationRequestResponse); i {
+=======
 			switch v := v.(*ChainGovernorReloadRequest); i {
+=======
+		file_node_v1_node_proto_msgTypes[21].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ChainGovernorStatusResponse); i {
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 			case 0:
 				return &v.state
 			case 1:
@@ -2986,8 +4125,17 @@ func file_node_v1_node_proto_init() {
 				return nil
 			}
 		}
-		file_node_v1_node_proto_msgTypes[22].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+		file_node_v1_node_proto_msgTypes[19].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+			switch v := v.(*ChainGovernorStatusRequest); i {
+=======
 			switch v := v.(*ChainGovernorReloadResponse); i {
+=======
+		file_node_v1_node_proto_msgTypes[22].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ChainGovernorReloadRequest); i {
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 			case 0:
 				return &v.state
 			case 1:
@@ -2998,8 +4146,17 @@ func file_node_v1_node_proto_init() {
 				return nil
 			}
 		}
-		file_node_v1_node_proto_msgTypes[23].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+		file_node_v1_node_proto_msgTypes[20].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+			switch v := v.(*ChainGovernorStatusResponse); i {
+=======
 			switch v := v.(*ChainGovernorDropPendingVAARequest); i {
+=======
+		file_node_v1_node_proto_msgTypes[23].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ChainGovernorReloadResponse); i {
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 			case 0:
 				return &v.state
 			case 1:
@@ -3010,8 +4167,17 @@ func file_node_v1_node_proto_init() {
 				return nil
 			}
 		}
-		file_node_v1_node_proto_msgTypes[24].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+		file_node_v1_node_proto_msgTypes[21].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+			switch v := v.(*ChainGovernorReloadRequest); i {
+=======
 			switch v := v.(*ChainGovernorDropPendingVAAResponse); i {
+=======
+		file_node_v1_node_proto_msgTypes[24].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ChainGovernorDropPendingVAARequest); i {
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 			case 0:
 				return &v.state
 			case 1:
@@ -3022,8 +4188,17 @@ func file_node_v1_node_proto_init() {
 				return nil
 			}
 		}
-		file_node_v1_node_proto_msgTypes[25].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+		file_node_v1_node_proto_msgTypes[22].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+			switch v := v.(*ChainGovernorReloadResponse); i {
+=======
 			switch v := v.(*ChainGovernorReleasePendingVAARequest); i {
+=======
+		file_node_v1_node_proto_msgTypes[25].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ChainGovernorDropPendingVAAResponse); i {
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 			case 0:
 				return &v.state
 			case 1:
@@ -3034,8 +4209,17 @@ func file_node_v1_node_proto_init() {
 				return nil
 			}
 		}
-		file_node_v1_node_proto_msgTypes[26].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+		file_node_v1_node_proto_msgTypes[23].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+			switch v := v.(*ChainGovernorDropPendingVAARequest); i {
+=======
 			switch v := v.(*ChainGovernorReleasePendingVAAResponse); i {
+=======
+		file_node_v1_node_proto_msgTypes[26].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ChainGovernorReleasePendingVAARequest); i {
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 			case 0:
 				return &v.state
 			case 1:
@@ -3046,8 +4230,17 @@ func file_node_v1_node_proto_init() {
 				return nil
 			}
 		}
-		file_node_v1_node_proto_msgTypes[27].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+		file_node_v1_node_proto_msgTypes[24].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+			switch v := v.(*ChainGovernorDropPendingVAAResponse); i {
+=======
 			switch v := v.(*ChainGovernorResetReleaseTimerRequest); i {
+=======
+		file_node_v1_node_proto_msgTypes[27].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ChainGovernorReleasePendingVAAResponse); i {
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 			case 0:
 				return &v.state
 			case 1:
@@ -3058,8 +4251,17 @@ func file_node_v1_node_proto_init() {
 				return nil
 			}
 		}
-		file_node_v1_node_proto_msgTypes[28].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+		file_node_v1_node_proto_msgTypes[25].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+			switch v := v.(*ChainGovernorReleasePendingVAARequest); i {
+=======
 			switch v := v.(*ChainGovernorResetReleaseTimerResponse); i {
+=======
+		file_node_v1_node_proto_msgTypes[28].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ChainGovernorResetReleaseTimerRequest); i {
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 			case 0:
 				return &v.state
 			case 1:
@@ -3070,8 +4272,17 @@ func file_node_v1_node_proto_init() {
 				return nil
 			}
 		}
-		file_node_v1_node_proto_msgTypes[29].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+		file_node_v1_node_proto_msgTypes[26].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+			switch v := v.(*ChainGovernorReleasePendingVAAResponse); i {
+=======
 			switch v := v.(*PurgePythNetVaasRequest); i {
+=======
+		file_node_v1_node_proto_msgTypes[29].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*ChainGovernorResetReleaseTimerResponse); i {
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 			case 0:
 				return &v.state
 			case 1:
@@ -3082,8 +4293,17 @@ func file_node_v1_node_proto_init() {
 				return nil
 			}
 		}
-		file_node_v1_node_proto_msgTypes[30].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+		file_node_v1_node_proto_msgTypes[27].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+			switch v := v.(*ChainGovernorResetReleaseTimerRequest); i {
+=======
 			switch v := v.(*PurgePythNetVaasResponse); i {
+=======
+		file_node_v1_node_proto_msgTypes[30].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*PurgePythNetVaasRequest); i {
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 			case 0:
 				return &v.state
 			case 1:
@@ -3094,8 +4314,17 @@ func file_node_v1_node_proto_init() {
 				return nil
 			}
 		}
-		file_node_v1_node_proto_msgTypes[31].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+		file_node_v1_node_proto_msgTypes[28].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+			switch v := v.(*ChainGovernorResetReleaseTimerResponse); i {
+=======
 			switch v := v.(*SignExistingVAARequest); i {
+=======
+		file_node_v1_node_proto_msgTypes[31].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*PurgePythNetVaasResponse); i {
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 			case 0:
 				return &v.state
 			case 1:
@@ -3106,7 +4335,72 @@ func file_node_v1_node_proto_init() {
 				return nil
 			}
 		}
+<<<<<<< HEAD
+		file_node_v1_node_proto_msgTypes[29].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+			switch v := v.(*PurgePythNetVaasRequest); i {
+=======
+			switch v := v.(*SignExistingVAAResponse); i {
+=======
 		file_node_v1_node_proto_msgTypes[32].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*SignExistingVAARequest); i {
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+<<<<<<< HEAD
+		file_node_v1_node_proto_msgTypes[30].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+			switch v := v.(*PurgePythNetVaasResponse); i {
+=======
+			switch v := v.(*DumpRPCsRequest); i {
+=======
+		file_node_v1_node_proto_msgTypes[33].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*SignExistingVAAResponse); i {
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+<<<<<<< HEAD
+		file_node_v1_node_proto_msgTypes[31].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
+			switch v := v.(*SignExistingVAARequest); i {
+=======
+			switch v := v.(*DumpRPCsResponse); i {
+=======
+		file_node_v1_node_proto_msgTypes[34].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*DumpRPCsRequest); i {
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+<<<<<<< HEAD
+		file_node_v1_node_proto_msgTypes[32].Exporter = func(v interface{}, i int) interface{} {
+<<<<<<< HEAD
 			switch v := v.(*SignExistingVAAResponse); i {
 			case 0:
 				return &v.state
@@ -3131,6 +4425,10 @@ func file_node_v1_node_proto_init() {
 			}
 		}
 		file_node_v1_node_proto_msgTypes[34].Exporter = func(v interface{}, i int) interface{} {
+=======
+=======
+		file_node_v1_node_proto_msgTypes[35].Exporter = func(v interface{}, i int) interface{} {
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 			switch v := v.(*DumpRPCsResponse); i {
 			case 0:
 				return &v.state
@@ -3142,7 +4440,12 @@ func file_node_v1_node_proto_init() {
 				return nil
 			}
 		}
+<<<<<<< HEAD
 		file_node_v1_node_proto_msgTypes[35].Exporter = func(v interface{}, i int) interface{} {
+=======
+		file_node_v1_node_proto_msgTypes[36].Exporter = func(v interface{}, i int) interface{} {
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 			switch v := v.(*GuardianSetUpdate_Guardian); i {
 			case 0:
 				return &v.state
@@ -3163,10 +4466,20 @@ func file_node_v1_node_proto_init() {
 		(*GovernanceMessage_WormchainStoreCode)(nil),
 		(*GovernanceMessage_WormchainInstantiateContract)(nil),
 		(*GovernanceMessage_WormchainMigrateContract)(nil),
+<<<<<<< HEAD
 		(*GovernanceMessage_AccountantModifyBalance)(nil),
 		(*GovernanceMessage_CircleIntegrationUpdateWormholeFinality)(nil),
 		(*GovernanceMessage_CircleIntegrationRegisterEmitterAndDomain)(nil),
 		(*GovernanceMessage_CircleIntegrationUpgradeContractImplementation)(nil),
+=======
+<<<<<<< HEAD
+=======
+		(*GovernanceMessage_CircleIntegrationUpdateWormholeFinality)(nil),
+		(*GovernanceMessage_CircleIntegrationRegisterEmitterAndDomain)(nil),
+		(*GovernanceMessage_CircleIntegrationUpgradeContractImplementation)(nil),
+		(*GovernanceMessage_WormholeRelayerSetDefaultRelayProvider)(nil),
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -3174,7 +4487,15 @@ func file_node_v1_node_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_node_v1_node_proto_rawDesc,
 			NumEnums:      1,
+<<<<<<< HEAD
 			NumMessages:   37,
+=======
+<<<<<<< HEAD
+			NumMessages:   34,
+=======
+			NumMessages:   38,
+>>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
+>>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 			NumExtensions: 0,
 			NumServices:   1,
 		},

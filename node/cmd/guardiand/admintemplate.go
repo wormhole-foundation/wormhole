@@ -145,6 +145,11 @@ var AdminClientCircleIntegrationUpgradeContractImplementationCmd = &cobra.Comman
 	Run:   runCircleIntegrationUpgradeContractImplementationTemplate,
 }
 
+var AdminClientWormholeRelayerSetDefaultRelayProviderCmd = &cobra.Command{
+	Use: "wormhole-relayer-set-default-relay-provider",
+	Short: "Set the default relay provider to specified address"
+}
+
 func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
 	// Use deterministic devnet addresses as examples in the template, such that this doubles as a test fixture.
 	guardians := make([]*nodev1.GuardianSetUpdate_Guardian, *setUpdateNumGuardians)
@@ -441,6 +446,39 @@ func runCircleIntegrationUpgradeContractImplementationTemplate(cmd *cobra.Comman
 					CircleIntegrationUpgradeContractImplementation: &nodev1.CircleIntegrationUpgradeContractImplementation{
 						TargetChainId:            uint32(chainID),
 						NewImplementationAddress: newImplementationAddress,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
+}
+
+func runWormholeRelayerSetDefaultRelayProviderTemplate(cmd *cobra.Command, args []) {
+	address, err := parseAddress(*address)
+	if err != nil {
+		log.Fatal(err)
+	}
+	chainID, err := parseChainID(*chainID)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_WormholeRelayerSetDefaultRelayProvider{
+					WormholeRelayerSetDefaultRelayProvider: &nodev1.WormholeRelayerSetDefaultRelayProvider{
+						ChainId:     uint32(chainID),
+						NewDefaultRelayProviderAddress: address,
 					},
 				},
 			},
