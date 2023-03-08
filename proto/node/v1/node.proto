@@ -246,7 +246,7 @@ message CircleIntegrationUpgradeContractImplementation {
 
 message WormholeRelayerSetDefaultRelayProvider {
   // ID of the chain of the Wormhole Relayer contract where the default relay provider should be updated (uint16).
-  uint32 target_chain_id = 1;
+  uint32 chain_id = 1;
 
   // Hex-encoded address (without leading 0x) of the new default relay provider contract address.
   string new_default_relay_provider_address = 2;

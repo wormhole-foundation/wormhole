@@ -389,7 +389,7 @@ func circleIntegrationUpgradeContractImplementation(req *nodev1.CircleIntegratio
 // wormholeRelayerSetDefaultRelayProvider converts a nodev1.WormholeRelayerSetDefaultRelayProvider message to its canonical VAA representation.
 // Returns an error if the data is invalid.
 func wormholeRelayerSetDefaultRelayProvider(req *nodev1.WormholeRelayerSetDefaultRelayProvider, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
-	if req.TargetChainId > math.MaxUint16 {
+	if req.ChainId > math.MaxUint16 {
 		return nil, errors.New("invalid target_chain_id")
 	}
 
@@ -407,7 +407,7 @@ func wormholeRelayerSetDefaultRelayProvider(req *nodev1.WormholeRelayerSetDefaul
 
 	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
 		vaa.BodyWormholeRelayerSetDefaultRelayProvider{
-			TargetChainID: vaa.ChainID(req.TargetChainId),
+			ChainID: vaa.ChainID(req.ChainId),
 			NewDefaultRelayProviderAddress: newDefaultRelayProviderAddress,
 		}.Serialize())
 
