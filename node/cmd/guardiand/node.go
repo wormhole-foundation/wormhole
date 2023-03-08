@@ -947,7 +947,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			logger.Fatal("Failed to get peer ID from private key", zap.Error(err))
 		}
 
-		tm, err := telemetry.NewGoogleCloudTelemetry(context.Background(), telemetryProject, creds, *publicRpcLogToTelemetry, map[string]string{
+		tm, err := telemetry.New(context.Background(), telemetryProject, creds, *publicRpcLogToTelemetry, map[string]string{
 			"node_name":     *nodeName,
 			"node_key":      peerID.Pretty(),
 			"guardian_addr": guardianAddr,
@@ -961,15 +961,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger = tm.WrapLogger(logger)
 	} else {
 		logger.Info("Telemetry disabled")
-
-		externalLogger := &telemetry.ExternalLoggerNil{}
-		tm, err := telemetry.New(*publicRpcLogToTelemetry, externalLogger)
-		if err != nil {
-			logger.Fatal("Failed to initialize telemetry", zap.Error(err))
-		}
-		defer tm.Close()
-		logger = tm.WrapLogger(logger)
-
 	}
 
 	// Redirect ipfs logs to plain zap

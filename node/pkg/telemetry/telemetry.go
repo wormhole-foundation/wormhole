@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"sync/atomic"
 	"time"
 
 	"cloud.google.com/go/logging"
@@ -44,20 +43,6 @@ func (logger *ExternalLoggerGoogleCloud) log(time time.Time, message []byte, lev
 
 func (logger *ExternalLoggerGoogleCloud) flush() error {
 	return logger.Flush()
-}
-
-// ExternalLoggerNil doesn't log anything. It can optionally increase an atomic counter `eventCounter` if provided.
-type ExternalLoggerNil struct {
-	eventCounter *atomic.Int64
-}
-
-func (logger *ExternalLoggerNil) log(time time.Time, message []byte, level zapcore.Level) {
-	if logger.eventCounter != nil {
-		logger.eventCounter.Add(1)
-	}
-}
-func (logger *ExternalLoggerNil) flush() error {
-	return nil
 }
 
 // guardianTelemetryEncoder is a wrapper around zapcore.jsonEncoder that logs to google cloud logging
@@ -114,7 +99,7 @@ func (enc *guardianTelemetryEncoder) Clone() zapcore.Encoder {
 	}
 }
 
-func New(skipPrivateLogs bool, externalLogger ExternalLogger) (*Telemetry, error) {
+func NewExternalLogger(skipPrivateLogs bool, externalLogger ExternalLogger) (*Telemetry, error) {
 	return &Telemetry{
 		encoder: &guardianTelemetryEncoder{
 			Encoder:         zapcore.NewJSONEncoder(zapdriver.NewProductionEncoderConfig()),
@@ -124,9 +109,9 @@ func New(skipPrivateLogs bool, externalLogger ExternalLogger) (*Telemetry, error
 	}, nil
 }
 
-// New creates a new Telemetry logger.
+// New creates a new Telemetry logger with Google Cloud Logging
 // skipPrivateLogs: if set to `true`, logs with the field zap.Bool("_privateLogEntry", true) will not be logged by telemetry.
-func NewGoogleCloudTelemetry(ctx context.Context, project string, serviceAccountJSON []byte, skipPrivateLogs bool, labels map[string]string) (*Telemetry, error) {
+func New(ctx context.Context, project string, serviceAccountJSON []byte, skipPrivateLogs bool, labels map[string]string) (*Telemetry, error) {
 	gc, err := logging.NewClient(ctx, project, option.WithCredentialsJSON(serviceAccountJSON))
 	if err != nil {
 		return nil, fmt.Errorf("unable to create logging client: %v", err)

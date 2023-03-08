@@ -3,10 +3,26 @@ package telemetry
 import (
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
+
+// externalLoggerMock doesn't log anything. It can optionally increase an atomic counter `eventCounter` if provided.
+type externalLoggerMock struct {
+	eventCounter *atomic.Int64
+}
+
+func (logger *externalLoggerMock) log(time time.Time, message []byte, level zapcore.Level) {
+	if logger.eventCounter != nil {
+		logger.eventCounter.Add(1)
+	}
+}
+func (logger *externalLoggerMock) flush() error {
+	return nil
+}
 
 func TestTelemetryWithPrivate(t *testing.T) {
 	// setup
@@ -14,8 +30,8 @@ func TestTelemetryWithPrivate(t *testing.T) {
 	var eventCounter atomic.Int64
 	var expectedCounter int64 = 0
 
-	externalLogger := &ExternalLoggerNil{eventCounter: &eventCounter}
-	tm, err := New(true, externalLogger)
+	externalLogger := &externalLoggerMock{eventCounter: &eventCounter}
+	tm, err := NewExternalLogger(true, externalLogger)
 	if err != nil {
 		logger.Fatal("Failed to initialize telemetry", zap.Error(err))
 	}
@@ -54,8 +70,8 @@ func TestTelemetryWithOutPrivate(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	var eventCounter atomic.Int64
 
-	externalLogger := &ExternalLoggerNil{eventCounter: &eventCounter}
-	tm, err := New(false, externalLogger)
+	externalLogger := &externalLoggerMock{eventCounter: &eventCounter}
+	tm, err := NewExternalLogger(false, externalLogger)
 	if err != nil {
 		logger.Fatal("Failed to initialize telemetry", zap.Error(err))
 	}
