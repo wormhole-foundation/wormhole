@@ -52,6 +52,10 @@ const (
 	// The runnable is done - it does not need to run any loop. This is useful for Runnables that only set up other
 	// child runnables. This runnable will be restarted if a related failure happens somewhere in the supervision tree.
 	SignalDone
+	// The runnable is ephemeral - once it has signaled SignalDone, it will not be restarted even if the parent is rescheduled.
+	// This is useful for Runnables that are only meant to run once, and then exit.
+	// Only nodes without children can be signaled as ephemeral.
+	SignalEphemeral
 )
 
 // Logger returns a Zap logger that will be named after the Distinguished Name of a the runnable (ie its place in the

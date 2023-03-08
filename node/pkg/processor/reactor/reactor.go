@@ -153,6 +153,7 @@ func (c *ConsensusReactor[K]) Run(ctx context.Context) error {
 	c.logger.With(zap.String("group", c.group))
 
 	supervisor.Signal(ctx, supervisor.SignalHealthy)
+	supervisor.Signal(ctx, supervisor.SignalEphemeral)
 
 	if c.State() == StateFinalized {
 		supervisor.Signal(ctx, supervisor.SignalDone)
@@ -181,7 +182,6 @@ func (c *ConsensusReactor[K]) Run(ctx context.Context) error {
 			if terminate {
 				c.logger.Debug("reactor concluded; shutting down processing loop")
 				// Signal done such that the routine does not restart
-				// TODO this might leave garbage in the supervisor tree
 				supervisor.Signal(ctx, supervisor.SignalDone)
 				return nil
 			}
