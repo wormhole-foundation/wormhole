@@ -13,6 +13,25 @@ module token_bridge::string32 {
     const E_STRING_TOO_LONG: u64 = 0;
 
     const QUESTION_MARK: u8 = 63;
+    // Recall that UTF-8 characters have variable-length encoding and can have
+    // 1, 2, 3, or 4 bytes.
+    // The first byte of the 2, 3, and 4-byte UTF-8 characters have a special
+    // form indicating how many more bytes follow in the same character
+    // representation. Specifically, it can have the forms
+    //  - 110xxxxx // 11000000 is 192 (base 10)
+    //  - 1110xxxx // 11100000 is 224 (base 10)
+    //  - or 11110xxx // 11110000 is 240 (base 10)
+    //
+    // We can tell the length the a hex UTF-8 character in bytes by looking
+    // at the first byte and counting the leading 1's, or alternatively
+    // seeing whether it falls in the range
+    // [11000000, 11100000) or [11100000, 11110000) or [11110000, 11111111],
+    //
+    // The following constants demarcate those ranges and are used in the
+    // string32::to_ascii function.
+    const UTF8_LENGTH_2_FIRST_BYTE_LOWER_BOUND: u8 = 192;
+    const UTF8_LENGTH_3_FIRST_BYTE_LOWER_BOUND: u8 = 224;
+    const UTF8_LENGTH_4_FIRST_BYTE_LOWER_BOUND: u8 = 240;
 
     /// A `String32` holds a ut8 string which is guaranteed to be 32 bytes long.
     struct String32 has copy, drop, store {
@@ -124,6 +143,7 @@ module token_bridge::string32 {
             // If it is a valid ascii character, keep it.
             if (ascii::is_valid_char(b)) {
                 vector::push_back(&mut asciified, b);
+                i = i + 1;
             } else {
                 // Since UTF-8 characters have variable-length encoding (they are
                 // represented using 1-4 bytes, unlike ASCII characters, which
@@ -137,9 +157,9 @@ module token_bridge::string32 {
                 // characters and have the form 0xxxxxxx.
                 // The 2, 3, and 4-byte UTF-8 characters have first byte equal
                 // to:
-                //  - 110xxxxx
-                //  - 1110xxxx
-                //  - or 11110xxx
+                //  - 110xxxxx // 192
+                //  - 1110xxxx // 224
+                //  - or 11110xxx // 240
                 //
                 // and remaining bytes of the form:
                 // - 10xxxxxx
@@ -148,14 +168,24 @@ module token_bridge::string32 {
                 // to a "?", we detect the first byte of a new UTF-8 character
                 // in a multi-byte representation by checking if it is
                 // >= 11000000 (base 2) or 192 (base 10) and convert it to a "?"
-                // while ignoring remaining bytes in that character representation.
+                // and skip the remaining bytes in the same representation.
+                //
                 //
                 // Reference: https://en.wikipedia.org/wiki/UTF-8
-                if (b >= 192){
+                if (b >= UTF8_LENGTH_2_FIRST_BYTE_LOWER_BOUND){
                     vector::push_back(&mut asciified, QUESTION_MARK);
+                    if (b >= UTF8_LENGTH_4_FIRST_BYTE_LOWER_BOUND){
+                        // The UTF-8 char has a 4-byte hex representation.
+                        i = i + 4;
+                    } else if (b >= UTF8_LENGTH_3_FIRST_BYTE_LOWER_BOUND){
+                        // The UTF-8 char has a 3-byte hex representation.
+                        i = i + 3;
+                    } else {
+                        // The UTF-8 char has a 2-byte hex representation.
+                        i = i + 2;
+                    }
                 }
             };
-            i = i + 1;
         };
         ascii::string(asciified)
     }
