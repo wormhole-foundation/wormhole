@@ -16,7 +16,7 @@ import (
 	"google.golang.org/api/option"
 )
 
-const TELEMETRY_LOG_LEVEL = zap.InfoLevel
+const telemetryLogLevel = zap.InfoLevel
 
 type Telemetry struct {
 	encoder *guardianTelemetryEncoder
@@ -134,7 +134,7 @@ func (s *Telemetry) WrapLogger(logger *zap.Logger) *zap.Logger {
 	tc := zapcore.NewCore(
 		s.encoder,
 		zapcore.AddSync(io.Discard),
-		TELEMETRY_LOG_LEVEL,
+		telemetryLogLevel,
 	)
 
 	return logger.WithOptions(zap.WrapCore(func(core zapcore.Core) zapcore.Core {
