@@ -23,6 +23,14 @@ var CircleIntegrationModule = [32]byte{
 }
 var CircleIntegrationModuleStr = string(CircleIntegrationModule[:])
 
+// CoreRelayerModule is the identifier of the Wormhole Relayer module (which is used for governance messages).
+// It is the hex representation of "CoreRelayer" left padded with zeroes.
+var CoreRelayerModule = [32]byte{
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x43, 0x6f, 0x72, 0x65, 0x52, 0x65, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x0d, 0x0a,
+}
+var CoreRelayerModuleStr = string(CoreRelayerModule[:])
+
 type GovernanceAction uint8
 
 var (
@@ -44,6 +52,9 @@ var (
 	CircleIntegrationActionUpdateWormholeFinality        GovernanceAction = 1
 	CircleIntegrationActionRegisterEmitterAndDomain      GovernanceAction = 2
 	CircleIntegrationActionUpgradeContractImplementation GovernanceAction = 3
+
+	// Wormhole relayer governance actions
+	WormholeRelayerSetDefaultRelayProvider GovernanceAction = 1
 )
 
 type (
@@ -120,7 +131,7 @@ type (
 
 	// BodyWormholeRelayerSetDefaultRelayProvider is a governance message to set the default relay provider for the Wormhole Relayer.
 	BodyWormholeRelayerSetDefaultRelayProvider struct {
-		TargetChainID ChainID
+		ChainID ChainID
 		NewDefaultRelayProviderAddress Address
 	}
 )
@@ -222,6 +233,12 @@ func (r BodyCircleIntegrationUpgradeContractImplementation) Serialize() []byte {
 	payload := &bytes.Buffer{}
 	payload.Write(r.NewImplementationAddress[:])
 	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionUpgradeContractImplementation, 0, payload.Bytes())
+}
+
+func (r BodyWormholeRelayerSetDefaultRelayProvider) Serialize() []byte {
+	payload := &bytes.Buffer{}
+	payload.Write(r.NewDefaultRelayProviderAddress[:])
+	return serializeBridgeGovernanceVaa(CoreRelayerModuleStr, WormholeRelayerSetDefaultRelayProvider, r.ChainID, payload.Bytes())
 }
 
 func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chainId ChainID, payload []byte) []byte {

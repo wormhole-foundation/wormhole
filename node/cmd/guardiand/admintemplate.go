@@ -140,7 +140,7 @@ var AdminClientCircleIntegrationUpgradeContractImplementationCmd = &cobra.Comman
 
 var AdminClientWormholeRelayerSetDefaultRelayProviderCmd = &cobra.Command{
 	Use: "wormhole-relayer-set-default-relay-provider",
-	Short: "Set the default relay provider to specified address"
+	Short: "Set the default relay provider to specified address",
 }
 
 func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
@@ -428,7 +428,7 @@ func runCircleIntegrationUpgradeContractImplementationTemplate(cmd *cobra.Comman
 	fmt.Print(string(b))
 }
 
-func runWormholeRelayerSetDefaultRelayProviderTemplate(cmd *cobra.Command, args []) {
+func runWormholeRelayerSetDefaultRelayProviderTemplate(cmd *cobra.Command, args []string) {
 	address, err := parseAddress(*address)
 	if err != nil {
 		log.Fatal(err)
