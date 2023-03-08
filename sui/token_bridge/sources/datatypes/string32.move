@@ -144,9 +144,11 @@ module token_bridge::string32 {
                 // and remaining bytes of the form:
                 // - 10xxxxxx
                 //
-                // Therefore we detect the first byte of a new UTF-8 character
+                // To ensure a one-to-one mapping of a multi-byte UTF-8 character
+                // to a "?", we detect the first byte of a new UTF-8 character
                 // in a multi-byte representation by checking if it is
-                // >= 11000000 (base 2) or 192 (base 10).
+                // >= 11000000 (base 2) or 192 (base 10) and convert it to a "?"
+                // while ignoring remaining bytes in that character representation.
                 //
                 // Reference: https://en.wikipedia.org/wiki/UTF-8
                 if (b >= 192){
