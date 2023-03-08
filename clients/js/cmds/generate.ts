@@ -290,7 +290,9 @@ function parseAddress(chain: ChainName, address: string): string {
   } else if (chain === "osmosis") {
     throw Error("OSMOSIS is not supported yet");
   } else if (chain === "sui") {
-    throw Error("SUI is not supported yet");
+    if (/^(0x)?[0-9a-fA-F]+$/.test(address)) {
+      return "0x" + evm_address(address);
+    }
   } else if (chain === "aptos") {
     if (/^(0x)?[0-9a-fA-F]+$/.test(address)) {
       return "0x" + evm_address(address);
