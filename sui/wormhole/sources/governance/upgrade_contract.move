@@ -90,5 +90,58 @@ module wormhole::upgrade_contract {
 
 #[test_only]
 module wormhole::upgrade_contract_test {
-    // TODO
+    use sui::test_scenario::{Self};
+
+    use wormhole::dummy_sui_package::{test_upgrade};
+    use wormhole::state::{Self, State};
+    use wormhole::wormhole_scenario::{
+        person,
+        set_up_wormhole,
+        //upgrade_wormhole
+    };
+    use wormhole::upgrade_contract::{Self};
+
+    #[test]
+    /// In this test, we test the following sequence of methods (values in
+    /// parentheses are arguments return by the previous method and passed into
+    /// the next method):
+    ///
+    /// upgrade_contract -> (UpgradeTicket) -> test_upgrade -> (UpgradeReceipt) -> commit_upgrade
+    ///
+    public fun test_update_contract() {
+
+        // Set up.
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
+
+        let wormhole_fee = 0;
+        set_up_wormhole(scenario, wormhole_fee);
+
+        test_scenario::next_tx(scenario, caller);
+
+        let worm_state = test_scenario::take_shared<State>(scenario);
+
+        // TODO - put a legitimate VAA here
+        let vaa_buf = x"00";
+
+        // TODO - do we need to authorize upgrade first?
+
+        // Obtain an upgrade_ticket.
+        let upgrade_ticket = upgrade_contract::upgrade_contract(
+            &mut worm_state,
+            vaa_buf,
+            test_scenario::ctx(&mut my_scenario)
+        );
+
+        // test_upgrade generates a fake package ID for the new package and
+        // converts the ticket to a receipt.
+        let upgrade_receipt = test_upgrade(upgrade_ticket);
+
+        // Clean up.
+        test_scenario::return_shared(worm_state);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
 }
