@@ -12,7 +12,7 @@ module token_bridge::string32 {
 
     const E_STRING_TOO_LONG: u64 = 0;
 
-    const QUESTION_MARK: u8 = 0x63;
+    const QUESTION_MARK: u8 = 63;
 
     /// A `String32` holds a ut8 string which is guaranteed to be 32 bytes long.
     struct String32 has copy, drop, store {
@@ -121,14 +121,38 @@ module token_bridge::string32 {
         let (i, n) = (0, vector::length(&buf));
         while (i < n) {
             let b = *vector::borrow(&buf, i);
-            let c = {
-                if (ascii::is_valid_char(b)) {
-                    b
-                } else {
-                    QUESTION_MARK
+            // If it is a valid ascii character, keep it.
+            if (ascii::is_valid_char(b)) {
+                vector::push_back(&mut asciified, b);
+            } else {
+                // Since UTF-8 characters have variable-length encoding (they are
+                // represented using 1-4 bytes, unlike ASCII characters, which
+                // are represented using 1 byte), we don't want to transform
+                // every byte in a UTF-8 string that does not represent an ASCII
+                // character to the question mark symbol "?". This would result
+                // in having too many "?" symbols.
+                //
+                // Instead, we want a single "?" for each character. Note that
+                // the 1-byte UTF-8 characters correspond to valid ASCII
+                // characters and have the form 0xxxxxxx.
+                // The 2, 3, and 4-byte UTF-8 characters have first byte equal
+                // to:
+                //  - 110xxxxx
+                //  - 1110xxxx
+                //  - or 11110xxx
+                //
+                // and remaining bytes of the form:
+                // - 10xxxxxx
+                //
+                // Therefore we detect the first byte of a new UTF-8 character
+                // in a multi-byte representation by checking if it is
+                // >= 11000000 (base 2) or 192 (base 10).
+                //
+                // Reference: https://en.wikipedia.org/wiki/UTF-8
+                if (b >= 192){
+                    vector::push_back(&mut asciified, QUESTION_MARK);
                 }
             };
-            vector::push_back(&mut asciified, c);
             i = i + 1;
         };
         ascii::string(asciified)
@@ -153,6 +177,7 @@ module token_bridge::string32 {
 #[test_only]
 module token_bridge::string32_test {
     use std::string;
+    //use std::ascii;
     use std::vector;
     use token_bridge::string32;
 
@@ -208,5 +233,45 @@ module token_bridge::string32_test {
         let bytes = x"e0a0";
         let result = string::utf8(b"");
         assert!(string32::to_utf8(&string32::from_bytes(bytes)) == result, 0)
+    }
+
+    #[test]
+    /// In this test, we check that string32::to_ascii replaces non-ASCII
+    /// characters in a utf8 hex bytestring with "?", and leaves valid ASCII
+    /// characters untouched.
+    /// Note that that UTF-8 characters are often represented using multiple
+    /// bytes. We use this test as an opportunity to see if to_ascii works on
+    /// multi-byte UTF-8 characters and UTF-8 strings containing them.
+    public fun test_to_ascii() {
+        use std::ascii::Self;
+        // UTF-8 character with 2-byte representation.
+        let utf8_bytes = x"C2B0";
+        let stringified = string32::from_bytes(utf8_bytes);
+        let ascii_string = string32::to_ascii(&stringified);
+        // The 2-byte hex UTF-8 character is transformed to a singular "?".
+        assert!(ascii::into_bytes(ascii_string)==b"?", 0);
+
+        // UTF-8 character with 4-byte representation.
+        utf8_bytes = x"F0908D88";
+        let stringified = string32::from_bytes(utf8_bytes);
+        let ascii_string = string32::to_ascii(&stringified);
+        // The 4-byte hex UTF-8 character is transformed to a singular "?".
+        assert!(ascii::into_bytes(ascii_string)==b"?", 0);
+
+        // UTF-8 characters with variable number of bytes.
+        utf8_bytes = x"C2B0F0908D88C2B0F0908D88F0908D88C2B0";
+        let stringified = string32::from_bytes(utf8_bytes);
+        let ascii_string = string32::to_ascii(&stringified);
+        // The 4-byte hex UTF-8 character is transformed into "??????".
+        assert!(ascii::into_bytes(ascii_string)==b"??????", 0);
+
+        // UTF-8 characters with variable number of bytes and valid ASCII
+        // "~" characters mixed in.
+        utf8_bytes = x"C2B07EF0908D88C2B0F0908D887EF0908D887EC2B0";
+        let stringified = string32::from_bytes(utf8_bytes);
+        let ascii_string = string32::to_ascii(&stringified);
+        // The 4-byte hex UTF-8 character is transformed into "?~???~?~?".
+        // Note that the valid ASCII characters remain untouched.
+        assert!(ascii::into_bytes(ascii_string)==b"?~???~?~?", 0);
     }
 }
