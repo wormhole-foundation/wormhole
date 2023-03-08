@@ -126,7 +126,7 @@ module token_bridge::complete_transfer_with_payload_test {
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
-    /// Mock registration VAA for Sui token bridge w/ fake address deadbeef
+    /// Mock registration VAA for Sui token bridge w/ fake address 0x1
     const SUI_REGISTRATION_VAA : vector<u8> = x"010000000001006c4df448af19846c6aa1d8df584696248bfd772dba9521118c6e447005b4f2712c5ce46367b0a769fbedaa5a4224b20e1ae381c802e24487165c4501185e1a9a01000000010000000100010000000000000000000000000000000000000000000000000000000000000004000000000312ace100000000000000000000000000000000000000000000546f6b656e427269646765010000001500000000000000000000000000000000000000000000000000000000deadbeef";
 
     /// VAA for transfer token with payload for token originating from Ethereum.
