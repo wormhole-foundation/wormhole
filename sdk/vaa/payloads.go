@@ -119,7 +119,7 @@ type (
 	}
 
 	// BodyWormholeRelayerSetDefaultRelayProvider is a governance message to set the default relay provider for the Wormhole Relayer.
-	BodyTokenBridgeUpgradeContract struct {
+	BodyWormholeRelayerSetDefaultRelayProvider struct {
 		TargetChainID ChainID
 		NewDefaultRelayProviderAddress Address
 	}
