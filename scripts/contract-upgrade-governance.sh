@@ -234,6 +234,12 @@ guardiand template token-bridge-upgrade-contract \\
   --chain-id $chain --module \"NFTBridge\" \\
   --new-address $address"
     ;;
+  wormhole_relayer)
+    echo "\
+guardiand template token-bridge-upgrade-contract \\
+  --chain-id $chain --module \"WormholeRelayer\" \\
+  --new-address $address"
+    ;;
   *) echo "unknown module $module" >&2
      usage
      ;;

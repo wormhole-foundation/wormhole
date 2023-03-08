@@ -117,6 +117,12 @@ type (
 	BodyCircleIntegrationUpgradeContractImplementation struct {
 		NewImplementationAddress [32]byte
 	}
+
+	// BodyWormholeRelayerSetDefaultRelayProvider is a governance message to set the default relay provider for the Wormhole Relayer.
+	BodyTokenBridgeUpgradeContract struct {
+		TargetChainID ChainID
+		NewDefaultRelayProviderAddress Address
+	}
 )
 
 func (b BodyContractUpgrade) Serialize() []byte {
