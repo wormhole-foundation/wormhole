@@ -227,7 +227,7 @@ func init() {
 
 	lis = bufconn.Listen(bufSize)
 
-	grpcServer := common.NewInstrumentedGRPCServer(logger, common.GrpcLogDetailFull)
+	grpcServer := common.NewInstrumentedGRPCServer(logger)
 
 	mockedSpyServer = newSpyServer(logger)
 	spyv1.RegisterSpyRPCServiceServer(grpcServer, mockedSpyServer)
