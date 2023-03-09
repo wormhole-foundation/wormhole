@@ -28,7 +28,7 @@ module wormhole::external_address {
         new(bytes32::new(buf))
     }
 
-    public fun from_nonzero_bytes(buf: vector<u8>): ExternalAddress{
+    public fun from_nonzero_bytes(buf: vector<u8>): ExternalAddress {
         new_nonzero(bytes32::new(buf))
     }
 
