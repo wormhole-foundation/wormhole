@@ -1,8 +1,7 @@
 module wormhole::wormhole {
     use sui::coin::{Coin};
     use sui::sui::{SUI};
-    use sui::transfer::{Self};
-    use sui::tx_context::{Self, TxContext};
+    use sui::tx_context::{TxContext};
 
     use wormhole::emitter::{EmitterCap};
     use wormhole::state::{State};
@@ -27,22 +26,6 @@ module wormhole::wormhole {
             nonce,
             payload,
             message_fee
-        );
-    }
-
-    // `new_emitter` exposes `state::new_emitter` as an entry method to create
-    // a new emitter cap and transfer it to the transaction sender.
-    //
-    // See `state` module for more details.
-    public entry fun new_emitter(
-        wormhole_state: &mut State,
-        ctx: &mut TxContext
-    ) {
-        use wormhole::state::{new_emitter};
-
-        transfer::transfer(
-            new_emitter(wormhole_state, ctx),
-            tx_context::sender(ctx)
         );
     }
 
