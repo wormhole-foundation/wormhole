@@ -8,12 +8,17 @@ module wormhole::id_registry {
     }
 
     public fun new(): IdRegistry {
-        IdRegistry { index: 0 }
+        IdRegistry { index: 1 }
+    }
+
+    public fun index(self: &IdRegistry): u64 {
+        self.index
     }
 
     public fun next_address(self: &mut IdRegistry): ExternalAddress {
+        let addr = external_address::from_u64_be(self.index);
         self.index = self.index + 1;
-        external_address::from_u64_be(self.index)
+        addr
     }
 
     #[test_only]
@@ -24,11 +29,6 @@ module wormhole::id_registry {
     #[test_only]
     public fun skip_to(self: &mut IdRegistry, value: u64) {
         self.index = value;
-    }
-
-    #[test_only]
-    public fun index(self: &IdRegistry): u64 {
-        self.index
     }
 
 }
@@ -42,36 +42,34 @@ module wormhole::id_registry_tests {
     #[test]
     fun test_native_id_registry() {
         let registry = id_registry::new();
-        let i = 0;
+        let i = 1;
         assert!(id_registry::index(&registry) == i, 0);
 
         // Generate multiple IDs using `next_address` and check that they are
         // indeed generated in monotonic increasing order in increments of one.
-        while (i < 10) {
+        while (i <= 10) {
             let left = external_address::to_bytes32(
                 id_registry::next_address(&mut registry)
             );
+            let right = bytes32::from_u64_be(i);
+            assert!(left == right, 0);
 
             i = i + 1;
             assert!(id_registry::index(&registry) == i, 0);
-
-            let right = bytes32::from_u64_be(i);
-            assert!(left == right, 0);
         };
 
         // Skip ahead by some arbitrary amount and repeat.
         let i = 1000;
         id_registry::skip_to(&mut registry, i);
-        while (i < 10) {
+        while (i <= 1010) {
             let left = external_address::to_bytes32(
                 id_registry::next_address(&mut registry)
             );
+            let right = bytes32::from_u64_be(i);
+            assert!(left == right, 0);
 
             i = i + 1;
             assert!(id_registry::index(&registry) == i, 0);
-
-            let right = bytes32::from_u64_be(i);
-            assert!(left == right, 0);
         };
 
         // Clean up.

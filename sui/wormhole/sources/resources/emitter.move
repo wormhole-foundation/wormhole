@@ -110,11 +110,11 @@ module wormhole::emitter_tests {
         let ctx = &mut tx_context::dummy();
 
         let registry = emitter::new_registry_test_only();
-        assert!(emitter::registry_index(&registry) == 0, 0);
+        assert!(emitter::registry_index(&registry) == 1, 0);
 
         // Generate new emitter and check that the registry value upticked.
         let cap = emitter::new_cap(&mut registry, ctx);
-        assert!(emitter::registry_index(&registry) == 1, 0);
+        assert!(emitter::registry_index(&registry) == 2, 0);
 
         // And check emitter cap's address.
         let expected =
@@ -124,9 +124,9 @@ module wormhole::emitter_tests {
 
         // Skip ahead to ID = 256, create new emitter and check registry value
         // again.
-        emitter::skip_to(&mut registry, 256);
+        emitter::skip_to(&mut registry, 257);
         let cap = emitter::new_cap(&mut registry, ctx);
-        assert!(emitter::registry_index(&registry) == 257, 0);
+        assert!(emitter::registry_index(&registry) == 258, 0);
 
         // And check emitter cap's address.
         let expected =
