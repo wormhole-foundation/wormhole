@@ -23,10 +23,6 @@ module wormhole::cursor {
         &self.data
     }
 
-    public fun size<T>(self: &Cursor<T>): u64 {
-        vector::length(&self.data)
-    }
-
     public fun is_empty<T>(self: &Cursor<T>): bool {
         vector::is_empty(&self.data)
     }

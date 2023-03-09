@@ -77,14 +77,12 @@ module wormhole::guardian_set {
         // Guardian set must be active (not expired).
         assert!(is_active(self, ctx), E_GUARDIAN_SET_EXPIRED);
 
-        let cur = cursor::new(signatures);
-
         // Number of signatures must be at least quorum.
-        assert!(cursor::size(&cur) >= quorum(self), E_NO_QUORUM);
+        assert!(vector::length(&signatures) >= quorum(self), E_NO_QUORUM);
 
         // Drain `Cursor` by checking each signature.
-        let i = 0;
-        let last_guardian_index = 0;
+        let cur = cursor::new(signatures);
+        let (i, last_guardian_index) = (0, 0);
         while (!cursor::is_empty(&cur)) {
             let signature = cursor::poke(&mut cur);
             let guardian_index = guardian_signature::index_as_u64(&signature);
