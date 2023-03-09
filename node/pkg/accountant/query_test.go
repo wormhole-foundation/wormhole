@@ -156,7 +156,9 @@ type BatchTransferStatusQueryConnMock struct {
 }
 
 func (qc *BatchTransferStatusQueryConnMock) SubmitQuery(ctx context.Context, contractAddress string, query []byte) ([]byte, error) {
-	if len(query) > 150*maxPendingsPerQuery {
+	// Force a failure if the query is much bigger than what we are allowing. This does not have to be exact, since the chunking tests will be using a lot more than that.
+	// A json encoded transfer key is about 150 characters.
+	if len(query) > 150*maxPendingsPerQuery+1000 {
 		return []byte{}, errors.New("query too large")
 	}
 

@@ -337,7 +337,6 @@ func queryBatchTransferStatusWithConn(
 		for key, item := range chunkRet {
 			ret[key] = item
 		}
-
 	}
 
 	return ret, nil
