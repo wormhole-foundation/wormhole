@@ -203,6 +203,16 @@ module wormhole::state {
         commit_upgrade_to_version(self, receipt, control::version())
     }
 
+    #[test_only]
+    /// This function simulates having a new call-site by pretending
+    /// that the version number has been incremented by one.
+    public(friend) fun mock_commit_upgrade(
+        self: &mut State,
+        receipt: UpgradeReceipt
+    ) {
+        commit_upgrade_to_version(self, receipt, control::version()+1)
+    }
+
     public(friend) fun require_current_version<ControlType>(self: &mut State) {
         required_version::require_current_version<ControlType>(
             &mut self.required_version,

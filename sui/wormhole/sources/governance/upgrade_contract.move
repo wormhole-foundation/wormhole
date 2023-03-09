@@ -52,6 +52,17 @@ module wormhole::upgrade_contract {
         state::commit_upgrade(self, receipt)
     }
 
+    #[test_only]
+    /// Calls the state::mock_commit_upgrade function, which pretends
+    /// that the version number V is actually V+1, when in reality, it is
+    /// still V, since the call-site is the old call-site.
+    public fun mock_commit_upgrade(
+        self: &mut State,
+        receipt: UpgradeReceipt,
+    ) {
+        state::mock_commit_upgrade(self, receipt)
+    }
+
     fun handle_upgrade_contract(
         wormhole_state: &mut State,
         msg: GovernanceMessage
@@ -101,15 +112,16 @@ module wormhole::upgrade_contract_test {
     };
     use wormhole::upgrade_contract::{Self};
 
+    const UPGRADE_VAA : vector<u8> = x"01000000000100751f8030d85a647d412129d81d8bc536ad59257b08da3146dc27327e004ab6771d36d01374d603f7a45f0152ec69d2534acf2ebbd1ced5b517fc27c40eb715b300000000010000000100010000000000000000000000000000000000000000000000000000000000000004000000000279f0e80000000000000000000000000000000000000000000000000000000000436f72650100150000000000000000000000000000000000000000000000000000000000000005";
+
     #[test]
-    /// In this test, we test the following sequence of methods (values in
-    /// parentheses are arguments return by the previous method and passed into
-    /// the next method):
+    /// In this test, we test the following sequence of methods, which is standard
+    /// in an upgrade workflow. Expressions in parentheses are returned by the
+    /// previous method and passed into the next method.
     ///
     /// upgrade_contract -> (UpgradeTicket) -> test_upgrade -> (UpgradeReceipt) -> commit_upgrade
     ///
     public fun test_update_contract() {
-
         // Set up.
         let caller = person();
         let my_scenario = test_scenario::begin(caller);
@@ -122,21 +134,67 @@ module wormhole::upgrade_contract_test {
 
         let worm_state = test_scenario::take_shared<State>(scenario);
 
-        // TODO - put a legitimate VAA here
-        let vaa_buf = x"00";
-
-        // TODO - do we need to authorize upgrade first?
-
         // Obtain an upgrade_ticket.
         let upgrade_ticket = upgrade_contract::upgrade_contract(
             &mut worm_state,
-            vaa_buf,
+            UPGRADE_VAA,
             test_scenario::ctx(&mut my_scenario)
         );
 
         // test_upgrade generates a fake package ID for the new package and
         // converts the ticket to a receipt.
         let upgrade_receipt = test_upgrade(upgrade_ticket);
+
+        // Complete the upgrade sequence by calling commit_upgrade. We call
+        // the mock_commit_upgrade function instead of the "real" commit_upgrade
+        // function. We need to simulate a new call-site, since the receipt must
+        // be submitted at the new call-site.
+        upgrade_contract::mock_commit_upgrade(&mut worm_state, upgrade_receipt);
+
+        // Check that upgrade cap version was incremented by one, indicating
+        // that commit_upgrade succeeded.
+        assert!(state::current_version(&worm_state)==2, 0);
+
+        // Clean up.
+        test_scenario::return_shared(worm_state);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = state::E_BUILD_VERSION_MISMATCH)]
+    /// In this negative test case, we confirm that calling commit_upgrade
+    /// at the old call-site fails (recall that the receipt is intended to be
+    /// submitted at the new call-site).
+    public fun test_commit_upgrade_fails_at_old_callsite() {
+        // Set up.
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
+
+        let wormhole_fee = 0;
+        set_up_wormhole(scenario, wormhole_fee);
+
+        test_scenario::next_tx(scenario, caller);
+
+        let worm_state = test_scenario::take_shared<State>(scenario);
+
+        // Obtain an upgrade_ticket.
+        let upgrade_ticket = upgrade_contract::upgrade_contract(
+            &mut worm_state,
+            UPGRADE_VAA,
+            test_scenario::ctx(&mut my_scenario)
+        );
+
+        // test_upgrade generates a fake package ID for the new package and
+        // converts the ticket to a receipt.
+        let upgrade_receipt = test_upgrade(upgrade_ticket);
+
+        // Attempt to complete the upgrade sequence by calling commit_upgrade.
+        // This fails because we are calling the commit_upgrade at the original
+        // call-site.
+        upgrade_contract::commit_upgrade(&mut worm_state, upgrade_receipt);
 
         // Clean up.
         test_scenario::return_shared(worm_state);
