@@ -38,6 +38,9 @@ const (
 
 	// maxSubmitPendingTime indicates how long a transfer can be in the submit pending state before the audit starts complaining about it.
 	maxSubmitPendingTime = 30 * time.Minute
+
+	// maxPendingsPerQuery is the maximum number of pending transfers to submit in a single batch_transfer_status query to avoid gas errors.
+	maxPendingsPerQuery = 500
 )
 
 type (
@@ -293,16 +296,68 @@ func (acct *Accountant) queryMissingObservations() ([]MissingObservation, error)
 	return ret.Missing, nil
 }
 
+// queryConn allows us to mock the SubmitQuery call.
+type queryConn interface {
+	SubmitQuery(ctx context.Context, contractAddress string, query []byte) ([]byte, error)
+}
+
 // queryBatchTransferStatus queries the status of the specified transfers and returns a map keyed by transfer key (as a string) to the status.
 func (acct *Accountant) queryBatchTransferStatus(keys []TransferKey) (map[string]*TransferStatus, error) {
+	return queryBatchTransferStatusWithConn(acct.ctx, acct.logger, acct.wormchainConn, acct.contract, keys)
+}
+
+// queryBatchTransferStatus is a free function that queries the status of the specified transfers and returns a map keyed by transfer key (as a string)
+// to the status. If there are too many keys to be queried, it breaks them up into smaller chunks (based on the maxPendingsPerQuery constant).
+func queryBatchTransferStatusWithConn(
+	ctx context.Context,
+	logger *zap.Logger,
+	qc queryConn,
+	contract string,
+	keys []TransferKey,
+) (map[string]*TransferStatus, error) {
+	if len(keys) <= maxPendingsPerQuery {
+		return queryBatchTransferStatusForChunk(ctx, logger, qc, contract, keys)
+	}
+
+	// Break the large batch into smaller chunks. Found this logic here: https://freshman.tech/snippets/go/split-slice-into-chunks/
+	ret := make(map[string]*TransferStatus)
+	for i := 0; i < len(keys); i += maxPendingsPerQuery {
+		end := i + maxPendingsPerQuery
+
+		// Necessary check to avoid slicing beyond slice capacity.
+		if end > len(keys) {
+			end = len(keys)
+		}
+
+		chunkRet, err := queryBatchTransferStatusForChunk(ctx, logger, qc, contract, keys[i:end])
+		if err != nil {
+			return nil, err
+		}
+
+		for key, item := range chunkRet {
+			ret[key] = item
+		}
+	}
+
+	return ret, nil
+}
+
+// queryBatchTransferStatus is a free function that queries the status of a chunk of transfers and returns a map keyed by transfer key (as a string) to the status.
+func queryBatchTransferStatusForChunk(
+	ctx context.Context,
+	logger *zap.Logger,
+	qc queryConn,
+	contract string,
+	keys []TransferKey,
+) (map[string]*TransferStatus, error) {
 	bytes, err := json.Marshal(keys)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal keys: %w", err)
 	}
 
 	query := fmt.Sprintf(`{"batch_transfer_status":%s}`, string(bytes))
-	acct.logger.Debug("acctaudit: submitting batch_transfer_status query", zap.String("query", query))
-	respBytes, err := acct.wormchainConn.SubmitQuery(acct.ctx, acct.contract, []byte(query))
+	logger.Debug("acctaudit: submitting batch_transfer_status query", zap.String("query", query))
+	respBytes, err := qc.SubmitQuery(ctx, contract, []byte(query))
 	if err != nil {
 		return nil, fmt.Errorf("batch_transfer_status query failed: %w, %s", err, query)
 	}
@@ -317,6 +372,6 @@ func (acct *Accountant) queryBatchTransferStatus(keys []TransferKey) (map[string
 		ret[item.Key.String()] = item.Status
 	}
 
-	acct.logger.Debug("acctaudit: batch_transfer_status query response", zap.Int("numEntries", len(ret)), zap.String("result", string(respBytes)))
+	logger.Debug("acctaudit: batch_transfer_status query response", zap.Int("numEntries", len(ret)), zap.String("result", string(respBytes)))
 	return ret, nil
 }
