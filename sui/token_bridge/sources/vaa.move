@@ -69,7 +69,7 @@ module token_bridge::vaa {
 }
 
 #[test_only]
-module token_bridge::token_bridge_vaa_test{
+module token_bridge::token_bridge_vaa_test {
     use sui::test_scenario::{
         Self,
         Scenario,

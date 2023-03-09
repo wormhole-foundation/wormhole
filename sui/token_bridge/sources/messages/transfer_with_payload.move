@@ -119,7 +119,7 @@ module token_bridge::transfer_with_payload {
 }
 
 #[test_only]
-module token_bridge::transfer_with_payload_test{
+module token_bridge::transfer_with_payload_test {
     use wormhole::external_address::{Self};
 
     use token_bridge::transfer_with_payload::{Self};

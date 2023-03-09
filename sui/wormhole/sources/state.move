@@ -154,7 +154,7 @@ module wormhole::state {
         // this value to `false` by default.
         //
         // See `migrate` module for more info.
-        field::add(&mut state.id, MigrationControl{}, false);
+        field::add(&mut state.id, MigrationControl {}, false);
 
         let tracker = &mut state.required_version;
         required_version::add<control::NewEmitter>(tracker);
@@ -219,15 +219,15 @@ module wormhole::state {
     }
 
     public fun can_migrate(self: &State): bool {
-        *field::borrow(&self.id, MigrationControl{})
+        *field::borrow(&self.id, MigrationControl {})
     }
 
     public(friend) fun enable_migration(self: &mut State) {
-        *field::borrow_mut(&mut self.id, MigrationControl{}) = true;
+        *field::borrow_mut(&mut self.id, MigrationControl {}) = true;
     }
 
     public(friend) fun disable_migration(self: &mut State) {
-        *field::borrow_mut(&mut self.id, MigrationControl{}) = false;
+        *field::borrow_mut(&mut self.id, MigrationControl {}) = false;
     }
 
     public fun governance_chain(self: &State): u16 {

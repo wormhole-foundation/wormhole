@@ -52,7 +52,7 @@ module wormhole::setup {
         ctx: &mut TxContext
     ) {
         // Destroy deployer cap.
-        let DeployerCap{ id } = deployer;
+        let DeployerCap { id } = deployer;
         object::delete(id);
 
         // Share new state.

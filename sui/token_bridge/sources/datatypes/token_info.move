@@ -41,7 +41,7 @@ module token_bridge::token_info {
 }
 
 #[test_only]
-module token_bridge::token_info_test{
+module token_bridge::token_info_test {
     use wormhole::external_address::{Self};
 
     use token_bridge::token_info::{Self, equals, is_wrapped, chain, addr};

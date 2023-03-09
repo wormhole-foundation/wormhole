@@ -80,7 +80,7 @@ module token_bridge::native_asset {
 }
 
 #[test_only]
-module token_bridge::native_asset_test{
+module token_bridge::native_asset_test {
     use sui::test_scenario::{Self, Scenario, ctx, take_shared,
         return_shared, next_tx};
     use sui::coin::{Self, TreasuryCap};

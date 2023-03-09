@@ -118,7 +118,7 @@ module token_bridge::asset_meta {
 }
 
 #[test_only]
-module token_bridge::asset_meta_test{
+module token_bridge::asset_meta_test {
     use std::string::{Self};
 
     use wormhole::external_address::{Self};

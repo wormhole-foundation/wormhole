@@ -66,7 +66,7 @@ module token_bridge::state {
 
     fun init(ctx: &mut TxContext) {
         transfer::transfer(
-            DeployerCap{
+            DeployerCap {
                 id: object::new(ctx)
             },
             tx_context::sender(ctx)
@@ -85,7 +85,7 @@ module token_bridge::state {
         worm_state: &mut WormholeState,
         ctx: &mut TxContext
     ) {
-        let DeployerCap{ id } = deployer;
+        let DeployerCap { id } = deployer;
         object::delete(id);
 
         let state = State {
@@ -309,7 +309,7 @@ module token_bridge::state {
 }
 
 #[test_only]
-module token_bridge::bridge_state_test{
+module token_bridge::bridge_state_test {
     use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_from_address,
         take_shared, return_shared};
     use sui::coin::{CoinMetadata};

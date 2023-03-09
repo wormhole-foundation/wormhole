@@ -50,7 +50,7 @@ module token_bridge::registered_emitters {
 }
 
 #[test_only]
-module token_bridge::registered_emitters_test{
+module token_bridge::registered_emitters_test {
     use std::vector::{Self};
     use sui::object::{Self, UID};
     use sui::tx_context::{dummy};
@@ -83,7 +83,7 @@ module token_bridge::registered_emitters_test{
     // and adding several (chain_id, external_address) key-value pairs to it
     #[test]
     fun test_registered_emitters(){
-        let mock_state = MockState{id: object::new(&mut dummy())};
+        let mock_state = MockState {id: object::new(&mut dummy())};
 
         // create table of registered emitters as a dynamic field of our
         // mock state
@@ -136,7 +136,7 @@ module token_bridge::registered_emitters_test{
         location=token_bridge::registered_emitters
     )]
     fun test_registered_emitters_table_already_exists(){
-        let mock_state = MockState{id: object::new(&mut dummy())};
+        let mock_state = MockState {id: object::new(&mut dummy())};
 
         // create table of registered emitters as a dynamic field of our
         // mock state
@@ -157,7 +157,7 @@ module token_bridge::registered_emitters_test{
         location=token_bridge::registered_emitters
     )]
     fun test_register_chain_id_twice(){
-        let mock_state = MockState{id: object::new(&mut dummy())};
+        let mock_state = MockState {id: object::new(&mut dummy())};
 
         // create table of registered emitters as a dynamic field of our
         // mock state
@@ -183,7 +183,7 @@ module token_bridge::registered_emitters_test{
         location=token_bridge::registered_emitters
     )]
     fun test_registered_emitters_nonexistent_external_address(){
-        let mock_state = MockState{id: object::new(&mut dummy())};
+        let mock_state = MockState {id: object::new(&mut dummy())};
 
         // create table of registered emitters as a dynamic field of our
         // mock state
