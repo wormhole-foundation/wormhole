@@ -40,10 +40,10 @@
 /node/cmd/ @bruce-riley @panoel
 
 ## DB
-/node/pkg/db/ @bruce-riley
+/node/pkg/db/ @bruce-riley @kev1n-peters
 
 ## Accountant
-/node/pkg/accountant/ @bruce-riley @jynnantonix
+/node/pkg/accountant/ @bruce-riley @evan-gray @jynnantonix
 
 ## Governor
 /node/pkg/governor/ @bruce-riley @claudijd
@@ -55,7 +55,7 @@
 /node/pkg/processor/ @bruce-riley @hendrikhofstadt
 
 ## Public RPC
-/node/pkg/publicrpc/ @bruce-riley
+/node/pkg/publicrpc/ @bruce-riley @kev1n-peters
 
 ## Supervisor Framework
 /node/pkg/supervisor/ @hendrikhofstadt @bruce-riley
@@ -64,7 +64,7 @@
 /node/pkg/watchers/algorand/ @evan-gray @jumpsiegel
 
 ## Watcher - Aptos
-/node/pkg/watchers/aptos/ @jumpsiegel
+/node/pkg/watchers/aptos/ @evan-gray @jumpsiegel @panoel
 
 ## Watcher - Cosmwasm
 /node/pkg/watchers/cosmwasm/ @evan-gray @hendrikhofstadt
@@ -73,7 +73,7 @@
 /node/pkg/watchers/evm/ @evan-gray @bruce-riley @hendrikhofstadt
 
 ## Watcher - NEAR
-/node/pkg/watchers/near/ @jumpsiegel
+/node/pkg/watchers/near/ @evan-gray @jumpsiegel @kev1n-peters
 
 ## Watcher - Solana
 /node/pkg/watchers/solana/ @evan-gray @hendrikhofstadt @bruce-riley
