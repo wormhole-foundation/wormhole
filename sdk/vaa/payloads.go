@@ -15,11 +15,6 @@ var CoreModule = []byte{00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 
 var WasmdModule = [32]byte{00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 0x57, 0x61, 0x73, 0x6D, 0x64, 0x4D, 0x6F, 0x64, 0x75, 0x6C, 0x65}
 var WasmdModuleStr = string(WasmdModule[:])
 
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
->>>>>>> 6fb14a47 (Fix bugs - successfully builds)
 // CircleIntegrationModule is the identifier of the Circle Integration module (which is used for governance messages).
 // It is the hex representation of "CircleIntegration" left padded with zeroes.
 var CircleIntegrationModule = [32]byte{
@@ -28,18 +23,14 @@ var CircleIntegrationModule = [32]byte{
 }
 var CircleIntegrationModuleStr = string(CircleIntegrationModule[:])
 
-<<<<<<< HEAD
-=======
 // CoreRelayerModule is the identifier of the Wormhole Relayer module (which is used for governance messages).
 // It is the hex representation of "CoreRelayer" left padded with zeroes.
 var CoreRelayerModule = [32]byte{
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x43, 0x6f, 0x72, 0x65, 0x52, 0x65, 0x6c, 0x61, 0x79, 0x65, 0x72, 0x0d, 0x0a,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x43, 0x6f, 0x72, 0x65, 0x52, 0x65, 0x6c, 0x61, 0x79, 0x65, 0x72,
 }
 var CoreRelayerModuleStr = string(CoreRelayerModule[:])
 
->>>>>>> 112c9c9d (Fix bugs - successfully builds)
->>>>>>> 6fb14a47 (Fix bugs - successfully builds)
 type GovernanceAction uint8
 
 var (
@@ -60,29 +51,21 @@ var (
 	ActionModifyBalance GovernanceAction = 1
 
 	// Wormhole tokenbridge governance actions
-<<<<<<< HEAD
 	ActionRegisterChain             GovernanceAction = 1
 	ActionUpgradeTokenBridge        GovernanceAction = 2
 	ActionTokenBridgeRecoverChainId GovernanceAction = 3
-=======
+
 	ActionRegisterChain      GovernanceAction = 1
 	ActionUpgradeTokenBridge GovernanceAction = 2
 	ActionModifyBalance      GovernanceAction = 3
-<<<<<<< HEAD
-=======
->>>>>>> 6fb14a47 (Fix bugs - successfully builds)
 
 	// Circle Integration governance actions
 	CircleIntegrationActionUpdateWormholeFinality        GovernanceAction = 1
 	CircleIntegrationActionRegisterEmitterAndDomain      GovernanceAction = 2
 	CircleIntegrationActionUpgradeContractImplementation GovernanceAction = 3
-<<<<<<< HEAD
-=======
 
 	// Wormhole relayer governance actions
-	WormholeRelayerSetDefaultRelayProvider GovernanceAction = 1
->>>>>>> 112c9c9d (Fix bugs - successfully builds)
->>>>>>> 6fb14a47 (Fix bugs - successfully builds)
+	WormholeRelayerSetDefaultRelayProvider GovernanceAction = 3
 )
 
 type (

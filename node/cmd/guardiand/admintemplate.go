@@ -150,7 +150,7 @@ var AdminClientCircleIntegrationUpgradeContractImplementationCmd = &cobra.Comman
 
 var AdminClientWormholeRelayerSetDefaultRelayProviderCmd = &cobra.Command{
 	Use: "wormhole-relayer-set-default-relay-provider",
-	Short: "Set the default relay provider to specified address",
+	Short: "Generate a 'set default relay provider' template for specified chain and address",
 	Run: runWormholeRelayerSetDefaultRelayProviderTemplate,
 }
 
