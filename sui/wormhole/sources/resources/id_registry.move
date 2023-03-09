@@ -11,10 +11,6 @@ module wormhole::id_registry {
         IdRegistry { index: 0 }
     }
 
-    public fun index(self: &IdRegistry): u64 {
-        self.index
-    }
-
     public fun next_address(self: &mut IdRegistry): ExternalAddress {
         self.index = self.index + 1;
         external_address::from_u64_be(self.index)
@@ -29,6 +25,12 @@ module wormhole::id_registry {
     public fun skip_to(self: &mut IdRegistry, value: u64) {
         self.index = value;
     }
+
+    #[test_only]
+    public fun index(self: &IdRegistry): u64 {
+        self.index
+    }
+
 }
 
 #[test_only]
