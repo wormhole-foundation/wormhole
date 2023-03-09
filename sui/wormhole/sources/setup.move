@@ -71,7 +71,7 @@ module wormhole::setup {
 }
 
 #[test_only]
-module wormhole::setup_test {
+module wormhole::setup_tests {
     use std::option::{Self};
     use std::vector::{Self};
     use sui::object::{Self};

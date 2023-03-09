@@ -37,7 +37,7 @@ module wormhole::set {
 }
 
 #[test_only]
-module wormhole::set_test {
+module wormhole::set_tests {
     use sui::tx_context::{Self};
 
     use wormhole::set::{Self};

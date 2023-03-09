@@ -50,7 +50,7 @@ module wormhole::fee_collector {
 }
 
 #[test_only]
-module wormhole::fee_collector_test {
+module wormhole::fee_collector_tests {
     use sui::coin::{Self};
     use sui::sui::{SUI};
     use sui::tx_context::{Self};

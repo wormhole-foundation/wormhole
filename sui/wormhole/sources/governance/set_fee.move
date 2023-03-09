@@ -79,7 +79,7 @@ module wormhole::set_fee {
 }
 
 #[test_only]
-module wormhole::set_fee_test {
+module wormhole::set_fee_tests {
     use sui::coin::{Self};
     use sui::sui::{SUI};
     use sui::test_scenario::{Self};

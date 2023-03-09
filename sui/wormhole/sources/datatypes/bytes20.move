@@ -109,7 +109,7 @@ module wormhole::bytes20 {
 }
 
 #[test_only]
-module wormhole::bytes20_tests {
+module wormhole::bytes20_test {
     use std::vector::{Self};
 
     use wormhole::bytes20::{Self};

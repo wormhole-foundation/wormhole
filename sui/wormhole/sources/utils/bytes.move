@@ -108,7 +108,7 @@ module wormhole::bytes {
 }
 
 #[test_only]
-module wormhole::test_bytes {
+module wormhole::bytes_tests {
     use std::vector::{Self};
     use wormhole::bytes::{Self};
     use wormhole::cursor::{Self};

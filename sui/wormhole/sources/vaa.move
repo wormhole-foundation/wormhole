@@ -303,7 +303,7 @@ module wormhole::vaa {
 }
 
 #[test_only]
-module wormhole::vaa_test {
+module wormhole::vaa_tests {
     use std::vector::{Self};
     use sui::test_scenario::{Self};
 

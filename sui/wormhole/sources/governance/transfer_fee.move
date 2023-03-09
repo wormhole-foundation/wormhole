@@ -93,7 +93,7 @@ module wormhole::transfer_fee {
 }
 
 #[test_only]
-module wormhole::transfer_fee_test {
+module wormhole::transfer_fee_tests {
     use sui::coin::{Self, Coin};
     use sui::sui::{SUI};
     use sui::test_scenario::{Self};

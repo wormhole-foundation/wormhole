@@ -32,7 +32,7 @@ module wormhole::id_registry {
 }
 
 #[test_only]
-module wormhole::id_registry_test{
+module wormhole::id_registry_tests {
     use wormhole::bytes32::{Self};
     use wormhole::id_registry::{Self};
     use wormhole::external_address::{Self};

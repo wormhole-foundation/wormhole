@@ -82,7 +82,7 @@ module wormhole::external_address {
 }
 
 #[test_only]
-module wormhole::external_address_test {
+module wormhole::external_address_tests {
     use wormhole::bytes20::{Self};
     use wormhole::bytes32::{Self};
     use wormhole::external_address::{Self};

@@ -100,7 +100,7 @@ module wormhole::emitter {
 }
 
 #[test_only]
-module wormhole::emitter_test {
+module wormhole::emitter_tests {
     use sui::tx_context::{Self};
 
     use wormhole::emitter::{Self};

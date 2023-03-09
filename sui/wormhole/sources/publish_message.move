@@ -56,7 +56,7 @@ module wormhole::publish_message {
 }
 
 #[test_only]
-module wormhole::publish_message_test{
+module wormhole::publish_message_tests {
     use sui::coin::{Self};
     use sui::sui::{SUI};
     use sui::test_scenario::{Self};

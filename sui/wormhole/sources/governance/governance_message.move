@@ -176,7 +176,7 @@ module wormhole::governance_message {
 }
 
 #[test_only]
-module wormhole::governance_message_test {
+module wormhole::governance_message_tests {
     use sui::test_scenario::{Self};
 
     use wormhole::bytes32::{Self};

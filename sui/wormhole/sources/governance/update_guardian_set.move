@@ -115,7 +115,7 @@ module wormhole::update_guardian_set {
 }
 
 #[test_only]
-module wormhole::guardian_set_upgrade_test {
+module wormhole::update_guardian_set_tests {
     use std::vector::{Self};
     use sui::test_scenario::{Self};
 
