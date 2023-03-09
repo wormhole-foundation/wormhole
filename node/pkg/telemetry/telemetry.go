@@ -8,7 +8,7 @@ import (
 	"io"
 	"time"
 
-	"cloud.google.com/go/logging"
+	google_cloud_logging "cloud.google.com/go/logging"
 	"github.com/blendle/zapdriver"
 	"go.uber.org/zap"
 	"go.uber.org/zap/buffer"
@@ -23,17 +23,17 @@ type Telemetry struct {
 }
 
 type ExternalLogger interface {
-	log(time time.Time, message []byte, level zapcore.Level)
+	log(time time.Time, message json.RawMessage, level zapcore.Level)
 	flush() error
 }
 
 type ExternalLoggerGoogleCloud struct {
-	*logging.Logger
+	*google_cloud_logging.Logger
 	labels map[string]string // labels to add to each cloud log
 }
 
-func (logger *ExternalLoggerGoogleCloud) log(time time.Time, message []byte, level zapcore.Level) {
-	logger.Log(logging.Entry{
+func (logger *ExternalLoggerGoogleCloud) log(time time.Time, message json.RawMessage, level zapcore.Level) {
+	logger.Log(google_cloud_logging.Entry{
 		Timestamp: time,
 		Payload:   message,
 		Severity:  logLevelSeverity[level],
@@ -55,14 +55,14 @@ type guardianTelemetryEncoder struct {
 // Mirrors the conversion done by zapdriver. We need to convert this
 // to proto severity for usage with the SDK client library
 // (the JSON value encoded by zapdriver is ignored).
-var logLevelSeverity = map[zapcore.Level]logging.Severity{
-	zapcore.DebugLevel:  logging.Debug,
-	zapcore.InfoLevel:   logging.Info,
-	zapcore.WarnLevel:   logging.Warning,
-	zapcore.ErrorLevel:  logging.Error,
-	zapcore.DPanicLevel: logging.Critical,
-	zapcore.PanicLevel:  logging.Alert,
-	zapcore.FatalLevel:  logging.Emergency,
+var logLevelSeverity = map[zapcore.Level]google_cloud_logging.Severity{
+	zapcore.DebugLevel:  google_cloud_logging.Debug,
+	zapcore.InfoLevel:   google_cloud_logging.Info,
+	zapcore.WarnLevel:   google_cloud_logging.Warning,
+	zapcore.ErrorLevel:  google_cloud_logging.Error,
+	zapcore.DPanicLevel: google_cloud_logging.Critical,
+	zapcore.PanicLevel:  google_cloud_logging.Alert,
+	zapcore.FatalLevel:  google_cloud_logging.Emergency,
 }
 
 func (enc *guardianTelemetryEncoder) EncodeEntry(entry zapcore.Entry, fields []zapcore.Field) (*buffer.Buffer, error) {
@@ -112,7 +112,7 @@ func NewExternalLogger(skipPrivateLogs bool, externalLogger ExternalLogger) (*Te
 // New creates a new Telemetry logger with Google Cloud Logging
 // skipPrivateLogs: if set to `true`, logs with the field zap.Bool("_privateLogEntry", true) will not be logged by telemetry.
 func New(ctx context.Context, project string, serviceAccountJSON []byte, skipPrivateLogs bool, labels map[string]string) (*Telemetry, error) {
-	gc, err := logging.NewClient(ctx, project, option.WithCredentialsJSON(serviceAccountJSON))
+	gc, err := google_cloud_logging.NewClient(ctx, project, option.WithCredentialsJSON(serviceAccountJSON))
 	if err != nil {
 		return nil, fmt.Errorf("unable to create logging client: %v", err)
 	}

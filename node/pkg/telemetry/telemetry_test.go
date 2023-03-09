@@ -1,10 +1,12 @@
 package telemetry
 
 import (
+	"encoding/json"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	google_cloud_logging "cloud.google.com/go/logging"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -15,10 +17,23 @@ type externalLoggerMock struct {
 	eventCounter *atomic.Int64
 }
 
-func (logger *externalLoggerMock) log(time time.Time, message []byte, level zapcore.Level) {
+func (logger *externalLoggerMock) log(time time.Time, message json.RawMessage, level zapcore.Level) {
 	if logger.eventCounter != nil {
 		logger.eventCounter.Add(1)
 	}
+
+	// do the following to make sure that the conversion into a google_cloud_logging.Entry works
+	entry := google_cloud_logging.Entry{
+		Timestamp: time,
+		Payload:   message,
+		Severity:  logLevelSeverity[level],
+	}
+
+	_, err := google_cloud_logging.ToLogEntry(entry, "/")
+	if err != nil {
+		panic("message could not be converted to google cloud log entry")
+	}
+
 }
 func (logger *externalLoggerMock) flush() error {
 	return nil
