@@ -212,6 +212,7 @@ fn all_balances_sub_range() {
 fn transfer_data() {
     let count = 2;
     let (wh, mut contract) = proper_instantiate();
+    register_emitters(&wh, &mut contract, count);
     create_transfers(&wh, &mut contract, count);
 
     for i in 0..count {
@@ -233,6 +234,7 @@ fn transfer_data() {
 fn missing_transfer() {
     let count = 2;
     let (wh, mut contract) = proper_instantiate();
+    register_emitters(&wh, &mut contract, count);
     create_transfers(&wh, &mut contract, count);
 
     let missing = transfer::Key::new(
@@ -250,6 +252,7 @@ fn missing_transfer() {
 fn all_transfer_data() {
     let count = 3;
     let (wh, mut contract) = proper_instantiate();
+    register_emitters(&wh, &mut contract, count);
     let transfers = create_transfers(&wh, &mut contract, count);
 
     let resp = contract.query_all_transfers(None, None).unwrap();
@@ -269,6 +272,7 @@ fn all_transfer_data() {
 fn batch_transfer_status() {
     let count = 3;
     let (wh, mut contract) = proper_instantiate();
+    register_emitters(&wh, &mut contract, count);
     let transfers = create_transfers(&wh, &mut contract, count);
 
     let keys = transfers.iter().map(|t| &t.key).cloned().collect();
@@ -287,6 +291,7 @@ fn batch_transfer_status() {
 fn all_transfer_data_sub_range() {
     let count = 5;
     let (wh, mut contract) = proper_instantiate();
+    register_emitters(&wh, &mut contract, count);
     create_transfers(&wh, &mut contract, count);
 
     for i in 0..count {
