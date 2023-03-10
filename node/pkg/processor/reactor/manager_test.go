@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/benbjohnson/clock"
+
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -30,6 +32,8 @@ type (
 
 		storage      *testConsensusStorage
 		eventHandler *testManagerEventHandler[*testObservation]
+
+		clock *clock.Mock
 	}
 
 	managerTestAction interface {
@@ -179,7 +183,7 @@ func (i managerInjectForeignObservationAction) Evaluate(t *testing.T, m *Manager
 }
 
 func (w managerWaitAction) Evaluate(t *testing.T, r *Manager[*testObservation], testContext *managerTestContext) {
-	time.Sleep(w.duration)
+	testContext.clock.Set(testContext.clock.Now().Add(w.duration))
 }
 
 type (
@@ -280,14 +284,12 @@ func TestManager(t *testing.T) {
 			name: "NormalFlow2Guardians",
 			actions: []managerTestAction{
 				managerInjectOwnObservationAction{observation: &testObservation{}},
-				managerWaitAction{duration: time.Millisecond * 4},
 				managerAssertNumReactorsAction{numReactors: 1},
 				managerAssertNoEvents{},
 				managerInjectForeignObservationAction{
 					hash:          testObservationHash(),
 					guardianIndex: 1,
 				},
-				managerWaitAction{duration: time.Millisecond * 4},
 				managerAssertQuorumEventAction{observation: &testObservation{}},
 				managerAssertMessageInStorageAction{id: (&testObservation{}).MessageID()},
 				managerWaitAction{duration: time.Millisecond * 24},
@@ -302,11 +304,9 @@ func TestManager(t *testing.T) {
 					hash:          testObservationHash(),
 					guardianIndex: 1,
 				},
-				managerWaitAction{duration: time.Millisecond * 4},
 				managerAssertNumReactorsAction{numReactors: 1},
 				managerAssertNoEvents{},
 				managerInjectOwnObservationAction{observation: &testObservation{}},
-				managerWaitAction{duration: time.Millisecond * 4},
 				managerAssertQuorumEventAction{observation: &testObservation{}},
 				managerAssertMessageInStorageAction{id: (&testObservation{}).MessageID()},
 				managerWaitAction{duration: time.Millisecond * 24},
@@ -318,10 +318,9 @@ func TestManager(t *testing.T) {
 			name: "NoQuorum2Guardians",
 			actions: []managerTestAction{
 				managerInjectOwnObservationAction{observation: &testObservation{}},
-				managerWaitAction{duration: time.Millisecond * 4},
 				managerAssertNumReactorsAction{numReactors: 1},
 				managerAssertNoEvents{},
-				managerWaitAction{duration: time.Millisecond * 24},
+				managerWaitAction{duration: time.Millisecond * 26},
 				managerAssertNumReactorsAction{numReactors: 0},
 				managerAssertTimeoutEventAction{observation: &testObservation{}, previousState: StateObserved, lenSignatures: 1},
 				managerAssertMessageInStorageAction{id: (&testObservation{}).MessageID(), shouldNotExist: true},
@@ -335,13 +334,11 @@ func TestManager(t *testing.T) {
 					hash:          testObservationHash(),
 					guardianIndex: 1,
 				},
-				managerWaitAction{duration: time.Millisecond * 4},
 				managerAssertNumReactorsAction{numReactors: 1},
 				managerWaitAction{duration: time.Millisecond * 40},
 				managerAssertFinalizationEventAction{observation: &testObservation{}},
 				managerAssertNumReactorsAction{0},
 				managerInjectOwnObservationAction{observation: &testObservation{}},
-				managerWaitAction{duration: time.Millisecond * 4},
 				managerAssertNumReactorsAction{numReactors: 0},
 			},
 		},
@@ -353,7 +350,7 @@ func TestManager(t *testing.T) {
 					guardianIndex: 1,
 					invalid:       true,
 				},
-				managerWaitAction{duration: time.Millisecond * 4},
+				managerWaitAction{duration: time.Millisecond * 20},
 				managerAssertNumReactorsAction{numReactors: 0},
 			},
 		},
@@ -368,28 +365,24 @@ func TestManager(t *testing.T) {
 					hash:          testObservationHash(),
 					guardianIndex: 2,
 				},
-				managerWaitAction{duration: time.Millisecond * 4},
 				managerAssertNumReactorsAction{numReactors: 1},
 				managerInjectOwnObservationAction{observation: testObservation2},
 				managerInjectForeignObservationAction{
 					hash:          testObservation2.SigningDigest(),
 					guardianIndex: 2,
 				},
-				managerWaitAction{duration: time.Millisecond * 4},
 				managerAssertNumReactorsAction{numReactors: 2},
 				managerAssertHasReactorAction{digest: testObservationHash()},
 				managerAssertHasReactorAction{digest: testObservation2.SigningDigest()},
 				managerAssertNoEvents{},
 				managerInjectOwnObservationAction{observation: &testObservation{}},
-				managerWaitAction{duration: time.Millisecond * 4},
 				managerAssertQuorumEventAction{observation: &testObservation{}},
 				managerAssertNoEvents{},
 				managerAssertMessageInStorageAction{id: (&testObservation{}).MessageID()},
 				managerInjectForeignObservationAction{hash: testObservation2.SigningDigest(), guardianIndex: 1},
-				managerWaitAction{duration: time.Millisecond * 4},
 				managerAssertQuorumEventAction{observation: testObservation2},
 				managerAssertNoEvents{},
-				managerWaitAction{time.Millisecond * 24},
+				managerWaitAction{time.Millisecond * 26},
 				managerAssertNumReactorsAction{0},
 				managerAssertFinalizationEventAction{&testObservation{}},
 				managerAssertFinalizationEventAction{observation: testObservation2},
@@ -439,8 +432,6 @@ func TestManager(t *testing.T) {
 				signatures: make(map[string]testConsensusStorageEntry),
 			}
 			eventHandler := &testManagerEventHandler[*testObservation]{}
-			r := NewManager[*testObservation]("test", obsC, signedObsC, gst, *config, eventHandler, storage)
-
 			tCtx := &managerTestContext{
 				guardianKeys: keys,
 				gs:           gs,
@@ -448,7 +439,11 @@ func TestManager(t *testing.T) {
 				signedObsC:   signedObsC,
 				storage:      storage,
 				eventHandler: eventHandler,
+				clock:        clock.NewMock(),
 			}
+
+			r := NewManager[*testObservation]("test", obsC, signedObsC, gst, *config, eventHandler, storage)
+			r.clock = tCtx.clock
 
 			func() {
 				ctx, cancel := context.WithCancel(context.Background())
@@ -459,6 +454,7 @@ func TestManager(t *testing.T) {
 
 				for _, action := range test.actions {
 					action.Evaluate(t, r, tCtx)
+					time.Sleep(time.Millisecond * 10)
 				}
 			}()
 		})

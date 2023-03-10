@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"runtime"
 	"sync"
+
+	"github.com/benbjohnson/clock"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -47,6 +50,7 @@ type Manager[K Observation] struct {
 	storage ConsensusStorage[K]
 
 	logger *zap.Logger
+	clock  clock.Clock
 }
 
 // ManagerEventHandler handles significant consensus event from reactors
@@ -69,59 +73,74 @@ func NewManager[K Observation](group string, observationC <-chan K, confirmation
 		handler:               handler,
 		storage:               storage,
 		stateTransitionChan:   make(chan *StateTransition[K], 1000),
+		clock:                 clock.New(),
 	}
 
 	return m
 }
 
 func (p *Manager[K]) Run(ctx context.Context) error {
+	// Share a logger between runners
 	p.logger = supervisor.Logger(ctx)
 	p.logger = p.logger.With(zap.String("group", p.group))
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case s := <-p.stateTransitionChan:
-			p.reactorsLock.Lock()
-			digest, exists := p.reactorsReverseLookup[s.Reactor]
-			p.reactorsLock.Unlock()
-			if !exists {
-				p.logger.Warn("received state transition for unknown reactor - dropping", zap.Any("transition", s))
-				continue
+
+	wg := sync.WaitGroup{}
+	for i := 0; i < runtime.NumCPU()/2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case s := <-p.stateTransitionChan:
+					p.reactorsLock.Lock()
+					digest, exists := p.reactorsReverseLookup[s.Reactor]
+					p.reactorsLock.Unlock()
+					if !exists {
+						p.logger.Warn("received state transition for unknown reactor - dropping", zap.Any("transition", s))
+						continue
+					}
+					p.transitionHook(digest, s)
+				case k := <-p.observationC:
+					messagesObservedTotal.WithLabelValues(p.group).Inc()
+
+					digest := k.SigningDigest()
+					p.logger.Debug("received observation", zap.Stringer("digest", digest), zap.Any("observation", k))
+
+					r, err := p.loadOrCreateReactor(ctx, digest, p.gst.Get(), p.storageObservationFilter(k.MessageID()))
+					if err != nil {
+						p.logger.Error("failed to load or create reactor", zap.Error(err), zap.Stringer("digest", digest))
+						continue
+					}
+					r.ObservationChannel() <- k
+				case m := <-p.confirmationC:
+					digest := ethcommon.BytesToHash(m.Hash)
+
+					gs := p.gst.Get()
+
+					r, err := p.loadOrCreateReactor(ctx, digest, gs, chainNewReactorFilters(
+						// Signed observations have to be verified before creating reactors to prevent DoS.
+						// They will also be verified in the reactor; This duplication is intended as the overhead of verifying
+						// signatures twice is worth the reduced complexity and security risk from not having a code
+						// path in the reactor that skips verification. It also only evaluates if a new reactor would be created.
+						p.signedObservationSignatureFilter(gs, m),
+						p.storageObservationFilter(m.MessageId),
+					))
+					if err != nil {
+						p.logger.Error("failed to load or create reactor", zap.Error(err), zap.Stringer("digest", digest))
+						continue
+					}
+					r.ForeignObservationChannel() <- m
+				}
 			}
-			p.transitionHook(digest, s)
-		case k := <-p.observationC:
-			messagesObservedTotal.WithLabelValues(p.group).Inc()
-
-			digest := k.SigningDigest()
-			p.logger.Debug("received observation", zap.Stringer("digest", digest), zap.Any("observation", k))
-
-			r, err := p.loadOrCreateReactor(ctx, digest, p.gst.Get(), p.storageObservationFilter(k.MessageID()))
-			if err != nil {
-				p.logger.Error("failed to load or create reactor", zap.Error(err), zap.Stringer("digest", digest))
-				continue
-			}
-			r.ObservationChannel() <- k
-		case m := <-p.confirmationC:
-			digest := ethcommon.BytesToHash(m.Hash)
-
-			gs := p.gst.Get()
-
-			r, err := p.loadOrCreateReactor(ctx, digest, gs, chainNewReactorFilters(
-				// Signed observations have to be verified before creating reactors to prevent DoS.
-				// They will also be verified in the reactor; This duplication is intended as the overhead of verifying
-				// signatures twice is worth the reduced complexity and security risk from not having a code
-				// path in the reactor that skips verification. It also only evaluates if a new reactor would be created.
-				p.signedObservationSignatureFilter(gs, m),
-				p.storageObservationFilter(m.MessageId),
-			))
-			if err != nil {
-				p.logger.Error("failed to load or create reactor", zap.Error(err), zap.Stringer("digest", digest))
-				continue
-			}
-			r.ForeignObservationChannel() <- m
-		}
+		}()
 	}
+
+	wg.Wait()
+
+	return nil
 }
 
 func (p *Manager[K]) IterateReactors(iterF func(digest ethcommon.Hash, reactor *ConsensusReactor[K])) {
@@ -187,6 +206,7 @@ func (p *Manager[K]) loadOrCreateReactor(ctx context.Context, digest ethcommon.H
 
 		p.logger.Debug("creating new reactor", zap.Stringer("digest", digest))
 		r = NewReactor[K](p.group, &p.config, gs, p.stateTransitionChan)
+		r.clock = p.clock
 		err := supervisor.Run(ctx, fmt.Sprintf("reactor-%s", digest.String()), r.Run)
 		if err != nil {
 			return nil, fmt.Errorf("failed to spawn reactor routine: %w", err)

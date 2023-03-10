@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
+	"runtime"
 	"sync"
 	"time"
 
@@ -106,88 +107,152 @@ func (p *VAAConsensusProcessor) Run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to start reactor manager: %w", err)
 	}
+	wg := &sync.WaitGroup{}
 
-	cleanup := time.NewTicker(30 * time.Second)
-	defer cleanup.Stop()
+	// Processor for local message observations
+	for i := 0; i < runtime.NumCPU()/2; i++ {
+		spawnChannelProcessor(ctx, wg, p.msgC, p.processMessageObservation)
+	}
 
-	reobservationTicker := time.NewTicker(5 * time.Minute)
-	defer reobservationTicker.Stop()
+	// Processors for inbound signed VAAs
+	for i := 0; i < runtime.NumCPU()/2; i++ {
+		spawnChannelProcessor(ctx, wg, p.signedInC, p.handleSignedVAA)
+	}
 
-	// Always initialize the timer so don't have a nil pointer in the case below. It won't get rearmed after that.
-	govTimer := time.NewTicker(time.Minute)
-	defer govTimer.Stop()
+	// Processor for accountant messages
+	spawnChannelProcessor(ctx, wg, p.acctReadC, p.processAccountantMessage)
 
-	for {
-		select {
-		case <-ctx.Done():
-			if p.acct != nil {
-				p.acct.Close()
-			}
-			return ctx.Err()
-		case k := <-p.msgC:
-			if k.EmitterAddress == vaa.GovernanceEmitter && k.EmitterChain == vaa.GovernanceChain {
-				supervisor.Logger(ctx).Error(
-					"EMERGENCY: PLEASE REPORT THIS IMMEDIATELY! A Solana message was emitted from the governance emitter. This should never be possible.",
-					zap.Stringer("emitter_chain", k.EmitterChain),
-					zap.Stringer("emitter_address", k.EmitterAddress),
-					zap.Uint32("nonce", k.Nonce),
-					zap.Stringer("txhash", k.TxHash),
-					zap.Time("timestamp", k.Timestamp))
+	spawnTickerRunnable(ctx, wg, 30*time.Second, p.cleanPythnetVAAs)
+	spawnTickerRunnable(ctx, wg, 5*time.Minute, p.checkReobservations)
+	spawnTickerRunnable(ctx, wg, time.Minute, p.processGovernorPending)
+
+	// Wait for all goroutines to exit.
+	wg.Wait()
+
+	return nil
+}
+
+func (p *VAAConsensusProcessor) cleanPythnetVAAs() {
+	// Clean up old pythnet VAAs.
+	oldestTime := time.Now().Add(-time.Hour)
+	p.pythnetVAAsLock.Lock()
+	for key, pe := range p.pythnetVaas {
+		if pe.updateTime.Before(oldestTime) {
+			delete(p.pythnetVaas, key)
+		}
+	}
+	p.pythnetVAAsLock.Unlock()
+}
+
+func (p *VAAConsensusProcessor) processAccountantMessage(k *common.MessagePublication) {
+	if p.acct == nil {
+		panic("acct: received an accountant event when accountant is not configured")
+	}
+	// SECURITY defense-in-depth: Make sure the accountant did not generate an unexpected message.
+	if !p.acct.IsMessageCoveredByAccountant(k) {
+		p.logger.Error("acct: accountant published a message that is not covered by it", zap.String("message_id", k.MessageIDString()))
+		return
+	}
+	gs := p.gst.Get()
+	if gs == nil {
+		p.logger.Warn("received observation before guardian set was known - skipping")
+		return
+	}
+	p.obsC <- &vaaObservation{
+		MessagePublication: k,
+		gsIndex:            gs.Index,
+	}
+}
+
+func (p *VAAConsensusProcessor) processMessageObservation(k *common.MessagePublication) {
+	if k.EmitterAddress == vaa.GovernanceEmitter && k.EmitterChain == vaa.GovernanceChain {
+		p.logger.Error(
+			"EMERGENCY: PLEASE REPORT THIS IMMEDIATELY! A Solana message was emitted from the governance emitter. This should never be possible.",
+			zap.Stringer("emitter_chain", k.EmitterChain),
+			zap.Stringer("emitter_address", k.EmitterAddress),
+			zap.Uint32("nonce", k.Nonce),
+			zap.Stringer("txhash", k.TxHash),
+			zap.Time("timestamp", k.Timestamp))
+		return
+	}
+
+	if p.governor != nil {
+		if !p.governor.ProcessMsg(k) {
+			return
+		}
+	}
+	if p.acct != nil {
+		shouldPub, err := p.acct.SubmitObservation(k)
+		if err != nil {
+			p.logger.Error("acct: failed to process message", zap.String("message_id", k.MessageIDString()), zap.Error(err))
+			return
+		}
+		if !shouldPub {
+			return
+		}
+	}
+
+	// Ignore incoming observations when our database already has a quorum VAA for it.
+	// This can occur when we're receiving late observations due to node catchup.
+	if existing, err := p.getSignedVAA(*db.VaaIDFromVAA(k.CreateVAA(0))); err == nil {
+		p.logger.Debug("ignoring observation since we already have a quorum VAA for it",
+			zap.Stringer("emitter_chain", k.EmitterChain),
+			zap.Stringer("emitter_address", k.EmitterAddress),
+			zap.Uint32("nonce", k.Nonce),
+			zap.Stringer("txhash", k.TxHash),
+			zap.Time("timestamp", k.Timestamp),
+			zap.String("message_id", existing.MessageID()),
+		)
+		return
+	}
+
+	gs := p.gst.Get()
+	if gs == nil {
+		p.logger.Warn("received observation before guardian set was known - skipping")
+		return
+	}
+
+	v := k.CreateVAA(gs.Index)
+	p.attestationEvents.ReportMessagePublication(&reporter.MessagePublication{
+		VAA:            *v,
+		InitiatingTxID: k.TxHash,
+	})
+	p.obsC <- &vaaObservation{
+		MessagePublication: k,
+		gsIndex:            gs.Index,
+	}
+}
+
+// processGovernorPending checks the governor for pending messages and publishes them.
+func (p *VAAConsensusProcessor) processGovernorPending() {
+	if p.governor == nil {
+		return
+	}
+	toBePublished, err := p.governor.CheckPending()
+	if err != nil {
+		p.logger.Error("failed to check for pending messages on governor", zap.Error(err))
+		return
+	}
+	if len(toBePublished) != 0 {
+		for _, k := range toBePublished {
+			// SECURITY defense-in-depth: Make sure the governor did not generate an unexpected message.
+			if msgIsGoverned, err := p.governor.IsGovernedMsg(k); err != nil {
+				p.logger.Error("cgov: governor failed to determine if message should be governed", zap.String("message_id", k.MessageIDString()), zap.Error(err))
 				continue
-			}
-
-			if p.governor != nil {
-				if !p.governor.ProcessMsg(k) {
-					continue
-				}
+			} else if !msgIsGoverned {
+				p.logger.Error("cgov: governor published a message that should not be governed", zap.String("message_id", k.MessageIDString()))
+				continue
 			}
 			if p.acct != nil {
 				shouldPub, err := p.acct.SubmitObservation(k)
 				if err != nil {
-					return fmt.Errorf("acct: failed to process message `%s`: %w", k.MessageIDString(), err)
+					p.logger.Error("acct: failed to process message released by governor", zap.String("message_id", k.MessageIDString()), zap.Error(err))
+					continue
 				}
 				if !shouldPub {
 					continue
 				}
 			}
-
-			// Ignore incoming observations when our database already has a quorum VAA for it.
-			// This can occur when we're receiving late observations due to node catchup.
-			if existing, err := p.getSignedVAA(*db.VaaIDFromVAA(k.CreateVAA(0))); err == nil {
-				p.logger.Debug("ignoring observation since we already have a quorum VAA for it",
-					zap.Stringer("emitter_chain", k.EmitterChain),
-					zap.Stringer("emitter_address", k.EmitterAddress),
-					zap.Uint32("nonce", k.Nonce),
-					zap.Stringer("txhash", k.TxHash),
-					zap.Time("timestamp", k.Timestamp),
-					zap.String("message_id", existing.MessageID()),
-				)
-				continue
-			}
-
-			gs := p.gst.Get()
-			if gs == nil {
-				p.logger.Warn("received observation before guardian set was known - skipping")
-				continue
-			}
-
-			v := k.CreateVAA(gs.Index)
-			p.attestationEvents.ReportMessagePublication(&reporter.MessagePublication{
-				VAA:            *v,
-				InitiatingTxID: k.TxHash,
-			})
-			p.obsC <- &vaaObservation{
-				MessagePublication: k,
-				gsIndex:            gs.Index,
-			}
-		case k := <-p.acctReadC:
-			if p.acct == nil {
-				panic("acct: received an accountant event when accountant is not configured")
-			}
-			// SECURITY defense-in-depth: Make sure the accountant did not generate an unexpected message.
-			if !p.acct.IsMessageCoveredByAccountant(k) {
-				return fmt.Errorf("acct: accountant published a message that is not covered by it: `%s`", k.MessageIDString())
-			}
 			gs := p.gst.Get()
 			if gs == nil {
 				p.logger.Warn("received observation before guardian set was known - skipping")
@@ -196,55 +261,6 @@ func (p *VAAConsensusProcessor) Run(ctx context.Context) error {
 			p.obsC <- &vaaObservation{
 				MessagePublication: k,
 				gsIndex:            gs.Index,
-			}
-		case <-cleanup.C:
-			// Clean up old pythnet VAAs.
-			oldestTime := time.Now().Add(-time.Hour)
-			p.pythnetVAAsLock.Lock()
-			for key, pe := range p.pythnetVaas {
-				if pe.updateTime.Before(oldestTime) {
-					delete(p.pythnetVaas, key)
-				}
-			}
-			p.pythnetVAAsLock.Unlock()
-		case <-reobservationTicker.C:
-			p.checkReobservations()
-		case s := <-p.signedInC:
-			p.handleSignedVAA(s)
-		case <-govTimer.C:
-			if p.governor != nil {
-				toBePublished, err := p.governor.CheckPending()
-				if err != nil {
-					return err
-				}
-				if len(toBePublished) != 0 {
-					for _, k := range toBePublished {
-						// SECURITY defense-in-depth: Make sure the governor did not generate an unexpected message.
-						if msgIsGoverned, err := p.governor.IsGovernedMsg(k); err != nil {
-							return fmt.Errorf("cgov: governor failed to determine if message should be governed: `%s`: %w", k.MessageIDString(), err)
-						} else if !msgIsGoverned {
-							return fmt.Errorf("cgov: governor published a message that should not be governed: `%s`", k.MessageIDString())
-						}
-						if p.acct != nil {
-							shouldPub, err := p.acct.SubmitObservation(k)
-							if err != nil {
-								return fmt.Errorf("acct: failed to process message released by governor `%s`: %w", k.MessageIDString(), err)
-							}
-							if !shouldPub {
-								continue
-							}
-						}
-						gs := p.gst.Get()
-						if gs == nil {
-							p.logger.Warn("received observation before guardian set was known - skipping")
-							continue
-						}
-						p.obsC <- &vaaObservation{
-							MessagePublication: k,
-							gsIndex:            gs.Index,
-						}
-					}
-				}
 			}
 		}
 	}
@@ -471,4 +487,36 @@ func (v *vaaObservation) SigningDigest() ethcommon.Hash {
 
 func (v *vaaObservation) VAA() *vaa.VAA {
 	return v.CreateVAA(v.gsIndex)
+}
+
+func spawnChannelProcessor[K any](ctx context.Context, wg *sync.WaitGroup, c <-chan K, f func(K)) {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case v := <-c:
+				f(v)
+			}
+		}
+	}()
+}
+
+func spawnTickerRunnable(ctx context.Context, wg *sync.WaitGroup, interval time.Duration, f func()) {
+	ticker := time.NewTicker(interval)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				f()
+			}
+		}
+	}()
 }

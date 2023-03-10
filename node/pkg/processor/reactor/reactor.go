@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/benbjohnson/clock"
+
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 
 	node_common "github.com/certusone/wormhole/node/pkg/common"
@@ -41,6 +43,8 @@ type (
 		// reactorState holds all mutable fields of the reactor. They may only be used while holding the
 		// reactorState.mutex.
 		state reactorState[K]
+
+		clock clock.Clock
 
 		logger *zap.Logger
 	}
@@ -143,6 +147,7 @@ func NewReactor[K Observation](group string, config *Config, gs *node_common.Gua
 		config:                    config,
 		foreignObservationChannel: make(chan *gossipv1.SignedObservation, 20),
 		observationChannel:        make(chan K, 1),
+		clock:                     clock.New(),
 	}
 
 	return c
@@ -163,7 +168,7 @@ func (c *ConsensusReactor[K]) Run(ctx context.Context) error {
 	tickFrequency := *node_common.Min([]time.Duration{
 		c.config.UnobservedTimeout, c.config.RetransmitFrequency, c.config.QuorumTimeout, c.config.QuorumGracePeriod,
 	}) / 2
-	ticker := time.NewTicker(tickFrequency)
+	ticker := c.clock.Ticker(tickFrequency)
 	defer ticker.Stop()
 
 	for {
@@ -259,19 +264,19 @@ func (c *ConsensusReactor[K]) triggerTimeouts(ctx context.Context) (bool, error)
 
 	switch c.state.currentState {
 	case StateUnobserved:
-		if time.Since(c.state.firstSeen) > c.config.UnobservedTimeout {
+		if c.clock.Since(c.state.firstSeen) > c.config.UnobservedTimeout {
 			c.logger.Debug("timing out", zap.String("reason", "unobserved_timeout"))
 			// Time out
 			c.timeOut()
 		}
 	case StateObserved:
-		if time.Since(c.state.lastObservation) > c.config.QuorumTimeout {
+		if c.clock.Since(c.state.lastObservation) > c.config.QuorumTimeout {
 			c.logger.Debug("timing out", zap.String("reason", "quorum_timeout"))
 			// Time out
 			c.timeOut()
 		}
 
-		if time.Since(c.state.lastTransmission) > c.config.RetransmitFrequency {
+		if c.clock.Since(c.state.lastTransmission) > c.config.RetransmitFrequency {
 			// TODO backoff when transmission fails
 			c.logger.Debug("retransmitting")
 			reactorResubmission.WithLabelValues(c.group).Inc()
@@ -282,13 +287,13 @@ func (c *ConsensusReactor[K]) triggerTimeouts(ctx context.Context) (bool, error)
 			}
 		}
 	case StateQuorum:
-		if time.Since(c.state.timeQuorum) > c.config.QuorumGracePeriod || len(c.gs.Keys) == len(c.state.signatures) {
+		if c.clock.Since(c.state.timeQuorum) > c.config.QuorumGracePeriod || len(c.gs.Keys) == len(c.state.signatures) {
 			c.logger.Debug("timing out", zap.String("reason", "quorum_grace"))
 			// Time out
 			c.timeOut()
 		}
 	case StateQuorumUnobserved:
-		if time.Since(c.state.firstSeen) > c.config.UnobservedTimeout {
+		if c.clock.Since(c.state.firstSeen) > c.config.UnobservedTimeout {
 			c.logger.Debug("timing out", zap.String("reason", "quorum_unobserved_timeout"))
 			// Time out
 			c.timeOut()
@@ -341,11 +346,11 @@ func (c *ConsensusReactor[K]) foreignObservationReceived(ctx context.Context, m 
 
 	// Store their signature
 	c.state.signatures[theirAddr] = m.Signature
-	c.state.lastObservation = time.Now()
+	c.state.lastObservation = c.clock.Now()
 
 	if c.state.currentState == StateInitialized {
 		c.logger.Debug("received observation before own observation", zap.Any("observation", m))
-		c.state.firstSeen = time.Now()
+		c.state.firstSeen = c.clock.Now()
 		c.stateTransition(StateUnobserved)
 	}
 
@@ -358,7 +363,7 @@ func (c *ConsensusReactor[K]) foreignObservationReceived(ctx context.Context, m 
 	switch c.state.currentState {
 	case StateObserved:
 		reactorQuorum.WithLabelValues(c.group, "quorum").Inc()
-		c.state.timeQuorum = time.Now()
+		c.state.timeQuorum = c.clock.Now()
 		c.stateTransition(StateQuorum)
 	case StateUnobserved:
 		reactorQuorum.WithLabelValues(c.group, "quorum_unobserved").Inc()
@@ -415,15 +420,15 @@ func (c *ConsensusReactor[K]) observed(ctx context.Context, o K) {
 	// Transition to quorum states
 	switch c.state.currentState {
 	case StateInitialized:
-		c.state.firstSeen = time.Now()
-		c.state.lastObservation = time.Now()
+		c.state.firstSeen = c.clock.Now()
+		c.state.lastObservation = c.clock.Now()
 		c.stateTransition(StateObserved)
 	case StateUnobserved:
-		c.state.lastObservation = time.Now()
+		c.state.lastObservation = c.clock.Now()
 		c.stateTransition(StateObserved)
 	case StateQuorumUnobserved:
 		reactorQuorum.WithLabelValues(c.group, "quorum").Inc()
-		c.state.timeQuorum = time.Now()
+		c.state.timeQuorum = c.clock.Now()
 		c.stateTransition(StateQuorum)
 		return
 	}
@@ -437,7 +442,7 @@ func (c *ConsensusReactor[K]) observed(ctx context.Context, o K) {
 	switch c.state.currentState {
 	case StateObserved:
 		reactorQuorum.WithLabelValues(c.group, "quorum").Inc()
-		c.state.timeQuorum = time.Now()
+		c.state.timeQuorum = c.clock.Now()
 		c.stateTransition(StateQuorum)
 	}
 }
@@ -504,7 +509,7 @@ func (c *ConsensusReactor[K]) transmitSignature(ctx context.Context) error {
 	}
 
 	observationsBroadcastTotal.WithLabelValues(c.group).Inc()
-	c.state.lastTransmission = time.Now()
+	c.state.lastTransmission = c.clock.Now()
 
 	return nil
 }

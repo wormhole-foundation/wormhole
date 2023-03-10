@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/benbjohnson/clock"
+
 	"go.uber.org/zap"
 
 	wormhole_common "github.com/certusone/wormhole/node/pkg/common"
@@ -22,6 +24,7 @@ import (
 type testContext struct {
 	guardianKeys     []*ecdsa.PrivateKey
 	gs               *wormhole_common.GuardianSet
+	clock            *clock.Mock
 	stateTransitions chan *StateTransition[*testObservation]
 }
 
@@ -134,10 +137,15 @@ type (
 		expectedState State
 		timeout       time.Duration
 	}
+
+	// assertStateTransitionAction asserts that the Reactor does not do a state transition within timeout.
+	assertNoStateTransitionAction struct {
+		timeout time.Duration
+	}
 )
 
 func (w waitAction) Evaluate(t *testing.T, r *ConsensusReactor[*testObservation], testContext *testContext) {
-	time.Sleep(w.duration)
+	testContext.clock.Set(testContext.clock.Now().Add(w.duration))
 }
 
 func (i injectForeignObservationAction) Evaluate(t *testing.T, r *ConsensusReactor[*testObservation], testContext *testContext) {
@@ -171,6 +179,9 @@ func (a assertLenVAASignatures) Evaluate(t *testing.T, r *ConsensusReactor[*test
 }
 
 func (a assertSignedObservationOnGossip) Evaluate(t *testing.T, r *ConsensusReactor[*testObservation], testContext *testContext) {
+	// Sleep a little to make sure timeouts can process
+	time.Sleep(time.Millisecond * 10)
+
 	r.config.NetworkAdapter.(*testGossipSender).sentMessagesLock.Lock()
 	defer r.config.NetworkAdapter.(*testGossipSender).sentMessagesLock.Unlock()
 	if a.observation == nil {
@@ -206,6 +217,19 @@ func (a assertStateTransitionAction) Evaluate(t *testing.T, r *ConsensusReactor[
 	}
 }
 
+func (a assertNoStateTransitionAction) Evaluate(t *testing.T, r *ConsensusReactor[*testObservation], testContext *testContext) {
+	timeout := a.timeout
+	if timeout == 0 {
+		timeout = 10 * time.Millisecond
+	}
+	select {
+	case lastStateTransition := <-testContext.stateTransitions:
+		require.Fail(t, "unexpected state transition", lastStateTransition)
+	case <-time.After(timeout):
+		return
+	}
+}
+
 func Test(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -228,7 +252,8 @@ func Test(t *testing.T) {
 				},
 				assertStateTransitionAction{expectedState: StateQuorum},
 				assertLenVAASignatures{expectedLen: 2},
-				assertStateTransitionAction{expectedState: StateFinalized, timeout: time.Millisecond * 15},
+				waitAction{time.Millisecond * 11},
+				assertStateTransitionAction{expectedState: StateFinalized},
 			},
 		},
 		{
@@ -248,9 +273,9 @@ func Test(t *testing.T) {
 				},
 				assertStateTransitionAction{expectedState: StateQuorum},
 				// Make sure the quorum grace period is considered
-				waitAction{duration: time.Millisecond * 7},
-				assertStateAction{expectedState: StateQuorum},
-				assertStateTransitionAction{expectedState: StateFinalized, timeout: time.Millisecond * 15},
+				assertNoStateTransitionAction{},
+				waitAction{time.Millisecond * 15},
+				assertStateTransitionAction{expectedState: StateFinalized},
 			},
 			numGuardians: 4,
 		},
@@ -265,9 +290,9 @@ func Test(t *testing.T) {
 					hash:          testObservationHash(),
 					guardianIndex: 1,
 				},
-				waitAction{duration: time.Millisecond * 5},
-				assertStateAction{expectedState: StateObserved},
-				assertStateTransitionAction{expectedState: StateTimedOut, timeout: time.Millisecond * 20},
+				assertNoStateTransitionAction{},
+				waitAction{time.Millisecond * 20},
+				assertStateTransitionAction{expectedState: StateTimedOut},
 			},
 			numGuardians: 4,
 		},
@@ -280,7 +305,8 @@ func Test(t *testing.T) {
 					guardianIndex: 1,
 				},
 				assertStateTransitionAction{expectedState: StateUnobserved},
-				assertStateTransitionAction{expectedState: StateTimedOut, timeout: time.Millisecond * 20},
+				waitAction{time.Millisecond * 15},
+				assertStateTransitionAction{expectedState: StateTimedOut},
 			},
 			numGuardians: 4,
 		},
@@ -304,7 +330,8 @@ func Test(t *testing.T) {
 					guardianIndex: 2,
 				},
 				assertStateTransitionAction{expectedState: StateQuorum},
-				assertStateTransitionAction{expectedState: StateFinalized, timeout: time.Millisecond * 20},
+				waitAction{time.Millisecond * 15},
+				assertStateTransitionAction{expectedState: StateFinalized},
 			},
 			numGuardians: 4,
 		},
@@ -320,7 +347,8 @@ func Test(t *testing.T) {
 				injectOwnObservationAction{observation: &testObservation{}},
 				assertStateTransitionAction{expectedState: StateObserved},
 				assertSignedObservationOnGossip{observation: &testObservation{}},
-				assertStateTransitionAction{expectedState: StateTimedOut, timeout: time.Millisecond * 20},
+				waitAction{time.Millisecond * 15},
+				assertStateTransitionAction{expectedState: StateTimedOut},
 			},
 			numGuardians: 4,
 		},
@@ -341,8 +369,9 @@ func Test(t *testing.T) {
 					hash:          testObservationHash(),
 					guardianIndex: 3,
 				},
-				assertStateTransitionAction{expectedState: StateQuorumUnobserved, timeout: time.Millisecond * 20},
-				assertStateTransitionAction{expectedState: StateTimedOut, timeout: time.Millisecond * 20},
+				assertStateTransitionAction{expectedState: StateQuorumUnobserved},
+				waitAction{time.Millisecond * 15},
+				assertStateTransitionAction{expectedState: StateTimedOut},
 			},
 			numGuardians: 4,
 		},
@@ -363,11 +392,12 @@ func Test(t *testing.T) {
 					hash:          testObservationHash(),
 					guardianIndex: 3,
 				},
-				assertStateTransitionAction{expectedState: StateQuorumUnobserved, timeout: time.Millisecond * 20},
+				assertStateTransitionAction{expectedState: StateQuorumUnobserved},
 				injectOwnObservationAction{observation: &testObservation{}},
 				assertStateTransitionAction{expectedState: StateQuorum},
 				assertSignedObservationOnGossip{observation: &testObservation{}},
-				assertStateTransitionAction{expectedState: StateFinalized, timeout: time.Millisecond * 20},
+				waitAction{time.Millisecond * 15},
+				assertStateTransitionAction{expectedState: StateFinalized},
 			},
 			numGuardians: 4,
 		},
@@ -382,15 +412,16 @@ func Test(t *testing.T) {
 					hash:          testObservationHash(),
 					guardianIndex: 1,
 				},
-				waitAction{duration: time.Millisecond * 17},
 				assertStateAction{expectedState: StateObserved},
+				waitAction{duration: time.Millisecond * 17},
 				assertSignedObservationOnGossip{observation: &testObservation{}},
 				injectForeignObservationAction{
 					hash:          testObservationHash(),
 					guardianIndex: 2,
 				},
 				assertStateTransitionAction{expectedState: StateQuorum},
-				assertStateTransitionAction{expectedState: StateFinalized, timeout: time.Millisecond * 40},
+				waitAction{time.Millisecond * 45},
+				assertStateTransitionAction{expectedState: StateFinalized},
 			},
 			numGuardians: 4,
 			config: &Config{
@@ -411,20 +442,19 @@ func Test(t *testing.T) {
 					hash:          testObservationHash(),
 					guardianIndex: 1,
 				},
-				waitAction{duration: time.Millisecond * 2},
-				assertStateAction{expectedState: StateObserved},
+				assertNoStateTransitionAction{},
 				injectForeignObservationAction{
 					hash:          testObservationHash(),
 					guardianIndex: 2,
 				},
-				waitAction{duration: time.Millisecond * 2},
-				assertStateAction{expectedState: StateObserved},
+				assertNoStateTransitionAction{},
 				injectForeignObservationAction{
 					hash:          testObservationHash(),
 					guardianIndex: 3,
 				},
 				assertStateTransitionAction{expectedState: StateQuorum},
-				assertStateTransitionAction{expectedState: StateFinalized, timeout: time.Millisecond * 20},
+				waitAction{time.Millisecond * 15},
+				assertStateTransitionAction{expectedState: StateFinalized},
 			},
 			numGuardians: 4,
 			notAGuardian: true,
@@ -436,7 +466,8 @@ func Test(t *testing.T) {
 				injectOwnObservationAction{observation: &testObservation{}},
 				assertStateTransitionAction{expectedState: StateObserved},
 				assertStateTransitionAction{expectedState: StateQuorum},
-				assertStateTransitionAction{expectedState: StateFinalized, timeout: time.Millisecond * 20},
+				waitAction{time.Millisecond * 15},
+				assertStateTransitionAction{expectedState: StateFinalized},
 			},
 			numGuardians: 1,
 		},
@@ -455,14 +486,14 @@ func Test(t *testing.T) {
 					hash:          testObservationHash(),
 					guardianIndex: 1,
 				},
-				waitAction{duration: time.Millisecond * 5},
-				assertStateAction{expectedState: StateObserved},
+				assertNoStateTransitionAction{},
 				injectForeignObservationAction{
 					hash:          testObservationHash(),
 					guardianIndex: 2,
 				},
 				assertStateTransitionAction{expectedState: StateQuorum},
-				assertStateTransitionAction{expectedState: StateFinalized, timeout: time.Millisecond * 15},
+				waitAction{time.Millisecond * 15},
+				assertStateTransitionAction{expectedState: StateFinalized},
 			},
 			numGuardians: 4,
 		},
@@ -482,14 +513,14 @@ func Test(t *testing.T) {
 					guardianIndex: 1,
 					invalid:       true,
 				},
-				waitAction{duration: time.Millisecond * 5},
-				assertStateAction{expectedState: StateObserved},
+				assertNoStateTransitionAction{},
 				injectForeignObservationAction{
 					hash:          testObservationHash(),
 					guardianIndex: 1,
 				},
 				assertStateTransitionAction{expectedState: StateQuorum},
-				assertStateTransitionAction{expectedState: StateFinalized, timeout: time.Millisecond * 15},
+				waitAction{time.Millisecond * 15},
+				assertStateTransitionAction{expectedState: StateFinalized},
 			},
 			numGuardians: 4,
 		},
@@ -511,6 +542,7 @@ func Test(t *testing.T) {
 				guardianKeys:     keys,
 				gs:               gs,
 				stateTransitions: make(chan *StateTransition[*testObservation], 10),
+				clock:            clock.NewMock(),
 			}
 
 			var signer Signer
@@ -543,6 +575,7 @@ func Test(t *testing.T) {
 			}
 
 			r := NewReactor[*testObservation]("test", test.config, gs, tCtx.stateTransitions)
+			r.clock = tCtx.clock
 
 			func() {
 				ctx, cancel := context.WithCancel(context.Background())

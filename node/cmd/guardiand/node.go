@@ -1057,6 +1057,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			acctWriteC,
 			env,
 		)
+		defer acct.Close()
 	} else {
 		logger.Info("acct: accountant is disabled")
 	}
