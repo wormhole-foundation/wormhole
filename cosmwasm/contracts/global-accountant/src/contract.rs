@@ -153,6 +153,16 @@ fn handle_observation(
     quorum: u32,
     sig: Signature,
 ) -> anyhow::Result<(ObservationStatus, Option<Event>)> {
+    let registered_emitter = CHAIN_REGISTRATIONS
+        .may_load(deps.storage, o.emitter_chain)
+        .context("failed to load chain registration")?
+        .ok_or_else(|| ContractError::MissingChainRegistration(o.emitter_chain.into()))?;
+
+    ensure!(
+        *registered_emitter == o.emitter_address,
+        "unknown emitter address"
+    );
+
     let digest = o.digest().context(ContractError::ObservationDigest)?;
 
     let digest_key = DIGESTS.key((o.emitter_chain, o.emitter_address.to_vec(), o.sequence));
@@ -226,16 +236,6 @@ fn handle_observation(
         },
         _ => bail!("Unknown tokenbridge payload"),
     };
-
-    let registered_emitter = CHAIN_REGISTRATIONS
-        .may_load(deps.storage, o.emitter_chain)
-        .context("failed to load chain registration")?
-        .ok_or_else(|| ContractError::MissingChainRegistration(o.emitter_chain.into()))?;
-
-    ensure!(
-        *registered_emitter == o.emitter_address,
-        "unknown emitter address"
-    );
 
     accountant::commit_transfer(
         deps.branch(),
@@ -413,6 +413,16 @@ fn handle_tokenbridge_vaa(
     mut deps: DepsMut<WormholeQuery>,
     body: Body<Message<&RawMessage>>,
 ) -> anyhow::Result<Event> {
+    let registered_emitter = CHAIN_REGISTRATIONS
+        .may_load(deps.storage, body.emitter_chain.into())
+        .context("failed to load chain registration")?
+        .ok_or(ContractError::MissingChainRegistration(body.emitter_chain))?;
+
+    ensure!(
+        *registered_emitter == body.emitter_address.0,
+        "unknown emitter address"
+    );
+
     let data = match body.payload {
         Message::Transfer {
             amount,

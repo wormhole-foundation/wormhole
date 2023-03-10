@@ -75,6 +75,8 @@ fn basic() {
 
     let (wh, mut contract) = proper_instantiate();
 
+    register_emitters(&wh, &mut contract, COUNT);
+
     let (vaas, payloads) = create_transfer_vaas(&wh, COUNT);
 
     let resp = contract.submit_vaas(payloads).unwrap();
@@ -97,6 +99,19 @@ fn basic() {
                 .add_attribute("data", serde_json_wasm::to_string(&data).unwrap()),
         );
     }
+}
+
+#[test]
+fn invalid_emitter() {
+    const COUNT: usize = 1;
+
+    let (wh, mut contract) = proper_instantiate();
+
+    let (_vaas, payloads) = create_transfer_vaas(&wh, COUNT);
+
+    contract
+        .submit_vaas(payloads)
+        .expect_err("successfully submitted VAA from invalid emitter");
 }
 
 #[test]
@@ -127,6 +142,7 @@ fn invalid_transfer() {
 #[test]
 fn no_quorum() {
     let (wh, mut contract) = proper_instantiate();
+    register_emitters(&wh, &mut contract, 4);
     let index = wh.guardian_set_index();
     let quorum = wh
         .calculate_quorum(index, contract.app().block_info().height)
@@ -202,6 +218,7 @@ fn non_transfer_message() {
 #[test]
 fn transfer_with_payload() {
     let (wh, mut contract) = proper_instantiate();
+    register_emitters(&wh, &mut contract, 3);
     let payload = [0x88; 17];
     let body = Body {
         timestamp: 2,
@@ -270,6 +287,7 @@ fn unsupported_version() {
 #[test]
 fn reobservation() {
     let (wh, mut contract) = proper_instantiate();
+    register_emitters(&wh, &mut contract, 7);
 
     let (v, data) = sign_vaa_body(&wh, create_vaa_body(6));
     contract
@@ -308,6 +326,7 @@ fn reobservation() {
 #[test]
 fn digest_mismatch() {
     let (wh, mut contract) = proper_instantiate();
+    register_emitters(&wh, &mut contract, 7);
 
     let (v, data) = sign_vaa_body(&wh, create_vaa_body(6));
     contract

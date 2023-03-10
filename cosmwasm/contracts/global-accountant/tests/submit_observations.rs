@@ -414,6 +414,7 @@ fn expired_guardian_set() {
 #[test]
 fn no_quorum() {
     let (wh, mut contract) = proper_instantiate();
+    register_emitters(&wh, &mut contract, 3);
     let index = wh.guardian_set_index();
     let quorum = wh
         .calculate_quorum(index, contract.app().block_info().height)
