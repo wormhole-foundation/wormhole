@@ -240,11 +240,12 @@ func (acct *Accountant) SubmitObservation(msg *common.MessagePublication) (bool,
 				zap.String("msgID", msgId),
 				zap.String("oldDigest", oldEntry.digest),
 				zap.String("newDigest", digest),
+				zap.Bool("enforcing", acct.enforceFlag),
 			)
 		} else {
-			acct.logger.Info("acct: blocking transfer because it is already outstanding", zap.String("msgID", msgId))
+			acct.logger.Info("acct: blocking transfer because it is already outstanding", zap.String("msgID", msgId), zap.Bool("enforcing", acct.enforceFlag))
 		}
-		return false, nil
+		return !acct.enforceFlag, nil
 	}
 
 	// Add it to the pending map and the database.
