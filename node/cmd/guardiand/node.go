@@ -1377,7 +1377,6 @@ func runNode(cmd *cobra.Command, args []string) {
 					return err
 				}
 			}
-			logger.Info("checking for base")
 			if shouldStart(baseRPC) {
 				logger.Info("Starting Base watcher")
 				readiness.RegisterComponent(common.ReadinessBaseSyncing)
