@@ -4,14 +4,19 @@ module wormhole::vaa {
 
     use wormhole::bytes::{Self};
     use wormhole::bytes32::{Self, Bytes32};
-    use wormhole::version_control::{ParseAndVerify as ParseAndVerifyControl};
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self, ExternalAddress};
-    use wormhole::guardian_set::{Self};
+    use wormhole::guardian::{Self};
+    use wormhole::guardian_set::{Self, GuardianSet};
     use wormhole::guardian_signature::{Self, GuardianSignature};
     use wormhole::state::{Self, State};
+    use wormhole::version_control::{ParseAndVerify as ParseAndVerifyControl};
 
     const E_WRONG_VERSION: u64 = 0;
+    const E_NO_QUORUM: u64 = 1;
+    const E_INVALID_SIGNATURE: u64 = 2;
+    const E_GUARDIAN_SET_EXPIRED: u64 = 3;
+    const E_NON_INCREASING_SIGNERS: u64 = 4;
 
     const VERSION_VAA: u8 = 1;
 
@@ -165,13 +170,10 @@ module wormhole::vaa {
         // Deserialize VAA buffer (and return `VAA` after verifying signatures).
         let vaa = parse(buf);
 
-        // Fetch the guardian set which this VAA was supposedly signed with.
-        let guardian_set =
-            state::guardian_set_at(wormhole_state, vaa.guardian_set_index);
-
-        // Verify signatures using guardian set.
-        guardian_set::verify_signatures(
-            guardian_set,
+        // Fetch the guardian set which this VAA was supposedly signed with and
+        // verify signatures using guardian set.
+        verify_signatures(
+            state::guardian_set_at(wormhole_state, vaa.guardian_set_index),
             vaa.signatures,
             hash_as_bytes(&vaa),
             ctx
@@ -262,6 +264,57 @@ module wormhole::vaa {
         bytes32::new(keccak256(&keccak256(buf)))
     }
 
+    fun verify_signatures(
+        set: &GuardianSet,
+        signatures: vector<GuardianSignature>,
+        message_hash: vector<u8>,
+        ctx: &TxContext
+    ) {
+        // Guardian set must be active (not expired).
+        assert!(guardian_set::is_active(set, ctx), E_GUARDIAN_SET_EXPIRED);
+
+        // Number of signatures must be at least quorum.
+        assert!(
+            vector::length(&signatures) >= guardian_set::quorum(set),
+            E_NO_QUORUM
+        );
+
+        // Drain `Cursor` by checking each signature.
+        let cur = cursor::new(signatures);
+        let (i, last_guardian_index) = (0, 0);
+        while (!cursor::is_empty(&cur)) {
+            let signature = cursor::poke(&mut cur);
+            let guardian_index = guardian_signature::index_as_u64(&signature);
+
+            // Ensure that the provided signatures are strictly increasing.
+            // This check makes sure that no duplicate signers occur. The
+            // increasing order is guaranteed by the guardians, or can always be
+            // reordered by the client.
+            assert!(
+                i == 0 || guardian_index > last_guardian_index,
+                E_NON_INCREASING_SIGNERS
+            );
+
+            // If the guardian pubkey cannot be recovered using the signature
+            // and message hash, revert.
+            assert!(
+                guardian::verify(
+                    guardian_set::guardian_at(set, guardian_index),
+                    signature,
+                    message_hash
+                ),
+                E_INVALID_SIGNATURE
+            );
+
+            // Continue.
+            i = i + 1;
+            last_guardian_index = guardian_index;
+        };
+
+        // Done.
+        cursor::destroy_empty(cur);
+    }
+
     #[test_only]
     public fun new(
         guardian_set_index: u32,
@@ -309,7 +362,6 @@ module wormhole::vaa_tests {
 
     use wormhole::bytes32::{Self};
     use wormhole::external_address::{Self};
-    use wormhole::guardian_set::{Self};
     use wormhole::guardian_signature::{Self};
     use wormhole::state::{State};
     use wormhole::vaa::{Self};
@@ -552,7 +604,7 @@ module wormhole::vaa_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = guardian_set::E_NO_QUORUM)]
+    #[expected_failure(abort_code = vaa::E_NO_QUORUM)]
     public fun test_cannot_parse_and_verify_without_quorum() {
         // Testing this method.
         use wormhole::vaa::{parse_and_verify};
@@ -587,7 +639,7 @@ module wormhole::vaa_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = guardian_set::E_NON_INCREASING_SIGNERS)]
+    #[expected_failure(abort_code = vaa::E_NON_INCREASING_SIGNERS)]
     public fun test_cannot_parse_and_verify_non_increasing() {
         // Testing this method.
         use wormhole::vaa::{parse_and_verify};
@@ -622,7 +674,7 @@ module wormhole::vaa_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = guardian_set::E_INVALID_SIGNATURE)]
+    #[expected_failure(abort_code = vaa::E_INVALID_SIGNATURE)]
     public fun test_cannot_parse_and_verify_invalid_signature() {
         // Testing this method.
         use wormhole::vaa::{parse_and_verify};
