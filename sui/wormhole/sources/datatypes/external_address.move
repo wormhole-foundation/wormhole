@@ -72,6 +72,18 @@ module wormhole::external_address {
         address::from_bytes(vec)
     }
 
+    public fun is_nonzero(e: &ExternalAddress): bool {
+        let i = 0;
+        while (i < 32) {
+            if (*vector::borrow(&e.external_address, i) > 0) {
+                return true
+            };
+            i = i + 1;
+        };
+
+        false
+    }
+
 }
 
 #[test_only]
@@ -161,5 +173,20 @@ module wormhole::external_address_test {
         let res = external_address::from_bytes(v);
         let address = external_address::to_address(&res);
         assert!(address == @0x1234, 0);
+    }
+
+    #[test]
+    public fun test_is_nonzero() {
+        // Test with nonzero bytes.
+        let v = x"0000000000000000000000000000000000000000000000000000000000001234";
+        let res = external_address::from_bytes(v);
+        let is_nonzero = external_address::is_nonzero(&res);
+        assert!(is_nonzero, 0);
+
+        // Test with zero bytes.
+        let zero_v = x"0000000000000000000000000000000000000000000000000000000000000000";
+        let res = external_address::from_bytes(zero_v);
+        is_nonzero = external_address::is_nonzero(&res);
+        assert!(!is_nonzero, 0);
     }
 }
