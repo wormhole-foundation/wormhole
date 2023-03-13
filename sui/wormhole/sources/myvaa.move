@@ -1,5 +1,5 @@
 module wormhole::myvaa {
-    use sui::ecdsa_k1::{keccak256};
+    use sui::hash::{keccak256};
     use sui::tx_context::{TxContext};
     use std::vector::{Self};
 
