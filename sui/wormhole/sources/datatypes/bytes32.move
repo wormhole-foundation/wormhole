@@ -53,29 +53,6 @@ module wormhole::bytes32 {
         self.data
     }
 
-    /// Serialize `u64` as big-endian format in zero-padded `Bytes32`.
-    public fun from_u64_be(value: u64): Bytes32 {
-        let buf = pad_left(&bcs::to_bytes(&value), true);
-        new(buf)
-    }
-
-    /// Deserialize from big-endian `u64` as long as the data does not overflow.
-    public fun to_u64_be(value: Bytes32): u64 {
-        let Bytes32 { data } = value;
-        let cur = cursor::new(data);
-
-        let (i, n) = (0, LEN - 8);
-        while (i < n) {
-            assert!(cursor::poke(&mut cur) == 0, E_INVALID_U64_BE);
-            i = i + 1;
-        };
-
-        let out = bytes::take_u64_be(&mut cur);
-        cursor::destroy_empty(cur);
-
-        out
-    }
-
     /// Serialize `u256` as big-endian format in zero-padded `Bytes32`.
     public fun from_u256_be(value: u256): Bytes32 {
         let buf = bcs::to_bytes(&value);
