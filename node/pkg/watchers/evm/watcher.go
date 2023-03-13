@@ -266,18 +266,11 @@ func (w *Watcher) Run(ctx context.Context) error {
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
 		finalizer := finalizers.NewArbitrumFinalizer(logger, w.l1Finalizer)
-		pollConnector, err := connectors.NewBlockPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond, false, false)
+		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond, false, false)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("creating block poll connector failed: %w", err)
-		}
-		// The standard geth BlockByHash() does not work on Arbitrum.
-		w.ethConn, err = connectors.NewConnectorWithGetTimeOfBlockOverride(ctx, pollConnector)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("creating arbitrum connector failed: %w", err)
 		}
 	} else if w.chainID == vaa.ChainIDOptimism && !w.unsafeDevMode {
 		if w.rootChainRpc != "" && w.rootChainContract != "" {
@@ -313,18 +306,11 @@ func (w *Watcher) Run(ctx context.Context) error {
 				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 				return fmt.Errorf("dialing eth client failed: %w", err)
 			}
-			pollConnector, err := connectors.NewBlockPollConnector(ctx, baseConnector, finalizers.NewDefaultFinalizer(), 250*time.Millisecond, useFinalizedBlocks, safeBlocksSupported)
+			w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizers.NewDefaultFinalizer(), 250*time.Millisecond, useFinalizedBlocks, safeBlocksSupported)
 			if err != nil {
 				ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 				return fmt.Errorf("creating block poll connector failed: %w", err)
-			}
-			// The standard geth BlockByHash() does not work on Optimism Bedrock.
-			w.ethConn, err = connectors.NewConnectorWithGetTimeOfBlockOverride(ctx, pollConnector)
-			if err != nil {
-				ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-				return fmt.Errorf("creating optimism connector failed: %w", err)
 			}
 		}
 	} else if w.chainID == vaa.ChainIDPolygon && w.usePolygonCheckpointing() {
@@ -351,18 +337,11 @@ func (w *Watcher) Run(ctx context.Context) error {
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
-		pollConnector, err := connectors.NewBlockPollConnector(ctx, baseConnector, finalizers.NewDefaultFinalizer(), 250*time.Millisecond, true, true)
+		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizers.NewDefaultFinalizer(), 250*time.Millisecond, true, true)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("creating block poll connector failed: %w", err)
-		}
-		// The standard geth BlockByHash() does not work on Base.
-		w.ethConn, err = connectors.NewConnectorWithGetTimeOfBlockOverride(ctx, pollConnector)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("creating base connector failed: %w", err)
 		}
 	} else {
 		w.ethConn, err = connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
@@ -586,6 +565,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 						zap.Stringer("tx", ev.Raw.TxHash),
 						zap.Uint64("block", ev.Raw.BlockNumber),
 						zap.Stringer("blockhash", ev.Raw.BlockHash),
+						zap.Uint64("blockTime", blockTime),
 						zap.Uint64("Sequence", ev.Sequence),
 						zap.Uint32("Nonce", ev.Nonce),
 						zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
@@ -600,6 +580,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 					zap.Stringer("tx", ev.Raw.TxHash),
 					zap.Uint64("block", ev.Raw.BlockNumber),
 					zap.Stringer("blockhash", ev.Raw.BlockHash),
+					zap.Uint64("blockTime", blockTime),
 					zap.Uint64("Sequence", ev.Sequence),
 					zap.Uint32("Nonce", ev.Nonce),
 					zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
