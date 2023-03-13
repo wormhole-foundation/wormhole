@@ -94,7 +94,13 @@ module token_bridge::registered_tokens {
         treasury_cap: TreasuryCap<C>,
         decimals: u8,
     ) {
-        assert!(!has<C>(self), E_ALREADY_REGISTERED);
+        // Note: we do not assert that the coin type has not already been
+        // registered using !has<C>(self), because add_new_wrapped
+        // consumes TreasuryCap<C> and stores it within a WrappedAsset
+        // within the token bridge forever. Since the treasury cap
+        // is globally unique and can only be created once, there is no
+        // risk that add_new_wrapped can be called again on the same
+        // coin type.
         assert!(chain != chain_id(), E_CANNOT_REGISTER_NATIVE_COIN);
         add_wrapped<C>(
             self,
