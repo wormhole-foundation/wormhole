@@ -4,7 +4,7 @@
 module wormhole::guardian_pubkey {
     use sui::ecdsa_k1::{Self as ecdsa};
     use std::vector;
-    use sui::ecdsa_k1::{keccak256};
+    use sui::hash::{keccak256};
 
     /// An error occurred while deserializing, for example due to wrong input size.
     const E_INVALID_FROM_EC_PUBKEY_LENGTH: u64 = 0;
