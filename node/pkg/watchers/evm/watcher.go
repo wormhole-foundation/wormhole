@@ -270,7 +270,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("creating block poll connector failed: %w", err)
+			return fmt.Errorf("creating arbitrum connector failed: %w", err)
 		}
 	} else if w.chainID == vaa.ChainIDOptimism && !w.unsafeDevMode {
 		if w.rootChainRpc != "" && w.rootChainContract != "" {
@@ -310,7 +310,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 			if err != nil {
 				ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-				return fmt.Errorf("creating block poll connector failed: %w", err)
+				return fmt.Errorf("creating optimism connector failed: %w", err)
 			}
 		}
 	} else if w.chainID == vaa.ChainIDPolygon && w.usePolygonCheckpointing() {
@@ -341,7 +341,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("creating block poll connector failed: %w", err)
+			return fmt.Errorf("creating base connector failed: %w", err)
 		}
 	} else {
 		w.ethConn, err = connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
