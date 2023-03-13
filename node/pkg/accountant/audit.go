@@ -263,9 +263,9 @@ func (acct *Accountant) handleMissingObservation(mo MissingObservation) {
 
 	select {
 	case acct.obsvReqWriteC <- msg:
-		acct.logger.Debug("acct: submitted local reobservation", zap.Stringer("moKey", mo))
+		acct.logger.Debug("acctaudit: submitted local reobservation", zap.Stringer("moKey", mo))
 	default:
-		acct.logger.Error("acct: unable to submit local reobservation because the channel is full, will try next interval", zap.Stringer("moKey", mo))
+		acct.logger.Error("acctaudit: unable to submit local reobservation because the channel is full, will try next interval", zap.Stringer("moKey", mo))
 	}
 }
 
