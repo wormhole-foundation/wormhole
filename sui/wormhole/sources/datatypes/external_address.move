@@ -1,78 +1,87 @@
-/// 32 byte, left-padded address representing an arbitrary address, to be used in VAAs to
-/// refer to addresses.
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements a custom type for a 32-byte standardized address,
+/// which is meant to represent an address from any other network.
 module wormhole::external_address {
     use std::vector::{Self};
     use wormhole::cursor::{Cursor};
     use wormhole::bytes32::{Self, Bytes32};
 
+    /// Underlying data is all zeros.
     const E_ZERO_ADDRESS: u64 = 0;
 
-    struct ExternalAddress has drop, copy, store {
+    /// Container for `Bytes32`.
+    struct ExternalAddress has copy, drop, store {
         value: Bytes32,
     }
 
+    /// Create `ExternalAddress`.
     public fun new(value: Bytes32): ExternalAddress {
         ExternalAddress { value }
     }
 
+    /// Create `ExternalAddress` of all zeros.`
     public fun default(): ExternalAddress {
         new(bytes32::default())
     }
 
+    /// Create `ExternalAddress` ensuring that not all bytes are zero.
     public fun new_nonzero(value: Bytes32): ExternalAddress {
         assert!(bytes32::is_nonzero(&value), E_ZERO_ADDRESS);
         new(value)
     }
 
+    /// Create `ExternalAddress` with `vector<u8>` of length == 32.
     public fun from_bytes(buf: vector<u8>): ExternalAddress {
         new(bytes32::new(buf))
     }
 
+    /// Create `ExternalAddress` with `vector<u8>` of length == 32 ensuring that
+    /// not all bytes are zero.
     public fun from_nonzero_bytes(buf: vector<u8>): ExternalAddress {
         new_nonzero(bytes32::new(buf))
     }
 
+    /// Destroy `ExternalAddress` for underlying bytes as `vector<u8>`.
     public fun to_bytes(ext: ExternalAddress): vector<u8> {
-        bytes32::to_bytes(ext.value)
+        bytes32::to_bytes(to_bytes32(ext))
     }
 
+    /// Destroy 'ExternalAddress` for underlying data.
     public fun to_bytes32(ext: ExternalAddress): Bytes32 {
         let ExternalAddress { value } = ext;
         value
     }
 
-    public fun from_u64_be(value: u64): ExternalAddress {
-        new(bytes32::from_u64_be(value))
-    }
-
-    public fun to_u64_be(ext: ExternalAddress): u64 {
-        bytes32::to_u64_be(ext.value)
-    }
-
+    /// Drain 32 elements of `Cursor<u8>` to create `ExternalAddress`.
     public fun take(cur: &mut Cursor<u8>): ExternalAddress {
         new(bytes32::take(cur))
     }
 
+    /// Drain 32 elements of `Cursor<u8>` to create `ExternalAddress` ensuring
+    /// that not all bytes are zero.
     public fun take_nonzero(cur: &mut Cursor<u8>): ExternalAddress {
         new_nonzero(bytes32::take(cur))
     }
 
+    /// Append underlying bytes of `ExternalAddress` to mutable buffer.
     public fun serialize(buf: &mut vector<u8>, ext: ExternalAddress) {
         vector::append(buf, bytes32::to_bytes(ext.value))
     }
 
-    /// Convert an `ExternalAddress` to a native Sui address.
-    ///
-    /// Sui addresses are 20 bytes, while external addresses are represented as
-    /// 32 bytes, left-padded with 0s. This function thus takes the last 20
-    /// bytes of an external address, and reverts if the first 12 bytes contain
-    /// non-0 bytes.
+    /// Destroy `ExternalAddress` to represent its underlying data as `address`.
     public fun to_address(ext: ExternalAddress): address {
-        bytes32::to_address(ext.value)
+        bytes32::to_address(to_bytes32(ext))
     }
 
+    /// Create `ExternalAddress` from `address`.
     public fun from_address(addr: address): ExternalAddress {
         new(bytes32::from_address(addr))
+    }
+
+    /// Check whether underlying data is not all zeros.
+    public fun is_nonzero(self: &ExternalAddress): bool {
+        bytes32::is_nonzero(&self.value)
     }
 
     #[test_only]
@@ -103,7 +112,7 @@ module wormhole::external_address_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = bytes20::E_INVALID_FROM_BYTES)]
+    #[expected_failure(abort_code = bytes20::E_CANNOT_TRIM_NONZERO)]
     public fun test_to_address_too_long() {
         // non-0 bytes in first 12 bytes
         let v = x"0000010000000000000000000000000000000000000000000000000000001234";

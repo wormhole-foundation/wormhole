@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements the mechanism to publish the Wormhole contract and
+/// initialize `State` as a shared object.
 module wormhole::setup {
     use sui::object::{Self, UID};
     use sui::transfer::{Self};

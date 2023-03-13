@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements handling a governance VAA to enact setting the
+/// Wormhole message fee to another amount.
 module wormhole::set_fee {
     use sui::tx_context::{TxContext};
 
@@ -16,6 +20,13 @@ module wormhole::set_fee {
         amount: u64
     }
 
+    /// Redeem governance VAA to configure Wormhole message fee amount in SUI
+    /// denomination. This governance message is only relevant for Sui because
+    /// fee administration is only relevant to one particular network (in this
+    /// case Sui).
+    ///
+    /// NOTE: This method is guarded by a minimum build version check. This
+    /// method could break backward compatibility on an upgrade.
     public fun set_fee(
         wormhole_state: &mut State,
         vaa_buf: vector<u8>,
@@ -121,7 +132,7 @@ module wormhole::set_fee_tests {
         let wormhole_fee = 0;
         set_up_wormhole(scenario, wormhole_fee);
 
-        // Prepare test to execute `update_guardian_set`.
+        // Prepare test to execute `set_fee`.
         test_scenario::next_tx(scenario, caller);
 
         let worm_state = test_scenario::take_shared<State>(scenario);
@@ -139,7 +150,7 @@ module wormhole::set_fee_tests {
         assert!(state::message_fee(&worm_state) == fee_amount, 0);
 
         // And confirm that we can deposit the new fee amount.
-        state::deposit_fee(
+        state::deposit_fee_test_only(
             &mut worm_state,
             coin::mint_for_testing<SUI>(
                 fee_amount,
@@ -182,7 +193,7 @@ module wormhole::set_fee_tests {
         // Upgrade.
         upgrade_wormhole(scenario);
 
-        // Prepare test to execute `update_guardian_set`.
+        // Prepare test to execute `set_fee`.
         test_scenario::next_tx(scenario, caller);
 
         let worm_state = test_scenario::take_shared<State>(scenario);
@@ -220,7 +231,7 @@ module wormhole::set_fee_tests {
         let wormhole_fee = 0;
         set_up_wormhole(scenario, wormhole_fee);
 
-        // Prepare test to execute `update_guardian_set`.
+        // Prepare test to execute `set_fee`.
         test_scenario::next_tx(scenario, caller);
 
         let worm_state = test_scenario::take_shared<State>(scenario);
@@ -262,7 +273,7 @@ module wormhole::set_fee_tests {
         let wormhole_fee = 0;
         set_up_wormhole(scenario, wormhole_fee);
 
-        // Prepare test to execute `update_guardian_set`.
+        // Prepare test to execute `set_fee`.
         test_scenario::next_tx(scenario, caller);
 
         let worm_state = test_scenario::take_shared<State>(scenario);
@@ -308,7 +319,7 @@ module wormhole::set_fee_tests {
         let wormhole_fee = 0;
         set_up_wormhole(scenario, wormhole_fee);
 
-        // Prepare test to execute `update_guardian_set`.
+        // Prepare test to execute `set_fee`.
         test_scenario::next_tx(scenario, caller);
 
         let worm_state = test_scenario::take_shared<State>(scenario);
@@ -352,7 +363,7 @@ module wormhole::set_fee_tests {
         let wormhole_fee = 0;
         set_up_wormhole(scenario, wormhole_fee);
 
-        // Prepare test to execute `update_guardian_set`.
+        // Prepare test to execute `set_fee`.
         test_scenario::next_tx(scenario, caller);
 
         let worm_state = test_scenario::take_shared<State>(scenario);
@@ -400,7 +411,7 @@ module wormhole::set_fee_tests {
         let wormhole_fee = 0;
         set_up_wormhole(scenario, wormhole_fee);
 
-        // Prepare test to execute `update_guardian_set`.
+        // Prepare test to execute `set_fee`.
         test_scenario::next_tx(scenario, caller);
 
         let worm_state = test_scenario::take_shared<State>(scenario);

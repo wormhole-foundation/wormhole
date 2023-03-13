@@ -3,7 +3,6 @@ module token_bridge::complete_transfer_with_payload {
     use sui::coin::{Coin};
 
     use wormhole::state::{State as WormholeState};
-    use wormhole::external_address::{Self};
     use wormhole::emitter::{Self, EmitterCap};
     use wormhole::vaa::{emitter_chain};
 
@@ -57,19 +56,11 @@ module token_bridge::complete_transfer_with_payload {
         parsed_transfer: &TransferWithPayload,
         ctx: &mut TxContext
     ): Coin<CoinType> {
-        let recipient =
-            external_address::to_address(
-                transfer_with_payload::recipient(parsed_transfer)
-            );
+        let redeemer = transfer_with_payload::recipient(parsed_transfer);
 
         // Transfer must be redeemed by the contract's registered Wormhole
         // emitter.
-        assert!(
-            external_address::to_address(
-                emitter::external_address(emitter_cap)
-            ) == recipient,
-            E_INVALID_RECIPIENT
-        );
+        assert!(redeemer == emitter::addr(emitter_cap), E_INVALID_RECIPIENT);
 
         let (token_coin, _) =
             verify_transfer_details<CoinType>(

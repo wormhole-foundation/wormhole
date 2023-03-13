@@ -1,3 +1,20 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements a mechanism for version control. While keeping track
+/// of the latest version of a package build, `RequiredVersion` manages the
+/// minimum required version number for any method in that package. For any
+/// upgrade where a particular method can have backward compatibility, the
+/// minimum version would not have to change (because the method should work the
+/// same way with the previous version or current version).
+///
+/// If there happens to be a breaking change for a particular method, this
+/// module can force that the method's minimum requirement be the latest build.
+/// If a previous build were used, the method would abort if a check is in place
+/// with `RequiredVersion`.
+///
+/// There is no magic behild the way ths module works. `RequiredVersion` is
+/// intended to live in a package's shared object that gets passed into its
+/// methods (e.g. Wormhole's `State` object).
 module wormhole::required_version {
     use sui::dynamic_field::{Self as field};
     use sui::object::{Self, UID};

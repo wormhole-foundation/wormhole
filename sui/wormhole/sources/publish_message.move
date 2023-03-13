@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements the method `publish_message` which emits a
+/// `WormholeMessage` event. This event is observed by the Guardian network and
+/// must have information relating to emitter (`sender`), message sequence
+/// relative to the emitter, nonce (i.e. batch ID), consistency level
+/// (i.e. finality) and arbitrary message payload.
 module wormhole::publish_message {
     use sui::coin::{Coin};
     use sui::event::{Self};
@@ -9,16 +16,25 @@ module wormhole::publish_message {
 
     /// `WormholeMessage` to be emitted via sui::event::emit.
     struct WormholeMessage has store, copy, drop {
+        /// Underlying bytes of `EmitterCap` external address.
         sender: vector<u8>,
+        /// From `EmitterCap`.
         sequence: u64,
+        /// A.K.A. Batch ID.
         nonce: u32,
+        /// Arbitrary message data relevant to integrator.
         payload: vector<u8>,
-        consistency_level: u8 // do we need this if Sui is instant finality?
+        /// This will always be `0`.
+        consistency_level: u8
+        // TODO: add `timestamp` using `Clock`.
     }
 
     /// `publish_message` emits a message as a Sui event. This method uses the
     /// input `EmitterCap` as the registered sender of the
     /// `WormholeMessage`. It also produces a new sequence for this emitter.
+    ///
+    /// NOTE: This method is guarded by a minimum build version check. This
+    /// method could break backward compatibility on an upgrade.
     public fun publish_message(
         wormhole_state: &mut State,
         emitter_cap: &mut EmitterCap,

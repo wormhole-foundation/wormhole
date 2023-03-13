@@ -1,3 +1,9 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements a custom type representing a Guardian governance
+/// action. Each governance action has an associated module name, relevant chain
+/// and payload encoding instructions/data used to perform an adminstrative
+/// change on a contract.
 module wormhole::governance_message {
     use sui::tx_context::{TxContext};
     use wormhole::bytes::{Self};
@@ -6,14 +12,24 @@ module wormhole::governance_message {
     use wormhole::state::{Self, State, chain_id};
     use wormhole::vaa::{Self, VAA};
 
+    /// Guardian set used to sign VAA did not use current Guardian set.
     const E_OLD_GUARDIAN_SET_GOVERNANCE: u64 = 0;
+    /// Governance chain disagrees with what is stored in Wormhole `State`.
     const E_INVALID_GOVERNANCE_CHAIN: u64 = 1;
+    /// Governance emitter address disagrees with what is stored in Wormhole
+    /// `State`.
     const E_INVALID_GOVERNANCE_EMITTER: u64 = 2;
+    /// Governance module name does not match.
     const E_INVALID_GOVERNANCE_MODULE: u64 = 4;
+    /// Governance action does not match.
     const E_INVALID_GOVERNANCE_ACTION: u64 = 5;
+    /// Governance target chain not indicative of global action.
     const E_GOVERNANCE_TARGET_CHAIN_NONZERO: u64 = 6;
+    /// Governance target chain not indicative of actino specifically for Sui
+    /// Wormhole contract.
     const E_GOVERNANCE_TARGET_CHAIN_NOT_SUI: u64 = 7;
 
+    /// Deserialized governance decree from `VAA` payload.
     struct GovernanceMessage {
         module_name: Bytes32,
         action: u8,
@@ -22,31 +38,32 @@ module wormhole::governance_message {
         vaa_hash: Bytes32
     }
 
+    /// Retrieve governance module name.
     public fun module_name(self: &GovernanceMessage): Bytes32 {
         self.module_name
     }
 
+    /// Retrieve governance action (i.e. payload ID).
     public fun action(self: &GovernanceMessage): u8 {
         self.action
     }
 
+    /// A.K.A. target chain == 0.
     public fun is_global_action(self: &GovernanceMessage): bool {
         self.chain == 0
     }
 
+    /// A.K.A. target chain == `wormhole::state::chain_id()`.
     public fun is_local_action(self: &GovernanceMessage): bool {
         self.chain == chain_id()
     }
 
+    /// Computed keccak256 hash of `VAA` message body.
     public fun vaa_hash(self: &GovernanceMessage): Bytes32 {
         self.vaa_hash
     }
 
-    #[test_only]
-    public fun payload(self: &GovernanceMessage): vector<u8> {
-        self.payload
-    }
-
+    /// Destroy `GovernanceMessage` to take governance payload.
     public fun take_payload(msg: GovernanceMessage): vector<u8> {
         let GovernanceMessage {
             module_name: _,
@@ -59,6 +76,9 @@ module wormhole::governance_message {
         payload
     }
 
+    /// Internally calling `vaa::parse_and_verify` with additional governance
+    /// checks to validate governance emitter before returning
+    /// deserialized `GovernanceMessage`.
     public fun parse_and_verify_vaa(
         wormhole_state: &mut State,
         vaa_buf: vector<u8>,
@@ -86,6 +106,8 @@ module wormhole::governance_message {
         GovernanceMessage { module_name, action, chain, payload, vaa_hash }
     }
 
+    /// Check module name, action and whether this action is intended for all
+    /// chains before `take_payload` is called.
     public fun take_global_action(
         msg: GovernanceMessage,
         expected_module_name: Bytes32,
@@ -99,6 +121,8 @@ module wormhole::governance_message {
         take_payload(msg)
     }
 
+    /// Check module name, action and whether this action is intended for Sui's
+    /// chain ID before `take_payload` is called.
     public fun take_local_action(
         msg: GovernanceMessage,
         expected_module_name: Bytes32,
@@ -167,6 +191,11 @@ module wormhole::governance_message {
         parsed: &VAA
     ) {
         assert_governance_emitter(wormhole_state, parsed)
+    }
+
+    #[test_only]
+    public fun payload(self: &GovernanceMessage): vector<u8> {
+        self.payload
     }
 
     #[test_only]

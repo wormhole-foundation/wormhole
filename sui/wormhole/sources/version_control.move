@@ -1,3 +1,12 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements dynamic field keys as empty structs. These keys with
+/// `RequiredVersion` are used to determine minimum build requirements for
+/// particular Wormhole methods and breaking backward compatibility for these
+/// methods if an upgrade requires the latest upgrade version for its
+/// functionality.
+///
+/// See `wormhole::required_version` and `wormhole::state` for more info.
 module wormhole::version_control {
     /// This value tracks the current version of the Wormhole version. We are
     /// placing this constant value at the top, which goes against Move style

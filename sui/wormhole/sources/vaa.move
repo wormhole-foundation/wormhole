@@ -1,3 +1,9 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements a mechanism to parse and verify VAAs, which are
+/// verified Wormhole messages (messages with Guardian signatures attesting to
+/// its observation). Signatures on VAA are checked against an existing Guardian
+/// set that exists in the `State` (see `wormhole::state`).
 module wormhole::vaa {
     use std::vector::{Self};
     use sui::tx_context::{TxContext};
@@ -21,31 +27,31 @@ module wormhole::vaa {
     const VERSION_VAA: u8 = 1;
 
     struct VAA {
-        // Header
-
+        /// Guardian set index of Guardians that attested to observing the
+        /// Wormhole message.
         guardian_set_index: u32,
-        signatures: vector<GuardianSignature>,
-
-        // Body
-
+        /// Time when Wormhole message was emitted or observed.
         timestamp: u32,
+        /// A.K.A. Batch ID.
         nonce: u32,
+        /// Wormhole chain ID from which network the message originated from.
         emitter_chain: u16,
+        /// Address of contract (standardized to 32 bytes) that produced the
+        /// message.
         emitter_address: ExternalAddress,
+        /// Sequence number of emitter's Wormhole message.
         sequence: u64,
+        /// A.K.A. Finality.
         consistency_level: u8,
+        /// Arbitrary payload encoding data relevant to receiver.
         payload: vector<u8>,
 
-        /// Cache of keccak256 of the message body.
+        /// Keccak256 hash of message body.
         hash: Bytes32
     }
 
     public fun guardian_set_index(self: &VAA): u32 {
-         self.guardian_set_index
-    }
-
-    public fun signatures(self: &VAA): vector<GuardianSignature> {
-        self.signatures
+        self.guardian_set_index
     }
 
     public fun timestamp(self: &VAA): u32 {
@@ -96,7 +102,6 @@ module wormhole::vaa {
     public fun take_payload(vaa: VAA): vector<u8> {
          let VAA {
             guardian_set_index: _,
-            signatures: _,
             timestamp: _,
             nonce: _,
             emitter_chain: _,
@@ -116,7 +121,6 @@ module wormhole::vaa {
     ): (u16, ExternalAddress, vector<u8>) {
         let VAA {
             guardian_set_index: _,
-            signatures: _,
             timestamp: _,
             nonce: _,
             emitter_chain,
@@ -157,7 +161,8 @@ module wormhole::vaa {
     }
 
     /// Parses and verifies the signatures of a VAA.
-    /// NOTE: this is the only public function that returns a VAA, and it should
+    ///
+    /// NOTE: This is the only public function that returns a VAA, and it should
     /// be kept that way. This ensures that if an external module receives a
     /// `VAA`, it has been verified.
     public fun parse_and_verify(
@@ -168,13 +173,13 @@ module wormhole::vaa {
         state::check_minimum_requirement<ParseAndVerifyControl>(wormhole_state);
 
         // Deserialize VAA buffer (and return `VAA` after verifying signatures).
-        let vaa = parse(buf);
+        let (signatures, vaa) = parse(buf);
 
         // Fetch the guardian set which this VAA was supposedly signed with and
         // verify signatures using guardian set.
         verify_signatures(
             state::guardian_set_at(wormhole_state, vaa.guardian_set_index),
-            vaa.signatures,
+            signatures,
             hash_as_bytes(&vaa),
             ctx
         );
@@ -183,32 +188,16 @@ module wormhole::vaa {
         vaa
     }
 
-    public fun recompute_hash(parsed: &VAA): Bytes32 {
-        let buf = vector::empty();
-
-        bytes::push_u32_be(&mut buf, parsed.timestamp);
-        bytes::push_u32_be(&mut buf, parsed.nonce);
-        bytes::push_u16_be(&mut buf, parsed.emitter_chain);
-        vector::append(
-            &mut buf,
-            external_address::to_bytes(parsed.emitter_address)
-        );
-        bytes::push_u64_be(&mut buf, parsed.sequence);
-        bytes::push_u8(&mut buf, parsed.consistency_level);
-        vector::append(&mut buf, parsed.payload);
-
-        double_keccak256(&buf)
-    }
-
     /// Parses a VAA.
-    /// Does not do any verification, and is thus private.
-    /// This ensures the invariant that if an external module receives a `VAA`
-    /// object, its signatures must have been verified, because the only public
-    /// function that returns a VAA is `parse_and_verify`
-    fun parse(buf: vector<u8>): VAA {
+    ///
+    /// NOTE: This method does NOT perform any verification. This ensures the
+    /// invariant that if an external module receives a `VAA` object, its
+    /// signatures must have been verified, because the only public function
+    /// that returns a `VAA` is `parse_and_verify`.
+    fun parse(buf: vector<u8>): (vector<GuardianSignature>, VAA) {
         let cur = cursor::new(buf);
 
-        // Check version.
+        // Check VAA version.
         assert!(
             bytes::take_u8(&mut cur) == VERSION_VAA,
             E_WRONG_VERSION
@@ -244,9 +233,8 @@ module wormhole::vaa {
         let consistency_level = bytes::take_u8(&mut cur);
         let payload = cursor::rest(cur);
 
-        VAA {
+        let parsed = VAA {
             guardian_set_index,
-            signatures,
             timestamp,
             nonce,
             emitter_chain,
@@ -255,15 +243,31 @@ module wormhole::vaa {
             consistency_level,
             hash: double_keccak256(&body),
             payload,
-        }
+        };
+
+        (signatures, parsed)
     }
 
+    /// TODO: change this to single `keccak256` due to `ecdsa_k1` changing how
+    /// it recovers public keys using signatures.
     fun double_keccak256(buf: &vector<u8>): Bytes32 {
         use sui::hash::{keccak256};
 
         bytes32::new(keccak256(&keccak256(buf)))
     }
 
+    /// Using the Guardian signatures deserialized from VAA, verify that all of
+    /// the Guardian public keys are recovered using these signatures and the
+    /// VAA message body as the message used to produce these signatures.
+    ///
+    /// We are careful to only allow `wormhole:vaa` to control the hash that
+    /// gets used in the `ecdsa_k1` module by computing the hash after
+    /// deserializing the VAA message body. Even though `ecdsa_k1` hashes a
+    /// raw message (as of version 0.28), the "raw message" in this case is a
+    /// single keccak256 hash of the VAA message body.
+    ///
+    /// TODO: rename `message_hash` to `raw_message` when `ecdsa_k1` changes in
+    /// Sui version 0.28.
     fun verify_signatures(
         set: &GuardianSet,
         signatures: vector<GuardianSignature>,
@@ -316,42 +320,34 @@ module wormhole::vaa {
     }
 
     #[test_only]
-    public fun new(
-        guardian_set_index: u32,
-        signatures: vector<GuardianSignature>,
-        timestamp: u32,
-        nonce: u32,
-        emitter_chain: u16,
-        emitter_address: ExternalAddress,
-        sequence: u64,
-        consistency_level: u8,
-        payload: vector<u8>
-    ): VAA {
-        let out = VAA {
-            guardian_set_index,
-            signatures,
-            timestamp,
-            nonce,
-            emitter_chain,
-            emitter_address,
-            sequence,
-            consistency_level,
-            payload,
-            hash: bytes32::default()
-        };
-        out.hash = recompute_hash(&out);
-
-        out
-    }
-
-    #[test_only]
-    public fun parse_test_only(buf: vector<u8>): VAA {
+    public fun parse_test_only(
+        buf: vector<u8>
+    ): (vector<GuardianSignature>, VAA) {
         parse(buf)
     }
 
     #[test_only]
     public fun destroy(vaa: VAA) {
         take_payload(vaa);
+    }
+
+    #[test_only]
+    public fun recompute_hash(parsed: &VAA): Bytes32 {
+        let buf = vector::empty();
+
+        bytes::push_u32_be(&mut buf, parsed.timestamp);
+        bytes::push_u32_be(&mut buf, parsed.nonce);
+        bytes::push_u16_be(&mut buf, parsed.emitter_chain);
+        vector::append(
+            &mut buf,
+            external_address::to_bytes(parsed.emitter_address)
+        );
+        bytes::push_u64_be(&mut buf, parsed.sequence);
+        bytes::push_u8(&mut buf, parsed.consistency_level);
+        vector::append(&mut buf, parsed.payload);
+
+        // Return hash.
+        double_keccak256(&buf)
     }
 }
 
@@ -361,6 +357,7 @@ module wormhole::vaa_tests {
     use sui::test_scenario::{Self};
 
     use wormhole::bytes32::{Self};
+    use wormhole::cursor::{Self};
     use wormhole::external_address::{Self};
     use wormhole::guardian_signature::{Self};
     use wormhole::state::{State};
@@ -381,27 +378,7 @@ module wormhole::vaa_tests {
 
     #[test]
     public fun test_parse() {
-        let parsed = vaa::parse_test_only(VAA_1);
-
-        assert!(vaa::guardian_set_index(&parsed) == 0, 0);
-        assert!(vaa::timestamp(&parsed) == 9000, 0);
-
-        let expected_batch_id = 12;
-        assert!(vaa::batch_id(&parsed) == expected_batch_id, 0);
-        assert!(vaa::nonce(&parsed) == expected_batch_id, 0);
-
-        assert!(vaa::emitter_chain(&parsed) == 42, 0);
-
-        let expected_emitter_address =
-            external_address::from_bytes(
-                x"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
-            );
-        assert!(vaa::emitter_address(&parsed) == expected_emitter_address, 0);
-        assert!(vaa::sequence(&parsed) == 2346, 0);
-
-        let expected_finality = 32;
-        assert!(vaa::finality(&parsed) == expected_finality, 0);
-        assert!(vaa::consistency_level(&parsed) == expected_finality, 0);
+        let (signatures, parsed) = vaa::parse_test_only(VAA_1);
 
         let expected_signatures =
             vector[
@@ -536,16 +513,37 @@ module wormhole::vaa_tests {
                     18 // index
                 )
             ];
-        let signatures = vaa::signatures(&parsed);
-        let (i, n) = (0, vector::length(&signatures));
-        assert!(n == vector::length(&expected_signatures), 0);
-
-        while (i < n) {
-            let left = vector::pop_back(&mut signatures);
-            let right = vector::pop_back(&mut expected_signatures);
-            assert!(left == right, 0);
-            i = i + 1;
+        assert!(
+            vector::length(&signatures) == vector::length(&expected_signatures),
+            0
+        );
+        let left = cursor::new(signatures);
+        let right = cursor::new(expected_signatures);
+        while (!cursor::is_empty(&left)) {
+            assert!(cursor::poke(&mut left) == cursor::poke(&mut right), 0);
         };
+        cursor::destroy_empty(left);
+        cursor::destroy_empty(right);
+
+        assert!(vaa::guardian_set_index(&parsed) == 0, 0);
+        assert!(vaa::timestamp(&parsed) == 9000, 0);
+
+        let expected_batch_id = 12;
+        assert!(vaa::batch_id(&parsed) == expected_batch_id, 0);
+        assert!(vaa::nonce(&parsed) == expected_batch_id, 0);
+
+        assert!(vaa::emitter_chain(&parsed) == 42, 0);
+
+        let expected_emitter_address =
+            external_address::from_bytes(
+                x"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+            );
+        assert!(vaa::emitter_address(&parsed) == expected_emitter_address, 0);
+        assert!(vaa::sequence(&parsed) == 2346, 0);
+
+        let expected_finality = 32;
+        assert!(vaa::finality(&parsed) == expected_finality, 0);
+        assert!(vaa::consistency_level(&parsed) == expected_finality, 0);
 
         // The message Wormhole guardians sign is a hash of the actual message
         // body. So the hash we need to check against is keccak256 of this

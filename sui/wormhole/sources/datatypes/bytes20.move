@@ -1,22 +1,37 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements a custom type representing a fixed-size array of
+/// length 20.
 module wormhole::bytes20 {
     use std::vector::{Self};
 
-    // Errors.
+    use wormhole::bytes::{Self};
+    use wormhole::cursor::{Cursor};
+
+    /// Invalid vector<u8> length to create `Bytes20`.
     const E_INVALID_BYTES20: u64 = 0;
-    const E_INVALID_FROM_BYTES: u64 = 1;
+    /// Found non-zero bytes when attempting to trim `vector<u8>`.
+    const E_CANNOT_TRIM_NONZERO: u64 = 1;
 
     /// 20.
     const LEN: u64 = 20;
 
+    /// Container for `vector<u8>`, which has length == 20.
     struct Bytes20 has copy, drop, store {
         data: vector<u8>
     }
 
+    public fun length(): u64 {
+        LEN
+    }
+
+    /// Create new `Bytes20`, which checks the length of input `data`.
     public fun new(data: vector<u8>): Bytes20 {
         assert!(is_valid(&data), E_INVALID_BYTES20);
         Bytes20 { data }
     }
 
+    /// Create new `Bytes20` of all zeros.
     public fun default(): Bytes20 {
         let data = vector::empty();
         let i = 0;
@@ -27,6 +42,13 @@ module wormhole::bytes20 {
         new(data)
     }
 
+    /// Retrieve underlying `data`.
+    public fun data(self: &Bytes20): vector<u8> {
+        self.data
+    }
+
+    /// Either trim or pad (depending on length of the input `vector<u8>`) to 20
+    /// bytes.
     public fun from_bytes(buf: vector<u8>): Bytes20 {
         let len = vector::length(&buf);
         if (len > LEN) {
@@ -37,24 +59,35 @@ module wormhole::bytes20 {
         }
     }
 
+    /// Destroy `Bytes20` for its underlying data.
     public fun to_bytes(value: Bytes20): vector<u8> {
         let Bytes20 { data } = value;
         data
     }
 
-    public fun data(self: &Bytes20): vector<u8> {
-        self.data
+    /// Drain 20 elements of `Cursor<u8>` to create `Bytes20`.
+    public fun take(cur: &mut Cursor<u8>): Bytes20 {
+        new(bytes::take_bytes(cur, LEN))
     }
 
+    /// Destroy `Bytes20` to represent its underlying data as `address`.
+    ///
+    /// TODO: Remove this method because native Sui addresses will be 32 bytes
+    /// instead of 20 bytes in Sui version 0.28.
     public fun to_address(value: Bytes20): address {
         let Bytes20 { data } = value;
         sui::address::from_bytes(data)
     }
 
+    /// Create `Bytes20` from `address`.
+    ///
+    /// TODO: Remove this method because native Sui addresses will be 32 bytes
+    /// instead of 20 bytes in Sui version 0.28.
     public fun from_address(addr: address): Bytes20 {
         new(sui::address::to_bytes(addr))
     }
 
+    /// Validate that any of the bytes in underlying data is non-zero.
     public fun is_nonzero(self: &Bytes20): bool {
         let i = 0;
         while (i < LEN) {
@@ -67,10 +100,12 @@ module wormhole::bytes20 {
         false
     }
 
+    /// Check that the input data is correct length.
     fun is_valid(data: &vector<u8>): bool {
         vector::length(data) == LEN
     }
 
+    /// For vector size less than 20, add zeros to the left.
     fun pad_left(data: &vector<u8>, data_reversed: bool): vector<u8> {
         let out = vector::empty();
         let len = vector::length(data);
@@ -101,7 +136,7 @@ module wormhole::bytes20 {
         vector::reverse(data);
         let (i, n) = (0, vector::length(data) - LEN);
         while (i < n) {
-            assert!(vector::pop_back(data) == 0, E_INVALID_FROM_BYTES);
+            assert!(vector::pop_back(data) == 0, E_CANNOT_TRIM_NONZERO);
             i = i + 1;
         };
         vector::reverse(data);
@@ -109,7 +144,7 @@ module wormhole::bytes20 {
 }
 
 #[test_only]
-module wormhole::bytes20_test {
+module wormhole::bytes20_tests {
     use std::vector::{Self};
 
     use wormhole::bytes20::{Self};

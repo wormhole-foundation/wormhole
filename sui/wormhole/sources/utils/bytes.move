@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements a library that serializes and deserializes specific
+/// types into a buffer (i.e. `vector<u8>`). For serialization, the first
+/// argument will be of `&mut vector<u8>`. For deserialization, the first
+/// argument will be of `&mut Cursor<u8>` (see `wormhole::cursor` for more
+/// details).
 module wormhole::bytes {
     use std::vector::{Self};
     use std::bcs::{Self};
@@ -8,23 +15,23 @@ module wormhole::bytes {
     }
 
     public fun push_u16_be(buf: &mut vector<u8>, value: u16) {
-        serialize_reverse(buf, value);
+        push_reverse(buf, value);
     }
 
     public fun push_u32_be(buf: &mut vector<u8>, value: u32) {
-        serialize_reverse(buf, value);
+        push_reverse(buf, value);
     }
 
     public fun push_u64_be(buf: &mut vector<u8>, value: u64) {
-        serialize_reverse(buf, value);
+        push_reverse(buf, value);
     }
 
     public fun push_u128_be(buf: &mut vector<u8>, value: u128) {
-        serialize_reverse(buf, value);
+        push_reverse(buf, value);
     }
 
     public fun push_u256_be(buf: &mut vector<u8>, value: u256) {
-        serialize_reverse(buf, value);
+        push_reverse(buf, value);
     }
 
     public fun take_u8(cur: &mut Cursor<u8>): u8 {
@@ -32,78 +39,69 @@ module wormhole::bytes {
     }
 
     public fun take_u16_be(cur: &mut Cursor<u8>): u16 {
-        let res: u64 = 0;
+        let out = 0;
         let i = 0;
         while (i < 2) {
-            let b = cursor::poke(cur);
-            res = (res << 8) + (b as u64);
+            out = (out << 8) + (cursor::poke(cur) as u16);
             i = i + 1;
         };
-        (res as u16)
+        out
     }
 
     public fun take_u32_be(cur: &mut Cursor<u8>): u32 {
-        let res: u64 = 0;
+        let out = 0;
         let i = 0;
         while (i < 4) {
-            let b = cursor::poke(cur);
-            res = (res << 8) + (b as u64);
+            out = (out << 8) + (cursor::poke(cur) as u32);
             i = i + 1;
         };
-        (res as u32)
+        out
     }
 
     public fun take_u64_be(cur: &mut Cursor<u8>): u64 {
-        let res: u64 = 0;
+        let out = 0;
         let i = 0;
         while (i < 8) {
-            let b = cursor::poke(cur);
-            res = (res << 8) + (b as u64);
+            out = (out << 8) + (cursor::poke(cur) as u64);
             i = i + 1;
         };
-        res
+        out
     }
 
     public fun take_u128_be(cur: &mut Cursor<u8>): u128 {
-        let res: u128 = 0;
+        let out = 0;
         let i = 0;
         while (i < 16) {
-            let b = cursor::poke(cur);
-            res = (res << 8) + (b as u128);
+            out = (out << 8) + (cursor::poke(cur) as u128);
             i = i + 1;
         };
-        res
+        out
     }
 
     public fun take_u256_be(cur: &mut Cursor<u8>): u256 {
-        let res: u256 = 0;
+        let out = 0;
         let i = 0;
         while (i < 32) {
-            let b = cursor::poke(cur);
-            res = (res << 8) + (b as u256);
+            out = (out << 8) + (cursor::poke(cur) as u256);
             i = i + 1;
         };
-        res
+        out
     }
 
     public fun take_bytes(cur: &mut Cursor<u8>, num_bytes: u64): vector<u8> {
-        let result = vector::empty();
+        let out = vector::empty();
         let i = 0;
         while (i < num_bytes) {
-            vector::push_back(&mut result, cursor::poke(cur));
+            vector::push_back(&mut out, cursor::poke(cur));
             i = i + 1;
         };
-        result
+        out
     }
 
-    fun serialize_reverse<T: drop>(buf: &mut vector<u8>, v: T) {
-        let v = bcs::to_bytes(&v);
-        let len = vector::length(&v);
-        let i = 0;
-        while (i < len) {
-            vector::push_back(buf, *vector::borrow(&v, len - i - 1));
-            i = i + 1;
-        };
+    fun push_reverse<T: drop>(buf: &mut vector<u8>, v: T) {
+        let data = bcs::to_bytes(&v);
+        vector::reverse(&mut data);
+        vector::append(buf, data);
     }
 }
 

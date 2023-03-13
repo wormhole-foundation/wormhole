@@ -1,3 +1,9 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements handling a governance VAA to enact updating the
+/// current guardian set to be a new set of guardian public keys. As a part of
+/// this process, the previous guardian set's expiration time is set. Keep in
+/// mind that the current guardian set has no expiration.
 module wormhole::update_guardian_set {
     use std::vector::{Self};
     use sui::tx_context::{TxContext};

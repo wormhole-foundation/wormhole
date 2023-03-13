@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements entry methods that expose methods from modules found
+/// in the Wormhole contract.
 module wormhole::wormhole {
     use sui::coin::{Coin};
     use sui::sui::{SUI};

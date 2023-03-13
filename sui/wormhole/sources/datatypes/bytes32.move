@@ -1,23 +1,35 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements a custom type representing a fixed-size array of
+/// length 32.
 module wormhole::bytes32 {
     use std::vector::{Self};
     use sui::bcs::{Self};
 
     use wormhole::bytes::{Self};
     use wormhole::bytes20::{Self};
-    use wormhole::cursor::{Cursor};
+    use wormhole::cursor::{Self, Cursor};
 
-    // Errors.
+    /// Invalid vector<u8> length to create `Bytes32`.
     const E_INVALID_BYTES32: u64 = 0;
+    /// Underlying data is more than 8 bytes.
     const E_INVALID_U64_BE: u64 = 1;
-    const E_INVALID_FROM_BYTES: u64 = 2;
+    /// Found non-zero bytes when attempting to trim `vector<u8>`.
+    const E_CANNOT_TRIM_NONZERO: u64 = 2;
 
     /// 32.
     const LEN: u64 = 32;
 
+    /// Container for `vector<u8>`, which has length == 32.
     struct Bytes32 has copy, drop, store {
         data: vector<u8>,
     }
 
+    public fun length(): u64 {
+        LEN
+    }
+
+    /// Create new `Bytes32`, which checks the length of input `data`.
     public fun new(data: vector<u8>): Bytes32 {
         assert!(is_valid(&data), E_INVALID_BYTES32);
         Bytes32 {
@@ -25,6 +37,7 @@ module wormhole::bytes32 {
         }
     }
 
+    /// Create new `Bytes20` of all zeros.
     public fun default(): Bytes32 {
         let data = vector::empty();
         let i = 0;
@@ -35,27 +48,55 @@ module wormhole::bytes32 {
         new(data)
     }
 
+    /// Retrieve underlying `data`.
     public fun data(self: &Bytes32): vector<u8> {
         self.data
     }
 
+    /// Serialize `u64` as big-endian format in zero-padded `Bytes32`.
     public fun from_u64_be(value: u64): Bytes32 {
         let buf = pad_left(&bcs::to_bytes(&value), true);
         new(buf)
     }
 
+    /// Deserialize from big-endian `u64` as long as the data does not overflow.
     public fun to_u64_be(value: Bytes32): u64 {
         let Bytes32 { data } = value;
-        vector::reverse(&mut data);
+        let cur = cursor::new(data);
 
-        let i = 0;
-        while (i < 24) {
-            assert!(vector::pop_back(&mut data) == 0, E_INVALID_U64_BE);
+        let (i, n) = (0, LEN - 8);
+        while (i < n) {
+            assert!(cursor::poke(&mut cur) == 0, E_INVALID_U64_BE);
             i = i + 1;
         };
-        bcs::peel_u64(&mut bcs::new(data))
+
+        let out = bytes::take_u64_be(&mut cur);
+        cursor::destroy_empty(cur);
+
+        out
     }
 
+    /// Serialize `u256` as big-endian format in zero-padded `Bytes32`.
+    public fun from_u256_be(value: u256): Bytes32 {
+        let buf = bcs::to_bytes(&value);
+        vector::reverse(&mut buf);
+        new(buf)
+    }
+
+    /// Deserialize from big-endian `u256` as long as the data does not
+    /// overflow.
+    public fun to_u256_be(value: Bytes32): u256 {
+        let Bytes32 { data } = value;
+
+        let cur = cursor::new(data);
+        let out = bytes::take_u256_be(&mut cur);
+        cursor::destroy_empty(cur);
+
+        out
+    }
+
+    /// Either trim or pad (depending on length of the input `vector<u8>`) to 32
+    /// bytes.
     public fun from_bytes(buf: vector<u8>): Bytes32 {
         let len = vector::length(&buf);
         if (len > LEN) {
@@ -66,24 +107,35 @@ module wormhole::bytes32 {
         }
     }
 
+    /// Destroy `Bytes32` for its underlying data.
     public fun to_bytes(value: Bytes32): vector<u8> {
         let Bytes32 { data } = value;
         data
     }
 
+    /// Drain 32 elements of `Cursor<u8>` to create `Bytes32`.
     public fun take(cur: &mut Cursor<u8>): Bytes32 {
-        new(bytes::take_bytes(cur, 32))
+        new(bytes::take_bytes(cur, LEN))
     }
 
-    public fun from_address(addr: address): Bytes32 {
-        new(pad_left(&bytes20::data(&bytes20::from_address(addr)), false))
-    }
-
+    /// Destroy `Bytes32` to represent its underlying data as `address`.
+    ///
+    /// TODO: Remove bytes20 dependency because native Sui addresses will be
+    /// 32 bytes instead of 20 bytes in Sui version 0.28.
     public fun to_address(value: Bytes32): address {
         let Bytes32 { data } = value;
         bytes20::to_address(bytes20::from_bytes(data))
     }
 
+    /// Create `Bytes32` from `address`.
+    ///
+    /// TODO: Remove bytes20 dependency because native Sui addresses will be
+    /// 32 bytes instead of 20 bytes in Sui version 0.28.
+    public fun from_address(addr: address): Bytes32 {
+        new(pad_left(&bytes20::data(&bytes20::from_address(addr)), false))
+    }
+
+    /// Validate that any of the bytes in underlying data is non-zero.
     public fun is_nonzero(self: &Bytes32): bool {
         let i = 0;
         while (i < LEN) {
@@ -96,10 +148,12 @@ module wormhole::bytes32 {
         false
     }
 
+    /// Check that the input data is correct length.
     fun is_valid(data: &vector<u8>): bool {
         vector::length(data) == LEN
     }
 
+    /// For vector size less than 32, add zeros to the left.
     fun pad_left(data: &vector<u8>, data_reversed: bool): vector<u8> {
         let out = vector::empty();
         let len = vector::length(data);
@@ -130,7 +184,7 @@ module wormhole::bytes32 {
         vector::reverse(data);
         let (i, n) = (0, vector::length(data) - LEN);
         while (i < n) {
-            assert!(vector::pop_back(data) == 0, E_INVALID_FROM_BYTES);
+            assert!(vector::pop_back(data) == 0, E_CANNOT_TRIM_NONZERO);
             i = i + 1;
         };
         vector::reverse(data);

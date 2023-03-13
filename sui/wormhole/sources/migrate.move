@@ -1,13 +1,32 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements an entry method intended to be called after an
+/// upgrade has been commited. The purpose is to add one-off migration logic
+/// that would alter Wormhole `State`.
+///
+/// Included in migration is the ability to ensure that breaking changes for
+/// any of Wormhole's methods by enforcing the current build version as their
+/// required minimum version.
 module wormhole::migrate {
     use wormhole::state::{Self, State};
+
+    // This import is only used when `state::require_current_version` is used.
     //use wormhole::version_control::{Self as control};
 
+    /// Upgrade procedure is not complete (most likely due to an upgrade not
+    /// being initialized since upgrades can only be performed via programmable
+    /// transaction).
     const E_CANNOT_MIGRATE: u64 = 0;
 
+    /// Execute migration logic. See `wormhole::migrate` description for more
+    /// info.
     public entry fun migrate(
         wormhole_state: &mut State,
     ) {
+        // Wormhole `State` only allows one to call `migrate` after the upgrade
+        // procedure completed.
         assert!(state::can_migrate(wormhole_state), E_CANNOT_MIGRATE);
+
         ////////////////////////////////////////////////////////////////////////
         //
         // If there are any methods that require the current build, we need to
@@ -43,7 +62,7 @@ module wormhole::migrate {
 
 
         ////////////////////////////////////////////////////////////////////////
-        // Done.
+        // Ensure that `migrate` cannot be called again.
         state::disable_migration(wormhole_state);
     }
 }

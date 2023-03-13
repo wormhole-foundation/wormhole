@@ -1,3 +1,11 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements the global state variables for Wormhole as a shared
+/// object. The `State` object is used to perform anything that requires access
+/// to data that defines the Wormhole contract. Examples of which are publishing
+/// Wormhole messages (requires depositing a message fee), verifying `VAA` by
+/// checking signatures versus an existing Guardian set, and generating new
+/// emitters for Wormhole integrators.
 module wormhole::state {
     use std::vector::{Self};
     use sui::coin::{Coin};
@@ -48,6 +56,7 @@ module wormhole::state {
 
     struct MigrationControl has store, drop, copy {}
 
+    /// Container for all state variables for Wormhole.
     struct State has key, store {
         id: UID,
 
@@ -167,10 +176,13 @@ module wormhole::state {
         state
     }
 
+    /// Convenience method to get hard-coded Wormhole chain ID (recognized by
+    /// the Wormhole network).
     public fun chain_id(): u16 {
         CHAIN_ID
     }
 
+    /// Retrieve governance module name.
     public fun governance_module(): Bytes32 {
         // A.K.A. "Core".
         bytes32::new(
@@ -178,6 +190,7 @@ module wormhole::state {
         )
     }
 
+    /// Retrieve current build version of latest upgrade.
     public fun current_version(self: &State): u64 {
         required_version::current(&self.required_version)
     }
@@ -203,12 +216,17 @@ module wormhole::state {
         commit_upgrade_to_version(self, receipt, control::version())
     }
 
+    /// Enforce a particular method to use the current build version as its
+    /// minimum required version. This method ensures that a method is not
+    /// backwards compatible with older builds.
     public(friend) fun require_current_version<ControlType>(self: &mut State) {
         required_version::require_current_version<ControlType>(
             &mut self.required_version,
         )
     }
 
+    /// Check whether a particular method meets the minimum build version for
+    /// the latest Wormhole implementation.
     public(friend) fun check_minimum_requirement<ControlType>(
         self: &mut State
     ) {
@@ -218,42 +236,76 @@ module wormhole::state {
         )
     }
 
+    /// Check whether `migrate` can be called.
+    ///
+    /// See `wormhole::migrate` module for more info.
     public fun can_migrate(self: &State): bool {
         *field::borrow(&self.id, MigrationControl {})
     }
 
+    /// Allow `migrate` to be called after upgrade.
+    ///
+    /// See `wormhole::migrate` module for more info.
     public(friend) fun enable_migration(self: &mut State) {
         *field::borrow_mut(&mut self.id, MigrationControl {}) = true;
     }
 
+    /// Disallow `migrate` to be called.
+    ///
+    /// See `wormhole::migrate` module for more info.
     public(friend) fun disable_migration(self: &mut State) {
         *field::borrow_mut(&mut self.id, MigrationControl {}) = false;
     }
 
+    /// Retrieve governance chain ID, which is governance's emitter chain ID.
     public fun governance_chain(self: &State): u16 {
         self.governance_chain
     }
 
+    /// Retrieve governance emitter address.
     public fun governance_contract(self: &State): ExternalAddress {
         self.governance_contract
     }
 
+    /// Retrieve current Guardian set index. This value is important for
+    /// verifying VAA signatures and especially important for governance VAAs.
     public fun guardian_set_index(self: &State): u32 {
         self.guardian_set_index
     }
 
+    /// Retrieve how long after a Guardian set can live for in terms of Sui
+    /// epoch.
+    ///
+    /// TODO: Change this to be in terms of unix timestamp when `Clock` gets
+    /// added to `vaa::parse_and_verify`.
     public fun guardian_set_epochs_to_live(self: &State): u32 {
         self.guardian_set_epochs_to_live
     }
 
+    /// Retrieve current fee to send Wormhole message.
     public fun message_fee(self: &State): u64 {
         return fee_collector::fee_amount(&self.fee_collector)
     }
 
-    public fun deposit_fee(self: &mut State, coin: Coin<SUI>) {
+    /// Deposit fee when sending Wormhole message. This method does not
+    /// necessarily have to be a `friend` to `wormhole::publish_message`. But
+    /// we also do not want an integrator to mistakenly deposit fees outside
+    /// of calling `publish_message`.
+    ///
+    /// See `wormhole::publish_message` for more info.
+    public(friend) fun deposit_fee(self: &mut State, coin: Coin<SUI>) {
         fee_collector::deposit(&mut self.fee_collector, coin);
     }
 
+    #[test_only]
+    public fun deposit_fee_test_only(self: &mut State, coin: Coin<SUI>) {
+        deposit_fee(self, coin)
+    }
+
+    /// Withdraw collected fees when governance action to transfer fees to a
+    /// particular recipient.
+    ///
+    /// See `wormhole::transfer_fee` for more info.
     public(friend) fun withdraw_fee(
         self: &mut State,
         amount: u64,
@@ -262,16 +314,25 @@ module wormhole::state {
         fee_collector::withdraw(&mut self.fee_collector, amount, ctx)
     }
 
-    public fun fees_collected(self: &State): u64 {
-        fee_collector::balance_value(&self.fee_collector)
-    }
-
+    /// Store `VAA` hash as a way to claim a VAA. This method prevents a VAA
+    /// from being replayed. For Wormhole, the only VAAs that it cares about
+    /// being replayed are its governance actions.
     public(friend) fun consume_vaa_hash(self: &mut State, vaa_hash: Bytes32) {
         let consumed = &mut self.consumed_vaa_hashes;
         assert!(!set::contains(consumed, vaa_hash), E_VAA_ALREADY_CONSUMED);
         set::add(consumed, vaa_hash);
     }
 
+    /// When a new guardian set is added to `State`, part of the process
+    /// involves setting the last known Guardian set's expiration time based
+    /// on how long a Guardian set can live for.
+    ///
+    /// See `guardian_set_epochs_to_live` for the parameter that determines how
+    /// long a Guardian set can live for.
+    ///
+    /// See `wormhole::update_guardian_set` for more info.
+    ///
+    /// TODO: Use `Clock` instead of `TxContext`.
     public(friend) fun expire_guardian_set(self: &mut State, ctx: &TxContext) {
         let expiring =
             table::borrow_mut(&mut self.guardian_sets, self.guardian_set_index);
@@ -282,6 +343,10 @@ module wormhole::state {
         );
     }
 
+    /// Add the latest Guardian set from the governance action to update the
+    /// current guardian set.
+    ///
+    /// See `wormhole::update_guardian_set` for more info.
     public(friend) fun store_guardian_set(
         self: &mut State,
         new_guardian_set: GuardianSet
@@ -294,14 +359,24 @@ module wormhole::state {
         );
     }
 
+    /// Modify the cost to send a Wormhole message via governance.
+    ///
+    /// See `wormhole::set_fee` for more info.
     public(friend) fun set_message_fee(self: &mut State, amount: u64) {
         fee_collector::change_fee(&mut self.fee_collector, amount);
     }
 
+    /// Retrieve a particular Guardian set by its Guardian set index. This
+    /// method is used when verifying a VAA.
+    ///
+    /// See `wormhole::vaa` for more info.
     public fun guardian_set_at(self: &State, index: u32): &GuardianSet {
         table::borrow(&self.guardian_sets, index)
     }
 
+    /// Check whether a particular Guardian set is valid.
+    ///
+    /// See `wormhole::vaa` for more info.
     public fun is_guardian_set_active(
         self: &State,
         set: &GuardianSet,
@@ -313,6 +388,10 @@ module wormhole::state {
         )
     }
 
+    /// Generate a new `EmitterCap`.
+    ///
+    /// NOTE: This method is guarded by a minimum build version check. This
+    /// method could break backward compatibility on an upgrade.
     public fun new_emitter(self: &mut State, ctx: &mut TxContext): EmitterCap {
         check_minimum_requirement<NewEmitterControl>(self);
 
@@ -355,6 +434,11 @@ module wormhole::state {
         //
         // See `migrate` module for more info.
        enable_migration(self);
+    }
+
+    #[test_only]
+    public fun fees_collected(self: &State): u64 {
+        fee_collector::balance_value(&self.fee_collector)
     }
 
     #[test_only]

@@ -1,3 +1,12 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements handling a governance VAA to enact upgrading the
+/// Wormhole contract to a new build. The procedure to upgrade this contract
+/// requires a Programmable Transaction, which includes the following procedure:
+/// 1.  Load new build.
+/// 2.  Authorize upgrade.
+/// 3.  Upgrade.
+/// 4.  Commit upgrade.
 module wormhole::upgrade_contract {
     use sui::tx_context::{TxContext};
 
@@ -19,7 +28,13 @@ module wormhole::upgrade_contract {
         digest: Bytes32
     }
 
-    /// Issue an `UpgradeTicket` for the upgrade given a contract upgrade VAA.
+    /// Redeem governance VAA to issue an `UpgradeTicket` for the upgrade given
+    /// a contract upgrade VAA. This governance message is only relevant for Sui
+    /// because a contract upgrade is only relevant to one particular network
+    /// (in this case Sui), whose build digest is encoded in this message.
+    ///
+    /// NOTE: This method is guarded by a minimum build version check. This
+    /// method could break backward compatibility on an upgrade.
     public fun upgrade_contract(
         wormhole_state: &mut State,
         vaa_buf: vector<u8>,

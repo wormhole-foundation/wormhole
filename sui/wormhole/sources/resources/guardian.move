@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements a `Guardian` that warehouses a 20-byte public key.
 module wormhole::guardian {
     use std::vector::{Self};
     use sui::hash::{Self};
@@ -6,29 +9,37 @@ module wormhole::guardian {
     use wormhole::bytes20::{Self, Bytes20};
     use wormhole::guardian_signature::{Self, GuardianSignature};
 
-    const E_INVALID_EC_PUBKEY_LENGTH: u64 = 0;
+    /// Guardian public key is all zeros.
     const E_ZERO_ADDRESS: u64 = 1;
 
-    const PUBKEY_LENGTH: u64 = 20;
-
+    /// Container for 20-byte Guardian public key.
     struct Guardian has store {
         pubkey: Bytes20
     }
 
+    /// Create new `Guardian` ensuring that the input is not all zeros.
     public fun new(pubkey: vector<u8>): Guardian {
         let data = bytes20::new(pubkey);
         assert!(bytes20::is_nonzero(&data), E_ZERO_ADDRESS);
         Guardian { pubkey: data }
     }
 
+    /// Retrieve underlying 20-byte public key.
     public fun pubkey(self: &Guardian): Bytes20 {
         self.pubkey
     }
 
+    /// Retrieve underlying 20-byte public key as `vector<u8>`.
     public fun as_bytes(self: &Guardian): vector<u8> {
         bytes20::data(&self.pubkey)
     }
 
+    /// Verify that the recovered public key (using `ecrecover`) equals the one
+    /// that exists for this Guardian with an elliptic curve signature and raw
+    /// message that was signed.
+    ///
+    /// TODO: rename `message_hash` to `raw_message` when `ecdsa_k1` changes in
+    /// Sui version 0.28.
     public fun verify(
         self: &Guardian,
         signature: GuardianSignature,
@@ -43,14 +54,14 @@ module wormhole::guardian {
         let pubkey =
             ecdsa_k1::decompress_pubkey(&ecdsa_k1::ecrecover(&sig, &message));
 
-        // decompress_pubkey returns 65 bytes, the first byte is not relevant to
-        // us, so we remove it
+        // `decompress_pubkey` returns 65 bytes. The last 64 bytes are what we
+        // need to compute the Guardian's public key.
         vector::remove(&mut pubkey, 0);
 
         let hash = hash::keccak256(&pubkey);
         let guardian_pubkey = vector::empty<u8>();
-        let i = 0;
-        while (i < PUBKEY_LENGTH) {
+        let (i, n) = (0, bytes20::length());
+        while (i < n) {
             vector::push_back(
                 &mut guardian_pubkey,
                 vector::pop_back(&mut hash)

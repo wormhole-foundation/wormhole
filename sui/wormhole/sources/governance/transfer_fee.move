@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements handling a governance VAA to enact transferring some
+/// amount of collected fees to an intended recipient.
 module wormhole::transfer_fee {
     use sui::transfer::{Self};
     use sui::tx_context::{TxContext};
@@ -19,6 +23,13 @@ module wormhole::transfer_fee {
         recipient: address
     }
 
+    /// Redeem governance VAA to transfer collected Wormhole fees to the
+    /// recipient encoded in its Wormhole governance message. This governance
+    /// message is only relevant for Sui because fee administration is only
+    /// relevant to one particular network (in this case Sui).
+    ///
+    /// NOTE: This method is guarded by a minimum build version check. This
+    /// method could break backward compatibility on an upgrade.
     public fun transfer_fee(
         wormhole_state: &mut State,
         vaa_buf: vector<u8>,
@@ -102,7 +113,6 @@ module wormhole::transfer_fee_tests {
     use wormhole::bytes32::{Self};
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self};
-    use wormhole::fee_collector::{Self};
     use wormhole::governance_message::{Self};
     use wormhole::required_version::{Self};
     use wormhole::state::{Self, State};
@@ -139,7 +149,7 @@ module wormhole::transfer_fee_tests {
         let wormhole_fee = 350;
         set_up_wormhole(scenario, wormhole_fee);
 
-        // Prepare test to execute `update_guardian_set`.
+        // Prepare test to execute `transfer_fee`.
         test_scenario::next_tx(scenario, caller);
 
         let worm_state = test_scenario::take_shared<State>(scenario);
@@ -150,7 +160,7 @@ module wormhole::transfer_fee_tests {
         // Deposit fee several times.
         let (i, n) = (0, 8);
         while (i < n) {
-            state::deposit_fee(
+            state::deposit_fee_test_only(
                 &mut worm_state,
                 coin::mint_for_testing<SUI>(
                     wormhole_fee,
@@ -207,7 +217,7 @@ module wormhole::transfer_fee_tests {
         // Upgrade.
         upgrade_wormhole(scenario);
 
-        // Prepare test to execute `update_guardian_set`.
+        // Prepare test to execute `transfer_fee`.
         test_scenario::next_tx(scenario, caller);
 
         let worm_state = test_scenario::take_shared<State>(scenario);
@@ -218,7 +228,7 @@ module wormhole::transfer_fee_tests {
         // Deposit fee several times.
         let (i, n) = (0, 8);
         while (i < n) {
-            state::deposit_fee(
+            state::deposit_fee_test_only(
                 &mut worm_state,
                 coin::mint_for_testing<SUI>(
                     wormhole_fee,
@@ -260,7 +270,7 @@ module wormhole::transfer_fee_tests {
         let wormhole_fee = 350;
         set_up_wormhole(scenario, wormhole_fee);
 
-        // Prepare test to execute `update_guardian_set`.
+        // Prepare test to execute `transfer_fee`.
         test_scenario::next_tx(scenario, caller);
 
         let worm_state = test_scenario::take_shared<State>(scenario);
@@ -271,7 +281,7 @@ module wormhole::transfer_fee_tests {
         // Deposit fee several times.
         let (i, n) = (0, 8);
         while (i < n) {
-            state::deposit_fee(
+            state::deposit_fee_test_only(
                 &mut worm_state,
                 coin::mint_for_testing<SUI>(
                     wormhole_fee,
@@ -318,7 +328,7 @@ module wormhole::transfer_fee_tests {
         let wormhole_fee = 0;
         set_up_wormhole(scenario, wormhole_fee);
 
-        // Prepare test to execute `update_guardian_set`.
+        // Prepare test to execute `transfer_fee`.
         test_scenario::next_tx(scenario, caller);
 
         let worm_state = test_scenario::take_shared<State>(scenario);
@@ -364,7 +374,7 @@ module wormhole::transfer_fee_tests {
         let wormhole_fee = 0;
         set_up_wormhole(scenario, wormhole_fee);
 
-        // Prepare test to execute `update_guardian_set`.
+        // Prepare test to execute `transfer_fee`.
         test_scenario::next_tx(scenario, caller);
 
         let worm_state = test_scenario::take_shared<State>(scenario);
@@ -395,7 +405,7 @@ module wormhole::transfer_fee_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = fee_collector::E_WITHDRAW_EXCEEDS_BALANCE)]
+    #[expected_failure(abort_code = sui::balance::ENotEnough)]
     public fun test_cannot_transfer_fee_insufficient_balance() {
         // Testing this method.
         use wormhole::transfer_fee::{transfer_fee};
@@ -408,7 +418,7 @@ module wormhole::transfer_fee_tests {
         let wormhole_fee = 350;
         set_up_wormhole(scenario, wormhole_fee);
 
-        // Prepare test to execute `update_guardian_set`.
+        // Prepare test to execute `transfer_fee`.
         test_scenario::next_tx(scenario, caller);
 
         let worm_state = test_scenario::take_shared<State>(scenario);
@@ -458,7 +468,7 @@ module wormhole::transfer_fee_tests {
         let wormhole_fee = 350;
         set_up_wormhole(scenario, wormhole_fee);
 
-        // Prepare test to execute `update_guardian_set`.
+        // Prepare test to execute `transfer_fee`.
         test_scenario::next_tx(scenario, caller);
 
         let worm_state = test_scenario::take_shared<State>(scenario);
@@ -511,7 +521,7 @@ module wormhole::transfer_fee_tests {
         let wormhole_fee = 350;
         set_up_wormhole(scenario, wormhole_fee);
 
-        // Prepare test to execute `update_guardian_set`.
+        // Prepare test to execute `transfer_fee`.
         test_scenario::next_tx(scenario, caller);
 
         let worm_state = test_scenario::take_shared<State>(scenario);
@@ -561,7 +571,7 @@ module wormhole::transfer_fee_tests {
         let wormhole_fee = 350;
         set_up_wormhole(scenario, wormhole_fee);
 
-        // Prepare test to execute `update_guardian_set`.
+        // Prepare test to execute `transfer_fee`.
         test_scenario::next_tx(scenario, caller);
 
         let worm_state = test_scenario::take_shared<State>(scenario);
@@ -572,7 +582,7 @@ module wormhole::transfer_fee_tests {
         // Deposit fee several times.
         let (i, n) = (0, 8);
         while (i < n) {
-            state::deposit_fee(
+            state::deposit_fee_test_only(
                 &mut worm_state,
                 coin::mint_for_testing<SUI>(
                     wormhole_fee,
@@ -586,7 +596,7 @@ module wormhole::transfer_fee_tests {
         let total_deposited = n * wormhole_fee;
         assert!(state::fees_collected(&worm_state) == total_deposited, 0);
 
-        // Prepare test to execute `update_guardian_set`.
+        // Prepare test to execute `transfer_fee`.
         test_scenario::next_tx(scenario, caller);
 
         // Simulate executing with an outdated build by upticking the minimum

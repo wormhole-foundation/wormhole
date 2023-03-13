@@ -1,3 +1,4 @@
+/// Borrowed from `sui::package` for mocking up upgrade logic.
 module wormhole::dummy_sui_package {
     use sui::object::{Self, ID, UID};
     use sui::tx_context::{TxContext};

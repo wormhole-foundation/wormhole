@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements a capability (`EmitterCap`), which allows one to send
+/// Wormhole messages, and a registry (`EmitterRegistry`), which provides a
+/// mechanism to generate new emitters. The capability's address is derived by
+/// an arbitrary index value (warehoused by `IdRegistry` found in
+/// `wormhole::id_registry`).
 module wormhole::emitter {
     use sui::object::{Self, UID};
     use sui::tx_context::{TxContext};
@@ -10,8 +17,8 @@ module wormhole::emitter {
 
     /// `EmitterRegistry` keeps track of auto-assigned IDs using the
     /// `IdRegistry` resource. For every new `EmitterCap` created, its
-    /// registry will uptick an internal value for the next call to
-    /// `new_emitter`.
+    /// registry will use the current index to generate an `ExternalAddress`,
+    /// then uptick its index.
     ///
     /// Other contracts can leverage this registry (instead of having to
     /// implement his own) for their own cross-chain emitter registry. An
@@ -20,9 +27,9 @@ module wormhole::emitter {
         registry: IdRegistry
     }
 
-    /// `EmitterCap` gives a user or smart contract the capability to
-    /// send Wormhole messages. For every Wormhole message emitted, a unique
-    /// `sequence` is used.
+    /// `EmitterCap` is a Sui object that gives a user or smart contract the
+    /// capability to send Wormhole messages. For every Wormhole message
+    /// emitted, a unique `sequence` is used.
     struct EmitterCap has key, store {
         id: UID,
 
@@ -44,7 +51,7 @@ module wormhole::emitter {
         new_registry()
     }
 
-    public fun registry_index(self: &EmitterRegistry): u64 {
+    public fun registry_index(self: &EmitterRegistry): u256 {
         id_registry::index(&self.registry)
     }
 
@@ -60,30 +67,36 @@ module wormhole::emitter {
         }
     }
 
+    /// Returns the `ExternalAddress` of the emitter (32-bytes).
+    public fun addr(cap: &EmitterCap): ExternalAddress {
+        cap.addr
+    }
+
+    /// Returns current sequence (which will be used in the next Wormhole
+    /// message emitted).
+    public fun sequence(cap: &EmitterCap): u64 {
+        cap.sequence
+    }
+
     /// Destroys an `EmitterCap`.
     ///
     /// Note that this operation removes the ability to send messages using the
     /// emitter id, and is irreversible.
-    public fun destroy_cap(emitter_cap: EmitterCap) {
-        let EmitterCap { id, addr: _, sequence: _ } = emitter_cap;
+    public fun destroy_cap(cap: EmitterCap) {
+        let EmitterCap { id, addr: _, sequence: _ } = cap;
         object::delete(id);
     }
 
-    /// Returns the `ExternalAddress` of the emitter (32-bytes).
-    public fun external_address(emitter_cap: &EmitterCap): ExternalAddress {
-        emitter_cap.addr
-    }
-
     /// Returns the address of the emitter as 32-element vector<u8>.
-    public fun emitter_address(emitter_cap: &EmitterCap): vector<u8> {
-        external_address::to_bytes(emitter_cap.addr)
+    public fun emitter_address(cap: &EmitterCap): vector<u8> {
+        external_address::to_bytes(cap.addr)
     }
 
     /// Once a Wormhole message is emitted, an `EmitterCap` upticks its
     /// internal `sequence` for the next message.
-    public(friend) fun use_sequence(emitter_cap: &mut EmitterCap): u64 {
-        let sequence = emitter_cap.sequence;
-        emitter_cap.sequence = sequence + 1;
+    public(friend) fun use_sequence(cap: &mut EmitterCap): u64 {
+        let sequence = cap.sequence;
+        cap.sequence = sequence + 1;
         sequence
     }
 
@@ -94,7 +107,7 @@ module wormhole::emitter {
     }
 
     #[test_only]
-    public fun skip_to(self: &mut EmitterRegistry, value: u64) {
+    public fun skip_to(self: &mut EmitterRegistry, value: u256) {
         id_registry::skip_to(&mut self.registry, value);
     }
 }
