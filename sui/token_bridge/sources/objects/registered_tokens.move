@@ -209,7 +209,7 @@ module token_bridge::registered_tokens {
         self.num_native = self.num_native + 1;
     }
 
-    public(friend) fun add_wrapped<C>(
+    fun add_wrapped<C>(
         self: &mut RegisteredTokens,
         asset: WrappedAsset<C>
     ) {
