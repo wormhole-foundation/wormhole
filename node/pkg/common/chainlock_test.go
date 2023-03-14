@@ -74,6 +74,37 @@ func TestSerializeAndDeserializeOfMessagePublication(t *testing.T) {
 	assert.Equal(t, payload1, payload2)
 }
 
+func TestSerializeAndDeserializeOfMessagePublicationWithBigPayload(t *testing.T) {
+	tokenBridgeAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
+	require.NoError(t, err)
+
+	// Create a payload of more than 1000 bytes.
+	var payload1 []byte
+	for i := 0; i < 2000; i++ {
+		ch := i % 255
+		payload1 = append(payload1, byte(ch))
+	}
+
+	msg1 := &MessagePublication{
+		TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
+		Timestamp:        time.Unix(int64(1654516425), 0),
+		Nonce:            123456,
+		Sequence:         789101112131415,
+		EmitterChain:     vaa.ChainIDEthereum,
+		EmitterAddress:   tokenBridgeAddress,
+		Payload:          payload1,
+		ConsistencyLevel: 32,
+	}
+
+	bytes, err := msg1.Marshal()
+	require.NoError(t, err)
+
+	msg2, err := UnmarshalMessagePublication(bytes)
+	require.NoError(t, err)
+
+	assert.Equal(t, msg1, msg2)
+}
+
 func TestMarshalUnmarshalJSONOfMessagePublication(t *testing.T) {
 	originAddress, err := vaa.StringToAddress("0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E") //nolint:gosec
 	require.NoError(t, err)

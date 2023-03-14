@@ -405,8 +405,6 @@ const (
 
 	SupportedVAAVersion = 0x01
 	BatchVAAVersion     = 0x02
-
-	InternalTruncatedPayloadSafetyLimit = 1000
 )
 
 // UnmarshalBody deserializes the binary representation of a VAA's "BODY" properties
@@ -445,7 +443,7 @@ func UnmarshalBody(data []byte, reader *bytes.Reader, v *VAA) (*VAA, error) {
 
 	// Make sure to only read the payload if the VAA has one; VAAs may have a 0 length payload
 	if reader.Len() != 0 {
-		payload := make([]byte, InternalTruncatedPayloadSafetyLimit)
+		payload := make([]byte, reader.Len())
 		n, err := reader.Read(payload)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read payload [%d]: %w", n, err)
