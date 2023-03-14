@@ -88,9 +88,13 @@ fn wrong_target() {
     body.payload.chain = Chain::Oasis;
 
     let (_, data) = sign_vaa_body(&wh, body);
-    contract
+    let err = contract
         .submit_vaas(vec![data])
         .expect_err("successfully executed chain registration VAA for different chain");
+    assert_eq!(
+        "this governance vaa is for another chain",
+        err.root_cause().to_string().to_lowercase()
+    );
 }
 
 #[test]
@@ -98,12 +102,16 @@ fn non_governance_chain() {
     let (wh, mut contract) = proper_instantiate();
 
     let mut body = create_vaa_body();
+    body.payload.chain = Chain::Solana;
     body.emitter_chain = Chain::Fantom;
 
     let (_, data) = sign_vaa_body(&wh, body);
-    contract
+    let err = contract
         .submit_vaas(vec![data])
         .expect_err("successfully executed chain registration with non-governance chain");
+
+    // This tries to parse as a normal token bridge vaa and fails.  Not sure how best to differentiate from a governance message.
+    _ = err;
 }
 
 #[test]
@@ -114,9 +122,12 @@ fn non_governance_emitter() {
     body.emitter_address = Address([0x88; 32]);
 
     let (_, data) = sign_vaa_body(&wh, body);
-    contract
+    let err = contract
         .submit_vaas(vec![data])
         .expect_err("successfully executed chain registration with non-governance emitter");
+
+    // This tries to parse as a normal token bridge vaa and fails.  Not sure how best to differentiate from a governance message.
+    _ = err;
 }
 
 #[test]
@@ -128,9 +139,13 @@ fn duplicate() {
         .submit_vaas(vec![data.clone()])
         .expect("failed to submit chain registration");
 
-    contract
+    let err = contract
         .submit_vaas(vec![data])
         .expect_err("successfully submitted duplicate vaa");
+    assert_eq!(
+        "message already processed",
+        err.root_cause().to_string().to_lowercase()
+    );
 }
 
 #[test]
@@ -146,9 +161,13 @@ fn no_quorum() {
 
     let data = serde_wormhole::to_vec(&v).map(From::from).unwrap();
 
-    contract
+    let err = contract
         .submit_vaas(vec![data])
         .expect_err("successfully executed chain registration without a quorum of signatures");
+    assert_eq!(
+        "generic error: querier contract error: no quorum",
+        err.root_cause().to_string().to_lowercase()
+    );
 }
 
 #[test]
@@ -160,9 +179,13 @@ fn bad_signature() {
     v.signatures[0].signature[0] ^= 1;
 
     let data = serde_wormhole::to_vec(&v).map(From::from).unwrap();
-    contract
+    let err = contract
         .submit_vaas(vec![data])
         .expect_err("successfully executed chain registration with bad signature");
+    assert_eq!(
+        "generic error: querier contract error: failed to verify signature",
+        err.root_cause().to_string().to_lowercase()
+    );
 }
 
 #[test]
@@ -174,9 +197,13 @@ fn bad_serialization() {
     // Rather than using the wormhole wire format use cosmwasm json.
     let data = to_binary(&v).unwrap();
 
-    contract
+    let err = contract
         .submit_vaas(vec![data])
         .expect_err("successfully executed chain registration with bad serialization");
+    assert_eq!(
+        "unexpected end of input",
+        err.root_cause().to_string().to_lowercase()
+    );
 }
 
 #[test]
@@ -189,7 +216,11 @@ fn non_chain_registration() {
     };
     let (_, data) = sign_vaa_body(&wh, body);
 
-    contract
+    let err = contract
         .submit_vaas(vec![data])
         .expect_err("successfully executed VAA with non-chain registration action");
+    assert_eq!(
+        "unsupported governance action",
+        err.root_cause().to_string().to_lowercase()
+    );
 }

@@ -66,9 +66,13 @@ fn duplicate_modify() {
 
     contract.modify_balance(m.clone(), &wh).unwrap();
 
-    contract
+    let err = contract
         .modify_balance(m, &wh)
         .expect_err("successfully submitted duplicate modification");
+    assert_eq!(
+        "modification already processed",
+        err.root_cause().to_string().to_lowercase()
+    );
 }
 
 #[test]
@@ -124,12 +128,16 @@ fn missing_guardian_set() {
         reason: "test".try_into().unwrap(),
     };
 
-    contract
+    let err = contract
         .modify_balance_with(m, &wh, |mut vaa| {
             vaa.guardian_set_index += 1;
             serde_wormhole::to_vec(&vaa).map(From::from).unwrap()
         })
         .expect_err("successfully modified balance with invalid guardian set");
+    assert_eq!(
+        "generic error: querier contract error: invalid guardian set",
+        err.root_cause().to_string().to_lowercase()
+    );
 }
 
 #[test]
@@ -150,9 +158,13 @@ fn expired_guardian_set() {
         amount: Uint256::from(300u128),
         reason: "test".try_into().unwrap(),
     };
-    contract
+    let err = contract
         .modify_balance(m, &wh)
         .expect_err("successfully modified balance with expired guardian set");
+    assert_eq!(
+        "generic error: querier contract error: guardian set expired",
+        err.root_cause().to_string().to_lowercase()
+    );
 }
 
 #[test]
@@ -174,12 +186,16 @@ fn no_quorum() {
         .map(|q| (q - 1) as usize)
         .unwrap();
 
-    contract
+    let err = contract
         .modify_balance_with(m, &wh, |mut vaa| {
             vaa.signatures.truncate(newlen);
             serde_wormhole::to_vec(&vaa).map(From::from).unwrap()
         })
         .expect_err("successfully submitted modification without quorum");
+    assert_eq!(
+        "generic error: querier contract error: no quorum",
+        err.root_cause().to_string().to_lowercase()
+    );
 }
 
 #[test]

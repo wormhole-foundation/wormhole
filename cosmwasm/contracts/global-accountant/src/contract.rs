@@ -17,7 +17,7 @@ use cw_storage_plus::Bound;
 use serde_wormhole::RawMessage;
 use tinyvec::{Array, TinyVec};
 use wormhole::{
-    token::{Action, GovernancePacket, Message, ModificationKind},
+    accountant as accountant_module, token,
     vaa::{self, Body, Header, Signature},
     Chain,
 };
@@ -212,17 +212,17 @@ fn handle_observation(
         return Ok((ObservationStatus::Pending, None));
     }
 
-    let msg = serde_wormhole::from_slice::<Message<&RawMessage>>(&o.payload)
+    let msg = serde_wormhole::from_slice::<token::Message<&RawMessage>>(&o.payload)
         .context("failed to parse observation payload")?;
     let tx_data = match msg {
-        Message::Transfer {
+        token::Message::Transfer {
             amount,
             token_address,
             token_chain,
             recipient_chain,
             ..
         }
-        | Message::TransferWithPayload {
+        | token::Message::TransferWithPayload {
             amount,
             token_address,
             token_chain,
@@ -334,9 +334,21 @@ fn handle_vaa(
     let mut evt = if body.emitter_chain == Chain::Solana
         && body.emitter_address == wormhole::GOVERNANCE_EMITTER
     {
-        let govpacket = serde_wormhole::from_slice(body.payload)
-            .context("failed to parse governance packet")?;
-        handle_governance_vaa(deps.branch(), info, body.with_payload(govpacket))?
+        let mut module = [0u8; 32];
+        module.clone_from_slice(&body.payload.get()[..32]);
+
+        if let Ok(govpacket) = serde_wormhole::from_slice::<token::GovernancePacket>(body.payload) {
+            handle_token_governance_vaa(deps.branch(), body.with_payload(govpacket))?
+        } else if let Ok(govpacket) =
+            serde_wormhole::from_slice::<accountant_module::GovernancePacket>(body.payload)
+        {
+            handle_accountant_moduleernance_vaa(deps.branch(), info, body.with_payload(govpacket))?
+        } else {
+            bail!("Unknown governance module")
+        }
+
+        // let govpacket: GovernancePacket =
+        //     .context("failed to parse governance packet")?;
     } else {
         let msg = serde_wormhole::from_slice(body.payload)
             .context("failed to parse tokenbridge message")?;
@@ -352,10 +364,9 @@ fn handle_vaa(
     Ok(evt)
 }
 
-fn handle_governance_vaa(
+fn handle_token_governance_vaa(
     deps: DepsMut<WormholeQuery>,
-    info: &MessageInfo,
-    body: Body<GovernancePacket>,
+    body: Body<token::GovernancePacket>,
 ) -> anyhow::Result<Event> {
     ensure!(
         body.payload.chain == Chain::Any || body.payload.chain == Chain::Wormchain,
@@ -363,7 +374,7 @@ fn handle_governance_vaa(
     );
 
     match body.payload.action {
-        Action::RegisterChain {
+        token::Action::RegisterChain {
             chain,
             emitter_address,
         } => {
@@ -378,7 +389,22 @@ fn handle_governance_vaa(
                 .add_attribute("chain", chain.to_string())
                 .add_attribute("emitter_address", emitter_address.to_string()))
         }
-        Action::ModifyBalance {
+        _ => bail!("unsupported governance action"),
+    }
+}
+
+fn handle_accountant_moduleernance_vaa(
+    deps: DepsMut<WormholeQuery>,
+    info: &MessageInfo,
+    body: Body<accountant_module::GovernancePacket>,
+) -> anyhow::Result<Event> {
+    ensure!(
+        body.payload.chain == Chain::Any || body.payload.chain == Chain::Wormchain,
+        "this governance VAA is for another chain"
+    );
+
+    match body.payload.action {
+        accountant_module::Action::ModifyBalance {
             sequence,
             chain_id,
             token_chain,
@@ -389,9 +415,11 @@ fn handle_governance_vaa(
         } => {
             let token_address = TokenAddress::new(token_address.0);
             let kind = match kind {
-                ModificationKind::Add => Kind::Add,
-                ModificationKind::Subtract => Kind::Sub,
-                ModificationKind::Unknown => bail!("unsupported governance action"),
+                accountant_module::ModificationKind::Add => Kind::Add,
+                accountant_module::ModificationKind::Subtract => Kind::Sub,
+                accountant_module::ModificationKind::Unknown => {
+                    bail!("unsupported governance action")
+                }
             };
             let amount = Uint256::from_be_bytes(amount.0);
             let modification = Modification {
@@ -405,13 +433,12 @@ fn handle_governance_vaa(
             };
             modify_balance(deps, info, modification).map_err(|e| e.into())
         }
-        _ => bail!("unsupported governance action"),
     }
 }
 
 fn handle_tokenbridge_vaa(
     mut deps: DepsMut<WormholeQuery>,
-    body: Body<Message<&RawMessage>>,
+    body: Body<token::Message<&RawMessage>>,
 ) -> anyhow::Result<Event> {
     let registered_emitter = CHAIN_REGISTRATIONS
         .may_load(deps.storage, body.emitter_chain.into())
@@ -424,14 +451,14 @@ fn handle_tokenbridge_vaa(
     );
 
     let data = match body.payload {
-        Message::Transfer {
+        token::Message::Transfer {
             amount,
             token_address,
             token_chain,
             recipient_chain,
             ..
         }
-        | Message::TransferWithPayload {
+        | token::Message::TransferWithPayload {
             amount,
             token_address,
             token_chain,
