@@ -425,7 +425,8 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 				if err != nil {
 					logger.Error("failed to process observation request",
-						zap.Error(err), zap.String("eth_network", w.networkName))
+						zap.Error(err), zap.String("eth_network", w.networkName),
+						zap.String("tx_hash", tx.Hex()))
 					continue
 				}
 

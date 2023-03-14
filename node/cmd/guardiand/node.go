@@ -994,7 +994,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Debug("acct: loading key file", zap.String("key path", wormchainKeyPathName))
 		wormchainKey, err = wormconn.LoadWormchainPrivKey(wormchainKeyPathName, *wormchainKeyPassPhrase)
 		if err != nil {
-			logger.Fatal("failed to load devnet wormchain private key", zap.Error(err))
+			logger.Fatal("failed to load wormchain private key", zap.Error(err))
 		}
 
 		// Connect to wormchain.
@@ -1377,7 +1377,6 @@ func runNode(cmd *cobra.Command, args []string) {
 					return err
 				}
 			}
-			logger.Info("checking for base")
 			if shouldStart(baseRPC) {
 				logger.Info("Starting Base watcher")
 				readiness.RegisterComponent(common.ReadinessBaseSyncing)
