@@ -350,6 +350,8 @@ func (w *Watcher) Run(ctx context.Context) error {
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
 	}
+	// Get the node version for troubleshooting
+	w.logVersion(ctx, logger)
 
 	errC := make(chan error)
 
@@ -903,6 +905,30 @@ func (w *Watcher) getAcalaMode(ctx context.Context) (useFinalizedBlocks bool, er
 // SetL1Finalizer is used to set the layer one finalizer.
 func (w *Watcher) SetL1Finalizer(l1Finalizer interfaces.L1Finalizer) {
 	w.l1Finalizer = l1Finalizer
+}
+
+// logVersion runs the web3_clientVersion rpc and logs the node version
+func (w *Watcher) logVersion(ctx context.Context, logger *zap.Logger) {
+	// From: https://ethereum.org/en/developers/docs/apis/json-rpc/#web3_clientversion
+	type versionResponse struct {
+		Id      int    `json:"id"`
+		Jsonrpc string `json:"jsonrpc"`
+		Result  string `json:"result"`
+	}
+	var v *versionResponse
+
+	if err := w.ethConn.RawCallContext(ctx, &v, "web3_clientVersion"); err != nil {
+		logger.Error("problem retrieving node version",
+			zap.Error(err),
+			zap.String("network", w.networkName),
+		)
+		return
+	}
+
+	logger.Info("node version",
+		zap.String("version", v.Result),
+		zap.String("network", w.networkName),
+	)
 }
 
 // GetLatestFinalizedBlockNumber() implements the L1Finalizer interface and allows other watchers to
