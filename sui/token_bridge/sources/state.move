@@ -206,12 +206,10 @@ module token_bridge::state {
         registered_tokens::has<CoinType>(&self.registered_tokens)
     }
 
-    #[test_only]
     public fun is_native_asset<CoinType>(self: &State): bool {
         registered_tokens::is_native<CoinType>(&self.registered_tokens)
     }
 
-    #[test_only]
     public fun is_wrapped_asset<CoinType>(self: &State): bool {
         registered_tokens::is_wrapped<CoinType>(&self.registered_tokens)
     }
@@ -223,6 +221,18 @@ module token_bridge::state {
 
     public fun coin_decimals<CoinType>(self: &State): u8 {
         registered_tokens::decimals<CoinType>(&self.registered_tokens)
+    }
+
+    /// This function returns an immutable reference to the treasury cap
+    /// for a wrapped coin that the token bridge manages. Note that there
+    /// is no danger of the returned reference being used to mint coins
+    /// outside of the bridge mint/burn mechanism, because a mutable reference
+    /// to the TreasuryCap is required for mint/burn.
+    ///
+    /// This function is only used in create_wrapped.move to update coin
+    /// metadata (only an immutable reference is needed).
+    public(friend) fun treasury_cap<CoinType>(self: &State): &TreasuryCap<CoinType> {
+        registered_tokens::treasury_cap<CoinType>(&self.registered_tokens)
     }
 
     public(friend) fun register_emitter(
@@ -305,8 +315,8 @@ module token_bridge::bridge_state_test{
     use wormhole::external_address::{Self};
 
     use token_bridge::state::{Self, State, DeployerCapability};
-    use token_bridge::native_coin_witness::{Self, NATIVE_COIN_WITNESS};
-    use token_bridge::native_coin_witness_v2::{Self, NATIVE_COIN_WITNESS_V2};
+    use token_bridge::native_coin_10_decimals::{Self, NATIVE_COIN_10_DECIMALS};
+    use token_bridge::native_coin_4_decimals::{Self, NATIVE_COIN_4_DECIMALS};
     use token_bridge::token_info::{Self};
 
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
@@ -391,38 +401,38 @@ module token_bridge::bridge_state_test{
 
         // Test coin type addressing.
         next_tx(&mut test, admin); {
-            native_coin_witness::test_init(ctx(&mut test));
-            native_coin_witness_v2::test_init(ctx(&mut test));
+            native_coin_4_decimals::test_init(ctx(&mut test));
+            native_coin_10_decimals::test_init(ctx(&mut test));
         };
         next_tx(&mut test, admin); {
             let wormhole_state = take_shared<WormholeState>(&test);
             let bridge_state = take_shared<State>(&test);
             let coin_meta =
-                take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
+                take_shared<CoinMetadata<NATIVE_COIN_10_DECIMALS>>(&test);
 
-            state::register_native_asset<NATIVE_COIN_WITNESS>(
+            state::register_native_asset<NATIVE_COIN_10_DECIMALS>(
                 &mut bridge_state,
                 &coin_meta,
             );
-            let info = state::token_info<NATIVE_COIN_WITNESS>(&bridge_state);
+            let info = state::token_info<NATIVE_COIN_10_DECIMALS>(&bridge_state);
             let expected_addr = external_address::from_bytes(x"01");
             assert!(token_info::addr(&info) == expected_addr, 0);
 
             let coin_meta_v2 =
-                take_shared<CoinMetadata<NATIVE_COIN_WITNESS_V2>>(&test);
-            state::register_native_asset<NATIVE_COIN_WITNESS_V2>(
+                take_shared<CoinMetadata<NATIVE_COIN_4_DECIMALS>>(&test);
+            state::register_native_asset<NATIVE_COIN_4_DECIMALS>(
                 &mut bridge_state,
                 &coin_meta_v2,
             );
             let info =
-                state::token_info<NATIVE_COIN_WITNESS_V2>(&bridge_state);
+                state::token_info<NATIVE_COIN_4_DECIMALS>(&bridge_state);
             let expected_addr = external_address::from_bytes(x"02");
             assert!(token_info::addr(&info) == expected_addr, 0);
 
             return_shared<WormholeState>(wormhole_state);
             return_shared<State>(bridge_state);
-            return_shared<CoinMetadata<NATIVE_COIN_WITNESS_V2>>(coin_meta_v2);
-            return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
+            return_shared<CoinMetadata<NATIVE_COIN_4_DECIMALS>>(coin_meta_v2);
+            return_shared<CoinMetadata<NATIVE_COIN_10_DECIMALS>>(coin_meta);
         };
         test_scenario::end(test);
     }
@@ -435,30 +445,30 @@ module token_bridge::bridge_state_test{
 
         // Test coin type addressing.
         next_tx(&mut test, admin); {
-            native_coin_witness::test_init(ctx(&mut test));
-            native_coin_witness_v2::test_init(ctx(&mut test));
+            native_coin_10_decimals::test_init(ctx(&mut test));
+            native_coin_4_decimals::test_init(ctx(&mut test));
         };
         next_tx(&mut test, admin); {
             let wormhole_state = take_shared<WormholeState>(&test);
             let bridge_state = take_shared<State>(&test);
-            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(&test);
-            state::register_native_asset<NATIVE_COIN_WITNESS>(
+            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_10_DECIMALS>>(&test);
+            state::register_native_asset<NATIVE_COIN_10_DECIMALS>(
                 &mut bridge_state,
                 &coin_meta,
             );
-            let info = state::token_info<NATIVE_COIN_WITNESS>(&bridge_state);
+            let info = state::token_info<NATIVE_COIN_10_DECIMALS>(&bridge_state);
             let expected_addr = external_address::from_bytes(x"01");
             assert!(token_info::addr(&info) == expected_addr, 0);
 
-            // Aborts because trying to re-register native coin.
-            state::register_native_asset<NATIVE_COIN_WITNESS>(
+            // aborts because trying to re-register native coin
+            state::register_native_asset<NATIVE_COIN_10_DECIMALS>(
                 &mut bridge_state,
                 &coin_meta,
             );
 
             return_shared<WormholeState>(wormhole_state);
             return_shared<State>(bridge_state);
-            return_shared<CoinMetadata<NATIVE_COIN_WITNESS>>(coin_meta);
+            return_shared<CoinMetadata<NATIVE_COIN_10_DECIMALS>>(coin_meta);
         };
         test_scenario::end(test);
     }

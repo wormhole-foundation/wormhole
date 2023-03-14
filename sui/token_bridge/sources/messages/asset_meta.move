@@ -1,6 +1,7 @@
 module token_bridge::asset_meta {
     use std::string::{String};
     use std::vector::{Self};
+    use std::ascii::{Self};
     use wormhole::bytes::{Self};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::cursor::{Self};
@@ -61,16 +62,20 @@ module token_bridge::asset_meta {
         self.symbol
     }
 
-    public fun symbol_to_string(self: &AssetMeta): String {
-        string32::to_string(&self.symbol)
+    public fun symbol_to_ascii(self: &AssetMeta): ascii::String {
+        string32::to_ascii(&self.symbol)
+    }
+
+    public fun symbol_to_utf8(self: &AssetMeta): String {
+        string32::to_utf8(&self.symbol)
     }
 
     public fun name(self: &AssetMeta): String32 {
         self.name
     }
 
-    public fun name_to_string(self: &AssetMeta): String {
-        string32::to_string(&self.name)
+    public fun name_to_utf8(self: &AssetMeta): String {
+        string32::to_utf8(&self.name)
     }
 
     public fun serialize(meta: AssetMeta): vector<u8> {
