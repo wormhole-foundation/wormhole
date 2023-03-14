@@ -148,7 +148,7 @@ func tokenBridgeRegisterChain(req *nodev1.BridgeRegisterChain, timestamp time.Ti
 
 // tokenBridgeModifyBalance converts a nodev1.TokenBridgeModifyBalance message to its canonical VAA representation.
 // Returns an error if the data is invalid.
-func tokenBridgeModifyBalance(req *nodev1.BridgeModifyBalance, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+func accountantModifyBalance(req *nodev1.AccountantModifyBalance, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
 	if req.TargetChainId > math.MaxUint16 {
 		return nil, errors.New("invalid target_chain_id")
 	}
@@ -188,7 +188,7 @@ func tokenBridgeModifyBalance(req *nodev1.BridgeModifyBalance, timestamp time.Ti
 	copy(tokenAdress[:], b)
 
 	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
-		vaa.BodyTokenBridgeModifyBalance{
+		vaa.BodyAccountantModifyBalance{
 			Module:        req.Module,
 			TargetChainID: vaa.ChainID(req.TargetChainId),
 
@@ -369,8 +369,8 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 			v, err = tokenBridgeRegisterChain(payload.BridgeRegisterChain, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		case *nodev1.GovernanceMessage_BridgeContractUpgrade:
 			v, err = tokenBridgeUpgradeContract(payload.BridgeContractUpgrade, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
-		case *nodev1.GovernanceMessage_BridgeModifyBalance:
-			v, err = tokenBridgeModifyBalance(payload.BridgeModifyBalance, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_AccountantModifyBalance:
+			v, err = accountantModifyBalance(payload.AccountantModifyBalance, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		case *nodev1.GovernanceMessage_WormchainStoreCode:
 			v, err = wormchainStoreCode(payload.WormchainStoreCode, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		case *nodev1.GovernanceMessage_WormchainInstantiateContract:

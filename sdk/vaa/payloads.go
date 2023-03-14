@@ -35,10 +35,12 @@ var (
 	ActionInstantiateContract GovernanceAction = 2
 	ActionMigrateContract     GovernanceAction = 3
 
+	// Accountant goverance actions
+	ActionModifyBalance GovernanceAction = 1
+
 	// Wormhole tokenbridge governance actions
 	ActionRegisterChain      GovernanceAction = 1
 	ActionUpgradeTokenBridge GovernanceAction = 2
-	ActionModifyBalance      GovernanceAction = 3
 
 	// Circle Integration governance actions
 	CircleIntegrationActionUpdateWormholeFinality        GovernanceAction = 1
@@ -74,7 +76,7 @@ type (
 	}
 
 	// BodyTokenBridgeModifyBalance is a governance message to modify accountant balances for the tokenbridge.
-	BodyTokenBridgeModifyBalance struct {
+	BodyAccountantModifyBalance struct {
 		Module        string
 		TargetChainID ChainID
 		Sequence      uint64
@@ -165,7 +167,7 @@ func (r BodyTokenBridgeUpgradeContract) Serialize() []byte {
 	return serializeBridgeGovernanceVaa(r.Module, ActionUpgradeTokenBridge, r.TargetChainID, r.NewContract[:])
 }
 
-func (r BodyTokenBridgeModifyBalance) Serialize() []byte {
+func (r BodyAccountantModifyBalance) Serialize() []byte {
 	payload := &bytes.Buffer{}
 	MustWrite(payload, binary.BigEndian, r.Sequence)
 	MustWrite(payload, binary.BigEndian, r.ChainId)
