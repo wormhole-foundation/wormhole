@@ -822,14 +822,14 @@ module token_bridge::complete_transfer_test {
         // First register foreign chain, create wrapped asset, register wrapped asset.
         let test = test_register_wrapped_(admin, scenario);
         next_tx(&mut test, admin);{
-            coin_witness::test_init(ctx(&mut test));
+            wrapped_coin_12_decimals::test_init(ctx(&mut test));
         };
         // Complete transfer of wrapped asset from foreign chain to this chain.
         next_tx(&mut test, admin); {
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
 
-            complete_transfer::complete_transfer<COIN_WITNESS>(
+            complete_transfer::complete_transfer<WRAPPED_COIN_12_DECIMALS>(
                 &mut bridge_state,
                 &mut worm_state,
                 vaa,
@@ -842,9 +842,9 @@ module token_bridge::complete_transfer_test {
 
         // Check balances after.
         next_tx(&mut test, admin);{
-            let coins = take_from_address<Coin<COIN_WITNESS>>(&test, admin);
-            assert!(coin::value<COIN_WITNESS>(&coins) == 3000, 0);
-            return_to_address<Coin<COIN_WITNESS>>(admin, coins);
+            let coins = take_from_address<Coin<WRAPPED_COIN_12_DECIMALS>>(&test, admin);
+            assert!(coin::value<WRAPPED_COIN_12_DECIMALS>(&coins) == 3000, 0);
+            return_to_address<Coin<WRAPPED_COIN_12_DECIMALS>>(admin, coins);
         };
         test_scenario::end(test);
     }
@@ -872,14 +872,14 @@ module token_bridge::complete_transfer_test {
         // First register foreign chain, create wrapped asset, register wrapped asset.
         let test = test_register_wrapped_(admin, scenario);
         next_tx(&mut test, admin);{
-            coin_witness::test_init(ctx(&mut test));
+            wrapped_coin_12_decimals::test_init(ctx(&mut test));
         };
         // Complete transfer of wrapped asset from foreign chain to this chain.
         next_tx(&mut test, admin); {
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
 
-            complete_transfer::complete_transfer<COIN_WITNESS>(
+            complete_transfer::complete_transfer<WRAPPED_COIN_12_DECIMALS>(
                 &mut bridge_state,
                 &mut worm_state,
                 vaa,
@@ -892,13 +892,13 @@ module token_bridge::complete_transfer_test {
 
         // Check balances after.
         next_tx(&mut test, admin);{
-            let coins = take_from_address<Coin<COIN_WITNESS>>(&test, admin);
-            assert!(coin::value<COIN_WITNESS>(&coins) == 2000, 0);
-            return_to_address<Coin<COIN_WITNESS>>(admin, coins);
+            let coins = take_from_address<Coin<WRAPPED_COIN_12_DECIMALS>>(&test, admin);
+            assert!(coin::value<WRAPPED_COIN_12_DECIMALS>(&coins) == 2000, 0);
+            return_to_address<Coin<WRAPPED_COIN_12_DECIMALS>>(admin, coins);
 
-            let fee_coins = take_from_address<Coin<COIN_WITNESS>>(&test, fee_recipient_person);
-            assert!(coin::value<COIN_WITNESS>(&fee_coins) == 1000, 0);
-            return_to_address<Coin<COIN_WITNESS>>(fee_recipient_person, fee_coins);
+            let fee_coins = take_from_address<Coin<WRAPPED_COIN_12_DECIMALS>>(&test, fee_recipient_person);
+            assert!(coin::value<WRAPPED_COIN_12_DECIMALS>(&fee_coins) == 1000, 0);
+            return_to_address<Coin<WRAPPED_COIN_12_DECIMALS>>(fee_recipient_person, fee_coins);
         };
         test_scenario::end(test);
     }
