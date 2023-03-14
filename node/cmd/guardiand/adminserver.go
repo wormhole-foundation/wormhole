@@ -146,7 +146,7 @@ func tokenBridgeRegisterChain(req *nodev1.BridgeRegisterChain, timestamp time.Ti
 	return v, nil
 }
 
-// tokenBridgeModifyBalance converts a nodev1.TokenBridgeModifyBalance message to its canonical VAA representation.
+// accountantModifyBalance converts a nodev1.AccountantModifyBalance message to its canonical VAA representation.
 // Returns an error if the data is invalid.
 func accountantModifyBalance(req *nodev1.AccountantModifyBalance, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
 	if req.TargetChainId > math.MaxUint16 {
