@@ -291,6 +291,9 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 		timer := time.NewTicker(time.Second * 1)
 		defer timer.Stop()
 
+		// Get the node version for troubleshooting
+		s.logVersion(ctx, logger)
+
 		for {
 			select {
 			case <-ctx.Done():
@@ -840,6 +843,24 @@ func (s *SolanaWatcher) GetLatestFinalizedBlockNumber() uint64 {
 	s.latestBlockNumberMu.Lock()
 	defer s.latestBlockNumberMu.Unlock()
 	return s.latestBlockNumber
+}
+
+// logVersion runs the getVersion rpc and logs the node version.
+func (s *SolanaWatcher) logVersion(ctx context.Context, logger *zap.Logger) {
+	// From: https://docs.solana.com/api/http#getversion
+	v, err := s.rpcClient.GetVersion(ctx)
+	if err != nil {
+		logger.Error("problem retrieving node version",
+			zap.Error(err),
+			zap.String("network", s.networkName),
+		)
+		return
+	}
+	logger.Info("node version",
+		zap.String("network", s.networkName),
+		zap.Int64("feature_set", v.FeatureSet),
+		zap.String("version", v.SolanaCore),
+	)
 }
 
 func ParseMessagePublicationAccount(data []byte) (*MessagePublicationAccount, error) {
