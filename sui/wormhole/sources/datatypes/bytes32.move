@@ -193,19 +193,19 @@ module wormhole::bytes32_tests {
     }
 
     #[test]
-    public fun from_u64_be() {
-        let actual = bytes32::from_u64_be(1u64 << 32);
+    public fun from_u256_be() {
+        let actual = bytes32::from_u256_be(1 << 32);
         let expected =
             x"0000000000000000000000000000000000000000000000000000000100000000";
         assert!(bytes32::data(&actual) == expected, 0);
     }
 
     #[test]
-    public fun to_u64_be() {
+    public fun to_u256_be() {
         let actual = bytes32::new(
             x"0000000000000000000000000000000000000000000000000000000100000000"
         );
-        assert!(bytes32::to_u64_be(actual) == (1u64 << 32), 0);
+        assert!(bytes32::to_u256_be(actual) == (1 << 32), 0);
     }
 
     #[test]
