@@ -18,6 +18,8 @@ module token_bridge::registered_tokens {
     const E_UNREGISTERED: u64 = 0;
     const E_ALREADY_REGISTERED: u64 = 1;
     const E_CANNOT_DEPOSIT_WRAPPED_COIN: u64 = 2;
+    const E_CANNOT_GET_TREASURY_CAP_FOR_NON_WRAPPED_COIN: u64 = 3;
+    const E_CANNOT_REGISTER_NATIVE_COIN: u64 = 4;
 
     struct RegisteredTokens has key, store {
         id: UID,
@@ -75,6 +77,16 @@ module token_bridge::registered_tokens {
         !is_wrapped<C>(self)
     }
 
+    public(friend) fun treasury_cap<C>(
+        self: &RegisteredTokens
+    ): &TreasuryCap<C> {
+        assert!(is_wrapped<C>(self),
+            E_CANNOT_GET_TREASURY_CAP_FOR_NON_WRAPPED_COIN);
+        wrapped_asset::treasury_cap<C>(
+            dynamic_field::borrow(&self.id, Key<C>{})
+        )
+    }
+
     public(friend) fun add_new_wrapped<C>(
         self: &mut RegisteredTokens,
         chain: u16,
@@ -82,7 +94,14 @@ module token_bridge::registered_tokens {
         treasury_cap: TreasuryCap<C>,
         decimals: u8,
     ) {
-        assert!(!has<C>(self), E_ALREADY_REGISTERED);
+        // Note: we do not assert that the coin type has not already been
+        // registered using !has<C>(self), because add_new_wrapped
+        // consumes TreasuryCap<C> and stores it within a WrappedAsset
+        // within the token bridge forever. Since the treasury cap
+        // is globally unique and can only be created once, there is no
+        // risk that add_new_wrapped can be called again on the same
+        // coin type.
+        assert!(chain != chain_id(), E_CANNOT_REGISTER_NATIVE_COIN);
         add_wrapped<C>(
             self,
             wrapped_asset::new(chain, addr, treasury_cap, decimals)
@@ -326,6 +345,88 @@ module token_bridge::registered_tokens_test {
             // 5) cleanup
 
             return_shared(native_tcap);
+            destroy(registered_tokens);
+        };
+         next_tx(&mut test, admin);{
+            test_scenario::end(test);
+        };
+    }
+
+    // In this negative test case, we try to register a native token twice.
+    #[test]
+    #[expected_failure(
+        abort_code = token_bridge::registered_tokens::E_ALREADY_REGISTERED,
+        location=token_bridge::registered_tokens
+    )]
+    fun test_registered_tokens_already_registered(){
+        let test = scenario();
+        let (admin, _, _) = people();
+
+        // 1) Initialize RegisteredTokens object, native and wrapped coins.
+        next_tx(&mut test, admin);{
+            //coin_witness::test_init(ctx(&mut test));
+            native_coin_10_decimals::test_init(ctx(&mut test));
+        };
+        next_tx(&mut test, admin);{
+            let registered_tokens = new(ctx(&mut test));
+
+            // 2) Check initial state.
+            assert!(num_wrapped(&registered_tokens)==0, 0);
+            assert!(num_native(&registered_tokens)==0, 0);
+
+            // 3)  Attempt to register native coin twice.
+            add_new_native<NATIVE_COIN_10_DECIMALS>(
+                &mut registered_tokens,
+                10, // Decimals.
+            );
+            add_new_native<NATIVE_COIN_10_DECIMALS>(
+                &mut registered_tokens,
+                10, // Decimals.
+            );
+
+            //4) Cleanup.
+            destroy(registered_tokens);
+        };
+         next_tx(&mut test, admin);{
+            test_scenario::end(test);
+        };
+    }
+
+    // In this negative test case, we attempt to register a native coin as a
+    // wrapped coin.
+    #[test]
+    #[expected_failure(
+        abort_code = token_bridge::registered_tokens::E_CANNOT_REGISTER_NATIVE_COIN,
+        location=token_bridge::registered_tokens
+    )]
+    fun test_registered_tokens_cannot_register_native(){
+        let test = scenario();
+        let (admin, _, _) = people();
+
+        // 1) Initialize RegisteredTokens object, native and wrapped coins.
+        next_tx(&mut test, admin);{
+            native_coin_10_decimals::test_init(ctx(&mut test));
+        };
+        next_tx(&mut test, admin);{
+            let registered_tokens = new(ctx(&mut test));
+
+            // 2) Check initial state.
+            assert!(num_wrapped(&registered_tokens)==0, 0);
+            assert!(num_native(&registered_tokens)==0, 0);
+
+            // 3) Attempt to register a native coin as wrapped.
+            let tcap = take_shared<TreasuryCap<NATIVE_COIN_10_DECIMALS>>(
+                &mut test
+            );
+            add_new_wrapped<NATIVE_COIN_10_DECIMALS>(
+                &mut registered_tokens,
+                21, // Chain.
+                external_address::from_bytes(x"001234"), // External address.
+                tcap, // Treasury cap.
+                7 // Decimals.
+            );
+
+            //4) Cleanup.
             destroy(registered_tokens);
         };
          next_tx(&mut test, admin);{

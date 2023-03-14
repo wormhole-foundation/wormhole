@@ -211,7 +211,6 @@ module token_bridge::state {
         registered_tokens::is_native<CoinType>(&self.registered_tokens)
     }
 
-    #[test_only]
     public fun is_wrapped_asset<CoinType>(self: &State): bool {
         registered_tokens::is_wrapped<CoinType>(&self.registered_tokens)
     }
@@ -223,6 +222,18 @@ module token_bridge::state {
 
     public fun coin_decimals<CoinType>(self: &State): u8 {
         registered_tokens::decimals<CoinType>(&self.registered_tokens)
+    }
+
+    /// This function returns an immutable reference to the treasury cap
+    /// for a wrapped coin that the token bridge manages. Note that there
+    /// is no danger of the returned reference being used to mint coins
+    /// outside of the bridge mint/burn mechanism, because a mutable reference
+    /// to the TreasuryCap is required for mint/burn.
+    ///
+    /// This function is only used in create_wrapped.move to update coin
+    /// metadata (only an immutable reference is needed).
+    public(friend) fun treasury_cap<CoinType>(self: &State): &TreasuryCap<CoinType> {
+        registered_tokens::treasury_cap<CoinType>(&self.registered_tokens)
     }
 
     public(friend) fun register_emitter(
