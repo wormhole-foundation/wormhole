@@ -182,9 +182,7 @@ module wormhole::myvaa {
 
             let cur_guardian = vector::borrow<Guardian>(&guardians, (guardian_index as u64));
             let cur_address = get_address(cur_guardian);
-
             assert!(address == cur_address, E_INVALID_SIGNATURE);
-
             sig_i = sig_i + 1;
         };
     }
