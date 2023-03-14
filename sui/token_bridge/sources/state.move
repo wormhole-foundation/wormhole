@@ -206,7 +206,6 @@ module token_bridge::state {
         registered_tokens::has<CoinType>(&self.registered_tokens)
     }
 
-    #[test_only]
     public fun is_native_asset<CoinType>(self: &State): bool {
         registered_tokens::is_native<CoinType>(&self.registered_tokens)
     }
