@@ -92,7 +92,7 @@ fn wrong_target() {
         .submit_vaas(vec![data])
         .expect_err("successfully executed chain registration VAA for different chain");
     assert_eq!(
-        "this governance vaa is for another chain",
+        "this token governance vaa is for another chain",
         err.root_cause().to_string().to_lowercase()
     );
 }
@@ -102,7 +102,6 @@ fn non_governance_chain() {
     let (wh, mut contract) = proper_instantiate();
 
     let mut body = create_vaa_body();
-    body.payload.chain = Chain::Solana;
     body.emitter_chain = Chain::Fantom;
 
     let (_, data) = sign_vaa_body(&wh, body);
@@ -110,8 +109,12 @@ fn non_governance_chain() {
         .submit_vaas(vec![data])
         .expect_err("successfully executed chain registration with non-governance chain");
 
-    // This tries to parse as a normal token bridge vaa and fails.  Not sure how best to differentiate from a governance message.
-    _ = err;
+    // A governance message with wrong chain or emitter will be parsed as a token bridge message
+    assert!(err
+        .source()
+        .unwrap()
+        .to_string()
+        .contains("failed to parse tokenbridge message",));
 }
 
 #[test]
@@ -126,8 +129,12 @@ fn non_governance_emitter() {
         .submit_vaas(vec![data])
         .expect_err("successfully executed chain registration with non-governance emitter");
 
-    // This tries to parse as a normal token bridge vaa and fails.  Not sure how best to differentiate from a governance message.
-    _ = err;
+    // A governance message with wrong chain or emitter will be parsed as a token bridge message
+    assert!(err
+        .source()
+        .unwrap()
+        .to_string()
+        .contains("failed to parse tokenbridge message",));
 }
 
 #[test]

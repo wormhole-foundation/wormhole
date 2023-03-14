@@ -233,7 +233,7 @@ mod governance_packet_impl {
                 }
                 v => {
                     return Err(Error::custom(format_args!(
-                        "invalid value {v}, expected one of 1, 2"
+                        "invalid value {v}, expected one of 1"
                     )))
                 }
             };
@@ -314,7 +314,7 @@ mod governance_packet_impl {
                             }
                             v => {
                                 return Err(Error::custom(format_args!(
-                                    "invalid action: {v}, expected one of: 1, 2"
+                                    "invalid action: {v}, expected one of: 1"
                                 )))
                             }
                         };
@@ -378,8 +378,8 @@ mod test {
             0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31, 0x31,
             0x31, 0x31, 0x31, 0x31, // reason
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x41, 0x41,
+            0x42, 0x42, 0x43, 0x43,
         ];
 
         let vaa = Vaa {
@@ -410,7 +410,7 @@ mod test {
                     token_address: Address([0x32u8; 32]),
                     kind: ModificationKind::Add,
                     amount: Amount([0x31u8; 32]),
-                    reason: "".into(),
+                    reason: "AABBCC".into(),
                 },
             },
         };

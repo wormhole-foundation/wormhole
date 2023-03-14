@@ -334,21 +334,15 @@ fn handle_vaa(
     let mut evt = if body.emitter_chain == Chain::Solana
         && body.emitter_address == wormhole::GOVERNANCE_EMITTER
     {
-        let mut module = [0u8; 32];
-        module.clone_from_slice(&body.payload.get()[..32]);
-
         if let Ok(govpacket) = serde_wormhole::from_slice::<token::GovernancePacket>(body.payload) {
             handle_token_governance_vaa(deps.branch(), body.with_payload(govpacket))?
         } else if let Ok(govpacket) =
             serde_wormhole::from_slice::<accountant_module::GovernancePacket>(body.payload)
         {
-            handle_accountant_moduleernance_vaa(deps.branch(), info, body.with_payload(govpacket))?
+            handle_accountant_governance_vaa(deps.branch(), info, body.with_payload(govpacket))?
         } else {
             bail!("Unknown governance module")
         }
-
-        // let govpacket: GovernancePacket =
-        //     .context("failed to parse governance packet")?;
     } else {
         let msg = serde_wormhole::from_slice(body.payload)
             .context("failed to parse tokenbridge message")?;
@@ -370,7 +364,7 @@ fn handle_token_governance_vaa(
 ) -> anyhow::Result<Event> {
     ensure!(
         body.payload.chain == Chain::Any || body.payload.chain == Chain::Wormchain,
-        "this governance VAA is for another chain"
+        "this token governance VAA is for another chain"
     );
 
     match body.payload.action {
@@ -393,14 +387,14 @@ fn handle_token_governance_vaa(
     }
 }
 
-fn handle_accountant_moduleernance_vaa(
+fn handle_accountant_governance_vaa(
     deps: DepsMut<WormholeQuery>,
     info: &MessageInfo,
     body: Body<accountant_module::GovernancePacket>,
 ) -> anyhow::Result<Event> {
     ensure!(
-        body.payload.chain == Chain::Any || body.payload.chain == Chain::Wormchain,
-        "this governance VAA is for another chain"
+        body.payload.chain == Chain::Wormchain,
+        "this accountant governance VAA is for another chain"
     );
 
     match body.payload.action {

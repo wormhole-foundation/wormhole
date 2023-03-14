@@ -98,7 +98,7 @@ impl Contract {
             sequence: self.sequence,
             consistency_level: 0,
             payload: accountant_module::GovernancePacket {
-                chain: Chain::Any,
+                chain: Chain::Wormchain,
                 action: accountant_module::Action::ModifyBalance {
                     sequence,
                     chain_id,
