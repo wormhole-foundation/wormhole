@@ -426,7 +426,7 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 			continue
 		}
 
-		logger.Info("new message detected on cosmwasm",
+		logger.Debug("new message detected on cosmwasm",
 			zap.String("network", networkName),
 			zap.String("chainId", chainId),
 			zap.String("txHash", txHash),
