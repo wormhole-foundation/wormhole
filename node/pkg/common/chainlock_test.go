@@ -80,13 +80,8 @@ func TestSerializeAndDeserializeOfMessagePublicationWithBigPayload(t *testing.T)
 
 	// Create a payload of more than 1000 bytes.
 	var payload1 []byte
-	ch := 0
 	for i := 0; i < 2000; i++ {
-		if ch > 255 {
-			ch = 0
-		} else {
-			ch += 1
-		}
+		ch := i % 255
 		payload1 = append(payload1, byte(ch))
 	}
 

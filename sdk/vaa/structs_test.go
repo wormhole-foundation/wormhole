@@ -372,13 +372,8 @@ func TestUnmarshalBigPayload(t *testing.T) {
 
 	// Create a payload of more than 1000 bytes.
 	var payload []byte
-	ch := 0
 	for i := 0; i < 2000; i++ {
-		if ch > 255 {
-			ch = 0
-		} else {
-			ch += 1
-		}
+		ch := i % 255
 		payload = append(payload, byte(ch))
 	}
 	vaa.Payload = payload
