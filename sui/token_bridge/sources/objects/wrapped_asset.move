@@ -1,7 +1,6 @@
 module token_bridge::wrapped_asset {
     use sui::coin::{Self, Coin, TreasuryCap};
     use sui::tx_context::{TxContext};
-    use sui::balance::{Self};
     use wormhole::external_address::{ExternalAddress};
 
     use token_bridge::token_info::{Self, TokenInfo};
@@ -40,7 +39,7 @@ module token_bridge::wrapped_asset {
             decimals: _
         } = wrapped_asset;
         let supply = coin::treasury_into_supply(tcap);
-        balance::destroy_supply_for_testing(supply);
+        sui::balance::destroy_supply_for_testing(supply);
     }
 
     public fun token_chain<C>(self: &WrappedAsset<C>): u16 {
