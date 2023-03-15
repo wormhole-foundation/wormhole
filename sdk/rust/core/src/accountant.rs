@@ -54,7 +54,7 @@ impl<'de> Deserialize<'de> for ModificationKind {
     }
 }
 
-/// Represents a governance action targeted at the NFT bridge.
+/// Represents a governance action targeted at the Accountant.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Action {
     // Modify balance for accountant
@@ -71,7 +71,7 @@ pub enum Action {
     },
 }
 
-/// Represents the payload for a governance VAA targeted at the NFT bridge.
+/// Represents the payload for a governance VAA targeted at the Accountant.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct GovernancePacket {
     /// The chain on which the governance action should be carried out.
@@ -80,6 +80,10 @@ pub struct GovernancePacket {
     /// The actual governance action to be carried out.
     pub action: Action,
 }
+
+// MODULE = "GlobalAccountant"
+pub const MODULE: [u8; 32] =
+    *b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00GlobalAccountant";
 
 // The wire format for GovernancePackets is wonky and doesn't lend itself well to auto-deriving
 // Serialize / Deserialize so we implement it manually here.
@@ -93,13 +97,9 @@ mod governance_packet_impl {
     };
 
     use crate::{
-        accountant::{Action, GovernancePacket},
+        accountant::{Action, GovernancePacket, MODULE},
         Address, Amount,
     };
-
-    // MODULE = "GlobalAccountant"
-    const MODULE: [u8; 32] =
-        *b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00GlobalAccountant";
 
     struct Module;
 
@@ -123,7 +123,7 @@ mod governance_packet_impl {
                 Ok(Module)
             } else {
                 Err(Error::custom(
-                    "invalid governance module, expected \"NFTBridge\"",
+                    "invalid governance module, expected \"GlobalAccountant\"",
                 ))
             }
         }

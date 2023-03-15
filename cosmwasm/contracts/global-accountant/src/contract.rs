@@ -334,14 +334,21 @@ fn handle_vaa(
     let mut evt = if body.emitter_chain == Chain::Solana
         && body.emitter_address == wormhole::GOVERNANCE_EMITTER
     {
-        if let Ok(govpacket) = serde_wormhole::from_slice::<token::GovernancePacket>(body.payload) {
+        if body.payload.len() < 32 {
+            bail!("governance module missing");
+        }
+        let module = &body.payload[..32];
+
+        if module == token::MODULE {
+            let govpacket = serde_wormhole::from_slice(body.payload)
+                .context("failed to parse tokenbridge governance packet")?;
             handle_token_governance_vaa(deps.branch(), body.with_payload(govpacket))?
-        } else if let Ok(govpacket) =
-            serde_wormhole::from_slice::<accountant_module::GovernancePacket>(body.payload)
-        {
+        } else if module == accountant_module::MODULE {
+            let govpacket = serde_wormhole::from_slice(body.payload)
+                .context("failed to parse accountant governance packet")?;
             handle_accountant_governance_vaa(deps.branch(), info, body.with_payload(govpacket))?
         } else {
-            bail!("Unknown governance module")
+            bail!("unknown governance module")
         }
     } else {
         let msg = serde_wormhole::from_slice(body.payload)
