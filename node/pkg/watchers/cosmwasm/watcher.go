@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -159,6 +161,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 	// 32768.  Increasing this limit effects an internal buffer that is used
 	// to as part of the zero alloc/copy design.
 	c.SetReadLimit(524288)
+
+	// Get the node version for troubleshooting
+	e.logVersion(ctx, logger)
 
 	// Subscribe to smart contract transactions
 	params := [...]string{fmt.Sprintf("tm.event='Tx' AND %s='%s'", e.contractAddressFilterKey, e.contract)}
@@ -485,6 +490,72 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 		msgs = append(msgs, messagePublication)
 	}
 	return msgs
+}
+
+// logVersion uses the abci_info rpc to log node version information.
+func (e *Watcher) logVersion(ctx context.Context, logger *zap.Logger) {
+	// NOTE: This function is ugly because this watcher doesn't use a
+	//       client library. It can be rewritten in a followup change.
+	//
+	// Get information about the application (the /status endpoint returns the
+	// version of the tendermint or cometbft library, no the actual application
+	// version.
+	//
+	// From:
+	//    https://docs.cometbft.com/v0.34/rpc/#/ABCI/abci_info
+	//    https://docs.tendermint.com/v0.34/rpc/#/ABCI/abci_info
+	queryURL := "/abci_info"
+
+	type versionResultResponse struct {
+		Data             string `json:"data"`
+		Version          string `json:"version"`
+		LastBlockHeight  string `json:"last_block_height"`
+		LastBlockAppHash string `json:"last_block_app_hash"`
+	}
+
+	type versionResponse struct {
+		Id      int                   `json:"id"`
+		Jsonrpc string                `json:"jsonrpc"`
+		Result  versionResultResponse `json:"result"`
+	}
+
+	client := &http.Client{
+		Timeout: time.Second * 5,
+	}
+
+	resp, err := client.Get(fmt.Sprintf("%s%s", e.urlWS, queryURL))
+	if err != nil {
+		logger.Error("problem retrieving node version",
+			zap.String("network", e.networkName),
+			zap.Error(err),
+		)
+		return
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logger.Error("problem retrieving node version and reading response body",
+			zap.String("network", e.networkName),
+			zap.Error(err),
+		)
+		return
+	}
+	defer resp.Body.Close()
+
+	var parsed *versionResponse
+
+	if err = json.Unmarshal(body, &parsed); err != nil {
+		logger.Error("problem retrieving node version due to an empty response version ",
+			zap.String("network", e.networkName),
+			zap.Error(errors.New("missing version number, ensure software is built correctly")),
+		)
+		return
+	}
+
+	logger.Info("node version",
+		zap.String("network", e.networkName),
+		zap.String("version", parsed.Result.Version),
+	)
 }
 
 // StringToAddress convert string into address
