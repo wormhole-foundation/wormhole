@@ -30,6 +30,8 @@ WORM_OWNER=$(grep -v "Immutable" ids.log | sed -e 's/^.*( \(.*\) )/\1/')
 echo -e "\nBuilding token_bridge..."
 cd ../token_bridge
 sed -i -e '0,/token_bridge = ".*"/{s/token_bridge = ".*"/token_bridge = "0x0"/}' Move.toml
+sed -i -e "s/\[dev\-dependencies.Wormhole\]/\# \[dependencies.Wormhole\]/" Move.toml
+sed -i -e '17s/local = "..\/wormhole"/\# local = "..\/wormhole"/' Move.toml
 make build
 echo "Finished building token_bridge"
 
@@ -42,6 +44,8 @@ TOKEN_OWNER=$(grep -v "Immutable" ids.log | sed -e 's/^.*( \(.*\) )/\1/')
 echo "Token bridge deployer cap: $TOKEN_DEPLOYER_CAPABILITY"
 echo "Token bridge owner: $TOKEN_OWNER"
 echo "Published token_bridge to $TOKEN_PACKAGE"
+sed -i -e "s/\# \[dependencies.Wormhole\]/\[dev\-dependencies.Wormhole\]/" Move.toml
+sed -i -e 's/\# local = "..\/wormhole"/local = "..\/wormhole"/' Move.toml
 
 cd ..
 echo -e "\nResetting TOML files..."
