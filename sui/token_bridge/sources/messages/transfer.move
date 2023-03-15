@@ -6,18 +6,11 @@ module token_bridge::transfer {
 
     use token_bridge::normalized_amount::{Self, NormalizedAmount};
 
-    friend token_bridge::transfer_tokens;
-
-    #[test_only]
-    friend token_bridge::complete_transfer_test;
-    #[test_only]
-    friend token_bridge::transfer_test;
-
     const E_INVALID_ACTION: u64 = 0;
 
     const PAYLOAD_ID: u8 = 1;
 
-    struct Transfer has drop {
+    struct Transfer {
         // Amount being transferred.
         amount: NormalizedAmount,
         // Address of the token. Left-zero-padded if shorter than 32 bytes.
@@ -31,6 +24,10 @@ module token_bridge::transfer {
         // Amount of tokens that the user is willing to pay as relayer fee.
         // Must be <= amount.
         relayer_fee: NormalizedAmount,
+    }
+
+    public fun payload_id(): u8 {
+        PAYLOAD_ID
     }
 
     public fun new(
@@ -51,101 +48,149 @@ module token_bridge::transfer {
         }
     }
 
-    public fun amount(self: &Transfer): NormalizedAmount {
-        self.amount
-    }
-
-    public fun token_address(self: &Transfer): ExternalAddress {
-        self.token_address
-    }
-
-    public fun token_chain(self: &Transfer): u16 {
-        self.token_chain
-    }
-
-    public fun recipient(self: &Transfer): ExternalAddress {
-        self.recipient
-    }
-
-    public fun recipient_chain(self: &Transfer): u16 {
-        self.recipient_chain
-    }
-
-    public fun relayer_fee(self: &Transfer): NormalizedAmount {
-        self.relayer_fee
-    }
-
-    public fun deserialize(buf: vector<u8>): Transfer {
-        let cur = cursor::new(buf);
-        assert!(
-            bytes::take_u8(&mut cur) == PAYLOAD_ID,
-            E_INVALID_ACTION
-        );
-        let amount = normalized_amount::deserialize_be(&mut cur);
-        let token_address = external_address::take_bytes(&mut cur);
-        let token_chain = bytes::take_u16_be(&mut cur);
-        let recipient = external_address::take_bytes(&mut cur);
-        let recipient_chain = bytes::take_u16_be(&mut cur);
-        let relayer_fee = normalized_amount::deserialize_be(&mut cur);
-        cursor::destroy_empty(cur);
-        new(
+    public fun unpack(
+        transfer: Transfer
+    ): (
+        NormalizedAmount,
+        ExternalAddress,
+        u16,
+        ExternalAddress,
+        u16,
+        NormalizedAmount
+    ) {
+        let Transfer {
             amount,
             token_address,
             token_chain,
             recipient,
             recipient_chain,
             relayer_fee,
-        )
-    }
+        } = transfer;
 
-    public fun serialize(transfer: Transfer): vector<u8> {
-        let buf = vector::empty<u8>();
-        bytes::push_u8(&mut buf, PAYLOAD_ID);
-        normalized_amount::serialize_be(&mut buf, transfer.amount);
-        vector::append(
-            &mut buf,
-            external_address::to_bytes(transfer.token_address)
-        );
-        bytes::push_u16_be(&mut buf, transfer.token_chain);
-        vector::append(
-            &mut buf,
-            external_address::to_bytes(transfer.recipient)
-        );
-        bytes::push_u16_be(&mut buf, transfer.recipient_chain);
-        normalized_amount::serialize_be(&mut buf, transfer.relayer_fee);
-        buf
-    }
-
-}
-
-#[test_only]
-module token_bridge::transfer_test {
-    use token_bridge::transfer;
-    use token_bridge::normalized_amount;
-    use wormhole::external_address;
-
-    #[test]
-    public fun parse_roundtrip() {
-        let amount = normalized_amount::from_raw(100, 8);
-        let token_address = external_address::from_any_bytes(x"beef");
-        let token_chain = 1;
-        let recipient = external_address::from_any_bytes(x"cafe");
-        let recipient_chain = 7;
-        let fee = normalized_amount::from_raw(50, 8);
-        let transfer = transfer::new(
+        (
             amount,
             token_address,
             token_chain,
             recipient,
             recipient_chain,
-            fee,
+            relayer_fee
+        )
+    }
+
+    public fun deserialize(buf: vector<u8>): Transfer {
+        let cur = cursor::new(buf);
+        assert!(bytes::take_u8(&mut cur) == PAYLOAD_ID, E_INVALID_ACTION);
+
+        let amount = normalized_amount::take_bytes(&mut cur);
+        let token_address = external_address::take_bytes(&mut cur);
+        let token_chain = bytes::take_u16_be(&mut cur);
+        let recipient = external_address::take_bytes(&mut cur);
+        let recipient_chain = bytes::take_u16_be(&mut cur);
+        let relayer_fee = normalized_amount::take_bytes(&mut cur);
+        cursor::destroy_empty(cur);
+
+        new(
+            amount,
+            token_address,
+            token_chain,
+            recipient,
+            recipient_chain,
+            relayer_fee
+        )
+    }
+
+    public fun serialize(transfer: Transfer): vector<u8> {
+        let (
+            amount,
+            token_address,
+            token_chain,
+            recipient,
+            recipient_chain,
+            relayer_fee,
+        ) = unpack(transfer);
+
+        let buf = vector::empty<u8>();
+        bytes::push_u8(&mut buf, PAYLOAD_ID);
+        bytes::push_u256_be(&mut buf, normalized_amount::to_u256(amount));
+        vector::append(&mut buf, external_address::to_bytes(token_address));
+        bytes::push_u16_be(&mut buf, token_chain);
+        vector::append(&mut buf, external_address::to_bytes(recipient));
+        bytes::push_u16_be(&mut buf, recipient_chain);
+        bytes::push_u256_be(&mut buf, normalized_amount::to_u256(relayer_fee));
+
+        buf
+    }
+
+    #[test_only]
+    public fun destroy(transfer: Transfer) {
+        unpack(transfer);
+    }
+}
+
+#[test_only]
+module token_bridge::transfer_tests {
+    use std::vector::{Self};
+    use wormhole::external_address::{Self};
+
+    use token_bridge::dummy_message::{Self};
+    use token_bridge::transfer::{Self};
+    use token_bridge::normalized_amount::{Self};
+
+    #[test]
+    public fun test_serialize_deserialize() {
+        let decimals = 8;
+        let expected_amount = normalized_amount::from_raw(234567890, decimals);
+        let expected_token_address = external_address::from_any_bytes(x"beef");
+        let expected_token_chain = 1;
+        let expected_recipient = external_address::from_any_bytes(x"cafe");
+        let expected_recipient_chain = 7;
+        let expected_relayer_fee =
+            normalized_amount::from_raw(123456789, decimals);
+
+        let serialized =
+            transfer::serialize(
+                transfer::new(
+                    expected_amount,
+                    expected_token_address,
+                    expected_token_chain,
+                    expected_recipient,
+                    expected_recipient_chain,
+                    expected_relayer_fee,
+                )
+            );
+        assert!(serialized == dummy_message::encoded_transfer(), 0);
+
+        let (
+            amount,
+            token_address,
+            token_chain,
+            recipient,
+            recipient_chain,
+            relayer_fee
+        ) = transfer::unpack(transfer::deserialize(serialized));
+        assert!(amount == expected_amount, 0);
+        assert!(token_address == expected_token_address, 0);
+        assert!(token_chain == expected_token_chain, 0);
+        assert!(recipient == expected_recipient, 0);
+        assert!(recipient_chain == expected_recipient_chain, 0);
+        assert!(relayer_fee == expected_relayer_fee, 0);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = transfer::E_INVALID_ACTION)]
+    public fun test_cannot_deserialize_invalid_payload() {
+        let invalid_payload = dummy_message::encoded_transfer_with_payload();
+
+        // Show that the first byte is not the expected payload ID.
+        assert!(
+            *vector::borrow(&invalid_payload, 0) != transfer::payload_id(),
+            0
         );
-        let transfer = transfer::deserialize(transfer::serialize(transfer));
-        assert!(transfer::amount(&transfer) == amount, 0);
-        assert!(transfer::token_address(&transfer) == token_address, 0);
-        assert!(transfer::token_chain(&transfer) == token_chain, 0);
-        assert!(transfer::recipient(&transfer) == recipient, 0);
-        assert!(transfer::recipient_chain(&transfer) == recipient_chain, 0);
-        assert!(transfer::relayer_fee(&transfer) == fee, 0);
+
+        // You shall not pass!
+        let parsed = transfer::deserialize(invalid_payload);
+
+        // Clean up.
+        transfer::destroy(parsed);
     }
 }

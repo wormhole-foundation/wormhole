@@ -3,6 +3,8 @@
 /// This module implements a custom type representing a fixed-size array of
 /// length 32.
 module wormhole::bytes32 {
+    use std::option::{Self};
+    use std::string::{Self, String};
     use std::vector::{Self};
     use sui::bcs::{Self};
 
@@ -62,9 +64,7 @@ module wormhole::bytes32 {
     /// Deserialize from big-endian `u256` as long as the data does not
     /// overflow.
     public fun to_u256_be(value: Bytes32): u256 {
-        let Bytes32 { data } = value;
-
-        let cur = cursor::new(data);
+        let cur = cursor::new(to_bytes(value));
         let out = bytes::take_u256_be(&mut cur);
         cursor::destroy_empty(cur);
 
@@ -108,6 +108,53 @@ module wormhole::bytes32 {
     /// 32 bytes instead of 20 bytes in Sui version 0.28.
     public fun from_address(addr: address): Bytes32 {
         new(sui::address::to_bytes(addr))
+    }
+
+    public fun from_string(str: String): Bytes32 {
+        let data = *string::bytes(&str);
+        let len = vector::length(&data);
+        if (len > LEN) {
+            // Trim from end.
+            let i = len;
+            while (i > LEN) {
+                vector::pop_back(&mut data);
+                i = i - 1;
+            }
+        } else {
+            // Pad right to `LEN`.
+            let i = len;
+            while (i < LEN) {
+                vector::push_back(&mut data, 0);
+                i = i + 1;
+            }
+        };
+
+        new(data)
+    }
+
+    /// Even if the input is valid utf8, the result might be shorter than 32
+    /// bytes, because the original string might have a multi-byte utf8
+    /// character at the 32 byte boundary, which, when split, results in an
+    /// invalid code point, so we remove it.
+    public fun to_string(value: Bytes32): String {
+        let data = to_bytes(value);
+
+        let utf8 = string::try_utf8(data);
+        while (option::is_none(&utf8)) {
+            vector::pop_back(&mut data);
+            utf8 = string::try_utf8(data);
+        };
+
+        let buf = *string::bytes(&option::extract(&mut utf8));
+
+        // Now trim zeros from the right.
+        while (
+            *vector::borrow(&buf, vector::length(&buf) - 1) == 0
+        ) {
+            vector::pop_back(&mut buf);
+        };
+
+        string::utf8(buf)
     }
 
     /// Validate that any of the bytes in underlying data is non-zero.

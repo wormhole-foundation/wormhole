@@ -8,7 +8,7 @@
 /// emitters for Wormhole integrators.
 module wormhole::state {
     use std::vector::{Self};
-    use sui::coin::{Coin};
+    use sui::balance::{Balance};
     use sui::dynamic_field::{Self as field};
     use sui::object::{Self, UID};
     use sui::package::{Self, UpgradeCap, UpgradeReceipt, UpgradeTicket};
@@ -301,7 +301,7 @@ module wormhole::state {
 
     /// Retrieve current fee to send Wormhole message.
     public fun message_fee(self: &State): u64 {
-        return fee_collector::fee_amount(&self.fee_collector)
+        fee_collector::fee_amount(&self.fee_collector)
     }
 
     /// Deposit fee when sending Wormhole message. This method does not
@@ -310,13 +310,13 @@ module wormhole::state {
     /// of calling `publish_message`.
     ///
     /// See `wormhole::publish_message` for more info.
-    public(friend) fun deposit_fee(self: &mut State, coin: Coin<SUI>) {
-        fee_collector::deposit(&mut self.fee_collector, coin);
+    public(friend) fun deposit_fee(self: &mut State, fee: Balance<SUI>) {
+        fee_collector::deposit_balance(&mut self.fee_collector, fee);
     }
 
     #[test_only]
-    public fun deposit_fee_test_only(self: &mut State, coin: Coin<SUI>) {
-        deposit_fee(self, coin)
+    public fun deposit_fee_test_only(self: &mut State, fee: Balance<SUI>) {
+        deposit_fee(self, fee)
     }
 
     /// Withdraw collected fees when governance action to transfer fees to a
@@ -325,10 +325,9 @@ module wormhole::state {
     /// See `wormhole::transfer_fee` for more info.
     public(friend) fun withdraw_fee(
         self: &mut State,
-        amount: u64,
-        ctx: &mut TxContext
-    ): Coin<SUI> {
-        fee_collector::withdraw(&mut self.fee_collector, amount, ctx)
+        amount: u64
+    ): Balance<SUI> {
+        fee_collector::withdraw_balance(&mut self.fee_collector, amount)
     }
 
     /// Store `VAA` hash as a way to claim a VAA. This method prevents a VAA

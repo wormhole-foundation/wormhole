@@ -3,6 +3,7 @@
 /// This module implements handling a governance VAA to enact transferring some
 /// amount of collected fees to an intended recipient.
 module wormhole::transfer_fee {
+    use sui::coin::{Self};
     use sui::transfer::{Self};
     use sui::tx_context::{TxContext};
 
@@ -73,7 +74,10 @@ module wormhole::transfer_fee {
         let TransferFee { amount, recipient } = deserialize(governance_payload);
 
         transfer::public_transfer(
-            state::withdraw_fee(wormhole_state, amount, ctx),
+            coin::from_balance(
+                state::withdraw_fee(wormhole_state, amount),
+                ctx
+            ),
             recipient
         );
 
@@ -106,6 +110,7 @@ module wormhole::transfer_fee {
 
 #[test_only]
 module wormhole::transfer_fee_tests {
+    use sui::balance::{Self};
     use sui::coin::{Self, Coin};
     use sui::sui::{SUI};
     use sui::test_scenario::{Self};
@@ -163,10 +168,7 @@ module wormhole::transfer_fee_tests {
         while (i < n) {
             state::deposit_fee_test_only(
                 &mut worm_state,
-                coin::mint_for_testing<SUI>(
-                    wormhole_fee,
-                    test_scenario::ctx(scenario)
-                )
+                balance::create_for_testing(wormhole_fee)
             );
             i = i + 1;
         };
@@ -231,10 +233,7 @@ module wormhole::transfer_fee_tests {
         while (i < n) {
             state::deposit_fee_test_only(
                 &mut worm_state,
-                coin::mint_for_testing<SUI>(
-                    wormhole_fee,
-                    test_scenario::ctx(scenario)
-                )
+                balance::create_for_testing(wormhole_fee)
             );
             i = i + 1;
         };
@@ -284,10 +283,7 @@ module wormhole::transfer_fee_tests {
         while (i < n) {
             state::deposit_fee_test_only(
                 &mut worm_state,
-                coin::mint_for_testing<SUI>(
-                    wormhole_fee,
-                    test_scenario::ctx(scenario)
-                )
+                balance::create_for_testing(wormhole_fee)
             );
             i = i + 1;
         };
@@ -585,10 +581,7 @@ module wormhole::transfer_fee_tests {
         while (i < n) {
             state::deposit_fee_test_only(
                 &mut worm_state,
-                coin::mint_for_testing<SUI>(
-                    wormhole_fee,
-                    test_scenario::ctx(scenario)
-                )
+                balance::create_for_testing(wormhole_fee)
             );
             i = i + 1;
         };

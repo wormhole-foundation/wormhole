@@ -67,6 +67,15 @@ module wormhole::emitter {
         }
     }
 
+    #[test_only]
+    public fun dummy_cap(addr: ExternalAddress): EmitterCap {
+        EmitterCap {
+            id: object::new(&mut sui::tx_context::dummy()),
+            addr,
+            sequence: 0,
+        }
+    }
+
     /// Returns the `ExternalAddress` of the emitter (32-bytes).
     public fun addr(cap: &EmitterCap): ExternalAddress {
         cap.addr

@@ -6,7 +6,7 @@
 /// relative to the emitter, nonce (i.e. batch ID), consistency level
 /// (i.e. finality) and arbitrary message payload.
 module wormhole::publish_message {
-    use sui::coin::{Coin};
+    use sui::balance::{Balance};
     use sui::event::{Self};
     use sui::sui::{SUI};
 
@@ -40,7 +40,7 @@ module wormhole::publish_message {
         emitter_cap: &mut EmitterCap,
         nonce: u32,
         payload: vector<u8>,
-        message_fee: Coin<SUI>,
+        message_fee: Balance<SUI>,
     ): u64 {
         state::check_minimum_requirement<PublishMessageControl>(wormhole_state);
 
@@ -73,8 +73,7 @@ module wormhole::publish_message {
 
 #[test_only]
 module wormhole::publish_message_tests {
-    use sui::coin::{Self};
-    use sui::sui::{SUI};
+    use sui::balance::{Self};
     use sui::test_scenario::{Self};
 
     use wormhole::emitter::{Self, EmitterCap};
@@ -121,10 +120,7 @@ module wormhole::publish_message_tests {
                 &mut emitter_cap,
                 0, // nonce
                 b"Hello World",
-                coin::mint_for_testing<SUI>(
-                    wormhole_message_fee,
-                    test_scenario::ctx(scenario)
-                )
+                balance::create_for_testing(wormhole_message_fee)
             );
             assert!(sequence == 0, 0);
 
@@ -134,10 +130,7 @@ module wormhole::publish_message_tests {
                 &mut emitter_cap,
                 0, // nonce
                 b"Hello World... again",
-                coin::mint_for_testing<SUI>(
-                    wormhole_message_fee,
-                    test_scenario::ctx(scenario)
-                )
+                balance::create_for_testing(wormhole_message_fee)
             );
             assert!(another_sequence == 1, 0);
 
@@ -171,10 +164,7 @@ module wormhole::publish_message_tests {
                 &mut emitter_cap,
                 0, // nonce
                 b"Hello?",
-                coin::mint_for_testing<SUI>(
-                    wormhole_message_fee,
-                    test_scenario::ctx(scenario)
-                )
+                balance::create_for_testing(wormhole_message_fee)
             );
             assert!(sequence == 2, 0);
 
@@ -220,10 +210,7 @@ module wormhole::publish_message_tests {
             &mut emitter,
             0, // nonce
             b"Hello World",
-            coin::mint_for_testing<SUI>(
-                wrong_fee_amount,
-                test_scenario::ctx(scenario)
-            )
+            balance::create_for_testing(wrong_fee_amount)
         );
 
         // Clean up even though we should have failed by this point.
@@ -274,10 +261,7 @@ module wormhole::publish_message_tests {
             &mut emitter,
             0, // nonce
             b"Hello World",
-            coin::mint_for_testing<SUI>(
-                wormhole_message_fee,
-                test_scenario::ctx(scenario)
-            )
+            balance::create_for_testing(wormhole_message_fee)
         );
 
         // Clean up even though we should have failed by this point.

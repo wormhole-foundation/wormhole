@@ -19,15 +19,15 @@ module token_bridge::register_chain {
         emitter_address: ExternalAddress,
     }
 
-    public entry fun submit_vaa(
+    public fun register_chain(
         token_bridge_state: &mut State,
-        wormhole_state: &mut WormholeState,
+        worm_chain: &mut WormholeState,
         vaa_buf: vector<u8>,
         ctx: &TxContext
     ) {
         let msg =
             governance_message::parse_and_verify_vaa(
-                wormhole_state,
+                worm_chain,
                 vaa_buf,
                 ctx
             );
@@ -56,7 +56,7 @@ module token_bridge::register_chain {
         let emitter_address = external_address::take_bytes(&mut cur);
         cursor::destroy_empty(cur);
 
-        state::register_emitter(
+        state::register_new_emitter(
             token_bridge_state,
             emitter_chain,
             emitter_address

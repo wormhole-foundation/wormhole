@@ -14,6 +14,7 @@ module wormhole::wormhole_scenario {
 
     use wormhole::setup::{Self, DeployerCap};
     use wormhole::state::{Self, State};
+    use wormhole::vaa::{Self, VAA};
     use wormhole::version_control::{Self as control};
 
     const DEPLOYER: address = @0xDEADBEEF;
@@ -147,5 +148,38 @@ module wormhole::wormhole_scenario {
             x"246ab29fc6ebedf2d392a51ab2dc5c59d0902a03",
             x"132a84dfd920b35a3d0ba5f7a0635df298f9033e",
         ]
+    }
+
+    public fun take_state(scenario: &Scenario): State {
+        test_scenario::take_shared(scenario)
+    }
+
+    public fun return_state(wormhole_state: State) {
+        test_scenario::return_shared(wormhole_state);
+    }
+
+    public fun parse_and_verify_vaa(
+        scenario: &mut Scenario,
+        vaa_buf: vector<u8>
+    ): VAA {
+        let worm_state = take_state(scenario);
+
+        let out =
+            vaa::parse_and_verify(
+                &worm_state,
+                vaa_buf,
+                test_scenario::ctx(scenario)
+            );
+
+        return_state(worm_state);
+
+        out
+    }
+
+    public fun parse_verify_and_take_vaa_payload(
+        scenario: &mut Scenario,
+        vaa_buf: vector<u8>
+    ): vector<u8> {
+        vaa::take_payload(parse_and_verify_vaa(scenario, vaa_buf))
     }
 }

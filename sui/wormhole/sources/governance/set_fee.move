@@ -92,8 +92,7 @@ module wormhole::set_fee {
 
 #[test_only]
 module wormhole::set_fee_tests {
-    use sui::coin::{Self};
-    use sui::sui::{SUI};
+    use sui::balance::{Self};
     use sui::test_scenario::{Self};
 
     use wormhole::bytes::{Self};
@@ -153,10 +152,7 @@ module wormhole::set_fee_tests {
         // And confirm that we can deposit the new fee amount.
         state::deposit_fee_test_only(
             &mut worm_state,
-            coin::mint_for_testing<SUI>(
-                fee_amount,
-                test_scenario::ctx(scenario)
-            )
+            balance::create_for_testing(fee_amount)
         );
 
         // Finally set the fee again to max u64 (this will effectively pause

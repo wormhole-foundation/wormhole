@@ -13,7 +13,7 @@ module wormhole::wormhole {
     /// associated guardian public keys.
     ///
     /// See `update_guardian_set` module for more details.
-    public entry fun update_guardian_set(
+    entry fun update_guardian_set(
         wormhole_state: &mut State,
         vaa_buf: vector<u8>,
         ctx: &TxContext
@@ -27,7 +27,7 @@ module wormhole::wormhole {
     /// Guardian governance to update the existing Wormhole message fee.
     ///
     /// See `set_fee` module for more details.
-    public entry fun set_fee(
+    entry fun set_fee(
         wormhole_state: &mut State,
         vaa_buf: vector<u8>,
         ctx: &TxContext
@@ -42,7 +42,7 @@ module wormhole::wormhole {
     /// recipient.
     ///
     /// See `transfer_fee` module for more details.
-    public entry fun transfer_fee(
+    entry fun transfer_fee(
         wormhole_state: &mut State,
         vaa_buf: vector<u8>,
         ctx: &mut TxContext

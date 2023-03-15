@@ -1,6 +1,6 @@
 module token_bridge::state {
-    use std::ascii::{Self};
-    use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
+    use sui::balance::{Balance, Supply};
+    use sui::coin::{CoinMetadata};
     use sui::object::{Self, UID};
     use sui::sui::{SUI};
     use sui::transfer::{Self};
@@ -9,18 +9,16 @@ module token_bridge::state {
     use wormhole::emitter::{EmitterCap};
     use wormhole::external_address::{ExternalAddress};
     use wormhole::set::{Self, Set};
-    use wormhole::state::{Self as wormhole_state, State as WormholeState};
-    use wormhole::publish_message::{publish_message};
+    use wormhole::state::{State as WormholeState};
 
-    use token_bridge::asset_meta::{Self, AssetMeta};
-    use token_bridge::registered_emitters::{Self};
+    use token_bridge::asset_meta::{AssetMeta};
+    use token_bridge::emitter_registry::{Self, EmitterRegistry};
     use token_bridge::registered_tokens::{Self, RegisteredTokens};
-    use token_bridge::string32::{Self};
-    use token_bridge::token_info::{TokenInfo};
 
     const E_UNREGISTERED_EMITTER: u64 = 0;
     const E_EMITTER_ALREADY_REGISTERED: u64 = 1;
     const E_VAA_ALREADY_CONSUMED: u64 = 2;
+    const E_CANONICAL_TOKEN_INFO_MISMATCH: u64 = 3;
 
     friend token_bridge::attest_token;
     friend token_bridge::complete_transfer;
@@ -30,19 +28,6 @@ module token_bridge::state {
     friend token_bridge::transfer_tokens;
     friend token_bridge::transfer_tokens_with_payload;
     friend token_bridge::vaa;
-
-    #[test_only]
-    friend token_bridge::bridge_state_test;
-    #[test_only]
-    friend token_bridge::complete_transfer_test;
-    #[test_only]
-    friend token_bridge::token_bridge_vaa_test;
-    #[test_only]
-    friend token_bridge::complete_transfer_with_payload_test;
-    #[test_only]
-    friend token_bridge::transfer_token_test;
-    #[test_only]
-    friend token_bridge::transfer_tokens_with_payload_test;
 
     /// Capability for creating a bridge state object, granted to sender when this
     /// module is deployed
@@ -60,6 +45,8 @@ module token_bridge::state {
 
         /// Token bridge owned emitter capability
         emitter_cap: EmitterCap,
+
+        emitter_registry: EmitterRegistry,
 
         registered_tokens: RegisteredTokens,
     }
@@ -92,10 +79,9 @@ module token_bridge::state {
             id: object::new(ctx),
             consumed_vaa_hashes: set::new(ctx),
             emitter_cap: wormhole::state::new_emitter(worm_state, ctx),
+            emitter_registry: emitter_registry::new(ctx),
             registered_tokens: registered_tokens::new(ctx)
         };
-
-        registered_emitters::new(&mut state.id, ctx);
 
         // Permanently shares state.
         transfer::share_object(state);
@@ -108,78 +94,56 @@ module token_bridge::state {
         )
     }
 
-    public(friend) fun deposit<CoinType>(
+    public(friend) fun take_from_circulation<CoinType>(
         self: &mut State,
-        coin: Coin<CoinType>,
+        removed: Balance<CoinType>
     ) {
-        registered_tokens::deposit(&mut self.registered_tokens, coin)
+        let registry = &mut self.registered_tokens;
+        if (registered_tokens::is_wrapped<CoinType>(registry)) {
+            registered_tokens::burn(registry, removed);
+        } else {
+            registered_tokens::deposit(registry, removed);
+        }
     }
 
     #[test_only]
     /// Exposing method so an integrator can test redeeming native tokens.
-    public fun deposit_test_only<CoinType>(
+    public fun take_from_circulation_test_only<CoinType>(
         self: &mut State,
-        coin: Coin<CoinType>
+        removed: Balance<CoinType>
     ) {
-        deposit(self, coin)
+        take_from_circulation(self, removed)
     }
 
-    public(friend) fun withdraw<CoinType>(
+    public(friend) fun put_into_circulation<CoinType>(
         self: &mut State,
-        amount: u64,
-        ctx: &mut TxContext
-    ): Coin<CoinType> {
-        registered_tokens::withdraw(&mut self.registered_tokens, amount, ctx)
+        amount: u64
+    ): Balance<CoinType> {
+        let registry = &mut self.registered_tokens;
+        if (registered_tokens::is_wrapped<CoinType>(registry)) {
+            registered_tokens::mint(&mut self.registered_tokens, amount)
+        } else {
+            registered_tokens::withdraw(&mut self.registered_tokens, amount)
+        }
     }
 
     #[test_only]
     /// Exposing method so an integrator can test sending native tokens.
-    public fun withdraw_test_only<CoinType>(
+    public fun put_into_circulation_test_only<CoinType>(
         self: &mut State,
-        amount: u64,
-        ctx: &mut TxContext
-    ): Coin<CoinType> {
-        withdraw(self, amount, ctx)
+        amount: u64
+    ): Balance<CoinType> {
+        put_into_circulation(self, amount)
     }
 
-    public(friend) fun burn<CoinType>(
-        self: &mut State,
-        coin: Coin<CoinType>,
-    ): u64 {
-        registered_tokens::burn(&mut self.registered_tokens, coin)
-    }
-
-    #[test_only]
-    /// Exposing method so an integrator can test redeeming wrapped tokens.
-    public fun burn_test_only<CoinType>(
-        self: &mut State,
-        coin: Coin<CoinType>
-    ): u64 {
-        burn(self, coin)
-    }
-
-    public(friend) fun mint<CoinType>(
-        self: &mut State,
-        amount: u64,
-        ctx: &mut TxContext,
-    ): Coin<CoinType> {
-        registered_tokens::mint(&mut self.registered_tokens, amount, ctx)
-    }
-
-    #[test_only]
-    /// Exposing method so an integrator can test sending wrapped tokens.
-    public fun mint_test_only<CoinType>(
-        self: &mut State,
-        amount: u64,
-        ctx: &mut TxContext
-    ): Coin<CoinType> {
-        mint(self, amount, ctx)
-    }
-
-    /// We only examine the balance of native assets, because the token
-    /// bridge does not custody wrapped assets (only mints and burns them).
-    public fun balance<CoinType>(self: &State): u64 {
+    /// We only examine the balance of native assets.
+    public fun custody_balance<CoinType>(self: &State): u64 {
         registered_tokens::balance<CoinType>(&self.registered_tokens)
+    }
+
+    /// We only examine the total supply of wrapped assets.
+    public fun wrapped_supply<CoinType>(self: &State): u64 {
+        registered_tokens::total_supply<CoinType>(&self.registered_tokens)
     }
 
     public(friend) fun publish_wormhole_message(
@@ -187,8 +151,10 @@ module token_bridge::state {
         worm_state: &mut WormholeState,
         nonce: u32,
         payload: vector<u8>,
-        message_fee: Coin<SUI>,
+        message_fee: Balance<SUI>,
     ): u64 {
+        use wormhole::publish_message::{publish_message};
+
         publish_message(
             worm_state,
             &mut self.emitter_cap,
@@ -205,14 +171,10 @@ module token_bridge::state {
     }
 
     public fun registered_emitter(
-        state: &State,
+        self: &State,
         chain: u16
     ): ExternalAddress {
-        assert!(
-            registered_emitters::has(&state.id, chain),
-            E_UNREGISTERED_EMITTER
-        );
-        registered_emitters::external_address(&state.id, chain)
+        emitter_registry::emitter_address(&self.emitter_registry, chain)
     }
 
     public fun is_registered_asset<CoinType>(self: &State): bool {
@@ -227,83 +189,98 @@ module token_bridge::state {
         registered_tokens::is_wrapped<CoinType>(&self.registered_tokens)
     }
 
-    /// Returns the origin information for a CoinType.
-    public fun token_info<CoinType>(self: &State): TokenInfo<CoinType> {
-        registered_tokens::to_token_info<CoinType>(&self.registered_tokens)
+    /// Retrieves canonical token info from the registry, which are the native
+    /// chain ID and token address.
+    public fun token_info<CoinType>(self: &State): (u16, ExternalAddress) {
+        registered_tokens::canonical_info<CoinType>(&self.registered_tokens)
     }
 
+    /// Assert that given canonical token info agrees with what exists in the
+    /// registry for this particular `CoinType`.
+    public fun assert_registered_token<CoinType>(
+        self: &State,
+        token_chain: u16,
+        token_address: ExternalAddress
+    ) {
+        let (expected_chain, expected_addr) = token_info<CoinType>(self);
+        assert!(
+            token_chain == expected_chain && token_address == expected_addr,
+            E_CANONICAL_TOKEN_INFO_MISMATCH
+        );
+
+    }
+
+    /// Retrieve decimals for coins (wrapped and native) in registry.
     public fun coin_decimals<CoinType>(self: &State): u8 {
         registered_tokens::decimals<CoinType>(&self.registered_tokens)
     }
 
-    /// This function returns an immutable reference to the treasury cap
-    /// for a wrapped coin that the token bridge manages. Note that there
-    /// is no danger of the returned reference being used to mint coins
-    /// outside of the bridge mint/burn mechanism, because a mutable reference
-    /// to the TreasuryCap is required for mint/burn.
+    /// Add a new Token Bridge emitter to the registry. This method will abort
+    /// if an emitter is already registered for a particular chain ID.
     ///
-    /// This function is only used in create_wrapped.move to update coin
-    /// metadata (only an immutable reference is needed).
-    public(friend) fun treasury_cap<CoinType>(self: &State): &TreasuryCap<CoinType> {
-        registered_tokens::treasury_cap<CoinType>(&self.registered_tokens)
-    }
-
-    public(friend) fun register_emitter(
+    /// See `register_chain` module for more info.
+    public(friend) fun register_new_emitter(
         self: &mut State,
         chain: u16,
         contract_address: ExternalAddress
     ) {
-        assert!(
-            !registered_emitters::has(&self.id, chain),
-            E_EMITTER_ALREADY_REGISTERED
-        );
-        registered_emitters::add(&mut self.id, chain, contract_address);
+        emitter_registry::add(&mut self.emitter_registry, chain, contract_address);
     }
 
     #[test_only]
-    public fun register_emitter_test_only(
+    public fun register_new_emitter_test_only(
         self: &mut State,
         chain: u16,
         contract_address: ExternalAddress
     ) {
-        register_emitter(self, chain, contract_address);
+        register_new_emitter(self, chain, contract_address);
     }
 
+    /// Add a new wrapped asset to the registry.
+    ///
+    /// See `create_wrapped` module for more info.
     public(friend) fun register_wrapped_asset<CoinType>(
         self: &mut State,
-        token_chain: u16,
-        token_address: ExternalAddress,
-        treasury_cap: TreasuryCap<CoinType>,
-        decimals: u8,
+        token_meta: AssetMeta,
+        supply: Supply<CoinType>,
+        ctx: &mut TxContext
     ) {
         registered_tokens::add_new_wrapped(&mut self.registered_tokens,
-            token_chain,
-            token_address,
-            treasury_cap,
-            decimals,
+            token_meta,
+            supply,
+            ctx
         )
     }
 
+    #[test_only]
+    public fun register_wrapped_asset_test_only<CoinType>(
+        self: &mut State,
+        token_meta: AssetMeta,
+        supply: Supply<CoinType>,
+        ctx: &mut TxContext
+    ) {
+        register_wrapped_asset(self, token_meta, supply, ctx)
+    }
+
+    /// Add a new native asset to the registry.
+    ///
+    /// See `attest_token` module for more info.
     public(friend) fun register_native_asset<CoinType>(
         self: &mut State,
-        coin_metadata: &CoinMetadata<CoinType>,
-    ): AssetMeta {
-        let decimals = coin::get_decimals(coin_metadata);
-
-        registered_tokens::add_new_native<CoinType>(
+        metadata: &CoinMetadata<CoinType>,
+    ) {
+        registered_tokens::add_new_native(
             &mut self.registered_tokens,
-            decimals,
+            metadata,
         );
+    }
 
-        asset_meta::new(
-            wormhole_state::chain_id(),
-            registered_tokens::token_address<CoinType>(&self.registered_tokens),
-            decimals,
-            string32::from_bytes(
-                ascii::into_bytes(coin::get_symbol<CoinType>(coin_metadata))
-            ),
-            string32::from_string(&coin::get_name<CoinType>(coin_metadata))
-        )
+    #[test_only]
+    public fun register_native_asset_test_only<CoinType>(
+        self: &mut State,
+        metadata: &CoinMetadata<CoinType>,
+    ) {
+        register_native_asset(self, metadata)
     }
 
 }
@@ -314,29 +291,15 @@ module token_bridge::bridge_state_test {
         take_shared, return_shared};
     use sui::coin::{CoinMetadata};
 
-    use wormhole::state::{State as WormholeState};
+    use wormhole::state::{State as WormholeState, chain_id};
     use wormhole::wormhole_scenario::{set_up_wormhole, three_people as people};
     use wormhole::external_address::{Self};
 
     use token_bridge::state::{Self, State, DeployerCap};
-    use token_bridge::native_coin_10_decimals::{Self, NATIVE_COIN_10_DECIMALS};
-    use token_bridge::native_coin_4_decimals::{Self, NATIVE_COIN_4_DECIMALS};
-    use token_bridge::token_info::{Self};
+    use token_bridge::coin_native_10::{Self, COIN_NATIVE_10};
+    use token_bridge::coin_native_4::{Self};
 
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
-
-    const ETHEREUM_TOKEN_REG: vector<u8> =
-        x"0100000000010015d405c74be6d93c3c33ed6b48d8db70dfb31e0981f8098b2a6c7583083e0c3343d4a1abeb3fc1559674fa067b0c0e2e9de2fafeaecdfeae132de2c33c9d27cc0100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000016911ae00000000000000000000000000000000000000000000546f6b656e427269646765010000000200000000000000000000000000000000000000000000000000000000deadbeef";
-
-    // #[test]
-    // fun test_state_setters() {
-    //     test_state_setters_(scenario())
-    // }
-
-    #[test]
-    fun test_coin_type_addressing(){
-        test_coin_type_addressing_(scenario())
-    }
 
     #[test]
     #[expected_failure(
@@ -372,71 +335,6 @@ module token_bridge::bridge_state_test {
         return test
     }
 
-    // fun test_state_setters_(test: Scenario) {
-    //     let (admin, _, _) = people();
-
-    //     test = set_up_wormhole_core_and_token_bridges(admin, test);
-
-    //     //test State setter and getter functions
-    //     next_tx(&mut test, admin); {
-    //         let state = take_shared<State>(&test);
-
-    //         // test store consumed vaa
-    //         state::store_consumed_vaa(&mut state, x"1234");
-    //         assert!(state::vaa_is_consumed(&state, x"1234"), 0);
-
-    //         // TODO - test store coin store
-    //         // TODO - test store treasury cap
-
-    //         return_shared<State>(state);
-    //     };
-    //     test_scenario::end(test);
-    // }
-
-    fun test_coin_type_addressing_(test: Scenario) {
-        let (admin, _, _) = people();
-
-        test = set_up_wormhole_core_and_token_bridges(admin, test);
-
-        // Test coin type addressing.
-        next_tx(&mut test, admin); {
-            native_coin_4_decimals::test_init(ctx(&mut test));
-            native_coin_10_decimals::test_init(ctx(&mut test));
-        };
-        next_tx(&mut test, admin); {
-            let wormhole_state = take_shared<WormholeState>(&test);
-            let bridge_state = take_shared<State>(&test);
-            let coin_meta =
-                take_shared<CoinMetadata<NATIVE_COIN_10_DECIMALS>>(&test);
-
-            state::register_native_asset<NATIVE_COIN_10_DECIMALS>(
-                &mut bridge_state,
-                &coin_meta,
-            );
-            let info = state::token_info<NATIVE_COIN_10_DECIMALS>(&bridge_state);
-            let expected_addr = external_address::from_any_bytes(x"01");
-            assert!(token_info::addr(&info) == expected_addr, 0);
-
-            let coin_meta_v2 =
-                take_shared<CoinMetadata<NATIVE_COIN_4_DECIMALS>>(&test);
-            state::register_native_asset<NATIVE_COIN_4_DECIMALS>(
-                &mut bridge_state,
-                &coin_meta_v2,
-            );
-            let info =
-                state::token_info<NATIVE_COIN_4_DECIMALS>(&bridge_state);
-            let expected_addr = external_address::from_any_bytes(x"02");
-            assert!(token_info::addr(&info) == expected_addr, 0);
-
-            return_shared<WormholeState>(wormhole_state);
-            return_shared<State>(bridge_state);
-            return_shared<CoinMetadata<NATIVE_COIN_4_DECIMALS>>(coin_meta_v2);
-            return_shared<CoinMetadata<NATIVE_COIN_10_DECIMALS>>(coin_meta);
-        };
-        test_scenario::end(test);
-    }
-
-
     fun test_coin_type_addressing_failure_case_(test: Scenario) {
         let (admin, _, _) = people();
 
@@ -444,30 +342,31 @@ module token_bridge::bridge_state_test {
 
         // Test coin type addressing.
         next_tx(&mut test, admin); {
-            native_coin_10_decimals::test_init(ctx(&mut test));
-            native_coin_4_decimals::test_init(ctx(&mut test));
+            coin_native_10::init_test_only(ctx(&mut test));
+            coin_native_4::init_test_only(ctx(&mut test));
         };
         next_tx(&mut test, admin); {
             let wormhole_state = take_shared<WormholeState>(&test);
             let bridge_state = take_shared<State>(&test);
-            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_10_DECIMALS>>(&test);
-            state::register_native_asset<NATIVE_COIN_10_DECIMALS>(
+            let coin_meta = take_shared<CoinMetadata<COIN_NATIVE_10>>(&test);
+            state::register_native_asset_test_only(
                 &mut bridge_state,
                 &coin_meta,
             );
-            let info = state::token_info<NATIVE_COIN_10_DECIMALS>(&bridge_state);
+            let (token_chain, token_address) = state::token_info<COIN_NATIVE_10>(&bridge_state);
+            assert!(token_chain == chain_id(), 0);
             let expected_addr = external_address::from_any_bytes(x"01");
-            assert!(token_info::addr(&info) == expected_addr, 0);
+            assert!(token_address == expected_addr, 0);
 
             // aborts because trying to re-register native coin
-            state::register_native_asset<NATIVE_COIN_10_DECIMALS>(
+            state::register_native_asset_test_only(
                 &mut bridge_state,
                 &coin_meta,
             );
 
             return_shared<WormholeState>(wormhole_state);
             return_shared<State>(bridge_state);
-            return_shared<CoinMetadata<NATIVE_COIN_10_DECIMALS>>(coin_meta);
+            return_shared<CoinMetadata<COIN_NATIVE_10>>(coin_meta);
         };
         test_scenario::end(test);
     }

@@ -1,17 +1,10 @@
 module token_bridge::asset_meta {
     use std::string::{String};
     use std::vector::{Self};
-    use std::ascii::{Self};
     use wormhole::bytes::{Self};
+    use wormhole::bytes32::{Self};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::cursor::{Self};
-
-    use token_bridge::string32::{Self, String32};
-
-    friend token_bridge::state;
-    friend token_bridge::create_wrapped;
-    #[test_only]
-    friend token_bridge::asset_meta_test;
 
     const E_INVALID_ACTION: u64 = 0;
 
@@ -25,17 +18,17 @@ module token_bridge::asset_meta {
         /// Number of decimals of the token (big-endian uint256).
         native_decimals: u8,
         /// Symbol of the token (UTF-8).
-        symbol: String32,
+        symbol: String,
         /// Name of the token (UTF-8).
-        name: String32,
+        name: String,
     }
 
-    public(friend) fun new(
-        token_chain: u16,
+    public fun new(
         token_address: ExternalAddress,
+        token_chain: u16,
         native_decimals: u8,
-        symbol: String32,
-        name: String32,
+        symbol: String,
+        name: String,
     ): AssetMeta {
         AssetMeta {
             token_address,
@@ -44,6 +37,32 @@ module token_bridge::asset_meta {
             symbol,
             name
         }
+    }
+
+    public fun unpack(
+        meta: AssetMeta
+    ): (
+        ExternalAddress,
+        u16,
+        u8,
+        String,
+        String
+    ) {
+        let AssetMeta {
+            token_address,
+            token_chain,
+            native_decimals,
+            symbol,
+            name
+        } = meta;
+
+        (
+            token_address,
+            token_chain,
+            native_decimals,
+            symbol,
+            name
+        )
     }
 
     public fun token_chain(self: &AssetMeta): u16 {
@@ -58,24 +77,12 @@ module token_bridge::asset_meta {
         self.native_decimals
     }
 
-    public fun symbol(self: &AssetMeta): String32 {
+    public fun symbol(self: &AssetMeta): String {
         self.symbol
     }
 
-    public fun symbol_to_ascii(self: &AssetMeta): ascii::String {
-        string32::to_ascii(&self.symbol)
-    }
-
-    public fun symbol_to_utf8(self: &AssetMeta): String {
-        string32::to_utf8(&self.symbol)
-    }
-
-    public fun name(self: &AssetMeta): String32 {
+    public fun name(self: &AssetMeta): String {
         self.name
-    }
-
-    public fun name_to_utf8(self: &AssetMeta): String {
-        string32::to_utf8(&self.name)
     }
 
     public fun serialize(meta: AssetMeta): vector<u8> {
@@ -87,8 +94,14 @@ module token_bridge::asset_meta {
         );
         bytes::push_u16_be(&mut buf, meta.token_chain);
         bytes::push_u8(&mut buf, meta.native_decimals);
-        string32::serialize(&mut buf, meta.symbol);
-        string32::serialize(&mut buf, meta.name);
+        vector::append(
+            &mut buf,
+            bytes32::to_bytes(bytes32::from_string(meta.symbol))
+        );
+        vector::append(
+            &mut buf,
+            bytes32::to_bytes(bytes32::from_string(meta.name))
+        );
 
         buf
     }
@@ -100,15 +113,16 @@ module token_bridge::asset_meta {
             E_INVALID_ACTION
         );
         let token_address =
-            external_address::from_bytes(bytes::take_bytes(&mut cur, 32));
+            external_address::new(bytes32::take_bytes(&mut cur));
         let token_chain = bytes::take_u16_be(&mut cur);
         let native_decimals = bytes::take_u8(&mut cur);
-        let symbol = string32::deserialize(&mut cur);
-        let name = string32::deserialize(&mut cur);
+        let symbol = bytes32::to_string(bytes32::take_bytes(&mut cur));
+        let name = bytes32::to_string(bytes32::take_bytes(&mut cur));
         cursor::destroy_empty(cur);
+
         new(
-            token_chain,
             token_address,
+            token_chain,
             native_decimals,
             symbol,
             name
@@ -120,22 +134,18 @@ module token_bridge::asset_meta {
 #[test_only]
 module token_bridge::asset_meta_test {
     use std::string::{Self};
-
     use wormhole::external_address::{Self};
 
     use token_bridge::asset_meta::{Self};
-    use token_bridge::string32::{Self};
 
     #[test]
     fun test_asset_meta(){
+        let token_address = external_address::from_any_bytes(x"001122");
         let symbol = string::utf8(b"a creative symbol");
         let name = string::utf8(b"a creative name");
-        let token_address = external_address::from_any_bytes(x"001122");
-        let symbol =  string32::from_string(&symbol);
-        let name = string32::from_string(&name);
         let asset_meta = asset_meta::new(
-            3, // token chain
             token_address, //token address
+            3, // token chain
             4, //native decimals
             symbol, // symbol
             name, // name
