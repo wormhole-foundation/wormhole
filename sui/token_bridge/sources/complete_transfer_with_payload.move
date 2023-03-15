@@ -117,10 +117,10 @@ module token_bridge::complete_transfer_with_payload_test {
     };
     use token_bridge::complete_transfer_with_payload::{Self};
     use token_bridge::native_coin_10_decimals::{Self, NATIVE_COIN_10_DECIMALS};
-    use token_bridge::coin_witness::{COIN_WITNESS};
+    use token_bridge::wrapped_coin_12_decimals::{WRAPPED_COIN_12_DECIMALS};
 
     use token_bridge::state::{Self, State};
-    use token_bridge::coin_witness_test::{Self};
+    use token_bridge::wrapped_coin_12_decimals_test::{Self};
     use token_bridge::register_chain::{Self};
 
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
@@ -314,7 +314,7 @@ module token_bridge::complete_transfer_with_payload_test {
         let test = scenario();
         // Initializes core and token bridge, registers devnet Ethereum token bridge,
         // and registers wrapped token COIN_WITNESS with Sui token bridge
-        test = coin_witness_test::test_register_wrapped_(admin, test);
+        test = wrapped_coin_12_decimals_test::test_register_wrapped_(admin, test);
 
         // complete transfer with payload (send native tokens + payload)
         test_scenario::next_tx(&mut test, admin); {
@@ -337,7 +337,7 @@ module token_bridge::complete_transfer_with_payload_test {
 
             // Execute complete_transfer_with_payload.
             let (token_coins, parsed_transfer, source_chain) =
-                complete_transfer_with_payload::complete_transfer_with_payload<COIN_WITNESS>(
+                complete_transfer_with_payload::complete_transfer_with_payload<WRAPPED_COIN_12_DECIMALS>(
                     &mut bridge_state,
                     &emitter_cap_2,
                     &mut worm_state,
@@ -377,7 +377,7 @@ module token_bridge::complete_transfer_with_payload_test {
         let test = scenario();
         // Initializes core and token bridge, registers devnet Ethereum token bridge,
         // and registers wrapped token COIN_WITNESS with Sui token bridge
-        test = coin_witness_test::test_register_wrapped_(admin, test);
+        test = wrapped_coin_12_decimals_test::test_register_wrapped_(admin, test);
 
         // complete transfer with payload (send native tokens + payload)
         test_scenario::next_tx(&mut test, admin); {
@@ -394,7 +394,7 @@ module token_bridge::complete_transfer_with_payload_test {
 
             // Execute complete_transfer_with_payload.
             let (token_coins, _parsed_transfer, _source_chain) =
-                complete_transfer_with_payload::complete_transfer_with_payload<COIN_WITNESS>(
+                complete_transfer_with_payload::complete_transfer_with_payload<WRAPPED_COIN_12_DECIMALS>(
                     &mut bridge_state,
                     &emitter_cap_1, // Incorrect recipient.
                     &mut worm_state,
