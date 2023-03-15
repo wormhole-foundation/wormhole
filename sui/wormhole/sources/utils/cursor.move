@@ -45,7 +45,7 @@ module wormhole::cursor {
     /// NOTE: Only use this function if you intend to consume the rest of the
     /// bytes. Since the result is a vector, which can be dropped, it is not
     /// possible to statically guarantee that the rest will be used.
-    public fun rest<T>(cursor: Cursor<T>): vector<T> {
+    public fun take_rest<T>(cursor: Cursor<T>): vector<T> {
         let Cursor { data } = cursor;
         // Because the data was reversed in initialization, we need to reverse
         // again so it is in the same order as the original input.

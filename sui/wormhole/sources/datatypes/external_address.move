@@ -3,7 +3,6 @@
 /// This module implements a custom type for a 32-byte standardized address,
 /// which is meant to represent an address from any other network.
 module wormhole::external_address {
-    use std::vector::{Self};
     use wormhole::cursor::{Cursor};
     use wormhole::bytes32::{Self, Bytes32};
 
@@ -54,19 +53,14 @@ module wormhole::external_address {
     }
 
     /// Drain 32 elements of `Cursor<u8>` to create `ExternalAddress`.
-    public fun take(cur: &mut Cursor<u8>): ExternalAddress {
-        new(bytes32::take(cur))
+    public fun take_bytes(cur: &mut Cursor<u8>): ExternalAddress {
+        new(bytes32::take_bytes(cur))
     }
 
     /// Drain 32 elements of `Cursor<u8>` to create `ExternalAddress` ensuring
     /// that not all bytes are zero.
     public fun take_nonzero(cur: &mut Cursor<u8>): ExternalAddress {
-        new_nonzero(bytes32::take(cur))
-    }
-
-    /// Append underlying bytes of `ExternalAddress` to mutable buffer.
-    public fun serialize(buf: &mut vector<u8>, ext: ExternalAddress) {
-        vector::append(buf, bytes32::to_bytes(ext.value))
+        new_nonzero(bytes32::take_bytes(cur))
     }
 
     /// Destroy `ExternalAddress` to represent its underlying data as `address`.

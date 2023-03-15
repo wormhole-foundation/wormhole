@@ -98,10 +98,10 @@ module wormhole::governance_message {
 
         let cur = cursor::new(vaa::take_payload(parsed));
 
-        let module_name = bytes32::take(&mut cur);
+        let module_name = bytes32::take_bytes(&mut cur);
         let action = bytes::take_u8(&mut cur);
         let chain = bytes::take_u16_be(&mut cur);
-        let payload = cursor::rest(cur);
+        let payload = cursor::take_rest(cur);
 
         GovernanceMessage { module_name, action, chain, payload, vaa_hash }
     }

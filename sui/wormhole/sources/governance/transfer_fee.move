@@ -438,7 +438,7 @@ module wormhole::transfer_fee_tests {
 
         let amount = bytes::take_u256_be(&mut cur);
         assert!(amount > 0, 0);
-        cursor::rest(cur);
+        cursor::take_rest(cur);
 
         // You shall not pass!
         transfer_fee(
@@ -489,7 +489,7 @@ module wormhole::transfer_fee_tests {
         bytes::take_u256_be(&mut cur);
 
         // Confirm recipient is zero address.
-        let addr = bytes32::take(&mut cur);
+        let addr = bytes32::take_bytes(&mut cur);
         assert!(!bytes32::is_nonzero(&addr), 0);
         cursor::destroy_empty(cur);
 
@@ -541,7 +541,7 @@ module wormhole::transfer_fee_tests {
 
         let amount = bytes::take_u256_be(&mut cur);
         assert!(amount > 0xffffffffffffffff, 0);
-        cursor::rest(cur);
+        cursor::take_rest(cur);
 
         // You shall not pass!
         transfer_fee(

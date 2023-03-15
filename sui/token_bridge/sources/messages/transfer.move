@@ -82,9 +82,9 @@ module token_bridge::transfer {
             E_INVALID_ACTION
         );
         let amount = normalized_amount::deserialize_be(&mut cur);
-        let token_address = external_address::take(&mut cur);
+        let token_address = external_address::take_bytes(&mut cur);
         let token_chain = bytes::take_u16_be(&mut cur);
-        let recipient = external_address::take(&mut cur);
+        let recipient = external_address::take_bytes(&mut cur);
         let recipient_chain = bytes::take_u16_be(&mut cur);
         let relayer_fee = normalized_amount::deserialize_be(&mut cur);
         cursor::destroy_empty(cur);
@@ -102,9 +102,15 @@ module token_bridge::transfer {
         let buf = vector::empty<u8>();
         bytes::push_u8(&mut buf, PAYLOAD_ID);
         normalized_amount::serialize_be(&mut buf, transfer.amount);
-        external_address::serialize(&mut buf, transfer.token_address);
+        vector::append(
+            &mut buf,
+            external_address::to_bytes(transfer.token_address)
+        );
         bytes::push_u16_be(&mut buf, transfer.token_chain);
-        external_address::serialize(&mut buf, transfer.recipient);
+        vector::append(
+            &mut buf,
+            external_address::to_bytes(transfer.recipient)
+        );
         bytes::push_u16_be(&mut buf, transfer.recipient_chain);
         normalized_amount::serialize_be(&mut buf, transfer.relayer_fee);
         buf

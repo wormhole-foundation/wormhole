@@ -211,8 +211,8 @@ module wormhole::vaa {
         let i = 0;
         while (i < num_signatures) {
             let guardian_index = bytes::take_u8(&mut cur);
-            let r = bytes32::take(&mut cur);
-            let s = bytes32::take(&mut cur);
+            let r = bytes32::take_bytes(&mut cur);
+            let s = bytes32::take_bytes(&mut cur);
             let recovery_id = bytes::take_u8(&mut cur);
             vector::push_back(
                 &mut signatures,
@@ -222,16 +222,16 @@ module wormhole::vaa {
         };
 
         // Deserialize message body.
-        let body = cursor::rest(cur);
+        let body = cursor::take_rest(cur);
 
         let cur = cursor::new(body);
         let timestamp = bytes::take_u32_be(&mut cur);
         let nonce = bytes::take_u32_be(&mut cur);
         let emitter_chain = bytes::take_u16_be(&mut cur);
-        let emitter_address = external_address::take(&mut cur);
+        let emitter_address = external_address::take_bytes(&mut cur);
         let sequence = bytes::take_u64_be(&mut cur);
         let consistency_level = bytes::take_u8(&mut cur);
-        let payload = cursor::rest(cur);
+        let payload = cursor::take_rest(cur);
 
         let parsed = VAA {
             guardian_set_index,

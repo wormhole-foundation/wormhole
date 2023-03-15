@@ -87,11 +87,20 @@ module token_bridge::transfer_with_payload {
         let encoded = vector::empty<u8>();
         push_u8(&mut encoded, PAYLOAD_ID);
         normalized_amount::serialize_be(&mut encoded, transfer.amount);
-        external_address::serialize(&mut encoded, transfer.token_address);
+        vector::append(
+            &mut encoded,
+            external_address::to_bytes(transfer.token_address)
+        );
         push_u16_be(&mut encoded, transfer.token_chain);
-        external_address::serialize(&mut encoded, transfer.recipient);
+        vector::append(
+            &mut encoded,
+            external_address::to_bytes(transfer.recipient)
+        );
         push_u16_be(&mut encoded, transfer.recipient_chain);
-        external_address::serialize(&mut encoded, transfer.sender);
+        vector::append(
+            &mut encoded,
+            external_address::to_bytes(transfer.sender),
+        );
         vector::append(&mut encoded, transfer.payload);
         encoded
     }
@@ -100,12 +109,12 @@ module token_bridge::transfer_with_payload {
         let cur = cursor::new(transfer);
         assert!(take_u8(&mut cur) == PAYLOAD_ID, E_INVALID_ACTION);
         let amount = normalized_amount::deserialize_be(&mut cur);
-        let token_address = external_address::take(&mut cur);
+        let token_address = external_address::take_bytes(&mut cur);
         let token_chain = take_u16_be(&mut cur);
-        let recipient = external_address::take(&mut cur);
+        let recipient = external_address::take_bytes(&mut cur);
         let recipient_chain = take_u16_be(&mut cur);
-        let sender = external_address::take(&mut cur);
-        let payload = cursor::rest(cur);
+        let sender = external_address::take_bytes(&mut cur);
+        let payload = cursor::take_rest(cur);
         new(
             amount,
             token_address,

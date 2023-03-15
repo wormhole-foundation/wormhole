@@ -89,7 +89,7 @@ module wormhole::upgrade_contract {
         let cur = cursor::new(payload);
 
         // This amount cannot be greater than max u64.
-        let digest = bytes32::take(&mut cur);
+        let digest = bytes32::take_bytes(&mut cur);
         assert!(bytes32::is_nonzero(&digest), E_DIGEST_ZERO_BYTES);
 
         cursor::destroy_empty(cur);

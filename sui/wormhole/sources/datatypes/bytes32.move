@@ -91,7 +91,7 @@ module wormhole::bytes32 {
     }
 
     /// Drain 32 elements of `Cursor<u8>` to create `Bytes32`.
-    public fun take(cur: &mut Cursor<u8>): Bytes32 {
+    public fun take_bytes(cur: &mut Cursor<u8>): Bytes32 {
         new(bytes::take_bytes(cur, LEN))
     }
 

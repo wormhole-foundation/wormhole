@@ -53,7 +53,7 @@ module token_bridge::register_chain {
 
         let cur = cursor::new(governance_message::take_payload(msg));
         let emitter_chain = bytes::take_u16_be(&mut cur);
-        let emitter_address = external_address::take(&mut cur);
+        let emitter_address = external_address::take_bytes(&mut cur);
         cursor::destroy_empty(cur);
 
         state::register_emitter(
