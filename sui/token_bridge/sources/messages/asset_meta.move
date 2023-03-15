@@ -1,6 +1,7 @@
 module token_bridge::asset_meta {
     use std::string::{String};
     use std::vector::{Self};
+    use std::ascii::{Self};
     use wormhole::bytes::{Self};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::cursor::{Self};
@@ -17,15 +18,15 @@ module token_bridge::asset_meta {
     const PAYLOAD_ID: u8 = 2;
 
     struct AssetMeta has copy, store, drop {
-        /// Address of the token. Left-zero-padded if shorter than 32 bytes
+        /// Address of the token. Left-zero-padded if shorter than 32 bytes.
         token_address: ExternalAddress,
-        /// Chain ID of the token
+        /// Chain ID of the token.
         token_chain: u16,
-        /// Number of decimals of the token (big-endian uint256)
+        /// Number of decimals of the token (big-endian uint256).
         native_decimals: u8,
-        /// Symbol of the token (UTF-8)
+        /// Symbol of the token (UTF-8).
         symbol: String32,
-        /// Name of the token (UTF-8)
+        /// Name of the token (UTF-8).
         name: String32,
     }
 
@@ -61,16 +62,20 @@ module token_bridge::asset_meta {
         self.symbol
     }
 
-    public fun symbol_to_string(self: &AssetMeta): String {
-        string32::to_string(&self.symbol)
+    public fun symbol_to_ascii(self: &AssetMeta): ascii::String {
+        string32::to_ascii(&self.symbol)
+    }
+
+    public fun symbol_to_utf8(self: &AssetMeta): String {
+        string32::to_utf8(&self.symbol)
     }
 
     public fun name(self: &AssetMeta): String32 {
         self.name
     }
 
-    public fun name_to_string(self: &AssetMeta): String {
-        string32::to_string(&self.name)
+    public fun name_to_utf8(self: &AssetMeta): String {
+        string32::to_utf8(&self.name)
     }
 
     public fun serialize(meta: AssetMeta): vector<u8> {
@@ -135,11 +140,11 @@ module token_bridge::asset_meta_test{
             symbol, // symbol
             name, // name
         );
-        // serialize and deserialize TransferWithPayload object
+        // Serialize and deserialize TransferWithPayload object.
         let se = asset_meta::serialize(asset_meta);
         let de = asset_meta::deserialize(se);
 
-        // test that the object fields are unchanged
+        // Test that the object fields are unchanged.
         assert!(asset_meta::token_chain(&de) == 3, 0);
         assert!(asset_meta::token_address(&de) == token_address, 0);
         assert!(asset_meta::native_decimals(&de) == 4, 0);

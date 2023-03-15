@@ -1,4 +1,4 @@
-FROM ghcr.io/wormhole-foundation/sui:0.25.0@sha256:a5bcdba3a12b1d6ea1f87ff88e3d02e222740f1b069c12c3d31026b6cc538d47 as sui
+FROM ghcr.io/wormhole-foundation/sui:0.27.1@sha256:24ac3aebfa1ea934a188d6232f7728b1aa8f0cf658deddcfd293191a290daf58 as sui
 
 RUN dnf -y install make git
 
@@ -10,12 +10,13 @@ WORKDIR /tmp
 
 RUN sui genesis -f
 COPY scripts/start_node.sh  .
-COPY scripts/funder.sh  .
+COPY scripts/import_default_account.sh .
 
 COPY wormhole/ wormhole
 COPY token_bridge/ token_bridge
-# COPY examples/ examples
 COPY Makefile Makefile
+
+RUN ./import_default_account.sh
 
 FROM sui AS tests
 
