@@ -15,3 +15,4 @@ dev
 0
 EOF
 sed -i -e 's/active_address.*/active_address: "0x13b3cb89cf3226d3b860294fc75dc6c91f0c5ecf"/' ~/.sui/sui_config/client.yaml
+echo Sui active address: $(sui client active-address)
