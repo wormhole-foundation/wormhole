@@ -12,7 +12,7 @@ module token_bridge::coin_witness {
         // This example is ethereum beefface token.
         let vaa_bytes = x"0100000000010080366065746148420220f25a6275097370e8db40984529a6676b7a5fc9feb11755ec49ca626b858ddfde88d15601f85ab7683c5f161413b0412143241c700aff010000000100000001000200000000000000000000000000000000000000000000000000000000deadbeef000000000150eb23000200000000000000000000000000000000000000000000000000000000beefface00020c424545460000000000000000000000000000000000000000000000000000000042656566206661636520546f6b656e0000000000000000000000000000000000";
 
-        let new_wrapped_coin = create_wrapped::create_wrapped_coin(vaa_bytes, coin_witness, ctx);
+        let new_wrapped_coin = create_wrapped::create_unregistered_currency(vaa_bytes, coin_witness, ctx);
         transfer::transfer(
             new_wrapped_coin,
             tx_context::sender(ctx)
@@ -27,6 +27,7 @@ module token_bridge::coin_witness {
 
 #[test_only]
 module token_bridge::coin_witness_test {
+    use sui::coin::{CoinMetadata};
     use sui::test_scenario::{Self, Scenario, ctx, next_tx, take_from_address,
         return_shared, take_shared};
 
@@ -36,7 +37,7 @@ module token_bridge::coin_witness_test {
     use token_bridge::state::{State, is_registered_asset, is_wrapped_asset,
         token_info};
     use token_bridge::bridge_state_test::{set_up_wormhole_core_and_token_bridges};
-    use token_bridge::create_wrapped::{register_wrapped_coin};
+    use token_bridge::create_wrapped::{register_new_coin};
     use token_bridge::register_chain::{submit_vaa};
     use token_bridge::wrapped_coin::{WrappedCoin};
 
@@ -95,14 +96,16 @@ module token_bridge::coin_witness_test {
         next_tx(&mut test, admin);{
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
+            let coin_meta = take_shared<CoinMetadata<COIN_WITNESS>>(&test);
             let wrapped_coin = take_from_address<WrappedCoin<COIN_WITNESS>>(
                 &test,
                 admin
             );
-            register_wrapped_coin<COIN_WITNESS>(
+            register_new_coin<COIN_WITNESS>(
                 &mut bridge_state,
                 &mut worm_state,
                 wrapped_coin,
+                &mut coin_meta,
                 ctx(&mut test)
             );
             // Assert that wrapped asset is indeed recognized by token bridge.
@@ -123,6 +126,7 @@ module token_bridge::coin_witness_test {
 
             return_shared<State>(bridge_state);
             return_shared<WormholeState>(worm_state);
+            return_shared(coin_meta);
         };
         return test
     }
