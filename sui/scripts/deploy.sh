@@ -13,7 +13,7 @@ cd "$(dirname "$0")"/..
 
 echo "Building wormhole..."
 cd wormhole
-sed -i -e 's/wormhole = .*/wormhole = "0x0"/' Move.toml
+sed -i -e '0,/wormhole = ".*"/{s/wormhole = ".*"/wormhole = "0x0"/}' Move.toml
 make build
 echo "Finished building wormhole"
 
@@ -29,7 +29,7 @@ WORM_OWNER=$(grep -v "Immutable" ids.log | sed -e 's/^.*( \(.*\) )/\1/')
 
 echo -e "\nBuilding token_bridge..."
 cd ../token_bridge
-sed -i -e 's/token_bridge = .*/token_bridge = "0x0"/' Move.toml
+sed -i -e '0,/token_bridge = ".*"/{s/token_bridge = ".*"/token_bridge = "0x0"/}' Move.toml
 make build
 echo "Finished building token_bridge"
 
