@@ -51,7 +51,7 @@ As these 3rd party audits are completed and issues are sufficiently addressed, w
 
 The Wormhole project operates two bug bounty programs to financially incentivize independent researchers for finding and responsibly disclosing security issues.
 
-- [Self-Hosted Program](https://wormhole.com/bounty/)
+- [Self-Hosted Program](https://github.com/wormhole-foundation/wormhole/security/advisories/new)
   - **Scopes**: Guardian and Smart Contracts
   - **Rewards**: Up to $2,500,000 USDC
   - **KYC**: Required
