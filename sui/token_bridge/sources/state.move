@@ -39,6 +39,8 @@ module token_bridge::state {
     friend token_bridge::complete_transfer_with_payload_test;
     #[test_only]
     friend token_bridge::transfer_token_test;
+    #[test_only]
+    friend token_bridge::transfer_tokens_with_payload_test;
 
     /// Capability for creating a bridge state object, granted to sender when
     /// this module is deployed.
