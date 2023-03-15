@@ -37,7 +37,6 @@ module token_bridge::vaa {
                 token_bridge_state,
                 corevaa::get_emitter_chain(vm)
             );
-
         assert!(
             foreign_emitter == corevaa::get_emitter_address(vm),
             E_UNKNOWN_EMITTER
