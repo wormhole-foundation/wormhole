@@ -195,9 +195,9 @@ module token_bridge::complete_transfer_test {
     struct OTHER_COIN_WITNESS has drop {}
 
     #[test]
-    /// A basic test for the internal handler function handle_complete_transfer,
-    /// which is called directly by complete_transfer_test_only
-    fun test_complete_native_transfer_internal(){
+    /// An end-to-end test for complete transer native
+    fun test_complete_native_transfer(){
+        let vaa_native_transfer = x"010000000001002ff4303d38fe2eade48868ab51d31e21c32303d512501b26bfb6a3da9e9a41635ee41360458471d7b2af59b9b2cd48a11bea714e147e0ae76d0182e1af56bf41000000000000000000000200000000000000000000000000000000000000000000000000000000deadbeef00000000000000010f010000000000000000000000000000000000000000000000000000000000000bb8000000000000000000000000000000000000000000000000000000000000000100150000000000000000000000000000000000000000000000000000000000124323001500000000000000000000000000000000000000000000000000000000000003e8";
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
         test = set_up_wormhole_core_and_token_bridges(admin, test);
@@ -229,32 +229,16 @@ module token_bridge::complete_transfer_test {
             return_shared<State>(bridge_state);
             return_shared<WormholeState>(worm_state);
         };
+
         // Complete transfer, sending native tokens to a recipient address.
         next_tx(&mut test, admin); {
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
 
-            let to = admin;
-            let amount = 1000000000;
-            let fee_amount = 100000000;
-            let decimals = 10;
-            let token_address = external_address::from_bytes(x"01");
-            let token_chain = wormhole_state::chain_id();
-            let to_chain = wormhole_state::chain_id();
-
-            let my_transfer = transfer::new(
-                normalized_amount::from_raw(amount, decimals),
-                token_address,
-                token_chain,
-                external_address::from_bytes(bcs::to_bytes(&to)),
-                to_chain,
-                normalized_amount::from_raw(fee_amount, decimals),
-            );
-
-            complete_transfer::complete_transfer_test_only<NATIVE_COIN_10_DECIMALS>(
+            complete_transfer::complete_transfer<NATIVE_COIN_10_DECIMALS>(
                 &mut bridge_state,
                 &mut worm_state,
-                my_transfer,
+                vaa_native_transfer,
                 fee_recipient_person,
                 ctx(&mut test)
             );
@@ -265,11 +249,11 @@ module token_bridge::complete_transfer_test {
         // Check balances after.
         next_tx(&mut test, admin);{
             let coins = take_from_address<Coin<NATIVE_COIN_10_DECIMALS>>(&test, admin);
-            assert!(coin::value<NATIVE_COIN_10_DECIMALS>(&coins) == 900000000, 0);
+            assert!(coin::value<NATIVE_COIN_10_DECIMALS>(&coins) == 300000, 0);
             return_to_address<Coin<NATIVE_COIN_10_DECIMALS>>(admin, coins);
 
             let fee_coins = take_from_address<Coin<NATIVE_COIN_10_DECIMALS>>(&test, fee_recipient_person);
-            assert!(coin::value<NATIVE_COIN_10_DECIMALS>(&fee_coins) == 100000000, 0);
+            assert!(coin::value<NATIVE_COIN_10_DECIMALS>(&fee_coins) == 100000, 0);
             return_to_address<Coin<NATIVE_COIN_10_DECIMALS>>(fee_recipient_person, fee_coins);
         };
         test_scenario::end(test);
@@ -737,63 +721,6 @@ module token_bridge::complete_transfer_test {
             );
             return_shared<State>(bridge_state);
             return_shared<WormholeState>(worm_state);
-        };
-        test_scenario::end(test);
-    }
-
-    #[test]
-    /// The following test is for the "beefface" token from ethereum (chain id = 2),
-    /// which has 8 decimals.
-    /// It tests the internal handler function complete_transfer_test_only.
-    fun complete_wrapped_internal_transfer_test(){
-        let (admin, fee_recipient_person, _) = people();
-        let scenario = scenario();
-        // First register foreign chain, create wrapped asset, register wrapped asset.
-        let test = test_register_wrapped_(admin, scenario);
-        next_tx(&mut test, admin);{
-            wrapped_coin_12_decimals::test_init(ctx(&mut test));
-        };
-        // Complete transfer of wrapped asset from foreign chain to this chain.
-        next_tx(&mut test, admin); {
-            let bridge_state = take_shared<State>(&test);
-            let worm_state = take_shared<WormholeState>(&test);
-
-            let to = admin;
-            let amount = 1000000000;
-            let fee_amount = 100000000;
-            let decimals = 8;
-            let token_address = external_address::from_bytes(x"beefface");
-            let token_chain = 2;
-            let to_chain = wormhole_state::chain_id();
-
-            let my_transfer = transfer::new(
-                normalized_amount::from_raw(amount, decimals),
-                token_address,
-                token_chain,
-                external_address::from_bytes(bcs::to_bytes(&to)),
-                to_chain,
-                normalized_amount::from_raw(fee_amount, decimals),
-            );
-            complete_transfer::complete_transfer_test_only<WRAPPED_COIN_12_DECIMALS>(
-                &mut bridge_state,
-                &mut worm_state,
-                my_transfer,
-                fee_recipient_person,
-                ctx(&mut test)
-            );
-            return_shared<State>(bridge_state);
-            return_shared<WormholeState>(worm_state);
-        };
-
-        // Check balances after.
-        next_tx(&mut test, admin);{
-            let coins = take_from_address<Coin<WRAPPED_COIN_12_DECIMALS>>(&test, admin);
-            assert!(coin::value<WRAPPED_COIN_12_DECIMALS>(&coins) == 900000000, 0);
-            return_to_address<Coin<WRAPPED_COIN_12_DECIMALS>>(admin, coins);
-
-            let fee_coins = take_from_address<Coin<WRAPPED_COIN_12_DECIMALS>>(&test, fee_recipient_person);
-            assert!(coin::value<WRAPPED_COIN_12_DECIMALS>(&fee_coins) == 100000000, 0);
-            return_to_address<Coin<WRAPPED_COIN_12_DECIMALS>>(fee_recipient_person, fee_coins);
         };
         test_scenario::end(test);
     }
