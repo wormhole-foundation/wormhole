@@ -14,25 +14,28 @@ The project is laid out as follows:
 - [coin](./coin) a template for creating Wormhole wrapped coins
 
 # Installation
+
 Make sure your Cargo version is at least 1.65.0 and then follow the steps below:
+
 - https://docs.sui.io/build/install
 
 ## Prerequisites
 
 Install the `Sui` CLI. This tool is used to compile the contracts and run the tests.
 
-``` sh
+```sh
 $ cargo install --locked --git https://github.com/MystenLabs/sui.git --branch devnet sui sui-faucet
 ```
 
 Some useful Sui CLI commands are
+
 - `sui start` to spin up a local network
 - `rpc-server` to start a server for handling rpc calls
 - `sui-faucet` to start a faucet for requesting funds from active-address
 
 Next, install the [worm](../clients/js/README.md) CLI tool by running
 
-``` sh
+```sh
 wormhole/clients/js $ make install
 ```
 
@@ -43,7 +46,7 @@ As an optional, but recommended step, install the
 [move-analyzer](https://github.com/move-language/move/tree/main/language/move-analyzer)
 Language Server (LSP):
 
-``` sh
+```sh
 cargo install --git https://github.com/move-language/move.git move-analyzer --branch main --features "address32"
 ```
 
@@ -57,7 +60,7 @@ This installs the LSP backend which is then supported by most popular editors su
 <details>
     <summary>For emacs, you may need to add the following to your config file:</summary>
 
-``` lisp
+```lisp
 ;; Move
 (define-derived-mode move-mode rust-mode "Move"
   :group 'move-mode)
@@ -91,7 +94,7 @@ set up with all the necessary dependencies. This is the command that runs in CI.
 
 Simply run
 
-``` sh
+```sh
 worm start-validator sui
 ```
 
@@ -99,21 +102,23 @@ which will start a local aptos validator with an RPC endpoint at `0.0.0.0:9000`
 and the faucet endpoint at `0.0.0.0:5003/gas`. Note that the faucet takes a few
 (~10) seconds to come up, so only proceed when you see the following:
 
-``` text
+```text
 Faucet is running.  Faucet endpoint: 0.0.0.0:5003/gas
 ```
 
 Once the validator is running, the contracts are ready to deploy. In the
 [scripts](./scripts) directory, run
 
-``` sh
+```sh
 scripts $ ./deploy devnet
 ```
 
 This will deploy the core contract and the token bridge.
 
 When you make a change to the contract, you can simply restart the validator and
-run the deploy script again. However, a better way is to run one of the following scripts:
+run the deploy script again.
+
+<!-- However, a better way is to run one of the following scripts:
 
 ``` sh
 scripts $ ./upgrade devnet Core # for upgrading the wormhole contract
@@ -125,7 +130,7 @@ Behind the scenes, these scripts exercise the whole contract upgrade code path
 (see below), including generating and verifying a signed governance action, and
 the Move bytecode verifier checking ABI compatibility. If an upgrade here fails
 due to incompatibility, it will likely on mainnet too. (TODO: add CI action to
-simulate upgrades against main when there's a stable version)
+simulate upgrades against main when there's a stable version) -->
 
 # Implementation notes / coding practices
 
@@ -135,4 +140,3 @@ are prescriptive rather than descriptive, and the goal is for the contracts to
 ultimately follow these, but they might not during earlier development phases.
 
 ### TODO
-
