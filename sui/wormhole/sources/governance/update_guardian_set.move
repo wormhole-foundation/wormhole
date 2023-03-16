@@ -18,7 +18,9 @@ module wormhole::update_guardian_set {
         UpdateGuardianSet as UpdateGuardianSetControl
     };
 
+    /// No guardians public keys found in VAA.
     const E_NO_GUARDIANS: u64 = 0;
+    /// Guardian set index is not incremented from last known guardian set.
     const E_NON_INCREMENTAL_GUARDIAN_SETS: u64 = 1;
 
     /// Specific governance payload ID (action) for updating the guardian set.
@@ -29,6 +31,12 @@ module wormhole::update_guardian_set {
         guardians: vector<Guardian>,
     }
 
+    /// Redeem governance VAA to update the current Guardian set with a new
+    /// set of Guardian public keys. This governance action is applied globally
+    /// across all networks.
+    ///
+    /// NOTE: This method is guarded by a minimum build version check. This
+    /// method could break backward compatibility on an upgrade.
     public fun update_guardian_set(
         wormhole_state: &mut State,
         vaa_buf: vector<u8>,

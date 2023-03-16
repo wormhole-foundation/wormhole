@@ -18,6 +18,7 @@ module wormhole::upgrade_contract {
     // NOTE: This exists to mock up sui::package for proposed upgrades.
     use wormhole::dummy_sui_package::{UpgradeReceipt, UpgradeTicket};
 
+    /// Digest is all zeros.
     const E_DIGEST_ZERO_BYTES: u64 = 0;
 
     /// Specific governance payload ID (action) to complete upgrading the

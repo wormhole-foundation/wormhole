@@ -11,6 +11,7 @@ module wormhole::set_fee {
     use wormhole::state::{Self, State};
     use wormhole::version_control::{SetFee as SetFeeControl};
 
+    /// Encoded fee amount overflows `u64`.
     const E_FEE_OVERFLOW: u64 = 0;
 
     /// Specific governance payload ID (action) for setting Wormhole fee.

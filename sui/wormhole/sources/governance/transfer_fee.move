@@ -13,6 +13,7 @@ module wormhole::transfer_fee {
     use wormhole::state::{Self, State};
     use wormhole::version_control::{TransferFee as TransferFeeControl};
 
+    /// Encoded amount to collect overflows `u64`.
     const E_WITHDRAW_AMOUNT_OVERFLOW: u64 = 0;
 
     /// Specific governance payload ID (action) for setting Wormhole fee.
