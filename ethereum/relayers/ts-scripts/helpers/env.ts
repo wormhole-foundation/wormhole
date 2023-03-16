@@ -92,12 +92,13 @@ export function getOperatingChains(): ChainInfo[] {
   const output: ChainInfo[] = [];
   operatingChains.forEach((x: number) => {
     const item = allChains.find((y) => {
-      x == y.chainId;
+      return x == y.chainId;
     });
     if (item) {
       output.push(item);
     }
   });
+
   return output;
 }
 
