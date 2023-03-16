@@ -15,7 +15,7 @@ init();
 const chains = getOperatingChains();
 
 async function run() {
-  console.log("Start!");
+  console.log("Start! " + processName);
   const output: any = {
     mockIntegrations: [],
   };
@@ -44,4 +44,4 @@ async function run() {
   }
 }
 
-run().then(() => console.log("Done!"));
+run().then(() => console.log("Done!" + processName));
