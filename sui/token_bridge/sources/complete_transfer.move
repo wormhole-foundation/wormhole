@@ -186,6 +186,7 @@ module token_bridge::complete_transfer_test {
     use token_bridge::native_coin_10_decimals::{Self, NATIVE_COIN_10_DECIMALS};
     use token_bridge::native_coin_4_decimals::{Self, NATIVE_COIN_4_DECIMALS};
     use token_bridge::bridge_state_test::{set_up_wormhole_core_and_token_bridges};
+    use token_bridge::register_chain::{Self};
 
     use wormhole::state::{Self as wormhole_state, State as WormholeState};
 
@@ -194,15 +195,43 @@ module token_bridge::complete_transfer_test {
 
     struct OTHER_COIN_WITNESS has drop {}
 
+    /// Registration VAA for the etheruem token bridge 0xdeadbeef.
+    const ETHEREUM_TOKEN_REG: vector<u8> =
+        x"0100000000010015d405c74be6d93c3c33ed6b48d8db70dfb31e0981f8098b2a6c7583083e0c3343d4a1abeb3fc1559674fa067b0c0e2e9de2fafeaecdfeae132de2c33c9d27cc0100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000016911ae00000000000000000000000000000000000000000000546f6b656e427269646765010000000200000000000000000000000000000000000000000000000000000000deadbeef";
+
+    /// Used for test_complete_native_transfer and test_complete_native_transfer_wrong_coin
+    const VAA_NATIVE_TRANSFER: vector<u8> = x"010000000001002ff4303d38fe2eade48868ab51d31e21c32303d512501b26bfb6a3da9e9a41635ee41360458471d7b2af59b9b2cd48a11bea714e147e0ae76d0182e1af56bf41000000000000000000000200000000000000000000000000000000000000000000000000000000deadbeef00000000000000010f010000000000000000000000000000000000000000000000000000000000000bb8000000000000000000000000000000000000000000000000000000000000000100150000000000000000000000000000000000000000000000000000000000124323001500000000000000000000000000000000000000000000000000000000000003e8";
+    // ============================ VAA details ============================
+    // emitterChain: 2,
+    // emitterAddress: '0x00000000000000000000000000000000000000000000000000000000deadbeef',
+    // module: 'TokenBridge',
+    // type: 'Transfer',
+    // amount: 3000n,
+    // tokenAddress: '0x0000000000000000000000000000000000000000000000000000000000000001',
+    // tokenChain: 21,
+    // toAddress: '0x0000000000000000000000000000000000000000000000000000000000124323',
+    // chain: 21,
+    // fee: 1000n
+    // ============================ VAA details ============================
+
     #[test]
-    /// An end-to-end test for complete transer native
+    /// An end-to-end test for complete transer native with VAA.
     fun test_complete_native_transfer(){
-        let vaa_native_transfer = x"010000000001002ff4303d38fe2eade48868ab51d31e21c32303d512501b26bfb6a3da9e9a41635ee41360458471d7b2af59b9b2cd48a11bea714e147e0ae76d0182e1af56bf41000000000000000000000200000000000000000000000000000000000000000000000000000000deadbeef00000000000000010f010000000000000000000000000000000000000000000000000000000000000bb8000000000000000000000000000000000000000000000000000000000000000100150000000000000000000000000000000000000000000000000000000000124323001500000000000000000000000000000000000000000000000000000000000003e8";
+        {
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
         test = set_up_wormhole_core_and_token_bridges(admin, test);
+        // Create coin.
         next_tx(&mut test, admin);{
             native_coin_10_decimals::test_init(ctx(&mut test));
+        };
+        // Register eth token bridge (where transfer VAA will originate from)
+        next_tx(&mut test, admin); {
+            let wormhole_state = take_shared<WormholeState>(&test);
+            let bridge_state = take_shared<State>(&test);
+            register_chain::submit_vaa(&mut wormhole_state, &mut bridge_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
+            return_shared<WormholeState>(wormhole_state);
+            return_shared<State>(bridge_state);
         };
         // Register native asset type with the token bridge.
         next_tx(&mut test, admin);{
@@ -238,7 +267,7 @@ module token_bridge::complete_transfer_test {
             complete_transfer::complete_transfer<NATIVE_COIN_10_DECIMALS>(
                 &mut bridge_state,
                 &mut worm_state,
-                vaa_native_transfer,
+                VAA_NATIVE_TRANSFER,
                 fee_recipient_person,
                 ctx(&mut test)
             );
@@ -249,7 +278,7 @@ module token_bridge::complete_transfer_test {
         // Check balances after.
         next_tx(&mut test, admin);{
             let coins = take_from_address<Coin<NATIVE_COIN_10_DECIMALS>>(&test, admin);
-            assert!(coin::value<NATIVE_COIN_10_DECIMALS>(&coins) == 300000, 0);
+            assert!(coin::value<NATIVE_COIN_10_DECIMALS>(&coins) == 200000, 0);
             return_to_address<Coin<NATIVE_COIN_10_DECIMALS>>(admin, coins);
 
             let fee_coins = take_from_address<Coin<NATIVE_COIN_10_DECIMALS>>(&test, fee_recipient_person);
@@ -258,16 +287,26 @@ module token_bridge::complete_transfer_test {
         };
         test_scenario::end(test);
     }
+    }
 
     #[test]
-    /// A test for the internal function handle_complete_transfer.
-    /// Test that we can complete the transfer of a native token with 10 decimals.
+    /// Test that we can complete the transfer of a native token with 10 decimals
+    /// and test that rounding occurs.
     fun test_complete_native_transfer_internal_10_decimals(){
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
         test = set_up_wormhole_core_and_token_bridges(admin, test);
+        // Create coin.
         next_tx(&mut test, admin);{
             native_coin_10_decimals::test_init(ctx(&mut test));
+        };
+        // Register eth token bridge (where transfer VAA will originate from)
+        next_tx(&mut test, admin); {
+            let wormhole_state = take_shared<WormholeState>(&test);
+            let bridge_state = take_shared<State>(&test);
+            register_chain::submit_vaa(&mut wormhole_state, &mut bridge_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
+            return_shared<WormholeState>(wormhole_state);
+            return_shared<State>(bridge_state);
         };
         // Register native asset type with the token bridge.
         next_tx(&mut test, admin);{
@@ -346,12 +385,21 @@ module token_bridge::complete_transfer_test {
     #[test]
     /// A test for the internal function handle_complete_transfer.
     /// Test that we can complete the transfer of a native token with 4 decimals.
+    /// This is an internal handler test, so it bypasses the use of a VAA.
     fun test_complete_native_transfer_internal_4_decimals(){
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
         test = set_up_wormhole_core_and_token_bridges(admin, test);
         next_tx(&mut test, admin);{
             native_coin_4_decimals::test_init(ctx(&mut test));
+        };
+        // Register eth token bridge (where transfer VAA will originate from)
+        next_tx(&mut test, admin); {
+            let wormhole_state = take_shared<WormholeState>(&test);
+            let bridge_state = take_shared<State>(&test);
+            register_chain::submit_vaa(&mut wormhole_state, &mut bridge_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
+            return_shared<WormholeState>(wormhole_state);
+            return_shared<State>(bridge_state);
         };
         // Register native asset type with the token bridge.
         next_tx(&mut test, admin);{
@@ -432,12 +480,33 @@ module token_bridge::complete_transfer_test {
     /// A negative test for the internal function handle_complete_transfer.
     /// Test that transfer fails if the origin chain is not specified correctly,
     /// causing the bridge to think that the token is unregistered.
-    fun test_complete_native_transfer_internal_wrong_origin_chain(){
+    fun test_complete_native_transfer_wrong_origin_chain(){
+        let wrong_origin_chain_vaa = x"01000000000100b0d67f0102856458dc68a29e88e5574f4b0b129841522066adbf275f0749129a319bc6a94a7b7c8822e91e1ceb2b1e22adee0d283fba5b97dab5f7165216785e010000000000000000000200000000000000000000000000000000000000000000000000000000deadbeef00000000000000010f01000000000000000000000000000000000000000000000000000000003b9aca4f00000000000000000000000000000000000000000000000000000000000000010017000000000000000000000000000000000000000000000000000000000012432300150000000000000000000000000000000000000000000000000000000005f5e100";
+        // ============================ VAA details ============================
+        // emitterChain: 2,
+        // emitterAddress: '0x00000000000000000000000000000000000000000000000000000000deadbeef',
+        // module: 'TokenBridge',
+        // type: 'Transfer',
+        // amount: 1000000079n,
+        // tokenAddress: '0x0000000000000000000000000000000000000000000000000000000000000001',
+        // tokenChain: 23, // Wrong chain.
+        // toAddress: '0x0000000000000000000000000000000000000000000000000000000000124323',
+        // chain: 21,
+        // fee: 100000000n
+        // ============================ VAA details ============================
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
         test = set_up_wormhole_core_and_token_bridges(admin, test);
         next_tx(&mut test, admin);{
             native_coin_10_decimals::test_init(ctx(&mut test));
+        };
+        // Register eth token bridge (where transfer VAA will originate from)
+        next_tx(&mut test, admin); {
+            let wormhole_state = take_shared<WormholeState>(&test);
+            let bridge_state = take_shared<State>(&test);
+            register_chain::submit_vaa(&mut wormhole_state, &mut bridge_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
+            return_shared<WormholeState>(wormhole_state);
+            return_shared<State>(bridge_state);
         };
         // Register native asset type with the token bridge.
         next_tx(&mut test, admin);{
@@ -470,32 +539,17 @@ module token_bridge::complete_transfer_test {
             return_shared<State>(bridge_state);
             return_shared<WormholeState>(worm_state);
         };
-        // attempt complete transfer
+        // Attempt complete transfer. Fails because the origin chain of the token
+        // in the VAA is not specified correctly (though the address is the native-Sui
+        // of the previously registered native token).
         next_tx(&mut test, admin); {
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
 
-            let to = admin;
-            let amount = 1000000000;
-            let fee_amount = 100000000;
-            let decimals = 8;
-            let token_address = external_address::from_bytes(x"01");
-            let token_chain = 34; // wrong chain!
-            let to_chain = wormhole_state::chain_id();
-
-            let my_transfer = transfer::new(
-                normalized_amount::from_raw(amount, decimals),
-                token_address,
-                token_chain,
-                external_address::from_bytes(bcs::to_bytes(&to)),
-                to_chain,
-                normalized_amount::from_raw(fee_amount, decimals),
-            );
-
-            complete_transfer::complete_transfer_test_only<NATIVE_COIN_10_DECIMALS>(
+            complete_transfer::complete_transfer<NATIVE_COIN_10_DECIMALS>(
                 &mut bridge_state,
                 &mut worm_state,
-                my_transfer,
+                wrong_origin_chain_vaa,
                 fee_recipient_person,
                 ctx(&mut test)
             );
@@ -510,12 +564,35 @@ module token_bridge::complete_transfer_test {
         abort_code = token_bridge::complete_transfer::E_UNREGISTERED_TOKEN,
         location=token_bridge::complete_transfer
     )]
-    fun test_complete_native_transfer_internal_wrong_coin_address(){
+    fun test_complete_native_transfer_wrong_coin_address(){
+        let vaa_transfer_wrong_address = x"010000000001008490d3e139f3b705282df4686907dfff358dd365e7471d8d6793ade61a27d33d48fc665198bc8022bebd8f8a91f29b3df75455180bf3b2d39eb97f93be3a8caf000000000000000000000200000000000000000000000000000000000000000000000000000000deadbeef00000000000000010f01000000000000000000000000000000000000000000000000000000003b9aca4f00000000000000000000000000000000000000000000000000000000000004440015000000000000000000000000000000000000000000000000000000000012432300150000000000000000000000000000000000000000000000000000000005f5e100";
+        // ============================ VAA details ============================
+        //   emitterChain: 2,
+        //   emitterAddress: '0x00000000000000000000000000000000000000000000000000000000deadbeef',
+        //   sequence: 1n,
+        //   consistencyLevel: 15,
+        //   module: 'TokenBridge',
+        //   type: 'Transfer',
+        //   amount: 1000000079n,
+        //   tokenAddress: '0x0000000000000000000000000000000000000000000000000000000000000444', // Wrong!
+        //   tokenChain: 21,
+        //   toAddress: '0x0000000000000000000000000000000000000000000000000000000000124323',
+        //   chain: 21,
+        //   fee: 100000000n
+        // ============================ VAA details ============================
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
         test = set_up_wormhole_core_and_token_bridges(admin, test);
         next_tx(&mut test, admin);{
             native_coin_10_decimals::test_init(ctx(&mut test));
+        };
+        // Register eth token bridge (where transfer VAA will originate from)
+        next_tx(&mut test, admin); {
+            let wormhole_state = take_shared<WormholeState>(&test);
+            let bridge_state = take_shared<State>(&test);
+            register_chain::submit_vaa(&mut wormhole_state, &mut bridge_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
+            return_shared<WormholeState>(wormhole_state);
+            return_shared<State>(bridge_state);
         };
         // register native asset type with the token bridge
         next_tx(&mut test, admin);{
@@ -548,27 +625,10 @@ module token_bridge::complete_transfer_test {
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
 
-            let to = admin;
-            let amount = 1000000000;
-            let fee_amount = 100000000;
-            let decimals = 8;
-            let token_address = external_address::from_bytes(x"1111"); // wrong address!
-            let token_chain = wormhole_state::chain_id();
-            let to_chain = wormhole_state::chain_id();
-
-            let my_transfer = transfer::new(
-                normalized_amount::from_raw(amount, decimals),
-                token_address,
-                token_chain,
-                external_address::from_bytes(bcs::to_bytes(&to)),
-                to_chain,
-                normalized_amount::from_raw(fee_amount, decimals),
-            );
-
-            complete_transfer::complete_transfer_test_only<NATIVE_COIN_10_DECIMALS>(
+            complete_transfer::complete_transfer<NATIVE_COIN_10_DECIMALS>(
                 &mut bridge_state,
                 &mut worm_state,
-                my_transfer,
+                vaa_transfer_wrong_address,
                 fee_recipient_person,
                 ctx(&mut test)
             );
@@ -581,12 +641,33 @@ module token_bridge::complete_transfer_test {
 
     #[test]
     #[expected_failure(abort_code = 2, location=sui::balance)] // E_TOO_MUCH_FEE
-    fun test_complete_native_transfer_internal_too_much_fee(){
+    fun test_complete_native_transfer_too_much_fee(){
+        let vaa_transfer_too_much_fee = x"01000000000100032a439b4cf8f793e2a0b4281344bc81af9ff9f118ff9e320cbde49b072f23a5500963f2e66632143a97f2f0a5bc5370f006d2382f2e06c09b542476b02d099e000000000000000000000200000000000000000000000000000000000000000000000000000000deadbeef00000000000000010f01000000000000000000000000000000000000000000000000000000003b9aca000000000000000000000000000000000000000000000000000000000000000001001500000000000000000000000000000000000000000000000000000000001243230015000000000000000000000000000000000000000000000000000009184e72a000";
+        // ============================ VAA details ============================
+        //   emitterChain: 2,
+        //   emitterAddress: '0x00000000000000000000000000000000000000000000000000000000deadbeef',
+        //   module: 'TokenBridge',
+        //   type: 'Transfer',
+        //   amount: 1000000000n,
+        //   tokenAddress: '0x0000000000000000000000000000000000000000000000000000000000000001',
+        //   tokenChain: 21,
+        //   toAddress: '0x0000000000000000000000000000000000000000000000000000000000124323',
+        //   chain: 21,
+        //   fee: 10000000000000n
+        // ============================ VAA details ============================
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
         test = set_up_wormhole_core_and_token_bridges(admin, test);
         next_tx(&mut test, admin);{
             native_coin_10_decimals::test_init(ctx(&mut test));
+        };
+        // Register eth token bridge (where transfer VAA will originate from)
+        next_tx(&mut test, admin); {
+            let wormhole_state = take_shared<WormholeState>(&test);
+            let bridge_state = take_shared<State>(&test);
+            register_chain::submit_vaa(&mut wormhole_state, &mut bridge_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
+            return_shared<WormholeState>(wormhole_state);
+            return_shared<State>(bridge_state);
         };
         // Register native asset type with the token bridge.
         next_tx(&mut test, admin);{
@@ -619,30 +700,14 @@ module token_bridge::complete_transfer_test {
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
 
-            let to = admin;
-            let amount = 1000000000;
-            let fee_amount = 1000000001; // Too much fee! Can't be greater than amount
-            let decimals = 8;
-            let token_address = external_address::from_bytes(x"01");
-            let token_chain = wormhole_state::chain_id();
-            let to_chain = wormhole_state::chain_id();
-
-            let my_transfer = transfer::new(
-                normalized_amount::from_raw(amount, decimals),
-                token_address,
-                token_chain,
-                external_address::from_bytes(bcs::to_bytes(&to)),
-                to_chain,
-                normalized_amount::from_raw(fee_amount, decimals),
-            );
-
-            complete_transfer::complete_transfer_test_only<NATIVE_COIN_10_DECIMALS>(
+            complete_transfer::complete_transfer<NATIVE_COIN_10_DECIMALS>(
                 &mut bridge_state,
                 &mut worm_state,
-                my_transfer,
+                vaa_transfer_too_much_fee,
                 fee_recipient_person,
                 ctx(&mut test)
             );
+
             return_shared<State>(bridge_state);
             return_shared<WormholeState>(worm_state);
         };
@@ -654,17 +719,30 @@ module token_bridge::complete_transfer_test {
         abort_code = token_bridge::registered_tokens::E_UNREGISTERED,
         location = token_bridge::registered_tokens
     )]
-    fun test_complete_native_transfer_internal_wrong_coin(){
+    /// In this test, the generic CoinType arg to complete_transfer
+    /// is not specified correctly, causing the token bridge
+    /// to not recignize that coin as being registered and for
+    /// the complete transfer to fail.
+    fun test_complete_native_transfer_wrong_coin(){
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
         test = set_up_wormhole_core_and_token_bridges(admin, test);
+        // Register eth token bridge (where transfer VAA will originate from)
+        next_tx(&mut test, admin); {
+            let wormhole_state = take_shared<WormholeState>(&test);
+            let bridge_state = take_shared<State>(&test);
+            register_chain::submit_vaa(&mut wormhole_state, &mut bridge_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
+            return_shared<WormholeState>(wormhole_state);
+            return_shared<State>(bridge_state);
+        };
         next_tx(&mut test, admin);{
             native_coin_10_decimals::test_init(ctx(&mut test));
         };
         next_tx(&mut test, admin);{
             native_coin_4_decimals::test_init(ctx(&mut test));
         };
-        // Register native asset type with the token bridge.
+        // Register native asset type NATIVE_COIN_10_DECIMALS with the token bridge.
+        // Note that NATIVE_COIN_4_DECIMALS is not registered!
         next_tx(&mut test, admin);{
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
@@ -690,35 +768,20 @@ module token_bridge::complete_transfer_test {
             return_shared<State>(bridge_state);
             return_shared<WormholeState>(worm_state);
         };
-        // Attempt complete transfer with wrong coin type (NATIVE_COIN_WITNESS_V2).
+        // Attempt complete transfer with wrong coin type (NATIVE_COIN_4_DECIMALS).
+        // Fails because NATIVE_COIN_4_DECIMALS is unregistered.
         next_tx(&mut test, admin); {
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
 
-            let to = admin;
-            let amount = 1000000000;
-            let fee_amount = 10000000;
-            let decimals = 8;
-            let token_address = external_address::from_bytes(x"01");
-            let token_chain = wormhole_state::chain_id();
-            let to_chain = wormhole_state::chain_id();
-
-            let my_transfer = transfer::new(
-                normalized_amount::from_raw(amount, decimals),
-                token_address,
-                token_chain,
-                external_address::from_bytes(bcs::to_bytes(&to)),
-                to_chain,
-                normalized_amount::from_raw(fee_amount, decimals),
-            );
-
-            complete_transfer::complete_transfer_test_only<NATIVE_COIN_4_DECIMALS>(
+            complete_transfer::complete_transfer<NATIVE_COIN_4_DECIMALS>(
                 &mut bridge_state,
                 &mut worm_state,
-                my_transfer,
+                VAA_NATIVE_TRANSFER,
                 fee_recipient_person,
                 ctx(&mut test)
             );
+
             return_shared<State>(bridge_state);
             return_shared<WormholeState>(worm_state);
         };
