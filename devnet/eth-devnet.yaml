@@ -55,12 +55,12 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "npm run migrate && npx truffle exec scripts/deploy_test_token.js && npx truffle exec scripts/register_all_chains.js && nc -lkn 2001"
-            # - "while true; do nc -lknv 2000; done"
-            # - "npm run migrate && npx truffle exec scripts/deploy_test_token.js && npx truffle exec scripts/register_all_chains.js && npm run --prefix ./relayers evm1  && nc -lnv 2000"
+            - "npm run migrate && npx truffle exec scripts/deploy_test_token.js && npx truffle exec scripts/register_all_chains.js && npm run --prefix ./relayers evm1 && nc -lkn 2001"
+            # - "npm run migrate && npx truffle exec scripts/deploy_test_token.js && npx truffle exec scripts/register_all_chains.js && npm run --prefix ./relayers evm1  && nc -lkn 2000"
           readinessProbe:
             periodSeconds: 1
             failureThreshold: 300
+            initialDelaySeconds: 60
             tcpSocket:
               port: 2001
         - name: mine
