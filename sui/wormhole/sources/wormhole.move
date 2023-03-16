@@ -3,35 +3,9 @@
 /// This module implements entry methods that expose methods from modules found
 /// in the Wormhole contract.
 module wormhole::wormhole {
-    use sui::coin::{Coin};
-    use sui::sui::{SUI};
     use sui::tx_context::{TxContext};
 
-    use wormhole::emitter::{EmitterCap};
     use wormhole::state::{State};
-
-    /// `publish_message` exposes `publish_message::publish_message` as an entry
-    /// method to publish Wormhole messages with an emitter cap owned a
-    /// wallet.
-    ///
-    /// See `publish_message` module for more details.
-    public entry fun publish_message(
-        wormhole_state: &mut State,
-        emitter_cap: &mut EmitterCap,
-        nonce: u32,
-        payload: vector<u8>,
-        message_fee: Coin<SUI>,
-    ) {
-        use wormhole::publish_message::{publish_message};
-
-        publish_message(
-            wormhole_state,
-            emitter_cap,
-            nonce,
-            payload,
-            message_fee
-        );
-    }
 
     /// `update_guardian_set` exposes `update_guardian_set::update_guardian_set`
     /// as an entry method to perform Guardian governance to update the existing
