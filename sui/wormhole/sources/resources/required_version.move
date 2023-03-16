@@ -12,7 +12,7 @@
 /// If a previous build were used, the method would abort if a check is in place
 /// with `RequiredVersion`.
 ///
-/// There is no magic behild the way ths module works. `RequiredVersion` is
+/// There is no magic behind the way ths module works. `RequiredVersion` is
 /// intended to live in a package's shared object that gets passed into its
 /// methods (e.g. Wormhole's `State` object).
 module wormhole::required_version {
@@ -23,8 +23,11 @@ module wormhole::required_version {
     // NOTE: This exists to mock up sui::package for proposed upgrades.
     use wormhole::dummy_sui_package::{Self as package, UpgradeCap};
 
+    /// Build version passed does not meet method's minimum required version.
     const E_OUTDATED_VERSION: u64 = 0;
 
+    /// Container to keep track of latest build version. Dynamic fields are
+    /// associated with its `id`.
     struct RequiredVersion has store {
         id: UID,
         latest_version: u64
@@ -32,6 +35,7 @@ module wormhole::required_version {
 
     struct Key<phantom MethodType> has store, drop, copy {}
 
+    /// Create new `RequiredVersion` with a configured starting version.
     public fun new(version: u64, ctx: &mut TxContext): RequiredVersion {
         RequiredVersion {
             id: object::new(ctx),
@@ -39,12 +43,16 @@ module wormhole::required_version {
         }
     }
 
+    /// Retrieve latest build version.
     public fun current(self: &RequiredVersion): u64 {
         self.latest_version
     }
 
+    /// Add specific method handling via custom `MethodType`. At the time a
+    /// method is added, the minimum build version associated with this method
+    /// by default is the latest version.
     public fun add<MethodType>(self: &mut RequiredVersion) {
-        field::add(&mut self.id, Key<MethodType>{}, self.latest_version)
+        field::add(&mut self.id, Key<MethodType> {}, self.latest_version)
     }
 
     /// This method will abort if the version for a particular `MethodType` is
@@ -88,12 +96,14 @@ module wormhole::required_version {
     /// particular method that has a breaking change, use this method to uptick
     /// that method's minimum required version to the latest.
     public fun require_current_version<MethodType>(self: &mut RequiredVersion) {
-        let min_version = field::borrow_mut(&mut self.id, Key<MethodType>{});
+        let min_version = field::borrow_mut(&mut self.id, Key<MethodType> {});
         *min_version = self.latest_version;
     }
 
+    /// Retrieve the minimum required version for a particular method (via
+    /// `MethodType`).
     public fun minimum_for<MethodType>(self: &RequiredVersion): u64 {
-        *field::borrow(&self.id, Key<MethodType>{})
+        *field::borrow(&self.id, Key<MethodType> {})
     }
 
     #[test_only]
@@ -101,7 +111,7 @@ module wormhole::required_version {
         self: &mut RequiredVersion,
         version: u64
     ) {
-        *field::borrow_mut(&mut self.id, Key<MethodType>{}) = version;
+        *field::borrow_mut(&mut self.id, Key<MethodType> {}) = version;
     }
 
     #[test_only]
