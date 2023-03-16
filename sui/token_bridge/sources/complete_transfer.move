@@ -489,7 +489,7 @@ module token_bridge::complete_transfer_test {
         // type: 'Transfer',
         // amount: 1000000079n,
         // tokenAddress: '0x0000000000000000000000000000000000000000000000000000000000000001',
-        // tokenChain: 23, // Wrong chain.
+        // tokenChain: 23, // Wrong chain! Should be 21.
         // toAddress: '0x0000000000000000000000000000000000000000000000000000000000124323',
         // chain: 21,
         // fee: 100000000n
@@ -653,7 +653,7 @@ module token_bridge::complete_transfer_test {
         //   tokenChain: 21,
         //   toAddress: '0x0000000000000000000000000000000000000000000000000000000000124323',
         //   chain: 21,
-        //   fee: 10000000000000n
+        //   fee: 10000000000000n // Wrong! Way too much fee!
         // ============================ VAA details ============================
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
