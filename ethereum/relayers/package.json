@@ -8,6 +8,7 @@
     "@typechain/ethers-v5": "^10.1.1",
     "@types/chai": "^4.3.3",
     "@types/mocha": "^9.1.1",
+    "@types/node": "^18.15.0",
     "chai": "^4.3.6",
     "dotenv": "^16.0.3",
     "ethers": "^5.7.1",
@@ -22,8 +23,8 @@
     "flatten": "mkdir -p node_modules/@poanet/solidity-flattener/contracts && cp -r contracts/* node_modules/@poanet/solidity-flattener/contracts/ && poa-solidity-flattener",
     "deployAndConfigureTilt": "ENV=tilt bash ./ts-scripts/shell/deployConfigureTest.sh",
     "readContractsTestnet": "ENV=testnet bash ./ts-scripts/shell/readContractStatus.sh",
-    "evm1": "ENV=evm1 bash ./ts-scripts/shell/deployConfigureTest.sh",
-    "evm2": "ENV=evm2 bash ./ts-scripts/shell/deployConfigureTest.sh",
+    "evm1": "ENV=kubernetes CONTAINER=evm1 bash ./ts-scripts/shell/deployInContainer.sh",
+    "evm2": "ENV=kubernetes CONTAINER=evm2 bash ./ts-scripts/shell/deployInContainer.sh",
     "size": "forge build --sizes --force"
   },
   "author": "",

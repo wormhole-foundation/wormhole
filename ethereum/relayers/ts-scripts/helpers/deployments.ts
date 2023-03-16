@@ -1,4 +1,4 @@
-import { RelayProviderProxy__factory } from "../../../sdk/src/ethers-contracts/factories/RelayProviderProxy__factory"
+import { RelayProviderProxy__factory } from "../../sdk/src/ethers-contracts/factories/RelayProviderProxy__factory"
 import { RelayProviderSetup__factory } from "../../../sdk/src/ethers-contracts/factories/RelayProviderSetup__factory"
 import { RelayProviderImplementation__factory } from "../../../sdk/src/ethers-contracts/factories/RelayProviderImplementation__factory"
 import { MockRelayerIntegration__factory } from "../../../sdk/src"
