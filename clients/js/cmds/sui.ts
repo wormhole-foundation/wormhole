@@ -1,17 +1,19 @@
-import { JsonRpcProvider } from "@mysten/sui.js";
 import yargs from "yargs";
 import { config } from "../config";
 import { NETWORK_OPTIONS, RPC_OPTIONS } from "../consts";
 import { NETWORKS } from "../networks";
-import { callEntryFunc, loadSigner, publishPackage } from "../sui";
+import { executeEntry, getProvider, getSigner, publishPackage } from "../sui";
 import { assertNetwork, checkBinary } from "../utils";
 
-/*
-  Loop through a list of Sui objects and look for the DeployerCapability that should
-  have been granted upon publication of the package with package_id
-
-  The objects is in the format returned by a json-rpc call "provider.getObjectsOwnedByAddress"
-*/
+/**
+ * Loop through a list of Sui objects and look for the `DeployerCapability` that
+ * should have been granted upon publication of the package with `packageId`.
+ * @param packageId
+ * @param moduleName
+ * @param objects List of objects in the format returned by a JSON-RPC call
+ * `sui_getOwnedObjects`
+ * @returns
+ */
 function findDeployerCapability(
   packageId: string,
   moduleName: string,
@@ -45,16 +47,16 @@ exports.builder = function (y: typeof yargs) {
         const network = argv.network.toUpperCase();
         assertNetwork(network);
         const packageDir = argv["package-dir"];
-        const rpc = argv.rpc ?? NETWORKS[network]["sui"].rpc;
+        const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
+        const provider = getProvider(network, rpc);
 
-        console.log("package: ", packageDir);
-        console.log("network: ", network);
-        console.log("rpc: ", rpc);
+        console.log("Package: ", packageDir);
+        console.log("Network: ", network);
+        console.log("RPC:     ", rpc);
 
-        // TODO(aki): should user pass in entire path to package?
         await publishPackage(
+          provider,
           network,
-          rpc,
           `${config.wormholeDir}/sui/${packageDir}`
         );
       }
@@ -75,13 +77,16 @@ exports.builder = function (y: typeof yargs) {
       },
       async (argv) => {
         const network = argv.network.toUpperCase();
-        const rpc = argv.rpc ?? NETWORKS[network]["sui"].rpc;
-        const provider = new JsonRpcProvider(rpc);
+        assertNetwork(network);
+        const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
         const owner = argv.owner;
+
+        const provider = getProvider(network, rpc);
         const objects = await provider.getObjectsOwnedByAddress(owner);
-        console.log("network: ", network);
-        console.log("owner: ", owner);
-        console.log("objects: ", JSON.stringify(objects));
+
+        console.log("Network: ", network);
+        console.log("Owner:   ", owner);
+        console.log("Objects: ", JSON.stringify(objects));
       }
     )
     .command(
@@ -106,30 +111,26 @@ exports.builder = function (y: typeof yargs) {
       async (argv) => {
         const network = argv.network.toUpperCase();
         assertNetwork(network);
-        const rpc = argv.rpc ?? NETWORKS[network]["sui"].rpc;
+        const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
         const packageId = argv["package-id"];
-        const provider = new JsonRpcProvider(rpc);
-        const signer = loadSigner(network, rpc);
-        const owner = await signer.getAddress();
-        console.log("owner: ", owner);
-        const objects = await provider.getObjectsOwnedByAddress(owner);
         const wormState = argv["worm-state"];
-        const deployer = findDeployerCapability(
-          packageId,
-          "state",
-          objects
-        );
 
-        console.log("network: ", network);
-        console.log("rpc: ", rpc);
-        console.log("package id: ", packageId);
-        console.log("deployer object id: ", deployer);
-        console.log("wormhole state object id: ", wormState);
+        const provider = getProvider(network, rpc);
+        const signer = getSigner(provider, network);
+        const owner = await signer.getAddress();
+        console.log("Owner:                    ", owner);
+        const objects = await provider.getObjectsOwnedByAddress(owner);
+        const deployer = findDeployerCapability(packageId, "state", objects);
 
-        await callEntryFunc(
+        console.log("Network:                  ", network);
+        console.log("Package ID:               ", packageId);
+        console.log("Deployer object ID:       ", deployer);
+        console.log("Wormhole state object ID: ", wormState);
+
+        await executeEntry(
+          provider,
           network,
-          rpc,
-          String(packageId),
+          packageId,
           "state",
           "init_and_share_state",
           [],
@@ -159,7 +160,7 @@ exports.builder = function (y: typeof yargs) {
           .option("governance-chain-id", {
             alias: "gci",
             describe: "Governance chain ID",
-            default: "1", // default is chain ID of Solana
+            default: "1", // Default is chain ID of Solana
             type: "string",
             required: false,
           })
@@ -181,14 +182,15 @@ exports.builder = function (y: typeof yargs) {
       async (argv) => {
         const network = argv.network.toUpperCase();
         assertNetwork(network);
-        const rpc = argv.rpc ?? NETWORKS[network]["sui"].rpc;
+        const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
         const packageId = argv["package-id"];
         const chainId = argv["chain-id"];
         const governanceChainId = argv["governance-chain-id"];
         const governanceContract = argv["governance-contract"];
         const initialGuardian = argv["initial-guardian"];
-        const provider = new JsonRpcProvider(rpc);
-        const signer = loadSigner(network, rpc);
+
+        const provider = getProvider(network, rpc);
+        const signer = getSigner(provider, network);
         const owner = await signer.getAddress();
         const objects = await provider.getObjectsOwnedByAddress(owner);
         const deployer = findDeployerCapability(packageId, "state", objects);
@@ -198,19 +200,19 @@ exports.builder = function (y: typeof yargs) {
           );
         }
 
-        console.log("network: ", network);
-        console.log("rpc: ", rpc);
-        console.log("package id: ", packageId);
-        console.log("deployer object id: ", deployer);
-        console.log("chain-id: ", chainId);
-        console.log("governance-chain-id: ", governanceChainId);
-        console.log("governance-contract: ", governanceContract);
-        console.log("initial-guardian: ", initialGuardian);
+        console.log("Network:             ", network);
+        console.log("RPC:                 ", rpc);
+        console.log("Package ID:          ", packageId);
+        console.log("Deployer object ID:  ", deployer);
+        console.log("Chain ID:            ", chainId);
+        console.log("Governance chain ID: ", governanceChainId);
+        console.log("Governance contract: ", governanceContract);
+        console.log("Initial guardian:    ", initialGuardian);
 
-        await callEntryFunc(
+        await executeEntry(
+          provider,
           network,
-          rpc,
-          String(packageId),
+          packageId,
           "state",
           "init_and_share_state",
           [],
@@ -219,7 +221,7 @@ exports.builder = function (y: typeof yargs) {
             governanceChainId,
             [...Buffer.from(governanceContract, "hex")],
             [[...Buffer.from(initialGuardian, "hex")]],
-            "0" //message fee
+            "0", // Message fee
           ]
         );
       }
