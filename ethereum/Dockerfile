@@ -6,7 +6,7 @@ FROM node:lts-alpine@sha256:2ae9624a39ce437e7f58931a5747fdc60224c6e40f8980db9072
 # RUN apk add git python make build-base
 # RUN apk update && apk add bash
 RUN apt-get update && apt-get -y install \
-  git python make curl
+  git python make curl netcat
 
 RUN npm i typescript -g
 RUN curl -L https://foundry.paradigm.xyz | bash 
