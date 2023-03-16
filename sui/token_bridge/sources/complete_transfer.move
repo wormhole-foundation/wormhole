@@ -146,25 +146,6 @@ module token_bridge::complete_transfer {
         // Finally transfer tokens to the recipient.
         sui::transfer::transfer(my_coins, recipient);
     }
-
-
-    #[test_only]
-    /// This method is exists to expose `handle_complete_transfer` and validate
-    /// its job. `handle_complete_transfer` is used by `complete_transfer`.
-    public fun complete_transfer_test_only<CoinType>(
-        token_bridge_state: &mut State,
-        _worm_state: &mut WormholeState,
-        parsed_transfer: Transfer,
-        relayer: address,
-        ctx: &mut TxContext
-    ) {
-        handle_complete_transfer<CoinType>(
-            token_bridge_state,
-            &parsed_transfer,
-            relayer,
-            ctx
-        )
-    }
 }
 
 #[test_only]
