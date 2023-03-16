@@ -1,6 +1,10 @@
 import yargs from "yargs";
 import { config } from "../config";
-import { NETWORK_OPTIONS, RPC_OPTIONS } from "../consts";
+import {
+  NAMED_ADDRESSES_OPTIONS,
+  NETWORK_OPTIONS,
+  RPC_OPTIONS,
+} from "../consts";
 import { NETWORKS } from "../networks";
 import { executeEntry, getProvider, getSigner, publishPackage } from "../sui";
 import { assertNetwork, checkBinary } from "../utils";
@@ -39,7 +43,8 @@ exports.builder = function (y: typeof yargs) {
             type: "string",
           })
           .option("network", NETWORK_OPTIONS)
-          .option("rpc", RPC_OPTIONS);
+          .option("rpc", RPC_OPTIONS)
+          .option("named-addresses", NAMED_ADDRESSES_OPTIONS);
       },
       async (argv) => {
         checkBinary("sui", "sui");
@@ -49,15 +54,20 @@ exports.builder = function (y: typeof yargs) {
         const packageDir = argv["package-dir"];
         const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
         const provider = getProvider(network, rpc);
+        const namedAddresses = Object.fromEntries(
+          (argv["named-addresses"] || "")
+            .split(",")
+            .map((str) => str.trim().split("="))
+        );
 
-        console.log("Package: ", packageDir);
-        console.log("Network: ", network);
-        console.log("RPC:     ", rpc);
+        console.log("Package:         ", packageDir);
+        console.log("RPC:             ", rpc);
 
         await publishPackage(
           provider,
           network,
-          `${config.wormholeDir}/sui/${packageDir}`
+          `${config.wormholeDir}/sui/${packageDir}`,
+          namedAddresses
         );
       }
     )
