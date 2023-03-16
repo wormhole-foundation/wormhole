@@ -1,81 +1,227 @@
 import { Ed25519Keypair, JsonRpcProvider, RawSigner } from "@mysten/sui.js";
 import { execSync } from "child_process";
+import fs from "fs";
+import { resolve } from "path";
 import { NETWORKS } from "./networks";
+import { Network } from "./utils";
 
-type Network = "MAINNET" | "TESTNET" | "DEVNET";
-
-export function loadSigner(network: Network, rpc: string | undefined) {
-  let private_key_str_base_64: string | undefined =
-    NETWORKS[network]["sui"].key;
-  if (private_key_str_base_64 === undefined) {
-    throw new Error("No key for Sui");
-  }
-  let priv_key_bytes = new Uint8Array(
-    Buffer.from(private_key_str_base_64, "base64")
-  );
-  let keypair = Ed25519Keypair.fromSeed(priv_key_bytes.slice(1));
-  if (typeof rpc != "undefined") {
-    rpc = NETWORKS[network]["sui"].rpc;
-  }
-  let provider = new JsonRpcProvider(rpc);
-  const signer = new RawSigner(keypair, provider);
-  return signer;
-}
-
-export async function publishPackage(
+export const publishPackage = async (
+  provider: JsonRpcProvider,
   network: Network,
-  rpc: string | undefined,
-  packagePath: string
-) {
-  console.log("publish package network: ", network);
-  console.log("publish package rpc: ", rpc);
-  console.log("package path is: ", packagePath);
-  let signer = loadSigner(network, rpc);
-  console.log("signer pubkey is: ", signer.getAddress());
-  const compiledModules: string[] = JSON.parse(
-    execSync(`sui move build --dump-bytecode-as-base64 --path ${packagePath}`, {
-      encoding: "utf-8",
-    })
-  );
-  console.log("here in pub package");
-  console.log("compiled modules: ", compiledModules);
-  const publishTxn = await signer.publish({
-    compiledModules: compiledModules,
-    gasBudget: 150000,
-  });
-  console.log("publishTxn", publishTxn);
-  console.log(
-    "effects: ",
-    JSON.stringify(publishTxn["effects"]["effects"])
-  );
-  //console.log('publishTxn effects', publishTxn["EffectsCert"]["effects"]["effects"]);
-}
+  packagePath: string,
+  namedAddresses?: { [key: string]: string }
+) => {
+  console.log(`Network:      ${network}`);
+  console.log(`Package path: ${packagePath}`);
 
-export async function callEntryFunc(
+  try {
+    setupToml(packagePath, network, namedAddresses);
+
+    // Build contracts
+    const compiledModules: string[] = JSON.parse(
+      execSync(
+        `sui move build --dump-bytecode-as-base64 --path ${packagePath}`,
+        {
+          encoding: "utf-8",
+        }
+      )
+    );
+
+    // Publish contracts
+    const signer = getSigner(provider, network);
+    const publishTx = await signer.publish({
+      compiledModules,
+      gasBudget: 1000000,
+    });
+
+    // todo(aki): only output useful info and log to file
+    console.log("publishTxn", JSON.stringify(publishTx, null, 2));
+    console.log(
+      "effects: ",
+      JSON.stringify(publishTx["effects"]["effects"]),
+      null,
+      2
+    );
+  } catch (e) {
+    throw e;
+  } finally {
+    cleanupToml(packagePath);
+  }
+};
+
+export const getProvider = (
+  network?: Network,
+  rpc?: string
+): JsonRpcProvider => {
+  if (!network && !rpc) {
+    throw new Error("Must provide network or RPC to initialize provider");
+  }
+
+  rpc = rpc || NETWORKS[network]["sui"].rpc;
+  if (!rpc) {
+    throw new Error(`No default RPC found for Sui ${network}`);
+  }
+
+  return new JsonRpcProvider(rpc);
+};
+
+export const getSigner = (
+  provider: JsonRpcProvider,
+  network: Network
+): RawSigner => {
+  const privateKey: string | undefined = NETWORKS[network]["sui"].key;
+  if (!privateKey) {
+    throw new Error(`No private key found for Sui ${network}`);
+  }
+
+  const bytes = new Uint8Array(Buffer.from(privateKey, "base64"));
+  const keypair = Ed25519Keypair.fromSeed(bytes.slice(1));
+  return new RawSigner(keypair, provider);
+};
+
+export async function executeEntry(
+  provider: JsonRpcProvider,
   network: Network,
-  rpc: string | undefined,
   packageObjectId: string,
-  module: string,
-  func: string,
-  type_args: Array<string>,
-  args: Array<any>
+  moduleName: string,
+  functionName: string,
+  typeArgs: string[],
+  args: any[]
 ) {
-  let signer = loadSigner(network, rpc);
-  console.log("network: ", network);
-  console.log("rpc: ", rpc);
-  console.log("package object id: ", packageObjectId);
-  console.log("module: ", module);
+  const signer = getSigner(provider, network);
+
+  console.log("Network:           ", network);
+  console.log("Package Object ID: ", packageObjectId);
+  console.log("Module:            ", moduleName);
+
   const moveCallTxn = await signer.executeMoveCall({
-    packageObjectId: packageObjectId,
-    module: module,
-    function: func,
-    typeArguments: type_args,
+    packageObjectId,
+    module: moduleName,
+    function: functionName,
+    typeArguments: typeArgs,
     arguments: args,
     gasBudget: 50000,
   });
+
+  // todo(aki): only output useful info
   console.log("moveCallTxn: ", moveCallTxn);
-  console.log(
-    "effects: ",
-    JSON.stringify(moveCallTxn["effects"]["effects"])
-  );
+  console.log("effects: ", JSON.stringify(moveCallTxn["effects"]["effects"]));
 }
+
+const setupToml = (
+  packagePath: string,
+  network: Network,
+  namedAddresses: { [key: string]: string },
+  isDependency: boolean = false
+): void => {
+  const defaultTomlPath = getDefaultTomlPath(packagePath);
+  const tempTomlPath = getTempTomlPath(packagePath);
+
+  console.log({ defaultTomlPath, tempTomlPath });
+
+  if (fs.existsSync(tempTomlPath)) {
+    // It's possible that this dependency has been set up by another package
+    if (isDependency) {
+      return;
+    }
+
+    throw new Error("Move.temp.toml exists, is there a publish in progress?");
+  }
+
+  // Save default Move.toml
+  if (!fs.existsSync(defaultTomlPath)) {
+    throw new Error(
+      `Invalid package layout. Move.toml not found at ${defaultTomlPath}`
+    );
+  }
+
+  fs.renameSync(defaultTomlPath, tempTomlPath);
+
+  // Set Move.toml from appropriate network
+  const srcTomlPath = getTomlPathByNetwork(packagePath, network);
+  console.log({ srcTomlPath });
+  if (!fs.existsSync(srcTomlPath)) {
+    throw new Error(`Move.toml for ${network} not found at ${srcTomlPath}`);
+  }
+
+  fs.copyFileSync(srcTomlPath, defaultTomlPath);
+
+  // Replace named addresses
+  let tomlStr = fs.readFileSync(defaultTomlPath, "utf8").toString();
+  if (isDependency) {
+    for (const [name, address] of Object.entries(namedAddresses)) {
+      tomlStr = tomlStr.replace(
+        new RegExp(`${name} = "_"`, "g"),
+        `${name} = "${address}"`
+      );
+    }
+  } else {
+    const name = getPackageNameFromPath(packagePath);
+    tomlStr = tomlStr.replace(
+      new RegExp(`${name} = "_"`, "g"),
+      `${name} = "0x0"`
+    );
+  }
+
+  fs.writeFileSync(defaultTomlPath, tomlStr);
+
+  // Set up Move.toml for dependencies
+  const dependencyPaths = getAllPackageDependencyPaths(packagePath);
+  for (const path of dependencyPaths) {
+    setupToml(path, network, namedAddresses, true);
+  }
+};
+
+const cleanupToml = (packagePath: string): void => {
+  const defaultTomlPath = getDefaultTomlPath(packagePath);
+  const tempTomlPath = getTempTomlPath(packagePath);
+  if (fs.existsSync(tempTomlPath)) {
+    // Clean up Move.toml for dependencies
+    const dependencyPaths = getAllPackageDependencyPaths(packagePath);
+    for (const path of dependencyPaths) {
+      cleanupToml(path);
+    }
+
+    fs.renameSync(tempTomlPath, defaultTomlPath);
+  }
+};
+
+const getDefaultTomlPath = (packagePath: string): string =>
+  `${packagePath}/Move.toml`;
+
+const getTempTomlPath = (packagePath: string): string =>
+  `${packagePath}/Move.temp.toml`;
+
+const getTomlPathByNetwork = (packagePath: string, network: Network): string =>
+  `${packagePath}/Move.${network.toLowerCase()}.toml`;
+
+const getPackageNameFromPath = (packagePath: string): string =>
+  packagePath.split("/").pop() || "";
+
+/**
+ * Get Move.toml dependencies by looking for all lines of form 'local = ".*"'.
+ * This works because network-specific Move.toml files should not contain
+ * dev addresses, so the only lines that match this regex are the dependencies
+ * that need to be replaced.
+ * @param packagePath
+ * @returns
+ */
+const getAllPackageDependencyPaths = (packagePath: string): string[] => {
+  const tomlPath = getDefaultTomlPath(packagePath);
+  const tomlStr = fs.readFileSync(tomlPath, "utf8").toString();
+
+  // Sanity check that Move.toml does not contain dev info since this currently
+  // breaks building and publishing packages
+  if (
+    /\[dev\-dependencies\]/.test(tomlStr) ||
+    /\[dev\-addresses\]/.test(tomlStr)
+  ) {
+    throw new Error(
+      "Network-specific Move.toml should not contain dev-dependencies or dev-addresses."
+    );
+  }
+
+  return [...tomlStr.matchAll(/local = "(.*)"/g)].map((match) =>
+    resolve(packagePath, match[1])
+  );
+};
