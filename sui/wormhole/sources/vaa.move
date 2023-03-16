@@ -166,7 +166,7 @@ module wormhole::vaa {
     /// be kept that way. This ensures that if an external module receives a
     /// `VAA`, it has been verified.
     public fun parse_and_verify(
-        wormhole_state: &mut State,
+        wormhole_state: &State,
         buf: vector<u8>,
         ctx: &TxContext
     ): VAA {

@@ -227,11 +227,9 @@ module wormhole::state {
 
     /// Check whether a particular method meets the minimum build version for
     /// the latest Wormhole implementation.
-    public(friend) fun check_minimum_requirement<ControlType>(
-        self: &mut State
-    ) {
+    public(friend) fun check_minimum_requirement<ControlType>(self: &State) {
         required_version::check_minimum_requirement<ControlType>(
-            &mut self.required_version,
+            &self.required_version,
             control::version()
         )
     }
