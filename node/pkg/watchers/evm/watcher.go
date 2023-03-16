@@ -544,13 +544,11 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						time.Sleep(5 * time.Second)
 						blockTime, err = w.getBlockTime(ctx, ev.Raw.BlockHash)
 						if err != nil {
-							if err != nil {
-								ethConnectionErrors.WithLabelValues(w.networkName, "block_by_number_error").Inc()
-								p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-								errC <- fmt.Errorf("failed to request timestamp for block %d, hash %s: %w",
-									ev.Raw.BlockNumber, ev.Raw.BlockHash.String(), err)
-								return nil
-							}
+							ethConnectionErrors.WithLabelValues(w.networkName, "block_by_number_error").Inc()
+							p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+							errC <- fmt.Errorf("failed to request timestamp for block %d, hash %s: %w",
+								ev.Raw.BlockNumber, ev.Raw.BlockHash.String(), err)
+							return nil
 						}
 					} else {
 						// Set the time to zero which will be a signal that we need to try the query again right before publishing.
