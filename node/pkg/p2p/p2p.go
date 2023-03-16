@@ -58,6 +58,8 @@ type Gossip struct {
 	topics    map[string]*pubsub.Topic
 	topicLock sync.Mutex
 
+	legacyTopic *pubsub.Topic
+
 	logger *zap.Logger
 }
 
@@ -79,9 +81,9 @@ func Runnable(
 			nodeName:       nodeName,
 			topics:         map[string]*pubsub.Topic{},
 		}
-		g.logger = supervisor.Logger(ctx)
+		g.logger, _ = zap.NewDevelopment()
 
-		logger := supervisor.Logger(ctx)
+		logger, _ := zap.NewDevelopment()
 
 		h, err := libp2p.New(
 			// Use the keypair we generated
@@ -190,6 +192,17 @@ func Runnable(
 			logger.Info("Connected to bootstrap peers", zap.Int("num", successes))
 		}
 
+		// Join the legacy topic
+		// For the transition period we will be publishing to both the legacy topic and the new topics.
+		// This is to ensure that nodes that are not yet upgraded will still receive and broadcast messages.
+		// Once all nodes are upgraded, we can remove this.
+		// Legacy messages are multiplexed to all topics.
+		th, err := g.ps.Join(fmt.Sprintf("%s/%s", networkID, "broadcast"))
+		if err != nil {
+			return fmt.Errorf("failed to join legacy topic: %w", err)
+		}
+		g.legacyTopic = th
+
 		logger.Info("Node has been started", zap.String("peer_id", h.ID().String()),
 			zap.String("addrs", fmt.Sprintf("%v", h.Addrs())))
 
@@ -240,6 +253,51 @@ func (g *GossipTopicHandle) Subscribe(ctx context.Context, ch chan<- *GossipEnve
 		return fmt.Errorf("failed to subscribe to topic: %w", err)
 	}
 
+	// Subscribe to the legacy topic as well
+	legacySub, err := g.gossip.legacyTopic.Subscribe()
+	if err != nil {
+		return fmt.Errorf("failed to subscribe to legacy topic: %w", err)
+	}
+
+	envelopeC := make(chan *pubsub.Message, 1000)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case envelope := <-envelopeC:
+				p2pMessagesReceived.WithLabelValues(g.th.String()).Inc()
+
+				var msg gossipv1.GossipMessage
+				err = proto.Unmarshal(envelope.Data, &msg)
+				if err != nil {
+					g.logger.Info("received invalid message",
+						zap.Binary("data", envelope.Data),
+						zap.String("from", envelope.GetFrom().String()))
+					p2pMessagesReceived.WithLabelValues("invalid").Inc()
+					continue
+				}
+
+				if envelope.GetFrom() == g.gossip.p2pHost.ID() {
+					g.logger.Debug("received message from ourselves, ignoring",
+						zap.Any("payload", msg.Message))
+					p2pMessagesReceived.WithLabelValues("loopback").Inc()
+					continue
+				}
+
+				g.logger.Debug("received message",
+					zap.Any("payload", msg.Message),
+					zap.Binary("raw", envelope.Data),
+					zap.String("from", envelope.GetFrom().String()))
+
+				ch <- &GossipEnvelope{
+					Message: &msg,
+					From:    envelope.GetFrom(),
+				}
+			}
+		}
+	}()
+
 	go func() {
 		for {
 			envelope, err := sub.Next(ctx)
@@ -247,34 +305,18 @@ func (g *GossipTopicHandle) Subscribe(ctx context.Context, ch chan<- *GossipEnve
 				sub.Cancel()
 				return
 			}
-			p2pMessagesReceived.WithLabelValues(g.th.String()).Inc()
+			envelopeC <- envelope
+		}
+	}()
 
-			var msg gossipv1.GossipMessage
-			err = proto.Unmarshal(envelope.Data, &msg)
+	go func() {
+		for {
+			envelope, err := legacySub.Next(ctx)
 			if err != nil {
-				g.logger.Info("received invalid message",
-					zap.Binary("data", envelope.Data),
-					zap.String("from", envelope.GetFrom().String()))
-				p2pMessagesReceived.WithLabelValues("invalid").Inc()
-				continue
+				legacySub.Cancel()
+				return
 			}
-
-			if envelope.GetFrom() == g.gossip.p2pHost.ID() {
-				g.logger.Debug("received message from ourselves, ignoring",
-					zap.Any("payload", msg.Message))
-				p2pMessagesReceived.WithLabelValues("loopback").Inc()
-				continue
-			}
-
-			g.logger.Debug("received message",
-				zap.Any("payload", msg.Message),
-				zap.Binary("raw", envelope.Data),
-				zap.String("from", envelope.GetFrom().String()))
-
-			ch <- &GossipEnvelope{
-				Message: &msg,
-				From:    envelope.GetFrom(),
-			}
+			envelopeC <- envelope
 		}
 	}()
 
@@ -288,6 +330,11 @@ func (g *GossipTopicHandle) Send(ctx context.Context, msg *gossipv1.GossipMessag
 	}
 
 	p2pMessagesSent.Inc()
+
+	err = g.gossip.legacyTopic.Publish(ctx, b)
+	if err != nil {
+		return fmt.Errorf("failed to publish message to legacy topic: %w", err)
+	}
 
 	return g.th.Publish(ctx, b)
 }

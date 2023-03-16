@@ -234,9 +234,8 @@ func NewTestGossipIO(t *testing.T) *testGossipIO {
 	}
 }
 
-func (t *testGossipIO) publishObservation(observation *gossipv1.SignedObservation) error {
+func (t *testGossipIO) publishObservation(observation *gossipv1.SignedObservation) {
 	t.msgChan <- observation
-	return nil
 }
 func (t *testGossipIO) Subscribe(ctx context.Context, ch chan<- *p2p.GossipEnvelope) error {
 	go func() {
