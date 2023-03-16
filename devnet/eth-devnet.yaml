@@ -55,7 +55,7 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "npm run migrate && npx truffle exec scripts/deploy_test_token.js && npm run deploy-batched-vaa-sender && npx truffle exec scripts/register_all_chains.js && npm --prefix relayers/ run deployEvm1 && nc -lkp 2000 0.0.0.0"
+            - "cd relayers && make build && npm run evm1 && nc -lkp 2000 0.0.0.0"
           readinessProbe:
             periodSeconds: 1
             failureThreshold: 300
