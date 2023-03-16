@@ -105,11 +105,13 @@ type (
 
 	// BodyCircleIntegrationUpdateWormholeFinality is a governance message to update the wormhole finality for Circle Integration.
 	BodyCircleIntegrationUpdateWormholeFinality struct {
-		Finality uint8
+		TargetChainID ChainID
+		Finality      uint8
 	}
 
 	// BodyCircleIntegrationRegisterEmitterAndDomain is a governance message to register an emitter and domain for Circle Integration.
 	BodyCircleIntegrationRegisterEmitterAndDomain struct {
+		TargetChainID         ChainID
 		ForeignEmitterChainId ChainID
 		ForeignEmitterAddress [32]byte
 		CircleDomain          uint32
@@ -117,6 +119,7 @@ type (
 
 	// BodyCircleIntegrationUpgradeContractImplementation is a governance message to upgrade the contract implementation for Circle Integration.
 	BodyCircleIntegrationUpgradeContractImplementation struct {
+		TargetChainID            ChainID
 		NewImplementationAddress [32]byte
 	}
 )
@@ -203,7 +206,7 @@ func (r BodyWormchainMigrateContract) Serialize() []byte {
 }
 
 func (r BodyCircleIntegrationUpdateWormholeFinality) Serialize() []byte {
-	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionUpdateWormholeFinality, 0, []byte{r.Finality})
+	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionUpdateWormholeFinality, r.TargetChainID, []byte{r.Finality})
 }
 
 func (r BodyCircleIntegrationRegisterEmitterAndDomain) Serialize() []byte {
@@ -211,13 +214,13 @@ func (r BodyCircleIntegrationRegisterEmitterAndDomain) Serialize() []byte {
 	MustWrite(payload, binary.BigEndian, r.ForeignEmitterChainId)
 	payload.Write(r.ForeignEmitterAddress[:])
 	MustWrite(payload, binary.BigEndian, r.CircleDomain)
-	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionRegisterEmitterAndDomain, 0, payload.Bytes())
+	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionRegisterEmitterAndDomain, r.TargetChainID, payload.Bytes())
 }
 
 func (r BodyCircleIntegrationUpgradeContractImplementation) Serialize() []byte {
 	payload := &bytes.Buffer{}
 	payload.Write(r.NewImplementationAddress[:])
-	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionUpgradeContractImplementation, 0, payload.Bytes())
+	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionUpgradeContractImplementation, r.TargetChainID, payload.Bytes())
 }
 
 func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chainId ChainID, payload []byte) []byte {

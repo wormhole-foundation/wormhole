@@ -221,16 +221,19 @@ message WormchainMigrateContract {
 
 message CircleIntegrationUpdateWormholeFinality {
   uint32 finality = 1;
+  uint32 target_chain_id = 2;
 }
 
 message CircleIntegrationRegisterEmitterAndDomain {
   uint32 foreign_emitter_chain_id = 1;
   string foreign_emitter_address = 2;
   uint32 circle_domain = 3;
+  uint32 target_chain_id = 4;
 }
 
 message CircleIntegrationUpgradeContractImplementation {
   string new_implementation_address = 1;
+  uint32 target_chain_id = 2;
 }
 
 message FindMissingMessagesRequest {
