@@ -14,10 +14,11 @@ export const publishPackage = async (
   provider: JsonRpcProvider,
   network: Network,
   packagePath: string,
-  namedAddresses?: { [key: string]: string }
+  namedAddresses: { [key: string]: string }
 ) => {
-  console.log(`Network:      ${network}`);
-  console.log(`Package path: ${packagePath}`);
+  console.log("Network:         ", network);
+  console.log("Package path:    ", packagePath);
+  console.log("Named addresses: ", JSON.stringify(namedAddresses, null, 2));
 
   try {
     setupToml(packagePath, network, namedAddresses);
