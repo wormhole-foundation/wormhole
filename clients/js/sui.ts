@@ -1,4 +1,9 @@
-import { Ed25519Keypair, JsonRpcProvider, RawSigner } from "@mysten/sui.js";
+import {
+  Connection,
+  Ed25519Keypair,
+  JsonRpcProvider,
+  RawSigner,
+} from "@mysten/sui.js";
 import { execSync } from "child_process";
 import fs from "fs";
 import { resolve } from "path";
@@ -34,13 +39,20 @@ export const publishPackage = async (
       gasBudget: 1000000,
     });
 
-    // todo(aki): only output useful info and log to file
-    console.log("publishTxn", JSON.stringify(publishTx, null, 2));
+    // Dump deployment info to console
     console.log(
-      "effects: ",
-      JSON.stringify(publishTx["effects"]["effects"]),
-      null,
-      2
+      "Transaction digest: ",
+      publishTx["certificate"]["transactionDigest"]
+    );
+    console.log(
+      "Deployer:           ",
+      publishTx["certificate"]["data"]["sender"]
+    );
+    console.log(
+      "Deployed to:        ",
+      publishTx["effects"]["effects"]["created"].find(
+        (o) => o.owner === "Immutable"
+      )["reference"]["objectId"]
     );
   } catch (e) {
     throw e;
@@ -62,7 +74,7 @@ export const getProvider = (
     throw new Error(`No default RPC found for Sui ${network}`);
   }
 
-  return new JsonRpcProvider(rpc);
+  return new JsonRpcProvider(new Connection({ fullnode: rpc }));
 };
 
 export const getSigner = (
@@ -75,7 +87,7 @@ export const getSigner = (
   }
 
   const bytes = new Uint8Array(Buffer.from(privateKey, "base64"));
-  const keypair = Ed25519Keypair.fromSeed(bytes.slice(1));
+  const keypair = Ed25519Keypair.fromSecretKey(bytes.slice(1));
   return new RawSigner(keypair, provider);
 };
 
@@ -117,8 +129,6 @@ const setupToml = (
   const defaultTomlPath = getDefaultTomlPath(packagePath);
   const tempTomlPath = getTempTomlPath(packagePath);
 
-  console.log({ defaultTomlPath, tempTomlPath });
-
   if (fs.existsSync(tempTomlPath)) {
     // It's possible that this dependency has been set up by another package
     if (isDependency) {
@@ -139,7 +149,6 @@ const setupToml = (
 
   // Set Move.toml from appropriate network
   const srcTomlPath = getTomlPathByNetwork(packagePath, network);
-  console.log({ srcTomlPath });
   if (!fs.existsSync(srcTomlPath)) {
     throw new Error(`Move.toml for ${network} not found at ${srcTomlPath}`);
   }
