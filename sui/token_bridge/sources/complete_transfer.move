@@ -169,16 +169,11 @@ module token_bridge::complete_transfer {
 
 #[test_only]
 module token_bridge::complete_transfer_test {
-    use std::bcs::{Self};
-
     use sui::test_scenario::{Self, Scenario, next_tx, return_shared,
         take_shared, ctx, take_from_address, return_to_address};
     use sui::coin::{Self, Coin, CoinMetadata};
 
-    use wormhole::external_address::{Self};
 
-    use token_bridge::normalized_amount::{Self};
-    use token_bridge::transfer::{Self};
     use token_bridge::state::{Self, State};
     use token_bridge::wrapped_coin_12_decimals::{Self, WRAPPED_COIN_12_DECIMALS};
     use token_bridge::wrapped_coin_12_decimals_test::{test_register_wrapped_};
@@ -188,7 +183,7 @@ module token_bridge::complete_transfer_test {
     use token_bridge::bridge_state_test::{set_up_wormhole_core_and_token_bridges};
     use token_bridge::register_chain::{Self};
 
-    use wormhole::state::{Self as wormhole_state, State as WormholeState};
+    use wormhole::state::{State as WormholeState};
 
     fun scenario(): Scenario { test_scenario::begin(@0x123233) }
     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
@@ -216,7 +211,7 @@ module token_bridge::complete_transfer_test {
 
     #[test]
     /// An end-to-end test for complete transer native with VAA.
-    fun test_complete_native_transfer(){
+    fun test_complete_native_transfer_10_decimals(){
         {
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
@@ -290,106 +285,13 @@ module token_bridge::complete_transfer_test {
     }
 
     #[test]
-    /// Test that we can complete the transfer of a native token with 10 decimals
-    /// and test that rounding occurs.
-    fun test_complete_native_transfer_internal_10_decimals(){
+    /// An end-to-end test for complete transer native with VAA.
+    fun test_complete_native_transfer_4_decimals(){
+        {
         let (admin, fee_recipient_person, _) = people();
         let test = scenario();
         test = set_up_wormhole_core_and_token_bridges(admin, test);
         // Create coin.
-        next_tx(&mut test, admin);{
-            native_coin_10_decimals::test_init(ctx(&mut test));
-        };
-        // Register eth token bridge (where transfer VAA will originate from)
-        next_tx(&mut test, admin); {
-            let wormhole_state = take_shared<WormholeState>(&test);
-            let bridge_state = take_shared<State>(&test);
-            register_chain::submit_vaa(&mut wormhole_state, &mut bridge_state, ETHEREUM_TOKEN_REG, ctx(&mut test));
-            return_shared<WormholeState>(wormhole_state);
-            return_shared<State>(bridge_state);
-        };
-        // Register native asset type with the token bridge.
-        next_tx(&mut test, admin);{
-            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_10_DECIMALS>>(&test);
-            let bridge_state = take_shared<State>(&test);
-            let worm_state = take_shared<WormholeState>(&test);
-            state::register_native_asset<NATIVE_COIN_10_DECIMALS>(
-                &mut bridge_state,
-                &coin_meta,
-            );
-            native_coin_10_decimals::test_init(ctx(&mut test));
-            return_shared<CoinMetadata<NATIVE_COIN_10_DECIMALS>>(coin_meta);
-            return_shared<State>(bridge_state);
-            return_shared<WormholeState>(worm_state);
-        };
-        // Create a treasury cap for the native asset type, mint some tokens,
-        // and deposit the native tokens into the token bridge.
-        next_tx(&mut test, admin); {
-            let bridge_state = take_shared<State>(&test);
-            let worm_state = take_shared<WormholeState>(&test);
-            let t_cap = take_shared<coin::TreasuryCap<NATIVE_COIN_10_DECIMALS>>(&test);
-            let coins = coin::mint<NATIVE_COIN_10_DECIMALS>(&mut t_cap, 10000000000, ctx(&mut test));
-            state::deposit<NATIVE_COIN_10_DECIMALS>(&mut bridge_state, coins);
-            return_shared<coin::TreasuryCap<NATIVE_COIN_10_DECIMALS>>(t_cap);
-            return_shared<State>(bridge_state);
-            return_shared<WormholeState>(worm_state);
-        };
-        // Complete transfer, sending native tokens to a recipient address.
-        next_tx(&mut test, admin); {
-            let bridge_state = take_shared<State>(&test);
-            let worm_state = take_shared<WormholeState>(&test);
-
-            let to = admin;
-            // Dust at the end gets rounded to nothing, since 10-8=2 digits
-            // are lopped off.
-            let amount = 1000000079;
-            let fee_amount = 100000000;
-            let decimals = 10;
-            let token_address = external_address::from_bytes(x"01");
-            let token_chain = wormhole_state::chain_id();
-            let to_chain = wormhole_state::chain_id();
-
-            let my_transfer = transfer::new(
-                normalized_amount::from_raw(amount, decimals),
-                token_address,
-                token_chain,
-                external_address::from_bytes(bcs::to_bytes(&to)),
-                to_chain,
-                normalized_amount::from_raw(fee_amount, decimals),
-            );
-
-            complete_transfer::complete_transfer_test_only<NATIVE_COIN_10_DECIMALS>(
-                &mut bridge_state,
-                &mut worm_state,
-                my_transfer,
-                fee_recipient_person,
-                ctx(&mut test)
-            );
-            return_shared<State>(bridge_state);
-            return_shared<WormholeState>(worm_state);
-        };
-
-        // Check balances after.
-        next_tx(&mut test, admin);{
-            let coins = take_from_address<Coin<NATIVE_COIN_10_DECIMALS>>(&test, admin);
-            assert!(coin::value<NATIVE_COIN_10_DECIMALS>(&coins) == 900000000, 0);
-            return_to_address<Coin<NATIVE_COIN_10_DECIMALS>>(admin, coins);
-
-            let fee_coins = take_from_address<Coin<NATIVE_COIN_10_DECIMALS>>(&test, fee_recipient_person);
-            assert!(coin::value<NATIVE_COIN_10_DECIMALS>(&fee_coins) == 100000000, 0);
-            return_to_address<Coin<NATIVE_COIN_10_DECIMALS>>(fee_recipient_person, fee_coins);
-        };
-        test_scenario::end(test);
-    }
-
-    #[test]
-    /// A test for the internal function handle_complete_transfer.
-    /// Test that we can complete the transfer of a native token with 4 decimals.
-    /// This is an internal handler test, so it bypasses the use of a VAA.
-    fun test_complete_native_transfer_internal_4_decimals(){
-        let (admin, fee_recipient_person, _) = people();
-        let test = scenario();
-        test = set_up_wormhole_core_and_token_bridges(admin, test);
         next_tx(&mut test, admin);{
             native_coin_4_decimals::test_init(ctx(&mut test));
         };
@@ -403,16 +305,16 @@ module token_bridge::complete_transfer_test {
         };
         // Register native asset type with the token bridge.
         next_tx(&mut test, admin);{
-            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_4_DECIMALS>>(&test);
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
+            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_4_DECIMALS>>(&test);
             state::register_native_asset<NATIVE_COIN_4_DECIMALS>(
                 &mut bridge_state,
                 &coin_meta,
             );
-            return_shared<CoinMetadata<NATIVE_COIN_4_DECIMALS>>(coin_meta);
             return_shared<State>(bridge_state);
             return_shared<WormholeState>(worm_state);
+            return_shared<CoinMetadata<NATIVE_COIN_4_DECIMALS>>(coin_meta);
         };
         // Create a treasury cap for the native asset type, mint some tokens,
         // and deposit the native tokens into the token bridge.
@@ -426,32 +328,16 @@ module token_bridge::complete_transfer_test {
             return_shared<State>(bridge_state);
             return_shared<WormholeState>(worm_state);
         };
+
         // Complete transfer, sending native tokens to a recipient address.
         next_tx(&mut test, admin); {
             let bridge_state = take_shared<State>(&test);
             let worm_state = take_shared<WormholeState>(&test);
 
-            let to = admin;
-            let amount = 100;
-            let fee_amount = 40;
-            let decimals = 4;
-            let token_address = external_address::from_bytes(x"01");
-            let token_chain = wormhole_state::chain_id();
-            let to_chain = wormhole_state::chain_id();
-
-            let my_transfer = transfer::new(
-                normalized_amount::from_raw(amount, decimals),
-                token_address,
-                token_chain,
-                external_address::from_bytes(bcs::to_bytes(&to)),
-                to_chain,
-                normalized_amount::from_raw(fee_amount, decimals),
-            );
-
-            complete_transfer::complete_transfer_test_only<NATIVE_COIN_4_DECIMALS>(
+            complete_transfer::complete_transfer<NATIVE_COIN_4_DECIMALS>(
                 &mut bridge_state,
                 &mut worm_state,
-                my_transfer,
+                VAA_NATIVE_TRANSFER,
                 fee_recipient_person,
                 ctx(&mut test)
             );
@@ -459,17 +345,18 @@ module token_bridge::complete_transfer_test {
             return_shared<WormholeState>(worm_state);
         };
 
-        // check balances after
+        // Check balances after.
         next_tx(&mut test, admin);{
             let coins = take_from_address<Coin<NATIVE_COIN_4_DECIMALS>>(&test, admin);
-            assert!(coin::value<NATIVE_COIN_4_DECIMALS>(&coins) == 60, 0);
+            assert!(coin::value<NATIVE_COIN_4_DECIMALS>(&coins) == 2000, 0);
             return_to_address<Coin<NATIVE_COIN_4_DECIMALS>>(admin, coins);
 
             let fee_coins = take_from_address<Coin<NATIVE_COIN_4_DECIMALS>>(&test, fee_recipient_person);
-            assert!(coin::value<NATIVE_COIN_4_DECIMALS>(&fee_coins) == 40, 0);
+            assert!(coin::value<NATIVE_COIN_4_DECIMALS>(&fee_coins) == 1000, 0);
             return_to_address<Coin<NATIVE_COIN_4_DECIMALS>>(fee_recipient_person, fee_coins);
         };
         test_scenario::end(test);
+    }
     }
 
     #[test]
