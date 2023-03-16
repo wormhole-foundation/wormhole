@@ -524,18 +524,38 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				return nil
 			case ev := <-messageC:
 				// Request timestamp for block
-				msm := time.Now()
-				timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
-				blockTime, err := w.ethConn.TimeOfBlockByHash(timeout, ev.Raw.BlockHash)
-				cancel()
-				queryLatency.WithLabelValues(w.networkName, "block_by_number").Observe(time.Since(msm).Seconds())
-
+				blockTime, err := w.getBlockTime(ctx, ev.Raw.BlockHash)
 				if err != nil {
-					ethConnectionErrors.WithLabelValues(w.networkName, "block_by_number_error").Inc()
-					p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-					errC <- fmt.Errorf("failed to request timestamp for block %d, hash %s: %w",
-						ev.Raw.BlockNumber, ev.Raw.BlockHash.String(), err)
-					return nil
+					// Don't exit immediately on this error. It is possible that the query failed because some chains (Moonbeam?) seem to sometimes publish messages
+					// before the block is available for querying. We'll try again before publishing.
+					logger.Error("failed to query block time, will try again before publishing",
+						zap.Stringer("tx", ev.Raw.TxHash),
+						zap.Uint64("block", ev.Raw.BlockNumber),
+						zap.Stringer("blockhash", ev.Raw.BlockHash),
+						zap.Uint64("Sequence", ev.Sequence),
+						zap.Uint32("Nonce", ev.Nonce),
+						zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
+						zap.String("eth_network", w.networkName),
+						zap.Error(err),
+					)
+
+					if ev.ConsistencyLevel == vaa.ConsistencyLevelPublishImmediately {
+						// Sleep a bit and try once more before exiting.
+						time.Sleep(5 * time.Second)
+						blockTime, err = w.getBlockTime(ctx, ev.Raw.BlockHash)
+						if err != nil {
+							if err != nil {
+								ethConnectionErrors.WithLabelValues(w.networkName, "block_by_number_error").Inc()
+								p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+								errC <- fmt.Errorf("failed to request timestamp for block %d, hash %s: %w",
+									ev.Raw.BlockNumber, ev.Raw.BlockHash.String(), err)
+								return nil
+							}
+						}
+					} else {
+						// Set the time to zero which will be a signal that we need to try the query again right before publishing.
+						blockTime = 0
+					}
 				}
 
 				message := &common.MessagePublication{
@@ -763,6 +783,23 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							continue
 						}
 
+						if pLock.message.Timestamp.Unix() == 0 {
+							// We failed to query the block time the first time around. Try again now.
+							blockTime, err := w.getBlockTime(ctx, key.BlockHash)
+							if err != nil {
+								if err != nil {
+									ethConnectionErrors.WithLabelValues(w.networkName, "block_by_number_error").Inc()
+									p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+									errC <- fmt.Errorf("failed to request timestamp for block a second time, block %s, hash %s: %w",
+										ev.Number.String(), key.BlockHash.String(), err)
+									return nil
+								}
+							}
+
+							logger.Info("second attempt to query block time succeeded", zap.Stringer("tx", pLock.message.TxHash), zap.Uint64("blockTime", blockTime))
+							pLock.message.Timestamp = time.Unix(int64(blockTime), 0)
+						}
+
 						logger.Info("observation confirmed",
 							zap.Stringer("tx", pLock.message.TxHash),
 							zap.Stringer("blockhash", key.BlockHash),
@@ -926,4 +963,19 @@ func (w *Watcher) SetWaitForConfirmations(waitForConfirmations bool) {
 // SetMaxWaitConfirmations is used to override the maximum number of confirmations to wait before declaring a transaction abandoned.
 func (w *Watcher) SetMaxWaitConfirmations(maxWaitConfirmations uint64) {
 	w.maxWaitConfirmations = maxWaitConfirmations
+}
+
+// getBlockTime calls TimeOfBlockByHash to get the time of a block. It uses a timeout and updates metrics.
+func (w *Watcher) getBlockTime(ctx context.Context, blockHash eth_common.Hash) (uint64, error) {
+	msm := time.Now()
+	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+	blockTime, err := w.ethConn.TimeOfBlockByHash(timeout, blockHash)
+	queryLatency.WithLabelValues(w.networkName, "block_by_number").Observe(time.Since(msm).Seconds())
+	cancel()
+	if err != nil {
+		ethConnectionErrors.WithLabelValues(w.networkName, "block_by_number_error").Inc()
+		p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+	}
+
+	return blockTime, err
 }
