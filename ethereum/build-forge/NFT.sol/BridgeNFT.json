@@ -1,0 +1,485 @@
+{
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "beacon",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes",
+          "name": "data",
+          "type": "bytes"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "previousAdmin",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "newAdmin",
+          "type": "address"
+        }
+      ],
+      "name": "AdminChanged",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "beacon",
+          "type": "address"
+        }
+      ],
+      "name": "BeaconUpgraded",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "implementation",
+          "type": "address"
+        }
+      ],
+      "name": "Upgraded",
+      "type": "event"
+    },
+    {
+      "stateMutability": "payable",
+      "type": "fallback"
+    },
+    {
+      "stateMutability": "payable",
+      "type": "receive"
+    }
+  ],
+  "bytecode": {
+    "object": "0x608060405234801561001057600080fd5b5060405161074538038061074583398101604081905261002f91610442565b818161005c60017fa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d51610502565b6000805160206106fe8339815191521461007857610078610523565b6100848282600061008d565b505050506105a3565b6100968361014e565b6040516001600160a01b038416907f1cf3b03a6cf19fa2baba4df148e9dcabedea7f8a5c07840e207e5c089be95d3e90600090a26000825111806100d75750805b1561014957610147836001600160a01b0316635c60da1b6040518163ffffffff1660e01b8152600401602060405180830381865afa15801561011d573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906101419190610539565b836102ae565b505b505050565b803b6101af5760405162461bcd60e51b815260206004820152602560248201527f455243313936373a206e657720626561636f6e206973206e6f74206120636f6e6044820152641d1c9858dd60da1b60648201526084015b60405180910390fd5b61021a816001600160a01b0316635c60da1b6040518163ffffffff1660e01b8152600401602060405180830381865afa1580156101f0573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906102149190610539565b3b151590565b61027f5760405162461bcd60e51b815260206004820152603060248201527f455243313936373a20626561636f6e20696d706c656d656e746174696f6e206960448201526f1cc81b9bdd08184818dbdb9d1c9858dd60821b60648201526084016101a6565b6000805160206106fe83398151915280546001600160a01b0319166001600160a01b0392909216919091179055565b60606102d3838360405180606001604052806027815260200161071e602791396102dc565b90505b92915050565b6060833b61033b5760405162461bcd60e51b815260206004820152602660248201527f416464726573733a2064656c65676174652063616c6c20746f206e6f6e2d636f6044820152651b9d1c9858dd60d21b60648201526084016101a6565b600080856001600160a01b0316856040516103569190610554565b600060405180830381855af49150503d8060008114610391576040519150601f19603f3d011682016040523d82523d6000602084013e610396565b606091505b5090925090506103a78282866103b3565b925050505b9392505050565b606083156103c25750816103ac565b8251156103d25782518084602001fd5b8160405162461bcd60e51b81526004016101a69190610570565b80516001600160a01b038116811461040357600080fd5b919050565b634e487b7160e01b600052604160045260246000fd5b60005b83811015610439578181015183820152602001610421565b50506000910152565b6000806040838503121561045557600080fd5b61045e836103ec565b60208401519092506001600160401b038082111561047b57600080fd5b818501915085601f83011261048f57600080fd5b8151818111156104a1576104a1610408565b604051601f8201601f19908116603f011681019083821181831017156104c9576104c9610408565b816040528281528860208487010111156104e257600080fd5b6104f383602083016020880161041e565b80955050505050509250929050565b818103818111156102d657634e487b7160e01b600052601160045260246000fd5b634e487b7160e01b600052600160045260246000fd5b60006020828403121561054b57600080fd5b6102d3826103ec565b6000825161056681846020870161041e565b9190910192915050565b602081526000825180602084015261058f81604085016020870161041e565b601f01601f19169190910160400192915050565b61014c806105b26000396000f3fe60806040523661001357610011610017565b005b6100115b610027610022610029565b6100c2565b565b600061005c7fa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50546001600160a01b031690565b6001600160a01b0316635c60da1b6040518163ffffffff1660e01b8152600401602060405180830381865afa158015610099573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906100bd91906100e6565b905090565b3660008037600080366000845af43d6000803e8080156100e1573d6000f35b3d6000fd5b6000602082840312156100f857600080fd5b81516001600160a01b038116811461010f57600080fd5b939250505056fea26469706673582212201eb9b2aded96f70ed4d0a5fb3cbab0c97edfa90c8635e7d32f7472db5f5e588464736f6c63430008130033a3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50416464726573733a206c6f772d6c6576656c2064656c65676174652063616c6c206661696c6564",
+    "sourceMap": "151:123:61:-:0;;;191:81;;;;;;;;;;;;;;;;;;;;;;;;;;;;:::i;:::-;250:6;258:4;1078:46:105;1123:1;1086:33;1078:46;:::i;:::-;-1:-1:-1;;;;;;;;;;;1054:71:105;1047:79;;;;:::i;:::-;1136:44;1160:6;1168:4;1174:5;1136:23;:44::i;:::-;982:205;;191:81:61;;151:123;;6319:343:103;6455:21;6466:9;6455:10;:21::i;:::-;6491:25;;-1:-1:-1;;;;;6491:25:103;;;;;;;;6544:1;6530:4;:11;:15;:28;;;;6549:9;6530:28;6526:130;;;6574:71;6611:9;-1:-1:-1;;;;;6603:33:103;;:35;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;:::i;:::-;6640:4;6574:28;:71::i;:::-;;6526:130;6319:343;;;:::o;5645:371::-;1034:20:115;;5702:79:103;;;;-1:-1:-1;;;5702:79:103;;2346:2:124;5702:79:103;;;2328:21:124;2385:2;2365:18;;;2358:30;2424:34;2404:18;;;2397:62;-1:-1:-1;;;2475:18:124;;;2468:35;2520:19;;5702:79:103;;;;;;;;;5812:55;5839:9;-1:-1:-1;;;;;5831:33:103;;:35;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;:::i;:::-;1034:20:115;1080:8;;;718:377;5812:55:103;5791:150;;;;-1:-1:-1;;;5791:150:103;;2752:2:124;5791:150:103;;;2734:21:124;2791:2;2771:18;;;2764:30;2830:34;2810:18;;;2803:62;-1:-1:-1;;;2881:18:124;;;2874:46;2937:19;;5791:150:103;2550:412:124;5791:150:103;-1:-1:-1;;;;;;;;;;;5951:58:103;;-1:-1:-1;;;;;;5951:58:103;-1:-1:-1;;;;;5951:58:103;;;;;;;;;;5645:371::o;6170:198:115:-;6253:12;6284:77;6305:6;6313:4;6284:77;;;;;;;;;;;;;;;;;:20;:77::i;:::-;6277:84;;6170:198;;;;;:::o;6554:387::-;6695:12;1034:20;;6719:69;;;;-1:-1:-1;;;6719:69:115;;3169:2:124;6719:69:115;;;3151:21:124;3208:2;3188:18;;;3181:30;3247:34;3227:18;;;3220:62;-1:-1:-1;;;3298:18:124;;;3291:36;3344:19;;6719:69:115;2967:402:124;6719:69:115;6800:12;6814:23;6841:6;-1:-1:-1;;;;;6841:19:115;6861:4;6841:25;;;;;;:::i;:::-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;-1:-1:-1;6799:67:115;;-1:-1:-1;6799:67:115;-1:-1:-1;6883:51:115;6799:67;;6921:12;6883:16;:51::i;:::-;6876:58;;;;6554:387;;;;;;:::o;7161:692::-;7307:12;7335:7;7331:516;;;-1:-1:-1;7365:10:115;7358:17;;7331:516;7476:17;;:21;7472:365;;7670:10;7664:17;7730:15;7717:10;7713:2;7709:19;7702:44;7472:365;7809:12;7802:20;;-1:-1:-1;;;7802:20:115;;;;;;;;:::i;14:177:124:-;93:13;;-1:-1:-1;;;;;135:31:124;;125:42;;115:70;;181:1;178;171:12;115:70;14:177;;;:::o;196:127::-;257:10;252:3;248:20;245:1;238:31;288:4;285:1;278:15;312:4;309:1;302:15;328:250;413:1;423:113;437:6;434:1;431:13;423:113;;;513:11;;;507:18;494:11;;;487:39;459:2;452:10;423:113;;;-1:-1:-1;;570:1:124;552:16;;545:27;328:250::o;583:981::-;671:6;679;732:2;720:9;711:7;707:23;703:32;700:52;;;748:1;745;738:12;700:52;771:40;801:9;771:40;:::i;:::-;855:2;840:18;;834:25;761:50;;-1:-1:-1;;;;;;908:14:124;;;905:34;;;935:1;932;925:12;905:34;973:6;962:9;958:22;948:32;;1018:7;1011:4;1007:2;1003:13;999:27;989:55;;1040:1;1037;1030:12;989:55;1069:2;1063:9;1091:2;1087;1084:10;1081:36;;;1097:18;;:::i;:::-;1172:2;1166:9;1140:2;1226:13;;-1:-1:-1;;1222:22:124;;;1246:2;1218:31;1214:40;1202:53;;;1270:18;;;1290:22;;;1267:46;1264:72;;;1316:18;;:::i;:::-;1356:10;1352:2;1345:22;1391:2;1383:6;1376:18;1431:7;1426:2;1421;1417;1413:11;1409:20;1406:33;1403:53;;;1452:1;1449;1442:12;1403:53;1465:68;1530:2;1525;1517:6;1513:15;1508:2;1504;1500:11;1465:68;:::i;:::-;1552:6;1542:16;;;;;;;583:981;;;;;:::o;1569:225::-;1636:9;;;1657:11;;;1654:134;;;1710:10;1705:3;1701:20;1698:1;1691:31;1745:4;1742:1;1735:15;1773:4;1770:1;1763:15;1799:127;1860:10;1855:3;1851:20;1848:1;1841:31;1891:4;1888:1;1881:15;1915:4;1912:1;1905:15;1931:208;2001:6;2054:2;2042:9;2033:7;2029:23;2025:32;2022:52;;;2070:1;2067;2060:12;2022:52;2093:40;2123:9;2093:40;:::i;3374:287::-;3503:3;3541:6;3535:13;3557:66;3616:6;3611:3;3604:4;3596:6;3592:17;3557:66;:::i;:::-;3639:16;;;;;3374:287;-1:-1:-1;;3374:287:124:o;3666:396::-;3815:2;3804:9;3797:21;3778:4;3847:6;3841:13;3890:6;3885:2;3874:9;3870:18;3863:34;3906:79;3978:6;3973:2;3962:9;3958:18;3953:2;3945:6;3941:15;3906:79;:::i;:::-;4046:2;4025:15;-1:-1:-1;;4021:29:124;4006:45;;;;4053:2;4002:54;;3666:396;-1:-1:-1;;3666:396:124:o;:::-;151:123:61;;;;;;",
+    "linkReferences": {}
+  },
+  "deployedBytecode": {
+    "object": "0x60806040523661001357610011610017565b005b6100115b610027610022610029565b6100c2565b565b600061005c7fa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50546001600160a01b031690565b6001600160a01b0316635c60da1b6040518163ffffffff1660e01b8152600401602060405180830381865afa158015610099573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906100bd91906100e6565b905090565b3660008037600080366000845af43d6000803e8080156100e1573d6000f35b3d6000fd5b6000602082840312156100f857600080fd5b81516001600160a01b038116811461010f57600080fd5b939250505056fea26469706673582212201eb9b2aded96f70ed4d0a5fb3cbab0c97edfa90c8635e7d32f7472db5f5e588464736f6c63430008130033",
+    "sourceMap": "151:123:61:-:0;;;;;;2833:11:104;:9;:11::i;:::-;151:123:61;;2610:11:104;2257:110;2332:28;2342:17;:15;:17::i;:::-;2332:9;:28::i;:::-;2257:110::o;1455:138:105:-;1522:7;1556:12;5194:66:103;5510:46;-1:-1:-1;;;;;5510:46:103;;5439:124;1556:12:105;-1:-1:-1;;;;;1548:36:105;;:38;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;:::i;:::-;1541:45;;1455:138;:::o;883:895:104:-;1221:14;1218:1;1215;1202:34;1435:1;1432;1416:14;1413:1;1397:14;1390:5;1377:60;1511:16;1508:1;1505;1490:38;1549:6;1616:66;;;;1731:16;1728:1;1721:27;1616:66;1651:16;1648:1;1641:27;14:290:124;84:6;137:2;125:9;116:7;112:23;108:32;105:52;;;153:1;150;143:12;105:52;179:16;;-1:-1:-1;;;;;224:31:124;;214:42;;204:70;;270:1;267;260:12;204:70;293:5;14:290;-1:-1:-1;;;14:290:124:o",
+    "linkReferences": {}
+  },
+  "methodIdentifiers": {},
+  "rawMetadata": "{\"compiler\":{\"version\":\"0.8.19+commit.7dd6d404\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"beacon\",\"type\":\"address\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"previousAdmin\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"address\",\"name\":\"newAdmin\",\"type\":\"address\"}],\"name\":\"AdminChanged\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"beacon\",\"type\":\"address\"}],\"name\":\"BeaconUpgraded\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"implementation\",\"type\":\"address\"}],\"name\":\"Upgraded\",\"type\":\"event\"},{\"stateMutability\":\"payable\",\"type\":\"fallback\"},{\"stateMutability\":\"payable\",\"type\":\"receive\"}],\"devdoc\":{\"events\":{\"AdminChanged(address,address)\":{\"details\":\"Emitted when the admin account has changed.\"},\"BeaconUpgraded(address)\":{\"details\":\"Emitted when the beacon is upgraded.\"},\"Upgraded(address)\":{\"details\":\"Emitted when the implementation is upgraded.\"}},\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/nft/token/NFT.sol\":\"BridgeNFT\"},\"evmVersion\":\"london\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[\":@openzeppelin/=node_modules/@openzeppelin/\",\":@solidity-parser/=node_modules/@solidity-parser/\",\":ds-test/=lib/forge-std/lib/ds-test/src/\",\":forge-std/=lib/forge-std/src/\",\":truffle/=node_modules/truffle/\"]},\"sources\":{\"contracts/nft/token/NFT.sol\":{\"keccak256\":\"0xd7fd7dd0f7a3c00fcb16f06a45fe2d52daf8381b8f05b3f011b33f47e85c1f64\",\"license\":\"Apache 2\",\"urls\":[\"bzz-raw://657df867cd7554c73ad102dc24749d5c22772b5cbbf5c2ab3a7cd7f6b6027ac7\",\"dweb:/ipfs/QmZvtQDxGkWdusGivzYNt9neNsBcrkbKt82BR95oNLBYUE\"]},\"node_modules/@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol\":{\"keccak256\":\"0xcbccf806d646bd9e2594650917208245d45998b887d5fc914de424247f5f9f9d\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://c4b5f0125f6d8cfa940403990d54dd9921eb339bfdb011c11cb6a17088301ff1\",\"dweb:/ipfs/QmZXzn8XkJjKEyBy3zPqsssQJGqirhgipdGsjQBYMNArZ4\"]},\"node_modules/@openzeppelin/contracts/proxy/Proxy.sol\":{\"keccak256\":\"0x8ddea9f930f26e588ea606f44c90d2623560c908e38614a03a4ca78aea8f9202\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://2fdf3a59554497c50ed8f4ffccd4ebcf73e49e1324e81ec05128d54d1b73c293\",\"dweb:/ipfs/QmRZtNA2Lx58eAqTXb5DGWxCmH2vxGGuzG6KgBU5fgbzip\"]},\"node_modules/@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol\":{\"keccak256\":\"0x617614c3aaada8d7a901da2126a7407ae7e06b0410807f5c1b49cea9076199e9\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://92619e75338160854fe67592bdb4facf63303fa0c817bfddc6fd90df02557831\",\"dweb:/ipfs/QmRibp4sJayHoKeyuymBUy11zjgaoGz2hkt6Ejy9JUjCCR\"]},\"node_modules/@openzeppelin/contracts/proxy/beacon/IBeacon.sol\":{\"keccak256\":\"0x5615339d191e77be7e46319b67856f9355786f705b7b3c4a7237ab70c1864ab1\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://b7c6a52e49bd374890523443ac6e20fa0ca09ff8d65d5adbca6f2c8733758eea\",\"dweb:/ipfs/QmXXccov4bGGVqg6BwYc8QU9JwCNHmVYePj1ZYpgkxTbpF\"]},\"node_modules/@openzeppelin/contracts/utils/Address.sol\":{\"keccak256\":\"0x3336baae5cf23e94274d75336e2d412193be508504aee185e61dc7d58cd05c8a\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://39a05eec7083dfa0cc7e0cbfe6cd1bd085a340af1ede93fdff3ad047c5fb3d8e\",\"dweb:/ipfs/QmVApz5fCUq2QC8gKTsNNdCmcedJ3ETHp68zR5N3WUKS4r\"]},\"node_modules/@openzeppelin/contracts/utils/StorageSlot.sol\":{\"keccak256\":\"0x5d15d280d1f868f59a8264dc73f7ea8c51f10d78aac864b2f2ad29412d187ff5\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://d7c5c1fe2972d97dca1af03884c78315eb261bb486bacfadd04b0f440fdcfd6e\",\"dweb:/ipfs/QmTNTSdUSzUKWEeTH2A37RDXJ2Xf5jfTTpLuy1oudPPE8N\"]}},\"version\":1}",
+  "metadata": {
+    "compiler": {
+      "version": "0.8.19+commit.7dd6d404"
+    },
+    "language": "Solidity",
+    "output": {
+      "abi": [
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "beacon",
+              "type": "address"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "constructor"
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "previousAdmin",
+              "type": "address",
+              "indexed": false
+            },
+            {
+              "internalType": "address",
+              "name": "newAdmin",
+              "type": "address",
+              "indexed": false
+            }
+          ],
+          "type": "event",
+          "name": "AdminChanged",
+          "anonymous": false
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "beacon",
+              "type": "address",
+              "indexed": true
+            }
+          ],
+          "type": "event",
+          "name": "BeaconUpgraded",
+          "anonymous": false
+        },
+        {
+          "inputs": [
+            {
+              "internalType": "address",
+              "name": "implementation",
+              "type": "address",
+              "indexed": true
+            }
+          ],
+          "type": "event",
+          "name": "Upgraded",
+          "anonymous": false
+        },
+        {
+          "inputs": [],
+          "stateMutability": "payable",
+          "type": "fallback"
+        },
+        {
+          "inputs": [],
+          "stateMutability": "payable",
+          "type": "receive"
+        }
+      ],
+      "devdoc": {
+        "kind": "dev",
+        "methods": {},
+        "version": 1
+      },
+      "userdoc": {
+        "kind": "user",
+        "methods": {},
+        "version": 1
+      }
+    },
+    "settings": {
+      "remappings": [
+        ":@openzeppelin/=node_modules/@openzeppelin/",
+        ":@solidity-parser/=node_modules/@solidity-parser/",
+        ":ds-test/=lib/forge-std/lib/ds-test/src/",
+        ":forge-std/=lib/forge-std/src/",
+        ":truffle/=node_modules/truffle/"
+      ],
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "metadata": {
+        "bytecodeHash": "ipfs"
+      },
+      "compilationTarget": {
+        "contracts/nft/token/NFT.sol": "BridgeNFT"
+      },
+      "libraries": {}
+    },
+    "sources": {
+      "contracts/nft/token/NFT.sol": {
+        "keccak256": "0xd7fd7dd0f7a3c00fcb16f06a45fe2d52daf8381b8f05b3f011b33f47e85c1f64",
+        "urls": [
+          "bzz-raw://657df867cd7554c73ad102dc24749d5c22772b5cbbf5c2ab3a7cd7f6b6027ac7",
+          "dweb:/ipfs/QmZvtQDxGkWdusGivzYNt9neNsBcrkbKt82BR95oNLBYUE"
+        ],
+        "license": "Apache 2"
+      },
+      "node_modules/@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol": {
+        "keccak256": "0xcbccf806d646bd9e2594650917208245d45998b887d5fc914de424247f5f9f9d",
+        "urls": [
+          "bzz-raw://c4b5f0125f6d8cfa940403990d54dd9921eb339bfdb011c11cb6a17088301ff1",
+          "dweb:/ipfs/QmZXzn8XkJjKEyBy3zPqsssQJGqirhgipdGsjQBYMNArZ4"
+        ],
+        "license": "MIT"
+      },
+      "node_modules/@openzeppelin/contracts/proxy/Proxy.sol": {
+        "keccak256": "0x8ddea9f930f26e588ea606f44c90d2623560c908e38614a03a4ca78aea8f9202",
+        "urls": [
+          "bzz-raw://2fdf3a59554497c50ed8f4ffccd4ebcf73e49e1324e81ec05128d54d1b73c293",
+          "dweb:/ipfs/QmRZtNA2Lx58eAqTXb5DGWxCmH2vxGGuzG6KgBU5fgbzip"
+        ],
+        "license": "MIT"
+      },
+      "node_modules/@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol": {
+        "keccak256": "0x617614c3aaada8d7a901da2126a7407ae7e06b0410807f5c1b49cea9076199e9",
+        "urls": [
+          "bzz-raw://92619e75338160854fe67592bdb4facf63303fa0c817bfddc6fd90df02557831",
+          "dweb:/ipfs/QmRibp4sJayHoKeyuymBUy11zjgaoGz2hkt6Ejy9JUjCCR"
+        ],
+        "license": "MIT"
+      },
+      "node_modules/@openzeppelin/contracts/proxy/beacon/IBeacon.sol": {
+        "keccak256": "0x5615339d191e77be7e46319b67856f9355786f705b7b3c4a7237ab70c1864ab1",
+        "urls": [
+          "bzz-raw://b7c6a52e49bd374890523443ac6e20fa0ca09ff8d65d5adbca6f2c8733758eea",
+          "dweb:/ipfs/QmXXccov4bGGVqg6BwYc8QU9JwCNHmVYePj1ZYpgkxTbpF"
+        ],
+        "license": "MIT"
+      },
+      "node_modules/@openzeppelin/contracts/utils/Address.sol": {
+        "keccak256": "0x3336baae5cf23e94274d75336e2d412193be508504aee185e61dc7d58cd05c8a",
+        "urls": [
+          "bzz-raw://39a05eec7083dfa0cc7e0cbfe6cd1bd085a340af1ede93fdff3ad047c5fb3d8e",
+          "dweb:/ipfs/QmVApz5fCUq2QC8gKTsNNdCmcedJ3ETHp68zR5N3WUKS4r"
+        ],
+        "license": "MIT"
+      },
+      "node_modules/@openzeppelin/contracts/utils/StorageSlot.sol": {
+        "keccak256": "0x5d15d280d1f868f59a8264dc73f7ea8c51f10d78aac864b2f2ad29412d187ff5",
+        "urls": [
+          "bzz-raw://d7c5c1fe2972d97dca1af03884c78315eb261bb486bacfadd04b0f440fdcfd6e",
+          "dweb:/ipfs/QmTNTSdUSzUKWEeTH2A37RDXJ2Xf5jfTTpLuy1oudPPE8N"
+        ],
+        "license": "MIT"
+      }
+    },
+    "version": 1
+  },
+  "ast": {
+    "absolutePath": "contracts/nft/token/NFT.sol",
+    "id": 19572,
+    "exportedSymbols": {
+      "Address": [
+        69288
+      ],
+      "BeaconProxy": [
+        67907
+      ],
+      "BridgeNFT": [
+        19571
+      ],
+      "ERC1967Upgrade": [
+        67773
+      ],
+      "IBeacon": [
+        67917
+      ],
+      "Proxy": [
+        67825
+      ],
+      "StorageSlot": [
+        69555
+      ]
+    },
+    "nodeType": "SourceUnit",
+    "src": "63:211:61",
+    "nodes": [
+      {
+        "id": 19555,
+        "nodeType": "PragmaDirective",
+        "src": "63:23:61",
+        "nodes": [],
+        "literals": [
+          "solidity",
+          "^",
+          "0.8",
+          ".0"
+        ]
+      },
+      {
+        "id": 19556,
+        "nodeType": "ImportDirective",
+        "src": "87:62:61",
+        "nodes": [],
+        "absolutePath": "node_modules/@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol",
+        "file": "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol",
+        "nameLocation": "-1:-1:-1",
+        "scope": 19572,
+        "sourceUnit": 67908,
+        "symbolAliases": [],
+        "unitAlias": ""
+      },
+      {
+        "id": 19571,
+        "nodeType": "ContractDefinition",
+        "src": "151:123:61",
+        "nodes": [
+          {
+            "id": 19570,
+            "nodeType": "FunctionDefinition",
+            "src": "191:81:61",
+            "nodes": [],
+            "body": {
+              "id": 19569,
+              "nodeType": "Block",
+              "src": "264:8:61",
+              "nodes": [],
+              "statements": []
+            },
+            "implemented": true,
+            "kind": "constructor",
+            "modifiers": [
+              {
+                "arguments": [
+                  {
+                    "id": 19565,
+                    "name": "beacon",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 19560,
+                    "src": "250:6:61",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  {
+                    "id": 19566,
+                    "name": "data",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 19562,
+                    "src": "258:4:61",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bytes_memory_ptr",
+                      "typeString": "bytes memory"
+                    }
+                  }
+                ],
+                "id": 19567,
+                "kind": "baseConstructorSpecifier",
+                "modifierName": {
+                  "id": 19564,
+                  "name": "BeaconProxy",
+                  "nameLocations": [
+                    "238:11:61"
+                  ],
+                  "nodeType": "IdentifierPath",
+                  "referencedDeclaration": 67907,
+                  "src": "238:11:61"
+                },
+                "nodeType": "ModifierInvocation",
+                "src": "238:25:61"
+              }
+            ],
+            "name": "",
+            "nameLocation": "-1:-1:-1",
+            "parameters": {
+              "id": 19563,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 19560,
+                  "mutability": "mutable",
+                  "name": "beacon",
+                  "nameLocation": "211:6:61",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 19570,
+                  "src": "203:14:61",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 19559,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "203:7:61",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 19562,
+                  "mutability": "mutable",
+                  "name": "data",
+                  "nameLocation": "232:4:61",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 19570,
+                  "src": "219:17:61",
+                  "stateVariable": false,
+                  "storageLocation": "memory",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes_memory_ptr",
+                    "typeString": "bytes"
+                  },
+                  "typeName": {
+                    "id": 19561,
+                    "name": "bytes",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "219:5:61",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bytes_storage_ptr",
+                      "typeString": "bytes"
+                    }
+                  },
+                  "visibility": "internal"
+                }
+              ],
+              "src": "202:35:61"
+            },
+            "returnParameters": {
+              "id": 19568,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "264:0:61"
+            },
+            "scope": 19571,
+            "stateMutability": "nonpayable",
+            "virtual": false,
+            "visibility": "public"
+          }
+        ],
+        "abstract": false,
+        "baseContracts": [
+          {
+            "baseName": {
+              "id": 19557,
+              "name": "BeaconProxy",
+              "nameLocations": [
+                "173:11:61"
+              ],
+              "nodeType": "IdentifierPath",
+              "referencedDeclaration": 67907,
+              "src": "173:11:61"
+            },
+            "id": 19558,
+            "nodeType": "InheritanceSpecifier",
+            "src": "173:11:61"
+          }
+        ],
+        "canonicalName": "BridgeNFT",
+        "contractDependencies": [],
+        "contractKind": "contract",
+        "fullyImplemented": true,
+        "linearizedBaseContracts": [
+          19571,
+          67907,
+          67773,
+          67825
+        ],
+        "name": "BridgeNFT",
+        "nameLocation": "160:9:61",
+        "scope": 19572,
+        "usedErrors": []
+      }
+    ],
+    "license": "Apache 2"
+  },
+  "id": 61
+}

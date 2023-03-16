@@ -1,0 +1,1256 @@
+{
+  "abi": [],
+  "bytecode": {
+    "object": "0x6080604052348015600f57600080fd5b50603f80601d6000396000f3fe6080604052600080fdfea26469706673582212200eb4f2e46146add84b0401b208c4b7af29226413684d32ddae13b2eca74b7d9264736f6c63430008130033",
+    "sourceMap": "88:3343:20:-:0;;;;;;;;;;;;;;;;;;;",
+    "linkReferences": {}
+  },
+  "deployedBytecode": {
+    "object": "0x6080604052600080fdfea26469706673582212200eb4f2e46146add84b0401b208c4b7af29226413684d32ddae13b2eca74b7d9264736f6c63430008130033",
+    "sourceMap": "88:3343:20:-:0;;;;;",
+    "linkReferences": {}
+  },
+  "methodIdentifiers": {},
+  "rawMetadata": "{\"compiler\":{\"version\":\"0.8.19+commit.7dd6d404\"},\"language\":\"Solidity\",\"output\":{\"abi\":[],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/bridge/BridgeStructs.sol\":\"BridgeStructs\"},\"evmVersion\":\"london\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[\":@openzeppelin/=node_modules/@openzeppelin/\",\":@solidity-parser/=node_modules/@solidity-parser/\",\":ds-test/=lib/forge-std/lib/ds-test/src/\",\":forge-std/=lib/forge-std/src/\",\":truffle/=node_modules/truffle/\"]},\"sources\":{\"contracts/bridge/BridgeStructs.sol\":{\"keccak256\":\"0x04a96ffde0bb54bcd6e28b77eb96ab8aa910761e5c84796bcd875d606e8dcf56\",\"license\":\"Apache 2\",\"urls\":[\"bzz-raw://95f4f00fcaeb0879b9df203446e5d8140ce20cf6f99881a73bdda15831e561be\",\"dweb:/ipfs/QmNxYubia69TV8wr3DTHQ8PHSjE4P6GqBM9jTp3NgsB31o\"]}},\"version\":1}",
+  "metadata": {
+    "compiler": {
+      "version": "0.8.19+commit.7dd6d404"
+    },
+    "language": "Solidity",
+    "output": {
+      "abi": [],
+      "devdoc": {
+        "kind": "dev",
+        "methods": {},
+        "version": 1
+      },
+      "userdoc": {
+        "kind": "user",
+        "methods": {},
+        "version": 1
+      }
+    },
+    "settings": {
+      "remappings": [
+        ":@openzeppelin/=node_modules/@openzeppelin/",
+        ":@solidity-parser/=node_modules/@solidity-parser/",
+        ":ds-test/=lib/forge-std/lib/ds-test/src/",
+        ":forge-std/=lib/forge-std/src/",
+        ":truffle/=node_modules/truffle/"
+      ],
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "metadata": {
+        "bytecodeHash": "ipfs"
+      },
+      "compilationTarget": {
+        "contracts/bridge/BridgeStructs.sol": "BridgeStructs"
+      },
+      "libraries": {}
+    },
+    "sources": {
+      "contracts/bridge/BridgeStructs.sol": {
+        "keccak256": "0x04a96ffde0bb54bcd6e28b77eb96ab8aa910761e5c84796bcd875d606e8dcf56",
+        "urls": [
+          "bzz-raw://95f4f00fcaeb0879b9df203446e5d8140ce20cf6f99881a73bdda15831e561be",
+          "dweb:/ipfs/QmNxYubia69TV8wr3DTHQ8PHSjE4P6GqBM9jTp3NgsB31o"
+        ],
+        "license": "Apache 2"
+      }
+    },
+    "version": 1
+  },
+  "ast": {
+    "absolutePath": "contracts/bridge/BridgeStructs.sol",
+    "id": 6159,
+    "exportedSymbols": {
+      "BridgeStructs": [
+        6158
+      ]
+    },
+    "nodeType": "SourceUnit",
+    "src": "63:3369:20",
+    "nodes": [
+      {
+        "id": 6072,
+        "nodeType": "PragmaDirective",
+        "src": "63:23:20",
+        "nodes": [],
+        "literals": [
+          "solidity",
+          "^",
+          "0.8",
+          ".0"
+        ]
+      },
+      {
+        "id": 6158,
+        "nodeType": "ContractDefinition",
+        "src": "88:3343:20",
+        "nodes": [
+          {
+            "id": 6087,
+            "nodeType": "StructDefinition",
+            "src": "117:622:20",
+            "nodes": [],
+            "canonicalName": "BridgeStructs.Transfer",
+            "members": [
+              {
+                "constant": false,
+                "id": 6074,
+                "mutability": "mutable",
+                "name": "payloadID",
+                "nameLocation": "180:9:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6087,
+                "src": "174:15:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint8",
+                  "typeString": "uint8"
+                },
+                "typeName": {
+                  "id": 6073,
+                  "name": "uint8",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "174:5:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint8",
+                    "typeString": "uint8"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6076,
+                "mutability": "mutable",
+                "name": "amount",
+                "nameLocation": "264:6:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6087,
+                "src": "256:14:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint256",
+                  "typeString": "uint256"
+                },
+                "typeName": {
+                  "id": 6075,
+                  "name": "uint256",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "256:7:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6078,
+                "mutability": "mutable",
+                "name": "tokenAddress",
+                "nameLocation": "363:12:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6087,
+                "src": "355:20:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bytes32",
+                  "typeString": "bytes32"
+                },
+                "typeName": {
+                  "id": 6077,
+                  "name": "bytes32",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "355:7:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6080,
+                "mutability": "mutable",
+                "name": "tokenChain",
+                "nameLocation": "425:10:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6087,
+                "src": "418:17:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint16",
+                  "typeString": "uint16"
+                },
+                "typeName": {
+                  "id": 6079,
+                  "name": "uint16",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "418:6:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint16",
+                    "typeString": "uint16"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6082,
+                "mutability": "mutable",
+                "name": "to",
+                "nameLocation": "532:2:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6087,
+                "src": "524:10:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bytes32",
+                  "typeString": "bytes32"
+                },
+                "typeName": {
+                  "id": 6081,
+                  "name": "bytes32",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "524:7:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6084,
+                "mutability": "mutable",
+                "name": "toChain",
+                "nameLocation": "588:7:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6087,
+                "src": "581:14:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint16",
+                  "typeString": "uint16"
+                },
+                "typeName": {
+                  "id": 6083,
+                  "name": "uint16",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "581:6:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint16",
+                    "typeString": "uint16"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6086,
+                "mutability": "mutable",
+                "name": "fee",
+                "nameLocation": "729:3:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6087,
+                "src": "721:11:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint256",
+                  "typeString": "uint256"
+                },
+                "typeName": {
+                  "id": 6085,
+                  "name": "uint256",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "721:7:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  }
+                },
+                "visibility": "internal"
+              }
+            ],
+            "name": "Transfer",
+            "nameLocation": "124:8:20",
+            "scope": 6158,
+            "visibility": "public"
+          },
+          {
+            "id": 6104,
+            "nodeType": "StructDefinition",
+            "src": "745:664:20",
+            "nodes": [],
+            "canonicalName": "BridgeStructs.TransferWithPayload",
+            "members": [
+              {
+                "constant": false,
+                "id": 6089,
+                "mutability": "mutable",
+                "name": "payloadID",
+                "nameLocation": "819:9:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6104,
+                "src": "813:15:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint8",
+                  "typeString": "uint8"
+                },
+                "typeName": {
+                  "id": 6088,
+                  "name": "uint8",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "813:5:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint8",
+                    "typeString": "uint8"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6091,
+                "mutability": "mutable",
+                "name": "amount",
+                "nameLocation": "903:6:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6104,
+                "src": "895:14:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint256",
+                  "typeString": "uint256"
+                },
+                "typeName": {
+                  "id": 6090,
+                  "name": "uint256",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "895:7:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6093,
+                "mutability": "mutable",
+                "name": "tokenAddress",
+                "nameLocation": "1002:12:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6104,
+                "src": "994:20:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bytes32",
+                  "typeString": "bytes32"
+                },
+                "typeName": {
+                  "id": 6092,
+                  "name": "bytes32",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "994:7:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6095,
+                "mutability": "mutable",
+                "name": "tokenChain",
+                "nameLocation": "1064:10:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6104,
+                "src": "1057:17:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint16",
+                  "typeString": "uint16"
+                },
+                "typeName": {
+                  "id": 6094,
+                  "name": "uint16",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "1057:6:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint16",
+                    "typeString": "uint16"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6097,
+                "mutability": "mutable",
+                "name": "to",
+                "nameLocation": "1171:2:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6104,
+                "src": "1163:10:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bytes32",
+                  "typeString": "bytes32"
+                },
+                "typeName": {
+                  "id": 6096,
+                  "name": "bytes32",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "1163:7:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6099,
+                "mutability": "mutable",
+                "name": "toChain",
+                "nameLocation": "1227:7:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6104,
+                "src": "1220:14:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint16",
+                  "typeString": "uint16"
+                },
+                "typeName": {
+                  "id": 6098,
+                  "name": "uint16",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "1220:6:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint16",
+                    "typeString": "uint16"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6101,
+                "mutability": "mutable",
+                "name": "fromAddress",
+                "nameLocation": "1336:11:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6104,
+                "src": "1328:19:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bytes32",
+                  "typeString": "bytes32"
+                },
+                "typeName": {
+                  "id": 6100,
+                  "name": "bytes32",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "1328:7:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6103,
+                "mutability": "mutable",
+                "name": "payload",
+                "nameLocation": "1395:7:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6104,
+                "src": "1389:13:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bytes_storage_ptr",
+                  "typeString": "bytes"
+                },
+                "typeName": {
+                  "id": 6102,
+                  "name": "bytes",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "1389:5:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes_storage_ptr",
+                    "typeString": "bytes"
+                  }
+                },
+                "visibility": "internal"
+              }
+            ],
+            "name": "TransferWithPayload",
+            "nameLocation": "752:19:20",
+            "scope": 6158,
+            "visibility": "public"
+          },
+          {
+            "id": 6115,
+            "nodeType": "StructDefinition",
+            "src": "1415:532:20",
+            "nodes": [],
+            "canonicalName": "BridgeStructs.TransferResult",
+            "members": [
+              {
+                "constant": false,
+                "id": 6106,
+                "mutability": "mutable",
+                "name": "tokenChain",
+                "nameLocation": "1488:10:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6115,
+                "src": "1480:18:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint16",
+                  "typeString": "uint16"
+                },
+                "typeName": {
+                  "id": 6105,
+                  "name": "uint16",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "1480:6:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint16",
+                    "typeString": "uint16"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6108,
+                "mutability": "mutable",
+                "name": "tokenAddress",
+                "nameLocation": "1591:12:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6115,
+                "src": "1583:20:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bytes32",
+                  "typeString": "bytes32"
+                },
+                "typeName": {
+                  "id": 6107,
+                  "name": "bytes32",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "1583:7:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6110,
+                "mutability": "mutable",
+                "name": "normalizedAmount",
+                "nameLocation": "1678:16:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6115,
+                "src": "1670:24:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint256",
+                  "typeString": "uint256"
+                },
+                "typeName": {
+                  "id": 6109,
+                  "name": "uint256",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "1670:7:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6112,
+                "mutability": "mutable",
+                "name": "normalizedArbiterFee",
+                "nameLocation": "1828:20:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6115,
+                "src": "1820:28:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint256",
+                  "typeString": "uint256"
+                },
+                "typeName": {
+                  "id": 6111,
+                  "name": "uint256",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "1820:7:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6114,
+                "mutability": "mutable",
+                "name": "wormholeFee",
+                "nameLocation": "1929:11:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6115,
+                "src": "1924:16:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint256",
+                  "typeString": "uint256"
+                },
+                "typeName": {
+                  "id": 6113,
+                  "name": "uint",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "1924:4:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  }
+                },
+                "visibility": "internal"
+              }
+            ],
+            "name": "TransferResult",
+            "nameLocation": "1422:14:20",
+            "scope": 6158,
+            "visibility": "public"
+          },
+          {
+            "id": 6128,
+            "nodeType": "StructDefinition",
+            "src": "1953:455:20",
+            "nodes": [],
+            "canonicalName": "BridgeStructs.AssetMeta",
+            "members": [
+              {
+                "constant": false,
+                "id": 6117,
+                "mutability": "mutable",
+                "name": "payloadID",
+                "nameLocation": "2017:9:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6128,
+                "src": "2011:15:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint8",
+                  "typeString": "uint8"
+                },
+                "typeName": {
+                  "id": 6116,
+                  "name": "uint8",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "2011:5:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint8",
+                    "typeString": "uint8"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6119,
+                "mutability": "mutable",
+                "name": "tokenAddress",
+                "nameLocation": "2119:12:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6128,
+                "src": "2111:20:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bytes32",
+                  "typeString": "bytes32"
+                },
+                "typeName": {
+                  "id": 6118,
+                  "name": "bytes32",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "2111:7:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6121,
+                "mutability": "mutable",
+                "name": "tokenChain",
+                "nameLocation": "2181:10:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6128,
+                "src": "2174:17:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint16",
+                  "typeString": "uint16"
+                },
+                "typeName": {
+                  "id": 6120,
+                  "name": "uint16",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "2174:6:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint16",
+                    "typeString": "uint16"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6123,
+                "mutability": "mutable",
+                "name": "decimals",
+                "nameLocation": "2271:8:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6128,
+                "src": "2265:14:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint8",
+                  "typeString": "uint8"
+                },
+                "typeName": {
+                  "id": 6122,
+                  "name": "uint8",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "2265:5:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint8",
+                    "typeString": "uint8"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6125,
+                "mutability": "mutable",
+                "name": "symbol",
+                "nameLocation": "2336:6:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6128,
+                "src": "2328:14:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bytes32",
+                  "typeString": "bytes32"
+                },
+                "typeName": {
+                  "id": 6124,
+                  "name": "bytes32",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "2328:7:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6127,
+                "mutability": "mutable",
+                "name": "name",
+                "nameLocation": "2397:4:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6128,
+                "src": "2389:12:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bytes32",
+                  "typeString": "bytes32"
+                },
+                "typeName": {
+                  "id": 6126,
+                  "name": "bytes32",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "2389:7:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  }
+                },
+                "visibility": "internal"
+              }
+            ],
+            "name": "AssetMeta",
+            "nameLocation": "1960:9:20",
+            "scope": 6158,
+            "visibility": "public"
+          },
+          {
+            "id": 6139,
+            "nodeType": "StructDefinition",
+            "src": "2414:406:20",
+            "nodes": [],
+            "canonicalName": "BridgeStructs.RegisterChain",
+            "members": [
+              {
+                "constant": false,
+                "id": 6130,
+                "mutability": "mutable",
+                "name": "module",
+                "nameLocation": "2527:6:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6139,
+                "src": "2519:14:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bytes32",
+                  "typeString": "bytes32"
+                },
+                "typeName": {
+                  "id": 6129,
+                  "name": "bytes32",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "2519:7:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6132,
+                "mutability": "mutable",
+                "name": "action",
+                "nameLocation": "2581:6:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6139,
+                "src": "2575:12:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint8",
+                  "typeString": "uint8"
+                },
+                "typeName": {
+                  "id": 6131,
+                  "name": "uint8",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "2575:5:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint8",
+                    "typeString": "uint8"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6134,
+                "mutability": "mutable",
+                "name": "chainId",
+                "nameLocation": "2652:7:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6139,
+                "src": "2645:14:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint16",
+                  "typeString": "uint16"
+                },
+                "typeName": {
+                  "id": 6133,
+                  "name": "uint16",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "2645:6:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint16",
+                    "typeString": "uint16"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6136,
+                "mutability": "mutable",
+                "name": "emitterChainID",
+                "nameLocation": "2697:14:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6139,
+                "src": "2690:21:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint16",
+                  "typeString": "uint16"
+                },
+                "typeName": {
+                  "id": 6135,
+                  "name": "uint16",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "2690:6:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint16",
+                    "typeString": "uint16"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6138,
+                "mutability": "mutable",
+                "name": "emitterAddress",
+                "nameLocation": "2799:14:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6139,
+                "src": "2791:22:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bytes32",
+                  "typeString": "bytes32"
+                },
+                "typeName": {
+                  "id": 6137,
+                  "name": "bytes32",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "2791:7:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  }
+                },
+                "visibility": "internal"
+              }
+            ],
+            "name": "RegisterChain",
+            "nameLocation": "2421:13:20",
+            "scope": 6158,
+            "visibility": "public"
+          },
+          {
+            "id": 6148,
+            "nodeType": "StructDefinition",
+            "src": "2826:312:20",
+            "nodes": [],
+            "canonicalName": "BridgeStructs.UpgradeContract",
+            "members": [
+              {
+                "constant": false,
+                "id": 6141,
+                "mutability": "mutable",
+                "name": "module",
+                "nameLocation": "2941:6:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6148,
+                "src": "2933:14:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bytes32",
+                  "typeString": "bytes32"
+                },
+                "typeName": {
+                  "id": 6140,
+                  "name": "bytes32",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "2933:7:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6143,
+                "mutability": "mutable",
+                "name": "action",
+                "nameLocation": "2995:6:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6148,
+                "src": "2989:12:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint8",
+                  "typeString": "uint8"
+                },
+                "typeName": {
+                  "id": 6142,
+                  "name": "uint8",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "2989:5:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint8",
+                    "typeString": "uint8"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6145,
+                "mutability": "mutable",
+                "name": "chainId",
+                "nameLocation": "3055:7:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6148,
+                "src": "3048:14:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint16",
+                  "typeString": "uint16"
+                },
+                "typeName": {
+                  "id": 6144,
+                  "name": "uint16",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "3048:6:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint16",
+                    "typeString": "uint16"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6147,
+                "mutability": "mutable",
+                "name": "newContract",
+                "nameLocation": "3120:11:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6148,
+                "src": "3112:19:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bytes32",
+                  "typeString": "bytes32"
+                },
+                "typeName": {
+                  "id": 6146,
+                  "name": "bytes32",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "3112:7:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  }
+                },
+                "visibility": "internal"
+              }
+            ],
+            "name": "UpgradeContract",
+            "nameLocation": "2833:15:20",
+            "scope": 6158,
+            "visibility": "public"
+          },
+          {
+            "id": 6157,
+            "nodeType": "StructDefinition",
+            "src": "3144:285:20",
+            "nodes": [],
+            "canonicalName": "BridgeStructs.RecoverChainId",
+            "members": [
+              {
+                "constant": false,
+                "id": 6150,
+                "mutability": "mutable",
+                "name": "module",
+                "nameLocation": "3258:6:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6157,
+                "src": "3250:14:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bytes32",
+                  "typeString": "bytes32"
+                },
+                "typeName": {
+                  "id": 6149,
+                  "name": "bytes32",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "3250:7:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_bytes32",
+                    "typeString": "bytes32"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6152,
+                "mutability": "mutable",
+                "name": "action",
+                "nameLocation": "3312:6:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6157,
+                "src": "3306:12:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint8",
+                  "typeString": "uint8"
+                },
+                "typeName": {
+                  "id": 6151,
+                  "name": "uint8",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "3306:5:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint8",
+                    "typeString": "uint8"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6154,
+                "mutability": "mutable",
+                "name": "evmChainId",
+                "nameLocation": "3365:10:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6157,
+                "src": "3357:18:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint256",
+                  "typeString": "uint256"
+                },
+                "typeName": {
+                  "id": 6153,
+                  "name": "uint256",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "3357:7:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 6156,
+                "mutability": "mutable",
+                "name": "newChainId",
+                "nameLocation": "3412:10:20",
+                "nodeType": "VariableDeclaration",
+                "scope": 6157,
+                "src": "3405:17:20",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint16",
+                  "typeString": "uint16"
+                },
+                "typeName": {
+                  "id": 6155,
+                  "name": "uint16",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "3405:6:20",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint16",
+                    "typeString": "uint16"
+                  }
+                },
+                "visibility": "internal"
+              }
+            ],
+            "name": "RecoverChainId",
+            "nameLocation": "3151:14:20",
+            "scope": 6158,
+            "visibility": "public"
+          }
+        ],
+        "abstract": false,
+        "baseContracts": [],
+        "canonicalName": "BridgeStructs",
+        "contractDependencies": [],
+        "contractKind": "contract",
+        "fullyImplemented": true,
+        "linearizedBaseContracts": [
+          6158
+        ],
+        "name": "BridgeStructs",
+        "nameLocation": "97:13:20",
+        "scope": 6159,
+        "usedErrors": []
+      }
+    ],
+    "license": "Apache 2"
+  },
+  "id": 20
+}

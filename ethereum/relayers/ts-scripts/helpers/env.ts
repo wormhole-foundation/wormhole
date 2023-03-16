@@ -48,6 +48,15 @@ function get_env_var(env: string): string {
   return v || "";
 }
 
+function getContainer(): string | null {
+  const container = get_env_var("CONTAINER");
+  if (!container) {
+    return null;
+  }
+
+  return container;
+}
+
 export function loadScriptConfig(processName: string): any {
   const configFile = fs.readFileSync(
     `./ts-scripts/config/${env}/scriptConfigs/${processName}.json`
@@ -61,15 +70,27 @@ export function loadScriptConfig(processName: string): any {
 
 export function getOperatingChains(): ChainInfo[] {
   const allChains = loadChains();
+  const container = getContainer();
+  let operatingChains = null;
+
+  if (container == "evm1") {
+    operatingChains = [2];
+  }
+  if (container == "evm2") {
+    operatingChains = [4];
+  }
 
   const chainFile = fs.readFileSync(`./ts-scripts/config/${env}/chains.json`);
   const chains = JSON.parse(chainFile.toString());
-  if (!chains.operatingChains) {
+  if (chains.operatingChains) {
+    operatingChains = chains.operatingChains;
+  }
+  if (!operatingChains) {
     return allChains;
   }
 
   const output: ChainInfo[] = [];
-  chains.operatingChains.forEach((x: number) => {
+  operatingChains.forEach((x: number) => {
     const item = allChains.find((y) => {
       x == y.chainId;
     });

@@ -1,0 +1,3331 @@
+{
+  "abi": [],
+  "bytecode": {
+    "object": "0x",
+    "linkReferences": {}
+  },
+  "deployedBytecode": {
+    "object": "0x",
+    "linkReferences": {}
+  },
+  "ast": {
+    "absolutePath": "contracts/libraries/relayer/ExecutionParameters.sol",
+    "id": 6501,
+    "exportedSymbols": {
+      "BytesParsing": [
+        6249
+      ],
+      "Dollar": [
+        1480
+      ],
+      "DollarLib": [
+        2365
+      ],
+      "EvmExecutionInfoV1": [
+        6310
+      ],
+      "EvmExecutionParamsV1": [
+        6301
+      ],
+      "ExecutionInfoVersion": [
+        6303
+      ],
+      "ExecutionParamsVersion": [
+        6297
+      ],
+      "Gas": [
+        1478
+      ],
+      "GasLib": [
+        2261
+      ],
+      "GasPrice": [
+        1476
+      ],
+      "GasPriceLib": [
+        2443
+      ],
+      "LocalNative": [
+        1484
+      ],
+      "LocalNativeLib": [
+        2519
+      ],
+      "TargetChainAndExecutionInfoVersionMismatch": [
+        6286
+      ],
+      "TargetChainAndExecutionParamsVersionMismatch": [
+        6270
+      ],
+      "TargetNative": [
+        1486
+      ],
+      "TargetNativeLib": [
+        2481
+      ],
+      "UnexpectedExecutionInfoVersion": [
+        6276
+      ],
+      "UnexpectedExecutionParamsVersion": [
+        6260
+      ],
+      "UnsupportedExecutionInfoVersion": [
+        6280
+      ],
+      "UnsupportedExecutionParamsVersion": [
+        6264
+      ],
+      "VersionMismatchOverride": [
+        6292
+      ],
+      "Wei": [
+        1482
+      ],
+      "WeiLib": [
+        2197
+      ],
+      "WeiPrice": [
+        1474
+      ],
+      "WeiPriceLib": [
+        2406
+      ],
+      "addLocalNative": [
+        1845
+      ],
+      "addTargetNative": [
+        1793
+      ],
+      "addWei": [
+        1675
+      ],
+      "decodeEvmExecutionInfoV1": [
+        6481
+      ],
+      "decodeEvmExecutionParamsV1": [
+        6412
+      ],
+      "decodeExecutionInfoVersion": [
+        6348
+      ],
+      "decodeExecutionParamsVersion": [
+        6329
+      ],
+      "encodeEvmExecutionInfoV1": [
+        6434
+      ],
+      "encodeEvmExecutionParamsV1": [
+        6368
+      ],
+      "eqWei": [
+        1579
+      ],
+      "getEmptyEvmExecutionParamsV1": [
+        6500
+      ],
+      "gtWei": [
+        1601
+      ],
+      "leLocalNative": [
+        1915
+      ],
+      "leqLocalNative": [
+        1937
+      ],
+      "ltGas": [
+        1719
+      ],
+      "ltWei": [
+        1557
+      ],
+      "lteGas": [
+        1741
+      ],
+      "lteWei": [
+        1623
+      ],
+      "neqLocalNative": [
+        1893
+      ],
+      "neqWei": [
+        1697
+      ],
+      "subGas": [
+        1767
+      ],
+      "subLocalNative": [
+        1871
+      ],
+      "subTargetNative": [
+        1819
+      ],
+      "subWei": [
+        1649
+      ]
+    },
+    "nodeType": "SourceUnit",
+    "src": "38:2721:9",
+    "nodes": [
+      {
+        "id": 6251,
+        "nodeType": "PragmaDirective",
+        "src": "38:24:9",
+        "nodes": [],
+        "literals": [
+          "solidity",
+          "^",
+          "0.8",
+          ".19"
+        ]
+      },
+      {
+        "id": 6252,
+        "nodeType": "ImportDirective",
+        "src": "64:49:9",
+        "nodes": [],
+        "absolutePath": "contracts/interfaces/relayer/TypedUnits.sol",
+        "file": "../../interfaces/relayer/TypedUnits.sol",
+        "nameLocation": "-1:-1:-1",
+        "scope": 6501,
+        "sourceUnit": 2520,
+        "symbolAliases": [],
+        "unitAlias": ""
+      },
+      {
+        "id": 6254,
+        "nodeType": "ImportDirective",
+        "src": "114:70:9",
+        "nodes": [],
+        "absolutePath": "contracts/libraries/relayer/BytesParsing.sol",
+        "file": "../../libraries/relayer/BytesParsing.sol",
+        "nameLocation": "-1:-1:-1",
+        "scope": 6501,
+        "sourceUnit": 6250,
+        "symbolAliases": [
+          {
+            "foreign": {
+              "id": 6253,
+              "name": "BytesParsing",
+              "nodeType": "Identifier",
+              "overloadedDeclarations": [],
+              "referencedDeclaration": 6249,
+              "src": "122:12:9",
+              "typeDescriptions": {}
+            },
+            "nameLocation": "-1:-1:-1"
+          }
+        ],
+        "unitAlias": ""
+      },
+      {
+        "id": 6260,
+        "nodeType": "ErrorDefinition",
+        "src": "186:77:9",
+        "nodes": [],
+        "errorSelector": "7528a084",
+        "name": "UnexpectedExecutionParamsVersion",
+        "nameLocation": "192:32:9",
+        "parameters": {
+          "id": 6259,
+          "nodeType": "ParameterList",
+          "parameters": [
+            {
+              "constant": false,
+              "id": 6256,
+              "mutability": "mutable",
+              "name": "version",
+              "nameLocation": "231:7:9",
+              "nodeType": "VariableDeclaration",
+              "scope": 6260,
+              "src": "225:13:9",
+              "stateVariable": false,
+              "storageLocation": "default",
+              "typeDescriptions": {
+                "typeIdentifier": "t_uint8",
+                "typeString": "uint8"
+              },
+              "typeName": {
+                "id": 6255,
+                "name": "uint8",
+                "nodeType": "ElementaryTypeName",
+                "src": "225:5:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint8",
+                  "typeString": "uint8"
+                }
+              },
+              "visibility": "internal"
+            },
+            {
+              "constant": false,
+              "id": 6258,
+              "mutability": "mutable",
+              "name": "expectedVersion",
+              "nameLocation": "246:15:9",
+              "nodeType": "VariableDeclaration",
+              "scope": 6260,
+              "src": "240:21:9",
+              "stateVariable": false,
+              "storageLocation": "default",
+              "typeDescriptions": {
+                "typeIdentifier": "t_uint8",
+                "typeString": "uint8"
+              },
+              "typeName": {
+                "id": 6257,
+                "name": "uint8",
+                "nodeType": "ElementaryTypeName",
+                "src": "240:5:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint8",
+                  "typeString": "uint8"
+                }
+              },
+              "visibility": "internal"
+            }
+          ],
+          "src": "224:38:9"
+        }
+      },
+      {
+        "id": 6264,
+        "nodeType": "ErrorDefinition",
+        "src": "264:55:9",
+        "nodes": [],
+        "errorSelector": "cacd6b80",
+        "name": "UnsupportedExecutionParamsVersion",
+        "nameLocation": "270:33:9",
+        "parameters": {
+          "id": 6263,
+          "nodeType": "ParameterList",
+          "parameters": [
+            {
+              "constant": false,
+              "id": 6262,
+              "mutability": "mutable",
+              "name": "version",
+              "nameLocation": "310:7:9",
+              "nodeType": "VariableDeclaration",
+              "scope": 6264,
+              "src": "304:13:9",
+              "stateVariable": false,
+              "storageLocation": "default",
+              "typeDescriptions": {
+                "typeIdentifier": "t_uint8",
+                "typeString": "uint8"
+              },
+              "typeName": {
+                "id": 6261,
+                "name": "uint8",
+                "nodeType": "ElementaryTypeName",
+                "src": "304:5:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint8",
+                  "typeString": "uint8"
+                }
+              },
+              "visibility": "internal"
+            }
+          ],
+          "src": "303:15:9"
+        }
+      },
+      {
+        "id": 6270,
+        "nodeType": "ErrorDefinition",
+        "src": "320:86:9",
+        "nodes": [],
+        "errorSelector": "e16e5129",
+        "name": "TargetChainAndExecutionParamsVersionMismatch",
+        "nameLocation": "326:44:9",
+        "parameters": {
+          "id": 6269,
+          "nodeType": "ParameterList",
+          "parameters": [
+            {
+              "constant": false,
+              "id": 6266,
+              "mutability": "mutable",
+              "name": "targetChain",
+              "nameLocation": "378:11:9",
+              "nodeType": "VariableDeclaration",
+              "scope": 6270,
+              "src": "371:18:9",
+              "stateVariable": false,
+              "storageLocation": "default",
+              "typeDescriptions": {
+                "typeIdentifier": "t_uint16",
+                "typeString": "uint16"
+              },
+              "typeName": {
+                "id": 6265,
+                "name": "uint16",
+                "nodeType": "ElementaryTypeName",
+                "src": "371:6:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint16",
+                  "typeString": "uint16"
+                }
+              },
+              "visibility": "internal"
+            },
+            {
+              "constant": false,
+              "id": 6268,
+              "mutability": "mutable",
+              "name": "version",
+              "nameLocation": "397:7:9",
+              "nodeType": "VariableDeclaration",
+              "scope": 6270,
+              "src": "391:13:9",
+              "stateVariable": false,
+              "storageLocation": "default",
+              "typeDescriptions": {
+                "typeIdentifier": "t_uint8",
+                "typeString": "uint8"
+              },
+              "typeName": {
+                "id": 6267,
+                "name": "uint8",
+                "nodeType": "ElementaryTypeName",
+                "src": "391:5:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint8",
+                  "typeString": "uint8"
+                }
+              },
+              "visibility": "internal"
+            }
+          ],
+          "src": "370:35:9"
+        }
+      },
+      {
+        "id": 6276,
+        "nodeType": "ErrorDefinition",
+        "src": "407:75:9",
+        "nodes": [],
+        "errorSelector": "c1f4bdd9",
+        "name": "UnexpectedExecutionInfoVersion",
+        "nameLocation": "413:30:9",
+        "parameters": {
+          "id": 6275,
+          "nodeType": "ParameterList",
+          "parameters": [
+            {
+              "constant": false,
+              "id": 6272,
+              "mutability": "mutable",
+              "name": "version",
+              "nameLocation": "450:7:9",
+              "nodeType": "VariableDeclaration",
+              "scope": 6276,
+              "src": "444:13:9",
+              "stateVariable": false,
+              "storageLocation": "default",
+              "typeDescriptions": {
+                "typeIdentifier": "t_uint8",
+                "typeString": "uint8"
+              },
+              "typeName": {
+                "id": 6271,
+                "name": "uint8",
+                "nodeType": "ElementaryTypeName",
+                "src": "444:5:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint8",
+                  "typeString": "uint8"
+                }
+              },
+              "visibility": "internal"
+            },
+            {
+              "constant": false,
+              "id": 6274,
+              "mutability": "mutable",
+              "name": "expectedVersion",
+              "nameLocation": "465:15:9",
+              "nodeType": "VariableDeclaration",
+              "scope": 6276,
+              "src": "459:21:9",
+              "stateVariable": false,
+              "storageLocation": "default",
+              "typeDescriptions": {
+                "typeIdentifier": "t_uint8",
+                "typeString": "uint8"
+              },
+              "typeName": {
+                "id": 6273,
+                "name": "uint8",
+                "nodeType": "ElementaryTypeName",
+                "src": "459:5:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint8",
+                  "typeString": "uint8"
+                }
+              },
+              "visibility": "internal"
+            }
+          ],
+          "src": "443:38:9"
+        }
+      },
+      {
+        "id": 6280,
+        "nodeType": "ErrorDefinition",
+        "src": "483:53:9",
+        "nodes": [],
+        "errorSelector": "59934aca",
+        "name": "UnsupportedExecutionInfoVersion",
+        "nameLocation": "489:31:9",
+        "parameters": {
+          "id": 6279,
+          "nodeType": "ParameterList",
+          "parameters": [
+            {
+              "constant": false,
+              "id": 6278,
+              "mutability": "mutable",
+              "name": "version",
+              "nameLocation": "527:7:9",
+              "nodeType": "VariableDeclaration",
+              "scope": 6280,
+              "src": "521:13:9",
+              "stateVariable": false,
+              "storageLocation": "default",
+              "typeDescriptions": {
+                "typeIdentifier": "t_uint8",
+                "typeString": "uint8"
+              },
+              "typeName": {
+                "id": 6277,
+                "name": "uint8",
+                "nodeType": "ElementaryTypeName",
+                "src": "521:5:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint8",
+                  "typeString": "uint8"
+                }
+              },
+              "visibility": "internal"
+            }
+          ],
+          "src": "520:15:9"
+        }
+      },
+      {
+        "id": 6286,
+        "nodeType": "ErrorDefinition",
+        "src": "537:84:9",
+        "nodes": [],
+        "errorSelector": "15ef9805",
+        "name": "TargetChainAndExecutionInfoVersionMismatch",
+        "nameLocation": "543:42:9",
+        "parameters": {
+          "id": 6285,
+          "nodeType": "ParameterList",
+          "parameters": [
+            {
+              "constant": false,
+              "id": 6282,
+              "mutability": "mutable",
+              "name": "targetChain",
+              "nameLocation": "593:11:9",
+              "nodeType": "VariableDeclaration",
+              "scope": 6286,
+              "src": "586:18:9",
+              "stateVariable": false,
+              "storageLocation": "default",
+              "typeDescriptions": {
+                "typeIdentifier": "t_uint16",
+                "typeString": "uint16"
+              },
+              "typeName": {
+                "id": 6281,
+                "name": "uint16",
+                "nodeType": "ElementaryTypeName",
+                "src": "586:6:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint16",
+                  "typeString": "uint16"
+                }
+              },
+              "visibility": "internal"
+            },
+            {
+              "constant": false,
+              "id": 6284,
+              "mutability": "mutable",
+              "name": "version",
+              "nameLocation": "612:7:9",
+              "nodeType": "VariableDeclaration",
+              "scope": 6286,
+              "src": "606:13:9",
+              "stateVariable": false,
+              "storageLocation": "default",
+              "typeDescriptions": {
+                "typeIdentifier": "t_uint8",
+                "typeString": "uint8"
+              },
+              "typeName": {
+                "id": 6283,
+                "name": "uint8",
+                "nodeType": "ElementaryTypeName",
+                "src": "606:5:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint8",
+                  "typeString": "uint8"
+                }
+              },
+              "visibility": "internal"
+            }
+          ],
+          "src": "585:35:9"
+        }
+      },
+      {
+        "id": 6292,
+        "nodeType": "ErrorDefinition",
+        "src": "622:79:9",
+        "nodes": [],
+        "errorSelector": "2e19b2c2",
+        "name": "VersionMismatchOverride",
+        "nameLocation": "628:23:9",
+        "parameters": {
+          "id": 6291,
+          "nodeType": "ParameterList",
+          "parameters": [
+            {
+              "constant": false,
+              "id": 6288,
+              "mutability": "mutable",
+              "name": "instructionVersion",
+              "nameLocation": "658:18:9",
+              "nodeType": "VariableDeclaration",
+              "scope": 6292,
+              "src": "652:24:9",
+              "stateVariable": false,
+              "storageLocation": "default",
+              "typeDescriptions": {
+                "typeIdentifier": "t_uint8",
+                "typeString": "uint8"
+              },
+              "typeName": {
+                "id": 6287,
+                "name": "uint8",
+                "nodeType": "ElementaryTypeName",
+                "src": "652:5:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint8",
+                  "typeString": "uint8"
+                }
+              },
+              "visibility": "internal"
+            },
+            {
+              "constant": false,
+              "id": 6290,
+              "mutability": "mutable",
+              "name": "overrideVersion",
+              "nameLocation": "684:15:9",
+              "nodeType": "VariableDeclaration",
+              "scope": 6292,
+              "src": "678:21:9",
+              "stateVariable": false,
+              "storageLocation": "default",
+              "typeDescriptions": {
+                "typeIdentifier": "t_uint8",
+                "typeString": "uint8"
+              },
+              "typeName": {
+                "id": 6289,
+                "name": "uint8",
+                "nodeType": "ElementaryTypeName",
+                "src": "678:5:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint8",
+                  "typeString": "uint8"
+                }
+              },
+              "visibility": "internal"
+            }
+          ],
+          "src": "651:49:9"
+        }
+      },
+      {
+        "id": 6295,
+        "nodeType": "UsingForDirective",
+        "src": "703:29:9",
+        "nodes": [],
+        "global": false,
+        "libraryName": {
+          "id": 6293,
+          "name": "BytesParsing",
+          "nameLocations": [
+            "709:12:9"
+          ],
+          "nodeType": "IdentifierPath",
+          "referencedDeclaration": 6249,
+          "src": "709:12:9"
+        },
+        "typeName": {
+          "id": 6294,
+          "name": "bytes",
+          "nodeType": "ElementaryTypeName",
+          "src": "726:5:9",
+          "typeDescriptions": {
+            "typeIdentifier": "t_bytes_storage_ptr",
+            "typeString": "bytes"
+          }
+        }
+      },
+      {
+        "id": 6297,
+        "nodeType": "EnumDefinition",
+        "src": "734:36:9",
+        "nodes": [],
+        "canonicalName": "ExecutionParamsVersion",
+        "members": [
+          {
+            "id": 6296,
+            "name": "EVM_V1",
+            "nameLocation": "763:6:9",
+            "nodeType": "EnumValue",
+            "src": "763:6:9"
+          }
+        ],
+        "name": "ExecutionParamsVersion",
+        "nameLocation": "739:22:9"
+      },
+      {
+        "id": 6301,
+        "nodeType": "StructDefinition",
+        "src": "772:49:9",
+        "nodes": [],
+        "canonicalName": "EvmExecutionParamsV1",
+        "members": [
+          {
+            "constant": false,
+            "id": 6300,
+            "mutability": "mutable",
+            "name": "gasLimit",
+            "nameLocation": "810:8:9",
+            "nodeType": "VariableDeclaration",
+            "scope": 6301,
+            "src": "806:12:9",
+            "stateVariable": false,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_userDefinedValueType$_Gas_$1478",
+              "typeString": "Gas"
+            },
+            "typeName": {
+              "id": 6299,
+              "nodeType": "UserDefinedTypeName",
+              "pathNode": {
+                "id": 6298,
+                "name": "Gas",
+                "nameLocations": [
+                  "806:3:9"
+                ],
+                "nodeType": "IdentifierPath",
+                "referencedDeclaration": 1478,
+                "src": "806:3:9"
+              },
+              "referencedDeclaration": 1478,
+              "src": "806:3:9",
+              "typeDescriptions": {
+                "typeIdentifier": "t_userDefinedValueType$_Gas_$1478",
+                "typeString": "Gas"
+              }
+            },
+            "visibility": "internal"
+          }
+        ],
+        "name": "EvmExecutionParamsV1",
+        "nameLocation": "779:20:9",
+        "scope": 6501,
+        "visibility": "public"
+      },
+      {
+        "id": 6303,
+        "nodeType": "EnumDefinition",
+        "src": "823:34:9",
+        "nodes": [],
+        "canonicalName": "ExecutionInfoVersion",
+        "members": [
+          {
+            "id": 6302,
+            "name": "EVM_V1",
+            "nameLocation": "850:6:9",
+            "nodeType": "EnumValue",
+            "src": "850:6:9"
+          }
+        ],
+        "name": "ExecutionInfoVersion",
+        "nameLocation": "828:20:9"
+      },
+      {
+        "id": 6310,
+        "nodeType": "StructDefinition",
+        "src": "859:91:9",
+        "nodes": [],
+        "canonicalName": "EvmExecutionInfoV1",
+        "members": [
+          {
+            "constant": false,
+            "id": 6306,
+            "mutability": "mutable",
+            "name": "gasLimit",
+            "nameLocation": "895:8:9",
+            "nodeType": "VariableDeclaration",
+            "scope": 6310,
+            "src": "891:12:9",
+            "stateVariable": false,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_userDefinedValueType$_Gas_$1478",
+              "typeString": "Gas"
+            },
+            "typeName": {
+              "id": 6305,
+              "nodeType": "UserDefinedTypeName",
+              "pathNode": {
+                "id": 6304,
+                "name": "Gas",
+                "nameLocations": [
+                  "891:3:9"
+                ],
+                "nodeType": "IdentifierPath",
+                "referencedDeclaration": 1478,
+                "src": "891:3:9"
+              },
+              "referencedDeclaration": 1478,
+              "src": "891:3:9",
+              "typeDescriptions": {
+                "typeIdentifier": "t_userDefinedValueType$_Gas_$1478",
+                "typeString": "Gas"
+              }
+            },
+            "visibility": "internal"
+          },
+          {
+            "constant": false,
+            "id": 6309,
+            "mutability": "mutable",
+            "name": "targetChainRefundPerGasUnused",
+            "nameLocation": "918:29:9",
+            "nodeType": "VariableDeclaration",
+            "scope": 6310,
+            "src": "909:38:9",
+            "stateVariable": false,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_userDefinedValueType$_GasPrice_$1476",
+              "typeString": "GasPrice"
+            },
+            "typeName": {
+              "id": 6308,
+              "nodeType": "UserDefinedTypeName",
+              "pathNode": {
+                "id": 6307,
+                "name": "GasPrice",
+                "nameLocations": [
+                  "909:8:9"
+                ],
+                "nodeType": "IdentifierPath",
+                "referencedDeclaration": 1476,
+                "src": "909:8:9"
+              },
+              "referencedDeclaration": 1476,
+              "src": "909:8:9",
+              "typeDescriptions": {
+                "typeIdentifier": "t_userDefinedValueType$_GasPrice_$1476",
+                "typeString": "GasPrice"
+              }
+            },
+            "visibility": "internal"
+          }
+        ],
+        "name": "EvmExecutionInfoV1",
+        "nameLocation": "866:18:9",
+        "scope": 6501,
+        "visibility": "public"
+      },
+      {
+        "id": 6329,
+        "nodeType": "FunctionDefinition",
+        "src": "952:174:9",
+        "nodes": [],
+        "body": {
+          "id": 6328,
+          "nodeType": "Block",
+          "src": "1063:63:9",
+          "nodes": [],
+          "statements": [
+            {
+              "expression": {
+                "id": 6326,
+                "isConstant": false,
+                "isLValue": false,
+                "isPure": false,
+                "lValueRequested": false,
+                "leftHandSide": {
+                  "components": [
+                    {
+                      "id": 6318,
+                      "name": "version",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 6316,
+                      "src": "1070:7:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_enum$_ExecutionParamsVersion_$6297",
+                        "typeString": "enum ExecutionParamsVersion"
+                      }
+                    }
+                  ],
+                  "id": 6319,
+                  "isConstant": false,
+                  "isInlineArray": false,
+                  "isLValue": true,
+                  "isPure": false,
+                  "lValueRequested": true,
+                  "nodeType": "TupleExpression",
+                  "src": "1069:9:9",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_enum$_ExecutionParamsVersion_$6297",
+                    "typeString": "enum ExecutionParamsVersion"
+                  }
+                },
+                "nodeType": "Assignment",
+                "operator": "=",
+                "rightHandSide": {
+                  "arguments": [
+                    {
+                      "id": 6322,
+                      "name": "data",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 6312,
+                      "src": "1092:4:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bytes_memory_ptr",
+                        "typeString": "bytes memory"
+                      }
+                    },
+                    {
+                      "components": [
+                        {
+                          "id": 6323,
+                          "name": "ExecutionParamsVersion",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": 6297,
+                          "src": "1099:22:9",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_type$_t_enum$_ExecutionParamsVersion_$6297_$",
+                            "typeString": "type(enum ExecutionParamsVersion)"
+                          }
+                        }
+                      ],
+                      "id": 6324,
+                      "isConstant": false,
+                      "isInlineArray": false,
+                      "isLValue": false,
+                      "isPure": true,
+                      "lValueRequested": false,
+                      "nodeType": "TupleExpression",
+                      "src": "1098:24:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_type$_t_enum$_ExecutionParamsVersion_$6297_$",
+                        "typeString": "type(enum ExecutionParamsVersion)"
+                      }
+                    }
+                  ],
+                  "expression": {
+                    "argumentTypes": [
+                      {
+                        "typeIdentifier": "t_bytes_memory_ptr",
+                        "typeString": "bytes memory"
+                      },
+                      {
+                        "typeIdentifier": "t_type$_t_enum$_ExecutionParamsVersion_$6297_$",
+                        "typeString": "type(enum ExecutionParamsVersion)"
+                      }
+                    ],
+                    "expression": {
+                      "id": 6320,
+                      "name": "abi",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": -1,
+                      "src": "1081:3:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_magic_abi",
+                        "typeString": "abi"
+                      }
+                    },
+                    "id": 6321,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": true,
+                    "lValueRequested": false,
+                    "memberLocation": "1085:6:9",
+                    "memberName": "decode",
+                    "nodeType": "MemberAccess",
+                    "src": "1081:10:9",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_function_abidecode_pure$__$returns$__$",
+                      "typeString": "function () pure"
+                    }
+                  },
+                  "id": 6325,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": false,
+                  "kind": "functionCall",
+                  "lValueRequested": false,
+                  "nameLocations": [],
+                  "names": [],
+                  "nodeType": "FunctionCall",
+                  "src": "1081:42:9",
+                  "tryCall": false,
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_enum$_ExecutionParamsVersion_$6297",
+                    "typeString": "enum ExecutionParamsVersion"
+                  }
+                },
+                "src": "1069:54:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_enum$_ExecutionParamsVersion_$6297",
+                  "typeString": "enum ExecutionParamsVersion"
+                }
+              },
+              "id": 6327,
+              "nodeType": "ExpressionStatement",
+              "src": "1069:54:9"
+            }
+          ]
+        },
+        "implemented": true,
+        "kind": "freeFunction",
+        "modifiers": [],
+        "name": "decodeExecutionParamsVersion",
+        "nameLocation": "961:28:9",
+        "parameters": {
+          "id": 6313,
+          "nodeType": "ParameterList",
+          "parameters": [
+            {
+              "constant": false,
+              "id": 6312,
+              "mutability": "mutable",
+              "name": "data",
+              "nameLocation": "1003:4:9",
+              "nodeType": "VariableDeclaration",
+              "scope": 6329,
+              "src": "990:17:9",
+              "stateVariable": false,
+              "storageLocation": "memory",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes_memory_ptr",
+                "typeString": "bytes"
+              },
+              "typeName": {
+                "id": 6311,
+                "name": "bytes",
+                "nodeType": "ElementaryTypeName",
+                "src": "990:5:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bytes_storage_ptr",
+                  "typeString": "bytes"
+                }
+              },
+              "visibility": "internal"
+            }
+          ],
+          "src": "989:19:9"
+        },
+        "returnParameters": {
+          "id": 6317,
+          "nodeType": "ParameterList",
+          "parameters": [
+            {
+              "constant": false,
+              "id": 6316,
+              "mutability": "mutable",
+              "name": "version",
+              "nameLocation": "1054:7:9",
+              "nodeType": "VariableDeclaration",
+              "scope": 6329,
+              "src": "1031:30:9",
+              "stateVariable": false,
+              "storageLocation": "default",
+              "typeDescriptions": {
+                "typeIdentifier": "t_enum$_ExecutionParamsVersion_$6297",
+                "typeString": "enum ExecutionParamsVersion"
+              },
+              "typeName": {
+                "id": 6315,
+                "nodeType": "UserDefinedTypeName",
+                "pathNode": {
+                  "id": 6314,
+                  "name": "ExecutionParamsVersion",
+                  "nameLocations": [
+                    "1031:22:9"
+                  ],
+                  "nodeType": "IdentifierPath",
+                  "referencedDeclaration": 6297,
+                  "src": "1031:22:9"
+                },
+                "referencedDeclaration": 6297,
+                "src": "1031:22:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_enum$_ExecutionParamsVersion_$6297",
+                  "typeString": "enum ExecutionParamsVersion"
+                }
+              },
+              "visibility": "internal"
+            }
+          ],
+          "src": "1030:32:9"
+        },
+        "scope": 6501,
+        "stateMutability": "pure",
+        "virtual": false,
+        "visibility": "internal"
+      },
+      {
+        "id": 6348,
+        "nodeType": "FunctionDefinition",
+        "src": "1128:168:9",
+        "nodes": [],
+        "body": {
+          "id": 6347,
+          "nodeType": "Block",
+          "src": "1235:61:9",
+          "nodes": [],
+          "statements": [
+            {
+              "expression": {
+                "id": 6345,
+                "isConstant": false,
+                "isLValue": false,
+                "isPure": false,
+                "lValueRequested": false,
+                "leftHandSide": {
+                  "components": [
+                    {
+                      "id": 6337,
+                      "name": "version",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 6335,
+                      "src": "1242:7:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_enum$_ExecutionInfoVersion_$6303",
+                        "typeString": "enum ExecutionInfoVersion"
+                      }
+                    }
+                  ],
+                  "id": 6338,
+                  "isConstant": false,
+                  "isInlineArray": false,
+                  "isLValue": true,
+                  "isPure": false,
+                  "lValueRequested": true,
+                  "nodeType": "TupleExpression",
+                  "src": "1241:9:9",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_enum$_ExecutionInfoVersion_$6303",
+                    "typeString": "enum ExecutionInfoVersion"
+                  }
+                },
+                "nodeType": "Assignment",
+                "operator": "=",
+                "rightHandSide": {
+                  "arguments": [
+                    {
+                      "id": 6341,
+                      "name": "data",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 6331,
+                      "src": "1264:4:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bytes_memory_ptr",
+                        "typeString": "bytes memory"
+                      }
+                    },
+                    {
+                      "components": [
+                        {
+                          "id": 6342,
+                          "name": "ExecutionInfoVersion",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": 6303,
+                          "src": "1271:20:9",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_type$_t_enum$_ExecutionInfoVersion_$6303_$",
+                            "typeString": "type(enum ExecutionInfoVersion)"
+                          }
+                        }
+                      ],
+                      "id": 6343,
+                      "isConstant": false,
+                      "isInlineArray": false,
+                      "isLValue": false,
+                      "isPure": true,
+                      "lValueRequested": false,
+                      "nodeType": "TupleExpression",
+                      "src": "1270:22:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_type$_t_enum$_ExecutionInfoVersion_$6303_$",
+                        "typeString": "type(enum ExecutionInfoVersion)"
+                      }
+                    }
+                  ],
+                  "expression": {
+                    "argumentTypes": [
+                      {
+                        "typeIdentifier": "t_bytes_memory_ptr",
+                        "typeString": "bytes memory"
+                      },
+                      {
+                        "typeIdentifier": "t_type$_t_enum$_ExecutionInfoVersion_$6303_$",
+                        "typeString": "type(enum ExecutionInfoVersion)"
+                      }
+                    ],
+                    "expression": {
+                      "id": 6339,
+                      "name": "abi",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": -1,
+                      "src": "1253:3:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_magic_abi",
+                        "typeString": "abi"
+                      }
+                    },
+                    "id": 6340,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": true,
+                    "lValueRequested": false,
+                    "memberLocation": "1257:6:9",
+                    "memberName": "decode",
+                    "nodeType": "MemberAccess",
+                    "src": "1253:10:9",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_function_abidecode_pure$__$returns$__$",
+                      "typeString": "function () pure"
+                    }
+                  },
+                  "id": 6344,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": false,
+                  "kind": "functionCall",
+                  "lValueRequested": false,
+                  "nameLocations": [],
+                  "names": [],
+                  "nodeType": "FunctionCall",
+                  "src": "1253:40:9",
+                  "tryCall": false,
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_enum$_ExecutionInfoVersion_$6303",
+                    "typeString": "enum ExecutionInfoVersion"
+                  }
+                },
+                "src": "1241:52:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_enum$_ExecutionInfoVersion_$6303",
+                  "typeString": "enum ExecutionInfoVersion"
+                }
+              },
+              "id": 6346,
+              "nodeType": "ExpressionStatement",
+              "src": "1241:52:9"
+            }
+          ]
+        },
+        "implemented": true,
+        "kind": "freeFunction",
+        "modifiers": [],
+        "name": "decodeExecutionInfoVersion",
+        "nameLocation": "1137:26:9",
+        "parameters": {
+          "id": 6332,
+          "nodeType": "ParameterList",
+          "parameters": [
+            {
+              "constant": false,
+              "id": 6331,
+              "mutability": "mutable",
+              "name": "data",
+              "nameLocation": "1177:4:9",
+              "nodeType": "VariableDeclaration",
+              "scope": 6348,
+              "src": "1164:17:9",
+              "stateVariable": false,
+              "storageLocation": "memory",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes_memory_ptr",
+                "typeString": "bytes"
+              },
+              "typeName": {
+                "id": 6330,
+                "name": "bytes",
+                "nodeType": "ElementaryTypeName",
+                "src": "1164:5:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bytes_storage_ptr",
+                  "typeString": "bytes"
+                }
+              },
+              "visibility": "internal"
+            }
+          ],
+          "src": "1163:19:9"
+        },
+        "returnParameters": {
+          "id": 6336,
+          "nodeType": "ParameterList",
+          "parameters": [
+            {
+              "constant": false,
+              "id": 6335,
+              "mutability": "mutable",
+              "name": "version",
+              "nameLocation": "1226:7:9",
+              "nodeType": "VariableDeclaration",
+              "scope": 6348,
+              "src": "1205:28:9",
+              "stateVariable": false,
+              "storageLocation": "default",
+              "typeDescriptions": {
+                "typeIdentifier": "t_enum$_ExecutionInfoVersion_$6303",
+                "typeString": "enum ExecutionInfoVersion"
+              },
+              "typeName": {
+                "id": 6334,
+                "nodeType": "UserDefinedTypeName",
+                "pathNode": {
+                  "id": 6333,
+                  "name": "ExecutionInfoVersion",
+                  "nameLocations": [
+                    "1205:20:9"
+                  ],
+                  "nodeType": "IdentifierPath",
+                  "referencedDeclaration": 6303,
+                  "src": "1205:20:9"
+                },
+                "referencedDeclaration": 6303,
+                "src": "1205:20:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_enum$_ExecutionInfoVersion_$6303",
+                  "typeString": "enum ExecutionInfoVersion"
+                }
+              },
+              "visibility": "internal"
+            }
+          ],
+          "src": "1204:30:9"
+        },
+        "scope": 6501,
+        "stateMutability": "pure",
+        "virtual": false,
+        "visibility": "internal"
+      },
+      {
+        "id": 6368,
+        "nodeType": "FunctionDefinition",
+        "src": "1298:207:9",
+        "nodes": [],
+        "body": {
+          "id": 6367,
+          "nodeType": "Block",
+          "src": "1415:90:9",
+          "nodes": [],
+          "statements": [
+            {
+              "expression": {
+                "arguments": [
+                  {
+                    "arguments": [
+                      {
+                        "expression": {
+                          "id": 6360,
+                          "name": "ExecutionParamsVersion",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": 6297,
+                          "src": "1445:22:9",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_type$_t_enum$_ExecutionParamsVersion_$6297_$",
+                            "typeString": "type(enum ExecutionParamsVersion)"
+                          }
+                        },
+                        "id": 6361,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": true,
+                        "lValueRequested": false,
+                        "memberLocation": "1468:6:9",
+                        "memberName": "EVM_V1",
+                        "nodeType": "MemberAccess",
+                        "referencedDeclaration": 6296,
+                        "src": "1445:29:9",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_enum$_ExecutionParamsVersion_$6297",
+                          "typeString": "enum ExecutionParamsVersion"
+                        }
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_enum$_ExecutionParamsVersion_$6297",
+                          "typeString": "enum ExecutionParamsVersion"
+                        }
+                      ],
+                      "id": 6359,
+                      "isConstant": false,
+                      "isLValue": false,
+                      "isPure": true,
+                      "lValueRequested": false,
+                      "nodeType": "ElementaryTypeNameExpression",
+                      "src": "1439:5:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_type$_t_uint8_$",
+                        "typeString": "type(uint8)"
+                      },
+                      "typeName": {
+                        "id": 6358,
+                        "name": "uint8",
+                        "nodeType": "ElementaryTypeName",
+                        "src": "1439:5:9",
+                        "typeDescriptions": {}
+                      }
+                    },
+                    "id": 6362,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": true,
+                    "kind": "typeConversion",
+                    "lValueRequested": false,
+                    "nameLocations": [],
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "1439:36:9",
+                    "tryCall": false,
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint8",
+                      "typeString": "uint8"
+                    }
+                  },
+                  {
+                    "expression": {
+                      "id": 6363,
+                      "name": "executionParams",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 6351,
+                      "src": "1477:15:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_struct$_EvmExecutionParamsV1_$6301_memory_ptr",
+                        "typeString": "struct EvmExecutionParamsV1 memory"
+                      }
+                    },
+                    "id": 6364,
+                    "isConstant": false,
+                    "isLValue": true,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "memberLocation": "1493:8:9",
+                    "memberName": "gasLimit",
+                    "nodeType": "MemberAccess",
+                    "referencedDeclaration": 6300,
+                    "src": "1477:24:9",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_userDefinedValueType$_Gas_$1478",
+                      "typeString": "Gas"
+                    }
+                  }
+                ],
+                "expression": {
+                  "argumentTypes": [
+                    {
+                      "typeIdentifier": "t_uint8",
+                      "typeString": "uint8"
+                    },
+                    {
+                      "typeIdentifier": "t_userDefinedValueType$_Gas_$1478",
+                      "typeString": "Gas"
+                    }
+                  ],
+                  "expression": {
+                    "id": 6356,
+                    "name": "abi",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": -1,
+                    "src": "1428:3:9",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_magic_abi",
+                      "typeString": "abi"
+                    }
+                  },
+                  "id": 6357,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": true,
+                  "lValueRequested": false,
+                  "memberLocation": "1432:6:9",
+                  "memberName": "encode",
+                  "nodeType": "MemberAccess",
+                  "src": "1428:10:9",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_function_abiencode_pure$__$returns$_t_bytes_memory_ptr_$",
+                    "typeString": "function () pure returns (bytes memory)"
+                  }
+                },
+                "id": 6365,
+                "isConstant": false,
+                "isLValue": false,
+                "isPure": false,
+                "kind": "functionCall",
+                "lValueRequested": false,
+                "nameLocations": [],
+                "names": [],
+                "nodeType": "FunctionCall",
+                "src": "1428:74:9",
+                "tryCall": false,
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bytes_memory_ptr",
+                  "typeString": "bytes memory"
+                }
+              },
+              "functionReturnParameters": 6355,
+              "id": 6366,
+              "nodeType": "Return",
+              "src": "1421:81:9"
+            }
+          ]
+        },
+        "implemented": true,
+        "kind": "freeFunction",
+        "modifiers": [],
+        "name": "encodeEvmExecutionParamsV1",
+        "nameLocation": "1307:26:9",
+        "parameters": {
+          "id": 6352,
+          "nodeType": "ParameterList",
+          "parameters": [
+            {
+              "constant": false,
+              "id": 6351,
+              "mutability": "mutable",
+              "name": "executionParams",
+              "nameLocation": "1362:15:9",
+              "nodeType": "VariableDeclaration",
+              "scope": 6368,
+              "src": "1334:43:9",
+              "stateVariable": false,
+              "storageLocation": "memory",
+              "typeDescriptions": {
+                "typeIdentifier": "t_struct$_EvmExecutionParamsV1_$6301_memory_ptr",
+                "typeString": "struct EvmExecutionParamsV1"
+              },
+              "typeName": {
+                "id": 6350,
+                "nodeType": "UserDefinedTypeName",
+                "pathNode": {
+                  "id": 6349,
+                  "name": "EvmExecutionParamsV1",
+                  "nameLocations": [
+                    "1334:20:9"
+                  ],
+                  "nodeType": "IdentifierPath",
+                  "referencedDeclaration": 6301,
+                  "src": "1334:20:9"
+                },
+                "referencedDeclaration": 6301,
+                "src": "1334:20:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_struct$_EvmExecutionParamsV1_$6301_storage_ptr",
+                  "typeString": "struct EvmExecutionParamsV1"
+                }
+              },
+              "visibility": "internal"
+            }
+          ],
+          "src": "1333:45:9"
+        },
+        "returnParameters": {
+          "id": 6355,
+          "nodeType": "ParameterList",
+          "parameters": [
+            {
+              "constant": false,
+              "id": 6354,
+              "mutability": "mutable",
+              "name": "",
+              "nameLocation": "-1:-1:-1",
+              "nodeType": "VariableDeclaration",
+              "scope": 6368,
+              "src": "1401:12:9",
+              "stateVariable": false,
+              "storageLocation": "memory",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes_memory_ptr",
+                "typeString": "bytes"
+              },
+              "typeName": {
+                "id": 6353,
+                "name": "bytes",
+                "nodeType": "ElementaryTypeName",
+                "src": "1401:5:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bytes_storage_ptr",
+                  "typeString": "bytes"
+                }
+              },
+              "visibility": "internal"
+            }
+          ],
+          "src": "1400:14:9"
+        },
+        "scope": 6501,
+        "stateMutability": "pure",
+        "virtual": false,
+        "visibility": "internal"
+      },
+      {
+        "id": 6412,
+        "nodeType": "FunctionDefinition",
+        "src": "1507:380:9",
+        "nodes": [],
+        "body": {
+          "id": 6411,
+          "nodeType": "Block",
+          "src": "1629:258:9",
+          "nodes": [],
+          "statements": [
+            {
+              "assignments": [
+                6377
+              ],
+              "declarations": [
+                {
+                  "constant": false,
+                  "id": 6377,
+                  "mutability": "mutable",
+                  "name": "version",
+                  "nameLocation": "1641:7:9",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 6411,
+                  "src": "1635:13:9",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint8",
+                    "typeString": "uint8"
+                  },
+                  "typeName": {
+                    "id": 6376,
+                    "name": "uint8",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "1635:5:9",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint8",
+                      "typeString": "uint8"
+                    }
+                  },
+                  "visibility": "internal"
+                }
+              ],
+              "id": 6378,
+              "nodeType": "VariableDeclarationStatement",
+              "src": "1635:13:9"
+            },
+            {
+              "expression": {
+                "id": 6391,
+                "isConstant": false,
+                "isLValue": false,
+                "isPure": false,
+                "lValueRequested": false,
+                "leftHandSide": {
+                  "components": [
+                    {
+                      "id": 6379,
+                      "name": "version",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 6377,
+                      "src": "1655:7:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint8",
+                        "typeString": "uint8"
+                      }
+                    },
+                    {
+                      "expression": {
+                        "id": 6380,
+                        "name": "executionParams",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 6374,
+                        "src": "1664:15:9",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_struct$_EvmExecutionParamsV1_$6301_memory_ptr",
+                          "typeString": "struct EvmExecutionParamsV1 memory"
+                        }
+                      },
+                      "id": 6381,
+                      "isConstant": false,
+                      "isLValue": true,
+                      "isPure": false,
+                      "lValueRequested": true,
+                      "memberLocation": "1680:8:9",
+                      "memberName": "gasLimit",
+                      "nodeType": "MemberAccess",
+                      "referencedDeclaration": 6300,
+                      "src": "1664:24:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_userDefinedValueType$_Gas_$1478",
+                        "typeString": "Gas"
+                      }
+                    }
+                  ],
+                  "id": 6382,
+                  "isConstant": false,
+                  "isInlineArray": false,
+                  "isLValue": true,
+                  "isPure": false,
+                  "lValueRequested": true,
+                  "nodeType": "TupleExpression",
+                  "src": "1654:35:9",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_tuple$_t_uint8_$_t_userDefinedValueType$_Gas_$1478_$",
+                    "typeString": "tuple(uint8,Gas)"
+                  }
+                },
+                "nodeType": "Assignment",
+                "operator": "=",
+                "rightHandSide": {
+                  "arguments": [
+                    {
+                      "id": 6385,
+                      "name": "data",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 6370,
+                      "src": "1703:4:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bytes_memory_ptr",
+                        "typeString": "bytes memory"
+                      }
+                    },
+                    {
+                      "components": [
+                        {
+                          "id": 6387,
+                          "isConstant": false,
+                          "isLValue": false,
+                          "isPure": true,
+                          "lValueRequested": false,
+                          "nodeType": "ElementaryTypeNameExpression",
+                          "src": "1710:5:9",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_type$_t_uint8_$",
+                            "typeString": "type(uint8)"
+                          },
+                          "typeName": {
+                            "id": 6386,
+                            "name": "uint8",
+                            "nodeType": "ElementaryTypeName",
+                            "src": "1710:5:9",
+                            "typeDescriptions": {}
+                          }
+                        },
+                        {
+                          "id": 6388,
+                          "name": "Gas",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": 1478,
+                          "src": "1717:3:9",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_type$_t_userDefinedValueType$_Gas_$1478_$",
+                            "typeString": "type(Gas)"
+                          }
+                        }
+                      ],
+                      "id": 6389,
+                      "isConstant": false,
+                      "isInlineArray": false,
+                      "isLValue": false,
+                      "isPure": true,
+                      "lValueRequested": false,
+                      "nodeType": "TupleExpression",
+                      "src": "1709:12:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_tuple$_t_type$_t_uint8_$_$_t_type$_t_userDefinedValueType$_Gas_$1478_$_$",
+                        "typeString": "tuple(type(uint8),type(Gas))"
+                      }
+                    }
+                  ],
+                  "expression": {
+                    "argumentTypes": [
+                      {
+                        "typeIdentifier": "t_bytes_memory_ptr",
+                        "typeString": "bytes memory"
+                      },
+                      {
+                        "typeIdentifier": "t_tuple$_t_type$_t_uint8_$_$_t_type$_t_userDefinedValueType$_Gas_$1478_$_$",
+                        "typeString": "tuple(type(uint8),type(Gas))"
+                      }
+                    ],
+                    "expression": {
+                      "id": 6383,
+                      "name": "abi",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": -1,
+                      "src": "1692:3:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_magic_abi",
+                        "typeString": "abi"
+                      }
+                    },
+                    "id": 6384,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": true,
+                    "lValueRequested": false,
+                    "memberLocation": "1696:6:9",
+                    "memberName": "decode",
+                    "nodeType": "MemberAccess",
+                    "src": "1692:10:9",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_function_abidecode_pure$__$returns$__$",
+                      "typeString": "function () pure"
+                    }
+                  },
+                  "id": 6390,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": false,
+                  "kind": "functionCall",
+                  "lValueRequested": false,
+                  "nameLocations": [],
+                  "names": [],
+                  "nodeType": "FunctionCall",
+                  "src": "1692:30:9",
+                  "tryCall": false,
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_tuple$_t_uint8_$_t_userDefinedValueType$_Gas_$1478_$",
+                    "typeString": "tuple(uint8,Gas)"
+                  }
+                },
+                "src": "1654:68:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_tuple$__$",
+                  "typeString": "tuple()"
+                }
+              },
+              "id": 6392,
+              "nodeType": "ExpressionStatement",
+              "src": "1654:68:9"
+            },
+            {
+              "condition": {
+                "commonType": {
+                  "typeIdentifier": "t_uint8",
+                  "typeString": "uint8"
+                },
+                "id": 6399,
+                "isConstant": false,
+                "isLValue": false,
+                "isPure": false,
+                "lValueRequested": false,
+                "leftExpression": {
+                  "id": 6393,
+                  "name": "version",
+                  "nodeType": "Identifier",
+                  "overloadedDeclarations": [],
+                  "referencedDeclaration": 6377,
+                  "src": "1733:7:9",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint8",
+                    "typeString": "uint8"
+                  }
+                },
+                "nodeType": "BinaryOperation",
+                "operator": "!=",
+                "rightExpression": {
+                  "arguments": [
+                    {
+                      "expression": {
+                        "id": 6396,
+                        "name": "ExecutionParamsVersion",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 6297,
+                        "src": "1750:22:9",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_type$_t_enum$_ExecutionParamsVersion_$6297_$",
+                          "typeString": "type(enum ExecutionParamsVersion)"
+                        }
+                      },
+                      "id": 6397,
+                      "isConstant": false,
+                      "isLValue": false,
+                      "isPure": true,
+                      "lValueRequested": false,
+                      "memberLocation": "1773:6:9",
+                      "memberName": "EVM_V1",
+                      "nodeType": "MemberAccess",
+                      "referencedDeclaration": 6296,
+                      "src": "1750:29:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_enum$_ExecutionParamsVersion_$6297",
+                        "typeString": "enum ExecutionParamsVersion"
+                      }
+                    }
+                  ],
+                  "expression": {
+                    "argumentTypes": [
+                      {
+                        "typeIdentifier": "t_enum$_ExecutionParamsVersion_$6297",
+                        "typeString": "enum ExecutionParamsVersion"
+                      }
+                    ],
+                    "id": 6395,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": true,
+                    "lValueRequested": false,
+                    "nodeType": "ElementaryTypeNameExpression",
+                    "src": "1744:5:9",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_type$_t_uint8_$",
+                      "typeString": "type(uint8)"
+                    },
+                    "typeName": {
+                      "id": 6394,
+                      "name": "uint8",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "1744:5:9",
+                      "typeDescriptions": {}
+                    }
+                  },
+                  "id": 6398,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": true,
+                  "kind": "typeConversion",
+                  "lValueRequested": false,
+                  "nameLocations": [],
+                  "names": [],
+                  "nodeType": "FunctionCall",
+                  "src": "1744:36:9",
+                  "tryCall": false,
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint8",
+                    "typeString": "uint8"
+                  }
+                },
+                "src": "1733:47:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bool",
+                  "typeString": "bool"
+                }
+              },
+              "id": 6410,
+              "nodeType": "IfStatement",
+              "src": "1729:156:9",
+              "trueBody": {
+                "id": 6409,
+                "nodeType": "Block",
+                "src": "1782:103:9",
+                "statements": [
+                  {
+                    "errorCall": {
+                      "arguments": [
+                        {
+                          "id": 6401,
+                          "name": "version",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": 6377,
+                          "src": "1832:7:9",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_uint8",
+                            "typeString": "uint8"
+                          }
+                        },
+                        {
+                          "arguments": [
+                            {
+                              "expression": {
+                                "id": 6404,
+                                "name": "ExecutionParamsVersion",
+                                "nodeType": "Identifier",
+                                "overloadedDeclarations": [],
+                                "referencedDeclaration": 6297,
+                                "src": "1847:22:9",
+                                "typeDescriptions": {
+                                  "typeIdentifier": "t_type$_t_enum$_ExecutionParamsVersion_$6297_$",
+                                  "typeString": "type(enum ExecutionParamsVersion)"
+                                }
+                              },
+                              "id": 6405,
+                              "isConstant": false,
+                              "isLValue": false,
+                              "isPure": true,
+                              "lValueRequested": false,
+                              "memberLocation": "1870:6:9",
+                              "memberName": "EVM_V1",
+                              "nodeType": "MemberAccess",
+                              "referencedDeclaration": 6296,
+                              "src": "1847:29:9",
+                              "typeDescriptions": {
+                                "typeIdentifier": "t_enum$_ExecutionParamsVersion_$6297",
+                                "typeString": "enum ExecutionParamsVersion"
+                              }
+                            }
+                          ],
+                          "expression": {
+                            "argumentTypes": [
+                              {
+                                "typeIdentifier": "t_enum$_ExecutionParamsVersion_$6297",
+                                "typeString": "enum ExecutionParamsVersion"
+                              }
+                            ],
+                            "id": 6403,
+                            "isConstant": false,
+                            "isLValue": false,
+                            "isPure": true,
+                            "lValueRequested": false,
+                            "nodeType": "ElementaryTypeNameExpression",
+                            "src": "1841:5:9",
+                            "typeDescriptions": {
+                              "typeIdentifier": "t_type$_t_uint8_$",
+                              "typeString": "type(uint8)"
+                            },
+                            "typeName": {
+                              "id": 6402,
+                              "name": "uint8",
+                              "nodeType": "ElementaryTypeName",
+                              "src": "1841:5:9",
+                              "typeDescriptions": {}
+                            }
+                          },
+                          "id": 6406,
+                          "isConstant": false,
+                          "isLValue": false,
+                          "isPure": true,
+                          "kind": "typeConversion",
+                          "lValueRequested": false,
+                          "nameLocations": [],
+                          "names": [],
+                          "nodeType": "FunctionCall",
+                          "src": "1841:36:9",
+                          "tryCall": false,
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_uint8",
+                            "typeString": "uint8"
+                          }
+                        }
+                      ],
+                      "expression": {
+                        "argumentTypes": [
+                          {
+                            "typeIdentifier": "t_uint8",
+                            "typeString": "uint8"
+                          },
+                          {
+                            "typeIdentifier": "t_uint8",
+                            "typeString": "uint8"
+                          }
+                        ],
+                        "id": 6400,
+                        "name": "UnexpectedExecutionParamsVersion",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 6260,
+                        "src": "1799:32:9",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_function_error_pure$_t_uint8_$_t_uint8_$returns$__$",
+                          "typeString": "function (uint8,uint8) pure"
+                        }
+                      },
+                      "id": 6407,
+                      "isConstant": false,
+                      "isLValue": false,
+                      "isPure": false,
+                      "kind": "functionCall",
+                      "lValueRequested": false,
+                      "nameLocations": [],
+                      "names": [],
+                      "nodeType": "FunctionCall",
+                      "src": "1799:79:9",
+                      "tryCall": false,
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_tuple$__$",
+                        "typeString": "tuple()"
+                      }
+                    },
+                    "id": 6408,
+                    "nodeType": "RevertStatement",
+                    "src": "1792:86:9"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "implemented": true,
+        "kind": "freeFunction",
+        "modifiers": [],
+        "name": "decodeEvmExecutionParamsV1",
+        "nameLocation": "1516:26:9",
+        "parameters": {
+          "id": 6371,
+          "nodeType": "ParameterList",
+          "parameters": [
+            {
+              "constant": false,
+              "id": 6370,
+              "mutability": "mutable",
+              "name": "data",
+              "nameLocation": "1556:4:9",
+              "nodeType": "VariableDeclaration",
+              "scope": 6412,
+              "src": "1543:17:9",
+              "stateVariable": false,
+              "storageLocation": "memory",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes_memory_ptr",
+                "typeString": "bytes"
+              },
+              "typeName": {
+                "id": 6369,
+                "name": "bytes",
+                "nodeType": "ElementaryTypeName",
+                "src": "1543:5:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bytes_storage_ptr",
+                  "typeString": "bytes"
+                }
+              },
+              "visibility": "internal"
+            }
+          ],
+          "src": "1542:19:9"
+        },
+        "returnParameters": {
+          "id": 6375,
+          "nodeType": "ParameterList",
+          "parameters": [
+            {
+              "constant": false,
+              "id": 6374,
+              "mutability": "mutable",
+              "name": "executionParams",
+              "nameLocation": "1612:15:9",
+              "nodeType": "VariableDeclaration",
+              "scope": 6412,
+              "src": "1584:43:9",
+              "stateVariable": false,
+              "storageLocation": "memory",
+              "typeDescriptions": {
+                "typeIdentifier": "t_struct$_EvmExecutionParamsV1_$6301_memory_ptr",
+                "typeString": "struct EvmExecutionParamsV1"
+              },
+              "typeName": {
+                "id": 6373,
+                "nodeType": "UserDefinedTypeName",
+                "pathNode": {
+                  "id": 6372,
+                  "name": "EvmExecutionParamsV1",
+                  "nameLocations": [
+                    "1584:20:9"
+                  ],
+                  "nodeType": "IdentifierPath",
+                  "referencedDeclaration": 6301,
+                  "src": "1584:20:9"
+                },
+                "referencedDeclaration": 6301,
+                "src": "1584:20:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_struct$_EvmExecutionParamsV1_$6301_storage_ptr",
+                  "typeString": "struct EvmExecutionParamsV1"
+                }
+              },
+              "visibility": "internal"
+            }
+          ],
+          "src": "1583:45:9"
+        },
+        "scope": 6501,
+        "stateMutability": "pure",
+        "virtual": false,
+        "visibility": "internal"
+      },
+      {
+        "id": 6434,
+        "nodeType": "FunctionDefinition",
+        "src": "1889:272:9",
+        "nodes": [],
+        "body": {
+          "id": 6433,
+          "nodeType": "Block",
+          "src": "2000:161:9",
+          "nodes": [],
+          "statements": [
+            {
+              "expression": {
+                "arguments": [
+                  {
+                    "arguments": [
+                      {
+                        "expression": {
+                          "id": 6424,
+                          "name": "ExecutionInfoVersion",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": 6303,
+                          "src": "2039:20:9",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_type$_t_enum$_ExecutionInfoVersion_$6303_$",
+                            "typeString": "type(enum ExecutionInfoVersion)"
+                          }
+                        },
+                        "id": 6425,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": true,
+                        "lValueRequested": false,
+                        "memberLocation": "2060:6:9",
+                        "memberName": "EVM_V1",
+                        "nodeType": "MemberAccess",
+                        "referencedDeclaration": 6302,
+                        "src": "2039:27:9",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_enum$_ExecutionInfoVersion_$6303",
+                          "typeString": "enum ExecutionInfoVersion"
+                        }
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_enum$_ExecutionInfoVersion_$6303",
+                          "typeString": "enum ExecutionInfoVersion"
+                        }
+                      ],
+                      "id": 6423,
+                      "isConstant": false,
+                      "isLValue": false,
+                      "isPure": true,
+                      "lValueRequested": false,
+                      "nodeType": "ElementaryTypeNameExpression",
+                      "src": "2033:5:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_type$_t_uint8_$",
+                        "typeString": "type(uint8)"
+                      },
+                      "typeName": {
+                        "id": 6422,
+                        "name": "uint8",
+                        "nodeType": "ElementaryTypeName",
+                        "src": "2033:5:9",
+                        "typeDescriptions": {}
+                      }
+                    },
+                    "id": 6426,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": true,
+                    "kind": "typeConversion",
+                    "lValueRequested": false,
+                    "nameLocations": [],
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "2033:34:9",
+                    "tryCall": false,
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint8",
+                      "typeString": "uint8"
+                    }
+                  },
+                  {
+                    "expression": {
+                      "id": 6427,
+                      "name": "executionInfo",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 6415,
+                      "src": "2077:13:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_struct$_EvmExecutionInfoV1_$6310_memory_ptr",
+                        "typeString": "struct EvmExecutionInfoV1 memory"
+                      }
+                    },
+                    "id": 6428,
+                    "isConstant": false,
+                    "isLValue": true,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "memberLocation": "2091:8:9",
+                    "memberName": "gasLimit",
+                    "nodeType": "MemberAccess",
+                    "referencedDeclaration": 6306,
+                    "src": "2077:22:9",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_userDefinedValueType$_Gas_$1478",
+                      "typeString": "Gas"
+                    }
+                  },
+                  {
+                    "expression": {
+                      "id": 6429,
+                      "name": "executionInfo",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 6415,
+                      "src": "2109:13:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_struct$_EvmExecutionInfoV1_$6310_memory_ptr",
+                        "typeString": "struct EvmExecutionInfoV1 memory"
+                      }
+                    },
+                    "id": 6430,
+                    "isConstant": false,
+                    "isLValue": true,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "memberLocation": "2123:29:9",
+                    "memberName": "targetChainRefundPerGasUnused",
+                    "nodeType": "MemberAccess",
+                    "referencedDeclaration": 6309,
+                    "src": "2109:43:9",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_userDefinedValueType$_GasPrice_$1476",
+                      "typeString": "GasPrice"
+                    }
+                  }
+                ],
+                "expression": {
+                  "argumentTypes": [
+                    {
+                      "typeIdentifier": "t_uint8",
+                      "typeString": "uint8"
+                    },
+                    {
+                      "typeIdentifier": "t_userDefinedValueType$_Gas_$1478",
+                      "typeString": "Gas"
+                    },
+                    {
+                      "typeIdentifier": "t_userDefinedValueType$_GasPrice_$1476",
+                      "typeString": "GasPrice"
+                    }
+                  ],
+                  "expression": {
+                    "id": 6420,
+                    "name": "abi",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": -1,
+                    "src": "2013:3:9",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_magic_abi",
+                      "typeString": "abi"
+                    }
+                  },
+                  "id": 6421,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": true,
+                  "lValueRequested": false,
+                  "memberLocation": "2017:6:9",
+                  "memberName": "encode",
+                  "nodeType": "MemberAccess",
+                  "src": "2013:10:9",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_function_abiencode_pure$__$returns$_t_bytes_memory_ptr_$",
+                    "typeString": "function () pure returns (bytes memory)"
+                  }
+                },
+                "id": 6431,
+                "isConstant": false,
+                "isLValue": false,
+                "isPure": false,
+                "kind": "functionCall",
+                "lValueRequested": false,
+                "nameLocations": [],
+                "names": [],
+                "nodeType": "FunctionCall",
+                "src": "2013:145:9",
+                "tryCall": false,
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bytes_memory_ptr",
+                  "typeString": "bytes memory"
+                }
+              },
+              "functionReturnParameters": 6419,
+              "id": 6432,
+              "nodeType": "Return",
+              "src": "2006:152:9"
+            }
+          ]
+        },
+        "implemented": true,
+        "kind": "freeFunction",
+        "modifiers": [],
+        "name": "encodeEvmExecutionInfoV1",
+        "nameLocation": "1898:24:9",
+        "parameters": {
+          "id": 6416,
+          "nodeType": "ParameterList",
+          "parameters": [
+            {
+              "constant": false,
+              "id": 6415,
+              "mutability": "mutable",
+              "name": "executionInfo",
+              "nameLocation": "1949:13:9",
+              "nodeType": "VariableDeclaration",
+              "scope": 6434,
+              "src": "1923:39:9",
+              "stateVariable": false,
+              "storageLocation": "memory",
+              "typeDescriptions": {
+                "typeIdentifier": "t_struct$_EvmExecutionInfoV1_$6310_memory_ptr",
+                "typeString": "struct EvmExecutionInfoV1"
+              },
+              "typeName": {
+                "id": 6414,
+                "nodeType": "UserDefinedTypeName",
+                "pathNode": {
+                  "id": 6413,
+                  "name": "EvmExecutionInfoV1",
+                  "nameLocations": [
+                    "1923:18:9"
+                  ],
+                  "nodeType": "IdentifierPath",
+                  "referencedDeclaration": 6310,
+                  "src": "1923:18:9"
+                },
+                "referencedDeclaration": 6310,
+                "src": "1923:18:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_struct$_EvmExecutionInfoV1_$6310_storage_ptr",
+                  "typeString": "struct EvmExecutionInfoV1"
+                }
+              },
+              "visibility": "internal"
+            }
+          ],
+          "src": "1922:41:9"
+        },
+        "returnParameters": {
+          "id": 6419,
+          "nodeType": "ParameterList",
+          "parameters": [
+            {
+              "constant": false,
+              "id": 6418,
+              "mutability": "mutable",
+              "name": "",
+              "nameLocation": "-1:-1:-1",
+              "nodeType": "VariableDeclaration",
+              "scope": 6434,
+              "src": "1986:12:9",
+              "stateVariable": false,
+              "storageLocation": "memory",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes_memory_ptr",
+                "typeString": "bytes"
+              },
+              "typeName": {
+                "id": 6417,
+                "name": "bytes",
+                "nodeType": "ElementaryTypeName",
+                "src": "1986:5:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bytes_storage_ptr",
+                  "typeString": "bytes"
+                }
+              },
+              "visibility": "internal"
+            }
+          ],
+          "src": "1985:14:9"
+        },
+        "scope": 6501,
+        "stateMutability": "pure",
+        "virtual": false,
+        "visibility": "internal"
+      },
+      {
+        "id": 6481,
+        "nodeType": "FunctionDefinition",
+        "src": "2163:429:9",
+        "nodes": [],
+        "body": {
+          "id": 6480,
+          "nodeType": "Block",
+          "src": "2279:313:9",
+          "nodes": [],
+          "statements": [
+            {
+              "assignments": [
+                6443
+              ],
+              "declarations": [
+                {
+                  "constant": false,
+                  "id": 6443,
+                  "mutability": "mutable",
+                  "name": "version",
+                  "nameLocation": "2291:7:9",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 6480,
+                  "src": "2285:13:9",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint8",
+                    "typeString": "uint8"
+                  },
+                  "typeName": {
+                    "id": 6442,
+                    "name": "uint8",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "2285:5:9",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint8",
+                      "typeString": "uint8"
+                    }
+                  },
+                  "visibility": "internal"
+                }
+              ],
+              "id": 6444,
+              "nodeType": "VariableDeclarationStatement",
+              "src": "2285:13:9"
+            },
+            {
+              "expression": {
+                "id": 6460,
+                "isConstant": false,
+                "isLValue": false,
+                "isPure": false,
+                "lValueRequested": false,
+                "leftHandSide": {
+                  "components": [
+                    {
+                      "id": 6445,
+                      "name": "version",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 6443,
+                      "src": "2305:7:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint8",
+                        "typeString": "uint8"
+                      }
+                    },
+                    {
+                      "expression": {
+                        "id": 6446,
+                        "name": "executionInfo",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 6440,
+                        "src": "2314:13:9",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_struct$_EvmExecutionInfoV1_$6310_memory_ptr",
+                          "typeString": "struct EvmExecutionInfoV1 memory"
+                        }
+                      },
+                      "id": 6447,
+                      "isConstant": false,
+                      "isLValue": true,
+                      "isPure": false,
+                      "lValueRequested": true,
+                      "memberLocation": "2328:8:9",
+                      "memberName": "gasLimit",
+                      "nodeType": "MemberAccess",
+                      "referencedDeclaration": 6306,
+                      "src": "2314:22:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_userDefinedValueType$_Gas_$1478",
+                        "typeString": "Gas"
+                      }
+                    },
+                    {
+                      "expression": {
+                        "id": 6448,
+                        "name": "executionInfo",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 6440,
+                        "src": "2338:13:9",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_struct$_EvmExecutionInfoV1_$6310_memory_ptr",
+                          "typeString": "struct EvmExecutionInfoV1 memory"
+                        }
+                      },
+                      "id": 6449,
+                      "isConstant": false,
+                      "isLValue": true,
+                      "isPure": false,
+                      "lValueRequested": true,
+                      "memberLocation": "2352:29:9",
+                      "memberName": "targetChainRefundPerGasUnused",
+                      "nodeType": "MemberAccess",
+                      "referencedDeclaration": 6309,
+                      "src": "2338:43:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_userDefinedValueType$_GasPrice_$1476",
+                        "typeString": "GasPrice"
+                      }
+                    }
+                  ],
+                  "id": 6450,
+                  "isConstant": false,
+                  "isInlineArray": false,
+                  "isLValue": true,
+                  "isPure": false,
+                  "lValueRequested": true,
+                  "nodeType": "TupleExpression",
+                  "src": "2304:78:9",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_tuple$_t_uint8_$_t_userDefinedValueType$_Gas_$1478_$_t_userDefinedValueType$_GasPrice_$1476_$",
+                    "typeString": "tuple(uint8,Gas,GasPrice)"
+                  }
+                },
+                "nodeType": "Assignment",
+                "operator": "=",
+                "rightHandSide": {
+                  "arguments": [
+                    {
+                      "id": 6453,
+                      "name": "data",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 6436,
+                      "src": "2404:4:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_bytes_memory_ptr",
+                        "typeString": "bytes memory"
+                      }
+                    },
+                    {
+                      "components": [
+                        {
+                          "id": 6455,
+                          "isConstant": false,
+                          "isLValue": false,
+                          "isPure": true,
+                          "lValueRequested": false,
+                          "nodeType": "ElementaryTypeNameExpression",
+                          "src": "2411:5:9",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_type$_t_uint8_$",
+                            "typeString": "type(uint8)"
+                          },
+                          "typeName": {
+                            "id": 6454,
+                            "name": "uint8",
+                            "nodeType": "ElementaryTypeName",
+                            "src": "2411:5:9",
+                            "typeDescriptions": {}
+                          }
+                        },
+                        {
+                          "id": 6456,
+                          "name": "Gas",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": 1478,
+                          "src": "2418:3:9",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_type$_t_userDefinedValueType$_Gas_$1478_$",
+                            "typeString": "type(Gas)"
+                          }
+                        },
+                        {
+                          "id": 6457,
+                          "name": "GasPrice",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": 1476,
+                          "src": "2423:8:9",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_type$_t_userDefinedValueType$_GasPrice_$1476_$",
+                            "typeString": "type(GasPrice)"
+                          }
+                        }
+                      ],
+                      "id": 6458,
+                      "isConstant": false,
+                      "isInlineArray": false,
+                      "isLValue": false,
+                      "isPure": true,
+                      "lValueRequested": false,
+                      "nodeType": "TupleExpression",
+                      "src": "2410:22:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_tuple$_t_type$_t_uint8_$_$_t_type$_t_userDefinedValueType$_Gas_$1478_$_$_t_type$_t_userDefinedValueType$_GasPrice_$1476_$_$",
+                        "typeString": "tuple(type(uint8),type(Gas),type(GasPrice))"
+                      }
+                    }
+                  ],
+                  "expression": {
+                    "argumentTypes": [
+                      {
+                        "typeIdentifier": "t_bytes_memory_ptr",
+                        "typeString": "bytes memory"
+                      },
+                      {
+                        "typeIdentifier": "t_tuple$_t_type$_t_uint8_$_$_t_type$_t_userDefinedValueType$_Gas_$1478_$_$_t_type$_t_userDefinedValueType$_GasPrice_$1476_$_$",
+                        "typeString": "tuple(type(uint8),type(Gas),type(GasPrice))"
+                      }
+                    ],
+                    "expression": {
+                      "id": 6451,
+                      "name": "abi",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": -1,
+                      "src": "2393:3:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_magic_abi",
+                        "typeString": "abi"
+                      }
+                    },
+                    "id": 6452,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": true,
+                    "lValueRequested": false,
+                    "memberLocation": "2397:6:9",
+                    "memberName": "decode",
+                    "nodeType": "MemberAccess",
+                    "src": "2393:10:9",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_function_abidecode_pure$__$returns$__$",
+                      "typeString": "function () pure"
+                    }
+                  },
+                  "id": 6459,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": false,
+                  "kind": "functionCall",
+                  "lValueRequested": false,
+                  "nameLocations": [],
+                  "names": [],
+                  "nodeType": "FunctionCall",
+                  "src": "2393:40:9",
+                  "tryCall": false,
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_tuple$_t_uint8_$_t_userDefinedValueType$_Gas_$1478_$_t_userDefinedValueType$_GasPrice_$1476_$",
+                    "typeString": "tuple(uint8,Gas,GasPrice)"
+                  }
+                },
+                "src": "2304:129:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_tuple$__$",
+                  "typeString": "tuple()"
+                }
+              },
+              "id": 6461,
+              "nodeType": "ExpressionStatement",
+              "src": "2304:129:9"
+            },
+            {
+              "condition": {
+                "commonType": {
+                  "typeIdentifier": "t_uint8",
+                  "typeString": "uint8"
+                },
+                "id": 6468,
+                "isConstant": false,
+                "isLValue": false,
+                "isPure": false,
+                "lValueRequested": false,
+                "leftExpression": {
+                  "id": 6462,
+                  "name": "version",
+                  "nodeType": "Identifier",
+                  "overloadedDeclarations": [],
+                  "referencedDeclaration": 6443,
+                  "src": "2444:7:9",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint8",
+                    "typeString": "uint8"
+                  }
+                },
+                "nodeType": "BinaryOperation",
+                "operator": "!=",
+                "rightExpression": {
+                  "arguments": [
+                    {
+                      "expression": {
+                        "id": 6465,
+                        "name": "ExecutionInfoVersion",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 6303,
+                        "src": "2461:20:9",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_type$_t_enum$_ExecutionInfoVersion_$6303_$",
+                          "typeString": "type(enum ExecutionInfoVersion)"
+                        }
+                      },
+                      "id": 6466,
+                      "isConstant": false,
+                      "isLValue": false,
+                      "isPure": true,
+                      "lValueRequested": false,
+                      "memberLocation": "2482:6:9",
+                      "memberName": "EVM_V1",
+                      "nodeType": "MemberAccess",
+                      "referencedDeclaration": 6302,
+                      "src": "2461:27:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_enum$_ExecutionInfoVersion_$6303",
+                        "typeString": "enum ExecutionInfoVersion"
+                      }
+                    }
+                  ],
+                  "expression": {
+                    "argumentTypes": [
+                      {
+                        "typeIdentifier": "t_enum$_ExecutionInfoVersion_$6303",
+                        "typeString": "enum ExecutionInfoVersion"
+                      }
+                    ],
+                    "id": 6464,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": true,
+                    "lValueRequested": false,
+                    "nodeType": "ElementaryTypeNameExpression",
+                    "src": "2455:5:9",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_type$_t_uint8_$",
+                      "typeString": "type(uint8)"
+                    },
+                    "typeName": {
+                      "id": 6463,
+                      "name": "uint8",
+                      "nodeType": "ElementaryTypeName",
+                      "src": "2455:5:9",
+                      "typeDescriptions": {}
+                    }
+                  },
+                  "id": 6467,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": true,
+                  "kind": "typeConversion",
+                  "lValueRequested": false,
+                  "nameLocations": [],
+                  "names": [],
+                  "nodeType": "FunctionCall",
+                  "src": "2455:34:9",
+                  "tryCall": false,
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint8",
+                    "typeString": "uint8"
+                  }
+                },
+                "src": "2444:45:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bool",
+                  "typeString": "bool"
+                }
+              },
+              "id": 6479,
+              "nodeType": "IfStatement",
+              "src": "2440:150:9",
+              "trueBody": {
+                "id": 6478,
+                "nodeType": "Block",
+                "src": "2491:99:9",
+                "statements": [
+                  {
+                    "errorCall": {
+                      "arguments": [
+                        {
+                          "id": 6470,
+                          "name": "version",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": 6443,
+                          "src": "2539:7:9",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_uint8",
+                            "typeString": "uint8"
+                          }
+                        },
+                        {
+                          "arguments": [
+                            {
+                              "expression": {
+                                "id": 6473,
+                                "name": "ExecutionInfoVersion",
+                                "nodeType": "Identifier",
+                                "overloadedDeclarations": [],
+                                "referencedDeclaration": 6303,
+                                "src": "2554:20:9",
+                                "typeDescriptions": {
+                                  "typeIdentifier": "t_type$_t_enum$_ExecutionInfoVersion_$6303_$",
+                                  "typeString": "type(enum ExecutionInfoVersion)"
+                                }
+                              },
+                              "id": 6474,
+                              "isConstant": false,
+                              "isLValue": false,
+                              "isPure": true,
+                              "lValueRequested": false,
+                              "memberLocation": "2575:6:9",
+                              "memberName": "EVM_V1",
+                              "nodeType": "MemberAccess",
+                              "referencedDeclaration": 6302,
+                              "src": "2554:27:9",
+                              "typeDescriptions": {
+                                "typeIdentifier": "t_enum$_ExecutionInfoVersion_$6303",
+                                "typeString": "enum ExecutionInfoVersion"
+                              }
+                            }
+                          ],
+                          "expression": {
+                            "argumentTypes": [
+                              {
+                                "typeIdentifier": "t_enum$_ExecutionInfoVersion_$6303",
+                                "typeString": "enum ExecutionInfoVersion"
+                              }
+                            ],
+                            "id": 6472,
+                            "isConstant": false,
+                            "isLValue": false,
+                            "isPure": true,
+                            "lValueRequested": false,
+                            "nodeType": "ElementaryTypeNameExpression",
+                            "src": "2548:5:9",
+                            "typeDescriptions": {
+                              "typeIdentifier": "t_type$_t_uint8_$",
+                              "typeString": "type(uint8)"
+                            },
+                            "typeName": {
+                              "id": 6471,
+                              "name": "uint8",
+                              "nodeType": "ElementaryTypeName",
+                              "src": "2548:5:9",
+                              "typeDescriptions": {}
+                            }
+                          },
+                          "id": 6475,
+                          "isConstant": false,
+                          "isLValue": false,
+                          "isPure": true,
+                          "kind": "typeConversion",
+                          "lValueRequested": false,
+                          "nameLocations": [],
+                          "names": [],
+                          "nodeType": "FunctionCall",
+                          "src": "2548:34:9",
+                          "tryCall": false,
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_uint8",
+                            "typeString": "uint8"
+                          }
+                        }
+                      ],
+                      "expression": {
+                        "argumentTypes": [
+                          {
+                            "typeIdentifier": "t_uint8",
+                            "typeString": "uint8"
+                          },
+                          {
+                            "typeIdentifier": "t_uint8",
+                            "typeString": "uint8"
+                          }
+                        ],
+                        "id": 6469,
+                        "name": "UnexpectedExecutionInfoVersion",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 6276,
+                        "src": "2508:30:9",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_function_error_pure$_t_uint8_$_t_uint8_$returns$__$",
+                          "typeString": "function (uint8,uint8) pure"
+                        }
+                      },
+                      "id": 6476,
+                      "isConstant": false,
+                      "isLValue": false,
+                      "isPure": false,
+                      "kind": "functionCall",
+                      "lValueRequested": false,
+                      "nameLocations": [],
+                      "names": [],
+                      "nodeType": "FunctionCall",
+                      "src": "2508:75:9",
+                      "tryCall": false,
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_tuple$__$",
+                        "typeString": "tuple()"
+                      }
+                    },
+                    "id": 6477,
+                    "nodeType": "RevertStatement",
+                    "src": "2501:82:9"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "implemented": true,
+        "kind": "freeFunction",
+        "modifiers": [],
+        "name": "decodeEvmExecutionInfoV1",
+        "nameLocation": "2172:24:9",
+        "parameters": {
+          "id": 6437,
+          "nodeType": "ParameterList",
+          "parameters": [
+            {
+              "constant": false,
+              "id": 6436,
+              "mutability": "mutable",
+              "name": "data",
+              "nameLocation": "2210:4:9",
+              "nodeType": "VariableDeclaration",
+              "scope": 6481,
+              "src": "2197:17:9",
+              "stateVariable": false,
+              "storageLocation": "memory",
+              "typeDescriptions": {
+                "typeIdentifier": "t_bytes_memory_ptr",
+                "typeString": "bytes"
+              },
+              "typeName": {
+                "id": 6435,
+                "name": "bytes",
+                "nodeType": "ElementaryTypeName",
+                "src": "2197:5:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_bytes_storage_ptr",
+                  "typeString": "bytes"
+                }
+              },
+              "visibility": "internal"
+            }
+          ],
+          "src": "2196:19:9"
+        },
+        "returnParameters": {
+          "id": 6441,
+          "nodeType": "ParameterList",
+          "parameters": [
+            {
+              "constant": false,
+              "id": 6440,
+              "mutability": "mutable",
+              "name": "executionInfo",
+              "nameLocation": "2264:13:9",
+              "nodeType": "VariableDeclaration",
+              "scope": 6481,
+              "src": "2238:39:9",
+              "stateVariable": false,
+              "storageLocation": "memory",
+              "typeDescriptions": {
+                "typeIdentifier": "t_struct$_EvmExecutionInfoV1_$6310_memory_ptr",
+                "typeString": "struct EvmExecutionInfoV1"
+              },
+              "typeName": {
+                "id": 6439,
+                "nodeType": "UserDefinedTypeName",
+                "pathNode": {
+                  "id": 6438,
+                  "name": "EvmExecutionInfoV1",
+                  "nameLocations": [
+                    "2238:18:9"
+                  ],
+                  "nodeType": "IdentifierPath",
+                  "referencedDeclaration": 6310,
+                  "src": "2238:18:9"
+                },
+                "referencedDeclaration": 6310,
+                "src": "2238:18:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_struct$_EvmExecutionInfoV1_$6310_storage_ptr",
+                  "typeString": "struct EvmExecutionInfoV1"
+                }
+              },
+              "visibility": "internal"
+            }
+          ],
+          "src": "2237:41:9"
+        },
+        "scope": 6501,
+        "stateMutability": "pure",
+        "virtual": false,
+        "visibility": "internal"
+      },
+      {
+        "id": 6500,
+        "nodeType": "FunctionDefinition",
+        "src": "2594:163:9",
+        "nodes": [],
+        "body": {
+          "id": 6499,
+          "nodeType": "Block",
+          "src": "2701:56:9",
+          "nodes": [],
+          "statements": [
+            {
+              "expression": {
+                "id": 6497,
+                "isConstant": false,
+                "isLValue": false,
+                "isPure": false,
+                "lValueRequested": false,
+                "leftHandSide": {
+                  "expression": {
+                    "id": 6487,
+                    "name": "executionParams",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 6485,
+                    "src": "2707:15:9",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_struct$_EvmExecutionParamsV1_$6301_memory_ptr",
+                      "typeString": "struct EvmExecutionParamsV1 memory"
+                    }
+                  },
+                  "id": 6489,
+                  "isConstant": false,
+                  "isLValue": true,
+                  "isPure": false,
+                  "lValueRequested": true,
+                  "memberLocation": "2723:8:9",
+                  "memberName": "gasLimit",
+                  "nodeType": "MemberAccess",
+                  "referencedDeclaration": 6300,
+                  "src": "2707:24:9",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_userDefinedValueType$_Gas_$1478",
+                    "typeString": "Gas"
+                  }
+                },
+                "nodeType": "Assignment",
+                "operator": "=",
+                "rightHandSide": {
+                  "arguments": [
+                    {
+                      "arguments": [
+                        {
+                          "hexValue": "30",
+                          "id": 6494,
+                          "isConstant": false,
+                          "isLValue": false,
+                          "isPure": true,
+                          "kind": "number",
+                          "lValueRequested": false,
+                          "nodeType": "Literal",
+                          "src": "2751:1:9",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_rational_0_by_1",
+                            "typeString": "int_const 0"
+                          },
+                          "value": "0"
+                        }
+                      ],
+                      "expression": {
+                        "argumentTypes": [
+                          {
+                            "typeIdentifier": "t_rational_0_by_1",
+                            "typeString": "int_const 0"
+                          }
+                        ],
+                        "id": 6493,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": true,
+                        "lValueRequested": false,
+                        "nodeType": "ElementaryTypeNameExpression",
+                        "src": "2743:7:9",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_type$_t_uint256_$",
+                          "typeString": "type(uint256)"
+                        },
+                        "typeName": {
+                          "id": 6492,
+                          "name": "uint256",
+                          "nodeType": "ElementaryTypeName",
+                          "src": "2743:7:9",
+                          "typeDescriptions": {}
+                        }
+                      },
+                      "id": 6495,
+                      "isConstant": false,
+                      "isLValue": false,
+                      "isPure": true,
+                      "kind": "typeConversion",
+                      "lValueRequested": false,
+                      "nameLocations": [],
+                      "names": [],
+                      "nodeType": "FunctionCall",
+                      "src": "2743:10:9",
+                      "tryCall": false,
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    }
+                  ],
+                  "expression": {
+                    "argumentTypes": [
+                      {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    ],
+                    "expression": {
+                      "id": 6490,
+                      "name": "Gas",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 1478,
+                      "src": "2734:3:9",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_type$_t_userDefinedValueType$_Gas_$1478_$",
+                        "typeString": "type(Gas)"
+                      }
+                    },
+                    "id": 6491,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": true,
+                    "lValueRequested": false,
+                    "memberLocation": "2738:4:9",
+                    "memberName": "wrap",
+                    "nodeType": "MemberAccess",
+                    "src": "2734:8:9",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_function_wrap_pure$_t_uint256_$returns$_t_userDefinedValueType$_Gas_$1478_$",
+                      "typeString": "function (uint256) pure returns (Gas)"
+                    }
+                  },
+                  "id": 6496,
+                  "isConstant": false,
+                  "isLValue": false,
+                  "isPure": true,
+                  "kind": "functionCall",
+                  "lValueRequested": false,
+                  "nameLocations": [],
+                  "names": [],
+                  "nodeType": "FunctionCall",
+                  "src": "2734:20:9",
+                  "tryCall": false,
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_userDefinedValueType$_Gas_$1478",
+                    "typeString": "Gas"
+                  }
+                },
+                "src": "2707:47:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_userDefinedValueType$_Gas_$1478",
+                  "typeString": "Gas"
+                }
+              },
+              "id": 6498,
+              "nodeType": "ExpressionStatement",
+              "src": "2707:47:9"
+            }
+          ]
+        },
+        "implemented": true,
+        "kind": "freeFunction",
+        "modifiers": [],
+        "name": "getEmptyEvmExecutionParamsV1",
+        "nameLocation": "2603:28:9",
+        "parameters": {
+          "id": 6482,
+          "nodeType": "ParameterList",
+          "parameters": [],
+          "src": "2631:2:9"
+        },
+        "returnParameters": {
+          "id": 6486,
+          "nodeType": "ParameterList",
+          "parameters": [
+            {
+              "constant": false,
+              "id": 6485,
+              "mutability": "mutable",
+              "name": "executionParams",
+              "nameLocation": "2684:15:9",
+              "nodeType": "VariableDeclaration",
+              "scope": 6500,
+              "src": "2656:43:9",
+              "stateVariable": false,
+              "storageLocation": "memory",
+              "typeDescriptions": {
+                "typeIdentifier": "t_struct$_EvmExecutionParamsV1_$6301_memory_ptr",
+                "typeString": "struct EvmExecutionParamsV1"
+              },
+              "typeName": {
+                "id": 6484,
+                "nodeType": "UserDefinedTypeName",
+                "pathNode": {
+                  "id": 6483,
+                  "name": "EvmExecutionParamsV1",
+                  "nameLocations": [
+                    "2656:20:9"
+                  ],
+                  "nodeType": "IdentifierPath",
+                  "referencedDeclaration": 6301,
+                  "src": "2656:20:9"
+                },
+                "referencedDeclaration": 6301,
+                "src": "2656:20:9",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_struct$_EvmExecutionParamsV1_$6301_storage_ptr",
+                  "typeString": "struct EvmExecutionParamsV1"
+                }
+              },
+              "visibility": "internal"
+            }
+          ],
+          "src": "2655:45:9"
+        },
+        "scope": 6501,
+        "stateMutability": "pure",
+        "virtual": false,
+        "visibility": "internal"
+      }
+    ],
+    "license": "Apache 2"
+  },
+  "id": 9
+}
