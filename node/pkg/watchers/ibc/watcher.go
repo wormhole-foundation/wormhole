@@ -9,8 +9,8 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
-	"strconv"
 	"time"
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -23,8 +23,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
-
-	eth_common "github.com/ethereum/go-ethereum/common"
 
 	"github.com/tidwall/gjson"
 	"nhooyr.io/websocket"
@@ -84,6 +82,7 @@ type (
 		logger          *zap.Logger
 	}
 
+	// channelEntry defines the chain that is associated with an IBC channel.
 	channelEntry struct {
 		ibcChannelID string
 		chainID      vaa.ChainID
@@ -104,9 +103,15 @@ type (
 		ID uint64 `json:"id"`
 	}
 
-	ibcMessage struct {
-		ibcChannelID string
-		msg          *common.MessagePublication
+	// ibcReceivePublishEvent is the event published by the IBC contract for a wormhole message.
+	ibcReceivePublishEvent struct {
+		ChannelID      string      `json:"channel_id"`
+		EmitterChain   vaa.ChainID `json:"message.chain_id"` //////////////////////// BOINK
+		EmitterAddress vaa.Address `json:"message.sender"`
+		Nonce          uint32      `json:"message.nonce"`
+		Sequence       uint64      `json:"message.sequence"`
+		Timestamp      uint64      `json:"message.block_time"`
+		Payload        []byte      `json:"message.message"`
 	}
 )
 
@@ -256,7 +261,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 						continue
 					}
 
-					msgs := EventsToMessagePublications(w.contractAddress, txHash, events.Array(), logger, w.chainID, contractAddressLogKey)
+					msgs := parseEvents(w.contractAddress, txHash, events.Array(), logger, w.chainID, contractAddressLogKey)
 					for _, msg := range msgs {
 						w.msgC <- msg
 						messagesConfirmed.WithLabelValues(networkName).Inc()
@@ -281,51 +286,78 @@ func (w *Watcher) Run(ctx context.Context) error {
 					return nil
 				}
 
-				// Received a message from the blockchain
 				json := string(message)
 
-				wormchainTxHashRaw := gjson.Get(json, "result.events.tx\\.hash.0")
-				if !wormchainTxHashRaw.Exists() {
+				txHashRaw := gjson.Get(json, "result.events.tx\\.hash.0")
+				if !txHashRaw.Exists() {
 					w.logger.Warn("message does not have tx hash", zap.String("payload", json))
 					continue
 				}
-				wormchainTxHash := wormchainTxHashRaw.String()
+				txHashStr := txHashRaw.String()
 
-				events := gjson.Get(json, "result.data.value.TxResult.result.events")
-				if !events.Exists() {
+				txHash, err := vaa.StringToHash(txHashStr)
+				if err != nil {
+					// p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+					connectionErrors.WithLabelValues("parse_error").Inc()
+					w.logger.Error("failed to parse txHash", zap.String("txHash", txHashStr), zap.Error(err))
+					errC <- err
+					return nil
+				}
+
+				eventsJson := gjson.Get(json, "result.data.value.TxResult.result.events")
+				if !eventsJson.Exists() {
 					w.logger.Warn("message has no events", zap.String("payload", json))
 					continue
 				}
 
-				msgs := w.eventsToMessagePublications(w.contractAddress, wormchainTxHash, events.Array(), w.logger, contractAddressLogKey)
-				for _, msg := range msgs {
-					ce, exists := channelMap[msg.ibcChannelID]
+				events, err := w.parseEvents(txHashStr, eventsJson.Array())
+				if err != nil {
+					// p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+					connectionErrors.WithLabelValues("channel_parse_error").Inc()
+					w.logger.Error("failed to parse events", zap.String("txHash", txHashStr), zap.Error(err))
+					errC <- err
+					return nil
+				}
+
+				for _, evt := range events {
+					ce, exists := channelMap[evt.ChannelID]
 					if !exists {
-						w.logger.Info("ignoring an event from an unexpected IBC channel", zap.String("ibcChannel", msg.ibcChannelID))
+						w.logger.Info("ignoring an event from an unexpected IBC channel", zap.String("ibcChannel", evt.ChannelID))
 						continue
 					}
-					if msg.msg.EmitterChain != ce.chainID {
+
+					if evt.EmitterChain != ce.chainID {
 						w.logger.Error("chain id mismatch in IBC message",
-							zap.String("ibcChannelID", msg.ibcChannelID),
-							zap.String("wormchainTxHash", wormchainTxHash),
+							zap.String("ibcChannelID", evt.ChannelID),
+							zap.String("txHash", txHashStr),
 							zap.Uint16("expectedChainID", uint16(ce.chainID)),
-							zap.Uint16("actualChainID", uint16(msg.msg.EmitterChain)),
-							zap.String("txHash", msg.msg.TxHash.String()),
-							zap.String("msgId", msg.msg.MessageIDString()),
+							zap.Uint16("actualChainID", uint16(evt.EmitterChain)),
+							zap.String("msgId", evt.msgId()),
 						)
-						invalidChainIdMismatches.WithLabelValues(msg.ibcChannelID).Inc()
+						invalidChainIdMismatches.WithLabelValues(evt.ChannelID).Inc()
 						continue
 					}
 
 					w.logger.Info("new message detected on IBC",
 						zap.String("ibcChannelID", ce.ibcChannelID),
-						zap.String("wormchainTxHash", wormchainTxHash),
 						zap.String("chainName", ce.chainName),
-						zap.String("txHash", msg.msg.TxHash.String()),
-						zap.String("msgId", msg.msg.MessageIDString()),
+						zap.String("msgId", evt.msgId()),
+						zap.String("txHash", txHashStr),
+						zap.Uint64("timeStamp", evt.Timestamp),
 					)
 
-					ce.msgC <- msg.msg
+					msg := &common.MessagePublication{
+						TxHash:           txHash,
+						Timestamp:        time.Unix(int64(evt.Timestamp), 0),
+						Nonce:            evt.Nonce,
+						Sequence:         evt.Sequence,
+						EmitterChain:     evt.EmitterChain,
+						EmitterAddress:   evt.EmitterAddress,
+						Payload:          evt.Payload,
+						ConsistencyLevel: 0,
+					}
+
+					ce.msgC <- msg
 					messagesConfirmed.WithLabelValues(ce.chainName).Inc()
 				}
 			}
@@ -340,181 +372,126 @@ func (w *Watcher) Run(ctx context.Context) error {
 	}
 }
 
-func (w *Watcher) eventsToMessagePublications(contract string, wormholeTxHash string, events []gjson.Result, logger *zap.Logger, contractAddressKey string) []*ibcMessage {
-	msgs := make([]*ibcMessage, 0, len(events))
+// parseEvents parses incoming events and returns any IBC receive_publish events.
+func (w *Watcher) parseEvents(txHash string, events []gjson.Result) ([]*ibcReceivePublishEvent, error) {
+	msgs := make([]*ibcReceivePublishEvent, 0, len(events))
 	for _, event := range events {
-		if !event.IsObject() {
-			logger.Warn("event is invalid", zap.String("wormholeTxHash", wormholeTxHash), zap.String("event", event.String()))
-			continue
-		}
-		eventType := gjson.Get(event.String(), "type")
-		if eventType.String() != "wasm" {
-			continue
+		msg, err := parseWasmEvent[ibcReceivePublishEvent](w.logger, w.contractAddress, "receive_publish", event)
+		if err != nil {
+			return msgs, err
 		}
 
-		attributes := gjson.Get(event.String(), "attributes")
-		if !attributes.Exists() {
-			logger.Warn("message event has no attributes", zap.String("wormholeTxHash", wormholeTxHash), zap.String("event", event.String()))
-			continue
-		}
-		mappedAttributes := map[string]string{}
-		for _, attribute := range attributes.Array() {
-			if !attribute.IsObject() {
-				logger.Warn("event attribute is invalid", zap.String("wormholeTxHash", wormholeTxHash), zap.String("attribute", attribute.String()))
-				continue
-			}
-			keyBase := gjson.Get(attribute.String(), "key")
-			if !keyBase.Exists() {
-				logger.Warn("event attribute does not have key", zap.String("wormholeTxHash", wormholeTxHash), zap.String("attribute", attribute.String()))
-				continue
-			}
-			valueBase := gjson.Get(attribute.String(), "value")
-			if !valueBase.Exists() {
-				logger.Warn("event attribute does not have value", zap.String("wormholeTxHash", wormholeTxHash), zap.String("attribute", attribute.String()))
-				continue
-			}
-
-			key, err := base64.StdEncoding.DecodeString(keyBase.String())
-			if err != nil {
-				logger.Warn("event key attribute is invalid", zap.String("wormholeTxHash", wormholeTxHash), zap.String("key", keyBase.String()))
-				continue
-			}
-			value, err := base64.StdEncoding.DecodeString(valueBase.String())
-			if err != nil {
-				logger.Warn("event value attribute is invalid", zap.String("wormholeTxHash", wormholeTxHash), zap.String("key", keyBase.String()), zap.String("value", valueBase.String()))
-				continue
-			}
-
-			if _, ok := mappedAttributes[string(key)]; ok {
-				logger.Debug("duplicate key in events", zap.String("wormholeTxHash", wormholeTxHash), zap.String("key", keyBase.String()), zap.String("value", valueBase.String()))
-				continue
-			}
-
-			mappedAttributes[string(key)] = string(value)
-		}
-
-		contractAddress, ok := mappedAttributes[contractAddressKey]
-		if !ok {
-			logger.Warn("wasm event without contract address field set", zap.String("event", event.String()))
-			continue
-		}
-		// This is not a wormhole message
-		if contractAddress != contract {
-			continue
-		}
-		ibcChannelID, ok := mappedAttributes["message.channel_id"]
-		if !ok {
-			logger.Error("wormhole event does not have a channel_id field", zap.String("wormholeTxHash", wormholeTxHash), zap.String("attributes", attributes.String()))
-			continue
-		}
-		payload, ok := mappedAttributes["message.message"]
-		if !ok {
-			logger.Error("wormhole event does not have a message field", zap.String("wormholeTxHash", wormholeTxHash), zap.String("attributes", attributes.String()))
-			continue
-		}
-		sender, ok := mappedAttributes["message.sender"]
-		if !ok {
-			logger.Error("wormhole event does not have a sender field", zap.String("wormholeTxHash", wormholeTxHash), zap.String("attributes", attributes.String()))
-			continue
-		}
-		chainId, ok := mappedAttributes["message.chain_id"]
-		if !ok {
-			logger.Error("wormhole event does not have a chain_id field", zap.String("wormholeTxHash", wormholeTxHash), zap.String("attributes", attributes.String()))
-			continue
-		}
-		txHash, ok := mappedAttributes["message.tx_hash"]
-		if !ok {
-			logger.Error("wormhole event does not have a chain_id field", zap.String("wormholeTxHash", wormholeTxHash), zap.String("attributes", attributes.String()))
-			continue
-		}
-		nonce, ok := mappedAttributes["message.nonce"]
-		if !ok {
-			logger.Error("wormhole event does not have a nonce field", zap.String("wormholeTxHash", wormholeTxHash), zap.String("attributes", attributes.String()))
-			continue
-		}
-		sequence, ok := mappedAttributes["message.sequence"]
-		if !ok {
-			logger.Error("wormhole event does not have a sequence field", zap.String("wormholeTxHash", wormholeTxHash), zap.String("attributes", attributes.String()))
-			continue
-		}
-		blockTime, ok := mappedAttributes["message.block_time"]
-		if !ok {
-			logger.Error("wormhole event does not have a block_time field", zap.String("wormholeTxHash", wormholeTxHash), zap.String("attributes", attributes.String()))
-			continue
-		}
-
-		senderAddress, err := StringToAddress(sender)
-		if err != nil {
-			logger.Error("cannot decode emitter hex", zap.String("wormholeTxHash", wormholeTxHash), zap.String("value", sender))
-			continue
-		}
-		chainIdInt, err := strconv.ParseUint(chainId, 10, 16)
-		if err != nil {
-			logger.Error("chainID cannot be parsed as int", zap.String("wormholeTxHash", wormholeTxHash), zap.String("value", blockTime))
-			continue
-		}
-		chainID := vaa.ChainID(chainIdInt)
-		txHashValue, err := StringToHash(txHash)
-		if err != nil {
-			logger.Error("cannot decode tx hash hex", zap.String("wormholeTxHash", wormholeTxHash), zap.String("value", wormholeTxHash))
-			continue
-		}
-		payloadValue, err := hex.DecodeString(payload)
-		if err != nil {
-			logger.Error("cannot decode payload", zap.String("wormholeTxHash", wormholeTxHash), zap.String("value", payload))
-			continue
-		}
-
-		blockTimeInt, err := strconv.ParseInt(blockTime, 10, 64)
-		if err != nil {
-			logger.Error("blocktime cannot be parsed as int", zap.String("wormholeTxHash", wormholeTxHash), zap.String("value", blockTime))
-			continue
-		}
-		nonceInt, err := strconv.ParseUint(nonce, 10, 32)
-		if err != nil {
-			logger.Error("nonce cannot be parsed as int", zap.String("wormholeTxHash", wormholeTxHash), zap.String("value", blockTime))
-			continue
-		}
-		sequenceInt, err := strconv.ParseUint(sequence, 10, 64)
-		if err != nil {
-			logger.Error("sequence cannot be parsed as int", zap.String("wormholeTxHash", wormholeTxHash), zap.String("value", blockTime))
-			continue
-		}
-		msgs = append(msgs, &ibcMessage{
-			ibcChannelID: ibcChannelID,
-			msg: &common.MessagePublication{
-				TxHash:           txHashValue,
-				Timestamp:        time.Unix(blockTimeInt, 0),
-				Nonce:            uint32(nonceInt),
-				Sequence:         sequenceInt,
-				EmitterChain:     chainID,
-				EmitterAddress:   senderAddress,
-				Payload:          payloadValue,
-				ConsistencyLevel: 0, // Instant finality
-			},
-		})
+		msgs = append(msgs, msg)
 	}
-	return msgs
+	return msgs, nil
 }
 
-// StringToAddress convert string into address
-func StringToAddress(value string) (vaa.Address, error) {
-	var address vaa.Address
-	res, err := hex.DecodeString(value)
+// parseWasmEvent parses a wasm event. If it is from the desired contract and for the desired action, it returns an event. Otherwise, it returns nil.
+func parseWasmEvent[T any](logger *zap.Logger, desiredContract string, desiredAction string, event gjson.Result) (*T, error) {
+	attrBytes, err := parseWasmAttributes(logger, desiredContract, "receive_publish", event)
 	if err != nil {
-		return address, err
+		return nil, fmt.Errorf("failed to parse attributes: %w", err)
 	}
-	copy(address[:], res)
-	return address, nil
+
+	if attrBytes == nil {
+		return nil, nil
+	}
+
+	evt := new(T)
+	if err := json.Unmarshal(attrBytes, evt); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal event attributes: %w", err)
+	}
+
+	return evt, nil
 }
 
-// StringToHash convert string into transaction hash
-func StringToHash(value string) (eth_common.Hash, error) {
-	var hash eth_common.Hash
-	res, err := hex.DecodeString(value)
-	if err != nil {
-		return hash, err
+// parseWasmAttributes parses the attributes in a wasm event. If the contract and action match the desired values (or the desired values are not set)
+// the attributes are loaded into a byte array of the marshaled json. If the event is not of the desired type, it returns nil.
+func parseWasmAttributes(logger *zap.Logger, desiredContract string, desiredAction string, event gjson.Result) ([]byte, error) {
+	if !event.IsObject() {
+		return nil, fmt.Errorf("event is invalid: %s", event.String())
 	}
-	copy(hash[:], res)
-	return hash, nil
+
+	eventType := gjson.Get(event.String(), "type")
+	if eventType.String() != "wasm" {
+		return nil, nil
+	}
+
+	attributes := gjson.Get(event.String(), "attributes")
+	if !attributes.Exists() {
+		return nil, fmt.Errorf("message event has no attributes: %s", event.String())
+	}
+
+	contractAddressSeen := false
+	actionSeen := false
+	attrs := make(map[string]json.RawMessage)
+	for _, attribute := range attributes.Array() {
+		if !attribute.IsObject() {
+			return nil, fmt.Errorf("event attribute is invalid: %s", attribute.String())
+		}
+
+		keyBase := gjson.Get(attribute.String(), "key")
+		if !keyBase.Exists() {
+			return nil, fmt.Errorf("event attribute does not have key: %s", attribute.String())
+		}
+
+		valueBase := gjson.Get(attribute.String(), "value")
+		if !valueBase.Exists() {
+			return nil, fmt.Errorf("event attribute does not have value: %s", attribute.String())
+		}
+
+		keyBytes, err := base64.StdEncoding.DecodeString(keyBase.String())
+		if err != nil {
+			return nil, fmt.Errorf("event attribute key is not valid base64: %s", attribute.String())
+		}
+		key := string(keyBytes)
+
+		value, err := base64.StdEncoding.DecodeString(valueBase.String())
+		if err != nil {
+			return nil, fmt.Errorf("event attribute value is not valid base64: %s", attribute.String())
+		}
+
+		if key == "_contract_address" {
+			contractAddressSeen = true
+			if desiredContract != "" && string(value) != desiredContract {
+				logger.Debug("ignoring event from an unexpected contract", zap.String("contract", string(value)), zap.String("desiredContract", desiredContract))
+				return nil, nil
+			}
+		} else if key == "action" {
+			actionSeen = true
+			if desiredAction != "" && string(value) != desiredAction {
+				logger.Debug("ibc: ignoring event with an unexpected action", zap.String("key", key), zap.String("value", string(value)), zap.String("desiredAction", desiredAction))
+				return nil, nil
+			}
+		} else {
+			if _, ok := attrs[string(key)]; ok {
+				logger.Debug("duplicate key in events", zap.String("key", key), zap.String("value", string(value)))
+				continue
+			}
+
+			logger.Debug("ibc: event attribute", zap.String("key", key), zap.String("value", string(value)), zap.String("desiredAction", desiredAction))
+			attrs[string(key)] = value
+		}
+	}
+
+	if !contractAddressSeen && desiredContract != "" {
+		logger.Debug("contract address not specified, which does not match the desired value")
+		return nil, nil
+	}
+
+	if !actionSeen && desiredAction != "" {
+		logger.Debug("action not specified, which does not match the desired value")
+		return nil, nil
+	}
+
+	attrBytes, err := json.Marshal(attrs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal event attributes: %w", err)
+	}
+
+	return attrBytes, nil
+}
+
+func (e ibcReceivePublishEvent) msgId() string {
+	return fmt.Sprintf("%v/%v/%v", e.EmitterChain, hex.EncodeToString(e.EmitterAddress[:]), e.Sequence)
 }
