@@ -26,9 +26,13 @@ var CircleIntegrationModuleStr = string(CircleIntegrationModule[:])
 type GovernanceAction uint8
 
 var (
-	// Wormhole governance actions
-	ActionContractUpgrade   GovernanceAction = 1
-	ActionGuardianSetUpdate GovernanceAction = 2
+	// Wormhole core governance actions
+	// See e.g. GovernanceStructs.sol for semantic meaning of these
+	ActionContractUpgrade    GovernanceAction = 1
+	ActionGuardianSetUpdate  GovernanceAction = 2
+	ActionCoreSetMessageFee  GovernanceAction = 3
+	ActionCoreTransferFees   GovernanceAction = 4
+	ActionCoreRecoverChainId GovernanceAction = 5
 
 	// Wormchain cosmwasm governance actions
 	ActionStoreCode           GovernanceAction = 1
@@ -39,8 +43,9 @@ var (
 	ActionModifyBalance GovernanceAction = 1
 
 	// Wormhole tokenbridge governance actions
-	ActionRegisterChain      GovernanceAction = 1
-	ActionUpgradeTokenBridge GovernanceAction = 2
+	ActionRegisterChain             GovernanceAction = 1
+	ActionUpgradeTokenBridge        GovernanceAction = 2
+	ActionTokenBridgeRecoverChainId GovernanceAction = 3
 
 	// Circle Integration governance actions
 	CircleIntegrationActionUpdateWormholeFinality        GovernanceAction = 1
