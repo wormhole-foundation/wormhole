@@ -51,6 +51,6 @@ export function parseVaa(vaa: SignedVaa): ParsedVaa {
     sequence: body.readBigUInt64BE(42),
     consistencyLevel: body[50],
     payload: body.subarray(51),
-    hash: keccak256(body),
+    hash: keccak256(keccak256(body)),
   };
 }

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.12
+
+### Changed
+
+Fixed parseVaa hash calculation
+
 ## 0.9.11
 
 ### Added
