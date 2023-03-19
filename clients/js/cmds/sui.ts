@@ -1,3 +1,4 @@
+import { TransactionEffects } from "@mysten/sui.js";
 import yargs from "yargs";
 import { config } from "../config";
 import {
@@ -31,7 +32,7 @@ function findDeployerCapability(
 }
 
 exports.command = "sui";
-exports.desc = "Sui utilities ";
+exports.desc = "Sui utilities";
 exports.builder = function (y: typeof yargs) {
   return y
     .command(
@@ -137,7 +138,7 @@ exports.builder = function (y: typeof yargs) {
         console.log("Deployer object ID:       ", deployer);
         console.log("Wormhole state object ID: ", wormState);
 
-        await executeEntry(
+        const effects: TransactionEffects = await executeEntry(
           provider,
           network,
           packageId,
@@ -145,6 +146,13 @@ exports.builder = function (y: typeof yargs) {
           "init_and_share_state",
           [],
           [deployer, wormState]
+        );
+
+        console.log(
+          "Token bridge state object ID: ",
+          effects["created"].find(
+            (o) => typeof o.owner === "object" && "Shared" in o.owner
+          ).reference.objectId
         );
       }
     )
@@ -219,7 +227,7 @@ exports.builder = function (y: typeof yargs) {
         console.log("Governance contract: ", governanceContract);
         console.log("Initial guardian:    ", initialGuardian);
 
-        await executeEntry(
+        const effects: TransactionEffects = await executeEntry(
           provider,
           network,
           packageId,
@@ -233,6 +241,13 @@ exports.builder = function (y: typeof yargs) {
             [[...Buffer.from(initialGuardian, "hex")]],
             "0", // Message fee
           ]
+        );
+
+        console.log(
+          "Wormhole state object ID: ",
+          effects["created"].find(
+            (o) => typeof o.owner === "object" && "Shared" in o.owner
+          ).reference.objectId
         );
       }
     )
