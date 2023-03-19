@@ -102,11 +102,6 @@ export async function executeEntry(
   args: any[]
 ) {
   const signer = getSigner(provider, network);
-
-  console.log("Network:           ", network);
-  console.log("Package Object ID: ", packageObjectId);
-  console.log("Module:            ", moduleName);
-
   const moveCallTxn = await signer.executeMoveCall({
     packageObjectId,
     module: moduleName,
@@ -116,9 +111,17 @@ export async function executeEntry(
     gasBudget: 50000,
   });
 
-  // todo(aki): only output useful info
-  console.log("moveCallTxn: ", moveCallTxn);
-  console.log("effects: ", JSON.stringify(moveCallTxn["effects"]["effects"]));
+  console.log(
+    "Transaction digest: ",
+    moveCallTxn["certificate"]["transactionDigest"]
+  );
+  console.log(
+    "Sender:             ",
+    moveCallTxn["certificate"]["data"]["sender"]
+  );
+
+  // Let caller handle parsing and logging effects
+  return moveCallTxn["effects"]["effects"];
 }
 
 const setupToml = (
