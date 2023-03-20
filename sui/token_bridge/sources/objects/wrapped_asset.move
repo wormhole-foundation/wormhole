@@ -108,7 +108,7 @@ module token_bridge::wrapped_asset_test {
                 &mut test,
                 admin
             );
-            let addr =  external_address::from_bytes(x"112233");
+            let addr =  external_address::from_any_bytes(x"112233");
             let wrapped_asset = wrapped_asset::new(
                 2, // token chain
                 addr, //token address
