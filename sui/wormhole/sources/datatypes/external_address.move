@@ -1,165 +1,124 @@
-/// 32 byte, left-padded address representing an arbitrary address, to be used in VAAs to
-/// refer to addresses.
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements a custom type for a 32-byte standardized address,
+/// which is meant to represent an address from any other network.
 module wormhole::external_address {
-    use std::vector::{Self};
+    use wormhole::cursor::{Cursor};
+    use wormhole::bytes32::{Self, Bytes32};
 
-    use sui::address::{Self};
+    /// Underlying data is all zeros.
+    const E_ZERO_ADDRESS: u64 = 0;
 
-    use wormhole::cursor::Cursor;
-    use wormhole::bytes::{Self};
-
-    const E_VECTOR_TOO_LONG: u64 = 0;
-    const E_INVALID_EXTERNAL_ADDRESS: u64 = 1;
-
-    struct ExternalAddress has drop, copy, store {
-        external_address: vector<u8>,
+    /// Container for `Bytes32`.
+    struct ExternalAddress has copy, drop, store {
+        value: Bytes32,
     }
 
-    public fun get_bytes(e: &ExternalAddress): vector<u8> {
-        e.external_address
+    /// Create `ExternalAddress`.
+    public fun new(value: Bytes32): ExternalAddress {
+        ExternalAddress { value }
     }
 
-    public fun pad_left_32(input: &vector<u8>): vector<u8>{
-        let len = vector::length<u8>(input);
-        assert!(len <= 32, E_VECTOR_TOO_LONG);
-        let ret = vector::empty<u8>();
-        let zeros_remaining = 32 - len;
-        while (zeros_remaining > 0){
-            vector::push_back<u8>(&mut ret, 0);
-            zeros_remaining = zeros_remaining - 1;
-        };
-        vector::append<u8>(&mut ret, *input);
-        ret
+    /// Create `ExternalAddress` of all zeros.`
+    public fun default(): ExternalAddress {
+        new(bytes32::default())
     }
 
-    public fun left_pad(s: &vector<u8>): ExternalAddress {
-        let padded_vector = pad_left_32(s);
-        ExternalAddress { external_address: padded_vector}
+    /// Create `ExternalAddress` ensuring that not all bytes are zero.
+    public fun new_nonzero(value: Bytes32): ExternalAddress {
+        assert!(bytes32::is_nonzero(&value), E_ZERO_ADDRESS);
+        new(value)
     }
 
-    public fun from_bytes(bytes: vector<u8>): ExternalAddress {
-        left_pad(&bytes)
+    /// Create `ExternalAddress` with `vector<u8>` of length == 32.
+    public fun from_bytes(buf: vector<u8>): ExternalAddress {
+        new(bytes32::new(buf))
     }
 
-    public fun deserialize(cur: &mut Cursor<u8>): ExternalAddress {
-        let bytes = bytes::to_bytes(cur, 32);
-        from_bytes(bytes)
+    /// Create `ExternalAddress` with `vector<u8>` of length == 32 ensuring that
+    /// not all bytes are zero.
+    public fun from_nonzero_bytes(buf: vector<u8>): ExternalAddress {
+        new_nonzero(bytes32::new(buf))
     }
 
-    public fun serialize(buf: &mut vector<u8>, e: ExternalAddress) {
-        bytes::from_bytes(buf, e.external_address)
+    /// Destroy `ExternalAddress` for underlying bytes as `vector<u8>`.
+    public fun to_bytes(ext: ExternalAddress): vector<u8> {
+        bytes32::to_bytes(to_bytes32(ext))
     }
 
-    /// Convert an `ExternalAddress` to a native Sui address.
-    ///
-    /// Sui addresses are 20 bytes, while external addresses are represented as
-    /// 32 bytes, left-padded with 0s. This function thus takes the last 20
-    /// bytes of an external address, and reverts if the first 12 bytes contain
-    /// non-0 bytes.
-    public fun to_address(e: &ExternalAddress): address {
-        let vec = e.external_address;
-        // we reverse the vector and drop the last 12 bytes
-        vector::reverse(&mut vec);
-        let bytes_to_drop = 12;
-        while (bytes_to_drop > 0) {
-            let last_byte = vector::pop_back(&mut vec);
-            // ensure no junk in the first 12 bytes
-            assert!(last_byte == 0, E_INVALID_EXTERNAL_ADDRESS);
-            bytes_to_drop = bytes_to_drop - 1;
-        };
-        // reverse back to original order
-        vector::reverse(&mut vec);
-        address::from_bytes(vec)
+    /// Destroy 'ExternalAddress` for underlying data.
+    public fun to_bytes32(ext: ExternalAddress): Bytes32 {
+        let ExternalAddress { value } = ext;
+        value
     }
 
+    /// Drain 32 elements of `Cursor<u8>` to create `ExternalAddress`.
+    public fun take_bytes(cur: &mut Cursor<u8>): ExternalAddress {
+        new(bytes32::take_bytes(cur))
+    }
+
+    /// Drain 32 elements of `Cursor<u8>` to create `ExternalAddress` ensuring
+    /// that not all bytes are zero.
+    public fun take_nonzero(cur: &mut Cursor<u8>): ExternalAddress {
+        new_nonzero(bytes32::take_bytes(cur))
+    }
+
+    /// Destroy `ExternalAddress` to represent its underlying data as `address`.
+    public fun to_address(ext: ExternalAddress): address {
+        bytes32::to_address(to_bytes32(ext))
+    }
+
+    /// Create `ExternalAddress` from `address`.
+    public fun from_address(addr: address): ExternalAddress {
+        new(bytes32::from_address(addr))
+    }
+
+    /// Check whether underlying data is not all zeros.
+    public fun is_nonzero(self: &ExternalAddress): bool {
+        bytes32::is_nonzero(&self.value)
+    }
+
+    #[test_only]
+    public fun from_any_bytes(buf: vector<u8>): ExternalAddress {
+        new(bytes32::from_bytes(buf))
+    }
 }
 
 #[test_only]
-module wormhole::external_address_test {
-    use wormhole::external_address;
-    use std::vector::{Self};
-
-    // test get_bytes and left_pad
-    #[test]
-    public fun test_left_pad() {
-        let v = x"123456789123456789123456789123451234567891234567891234"; // less than 32 bytes
-        let res = external_address::left_pad(&v);
-        let bytes = external_address::get_bytes(&res);
-        let m = x"0000000000";
-        vector::append(&mut m, v);
-        assert!(bytes == m, 0);
-    }
+module wormhole::external_address_tests {
+    use wormhole::bytes20::{Self};
+    use wormhole::bytes32::{Self};
+    use wormhole::external_address::{Self};
 
     #[test]
     public fun test_left_pad_length_32_vector() {
         let v = x"1234567891234567891234567891234512345678912345678912345678912345"; //32 bytes
-        let res = external_address::left_pad(&v);
-        let bytes = external_address::get_bytes(&res);
+        let res = external_address::from_bytes(v);
+        let bytes = external_address::to_bytes(res);
         assert!(bytes == v, 0);
     }
 
     #[test]
-    #[expected_failure(abort_code = 0, location=wormhole::external_address)]
+    #[expected_failure(abort_code = bytes32::E_INVALID_BYTES32)]
     public fun test_left_pad_vector_too_long() {
         let v = x"123456789123456789123456789123451234567891234567891234567891234500"; //33 bytes
-        let res = external_address::left_pad(&v);
-        let bytes = external_address::get_bytes(&res);
-        assert!(bytes == v, 0);
+        external_address::from_bytes(v);
     }
 
     #[test]
-    public fun test_from_bytes() {
-        let v = x"1234";
-        let ea = external_address::from_bytes(v);
-        let bytes = external_address::get_bytes(&ea);
-        let w = x"000000000000000000000000000000000000000000000000000000000000";
-        vector::append(&mut w, v);
-        assert!(bytes == w, 0);
-    }
-
-    #[test]
-    #[expected_failure(abort_code = 0, location=wormhole::external_address)]
-    public fun test_from_bytes_over_32_bytes() {
-        let v = x"00000000000000000000000000000000000000000000000000000000000000001234";
-        let ea = external_address::from_bytes(v);
-        let _bytes = external_address::get_bytes(&ea);
-    }
-
-    #[test]
-    fun test_pad_left_short() {
-        let v = x"11";
-        let pad_left_v = external_address::pad_left_32(&v);
-        assert!(pad_left_v == x"0000000000000000000000000000000000000000000000000000000000000011", 0);
-    }
-
-    #[test]
-    fun test_pad_left_exact() {
-        let v = x"5555555555555555555555555555555555555555555555555555555555555555";
-        let pad_left_v = external_address::pad_left_32(&v);
-        assert!(pad_left_v == x"5555555555555555555555555555555555555555555555555555555555555555", 0);
-    }
-
-    #[test]
-    #[expected_failure(abort_code = 0, location=wormhole::external_address)]
-    fun test_pad_left_long() {
-        let v = x"665555555555555555555555555555555555555555555555555555555555555555";
-        external_address::pad_left_32(&v);
-    }
-
-    #[test]
-    #[expected_failure(abort_code = 1, location=wormhole::external_address)]
+    #[expected_failure(abort_code = bytes20::E_CANNOT_TRIM_NONZERO)]
     public fun test_to_address_too_long() {
         // non-0 bytes in first 12 bytes
         let v = x"0000010000000000000000000000000000000000000000000000000000001234";
         let res = external_address::from_bytes(v);
-        let _address = external_address::to_address(&res);
+        let _address = external_address::to_address(res);
     }
 
     #[test]
     public fun test_to_address() {
         let v = x"0000000000000000000000000000000000000000000000000000000000001234";
         let res = external_address::from_bytes(v);
-        let address = external_address::to_address(&res);
+        let address = external_address::to_address(res);
         assert!(address == @0x1234, 0);
     }
 }
