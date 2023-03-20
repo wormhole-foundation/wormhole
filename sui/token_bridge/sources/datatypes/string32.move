@@ -196,12 +196,12 @@ module token_bridge::string32 {
     }
 
     public fun deserialize(cur: &mut Cursor<u8>): String32 {
-        let bytes = bytes::to_bytes(cur, 32);
+        let bytes = bytes::take_bytes(cur, 32);
         from_bytes(bytes)
     }
 
     public fun serialize(buf: &mut vector<u8>, e: String32) {
-        bytes::from_bytes(buf, to_bytes(&e))
+        vector::append(buf, to_bytes(&e))
     }
 
 }

@@ -10,7 +10,7 @@ ease deployment to different environments without recompiling the contract).
 
 To allow configuring the state with arguments, it's initialised in the
 `init_and_share_state` function, which also shares the state object. To ensure
-this function can only be called once, it consumes a `DeployerCapability` object
+this function can only be called once, it consumes a `DeployerCap` object
 which in turn is created and transferred to the deployer in the `init` function.
 Since `init_and_share_state` consumes this object, it won't be possible to call
 it again.
