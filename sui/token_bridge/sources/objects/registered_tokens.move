@@ -4,10 +4,10 @@ module token_bridge::registered_tokens {
     use sui::object::{Self, UID};
     use sui::tx_context::{TxContext};
     use wormhole::external_address::{ExternalAddress};
+    use wormhole::id_registry::{Self, IdRegistry};
     use wormhole::state::{chain_id};
 
     use token_bridge::native_asset::{Self, NativeAsset};
-    use token_bridge::native_id_registry::{Self, NativeIdRegistry};
     use token_bridge::token_info::{TokenInfo};
     use token_bridge::wrapped_asset::{Self, WrappedAsset};
 
@@ -23,7 +23,7 @@ module token_bridge::registered_tokens {
 
     struct RegisteredTokens has key, store {
         id: UID,
-        native_id_registry: NativeIdRegistry,
+        native_id_registry: IdRegistry,
         num_wrapped: u64,
         num_native: u64
     }
@@ -33,22 +33,22 @@ module token_bridge::registered_tokens {
     public fun new(ctx: &mut TxContext): RegisteredTokens {
         RegisteredTokens {
             id: object::new(ctx),
-            native_id_registry: native_id_registry::new(),
+            native_id_registry: id_registry::new(),
             num_wrapped: 0,
             num_native: 0
         }
     }
 
     #[test_only]
-    public fun destroy(r: RegisteredTokens){
+    public fun destroy(r: RegisteredTokens) {
         let RegisteredTokens {
             id: id,
-            native_id_registry: native_id_registry,
+            native_id_registry,
             num_wrapped: _,
             num_native: _
         } = r;
         object::delete(id);
-        native_id_registry::destroy(native_id_registry);
+        id_registry::destroy(native_id_registry);
     }
 
     public fun num_native(self: &RegisteredTokens): u64 {
@@ -113,7 +113,7 @@ module token_bridge::registered_tokens {
         decimals: u8,
     ) {
         assert!(!has<C>(self), E_ALREADY_REGISTERED);
-        let addr = native_id_registry::next_id(&mut self.native_id_registry);
+        let addr = id_registry::next_address(&mut self.native_id_registry);
         add_native<C>(
             self,
             native_asset::new(addr, decimals)
@@ -274,7 +274,7 @@ module token_bridge::registered_tokens_test {
             add_new_wrapped<WRAPPED_COIN_7_DECIMALS>(
                 &mut registered_tokens,
                 2, // chain
-                external_address::from_bytes(x"001234"), // external address
+                external_address::from_any_bytes(x"001234"), // external address
                 tcap, // treasury cap
                 7 // decimals
             );
@@ -332,9 +332,9 @@ module token_bridge::registered_tokens_test {
 
             // check token addresses are correct
             assert!(token_address<NATIVE_COIN_10_DECIMALS>(&registered_tokens)==
-                external_address::from_bytes(x"01"), 0);
+                external_address::from_any_bytes(x"01"), 0);
             assert!(token_address<WRAPPED_COIN_7_DECIMALS>(&registered_tokens)==
-                external_address::from_bytes(x"001234"), 0);
+                external_address::from_any_bytes(x"001234"), 0);
 
             // check token chains are correct
             assert!(token_chain<NATIVE_COIN_10_DECIMALS>(&registered_tokens)==
@@ -421,7 +421,7 @@ module token_bridge::registered_tokens_test {
             add_new_wrapped<NATIVE_COIN_10_DECIMALS>(
                 &mut registered_tokens,
                 21, // Chain.
-                external_address::from_bytes(x"001234"), // External address.
+                external_address::from_any_bytes(x"001234"), // External address.
                 tcap, // Treasury cap.
                 7 // Decimals.
             );
@@ -466,7 +466,7 @@ module token_bridge::registered_tokens_test {
             add_new_wrapped<WRAPPED_COIN_7_DECIMALS>(
                 &mut registered_tokens,
                 2, // chain
-                external_address::from_bytes(x"001234"), // external address
+                external_address::from_any_bytes(x"001234"), // external address
                 tcap, // treasury cap
                 7 // decimals
             );

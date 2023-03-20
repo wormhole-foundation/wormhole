@@ -52,7 +52,7 @@ module token_bridge::attest_token {
 }
 
 #[test_only]
-module token_bridge::attest_token_test{
+module token_bridge::attest_token_test {
     use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_shared,
         return_shared};
     use sui::coin::{CoinMetadata};
