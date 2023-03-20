@@ -63,12 +63,12 @@ module token_bridge::normalized_amount {
     }
 
     public fun deserialize_be(cur: &mut Cursor<u8>): NormalizedAmount {
-        // In the VAA wire format, amounts are 32 bytes.
-        from_u256(bytes::deserialize_u256_be(cur))
+        // in the VAA wire format, amounts are 32 bytes.
+        from_u256(bytes::take_u256_be(cur))
     }
 
     public fun serialize_be(buf: &mut vector<u8>, normalized: NormalizedAmount) {
-        bytes::serialize_u256_be(buf, to_u256(&normalized))
+        bytes::push_u256_be(buf, to_u256(&normalized))
     }
 }
 

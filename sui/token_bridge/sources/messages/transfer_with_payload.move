@@ -1,13 +1,12 @@
 module token_bridge::transfer_with_payload {
     use std::vector;
     use wormhole::bytes::{
-        serialize_u8,
-        serialize_u16_be,
-        from_bytes,
+        push_u8,
+        push_u16_be,
     };
     use wormhole::bytes::{
-        deserialize_u8,
-        deserialize_u16_be,
+        take_u8,
+        take_u16_be,
     };
     use wormhole::cursor;
 
@@ -86,27 +85,36 @@ module token_bridge::transfer_with_payload {
 
     public fun serialize(transfer: TransferWithPayload): vector<u8> {
         let encoded = vector::empty<u8>();
-        serialize_u8(&mut encoded, PAYLOAD_ID);
+        push_u8(&mut encoded, PAYLOAD_ID);
         normalized_amount::serialize_be(&mut encoded, transfer.amount);
-        external_address::serialize(&mut encoded, transfer.token_address);
-        serialize_u16_be(&mut encoded, transfer.token_chain);
-        external_address::serialize(&mut encoded, transfer.recipient);
-        serialize_u16_be(&mut encoded, transfer.recipient_chain);
-        external_address::serialize(&mut encoded, transfer.sender);
-        from_bytes(&mut encoded, transfer.payload);
+        vector::append(
+            &mut encoded,
+            external_address::to_bytes(transfer.token_address)
+        );
+        push_u16_be(&mut encoded, transfer.token_chain);
+        vector::append(
+            &mut encoded,
+            external_address::to_bytes(transfer.recipient)
+        );
+        push_u16_be(&mut encoded, transfer.recipient_chain);
+        vector::append(
+            &mut encoded,
+            external_address::to_bytes(transfer.sender),
+        );
+        vector::append(&mut encoded, transfer.payload);
         encoded
     }
 
     public fun deserialize(transfer: vector<u8>): TransferWithPayload {
         let cur = cursor::new(transfer);
-        assert!(deserialize_u8(&mut cur) == PAYLOAD_ID, E_INVALID_ACTION);
+        assert!(take_u8(&mut cur) == PAYLOAD_ID, E_INVALID_ACTION);
         let amount = normalized_amount::deserialize_be(&mut cur);
-        let token_address = external_address::deserialize(&mut cur);
-        let token_chain = deserialize_u16_be(&mut cur);
-        let recipient = external_address::deserialize(&mut cur);
-        let recipient_chain = deserialize_u16_be(&mut cur);
-        let sender = external_address::deserialize(&mut cur);
-        let payload = cursor::rest(cur);
+        let token_address = external_address::take_bytes(&mut cur);
+        let token_chain = take_u16_be(&mut cur);
+        let recipient = external_address::take_bytes(&mut cur);
+        let recipient_chain = take_u16_be(&mut cur);
+        let sender = external_address::take_bytes(&mut cur);
+        let payload = cursor::take_rest(cur);
         new(
             amount,
             token_address,
@@ -120,7 +128,7 @@ module token_bridge::transfer_with_payload {
 }
 
 #[test_only]
-module token_bridge::transfer_with_payload_test{
+module token_bridge::transfer_with_payload_test {
     use wormhole::external_address::{Self};
 
     use token_bridge::transfer_with_payload::{Self};
@@ -129,9 +137,9 @@ module token_bridge::transfer_with_payload_test{
     #[test]
     fun test_transfer_with_payload(){
         let amount = normalized_amount::default();
-        let token_address = external_address::from_bytes(x"0011223344");
-        let recipient = external_address::from_bytes(x"003456");
-        let sender = external_address::from_bytes(x"99887766");
+        let token_address = external_address::from_any_bytes(x"0011223344");
+        let recipient = external_address::from_any_bytes(x"003456");
+        let sender = external_address::from_any_bytes(x"99887766");
         let payload = x"12334435345345234234";
 
         let transfer_with_payload = transfer_with_payload::new(

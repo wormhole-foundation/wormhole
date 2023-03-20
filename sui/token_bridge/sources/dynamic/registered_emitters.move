@@ -50,12 +50,12 @@ module token_bridge::registered_emitters {
 }
 
 #[test_only]
-module token_bridge::registered_emitters_test{
+module token_bridge::registered_emitters_test {
     use std::vector::{Self};
     use sui::object::{Self, UID};
     use sui::tx_context::{dummy};
 
-    use wormhole::external_address::{from_bytes};
+    use wormhole::external_address::{from_any_bytes};
     use wormhole::bytes::{Self};
 
     use token_bridge::registered_emitters::{
@@ -83,7 +83,7 @@ module token_bridge::registered_emitters_test{
     // and adding several (chain_id, external_address) key-value pairs to it
     #[test]
     fun test_registered_emitters(){
-        let mock_state = MockState{id: object::new(&mut dummy())};
+        let mock_state = MockState {id: object::new(&mut dummy())};
 
         // create table of registered emitters as a dynamic field of our
         // mock state
@@ -94,11 +94,11 @@ module token_bridge::registered_emitters_test{
         let i = 1;
         while (i < 1000) {
             let cur_external_addr = vector::empty<u8>();
-            bytes::serialize_u16_be(&mut cur_external_addr, i);
+            bytes::push_u16_be(&mut cur_external_addr, i);
             add(
                 &mut mock_state.id,
                 i,
-                from_bytes(cur_external_addr)
+                from_any_bytes(cur_external_addr)
             );
             i = i + 1;
         };
@@ -118,10 +118,10 @@ module token_bridge::registered_emitters_test{
 
             // check that values (external addresses) are correct
             let cur_external_addr = vector::empty<u8>();
-            bytes::serialize_u16_be(&mut cur_external_addr, i);
+            bytes::push_u16_be(&mut cur_external_addr, i);
             assert!(
                 external_address(&mock_state.id,i) ==
-                from_bytes(cur_external_addr),
+                from_any_bytes(cur_external_addr),
             0);
             i = i + 1;
         };
@@ -136,7 +136,7 @@ module token_bridge::registered_emitters_test{
         location=token_bridge::registered_emitters
     )]
     fun test_registered_emitters_table_already_exists(){
-        let mock_state = MockState{id: object::new(&mut dummy())};
+        let mock_state = MockState {id: object::new(&mut dummy())};
 
         // create table of registered emitters as a dynamic field of our
         // mock state
@@ -157,7 +157,7 @@ module token_bridge::registered_emitters_test{
         location=token_bridge::registered_emitters
     )]
     fun test_register_chain_id_twice(){
-        let mock_state = MockState{id: object::new(&mut dummy())};
+        let mock_state = MockState {id: object::new(&mut dummy())};
 
         // create table of registered emitters as a dynamic field of our
         // mock state
@@ -167,11 +167,11 @@ module token_bridge::registered_emitters_test{
         let i = 1;
         while (i < 2) {
             let cur_external_addr = vector::empty<u8>();
-            bytes::serialize_u16_be(&mut cur_external_addr, i);
+            bytes::push_u16_be(&mut cur_external_addr, i);
             add(
                 &mut mock_state.id,
                 i,
-                from_bytes(cur_external_addr)
+                from_any_bytes(cur_external_addr)
             );
         };
         destroy_mock_state(mock_state);
@@ -183,7 +183,7 @@ module token_bridge::registered_emitters_test{
         location=token_bridge::registered_emitters
     )]
     fun test_registered_emitters_nonexistent_external_address(){
-        let mock_state = MockState{id: object::new(&mut dummy())};
+        let mock_state = MockState {id: object::new(&mut dummy())};
 
         // create table of registered emitters as a dynamic field of our
         // mock state
@@ -193,11 +193,11 @@ module token_bridge::registered_emitters_test{
         let i = 1;
         while (i < 100) {
             let cur_external_addr = vector::empty<u8>();
-            bytes::serialize_u16_be(&mut cur_external_addr, i);
+            bytes::push_u16_be(&mut cur_external_addr, i);
             add(
                 &mut mock_state.id,
                 i,
-                from_bytes(cur_external_addr)
+                from_any_bytes(cur_external_addr)
             );
             i = i + 1;
         };

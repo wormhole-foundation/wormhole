@@ -23,8 +23,8 @@ Make sure your Cargo version is at least 1.65.0 and then follow the steps below:
 
 Install the `Sui` CLI. This tool is used to compile the contracts and run the tests.
 
-```sh
-$ cargo install --locked --git https://github.com/MystenLabs/sui.git --branch devnet sui sui-faucet
+``` sh
+$ cargo install --locked --git https://github.com/MystenLabs/sui.git --rev 157ac72030d014f17d76cefe81f3915b4afab2c9 sui sui-faucet
 ```
 
 Some useful Sui CLI commands are
@@ -46,14 +46,9 @@ As an optional, but recommended step, install the
 [move-analyzer](https://github.com/move-language/move/tree/main/language/move-analyzer)
 Language Server (LSP):
 
-```sh
-cargo install --git https://github.com/move-language/move.git move-analyzer --branch main --features "address32"
+``` sh
+cargo install --git https://github.com/move-language/move.git move-analyzer --branch main --features "address20"
 ```
-
-Note the `--features "address32"` flag. This is important, because the default
-build only supports 16 byte addresses, but Aptos uses 32 bytes, so
-`move-analyzer` needs to be built with that feature flag to support 32 byte
-address literals.
 
 This installs the LSP backend which is then supported by most popular editors such as [emacs](https://github.com/emacs-lsp/lsp-mode), [vim](https://github.com/neoclide/coc.nvim), and even [vscode](https://marketplace.visualstudio.com/items?itemName=move.move-analyzer).
 
@@ -98,7 +93,7 @@ Simply run
 worm start-validator sui
 ```
 
-which will start a local aptos validator with an RPC endpoint at `0.0.0.0:9000`
+which will start a local sui validator with an RPC endpoint at `0.0.0.0:9000`
 and the faucet endpoint at `0.0.0.0:5003/gas`. Note that the faucet takes a few
 (~10) seconds to come up, so only proceed when you see the following:
 

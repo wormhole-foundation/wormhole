@@ -7,7 +7,7 @@ module token_bridge::create_wrapped {
     use sui::tx_context::{TxContext};
     use sui::url::{Url};
     use wormhole::state::{State as WormholeState};
-    use wormhole::myvaa as core_vaa;
+    use wormhole::vaa::{Self as core_vaa};
 
     use token_bridge::asset_meta::{Self, AssetMeta};
     use token_bridge::wrapped_coin::{Self, WrappedCoin};
@@ -47,7 +47,7 @@ module token_bridge::create_wrapped {
         coin_witness: CoinType,
         ctx: &mut TxContext
     ): WrappedCoin<CoinType> {
-        let payload = core_vaa::parse_and_get_payload(vaa_buf);
+        let payload = core_vaa::peel_payload_from_vaa(&vaa_buf);
         let meta = asset_meta::deserialize(payload);
 
         let coin_decimals = (
@@ -182,7 +182,7 @@ module token_bridge::create_wrapped {
             ctx
         );
 
-        asset_meta::deserialize(core_vaa::destroy(parsed))
+        asset_meta::deserialize(core_vaa::take_payload(parsed))
     }
 
     fun handle_update_metadata<CoinType>(
