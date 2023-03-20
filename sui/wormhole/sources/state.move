@@ -213,7 +213,33 @@ module wormhole::state {
         self: &mut State,
         receipt: UpgradeReceipt
     ) {
-        commit_upgrade_to_version(self, receipt, control::version())
+        // Uptick the upgrade cap version number using this receipt.
+        package::commit_upgrade(&mut self.upgrade_cap, receipt);
+
+        // Check that the upticked hard-coded version version agrees with the
+        // upticked version number.
+        assert!(
+            package::version(&self.upgrade_cap) == control::version() + 1,
+            E_BUILD_VERSION_MISMATCH
+        );
+
+        // Update global version.
+        required_version::update_latest(
+            &mut self.required_version,
+            &self.upgrade_cap
+        );
+
+        // Enable `migrate` to be called after commiting the upgrade.
+        //
+        // A separate method is required because `state` is a dependency of
+        // `migrate`. This method warehouses state modifications required
+        // for the new implementation plus enabling any methods required to be
+        // gated by the current implementation version. In most cases `migrate`
+        // is a no-op. But it still must be called in order to reset the
+        // migration control to `false`.
+        //
+        // See `migrate` module for more info.
+       enable_migration(self);
     }
 
     /// Enforce a particular method to use the current build version as its
@@ -400,40 +426,6 @@ module wormhole::state {
         emitter::use_sequence(emitter_cap)
     }
 
-    fun commit_upgrade_to_version(
-        self: &mut State,
-        receipt: UpgradeReceipt,
-        version: u64,
-    ) {
-        // Uptick the upgrade cap version number using this receipt.
-        package::commit_upgrade(&mut self.upgrade_cap, receipt);
-
-        // Check that the hard-coded version version agrees with the
-        // upticked version number.
-        assert!(
-            package::version(&self.upgrade_cap) == version,
-            E_BUILD_VERSION_MISMATCH
-        );
-
-        // Update global version.
-        required_version::update_latest(
-            &mut self.required_version,
-            &self.upgrade_cap
-        );
-
-        // Enable `migrate` to be called after commiting the upgrade.
-        //
-        // A separate method is required because `state` is a dependency of
-        // `migrate`. This method warehouses state modifications required
-        // for the new implementation plus enabling any methods required to be
-        // gated by the current implementation version. In most cases `migrate`
-        // is a no-op. But it still must be called in order to reset the
-        // migration control to `false`.
-        //
-        // See `migrate` module for more info.
-       enable_migration(self);
-    }
-
     #[test_only]
     public fun fees_collected(self: &State): u64 {
         fee_collector::balance_value(&self.fee_collector)
@@ -457,7 +449,6 @@ module wormhole::state {
         let ticket =
             authorize_upgrade(self, bytes32::new(keccak256(&b"new build")));
         let receipt = package::test_upgrade(ticket);
-        let new_version = package::version(&self.upgrade_cap) + 1;
-        commit_upgrade_to_version(self, receipt, new_version)
+        commit_upgrade(self, receipt)
     }
 }

@@ -12,7 +12,7 @@ module token_bridge::complete_transfer_with_payload {
     use token_bridge::vaa::{Self};
 
     const E_INVALID_TARGET: u64 = 0;
-    const E_INVALID_RECIPIENT: u64 = 1;
+    const E_INVALID_REDEEMER: u64 = 1;
 
     public fun complete_transfer_with_payload<CoinType>(
         token_bridge_state: &mut State,
@@ -60,7 +60,7 @@ module token_bridge::complete_transfer_with_payload {
 
         // Transfer must be redeemed by the contract's registered Wormhole
         // emitter.
-        assert!(redeemer == emitter::addr(emitter_cap), E_INVALID_RECIPIENT);
+        assert!(redeemer == emitter::addr(emitter_cap), E_INVALID_REDEEMER);
 
         let (token_coin, _) =
             verify_transfer_details<CoinType>(
@@ -356,7 +356,7 @@ module token_bridge::complete_transfer_with_payload_test {
 
     #[test]
     #[expected_failure(
-        abort_code = token_bridge::complete_transfer_with_payload::E_INVALID_RECIPIENT,
+        abort_code = token_bridge::complete_transfer_with_payload::E_INVALID_REDEEMER,
         location=token_bridge::complete_transfer_with_payload
     )]
     /// Test the public-facing function complete_transfer_with_payload.

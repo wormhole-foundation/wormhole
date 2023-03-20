@@ -5,6 +5,7 @@
 /// its observation). Signatures on VAA are checked against an existing Guardian
 /// set that exists in the `State` (see `wormhole::state`).
 module wormhole::vaa {
+    use std::option::{Self};
     use std::vector::{Self};
     use sui::tx_context::{TxContext};
 
@@ -285,7 +286,7 @@ module wormhole::vaa {
 
         // Drain `Cursor` by checking each signature.
         let cur = cursor::new(signatures);
-        let (i, last_guardian_index) = (0, 0);
+        let last_guardian_index = option::none();
         while (!cursor::is_empty(&cur)) {
             let signature = cursor::poke(&mut cur);
             let guardian_index = guardian_signature::index_as_u64(&signature);
@@ -295,7 +296,10 @@ module wormhole::vaa {
             // increasing order is guaranteed by the guardians, or can always be
             // reordered by the client.
             assert!(
-                i == 0 || guardian_index > last_guardian_index,
+                (
+                    option::is_none(&last_guardian_index) ||
+                    guardian_index > *option::borrow(&last_guardian_index)
+                ),
                 E_NON_INCREASING_SIGNERS
             );
 
@@ -311,8 +315,7 @@ module wormhole::vaa {
             );
 
             // Continue.
-            i = i + 1;
-            last_guardian_index = guardian_index;
+            option::swap_or_fill(&mut last_guardian_index, guardian_index);
         };
 
         // Done.
