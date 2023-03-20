@@ -78,14 +78,14 @@ module token_bridge::transfer {
     public fun deserialize(buf: vector<u8>): Transfer {
         let cur = cursor::new(buf);
         assert!(
-            bytes::deserialize_u8(&mut cur) == PAYLOAD_ID,
+            bytes::take_u8(&mut cur) == PAYLOAD_ID,
             E_INVALID_ACTION
         );
         let amount = normalized_amount::deserialize_be(&mut cur);
-        let token_address = external_address::deserialize(&mut cur);
-        let token_chain = bytes::deserialize_u16_be(&mut cur);
-        let recipient = external_address::deserialize(&mut cur);
-        let recipient_chain = bytes::deserialize_u16_be(&mut cur);
+        let token_address = external_address::take_bytes(&mut cur);
+        let token_chain = bytes::take_u16_be(&mut cur);
+        let recipient = external_address::take_bytes(&mut cur);
+        let recipient_chain = bytes::take_u16_be(&mut cur);
         let relayer_fee = normalized_amount::deserialize_be(&mut cur);
         cursor::destroy_empty(cur);
         new(
@@ -100,12 +100,18 @@ module token_bridge::transfer {
 
     public fun serialize(transfer: Transfer): vector<u8> {
         let buf = vector::empty<u8>();
-        bytes::serialize_u8(&mut buf, PAYLOAD_ID);
+        bytes::push_u8(&mut buf, PAYLOAD_ID);
         normalized_amount::serialize_be(&mut buf, transfer.amount);
-        external_address::serialize(&mut buf, transfer.token_address);
-        bytes::serialize_u16_be(&mut buf, transfer.token_chain);
-        external_address::serialize(&mut buf, transfer.recipient);
-        bytes::serialize_u16_be(&mut buf, transfer.recipient_chain);
+        vector::append(
+            &mut buf,
+            external_address::to_bytes(transfer.token_address)
+        );
+        bytes::push_u16_be(&mut buf, transfer.token_chain);
+        vector::append(
+            &mut buf,
+            external_address::to_bytes(transfer.recipient)
+        );
+        bytes::push_u16_be(&mut buf, transfer.recipient_chain);
         normalized_amount::serialize_be(&mut buf, transfer.relayer_fee);
         buf
     }
@@ -121,9 +127,9 @@ module token_bridge::transfer_test {
     #[test]
     public fun parse_roundtrip() {
         let amount = normalized_amount::from_raw(100, 8);
-        let token_address = external_address::from_bytes(x"beef");
+        let token_address = external_address::from_any_bytes(x"beef");
         let token_chain = 1;
-        let recipient = external_address::from_bytes(x"cafe");
+        let recipient = external_address::from_any_bytes(x"cafe");
         let recipient_chain = 7;
         let fee = normalized_amount::from_raw(50, 8);
         let transfer = transfer::new(

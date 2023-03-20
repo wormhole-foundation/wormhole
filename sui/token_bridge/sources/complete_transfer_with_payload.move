@@ -3,9 +3,8 @@ module token_bridge::complete_transfer_with_payload {
     use sui::coin::{Coin};
 
     use wormhole::state::{State as WormholeState};
-    use wormhole::external_address::{Self};
-    use wormhole::emitter::{Self, EmitterCapability};
-    use wormhole::myvaa::{get_emitter_chain};
+    use wormhole::emitter::{Self, EmitterCap};
+    use wormhole::vaa::{emitter_chain};
 
     use token_bridge::complete_transfer::{verify_transfer_details};
     use token_bridge::state::{State};
@@ -13,11 +12,11 @@ module token_bridge::complete_transfer_with_payload {
     use token_bridge::vaa::{Self};
 
     const E_INVALID_TARGET: u64 = 0;
-    const E_INVALID_RECIPIENT: u64 = 1;
+    const E_INVALID_REDEEMER: u64 = 1;
 
     public fun complete_transfer_with_payload<CoinType>(
         token_bridge_state: &mut State,
-        emitter_cap: &EmitterCapability,
+        emitter_cap: &EmitterCap,
         worm_state: &mut WormholeState,
         vaa: vector<u8>,
         ctx: &mut TxContext
@@ -33,12 +32,12 @@ module token_bridge::complete_transfer_with_payload {
             );
 
         // Before destroying VAA, store the emitter chain ID for the caller.
-        let source_chain = get_emitter_chain(&transfer_vaa);
+        let source_chain = emitter_chain(&transfer_vaa);
 
         // Deserialize for processing.
         let parsed_transfer =
             transfer_with_payload::deserialize(
-                wormhole::myvaa::destroy(transfer_vaa)
+                wormhole::vaa::take_payload(transfer_vaa)
             );
         let token_coin =
             handle_complete_transfer_with_payload(
@@ -53,23 +52,15 @@ module token_bridge::complete_transfer_with_payload {
 
     fun handle_complete_transfer_with_payload<CoinType>(
         token_bridge_state: &mut State,
-        emitter_cap: &EmitterCapability,
+        emitter_cap: &EmitterCap,
         parsed_transfer: &TransferWithPayload,
         ctx: &mut TxContext
     ): Coin<CoinType> {
-        let recipient =
-            external_address::to_address(
-                &transfer_with_payload::recipient(parsed_transfer)
-            );
+        let redeemer = transfer_with_payload::recipient(parsed_transfer);
 
         // Transfer must be redeemed by the contract's registered Wormhole
         // emitter.
-        assert!(
-            external_address::to_address(
-                &emitter::get_external_address(emitter_cap)
-            ) == recipient,
-            E_INVALID_RECIPIENT
-        );
+        assert!(redeemer == emitter::addr(emitter_cap), E_INVALID_REDEEMER);
 
         let (token_coin, _) =
             verify_transfer_details<CoinType>(
@@ -90,7 +81,7 @@ module token_bridge::complete_transfer_with_payload {
     /// `complete_transfer_with_payload`.
     public fun complete_transfer_with_payload_test_only<CoinType>(
         token_bridge_state: &mut State,
-        emitter_cap: &EmitterCapability,
+        emitter_cap: &EmitterCap,
         _worm_state: &mut WormholeState,
         parsed_transfer: TransferWithPayload,
         ctx: &mut TxContext
@@ -109,8 +100,7 @@ module token_bridge::complete_transfer_with_payload_test {
     use sui::coin::{Self, CoinMetadata};
     use sui::test_scenario::{Self, Scenario};
     use wormhole::external_address::{Self};
-    use wormhole::state::{State as WormholeState};
-    use wormhole::wormhole::{Self};
+    use wormhole::state::{Self as wormhole_state, State as WormholeState};
 
     use token_bridge::bridge_state_test::{
         set_up_wormhole_core_and_token_bridges
@@ -202,8 +192,8 @@ module token_bridge::complete_transfer_with_payload_test {
             let wormhole_state = test_scenario::take_shared<WormholeState>(&test);
             let bridge_state = test_scenario::take_shared<State>(&test);
             register_chain::submit_vaa(
-                &mut wormhole_state,
                 &mut bridge_state,
+                &mut wormhole_state,
                 SUI_REGISTRATION_VAA,
                 test_scenario::ctx(&mut test)
             );
@@ -253,14 +243,14 @@ module token_bridge::complete_transfer_with_payload_test {
             // Register and obtain a new emitter capability.
             // Emitter_cap_1 is discarded and not used.
             let emitter_cap_1 =
-                wormhole::register_emitter(
+                wormhole_state::new_emitter(
                     &mut worm_state, test_scenario::ctx(&mut test)
                 );
             // Emitter_cap_2 has the address 0x03 (because it is the third emitter to be
             // registered with wormhole), which coincidentally is the recipient address
             // of the transfer_with_payload VAA defined above.
             let emitter_cap_2 =
-                wormhole::register_emitter(
+                wormhole_state::new_emitter(
                     &mut worm_state, test_scenario::ctx(&mut test)
                 );
 
@@ -280,8 +270,8 @@ module token_bridge::complete_transfer_with_payload_test {
             // in terms of 8 decimals.
             assert!(coin::value(&token_coins) == 300000, 0);
             assert!(source_chain == 21, 0);
-            assert!(transfer_with_payload::token_address(&parsed_transfer)==external_address::from_bytes(x"01"), 0);
-            assert!(transfer_with_payload::sender(&parsed_transfer)==external_address::from_bytes(x"deadbeef"), 0);
+            assert!(transfer_with_payload::token_address(&parsed_transfer)==external_address::from_any_bytes(x"01"), 0);
+            assert!(transfer_with_payload::sender(&parsed_transfer)==external_address::from_any_bytes(x"deadbeef"), 0);
             assert!(transfer_with_payload::payload(&parsed_transfer)==x"aaaa", 0);
 
             // Clean-up!
@@ -324,14 +314,14 @@ module token_bridge::complete_transfer_with_payload_test {
             // Register and obtain a new emitter capability.
             // Emitter_cap_1 is discarded and not used.
             let emitter_cap_1 =
-                wormhole::register_emitter(
+                wormhole_state::new_emitter(
                     &mut worm_state, test_scenario::ctx(&mut test)
                 );
             // Emitter_cap_2 has the address 0x03 (because it is the third emitter to be
             // registered with wormhole), which coincidentally is the recipient address
             // of the transfer_with_payload VAA defined above.
             let emitter_cap_2 =
-                wormhole::register_emitter(
+                wormhole_state::new_emitter(
                     &mut worm_state, test_scenario::ctx(&mut test)
                 );
 
@@ -348,8 +338,8 @@ module token_bridge::complete_transfer_with_payload_test {
             // Assert coin value, source chain, and parsed transfer details are correct.
             assert!(coin::value(&token_coins) == 3000, 0);
             assert!(source_chain == 2, 0);
-            assert!(transfer_with_payload::token_address(&parsed_transfer)==external_address::from_bytes(x"beefface"), 0);
-            assert!(transfer_with_payload::sender(&parsed_transfer)==external_address::from_bytes(x"deadbeef"), 0);
+            assert!(transfer_with_payload::token_address(&parsed_transfer)==external_address::from_any_bytes(x"beefface"), 0);
+            assert!(transfer_with_payload::sender(&parsed_transfer)==external_address::from_any_bytes(x"deadbeef"), 0);
             assert!(transfer_with_payload::payload(&parsed_transfer)==x"aaaa", 0);
 
             // Clean-up!
@@ -366,7 +356,7 @@ module token_bridge::complete_transfer_with_payload_test {
 
     #[test]
     #[expected_failure(
-        abort_code = token_bridge::complete_transfer_with_payload::E_INVALID_RECIPIENT,
+        abort_code = token_bridge::complete_transfer_with_payload::E_INVALID_REDEEMER,
         location=token_bridge::complete_transfer_with_payload
     )]
     /// Test the public-facing function complete_transfer_with_payload.
@@ -384,11 +374,8 @@ module token_bridge::complete_transfer_with_payload_test {
             let bridge_state = test_scenario::take_shared<State>(&test);
             let worm_state = test_scenario::take_shared<WormholeState>(&test);
 
-            // Register and obtain a new emitter capability.
-            // Attempt to complete transfer with payload using emitter_cap_1, but
-            // it is not the intended recipient.
-            let emitter_cap_1 =
-                wormhole::register_emitter(
+            let emitter_cap =
+                wormhole_state::new_emitter(
                     &mut worm_state, test_scenario::ctx(&mut test)
                 );
 
@@ -396,7 +383,7 @@ module token_bridge::complete_transfer_with_payload_test {
             let (token_coins, _parsed_transfer, _source_chain) =
                 complete_transfer_with_payload::complete_transfer_with_payload<WRAPPED_COIN_12_DECIMALS>(
                     &mut bridge_state,
-                    &emitter_cap_1, // Incorrect recipient.
+                    &emitter_cap, // Incorrect recipient.
                     &mut worm_state,
                     VAA,
                     test_scenario::ctx(&mut test)
@@ -408,7 +395,7 @@ module token_bridge::complete_transfer_with_payload_test {
 
             // Trash remaining objects.
             sui::transfer::transfer(token_coins, @0x0);
-            sui::transfer::transfer(emitter_cap_1, @0x0);
+            sui::transfer::transfer(emitter_cap, @0x0);
         };
         test_scenario::end(test);
     }

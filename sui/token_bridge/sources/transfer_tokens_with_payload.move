@@ -1,7 +1,7 @@
 module token_bridge::transfer_tokens_with_payload {
     use sui::sui::{SUI};
     use sui::coin::{Coin};
-    use wormhole::emitter::{Self, EmitterCapability};
+    use wormhole::emitter::{Self, EmitterCap};
     use wormhole::external_address::{ExternalAddress};
     use wormhole::state::{State as WormholeState};
 
@@ -11,7 +11,7 @@ module token_bridge::transfer_tokens_with_payload {
     use token_bridge::transfer_with_payload::{Self};
 
     public fun transfer_tokens_with_payload<CoinType>(
-        emitter_cap: &EmitterCapability,
+        emitter_cap: &EmitterCap,
         bridge_state: &mut State,
         wormhole_state: &mut WormholeState,
         coins: Coin<CoinType>,
@@ -35,7 +35,7 @@ module token_bridge::transfer_tokens_with_payload {
             token_chain,
             recipient,
             recipient_chain,
-            emitter::get_external_address(emitter_cap),
+            emitter::addr(emitter_cap),
             payload
         );
 
@@ -66,8 +66,7 @@ module token_bridge::transfer_tokens_with_payload_test {
     use sui::transfer::{Self};
 
     use wormhole::external_address::{Self};
-    use wormhole::state::{State as WormholeState};
-    use wormhole::wormhole::{Self};
+    use wormhole::state::{Self as wormhole_state, State as WormholeState};
 
     use token_bridge::bridge_state_test::{
         set_up_wormhole_core_and_token_bridges
@@ -112,7 +111,7 @@ module token_bridge::transfer_tokens_with_payload_test {
 
             // Register and obtain a new wormhole emitter cap.
             let emitter_cap =
-                wormhole::register_emitter(
+                wormhole_state::new_emitter(
                     &mut worm_state, test_scenario::ctx(&mut test)
                 );
 
@@ -124,7 +123,7 @@ module token_bridge::transfer_tokens_with_payload_test {
                 coins,
                 coin::zero<SUI>(ctx(&mut test)), // Zero fee paid to wormhole.
                 3, // Recipient chain id.
-                external_address::from_bytes(x"deadbeef0000beef"), // Recipient.
+                external_address::from_any_bytes(x"deadbeef0000beef"), // Recipient.
                 0, // Relayer fee.
                 payload,
             );
@@ -167,7 +166,7 @@ module token_bridge::transfer_tokens_with_payload_test {
             state::register_emitter(
                 &mut bridge_state,
                 2, // Chain ID.
-                external_address::from_bytes(
+                external_address::from_any_bytes(
                     x"00000000000000000000000000000000000000000000000000000000deadbeef"
                 )
             );
@@ -201,7 +200,7 @@ module token_bridge::transfer_tokens_with_payload_test {
 
             // Register and obtain a new wormhole emitter cap.
             let emitter_cap =
-                wormhole::register_emitter(
+                wormhole_state::new_emitter(
                     &mut worm_state, test_scenario::ctx(&mut test)
                 );
 
@@ -213,7 +212,7 @@ module token_bridge::transfer_tokens_with_payload_test {
                 coins,
                 coin::zero<SUI>(ctx(&mut test)), // Zero fee paid to wormhole.
                 3, // Recipient chain id.
-                external_address::from_bytes(x"deadbeef0000beef"), // Recipient.
+                external_address::from_any_bytes(x"deadbeef0000beef"), // Recipient.
                 0, // Relayer fee.
                 payload,
             );
