@@ -148,6 +148,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	})
 
 	logger := supervisor.Logger(ctx)
+	readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDAlgorand)
 
 	logger.Info("Algorand watcher connecting to indexer  ", zap.String("url", e.indexerRPC))
 	logger.Info("Algorand watcher connecting to RPC node ", zap.String("url", e.algodRPC))
@@ -252,7 +253,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				ContractAddress: fmt.Sprintf("%d", e.appid),
 			})
 
-			readiness.SetReady(common.ReadinessAlgorandSyncing)
+			readiness.SetReady(readinessSync)
 		}
 	}
 }

@@ -233,6 +233,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	})
 
 	logger := supervisor.Logger(ctx)
+	readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDSui)
 
 	u := url.URL{Scheme: "ws", Host: e.suiWS}
 
@@ -410,7 +411,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			})
 
 			if e.subscribed {
-				readiness.SetReady(common.ReadinessSuiSyncing)
+				readiness.SetReady(readinessSync)
 			}
 		}
 	}

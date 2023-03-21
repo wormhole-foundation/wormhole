@@ -122,6 +122,7 @@ func newTransactionProcessingJob(txHash string, senderAccountId string) *transac
 
 func (e *Watcher) runBlockPoll(ctx context.Context) error {
 	logger := supervisor.Logger(ctx)
+	readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDNear)
 
 	// As we start, get the height of the latest finalized block. We won't be processing any blocks before that.
 	finalBlock, err := e.nearAPI.GetFinalBlock(ctx)
@@ -149,7 +150,7 @@ func (e *Watcher) runBlockPoll(ctx context.Context) error {
 				Height:          int64(highestFinalBlockHeightObserved),
 				ContractAddress: e.wormholeAccount,
 			})
-			readiness.SetReady(common.ReadinessNearSyncing)
+			readiness.SetReady(readinessSync)
 
 			timer.Reset(blockPollInterval)
 		}

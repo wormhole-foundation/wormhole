@@ -85,6 +85,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	errC := make(chan error)
 	logger := supervisor.Logger(ctx)
+	readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDWormchain)
 
 	logger.Info("connecting to websocket", zap.String("url", e.urlWS))
 
@@ -121,7 +122,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	}
 	logger.Info("subscribed to new transaction events")
 
-	readiness.SetReady(common.ReadinessWormchainSyncing)
+	readiness.SetReady(readinessSync)
 
 	go func() {
 		t := time.NewTicker(5 * time.Second)
@@ -154,6 +155,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 			p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDWormchain, &gossipv1.Heartbeat_Network{
 				Height: latestBlock.Int(),
 			})
+
+			readiness.SetReady(readinessSync)
 		}
 	}()
 

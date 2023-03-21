@@ -70,6 +70,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	})
 
 	logger := supervisor.Logger(ctx)
+	readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDAptos)
 
 	logger.Info("Aptos watcher connecting to RPC node ", zap.String("url", e.aptosRPC))
 
@@ -223,7 +224,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					ContractAddress: e.aptosAccount,
 				})
 
-				readiness.SetReady(common.ReadinessAptosSyncing)
+				readiness.SetReady(readinessSync)
 			}
 		}
 	}
