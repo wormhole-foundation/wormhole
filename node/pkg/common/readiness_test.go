@@ -9,6 +9,38 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	// Ethereum is defined in readiness.go.
+	ReadinessSolanaSyncing    readiness.Component = "solanaSyncing"
+	ReadinessTerraSyncing     readiness.Component = "terraSyncing"
+	ReadinessAlgorandSyncing  readiness.Component = "algorandSyncing"
+	ReadinessNearSyncing      readiness.Component = "nearSyncing"
+	ReadinessAptosSyncing     readiness.Component = "aptosSyncing"
+	ReadinessSuiSyncing       readiness.Component = "suiSyncing"
+	ReadinessBSCSyncing       readiness.Component = "bscSyncing"
+	ReadinessPolygonSyncing   readiness.Component = "polygonSyncing"
+	ReadinessAvalancheSyncing readiness.Component = "avalancheSyncing"
+	ReadinessOasisSyncing     readiness.Component = "oasisSyncing"
+	ReadinessAuroraSyncing    readiness.Component = "auroraSyncing"
+	ReadinessFantomSyncing    readiness.Component = "fantomSyncing"
+	ReadinessKaruraSyncing    readiness.Component = "karuraSyncing"
+	ReadinessAcalaSyncing     readiness.Component = "acalaSyncing"
+	ReadinessKlaytnSyncing    readiness.Component = "klaytnSyncing"
+	ReadinessCeloSyncing      readiness.Component = "celoSyncing"
+	ReadinessMoonbeamSyncing  readiness.Component = "moonbeamSyncing"
+	ReadinessNeonSyncing      readiness.Component = "neonSyncing"
+	ReadinessTerra2Syncing    readiness.Component = "terra2Syncing"
+	ReadinessInjectiveSyncing readiness.Component = "injectiveSyncing"
+	ReadinessXplaSyncing      readiness.Component = "xplaSyncing"
+	ReadinessPythNetSyncing   readiness.Component = "pythnetSyncing"
+	ReadinessArbitrumSyncing  readiness.Component = "arbitrumSyncing"
+	ReadinessOptimismSyncing  readiness.Component = "optimismSyncing"
+	ReadinessBaseSyncing      readiness.Component = "baseSyncing"
+	ReadinessWormchainSyncing readiness.Component = "wormchainSyncing"
+)
+
+// This test is just to make sure that nothing go broken when we switched from manually specifying the readiness syncing labels.
+// Once this functionality is merged, this test can probably be deleted (so that we don't need to keep adding new chains going forward).
 func TestChainIdToReadinessSyncing(t *testing.T) {
 	type test struct {
 		input  vaa.ChainID
