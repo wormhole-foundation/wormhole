@@ -42,6 +42,21 @@ export async function executeEntry(
   return moveCallTxn["effects"]["effects"];
 }
 
+export const getObjectFromOwner = async (
+  provider: JsonRpcProvider,
+  owner: string,
+  packageId: string,
+  moduleName: string,
+  objectName: string
+): Promise<string | null> => {
+  const objects = await provider.getObjectsOwnedByAddress(owner);
+  const type = `${packageId}::${moduleName}::${objectName}`;
+  return (
+    objects.find((o) => o.type.toLowerCase() === type.toLowerCase())
+      ?.objectId ?? null
+  );
+};
+
 export const getProvider = (
   network?: Network,
   rpc?: string

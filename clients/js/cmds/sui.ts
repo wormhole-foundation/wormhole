@@ -7,29 +7,14 @@ import {
   RPC_OPTIONS,
 } from "../consts";
 import { NETWORKS } from "../networks";
-import { executeEntry, getProvider, getSigner, publishPackage } from "../sui";
+import {
+  executeEntry,
+  getObjectFromOwner,
+  getProvider,
+  getSigner,
+  publishPackage,
+} from "../sui";
 import { assertNetwork, checkBinary } from "../utils";
-
-/**
- * Loop through a list of Sui objects and look for the `DeployerCapability` that
- * should have been granted upon publication of the package with `packageId`.
- * @param packageId
- * @param moduleName
- * @param objects List of objects in the format returned by a JSON-RPC call
- * `sui_getOwnedObjects`
- * @returns
- */
-function findDeployerCapability(
-  packageId: string,
-  moduleName: string,
-  objects: any[]
-): string | null {
-  const type = `${packageId}::${moduleName}::DeployerCapability`;
-  return (
-    objects.find((o) => o.type.toLowerCase() === type.toLowerCase())
-      ?.objectId ?? null
-  );
-}
 
 exports.command = "sui";
 exports.desc = "Sui utilities";
@@ -130,8 +115,13 @@ exports.builder = function (y: typeof yargs) {
         const signer = getSigner(provider, network);
         const owner = await signer.getAddress();
         console.log("Owner:                    ", owner);
-        const objects = await provider.getObjectsOwnedByAddress(owner);
-        const deployer = findDeployerCapability(packageId, "state", objects);
+        const deployer = await getObjectFromOwner(
+          provider,
+          owner,
+          packageId,
+          "state",
+          "DeployerCapability"
+        );
 
         console.log("Network:                  ", network);
         console.log("Package ID:               ", packageId);
@@ -210,8 +200,13 @@ exports.builder = function (y: typeof yargs) {
         const provider = getProvider(network, rpc);
         const signer = getSigner(provider, network);
         const owner = await signer.getAddress();
-        const objects = await provider.getObjectsOwnedByAddress(owner);
-        const deployer = findDeployerCapability(packageId, "state", objects);
+        const deployer = await getObjectFromOwner(
+          provider,
+          owner,
+          packageId,
+          "setup",
+          "DeployerCapability"
+        );
         if (typeof deployer == "undefined") {
           throw new Error(
             "Wormhole core bridge cannot be initialized because deployer capability cannot be found. Is the package published?"
@@ -231,7 +226,7 @@ exports.builder = function (y: typeof yargs) {
           provider,
           network,
           packageId,
-          "state",
+          "setup",
           "init_and_share_state",
           [],
           [
@@ -239,6 +234,7 @@ exports.builder = function (y: typeof yargs) {
             governanceChainId,
             [...Buffer.from(governanceContract, "hex")],
             [[...Buffer.from(initialGuardian, "hex")]],
+            15, // Guardian set TTL in epochs
             "0", // Message fee
           ]
         );
