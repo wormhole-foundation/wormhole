@@ -1,11 +1,9 @@
 import { ethers } from "ethers";
-import { CONTRACTS } from "./consts";
+import { CONTRACTS, ChainId, toChainName } from "./consts";
 import { Implementation__factory } from "../ethers-contracts";
 import { parseVaa, GuardianSignature } from "../vaa";
 import { hexToUint8Array } from "./array";
 import { keccak256 } from "../utils";
-
-const ETHEREUM_CORE_BRIDGE = CONTRACTS["MAINNET"].ethereum.core;
 
 function hex(x: string): string {
   return ethers.utils.hexlify(x, { allowMissingPrefix: true });
@@ -17,14 +15,19 @@ interface GuardianSetData {
 }
 
 export async function getCurrentGuardianSet(
-  provider: ethers.providers.JsonRpcProvider
+  provider: ethers.providers.JsonRpcProvider,
+  chainId: ChainId,
+  environment: "MAINNET" | "TESTNET" | "DEVNET" = "MAINNET"
 ): Promise<GuardianSetData> {
   let result: GuardianSetData = {
     index: 0,
     keys: [],
     expiry: 0,
   };
-  const core = Implementation__factory.connect(ETHEREUM_CORE_BRIDGE, provider);
+
+  const CORE_BRIDGE = CONTRACTS[environment][toChainName(chainId)].core;
+
+  const core = Implementation__factory.connect(CORE_BRIDGE, provider);
   const index = await core.getCurrentGuardianSetIndex();
   const guardianSet = await core.getGuardianSet(index);
   result.index = index;
@@ -108,8 +111,14 @@ export function repairVaa(
 
 export async function repairVaaWithCurrentGuardianSet(
   vaaHex: string,
-  provider: ethers.providers.JsonRpcProvider
+  provider: ethers.providers.JsonRpcProvider,
+  chainId: ChainId,
+  environment: "MAINNET" | "TESTNET" | "DEVNET" = "MAINNET"
 ): Promise<string> {
-  const guardianSetData = await getCurrentGuardianSet(provider);
+  const guardianSetData = await getCurrentGuardianSet(
+    provider,
+    chainId,
+    environment
+  );
   return repairVaa(vaaHex, guardianSetData);
 }
