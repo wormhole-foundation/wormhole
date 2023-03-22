@@ -132,6 +132,16 @@ export const publishPackage = async (
         (o) => o.owner === "Immutable"
       )["reference"]["objectId"]
     );
+    console.log(
+      "Created objects:",
+      publishTx["effects"]["effects"]["events"]
+        .filter((e) => "newObject" in e)
+        .map((e) => ({
+          type: e["newObject"]["objectType"],
+          objectId: e["newObject"]["objectId"],
+          owner: e["newObject"]["recipient"]["AddressOwner"],
+        }))
+    );
   } catch (e) {
     throw e;
   } finally {
