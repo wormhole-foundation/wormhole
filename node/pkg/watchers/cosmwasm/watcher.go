@@ -97,7 +97,6 @@ func NewWatcher(
 	contract string,
 	msgC chan<- *common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
-	readiness readiness.Component,
 	chainID vaa.ChainID) *Watcher {
 
 	// CosmWasm 1.0.0
@@ -123,7 +122,7 @@ func NewWatcher(
 		contract:                 contract,
 		msgC:                     msgC,
 		obsvReqC:                 obsvReqC,
-		readiness:                readiness,
+		readiness:                common.ChainIdToReadinessSyncing(chainID),
 		chainID:                  chainID,
 		contractAddressFilterKey: contractAddressFilterKey,
 		contractAddressLogKey:    contractAddressLogKey,

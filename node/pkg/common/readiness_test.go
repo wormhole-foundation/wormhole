@@ -39,7 +39,7 @@ const (
 	ReadinessWormchainSyncing readiness.Component = "wormchainSyncing"
 )
 
-// This test is just to make sure that nothing go broken when we switched from manually specifying the readiness syncing labels.
+// This test is just to make sure that nothing got broken when we switched from manually specifying the readiness syncing labels.
 // Once this functionality is merged, this test can probably be deleted (so that we don't need to keep adding new chains going forward).
 func TestChainIdToReadinessSyncing(t *testing.T) {
 	type test struct {

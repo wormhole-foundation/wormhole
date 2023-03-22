@@ -11,6 +11,12 @@ const (
 	ReadinessEthSyncing readiness.Component = "ethSyncing"
 )
 
+// RegisterReadinessSyncing registers the specified chain for readiness syncing. It will panic if the chain ID is invalid
+// so it should only be used during initialization.
+func RegisterReadinessSyncing(chainID vaa.ChainID) {
+	readiness.RegisterComponent(ChainIdToReadinessSyncing(chainID))
+}
+
 // ChainIdToReadinessSyncing maps a chain ID to a readiness syncing value. It will panic if the chain ID is invalid
 // so it should only be used during initialization. Otherwise use ChainIdToReadinessSyncingWithError.
 func ChainIdToReadinessSyncing(chainID vaa.ChainID) readiness.Component {

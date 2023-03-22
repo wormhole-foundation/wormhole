@@ -1097,10 +1097,9 @@ func runNode(cmd *cobra.Command, args []string) {
 		var ethWatcher *evm.Watcher
 		if shouldStart(ethRPC) {
 			logger.Info("Starting Ethereum watcher")
-			readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDEthereum)
-			readiness.RegisterComponent(readinessSync)
+			common.RegisterReadinessSyncing(vaa.ChainIDEthereum)
 			chainObsvReqC[vaa.ChainIDEthereum] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			ethWatcher = evm.NewEthWatcher(*ethRPC, ethContractAddr, "eth", readinessSync, vaa.ChainIDEthereum, chainMsgC[vaa.ChainIDEthereum], setWriteC, chainObsvReqC[vaa.ChainIDEthereum], *unsafeDevMode)
+			ethWatcher = evm.NewEthWatcher(*ethRPC, ethContractAddr, "eth", vaa.ChainIDEthereum, chainMsgC[vaa.ChainIDEthereum], setWriteC, chainObsvReqC[vaa.ChainIDEthereum], *unsafeDevMode)
 			if err := supervisor.Run(ctx, "ethwatch",
 				common.WrapWithScissors(ethWatcher.Run, "ethwatch")); err != nil {
 				return err
@@ -1109,10 +1108,9 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if shouldStart(bscRPC) {
 			logger.Info("Starting BSC watcher")
-			readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDBSC)
-			readiness.RegisterComponent(readinessSync)
+			common.RegisterReadinessSyncing(vaa.ChainIDBSC)
 			chainObsvReqC[vaa.ChainIDBSC] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			bscWatcher := evm.NewEthWatcher(*bscRPC, bscContractAddr, "bsc", readinessSync, vaa.ChainIDBSC, chainMsgC[vaa.ChainIDBSC], nil, chainObsvReqC[vaa.ChainIDBSC], *unsafeDevMode)
+			bscWatcher := evm.NewEthWatcher(*bscRPC, bscContractAddr, "bsc", vaa.ChainIDBSC, chainMsgC[vaa.ChainIDBSC], nil, chainObsvReqC[vaa.ChainIDBSC], *unsafeDevMode)
 			bscWatcher.SetWaitForConfirmations(true)
 			if err := supervisor.Run(ctx, "bscwatch", common.WrapWithScissors(bscWatcher.Run, "bscwatch")); err != nil {
 				return err
@@ -1126,10 +1124,9 @@ func runNode(cmd *cobra.Command, args []string) {
 				log.Fatal("Polygon checkpointing is required in mainnet")
 			}
 			logger.Info("Starting Polygon watcher")
-			readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDPolygon)
-			readiness.RegisterComponent(readinessSync)
+			common.RegisterReadinessSyncing(vaa.ChainIDPolygon)
 			chainObsvReqC[vaa.ChainIDPolygon] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			polygonWatcher := evm.NewEthWatcher(*polygonRPC, polygonContractAddr, "polygon", readinessSync, vaa.ChainIDPolygon, chainMsgC[vaa.ChainIDPolygon], nil, chainObsvReqC[vaa.ChainIDPolygon], *unsafeDevMode)
+			polygonWatcher := evm.NewEthWatcher(*polygonRPC, polygonContractAddr, "polygon", vaa.ChainIDPolygon, chainMsgC[vaa.ChainIDPolygon], nil, chainObsvReqC[vaa.ChainIDPolygon], *unsafeDevMode)
 			polygonWatcher.SetWaitForConfirmations(waitForConfirmations)
 			if err := polygonWatcher.SetRootChainParams(*polygonRootChainRpc, *polygonRootChainContractAddress); err != nil {
 				return err
@@ -1140,91 +1137,82 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if shouldStart(avalancheRPC) {
 			logger.Info("Starting Avalanche watcher")
-			readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDAvalanche)
-			readiness.RegisterComponent(readinessSync)
+			common.RegisterReadinessSyncing(vaa.ChainIDAvalanche)
 			chainObsvReqC[vaa.ChainIDAvalanche] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "avalanchewatch",
-				common.WrapWithScissors(evm.NewEthWatcher(*avalancheRPC, avalancheContractAddr, "avalanche", readinessSync, vaa.ChainIDAvalanche, chainMsgC[vaa.ChainIDAvalanche], nil, chainObsvReqC[vaa.ChainIDAvalanche], *unsafeDevMode).Run, "avalanchewatch")); err != nil {
+				common.WrapWithScissors(evm.NewEthWatcher(*avalancheRPC, avalancheContractAddr, "avalanche", vaa.ChainIDAvalanche, chainMsgC[vaa.ChainIDAvalanche], nil, chainObsvReqC[vaa.ChainIDAvalanche], *unsafeDevMode).Run, "avalanchewatch")); err != nil {
 				return err
 			}
 		}
 		if shouldStart(oasisRPC) {
 			logger.Info("Starting Oasis watcher")
-			readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDOasis)
-			readiness.RegisterComponent(readinessSync)
+			common.RegisterReadinessSyncing(vaa.ChainIDOasis)
 			chainObsvReqC[vaa.ChainIDOasis] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "oasiswatch",
-				common.WrapWithScissors(evm.NewEthWatcher(*oasisRPC, oasisContractAddr, "oasis", readinessSync, vaa.ChainIDOasis, chainMsgC[vaa.ChainIDOasis], nil, chainObsvReqC[vaa.ChainIDOasis], *unsafeDevMode).Run, "oasiswatch")); err != nil {
+				common.WrapWithScissors(evm.NewEthWatcher(*oasisRPC, oasisContractAddr, "oasis", vaa.ChainIDOasis, chainMsgC[vaa.ChainIDOasis], nil, chainObsvReqC[vaa.ChainIDOasis], *unsafeDevMode).Run, "oasiswatch")); err != nil {
 				return err
 			}
 		}
 		if shouldStart(auroraRPC) {
 			logger.Info("Starting Aurora watcher")
-			readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDAurora)
-			readiness.RegisterComponent(readinessSync)
+			common.RegisterReadinessSyncing(vaa.ChainIDAurora)
 			chainObsvReqC[vaa.ChainIDAurora] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "aurorawatch",
-				common.WrapWithScissors(evm.NewEthWatcher(*auroraRPC, auroraContractAddr, "aurora", readinessSync, vaa.ChainIDAurora, chainMsgC[vaa.ChainIDAurora], nil, chainObsvReqC[vaa.ChainIDAurora], *unsafeDevMode).Run, "aurorawatch")); err != nil {
+				common.WrapWithScissors(evm.NewEthWatcher(*auroraRPC, auroraContractAddr, "aurora", vaa.ChainIDAurora, chainMsgC[vaa.ChainIDAurora], nil, chainObsvReqC[vaa.ChainIDAurora], *unsafeDevMode).Run, "aurorawatch")); err != nil {
 				return err
 			}
 		}
 		if shouldStart(fantomRPC) {
 			logger.Info("Starting Fantom watcher")
-			readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDFantom)
-			readiness.RegisterComponent(readinessSync)
+			common.RegisterReadinessSyncing(vaa.ChainIDFantom)
 			chainObsvReqC[vaa.ChainIDFantom] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "fantomwatch",
-				common.WrapWithScissors(evm.NewEthWatcher(*fantomRPC, fantomContractAddr, "fantom", readinessSync, vaa.ChainIDFantom, chainMsgC[vaa.ChainIDFantom], nil, chainObsvReqC[vaa.ChainIDFantom], *unsafeDevMode).Run, "fantomwatch")); err != nil {
+				common.WrapWithScissors(evm.NewEthWatcher(*fantomRPC, fantomContractAddr, "fantom", vaa.ChainIDFantom, chainMsgC[vaa.ChainIDFantom], nil, chainObsvReqC[vaa.ChainIDFantom], *unsafeDevMode).Run, "fantomwatch")); err != nil {
 				return err
 			}
 		}
 		if shouldStart(karuraRPC) {
 			logger.Info("Starting Karura watcher")
-			readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDKarura)
-			readiness.RegisterComponent(readinessSync)
+			common.RegisterReadinessSyncing(vaa.ChainIDKarura)
 			chainObsvReqC[vaa.ChainIDKarura] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "karurawatch",
-				common.WrapWithScissors(evm.NewEthWatcher(*karuraRPC, karuraContractAddr, "karura", readinessSync, vaa.ChainIDKarura, chainMsgC[vaa.ChainIDKarura], nil, chainObsvReqC[vaa.ChainIDKarura], *unsafeDevMode).Run, "karurawatch")); err != nil {
+				common.WrapWithScissors(evm.NewEthWatcher(*karuraRPC, karuraContractAddr, "karura", vaa.ChainIDKarura, chainMsgC[vaa.ChainIDKarura], nil, chainObsvReqC[vaa.ChainIDKarura], *unsafeDevMode).Run, "karurawatch")); err != nil {
 				return err
 			}
 		}
 		if shouldStart(acalaRPC) {
 			logger.Info("Starting Acala watcher")
-			readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDAcala)
-			readiness.RegisterComponent(readinessSync)
+			common.RegisterReadinessSyncing(vaa.ChainIDAcala)
 			chainObsvReqC[vaa.ChainIDAcala] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "acalawatch",
-				common.WrapWithScissors(evm.NewEthWatcher(*acalaRPC, acalaContractAddr, "acala", readinessSync, vaa.ChainIDAcala, chainMsgC[vaa.ChainIDAcala], nil, chainObsvReqC[vaa.ChainIDAcala], *unsafeDevMode).Run, "acalawatch")); err != nil {
+				common.WrapWithScissors(evm.NewEthWatcher(*acalaRPC, acalaContractAddr, "acala", vaa.ChainIDAcala, chainMsgC[vaa.ChainIDAcala], nil, chainObsvReqC[vaa.ChainIDAcala], *unsafeDevMode).Run, "acalawatch")); err != nil {
 				return err
 			}
 		}
 		if shouldStart(klaytnRPC) {
 			logger.Info("Starting Klaytn watcher")
-			readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDKlaytn)
-			readiness.RegisterComponent(readinessSync)
+			common.RegisterReadinessSyncing(vaa.ChainIDKlaytn)
 			chainObsvReqC[vaa.ChainIDKlaytn] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "klaytnwatch",
-				common.WrapWithScissors(evm.NewEthWatcher(*klaytnRPC, klaytnContractAddr, "klaytn", readinessSync, vaa.ChainIDKlaytn, chainMsgC[vaa.ChainIDKlaytn], nil, chainObsvReqC[vaa.ChainIDKlaytn], *unsafeDevMode).Run, "klaytnwatch")); err != nil {
+				common.WrapWithScissors(evm.NewEthWatcher(*klaytnRPC, klaytnContractAddr, "klaytn", vaa.ChainIDKlaytn, chainMsgC[vaa.ChainIDKlaytn], nil, chainObsvReqC[vaa.ChainIDKlaytn], *unsafeDevMode).Run, "klaytnwatch")); err != nil {
 				return err
 			}
 		}
 		if shouldStart(celoRPC) {
 			logger.Info("Starting Celo watcher")
-			readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDCelo)
-			readiness.RegisterComponent(readinessSync)
+			common.RegisterReadinessSyncing(vaa.ChainIDCelo)
 			chainObsvReqC[vaa.ChainIDCelo] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "celowatch",
-				common.WrapWithScissors(evm.NewEthWatcher(*celoRPC, celoContractAddr, "celo", readinessSync, vaa.ChainIDCelo, chainMsgC[vaa.ChainIDCelo], nil, chainObsvReqC[vaa.ChainIDCelo], *unsafeDevMode).Run, "celowatch")); err != nil {
+				common.WrapWithScissors(evm.NewEthWatcher(*celoRPC, celoContractAddr, "celo", vaa.ChainIDCelo, chainMsgC[vaa.ChainIDCelo], nil, chainObsvReqC[vaa.ChainIDCelo], *unsafeDevMode).Run, "celowatch")); err != nil {
 				return err
 			}
 		}
 		if shouldStart(moonbeamRPC) {
 			logger.Info("Starting Moonbeam watcher")
-			readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDMoonbeam)
-			readiness.RegisterComponent(readinessSync)
+			common.RegisterReadinessSyncing(vaa.ChainIDMoonbeam)
 			chainObsvReqC[vaa.ChainIDMoonbeam] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "moonbeamwatch",
-				common.WrapWithScissors(evm.NewEthWatcher(*moonbeamRPC, moonbeamContractAddr, "moonbeam", readinessSync, vaa.ChainIDMoonbeam, chainMsgC[vaa.ChainIDMoonbeam], nil, chainObsvReqC[vaa.ChainIDMoonbeam], *unsafeDevMode).Run, "moonbeamwatch")); err != nil {
+				common.WrapWithScissors(evm.NewEthWatcher(*moonbeamRPC, moonbeamContractAddr, "moonbeam", vaa.ChainIDMoonbeam, chainMsgC[vaa.ChainIDMoonbeam], nil, chainObsvReqC[vaa.ChainIDMoonbeam], *unsafeDevMode).Run, "moonbeamwatch")); err != nil {
 				return err
 			}
 		}
@@ -1233,10 +1221,9 @@ func runNode(cmd *cobra.Command, args []string) {
 				log.Fatalf("if arbitrum is enabled then ethereum must also be enabled.")
 			}
 			logger.Info("Starting Arbitrum watcher")
-			readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDArbitrum)
-			readiness.RegisterComponent(readinessSync)
+			common.RegisterReadinessSyncing(vaa.ChainIDArbitrum)
 			chainObsvReqC[vaa.ChainIDArbitrum] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			arbitrumWatcher := evm.NewEthWatcher(*arbitrumRPC, arbitrumContractAddr, "arbitrum", readinessSync, vaa.ChainIDArbitrum, chainMsgC[vaa.ChainIDArbitrum], nil, chainObsvReqC[vaa.ChainIDArbitrum], *unsafeDevMode)
+			arbitrumWatcher := evm.NewEthWatcher(*arbitrumRPC, arbitrumContractAddr, "arbitrum", vaa.ChainIDArbitrum, chainMsgC[vaa.ChainIDArbitrum], nil, chainObsvReqC[vaa.ChainIDArbitrum], *unsafeDevMode)
 			arbitrumWatcher.SetL1Finalizer(ethWatcher)
 			if err := supervisor.Run(ctx, "arbitrumwatch", common.WrapWithScissors(arbitrumWatcher.Run, "arbitrumwatch")); err != nil {
 				return err
@@ -1244,10 +1231,9 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if shouldStart(optimismRPC) {
 			logger.Info("Starting Optimism watcher")
-			readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDOptimism)
-			readiness.RegisterComponent(readinessSync)
+			common.RegisterReadinessSyncing(vaa.ChainIDOptimism)
 			chainObsvReqC[vaa.ChainIDOptimism] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			optimismWatcher := evm.NewEthWatcher(*optimismRPC, optimismContractAddr, "optimism", readinessSync, vaa.ChainIDOptimism, chainMsgC[vaa.ChainIDOptimism], nil, chainObsvReqC[vaa.ChainIDOptimism], *unsafeDevMode)
+			optimismWatcher := evm.NewEthWatcher(*optimismRPC, optimismContractAddr, "optimism", vaa.ChainIDOptimism, chainMsgC[vaa.ChainIDOptimism], nil, chainObsvReqC[vaa.ChainIDOptimism], *unsafeDevMode)
 
 			// If rootChainParams are set, pass them in for pre-Bedrock mode
 			if *optimismCtcRpc != "" || *optimismCtcContractAddress != "" {
@@ -1266,40 +1252,37 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if shouldStart(terraWS) {
 			logger.Info("Starting Terra watcher")
-			readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDTerra)
-			readiness.RegisterComponent(readinessSync)
+			common.RegisterReadinessSyncing(vaa.ChainIDTerra)
 			chainObsvReqC[vaa.ChainIDTerra] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "terrawatch",
-				common.WrapWithScissors(cosmwasm.NewWatcher(*terraWS, *terraLCD, *terraContract, chainMsgC[vaa.ChainIDTerra], chainObsvReqC[vaa.ChainIDTerra], readinessSync, vaa.ChainIDTerra).Run, "terrawatch")); err != nil {
+				common.WrapWithScissors(cosmwasm.NewWatcher(*terraWS, *terraLCD, *terraContract, chainMsgC[vaa.ChainIDTerra], chainObsvReqC[vaa.ChainIDTerra], vaa.ChainIDTerra).Run, "terrawatch")); err != nil {
 				return err
 			}
 		}
 
 		if shouldStart(terra2WS) {
 			logger.Info("Starting Terra 2 watcher")
-			readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDTerra2)
-			readiness.RegisterComponent(readinessSync)
+			common.RegisterReadinessSyncing(vaa.ChainIDTerra2)
 			chainObsvReqC[vaa.ChainIDTerra2] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "terra2watch",
-				common.WrapWithScissors(cosmwasm.NewWatcher(*terra2WS, *terra2LCD, *terra2Contract, chainMsgC[vaa.ChainIDTerra2], chainObsvReqC[vaa.ChainIDTerra2], readinessSync, vaa.ChainIDTerra2).Run, "terra2watch")); err != nil {
+				common.WrapWithScissors(cosmwasm.NewWatcher(*terra2WS, *terra2LCD, *terra2Contract, chainMsgC[vaa.ChainIDTerra2], chainObsvReqC[vaa.ChainIDTerra2], vaa.ChainIDTerra2).Run, "terra2watch")); err != nil {
 				return err
 			}
 		}
 
 		if shouldStart(xplaWS) {
 			logger.Info("Starting XPLA watcher")
-			readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDXpla)
-			readiness.RegisterComponent(readinessSync)
+			common.RegisterReadinessSyncing(vaa.ChainIDXpla)
 			chainObsvReqC[vaa.ChainIDXpla] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "xplawatch",
-				common.WrapWithScissors(cosmwasm.NewWatcher(*xplaWS, *xplaLCD, *xplaContract, chainMsgC[vaa.ChainIDXpla], chainObsvReqC[vaa.ChainIDXpla], readinessSync, vaa.ChainIDXpla).Run, "xplawatch")); err != nil {
+				common.WrapWithScissors(cosmwasm.NewWatcher(*xplaWS, *xplaLCD, *xplaContract, chainMsgC[vaa.ChainIDXpla], chainObsvReqC[vaa.ChainIDXpla], vaa.ChainIDXpla).Run, "xplawatch")); err != nil {
 				return err
 			}
 		}
 
 		if shouldStart(algorandIndexerRPC) {
 			logger.Info("Starting Algorand watcher")
-			readiness.RegisterComponent(common.ChainIdToReadinessSyncing(vaa.ChainIDAlgorand))
+			common.RegisterReadinessSyncing(vaa.ChainIDAlgorand)
 			chainObsvReqC[vaa.ChainIDAlgorand] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "algorandwatch",
 				common.WrapWithScissors(algorand.NewWatcher(*algorandIndexerRPC, *algorandIndexerToken, *algorandAlgodRPC, *algorandAlgodToken, *algorandAppID, chainMsgC[vaa.ChainIDAlgorand], chainObsvReqC[vaa.ChainIDAlgorand]).Run, "algorandwatch")); err != nil {
@@ -1308,7 +1291,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if shouldStart(nearRPC) {
 			logger.Info("Starting Near watcher")
-			readiness.RegisterComponent(common.ChainIdToReadinessSyncing(vaa.ChainIDNear))
+			common.RegisterReadinessSyncing(vaa.ChainIDNear)
 			chainObsvReqC[vaa.ChainIDNear] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "nearwatch",
 				common.WrapWithScissors(near.NewWatcher(*nearRPC, *nearContract, chainMsgC[vaa.ChainIDNear], chainObsvReqC[vaa.ChainIDNear], !(*unsafeDevMode || *testnetMode)).Run, "nearwatch")); err != nil {
@@ -1319,7 +1302,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		// Start Wormchain watcher only if configured
 		if shouldStart(wormchainWS) {
 			logger.Info("Starting Wormchain watcher")
-			readiness.RegisterComponent(common.ChainIdToReadinessSyncing(vaa.ChainIDWormchain))
+			common.RegisterReadinessSyncing(vaa.ChainIDWormchain)
 			chainObsvReqC[vaa.ChainIDWormchain] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "wormchainwatch",
 				wormchain.NewWatcher(*wormchainWS, *wormchainLCD, chainMsgC[vaa.ChainIDWormchain], chainObsvReqC[vaa.ChainIDWormchain]).Run); err != nil {
@@ -1328,7 +1311,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if shouldStart(aptosRPC) {
 			logger.Info("Starting Aptos watcher")
-			readiness.RegisterComponent(common.ChainIdToReadinessSyncing(vaa.ChainIDAptos))
+			common.RegisterReadinessSyncing(vaa.ChainIDAptos)
 			chainObsvReqC[vaa.ChainIDAptos] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "aptoswatch",
 				aptos.NewWatcher(*aptosRPC, *aptosAccount, *aptosHandle, chainMsgC[vaa.ChainIDAptos], chainObsvReqC[vaa.ChainIDAptos]).Run); err != nil {
@@ -1338,7 +1321,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if shouldStart(suiRPC) {
 			logger.Info("Starting Sui watcher")
-			readiness.RegisterComponent(common.ChainIdToReadinessSyncing(vaa.ChainIDSui))
+			common.RegisterReadinessSyncing(vaa.ChainIDSui)
 			chainObsvReqC[vaa.ChainIDSui] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "suiwatch",
 				sui.NewWatcher(*suiRPC, *suiWS, *suiAccount, *suiPackage, *unsafeDevMode, chainMsgC[vaa.ChainIDSui], chainObsvReqC[vaa.ChainIDSui]).Run); err != nil {
@@ -1349,14 +1332,13 @@ func runNode(cmd *cobra.Command, args []string) {
 		var solanaFinalizedWatcher *solana.SolanaWatcher
 		if shouldStart(solanaRPC) {
 			logger.Info("Starting Solana watcher")
-			readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDSolana)
-			readiness.RegisterComponent(readinessSync)
+			common.RegisterReadinessSyncing(vaa.ChainIDSolana)
 			chainObsvReqC[vaa.ChainIDSolana] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "solwatch-confirmed",
-				common.WrapWithScissors(solana.NewSolanaWatcher(*solanaRPC, nil, solAddress, *solanaContract, chainMsgC[vaa.ChainIDSolana], nil, rpc.CommitmentConfirmed, readinessSync, vaa.ChainIDSolana).Run, "solwatch-confirmed")); err != nil {
+				common.WrapWithScissors(solana.NewSolanaWatcher(*solanaRPC, nil, solAddress, *solanaContract, chainMsgC[vaa.ChainIDSolana], nil, rpc.CommitmentConfirmed, vaa.ChainIDSolana).Run, "solwatch-confirmed")); err != nil {
 				return err
 			}
-			solanaFinalizedWatcher = solana.NewSolanaWatcher(*solanaRPC, nil, solAddress, *solanaContract, chainMsgC[vaa.ChainIDSolana], chainObsvReqC[vaa.ChainIDSolana], rpc.CommitmentFinalized, readinessSync, vaa.ChainIDSolana)
+			solanaFinalizedWatcher = solana.NewSolanaWatcher(*solanaRPC, nil, solAddress, *solanaContract, chainMsgC[vaa.ChainIDSolana], chainObsvReqC[vaa.ChainIDSolana], rpc.CommitmentFinalized, vaa.ChainIDSolana)
 			if err := supervisor.Run(ctx, "solwatch-finalized", common.WrapWithScissors(solanaFinalizedWatcher.Run, "solwatch-finalized")); err != nil {
 				return err
 			}
@@ -1364,22 +1346,20 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if shouldStart(pythnetRPC) {
 			logger.Info("Starting Pythnet watcher")
-			readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDPythNet)
-			readiness.RegisterComponent(readinessSync)
+			common.RegisterReadinessSyncing(vaa.ChainIDPythNet)
 			chainObsvReqC[vaa.ChainIDPythNet] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "pythwatch-confirmed",
-				common.WrapWithScissors(solana.NewSolanaWatcher(*pythnetRPC, pythnetWS, pythnetAddress, *pythnetContract, chainMsgC[vaa.ChainIDPythNet], nil, rpc.CommitmentConfirmed, readinessSync, vaa.ChainIDPythNet).Run, "pythwatch-confirmed")); err != nil {
+				common.WrapWithScissors(solana.NewSolanaWatcher(*pythnetRPC, pythnetWS, pythnetAddress, *pythnetContract, chainMsgC[vaa.ChainIDPythNet], nil, rpc.CommitmentConfirmed, vaa.ChainIDPythNet).Run, "pythwatch-confirmed")); err != nil {
 				return err
 			}
 		}
 
 		if shouldStart(injectiveWS) {
 			logger.Info("Starting Injective watcher")
-			readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDInjective)
-			readiness.RegisterComponent(readinessSync)
+			common.RegisterReadinessSyncing(vaa.ChainIDInjective)
 			chainObsvReqC[vaa.ChainIDInjective] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "injectivewatch",
-				common.WrapWithScissors(cosmwasm.NewWatcher(*injectiveWS, *injectiveLCD, *injectiveContract, chainMsgC[vaa.ChainIDInjective], chainObsvReqC[vaa.ChainIDInjective], readinessSync, vaa.ChainIDInjective).Run, "injectivewatch")); err != nil {
+				common.WrapWithScissors(cosmwasm.NewWatcher(*injectiveWS, *injectiveLCD, *injectiveContract, chainMsgC[vaa.ChainIDInjective], chainObsvReqC[vaa.ChainIDInjective], vaa.ChainIDInjective).Run, "injectivewatch")); err != nil {
 				return err
 			}
 		}
@@ -1390,10 +1370,9 @@ func runNode(cmd *cobra.Command, args []string) {
 					log.Fatalf("if neon is enabled then solana must also be enabled.")
 				}
 				logger.Info("Starting Neon watcher")
-				readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDNeon)
-				readiness.RegisterComponent(readinessSync)
+				common.RegisterReadinessSyncing(vaa.ChainIDNeon)
 				chainObsvReqC[vaa.ChainIDNeon] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-				neonWatcher := evm.NewEthWatcher(*neonRPC, neonContractAddr, "neon", readinessSync, vaa.ChainIDNeon, chainMsgC[vaa.ChainIDNeon], nil, chainObsvReqC[vaa.ChainIDNeon], *unsafeDevMode)
+				neonWatcher := evm.NewEthWatcher(*neonRPC, neonContractAddr, "neon", vaa.ChainIDNeon, chainMsgC[vaa.ChainIDNeon], nil, chainObsvReqC[vaa.ChainIDNeon], *unsafeDevMode)
 				neonWatcher.SetL1Finalizer(solanaFinalizedWatcher)
 				if err := supervisor.Run(ctx, "neonwatch", common.WrapWithScissors(neonWatcher.Run, "neonwatch")); err != nil {
 					return err
@@ -1401,10 +1380,9 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 			if shouldStart(baseRPC) {
 				logger.Info("Starting Base watcher")
-				readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDBase)
-				readiness.RegisterComponent(readinessSync)
+				common.RegisterReadinessSyncing(vaa.ChainIDBase)
 				chainObsvReqC[vaa.ChainIDBase] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-				baseWatcher := evm.NewEthWatcher(*baseRPC, baseContractAddr, "base", readinessSync, vaa.ChainIDBase, chainMsgC[vaa.ChainIDBase], nil, chainObsvReqC[vaa.ChainIDBase], *unsafeDevMode)
+				baseWatcher := evm.NewEthWatcher(*baseRPC, baseContractAddr, "base", vaa.ChainIDBase, chainMsgC[vaa.ChainIDBase], nil, chainObsvReqC[vaa.ChainIDBase], *unsafeDevMode)
 				if err := supervisor.Run(ctx, "basewatch", common.WrapWithScissors(baseWatcher.Run, "basewatch")); err != nil {
 					return err
 				}

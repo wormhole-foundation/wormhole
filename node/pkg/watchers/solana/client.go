@@ -181,7 +181,6 @@ func NewSolanaWatcher(
 	msgC chan<- *common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
 	commitment rpc.CommitmentType,
-	readiness readiness.Component,
 	chainID vaa.ChainID) *SolanaWatcher {
 	return &SolanaWatcher{
 		rpcUrl:      rpcUrl,
@@ -192,7 +191,7 @@ func NewSolanaWatcher(
 		obsvReqC:    obsvReqC,
 		commitment:  commitment,
 		rpcClient:   rpc.New(rpcUrl),
-		readiness:   readiness,
+		readiness:   common.ChainIdToReadinessSyncing(chainID),
 		chainID:     chainID,
 		networkName: vaa.ChainID(chainID).String(),
 	}
