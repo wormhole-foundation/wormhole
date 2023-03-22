@@ -131,6 +131,18 @@ module wormhole::dummy_sui_package {
         cap.version = cap.version + 1;
     }
 
+    public fun mock_new_upgrade_cap(
+        package: ID, 
+        ctx: &mut TxContext
+    ): UpgradeCap {
+        UpgradeCap {
+            id: object::new(ctx),
+            package,
+            version: 1,
+            policy: COMPATIBLE,
+        }
+    }
+
     #[test_only]
     /// Test-only function to simulate publishing a package at address
     /// `ID`, to create an `UpgradeCap`.

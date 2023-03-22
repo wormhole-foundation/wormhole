@@ -10,7 +10,7 @@ module wormhole::setup {
     use wormhole::state::{Self};
 
     // NOTE: This exists to mock up sui::package for proposed upgrades.
-    use wormhole::dummy_sui_package::{UpgradeCap};
+    use wormhole::dummy_sui_package::{Self as package, UpgradeCap};
 
     /// Capability created at `init`, which will be destroyed once
     /// `init_and_share_state` is called. This ensures only the deployer can
@@ -26,21 +26,18 @@ module wormhole::setup {
     fun init(ctx: &mut TxContext) {
         let deployer = DeployerCap { id: object::new(ctx) };
         transfer::transfer(deployer, tx_context::sender(ctx));
+
+        // TODO: remove this once we have a proper upgrade mechanism in Sui 
+        // 0.28.0
+        let upgrade_cap = package::mock_new_upgrade_cap(
+            object::id_from_address(@wormhole), ctx
+        );
+        transfer::transfer(upgrade_cap, tx_context::sender(ctx));
     }
 
     #[test_only]
     public fun init_test_only(ctx: &mut TxContext) {
-        // NOTE: This exists to mock up sui::package for proposed upgrades.
-        use wormhole::dummy_sui_package::{Self as package};
-
         init(ctx);
-
-        // This will be created and sent to the transaction sender
-        // automatically when the contract is published.
-        transfer::transfer(
-            package::test_publish(object::id_from_address(@wormhole), ctx),
-            tx_context::sender(ctx)
-        );
     }
 
     /// Only the owner of the `DeployerCap` can call this method. This
