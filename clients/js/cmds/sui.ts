@@ -205,22 +205,37 @@ exports.builder = function (y: typeof yargs) {
           owner,
           packageId,
           "setup",
-          "DeployerCapability"
+          "DeployerCap"
         );
-        if (typeof deployer == "undefined") {
+        const upgradeCapability = await getObjectFromOwner(
+          provider,
+          owner,
+          packageId,
+          "dummy_sui_package",
+          "UpgradeCap"
+        );
+
+        console.log("Network:               ", network);
+        console.log("RPC:                   ", rpc);
+        console.log("Package ID:            ", packageId);
+        console.log("Deployer cap object ID:", deployer);
+        console.log("Upgrade cap object ID: ", upgradeCapability);
+        console.log("Chain ID:              ", chainId);
+        console.log("Governance chain ID:   ", governanceChainId);
+        console.log("Governance contract:   ", governanceContract);
+        console.log("Initial guardian:      ", initialGuardian);
+
+        if (!deployer) {
           throw new Error(
-            "Wormhole core bridge cannot be initialized because deployer capability cannot be found. Is the package published?"
+            `Wormhole cannot be initialized because deployer capability cannot be found under ${owner}. Is the package published?`
           );
         }
 
-        console.log("Network:             ", network);
-        console.log("RPC:                 ", rpc);
-        console.log("Package ID:          ", packageId);
-        console.log("Deployer object ID:  ", deployer);
-        console.log("Chain ID:            ", chainId);
-        console.log("Governance chain ID: ", governanceChainId);
-        console.log("Governance contract: ", governanceContract);
-        console.log("Initial guardian:    ", initialGuardian);
+        if (!upgradeCapability) {
+          throw new Error(
+            `Wormhole cannot be initialized because upgrade capability cannot be found under ${owner}. Is the package published?`
+          );
+        }
 
         const effects: TransactionEffects = await executeEntry(
           provider,
@@ -231,10 +246,11 @@ exports.builder = function (y: typeof yargs) {
           [],
           [
             deployer,
+            upgradeCapability,
             governanceChainId,
             [...Buffer.from(governanceContract, "hex")],
             [[...Buffer.from(initialGuardian, "hex")]],
-            15, // Guardian set TTL in epochs
+            365, // Guardian set TTL in epochs
             "0", // Message fee
           ]
         );
