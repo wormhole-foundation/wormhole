@@ -179,9 +179,9 @@ func accountantModifyBalance(req *nodev1.AccountantModifyBalance, timestamp time
 	}
 
 	// uint256 has Bytes32 method for easier serialization
-	amount, ok := uint256.FromBig(amount_big)
-	if !ok {
-		return nil, errors.New("invalid amount")
+	amount, overflow := uint256.FromBig(amount_big)
+	if overflow {
+		return nil, errors.New("amount overflow")
 	}
 
 	tokenAdress := vaa.Address{}
