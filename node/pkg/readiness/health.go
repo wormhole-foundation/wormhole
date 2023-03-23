@@ -31,10 +31,16 @@ func RegisterComponent(component Component) {
 // SetReady sets the given global component state.
 func SetReady(component Component) {
 	mu.Lock()
+	defer mu.Unlock()
 	if !registry[string(component)] {
 		registry[string(component)] = true
 	}
-	mu.Unlock()
+}
+
+func ResetAll() {
+	mu.Lock()
+	defer mu.Unlock()
+	registry = map[string]bool{}
 }
 
 // Handler returns a net/http handler for the readiness check. It returns 200 OK if all components are ready,
@@ -54,6 +60,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	mu.Lock()
+	defer mu.Unlock()
 	for k, v := range registry {
 		_, err = fmt.Fprintf(resp, "%s\t%v\n", k, v)
 		if err != nil {
@@ -64,7 +71,6 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 			ready = false
 		}
 	}
-	mu.Unlock()
 
 	if !ready {
 		w.WriteHeader(http.StatusPreconditionFailed)

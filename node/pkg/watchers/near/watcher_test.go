@@ -11,6 +11,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	mockserver "github.com/certusone/wormhole/node/pkg/watchers/near/nearapi/mock"
 	eth_common "github.com/ethereum/go-ethereum/common"
@@ -85,6 +86,7 @@ Stages of the test:
 */
 func (testCase *testCase) run(ctx context.Context) error {
 	logger := supervisor.Logger(ctx)
+	readiness.ResetAll()
 
 	// Run the mock server
 	mockServer := mockserver.NewForwardingCachingServer(logger, testCase.upstreamHost, testCase.cacheDir, testCase.latestFinalBlocks)
