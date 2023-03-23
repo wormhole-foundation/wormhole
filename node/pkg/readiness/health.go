@@ -21,11 +21,11 @@ type Component string
 // RegisterComponent registers the given component name such that it is required to be ready for the global check to succeed.
 func RegisterComponent(component Component) {
 	mu.Lock()
+	defer mu.Unlock()
 	if _, ok := registry[string(component)]; ok {
 		panic("component already registered")
 	}
 	registry[string(component)] = false
-	mu.Unlock()
 }
 
 // SetReady sets the given global component state.

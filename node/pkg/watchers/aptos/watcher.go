@@ -29,8 +29,9 @@ type (
 		aptosAccount string
 		aptosHandle  string
 
-		msgC     chan<- *common.MessagePublication
-		obsvReqC <-chan *gossipv1.ObservationRequest
+		msgC          chan<- *common.MessagePublication
+		obsvReqC      <-chan *gossipv1.ObservationRequest
+		readinessSync readiness.Component
 	}
 )
 
@@ -56,11 +57,12 @@ func NewWatcher(
 	obsvReqC <-chan *gossipv1.ObservationRequest,
 ) *Watcher {
 	return &Watcher{
-		aptosRPC:     aptosRPC,
-		aptosAccount: aptosAccount,
-		aptosHandle:  aptosHandle,
-		msgC:         msgC,
-		obsvReqC:     obsvReqC,
+		aptosRPC:      aptosRPC,
+		aptosAccount:  aptosAccount,
+		aptosHandle:   aptosHandle,
+		msgC:          msgC,
+		obsvReqC:      obsvReqC,
+		readinessSync: common.MustRegisterReadinessSyncing(vaa.ChainIDAptos),
 	}
 }
 
@@ -70,7 +72,6 @@ func (e *Watcher) Run(ctx context.Context) error {
 	})
 
 	logger := supervisor.Logger(ctx)
-	readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDAptos)
 
 	logger.Info("Aptos watcher connecting to RPC node ", zap.String("url", e.aptosRPC))
 
@@ -224,7 +225,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					ContractAddress: e.aptosAccount,
 				})
 
-				readiness.SetReady(readinessSync)
+				readiness.SetReady(e.readinessSync)
 			}
 		}
 	}

@@ -85,7 +85,7 @@ func TestChainIdToReadinessSyncing(t *testing.T) {
 
 	for _, tc := range p_tests {
 		t.Run(tc.input.String(), func(t *testing.T) {
-			chainId, err := ChainIdToReadinessSyncingWithError(tc.input)
+			chainId, err := ChainIdToReadinessSyncing(tc.input)
 			assert.Equal(t, tc.output, chainId)
 			assert.NoError(t, err)
 		})
@@ -93,11 +93,26 @@ func TestChainIdToReadinessSyncing(t *testing.T) {
 
 	for _, tc := range n_tests {
 		t.Run(tc.input.String(), func(t *testing.T) {
-			chainId, err := ChainIdToReadinessSyncingWithError(tc.input)
+			chainId, err := ChainIdToReadinessSyncing(tc.input)
 			assert.Equal(t, tc.output, chainId)
 			assert.Error(t, err)
-
-			assert.Panics(t, func() { ChainIdToReadinessSyncing(tc.input) })
 		})
 	}
+}
+
+func TestMustRegisterReadinessSyncing(t *testing.T) {
+	// The first time should work and return the expected value.
+	assert.NotPanics(t, func() {
+		assert.Equal(t, ReadinessEthSyncing, MustRegisterReadinessSyncing(vaa.ChainIDEthereum))
+	})
+
+	// A second time should panic (down in the readiness code).
+	assert.Panics(t, func() {
+		MustRegisterReadinessSyncing(vaa.ChainIDEthereum)
+	})
+
+	// An invalid chainID should panic.
+	assert.Panics(t, func() {
+		MustRegisterReadinessSyncing(vaa.ChainIDUnset)
+	})
 }

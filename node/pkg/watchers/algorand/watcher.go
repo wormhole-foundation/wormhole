@@ -33,8 +33,9 @@ type (
 		algodToken   string
 		appid        uint64
 
-		msgC     chan<- *common.MessagePublication
-		obsvReqC <-chan *gossipv1.ObservationRequest
+		msgC          chan<- *common.MessagePublication
+		obsvReqC      <-chan *gossipv1.ObservationRequest
+		readinessSync readiness.Component
 
 		next_round uint64
 	}
@@ -64,14 +65,15 @@ func NewWatcher(
 	obsvReqC <-chan *gossipv1.ObservationRequest,
 ) *Watcher {
 	return &Watcher{
-		indexerRPC:   indexerRPC,
-		indexerToken: indexerToken,
-		algodRPC:     algodRPC,
-		algodToken:   algodToken,
-		appid:        appid,
-		msgC:         msgC,
-		obsvReqC:     obsvReqC,
-		next_round:   0,
+		indexerRPC:    indexerRPC,
+		indexerToken:  indexerToken,
+		algodRPC:      algodRPC,
+		algodToken:    algodToken,
+		appid:         appid,
+		msgC:          msgC,
+		obsvReqC:      obsvReqC,
+		readinessSync: common.MustRegisterReadinessSyncing(vaa.ChainIDAlgorand),
+		next_round:    0,
 	}
 }
 
@@ -148,7 +150,6 @@ func (e *Watcher) Run(ctx context.Context) error {
 	})
 
 	logger := supervisor.Logger(ctx)
-	readinessSync := common.ChainIdToReadinessSyncing(vaa.ChainIDAlgorand)
 
 	logger.Info("Algorand watcher connecting to indexer  ", zap.String("url", e.indexerRPC))
 	logger.Info("Algorand watcher connecting to RPC node ", zap.String("url", e.algodRPC))
@@ -253,7 +254,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				ContractAddress: fmt.Sprintf("%d", e.appid),
 			})
 
-			readiness.SetReady(readinessSync)
+			readiness.SetReady(e.readinessSync)
 		}
 	}
 }

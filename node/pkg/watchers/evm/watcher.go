@@ -72,7 +72,7 @@ type (
 		// Human-readable name of the Eth network, for logging and monitoring.
 		networkName string
 		// Readiness component
-		readiness readiness.Component
+		readinessSync readiness.Component
 		// VAA ChainID of the network we're connecting to.
 		chainID vaa.ChainID
 
@@ -150,7 +150,7 @@ func NewEthWatcher(
 		url:                  url,
 		contract:             contract,
 		networkName:          networkName,
-		readiness:            common.ChainIdToReadinessSyncing(chainID),
+		readinessSync:        common.MustRegisterReadinessSyncing(chainID),
 		waitForConfirmations: false,
 		maxWaitConfirmations: 60,
 		chainID:              chainID,
@@ -641,7 +641,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 					zap.Bool("is_safe_block", ev.Safe),
 					zap.String("eth_network", w.networkName))
 				currentEthHeight.WithLabelValues(w.networkName).Set(float64(ev.Number.Int64()))
-				readiness.SetReady(w.readiness)
+				readiness.SetReady(w.readinessSync)
 				p2p.DefaultRegistry.SetNetworkStats(w.chainID, &gossipv1.Heartbeat_Network{
 					Height:          ev.Number.Int64(),
 					ContractAddress: w.contract.Hex(),
@@ -800,7 +800,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 	// Now that the init is complete, peg readiness. That will also happen when we process a new head, but chains
 	// that wait for finality may take a while to receive the first block and we don't want to hold up the init.
-	readiness.SetReady(w.readiness)
+	readiness.SetReady(w.readinessSync)
 
 	select {
 	case <-ctx.Done():

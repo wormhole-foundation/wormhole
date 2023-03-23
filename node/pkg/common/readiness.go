@@ -11,31 +11,28 @@ const (
 	ReadinessEthSyncing readiness.Component = "ethSyncing"
 )
 
-// RegisterReadinessSyncing registers the specified chain for readiness syncing. It will panic if the chain ID is invalid
-// so it should only be used during initialization.
-func RegisterReadinessSyncing(chainID vaa.ChainID) {
-	readiness.RegisterComponent(ChainIdToReadinessSyncing(chainID))
-}
-
-// ChainIdToReadinessSyncing maps a chain ID to a readiness syncing value. It will panic if the chain ID is invalid
-// so it should only be used during initialization. Otherwise use ChainIdToReadinessSyncingWithError.
-func ChainIdToReadinessSyncing(chainID vaa.ChainID) readiness.Component {
-	ret, err := ChainIdToReadinessSyncingWithError(chainID)
+// MustRegisterReadinessSyncing registers the specified chain for readiness syncing and returns the readiness syncing value.
+// This function will panic if the chain ID is invalid so it should only be used during initialization.
+func MustRegisterReadinessSyncing(chainID vaa.ChainID) readiness.Component {
+	readinessSync, err := ChainIdToReadinessSyncing(chainID)
 	if err != nil {
 		panic(err)
 	}
 
-	return ret
+	// This will panic if the component is already registered.
+	readiness.RegisterComponent(readinessSync)
+	return readinessSync
 }
 
-// ChainIdToReadinessSyncingWithError maps a chain ID to a readiness syncing value. It returns an error if the chain ID is invalid.
-func ChainIdToReadinessSyncingWithError(chainID vaa.ChainID) (readiness.Component, error) {
+// ChainIdToReadinessSyncing maps a chain ID to a readiness syncing value. It returns an error if the chain ID is invalid.
+func ChainIdToReadinessSyncing(chainID vaa.ChainID) (readiness.Component, error) {
 	if chainID == vaa.ChainIDEthereum {
-		// The readiness for Ethereum is "ethSyncing", not "ethereumSyncing". Don't know if changing it will break monitoring. . .
+		// The readiness for Ethereum is "ethSyncing", not "ethereumSyncing". Changing it would most likely break monitoring. . .
 		return ReadinessEthSyncing, nil
 	}
-	if _, err := vaa.ChainIDFromString(chainID.String()); err != nil {
+	str := chainID.String()
+	if _, err := vaa.ChainIDFromString(str); err != nil {
 		return readiness.Component(""), fmt.Errorf("invalid chainID: %d", uint16(chainID))
 	}
-	return readiness.Component(chainID.String() + "Syncing"), nil
+	return readiness.Component(str + "Syncing"), nil
 }
