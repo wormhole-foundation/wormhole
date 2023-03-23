@@ -120,13 +120,19 @@ exports.builder = function (y: typeof yargs) {
           owner,
           packageId,
           "state",
-          "DeployerCapability"
+          "DeployerCap"
         );
 
         console.log("Network:                  ", network);
         console.log("Package ID:               ", packageId);
         console.log("Deployer object ID:       ", deployer);
         console.log("Wormhole state object ID: ", wormState);
+
+        if (!deployer) {
+          throw new Error(
+            `Token bridge cannot be initialized because deployer capability cannot be found under ${owner}. Is the package published?`
+          );
+        }
 
         const effects: TransactionEffects = await executeEntry(
           provider,
