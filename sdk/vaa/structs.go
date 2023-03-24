@@ -409,9 +409,6 @@ const (
 
 // UnmarshalBody deserializes the binary representation of a VAA's "BODY" properties
 // The BODY fields are common among multiple types of VAA - v1, v2 (BatchVAA), etc
-//
-// WARNING: UnmarshallBody will truncate payloads at 1000 bytes, this is done mainly to avoid denial of service
-//   - If you need to access the full payload, consider parsing VAA from Bytes instead of Unmarshal
 func UnmarshalBody(data []byte, reader *bytes.Reader, v *VAA) (*VAA, error) {
 	unixSeconds := uint32(0)
 	if err := binary.Read(reader, binary.BigEndian, &unixSeconds); err != nil {
