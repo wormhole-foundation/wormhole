@@ -8,33 +8,18 @@ module core_messages::sender {
 
     use wormhole::state::{State as WormholeState};
 
-    struct DeployerCap has key, store {
-        id: UID
-    }
-
     struct State has key, store {
         id: UID,
         emitter_cap: wormhole::emitter::EmitterCap,
     }
 
-    fun init(ctx: &mut TxContext) {
-        transfer::transfer(
-            DeployerCap { id: object::new(ctx) },
-            tx_context::sender(ctx)
-        );
-    }
-
+    /// Register ourselves as a wormhole emitter. This gives back an
+    /// `EmitterCap` which will be required to send messages through
+    /// wormhole.
     public entry fun init_with_params(
-        deployer: DeployerCap,
         wormhole_state: &mut WormholeState,
         ctx: &mut TxContext
     ) {
-        let DeployerCap { id } = deployer;
-        object::delete(id);
-
-        // Register ourselves as a wormhole emitter. This gives back an
-        // `EmitterCap` which will be required to send messages through
-        // wormhole.
         let state = State {
             id: object::new(ctx),
             emitter_cap: wormhole::state::new_emitter(wormhole_state, ctx)
@@ -75,15 +60,10 @@ module core_messages::sender {
         wormhole::publish_message::publish_message(
             wormhole_state,
             &mut state.emitter_cap,
-            0, // Set nonce to 0, only used for batch VAAs.
+            0, // Set nonce to 0, intended for batch VAAs.
             payload,
             fee_coins,
         )
-    }
-
-    #[test_only]
-    public fun init_test_only(ctx: &mut TxContext) {
-        init(ctx);
     }
 }
 
@@ -96,7 +76,6 @@ module core_messages::sender_test {
         return_shared,
         return_to_address,
         take_from_address,
-        take_from_sender,
         take_shared,
     };
 
@@ -107,9 +86,7 @@ module core_messages::sender_test {
     };
 
     use core_messages::sender::{
-        DeployerCap,
         State,
-        init_test_only,
         init_with_params,
         send_message
     };
@@ -124,24 +101,11 @@ module core_messages::sender_test {
         let wormhole_message_fee = 100000000;
         set_up_wormhole(scenario, wormhole_message_fee);
 
-        // Mock deploy sender module.
-        test_scenario::next_tx(scenario, admin);
-        {
-            init_test_only(test_scenario::ctx(scenario));
-        };
-
         // Initialize sender module.
         test_scenario::next_tx(scenario, admin);
         {
             let wormhole_state = take_shared<WormholeState>(scenario);
-            let deployer_cap = take_from_sender<DeployerCap>(scenario);
-
-            init_with_params(
-                deployer_cap,
-                &mut wormhole_state,
-                test_scenario::ctx(scenario)
-            );
-
+            init_with_params(&mut wormhole_state, test_scenario::ctx(scenario));
             test_scenario::return_shared<WormholeState>(wormhole_state);
         };
 
