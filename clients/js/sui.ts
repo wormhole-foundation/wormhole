@@ -42,7 +42,7 @@ export async function executeEntry(
   return moveCallTxn["effects"]["effects"];
 }
 
-export const getObjectFromOwner = async (
+export const getOwnedObjectId = async (
   provider: JsonRpcProvider,
   owner: string,
   packageId: string,
@@ -87,6 +87,10 @@ export const getSigner = (
   return new RawSigner(keypair, provider);
 };
 
+export const isValidSuiObjectId = (objectId: string): boolean => {
+  return /^(0x)?[0-9a-f]{40}$/i.test(objectId);
+};
+
 export const publishPackage = async (
   provider: JsonRpcProvider,
   network: Network,
@@ -118,6 +122,7 @@ export const publishPackage = async (
     });
 
     // Dump deployment info to console
+    // todo(aki): use dot notation once Sui SDK types `publishTx` correctly
     console.log(
       "Transaction digest: ",
       publishTx["certificate"]["transactionDigest"]
