@@ -44,7 +44,7 @@ export const NAMED_ADDRESSES_OPTIONS = {
 
 export const NETWORK_OPTIONS = {
   alias: "n",
-  describe: "network",
+  describe: "Network",
   type: "string",
   choices: ["mainnet", "testnet", "devnet"],
   required: true,
