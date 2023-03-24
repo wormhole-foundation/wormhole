@@ -122,7 +122,7 @@ func NewWatcher(
 		contract:                 contract,
 		msgC:                     msgC,
 		obsvReqC:                 obsvReqC,
-		readinessSync:            common.MustRegisterReadinessSyncing(chainID),
+		readinessSync:            common.MustConvertChainIdToReadinessSyncing(chainID),
 		chainID:                  chainID,
 		contractAddressFilterKey: contractAddressFilterKey,
 		contractAddressLogKey:    contractAddressLogKey,

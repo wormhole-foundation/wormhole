@@ -11,21 +11,23 @@ const (
 	ReadinessEthSyncing readiness.Component = "ethSyncing"
 )
 
-// MustRegisterReadinessSyncing registers the specified chain for readiness syncing and returns the readiness syncing value.
-// This function will panic if the chain ID is invalid so it should only be used during initialization.
-func MustRegisterReadinessSyncing(chainID vaa.ChainID) readiness.Component {
-	readinessSync, err := ChainIdToReadinessSyncing(chainID)
+// MustRegisterReadinessSyncing registers the specified chain for readiness syncing. It panics if the chain ID is invalid so it should only be used during initialization.
+// This function will
+func MustRegisterReadinessSyncing(chainID vaa.ChainID) {
+	readiness.RegisterComponent(MustConvertChainIdToReadinessSyncing(chainID))
+}
+
+// MustConvertChainIdToReadinessSyncing maps a chain ID to a readiness syncing value. It panics if the chain ID is invalid so it should only be used during initialization.
+func MustConvertChainIdToReadinessSyncing(chainID vaa.ChainID) readiness.Component {
+	readinessSync, err := ConvertChainIdToReadinessSyncing(chainID)
 	if err != nil {
 		panic(err)
 	}
-
-	// This will panic if the component is already registered.
-	readiness.RegisterComponent(readinessSync)
 	return readinessSync
 }
 
-// ChainIdToReadinessSyncing maps a chain ID to a readiness syncing value. It returns an error if the chain ID is invalid.
-func ChainIdToReadinessSyncing(chainID vaa.ChainID) (readiness.Component, error) {
+// ConvertChainIdToReadinessSyncing maps a chain ID to a readiness syncing value. It returns an error if the chain ID is invalid.
+func ConvertChainIdToReadinessSyncing(chainID vaa.ChainID) (readiness.Component, error) {
 	if chainID == vaa.ChainIDEthereum {
 		// The readiness for Ethereum is "ethSyncing", not "ethereumSyncing". Changing it would most likely break monitoring. . .
 		return ReadinessEthSyncing, nil

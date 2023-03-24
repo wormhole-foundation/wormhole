@@ -191,7 +191,7 @@ func NewSolanaWatcher(
 		obsvReqC:      obsvReqC,
 		commitment:    commitment,
 		rpcClient:     rpc.New(rpcUrl),
-		readinessSync: common.MustRegisterReadinessSyncing(chainID),
+		readinessSync: common.MustConvertChainIdToReadinessSyncing(chainID),
 		chainID:       chainID,
 		networkName:   vaa.ChainID(chainID).String(),
 	}

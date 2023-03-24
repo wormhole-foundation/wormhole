@@ -72,7 +72,7 @@ func NewWatcher(
 		appid:         appid,
 		msgC:          msgC,
 		obsvReqC:      obsvReqC,
-		readinessSync: common.MustRegisterReadinessSyncing(vaa.ChainIDAlgorand),
+		readinessSync: common.MustConvertChainIdToReadinessSyncing(vaa.ChainIDAlgorand),
 		next_round:    0,
 	}
 }

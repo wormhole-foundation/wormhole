@@ -84,7 +84,7 @@ func NewWatcher(
 		urlLCD:        urlLCD,
 		msgC:          msgC,
 		obsvReqC:      obsvReqC,
-		readinessSync: common.MustRegisterReadinessSyncing(vaa.ChainIDWormchain),
+		readinessSync: common.MustConvertChainIdToReadinessSyncing(vaa.ChainIDWormchain),
 	}
 }
 

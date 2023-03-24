@@ -37,12 +37,6 @@ func SetReady(component Component) {
 	}
 }
 
-func ResetAll() {
-	mu.Lock()
-	defer mu.Unlock()
-	registry = map[string]bool{}
-}
-
 // Handler returns a net/http handler for the readiness check. It returns 200 OK if all components are ready,
 // or 412 Precondition Failed otherwise. For operator convenience, a list of components and their states
 // is returned as plain text (not meant for machine consumption!).

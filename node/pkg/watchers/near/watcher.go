@@ -103,7 +103,7 @@ func NewWatcher(
 		nearRPC:                      nearRPC,
 		msgC:                         msgC,
 		obsvReqC:                     obsvReqC,
-		readinessSync:                common.MustRegisterReadinessSyncing(vaa.ChainIDNear),
+		readinessSync:                common.MustConvertChainIdToReadinessSyncing(vaa.ChainIDNear),
 		transactionProcessingQueue:   make(chan *transactionProcessingJob),
 		chunkProcessingQueue:         make(chan nearapi.ChunkHeader, queueSize),
 		eventChanTxProcessedDuration: make(chan time.Duration, 10),

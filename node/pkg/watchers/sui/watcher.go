@@ -137,7 +137,7 @@ func NewWatcher(
 		unsafeDevMode: unsafeDevMode,
 		msgChan:       messageEvents,
 		obsvReqC:      obsvReqC,
-		readinessSync: common.MustRegisterReadinessSyncing(vaa.ChainIDSui),
+		readinessSync: common.MustConvertChainIdToReadinessSyncing(vaa.ChainIDSui),
 		subId:         0,
 		subscribed:    false,
 	}

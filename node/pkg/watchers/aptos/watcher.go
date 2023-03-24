@@ -62,7 +62,7 @@ func NewWatcher(
 		aptosHandle:   aptosHandle,
 		msgC:          msgC,
 		obsvReqC:      obsvReqC,
-		readinessSync: common.MustRegisterReadinessSyncing(vaa.ChainIDAptos),
+		readinessSync: common.MustConvertChainIdToReadinessSyncing(vaa.ChainIDAptos),
 	}
 }
 

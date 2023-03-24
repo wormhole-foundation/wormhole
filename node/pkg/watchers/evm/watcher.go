@@ -150,7 +150,7 @@ func NewEthWatcher(
 		url:                  url,
 		contract:             contract,
 		networkName:          networkName,
-		readinessSync:        common.MustRegisterReadinessSyncing(chainID),
+		readinessSync:        common.MustConvertChainIdToReadinessSyncing(chainID),
 		waitForConfirmations: false,
 		maxWaitConfirmations: 60,
 		chainID:              chainID,

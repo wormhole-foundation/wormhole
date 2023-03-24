@@ -41,7 +41,7 @@ const (
 
 // This test is just to make sure that nothing got broken when we switched from manually specifying the readiness syncing labels.
 // Once this functionality is merged, this test can probably be deleted (so that we don't need to keep adding new chains going forward).
-func TestChainIdToReadinessSyncing(t *testing.T) {
+func TestConvertChainIdToReadinessSyncing(t *testing.T) {
 	type test struct {
 		input  vaa.ChainID
 		output readiness.Component
@@ -85,7 +85,7 @@ func TestChainIdToReadinessSyncing(t *testing.T) {
 
 	for _, tc := range p_tests {
 		t.Run(tc.input.String(), func(t *testing.T) {
-			chainId, err := ChainIdToReadinessSyncing(tc.input)
+			chainId, err := ConvertChainIdToReadinessSyncing(tc.input)
 			assert.Equal(t, tc.output, chainId)
 			assert.NoError(t, err)
 		})
@@ -93,7 +93,7 @@ func TestChainIdToReadinessSyncing(t *testing.T) {
 
 	for _, tc := range n_tests {
 		t.Run(tc.input.String(), func(t *testing.T) {
-			chainId, err := ChainIdToReadinessSyncing(tc.input)
+			chainId, err := ConvertChainIdToReadinessSyncing(tc.input)
 			assert.Equal(t, tc.output, chainId)
 			assert.Error(t, err)
 		})
@@ -101,12 +101,12 @@ func TestChainIdToReadinessSyncing(t *testing.T) {
 }
 
 func TestMustRegisterReadinessSyncing(t *testing.T) {
-	// The first time should work and return the expected value.
+	// The first time should work.
 	assert.NotPanics(t, func() {
-		assert.Equal(t, ReadinessEthSyncing, MustRegisterReadinessSyncing(vaa.ChainIDEthereum))
+		MustRegisterReadinessSyncing(vaa.ChainIDEthereum)
 	})
 
-	// A second time should panic (down in the readiness code).
+	// A second time should panic.
 	assert.Panics(t, func() {
 		MustRegisterReadinessSyncing(vaa.ChainIDEthereum)
 	})
