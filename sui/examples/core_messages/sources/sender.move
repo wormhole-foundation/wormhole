@@ -24,7 +24,7 @@ module core_messages::sender {
             id: object::new(ctx),
             emitter_cap: wormhole::state::new_emitter(wormhole_state, ctx)
         };
-        transfer::transfer(state, @core_messages);
+        transfer::share_object(state);
     }
 
     public entry fun send_message_entry(
@@ -74,21 +74,19 @@ module core_messages::sender_test {
     use sui::test_scenario::{
         Self,
         return_shared,
-        return_to_address,
-        take_from_address,
         take_shared,
     };
 
     use wormhole::state::{State as WormholeState};
     use wormhole::wormhole_scenario::{
         set_up_wormhole,
-        two_people
+        two_people,
     };
 
     use core_messages::sender::{
         State,
         init_with_params,
-        send_message
+        send_message,
     };
 
     #[test]
@@ -106,13 +104,13 @@ module core_messages::sender_test {
         {
             let wormhole_state = take_shared<WormholeState>(scenario);
             init_with_params(&mut wormhole_state, test_scenario::ctx(scenario));
-            test_scenario::return_shared<WormholeState>(wormhole_state);
+            return_shared<WormholeState>(wormhole_state);
         };
 
         // Send message as an ordinary user.
         test_scenario::next_tx(scenario, user);
         {
-            let state = take_from_address<State>(scenario, @core_messages);
+            let state = take_shared<State>(scenario);
             let wormhole_state = take_shared<WormholeState>(scenario);
 
             let first_message_sequence = send_message(
@@ -140,7 +138,7 @@ module core_messages::sender_test {
             assert!(second_message_sequence == 1, 0);
 
             // Clean up.
-            return_to_address<State>(@core_messages, state);
+            return_shared<State>(state);
             return_shared<WormholeState>(wormhole_state);
         };
 
