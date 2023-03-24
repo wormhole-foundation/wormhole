@@ -1,0 +1,21 @@
+[package]
+name = "core_messages"
+version = "1.0.0"
+
+[dependencies.Sui]
+git = "https://github.com/MystenLabs/sui.git"
+subdir = "crates/sui-framework"
+rev = "157ac72030d014f17d76cefe81f3915b4afab2c9"
+
+[dependencies.Wormhole]
+local = "../../wormhole"
+
+[addresses]
+core_messages = "_"
+
+[dev-dependencies.Wormhole]
+local = "../../wormhole"
+
+[dev-addresses]
+wormhole = "0x100"
+core_messages = "0x200"
