@@ -1,12 +1,14 @@
 #[test_only]
 module token_bridge::token_bridge_scenario {
     use std::vector::{Self};
+    use sui::package::{UpgradeCap};
     use sui::test_scenario::{Self, Scenario};
     use wormhole::external_address::{Self};
     use wormhole::state::{State as WormholeState};
     use wormhole::wormhole_scenario::{set_up_wormhole, deployer};
 
-    use token_bridge::state::{Self, DeployerCap, State};
+    use token_bridge::setup::{Self, DeployerCap};
+    use token_bridge::state::{Self, State};
 
     public fun set_up_wormhole_and_token_bridge(
         scenario: &mut Scenario,
@@ -19,16 +21,17 @@ module token_bridge::token_bridge_scenario {
         test_scenario::next_tx(scenario, deployer());
 
         // Publish Token Bridge.
-        state::init_test_only(test_scenario::ctx(scenario));
+        setup::init_test_only(test_scenario::ctx(scenario));
 
         // Ignore effects.
         test_scenario::next_tx(scenario, deployer());
 
         // Finally share `State`.
         let wormhole_state = test_scenario::take_shared<WormholeState>(scenario);
-        state::init_and_share_state(
-            test_scenario::take_from_sender<DeployerCap>(scenario),
+        setup::complete(
             &mut wormhole_state,
+            test_scenario::take_from_sender<DeployerCap>(scenario),
+            test_scenario::take_from_sender<UpgradeCap>(scenario),
             test_scenario::ctx(scenario)
         );
 
@@ -41,7 +44,7 @@ module token_bridge::token_bridge_scenario {
         // Ignore effects.
         test_scenario::next_tx(scenario, person());
 
-        let token_bridge_state = test_scenario::take_shared<State>(scenario);
+        let token_bridge_state = take_state(scenario);
         state::register_new_emitter_test_only(
             &mut token_bridge_state,
             chain,
@@ -51,7 +54,7 @@ module token_bridge::token_bridge_scenario {
         );
 
         // Clean up.
-        test_scenario::return_shared(token_bridge_state);
+        return_state(token_bridge_state);
     }
 
     /// Register 0xdeadbeef for multiple chains.

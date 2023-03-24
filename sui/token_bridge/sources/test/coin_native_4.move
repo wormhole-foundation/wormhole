@@ -8,6 +8,7 @@ module token_bridge::coin_native_4 {
     use sui::tx_context::{TxContext};
 
     use token_bridge::state::{Self};
+    use token_bridge::token_registry::{Self};
 
     struct COIN_NATIVE_4 has drop {}
 
@@ -31,10 +32,10 @@ module token_bridge::coin_native_4 {
             );
 
         // Let's make the metadata immutable.
-        transfer::freeze_object(coin_metadata);
+        transfer::public_freeze_object(coin_metadata);
 
         // Give everyone access to `TrasuryCap`.
-        transfer::freeze_object(treasury_cap);
+        transfer::public_freeze_object(treasury_cap);
     }
 
     #[test_only]
@@ -59,10 +60,9 @@ module token_bridge::coin_native_4 {
         let coin_meta = take_metadata(scenario);
 
         // Register asset.
-        state::register_native_asset_test_only(
-            &mut token_bridge_state,
-            &coin_meta
-        );
+        let registry =
+            state::borrow_token_registry_mut_test_only(&mut token_bridge_state);
+        token_registry::add_new_native_test_only(registry, &coin_meta);
 
         // Clean up.
         return_state(token_bridge_state);
@@ -99,7 +99,9 @@ module token_bridge::coin_native_4 {
         test_scenario::next_tx(scenario, caller);
 
         let token_bridge_state = take_state(scenario);
-        state::take_from_circulation_test_only(&mut token_bridge_state, minted);
+        let registry =
+            state::borrow_token_registry_mut_test_only(&mut token_bridge_state);
+        token_registry::take_from_circulation_test_only(registry, minted);
 
         return_state(token_bridge_state);
     }

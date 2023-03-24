@@ -15,7 +15,7 @@ module wormhole::publish_message {
     use wormhole::version_control::{PublishMessage as PublishMessageControl};
 
     /// `WormholeMessage` to be emitted via sui::event::emit.
-    struct WormholeMessage has store, copy, drop {
+    struct WormholeMessage has drop, copy {
         /// Underlying bytes of `EmitterCap` external address.
         sender: vector<u8>,
         /// From `EmitterCap`.
@@ -25,8 +25,9 @@ module wormhole::publish_message {
         /// Arbitrary message data relevant to integrator.
         payload: vector<u8>,
         /// This will always be `0`.
-        consistency_level: u8
-        // TODO: add `timestamp` using `Clock`.
+        consistency_level: u8,
+        /// `Clock` timestamp.
+        timestamp: u64
     }
 
     /// `publish_message` emits a message as a Sui event. This method uses the
@@ -63,6 +64,8 @@ module wormhole::publish_message {
                 // Sui is an instant finality chain, so we don't need
                 // confirmations. Do we even need to specify this?
                 consistency_level: 0,
+                // TODO: Add useful timestamp when we have `Clock`.
+                timestamp: 0
             }
         );
 

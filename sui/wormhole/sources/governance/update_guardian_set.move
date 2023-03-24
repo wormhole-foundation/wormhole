@@ -96,7 +96,7 @@ module wormhole::update_guardian_set {
         state::expire_guardian_set(wormhole_state, ctx);
 
         // And store the new one.
-        state::store_guardian_set(
+        state::add_new_guardian_set(
             wormhole_state,
             guardian_set::new(new_index, guardians)
         );

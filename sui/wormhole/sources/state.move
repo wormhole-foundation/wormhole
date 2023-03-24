@@ -10,7 +10,8 @@ module wormhole::state {
     use std::vector::{Self};
     use sui::balance::{Balance};
     use sui::dynamic_field::{Self as field};
-    use sui::object::{Self, UID};
+    use sui::event::{Self};
+    use sui::object::{Self, ID, UID};
     use sui::package::{Self, UpgradeCap, UpgradeReceipt, UpgradeTicket};
     use sui::sui::{SUI};
     use sui::table::{Self, Table};
@@ -47,6 +48,21 @@ module wormhole::state {
     /// Sui's chain ID is hard-coded to one value.
     const CHAIN_ID: u16 = 21;
 
+    // TODO: For version 0.28, emit this after `commit_upgrade`.
+    struct ContractUpgraded has drop, copy {
+        old_contract: ID,
+        new_contract: ID
+    }
+
+    /// Event reflecting a Guardian Set update.
+    struct GuardianSetAdded has drop, copy {
+        index: u32
+    }
+
+    /// Used as key for dynamic field reflecting whether `migrate` can be
+    /// called.
+    ///
+    /// See `migrate` module for more info.
     struct MigrationControl has store, drop, copy {}
 
     /// Container for all state variables for Wormhole.
@@ -97,6 +113,8 @@ module wormhole::state {
         message_fee: u64,
         ctx: &mut TxContext
     ): State {
+        // TODO: Make sure upgrade cap belongs to this package.
+
         // Validate that the upgrade_cap equals the build version defined in
         // the `version_control` module.
         //
@@ -147,7 +165,7 @@ module wormhole::state {
         };
 
         // Store the initial guardian set.
-        store_guardian_set(
+        add_new_guardian_set(
             &mut state,
             guardian_set::new(guardian_set_index, guardians)
         );
@@ -194,6 +212,10 @@ module wormhole::state {
         implementation_digest: Bytes32
     ): UpgradeTicket {
         let policy = package::upgrade_policy(&self.upgrade_cap);
+
+        // TODO: grab package ID from `UpgradeCap` and store it
+        // in a dynamic field. This will be the old ID after the upgrade.
+        // Both IDs will be emitted in a `ContractUpgraded` event.
         package::authorize_upgrade(
             &mut self.upgrade_cap,
             policy,
@@ -232,7 +254,15 @@ module wormhole::state {
         // migration control to `false`.
         //
         // See `migrate` module for more info.
-       enable_migration(self);
+        enable_migration(self);
+
+        // TODO: Emit this after contract upgrade.
+        // event::emit(
+        //     ContractUpgraded {
+        //         old_contract: ...,
+        //         new_contract: ...
+        //     }
+        // );
     }
 
     /// Enforce a particular method to use the current build version as its
@@ -363,7 +393,7 @@ module wormhole::state {
     /// current guardian set.
     ///
     /// See `wormhole::update_guardian_set` for more info.
-    public(friend) fun store_guardian_set(
+    public(friend) fun add_new_guardian_set(
         self: &mut State,
         new_guardian_set: GuardianSet
     ) {
@@ -373,6 +403,8 @@ module wormhole::state {
             self.guardian_set_index,
             new_guardian_set
         );
+
+        event::emit(GuardianSetAdded { index: self.guardian_set_index });
     }
 
     /// Modify the cost to send a Wormhole message via governance.

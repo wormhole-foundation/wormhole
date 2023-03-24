@@ -96,164 +96,220 @@ module token_bridge::vaa {
 
 #[test_only]
 module token_bridge::token_bridge_vaa_test {
-    use sui::test_scenario::{
-        Self,
-        Scenario,
-        next_tx,
-        ctx,
-        take_shared,
-        return_shared
-    };
-
-    use wormhole::state::{State as WormholeState};
+    use sui::test_scenario::{Self};
     use wormhole::external_address::{Self};
 
-    use token_bridge::state::{Self, State};
+    use token_bridge::emitter_registry::{Self};
+    use token_bridge::state::{Self};
+    use token_bridge::token_bridge_scenario::{
+        person,
+        register_dummy_emitter,
+        return_states,
+        set_up_wormhole_and_token_bridge,
+        take_states
+    };
     use token_bridge::vaa::{Self};
-    use token_bridge::bridge_state_test::{set_up_wormhole_core_and_token_bridges};
-
-    fun scenario(): Scenario { test_scenario::begin(@0x123233) }
-    fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
     /// VAA sent from the ethereum token bridge 0xdeadbeef.
     const VAA: vector<u8> =
         x"01000000000100102d399190fa61daccb11c2ea4f7a3db3a9365e5936bcda4cded87c1b9eeb095173514f226256d5579af71d4089eb89496befb998075ba94cd1d4460c5c57b84000000000100000001000200000000000000000000000000000000000000000000000000000000deadbeef0000000002634973000200000000000000000000000000000000000000000000000000000000beefface00020c0000000000000000000000000000000000000000000000000000000042454546000000000000000000000000000000000042656566206661636520546f6b656e";
 
     #[test]
-    #[expected_failure(
-        abort_code = token_bridge::emitter_registry::E_UNREGISTERED
-    )]
-    fun test_unknown_chain() {
-        let (admin, _, _) = people();
-        let test = scenario();
-        test = set_up_wormhole_core_and_token_bridges(admin, test);
-        next_tx(&mut test, admin); {
-            let state = take_shared<State>(&test);
-            let w_state = take_shared<WormholeState>(&test);
-            let vaa =
-                vaa::parse_verify_and_consume_test_only(
-                    &mut state,
-                    &mut w_state,
-                    VAA,
-                    ctx(&mut test)
-                );
-            wormhole::vaa::destroy(vaa);
-            return_shared<State>(state);
-            return_shared<WormholeState>(w_state);
-        };
-        test_scenario::end(test);
-    }
+    #[expected_failure(abort_code = emitter_registry::E_UNREGISTERED)]
+    fun test_cannot_parse_verify_and_consume_unregistered_chain() {
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
 
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, caller);
+
+        let (token_bridge_state, worm_state) = take_states(scenario);
+
+        // You shall not pass!
+        let parsed =
+            vaa::parse_verify_and_consume_test_only(
+                &mut token_bridge_state,
+                &worm_state,
+                VAA,
+                test_scenario::ctx(scenario)
+            );
+
+        // Clean up.
+        wormhole::vaa::destroy(parsed);
+        return_states(token_bridge_state, worm_state);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
 
     #[test]
     #[expected_failure(abort_code = vaa::E_UNKNOWN_EMITTER)]
-    fun test_unknown_emitter() {
-        let (admin, _, _) = people();
-        let test = scenario();
-        test = set_up_wormhole_core_and_token_bridges(admin, test);
+    fun test_cannot_parse_verify_and_consume_unknown_emitter() {
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
 
-        next_tx(&mut test, admin); {
-            let state = take_shared<State>(&test);
-            state::register_new_emitter_test_only(
-                &mut state,
-                2, // chain ID
-                external_address::from_any_bytes(x"deadbeed"), // not deadbeef
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, caller);
+
+        let (token_bridge_state, worm_state) = take_states(scenario);
+
+        // First register emitter.
+        let emitter_chain = 2;
+        let emitter_addr = external_address::from_any_bytes(x"deafbeef");
+        state::register_new_emitter_test_only(
+            &mut token_bridge_state,
+            emitter_chain,
+            emitter_addr
+        );
+        assert!(
+            state::registered_emitter(&token_bridge_state, emitter_chain) == emitter_addr,
+            0
+        );
+
+        // Confirm that encoded emitter disagrees with registered emitter.
+        let parsed =
+            wormhole::vaa::parse_and_verify(
+                &worm_state,
+                VAA,
+                test_scenario::ctx(scenario)
             );
-            return_shared<State>(state);
-        };
+        assert!(wormhole::vaa::emitter_address(&parsed) != emitter_addr, 0);
+        wormhole::vaa::destroy(parsed);
 
-        next_tx(&mut test, admin); {
-            let state = take_shared<State>(&test);
-            let w_state = take_shared<WormholeState>(&test);
-            let vaa =
-                vaa::parse_verify_and_consume_test_only(
-                    &mut state,
-                    &mut w_state,
-                    VAA,
-                    ctx(&mut test)
-                );
-            wormhole::vaa::destroy(vaa);
-            return_shared<State>(state);
-            return_shared<WormholeState>(w_state);
-        };
-        test_scenario::end(test);
+        // You shall not pass!
+        let parsed =
+            vaa::parse_verify_and_consume_test_only(
+                &mut token_bridge_state,
+                &worm_state,
+                VAA,
+                test_scenario::ctx(scenario)
+            );
+
+        // Clean up.
+        wormhole::vaa::destroy(parsed);
+        return_states(token_bridge_state, worm_state);
+
+        // Done.
+        test_scenario::end(my_scenario);
     }
 
     #[test]
-    fun test_known_emitter() {
-        let (admin, _, _) = people();
-        let test = scenario();
-        test = set_up_wormhole_core_and_token_bridges(admin, test);
+    fun test_parse_verify_and_consume() {
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
 
-        next_tx(&mut test, admin); {
-            let state = take_shared<State>(&test);
-            state::register_new_emitter_test_only(
-                &mut state,
-                2, // chain ID
-                external_address::from_any_bytes(x"deadbeef"),
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
+
+        // Register foreign emitter.
+        let expected_source_chain = 2;
+        register_dummy_emitter(scenario, expected_source_chain);
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, caller);
+
+        let (token_bridge_state, worm_state) = take_states(scenario);
+
+        // Confirm VAA originated from where we expect.
+        let parsed =
+            wormhole::vaa::parse_and_verify(
+                &worm_state,
+                VAA,
+                test_scenario::ctx(scenario)
             );
-            return_shared<State>(state);
-        };
+        assert!(
+            wormhole::vaa::emitter_chain(&parsed) == expected_source_chain,
+            0
+        );
+        wormhole::vaa::destroy(parsed);
 
-        next_tx(&mut test, admin); {
-            let state = take_shared<State>(&test);
-            let w_state = take_shared<WormholeState>(&test);
-            let vaa =
-                vaa::parse_verify_and_consume_test_only(
-                    &mut state,
-                    &mut w_state,
-                    VAA,
-                    ctx(&mut test)
-                );
-            wormhole::vaa::destroy(vaa);
-            return_shared<State>(state);
-            return_shared<WormholeState>(w_state);
-        };
-        test_scenario::end(test);
+        // Finally deserialize.
+        let parsed =
+            vaa::parse_verify_and_consume_test_only(
+                &mut token_bridge_state,
+                &worm_state,
+                VAA,
+                test_scenario::ctx(scenario)
+            );
+
+        // Clean up.
+        wormhole::vaa::destroy(parsed);
+        return_states(token_bridge_state, worm_state);
+
+        // Done.
+        test_scenario::end(my_scenario);
     }
 
     #[test]
     #[expected_failure(abort_code = state::E_VAA_ALREADY_CONSUMED)]
-    fun test_replay_protection_works() {
-        let (admin, _, _) = people();
-        let test = scenario();
-        test = set_up_wormhole_core_and_token_bridges(admin, test);
+    fun test_cannot_parse_verify_and_consume_again() {
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
 
-        next_tx(&mut test, admin); {
-            let state = take_shared<State>(&test);
-            state::register_new_emitter_test_only(
-                &mut state,
-                2, // chain ID
-                external_address::from_any_bytes(x"deadbeef"),
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
+
+        // Register foreign emitter.
+        let expected_source_chain = 2;
+        register_dummy_emitter(scenario, expected_source_chain);
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, caller);
+
+        let (token_bridge_state, worm_state) = take_states(scenario);
+
+        // Confirm VAA originated from where we expect.
+        let parsed =
+            wormhole::vaa::parse_and_verify(
+                &worm_state,
+                VAA,
+                test_scenario::ctx(scenario)
             );
-            return_shared<State>(state);
-        };
+        assert!(
+            wormhole::vaa::emitter_chain(&parsed) == expected_source_chain,
+            0
+        );
+        wormhole::vaa::destroy(parsed);
 
-        next_tx(&mut test, admin); {
-            let state = take_shared<State>(&test);
-            let w_state = take_shared<WormholeState>(&test);
+        // Finally deserialize.
+        let parsed =
+            vaa::parse_verify_and_consume_test_only(
+                &mut token_bridge_state,
+                &worm_state,
+                VAA,
+                test_scenario::ctx(scenario)
+            );
+        wormhole::vaa::destroy(parsed);
 
-            // Try to use the VAA twice.
-            let vaa =
-                vaa::parse_verify_and_consume_test_only(
-                    &mut state,
-                    &mut w_state,
-                    VAA,
-                    ctx(&mut test)
-                );
-            wormhole::vaa::destroy(vaa);
-            let vaa =
-                vaa::parse_verify_and_consume_test_only(
-                    &mut state,
-                    &mut w_state,
-                    VAA,
-                    ctx(&mut test)
-                );
-            wormhole::vaa::destroy(vaa);
-            return_shared<State>(state);
-            return_shared<WormholeState>(w_state);
-        };
-        test_scenario::end(test);
+        // You shall not pass!
+        let parsed =
+            vaa::parse_verify_and_consume_test_only(
+                &mut token_bridge_state,
+                &worm_state,
+                VAA,
+                test_scenario::ctx(scenario)
+            );
+
+        // Clean up.
+        wormhole::vaa::destroy(parsed);
+        return_states(token_bridge_state, worm_state);
+
+        // Done.
+        test_scenario::end(my_scenario);
     }
 
 }

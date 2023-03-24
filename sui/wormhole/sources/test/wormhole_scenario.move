@@ -58,7 +58,7 @@ module wormhole::wormhole_scenario {
             let guardian_set_epochs_to_live = 2;
 
             // Share `State`.
-            setup::init_and_share_state(
+            setup::complete(
                 test_scenario::take_from_address<DeployerCap>(
                     scenario, DEPLOYER
                 ),

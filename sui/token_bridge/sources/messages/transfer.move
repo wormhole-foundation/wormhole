@@ -122,6 +122,51 @@ module token_bridge::transfer {
     }
 
     #[test_only]
+    public fun amount(self: &Transfer): NormalizedAmount {
+        self.amount
+    }
+
+    #[test_only]
+    public fun raw_amount(self: &Transfer, decimals: u8): u64 {
+        normalized_amount::to_raw(self.amount, decimals)
+    }
+
+    #[test_only]
+    public fun token_address(self: &Transfer): ExternalAddress {
+        self.token_address
+    }
+
+    #[test_only]
+    public fun token_chain(self: &Transfer): u16 {
+        self.token_chain
+    }
+
+    #[test_only]
+    public fun recipient(self: &Transfer): ExternalAddress {
+        self.recipient
+    }
+
+    #[test_only]
+    public fun recipient_as_address(self: &Transfer): address {
+        external_address::to_address(self.recipient)
+    }
+
+    #[test_only]
+    public fun recipient_chain(self: &Transfer): u16 {
+        self.recipient_chain
+    }
+
+    #[test_only]
+    public fun relayer_fee(self: &Transfer): NormalizedAmount {
+        self.relayer_fee
+    }
+
+    #[test_only]
+    public fun raw_relayer_fee(self: &Transfer, decimals: u8): u64 {
+        normalized_amount::to_raw(self.relayer_fee, decimals)
+    }
+
+    #[test_only]
     public fun destroy(transfer: Transfer) {
         unpack(transfer);
     }

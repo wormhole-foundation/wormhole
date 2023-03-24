@@ -17,7 +17,7 @@ module token_bridge::token_bridge {
     entry fun transfer_tokens<CoinType>(
         token_bridge_state: &mut State,
         worm_state: &mut WormholeState,
-        bridged: Coin<CoinType>,
+        bridged_in: Coin<CoinType>,
         wormhole_fee: Coin<SUI>,
         recipient_chain: u16,
         recipient: vector<u8>,
@@ -29,7 +29,7 @@ module token_bridge::token_bridge {
         transfer_tokens(
             token_bridge_state,
             worm_state,
-            coin::into_balance(bridged),
+            coin::into_balance(bridged_in),
             coin::into_balance(wormhole_fee),
             recipient_chain,
             external_address::from_bytes(recipient),
@@ -42,12 +42,12 @@ module token_bridge::token_bridge {
         token_bridge_state: &mut State,
         emitter_cap: &EmitterCap,
         worm_state: &mut WormholeState,
-        bridged: Coin<CoinType>,
+        bridged_in: Coin<CoinType>,
         wormhole_fee: Coin<SUI>,
-        recipient_chain: u16,
-        recipient: vector<u8>,
-        nonce: u32,
+        redeemer_chain: u16,
+        redeemer: vector<u8>,
         payload: vector<u8>,
+        nonce: u32,
     ) {
         use token_bridge::transfer_tokens_with_payload::{
             transfer_tokens_with_payload
@@ -57,12 +57,12 @@ module token_bridge::token_bridge {
             token_bridge_state,
             emitter_cap,
             worm_state,
-            coin::into_balance(bridged),
+            coin::into_balance(bridged_in),
             coin::into_balance(wormhole_fee),
-            recipient_chain,
-            external_address::from_bytes(recipient),
-            nonce,
-            payload
+            redeemer_chain,
+            external_address::from_bytes(redeemer),
+            payload,
+            nonce
         );
     }
 
@@ -87,7 +87,7 @@ module token_bridge::token_bridge {
         if (balance::value(&payout) == 0) {
             balance::destroy_zero(payout);
         } else {
-            transfer::transfer(
+            transfer::public_transfer(
                 coin::from_balance(payout, ctx),
                 tx_context::sender(ctx)
             );

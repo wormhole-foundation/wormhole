@@ -84,6 +84,10 @@ module wormhole::vaa {
          self.emitter_address
     }
 
+    public fun emitter_info(self: &VAA): (u16, ExternalAddress, u64) {
+        (self.emitter_chain, self.emitter_address, self.sequence)
+    }
+
     public fun sequence(self: &VAA): u64 {
          self.sequence
     }

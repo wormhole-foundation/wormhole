@@ -40,7 +40,7 @@ module wormhole::setup {
 
     /// Only the owner of the `DeployerCap` can call this method. This
     /// method destroys the capability and shares the `State` object.
-    public entry fun init_and_share_state(
+    public entry fun complete(
         deployer: DeployerCap,
         upgrade_cap: UpgradeCap,
         governance_chain: u16,
@@ -116,7 +116,7 @@ module wormhole::setup_tests {
     }
 
     #[test]
-    public fun test_init_and_share_state() {
+    public fun test_complete() {
         let deployer = person();
         let my_scenario = test_scenario::begin(deployer);
         let scenario = &mut my_scenario;
@@ -152,11 +152,11 @@ module wormhole::setup_tests {
         // it from the sender.
         let upgrade_cap =
             package::test_publish(
-                object::id_from_address(@0x0),
+                object::id_from_address(@wormhole),
                 test_scenario::ctx(scenario)
             );
 
-        setup::init_and_share_state(
+        setup::complete(
             deployer_cap,
             upgrade_cap,
             governance_chain,

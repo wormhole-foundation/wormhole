@@ -18,6 +18,8 @@ module token_bridge::complete_transfer_with_payload {
         vaa_buf: vector<u8>,
         ctx: &mut TxContext
     ): (Balance<CoinType>, TransferWithPayload, u16) {
+        use token_bridge::complete_transfer::{emit_transfer_redeemed};
+
         // Parse and verify Token Bridge transfer message. This method
         // guarantees that a verified transfer message cannot be redeemed again.
         let parsed_vaa =
@@ -28,8 +30,12 @@ module token_bridge::complete_transfer_with_payload {
                 ctx
             );
 
-        // Before destroying VAA_ATTESTED_DECIMALS_12, store the emitter chain ID for the caller.
-        let source_chain = wormhole::vaa::emitter_chain(&parsed_vaa);
+        // Emitting the transfer being redeemed.
+        //
+        // NOTE: We care about the emitter chain to save the integrator from
+        // having to `parse_and_verify` the encoded VAA to deserialize the same
+        // info we already have.
+        let emitter_chain = emit_transfer_redeemed(&parsed_vaa);
 
         // Deserialize for processing.
         let parsed_transfer =
@@ -37,14 +43,14 @@ module token_bridge::complete_transfer_with_payload {
                 wormhole::vaa::take_payload(parsed_vaa)
             );
 
-        let bridged =
+        let bridged_out =
             handle_complete_transfer_with_payload(
                 token_bridge_state,
                 emitter_cap,
                 &parsed_transfer
             );
 
-        (bridged, parsed_transfer, source_chain)
+        (bridged_out, parsed_transfer, emitter_chain)
     }
 
     fun handle_complete_transfer_with_payload<CoinType>(
@@ -52,15 +58,18 @@ module token_bridge::complete_transfer_with_payload {
         emitter_cap: &EmitterCap,
         parsed: &TransferWithPayload
     ): Balance<CoinType> {
-        use token_bridge::complete_transfer::{verify_and_take_coin};
+        use token_bridge::complete_transfer::{verify_and_bridge_out};
 
         // Transfer must be redeemed by the contract's registered Wormhole
         // emitter.
         let redeemer = transfer_with_payload::redeemer(parsed);
         assert!(redeemer == emitter::addr(emitter_cap), E_INVALID_REDEEMER);
 
-        let (bridged, _) =
-            verify_and_take_coin<CoinType>(
+        let (
+            bridged_out,
+            _
+        ) =
+            verify_and_bridge_out(
                 token_bridge_state,
                 transfer_with_payload::token_chain(parsed),
                 transfer_with_payload::token_address(parsed),
@@ -68,7 +77,7 @@ module token_bridge::complete_transfer_with_payload {
                 transfer_with_payload::amount(parsed)
             );
 
-        bridged
+        bridged_out
     }
 }
 
@@ -91,6 +100,7 @@ module token_bridge::complete_transfer_with_payload_test {
         take_states,
         two_people
     };
+    use token_bridge::token_registry::{Self};
     use token_bridge::transfer_with_payload::{Self};
 
     /// Transfer for COIN_WRAPPED_12.
@@ -159,7 +169,7 @@ module token_bridge::complete_transfer_with_payload_test {
         let scenario = &mut my_scenario;
 
         // Initialize Wormhole and Token Bridge.
-        let wormhole_fee = 0;
+        let wormhole_fee = 350;
         set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
 
         // Register Sui as a foreign emitter.
@@ -177,9 +187,11 @@ module token_bridge::complete_transfer_with_payload_test {
         // Ignore effects. Begin processing as arbitrary tx executor.
         test_scenario::next_tx(scenario, user);
 
-        let (bridge_state, worm_state) = take_states(scenario);
+        let (token_bridge_state, worm_state) = take_states(scenario);
         assert!(
-            state::custody_balance<COIN_NATIVE_10>(&bridge_state) == mint_amount,
+            token_registry::native_balance<COIN_NATIVE_10>(
+                state::borrow_token_registry(&token_bridge_state)
+            ) == mint_amount,
             0
         );
 
@@ -212,7 +224,7 @@ module token_bridge::complete_transfer_with_payload_test {
             source_chain
         ) =
             complete_transfer_with_payload<COIN_NATIVE_10>(
-                &mut bridge_state,
+                &mut token_bridge_state,
                 &emitter_cap,
                 &mut worm_state,
                 VAA_NATIVE_DECIMALS_10,
@@ -230,8 +242,9 @@ module token_bridge::complete_transfer_with_payload_test {
         // Amount left on custody should be whatever is left remaining after
         // the transfer.
         let remaining = mint_amount - expected_bridged;
+        let registry = state::borrow_token_registry(&token_bridge_state);
         assert!(
-            state::custody_balance<COIN_NATIVE_10>(&bridge_state) == remaining,
+            token_registry::native_balance<COIN_NATIVE_10>(registry) == remaining,
             0
         );
 
@@ -239,7 +252,7 @@ module token_bridge::complete_transfer_with_payload_test {
         let (
             expected_token_chain,
             expected_token_address
-        ) = state::token_info<COIN_NATIVE_10>(&bridge_state);
+        ) = token_registry::canonical_info<COIN_NATIVE_10>(registry);
         assert!(expected_token_chain == chain_id(), 0);
         assert!(
             transfer_with_payload::token_chain(&parsed_transfer) == expected_token_chain,
@@ -257,7 +270,7 @@ module token_bridge::complete_transfer_with_payload_test {
         assert!(serialized == expected_serialized, 0);
 
         // Clean up.
-        return_states(bridge_state, worm_state);
+        return_states(token_bridge_state, worm_state);
         balance::destroy_for_testing(bridged);
         emitter::destroy_cap(emitter_cap);
 
@@ -286,7 +299,7 @@ module token_bridge::complete_transfer_with_payload_test {
         let scenario = &mut my_scenario;
 
         // Initialize Wormhole and Token Bridge.
-        let wormhole_fee = 0;
+        let wormhole_fee = 350;
         set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
 
         // Register chain ID 2 as a foreign emitter.
@@ -299,7 +312,7 @@ module token_bridge::complete_transfer_with_payload_test {
         // Ignore effects. Begin processing as arbitrary tx executor.
         test_scenario::next_tx(scenario, user);
 
-        let (bridge_state, worm_state) = take_states(scenario);
+        let (token_bridge_state, worm_state) = take_states(scenario);
 
         // Set up dummy `EmitterCap` as the expected redeemer.
         let emitter_cap =
@@ -330,7 +343,7 @@ module token_bridge::complete_transfer_with_payload_test {
             source_chain
         ) =
             complete_transfer_with_payload<COIN_WRAPPED_12>(
-                &mut bridge_state,
+                &mut token_bridge_state,
                 &emitter_cap,
                 &mut worm_state,
                 VAA_ATTESTED_DECIMALS_12,
@@ -343,8 +356,9 @@ module token_bridge::complete_transfer_with_payload_test {
         assert!(balance::value(&bridged) == expected_bridged, 0);
 
         // Total supply should equal the amount just minted.
+        let registry = state::borrow_token_registry(&token_bridge_state);
         assert!(
-            state::wrapped_supply<COIN_WRAPPED_12>(&bridge_state) == expected_bridged,
+            token_registry::wrapped_supply<COIN_WRAPPED_12>(registry) == expected_bridged,
             0
         );
 
@@ -352,7 +366,7 @@ module token_bridge::complete_transfer_with_payload_test {
         let (
             expected_token_chain,
             expected_token_address
-        ) = state::token_info<COIN_WRAPPED_12>(&bridge_state);
+        ) = token_registry::canonical_info<COIN_WRAPPED_12>(registry);
         assert!(expected_token_chain != chain_id(), 0);
         assert!(
             transfer_with_payload::token_chain(&parsed_transfer) == expected_token_chain,
@@ -370,7 +384,7 @@ module token_bridge::complete_transfer_with_payload_test {
         assert!(serialized == expected_serialized, 0);
 
         // Clean up.
-        return_states(bridge_state, worm_state);
+        return_states(token_bridge_state, worm_state);
         balance::destroy_for_testing(bridged);
         emitter::destroy_cap(emitter_cap);
 
@@ -395,7 +409,7 @@ module token_bridge::complete_transfer_with_payload_test {
         let scenario = &mut my_scenario;
 
         // Initialize Wormhole and Token Bridge.
-        let wormhole_fee = 0;
+        let wormhole_fee = 350;
         set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
 
         // Register chain ID 2 as a foreign emitter.
@@ -407,7 +421,7 @@ module token_bridge::complete_transfer_with_payload_test {
         // Ignore effects. Begin processing as arbitrary tx executor.
         test_scenario::next_tx(scenario, user);
 
-        let (bridge_state, worm_state) = take_states(scenario);
+        let (token_bridge_state, worm_state) = take_states(scenario);
 
         // Set up dummy `EmitterCap`. Verify that this emitter is not the
         // expected redeemer.
@@ -437,7 +451,7 @@ module token_bridge::complete_transfer_with_payload_test {
             _
         ) =
             complete_transfer_with_payload<COIN_WRAPPED_12>(
-                &mut bridge_state,
+                &mut token_bridge_state,
                 &emitter_cap,
                 &mut worm_state,
                 VAA_ATTESTED_DECIMALS_12,
@@ -445,7 +459,7 @@ module token_bridge::complete_transfer_with_payload_test {
             );
 
         // Clean up.
-        return_states(bridge_state, worm_state);
+        return_states(token_bridge_state, worm_state);
         balance::destroy_for_testing(bridged);
         emitter::destroy_cap(emitter_cap);
 
@@ -454,7 +468,9 @@ module token_bridge::complete_transfer_with_payload_test {
     }
 
     #[test]
-    #[expected_failure(abort_code = state::E_CANONICAL_TOKEN_INFO_MISMATCH)]
+    #[expected_failure(
+        abort_code = token_registry::E_CANONICAL_TOKEN_INFO_MISMATCH
+    )]
     /// This test demonstrates that the `CoinType` specified for the token
     /// redemption must agree with the canonical token info encoded in the VAA_ATTESTED_DECIMALS_12,
     /// which is registered with the Token Bridge.
@@ -468,7 +484,7 @@ module token_bridge::complete_transfer_with_payload_test {
         let scenario = &mut my_scenario;
 
         // Initialize Wormhole and Token Bridge.
-        let wormhole_fee = 0;
+        let wormhole_fee = 350;
         set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
 
         // Register chain ID 2 as a foreign emitter.
@@ -484,7 +500,8 @@ module token_bridge::complete_transfer_with_payload_test {
         // Ignore effects. Begin processing as arbitrary tx executor.
         test_scenario::next_tx(scenario, user);
 
-        let (bridge_state, worm_state) = take_states(scenario);
+        let (token_bridge_state, worm_state) = take_states(scenario);
+        let registry = state::borrow_token_registry(&token_bridge_state);
 
         // Set up dummy `EmitterCap` as the expected redeemer.
         let emitter_cap =
@@ -513,7 +530,7 @@ module token_bridge::complete_transfer_with_payload_test {
         let (
             expected_token_chain,
             expected_token_address
-        ) = state::token_info<COIN_NATIVE_10>(&bridge_state);
+        ) = token_registry::canonical_info<COIN_NATIVE_10>(registry);
         assert!(
             transfer_with_payload::token_chain(&expected_transfer) != expected_token_chain,
             0
@@ -530,7 +547,7 @@ module token_bridge::complete_transfer_with_payload_test {
             _
         ) =
             complete_transfer_with_payload<COIN_NATIVE_10>(
-                &mut bridge_state,
+                &mut token_bridge_state,
                 &emitter_cap,
                 &mut worm_state,
                 VAA_ATTESTED_DECIMALS_12,
@@ -538,7 +555,7 @@ module token_bridge::complete_transfer_with_payload_test {
             );
 
         // Clean up.
-        return_states(bridge_state, worm_state);
+        return_states(token_bridge_state, worm_state);
         balance::destroy_for_testing(bridged);
         emitter::destroy_cap(emitter_cap);
 

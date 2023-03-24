@@ -16,7 +16,7 @@
 ///      to create `ForeignMetadata`.
 ///
 /// Wrapped asset metadata can also be updated with a new asset metadata VAA.
-/// By calling `update_registration`, Token Bridge verifies that the specific
+/// By calling `update_attestation`, Token Bridge verifies that the specific
 /// coin type is registered and agrees with the encoded asset metadata's
 /// canonical token info. `ForeignMetadata` will be updated based on the encoded
 /// asset metadata payload.
@@ -33,6 +33,7 @@ module token_bridge::create_wrapped {
 
     use token_bridge::asset_meta::{Self, AssetMeta};
     use token_bridge::state::{Self, State};
+    use token_bridge::token_registry::{Self};
     use token_bridge::vaa::{Self};
 
     /// Asset metadata is for native Sui coin type.
@@ -115,8 +116,8 @@ module token_bridge::create_wrapped {
         //
         // If both of these conditions are met, `register_wrapped_asset` will
         // succeed and the new wrapped coin will be registered.
-        state::register_wrapped_asset(
-            token_bridge_state,
+        token_registry::add_new_wrapped(
+            state::borrow_token_registry_mut(token_bridge_state),
             token_meta,
             supply,
             ctx
@@ -125,7 +126,7 @@ module token_bridge::create_wrapped {
 
     /// For registered wrapped assets, we can update `ForeignMetadata` for a
     /// given `CoinType` with a new asset meta VAA emitted from another network.
-    public fun update_registration<CoinType>(
+    public fun update_attestation<CoinType>(
         token_bridge_state: &mut State,
         worm_state: &WormholeState,
         vaa_buf: vector<u8>,
@@ -133,30 +134,27 @@ module token_bridge::create_wrapped {
     ) {
         // Deserialize to `AssetMeta`.
         let token_meta =
-            parse_and_verify_asset_meta<CoinType>(
+            parse_and_verify_asset_meta(
                 token_bridge_state,
                 worm_state,
                 vaa_buf,
                 ctx
             );
 
-        state::assert_registered_token<CoinType>(
-            token_bridge_state,
-            asset_meta::token_chain(&token_meta),
-            asset_meta::token_address(&token_meta)
+        // When a wrapped asset is updated, the encoded token info is checked
+        // against what exists in the registry.
+        token_registry::update_wrapped<CoinType>(
+            state::borrow_token_registry_mut(token_bridge_state),
+            token_meta
         );
-
-        // When a wrapped asset is updated, there is a check for whether this
-        // metadata originated from Sui.
-        state::update_wrapped_asset(token_bridge_state, token_meta);
     }
 
-    fun parse_and_verify_asset_meta<CoinType>(
+    fun parse_and_verify_asset_meta(
         token_bridge_state: &mut State,
         worm_state: &WormholeState,
         vaa_buf: vector<u8>,
         ctx: &TxContext
-    ): AssetMeta<CoinType> {
+    ): AssetMeta {
         let parsed =
             vaa::parse_verify_and_consume(
                 token_bridge_state,
@@ -181,5 +179,207 @@ module token_bridge::create_wrapped {
         object::delete(id);
 
         supply
+    }
+}
+
+#[test_only]
+module token_bridge::create_wrapped_tests {
+    use sui::test_scenario::{Self};
+    use sui::transfer::{Self};
+    use sui::tx_context::{Self};
+
+    use token_bridge::asset_meta::{Self};
+    use token_bridge::coin_wrapped_12::{Self, COIN_WRAPPED_12};
+    use token_bridge::coin_wrapped_7::{Self};
+    use token_bridge::create_wrapped::{Self, WrappedAssetSetup};
+    use token_bridge::state::{Self};
+    use token_bridge::token_bridge_scenario::{
+        register_dummy_emitter,
+        return_states,
+        set_up_wormhole_and_token_bridge,
+        take_states,
+        two_people
+    };
+    use token_bridge::token_registry::{Self};
+    use token_bridge::wrapped_asset::{Self};
+
+    struct NOT_A_WITNESS has drop, copy, store {}
+
+    #[test]
+    #[expected_failure(abort_code = create_wrapped::E_BAD_WITNESS)]
+    public fun test_cannot_prepare_registration_bad_witness() {
+        let ctx = &mut tx_context::dummy();
+
+        // You shall not pass!
+        let wrapped_asset_setup =
+            create_wrapped::prepare_registration(
+                NOT_A_WITNESS {},
+                coin_wrapped_12::encoded_vaa(),
+                ctx
+            );
+
+        // Clean up.
+        transfer::public_freeze_object(wrapped_asset_setup);
+    }
+
+    #[test]
+    public fun test_complete_and_update_attestation() {
+        let (caller, coin_deployer) = two_people();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
+
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
+
+        // Register foreign emitter on chain ID == 2.
+        let expected_source_chain = 2;
+        register_dummy_emitter(scenario, expected_source_chain);
+
+        // Ignore effects. Make sure `coin_deployer` receives
+        // `WrappedAssetSetup`.
+        test_scenario::next_tx(scenario, coin_deployer);
+
+        // Publish coin.
+        coin_wrapped_12::init_test_only(test_scenario::ctx(scenario));
+
+        test_scenario::next_tx(scenario, coin_deployer);
+
+        let wrapped_asset_setup =
+            test_scenario::take_from_address<WrappedAssetSetup<COIN_WRAPPED_12>>(
+                scenario,
+                coin_deployer
+            );
+
+        let (token_bridge_state, worm_state) = take_states(scenario);
+
+        create_wrapped::complete_registration(
+            &mut token_bridge_state,
+            &worm_state,
+            wrapped_asset_setup,
+            test_scenario::ctx(scenario)
+        );
+
+        let (
+            token_address,
+            token_chain,
+            native_decimals,
+            symbol,
+            name
+        ) = asset_meta::unpack(coin_wrapped_12::token_meta());
+
+        // Check registry.
+        {
+            let registry = state::borrow_token_registry(&token_bridge_state);
+            assert!(token_registry::is_wrapped<COIN_WRAPPED_12>(registry), 0);
+
+            let asset = token_registry::borrow_wrapped<COIN_WRAPPED_12>(registry);
+
+            assert!(wrapped_asset::total_supply(asset) == 0, 0);
+
+            // Decimals are capped for this wrapped asset.
+            assert!(wrapped_asset::decimals(asset) == 8, 0);
+
+            // Check metadata against asset metadata.
+            let metadata = wrapped_asset::metadata(asset);
+            assert!(wrapped_asset::token_chain(metadata) == token_chain, 0);
+            assert!(wrapped_asset::token_address(metadata) == token_address, 0);
+            assert!(
+                wrapped_asset::native_decimals(metadata) == native_decimals,
+                0
+            );
+            assert!(wrapped_asset::symbol(metadata) == symbol, 0);
+            assert!(wrapped_asset::name(metadata) == name, 0);
+        };
+
+        // Now update metadata.
+        create_wrapped::update_attestation<COIN_WRAPPED_12>(
+            &mut token_bridge_state,
+            &worm_state,
+            coin_wrapped_12::encoded_updated_vaa(),
+            test_scenario::ctx(scenario)
+        );
+
+        // Check updated name and symbol.
+        let registry = state::borrow_token_registry(&token_bridge_state);
+        let asset = token_registry::borrow_wrapped<COIN_WRAPPED_12>(registry);
+        let metadata = wrapped_asset::metadata(asset);
+        let (
+            _,
+            _,
+            _,
+            new_symbol,
+            new_name
+        ) = asset_meta::unpack(coin_wrapped_12::updated_token_meta());
+
+        assert!(symbol != new_symbol, 0);
+        assert!(wrapped_asset::symbol(metadata) == new_symbol, 0);
+
+        assert!(name != new_name, 0);
+        assert!(wrapped_asset::name(metadata) == new_name, 0);
+
+        // Clean up.
+        return_states(token_bridge_state, worm_state);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = wrapped_asset::E_ASSET_META_MISMATCH)]
+    public fun test_cannot_update_attestation_wrong_canonical_info() {
+        let (caller, coin_deployer) = two_people();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
+
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
+
+        // Register foreign emitter on chain ID == 2.
+        let expected_source_chain = 2;
+        register_dummy_emitter(scenario, expected_source_chain);
+
+        // Ignore effects. Make sure `coin_deployer` receives
+        // `WrappedAssetSetup`.
+        test_scenario::next_tx(scenario, coin_deployer);
+
+        // Publish coin.
+        coin_wrapped_12::init_test_only(test_scenario::ctx(scenario));
+
+        test_scenario::next_tx(scenario, coin_deployer);
+
+        let wrapped_asset_setup =
+            test_scenario::take_from_address<WrappedAssetSetup<COIN_WRAPPED_12>>(
+                scenario,
+                coin_deployer
+            );
+
+        let (token_bridge_state, worm_state) = take_states(scenario);
+
+        create_wrapped::complete_registration(
+            &mut token_bridge_state,
+            &worm_state,
+            wrapped_asset_setup,
+            test_scenario::ctx(scenario)
+        );
+
+        // This VAA is for COIN_WRAPPED_7 metadata.
+        let invalid_asset_meta_vaa =
+            coin_wrapped_7::encoded_vaa();
+
+        // You shall not pas!
+        create_wrapped::update_attestation<COIN_WRAPPED_12>(
+            &mut token_bridge_state,
+            &worm_state,
+            invalid_asset_meta_vaa,
+            test_scenario::ctx(scenario)
+        );
+
+        // Clean up.
+        return_states(token_bridge_state, worm_state);
+
+        // Done.
+        test_scenario::end(my_scenario);
     }
 }

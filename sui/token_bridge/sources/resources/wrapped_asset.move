@@ -44,7 +44,7 @@ module token_bridge::wrapped_asset {
     ///
     /// See `token_registry` module for more info.
     public(friend) fun new<C>(
-        token_meta: AssetMeta<C>,
+        token_meta: AssetMeta,
         supply: Supply<C>,
         ctx: &mut TxContext
     ): WrappedAsset<C> {
@@ -78,7 +78,7 @@ module token_bridge::wrapped_asset {
 
     #[test_only]
     public fun new_test_only<C>(
-        token_meta: AssetMeta<C>,
+        token_meta: AssetMeta,
         supply: Supply<C>,
         ctx: &mut TxContext
     ): WrappedAsset<C> {
@@ -90,12 +90,14 @@ module token_bridge::wrapped_asset {
     /// See `token_registry` module for more info.
     public(friend) fun update_metadata<C>(
         self: &mut WrappedAsset<C>,
-        token_meta: AssetMeta<C>
+        token_meta: AssetMeta
     ) {
+        // NOTE: We ignore `native_decimals` because we do not enforce that
+        // an asset's decimals on a foreign network needs to stay the same.
         let (
             token_address,
             token_chain,
-            native_decimals,
+            _native_decimals,
             symbol,
             name
         ) = asset_meta::unpack(token_meta);
@@ -110,8 +112,7 @@ module token_bridge::wrapped_asset {
         assert!(
             (
                 token_chain == expected_chain &&
-                token_address == expected_address &&
-                native_decimals == self.metadata.native_decimals
+                token_address == expected_address
             ),
             E_ASSET_META_MISMATCH
         );
@@ -124,7 +125,7 @@ module token_bridge::wrapped_asset {
     #[test_only]
     public fun update_metadata_test_only<C>(
         self: &mut WrappedAsset<C>,
-        token_meta: AssetMeta<C>
+        token_meta: AssetMeta
     ) {
         update_metadata(self, token_meta)
     }
@@ -231,7 +232,7 @@ module token_bridge::wrapped_asset {
             minted,
             decimals: _
         } = asset;
-        sui::balance::destroy_supply_for_testing(minted);
+        sui::test_utils::destroy(minted);
 
         let ForeignMetadata {
             id,
@@ -259,8 +260,8 @@ module token_bridge::wrapped_asset_tests {
 
     use token_bridge::asset_meta::{Self};
     use token_bridge::coin_native_10::{Self};
-    use token_bridge::coin_wrapped_12::{Self, COIN_WRAPPED_12};
-    use token_bridge::coin_wrapped_7::{Self, COIN_WRAPPED_7};
+    use token_bridge::coin_wrapped_12::{Self};
+    use token_bridge::coin_wrapped_7::{Self};
     use token_bridge::token_bridge_scenario::{person};
     use token_bridge::wrapped_asset::{Self};
 
@@ -330,7 +331,7 @@ module token_bridge::wrapped_asset_tests {
         assert!(new_name != expected_name, 0);
 
         let updated_meta =
-            asset_meta::new<COIN_WRAPPED_7>(
+            asset_meta::new(
                 expected_token_address,
                 expected_token_chain,
                 expected_native_decimals,
@@ -450,7 +451,7 @@ module token_bridge::wrapped_asset_tests {
         assert!(new_name != expected_name, 0);
 
         let updated_meta =
-            asset_meta::new<COIN_WRAPPED_12>(
+            asset_meta::new(
                 expected_token_address,
                 expected_token_chain,
                 expected_native_decimals,
@@ -574,7 +575,7 @@ module token_bridge::wrapped_asset_tests {
             );
 
         let invalid_meta =
-            asset_meta::new<COIN_WRAPPED_12>(
+            asset_meta::new(
                 external_address::default(),
                 expected_token_chain,
                 expected_native_decimals,
@@ -634,7 +635,7 @@ module token_bridge::wrapped_asset_tests {
             );
 
         let invalid_meta =
-            asset_meta::new<COIN_WRAPPED_12>(
+            asset_meta::new(
                 expected_token_address,
                 chain_id(),
                 expected_native_decimals,
@@ -651,66 +652,6 @@ module token_bridge::wrapped_asset_tests {
         );
         assert!(
             asset_meta::native_decimals(&invalid_meta) == expected_native_decimals,
-            0
-        );
-
-        // You shall not pass!
-        wrapped_asset::update_metadata_test_only(&mut asset, invalid_meta);
-
-        // Clean up.
-        wrapped_asset::destroy(asset);
-
-        // Done.
-        test_scenario::end(my_scenario);
-    }
-
-    #[test]
-    #[expected_failure(abort_code = wrapped_asset::E_ASSET_META_MISMATCH)]
-    /// In this negative test case, we attempt to update with a mismatching
-    /// chain.
-    fun test_cannot_update_metadata_asset_meta_mismatch_native_decimals() {
-        let caller = person();
-        let my_scenario = test_scenario::begin(caller);
-        let scenario = &mut my_scenario;
-
-        let parsed_meta = coin_wrapped_12::token_meta();
-        let expected_token_chain = asset_meta::token_chain(&parsed_meta);
-        let expected_token_address = asset_meta::token_address(&parsed_meta);
-        let expected_native_decimals =
-            asset_meta::native_decimals(&parsed_meta);
-
-        // Publish coin.
-        let supply = coin_wrapped_12::init_and_take_supply(scenario, caller);
-
-        // Ignore effects.
-        test_scenario::next_tx(scenario, caller);
-
-        // Make new.
-        let asset =
-            wrapped_asset::new_test_only(
-                parsed_meta,
-                supply,
-                test_scenario::ctx(scenario)
-            );
-
-        let invalid_meta =
-            asset_meta::new<COIN_WRAPPED_12>(
-                expected_token_address,
-                expected_token_chain,
-                11,
-                string::utf8(b""),
-                string::utf8(b""),
-            );
-        assert!(
-            asset_meta::token_address(&invalid_meta) == expected_token_address,
-            0
-        );
-        assert!(
-            asset_meta::token_chain(&invalid_meta) == expected_token_chain,
-            0
-        );
-        assert!(
-            asset_meta::native_decimals(&invalid_meta) != expected_native_decimals,
             0
         );
 
