@@ -433,8 +433,8 @@ module token_bridge::complete_transfer_test {
 
     #[test]
     #[expected_failure(
-        abort_code = token_bridge::registered_tokens::E_UNREGISTERED,
-        location = token_bridge::registered_tokens
+        abort_code = token_bridge::token_registry::E_UNREGISTERED,
+        location = token_bridge::token_registry
     )]
     /// In this test, the generic CoinType arg to complete_transfer
     /// is not specified correctly, causing the token bridge

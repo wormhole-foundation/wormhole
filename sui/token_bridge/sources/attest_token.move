@@ -54,7 +54,7 @@ module token_bridge::attest_token {
             token_address
         ) = state::token_info<CoinType>(token_bridge_state);
 
-        asset_meta::serialize(
+        asset_meta::serialize<CoinType>(
             asset_meta::new(
                 token_address,
                 token_chain,

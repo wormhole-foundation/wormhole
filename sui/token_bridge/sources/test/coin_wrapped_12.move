@@ -6,7 +6,7 @@ module token_bridge::coin_wrapped_12 {
     use sui::tx_context::{Self, TxContext};
 
     use token_bridge::asset_meta::{Self, AssetMeta};
-    use token_bridge::create_wrapped::{Self, UnregisteredMetadata};
+    use token_bridge::create_wrapped::{Self, WrappedAssetSetup};
 
     struct COIN_WRAPPED_12 has drop {}
 
@@ -15,7 +15,7 @@ module token_bridge::coin_wrapped_12 {
 
     fun init(witness: COIN_WRAPPED_12, ctx: &mut TxContext) {
         transfer::transfer(
-            create_wrapped::wrap_asset_meta_vaa(
+            create_wrapped::prepare_registration(
                 witness,
                 VAA,
                 ctx
@@ -28,7 +28,7 @@ module token_bridge::coin_wrapped_12 {
         VAA
     }
 
-    public fun token_meta(): AssetMeta {
+    public fun token_meta(): AssetMeta<COIN_WRAPPED_12> {
         asset_meta::deserialize(
             wormhole::vaa::peel_payload_from_vaa(&VAA)
         )
@@ -75,10 +75,10 @@ module token_bridge::coin_wrapped_12 {
         let (token_bridge_state, worm_state) = take_states(scenario);
 
         // Register the attested asset.
-        create_wrapped::register_foreign_metadata(
+        create_wrapped::complete_registration(
             &mut token_bridge_state,
             &worm_state,
-            test_scenario::take_from_sender<UnregisteredMetadata<COIN_WRAPPED_12>>(
+            test_scenario::take_from_sender<WrappedAssetSetup<COIN_WRAPPED_12>>(
                 scenario
             ),
             test_scenario::ctx(scenario)
@@ -110,7 +110,7 @@ module token_bridge::coin_wrapped_12 {
 
 //     use token_bridge::state::{Self, State};
 //     use token_bridge::bridge_state_test::{set_up_wormhole_core_and_token_bridges};
-//     use token_bridge::create_wrapped::{UnregisteredMetadata, register_new_coin};
+//     use token_bridge::create_wrapped::{WrappedAssetSetup, register_new_coin};
 //     use token_bridge::token_bridge_scenario::{register_dummy_emitter};
 
 //     use token_bridge::coin_wrapped_12::{init_test_only, COIN_WRAPPED_12};
@@ -272,8 +272,8 @@ module token_bridge::coin_wrapped_12 {
 
 //     #[test]
 //     #[expected_failure(
-//         abort_code = token_bridge::registered_tokens::E_UNREGISTERED,
-//         location=token_bridge::registered_tokens
+//         abort_code = token_bridge::token_registry::E_UNREGISTERED,
+//         location=token_bridge::token_registry
 //     )]
 //     /// In this test, we attempt to update coin metadata for an asset that
 //     /// has not been previously registered at all (neither a registered wrapped
@@ -329,7 +329,7 @@ module token_bridge::coin_wrapped_12 {
 //             let bridge_state = take_shared<State>(&test);
 //             let worm_state = take_shared<WormholeState>(&test);
 //             let coin_meta = take_shared<CoinMetadata<COIN_WRAPPED_12>>(&test);
-//             let wrapped_coin = take_from_address<UnregisteredMetadata<COIN_WRAPPED_12>>(&test, admin);
+//             let wrapped_coin = take_from_address<WrappedAssetSetup<COIN_WRAPPED_12>>(&test, admin);
 //             register_new_coin<COIN_WRAPPED_12>(
 //                 &mut bridge_state,
 //                 &mut worm_state,

@@ -13,7 +13,7 @@ module token_bridge::state {
 
     use token_bridge::asset_meta::{AssetMeta};
     use token_bridge::emitter_registry::{Self, EmitterRegistry};
-    use token_bridge::registered_tokens::{Self, RegisteredTokens};
+    use token_bridge::token_registry::{Self, TokenRegistry};
 
     const E_UNREGISTERED_EMITTER: u64 = 0;
     const E_EMITTER_ALREADY_REGISTERED: u64 = 1;
@@ -48,7 +48,7 @@ module token_bridge::state {
 
         emitter_registry: EmitterRegistry,
 
-        registered_tokens: RegisteredTokens,
+        token_registry: TokenRegistry,
     }
 
     fun init(ctx: &mut TxContext) {
@@ -80,7 +80,7 @@ module token_bridge::state {
             consumed_vaa_hashes: set::new(ctx),
             emitter_cap: wormhole::state::new_emitter(worm_state, ctx),
             emitter_registry: emitter_registry::new(ctx),
-            registered_tokens: registered_tokens::new(ctx)
+            token_registry: token_registry::new(ctx)
         };
 
         // Permanently shares state.
@@ -98,11 +98,11 @@ module token_bridge::state {
         self: &mut State,
         removed: Balance<CoinType>
     ) {
-        let registry = &mut self.registered_tokens;
-        if (registered_tokens::is_wrapped<CoinType>(registry)) {
-            registered_tokens::burn(registry, removed);
+        let registry = &mut self.token_registry;
+        if (token_registry::is_wrapped<CoinType>(registry)) {
+            token_registry::burn(registry, removed);
         } else {
-            registered_tokens::deposit(registry, removed);
+            token_registry::deposit(registry, removed);
         }
     }
 
@@ -119,11 +119,11 @@ module token_bridge::state {
         self: &mut State,
         amount: u64
     ): Balance<CoinType> {
-        let registry = &mut self.registered_tokens;
-        if (registered_tokens::is_wrapped<CoinType>(registry)) {
-            registered_tokens::mint(&mut self.registered_tokens, amount)
+        let registry = &mut self.token_registry;
+        if (token_registry::is_wrapped<CoinType>(registry)) {
+            token_registry::mint(&mut self.token_registry, amount)
         } else {
-            registered_tokens::withdraw(&mut self.registered_tokens, amount)
+            token_registry::withdraw(&mut self.token_registry, amount)
         }
     }
 
@@ -138,12 +138,12 @@ module token_bridge::state {
 
     /// We only examine the balance of native assets.
     public fun custody_balance<CoinType>(self: &State): u64 {
-        registered_tokens::balance<CoinType>(&self.registered_tokens)
+        token_registry::balance<CoinType>(&self.token_registry)
     }
 
     /// We only examine the total supply of wrapped assets.
     public fun wrapped_supply<CoinType>(self: &State): u64 {
-        registered_tokens::total_supply<CoinType>(&self.registered_tokens)
+        token_registry::total_supply<CoinType>(&self.token_registry)
     }
 
     public(friend) fun publish_wormhole_message(
@@ -178,21 +178,21 @@ module token_bridge::state {
     }
 
     public fun is_registered_asset<CoinType>(self: &State): bool {
-        registered_tokens::has<CoinType>(&self.registered_tokens)
+        token_registry::has<CoinType>(&self.token_registry)
     }
 
     public fun is_native_asset<CoinType>(self: &State): bool {
-        registered_tokens::is_native<CoinType>(&self.registered_tokens)
+        token_registry::is_native<CoinType>(&self.token_registry)
     }
 
     public fun is_wrapped_asset<CoinType>(self: &State): bool {
-        registered_tokens::is_wrapped<CoinType>(&self.registered_tokens)
+        token_registry::is_wrapped<CoinType>(&self.token_registry)
     }
 
     /// Retrieves canonical token info from the registry, which are the native
     /// chain ID and token address.
     public fun token_info<CoinType>(self: &State): (u16, ExternalAddress) {
-        registered_tokens::canonical_info<CoinType>(&self.registered_tokens)
+        token_registry::canonical_info<CoinType>(&self.token_registry)
     }
 
     /// Assert that given canonical token info agrees with what exists in the
@@ -212,7 +212,7 @@ module token_bridge::state {
 
     /// Retrieve decimals for coins (wrapped and native) in registry.
     public fun coin_decimals<CoinType>(self: &State): u8 {
-        registered_tokens::decimals<CoinType>(&self.registered_tokens)
+        token_registry::decimals<CoinType>(&self.token_registry)
     }
 
     /// Add a new Token Bridge emitter to the registry. This method will abort
@@ -224,7 +224,11 @@ module token_bridge::state {
         chain: u16,
         contract_address: ExternalAddress
     ) {
-        emitter_registry::add(&mut self.emitter_registry, chain, contract_address);
+        emitter_registry::add(
+            &mut self.emitter_registry,
+            chain,
+            contract_address
+        );
     }
 
     #[test_only]
@@ -241,11 +245,12 @@ module token_bridge::state {
     /// See `create_wrapped` module for more info.
     public(friend) fun register_wrapped_asset<CoinType>(
         self: &mut State,
-        token_meta: AssetMeta,
+        token_meta: AssetMeta<CoinType>,
         supply: Supply<CoinType>,
         ctx: &mut TxContext
     ) {
-        registered_tokens::add_new_wrapped(&mut self.registered_tokens,
+        token_registry::add_new_wrapped(
+            &mut self.token_registry,
             token_meta,
             supply,
             ctx
@@ -255,11 +260,21 @@ module token_bridge::state {
     #[test_only]
     public fun register_wrapped_asset_test_only<CoinType>(
         self: &mut State,
-        token_meta: AssetMeta,
+        token_meta: AssetMeta<CoinType>,
         supply: Supply<CoinType>,
         ctx: &mut TxContext
     ) {
         register_wrapped_asset(self, token_meta, supply, ctx)
+    }
+
+    public(friend) fun update_wrapped_asset<CoinType>(
+        self: &mut State,
+        token_meta: AssetMeta<CoinType>
+    ) {
+        token_registry::update_wrapped(
+            &mut self.token_registry,
+            token_meta
+        )
     }
 
     /// Add a new native asset to the registry.
@@ -269,8 +284,8 @@ module token_bridge::state {
         self: &mut State,
         metadata: &CoinMetadata<CoinType>,
     ) {
-        registered_tokens::add_new_native(
-            &mut self.registered_tokens,
+        token_registry::add_new_native(
+            &mut self.token_registry,
             metadata,
         );
     }
@@ -303,8 +318,8 @@ module token_bridge::bridge_state_test {
 
     #[test]
     #[expected_failure(
-        abort_code = token_bridge::registered_tokens::E_ALREADY_REGISTERED,
-        location = token_bridge::registered_tokens
+        abort_code = token_bridge::token_registry::E_ALREADY_REGISTERED,
+        location = token_bridge::token_registry
     )]
     fun test_coin_type_addressing_failure_case(){
         test_coin_type_addressing_failure_case_(scenario())

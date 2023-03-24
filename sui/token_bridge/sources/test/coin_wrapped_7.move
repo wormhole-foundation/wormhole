@@ -6,7 +6,7 @@ module token_bridge::coin_wrapped_7 {
     use sui::tx_context::{Self, TxContext};
 
     use token_bridge::asset_meta::{Self, AssetMeta};
-    use token_bridge::create_wrapped::{Self, UnregisteredMetadata};
+    use token_bridge::create_wrapped::{Self, WrappedAssetSetup};
 
     struct COIN_WRAPPED_7 has drop {}
 
@@ -15,7 +15,7 @@ module token_bridge::coin_wrapped_7 {
 
     fun init(witness: COIN_WRAPPED_7, ctx: &mut TxContext) {
         transfer::transfer(
-            create_wrapped::wrap_asset_meta_vaa(
+            create_wrapped::prepare_registration(
                 witness,
                 VAA,
                 ctx
@@ -28,7 +28,7 @@ module token_bridge::coin_wrapped_7 {
         VAA
     }
 
-    public fun token_meta(): AssetMeta {
+    public fun token_meta(): AssetMeta<COIN_WRAPPED_7> {
         asset_meta::deserialize(
             wormhole::vaa::peel_payload_from_vaa(&VAA)
         )
@@ -75,10 +75,10 @@ module token_bridge::coin_wrapped_7 {
         let (token_bridge_state, worm_state) = take_states(scenario);
 
         // Register the attested asset.
-        create_wrapped::register_foreign_metadata(
+        create_wrapped::complete_registration(
             &mut token_bridge_state,
             &worm_state,
-            test_scenario::take_from_sender<UnregisteredMetadata<COIN_WRAPPED_7>>(
+            test_scenario::take_from_sender<WrappedAssetSetup<COIN_WRAPPED_7>>(
                 scenario
             ),
             test_scenario::ctx(scenario)

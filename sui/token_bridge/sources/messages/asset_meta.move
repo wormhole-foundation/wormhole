@@ -10,12 +10,12 @@ module token_bridge::asset_meta {
 
     const PAYLOAD_ID: u8 = 2;
 
-    struct AssetMeta has copy, store, drop {
-        /// Address of the token. Left-zero-padded if shorter than 32 bytes.
+    struct AssetMeta<phantom C> has copy, store, drop {
+        /// Address of the token.
         token_address: ExternalAddress,
         /// Chain ID of the token.
         token_chain: u16,
-        /// Number of decimals of the token (big-endian uint256).
+        /// Number of decimals of the token.
         native_decimals: u8,
         /// Symbol of the token (UTF-8).
         symbol: String,
@@ -23,13 +23,13 @@ module token_bridge::asset_meta {
         name: String,
     }
 
-    public fun new(
+    public fun new<C>(
         token_address: ExternalAddress,
         token_chain: u16,
         native_decimals: u8,
         symbol: String,
         name: String,
-    ): AssetMeta {
+    ): AssetMeta<C> {
         AssetMeta {
             token_address,
             token_chain,
@@ -39,8 +39,8 @@ module token_bridge::asset_meta {
         }
     }
 
-    public fun unpack(
-        meta: AssetMeta
+    public fun unpack<C>(
+        meta: AssetMeta<C>
     ): (
         ExternalAddress,
         u16,
@@ -65,27 +65,27 @@ module token_bridge::asset_meta {
         )
     }
 
-    public fun token_chain(self: &AssetMeta): u16 {
+    public fun token_chain<C>(self: &AssetMeta<C>): u16 {
         self.token_chain
     }
 
-    public fun token_address(self: &AssetMeta): ExternalAddress {
+    public fun token_address<C>(self: &AssetMeta<C>): ExternalAddress {
         self.token_address
     }
 
-    public fun native_decimals(self: &AssetMeta): u8 {
+    public fun native_decimals<C>(self: &AssetMeta<C>): u8 {
         self.native_decimals
     }
 
-    public fun symbol(self: &AssetMeta): String {
+    public fun symbol<C>(self: &AssetMeta<C>): String {
         self.symbol
     }
 
-    public fun name(self: &AssetMeta): String {
+    public fun name<C>(self: &AssetMeta<C>): String {
         self.name
     }
 
-    public fun serialize(meta: AssetMeta): vector<u8> {
+    public fun serialize<C>(meta: AssetMeta<C>): vector<u8> {
         let buf = vector::empty<u8>();
         bytes::push_u8(&mut buf, PAYLOAD_ID);
         vector::append(
@@ -106,7 +106,7 @@ module token_bridge::asset_meta {
         buf
     }
 
-    public fun deserialize(buf: vector<u8>): AssetMeta {
+    public fun deserialize<C>(buf: vector<u8>): AssetMeta<C> {
         let cur = cursor::new(buf);
         assert!(
             bytes::take_u8(&mut cur) == PAYLOAD_ID,
@@ -138,12 +138,14 @@ module token_bridge::asset_meta_test {
 
     use token_bridge::asset_meta::{Self};
 
+    struct DUMMY {}
+
     #[test]
     fun test_asset_meta(){
         let token_address = external_address::from_any_bytes(x"001122");
         let symbol = string::utf8(b"a creative symbol");
         let name = string::utf8(b"a creative name");
-        let asset_meta = asset_meta::new(
+        let asset_meta = asset_meta::new<DUMMY>(
             token_address, //token address
             3, // token chain
             4, //native decimals
@@ -152,7 +154,7 @@ module token_bridge::asset_meta_test {
         );
         // Serialize and deserialize TransferWithPayload object.
         let se = asset_meta::serialize(asset_meta);
-        let de = asset_meta::deserialize(se);
+        let de = asset_meta::deserialize<DUMMY>(se);
 
         // Test that the object fields are unchanged.
         assert!(asset_meta::token_chain(&de) == 3, 0);
