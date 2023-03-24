@@ -1,3 +1,5 @@
+import type { ChainId } from "@certusone/wormhole-sdk";
+import type { BigNumberish } from "ethers";
 import {
   init,
   loadChains,
@@ -7,6 +9,26 @@ import {
   getOperatingChains,
 } from "../helpers/env";
 import { wait } from "../helpers/utils";
+
+/**
+ * Meant for `config.pricingInfo`
+ */
+interface PricingInfo {
+  chainId: ChainId
+  deliverGasOverhead: BigNumberish
+  updatePriceGas: BigNumberish
+  updatePriceNative: BigNumberish
+  maximumBudget: BigNumberish
+};
+
+/**
+ * Must match `RelayProviderStructs.UpdatePrice`
+ */
+interface UpdatePrice {
+  chainId: ChainId
+  gasPrice: BigNumberish
+  nativeCurrencyPrice: BigNumberish
+};
 
 const processName = "configureRelayProvider";
 init();
@@ -40,48 +62,47 @@ async function configureChainsRelayProvider(chain: ChainInfo) {
       "Failed to find reward address info for chain " + chain.chainId
     );
   }
-  if (!thisChainsConfigInfo.approvedSenders) {
-    throw new Error(
-      "Failed to find approvedSenders info for chain " + chain.chainId
-    );
-  }
 
   console.log("Set address info...");
   await relayProvider.updateRewardAddress(thisChainsConfigInfo.rewardAddress);
 
-  //TODO refactor to use the batch price update, probably
   console.log("Set gas and native prices...");
-  for (let i = 0; i < chains.length; i++) {
+
+  // Batch update prices
+  const pricingUpdates: UpdatePrice[] = (config.pricingInfo as PricingInfo[]).map((info) => {
+    return {
+      chainId: info.chainId,
+      gasPrice: info.updatePriceGas,
+      nativeCurrencyPrice: info.updatePriceNative,
+    };
+  });
+  await relayProvider.updatePrices(pricingUpdates).then(wait);
+
+  // Set the rest of the relay provider configuration
+  for (const targetChain of chains) {
     const targetChainPriceUpdate = config.pricingInfo.find(
-      (x: any) => x.chainId == chains[i].chainId
+      (x: any) => x.chainId == targetChain.chainId
     );
     if (!targetChainPriceUpdate) {
       throw new Error(
-        "Failed to find pricingInfo for chain " + chains[i].chainId
+        "Failed to find pricingInfo for chain " + targetChain.chainId
       );
     }
     //delivery addresses are not done by this script, but rather the register chains script.
     await relayProvider
       .updateDeliverGasOverhead(
-        chains[i].chainId,
+        targetChain.chainId,
         targetChainPriceUpdate.deliverGasOverhead
       )
       .then(wait);
     await relayProvider
-      .updatePrice(
-        chains[i].chainId,
-        targetChainPriceUpdate.updatePriceGas,
-        targetChainPriceUpdate.updatePriceNative
-      )
-      .then(wait);
-    await relayProvider
       .updateMaximumBudget(
-        chains[i].chainId,
+        targetChain.chainId,
         targetChainPriceUpdate.maximumBudget
       )
       .then(wait);
     await relayProvider
-      .updateAssetConversionBuffer(chains[i].chainId, 5, 100)
+      .updateAssetConversionBuffer(targetChain.chainId, 5, 100)
       .then(wait);
   }
 
