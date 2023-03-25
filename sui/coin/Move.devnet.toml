@@ -12,10 +12,3 @@ local = "../token_bridge"
 
 [addresses]
 coin = "_"
-
-[dev-dependencies.TokenBridge]
-local = "../token_bridge"
-
-[dev-addresses]
-token_bridge = "0x200"
-coin = "0x300"
