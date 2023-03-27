@@ -2,6 +2,7 @@ package ibc
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,7 +16,7 @@ import (
 )
 
 func TestParseIbcReceivePublishEvent(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger := zap.NewNop()
 
 	eventJson := "{\"type\":\"wasm\",\"attributes\":[" +
 		"{\"key\":\"X2NvbnRyYWN0X2FkZHJlc3M=\",\"value\":\"d29ybWhvbGUxbmM1dGF0YWZ2NmV5cTdsbGtyMmd2NTBmZjllMjJtbmY3MHFnamx2NzM3a3RtdDRlc3dycTBrZGhjag==\",\"index\":true}," +
@@ -58,7 +59,7 @@ func TestParseIbcReceivePublishEvent(t *testing.T) {
 }
 
 func TestParseEventOfWrongType(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger := zap.NewNop()
 
 	eventJson := "{\"type\":\"hello\",\"attributes\":[" +
 		"{\"key\":\"X2NvbnRyYWN0X2FkZHJlc3M=\",\"value\":\"d29ybWhvbGUxbmM1dGF0YWZ2NmV5cTdsbGtyMmd2NTBmZjllMjJtbmY3MHFnamx2NzM3a3RtdDRlc3dycTBrZGhjag==\",\"index\":true}," +
@@ -84,7 +85,7 @@ func TestParseEventOfWrongType(t *testing.T) {
 }
 
 func TestParseEventForWrongContract(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger := zap.NewNop()
 
 	eventJson := "{\"type\":\"wasm\",\"attributes\":[" +
 		"{\"key\":\"X2NvbnRyYWN0X2FkZHJlc3M=\",\"value\":\"d29ybWhvbGUxbmM1dGF0YWZ2NmV5cTdsbGtyMmd2NTBmZjllMjJtbmY3MHFnamx2NzM3a3RtdDRlc3dycTBrZGhjag==\",\"index\":true}," +
@@ -110,7 +111,7 @@ func TestParseEventForWrongContract(t *testing.T) {
 }
 
 func TestParseEventForWrongAction(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger := zap.NewNop()
 
 	eventJson := "{\"type\":\"wasm\",\"attributes\":[" +
 		"{\"key\":\"X2NvbnRyYWN0X2FkZHJlc3M=\",\"value\":\"d29ybWhvbGUxbmM1dGF0YWZ2NmV5cTdsbGtyMmd2NTBmZjllMjJtbmY3MHFnamx2NzM3a3RtdDRlc3dycTBrZGhjag==\",\"index\":true}," +
@@ -136,7 +137,7 @@ func TestParseEventForWrongAction(t *testing.T) {
 }
 
 func TestParseEventForNoContractSpecified(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger := zap.NewNop()
 
 	eventJson := "{\"type\":\"wasm\",\"attributes\":[" +
 		// Not specifying a contract address.
@@ -161,7 +162,7 @@ func TestParseEventForNoContractSpecified(t *testing.T) {
 }
 
 func TestParseEventForNoActionSpecified(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger := zap.NewNop()
 
 	eventJson := "{\"type\":\"wasm\",\"attributes\":[" +
 		"{\"key\":\"X2NvbnRyYWN0X2FkZHJlc3M=\",\"value\":\"d29ybWhvbGUxbmM1dGF0YWZ2NmV5cTdsbGtyMmd2NTBmZjllMjJtbmY3MHFnamx2NzM3a3RtdDRlc3dycTBrZGhjag==\",\"index\":true}," +
@@ -184,4 +185,17 @@ func TestParseEventForNoActionSpecified(t *testing.T) {
 	evt, err := parseWasmEvent[ibcReceivePublishEvent](logger, contractAddress, "receive_publish", event)
 	require.NoError(t, err)
 	assert.Nil(t, evt)
+}
+
+func TestParseChannelConfig(t *testing.T) {
+	var channels1 = []ChannelConfigEntry{ChannelConfigEntry{ChainID: vaa.ChainIDTerra2, ChannelID: "channel-0"}, ChannelConfigEntry{ChainID: vaa.ChainIDInjective, ChannelID: "channel-1"}}
+	_, err := json.Marshal(channels1)
+	require.NoError(t, err)
+
+	channelsJson := []byte(`[{"ChainID":18,"ChannelID":"channel-0"},{"ChainID":19,"ChannelID":"channel-1"}]`)
+
+	var channels2 []ChannelConfigEntry
+	err = json.Unmarshal(channelsJson, &channels2)
+	require.NoError(t, err)
+	assert.Equal(t, channels1, channels2)
 }

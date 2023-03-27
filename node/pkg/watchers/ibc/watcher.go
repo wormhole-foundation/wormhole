@@ -82,6 +82,12 @@ type (
 		logger          *zap.Logger
 	}
 
+	// ChannelConfigEntry defines the entry for an IBC channel in the node config file.
+	ChannelConfigEntry struct {
+		ChainID   vaa.ChainID
+		ChannelID string
+	}
+
 	// channelEntry defines the chain that is associated with an IBC channel.
 	channelEntry struct {
 		ibcChannelID string
@@ -106,7 +112,7 @@ type (
 	// ibcReceivePublishEvent is the event published by the IBC contract for a wormhole message.
 	ibcReceivePublishEvent struct {
 		ChannelID      string      `json:"channel_id"`
-		EmitterChain   vaa.ChainID `json:"message.chain_id"` //////////////////////// BOINK
+		EmitterChain   vaa.ChainID `json:"message.chain_id"`
 		EmitterAddress vaa.Address `json:"message.sender"`
 		Nonce          uint32      `json:"message.nonce"`
 		Sequence       uint64      `json:"message.sequence"`
@@ -388,7 +394,7 @@ func (w *Watcher) parseEvents(txHash string, events []gjson.Result) ([]*ibcRecei
 
 // parseWasmEvent parses a wasm event. If it is from the desired contract and for the desired action, it returns an event. Otherwise, it returns nil.
 func parseWasmEvent[T any](logger *zap.Logger, desiredContract string, desiredAction string, event gjson.Result) (*T, error) {
-	attrBytes, err := parseWasmAttributes(logger, desiredContract, "receive_publish", event)
+	attrBytes, err := parseWasmAttributes(logger, desiredContract, desiredAction, event)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse attributes: %w", err)
 	}
@@ -454,7 +460,7 @@ func parseWasmAttributes(logger *zap.Logger, desiredContract string, desiredActi
 		if key == "_contract_address" {
 			contractAddressSeen = true
 			if desiredContract != "" && string(value) != desiredContract {
-				logger.Debug("ignoring event from an unexpected contract", zap.String("contract", string(value)), zap.String("desiredContract", desiredContract))
+				logger.Debug("ibc: ignoring event from an unexpected contract", zap.String("contract", string(value)), zap.String("desiredContract", desiredContract))
 				return nil, nil
 			}
 		} else if key == "action" {
@@ -464,8 +470,8 @@ func parseWasmAttributes(logger *zap.Logger, desiredContract string, desiredActi
 				return nil, nil
 			}
 		} else {
-			if _, ok := attrs[string(key)]; ok {
-				logger.Debug("duplicate key in events", zap.String("key", key), zap.String("value", string(value)))
+			if _, ok := attrs[key]; ok {
+				logger.Debug("ibc: duplicate key in events", zap.String("key", key), zap.String("value", string(value)))
 				continue
 			}
 
@@ -475,12 +481,12 @@ func parseWasmAttributes(logger *zap.Logger, desiredContract string, desiredActi
 	}
 
 	if !contractAddressSeen && desiredContract != "" {
-		logger.Debug("contract address not specified, which does not match the desired value")
+		logger.Debug("ibc: contract address not specified, which does not match the desired value")
 		return nil, nil
 	}
 
 	if !actionSeen && desiredAction != "" {
-		logger.Debug("action not specified, which does not match the desired value")
+		logger.Debug("ibc: action not specified, which does not match the desired value")
 		return nil, nil
 	}
 
