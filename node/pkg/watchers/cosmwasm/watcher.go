@@ -43,7 +43,7 @@ type (
 		obsvReqC <-chan *gossipv1.ObservationRequest
 
 		// Readiness component
-		readiness readiness.Component
+		readinessSync readiness.Component
 		// VAA ChainID of the network we're connecting to.
 		chainID vaa.ChainID
 		// Key for contract address in the wasm logs
@@ -97,7 +97,6 @@ func NewWatcher(
 	contract string,
 	msgC chan<- *common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
-	readiness readiness.Component,
 	chainID vaa.ChainID) *Watcher {
 
 	// CosmWasm 1.0.0
@@ -123,7 +122,7 @@ func NewWatcher(
 		contract:                 contract,
 		msgC:                     msgC,
 		obsvReqC:                 obsvReqC,
-		readiness:                readiness,
+		readinessSync:            common.MustConvertChainIdToReadinessSyncing(chainID),
 		chainID:                  chainID,
 		contractAddressFilterKey: contractAddressFilterKey,
 		contractAddressLogKey:    contractAddressLogKey,
@@ -180,7 +179,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	}
 	logger.Info("subscribed to new transaction events", zap.String("network", networkName))
 
-	readiness.SetReady(e.readiness)
+	readiness.SetReady(e.readinessSync)
 
 	common.RunWithScissors(ctx, errC, "cosmwasm_block_height", func(ctx context.Context) error {
 		t := time.NewTicker(5 * time.Second)
@@ -220,6 +219,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 					Height:          latestBlock.Int(),
 					ContractAddress: e.contract,
 				})
+
+				readiness.SetReady(e.readinessSync)
 			}
 		}
 	})

@@ -42,8 +42,9 @@ type (
 
 		unsafeDevMode bool
 
-		msgChan  chan *common.MessagePublication
-		obsvReqC chan *gossipv1.ObservationRequest
+		msgChan       chan *common.MessagePublication
+		obsvReqC      chan *gossipv1.ObservationRequest
+		readinessSync readiness.Component
 
 		subId      int64
 		subscribed bool
@@ -136,6 +137,7 @@ func NewWatcher(
 		unsafeDevMode: unsafeDevMode,
 		msgChan:       messageEvents,
 		obsvReqC:      obsvReqC,
+		readinessSync: common.MustConvertChainIdToReadinessSyncing(vaa.ChainIDSui),
 		subId:         0,
 		subscribed:    false,
 	}
@@ -410,7 +412,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			})
 
 			if e.subscribed {
-				readiness.SetReady(common.ReadinessSuiSyncing)
+				readiness.SetReady(e.readinessSync)
 			}
 		}
 	}
