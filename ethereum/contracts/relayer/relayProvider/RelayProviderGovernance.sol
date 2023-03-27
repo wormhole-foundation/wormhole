@@ -30,7 +30,11 @@ abstract contract RelayProviderGovernance is RelayProviderGetters, RelayProvider
     event CoreRelayerUpdated(address coreRelayer);
     event AssetConversionBufferUpdated(uint16 targetChain, uint16 buffer, uint16 bufferDenominator);
 
-    function updateCoreRelayer(address payable newAddress) public onlyOwner {
+    function updateCoreRelayer(address payable newAddress) external onlyOwner {
+        updateCoreRelayerImpl(newAddress);
+    }
+
+    function updateCoreRelayerImpl(address payable newAddress) internal {
         setCoreRelayer(newAddress);
         emit CoreRelayerUpdated(newAddress);
     }
@@ -40,25 +44,95 @@ abstract contract RelayProviderGovernance is RelayProviderGetters, RelayProvider
         emit ChainSupportUpdated(targetChainId, isSupported);
     }
 
-    function updateRewardAddress(address payable newAddress) public onlyOwner {
+    function updateSupportedChains(RelayProviderStructs.SupportedChainUpdate[] memory updates) public onlyOwner {
+        uint256 updatesLength = updates.length;
+        for (uint256 i = 0; i < updatesLength;) {
+            RelayProviderStructs.SupportedChainUpdate memory update = updates[i];
+            updateSupportedChainImpl(update.chainId, update.isSupported);
+            unchecked {
+                i += 1;
+            }
+        }
+    }
+
+    function updateSupportedChainImpl(uint16 targetChainId, bool isSupported) internal {
+        setChainSupported(targetChainId, isSupported);
+        emit ChainSupportUpdated(targetChainId, isSupported);
+    }
+
+    function updateRewardAddress(address payable newAddress) external onlyOwner {
+        updateRewardAddressImpl(newAddress);
+    }
+
+    function updateRewardAddressImpl(address payable newAddress) internal {
         setRewardAddress(newAddress);
         emit RewardAddressUpdated(newAddress);
     }
 
     function updateTargetChainAddress(bytes32 newAddress, uint16 targetChain) public onlyOwner {
+        updateTargetChainAddressImpl(newAddress, targetChain);
+    }
+
+    function updateTargetChainAddresses(RelayProviderStructs.TargetChainUpdate[] memory updates) external onlyOwner {
+        uint256 updatesLength = updates.length;
+        for (uint256 i = 0; i < updatesLength;) {
+            RelayProviderStructs.TargetChainUpdate memory update = updates[i];
+            updateTargetChainAddressImpl(update.targetChainAddress, update.chainId);
+            unchecked {
+                i += 1;
+            }
+        }
+    }
+
+    function updateTargetChainAddressImpl(bytes32 newAddress, uint16 targetChain) internal {
         setTargetChainAddress(newAddress, targetChain);
         emit TargetChainAddressUpdated(newAddress, targetChain);
     }
 
-    function updateDeliverGasOverhead(uint16 chainId, uint32 newGasOverhead) public onlyOwner {
+    function updateDeliverGasOverhead(uint16 chainId, uint32 newGasOverhead) external onlyOwner {
+        updateDeliverGasOverheadImpl(chainId, newGasOverhead);
+    }
+
+    function updateDeliverGasOverheads(RelayProviderStructs.DeliverGasOverheadUpdate[] memory overheadUpdates)
+        external
+        onlyOwner
+    {
+        uint256 updatesLength = overheadUpdates.length;
+        for (uint256 i = 0; i < updatesLength;) {
+            RelayProviderStructs.DeliverGasOverheadUpdate memory update = overheadUpdates[i];
+            updateDeliverGasOverheadImpl(update.chainId, update.newGasOverhead);
+            unchecked {
+                i += 1;
+            }
+        }
+    }
+
+    function updateDeliverGasOverheadImpl(uint16 chainId, uint32 newGasOverhead) internal {
         uint32 currentGasOverhead = deliverGasOverhead(chainId);
         setDeliverGasOverhead(chainId, newGasOverhead);
         emit DeliverGasOverheadUpdated(currentGasOverhead, newGasOverhead);
     }
 
     function updatePrice(uint16 updateChainId, uint128 updateGasPrice, uint128 updateNativeCurrencyPrice)
-        public
+        external
         onlyOwner
+    {
+        updatePriceImpl(updateChainId, updateGasPrice, updateNativeCurrencyPrice);
+    }
+
+    function updatePrices(RelayProviderStructs.UpdatePrice[] memory updates) external onlyOwner {
+        uint256 pricesLength = updates.length;
+        for (uint256 i = 0; i < pricesLength;) {
+            RelayProviderStructs.UpdatePrice memory update = updates[i];
+            updatePriceImpl(update.chainId, update.gasPrice, update.nativeCurrencyPrice);
+            unchecked {
+                i += 1;
+            }
+        }
+    }
+
+    function updatePriceImpl(uint16 updateChainId, uint128 updateGasPrice, uint128 updateNativeCurrencyPrice)
+        internal
     {
         if (updateChainId == 0) {
             revert ChainIdIsZero();
@@ -73,26 +147,85 @@ abstract contract RelayProviderGovernance is RelayProviderGetters, RelayProvider
         setPriceInfo(updateChainId, updateGasPrice, updateNativeCurrencyPrice);
     }
 
-    function updatePrices(RelayProviderStructs.UpdatePrice[] memory updates) public onlyOwner {
-        uint256 pricesLen = updates.length;
-        for (uint256 i = 0; i < pricesLen;) {
-            updatePrice(updates[i].chainId, updates[i].gasPrice, updates[i].nativeCurrencyPrice);
+    function updateMaximumBudget(uint16 targetChainId, uint256 maximumTotalBudget) external onlyOwner {
+        updateMaximumBudgetImpl(targetChainId, maximumTotalBudget);
+    }
+
+    function updateMaximumBudgets(RelayProviderStructs.MaximumBudgetUpdate[] memory updates) external onlyOwner {
+        uint256 updatesLength = updates.length;
+        for (uint256 i = 0; i < updatesLength;) {
+            RelayProviderStructs.MaximumBudgetUpdate memory update = updates[i];
+            updateMaximumBudgetImpl(update.chainId, update.maximumTotalBudget);
             unchecked {
                 i += 1;
             }
         }
     }
 
-    function updateMaximumBudget(uint16 targetChainId, uint256 maximumTotalBudget) public onlyOwner {
+    function updateMaximumBudgetImpl(uint16 targetChainId, uint256 maximumTotalBudget) internal {
         setMaximumBudget(targetChainId, maximumTotalBudget);
     }
 
     function updateAssetConversionBuffer(uint16 targetChain, uint16 buffer, uint16 bufferDenominator)
-        public
+        external
         onlyOwner
     {
+        updateAssetConversionBufferImpl(targetChain, buffer, bufferDenominator);
+    }
+
+    function updateAssetConversionBuffers(RelayProviderStructs.AssetConversionBufferUpdate[] memory updates)
+        external
+        onlyOwner
+    {
+        uint256 updatesLength = updates.length;
+        for (uint256 i = 0; i < updatesLength;) {
+            RelayProviderStructs.AssetConversionBufferUpdate memory update = updates[i];
+            updateAssetConversionBufferImpl(update.chainId, update.buffer, update.bufferDenominator);
+            unchecked {
+                i += 1;
+            }
+        }
+    }
+
+    function updateAssetConversionBufferImpl(uint16 targetChain, uint16 buffer, uint16 bufferDenominator) internal {
         setAssetConversionBuffer(targetChain, buffer, bufferDenominator);
         emit AssetConversionBufferUpdated(targetChain, buffer, bufferDenominator);
+    }
+
+    function updateConfig(
+        RelayProviderStructs.Update[] memory updates,
+        RelayProviderStructs.CoreConfig memory coreConfig
+    ) external onlyOwner {
+        uint256 updatesLength = updates.length;
+        for (uint256 i = 0; i < updatesLength;) {
+            RelayProviderStructs.Update memory update = updates[i];
+            if (update.updatePrice) {
+                updatePriceImpl(update.chainId, update.gasPrice, update.nativeCurrencyPrice);
+            }
+            if (update.updateTargetChainAddress) {
+                updateTargetChainAddressImpl(update.targetChainAddress, update.chainId);
+            }
+            if (update.updateDeliverGasOverhead) {
+                updateDeliverGasOverheadImpl(update.chainId, update.newGasOverhead);
+            }
+            if (update.updateMaximumBudget) {
+                updateMaximumBudgetImpl(update.chainId, update.maximumTotalBudget);
+            }
+            if (update.updateAssetConversionBuffer) {
+                updateAssetConversionBufferImpl(update.chainId, update.buffer, update.bufferDenominator);
+            }
+            unchecked {
+                i += 1;
+            }
+        }
+
+        if (coreConfig.updateCoreRelayer) {
+            updateCoreRelayerImpl(coreConfig.coreRelayer);
+        }
+
+        if (coreConfig.updateRewardAddress) {
+            updateRewardAddressImpl(coreConfig.rewardAddress);
+        }
     }
 
     /// @dev upgrade serves to upgrade contract implementations
