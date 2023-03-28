@@ -72,7 +72,7 @@ module wormhole::transfer_fee {
         // be sent.
         let TransferFee { amount, recipient } = deserialize(governance_payload);
 
-        transfer::transfer(
+        transfer::public_transfer(
             state::withdraw_fee(wormhole_state, amount, ctx),
             recipient
         );

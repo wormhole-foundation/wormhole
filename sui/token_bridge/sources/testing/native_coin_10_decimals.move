@@ -21,8 +21,8 @@ module token_bridge::native_coin_10_decimals {
             option::none(),
             ctx
         );
-        transfer::share_object(coin_metadata);
-        transfer::share_object(treasury_cap);
+        transfer::public_share_object(coin_metadata);
+        transfer::public_share_object(treasury_cap);
     }
 
     #[test_only]
