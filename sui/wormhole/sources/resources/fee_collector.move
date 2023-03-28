@@ -103,7 +103,7 @@ module wormhole::fee_collector_tests {
         let withdrawn =
             fee_collector::withdraw(&mut collector, withdraw_amount, ctx);
         assert!(coin::value(&withdrawn) == withdraw_amount, 0);
-        coin::destroy_for_testing(withdrawn);
+        coin::burn_for_testing(withdrawn);
 
         let remaining = fee_collector::balance_value(&collector);
         assert!(remaining == total - withdraw_amount, 0);
@@ -111,7 +111,7 @@ module wormhole::fee_collector_tests {
         // Withdraw remaining.
         let withdrawn = fee_collector::withdraw(&mut collector, remaining, ctx);
         assert!(coin::value(&withdrawn) == remaining, 0);
-        coin::destroy_for_testing(withdrawn);
+        coin::burn_for_testing(withdrawn);
 
         // There shouldn't be anything left in `FeeCollector`.
         assert!(fee_collector::balance_value(&collector) == 0, 0);
@@ -154,7 +154,7 @@ module wormhole::fee_collector_tests {
             fee_collector::withdraw(&mut collector, bal + 1, ctx);
 
         // Shouldn't get here. But we need to clean up anyway.
-        coin::destroy_for_testing(withdrawn);
+        coin::burn_for_testing(withdrawn);
         fee_collector::destroy_zero(collector);
     }
 }

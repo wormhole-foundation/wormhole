@@ -20,8 +20,8 @@ module token_bridge::wrapped_coin_7_decimals {
             option::none(),
             ctx
         );
-        transfer::transfer(coin_metadata, sender(ctx));
-        transfer::transfer(treasury_cap, sender(ctx));
+        transfer::public_transfer(coin_metadata, sender(ctx));
+        transfer::public_transfer(treasury_cap, sender(ctx));
     }
 
     #[test_only]

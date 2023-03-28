@@ -7,7 +7,6 @@ module wormhole::bytes32 {
     use sui::bcs::{Self};
 
     use wormhole::bytes::{Self};
-    use wormhole::bytes20::{Self};
     use wormhole::cursor::{Self, Cursor};
 
     /// Invalid vector<u8> length to create `Bytes32`.
@@ -100,8 +99,7 @@ module wormhole::bytes32 {
     /// TODO: Remove bytes20 dependency because native Sui addresses will be
     /// 32 bytes instead of 20 bytes in Sui version 0.28.
     public fun to_address(value: Bytes32): address {
-        let Bytes32 { data } = value;
-        bytes20::to_address(bytes20::from_bytes(data))
+        sui::address::from_bytes(to_bytes(value))
     }
 
     /// Create `Bytes32` from `address`.
@@ -109,7 +107,7 @@ module wormhole::bytes32 {
     /// TODO: Remove bytes20 dependency because native Sui addresses will be
     /// 32 bytes instead of 20 bytes in Sui version 0.28.
     public fun from_address(addr: address): Bytes32 {
-        new(pad_left(&bytes20::data(&bytes20::from_address(addr)), false))
+        new(sui::address::to_bytes(addr))
     }
 
     /// Validate that any of the bytes in underlying data is non-zero.
