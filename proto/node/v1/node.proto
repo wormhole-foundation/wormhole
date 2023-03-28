@@ -86,13 +86,15 @@ message GovernanceMessage {
 
     BridgeRegisterChain bridge_register_chain = 12;
     BridgeUpgradeContract bridge_contract_upgrade = 13;
-    BridgeModifyBalance bridge_modify_balance = 17;
 
     // Wormchain
 
     WormchainStoreCode wormchain_store_code = 14;
     WormchainInstantiateContract wormchain_instantiate_contract = 15;
     WormchainMigrateContract wormchain_migrate_contract = 16;
+
+    // Global Accountant
+    AccountantModifyBalance accountant_modify_balance = 17;
 
     // Circle Integration
     CircleIntegrationUpdateWormholeFinality circle_integration_update_wormhole_finality = 18;
@@ -146,8 +148,8 @@ enum ModificationKind {
   MODIFICATION_KIND_SUBTRACT = 2;
 }
 
-message BridgeModifyBalance {
-  // Module identifier of the token or NFT bridge (typically "TokenBridge" or "NFTBridge")
+message AccountantModifyBalance {
+  // Module identifier of the accountant "GlobalAccountant"
   string module = 1;
   // ID of the chain to receive this modify.
   uint32 target_chain_id = 2;
@@ -219,16 +221,19 @@ message WormchainMigrateContract {
 
 message CircleIntegrationUpdateWormholeFinality {
   uint32 finality = 1;
+  uint32 target_chain_id = 2;
 }
 
 message CircleIntegrationRegisterEmitterAndDomain {
   uint32 foreign_emitter_chain_id = 1;
   string foreign_emitter_address = 2;
   uint32 circle_domain = 3;
+  uint32 target_chain_id = 4;
 }
 
 message CircleIntegrationUpgradeContractImplementation {
   string new_implementation_address = 1;
+  uint32 target_chain_id = 2;
 }
 
 message FindMissingMessagesRequest {

@@ -67,8 +67,9 @@ type (
 		nearRPC         string
 
 		// external channels
-		msgC     chan<- *common.MessagePublication   // validated (SECURITY: and only validated!) observations go into this channel
-		obsvReqC <-chan *gossipv1.ObservationRequest // observation requests are coming from this channel
+		msgC          chan<- *common.MessagePublication   // validated (SECURITY: and only validated!) observations go into this channel
+		obsvReqC      <-chan *gossipv1.ObservationRequest // observation requests are coming from this channel
+		readinessSync readiness.Component
 
 		// internal queues
 		transactionProcessingQueueCounter atomic.Int64
@@ -102,6 +103,7 @@ func NewWatcher(
 		nearRPC:                      nearRPC,
 		msgC:                         msgC,
 		obsvReqC:                     obsvReqC,
+		readinessSync:                common.MustConvertChainIdToReadinessSyncing(vaa.ChainIDNear),
 		transactionProcessingQueue:   make(chan *transactionProcessingJob),
 		chunkProcessingQueue:         make(chan nearapi.ChunkHeader, queueSize),
 		eventChanTxProcessedDuration: make(chan time.Duration, 10),
@@ -149,7 +151,7 @@ func (e *Watcher) runBlockPoll(ctx context.Context) error {
 				Height:          int64(highestFinalBlockHeightObserved),
 				ContractAddress: e.wormholeAccount,
 			})
-			readiness.SetReady(common.ReadinessNearSyncing)
+			readiness.SetReady(e.readinessSync)
 
 			timer.Reset(blockPollInterval)
 		}

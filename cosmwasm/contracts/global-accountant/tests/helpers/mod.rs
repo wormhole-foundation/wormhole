@@ -19,7 +19,8 @@ use global_accountant::{
 };
 use serde::Serialize;
 use wormhole::{
-    token::{Action, GovernancePacket, ModificationKind},
+    accountant::{self as accountant_module, ModificationKind},
+    token,
     vaa::{Body, Header, Signature},
     Address, Amount, Chain, Vaa,
 };
@@ -72,7 +73,7 @@ impl Contract {
         &mut self,
         modification: Modification,
         wh: &fake::WormholeKeeper,
-        tamperer: impl Fn(Vaa<GovernancePacket>) -> Binary,
+        tamperer: impl Fn(Vaa<accountant_module::GovernancePacket>) -> Binary,
     ) -> anyhow::Result<AppResponse> {
         let Modification {
             sequence,
@@ -96,9 +97,9 @@ impl Contract {
             emitter_address: wormhole::GOVERNANCE_EMITTER,
             sequence: self.sequence,
             consistency_level: 0,
-            payload: GovernancePacket {
-                chain: Chain::Any,
-                action: Action::ModifyBalance {
+            payload: accountant_module::GovernancePacket {
+                chain: Chain::Wormchain,
+                action: accountant_module::Action::ModifyBalance {
                     sequence,
                     chain_id,
                     token_chain,
@@ -366,9 +367,9 @@ pub fn register_emitters(wh: &fake::WormholeKeeper, contract: &mut Contract, cou
             emitter_address: wormhole::GOVERNANCE_EMITTER,
             sequence: i as u64,
             consistency_level: 0,
-            payload: GovernancePacket {
+            payload: token::GovernancePacket {
                 chain: Chain::Any,
-                action: Action::RegisterChain {
+                action: token::Action::RegisterChain {
                     chain: (i as u16).into(),
                     emitter_address: Address([i as u8; 32]),
                 },

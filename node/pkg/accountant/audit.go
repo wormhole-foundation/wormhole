@@ -34,7 +34,8 @@ import (
 
 const (
 	// auditInterval indicates how often the audit runs.
-	auditInterval = 5 * time.Minute
+	// Make this bigger than the reobservation window (11 minutes).
+	auditInterval = 15 * time.Minute
 
 	// maxSubmitPendingTime indicates how long a transfer can be in the submit pending state before the audit starts complaining about it.
 	maxSubmitPendingTime = 30 * time.Minute
@@ -262,9 +263,9 @@ func (acct *Accountant) handleMissingObservation(mo MissingObservation) {
 
 	select {
 	case acct.obsvReqWriteC <- msg:
-		acct.logger.Debug("acct: submitted local reobservation", zap.Stringer("moKey", mo))
+		acct.logger.Debug("acctaudit: submitted local reobservation", zap.Stringer("moKey", mo))
 	default:
-		acct.logger.Error("acct: unable to submit local reobservation because the channel is full, will try next interval", zap.Stringer("moKey", mo))
+		acct.logger.Error("acctaudit: unable to submit local reobservation because the channel is full, will try next interval", zap.Stringer("moKey", mo))
 	}
 }
 
