@@ -524,7 +524,17 @@ func (e *Watcher) logVersion(ctx context.Context, logger *zap.Logger) {
 		Result  versionResultResponse `json:"result"`
 	}
 
-	resp, err := http.NewRequest(http.MethodPost, e.urlWS, bytes.NewBuffer(queryJson))
+	req, err := http.NewRequest(http.MethodPost, e.urlWS, bytes.NewBuffer(queryJson))
+	if err != nil {
+		logger.Error("problem retrieving node version when building request",
+			zap.String("network", e.networkName),
+			zap.Error(err),
+		)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := e.client.Do(req)
 	if err != nil {
 		logger.Error("problem retrieving node version",
 			zap.String("network", e.networkName),
@@ -535,7 +545,7 @@ func (e *Watcher) logVersion(ctx context.Context, logger *zap.Logger) {
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		logger.Error("problem retrieving node version and reading response body",
+		logger.Error("problem retrieving node version when reading response body",
 			zap.String("network", e.networkName),
 			zap.Error(err),
 		)
