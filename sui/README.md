@@ -24,7 +24,7 @@ Make sure your Cargo version is at least 1.65.0 and then follow the steps below:
 Install the `Sui` CLI. This tool is used to compile the contracts and run the tests.
 
 ``` sh
-$ cargo install --locked --git https://github.com/MystenLabs/sui.git --rev 157ac72030d014f17d76cefe81f3915b4afab2c9 sui sui-faucet
+$ cargo install --locked --git https://github.com/MystenLabs/sui.git --rev 82c9c80c11488858f1d3930f47ec9f335a566683 sui sui-faucet
 ```
 
 Some useful Sui CLI commands are
@@ -47,7 +47,7 @@ As an optional, but recommended step, install the
 Language Server (LSP):
 
 ``` sh
-cargo install --git https://github.com/move-language/move.git move-analyzer --branch main --features "address20"
+cargo install --git https://github.com/move-language/move.git move-analyzer --branch main --features "address32"
 ```
 
 This installs the LSP backend which is then supported by most popular editors such as [emacs](https://github.com/emacs-lsp/lsp-mode), [vim](https://github.com/neoclide/coc.nvim), and even [vscode](https://marketplace.visualstudio.com/items?itemName=move.move-analyzer).

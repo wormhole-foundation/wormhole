@@ -70,23 +70,6 @@ module wormhole::bytes20 {
         new(bytes::take_bytes(cur, LEN))
     }
 
-    /// Destroy `Bytes20` to represent its underlying data as `address`.
-    ///
-    /// TODO: Remove this method because native Sui addresses will be 32 bytes
-    /// instead of 20 bytes in Sui version 0.28.
-    public fun to_address(value: Bytes20): address {
-        let Bytes20 { data } = value;
-        sui::address::from_bytes(data)
-    }
-
-    /// Create `Bytes20` from `address`.
-    ///
-    /// TODO: Remove this method because native Sui addresses will be 32 bytes
-    /// instead of 20 bytes in Sui version 0.28.
-    public fun from_address(addr: address): Bytes20 {
-        new(sui::address::to_bytes(addr))
-    }
-
     /// Validate that any of the bytes in underlying data is non-zero.
     public fun is_nonzero(self: &Bytes20): bool {
         let i = 0;
