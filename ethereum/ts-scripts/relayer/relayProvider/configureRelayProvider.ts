@@ -1,14 +1,18 @@
-import type { ChainId } from "@certusone/wormhole-sdk";
+import { ChainId, tryNativeToHexString } from "@certusone/wormhole-sdk";
 import type { BigNumberish } from "ethers";
 import {
   init,
   loadChains,
   ChainInfo,
   loadScriptConfig,
+  getCoreRelayerAddress,
   getRelayProvider,
+  getRelayProviderAddress,
   getOperatingChains,
 } from "../helpers/env";
 import { wait } from "../helpers/utils";
+
+import type { RelayProviderStructs } from "../../../ethers-contracts/RelayProvider";
 
 /**
  * Meant for `config.pricingInfo`
@@ -46,8 +50,9 @@ async function run() {
 
 async function configureChainsRelayProvider(chain: ChainInfo) {
   console.log("about to perform configurations for chain " + chain.chainId);
-
   const relayProvider = getRelayProvider(chain);
+  const coreRelayer = getCoreRelayerAddress(chain);
+
   const thisChainsConfigInfo = config.addresses.find(
     (x: any) => x.chainId == chain.chainId
   );
@@ -63,24 +68,17 @@ async function configureChainsRelayProvider(chain: ChainInfo) {
     );
   }
 
-  console.log("Set address info...");
-  await relayProvider.updateRewardAddress(thisChainsConfigInfo.rewardAddress);
+  const coreConfig: RelayProviderStructs.CoreConfigStruct = {
+    updateCoreRelayer: true,
+    updateRewardAddress: true,
+    coreRelayer,
+    rewardAddress: thisChainsConfigInfo.rewardAddress,
+  };
+  const updates: RelayProviderStructs.UpdateStruct[] = [];
 
-  console.log("Set gas and native prices...");
-
-  // Batch update prices
-  const pricingUpdates: UpdatePrice[] = (config.pricingInfo as PricingInfo[]).map((info) => {
-    return {
-      chainId: info.chainId,
-      gasPrice: info.updatePriceGas,
-      nativeCurrencyPrice: info.updatePriceNative,
-    };
-  });
-  await relayProvider.updatePrices(pricingUpdates).then(wait);
-
-  // Set the rest of the relay provider configuration
+  // Set the entire relay provider configuration
   for (const targetChain of chains) {
-    const targetChainPriceUpdate = config.pricingInfo.find(
+    const targetChainPriceUpdate = (config.pricingInfo as PricingInfo[]).find(
       (x: any) => x.chainId == targetChain.chainId
     );
     if (!targetChainPriceUpdate) {
@@ -88,23 +86,30 @@ async function configureChainsRelayProvider(chain: ChainInfo) {
         "Failed to find pricingInfo for chain " + targetChain.chainId
       );
     }
-    //delivery addresses are not done by this script, but rather the register chains script.
-    await relayProvider
-      .updateDeliverGasOverhead(
-        targetChain.chainId,
-        targetChainPriceUpdate.deliverGasOverhead
-      )
-      .then(wait);
-    await relayProvider
-      .updateMaximumBudget(
-        targetChain.chainId,
-        targetChainPriceUpdate.maximumBudget
-      )
-      .then(wait);
-    await relayProvider
-      .updateAssetConversionBuffer(targetChain.chainId, 5, 100)
-      .then(wait);
+    const targetChainProviderAddress = getRelayProviderAddress(targetChain);
+    const remoteRelayProvider =
+      "0x" + tryNativeToHexString(targetChainProviderAddress, "ethereum");
+    const chainConfigUpdate = {
+      chainId: targetChain.chainId,
+      updateAssetConversionBuffer: true,
+      updateDeliverGasOverhead: true,
+      updatePrice: true,
+      updateMaximumBudget: true,
+      updateTargetChainAddress: true,
+      updateSupportedChain: true,
+      isSupported: true,
+      buffer: 5,
+      bufferDenominator: 100,
+      newWormholeFee: 0,
+      newGasOverhead: targetChainPriceUpdate.deliverGasOverhead,
+      gasPrice: targetChainPriceUpdate.updatePriceGas,
+      nativeCurrencyPrice: targetChainPriceUpdate.updatePriceNative,
+      targetChainAddress: remoteRelayProvider,
+      maximumTotalBudget: targetChainPriceUpdate.maximumBudget,
+    };
+    updates.push(chainConfigUpdate);
   }
+  await relayProvider.updateConfig(updates, coreConfig).then(wait);
 
   console.log("done with registrations on " + chain.chainId);
 }
