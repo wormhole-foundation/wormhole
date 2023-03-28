@@ -252,7 +252,7 @@ abstract contract RelayProviderGovernance is RelayProviderGetters, RelayProvider
      * @dev submitOwnershipTransferRequest serves to begin the ownership transfer process of the contracts
      * - it saves an address for the new owner in the pending state
      */
-    function submitOwnershipTransferRequest(uint16 thisRelayerChainId, address newOwner) public onlyOwner {
+    function submitOwnershipTransferRequest(uint16 thisRelayerChainId, address newOwner) external onlyOwner {
         if (thisRelayerChainId != chainId()) {
             revert WrongChainId();
         }
@@ -268,7 +268,7 @@ abstract contract RelayProviderGovernance is RelayProviderGetters, RelayProvider
      * - it checks that the caller is the pendingOwner to validate the wallet address
      * - it updates the owner state variable with the pendingOwner state variable
      */
-    function confirmOwnershipTransferRequest() public {
+    function confirmOwnershipTransferRequest() external {
         // cache the new owner address
         address newOwner = pendingOwner();
 
