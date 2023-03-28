@@ -18,10 +18,8 @@
 module wormhole::required_version {
     use sui::dynamic_field::{Self as field};
     use sui::object::{Self, UID};
+    use sui::package::{Self, UpgradeCap};
     use sui::tx_context::{TxContext};
-
-    // NOTE: This exists to mock up sui::package for proposed upgrades.
-    use wormhole::dummy_sui_package::{Self as package, UpgradeCap};
 
     /// Build version passed does not meet method's minimum required version.
     const E_OUTDATED_VERSION: u64 = 0;
@@ -125,12 +123,10 @@ module wormhole::required_version {
 module wormhole::required_version_test {
     use sui::hash::{keccak256};
     use sui::object::{Self};
+    use sui::package::{Self};
     use sui::tx_context::{Self};
 
     use wormhole::required_version::{Self};
-
-    // NOTE: This exists to mock up sui::package for proposed upgrades.
-    use wormhole::dummy_sui_package::{Self as package};
 
     struct SomeMethod {}
     struct AnotherMethod {}

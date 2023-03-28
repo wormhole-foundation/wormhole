@@ -34,7 +34,7 @@ module token_bridge::vaa {
             parse_and_verify(token_bridge_state, worm_state, vaa_buf, ctx);
 
         // Consume the VAA hash to prevent replay.
-        state::consume_vaa_hash(token_bridge_state, vaa::hash(&verified));
+        state::consume_vaa_hash(token_bridge_state, vaa::digest(&verified));
 
         verified
     }

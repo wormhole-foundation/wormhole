@@ -9,14 +9,12 @@
 /// validate them with this test-only Wormhole instance.
 module wormhole::wormhole_scenario {
     use std::vector::{Self};
+    use sui::package::{UpgradeCap};
     use sui::test_scenario::{Self, Scenario};
 
     use wormhole::setup::{Self, DeployerCap};
     use wormhole::state::{Self, State};
     use wormhole::version_control::{Self as control};
-
-    // NOTE: This exists to mock up sui::package for proposed upgrades.
-    use wormhole::dummy_sui_package::{UpgradeCap};
 
     const DEPLOYER: address = @0xDEADBEEF;
     const WALLET_1: address = @0xB0B1;
