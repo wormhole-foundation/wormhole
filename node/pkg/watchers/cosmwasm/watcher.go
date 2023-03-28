@@ -1,6 +1,7 @@
 package cosmwasm
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/hex"
@@ -58,6 +59,9 @@ type (
 
 		// Human readable chain name
 		networkName string
+
+		// client is a *http.Client
+		client *http.Client
 	}
 )
 
@@ -102,7 +106,8 @@ func NewWatcher(
 	contract string,
 	msgC chan<- *common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
-	chainID vaa.ChainID) *Watcher {
+	chainID vaa.ChainID,
+	client *http.Client) *Watcher {
 
 	// CosmWasm 1.0.0
 	contractAddressFilterKey := "execute._contract_address"
@@ -124,6 +129,12 @@ func NewWatcher(
 	// Human readable network name
 	networkName := vaa.ChainID(chainID).String()
 
+	if client == nil {
+		client = &http.Client{
+			Timeout: time.Second * 5,
+		}
+	}
+
 	return &Watcher{
 		urlWS:                    urlWS,
 		urlLCD:                   urlLCD,
@@ -136,6 +147,7 @@ func NewWatcher(
 		contractAddressFilterKey: contractAddressFilterKey,
 		contractAddressLogKey:    contractAddressLogKey,
 		latestBlockURL:           latestBlockURL,
+		client:                   client,
 	}
 }
 
@@ -193,9 +205,6 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	common.RunWithScissors(ctx, errC, "cosmwasm_block_height", func(ctx context.Context) error {
 		t := time.NewTicker(5 * time.Second)
-		client := &http.Client{
-			Timeout: time.Second * 5,
-		}
 
 		for {
 			select {
@@ -204,7 +213,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			case <-t.C:
 				msm := time.Now()
 				// Query and report height and set currentSlotHeight
-				resp, err := client.Get(fmt.Sprintf("%s/%s", e.urlLCD, e.latestBlockURL))
+				resp, err := e.client.Get(fmt.Sprintf("%s/%s", e.urlLCD, e.latestBlockURL))
 				if err != nil {
 					logger.Error("query latest block response error", zap.String("network", e.networkName), zap.Error(err))
 					continue
@@ -249,12 +258,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				logger.Info("received observation request", zap.String("network", e.networkName), zap.String("tx_hash", tx))
 
-				client := &http.Client{
-					Timeout: time.Second * 5,
-				}
-
 				// Query for tx by hash
-				resp, err := client.Get(fmt.Sprintf("%s/cosmos/tx/v1beta1/txs/%s", e.urlLCD, tx))
+				resp, err := e.client.Get(fmt.Sprintf("%s/cosmos/tx/v1beta1/txs/%s", e.urlLCD, tx))
 				if err != nil {
 					logger.Error("query tx response error", zap.String("network", e.networkName), zap.Error(err))
 					continue
@@ -504,7 +509,7 @@ func (e *Watcher) logVersion(ctx context.Context, logger *zap.Logger) {
 	// From:
 	//    https://docs.cometbft.com/v0.34/rpc/#/ABCI/abci_info
 	//    https://docs.tendermint.com/v0.34/rpc/#/ABCI/abci_info
-	queryURL := "/abci_info"
+	queryJson := []byte(`{"jsonrpc":"2.0","method":"abci_info","id":1,"params":[]}`)
 
 	type versionResultResponse struct {
 		Data             string `json:"data"`
@@ -519,11 +524,7 @@ func (e *Watcher) logVersion(ctx context.Context, logger *zap.Logger) {
 		Result  versionResultResponse `json:"result"`
 	}
 
-	client := &http.Client{
-		Timeout: time.Second * 5,
-	}
-
-	resp, err := client.Get(fmt.Sprintf("%s%s", e.urlWS, queryURL))
+	resp, err := http.NewRequest(http.MethodPost, e.urlWS, bytes.NewBuffer(queryJson))
 	if err != nil {
 		logger.Error("problem retrieving node version",
 			zap.String("network", e.networkName),
