@@ -4,13 +4,11 @@
 /// initialize `State` as a shared object.
 module wormhole::setup {
     use sui::object::{Self, UID};
+    use sui::package::{UpgradeCap};
     use sui::transfer::{Self};
     use sui::tx_context::{Self, TxContext};
 
     use wormhole::state::{Self};
-
-    // NOTE: This exists to mock up sui::package for proposed upgrades.
-    use wormhole::dummy_sui_package::{Self as package, UpgradeCap};
 
     /// Capability created at `init`, which will be destroyed once
     /// `init_and_share_state` is called. This ensures only the deployer can
@@ -26,18 +24,18 @@ module wormhole::setup {
     fun init(ctx: &mut TxContext) {
         let deployer = DeployerCap { id: object::new(ctx) };
         transfer::transfer(deployer, tx_context::sender(ctx));
-
-        // TODO: remove this once we have a proper upgrade mechanism in Sui 
-        // 0.28.0
-        let upgrade_cap = package::mock_new_upgrade_cap(
-            object::id_from_address(@wormhole), ctx
-        );
-        transfer::transfer(upgrade_cap, tx_context::sender(ctx));
     }
 
     #[test_only]
     public fun init_test_only(ctx: &mut TxContext) {
         init(ctx);
+
+        // This will be created and sent to the transaction sender
+        // automatically when the contract is published.
+        transfer::public_transfer(
+            sui::package::test_publish(object::id_from_address(@wormhole), ctx),
+            tx_context::sender(ctx)
+        );
     }
 
     /// Only the owner of the `DeployerCap` can call this method. This
@@ -57,7 +55,7 @@ module wormhole::setup {
         object::delete(id);
 
         // Share new state.
-        transfer::share_object(
+        transfer::public_share_object(
             state::new(
                 upgrade_cap,
                 governance_chain,
@@ -75,6 +73,7 @@ module wormhole::setup {
 module wormhole::setup_tests {
     use std::option::{Self};
     use std::vector::{Self};
+    use sui::package::{Self};
     use sui::object::{Self};
     use sui::test_scenario::{Self};
 
@@ -85,9 +84,6 @@ module wormhole::setup_tests {
     use wormhole::setup::{Self, DeployerCap};
     use wormhole::state::{Self, State};
     use wormhole::wormhole_scenario::{person};
-
-    // NOTE: This exists to mock up sui::package for proposed upgrades.
-    use wormhole::dummy_sui_package::{Self as package};
 
     #[test]
     public fun test_init() {

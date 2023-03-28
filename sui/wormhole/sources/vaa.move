@@ -7,6 +7,7 @@
 module wormhole::vaa {
     use std::option::{Self};
     use std::vector::{Self};
+    use sui::hash::{keccak256};
     use sui::tx_context::{TxContext};
 
     use wormhole::bytes::{Self};
@@ -47,8 +48,8 @@ module wormhole::vaa {
         /// Arbitrary payload encoding data relevant to receiver.
         payload: vector<u8>,
 
-        /// Keccak256 hash of message body.
-        hash: Bytes32
+        /// Double Keccak256 hashes of message body.
+        digest: Bytes32
     }
 
     public fun guardian_set_index(self: &VAA): u32 {
@@ -71,12 +72,8 @@ module wormhole::vaa {
          self.payload
     }
 
-    public fun hash(self: &VAA): Bytes32 {
-         self.hash
-    }
-
-    public fun hash_as_bytes(self: &VAA): vector<u8> {
-        bytes32::to_bytes(self.hash)
+    public fun digest(self: &VAA): Bytes32 {
+         self.digest
     }
 
     public fun emitter_chain(self: &VAA): u16 {
@@ -101,17 +98,8 @@ module wormhole::vaa {
 
     /// Destroy the `VAA` and take the Wormhole message payload.
     public fun take_payload(vaa: VAA): vector<u8> {
-         let VAA {
-            guardian_set_index: _,
-            timestamp: _,
-            nonce: _,
-            emitter_chain: _,
-            emitter_address: _,
-            sequence: _,
-            consistency_level: _,
-            hash: _,
-            payload,
-         } = vaa;
+        let (_, _, payload) = take_emitter_info_and_payload(vaa);
+
         payload
     }
 
@@ -128,7 +116,7 @@ module wormhole::vaa {
             emitter_address,
             sequence: _,
             consistency_level: _,
-            hash: _,
+            digest: _,
             payload,
         } = vaa;
         (emitter_chain, emitter_address, payload)
@@ -181,7 +169,7 @@ module wormhole::vaa {
         verify_signatures(
             state::guardian_set_at(wormhole_state, vaa.guardian_set_index),
             signatures,
-            hash_as_bytes(&vaa),
+            bytes32::to_bytes(compute_message_hash(&vaa)),
             ctx
         );
 
@@ -223,9 +211,9 @@ module wormhole::vaa {
         };
 
         // Deserialize message body.
-        let body = cursor::take_rest(cur);
+        let body_buf = cursor::take_rest(cur);
 
-        let cur = cursor::new(body);
+        let cur = cursor::new(body_buf);
         let timestamp = bytes::take_u32_be(&mut cur);
         let nonce = bytes::take_u32_be(&mut cur);
         let emitter_chain = bytes::take_u16_be(&mut cur);
@@ -242,20 +230,24 @@ module wormhole::vaa {
             emitter_address,
             sequence,
             consistency_level,
-            hash: double_keccak256(&body),
+            digest: double_keccak256(body_buf),
             payload,
         };
 
         (signatures, parsed)
     }
 
-    /// TODO: change this to single `keccak256` due to `ecdsa_k1` changing how
-    /// it recovers public keys using signatures.
-    fun double_keccak256(buf: &vector<u8>): Bytes32 {
+    fun double_keccak256(buf: vector<u8>): Bytes32 {
         use sui::hash::{keccak256};
 
-        bytes32::new(keccak256(&keccak256(buf)))
+        bytes32::new(keccak256(&keccak256(&buf)))
     }
+
+    // fun keccak256(buf: vector<u8>): Bytes32 {
+    //     use sui::hash::{keccak256};
+
+    //     bytes32::new(keccak256(&buf))
+    // }
 
     /// Using the Guardian signatures deserialized from VAA, verify that all of
     /// the Guardian public keys are recovered using these signatures and the
@@ -334,8 +326,7 @@ module wormhole::vaa {
         take_payload(vaa);
     }
 
-    #[test_only]
-    public fun recompute_hash(parsed: &VAA): Bytes32 {
+    public fun compute_message_hash(parsed: &VAA): Bytes32 {
         let buf = vector::empty();
 
         bytes::push_u32_be(&mut buf, parsed.timestamp);
@@ -350,7 +341,7 @@ module wormhole::vaa {
         vector::append(&mut buf, parsed.payload);
 
         // Return hash.
-        double_keccak256(&buf)
+        bytes32::new(keccak256(&buf))
     }
 }
 
@@ -551,12 +542,33 @@ module wormhole::vaa_tests {
         // The message Wormhole guardians sign is a hash of the actual message
         // body. So the hash we need to check against is keccak256 of this
         // message.
-        let signing_message =
-            x"1d4758ef1983c885b7961f495a1d47b3d1fa6b932a024fff87d9f29f3d74732c";
-        let expected_hash =
-            bytes32::new(sui::hash::keccak256(&signing_message));
-        assert!(vaa::hash(&parsed) == expected_hash, 0);
-        assert!(vaa::recompute_hash(&parsed) == expected_hash, 0);
+        let body_buf = {
+            use wormhole::bytes::{Self};
+
+            let buf = vector::empty();
+            bytes::push_u32_be(&mut buf, vaa::timestamp(&parsed));
+            bytes::push_u32_be(&mut buf, vaa::nonce(&parsed));
+            bytes::push_u16_be(&mut buf, vaa::emitter_chain(&parsed));
+            vector::append(
+                &mut buf,
+                external_address::to_bytes(vaa::emitter_address(&parsed))
+            );
+            bytes::push_u64_be(&mut buf, vaa::sequence(&parsed));
+            bytes::push_u8(&mut buf, vaa::consistency_level(&parsed));
+            vector::append(&mut buf, vaa::payload(&parsed));
+
+            buf
+        };
+
+        let expected_message_hash =
+            bytes32::new(sui::hash::keccak256(&body_buf));
+        assert!(vaa::compute_message_hash(&parsed) == expected_message_hash, 0);
+
+        let expected_digest =
+            bytes32::new(
+                sui::hash::keccak256(&sui::hash::keccak256(&body_buf))
+            );
+        assert!(vaa::digest(&parsed) == expected_digest, 0);
 
         assert!(
             vaa::take_payload(parsed) == b"All your base are belong to us",

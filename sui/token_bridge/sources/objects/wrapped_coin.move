@@ -114,7 +114,7 @@ module token_bridge::wrapped_coin_test {
             assert!(vaa_bytes == x"112233", 0);
             assert!(decimals == 6, 0);
             assert!(coin::total_supply<WRAPPED_COIN_7_DECIMALS>(&tcap)==0, 0);
-            transfer::transfer(tcap, admin);
+            transfer::public_transfer(tcap, admin);
         };
         test_scenario::end(test);
     }

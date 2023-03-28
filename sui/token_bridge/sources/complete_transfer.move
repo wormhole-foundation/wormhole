@@ -137,14 +137,14 @@ module token_bridge::complete_transfer {
                     transfer::relayer_fee(parsed_transfer),
                     decimals
                 );
-            sui::transfer::transfer(
+            sui::transfer::public_transfer(
                 coin::split(&mut my_coins, fee, ctx),
                 relayer
             );
         };
 
         // Finally transfer tokens to the recipient.
-        sui::transfer::transfer(my_coins, recipient);
+        sui::transfer::public_transfer(my_coins, recipient);
     }
 }
 

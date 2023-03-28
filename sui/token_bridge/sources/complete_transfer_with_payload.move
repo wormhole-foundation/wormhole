@@ -279,9 +279,9 @@ module token_bridge::complete_transfer_with_payload_test {
             test_scenario::return_shared<WormholeState>(worm_state);
 
             // Trash remaining objects.
-            sui::transfer::transfer(token_coins, @0x0);
-            sui::transfer::transfer(emitter_cap_1, @0x0);
-            sui::transfer::transfer(emitter_cap_2, @0x0);
+            sui::transfer::public_transfer(token_coins, @0x0);
+            sui::transfer::public_transfer(emitter_cap_1, @0x0);
+            sui::transfer::public_transfer(emitter_cap_2, @0x0);
         };
         test_scenario::end(test);
     }
@@ -347,9 +347,9 @@ module token_bridge::complete_transfer_with_payload_test {
             test_scenario::return_shared<WormholeState>(worm_state);
 
             // Trash remaining objects.
-            sui::transfer::transfer(token_coins, @0x0);
-            sui::transfer::transfer(emitter_cap_1, @0x0);
-            sui::transfer::transfer(emitter_cap_2, @0x0);
+            sui::transfer::public_transfer(token_coins, @0x0);
+            sui::transfer::public_transfer(emitter_cap_1, @0x0);
+            sui::transfer::public_transfer(emitter_cap_2, @0x0);
         };
         test_scenario::end(test);
     }
@@ -394,8 +394,8 @@ module token_bridge::complete_transfer_with_payload_test {
             test_scenario::return_shared<WormholeState>(worm_state);
 
             // Trash remaining objects.
-            sui::transfer::transfer(token_coins, @0x0);
-            sui::transfer::transfer(emitter_cap, @0x0);
+            sui::transfer::public_transfer(token_coins, @0x0);
+            sui::transfer::public_transfer(emitter_cap, @0x0);
         };
         test_scenario::end(test);
     }

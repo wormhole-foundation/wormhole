@@ -11,6 +11,7 @@ module wormhole::state {
     use sui::coin::{Coin};
     use sui::dynamic_field::{Self as field};
     use sui::object::{Self, UID};
+    use sui::package::{Self, UpgradeCap, UpgradeReceipt, UpgradeTicket};
     use sui::sui::{SUI};
     use sui::table::{Self, Table};
     use sui::tx_context::{TxContext};
@@ -27,14 +28,6 @@ module wormhole::state {
     use wormhole::version_control::{
         Self as control,
         NewEmitter as NewEmitterControl
-    };
-
-    // NOTE: This exists to mock up sui::package for proposed upgrades.
-    use wormhole::dummy_sui_package::{
-        Self as package,
-        UpgradeCap,
-        UpgradeReceipt,
-        UpgradeTicket
     };
 
     friend wormhole::migrate;

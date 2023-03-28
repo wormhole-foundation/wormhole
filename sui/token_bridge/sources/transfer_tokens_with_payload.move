@@ -129,7 +129,7 @@ module token_bridge::transfer_tokens_with_payload_test {
             );
 
             // Clean up!
-            transfer::transfer(emitter_cap, admin);
+            transfer::public_transfer(emitter_cap, admin);
             return_shared<State>(bridge_state);
             return_shared<WormholeState>(worm_state);
             return_shared<CoinMetadata<NATIVE_COIN_4_DECIMALS>>(coin_meta);
@@ -218,7 +218,7 @@ module token_bridge::transfer_tokens_with_payload_test {
             );
 
             // Clean-up!
-            transfer::transfer(emitter_cap, admin);
+            transfer::public_transfer(emitter_cap, admin);
             return_shared<State>(bridge_state);
             return_shared<WormholeState>(worm_state);
             return_shared<CoinMetadata<WRAPPED_COIN_12_DECIMALS>>(coin_meta);

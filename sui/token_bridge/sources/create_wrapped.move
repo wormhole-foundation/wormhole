@@ -68,7 +68,7 @@ module token_bridge::create_wrapped {
                 ctx
             );
 
-        transfer::share_object(coin_metadata);
+        transfer::public_share_object(coin_metadata);
 
         wrapped_coin::new(
             vaa_buf,

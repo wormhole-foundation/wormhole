@@ -4,8 +4,8 @@ version = "0.0.1"
 
 [dependencies.Sui]
 git = "https://github.com/MystenLabs/sui.git"
-subdir = "crates/sui-framework"
-rev = "157ac72030d014f17d76cefe81f3915b4afab2c9"
+subdir = "crates/sui-framework/packages/sui-framework"
+rev = "82c9c80c11488858f1d3930f47ec9f335a566683"
 
 [addresses]
 wormhole = "_"
