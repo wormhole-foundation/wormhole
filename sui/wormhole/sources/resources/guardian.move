@@ -52,7 +52,7 @@ module wormhole::guardian {
     /// Same as 'ecrecover' in EVM.
     fun ecrecover(message: vector<u8>, sig: vector<u8>): vector<u8> {
         let pubkey =
-            ecdsa_k1::decompress_pubkey(&ecdsa_k1::ecrecover(&sig, &message));
+            ecdsa_k1::decompress_pubkey(&ecdsa_k1::secp256k1_ecrecover(&sig, &message, 0));
 
         // `decompress_pubkey` returns 65 bytes. The last 64 bytes are what we
         // need to compute the Guardian's public key.

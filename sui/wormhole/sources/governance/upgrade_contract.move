@@ -8,15 +8,13 @@
 /// 3.  Upgrade.
 /// 4.  Commit upgrade.
 module wormhole::upgrade_contract {
+    use sui::package::{UpgradeReceipt, UpgradeTicket};
     use sui::tx_context::{TxContext};
 
     use wormhole::bytes32::{Self, Bytes32};
     use wormhole::cursor::{Self};
     use wormhole::governance_message::{Self, GovernanceMessage};
     use wormhole::state::{Self, State};
-
-    // NOTE: This exists to mock up sui::package for proposed upgrades.
-    use wormhole::dummy_sui_package::{UpgradeReceipt, UpgradeTicket};
 
     /// Digest is all zeros.
     const E_DIGEST_ZERO_BYTES: u64 = 0;

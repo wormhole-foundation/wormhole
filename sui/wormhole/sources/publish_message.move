@@ -143,7 +143,7 @@ module wormhole::publish_message_tests {
 
             // Clean up.
             test_scenario::return_shared<State>(worm_state);
-            sui::transfer::transfer(emitter_cap, user);
+            sui::transfer::public_transfer(emitter_cap, user);
         };
 
         // Grab the `TransactionEffects` of the previous transaction.

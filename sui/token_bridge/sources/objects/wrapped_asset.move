@@ -39,7 +39,7 @@ module token_bridge::wrapped_asset {
             decimals: _
         } = wrapped_asset;
         let supply = coin::treasury_into_supply(tcap);
-        sui::balance::destroy_supply_for_testing(supply);
+        sui::test_utils::destroy(supply);
     }
 
     public fun token_chain<C>(self: &WrappedAsset<C>): u16 {

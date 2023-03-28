@@ -145,7 +145,7 @@ module token_bridge::native_asset_test {
                 500,
                 ctx(&mut test)
             );
-            transfer::transfer(coins, admin);
+            transfer::public_transfer(coins, admin);
 
             // check that updated balance is correct
             let bal2 = native_asset::balance<NATIVE_COIN_10_DECIMALS>(&native_asset);
@@ -157,7 +157,7 @@ module token_bridge::native_asset_test {
                 500,
                 ctx(&mut test)
             );
-            transfer::transfer(coins, admin);
+            transfer::public_transfer(coins, admin);
 
             native_asset::destroy<NATIVE_COIN_10_DECIMALS>(native_asset);
             return_shared(tcap);
