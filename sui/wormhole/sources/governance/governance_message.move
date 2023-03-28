@@ -94,7 +94,7 @@ module wormhole::governance_message {
         // This VAA must have originated from the governance emitter.
         assert_governance_emitter(wormhole_state, &parsed);
 
-        let vaa_hash = vaa::hash(&parsed);
+        let vaa_hash = vaa::digest(&parsed);
 
         let cur = cursor::new(vaa::take_payload(parsed));
 

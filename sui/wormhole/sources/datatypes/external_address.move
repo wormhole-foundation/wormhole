@@ -65,7 +65,7 @@ module wormhole::external_address {
 
     /// Destroy `ExternalAddress` to represent its underlying data as `address`.
     public fun to_address(ext: ExternalAddress): address {
-        bytes32::to_address(to_bytes32(ext))
+        sui::address::from_bytes(to_bytes(ext))
     }
 
     /// Create `ExternalAddress` from `address`.
@@ -86,7 +86,6 @@ module wormhole::external_address {
 
 #[test_only]
 module wormhole::external_address_tests {
-    use wormhole::bytes20::{Self};
     use wormhole::bytes32::{Self};
     use wormhole::external_address::{Self};
 
@@ -103,15 +102,6 @@ module wormhole::external_address_tests {
     public fun test_left_pad_vector_too_long() {
         let v = x"123456789123456789123456789123451234567891234567891234567891234500"; //33 bytes
         external_address::from_bytes(v);
-    }
-
-    #[test]
-    #[expected_failure(abort_code = bytes20::E_CANNOT_TRIM_NONZERO)]
-    public fun test_to_address_too_long() {
-        // non-0 bytes in first 12 bytes
-        let v = x"0000010000000000000000000000000000000000000000000000000000001234";
-        let res = external_address::from_bytes(v);
-        let _address = external_address::to_address(res);
     }
 
     #[test]
