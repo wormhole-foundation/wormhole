@@ -27,7 +27,7 @@ contract RelayProviderStorage {
         // Pending target of ownership transfer.
         address pendingOwner;
         // Address of the core relayer contract.
-        address payable coreRelayer;
+        address coreRelayer;
         // Dictionary of implementation contract -> initialized flag
         mapping(address => bool) initializedImplementations;
         // Supported chains to deliver to
