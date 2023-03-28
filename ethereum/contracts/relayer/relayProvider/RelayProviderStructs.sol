@@ -125,7 +125,7 @@ abstract contract RelayProviderStructs {
         /**
          * Address of the CoreRelayer contract
          */
-        address payable coreRelayer;
+        address coreRelayer;
         /**
          * Address where rewards are sent for successful relays and sends
          */
