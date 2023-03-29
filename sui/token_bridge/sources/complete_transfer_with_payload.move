@@ -1,6 +1,6 @@
 module token_bridge::complete_transfer_with_payload {
     use sui::balance::{Balance};
-    use sui::tx_context::{TxContext};
+    use sui::clock::{Clock};
     use wormhole::emitter::{Self, EmitterCap};
     use wormhole::state::{State as WormholeState};
 
@@ -16,7 +16,7 @@ module token_bridge::complete_transfer_with_payload {
         emitter_cap: &EmitterCap,
         worm_state: &WormholeState,
         vaa_buf: vector<u8>,
-        ctx: &mut TxContext
+        the_clock: &Clock
     ): (Balance<CoinType>, TransferWithPayload, u16) {
         use token_bridge::complete_transfer::{emit_transfer_redeemed};
 
@@ -27,7 +27,7 @@ module token_bridge::complete_transfer_with_payload {
                 token_bridge_state,
                 worm_state,
                 vaa_buf,
-                ctx
+                the_clock
             );
 
         // Emitting the transfer being redeemed.
@@ -88,6 +88,7 @@ module token_bridge::complete_transfer_with_payload_test {
     use wormhole::emitter::{Self};
     use wormhole::external_address::{Self};
     use wormhole::state::{chain_id};
+    use wormhole::wormhole_scenario::{return_clock, take_clock};
 
     use token_bridge::coin_wrapped_12::{Self, COIN_WRAPPED_12};
     use token_bridge::complete_transfer_with_payload::{Self};
@@ -188,6 +189,8 @@ module token_bridge::complete_transfer_with_payload_test {
         test_scenario::next_tx(scenario, user);
 
         let (token_bridge_state, worm_state) = take_states(scenario);
+        let the_clock = take_clock(scenario);
+
         assert!(
             token_registry::native_balance<COIN_NATIVE_10>(
                 state::borrow_token_registry(&token_bridge_state)
@@ -208,7 +211,7 @@ module token_bridge::complete_transfer_with_payload_test {
                     wormhole::vaa::parse_and_verify(
                         &worm_state,
                         VAA_NATIVE_DECIMALS_10,
-                        test_scenario::ctx(scenario)
+                        &the_clock
                     )
                 )
             );
@@ -228,7 +231,7 @@ module token_bridge::complete_transfer_with_payload_test {
                 &emitter_cap,
                 &mut worm_state,
                 VAA_NATIVE_DECIMALS_10,
-                test_scenario::ctx(scenario)
+                &the_clock
             );
         assert!(source_chain == expected_source_chain, 0);
 
@@ -271,6 +274,7 @@ module token_bridge::complete_transfer_with_payload_test {
 
         // Clean up.
         return_states(token_bridge_state, worm_state);
+        return_clock(the_clock);
         balance::destroy_for_testing(bridged);
         emitter::destroy_cap(emitter_cap);
 
@@ -313,6 +317,8 @@ module token_bridge::complete_transfer_with_payload_test {
         test_scenario::next_tx(scenario, user);
 
         let (token_bridge_state, worm_state) = take_states(scenario);
+        let the_clock = take_clock(scenario);
+
 
         // Set up dummy `EmitterCap` as the expected redeemer.
         let emitter_cap =
@@ -327,7 +333,7 @@ module token_bridge::complete_transfer_with_payload_test {
                     wormhole::vaa::parse_and_verify(
                         &worm_state,
                         VAA_ATTESTED_DECIMALS_12,
-                        test_scenario::ctx(scenario)
+                        &the_clock
                     )
                 )
             );
@@ -347,7 +353,7 @@ module token_bridge::complete_transfer_with_payload_test {
                 &emitter_cap,
                 &mut worm_state,
                 VAA_ATTESTED_DECIMALS_12,
-                test_scenario::ctx(scenario)
+                &the_clock
             );
         assert!(source_chain == expected_source_chain, 0);
 
@@ -385,6 +391,7 @@ module token_bridge::complete_transfer_with_payload_test {
 
         // Clean up.
         return_states(token_bridge_state, worm_state);
+        return_clock(the_clock);
         balance::destroy_for_testing(bridged);
         emitter::destroy_cap(emitter_cap);
 
@@ -422,6 +429,8 @@ module token_bridge::complete_transfer_with_payload_test {
         test_scenario::next_tx(scenario, user);
 
         let (token_bridge_state, worm_state) = take_states(scenario);
+        let the_clock = take_clock(scenario);
+
 
         // Set up dummy `EmitterCap`. Verify that this emitter is not the
         // expected redeemer.
@@ -435,7 +444,7 @@ module token_bridge::complete_transfer_with_payload_test {
                     wormhole::vaa::parse_and_verify(
                         &worm_state,
                         VAA_ATTESTED_DECIMALS_12,
-                        test_scenario::ctx(scenario)
+                        &the_clock
                     )
                 )
             );
@@ -455,11 +464,12 @@ module token_bridge::complete_transfer_with_payload_test {
                 &emitter_cap,
                 &mut worm_state,
                 VAA_ATTESTED_DECIMALS_12,
-                test_scenario::ctx(scenario)
+                &the_clock
             );
 
         // Clean up.
         return_states(token_bridge_state, worm_state);
+        return_clock(the_clock);
         balance::destroy_for_testing(bridged);
         emitter::destroy_cap(emitter_cap);
 
@@ -501,6 +511,8 @@ module token_bridge::complete_transfer_with_payload_test {
         test_scenario::next_tx(scenario, user);
 
         let (token_bridge_state, worm_state) = take_states(scenario);
+        let the_clock = take_clock(scenario);
+
         let registry = state::borrow_token_registry(&token_bridge_state);
 
         // Set up dummy `EmitterCap` as the expected redeemer.
@@ -516,7 +528,7 @@ module token_bridge::complete_transfer_with_payload_test {
                     wormhole::vaa::parse_and_verify(
                         &worm_state,
                         VAA_ATTESTED_DECIMALS_12,
-                        test_scenario::ctx(scenario)
+                        &the_clock
                     )
                 )
             );
@@ -551,11 +563,12 @@ module token_bridge::complete_transfer_with_payload_test {
                 &emitter_cap,
                 &mut worm_state,
                 VAA_ATTESTED_DECIMALS_12,
-                test_scenario::ctx(scenario)
+                &the_clock
             );
 
         // Clean up.
         return_states(token_bridge_state, worm_state);
+        return_clock(the_clock);
         balance::destroy_for_testing(bridged);
         emitter::destroy_cap(emitter_cap);
 

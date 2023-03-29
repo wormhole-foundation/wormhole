@@ -1,5 +1,5 @@
 module token_bridge::register_chain {
-    use sui::tx_context::TxContext;
+    use sui::clock::{Clock};
     use wormhole::bytes::{Self};
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self, ExternalAddress};
@@ -21,15 +21,15 @@ module token_bridge::register_chain {
 
     public fun register_chain(
         token_bridge_state: &mut State,
-        worm_chain: &mut WormholeState,
+        worm_chain: &WormholeState,
         vaa_buf: vector<u8>,
-        ctx: &TxContext
+        the_clock: &Clock
     ) {
         let msg =
             governance_message::parse_and_verify_vaa(
                 worm_chain,
                 vaa_buf,
-                ctx
+                the_clock
             );
 
         // Protect against replaying the VAA.

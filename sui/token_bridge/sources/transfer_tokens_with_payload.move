@@ -1,5 +1,6 @@
 module token_bridge::transfer_tokens_with_payload {
     use sui::balance::{Balance};
+    use sui::clock::{Clock};
     use sui::sui::{SUI};
     use wormhole::emitter::{EmitterCap};
     use wormhole::external_address::{ExternalAddress};
@@ -18,6 +19,7 @@ module token_bridge::transfer_tokens_with_payload {
         redeemer: ExternalAddress,
         payload: vector<u8>,
         nonce: u32,
+        the_clock: &Clock
     ): u64 {
         let encoded_transfer_with_payload =
             bridge_in_and_serialize_transfer(
@@ -34,7 +36,8 @@ module token_bridge::transfer_tokens_with_payload {
             worm_state,
             nonce,
             encoded_transfer_with_payload,
-            wormhole_fee
+            wormhole_fee,
+            the_clock
         )
     }
 

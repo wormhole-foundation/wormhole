@@ -17,6 +17,8 @@ module wormhole::bytes32 {
     const E_INVALID_U64_BE: u64 = 1;
     /// Found non-zero bytes when attempting to trim `vector<u8>`.
     const E_CANNOT_TRIM_NONZERO: u64 = 2;
+    /// Value of deserialized 32-byte array data overflows u64 max.
+    const E_U64_OVERFLOW: u64 = 4;
 
     /// 32.
     const LEN: u64 = 32;
@@ -61,14 +63,26 @@ module wormhole::bytes32 {
         new(buf)
     }
 
-    /// Deserialize from big-endian `u256` as long as the data does not
-    /// overflow.
+    /// Deserialize from big-endian `u256`.
     public fun to_u256_be(value: Bytes32): u256 {
         let cur = cursor::new(to_bytes(value));
         let out = bytes::take_u256_be(&mut cur);
         cursor::destroy_empty(cur);
 
         out
+    }
+
+    /// Serialize `u64` as big-endian format in zero-padded `Bytes32`.
+    public fun from_u64_be(value: u64): Bytes32 {
+        from_u256_be((value as u256))
+    }
+
+    /// Deserialize from big-endian `u64` as long as the data does not
+    /// overflow.
+    public fun to_u64_be(value: Bytes32): u64 {
+        let num = to_u256_be(value);
+        assert!(num < (1u256 << 64), E_U64_OVERFLOW);
+        (num as u64)
     }
 
     /// Either trim or pad (depending on length of the input `vector<u8>`) to 32
@@ -110,7 +124,7 @@ module wormhole::bytes32 {
         new(sui::address::to_bytes(addr))
     }
 
-    public fun from_string(str: String): Bytes32 {
+    public fun from_utf8(str: String): Bytes32 {
         let data = *string::bytes(&str);
         let len = vector::length(&data);
         if (len > LEN) {
@@ -136,7 +150,7 @@ module wormhole::bytes32 {
     /// bytes, because the original string might have a multi-byte utf8
     /// character at the 32 byte boundary, which, when split, results in an
     /// invalid code point, so we remove it.
-    public fun to_string(value: Bytes32): String {
+    public fun to_utf8(value: Bytes32): String {
         let data = to_bytes(value);
 
         let utf8 = string::try_utf8(data);

@@ -89,11 +89,11 @@ module token_bridge::asset_meta {
         bytes::push_u8(&mut buf, native_decimals);
         vector::append(
             &mut buf,
-            bytes32::to_bytes(bytes32::from_string(symbol))
+            bytes32::to_bytes(bytes32::from_utf8(symbol))
         );
         vector::append(
             &mut buf,
-            bytes32::to_bytes(bytes32::from_string(name))
+            bytes32::to_bytes(bytes32::from_utf8(name))
         );
 
         buf
@@ -105,8 +105,8 @@ module token_bridge::asset_meta {
         let token_address = external_address::take_bytes(&mut cur);
         let token_chain = bytes::take_u16_be(&mut cur);
         let native_decimals = bytes::take_u8(&mut cur);
-        let symbol = bytes32::to_string(bytes32::take_bytes(&mut cur));
-        let name = bytes32::to_string(bytes32::take_bytes(&mut cur));
+        let symbol = bytes32::to_utf8(bytes32::take_bytes(&mut cur));
+        let name = bytes32::to_utf8(bytes32::take_bytes(&mut cur));
         cursor::destroy_empty(cur);
 
         new(

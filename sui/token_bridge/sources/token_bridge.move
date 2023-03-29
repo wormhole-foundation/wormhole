@@ -4,6 +4,7 @@
 /// in the Token Bridge contract.
 module token_bridge::token_bridge {
     use sui::balance::{Self};
+    use sui::clock::{Clock};
     use sui::coin::{Self, Coin};
     use sui::sui::{SUI};
     use sui::transfer::{Self};
@@ -23,6 +24,7 @@ module token_bridge::token_bridge {
         recipient: vector<u8>,
         relayer_fee: u64,
         nonce: u32,
+        the_clock: &Clock
     ) {
         use token_bridge::transfer_tokens::{transfer_tokens};
 
@@ -34,7 +36,8 @@ module token_bridge::token_bridge {
             recipient_chain,
             external_address::from_bytes(recipient),
             relayer_fee,
-            nonce
+            nonce,
+            the_clock
         );
     }
 
@@ -48,6 +51,7 @@ module token_bridge::token_bridge {
         redeemer: vector<u8>,
         payload: vector<u8>,
         nonce: u32,
+        the_clock: &Clock
     ) {
         use token_bridge::transfer_tokens_with_payload::{
             transfer_tokens_with_payload
@@ -62,7 +66,8 @@ module token_bridge::token_bridge {
             redeemer_chain,
             external_address::from_bytes(redeemer),
             payload,
-            nonce
+            nonce,
+            the_clock
         );
     }
 
@@ -70,6 +75,7 @@ module token_bridge::token_bridge {
         token_bridge_state: &mut State,
         worm_state: &WormholeState,
         vaa_buf: vector<u8>,
+        the_clock: &Clock,
         ctx: &mut TxContext
     ) {
         use token_bridge::complete_transfer::{complete_transfer};
@@ -81,6 +87,7 @@ module token_bridge::token_bridge {
             token_bridge_state,
             worm_state,
             vaa_buf,
+            the_clock,
             ctx
         );
 

@@ -7,8 +7,8 @@
 module wormhole::vaa {
     use std::option::{Self};
     use std::vector::{Self};
+    use sui::clock::{Clock};
     use sui::hash::{keccak256};
-    use sui::tx_context::{TxContext};
 
     use wormhole::bytes::{Self};
     use wormhole::bytes32::{Self, Bytes32};
@@ -161,7 +161,7 @@ module wormhole::vaa {
     public fun parse_and_verify(
         wormhole_state: &State,
         buf: vector<u8>,
-        ctx: &TxContext
+        the_clock: &Clock
     ): VAA {
         state::check_minimum_requirement<ParseAndVerifyControl>(wormhole_state);
 
@@ -174,7 +174,7 @@ module wormhole::vaa {
             state::guardian_set_at(wormhole_state, vaa.guardian_set_index),
             signatures,
             bytes32::to_bytes(compute_message_hash(&vaa)),
-            ctx
+            the_clock
         );
 
         // Done.
@@ -269,10 +269,13 @@ module wormhole::vaa {
         set: &GuardianSet,
         signatures: vector<GuardianSignature>,
         message_hash: vector<u8>,
-        ctx: &TxContext
+        the_clock: &Clock
     ) {
         // Guardian set must be active (not expired).
-        assert!(guardian_set::is_active(set, ctx), E_GUARDIAN_SET_EXPIRED);
+        assert!(
+            guardian_set::is_active(set, the_clock),
+            E_GUARDIAN_SET_EXPIRED
+        );
 
         // Number of signatures must be at least quorum.
         assert!(
@@ -358,12 +361,15 @@ module wormhole::vaa_tests {
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self};
     use wormhole::guardian_signature::{Self};
-    use wormhole::state::{State};
     use wormhole::vaa::{Self};
     use wormhole::wormhole_scenario::{
         guardians,
         person,
+        return_clock,
+        return_state,
         set_up_wormhole_with_guardians,
+        take_clock,
+        take_state
         //upgrade_wormhole
     };
 
@@ -591,20 +597,16 @@ module wormhole::vaa_tests {
         let scenario = &mut my_scenario;
 
         // Initialize Wormhole with 19 guardians.
-        let wormhole_fee = 0;
+        let wormhole_fee = 350;
         set_up_wormhole_with_guardians(scenario, wormhole_fee, guardians());
 
         // Prepare test to execute `parse_and_verify`.
         test_scenario::next_tx(scenario, caller);
 
-        let worm_state = test_scenario::take_shared<State>(scenario);
+        let worm_state = take_state(scenario);
+        let the_clock = take_clock(scenario);
 
-        let parsed =
-            parse_and_verify(
-                &mut worm_state,
-                VAA_1,
-                test_scenario::ctx(scenario)
-            );
+        let parsed = parse_and_verify(&worm_state, VAA_1, &the_clock);
 
         // We verified all parsed output in `test_parse`. But in destroying the
         // parsed VAA, we will check the payload for the heck of it.
@@ -614,7 +616,8 @@ module wormhole::vaa_tests {
         );
 
         // Clean up.
-        test_scenario::return_shared(worm_state);
+        return_state(worm_state);
+        return_clock(the_clock);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -632,24 +635,22 @@ module wormhole::vaa_tests {
         let scenario = &mut my_scenario;
 
         // Initialize Wormhole with 19 guardians.
-        let wormhole_fee = 0;
+        let wormhole_fee = 350;
         set_up_wormhole_with_guardians(scenario, wormhole_fee, guardians());
 
         // Prepare test to execute `parse_and_verify`.
         test_scenario::next_tx(scenario, caller);
 
-        let worm_state = test_scenario::take_shared<State>(scenario);
+        let worm_state = take_state(scenario);
+        let the_clock = take_clock(scenario);
 
         // You shall not pass!
-        let parsed = parse_and_verify(
-            &mut worm_state,
-            VAA_NO_QUORUM,
-            test_scenario::ctx(scenario)
-        );
+        let parsed = parse_and_verify(&worm_state, VAA_NO_QUORUM, &the_clock);
 
-        // Clean up even though we should have failed by this point.
+        // Clean up.
         vaa::destroy(parsed);
-        test_scenario::return_shared(worm_state);
+        return_state(worm_state);
+        return_clock(the_clock);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -667,24 +668,23 @@ module wormhole::vaa_tests {
         let scenario = &mut my_scenario;
 
         // Initialize Wormhole with 19 guardians.
-        let wormhole_fee = 0;
+        let wormhole_fee = 350;
         set_up_wormhole_with_guardians(scenario, wormhole_fee, guardians());
 
         // Prepare test to execute `parse_and_verify`.
         test_scenario::next_tx(scenario, caller);
 
-        let worm_state = test_scenario::take_shared<State>(scenario);
+        let worm_state = take_state(scenario);
+        let the_clock = take_clock(scenario);
 
         // You shall not pass!
-        let parsed = parse_and_verify(
-            &mut worm_state,
-            VAA_DOUBLE_SIGNED,
-            test_scenario::ctx(scenario)
-        );
+        let parsed =
+            parse_and_verify(&worm_state, VAA_DOUBLE_SIGNED, &the_clock);
 
-        // Clean up even though we should have failed by this point.
+        // Clean up.
         vaa::destroy(parsed);
-        test_scenario::return_shared(worm_state);
+        return_state(worm_state);
+        return_clock(the_clock);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -705,7 +705,8 @@ module wormhole::vaa_tests {
         // signatures will not match.
         let initial_guardians = guardians();
         std::vector::reverse(&mut initial_guardians);
-        let wormhole_fee = 0;
+
+        let wormhole_fee = 350;
         set_up_wormhole_with_guardians(
             scenario,
             wormhole_fee,
@@ -715,18 +716,16 @@ module wormhole::vaa_tests {
         // Prepare test to execute `parse_and_verify`.
         test_scenario::next_tx(scenario, caller);
 
-        let worm_state = test_scenario::take_shared<State>(scenario);
+        let worm_state = take_state(scenario);
+        let the_clock = take_clock(scenario);
 
         // You shall not pass!
-        let parsed = parse_and_verify(
-            &mut worm_state,
-            VAA_1,
-            test_scenario::ctx(scenario)
-        );
+        let parsed = parse_and_verify(&worm_state, VAA_1, &the_clock);
 
-        // Clean up even though we should have failed by this point.
+        // Clean up.
         vaa::destroy(parsed);
-        test_scenario::return_shared(worm_state);
+        return_state(worm_state);
+        return_clock(the_clock);
 
         // Done.
         test_scenario::end(my_scenario);

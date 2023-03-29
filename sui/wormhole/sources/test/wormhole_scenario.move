@@ -9,6 +9,7 @@
 /// validate them with this test-only Wormhole instance.
 module wormhole::wormhole_scenario {
     use std::vector::{Self};
+    use sui::clock::{Self, Clock};
     use sui::package::{UpgradeCap};
     use sui::test_scenario::{Self, Scenario};
 
@@ -24,11 +25,15 @@ module wormhole::wormhole_scenario {
 
     /// Set up Wormhole with any guardian pubkeys. For most testing purposes,
     /// please use `set_up_wormhole` which only uses one guardian.
+    ///
+    /// NOTE: This also creates `Clock` for testing.
     public fun set_up_wormhole_with_guardians(
         scenario: &mut Scenario,
         message_fee: u64,
         initial_guardians: vector<vector<u8>>,
     ) {
+        clock::create_for_testing(test_scenario::ctx(scenario));
+
         // Process effects prior. `init_test_only` will be executed as the
         // Wormhole contract deployer.
         test_scenario::next_tx(scenario, DEPLOYER);
@@ -55,7 +60,7 @@ module wormhole::wormhole_scenario {
             let governance_chain = 1;
             let governance_contract =
                 x"0000000000000000000000000000000000000000000000000000000000000004";
-            let guardian_set_epochs_to_live = 2;
+            let guardian_set_seconds_to_live = 420;
 
             // Share `State`.
             setup::complete(
@@ -66,7 +71,7 @@ module wormhole::wormhole_scenario {
                 governance_chain,
                 governance_contract,
                 initial_guardians,
-                guardian_set_epochs_to_live,
+                guardian_set_seconds_to_live,
                 message_fee,
                 test_scenario::ctx(scenario)
             );
@@ -162,16 +167,19 @@ module wormhole::wormhole_scenario {
         scenario: &mut Scenario,
         vaa_buf: vector<u8>
     ): VAA {
+        let the_clock = take_clock(scenario);
         let worm_state = take_state(scenario);
 
         let out =
             vaa::parse_and_verify(
                 &worm_state,
                 vaa_buf,
-                test_scenario::ctx(scenario)
+                &the_clock
             );
 
+        // Clean up.
         return_state(worm_state);
+        return_clock(the_clock);
 
         out
     }
@@ -181,5 +189,13 @@ module wormhole::wormhole_scenario {
         vaa_buf: vector<u8>
     ): vector<u8> {
         vaa::take_payload(parse_and_verify_vaa(scenario, vaa_buf))
+    }
+
+    public fun take_clock(scenario: &Scenario): Clock {
+        test_scenario::take_shared(scenario)
+    }
+
+    public fun return_clock(the_clock: Clock) {
+        test_scenario::return_shared(the_clock)
     }
 }

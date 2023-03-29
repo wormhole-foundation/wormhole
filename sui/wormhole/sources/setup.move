@@ -46,7 +46,7 @@ module wormhole::setup {
         governance_chain: u16,
         governance_contract: vector<u8>,
         initial_guardians: vector<vector<u8>>,
-        guardian_set_epochs_to_live: u32,
+        guardian_set_seconds_to_live: u32,
         message_fee: u64,
         ctx: &mut TxContext
     ) {
@@ -61,7 +61,7 @@ module wormhole::setup {
                 governance_chain,
                 governance_contract,
                 initial_guardians,
-                guardian_set_epochs_to_live,
+                guardian_set_seconds_to_live,
                 message_fee,
                 ctx
             )
@@ -136,7 +136,7 @@ module wormhole::setup_tests {
                 x"c0dec0dec0dec0dec0dec0dec0dec0dec0dec0de",
                 x"ba5edba5edba5edba5edba5edba5edba5edba5ed"
             ];
-        let guardian_set_epochs_to_live = 5678;
+        let guardian_set_seconds_to_live = 5678;
         let message_fee = 350;
 
         // Take the `DeployerCap` and move it to `init_and_share_state`.
@@ -162,7 +162,7 @@ module wormhole::setup_tests {
             governance_chain,
             governance_contract,
             initial_guardians,
-            guardian_set_epochs_to_live,
+            guardian_set_seconds_to_live,
             message_fee,
             test_scenario::ctx(scenario)
         );
@@ -195,7 +195,7 @@ module wormhole::setup_tests {
 
         assert!(state::guardian_set_index(&worm_state) == 0, 0);
         assert!(
-            state::guardian_set_epochs_to_live(&worm_state) == guardian_set_epochs_to_live,
+            state::guardian_set_seconds_to_live(&worm_state) == guardian_set_seconds_to_live,
             0
         );
 

@@ -1,5 +1,6 @@
 module token_bridge::state {
     use sui::balance::{Balance};
+    use sui::clock::{Clock};
     use sui::object::{Self, ID, UID};
     use sui::package::{UpgradeCap};
     use sui::sui::{SUI};
@@ -80,6 +81,7 @@ module token_bridge::state {
         nonce: u32,
         payload: vector<u8>,
         message_fee: Balance<SUI>,
+        the_clock: &Clock
     ): u64 {
         use wormhole::publish_message::{publish_message};
 
@@ -89,6 +91,7 @@ module token_bridge::state {
             nonce,
             payload,
             message_fee,
+            the_clock
         )
     }
 

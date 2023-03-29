@@ -1,5 +1,6 @@
 module token_bridge::complete_transfer {
     use sui::balance::{Self, Balance};
+    use sui::clock::{Clock};
     use sui::coin::{Self};
     use sui::event::{Self};
     use sui::tx_context::{Self, TxContext};
@@ -36,6 +37,7 @@ module token_bridge::complete_transfer {
         token_bridge_state: &mut State,
         worm_state: &WormholeState,
         vaa_buf: vector<u8>,
+        the_clock: &Clock,
         ctx: &mut TxContext
     ): Balance<CoinType> {
         // Parse and verify Token Bridge transfer message. This method
@@ -45,7 +47,7 @@ module token_bridge::complete_transfer {
                 token_bridge_state,
                 worm_state,
                 vaa_buf,
-                ctx
+                the_clock
             );
 
         // Emitting the transfer being redeemed (and disregard return value).
@@ -181,6 +183,7 @@ module token_bridge::complete_transfer_tests {
     use sui::coin::{Self, Coin};
     use sui::test_scenario::{Self};
     use wormhole::state::{chain_id};
+    use wormhole::wormhole_scenario::{return_clock, take_clock};
 
     use token_bridge::coin_wrapped_12::{Self, COIN_WRAPPED_12};
     use token_bridge::coin_wrapped_7::{Self, COIN_WRAPPED_7};
@@ -229,6 +232,7 @@ module token_bridge::complete_transfer_tests {
         test_scenario::next_tx(scenario, tx_relayer);
 
         let (token_bridge_state, worm_state) = take_states(scenario);
+        let the_clock = take_clock(scenario);
 
         // These will be checked later.
         let expected_relayer_fee = 100000;
@@ -251,7 +255,7 @@ module token_bridge::complete_transfer_tests {
                         wormhole::vaa::parse_and_verify(
                             &worm_state,
                             transfer_vaa,
-                            test_scenario::ctx(scenario)
+                            &the_clock
                         )
                     )
                 );
@@ -282,12 +286,14 @@ module token_bridge::complete_transfer_tests {
             transfer::destroy(parsed);
         };
 
-        let payout = complete_transfer::complete_transfer<COIN_NATIVE_10>(
-            &mut token_bridge_state,
-            &mut worm_state,
-            transfer_vaa,
-            test_scenario::ctx(scenario)
-        );
+        let payout =
+            complete_transfer::complete_transfer<COIN_NATIVE_10>(
+                &mut token_bridge_state,
+                &mut worm_state,
+                transfer_vaa,
+                &the_clock,
+                test_scenario::ctx(scenario)
+            );
         assert!(balance::value(&payout) == expected_relayer_fee, 0);
 
         // TODO: Check for one event? `TransferRedeemed`.
@@ -313,6 +319,7 @@ module token_bridge::complete_transfer_tests {
         balance::destroy_for_testing(payout);
         coin::burn_for_testing(received);
         return_states(token_bridge_state, worm_state);
+        return_clock(the_clock);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -346,6 +353,7 @@ module token_bridge::complete_transfer_tests {
         test_scenario::next_tx(scenario, tx_relayer);
 
         let (token_bridge_state, worm_state) = take_states(scenario);
+        let the_clock = take_clock(scenario);
 
         // These will be checked later.
         let expected_relayer_fee = 1000;
@@ -368,7 +376,7 @@ module token_bridge::complete_transfer_tests {
                         wormhole::vaa::parse_and_verify(
                             &worm_state,
                             transfer_vaa,
-                            test_scenario::ctx(scenario)
+                            &the_clock
                         )
                     )
                 );
@@ -398,12 +406,14 @@ module token_bridge::complete_transfer_tests {
             transfer::destroy(parsed);
         };
 
-        let payout = complete_transfer::complete_transfer<COIN_NATIVE_4>(
-            &mut token_bridge_state,
-            &mut worm_state,
-            transfer_vaa,
-            test_scenario::ctx(scenario)
-        );
+        let payout =
+            complete_transfer::complete_transfer<COIN_NATIVE_4>(
+                &mut token_bridge_state,
+                &mut worm_state,
+                transfer_vaa,
+                &the_clock,
+                test_scenario::ctx(scenario)
+            );
         assert!(balance::value(&payout) == expected_relayer_fee, 0);
 
         // TODO: Check for one event? `TransferRedeemed`.
@@ -429,6 +439,7 @@ module token_bridge::complete_transfer_tests {
         balance::destroy_for_testing(payout);
         coin::burn_for_testing(received);
         return_states(token_bridge_state, worm_state);
+        return_clock(the_clock);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -457,6 +468,7 @@ module token_bridge::complete_transfer_tests {
         test_scenario::next_tx(scenario, tx_relayer);
 
         let (token_bridge_state, worm_state) = take_states(scenario);
+        let the_clock = take_clock(scenario);
 
         // These will be checked later.
         let expected_relayer_fee = 1000;
@@ -478,7 +490,7 @@ module token_bridge::complete_transfer_tests {
                         wormhole::vaa::parse_and_verify(
                             &worm_state,
                             transfer_vaa,
-                            test_scenario::ctx(scenario)
+                            &the_clock
                         )
                     )
                 );
@@ -508,12 +520,14 @@ module token_bridge::complete_transfer_tests {
             transfer::destroy(parsed);
         };
 
-        let payout = complete_transfer::complete_transfer<COIN_WRAPPED_7>(
-            &mut token_bridge_state,
-            &mut worm_state,
-            transfer_vaa,
-            test_scenario::ctx(scenario)
-        );
+        let payout =
+            complete_transfer::complete_transfer<COIN_WRAPPED_7>(
+                &mut token_bridge_state,
+                &mut worm_state,
+                transfer_vaa,
+                &the_clock,
+                test_scenario::ctx(scenario)
+            );
         assert!(balance::value(&payout) == expected_relayer_fee, 0);
 
         // TODO: Check for one event? `TransferRedeemed`.
@@ -538,6 +552,7 @@ module token_bridge::complete_transfer_tests {
         balance::destroy_for_testing(payout);
         coin::burn_for_testing(received);
         return_states(token_bridge_state, worm_state);
+        return_clock(the_clock);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -569,6 +584,7 @@ module token_bridge::complete_transfer_tests {
         test_scenario::next_tx(scenario, tx_relayer);
 
         let (token_bridge_state, worm_state) = take_states(scenario);
+        let the_clock = take_clock(scenario);
 
         // These will be checked later.
         let expected_relayer_fee = 1000;
@@ -590,7 +606,7 @@ module token_bridge::complete_transfer_tests {
                         wormhole::vaa::parse_and_verify(
                             &worm_state,
                             transfer_vaa,
-                            test_scenario::ctx(scenario)
+                            &the_clock
                         )
                     )
                 );
@@ -624,6 +640,7 @@ module token_bridge::complete_transfer_tests {
             &mut token_bridge_state,
             &mut worm_state,
             transfer_vaa,
+            &the_clock,
             test_scenario::ctx(scenario)
         );
         assert!(balance::value(&payout) == expected_relayer_fee, 0);
@@ -650,6 +667,7 @@ module token_bridge::complete_transfer_tests {
         balance::destroy_for_testing(payout);
         coin::burn_for_testing(received);
         return_states(token_bridge_state, worm_state);
+        return_clock(the_clock);
 
         // Done.
         test_scenario::end(my_scenario);

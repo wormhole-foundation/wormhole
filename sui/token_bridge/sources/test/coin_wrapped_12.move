@@ -76,6 +76,8 @@ module token_bridge::coin_wrapped_12 {
     /// with the same macro  as a trick to allow another method within this
     /// module to call `init` using OTW.
     public fun init_and_register(scenario: &mut Scenario, caller: address) {
+        use wormhole::wormhole_scenario::{return_clock, take_clock};
+
         use token_bridge::token_bridge_scenario::{return_states, take_states};
 
         // Ignore effects.
@@ -88,6 +90,7 @@ module token_bridge::coin_wrapped_12 {
         test_scenario::next_tx(scenario, caller);
 
         let (token_bridge_state, worm_state) = take_states(scenario);
+        let the_clock = take_clock(scenario);
 
         // Register the attested asset.
         create_wrapped::complete_registration(
@@ -96,11 +99,13 @@ module token_bridge::coin_wrapped_12 {
             test_scenario::take_from_sender<WrappedAssetSetup<COIN_WRAPPED_12>>(
                 scenario
             ),
+            &the_clock,
             test_scenario::ctx(scenario)
         );
 
         // Clean up.
         return_states(token_bridge_state, worm_state);
+        return_clock(the_clock);
     }
 
     #[test_only]

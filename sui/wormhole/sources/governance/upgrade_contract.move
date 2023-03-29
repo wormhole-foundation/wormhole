@@ -8,8 +8,8 @@
 /// 3.  Upgrade.
 /// 4.  Commit upgrade.
 module wormhole::upgrade_contract {
+    use sui::clock::{Clock};
     use sui::package::{UpgradeReceipt, UpgradeTicket};
-    use sui::tx_context::{TxContext};
 
     use wormhole::bytes32::{Self, Bytes32};
     use wormhole::cursor::{Self};
@@ -37,13 +37,13 @@ module wormhole::upgrade_contract {
     public fun upgrade_contract(
         wormhole_state: &mut State,
         vaa_buf: vector<u8>,
-        ctx: &TxContext
+        the_clock: &Clock
     ): UpgradeTicket {
         let msg =
             governance_message::parse_and_verify_vaa(
                 wormhole_state,
                 vaa_buf,
-                ctx
+                the_clock
             );
 
         // Do not allow this VAA to be replayed.

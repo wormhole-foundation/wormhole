@@ -27,6 +27,7 @@
 /// https://examples.sui.io/basics/one-time-witness.html
 module token_bridge::create_wrapped {
     use sui::balance::{Self, Supply};
+    use sui::clock::{Clock};
     use sui::object::{Self, UID};
     use sui::tx_context::{TxContext};
     use wormhole::state::{State as WormholeState};
@@ -92,6 +93,7 @@ module token_bridge::create_wrapped {
         token_bridge_state: &mut State,
         worm_state: &WormholeState,
         unregistered: WrappedAssetSetup<CoinType>,
+        the_clock: &Clock,
         ctx: &mut TxContext,
     ) {
         let WrappedAssetSetup {
@@ -107,7 +109,7 @@ module token_bridge::create_wrapped {
                 token_bridge_state,
                 worm_state,
                 vaa_buf,
-                ctx
+                the_clock
             );
 
         // `register_wrapped_asset` uses `token_registry::add_new_wrapped`,
@@ -130,7 +132,7 @@ module token_bridge::create_wrapped {
         token_bridge_state: &mut State,
         worm_state: &WormholeState,
         vaa_buf: vector<u8>,
-        ctx: &TxContext
+        the_clock: &Clock
     ) {
         // Deserialize to `AssetMeta`.
         let token_meta =
@@ -138,7 +140,7 @@ module token_bridge::create_wrapped {
                 token_bridge_state,
                 worm_state,
                 vaa_buf,
-                ctx
+                the_clock
             );
 
         // When a wrapped asset is updated, the encoded token info is checked
@@ -153,14 +155,14 @@ module token_bridge::create_wrapped {
         token_bridge_state: &mut State,
         worm_state: &WormholeState,
         vaa_buf: vector<u8>,
-        ctx: &TxContext
+        the_clock: &Clock
     ): AssetMeta {
         let parsed =
             vaa::parse_verify_and_consume(
                 token_bridge_state,
                 worm_state,
                 vaa_buf,
-                ctx
+                the_clock
             );
 
         // Finally deserialize the VAA payload.
@@ -187,6 +189,7 @@ module token_bridge::create_wrapped_tests {
     use sui::test_scenario::{Self};
     use sui::transfer::{Self};
     use sui::tx_context::{Self};
+    use wormhole::wormhole_scenario::{return_clock, take_clock};
 
     use token_bridge::asset_meta::{Self};
     use token_bridge::coin_wrapped_12::{Self, COIN_WRAPPED_12};
@@ -252,11 +255,13 @@ module token_bridge::create_wrapped_tests {
             );
 
         let (token_bridge_state, worm_state) = take_states(scenario);
+        let the_clock = take_clock(scenario);
 
         create_wrapped::complete_registration(
             &mut token_bridge_state,
             &worm_state,
             wrapped_asset_setup,
+            &the_clock,
             test_scenario::ctx(scenario)
         );
 
@@ -297,7 +302,7 @@ module token_bridge::create_wrapped_tests {
             &mut token_bridge_state,
             &worm_state,
             coin_wrapped_12::encoded_updated_vaa(),
-            test_scenario::ctx(scenario)
+            &the_clock
         );
 
         // Check updated name and symbol.
@@ -320,6 +325,7 @@ module token_bridge::create_wrapped_tests {
 
         // Clean up.
         return_states(token_bridge_state, worm_state);
+        return_clock(the_clock);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -356,28 +362,31 @@ module token_bridge::create_wrapped_tests {
             );
 
         let (token_bridge_state, worm_state) = take_states(scenario);
+        let the_clock = take_clock(scenario);
 
         create_wrapped::complete_registration(
             &mut token_bridge_state,
             &worm_state,
             wrapped_asset_setup,
+            &the_clock,
             test_scenario::ctx(scenario)
         );
 
-        // This VAA is for COIN_WRAPPED_7 metadata.
-        let invalid_asset_meta_vaa =
-            coin_wrapped_7::encoded_vaa();
+        // This VAA is for COIN_WRAPPED_7 metadata, which disagrees with
+        // COIN_WRAPPED_12.
+        let invalid_asset_meta_vaa = coin_wrapped_7::encoded_vaa();
 
         // You shall not pas!
         create_wrapped::update_attestation<COIN_WRAPPED_12>(
             &mut token_bridge_state,
             &worm_state,
             invalid_asset_meta_vaa,
-            test_scenario::ctx(scenario)
+            &the_clock
         );
 
         // Clean up.
         return_states(token_bridge_state, worm_state);
+        return_clock(the_clock);
 
         // Done.
         test_scenario::end(my_scenario);

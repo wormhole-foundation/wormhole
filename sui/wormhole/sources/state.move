@@ -9,6 +9,7 @@
 module wormhole::state {
     use std::vector::{Self};
     use sui::balance::{Balance};
+    use sui::clock::{Clock};
     use sui::dynamic_field::{Self as field};
     use sui::event::{Self};
     use sui::object::{Self, ID, UID};
@@ -84,9 +85,9 @@ module wormhole::state {
         /// Period for which a guardian set stays active after it has been
         /// replaced.
         ///
-        /// Currently in terms of Sui epochs until we have access to a clock
-        /// with unix timestamp.
-        guardian_set_epochs_to_live: u32,
+        /// NOTE: `Clock` timestamp is in units of ms while this value is in
+        /// terms of seconds. See `guardian_set` module for more info.
+        guardian_set_seconds_to_live: u32,
 
         /// Consumed VAA hashes to protect against replay. VAAs relevant to
         /// Wormhole are just governance VAAs.
@@ -109,7 +110,7 @@ module wormhole::state {
         governance_chain: u16,
         governance_contract: vector<u8>,
         initial_guardians: vector<vector<u8>>,
-        guardian_set_epochs_to_live: u32,
+        guardian_set_seconds_to_live: u32,
         message_fee: u64,
         ctx: &mut TxContext
     ): State {
@@ -143,7 +144,7 @@ module wormhole::state {
             governance_contract,
             guardian_set_index,
             guardian_sets: table::new(ctx),
-            guardian_set_epochs_to_live,
+            guardian_set_seconds_to_live,
             consumed_vaa_hashes: set::new(ctx),
             emitter_registry: emitter::new_registry(),
             fee_collector: fee_collector::new(message_fee),
@@ -321,12 +322,9 @@ module wormhole::state {
     }
 
     /// Retrieve how long after a Guardian set can live for in terms of Sui
-    /// epoch.
-    ///
-    /// TODO: Change this to be in terms of unix timestamp when `Clock` gets
-    /// added to `vaa::parse_and_verify`.
-    public fun guardian_set_epochs_to_live(self: &State): u32 {
-        self.guardian_set_epochs_to_live
+    /// timestamp (in seconds).
+    public fun guardian_set_seconds_to_live(self: &State): u32 {
+        self.guardian_set_seconds_to_live
     }
 
     /// Retrieve current fee to send Wormhole message.
@@ -379,13 +377,14 @@ module wormhole::state {
     /// See `wormhole::update_guardian_set` for more info.
     ///
     /// TODO: Use `Clock` instead of `TxContext`.
-    public(friend) fun expire_guardian_set(self: &mut State, ctx: &TxContext) {
-        let expiring =
-            table::borrow_mut(&mut self.guardian_sets, self.guardian_set_index);
+    public(friend) fun expire_guardian_set(
+        self: &mut State,
+        the_clock: &Clock
+    ) {
         guardian_set::set_expiration(
-            expiring,
-            self.guardian_set_epochs_to_live,
-            ctx
+            table::borrow_mut(&mut self.guardian_sets, self.guardian_set_index),
+            self.guardian_set_seconds_to_live,
+            the_clock
         );
     }
 
@@ -428,11 +427,11 @@ module wormhole::state {
     public fun is_guardian_set_active(
         self: &State,
         set: &GuardianSet,
-        ctx: &TxContext
+        the_clock: &Clock
     ): bool {
         (
             self.guardian_set_index == guardian_set::index(set) ||
-            guardian_set::is_active(set, ctx)
+            guardian_set::is_active(set, the_clock)
         )
     }
 
