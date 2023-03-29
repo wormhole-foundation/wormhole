@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/benbjohnson/clock"
+	"github.com/test-go/testify/assert"
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/ethereum/go-ethereum/common"
@@ -40,46 +41,61 @@ type (
 		Evaluate(t *testing.T, r *Manager[*testObservation], testContext *managerTestContext)
 	}
 
+	// managerInjectForeignObservationAction injects an observation with hash `hash`, signed by the guardian with index `guardianIndex`.
+	// If `invalid == true`, the signature will be random bytes.
 	managerInjectForeignObservationAction struct {
 		hash          [32]byte
 		guardianIndex int
 		invalid       bool
 	}
 
+	// managerInjectOwnObservationAction injects an observation into `obsC`, as if this Guardian has made that observation.
 	managerInjectOwnObservationAction struct {
 		observation *testObservation
 	}
 
+	// managerAssertNumReactorsAction asserts that there are currently exactly `numReactors` active reactors
 	managerAssertNumReactorsAction struct {
 		numReactors int
 	}
 
+	// managerAssertHasReactorAction asserts that there exists at least one reactor for `digest`.
 	managerAssertHasReactorAction struct {
 		digest common.Hash
 	}
 
+	// managerAssertQuorumEventAction assets that the oldest observation that received quorum is equal to `observation`.
+	// It then removes that observation from the storage.
 	managerAssertQuorumEventAction struct {
 		observation *testObservation
 	}
 
+	// managerAssertFinalizationEventAction assets that the oldest observation that has been finalized
+	// (i.e. timed out after reaching quorum) is equal to `observation`.
+	// It then removes that observation from the storage.
 	managerAssertFinalizationEventAction struct {
 		observation *testObservation
 	}
 
+	// managerAssertTimeoutEventAction asserts that there has been exactly one timeout event (as specified)
+	// and then removes that event from the storage
 	managerAssertTimeoutEventAction struct {
 		previousState State
 		observation   *testObservation
 		lenSignatures int
 	}
 
+	// managerAssertNoEvents asserts that there are no events in the cache
 	managerAssertNoEvents struct {
 	}
 
+	// managerAssertMessageInStorageAction asserts that a message with id `id` exists or does not exist in storage
 	managerAssertMessageInStorageAction struct {
 		id             string
 		shouldNotExist bool
 	}
 
+	// managerWaitAction advances the clock by `duration`
 	managerWaitAction struct {
 		duration time.Duration
 	}
@@ -186,6 +202,7 @@ func (w managerWaitAction) Evaluate(t *testing.T, r *Manager[*testObservation], 
 	testContext.clock.Set(testContext.clock.Now().Add(w.duration))
 }
 
+// testConsensusStorage stores observations and their signatures in a dict
 type (
 	testConsensusStorage struct {
 		signatures map[string]testConsensusStorageEntry
@@ -220,25 +237,24 @@ func (t *testConsensusStorage) GetSignedObservation(id string) (observation *tes
 	return v.observation, v.signatures, true, nil
 }
 
-type (
-	testManagerEventHandler[K Observation] struct {
-		quorumEvents []struct {
-			observation K
-			signatures  []*vaa.Signature
-		}
-		finalizationEvents []struct {
-			observation K
-			signatures  []*vaa.Signature
-		}
-		timeoutEvents []struct {
-			previousState State
-			digest        common.Hash
-			observation   K
-			signatures    []*vaa.Signature
-		}
-		l sync.Mutex
+// testManagerEventHandler stores incoming events in the respective local array
+type testManagerEventHandler[K Observation] struct {
+	quorumEvents []struct {
+		observation K
+		signatures  []*vaa.Signature
 	}
-)
+	finalizationEvents []struct {
+		observation K
+		signatures  []*vaa.Signature
+	}
+	timeoutEvents []struct {
+		previousState State
+		digest        common.Hash
+		observation   K
+		signatures    []*vaa.Signature
+	}
+	l sync.Mutex
+}
 
 func (t *testManagerEventHandler[K]) HandleQuorum(observation K, signatures []*vaa.Signature) {
 	t.l.Lock()
@@ -281,10 +297,11 @@ func TestManager(t *testing.T) {
 		notAGuardian bool
 	}{
 		{
-			name: "NormalFlow2Guardians",
+			name:         "NormalFlow2Guardians",
+			numGuardians: 2,
 			actions: []managerTestAction{
 				managerInjectOwnObservationAction{observation: &testObservation{}},
-				managerAssertNumReactorsAction{numReactors: 1},
+				managerAssertNumReactorsAction{1},
 				managerAssertNoEvents{},
 				managerInjectForeignObservationAction{
 					hash:          testObservationHash(),
@@ -298,13 +315,14 @@ func TestManager(t *testing.T) {
 			},
 		},
 		{
-			name: "ForeignFirst2Guardians",
+			name:         "ForeignFirst2Guardians",
+			numGuardians: 2,
 			actions: []managerTestAction{
 				managerInjectForeignObservationAction{
 					hash:          testObservationHash(),
 					guardianIndex: 1,
 				},
-				managerAssertNumReactorsAction{numReactors: 1},
+				managerAssertNumReactorsAction{1},
 				managerAssertNoEvents{},
 				managerInjectOwnObservationAction{observation: &testObservation{}},
 				managerAssertQuorumEventAction{observation: &testObservation{}},
@@ -315,35 +333,38 @@ func TestManager(t *testing.T) {
 			},
 		},
 		{
-			name: "NoQuorum2Guardians",
+			name:         "NoQuorum2Guardians",
+			numGuardians: 2,
 			actions: []managerTestAction{
 				managerInjectOwnObservationAction{observation: &testObservation{}},
-				managerAssertNumReactorsAction{numReactors: 1},
+				managerAssertNumReactorsAction{1},
 				managerAssertNoEvents{},
 				managerWaitAction{duration: time.Millisecond * 26},
-				managerAssertNumReactorsAction{numReactors: 0},
+				managerAssertNumReactorsAction{0},
 				managerAssertTimeoutEventAction{observation: &testObservation{}, previousState: StateObserved, lenSignatures: 1},
 				managerAssertMessageInStorageAction{id: (&testObservation{}).MessageID(), shouldNotExist: true},
 			},
 		},
 		{
-			name: "DuplicateProtectionUsingStorage",
+			name:         "DuplicateProtectionUsingStorage",
+			numGuardians: 2,
 			actions: []managerTestAction{
 				managerInjectOwnObservationAction{observation: &testObservation{}},
 				managerInjectForeignObservationAction{
 					hash:          testObservationHash(),
 					guardianIndex: 1,
 				},
-				managerAssertNumReactorsAction{numReactors: 1},
+				managerAssertNumReactorsAction{1},
 				managerWaitAction{duration: time.Millisecond * 40},
 				managerAssertFinalizationEventAction{observation: &testObservation{}},
 				managerAssertNumReactorsAction{0},
 				managerInjectOwnObservationAction{observation: &testObservation{}},
-				managerAssertNumReactorsAction{numReactors: 0},
+				managerAssertNumReactorsAction{0},
 			},
 		},
 		{
-			name: "SignatureVerification",
+			name:         "SignatureVerification",
+			numGuardians: 2,
 			actions: []managerTestAction{
 				managerInjectForeignObservationAction{
 					hash:          testObservationHash(),
@@ -351,11 +372,12 @@ func TestManager(t *testing.T) {
 					invalid:       true,
 				},
 				managerWaitAction{duration: time.Millisecond * 20},
-				managerAssertNumReactorsAction{numReactors: 0},
+				managerAssertNumReactorsAction{0},
 			},
 		},
 		{
-			name: "MultipleReactors",
+			name:         "MultipleReactors",
+			numGuardians: 4,
 			actions: []managerTestAction{
 				managerInjectForeignObservationAction{
 					hash:          testObservationHash(),
@@ -365,13 +387,13 @@ func TestManager(t *testing.T) {
 					hash:          testObservationHash(),
 					guardianIndex: 2,
 				},
-				managerAssertNumReactorsAction{numReactors: 1},
+				managerAssertNumReactorsAction{1},
 				managerInjectOwnObservationAction{observation: testObservation2},
 				managerInjectForeignObservationAction{
 					hash:          testObservation2.SigningDigest(),
 					guardianIndex: 2,
 				},
-				managerAssertNumReactorsAction{numReactors: 2},
+				managerAssertNumReactorsAction{2},
 				managerAssertHasReactorAction{digest: testObservationHash()},
 				managerAssertHasReactorAction{digest: testObservation2.SigningDigest()},
 				managerAssertNoEvents{},
@@ -388,14 +410,11 @@ func TestManager(t *testing.T) {
 				managerAssertFinalizationEventAction{observation: testObservation2},
 				managerAssertNoEvents{},
 			},
-			numGuardians: 4,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if test.numGuardians == 0 {
-				test.numGuardians = 2
-			}
+			assert.NotEqual(t, test.numGuardians, 0)
 			gst := &common2.GuardianSetState{}
 			gs := &common2.GuardianSet{}
 			keys := make([]*ecdsa.PrivateKey, test.numGuardians)
