@@ -6,7 +6,7 @@ module token_bridge::state {
     use sui::sui::{SUI};
     use sui::tx_context::{TxContext};
     use wormhole::bytes32::{Self, Bytes32};
-    use wormhole::emitter::{EmitterCap};
+    use wormhole::emitter::{Self, EmitterCap};
     use wormhole::external_address::{ExternalAddress};
     use wormhole::set::{Self, Set};
     use wormhole::state::{State as WormholeState};
@@ -53,7 +53,7 @@ module token_bridge::state {
     }
 
     public(friend) fun new(
-        worm_state: &mut WormholeState,
+        worm_state: &WormholeState,
         upgrade_cap: UpgradeCap,
         ctx: &mut TxContext
     ): State {
@@ -61,7 +61,7 @@ module token_bridge::state {
         State {
             id: object::new(ctx),
             consumed_vaa_hashes: set::new(ctx),
-            emitter_cap: wormhole::state::new_emitter(worm_state, ctx),
+            emitter_cap: emitter::new(worm_state, ctx),
             emitter_registry: emitter_registry::new(ctx),
             token_registry: token_registry::new(ctx),
             upgrade_cap

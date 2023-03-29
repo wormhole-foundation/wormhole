@@ -171,7 +171,7 @@ module token_bridge::asset_meta_tests {
 
     #[test]
     fun test_serialize_deserialize() {
-        let token_address = external_address::from_any_bytes(x"001122");
+        let token_address = external_address::from_address(@0x1122);
         let symbol = string::utf8(b"a creative symbol");
         let name = string::utf8(b"a creative name");
         let asset_meta = asset_meta::new(

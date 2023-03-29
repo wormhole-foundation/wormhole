@@ -20,18 +20,15 @@ module wormhole::state {
 
     use wormhole::bytes32::{Self, Bytes32};
     use wormhole::cursor::{Self};
-    use wormhole::emitter::{Self, EmitterCap, EmitterRegistry};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::fee_collector::{Self, FeeCollector};
     use wormhole::guardian::{Self};
     use wormhole::guardian_set::{Self, GuardianSet};
     use wormhole::required_version::{Self, RequiredVersion};
     use wormhole::set::{Self, Set};
-    use wormhole::version_control::{
-        Self as control,
-        NewEmitter as NewEmitterControl
-    };
+    use wormhole::version_control::{Self as control};
 
+    friend wormhole::emitter;
     friend wormhole::migrate;
     friend wormhole::publish_message;
     friend wormhole::set_fee;
@@ -93,9 +90,6 @@ module wormhole::state {
         /// Wormhole are just governance VAAs.
         consumed_vaa_hashes: Set<Bytes32>,
 
-        /// Registry for new emitter caps (`EmitterCap`).
-        emitter_registry: EmitterRegistry,
-
         /// Wormhole fee collector.
         fee_collector: FeeCollector,
 
@@ -146,7 +140,6 @@ module wormhole::state {
             guardian_sets: table::new(ctx),
             guardian_set_seconds_to_live,
             consumed_vaa_hashes: set::new(ctx),
-            emitter_registry: emitter::new_registry(),
             fee_collector: fee_collector::new(message_fee),
             upgrade_cap,
             required_version: required_version::new(control::version(), ctx)
@@ -433,20 +426,6 @@ module wormhole::state {
             self.guardian_set_index == guardian_set::index(set) ||
             guardian_set::is_active(set, the_clock)
         )
-    }
-
-    /// Generate a new `EmitterCap`.
-    ///
-    /// NOTE: This method is guarded by a minimum build version check. This
-    /// method could break backward compatibility on an upgrade.
-    public fun new_emitter(self: &mut State, ctx: &mut TxContext): EmitterCap {
-        check_minimum_requirement<NewEmitterControl>(self);
-
-        emitter::new_cap(&mut self.emitter_registry, ctx)
-    }
-
-    public(friend) fun use_emitter_sequence(emitter_cap: &mut EmitterCap): u64 {
-        emitter::use_sequence(emitter_cap)
     }
 
     #[test_only]

@@ -3,10 +3,14 @@ module token_bridge::token_bridge_scenario {
     use std::vector::{Self};
     use sui::package::{UpgradeCap};
     use sui::test_scenario::{Self, Scenario};
-    use wormhole::bytes32::{Self};
     use wormhole::external_address::{Self};
     use wormhole::state::{State as WormholeState};
-    use wormhole::wormhole_scenario::{set_up_wormhole, deployer};
+    use wormhole::wormhole_scenario::{
+        deployer,
+        return_state as return_wormhole_state,
+        set_up_wormhole,
+        take_state as take_wormhole_state
+    };
 
     use token_bridge::setup::{Self, DeployerCap};
     use token_bridge::state::{Self, State};
@@ -28,7 +32,7 @@ module token_bridge::token_bridge_scenario {
         test_scenario::next_tx(scenario, deployer());
 
         // Finally share `State`.
-        let wormhole_state = test_scenario::take_shared<WormholeState>(scenario);
+        let wormhole_state = take_wormhole_state(scenario);
         setup::complete(
             &mut wormhole_state,
             test_scenario::take_from_sender<DeployerCap>(scenario),
@@ -37,7 +41,7 @@ module token_bridge::token_bridge_scenario {
         );
 
         // Clean up.
-        test_scenario::return_shared<WormholeState>(wormhole_state);
+        return_wormhole_state(wormhole_state);
     }
 
     /// Register arbitrary chain ID with the same emitter address (0xdeadbeef).
@@ -49,11 +53,7 @@ module token_bridge::token_bridge_scenario {
         state::register_new_emitter_test_only(
             &mut token_bridge_state,
             chain,
-            external_address::new(
-                bytes32::new(
-                    x"00000000000000000000000000000000000000000000000000000000deadbeef"
-                )
-            )
+            external_address::from_address(@0xdeadbeef)
         );
 
         // Clean up.

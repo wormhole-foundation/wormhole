@@ -54,7 +54,7 @@ module wormhole::publish_message {
 
         // Produce sequence number for this message. This will also be the
         // return value for this method.
-        let sequence = state::use_emitter_sequence(emitter_cap);
+        let sequence = emitter::use_sequence(emitter_cap);
 
         // Truncate to seconds.
         let timestamp = clock::timestamp_ms(the_clock) / 1000;
@@ -62,7 +62,7 @@ module wormhole::publish_message {
         // Emit Sui event with `WormholeMessage`.
         event::emit(
             WormholeMessage {
-                sender: emitter::emitter_address(emitter_cap),
+                sender: emitter::id_to_bytes(emitter_cap),
                 sequence,
                 nonce,
                 payload: payload,
@@ -121,8 +121,8 @@ module wormhole::publish_message_tests {
 
             // User needs an `EmitterCap` so he can send a message.
             let emitter_cap =
-                wormhole::state::new_emitter(
-                    &mut worm_state,
+                wormhole::emitter::new(
+                    &worm_state,
                     test_scenario::ctx(scenario)
                 );
 
@@ -220,16 +220,13 @@ module wormhole::publish_message_tests {
         let the_clock = take_clock(scenario);
 
         // User needs an `EmitterCap` so he can send a message.
-        let emitter =
-            wormhole::state::new_emitter(
-                &mut worm_state,
-                test_scenario::ctx(scenario)
-            );
+        let emitter_cap =
+            emitter::new(&worm_state, test_scenario::ctx(scenario));
 
         // You shall not pass!
         publish_message(
             &mut worm_state,
-            &mut emitter,
+            &mut emitter_cap,
             0, // nonce
             b"Hello World",
             balance::create_for_testing(wrong_fee_amount),
@@ -239,7 +236,7 @@ module wormhole::publish_message_tests {
         // Clean up.
         return_state(worm_state);
         return_clock(the_clock);
-        emitter::destroy_cap(emitter);
+        emitter::destroy(emitter_cap);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -274,16 +271,13 @@ module wormhole::publish_message_tests {
         );
 
         // User needs an `EmitterCap` so he can send a message.
-        let emitter =
-            wormhole::state::new_emitter(
-                &mut worm_state,
-                test_scenario::ctx(scenario)
-            );
+        let emitter_cap =
+            emitter::new(&worm_state, test_scenario::ctx(scenario));
 
         // You shall not pass!
         publish_message(
             &mut worm_state,
-            &mut emitter,
+            &mut emitter_cap,
             0, // nonce
             b"Hello World",
             balance::create_for_testing(wormhole_message_fee),
@@ -293,7 +287,7 @@ module wormhole::publish_message_tests {
         // Clean up.
         return_state(worm_state);
         return_clock(the_clock);
-        emitter::destroy_cap(emitter);
+        emitter::destroy(emitter_cap);
 
         // Done.
         test_scenario::end(my_scenario);

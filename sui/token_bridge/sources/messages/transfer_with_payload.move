@@ -11,6 +11,7 @@
 /// modules for more details.
 module token_bridge::transfer_with_payload {
     use std::vector::{Self};
+    use sui::object::{ID};
     use wormhole::bytes::{Self};
     use wormhole::cursor::{Self};
     use wormhole::emitter::{Self, EmitterCap};
@@ -67,7 +68,7 @@ module token_bridge::transfer_with_payload {
             token_chain,
             redeemer,
             redeemer_chain,
-            emitter::addr(emitter_cap),
+            emitter::external_address(emitter_cap),
             payload
         )
     }
@@ -134,9 +135,14 @@ module token_bridge::transfer_with_payload {
         self.token_chain
     }
 
-    /// Retrieve expected redeemer.
+    /// Retrieve redeemer.
     public fun redeemer(self: &TransferWithPayload): ExternalAddress {
         self.redeemer
+    }
+
+    // Retrieve redeemer as `ID`.
+    public fun redeemer_id(self: &TransferWithPayload): ID {
+        external_address::to_id(self.redeemer)
     }
 
     /// Retrieve target chain for redeemer.
@@ -240,12 +246,11 @@ module token_bridge::transfer_with_payload_tests {
 
     #[test]
     fun test_serialize() {
-        let emitter_cap =
-            emitter::dummy_cap(external_address::from_any_bytes(x"deadbeef"));
+        let emitter_cap = emitter::dummy();
         let amount = normalized_amount::from_raw(234567890, 8);
-        let token_address = external_address::from_any_bytes(x"beef");
+        let token_address = external_address::from_address(@0xbeef);
         let token_chain = 1;
-        let redeemer = external_address::from_any_bytes(x"cafe");
+        let redeemer = external_address::from_address(@0xcafe);
         let redeemer_chain = 7;
         let payload = b"All your base are belong to us.";
 
@@ -282,7 +287,7 @@ module token_bridge::transfer_with_payload_tests {
             0
         );
         assert!(
-            transfer_with_payload::sender(&new_transfer) == emitter::addr(&emitter_cap),
+            transfer_with_payload::sender(&new_transfer) == emitter::external_address(&emitter_cap),
             0
         );
         assert!(
@@ -296,17 +301,20 @@ module token_bridge::transfer_with_payload_tests {
         assert!(serialized == expected_serialized, 0);
 
         // Clean up.
-        emitter::destroy_cap(emitter_cap);
+        emitter::destroy(emitter_cap);
     }
 
     #[test]
     public fun test_deserialize() {
         let expected_amount = normalized_amount::from_raw(234567890, 8);
-        let expected_token_address = external_address::from_any_bytes(x"beef");
+        let expected_token_address = external_address::from_address(@0xbeef);
         let expected_token_chain = 1;
-        let expected_recipient = external_address::from_any_bytes(x"cafe");
+        let expected_recipient = external_address::from_address(@0xcafe);
         let expected_recipient_chain = 7;
-        let expected_sender = external_address::from_any_bytes(x"deadbeef");
+        let expected_sender =
+            external_address::from_address(
+                @0x381dd9078c322a4663c392761a0211b527c127b29583851217f948d62131f409
+            );
         let expected_payload = b"All your base are belong to us.";
 
         let parsed =

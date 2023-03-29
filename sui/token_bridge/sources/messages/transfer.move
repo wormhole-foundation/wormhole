@@ -205,9 +205,9 @@ module token_bridge::transfer_tests {
     public fun test_serialize_deserialize() {
         let decimals = 8;
         let expected_amount = normalized_amount::from_raw(234567890, decimals);
-        let expected_token_address = external_address::from_any_bytes(x"beef");
+        let expected_token_address = external_address::from_address(@0xbeef);
         let expected_token_chain = 1;
-        let expected_recipient = external_address::from_any_bytes(x"cafe");
+        let expected_recipient = external_address::from_address(@0xcafe);
         let expected_recipient_chain = 7;
         let expected_relayer_fee =
             normalized_amount::from_raw(123456789, decimals);

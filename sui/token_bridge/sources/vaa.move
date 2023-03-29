@@ -169,7 +169,7 @@ module token_bridge::token_bridge_vaa_test {
 
         // First register emitter.
         let emitter_chain = 2;
-        let emitter_addr = external_address::from_any_bytes(x"deafbeef");
+        let emitter_addr = external_address::from_address(@0xdeafbeef);
         state::register_new_emitter_test_only(
             &mut token_bridge_state,
             emitter_chain,

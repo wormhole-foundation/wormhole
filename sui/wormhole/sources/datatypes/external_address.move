@@ -81,11 +81,6 @@ module wormhole::external_address {
     public fun is_nonzero(self: &ExternalAddress): bool {
         bytes32::is_nonzero(&self.value)
     }
-
-    #[test_only]
-    public fun from_any_bytes(buf: vector<u8>): ExternalAddress {
-        new(bytes32::from_bytes(buf))
-    }
 }
 
 #[test_only]
@@ -94,7 +89,7 @@ module wormhole::external_address_tests {
     use wormhole::external_address::{Self};
 
     #[test]
-    public fun test_left_pad_length_32_vector() {
+    public fun test_bytes() {
         let data =
             bytes32::new(
                 x"1234567891234567891234567891234512345678912345678912345678912345"
@@ -104,12 +99,13 @@ module wormhole::external_address_tests {
     }
 
     #[test]
-    public fun test_to_address() {
+    public fun test_address() {
         let data =
             bytes32::new(
                 x"0000000000000000000000000000000000000000000000000000000000001234"
             );
         let addr = external_address::new(data);
         assert!(external_address::to_address(addr) == @0x1234, 0);
+        assert!(addr == external_address::from_address(@0x1234), 0);
     }
 }

@@ -62,8 +62,8 @@ module token_bridge::complete_transfer_with_payload {
 
         // Transfer must be redeemed by the contract's registered Wormhole
         // emitter.
-        let redeemer = transfer_with_payload::redeemer(parsed);
-        assert!(redeemer == emitter::addr(emitter_cap), E_INVALID_REDEEMER);
+        let redeemer = transfer_with_payload::redeemer_id(parsed);
+        assert!(redeemer == emitter::id(emitter_cap), E_INVALID_REDEEMER);
 
         let (
             bridged_out,
@@ -86,7 +86,6 @@ module token_bridge::complete_transfer_with_payload_test {
     use sui::balance::{Self};
     use sui::test_scenario::{Self};
     use wormhole::emitter::{Self};
-    use wormhole::external_address::{Self};
     use wormhole::state::{chain_id};
     use wormhole::wormhole_scenario::{return_clock, take_clock};
 
@@ -104,32 +103,6 @@ module token_bridge::complete_transfer_with_payload_test {
     };
     use token_bridge::token_registry::{Self};
     use token_bridge::transfer_with_payload::{Self};
-
-    /// Transfer for COIN_WRAPPED_12.
-    ///
-    ///   signatures: [
-    ///     {
-    ///       guardianSetIndex: 0,
-    ///       signature: 'd8e4e04ac55ed24773a31b0a89bab8c1b9201e76bd03fe0de9da1506058ab30c01344cf11a47005bdfbe47458cb289388e4a87ed271fb8306fd83656172b19dc01'
-    ///     }
-    ///   ],
-    ///   emitterChain: 2,
-    ///   emitterAddress: '0x00000000000000000000000000000000000000000000000000000000deadbeef',
-    ///   sequence: 1n,
-    ///   consistencyLevel: 15,
-    ///   payload: {
-    ///     module: 'TokenBridge',
-    ///     type: 'TransferWithPayload',
-    ///     amount: 3000n,
-    ///     tokenAddress: '0x00000000000000000000000000000000000000000000000000000000beefface',
-    ///     tokenChain: 2,
-    ///     toAddress: '0x0000000000000000000000000000000000000000000000000000000000000003',
-    ///     chain: 21,
-    ///     fromAddress: '0x00000000000000000000000000000000000000000000000000000000deadbeef',
-    ///     payload: '0xaaaa'
-    ///   }
-    const VAA_ATTESTED_DECIMALS_12: vector<u8> =
-        x"01000000000100d8e4e04ac55ed24773a31b0a89bab8c1b9201e76bd03fe0de9da1506058ab30c01344cf11a47005bdfbe47458cb289388e4a87ed271fb8306fd83656172b19dc010000000000000000000200000000000000000000000000000000000000000000000000000000deadbeef00000000000000010f030000000000000000000000000000000000000000000000000000000000000bb800000000000000000000000000000000000000000000000000000000beefface00020000000000000000000000000000000000000000000000000000000000000003001500000000000000000000000000000000000000000000000000000000deadbeefaaaa";
 
     #[test]
     /// Test the public-facing function complete_transfer_with_payload.
@@ -176,10 +149,7 @@ module token_bridge::complete_transfer_with_payload_test {
         );
 
         // Set up dummy `EmitterCap` as the expected redeemer.
-        let emitter_cap =
-            emitter::dummy_cap(
-                external_address::from_any_bytes(x"b0b1")
-            );
+        let emitter_cap = emitter::dummy();
 
         // Verify that the emitter cap is the expected redeemer.
         let expected_transfer =
@@ -193,7 +163,7 @@ module token_bridge::complete_transfer_with_payload_test {
                 )
             );
         assert!(
-            transfer_with_payload::redeemer(&expected_transfer) == emitter::addr(&emitter_cap),
+            transfer_with_payload::redeemer(&expected_transfer) == emitter::external_address(&emitter_cap),
             0
         );
 
@@ -253,7 +223,7 @@ module token_bridge::complete_transfer_with_payload_test {
         return_states(token_bridge_state, worm_state);
         return_clock(the_clock);
         balance::destroy_for_testing(bridged);
-        emitter::destroy_cap(emitter_cap);
+        emitter::destroy(emitter_cap);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -274,6 +244,9 @@ module token_bridge::complete_transfer_with_payload_test {
         use token_bridge::complete_transfer_with_payload::{
             complete_transfer_with_payload
         };
+
+        let transfer_vaa =
+            dummy_message::encoded_transfer_with_payload_wrapped_12();
 
         let (user, coin_deployer) = two_people();
         let my_scenario = test_scenario::begin(user);
@@ -296,12 +269,8 @@ module token_bridge::complete_transfer_with_payload_test {
         let (token_bridge_state, worm_state) = take_states(scenario);
         let the_clock = take_clock(scenario);
 
-
         // Set up dummy `EmitterCap` as the expected redeemer.
-        let emitter_cap =
-            emitter::dummy_cap(
-                external_address::from_any_bytes(x"03")
-            );
+        let emitter_cap = emitter::dummy();
 
         // Verify that the emitter cap is the expected redeemer.
         let expected_transfer =
@@ -309,13 +278,13 @@ module token_bridge::complete_transfer_with_payload_test {
                 wormhole::vaa::take_payload(
                     wormhole::vaa::parse_and_verify(
                         &worm_state,
-                        VAA_ATTESTED_DECIMALS_12,
+                        transfer_vaa,
                         &the_clock
                     )
                 )
             );
         assert!(
-            transfer_with_payload::redeemer(&expected_transfer) == emitter::addr(&emitter_cap),
+            transfer_with_payload::redeemer_id(&expected_transfer) == emitter::id(&emitter_cap),
             0
         );
 
@@ -329,7 +298,7 @@ module token_bridge::complete_transfer_with_payload_test {
                 &mut token_bridge_state,
                 &emitter_cap,
                 &mut worm_state,
-                VAA_ATTESTED_DECIMALS_12,
+                transfer_vaa,
                 &the_clock
             );
         assert!(source_chain == expected_source_chain, 0);
@@ -370,7 +339,7 @@ module token_bridge::complete_transfer_with_payload_test {
         return_states(token_bridge_state, worm_state);
         return_clock(the_clock);
         balance::destroy_for_testing(bridged);
-        emitter::destroy_cap(emitter_cap);
+        emitter::destroy(emitter_cap);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -387,6 +356,9 @@ module token_bridge::complete_transfer_with_payload_test {
         use token_bridge::complete_transfer_with_payload::{
             complete_transfer_with_payload
         };
+
+        let transfer_vaa =
+            dummy_message::encoded_transfer_with_payload_wrapped_12();
 
         let (user, coin_deployer) = two_people();
         let my_scenario = test_scenario::begin(user);
@@ -408,25 +380,23 @@ module token_bridge::complete_transfer_with_payload_test {
         let (token_bridge_state, worm_state) = take_states(scenario);
         let the_clock = take_clock(scenario);
 
-
-        // Set up dummy `EmitterCap`. Verify that this emitter is not the
-        // expected redeemer.
-        let emitter_cap =
-            emitter::dummy_cap(
-                external_address::from_any_bytes(x"1337")
-            );
         let parsed =
             transfer_with_payload::deserialize(
                 wormhole::vaa::take_payload(
                     wormhole::vaa::parse_and_verify(
                         &worm_state,
-                        VAA_ATTESTED_DECIMALS_12,
+                        transfer_vaa,
                         &the_clock
                     )
                 )
             );
+
+        // Because the vaa expects the dummy emitter as the redeemer, we need
+        // to generate another emitter.
+        let emitter_cap =
+            emitter::new(&worm_state, test_scenario::ctx(scenario));
         assert!(
-            transfer_with_payload::sender(&parsed) != emitter::addr(&emitter_cap),
+            transfer_with_payload::redeemer_id(&parsed) != emitter::id(&emitter_cap),
             0
         );
 
@@ -440,7 +410,7 @@ module token_bridge::complete_transfer_with_payload_test {
                 &mut token_bridge_state,
                 &emitter_cap,
                 &mut worm_state,
-                VAA_ATTESTED_DECIMALS_12,
+                transfer_vaa,
                 &the_clock
             );
 
@@ -448,7 +418,7 @@ module token_bridge::complete_transfer_with_payload_test {
         return_states(token_bridge_state, worm_state);
         return_clock(the_clock);
         balance::destroy_for_testing(bridged);
-        emitter::destroy_cap(emitter_cap);
+        emitter::destroy(emitter_cap);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -465,6 +435,9 @@ module token_bridge::complete_transfer_with_payload_test {
         use token_bridge::complete_transfer_with_payload::{
             complete_transfer_with_payload
         };
+
+        let transfer_vaa =
+            dummy_message::encoded_transfer_with_payload_wrapped_12();
 
         let (user, coin_deployer) = two_people();
         let my_scenario = test_scenario::begin(user);
@@ -493,10 +466,7 @@ module token_bridge::complete_transfer_with_payload_test {
         let registry = state::borrow_token_registry(&token_bridge_state);
 
         // Set up dummy `EmitterCap` as the expected redeemer.
-        let emitter_cap =
-            emitter::dummy_cap(
-                external_address::from_any_bytes(x"03")
-            );
+        let emitter_cap = emitter::dummy();
 
         // Verify that the emitter cap is the expected redeemer.
         let expected_transfer =
@@ -504,13 +474,13 @@ module token_bridge::complete_transfer_with_payload_test {
                 wormhole::vaa::take_payload(
                     wormhole::vaa::parse_and_verify(
                         &worm_state,
-                        VAA_ATTESTED_DECIMALS_12,
+                        transfer_vaa,
                         &the_clock
                     )
                 )
             );
         assert!(
-            transfer_with_payload::redeemer(&expected_transfer) == emitter::addr(&emitter_cap),
+            transfer_with_payload::redeemer_id(&expected_transfer) == emitter::id(&emitter_cap),
             0
         );
 
@@ -539,7 +509,7 @@ module token_bridge::complete_transfer_with_payload_test {
                 &mut token_bridge_state,
                 &emitter_cap,
                 &mut worm_state,
-                VAA_ATTESTED_DECIMALS_12,
+                transfer_vaa,
                 &the_clock
             );
 
@@ -547,7 +517,7 @@ module token_bridge::complete_transfer_with_payload_test {
         return_states(token_bridge_state, worm_state);
         return_clock(the_clock);
         balance::destroy_for_testing(bridged);
-        emitter::destroy_cap(emitter_cap);
+        emitter::destroy(emitter_cap);
 
         // Done.
         test_scenario::end(my_scenario);

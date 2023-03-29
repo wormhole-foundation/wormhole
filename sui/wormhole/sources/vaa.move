@@ -539,10 +539,8 @@ module wormhole::vaa_tests {
         assert!(vaa::emitter_chain(&parsed) == 42, 0);
 
         let expected_emitter_address =
-            external_address::new(
-                bytes32::new(
-                    x"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
-                )
+            external_address::from_address(
+                @0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
             );
         assert!(vaa::emitter_address(&parsed) == expected_emitter_address, 0);
         assert!(vaa::sequence(&parsed) == 2346, 0);

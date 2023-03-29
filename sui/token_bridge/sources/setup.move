@@ -45,7 +45,7 @@ module token_bridge::setup {
     /// Only the owner of the `DeployerCap` can call this method. This
     /// method destroys the capability and shares the `State` object.
     public entry fun complete(
-        worm_state: &mut WormholeState,
+        worm_state: &WormholeState,
         deployer: DeployerCap,
         upgrade_cap: UpgradeCap,
         ctx: &mut TxContext
