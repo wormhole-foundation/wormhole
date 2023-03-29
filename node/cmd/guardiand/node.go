@@ -3,7 +3,6 @@ package guardiand
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -1104,6 +1103,11 @@ func runNode(cmd *cobra.Command, args []string) {
 	components := p2p.DefaultComponents()
 	components.Port = *p2pPort
 
+	ibcChainsToMonitor, ibcFeatures, err := ibc.ParseConfig(*ibcConfig)
+	if err != nil {
+		logger.Fatal("failed to parse IBC config", zap.Error(err))
+	}
+
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
 		if err := supervisor.Run(ctx, "p2p", p2p.Run(
@@ -1122,7 +1126,10 @@ func runNode(cmd *cobra.Command, args []string) {
 			rootCtxCancel,
 			acct,
 			gov,
-			nil, nil, components)); err != nil {
+			nil,
+			nil,
+			components,
+			ibcFeatures)); err != nil {
 			return err
 		}
 
@@ -1291,20 +1298,20 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if shouldStart(terraWS) {
 			logger.Info("Starting Terra watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDTerra2)
+			common.MustRegisterReadinessSyncing(vaa.ChainIDTerra)
 			chainObsvReqC[vaa.ChainIDTerra] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "terrawatch",
-				common.WrapWithScissors(cosmwasm.NewWatcher(*terraWS, *terraLCD, *terraContract, chainMsgC[vaa.ChainIDTerra], chainObsvReqC[vaa.ChainIDTerra], common.ReadinessTerraSyncing, vaa.ChainIDTerra).Run, "terrawatch")); err != nil {
+				common.WrapWithScissors(cosmwasm.NewWatcher(*terraWS, *terraLCD, *terraContract, chainMsgC[vaa.ChainIDTerra], chainObsvReqC[vaa.ChainIDTerra], vaa.ChainIDTerra).Run, "terrawatch")); err != nil {
 				return err
 			}
 		}
 
 		if shouldStart(terra2WS) {
 			logger.Info("Starting Terra 2 watcher")
-			readiness.RegisterComponent(common.ReadinessTerra2Syncing)
+			common.MustRegisterReadinessSyncing(vaa.ChainIDTerra2)
 			chainObsvReqC[vaa.ChainIDTerra2] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "terra2watch",
-				common.WrapWithScissors(cosmwasm.NewWatcher(*terra2WS, *terra2LCD, *terra2Contract, chainMsgC[vaa.ChainIDTerra2], chainObsvReqC[vaa.ChainIDTerra2], common.ReadinessTerra2Syncing, vaa.ChainIDTerra2).Run, "terra2watch")); err != nil {
+				common.WrapWithScissors(cosmwasm.NewWatcher(*terra2WS, *terra2LCD, *terra2Contract, chainMsgC[vaa.ChainIDTerra2], chainObsvReqC[vaa.ChainIDTerra2], vaa.ChainIDTerra2).Run, "terra2watch")); err != nil {
 				return err
 			}
 		}
@@ -1440,45 +1447,29 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		if shouldStart(ibcContract) {
-			if *ibcConfig == "" {
-				logger.Fatal("If --ibcContract is specified, then --ibcConfig must be specified")
+			if len(ibcChainsToMonitor) == 0 {
+				logger.Fatal("IBC is enabled but there are no chains configured, please set --ibcConfig")
 			}
 			if *wormchainWS == "" {
 				logger.Fatal("If --ibcContract is specified, then --wormchainWS must be specified")
 			}
 
-			chainsToMonitor := make(ibc.ChainsToMonitor, 0)
-
-			// The config string is json formatted like this: `[{"ChainID":18,"ChannelID":"channel-0"},{"ChainID":19,"ChannelID":"channel-1"}]`
-			var channels []ibc.ChannelConfigEntry
-			err := json.Unmarshal([]byte(*ibcConfig), &channels)
-			if err != nil {
-				logger.Fatal("Failed to parse --ibcConfig", zap.String("value", *ibcConfig), zap.Error(err))
-			}
-
-			for _, ch := range channels {
+			for _, ch := range ibcChainsToMonitor {
 				// Make sure this chain isn't already configured.
 				if _, exists := chainObsvReqC[ch.ChainID]; exists {
 					logger.Fatal("May not configure chain using IBC since it is already registered.", zap.Stringer("chainID", ch.ChainID))
 				}
 
-				readinessSync := common.MustRegisterReadinessSyncing(ch.ChainID)
-				readiness.RegisterComponent(readinessSync)
-
+				ch.MsgC = chainMsgC[ch.ChainID]
+				ch.ObsvReqC = chainObsvReqC[ch.ChainID]
 				chainObsvReqC[ch.ChainID] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-				chainsToMonitor = append(chainsToMonitor,
-					ibc.ChainToMonitor{
-						ChainID:            ch.ChainID,
-						ReadinessComponent: readinessSync,
-						MsgC:               chainMsgC[ch.ChainID],
-						ObsvReqC:           chainObsvReqC[ch.ChainID],
-					})
+				common.MustRegisterReadinessSyncing(ch.ChainID)
 			}
 
-			logger.Info("Starting IBC watcher")
+			logger.Info("Starting IBC watcher", zap.String("features", ibcFeatures), zap.String("contract", *ibcContract))
 			readiness.RegisterComponent(common.ReadinessIBCSyncing)
 			if err := supervisor.Run(ctx, "ibcwatch",
-				ibc.NewWatcher(*wormchainWS, *wormchainLCD, *ibcContract, chainsToMonitor).Run); err != nil {
+				ibc.NewWatcher(*wormchainWS, *wormchainLCD, *ibcContract, ibcChainsToMonitor).Run); err != nil {
 				return err
 			}
 		}

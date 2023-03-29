@@ -32,26 +32,20 @@ import (
 )
 
 type (
-	// ChainToMonitor defines a chain to be monitored over IBC.
-	ChainToMonitor struct {
-		// ChainID is the wormhole chain ID.
-		ChainID vaa.ChainID
+	// ChannelConfig defines the list of chains to be monitored by IBC, along with their IBC channel.
+	ChannelConfig []ChannelConfigEntry
 
-		// IBCChannelID is the IBC channel this chain publishes on.
-		IBCChannelID string
+	// ChannelConfigEntry defines the entry for an IBC channel. Note that the json of this is used to set the -ibcConfig
+	// parameter in the json config, so be careful about changing this.
+	ChannelConfigEntry struct {
+		// These are specified as json in the config.
+		ChainID   vaa.ChainID
+		ChannelID string
 
-		// readinessComponent is used to publish readiness for this chain.
-		ReadinessComponent readiness.Component
-
-		// MsgC is the channel used to publish messages for this chain.
-		MsgC chan<- *common.MessagePublication
-
-		// ObsvReqC is the channel used to listen for observation requests for this chain.
-		ObsvReqC <-chan *gossipv1.ObservationRequest
+		// These are filled in before the watcher is instantiated.
+		MsgC     chan<- *common.MessagePublication   `json:"-"`
+		ObsvReqC <-chan *gossipv1.ObservationRequest `json:"-"`
 	}
-
-	// ChainToMonitor is the set of chains to be monitored over IBC.
-	ChainsToMonitor []ChainToMonitor
 )
 
 var (
@@ -78,14 +72,8 @@ type (
 		wsUrl           string
 		lcdUrl          string
 		contractAddress string
-		chainsToMonitor ChainsToMonitor
+		channelConfig   ChannelConfig
 		logger          *zap.Logger
-	}
-
-	// ChannelConfigEntry defines the entry for an IBC channel in the node config file.
-	ChannelConfigEntry struct {
-		ChainID   vaa.ChainID
-		ChannelID string
 	}
 
 	// channelEntry defines the chain that is associated with an IBC channel.
@@ -121,18 +109,47 @@ type (
 	}
 )
 
+// ParseConfig parses the --ibcConfig parameter into a vector of configured chains. It also returns the feature string to be published in heartbeats.
+func ParseConfig(ibcConfig string) (ChannelConfig, string, error) {
+	channels := make([]ChannelConfigEntry, 0)
+	features := ""
+
+	if ibcConfig == "" {
+		// This is not an error if IBC is not enabled.
+		return channels, features, nil
+	}
+
+	// The config string is json formatted like this: `[{"ChainID":18,"ChannelID":"channel-0"},{"ChainID":19,"ChannelID":"channel-1"}]`
+	err := json.Unmarshal([]byte(ibcConfig), &channels)
+	if err != nil {
+		return channels, features, fmt.Errorf("failed to parse IBC config string: %s, error: %w", ibcConfig, err)
+	}
+
+	// Build the feature string.
+	for _, ch := range channels {
+		if features == "" {
+			features = "ibc:"
+		} else {
+			features += ","
+		}
+		features += fmt.Sprintf("%s:%s", ch.ChainID.String(), ch.ChannelID)
+	}
+
+	return channels, features, nil
+}
+
 // NewWatcher creates a new IBC contract watcher
 func NewWatcher(
 	wsUrl string,
 	lcdUrl string,
 	contractAddress string,
-	chainsToMonitor ChainsToMonitor,
+	channelConfig ChannelConfig,
 ) *Watcher {
 	return &Watcher{
 		wsUrl:           wsUrl,
 		lcdUrl:          lcdUrl,
 		contractAddress: contractAddress,
-		chainsToMonitor: chainsToMonitor,
+		channelConfig:   channelConfig,
 	}
 }
 
@@ -149,12 +166,12 @@ func (w *Watcher) Run(ctx context.Context) error {
 	channelMap := make(map[string]*channelEntry)
 	chainMap := make(map[vaa.ChainID]*channelEntry)
 
-	for _, chainToMonitor := range w.chainsToMonitor {
+	for _, chainToMonitor := range w.channelConfig {
 		ce := &channelEntry{
-			ibcChannelID: chainToMonitor.IBCChannelID,
+			ibcChannelID: chainToMonitor.ChannelID,
 			chainID:      chainToMonitor.ChainID,
 			chainName:    vaa.ChainID(chainToMonitor.ChainID).String(),
-			readiness:    chainToMonitor.ReadinessComponent,
+			readiness:    common.MustConvertChainIdToReadinessSyncing(chainToMonitor.ChainID),
 			msgC:         chainToMonitor.MsgC,
 			obsvReqC:     chainToMonitor.ObsvReqC,
 		}
@@ -169,7 +186,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 			return fmt.Errorf("detected duplicate chainID: %v", ce.chainID)
 		}
 
-		w.logger.Info("Will monitor chain over IBC", zap.String("chain", ce.chainName), zap.String("IBC channel", ce.ibcChannelID))
+		w.logger.Info("ibc: will monitor chain over IBC", zap.String("chain", ce.chainName), zap.String("IBC channel", ce.ibcChannelID))
 		channelMap[ce.ibcChannelID] = ce
 		chainMap[ce.chainID] = ce
 
@@ -293,6 +310,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 				}
 
 				json := string(message)
+				w.logger.Info("BigBOINK", zap.String("json", json))
 
 				txHashRaw := gjson.Get(json, "result.events.tx\\.hash.0")
 				if !txHashRaw.Exists() {
@@ -315,6 +333,8 @@ func (w *Watcher) Run(ctx context.Context) error {
 					w.logger.Warn("message has no events", zap.String("payload", json))
 					continue
 				}
+
+				w.logger.Info("BOINK", zap.String("events", eventsJson.String()))
 
 				events, err := w.parseEvents(txHashStr, eventsJson.Array())
 				if err != nil {

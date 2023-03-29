@@ -551,7 +551,9 @@ func runSpy(cmd *cobra.Command, args []string) {
 				nil,
 				nil,
 				nil,
-				components)); err != nil {
+				components,
+				"", // ibc feature string
+			)); err != nil {
 			return err
 		}
 
