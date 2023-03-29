@@ -6,17 +6,16 @@ COPY README.md cert.pem* /certs/
 RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/certs/ca-certificates.crt; fi
 RUN if [ -e /certs/cert.pem ]; then git config --global http.sslCAInfo /certs/cert.pem; fi
 
+RUN sui genesis -f
+
+COPY devnet/ /root/.sui/sui_config/
+
 WORKDIR /tmp
 
-RUN sui genesis -f
-COPY scripts/start_node.sh  .
-COPY scripts/import_default_account.sh .
-
+COPY scripts/ scripts
 COPY wormhole/ wormhole
 COPY token_bridge/ token_bridge
 COPY Makefile Makefile
-
-RUN ./import_default_account.sh
 
 FROM sui AS tests
 

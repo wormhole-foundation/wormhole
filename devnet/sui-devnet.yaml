@@ -39,9 +39,9 @@ spec:
         - name: sui-node
           image: sui-node
           command:
-            - /bin/sh 
-            - -c 
-            - /tmp/start_node.sh
+            - /bin/sh
+            - -c
+            - /tmp/scripts/start_node.sh
           ports:
             - containerPort: 9000
               name: node
