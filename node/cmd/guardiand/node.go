@@ -13,7 +13,11 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/certusone/wormhole/node/pkg/db"
+	"github.com/certusone/wormhole/node/pkg/node"
+	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/wormchain"
+	"github.com/certusone/wormhole/node/pkg/wormconn"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/cosmwasm"
 
@@ -23,33 +27,23 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers/near"
 	"github.com/certusone/wormhole/node/pkg/watchers/solana"
 	"github.com/certusone/wormhole/node/pkg/watchers/sui"
-	"github.com/certusone/wormhole/node/pkg/wormconn"
 
-	"github.com/benbjohnson/clock"
-	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/telemetry"
 	"github.com/certusone/wormhole/node/pkg/version"
-	"github.com/gagliardetto/solana-go/rpc"
 	"go.uber.org/zap/zapcore"
 
-	solana_types "github.com/gagliardetto/solana-go"
+	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/certusone/wormhole/node/pkg/accountant"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/devnet"
-	"github.com/certusone/wormhole/node/pkg/governor"
 	"github.com/certusone/wormhole/node/pkg/p2p"
-	"github.com/certusone/wormhole/node/pkg/processor"
-	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/reporter"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	cosmoscrypto "github.com/cosmos/cosmos-sdk/crypto/types"
-	eth_common "github.com/ethereum/go-ethereum/common"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/libp2p/go-libp2p/core/crypto"
+	libp2p_crypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/spf13/cobra"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -388,9 +382,6 @@ var NodeCmd = &cobra.Command{
 // are distributed. Production binaries are required to be built from source by
 // guardians to reduce risk from a compromised builder.
 var Build = "prod"
-
-// observationRequestBufferSize is the buffer size of the per-network reobservation channel
-const observationRequestBufferSize = 25
 
 func runNode(cmd *cobra.Command, args []string) {
 	if Build == "dev" && !*unsafeDevMode {
@@ -757,6 +748,21 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	// Determine execution mode
+	// TODO: refactor usage of these variables elsewhere. *unsafeDevMode and *testnetMode should not be accessed directly.
+	var env common.Environment
+	if *unsafeDevMode {
+		env = common.UnsafeDevNet
+	} else if *testnetMode {
+		env = common.TestNet
+	} else {
+		env = common.MainNet
+	}
+
+	if *unsafeDevMode && *testnetMode {
+		logger.Fatal("Cannot be in unsafeDevMode and testnetMode at the same time.")
+	}
+
 	// Complain about Infura on mainnet.
 	//
 	// As it turns out, Infura has a bug where it would sometimes incorrectly round
@@ -780,32 +786,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Infura is known to send incorrect blocks - please use your own nodes")
 	}
 
-	ethContractAddr := eth_common.HexToAddress(*ethContract)
-	bscContractAddr := eth_common.HexToAddress(*bscContract)
-	polygonContractAddr := eth_common.HexToAddress(*polygonContract)
-	avalancheContractAddr := eth_common.HexToAddress(*avalancheContract)
-	oasisContractAddr := eth_common.HexToAddress(*oasisContract)
-	auroraContractAddr := eth_common.HexToAddress(*auroraContract)
-	fantomContractAddr := eth_common.HexToAddress(*fantomContract)
-	karuraContractAddr := eth_common.HexToAddress(*karuraContract)
-	acalaContractAddr := eth_common.HexToAddress(*acalaContract)
-	klaytnContractAddr := eth_common.HexToAddress(*klaytnContract)
-	celoContractAddr := eth_common.HexToAddress(*celoContract)
-	moonbeamContractAddr := eth_common.HexToAddress(*moonbeamContract)
-	neonContractAddr := eth_common.HexToAddress(*neonContract)
-	arbitrumContractAddr := eth_common.HexToAddress(*arbitrumContract)
-	optimismContractAddr := eth_common.HexToAddress(*optimismContract)
-	baseContractAddr := eth_common.HexToAddress(*baseContract)
-	solAddress, err := solana_types.PublicKeyFromBase58(*solanaContract)
-	if err != nil {
-		logger.Fatal("invalid Solana contract address", zap.Error(err))
-	}
-	var pythnetAddress solana_types.PublicKey
-	pythnetAddress, err = solana_types.PublicKeyFromBase58(*pythnetContract)
-	if err != nil {
-		logger.Fatal("invalid PythNet contract address", zap.Error(err))
-	}
-
 	// In devnet mode, we generate a deterministic guardian key and write it to disk.
 	if *unsafeDevMode {
 		gk, err := generateDevnetGuardianKey()
@@ -820,14 +800,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	}
 
 	// Database
-	dbPath := path.Join(*dataDir, "db")
-	if err := os.MkdirAll(dbPath, 0700); err != nil {
-		logger.Fatal("failed to create database directory", zap.Error(err))
-	}
-	db, err := db.Open(dbPath)
-	if err != nil {
-		logger.Fatal("failed to open database", zap.Error(err))
-	}
+	db := db.OpenDb(logger, dataDir)
 	defer db.Close()
 
 	// Guardian key
@@ -836,14 +809,29 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("failed to load guardian key", zap.Error(err))
 	}
 
-	guardianAddr := ethcrypto.PubkeyToAddress(gk.PublicKey).String()
 	logger.Info("Loaded guardian key", zap.String(
-		"address", guardianAddr))
+		"address", node.GuardianKeyToAddress(gk.PublicKey).String()))
+
+	// Load p2p private key
+	var p2pKey libp2p_crypto.PrivKey
+	if *unsafeDevMode {
+		idx, err := devnet.GetDevnetIndex()
+		if err != nil {
+			logger.Fatal("Failed to parse hostname - are we running in devnet?")
+		}
+		p2pKey = devnet.DeterministicP2PPrivKeyByIndex(int64(idx))
+	} else {
+		p2pKey, err = common.GetOrCreateNodeKey(logger, *nodeKeyPath)
+		if err != nil {
+			logger.Fatal("Failed to load node key", zap.Error(err))
+		}
+	}
 
 	// Node's main lifecycle context.
 	rootCtx, rootCtxCancel = context.WithCancel(context.Background())
 	defer rootCtxCancel()
 
+	// Handle SIGTERM
 	sigterm := make(chan os.Signal, 1)
 	signal.Notify(sigterm, syscall.SIGTERM)
 	go func() {
@@ -852,82 +840,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		rootCtxCancel()
 	}()
 
-	// Setup various channels...
-
-	// Outbound gossip message queue (needs to be read/write because p2p needs read/write)
-	gossipSendC := make(chan []byte)
-	// Inbound observations
-	obsvC := make(chan *gossipv1.SignedObservation, 50)
-
-	// Finalized guardian observations aggregated across all chains
-	msgReadC, msgWriteC := makeChannelPair[*common.MessagePublication](0)
-
-	// Ethereum incoming guardian set updates
-	setReadC, setWriteC := makeChannelPair[*common.GuardianSet](0)
-
-	// Inbound signed VAAs
-	signedInReadC, signedInWriteC := makeChannelPair[*gossipv1.SignedVAAWithQuorum](50)
-
-	// Inbound observation requests from the p2p service (for all chains)
-	obsvReqReadC, obsvReqWriteC := makeChannelPair[*gossipv1.ObservationRequest](common.ObsvReqChannelSize)
-
-	// Outbound observation requests
-	obsvReqSendReadC, obsvReqSendWriteC := makeChannelPair[*gossipv1.ObservationRequest](common.ObsvReqChannelSize)
-
-	// Injected VAAs (manually generated rather than created via observation)
-	injectReadC, injectWriteC := makeChannelPair[*vaa.VAA](0)
-
-	// Guardian set state managed by processor
-	gst := common.NewGuardianSetState(nil)
-
-	// Per-chain observation requests
-	chainObsvReqC := make(map[vaa.ChainID]chan *gossipv1.ObservationRequest)
-
-	// Per-chain msgC
-	chainMsgC := make(map[vaa.ChainID]chan *common.MessagePublication)
-	// aggregate per-chain msgC into msgC.
-	// SECURITY defense-in-depth: This way we enforce that a watcher must set the msg.EmitterChain to its chainId, which makes the code easier to audit
-	for _, chainId := range vaa.GetAllNetworkIDs() {
-		chainMsgC[chainId] = make(chan *common.MessagePublication)
-		go func(c <-chan *common.MessagePublication, chainId vaa.ChainID) {
-			for {
-				select {
-				case <-rootCtx.Done():
-					return
-				case msg := <-c:
-					if msg.EmitterChain == chainId {
-						msgWriteC <- msg
-					} else {
-						// SECURITY: This should never happen. If it does, a watcher has been compromised.
-						logger.Fatal("SECURITY CRITICAL: Received observation from a chain that was not marked as originating from that chain",
-							zap.Stringer("tx", msg.TxHash),
-							zap.Stringer("emitter_address", msg.EmitterAddress),
-							zap.Uint64("sequence", msg.Sequence),
-							zap.Stringer("msgChainId", msg.EmitterChain),
-							zap.Stringer("watcherChainId", chainId),
-						)
-					}
-				}
-			}
-		}(chainMsgC[chainId], chainId)
-	}
-
-	// Load p2p private key
-	var priv crypto.PrivKey
-	if *unsafeDevMode {
-		idx, err := devnet.GetDevnetIndex()
-		if err != nil {
-			logger.Fatal("Failed to parse hostname - are we running in devnet?")
-		}
-		priv = devnet.DeterministicP2PPrivKeyByIndex(int64(idx))
-	} else {
-		priv, err = common.GetOrCreateNodeKey(logger, *nodeKeyPath)
-		if err != nil {
-			logger.Fatal("Failed to load node key", zap.Error(err))
-		}
-	}
-
-	// Enable unless it is disabled. For devnet, only when --telemetryKey is set.
+	// Telemetry is enabled by default in mainnet/testnet. In devnet it is disabled by default
 	if !*disableTelemetry && (!*unsafeDevMode || *unsafeDevMode && *telemetryKey != "") {
 		logger.Info("Telemetry enabled")
 
@@ -941,8 +854,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		// Get libp2p peer ID from private key
-		pk := priv.GetPublic()
-		peerID, err := peer.IDFromPublicKey(pk)
+		peerID, err := peer.IDFromPublicKey(p2pKey.GetPublic())
 		if err != nil {
 			logger.Fatal("Failed to get peer ID from private key", zap.Error(err))
 		}
@@ -950,7 +862,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		tm, err := telemetry.New(context.Background(), telemetryProject, creds, *publicRpcLogToTelemetry, map[string]string{
 			"node_name":     *nodeName,
 			"node_key":      peerID.Pretty(),
-			"guardian_addr": guardianAddr,
+			"guardian_addr": node.GuardianKeyToAddress(gk.PublicKey).String(),
 			"network":       *p2pNetworkID,
 			"version":       version.Version(),
 		})
@@ -966,12 +878,8 @@ func runNode(cmd *cobra.Command, args []string) {
 	// Redirect ipfs logs to plain zap
 	ipfslog.SetPrimaryCore(logger.Core())
 
-	// provides methods for reporting progress toward message attestation, and channels for receiving attestation lifecyclye events.
-	attestationEvents := reporter.EventListener(logger)
-
-	// If the wormchain sending info is configured, connect to it.
-	var wormchainKey cosmoscrypto.PrivKey
 	var wormchainConn *wormconn.ClientConn
+	var wormchainKey cosmoscrypto.PrivKey
 	if *wormchainURL != "" {
 		if *wormchainKeyPath == "" {
 			logger.Fatal("if wormchainURL is specified, wormchainKeyPath is required")
@@ -1005,485 +913,384 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	// Set up the accountant. If the accountant smart contract is configured, we will instantiate the accountant and VAAs
-	// will be passed to it for processing. It will forward all token bridge transfers to the accountant contract.
-	// If accountantCheckEnabled is set to true, token bridge transfers will not be signed and published until they
-	// are approved by the accountant smart contract.
-	acctReadC, acctWriteC := makeChannelPair[*common.MessagePublication](0)
+	var watcherConfigs = []watchers.WatcherConfig{}
 
-	var acct *accountant.Accountant
-	if *accountantContract != "" {
-		if *accountantWS == "" {
-			logger.Fatal("acct: if accountantContract is specified, accountantWS is required")
+	if shouldStart(ethRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:              "eth",
+			ChainID:                vaa.ChainIDEthereum,
+			Rpc:                    *ethRPC,
+			Contract:               *ethContract,
+			GuardianSetUpdateChain: true,
 		}
-		if wormchainConn == nil {
-			logger.Fatal("acct: if accountantContract is specified, the wormchain sending connection must be enabled")
-		}
-		if *accountantCheckEnabled {
-			logger.Info("acct: accountant is enabled and will be enforced")
-		} else {
-			logger.Info("acct: accountant is enabled but will not be enforced")
-		}
-		env := accountant.MainNetMode
-		if *testnetMode {
-			env = accountant.TestNetMode
-		} else if *unsafeDevMode {
-			env = accountant.DevNetMode
-		}
-		acct = accountant.NewAccountant(
-			rootCtx,
-			logger,
-			db,
-			obsvReqWriteC,
-			*accountantContract,
-			*accountantWS,
-			wormchainConn,
-			*accountantCheckEnabled,
-			gk,
-			gst,
-			acctWriteC,
-			env,
-		)
-	} else {
-		logger.Info("acct: accountant is disabled")
+
+		watcherConfigs = append(watcherConfigs, wc)
 	}
 
-	var gov *governor.ChainGovernor
-	if *chainGovernorEnabled {
-		logger.Info("chain governor is enabled")
-		env := governor.MainNetMode
-		if *testnetMode {
-			env = governor.TestNetMode
-		} else if *unsafeDevMode {
-			env = governor.DevNetMode
+	if shouldStart(bscRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:            "bsc",
+			ChainID:              vaa.ChainIDBSC,
+			Rpc:                  *bscRPC,
+			Contract:             *bscContract,
+			WaitForConfirmations: true,
 		}
-		gov = governor.NewChainGovernor(logger, db, env)
-	} else {
-		logger.Info("chain governor is disabled")
+
+		watcherConfigs = append(watcherConfigs, wc)
 	}
 
-	components := p2p.DefaultComponents()
-	components.Port = *p2pPort
-
-	// Run supervisor.
-	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
-		if err := supervisor.Run(ctx, "p2p", p2p.Run(
-			obsvC,
-			obsvReqWriteC,
-			obsvReqSendReadC,
-			gossipSendC,
-			signedInWriteC,
-			priv,
-			gk,
-			gst,
-			*p2pNetworkID,
-			*p2pBootstrap,
-			*nodeName,
-			*disableHeartbeatVerify,
-			rootCtxCancel,
-			acct,
-			gov,
-			nil, nil, components)); err != nil {
-			return err
+	if shouldStart(polygonRPC) {
+		// Checkpointing is required in mainnet, so we don't need to wait for confirmations.
+		waitForConfirmations := *unsafeDevMode || *testnetMode
+		if !waitForConfirmations && *polygonRootChainRpc == "" {
+			log.Fatal("Polygon checkpointing is required in mainnet")
+		}
+		wc := &evm.WatcherConfig{
+			NetworkID:            "polygon",
+			ChainID:              vaa.ChainIDPolygon,
+			Rpc:                  *polygonRPC,
+			Contract:             *polygonContract,
+			WaitForConfirmations: waitForConfirmations,
+			RootChainRpc:         *polygonRootChainRpc,
+			RootChainContract:    *polygonRootChainContractAddress,
 		}
 
-		// For each chain that wants a watcher, we:
-		// - create and register a component for readiness checks.
-		// - create an observation request channel.
-		// - create the watcher.
-		//
-		// NOTE:  The "none" is a special indicator to disable a watcher until it is desirable to turn it back on.
+		watcherConfigs = append(watcherConfigs, wc)
+	}
 
-		var ethWatcher *evm.Watcher
-		if shouldStart(ethRPC) {
-			logger.Info("Starting Ethereum watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDEthereum)
-			chainObsvReqC[vaa.ChainIDEthereum] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			ethWatcher = evm.NewEthWatcher(*ethRPC, ethContractAddr, "eth", vaa.ChainIDEthereum, chainMsgC[vaa.ChainIDEthereum], setWriteC, chainObsvReqC[vaa.ChainIDEthereum], *unsafeDevMode)
-			if err := supervisor.Run(ctx, "ethwatch",
-				common.WrapWithScissors(ethWatcher.Run, "ethwatch")); err != nil {
-				return err
-			}
+	if shouldStart(avalancheRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID: "avalanche",
+			ChainID:   vaa.ChainIDAvalanche,
+			Rpc:       *avalancheRPC,
+			Contract:  *avalancheContract,
 		}
 
-		if shouldStart(bscRPC) {
-			logger.Info("Starting BSC watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDBSC)
-			chainObsvReqC[vaa.ChainIDBSC] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			bscWatcher := evm.NewEthWatcher(*bscRPC, bscContractAddr, "bsc", vaa.ChainIDBSC, chainMsgC[vaa.ChainIDBSC], nil, chainObsvReqC[vaa.ChainIDBSC], *unsafeDevMode)
-			bscWatcher.SetWaitForConfirmations(true)
-			if err := supervisor.Run(ctx, "bscwatch", common.WrapWithScissors(bscWatcher.Run, "bscwatch")); err != nil {
-				return err
-			}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(oasisRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID: "oasis",
+			ChainID:   vaa.ChainIDOasis,
+			Rpc:       *oasisRPC,
+			Contract:  *oasisContract,
 		}
 
-		if shouldStart(polygonRPC) {
-			// Checkpointing is required in mainnet, so we don't need to wait for confirmations.
-			waitForConfirmations := *unsafeDevMode || *testnetMode
-			if !waitForConfirmations && *polygonRootChainRpc == "" {
-				log.Fatal("Polygon checkpointing is required in mainnet")
-			}
-			logger.Info("Starting Polygon watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDPolygon)
-			chainObsvReqC[vaa.ChainIDPolygon] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			polygonWatcher := evm.NewEthWatcher(*polygonRPC, polygonContractAddr, "polygon", vaa.ChainIDPolygon, chainMsgC[vaa.ChainIDPolygon], nil, chainObsvReqC[vaa.ChainIDPolygon], *unsafeDevMode)
-			polygonWatcher.SetWaitForConfirmations(waitForConfirmations)
-			if err := polygonWatcher.SetRootChainParams(*polygonRootChainRpc, *polygonRootChainContractAddress); err != nil {
-				return err
-			}
-			if err := supervisor.Run(ctx, "polygonwatch", common.WrapWithScissors(polygonWatcher.Run, "polygonwatch")); err != nil {
-				return err
-			}
-		}
-		if shouldStart(avalancheRPC) {
-			logger.Info("Starting Avalanche watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDAvalanche)
-			chainObsvReqC[vaa.ChainIDAvalanche] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			if err := supervisor.Run(ctx, "avalanchewatch",
-				common.WrapWithScissors(evm.NewEthWatcher(*avalancheRPC, avalancheContractAddr, "avalanche", vaa.ChainIDAvalanche, chainMsgC[vaa.ChainIDAvalanche], nil, chainObsvReqC[vaa.ChainIDAvalanche], *unsafeDevMode).Run, "avalanchewatch")); err != nil {
-				return err
-			}
-		}
-		if shouldStart(oasisRPC) {
-			logger.Info("Starting Oasis watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDOasis)
-			chainObsvReqC[vaa.ChainIDOasis] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			if err := supervisor.Run(ctx, "oasiswatch",
-				common.WrapWithScissors(evm.NewEthWatcher(*oasisRPC, oasisContractAddr, "oasis", vaa.ChainIDOasis, chainMsgC[vaa.ChainIDOasis], nil, chainObsvReqC[vaa.ChainIDOasis], *unsafeDevMode).Run, "oasiswatch")); err != nil {
-				return err
-			}
-		}
-		if shouldStart(auroraRPC) {
-			logger.Info("Starting Aurora watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDAurora)
-			chainObsvReqC[vaa.ChainIDAurora] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			if err := supervisor.Run(ctx, "aurorawatch",
-				common.WrapWithScissors(evm.NewEthWatcher(*auroraRPC, auroraContractAddr, "aurora", vaa.ChainIDAurora, chainMsgC[vaa.ChainIDAurora], nil, chainObsvReqC[vaa.ChainIDAurora], *unsafeDevMode).Run, "aurorawatch")); err != nil {
-				return err
-			}
-		}
-		if shouldStart(fantomRPC) {
-			logger.Info("Starting Fantom watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDFantom)
-			chainObsvReqC[vaa.ChainIDFantom] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			if err := supervisor.Run(ctx, "fantomwatch",
-				common.WrapWithScissors(evm.NewEthWatcher(*fantomRPC, fantomContractAddr, "fantom", vaa.ChainIDFantom, chainMsgC[vaa.ChainIDFantom], nil, chainObsvReqC[vaa.ChainIDFantom], *unsafeDevMode).Run, "fantomwatch")); err != nil {
-				return err
-			}
-		}
-		if shouldStart(karuraRPC) {
-			logger.Info("Starting Karura watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDKarura)
-			chainObsvReqC[vaa.ChainIDKarura] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			if err := supervisor.Run(ctx, "karurawatch",
-				common.WrapWithScissors(evm.NewEthWatcher(*karuraRPC, karuraContractAddr, "karura", vaa.ChainIDKarura, chainMsgC[vaa.ChainIDKarura], nil, chainObsvReqC[vaa.ChainIDKarura], *unsafeDevMode).Run, "karurawatch")); err != nil {
-				return err
-			}
-		}
-		if shouldStart(acalaRPC) {
-			logger.Info("Starting Acala watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDAcala)
-			chainObsvReqC[vaa.ChainIDAcala] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			if err := supervisor.Run(ctx, "acalawatch",
-				common.WrapWithScissors(evm.NewEthWatcher(*acalaRPC, acalaContractAddr, "acala", vaa.ChainIDAcala, chainMsgC[vaa.ChainIDAcala], nil, chainObsvReqC[vaa.ChainIDAcala], *unsafeDevMode).Run, "acalawatch")); err != nil {
-				return err
-			}
-		}
-		if shouldStart(klaytnRPC) {
-			logger.Info("Starting Klaytn watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDKlaytn)
-			chainObsvReqC[vaa.ChainIDKlaytn] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			if err := supervisor.Run(ctx, "klaytnwatch",
-				common.WrapWithScissors(evm.NewEthWatcher(*klaytnRPC, klaytnContractAddr, "klaytn", vaa.ChainIDKlaytn, chainMsgC[vaa.ChainIDKlaytn], nil, chainObsvReqC[vaa.ChainIDKlaytn], *unsafeDevMode).Run, "klaytnwatch")); err != nil {
-				return err
-			}
-		}
-		if shouldStart(celoRPC) {
-			logger.Info("Starting Celo watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDCelo)
-			chainObsvReqC[vaa.ChainIDCelo] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			if err := supervisor.Run(ctx, "celowatch",
-				common.WrapWithScissors(evm.NewEthWatcher(*celoRPC, celoContractAddr, "celo", vaa.ChainIDCelo, chainMsgC[vaa.ChainIDCelo], nil, chainObsvReqC[vaa.ChainIDCelo], *unsafeDevMode).Run, "celowatch")); err != nil {
-				return err
-			}
-		}
-		if shouldStart(moonbeamRPC) {
-			logger.Info("Starting Moonbeam watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDMoonbeam)
-			chainObsvReqC[vaa.ChainIDMoonbeam] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			if err := supervisor.Run(ctx, "moonbeamwatch",
-				common.WrapWithScissors(evm.NewEthWatcher(*moonbeamRPC, moonbeamContractAddr, "moonbeam", vaa.ChainIDMoonbeam, chainMsgC[vaa.ChainIDMoonbeam], nil, chainObsvReqC[vaa.ChainIDMoonbeam], *unsafeDevMode).Run, "moonbeamwatch")); err != nil {
-				return err
-			}
-		}
-		if shouldStart(arbitrumRPC) {
-			if ethWatcher == nil {
-				log.Fatalf("if arbitrum is enabled then ethereum must also be enabled.")
-			}
-			logger.Info("Starting Arbitrum watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDArbitrum)
-			chainObsvReqC[vaa.ChainIDArbitrum] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			arbitrumWatcher := evm.NewEthWatcher(*arbitrumRPC, arbitrumContractAddr, "arbitrum", vaa.ChainIDArbitrum, chainMsgC[vaa.ChainIDArbitrum], nil, chainObsvReqC[vaa.ChainIDArbitrum], *unsafeDevMode)
-			arbitrumWatcher.SetL1Finalizer(ethWatcher)
-			if err := supervisor.Run(ctx, "arbitrumwatch", common.WrapWithScissors(arbitrumWatcher.Run, "arbitrumwatch")); err != nil {
-				return err
-			}
-		}
-		if shouldStart(optimismRPC) {
-			logger.Info("Starting Optimism watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDOptimism)
-			chainObsvReqC[vaa.ChainIDOptimism] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			optimismWatcher := evm.NewEthWatcher(*optimismRPC, optimismContractAddr, "optimism", vaa.ChainIDOptimism, chainMsgC[vaa.ChainIDOptimism], nil, chainObsvReqC[vaa.ChainIDOptimism], *unsafeDevMode)
+		watcherConfigs = append(watcherConfigs, wc)
+	}
 
-			// If rootChainParams are set, pass them in for pre-Bedrock mode
-			if *optimismCtcRpc != "" || *optimismCtcContractAddress != "" {
-				if ethWatcher == nil {
-					log.Fatalf("if optimism (pre-bedrock) is enabled then ethereum must also be enabled.")
-				}
-				optimismWatcher.SetL1Finalizer(ethWatcher)
-				if err := optimismWatcher.SetRootChainParams(*optimismCtcRpc, *optimismCtcContractAddress); err != nil {
-					return err
-				}
-			}
-			if err := supervisor.Run(ctx, "optimismwatch", common.WrapWithScissors(optimismWatcher.Run, "optimismwatch")); err != nil {
-				return err
-			}
+	if shouldStart(fantomRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID: "fantom",
+			ChainID:   vaa.ChainIDFantom,
+			Rpc:       *fantomRPC,
+			Contract:  *fantomContract,
 		}
 
-		if shouldStart(terraWS) {
-			logger.Info("Starting Terra watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDTerra)
-			chainObsvReqC[vaa.ChainIDTerra] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			if err := supervisor.Run(ctx, "terrawatch",
-				common.WrapWithScissors(cosmwasm.NewWatcher(*terraWS, *terraLCD, *terraContract, chainMsgC[vaa.ChainIDTerra], chainObsvReqC[vaa.ChainIDTerra], vaa.ChainIDTerra).Run, "terrawatch")); err != nil {
-				return err
-			}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(karuraRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID: "karura",
+			ChainID:   vaa.ChainIDKarura,
+			Rpc:       *karuraRPC,
+			Contract:  *karuraContract,
 		}
 
-		if shouldStart(terra2WS) {
-			logger.Info("Starting Terra 2 watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDTerra2)
-			chainObsvReqC[vaa.ChainIDTerra2] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			if err := supervisor.Run(ctx, "terra2watch",
-				common.WrapWithScissors(cosmwasm.NewWatcher(*terra2WS, *terra2LCD, *terra2Contract, chainMsgC[vaa.ChainIDTerra2], chainObsvReqC[vaa.ChainIDTerra2], vaa.ChainIDTerra2).Run, "terra2watch")); err != nil {
-				return err
-			}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(acalaRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID: "acala",
+			ChainID:   vaa.ChainIDAcala,
+			Rpc:       *acalaRPC,
+			Contract:  *acalaContract,
 		}
 
-		if shouldStart(xplaWS) {
-			logger.Info("Starting XPLA watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDXpla)
-			chainObsvReqC[vaa.ChainIDXpla] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			if err := supervisor.Run(ctx, "xplawatch",
-				common.WrapWithScissors(cosmwasm.NewWatcher(*xplaWS, *xplaLCD, *xplaContract, chainMsgC[vaa.ChainIDXpla], chainObsvReqC[vaa.ChainIDXpla], vaa.ChainIDXpla).Run, "xplawatch")); err != nil {
-				return err
-			}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(klaytnRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID: "klaytn",
+			ChainID:   vaa.ChainIDKlaytn,
+			Rpc:       *klaytnRPC,
+			Contract:  *klaytnContract,
 		}
 
-		if shouldStart(algorandIndexerRPC) {
-			logger.Info("Starting Algorand watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDAlgorand)
-			chainObsvReqC[vaa.ChainIDAlgorand] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			if err := supervisor.Run(ctx, "algorandwatch",
-				common.WrapWithScissors(algorand.NewWatcher(*algorandIndexerRPC, *algorandIndexerToken, *algorandAlgodRPC, *algorandAlgodToken, *algorandAppID, chainMsgC[vaa.ChainIDAlgorand], chainObsvReqC[vaa.ChainIDAlgorand]).Run, "algorandwatch")); err != nil {
-				return err
-			}
-		}
-		if shouldStart(nearRPC) {
-			logger.Info("Starting Near watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDNear)
-			chainObsvReqC[vaa.ChainIDNear] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			if err := supervisor.Run(ctx, "nearwatch",
-				common.WrapWithScissors(near.NewWatcher(*nearRPC, *nearContract, chainMsgC[vaa.ChainIDNear], chainObsvReqC[vaa.ChainIDNear], !(*unsafeDevMode || *testnetMode)).Run, "nearwatch")); err != nil {
-				return err
-			}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(celoRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID: "celo",
+			ChainID:   vaa.ChainIDCelo,
+			Rpc:       *celoRPC,
+			Contract:  *celoContract,
 		}
 
-		// Start Wormchain watcher only if configured
-		if shouldStart(wormchainWS) {
-			logger.Info("Starting Wormchain watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDWormchain)
-			chainObsvReqC[vaa.ChainIDWormchain] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			if err := supervisor.Run(ctx, "wormchainwatch",
-				wormchain.NewWatcher(*wormchainWS, *wormchainLCD, chainMsgC[vaa.ChainIDWormchain], chainObsvReqC[vaa.ChainIDWormchain]).Run); err != nil {
-				return err
-			}
-		}
-		if shouldStart(aptosRPC) {
-			logger.Info("Starting Aptos watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDAptos)
-			chainObsvReqC[vaa.ChainIDAptos] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			if err := supervisor.Run(ctx, "aptoswatch",
-				aptos.NewWatcher(*aptosRPC, *aptosAccount, *aptosHandle, chainMsgC[vaa.ChainIDAptos], chainObsvReqC[vaa.ChainIDAptos]).Run); err != nil {
-				return err
-			}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(moonbeamRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID: "moonbeam",
+			ChainID:   vaa.ChainIDMoonbeam,
+			Rpc:       *moonbeamRPC,
+			Contract:  *moonbeamContract,
 		}
 
-		if shouldStart(suiRPC) {
-			logger.Info("Starting Sui watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDSui)
-			chainObsvReqC[vaa.ChainIDSui] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			if err := supervisor.Run(ctx, "suiwatch",
-				sui.NewWatcher(*suiRPC, *suiWS, *suiAccount, *suiPackage, *unsafeDevMode, chainMsgC[vaa.ChainIDSui], chainObsvReqC[vaa.ChainIDSui]).Run); err != nil {
-				return err
-			}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(arbitrumRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID:           "arbitrum",
+			ChainID:             vaa.ChainIDArbitrum,
+			Rpc:                 *arbitrumRPC,
+			Contract:            *arbitrumContract,
+			L1FinalizerRequired: "eth",
 		}
 
-		var solanaFinalizedWatcher *solana.SolanaWatcher
-		if shouldStart(solanaRPC) {
-			logger.Info("Starting Solana watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDSolana)
-			chainObsvReqC[vaa.ChainIDSolana] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			if err := supervisor.Run(ctx, "solwatch-confirmed",
-				common.WrapWithScissors(solana.NewSolanaWatcher(*solanaRPC, nil, solAddress, *solanaContract, chainMsgC[vaa.ChainIDSolana], nil, rpc.CommitmentConfirmed, vaa.ChainIDSolana).Run, "solwatch-confirmed")); err != nil {
-				return err
-			}
-			solanaFinalizedWatcher = solana.NewSolanaWatcher(*solanaRPC, nil, solAddress, *solanaContract, chainMsgC[vaa.ChainIDSolana], chainObsvReqC[vaa.ChainIDSolana], rpc.CommitmentFinalized, vaa.ChainIDSolana)
-			if err := supervisor.Run(ctx, "solwatch-finalized", common.WrapWithScissors(solanaFinalizedWatcher.Run, "solwatch-finalized")); err != nil {
-				return err
-			}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(optimismRPC) {
+		wc := &evm.WatcherConfig{
+			NetworkID: "optimism",
+			ChainID:   vaa.ChainIDOptimism,
+			Rpc:       *optimismRPC,
+			Contract:  *optimismContract,
 		}
 
-		if shouldStart(pythnetRPC) {
-			logger.Info("Starting Pythnet watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDPythNet)
-			chainObsvReqC[vaa.ChainIDPythNet] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			if err := supervisor.Run(ctx, "pythwatch-confirmed",
-				common.WrapWithScissors(solana.NewSolanaWatcher(*pythnetRPC, pythnetWS, pythnetAddress, *pythnetContract, chainMsgC[vaa.ChainIDPythNet], nil, rpc.CommitmentConfirmed, vaa.ChainIDPythNet).Run, "pythwatch-confirmed")); err != nil {
-				return err
-			}
+		// If rootChainParams are set, pass them in for pre-Bedrock mode
+		if *optimismCtcRpc != "" || *optimismCtcContractAddress != "" {
+			wc.L1FinalizerRequired = "eth"
+			wc.RootChainRpc = *optimismCtcRpc
+			wc.RootChainContract = *optimismCtcContractAddress
 		}
 
-		if shouldStart(injectiveWS) {
-			logger.Info("Starting Injective watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDInjective)
-			chainObsvReqC[vaa.ChainIDInjective] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			if err := supervisor.Run(ctx, "injectivewatch",
-				common.WrapWithScissors(cosmwasm.NewWatcher(*injectiveWS, *injectiveLCD, *injectiveContract, chainMsgC[vaa.ChainIDInjective], chainObsvReqC[vaa.ChainIDInjective], vaa.ChainIDInjective).Run, "injectivewatch")); err != nil {
-				return err
-			}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(terraWS) {
+		wc := &cosmwasm.WatcherConfig{
+			NetworkID: "terra",
+			ChainID:   vaa.ChainIDTerra,
+			Websocket: *terraWS,
+			Lcd:       *terraLCD,
+			Contract:  *terraContract,
 		}
 
-		if *testnetMode {
-			if shouldStart(neonRPC) {
-				if solanaFinalizedWatcher == nil {
-					log.Fatalf("if neon is enabled then solana must also be enabled.")
-				}
-				logger.Info("Starting Neon watcher")
-				common.MustRegisterReadinessSyncing(vaa.ChainIDNeon)
-				chainObsvReqC[vaa.ChainIDNeon] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-				neonWatcher := evm.NewEthWatcher(*neonRPC, neonContractAddr, "neon", vaa.ChainIDNeon, chainMsgC[vaa.ChainIDNeon], nil, chainObsvReqC[vaa.ChainIDNeon], *unsafeDevMode)
-				neonWatcher.SetL1Finalizer(solanaFinalizedWatcher)
-				if err := supervisor.Run(ctx, "neonwatch", common.WrapWithScissors(neonWatcher.Run, "neonwatch")); err != nil {
-					return err
-				}
-			}
-			if shouldStart(baseRPC) {
-				logger.Info("Starting Base watcher")
-				common.MustRegisterReadinessSyncing(vaa.ChainIDBase)
-				chainObsvReqC[vaa.ChainIDBase] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-				baseWatcher := evm.NewEthWatcher(*baseRPC, baseContractAddr, "base", vaa.ChainIDBase, chainMsgC[vaa.ChainIDBase], nil, chainObsvReqC[vaa.ChainIDBase], *unsafeDevMode)
-				if err := supervisor.Run(ctx, "basewatch", common.WrapWithScissors(baseWatcher.Run, "basewatch")); err != nil {
-					return err
-				}
-			}
-		}
-		go handleReobservationRequests(rootCtx, clock.New(), logger, obsvReqReadC, chainObsvReqC)
+		watcherConfigs = append(watcherConfigs, wc)
+	}
 
-		if acct != nil {
-			if err := acct.Start(ctx); err != nil {
-				logger.Fatal("acct: failed to start accountant", zap.Error(err))
-			}
+	if shouldStart(terra2WS) {
+		wc := &cosmwasm.WatcherConfig{
+			NetworkID: "terra",
+			ChainID:   vaa.ChainIDTerra2,
+			Websocket: *terra2WS,
+			Lcd:       *terra2LCD,
+			Contract:  *terra2Contract,
 		}
 
-		if gov != nil {
-			err := gov.Run(ctx)
-			if err != nil {
-				log.Fatal("failed to create chain governor", zap.Error(err))
-			}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(xplaWS) {
+		wc := &cosmwasm.WatcherConfig{
+			NetworkID: "xpla",
+			ChainID:   vaa.ChainIDXpla,
+			Websocket: *xplaWS,
+			Lcd:       *xplaLCD,
+			Contract:  *xplaContract,
 		}
 
-		if err := supervisor.Run(ctx, "processor", processor.NewProcessor(ctx,
-			db,
-			msgReadC,
-			setReadC,
-			gossipSendC,
-			obsvC,
-			obsvReqSendWriteC,
-			injectReadC,
-			signedInReadC,
-			gk,
-			gst,
-			attestationEvents,
-			gov,
-			acct,
-			acctReadC,
-		).Run); err != nil {
-			return err
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(injectiveWS) {
+		wc := &cosmwasm.WatcherConfig{
+			NetworkID: "injective",
+			ChainID:   vaa.ChainIDInjective,
+			Websocket: *injectiveWS,
+			Lcd:       *injectiveLCD,
+			Contract:  *injectiveContract,
 		}
 
-		adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectWriteC, signedInWriteC, obsvReqSendWriteC, db, gst, gov, gk, ethRPC, ethContract)
-		if err != nil {
-			logger.Fatal("failed to create admin service socket", zap.Error(err))
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(algorandIndexerRPC) {
+		wc := &algorand.WatcherConfig{
+			NetworkID:    "algorand",
+			ChainID:      vaa.ChainIDAlgorand,
+			IndexerRPC:   *algorandIndexerRPC,
+			IndexerToken: *algorandIndexerToken,
+			AlgodRPC:     *algorandAlgodRPC,
+			AlgodToken:   *algorandAlgodToken,
+			AppID:        *algorandAppID,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(nearRPC) {
+		wc := &near.WatcherConfig{
+			NetworkID: "near",
+			ChainID:   vaa.ChainIDNear,
+			Rpc:       *nearRPC,
+			Contract:  *nearContract,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(wormchainWS) {
+		wc := &wormchain.WatcherConfig{
+			NetworkID: "wormchain",
+			ChainID:   vaa.ChainIDWormchain,
+			Websocket: *wormchainWS,
+			Lcd:       *wormchainLCD,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(aptosRPC) {
+		wc := &aptos.WatcherConfig{
+			NetworkID: "aptos",
+			ChainID:   vaa.ChainIDAptos,
+			Rpc:       *aptosRPC,
+			Account:   *aptosAccount,
+			Handle:    *aptosHandle,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(suiRPC) {
+		wc := &sui.WatcherConfig{
+			NetworkID: "sui",
+			ChainID:   vaa.ChainIDSui,
+			Rpc:       *suiRPC,
+			Websocket: *suiWS,
+			Account:   *suiAccount,
+			Package:   *suiPackage,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(solanaRPC) {
+		// confirmed watcher
+		wc := &solana.WatcherConfig{
+			NetworkID:     "solana-confirmed",
+			ChainID:       vaa.ChainIDSolana,
+			Rpc:           *solanaRPC,
+			Websocket:     "",
+			Contract:      *solanaContract,
+			ReceiveObsReq: false,
+			Commitment:    rpc.CommitmentConfirmed,
 		}
 
-		if err := supervisor.Run(ctx, "admin", adminService); err != nil {
-			return err
+		watcherConfigs = append(watcherConfigs, wc)
+
+		// finalized watcher
+		wc = &solana.WatcherConfig{
+			NetworkID:     "solana-finalized",
+			ChainID:       vaa.ChainIDSolana,
+			Rpc:           *solanaRPC,
+			Websocket:     "",
+			Contract:      *solanaContract,
+			ReceiveObsReq: true,
+			Commitment:    rpc.CommitmentFinalized,
+		}
+		watcherConfigs = append(watcherConfigs, wc)
+	}
+
+	if shouldStart(pythnetRPC) {
+		wc := &solana.WatcherConfig{
+			NetworkID:     "pythnet",
+			ChainID:       vaa.ChainIDPythNet,
+			Rpc:           *pythnetRPC,
+			Websocket:     *pythnetWS,
+			Contract:      *pythnetContract,
+			ReceiveObsReq: false,
+			Commitment:    rpc.CommitmentConfirmed,
 		}
 
-		if shouldStart(publicGRPCSocketPath) {
+		watcherConfigs = append(watcherConfigs, wc)
+	}
 
-			// local public grpc service socket
-			publicrpcUnixService, publicrpcServer, err := publicrpcUnixServiceRunnable(logger, *publicGRPCSocketPath, publicRpcLogDetail, db, gst, gov)
-			if err != nil {
-				logger.Fatal("failed to create publicrpc service socket", zap.Error(err))
+	if *testnetMode {
+		if shouldStart(neonRPC) {
+			wc := &evm.WatcherConfig{
+				NetworkID:           "neon",
+				ChainID:             vaa.ChainIDNeon,
+				Rpc:                 *neonRPC,
+				Contract:            *neonContract,
+				L1FinalizerRequired: "solana-finalized",
 			}
 
-			if err := supervisor.Run(ctx, "publicrpcsocket", publicrpcUnixService); err != nil {
-				return err
-			}
-
-			if shouldStart(publicRPC) {
-				publicrpcService, err := publicrpcTcpServiceRunnable(logger, *publicRPC, publicRpcLogDetail, db, gst, gov)
-				if err != nil {
-					log.Fatal("failed to create publicrpc tcp service", zap.Error(err))
-				}
-				if err := supervisor.Run(ctx, "publicrpc", publicrpcService); err != nil {
-					return err
-				}
-			}
-
-			if shouldStart(publicWeb) {
-				publicwebService, err := publicwebServiceRunnable(logger, *publicWeb, *publicGRPCSocketPath, publicrpcServer,
-					*tlsHostname, *tlsProdEnv, path.Join(*dataDir, "autocert"))
-				if err != nil {
-					log.Fatal("failed to create publicrpc web service", zap.Error(err))
-				}
-
-				if err := supervisor.Run(ctx, "publicweb", publicwebService); err != nil {
-					return err
-				}
-			}
+			watcherConfigs = append(watcherConfigs, wc)
 		}
 
-		if *bigTablePersistenceEnabled {
-			bigTableConnection := &reporter.BigTableConnectionConfig{
-				GcpProjectID:    *bigTableGCPProject,
-				GcpInstanceName: *bigTableInstanceName,
-				TableName:       *bigTableTableName,
-				TopicName:       *bigTableTopicName,
-				GcpKeyFilePath:  *bigTableKeyPath,
+		if shouldStart(baseRPC) {
+			wc := &evm.WatcherConfig{
+				NetworkID: "base",
+				ChainID:   vaa.ChainIDBase,
+				Rpc:       *baseRPC,
+				Contract:  *baseContract,
 			}
-			if err := supervisor.Run(ctx, "bigtable", reporter.BigTableWriter(attestationEvents, bigTableConnection)); err != nil {
-				return err
-			}
+
+			watcherConfigs = append(watcherConfigs, wc)
+		}
+	}
+
+	guardianNode := node.NewGuardianNode(
+		rootCtx,
+		rootCtxCancel,
+		env,
+		db,
+		gk,
+		wormchainConn,
+	)
+
+	guardianOptions := []node.GuardianOption{
+		node.GuardianOptionWatchers(watcherConfigs),
+		node.GuardianOptionAccountant(*accountantContract, *accountantWS, *accountantCheckEnabled),
+		node.GuardianOptionGovernor(*chainGovernorEnabled),
+		node.GuardianOptionAdminService(*adminSocketPath, *&ethRPC, *&ethContract),
+		node.GuardianOptionP2P(p2pKey, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, *p2pPort),
+	}
+
+	if shouldStart(publicGRPCSocketPath) {
+		guardianOptions = append(guardianOptions, node.GuardianOptionPublicRpcSocket(*publicGRPCSocketPath, publicRpcLogDetail))
+
+		if shouldStart(publicRPC) {
+			guardianOptions = append(guardianOptions, node.GuardianOptionPublicrpcTcpService(*publicRPC, publicRpcLogDetail))
 		}
 
-		logger.Info("Started internal services")
+		if shouldStart(publicWeb) {
+			guardianOptions = append(guardianOptions,
+				node.GuardianOptionPublicWeb(*publicWeb, *publicGRPCSocketPath, *tlsHostname, *tlsProdEnv, path.Join(*dataDir, "autocert")),
+			)
+		}
+	}
 
-		<-ctx.Done()
-		return nil
-	},
+	if *bigTablePersistenceEnabled {
+		bigTableConnectionConfig := &reporter.BigTableConnectionConfig{
+			GcpProjectID:    *bigTableGCPProject,
+			GcpInstanceName: *bigTableInstanceName,
+			TableName:       *bigTableTableName,
+			TopicName:       *bigTableTopicName,
+			GcpKeyFilePath:  *bigTableKeyPath,
+		}
+
+		guardianOptions = append(guardianOptions, node.GuardianOptionBigTablePersistence(bigTableConnectionConfig))
+	}
+
+	// Run supervisor with Guardian Node as root.
+	supervisor.New(rootCtx, logger, guardianNode.Run(guardianOptions...),
 		// It's safer to crash and restart the process in case we encounter a panic,
 		// rather than attempting to reschedule the runnable.
 		supervisor.WithPropagatePanic)
@@ -1523,9 +1330,4 @@ func unsafeDevModeEvmContractAddress(contractAddr string) string {
 	}
 
 	return devnet.GanacheWormholeContractAddress.Hex()
-}
-
-func makeChannelPair[T any](cap int) (<-chan T, chan<- T) {
-	out := make(chan T, cap)
-	return out, out
 }

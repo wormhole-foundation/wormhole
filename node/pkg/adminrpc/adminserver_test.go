@@ -1,4 +1,4 @@
-package guardiand
+package adminrpc
 
 import (
 	"context"

@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const ObsvReqChannelSize = 50
+
 func TestObsvReqSendLimitEnforced(t *testing.T) {
 	obsvReqSendC := make(chan *gossipv1.ObservationRequest, ObsvReqChannelSize)
 

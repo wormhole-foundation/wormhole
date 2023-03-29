@@ -1,4 +1,4 @@
-package guardiand
+package adminrpc
 
 import (
 	"bytes"
@@ -9,25 +9,23 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"math/big"
 	"math/rand"
-	"net"
 	"net/http"
-	"os"
 	"sync"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/holiman/uint256"
+	"github.com/status-im/keycard-go/hexutils"
 	"golang.org/x/exp/slices"
 
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
-	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
-	"github.com/certusone/wormhole/node/pkg/publicrpc"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
@@ -35,7 +33,6 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
-	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -51,6 +48,31 @@ type nodePrivilegedService struct {
 	gsCache         sync.Map
 	gk              *ecdsa.PrivateKey
 	guardianAddress ethcommon.Address
+}
+
+func NewPrivService(
+	db *db.Database,
+	injectC chan<- *vaa.VAA,
+	obsvReqSendC chan<- *gossipv1.ObservationRequest,
+	logger *zap.Logger,
+	signedInC chan<- *gossipv1.SignedVAAWithQuorum,
+	governor *governor.ChainGovernor,
+	evmConnector connectors.Connector,
+	gk *ecdsa.PrivateKey,
+	guardianAddress ethcommon.Address,
+
+) *nodePrivilegedService {
+	return &nodePrivilegedService{
+		db:              db,
+		injectC:         injectC,
+		obsvReqSendC:    obsvReqSendC,
+		logger:          logger,
+		signedInC:       signedInC,
+		governor:        governor,
+		evmConnector:    evmConnector,
+		gk:              gk,
+		guardianAddress: guardianAddress,
+	}
 }
 
 // adminGuardianSetUpdateToVAA converts a nodev1.GuardianSetUpdate message to its canonical VAA representation.
@@ -556,82 +578,6 @@ func (s *nodePrivilegedService) FindMissingMessages(ctx context.Context, req *no
 	}, nil
 }
 
-func adminServiceRunnable(
-	logger *zap.Logger,
-	socketPath string,
-	injectC chan<- *vaa.VAA,
-	signedInC chan<- *gossipv1.SignedVAAWithQuorum,
-	obsvReqSendC chan<- *gossipv1.ObservationRequest,
-	db *db.Database,
-	gst *common.GuardianSetState,
-	gov *governor.ChainGovernor,
-	gk *ecdsa.PrivateKey,
-	ethRpc *string,
-	ethContract *string,
-) (supervisor.Runnable, error) {
-	// Delete existing UNIX socket, if present.
-	fi, err := os.Stat(socketPath)
-	if err == nil {
-		fmode := fi.Mode()
-		if fmode&os.ModeType == os.ModeSocket {
-			err = os.Remove(socketPath)
-			if err != nil {
-				return nil, fmt.Errorf("failed to remove existing socket at %s: %w", socketPath, err)
-			}
-		} else {
-			return nil, fmt.Errorf("%s is not a UNIX socket", socketPath)
-		}
-	}
-
-	// Create a new UNIX socket and listen to it.
-
-	// The socket is created with the default umask. We set a restrictive umask in setRestrictiveUmask
-	// to ensure that any files we create are only readable by the user - this is much harder to mess up.
-	// The umask avoids a race condition between file creation and chmod.
-
-	laddr, err := net.ResolveUnixAddr("unix", socketPath)
-	if err != nil {
-		return nil, fmt.Errorf("invalid listen address: %v", err)
-	}
-	l, err := net.ListenUnix("unix", laddr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to listen on %s: %w", socketPath, err)
-	}
-
-	logger.Info("admin server listening on", zap.String("path", socketPath))
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-
-	var evmConnector connectors.Connector
-	if ethRPC != nil && ethContract != nil {
-		contract := ethcommon.HexToAddress(*ethContract)
-		evmConnector, err = connectors.NewEthereumConnector(ctx, "eth", *ethRpc, contract, logger)
-		if err != nil {
-			return nil, fmt.Errorf("failed to connecto to ethereum")
-		}
-	}
-
-	nodeService := &nodePrivilegedService{
-		db:              db,
-		injectC:         injectC,
-		obsvReqSendC:    obsvReqSendC,
-		logger:          logger.Named("adminservice"),
-		signedInC:       signedInC,
-		governor:        gov,
-		gk:              gk,
-		guardianAddress: ethcrypto.PubkeyToAddress(gk.PublicKey),
-		evmConnector:    evmConnector,
-	}
-
-	publicrpcService := publicrpc.NewPublicrpcServer(logger, db, gst, gov)
-
-	grpcServer := common.NewInstrumentedGRPCServer(logger, common.GrpcLogDetailMinimal)
-	nodev1.RegisterNodePrivilegedServiceServer(grpcServer, nodeService)
-	publicrpcv1.RegisterPublicRPCServiceServer(grpcServer, publicrpcService)
-	return supervisor.GRPCServer(grpcServer, l, false), nil
-}
-
 func (s *nodePrivilegedService) SendObservationRequest(ctx context.Context, req *nodev1.SendObservationRequestRequest) (*nodev1.SendObservationRequestResponse, error) {
 	if err := common.PostObservationRequest(s.obsvReqSendC, req.ObservationRequest); err != nil {
 		return nil, err
@@ -852,39 +798,96 @@ func (s *nodePrivilegedService) SignExistingVAA(ctx context.Context, req *nodev1
 func (s *nodePrivilegedService) DumpRPCs(ctx context.Context, req *nodev1.DumpRPCsRequest) (*nodev1.DumpRPCsResponse, error) {
 	rpcMap := make(map[string]string)
 
-	rpcMap["acalaRPC"] = *acalaRPC
-	rpcMap["algorandIndexerRPC"] = *algorandIndexerRPC
-	rpcMap["algorandAlgodRPC"] = *algorandAlgodRPC
-	rpcMap["aptosRPC"] = *aptosRPC
-	rpcMap["arbitrumRPC"] = *arbitrumRPC
-	rpcMap["auroraRPC"] = *auroraRPC
-	rpcMap["avalancheRPC"] = *avalancheRPC
-	rpcMap["baseRPC"] = *baseRPC
-	rpcMap["bscRPC"] = *bscRPC
-	rpcMap["celoRPC"] = *celoRPC
-	rpcMap["ethRPC"] = *ethRPC
-	rpcMap["fantomRPC"] = *fantomRPC
-	rpcMap["karuraRPC"] = *karuraRPC
-	rpcMap["klaytnRPC"] = *klaytnRPC
-	rpcMap["moonbeamRPC"] = *moonbeamRPC
-	rpcMap["nearRPC"] = *nearRPC
-	rpcMap["neonRPC"] = *neonRPC
-	rpcMap["oasisRPC"] = *oasisRPC
-	rpcMap["optimismRPC"] = *optimismRPC
-	rpcMap["polygonRPC"] = *polygonRPC
-	rpcMap["pythnetRPC"] = *pythnetRPC
-	rpcMap["pythnetWS"] = *pythnetWS
-	rpcMap["solanaRPC"] = *solanaRPC
-	rpcMap["terraWS"] = *terraWS
-	rpcMap["terraLCD"] = *terraLCD
-	rpcMap["terra2WS"] = *terra2WS
-	rpcMap["terra2LCD"] = *terra2LCD
-	rpcMap["wormchainWS"] = *wormchainWS
-	rpcMap["wormchainLCD"] = *wormchainLCD
-	rpcMap["xplaWS"] = *xplaWS
-	rpcMap["xplaLCD"] = *xplaLCD
+	/*
+		rpcMap["acalaRPC"] = *acalaRPC
+		rpcMap["algorandIndexerRPC"] = *algorandIndexerRPC
+		rpcMap["algorandAlgodRPC"] = *algorandAlgodRPC
+		rpcMap["aptosRPC"] = *aptosRPC
+		rpcMap["arbitrumRPC"] = *arbitrumRPC
+		rpcMap["auroraRPC"] = *auroraRPC
+		rpcMap["avalancheRPC"] = *avalancheRPC
+		rpcMap["baseRPC"] = *baseRPC
+		rpcMap["bscRPC"] = *bscRPC
+		rpcMap["celoRPC"] = *celoRPC
+		rpcMap["ethRPC"] = *ethRPC
+		rpcMap["fantomRPC"] = *fantomRPC
+		rpcMap["karuraRPC"] = *karuraRPC
+		rpcMap["klaytnRPC"] = *klaytnRPC
+		rpcMap["moonbeamRPC"] = *moonbeamRPC
+		rpcMap["nearRPC"] = *nearRPC
+		rpcMap["neonRPC"] = *neonRPC
+		rpcMap["oasisRPC"] = *oasisRPC
+		rpcMap["optimismRPC"] = *optimismRPC
+		rpcMap["polygonRPC"] = *polygonRPC
+		rpcMap["pythnetRPC"] = *pythnetRPC
+		rpcMap["pythnetWS"] = *pythnetWS
+		rpcMap["solanaRPC"] = *solanaRPC
+		rpcMap["terraWS"] = *terraWS
+		rpcMap["terraLCD"] = *terraLCD
+		rpcMap["terra2WS"] = *terra2WS
+		rpcMap["terra2LCD"] = *terra2LCD
+		rpcMap["wormchainWS"] = *wormchainWS
+		rpcMap["wormchainLCD"] = *wormchainLCD
+		rpcMap["xplaWS"] = *xplaWS
+		rpcMap["xplaLCD"] = *xplaLCD
+	*/
 
 	return &nodev1.DumpRPCsResponse{
 		Response: rpcMap,
 	}, nil
+}
+
+func VerifyReq(req *nodev1.InjectGovernanceVAARequest) {
+	timestamp := time.Unix(int64(req.Timestamp), 0)
+
+	var err error
+
+	for _, message := range req.Messages {
+		var (
+			v *vaa.VAA
+		)
+		switch payload := message.Payload.(type) {
+		case *nodev1.GovernanceMessage_GuardianSet:
+			v, err = adminGuardianSetUpdateToVAA(payload.GuardianSet, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_ContractUpgrade:
+			v, err = adminContractUpgradeToVAA(payload.ContractUpgrade, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_BridgeRegisterChain:
+			v, err = tokenBridgeRegisterChain(payload.BridgeRegisterChain, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_BridgeContractUpgrade:
+			v, err = tokenBridgeUpgradeContract(payload.BridgeContractUpgrade, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_AccountantModifyBalance:
+			v, err = accountantModifyBalance(payload.AccountantModifyBalance, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_WormchainStoreCode:
+			v, err = wormchainStoreCode(payload.WormchainStoreCode, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_WormchainInstantiateContract:
+			v, err = wormchainInstantiateContract(payload.WormchainInstantiateContract, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_WormchainMigrateContract:
+			v, err = wormchainMigrateContract(payload.WormchainMigrateContract, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_CircleIntegrationUpdateWormholeFinality:
+			v, err = circleIntegrationUpdateWormholeFinality(payload.CircleIntegrationUpdateWormholeFinality, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_CircleIntegrationRegisterEmitterAndDomain:
+			v, err = circleIntegrationRegisterEmitterAndDomain(payload.CircleIntegrationRegisterEmitterAndDomain, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_CircleIntegrationUpgradeContractImplementation:
+			v, err = circleIntegrationUpgradeContractImplementation(payload.CircleIntegrationUpgradeContractImplementation, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		default:
+			panic(fmt.Sprintf("unsupported VAA type: %T", payload))
+		}
+		if err != nil {
+			log.Fatalf("invalid update: %v", err)
+		}
+
+		digest := v.SigningDigest().Bytes()
+		if err != nil {
+			panic(err)
+		}
+
+		b, err := v.Marshal()
+		if err != nil {
+			panic(err)
+		}
+
+		log.Printf("Serialized: %v", hex.EncodeToString(b))
+
+		log.Printf("VAA with digest %s: %+v", hexutils.BytesToHex(digest), spew.Sdump(v))
+	}
 }

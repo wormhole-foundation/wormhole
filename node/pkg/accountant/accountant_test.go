@@ -54,7 +54,7 @@ func newAccountantForTest(
 		gk,
 		gst,
 		acctWriteC,
-		GoTestMode,
+		common.GoTest,
 	)
 
 	err := acct.Start(ctx)
