@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-import "../../interfaces/IWormhole.sol";
-import "../../interfaces/IWormholeReceiver.sol";
-import "../../interfaces/IWormholeRelayer.sol";
+import "../interfaces/IWormhole.sol";
+import "../interfaces/IWormholeReceiver.sol";
+import "../interfaces/IWormholeRelayer.sol";
 
 /**
  * This contract is a malicious "integration" that attempts to attack the forward mechanism.
@@ -39,10 +39,10 @@ contract AttackForwardIntegration is IWormholeReceiver {
         // The core relayer could in principle accept the request due to this being the target of the message at the same time as being the refund address.
         // Note that, if succesful, this forward request would be processed after the time for processing forwards is past.
         // Thus, the request would "linger" in the forward request cache and be attended to in the next delivery.
-        requestForward(targetChainId, toWormholeFormat(attackerReward));
+        forward(targetChainId, toWormholeFormat(attackerReward));
     }
 
-    function requestForward(uint16 targetChain, bytes32 attackerRewardAddress) internal {
+    function forward(uint16 targetChain, bytes32 attackerRewardAddress) internal {
         uint256 maxTransactionFee =
             core_relayer.quoteGas(targetChain, SAFE_DELIVERY_GAS_CAPTURE, core_relayer.getDefaultRelayProvider());
 
@@ -56,7 +56,9 @@ contract AttackForwardIntegration is IWormholeReceiver {
             relayParameters: core_relayer.getDefaultRelayParams()
         });
 
-        core_relayer.forward{value: maxTransactionFee}(request, nonce, core_relayer.getDefaultRelayProvider());
+        core_relayer.forward{value: maxTransactionFee}(
+            request, new IWormholeRelayer.MessageInfo[](0), core_relayer.getDefaultRelayProvider()
+        );
     }
 
     function toWormholeFormat(address addr) public pure returns (bytes32 whFormat) {

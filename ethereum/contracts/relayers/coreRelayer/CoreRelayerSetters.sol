@@ -6,6 +6,7 @@ pragma solidity ^0.8.0;
 import "./CoreRelayerState.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "./CoreRelayerStructs.sol";
+import {IWormhole} from "../interfaces/IWormhole.sol";
 
 contract CoreRelayerSetters is CoreRelayerState, Context {
     error InvalidEvmChainId();
@@ -42,12 +43,12 @@ contract CoreRelayerSetters is CoreRelayerState, Context {
         _state.registeredCoreRelayerContract[chainId] = relayerAddress;
     }
 
-    function setForwardingRequest(CoreRelayerStructs.ForwardingRequest memory request) internal {
-        _state.forwardingRequest = request;
+    function setForwardInstruction(CoreRelayerStructs.ForwardInstruction memory request) internal {
+        _state.forwardInstruction = request;
     }
 
-    function clearForwardingRequest() internal {
-        delete _state.forwardingRequest; //TODO is this the best way to accomplish this?
+    function clearForwardInstruction() internal {
+        delete _state.forwardInstruction;
     }
 
     function setContractLock(bool status) internal {
