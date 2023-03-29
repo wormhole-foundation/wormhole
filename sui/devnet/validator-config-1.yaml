@@ -1,0 +1,70 @@
+---
+protocol-key-pair:
+  value: Eq7ApgR8YIgtRVzg0s4Qvez7OBS7p7Q4Hf7i0zNKSL4=
+worker-key-pair:
+  value: ACsPw7RgFfjvYqUgT4Pfnz3GfJdFsmBjQcbd25RpJXSv
+account-key-pair:
+  value: ABpq3V0HJRvTklB06NMf5MYfrQDh7UzsU4avqlHmJDGD
+network-key-pair:
+  value: AGgDeC6T7j1BuWU5mFu4RoEHGWbhPONT4jgqma/sPHSm
+db-path: /root/.sui/sui_config/authorities_db/b281617a14bc
+network-address: /ip4/127.0.0.1/tcp/45697/http
+json-rpc-address: "127.0.0.1:38653"
+metrics-address: "127.0.0.1:41539"
+admin-interface-port: 38773
+consensus-config:
+  address: /ip4/127.0.0.1/tcp/46695/http
+  db-path: /root/.sui/sui_config/consensus_db/b281617a14bc
+  internal-worker-address: ~
+  timeout-secs: 60
+  narwhal-config:
+    header_num_of_batches_threshold: 32
+    max_header_num_of_batches: 1000
+    max_header_delay: 2000ms
+    min_header_delay: 500ms
+    gc_depth: 50
+    sync_retry_delay: 5000ms
+    sync_retry_nodes: 3
+    batch_size: 500000
+    max_batch_delay: 100ms
+    block_synchronizer:
+      range_synchronize_timeout: 30000ms
+      certificates_synchronize_timeout: 30000ms
+      payload_synchronize_timeout: 30000ms
+      payload_availability_timeout: 30000ms
+      handler_certificate_deliver_timeout: 30000ms
+    consensus_api_grpc:
+      socket_addr: /ip4/127.0.0.1/tcp/33339/http
+      get_collections_timeout: 5000ms
+      remove_collections_timeout: 5000ms
+    max_concurrent_requests: 500000
+    prometheus_metrics:
+      socket_addr: /ip4/127.0.0.1/tcp/45873/http
+    network_admin_server:
+      primary_network_admin_server_port: 42903
+      worker_network_admin_server_base_port: 38347
+    anemo:
+      send_message_rate_limit: ~
+      get_payload_availability_rate_limit: ~
+      get_certificates_rate_limit: ~
+      report_batch_rate_limit: ~
+      request_batch_rate_limit: ~
+enable-event-processing: false
+epoch-duration-ms: 86400000
+grpc-load-shed: ~
+grpc-concurrency-limit: 20000000000
+p2p-config:
+  listen-address: "127.0.0.1:36231"
+  external-address: /ip4/127.0.0.1/udp/36231
+genesis:
+  genesis-file-location: /root/.sui/sui_config/genesis.blob
+authority-store-pruning-config:
+  objects-num-latest-versions-to-retain: 2
+  objects-pruning-period-secs: 86400
+  objects-pruning-initial-delay-secs: 3600
+  num-latest-epoch-dbs-to-retain: 3
+  epoch-db-pruning-period-secs: 3600
+end-of-epoch-broadcast-channel-capacity: 128
+checkpoint-executor-config:
+  checkpoint-execution-max-concurrency: 200
+  local-execution-timeout-sec: 10
