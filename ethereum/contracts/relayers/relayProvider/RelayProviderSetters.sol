@@ -58,7 +58,8 @@ contract RelayProviderSetters is Context, RelayProviderState {
     }
 
     function setAssetConversionBuffer(uint16 targetChain, uint16 tolerance, uint16 toleranceDenominator) internal {
-        _state.assetConversionBuffer[targetChain] = tolerance;
-        _state.assetConversionBufferDenominator[targetChain] = toleranceDenominator;
+        RelayProviderStorage.AssetConversion storage assetConversion = _state.assetConversion[targetChain];
+        assetConversion.buffer = tolerance;
+        assetConversion.denominator = toleranceDenominator;
     }
 }

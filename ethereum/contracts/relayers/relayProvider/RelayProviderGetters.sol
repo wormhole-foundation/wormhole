@@ -3,7 +3,7 @@
 
 pragma solidity ^0.8.0;
 
-import "../../interfaces/IWormhole.sol";
+import "../interfaces/IWormhole.sol";
 
 import "./RelayProviderState.sol";
 
@@ -65,6 +65,7 @@ contract RelayProviderGetters is RelayProviderState {
         view
         returns (uint16 tolerance, uint16 toleranceDenominator)
     {
-        return (_state.assetConversionBuffer[targetChain], _state.assetConversionBufferDenominator[targetChain]);
+        RelayProviderStorage.AssetConversion storage assetConversion = _state.assetConversion[targetChain];
+        return (assetConversion.buffer, assetConversion.denominator);
     }
 }

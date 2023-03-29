@@ -3,12 +3,12 @@
 
 pragma solidity ^0.8.0;
 
-import "../../interfaces/IWormhole.sol";
-import "../../interfaces/IRelayProvider.sol";
+import "../interfaces/IWormhole.sol";
+import "../interfaces/IRelayProvider.sol";
 import "./CoreRelayerStructs.sol";
 
 import "./CoreRelayerState.sol";
-import "../../libraries/external/BytesLib.sol";
+import "../libraries/external/BytesLib.sol";
 
 contract CoreRelayerGetters is CoreRelayerState {
     using BytesLib for bytes;
@@ -49,12 +49,12 @@ contract CoreRelayerGetters is CoreRelayerState {
         return _state.registeredCoreRelayerContract[chain];
     }
 
-    function defaultRelayProvider() internal view returns (IRelayProvider) {
-        return IRelayProvider(_state.defaultRelayProvider);
+    function defaultRelayProvider() internal view returns (address) {
+        return _state.defaultRelayProvider;
     }
 
-    function getForwardingRequest() internal view returns (CoreRelayerStructs.ForwardingRequest memory) {
-        return _state.forwardingRequest;
+    function getForwardInstruction() internal view returns (CoreRelayerStructs.ForwardInstruction memory) {
+        return _state.forwardInstruction;
     }
 
     function isContractLocked() internal view returns (bool) {

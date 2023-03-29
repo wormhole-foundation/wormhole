@@ -5,8 +5,8 @@ pragma solidity ^0.8.0;
 
 import "./RelayProviderGovernance.sol";
 import "./RelayProviderStructs.sol";
-import "../../interfaces/IRelayProvider.sol";
-import "../../interfaces/IDelivery.sol";
+import "../interfaces/IRelayProvider.sol";
+import "../interfaces/IDelivery.sol";
 
 contract RelayProvider is RelayProviderGovernance, IRelayProvider {
     error CallerNotApproved(address msgSender);
@@ -35,8 +35,7 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
         return quoteAssetConversion(targetChain, gasPrice(targetChain), chainId());
     }
 
-    //Returns the price of chainId's native currency in USD * 10^6
-    //TODO decide on USD decimals
+    //Returns the price of chainId's native currency in USD 10^-6 units
     function quoteAssetPrice(uint16 chainId) public view override returns (uint256) {
         return nativeCurrencyPrice(chainId);
     }
@@ -57,7 +56,7 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
     }
 
     //returns the consistency level that should be put on delivery VAAs
-    function getConsistencyLevel() public view override returns (uint8 consistencyLevel) {
+    function getConsistencyLevel() public pure override returns (uint8 consistencyLevel) {
         return 200; //REVISE consider adding state variable for this
     }
 
