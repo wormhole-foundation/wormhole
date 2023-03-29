@@ -38,7 +38,7 @@ module token_bridge::coin_wrapped_7 {
     }
 
     #[test_only]
-    /// for a test scenario, simply deploy the coin and expose `TreasuryCap`.
+    /// for a test scenario, simply deploy the coin and expose `Supply`.
     public fun init_and_take_supply(
         scenario: &mut Scenario,
         caller: address
@@ -61,7 +61,7 @@ module token_bridge::coin_wrapped_7 {
     /// For a test scenario, register this wrapped asset.
     ///
     /// NOTE: Even though this module is `#[test_only]`, this method is tagged
-    /// with the same macro  as a trick to allow another method within this
+    /// with the same macro as a trick to allow another method within this
     /// module to call `init` using OTW.
     public fun init_and_register(scenario: &mut Scenario, caller: address) {
         use wormhole::wormhole_scenario::{return_clock, take_clock};
@@ -97,6 +97,9 @@ module token_bridge::coin_wrapped_7 {
     }
 
     #[test_only]
+    /// NOTE: Even though this module is `#[test_only]`, this method is tagged
+    /// with the same macro as a trick to allow another method within this
+    /// module to call `init` using OTW.
     public fun init_register_and_mint(
         scenario: &mut Scenario,
         caller: address,
@@ -123,7 +126,7 @@ module token_bridge::coin_wrapped_7 {
 
     #[test_only]
     /// NOTE: Even though this module is `#[test_only]`, this method is tagged
-    /// with the same macro  as a trick to allow another method within this
+    /// with the same macro as a trick to allow another method within this
     /// module to call `init` using OTW.
     public fun init_test_only(ctx: &mut TxContext) {
         init(COIN_WRAPPED_7 {}, ctx)
@@ -137,6 +140,8 @@ module token_bridge::coin_wrapped_7_tests {
 
     #[test]
     public fun test_native_decimals() {
-        assert!(asset_meta::native_decimals(&token_meta()) == 7, 0);
+        let meta = token_meta();
+        assert!(asset_meta::native_decimals(&meta) == 7, 0);
+        asset_meta::destroy(meta);
     }
 }

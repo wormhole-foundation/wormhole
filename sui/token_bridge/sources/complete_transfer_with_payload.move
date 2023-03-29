@@ -93,6 +93,7 @@ module token_bridge::complete_transfer_with_payload_test {
     use token_bridge::coin_wrapped_12::{Self, COIN_WRAPPED_12};
     use token_bridge::complete_transfer_with_payload::{Self};
     use token_bridge::coin_native_10::{Self, COIN_NATIVE_10};
+    use token_bridge::dummy_message::{Self};
     use token_bridge::state::{Self};
     use token_bridge::token_bridge_scenario::{
         register_dummy_emitter,
@@ -130,33 +131,6 @@ module token_bridge::complete_transfer_with_payload_test {
     const VAA_ATTESTED_DECIMALS_12: vector<u8> =
         x"01000000000100d8e4e04ac55ed24773a31b0a89bab8c1b9201e76bd03fe0de9da1506058ab30c01344cf11a47005bdfbe47458cb289388e4a87ed271fb8306fd83656172b19dc010000000000000000000200000000000000000000000000000000000000000000000000000000deadbeef00000000000000010f030000000000000000000000000000000000000000000000000000000000000bb800000000000000000000000000000000000000000000000000000000beefface00020000000000000000000000000000000000000000000000000000000000000003001500000000000000000000000000000000000000000000000000000000deadbeefaaaa";
 
-    /// Transfer for NATIVE_DECIMALS_10.
-    ///
-    /// signatures: [
-    ///     {
-    ///       guardianSetIndex: 0,
-    ///       signature: '2c8599ebc4e5f1ca832ad21e208226f22cff674c9db9dc6aca18b953b49c65154641e0b4074a0ff435b2b3380c87f457222ef77250722bf2aa50940b371af99901'
-    ///     }
-    ///   ],
-    ///   emitterChain: 21,
-    ///   emitterAddress: '0x00000000000000000000000000000000000000000000000000000000deadbeef',
-    ///   sequence: 1n,
-    ///   consistencyLevel: 0,
-    ///   payload: {
-    ///     module: 'TokenBridge',
-    ///     type: 'TransferWithPayload',
-    ///     amount: 3000n,
-    ///     tokenAddress: '0x0000000000000000000000000000000000000000000000000000000000000001',
-    ///     tokenChain: 21,
-    ///     toAddress: '0x0000000000000000000000000000000000000000000000000000000000000003',
-    ///     chain: 21,
-    ///     fromAddress: '0x00000000000000000000000000000000000000000000000000000000deadbeef',
-    ///     payload: '0xaaaa'
-    ///   }
-    ///
-    const VAA_NATIVE_DECIMALS_10: vector<u8> =
-        x"01000000000100db621e2bd419cd8c254ec15827bded51bf79f45c0df9923c9071a50ae7b3cdec44d3ff45db0dc5caa17ad36f48bf06e34995a83c76c77eb5c541b036586c0748000000000000000000001500000000000000000000000000000000000000000000000000000000deadbeef000000000000000100030000000000000000000000000000000000000000000000000000000000000bb8000000000000000000000000000000000000000000000000000000000000000100150000000000000000000000000000000000000000000000000000000000000003001500000000000000000000000000000000000000000000000000000000deadbeefaaaa";
-
     #[test]
     /// Test the public-facing function complete_transfer_with_payload.
     /// using a native transfer VAA_ATTESTED_DECIMALS_12.
@@ -164,6 +138,9 @@ module token_bridge::complete_transfer_with_payload_test {
         use token_bridge::complete_transfer_with_payload::{
             complete_transfer_with_payload
         };
+
+        let transfer_vaa =
+            dummy_message::encoded_transfer_with_payload_vaa_native();
 
         let (user, coin_deployer) = two_people();
         let my_scenario = test_scenario::begin(user);
@@ -174,7 +151,7 @@ module token_bridge::complete_transfer_with_payload_test {
         set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
 
         // Register Sui as a foreign emitter.
-        let expected_source_chain = 21;
+        let expected_source_chain = 2;
         register_dummy_emitter(scenario, expected_source_chain);
 
         // Initialize native token.
@@ -201,7 +178,7 @@ module token_bridge::complete_transfer_with_payload_test {
         // Set up dummy `EmitterCap` as the expected redeemer.
         let emitter_cap =
             emitter::dummy_cap(
-                external_address::from_any_bytes(x"03")
+                external_address::from_any_bytes(x"b0b1")
             );
 
         // Verify that the emitter cap is the expected redeemer.
@@ -210,7 +187,7 @@ module token_bridge::complete_transfer_with_payload_test {
                 wormhole::vaa::take_payload(
                     wormhole::vaa::parse_and_verify(
                         &worm_state,
-                        VAA_NATIVE_DECIMALS_10,
+                        transfer_vaa,
                         &the_clock
                     )
                 )
@@ -230,7 +207,7 @@ module token_bridge::complete_transfer_with_payload_test {
                 &mut token_bridge_state,
                 &emitter_cap,
                 &mut worm_state,
-                VAA_NATIVE_DECIMALS_10,
+                transfer_vaa,
                 &the_clock
             );
         assert!(source_chain == expected_source_chain, 0);

@@ -1,16 +1,28 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements serialization and deserialization for asset metadata,
+/// which is a specific Wormhole message payload for Token Bridge.
 module token_bridge::asset_meta {
-    use std::string::{String};
+    use std::string::{Self, String};
     use std::vector::{Self};
+    use sui::coin::{Self, CoinMetadata};
     use wormhole::bytes::{Self};
     use wormhole::bytes32::{Self};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::cursor::{Self};
+    use wormhole::state::{chain_id};
 
-    const E_INVALID_ACTION: u64 = 0;
+    use token_bridge::native_asset::{Self};
 
+    /// Message payload is not `AssetMeta`.
+    const E_INVALID_PAYLOAD: u64 = 0;
+
+    /// Message identifier.
     const PAYLOAD_ID: u8 = 2;
 
-    struct AssetMeta has copy, store, drop {
+    /// Container that warehouses asset metadata information. This struct is
+    /// used only by `attest_token` and `create_wrapped` modules.
+    struct AssetMeta {
         /// Address of the token.
         token_address: ExternalAddress,
         /// Chain ID of the token.
@@ -37,6 +49,16 @@ module token_bridge::asset_meta {
             symbol,
             name
         }
+    }
+
+    public fun from_metadata<C>(metadata: &CoinMetadata<C>): AssetMeta {
+        new(
+            native_asset::canonical_address(metadata),
+            chain_id(),
+            coin::get_decimals(metadata),
+            string::from_ascii(coin::get_symbol(metadata)),
+            coin::get_name(metadata)
+        )
     }
 
     public fun unpack(
@@ -101,7 +123,7 @@ module token_bridge::asset_meta {
 
     public fun deserialize(buf: vector<u8>): AssetMeta {
         let cur = cursor::new(buf);
-        assert!(bytes::take_u8(&mut cur) == PAYLOAD_ID, E_INVALID_ACTION);
+        assert!(bytes::take_u8(&mut cur) == PAYLOAD_ID, E_INVALID_PAYLOAD);
         let token_address = external_address::take_bytes(&mut cur);
         let token_chain = bytes::take_u16_be(&mut cur);
         let native_decimals = bytes::take_u8(&mut cur);
@@ -133,6 +155,11 @@ module token_bridge::asset_meta {
         self.name
     }
 
+    #[test_only]
+    public fun destroy(token_meta: AssetMeta) {
+        unpack(token_meta);
+    }
+
 }
 
 #[test_only]
@@ -143,7 +170,7 @@ module token_bridge::asset_meta_tests {
     use token_bridge::asset_meta::{Self};
 
     #[test]
-    fun test_asset_meta() {
+    fun test_serialize_deserialize() {
         let token_address = external_address::from_any_bytes(x"001122");
         let symbol = string::utf8(b"a creative symbol");
         let name = string::utf8(b"a creative name");
@@ -164,5 +191,8 @@ module token_bridge::asset_meta_tests {
         assert!(asset_meta::native_decimals(&de) == 4, 0);
         assert!(asset_meta::symbol(&de) ==  symbol, 0);
         assert!(asset_meta::name(&de) == name, 0);
+
+        // Clean up.
+        asset_meta::destroy(de);
     }
 }

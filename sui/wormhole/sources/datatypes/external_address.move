@@ -3,8 +3,9 @@
 /// This module implements a custom type for a 32-byte standardized address,
 /// which is meant to represent an address from any other network.
 module wormhole::external_address {
-    use wormhole::cursor::{Cursor};
+    use sui::object::{Self, ID};
     use wormhole::bytes32::{Self, Bytes32};
+    use wormhole::cursor::{Cursor};
 
     /// Underlying data is all zeros.
     const E_ZERO_ADDRESS: u64 = 0;
@@ -28,17 +29,6 @@ module wormhole::external_address {
     public fun new_nonzero(value: Bytes32): ExternalAddress {
         assert!(bytes32::is_nonzero(&value), E_ZERO_ADDRESS);
         new(value)
-    }
-
-    /// Create `ExternalAddress` with `vector<u8>` of length == 32.
-    public fun from_bytes(buf: vector<u8>): ExternalAddress {
-        new(bytes32::new(buf))
-    }
-
-    /// Create `ExternalAddress` with `vector<u8>` of length == 32 ensuring that
-    /// not all bytes are zero.
-    public fun from_nonzero_bytes(buf: vector<u8>): ExternalAddress {
-        new_nonzero(bytes32::new(buf))
     }
 
     /// Destroy `ExternalAddress` for underlying bytes as `vector<u8>`.
@@ -73,6 +63,20 @@ module wormhole::external_address {
         new(bytes32::from_address(addr))
     }
 
+    /// Destroy `ExternalAddress` to represent address as `ID`.
+    public fun to_id(ext: ExternalAddress): ID {
+        object::id_from_bytes(to_bytes(ext))
+    }
+
+    /// Create `ExternalAddress` from `ID`.
+    public fun from_id(id: ID): ExternalAddress {
+        new(bytes32::from_bytes(object::id_to_bytes(&id)))
+    }
+
+    public fun from_object<T: key>(obj: &T): ExternalAddress {
+        from_id(object::id(obj))
+    }
+
     /// Check whether underlying data is not all zeros.
     public fun is_nonzero(self: &ExternalAddress): bool {
         bytes32::is_nonzero(&self.value)
@@ -91,24 +95,21 @@ module wormhole::external_address_tests {
 
     #[test]
     public fun test_left_pad_length_32_vector() {
-        let v = x"1234567891234567891234567891234512345678912345678912345678912345"; //32 bytes
-        let res = external_address::from_bytes(v);
-        let bytes = external_address::to_bytes(res);
-        assert!(bytes == v, 0);
-    }
-
-    #[test]
-    #[expected_failure(abort_code = bytes32::E_INVALID_BYTES32)]
-    public fun test_left_pad_vector_too_long() {
-        let v = x"123456789123456789123456789123451234567891234567891234567891234500"; //33 bytes
-        external_address::from_bytes(v);
+        let data =
+            bytes32::new(
+                x"1234567891234567891234567891234512345678912345678912345678912345"
+            );
+        let addr = external_address::new(data);
+        assert!(external_address::to_bytes(addr) == bytes32::to_bytes(data), 0);
     }
 
     #[test]
     public fun test_to_address() {
-        let v = x"0000000000000000000000000000000000000000000000000000000000001234";
-        let res = external_address::from_bytes(v);
-        let address = external_address::to_address(res);
-        assert!(address == @0x1234, 0);
+        let data =
+            bytes32::new(
+                x"0000000000000000000000000000000000000000000000000000000000001234"
+            );
+        let addr = external_address::new(data);
+        assert!(external_address::to_address(addr) == @0x1234, 0);
     }
 }

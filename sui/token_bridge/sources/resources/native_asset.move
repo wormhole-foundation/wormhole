@@ -8,7 +8,7 @@
 module token_bridge::native_asset {
     use sui::balance::{Self, Balance};
     use sui::coin::{Self, CoinMetadata};
-    use wormhole::external_address::{ExternalAddress};
+    use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::state::{chain_id};
 
     friend token_bridge::token_registry;
@@ -20,27 +20,27 @@ module token_bridge::native_asset {
         decimals: u8
     }
 
+    public fun canonical_address<C>(
+        metadata: &CoinMetadata<C>
+    ): ExternalAddress {
+        external_address::from_object(metadata)
+    }
+
     /// Create new `NativeAsset`.
     ///
     /// TODO: Take ID from `CoinMetadata` for token address. Remove
     /// `token_address` argument.
-    public(friend) fun new<C>(
-        token_address: ExternalAddress,
-        metadata: &CoinMetadata<C>
-    ): NativeAsset<C> {
+    public(friend) fun new<C>(metadata: &CoinMetadata<C>): NativeAsset<C> {
         NativeAsset {
             custody: balance::zero(),
-            token_address,
+            token_address: canonical_address(metadata),
             decimals: coin::get_decimals(metadata)
         }
     }
 
     #[test_only]
-    public fun new_test_only<C>(
-        token_address: ExternalAddress,
-        metadata: &CoinMetadata<C>
-    ): NativeAsset<C> {
-        new(token_address, metadata)
+    public fun new_test_only<C>(metadata: &CoinMetadata<C>): NativeAsset<C> {
+        new(metadata)
     }
 
     /// Retrieve canonical token address.
@@ -142,16 +142,14 @@ module token_bridge::native_asset_tests {
         test_scenario::next_tx(scenario, caller);
 
         let coin_meta = coin_native_10::take_metadata(scenario);
-        let intended_token_address =
-            external_address::from_any_bytes(x"deadbeef");
 
         // Make new.
-        let asset =
-            native_asset::new_test_only(intended_token_address, &coin_meta);
+        let asset = native_asset::new_test_only(&coin_meta);
 
         // Assert token address and decimals are correct.
+        let expected_token_address = external_address::from_object(&coin_meta);
         assert!(
-            native_asset::token_address(&asset) == intended_token_address,
+            native_asset::token_address(&asset) == expected_token_address,
             0
         );
         assert!(
@@ -195,7 +193,7 @@ module token_bridge::native_asset_tests {
             );
 
         assert!(token_chain == chain_id(), 0);
-        assert!(token_address == intended_token_address, 0);
+        assert!(token_address == expected_token_address, 0);
 
         // check that updated balance is correct
         let expected_remaining = total_deposited - n * withdraw_amount;

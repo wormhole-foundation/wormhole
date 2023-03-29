@@ -77,6 +77,7 @@ module wormhole::setup_tests {
     use sui::object::{Self};
     use sui::test_scenario::{Self};
 
+    use wormhole::bytes32::{Self};
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self};
     use wormhole::guardian::{Self};
@@ -187,7 +188,9 @@ module wormhole::setup_tests {
         assert!(state::governance_chain(&worm_state) == governance_chain, 0);
 
         let expected_governance_contract =
-            external_address::from_nonzero_bytes(governance_contract);
+            external_address::new_nonzero(
+                bytes32::from_bytes(governance_contract)
+            );
         assert!(
             state::governance_contract(&worm_state) == expected_governance_contract,
             0

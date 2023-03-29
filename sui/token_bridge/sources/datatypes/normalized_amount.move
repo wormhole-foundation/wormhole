@@ -9,7 +9,7 @@
 /// decimal difference).
 module token_bridge::normalized_amount {
     use sui::math::{Self};
-    use wormhole::bytes::{Self};
+    use wormhole::bytes32::{Self};
     use wormhole::cursor::{Cursor};
 
     /// The amounts in the token bridge payload are truncated to 8 decimals
@@ -29,6 +29,7 @@ module token_bridge::normalized_amount {
         value: u64
     }
 
+    /// Utility function to cap decimal amount to 8.
     public fun cap_decimals(decimals: u8): u8 {
         if (decimals > MAX_DECIMALS) {
             MAX_DECIMALS
@@ -37,23 +38,22 @@ module token_bridge::normalized_amount {
         }
     }
 
+    /// Create new `NormalizedAmount` of zero.
     public fun default(): NormalizedAmount {
         new(0)
     }
 
+    /// Retrieve underlying value.
     public fun value(self: &NormalizedAmount): u64 {
         self.value
     }
 
-    public fun take_value(norm: NormalizedAmount): u64 {
-        let NormalizedAmount { value } = norm;
-        value
-    }
-
+    /// Retrieve underlying value as `u256`.
     public fun to_u256(norm: NormalizedAmount): u256 {
         (take_value(norm) as u256)
     }
 
+    /// Create new `NormalizedAmount` using raw amount and specified decimals.
     public fun from_raw(amount: u64, decimals: u8): NormalizedAmount {
         if (amount == 0) {
             default()
@@ -64,6 +64,7 @@ module token_bridge::normalized_amount {
         }
     }
 
+    /// Denormalize `NormalizedAmount` using specified decimals.
     public fun to_raw(norm: NormalizedAmount, decimals: u8): u64 {
         let value = take_value(norm);
 
@@ -74,11 +75,16 @@ module token_bridge::normalized_amount {
         }
     }
 
+    /// Transform `NormalizedAmount` to serialized (big-endian) u256.
+    public fun to_bytes(norm: NormalizedAmount): vector<u8> {
+        bytes32::to_bytes(bytes32::from_u256_be(to_u256(norm)))
+    }
+
+    /// Read 32 bytes from `Cursor` and deserialize to u64, ensuring no
+    /// overflow.
     public fun take_bytes(cur: &mut Cursor<u8>): NormalizedAmount {
         // Amounts are encoded with 32 bytes.
-        let value = bytes::take_u256_be(cur);
-        assert!(value < (1 << 64), 0);
-        new((value as u64))
+        new(bytes32::to_u64_be(bytes32::take_bytes(cur)))
     }
 
     fun new(value: u64): NormalizedAmount {
@@ -86,22 +92,73 @@ module token_bridge::normalized_amount {
             value
         }
     }
+
+    fun take_value(norm: NormalizedAmount): u64 {
+        let NormalizedAmount { value } = norm;
+        value
+    }
 }
 
 #[test_only]
 module token_bridge::normalized_amount_test {
-    use token_bridge::normalized_amount;
+    use wormhole::bytes::{Self};
+    use wormhole::cursor::{Self};
+
+    use token_bridge::normalized_amount::{Self};
 
     #[test]
-    fun test_normalize_denormalize_amount() {
-        let a = 12345678910111;
-        let b = normalized_amount::from_raw(a, 9);
-        let c = normalized_amount::to_raw(b, 9);
-        assert!(c == 12345678910110, 0);
+    public fun test_from_and_to_raw() {
+        // Use decimals > 8 to check truncation.
+        let decimals = 9;
+        let raw_amount = 12345678910111;
+        let normalized = normalized_amount::from_raw(raw_amount, decimals);
+        let denormalized = normalized_amount::to_raw(normalized, decimals);
+        assert!(denormalized == 10 * (raw_amount / 10), 0);
 
-        let x = 12345678910111;
-        let y = normalized_amount::from_raw(x, 5);
-        let z = normalized_amount::to_raw(y, 5);
-        assert!(z == x, 0);
+        // Use decimals <= 8 to check raw amount recovery.
+        let decimals = 5;
+        let normalized = normalized_amount::from_raw(raw_amount, decimals);
+        let denormalized = normalized_amount::to_raw(normalized, decimals);
+        assert!(denormalized == raw_amount, 0);
+    }
+
+    #[test]
+    public fun test_take_bytes() {
+        let cur =
+            cursor::new(
+                x"000000000000000000000000000000000000000000000000ffffffffffffffff"
+            );
+
+        let norm = normalized_amount::take_bytes(&mut cur);
+        assert!(
+            normalized_amount::value(&norm) == ((1u256 << 64) - 1 as u64),
+            0
+        );
+
+        // Clean up.
+        cursor::destroy_empty(cur);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = wormhole::bytes32::E_U64_OVERFLOW)]
+    public fun test_cannot_take_bytes_overflow() {
+        let encoded_overflow =
+            x"0000000000000000000000000000000000000000000000010000000000000000";
+
+        let amount = {
+            let cur = cursor::new(encoded_overflow);
+            let value = bytes::take_u256_be(&mut cur);
+            cursor::destroy_empty(cur);
+            value
+        };
+        assert!(amount == (1 << 64), 0);
+
+        let cur = cursor::new(encoded_overflow);
+
+        // You shall not pass!
+        normalized_amount::take_bytes(&mut cur);
+
+        // Clean up.
+        cursor::destroy_empty(cur);
     }
 }

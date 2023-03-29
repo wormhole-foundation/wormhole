@@ -101,15 +101,19 @@ module token_bridge::emitter_registry_tests {
         // Add unregistered emitter.
         let chain = 42;
         let emitter_addr =
-            external_address::from_bytes(
-                x"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+            external_address::new(
+                bytes32::new(
+                    x"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+                )
             );
         emitter_registry::add(&mut registry, chain, emitter_addr);
 
         // Make another address for the heck of it.
         let another_addr =
-            external_address::from_bytes(
-                x"feedbeeffeedbeeffeedbeeffeedbeeffeedbeeffeedbeeffeedbeeffeedbeef"
+            external_address::new(
+                bytes32::new(
+                    x"feedbeeffeedbeeffeedbeeffeedbeeffeedbeeffeedbeeffeedbeeffeedbeef"
+                )
             );
 
         // You shall not pass!

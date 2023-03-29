@@ -9,6 +9,7 @@ module token_bridge::token_bridge {
     use sui::sui::{SUI};
     use sui::transfer::{Self};
     use sui::tx_context::{Self, TxContext};
+    use wormhole::bytes32::{Self};
     use wormhole::emitter::{EmitterCap};
     use wormhole::external_address::{Self};
     use wormhole::state::{State as WormholeState};
@@ -34,7 +35,7 @@ module token_bridge::token_bridge {
             coin::into_balance(bridged_in),
             coin::into_balance(wormhole_fee),
             recipient_chain,
-            external_address::from_bytes(recipient),
+            external_address::new(bytes32::new(recipient)),
             relayer_fee,
             nonce,
             the_clock
@@ -64,7 +65,7 @@ module token_bridge::token_bridge {
             coin::into_balance(bridged_in),
             coin::into_balance(wormhole_fee),
             redeemer_chain,
-            external_address::from_bytes(redeemer),
+            external_address::new(bytes32::new(redeemer)),
             payload,
             nonce,
             the_clock

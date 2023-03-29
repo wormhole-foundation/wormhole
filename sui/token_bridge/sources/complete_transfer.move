@@ -207,10 +207,11 @@ module token_bridge::complete_transfer_tests {
     #[test]
     /// An end-to-end test for complete transer native with VAA.
     fun test_complete_transfer_native_10_relayer_fee() {
-        let transfer_vaa = dummy_message::encoded_transfer_vaa_native();
+        let transfer_vaa =
+            dummy_message::encoded_transfer_vaa_native_with_fee();
 
-        let (caller, tx_relayer, coin_deployer) = three_people();
-        let my_scenario = test_scenario::begin(caller);
+        let (expected_recipient, tx_relayer, coin_deployer) = three_people();
+        let my_scenario = test_scenario::begin(tx_relayer);
         let scenario = &mut my_scenario;
 
         // Set up contracts.
@@ -238,7 +239,6 @@ module token_bridge::complete_transfer_tests {
         let expected_relayer_fee = 100000;
         let expected_recipient_amount = 200000;
         let expected_amount = expected_relayer_fee + expected_recipient_amount;
-        let expected_recipient = @0x124323;
 
         // Scope to allow immutable reference to `TokenRegistry`.
         {
@@ -297,7 +297,7 @@ module token_bridge::complete_transfer_tests {
         assert!(balance::value(&payout) == expected_relayer_fee, 0);
 
         // TODO: Check for one event? `TransferRedeemed`.
-        let _effects = test_scenario::next_tx(scenario, caller);
+        let _effects = test_scenario::next_tx(scenario, tx_relayer);
 
         // Check recipient's `Coin`.
         let received =
@@ -328,10 +328,11 @@ module token_bridge::complete_transfer_tests {
     #[test]
     /// An end-to-end test for complete transfer native with VAA.
     fun test_complete_transfer_native_4_relayer_fee() {
-        let transfer_vaa = dummy_message::encoded_transfer_vaa_native();
+        let transfer_vaa =
+            dummy_message::encoded_transfer_vaa_native_with_fee();
 
-        let (caller, tx_relayer, coin_deployer) = three_people();
-        let my_scenario = test_scenario::begin(caller);
+        let (expected_recipient, tx_relayer, coin_deployer) = three_people();
+        let my_scenario = test_scenario::begin(tx_relayer);
         let scenario = &mut my_scenario;
 
         // Set up contracts.
@@ -359,7 +360,6 @@ module token_bridge::complete_transfer_tests {
         let expected_relayer_fee = 1000;
         let expected_recipient_amount = 2000;
         let expected_amount = expected_relayer_fee + expected_recipient_amount;
-        let expected_recipient = @0x124323;
 
         // Scope to allow immutable reference to `TokenRegistry`.
         {
@@ -417,7 +417,7 @@ module token_bridge::complete_transfer_tests {
         assert!(balance::value(&payout) == expected_relayer_fee, 0);
 
         // TODO: Check for one event? `TransferRedeemed`.
-        let _effects = test_scenario::next_tx(scenario, caller);
+        let _effects = test_scenario::next_tx(scenario, tx_relayer);
 
         // Check recipient's `Coin`.
         let received =

@@ -50,7 +50,7 @@ module token_bridge::coin_wrapped_12 {
     }
 
     #[test_only]
-    /// for a test scenario, simply deploy the coin and expose `TreasuryCap`.
+    /// for a test scenario, simply deploy the coin and expose `Supply`.
     public fun init_and_take_supply(
         scenario: &mut Scenario,
         caller: address
@@ -109,6 +109,9 @@ module token_bridge::coin_wrapped_12 {
     }
 
     #[test_only]
+    /// NOTE: Even though this module is `#[test_only]`, this method is tagged
+    /// with the same macro as a trick to allow another method within this
+    /// module to call `init` using OTW.
     public fun init_register_and_mint(
         scenario: &mut Scenario,
         caller: address,
@@ -139,5 +142,18 @@ module token_bridge::coin_wrapped_12 {
     /// module to call `init` using OTW.
     public fun init_test_only(ctx: &mut TxContext) {
         init(COIN_WRAPPED_12 {}, ctx)
+    }
+}
+
+#[test_only]
+module token_bridge::coin_wrapped_12_tests {
+    use token_bridge::asset_meta::{Self};
+    use token_bridge::coin_wrapped_12::{token_meta};
+
+    #[test]
+    public fun test_native_decimals() {
+        let meta = token_meta();
+        assert!(asset_meta::native_decimals(&meta) == 12, 0);
+        asset_meta::destroy(meta);
     }
 }

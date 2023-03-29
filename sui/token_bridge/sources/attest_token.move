@@ -1,10 +1,9 @@
 module token_bridge::attest_token {
-    use std::string::{Self};
     use sui::balance::{Balance};
     use sui::clock::{Clock};
-    use sui::coin::{Self, CoinMetadata};
+    use sui::coin::{CoinMetadata};
     use sui::sui::{SUI};
-    use wormhole::state::{State as WormholeState, chain_id};
+    use wormhole::state::{State as WormholeState};
 
     use token_bridge::asset_meta::{Self};
     use token_bridge::state::{Self, State};
@@ -45,31 +44,21 @@ module token_bridge::attest_token {
         // because we may want to send asset metadata again after registration
         // (the owner of a particular `CoinType` can change `CoinMetadata` any
         // time after we register the asset).
-        let token_address = {
-            if (token_registry::has<CoinType>(registry)) {
-                // If this asset is already registered, there should already
-                // be canonical info associated with this coin type.
-                let verified =
-                    token_registry::asset_cap_from_coin_metadata(
-                        registry,
-                        coin_metadata
-                    );
-                token_registry::checked_token_address(&verified, registry)
-            } else {
-                // Otherwise, register it.
-                token_registry::add_new_native(registry, coin_metadata)
-            }
+        if (token_registry::has<CoinType>(registry)) {
+            // If this asset is already registered, there should already
+            // be canonical info associated with this coin type.
+            let verified =
+                token_registry::asset_cap_from_coin_metadata(
+                    registry,
+                    coin_metadata
+                );
+            token_registry::checked_token_address(&verified, registry)
+        } else {
+            // Otherwise, register it.
+            token_registry::add_new_native(registry, coin_metadata)
         };
 
-        asset_meta::serialize(
-            asset_meta::new(
-                token_address,
-                chain_id(),
-                token_registry::decimals<CoinType>(registry),
-                string::from_ascii(coin::get_symbol(coin_metadata)),
-                coin::get_name(coin_metadata)
-            )
-        )
+        asset_meta::serialize(asset_meta::from_metadata(coin_metadata))
     }
 
     #[test_only]
@@ -88,10 +77,10 @@ module token_bridge::attest_token_tests {
     use sui::balance::{Self};
     use sui::coin::{Self};
     use sui::test_scenario::{Self};
-    use wormhole::external_address::{Self};
     use wormhole::state::{chain_id};
     use wormhole::wormhole_scenario::{return_clock, take_clock};
 
+    use token_bridge::asset_meta::{Self};
     use token_bridge::coin_native_10::{Self, COIN_NATIVE_10};
     use token_bridge::native_asset::{Self};
     use token_bridge::state::{Self};
@@ -147,8 +136,6 @@ module token_bridge::attest_token_tests {
         assert!(num_events == 1, 0);
 
         // Check that asset is registered.
-
-        // TODO: check token info.
         {
             let registry =
                 state::borrow_token_registry(&token_bridge_state);
@@ -157,9 +144,7 @@ module token_bridge::attest_token_tests {
             let asset = token_registry::borrow_native<COIN_NATIVE_10>(registry);
 
             let expected_token_address =
-                external_address::from_bytes(
-                    x"0000000000000000000000000000000000000000000000000000000000000001"
-                );
+                native_asset::canonical_address(&coin_meta);
             assert!(
                 native_asset::token_address(asset) == expected_token_address,
                 0
@@ -239,9 +224,10 @@ module token_bridge::attest_token_tests {
         // Emit `AssetMeta` payload.
         let serialized =
             serialize_asset_meta_test_only(&mut token_bridge_state, &coin_meta);
-        let expected =
-            x"02000000000000000000000000000000000000000000000000000000000000000100150a4445433130000000000000000000000000000000000000000000000000000000446563696d616c73203130000000000000000000000000000000000000000000";
-        assert!(serialized == expected, 0);
+        assert!(
+            serialized == asset_meta::serialize(asset_meta::from_metadata(&coin_meta)),
+            0
+        );
 
         // Clean up.
         return_state(token_bridge_state);

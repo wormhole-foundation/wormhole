@@ -35,9 +35,7 @@ module wormhole::bytes32 {
     /// Create new `Bytes32`, which checks the length of input `data`.
     public fun new(data: vector<u8>): Bytes32 {
         assert!(is_valid(&data), E_INVALID_BYTES32);
-        Bytes32 {
-            data
-        }
+        Bytes32 { data }
     }
 
     /// Create new `Bytes20` of all zeros.

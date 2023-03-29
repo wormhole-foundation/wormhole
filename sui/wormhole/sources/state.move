@@ -135,8 +135,8 @@ module wormhole::state {
         let guardian_set_index = 0;
 
         let governance_contract =
-            external_address::from_nonzero_bytes(
-                governance_contract
+            external_address::new_nonzero(
+                bytes32::from_bytes(governance_contract)
             );
         let state = State {
             id: object::new(ctx),

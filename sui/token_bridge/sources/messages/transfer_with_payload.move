@@ -1,3 +1,14 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements serialization and deserialization for token transfer
+/// with an arbitrary payload. This message is a specific Wormhole message
+/// payload for Token Bridge.
+///
+/// In order to redeem these types of transfers, one must have an `EmitterCap`
+/// and the specified `redeemer` must agree with this capability.
+///
+/// See `transfer_tokens_with_payload` and `complete_transfer_with_payload`
+/// modules for more details.
 module token_bridge::transfer_with_payload {
     use std::vector::{Self};
     use wormhole::bytes::{Self};
@@ -7,12 +18,19 @@ module token_bridge::transfer_with_payload {
 
     use token_bridge::normalized_amount::{Self, NormalizedAmount};
 
-    const E_INVALID_ACTION: u64 = 0;
+    /// Message payload is not `TransferWithPayload`.
+    const E_INVALID_PAYLOAD: u64 = 0;
 
+    /// Message identifier.
     const PAYLOAD_ID: u8 = 3;
 
+    /// Container that warehouses transfer information, including arbitrary
+    /// payload.
+    ///
+    /// NOTE: This struct has `drop` because we do not want to require an
+    /// integrator receiving transfer information to have to manually destroy.
     struct TransferWithPayload has drop {
-        // Amount being transferred (big-endian uint256).
+        // Transfer amount.
         amount: NormalizedAmount,
         // Address of the token. Left-zero-padded if shorter than 32 bytes.
         token_address: ExternalAddress,
@@ -22,16 +40,18 @@ module token_bridge::transfer_with_payload {
         redeemer: ExternalAddress,
         // Chain ID of the redeemer.
         redeemer_chain: u16,
-        // Address of the message sender. Left-zero-padded if shorter than 32 bytes.
+        // Address of the message sender.
         sender: ExternalAddress,
         // An arbitrary payload.
         payload: vector<u8>,
     }
 
+    /// Identifier for `TransferWithPayload`.
     public fun payload_id(): u8 {
         PAYLOAD_ID
     }
 
+    /// Create new `TransferWithPayload` using `EmitterCap` as the sender.
     public fun new_from_emitter(
         emitter_cap: &EmitterCap,
         amount: NormalizedAmount,
@@ -52,6 +72,7 @@ module token_bridge::transfer_with_payload {
         )
     }
 
+    /// Decompose `TransferWithPayload` into its members.
     public fun unpack(
         transfer: TransferWithPayload
     ): (
@@ -84,37 +105,59 @@ module token_bridge::transfer_with_payload {
         )
     }
 
+    /// Destroy `TransferWithPayload` and take only its payload.
+    public fun take_payload(transfer: TransferWithPayload): vector<u8> {
+        let (
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            payload
+        ) = unpack(transfer);
+        payload
+    }
+
+    /// Retrieve normalized amount of token transfer.
     public fun amount(self: &TransferWithPayload): NormalizedAmount {
         self.amount
     }
 
+    // Retrieve token's canonical address.
     public fun token_address(self: &TransferWithPayload): ExternalAddress {
         self.token_address
     }
 
+    /// Retrieve token's canonical chain ID.
     public fun token_chain(self: &TransferWithPayload): u16 {
         self.token_chain
     }
 
+    /// Retrieve expected redeemer.
     public fun redeemer(self: &TransferWithPayload): ExternalAddress {
         self.redeemer
     }
 
+    /// Retrieve target chain for redeemer.
     public fun redeemer_chain(self: &TransferWithPayload): u16 {
         self.redeemer_chain
     }
 
+    /// Retrieve transfer sender.
     public fun sender(self: &TransferWithPayload): ExternalAddress {
         self.sender
     }
 
+    /// Retrieve arbitrary payload.
     public fun payload(self: &TransferWithPayload): vector<u8> {
         self.payload
     }
 
+    /// Decode Wormhole message payload as `TransferWithPayload`.
     public fun deserialize(transfer: vector<u8>): TransferWithPayload {
         let cur = cursor::new(transfer);
-        assert!(bytes::take_u8(&mut cur) == PAYLOAD_ID, E_INVALID_ACTION);
+        assert!(bytes::take_u8(&mut cur) == PAYLOAD_ID, E_INVALID_PAYLOAD);
 
         let amount = normalized_amount::take_bytes(&mut cur);
         let token_address = external_address::take_bytes(&mut cur);
@@ -134,6 +177,7 @@ module token_bridge::transfer_with_payload {
         )
     }
 
+    /// Encode `TransferWithPayload` for Wormhole message payload.
     public fun serialize(transfer: TransferWithPayload): vector<u8> {
         let (
             amount,
@@ -319,7 +363,7 @@ module token_bridge::transfer_with_payload_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = transfer_with_payload::E_INVALID_ACTION)]
+    #[expected_failure(abort_code = transfer_with_payload::E_INVALID_PAYLOAD)]
     public fun test_cannot_deserialize_invalid_payload() {
         let invalid_payload = token_bridge::dummy_message::encoded_transfer();
 

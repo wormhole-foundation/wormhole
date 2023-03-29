@@ -10,7 +10,6 @@ module token_bridge::token_registry {
     use sui::object::{Self, UID};
     use sui::tx_context::{TxContext};
     use wormhole::external_address::{ExternalAddress};
-    use wormhole::id_registry::{Self, IdRegistry};
     use wormhole::state::{chain_id};
 
     use token_bridge::asset_meta::{Self, AssetMeta};
@@ -37,12 +36,8 @@ module token_bridge::token_registry {
     /// This container is used to store native and wrapped assets of coin type
     /// as dynamic fields under its `UID`. It also uses a mechanism to generate
     /// arbitrary token addresses for native assets.
-    ///
-    /// TODO: Remove `IdRegistry` in favor of using `CoinMetadata` to generate
-    /// canonical token address.
     struct TokenRegistry has key, store {
         id: UID,
-        native_id_registry: IdRegistry,
         num_wrapped: u64,
         num_native: u64
     }
@@ -66,7 +61,6 @@ module token_bridge::token_registry {
     public(friend) fun new(ctx: &mut TxContext): TokenRegistry {
         TokenRegistry {
             id: object::new(ctx),
-            native_id_registry: id_registry::new(),
             num_wrapped: 0,
             num_native: 0
         }
@@ -252,11 +246,9 @@ module token_bridge::token_registry {
         self: &mut TokenRegistry,
         metadata: &CoinMetadata<CoinType>,
     ): ExternalAddress {
-        let token_addr =
-            id_registry::next_address(&mut self.native_id_registry);
-
         // Create new native asset.
-        let asset = native_asset::new(token_addr, metadata);
+        let asset = native_asset::new(metadata);
+        let token_addr = native_asset::token_address(&asset);
 
         // Add to registry.
         dynamic_field::add(&mut self.id, Key<CoinType> {}, asset);
@@ -374,13 +366,11 @@ module token_bridge::token_registry {
     #[test_only]
     public fun destroy(registry: TokenRegistry) {
         let TokenRegistry {
-            id: id,
-            native_id_registry,
+            id,
             num_wrapped: _,
             num_native: _
         } = registry;
         object::delete(id);
-        id_registry::destroy(native_id_registry);
     }
 
     #[test_only]
@@ -549,12 +539,12 @@ module token_bridge::token_registry {
 module token_bridge::token_registry_tests {
     use sui::balance::{Self};
     use sui::test_scenario::{Self};
-    use wormhole::external_address::{Self};
     use wormhole::state::{chain_id};
 
     use token_bridge::asset_meta::{Self};
     use token_bridge::coin_native_10::{Self, COIN_NATIVE_10};
     use token_bridge::coin_wrapped_7::{Self, COIN_WRAPPED_7};
+    use token_bridge::native_asset::{Self};
     use token_bridge::token_registry::{Self};
     use token_bridge::token_bridge_scenario::{person};
 
@@ -585,8 +575,9 @@ module token_bridge::token_registry_tests {
                 &mut registry,
                 &coin_meta,
             );
-        assert!(token_address == external_address::from_any_bytes(x"01"), 0);
-        coin_native_10::return_metadata(coin_meta);
+        let expected_token_address =
+            native_asset::canonical_address(&coin_meta);
+        assert!(token_address == expected_token_address, 0);
 
         // mint some native coins, then deposit them into the token registry
         let deposit_amount = 69;
@@ -639,15 +630,16 @@ module token_bridge::token_registry_tests {
             0
         );
 
-        let (token_chain, token_address) =
-            token_registry::canonical_info<COIN_NATIVE_10>(
-                &registry
-            );
+        let (
+            token_chain,
+            token_address
+        ) = token_registry::canonical_info<COIN_NATIVE_10>(&registry);
         assert!(token_chain == chain_id(), 0);
-        assert!(token_address == external_address::from_any_bytes(x"01"), 0);
+        assert!(token_address == expected_token_address, 0);
 
         // Clean up.
         token_registry::destroy(registry);
+        coin_native_10::return_metadata(coin_meta);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -737,6 +729,7 @@ module token_bridge::token_registry_tests {
             0
         );
 
+        let wrapped_token_meta = coin_wrapped_7::token_meta();
         let (
             token_chain,
             token_address
@@ -752,6 +745,7 @@ module token_bridge::token_registry_tests {
 
         // Clean up.
         token_registry::destroy(registry);
+        asset_meta::destroy(wrapped_token_meta);
 
         // Done.
         test_scenario::end(my_scenario);
