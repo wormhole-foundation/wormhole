@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {IWormhole} from "../contracts/interfaces/IWormhole.sol";
-import {MockWormhole} from "../contracts/relayers/mock/MockWormhole.sol";
+import {MockWormhole} from "../contracts/mock/MockWormhole.sol";
 import "../contracts/libraries/external/BytesLib.sol";
 
 import "forge-std/Vm.sol";

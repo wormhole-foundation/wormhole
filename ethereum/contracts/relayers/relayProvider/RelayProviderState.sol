@@ -11,6 +11,14 @@ contract RelayProviderStorage {
         uint128 nativeCurrencyPrice;
     }
 
+    struct AssetConversion {
+        // The following two fields are a percentage buffer that is used to upcharge the user for the value attached to the message sent.
+        // The cost of getting ‘targetAmount’ on ‘targetChain’ for the receiverValue is
+        // (denominator + buffer) / (denominator) * (the converted amount in source chain currency using the ‘quoteAssetPrice’ values)
+        uint16 buffer;
+        uint16 denominator;
+    }
+
     struct State {
         // Wormhole chain id of this blockchain.
         uint16 chainId;
@@ -34,13 +42,8 @@ contract RelayProviderStorage {
         mapping(uint16 => bytes32) deliveryAddressMap;
         // Set of relayer addresses used to deliver or redeliver wormhole messages.
         mapping(address => bool) approvedSenders;
-        // The following two fields are a percentage buffer that is used to upcharge the user for the application budget.
-        // The cost of getting ‘targetAmount’ on ‘targetChain’ for the receiverValue is
-        // (denominator + buffer) / (denominator) * (the converted amount in source chain currency using the ‘quoteAssetPrice’ values)
-        // Dictionary of wormhole chain id -> assetConversionBuffer buffer
-        mapping(uint16 => uint16) assetConversionBuffer;
-        // Dictionary of wormhole chain id -> assetConversionBufferDenominator
-        mapping(uint16 => uint16) assetConversionBufferDenominator;
+        // Dictionary of wormhole chain id -> assetConversion
+        mapping(uint16 => AssetConversion) assetConversion;
         // Reward address for the relayer. The CoreRelayer contract transfers the reward for relaying messages here.
         address payable rewardAddress;
     }

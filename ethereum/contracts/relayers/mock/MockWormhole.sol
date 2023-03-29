@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache 2
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.17;
 
-import "../../interfaces/IWormhole.sol";
-import "../../libraries/external/BytesLib.sol";
+import "../interfaces/IWormhole.sol";
+import "../libraries/external/BytesLib.sol";
 
 contract MockWormhole is IWormhole {
     using BytesLib for bytes;

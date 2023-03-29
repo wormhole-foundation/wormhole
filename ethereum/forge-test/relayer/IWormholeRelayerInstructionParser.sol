@@ -1,11 +1,10 @@
-// contracts/Structs.sol
 // SPDX-License-Identifier: Apache 2
 
 pragma solidity ^0.8.0;
 
-import "../interfaces/IWormholeRelayer.sol";
+import "../contracts/interfaces/IWormholeRelayer.sol";
 
-abstract contract CoreRelayerStructs {
+interface IWormholeRelayerInstructionParser {
     struct DeliveryInstructionsContainer {
         uint8 payloadId; //1
         bool sufficientlyFunded;
@@ -40,18 +39,17 @@ abstract contract CoreRelayerStructs {
         ExecutionParameters executionParameters;
     }
 
-    struct ForwardInstruction {
-        bytes container;
-        address sender;
-        uint256 msgValue;
-        uint256 totalFee;
-        address relayProvider;
-        bool isValid;
-    }
+    function decodeDeliveryInstructionsContainer(bytes memory encoded)
+        external
+        pure
+        returns (DeliveryInstructionsContainer memory);
 
-    struct DeliveryVAAInfo {
-        uint16 sourceChain;
-        uint64 sourceSequence;
-        bytes32 deliveryVaaHash;
-    }
+    function decodeRedeliveryInstruction(bytes memory encoded)
+        external
+        pure
+        returns (RedeliveryByTxHashInstruction memory instruction);
+
+    function toWormholeFormat(address addr) external pure returns (bytes32 whFormat);
+
+    function fromWormholeFormat(bytes32 whFormatAddress) external pure returns (address addr);
 }
