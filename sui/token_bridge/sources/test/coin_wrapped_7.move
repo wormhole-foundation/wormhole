@@ -18,7 +18,7 @@ module token_bridge::coin_wrapped_7 {
 
     fun init(witness: COIN_WRAPPED_7, ctx: &mut TxContext) {
         transfer::public_transfer(
-            create_wrapped::prepare_registration(
+            create_wrapped::new_setup_test_only(
                 witness,
                 VAA,
                 ctx
@@ -125,14 +125,6 @@ module token_bridge::coin_wrapped_7 {
         return_state(token_bridge_state);
 
         minted
-    }
-
-    #[test_only]
-    /// NOTE: Even though this module is `#[test_only]`, this method is tagged
-    /// with the same macro as a trick to allow another method within this
-    /// module to call `init` using OTW.
-    public fun init_test_only(ctx: &mut TxContext) {
-        init(COIN_WRAPPED_7 {}, ctx)
     }
 }
 

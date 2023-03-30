@@ -1,0 +1,28 @@
+[package]
+name = "CoinWrapped12"
+version = "0.0.1"
+
+[dependencies.Sui]
+git = "https://github.com/MystenLabs/sui.git"
+subdir = "crates/sui-framework/packages/sui-framework"
+rev = "82c9c80c11488858f1d3930f47ec9f335a566683"
+
+[dependencies.Wormhole]
+local = "../../wormhole"
+
+[dependencies.TokenBridge]
+local = "../../token_bridge"
+
+[addresses]
+coin_wrapped_12 = "_"
+
+[dev-dependencies.Wormhole]
+local = "../../wormhole"
+
+[dev-dependencies.TokenBridge]
+local = "../../token_bridge"
+
+[dev-addresses]
+wormhole = "0x100"
+token_bridge = "0x200"
+coin_wrapped_12 = "0x20c"

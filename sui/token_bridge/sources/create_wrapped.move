@@ -26,6 +26,8 @@
 /// References:
 /// https://examples.sui.io/basics/one-time-witness.html
 module token_bridge::create_wrapped {
+    use std::ascii::{Self};
+    use std::type_name::{Self};
     use sui::balance::{Self, Supply};
     use sui::clock::{Clock};
     use sui::object::{Self, UID};
@@ -43,6 +45,11 @@ module token_bridge::create_wrapped {
     const E_UNREGISTERED_FOREIGN_ASSET: u64 = 1;
     /// Failed one-time witness verification.
     const E_BAD_WITNESS: u64 = 2;
+    /// Coin witness does not equal "COIN".
+    const E_INVALID_COIN_MODULE_NAME: u64 = 3;
+
+    /// A.K.A. "coin".
+    const COIN_MODULE_NAME: vector<u8> = b"coin";
 
     /// Container holding new coin type's `Supply` and encoded asset metadata
     /// VAA, which are required to complete this asset's registration.
@@ -69,14 +76,17 @@ module token_bridge::create_wrapped {
         // resembles the same check for `coin::create_currency`.
         assert!(sui::types::is_one_time_witness(&witness), E_BAD_WITNESS);
 
+        // Also make sure that this witness module name is literally "coin".
+        let module_name = type_name::get_module(&type_name::get<CoinType>());
+        assert!(
+            ascii::into_bytes(module_name) == COIN_MODULE_NAME,
+            E_INVALID_COIN_MODULE_NAME
+        );
+
         // Create `WrappedAssetSetup` object and transfer to transaction sender.
         // The owner of this object will call `complete_registration` to destroy
         // it.
-        WrappedAssetSetup {
-            id: object::new(ctx),
-            vaa_buf,
-            supply: balance::create_supply(witness),
-        }
+        new_setup(witness, vaa_buf, ctx)
     }
 
     /// After executing `prepare_registration`, owner of `WrappedAssetSetup`
@@ -89,10 +99,10 @@ module token_bridge::create_wrapped {
     /// TODO: Maybe add `UpgradeCap` argument (which would come from the
     /// `CoinType` package so we can either destroy it or warehouse it in
     /// `WrappedAsset`).
-    public fun complete_registration<CoinType>(
+    public fun complete_registration<CoinType: drop>(
         token_bridge_state: &mut State,
         worm_state: &WormholeState,
-        unregistered: WrappedAssetSetup<CoinType>,
+        setup: WrappedAssetSetup<CoinType>,
         the_clock: &Clock,
         ctx: &mut TxContext,
     ) {
@@ -100,7 +110,7 @@ module token_bridge::create_wrapped {
             id,
             vaa_buf,
             supply
-        } = unregistered;
+        } = setup;
         object::delete(id);
 
         // Deserialize to `AssetMeta`.
@@ -169,15 +179,36 @@ module token_bridge::create_wrapped {
         asset_meta::deserialize(wormhole::vaa::take_payload(parsed))
     }
 
+    fun new_setup<CoinType: drop>(
+        witness: CoinType,
+        vaa_buf: vector<u8>,
+        ctx: &mut TxContext
+    ): WrappedAssetSetup<CoinType> {
+       WrappedAssetSetup {
+            id: object::new(ctx),
+            vaa_buf,
+            supply: balance::create_supply(witness)
+        }
+    }
+
+    #[test_only]
+    public fun new_setup_test_only<CoinType: drop>(
+        witness: CoinType,
+        vaa_buf: vector<u8>,
+        ctx: &mut TxContext
+    ): WrappedAssetSetup<CoinType> {
+        new_setup(witness, vaa_buf, ctx)
+    }
+
     #[test_only]
     public fun take_supply<CoinType>(
-        unregistered: WrappedAssetSetup<CoinType>
+        setup: WrappedAssetSetup<CoinType>
     ): Supply<CoinType> {
         let WrappedAssetSetup {
             id,
             vaa_buf: _,
-            supply
-        } = unregistered;
+            supply,
+        } = setup;
         object::delete(id);
 
         supply
@@ -187,13 +218,13 @@ module token_bridge::create_wrapped {
 #[test_only]
 module token_bridge::create_wrapped_tests {
     use sui::test_scenario::{Self};
-    use sui::transfer::{Self};
+    use sui::test_utils::{Self};
     use sui::tx_context::{Self};
 
     use token_bridge::asset_meta::{Self};
-    use token_bridge::coin_wrapped_12::{Self, COIN_WRAPPED_12};
+    use token_bridge::coin_wrapped_12::{Self};
     use token_bridge::coin_wrapped_7::{Self};
-    use token_bridge::create_wrapped::{Self, WrappedAssetSetup};
+    use token_bridge::create_wrapped::{Self};
     use token_bridge::state::{Self};
     use token_bridge::token_bridge_scenario::{
         register_dummy_emitter,
@@ -207,7 +238,9 @@ module token_bridge::create_wrapped_tests {
     use token_bridge::token_registry::{Self};
     use token_bridge::wrapped_asset::{Self};
 
-    struct NOT_A_WITNESS has drop, copy, store {}
+    struct NOT_A_WITNESS has drop {}
+
+    struct CREATE_WRAPPED_TESTS has drop {}
 
     #[test]
     #[expected_failure(abort_code = create_wrapped::E_BAD_WITNESS)]
@@ -223,7 +256,24 @@ module token_bridge::create_wrapped_tests {
             );
 
         // Clean up.
-        transfer::public_freeze_object(wrapped_asset_setup);
+        test_utils::destroy(wrapped_asset_setup);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = create_wrapped::E_INVALID_COIN_MODULE_NAME)]
+    public fun test_cannot_prepare_registration_invalid_coin_module_name() {
+        let ctx = &mut tx_context::dummy();
+
+        // You shall not pass!
+        let wrapped_asset_setup =
+            create_wrapped::prepare_registration(
+                CREATE_WRAPPED_TESTS {},
+                coin_wrapped_12::encoded_vaa(),
+                ctx
+            );
+
+        // Clean up.
+        test_utils::destroy(wrapped_asset_setup);
     }
 
     #[test]
@@ -245,14 +295,11 @@ module token_bridge::create_wrapped_tests {
         test_scenario::next_tx(scenario, coin_deployer);
 
         // Publish coin.
-        coin_wrapped_12::init_test_only(test_scenario::ctx(scenario));
-
-        test_scenario::next_tx(scenario, coin_deployer);
-
         let wrapped_asset_setup =
-            test_scenario::take_from_address<WrappedAssetSetup<COIN_WRAPPED_12>>(
-                scenario,
-                coin_deployer
+            create_wrapped::new_setup_test_only(
+                CREATE_WRAPPED_TESTS {},
+                coin_wrapped_12::encoded_vaa(),
+                test_scenario::ctx(scenario)
             );
 
         let (token_bridge_state, worm_state) = take_states(scenario);
@@ -277,10 +324,10 @@ module token_bridge::create_wrapped_tests {
         // Check registry.
         {
             let registry = state::borrow_token_registry(&token_bridge_state);
-            assert!(token_registry::is_wrapped<COIN_WRAPPED_12>(registry), 0);
+            assert!(token_registry::is_wrapped<CREATE_WRAPPED_TESTS>(registry), 0);
 
-            let asset = token_registry::borrow_wrapped<COIN_WRAPPED_12>(registry);
-
+            let asset =
+                token_registry::borrow_wrapped<CREATE_WRAPPED_TESTS>(registry);
             assert!(wrapped_asset::total_supply(asset) == 0, 0);
 
             // Decimals are capped for this wrapped asset.
@@ -299,7 +346,7 @@ module token_bridge::create_wrapped_tests {
         };
 
         // Now update metadata.
-        create_wrapped::update_attestation<COIN_WRAPPED_12>(
+        create_wrapped::update_attestation<CREATE_WRAPPED_TESTS>(
             &mut token_bridge_state,
             &worm_state,
             coin_wrapped_12::encoded_updated_vaa(),
@@ -308,7 +355,7 @@ module token_bridge::create_wrapped_tests {
 
         // Check updated name and symbol.
         let registry = state::borrow_token_registry(&token_bridge_state);
-        let asset = token_registry::borrow_wrapped<COIN_WRAPPED_12>(registry);
+        let asset = token_registry::borrow_wrapped<CREATE_WRAPPED_TESTS>(registry);
         let metadata = wrapped_asset::metadata(asset);
         let (
             _,
@@ -352,14 +399,11 @@ module token_bridge::create_wrapped_tests {
         test_scenario::next_tx(scenario, coin_deployer);
 
         // Publish coin.
-        coin_wrapped_12::init_test_only(test_scenario::ctx(scenario));
-
-        test_scenario::next_tx(scenario, coin_deployer);
-
         let wrapped_asset_setup =
-            test_scenario::take_from_address<WrappedAssetSetup<COIN_WRAPPED_12>>(
-                scenario,
-                coin_deployer
+            create_wrapped::new_setup_test_only(
+                CREATE_WRAPPED_TESTS {},
+                coin_wrapped_12::encoded_vaa(),
+                test_scenario::ctx(scenario)
             );
 
         let (token_bridge_state, worm_state) = take_states(scenario);
@@ -372,13 +416,12 @@ module token_bridge::create_wrapped_tests {
             &the_clock,
             test_scenario::ctx(scenario)
         );
-
         // This VAA is for COIN_WRAPPED_7 metadata, which disagrees with
         // COIN_WRAPPED_12.
         let invalid_asset_meta_vaa = coin_wrapped_7::encoded_vaa();
 
-        // You shall not pas!
-        create_wrapped::update_attestation<COIN_WRAPPED_12>(
+        // You shall not pass!
+        create_wrapped::update_attestation<CREATE_WRAPPED_TESTS>(
             &mut token_bridge_state,
             &worm_state,
             invalid_asset_meta_vaa,
