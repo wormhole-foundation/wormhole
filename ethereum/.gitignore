@@ -2,3 +2,4 @@ ganache.log
 lib/*
 !lib/README.md
 flattened
+
