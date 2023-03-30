@@ -3,12 +3,12 @@
 
 pragma solidity ^0.8.0;
 
-import "../interfaces/IWormhole.sol";
-import "../interfaces/IRelayProvider.sol";
+import "../../interfaces/IWormhole.sol";
+import "../../interfaces/relayer/IRelayProvider.sol";
 import "./CoreRelayerStructs.sol";
 
 import "./CoreRelayerState.sol";
-import "../libraries/external/BytesLib.sol";
+import "../../libraries/external/BytesLib.sol";
 
 contract CoreRelayerGetters is CoreRelayerState {
     using BytesLib for bytes;

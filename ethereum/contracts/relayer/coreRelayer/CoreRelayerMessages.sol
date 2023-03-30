@@ -3,11 +3,11 @@
 
 pragma solidity ^0.8.0;
 
-import "../libraries/external/BytesLib.sol";
+import "../../libraries/external/BytesLib.sol";
 
 import "./CoreRelayerGetters.sol";
 import "./CoreRelayerStructs.sol";
-import "../interfaces/IWormholeRelayer.sol";
+import "../../interfaces/relayer/IWormholeRelayer.sol";
 
 contract CoreRelayerMessages is CoreRelayerStructs, CoreRelayerGetters {
     using BytesLib for bytes;

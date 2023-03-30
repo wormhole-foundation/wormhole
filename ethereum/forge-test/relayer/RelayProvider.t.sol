@@ -2,13 +2,13 @@
 
 pragma solidity ^0.8.0;
 
-import "../contracts/interfaces/IRelayProvider.sol";
-import "../contracts/relayProvider/RelayProvider.sol";
-import "../contracts/relayProvider/RelayProviderSetup.sol";
-import "../contracts/relayProvider/RelayProviderImplementation.sol";
-import "../contracts/relayProvider/RelayProviderProxy.sol";
-import "../contracts/relayProvider/RelayProviderMessages.sol";
-import "../contracts/relayProvider/RelayProviderStructs.sol";
+import "../../contracts/interfaces/relayer/IRelayProvider.sol";
+import "../../contracts/relayer/relayProvider/RelayProvider.sol";
+import "../../contracts/relayer/relayProvider/RelayProviderSetup.sol";
+import "../../contracts/relayer/relayProvider/RelayProviderImplementation.sol";
+import "../../contracts/relayer/relayProvider/RelayProviderProxy.sol";
+import "../../contracts/relayer/relayProvider/RelayProviderMessages.sol";
+import "../../contracts/relayer/relayProvider/RelayProviderStructs.sol";
 
 import "forge-std/Test.sol";
 
