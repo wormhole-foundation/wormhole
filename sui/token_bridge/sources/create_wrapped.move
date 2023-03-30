@@ -189,7 +189,6 @@ module token_bridge::create_wrapped_tests {
     use sui::test_scenario::{Self};
     use sui::transfer::{Self};
     use sui::tx_context::{Self};
-    use wormhole::wormhole_scenario::{return_clock, take_clock};
 
     use token_bridge::asset_meta::{Self};
     use token_bridge::coin_wrapped_12::{Self, COIN_WRAPPED_12};
@@ -198,8 +197,10 @@ module token_bridge::create_wrapped_tests {
     use token_bridge::state::{Self};
     use token_bridge::token_bridge_scenario::{
         register_dummy_emitter,
+        return_clock,
         return_states,
         set_up_wormhole_and_token_bridge,
+        take_clock,
         take_states,
         two_people
     };

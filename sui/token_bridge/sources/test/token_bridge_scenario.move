@@ -1,6 +1,8 @@
 #[test_only]
 module token_bridge::token_bridge_scenario {
     use std::vector::{Self};
+    use sui::balance::{Self};
+    use sui::clock::{Clock};
     use sui::package::{UpgradeCap};
     use sui::test_scenario::{Self, Scenario};
     use wormhole::external_address::{Self};
@@ -71,6 +73,19 @@ module token_bridge::token_bridge_scenario {
         vector::destroy_empty(chains);
     }
 
+    public fun deposit_native<CoinType>(
+        token_bridge_state: &mut State,
+        deposit_amount: u64
+    ) {
+        use token_bridge::state::{borrow_token_registry_mut_test_only};
+        use token_bridge::token_registry::{deposit_test_only};
+
+        deposit_test_only(
+            borrow_token_registry_mut_test_only(token_bridge_state),
+            balance::create_for_testing<CoinType>(deposit_amount)
+        )
+    }
+
     public fun person(): address {
         wormhole::wormhole_scenario::person()
     }
@@ -104,5 +119,13 @@ module token_bridge::token_bridge_scenario {
     ) {
         return_state(token_bridge_state);
         wormhole::wormhole_scenario::return_state(worm_state);
+    }
+
+    public fun take_clock(scenario: &Scenario): Clock {
+        wormhole::wormhole_scenario::take_clock(scenario)
+    }
+
+    public fun return_clock(the_clock: Clock) {
+        wormhole::wormhole_scenario::return_clock(the_clock)
     }
 }

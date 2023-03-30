@@ -98,15 +98,16 @@ module token_bridge::vaa {
 module token_bridge::token_bridge_vaa_test {
     use sui::test_scenario::{Self};
     use wormhole::external_address::{Self};
-    use wormhole::wormhole_scenario::{return_clock, take_clock};
 
     use token_bridge::emitter_registry::{Self};
     use token_bridge::state::{Self};
     use token_bridge::token_bridge_scenario::{
         person,
         register_dummy_emitter,
+        return_clock,
         return_states,
         set_up_wormhole_and_token_bridge,
+        take_clock,
         take_states
     };
     use token_bridge::vaa::{Self};

@@ -78,7 +78,6 @@ module token_bridge::attest_token_tests {
     use sui::coin::{Self};
     use sui::test_scenario::{Self};
     use wormhole::state::{chain_id};
-    use wormhole::wormhole_scenario::{return_clock, take_clock};
 
     use token_bridge::asset_meta::{Self};
     use token_bridge::coin_native_10::{Self, COIN_NATIVE_10};
@@ -86,9 +85,11 @@ module token_bridge::attest_token_tests {
     use token_bridge::state::{Self};
     use token_bridge::token_bridge_scenario::{
         person,
+        return_clock,
         return_state,
         return_states,
         set_up_wormhole_and_token_bridge,
+        take_clock,
         take_state,
         take_states
     };

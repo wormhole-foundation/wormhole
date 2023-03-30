@@ -64,9 +64,12 @@ module token_bridge::coin_wrapped_7 {
     /// with the same macro as a trick to allow another method within this
     /// module to call `init` using OTW.
     public fun init_and_register(scenario: &mut Scenario, caller: address) {
-        use wormhole::wormhole_scenario::{return_clock, take_clock};
-
-        use token_bridge::token_bridge_scenario::{return_states, take_states};
+        use token_bridge::token_bridge_scenario::{
+            return_clock,
+            return_states,
+            take_clock,
+            take_states
+        };
 
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);

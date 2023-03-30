@@ -183,7 +183,6 @@ module token_bridge::complete_transfer_tests {
     use sui::coin::{Self, Coin};
     use sui::test_scenario::{Self};
     use wormhole::state::{chain_id};
-    use wormhole::wormhole_scenario::{return_clock, take_clock};
 
     use token_bridge::coin_wrapped_12::{Self, COIN_WRAPPED_12};
     use token_bridge::coin_wrapped_7::{Self, COIN_WRAPPED_7};
@@ -195,7 +194,9 @@ module token_bridge::complete_transfer_tests {
     use token_bridge::token_bridge_scenario::{
         set_up_wormhole_and_token_bridge,
         register_dummy_emitter,
+        return_clock,
         return_states,
+        take_clock,
         take_states,
         three_people
     };
