@@ -3,8 +3,8 @@
 
 pragma solidity ^0.8.0;
 
-import "../interfaces/IWormholeReceiver.sol";
-import "../interfaces/IDelivery.sol";
+import "../../interfaces/relayer/IWormholeReceiver.sol";
+import "../../interfaces/relayer/IDelivery.sol";
 import "./CoreRelayerGovernance.sol";
 import "./CoreRelayerStructs.sol";
 

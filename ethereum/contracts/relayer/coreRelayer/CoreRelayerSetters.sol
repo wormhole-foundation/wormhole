@@ -6,7 +6,7 @@ pragma solidity ^0.8.0;
 import "./CoreRelayerState.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "./CoreRelayerStructs.sol";
-import {IWormhole} from "../interfaces/IWormhole.sol";
+import {IWormhole} from "../../interfaces/IWormhole.sol";
 
 contract CoreRelayerSetters is CoreRelayerState, Context {
     error InvalidEvmChainId();

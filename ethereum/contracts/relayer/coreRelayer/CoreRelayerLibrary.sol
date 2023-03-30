@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache 2
 pragma solidity ^0.8.0;
 
-import "../libraries/external/BytesLib.sol";
+import "../../libraries/external/BytesLib.sol";
 
 library CoreRelayerLibrary {
     using BytesLib for bytes;
