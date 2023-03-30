@@ -11,7 +11,6 @@ module wormhole::state {
     use sui::balance::{Balance};
     use sui::clock::{Clock};
     use sui::dynamic_field::{Self as field};
-    use sui::event::{Self};
     use sui::object::{Self, ID, UID};
     use sui::package::{Self, UpgradeCap, UpgradeReceipt, UpgradeTicket};
     use sui::sui::{SUI};
@@ -46,17 +45,6 @@ module wormhole::state {
 
     /// Sui's chain ID is hard-coded to one value.
     const CHAIN_ID: u16 = 21;
-
-    // Event reflecting package upgrade.
-    struct ContractUpgraded has drop, copy {
-        old_contract: ID,
-        new_contract: ID
-    }
-
-    /// Event reflecting a Guardian Set update.
-    struct GuardianSetAdded has drop, copy {
-        index: u32
-    }
 
     /// Used as key for dynamic field reflecting whether `migrate` can be
     /// called.
@@ -227,7 +215,7 @@ module wormhole::state {
     public(friend) fun commit_upgrade(
         self: &mut State,
         receipt: UpgradeReceipt
-    ) {
+    ): ID {
         // Uptick the upgrade cap version number using this receipt.
         package::commit_upgrade(&mut self.upgrade_cap, receipt);
 
@@ -256,13 +244,7 @@ module wormhole::state {
         // See `migrate` module for more info.
         enable_migration(self);
 
-        // Emit an event reflecting package ID change.
-        event::emit(
-            ContractUpgraded {
-                old_contract: object::id_from_address(@wormhole),
-                new_contract: package::upgrade_package(&self.upgrade_cap)
-            }
-        );
+        package::upgrade_package(&self.upgrade_cap)
     }
 
     /// Enforce a particular method to use the current build version as its
@@ -401,8 +383,6 @@ module wormhole::state {
             self.guardian_set_index,
             new_guardian_set
         );
-
-        event::emit(GuardianSetAdded { index: self.guardian_set_index });
     }
 
     /// Modify the cost to send a Wormhole message via governance.
@@ -457,6 +437,6 @@ module wormhole::state {
         let ticket =
             authorize_upgrade(self, bytes32::new(keccak256(&b"new build")));
         let receipt = package::test_upgrade(ticket);
-        commit_upgrade(self, receipt)
+        commit_upgrade(self, receipt);
     }
 }

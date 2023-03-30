@@ -7,6 +7,7 @@
 module wormhole::update_guardian_set {
     use std::vector::{Self};
     use sui::clock::{Clock};
+    use sui::event::{Self};
 
     use wormhole::bytes::{Self};
     use wormhole::cursor::{Self};
@@ -25,6 +26,11 @@ module wormhole::update_guardian_set {
 
     /// Specific governance payload ID (action) for updating the guardian set.
     const ACTION_UPDATE_GUARDIAN_SET: u8 = 2;
+
+    /// Event reflecting a Guardian Set update.
+    struct GuardianSetAdded has drop, copy {
+        index: u32
+    }
 
     struct UpdateGuardianSet {
         new_index: u32,
@@ -100,6 +106,8 @@ module wormhole::update_guardian_set {
             wormhole_state,
             guardian_set::new(new_index, guardians)
         );
+
+        event::emit(GuardianSetAdded { index: new_index });
 
         new_index
     }

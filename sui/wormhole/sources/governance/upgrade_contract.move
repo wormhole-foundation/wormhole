@@ -9,6 +9,8 @@
 /// 4.  Commit upgrade.
 module wormhole::upgrade_contract {
     use sui::clock::{Clock};
+    use sui::event::{Self};
+    use sui::object::{Self, ID};
     use sui::package::{UpgradeReceipt, UpgradeTicket};
 
     use wormhole::bytes32::{Self, Bytes32};
@@ -22,6 +24,12 @@ module wormhole::upgrade_contract {
     /// Specific governance payload ID (action) to complete upgrading the
     /// contract.
     const ACTION_UPGRADE_CONTRACT: u8 = 1;
+
+    // Event reflecting package upgrade.
+    struct ContractUpgraded has drop, copy {
+        old_contract: ID,
+        new_contract: ID
+    }
 
     struct UpgradeContract {
         digest: Bytes32
@@ -63,7 +71,15 @@ module wormhole::upgrade_contract {
         self: &mut State,
         receipt: UpgradeReceipt,
     ) {
-        state::commit_upgrade(self, receipt)
+        let latest_package_id = state::commit_upgrade(self, receipt);
+
+        // Emit an event reflecting package ID change.
+        event::emit(
+            ContractUpgraded {
+                old_contract: object::id_from_address(@wormhole),
+                new_contract: latest_package_id
+            }
+        );
     }
 
     fun handle_upgrade_contract(
@@ -103,6 +119,6 @@ module wormhole::upgrade_contract {
 }
 
 #[test_only]
-module wormhole::upgrade_contract_test {
+module wormhole::upgrade_contract_tests {
     // TODO
 }

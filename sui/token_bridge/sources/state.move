@@ -2,10 +2,10 @@ module token_bridge::state {
     use sui::balance::{Balance};
     use sui::clock::{Clock};
     use sui::dynamic_field::{Self as field};
-    use sui::event::{Self};
     use sui::object::{Self, ID, UID};
     use sui::package::{Self, UpgradeCap, UpgradeReceipt, UpgradeTicket};
     use sui::sui::{SUI};
+    use sui::table::{Self, Table};
     use sui::tx_context::{TxContext};
     use wormhole::bytes32::{Self, Bytes32};
     use wormhole::emitter::{Self, EmitterCap};
@@ -14,15 +14,15 @@ module token_bridge::state {
     use wormhole::set::{Self, Set};
     use wormhole::state::{State as WormholeState};
 
-    use token_bridge::emitter_registry::{Self, EmitterRegistry};
     use token_bridge::token_registry::{Self, TokenRegistry};
     use token_bridge::version_control::{Self as control};
 
     const E_UNREGISTERED_EMITTER: u64 = 0;
-    const E_EMITTER_ALREADY_REGISTERED: u64 = 1;
-    const E_VAA_ALREADY_CONSUMED: u64 = 2;
-    const E_BUILD_VERSION_MISMATCH: u64 = 3;
-    const E_INVALID_UPGRADE_CAP: u64 = 4;
+    const E_INVALID_EMITTER_CHAIN: u64 = 1;
+    const E_EMITTER_ALREADY_REGISTERED: u64 = 2;
+    const E_VAA_ALREADY_CONSUMED: u64 = 3;
+    const E_BUILD_VERSION_MISMATCH: u64 = 4;
+    const E_INVALID_UPGRADE_CAP: u64 = 5;
 
     friend token_bridge::attest_token;
     friend token_bridge::complete_transfer;
@@ -33,13 +33,8 @@ module token_bridge::state {
     friend token_bridge::setup;
     friend token_bridge::transfer_tokens;
     friend token_bridge::transfer_tokens_with_payload;
+    friend token_bridge::upgrade_contract;
     friend token_bridge::vaa;
-
-    // Event reflecting package upgrade.
-    struct ContractUpgraded has drop, copy {
-        old_contract: ID,
-        new_contract: ID
-    }
 
     /// Used as key for dynamic field reflecting whether `migrate` can be
     /// called.
@@ -58,8 +53,8 @@ module token_bridge::state {
         /// Token bridge owned emitter capability.
         emitter_cap: EmitterCap,
 
-        /// Registery for foreign Token Bridge contracts.
-        emitter_registry: EmitterRegistry,
+        /// Registry for foreign Token Bridge contracts.
+        emitter_registry: Table<u16, ExternalAddress>,
 
         /// Registry for native and wrapped assets.
         token_registry: TokenRegistry,
@@ -96,7 +91,7 @@ module token_bridge::state {
             id: object::new(ctx),
             consumed_vaa_hashes: set::new(ctx),
             emitter_cap: emitter::new(worm_state, ctx),
-            emitter_registry: emitter_registry::new(ctx),
+            emitter_registry: table::new(ctx),
             token_registry: token_registry::new(ctx),
             upgrade_cap,
             required_version: required_version::new(control::version(), ctx)
@@ -155,7 +150,7 @@ module token_bridge::state {
     public(friend) fun commit_upgrade(
         self: &mut State,
         receipt: UpgradeReceipt
-    ) {
+    ): ID {
         // Uptick the upgrade cap version number using this receipt.
         package::commit_upgrade(&mut self.upgrade_cap, receipt);
 
@@ -184,13 +179,7 @@ module token_bridge::state {
         // See `migrate` module for more info.
         enable_migration(self);
 
-        // Emit an event reflecting package ID change.
-        event::emit(
-            ContractUpgraded {
-                old_contract: object::id_from_address(@token_bridge),
-                new_contract: package::upgrade_package(&self.upgrade_cap)
-            }
-        );
+        package::upgrade_package(&self.upgrade_cap)
     }
 
     /// Enforce a particular method to use the current build version as its
@@ -294,7 +283,9 @@ module token_bridge::state {
         self: &State,
         chain: u16
     ): ExternalAddress {
-        emitter_registry::emitter_address(&self.emitter_registry, chain)
+        let registry = &self.emitter_registry;
+        assert!(table::contains(registry, chain), E_UNREGISTERED_EMITTER);
+        *table::borrow(registry, chain)
     }
 
     /// Add a new Token Bridge emitter to the registry. This method will abort
@@ -306,11 +297,14 @@ module token_bridge::state {
         chain: u16,
         contract_address: ExternalAddress
     ) {
-        emitter_registry::add(
-            &mut self.emitter_registry,
-            chain,
-            contract_address
+        assert!(chain != 0, E_INVALID_EMITTER_CHAIN);
+
+        let registry = &mut self.emitter_registry;
+        assert!(
+            !table::contains(registry, chain),
+            E_EMITTER_ALREADY_REGISTERED
         );
+        table::add(registry, chain, contract_address);
     }
 
     #[test_only]
@@ -327,5 +321,12 @@ module token_bridge::state {
         let registry = borrow_token_registry(self);
         let cap = token_registry::new_asset_cap<CoinType>(registry);
         token_registry::checked_decimals(&cap, registry)
+    }
+
+    #[test_only]
+    public fun borrow_emitter_registry(
+        self: &State
+    ): &Table<u16, ExternalAddress> {
+        &self.emitter_registry
     }
 }

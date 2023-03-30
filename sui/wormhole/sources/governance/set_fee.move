@@ -129,7 +129,7 @@ module wormhole::set_fee_tests {
         let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
-        let wormhole_fee = 350;
+        let wormhole_fee = 420;
         set_up_wormhole(scenario, wormhole_fee);
 
         // Prepare test to execute `set_fee`.
@@ -142,6 +142,7 @@ module wormhole::set_fee_tests {
         assert!(state::message_fee(&worm_state) == wormhole_fee, 0);
 
         let fee_amount = set_fee(&mut worm_state, VAA_SET_FEE_1, &the_clock);
+        assert!(wormhole_fee != fee_amount, 0);
 
         // Confirm the fee changed.
         assert!(state::message_fee(&worm_state) == fee_amount, 0);
@@ -178,7 +179,7 @@ module wormhole::set_fee_tests {
         let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
-        let wormhole_fee = 350;
+        let wormhole_fee = 420;
         set_up_wormhole(scenario, wormhole_fee);
 
         // Upgrade.
@@ -217,7 +218,7 @@ module wormhole::set_fee_tests {
         let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
-        let wormhole_fee = 350;
+        let wormhole_fee = 420;
         set_up_wormhole(scenario, wormhole_fee);
 
         // Prepare test to execute `set_fee`.
@@ -253,7 +254,7 @@ module wormhole::set_fee_tests {
         let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
-        let wormhole_fee = 350;
+        let wormhole_fee = 420;
         set_up_wormhole(scenario, wormhole_fee);
 
         // Prepare test to execute `set_fee`.
@@ -297,7 +298,7 @@ module wormhole::set_fee_tests {
         let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
-        let wormhole_fee = 350;
+        let wormhole_fee = 420;
         set_up_wormhole(scenario, wormhole_fee);
 
         // Prepare test to execute `set_fee`.
@@ -339,7 +340,7 @@ module wormhole::set_fee_tests {
         let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
-        let wormhole_fee = 350;
+        let wormhole_fee = 420;
         set_up_wormhole(scenario, wormhole_fee);
 
         // Prepare test to execute `set_fee`.
@@ -385,7 +386,7 @@ module wormhole::set_fee_tests {
         let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
-        let wormhole_fee = 350;
+        let wormhole_fee = 420;
         set_up_wormhole(scenario, wormhole_fee);
 
         // Prepare test to execute `set_fee`.
