@@ -11,6 +11,9 @@ module wormhole::governance_message {
     use wormhole::cursor::{Self};
     use wormhole::state::{Self, State, chain_id};
     use wormhole::vaa::{Self, VAA};
+    use wormhole::version_control::{
+        GovernanceMessage as GovernanceMessageControl
+    };
 
     /// Guardian set used to sign VAA did not use current Guardian set.
     const E_OLD_GUARDIAN_SET_GOVERNANCE: u64 = 0;
@@ -84,6 +87,10 @@ module wormhole::governance_message {
         vaa_buf: vector<u8>,
         the_clock: &Clock
     ): GovernanceMessage {
+        state::check_minimum_requirement<GovernanceMessageControl>(
+            wormhole_state
+        );
+
         let parsed = vaa::parse_and_verify(wormhole_state, vaa_buf, the_clock);
 
         // This VAA must have originated from the governance emitter.

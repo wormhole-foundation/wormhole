@@ -13,6 +13,9 @@ module token_bridge::complete_transfer {
     use token_bridge::token_registry::{Self};
     use token_bridge::transfer::{Self, Transfer};
     use token_bridge::vaa::{Self};
+    use token_bridge::version_control::{
+        CompleteTransfer as CompleteTransferControl
+    };
 
     // Requires `handle_complete_transfer`.
     friend token_bridge::complete_transfer_with_payload;
@@ -40,6 +43,10 @@ module token_bridge::complete_transfer {
         the_clock: &Clock,
         ctx: &mut TxContext
     ): Balance<CoinType> {
+        state::check_minimum_requirement<CompleteTransferControl>(
+            token_bridge_state
+        );
+
         // Parse and verify Token Bridge transfer message. This method
         // guarantees that a verified transfer message cannot be redeemed again.
         let parsed_vaa =

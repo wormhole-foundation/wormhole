@@ -14,6 +14,7 @@ module token_bridge::vaa {
     use wormhole::vaa::{Self, VAA};
 
     use token_bridge::state::{Self, State};
+    use token_bridge::version_control::{Vaa as VaaControl};
 
     // All friends need `parse_and_verify`.
     friend token_bridge::create_wrapped;
@@ -43,6 +44,10 @@ module token_bridge::vaa {
         vaa_buf: vector<u8>,
         the_clock: &Clock
     ): VAA {
+        state::check_minimum_requirement<VaaControl>(
+            token_bridge_state
+        );
+
         let verified =
             handle_parse_and_verify(
                 token_bridge_state,

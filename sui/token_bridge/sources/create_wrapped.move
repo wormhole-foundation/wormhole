@@ -38,6 +38,10 @@ module token_bridge::create_wrapped {
     use token_bridge::state::{Self, State};
     use token_bridge::token_registry::{Self};
     use token_bridge::vaa::{Self};
+    use token_bridge::version_control::{
+        Self as control,
+        CreateWrapped as CreateWrappedControl
+    };
 
     /// Asset metadata is for native Sui coin type.
     const E_NATIVE_ASSET: u64 = 0;
@@ -56,7 +60,8 @@ module token_bridge::create_wrapped {
     struct WrappedAssetSetup<phantom CoinType> has key, store {
         id: UID,
         vaa_buf: vector<u8>,
-        supply: Supply<CoinType>
+        supply: Supply<CoinType>,
+        build_version: u64
     }
 
     /// This method is executed within the `init` method of an untrusted module,
@@ -106,11 +111,25 @@ module token_bridge::create_wrapped {
         the_clock: &Clock,
         ctx: &mut TxContext,
     ) {
+        state::check_minimum_requirement<CreateWrappedControl>(
+            token_bridge_state
+        );
+
         let WrappedAssetSetup {
             id,
             vaa_buf,
-            supply
+            supply,
+            build_version
         } = setup;
+
+        // Do an additional check of whether `WrappedAssetSetup` was created
+        // using the minimum required version for this module.
+        state::check_minimum_requirement_specified<CreateWrappedControl>(
+            token_bridge_state,
+            build_version
+        );
+
+        // Finally destroy the object.
         object::delete(id);
 
         // Deserialize to `AssetMeta`.
@@ -144,6 +163,10 @@ module token_bridge::create_wrapped {
         vaa_buf: vector<u8>,
         the_clock: &Clock
     ) {
+        state::check_minimum_requirement<CreateWrappedControl>(
+            token_bridge_state
+        );
+
         // Deserialize to `AssetMeta`.
         let token_meta =
             parse_and_verify_asset_meta(
@@ -187,7 +210,8 @@ module token_bridge::create_wrapped {
        WrappedAssetSetup {
             id: object::new(ctx),
             vaa_buf,
-            supply: balance::create_supply(witness)
+            supply: balance::create_supply(witness),
+            build_version: control::version()
         }
     }
 
@@ -208,6 +232,7 @@ module token_bridge::create_wrapped {
             id,
             vaa_buf: _,
             supply,
+            build_version: _
         } = setup;
         object::delete(id);
 

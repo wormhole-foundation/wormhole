@@ -4,9 +4,13 @@ module token_bridge::complete_transfer_with_payload {
     use wormhole::emitter::{Self, EmitterCap};
     use wormhole::state::{State as WormholeState};
 
-    use token_bridge::state::{State};
+    use token_bridge::complete_transfer::{Self};
+    use token_bridge::state::{Self, State};
     use token_bridge::transfer_with_payload::{Self, TransferWithPayload};
     use token_bridge::vaa::{Self};
+    use token_bridge::version_control::{
+        CompleteTransferWithPayload as CompleteTransferWithPayloadControl
+    };
 
     const E_INVALID_TARGET: u64 = 0;
     const E_INVALID_REDEEMER: u64 = 1;
@@ -18,7 +22,9 @@ module token_bridge::complete_transfer_with_payload {
         vaa_buf: vector<u8>,
         the_clock: &Clock
     ): (Balance<CoinType>, TransferWithPayload, u16) {
-        use token_bridge::complete_transfer::{emit_transfer_redeemed};
+        state::check_minimum_requirement<CompleteTransferWithPayloadControl>(
+            token_bridge_state
+        );
 
         // Parse and verify Token Bridge transfer message. This method
         // guarantees that a verified transfer message cannot be redeemed again.
@@ -35,7 +41,8 @@ module token_bridge::complete_transfer_with_payload {
         // NOTE: We care about the emitter chain to save the integrator from
         // having to `parse_and_verify` the encoded VAA to deserialize the same
         // info we already have.
-        let emitter_chain = emit_transfer_redeemed(&parsed_vaa);
+        let emitter_chain =
+            complete_transfer::emit_transfer_redeemed(&parsed_vaa);
 
         // Deserialize for processing.
         let parsed_transfer =
@@ -58,8 +65,6 @@ module token_bridge::complete_transfer_with_payload {
         emitter_cap: &EmitterCap,
         parsed: &TransferWithPayload
     ): Balance<CoinType> {
-        use token_bridge::complete_transfer::{verify_and_bridge_out};
-
         // Transfer must be redeemed by the contract's registered Wormhole
         // emitter.
         let redeemer = transfer_with_payload::redeemer_id(parsed);
@@ -69,7 +74,7 @@ module token_bridge::complete_transfer_with_payload {
             bridged_out,
             _
         ) =
-            verify_and_bridge_out(
+            complete_transfer::verify_and_bridge_out(
                 token_bridge_state,
                 transfer_with_payload::token_chain(parsed),
                 transfer_with_payload::token_address(parsed),

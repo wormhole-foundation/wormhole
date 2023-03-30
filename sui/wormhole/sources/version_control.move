@@ -14,29 +14,29 @@ module wormhole::version_control {
     /// a new implementation is built for a contract upgrade.
     const CURRENT_BUILD_VERSION: u64 = 1;
 
-    /// Key used to check minimum version requirement for
-    /// `state::new_emitter`.
-    struct NewEmitter {}
+    /// Key used to check minimum version requirement for `emitter` module.
+    struct Emitter {}
 
-    /// Key used to check minimum version requirement for
-    /// `vaa::parse_and_verify`.
-    struct ParseAndVerify {}
+    /// Key used to check minimum version requirement for `governance_message`
+    /// module.
+    struct GovernanceMessage {}
 
-    /// Key used to check minimum version requirement for
-    /// `publish_message::publish_message`.
+    /// Key used to check minimum version requirement for `publish_module`
+    /// module.
     struct PublishMessage {}
 
-    /// Key used to check minimum version requirement for
-    /// `set_fee::set_fee`.
+    /// Key used to check minimum version requirement for `set_fee` module.
     struct SetFee {}
 
-    /// Key used to check minimum version requirement for
-    /// `transfer_fee::transfer_fee`.
+    /// Key used to check minimum version requirement for `transfer_fee` module.
     struct TransferFee {}
 
-    /// Key used to check minimum version requirement for
-    /// `update_guardian_set::update_guardian_set`.
+    /// Key used to check minimum version requirement for `update_guardian_set`
+    /// module.
     struct UpdateGuardianSet {}
+
+    /// Key used to check minimum version requirement for `vaa` module.
+    struct Vaa {}
 
     /// Return const value `CURRENT_BUILD_VERSION` for this particular build.
     /// This value is used to determine whether this implementation meets

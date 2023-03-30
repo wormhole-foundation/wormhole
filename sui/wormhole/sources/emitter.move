@@ -10,7 +10,7 @@ module wormhole::emitter {
     use wormhole::bytes32::{Self};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::state::{Self, State};
-    use wormhole::version_control::{NewEmitter as NewEmitterControl};
+    use wormhole::version_control::{Emitter as EmitterControl};
 
     friend wormhole::publish_message;
 
@@ -26,7 +26,7 @@ module wormhole::emitter {
 
     /// Generate a new `EmitterCap`.
     public fun new(wormhole_state: &State, ctx: &mut TxContext): EmitterCap {
-        state::check_minimum_requirement<NewEmitterControl>(wormhole_state);
+        state::check_minimum_requirement<EmitterControl>(wormhole_state);
 
         new_unsafe(ctx)
     }

@@ -18,7 +18,7 @@ module wormhole::vaa {
     use wormhole::guardian_set::{Self, GuardianSet};
     use wormhole::guardian_signature::{Self, GuardianSignature};
     use wormhole::state::{Self, State};
-    use wormhole::version_control::{ParseAndVerify as ParseAndVerifyControl};
+    use wormhole::version_control::{Vaa as VaaControl};
 
     const E_WRONG_VERSION: u64 = 0;
     const E_NO_QUORUM: u64 = 1;
@@ -163,7 +163,7 @@ module wormhole::vaa {
         buf: vector<u8>,
         the_clock: &Clock
     ): VAA {
-        state::check_minimum_requirement<ParseAndVerifyControl>(wormhole_state);
+        state::check_minimum_requirement<VaaControl>(wormhole_state);
 
         // Deserialize VAA buffer (and return `VAA` after verifying signatures).
         let (signatures, vaa) = parse(buf);

@@ -29,6 +29,7 @@ module wormhole::state {
     use wormhole::version_control::{Self as control};
 
     friend wormhole::emitter;
+    friend wormhole::governance_message;
     friend wormhole::migrate;
     friend wormhole::publish_message;
     friend wormhole::set_fee;
@@ -38,15 +39,15 @@ module wormhole::state {
     friend wormhole::upgrade_contract;
     friend wormhole::vaa;
 
-    const E_INVALID_UPGRADE_CAP_VERSION: u64 = 0;
-    const E_ZERO_GUARDIANS: u64 = 1;
-    const E_VAA_ALREADY_CONSUMED: u64 = 2;
-    const E_BUILD_VERSION_MISMATCH: u64 = 3;
+    const E_ZERO_GUARDIANS: u64 = 01;
+    const E_VAA_ALREADY_CONSUMED: u64 = 1;
+    const E_BUILD_VERSION_MISMATCH: u64 = 2;
+    const E_INVALID_UPGRADE_CAP: u64 = 3;
 
     /// Sui's chain ID is hard-coded to one value.
     const CHAIN_ID: u16 = 21;
 
-    // TODO: For version 0.28, emit this after `commit_upgrade`.
+    // Event reflecting package upgrade.
     struct ContractUpgraded has drop, copy {
         old_contract: ID,
         new_contract: ID
@@ -96,7 +97,7 @@ module wormhole::state {
         /// Upgrade capability.
         upgrade_cap: UpgradeCap,
 
-        /// Contract upgrade tracker.
+        /// Contract build version tracker.
         required_version: RequiredVersion
     }
 
@@ -110,23 +111,22 @@ module wormhole::state {
         message_fee: u64,
         ctx: &mut TxContext
     ): State {
-        // Verify that this `UpgradeCap` belongs to the Wormhole package.
-        let package_addr =
-            object::id_to_address(&package::upgrade_package(&upgrade_cap));
-        assert!(package_addr == @wormhole, 0);
-
-        // Validate that the upgrade_cap equals the build version defined in
-        // the `version_control` module.
+        // Verify that this `UpgradeCap` belongs to the Wormhole package and
+        // equals the build version defined in the `version_control` module.
         //
         // When the contract is first published and `State` is being created,
         // this is expected to be `1`.
+        let package_id = package::upgrade_package(&upgrade_cap);
         assert!(
             (
+                package_id == object::id_from_address(@wormhole) &&
                 control::version() == 1 &&
                 package::version(&upgrade_cap) == control::version()
             ),
-            E_INVALID_UPGRADE_CAP_VERSION
+            E_INVALID_UPGRADE_CAP
         );
+
+        // We need at least one guardian.
         assert!(vector::length(&initial_guardians) > 0, E_ZERO_GUARDIANS);
 
         // First guardian set index is zero. New guardian sets must increment
@@ -176,12 +176,13 @@ module wormhole::state {
         field::add(&mut state.id, MigrationControl {}, false);
 
         let tracker = &mut state.required_version;
-        required_version::add<control::NewEmitter>(tracker);
-        required_version::add<control::ParseAndVerify>(tracker);
+        required_version::add<control::Emitter>(tracker);
+        required_version::add<control::GovernanceMessage>(tracker);
         required_version::add<control::PublishMessage>(tracker);
         required_version::add<control::SetFee>(tracker);
         required_version::add<control::TransferFee>(tracker);
         required_version::add<control::UpdateGuardianSet>(tracker);
+        required_version::add<control::Vaa>(tracker);
 
         state
     }
@@ -255,13 +256,13 @@ module wormhole::state {
         // See `migrate` module for more info.
         enable_migration(self);
 
-        // TODO: Emit this after contract upgrade.
-        // event::emit(
-        //     ContractUpgraded {
-        //         old_contract: ...,
-        //         new_contract: ...
-        //     }
-        // );
+        // Emit an event reflecting package ID change.
+        event::emit(
+            ContractUpgraded {
+                old_contract: object::id_from_address(@wormhole),
+                new_contract: package::upgrade_package(&self.upgrade_cap)
+            }
+        );
     }
 
     /// Enforce a particular method to use the current build version as its

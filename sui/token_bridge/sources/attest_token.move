@@ -8,6 +8,7 @@ module token_bridge::attest_token {
     use token_bridge::asset_meta::{Self};
     use token_bridge::state::{Self, State};
     use token_bridge::token_registry::{Self};
+    use token_bridge::version_control::{AttestToken as AttestTokenControl};
 
     const E_REGISTERED_WRAPPED_ASSET: u64 = 0;
 
@@ -19,6 +20,10 @@ module token_bridge::attest_token {
         nonce: u32,
         the_clock: &Clock
     ): u64 {
+        state::check_minimum_requirement<AttestTokenControl>(
+            token_bridge_state
+        );
+
         let encoded_asset_meta =
             serialize_asset_meta(token_bridge_state, coin_metadata);
 

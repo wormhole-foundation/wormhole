@@ -2,16 +2,16 @@
 
 /// This module implements an entry method intended to be called after an
 /// upgrade has been commited. The purpose is to add one-off migration logic
-/// that would alter Wormhole `State`.
+/// that would alter Token Bridge `State`.
 ///
 /// Included in migration is the ability to ensure that breaking changes for
-/// any of Wormhole's methods by enforcing the current build version as their
-/// required minimum version.
-module wormhole::migrate {
-    use wormhole::state::{Self, State};
+/// any of Token Bridge's methods by enforcing the current build version as
+/// their required minimum version.
+module token_bridge::migrate {
+    use token_bridge::state::{Self, State};
 
     // This import is only used when `state::require_current_version` is used.
-    //use wormhole::version_control::{Self as control};
+    //use token_bridge::version_control::{Self as control};
 
     /// Upgrade procedure is not complete (most likely due to an upgrade not
     /// being initialized since upgrades can only be performed via programmable
@@ -20,10 +20,10 @@ module wormhole::migrate {
 
     /// Execute migration logic. See `wormhole::migrate` description for more
     /// info.
-    public entry fun migrate(wormhole_state: &mut State) {
+    public entry fun migrate(token_bridge_state: &mut State) {
         // Wormhole `State` only allows one to call `migrate` after the upgrade
         // procedure completed.
-        assert!(state::can_migrate(wormhole_state), E_CANNOT_MIGRATE);
+        assert!(state::can_migrate(token_bridge_state), E_CANNOT_MIGRATE);
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -34,12 +34,14 @@ module wormhole::migrate {
         //
         ////////////////////////////////////////////////////////////////////////
 
-        // state::require_current_version<control::NewEmitter>(wormhole_state);
-        // state::require_current_version<control::ParseAndVerify>(wormhole_state);
-        // state::require_current_version<control::PublishMessage>(wormhole_state);
-        // state::require_current_version<control::SetFee>(wormhole_state);
-        // state::require_current_version<control::TransferFee>(wormhole_state);
-        // state::require_current_version<control::UpdateGuardianSet>(wormhole_state);
+        // state::require_current_version<control::AttestToken>(wormhole_state);
+        // state::require_current_version<control::CompleteTransfer>(wormhole_state);
+        // state::require_current_version<control::CompleteTransferWithPayload>(wormhole_state);
+        // state::require_current_version<control::CreateWrapped>(wormhole_state);
+        // state::require_current_version<control::RegisterChain>(wormhole_state);
+        // state::require_current_version<control::TransferTokens>(wormhole_state);
+        // state::require_current_version<control::TransferTokensWithPayload>(wormhole_state);
+        // state::require_current_version<control::Vaa>(wormhole_state);
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -61,6 +63,6 @@ module wormhole::migrate {
 
         ////////////////////////////////////////////////////////////////////////
         // Ensure that `migrate` cannot be called again.
-        state::disable_migration(wormhole_state);
+        state::disable_migration(token_bridge_state);
     }
 }

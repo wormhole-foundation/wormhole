@@ -9,11 +9,13 @@ module token_bridge::transfer_tokens {
     use token_bridge::state::{Self, State};
     use token_bridge::token_registry::{Self};
     use token_bridge::transfer::{Self};
+    use token_bridge::version_control::{
+        TransferTokens as TransferTokensControl
+    };
 
-    // `transfer_tokens_with_payload` requires `handle_transfer_tokens`.
     friend token_bridge::transfer_tokens_with_payload;
 
-    /// Relayer fee exceeds `Coin` balance.
+    /// Relayer fee exceeds `Balance` value.
     const E_TOO_MUCH_RELAYER_FEE: u64 = 0;
 
     public fun transfer_tokens<CoinType>(
@@ -27,6 +29,10 @@ module token_bridge::transfer_tokens {
         nonce: u32,
         the_clock: &Clock
     ): u64 {
+        state::check_minimum_requirement<TransferTokensControl>(
+            token_bridge_state
+        );
+
         let encoded_transfer =
             bridge_in_and_serialize_transfer(
                 token_bridge_state,

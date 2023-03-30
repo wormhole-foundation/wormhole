@@ -8,6 +8,9 @@ module token_bridge::transfer_tokens_with_payload {
 
     use token_bridge::state::{Self, State};
     use token_bridge::transfer_with_payload::{Self};
+    use token_bridge::version_control::{
+        TransferTokensWithPayload as TransferTokensWithPayloadControl
+    };
 
     public fun transfer_tokens_with_payload<CoinType>(
         token_bridge_state: &mut State,
@@ -21,6 +24,10 @@ module token_bridge::transfer_tokens_with_payload {
         nonce: u32,
         the_clock: &Clock
     ): u64 {
+        state::check_minimum_requirement<TransferTokensWithPayloadControl>(
+            token_bridge_state
+        );
+
         let encoded_transfer_with_payload =
             bridge_in_and_serialize_transfer(
                 token_bridge_state,
