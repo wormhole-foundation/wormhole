@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import "../contracts/interfaces/IWormholeRelayer.sol";
+import "./IWormholeRelayer.sol";
 
 interface IWormholeRelayerInstructionParser {
     struct DeliveryInstructionsContainer {

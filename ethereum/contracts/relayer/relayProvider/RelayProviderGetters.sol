@@ -3,7 +3,7 @@
 
 pragma solidity ^0.8.0;
 
-import "../interfaces/IWormhole.sol";
+import "../../interfaces/IWormhole.sol";
 
 import "./RelayProviderState.sol";
 

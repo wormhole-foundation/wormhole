@@ -4,8 +4,8 @@ pragma solidity ^0.8.17;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import "../interfaces/IWormhole.sol";
-import "../interfaces/IWormholeReceiver.sol";
-import "../interfaces/IWormholeRelayer.sol";
+import "../interfaces/relayer/IWormholeReceiver.sol";
+import "../interfaces/relayer/IWormholeRelayer.sol";
 
 /**
  * This contract is a malicious "integration" that attempts to attack the forward mechanism.

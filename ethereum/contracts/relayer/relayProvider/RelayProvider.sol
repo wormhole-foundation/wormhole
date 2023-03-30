@@ -5,8 +5,8 @@ pragma solidity ^0.8.0;
 
 import "./RelayProviderGovernance.sol";
 import "./RelayProviderStructs.sol";
-import "../interfaces/IRelayProvider.sol";
-import "../interfaces/IDelivery.sol";
+import "../../interfaces/relayer/IRelayProvider.sol";
+import "../../interfaces/relayer/IDelivery.sol";
 
 contract RelayProvider is RelayProviderGovernance, IRelayProvider {
     error CallerNotApproved(address msgSender);
