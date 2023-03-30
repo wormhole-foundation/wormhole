@@ -269,7 +269,7 @@ module token_bridge::complete_transfer_tests {
             assert!(transfer::token_address(&parsed) == expected_token_address, 0);
 
             let decimals =
-                token_registry::decimals<COIN_NATIVE_10>(registry);
+                state::coin_decimals<COIN_NATIVE_10>(&token_bridge_state);
 
             assert!(transfer::raw_amount(&parsed, decimals) == expected_amount, 0);
 
@@ -389,7 +389,8 @@ module token_bridge::complete_transfer_tests {
             assert!(transfer::token_chain(&parsed) == expected_token_chain, 0);
             assert!(transfer::token_address(&parsed) == expected_token_address, 0);
 
-            let decimals = token_registry::decimals<COIN_NATIVE_4>(registry);
+            let decimals =
+                state::coin_decimals<COIN_NATIVE_4>(&token_bridge_state);
 
             assert!(transfer::raw_amount(&parsed, decimals) == expected_amount, 0);
 
@@ -503,7 +504,8 @@ module token_bridge::complete_transfer_tests {
             assert!(transfer::token_chain(&parsed) == expected_token_chain, 0);
             assert!(transfer::token_address(&parsed) == expected_token_address, 0);
 
-            let decimals = token_registry::decimals<COIN_WRAPPED_7>(registry);
+            let decimals =
+                state::coin_decimals<COIN_WRAPPED_7>(&token_bridge_state);
 
             assert!(transfer::raw_amount(&parsed, decimals) == expected_amount, 0);
 
@@ -619,7 +621,8 @@ module token_bridge::complete_transfer_tests {
             assert!(transfer::token_chain(&parsed) == expected_token_chain, 0);
             assert!(transfer::token_address(&parsed) == expected_token_address, 0);
 
-            let decimals = token_registry::decimals<COIN_WRAPPED_12>(registry);
+            let decimals =
+                state::coin_decimals<COIN_WRAPPED_12>(&token_bridge_state);
 
             assert!(transfer::raw_amount(&parsed, decimals) == expected_amount, 0);
 

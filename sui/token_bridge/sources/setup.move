@@ -37,7 +37,7 @@ module token_bridge::setup {
         // This will be created and sent to the transaction sender
         // automatically when the contract is published.
         transfer::public_transfer(
-            package::test_publish(object::id_from_address(@wormhole), ctx),
+            package::test_publish(object::id_from_address(@token_bridge), ctx),
             tx_context::sender(ctx)
         );
     }

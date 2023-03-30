@@ -93,12 +93,14 @@ module wormhole::state {
         /// Wormhole fee collector.
         fee_collector: FeeCollector,
 
+        /// Upgrade capability.
         upgrade_cap: UpgradeCap,
 
         /// Contract upgrade tracker.
         required_version: RequiredVersion
     }
 
+    /// Create new `State`. This is only executed using the `setup` module.
     public(friend) fun new(
         upgrade_cap: UpgradeCap,
         governance_chain: u16,
@@ -108,7 +110,10 @@ module wormhole::state {
         message_fee: u64,
         ctx: &mut TxContext
     ): State {
-        // TODO: Make sure upgrade cap belongs to this package.
+        // Verify that this `UpgradeCap` belongs to the Wormhole package.
+        let package_addr =
+            object::id_to_address(&package::upgrade_package(&upgrade_cap));
+        assert!(package_addr == @wormhole, 0);
 
         // Validate that the upgrade_cap equals the build version defined in
         // the `version_control` module.

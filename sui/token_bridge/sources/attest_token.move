@@ -47,11 +47,7 @@ module token_bridge::attest_token {
         if (token_registry::has<CoinType>(registry)) {
             // If this asset is already registered, there should already
             // be canonical info associated with this coin type.
-            let verified =
-                token_registry::asset_cap_from_coin_metadata(
-                    registry,
-                    coin_metadata
-                );
+            let verified = token_registry::new_asset_cap<CoinType>(registry);
             token_registry::checked_token_address(&verified, registry)
         } else {
             // Otherwise, register it.

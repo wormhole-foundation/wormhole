@@ -108,7 +108,12 @@ module wormhole::emitter_tests {
 
         let worm_state = take_state(scenario);
 
-        // Generate new emitter and check that the registry value upticked.
+        let dummy_cap = emitter::dummy();
+        let expected =
+            x"381dd9078c322a4663c392761a0211b527c127b29583851217f948d62131f409";
+        assert!(emitter::id_to_bytes(&dummy_cap) == expected, 0);
+
+        // Generate new emitter.
         let cap = emitter::new(&worm_state, test_scenario::ctx(scenario));
 
         // And check emitter cap's address.
@@ -117,6 +122,7 @@ module wormhole::emitter_tests {
         assert!(emitter::id_to_bytes(&cap) == expected, 0);
 
         // Clean up.
+        emitter::destroy(dummy_cap);
         emitter::destroy(cap);
         return_state(worm_state);
 

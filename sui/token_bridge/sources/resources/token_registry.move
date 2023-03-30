@@ -88,6 +88,30 @@ module token_bridge::token_registry {
         AssetCap { is_wrapped: token_chain != chain_id() }
     }
 
+    /// Create an `AssetCap` for a given coin type.
+    public(friend) fun new_asset_cap<CoinType>(
+        self: &TokenRegistry
+    ): AssetCap<CoinType> {
+        assert_has<CoinType>(self);
+
+        // We check specifically whether `CoinType` is associated with a dynamic
+        // field for `WrappedAsset`. This boolean will be used as the underlying
+        // value for `AssetCap`.
+        let is_wrapped =
+            dynamic_field::exists_with_type<Key<CoinType>, WrappedAsset<CoinType>>(
+                &self.id,
+                Key {}
+            );
+        AssetCap { is_wrapped }
+    }
+
+    #[test_only]
+    public fun new_asset_cap_test_only<CoinType>(
+        self: &TokenRegistry
+    ): AssetCap<CoinType> {
+        new_asset_cap(self)
+    }
+
     /// With an `AssetCap`, retrieve canonical token info for either native or
     /// wrapped asset.
     public fun checked_canonical_info<CoinType>(
@@ -125,28 +149,6 @@ module token_bridge::token_registry {
     /// Determine whether a particular coin type is registered.
     public fun has<CoinType>(self: &TokenRegistry): bool {
         dynamic_field::exists_(&self.id, Key<CoinType> {})
-    }
-
-    /// Create `AssetCap` using the `CoinType` of `Balance`.
-    public fun asset_cap_from_balance<CoinType>(
-        self: &TokenRegistry,
-        _: &Balance<CoinType>
-    ): AssetCap<CoinType> {
-        new_asset_cap<CoinType>(self)
-    }
-
-    /// Create `AssetCap` using the `CoinType` of `CoinMetadata`. This
-    /// `AssetCap` should always reflect that the given `CoinType` is native.
-    public fun asset_cap_from_coin_metadata<CoinType>(
-        self: &TokenRegistry,
-        _: &CoinMetadata<CoinType>
-    ): AssetCap<CoinType> {
-        let cap = new_asset_cap<CoinType>(self);
-
-        // Verify that the `AssetCap` reflects a native asset to be safe.
-        assert_native_cap(&cap);
-
-        cap
     }
 
     /// Determine whether a given `CoinType` is a wrapped asset.
@@ -359,10 +361,6 @@ module token_bridge::token_registry {
         }
     }
 
-    public fun decimals<CoinType>(self: &TokenRegistry): u8 {
-        checked_decimals(&new_asset_cap<CoinType>(self), self)
-    }
-
     #[test_only]
     public fun destroy(registry: TokenRegistry) {
         let TokenRegistry {
@@ -415,22 +413,6 @@ module token_bridge::token_registry {
 
     fun assert_has<CoinType>(self: &TokenRegistry) {
         assert!(has<CoinType>(self), E_UNREGISTERED);
-    }
-
-    fun new_asset_cap<CoinType>(
-        self: &TokenRegistry
-    ): AssetCap<CoinType> {
-        assert_has<CoinType>(self);
-
-        // We check specifically whether `CoinType` is associated with a dynamic
-        // field for `WrappedAsset`. This boolean will be used as the underlying
-        // value for `AssetCap`.
-        let is_wrapped =
-            dynamic_field::exists_with_type<Key<CoinType>, WrappedAsset<CoinType>>(
-                &self.id,
-                Key {}
-            );
-        AssetCap { is_wrapped }
     }
 
     fun is_wrapped_cap<CoinType>(cap: &AssetCap<CoinType>): bool {
@@ -625,8 +607,11 @@ module token_bridge::token_registry_tests {
             !token_registry::is_wrapped<COIN_NATIVE_10>(&registry),
             0
         );
+
+        let asset_cap =
+            token_registry::new_asset_cap_test_only<COIN_NATIVE_10>(&registry);
         assert!(
-            token_registry::decimals<COIN_NATIVE_10>(&registry) == 10,
+            token_registry::checked_decimals(&asset_cap, &registry) == 10,
             0
         );
 
@@ -724,8 +709,11 @@ module token_bridge::token_registry_tests {
             !token_registry::is_native<COIN_WRAPPED_7>(&registry),
             0
         );
+
+        let asset_cap =
+            token_registry::new_asset_cap_test_only<COIN_WRAPPED_7>(&registry);
         assert!(
-            token_registry::decimals<COIN_WRAPPED_7>(&registry) == 7,
+            token_registry::checked_decimals(&asset_cap, &registry) == 7,
             0
         );
 

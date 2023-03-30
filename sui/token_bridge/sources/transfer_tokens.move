@@ -61,11 +61,7 @@ module token_bridge::transfer_tokens {
 
         // Fetch canonical token info from registry.
         let registry = state::borrow_token_registry_mut(token_bridge_state);
-        let verified =
-            token_registry::asset_cap_from_balance(
-                registry,
-                &bridged_in
-            );
+        let verified = token_registry::new_asset_cap(registry);
         let (
             token_chain,
             token_address

@@ -2,7 +2,7 @@ module token_bridge::state {
     use sui::balance::{Balance};
     use sui::clock::{Clock};
     use sui::object::{Self, ID, UID};
-    use sui::package::{UpgradeCap};
+    use sui::package::{Self, UpgradeCap};
     use sui::sui::{SUI};
     use sui::tx_context::{TxContext};
     use wormhole::bytes32::{Self, Bytes32};
@@ -45,19 +45,27 @@ module token_bridge::state {
         /// Token bridge owned emitter capability
         emitter_cap: EmitterCap,
 
+        /// Registery for foreign Token Bridge contracts.
         emitter_registry: EmitterRegistry,
 
+        /// Registry for native and wrapped assets.
         token_registry: TokenRegistry,
 
+        /// Upgrade capability.
         upgrade_cap: UpgradeCap,
     }
 
+    /// Create new `State`. This is only executed using the `setup` module.
     public(friend) fun new(
         worm_state: &WormholeState,
         upgrade_cap: UpgradeCap,
         ctx: &mut TxContext
     ): State {
-        // TODO: Make sure upgrade cap belongs to this package.
+        // Verify that this `UpgradeCap` belongs to the Token Bridge package.
+        let package_addr =
+            object::id_to_address(&package::upgrade_package(&upgrade_cap));
+        assert!(package_addr == @token_bridge, 0);
+
         State {
             id: object::new(ctx),
             consumed_vaa_hashes: set::new(ctx),
@@ -68,6 +76,7 @@ module token_bridge::state {
         }
     }
 
+    /// Retrieve governance module name.
     public fun governance_module(): Bytes32 {
         // A.K.A. "TokenBridge".
         bytes32::new(
@@ -75,6 +84,7 @@ module token_bridge::state {
         )
     }
 
+    /// Publish Wormhole message using Token Bridge's `EmtiterCap`.
     public(friend) fun publish_wormhole_message(
         self: &mut State,
         worm_state: &mut WormholeState,
@@ -95,10 +105,12 @@ module token_bridge::state {
         )
     }
 
+    /// Retrieve immutable reference to `TokenRegistry`.
     public fun borrow_token_registry(self: &State): &TokenRegistry {
         &self.token_registry
     }
 
+    /// Retrieve mutable reference to `TokenRegistry`.
     public(friend) fun borrow_token_registry_mut(
         self: &mut State
     ): &mut TokenRegistry {
@@ -112,6 +124,8 @@ module token_bridge::state {
         borrow_token_registry_mut(self)
     }
 
+    /// For a deserialized VAA, consume its hash so this VAA cannot be redeemed
+    /// again. This protects against replay attacks.
     public(friend) fun consume_vaa_hash(self: &mut State, vaa_hash: Bytes32) {
         let consumed = &mut self.consumed_vaa_hashes;
         assert!(!set::contains(consumed, vaa_hash), E_VAA_ALREADY_CONSUMED);
@@ -148,5 +162,12 @@ module token_bridge::state {
         contract_address: ExternalAddress
     ) {
         register_new_emitter(self, chain, contract_address);
+    }
+
+    /// Retrieve decimals from for a given coin type in `TokenRegistry`.
+    public fun coin_decimals<CoinType>(self: &State): u8 {
+        let registry = borrow_token_registry(self);
+        let cap = token_registry::new_asset_cap<CoinType>(registry);
+        token_registry::checked_decimals(&cap, registry)
     }
 }
