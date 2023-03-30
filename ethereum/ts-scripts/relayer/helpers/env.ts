@@ -8,7 +8,7 @@ import {
   CoreRelayer__factory,
   MockRelayerIntegration,
   MockRelayerIntegration__factory,
-} from "../../sdk/src";
+} from "../../../ethers-contracts";
 
 export type ChainInfo = {
   evmNetworkId: number;

@@ -1,11 +1,4 @@
-import { RelayProviderProxy__factory } from "../../sdk/src/ethers-contracts/factories/RelayProviderProxy__factory";
-import { RelayProviderSetup__factory } from "../../sdk/src/ethers-contracts/factories/RelayProviderSetup__factory";
-import { RelayProviderImplementation__factory } from "../../sdk/src/ethers-contracts/factories/RelayProviderImplementation__factory";
-import { MockRelayerIntegration__factory } from "../../sdk/src";
-import { CoreRelayerProxy__factory } from "../../sdk/src/ethers-contracts/factories/CoreRelayerProxy__factory";
-import { CoreRelayerSetup__factory } from "../../sdk/src/ethers-contracts/factories/CoreRelayerSetup__factory";
-import { CoreRelayerImplementation__factory } from "../../sdk/src/ethers-contracts/factories/CoreRelayerImplementation__factory";
-import { CoreRelayerLibrary__factory } from "../../sdk/src/ethers-contracts/factories/CoreRelayerLibrary__factory";
+import {RelayProviderProxy__factory, RelayProviderSetup__factory, RelayProviderImplementation__factory, MockRelayerIntegration__factory, CoreRelayerProxy__factory, CoreRelayerSetup__factory, CoreRelayerImplementation__factory, CoreRelayerLibrary__factory } from "../../../ethers-contracts";
 
 import {
   init,

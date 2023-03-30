@@ -8,7 +8,7 @@ import {
 import { deployMockIntegration } from "../helpers/deployments"
 import { BigNumber, BigNumberish, BytesLike } from "ethers"
 import { tryNativeToHexString, tryNativeToUint8Array } from "@certusone/wormhole-sdk"
-import { MockRelayerIntegration__factory } from "../../../sdk/src"
+import { MockRelayerIntegration__factory } from "../../../ethers-contracts"
 import { wait } from "../helpers/utils"
 
 const processName = "deployMockIntegration"

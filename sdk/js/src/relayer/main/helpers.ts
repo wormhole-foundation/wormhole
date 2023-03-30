@@ -9,9 +9,9 @@ import {
   parseVaa,
   ParsedVaa,
   tryNativeToHexString,
+  Implementation__factory 
 } from "@certusone/wormhole-sdk"
 import { GetSignedVAAResponse } from "@certusone/wormhole-sdk-proto-web/lib/cjs/publicrpc/v1/publicrpc"
-import { Implementation__factory } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts"
 import { BigNumber, ContractReceipt, ethers, providers } from "ethers"
 import {
   getWormholeRelayer,
@@ -31,7 +31,7 @@ import {
   MessageInfoType,
   DeliveryStatus
 } from "../structs"
-import { DeliveryEvent } from "../ethers-contracts/CoreRelayer"
+import { DeliveryEvent } from "../../ethers-contracts/CoreRelayer"
 type DeliveryTargetInfo = {
   status: DeliveryStatus | string
   deliveryTxHash: string | null

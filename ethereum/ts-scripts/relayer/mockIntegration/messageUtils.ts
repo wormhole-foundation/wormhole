@@ -1,6 +1,5 @@
 import * as wh from "@certusone/wormhole-sdk"
-import { Implementation__factory } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts"
-import { LogMessagePublishedEvent } from "../../../sdk/src"
+import { Implementation__factory, LogMessagePublishedEvent } from "@certusone/wormhole-sdk"
 import {
   ChainInfo,
   getCoreRelayer,

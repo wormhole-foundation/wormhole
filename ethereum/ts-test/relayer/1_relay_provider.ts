@@ -1,11 +1,11 @@
 import { expect } from "chai";
 import { ethers } from "ethers";
-import { RelayProvider__factory } from "../../sdk/src";
+import { RelayProvider__factory } from "../../ethers-contracts"
 import {
   ORACLE_DEPLOYER_PRIVATE_KEY,
   ChainInfo
 } from "./helpers/consts";
-import { init, loadChains, loadRelayProviders } from "../ts-scripts/helpers/env";
+import { init, loadChains, loadRelayProviders } from "../../ts-scripts/relayer/helpers/env";
 
 const ETHEREUM_ROOT = `${__dirname}/..`;
 

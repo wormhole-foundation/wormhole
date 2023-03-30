@@ -46,6 +46,7 @@ build: forge_dependencies node_modules ${SOURCE_FILES}
 	mkdir -p build
 	touch -m build
 	npm run build
+	
 
 flattened/%.sol: contracts/%.sol node_modules
 	@mkdir -p $(dir $@)
