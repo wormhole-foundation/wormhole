@@ -8,6 +8,11 @@ to transfer tokens in or change configuration settings.
 The `WrappedAsset` is a ERC-20 token contract that holds metadata about a wormhole asset on ETH. Wormhole assets are all
 wrapped non-ETH assets that are currently held on ETH.
 
+### Building
+
+To build the contracts:
+`make build`
+
 ### Deploying
 
 To deploy the bridge on Ethereum you first need to compile all smart contracts:

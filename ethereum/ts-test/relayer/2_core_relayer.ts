@@ -7,15 +7,16 @@ import {
   CoreRelayer__factory,
   IWormhole__factory,
   MockRelayerIntegration__factory,
-} from "../../sdk/src"
+  MockRelayerIntegration, 
+  IWormholeRelayer
+} from "../../ethers-contracts"
 import {
   init,
   loadChains,
   loadCoreRelayers,
   loadMockIntegrations,
-} from "../ts-scripts/helpers/env"
-import { MockRelayerIntegration, IWormholeRelayer } from "../../sdk/src"
-import { getDeliveryInfoBySourceTx, DeliveryInfo, RedeliveryInfo } from "../../sdk/src"
+} from "../../ts-scripts/relayer/helpers/env"
+import { getWormholeRelayerInfo, DeliveryInfo, RedeliveryInfo } from "../../../sdk/js/src"
 const ETHEREUM_ROOT = `${__dirname}/..`
 
 init()
