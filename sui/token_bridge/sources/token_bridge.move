@@ -5,7 +5,7 @@
 module token_bridge::token_bridge {
     use sui::balance::{Self};
     use sui::clock::{Clock};
-    use sui::coin::{Self, Coin};
+    use sui::coin::{Self, Coin, CoinMetadata};
     use sui::sui::{SUI};
     use sui::transfer::{Self};
     use sui::tx_context::{Self, TxContext};
@@ -15,6 +15,26 @@ module token_bridge::token_bridge {
     use wormhole::state::{State as WormholeState};
 
     use token_bridge::state::{State};
+
+    entry fun attest_token<CoinType>(
+        token_bridge_state: &mut State,
+        worm_state: &mut WormholeState,
+        wormhole_fee: Coin<SUI>,
+        coin_metadata: &CoinMetadata<CoinType>,
+        nonce: u32,
+        the_clock: &Clock
+    ) {
+        use token_bridge::attest_token::{attest_token};
+
+        attest_token<CoinType>(
+            token_bridge_state,
+            worm_state,
+            coin::into_balance(wormhole_fee),
+            coin_metadata,
+            nonce,
+            the_clock
+        );
+    }
 
     entry fun transfer_tokens<CoinType>(
         token_bridge_state: &mut State,
