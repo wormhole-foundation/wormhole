@@ -1,22 +1,10 @@
-import * as wh from "@certusone/wormhole-sdk"
-import {
-  Implementation__factory,
-  Migrations,
-} from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts"
-import { getSignatureSetData } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole"
-import { LogMessagePublishedEvent } from "../../../sdk/src"
+
 import {
   ChainInfo,
   getCoreRelayer,
-  getCoreRelayerAddress,
-  getMockIntegration,
-  getMockIntegrationAddress,
-  getRelayProvider,
-  getRelayProviderAddress,
   init,
   loadChains,
 } from "../helpers/env"
-import * as grpcWebNodeHttpTransport from "@improbable-eng/grpc-web-node-http-transport"
 import { BigNumber } from "ethers"
 import { wait } from "../helpers/utils"
 
