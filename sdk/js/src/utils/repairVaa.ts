@@ -16,7 +16,7 @@ interface GuardianSetData {
 
 export async function getCurrentGuardianSet(
   provider: ethers.providers.JsonRpcProvider,
-  chainId: ChainId,
+  EVMchainId: ChainId,
   environment: "MAINNET" | "TESTNET" | "DEVNET" = "MAINNET"
 ): Promise<GuardianSetData> {
   let result: GuardianSetData = {
@@ -25,7 +25,7 @@ export async function getCurrentGuardianSet(
     expiry: 0,
   };
 
-  const CORE_BRIDGE = CONTRACTS[environment][toChainName(chainId)].core;
+  const CORE_BRIDGE = CONTRACTS[environment][toChainName(EVMchainId)].core;
 
   const core = Implementation__factory.connect(CORE_BRIDGE, provider);
   const index = await core.getCurrentGuardianSetIndex();
@@ -112,12 +112,12 @@ export function repairVaa(
 export async function repairVaaWithCurrentGuardianSet(
   vaaHex: string,
   provider: ethers.providers.JsonRpcProvider,
-  chainId: ChainId,
+  EVMchainId: ChainId,
   environment: "MAINNET" | "TESTNET" | "DEVNET" = "MAINNET"
 ): Promise<string> {
   const guardianSetData = await getCurrentGuardianSet(
     provider,
-    chainId,
+    EVMchainId,
     environment
   );
   return repairVaa(vaaHex, guardianSetData);
