@@ -1,58 +1,58 @@
-// ToDos:
-// - Publish wormchain block height on all connected chains.
-// - Use Tendermint to query for block height and send observation requests.
-
 package ibc
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
-
-	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
-	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/tidwall/gjson"
-	"github.com/wormhole-foundation/wormhole/sdk/vaa"
-
-	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
-	tmAbci "github.com/tendermint/tendermint/abci/types"
-	tmHttp "github.com/tendermint/tendermint/rpc/client/http"
-	tmCoreTypes "github.com/tendermint/tendermint/rpc/core/types"
-	tmTypes "github.com/tendermint/tendermint/types"
+	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/tidwall/gjson"
+
+	"nhooyr.io/websocket"
+	"nhooyr.io/websocket/wsjson"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
 
-	// This should go away!
 	"go.uber.org/zap"
 )
 
 type (
-	// ChannelConfig defines the list of chains to be monitored by IBC, along with their IBC channel.
-	ChannelConfig []ChannelConfigEntry
+	// ConnectionConfig defines the list of chains to be monitored by IBC, along with their IBC connection ID.
+	ConnectionConfig []ConnectionConfigEntry
 
-	// ChannelConfigEntry defines the entry for an IBC channel. Note that the json of this is used to set the -ibcConfig
+	// ConnectionConfigEntry defines the entry for an IBC connection. Note that the json of this is used to set the -ibcConfig
 	// parameter in the json config, so be careful about changing this.
-	ChannelConfigEntry struct {
+	ConnectionConfigEntry struct {
 		// These are specified as json in the config.
-		ChainID   vaa.ChainID
-		ChannelID string
+		ChainID vaa.ChainID
+		ConnID  string
+	}
 
-		// These are filled in before the watcher is instantiated.
-		MsgC     chan<- *common.MessagePublication   `json:"-"`
-		ObsvReqC <-chan *gossipv1.ObservationRequest `json:"-"`
+	// ChannelData defines the message channels associated with the corresponding entry in ConnectionConfig. It is in lock step with ConnectionConfig.
+	ChannelData []ChannelDataEntry
+
+	// ChannelDataEntry defines the message channels associated with the corresponding entry in ConnectionConfig.
+	ChannelDataEntry struct {
+		ChainID  vaa.ChainID
+		MsgC     chan<- *common.MessagePublication
+		ObsvReqC <-chan *gossipv1.ObservationRequest
 	}
 )
 
@@ -75,29 +75,30 @@ var (
 	invalidChainIdMismatches = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "wormhole_ibc_chain_id_mismatches",
-			Help: "Total number of cases where the wormhole chain ID does not match the IBC channel ID",
+			Help: "Total number of cases where the wormhole chain ID does not match the IBC connection ID",
 		}, []string{"ibc_channel_id"})
 )
 
 type (
 	// Watcher is responsible for monitoring the IBC contract on wormchain and publishing wormhole messages for all chains connected via IBC.
 	Watcher struct {
-		wsUrl           string
-		lcdUrl          string
-		contractAddress string
-		channelConfig   ChannelConfig
-		logger          *zap.Logger
+		wsUrl            string
+		lcdUrl           string
+		contractAddress  string
+		ConnectionConfig ConnectionConfig
+		logger           *zap.Logger
 
-		channelMap map[string]*channelEntry
-		chainMap   map[vaa.ChainID]*channelEntry
+		channelMap  map[string]*connectionEntry
+		chainMap    map[vaa.ChainID]*connectionEntry
+		channelData ChannelData
 
-		wsConn  *tmHttp.HTTP
-		lcdConn *tmHttp.HTTP
+		connectionIdLock sync.Mutex
+		connectionIdMap  map[string]string
 	}
 
-	// channelEntry defines the chain that is associated with an IBC channel.
-	channelEntry struct {
-		ibcChannelID string
+	// channelEntry defines the chain that is associated with an IBC connection.
+	connectionEntry struct {
+		connectionID string
 		chainID      vaa.ChainID
 		chainName    string
 		readiness    readiness.Component
@@ -107,32 +108,32 @@ type (
 )
 
 // ParseConfig parses the --ibcConfig parameter into a vector of configured chains. It also returns the feature string to be published in heartbeats.
-func ParseConfig(ibcConfig string) (ChannelConfig, string, error) {
-	channels := make([]ChannelConfigEntry, 0)
+func ParseConfig(ibcConfig string) (ConnectionConfig, string, error) {
+	connections := make([]ConnectionConfigEntry, 0)
 	features := ""
 
 	if ibcConfig == "" {
 		// This is not an error if IBC is not enabled.
-		return channels, features, nil
+		return connections, features, nil
 	}
 
-	// The config string is json formatted like this: `[{"ChainID":18,"ChannelID":"channel-0"},{"ChainID":19,"ChannelID":"channel-1"}]`
-	err := json.Unmarshal([]byte(ibcConfig), &channels)
+	// The config string is json formatted like this: `[{"ChainID":18,"ConnID":"connection-0"},{"ChainID":19,"ConnID":"connection-1"}]`
+	err := json.Unmarshal([]byte(ibcConfig), &connections)
 	if err != nil {
-		return channels, features, fmt.Errorf("failed to parse IBC config string: %s, error: %w", ibcConfig, err)
+		return connections, features, fmt.Errorf("failed to parse IBC config string: %s, error: %w", ibcConfig, err)
 	}
 
 	// Build the feature string.
-	for _, ch := range channels {
+	for _, ch := range connections {
 		if features == "" {
 			features = "ibc:"
 		} else {
 			features += ","
 		}
-		features += fmt.Sprintf("%s:%s", ch.ChainID.String(), ch.ChannelID)
+		features += fmt.Sprintf("%s:%s", ch.ChainID.String(), ch.ConnID)
 	}
 
-	return channels, features, nil
+	return connections, features, nil
 }
 
 // NewWatcher creates a new IBC contract watcher
@@ -140,16 +141,16 @@ func NewWatcher(
 	wsUrl string,
 	lcdUrl string,
 	contractAddress string,
-	channelConfig ChannelConfig,
+	ConnectionConfig ConnectionConfig,
+	channelData ChannelData,
 ) *Watcher {
 	return &Watcher{
-		wsUrl:           wsUrl,
-		lcdUrl:          lcdUrl,
-		contractAddress: contractAddress,
-		channelConfig:   channelConfig,
-
-		channelMap: make(map[string]*channelEntry),
-		chainMap:   make(map[vaa.ChainID]*channelEntry),
+		wsUrl:            wsUrl,
+		lcdUrl:           lcdUrl,
+		contractAddress:  contractAddress,
+		ConnectionConfig: ConnectionConfig,
+		channelData:      channelData,
+		connectionIdMap:  make(map[string]string),
 	}
 }
 
@@ -163,6 +164,22 @@ func ConvertUrlToTendermint(input string) (string, error) {
 	return "http://" + input, nil
 }
 
+type clientRequest struct {
+	JSONRPC string `json:"jsonrpc"`
+	// A String containing the name of the method to be invoked.
+	Method string `json:"method"`
+	// Object to pass as request parameter to the method.
+	Params [1]string `json:"params"`
+	// The request id. This can be of any type. It is used to match the
+	// response with the request that it is replying to.
+	ID uint64 `json:"id"`
+}
+
+const (
+	contractAddressFilterKey = "wasm._contract_address"
+	contractAddressLogKey    = "_contract_address"
+)
+
 // Run is the runnable for monitoring the IBC contract on wormchain.
 func (w *Watcher) Run(ctx context.Context) error {
 	w.logger = supervisor.Logger(ctx)
@@ -170,19 +187,25 @@ func (w *Watcher) Run(ctx context.Context) error {
 	errC := make(chan error)
 	defer close(errC)
 
-	for _, chainToMonitor := range w.channelConfig {
-		ce := &channelEntry{
-			ibcChannelID: chainToMonitor.ChannelID,
+	w.channelMap = make(map[string]*connectionEntry)
+	w.chainMap = make(map[vaa.ChainID]*connectionEntry)
+
+	for idx, chainToMonitor := range w.ConnectionConfig {
+		if w.channelData[idx].ChainID != chainToMonitor.ChainID {
+			panic("channelData is not in sync with chainToMonitor") // This would be a program bug!
+		}
+		ce := &connectionEntry{
+			connectionID: chainToMonitor.ConnID,
 			chainID:      chainToMonitor.ChainID,
 			chainName:    vaa.ChainID(chainToMonitor.ChainID).String(),
 			readiness:    common.MustConvertChainIdToReadinessSyncing(chainToMonitor.ChainID),
-			msgC:         chainToMonitor.MsgC,
-			obsvReqC:     chainToMonitor.ObsvReqC,
+			msgC:         w.channelData[idx].MsgC,
+			obsvReqC:     w.channelData[idx].ObsvReqC,
 		}
 
-		_, exists := w.channelMap[ce.ibcChannelID]
+		_, exists := w.channelMap[ce.connectionID]
 		if exists {
-			return fmt.Errorf("detected duplicate ibc channel: %v", ce.ibcChannelID)
+			return fmt.Errorf("detected duplicate IBC connection: %v", ce.connectionID)
 		}
 
 		_, exists = w.chainMap[ce.chainID]
@@ -190,78 +213,56 @@ func (w *Watcher) Run(ctx context.Context) error {
 			return fmt.Errorf("detected duplicate chainID: %v", ce.chainID)
 		}
 
-		w.logger.Info("ibc: will monitor chain over IBC", zap.String("chain", ce.chainName), zap.String("IBC channel", ce.ibcChannelID))
-		w.channelMap[ce.ibcChannelID] = ce
+		w.logger.Info("will monitor chain over IBC", zap.String("chain", ce.chainName), zap.String("IBC connection", ce.connectionID))
+		w.channelMap[ce.connectionID] = ce
 		w.chainMap[ce.chainID] = ce
 
 		p2p.DefaultRegistry.SetNetworkStats(ce.chainID, &gossipv1.Heartbeat_Network{ContractAddress: w.contractAddress})
 	}
 
-	wsUrl, err := ConvertUrlToTendermint(w.wsUrl)
-	if err != nil {
-		return fmt.Errorf("failed to parse websocket url: %s, error: %w", w.wsUrl, err)
-	}
+	w.logger.Info("creating watcher", zap.String("wsUrl", w.wsUrl), zap.String("lcdUrl", w.lcdUrl), zap.String("contract", w.contractAddress))
 
-	lcdUrl, err := ConvertUrlToTendermint(w.lcdUrl)
-	if err != nil {
-		return fmt.Errorf("failed to parse lcd url: %s, error: %w", w.lcdUrl, err)
-	}
-
-	w.logger.Info("ibc: creating watcher",
-		zap.String("wsUrl", wsUrl), zap.String("origWsUrl", w.wsUrl),
-		zap.String("contract", w.contractAddress),
-		zap.String("lcdUrl", lcdUrl), zap.String("origLcdUrl", w.lcdUrl),
-		zap.String("contract", w.contractAddress),
-	)
-	w.wsConn, err = tmHttp.New(wsUrl, "/websocket")
+	c, _, err := websocket.Dial(ctx, w.wsUrl, nil)
 	if err != nil {
 		connectionErrors.WithLabelValues("websocket_dial_error").Inc()
 		return fmt.Errorf("failed to establish tendermint websocket connection: %w", err)
 	}
+	defer c.Close(websocket.StatusNormalClosure, "")
 
-	if err := w.wsConn.Start(); err != nil {
-		connectionErrors.WithLabelValues("websocket_start_error").Inc()
-		return fmt.Errorf("failed to start tendermint websocket connection: %w", err)
+	// During testing, I got a message larger then the default
+	// 32768.  Increasing this limit effects an internal buffer that is used
+	// to as part of the zero alloc/copy design.
+	c.SetReadLimit(524288)
+
+	// Subscribe to smart contract transactions.
+	params := [...]string{fmt.Sprintf("tm.event='Tx' AND %s='%s'", contractAddressFilterKey, w.contractAddress)}
+	command := &clientRequest{
+		JSONRPC: "2.0",
+		Method:  "subscribe",
+		Params:  params,
+		ID:      1,
 	}
-	defer func() {
-		if err := w.wsConn.Stop(); err != nil {
-			connectionErrors.WithLabelValues("websocket_stop_error").Inc()
-			w.logger.Error("ibc: failed to stop tendermint websocket connection", zap.Error(err))
-		}
-	}()
-
-	w.lcdConn, err = tmHttp.New(lcdUrl, "/http")
+	err = wsjson.Write(ctx, c, command)
 	if err != nil {
-		connectionErrors.WithLabelValues("lcd_dial_error").Inc()
-		return fmt.Errorf("failed to establish tendermint lcd connection: %w", err)
+		connectionErrors.WithLabelValues("websocket_subscription_error").Inc()
+		return fmt.Errorf("failed to subscribe to events: %w", err)
 	}
-	defer func() {
-		if err := w.lcdConn.Stop(); err != nil {
-			connectionErrors.WithLabelValues("lcd_stop_error").Inc()
-			w.logger.Error("ibc: failed to stop tendermint lcd connection", zap.Error(err))
-		}
-	}()
 
-	query := fmt.Sprintf("wasm._contract_address='%s'", w.contractAddress)
-	w.logger.Info("ibc: subscribing to events", zap.String("query", query))
-	events, err := w.wsConn.Subscribe(
-		ctx,
-		"guardiand",
-		query,
-		64, // channel capacity
-	)
+	// Wait for the success response.
+	_, _, err = c.Read(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to accountant events: %w", err)
+		connectionErrors.WithLabelValues("websocket_subscription_error").Inc()
+		return fmt.Errorf("failed to receive response to subscribe request: %w", err)
 	}
-	defer func() {
-		if err := w.wsConn.UnsubscribeAll(ctx, "guardiand"); err != nil {
-			w.logger.Error("ibc: failed to unsubscribe from events", zap.Error(err))
-		}
-	}()
 
-	// Start a single routine to listen for messages from the contract and periodically query the wormchain block height.
+	// Start a routine to listen for messages from the contract.
 	common.RunWithScissors(ctx, errC, "ibc_data_pump", func(ctx context.Context) error {
-		return w.handleEvents(ctx, events, errC)
+		return w.handleEvents(ctx, c, errC)
+	})
+
+	// Start a routine to periodically query the wormchain block height.
+	common.RunWithScissors(ctx, errC, "ibc_block_height", func(ctx context.Context) error {
+		return w.handleQueryBlockHeight(ctx, c, errC)
 	})
 
 	// Start a routine for each chain to listen for observation requests.
@@ -279,128 +280,111 @@ func (w *Watcher) Run(ctx context.Context) error {
 	}
 }
 
-// handleEvents handles events from the tendermint client library.
-func (w *Watcher) handleEvents(ctx context.Context, evts <-chan tmCoreTypes.ResultEvent, errC chan error) error {
-	blockHeightTicker := time.NewTicker(5 * time.Second)
+// handleEvents handles events reads messages from the IBC receiver contract and processes them.
+func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn, errC chan error) error {
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
-		case e := <-evts:
-			tx, ok := e.Data.(tmTypes.EventDataTx)
-			if !ok {
-				w.logger.Error("ibc: unknown data from event subscription", zap.Stringer("e.Data", reflect.TypeOf(e.Data)), zap.Any("event", e))
-				connectionErrors.WithLabelValues("read_error").Inc()
+		default:
+			_, message, err := c.Read(ctx)
+			if err != nil {
+				w.logger.Error("failed to read socket", zap.Error(err))
+				connectionErrors.WithLabelValues("channel_read_error").Inc()
+				errC <- fmt.Errorf("failed to read socket: %w", err)
+				return nil
+			}
+
+			// Received a message from the blockchain.
+			json := string(message)
+
+			txHashRaw := gjson.Get(json, "result.events.tx\\.hash.0")
+			if !txHashRaw.Exists() {
+				w.logger.Warn("message does not have tx hash", zap.String("payload", json))
+				continue
+			}
+			txHash, err := vaa.StringToHash(txHashRaw.String())
+			if err != nil {
+				w.logger.Warn("failed to parse txHash", zap.String("txHash", txHashRaw.String()), zap.Error(err))
 				continue
 			}
 
-			// var junk tmTypes.Tx
-			// junk = tx.TxResult.Tx
-			// txHash := junk.Hash()
-			// txHash := tmTypes.Tx(tx.TxResult.Tx).Hash()
-			// h := ethCommon.BytesToHash(txHash)
-			txHash := ethCommon.BytesToHash(tmTypes.Tx(tx.TxResult.Tx).Hash())
-			w.logger.Info("BigBOINK", zap.Stringer("txHash", txHash), zap.Any("tx", tx))
+			events := gjson.Get(json, "result.data.value.TxResult.result.events")
+			if !events.Exists() {
+				w.logger.Warn("message has no events", zap.String("payload", json))
+				continue
+			}
 
-			for _, event := range tx.Result.Events {
-				w.logger.Info("BOINK", zap.String("type", event.Type), zap.Any("event", event))
-				if event.Type == "wasm" {
+			for _, event := range events.Array() {
+				if !event.IsObject() {
+					w.logger.Warn("event is invalid", zap.Stringer("tx_hash", txHash), zap.String("event", event.String()))
+					continue
+				}
+				eventType := gjson.Get(event.String(), "type").String()
+				if eventType == "wasm" {
 					evt, err := parseEvent[ibcReceivePublishEvent](w.logger, w.contractAddress, "receive_publish", event)
 					if err != nil {
-						w.logger.Error("ibc: failed to parse wasm event", zap.Error(err), zap.Stringer("e.Data", reflect.TypeOf(e.Data)), zap.Any("event", event))
+						w.logger.Error("failed to parse wasm event", zap.Error(err), zap.String("event", event.String()))
 						continue
 					}
 
-					w.processEvent(txHash, evt)
+					if evt != nil {
+						w.processEvent(txHash, evt, "new")
+					}
 				} else {
-					w.logger.Debug("ibc: ignoring uninteresting event", zap.String("eventType", event.Type))
+					w.logger.Debug("ignoring uninteresting event", zap.String("eventType", eventType))
 				}
-			}
-		case <-blockHeightTicker.C:
-			if err := w.queryBlockHeight(ctx); err != nil {
-				connectionErrors.WithLabelValues("blockHeight_error").Inc()
-				errC <- err
-				return nil
 			}
 		}
 	}
 }
 
-// queryBlockHeight gets the latest block height from wormchain and updates the status on all the updated chains.
-func (w *Watcher) queryBlockHeight(ctx context.Context) error {
-	abciInfo, err := w.wsConn.ABCIInfo(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to query block height: %w", err)
-	}
+// handleQueryBlockHeight gets the latest block height from wormchain each interval and updates the status on all the connected chains.
+func (w *Watcher) handleQueryBlockHeight(ctx context.Context, c *websocket.Conn, errC chan error) error {
+	const latestBlockURL = "blocks/latest"
 
-	latestBlockAsInt := abciInfo.Response.LastBlockHeight
-
-	/* This fails with: "unknown query path: unknown request","info":"","index":"0","key":null,"value":null,"proofOps":null,"height":"0","codespace":"sdk"
-	params := []byte{}
-	path := "/cosmos/base/tendermint/v1beta1/blocks/latest"
-	// path := "L2Nvc21vcy9iYXNlL3RlbmRlcm1pbnQvdjFiZXRhMS9ibG9ja3MvbGF0ZXN0"
-	queryResp, err := w.wsConn.ABCIQuery(ctx, path, params)
-	if err != nil {
-		w.logger.Error("ibc: query latest block response error", zap.String("path", path), zap.Error(err))
-	} else {
-		w.logger.Info("ibc: queried block height", zap.String("path", path), zap.Any("queryResp", queryResp))
-	}
-	/* This fails with: ibc: query latest block response error	{"error": "error unmarshalling: invalid character '<' looking for beginning of value"}
-	params := []byte{}
-	resp, err := w.lcdConn.ABCIQuery(ctx, "blocks/latest", params)
-	if err != nil {
-		w.logger.Error("ibc: query latest block response error", zap.Error(err))
-		return nil
-	}
-	w.logger.Info("ibc: query block height", zap.Any("resp", resp))
-	*/
-
-	/*********************************** This works.
-	latestBlockURL := "blocks/latest"
-
-	// ctx := context.Background()
-	logger, _ := zap.NewDevelopment()
-
+	t := time.NewTicker(5 * time.Second)
 	client := &http.Client{
 		Timeout: time.Second * 5,
 	}
 
-	resp, err := client.Get(fmt.Sprintf("%s/%s", w.lcdUrl, latestBlockURL))
-	if err != nil {
-		logger.Error("ibc: query latest block response error", zap.Error(err))
-		return nil
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-t.C:
+			resp, err := client.Get(fmt.Sprintf("%s/%s", w.lcdUrl, latestBlockURL))
+			if err != nil {
+				return fmt.Errorf("failed to query latest block: %w", err)
+			}
+			blocksBody, err := io.ReadAll(resp.Body)
+			if err != nil {
+				resp.Body.Close()
+				return fmt.Errorf("failed to read latest block body: %w", err)
+			}
+			resp.Body.Close()
+
+			blockJSON := string(blocksBody)
+			latestBlockAsInt := gjson.Get(blockJSON, "block.header.height").Int()
+			latestBlockAsFloat := float64(latestBlockAsInt)
+			w.logger.Debug("current block height", zap.Int64("height", latestBlockAsInt))
+
+			for _, ce := range w.chainMap {
+				currentSlotHeight.WithLabelValues(ce.chainName).Set(latestBlockAsFloat)
+				p2p.DefaultRegistry.SetNetworkStats(ce.chainID, &gossipv1.Heartbeat_Network{
+					Height:          latestBlockAsInt,
+					ContractAddress: w.contractAddress,
+				})
+
+				readiness.SetReady(ce.readiness)
+			}
+		}
 	}
-	blocksBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logger.Error("ibc: query latest block response read error", zap.Error(err))
-		resp.Body.Close()
-		return nil
-	}
-	resp.Body.Close()
-
-	blockJSON := string(blocksBody)
-	latestBlockAsInt := gjson.Get(blockJSON, "block.header.height").Int()
-	*/
-
-	latestBlockAsFloat := float64(latestBlockAsInt)
-	w.logger.Info("ibc: current block height", zap.Int64("height", latestBlockAsInt))
-
-	for _, ce := range w.chainMap {
-		currentSlotHeight.WithLabelValues(ce.chainName).Set(latestBlockAsFloat)
-		p2p.DefaultRegistry.SetNetworkStats(ce.chainID, &gossipv1.Heartbeat_Network{
-			Height:          latestBlockAsInt,
-			ContractAddress: w.contractAddress,
-		})
-
-		readiness.SetReady(ce.readiness)
-	}
-
-	return nil
 }
 
 // handleObservationRequests listens for observation requests for a single chain and processes them by reading the requested transaction
-// from wormchain and publishing the associated message.
-func (w *Watcher) handleObservationRequests(ctx context.Context, errC chan error, ce *channelEntry) error {
+// from wormchain and publishing the associated message. This function is instantiated for each connected chain.
+func (w *Watcher) handleObservationRequests(ctx context.Context, errC chan error, ce *connectionEntry) error {
 	for {
 		select {
 		case <-ctx.Done():
@@ -417,7 +401,7 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, errC chan error
 				Timeout: time.Second * 5,
 			}
 
-			// Query for tx by hash
+			// Query for tx by hash.
 			resp, err := client.Get(fmt.Sprintf("%s/cosmos/tx/v1beta1/txs/%s", w.lcdUrl, reqTxHashStr))
 			if err != nil {
 				w.logger.Error("query tx response error", zap.String("chain", ce.chainName), zap.Error(err))
@@ -432,6 +416,7 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, errC chan error
 			resp.Body.Close()
 
 			txJSON := string(txBody)
+			w.logger.Info("BigBOINK", zap.String("txJson", txJSON))
 
 			txHashRaw := gjson.Get(txJSON, "tx_response.txhash")
 			if !txHashRaw.Exists() {
@@ -457,18 +442,19 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, errC chan error
 					continue
 				}
 				eventType := gjson.Get(event.String(), "type")
-				w.logger.Info("BOINK", zap.String("type", eventType.String()), zap.Any("event", event))
-				if eventType.String() != "wasm" {
-					w.logger.Debug("ibc: found wasm event in reobservation", zap.String("chain", ce.chainName), zap.Stringer("txHash", txHash))
-					// evt, err := parseEvent[ibcReceivePublishEvent](w.logger, w.contractAddress, "receive_publish", event)
-					// if err != nil {
-					// 	w.logger.Error("ibc: failed to parse wasm event", zap.String("chain", ce.chainName), zap.Error(err), zap.Any("event", event))
-					// 	continue
-					// }
+				if eventType.String() == "wasm" {
+					w.logger.Debug("found wasm event in reobservation", zap.String("chain", ce.chainName), zap.Stringer("txHash", txHash))
+					evt, err := parseEvent[ibcReceivePublishEvent](w.logger, w.contractAddress, "receive_publish", event)
+					if err != nil {
+						w.logger.Error("failed to parse wasm event", zap.String("chain", ce.chainName), zap.Error(err), zap.Any("event", event))
+						continue
+					}
 
-					// w.processEvent(txHash, evt)
+					if evt != nil {
+						w.processEvent(txHash, evt, "reobservation")
+					}
 				} else {
-					w.logger.Debug("ibc: ignoring uninteresting event in reobservation", zap.String("chain", ce.chainName), zap.Stringer("txHash", txHash), zap.String("eventType", eventType.String()))
+					w.logger.Debug("ignoring uninteresting event in reobservation", zap.String("chain", ce.chainName), zap.Stringer("txHash", txHash), zap.String("eventType", eventType.String()))
 				}
 			}
 		}
@@ -476,16 +462,24 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, errC chan error
 }
 
 // processEvent takes an IBC event, maps it to a message publication and publishes it.
-func (w *Watcher) processEvent(txHash ethCommon.Hash, evt *ibcReceivePublishEvent) {
-	ce, exists := w.channelMap[evt.ChannelID]
+func (w *Watcher) processEvent(txHash ethCommon.Hash, evt *ibcReceivePublishEvent, observationType string) {
+	connectionID, err := w.getConnectionID(evt.ChannelID)
+	if err != nil {
+		w.logger.Info("failed to query IBC connectionID for channel", zap.String("ibcChannel", evt.ChannelID), zap.Error(err))
+		connectionErrors.WithLabelValues("unexpected_ibc_channel_error").Inc()
+		return
+	}
+
+	ce, exists := w.channelMap[connectionID]
 	if !exists {
-		w.logger.Info("ignoring an event from an unexpected IBC channel", zap.String("ibcChannel", evt.ChannelID))
+		w.logger.Info("ignoring an event from an unexpected IBC connection", zap.String("ibcConnection", connectionID))
 		connectionErrors.WithLabelValues("unexpected_ibc_channel_error").Inc()
 		return
 	}
 
 	if evt.EmitterChain != ce.chainID {
-		w.logger.Error("chain id mismatch in IBC message",
+		w.logger.Error(fmt.Sprintf("chain id mismatch in %s message", observationType),
+			zap.String("ibcConnectionID", connectionID),
 			zap.String("ibcChannelID", evt.ChannelID),
 			zap.Uint16("expectedChainID", uint16(ce.chainID)),
 			zap.Uint16("actualChainID", uint16(evt.EmitterChain)),
@@ -507,14 +501,15 @@ func (w *Watcher) processEvent(txHash ethCommon.Hash, evt *ibcReceivePublishEven
 		ConsistencyLevel: 0,
 	}
 
-	w.logger.Info("ibc: new message detected",
-		zap.String("ChannelID", ce.ibcChannelID),
+	w.logger.Info(fmt.Sprintf("%s message detected", observationType),
+		zap.String("ChannelID", evt.ChannelID),
+		zap.String("ConnectionID", ce.connectionID),
 		zap.String("ChainName", ce.chainName),
 		zap.Stringer("TxHash", msg.TxHash),
 		zap.Stringer("EmitterChain", msg.EmitterChain),
 		zap.Stringer("EmitterAddress", msg.EmitterAddress),
 		zap.Uint64("Sequence", msg.Sequence),
-		zap.Uint32("Sequence", msg.Nonce),
+		zap.Uint32("Nonce", msg.Nonce),
 		zap.Stringer("Timestamp", msg.Timestamp),
 		zap.Uint8("ConsistencyLevel", msg.ConsistencyLevel),
 	)
@@ -523,8 +518,100 @@ func (w *Watcher) processEvent(txHash ethCommon.Hash, evt *ibcReceivePublishEven
 	messagesConfirmed.WithLabelValues(ce.chainName).Inc()
 }
 
+// getConnectionID returns the IBC connection ID associated with the given IBC channel. It uses a cache to avoid constantly
+// querying worm chain. This works because once an IBC channel is closed its ID will never be reused.
+func (w *Watcher) getConnectionID(channelID string) (string, error) {
+	w.connectionIdLock.Lock()
+	defer w.connectionIdLock.Unlock()
+	connectionID, exists := w.connectionIdMap[channelID]
+	if exists {
+		return connectionID, nil
+	}
+
+	connectionID, err := w.queryConnectionID(channelID)
+	if err != nil {
+		return connectionID, err
+	}
+
+	w.connectionIdMap[channelID] = connectionID
+	return connectionID, nil
+}
+
+/*
+This query:
+  http://localhost:1319/ibc/core/channel/v1/channels/channel-0/ports/wasm.wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj
+
+Returns something like this:
+{
+  "channel": {
+    "state": "STATE_OPEN",
+    "ordering": "ORDER_UNORDERED",
+    "counterparty": {
+      "port_id": "wasm.terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au",
+      "channel_id": "channel-0"
+    },
+    "connection_hops": [
+      "connection-0"
+    ],
+    "version": "ibc-wormhole-v1"
+  },
+  "proof": null,
+  "proof_height": {
+    "revision_number": "0",
+    "revision_height": "358"
+  }
+}
+*/
+
+// ibcChannelQueryResults is used to parse the result from the IBC connection ID query.
+type ibcChannelQueryResults struct {
+	Channel struct {
+		State          string
+		ConnectionHops []string `json:"connection_hops"`
+		Version        string
+	}
+}
+
+// getConnectionID queries the contract on wormchain to map a channel ID to a connection ID.
+func (w *Watcher) queryConnectionID(channelID string) (string, error) {
+	// TODO: cache the channelID -> connectionID mapping. This should be safe because once a channel is closed, that number can never be reused.
+	client := &http.Client{
+		Timeout: time.Second * 5,
+	}
+
+	query := fmt.Sprintf("%s/ibc/core/channel/v1/channels/%s/ports/wasm.%s", w.lcdUrl, channelID, w.contractAddress)
+	connResp, err := client.Get(query)
+	if err != nil {
+		w.logger.Error("channel query failed", zap.String("query", query), zap.Error(err))
+		return "", fmt.Errorf("query failed: %w", err)
+	}
+	connBody, err := io.ReadAll(connResp.Body)
+	if err != nil {
+		return "", fmt.Errorf("read failed: %w", err)
+	}
+	connResp.Body.Close()
+
+	var result ibcChannelQueryResults
+	err = json.Unmarshal(connBody, &result)
+	if err != nil {
+		return "", fmt.Errorf("failed to unmarshal response: %s, error: %w", string(connBody), err)
+	}
+
+	if len(result.Channel.ConnectionHops) != 1 {
+		return "", fmt.Errorf("response contained %d hops when it should return exactly one, json: %s", len(result.Channel.ConnectionHops), string(connBody))
+	}
+
+	w.logger.Info("queried connection ID", zap.String("channelID", channelID), zap.String("connectionID", result.Channel.ConnectionHops[0]))
+	return result.Channel.ConnectionHops[0], nil
+}
+
 // parseEvent parses a wasm event. If it is from the desired contract and for the desired action, it returns an event. Otherwise, it returns nil.
-func parseEvent[T any](logger *zap.Logger, desiredContract string, desiredAction string, event tmAbci.Event) (*T, error) {
+func parseEvent[T any](logger *zap.Logger, desiredContract string, desiredAction string, event gjson.Result) (*T, error) {
+	eventType := gjson.Get(event.String(), "type")
+	if eventType.String() != "wasm" {
+		return nil, nil
+	}
+
 	attrBytes, err := parseWasmAttributes(logger, desiredContract, desiredAction, event)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse attributes: %w", err)
@@ -544,43 +631,75 @@ func parseEvent[T any](logger *zap.Logger, desiredContract string, desiredAction
 
 // parseWasmAttributes parses the attributes in a wasm event. If the contract and action match the desired values (or the desired values are not set)
 // the attributes are loaded into a byte array of the marshaled json. If the event is not of the desired type, it returns nil.
-func parseWasmAttributes(logger *zap.Logger, desiredContract string, desiredAction string, event tmAbci.Event) ([]byte, error) {
+func parseWasmAttributes(logger *zap.Logger, desiredContract string, desiredAction string, event gjson.Result) ([]byte, error) {
+	attributes := gjson.Get(event.String(), "attributes")
+	if !attributes.Exists() {
+		return nil, fmt.Errorf("message does not contain any attributes")
+	}
+
 	contractAddressSeen := false
 	actionSeen := false
 	attrs := make(map[string]string)
-	for _, attr := range event.Attributes {
-		key := string(attr.Key)
-		value := string(attr.Value)
+	for _, attribute := range attributes.Array() {
+		if !attribute.IsObject() {
+			logger.Warn("event attribute is invalid", zap.String("attribute", attribute.String()))
+			continue
+		}
+		keyBase := gjson.Get(attribute.String(), "key")
+		if !keyBase.Exists() {
+			logger.Warn("event attribute does not have key", zap.String("attribute", attribute.String()))
+			continue
+		}
+		valueBase := gjson.Get(attribute.String(), "value")
+		if !valueBase.Exists() {
+			logger.Warn("event attribute does not have value", zap.String("attribute", attribute.String()))
+			continue
+		}
+
+		keyRaw, err := base64.StdEncoding.DecodeString(keyBase.String())
+		if err != nil {
+			logger.Warn("event key attribute is invalid", zap.String("key", keyBase.String()))
+			continue
+		}
+		valueRaw, err := base64.StdEncoding.DecodeString(valueBase.String())
+		if err != nil {
+			logger.Warn("event value attribute is invalid", zap.String("key", keyBase.String()), zap.String("value", valueBase.String()))
+			continue
+		}
+
+		key := string(keyRaw)
+		value := string(valueRaw)
+
 		if key == "_contract_address" {
 			contractAddressSeen = true
 			if desiredContract != "" && value != desiredContract {
-				logger.Debug("ibc: ignoring event from an unexpected contract", zap.String("contract", value), zap.String("desiredContract", desiredContract))
+				logger.Debug("ignoring event from an unexpected contract", zap.String("contract", value), zap.String("desiredContract", desiredContract))
 				return nil, nil
 			}
 		} else if key == "action" {
 			actionSeen = true
 			if desiredAction != "" && value != desiredAction {
-				logger.Debug("ibc: ignoring event with an unexpected action", zap.String("key", key), zap.String("value", value), zap.String("desiredAction", desiredAction))
+				logger.Debug("ignoring event with an unexpected action", zap.String("key", key), zap.String("value", value), zap.String("desiredAction", desiredAction))
 				return nil, nil
 			}
 		} else {
 			if _, ok := attrs[key]; ok {
-				logger.Debug("ibc: duplicate key in events", zap.String("key", key), zap.String("value", value))
+				logger.Debug("duplicate key in events", zap.String("key", key), zap.String("value", value))
 				continue
 			}
 
-			logger.Debug("ibc: event attribute", zap.String("key", key), zap.String("value", value), zap.String("desiredAction", desiredAction))
+			logger.Debug("event attribute", zap.String("key", key), zap.String("value", value), zap.String("desiredAction", desiredAction))
 			attrs[string(key)] = value
 		}
 	}
 
 	if !contractAddressSeen && desiredContract != "" {
-		logger.Debug("ibc: contract address not specified, which does not match the desired value")
+		logger.Debug("contract address not specified, which does not match the desired value")
 		return nil, nil
 	}
 
 	if !actionSeen && desiredAction != "" {
-		logger.Debug("ibc: action not specified, which does not match the desired value")
+		logger.Debug("action not specified, which does not match the desired value")
 		return nil, nil
 	}
 

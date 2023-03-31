@@ -303,7 +303,7 @@ func init() {
 	wormchainKeyPassPhrase = NodeCmd.Flags().String("wormchainKeyPassPhrase", "", "pass phrase used to unarmor the wormchain key file")
 
 	ibcContract = NodeCmd.Flags().String("ibcContract", "", "Address of the IBC smart contract on wormchain")
-	ibcConfig = NodeCmd.Flags().String("ibcConfig", "", `List of IBC channels and their associated chain IDs like [{"ChainID":18,"ChannelID":"channel-0"},{"ChainID":19,"ChannelID":"channel-1"}]`)
+	ibcConfig = NodeCmd.Flags().String("ibcConfig", "", `List of IBC connections and their associated chain IDs like [{"ChainID":18,"ConnID":"connection-0"},{"ChainID":19,"ConnID":"connection-1"}]`)
 
 	accountantWS = NodeCmd.Flags().String("accountantWS", "", "Websocket used to listen to the accountant smart contract on wormchain")
 	accountantContract = NodeCmd.Flags().String("accountantContract", "", "Address of the accountant smart contract on wormchain")
@@ -1454,22 +1454,27 @@ func runNode(cmd *cobra.Command, args []string) {
 				logger.Fatal("If --ibcContract is specified, then --wormchainWS must be specified")
 			}
 
+			var channelData ibc.ChannelData
 			for _, ch := range ibcChainsToMonitor {
 				// Make sure this chain isn't already configured.
 				if _, exists := chainObsvReqC[ch.ChainID]; exists {
 					logger.Fatal("May not configure chain using IBC since it is already registered.", zap.Stringer("chainID", ch.ChainID))
 				}
 
-				ch.MsgC = chainMsgC[ch.ChainID]
-				ch.ObsvReqC = chainObsvReqC[ch.ChainID]
 				chainObsvReqC[ch.ChainID] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 				common.MustRegisterReadinessSyncing(ch.ChainID)
+
+				channelData = append(channelData, ibc.ChannelDataEntry{
+					ChainID:  ch.ChainID,
+					MsgC:     chainMsgC[ch.ChainID],
+					ObsvReqC: chainObsvReqC[ch.ChainID],
+				})
 			}
 
 			logger.Info("Starting IBC watcher", zap.String("features", ibcFeatures), zap.String("contract", *ibcContract))
 			readiness.RegisterComponent(common.ReadinessIBCSyncing)
 			if err := supervisor.Run(ctx, "ibcwatch",
-				ibc.NewWatcher(*wormchainWS, *wormchainLCD, *ibcContract, ibcChainsToMonitor).Run); err != nil {
+				ibc.NewWatcher(*wormchainWS, *wormchainLCD, *ibcContract, ibcChainsToMonitor, channelData).Run); err != nil {
 				return err
 			}
 		}

@@ -2,19 +2,24 @@ package ibc
 
 import (
 	// "encoding/hex"
+	"encoding/hex"
 	"encoding/json"
+	// "fmt"
 	"testing"
+	"time"
+
 	// "time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tidwall/gjson"
+	"go.uber.org/zap"
 
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	// "github.com/tidwall/gjson"
 	// "go.uber.org/zap"
 )
 
-/*
 func TestParseIbcReceivePublishEvent(t *testing.T) {
 	logger := zap.NewNop()
 
@@ -187,16 +192,15 @@ func TestParseEventForNoActionSpecified(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, evt)
 }
-*/
 
 func TestParseChannelConfig(t *testing.T) {
-	var channels1 = []ChannelConfigEntry{ChannelConfigEntry{ChainID: vaa.ChainIDTerra2, ChannelID: "channel-0"}, ChannelConfigEntry{ChainID: vaa.ChainIDInjective, ChannelID: "channel-1"}}
+	var channels1 = []ConnectionConfigEntry{ConnectionConfigEntry{ChainID: vaa.ChainIDTerra2, ConnID: "connection-0"}, ConnectionConfigEntry{ChainID: vaa.ChainIDInjective, ConnID: "connection-1"}}
 	_, err := json.Marshal(channels1)
 	require.NoError(t, err)
 
-	channelsJson := []byte(`[{"ChainID":18,"ChannelID":"channel-0"},{"ChainID":19,"ChannelID":"channel-1"}]`)
+	channelsJson := []byte(`[{"ChainID":18,"ConnID":"connection-0"},{"ChainID":19,"ConnID":"connection-1"}]`)
 
-	var channels2 []ChannelConfigEntry
+	var channels2 []ConnectionConfigEntry
 	err = json.Unmarshal(channelsJson, &channels2)
 	require.NoError(t, err)
 	assert.Equal(t, channels1, channels2)
@@ -216,4 +220,34 @@ func TestParseConvertUrlToTendermint(t *testing.T) {
 	result, err = ConvertUrlToTendermint("ws://wormchain:26657/websocket")
 	require.NoError(t, err)
 	assert.Equal(t, expectedResult, result)
+}
+
+func TestParseIbcChannelQueryResults(t *testing.T) {
+	connJson := []byte(`
+	{
+		"channel": {
+		  "state": "STATE_OPEN",
+		  "ordering": "ORDER_UNORDERED",
+		  "counterparty": {
+			"port_id": "wasm.terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au",
+			"channel_id": "channel-0"
+		  },
+		  "connection_hops": [
+			"connection-0"
+		  ],
+		  "version": "ibc-wormhole-v1"
+		},
+		"proof": null,
+		"proof_height": {
+		  "revision_number": "0",
+		  "revision_height": "90"
+		}
+	  }
+	  `)
+
+	var result ibcChannelQueryResults
+	err := json.Unmarshal(connJson, &result)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(result.Channel.ConnectionHops))
+	assert.Equal(t, "connection-0", result.Channel.ConnectionHops[0])
 }
