@@ -1,14 +1,10 @@
 package ibc
 
 import (
-	// "encoding/hex"
 	"encoding/hex"
 	"encoding/json"
-	// "fmt"
 	"testing"
 	"time"
-
-	// "time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,8 +12,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
-	// "github.com/tidwall/gjson"
-	// "go.uber.org/zap"
 )
 
 func TestParseIbcReceivePublishEvent(t *testing.T) {
@@ -249,5 +243,36 @@ func TestParseIbcChannelQueryResults(t *testing.T) {
 	err := json.Unmarshal(connJson, &result)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(result.Channel.ConnectionHops))
+	assert.Equal(t, "connection-0", result.Channel.ConnectionHops[0])
+}
+
+func TestParseIbcChannelQueryResultsMultipleHops(t *testing.T) {
+	connJson := []byte(`
+	{
+		"channel": {
+		  "state": "STATE_OPEN",
+		  "ordering": "ORDER_UNORDERED",
+		  "counterparty": {
+			"port_id": "wasm.terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au",
+			"channel_id": "channel-0"
+		  },
+		  "connection_hops": [
+			"connection-0",
+			"connection-42"
+		  ],
+		  "version": "ibc-wormhole-v1"
+		},
+		"proof": null,
+		"proof_height": {
+		  "revision_number": "0",
+		  "revision_height": "90"
+		}
+	  }
+	  `)
+
+	var result ibcChannelQueryResults
+	err := json.Unmarshal(connJson, &result)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(result.Channel.ConnectionHops))
 	assert.Equal(t, "connection-0", result.Channel.ConnectionHops[0])
 }
