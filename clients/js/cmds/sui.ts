@@ -1,4 +1,3 @@
-import { getObjectId, TransactionEffects } from "@mysten/sui.js";
 import yargs from "yargs";
 import { config } from "../config";
 import {
@@ -8,7 +7,6 @@ import {
 } from "../consts";
 import { NETWORKS } from "../networks";
 import {
-  executeEntry,
   getOwnedObjectId,
   getProvider,
   getSigner,
@@ -79,8 +77,9 @@ exports.builder = function (y: typeof yargs) {
         const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
         const owner = argv.owner;
 
+        // todo(aki): handle pagination
         const provider = getProvider(network, rpc);
-        const objects = await provider.getObjectsOwnedByAddress(owner);
+        const objects = await provider.getOwnedObjects({ owner });
 
         console.log("Network: ", network);
         console.log("Owner:   ", owner);
@@ -137,22 +136,23 @@ exports.builder = function (y: typeof yargs) {
           );
         }
 
-        const effects: TransactionEffects = await executeEntry(
-          provider,
-          network,
-          packageId,
-          "state",
-          "init_and_share_state",
-          [],
-          [deployerCapObjectId, wormholeStateObjectId]
-        );
+        // const effects: TransactionEffects =
+        // await executeTransactionBlock(
+        //   provider,
+        //   network,
+        //   packageId,
+        //   "state",
+        //   "init_and_share_state",
+        //   [],
+        //   [deployerCapObjectId, wormholeStateObjectId]
+        // );
 
-        console.log(
-          "Token bridge state object ID: ",
-          effects["created"].find(
-            (o) => typeof o.owner === "object" && "Shared" in o.owner
-          ).reference.objectId
-        );
+        // console.log(
+        //   "Token bridge state object ID: ",
+        //   effects["created"].find(
+        //     (o) => typeof o.owner === "object" && "Shared" in o.owner
+        //   ).reference.objectId
+        // );
       }
     )
     .command(
@@ -247,30 +247,31 @@ exports.builder = function (y: typeof yargs) {
           );
         }
 
-        const effects: TransactionEffects = await executeEntry(
-          provider,
-          network,
-          packageId,
-          "setup",
-          "init_and_share_state",
-          [],
-          [
-            deployerCapObjectId,
-            upgradeCapObjectId,
-            governanceChainId,
-            [...Buffer.from(governanceContract, "hex")],
-            [[...Buffer.from(initialGuardian, "hex")]],
-            365, // Guardian set TTL in epochs
-            "0", // Message fee
-          ]
-        );
+        // const effects: TransactionEffects =
+        // await executeTransactionBlock(
+        //   provider,
+        //   network,
+        //   packageId,
+        //   "setup",
+        //   "init_and_share_state",
+        //   [],
+        //   [
+        //     deployerCapObjectId,
+        //     upgradeCapObjectId,
+        //     governanceChainId,
+        //     [...Buffer.from(governanceContract, "hex")],
+        //     [[...Buffer.from(initialGuardian, "hex")]],
+        //     365, // Guardian set TTL in epochs
+        //     "0", // Message fee
+        //   ]
+        // );
 
-        console.log(
-          "Wormhole state object ID: ",
-          effects["created"].find(
-            (o) => typeof o.owner === "object" && "Shared" in o.owner
-          ).reference.objectId
-        );
+        // console.log(
+        //   "Wormhole state object ID: ",
+        //   effects["created"].find(
+        //     (o) => typeof o.owner === "object" && "Shared" in o.owner
+        //   ).reference.objectId
+        // );
       }
     )
     .command(
@@ -323,43 +324,44 @@ exports.builder = function (y: typeof yargs) {
         const feeAmount = BigInt(0);
 
         // Get fee
-        const feeCoins = (
-          await provider.selectCoinsWithBalanceGreaterThanOrEqual(
-            owner,
-            feeAmount,
-            "0x2::sui::SUI"
-          )
-        ).find((c) => c.status === "Exists");
-        if (!feeCoins) {
-          throw new Error(
-            `Cannot find SUI coins owned by ${owner} with sufficient balance`
-          );
-        }
+        // const feeCoins = (
+        //   await provider.selectCoinsWithBalanceGreaterThanOrEqual(
+        //     owner,
+        //     feeAmount,
+        //     "0x2::sui::SUI"
+        //   )
+        // ).find((c) => c.status === "Exists");
+        // if (!feeCoins) {
+        //   throw new Error(
+        //     `Cannot find SUI coins owned by ${owner} with sufficient balance`
+        //   );
+        // }
 
-        const effects: TransactionEffects = await executeEntry(
-          provider,
-          network,
-          packageId,
-          "sender",
-          "send_message_entry",
-          [],
-          [stateObjectId, wormholeStateObjectId, message, getObjectId(feeCoins)]
-        );
+        // const effects: TransactionEffects =
+        // await executeTransactionBlock(
+        //   provider,
+        //   network,
+        //   packageId,
+        //   "sender",
+        //   "send_message_entry",
+        //   [],
+        //   [stateObjectId, wormholeStateObjectId, message, getObjectId(feeCoins)]
+        // );
 
-        const event = effects.events.find((e) => "moveEvent" in e) as
-          | PublishMessageEvent
-          | undefined;
-        if (!event) {
-          throw new Error("Publish failed");
-        }
+        // const event = effects.events.find((e) => "moveEvent" in e) as
+        //   | PublishMessageEvent
+        //   | undefined;
+        // if (!event) {
+        //   throw new Error("Publish failed");
+        // }
 
-        console.log("Publish message succeeded:", {
-          sender: event.moveEvent.sender,
-          type: event.moveEvent.type,
-          payload: Buffer.from(event.moveEvent.fields.payload).toString(),
-          emitter: Buffer.from(event.moveEvent.fields.sender).toString("hex"),
-          sequence: event.moveEvent.fields.sequence,
-        });
+        // console.log("Publish message succeeded:", {
+        //   sender: event.moveEvent.sender,
+        //   type: event.moveEvent.type,
+        //   payload: Buffer.from(event.moveEvent.fields.payload).toString(),
+        //   emitter: Buffer.from(event.moveEvent.fields.sender).toString("hex"),
+        //   sequence: event.moveEvent.fields.sequence,
+        // });
       }
     )
     .strict()

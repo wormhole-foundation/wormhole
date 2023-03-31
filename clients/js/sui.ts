@@ -1,8 +1,11 @@
 import {
   Connection,
   Ed25519Keypair,
+  fromB64,
   JsonRpcProvider,
+  normalizeSuiObjectId,
   RawSigner,
+  TransactionBlock,
 } from "@mysten/sui.js";
 import { execSync } from "child_process";
 import fs from "fs";
@@ -10,36 +13,35 @@ import { resolve } from "path";
 import { NETWORKS } from "./networks";
 import { Network } from "./utils";
 
-export async function executeEntry(
+export async function executeTransactionBlock(
   provider: JsonRpcProvider,
   network: Network,
-  packageObjectId: string,
-  moduleName: string,
-  functionName: string,
-  typeArgs: string[],
-  args: any[]
+  transactionBlock: TransactionBlock
 ) {
   const signer = getSigner(provider, network);
-  const moveCallTxn = await signer.executeMoveCall({
-    packageObjectId,
-    module: moduleName,
-    function: functionName,
-    typeArguments: typeArgs,
-    arguments: args,
-    gasBudget: 50000,
-  });
+  const testRes = await signer.dryRunTransactionBlock({ transactionBlock });
+  if (testRes.effects.status.status !== "success") {
+    throw new Error(
+      `Failed to execute transaction: ${testRes.effects.status.error}`
+    );
+  }
 
-  console.log(
-    "Transaction digest: ",
-    moveCallTxn["certificate"]["transactionDigest"]
-  );
-  console.log(
-    "Sender:             ",
-    moveCallTxn["certificate"]["data"]["sender"]
-  );
+  const res = await signer.signAndExecuteTransactionBlock({ transactionBlock });
+  console.log("Digest", res.digest, res.effects.transactionDigest);
+  console.log("Sender", res.transaction.data.sender);
+
+  // console.log(
+  //   "Transaction digest: ",
+  //   moveCallTxn["certificate"]["transactionDigest"]
+  // );
+  // console.log(
+  //   "Sender:             ",
+  //   moveCallTxn["certificate"]["data"]["sender"]
+  // );
 
   // Let caller handle parsing and logging effects
-  return moveCallTxn["effects"]["effects"];
+  // return moveCallTxn["effects"]["effects"];
+  return res;
 }
 
 export const getOwnedObjectId = async (
@@ -47,14 +49,13 @@ export const getOwnedObjectId = async (
   owner: string,
   packageId: string,
   moduleName: string,
-  objectName: string
+  structName: string
 ): Promise<string | null> => {
-  const objects = await provider.getObjectsOwnedByAddress(owner);
-  const type = `${packageId}::${moduleName}::${objectName}`;
-  return (
-    objects.find((o) => o.type.toLowerCase() === type.toLowerCase())
-      ?.objectId ?? null
-  );
+  const res = await provider.getOwnedObjects({
+    owner,
+    filter: { StructType: `${packageId}::${moduleName}::${structName}` },
+  });
+  return res.data.length > 0 ? res.data[0].data.objectId : null;
 };
 
 export const getProvider = (
@@ -88,7 +89,45 @@ export const getSigner = (
 };
 
 export const isValidSuiObjectId = (objectId: string): boolean => {
-  return /^(0x)?[0-9a-f]{40}$/i.test(objectId);
+  return /^(0x)?[0-9a-f]{64}$/i.test(objectId);
+};
+
+type SuiPublishEvent = {
+  packageId: string;
+  type: "published";
+  version: number;
+  digest: string;
+  modules: string[];
+};
+
+const isSuiPublishEvent = (event: any): event is SuiPublishEvent => {
+  return event.type === "published";
+};
+
+type SuiCreateEvent = {
+  sender: string;
+  type: "created";
+  objectType: string;
+  objectId: string;
+  version: number;
+  digest: string;
+  owner:
+    | {
+        AddressOwner: string;
+      }
+    | {
+        ObjectOwner: string;
+      }
+    | {
+        Shared: {
+          initial_shared_version: number;
+        };
+      }
+    | "Immutable";
+};
+
+const isSuiCreateEvent = (event: any): event is SuiCreateEvent => {
+  return event.type === "created";
 };
 
 export const publishPackage = async (
@@ -105,7 +144,10 @@ export const publishPackage = async (
     setupToml(packagePath, network, namedAddresses);
 
     // Build contracts
-    const compiledModules: string[] = JSON.parse(
+    const buildOutput: {
+      modules: string[];
+      dependencies: string[];
+    } = JSON.parse(
       execSync(
         `sui move build --dump-bytecode-as-base64 --path ${packagePath}`,
         {
@@ -115,38 +157,48 @@ export const publishPackage = async (
     );
 
     // Publish contracts
+    const transactionBlock = new TransactionBlock();
+    const [upgradeCap] = transactionBlock.publish(
+      buildOutput.modules.map((m: string) => Array.from(fromB64(m))),
+      buildOutput.dependencies.map((d: string) => normalizeSuiObjectId(d))
+    );
+
+    // Transfer upgrade capability to deployer
     const signer = getSigner(provider, network);
-    const publishTx = await signer.publish({
-      compiledModules,
-      gasBudget: 1000000,
+    transactionBlock.transferObjects(
+      [upgradeCap],
+      transactionBlock.pure(await signer.getAddress())
+    );
+
+    // Execute transactions
+    const res = await signer.signAndExecuteTransactionBlock({
+      transactionBlock,
+      options: {
+        showInput: true,
+        showObjectChanges: true,
+      },
     });
 
     // Dump deployment info to console
-    // todo(aki): use dot notation once Sui SDK types `publishTx` correctly
+    console.log("Transaction digest", res.digest);
+    console.log("Deployer", res.transaction.data.sender);
     console.log(
-      "Transaction digest: ",
-      publishTx["certificate"]["transactionDigest"]
+      "Published to",
+      res.objectChanges.find(isSuiPublishEvent).packageId
     );
     console.log(
-      "Deployer:           ",
-      publishTx["certificate"]["data"]["sender"]
+      "Created objects",
+      res.objectChanges.filter(isSuiCreateEvent).map((e) => {
+        return {
+          type: e.objectType,
+          objectId: e.objectId,
+          owner: e.owner["AddressOwner"] || e.owner["ObjectOwner"] || e.owner,
+        };
+      })
     );
-    console.log(
-      "Deployed to:        ",
-      publishTx["effects"]["effects"]["created"].find(
-        (o) => o.owner === "Immutable"
-      )["reference"]["objectId"]
-    );
-    console.log(
-      "Created objects:",
-      publishTx["effects"]["effects"]["events"]
-        .filter((e) => "newObject" in e)
-        .map((e) => ({
-          type: e["newObject"]["objectType"],
-          objectId: e["newObject"]["objectId"],
-          owner: e["newObject"]["recipient"]["AddressOwner"],
-        }))
-    );
+
+    // Return publish transaction info
+    return res;
   } catch (e) {
     throw e;
   } finally {
