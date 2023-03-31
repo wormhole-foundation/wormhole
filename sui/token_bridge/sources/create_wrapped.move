@@ -44,6 +44,7 @@ module token_bridge::create_wrapped {
         Self as control,
         CreateWrapped as CreateWrappedControl
     };
+    use token_bridge::wrapped_asset::{Self};
 
     /// Asset metadata is for native Sui coin type.
     const E_NATIVE_ASSET: u64 = 0;
@@ -93,7 +94,12 @@ module token_bridge::create_wrapped {
         // Create `WrappedAssetSetup` object and transfer to transaction sender.
         // The owner of this object will call `complete_registration` to destroy
         // it.
-        new_setup(witness, vaa_buf, ctx)
+        WrappedAssetSetup {
+            id: object::new(ctx),
+            vaa_buf,
+            supply: balance::create_supply(witness),
+            build_version: control::version()
+        }
     }
 
     /// After executing `prepare_registration`, owner of `WrappedAssetSetup`
@@ -150,7 +156,7 @@ module token_bridge::create_wrapped {
         // If both of these conditions are met, `register_wrapped_asset` will
         // succeed and the new wrapped coin will be registered.
         token_registry::add_new_wrapped(
-            state::borrow_token_registry_mut(token_bridge_state),
+            state::borrow_mut_token_registry(token_bridge_state),
             token_meta,
             supply,
             ctx
@@ -178,10 +184,13 @@ module token_bridge::create_wrapped {
                 the_clock
             );
 
-        // When a wrapped asset is updated, the encoded token info is checked
-        // against what exists in the registry.
-        token_registry::update_wrapped<CoinType>(
-            state::borrow_token_registry_mut(token_bridge_state),
+        // This asset must exist in the registry.
+        let registry = state::borrow_mut_token_registry(token_bridge_state);
+        token_registry::assert_has<CoinType>(registry);
+
+        // Now update wrapped.
+        wrapped_asset::update_metadata(
+            token_registry::borrow_mut_wrapped<CoinType>(registry),
             token_meta
         );
     }
@@ -204,26 +213,18 @@ module token_bridge::create_wrapped {
         asset_meta::deserialize(wormhole::vaa::take_payload(parsed))
     }
 
-    fun new_setup<CoinType: drop>(
-        witness: CoinType,
-        vaa_buf: vector<u8>,
-        ctx: &mut TxContext
-    ): WrappedAssetSetup<CoinType> {
-       WrappedAssetSetup {
-            id: object::new(ctx),
-            vaa_buf,
-            supply: balance::create_supply(witness),
-            build_version: control::version()
-        }
-    }
-
     #[test_only]
     public fun new_setup_test_only<CoinType: drop>(
         witness: CoinType,
         vaa_buf: vector<u8>,
         ctx: &mut TxContext
     ): WrappedAssetSetup<CoinType> {
-        new_setup(witness, vaa_buf, ctx)
+        WrappedAssetSetup {
+            id: object::new(ctx),
+            vaa_buf,
+            supply: balance::create_supply(witness),
+            build_version: control::version()
+        }
     }
 
     #[test_only]
@@ -351,7 +352,9 @@ module token_bridge::create_wrapped_tests {
         // Check registry.
         {
             let registry = state::borrow_token_registry(&token_bridge_state);
-            assert!(token_registry::is_wrapped<CREATE_WRAPPED_TESTS>(registry), 0);
+            let verified =
+                token_registry::verified_asset<CREATE_WRAPPED_TESTS>(registry);
+            assert!(token_registry::is_wrapped(&verified), 0);
 
             let asset =
                 token_registry::borrow_wrapped<CREATE_WRAPPED_TESTS>(registry);

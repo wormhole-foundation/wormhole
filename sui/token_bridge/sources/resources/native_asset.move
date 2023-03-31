@@ -13,7 +13,9 @@ module token_bridge::native_asset {
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::state::{chain_id};
 
+    friend token_bridge::complete_transfer;
     friend token_bridge::token_registry;
+    friend token_bridge::transfer_tokens;
 
     /// Container for storing canonical token address and custodied `Balance`.
     struct NativeAsset<phantom C> has store {
@@ -189,10 +191,10 @@ module token_bridge::native_asset_tests {
         };
 
         // convert to token info and assert convrsion is correct
-        let (token_chain, token_address) =
-            native_asset::canonical_info<COIN_NATIVE_10>(
-                &asset
-            );
+        let (
+            token_chain,
+            token_address
+        ) = native_asset::canonical_info<COIN_NATIVE_10>(&asset);
 
         assert!(token_chain == chain_id(), 0);
         assert!(token_address == expected_token_address, 0);

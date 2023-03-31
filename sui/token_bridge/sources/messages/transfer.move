@@ -41,11 +41,6 @@ module token_bridge::transfer {
         relayer_fee: NormalizedAmount,
     }
 
-    /// Identifier for `Transfer`.
-    public fun payload_id(): u8 {
-        PAYLOAD_ID
-    }
-
     /// Create new `Transfer`.
     public fun new(
         amount: NormalizedAmount,
@@ -108,14 +103,14 @@ module token_bridge::transfer {
         let relayer_fee = normalized_amount::take_bytes(&mut cur);
         cursor::destroy_empty(cur);
 
-        new(
+        Transfer {
             amount,
             token_address,
             token_chain,
             recipient,
             recipient_chain,
-            relayer_fee
-        )
+            relayer_fee,
+        }
     }
 
     /// Encode `Transfer` for Wormhole message payload.
@@ -189,6 +184,11 @@ module token_bridge::transfer {
     #[test_only]
     public fun destroy(transfer: Transfer) {
         unpack(transfer);
+    }
+
+    #[test_only]
+    public fun payload_id(): u8 {
+        PAYLOAD_ID
     }
 }
 

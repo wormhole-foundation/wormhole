@@ -17,7 +17,10 @@ module token_bridge::wrapped_asset {
     use token_bridge::asset_meta::{Self, AssetMeta};
     use token_bridge::normalized_amount::{cap_decimals};
 
+    friend token_bridge::complete_transfer;
+    friend token_bridge::create_wrapped;
     friend token_bridge::token_registry;
+    friend token_bridge::transfer_tokens;
 
     /// Token chain ID matching Sui's are not allowed.
     const E_SUI_CHAIN: u64 = 0;

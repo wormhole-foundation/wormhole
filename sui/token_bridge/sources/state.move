@@ -6,7 +6,7 @@
 /// accessing registered assets and verifying `VAA` intended for Token Bridge by
 /// checking the emitter against its own registered emitters.
 module token_bridge::state {
-    use std::option::{Option};
+    use std::option::{Self, Option};
     use sui::balance::{Balance};
     use sui::clock::{Clock};
     use sui::dynamic_field::{Self as field};
@@ -278,7 +278,7 @@ module token_bridge::state {
     }
 
     /// Retrieve mutable reference to `TokenRegistry`.
-    public(friend) fun borrow_token_registry_mut(
+    public(friend) fun borrow_mut_token_registry(
         self: &mut State
     ): &mut TokenRegistry {
         &mut self.token_registry
@@ -288,7 +288,7 @@ module token_bridge::state {
     public fun borrow_token_registry_mut_test_only(
         self: &mut State
     ): &mut TokenRegistry {
-        borrow_token_registry_mut(self)
+        borrow_mut_token_registry(self)
     }
 
     /// For a deserialized VAA, consume its hash so this VAA cannot be redeemed
@@ -342,25 +342,24 @@ module token_bridge::state {
     public fun maybe_verified_asset<CoinType>(
         self: &State
     ): Option<VerifiedAsset<CoinType>> {
-        token_registry::maybe_verified(&self.token_registry)
+        let registry = &self.token_registry;
+        if (token_registry::has<CoinType>(registry)) {
+            option::some(token_registry::verified_asset<CoinType>(registry))
+        } else {
+            option::none()
+        }
     }
 
     public fun verified_asset<CoinType>(
         self: &State
     ): VerifiedAsset<CoinType> {
-        token_registry::new_verified(&self.token_registry)
+        token_registry::assert_has<CoinType>(&self.token_registry);
+        token_registry::verified_asset(&self.token_registry)
     }
 
     /// Retrieve decimals from for a given coin type in `TokenRegistry`.
     public fun coin_decimals<CoinType>(self: &State): u8 {
-        let (
-            _,
-            _,
-            _,
-            decimals
-        ) = token_registry::unpack_verified(verified_asset<CoinType>(self));
-
-        decimals
+        token_registry::coin_decimals(&verified_asset<CoinType>(self))
     }
 
     #[test_only]

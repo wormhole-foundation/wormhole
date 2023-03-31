@@ -131,9 +131,10 @@ module coin_wrapped_12::coin_tests {
 
         // Check registry.
         {
-            let registry = state::borrow_token_registry(&token_bridge_state);
-            assert!(token_registry::is_wrapped<COIN>(registry), 0);
+            let verified = state::verified_asset<COIN>(&token_bridge_state);
+            assert!(token_registry::is_wrapped<COIN>(&verified), 0);
 
+            let registry = state::borrow_token_registry(&token_bridge_state);
             let asset =
                 token_registry::borrow_wrapped<COIN>(registry);
             assert!(wrapped_asset::total_supply(asset) == 0, 0);

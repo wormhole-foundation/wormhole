@@ -9,6 +9,7 @@ module wormhole::publish_message {
     use sui::balance::{Balance};
     use sui::clock::{Self, Clock};
     use sui::event::{Self};
+    use sui::object::{Self};
     use sui::sui::{SUI};
 
     use wormhole::emitter::{Self, EmitterCap};
@@ -58,11 +59,10 @@ module wormhole::publish_message {
 
         // Truncate to seconds.
         let timestamp = clock::timestamp_ms(the_clock) / 1000;
-
         // Emit Sui event with `WormholeMessage`.
         event::emit(
             WormholeMessage {
-                sender: emitter::id_to_bytes(emitter_cap),
+                sender: object::id_to_bytes(&object::id(emitter_cap)),
                 sequence,
                 nonce,
                 payload: payload,

@@ -134,7 +134,7 @@ module token_bridge::coin_wrapped_12 {
         let registry =
             state::borrow_token_registry_mut_test_only(&mut token_bridge_state);
         let minted =
-            token_registry::put_into_circulation_test_only(registry, amount);
+            token_registry::mint_test_only(registry, amount);
 
         return_state(token_bridge_state);
 

@@ -108,7 +108,7 @@ module token_bridge::coin_native_10 {
         let token_bridge_state = take_state(scenario);
         let registry =
             state::borrow_token_registry_mut_test_only(&mut token_bridge_state);
-        token_registry::take_from_circulation_test_only(registry, minted);
+        token_registry::deposit_test_only(registry, minted);
 
         return_state(token_bridge_state);
     }

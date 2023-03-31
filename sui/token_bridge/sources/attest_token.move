@@ -22,6 +22,9 @@ module token_bridge::attest_token {
     use token_bridge::token_registry::{Self};
     use token_bridge::version_control::{AttestToken as AttestTokenControl};
 
+    /// coin type belongs to a wrapped asset.
+    const E_WRAPPED_ASSET: u64 = 0;
+
     /// `attest_token` takes `CoinMetadata` of a coin type and sends a Wormhole
     /// message with encoded asset metadata for a foreign Token Bridge contract
     /// to consume and create a wrapped asset reflecting this Sui asset. Asset
@@ -71,11 +74,14 @@ module token_bridge::attest_token {
         if (option::is_some(&verified)) {
             // If this asset is already registered, there should already
             // be canonical info associated with this coin type.
-            token_registry::assert_verified_native(option::borrow(&verified));
+            assert!(
+                !token_registry::is_wrapped(option::borrow(&verified)),
+                E_WRAPPED_ASSET
+            );
         } else {
             // Otherwise, register it.
             token_registry::add_new_native(
-                state::borrow_token_registry_mut(token_bridge_state),
+                state::borrow_mut_token_registry(token_bridge_state),
                 coin_metadata
             );
         };
@@ -162,7 +168,9 @@ module token_bridge::attest_token_tests {
         {
             let registry =
                 state::borrow_token_registry(&token_bridge_state);
-            assert!(token_registry::is_native<COIN_NATIVE_10>(registry), 0);
+            let verified =
+                token_registry::verified_asset<COIN_NATIVE_10>(registry);
+            assert!(!token_registry::is_wrapped(&verified), 0);
 
             let asset = token_registry::borrow_native<COIN_NATIVE_10>(registry);
 

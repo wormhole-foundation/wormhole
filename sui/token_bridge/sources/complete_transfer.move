@@ -16,6 +16,7 @@ module token_bridge::complete_transfer {
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::vaa::{VAA};
 
+    use token_bridge::native_asset::{Self};
     use token_bridge::normalized_amount::{Self, NormalizedAmount};
     use token_bridge::state::{Self, State};
     use token_bridge::token_registry::{Self, VerifiedAsset};
@@ -24,6 +25,7 @@ module token_bridge::complete_transfer {
     use token_bridge::version_control::{
         CompleteTransfer as CompleteTransferControl
     };
+    use token_bridge::wrapped_asset::{Self};
 
     // Requires `handle_complete_transfer`.
     friend token_bridge::complete_transfer_with_payload;
@@ -100,7 +102,7 @@ module token_bridge::complete_transfer {
         );
 
         let verified =
-            token_registry::verify_for_asset_cap<CoinType>(
+            token_registry::verify_token_info(
                 state::borrow_token_registry(token_bridge_state),
                 token_chain,
                 token_address
@@ -110,17 +112,25 @@ module token_bridge::complete_transfer {
         let raw_amount =
             normalized_amount::to_raw(
                 amount,
-                token_registry::verified_decimals(&verified)
+                token_registry::coin_decimals(&verified)
             );
 
         // If the token is wrapped by Token Bridge, we will mint these tokens.
         // Otherwise, we will withdraw from custody.
-        let bridged_out =
-            token_registry::put_into_circulation(
-                &verified,
-                state::borrow_token_registry_mut(token_bridge_state),
-                raw_amount
-            );
+        let bridged_out = {
+            let registry = state::borrow_mut_token_registry(token_bridge_state);
+            if (token_registry::is_wrapped(&verified)) {
+                wrapped_asset::mint_balance(
+                    token_registry::borrow_mut_wrapped(registry),
+                    raw_amount
+                )
+            } else {
+                native_asset::withdraw_balance(
+                    token_registry::borrow_mut_native(registry),
+                    raw_amount
+                )
+            }
+        };
 
         (verified, bridged_out)
     }
@@ -184,7 +194,7 @@ module token_bridge::complete_transfer {
             let payout_amount =
                 normalized_amount::to_raw(
                     relayer_fee,
-                    token_registry::verified_decimals(&verified)
+                    token_registry::coin_decimals(&verified)
                 );
             balance::split(&mut bridged_out, payout_amount)
         };
@@ -283,10 +293,11 @@ module token_bridge::complete_transfer_tests {
                     )
                 );
 
-            let (
-                expected_token_chain,
-                expected_token_address
-            ) = token_registry::canonical_info<COIN_NATIVE_10>(registry);
+            let verified =
+                token_registry::verified_asset<COIN_NATIVE_10>(registry);
+            let expected_token_chain = token_registry::token_chain(&verified);
+            let expected_token_address =
+                token_registry::token_address(&verified);
             assert!(transfer::token_chain(&parsed) == expected_token_chain, 0);
             assert!(transfer::token_address(&parsed) == expected_token_address, 0);
 
@@ -404,10 +415,11 @@ module token_bridge::complete_transfer_tests {
                     )
                 );
 
-            let (
-                expected_token_chain,
-                expected_token_address
-            ) = token_registry::canonical_info<COIN_NATIVE_4>(registry);
+            let verified =
+                token_registry::verified_asset<COIN_NATIVE_4>(registry);
+            let expected_token_chain = token_registry::token_chain(&verified);
+            let expected_token_address =
+                token_registry::token_address(&verified);
             assert!(transfer::token_chain(&parsed) == expected_token_chain, 0);
             assert!(transfer::token_address(&parsed) == expected_token_address, 0);
 
@@ -519,10 +531,11 @@ module token_bridge::complete_transfer_tests {
                     )
                 );
 
-            let (
-                expected_token_chain,
-                expected_token_address
-            ) = token_registry::canonical_info<COIN_WRAPPED_7>(registry);
+            let verified =
+                token_registry::verified_asset<COIN_WRAPPED_7>(registry);
+            let expected_token_chain = token_registry::token_chain(&verified);
+            let expected_token_address =
+                token_registry::token_address(&verified);
             assert!(transfer::token_chain(&parsed) == expected_token_chain, 0);
             assert!(transfer::token_address(&parsed) == expected_token_address, 0);
 
@@ -636,10 +649,11 @@ module token_bridge::complete_transfer_tests {
                     )
                 );
 
-            let (
-                expected_token_chain,
-                expected_token_address
-            ) = token_registry::canonical_info<COIN_WRAPPED_12>(registry);
+            let verified =
+                token_registry::verified_asset<COIN_WRAPPED_12>(registry);
+            let expected_token_chain = token_registry::token_chain(&verified);
+            let expected_token_address =
+                token_registry::token_address(&verified);
             assert!(transfer::token_chain(&parsed) == expected_token_chain, 0);
             assert!(transfer::token_address(&parsed) == expected_token_address, 0);
 

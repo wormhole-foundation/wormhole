@@ -35,30 +35,15 @@ module token_bridge::asset_meta {
         name: String,
     }
 
-    public fun new(
-        token_address: ExternalAddress,
-        token_chain: u16,
-        native_decimals: u8,
-        symbol: String,
-        name: String,
-    ): AssetMeta {
-        AssetMeta {
-            token_address,
-            token_chain,
-            native_decimals,
-            symbol,
-            name
-        }
-    }
 
     public fun from_metadata<C>(metadata: &CoinMetadata<C>): AssetMeta {
-        new(
-            native_asset::canonical_address(metadata),
-            chain_id(),
-            coin::get_decimals(metadata),
-            string::from_ascii(coin::get_symbol(metadata)),
-            coin::get_name(metadata)
-        )
+        AssetMeta {
+            token_address: native_asset::canonical_address(metadata),
+            token_chain: chain_id(),
+            native_decimals: coin::get_decimals(metadata),
+            symbol: string::from_ascii(coin::get_symbol(metadata)),
+            name: coin::get_name(metadata)
+        }
     }
 
     public fun unpack(
@@ -131,13 +116,30 @@ module token_bridge::asset_meta {
         let name = bytes32::to_utf8(bytes32::take_bytes(&mut cur));
         cursor::destroy_empty(cur);
 
-        new(
+        AssetMeta {
             token_address,
             token_chain,
             native_decimals,
             symbol,
             name
-        )
+        }
+    }
+
+    #[test_only]
+    public fun new(
+        token_address: ExternalAddress,
+        token_chain: u16,
+        native_decimals: u8,
+        symbol: String,
+        name: String,
+    ): AssetMeta {
+        AssetMeta {
+            token_address,
+            token_chain,
+            native_decimals,
+            symbol,
+            name
+        }
     }
 
     #[test_only]
@@ -158,6 +160,11 @@ module token_bridge::asset_meta {
     #[test_only]
     public fun destroy(token_meta: AssetMeta) {
         unpack(token_meta);
+    }
+
+    #[test_only]
+    public fun payload_id(): u8 {
+        PAYLOAD_ID
     }
 
 }

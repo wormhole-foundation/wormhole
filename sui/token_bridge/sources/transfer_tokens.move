@@ -17,6 +17,7 @@ module token_bridge::transfer_tokens {
     use wormhole::external_address::{ExternalAddress};
     use wormhole::state::{State as WormholeState};
 
+    use token_bridge::native_asset::{Self};
     use token_bridge::normalized_amount::{Self, NormalizedAmount};
     use token_bridge::state::{Self, State};
     use token_bridge::token_registry::{Self};
@@ -24,6 +25,7 @@ module token_bridge::transfer_tokens {
     use token_bridge::version_control::{
         TransferTokens as TransferTokensControl
     };
+    use token_bridge::wrapped_asset::{Self};
 
     friend token_bridge::transfer_tokens_with_payload;
 
@@ -82,31 +84,32 @@ module token_bridge::transfer_tokens {
         bridged_in: Balance<CoinType>,
         relayer_fee: u64,
     ): (u16, ExternalAddress, NormalizedAmount, NormalizedAmount) {
-        // Disallow `relayer_fee` to be greater than the amount in `Coin`.
+        // Disallow `relayer_fee` to be greater than the amount in `Balance`.
         let amount = balance::value(&bridged_in);
         assert!(relayer_fee <= amount, E_RELAYER_FEE_EXCEEDS_AMOUNT);
 
         // Fetch canonical token info from registry.
-        let verified = state::verified_asset(token_bridge_state);
+        let verified = state::verified_asset<CoinType>(token_bridge_state);
 
         // Either burn or deposit depending on `CoinType`.
-        token_registry::take_from_circulation(
-            &verified,
-            state::borrow_token_registry_mut(token_bridge_state),
-            bridged_in
-        );
+        let registry = state::borrow_mut_token_registry(token_bridge_state);
+        if (token_registry::is_wrapped(&verified)) {
+            wrapped_asset::burn_balance(
+                token_registry::borrow_mut_wrapped(registry),
+                bridged_in
+            );
+        } else {
+            native_asset::deposit_balance(
+                token_registry::borrow_mut_native(registry),
+                bridged_in
+            );
+        };
 
-        // Now unpack.
-        let (
-            _,
-            token_chain,
-            token_address,
-            decimals
-        ) = token_registry::unpack_verified(verified);
+        let decimals = token_registry::coin_decimals(&verified);
 
         (
-            token_chain,
-            token_address,
+            token_registry::token_chain(&verified),
+            token_registry::token_address(&verified),
             normalized_amount::from_raw(amount, decimals),
             normalized_amount::from_raw(relayer_fee, decimals)
         )
@@ -156,9 +159,45 @@ module token_bridge::transfer_tokens {
     }
 }
 
+#[test_only]
+module token_bridge::transfer_token_tests {
+    fun test_transfer_tokens_native_10() {
+        // use token_bridge::transfer_tokens::{transfer_tokens};
 
-// #[test_only]
-// module token_bridge::transfer_token_test {
+        // let user = person();
+        // let my_scenario = test_scenario::begin(user);
+        // let scenario = &mut my_scenario;
+
+        // // Publish coin.
+        // coin_native_10::init_test_only(test_scenario::ctx(scenario));
+
+        // // Set up contracts.
+        // let wormhole_fee = 350;
+        // set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
+
+        // // Ignore effects.
+        // test_scenario::next_tx(scenario, user);
+
+        // let (token_bridge_state, worm_state) = take_states(scenario);
+        // let the_clock = take_clock(scenario);
+        // let coin_meta = coin_native_10::take_metadata(scenario);
+
+        // // Emit `AssetMeta` payload.
+        // let sequence =
+        //     transfer_tokens(
+        //         &mut token_bridge_state,
+        //         &mut worm_state,
+        //         balance::create_for_testing(
+        //             wormhole_fee
+        //         ),
+        //         &coin_meta,
+        //         1234, // nonce
+        //         &the_clock
+        //     );
+        // assert!(sequence == 0, 0);
+
+    }
+}
 //     use sui::balance::{Self};
 //     use sui::test_scenario::{
 //         Self,

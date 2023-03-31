@@ -10,7 +10,8 @@
 module token_bridge::complete_transfer_with_payload {
     use sui::balance::{Balance};
     use sui::clock::{Clock};
-    use wormhole::emitter::{Self, EmitterCap};
+    use sui::object::{Self};
+    use wormhole::emitter::{EmitterCap};
     use wormhole::state::{State as WormholeState};
 
     use token_bridge::complete_transfer::{Self};
@@ -87,7 +88,7 @@ module token_bridge::complete_transfer_with_payload {
         // Transfer must be redeemed by the contract's registered Wormhole
         // emitter.
         let redeemer = transfer_with_payload::redeemer_id(&parsed);
-        assert!(redeemer == emitter::id(emitter_cap), E_INVALID_REDEEMER);
+        assert!(redeemer == object::id(emitter_cap), E_INVALID_REDEEMER);
 
         // Handle bridging assets out to be returned to method caller.
         //
@@ -111,6 +112,7 @@ module token_bridge::complete_transfer_with_payload {
 #[test_only]
 module token_bridge::complete_transfer_with_payload_tests {
     use sui::balance::{Self};
+    use sui::object::{Self};
     use sui::test_scenario::{Self};
     use wormhole::emitter::{Self};
     use wormhole::state::{chain_id};
@@ -191,7 +193,7 @@ module token_bridge::complete_transfer_with_payload_tests {
                 )
             );
         assert!(
-            transfer_with_payload::redeemer(&expected_transfer) == emitter::external_address(&emitter_cap),
+            transfer_with_payload::redeemer_id(&expected_transfer) == object::id(&emitter_cap),
             0
         );
 
@@ -227,10 +229,10 @@ module token_bridge::complete_transfer_with_payload_tests {
         );
 
         // Verify token info.
-        let (
-            expected_token_chain,
-            expected_token_address
-        ) = token_registry::canonical_info<COIN_NATIVE_10>(registry);
+        let verified =
+            token_registry::verified_asset<COIN_NATIVE_10>(registry);
+        let expected_token_chain = token_registry::token_chain(&verified);
+        let expected_token_address = token_registry::token_address(&verified);
         assert!(expected_token_chain == chain_id(), 0);
         assert!(
             transfer_with_payload::token_chain(&parsed_transfer) == expected_token_chain,
@@ -312,7 +314,7 @@ module token_bridge::complete_transfer_with_payload_tests {
                 )
             );
         assert!(
-            transfer_with_payload::redeemer_id(&expected_transfer) == emitter::id(&emitter_cap),
+            transfer_with_payload::redeemer_id(&expected_transfer) == object::id(&emitter_cap),
             0
         );
 
@@ -343,10 +345,10 @@ module token_bridge::complete_transfer_with_payload_tests {
         );
 
         // Verify token info.
-        let (
-            expected_token_chain,
-            expected_token_address
-        ) = token_registry::canonical_info<COIN_WRAPPED_12>(registry);
+        let verified =
+            token_registry::verified_asset<COIN_WRAPPED_12>(registry);
+        let expected_token_chain = token_registry::token_chain(&verified);
+        let expected_token_address = token_registry::token_address(&verified);
         assert!(expected_token_chain != chain_id(), 0);
         assert!(
             transfer_with_payload::token_chain(&parsed_transfer) == expected_token_chain,
@@ -424,7 +426,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         let emitter_cap =
             emitter::new(&worm_state, test_scenario::ctx(scenario));
         assert!(
-            transfer_with_payload::redeemer_id(&parsed) != emitter::id(&emitter_cap),
+            transfer_with_payload::redeemer_id(&parsed) != object::id(&emitter_cap),
             0
         );
 
@@ -508,16 +510,16 @@ module token_bridge::complete_transfer_with_payload_tests {
                 )
             );
         assert!(
-            transfer_with_payload::redeemer_id(&expected_transfer) == emitter::id(&emitter_cap),
+            transfer_with_payload::redeemer_id(&expected_transfer) == object::id(&emitter_cap),
             0
         );
 
         // Also verify that the encoded token info disagrees with the expected
         // token info.
-        let (
-            expected_token_chain,
-            expected_token_address
-        ) = token_registry::canonical_info<COIN_NATIVE_10>(registry);
+        let verified =
+            token_registry::verified_asset<COIN_NATIVE_10>(registry);
+        let expected_token_chain = token_registry::token_chain(&verified);
+        let expected_token_address = token_registry::token_address(&verified);
         assert!(
             transfer_with_payload::token_chain(&expected_transfer) != expected_token_chain,
             0

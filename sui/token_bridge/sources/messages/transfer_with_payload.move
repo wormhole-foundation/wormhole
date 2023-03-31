@@ -14,7 +14,7 @@ module token_bridge::transfer_with_payload {
     use sui::object::{Self, ID};
     use wormhole::bytes::{Self};
     use wormhole::cursor::{Self};
-    use wormhole::emitter::{Self, EmitterCap};
+    use wormhole::emitter::{EmitterCap};
     use wormhole::external_address::{Self, ExternalAddress};
 
     use token_bridge::normalized_amount::{Self, NormalizedAmount};
@@ -47,11 +47,6 @@ module token_bridge::transfer_with_payload {
         payload: vector<u8>,
     }
 
-    /// Identifier for `TransferWithPayload`.
-    public fun payload_id(): u8 {
-        PAYLOAD_ID
-    }
-
     /// Create new `TransferWithPayload` using `EmitterCap` as the sender.
     public fun new_from_emitter(
         emitter_cap: &EmitterCap,
@@ -62,61 +57,29 @@ module token_bridge::transfer_with_payload {
         redeemer_chain: u16,
         payload: vector<u8>
     ): TransferWithPayload {
-        new(
+        TransferWithPayload {
             amount,
             token_address,
             token_chain,
             redeemer,
             redeemer_chain,
-            emitter::external_address(emitter_cap),
+            sender: external_address::from_id(object::id((emitter_cap))),
             payload
-        )
-    }
-
-    /// Decompose `TransferWithPayload` into its members.
-    public fun unpack(
-        transfer: TransferWithPayload
-    ): (
-        NormalizedAmount,
-        ExternalAddress,
-        u16,
-        ExternalAddress,
-        u16,
-        ExternalAddress,
-        vector<u8>
-    ) {
-        let TransferWithPayload {
-            amount,
-            token_address,
-            token_chain,
-            redeemer,
-            redeemer_chain,
-            sender,
-            payload
-        } = transfer;
-
-        (
-            amount,
-            token_address,
-            token_chain,
-            redeemer,
-            redeemer_chain,
-            sender,
-            payload
-        )
+        }
     }
 
     /// Destroy `TransferWithPayload` and take only its payload.
     public fun take_payload(transfer: TransferWithPayload): vector<u8> {
-        let (
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
+        let TransferWithPayload {
+            amount: _,
+            token_address: _,
+            token_chain: _,
+            redeemer: _,
+            redeemer_chain: _,
+            sender: _,
             payload
-        ) = unpack(transfer);
+         } = transfer;
+
         payload
     }
 
@@ -172,20 +135,20 @@ module token_bridge::transfer_with_payload {
         let redeemer_chain = bytes::take_u16_be(&mut cur);
         let sender = external_address::take_bytes(&mut cur);
 
-        new(
+        TransferWithPayload {
             amount,
             token_address,
             token_chain,
             redeemer,
             redeemer_chain,
             sender,
-            cursor::take_rest(cur)
-        )
+            payload: cursor::take_rest(cur)
+        }
     }
 
     /// Encode `TransferWithPayload` for Wormhole message payload.
     public fun serialize(transfer: TransferWithPayload): vector<u8> {
-        let (
+        let TransferWithPayload {
             amount,
             token_address,
             token_chain,
@@ -193,7 +156,7 @@ module token_bridge::transfer_with_payload {
             redeemer_chain,
             sender,
             payload
-        ) = unpack(transfer);
+         } = transfer;
 
         let buf = vector::empty<u8>();
         bytes::push_u8(&mut buf, PAYLOAD_ID);
@@ -208,35 +171,21 @@ module token_bridge::transfer_with_payload {
         buf
     }
 
-    fun new(
-        amount: NormalizedAmount,
-        token_address: ExternalAddress,
-        token_chain: u16,
-        redeemer: ExternalAddress,
-        redeemer_chain: u16,
-        sender: ExternalAddress,
-        payload: vector<u8>
-    ): TransferWithPayload {
-        TransferWithPayload {
-            amount,
-            token_address,
-            token_chain,
-            redeemer,
-            redeemer_chain,
-            sender,
-            payload
-        }
+    #[test_only]
+    public fun destroy(transfer: TransferWithPayload) {
+        take_payload(transfer);
     }
 
     #[test_only]
-    public fun destroy(transfer: TransferWithPayload) {
-        unpack(transfer);
+    public fun payload_id(): u8 {
+        PAYLOAD_ID
     }
 }
 
 #[test_only]
 module token_bridge::transfer_with_payload_tests {
     use std::vector::{Self};
+    use sui::object::{Self};
     use wormhole::emitter::{Self};
     use wormhole::external_address::{Self};
 
@@ -286,8 +235,10 @@ module token_bridge::transfer_with_payload_tests {
             transfer_with_payload::redeemer_chain(&new_transfer) == redeemer_chain,
             0
         );
+        let expected_sender =
+            external_address::from_id(object::id(&emitter_cap));
         assert!(
-            transfer_with_payload::sender(&new_transfer) == emitter::external_address(&emitter_cap),
+            transfer_with_payload::sender(&new_transfer) == expected_sender,
             0
         );
         assert!(
@@ -352,21 +303,7 @@ module token_bridge::transfer_with_payload_tests {
             0
         );
 
-        let (
-            amount,
-            token_address,
-            token_chain,
-            redeemer,
-            redeemer_chain,
-            sender,
-            payload
-        ) = transfer_with_payload::unpack(parsed);
-        assert!(amount == expected_amount, 0);
-        assert!(token_address == expected_token_address, 0);
-        assert!(token_chain == expected_token_chain, 0);
-        assert!(redeemer == expected_recipient, 0);
-        assert!(redeemer_chain == expected_recipient_chain, 0);
-        assert!(sender == expected_sender, 0);
+        let payload = transfer_with_payload::take_payload(parsed);
         assert!(payload == expected_payload, 0);
     }
 

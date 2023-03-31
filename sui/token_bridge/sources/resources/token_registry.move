@@ -6,18 +6,19 @@
 ///
 /// See `state` module for more details.
 module token_bridge::token_registry {
-    use std::option::{Self, Option};
-    use sui::balance::{Balance, Supply};
+    use sui::balance::{Supply};
     use sui::coin::{CoinMetadata};
     use sui::dynamic_field::{Self};
     use sui::object::{Self, UID};
     use sui::tx_context::{TxContext};
     use wormhole::external_address::{ExternalAddress};
-    use wormhole::state::{chain_id};
 
     use token_bridge::asset_meta::{Self, AssetMeta};
     use token_bridge::native_asset::{Self, NativeAsset};
     use token_bridge::wrapped_asset::{Self, WrappedAsset};
+
+    #[test_only]
+    use sui::balance::{Balance};
 
     friend token_bridge::attest_token;
     friend token_bridge::complete_transfer;
@@ -29,12 +30,8 @@ module token_bridge::token_registry {
     const E_UNREGISTERED: u64 = 0;
     /// Asset is already registered. This only applies to native assets.
     const E_ALREADY_REGISTERED: u64 = 1;
-    /// Coin type belongs to a native asset.
-    const E_NATIVE_ASSET: u64 = 2;
-    /// coin type belongs to a wrapped asset.
-    const E_WRAPPED_ASSET: u64 = 3;
     /// Input token info does not match registered info.
-    const E_CANONICAL_TOKEN_INFO_MISMATCH: u64 = 4;
+    const E_CANONICAL_TOKEN_INFO_MISMATCH: u64 = 2;
 
     /// This container is used to store native and wrapped assets of coin type
     /// as dynamic fields under its `UID`. It also uses a mechanism to generate
@@ -77,74 +74,36 @@ module token_bridge::token_registry {
         new(ctx)
     }
 
+    /// Determine whether a particular coin type is registered.
+    public fun has<CoinType>(self: &TokenRegistry): bool {
+        dynamic_field::exists_(&self.id, Key<CoinType> {})
+    }
+
+    public fun assert_has<CoinType>(self: &TokenRegistry) {
+        assert!(has<CoinType>(self), E_UNREGISTERED);
+    }
+
     /// Create an `VerifiedAsset` by verifying input token info. If the combination
     /// of token chain ID and address do not match with what exists in the
     /// registry, this method aborts.
-    public fun verify_for_asset_cap<CoinType>(
+    public fun verify_token_info<CoinType>(
         self: &TokenRegistry,
-        token_chain: u16,
-        token_address: ExternalAddress
+        chain: u16,
+        addr: ExternalAddress
     ): VerifiedAsset<CoinType> {
-        let (chain, addr) = canonical_info<CoinType>(self);
+        let verified = verified_asset<CoinType>(self);
         assert!(
-            token_chain == chain && addr == token_address,
+            (
+                chain == token_chain(&verified) &&
+                addr == token_address(&verified)
+            ),
             E_CANONICAL_TOKEN_INFO_MISMATCH
         );
-        let is_wrapped = token_chain != chain_id();
-        let coin_decimals = {
-            if (is_wrapped) {
-                wrapped_asset::decimals(
-                    borrow_wrapped_unchecked<CoinType>(self)
-                )
-            } else {
-                native_asset::decimals(
-                    borrow_native_unchecked<CoinType>(self)
-                )
-            }
-        };
 
-        VerifiedAsset { is_wrapped, chain, addr, coin_decimals }
+        verified
     }
 
-    /// Create an `VerifiedAsset` for a given coin type.
-    public fun new_verified<CoinType>(
-        self: &TokenRegistry
-    ): VerifiedAsset<CoinType> {
-        assert_has<CoinType>(self);
-        new_verified_unchecked<CoinType>(self)
-    }
-
-    /// Create an optinal `VerifiedAsset` for a given coin type. Returns
-    /// `option::none()` if coin type is not in registry.
-    public fun maybe_verified<CoinType>(
-        self: &TokenRegistry
-    ): Option<VerifiedAsset<CoinType>> {
-        if (has<CoinType>(self)) {
-            option::some(new_verified_unchecked<CoinType>(self))
-        } else {
-            option::none()
-        }
-    }
-
-    public fun unpack_verified<CoinType>(
-        verified: VerifiedAsset<CoinType>
-    ): (
-        bool,
-        u16,
-        ExternalAddress,
-        u8
-    ) {
-        let VerifiedAsset {
-            is_wrapped,
-            chain,
-            addr,
-            coin_decimals
-        } = verified;
-
-        (is_wrapped, chain, addr, coin_decimals)
-    }
-
-    fun new_verified_unchecked<CoinType>(
+    public fun verified_asset<CoinType>(
         self: &TokenRegistry
     ): VerifiedAsset<CoinType> {
         // We check specifically whether `CoinType` is associated with a dynamic
@@ -156,13 +115,13 @@ module token_bridge::token_registry {
                 Key {}
             );
         if (is_wrapped) {
-            let asset = borrow_wrapped_unchecked<CoinType>(self);
+            let asset = borrow_wrapped<CoinType>(self);
             let (chain, addr) = wrapped_asset::canonical_info(asset);
             let coin_decimals = wrapped_asset::decimals(asset);
 
             VerifiedAsset { is_wrapped, chain, addr, coin_decimals }
         } else {
-            let asset = borrow_native_unchecked<CoinType>(self);
+            let asset = borrow_native<CoinType>(self);
             let (chain, addr) = native_asset::canonical_info(asset);
             let coin_decimals = native_asset::decimals(asset);
 
@@ -170,37 +129,27 @@ module token_bridge::token_registry {
         }
     }
 
-    /// Retrieve canonical token info for either native or wrapped asset.
-    public fun canonical_info<CoinType>(
-        self: &TokenRegistry
-    ): (u16, ExternalAddress) {
-        let (_, chain, addr, _) = unpack_verified(new_verified<CoinType>(self));
-        (chain, addr)
-    }
-
-    /// Retrieve number of native assets registered.
-    public fun num_native(self: &TokenRegistry): u64 {
-        self.num_native
-    }
-
-    /// Retrieve number of wrapped assets registered.
-    public fun num_wrapped(self: &TokenRegistry): u64 {
-        self.num_wrapped
-    }
-
-    /// Determine whether a particular coin type is registered.
-    public fun has<CoinType>(self: &TokenRegistry): bool {
-        dynamic_field::exists_(&self.id, Key<CoinType> {})
-    }
-
     /// Determine whether a given `CoinType` is a wrapped asset.
-    public fun is_wrapped<CoinType>(self: &TokenRegistry): bool {
-        new_verified<CoinType>(self).is_wrapped
+    public fun is_wrapped<CoinType>(verified: &VerifiedAsset<CoinType>): bool {
+        verified.is_wrapped
     }
 
-    /// Determine whether a given `CoinType` is a native asset.
-    public fun is_native<CoinType>(self: &TokenRegistry): bool {
-        !is_wrapped<CoinType>(self)
+    public fun token_chain<CoinType>(
+        verified: &VerifiedAsset<CoinType>
+    ): u16 {
+        verified.chain
+    }
+
+    public fun token_address<CoinType>(
+        verified: &VerifiedAsset<CoinType>
+    ): ExternalAddress {
+        verified.addr
+    }
+
+    public fun coin_decimals<CoinType>(
+        verified: &VerifiedAsset<CoinType>
+    ): u8 {
+        verified.coin_decimals
     }
 
     /// Add a new wrapped asset to the registry and return the canonical token
@@ -240,23 +189,6 @@ module token_bridge::token_registry {
         add_new_wrapped(self, token_meta, supply, ctx)
     }
 
-    /// Update existing wrapped asset's `ForeignMetadata`.
-    ///
-    /// See `state` module for more info.
-    public(friend) fun update_wrapped<CoinType>(
-        self: &mut TokenRegistry,
-        token_meta: AssetMeta
-    ) {
-        // NOTE: This checks canonical token info, so we do not need `VerifiedAsset`.
-        // And because of this, we only want to check if the asset is registered
-        // at this point.
-        assert_has<CoinType>(self);
-        wrapped_asset::update_metadata(
-            borrow_mut_wrapped_unchecked<CoinType>(self),
-            token_meta
-        );
-    }
-
     /// Add a new native asset to the registry and return the canonical token
     /// address.
     ///
@@ -291,109 +223,24 @@ module token_bridge::token_registry {
         add_new_native(self, metadata)
     }
 
-    /// Either mint wrapped assets or withdraw native assets from the registry's
-    /// native balance custody.
-    ///
-    /// NOTE: Only a holder of `VerifiedAsset` can use this method.
-    ///
-    /// See `complete_transfer` module for more info.
-    public(friend) fun put_into_circulation<CoinType>(
-        verified: &VerifiedAsset<CoinType>,
-        self: &mut TokenRegistry,
-        amount: u64
-    ): Balance<CoinType> {
-        if (verified.is_wrapped) {
-            mint(self, amount)
-        } else {
-            withdraw(self, amount)
-        }
-    }
-
     #[test_only]
-    public fun put_into_circulation_test_only<CoinType>(
-        self: &mut TokenRegistry,
-        amount: u64
-    ): Balance<CoinType> {
-        put_into_circulation(&new_verified<CoinType>(self), self, amount)
-    }
-
-    /// Either burn wrapped assets or deposit native assets into the registry's
-    /// native balance custody.
-    ///
-    /// NOTE: Only a holder of `VerifiedAsset` can use this method.
-    ///
-    /// See `transfer_tokens` module for more info.
-    public(friend) fun take_from_circulation<CoinType>(
-        verified: &VerifiedAsset<CoinType>,
-        self: &mut TokenRegistry,
-        bridged_in: Balance<CoinType>
-    ) {
-        if (verified.is_wrapped) {
-            burn(self, bridged_in);
-        } else {
-            deposit(self, bridged_in);
-        }
-    }
-
-    #[test_only]
-    public fun take_from_circulation_test_only<CoinType>(
-        self: &mut TokenRegistry,
-        bridged_in: Balance<CoinType>
-    ) {
-        take_from_circulation(&new_verified<CoinType>(self), self, bridged_in)
-    }
-
-    /// Retrieve custodied `Balance` for a native asset.
     public fun native_balance<CoinType>(self: &TokenRegistry): u64 {
-        checked_native_balance(&new_verified<CoinType>(self), self)
+        native_asset::balance(borrow_native<CoinType>(self))
     }
 
-    /// With an `VerifiedAsset`, retrieve custodied `Balance` for a native asset.
-    public fun checked_native_balance<CoinType>(
-        verified: &VerifiedAsset<CoinType>,
-        self: &TokenRegistry
-    ): u64 {
-        assert_verified_native(verified);
-        native_asset::balance(borrow_native_unchecked<CoinType>(self))
-    }
-
-    /// Retrieve total minted `Supply` value for a wrapped asset.
+    #[test_only]
     public fun wrapped_supply<CoinType>(self: &TokenRegistry): u64 {
-        checked_wrapped_supply(&new_verified<CoinType>(self), self)
+        wrapped_asset::total_supply(borrow_wrapped<CoinType>(self))
     }
 
-    /// With an `VerifiedAsset`, retrieve total minted `Supply` value for a wrapped
-    /// asset.
-    public fun checked_wrapped_supply<CoinType>(
-        verified: &VerifiedAsset<CoinType>,
-        self: &TokenRegistry
-    ): u64 {
-        assert_verified_wrapped(verified);
-        wrapped_asset::total_supply(borrow_wrapped_unchecked<CoinType>(self))
+    #[test_only]
+    public fun num_native(self: &TokenRegistry): u64 {
+        self.num_native
     }
 
-    public fun verified_is_wrapped<CoinType>(
-        verified: &VerifiedAsset<CoinType>
-    ): bool {
-        verified.is_wrapped
-    }
-
-    public fun verified_chain<CoinType>(
-        verified: &VerifiedAsset<CoinType>
-    ): u16 {
-        verified.chain
-    }
-
-    public fun verified_addr<CoinType>(
-        verified: &VerifiedAsset<CoinType>
-    ): ExternalAddress {
-        verified.addr
-    }
-
-    public fun verified_decimals<CoinType>(
-        verified: &VerifiedAsset<CoinType>
-    ): u8 {
-        verified.coin_decimals
+    #[test_only]
+    public fun num_wrapped(self: &TokenRegistry): u64 {
+        self.num_wrapped
     }
 
     #[test_only]
@@ -406,70 +253,28 @@ module token_bridge::token_registry {
         object::delete(id);
     }
 
-    #[test_only]
     public fun borrow_wrapped<CoinType>(
-        self: &TokenRegistry
-    ): &WrappedAsset<CoinType> {
-        assert_verified_wrapped(&new_verified<CoinType>(self));
-        borrow_wrapped_unchecked<CoinType>(self)
-    }
-
-    #[test_only]
-    public fun borrow_native<CoinType>(
-        self: &TokenRegistry
-    ): &NativeAsset<CoinType> {
-        assert_verified_native(&new_verified<CoinType>(self));
-        borrow_native_unchecked<CoinType>(self)
-    }
-
-    fun borrow_wrapped_unchecked<CoinType>(
         self: &TokenRegistry
     ): &WrappedAsset<CoinType> {
         dynamic_field::borrow(&self.id, Key<CoinType> {})
     }
 
-    fun borrow_mut_wrapped_unchecked<CoinType>(
+    public(friend) fun borrow_mut_wrapped<CoinType>(
         self: &mut TokenRegistry
     ): &mut WrappedAsset<CoinType> {
         dynamic_field::borrow_mut(&mut self.id, Key<CoinType> {})
     }
 
-    fun borrow_native_unchecked<CoinType>(
+    public fun borrow_native<CoinType>(
         self: &TokenRegistry
     ): &NativeAsset<CoinType> {
         dynamic_field::borrow(&self.id, Key<CoinType> {})
     }
 
-    fun borrow_mut_native_unchecked<CoinType>(
+    public(friend) fun borrow_mut_native<CoinType>(
         self: &mut TokenRegistry
     ): &mut NativeAsset<CoinType> {
         dynamic_field::borrow_mut(&mut self.id, Key<CoinType> {})
-    }
-
-    fun assert_has<CoinType>(self: &TokenRegistry) {
-        assert!(has<CoinType>(self), E_UNREGISTERED);
-    }
-
-    public fun assert_verified_wrapped<CoinType>(verified: &VerifiedAsset<CoinType>) {
-        assert!(verified.is_wrapped, E_NATIVE_ASSET);
-    }
-
-    public fun assert_verified_native<CoinType>(verified: &VerifiedAsset<CoinType>) {
-        assert!(!verified.is_wrapped, E_WRAPPED_ASSET);
-    }
-
-    /// For wrapped assets, mint a given amount. This amount is determined by an
-    /// inbound token transfer payload.
-    ///
-    /// See `complete_transfer` module for more info.
-    fun mint<CoinType>(
-        self: &mut TokenRegistry,
-        amount: u64
-    ): Balance<CoinType> {
-        wrapped_asset::mint_balance(
-            borrow_mut_wrapped_unchecked(self),
-            amount
-        )
     }
 
     #[test_only]
@@ -477,17 +282,8 @@ module token_bridge::token_registry {
         self: &mut TokenRegistry,
         amount: u64
     ): Balance<CoinType> {
-        mint(self, amount)
-    }
-
-    /// For native assets, withdraw a given amount. This amount is determined by
-    /// an inbound token transfer payload.
-    fun withdraw<CoinType>(
-        self: &mut TokenRegistry,
-        amount: u64
-    ): Balance<CoinType> {
-        native_asset::withdraw_balance(
-            borrow_mut_native_unchecked(self),
+        wrapped_asset::mint_balance(
+            borrow_mut_wrapped(self),
             amount
         )
     }
@@ -497,19 +293,9 @@ module token_bridge::token_registry {
         self: &mut TokenRegistry,
         amount: u64
     ): Balance<CoinType> {
-        withdraw(self, amount)
-    }
-
-    /// For native assets, deposit a given `Balance`. `Balance` originates from
-    /// an outbound transfer.
-    ///
-    /// See `transfer_tokens` module for more info.
-    public(friend) fun deposit<CoinType>(
-        self: &mut TokenRegistry,
-        deposited: Balance<CoinType>
-    ) {
-        native_asset::deposit_balance(
-            borrow_mut_native_unchecked(self), deposited
+        native_asset::withdraw_balance(
+            borrow_mut_native(self),
+            amount
         )
     }
 
@@ -518,20 +304,8 @@ module token_bridge::token_registry {
         self: &mut TokenRegistry,
         deposited: Balance<CoinType>
     ) {
-        deposit(self, deposited)
-    }
-
-    /// For wrapped assets, burn a given `Balance`. `Balance` originates from
-    /// an outbound token transfer.
-    ///
-    /// See `transfer_tokens` module for more info.
-    fun burn<CoinType>(
-        self: &mut TokenRegistry,
-        burned: Balance<CoinType>
-    ): u64 {
-        wrapped_asset::burn_balance(
-            borrow_mut_wrapped_unchecked(self),
-            burned
+        native_asset::deposit_balance(
+            borrow_mut_native(self), deposited
         )
     }
 
@@ -540,7 +314,10 @@ module token_bridge::token_registry {
         self: &mut TokenRegistry,
         burned: Balance<CoinType>
     ): u64 {
-        burn(self, burned)
+        wrapped_asset::burn_balance(
+            borrow_mut_wrapped(self),
+            burned
+        )
     }
 }
 
@@ -630,24 +407,15 @@ module token_bridge::token_registry_tests {
         // Verify registry values.
         assert!(token_registry::num_native(&registry) == 1, 0);
         assert!(token_registry::num_wrapped(&registry) == 0, 0);
+
+        let verified = token_registry::verified_asset<COIN_NATIVE_10>(&registry);
+        assert!(!token_registry::is_wrapped(&verified), 0);
+        assert!(token_registry::coin_decimals(&verified) == 10, 0);
+        assert!(token_registry::token_chain(&verified) == chain_id(), 0);
         assert!(
-            token_registry::is_native<COIN_NATIVE_10>(&registry),
+            token_registry::token_address(&verified) == expected_token_address,
             0
         );
-        assert!(
-            !token_registry::is_wrapped<COIN_NATIVE_10>(&registry),
-            0
-        );
-
-        let verified = token_registry::new_verified<COIN_NATIVE_10>(&registry);
-        assert!(token_registry::verified_decimals(&verified) == 10, 0);
-
-        let (
-            token_chain,
-            token_address
-        ) = token_registry::canonical_info<COIN_NATIVE_10>(&registry);
-        assert!(token_chain == chain_id(), 0);
-        assert!(token_address == expected_token_address, 0);
 
         // Clean up.
         token_registry::destroy(registry);
@@ -727,30 +495,19 @@ module token_bridge::token_registry_tests {
         // Verify registry values.
         assert!(token_registry::num_wrapped(&registry) == 1, 0);
         assert!(token_registry::num_native(&registry) == 0, 0);
-        assert!(
-            token_registry::is_wrapped<COIN_WRAPPED_7>(&registry),
-            0
-        );
 
-        assert!(
-            !token_registry::is_native<COIN_WRAPPED_7>(&registry),
-            0
-        );
 
-        let verified = token_registry::new_verified<COIN_WRAPPED_7>(&registry);
-        assert!(token_registry::verified_decimals(&verified) == 7, 0);
+        let verified = token_registry::verified_asset<COIN_WRAPPED_7>(&registry);
+        assert!(token_registry::is_wrapped(&verified), 0);
+        assert!(token_registry::coin_decimals(&verified) == 7, 0);
 
         let wrapped_token_meta = coin_wrapped_7::token_meta();
-        let (
-            token_chain,
-            token_address
-        ) = token_registry::canonical_info<COIN_WRAPPED_7>(&registry);
         assert!(
-            token_chain == asset_meta::token_chain(&wrapped_token_meta),
+            token_registry::token_chain(&verified) == asset_meta::token_chain(&wrapped_token_meta),
             0
         );
         assert!(
-            token_address == asset_meta::token_address(&wrapped_token_meta),
+            token_registry::token_address(&verified) == asset_meta::token_address(&wrapped_token_meta),
             0
         );
 
@@ -838,7 +595,8 @@ module token_bridge::token_registry_tests {
                 420420420
             );
 
-        assert!(!token_registry::is_native<COIN_WRAPPED_7>(&registry), 0);
+        let verified = token_registry::verified_asset<COIN_WRAPPED_7>(&registry);
+        assert!(token_registry::is_wrapped(&verified), 0);
 
         // You shall not pass!
         //
@@ -879,7 +637,8 @@ module token_bridge::token_registry_tests {
         );
 
         // Show that this asset is not wrapped.
-        assert!(!token_registry::is_wrapped<COIN_NATIVE_10>(&registry), 0);
+        let verified = token_registry::verified_asset<COIN_NATIVE_10>(&registry);
+        assert!(!token_registry::is_wrapped(&verified), 0);
 
         // You shall not pass!
         //
