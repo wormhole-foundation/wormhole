@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache 2
+
 #[test_only]
 module token_bridge::token_bridge_scenario {
     use std::vector::{Self};

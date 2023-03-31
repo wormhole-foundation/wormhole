@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache 2
+
 #[test_only]
 module token_bridge::dummy_message {
     public fun encoded_transfer(): vector<u8> {

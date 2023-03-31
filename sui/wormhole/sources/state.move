@@ -38,9 +38,13 @@ module wormhole::state {
     friend wormhole::upgrade_contract;
     friend wormhole::vaa;
 
-    const E_ZERO_GUARDIANS: u64 = 01;
+    /// Cannot initialize state with zero guardians.
+    const E_ZERO_GUARDIANS: u64 = 0;
+    /// VAA hash already exists in `Set`.
     const E_VAA_ALREADY_CONSUMED: u64 = 1;
+    /// Build does not agree with expected upgrade.
     const E_BUILD_VERSION_MISMATCH: u64 = 2;
+    /// `UpgradeCap` is not as expected when initializing `State`.
     const E_INVALID_UPGRADE_CAP: u64 = 3;
 
     /// Sui's chain ID is hard-coded to one value.

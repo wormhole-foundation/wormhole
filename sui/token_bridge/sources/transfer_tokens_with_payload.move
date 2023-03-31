@@ -1,3 +1,16 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements the method `transfer_tokens_with_payload` which
+/// allows someone to bridge assets out of Sui to be redeemed on a foreign
+/// network.
+///
+/// NOTE: Only assets that exist in the `TokenRegistry` can be bridged out,
+/// which are native Sui assets that have been attested for via `attest_token`
+/// and wrapped foreign assets that have been created using foreign asset
+/// metadata via the `create_wrapped` module.
+///
+/// See `transfer_with_payload` module for serialization and deserialization of
+/// Wormhole message payload.
 module token_bridge::transfer_tokens_with_payload {
     use sui::balance::{Balance};
     use sui::clock::{Clock};
@@ -12,6 +25,17 @@ module token_bridge::transfer_tokens_with_payload {
         TransferTokensWithPayload as TransferTokensWithPayloadControl
     };
 
+    /// `transfer_tokens_with_payload` takes a `Balance` of a coin type and
+    /// bridges this asset out of Sui by either joining this balance in the
+    /// Token Bridge's custody for native assets or burning the balance
+    /// for wrapped assets.
+    ///
+    /// The `EmitterCap` is encoded as the sender of these assets. And
+    /// associated with this transfer is an arbitrary payload, which can be
+    /// consumed by the specified redeemer and used as instructions for a
+    /// contract composing with Token Bridge.
+    ///
+    /// See `token_registry and `transfer_with_payload` module for more info.
     public fun transfer_tokens_with_payload<CoinType>(
         token_bridge_state: &mut State,
         emitter_cap: &EmitterCap,
@@ -28,6 +52,7 @@ module token_bridge::transfer_tokens_with_payload {
             token_bridge_state
         );
 
+        // Encode Wormhole message payload.
         let encoded_transfer_with_payload =
             bridge_in_and_serialize_transfer(
                 token_bridge_state,
@@ -38,6 +63,7 @@ module token_bridge::transfer_tokens_with_payload {
                 payload
             );
 
+        // Publish.
         state::publish_wormhole_message(
             token_bridge_state,
             worm_state,

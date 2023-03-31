@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache 2
+
 /// This module implements a custom type that keeps track of info relating to
 /// assets (coin types) native to Sui. Token Bridge takes custody of these
 /// assets when someone invokes a token transfer outbound. Likewise, Token

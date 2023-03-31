@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache 2
+
 /// This module builds on Wormhole's `vaa::parse_and_verify` method by adding
 /// emitter verification and replay protection.
 ///
@@ -20,12 +22,6 @@ module token_bridge::vaa {
     friend token_bridge::create_wrapped;
     friend token_bridge::complete_transfer;
     friend token_bridge::complete_transfer_with_payload;
-    friend token_bridge::register_chain;
-
-    /// We have no registration for this chain.
-    const E_UNKNOWN_CHAIN: u64 = 0;
-    /// We have a registration, but it's different from what is given.
-    const E_UNKNOWN_EMITTER: u64 = 1;
 
     /// Parses and verifies encoded VAA. Because Token Bridge does not allow
     /// VAAs to be replayed, the VAA hash is stored in a set, which is checked
@@ -48,18 +44,16 @@ module token_bridge::vaa {
             token_bridge_state
         );
 
-        let verified =
-            handle_parse_and_verify(
-                token_bridge_state,
-                worm_state,
-                vaa_buf,
-                the_clock
-            );
+        // First parse and verify VAA using Wormhole.
+        let parsed = vaa::parse_and_verify(worm_state, vaa_buf, the_clock);
+
+        // Does the emitter agree with a registered Token Bridge?
+        state::assert_registered_emitter(token_bridge_state, &parsed);
 
         // Consume the VAA hash to prevent replay.
-        state::consume_vaa_hash(token_bridge_state, vaa::digest(&verified));
+        state::consume_vaa_hash(token_bridge_state, vaa::digest(&parsed));
 
-        verified
+        parsed
     }
 
     #[test_only]
@@ -75,27 +69,6 @@ module token_bridge::vaa {
             vaa_buf,
             the_clock
         )
-    }
-
-    /// Parses and verifies a Token Bridge VAA. This method aborts if the VAA
-    /// did not originate from a registered Token Bridge emitter.
-    fun handle_parse_and_verify(
-        token_bridge_state: &State,
-        worm_state: &WormholeState,
-        vaa: vector<u8>,
-        the_clock: &Clock
-    ): VAA {
-        let parsed = vaa::parse_and_verify(worm_state, vaa, the_clock);
-
-        // Did the VAA originate from another Token Bridge contract?
-        let emitter =
-            state::registered_emitter(
-                token_bridge_state,
-                vaa::emitter_chain(&parsed)
-            );
-        assert!(emitter == vaa::emitter_address(&parsed), E_UNKNOWN_EMITTER);
-
-        parsed
     }
 }
 
@@ -156,8 +129,8 @@ module token_bridge::vaa_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = vaa::E_UNKNOWN_EMITTER)]
-    fun test_cannot_parse_verify_and_consume_unknown_emitter() {
+    #[expected_failure(abort_code = state::E_EMITTER_ADDRESS_MISMATCH)]
+    fun test_cannot_parse_verify_and_consume_emitter_address_mismatch() {
         let caller = person();
         let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
@@ -179,10 +152,6 @@ module token_bridge::vaa_tests {
             &mut token_bridge_state,
             emitter_chain,
             emitter_addr
-        );
-        assert!(
-            state::registered_emitter(&token_bridge_state, emitter_chain) == emitter_addr,
-            0
         );
 
         // Confirm that encoded emitter disagrees with registered emitter.

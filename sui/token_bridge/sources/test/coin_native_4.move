@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache 2
+
 #[test_only]
 module token_bridge::coin_native_4 {
     use std::option::{Self};

@@ -1,9 +1,12 @@
+// SPDX-License-Identifier: Apache 2
+
 /// This module implements a custom type that keeps track of both native and
 /// wrapped assets via dynamic fields. These dynamic fields are keyed off using
 /// coin types. This registry lives in `State`.
 ///
 /// See `state` module for more details.
 module token_bridge::token_registry {
+    use std::option::{Self, Option};
     use sui::balance::{Balance, Supply};
     use sui::coin::{CoinMetadata};
     use sui::dynamic_field::{Self};
@@ -43,13 +46,16 @@ module token_bridge::token_registry {
     }
 
     /// Container to provide convenient checking of whether an asset is wrapped
-    /// or native. `AssetCap` can only be created either by passing in a
+    /// or native. `VerifiedAsset` can only be created either by passing in a
     /// resource with `CoinType` or by verifying input token info against the
     /// canonical info that exists in `TokenRegistry`.
     ///
     /// NOTE: This container can be dropped after it was created.
-    struct AssetCap<phantom CoinType> has drop {
-        is_wrapped: bool
+    struct VerifiedAsset<phantom CoinType> has drop {
+        is_wrapped: bool,
+        chain: u16,
+        addr: ExternalAddress,
+        coin_decimals: u8
     }
 
     /// Wrapper of coin type to act as dynamic field key.
@@ -71,61 +77,96 @@ module token_bridge::token_registry {
         new(ctx)
     }
 
-    /// Create an `AssetCap` by verifying input token info. If the combination
+    /// Create an `VerifiedAsset` by verifying input token info. If the combination
     /// of token chain ID and address do not match with what exists in the
     /// registry, this method aborts.
     public fun verify_for_asset_cap<CoinType>(
         self: &TokenRegistry,
         token_chain: u16,
         token_address: ExternalAddress
-    ): AssetCap<CoinType> {
+    ): VerifiedAsset<CoinType> {
         let (chain, addr) = canonical_info<CoinType>(self);
         assert!(
             token_chain == chain && addr == token_address,
             E_CANONICAL_TOKEN_INFO_MISMATCH
         );
+        let is_wrapped = token_chain != chain_id();
+        let coin_decimals = {
+            if (is_wrapped) {
+                wrapped_asset::decimals(
+                    borrow_wrapped_unchecked<CoinType>(self)
+                )
+            } else {
+                native_asset::decimals(
+                    borrow_native_unchecked<CoinType>(self)
+                )
+            }
+        };
 
-        AssetCap { is_wrapped: token_chain != chain_id() }
+        VerifiedAsset { is_wrapped, chain, addr, coin_decimals }
     }
 
-    /// Create an `AssetCap` for a given coin type.
-    public(friend) fun new_asset_cap<CoinType>(
+    /// Create an `VerifiedAsset` for a given coin type.
+    public fun new_verified<CoinType>(
         self: &TokenRegistry
-    ): AssetCap<CoinType> {
+    ): VerifiedAsset<CoinType> {
         assert_has<CoinType>(self);
+        new_verified_unchecked<CoinType>(self)
+    }
 
+    /// Create an optinal `VerifiedAsset` for a given coin type. Returns
+    /// `option::none()` if coin type is not in registry.
+    public fun maybe_verified<CoinType>(
+        self: &TokenRegistry
+    ): Option<VerifiedAsset<CoinType>> {
+        if (has<CoinType>(self)) {
+            option::some(new_verified_unchecked<CoinType>(self))
+        } else {
+            option::none()
+        }
+    }
+
+    public fun unpack_verified<CoinType>(
+        verified: VerifiedAsset<CoinType>
+    ): (
+        bool,
+        u16,
+        ExternalAddress,
+        u8
+    ) {
+        let VerifiedAsset {
+            is_wrapped,
+            chain,
+            addr,
+            coin_decimals
+        } = verified;
+
+        (is_wrapped, chain, addr, coin_decimals)
+    }
+
+    fun new_verified_unchecked<CoinType>(
+        self: &TokenRegistry
+    ): VerifiedAsset<CoinType> {
         // We check specifically whether `CoinType` is associated with a dynamic
         // field for `WrappedAsset`. This boolean will be used as the underlying
-        // value for `AssetCap`.
+        // value for `VerifiedAsset`.
         let is_wrapped =
             dynamic_field::exists_with_type<Key<CoinType>, WrappedAsset<CoinType>>(
                 &self.id,
                 Key {}
             );
-        AssetCap { is_wrapped }
-    }
+        if (is_wrapped) {
+            let asset = borrow_wrapped_unchecked<CoinType>(self);
+            let (chain, addr) = wrapped_asset::canonical_info(asset);
+            let coin_decimals = wrapped_asset::decimals(asset);
 
-    #[test_only]
-    public fun new_asset_cap_test_only<CoinType>(
-        self: &TokenRegistry
-    ): AssetCap<CoinType> {
-        new_asset_cap(self)
-    }
-
-    /// With an `AssetCap`, retrieve canonical token info for either native or
-    /// wrapped asset.
-    public fun checked_canonical_info<CoinType>(
-        cap: &AssetCap<CoinType>,
-        self: &TokenRegistry
-    ): (u16, ExternalAddress) {
-        if (is_wrapped_cap(cap)) {
-            wrapped_asset::canonical_info(
-                borrow_wrapped_unchecked<CoinType>(self)
-            )
+            VerifiedAsset { is_wrapped, chain, addr, coin_decimals }
         } else {
-            native_asset::canonical_info(
-                borrow_native_unchecked<CoinType>(self)
-            )
+            let asset = borrow_native_unchecked<CoinType>(self);
+            let (chain, addr) = native_asset::canonical_info(asset);
+            let coin_decimals = native_asset::decimals(asset);
+
+            VerifiedAsset { is_wrapped, chain, addr, coin_decimals }
         }
     }
 
@@ -133,7 +174,8 @@ module token_bridge::token_registry {
     public fun canonical_info<CoinType>(
         self: &TokenRegistry
     ): (u16, ExternalAddress) {
-        checked_canonical_info(&new_asset_cap<CoinType>(self), self)
+        let (_, chain, addr, _) = unpack_verified(new_verified<CoinType>(self));
+        (chain, addr)
     }
 
     /// Retrieve number of native assets registered.
@@ -153,31 +195,12 @@ module token_bridge::token_registry {
 
     /// Determine whether a given `CoinType` is a wrapped asset.
     public fun is_wrapped<CoinType>(self: &TokenRegistry): bool {
-        is_wrapped_cap(&new_asset_cap<CoinType>(self))
+        new_verified<CoinType>(self).is_wrapped
     }
 
     /// Determine whether a given `CoinType` is a native asset.
     public fun is_native<CoinType>(self: &TokenRegistry): bool {
         !is_wrapped<CoinType>(self)
-    }
-
-    /// With an `AssetCap`, retrieve the canonical token address for a given
-    /// `CoinType`.
-    public fun checked_token_address<CoinType>(
-        cap: &AssetCap<CoinType>,
-        self: &TokenRegistry
-    ): ExternalAddress {
-        if (is_wrapped_cap(cap)) {
-            wrapped_asset::token_address(
-                wrapped_asset::metadata(
-                    borrow_wrapped_unchecked<CoinType>(self)
-                )
-            )
-        } else {
-            native_asset::token_address(
-                borrow_native_unchecked<CoinType>(self)
-            )
-        }
     }
 
     /// Add a new wrapped asset to the registry and return the canonical token
@@ -224,7 +247,7 @@ module token_bridge::token_registry {
         self: &mut TokenRegistry,
         token_meta: AssetMeta
     ) {
-        // NOTE: This checks canonical token info, so we do not need `AssetCap`.
+        // NOTE: This checks canonical token info, so we do not need `VerifiedAsset`.
         // And because of this, we only want to check if the asset is registered
         // at this point.
         assert_has<CoinType>(self);
@@ -271,15 +294,15 @@ module token_bridge::token_registry {
     /// Either mint wrapped assets or withdraw native assets from the registry's
     /// native balance custody.
     ///
-    /// NOTE: Only a holder of `AssetCap` can use this method.
+    /// NOTE: Only a holder of `VerifiedAsset` can use this method.
     ///
     /// See `complete_transfer` module for more info.
     public(friend) fun put_into_circulation<CoinType>(
-        cap: &AssetCap<CoinType>,
+        verified: &VerifiedAsset<CoinType>,
         self: &mut TokenRegistry,
         amount: u64
     ): Balance<CoinType> {
-        if (is_wrapped_cap(cap)) {
+        if (verified.is_wrapped) {
             mint(self, amount)
         } else {
             withdraw(self, amount)
@@ -291,21 +314,21 @@ module token_bridge::token_registry {
         self: &mut TokenRegistry,
         amount: u64
     ): Balance<CoinType> {
-        put_into_circulation(&new_asset_cap<CoinType>(self), self, amount)
+        put_into_circulation(&new_verified<CoinType>(self), self, amount)
     }
 
     /// Either burn wrapped assets or deposit native assets into the registry's
     /// native balance custody.
     ///
-    /// NOTE: Only a holder of `AssetCap` can use this method.
+    /// NOTE: Only a holder of `VerifiedAsset` can use this method.
     ///
     /// See `transfer_tokens` module for more info.
     public(friend) fun take_from_circulation<CoinType>(
-        cap: &AssetCap<CoinType>,
+        verified: &VerifiedAsset<CoinType>,
         self: &mut TokenRegistry,
         bridged_in: Balance<CoinType>
     ) {
-        if (is_wrapped_cap(cap)) {
+        if (verified.is_wrapped) {
             burn(self, bridged_in);
         } else {
             deposit(self, bridged_in);
@@ -317,48 +340,60 @@ module token_bridge::token_registry {
         self: &mut TokenRegistry,
         bridged_in: Balance<CoinType>
     ) {
-        take_from_circulation(&new_asset_cap<CoinType>(self), self, bridged_in)
+        take_from_circulation(&new_verified<CoinType>(self), self, bridged_in)
     }
 
     /// Retrieve custodied `Balance` for a native asset.
     public fun native_balance<CoinType>(self: &TokenRegistry): u64 {
-        checked_native_balance(&new_asset_cap<CoinType>(self), self)
+        checked_native_balance(&new_verified<CoinType>(self), self)
     }
 
-    /// With an `AssetCap`, retrieve custodied `Balance` for a native asset.
+    /// With an `VerifiedAsset`, retrieve custodied `Balance` for a native asset.
     public fun checked_native_balance<CoinType>(
-        cap: &AssetCap<CoinType>,
+        verified: &VerifiedAsset<CoinType>,
         self: &TokenRegistry
     ): u64 {
-        assert_native_cap(cap);
+        assert_verified_native(verified);
         native_asset::balance(borrow_native_unchecked<CoinType>(self))
     }
 
     /// Retrieve total minted `Supply` value for a wrapped asset.
     public fun wrapped_supply<CoinType>(self: &TokenRegistry): u64 {
-        checked_wrapped_supply(&new_asset_cap<CoinType>(self), self)
+        checked_wrapped_supply(&new_verified<CoinType>(self), self)
     }
 
-    /// With an `AssetCap`, retrieve total minted `Supply` value for a wrapped
+    /// With an `VerifiedAsset`, retrieve total minted `Supply` value for a wrapped
     /// asset.
     public fun checked_wrapped_supply<CoinType>(
-        cap: &AssetCap<CoinType>,
+        verified: &VerifiedAsset<CoinType>,
         self: &TokenRegistry
     ): u64 {
-        assert_wrapped_cap(cap);
+        assert_verified_wrapped(verified);
         wrapped_asset::total_supply(borrow_wrapped_unchecked<CoinType>(self))
     }
 
-    /// Retrieve specified decimals for either native or wrapped asset.
-    public fun checked_decimals<CoinType>(
-        cap: &AssetCap<CoinType>,
-        self: &TokenRegistry
+    public fun verified_is_wrapped<CoinType>(
+        verified: &VerifiedAsset<CoinType>
+    ): bool {
+        verified.is_wrapped
+    }
+
+    public fun verified_chain<CoinType>(
+        verified: &VerifiedAsset<CoinType>
+    ): u16 {
+        verified.chain
+    }
+
+    public fun verified_addr<CoinType>(
+        verified: &VerifiedAsset<CoinType>
+    ): ExternalAddress {
+        verified.addr
+    }
+
+    public fun verified_decimals<CoinType>(
+        verified: &VerifiedAsset<CoinType>
     ): u8 {
-        if (is_wrapped_cap(cap)) {
-            wrapped_asset::decimals(borrow_wrapped_unchecked<CoinType>(self))
-        } else {
-            native_asset::decimals(borrow_native_unchecked<CoinType>(self))
-        }
+        verified.coin_decimals
     }
 
     #[test_only]
@@ -375,7 +410,7 @@ module token_bridge::token_registry {
     public fun borrow_wrapped<CoinType>(
         self: &TokenRegistry
     ): &WrappedAsset<CoinType> {
-        assert_wrapped_cap(&new_asset_cap<CoinType>(self));
+        assert_verified_wrapped(&new_verified<CoinType>(self));
         borrow_wrapped_unchecked<CoinType>(self)
     }
 
@@ -383,7 +418,7 @@ module token_bridge::token_registry {
     public fun borrow_native<CoinType>(
         self: &TokenRegistry
     ): &NativeAsset<CoinType> {
-        assert_native_cap(&new_asset_cap<CoinType>(self));
+        assert_verified_native(&new_verified<CoinType>(self));
         borrow_native_unchecked<CoinType>(self)
     }
 
@@ -415,16 +450,12 @@ module token_bridge::token_registry {
         assert!(has<CoinType>(self), E_UNREGISTERED);
     }
 
-    fun is_wrapped_cap<CoinType>(cap: &AssetCap<CoinType>): bool {
-        cap.is_wrapped
+    public fun assert_verified_wrapped<CoinType>(verified: &VerifiedAsset<CoinType>) {
+        assert!(verified.is_wrapped, E_NATIVE_ASSET);
     }
 
-    fun assert_wrapped_cap<CoinType>(cap: &AssetCap<CoinType>) {
-        assert!(cap.is_wrapped, E_NATIVE_ASSET);
-    }
-
-    fun assert_native_cap<CoinType>(cap: &AssetCap<CoinType>) {
-        assert!(!cap.is_wrapped, E_WRAPPED_ASSET);
+    public fun assert_verified_native<CoinType>(verified: &VerifiedAsset<CoinType>) {
+        assert!(!verified.is_wrapped, E_WRAPPED_ASSET);
     }
 
     /// For wrapped assets, mint a given amount. This amount is determined by an
@@ -608,12 +639,8 @@ module token_bridge::token_registry_tests {
             0
         );
 
-        let asset_cap =
-            token_registry::new_asset_cap_test_only<COIN_NATIVE_10>(&registry);
-        assert!(
-            token_registry::checked_decimals(&asset_cap, &registry) == 10,
-            0
-        );
+        let verified = token_registry::new_verified<COIN_NATIVE_10>(&registry);
+        assert!(token_registry::verified_decimals(&verified) == 10, 0);
 
         let (
             token_chain,
@@ -710,12 +737,8 @@ module token_bridge::token_registry_tests {
             0
         );
 
-        let asset_cap =
-            token_registry::new_asset_cap_test_only<COIN_WRAPPED_7>(&registry);
-        assert!(
-            token_registry::checked_decimals(&asset_cap, &registry) == 7,
-            0
-        );
+        let verified = token_registry::new_verified<COIN_WRAPPED_7>(&registry);
+        assert!(token_registry::verified_decimals(&verified) == 7, 0);
 
         let wrapped_token_meta = coin_wrapped_7::token_meta();
         let (

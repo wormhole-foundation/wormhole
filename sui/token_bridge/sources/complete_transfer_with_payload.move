@@ -1,3 +1,12 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements the method `complete_transfer_with_payload` which
+/// allows a contract to redeem a Token Bridge transfer with arbitrary payload.
+/// Like in `complete_transfer`, a VAA with an encoded transfer can be redeemed
+/// only once.
+///
+/// See `transfer_with_payload` module for serialization and deserialization of
+/// Wormhole message payload.
 module token_bridge::complete_transfer_with_payload {
     use sui::balance::{Balance};
     use sui::clock::{Clock};
@@ -12,16 +21,25 @@ module token_bridge::complete_transfer_with_payload {
         CompleteTransferWithPayload as CompleteTransferWithPayloadControl
     };
 
-    const E_INVALID_TARGET: u64 = 0;
-    const E_INVALID_REDEEMER: u64 = 1;
+    /// `EmitterCap` address does not agree with encoded redeemer.
+    const E_INVALID_REDEEMER: u64 = 0;
 
+    /// `complete_transfer_with_payload` deserializes a token transfer VAA with
+    /// an arbitrary payload. The specified `EmitterCap` is the only authorized
+    /// redeemer of this transfer. Once the transfer is redeemed, an event
+    /// (`TransferRedeemed`) is emitted to reflect which Token Bridge this
+    /// transfer originated from.
     public fun complete_transfer_with_payload<CoinType>(
         token_bridge_state: &mut State,
         emitter_cap: &EmitterCap,
         worm_state: &WormholeState,
         vaa_buf: vector<u8>,
         the_clock: &Clock
-    ): (Balance<CoinType>, TransferWithPayload, u16) {
+    ): (
+        Balance<CoinType>,
+        TransferWithPayload,
+        u16 // `wormhole::vaa::emitter_chain`
+    ) {
         state::check_minimum_requirement<CompleteTransferWithPayloadControl>(
             token_bridge_state
         );
@@ -38,56 +56,60 @@ module token_bridge::complete_transfer_with_payload {
 
         // Emitting the transfer being redeemed.
         //
-        // NOTE: We care about the emitter chain to save the integrator from
-        // having to `parse_and_verify` the encoded VAA to deserialize the same
-        // info we already have.
-        let emitter_chain =
+        // NOTE: We save the emitter chain ID to save the integrator from
+        // having to `parse_and_verify` the same encoded VAA to get this info.
+        let source_chain =
             complete_transfer::emit_transfer_redeemed(&parsed_vaa);
 
-        // Deserialize for processing.
-        let parsed_transfer =
-            transfer_with_payload::deserialize(
-                wormhole::vaa::take_payload(parsed_vaa)
-            );
-
-        let bridged_out =
-            handle_complete_transfer_with_payload(
-                token_bridge_state,
-                emitter_cap,
-                &parsed_transfer
-            );
-
-        (bridged_out, parsed_transfer, emitter_chain)
+        // Finally deserialize the Wormhole message payload and handle bridging
+        // out token of a given coin type.
+        handle_complete_transfer_with_payload(
+            token_bridge_state,
+            emitter_cap,
+            source_chain,
+            wormhole::vaa::take_payload(parsed_vaa)
+        )
     }
 
     fun handle_complete_transfer_with_payload<CoinType>(
         token_bridge_state: &mut State,
         emitter_cap: &EmitterCap,
-        parsed: &TransferWithPayload
-    ): Balance<CoinType> {
+        source_chain: u16,
+        transfer_vaa_payload: vector<u8>
+    ): (
+        Balance<CoinType>,
+        TransferWithPayload,
+        u16 // `wormhole::vaa::emitter_chain`
+    ) {
+        // Deserialize for processing.
+        let parsed = transfer_with_payload::deserialize(transfer_vaa_payload);
+
         // Transfer must be redeemed by the contract's registered Wormhole
         // emitter.
-        let redeemer = transfer_with_payload::redeemer_id(parsed);
+        let redeemer = transfer_with_payload::redeemer_id(&parsed);
         assert!(redeemer == emitter::id(emitter_cap), E_INVALID_REDEEMER);
 
+        // Handle bridging assets out to be returned to method caller.
+        //
+        // See `complete_transfer` module for more info.
         let (
+            _,
             bridged_out,
-            _
         ) =
             complete_transfer::verify_and_bridge_out(
                 token_bridge_state,
-                transfer_with_payload::token_chain(parsed),
-                transfer_with_payload::token_address(parsed),
-                transfer_with_payload::redeemer_chain(parsed),
-                transfer_with_payload::amount(parsed)
+                transfer_with_payload::token_chain(&parsed),
+                transfer_with_payload::token_address(&parsed),
+                transfer_with_payload::redeemer_chain(&parsed),
+                transfer_with_payload::amount(&parsed)
             );
 
-        bridged_out
+        (bridged_out, parsed, source_chain)
     }
 }
 
 #[test_only]
-module token_bridge::complete_transfer_with_payload_test {
+module token_bridge::complete_transfer_with_payload_tests {
     use sui::balance::{Self};
     use sui::test_scenario::{Self};
     use wormhole::emitter::{Self};

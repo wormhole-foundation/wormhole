@@ -1,3 +1,15 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements the method `transfer_tokens` which allows someone
+/// to bridge assets out of Sui to be redeemed on a foreign network.
+///
+/// NOTE: Only assets that exist in the `TokenRegistry` can be bridged out,
+/// which are native Sui assets that have been attested for via `attest_token`
+/// and wrapped foreign assets that have been created using foreign asset
+/// metadata via the `create_wrapped` module.
+///
+/// See `transfer` module for serialization and deserialization of Wormhole
+/// message payload.
 module token_bridge::transfer_tokens {
     use sui::balance::{Self, Balance};
     use sui::clock::{Clock};
@@ -16,8 +28,17 @@ module token_bridge::transfer_tokens {
     friend token_bridge::transfer_tokens_with_payload;
 
     /// Relayer fee exceeds `Balance` value.
-    const E_TOO_MUCH_RELAYER_FEE: u64 = 0;
+    const E_RELAYER_FEE_EXCEEDS_AMOUNT: u64 = 0;
 
+    /// `transfer_tokens` takes a `Balance` of a coin type and bridges this
+    /// asset out of Sui by either joining this balance in the Token Bridge's
+    /// custody for native assets or burning the balance for wrapped assets.
+    ///
+    /// Additionally, a `relayer_fee` of some value less than or equal to the
+    /// `Balance` value can be specified to incentivize someone to redeem this
+    /// transfer on behalf of the `recipient`.
+    ///
+    /// See `token_registry and `transfer_with_payload` module for more info.
     public fun transfer_tokens<CoinType>(
         token_bridge_state: &mut State,
         worm_state: &mut WormholeState,
@@ -63,21 +84,25 @@ module token_bridge::transfer_tokens {
     ): (u16, ExternalAddress, NormalizedAmount, NormalizedAmount) {
         // Disallow `relayer_fee` to be greater than the amount in `Coin`.
         let amount = balance::value(&bridged_in);
-        assert!(relayer_fee <= amount, E_TOO_MUCH_RELAYER_FEE);
+        assert!(relayer_fee <= amount, E_RELAYER_FEE_EXCEEDS_AMOUNT);
 
         // Fetch canonical token info from registry.
-        let registry = state::borrow_token_registry_mut(token_bridge_state);
-        let verified = token_registry::new_asset_cap(registry);
-        let (
-            token_chain,
-            token_address
-        ) = token_registry::checked_canonical_info(&verified, registry);
+        let verified = state::verified_asset(token_bridge_state);
 
         // Either burn or deposit depending on `CoinType`.
-        token_registry::take_from_circulation(&verified, registry, bridged_in);
+        token_registry::take_from_circulation(
+            &verified,
+            state::borrow_token_registry_mut(token_bridge_state),
+            bridged_in
+        );
 
-        // And decimals to normalize raw amounts.
-        let decimals = token_registry::checked_decimals(&verified, registry);
+        // Now unpack.
+        let (
+            _,
+            token_chain,
+            token_address,
+            decimals
+        ) = token_registry::unpack_verified(verified);
 
         (
             token_chain,
@@ -160,7 +185,7 @@ module token_bridge::transfer_tokens {
 //     fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
 
 //     #[test]
-//     #[expected_failure(abort_code = E_TOO_MUCH_RELAYER_FEE)] // E_TOO_MUCH_RELAYER_FEE
+//     #[expected_failure(abort_code = E_RELAYER_FEE_EXCEEDS_AMOUNT)] // E_RELAYER_FEE_EXCEEDS_AMOUNT
 //     fun test_transfer_native_token_too_much_relayer_fee(){
 //         let (admin, _, _) = people();
 //         let test = scenario();

@@ -161,9 +161,10 @@ module token_bridge::register_chain_tests {
                 @0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
             );
         assert!(contract_address == expected_contract, 0);
-
-        let registered = state::registered_emitter(&token_bridge_state, chain);
-        assert!(registered == expected_contract, 0);
+        {
+            let registry = state::borrow_emitter_registry(&token_bridge_state);
+            assert!(*table::borrow(registry, expected_chain) == expected_contract, 0);
+        };
 
         // Clean up.
         return_states(token_bridge_state, worm_state);
@@ -207,7 +208,10 @@ module token_bridge::register_chain_tests {
 
         // Check registry.
         let expected_contract =
-            state::registered_emitter(&token_bridge_state, chain);
+            *table::borrow(
+                state::borrow_emitter_registry(&token_bridge_state),
+                chain
+            );
 
         let payload =
             governance_message::take_payload(

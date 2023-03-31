@@ -1,3 +1,11 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements the method `complete_transfer` which allows someone
+/// to redeem a Token Bridge transfer with a specified relayer fee. A VAA with
+/// an encoded transfer can be redeemed only once.
+///
+/// See `transfer` module for serialization and deserialization of Wormhole
+/// message payload.
 module token_bridge::complete_transfer {
     use sui::balance::{Self, Balance};
     use sui::clock::{Clock};
@@ -10,8 +18,8 @@ module token_bridge::complete_transfer {
 
     use token_bridge::normalized_amount::{Self, NormalizedAmount};
     use token_bridge::state::{Self, State};
-    use token_bridge::token_registry::{Self};
-    use token_bridge::transfer::{Self, Transfer};
+    use token_bridge::token_registry::{Self, VerifiedAsset};
+    use token_bridge::transfer::{Self};
     use token_bridge::vaa::{Self};
     use token_bridge::version_control::{
         CompleteTransfer as CompleteTransferControl
@@ -63,7 +71,7 @@ module token_bridge::complete_transfer {
         // Deserialize transfer message and process.
         handle_complete_transfer<CoinType>(
             token_bridge_state,
-            transfer::deserialize(wormhole::vaa::take_payload(parsed_vaa)),
+            wormhole::vaa::take_payload(parsed_vaa),
             ctx
         )
     }
@@ -84,32 +92,37 @@ module token_bridge::complete_transfer {
         token_address: ExternalAddress,
         target_chain: u16,
         amount: NormalizedAmount
-    ): (Balance<CoinType>, u8) {
+    ): (VerifiedAsset<CoinType>, Balance<CoinType>) {
         // Verify that the intended chain ID for this transfer is for Sui.
         assert!(
             target_chain == wormhole::state::chain_id(),
             E_TARGET_NOT_SUI
         );
 
-        let registry = state::borrow_token_registry_mut(token_bridge_state);
         let verified =
             token_registry::verify_for_asset_cap<CoinType>(
-                registry,
+                state::borrow_token_registry(token_bridge_state),
                 token_chain,
                 token_address
             );
-        let decimals = token_registry::checked_decimals(&verified, registry);
+
+        // De-normalize amount in preparation to take `Balance`.
+        let raw_amount =
+            normalized_amount::to_raw(
+                amount,
+                token_registry::verified_decimals(&verified)
+            );
 
         // If the token is wrapped by Token Bridge, we will mint these tokens.
         // Otherwise, we will withdraw from custody.
         let bridged_out =
             token_registry::put_into_circulation(
                 &verified,
-                registry,
-                normalized_amount::to_raw(amount, decimals)
+                state::borrow_token_registry_mut(token_bridge_state),
+                raw_amount
             );
 
-        (bridged_out, decimals)
+        (verified, bridged_out)
     }
 
     public(friend) fun emit_transfer_redeemed(parsed_vaa: &VAA): u16 {
@@ -133,7 +146,7 @@ module token_bridge::complete_transfer {
 
     fun handle_complete_transfer<CoinType>(
         token_bridge_state: &mut State,
-        parsed_transfer: Transfer,
+        transfer_vaa_payload: vector<u8>,
         ctx: &mut TxContext
     ): Balance<CoinType> {
         let (
@@ -143,11 +156,11 @@ module token_bridge::complete_transfer {
             recipient,
             recipient_chain,
             relayer_fee
-        ) = transfer::unpack(parsed_transfer);
+        ) = transfer::unpack(transfer::deserialize(transfer_vaa_payload));
 
         let (
-            bridged_out,
-            decimals
+            verified,
+            bridged_out
         ) =
             verify_and_bridge_out(
                 token_bridge_state,
@@ -168,10 +181,12 @@ module token_bridge::complete_transfer {
         ) {
             balance::zero()
         } else {
-            balance::split(
-                &mut bridged_out,
-                normalized_amount::to_raw(relayer_fee, decimals)
-            )
+            let payout_amount =
+                normalized_amount::to_raw(
+                    relayer_fee,
+                    token_registry::verified_decimals(&verified)
+                );
+            balance::split(&mut bridged_out, payout_amount)
         };
 
         // Finally transfer tokens to the recipient.

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache 2
+
 /// This module implements two custom types relating to Token Bridge wrapped
 /// assets. These assets have been attested from foreign networks, whose
 /// metadata is stored in `ForeignMetadata`. The Token Bridge contract is the

@@ -1,4 +1,16 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements the method `attest_token` which allows someone
+/// to send asset metadata of a coin type native to Sui. Part of this process
+/// is registering this asset in the `TokenRegistry`.
+///
+/// NOTE: If an asset has not been attested for, it cannot be bridged using
+/// `transfer_tokens` or `transfer_tokens_with_payload`.
+///
+/// See `asset_meta` module for serialization and deserialization of Wormhole
+/// message payload.
 module token_bridge::attest_token {
+    use std::option::{Self};
     use sui::balance::{Balance};
     use sui::clock::{Clock};
     use sui::coin::{CoinMetadata};
@@ -10,8 +22,12 @@ module token_bridge::attest_token {
     use token_bridge::token_registry::{Self};
     use token_bridge::version_control::{AttestToken as AttestTokenControl};
 
-    const E_REGISTERED_WRAPPED_ASSET: u64 = 0;
-
+    /// `attest_token` takes `CoinMetadata` of a coin type and sends a Wormhole
+    /// message with encoded asset metadata for a foreign Token Bridge contract
+    /// to consume and create a wrapped asset reflecting this Sui asset. Asset
+    /// metadata is encoded using `AssetMeta`.
+    ///
+    /// See `token_registry` and `asset_meta` module for more info.
     public fun attest_token<CoinType>(
         token_bridge_state: &mut State,
         worm_state: &mut WormholeState,
@@ -24,9 +40,11 @@ module token_bridge::attest_token {
             token_bridge_state
         );
 
+        // Encode Wormhole message payload.
         let encoded_asset_meta =
             serialize_asset_meta(token_bridge_state, coin_metadata);
 
+        // Publish.
         state::publish_wormhole_message(
             token_bridge_state,
             worm_state,
@@ -41,7 +59,8 @@ module token_bridge::attest_token {
         token_bridge_state: &mut State,
         coin_metadata: &CoinMetadata<CoinType>,
     ): vector<u8> {
-        let registry = state::borrow_token_registry_mut(token_bridge_state);
+        let verified =
+            state::maybe_verified_asset<CoinType>(token_bridge_state);
 
         // Register if it is a new asset.
         //
@@ -49,14 +68,16 @@ module token_bridge::attest_token {
         // because we may want to send asset metadata again after registration
         // (the owner of a particular `CoinType` can change `CoinMetadata` any
         // time after we register the asset).
-        if (token_registry::has<CoinType>(registry)) {
+        if (option::is_some(&verified)) {
             // If this asset is already registered, there should already
             // be canonical info associated with this coin type.
-            let verified = token_registry::new_asset_cap<CoinType>(registry);
-            token_registry::checked_token_address(&verified, registry)
+            token_registry::assert_verified_native(option::borrow(&verified));
         } else {
             // Otherwise, register it.
-            token_registry::add_new_native(registry, coin_metadata)
+            token_registry::add_new_native(
+                state::borrow_token_registry_mut(token_bridge_state),
+                coin_metadata
+            );
         };
 
         asset_meta::serialize(asset_meta::from_metadata(coin_metadata))
@@ -231,9 +252,39 @@ module token_bridge::attest_token_tests {
             0
         );
 
+        // Update metadata.
+        let new_symbol = {
+            use std::vector::{Self};
+
+            let symbol = coin::get_symbol(&coin_meta);
+            let buf = ascii::into_bytes(symbol);
+            vector::reverse(&mut buf);
+
+            ascii::string(buf)
+        };
+
+        let new_name = coin::get_name(&coin_meta);
+        string::append(&mut new_name, string::utf8(b"??? and profit"));
+
+        let treasury_cap = coin_native_10::take_treasury_cap(scenario);
+        coin::update_symbol(&treasury_cap, &mut coin_meta, new_symbol);
+        coin::update_name(&treasury_cap, &mut coin_meta, new_name);
+
+        // Check that the new serialization reflects updated metadata.
+        assert!(
+            serialized != asset_meta::serialize(asset_meta::from_metadata(&coin_meta)),
+            0
+        );
+        let updated_serialized =
+            serialize_asset_meta_test_only(&mut token_bridge_state, &coin_meta);
+        assert!(
+            updated_serialized == asset_meta::serialize(asset_meta::from_metadata(&coin_meta)),
+            0
+        );
+
         // Clean up.
         return_state(token_bridge_state);
-        coin_native_10::return_metadata(coin_meta);
+        coin_native_10::return_globals(treasury_cap, coin_meta);
 
         // Done.
         test_scenario::end(my_scenario);

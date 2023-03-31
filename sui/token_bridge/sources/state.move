@@ -1,4 +1,12 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements the global state variables for Token Bridge as a
+/// shared object. The `State` object is used to perform anything that requires
+/// access to data that defines the Token Bridge contract. Examples of which are
+/// accessing registered assets and verifying `VAA` intended for Token Bridge by
+/// checking the emitter against its own registered emitters.
 module token_bridge::state {
+    use std::option::{Option};
     use sui::balance::{Balance};
     use sui::clock::{Clock};
     use sui::dynamic_field::{Self as field};
@@ -13,16 +21,25 @@ module token_bridge::state {
     use wormhole::required_version::{Self, RequiredVersion};
     use wormhole::set::{Self, Set};
     use wormhole::state::{State as WormholeState};
+    use wormhole::vaa::{Self, VAA};
 
-    use token_bridge::token_registry::{Self, TokenRegistry};
+    use token_bridge::token_registry::{Self, TokenRegistry, VerifiedAsset};
     use token_bridge::version_control::{Self as control};
 
+    /// For a given chain ID, Token Bridge is non-existent.
     const E_UNREGISTERED_EMITTER: u64 = 0;
+    /// Cannot register chain ID == 0.
     const E_INVALID_EMITTER_CHAIN: u64 = 1;
+    /// Emitter already exists for a given chain ID.
     const E_EMITTER_ALREADY_REGISTERED: u64 = 2;
-    const E_VAA_ALREADY_CONSUMED: u64 = 3;
-    const E_BUILD_VERSION_MISMATCH: u64 = 4;
-    const E_INVALID_UPGRADE_CAP: u64 = 5;
+    /// Encoded emitter address does not match registered Token Bridge.
+    const E_EMITTER_ADDRESS_MISMATCH: u64 = 3;
+    /// VAA hash already exists in `Set`.
+    const E_VAA_ALREADY_CONSUMED: u64 = 4;
+    /// Build does not agree with expected upgrade.
+    const E_BUILD_VERSION_MISMATCH: u64 = 5;
+    /// `UpgradeCap` is not as expected when initializing `State`.
+    const E_INVALID_UPGRADE_CAP: u64 = 6;
 
     friend token_bridge::attest_token;
     friend token_bridge::complete_transfer;
@@ -42,15 +59,14 @@ module token_bridge::state {
     /// See `migrate` module for more info.
     struct MigrationControl has store, drop, copy {}
 
-    /// Treasury caps, token stores, consumed VAAs, registered emitters, etc.
-    /// are stored as dynamic fields of bridge state.
+    /// Container for all state variables for Token Bridge.
     struct State has key, store {
         id: UID,
 
         /// Set of consumed VAA hashes.
         consumed_vaa_hashes: Set<Bytes32>,
 
-        /// Token bridge owned emitter capability.
+        /// Emitter capability required to publish Wormhole messages.
         emitter_cap: EmitterCap,
 
         /// Registry for foreign Token Bridge contracts.
@@ -200,6 +216,10 @@ module token_bridge::state {
         )
     }
 
+    /// Check whether a particular method meets the minimum build version for
+    /// a specified build version checked outside of this module.
+    ///
+    /// See `create_wrapped` module for an example of how this is used.
     public(friend) fun check_minimum_requirement_specified<ControlType>(
         self: &State,
         build_version: u64
@@ -279,13 +299,16 @@ module token_bridge::state {
         set::add(consumed, vaa_hash);
     }
 
-    public fun registered_emitter(
-        self: &State,
-        chain: u16
-    ): ExternalAddress {
+    /// Assert that a given emitter equals one that is registered as a foreign
+    /// Token Bridge.
+    public fun assert_registered_emitter(self: &State, parsed: &VAA) {
+        let chain = vaa::emitter_chain(parsed);
         let registry = &self.emitter_registry;
         assert!(table::contains(registry, chain), E_UNREGISTERED_EMITTER);
-        *table::borrow(registry, chain)
+
+        let registered = table::borrow(registry, chain);
+        let emitter_addr = vaa::emitter_address(parsed);
+        assert!(*registered == emitter_addr, E_EMITTER_ADDRESS_MISMATCH);
     }
 
     /// Add a new Token Bridge emitter to the registry. This method will abort
@@ -316,11 +339,28 @@ module token_bridge::state {
         register_new_emitter(self, chain, contract_address);
     }
 
+    public fun maybe_verified_asset<CoinType>(
+        self: &State
+    ): Option<VerifiedAsset<CoinType>> {
+        token_registry::maybe_verified(&self.token_registry)
+    }
+
+    public fun verified_asset<CoinType>(
+        self: &State
+    ): VerifiedAsset<CoinType> {
+        token_registry::new_verified(&self.token_registry)
+    }
+
     /// Retrieve decimals from for a given coin type in `TokenRegistry`.
     public fun coin_decimals<CoinType>(self: &State): u8 {
-        let registry = borrow_token_registry(self);
-        let cap = token_registry::new_asset_cap<CoinType>(registry);
-        token_registry::checked_decimals(&cap, registry)
+        let (
+            _,
+            _,
+            _,
+            decimals
+        ) = token_registry::unpack_verified(verified_asset<CoinType>(self));
+
+        decimals
     }
 
     #[test_only]

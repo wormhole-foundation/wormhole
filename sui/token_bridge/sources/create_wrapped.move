@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache 2
+
 /// This module implements methods that create a specific coin type reflecting a
 /// wrapped (foreign) asset, whose metadata is encoded in a VAA sent from
 /// another network.
