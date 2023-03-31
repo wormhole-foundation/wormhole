@@ -11,7 +11,7 @@
 /// modules for more details.
 module token_bridge::transfer_with_payload {
     use std::vector::{Self};
-    use sui::object::{ID};
+    use sui::object::{Self, ID};
     use wormhole::bytes::{Self};
     use wormhole::cursor::{Self};
     use wormhole::emitter::{Self, EmitterCap};
@@ -142,7 +142,7 @@ module token_bridge::transfer_with_payload {
 
     // Retrieve redeemer as `ID`.
     public fun redeemer_id(self: &TransferWithPayload): ID {
-        external_address::to_id(self.redeemer)
+        object::id_from_bytes(external_address::to_bytes(self.redeemer))
     }
 
     /// Retrieve target chain for redeemer.

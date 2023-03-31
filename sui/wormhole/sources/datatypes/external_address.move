@@ -63,11 +63,6 @@ module wormhole::external_address {
         new(bytes32::from_address(addr))
     }
 
-    /// Destroy `ExternalAddress` to represent address as `ID`.
-    public fun to_id(ext: ExternalAddress): ID {
-        object::id_from_bytes(to_bytes(ext))
-    }
-
     /// Create `ExternalAddress` from `ID`.
     public fun from_id(id: ID): ExternalAddress {
         new(bytes32::from_bytes(object::id_to_bytes(&id)))
