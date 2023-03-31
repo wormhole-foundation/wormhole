@@ -61,5 +61,6 @@ test("Can spy on messages", (done) => {
     transaction.partialSign(keypair);
     const txid = await connection.sendRawTransaction(transaction.serialize());
     await connection.confirmTransaction(txid);
+    done()
   })();
 });
