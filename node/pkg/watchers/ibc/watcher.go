@@ -82,21 +82,31 @@ var (
 type (
 	// Watcher is responsible for monitoring the IBC contract on wormchain and publishing wormhole messages for all chains connected via IBC.
 	Watcher struct {
-		wsUrl            string
-		lcdUrl           string
-		contractAddress  string
-		ConnectionConfig ConnectionConfig
-		logger           *zap.Logger
+		wsUrl           string
+		lcdUrl          string
+		contractAddress string
+		logger          *zap.Logger
 
-		channelMap  map[string]*connectionEntry
-		chainMap    map[vaa.ChainID]*connectionEntry
+		// connectionConfig is the list of chains to be monitored, along with their IBC connection IDs.
+		connectionConfig ConnectionConfig
+
+		// channelData is kept in lock sync with connectionConfig and provides the internal message channels associated with each monitored chain.
 		channelData ChannelData
 
+		// channelMap provides access by IBC connection ID.
+		connectionMap map[string]*connectionEntry
+
+		// chainMap provides access by chain ID.
+		chainMap map[vaa.ChainID]*connectionEntry
+
+		// connectionIdMap provides a mapping from IBC channel ID to IBC connection ID.
+		connectionIdMap map[string]string
+
+		// connectionIdLock protects connectionIdMap.
 		connectionIdLock sync.Mutex
-		connectionIdMap  map[string]string
 	}
 
-	// channelEntry defines the chain that is associated with an IBC connection.
+	// connectionEntry defines the chain that is associated with an IBC connection.
 	connectionEntry struct {
 		connectionID string
 		chainID      vaa.ChainID
@@ -148,7 +158,7 @@ func NewWatcher(
 		wsUrl:            wsUrl,
 		lcdUrl:           lcdUrl,
 		contractAddress:  contractAddress,
-		ConnectionConfig: ConnectionConfig,
+		connectionConfig: ConnectionConfig,
 		channelData:      channelData,
 		connectionIdMap:  make(map[string]string),
 	}
@@ -164,6 +174,7 @@ func ConvertUrlToTendermint(input string) (string, error) {
 	return "http://" + input, nil
 }
 
+// clientRequest is used to subscribe for events from the contract.
 type clientRequest struct {
 	JSONRPC string `json:"jsonrpc"`
 	// A String containing the name of the method to be invoked.
@@ -176,6 +187,7 @@ type clientRequest struct {
 }
 
 const (
+	// The IBC receiver contract publishes wasm events, not execute events.
 	contractAddressFilterKey = "wasm._contract_address"
 	contractAddressLogKey    = "_contract_address"
 )
@@ -187,13 +199,26 @@ func (w *Watcher) Run(ctx context.Context) error {
 	errC := make(chan error)
 	defer close(errC)
 
-	w.channelMap = make(map[string]*connectionEntry)
+	// Rebuild these from scratch every time the watcher restarts.
+	w.connectionMap = make(map[string]*connectionEntry)
 	w.chainMap = make(map[vaa.ChainID]*connectionEntry)
 
-	for idx, chainToMonitor := range w.ConnectionConfig {
+	// Build our internal data structures based on the config passed in.
+	for idx, chainToMonitor := range w.connectionConfig {
 		if w.channelData[idx].ChainID != chainToMonitor.ChainID {
 			panic("channelData is not in sync with chainToMonitor") // This would be a program bug!
 		}
+
+		_, exists := w.connectionMap[chainToMonitor.ConnID]
+		if exists {
+			return fmt.Errorf("detected duplicate IBC connection: %v", chainToMonitor.ConnID)
+		}
+
+		_, exists = w.chainMap[chainToMonitor.ChainID]
+		if exists {
+			return fmt.Errorf("detected duplicate chainID: %v", chainToMonitor.ChainID)
+		}
+
 		ce := &connectionEntry{
 			connectionID: chainToMonitor.ConnID,
 			chainID:      chainToMonitor.ChainID,
@@ -203,18 +228,8 @@ func (w *Watcher) Run(ctx context.Context) error {
 			obsvReqC:     w.channelData[idx].ObsvReqC,
 		}
 
-		_, exists := w.channelMap[ce.connectionID]
-		if exists {
-			return fmt.Errorf("detected duplicate IBC connection: %v", ce.connectionID)
-		}
-
-		_, exists = w.chainMap[ce.chainID]
-		if exists {
-			return fmt.Errorf("detected duplicate chainID: %v", ce.chainID)
-		}
-
 		w.logger.Info("will monitor chain over IBC", zap.String("chain", ce.chainName), zap.String("IBC connection", ce.connectionID))
-		w.channelMap[ce.connectionID] = ce
+		w.connectionMap[ce.connectionID] = ce
 		w.chainMap[ce.chainID] = ce
 
 		p2p.DefaultRegistry.SetNetworkStats(ce.chainID, &gossipv1.Heartbeat_Network{ContractAddress: w.contractAddress})
@@ -229,9 +244,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 	}
 	defer c.Close(websocket.StatusNormalClosure, "")
 
-	// During testing, I got a message larger then the default
-	// 32768.  Increasing this limit effects an internal buffer that is used
-	// to as part of the zero alloc/copy design.
+	// This was copied from the cosmwasm watcher. It sure it's still necessary. . .
 	c.SetReadLimit(524288)
 
 	// Subscribe to smart contract transactions.
@@ -280,7 +293,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 	}
 }
 
-// handleEvents handles events reads messages from the IBC receiver contract and processes them.
+// handleEvents reads messages from the IBC receiver contract and processes them.
 func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn, errC chan error) error {
 	for {
 		select {
@@ -470,7 +483,7 @@ func (w *Watcher) processEvent(txHash ethCommon.Hash, evt *ibcReceivePublishEven
 		return
 	}
 
-	ce, exists := w.channelMap[connectionID]
+	ce, exists := w.connectionMap[connectionID]
 	if !exists {
 		w.logger.Info("ignoring an event from an unexpected IBC connection", zap.String("ibcConnection", connectionID))
 		connectionErrors.WithLabelValues("unexpected_ibc_channel_error").Inc()
@@ -537,6 +550,15 @@ func (w *Watcher) getConnectionID(channelID string) (string, error) {
 	return connectionID, nil
 }
 
+// ibcChannelQueryResults is used to parse the result from the IBC connection ID query.
+type ibcChannelQueryResults struct {
+	Channel struct {
+		State          string
+		ConnectionHops []string `json:"connection_hops"`
+		Version        string
+	}
+}
+
 /*
 This query:
   http://localhost:1319/ibc/core/channel/v1/channels/channel-0/ports/wasm.wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj
@@ -562,15 +584,6 @@ Returns something like this:
   }
 }
 */
-
-// ibcChannelQueryResults is used to parse the result from the IBC connection ID query.
-type ibcChannelQueryResults struct {
-	Channel struct {
-		State          string
-		ConnectionHops []string `json:"connection_hops"`
-		Version        string
-	}
-}
 
 // getConnectionID queries the contract on wormchain to map a channel ID to a connection ID.
 func (w *Watcher) queryConnectionID(channelID string) (string, error) {
@@ -618,7 +631,7 @@ func parseEvent[T any](logger *zap.Logger, desiredContract string, desiredAction
 	}
 
 	if attrBytes == nil {
-		return nil, nil
+		return nil, nil // This can be returned for different event types, so it is not an error.
 	}
 
 	evt := new(T)
