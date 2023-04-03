@@ -26,12 +26,25 @@ import (
 // The CoinGecko API is documented here: https://www.coingecko.com/en/api/documentation
 // An example of the query to be generated: https://api.coingecko.com/api/v3/simple/price?ids=gemma-extending-tech,bitcoin,weth&vs_currencies=usd
 
+// coinGeckoQueryIntervalInMins specifies how often we query CoinGecko for prices.
 const coinGeckoQueryIntervalInMins = 15
 
+// tokensPerCoinGeckoQuery specifies how many tokens will be in each CoinGecko query. The token list will be broken up into chunks of this size.
+const tokensPerCoinGeckoQuery = 200
+
+// initCoinGecko builds the set of CoinGecko queries that will be used to update prices. It also starts a go routine to periodically do the queries.
 func (gov *ChainGovernor) initCoinGecko(ctx context.Context, run bool) error {
+	queryIdx := 0
+	tokenIdx := 0
 	ids := ""
 	first := true
 	for coinGeckoId := range gov.tokensByCoinGeckoId {
+		if tokenIdx%tokensPerCoinGeckoQuery == 0 && tokenIdx != 0 {
+			gov.createCoinGeckoQuery(queryIdx, ids)
+			ids = ""
+			first = true
+			queryIdx += 1
+		}
 		if first {
 			first = false
 		} else {
@@ -39,19 +52,17 @@ func (gov *ChainGovernor) initCoinGecko(ctx context.Context, run bool) error {
 		}
 
 		ids += coinGeckoId
+		tokenIdx += 1
 	}
 
-	params := url.Values{}
-	params.Add("ids", ids)
-	params.Add("vs_currencies", "usd")
+	if ids != "" {
+		gov.createCoinGeckoQuery(queryIdx, ids)
+	}
 
-	if first {
+	if len(gov.coinGeckoQueries) == 0 {
 		gov.logger.Info("cgov: did not find any tokens, nothing to do!")
 		return nil
 	}
-
-	gov.coinGeckoQuery = "https://api.coingecko.com/api/v3/simple/price?" + params.Encode()
-	gov.logger.Info("cgov: coingecko query: ", zap.String("query", gov.coinGeckoQuery))
 
 	if run {
 		if err := supervisor.Run(ctx, "govpricer", gov.PriceQuery); err != nil {
@@ -62,6 +73,18 @@ func (gov *ChainGovernor) initCoinGecko(ctx context.Context, run bool) error {
 	return nil
 }
 
+// createCoinGeckoQuery creates a Coink Gecko query for the specified set of tokens and adds it to the list.
+func (gov *ChainGovernor) createCoinGeckoQuery(queryIdx int, ids string) {
+	params := url.Values{}
+	params.Add("ids", ids)
+	params.Add("vs_currencies", "usd")
+
+	query := "https://api.coingecko.com/api/v3/simple/price?" + params.Encode()
+	gov.logger.Info("cgov: coingecko query: ", zap.Int("queryIdx", queryIdx), zap.String("query", query))
+	gov.coinGeckoQueries = append(gov.coinGeckoQueries, query)
+}
+
+// PriceQuery is the entry point for the routine that periodically queries CoinGecko for prices.
 func (gov *ChainGovernor) PriceQuery(ctx context.Context) error {
 	// Do a query immediately, then once each interval.
 	// We ignore the error because an error would already have been logged, and we don't want to bring down the
@@ -81,50 +104,25 @@ func (gov *ChainGovernor) PriceQuery(ctx context.Context) error {
 	}
 }
 
-// queryCoinGecko sends a query to the CoinGecko server to get the latest prices. It can
+// queryCoinGecko sends a series of of one or more queries to the CoinGecko server to get the latest prices. It can
 // return an error, but that is only used by the tool that validates the query. In the actual governor,
 // it just logs the error and we will try again next interval. If an error happens, any tokens that have
 // not been updated will be assigned their pre-configured price.
 func (gov *ChainGovernor) queryCoinGecko() error {
-	response, err := http.Get(gov.coinGeckoQuery)
-	if err != nil {
-		gov.logger.Error("cgov: failed to query coin gecko, reverting to configured prices", zap.String("query", gov.coinGeckoQuery), zap.Error(err))
-		gov.revertAllPrices()
-		return fmt.Errorf("failed to query CoinGecko")
-	}
-
-	defer func() {
-		err = response.Body.Close()
+	result := make(map[string]interface{})
+	for queryIdx, query := range gov.coinGeckoQueries {
+		thisResult, err := gov.queryCoinGeckoChunk(query)
 		if err != nil {
-			gov.logger.Error("cgov: failed to close coin gecko query")
-			// We can't safely call revertAllPrices() here because we don't know if we hold the lock or not.
-			// Also, we don't need to because the prices have already been updated / reverted by this point.
+			gov.logger.Error("cgov: coin gecko query failed", zap.Int("queryIdx", queryIdx), zap.String("query", query), zap.Error(err))
+			gov.revertAllPrices()
+			return err
 		}
-	}()
 
-	responseData, err := io.ReadAll(response.Body)
-	if err != nil {
-		gov.logger.Error("cgov: failed to parse coin gecko response, reverting to configured prices", zap.Error(err))
-		gov.revertAllPrices()
-		return fmt.Errorf("failed to parse CoinGecko response")
-	}
+		for key, value := range thisResult {
+			result[key] = value
+		}
 
-	resp := string(responseData)
-	if strings.Contains(resp, "error_code") {
-		gov.logger.Error("cgov: coin gecko query failed, reverting to configured prices",
-			zap.String("response", resp),
-			zap.String("query", gov.coinGeckoQuery),
-		)
-
-		gov.revertAllPrices()
-		return fmt.Errorf("coin gecko query failed: %s", resp)
-	}
-
-	var result map[string]interface{}
-	if err := json.Unmarshal(responseData, &result); err != nil {
-		gov.logger.Error("cgov: failed to unmarshal coin gecko json, reverting to configured prices", zap.Error(err))
-		gov.revertAllPrices()
-		return fmt.Errorf("failed to unmarshal json")
+		time.Sleep(1 * time.Second)
 	}
 
 	now := time.Now()
@@ -178,11 +176,48 @@ func (gov *ChainGovernor) queryCoinGecko() error {
 				// Don't update the timestamp so we'll know when we last received an update from CoinGecko.
 			}
 		}
+
+		return fmt.Errorf("cgov: failed to update prices for some tokens")
 	}
 
 	return nil
 }
 
+// queryCoinGeckoChunk sends a single Coin Gecko query and returns the result.
+func (gov *ChainGovernor) queryCoinGeckoChunk(query string) (map[string]interface{}, error) {
+	var result map[string]interface{}
+
+	gov.logger.Debug("cgov: executing coin gecko query", zap.String("query", query))
+	response, err := http.Get(query) //nolint:gosec
+	if err != nil {
+		return result, fmt.Errorf("failed to query CoinGecko: %w", err)
+	}
+
+	defer func() {
+		err = response.Body.Close()
+		if err != nil {
+			gov.logger.Error("cgov: failed to close coin gecko query: %w", zap.Error(err))
+		}
+	}()
+
+	responseData, err := io.ReadAll(response.Body)
+	if err != nil {
+		return result, fmt.Errorf("failed to read CoinGecko response: %w", err)
+	}
+
+	resp := string(responseData)
+	if strings.Contains(resp, "error_code") {
+		return result, fmt.Errorf("coin gecko query failed: %s", resp)
+	}
+
+	if err := json.Unmarshal(responseData, &result); err != nil {
+		return result, fmt.Errorf("failed to unmarshal coin gecko json: %w", err)
+	}
+
+	return result, nil
+}
+
+// revertAllPrices reverts the price of all tokens to the configured prices. It is used when a CoinGecko query fails.
 func (gov *ChainGovernor) revertAllPrices() {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
@@ -202,7 +237,7 @@ func (gov *ChainGovernor) revertAllPrices() {
 	}
 }
 
-// We should use the max(coinGeckoPrice, configuredPrice) as our price for computing notional value.
+// updatePrice updates the price of a single token. We should use the max(coinGeckoPrice, configuredPrice) as our price for computing notional value.
 func (te tokenEntry) updatePrice() {
 	if (te.coinGeckoPrice == nil) || (te.coinGeckoPrice.Cmp(te.cfgPrice) < 0) {
 		te.price.Set(te.cfgPrice)
@@ -211,6 +246,7 @@ func (te tokenEntry) updatePrice() {
 	}
 }
 
+// CheckQuery is a free function used to test that the CoinGecko query still works after the mainnet token list has been updated.
 func CheckQuery(logger *zap.Logger) error {
 	logger.Info("Instantiating governor.")
 	ctx := context.Background()
@@ -221,16 +257,16 @@ func CheckQuery(logger *zap.Logger) error {
 		return err
 	}
 
-	logger.Info("Building Coin Gecko query.")
+	logger.Info("Building CoinGecko query.")
 	if err := gov.initCoinGecko(ctx, false); err != nil {
 		return err
 	}
 
-	logger.Info("Initiating Coin Gecko query.")
+	logger.Info("Initiating CoinGecko query.")
 	if err := gov.queryCoinGecko(); err != nil {
 		return err
 	}
 
-	logger.Info("Coin Gecko query complete.")
+	logger.Info("CoinGecko query complete.")
 	return nil
 }
