@@ -165,7 +165,7 @@ func NewEthWatcher(
 func (w *Watcher) Run(ctx context.Context) error {
 	logger := supervisor.Logger(ctx)
 
-	useFinalizedBlocks := (w.chainID == vaa.ChainIDEthereum && (!w.unsafeDevMode))
+	useFinalizedBlocks := ((w.chainID == vaa.ChainIDEthereum || w.chainID == vaa.ChainIDSepolia) && (!w.unsafeDevMode))
 	if (w.chainID == vaa.ChainIDKarura || w.chainID == vaa.ChainIDAcala) && (!w.unsafeDevMode) {
 		ufb, err := w.getAcalaMode(ctx)
 		if err != nil {
@@ -198,7 +198,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
 	} else if useFinalizedBlocks {
-		if w.chainID == vaa.ChainIDEthereum && !w.unsafeDevMode {
+		if (w.chainID == vaa.ChainIDEthereum || w.chainID == vaa.ChainIDSepolia) && !w.unsafeDevMode {
 			safeBlocksSupported = true
 			logger.Info("using finalized blocks, will publish safe blocks")
 		} else {
