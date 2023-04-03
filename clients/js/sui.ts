@@ -26,21 +26,20 @@ export async function executeTransactionBlock(
     );
   }
 
-  const res = await signer.signAndExecuteTransactionBlock({ transactionBlock });
+  const res = await signer.signAndExecuteTransactionBlock({
+    transactionBlock,
+    options: {
+      showInput: true,
+      showEffects: true,
+      showEvents: true,
+      showObjectChanges: true,
+    },
+  });
+
   console.log("Digest", res.digest, res.effects.transactionDigest);
   console.log("Sender", res.transaction.data.sender);
 
-  // console.log(
-  //   "Transaction digest: ",
-  //   moveCallTxn["certificate"]["transactionDigest"]
-  // );
-  // console.log(
-  //   "Sender:             ",
-  //   moveCallTxn["certificate"]["data"]["sender"]
-  // );
-
-  // Let caller handle parsing and logging effects
-  // return moveCallTxn["effects"]["effects"];
+  // Let caller handle parsing and logging info
   return res;
 }
 

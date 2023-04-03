@@ -1,11 +1,14 @@
+import { TransactionBlock } from "@mysten/sui.js";
 import yargs from "yargs";
 import { config } from "../config";
 import { NETWORK_OPTIONS, RPC_OPTIONS } from "../consts";
 import { NETWORKS } from "../networks";
 import {
+  executeTransactionBlock,
   getOwnedObjectId,
   getProvider,
   getSigner,
+  isSuiCreateEvent,
   publishPackage,
 } from "../sui";
 import { assertNetwork, checkBinary } from "../utils";
@@ -113,10 +116,11 @@ exports.builder = function (y: typeof yargs) {
           "DeployerCap"
         );
 
-        console.log("Network:                  ", network);
-        console.log("Package ID:               ", packageId);
-        console.log("Deployer object ID:       ", deployerCapObjectId);
-        console.log("Wormhole state object ID: ", wormholeStateObjectId);
+        console.log("Owner", owner);
+        console.log("Network", network);
+        console.log("Package ID", packageId);
+        console.log("Deployer object ID", deployerCapObjectId);
+        console.log("Wormhole state object ID", wormholeStateObjectId);
 
         if (!deployerCapObjectId) {
           throw new Error(
@@ -124,23 +128,25 @@ exports.builder = function (y: typeof yargs) {
           );
         }
 
-        // const effects: TransactionEffects =
-        // await executeTransactionBlock(
-        //   provider,
-        //   network,
-        //   packageId,
-        //   "state",
-        //   "init_and_share_state",
-        //   [],
-        //   [deployerCapObjectId, wormholeStateObjectId]
-        // );
-
-        // console.log(
-        //   "Token bridge state object ID: ",
-        //   effects["created"].find(
-        //     (o) => typeof o.owner === "object" && "Shared" in o.owner
-        //   ).reference.objectId
-        // );
+        const transactionBlock = new TransactionBlock();
+        transactionBlock.moveCall({
+          target: `${packageId}::state::init_and_share_state`,
+          arguments: [
+            transactionBlock.object(deployerCapObjectId),
+            transactionBlock.object(wormholeStateObjectId),
+          ],
+        });
+        const res = await executeTransactionBlock(
+          provider,
+          network,
+          transactionBlock
+        );
+        console.log(
+          "Token bridge state object ID",
+          res.objectChanges
+            .filter(isSuiCreateEvent)
+            .find((e) => e.objectType === `${packageId}::state::State`).objectId
+        );
       }
     )
     .command(
@@ -208,20 +214,20 @@ exports.builder = function (y: typeof yargs) {
         const upgradeCapObjectId = await getOwnedObjectId(
           provider,
           owner,
-          packageId,
-          "dummy_sui_package",
+          "0x2",
+          "package",
           "UpgradeCap"
         );
 
-        console.log("Network:               ", network);
-        console.log("RPC:                   ", rpc);
-        console.log("Package ID:            ", packageId);
-        console.log("Deployer cap object ID:", deployerCapObjectId);
-        console.log("Upgrade cap object ID: ", upgradeCapObjectId);
-        console.log("Chain ID:              ", chainId);
-        console.log("Governance chain ID:   ", governanceChainId);
-        console.log("Governance contract:   ", governanceContract);
-        console.log("Initial guardian:      ", initialGuardian);
+        console.log("Network", network);
+        console.log("RPC", rpc);
+        console.log("Package ID", packageId);
+        console.log("Deployer cap object ID", deployerCapObjectId);
+        console.log("Upgrade cap object ID", upgradeCapObjectId);
+        console.log("Chain ID", chainId);
+        console.log("Governance chain ID", governanceChainId);
+        console.log("Governance contract", governanceContract);
+        console.log("Initial guardian", initialGuardian);
 
         if (!deployerCapObjectId) {
           throw new Error(
@@ -235,31 +241,30 @@ exports.builder = function (y: typeof yargs) {
           );
         }
 
-        // const effects: TransactionEffects =
-        // await executeTransactionBlock(
-        //   provider,
-        //   network,
-        //   packageId,
-        //   "setup",
-        //   "init_and_share_state",
-        //   [],
-        //   [
-        //     deployerCapObjectId,
-        //     upgradeCapObjectId,
-        //     governanceChainId,
-        //     [...Buffer.from(governanceContract, "hex")],
-        //     [[...Buffer.from(initialGuardian, "hex")]],
-        //     365, // Guardian set TTL in epochs
-        //     "0", // Message fee
-        //   ]
-        // );
-
-        // console.log(
-        //   "Wormhole state object ID: ",
-        //   effects["created"].find(
-        //     (o) => typeof o.owner === "object" && "Shared" in o.owner
-        //   ).reference.objectId
-        // );
+        const transactionBlock = new TransactionBlock();
+        transactionBlock.moveCall({
+          target: `${packageId}::setup::init_and_share_state`,
+          arguments: [
+            transactionBlock.object(deployerCapObjectId),
+            transactionBlock.object(upgradeCapObjectId),
+            transactionBlock.pure(governanceChainId),
+            transactionBlock.pure([...Buffer.from(governanceContract, "hex")]),
+            transactionBlock.pure([[...Buffer.from(initialGuardian, "hex")]]),
+            transactionBlock.pure(365), // Guardian set TTL in epochs
+            transactionBlock.pure("0"), // Message fee
+          ],
+        });
+        const res = await executeTransactionBlock(
+          provider,
+          network,
+          transactionBlock
+        );
+        console.log(
+          "Wormhole state object ID",
+          res.objectChanges
+            .filter(isSuiCreateEvent)
+            .find((e) => e.objectType === `${packageId}::state::State`).objectId
+        );
       }
     )
     .command(
