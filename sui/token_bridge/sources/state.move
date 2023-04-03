@@ -285,7 +285,7 @@ module token_bridge::state {
     }
 
     #[test_only]
-    public fun borrow_token_registry_mut_test_only(
+    public fun borrow_mut_token_registry_test_only(
         self: &mut State
     ): &mut TokenRegistry {
         borrow_mut_token_registry(self)

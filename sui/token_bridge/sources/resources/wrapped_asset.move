@@ -41,7 +41,7 @@ module token_bridge::wrapped_asset {
     /// coin type.
     struct WrappedAsset<phantom C> has store {
         metadata: ForeignMetadata<C>,
-        minted: Supply<C>,
+        total_supply: Supply<C>,
         decimals: u8,
     }
 
@@ -62,7 +62,7 @@ module token_bridge::wrapped_asset {
         ) = asset_meta::unpack(token_meta);
 
         // Protect against adding `AssetMeta` which has Sui's chain ID.
-        assert_foreign_chain(token_chain);
+        assert!(token_chain != chain_id(), E_SUI_CHAIN);
 
         let metadata =
             ForeignMetadata {
@@ -76,7 +76,7 @@ module token_bridge::wrapped_asset {
 
         WrappedAsset {
             metadata,
-            minted: supply,
+            total_supply: supply,
             decimals: cap_decimals(native_decimals)
         }
     }
@@ -174,7 +174,7 @@ module token_bridge::wrapped_asset {
 
     /// Retrieve total minted supply.
     public fun total_supply<C>(self: &WrappedAsset<C>): u64 {
-        balance::supply_value(&self.minted)
+        balance::supply_value(&self.total_supply)
     }
 
     /// Retrieve decimals for this wrapped asset. For any asset whose native
@@ -196,48 +196,48 @@ module token_bridge::wrapped_asset {
     /// transfer for a wrapped asset.
     ///
     /// See `transfer_tokens` module for more info.
-    public(friend) fun burn_balance<C>(
+    public(friend) fun burn<C>(
         self: &mut WrappedAsset<C>,
         burned: Balance<C>
     ): u64 {
-        balance::decrease_supply(&mut self.minted, burned)
+        balance::decrease_supply(&mut self.total_supply, burned)
     }
 
     #[test_only]
-    public fun burn_balance_test_only<C>(
+    public fun burn_test_only<C>(
         self: &mut WrappedAsset<C>,
         burned: Balance<C>
     ): u64 {
-        burn_balance(self, burned)
+        burn(self, burned)
     }
 
     /// Mint a given amount. This amount is determined by an inbound token
     /// transfer payload for a wrapped asset.
     ///
     /// See `complete_transfer` module for more info.
-    public(friend) fun mint_balance<C>(
+    public(friend) fun mint<C>(
         self: &mut WrappedAsset<C>,
         amount: u64
     ): Balance<C> {
-        balance::increase_supply(&mut self.minted, amount)
+        balance::increase_supply(&mut self.total_supply, amount)
     }
 
     #[test_only]
-    public fun mint_balance_test_only<C>(
+    public fun mint_test_only<C>(
         self: &mut WrappedAsset<C>,
         amount: u64
     ): Balance<C> {
-        mint_balance(self, amount)
+        mint(self, amount)
     }
 
     #[test_only]
     public fun destroy<C>(asset: WrappedAsset<C>) {
         let WrappedAsset {
             metadata,
-            minted,
+            total_supply,
             decimals: _
         } = asset;
-        sui::test_utils::destroy(minted);
+        sui::test_utils::destroy(total_supply);
 
         let ForeignMetadata {
             id,
@@ -248,10 +248,6 @@ module token_bridge::wrapped_asset {
             name: _
         } = metadata;
         sui::object::delete(id);
-    }
-
-    fun assert_foreign_chain(chain: u16) {
-        assert!(chain != chain_id(), E_SUI_CHAIN);
     }
 }
 
@@ -357,7 +353,7 @@ module token_bridge::wrapped_asset_tests {
         let (i, n) = (0, 8);
         while (i < n) {
             let minted =
-                wrapped_asset::mint_balance_test_only(&mut asset, mint_amount);
+                wrapped_asset::mint_test_only(&mut asset, mint_amount);
             assert!(balance::value(&minted) == mint_amount, 0);
             balance::join(&mut collected, minted);
             i = i + 1;
@@ -374,7 +370,7 @@ module token_bridge::wrapped_asset_tests {
         while (i < n) {
             let burned = balance::split(&mut collected, burn_amount);
             let check_amount =
-                wrapped_asset::burn_balance_test_only(&mut asset, burned);
+                wrapped_asset::burn_test_only(&mut asset, burned);
             assert!(check_amount == burn_amount, 0);
             i = i + 1;
         };
@@ -477,7 +473,7 @@ module token_bridge::wrapped_asset_tests {
         let (i, n) = (0, 8);
         while (i < n) {
             let minted =
-                wrapped_asset::mint_balance_test_only(&mut asset, mint_amount);
+                wrapped_asset::mint_test_only(&mut asset, mint_amount);
             assert!(balance::value(&minted) == mint_amount, 0);
             balance::join(&mut collected, minted);
             i = i + 1;
@@ -494,7 +490,7 @@ module token_bridge::wrapped_asset_tests {
         while (i < n) {
             let burned = balance::split(&mut collected, burn_amount);
             let check_amount =
-                wrapped_asset::burn_balance_test_only(&mut asset, burned);
+                wrapped_asset::burn_test_only(&mut asset, burned);
             assert!(check_amount == burn_amount, 0);
             i = i + 1;
         };

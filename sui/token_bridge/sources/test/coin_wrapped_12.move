@@ -11,6 +11,7 @@ module token_bridge::coin_wrapped_12 {
     use token_bridge::create_wrapped::{Self, WrappedAssetSetup};
     use token_bridge::state::{Self};
     use token_bridge::token_registry::{Self};
+    use token_bridge::wrapped_asset::{Self};
 
     struct COIN_WRAPPED_12 has drop {}
 
@@ -131,10 +132,15 @@ module token_bridge::coin_wrapped_12 {
         test_scenario::next_tx(scenario, caller);
 
         let token_bridge_state = take_state(scenario);
-        let registry =
-            state::borrow_token_registry_mut_test_only(&mut token_bridge_state);
         let minted =
-            token_registry::mint_test_only(registry, amount);
+            wrapped_asset::mint_test_only(
+                token_registry::borrow_mut_wrapped_test_only(
+                    state::borrow_mut_token_registry_test_only(
+                        &mut token_bridge_state
+                    )
+                ),
+                amount
+            );
 
         return_state(token_bridge_state);
 

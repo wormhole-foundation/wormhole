@@ -9,7 +9,7 @@ module wormhole::publish_message {
     use sui::balance::{Balance};
     use sui::clock::{Self, Clock};
     use sui::event::{Self};
-    use sui::object::{Self};
+    use sui::object::{Self, ID};
     use sui::sui::{SUI};
 
     use wormhole::emitter::{Self, EmitterCap};
@@ -18,8 +18,8 @@ module wormhole::publish_message {
 
     /// `WormholeMessage` to be emitted via sui::event::emit.
     struct WormholeMessage has drop, copy {
-        /// Underlying bytes of `EmitterCap` external address.
-        sender: vector<u8>,
+        /// `EmitterCap` object ID.
+        sender: ID,
         /// From `EmitterCap`.
         sequence: u64,
         /// A.K.A. Batch ID.
@@ -59,16 +59,19 @@ module wormhole::publish_message {
 
         // Truncate to seconds.
         let timestamp = clock::timestamp_ms(the_clock) / 1000;
+
+        // Sui is an instant finality chain, so we don't need
+        // confirmations.
+        let consistency_level = 0;
+
         // Emit Sui event with `WormholeMessage`.
         event::emit(
             WormholeMessage {
-                sender: object::id_to_bytes(&object::id(emitter_cap)),
+                sender: object::id(emitter_cap),
                 sequence,
                 nonce,
-                payload: payload,
-                // Sui is an instant finality chain, so we don't need
-                // confirmations. Do we even need to specify this?
-                consistency_level: 0,
+                payload,
+                consistency_level,
                 timestamp
             }
         );

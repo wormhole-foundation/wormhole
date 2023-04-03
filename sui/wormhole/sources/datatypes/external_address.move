@@ -68,10 +68,6 @@ module wormhole::external_address {
         new(bytes32::from_bytes(object::id_to_bytes(&id)))
     }
 
-    public fun from_object<T: key>(obj: &T): ExternalAddress {
-        from_id(object::id(obj))
-    }
-
     /// Check whether underlying data is not all zeros.
     public fun is_nonzero(self: &ExternalAddress): bool {
         bytes32::is_nonzero(&self.value)

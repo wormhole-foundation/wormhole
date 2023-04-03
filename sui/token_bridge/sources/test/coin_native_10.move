@@ -9,6 +9,7 @@ module token_bridge::coin_native_10 {
     use sui::transfer::{Self};
     use sui::tx_context::{TxContext};
 
+    use token_bridge::native_asset::{Self};
     use token_bridge::state::{Self};
     use token_bridge::token_registry::{Self};
 
@@ -68,7 +69,7 @@ module token_bridge::coin_native_10 {
 
         // Register asset.
         let registry =
-            state::borrow_token_registry_mut_test_only(&mut token_bridge_state);
+            state::borrow_mut_token_registry_test_only(&mut token_bridge_state);
         token_registry::add_new_native_test_only(registry, &coin_meta);
 
         // Clean up.
@@ -106,9 +107,14 @@ module token_bridge::coin_native_10 {
         test_scenario::next_tx(scenario, caller);
 
         let token_bridge_state = take_state(scenario);
-        let registry =
-            state::borrow_token_registry_mut_test_only(&mut token_bridge_state);
-        token_registry::deposit_test_only(registry, minted);
+        native_asset::deposit_test_only(
+            token_registry::borrow_mut_native_test_only(
+                state::borrow_mut_token_registry_test_only(
+                    &mut token_bridge_state
+                )
+            ),
+            minted
+        );
 
         return_state(token_bridge_state);
     }

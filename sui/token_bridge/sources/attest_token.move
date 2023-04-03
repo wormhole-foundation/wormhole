@@ -189,7 +189,7 @@ module token_bridge::attest_token_tests {
             assert!(token_chain == chain_id(), 0);
             assert!(token_address == expected_token_address, 0);
 
-            assert!(native_asset::balance(asset) == 0, 0);
+            assert!(native_asset::custody(asset) == 0, 0);
         };
 
         // Update metadata.

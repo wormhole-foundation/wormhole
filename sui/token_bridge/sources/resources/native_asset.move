@@ -10,6 +10,7 @@
 module token_bridge::native_asset {
     use sui::balance::{Self, Balance};
     use sui::coin::{Self, CoinMetadata};
+    use sui::object::{Self};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::state::{chain_id};
 
@@ -24,10 +25,12 @@ module token_bridge::native_asset {
         decimals: u8
     }
 
+    /// Token Bridge identifies native assets using `CoinMetadata` object `ID`.
+    /// This method converts this `ID` to `ExternalAddress`.
     public fun canonical_address<C>(
         metadata: &CoinMetadata<C>
     ): ExternalAddress {
-        external_address::from_object(metadata)
+        external_address::from_id(object::id(metadata))
     }
 
     /// Create new `NativeAsset`.
@@ -58,7 +61,7 @@ module token_bridge::native_asset {
     }
 
     /// Retrieve custodied `Balance` value.
-    public fun balance<C>(self: &NativeAsset<C>): u64 {
+    public fun custody<C>(self: &NativeAsset<C>): u64 {
         balance::value(&self.custody)
     }
 
@@ -73,7 +76,7 @@ module token_bridge::native_asset {
     /// transfer for a native asset.
     ///
     /// See `transfer_tokens` module for more info.
-    public(friend) fun deposit_balance<C>(
+    public(friend) fun deposit<C>(
         self: &mut NativeAsset<C>,
         deposited: Balance<C>
     ) {
@@ -81,18 +84,18 @@ module token_bridge::native_asset {
     }
 
     #[test_only]
-    public fun deposit_balance_test_only<C>(
+    public fun deposit_test_only<C>(
         self: &mut NativeAsset<C>,
         deposited: Balance<C>
     ) {
-        deposit_balance(self, deposited)
+        deposit(self, deposited)
     }
 
     /// Withdraw a given amount from custody. This amount is determiend by an
     /// inbound token transfer payload for a native asset.
     ///
     /// See `complete_transfer` module for more info.
-    public(friend) fun withdraw_balance<C>(
+    public(friend) fun withdraw<C>(
         self: &mut NativeAsset<C>,
         amount: u64
     ): Balance<C> {
@@ -100,11 +103,11 @@ module token_bridge::native_asset {
     }
 
     #[test_only]
-    public fun withdraw_balance_test_only<C>(
+    public fun withdraw_test_only<C>(
         self: &mut NativeAsset<C>,
         amount: u64
     ): Balance<C> {
-        withdraw_balance(self, amount)
+        withdraw(self, amount)
     }
 
     #[test_only]
@@ -122,6 +125,7 @@ module token_bridge::native_asset {
 module token_bridge::native_asset_tests {
     use sui::balance::{Self};
     use sui::coin::{Self};
+    use sui::object::{Self};
     use sui::test_scenario::{Self};
     use wormhole::external_address::{Self};
     use wormhole::state::{chain_id};
@@ -151,7 +155,8 @@ module token_bridge::native_asset_tests {
         let asset = native_asset::new_test_only(&coin_meta);
 
         // Assert token address and decimals are correct.
-        let expected_token_address = external_address::from_object(&coin_meta);
+        let expected_token_address =
+            external_address::from_id(object::id(&coin_meta));
         assert!(
             native_asset::token_address(&asset) == expected_token_address,
             0
@@ -160,13 +165,13 @@ module token_bridge::native_asset_tests {
             native_asset::decimals(&asset) == coin::get_decimals(&coin_meta),
             0
         );
-        assert!(native_asset::balance(&asset) == 0, 0);
+        assert!(native_asset::custody(&asset) == 0, 0);
 
         // deposit some coins into the NativeAsset coin custody
         let deposit_amount = 1000;
         let (i, n) = (0, 8);
         while (i < n) {
-            native_asset::deposit_balance_test_only(
+            native_asset::deposit_test_only(
                 &mut asset,
                 balance::create_for_testing(
                     deposit_amount
@@ -175,13 +180,13 @@ module token_bridge::native_asset_tests {
             i = i + 1;
         };
         let total_deposited = n * deposit_amount;
-        assert!(native_asset::balance(&asset) == total_deposited, 0);
+        assert!(native_asset::custody(&asset) == total_deposited, 0);
 
         let withdraw_amount = 690;
         let total_withdrawn = balance::zero();
         let i = 0;
         while (i < n) {
-            let withdrawn = native_asset::withdraw_balance_test_only(
+            let withdrawn = native_asset::withdraw_test_only(
                 &mut asset,
                 withdraw_amount
             );
@@ -201,7 +206,7 @@ module token_bridge::native_asset_tests {
 
         // check that updated balance is correct
         let expected_remaining = total_deposited - n * withdraw_amount;
-        let remaining = native_asset::balance(&asset);
+        let remaining = native_asset::custody(&asset);
         assert!(remaining == expected_remaining, 0);
 
         // Clean up.

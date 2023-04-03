@@ -16,8 +16,10 @@ module token_bridge::token_bridge_scenario {
         take_state as take_wormhole_state
     };
 
+    use token_bridge::native_asset::{Self};
     use token_bridge::setup::{Self, DeployerCap};
     use token_bridge::state::{Self, State};
+    use token_bridge::token_registry::{Self};
 
     public fun set_up_wormhole_and_token_bridge(
         scenario: &mut Scenario,
@@ -79,11 +81,10 @@ module token_bridge::token_bridge_scenario {
         token_bridge_state: &mut State,
         deposit_amount: u64
     ) {
-        use token_bridge::state::{borrow_token_registry_mut_test_only};
-        use token_bridge::token_registry::{deposit_test_only};
-
-        deposit_test_only(
-            borrow_token_registry_mut_test_only(token_bridge_state),
+        native_asset::deposit_test_only(
+            token_registry::borrow_mut_native_test_only(
+                state::borrow_mut_token_registry_test_only(token_bridge_state)
+            ),
             balance::create_for_testing<CoinType>(deposit_amount)
         )
     }

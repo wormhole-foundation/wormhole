@@ -94,12 +94,12 @@ module token_bridge::transfer_tokens {
         // Either burn or deposit depending on `CoinType`.
         let registry = state::borrow_mut_token_registry(token_bridge_state);
         if (token_registry::is_wrapped(&verified)) {
-            wrapped_asset::burn_balance(
+            wrapped_asset::burn(
                 token_registry::borrow_mut_wrapped(registry),
                 bridged_in
             );
         } else {
-            native_asset::deposit_balance(
+            native_asset::deposit(
                 token_registry::borrow_mut_native(registry),
                 bridged_in
             );

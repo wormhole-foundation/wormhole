@@ -121,6 +121,7 @@ module token_bridge::complete_transfer_with_payload_tests {
     use token_bridge::complete_transfer_with_payload::{Self};
     use token_bridge::coin_native_10::{Self, COIN_NATIVE_10};
     use token_bridge::dummy_message::{Self};
+    use token_bridge::native_asset::{Self};
     use token_bridge::state::{Self};
     use token_bridge::token_bridge_scenario::{
         register_dummy_emitter,
@@ -133,6 +134,7 @@ module token_bridge::complete_transfer_with_payload_tests {
     };
     use token_bridge::token_registry::{Self};
     use token_bridge::transfer_with_payload::{Self};
+    use token_bridge::wrapped_asset::{Self};
 
     #[test]
     /// Test the public-facing function complete_transfer_with_payload.
@@ -171,12 +173,12 @@ module token_bridge::complete_transfer_with_payload_tests {
         let (token_bridge_state, worm_state) = take_states(scenario);
         let the_clock = take_clock(scenario);
 
-        assert!(
-            token_registry::native_balance<COIN_NATIVE_10>(
+        {
+            let asset = token_registry::borrow_native<COIN_NATIVE_10>(
                 state::borrow_token_registry(&token_bridge_state)
-            ) == mint_amount,
-            0
-        );
+            );
+            assert!(native_asset::custody(asset) == mint_amount, 0);
+        };
 
         // Set up dummy `EmitterCap` as the expected redeemer.
         let emitter_cap = emitter::dummy();
@@ -222,13 +224,15 @@ module token_bridge::complete_transfer_with_payload_tests {
         // Amount left on custody should be whatever is left remaining after
         // the transfer.
         let remaining = mint_amount - expected_bridged;
-        let registry = state::borrow_token_registry(&token_bridge_state);
-        assert!(
-            token_registry::native_balance<COIN_NATIVE_10>(registry) == remaining,
-            0
-        );
+        {
+            let asset = token_registry::borrow_native<COIN_NATIVE_10>(
+                state::borrow_token_registry(&token_bridge_state)
+            );
+            assert!(native_asset::custody(asset) == remaining, 0);
+        };
 
         // Verify token info.
+        let registry = state::borrow_token_registry(&token_bridge_state);
         let verified =
             token_registry::verified_asset<COIN_NATIVE_10>(registry);
         let expected_token_chain = token_registry::token_chain(&verified);
@@ -339,10 +343,11 @@ module token_bridge::complete_transfer_with_payload_tests {
 
         // Total supply should equal the amount just minted.
         let registry = state::borrow_token_registry(&token_bridge_state);
-        assert!(
-            token_registry::wrapped_supply<COIN_WRAPPED_12>(registry) == expected_bridged,
-            0
-        );
+        {
+            let asset =
+                token_registry::borrow_wrapped<COIN_WRAPPED_12>(registry);
+            assert!(wrapped_asset::total_supply(asset) == expected_bridged, 0);
+        };
 
         // Verify token info.
         let verified =

@@ -17,9 +17,6 @@ module token_bridge::token_registry {
     use token_bridge::native_asset::{Self, NativeAsset};
     use token_bridge::wrapped_asset::{Self, WrappedAsset};
 
-    #[test_only]
-    use sui::balance::{Balance};
-
     friend token_bridge::attest_token;
     friend token_bridge::complete_transfer;
     friend token_bridge::create_wrapped;
@@ -134,18 +131,21 @@ module token_bridge::token_registry {
         verified.is_wrapped
     }
 
+    /// Retrieve canonical token chain ID from `VerifiedAsset`.
     public fun token_chain<CoinType>(
         verified: &VerifiedAsset<CoinType>
     ): u16 {
         verified.chain
     }
 
+    /// Retrieve canonical token address from `VerifiedAsset`.
     public fun token_address<CoinType>(
         verified: &VerifiedAsset<CoinType>
     ): ExternalAddress {
         verified.addr
     }
 
+    /// Retrieve decimals for a `VerifiedAsset`.
     public fun coin_decimals<CoinType>(
         verified: &VerifiedAsset<CoinType>
     ): u8 {
@@ -223,14 +223,42 @@ module token_bridge::token_registry {
         add_new_native(self, metadata)
     }
 
-    #[test_only]
-    public fun native_balance<CoinType>(self: &TokenRegistry): u64 {
-        native_asset::balance(borrow_native<CoinType>(self))
+    public fun borrow_wrapped<CoinType>(
+        self: &TokenRegistry
+    ): &WrappedAsset<CoinType> {
+        dynamic_field::borrow(&self.id, Key<CoinType> {})
+    }
+
+    public(friend) fun borrow_mut_wrapped<CoinType>(
+        self: &mut TokenRegistry
+    ): &mut WrappedAsset<CoinType> {
+        dynamic_field::borrow_mut(&mut self.id, Key<CoinType> {})
     }
 
     #[test_only]
-    public fun wrapped_supply<CoinType>(self: &TokenRegistry): u64 {
-        wrapped_asset::total_supply(borrow_wrapped<CoinType>(self))
+    public fun borrow_mut_wrapped_test_only<CoinType>(
+        self: &mut TokenRegistry
+    ): &mut WrappedAsset<CoinType> {
+        borrow_mut_wrapped(self)
+    }
+
+    public fun borrow_native<CoinType>(
+        self: &TokenRegistry
+    ): &NativeAsset<CoinType> {
+        dynamic_field::borrow(&self.id, Key<CoinType> {})
+    }
+
+    public(friend) fun borrow_mut_native<CoinType>(
+        self: &mut TokenRegistry
+    ): &mut NativeAsset<CoinType> {
+        dynamic_field::borrow_mut(&mut self.id, Key<CoinType> {})
+    }
+
+    #[test_only]
+    public fun borrow_mut_native_test_only<CoinType>(
+        self: &mut TokenRegistry
+    ): &mut NativeAsset<CoinType> {
+        borrow_mut_native(self)
     }
 
     #[test_only]
@@ -252,73 +280,6 @@ module token_bridge::token_registry {
         } = registry;
         object::delete(id);
     }
-
-    public fun borrow_wrapped<CoinType>(
-        self: &TokenRegistry
-    ): &WrappedAsset<CoinType> {
-        dynamic_field::borrow(&self.id, Key<CoinType> {})
-    }
-
-    public(friend) fun borrow_mut_wrapped<CoinType>(
-        self: &mut TokenRegistry
-    ): &mut WrappedAsset<CoinType> {
-        dynamic_field::borrow_mut(&mut self.id, Key<CoinType> {})
-    }
-
-    public fun borrow_native<CoinType>(
-        self: &TokenRegistry
-    ): &NativeAsset<CoinType> {
-        dynamic_field::borrow(&self.id, Key<CoinType> {})
-    }
-
-    public(friend) fun borrow_mut_native<CoinType>(
-        self: &mut TokenRegistry
-    ): &mut NativeAsset<CoinType> {
-        dynamic_field::borrow_mut(&mut self.id, Key<CoinType> {})
-    }
-
-    #[test_only]
-    public fun mint_test_only<CoinType>(
-        self: &mut TokenRegistry,
-        amount: u64
-    ): Balance<CoinType> {
-        wrapped_asset::mint_balance(
-            borrow_mut_wrapped(self),
-            amount
-        )
-    }
-
-    #[test_only]
-    public fun withdraw_test_only<CoinType>(
-        self: &mut TokenRegistry,
-        amount: u64
-    ): Balance<CoinType> {
-        native_asset::withdraw_balance(
-            borrow_mut_native(self),
-            amount
-        )
-    }
-
-    #[test_only]
-    public fun deposit_test_only<CoinType>(
-        self: &mut TokenRegistry,
-        deposited: Balance<CoinType>
-    ) {
-        native_asset::deposit_balance(
-            borrow_mut_native(self), deposited
-        )
-    }
-
-    #[test_only]
-    public fun burn_test_only<CoinType>(
-        self: &mut TokenRegistry,
-        burned: Balance<CoinType>
-    ): u64 {
-        wrapped_asset::burn_balance(
-            borrow_mut_wrapped(self),
-            burned
-        )
-    }
 }
 
 // In this test, we exercise the various functionalities of TokenRegistry,
@@ -337,6 +298,7 @@ module token_bridge::token_registry_tests {
     use token_bridge::native_asset::{Self};
     use token_bridge::token_registry::{Self};
     use token_bridge::token_bridge_scenario::{person};
+    use token_bridge::wrapped_asset::{Self};
 
     #[test]
     fun test_registered_tokens_native() {
@@ -373,8 +335,10 @@ module token_bridge::token_registry_tests {
         let deposit_amount = 69;
         let (i, n) = (0, 8);
         while (i < n) {
-            token_registry::deposit_test_only(
-                &mut registry,
+            native_asset::deposit_test_only(
+                token_registry::borrow_mut_native_test_only(
+                    &mut registry,
+                ),
                 balance::create_for_testing<COIN_NATIVE_10>(
                     deposit_amount
                 )
@@ -382,27 +346,30 @@ module token_bridge::token_registry_tests {
             i = i + 1;
         };
         let total_deposited = n * deposit_amount;
-        assert!(
-            token_registry::native_balance<COIN_NATIVE_10>(&registry) == total_deposited,
-            0
-        );
+        {
+            let asset =
+                token_registry::borrow_native<COIN_NATIVE_10>(&registry);
+            assert!(native_asset::custody(asset) == total_deposited, 0);
+        };
 
         // Withdraw and check balances.
         let withdraw_amount = 420;
         let withdrawn =
-            token_registry::withdraw_test_only<COIN_NATIVE_10>(
-                &mut registry,
+            native_asset::withdraw_test_only(
+                token_registry::borrow_mut_native_test_only<COIN_NATIVE_10>(
+                    &mut registry
+                ),
                 withdraw_amount
             );
         assert!(balance::value(&withdrawn) == withdraw_amount, 0);
         balance::destroy_for_testing(withdrawn);
 
         let expected_remaining = total_deposited - withdraw_amount;
-        let remaining =
-            token_registry::native_balance<COIN_NATIVE_10>(
-                &registry
-            );
-        assert!(remaining == expected_remaining, 0);
+        {
+            let asset =
+                token_registry::borrow_native<COIN_NATIVE_10>(&registry);
+            assert!(native_asset::custody(asset) == expected_remaining, 0);
+        };
 
         // Verify registry values.
         assert!(token_registry::num_native(&registry) == 1, 0);
@@ -460,8 +427,10 @@ module token_bridge::token_registry_tests {
         let (i, n) = (0, 8);
         while (i < n) {
             let minted =
-                token_registry::mint_test_only<COIN_WRAPPED_7>(
-                    &mut registry,
+                wrapped_asset::mint_test_only(
+                    token_registry::borrow_mut_wrapped_test_only<COIN_WRAPPED_7>(
+                        &mut registry,
+                    ),
                     mint_amount
                 );
             assert!(balance::value(&minted) == mint_amount, 0);
@@ -470,24 +439,28 @@ module token_bridge::token_registry_tests {
         };
 
         let total_supply =
-            token_registry::wrapped_supply<COIN_WRAPPED_7>(
-                &registry
+            wrapped_asset::total_supply(
+                token_registry::borrow_wrapped<COIN_WRAPPED_7>(
+                    &registry
+                )
             );
         assert!(total_supply == balance::value(&total_minted), 0);
 
         // withdraw, check value, and re-deposit native coins into registry
         let burn_amount = 69;
         let burned =
-            token_registry::burn_test_only(
-                &mut registry,
+            wrapped_asset::burn_test_only(
+                token_registry::borrow_mut_wrapped_test_only(&mut registry),
                 balance::split(&mut total_minted, burn_amount)
             );
         assert!(burned == burn_amount, 0);
 
         let expected_remaining = total_supply - burn_amount;
         let remaining =
-            token_registry::wrapped_supply<COIN_WRAPPED_7>(
-                &registry
+            wrapped_asset::total_supply(
+                token_registry::borrow_wrapped<COIN_WRAPPED_7>(
+                    &registry
+                )
             );
         assert!(remaining == expected_remaining, 0);
         balance::destroy_for_testing(total_minted);
@@ -590,8 +563,10 @@ module token_bridge::token_registry_tests {
 
         // Mint some wrapped coins and attempt to deposit balance.
         let minted =
-            token_registry::mint_test_only<COIN_WRAPPED_7>(
-                &mut registry,
+            wrapped_asset::mint_test_only(
+                token_registry::borrow_mut_wrapped_test_only<COIN_WRAPPED_7>(
+                    &mut registry
+                ),
                 420420420
             );
 
@@ -602,7 +577,12 @@ module token_bridge::token_registry_tests {
         //
         // NOTE: We don't have a custom error for this. This will trigger a
         // `sui::dynamic_field` error.
-        token_registry::deposit_test_only(&mut registry, minted);
+        native_asset::deposit_test_only(
+            token_registry::borrow_mut_native_test_only<COIN_WRAPPED_7>(
+                &mut registry
+            ),
+            minted
+        );
 
         // Clean up.
         token_registry::destroy(registry);
@@ -645,8 +625,10 @@ module token_bridge::token_registry_tests {
         // NOTE: We don't have a custom error for this. This will trigger a
         // `sui::dynamic_field` error.
         let minted =
-            token_registry::mint_test_only<COIN_NATIVE_10>(
-                &mut registry,
+            wrapped_asset::mint_test_only(
+                token_registry::borrow_mut_wrapped_test_only<COIN_NATIVE_10>(
+                    &mut registry
+                ),
                 420
             );
 

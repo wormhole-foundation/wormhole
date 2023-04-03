@@ -35,7 +35,7 @@ module token_bridge::complete_transfer {
 
     struct TransferRedeemed has drop, copy {
         emitter_chain: u16,
-        emitter_address: vector<u8>,
+        emitter_address: ExternalAddress,
         sequence: u64
     }
 
@@ -120,12 +120,12 @@ module token_bridge::complete_transfer {
         let bridged_out = {
             let registry = state::borrow_mut_token_registry(token_bridge_state);
             if (token_registry::is_wrapped(&verified)) {
-                wrapped_asset::mint_balance(
+                wrapped_asset::mint(
                     token_registry::borrow_mut_wrapped(registry),
                     raw_amount
                 )
             } else {
-                native_asset::withdraw_balance(
+                native_asset::withdraw(
                     token_registry::borrow_mut_native(registry),
                     raw_amount
                 )
@@ -146,7 +146,7 @@ module token_bridge::complete_transfer {
         event::emit(
             TransferRedeemed {
                 emitter_chain,
-                emitter_address: external_address::to_bytes(emitter_address),
+                emitter_address,
                 sequence
             }
         );
@@ -222,6 +222,7 @@ module token_bridge::complete_transfer_tests {
     use token_bridge::coin_native_4::{Self, COIN_NATIVE_4};
     use token_bridge::complete_transfer::{Self};
     use token_bridge::dummy_message::{Self};
+    use token_bridge::native_asset::{Self};
     use token_bridge::state::{Self};
     use token_bridge::token_bridge_scenario::{
         set_up_wormhole_and_token_bridge,
@@ -234,6 +235,7 @@ module token_bridge::complete_transfer_tests {
     };
     use token_bridge::token_registry::{Self};
     use token_bridge::transfer::{Self};
+    use token_bridge::wrapped_asset::{Self};
 
     struct OTHER_COIN_WITNESS has drop {}
 
@@ -276,10 +278,8 @@ module token_bridge::complete_transfer_tests {
         // Scope to allow immutable reference to `TokenRegistry`.
         {
             let registry = state::borrow_token_registry(&token_bridge_state);
-            assert!(
-                token_registry::native_balance<COIN_NATIVE_10>(registry) == custody_amount,
-                0
-            );
+            let asset = token_registry::borrow_native<COIN_NATIVE_10>(registry);
+            assert!(native_asset::custody(asset) == custody_amount, 0);
 
             // Verify transfer parameters.
             let parsed =
@@ -344,10 +344,10 @@ module token_bridge::complete_transfer_tests {
         // And check remaining amount in custody.
         let registry = state::borrow_token_registry(&token_bridge_state);
         let remaining = custody_amount - expected_amount;
-        assert!(
-            token_registry::native_balance<COIN_NATIVE_10>(registry) == remaining,
-            0
-        );
+        {
+            let asset = token_registry::borrow_native<COIN_NATIVE_10>(registry);
+            assert!(native_asset::custody(asset) == remaining, 0);
+        };
 
         // Clean up.
         balance::destroy_for_testing(payout);
@@ -398,10 +398,8 @@ module token_bridge::complete_transfer_tests {
         // Scope to allow immutable reference to `TokenRegistry`.
         {
             let registry = state::borrow_token_registry(&token_bridge_state);
-            assert!(
-                token_registry::native_balance<COIN_NATIVE_4>(registry) == custody_amount,
-                0
-            );
+            let asset = token_registry::borrow_native<COIN_NATIVE_4>(registry);
+            assert!(native_asset::custody(asset) == custody_amount, 0);
 
             // Verify transfer parameters.
             let parsed =
@@ -466,10 +464,10 @@ module token_bridge::complete_transfer_tests {
         // And check remaining amount in custody.
         let registry = state::borrow_token_registry(&token_bridge_state);
         let remaining = custody_amount - expected_amount;
-        assert!(
-            token_registry::native_balance<COIN_NATIVE_4>(registry) == remaining,
-            0
-        );
+        {
+            let asset = token_registry::borrow_native<COIN_NATIVE_4>(registry);
+            assert!(native_asset::custody(asset) == remaining, 0);
+        };
 
         // Clean up.
         balance::destroy_for_testing(payout);
@@ -514,10 +512,9 @@ module token_bridge::complete_transfer_tests {
         // Scope to allow immutable reference to `TokenRegistry`.
         {
             let registry = state::borrow_token_registry(&token_bridge_state);
-            assert!(
-                token_registry::wrapped_supply<COIN_WRAPPED_7>(registry) == 0,
-                0
-            );
+            let asset =
+                token_registry::borrow_wrapped<COIN_WRAPPED_7>(registry);
+            assert!(wrapped_asset::total_supply(asset) == 0, 0);
 
             // Verify transfer parameters.
             let parsed =
@@ -581,10 +578,10 @@ module token_bridge::complete_transfer_tests {
 
         // And check that the amount is the total wrapped supply.
         let registry = state::borrow_token_registry(&token_bridge_state);
-        assert!(
-            token_registry::wrapped_supply<COIN_WRAPPED_7>(registry) == expected_amount,
-            0
-        );
+        {
+            let asset = token_registry::borrow_wrapped<COIN_WRAPPED_7>(registry);
+            assert!(wrapped_asset::total_supply(asset) == expected_amount, 0);
+        };
 
         // Clean up.
         balance::destroy_for_testing(payout);
@@ -632,10 +629,9 @@ module token_bridge::complete_transfer_tests {
         // Scope to allow immutable reference to `TokenRegistry`.
         {
             let registry = state::borrow_token_registry(&token_bridge_state);
-            assert!(
-                token_registry::wrapped_supply<COIN_WRAPPED_12>(registry) == 0,
-                0
-            );
+            let asset =
+                token_registry::borrow_wrapped<COIN_WRAPPED_12>(registry);
+            assert!(wrapped_asset::total_supply(asset) == 0, 0);
 
             // Verify transfer parameters.
             let parsed =
@@ -698,10 +694,10 @@ module token_bridge::complete_transfer_tests {
 
         // And check that the amount is the total wrapped supply.
         let registry = state::borrow_token_registry(&token_bridge_state);
-        assert!(
-            token_registry::wrapped_supply<COIN_WRAPPED_12>(registry) == expected_amount,
-            0
-        );
+        {
+            let asset = token_registry::borrow_wrapped<COIN_WRAPPED_12>(registry);
+            assert!(wrapped_asset::total_supply(asset) == expected_amount, 0);
+        };
 
         // Clean up.
         balance::destroy_for_testing(payout);
