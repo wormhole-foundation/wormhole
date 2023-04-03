@@ -1,10 +1,6 @@
 import yargs from "yargs";
 import { config } from "../config";
-import {
-  NAMED_ADDRESSES_OPTIONS,
-  NETWORK_OPTIONS,
-  RPC_OPTIONS,
-} from "../consts";
+import { NETWORK_OPTIONS, RPC_OPTIONS } from "../consts";
 import { NETWORKS } from "../networks";
 import {
   getOwnedObjectId,
@@ -27,8 +23,7 @@ exports.builder = function (y: typeof yargs) {
             type: "string",
           })
           .option("network", NETWORK_OPTIONS)
-          .option("rpc", RPC_OPTIONS)
-          .option("named-addresses", NAMED_ADDRESSES_OPTIONS);
+          .option("rpc", RPC_OPTIONS);
       },
       async (argv) => {
         checkBinary("sui", "sui");
@@ -38,22 +33,16 @@ exports.builder = function (y: typeof yargs) {
         const packageDir = argv["package-dir"];
         const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
         const provider = getProvider(network, rpc);
-        const namedAddresses = Object.fromEntries(
-          (argv["named-addresses"] || "")
-            .split(",")
-            .map((str) => str.trim().split("="))
-        );
 
-        console.log("Package:         ", packageDir);
-        console.log("RPC:             ", rpc);
+        console.log("Package", packageDir);
+        console.log("RPC", rpc);
 
         await publishPackage(
           provider,
           network,
           packageDir.startsWith("/") // Allow absolute paths, otherwise assume relative to sui directory
             ? packageDir
-            : `${config.wormholeDir}/sui/${packageDir}`,
-          namedAddresses
+            : `${config.wormholeDir}/sui/${packageDir}`
         );
       }
     )
@@ -81,9 +70,9 @@ exports.builder = function (y: typeof yargs) {
         const provider = getProvider(network, rpc);
         const objects = await provider.getOwnedObjects({ owner });
 
-        console.log("Network: ", network);
-        console.log("Owner:   ", owner);
-        console.log("Objects: ", JSON.stringify(objects, null, 2));
+        console.log("Network", network);
+        console.log("Owner", owner);
+        console.log("Objects", JSON.stringify(objects, null, 2));
       }
     )
     .command(
@@ -116,7 +105,6 @@ exports.builder = function (y: typeof yargs) {
         const provider = getProvider(network, rpc);
         const signer = getSigner(provider, network);
         const owner = await signer.getAddress();
-        console.log("Owner:                    ", owner);
         const deployerCapObjectId = await getOwnedObjectId(
           provider,
           owner,
