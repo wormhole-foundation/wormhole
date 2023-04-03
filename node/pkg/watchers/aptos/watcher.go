@@ -86,148 +86,187 @@ func (e *Watcher) Run(ctx context.Context) error {
 	// sequence number to look up next.
 	var nextSequence uint64 = 0
 
+	// Create the timer for the getting the block height
 	timer := time.NewTicker(time.Second * 1)
 	defer timer.Stop()
 
+	// Create an error channel
+	errC := make(chan error)
+	defer close(errC)
+
+	// Signal that basic initialization is complete
+	readiness.SetReady(e.readinessSync)
+
+	// Signal to the supervisor that this runnable has finished initialization
 	supervisor.Signal(ctx, supervisor.SignalHealthy)
 
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case r := <-e.obsvReqC:
-			if vaa.ChainID(r.ChainId) != vaa.ChainIDAptos {
-				panic("invalid chain ID")
-			}
+	// Create the go routine to handle events from core contract
+	common.RunWithScissors(ctx, errC, "core_events_and_block_height", func(ctx context.Context) error {
+		logger.Info("Entering core_events_and_block_height...")
+		for {
+			select {
+			case err := <-errC:
+				logger.Error("core_events_and_block_height died", zap.Error(err))
+				return fmt.Errorf("core_events_and_block_height died: %w", err)
+			case <-ctx.Done():
+				logger.Error("core_events_and_block_height context done")
+				return ctx.Err()
 
-			// uint64 will read the *first* 8 bytes, but the sequence is stored in the *last* 8.
-			nativeSeq := binary.BigEndian.Uint64(r.TxHash[24:])
+			case <-timer.C:
+				s := ""
 
-			logger.Info("Received obsv request", zap.Uint64("tx_hash", nativeSeq))
-
-			s := fmt.Sprintf(`%s?start=%d&limit=1`, eventsEndpoint, nativeSeq)
-
-			body, err := e.retrievePayload(s)
-			if err != nil {
-				logger.Error("retrievePayload", zap.Error(err))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
-				continue
-			}
-
-			if !gjson.Valid(string(body)) {
-				logger.Error("InvalidJson: " + string(body))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
-				break
-
-			}
-
-			outcomes := gjson.ParseBytes(body)
-
-			for _, chunk := range outcomes.Array() {
-				newSeq := chunk.Get("sequence_number")
-				if !newSeq.Exists() {
-					break
+				if nextSequence == 0 {
+					// if nextSequence is 0, we look up the most recent event
+					s = fmt.Sprintf(`%s?limit=1`, eventsEndpoint)
+				} else {
+					// otherwise just look up events starting at nextSequence.
+					// this will potentially return multiple events (whatever
+					// the default limit is per page), so we'll handle all of them.
+					s = fmt.Sprintf(`%s?start=%d`, eventsEndpoint, nextSequence)
 				}
 
-				if newSeq.Uint() != nativeSeq {
-					logger.Error("newSeq != nativeSeq")
-					break
-
-				}
-
-				data := chunk.Get("data")
-				if !data.Exists() {
-					break
-				}
-				e.observeData(logger, data, nativeSeq)
-			}
-
-		case <-timer.C:
-			s := ""
-
-			if nextSequence == 0 {
-				// if nextSequence is 0, we look up the most recent event
-				s = fmt.Sprintf(`%s?limit=1`, eventsEndpoint)
-			} else {
-				// otherwise just look up events starting at nextSequence.
-				// this will potentially return multiple events (whatever
-				// the default limit is per page), so we'll handle all of them.
-				s = fmt.Sprintf(`%s?start=%d`, eventsEndpoint, nextSequence)
-			}
-
-			eventsJson, err := e.retrievePayload(s)
-			if err != nil {
-				logger.Error("retrievePayload", zap.Error(err))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
-				continue
-			}
-
-			// data doesn't exist yet. skip, and try again later
-			// this happens when the sequence id we're looking up hasn't
-			// been used yet.
-			if string(eventsJson) == "" {
-				continue
-			}
-
-			if !gjson.Valid(string(eventsJson)) {
-				logger.Error("InvalidJson: " + string(eventsJson))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
-				continue
-
-			}
-
-			events := gjson.ParseBytes(eventsJson)
-
-			// the endpoint returns an array of events, ordered by sequence
-			// id (ASC)
-			for _, event := range events.Array() {
-				eventSequence := event.Get("sequence_number")
-				if !eventSequence.Exists() {
+				eventsJson, err := e.retrievePayload(s)
+				if err != nil {
+					logger.Error("retrievePayload", zap.Error(err))
+					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
 					continue
 				}
 
-				// this is interesting in the last iteration, whereby we
-				// find the next sequence that comes after the array
-				nextSequence = eventSequence.Uint() + 1
-
-				data := event.Get("data")
-				if !data.Exists() {
+				// data doesn't exist yet. skip, and try again later
+				// this happens when the sequence id we're looking up hasn't
+				// been used yet.
+				if string(eventsJson) == "" {
 					continue
 				}
-				e.observeData(logger, data, eventSequence.Uint())
-			}
 
-			health, err := e.retrievePayload(aptosHealth)
-			if err != nil {
-				logger.Error("health", zap.Error(err))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
-				continue
-			}
+				if !gjson.Valid(string(eventsJson)) {
+					logger.Error("InvalidJson: " + string(eventsJson))
+					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
+					continue
 
-			if !gjson.Valid(string(health)) {
-				logger.Error("Invalid JSON in health response: " + string(health))
-				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
-				continue
+				}
 
-			}
+				events := gjson.ParseBytes(eventsJson)
 
-			// TODO: Make this log more useful for humans
-			logger.Debug(string(health) + string(eventsJson))
+				// the endpoint returns an array of events, ordered by sequence
+				// id (ASC)
+				for _, event := range events.Array() {
+					eventSequence := event.Get("sequence_number")
+					if !eventSequence.Exists() {
+						continue
+					}
 
-			pHealth := gjson.ParseBytes(health)
+					// this is interesting in the last iteration, whereby we
+					// find the next sequence that comes after the array
+					nextSequence = eventSequence.Uint() + 1
 
-			blockHeight := pHealth.Get("block_height")
+					data := event.Get("data")
+					if !data.Exists() {
+						continue
+					}
+					e.observeData(logger, data, eventSequence.Uint())
+				}
 
-			if blockHeight.Exists() {
-				currentAptosHeight.Set(float64(blockHeight.Uint()))
-				p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDAptos, &gossipv1.Heartbeat_Network{
-					Height:          int64(blockHeight.Uint()),
-					ContractAddress: e.aptosAccount,
-				})
+				health, err := e.retrievePayload(aptosHealth)
+				if err != nil {
+					logger.Error("health", zap.Error(err))
+					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
+					continue
+				}
 
-				readiness.SetReady(e.readinessSync)
+				if !gjson.Valid(string(health)) {
+					logger.Error("Invalid JSON in health response: " + string(health))
+					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
+					continue
+
+				}
+
+				// TODO: Make this log more useful for humans
+				logger.Debug(string(health) + string(eventsJson))
+
+				pHealth := gjson.ParseBytes(health)
+
+				blockHeight := pHealth.Get("block_height")
+
+				if blockHeight.Exists() {
+					currentAptosHeight.Set(float64(blockHeight.Uint()))
+					p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDAptos, &gossipv1.Heartbeat_Network{
+						Height:          int64(blockHeight.Uint()),
+						ContractAddress: e.aptosAccount,
+					})
+
+					readiness.SetReady(e.readinessSync)
+				}
 			}
 		}
+	})
+
+	// Create the go routine to listen for re-observation requests
+	common.RunWithScissors(ctx, errC, "fetch_obvs_req", func(ctx context.Context) error {
+		logger.Info("Entering fetch_obvs_req...")
+
+		for {
+			select {
+			case err := <-errC:
+				logger.Error("fetch_obvs_req died", zap.Error(err))
+				return fmt.Errorf("fetch_obvs_req died: %w", err)
+			case <-ctx.Done():
+				logger.Error("fetch_obvs_req context done")
+				return ctx.Err()
+			case r := <-e.obsvReqC:
+				if vaa.ChainID(r.ChainId) != vaa.ChainIDAptos {
+					panic("invalid chain ID")
+				}
+
+				// uint64 will read the *first* 8 bytes, but the sequence is stored in the *last* 8.
+				nativeSeq := binary.BigEndian.Uint64(r.TxHash[24:])
+
+				logger.Info("Received obsv request", zap.Uint64("tx_hash", nativeSeq))
+
+				s := fmt.Sprintf(`%s?start=%d&limit=1`, eventsEndpoint, nativeSeq)
+
+				body, err := e.retrievePayload(s)
+				if err != nil {
+					logger.Error("retrievePayload", zap.Error(err))
+					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
+					continue
+				}
+
+				if !gjson.Valid(string(body)) {
+					logger.Error("InvalidJson: " + string(body))
+					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAptos, 1)
+					break
+
+				}
+
+				outcomes := gjson.ParseBytes(body)
+
+				for _, chunk := range outcomes.Array() {
+					newSeq := chunk.Get("sequence_number")
+					if !newSeq.Exists() {
+						break
+					}
+
+					if newSeq.Uint() != nativeSeq {
+						logger.Error("newSeq != nativeSeq")
+						break
+
+					}
+
+					data := chunk.Get("data")
+					if !data.Exists() {
+						break
+					}
+					e.observeData(logger, data, nativeSeq)
+				}
+			}
+		}
+	})
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-errC:
+		return err
 	}
 }
 
