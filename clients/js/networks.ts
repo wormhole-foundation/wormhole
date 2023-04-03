@@ -384,7 +384,7 @@ const DEVNET = {
   },
   sui: {
     rpc: "http://0.0.0.0:9000",
-    key: "AIGosn9itp74Z+M7LQpkwy5JCNjIBYh88rypgh5kfdU3",
+    key: "AGA20wtGcwbcNAG4nwapbQ5wIuXwkYQEWFUoSVAxctHb",
   },
   moonbeam: {
     rpc: undefined,
