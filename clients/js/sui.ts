@@ -83,7 +83,7 @@ export const getSigner = (
     throw new Error(`No private key found for Sui ${network}`);
   }
 
-  const bytes = new Uint8Array(Buffer.from(privateKey, "base64"));
+  const bytes = fromB64(privateKey);
   const keypair = Ed25519Keypair.fromSecretKey(bytes.slice(1));
   return new RawSigner(keypair, provider);
 };
@@ -92,7 +92,7 @@ export const isValidSuiObjectId = (objectId: string): boolean => {
   return /^(0x)?[0-9a-f]{64}$/i.test(objectId);
 };
 
-type SuiPublishEvent = {
+export type SuiPublishEvent = {
   packageId: string;
   type: "published";
   version: number;
@@ -100,11 +100,11 @@ type SuiPublishEvent = {
   modules: string[];
 };
 
-const isSuiPublishEvent = (event: any): event is SuiPublishEvent => {
+export const isSuiPublishEvent = (event: any): event is SuiPublishEvent => {
   return event.type === "published";
 };
 
-type SuiCreateEvent = {
+export type SuiCreateEvent = {
   sender: string;
   type: "created";
   objectType: string;
@@ -126,22 +126,20 @@ type SuiCreateEvent = {
     | "Immutable";
 };
 
-const isSuiCreateEvent = (event: any): event is SuiCreateEvent => {
+export const isSuiCreateEvent = (event: any): event is SuiCreateEvent => {
   return event.type === "created";
 };
 
 export const publishPackage = async (
   provider: JsonRpcProvider,
   network: Network,
-  packagePath: string,
-  namedAddresses: { [key: string]: string }
+  packagePath: string
 ) => {
-  console.log("Network:         ", network);
-  console.log("Package path:    ", packagePath);
-  console.log("Named addresses: ", JSON.stringify(namedAddresses, null, 2));
+  console.log("Network", network);
+  console.log("Package path", packagePath);
 
   try {
-    setupToml(packagePath, network, namedAddresses);
+    setupToml(packagePath, network);
 
     // Build contracts
     const buildOutput: {
@@ -171,6 +169,7 @@ export const publishPackage = async (
     );
 
     // Execute transactions
+    transactionBlock.setGasBudget(10000000);
     const res = await signer.signAndExecuteTransactionBlock({
       transactionBlock,
       options: {
@@ -179,13 +178,31 @@ export const publishPackage = async (
       },
     });
 
+    // Update network-specific Move.toml with package ID
+    const tomlPath = getTomlPathByNetwork(packagePath, network);
+    const tomlStr = fs.readFileSync(tomlPath, "utf8");
+    const publishEvent = res.objectChanges.find(isSuiPublishEvent);
+    if (!publishEvent) {
+      throw new Error(
+        "No publish event found in transaction:" +
+          JSON.stringify(res.objectChanges, null, 2)
+      );
+    }
+
+    const updatedTomlStr = new MoveToml(tomlStr)
+      .addRow("package", "published-at", publishEvent.packageId)
+      .updateRow(
+        "addresses",
+        getPackageNameFromPath(packagePath),
+        publishEvent.packageId
+      )
+      .serialize();
+    fs.writeFileSync(tomlPath, updatedTomlStr, "utf8");
+
     // Dump deployment info to console
     console.log("Transaction digest", res.digest);
     console.log("Deployer", res.transaction.data.sender);
-    console.log(
-      "Published to",
-      res.objectChanges.find(isSuiPublishEvent).packageId
-    );
+    console.log("Published to", publishEvent.packageId);
     console.log(
       "Created objects",
       res.objectChanges.filter(isSuiCreateEvent).map((e) => {
@@ -211,7 +228,7 @@ const cleanupToml = (packagePath: string): void => {
   const tempTomlPath = getTempTomlPath(packagePath);
   if (fs.existsSync(tempTomlPath)) {
     // Clean up Move.toml for dependencies
-    const dependencyPaths = getAllPackageDependencyPaths(packagePath);
+    const dependencyPaths = getAllLocalPackageDependencyPaths(packagePath);
     for (const path of dependencyPaths) {
       cleanupToml(path);
     }
@@ -228,7 +245,7 @@ const cleanupToml = (packagePath: string): void => {
  * @param packagePath
  * @returns
  */
-const getAllPackageDependencyPaths = (packagePath: string): string[] => {
+const getAllLocalPackageDependencyPaths = (packagePath: string): string[] => {
   const tomlPath = getDefaultTomlPath(packagePath);
   const tomlStr = fs.readFileSync(tomlPath, "utf8").toString();
 
@@ -263,7 +280,6 @@ const getPackageNameFromPath = (packagePath: string): string =>
 const setupToml = (
   packagePath: string,
   network: Network,
-  namedAddresses: { [key: string]: string },
   isDependency: boolean = false
 ): void => {
   const defaultTomlPath = getDefaultTomlPath(packagePath);
@@ -295,28 +311,144 @@ const setupToml = (
 
   fs.copyFileSync(srcTomlPath, defaultTomlPath);
 
-  // Replace named addresses
-  let tomlStr = fs.readFileSync(defaultTomlPath, "utf8").toString();
-  if (isDependency) {
-    for (const [name, address] of Object.entries(namedAddresses)) {
-      tomlStr = tomlStr.replace(
-        new RegExp(`${name} = "_"`, "g"),
-        `${name} = "${address}"`
-      );
+  // Replace undefined addresses in base Move.toml and ensure dependencies are
+  // published
+  const tomlStr = fs.readFileSync(defaultTomlPath, "utf8").toString();
+  const toml = new MoveToml(tomlStr);
+  const packageName = getPackageNameFromPath(packagePath);
+  if (!isDependency) {
+    if (toml.isPublished()) {
+      throw new Error(`Package ${packageName} is already published.`);
+    } else {
+      toml.updateRow("addresses", packageName, "0x0");
     }
-  } else {
-    const name = getPackageNameFromPath(packagePath);
-    tomlStr = tomlStr.replace(
-      new RegExp(`${name} = "_"`, "g"),
-      `${name} = "0x0"`
+
+    fs.writeFileSync(defaultTomlPath, toml.serialize());
+  } else if (isDependency && !toml.isPublished()) {
+    throw new Error(
+      `Dependency ${packageName} is not published. Please publish it first.`
     );
   }
 
-  fs.writeFileSync(defaultTomlPath, tomlStr);
-
   // Set up Move.toml for dependencies
-  const dependencyPaths = getAllPackageDependencyPaths(packagePath);
+  const dependencyPaths = getAllLocalPackageDependencyPaths(packagePath);
   for (const path of dependencyPaths) {
-    setupToml(path, network, namedAddresses, true);
+    setupToml(path, network, true);
   }
 };
+
+type ParsedMoveToml = {
+  name: string;
+  rows: { key: string; value: string }[];
+}[];
+
+class MoveToml {
+  toml: ParsedMoveToml;
+
+  constructor(tomlStr: string) {
+    this.toml = MoveToml.parse(tomlStr);
+  }
+
+  addRow(sectionName: string, key: string, value: string) {
+    if (!MoveToml.isValidValue(value)) {
+      if (/^\S+$/.test(value)) {
+        value = `"${value}"`;
+      } else {
+        throw new Error(`Invalid value "${value}"`);
+      }
+    }
+
+    const section = this.toml.find((s) => s.name === sectionName);
+    if (section === undefined) {
+      throw new Error(`Section "${sectionName}" not found`);
+    }
+
+    section.rows.push({ key, value });
+    return this;
+  }
+
+  isPublished(): boolean {
+    const section = this.toml.find((s) => s.name === "package");
+    if (section === undefined) {
+      throw new Error('Section "package" not found');
+    }
+
+    const row = section.rows.find((r) => r.key === "published-at");
+    return row !== undefined;
+  }
+
+  serialize(): string {
+    let tomlStr = "";
+    for (let i = 0; i < this.toml.length; i++) {
+      const section = this.toml[i];
+      tomlStr += `[${section.name}]\n`;
+      for (const row of section.rows) {
+        tomlStr += `${row.key} = ${row.value}\n`;
+      }
+
+      if (i !== this.toml.length - 1) {
+        tomlStr += "\n";
+      }
+    }
+
+    return tomlStr;
+  }
+
+  updateRow(sectionName: string, key: string, value: string) {
+    if (!MoveToml.isValidValue(value)) {
+      if (/^\S+$/.test(value)) {
+        value = `"${value}"`;
+      } else {
+        throw new Error(`Invalid value "${value}"`);
+      }
+    }
+
+    const section = this.toml.find((s) => s.name === sectionName);
+    if (section === undefined) {
+      throw new Error(`Section "${sectionName}" not found`);
+    }
+
+    const row = section.rows.find((r) => r.key === key);
+    if (row === undefined) {
+      throw new Error(`Row "${key}" not found in section "${sectionName}"`);
+    }
+
+    row.value = value;
+    return this;
+  }
+
+  static isValidValue(value: string): boolean {
+    value = value.trim();
+    return (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("{") && value.endsWith("}")) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    );
+  }
+
+  static parse(tomlStr: string): ParsedMoveToml {
+    const toml: ParsedMoveToml = [];
+    const lines = tomlStr.split("\n");
+    for (const line of lines) {
+      // Parse new section
+      const sectionMatch = line.trim().match(/^\[(\S+)\]$/);
+      if (sectionMatch && sectionMatch.length === 2) {
+        toml.push({ name: sectionMatch[1], rows: [] });
+        continue;
+      }
+
+      // Otherwise, parse row in section. We must handle two cases:
+      //  1. value is string, e.g. name = "MyPackage"
+      //  2. value is object, e.g. Sui = { local = "../sui-framework" }
+      const rowMatch = line.trim().match(/^([a-zA-Z_\-]+) = (.+)$/);
+      if (rowMatch && rowMatch.length === 3) {
+        toml[toml.length - 1].rows.push({
+          key: rowMatch[1],
+          value: rowMatch[2],
+        });
+      }
+    }
+
+    return toml;
+  }
+}
