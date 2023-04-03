@@ -73,7 +73,7 @@ func (gov *ChainGovernor) initCoinGecko(ctx context.Context, run bool) error {
 	return nil
 }
 
-// createCoinGeckoQuery creates a Coink Gecko query for the specified set of tokens and adds it to the list.
+// createCoinGeckoQuery creates a CoinGecko query for the specified set of tokens and adds it to the list.
 func (gov *ChainGovernor) createCoinGeckoQuery(queryIdx int, ids string) {
 	params := url.Values{}
 	params.Add("ids", ids)
@@ -183,7 +183,7 @@ func (gov *ChainGovernor) queryCoinGecko() error {
 	return nil
 }
 
-// queryCoinGeckoChunk sends a single Coin Gecko query and returns the result.
+// queryCoinGeckoChunk sends a single CoinGecko query and returns the result.
 func (gov *ChainGovernor) queryCoinGeckoChunk(query string) (map[string]interface{}, error) {
 	var result map[string]interface{}
 
