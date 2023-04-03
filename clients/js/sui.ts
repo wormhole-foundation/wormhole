@@ -168,7 +168,6 @@ export const publishPackage = async (
     );
 
     // Execute transactions
-    transactionBlock.setGasBudget(10000000);
     const res = await signer.signAndExecuteTransactionBlock({
       transactionBlock,
       options: {

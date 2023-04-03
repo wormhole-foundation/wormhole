@@ -282,7 +282,7 @@ exports.builder = function (y: typeof yargs) {
           })
           .option("state", {
             alias: "s",
-            describe: "Example app state object ID",
+            describe: "Core messages app state object ID",
             required: true,
             type: "string",
           })
@@ -312,34 +312,42 @@ exports.builder = function (y: typeof yargs) {
         const signer = getSigner(provider, network);
         const owner = await signer.getAddress();
 
-        // WH message fee is 0 for devnet deployment
+        // WH message fee is 0 for devnet
         // TODO(aki): Read from on-chain state since it can technically change
         const feeAmount = BigInt(0);
 
         // Get fee
-        // const feeCoins = (
-        //   await provider.selectCoinsWithBalanceGreaterThanOrEqual(
-        //     owner,
-        //     feeAmount,
-        //     "0x2::sui::SUI"
-        //   )
-        // ).find((c) => c.status === "Exists");
-        // if (!feeCoins) {
-        //   throw new Error(
-        //     `Cannot find SUI coins owned by ${owner} with sufficient balance`
-        //   );
-        // }
+        const feeCoins = (
+          await provider.getCoins({
+            owner,
+            coinType: "0x2::sui::SUI",
+          })
+        ).data.find((c) => c.balance >= feeAmount);
+        if (!feeCoins) {
+          throw new Error(
+            `Cannot find SUI coins owned by ${owner} with sufficient balance`
+          );
+        }
 
-        // const effects: TransactionEffects =
-        // await executeTransactionBlock(
-        //   provider,
-        //   network,
-        //   packageId,
-        //   "sender",
-        //   "send_message_entry",
-        //   [],
-        //   [stateObjectId, wormholeStateObjectId, message, getObjectId(feeCoins)]
-        // );
+        console.log(JSON.stringify(feeCoins, null, 2));
+
+        const transactionBlock = new TransactionBlock();
+        transactionBlock.moveCall({
+          target: `${packageId}::sender::send_message_entry`,
+          arguments: [
+            transactionBlock.object(stateObjectId),
+            transactionBlock.object(wormholeStateObjectId),
+            transactionBlock.pure(message),
+            transactionBlock.object(feeCoins.coinObjectId),
+          ],
+        });
+        const res = await executeTransactionBlock(
+          provider,
+          network,
+          transactionBlock
+        );
+
+        console.log(JSON.stringify(res, null, 2));
 
         // const event = effects.events.find((e) => "moveEvent" in e) as
         //   | PublishMessageEvent

@@ -56,7 +56,10 @@ module core_messages::sender {
             fee_amount,
             ctx
         );
-        transfer::transfer(fee_with_potential_surplus, tx_context::sender(ctx));
+        transfer::public_transfer(
+            fee_with_potential_surplus,
+            tx_context::sender(ctx)
+        );
         wormhole::publish_message::publish_message(
             wormhole_state,
             &mut state.emitter_cap,
