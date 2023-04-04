@@ -1029,21 +1029,21 @@ func runNode(cmd *cobra.Command, args []string) {
 	// will be passed to it for processing. It will forward all token bridge transfers to the accountant contract.
 	// If accountantCheckEnabled is set to true, token bridge transfers will not be signed and published until they
 	// are approved by the accountant smart contract.
+	acctLogger := logger.With(zap.String("component", "gacct"))
 	acctReadC, acctWriteC := makeChannelPair[*common.MessagePublication](0)
 
 	var acct *accountant.Accountant
 	if *accountantContract != "" {
-		alogger := logger.With(zap.String("component", "gacct"))
 		if *accountantWS == "" {
-			alogger.Fatal("if accountantContract is specified, accountantWS is required")
+			acctLogger.Fatal("if accountantContract is specified, accountantWS is required")
 		}
 		if wormchainConn == nil {
-			alogger.Fatal("if accountantContract is specified, the wormchain sending connection must be enabled")
+			acctLogger.Fatal("if accountantContract is specified, the wormchain sending connection must be enabled")
 		}
 		if *accountantCheckEnabled {
-			alogger.Info("accountant is enabled and will be enforced")
+			acctLogger.Info("accountant is enabled and will be enforced")
 		} else {
-			alogger.Info("accountant is enabled but will not be enforced")
+			acctLogger.Info("accountant is enabled but will not be enforced")
 		}
 		env := accountant.MainNetMode
 		if *testnetMode {
@@ -1066,7 +1066,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			env,
 		)
 	} else {
-		logger.Info("gacct: accountant is disabled")
+		acctLogger.Info("accountant is disabled")
 	}
 
 	var gov *governor.ChainGovernor
