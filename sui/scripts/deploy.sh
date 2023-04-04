@@ -24,6 +24,8 @@ else
   usage
 fi
 
+DIRNAME=$(dirname "$0")
+
 echo -e "[1/4] Publishing core bridge contracts..."
 WORMHOLE_PUBLISH_OUTPUT=$(worm sui deploy $(realpath "$DIRNAME"/../wormhole) -n "$NETWORK")
 echo "$WORMHOLE_PUBLISH_OUTPUT"
