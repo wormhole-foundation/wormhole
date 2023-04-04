@@ -1426,7 +1426,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if acct != nil {
 			if err := acct.Start(ctx); err != nil {
-				logger.Fatal("gacct: failed to start accountant", zap.Error(err))
+				acctLogger.Fatal("failed to start accountant", zap.Error(err))
 			}
 		}
 
