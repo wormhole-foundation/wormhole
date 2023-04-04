@@ -45,14 +45,18 @@ module token_bridge::token_bridge {
         recipient: vector<u8>,
         relayer_fee: u64,
         nonce: u32,
-        the_clock: &Clock
+        the_clock: &Clock,
+        ctx: &TxContext
     ) {
-        use token_bridge::transfer_tokens::{transfer_tokens};
+        use token_bridge::transfer_tokens::{
+            return_dust_to_sender,
+            transfer_tokens
+        };
 
         transfer_tokens(
             token_bridge_state,
             worm_state,
-            coin::into_balance(bridged_in),
+            coin::balance_mut(&mut bridged_in),
             coin::into_balance(wormhole_fee),
             recipient_chain,
             external_address::new(bytes32::new(recipient)),
@@ -60,6 +64,8 @@ module token_bridge::token_bridge {
             nonce,
             the_clock
         );
+
+        return_dust_to_sender(bridged_in, ctx);
     }
 
     entry fun transfer_tokens_with_payload<CoinType>(
@@ -72,8 +78,10 @@ module token_bridge::token_bridge {
         redeemer: vector<u8>,
         payload: vector<u8>,
         nonce: u32,
-        the_clock: &Clock
+        the_clock: &Clock,
+        ctx: &TxContext
     ) {
+        use token_bridge::transfer_tokens::{return_dust_to_sender};
         use token_bridge::transfer_tokens_with_payload::{
             transfer_tokens_with_payload
         };
@@ -82,7 +90,7 @@ module token_bridge::token_bridge {
             token_bridge_state,
             emitter_cap,
             worm_state,
-            coin::into_balance(bridged_in),
+            coin::balance_mut(&mut bridged_in),
             coin::into_balance(wormhole_fee),
             redeemer_chain,
             external_address::new(bytes32::new(redeemer)),
@@ -90,6 +98,8 @@ module token_bridge::token_bridge {
             nonce,
             the_clock
         );
+
+        return_dust_to_sender(bridged_in, ctx);
     }
 
     entry fun complete_transfer<CoinType>(

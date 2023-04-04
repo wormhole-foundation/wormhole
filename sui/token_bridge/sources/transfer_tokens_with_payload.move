@@ -40,7 +40,7 @@ module token_bridge::transfer_tokens_with_payload {
         token_bridge_state: &mut State,
         emitter_cap: &EmitterCap,
         worm_state: &mut WormholeState,
-        bridged_in: Balance<CoinType>,
+        bridged_in: &mut Balance<CoinType>,
         wormhole_fee: Balance<SUI>,
         redeemer_chain: u16,
         redeemer: ExternalAddress,
@@ -77,7 +77,7 @@ module token_bridge::transfer_tokens_with_payload {
     fun bridge_in_and_serialize_transfer<CoinType>(
         token_bridge_state: &mut State,
         emitter_cap: &EmitterCap,
-        bridged_in: Balance<CoinType>,
+        bridged_in: &mut Balance<CoinType>,
         redeemer_chain: u16,
         redeemer: ExternalAddress,
         payload: vector<u8>
@@ -108,7 +108,7 @@ module token_bridge::transfer_tokens_with_payload {
     public fun bridge_in_and_serialize_transfer_test_only<CoinType>(
         token_bridge_state: &mut State,
         emitter_cap: &EmitterCap,
-        bridged_in: Balance<CoinType>,
+        bridged_in: &mut Balance<CoinType>,
         redeemer_chain: u16,
         redeemer: ExternalAddress,
         payload: vector<u8>
