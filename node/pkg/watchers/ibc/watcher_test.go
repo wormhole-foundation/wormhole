@@ -35,7 +35,7 @@ func TestParseIbcReceivePublishEvent(t *testing.T) {
 
 	contractAddress := "wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj"
 
-	evt, err := parseEvent[ibcReceivePublishEvent](logger, contractAddress, "receive_publish", event)
+	evt, err := parseIbcReceivePublishEvent(logger, contractAddress, event)
 	require.NoError(t, err)
 	require.NotNil(t, evt)
 
@@ -55,32 +55,6 @@ func TestParseIbcReceivePublishEvent(t *testing.T) {
 		Payload:        expectedPayload,
 	}
 	assert.Equal(t, expectedResult, *evt)
-}
-
-func TestParseEventOfWrongType(t *testing.T) {
-	logger := zap.NewNop()
-
-	eventJson := `{"type": "hello","attributes": [` +
-		`{"key": "X2NvbnRyYWN0X2FkZHJlc3M=","value": "d29ybWhvbGUxbmM1dGF0YWZ2NmV5cTdsbGtyMmd2NTBmZjllMjJtbmY3MHFnamx2NzM3a3RtdDRlc3dycTBrZGhjag==","index": true},` +
-		`{"key": "YWN0aW9u", "value": "cmVjZWl2ZV9wdWJsaXNo", "index": true},` +
-		`{"key": "Y2hhbm5lbF9pZA==", "value": "Y2hhbm5lbC0w", "index": true},` +
-		`{"key": "bWVzc2FnZS5tZXNzYWdl","value": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwNA==","index": true},` +
-		`{"key": "bWVzc2FnZS5zZW5kZXI=","value": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMzU3NDMwNzQ5NTZjNzEwODAwZTgzMTk4MDExY2NiZDRkZGYxNTU2ZA==","index": true},` +
-		`{ "key": "bWVzc2FnZS5jaGFpbl9pZA==", "value": "MTg=", "index": true },` +
-		`{ "key": "bWVzc2FnZS5ub25jZQ==", "value": "MQ==", "index": true },` +
-		`{ "key": "bWVzc2FnZS5zZXF1ZW5jZQ==", "value": "Mg==", "index": true },` +
-		`{"key": "bWVzc2FnZS5ibG9ja190aW1l","value": "MTY4MDA5OTgxNA==","index": true},` +
-		`{"key": "bWVzc2FnZS5ibG9ja19oZWlnaHQ=","value": "MjYxMw==","index": true}` +
-		`]}`
-
-	require.Equal(t, true, gjson.Valid(eventJson))
-	event := gjson.Parse(eventJson)
-
-	contractAddress := "wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj"
-
-	evt, err := parseEvent[ibcReceivePublishEvent](logger, contractAddress, "receive_publish", event)
-	require.NoError(t, err)
-	assert.Nil(t, evt)
 }
 
 func TestParseEventForWrongContract(t *testing.T) {
@@ -104,9 +78,8 @@ func TestParseEventForWrongContract(t *testing.T) {
 
 	contractAddress := "someOtherContract"
 
-	evt, err := parseEvent[ibcReceivePublishEvent](logger, contractAddress, "receive_publish", event)
-	require.NoError(t, err)
-	assert.Nil(t, evt)
+	_, err := parseIbcReceivePublishEvent(logger, contractAddress, event)
+	assert.Error(t, err)
 }
 
 func TestParseEventForWrongAction(t *testing.T) {
@@ -130,7 +103,7 @@ func TestParseEventForWrongAction(t *testing.T) {
 
 	contractAddress := "wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj"
 
-	evt, err := parseEvent[ibcReceivePublishEvent](logger, contractAddress, "receive_publish", event)
+	evt, err := parseIbcReceivePublishEvent(logger, contractAddress, event)
 	require.NoError(t, err)
 	assert.Nil(t, evt)
 }
@@ -156,9 +129,8 @@ func TestParseEventForNoContractSpecified(t *testing.T) {
 
 	contractAddress := "wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj"
 
-	evt, err := parseEvent[ibcReceivePublishEvent](logger, contractAddress, "receive_publish", event)
-	require.NoError(t, err)
-	assert.Nil(t, evt)
+	_, err := parseIbcReceivePublishEvent(logger, contractAddress, event)
+	assert.Error(t, err)
 }
 
 func TestParseEventForNoActionSpecified(t *testing.T) {
@@ -182,7 +154,7 @@ func TestParseEventForNoActionSpecified(t *testing.T) {
 
 	contractAddress := "wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj"
 
-	evt, err := parseEvent[ibcReceivePublishEvent](logger, contractAddress, "receive_publish", event)
+	evt, err := parseIbcReceivePublishEvent(logger, contractAddress, event)
 	require.NoError(t, err)
 	assert.Nil(t, evt)
 }

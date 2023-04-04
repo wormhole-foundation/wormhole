@@ -2,13 +2,11 @@ package ibc
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -188,11 +186,16 @@ type clientRequest struct {
 	ID uint64 `json:"id"`
 }
 
-const (
-	// The IBC receiver contract publishes wasm events, not execute events.
-	contractAddressFilterKey = "wasm._contract_address"
-	contractAddressLogKey    = "_contract_address"
-)
+// ibcReceivePublishEvent represents the log message received from the IBC receiver contract.
+type ibcReceivePublishEvent struct {
+	ChannelID      string
+	EmitterChain   vaa.ChainID
+	EmitterAddress vaa.Address
+	Nonce          uint32
+	Sequence       uint64
+	Timestamp      time.Time
+	Payload        []byte
+}
 
 // Run is the runnable for monitoring the IBC contract on wormchain.
 func (w *Watcher) Run(ctx context.Context) error {
@@ -248,7 +251,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 	c.SetReadLimit(524288)
 
 	// Subscribe to smart contract transactions.
-	params := [...]string{fmt.Sprintf("tm.event='Tx' AND %s='%s'", contractAddressFilterKey, w.contractAddress)}
+	params := [...]string{fmt.Sprintf("tm.event='Tx' AND wasm._contract_address='%s'", w.contractAddress)}
 	command := &clientRequest{
 		JSONRPC: "2.0",
 		Method:  "subscribe",
@@ -339,14 +342,14 @@ func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn, errC chan
 				}
 				eventType := gjson.Get(event.String(), "type").String()
 				if eventType == "wasm" {
-					evt, err := parseEvent[ibcReceivePublishEvent](w.logger, w.contractAddress, "receive_publish", event)
+					evt, err := parseIbcReceivePublishEvent(w.logger, w.contractAddress, event)
 					if err != nil {
 						w.logger.Error("failed to parse wasm event", zap.Error(err), zap.String("event", event.String()))
 						continue
 					}
 
 					if evt != nil {
-						w.processEvent(txHash, evt, "new")
+						w.processIbcReceivePublishEvent(txHash, evt, "new")
 					}
 				} else {
 					w.logger.Debug("ignoring uninteresting event", zap.String("eventType", eventType))
@@ -433,8 +436,6 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, errC chan error
 			resp.Body.Close()
 
 			txJSON := string(txBody)
-			w.logger.Info("BigBOINK", zap.String("txJson", txJSON))
-
 			txHashRaw := gjson.Get(txJSON, "tx_response.txhash")
 			if !txHashRaw.Exists() {
 				w.logger.Error("tx does not have tx hash", zap.String("chain", ce.chainName), zap.String("payload", txJSON))
@@ -461,14 +462,14 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, errC chan error
 				eventType := gjson.Get(event.String(), "type")
 				if eventType.String() == "wasm" {
 					w.logger.Debug("found wasm event in reobservation", zap.String("chain", ce.chainName), zap.Stringer("txHash", txHash))
-					evt, err := parseEvent[ibcReceivePublishEvent](w.logger, w.contractAddress, "receive_publish", event)
+					evt, err := parseIbcReceivePublishEvent(w.logger, w.contractAddress, event)
 					if err != nil {
 						w.logger.Error("failed to parse wasm event", zap.String("chain", ce.chainName), zap.Error(err), zap.Any("event", event))
 						continue
 					}
 
 					if evt != nil {
-						w.processEvent(txHash, evt, "reobservation")
+						w.processIbcReceivePublishEvent(txHash, evt, "reobservation")
 					}
 				} else {
 					w.logger.Debug("ignoring uninteresting event in reobservation", zap.String("chain", ce.chainName), zap.Stringer("txHash", txHash), zap.String("eventType", eventType.String()))
@@ -478,8 +479,82 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, errC chan error
 	}
 }
 
-// processEvent takes an IBC event, maps it to a message publication and publishes it.
-func (w *Watcher) processEvent(txHash ethCommon.Hash, evt *ibcReceivePublishEvent, observationType string) {
+// parseIbcReceivePublishEvent parses a wasm event. If it is from the desired contract and for the desired action, it returns an event. Otherwise, it returns nil.
+func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, event gjson.Result) (*ibcReceivePublishEvent, error) {
+	var attributes WasmAttributes
+	err := attributes.Parse(logger, event)
+	if err != nil {
+		logger.Error("failed to parse event attributes", zap.Error(err), zap.String("event", event.String()))
+		return nil, fmt.Errorf("failed to parse attributes: %w", err)
+	}
+
+	str, err := attributes.GetAsString("_contract_address")
+	if err != nil {
+		return nil, err
+	}
+	if str != desiredContract {
+		return nil, fmt.Errorf("received an event from an unexpected contract: %s", str)
+	}
+
+	str, err = attributes.GetAsString("action")
+	if err != nil || str != "receive_publish" {
+		return nil, nil
+	}
+
+	evt := new(ibcReceivePublishEvent)
+
+	evt.ChannelID, err = attributes.GetAsString("channel_id")
+	if err != nil {
+		return evt, err
+	}
+
+	unumber, err := attributes.GetAsUint64("message.chain_id", 16)
+	if err != nil {
+		return evt, err
+	}
+	evt.EmitterChain = vaa.ChainID(unumber)
+
+	str, err = attributes.GetAsString("message.sender")
+	if err != nil {
+		return evt, err
+	}
+	evt.EmitterAddress, err = vaa.StringToAddress(str)
+	if err != nil {
+		return evt, fmt.Errorf("failed to parse message.sender attribute %s: %w", str, err)
+	}
+
+	unumber, err = attributes.GetAsUint64("message.nonce", 32)
+	if err != nil {
+		return evt, err
+	}
+	evt.Nonce = uint32(unumber)
+
+	unumber, err = attributes.GetAsUint64("message.sequence", 64)
+	if err != nil {
+		return evt, err
+	}
+	evt.Sequence = unumber
+
+	snumber, err := attributes.GetAsInt64("message.block_time", 64)
+	if err != nil {
+		return evt, err
+	}
+	evt.Timestamp = time.Unix(snumber, 0)
+
+	str, err = attributes.GetAsString("message.message")
+	if err != nil {
+		return evt, err
+	}
+	evt.Payload, err = hex.DecodeString(str)
+	if err != nil {
+		return evt, fmt.Errorf("failed to parse message.message attribute %s: %w", str, err)
+	}
+
+	return evt, nil
+}
+
+// processIbcReceivePublishEvent takes an IBC event, maps it to a message publication and publishes it.
+func (w *Watcher) processIbcReceivePublishEvent(txHash ethCommon.Hash, evt *ibcReceivePublishEvent, observationType string) {
 	connectionID, err := w.getConnectionID(evt.ChannelID)
 	if err != nil {
 		w.logger.Info("failed to query IBC connectionID for channel", zap.String("ibcChannel", evt.ChannelID), zap.Error(err))
@@ -620,178 +695,6 @@ func (w *Watcher) queryConnectionID(channelID string) (string, error) {
 
 	w.logger.Info("queried connection ID", zap.String("channelID", channelID), zap.String("connectionID", result.Channel.ConnectionHops[0]))
 	return result.Channel.ConnectionHops[0], nil
-}
-
-// parseEvent parses a wasm event. If it is from the desired contract and for the desired action, it returns an event. Otherwise, it returns nil.
-func parseEvent[T any](logger *zap.Logger, desiredContract string, desiredAction string, event gjson.Result) (*T, error) {
-	eventType := gjson.Get(event.String(), "type")
-	if eventType.String() != "wasm" {
-		return nil, nil
-	}
-
-	attrBytes, err := parseWasmAttributes(logger, desiredContract, desiredAction, event)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse attributes: %w", err)
-	}
-
-	if attrBytes == nil {
-		return nil, nil // This can be returned for different event types, so it is not an error.
-	}
-
-	evt := new(T)
-	if err := json.Unmarshal(attrBytes, evt); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal event attributes: %w", err)
-	}
-
-	return evt, nil
-}
-
-// parseWasmAttributes parses the attributes in a wasm event. If the contract and action match the desired values (or the desired values are not set)
-// the attributes are loaded into a byte array of the marshaled json. If the event is not of the desired type, it returns nil.
-func parseWasmAttributes(logger *zap.Logger, desiredContract string, desiredAction string, event gjson.Result) ([]byte, error) {
-	attributes := gjson.Get(event.String(), "attributes")
-	if !attributes.Exists() {
-		return nil, fmt.Errorf("message does not contain any attributes")
-	}
-
-	contractAddressSeen := false
-	actionSeen := false
-	attrs := make(map[string]string)
-	for _, attribute := range attributes.Array() {
-		if !attribute.IsObject() {
-			logger.Warn("event attribute is invalid", zap.String("attribute", attribute.String()))
-			continue
-		}
-		keyBase := gjson.Get(attribute.String(), "key")
-		if !keyBase.Exists() {
-			logger.Warn("event attribute does not have key", zap.String("attribute", attribute.String()))
-			continue
-		}
-		valueBase := gjson.Get(attribute.String(), "value")
-		if !valueBase.Exists() {
-			logger.Warn("event attribute does not have value", zap.String("attribute", attribute.String()))
-			continue
-		}
-
-		keyRaw, err := base64.StdEncoding.DecodeString(keyBase.String())
-		if err != nil {
-			logger.Warn("event key attribute is invalid", zap.String("key", keyBase.String()))
-			continue
-		}
-		valueRaw, err := base64.StdEncoding.DecodeString(valueBase.String())
-		if err != nil {
-			logger.Warn("event value attribute is invalid", zap.String("key", keyBase.String()), zap.String("value", valueBase.String()))
-			continue
-		}
-
-		key := string(keyRaw)
-		value := string(valueRaw)
-
-		if key == "_contract_address" {
-			contractAddressSeen = true
-			if desiredContract != "" && value != desiredContract {
-				logger.Debug("ignoring event from an unexpected contract", zap.String("contract", value), zap.String("desiredContract", desiredContract))
-				return nil, nil
-			}
-		} else if key == "action" {
-			actionSeen = true
-			if desiredAction != "" && value != desiredAction {
-				logger.Debug("ignoring event with an unexpected action", zap.String("key", key), zap.String("value", value), zap.String("desiredAction", desiredAction))
-				return nil, nil
-			}
-		} else {
-			if _, ok := attrs[key]; ok {
-				logger.Debug("duplicate key in events", zap.String("key", key), zap.String("value", value))
-				continue
-			}
-
-			logger.Debug("event attribute", zap.String("key", key), zap.String("value", value), zap.String("desiredAction", desiredAction))
-			attrs[string(key)] = value
-		}
-	}
-
-	if !contractAddressSeen && desiredContract != "" {
-		logger.Debug("contract address not specified, which does not match the desired value")
-		return nil, nil
-	}
-
-	if !actionSeen && desiredAction != "" {
-		logger.Debug("action not specified, which does not match the desired value")
-		return nil, nil
-	}
-
-	attrBytes, err := json.Marshal(attrs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal event attributes: %w", err)
-	}
-
-	return attrBytes, nil
-}
-
-// ibcReceivePublishEvent represents the log message received from the IBC receiver contract.
-type ibcReceivePublishEvent struct {
-	ChannelID      string
-	EmitterChain   vaa.ChainID
-	EmitterAddress vaa.Address
-	Nonce          uint32
-	Sequence       uint64
-	Timestamp      time.Time
-	Payload        []byte
-}
-
-// The IBC receiver contract represents all the fields as strings so define our own unmarshal method to convert the attributes into the real data types.
-func (evt *ibcReceivePublishEvent) UnmarshalJSON(data []byte) error {
-	raw := &struct {
-		ChannelID      string `json:"channel_id"`
-		EmitterChain   string `json:"message.chain_id"`
-		EmitterAddress string `json:"message.sender"`
-		Nonce          string `json:"message.nonce"`
-		Sequence       string `json:"message.sequence"`
-		Timestamp      string `json:"message.block_time"`
-		Payload        string `json:"message.message"`
-	}{}
-
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-
-	evt.ChannelID = raw.ChannelID
-
-	val, err := strconv.ParseUint(raw.EmitterChain, 10, 16)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal EmitterChain: %s, error: %w", raw.EmitterChain, err)
-	}
-	evt.EmitterChain = vaa.ChainID(val)
-
-	evt.EmitterAddress, err = vaa.StringToAddress(raw.EmitterAddress)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal EmitterAddress: %s, error: %w", raw.EmitterAddress, err)
-	}
-
-	val, err = strconv.ParseUint(raw.Nonce, 10, 32)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal Nonce: %s, error: %w", raw.Nonce, err)
-	}
-	evt.Nonce = uint32(val)
-
-	val, err = strconv.ParseUint(raw.Sequence, 10, 64)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal Sequence: %s, error: %w", raw.Sequence, err)
-	}
-	evt.Sequence = uint64(val)
-
-	val, err = strconv.ParseUint(raw.Timestamp, 10, 64)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal Timestamp: %s, error: %w", raw.Timestamp, err)
-	}
-	evt.Timestamp = time.Unix(int64(val), 0)
-
-	evt.Payload, err = hex.DecodeString(raw.Payload)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal Payload: %s, error: %w", raw.Payload, err)
-	}
-
-	return nil
 }
 
 // msgId generates a message ID string for the specified IBC receive publish event.
