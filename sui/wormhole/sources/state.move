@@ -18,13 +18,13 @@ module wormhole::state {
     use sui::tx_context::{TxContext};
 
     use wormhole::bytes32::{Self, Bytes32};
+    use wormhole::consumed_vaas::{Self, ConsumedVAAs};
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::fee_collector::{Self, FeeCollector};
     use wormhole::guardian::{Self};
     use wormhole::guardian_set::{Self, GuardianSet};
     use wormhole::required_version::{Self, RequiredVersion};
-    use wormhole::set::{Self, Set};
     use wormhole::version_control::{Self as control};
 
     friend wormhole::emitter;
@@ -81,7 +81,7 @@ module wormhole::state {
 
         /// Consumed VAA hashes to protect against replay. VAAs relevant to
         /// Wormhole are just governance VAAs.
-        consumed_vaa_hashes: Set<Bytes32>,
+        consumed_vaas: ConsumedVAAs,
 
         /// Wormhole fee collector.
         fee_collector: FeeCollector,
@@ -136,7 +136,7 @@ module wormhole::state {
             guardian_set_index,
             guardian_sets: table::new(ctx),
             guardian_set_seconds_to_live,
-            consumed_vaa_hashes: set::new(ctx),
+            consumed_vaas: consumed_vaas::new(ctx),
             fee_collector: fee_collector::new(message_fee),
             upgrade_cap,
             required_version: required_version::new(control::version(), ctx)
@@ -346,10 +346,10 @@ module wormhole::state {
     /// Store `VAA` hash as a way to claim a VAA. This method prevents a VAA
     /// from being replayed. For Wormhole, the only VAAs that it cares about
     /// being replayed are its governance actions.
-    public(friend) fun consume_vaa_hash(self: &mut State, vaa_hash: Bytes32) {
-        let consumed = &mut self.consumed_vaa_hashes;
-        assert!(!set::contains(consumed, vaa_hash), E_VAA_ALREADY_CONSUMED);
-        set::add(consumed, vaa_hash);
+    public(friend) fun borrow_mut_consumed_vaas(
+        self: &mut State
+    ): &mut ConsumedVAAs {
+        &mut self.consumed_vaas
     }
 
     /// When a new guardian set is added to `State`, part of the process

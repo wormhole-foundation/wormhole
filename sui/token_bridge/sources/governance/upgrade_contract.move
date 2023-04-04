@@ -49,18 +49,14 @@ module token_bridge::upgrade_contract {
         vaa_buf: vector<u8>,
         the_clock: &Clock
     ): UpgradeTicket {
+        // Do not allow this VAA to be replayed.
         let msg =
-            governance_message::parse_and_verify_vaa(
+            governance_message::parse_verify_and_consume_vaa(
+                state::borrow_mut_consumed_vaas(token_bridge_state),
                 wormhole_state,
                 vaa_buf,
                 the_clock
             );
-
-        // Do not allow this VAA to be replayed.
-        state::consume_vaa_hash(
-            token_bridge_state,
-            governance_message::vaa_hash(&msg)
-        );
 
         // Proceed with processing new implementation version.
         handle_upgrade_contract(token_bridge_state, msg)

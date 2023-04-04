@@ -6,6 +6,7 @@ module wormhole::set_fee {
     use sui::clock::{Clock};
 
     use wormhole::bytes32::{Self};
+    use wormhole::consumed_vaas::{Self};
     use wormhole::cursor::{Self};
     use wormhole::governance_message::{Self, GovernanceMessage};
     use wormhole::state::{Self, State};
@@ -40,8 +41,8 @@ module wormhole::set_fee {
             );
 
         // Do not allow this VAA to be replayed.
-        state::consume_vaa_hash(
-            wormhole_state,
+        consumed_vaas::consume(
+            state::borrow_mut_consumed_vaas(wormhole_state),
             governance_message::vaa_hash(&msg)
         );
 
@@ -208,7 +209,7 @@ module wormhole::set_fee_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = state::E_VAA_ALREADY_CONSUMED)]
+    #[expected_failure(abort_code = wormhole::set::E_KEY_ALREADY_EXISTS)]
     public fun test_cannot_set_fee_with_same_vaa() {
         // Testing this method.
         use wormhole::set_fee::{set_fee};
@@ -266,7 +267,7 @@ module wormhole::set_fee_tests {
         // Setting a new fee only applies to this chain since the denomination
         // is SUI.
         let msg =
-            governance_message::parse_and_verify_vaa(
+            governance_message::parse_and_verify_vaa_test_only(
                 &worm_state,
                 VAA_BOGUS_TARGET_CHAIN,
                 &the_clock
@@ -310,7 +311,7 @@ module wormhole::set_fee_tests {
         // Setting a new fee only applies to this chain since the denomination
         // is SUI.
         let msg =
-            governance_message::parse_and_verify_vaa(
+            governance_message::parse_and_verify_vaa_test_only(
                 &worm_state,
                 VAA_BOGUS_ACTION,
                 &the_clock
@@ -351,7 +352,7 @@ module wormhole::set_fee_tests {
 
         // Show that the encoded fee is greater than u64 max.
         let msg =
-            governance_message::parse_and_verify_vaa(
+            governance_message::parse_and_verify_vaa_test_only(
                 &worm_state,
                 VAA_SET_FEE_OVERFLOW,
                 &the_clock

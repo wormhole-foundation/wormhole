@@ -12,6 +12,7 @@ module wormhole::vaa {
 
     use wormhole::bytes::{Self};
     use wormhole::bytes32::{Self, Bytes32};
+    use wormhole::consumed_vaas::{Self, ConsumedVAAs};
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::guardian::{Self};
@@ -19,6 +20,8 @@ module wormhole::vaa {
     use wormhole::guardian_signature::{Self, GuardianSignature};
     use wormhole::state::{Self, State};
     use wormhole::version_control::{Vaa as VaaControl};
+
+    friend wormhole::governance_message;
 
     const E_WRONG_VERSION: u64 = 0;
     const E_NO_QUORUM: u64 = 1;
@@ -28,6 +31,8 @@ module wormhole::vaa {
 
     const VERSION_VAA: u8 = 1;
 
+    /// Container storing verified Wormhole message info. This struct also
+    /// caches the digest, which is a double Keccak256 hash of the message body.
     struct VAA {
         /// Guardian set index of Guardians that attested to observing the
         /// Wormhole message.
@@ -179,6 +184,25 @@ module wormhole::vaa {
 
         // Done.
         vaa
+    }
+
+    public fun parse_verify_and_consume(
+        hashes: &mut ConsumedVAAs,
+        wormhole_state: &State,
+        buf: vector<u8>,
+        the_clock: &Clock
+    ): VAA {
+        let verified = parse_and_verify(wormhole_state, buf, the_clock);
+
+        // Do not allow this VAA to be replayed.
+        consume(hashes, &verified);
+
+        verified
+
+    }
+
+    public fun consume(consumed: &mut ConsumedVAAs, parsed: &VAA) {
+        consumed_vaas::consume(consumed, digest(parsed))
     }
 
     /// Parses a VAA.

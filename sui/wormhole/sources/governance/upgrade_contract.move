@@ -14,13 +14,13 @@ module wormhole::upgrade_contract {
     use sui::package::{UpgradeReceipt, UpgradeTicket};
 
     use wormhole::bytes32::{Self, Bytes32};
+    use wormhole::consumed_vaas::{Self};
     use wormhole::cursor::{Self};
     use wormhole::governance_message::{Self, GovernanceMessage};
     use wormhole::state::{Self, State};
 
     /// Digest is all zeros.
     const E_DIGEST_ZERO_BYTES: u64 = 0;
-
     /// Specific governance payload ID (action) to complete upgrading the
     /// contract.
     const ACTION_UPGRADE_CONTRACT: u8 = 1;
@@ -55,8 +55,8 @@ module wormhole::upgrade_contract {
             );
 
         // Do not allow this VAA to be replayed.
-        state::consume_vaa_hash(
-            wormhole_state,
+        consumed_vaas::consume(
+            state::borrow_mut_consumed_vaas(wormhole_state),
             governance_message::vaa_hash(&msg)
         );
 

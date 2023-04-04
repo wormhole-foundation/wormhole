@@ -10,6 +10,7 @@ module wormhole::update_guardian_set {
     use sui::event::{Self};
 
     use wormhole::bytes::{Self};
+    use wormhole::consumed_vaas::{Self};
     use wormhole::cursor::{Self};
     use wormhole::governance_message::{Self, GovernanceMessage};
     use wormhole::guardian::{Self, Guardian};
@@ -23,7 +24,6 @@ module wormhole::update_guardian_set {
     const E_NO_GUARDIANS: u64 = 0;
     /// Guardian set index is not incremented from last known guardian set.
     const E_NON_INCREMENTAL_GUARDIAN_SETS: u64 = 1;
-
     /// Specific governance payload ID (action) for updating the guardian set.
     const ACTION_UPDATE_GUARDIAN_SET: u8 = 2;
 
@@ -63,8 +63,8 @@ module wormhole::update_guardian_set {
         // to do so due to the guardian set of a previous VAA being illegitimate
         // since `governance_message` requires new governance VAAs being signed
         // by the most recent guardian set).
-        state::consume_vaa_hash(
-            wormhole_state,
+        consumed_vaas::consume(
+            state::borrow_mut_consumed_vaas(wormhole_state),
             governance_message::vaa_hash(&msg)
         );
 
@@ -385,7 +385,7 @@ module wormhole::update_guardian_set_tests {
         // Updating the guardidan set must be applied globally (not for just
         // one chain).
         let msg =
-            governance_message::parse_and_verify_vaa(
+            governance_message::parse_and_verify_vaa_test_only(
                 &worm_state,
                 VAA_BOGUS_TARGET_CHAIN,
                 &the_clock
@@ -434,7 +434,7 @@ module wormhole::update_guardian_set_tests {
         // Updating the guardidan set must be applied globally (not for just
         // one chain).
         let msg =
-            governance_message::parse_and_verify_vaa(
+            governance_message::parse_and_verify_vaa_test_only(
                 &worm_state,
                 VAA_BOGUS_ACTION,
                 &the_clock
@@ -483,7 +483,7 @@ module wormhole::update_guardian_set_tests {
 
         // Show that the encoded number of guardians is zero.
         let msg =
-            governance_message::parse_and_verify_vaa(
+            governance_message::parse_and_verify_vaa_test_only(
                 &worm_state,
                 VAA_UPDATE_GUARDIAN_SET_EMPTY,
                 &the_clock

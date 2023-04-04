@@ -16,10 +16,10 @@ module token_bridge::state {
     use sui::table::{Self, Table};
     use sui::tx_context::{TxContext};
     use wormhole::bytes32::{Self, Bytes32};
+    use wormhole::consumed_vaas::{Self, ConsumedVAAs};
     use wormhole::emitter::{Self, EmitterCap};
     use wormhole::external_address::{ExternalAddress};
     use wormhole::required_version::{Self, RequiredVersion};
-    use wormhole::set::{Self, Set};
     use wormhole::state::{State as WormholeState};
     use wormhole::vaa::{Self, VAA};
 
@@ -64,7 +64,7 @@ module token_bridge::state {
         id: UID,
 
         /// Set of consumed VAA hashes.
-        consumed_vaa_hashes: Set<Bytes32>,
+        consumed_vaas: ConsumedVAAs,
 
         /// Emitter capability required to publish Wormhole messages.
         emitter_cap: EmitterCap,
@@ -105,7 +105,7 @@ module token_bridge::state {
 
         let state = State {
             id: object::new(ctx),
-            consumed_vaa_hashes: set::new(ctx),
+            consumed_vaas: consumed_vaas::new(ctx),
             emitter_cap: emitter::new(worm_state, ctx),
             emitter_registry: table::new(ctx),
             token_registry: token_registry::new(ctx),
@@ -291,12 +291,11 @@ module token_bridge::state {
         borrow_mut_token_registry(self)
     }
 
-    /// For a deserialized VAA, consume its hash so this VAA cannot be redeemed
-    /// again. This protects against replay attacks.
-    public(friend) fun consume_vaa_hash(self: &mut State, vaa_hash: Bytes32) {
-        let consumed = &mut self.consumed_vaa_hashes;
-        assert!(!set::contains(consumed, vaa_hash), E_VAA_ALREADY_CONSUMED);
-        set::add(consumed, vaa_hash);
+    /// Retrieve mutable reference to `ConsumedVAAs`.
+    public(friend) fun borrow_mut_consumed_vaas(
+        self: &mut State
+    ): &mut ConsumedVAAs {
+        &mut self.consumed_vaas
     }
 
     /// Assert that a given emitter equals one that is registered as a foreign

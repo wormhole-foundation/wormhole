@@ -44,14 +44,18 @@ module token_bridge::vaa {
             token_bridge_state
         );
 
-        // First parse and verify VAA using Wormhole.
-        let parsed = vaa::parse_and_verify(worm_state, vaa_buf, the_clock);
+        // First parse and verify VAA using Wormhole. This also consumes the VAA
+        // hash to prevent replay.
+        let parsed =
+            vaa::parse_verify_and_consume(
+                state::borrow_mut_consumed_vaas(token_bridge_state),
+                worm_state,
+                vaa_buf,
+                the_clock
+            );
 
         // Does the emitter agree with a registered Token Bridge?
         state::assert_registered_emitter(token_bridge_state, &parsed);
-
-        // Consume the VAA hash to prevent replay.
-        state::consume_vaa_hash(token_bridge_state, vaa::digest(&parsed));
 
         parsed
     }
@@ -226,7 +230,7 @@ module token_bridge::vaa_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = state::E_VAA_ALREADY_CONSUMED)]
+    #[expected_failure(abort_code = wormhole::set::E_KEY_ALREADY_EXISTS)]
     fun test_cannot_parse_verify_and_consume_again() {
         let caller = person();
         let my_scenario = test_scenario::begin(caller);

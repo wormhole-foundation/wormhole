@@ -32,18 +32,14 @@ module token_bridge::register_chain {
             token_bridge_state
         );
 
+        // Protect against replaying the VAA.
         let msg =
-            governance_message::parse_and_verify_vaa(
+            governance_message::parse_verify_and_consume_vaa(
+                state::borrow_mut_consumed_vaas(token_bridge_state),
                 worm_chain,
                 vaa_buf,
                 the_clock
             );
-
-        // Protect against replaying the VAA.
-        state::consume_vaa_hash(
-            token_bridge_state,
-            governance_message::vaa_hash(&msg)
-        );
 
         handle_register_chain(token_bridge_state, msg)
     }
@@ -215,7 +211,7 @@ module token_bridge::register_chain_tests {
 
         let payload =
             governance_message::take_payload(
-                governance_message::parse_and_verify_vaa(
+                governance_message::parse_and_verify_vaa_test_only(
                     &worm_state,
                     VAA_REGISTER_SAME_CHAIN,
                     &the_clock
