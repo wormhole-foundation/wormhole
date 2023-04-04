@@ -46,7 +46,7 @@ module token_bridge::token_bridge {
         relayer_fee: u64,
         nonce: u32,
         the_clock: &Clock,
-        ctx: &mut TxContext
+        ctx: &TxContext
     ) {
         use token_bridge::transfer_tokens::{
             transfer_tokens,
@@ -62,8 +62,7 @@ module token_bridge::token_bridge {
             external_address::new(bytes32::new(recipient)),
             relayer_fee,
             nonce,
-            the_clock,
-            ctx
+            the_clock
         );
 
         return_dust_to_sender(dust, ctx);
@@ -80,7 +79,7 @@ module token_bridge::token_bridge {
         payload: vector<u8>,
         nonce: u32,
         the_clock: &Clock,
-        ctx: &mut TxContext
+        ctx: &TxContext
     ) {
         use token_bridge::transfer_tokens::{return_dust_to_sender};
         use token_bridge::transfer_tokens_with_payload::{
@@ -97,8 +96,7 @@ module token_bridge::token_bridge {
             external_address::new(bytes32::new(redeemer)),
             payload,
             nonce,
-            the_clock,
-            ctx
+            the_clock
         );
 
         return_dust_to_sender(dust, ctx);
