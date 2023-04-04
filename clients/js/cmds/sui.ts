@@ -317,28 +317,19 @@ exports.builder = function (y: typeof yargs) {
         const feeAmount = BigInt(0);
 
         // Get fee
-        const feeCoins = (
-          await provider.getCoins({
-            owner,
-            coinType: "0x2::sui::SUI",
-          })
-        ).data.find((c) => c.balance >= feeAmount);
-        if (!feeCoins) {
-          throw new Error(
-            `Cannot find SUI coins owned by ${owner} with sufficient balance`
-          );
-        }
-
-        console.log(JSON.stringify(feeCoins, null, 2));
-
         const transactionBlock = new TransactionBlock();
+        const [feeCoin] = transactionBlock.splitCoins(transactionBlock.gas, [
+          transactionBlock.pure(feeAmount),
+        ]);
+
+        // Publish message
         transactionBlock.moveCall({
           target: `${packageId}::sender::send_message_entry`,
           arguments: [
             transactionBlock.object(stateObjectId),
             transactionBlock.object(wormholeStateObjectId),
             transactionBlock.pure(message),
-            transactionBlock.object(feeCoins.coinObjectId),
+            feeCoin,
           ],
         });
         const res = await executeTransactionBlock(
@@ -347,41 +338,28 @@ exports.builder = function (y: typeof yargs) {
           transactionBlock
         );
 
-        console.log(JSON.stringify(res, null, 2));
+        // Hacky way to grab event since we don't require package ID of the
+        // core bridge as input. Doesn't really matter since this is a test
+        // command.
+        const event = res.events.find(
+          (e) =>
+            e.packageId === packageId &&
+            e.type.includes("publish_message::WormholeMessage")
+        );
+        if (!event) {
+          throw new Error("Publish failed");
+        }
 
-        // const event = effects.events.find((e) => "moveEvent" in e) as
-        //   | PublishMessageEvent
-        //   | undefined;
-        // if (!event) {
-        //   throw new Error("Publish failed");
-        // }
-
-        // console.log("Publish message succeeded:", {
-        //   sender: event.moveEvent.sender,
-        //   type: event.moveEvent.type,
-        //   payload: Buffer.from(event.moveEvent.fields.payload).toString(),
-        //   emitter: Buffer.from(event.moveEvent.fields.sender).toString("hex"),
-        //   sequence: event.moveEvent.fields.sequence,
-        // });
+        console.log("Publish message succeeded:", {
+          sender: event.sender,
+          type: event.type,
+          payload: Buffer.from(event.parsedJson.payload).toString(),
+          emitter: Buffer.from(event.parsedJson.sender).toString("hex"),
+          sequence: event.parsedJson.sequence,
+          nonce: event.parsedJson.nonce,
+        });
       }
     )
     .strict()
     .demandCommand();
-};
-
-type PublishMessageEvent = {
-  moveEvent: {
-    type: string;
-    fields: {
-      consistency_level: number;
-      nonce: number; // u32
-      payload: Uint8Array;
-      sender: Uint8Array;
-      sequence: string; // u64
-    };
-    sender: string;
-    packageId: string;
-    transactionModule: string;
-    bcs: string;
-  };
 };
