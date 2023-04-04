@@ -36,6 +36,18 @@ const deploy = async (signer: RawSigner) => {
   });
 };
 
+const printOwnedObjects = async (provider: JsonRpcProvider, owner: string) => {
+  const res = await provider.getOwnedObjects({ owner });
+  const objects = res.data.map(async (e) => {
+    const object = await provider.getObject({ id: e.data.objectId });
+    return {
+      objectId: object.data.objectId,
+      type: object.data.type,
+    };
+  });
+  console.log(JSON.stringify(objects, null, 2));
+};
+
 const getOwnedObjectId = async (
   provider: JsonRpcProvider,
   owner: string,
@@ -84,29 +96,32 @@ const main = async () => {
       showObjectChanges: true,
     },
   });
-  console.log("initRes", JSON.stringify(initRes, null, 2));
 
-  const stateObjectId = initRes.objectChanges.find(
+  const stateObjectId: string = initRes.objectChanges.find(
     (e) =>
       e.type === "created" && e.objectType === `${packageId}::example::State`
   )["objectId"];
   console.log("State object id:", stateObjectId);
 
-  const msgTx = new TransactionBlock();
-  msgTx.moveCall({
-    target: `${packageId}::example::send_message_entry`,
-    arguments: [msgTx.object(upgradeCapObjectId)],
-  });
-
+  // Looking at owned objects of State
   // ERROR!
-  // Error: The following input objects are not invalid: {{upgradeCapObjectId}}
-  const msgRes = await signer.signAndExecuteTransactionBlock({
-    transactionBlock: msgTx,
-    options: {
-      showObjectChanges: true,
-    },
-  });
-  console.log(JSON.stringify(msgRes, null, 2));
+  await printOwnedObjects(provider, stateObjectId);
+
+  // const msgTx = new TransactionBlock();
+  // msgTx.moveCall({
+  //   target: `${packageId}::example::send_message_entry`,
+  //   arguments: [msgTx.object(upgradeCapObjectId)],
+  // });
+
+  // // ERROR!
+  // // Error: The following input objects are not invalid: {{upgradeCapObjectId}}
+  // const msgRes = await signer.signAndExecuteTransactionBlock({
+  //   transactionBlock: msgTx,
+  //   options: {
+  //     showObjectChanges: true,
+  //   },
+  // });
+  // console.log(JSON.stringify(msgRes, null, 2));
 };
 
 main();
