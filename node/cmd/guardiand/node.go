@@ -1011,7 +1011,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			wormchainKeyPathName = fmt.Sprint(*wormchainKeyPath, idx)
 		}
 
-		logger.Debug("gacct: loading key file", zap.String("key path", wormchainKeyPathName))
+		logger.Debug("loading key file", zap.String("key path", wormchainKeyPathName))
 		wormchainKey, err = wormconn.LoadWormchainPrivKey(wormchainKeyPathName, *wormchainKeyPassPhrase)
 		if err != nil {
 			logger.Fatal("failed to load wormchain private key", zap.Error(err))
@@ -1033,16 +1033,17 @@ func runNode(cmd *cobra.Command, args []string) {
 
 	var acct *accountant.Accountant
 	if *accountantContract != "" {
+		alogger := logger.With(zap.String("component", "gacct"))
 		if *accountantWS == "" {
-			logger.Fatal("gacct: if accountantContract is specified, accountantWS is required")
+			alogger.Fatal("if accountantContract is specified, accountantWS is required")
 		}
 		if wormchainConn == nil {
-			logger.Fatal("gacct: if accountantContract is specified, the wormchain sending connection must be enabled")
+			alogger.Fatal("if accountantContract is specified, the wormchain sending connection must be enabled")
 		}
 		if *accountantCheckEnabled {
-			logger.Info("gacct: accountant is enabled and will be enforced")
+			alogger.Info("accountant is enabled and will be enforced")
 		} else {
-			logger.Info("gacct: accountant is enabled but will not be enforced")
+			alogger.Info("accountant is enabled but will not be enforced")
 		}
 		env := accountant.MainNetMode
 		if *testnetMode {
