@@ -13,8 +13,10 @@
 /// Wormhole message payload.
 module token_bridge::transfer_tokens_with_payload {
     use sui::balance::{Balance};
+    use sui::coin::{Coin};
     use sui::clock::{Clock};
     use sui::sui::{SUI};
+    use sui::tx_context::{TxContext};
     use wormhole::emitter::{EmitterCap};
     use wormhole::external_address::{ExternalAddress};
     use wormhole::state::{State as WormholeState};
@@ -40,14 +42,15 @@ module token_bridge::transfer_tokens_with_payload {
         token_bridge_state: &mut State,
         emitter_cap: &EmitterCap,
         worm_state: &mut WormholeState,
-        bridged_in: &mut Balance<CoinType>,
+        bridged_in: Coin<CoinType>,
         wormhole_fee: Balance<SUI>,
         redeemer_chain: u16,
         redeemer: ExternalAddress,
         payload: vector<u8>,
         nonce: u32,
-        the_clock: &Clock
-    ): u64 {
+        the_clock: &Clock,
+        ctx: &mut TxContext
+    ): (u64, Coin<CoinType>) {
         state::check_minimum_requirement<TransferTokensWithPayloadControl>(
             token_bridge_state
         );
@@ -57,30 +60,34 @@ module token_bridge::transfer_tokens_with_payload {
             bridge_in_and_serialize_transfer(
                 token_bridge_state,
                 emitter_cap,
-                bridged_in,
+                &mut bridged_in,
                 redeemer_chain,
                 redeemer,
-                payload
+                payload,
+                ctx
             );
 
         // Publish.
-        state::publish_wormhole_message(
+        let message_sequence = state::publish_wormhole_message(
             token_bridge_state,
             worm_state,
             nonce,
             encoded_transfer_with_payload,
             wormhole_fee,
             the_clock
-        )
+        );
+
+        (message_sequence, bridged_in)
     }
 
     fun bridge_in_and_serialize_transfer<CoinType>(
         token_bridge_state: &mut State,
         emitter_cap: &EmitterCap,
-        bridged_in: &mut Balance<CoinType>,
+        bridged_in: &mut Coin<CoinType>,
         redeemer_chain: u16,
         redeemer: ExternalAddress,
-        payload: vector<u8>
+        payload: vector<u8>,
+        ctx: &mut TxContext
     ): vector<u8> {
         use token_bridge::transfer_tokens::{verify_and_bridge_in};
 
@@ -89,7 +96,7 @@ module token_bridge::transfer_tokens_with_payload {
             token_address,
             norm_amount,
             _
-        ) = verify_and_bridge_in(token_bridge_state, bridged_in, 0);
+        ) = verify_and_bridge_in(token_bridge_state, bridged_in, 0, ctx);
 
         transfer_with_payload::serialize(
             transfer_with_payload::new_from_emitter(
@@ -108,19 +115,23 @@ module token_bridge::transfer_tokens_with_payload {
     public fun bridge_in_and_serialize_transfer_test_only<CoinType>(
         token_bridge_state: &mut State,
         emitter_cap: &EmitterCap,
-        bridged_in: &mut Balance<CoinType>,
+        bridged_in: Coin<CoinType>,
         redeemer_chain: u16,
         redeemer: ExternalAddress,
-        payload: vector<u8>
-    ): vector<u8> {
-        bridge_in_and_serialize_transfer(
+        payload: vector<u8>,
+        ctx: &mut TxContext
+    ): (vector<u8>, Coin<CoinType>) {
+        let payload = bridge_in_and_serialize_transfer(
             token_bridge_state,
             emitter_cap,
-            bridged_in,
+            &mut bridged_in,
             redeemer_chain,
             redeemer,
-            payload
-        )
+            payload,
+            ctx
+        );
+
+        (payload, bridged_in)
     }
 }
 
