@@ -1456,6 +1456,11 @@ func runNode(cmd *cobra.Command, args []string) {
 
 			var channelData ibc.ChannelData
 			for _, ch := range ibcChainsToMonitor {
+				// Make sure the chain ID is valid.
+				if _, exists := chainMsgC[ch.ChainID]; !exists {
+					logger.Fatal("invalid chain ID specified in --ibcConfig.", zap.Uint16("chainID", uint16(ch.ChainID)))
+				}
+
 				// Make sure this chain isn't already configured.
 				if _, exists := chainObsvReqC[ch.ChainID]; exists {
 					logger.Fatal("May not configure chain using IBC since it is already registered.", zap.Stringer("chainID", ch.ChainID))

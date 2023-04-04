@@ -161,6 +161,8 @@ func NewWatcher(
 		connectionConfig: ConnectionConfig,
 		channelData:      channelData,
 		connectionIdMap:  make(map[string]string),
+		connectionMap:    make(map[string]*connectionEntry),
+		chainMap:         make(map[vaa.ChainID]*connectionEntry),
 	}
 }
 
@@ -199,40 +201,38 @@ func (w *Watcher) Run(ctx context.Context) error {
 	errC := make(chan error)
 	defer close(errC)
 
-	// Rebuild these from scratch every time the watcher restarts.
-	w.connectionMap = make(map[string]*connectionEntry)
-	w.chainMap = make(map[vaa.ChainID]*connectionEntry)
-
 	// Build our internal data structures based on the config passed in.
-	for idx, chainToMonitor := range w.connectionConfig {
-		if w.channelData[idx].ChainID != chainToMonitor.ChainID {
-			panic("channelData is not in sync with chainToMonitor") // This would be a program bug!
+	if len(w.connectionMap) == 0 {
+		for idx, chainToMonitor := range w.connectionConfig {
+			if w.channelData[idx].ChainID != chainToMonitor.ChainID {
+				panic("channelData is not in sync with chainToMonitor") // This would be a program bug!
+			}
+
+			_, exists := w.connectionMap[chainToMonitor.ConnID]
+			if exists {
+				return fmt.Errorf("detected duplicate IBC connection: %v", chainToMonitor.ConnID)
+			}
+
+			_, exists = w.chainMap[chainToMonitor.ChainID]
+			if exists {
+				return fmt.Errorf("detected duplicate chainID: %v", chainToMonitor.ChainID)
+			}
+
+			ce := &connectionEntry{
+				connectionID: chainToMonitor.ConnID,
+				chainID:      chainToMonitor.ChainID,
+				chainName:    vaa.ChainID(chainToMonitor.ChainID).String(),
+				readiness:    common.MustConvertChainIdToReadinessSyncing(chainToMonitor.ChainID),
+				msgC:         w.channelData[idx].MsgC,
+				obsvReqC:     w.channelData[idx].ObsvReqC,
+			}
+
+			w.logger.Info("will monitor chain over IBC", zap.String("chain", ce.chainName), zap.String("IBC connection", ce.connectionID))
+			w.connectionMap[ce.connectionID] = ce
+			w.chainMap[ce.chainID] = ce
+
+			p2p.DefaultRegistry.SetNetworkStats(ce.chainID, &gossipv1.Heartbeat_Network{ContractAddress: w.contractAddress})
 		}
-
-		_, exists := w.connectionMap[chainToMonitor.ConnID]
-		if exists {
-			return fmt.Errorf("detected duplicate IBC connection: %v", chainToMonitor.ConnID)
-		}
-
-		_, exists = w.chainMap[chainToMonitor.ChainID]
-		if exists {
-			return fmt.Errorf("detected duplicate chainID: %v", chainToMonitor.ChainID)
-		}
-
-		ce := &connectionEntry{
-			connectionID: chainToMonitor.ConnID,
-			chainID:      chainToMonitor.ChainID,
-			chainName:    vaa.ChainID(chainToMonitor.ChainID).String(),
-			readiness:    common.MustConvertChainIdToReadinessSyncing(chainToMonitor.ChainID),
-			msgC:         w.channelData[idx].MsgC,
-			obsvReqC:     w.channelData[idx].ObsvReqC,
-		}
-
-		w.logger.Info("will monitor chain over IBC", zap.String("chain", ce.chainName), zap.String("IBC connection", ce.connectionID))
-		w.connectionMap[ce.connectionID] = ce
-		w.chainMap[ce.chainID] = ce
-
-		p2p.DefaultRegistry.SetNetworkStats(ce.chainID, &gossipv1.Heartbeat_Network{ContractAddress: w.contractAddress})
 	}
 
 	w.logger.Info("creating watcher", zap.String("wsUrl", w.wsUrl), zap.String("lcdUrl", w.lcdUrl), zap.String("contract", w.contractAddress))
@@ -262,10 +262,14 @@ func (w *Watcher) Run(ctx context.Context) error {
 	}
 
 	// Wait for the success response.
-	_, _, err = c.Read(ctx)
+	_, subResp, err := c.Read(ctx)
 	if err != nil {
 		connectionErrors.WithLabelValues("websocket_subscription_error").Inc()
 		return fmt.Errorf("failed to receive response to subscribe request: %w", err)
+	}
+	if strings.Contains(string(subResp), "error") {
+		connectionErrors.WithLabelValues("websocket_subscription_error").Inc()
+		return fmt.Errorf("failed to subscribe to events, response: %s", string(subResp))
 	}
 
 	// Start a routine to listen for messages from the contract.
