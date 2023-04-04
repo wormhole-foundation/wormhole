@@ -119,6 +119,7 @@ module token_bridge::complete_transfer_with_payload_tests {
 
     use token_bridge::coin_wrapped_12::{Self, COIN_WRAPPED_12};
     use token_bridge::complete_transfer_with_payload::{Self};
+    use token_bridge::complete_transfer::{Self};
     use token_bridge::coin_native_10::{Self, COIN_NATIVE_10};
     use token_bridge::dummy_message::{Self};
     use token_bridge::native_asset::{Self};
@@ -138,7 +139,7 @@ module token_bridge::complete_transfer_with_payload_tests {
 
     #[test]
     /// Test the public-facing function complete_transfer_with_payload.
-    /// using a native transfer VAA_ATTESTED_DECIMALS_12.
+    /// using a native transfer VAA_ATTESTED_DECIMALS_10.
     fun test_complete_transfer_with_payload_native_asset() {
         use token_bridge::complete_transfer_with_payload::{
             complete_transfer_with_payload
@@ -541,6 +542,82 @@ module token_bridge::complete_transfer_with_payload_tests {
             _
         ) =
             complete_transfer_with_payload<COIN_NATIVE_10>(
+                &mut token_bridge_state,
+                &emitter_cap,
+                &mut worm_state,
+                transfer_vaa,
+                &the_clock
+            );
+
+        // Clean up.
+        return_states(token_bridge_state, worm_state);
+        return_clock(the_clock);
+        balance::destroy_for_testing(bridged);
+        emitter::destroy(emitter_cap);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = complete_transfer::E_TARGET_NOT_SUI)]
+    /// This test verifies that `complete_transfer` reverts when a transfer is
+    /// sent to the wrong target blockchain (chain ID != 21).
+    fun test_cannot_complete_transfer_with_payload_wrapped_asset_invalid_target_chain() {
+        use token_bridge::complete_transfer_with_payload::{
+            complete_transfer_with_payload
+        };
+
+        let transfer_vaa =
+            dummy_message::encoded_transfer_with_payload_wrapped_12_invalid_target_chain();
+
+        let (user, coin_deployer) = two_people();
+        let my_scenario = test_scenario::begin(user);
+        let scenario = &mut my_scenario;
+
+        // Initialize Wormhole and Token Bridge.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
+
+        // Register chain ID 2 as a foreign emitter.
+        let expected_source_chain = 2;
+        register_dummy_emitter(scenario, expected_source_chain);
+
+        // Register wrapped token.
+        coin_wrapped_12::init_and_register(scenario, coin_deployer);
+
+        // Ignore effects. Begin processing as arbitrary tx executor.
+        test_scenario::next_tx(scenario, user);
+
+        let (token_bridge_state, worm_state) = take_states(scenario);
+        let the_clock = take_clock(scenario);
+
+        // Set up dummy `EmitterCap` as the expected redeemer.
+        let emitter_cap = emitter::dummy();
+
+        // Verify that the emitter cap is the expected redeemer.
+        let expected_transfer =
+            transfer_with_payload::deserialize(
+                wormhole::vaa::take_payload(
+                    wormhole::vaa::parse_and_verify(
+                        &worm_state,
+                        transfer_vaa,
+                        &the_clock
+                    )
+                )
+            );
+        assert!(
+            transfer_with_payload::redeemer_id(&expected_transfer) == object::id(&emitter_cap),
+            0
+        );
+
+        // Execute complete_transfer_with_payload.
+        let (
+            bridged,
+            _,
+            _
+        ) =
+            complete_transfer_with_payload<COIN_WRAPPED_12>(
                 &mut token_bridge_state,
                 &emitter_cap,
                 &mut worm_state,
