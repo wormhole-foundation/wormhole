@@ -53,17 +53,21 @@ module token_bridge::token_bridge {
             return_dust_to_sender
         };
 
-        let (_, dust) = transfer_tokens(
-            token_bridge_state,
-            worm_state,
-            bridged_in,
-            coin::into_balance(wormhole_fee),
-            recipient_chain,
-            external_address::new(bytes32::new(recipient)),
-            relayer_fee,
-            nonce,
-            the_clock
-        );
+        let (
+            _,
+            dust
+        ) =
+            transfer_tokens(
+                token_bridge_state,
+                worm_state,
+                bridged_in,
+                coin::into_balance(wormhole_fee),
+                recipient_chain,
+                external_address::new(bytes32::new(recipient)),
+                relayer_fee,
+                nonce,
+                the_clock
+            );
 
         return_dust_to_sender(dust, ctx);
     }
@@ -86,18 +90,22 @@ module token_bridge::token_bridge {
             transfer_tokens_with_payload
         };
 
-        let (_, dust) = transfer_tokens_with_payload(
-            token_bridge_state,
-            emitter_cap,
-            worm_state,
-            bridged_in,
-            coin::into_balance(wormhole_fee),
-            redeemer_chain,
-            external_address::new(bytes32::new(redeemer)),
-            payload,
-            nonce,
-            the_clock
-        );
+        let (
+            _,
+            dust
+        ) =
+            transfer_tokens_with_payload(
+                token_bridge_state,
+                emitter_cap,
+                worm_state,
+                bridged_in,
+                coin::into_balance(wormhole_fee),
+                redeemer_chain,
+                external_address::new(bytes32::new(redeemer)),
+                payload,
+                nonce,
+                the_clock
+            );
 
         return_dust_to_sender(dust, ctx);
     }
@@ -114,13 +122,14 @@ module token_bridge::token_bridge {
         // There may be some value to `payout` if the sender of the transaction
         // is not the same as the intended recipient and there was an encoded
         // fee.
-        let payout = complete_transfer<CoinType>(
-            token_bridge_state,
-            worm_state,
-            vaa_buf,
-            the_clock,
-            ctx
-        );
+        let payout =
+            complete_transfer<CoinType>(
+                token_bridge_state,
+                worm_state,
+                vaa_buf,
+                the_clock,
+                ctx
+            );
 
         if (balance::value(&payout) == 0) {
             balance::destroy_zero(payout);

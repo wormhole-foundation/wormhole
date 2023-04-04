@@ -68,14 +68,15 @@ module token_bridge::transfer_tokens {
             );
 
         // Publish with encoded `Transfer`.
-        let message_sequence = state::publish_wormhole_message(
-            token_bridge_state,
-            worm_state,
-            nonce,
-            encoded_transfer,
-            wormhole_fee,
-            the_clock
-        );
+        let message_sequence =
+            state::publish_wormhole_message(
+                token_bridge_state,
+                worm_state,
+                nonce,
+                encoded_transfer,
+                wormhole_fee,
+                the_clock
+            );
 
         // In addition to the Wormhole sequence number, return the `Coin` object
         // to the caller. This object have value if there was remaining dust
@@ -166,11 +167,12 @@ module token_bridge::transfer_tokens {
             token_address,
             norm_amount,
             norm_relayer_fee
-        ) = verify_and_bridge_in(
-            token_bridge_state,
-            bridged_in,
-            relayer_fee
-        );
+        ) =
+            verify_and_bridge_in(
+                token_bridge_state,
+                bridged_in,
+                relayer_fee
+            );
 
         transfer::serialize(
             transfer::new(

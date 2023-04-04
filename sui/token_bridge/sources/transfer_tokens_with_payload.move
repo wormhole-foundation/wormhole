@@ -65,14 +65,15 @@ module token_bridge::transfer_tokens_with_payload {
             );
 
         // Publish.
-        let message_sequence = state::publish_wormhole_message(
-            token_bridge_state,
-            worm_state,
-            nonce,
-            encoded_transfer_with_payload,
-            wormhole_fee,
-            the_clock
-        );
+        let message_sequence =
+            state::publish_wormhole_message(
+                token_bridge_state,
+                worm_state,
+                nonce,
+                encoded_transfer_with_payload,
+                wormhole_fee,
+                the_clock
+            );
 
         (message_sequence, bridged_in)
     }
@@ -116,14 +117,15 @@ module token_bridge::transfer_tokens_with_payload {
         redeemer: ExternalAddress,
         payload: vector<u8>
     ): (vector<u8>, Coin<CoinType>) {
-        let payload = bridge_in_and_serialize_transfer(
-            token_bridge_state,
-            emitter_cap,
-            &mut bridged_in,
-            redeemer_chain,
-            redeemer,
-            payload
-        );
+        let payload =
+            bridge_in_and_serialize_transfer(
+                token_bridge_state,
+                emitter_cap,
+                &mut bridged_in,
+                redeemer_chain,
+                redeemer,
+                payload
+            );
 
         (payload, bridged_in)
     }
