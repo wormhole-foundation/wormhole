@@ -975,4 +975,54 @@ module token_bridge::complete_transfer_tests {
         // Done.
         test_scenario::end(my_scenario);
     }
+
+    #[test]
+    #[expected_failure(abort_code = complete_transfer::E_TARGET_NOT_SUI)]
+    /// This test verifies that `complete_transfer` reverts when a transfer is
+    /// sent to the wrong target blockchain (chain ID != 21).
+    fun test_cannot_complete_transfer_wrapped_12_invalid_target_chain() {
+        let transfer_vaa =
+            dummy_message::encoded_transfer_vaa_wrapped_12_invalid_target_chain();
+
+        let (expected_recipient, tx_relayer, coin_deployer) = three_people();
+        let my_scenario = test_scenario::begin(tx_relayer);
+        let scenario = &mut my_scenario;
+
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
+
+        // Register foreign emitter on chain ID == 2.
+        let expected_source_chain = 2;
+        register_dummy_emitter(scenario, expected_source_chain);
+
+        coin_wrapped_12::init_and_register(scenario, coin_deployer);
+
+        // Ignore effects.
+        //
+        // NOTE: `tx_relayer` != `expected_recipient`.
+        assert!(expected_recipient != tx_relayer, 0);
+        test_scenario::next_tx(scenario, tx_relayer);
+
+        let (token_bridge_state, worm_state) = take_states(scenario);
+        let the_clock = take_clock(scenario);
+
+        // NOTE: this call should revert since the target chain encoded is
+        // chain 69 instead of chain 21 (Sui).
+        let payout = complete_transfer::complete_transfer<COIN_WRAPPED_12>(
+            &mut token_bridge_state,
+            &mut worm_state,
+            transfer_vaa,
+            &the_clock,
+            test_scenario::ctx(scenario)
+        );
+
+        // Clean up.
+        balance::destroy_for_testing(payout);
+        return_states(token_bridge_state, worm_state);
+        return_clock(the_clock);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
 }
