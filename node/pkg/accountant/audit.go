@@ -129,9 +129,9 @@ func (acct *Accountant) audit(ctx context.Context) error {
 // runAudit is the entry point for the audit of the pending transfer map. It creates a temporary map of all pending transfers and invokes the main audit function.
 func (acct *Accountant) runAudit() {
 	tmpMap := acct.createAuditMap()
-	acct.logger.Debug("gacctaudit: in AuditPendingTransfers: starting audit", zap.Int("numPending", len(tmpMap)))
+	acct.logger.Debug("in AuditPendingTransfers: starting audit", zap.Int("numPending", len(tmpMap)))
 	acct.performAudit(tmpMap)
-	acct.logger.Debug("gacctaudit: leaving AuditPendingTransfers")
+	acct.logger.Debug("leaving AuditPendingTransfers")
 }
 
 // createAuditMap creates a temporary map of all pending transfers. It grabs the pending transfer lock.
@@ -143,10 +143,10 @@ func (acct *Accountant) createAuditMap() map[string]*pendingEntry {
 	for _, pe := range acct.pendingTransfers {
 		if pe.hasBeenPendingForTooLong() {
 			auditErrors.Inc()
-			acct.logger.Error("gacctaudit: transfer has been in the submit pending state for too long", zap.Stringer("lastUpdateTime", pe.updTime()))
+			acct.logger.Error("transfer has been in the submit pending state for too long", zap.Stringer("lastUpdateTime", pe.updTime()))
 		}
 		key := pe.makeAuditKey()
-		acct.logger.Debug("gacctaudit: will audit pending transfer", zap.String("msgId", pe.msgId), zap.String("moKey", key), zap.Bool("submitPending", pe.submitPending()), zap.Stringer("lastUpdateTime", pe.updTime()))
+		acct.logger.Debug("will audit pending transfer", zap.String("msgId", pe.msgId), zap.String("moKey", key), zap.Bool("submitPending", pe.submitPending()), zap.Stringer("lastUpdateTime", pe.updTime()))
 		tmpMap[key] = pe
 	}
 
@@ -163,12 +163,12 @@ func (pe *pendingEntry) hasBeenPendingForTooLong() bool {
 // performAudit audits the temporary map against the smart contract. It is meant to be run in a go routine. It takes a temporary map of all pending transfers
 // and validates that against what is reported by the smart contract. For more details, please see the prologue of this file.
 func (acct *Accountant) performAudit(tmpMap map[string]*pendingEntry) {
-	acct.logger.Debug("gacctaudit: entering performAudit")
+	acct.logger.Debug("entering performAudit")
 	missingObservations, err := acct.queryMissingObservations()
 	if err != nil {
-		acct.logger.Error("gacctaudit: unable to perform audit, failed to query missing observations", zap.Error(err))
+		acct.logger.Error("unable to perform audit, failed to query missing observations", zap.Error(err))
 		for _, pe := range tmpMap {
-			acct.logger.Error("gacctaudit: unsure of status of pending transfer due to query error", zap.String("msgId", pe.msgId))
+			acct.logger.Error("unsure of status of pending transfer due to query error", zap.String("msgId", pe.msgId))
 		}
 		return
 	}
@@ -179,9 +179,9 @@ func (acct *Accountant) performAudit(tmpMap map[string]*pendingEntry) {
 		if exists {
 			if acct.submitObservation(pe) {
 				auditErrors.Inc()
-				acct.logger.Error("gacctaudit: contract reported pending observation as missing, resubmitted it", zap.String("msgID", pe.msgId))
+				acct.logger.Error("contract reported pending observation as missing, resubmitted it", zap.String("msgID", pe.msgId))
 			} else {
-				acct.logger.Info("gacctaudit: contract reported pending observation as missing but it is queued up to be submitted, skipping it", zap.String("msgID", pe.msgId))
+				acct.logger.Info("contract reported pending observation as missing but it is queued up to be submitted, skipping it", zap.String("msgID", pe.msgId))
 			}
 
 			delete(tmpMap, key)
@@ -200,9 +200,9 @@ func (acct *Accountant) performAudit(tmpMap map[string]*pendingEntry) {
 
 		transferDetails, err := acct.queryBatchTransferStatus(keys)
 		if err != nil {
-			acct.logger.Error("gacctaudit: unable to finish audit, failed to query for transfer statuses", zap.Error(err))
+			acct.logger.Error("unable to finish audit, failed to query for transfer statuses", zap.Error(err))
 			for _, pe := range tmpMap {
-				acct.logger.Error("gacctaudit: unsure of status of pending transfer due to query error", zap.String("msgId", pe.msgId))
+				acct.logger.Error("unsure of status of pending transfer due to query error", zap.String("msgId", pe.msgId))
 			}
 			return
 		}
@@ -212,9 +212,9 @@ func (acct *Accountant) performAudit(tmpMap map[string]*pendingEntry) {
 			if !exists {
 				if acct.submitObservation(pe) {
 					auditErrors.Inc()
-					acct.logger.Error("gacctaudit: query did not return status for transfer, this should not happen, resubmitted it", zap.String("msgId", pe.msgId))
+					acct.logger.Error("query did not return status for transfer, this should not happen, resubmitted it", zap.String("msgId", pe.msgId))
 				} else {
-					acct.logger.Info("gacctaudit: query did not return status for transfer we have not submitted yet, ignoring it", zap.String("msgId", pe.msgId))
+					acct.logger.Info("query did not return status for transfer we have not submitted yet, ignoring it", zap.String("msgId", pe.msgId))
 				}
 
 				continue
@@ -224,48 +224,48 @@ func (acct *Accountant) performAudit(tmpMap map[string]*pendingEntry) {
 				// This is the case when the contract does not know about a transfer. Resubmit it.
 				if acct.submitObservation(pe) {
 					auditErrors.Inc()
-					acct.logger.Error("gacctaudit: contract does not know about pending transfer, resubmitted it", zap.String("msgId", pe.msgId))
+					acct.logger.Error("contract does not know about pending transfer, resubmitted it", zap.String("msgId", pe.msgId))
 				}
 			} else if status.Committed != nil {
 				digest := hex.EncodeToString(status.Committed.Digest)
 				if pe.digest == digest {
-					acct.logger.Warn("gacctaudit: audit determined that transfer has been committed, publishing it", zap.String("msgId", pe.msgId))
+					acct.logger.Warn("audit determined that transfer has been committed, publishing it", zap.String("msgId", pe.msgId))
 					acct.handleCommittedTransfer(pe.msgId)
 				} else {
 					digestMismatches.Inc()
-					acct.logger.Error("gacctaudit: audit detected a digest mismatch, dropping transfer", zap.String("msgId", pe.msgId), zap.String("ourDigest", pe.digest), zap.String("reportedDigest", digest))
+					acct.logger.Error("audit detected a digest mismatch, dropping transfer", zap.String("msgId", pe.msgId), zap.String("ourDigest", pe.digest), zap.String("reportedDigest", digest))
 					acct.deletePendingTransfer(pe.msgId)
 				}
 			} else if status.Pending != nil {
-				acct.logger.Debug("gacctaudit: contract says transfer is still pending", zap.String("msgId", pe.msgId))
+				acct.logger.Debug("contract says transfer is still pending", zap.String("msgId", pe.msgId))
 			} else {
 				// This is the case when the contract does not know about a transfer. Resubmit it.
 				if acct.submitObservation(pe) {
 					auditErrors.Inc()
 					bytes, err := json.Marshal(*status)
 					if err != nil {
-						acct.logger.Error("gacctaudit: unknown status returned for pending transfer, resubmitted it", zap.String("msgId", pe.msgId), zap.Error(err))
+						acct.logger.Error("unknown status returned for pending transfer, resubmitted it", zap.String("msgId", pe.msgId), zap.Error(err))
 					} else {
-						acct.logger.Error("gacctaudit: unknown status returned for pending transfer, resubmitted it", zap.String("msgId", pe.msgId), zap.String("status", string(bytes)))
+						acct.logger.Error("unknown status returned for pending transfer, resubmitted it", zap.String("msgId", pe.msgId), zap.String("status", string(bytes)))
 					}
 				}
 			}
 		}
 	}
 
-	acct.logger.Debug("gacctaudit: exiting performAudit")
+	acct.logger.Debug("exiting performAudit")
 }
 
 // handleMissingObservation submits a local reobservation request. It relies on the reobservation code to throttle requests.
 func (acct *Accountant) handleMissingObservation(mo MissingObservation) {
-	acct.logger.Warn("gacctaudit: contract reported unknown observation as missing, requesting local reobservation", zap.Stringer("moKey", mo))
+	acct.logger.Warn("contract reported unknown observation as missing, requesting local reobservation", zap.Stringer("moKey", mo))
 	msg := &gossipv1.ObservationRequest{ChainId: uint32(mo.ChainId), TxHash: mo.TxHash}
 
 	select {
 	case acct.obsvReqWriteC <- msg:
-		acct.logger.Debug("gacctaudit: submitted local reobservation", zap.Stringer("moKey", mo))
+		acct.logger.Debug("submitted local reobservation", zap.Stringer("moKey", mo))
 	default:
-		acct.logger.Error("gacctaudit: unable to submit local reobservation because the channel is full, will try next interval", zap.Stringer("moKey", mo))
+		acct.logger.Error("unable to submit local reobservation because the channel is full, will try next interval", zap.Stringer("moKey", mo))
 	}
 }
 
@@ -282,7 +282,7 @@ func (acct *Accountant) queryMissingObservations() ([]MissingObservation, error)
 	}
 
 	query := fmt.Sprintf(`{"missing_observations":{"guardian_set": %d, "index": %d}}`, gs.Index, guardianIndex)
-	acct.logger.Debug("gacctaudit: submitting missing_observations query", zap.String("query", query))
+	acct.logger.Debug("submitting missing_observations query", zap.String("query", query))
 	respBytes, err := acct.wormchainConn.SubmitQuery(acct.ctx, acct.contract, []byte(query))
 	if err != nil {
 		return nil, fmt.Errorf("missing_observations query failed: %w, %s", err, query)
@@ -293,7 +293,7 @@ func (acct *Accountant) queryMissingObservations() ([]MissingObservation, error)
 		return nil, fmt.Errorf("failed to parse missing_observations response: %w, resp: %s", err, string(respBytes))
 	}
 
-	acct.logger.Debug("gacctaudit: missing_observations query response", zap.Int("numEntries", len(ret.Missing)), zap.String("result", string(respBytes)))
+	acct.logger.Debug("missing_observations query response", zap.Int("numEntries", len(ret.Missing)), zap.String("result", string(respBytes)))
 	return ret.Missing, nil
 }
 
@@ -357,7 +357,7 @@ func queryBatchTransferStatusForChunk(
 	}
 
 	query := fmt.Sprintf(`{"batch_transfer_status":%s}`, string(bytes))
-	logger.Debug("gacctaudit: submitting batch_transfer_status query", zap.String("query", query))
+	logger.Debug("submitting batch_transfer_status query", zap.String("query", query))
 	respBytes, err := qc.SubmitQuery(ctx, contract, []byte(query))
 	if err != nil {
 		return nil, fmt.Errorf("batch_transfer_status query failed: %w, %s", err, query)
@@ -373,6 +373,6 @@ func queryBatchTransferStatusForChunk(
 		ret[item.Key.String()] = item.Status
 	}
 
-	logger.Debug("gacctaudit: batch_transfer_status query response", zap.Int("numEntries", len(ret)), zap.String("result", string(respBytes)))
+	logger.Debug("batch_transfer_status query response", zap.Int("numEntries", len(ret)), zap.String("result", string(respBytes)))
 	return ret, nil
 }
