@@ -7,18 +7,21 @@
 module wormhole::vaa {
     use std::option::{Self};
     use std::vector::{Self};
+    use sui::clock::{Clock};
     use sui::hash::{keccak256};
-    use sui::tx_context::{TxContext};
 
     use wormhole::bytes::{Self};
     use wormhole::bytes32::{Self, Bytes32};
+    use wormhole::consumed_vaas::{Self, ConsumedVAAs};
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::guardian::{Self};
     use wormhole::guardian_set::{Self, GuardianSet};
     use wormhole::guardian_signature::{Self, GuardianSignature};
     use wormhole::state::{Self, State};
-    use wormhole::version_control::{ParseAndVerify as ParseAndVerifyControl};
+    use wormhole::version_control::{Vaa as VaaControl};
+
+    friend wormhole::governance_message;
 
     const E_WRONG_VERSION: u64 = 0;
     const E_NO_QUORUM: u64 = 1;
@@ -28,6 +31,8 @@ module wormhole::vaa {
 
     const VERSION_VAA: u8 = 1;
 
+    /// Container storing verified Wormhole message info. This struct also
+    /// caches the digest, which is a double Keccak256 hash of the message body.
     struct VAA {
         /// Guardian set index of Guardians that attested to observing the
         /// Wormhole message.
@@ -82,6 +87,10 @@ module wormhole::vaa {
 
     public fun emitter_address(self: &VAA): ExternalAddress {
          self.emitter_address
+    }
+
+    public fun emitter_info(self: &VAA): (u16, ExternalAddress, u64) {
+        (self.emitter_chain, self.emitter_address, self.sequence)
     }
 
     public fun sequence(self: &VAA): u64 {
@@ -157,9 +166,9 @@ module wormhole::vaa {
     public fun parse_and_verify(
         wormhole_state: &State,
         buf: vector<u8>,
-        ctx: &TxContext
+        the_clock: &Clock
     ): VAA {
-        state::check_minimum_requirement<ParseAndVerifyControl>(wormhole_state);
+        state::check_minimum_requirement<VaaControl>(wormhole_state);
 
         // Deserialize VAA buffer (and return `VAA` after verifying signatures).
         let (signatures, vaa) = parse(buf);
@@ -170,11 +179,30 @@ module wormhole::vaa {
             state::guardian_set_at(wormhole_state, vaa.guardian_set_index),
             signatures,
             bytes32::to_bytes(compute_message_hash(&vaa)),
-            ctx
+            the_clock
         );
 
         // Done.
         vaa
+    }
+
+    public fun parse_verify_and_consume(
+        hashes: &mut ConsumedVAAs,
+        wormhole_state: &State,
+        buf: vector<u8>,
+        the_clock: &Clock
+    ): VAA {
+        let verified = parse_and_verify(wormhole_state, buf, the_clock);
+
+        // Do not allow this VAA to be replayed.
+        consume(hashes, &verified);
+
+        verified
+
+    }
+
+    public fun consume(consumed: &mut ConsumedVAAs, parsed: &VAA) {
+        consumed_vaas::consume(consumed, digest(parsed))
     }
 
     /// Parses a VAA.
@@ -265,10 +293,13 @@ module wormhole::vaa {
         set: &GuardianSet,
         signatures: vector<GuardianSignature>,
         message_hash: vector<u8>,
-        ctx: &TxContext
+        the_clock: &Clock
     ) {
         // Guardian set must be active (not expired).
-        assert!(guardian_set::is_active(set, ctx), E_GUARDIAN_SET_EXPIRED);
+        assert!(
+            guardian_set::is_active(set, the_clock),
+            E_GUARDIAN_SET_EXPIRED
+        );
 
         // Number of signatures must be at least quorum.
         assert!(
@@ -354,12 +385,15 @@ module wormhole::vaa_tests {
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self};
     use wormhole::guardian_signature::{Self};
-    use wormhole::state::{State};
     use wormhole::vaa::{Self};
     use wormhole::wormhole_scenario::{
         guardians,
         person,
+        return_clock,
+        return_state,
         set_up_wormhole_with_guardians,
+        take_clock,
+        take_state
         //upgrade_wormhole
     };
 
@@ -529,8 +563,8 @@ module wormhole::vaa_tests {
         assert!(vaa::emitter_chain(&parsed) == 42, 0);
 
         let expected_emitter_address =
-            external_address::from_bytes(
-                x"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+            external_address::from_address(
+                @0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
             );
         assert!(vaa::emitter_address(&parsed) == expected_emitter_address, 0);
         assert!(vaa::sequence(&parsed) == 2346, 0);
@@ -587,20 +621,16 @@ module wormhole::vaa_tests {
         let scenario = &mut my_scenario;
 
         // Initialize Wormhole with 19 guardians.
-        let wormhole_fee = 0;
+        let wormhole_fee = 350;
         set_up_wormhole_with_guardians(scenario, wormhole_fee, guardians());
 
         // Prepare test to execute `parse_and_verify`.
         test_scenario::next_tx(scenario, caller);
 
-        let worm_state = test_scenario::take_shared<State>(scenario);
+        let worm_state = take_state(scenario);
+        let the_clock = take_clock(scenario);
 
-        let parsed =
-            parse_and_verify(
-                &mut worm_state,
-                VAA_1,
-                test_scenario::ctx(scenario)
-            );
+        let parsed = parse_and_verify(&worm_state, VAA_1, &the_clock);
 
         // We verified all parsed output in `test_parse`. But in destroying the
         // parsed VAA, we will check the payload for the heck of it.
@@ -610,7 +640,8 @@ module wormhole::vaa_tests {
         );
 
         // Clean up.
-        test_scenario::return_shared(worm_state);
+        return_state(worm_state);
+        return_clock(the_clock);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -628,24 +659,22 @@ module wormhole::vaa_tests {
         let scenario = &mut my_scenario;
 
         // Initialize Wormhole with 19 guardians.
-        let wormhole_fee = 0;
+        let wormhole_fee = 350;
         set_up_wormhole_with_guardians(scenario, wormhole_fee, guardians());
 
         // Prepare test to execute `parse_and_verify`.
         test_scenario::next_tx(scenario, caller);
 
-        let worm_state = test_scenario::take_shared<State>(scenario);
+        let worm_state = take_state(scenario);
+        let the_clock = take_clock(scenario);
 
         // You shall not pass!
-        let parsed = parse_and_verify(
-            &mut worm_state,
-            VAA_NO_QUORUM,
-            test_scenario::ctx(scenario)
-        );
+        let parsed = parse_and_verify(&worm_state, VAA_NO_QUORUM, &the_clock);
 
-        // Clean up even though we should have failed by this point.
+        // Clean up.
         vaa::destroy(parsed);
-        test_scenario::return_shared(worm_state);
+        return_state(worm_state);
+        return_clock(the_clock);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -663,24 +692,23 @@ module wormhole::vaa_tests {
         let scenario = &mut my_scenario;
 
         // Initialize Wormhole with 19 guardians.
-        let wormhole_fee = 0;
+        let wormhole_fee = 350;
         set_up_wormhole_with_guardians(scenario, wormhole_fee, guardians());
 
         // Prepare test to execute `parse_and_verify`.
         test_scenario::next_tx(scenario, caller);
 
-        let worm_state = test_scenario::take_shared<State>(scenario);
+        let worm_state = take_state(scenario);
+        let the_clock = take_clock(scenario);
 
         // You shall not pass!
-        let parsed = parse_and_verify(
-            &mut worm_state,
-            VAA_DOUBLE_SIGNED,
-            test_scenario::ctx(scenario)
-        );
+        let parsed =
+            parse_and_verify(&worm_state, VAA_DOUBLE_SIGNED, &the_clock);
 
-        // Clean up even though we should have failed by this point.
+        // Clean up.
         vaa::destroy(parsed);
-        test_scenario::return_shared(worm_state);
+        return_state(worm_state);
+        return_clock(the_clock);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -701,7 +729,8 @@ module wormhole::vaa_tests {
         // signatures will not match.
         let initial_guardians = guardians();
         std::vector::reverse(&mut initial_guardians);
-        let wormhole_fee = 0;
+
+        let wormhole_fee = 350;
         set_up_wormhole_with_guardians(
             scenario,
             wormhole_fee,
@@ -711,18 +740,16 @@ module wormhole::vaa_tests {
         // Prepare test to execute `parse_and_verify`.
         test_scenario::next_tx(scenario, caller);
 
-        let worm_state = test_scenario::take_shared<State>(scenario);
+        let worm_state = take_state(scenario);
+        let the_clock = take_clock(scenario);
 
         // You shall not pass!
-        let parsed = parse_and_verify(
-            &mut worm_state,
-            VAA_1,
-            test_scenario::ctx(scenario)
-        );
+        let parsed = parse_and_verify(&worm_state, VAA_1, &the_clock);
 
-        // Clean up even though we should have failed by this point.
+        // Clean up.
         vaa::destroy(parsed);
-        test_scenario::return_shared(worm_state);
+        return_state(worm_state);
+        return_clock(the_clock);
 
         // Done.
         test_scenario::end(my_scenario);

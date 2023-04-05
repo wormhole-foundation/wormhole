@@ -9,7 +9,7 @@
 /// configured, which defines how long the past Guardian set can be active.
 module wormhole::guardian_set {
     use std::vector::{Self};
-    use sui::tx_context::{Self, TxContext};
+    use sui::clock::{Self, Clock};
 
     use wormhole::guardian::{Guardian};
 
@@ -25,13 +25,13 @@ module wormhole::guardian_set {
         /// List of Guardians. This order should not change.
         guardians: vector<Guardian>,
 
-        /// At what point in time the Guardian set is no longer active.
-        expiration_time: u32,
+        /// At what point in time the Guardian set is no longer active (in ms).
+        expiration_timestamp_ms: u64,
     }
 
     /// Create new `GuardianSet`.
     public fun new(index: u32, guardians: vector<Guardian>): GuardianSet {
-       GuardianSet { index, guardians, expiration_time: 0 }
+       GuardianSet { index, guardians, expiration_timestamp_ms: 0 }
     }
 
     /// Retrieve the Guardian set index.
@@ -56,17 +56,17 @@ module wormhole::guardian_set {
     }
 
     /// Retrieve when the Guardian set is no longer active.
-    public fun expiration_time(self: &GuardianSet): u32 {
-        self.expiration_time
+    public fun expiration_timestamp_ms(self: &GuardianSet): u64 {
+        self.expiration_timestamp_ms
     }
 
     /// Retrieve whether this Guardian set is still active by checking the
     /// current time.
     /// TODO: change `ctx` to `clock` reference.
-    public fun is_active(self: &GuardianSet, ctx: &TxContext): bool {
+    public fun is_active(self: &GuardianSet, clock: &Clock): bool {
         (
-            self.expiration_time == 0 ||
-            self.expiration_time > (tx_context::epoch(ctx) as u32)
+            self.expiration_timestamp_ms == 0 ||
+            self.expiration_timestamp_ms > clock::timestamp_ms(clock)
         )
     }
 
@@ -82,20 +82,27 @@ module wormhole::guardian_set {
 
     /// Configure this Guardian set to expire from some amount of time based on
     /// what time it is right now.
-    /// TODO: change `ctx` to `clock` reference.
+    ///
+    /// NOTE: `time_to_live` is in units of seconds while `Clock` uses
+    /// milliseconds.
     public(friend) fun set_expiration(
         self: &mut GuardianSet,
-        epochs_to_live: u32,
-        ctx: &TxContext
+        seconds_to_live: u32,
+        the_clock: &Clock
     ) {
-        self.expiration_time = (tx_context::epoch(ctx) as u32) + epochs_to_live;
+        let ttl_ms = (seconds_to_live as u64) * 1000;
+        self.expiration_timestamp_ms = clock::timestamp_ms(the_clock) + ttl_ms;
     }
 
     #[test_only]
     public fun destroy(set: GuardianSet) {
         use wormhole::guardian::{Self};
 
-        let GuardianSet { index: _, guardians, expiration_time: _ } = set;
+        let GuardianSet {
+            index: _,
+            guardians,
+            expiration_timestamp_ms: _
+        } = set;
         while (!vector::is_empty(&guardians)) {
             guardian::destroy(vector::pop_back(&mut guardians));
         };

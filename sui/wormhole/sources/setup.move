@@ -40,13 +40,13 @@ module wormhole::setup {
 
     /// Only the owner of the `DeployerCap` can call this method. This
     /// method destroys the capability and shares the `State` object.
-    public entry fun init_and_share_state(
+    public entry fun complete(
         deployer: DeployerCap,
         upgrade_cap: UpgradeCap,
         governance_chain: u16,
         governance_contract: vector<u8>,
         initial_guardians: vector<vector<u8>>,
-        guardian_set_epochs_to_live: u32,
+        guardian_set_seconds_to_live: u32,
         message_fee: u64,
         ctx: &mut TxContext
     ) {
@@ -61,7 +61,7 @@ module wormhole::setup {
                 governance_chain,
                 governance_contract,
                 initial_guardians,
-                guardian_set_epochs_to_live,
+                guardian_set_seconds_to_live,
                 message_fee,
                 ctx
             )
@@ -77,6 +77,7 @@ module wormhole::setup_tests {
     use sui::object::{Self};
     use sui::test_scenario::{Self};
 
+    use wormhole::bytes32::{Self};
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self};
     use wormhole::guardian::{Self};
@@ -116,7 +117,7 @@ module wormhole::setup_tests {
     }
 
     #[test]
-    public fun test_init_and_share_state() {
+    public fun test_complete() {
         let deployer = person();
         let my_scenario = test_scenario::begin(deployer);
         let scenario = &mut my_scenario;
@@ -136,7 +137,7 @@ module wormhole::setup_tests {
                 x"c0dec0dec0dec0dec0dec0dec0dec0dec0dec0de",
                 x"ba5edba5edba5edba5edba5edba5edba5edba5ed"
             ];
-        let guardian_set_epochs_to_live = 5678;
+        let guardian_set_seconds_to_live = 5678;
         let message_fee = 350;
 
         // Take the `DeployerCap` and move it to `init_and_share_state`.
@@ -152,17 +153,17 @@ module wormhole::setup_tests {
         // it from the sender.
         let upgrade_cap =
             package::test_publish(
-                object::id_from_address(@0x0),
+                object::id_from_address(@wormhole),
                 test_scenario::ctx(scenario)
             );
 
-        setup::init_and_share_state(
+        setup::complete(
             deployer_cap,
             upgrade_cap,
             governance_chain,
             governance_contract,
             initial_guardians,
-            guardian_set_epochs_to_live,
+            guardian_set_seconds_to_live,
             message_fee,
             test_scenario::ctx(scenario)
         );
@@ -187,7 +188,9 @@ module wormhole::setup_tests {
         assert!(state::governance_chain(&worm_state) == governance_chain, 0);
 
         let expected_governance_contract =
-            external_address::from_nonzero_bytes(governance_contract);
+            external_address::new_nonzero(
+                bytes32::from_bytes(governance_contract)
+            );
         assert!(
             state::governance_contract(&worm_state) == expected_governance_contract,
             0
@@ -195,7 +198,7 @@ module wormhole::setup_tests {
 
         assert!(state::guardian_set_index(&worm_state) == 0, 0);
         assert!(
-            state::guardian_set_epochs_to_live(&worm_state) == guardian_set_epochs_to_live,
+            state::guardian_set_seconds_to_live(&worm_state) == guardian_set_seconds_to_live,
             0
         );
 

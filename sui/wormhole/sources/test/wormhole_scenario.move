@@ -9,11 +9,13 @@
 /// validate them with this test-only Wormhole instance.
 module wormhole::wormhole_scenario {
     use std::vector::{Self};
+    use sui::clock::{Self, Clock};
     use sui::package::{UpgradeCap};
     use sui::test_scenario::{Self, Scenario};
 
     use wormhole::setup::{Self, DeployerCap};
     use wormhole::state::{Self, State};
+    use wormhole::vaa::{Self, VAA};
     use wormhole::version_control::{Self as control};
 
     const DEPLOYER: address = @0xDEADBEEF;
@@ -23,11 +25,15 @@ module wormhole::wormhole_scenario {
 
     /// Set up Wormhole with any guardian pubkeys. For most testing purposes,
     /// please use `set_up_wormhole` which only uses one guardian.
+    ///
+    /// NOTE: This also creates `Clock` for testing.
     public fun set_up_wormhole_with_guardians(
         scenario: &mut Scenario,
         message_fee: u64,
         initial_guardians: vector<vector<u8>>,
     ) {
+        clock::create_for_testing(test_scenario::ctx(scenario));
+
         // Process effects prior. `init_test_only` will be executed as the
         // Wormhole contract deployer.
         test_scenario::next_tx(scenario, DEPLOYER);
@@ -54,10 +60,10 @@ module wormhole::wormhole_scenario {
             let governance_chain = 1;
             let governance_contract =
                 x"0000000000000000000000000000000000000000000000000000000000000004";
-            let guardian_set_epochs_to_live = 2;
+            let guardian_set_seconds_to_live = 420;
 
             // Share `State`.
-            setup::init_and_share_state(
+            setup::complete(
                 test_scenario::take_from_address<DeployerCap>(
                     scenario, DEPLOYER
                 ),
@@ -65,7 +71,7 @@ module wormhole::wormhole_scenario {
                 governance_chain,
                 governance_contract,
                 initial_guardians,
-                guardian_set_epochs_to_live,
+                guardian_set_seconds_to_live,
                 message_fee,
                 test_scenario::ctx(scenario)
             );
@@ -147,5 +153,49 @@ module wormhole::wormhole_scenario {
             x"246ab29fc6ebedf2d392a51ab2dc5c59d0902a03",
             x"132a84dfd920b35a3d0ba5f7a0635df298f9033e",
         ]
+    }
+
+    public fun take_state(scenario: &Scenario): State {
+        test_scenario::take_shared(scenario)
+    }
+
+    public fun return_state(wormhole_state: State) {
+        test_scenario::return_shared(wormhole_state);
+    }
+
+    public fun parse_and_verify_vaa(
+        scenario: &mut Scenario,
+        vaa_buf: vector<u8>
+    ): VAA {
+        let the_clock = take_clock(scenario);
+        let worm_state = take_state(scenario);
+
+        let out =
+            vaa::parse_and_verify(
+                &worm_state,
+                vaa_buf,
+                &the_clock
+            );
+
+        // Clean up.
+        return_state(worm_state);
+        return_clock(the_clock);
+
+        out
+    }
+
+    public fun parse_verify_and_take_vaa_payload(
+        scenario: &mut Scenario,
+        vaa_buf: vector<u8>
+    ): vector<u8> {
+        vaa::take_payload(parse_and_verify_vaa(scenario, vaa_buf))
+    }
+
+    public fun take_clock(scenario: &Scenario): Clock {
+        test_scenario::take_shared(scenario)
+    }
+
+    public fun return_clock(the_clock: Clock) {
+        test_scenario::return_shared(the_clock)
     }
 }

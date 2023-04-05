@@ -1,106 +1,138 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements the global state variables for Token Bridge as a
+/// shared object. The `State` object is used to perform anything that requires
+/// access to data that defines the Token Bridge contract. Examples of which are
+/// accessing registered assets and verifying `VAA` intended for Token Bridge by
+/// checking the emitter against its own registered emitters.
 module token_bridge::state {
-    use std::ascii::{Self};
-    use sui::coin::{Self, Coin, CoinMetadata, TreasuryCap};
-    use sui::object::{Self, UID};
+    use std::option::{Self, Option};
+    use sui::clock::{Clock};
+    use sui::coin::{Coin};
+    use sui::dynamic_field::{Self as field};
+    use sui::object::{Self, ID, UID};
+    use sui::package::{Self, UpgradeCap, UpgradeReceipt, UpgradeTicket};
     use sui::sui::{SUI};
-    use sui::transfer::{Self};
-    use sui::tx_context::{Self, TxContext};
+    use sui::table::{Self, Table};
+    use sui::tx_context::{TxContext};
     use wormhole::bytes32::{Self, Bytes32};
-    use wormhole::emitter::{EmitterCap};
+    use wormhole::consumed_vaas::{Self, ConsumedVAAs};
+    use wormhole::emitter::{Self, EmitterCap};
     use wormhole::external_address::{ExternalAddress};
-    use wormhole::set::{Self, Set};
-    use wormhole::state::{Self as wormhole_state, State as WormholeState};
-    use wormhole::publish_message::{publish_message};
+    use wormhole::required_version::{Self, RequiredVersion};
+    use wormhole::state::{State as WormholeState};
+    use wormhole::vaa::{Self, VAA};
 
-    use token_bridge::asset_meta::{Self, AssetMeta};
-    use token_bridge::registered_emitters::{Self};
-    use token_bridge::registered_tokens::{Self, RegisteredTokens};
-    use token_bridge::string32::{Self};
-    use token_bridge::token_info::{TokenInfo};
+    use token_bridge::token_registry::{Self, TokenRegistry, VerifiedAsset};
+    use token_bridge::version_control::{Self as control};
 
+    /// For a given chain ID, Token Bridge is non-existent.
     const E_UNREGISTERED_EMITTER: u64 = 0;
-    const E_EMITTER_ALREADY_REGISTERED: u64 = 1;
-    const E_VAA_ALREADY_CONSUMED: u64 = 2;
+    /// Cannot register chain ID == 0.
+    const E_INVALID_EMITTER_CHAIN: u64 = 1;
+    /// Emitter already exists for a given chain ID.
+    const E_EMITTER_ALREADY_REGISTERED: u64 = 2;
+    /// Encoded emitter address does not match registered Token Bridge.
+    const E_EMITTER_ADDRESS_MISMATCH: u64 = 3;
+    /// VAA hash already exists in `Set`.
+    const E_VAA_ALREADY_CONSUMED: u64 = 4;
+    /// Build does not agree with expected upgrade.
+    const E_BUILD_VERSION_MISMATCH: u64 = 5;
+    /// `UpgradeCap` is not as expected when initializing `State`.
+    const E_INVALID_UPGRADE_CAP: u64 = 6;
 
     friend token_bridge::attest_token;
     friend token_bridge::complete_transfer;
     friend token_bridge::complete_transfer_with_payload;
     friend token_bridge::create_wrapped;
+    friend token_bridge::migrate;
     friend token_bridge::register_chain;
+    friend token_bridge::setup;
     friend token_bridge::transfer_tokens;
     friend token_bridge::transfer_tokens_with_payload;
+    friend token_bridge::upgrade_contract;
     friend token_bridge::vaa;
 
-    #[test_only]
-    friend token_bridge::bridge_state_test;
-    #[test_only]
-    friend token_bridge::complete_transfer_test;
-    #[test_only]
-    friend token_bridge::token_bridge_vaa_test;
-    #[test_only]
-    friend token_bridge::complete_transfer_with_payload_test;
-    #[test_only]
-    friend token_bridge::transfer_token_test;
-    #[test_only]
-    friend token_bridge::transfer_tokens_with_payload_test;
+    /// Used as key for dynamic field reflecting whether `migrate` can be
+    /// called.
+    ///
+    /// See `migrate` module for more info.
+    struct MigrationControl has store, drop, copy {}
 
-    /// Capability for creating a bridge state object, granted to sender when this
-    /// module is deployed
-    struct DeployerCap has key, store {
-        id: UID
-    }
-
-    /// Treasury caps, token stores, consumed VAAs, registered emitters, etc.
-    /// are stored as dynamic fields of bridge state.
+    /// Container for all state variables for Token Bridge.
     struct State has key, store {
         id: UID,
 
-        /// Set of consumed VAA hashes
-        consumed_vaa_hashes: Set<Bytes32>,
+        /// Set of consumed VAA hashes.
+        consumed_vaas: ConsumedVAAs,
 
-        /// Token bridge owned emitter capability
+        /// Emitter capability required to publish Wormhole messages.
         emitter_cap: EmitterCap,
 
-        registered_tokens: RegisteredTokens,
+        /// Registry for foreign Token Bridge contracts.
+        emitter_registry: Table<u16, ExternalAddress>,
+
+        /// Registry for native and wrapped assets.
+        token_registry: TokenRegistry,
+
+        /// Upgrade capability.
+        upgrade_cap: UpgradeCap,
+
+        /// Contract build version tracker.
+        required_version: RequiredVersion
     }
 
-    fun init(ctx: &mut TxContext) {
-        transfer::transfer(
-            DeployerCap {
-                id: object::new(ctx)
-            },
-            tx_context::sender(ctx)
-        );
-    }
-
-    #[test_only]
-    public fun init_test_only(ctx: &mut TxContext) {
-        init(ctx)
-    }
-
-    /// Converts owned state object into a shared object, so that anyone can get
-    /// a reference to &mut State and pass it into various functions.
-    public entry fun init_and_share_state(
-        deployer: DeployerCap,
-        worm_state: &mut WormholeState,
+    /// Create new `State`. This is only executed using the `setup` module.
+    public(friend) fun new(
+        worm_state: &WormholeState,
+        upgrade_cap: UpgradeCap,
         ctx: &mut TxContext
-    ) {
-        let DeployerCap { id } = deployer;
-        object::delete(id);
+    ): State {
+        // Verify that this `UpgradeCap` belongs to the Token Bridge package and
+        // equals the build version defined in the `version_control` module.
+        //
+        // When the contract is first published and `State` is being created,
+        // this is expected to be `1`.
+        let package_id = package::upgrade_package(&upgrade_cap);
+        assert!(
+            (
+                package_id == object::id_from_address(@token_bridge) &&
+                control::version() == 1 &&
+                package::version(&upgrade_cap) == control::version()
+            ),
+            E_INVALID_UPGRADE_CAP
+        );
 
         let state = State {
             id: object::new(ctx),
-            consumed_vaa_hashes: set::new(ctx),
-            emitter_cap: wormhole::state::new_emitter(worm_state, ctx),
-            registered_tokens: registered_tokens::new(ctx)
+            consumed_vaas: consumed_vaas::new(ctx),
+            emitter_cap: emitter::new(worm_state, ctx),
+            emitter_registry: table::new(ctx),
+            token_registry: token_registry::new(ctx),
+            upgrade_cap,
+            required_version: required_version::new(control::version(), ctx)
         };
 
-        registered_emitters::new(&mut state.id, ctx);
+        // Add dynamic field to control whether someone can call `migrate`. Set
+        // this value to `false` by default.
+        //
+        // See `migrate` module for more info.
+        field::add(&mut state.id, MigrationControl {}, false);
 
-        // Permanently shares state.
-        transfer::share_object(state);
+        let tracker = &mut state.required_version;
+        required_version::add<control::AttestToken>(tracker);
+        required_version::add<control::CompleteTransfer>(tracker);
+        required_version::add<control::CompleteTransferWithPayload>(tracker);
+        required_version::add<control::CreateWrapped>(tracker);
+        required_version::add<control::RegisterChain>(tracker);
+        required_version::add<control::TransferTokens>(tracker);
+        required_version::add<control::TransferTokensWithPayload>(tracker);
+        required_version::add<control::Vaa>(tracker);
+
+        state
     }
 
+    /// Retrieve governance module name.
     public fun governance_module(): Bytes32 {
         // A.K.A. "TokenBridge".
         bytes32::new(
@@ -108,367 +140,231 @@ module token_bridge::state {
         )
     }
 
-    public(friend) fun deposit<CoinType>(
+    /// Retrieve current build version of latest upgrade.
+    public fun current_version(self: &State): u64 {
+        required_version::current(&self.required_version)
+    }
+
+    /// Issue an `UpgradeTicket` for the upgrade.
+    public(friend) fun authorize_upgrade(
         self: &mut State,
-        coin: Coin<CoinType>,
+        implementation_digest: Bytes32
+    ): UpgradeTicket {
+        let policy = package::upgrade_policy(&self.upgrade_cap);
+
+        // TODO: grab package ID from `UpgradeCap` and store it
+        // in a dynamic field. This will be the old ID after the upgrade.
+        // Both IDs will be emitted in a `ContractUpgraded` event.
+        package::authorize_upgrade(
+            &mut self.upgrade_cap,
+            policy,
+            bytes32::to_bytes(implementation_digest),
+        )
+    }
+
+    /// Finalize the upgrade that ran to produce the given `receipt`.
+    public(friend) fun commit_upgrade(
+        self: &mut State,
+        receipt: UpgradeReceipt
+    ): ID {
+        // Uptick the upgrade cap version number using this receipt.
+        package::commit_upgrade(&mut self.upgrade_cap, receipt);
+
+        // Check that the upticked hard-coded version version agrees with the
+        // upticked version number.
+        assert!(
+            package::version(&self.upgrade_cap) == control::version() + 1,
+            E_BUILD_VERSION_MISMATCH
+        );
+
+        // Update global version.
+        required_version::update_latest(
+            &mut self.required_version,
+            &self.upgrade_cap
+        );
+
+        // Enable `migrate` to be called after commiting the upgrade.
+        //
+        // A separate method is required because `state` is a dependency of
+        // `migrate`. This method warehouses state modifications required
+        // for the new implementation plus enabling any methods required to be
+        // gated by the current implementation version. In most cases `migrate`
+        // is a no-op. But it still must be called in order to reset the
+        // migration control to `false`.
+        //
+        // See `migrate` module for more info.
+        enable_migration(self);
+
+        package::upgrade_package(&self.upgrade_cap)
+    }
+
+    /// Enforce a particular method to use the current build version as its
+    /// minimum required version. This method ensures that a method is not
+    /// backwards compatible with older builds.
+    public(friend) fun require_current_version<ControlType>(self: &mut State) {
+        required_version::require_current_version<ControlType>(
+            &mut self.required_version,
+        )
+    }
+
+    /// Check whether a particular method meets the minimum build version for
+    /// the latest Token Bridge implementation.
+    public(friend) fun check_minimum_requirement<ControlType>(self: &State) {
+        check_minimum_requirement_specified<ControlType>(
+            self,
+            control::version()
+        )
+    }
+
+    /// Check whether a particular method meets the minimum build version for
+    /// a specified build version checked outside of this module.
+    ///
+    /// See `create_wrapped` module for an example of how this is used.
+    public(friend) fun check_minimum_requirement_specified<ControlType>(
+        self: &State,
+        build_version: u64
     ) {
-        registered_tokens::deposit(&mut self.registered_tokens, coin)
+        required_version::check_minimum_requirement<ControlType>(
+            &self.required_version,
+            build_version
+        )
     }
 
-    #[test_only]
-    /// Exposing method so an integrator can test redeeming native tokens.
-    public fun deposit_test_only<CoinType>(
-        self: &mut State,
-        coin: Coin<CoinType>
-    ) {
-        deposit(self, coin)
+    /// Check whether `migrate` can be called.
+    ///
+    /// See `token_bridge::migrate` module for more info.
+    public fun can_migrate(self: &State): bool {
+        *field::borrow(&self.id, MigrationControl {})
     }
 
-    public(friend) fun withdraw<CoinType>(
-        self: &mut State,
-        amount: u64,
-        ctx: &mut TxContext
-    ): Coin<CoinType> {
-        registered_tokens::withdraw(&mut self.registered_tokens, amount, ctx)
+    /// Allow `migrate` to be called after upgrade.
+    ///
+    /// See `token_bridge::migrate` module for more info.
+    public(friend) fun enable_migration(self: &mut State) {
+        *field::borrow_mut(&mut self.id, MigrationControl {}) = true;
     }
 
-    #[test_only]
-    /// Exposing method so an integrator can test sending native tokens.
-    public fun withdraw_test_only<CoinType>(
-        self: &mut State,
-        amount: u64,
-        ctx: &mut TxContext
-    ): Coin<CoinType> {
-        withdraw(self, amount, ctx)
+    /// Disallow `migrate` to be called.
+    ///
+    /// See `token_bridge::migrate` module for more info.
+    public(friend) fun disable_migration(self: &mut State) {
+        *field::borrow_mut(&mut self.id, MigrationControl {}) = false;
     }
 
-    public(friend) fun burn<CoinType>(
-        self: &mut State,
-        coin: Coin<CoinType>,
-    ): u64 {
-        registered_tokens::burn(&mut self.registered_tokens, coin)
-    }
-
-    #[test_only]
-    /// Exposing method so an integrator can test redeeming wrapped tokens.
-    public fun burn_test_only<CoinType>(
-        self: &mut State,
-        coin: Coin<CoinType>
-    ): u64 {
-        burn(self, coin)
-    }
-
-    public(friend) fun mint<CoinType>(
-        self: &mut State,
-        amount: u64,
-        ctx: &mut TxContext,
-    ): Coin<CoinType> {
-        registered_tokens::mint(&mut self.registered_tokens, amount, ctx)
-    }
-
-    #[test_only]
-    /// Exposing method so an integrator can test sending wrapped tokens.
-    public fun mint_test_only<CoinType>(
-        self: &mut State,
-        amount: u64,
-        ctx: &mut TxContext
-    ): Coin<CoinType> {
-        mint(self, amount, ctx)
-    }
-
-    /// We only examine the balance of native assets, because the token
-    /// bridge does not custody wrapped assets (only mints and burns them).
-    public fun balance<CoinType>(self: &State): u64 {
-        registered_tokens::balance<CoinType>(&self.registered_tokens)
-    }
-
+    /// Publish Wormhole message using Token Bridge's `EmitterCap`.
     public(friend) fun publish_wormhole_message(
         self: &mut State,
         worm_state: &mut WormholeState,
         nonce: u32,
         payload: vector<u8>,
         message_fee: Coin<SUI>,
+        the_clock: &Clock
     ): u64 {
+        use wormhole::publish_message::{publish_message};
+
         publish_message(
             worm_state,
             &mut self.emitter_cap,
             nonce,
             payload,
             message_fee,
+            the_clock
         )
     }
 
-    public(friend) fun consume_vaa_hash(self: &mut State, vaa_hash: Bytes32) {
-        let consumed = &mut self.consumed_vaa_hashes;
-        assert!(!set::contains(consumed, vaa_hash), E_VAA_ALREADY_CONSUMED);
-        set::add(consumed, vaa_hash);
+    /// Retrieve immutable reference to `TokenRegistry`.
+    public fun borrow_token_registry(self: &State): &TokenRegistry {
+        &self.token_registry
     }
 
-    public fun registered_emitter(
-        state: &State,
-        chain: u16
-    ): ExternalAddress {
-        assert!(
-            registered_emitters::has(&state.id, chain),
-            E_UNREGISTERED_EMITTER
-        );
-        registered_emitters::external_address(&state.id, chain)
-    }
-
-    public fun is_registered_asset<CoinType>(self: &State): bool {
-        registered_tokens::has<CoinType>(&self.registered_tokens)
-    }
-
-    public fun is_native_asset<CoinType>(self: &State): bool {
-        registered_tokens::is_native<CoinType>(&self.registered_tokens)
-    }
-
-    public fun is_wrapped_asset<CoinType>(self: &State): bool {
-        registered_tokens::is_wrapped<CoinType>(&self.registered_tokens)
-    }
-
-    /// Returns the origin information for a CoinType.
-    public fun token_info<CoinType>(self: &State): TokenInfo<CoinType> {
-        registered_tokens::to_token_info<CoinType>(&self.registered_tokens)
-    }
-
-    public fun coin_decimals<CoinType>(self: &State): u8 {
-        registered_tokens::decimals<CoinType>(&self.registered_tokens)
-    }
-
-    /// This function returns an immutable reference to the treasury cap
-    /// for a wrapped coin that the token bridge manages. Note that there
-    /// is no danger of the returned reference being used to mint coins
-    /// outside of the bridge mint/burn mechanism, because a mutable reference
-    /// to the TreasuryCap is required for mint/burn.
-    ///
-    /// This function is only used in create_wrapped.move to update coin
-    /// metadata (only an immutable reference is needed).
-    public(friend) fun treasury_cap<CoinType>(self: &State): &TreasuryCap<CoinType> {
-        registered_tokens::treasury_cap<CoinType>(&self.registered_tokens)
-    }
-
-    public(friend) fun register_emitter(
-        self: &mut State,
-        chain: u16,
-        contract_address: ExternalAddress
-    ) {
-        assert!(
-            !registered_emitters::has(&self.id, chain),
-            E_EMITTER_ALREADY_REGISTERED
-        );
-        registered_emitters::add(&mut self.id, chain, contract_address);
+    /// Retrieve mutable reference to `TokenRegistry`.
+    public(friend) fun borrow_mut_token_registry(
+        self: &mut State
+    ): &mut TokenRegistry {
+        &mut self.token_registry
     }
 
     #[test_only]
-    public fun register_emitter_test_only(
+    public fun borrow_mut_token_registry_test_only(
+        self: &mut State
+    ): &mut TokenRegistry {
+        borrow_mut_token_registry(self)
+    }
+
+    /// Retrieve mutable reference to `ConsumedVAAs`.
+    public(friend) fun borrow_mut_consumed_vaas(
+        self: &mut State
+    ): &mut ConsumedVAAs {
+        &mut self.consumed_vaas
+    }
+
+    /// Assert that a given emitter equals one that is registered as a foreign
+    /// Token Bridge.
+    public fun assert_registered_emitter(self: &State, parsed: &VAA) {
+        let chain = vaa::emitter_chain(parsed);
+        let registry = &self.emitter_registry;
+        assert!(table::contains(registry, chain), E_UNREGISTERED_EMITTER);
+
+        let registered = table::borrow(registry, chain);
+        let emitter_addr = vaa::emitter_address(parsed);
+        assert!(*registered == emitter_addr, E_EMITTER_ADDRESS_MISMATCH);
+    }
+
+    /// Add a new Token Bridge emitter to the registry. This method will abort
+    /// if an emitter is already registered for a particular chain ID.
+    ///
+    /// See `register_chain` module for more info.
+    public(friend) fun register_new_emitter(
         self: &mut State,
         chain: u16,
         contract_address: ExternalAddress
     ) {
-        register_emitter(self, chain, contract_address);
-    }
+        assert!(chain != 0, E_INVALID_EMITTER_CHAIN);
 
-    public(friend) fun register_wrapped_asset<CoinType>(
-        self: &mut State,
-        token_chain: u16,
-        token_address: ExternalAddress,
-        treasury_cap: TreasuryCap<CoinType>,
-        decimals: u8,
-    ) {
-        registered_tokens::add_new_wrapped(&mut self.registered_tokens,
-            token_chain,
-            token_address,
-            treasury_cap,
-            decimals,
-        )
-    }
-
-    public(friend) fun register_native_asset<CoinType>(
-        self: &mut State,
-        coin_metadata: &CoinMetadata<CoinType>,
-    ): AssetMeta {
-        let decimals = coin::get_decimals(coin_metadata);
-
-        registered_tokens::add_new_native<CoinType>(
-            &mut self.registered_tokens,
-            decimals,
+        let registry = &mut self.emitter_registry;
+        assert!(
+            !table::contains(registry, chain),
+            E_EMITTER_ALREADY_REGISTERED
         );
-
-        asset_meta::new(
-            wormhole_state::chain_id(),
-            registered_tokens::token_address<CoinType>(&self.registered_tokens),
-            decimals,
-            string32::from_bytes(
-                ascii::into_bytes(coin::get_symbol<CoinType>(coin_metadata))
-            ),
-            string32::from_string(&coin::get_name<CoinType>(coin_metadata))
-        )
+        table::add(registry, chain, contract_address);
     }
 
-}
-
-#[test_only]
-module token_bridge::bridge_state_test {
-    use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_from_address,
-        take_shared, return_shared};
-    use sui::coin::{CoinMetadata};
-
-    use wormhole::state::{State as WormholeState};
-    use wormhole::wormhole_scenario::{set_up_wormhole, three_people as people};
-    use wormhole::external_address::{Self};
-
-    use token_bridge::state::{Self, State, DeployerCap};
-    use token_bridge::native_coin_10_decimals::{Self, NATIVE_COIN_10_DECIMALS};
-    use token_bridge::native_coin_4_decimals::{Self, NATIVE_COIN_4_DECIMALS};
-    use token_bridge::token_info::{Self};
-
-    fun scenario(): Scenario { test_scenario::begin(@0x123233) }
-
-    const ETHEREUM_TOKEN_REG: vector<u8> =
-        x"0100000000010015d405c74be6d93c3c33ed6b48d8db70dfb31e0981f8098b2a6c7583083e0c3343d4a1abeb3fc1559674fa067b0c0e2e9de2fafeaecdfeae132de2c33c9d27cc0100000001000000010001000000000000000000000000000000000000000000000000000000000000000400000000016911ae00000000000000000000000000000000000000000000546f6b656e427269646765010000000200000000000000000000000000000000000000000000000000000000deadbeef";
-
-    // #[test]
-    // fun test_state_setters() {
-    //     test_state_setters_(scenario())
-    // }
-
-    #[test]
-    fun test_coin_type_addressing(){
-        test_coin_type_addressing_(scenario())
+    #[test_only]
+    public fun register_new_emitter_test_only(
+        self: &mut State,
+        chain: u16,
+        contract_address: ExternalAddress
+    ) {
+        register_new_emitter(self, chain, contract_address);
     }
 
-    #[test]
-    #[expected_failure(
-        abort_code = token_bridge::registered_tokens::E_ALREADY_REGISTERED,
-        location = token_bridge::registered_tokens
-    )]
-    fun test_coin_type_addressing_failure_case(){
-        test_coin_type_addressing_failure_case_(scenario())
+    public fun maybe_verified_asset<CoinType>(
+        self: &State
+    ): Option<VerifiedAsset<CoinType>> {
+        let registry = &self.token_registry;
+        if (token_registry::has<CoinType>(registry)) {
+            option::some(token_registry::verified_asset<CoinType>(registry))
+        } else {
+            option::none()
+        }
     }
 
-    public fun set_up_wormhole_core_and_token_bridges(admin: address, test: Scenario): Scenario {
-        // init and share wormhole core bridge
-        set_up_wormhole(&mut test, 0);
-
-        // Call init for token bridge to get deployer cap.
-        next_tx(&mut test, admin); {
-            state::init_test_only(ctx(&mut test));
-        };
-
-        // Register for emitter cap and init_and_share token bridge.
-        next_tx(&mut test, admin); {
-            let wormhole_state = take_shared<WormholeState>(&test);
-            let deployer = take_from_address<DeployerCap>(&test, admin);
-            state::init_and_share_state(deployer, &mut wormhole_state, ctx(&mut test));
-            return_shared<WormholeState>(wormhole_state);
-        };
-
-        next_tx(&mut test, admin); {
-            let bridge_state = take_shared<State>(&test);
-            return_shared<State>(bridge_state);
-        };
-
-        return test
+    public fun verified_asset<CoinType>(
+        self: &State
+    ): VerifiedAsset<CoinType> {
+        token_registry::assert_has<CoinType>(&self.token_registry);
+        token_registry::verified_asset(&self.token_registry)
     }
 
-    // fun test_state_setters_(test: Scenario) {
-    //     let (admin, _, _) = people();
-
-    //     test = set_up_wormhole_core_and_token_bridges(admin, test);
-
-    //     //test State setter and getter functions
-    //     next_tx(&mut test, admin); {
-    //         let state = take_shared<State>(&test);
-
-    //         // test store consumed vaa
-    //         state::store_consumed_vaa(&mut state, x"1234");
-    //         assert!(state::vaa_is_consumed(&state, x"1234"), 0);
-
-    //         // TODO - test store coin store
-    //         // TODO - test store treasury cap
-
-    //         return_shared<State>(state);
-    //     };
-    //     test_scenario::end(test);
-    // }
-
-    fun test_coin_type_addressing_(test: Scenario) {
-        let (admin, _, _) = people();
-
-        test = set_up_wormhole_core_and_token_bridges(admin, test);
-
-        // Test coin type addressing.
-        next_tx(&mut test, admin); {
-            native_coin_4_decimals::test_init(ctx(&mut test));
-            native_coin_10_decimals::test_init(ctx(&mut test));
-        };
-        next_tx(&mut test, admin); {
-            let wormhole_state = take_shared<WormholeState>(&test);
-            let bridge_state = take_shared<State>(&test);
-            let coin_meta =
-                take_shared<CoinMetadata<NATIVE_COIN_10_DECIMALS>>(&test);
-
-            state::register_native_asset<NATIVE_COIN_10_DECIMALS>(
-                &mut bridge_state,
-                &coin_meta,
-            );
-            let info = state::token_info<NATIVE_COIN_10_DECIMALS>(&bridge_state);
-            let expected_addr = external_address::from_any_bytes(x"01");
-            assert!(token_info::addr(&info) == expected_addr, 0);
-
-            let coin_meta_v2 =
-                take_shared<CoinMetadata<NATIVE_COIN_4_DECIMALS>>(&test);
-            state::register_native_asset<NATIVE_COIN_4_DECIMALS>(
-                &mut bridge_state,
-                &coin_meta_v2,
-            );
-            let info =
-                state::token_info<NATIVE_COIN_4_DECIMALS>(&bridge_state);
-            let expected_addr = external_address::from_any_bytes(x"02");
-            assert!(token_info::addr(&info) == expected_addr, 0);
-
-            return_shared<WormholeState>(wormhole_state);
-            return_shared<State>(bridge_state);
-            return_shared<CoinMetadata<NATIVE_COIN_4_DECIMALS>>(coin_meta_v2);
-            return_shared<CoinMetadata<NATIVE_COIN_10_DECIMALS>>(coin_meta);
-        };
-        test_scenario::end(test);
+    /// Retrieve decimals from for a given coin type in `TokenRegistry`.
+    public fun coin_decimals<CoinType>(self: &State): u8 {
+        token_registry::coin_decimals(&verified_asset<CoinType>(self))
     }
 
-
-    fun test_coin_type_addressing_failure_case_(test: Scenario) {
-        let (admin, _, _) = people();
-
-        test = set_up_wormhole_core_and_token_bridges(admin, test);
-
-        // Test coin type addressing.
-        next_tx(&mut test, admin); {
-            native_coin_10_decimals::test_init(ctx(&mut test));
-            native_coin_4_decimals::test_init(ctx(&mut test));
-        };
-        next_tx(&mut test, admin); {
-            let wormhole_state = take_shared<WormholeState>(&test);
-            let bridge_state = take_shared<State>(&test);
-            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_10_DECIMALS>>(&test);
-            state::register_native_asset<NATIVE_COIN_10_DECIMALS>(
-                &mut bridge_state,
-                &coin_meta,
-            );
-            let info = state::token_info<NATIVE_COIN_10_DECIMALS>(&bridge_state);
-            let expected_addr = external_address::from_any_bytes(x"01");
-            assert!(token_info::addr(&info) == expected_addr, 0);
-
-            // aborts because trying to re-register native coin
-            state::register_native_asset<NATIVE_COIN_10_DECIMALS>(
-                &mut bridge_state,
-                &coin_meta,
-            );
-
-            return_shared<WormholeState>(wormhole_state);
-            return_shared<State>(bridge_state);
-            return_shared<CoinMetadata<NATIVE_COIN_10_DECIMALS>>(coin_meta);
-        };
-        test_scenario::end(test);
+    #[test_only]
+    public fun borrow_emitter_registry(
+        self: &State
+    ): &Table<u16, ExternalAddress> {
+        &self.emitter_registry
     }
 }
