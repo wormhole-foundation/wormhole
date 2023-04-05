@@ -49,12 +49,11 @@ if [ "$NETWORK" = devnet ]; then
   EXAMPLE_PUBLISH_OUTPUT=$(worm sui deploy $(realpath "$DIRNAME"/../examples/core_messages) -n "$NETWORK")
   EXAMPLE_PACKAGE_ID=$(echo "$EXAMPLE_PUBLISH_OUTPUT" | grep -oP 'Published to +\K.*')
   echo "$EXAMPLE_PUBLISH_OUTPUT"
+  
+  EXAMPLE_INIT_OUTPUT=$(worm sui init-example-message-app -n "$NETWORK" -p "$EXAMPLE_PACKAGE_ID" -w "$WORMHOLE_STATE_OBJECT_ID")
+  EXAMPLE_STATE_OBJECT_ID=$(echo "$EXAMPLE_INIT_OUTPUT" | grep -oP 'Example app state object ID +\K.*')
 
-  EXAMPLE_INIT_OUTPUT=$(sui client call --function init_with_params --module sender --package "$EXAMPLE_PACKAGE_ID" --gas-budget 20000 --args "$WORMHOLE_STATE_OBJECT_ID")
-  EXAMPLE_INIT_CREATED_OBJECTS=$(echo "$EXAMPLE_INIT_OUTPUT" | grep -oPm1 ' +- ID: \K([a-z0-9]*) (?=.*)')
-  echo "Core messages app state object ID: $EXAMPLE_INIT_CREATED_OBJECTS"
-
-  echo -e "\nPublish message command:" worm sui publish-message -n devnet -p "$EXAMPLE_PACKAGE_ID" -s "$EXAMPLE_INIT_CREATED_OBJECTS" -w "$WORMHOLE_STATE_OBJECT_ID" -m "hello"
+  echo -e "\nPublish message command:" worm sui publish-example-message -n devnet -p "$EXAMPLE_PACKAGE_ID" -s "$EXAMPLE_STATE_OBJECT_ID" -w "$WORMHOLE_STATE_OBJECT_ID" -m "hello"
 fi
 
 echo -e "\nDeployments successful!"
