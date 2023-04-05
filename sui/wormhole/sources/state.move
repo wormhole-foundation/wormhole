@@ -404,20 +404,6 @@ module wormhole::state {
         table::borrow(&self.guardian_sets, index)
     }
 
-    /// Check whether a particular Guardian set is valid.
-    ///
-    /// See `wormhole::vaa` for more info.
-    public fun is_guardian_set_active(
-        self: &State,
-        set: &GuardianSet,
-        the_clock: &Clock
-    ): bool {
-        (
-            self.guardian_set_index == guardian_set::index(set) ||
-            guardian_set::is_active(set, the_clock)
-        )
-    }
-
     #[test_only]
     public fun fees_collected(self: &State): u64 {
         fee_collector::balance_value(&self.fee_collector)
