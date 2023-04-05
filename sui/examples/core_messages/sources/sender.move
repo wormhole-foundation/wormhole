@@ -1,10 +1,9 @@
 /// A simple contracts that demonstrates how to send messages with wormhole.
 module core_messages::sender {
-    use sui::coin::{Self, Coin};
+    use sui::coin::{Self};
     use sui::object::{Self, UID};
-    use sui::sui::{SUI};
     use sui::transfer::{Self};
-    use sui::tx_context::{Self, TxContext};
+    use sui::tx_context::{TxContext};
 
     use wormhole::state::{State as WormholeState};
 
@@ -31,49 +30,34 @@ module core_messages::sender {
         state: &mut State,
         wormhole_state: &mut WormholeState,
         payload: vector<u8>,
-        fee_with_potential_surplus: Coin<SUI>,
         ctx: &mut TxContext
     ) {
         send_message(
             state,
             wormhole_state,
             payload,
-            fee_with_potential_surplus,
             ctx
         );
     }
 
-    public fun send_message(
+    public entry fun send_message(
         state: &mut State,
         wormhole_state: &mut WormholeState,
         payload: vector<u8>,
-        fee_with_potential_surplus: Coin<SUI>,
         ctx: &mut TxContext
     ): u64 {
-        let fee_amount = wormhole::state::message_fee(wormhole_state);
-        let fee_coins = coin::split(
-            &mut fee_with_potential_surplus,
-            fee_amount,
-            ctx
-        );
-        transfer::public_transfer(
-            fee_with_potential_surplus,
-            tx_context::sender(ctx)
-        );
         wormhole::publish_message::publish_message(
             wormhole_state,
             &mut state.emitter_cap,
             0, // Set nonce to 0, intended for batch VAAs.
             payload,
-            fee_coins,
+            coin::zero(ctx),
         )
     }
 }
 
 #[test_only]
 module core_messages::sender_test {
-    use sui::coin::{Self};
-    use sui::sui::{SUI};
     use sui::test_scenario::{
         Self,
         return_shared,
@@ -120,10 +104,6 @@ module core_messages::sender_test {
                 &mut state,
                 &mut wormhole_state,
                 b"Hello",
-                coin::mint_for_testing<SUI>(
-                    wormhole_message_fee,
-                    test_scenario::ctx(scenario)
-                ),
                 test_scenario::ctx(scenario)
             );
             assert!(first_message_sequence == 0, 0);
@@ -132,10 +112,6 @@ module core_messages::sender_test {
                 &mut state,
                 &mut wormhole_state,
                 b"World",
-                coin::mint_for_testing<SUI>(
-                    wormhole_message_fee,
-                    test_scenario::ctx(scenario)
-                ),
                 test_scenario::ctx(scenario)
             );
             assert!(second_message_sequence == 1, 0);
