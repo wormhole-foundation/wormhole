@@ -1,18 +1,18 @@
 import {
   fromB64,
-  JsonRpcProvider,
   normalizeSuiObjectId,
+  RawSigner,
   TransactionBlock,
 } from "@mysten/sui.js";
 import { execSync } from "child_process";
 import fs from "fs";
 import { resolve } from "path";
-import { getSigner, isSuiCreateEvent, isSuiPublishEvent } from ".";
+import { isSuiCreateEvent, isSuiPublishEvent } from ".";
 import { Network } from "../utils";
 import { MoveToml } from "./MoveToml";
 
 export const publishPackage = async (
-  provider: JsonRpcProvider,
+  signer: RawSigner,
   network: Network,
   packagePath: string
 ) => {
@@ -43,7 +43,6 @@ export const publishPackage = async (
     );
 
     // Transfer upgrade capability to deployer
-    const signer = getSigner(provider, network);
     transactionBlock.transferObjects(
       [upgradeCap],
       transactionBlock.pure(await signer.getAddress())
