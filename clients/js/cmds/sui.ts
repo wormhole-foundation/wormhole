@@ -31,54 +31,36 @@ exports.builder = function (y: typeof yargs) {
             type: "string",
           })
           .option("network", NETWORK_OPTIONS)
+          .option("private-key", {
+            alias: "k",
+            describe: "Custom private key to sign txs",
+            required: false,
+            type: "string",
+          })
           .option("rpc", RPC_OPTIONS);
       },
       async (argv) => {
         checkBinary("sui", "sui");
 
+        const packageDir = argv["package-dir"];
         const network = argv.network.toUpperCase();
         assertNetwork(network);
-        const packageDir = argv["package-dir"];
+        const privateKey = argv["private-key"];
         const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
+
         const provider = getProvider(network, rpc);
+        const signer = getSigner(provider, network, privateKey);
 
         console.log("Package", packageDir);
         console.log("RPC", rpc);
 
         await publishPackage(
-          provider,
+          signer,
           network,
           packageDir.startsWith("/") // Allow absolute paths, otherwise assume relative to sui directory
             ? packageDir
             : `${config.wormholeDir}/sui/${packageDir}`
         );
-      }
-    )
-    .command(
-      "get-owned-objects",
-      "Get owned objects by owner",
-      (yargs) => {
-        return yargs
-          .positional("owner", {
-            describe: "Owner address",
-            type: "string",
-          })
-          .option("network", NETWORK_OPTIONS)
-          .option("rpc", RPC_OPTIONS);
-      },
-      async (argv) => {
-        const network = argv.network.toUpperCase();
-        assertNetwork(network);
-        const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
-        const owner = argv.owner;
-
-        // todo(aki): handle pagination
-        const provider = getProvider(network, rpc);
-        const objects = await provider.getOwnedObjects({ owner });
-
-        console.log("Network", network);
-        console.log("Owner", owner);
-        console.log("Objects", JSON.stringify(objects, null, 2));
       }
     )
     .command(
@@ -99,17 +81,24 @@ exports.builder = function (y: typeof yargs) {
             required: true,
             type: "string",
           })
+          .option("private-key", {
+            alias: "k",
+            describe: "Custom private key to sign txs",
+            required: false,
+            type: "string",
+          })
           .option("rpc", RPC_OPTIONS);
       },
       async (argv) => {
         const network = argv.network.toUpperCase();
         assertNetwork(network);
-        const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
         const packageId = argv["package-id"];
         const wormholeStateObjectId = argv["wormhole-state"];
+        const privateKey = argv["private-key"];
+        const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
 
         const provider = getProvider(network, rpc);
-        const signer = getSigner(provider, network);
+        const signer = getSigner(provider, network, privateKey);
         const owner = await signer.getAddress();
 
         console.log("Owner", owner);
@@ -122,11 +111,7 @@ exports.builder = function (y: typeof yargs) {
           target: `${packageId}::sender::init_with_params`,
           arguments: [transactionBlock.object(wormholeStateObjectId)],
         });
-        const res = await executeTransactionBlock(
-          provider,
-          network,
-          transactionBlock
-        );
+        const res = await executeTransactionBlock(signer, transactionBlock);
         console.log(
           "Example app state object ID",
           res.objectChanges
@@ -154,17 +139,24 @@ exports.builder = function (y: typeof yargs) {
             required: true,
             type: "string",
           })
+          .option("private-key", {
+            alias: "k",
+            describe: "Custom private key to sign txs",
+            required: false,
+            type: "string",
+          })
           .option("rpc", RPC_OPTIONS);
       },
       async (argv) => {
         const network = argv.network.toUpperCase();
         assertNetwork(network);
-        const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
         const packageId = argv["package-id"];
         const wormholeStateObjectId = argv["wormhole-state"];
+        const privateKey = argv["private-key"];
+        const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
 
         const provider = getProvider(network, rpc);
-        const signer = getSigner(provider, network);
+        const signer = getSigner(provider, network, privateKey);
         const owner = await signer.getAddress();
         const deployerCapObjectId = await getOwnedObjectId(
           provider,
@@ -194,11 +186,7 @@ exports.builder = function (y: typeof yargs) {
             transactionBlock.object(wormholeStateObjectId),
           ],
         });
-        const res = await executeTransactionBlock(
-          provider,
-          network,
-          transactionBlock
-        );
+        const res = await executeTransactionBlock(signer, transactionBlock);
         console.log(
           "Token bridge state object ID",
           res.objectChanges
@@ -229,7 +217,7 @@ exports.builder = function (y: typeof yargs) {
             alias: "c",
             describe: "Governance chain ID",
             default: GOVERNANCE_CHAIN,
-            type: "string",
+            type: "number",
             required: false,
           })
           .option("governance-contract-address", {
@@ -239,19 +227,27 @@ exports.builder = function (y: typeof yargs) {
             default: GOVERNANCE_EMITTER,
             required: false,
           })
+          .option("private-key", {
+            alias: "k",
+            describe: "Custom private key to sign txs",
+            required: false,
+            type: "string",
+          })
           .option("rpc", RPC_OPTIONS);
       },
       async (argv) => {
         const network = argv.network.toUpperCase();
         assertNetwork(network);
-        const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
         const packageId = argv["package-id"];
+        const initialGuardian = argv["initial-guardian"];
         const governanceChainId = argv["governance-chain-id"];
         const governanceContract = argv["governance-contract-address"];
-        const initialGuardian = argv["initial-guardian"];
+        const privateKey = argv["private-key"];
+        const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
 
         const provider = getProvider(network, rpc);
-        const signer = getSigner(provider, network);
+        const signer = getSigner(provider, network, privateKey);
+        console.log("test", provider, signer, network);
         const owner = await signer.getAddress();
         const deployerCapObjectId = await getOwnedObjectId(
           provider,
@@ -302,11 +298,7 @@ exports.builder = function (y: typeof yargs) {
             transactionBlock.pure("0"), // Message fee
           ],
         });
-        const res = await executeTransactionBlock(
-          provider,
-          network,
-          transactionBlock
-        );
+        const res = await executeTransactionBlock(signer, transactionBlock);
         console.log(
           "Wormhole state object ID",
           res.objectChanges
@@ -345,16 +337,26 @@ exports.builder = function (y: typeof yargs) {
             required: true,
             type: "string",
           })
+          .option("private-key", {
+            alias: "k",
+            describe: "Custom private key to sign txs",
+            required: false,
+            type: "string",
+          })
           .option("rpc", RPC_OPTIONS);
       },
       async (argv) => {
         const network = argv.network.toUpperCase();
         assertNetwork(network);
-        const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
         const packageId = argv["package-id"];
         const stateObjectId = argv["state"];
         const wormholeStateObjectId = argv["wormhole-state"];
         const message = argv["message"];
+        const privateKey = argv["private-key"];
+        const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
+
+        const provider = getProvider(network, rpc);
+        const signer = getSigner(provider, network, privateKey);
 
         // Publish message
         const transactionBlock = new TransactionBlock();
@@ -366,11 +368,7 @@ exports.builder = function (y: typeof yargs) {
             transactionBlock.pure(message),
           ],
         });
-        const res = await executeTransactionBlock(
-          getProvider(network, rpc),
-          network,
-          transactionBlock
-        );
+        const res = await executeTransactionBlock(signer, transactionBlock);
 
         // Hacky way to grab event since we don't require package ID of the
         // core bridge as input. Doesn't really matter since this is a test
@@ -400,3 +398,34 @@ exports.builder = function (y: typeof yargs) {
     .strict()
     .demandCommand();
 };
+
+// todo(aki): figure out "Type instantiation is excessively deep and possibly
+// infinite" error and then add the following cmd back in
+
+// .command(
+//   "get-owned-objects",
+//   "Get owned objects by owner",
+//   (yargs) => {
+//     return yargs
+//       .positional("owner", {
+//         describe: "Owner address",
+//         type: "string",
+//       })
+//       .option("network", NETWORK_OPTIONS)
+//       .option("rpc", RPC_OPTIONS);
+//   },
+//   async (argv) => {
+//     const network = argv.network.toUpperCase();
+//     assertNetwork(network);
+//     const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
+//     const owner = argv.owner;
+
+//     // todo(aki): handle pagination
+//     const provider = getProvider(network, rpc);
+//     const objects = await provider.getOwnedObjects({ owner });
+
+//     console.log("Network", network);
+//     console.log("Owner", owner);
+//     console.log("Objects", JSON.stringify(objects, null, 2));
+//   }
+// )
