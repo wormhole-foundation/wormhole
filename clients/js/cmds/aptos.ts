@@ -1,11 +1,11 @@
-import { assertChain, CHAIN_ID_APTOS, CHAIN_ID_SOLANA, coalesceChainId, CONTRACTS } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+import { assertChain, CHAIN_ID_APTOS, coalesceChainId, CONTRACTS } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 import { BCS, FaucetClient } from "aptos";
 import { spawnSync } from 'child_process';
 import fs from 'fs';
 import sha3 from 'js-sha3';
 import yargs from "yargs";
 import { callEntryFunc, deriveResourceAccount, deriveWrappedAssetAddress } from "../aptos";
-import { NETWORK_OPTIONS, RPC_OPTIONS, NAMED_ADDRESSES_OPTIONS } from "../consts";
+import { GOVERNANCE_CHAIN, GOVERNANCE_EMITTER, NAMED_ADDRESSES_OPTIONS, NETWORK_OPTIONS, RPC_OPTIONS } from "../consts";
 import { NETWORKS } from "../networks";
 import { assertNetwork, checkBinary, evm_address, hex } from "../utils";
 
@@ -51,13 +51,13 @@ exports.builder = function(y: typeof yargs) {
         .option("governance-chain-id", {
           describe: "Governance chain id",
           type: "number",
-          default: CHAIN_ID_SOLANA,
+          default: GOVERNANCE_CHAIN,
           required: false
         })
         .option("governance-address", {
           describe: "Governance address",
           type: "string",
-          default: "0x0000000000000000000000000000000000000000000000000000000000000004",
+          default: GOVERNANCE_EMITTER,
           required: false
         })
         .option("guardian-address", {
