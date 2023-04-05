@@ -1,427 +1,792 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements the method `transfer_tokens` which allows someone
+/// to bridge assets out of Sui to be redeemed on a foreign network.
+///
+/// NOTE: Only assets that exist in the `TokenRegistry` can be bridged out,
+/// which are native Sui assets that have been attested for via `attest_token`
+/// and wrapped foreign assets that have been created using foreign asset
+/// metadata via the `create_wrapped` module.
+///
+/// See `transfer` module for serialization and deserialization of Wormhole
+/// message payload.
 module token_bridge::transfer_tokens {
-    use sui::sui::SUI;
+    use sui::balance::{Self};
+    use sui::clock::{Clock};
     use sui::coin::{Self, Coin};
-
+    use sui::sui::{SUI};
+    use sui::tx_context::{Self, TxContext};
+    use wormhole::external_address::{ExternalAddress};
     use wormhole::state::{State as WormholeState};
-    use wormhole::external_address::{Self};
 
-    use token_bridge::normalized_amount::{Self};
+    use token_bridge::native_asset::{Self};
+    use token_bridge::normalized_amount::{Self, NormalizedAmount};
     use token_bridge::state::{Self, State};
-    use token_bridge::token_info::{Self};
-    use token_bridge::transfer_result::{Self, TransferResult};
+    use token_bridge::token_registry::{Self};
     use token_bridge::transfer::{Self};
+    use token_bridge::version_control::{
+        TransferTokens as TransferTokensControl
+    };
+    use token_bridge::wrapped_asset::{Self};
 
-    // `transfer_tokens_with_payload` requires `handle_transfer_tokens`.
     friend token_bridge::transfer_tokens_with_payload;
 
-    const E_TOO_MUCH_RELAYER_FEE: u64 = 0;
+    /// Relayer fee exceeds `Coin` object's value.
+    const E_RELAYER_FEE_EXCEEDS_AMOUNT: u64 = 0;
 
-    public entry fun transfer_tokens<CoinType>(
+    /// `transfer_tokens` takes a `Coin` object of a coin type and bridges this
+    /// asset out of Sui by either joining its balance in the Token Bridge's
+    /// custody for native assets or burning its balance for wrapped assets.
+    ///
+    /// Additionally, a `relayer_fee` of some value less than or equal to the
+    /// `Coin` object's value can be specified to incentivize someone to redeem
+    /// this transfer on behalf of the `recipient`.
+    ///
+    /// See `token_registry and `transfer_with_payload` module for more info.
+    public fun transfer_tokens<CoinType>(
         token_bridge_state: &mut State,
         worm_state: &mut WormholeState,
-        coins: Coin<CoinType>,
-        wormhole_fee_coins: Coin<SUI>,
+        bridged_in: Coin<CoinType>,
+        wormhole_fee: Coin<SUI>,
         recipient_chain: u16,
-        recipient: vector<u8>,
+        recipient: ExternalAddress,
         relayer_fee: u64,
         nonce: u32,
-    ) {
-        let result = handle_transfer_tokens<CoinType>(
-            token_bridge_state,
-            coins,
-            relayer_fee,
+        the_clock: &Clock
+    ): (u64, Coin<CoinType>) {
+        state::check_minimum_requirement<TransferTokensControl>(
+            token_bridge_state
         );
+
+        let encoded_transfer =
+            bridge_in_and_serialize_transfer(
+                token_bridge_state,
+                &mut bridged_in,
+                recipient_chain,
+                recipient,
+                relayer_fee
+            );
+
+        // Publish with encoded `Transfer`.
+        let message_sequence =
+            state::publish_wormhole_message(
+                token_bridge_state,
+                worm_state,
+                nonce,
+                encoded_transfer,
+                wormhole_fee,
+                the_clock
+            );
+
+        // In addition to the Wormhole sequence number, return the `Coin` object
+        // to the caller. This object have value if there was remaining dust
+        // for a native Sui coin.
+        (message_sequence, bridged_in)
+    }
+
+    /// Convenience method for those integrators that use `Coin` objects, where
+    /// `bridged_in` will be destroyed if the value is zero. Otherwise it will
+    /// be returned back to the transaction sender.
+    public fun return_dust_to_sender<CoinType>(
+        bridged_in: Coin<CoinType>,
+        ctx: &TxContext
+    ) {
+        if (coin::value(&bridged_in) == 0) {
+            coin::destroy_zero(bridged_in);
+        } else {
+            sui::transfer::public_transfer(bridged_in, tx_context::sender(ctx));
+        };
+    }
+
+    /// For a given `CoinType`, prepare outbound transfer.
+    ///
+    /// This method is also used in `transfer_tokens_with_payload`.
+    public(friend) fun verify_and_bridge_in<CoinType>(
+        token_bridge_state: &mut State,
+        bridged_in: &mut Coin<CoinType>,
+        relayer_fee: u64
+    ): (
+        u16,
+        ExternalAddress,
+        NormalizedAmount,
+        NormalizedAmount
+    ) {
+        // Disallow `relayer_fee` to be greater than the `Coin` object's value.
+        let amount = coin::value(bridged_in);
+        assert!(relayer_fee <= amount, E_RELAYER_FEE_EXCEEDS_AMOUNT);
+
+        // Fetch canonical token info from registry.
+        let verified = state::verified_asset<CoinType>(token_bridge_state);
+
+        // Calculate dust. If there is any, `bridged_in` will have remaining
+        // value after split. `norm_amount` is copied since it is denormalized
+        // at this step.
+        let decimals = token_registry::coin_decimals(&verified);
+        let norm_amount = normalized_amount::from_raw(amount, decimals);
+
+        // Split the `bridged_in` coin object to return any dust remaining on
+        // that object. Only bridge in the adjusted amount after de-normalizing
+        // the normalized amount.
+        let adjusted_bridged_in =
+            balance::split(
+                coin::balance_mut(bridged_in),
+                normalized_amount::to_raw(norm_amount, decimals)
+            );
+
+        // Either burn or deposit depending on `CoinType`.
+        let registry = state::borrow_mut_token_registry(token_bridge_state);
+        if (token_registry::is_wrapped(&verified)) {
+            wrapped_asset::burn(
+                token_registry::borrow_mut_wrapped(registry),
+                adjusted_bridged_in
+            );
+        } else {
+            native_asset::deposit(
+                token_registry::borrow_mut_native(registry),
+                adjusted_bridged_in
+            );
+        };
+
+        (
+            token_registry::token_chain(&verified),
+            token_registry::token_address(&verified),
+            norm_amount,
+            normalized_amount::from_raw(relayer_fee, decimals)
+        )
+    }
+
+    fun bridge_in_and_serialize_transfer<CoinType>(
+        token_bridge_state: &mut State,
+        bridged_in: &mut Coin<CoinType>,
+        recipient_chain: u16,
+        recipient: ExternalAddress,
+        relayer_fee: u64
+    ): vector<u8> {
         let (
             token_chain,
             token_address,
-            normalized_amount,
-            normalized_relayer_fee
-        ) = transfer_result::destroy(result);
-        let transfer = transfer::new(
-            normalized_amount,
-            token_address,
-            token_chain,
-            external_address::from_bytes(recipient),
-            recipient_chain,
-            normalized_relayer_fee,
-        );
+            norm_amount,
+            norm_relayer_fee
+        ) =
+            verify_and_bridge_in(
+                token_bridge_state,
+                bridged_in,
+                relayer_fee
+            );
 
-        state::publish_wormhole_message(
-            token_bridge_state,
-            worm_state,
-            nonce,
-            transfer::serialize(transfer),
-            wormhole_fee_coins,
-        );
-    }
-
-    public(friend) fun handle_transfer_tokens<CoinType>(
-        token_bridge_state: &mut State,
-        coins: Coin<CoinType>,
-        relayer_fee: u64,
-    ): TransferResult {
-        let amount = coin::value<CoinType>(&coins);
-
-        // It doesn't make sense to specify a `relayer_fee` larger than the
-        // total amount bridged over.
-        assert!(relayer_fee <= amount, E_TOO_MUCH_RELAYER_FEE);
-
-        // Get info about the token.
-        let info = state::token_info<CoinType>(token_bridge_state);
-
-        if (token_info::is_wrapped(&info)) {
-            // Now we burn the wrapped coins to remove them from circulation.
-            state::burn<CoinType>(token_bridge_state, coins);
-        } else {
-            // Deposit native assets. This call to deposit requires the native
-            // asset to have been attested.
-            state::deposit<CoinType>(token_bridge_state, coins);
-        };
-
-        let decimals = state::coin_decimals<CoinType>(token_bridge_state);
-
-        transfer_result::new(
-            token_info::chain(&info),
-            token_info::addr(&info),
-            normalized_amount::from_raw(amount, decimals),
-            normalized_amount::from_raw(relayer_fee, decimals),
+        transfer::serialize(
+            transfer::new(
+                norm_amount,
+                token_address,
+                token_chain,
+                recipient,
+                recipient_chain,
+                norm_relayer_fee
+            )
         )
     }
 
     #[test_only]
-    public fun transfer_tokens_test<CoinType>(
-        bridge_state: &mut State,
-        coins: Coin<CoinType>,
-        relayer_fee: u64,
-    ): TransferResult {
-        handle_transfer_tokens(
-            bridge_state,
-            coins,
+    public fun bridge_in_and_serialize_transfer_test_only<CoinType>(
+        token_bridge_state: &mut State,
+        bridged_in: Coin<CoinType>,
+        recipient_chain: u16,
+        recipient: ExternalAddress,
+        relayer_fee: u64
+    ): (vector<u8>, Coin<CoinType>) {
+        let payload = bridge_in_and_serialize_transfer(
+            token_bridge_state,
+            &mut bridged_in,
+            recipient_chain,
+            recipient,
             relayer_fee
-        )
+        );
+
+        (payload, bridged_in)
     }
 }
 
-
 #[test_only]
-module token_bridge::transfer_token_test {
-    use sui::coin::{Self, CoinMetadata, TreasuryCap};
-    use sui::sui::{SUI};
-    use sui::test_scenario::{
-        Self,
-        Scenario,
-        next_tx,
-        return_shared,
-        take_shared,
-        take_from_address,
-        num_user_events,
-        ctx
-    };
+module token_bridge::transfer_token_tests {
+    use sui::coin::{Self};
+    use sui::test_scenario::{Self};
+    use sui::transfer::{public_transfer};
+
     use wormhole::external_address::{Self};
-    use wormhole::state::{State as WormholeState};
+    use wormhole::state::{chain_id};
 
-    use token_bridge::bridge_state_test::{
-        set_up_wormhole_core_and_token_bridges
+    use token_bridge::coin_wrapped_7::{Self, COIN_WRAPPED_7};
+    use token_bridge::coin_native_10::{Self, COIN_NATIVE_10};
+    use token_bridge::transfer_tokens::{Self};
+    use token_bridge::state::{Self};
+    use token_bridge::token_bridge_scenario::{
+        set_up_wormhole_and_token_bridge,
+        register_dummy_emitter,
+        return_clock,
+        return_states,
+        take_clock,
+        take_states,
+        person
     };
-    use token_bridge::create_wrapped::{Self};
-    use token_bridge::wrapped_coin_12_decimals::{Self, WRAPPED_COIN_12_DECIMALS};
-    use token_bridge::native_coin_10_decimals::{Self, NATIVE_COIN_10_DECIMALS};
+    use token_bridge::token_registry::{Self};
+    use token_bridge::wrapped_asset::{Self};
+    use token_bridge::native_asset::{Self};
+    use token_bridge::transfer::{Self};
     use token_bridge::normalized_amount::{Self};
-    use token_bridge::state::{Self, State};
-    use token_bridge::transfer_result::{Self};
-    use token_bridge::transfer_tokens::{
-        E_TOO_MUCH_RELAYER_FEE,
-        transfer_tokens,
-        transfer_tokens_test
-    };
-    use token_bridge::wrapped_coin::{WrappedCoin};
 
-    fun scenario(): Scenario { test_scenario::begin(@0x123233) }
-    fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
+    /// Test consts.
+    const TEST_TARGET_RECIPIENT: address = @0xbeef4269;
+    const TEST_TARGET_CHAIN: u16 = 2;
+    const TEST_NONCE: u32 = 0;
+    const TEST_COIN_NATIVE_10_DECIMALS: u8 = 10;
+    const TEST_COIN_WRAPPED_7_DECIMALS: u8 = 7;
 
     #[test]
-    #[expected_failure(abort_code = E_TOO_MUCH_RELAYER_FEE)] // E_TOO_MUCH_RELAYER_FEE
-    fun test_transfer_native_token_too_much_relayer_fee(){
-        let (admin, _, _) = people();
-        let test = scenario();
-        // Set up core and token bridges.
-        test = set_up_wormhole_core_and_token_bridges(admin, test);
-        // Initialize the coin.
-        native_coin_10_decimals::test_init(ctx(&mut test));
-        // Register native asset type with the token bridge, mint some coins,
-        // and initiate transfer.
-        next_tx(&mut test, admin);{
-            let bridge_state = take_shared<State>(&test);
-            let worm_state = take_shared<WormholeState>(&test);
-            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_10_DECIMALS>>(&test);
-            let treasury_cap = take_shared<TreasuryCap<NATIVE_COIN_10_DECIMALS>>(&test);
-            state::register_native_asset<NATIVE_COIN_10_DECIMALS>(
-                &mut bridge_state,
-                &coin_meta,
-            );
-            let coins = coin::mint<NATIVE_COIN_10_DECIMALS>(&mut treasury_cap, 10000, ctx(&mut test));
+    fun test_transfer_tokens_native_10() {
+        let sender = person();
+        let my_scenario = test_scenario::begin(sender);
+        let scenario = &mut my_scenario;
 
-            transfer_tokens<NATIVE_COIN_10_DECIMALS>(
-                &mut bridge_state,
-                &mut worm_state,
-                coins,
-                coin::zero<SUI>(ctx(&mut test)), // zero fee paid to wormhole
-                3, // recipient chain id
-                x"deadbeef0000beef", // recipient address
-                100000000, // relayer fee (too much)
-                0 // nonce is unused field for now
-            );
-            return_shared<State>(bridge_state);
-            return_shared<WormholeState>(worm_state);
-            return_shared<CoinMetadata<NATIVE_COIN_10_DECIMALS>>(coin_meta);
-            return_shared<TreasuryCap<NATIVE_COIN_10_DECIMALS>>(treasury_cap);
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
+
+        // Register foreign emitter on chain ID == 2.
+        register_dummy_emitter(scenario, TEST_TARGET_CHAIN);
+
+        // Register and mint coins.
+        let transfer_amount = 6942000;
+        let coin_10_balance = coin_native_10::init_register_and_mint(
+            scenario,
+            sender,
+            transfer_amount
+        );
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, sender);
+
+        // Fetch objects necessary for sending the transfer.
+        let (token_bridge_state, worm_state) = take_states(scenario);
+        let the_clock = take_clock(scenario);
+
+        // Define the relayer fee.
+        let relayer_fee = 100000;
+
+        // Balance check the Token Bridge before executing the transfer. The
+        // initial balance should be zero for COIN_NATIVE_10.
+        {
+            let registry = state::borrow_token_registry(&token_bridge_state);
+            let asset = token_registry::borrow_native<COIN_NATIVE_10>(registry);
+            assert!(native_asset::custody(asset) == 0, 0);
         };
-        test_scenario::end(test);
+
+        // Cache context.
+        let ctx = test_scenario::ctx(scenario);
+
+        // Call `transfer_tokens`.
+        let (_, dust) = transfer_tokens::transfer_tokens<COIN_NATIVE_10>(
+            &mut token_bridge_state,
+            &mut worm_state,
+            coin::from_balance(coin_10_balance, ctx),
+            coin::mint_for_testing(wormhole_fee, ctx),
+            TEST_TARGET_CHAIN,
+            external_address::from_address(TEST_TARGET_RECIPIENT),
+            relayer_fee,
+            TEST_NONCE,
+            &the_clock
+        );
+        assert!(coin::value(&dust) == 0, 0);
+
+        // Balance check the Token Bridge after executing the transfer. The
+        // balance should now reflect the `transfer_amount` defined in this
+        // test.
+        {
+            let registry = state::borrow_token_registry(&token_bridge_state);
+            let asset = token_registry::borrow_native<COIN_NATIVE_10>(registry);
+            assert!(native_asset::custody(asset) == transfer_amount, 0);
+        };
+
+        // Done.
+        return_states(token_bridge_state, worm_state);
+        coin::destroy_zero(dust);
+        return_clock(the_clock);
+        test_scenario::end(my_scenario);
     }
 
     #[test]
-    fun test_transfer_native_token(){
-        let (admin, _, _) = people();
-        let test = scenario();
-        // Set up core and token bridges.
-        test = set_up_wormhole_core_and_token_bridges(admin, test);
-        // Initialize the coin.
-        native_coin_10_decimals::test_init(ctx(&mut test));
-        // Register native asset type with the token bridge, mint some coins,
-        // and finally initiate transfer.
-        next_tx(&mut test, admin);{
-            let bridge_state = take_shared<State>(&test);
-            let worm_state = take_shared<WormholeState>(&test);
-            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_10_DECIMALS>>(&test);
-            let treasury_cap = take_shared<TreasuryCap<NATIVE_COIN_10_DECIMALS>>(&test);
-            state::register_native_asset<NATIVE_COIN_10_DECIMALS>(
-                &mut bridge_state,
-                &coin_meta,
-            );
-            let coins = coin::mint<NATIVE_COIN_10_DECIMALS>(&mut treasury_cap, 10000, ctx(&mut test));
+    fun test_transfer_tokens_native_10_with_dust_refund() {
+        let sender = person();
+        let my_scenario = test_scenario::begin(sender);
+        let scenario = &mut my_scenario;
 
-            transfer_tokens<NATIVE_COIN_10_DECIMALS>(
-                &mut bridge_state,
-                &mut worm_state,
-                coins,
-                coin::zero<SUI>(ctx(&mut test)), // zero fee paid to wormhole
-                3, // recipient chain id
-                x"000000000000000000000000000000000000000000000000deadbeef0000beef", // recipient address
-                0, // relayer fee
-                0 // unused field for now
-            );
-            return_shared<State>(bridge_state);
-            return_shared<WormholeState>(worm_state);
-            return_shared<CoinMetadata<NATIVE_COIN_10_DECIMALS>>(coin_meta);
-            return_shared<TreasuryCap<NATIVE_COIN_10_DECIMALS>>(treasury_cap);
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
+
+        // Register foreign emitter on chain ID == 2.
+        register_dummy_emitter(scenario, TEST_TARGET_CHAIN);
+
+        // Register and mint coins.
+        let transfer_amount = 1000069;
+        let coin_10_balance = coin_native_10::init_register_and_mint(
+            scenario,
+            sender,
+            transfer_amount
+        );
+
+        // This value will be used later. The contract should return dust
+        // to the caller since COIN_NATIVE_10 has 10 decimals.
+        let expected_dust = 69;
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, sender);
+
+        // Fetch objects necessary for sending the transfer.
+        let (token_bridge_state, worm_state) = take_states(scenario);
+        let the_clock = take_clock(scenario);
+
+        // Define the relayer fee.
+        let relayer_fee = 100000;
+
+        // Balance check the Token Bridge before executing the transfer. The
+        // initial balance should be zero for COIN_NATIVE_10.
+        {
+            let registry = state::borrow_token_registry(&token_bridge_state);
+            let asset = token_registry::borrow_native<COIN_NATIVE_10>(registry);
+            assert!(native_asset::custody(asset) == 0, 0);
         };
-        let tx_effects = next_tx(&mut test, admin);
-        // A single user event should be emitted, corresponding to
-        // publishing a Wormhole message for the token transfer
-        assert!(num_user_events(&tx_effects)==1, 0);
 
-        // check that custody of the coins is indeed transferred to token bridge
-        next_tx(&mut test, admin);{
-            let bridge_state = take_shared<State>(&test);
-            let cur_bal = state::balance<NATIVE_COIN_10_DECIMALS>(&mut bridge_state);
-            assert!(cur_bal==10000, 0);
-            return_shared<State>(bridge_state);
-        };
-        test_scenario::end(test);
-    }
+        // Cache context.
+        let ctx = test_scenario::ctx(scenario);
 
-    #[test]
-    /// Check transfer result for native token transfer is constructed properly.
-    fun test_transfer_native_token_internal(){
-        let (admin, _, _) = people();
-        let test = scenario();
-        // Set up core and token bridges.
-        test = set_up_wormhole_core_and_token_bridges(admin, test);
-        // Initialize the coin.
-        native_coin_10_decimals::test_init(ctx(&mut test));
-        // Register native asset type with the token bridge, mint some coins,
-        // and finally initiate transfer.
-        next_tx(&mut test, admin);{
-            let bridge_state = take_shared<State>(&test);
-            let worm_state = take_shared<WormholeState>(&test);
-            let coin_meta = take_shared<CoinMetadata<NATIVE_COIN_10_DECIMALS>>(&test);
-            let treasury_cap = take_shared<TreasuryCap<NATIVE_COIN_10_DECIMALS>>(&test);
-            state::register_native_asset<NATIVE_COIN_10_DECIMALS>(
-                &mut bridge_state,
-                &coin_meta,
-            );
-            let coins = coin::mint<NATIVE_COIN_10_DECIMALS>(&mut treasury_cap, 10000, ctx(&mut test));
+        // Call `transfer_tokens`.
+        let (_, dust) = transfer_tokens::transfer_tokens<COIN_NATIVE_10>(
+            &mut token_bridge_state,
+            &mut worm_state,
+            coin::from_balance(coin_10_balance, ctx),
+            coin::mint_for_testing(wormhole_fee, ctx),
+            TEST_TARGET_CHAIN,
+            external_address::from_address(TEST_TARGET_RECIPIENT),
+            relayer_fee,
+            TEST_NONCE,
+            &the_clock
+        );
+        assert!(coin::value(&dust) == expected_dust, 0);
 
-            let transfer_result = transfer_tokens_test<NATIVE_COIN_10_DECIMALS>(
-                &mut bridge_state,
-                coins,
-                0 // relayer fee is zero
-            );
-            let (token_chain, token_address, normalized_amount, normalized_relayer_fee) = transfer_result::destroy(transfer_result);
-            assert!(token_chain == 21, 0);
-            assert!(token_address==external_address::from_any_bytes(x"01"), 0); // wormhole addresses of coins are selected from a monotonic sequence starting from 1
-            assert!(normalized_amount::value(&normalized_amount)==100, 0); // 10 - 8 = 2 decimals are removed from 10000, resulting in 100
-            assert!(normalized_amount::value(&normalized_relayer_fee)==0, 0);
-
-            return_shared<State>(bridge_state);
-            return_shared<WormholeState>(worm_state);
-            return_shared<CoinMetadata<NATIVE_COIN_10_DECIMALS>>(coin_meta);
-            return_shared<TreasuryCap<NATIVE_COIN_10_DECIMALS>>(treasury_cap);
-        };
-        let tx_effects = next_tx(&mut test, admin);
-        // Zero user event should be emitted, because instead of calling the
-        // entry transfer token function (which emits a WH message), we call
-        // the internal handler only.
-        assert!(num_user_events(&tx_effects)==0, 0);
-
-        test_scenario::end(test);
-    }
-
-    #[test]
-    fun test_transfer_wrapped_token(){
-        let (admin, _, _) = people();
-        let test = scenario();
-        // Set up core and token bridges.
-        test = set_up_wormhole_core_and_token_bridges(admin, test);
-        // Initialize the wrapped coin and register the eth chain.
-        wrapped_coin_12_decimals::test_init(ctx(&mut test));
-        // Register chain emitter (chain id x emitter address) that attested
-        // the wrapped token.
-        next_tx(&mut test, admin);{
-            let bridge_state = take_shared<State>(&test);
-            state::register_emitter(
-                &mut bridge_state,
-                2, // chain ID
-                external_address::from_bytes(
-                    x"00000000000000000000000000000000000000000000000000000000deadbeef"
-                )
-            );
-            return_shared<State>(bridge_state);
-        };
-        // Register wrapped asset type with the token bridge, mint some coins,
-        // and finally initiate transfer.
-        next_tx(&mut test, admin);{
-            let bridge_state = take_shared<State>(&test);
-            let worm_state = take_shared<WormholeState>(&test);
-            let coin_meta = take_shared<CoinMetadata<WRAPPED_COIN_12_DECIMALS>>(&test);
-            let new_wrapped_coin =
-                take_from_address<WrappedCoin<WRAPPED_COIN_12_DECIMALS>>(&test, admin);
-
-            // register wrapped asset with the token bridge
-            create_wrapped::register_new_coin<WRAPPED_COIN_12_DECIMALS>(
-                &mut bridge_state,
-                &mut worm_state,
-                new_wrapped_coin,
-                &mut coin_meta,
-                ctx(&mut test)
-            );
-
-            let coins =
-                state::mint<WRAPPED_COIN_12_DECIMALS>(
-                    &mut bridge_state,
-                    1000, // amount
-                    ctx(&mut test)
-                );
-
-            transfer_tokens<WRAPPED_COIN_12_DECIMALS>(
-                &mut bridge_state,
-                &mut worm_state,
-                coins,
-                coin::zero<SUI>(ctx(&mut test)), // zero fee paid to wormhole
-                3, // recipient chain id
-                x"000000000000000000000000000000000000000000000000deadbeef0000beef", // recipient address
-                0, // relayer fee
-                0 // unused field for now
-            );
-            return_shared<State>(bridge_state);
-            return_shared<WormholeState>(worm_state);
-            return_shared<CoinMetadata<WRAPPED_COIN_12_DECIMALS>>(coin_meta);
-        };
-        let tx_effects = next_tx(&mut test, admin);
-        // A single user event should be emitted, corresponding to
-        // publishing a Wormhole message for the token transfer
-        assert!(num_user_events(&tx_effects)==1, 0);
-        // How to check if token was actually burned?
-        test_scenario::end(test);
-    }
-
-    #[test]
-    fun test_transfer_wrapped_token_internal(){
-        let (admin, _, _) = people();
-        let test = scenario();
-        // Set up core and token bridges.
-        test = set_up_wormhole_core_and_token_bridges(admin, test);
-        // Initialize the wrapped coin and register the eth chain.
-        wrapped_coin_12_decimals::test_init(ctx(&mut test));
-        // Register chain emitter (chain id x emitter address) that attested
-        // the wrapped token.
-        next_tx(&mut test, admin);{
-            let bridge_state = take_shared<State>(&test);
-            state::register_emitter(
-                &mut bridge_state,
-                2, // chain ID
-                external_address::from_bytes(
-                    x"00000000000000000000000000000000000000000000000000000000deadbeef"
-                )
-            );
-            return_shared<State>(bridge_state);
-        };
-        // Register wrapped asset type with the token bridge, mint some coins,
-        // and finally initiate transfer.
-        next_tx(&mut test, admin);{
-            let bridge_state = take_shared<State>(&test);
-            let worm_state = take_shared<WormholeState>(&test);
-            let coin_meta = take_shared<CoinMetadata<WRAPPED_COIN_12_DECIMALS>>(&test);
-            let new_wrapped_coin = take_from_address<WrappedCoin<WRAPPED_COIN_12_DECIMALS>>(&test, admin);
-
-            // register wrapped asset with the token bridge
-            create_wrapped::register_new_coin<WRAPPED_COIN_12_DECIMALS>(
-                &mut bridge_state,
-                &mut worm_state,
-                new_wrapped_coin,
-                &mut coin_meta,
-                ctx(&mut test)
-            );
-
-            let coins =
-                state::mint<WRAPPED_COIN_12_DECIMALS>(
-                    &mut bridge_state,
-                    10000000000,
-                    ctx(&mut test)
-                );
-
-            let transfer_result = transfer_tokens_test<WRAPPED_COIN_12_DECIMALS>(
-                &mut bridge_state,
-                coins,
-                0 // Relayer fee is zero.
-            );
-
-            let (
-                token_chain,
-                token_address,
-                normalized_amount,
-                normalized_relayer_fee
-            ) = transfer_result::destroy(transfer_result);
-            assert!(token_chain == 2, 0); // token chain id
+        // Balance check the Token Bridge after executing the transfer. The
+        // balance should now reflect the `transfer_amount` less `expected_dust`
+        // defined in this test.
+        {
+            let registry = state::borrow_token_registry(&token_bridge_state);
+            let asset = token_registry::borrow_native<COIN_NATIVE_10>(registry);
             assert!(
-                token_address == external_address::from_bytes(
-                    x"00000000000000000000000000000000000000000000000000000000beefface"
-                ),
-                0
-            ); // Wrapped token native address.
-            assert!(
-                normalized_amount::value(&normalized_amount) == 10000000000,
-                0
-            ); // Wrapped coin is created with maximum of 8 decimals (see wrapped.move).
-            assert!(
-                normalized_amount::value(&normalized_relayer_fee) == 0,
+                native_asset::custody(asset) == transfer_amount - expected_dust,
                 0
             );
-
-            return_shared<State>(bridge_state);
-            return_shared<WormholeState>(worm_state);
-            return_shared<CoinMetadata<WRAPPED_COIN_12_DECIMALS>>(coin_meta);
         };
-        test_scenario::end(test);
+
+        // Done.
+        return_states(token_bridge_state, worm_state);
+        return_clock(the_clock);
+        public_transfer(dust, @0x0);
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    fun test_serialize_transfer_tokens_native_10() {
+        let sender = person();
+        let my_scenario = test_scenario::begin(sender);
+        let scenario = &mut my_scenario;
+
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
+
+        // Register foreign emitter on chain ID == 2.
+        register_dummy_emitter(scenario, TEST_TARGET_CHAIN);
+
+        // Register and mint coins.
+        let transfer_amount = 6942000;
+        let coin_10_balance = coin_native_10::init_register_and_mint(
+            scenario,
+            sender,
+            transfer_amount
+        );
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, sender);
+
+        // Fetch objects necessary for sending the transfer.
+        let (token_bridge_state, worm_state) = take_states(scenario);
+        let the_clock = take_clock(scenario);
+
+        // Define the relayer fee.
+        let relayer_fee = 100000;
+
+        // Cache context.
+        let ctx = test_scenario::ctx(scenario);
+
+        // Call `transfer_tokens`.
+        let (payload, dust) = transfer_tokens::bridge_in_and_serialize_transfer_test_only(
+            &mut token_bridge_state,
+            coin::from_balance(coin_10_balance, ctx),
+            TEST_TARGET_CHAIN,
+            external_address::from_address(TEST_TARGET_RECIPIENT),
+            relayer_fee
+        );
+        assert!(coin::value(&dust) == 0, 0);
+
+        // Construct expected payload from scratch and confirm that the
+        // `transfer_tokens` call produces the same payload.
+        let expected_token_address = token_registry::token_address<COIN_NATIVE_10>(
+            &state::verified_asset<COIN_NATIVE_10>(
+                &token_bridge_state
+            )
+        );
+        let expected_amount = normalized_amount::from_raw(
+            transfer_amount,
+            TEST_COIN_NATIVE_10_DECIMALS
+        );
+        let expected_relayer_fee = normalized_amount::from_raw(
+            relayer_fee,
+            TEST_COIN_NATIVE_10_DECIMALS
+        );
+
+        let expected_payload =
+            transfer::new(
+                expected_amount,
+                expected_token_address,
+                chain_id(),
+                external_address::from_address(TEST_TARGET_RECIPIENT),
+                TEST_TARGET_CHAIN,
+                expected_relayer_fee
+            );
+        assert!(transfer::serialize(expected_payload) == payload, 0);
+
+        // Done.
+        coin::destroy_zero(dust);
+        return_states(token_bridge_state, worm_state);
+        return_clock(the_clock);
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    fun test_transfer_tokens_wrapped_7() {
+        let sender = person();
+        let my_scenario = test_scenario::begin(sender);
+        let scenario = &mut my_scenario;
+
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
+
+        // Register foreign emitter on chain ID == 2.
+        register_dummy_emitter(scenario, TEST_TARGET_CHAIN);
+
+        // Register and mint coins.
+        let transfer_amount = 42069000;
+        let coin_7_balance = coin_wrapped_7::init_register_and_mint(
+            scenario,
+            sender,
+            transfer_amount
+        );
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, sender);
+
+        // Fetch objects necessary for sending the transfer.
+        let (token_bridge_state, worm_state) = take_states(scenario);
+        let the_clock = take_clock(scenario);
+
+        // Define the relayer fee.
+        let relayer_fee = 100000;
+
+        // Balance check the Token Bridge before executing the transfer. The
+        // initial balance should be the `transfer_amount` for COIN_WRAPPED_7.
+        {
+            let registry = state::borrow_token_registry(&token_bridge_state);
+            let asset = token_registry::borrow_wrapped<COIN_WRAPPED_7>(registry);
+            assert!(wrapped_asset::total_supply(asset) == transfer_amount, 0);
+        };
+
+        // Cache context.
+        let ctx = test_scenario::ctx(scenario);
+
+        // Call `transfer_tokens`.
+        let (_, dust) = transfer_tokens::transfer_tokens<COIN_WRAPPED_7>(
+            &mut token_bridge_state,
+            &mut worm_state,
+            coin::from_balance(coin_7_balance, ctx),
+            coin::mint_for_testing(wormhole_fee, ctx),
+            TEST_TARGET_CHAIN,
+            external_address::from_address(TEST_TARGET_RECIPIENT),
+            relayer_fee,
+            TEST_NONCE,
+            &the_clock
+        );
+        assert!(coin::value(&dust) == 0, 0);
+
+        // Balance check the Token Bridge after executing the transfer. The
+        // balance should be zero, since tokens are burned when an outbound
+        // wrapped token transfer occurs.
+        {
+            let registry = state::borrow_token_registry(&token_bridge_state);
+            let asset = token_registry::borrow_wrapped<COIN_WRAPPED_7>(registry);
+            assert!(wrapped_asset::total_supply(asset) == 0, 0);
+        };
+
+        // Done.
+        coin::destroy_zero(dust);
+        return_states(token_bridge_state, worm_state);
+        return_clock(the_clock);
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    fun test_serialize_transfer_tokens_wrapped_7() {
+        let sender = person();
+        let my_scenario = test_scenario::begin(sender);
+        let scenario = &mut my_scenario;
+
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
+
+        // Register foreign emitter on chain ID == 2.
+        register_dummy_emitter(scenario, TEST_TARGET_CHAIN);
+
+        // Register and mint coins.
+        let transfer_amount = 6942000;
+        let coin_7_balance = coin_wrapped_7::init_register_and_mint(
+            scenario,
+            sender,
+            transfer_amount
+        );
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, sender);
+
+        // Fetch objects necessary for sending the transfer.
+        let (token_bridge_state, worm_state) = take_states(scenario);
+        let the_clock = take_clock(scenario);
+
+        // Define the relayer fee.
+        let relayer_fee = 100000;
+
+        // Cache context.
+        let ctx = test_scenario::ctx(scenario);
+
+        // Call `transfer_tokens`.
+        let (payload, dust) = transfer_tokens::bridge_in_and_serialize_transfer_test_only(
+            &mut token_bridge_state,
+            coin::from_balance(coin_7_balance, ctx),
+            TEST_TARGET_CHAIN,
+            external_address::from_address(TEST_TARGET_RECIPIENT),
+            relayer_fee
+        );
+        assert!(coin::value(&dust) == 0, 0);
+
+        // Construct expected payload from scratch and confirm that the
+        // `transfer_tokens` call produces the same payload.
+        let expected_token_address = token_registry::token_address<COIN_WRAPPED_7>(
+            &state::verified_asset<COIN_WRAPPED_7>(
+                &token_bridge_state
+            )
+        );
+        let expected_token_chain = token_registry::token_chain<COIN_WRAPPED_7>(
+            &state::verified_asset<COIN_WRAPPED_7>(
+                &token_bridge_state
+            )
+        );
+        let expected_amount = normalized_amount::from_raw(
+            transfer_amount,
+            TEST_COIN_WRAPPED_7_DECIMALS
+        );
+        let expected_relayer_fee = normalized_amount::from_raw(
+            relayer_fee,
+            TEST_COIN_WRAPPED_7_DECIMALS
+        );
+
+        let expected_payload =
+            transfer::new(
+                expected_amount,
+                expected_token_address,
+                expected_token_chain,
+                external_address::from_address(TEST_TARGET_RECIPIENT),
+                TEST_TARGET_CHAIN,
+                expected_relayer_fee
+            );
+        assert!(transfer::serialize(expected_payload) == payload, 0);
+
+        // Done.
+        coin::destroy_zero(dust);
+        return_states(token_bridge_state, worm_state);
+        return_clock(the_clock);
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = token_registry::E_UNREGISTERED)]
+    fun test_cannot_transfer_tokens_native_not_registered() {
+        let sender = person();
+        let my_scenario = test_scenario::begin(sender);
+        let scenario = &mut my_scenario;
+
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
+
+        // Register foreign emitter on chain ID == 2.
+        register_dummy_emitter(scenario, TEST_TARGET_CHAIN);
+
+        // Initialize COIN_NATIVE_10 (but don't register it).
+        coin_native_10::init_test_only(test_scenario::ctx(scenario));
+
+        // NOTE: This test purposely doesn't `attest` COIN_NATIVE_10.
+        let transfer_amount = 6942000;
+        let test_coins = coin::mint_for_testing<COIN_NATIVE_10>(
+            transfer_amount,
+            test_scenario::ctx(scenario)
+        );
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, sender);
+
+        // Fetch objects necessary for sending the transfer.
+        let (token_bridge_state, worm_state) = take_states(scenario);
+        let the_clock = take_clock(scenario);
+
+        // Define the relayer fee.
+        let relayer_fee = 100000;
+
+        // Call `transfer_tokens`.
+        let (_, dust) = transfer_tokens::transfer_tokens<COIN_NATIVE_10>(
+            &mut token_bridge_state,
+            &mut worm_state,
+            test_coins,
+            coin::mint_for_testing(wormhole_fee, test_scenario::ctx(scenario)),
+            TEST_TARGET_CHAIN,
+            external_address::from_address(TEST_TARGET_RECIPIENT),
+            relayer_fee,
+            TEST_NONCE,
+            &the_clock
+        );
+        assert!(coin::value(&dust) == 0, 0);
+
+        // Done.
+        coin::destroy_zero(dust);
+        return_states(token_bridge_state, worm_state);
+        return_clock(the_clock);
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = token_registry::E_UNREGISTERED)]
+    fun test_cannot_transfer_tokens_wrapped_not_registered() {
+        let sender = person();
+        let my_scenario = test_scenario::begin(sender);
+        let scenario = &mut my_scenario;
+
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
+
+        // Register foreign emitter on chain ID == 2.
+        register_dummy_emitter(scenario, TEST_TARGET_CHAIN);
+
+        // Initialize COIN_WRAPPED_7 (but don't register it).
+        coin_native_10::init_test_only(test_scenario::ctx(scenario));
+
+        // NOTE: This test purposely doesn't `attest` COIN_WRAPPED_7.
+        let transfer_amount = 42069;
+        let test_coins = coin::mint_for_testing<COIN_WRAPPED_7>(
+            transfer_amount,
+            test_scenario::ctx(scenario)
+        );
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, sender);
+
+        // Fetch objects necessary for sending the transfer.
+        let (token_bridge_state, worm_state) = take_states(scenario);
+        let the_clock = take_clock(scenario);
+
+        // Define the relayer fee.
+        let relayer_fee = 1000;
+
+        // Call `transfer_tokens`.
+        let (_, dust) = transfer_tokens::transfer_tokens<COIN_WRAPPED_7>(
+            &mut token_bridge_state,
+            &mut worm_state,
+            test_coins,
+            coin::mint_for_testing(wormhole_fee, test_scenario::ctx(scenario)),
+            TEST_TARGET_CHAIN,
+            external_address::from_address(TEST_TARGET_RECIPIENT),
+            relayer_fee,
+            TEST_NONCE,
+            &the_clock
+        );
+        assert!(coin::value(&dust) == 0, 0);
+
+        // Done.
+        coin::destroy_zero(dust);
+        return_states(token_bridge_state, worm_state);
+        return_clock(the_clock);
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = transfer_tokens::E_RELAYER_FEE_EXCEEDS_AMOUNT)]
+    fun test_cannot_transfer_tokens_fee_exceeds_amount() {
+        let sender = person();
+        let my_scenario = test_scenario::begin(sender);
+        let scenario = &mut my_scenario;
+
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
+
+        // Register foreign emitter on chain ID == 2.
+        register_dummy_emitter(scenario, TEST_TARGET_CHAIN);
+
+        // NOTE: The `relayer_fee` is intentionally set to a higher number
+        // than the `transfer_amount`.
+        let relayer_fee = 100001;
+        let transfer_amount = 100000;
+        let coin_10_balance = coin_native_10::init_register_and_mint(
+            scenario,
+            sender,
+            transfer_amount
+        );
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, sender);
+
+        // Fetch objects necessary for sending the transfer.
+        let (token_bridge_state, worm_state) = take_states(scenario);
+        let the_clock = take_clock(scenario);
+
+        // Cache context.
+        let ctx = test_scenario::ctx(scenario);
+
+        // The `transfer_tokens` call should revert.
+        let (_, dust) = transfer_tokens::transfer_tokens<COIN_NATIVE_10>(
+            &mut token_bridge_state,
+            &mut worm_state,
+            coin::from_balance(coin_10_balance, ctx),
+            coin::mint_for_testing(wormhole_fee, ctx),
+            TEST_TARGET_CHAIN,
+            external_address::from_address(TEST_TARGET_RECIPIENT),
+            relayer_fee,
+            TEST_NONCE,
+            &the_clock
+        );
+        assert!(coin::value(&dust) == 0, 0);
+
+        // Done.
+        coin::destroy_zero(dust);
+        return_states(token_bridge_state, worm_state);
+        return_clock(the_clock);
+        test_scenario::end(my_scenario);
     }
 }

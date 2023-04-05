@@ -35,10 +35,24 @@ module wormhole::fee_collector {
         balance::value(&self.balance)
     }
 
+    /// Take `Balance<SUI>` and add it to current collected balance.
+    public fun deposit_balance(self: &mut FeeCollector, fee: Balance<SUI>) {
+        assert!(balance::value(&fee) == self.fee_amount, E_INCORRECT_FEE);
+        balance::join(&mut self.balance, fee);
+    }
+
     /// Take `Coin<SUI>` and add it to current collected balance.
     public fun deposit(self: &mut FeeCollector, fee: Coin<SUI>) {
-        assert!(coin::value(&fee) == self.fee_amount, E_INCORRECT_FEE);
-        coin::put(&mut self.balance, fee);
+        deposit_balance(self, coin::into_balance(fee))
+    }
+
+    /// Create `Balance<SUI>` of some `amount` by taking from collected balance.
+    public fun withdraw_balance(
+        self: &mut FeeCollector,
+        amount: u64
+    ): Balance<SUI> {
+        // This will trigger `sui::balance::ENotEnough` if amount > balance.
+        balance::split(&mut self.balance, amount)
     }
 
     /// Create `Coin<SUI>` of some `amount` by taking from collected balance.
@@ -47,8 +61,7 @@ module wormhole::fee_collector {
         amount: u64,
         ctx: &mut TxContext
     ): Coin<SUI> {
-        // This will trigger `sui::balance::ENotEnough` if amount > balance.
-        coin::take(&mut self.balance, amount, ctx)
+        coin::from_balance(withdraw_balance(self, amount), ctx)
     }
 
     /// Re-configure current `fee_amount`.
@@ -57,16 +70,15 @@ module wormhole::fee_collector {
     }
 
     #[test_only]
-    public fun destroy_zero(collector: FeeCollector) {
+    public fun destroy(collector: FeeCollector) {
         let FeeCollector { fee_amount: _, balance: bal } = collector;
-        balance::destroy_zero(bal);
+        balance::destroy_for_testing(bal);
     }
 }
 
 #[test_only]
 module wormhole::fee_collector_tests {
     use sui::coin::{Self};
-    use sui::sui::{SUI};
     use sui::tx_context::{Self};
 
     use wormhole::fee_collector::{Self};
@@ -84,14 +96,14 @@ module wormhole::fee_collector_tests {
         assert!(fee_collector::balance_value(&collector) == 0, 0);
 
         // Deposit fee once.
-        let fee = coin::mint_for_testing<SUI>(fee_amount, ctx);
+        let fee = coin::mint_for_testing(fee_amount, ctx);
         fee_collector::deposit(&mut collector, fee);
         assert!(fee_collector::balance_value(&collector) == fee_amount, 0);
 
         // Now deposit nine more times and check the aggregate balance.
         let i = 0;
         while (i < 9) {
-            let fee = coin::mint_for_testing<SUI>(fee_amount, ctx);
+            let fee = coin::mint_for_testing(fee_amount, ctx);
             fee_collector::deposit(&mut collector, fee);
             i = i + 1;
         };
@@ -117,7 +129,7 @@ module wormhole::fee_collector_tests {
         assert!(fee_collector::balance_value(&collector) == 0, 0);
 
         // Done.
-        fee_collector::destroy_zero(collector);
+        fee_collector::destroy(collector);
     }
 
     #[test]
@@ -129,11 +141,11 @@ module wormhole::fee_collector_tests {
         let collector = fee_collector::new(fee_amount);
 
         // You shall not pass!
-        let fee = coin::mint_for_testing<SUI>(fee_amount + 1, ctx);
+        let fee = coin::mint_for_testing(fee_amount + 1, ctx);
         fee_collector::deposit(&mut collector, fee);
 
         // Shouldn't get here. But we need to clean up anyway.
-        fee_collector::destroy_zero(collector);
+        fee_collector::destroy(collector);
     }
 
     #[test]
@@ -145,7 +157,7 @@ module wormhole::fee_collector_tests {
         let collector = fee_collector::new(fee_amount);
 
         // Deposit once.
-        let fee = coin::mint_for_testing<SUI>(fee_amount, ctx);
+        let fee = coin::mint_for_testing(fee_amount, ctx);
         fee_collector::deposit(&mut collector, fee);
 
         // Attempt to withdraw more than the balance.
@@ -155,6 +167,6 @@ module wormhole::fee_collector_tests {
 
         // Shouldn't get here. But we need to clean up anyway.
         coin::burn_for_testing(withdrawn);
-        fee_collector::destroy_zero(collector);
+        fee_collector::destroy(collector);
     }
 }

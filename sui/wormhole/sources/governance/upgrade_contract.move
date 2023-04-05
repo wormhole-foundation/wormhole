@@ -8,20 +8,28 @@
 /// 3.  Upgrade.
 /// 4.  Commit upgrade.
 module wormhole::upgrade_contract {
+    use sui::clock::{Clock};
+    use sui::event::{Self};
+    use sui::object::{Self, ID};
     use sui::package::{UpgradeReceipt, UpgradeTicket};
-    use sui::tx_context::{TxContext};
 
     use wormhole::bytes32::{Self, Bytes32};
+    use wormhole::consumed_vaas::{Self};
     use wormhole::cursor::{Self};
     use wormhole::governance_message::{Self, GovernanceMessage};
     use wormhole::state::{Self, State};
 
     /// Digest is all zeros.
     const E_DIGEST_ZERO_BYTES: u64 = 0;
-
     /// Specific governance payload ID (action) to complete upgrading the
     /// contract.
     const ACTION_UPGRADE_CONTRACT: u8 = 1;
+
+    // Event reflecting package upgrade.
+    struct ContractUpgraded has drop, copy {
+        old_contract: ID,
+        new_contract: ID
+    }
 
     struct UpgradeContract {
         digest: Bytes32
@@ -37,18 +45,18 @@ module wormhole::upgrade_contract {
     public fun upgrade_contract(
         wormhole_state: &mut State,
         vaa_buf: vector<u8>,
-        ctx: &TxContext
+        the_clock: &Clock
     ): UpgradeTicket {
         let msg =
             governance_message::parse_and_verify_vaa(
                 wormhole_state,
                 vaa_buf,
-                ctx
+                the_clock
             );
 
         // Do not allow this VAA to be replayed.
-        state::consume_vaa_hash(
-            wormhole_state,
+        consumed_vaas::consume(
+            state::borrow_mut_consumed_vaas(wormhole_state),
             governance_message::vaa_hash(&msg)
         );
 
@@ -63,7 +71,15 @@ module wormhole::upgrade_contract {
         self: &mut State,
         receipt: UpgradeReceipt,
     ) {
-        state::commit_upgrade(self, receipt)
+        let latest_package_id = state::commit_upgrade(self, receipt);
+
+        // Emit an event reflecting package ID change.
+        event::emit(
+            ContractUpgraded {
+                old_contract: object::id_from_address(@wormhole),
+                new_contract: latest_package_id
+            }
+        );
     }
 
     fun handle_upgrade_contract(
@@ -103,6 +119,6 @@ module wormhole::upgrade_contract {
 }
 
 #[test_only]
-module wormhole::upgrade_contract_test {
+module wormhole::upgrade_contract_tests {
     // TODO
 }

@@ -11,4 +11,5 @@ build:
 .PHONY: test
 ## Run tests
 test:
+	sui move build -d || exit $?
 	sui move test -t 1

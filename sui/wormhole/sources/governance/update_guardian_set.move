@@ -6,9 +6,11 @@
 /// mind that the current guardian set has no expiration.
 module wormhole::update_guardian_set {
     use std::vector::{Self};
-    use sui::tx_context::{TxContext};
+    use sui::clock::{Clock};
+    use sui::event::{Self};
 
     use wormhole::bytes::{Self};
+    use wormhole::consumed_vaas::{Self};
     use wormhole::cursor::{Self};
     use wormhole::governance_message::{Self, GovernanceMessage};
     use wormhole::guardian::{Self, Guardian};
@@ -22,9 +24,13 @@ module wormhole::update_guardian_set {
     const E_NO_GUARDIANS: u64 = 0;
     /// Guardian set index is not incremented from last known guardian set.
     const E_NON_INCREMENTAL_GUARDIAN_SETS: u64 = 1;
-
     /// Specific governance payload ID (action) for updating the guardian set.
     const ACTION_UPDATE_GUARDIAN_SET: u8 = 2;
+
+    /// Event reflecting a Guardian Set update.
+    struct GuardianSetAdded has drop, copy {
+        index: u32
+    }
 
     struct UpdateGuardianSet {
         new_index: u32,
@@ -40,7 +46,7 @@ module wormhole::update_guardian_set {
     public fun update_guardian_set(
         wormhole_state: &mut State,
         vaa_buf: vector<u8>,
-        ctx: &TxContext
+        the_clock: &Clock
     ): u32 {
         state::check_minimum_requirement<UpdateGuardianSetControl>(
             wormhole_state
@@ -50,26 +56,26 @@ module wormhole::update_guardian_set {
             governance_message::parse_and_verify_vaa(
                 wormhole_state,
                 vaa_buf,
-                ctx
+                the_clock
             );
 
         // Do not allow this VAA to be replayed (although it may be impossible
         // to do so due to the guardian set of a previous VAA being illegitimate
         // since `governance_message` requires new governance VAAs being signed
         // by the most recent guardian set).
-        state::consume_vaa_hash(
-            wormhole_state,
+        consumed_vaas::consume(
+            state::borrow_mut_consumed_vaas(wormhole_state),
             governance_message::vaa_hash(&msg)
         );
 
         // Proceed with the update.
-        handle_update_guardian_set(wormhole_state, msg, ctx)
+        handle_update_guardian_set(wormhole_state, msg, the_clock)
     }
 
     fun handle_update_guardian_set(
         wormhole_state: &mut State,
         msg: GovernanceMessage,
-        ctx: &TxContext
+        the_clock: &Clock
     ): u32 {
         // Verify that this governance message is to update the guardian set.
         let governance_payload =
@@ -93,13 +99,15 @@ module wormhole::update_guardian_set {
         );
 
         // Expire the existing guardian set.
-        state::expire_guardian_set(wormhole_state, ctx);
+        state::expire_guardian_set(wormhole_state, the_clock);
 
         // And store the new one.
-        state::store_guardian_set(
+        state::add_new_guardian_set(
             wormhole_state,
             guardian_set::new(new_index, guardians)
         );
+
+        event::emit(GuardianSetAdded { index: new_index });
 
         new_index
     }
@@ -131,6 +139,7 @@ module wormhole::update_guardian_set {
 #[test_only]
 module wormhole::update_guardian_set_tests {
     use std::vector::{Self};
+    use sui::clock::{Self};
     use sui::test_scenario::{Self};
 
     use wormhole::bytes::{Self};
@@ -139,12 +148,16 @@ module wormhole::update_guardian_set_tests {
     use wormhole::guardian::{Self};
     use wormhole::guardian_set::{Self};
     use wormhole::required_version::{Self};
-    use wormhole::state::{Self, State};
+    use wormhole::state::{Self};
     use wormhole::update_guardian_set::{Self};
     use wormhole::version_control::{Self as control};
     use wormhole::wormhole_scenario::{
         person,
+        return_clock,
+        return_state,
         set_up_wormhole,
+        take_clock,
+        take_state,
         upgrade_wormhole
     };
 
@@ -171,18 +184,21 @@ module wormhole::update_guardian_set_tests {
         let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
-        let wormhole_fee = 0;
+        let wormhole_fee = 350;
         set_up_wormhole(scenario, wormhole_fee);
 
         // Prepare test to execute `update_guardian_set`.
         test_scenario::next_tx(scenario, caller);
 
-        let worm_state = test_scenario::take_shared<State>(scenario);
-        let new_index = update_guardian_set(
-            &mut worm_state,
-            VAA_UPDATE_GUARDIAN_SET_1,
-            test_scenario::ctx(scenario)
-        );
+        let worm_state = take_state(scenario);
+        let the_clock = take_clock(scenario);
+
+        let new_index =
+            update_guardian_set(
+                &mut worm_state,
+                VAA_UPDATE_GUARDIAN_SET_1,
+                &the_clock
+            );
         assert!(new_index == 1, 0);
 
         let new_guardian_set = state::guardian_set_at(&worm_state, new_index);
@@ -232,31 +248,21 @@ module wormhole::update_guardian_set_tests {
         // Make sure old guardian set is still active.
         let old_guardian_set =
             state::guardian_set_at(&worm_state, new_index - 1);
-        assert!(
-            guardian_set::is_active(
-                old_guardian_set,
-                test_scenario::ctx(scenario)
-            ),
-            0
-        );
+        assert!(guardian_set::is_active(old_guardian_set, &the_clock), 0);
 
-        // Fast forward time beyond expiration by 3 epochs
-        test_scenario::next_epoch(scenario, caller);
-        test_scenario::next_epoch(scenario, caller);
-        test_scenario::next_epoch(scenario, caller);
+        // Fast forward time beyond expiration by
+        // `guardian_set_seconds_to_live`.
+        let tick_ms =
+            (state::guardian_set_seconds_to_live(&worm_state) as u64) * 1000;
+        clock::increment_for_testing(&mut the_clock, tick_ms + 1);
 
         // Now the old guardian set should be expired (because in the test setup
         // time to live is set to 2 epochs).
-        assert!(
-            !guardian_set::is_active(
-                old_guardian_set,
-                test_scenario::ctx(scenario)
-            ),
-            0
-        );
+        assert!(!guardian_set::is_active(old_guardian_set, &the_clock), 0);
 
         // Clean up.
-        test_scenario::return_shared(worm_state);
+        return_state(worm_state);
+        return_clock(the_clock);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -272,7 +278,7 @@ module wormhole::update_guardian_set_tests {
         let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
-        let wormhole_fee = 0;
+        let wormhole_fee = 350;
         set_up_wormhole(scenario, wormhole_fee);
 
         // Upgrade.
@@ -281,16 +287,20 @@ module wormhole::update_guardian_set_tests {
         // Prepare test to execute `update_guardian_set`.
         test_scenario::next_tx(scenario, caller);
 
-        let worm_state = test_scenario::take_shared<State>(scenario);
-        let new_index = update_guardian_set(
-            &mut worm_state,
-            VAA_UPDATE_GUARDIAN_SET_1,
-            test_scenario::ctx(scenario)
-        );
+        let worm_state = take_state(scenario);
+        let the_clock = take_clock(scenario);
+
+        let new_index =
+            update_guardian_set(
+                &mut worm_state,
+                VAA_UPDATE_GUARDIAN_SET_1,
+                &the_clock
+            );
         assert!(new_index == 1, 0);
 
         // Clean up.
-        test_scenario::return_shared(worm_state);
+        return_state(worm_state);
+        return_clock(the_clock);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -309,36 +319,41 @@ module wormhole::update_guardian_set_tests {
         let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
-        let wormhole_fee = 0;
+        let wormhole_fee = 350;
         set_up_wormhole(scenario, wormhole_fee);
 
         // Prepare test to execute `update_guardian_set`.
         test_scenario::next_tx(scenario, caller);
 
-        let worm_state = test_scenario::take_shared<State>(scenario);
+        let worm_state = take_state(scenario);
+        let the_clock = take_clock(scenario);
+
         update_guardian_set(
             &mut worm_state,
             VAA_UPDATE_GUARDIAN_SET_2A,
-            test_scenario::ctx(scenario)
+            &the_clock
         );
 
         // Update guardian set again with new VAA.
-        update_guardian_set(
-            &mut worm_state,
-            VAA_UPDATE_GUARDIAN_SET_2B,
-            test_scenario::ctx(scenario)
-        );
+        let new_index =
+            update_guardian_set(
+                &mut worm_state,
+                VAA_UPDATE_GUARDIAN_SET_2B,
+                &the_clock
+            );
+        assert!(new_index == 2, 0);
         assert!(state::guardian_set_index(&worm_state) == 2, 0);
 
-        // Cannot replay first VAA due to stale guardian set index.
+        // You shall not pass!
         update_guardian_set(
             &mut worm_state,
             VAA_UPDATE_GUARDIAN_SET_2A,
-            test_scenario::ctx(scenario)
+            &the_clock
         );
 
-        // Clean up even though we should have failed by this point.
-        test_scenario::return_shared(worm_state);
+        // Clean up.
+        return_state(worm_state);
+        return_clock(the_clock);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -357,21 +372,23 @@ module wormhole::update_guardian_set_tests {
         let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
-        let wormhole_fee = 0;
+        let wormhole_fee = 350;
         set_up_wormhole(scenario, wormhole_fee);
 
         // Prepare test to execute `update_guardian_set`.
         test_scenario::next_tx(scenario, caller);
 
-        let worm_state = test_scenario::take_shared<State>(scenario);
+        let worm_state = take_state(scenario);
+        let the_clock = take_clock(scenario);
+
 
         // Updating the guardidan set must be applied globally (not for just
         // one chain).
         let msg =
-            governance_message::parse_and_verify_vaa(
-                &mut worm_state,
+            governance_message::parse_and_verify_vaa_test_only(
+                &worm_state,
                 VAA_BOGUS_TARGET_CHAIN,
-                test_scenario::ctx(scenario)
+                &the_clock
             );
         assert!(!governance_message::is_global_action(&msg), 0);
         governance_message::destroy(msg);
@@ -380,11 +397,12 @@ module wormhole::update_guardian_set_tests {
         update_guardian_set(
             &mut worm_state,
             VAA_BOGUS_TARGET_CHAIN,
-            test_scenario::ctx(scenario)
+            &the_clock
         );
 
-        // Clean up even though we should have failed by this point.
-        test_scenario::return_shared(worm_state);
+        // Clean up.
+        return_state(worm_state);
+        return_clock(the_clock);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -403,21 +421,23 @@ module wormhole::update_guardian_set_tests {
         let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
-        let wormhole_fee = 0;
+        let wormhole_fee = 350;
         set_up_wormhole(scenario, wormhole_fee);
 
         // Prepare test to execute `update_guardian_set`.
         test_scenario::next_tx(scenario, caller);
 
-        let worm_state = test_scenario::take_shared<State>(scenario);
+        let worm_state = take_state(scenario);
+        let the_clock = take_clock(scenario);
+
 
         // Updating the guardidan set must be applied globally (not for just
         // one chain).
         let msg =
-            governance_message::parse_and_verify_vaa(
-                &mut worm_state,
+            governance_message::parse_and_verify_vaa_test_only(
+                &worm_state,
                 VAA_BOGUS_ACTION,
-                test_scenario::ctx(scenario)
+                &the_clock
             );
         assert!(
             governance_message::action(&msg) != update_guardian_set::action(),
@@ -429,11 +449,12 @@ module wormhole::update_guardian_set_tests {
         update_guardian_set(
             &mut worm_state,
             VAA_BOGUS_ACTION,
-            test_scenario::ctx(scenario)
+            &the_clock
         );
 
-        // Clean up even though we should have failed by this point.
-        test_scenario::return_shared(worm_state);
+        // Clean up.
+        return_state(worm_state);
+        return_clock(the_clock);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -450,20 +471,22 @@ module wormhole::update_guardian_set_tests {
         let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
-        let wormhole_fee = 0;
+        let wormhole_fee = 350;
         set_up_wormhole(scenario, wormhole_fee);
 
         // Prepare test to execute `update_guardian_set`.
         test_scenario::next_tx(scenario, caller);
 
-        let worm_state = test_scenario::take_shared<State>(scenario);
+        let worm_state = take_state(scenario);
+        let the_clock = take_clock(scenario);
+
 
         // Show that the encoded number of guardians is zero.
         let msg =
-            governance_message::parse_and_verify_vaa(
-                &mut worm_state,
+            governance_message::parse_and_verify_vaa_test_only(
+                &worm_state,
                 VAA_UPDATE_GUARDIAN_SET_EMPTY,
-                test_scenario::ctx(scenario)
+                &the_clock
             );
         let payload = governance_message::take_payload(msg);
         let cur = cursor::new(payload);
@@ -480,11 +503,12 @@ module wormhole::update_guardian_set_tests {
         update_guardian_set(
             &mut worm_state,
             VAA_UPDATE_GUARDIAN_SET_EMPTY,
-            test_scenario::ctx(scenario)
+            &the_clock
         );
 
-        // Clean up even though we should have failed by this point.
-        test_scenario::return_shared(worm_state);
+        // Clean up.
+        return_state(worm_state);
+        return_clock(the_clock);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -501,13 +525,15 @@ module wormhole::update_guardian_set_tests {
         let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
-        let wormhole_fee = 0;
+        let wormhole_fee = 350;
         set_up_wormhole(scenario, wormhole_fee);
 
         // Prepare test to execute `update_guardian_set`.
         test_scenario::next_tx(scenario, caller);
 
-        let worm_state = test_scenario::take_shared<State>(scenario);
+        let worm_state = take_state(scenario);
+        let the_clock = take_clock(scenario);
+
 
         // Simulate executing with an outdated build by upticking the minimum
         // required version for `publish_message` to something greater than
@@ -521,11 +547,12 @@ module wormhole::update_guardian_set_tests {
         update_guardian_set(
             &mut worm_state,
             VAA_UPDATE_GUARDIAN_SET_1,
-            test_scenario::ctx(scenario)
+            &the_clock
         );
 
-        // Clean up even though we should have failed by this point.
-        test_scenario::return_shared(worm_state);
+        // Clean up.
+        return_state(worm_state);
+        return_clock(the_clock);
 
         // Done.
         test_scenario::end(my_scenario);

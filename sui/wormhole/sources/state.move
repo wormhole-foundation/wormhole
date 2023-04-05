@@ -8,28 +8,27 @@
 /// emitters for Wormhole integrators.
 module wormhole::state {
     use std::vector::{Self};
-    use sui::coin::{Coin};
+    use sui::balance::{Balance};
+    use sui::clock::{Clock};
     use sui::dynamic_field::{Self as field};
-    use sui::object::{Self, UID};
+    use sui::object::{Self, ID, UID};
     use sui::package::{Self, UpgradeCap, UpgradeReceipt, UpgradeTicket};
     use sui::sui::{SUI};
     use sui::table::{Self, Table};
     use sui::tx_context::{TxContext};
 
     use wormhole::bytes32::{Self, Bytes32};
+    use wormhole::consumed_vaas::{Self, ConsumedVAAs};
     use wormhole::cursor::{Self};
-    use wormhole::emitter::{Self, EmitterCap, EmitterRegistry};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::fee_collector::{Self, FeeCollector};
     use wormhole::guardian::{Self};
     use wormhole::guardian_set::{Self, GuardianSet};
     use wormhole::required_version::{Self, RequiredVersion};
-    use wormhole::set::{Self, Set};
-    use wormhole::version_control::{
-        Self as control,
-        NewEmitter as NewEmitterControl
-    };
+    use wormhole::version_control::{Self as control};
 
+    friend wormhole::emitter;
+    friend wormhole::governance_message;
     friend wormhole::migrate;
     friend wormhole::publish_message;
     friend wormhole::set_fee;
@@ -39,14 +38,22 @@ module wormhole::state {
     friend wormhole::upgrade_contract;
     friend wormhole::vaa;
 
-    const E_INVALID_UPGRADE_CAP_VERSION: u64 = 0;
-    const E_ZERO_GUARDIANS: u64 = 1;
-    const E_VAA_ALREADY_CONSUMED: u64 = 2;
-    const E_BUILD_VERSION_MISMATCH: u64 = 3;
+    /// Cannot initialize state with zero guardians.
+    const E_ZERO_GUARDIANS: u64 = 0;
+    /// VAA hash already exists in `Set`.
+    const E_VAA_ALREADY_CONSUMED: u64 = 1;
+    /// Build does not agree with expected upgrade.
+    const E_BUILD_VERSION_MISMATCH: u64 = 2;
+    /// `UpgradeCap` is not as expected when initializing `State`.
+    const E_INVALID_UPGRADE_CAP: u64 = 3;
 
     /// Sui's chain ID is hard-coded to one value.
     const CHAIN_ID: u16 = 21;
 
+    /// Used as key for dynamic field reflecting whether `migrate` can be
+    /// called.
+    ///
+    /// See `migrate` module for more info.
     struct MigrationControl has store, drop, copy {}
 
     /// Container for all state variables for Wormhole.
@@ -68,47 +75,50 @@ module wormhole::state {
         /// Period for which a guardian set stays active after it has been
         /// replaced.
         ///
-        /// Currently in terms of Sui epochs until we have access to a clock
-        /// with unix timestamp.
-        guardian_set_epochs_to_live: u32,
+        /// NOTE: `Clock` timestamp is in units of ms while this value is in
+        /// terms of seconds. See `guardian_set` module for more info.
+        guardian_set_seconds_to_live: u32,
 
         /// Consumed VAA hashes to protect against replay. VAAs relevant to
         /// Wormhole are just governance VAAs.
-        consumed_vaa_hashes: Set<Bytes32>,
-
-        /// Registry for new emitter caps (`EmitterCap`).
-        emitter_registry: EmitterRegistry,
+        consumed_vaas: ConsumedVAAs,
 
         /// Wormhole fee collector.
         fee_collector: FeeCollector,
 
+        /// Upgrade capability.
         upgrade_cap: UpgradeCap,
 
-        /// Contract upgrade tracker.
+        /// Contract build version tracker.
         required_version: RequiredVersion
     }
 
+    /// Create new `State`. This is only executed using the `setup` module.
     public(friend) fun new(
         upgrade_cap: UpgradeCap,
         governance_chain: u16,
         governance_contract: vector<u8>,
         initial_guardians: vector<vector<u8>>,
-        guardian_set_epochs_to_live: u32,
+        guardian_set_seconds_to_live: u32,
         message_fee: u64,
         ctx: &mut TxContext
     ): State {
-        // Validate that the upgrade_cap equals the build version defined in
-        // the `version_control` module.
+        // Verify that this `UpgradeCap` belongs to the Wormhole package and
+        // equals the build version defined in the `version_control` module.
         //
         // When the contract is first published and `State` is being created,
         // this is expected to be `1`.
+        let package_id = package::upgrade_package(&upgrade_cap);
         assert!(
             (
+                package_id == object::id_from_address(@wormhole) &&
                 control::version() == 1 &&
                 package::version(&upgrade_cap) == control::version()
             ),
-            E_INVALID_UPGRADE_CAP_VERSION
+            E_INVALID_UPGRADE_CAP
         );
+
+        // We need at least one guardian.
         assert!(vector::length(&initial_guardians) > 0, E_ZERO_GUARDIANS);
 
         // First guardian set index is zero. New guardian sets must increment
@@ -116,8 +126,8 @@ module wormhole::state {
         let guardian_set_index = 0;
 
         let governance_contract =
-            external_address::from_nonzero_bytes(
-                governance_contract
+            external_address::new_nonzero(
+                bytes32::from_bytes(governance_contract)
             );
         let state = State {
             id: object::new(ctx),
@@ -125,9 +135,8 @@ module wormhole::state {
             governance_contract,
             guardian_set_index,
             guardian_sets: table::new(ctx),
-            guardian_set_epochs_to_live,
-            consumed_vaa_hashes: set::new(ctx),
-            emitter_registry: emitter::new_registry(),
+            guardian_set_seconds_to_live,
+            consumed_vaas: consumed_vaas::new(ctx),
             fee_collector: fee_collector::new(message_fee),
             upgrade_cap,
             required_version: required_version::new(control::version(), ctx)
@@ -147,7 +156,7 @@ module wormhole::state {
         };
 
         // Store the initial guardian set.
-        store_guardian_set(
+        add_new_guardian_set(
             &mut state,
             guardian_set::new(guardian_set_index, guardians)
         );
@@ -159,12 +168,13 @@ module wormhole::state {
         field::add(&mut state.id, MigrationControl {}, false);
 
         let tracker = &mut state.required_version;
-        required_version::add<control::NewEmitter>(tracker);
-        required_version::add<control::ParseAndVerify>(tracker);
+        required_version::add<control::Emitter>(tracker);
+        required_version::add<control::GovernanceMessage>(tracker);
         required_version::add<control::PublishMessage>(tracker);
         required_version::add<control::SetFee>(tracker);
         required_version::add<control::TransferFee>(tracker);
         required_version::add<control::UpdateGuardianSet>(tracker);
+        required_version::add<control::Vaa>(tracker);
 
         state
     }
@@ -194,6 +204,10 @@ module wormhole::state {
         implementation_digest: Bytes32
     ): UpgradeTicket {
         let policy = package::upgrade_policy(&self.upgrade_cap);
+
+        // TODO: grab package ID from `UpgradeCap` and store it
+        // in a dynamic field. This will be the old ID after the upgrade.
+        // Both IDs will be emitted in a `ContractUpgraded` event.
         package::authorize_upgrade(
             &mut self.upgrade_cap,
             policy,
@@ -205,7 +219,7 @@ module wormhole::state {
     public(friend) fun commit_upgrade(
         self: &mut State,
         receipt: UpgradeReceipt
-    ) {
+    ): ID {
         // Uptick the upgrade cap version number using this receipt.
         package::commit_upgrade(&mut self.upgrade_cap, receipt);
 
@@ -232,7 +246,9 @@ module wormhole::state {
         // migration control to `false`.
         //
         // See `migrate` module for more info.
-       enable_migration(self);
+        enable_migration(self);
+
+        package::upgrade_package(&self.upgrade_cap)
     }
 
     /// Enforce a particular method to use the current build version as its
@@ -291,17 +307,14 @@ module wormhole::state {
     }
 
     /// Retrieve how long after a Guardian set can live for in terms of Sui
-    /// epoch.
-    ///
-    /// TODO: Change this to be in terms of unix timestamp when `Clock` gets
-    /// added to `vaa::parse_and_verify`.
-    public fun guardian_set_epochs_to_live(self: &State): u32 {
-        self.guardian_set_epochs_to_live
+    /// timestamp (in seconds).
+    public fun guardian_set_seconds_to_live(self: &State): u32 {
+        self.guardian_set_seconds_to_live
     }
 
     /// Retrieve current fee to send Wormhole message.
     public fun message_fee(self: &State): u64 {
-        return fee_collector::fee_amount(&self.fee_collector)
+        fee_collector::fee_amount(&self.fee_collector)
     }
 
     /// Deposit fee when sending Wormhole message. This method does not
@@ -310,13 +323,13 @@ module wormhole::state {
     /// of calling `publish_message`.
     ///
     /// See `wormhole::publish_message` for more info.
-    public(friend) fun deposit_fee(self: &mut State, coin: Coin<SUI>) {
-        fee_collector::deposit(&mut self.fee_collector, coin);
+    public(friend) fun deposit_fee(self: &mut State, fee: Balance<SUI>) {
+        fee_collector::deposit_balance(&mut self.fee_collector, fee);
     }
 
     #[test_only]
-    public fun deposit_fee_test_only(self: &mut State, coin: Coin<SUI>) {
-        deposit_fee(self, coin)
+    public fun deposit_fee_test_only(self: &mut State, fee: Balance<SUI>) {
+        deposit_fee(self, fee)
     }
 
     /// Withdraw collected fees when governance action to transfer fees to a
@@ -325,19 +338,18 @@ module wormhole::state {
     /// See `wormhole::transfer_fee` for more info.
     public(friend) fun withdraw_fee(
         self: &mut State,
-        amount: u64,
-        ctx: &mut TxContext
-    ): Coin<SUI> {
-        fee_collector::withdraw(&mut self.fee_collector, amount, ctx)
+        amount: u64
+    ): Balance<SUI> {
+        fee_collector::withdraw_balance(&mut self.fee_collector, amount)
     }
 
     /// Store `VAA` hash as a way to claim a VAA. This method prevents a VAA
     /// from being replayed. For Wormhole, the only VAAs that it cares about
     /// being replayed are its governance actions.
-    public(friend) fun consume_vaa_hash(self: &mut State, vaa_hash: Bytes32) {
-        let consumed = &mut self.consumed_vaa_hashes;
-        assert!(!set::contains(consumed, vaa_hash), E_VAA_ALREADY_CONSUMED);
-        set::add(consumed, vaa_hash);
+    public(friend) fun borrow_mut_consumed_vaas(
+        self: &mut State
+    ): &mut ConsumedVAAs {
+        &mut self.consumed_vaas
     }
 
     /// When a new guardian set is added to `State`, part of the process
@@ -350,13 +362,14 @@ module wormhole::state {
     /// See `wormhole::update_guardian_set` for more info.
     ///
     /// TODO: Use `Clock` instead of `TxContext`.
-    public(friend) fun expire_guardian_set(self: &mut State, ctx: &TxContext) {
-        let expiring =
-            table::borrow_mut(&mut self.guardian_sets, self.guardian_set_index);
+    public(friend) fun expire_guardian_set(
+        self: &mut State,
+        the_clock: &Clock
+    ) {
         guardian_set::set_expiration(
-            expiring,
-            self.guardian_set_epochs_to_live,
-            ctx
+            table::borrow_mut(&mut self.guardian_sets, self.guardian_set_index),
+            self.guardian_set_seconds_to_live,
+            the_clock
         );
     }
 
@@ -364,7 +377,7 @@ module wormhole::state {
     /// current guardian set.
     ///
     /// See `wormhole::update_guardian_set` for more info.
-    public(friend) fun store_guardian_set(
+    public(friend) fun add_new_guardian_set(
         self: &mut State,
         new_guardian_set: GuardianSet
     ) {
@@ -391,34 +404,6 @@ module wormhole::state {
         table::borrow(&self.guardian_sets, index)
     }
 
-    /// Check whether a particular Guardian set is valid.
-    ///
-    /// See `wormhole::vaa` for more info.
-    public fun is_guardian_set_active(
-        self: &State,
-        set: &GuardianSet,
-        ctx: &TxContext
-    ): bool {
-        (
-            self.guardian_set_index == guardian_set::index(set) ||
-            guardian_set::is_active(set, ctx)
-        )
-    }
-
-    /// Generate a new `EmitterCap`.
-    ///
-    /// NOTE: This method is guarded by a minimum build version check. This
-    /// method could break backward compatibility on an upgrade.
-    public fun new_emitter(self: &mut State, ctx: &mut TxContext): EmitterCap {
-        check_minimum_requirement<NewEmitterControl>(self);
-
-        emitter::new_cap(&mut self.emitter_registry, ctx)
-    }
-
-    public(friend) fun use_emitter_sequence(emitter_cap: &mut EmitterCap): u64 {
-        emitter::use_sequence(emitter_cap)
-    }
-
     #[test_only]
     public fun fees_collected(self: &State): u64 {
         fee_collector::balance_value(&self.fee_collector)
@@ -442,6 +427,6 @@ module wormhole::state {
         let ticket =
             authorize_upgrade(self, bytes32::new(keccak256(&b"new build")));
         let receipt = package::test_upgrade(ticket);
-        commit_upgrade(self, receipt)
+        commit_upgrade(self, receipt);
     }
 }

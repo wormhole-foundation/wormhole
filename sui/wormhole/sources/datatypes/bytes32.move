@@ -3,6 +3,8 @@
 /// This module implements a custom type representing a fixed-size array of
 /// length 32.
 module wormhole::bytes32 {
+    use std::option::{Self};
+    use std::string::{Self, String};
     use std::vector::{Self};
     use sui::bcs::{Self};
 
@@ -15,6 +17,8 @@ module wormhole::bytes32 {
     const E_INVALID_U64_BE: u64 = 1;
     /// Found non-zero bytes when attempting to trim `vector<u8>`.
     const E_CANNOT_TRIM_NONZERO: u64 = 2;
+    /// Value of deserialized 32-byte array data overflows u64 max.
+    const E_U64_OVERFLOW: u64 = 4;
 
     /// 32.
     const LEN: u64 = 32;
@@ -31,9 +35,7 @@ module wormhole::bytes32 {
     /// Create new `Bytes32`, which checks the length of input `data`.
     public fun new(data: vector<u8>): Bytes32 {
         assert!(is_valid(&data), E_INVALID_BYTES32);
-        Bytes32 {
-            data
-        }
+        Bytes32 { data }
     }
 
     /// Create new `Bytes20` of all zeros.
@@ -59,16 +61,26 @@ module wormhole::bytes32 {
         new(buf)
     }
 
-    /// Deserialize from big-endian `u256` as long as the data does not
-    /// overflow.
+    /// Deserialize from big-endian `u256`.
     public fun to_u256_be(value: Bytes32): u256 {
-        let Bytes32 { data } = value;
-
-        let cur = cursor::new(data);
+        let cur = cursor::new(to_bytes(value));
         let out = bytes::take_u256_be(&mut cur);
         cursor::destroy_empty(cur);
 
         out
+    }
+
+    /// Serialize `u64` as big-endian format in zero-padded `Bytes32`.
+    public fun from_u64_be(value: u64): Bytes32 {
+        from_u256_be((value as u256))
+    }
+
+    /// Deserialize from big-endian `u64` as long as the data does not
+    /// overflow.
+    public fun to_u64_be(value: Bytes32): u64 {
+        let num = to_u256_be(value);
+        assert!(num < (1u256 << 64), E_U64_OVERFLOW);
+        (num as u64)
     }
 
     /// Either trim or pad (depending on length of the input `vector<u8>`) to 32
@@ -108,6 +120,53 @@ module wormhole::bytes32 {
     /// 32 bytes instead of 20 bytes in Sui version 0.28.
     public fun from_address(addr: address): Bytes32 {
         new(sui::address::to_bytes(addr))
+    }
+
+    public fun from_utf8(str: String): Bytes32 {
+        let data = *string::bytes(&str);
+        let len = vector::length(&data);
+        if (len > LEN) {
+            // Trim from end.
+            let i = len;
+            while (i > LEN) {
+                vector::pop_back(&mut data);
+                i = i - 1;
+            }
+        } else {
+            // Pad right to `LEN`.
+            let i = len;
+            while (i < LEN) {
+                vector::push_back(&mut data, 0);
+                i = i + 1;
+            }
+        };
+
+        new(data)
+    }
+
+    /// Even if the input is valid utf8, the result might be shorter than 32
+    /// bytes, because the original string might have a multi-byte utf8
+    /// character at the 32 byte boundary, which, when split, results in an
+    /// invalid code point, so we remove it.
+    public fun to_utf8(value: Bytes32): String {
+        let data = to_bytes(value);
+
+        let utf8 = string::try_utf8(data);
+        while (option::is_none(&utf8)) {
+            vector::pop_back(&mut data);
+            utf8 = string::try_utf8(data);
+        };
+
+        let buf = *string::bytes(&option::extract(&mut utf8));
+
+        // Now trim zeros from the right.
+        while (
+            *vector::borrow(&buf, vector::length(&buf) - 1) == 0
+        ) {
+            vector::pop_back(&mut buf);
+        };
+
+        string::utf8(buf)
     }
 
     /// Validate that any of the bytes in underlying data is non-zero.

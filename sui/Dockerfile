@@ -15,11 +15,11 @@ WORKDIR /tmp
 COPY scripts/ scripts
 COPY wormhole/ wormhole
 COPY token_bridge/ token_bridge
+COPY testing/ testing
 COPY Makefile Makefile
 
 FROM sui AS tests
 
 WORKDIR /tmp
 
-RUN --mount=type=cache,target=/root/.move,id=move_cache \
-    make test
+RUN --mount=type=cache,target=/root/.move,id=move_cache make test

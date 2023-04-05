@@ -6,8 +6,10 @@
 /// relative to the emitter, nonce (i.e. batch ID), consistency level
 /// (i.e. finality) and arbitrary message payload.
 module wormhole::publish_message {
-    use sui::coin::{Coin};
+    use sui::coin::{Self, Coin};
+    use sui::clock::{Self, Clock};
     use sui::event::{Self};
+    use sui::object::{Self, ID};
     use sui::sui::{SUI};
 
     use wormhole::emitter::{Self, EmitterCap};
@@ -15,9 +17,9 @@ module wormhole::publish_message {
     use wormhole::version_control::{PublishMessage as PublishMessageControl};
 
     /// `WormholeMessage` to be emitted via sui::event::emit.
-    struct WormholeMessage has store, copy, drop {
-        /// Underlying bytes of `EmitterCap` external address.
-        sender: vector<u8>,
+    struct WormholeMessage has drop, copy {
+        /// `EmitterCap` object ID.
+        sender: ID,
         /// From `EmitterCap`.
         sequence: u64,
         /// A.K.A. Batch ID.
@@ -25,8 +27,9 @@ module wormhole::publish_message {
         /// Arbitrary message data relevant to integrator.
         payload: vector<u8>,
         /// This will always be `0`.
-        consistency_level: u8
-        // TODO: add `timestamp` using `Clock`.
+        consistency_level: u8,
+        /// `Clock` timestamp.
+        timestamp: u64
     }
 
     /// `publish_message` emits a message as a Sui event. This method uses the
@@ -41,28 +44,35 @@ module wormhole::publish_message {
         nonce: u32,
         payload: vector<u8>,
         message_fee: Coin<SUI>,
+        the_clock: &Clock
     ): u64 {
         state::check_minimum_requirement<PublishMessageControl>(wormhole_state);
 
         // Deposit `message_fee`. This method interacts with the `FeeCollector`,
         // which will abort if `message_fee` does not equal the collector's
         // expected fee amount.
-        state::deposit_fee(wormhole_state, message_fee);
+        state::deposit_fee(wormhole_state, coin::into_balance(message_fee));
 
         // Produce sequence number for this message. This will also be the
         // return value for this method.
-        let sequence = state::use_emitter_sequence(emitter_cap);
+        let sequence = emitter::use_sequence(emitter_cap);
+
+        // Truncate to seconds.
+        let timestamp = clock::timestamp_ms(the_clock) / 1000;
+
+        // Sui is an instant finality chain, so we don't need
+        // confirmations.
+        let consistency_level = 0;
 
         // Emit Sui event with `WormholeMessage`.
         event::emit(
             WormholeMessage {
-                sender: emitter::emitter_address(emitter_cap),
+                sender: object::id(emitter_cap),
                 sequence,
                 nonce,
-                payload: payload,
-                // Sui is an instant finality chain, so we don't need
-                // confirmations. Do we even need to specify this?
-                consistency_level: 0,
+                payload,
+                consistency_level,
+                timestamp
             }
         );
 
@@ -74,18 +84,21 @@ module wormhole::publish_message {
 #[test_only]
 module wormhole::publish_message_tests {
     use sui::coin::{Self};
-    use sui::sui::{SUI};
     use sui::test_scenario::{Self};
 
     use wormhole::emitter::{Self, EmitterCap};
     use wormhole::fee_collector::{Self};
     use wormhole::required_version::{Self};
-    use wormhole::state::{Self, State};
+    use wormhole::state::{Self};
     use wormhole::publish_message::{publish_message};
     use wormhole::version_control::{Self as control};
     use wormhole::wormhole_scenario::{
         person,
+        return_clock,
+        return_state,
         set_up_wormhole,
+        take_clock,
+        take_state,
         upgrade_wormhole
     };
 
@@ -106,43 +119,49 @@ module wormhole::publish_message_tests {
         test_scenario::next_tx(scenario, user);
 
         {
-            let worm_state = test_scenario::take_shared<State>(scenario);
+            let worm_state = take_state(scenario);
+            let the_clock = take_clock(scenario);
 
             // User needs an `EmitterCap` so he can send a message.
             let emitter_cap =
-                wormhole::state::new_emitter(
-                    &mut worm_state,
+                wormhole::emitter::new(
+                    &worm_state,
                     test_scenario::ctx(scenario)
                 );
 
             // Finally publish Wormhole message.
-            let sequence = publish_message(
-                &mut worm_state,
-                &mut emitter_cap,
-                0, // nonce
-                b"Hello World",
-                coin::mint_for_testing<SUI>(
-                    wormhole_message_fee,
-                    test_scenario::ctx(scenario)
-                )
-            );
+            let sequence =
+                publish_message(
+                    &mut worm_state,
+                    &mut emitter_cap,
+                    0, // nonce
+                    b"Hello World",
+                    coin::mint_for_testing(
+                        wormhole_message_fee,
+                        test_scenario::ctx(scenario)
+                    ),
+                    &the_clock
+                );
             assert!(sequence == 0, 0);
 
             // Publish again to check sequence uptick.
-            let another_sequence = publish_message(
-                &mut worm_state,
-                &mut emitter_cap,
-                0, // nonce
-                b"Hello World... again",
-                coin::mint_for_testing<SUI>(
-                    wormhole_message_fee,
-                    test_scenario::ctx(scenario)
-                )
-            );
+            let another_sequence =
+                publish_message(
+                    &mut worm_state,
+                    &mut emitter_cap,
+                    0, // nonce
+                    b"Hello World... again",
+                    coin::mint_for_testing(
+                        wormhole_message_fee,
+                        test_scenario::ctx(scenario)
+                    ),
+                    &the_clock
+                );
             assert!(another_sequence == 1, 0);
 
             // Clean up.
-            test_scenario::return_shared<State>(worm_state);
+            return_state(worm_state);
+            return_clock(the_clock);
             sui::transfer::public_transfer(emitter_cap, user);
         };
 
@@ -162,25 +181,29 @@ module wormhole::publish_message_tests {
             // Ignore effects from upgrade.
             test_scenario::next_tx(scenario, user);
 
-            let worm_state = test_scenario::take_shared<State>(scenario);
+            let worm_state = take_state(scenario);
+            let the_clock = take_clock(scenario);
             let emitter_cap =
                 test_scenario::take_from_sender<EmitterCap>(scenario);
 
-            let sequence = publish_message(
-                &mut worm_state,
-                &mut emitter_cap,
-                0, // nonce
-                b"Hello?",
-                coin::mint_for_testing<SUI>(
-                    wormhole_message_fee,
-                    test_scenario::ctx(scenario)
-                )
-            );
+            let sequence =
+                publish_message(
+                    &mut worm_state,
+                    &mut emitter_cap,
+                    0, // nonce
+                    b"Hello?",
+                    coin::mint_for_testing(
+                        wormhole_message_fee,
+                        test_scenario::ctx(scenario)
+                    ),
+                    &the_clock
+                );
             assert!(sequence == 2, 0);
 
             // Clean up.
             test_scenario::return_to_sender(scenario, emitter_cap);
-            test_scenario::return_shared(worm_state);
+            return_state(worm_state);
+            return_clock(the_clock);
         };
 
         // Done.
@@ -205,30 +228,30 @@ module wormhole::publish_message_tests {
         // Next transaction should be conducted as an ordinary user.
         test_scenario::next_tx(scenario, user);
 
-        let worm_state = test_scenario::take_shared<State>(scenario);
+        let worm_state = take_state(scenario);
+        let the_clock = take_clock(scenario);
 
         // User needs an `EmitterCap` so he can send a message.
-        let emitter =
-            wormhole::state::new_emitter(
-                &mut worm_state,
-                test_scenario::ctx(scenario)
-            );
+        let emitter_cap =
+            emitter::new(&worm_state, test_scenario::ctx(scenario));
 
         // You shall not pass!
         publish_message(
             &mut worm_state,
-            &mut emitter,
+            &mut emitter_cap,
             0, // nonce
             b"Hello World",
-            coin::mint_for_testing<SUI>(
+            coin::mint_for_testing(
                 wrong_fee_amount,
                 test_scenario::ctx(scenario)
-            )
+            ),
+            &the_clock
         );
 
-        // Clean up even though we should have failed by this point.
-        test_scenario::return_shared(worm_state);
-        emitter::destroy_cap(emitter);
+        // Clean up.
+        return_state(worm_state);
+        return_clock(the_clock);
+        emitter::destroy(emitter_cap);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -251,7 +274,8 @@ module wormhole::publish_message_tests {
         // Next transaction should be conducted as an ordinary user.
         test_scenario::next_tx(scenario, user);
 
-        let worm_state = test_scenario::take_shared<State>(scenario);
+        let worm_state = take_state(scenario);
+        let the_clock = take_clock(scenario);
 
         // Simulate executing with an outdated build by upticking the minimum
         // required version for `publish_message` to something greater than
@@ -262,27 +286,26 @@ module wormhole::publish_message_tests {
         );
 
         // User needs an `EmitterCap` so he can send a message.
-        let emitter =
-            wormhole::state::new_emitter(
-                &mut worm_state,
-                test_scenario::ctx(scenario)
-            );
+        let emitter_cap =
+            emitter::new(&worm_state, test_scenario::ctx(scenario));
 
         // You shall not pass!
         publish_message(
             &mut worm_state,
-            &mut emitter,
+            &mut emitter_cap,
             0, // nonce
             b"Hello World",
-            coin::mint_for_testing<SUI>(
+            coin::mint_for_testing(
                 wormhole_message_fee,
                 test_scenario::ctx(scenario)
-            )
+            ),
+            &the_clock
         );
 
-        // Clean up even though we should have failed by this point.
-        test_scenario::return_shared(worm_state);
-        emitter::destroy_cap(emitter);
+        // Clean up.
+        return_state(worm_state);
+        return_clock(the_clock);
+        emitter::destroy(emitter_cap);
 
         // Done.
         test_scenario::end(my_scenario);
