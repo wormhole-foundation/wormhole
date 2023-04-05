@@ -11,9 +11,8 @@
 /// message payload.
 module token_bridge::attest_token {
     use std::option::{Self};
-    use sui::balance::{Balance};
     use sui::clock::{Clock};
-    use sui::coin::{CoinMetadata};
+    use sui::coin::{Coin, CoinMetadata};
     use sui::sui::{SUI};
     use wormhole::state::{State as WormholeState};
 
@@ -34,7 +33,7 @@ module token_bridge::attest_token {
     public fun attest_token<CoinType>(
         token_bridge_state: &mut State,
         worm_state: &mut WormholeState,
-        wormhole_fee: Balance<SUI>,
+        wormhole_fee: Coin<SUI>,
         coin_metadata: &CoinMetadata<CoinType>,
         nonce: u32,
         the_clock: &Clock
@@ -102,7 +101,6 @@ module token_bridge::attest_token {
 module token_bridge::attest_token_tests {
     use std::ascii::{Self};
     use std::string::{Self};
-    use sui::balance::{Self};
     use sui::coin::{Self};
     use sui::test_scenario::{Self};
     use wormhole::state::{chain_id};
@@ -150,8 +148,9 @@ module token_bridge::attest_token_tests {
             attest_token(
                 &mut token_bridge_state,
                 &mut worm_state,
-                balance::create_for_testing(
-                    wormhole_fee
+                coin::mint_for_testing(
+                    wormhole_fee,
+                    test_scenario::ctx(scenario)
                 ),
                 &coin_meta,
                 1234, // nonce
@@ -215,7 +214,10 @@ module token_bridge::attest_token_tests {
             attest_token(
                 &mut token_bridge_state,
                 &mut worm_state,
-                balance::create_for_testing(wormhole_fee),
+                coin::mint_for_testing(
+                    wormhole_fee,
+                    test_scenario::ctx(scenario)
+                ),
                 &coin_meta,
                 1234, // nonce
                 &the_clock

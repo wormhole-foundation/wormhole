@@ -11,7 +11,7 @@
 /// See `transfer` module for serialization and deserialization of Wormhole
 /// message payload.
 module token_bridge::transfer_tokens {
-    use sui::balance::{Self, Balance};
+    use sui::balance::{Self};
     use sui::clock::{Clock};
     use sui::coin::{Self, Coin};
     use sui::sui::{SUI};
@@ -31,23 +31,23 @@ module token_bridge::transfer_tokens {
 
     friend token_bridge::transfer_tokens_with_payload;
 
-    /// Relayer fee exceeds `Balance` value.
+    /// Relayer fee exceeds `Coin` object's value.
     const E_RELAYER_FEE_EXCEEDS_AMOUNT: u64 = 0;
 
-    /// `transfer_tokens` takes a `Balance` of a coin type and bridges this
-    /// asset out of Sui by either joining this balance in the Token Bridge's
-    /// custody for native assets or burning the balance for wrapped assets.
+    /// `transfer_tokens` takes a `Coin` object of a coin type and bridges this
+    /// asset out of Sui by either joining its balance in the Token Bridge's
+    /// custody for native assets or burning its balance for wrapped assets.
     ///
     /// Additionally, a `relayer_fee` of some value less than or equal to the
-    /// `Balance` value can be specified to incentivize someone to redeem this
-    /// transfer on behalf of the `recipient`.
+    /// `Coin` object's value can be specified to incentivize someone to redeem
+    /// this transfer on behalf of the `recipient`.
     ///
     /// See `token_registry and `transfer_with_payload` module for more info.
     public fun transfer_tokens<CoinType>(
         token_bridge_state: &mut State,
         worm_state: &mut WormholeState,
         bridged_in: Coin<CoinType>,
-        wormhole_fee: Balance<SUI>,
+        wormhole_fee: Coin<SUI>,
         recipient_chain: u16,
         recipient: ExternalAddress,
         relayer_fee: u64,
@@ -111,7 +111,7 @@ module token_bridge::transfer_tokens {
         NormalizedAmount,
         NormalizedAmount
     ) {
-        // Disallow `relayer_fee` to be greater than the amount in `Balance`.
+        // Disallow `relayer_fee` to be greater than the `Coin` object's value.
         let amount = coin::value(bridged_in);
         assert!(relayer_fee <= amount, E_RELAYER_FEE_EXCEEDS_AMOUNT);
 
@@ -208,9 +208,8 @@ module token_bridge::transfer_tokens {
 
 #[test_only]
 module token_bridge::transfer_token_tests {
-    use sui::balance::{Self};
-    use sui::test_scenario::{Self};
     use sui::coin::{Self};
+    use sui::test_scenario::{Self};
     use sui::transfer::{public_transfer};
 
     use wormhole::external_address::{Self};
@@ -289,7 +288,7 @@ module token_bridge::transfer_token_tests {
             &mut token_bridge_state,
             &mut worm_state,
             coin::from_balance(coin_10_balance, ctx),
-            balance::create_for_testing(wormhole_fee),
+            coin::mint_for_testing(wormhole_fee, ctx),
             TEST_TARGET_CHAIN,
             external_address::from_address(TEST_TARGET_RECIPIENT),
             relayer_fee,
@@ -365,7 +364,7 @@ module token_bridge::transfer_token_tests {
             &mut token_bridge_state,
             &mut worm_state,
             coin::from_balance(coin_10_balance, ctx),
-            balance::create_for_testing(wormhole_fee),
+            coin::mint_for_testing(wormhole_fee, ctx),
             TEST_TARGET_CHAIN,
             external_address::from_address(TEST_TARGET_RECIPIENT),
             relayer_fee,
@@ -518,7 +517,7 @@ module token_bridge::transfer_token_tests {
             &mut token_bridge_state,
             &mut worm_state,
             coin::from_balance(coin_7_balance, ctx),
-            balance::create_for_testing(wormhole_fee),
+            coin::mint_for_testing(wormhole_fee, ctx),
             TEST_TARGET_CHAIN,
             external_address::from_address(TEST_TARGET_RECIPIENT),
             relayer_fee,
@@ -665,7 +664,7 @@ module token_bridge::transfer_token_tests {
             &mut token_bridge_state,
             &mut worm_state,
             test_coins,
-            balance::create_for_testing(wormhole_fee),
+            coin::mint_for_testing(wormhole_fee, test_scenario::ctx(scenario)),
             TEST_TARGET_CHAIN,
             external_address::from_address(TEST_TARGET_RECIPIENT),
             relayer_fee,
@@ -720,7 +719,7 @@ module token_bridge::transfer_token_tests {
             &mut token_bridge_state,
             &mut worm_state,
             test_coins,
-            balance::create_for_testing(wormhole_fee),
+            coin::mint_for_testing(wormhole_fee, test_scenario::ctx(scenario)),
             TEST_TARGET_CHAIN,
             external_address::from_address(TEST_TARGET_RECIPIENT),
             relayer_fee,
@@ -775,7 +774,7 @@ module token_bridge::transfer_token_tests {
             &mut token_bridge_state,
             &mut worm_state,
             coin::from_balance(coin_10_balance, ctx),
-            balance::create_for_testing(wormhole_fee),
+            coin::mint_for_testing(wormhole_fee, ctx),
             TEST_TARGET_CHAIN,
             external_address::from_address(TEST_TARGET_RECIPIENT),
             relayer_fee,

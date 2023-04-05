@@ -7,8 +7,8 @@
 /// checking the emitter against its own registered emitters.
 module token_bridge::state {
     use std::option::{Self, Option};
-    use sui::balance::{Balance};
     use sui::clock::{Clock};
+    use sui::coin::{Coin};
     use sui::dynamic_field::{Self as field};
     use sui::object::{Self, ID, UID};
     use sui::package::{Self, UpgradeCap, UpgradeReceipt, UpgradeTicket};
@@ -257,7 +257,7 @@ module token_bridge::state {
         worm_state: &mut WormholeState,
         nonce: u32,
         payload: vector<u8>,
-        message_fee: Balance<SUI>,
+        message_fee: Coin<SUI>,
         the_clock: &Clock
     ): u64 {
         use wormhole::publish_message::{publish_message};

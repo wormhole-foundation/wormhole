@@ -12,9 +12,8 @@
 /// See `transfer_with_payload` module for serialization and deserialization of
 /// Wormhole message payload.
 module token_bridge::transfer_tokens_with_payload {
-    use sui::balance::{Balance};
-    use sui::coin::{Coin};
     use sui::clock::{Clock};
+    use sui::coin::{Coin};
     use sui::sui::{SUI};
     use wormhole::emitter::{EmitterCap};
     use wormhole::external_address::{ExternalAddress};
@@ -42,7 +41,7 @@ module token_bridge::transfer_tokens_with_payload {
         emitter_cap: &EmitterCap,
         worm_state: &mut WormholeState,
         bridged_in: Coin<CoinType>,
-        wormhole_fee: Balance<SUI>,
+        wormhole_fee: Coin<SUI>,
         redeemer_chain: u16,
         redeemer: ExternalAddress,
         payload: vector<u8>,
@@ -133,9 +132,8 @@ module token_bridge::transfer_tokens_with_payload {
 
 #[test_only]
 module token_bridge::transfer_tokens_with_payload_tests {
-    use sui::balance::{Self};
-    use sui::test_scenario::{Self};
     use sui::coin::{Self};
+    use sui::test_scenario::{Self};
     use sui::transfer::{public_transfer};
 
     use wormhole::external_address::{Self};
@@ -221,7 +219,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
                 &emitter_cap,
                 &mut worm_state,
                 coin::from_balance(coin_10_balance, ctx),
-                balance::create_for_testing(wormhole_fee),
+                coin::mint_for_testing(wormhole_fee, ctx),
                 TEST_TARGET_CHAIN,
                 external_address::from_address(TEST_TARGET_RECIPIENT),
                 TEST_MESSAGE_PAYLOAD,
@@ -300,7 +298,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
             &emitter_cap,
             &mut worm_state,
             coin::from_balance(coin_10_balance, ctx),
-            balance::create_for_testing(wormhole_fee),
+            coin::mint_for_testing(wormhole_fee, ctx),
             TEST_TARGET_CHAIN,
             external_address::from_address(TEST_TARGET_RECIPIENT),
             TEST_MESSAGE_PAYLOAD,
@@ -458,7 +456,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
                 &emitter_cap,
                 &mut worm_state,
                 coin::from_balance(coin_7_balance, ctx),
-                balance::create_for_testing(wormhole_fee),
+                coin::mint_for_testing(wormhole_fee, ctx),
                 TEST_TARGET_CHAIN,
                 external_address::from_address(TEST_TARGET_RECIPIENT),
                 TEST_MESSAGE_PAYLOAD,

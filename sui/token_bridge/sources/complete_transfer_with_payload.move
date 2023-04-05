@@ -8,9 +8,10 @@
 /// See `transfer_with_payload` module for serialization and deserialization of
 /// Wormhole message payload.
 module token_bridge::complete_transfer_with_payload {
-    use sui::balance::{Balance};
     use sui::clock::{Clock};
+    use sui::coin::{Self, Coin};
     use sui::object::{Self};
+    use sui::tx_context::{TxContext};
     use wormhole::emitter::{EmitterCap};
     use wormhole::state::{State as WormholeState};
 
@@ -35,9 +36,10 @@ module token_bridge::complete_transfer_with_payload {
         emitter_cap: &EmitterCap,
         worm_state: &WormholeState,
         vaa_buf: vector<u8>,
-        the_clock: &Clock
+        the_clock: &Clock,
+        ctx: &mut TxContext
     ): (
-        Balance<CoinType>,
+        Coin<CoinType>,
         TransferWithPayload,
         u16 // `wormhole::vaa::emitter_chain`
     ) {
@@ -68,7 +70,8 @@ module token_bridge::complete_transfer_with_payload {
             token_bridge_state,
             emitter_cap,
             source_chain,
-            wormhole::vaa::take_payload(parsed_vaa)
+            wormhole::vaa::take_payload(parsed_vaa),
+            ctx
         )
     }
 
@@ -76,9 +79,10 @@ module token_bridge::complete_transfer_with_payload {
         token_bridge_state: &mut State,
         emitter_cap: &EmitterCap,
         source_chain: u16,
-        transfer_vaa_payload: vector<u8>
+        transfer_vaa_payload: vector<u8>,
+        ctx: &mut TxContext
     ): (
-        Balance<CoinType>,
+        Coin<CoinType>,
         TransferWithPayload,
         u16 // `wormhole::vaa::emitter_chain`
     ) {
@@ -105,13 +109,13 @@ module token_bridge::complete_transfer_with_payload {
                 transfer_with_payload::amount(&parsed)
             );
 
-        (bridged_out, parsed, source_chain)
+        (coin::from_balance(bridged_out, ctx), parsed, source_chain)
     }
 }
 
 #[test_only]
 module token_bridge::complete_transfer_with_payload_tests {
-    use sui::balance::{Self};
+    use sui::coin::{Self};
     use sui::object::{Self};
     use sui::test_scenario::{Self};
     use wormhole::emitter::{Self};
@@ -211,7 +215,8 @@ module token_bridge::complete_transfer_with_payload_tests {
                 &emitter_cap,
                 &mut worm_state,
                 transfer_vaa,
-                &the_clock
+                &the_clock,
+                test_scenario::ctx(scenario)
             );
         assert!(source_chain == expected_source_chain, 0);
 
@@ -220,7 +225,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         // 10 decimals. The amount specifed in the VAA_ATTESTED_DECIMALS_12 is 3000, because that's
         // in terms of 8 decimals.
         let expected_bridged = 300000;
-        assert!(balance::value(&bridged) == expected_bridged, 0);
+        assert!(coin::value(&bridged) == expected_bridged, 0);
 
         // Amount left on custody should be whatever is left remaining after
         // the transfer.
@@ -257,7 +262,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         // Clean up.
         return_states(token_bridge_state, worm_state);
         return_clock(the_clock);
-        balance::destroy_for_testing(bridged);
+        coin::burn_for_testing(bridged);
         emitter::destroy(emitter_cap);
 
         // Done.
@@ -334,13 +339,14 @@ module token_bridge::complete_transfer_with_payload_tests {
                 &emitter_cap,
                 &mut worm_state,
                 transfer_vaa,
-                &the_clock
+                &the_clock,
+                test_scenario::ctx(scenario)
             );
         assert!(source_chain == expected_source_chain, 0);
 
         // Assert coin value, source chain, and parsed transfer details are correct.
         let expected_bridged = 3000;
-        assert!(balance::value(&bridged) == expected_bridged, 0);
+        assert!(coin::value(&bridged) == expected_bridged, 0);
 
         // Total supply should equal the amount just minted.
         let registry = state::borrow_token_registry(&token_bridge_state);
@@ -374,7 +380,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         // Clean up.
         return_states(token_bridge_state, worm_state);
         return_clock(the_clock);
-        balance::destroy_for_testing(bridged);
+        coin::burn_for_testing(bridged);
         emitter::destroy(emitter_cap);
 
         // Done.
@@ -447,13 +453,14 @@ module token_bridge::complete_transfer_with_payload_tests {
                 &emitter_cap,
                 &mut worm_state,
                 transfer_vaa,
-                &the_clock
+                &the_clock,
+                test_scenario::ctx(scenario)
             );
 
         // Clean up.
         return_states(token_bridge_state, worm_state);
         return_clock(the_clock);
-        balance::destroy_for_testing(bridged);
+        coin::burn_for_testing(bridged);
         emitter::destroy(emitter_cap);
 
         // Done.
@@ -546,13 +553,14 @@ module token_bridge::complete_transfer_with_payload_tests {
                 &emitter_cap,
                 &mut worm_state,
                 transfer_vaa,
-                &the_clock
+                &the_clock,
+                test_scenario::ctx(scenario)
             );
 
         // Clean up.
         return_states(token_bridge_state, worm_state);
         return_clock(the_clock);
-        balance::destroy_for_testing(bridged);
+        coin::burn_for_testing(bridged);
         emitter::destroy(emitter_cap);
 
         // Done.
@@ -622,13 +630,14 @@ module token_bridge::complete_transfer_with_payload_tests {
                 &emitter_cap,
                 &mut worm_state,
                 transfer_vaa,
-                &the_clock
+                &the_clock,
+                test_scenario::ctx(scenario)
             );
 
         // Clean up.
         return_states(token_bridge_state, worm_state);
         return_clock(the_clock);
-        balance::destroy_for_testing(bridged);
+        coin::burn_for_testing(bridged);
         emitter::destroy(emitter_cap);
 
         // Done.
