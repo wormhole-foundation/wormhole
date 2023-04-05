@@ -11,11 +11,9 @@ import { Network } from "../utils";
 import { SuiCreateEvent, SuiPublishEvent } from "./types";
 
 export async function executeTransactionBlock(
-  provider: JsonRpcProvider,
-  network: Network,
+  signer: RawSigner,
   transactionBlock: TransactionBlock
 ) {
-  const signer = getSigner(provider, network);
   const testRes = await signer.dryRunTransactionBlock({ transactionBlock });
   if (testRes.effects.status.status !== "success") {
     throw new Error(
@@ -72,9 +70,11 @@ export const getProvider = (
 
 export const getSigner = (
   provider: JsonRpcProvider,
-  network: Network
+  network: Network,
+  customPrivateKey?: string
 ): RawSigner => {
-  const privateKey: string | undefined = NETWORKS[network]["sui"].key;
+  const privateKey: string | undefined =
+    customPrivateKey || NETWORKS[network]["sui"].key;
   if (!privateKey) {
     throw new Error(`No private key found for Sui ${network}`);
   }
