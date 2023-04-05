@@ -421,7 +421,7 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, errC chan error
 
 			for _, event := range events.Array() {
 				if !event.IsObject() {
-					w.logger.Warn("event is invalid", zap.String("chain", ce.chainName), zap.String("tx_hash", txHashStr), zap.String("event", event.String()))
+					w.logger.Error("event is invalid", zap.String("chain", ce.chainName), zap.String("tx_hash", txHashStr), zap.String("event", event.String()))
 					continue
 				}
 				eventType := gjson.Get(event.String(), "type")
@@ -524,14 +524,14 @@ func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, eve
 func (w *Watcher) processIbcReceivePublishEvent(txHash ethCommon.Hash, evt *ibcReceivePublishEvent, observationType string) {
 	connectionID, err := w.getConnectionID(evt.ChannelID)
 	if err != nil {
-		w.logger.Info("failed to query IBC connectionID for channel", zap.String("ibcChannel", evt.ChannelID), zap.Error(err))
+		w.logger.Error("failed to query IBC connectionID for channel", zap.String("ibcChannel", evt.ChannelID), zap.Error(err))
 		connectionErrors.WithLabelValues("unexpected_ibc_channel_error").Inc()
 		return
 	}
 
 	ce, exists := w.connectionMap[connectionID]
 	if !exists {
-		w.logger.Info("ignoring an event from an unexpected IBC connection", zap.String("ibcConnection", connectionID))
+		w.logger.Error("ignoring an event from an unexpected IBC connection", zap.String("ibcConnection", connectionID))
 		connectionErrors.WithLabelValues("unexpected_ibc_channel_error").Inc()
 		return
 	}
@@ -566,12 +566,6 @@ func (w *Watcher) processIbcReceivePublishEvent(txHash ethCommon.Hash, evt *ibcR
 	messagesConfirmed.WithLabelValues(ce.chainName).Inc()
 }
 
-type ibcAllChainConnectionsQueryResults struct {
-	Data struct {
-		ChainConnections [][]interface{} `json:"chain_connections"`
-	}
-}
-
 /*
 This query:
   `{"all_chain_connections":{}}` is `eyJhbGxfY2hhaW5fY29ubmVjdGlvbnMiOnt9fQ==`
@@ -595,6 +589,12 @@ Returns something like this:
 }
 
 */
+
+type ibcAllChainConnectionsQueryResults struct {
+	Data struct {
+		ChainConnections [][]interface{} `json:"chain_connections"`
+	}
+}
 
 var connectionIdMapQuery = url.QueryEscape(base64.StdEncoding.EncodeToString([]byte(`{"all_chain_connections":{}}`)))
 
@@ -666,15 +666,6 @@ func (w *Watcher) getConnectionID(channelID string) (string, error) {
 	return connectionID, nil
 }
 
-// ibcChannelQueryResults is used to parse the result from the IBC connection ID query.
-type ibcChannelQueryResults struct {
-	Channel struct {
-		State          string
-		ConnectionHops []string `json:"connection_hops"`
-		Version        string
-	}
-}
-
 /*
 This query:
   http://localhost:1319/ibc/core/channel/v1/channels/channel-0/ports/wasm.wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj
@@ -700,6 +691,15 @@ Returns something like this:
   }
 }
 */
+
+// ibcChannelQueryResults is used to parse the result from the IBC connection ID query.
+type ibcChannelQueryResults struct {
+	Channel struct {
+		State          string
+		ConnectionHops []string `json:"connection_hops"`
+		Version        string
+	}
+}
 
 // getConnectionID queries the contract on wormchain to map a channel ID to a connection ID.
 func (w *Watcher) queryConnectionID(channelID string) (string, error) {
