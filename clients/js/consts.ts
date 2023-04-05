@@ -1,4 +1,7 @@
-import { CONTRACTS as SDK_CONTRACTS } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+import {
+  CHAIN_ID_SOLANA,
+  CONTRACTS as SDK_CONTRACTS,
+} from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 
 const OVERRIDES = {
   MAINNET: {
@@ -56,3 +59,7 @@ export const RPC_OPTIONS = {
   type: "string",
   required: false,
 } as const;
+
+export const GOVERNANCE_CHAIN = CHAIN_ID_SOLANA;
+export const GOVERNANCE_EMITTER =
+  "0000000000000000000000000000000000000000000000000000000000000004";

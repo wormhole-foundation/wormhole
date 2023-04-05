@@ -10,6 +10,7 @@ import { fromBech32, toHex } from "@cosmjs/encoding";
 import base58 from "bs58";
 import { sha3_256 } from "js-sha3";
 import yargs from "yargs";
+import { GOVERNANCE_CHAIN, GOVERNANCE_EMITTER } from "../consts";
 import { evm_address, hex } from "../utils";
 import {
   ContractUpgrade,
@@ -44,10 +45,6 @@ function makeVAA(
   v.signatures = sign(signers, v);
   return v;
 }
-
-const GOVERNANCE_CHAIN = 1;
-const GOVERNANCE_EMITTER =
-  "0000000000000000000000000000000000000000000000000000000000000004";
 
 exports.command = "generate";
 exports.desc = "generate VAAs (devnet and testnet only)";

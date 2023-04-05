@@ -1,7 +1,12 @@
 import { TransactionBlock } from "@mysten/sui.js";
 import yargs from "yargs";
 import { config } from "../config";
-import { NETWORK_OPTIONS, RPC_OPTIONS } from "../consts";
+import {
+  GOVERNANCE_CHAIN,
+  GOVERNANCE_EMITTER,
+  NETWORK_OPTIONS,
+  RPC_OPTIONS,
+} from "../consts";
 import { NETWORKS } from "../networks";
 import {
   executeTransactionBlock,
@@ -54,14 +59,12 @@ exports.builder = function (y: typeof yargs) {
       "Get owned objects by owner",
       (yargs) => {
         return yargs
-          .option("network", NETWORK_OPTIONS)
-          .option("rpc", RPC_OPTIONS)
-          .option("owner", {
-            alias: "o",
+          .positional("owner", {
             describe: "Owner address",
-            required: true,
             type: "string",
-          });
+          })
+          .option("network", NETWORK_OPTIONS)
+          .option("rpc", RPC_OPTIONS);
       },
       async (argv) => {
         const network = argv.network.toUpperCase();
@@ -84,7 +87,6 @@ exports.builder = function (y: typeof yargs) {
       (yargs) => {
         return yargs
           .option("network", NETWORK_OPTIONS)
-          .option("rpc", RPC_OPTIONS)
           .option("package-id", {
             alias: "p",
             describe: "Package ID/module address",
@@ -96,7 +98,8 @@ exports.builder = function (y: typeof yargs) {
             describe: "Wormhole state object ID",
             required: true,
             type: "string",
-          });
+          })
+          .option("rpc", RPC_OPTIONS);
       },
       async (argv) => {
         const network = argv.network.toUpperCase();
@@ -155,50 +158,41 @@ exports.builder = function (y: typeof yargs) {
       (yargs) => {
         return yargs
           .option("network", NETWORK_OPTIONS)
-          .option("rpc", RPC_OPTIONS)
           .option("package-id", {
             alias: "p",
             describe: "Package ID/module address",
             required: true,
             type: "string",
           })
-          .option("chain-id", {
-            alias: "ci",
-            describe: "Chain ID",
-            default: "22",
-            required: false,
-            type: "string",
-          })
-          .option("governance-chain-id", {
-            alias: "gci",
-            describe: "Governance chain ID",
-            default: "1", // Default is chain ID of Solana
-            type: "string",
-            required: false,
-          })
-          .option("governance-contract", {
-            alias: "gc",
-            describe: "Governance contract",
-            type: "string",
-            default:
-              "0000000000000000000000000000000000000000000000000000000000000004",
-            required: false,
-          })
           .option("initial-guardian", {
-            alias: "ig",
+            alias: "i",
             required: true,
             describe: "Initial guardian public keys",
             type: "string",
-          });
+          })
+          .option("governance-chain-id", {
+            alias: "c",
+            describe: "Governance chain ID",
+            default: GOVERNANCE_CHAIN,
+            type: "string",
+            required: false,
+          })
+          .option("governance-contract-address", {
+            alias: "a",
+            describe: "Governance contract address",
+            type: "string",
+            default: GOVERNANCE_EMITTER,
+            required: false,
+          })
+          .option("rpc", RPC_OPTIONS);
       },
       async (argv) => {
         const network = argv.network.toUpperCase();
         assertNetwork(network);
         const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
         const packageId = argv["package-id"];
-        const chainId = argv["chain-id"];
         const governanceChainId = argv["governance-chain-id"];
-        const governanceContract = argv["governance-contract"];
+        const governanceContract = argv["governance-contract-address"];
         const initialGuardian = argv["initial-guardian"];
 
         const provider = getProvider(network, rpc);
@@ -224,7 +218,6 @@ exports.builder = function (y: typeof yargs) {
         console.log("Package ID", packageId);
         console.log("Deployer cap object ID", deployerCapObjectId);
         console.log("Upgrade cap object ID", upgradeCapObjectId);
-        console.log("Chain ID", chainId);
         console.log("Governance chain ID", governanceChainId);
         console.log("Governance contract", governanceContract);
         console.log("Initial guardian", initialGuardian);
@@ -268,12 +261,11 @@ exports.builder = function (y: typeof yargs) {
       }
     )
     .command(
-      "publish-message",
+      "publish-example-message",
       "Publish message from example app via core bridge",
       (yargs) => {
         return yargs
           .option("network", NETWORK_OPTIONS)
-          .option("rpc", RPC_OPTIONS)
           .option("package-id", {
             alias: "p",
             describe: "Package ID/module address",
@@ -297,7 +289,8 @@ exports.builder = function (y: typeof yargs) {
             describe: "Message payload",
             required: true,
             type: "string",
-          });
+          })
+          .option("rpc", RPC_OPTIONS);
       },
       async (argv) => {
         const network = argv.network.toUpperCase();
