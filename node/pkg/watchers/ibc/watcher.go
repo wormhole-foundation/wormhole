@@ -17,6 +17,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
+	"github.com/certusone/wormhole/node/pkg/watchers/cosmwasm"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -141,13 +142,8 @@ type clientRequest struct {
 
 // ibcReceivePublishEvent represents the log message received from the IBC receiver contract.
 type ibcReceivePublishEvent struct {
-	ChannelID      string
-	EmitterChain   vaa.ChainID
-	EmitterAddress vaa.Address
-	Nonce          uint32
-	Sequence       uint64
-	Timestamp      time.Time
-	Payload        []byte
+	ChannelID string
+	Msg       *common.MessagePublication
 }
 
 // Run is the runnable for monitoring the IBC contract on wormchain.
@@ -217,8 +213,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 	}
 	defer c.Close(websocket.StatusNormalClosure, "")
 
-	// This was copied from the cosmwasm watcher. It sure it's still necessary. . .
-	c.SetReadLimit(524288)
+	c.SetReadLimit(cosmwasm.ReadLimitSize)
 
 	// Subscribe to smart contract transactions.
 	params := [...]string{fmt.Sprintf("tm.event='Tx' AND wasm._contract_address='%s'", w.contractAddress)}
@@ -312,7 +307,7 @@ func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn, errC chan
 				}
 				eventType := gjson.Get(event.String(), "type").String()
 				if eventType == "wasm" {
-					evt, err := parseIbcReceivePublishEvent(w.logger, w.contractAddress, event)
+					evt, err := parseIbcReceivePublishEvent(w.logger, w.contractAddress, event, txHash)
 					if err != nil {
 						w.logger.Error("failed to parse wasm event", zap.Error(err), zap.String("event", event.String()))
 						continue
@@ -432,7 +427,7 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, errC chan error
 				eventType := gjson.Get(event.String(), "type")
 				if eventType.String() == "wasm" {
 					w.logger.Debug("found wasm event in reobservation", zap.String("chain", ce.chainName), zap.Stringer("txHash", txHash))
-					evt, err := parseIbcReceivePublishEvent(w.logger, w.contractAddress, event)
+					evt, err := parseIbcReceivePublishEvent(w.logger, w.contractAddress, event, txHash)
 					if err != nil {
 						w.logger.Error("failed to parse wasm event", zap.String("chain", ce.chainName), zap.Error(err), zap.Any("event", event))
 						continue
@@ -450,7 +445,7 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, errC chan error
 }
 
 // parseIbcReceivePublishEvent parses a wasm event. If it is from the desired contract and for the desired action, it returns an event. Otherwise, it returns nil.
-func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, event gjson.Result) (*ibcReceivePublishEvent, error) {
+func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, event gjson.Result, txHash ethCommon.Hash) (*ibcReceivePublishEvent, error) {
 	var attributes WasmAttributes
 	err := attributes.Parse(logger, event)
 	if err != nil {
@@ -472,6 +467,8 @@ func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, eve
 	}
 
 	evt := new(ibcReceivePublishEvent)
+	evt.Msg = new(common.MessagePublication)
+	evt.Msg.TxHash = txHash
 
 	evt.ChannelID, err = attributes.GetAsString("channel_id")
 	if err != nil {
@@ -482,13 +479,13 @@ func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, eve
 	if err != nil {
 		return evt, err
 	}
-	evt.EmitterChain = vaa.ChainID(unumber)
+	evt.Msg.EmitterChain = vaa.ChainID(unumber)
 
 	str, err = attributes.GetAsString("message.sender")
 	if err != nil {
 		return evt, err
 	}
-	evt.EmitterAddress, err = vaa.StringToAddress(str)
+	evt.Msg.EmitterAddress, err = vaa.StringToAddress(str)
 	if err != nil {
 		return evt, fmt.Errorf("failed to parse message.sender attribute %s: %w", str, err)
 	}
@@ -497,25 +494,25 @@ func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, eve
 	if err != nil {
 		return evt, err
 	}
-	evt.Nonce = uint32(unumber)
+	evt.Msg.Nonce = uint32(unumber)
 
 	unumber, err = attributes.GetAsUint64("message.sequence", 64)
 	if err != nil {
 		return evt, err
 	}
-	evt.Sequence = unumber
+	evt.Msg.Sequence = unumber
 
 	snumber, err := attributes.GetAsInt64("message.block_time", 64)
 	if err != nil {
 		return evt, err
 	}
-	evt.Timestamp = time.Unix(snumber, 0)
+	evt.Msg.Timestamp = time.Unix(snumber, 0)
 
 	str, err = attributes.GetAsString("message.message")
 	if err != nil {
 		return evt, err
 	}
-	evt.Payload, err = hex.DecodeString(str)
+	evt.Msg.Payload, err = hex.DecodeString(str)
 	if err != nil {
 		return evt, fmt.Errorf("failed to parse message.message attribute %s: %w", str, err)
 	}
@@ -539,44 +536,33 @@ func (w *Watcher) processIbcReceivePublishEvent(txHash ethCommon.Hash, evt *ibcR
 		return
 	}
 
-	if evt.EmitterChain != ce.chainID {
+	if evt.Msg.EmitterChain != ce.chainID {
 		w.logger.Error(fmt.Sprintf("chain id mismatch in %s message", observationType),
 			zap.String("ibcConnectionID", connectionID),
 			zap.String("ibcChannelID", evt.ChannelID),
 			zap.Uint16("expectedChainID", uint16(ce.chainID)),
-			zap.Uint16("actualChainID", uint16(evt.EmitterChain)),
+			zap.Uint16("actualChainID", uint16(evt.Msg.EmitterChain)),
 			zap.Stringer("txHash", txHash),
-			zap.String("msgId", evt.msgId()),
+			zap.String("msgId", evt.Msg.MessageIDString()),
 		)
 		invalidChainIdMismatches.WithLabelValues(evt.ChannelID).Inc()
 		return
-	}
-
-	msg := &common.MessagePublication{
-		TxHash:           txHash,
-		Timestamp:        evt.Timestamp,
-		Nonce:            evt.Nonce,
-		Sequence:         evt.Sequence,
-		EmitterChain:     evt.EmitterChain,
-		EmitterAddress:   evt.EmitterAddress,
-		Payload:          evt.Payload,
-		ConsistencyLevel: 0,
 	}
 
 	w.logger.Info(fmt.Sprintf("%s message detected", observationType),
 		zap.String("ChannelID", evt.ChannelID),
 		zap.String("ConnectionID", ce.connectionID),
 		zap.String("ChainName", ce.chainName),
-		zap.Stringer("TxHash", msg.TxHash),
-		zap.Stringer("EmitterChain", msg.EmitterChain),
-		zap.Stringer("EmitterAddress", msg.EmitterAddress),
-		zap.Uint64("Sequence", msg.Sequence),
-		zap.Uint32("Nonce", msg.Nonce),
-		zap.Stringer("Timestamp", msg.Timestamp),
-		zap.Uint8("ConsistencyLevel", msg.ConsistencyLevel),
+		zap.Stringer("TxHash", evt.Msg.TxHash),
+		zap.Stringer("EmitterChain", evt.Msg.EmitterChain),
+		zap.Stringer("EmitterAddress", evt.Msg.EmitterAddress),
+		zap.Uint64("Sequence", evt.Msg.Sequence),
+		zap.Uint32("Nonce", evt.Msg.Nonce),
+		zap.Stringer("Timestamp", evt.Msg.Timestamp),
+		zap.Uint8("ConsistencyLevel", evt.Msg.ConsistencyLevel),
 	)
 
-	ce.msgC <- msg
+	ce.msgC <- evt.Msg
 	messagesConfirmed.WithLabelValues(ce.chainName).Inc()
 }
 
@@ -745,9 +731,4 @@ func (w *Watcher) queryConnectionID(channelID string) (string, error) {
 
 	w.logger.Info("queried connection ID", zap.String("channelID", channelID), zap.String("connectionID", result.Channel.ConnectionHops[0]))
 	return result.Channel.ConnectionHops[0], nil
-}
-
-// msgId generates a message ID string for the specified IBC receive publish event.
-func (e ibcReceivePublishEvent) msgId() string {
-	return fmt.Sprintf("%v/%v/%v", uint16(e.EmitterChain), hex.EncodeToString(e.EmitterAddress[:]), e.Sequence)
 }

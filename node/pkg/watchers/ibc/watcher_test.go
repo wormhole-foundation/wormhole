@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"reflect"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -36,7 +38,10 @@ func TestParseIbcReceivePublishEvent(t *testing.T) {
 
 	contractAddress := "wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj"
 
-	evt, err := parseIbcReceivePublishEvent(logger, contractAddress, event)
+	txHash, err := vaa.StringToHash("82ea2536c5d1671830cb49120f94479e34b54596a8dd369fbc2666667a765f4b")
+	require.NoError(t, err)
+
+	evt, err := parseIbcReceivePublishEvent(logger, contractAddress, event, txHash)
 	require.NoError(t, err)
 	require.NotNil(t, evt)
 
@@ -47,15 +52,19 @@ func TestParseIbcReceivePublishEvent(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedResult := ibcReceivePublishEvent{
-		ChannelID:      "channel-0",
-		EmitterAddress: expectedSender,
-		EmitterChain:   vaa.ChainIDTerra2,
-		Nonce:          1,
-		Sequence:       2,
-		Timestamp:      time.Unix(1680099814, 0),
-		Payload:        expectedPayload,
+		ChannelID: "channel-0",
+		Msg: &common.MessagePublication{
+			TxHash:         txHash,
+			EmitterAddress: expectedSender,
+			EmitterChain:   vaa.ChainIDTerra2,
+			Nonce:          1,
+			Sequence:       2,
+			Timestamp:      time.Unix(1680099814, 0),
+			Payload:        expectedPayload,
+		},
 	}
-	assert.Equal(t, expectedResult, *evt)
+	// Use DeepEqual() because the response contains pointers.
+	assert.True(t, reflect.DeepEqual(expectedResult, *evt))
 }
 
 func TestParseEventForWrongContract(t *testing.T) {
@@ -79,7 +88,10 @@ func TestParseEventForWrongContract(t *testing.T) {
 
 	contractAddress := "someOtherContract"
 
-	_, err := parseIbcReceivePublishEvent(logger, contractAddress, event)
+	txHash, err := vaa.StringToHash("82ea2536c5d1671830cb49120f94479e34b54596a8dd369fbc2666667a765f4b")
+	require.NoError(t, err)
+
+	_, err = parseIbcReceivePublishEvent(logger, contractAddress, event, txHash)
 	assert.Error(t, err)
 }
 
@@ -104,7 +116,10 @@ func TestParseEventForWrongAction(t *testing.T) {
 
 	contractAddress := "wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj"
 
-	evt, err := parseIbcReceivePublishEvent(logger, contractAddress, event)
+	txHash, err := vaa.StringToHash("82ea2536c5d1671830cb49120f94479e34b54596a8dd369fbc2666667a765f4b")
+	require.NoError(t, err)
+
+	evt, err := parseIbcReceivePublishEvent(logger, contractAddress, event, txHash)
 	require.NoError(t, err)
 	assert.Nil(t, evt)
 }
@@ -130,7 +145,10 @@ func TestParseEventForNoContractSpecified(t *testing.T) {
 
 	contractAddress := "wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj"
 
-	_, err := parseIbcReceivePublishEvent(logger, contractAddress, event)
+	txHash, err := vaa.StringToHash("82ea2536c5d1671830cb49120f94479e34b54596a8dd369fbc2666667a765f4b")
+	require.NoError(t, err)
+
+	_, err = parseIbcReceivePublishEvent(logger, contractAddress, event, txHash)
 	assert.Error(t, err)
 }
 
@@ -155,7 +173,10 @@ func TestParseEventForNoActionSpecified(t *testing.T) {
 
 	contractAddress := "wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj"
 
-	evt, err := parseIbcReceivePublishEvent(logger, contractAddress, event)
+	txHash, err := vaa.StringToHash("82ea2536c5d1671830cb49120f94479e34b54596a8dd369fbc2666667a765f4b")
+	require.NoError(t, err)
+
+	evt, err := parseIbcReceivePublishEvent(logger, contractAddress, event, txHash)
 	require.NoError(t, err)
 	assert.Nil(t, evt)
 }
