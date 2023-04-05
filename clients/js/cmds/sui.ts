@@ -82,6 +82,61 @@ exports.builder = function (y: typeof yargs) {
       }
     )
     .command(
+      "init-example-message-app",
+      "Initialize example core message app",
+      (yargs) => {
+        return yargs
+          .option("network", NETWORK_OPTIONS)
+          .option("package-id", {
+            alias: "p",
+            describe: "Package ID/module address",
+            required: true,
+            type: "string",
+          })
+          .option("wormhole-state", {
+            alias: "w",
+            describe: "Wormhole state object ID",
+            required: true,
+            type: "string",
+          })
+          .option("rpc", RPC_OPTIONS);
+      },
+      async (argv) => {
+        const network = argv.network.toUpperCase();
+        assertNetwork(network);
+        const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
+        const packageId = argv["package-id"];
+        const wormholeStateObjectId = argv["wormhole-state"];
+
+        const provider = getProvider(network, rpc);
+        const signer = getSigner(provider, network);
+        const owner = await signer.getAddress();
+
+        console.log("Owner", owner);
+        console.log("Network", network);
+        console.log("Package ID", packageId);
+        console.log("Wormhole state object ID", wormholeStateObjectId);
+
+        const transactionBlock = new TransactionBlock();
+        transactionBlock.moveCall({
+          target: `${packageId}::sender::init_with_params`,
+          arguments: [transactionBlock.object(wormholeStateObjectId)],
+        });
+        const res = await executeTransactionBlock(
+          provider,
+          network,
+          transactionBlock
+        );
+        console.log(
+          "Example app state object ID",
+          res.objectChanges
+            .filter(isSuiCreateEvent)
+            .find((e) => e.objectType === `${packageId}::sender::State`)
+            .objectId
+        );
+      }
+    )
+    .command(
       "init-token-bridge",
       "Initialize token bridge contract",
       (yargs) => {
