@@ -113,7 +113,7 @@ func (gov *ChainGovernor) queryCoinGecko() error {
 	for queryIdx, query := range gov.coinGeckoQueries {
 		thisResult, err := gov.queryCoinGeckoChunk(query)
 		if err != nil {
-			gov.logger.Error("cgov: coin gecko query failed", zap.Int("queryIdx", queryIdx), zap.String("query", query), zap.Error(err))
+			gov.logger.Error("cgov: CoinGecko query failed", zap.Int("queryIdx", queryIdx), zap.String("query", query), zap.Error(err))
 			gov.revertAllPrices()
 			return err
 		}
@@ -144,7 +144,7 @@ func (gov *ChainGovernor) queryCoinGecko() error {
 				var ok bool
 				price, ok = m["usd"].(float64)
 				if !ok {
-					gov.logger.Error("cgov: failed to parse coin gecko response, reverting to configured price for this token", zap.String("coinGeckoId", coinGeckoId))
+					gov.logger.Error("cgov: failed to parse CoinGecko response, reverting to configured price for this token", zap.String("coinGeckoId", coinGeckoId))
 					// By continuing, we leave this one in the local map so the price will get reverted below.
 					continue
 				}
@@ -187,7 +187,7 @@ func (gov *ChainGovernor) queryCoinGecko() error {
 func (gov *ChainGovernor) queryCoinGeckoChunk(query string) (map[string]interface{}, error) {
 	var result map[string]interface{}
 
-	gov.logger.Debug("cgov: executing coin gecko query", zap.String("query", query))
+	gov.logger.Debug("cgov: executing CoinGecko query", zap.String("query", query))
 	response, err := http.Get(query) //nolint:gosec
 	if err != nil {
 		return result, fmt.Errorf("failed to query CoinGecko: %w", err)
@@ -196,7 +196,7 @@ func (gov *ChainGovernor) queryCoinGeckoChunk(query string) (map[string]interfac
 	defer func() {
 		err = response.Body.Close()
 		if err != nil {
-			gov.logger.Error("cgov: failed to close coin gecko query: %w", zap.Error(err))
+			gov.logger.Error("cgov: failed to close CoinGecko query: %w", zap.Error(err))
 		}
 	}()
 
@@ -207,11 +207,11 @@ func (gov *ChainGovernor) queryCoinGeckoChunk(query string) (map[string]interfac
 
 	resp := string(responseData)
 	if strings.Contains(resp, "error_code") {
-		return result, fmt.Errorf("coin gecko query failed: %s", resp)
+		return result, fmt.Errorf("CoinGecko query failed: %s", resp)
 	}
 
 	if err := json.Unmarshal(responseData, &result); err != nil {
-		return result, fmt.Errorf("failed to unmarshal coin gecko json: %w", err)
+		return result, fmt.Errorf("failed to unmarshal CoinGecko json: %w", err)
 	}
 
 	return result, nil
