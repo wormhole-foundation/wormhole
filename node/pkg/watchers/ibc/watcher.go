@@ -2,11 +2,13 @@ package ibc
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -32,22 +34,11 @@ import (
 )
 
 type (
-	// ConnectionConfig defines the list of chains to be monitored by IBC, along with their IBC connection ID.
-	ConnectionConfig []ConnectionConfigEntry
+	// ChainConfig is the list of chains to be monitored over IBC, along with their channel data.
+	ChainConfig []ChainConfigEntry
 
-	// ConnectionConfigEntry defines the entry for an IBC connection. Note that the json of this is used to set the -ibcConfig
-	// parameter in the json config, so be careful about changing this.
-	ConnectionConfigEntry struct {
-		// These are specified as json in the config.
-		ChainID vaa.ChainID
-		ConnID  string
-	}
-
-	// ChannelData defines the message channels associated with the corresponding entry in ConnectionConfig. It is in lock step with ConnectionConfig.
-	ChannelData []ChannelDataEntry
-
-	// ChannelDataEntry defines the message channels associated with the corresponding entry in ConnectionConfig.
-	ChannelDataEntry struct {
+	// ChainConfigEntry defines the entry for chain being monitored by IBC.
+	ChainConfigEntry struct {
 		ChainID  vaa.ChainID
 		MsgC     chan<- *common.MessagePublication
 		ObsvReqC <-chan *gossipv1.ObservationRequest
@@ -55,6 +46,12 @@ type (
 )
 
 var (
+	// Chains defines the list of chains to be monitored by IBC. Add new chains here as necessary.
+	Chains = []vaa.ChainID{vaa.ChainIDTerra2}
+
+	// Features is the feature string to be published in heartbeat messages. It will include all chains that are actually enabled on IBC.
+	Features = ""
+
 	connectionErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "ibc_connection_errors_total",
@@ -85,11 +82,8 @@ type (
 		contractAddress string
 		logger          *zap.Logger
 
-		// connectionConfig is the list of chains to be monitored, along with their IBC connection IDs.
-		connectionConfig ConnectionConfig
-
-		// channelData is kept in lock sync with connectionConfig and provides the internal message channels associated with each monitored chain.
-		channelData ChannelData
+		// chainConfig is the list of chains to be monitored, along with their channel data.
+		chainConfig ChainConfig
 
 		// channelMap provides access by IBC connection ID.
 		connectionMap map[string]*connectionEntry
@@ -115,63 +109,22 @@ type (
 	}
 )
 
-// ParseConfig parses the --ibcConfig parameter into a vector of configured chains. It also returns the feature string to be published in heartbeats.
-func ParseConfig(ibcConfig string) (ConnectionConfig, string, error) {
-	connections := make([]ConnectionConfigEntry, 0)
-	features := ""
-
-	if ibcConfig == "" {
-		// This is not an error if IBC is not enabled.
-		return connections, features, nil
-	}
-
-	// The config string is json formatted like this: `[{"ChainID":18,"ConnID":"connection-0"},{"ChainID":19,"ConnID":"connection-1"}]`
-	err := json.Unmarshal([]byte(ibcConfig), &connections)
-	if err != nil {
-		return connections, features, fmt.Errorf("failed to parse IBC config string: %s, error: %w", ibcConfig, err)
-	}
-
-	// Build the feature string.
-	for _, ch := range connections {
-		if features == "" {
-			features = "ibc:"
-		} else {
-			features += ","
-		}
-		features += fmt.Sprintf("%s:%s", ch.ChainID.String(), ch.ConnID)
-	}
-
-	return connections, features, nil
-}
-
 // NewWatcher creates a new IBC contract watcher
 func NewWatcher(
 	wsUrl string,
 	lcdUrl string,
 	contractAddress string,
-	ConnectionConfig ConnectionConfig,
-	channelData ChannelData,
+	chainConfig ChainConfig,
 ) *Watcher {
 	return &Watcher{
-		wsUrl:            wsUrl,
-		lcdUrl:           lcdUrl,
-		contractAddress:  contractAddress,
-		connectionConfig: ConnectionConfig,
-		channelData:      channelData,
-		connectionIdMap:  make(map[string]string),
-		connectionMap:    make(map[string]*connectionEntry),
-		chainMap:         make(map[vaa.ChainID]*connectionEntry),
+		wsUrl:           wsUrl,
+		lcdUrl:          lcdUrl,
+		contractAddress: contractAddress,
+		chainConfig:     chainConfig,
+		connectionIdMap: make(map[string]string),
+		connectionMap:   make(map[string]*connectionEntry),
+		chainMap:        make(map[vaa.ChainID]*connectionEntry),
 	}
-}
-
-// ConvertUrlToTendermint takes a URL and does the following conversions if necessary:
-// - Converts "ws://" to "http:".
-// - Strips "/websocket" off the end.
-func ConvertUrlToTendermint(input string) (string, error) {
-	input = strings.TrimPrefix(input, "ws://")
-	input = strings.TrimPrefix(input, "http://")
-	input = strings.TrimSuffix(input, "/websocket")
-	return "http://" + input, nil
 }
 
 // clientRequest is used to subscribe for events from the contract.
@@ -204,41 +157,58 @@ func (w *Watcher) Run(ctx context.Context) error {
 	errC := make(chan error)
 	defer close(errC)
 
+	// Query the contract for the chain ID to IBC connection ID mapping.
+	connectionIdMap, err := w.queryConnectionIdMap()
+	if err != nil {
+		return fmt.Errorf("failed to query for connection ID map: %w", err)
+	}
+
 	// Build our internal data structures based on the config passed in.
 	if len(w.connectionMap) == 0 {
-		for idx, chainToMonitor := range w.connectionConfig {
-			if w.channelData[idx].ChainID != chainToMonitor.ChainID {
-				panic("channelData is not in sync with chainToMonitor") // This would be a program bug!
-			}
-
-			_, exists := w.connectionMap[chainToMonitor.ConnID]
-			if exists {
-				return fmt.Errorf("detected duplicate IBC connection: %v", chainToMonitor.ConnID)
-			}
-
-			_, exists = w.chainMap[chainToMonitor.ChainID]
+		features := ""
+		for _, chainToMonitor := range w.chainConfig {
+			_, exists := w.chainMap[chainToMonitor.ChainID]
 			if exists {
 				return fmt.Errorf("detected duplicate chainID: %v", chainToMonitor.ChainID)
 			}
 
+			connID, exists := connectionIdMap[chainToMonitor.ChainID]
+			if !exists {
+				return fmt.Errorf("there is no IBC connection ID defined for chainID %v", chainToMonitor.ChainID)
+			}
+
 			ce := &connectionEntry{
-				connectionID: chainToMonitor.ConnID,
+				connectionID: connID,
 				chainID:      chainToMonitor.ChainID,
 				chainName:    vaa.ChainID(chainToMonitor.ChainID).String(),
 				readiness:    common.MustConvertChainIdToReadinessSyncing(chainToMonitor.ChainID),
-				msgC:         w.channelData[idx].MsgC,
-				obsvReqC:     w.channelData[idx].ObsvReqC,
+				msgC:         chainToMonitor.MsgC,
+				obsvReqC:     chainToMonitor.ObsvReqC,
 			}
 
 			w.logger.Info("will monitor chain over IBC", zap.String("chain", ce.chainName), zap.String("IBC connection", ce.connectionID))
 			w.connectionMap[ce.connectionID] = ce
 			w.chainMap[ce.chainID] = ce
 
+			if features == "" {
+				features = "ibc:"
+			} else {
+				features += "|"
+			}
+			features += ce.chainID.String()
+
 			p2p.DefaultRegistry.SetNetworkStats(ce.chainID, &gossipv1.Heartbeat_Network{ContractAddress: w.contractAddress})
 		}
+
+		Features = features
 	}
 
-	w.logger.Info("creating watcher", zap.String("wsUrl", w.wsUrl), zap.String("lcdUrl", w.lcdUrl), zap.String("contract", w.contractAddress))
+	w.logger.Info("creating watcher",
+		zap.String("wsUrl", w.wsUrl),
+		zap.String("lcdUrl", w.lcdUrl),
+		zap.String("contract", w.contractAddress),
+		zap.String("features", Features),
+	)
 
 	c, _, err := websocket.Dial(ctx, w.wsUrl, nil)
 	if err != nil {
@@ -610,6 +580,87 @@ func (w *Watcher) processIbcReceivePublishEvent(txHash ethCommon.Hash, evt *ibcR
 	messagesConfirmed.WithLabelValues(ce.chainName).Inc()
 }
 
+type ibcAllChainConnectionsQueryResults struct {
+	Data struct {
+		ChainConnections [][]interface{} `json:"chain_connections"`
+	}
+}
+
+/*
+This query:
+  `{"all_chain_connections":{}}` is `eyJhbGxfY2hhaW5fY29ubmVjdGlvbnMiOnt9fQ==`
+  which becomes:
+  http://localhost:1319/cosmwasm/wasm/v1/contract/wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj/smart/eyJhbGxfY2hhaW5fY29ubmVjdGlvbnMiOnt9fQ%3D%3D
+
+Returns something like this:
+{
+	"data": {
+		"chain_connections": [
+			[
+				"Y29ubmVjdGlvbi0w",
+				18
+			],
+			[
+				"Y29ubmVjdGlvbi00Mg==",
+				22
+			]
+		]
+	}
+}
+
+*/
+
+var connectionIdMapQuery = url.QueryEscape(base64.StdEncoding.EncodeToString([]byte(`{"all_chain_connections":{}}`)))
+
+// queryConnectionIdMap queries the contract for the set of chain IDs available on IBC and their corresponding IBC connections.
+func (w *Watcher) queryConnectionIdMap() (map[vaa.ChainID]string, error) {
+	connIdMap := make(map[vaa.ChainID]string)
+
+	client := &http.Client{
+		Timeout: time.Second * 5,
+	}
+
+	query := fmt.Sprintf(`%s/cosmwasm/wasm/v1/contract/%s/smart/%s`, w.lcdUrl, w.contractAddress, connectionIdMapQuery)
+	connResp, err := client.Get(query)
+	if err != nil {
+		w.logger.Error("channel map query failed", zap.String("query", query), zap.Error(err))
+		return connIdMap, fmt.Errorf("query failed: %w", err)
+	}
+	connBody, err := io.ReadAll(connResp.Body)
+	if err != nil {
+		return connIdMap, fmt.Errorf("read failed: %w", err)
+	}
+	connResp.Body.Close()
+
+	var result ibcAllChainConnectionsQueryResults
+	err = json.Unmarshal(connBody, &result)
+	if err != nil {
+		return connIdMap, fmt.Errorf("failed to unmarshal response: %s, error: %w", string(connBody), err)
+	}
+
+	if len(result.Data.ChainConnections) == 0 {
+		return connIdMap, fmt.Errorf("query did not return any data")
+	}
+
+	for idx, connData := range result.Data.ChainConnections {
+		if len(connData) != 2 {
+			return connIdMap, fmt.Errorf("connection map entry %d contains %d items when it should contain exactly two, json: %s", idx, len(connData), string(connBody))
+		}
+
+		connectionIdBytes, err := base64.StdEncoding.DecodeString(connData[0].(string))
+		if err != nil {
+			return connIdMap, fmt.Errorf("connection ID for entry %d is invalid base64: %s, err: %s", idx, connData[0], err)
+		}
+
+		connectionID := string(connectionIdBytes)
+		chainID := vaa.ChainID(connData[1].(float64))
+		connIdMap[chainID] = connectionID
+		w.logger.Debug("IBC connection ID mapping", zap.String("connectionID", connectionID), zap.Uint16("chainID", uint16(chainID)))
+	}
+
+	return connIdMap, nil
+}
+
 // getConnectionID returns the IBC connection ID associated with the given IBC channel. It uses a cache to avoid constantly
 // querying worm chain. This works because once an IBC channel is closed its ID will never be reused.
 func (w *Watcher) getConnectionID(channelID string) (string, error) {
@@ -666,7 +717,6 @@ Returns something like this:
 
 // getConnectionID queries the contract on wormchain to map a channel ID to a connection ID.
 func (w *Watcher) queryConnectionID(channelID string) (string, error) {
-	// TODO: cache the channelID -> connectionID mapping. This should be safe because once a channel is closed, that number can never be reused.
 	client := &http.Client{
 		Timeout: time.Second * 5,
 	}

@@ -148,8 +148,9 @@ var (
 	wormchainKeyPath       *string
 	wormchainKeyPassPhrase *string
 
+	ibcWS       *string
+	ibcLCD      *string
 	ibcContract *string
-	ibcConfig   *string
 
 	accountantContract     *string
 	accountantWS           *string
@@ -302,8 +303,9 @@ func init() {
 	wormchainKeyPath = NodeCmd.Flags().String("wormchainKeyPath", "", "path to wormhole-chain private key for signing transactions")
 	wormchainKeyPassPhrase = NodeCmd.Flags().String("wormchainKeyPassPhrase", "", "pass phrase used to unarmor the wormchain key file")
 
+	ibcWS = NodeCmd.Flags().String("ibcWS", "", "Websocket used to listen to the IBC receiver smart contract on wormchain")
+	ibcLCD = NodeCmd.Flags().String("ibcLCD", "", "Path to LCD service root for http calls")
 	ibcContract = NodeCmd.Flags().String("ibcContract", "", "Address of the IBC smart contract on wormchain")
-	ibcConfig = NodeCmd.Flags().String("ibcConfig", "", `List of IBC connections and their associated chain IDs like [{"ChainID":18,"ConnID":"connection-0"},{"ChainID":19,"ConnID":"connection-1"}]`)
 
 	accountantWS = NodeCmd.Flags().String("accountantWS", "", "Websocket used to listen to the accountant smart contract on wormchain")
 	accountantContract = NodeCmd.Flags().String("accountantContract", "", "Address of the accountant smart contract on wormchain")
@@ -1103,11 +1105,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	components := p2p.DefaultComponents()
 	components.Port = *p2pPort
 
-	ibcChainsToMonitor, ibcFeatures, err := ibc.ParseConfig(*ibcConfig)
-	if err != nil {
-		logger.Fatal("failed to parse IBC config", zap.Error(err))
-	}
-
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
 		if err := supervisor.Run(ctx, "p2p", p2p.Run(
@@ -1129,7 +1126,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			nil,
 			nil,
 			components,
-			ibcFeatures)); err != nil {
+			&ibc.Features)); err != nil {
 			return err
 		}
 
@@ -1446,41 +1443,46 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 
-		if shouldStart(ibcContract) {
-			if len(ibcChainsToMonitor) == 0 {
-				logger.Fatal("IBC is enabled but there are no chains configured, please set --ibcConfig")
+		if shouldStart(ibcWS) {
+			if *ibcLCD == "" {
+				logger.Fatal("If --ibcWS is specified, then --ibcLCD must be specified")
 			}
-			if *wormchainWS == "" {
-				logger.Fatal("If --ibcContract is specified, then --wormchainWS must be specified")
+			if *ibcContract == "" {
+				logger.Fatal("If --ibcWS is specified, then --ibcContract must be specified")
 			}
 
-			var channelData ibc.ChannelData
-			for _, ch := range ibcChainsToMonitor {
+			var chainConfig ibc.ChainConfig
+			for _, chainID := range ibc.Chains {
 				// Make sure the chain ID is valid.
-				if _, exists := chainMsgC[ch.ChainID]; !exists {
-					logger.Fatal("invalid chain ID specified in --ibcConfig.", zap.Uint16("chainID", uint16(ch.ChainID)))
+				if _, exists := chainMsgC[chainID]; !exists {
+					panic("invalid IBC chain ID")
 				}
 
 				// Make sure this chain isn't already configured.
-				if _, exists := chainObsvReqC[ch.ChainID]; exists {
-					logger.Fatal("May not configure chain using IBC since it is already registered.", zap.Stringer("chainID", ch.ChainID))
+				if _, exists := chainObsvReqC[chainID]; exists {
+					logger.Info("not monitoring chain with IBC because it is already registered.", zap.Stringer("chainID", chainID))
+					continue
 				}
 
-				chainObsvReqC[ch.ChainID] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-				common.MustRegisterReadinessSyncing(ch.ChainID)
+				chainObsvReqC[chainID] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
+				common.MustRegisterReadinessSyncing(chainID)
 
-				channelData = append(channelData, ibc.ChannelDataEntry{
-					ChainID:  ch.ChainID,
-					MsgC:     chainMsgC[ch.ChainID],
-					ObsvReqC: chainObsvReqC[ch.ChainID],
+				chainConfig = append(chainConfig, ibc.ChainConfigEntry{
+					ChainID:  chainID,
+					MsgC:     chainMsgC[chainID],
+					ObsvReqC: chainObsvReqC[chainID],
 				})
 			}
 
-			logger.Info("Starting IBC watcher", zap.String("features", ibcFeatures), zap.String("contract", *ibcContract))
-			readiness.RegisterComponent(common.ReadinessIBCSyncing)
-			if err := supervisor.Run(ctx, "ibcwatch",
-				ibc.NewWatcher(*wormchainWS, *wormchainLCD, *ibcContract, ibcChainsToMonitor, channelData).Run); err != nil {
-				return err
+			if len(chainConfig) > 0 {
+				logger.Info("Starting IBC watcher")
+				readiness.RegisterComponent(common.ReadinessIBCSyncing)
+				if err := supervisor.Run(ctx, "ibcwatch",
+					ibc.NewWatcher(*ibcWS, *ibcLCD, *ibcContract, chainConfig).Run); err != nil {
+					return err
+				}
+			} else {
+				logger.Error("Although IBC is enabled, there are no chains for it to monitor")
 			}
 		}
 

@@ -1,6 +1,7 @@
 package ibc
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"testing"
@@ -159,35 +160,6 @@ func TestParseEventForNoActionSpecified(t *testing.T) {
 	assert.Nil(t, evt)
 }
 
-func TestParseChannelConfig(t *testing.T) {
-	var channels1 = []ConnectionConfigEntry{ConnectionConfigEntry{ChainID: vaa.ChainIDTerra2, ConnID: "connection-0"}, ConnectionConfigEntry{ChainID: vaa.ChainIDInjective, ConnID: "connection-1"}}
-	_, err := json.Marshal(channels1)
-	require.NoError(t, err)
-
-	channelsJson := []byte(`[{"ChainID":18,"ConnID":"connection-0"},{"ChainID":19,"ConnID":"connection-1"}]`)
-
-	var channels2 []ConnectionConfigEntry
-	err = json.Unmarshal(channelsJson, &channels2)
-	require.NoError(t, err)
-	assert.Equal(t, channels1, channels2)
-}
-
-func TestParseConvertUrlToTendermint(t *testing.T) {
-	expectedResult := "http://wormchain:26657"
-
-	result, err := ConvertUrlToTendermint(expectedResult)
-	require.NoError(t, err)
-	assert.Equal(t, expectedResult, result)
-
-	result, err = ConvertUrlToTendermint("ws://wormchain:26657")
-	require.NoError(t, err)
-	assert.Equal(t, expectedResult, result)
-
-	result, err = ConvertUrlToTendermint("ws://wormchain:26657/websocket")
-	require.NoError(t, err)
-	assert.Equal(t, expectedResult, result)
-}
-
 func TestParseIbcChannelQueryResults(t *testing.T) {
 	connJson := []byte(`
 	{
@@ -247,4 +219,37 @@ func TestParseIbcChannelQueryResultsMultipleHops(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 2, len(result.Channel.ConnectionHops))
 	assert.Equal(t, "connection-0", result.Channel.ConnectionHops[0])
+}
+
+func TestParseIbcAllChainConnectionsQueryResults(t *testing.T) {
+	connJson := []byte(`
+	{
+		"data": {
+		  "chain_connections": [
+			[
+			  "Y29ubmVjdGlvbi0w",
+			  18
+			],
+			[
+			  "Y29ubmVjdGlvbi00Mg==",
+			  22
+			]
+		  ]
+		}
+	}
+	`)
+
+	var result ibcAllChainConnectionsQueryResults
+	err := json.Unmarshal(connJson, &result)
+	require.NoError(t, err)
+
+	expectedConnStr1 := base64.StdEncoding.EncodeToString([]byte("connection-0"))
+	expectedConnStr2 := base64.StdEncoding.EncodeToString([]byte("connection-42"))
+
+	require.Equal(t, 2, len(result.Data.ChainConnections))
+	require.Equal(t, 2, len(result.Data.ChainConnections[0]))
+	assert.Equal(t, expectedConnStr1, result.Data.ChainConnections[0][0].(string))
+	assert.Equal(t, uint16(18), uint16(result.Data.ChainConnections[0][1].(float64)))
+	assert.Equal(t, expectedConnStr2, result.Data.ChainConnections[1][0].(string))
+	assert.Equal(t, uint16(22), uint16(result.Data.ChainConnections[1][1].(float64)))
 }
