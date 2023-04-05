@@ -301,32 +301,18 @@ exports.builder = function (y: typeof yargs) {
         const wormholeStateObjectId = argv["wormhole-state"];
         const message = argv["message"];
 
-        const provider = getProvider(network, rpc);
-        const signer = getSigner(provider, network);
-        const owner = await signer.getAddress();
-
-        // WH message fee is 0 for devnet
-        // TODO(aki): Read from on-chain state since it can technically change
-        const feeAmount = BigInt(0);
-
-        // Get fee
-        const transactionBlock = new TransactionBlock();
-        const [feeCoin] = transactionBlock.splitCoins(transactionBlock.gas, [
-          transactionBlock.pure(feeAmount),
-        ]);
-
         // Publish message
+        const transactionBlock = new TransactionBlock();
         transactionBlock.moveCall({
           target: `${packageId}::sender::send_message_entry`,
           arguments: [
             transactionBlock.object(stateObjectId),
             transactionBlock.object(wormholeStateObjectId),
             transactionBlock.pure(message),
-            feeCoin,
           ],
         });
         const res = await executeTransactionBlock(
-          provider,
+          getProvider(network, rpc),
           network,
           transactionBlock
         );
@@ -340,7 +326,10 @@ exports.builder = function (y: typeof yargs) {
             e.type.includes("publish_message::WormholeMessage")
         );
         if (!event) {
-          throw new Error("Publish failed");
+          throw new Error(
+            "Couldn't find publish event. Events: " +
+              JSON.stringify(res.events, null, 2)
+          );
         }
 
         console.log("Publish message succeeded:", {
