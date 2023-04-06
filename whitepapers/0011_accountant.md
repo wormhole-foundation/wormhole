@@ -83,13 +83,13 @@ pub enum WormholeQuery {
 
 When a guardian observes a token transfer message from the registered tokenbridge on a particular chain, it submits the observation directly to the accountant.  The contract keeps track of pending token transfers and emits an event once it has received a quorum of observations.  If a quorum of guardians submit their observations within a single tendermint block then the token transfer only needs to wait for one round of tendermint consensus and one round of guardian consensus.
 
-When a guardian submits an observation to the contract, the contract will perform several checks:
+When a guardian submits a transfer (observation) to the contract, the contract will perform several checks:
 
 - Check that the signature is valid and from a guardian in the current guardian set.
-- If a transfer with the same `(emitter_chain, emitter_address, sequence)` tuple has already been committed, then check that the digest of the observation matches the digest of the committed transfer.  If they match return a `Committed` status; otherwise return an `Error` status and emit an `Error` event.
-- If the transfer has not been committed, mark the observation as having a signature from the guardian.
-- If the observation does not yet have a quorum of signatures, return a `Pending` status.
-- If the observation has a quorum of signatures, parse the tokenbridge payload and commit the transfer.
+- If the transfer does not yet have a quorum of signatures, return a `Pending` status.
+- If a transfer with the same `(emitter_chain, emitter_address, sequence)` tuple has already been committed, then check that the digest of the transfer matches the digest of the committed transfer.  If they match return a `Committed` status; otherwise return an `Error` status and emit an `Error` event.
+- If the transfer has not been committed, mark the transfer as having a signature from the guardian.
+- If the transfer has a quorum of signatures, parse the tokenbridge payload and commit the transfer.
 - If committing the transfer fails (for example, if one of the accounts does not have a sufficient balance), return an `Error` status and emit an `Error` event.  Otherwise return a `Committed` status and emit a `Committed` event.
 
 If the guardian receives a `Committed` status for a transfer then it can immediately proceed to signing the VAA.  If it receives an `Error` status, then it should halt further processing of the transfer (see the [Handling Rejections](#handling-rejections) section for more details).  If it receives a `Pending` status, then it should add the observation to a local database of pending transfers and wait for an event from the accountant.
