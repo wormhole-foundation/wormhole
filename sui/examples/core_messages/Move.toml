@@ -1,5 +1,5 @@
 [package]
-name = "core_messages"
+name = "CoreMessages"
 version = "1.0.0"
 
 [dependencies.Sui]
@@ -18,4 +18,4 @@ local = "../../wormhole"
 
 [dev-addresses]
 wormhole = "0x100"
-core_messages = "0x200"
+core_messages = "0x169"
