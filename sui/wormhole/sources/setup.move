@@ -4,11 +4,16 @@
 /// initialize `State` as a shared object.
 module wormhole::setup {
     use sui::object::{Self, UID};
-    use sui::package::{UpgradeCap};
+    use sui::package::{Self, UpgradeCap};
     use sui::transfer::{Self};
     use sui::tx_context::{Self, TxContext};
 
     use wormhole::state::{Self};
+
+    /// `UpgradeCap` is not as expected when initializing `State`.
+    const E_INVALID_UPGRADE_CAP: u64 = 0;
+    /// Build version for setup must only be `1`.
+    const E_INVALID_BUILD_VERSION: u64 = 1;
 
     /// Capability created at `init`, which will be destroyed once
     /// `init_and_share_state` is called. This ensures only the deployer can
@@ -50,6 +55,15 @@ module wormhole::setup {
         message_fee: u64,
         ctx: &mut TxContext
     ) {
+        let version = wormhole::version_control::version();
+        assert!(version == 1, E_INVALID_BUILD_VERSION);
+
+        assert_package_upgrade_cap<DeployerCap>(
+            &upgrade_cap,
+            package::compatible_policy(),
+            version
+        );
+
         // Destroy deployer cap.
         let DeployerCap { id } = deployer;
         object::delete(id);
@@ -65,6 +79,36 @@ module wormhole::setup {
                 message_fee,
                 ctx
             )
+        );
+    }
+
+    /// Convenience method that can be used with any package that requires
+    /// `UpgradeCap` to have certain preconditions before it is considered
+    /// belonging to `T` object's package.
+    public fun assert_package_upgrade_cap<T>(
+        cap: &UpgradeCap,
+        expected_policy: u8,
+        expected_version: u64
+    ) {
+        let expected_package =
+            sui::address::from_bytes(
+                sui::hex::decode(
+                    std::ascii::into_bytes(
+                        std::type_name::get_address(
+                            &std::type_name::get<T>()
+                        )
+                    )
+                )
+            );
+        let cap_package =
+            object::id_to_address(&package::upgrade_package(cap));
+        assert!(
+            (
+                cap_package == expected_package &&
+                package::upgrade_policy(cap) == expected_policy &&
+                package::version(cap) == expected_version
+            ),
+            E_INVALID_UPGRADE_CAP
         );
     }
 }
@@ -235,6 +279,58 @@ module wormhole::setup_tests {
 
         // If we found the deployer cap, `found` will have the ID.
         assert!(!option::is_none(&found), 0);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = setup::E_INVALID_UPGRADE_CAP)]
+    public fun test_cannot_complete_invalid_upgrade_cap() {
+        let deployer = person();
+        let my_scenario = test_scenario::begin(deployer);
+        let scenario = &mut my_scenario;
+
+        // Initialize Wormhole smart contract.
+        setup::init_test_only(test_scenario::ctx(scenario));
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, deployer);
+
+        let governance_chain = 1234;
+        let governance_contract =
+            x"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+        let initial_guardians =
+            vector[x"1337133713371337133713371337133713371337"];
+        let guardian_set_seconds_to_live = 5678;
+        let message_fee = 350;
+
+        // Take the `DeployerCap` and move it to `init_and_share_state`.
+        let deployer_cap =
+            test_scenario::take_from_address<DeployerCap>(
+                scenario,
+                deployer
+            );
+
+        // This will be created and sent to the transaction sender automatically
+        // when the contract is published. This exists in place of grabbing
+        // it from the sender.
+        let upgrade_cap =
+            package::test_publish(
+                object::id_from_address(@0xbadc0de),
+                test_scenario::ctx(scenario)
+            );
+
+        setup::complete(
+            deployer_cap,
+            upgrade_cap,
+            governance_chain,
+            governance_contract,
+            initial_guardians,
+            guardian_set_seconds_to_live,
+            message_fee,
+            test_scenario::ctx(scenario)
+        );
 
         // Done.
         test_scenario::end(my_scenario);
