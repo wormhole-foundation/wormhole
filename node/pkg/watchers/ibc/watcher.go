@@ -444,7 +444,9 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, errC chan error
 	}
 }
 
-// parseIbcReceivePublishEvent parses a wasm event. If it is from the desired contract and for the desired action, it returns an event. Otherwise, it returns nil.
+// parseIbcReceivePublishEvent parses a wasm event into an object. Since the watcher only subscribes to events from a single contract, this function returns an error
+// if the contract does not match the desired one. However, since the contract publishes multiple action types, this function returns nil rather than an error
+// if the event is not for the desired action.
 func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, event gjson.Result, txHash ethCommon.Hash) (*ibcReceivePublishEvent, error) {
 	var attributes WasmAttributes
 	err := attributes.Parse(logger, event)
@@ -600,8 +602,6 @@ var connectionIdMapQuery = url.QueryEscape(base64.StdEncoding.EncodeToString([]b
 
 // queryConnectionIdMap queries the contract for the set of chain IDs available on IBC and their corresponding IBC connections.
 func (w *Watcher) queryConnectionIdMap() (map[vaa.ChainID]string, error) {
-	connIdMap := make(map[vaa.ChainID]string)
-
 	client := &http.Client{
 		Timeout: time.Second * 5,
 	}
@@ -610,32 +610,33 @@ func (w *Watcher) queryConnectionIdMap() (map[vaa.ChainID]string, error) {
 	connResp, err := client.Get(query)
 	if err != nil {
 		w.logger.Error("channel map query failed", zap.String("query", query), zap.Error(err))
-		return connIdMap, fmt.Errorf("query failed: %w", err)
+		return nil, fmt.Errorf("query failed: %w", err)
 	}
 	connBody, err := io.ReadAll(connResp.Body)
 	if err != nil {
-		return connIdMap, fmt.Errorf("read failed: %w", err)
+		return nil, fmt.Errorf("read failed: %w", err)
 	}
 	connResp.Body.Close()
 
 	var result ibcAllChainConnectionsQueryResults
 	err = json.Unmarshal(connBody, &result)
 	if err != nil {
-		return connIdMap, fmt.Errorf("failed to unmarshal response: %s, error: %w", string(connBody), err)
+		return nil, fmt.Errorf("failed to unmarshal response: %s, error: %w", string(connBody), err)
 	}
 
 	if len(result.Data.ChainConnections) == 0 {
-		return connIdMap, fmt.Errorf("query did not return any data")
+		return nil, fmt.Errorf("query did not return any data")
 	}
 
+	connIdMap := make(map[vaa.ChainID]string)
 	for idx, connData := range result.Data.ChainConnections {
 		if len(connData) != 2 {
-			return connIdMap, fmt.Errorf("connection map entry %d contains %d items when it should contain exactly two, json: %s", idx, len(connData), string(connBody))
+			return nil, fmt.Errorf("connection map entry %d contains %d items when it should contain exactly two, json: %s", idx, len(connData), string(connBody))
 		}
 
 		connectionIdBytes, err := base64.StdEncoding.DecodeString(connData[0].(string))
 		if err != nil {
-			return connIdMap, fmt.Errorf("connection ID for entry %d is invalid base64: %s, err: %s", idx, connData[0], err)
+			return nil, fmt.Errorf("connection ID for entry %d is invalid base64: %s, err: %s", idx, connData[0], err)
 		}
 
 		connectionID := string(connectionIdBytes)
