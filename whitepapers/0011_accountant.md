@@ -86,9 +86,8 @@ When a guardian observes a token transfer message from the registered tokenbridg
 When a guardian submits a transfer (observation) to the contract, the contract will perform several checks:
 
 - Check that the signature is valid and from a guardian in the current guardian set.
-- If the transfer does not yet have a quorum of signatures, return a `Pending` status.
+- If the transfer does not yet have a quorum of signatures, return a `Pending` status and mark the transfer as having a signature from the guardian.
 - If a transfer with the same `(emitter_chain, emitter_address, sequence)` tuple has already been committed, then check that the digest of the transfer matches the digest of the committed transfer.  If they match return a `Committed` status; otherwise return an `Error` status and emit an `Error` event.
-- If the transfer has not been committed, mark the transfer as having a signature from the guardian.
 - If the transfer has a quorum of signatures, parse the tokenbridge payload and commit the transfer.
 - If committing the transfer fails (for example, if one of the accounts does not have a sufficient balance), return an `Error` status and emit an `Error` event.  Otherwise return a `Committed` status and emit a `Committed` event.
 
