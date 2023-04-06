@@ -44,6 +44,7 @@ The Guardian picks up the messages emitted from the integrity-checker on wormcha
 ### Pre-Observations
 
 Pre-observations are essentially like observations, i.e. a Wormhole message signed by a single guardian, but they can be distinguished by their signature format and prefix. They follow the same signature format as signed gossip messages described in 0009_guardian_key.md with a unique signature prefix.
+Signed pre-observations therefore cannot be used like signed observations to create a VAA.
 
 ### Batching
 
