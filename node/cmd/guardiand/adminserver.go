@@ -879,6 +879,7 @@ func (s *nodePrivilegedService) DumpRPCs(ctx context.Context, req *nodev1.DumpRP
 	rpcMap["polygonRPC"] = *polygonRPC
 	rpcMap["pythnetRPC"] = *pythnetRPC
 	rpcMap["pythnetWS"] = *pythnetWS
+	rpcMap["sei"] = "IBC"
 	if s.testnetMode {
 		rpcMap["sepoliaRPC"] = *sepoliaRPC
 	}

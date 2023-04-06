@@ -29,6 +29,7 @@ export const CHAINS = {
   xpla: 28,
   btc: 29,
   base: 30,
+  sei: 32,
   wormchain: 3104,
   sepolia: 10002,
 } as const;
@@ -66,7 +67,7 @@ export type EVMChainName =
  */
 export type SolanaChainName = "solana" | "pythnet";
 
-export type CosmWasmChainName = "terra" | "terra2" | "injective" | "xpla";
+export type CosmWasmChainName = "terra" | "terra2" | "injective" | "xpla" | "sei";
 export type TerraChainName = "terra" | "terra2";
 
 export type Contracts = {
@@ -232,6 +233,11 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   base: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
+  sei: {
     core: undefined,
     token_bridge: undefined,
     nft_bridge: undefined,
@@ -402,6 +408,11 @@ const TESTNET = {
     token_bridge: "0xA31aa3FDb7aF7Db93d18DDA4e19F811342EDF780",
     nft_bridge: "0xF681d1cc5F25a3694E348e7975d7564Aa581db59",
   },
+  sei: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   wormchain: {
     core: undefined,
     token_bridge: undefined,
@@ -568,6 +579,11 @@ const DEVNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
+  sei: {
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
+  },
   wormchain: {
     core: "wormhole1ap5vgur5zlgys8whugfegnn43emka567dtq0jl",
     token_bridge: "wormhole1zugu6cajc4z7ue29g9wnes9a5ep9cs7yu7rn3z",
@@ -648,6 +664,7 @@ export const CHAIN_ID_PYTHNET = CHAINS["pythnet"];
 export const CHAIN_ID_XPLA = CHAINS["xpla"];
 export const CHAIN_ID_BTC = CHAINS["btc"];
 export const CHAIN_ID_BASE = CHAINS["base"];
+export const CHAIN_ID_SEI = CHAINS["sei"];
 export const CHAIN_ID_WORMCHAIN = CHAINS["wormchain"];
 export const CHAIN_ID_SEPOLIA = CHAINS["sepolia"];
 
