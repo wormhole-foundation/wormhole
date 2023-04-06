@@ -16,6 +16,7 @@ COPY scripts/ scripts
 COPY wormhole/ wormhole
 COPY token_bridge/ token_bridge
 COPY testing/ testing
+COPY examples/ examples
 COPY Makefile Makefile
 
 FROM sui AS tests
