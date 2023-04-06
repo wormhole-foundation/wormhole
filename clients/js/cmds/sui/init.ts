@@ -118,14 +118,22 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           provider,
           owner,
           packageId,
-          "state",
+          "setup",
           "DeployerCap"
+        );
+        const upgradeCapObjectId = await getOwnedObjectId(
+          provider,
+          owner,
+          "0x2",
+          "package",
+          "UpgradeCap"
         );
 
         console.log("Owner", owner);
         console.log("Network", network);
         console.log("Package ID", packageId);
-        console.log("Deployer object ID", deployerCapObjectId);
+        console.log("Deployer cap object ID", deployerCapObjectId);
+        console.log("Upgrade cap object ID", upgradeCapObjectId);
         console.log("Wormhole state object ID", wormholeStateObjectId);
 
         if (!deployerCapObjectId) {
@@ -134,15 +142,23 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           );
         }
 
+        if (!upgradeCapObjectId) {
+          throw new Error(
+            `Wormhole cannot be initialized because upgrade capability cannot be found under ${owner}. Is the package published?`
+          );
+        }
+
         const transactionBlock = new TransactionBlock();
         transactionBlock.moveCall({
-          target: `${packageId}::state::init_and_share_state`,
+          target: `${packageId}::setup::complete`,
           arguments: [
-            transactionBlock.object(deployerCapObjectId),
             transactionBlock.object(wormholeStateObjectId),
+            transactionBlock.object(deployerCapObjectId),
+            transactionBlock.object(upgradeCapObjectId),
           ],
         });
         const res = await executeTransactionBlock(signer, transactionBlock);
+
         console.log(
           "Token bridge state object ID",
           res.objectChanges
@@ -203,8 +219,8 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
 
         const provider = getProvider(network, rpc);
         const signer = getSigner(provider, network, privateKey);
-        console.log("test", provider, signer, network);
         const owner = await signer.getAddress();
+
         const deployerCapObjectId = await getOwnedObjectId(
           provider,
           owner,
@@ -243,14 +259,14 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
 
         const transactionBlock = new TransactionBlock();
         transactionBlock.moveCall({
-          target: `${packageId}::setup::init_and_share_state`,
+          target: `${packageId}::setup::complete`,
           arguments: [
             transactionBlock.object(deployerCapObjectId),
             transactionBlock.object(upgradeCapObjectId),
             transactionBlock.pure(governanceChainId),
             transactionBlock.pure([...Buffer.from(governanceContract, "hex")]),
             transactionBlock.pure([[...Buffer.from(initialGuardian, "hex")]]),
-            transactionBlock.pure(365), // Guardian set TTL in epochs
+            transactionBlock.pure(365 * 24 * 60 * 60), // Guardian set TTL in seconds
             transactionBlock.pure("0"), // Message fee
           ],
         });
