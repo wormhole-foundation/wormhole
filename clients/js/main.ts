@@ -28,4 +28,7 @@ if (isOutdated()) {
   );
 }
 
-yargs(hideBin(process.argv)).commandDir("cmds").strict().demandCommand().argv;
+yargs(hideBin(process.argv))
+  .commandDir("cmds", { recurse: true })
+  .strict()
+  .demandCommand().argv;
