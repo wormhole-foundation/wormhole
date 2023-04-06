@@ -30,15 +30,15 @@ echo -e "[1/4] Publishing core bridge contracts..."
 WORMHOLE_PUBLISH_OUTPUT=$(worm sui deploy $(realpath "$DIRNAME"/../wormhole) -n "$NETWORK")
 echo "$WORMHOLE_PUBLISH_OUTPUT"
 
-echo -e "\n[2/4] Publishing token bridge contracts..."
-TOKEN_BRIDGE_PUBLISH_OUTPUT=$(worm sui deploy $(realpath "$DIRNAME"/../token_bridge) -n "$NETWORK")
-echo "$TOKEN_BRIDGE_PUBLISH_OUTPUT"
-
-echo -e "\n[3/4] Initializing core bridge..."
+echo -e "\n[2/4] Initializing core bridge..."
 WORMHOLE_PACKAGE_ID=$(echo "$WORMHOLE_PUBLISH_OUTPUT" | grep -oP 'Published to +\K.*')
 WORMHOLE_INIT_OUTPUT=$(worm sui init-wormhole -n "$NETWORK" --initial-guardian "$GUARDIAN_ADDR" -p "$WORMHOLE_PACKAGE_ID")
 WORMHOLE_STATE_OBJECT_ID=$(echo "$WORMHOLE_INIT_OUTPUT" | grep -oP 'Wormhole state object ID +\K.*')
 echo "$WORMHOLE_INIT_OUTPUT"
+
+echo -e "\n[3/4] Publishing token bridge contracts..."
+TOKEN_BRIDGE_PUBLISH_OUTPUT=$(worm sui deploy $(realpath "$DIRNAME"/../token_bridge) -n "$NETWORK")
+echo "$TOKEN_BRIDGE_PUBLISH_OUTPUT"
 
 echo -e "\n[4/4] Initializing token bridge..."
 TOKEN_BRIDGE_PACKAGE_ID=$(echo "$TOKEN_BRIDGE_PUBLISH_OUTPUT" | grep -oP 'Published to +\K.*')

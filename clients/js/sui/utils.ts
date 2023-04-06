@@ -45,11 +45,48 @@ export const getOwnedObjectId = async (
   moduleName: string,
   structName: string
 ): Promise<string | null> => {
-  const res = await provider.getOwnedObjects({
-    owner,
-    filter: { StructType: `${packageId}::${moduleName}::${structName}` },
-  });
-  return res.data.length > 0 ? res.data[0].data.objectId : null;
+  const type = `${packageId}::${moduleName}::${structName}`;
+  const objects = (
+    await provider.getOwnedObjects({
+      owner,
+      filter: { StructType: type },
+      options: {
+        showContent: true,
+      },
+    })
+  ).data.filter((o) => o.data?.objectId);
+
+  // Structs such as UpgradeCaps have the same type and have another field we
+  // can use to differentiate them. We have to check this first as we could have
+  // only one UpgradeCap that belongs to a different package.
+  const filteredObjects = objects.filter(
+    (o) =>
+      o.data?.content?.dataType === "moveObject" &&
+      o.data?.content?.fields?.package === packageId
+  );
+  if (filteredObjects.length === 1) {
+    // We've found the object we're looking for
+    return filteredObjects[0].data?.objectId;
+  } else if (filteredObjects.length > 1) {
+    const objectsStr = JSON.stringify(filteredObjects, null, 2);
+    throw new Error(
+      `Found multiple objects owned by ${owner} of type ${type}. Objects: ${objectsStr}`
+    );
+  }
+
+  // Those properties aren't returned for other structs (as of Sui SDK ver.
+  // 0.30.0) and we can assume that if we've found a single object with the
+  // correct type, that's what we're looking for.
+  if (objects.length === 1) {
+    return objects[0].data?.objectId;
+  } else if (objects.length > 1) {
+    const objectsStr = JSON.stringify(objects, null, 2);
+    throw new Error(
+      `Found multiple objects owned by ${owner} of type ${type}. This may mean that we've received an unexpected response from the Sui RPC and \`worm\` logic needs to be updated to handle this. Objects: ${objectsStr}`
+    );
+  } else {
+    return null;
+  }
 };
 
 export const getProvider = (
