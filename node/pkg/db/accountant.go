@@ -65,7 +65,7 @@ func (d *Database) AcctGetData(logger *zap.Logger) ([]*common.MessagePublication
 				var pt common.MessagePublication
 				err := json.Unmarshal(val, &pt)
 				if err != nil {
-					logger.With(zap.String("component", "gacct")).Error("failed to unmarshal pending transfer for key", zap.String("key", string(key[:])), zap.Error(err))
+					logger.Error("failed to unmarshal pending transfer for key", zap.String("key", string(key[:])), zap.Error(err))
 					continue
 				}
 
