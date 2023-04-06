@@ -1,49 +1,54 @@
 /// A simple contracts that demonstrates how to send messages with wormhole.
 module core_messages::sender {
+    use sui::clock::{Clock};
     use sui::coin::{Self};
     use sui::object::{Self, UID};
     use sui::transfer::{Self};
     use sui::tx_context::{TxContext};
-
+    use wormhole::emitter::{Self, EmitterCap};
     use wormhole::state::{State as WormholeState};
 
     struct State has key, store {
         id: UID,
-        emitter_cap: wormhole::emitter::EmitterCap,
+        emitter_cap: EmitterCap,
     }
 
     /// Register ourselves as a wormhole emitter. This gives back an
     /// `EmitterCap` which will be required to send messages through
     /// wormhole.
     public entry fun init_with_params(
-        wormhole_state: &mut WormholeState,
+        wormhole_state: &WormholeState,
         ctx: &mut TxContext
     ) {
-        let state = State {
-            id: object::new(ctx),
-            emitter_cap: wormhole::state::new_emitter(wormhole_state, ctx)
-        };
-        transfer::share_object(state);
+        transfer::share_object(
+            State {
+                id: object::new(ctx),
+                emitter_cap: emitter::new(wormhole_state, ctx)
+            }
+        );
     }
 
     public entry fun send_message_entry(
         state: &mut State,
         wormhole_state: &mut WormholeState,
         payload: vector<u8>,
+        the_clock: &Clock,
         ctx: &mut TxContext
     ) {
         send_message(
             state,
             wormhole_state,
             payload,
+            the_clock,
             ctx
         );
     }
 
-    public entry fun send_message(
+    public fun send_message(
         state: &mut State,
         wormhole_state: &mut WormholeState,
         payload: vector<u8>,
+        the_clock: &Clock,
         ctx: &mut TxContext
     ): u64 {
         wormhole::publish_message::publish_message(
@@ -52,21 +57,20 @@ module core_messages::sender {
             0, // Set nonce to 0, intended for batch VAAs.
             payload,
             coin::zero(ctx),
+            the_clock
         )
     }
 }
 
 #[test_only]
 module core_messages::sender_test {
-    use sui::test_scenario::{
-        Self,
-        return_shared,
-        take_shared,
-    };
-
-    use wormhole::state::{State as WormholeState};
+    use sui::test_scenario::{Self};
     use wormhole::wormhole_scenario::{
+        return_clock,
+        return_state,
         set_up_wormhole,
+        take_clock,
+        take_state,
         two_people,
     };
 
@@ -83,27 +87,29 @@ module core_messages::sender_test {
         let scenario = &mut my_scenario;
 
         // Initialize Wormhole.
-        let wormhole_message_fee = 100000000;
+        let wormhole_message_fee = 0;
         set_up_wormhole(scenario, wormhole_message_fee);
 
         // Initialize sender module.
         test_scenario::next_tx(scenario, admin);
         {
-            let wormhole_state = take_shared<WormholeState>(scenario);
+            let wormhole_state = take_state(scenario);
             init_with_params(&mut wormhole_state, test_scenario::ctx(scenario));
-            return_shared<WormholeState>(wormhole_state);
+            return_state(wormhole_state);
         };
 
         // Send message as an ordinary user.
         test_scenario::next_tx(scenario, user);
         {
-            let state = take_shared<State>(scenario);
-            let wormhole_state = take_shared<WormholeState>(scenario);
+            let state = test_scenario::take_shared<State>(scenario);
+            let wormhole_state = take_state(scenario);
+            let the_clock = take_clock(scenario);
 
             let first_message_sequence = send_message(
                 &mut state,
                 &mut wormhole_state,
                 b"Hello",
+                &the_clock,
                 test_scenario::ctx(scenario)
             );
             assert!(first_message_sequence == 0, 0);
@@ -112,13 +118,15 @@ module core_messages::sender_test {
                 &mut state,
                 &mut wormhole_state,
                 b"World",
+                &the_clock,
                 test_scenario::ctx(scenario)
             );
             assert!(second_message_sequence == 1, 0);
 
             // Clean up.
-            return_shared<State>(state);
-            return_shared<WormholeState>(wormhole_state);
+            test_scenario::return_shared(state);
+            return_state(wormhole_state);
+            return_clock(the_clock);
         };
 
         // Check effects.
