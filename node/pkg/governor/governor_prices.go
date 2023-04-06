@@ -34,29 +34,16 @@ const tokensPerCoinGeckoQuery = 200
 
 // initCoinGecko builds the set of CoinGecko queries that will be used to update prices. It also starts a go routine to periodically do the queries.
 func (gov *ChainGovernor) initCoinGecko(ctx context.Context, run bool) error {
-	queryIdx := 0
-	tokenIdx := 0
-	ids := ""
-	first := true
-	for coinGeckoId := range gov.tokensByCoinGeckoId {
-		if tokenIdx%tokensPerCoinGeckoQuery == 0 && tokenIdx != 0 {
-			gov.createCoinGeckoQuery(queryIdx, ids)
-			ids = ""
-			first = true
-			queryIdx += 1
-		}
-		if first {
-			first = false
-		} else {
-			ids += ","
-		}
-
-		ids += coinGeckoId
-		tokenIdx += 1
+	// Create a slice of all the CoinGecko IDs so we can create the corresponding queries.
+	ids := make([]string, 0, len(gov.tokensByCoinGeckoId))
+	for id := range gov.tokensByCoinGeckoId {
+		ids = append(ids, id)
 	}
 
-	if ids != "" {
-		gov.createCoinGeckoQuery(queryIdx, ids)
+	// Create the set of queries, breaking the IDs into the appropriate size chunks.
+	gov.coinGeckoQueries = createCoinGeckoQueries(ids, tokensPerCoinGeckoQuery)
+	for queryIdx, query := range gov.coinGeckoQueries {
+		gov.logger.Info("cgov: coingecko query: ", zap.Int("queryIdx", queryIdx), zap.String("query", query))
 	}
 
 	if len(gov.coinGeckoQueries) == 0 {
@@ -73,15 +60,45 @@ func (gov *ChainGovernor) initCoinGecko(ctx context.Context, run bool) error {
 	return nil
 }
 
-// createCoinGeckoQuery creates a CoinGecko query for the specified set of tokens and adds it to the list.
-func (gov *ChainGovernor) createCoinGeckoQuery(queryIdx int, ids string) {
+// createCoinGeckoQueries creates the set of CoinGecko queries, breaking the set of IDs into the appropriate size chunks.
+func createCoinGeckoQueries(idList []string, tokensPerQuery int) []string {
+	var queries []string
+	queryIdx := 0
+	tokenIdx := 0
+	ids := ""
+	first := true
+	for _, coinGeckoId := range idList {
+		if tokenIdx%tokensPerQuery == 0 && tokenIdx != 0 {
+			queries = append(queries, createCoinGeckoQuery(ids))
+			ids = ""
+			first = true
+			queryIdx += 1
+		}
+		if first {
+			first = false
+		} else {
+			ids += ","
+		}
+
+		ids += coinGeckoId
+		tokenIdx += 1
+	}
+
+	if ids != "" {
+		queries = append(queries, createCoinGeckoQuery(ids))
+	}
+
+	return queries
+}
+
+// createCoinGeckoQuery creates a CoinGecko query for the specified set of IDs.
+func createCoinGeckoQuery(ids string) string {
 	params := url.Values{}
 	params.Add("ids", ids)
 	params.Add("vs_currencies", "usd")
 
 	query := "https://api.coingecko.com/api/v3/simple/price?" + params.Encode()
-	gov.logger.Info("cgov: coingecko query: ", zap.Int("queryIdx", queryIdx), zap.String("query", query))
-	gov.coinGeckoQueries = append(gov.coinGeckoQueries, query)
+	return query
 }
 
 // PriceQuery is the entry point for the routine that periodically queries CoinGecko for prices.
