@@ -44,8 +44,6 @@ module wormhole::state {
     const E_VAA_ALREADY_CONSUMED: u64 = 1;
     /// Build does not agree with expected upgrade.
     const E_BUILD_VERSION_MISMATCH: u64 = 2;
-    /// `UpgradeCap` is not as expected when initializing `State`.
-    const E_INVALID_UPGRADE_CAP: u64 = 3;
 
     /// Sui's chain ID is hard-coded to one value.
     const CHAIN_ID: u16 = 21;
@@ -103,21 +101,6 @@ module wormhole::state {
         message_fee: u64,
         ctx: &mut TxContext
     ): State {
-        // Verify that this `UpgradeCap` belongs to the Wormhole package and
-        // equals the build version defined in the `version_control` module.
-        //
-        // When the contract is first published and `State` is being created,
-        // this is expected to be `1`.
-        let package_id = package::upgrade_package(&upgrade_cap);
-        assert!(
-            (
-                package_id == object::id_from_address(@wormhole) &&
-                control::version() == 1 &&
-                package::version(&upgrade_cap) == control::version()
-            ),
-            E_INVALID_UPGRADE_CAP
-        );
-
         // We need at least one guardian.
         assert!(vector::length(&initial_guardians) > 0, E_ZERO_GUARDIANS);
 
