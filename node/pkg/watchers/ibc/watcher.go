@@ -50,7 +50,7 @@ var (
 	// Chains defines the list of chains to be monitored by IBC. Add new chains here as necessary.
 	Chains = []vaa.ChainID{vaa.ChainIDTerra2}
 
-	// Features is the feature string to be published in heartbeat messages. It will include all chains that are actually enabled on IBC.
+	// Features is the feature string to be published in the gossip heartbeat messages. It will include all chains that are actually enabled on IBC.
 	Features = ""
 
 	connectionErrors = promauto.NewCounterVec(
@@ -257,6 +257,9 @@ func (w *Watcher) Run(ctx context.Context) error {
 		})
 	}
 
+	// Signal to the supervisor that this runnable has finished initialization.
+	supervisor.Signal(ctx, supervisor.SignalHealthy)
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -271,13 +274,14 @@ func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn, errC chan
 		select {
 		case <-ctx.Done():
 			return nil
+		case err := <-errC:
+			return fmt.Errorf("handleEvents died: %w", err)
 		default:
 			_, message, err := c.Read(ctx)
 			if err != nil {
 				w.logger.Error("failed to read socket", zap.Error(err))
 				connectionErrors.WithLabelValues("channel_read_error").Inc()
-				errC <- fmt.Errorf("failed to read socket: %w", err)
-				return nil
+				return fmt.Errorf("failed to read socket: %w", err)
 			}
 
 			// Received a message from the blockchain.
@@ -337,6 +341,8 @@ func (w *Watcher) handleQueryBlockHeight(ctx context.Context, c *websocket.Conn,
 		select {
 		case <-ctx.Done():
 			return nil
+		case err := <-errC:
+			return fmt.Errorf("handleQueryBlockHeight died: %w", err)
 		case <-t.C:
 			resp, err := client.Get(fmt.Sprintf("%s/%s", w.lcdUrl, latestBlockURL))
 			if err != nil {
@@ -363,6 +369,8 @@ func (w *Watcher) handleQueryBlockHeight(ctx context.Context, c *websocket.Conn,
 
 				readiness.SetReady(ce.readiness)
 			}
+
+			readiness.SetReady(common.ReadinessIBCSyncing)
 		}
 	}
 }
@@ -374,6 +382,8 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, errC chan error
 		select {
 		case <-ctx.Done():
 			return nil
+		case err := <-errC:
+			return fmt.Errorf("handleObservationRequests died: %w", err)
 		case r := <-ce.obsvReqC:
 			if vaa.ChainID(r.ChainId) != ce.chainID {
 				panic("invalid chain ID")
@@ -477,7 +487,7 @@ func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, eve
 		return evt, err
 	}
 
-	unumber, err := attributes.GetAsUint64("message.chain_id", 16)
+	unumber, err := attributes.GetAsUint("message.chain_id", 16)
 	if err != nil {
 		return evt, err
 	}
@@ -492,19 +502,19 @@ func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, eve
 		return evt, fmt.Errorf("failed to parse message.sender attribute %s: %w", str, err)
 	}
 
-	unumber, err = attributes.GetAsUint64("message.nonce", 32)
+	unumber, err = attributes.GetAsUint("message.nonce", 32)
 	if err != nil {
 		return evt, err
 	}
 	evt.Msg.Nonce = uint32(unumber)
 
-	unumber, err = attributes.GetAsUint64("message.sequence", 64)
+	unumber, err = attributes.GetAsUint("message.sequence", 64)
 	if err != nil {
 		return evt, err
 	}
 	evt.Msg.Sequence = unumber
 
-	snumber, err := attributes.GetAsInt64("message.block_time", 64)
+	snumber, err := attributes.GetAsInt("message.block_time", 64)
 	if err != nil {
 		return evt, err
 	}

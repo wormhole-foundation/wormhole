@@ -16,7 +16,7 @@ type WasmAttributes struct {
 	m map[string]string
 }
 
-// GetAsBytes returns the attribute value as a string.
+// GetAsString returns the attribute value as a string.
 func (wa *WasmAttributes) GetAsString(key string) (string, error) {
 	value, exists := wa.m[key]
 	if !exists {
@@ -26,8 +26,8 @@ func (wa *WasmAttributes) GetAsString(key string) (string, error) {
 	return value, nil
 }
 
-// GetAsBytes returns the attribute value as an unsigned int. It also performs range checking.
-func (wa *WasmAttributes) GetAsUint64(key string, bitSize int) (uint64, error) {
+// GetAsUint returns the attribute value as an unsigned int. It also performs range checking.
+func (wa *WasmAttributes) GetAsUint(key string, bitSize int) (uint64, error) {
 	valueStr, exists := wa.m[key]
 	if !exists {
 		return 0, fmt.Errorf("attribute %s does not exist", key)
@@ -41,8 +41,8 @@ func (wa *WasmAttributes) GetAsUint64(key string, bitSize int) (uint64, error) {
 	return value, nil
 }
 
-// GetAsBytes returns the attribute value as a signed int. It also performs range checking.
-func (wa *WasmAttributes) GetAsInt64(key string, bitSize int) (int64, error) {
+// GetAsInt returns the attribute value as a signed int. It also performs range checking.
+func (wa *WasmAttributes) GetAsInt(key string, bitSize int) (int64, error) {
 	valueStr, exists := wa.m[key]
 	if !exists {
 		return 0, fmt.Errorf("attribute %s does not exist", key)
