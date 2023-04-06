@@ -40,7 +40,7 @@ The core of the problem is that the various L1s operate under different trust as
 
 ## Overview
 
-The `global-accountant` contract on wormchain acts as an Integrity Checker. This means that Guardians will submit pre-observations to it and only finalize their observations if the `global-accountant` gives the go-ahead.
+The `global-accountant` contract on wormchain acts as an Integrity Checker. This means that Guardians will submit [pre-observations](https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0010_integrity_checkers.md#pre-observations) to it and only finalize their observations if the `global-accountant` gives the go-ahead.
 
 `global-accountant`keeps track of the tokens locked and minted on each connected L1.
 
@@ -58,17 +58,16 @@ Since the global-accountant is a cosmwasm-based smart contract rather than a bui
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum WormholeQuery {
-    /// Verifies that `data` has been signed by a quorum of guardians from `guardian_set_index`.
+    /// Verifies that `vaa` has been signed by a quorum of guardians from valid guardian set.
     #[returns(Empty)]
-    VerifyQuorum {
-        data: Binary,
-        guardian_set_index: u32,
-        signatures: Vec<Signature>,
+    VerifyVaa {
+        vaa: Binary,
     },
 
-    /// Verifies that `data` has been signed by a guardian from `guardian_set_index`.
+    /// Verifies that `data` has been signed by a guardian from `guardian_set_index` using a correct `prefix`.
     #[returns(Empty)]
-    VerifySignature {
+    VerifyMessageSignature {
+        prefix: Binary,
         data: Binary,
         guardian_set_index: u32,
         signature: Signature,
@@ -93,16 +92,16 @@ When a guardian submits an observation to the contract, the contract will perfor
 - If the observation has a quorum of signatures, parse the tokenbridge payload and commit the transfer.
 - If committing the transfer fails (for example, if one of the accounts does not have a sufficient balance) then return an `Error` status and emit an `Error` event.  Otherwise return a `Committed` status and emit a `Committed` event.
 
-If the guardian receives a `Committed` status for a transfer then it can immediately proceed to signing the VAA.  If it receives an `Error` status, then it should halt further processing of the transfer (see the [Handling Rejections](https://www.notion.so/tbjump-copy-Accounting-v3-11572f647daf46f1a1e7d3ac80050ac0) section for more details).  If it receives a `Pending` status, then it should add the observation to a local database of pending transfers and wait for an event from the accountant.
+If the guardian receives a `Committed` status for a transfer then it can immediately proceed to signing the VAA.  If it receives an `Error` status, then it should halt further processing of the transfer (see the [Handling Rejections](#handling-rejections) section for more details).  If it receives a `Pending` status, then it should add the observation to a local database of pending transfers and wait for an event from the accountant.
 
 #### Observing Events from Wormhole Chain
 
-In addition to submitting observations to the accountant, each guardian must also set up a watcher to watch for transfers that complete asynchronously, which can happen when no observation has reached quorum for a particular `(emitter_chain, emitter_address, seuence)` tuple.
+Each guardian must set up a watcher for the accountant to watch for events emitted to signal a determination on a transfer.  An event for a particular transfer will be emitted only when there is a quorom of pre-observations.
 
 There are 2 types of events that the guardian must handle:
 
-- Transfer committed - This indicates that an observation has reached quorum and the transfer has been committed.  The guardian must independently verify the contents of the event and then sign the VAA if they match.  See [this section](https://www.notion.so/tbjump-copy-Accounting-v3-11572f647daf46f1a1e7d3ac80050ac0) for more details.
-- Error - This indicates that the accountant ran into an error while processing an observation.  The guardian should halt further processing of the transfer.  See the [Handling Rejections](https://www.notion.so/tbjump-copy-Accounting-v3-11572f647daf46f1a1e7d3ac80050ac0) section for more details
+- Transfer committed - This indicates that an observation has reached quorum and the transfer has been committed.  The guardian must verify the contents of the event and then sign the VAA if they match.  See [Threat Model](#threat-model) for more details.
+- Error - This indicates that the accountant ran into an error while processing an observation.  The guardian should halt further processing of the transfer.  See the [Handling Rejections](#handling-rejections) section for more details
 
 #### Handling stuck transfers
 
@@ -123,11 +122,14 @@ We will have the following accounts:
 - Accounts for native tokens on L1 chains ($SOL on solana, $ETH or $wETH on ethereum).  These are classified as assets because they represent actual tokens held by the smart contracts on the various chains.  All tokens that are not issued by the token bridge itself are considered native tokens, even if they are wrapped tokens issued by another bridge.  If the token is held by the bridge contract rather than burned, then it is an asset.  We’ll call these “custody accounts”.
 - Accounts for wrapped tokens (wrapped SOL on ethereum, wrapped ETH on solana).  These are classified as liabilities.  These tokens are not held by the smart contract and instead represent a liability for the bridge: if a user returns a wrapped token to the bridge, the bridge **must** be able to transfer the native token to that user on its native chain.  We’ll call these “wrapped accounts”.
 
-Each account is identified via a `(chain_id, token_chain, token_address)` tuple.  Custody accounts are those where `chain_id == token_chain`, while the rest are wrapped accounts.  Locking a native token or minting a wrapped token will increase the balance of the relevant account while unlocking a native token or burning a wrapped token will decrease the balance.  Transfers that would cause the balance of an account to become negative will be rejected.
+Locking a native token will increase the balance on both the custody account and a wrapped account on the destination chain.  Burning a wrapping token and subsequently unlocking it's native asset will decrease the balance on both the wrapped account and custody account. 
+Transfers that would cause the balance of an account to become negative will be rejected.
+
+Each account is identified via a `(chain_id, token_chain, token_address)` tuple.  Custody accounts are those where `chain_id == token_chain`, while the rest are wrapped accounts.  
 
 #### Governance
 
-The account balances recorded by the accountant  may end up becoming inaccurate due to bugs in the program or exploits of the token bridge.  In these cases, the guardians may issue governance actions to manually modify the balances of the accounts.  These governance actions must be signed by a quorum of guardians.
+The account balances recorded by the accountant may end up becoming inaccurate due to bugs in the program or exploits of the token bridge.  In these cases, the guardians may issue governance actions to manually modify the balances of the accounts.  These governance actions must be signed by a quorum of guardians.
 
 #### Examples
 
@@ -181,7 +183,7 @@ Since the Global Accountant is implemented as an Integrity Checker, it inherits 
 
 ### Susceptibility to wormchain downtime
 
-Once all token transfers become gated on approval from the accountant, the uptime of the guardian network for those transfers will become dependent on the uptime of wormchain itself.  Any downtime for wormchain would halt all token transfers until the network is back online (or 2/3 of the guardians choose to disable the accountant).
+Once all token transfers become gated on approval from the accountant, the uptime of the guardian network for those transfers will become dependent on the uptime of wormchain itself.  Any downtime for wormchain would halt all token transfers until the network is back online (or 2/3+ of the guardians choose to disable the accountant).
 
 In practice, cosmos chains are relatively stable and wormchain is not particularly complex.  However, once the accountant is live attacking wormchain will be a viable way to shut down token transfers for the entire bridge.
 
