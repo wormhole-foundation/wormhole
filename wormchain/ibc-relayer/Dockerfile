@@ -18,7 +18,7 @@ COPY ./wormchain/ibc-relayer/chains /chains
 RUN rly config init
 RUN rly chains add-dir /chains
 RUN rly keys restore localterra default "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius" --coin-type 330
-RUN rly keys restore wormchain default "barrel eager leaf heart runway bridge crowd warm refuse anxiety blur rain desert good hill prison dune oyster abuse owner bless trash talk wheat"
+RUN rly keys restore wormchain default "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius"
 RUN rly paths new localterra wormchain terra-wormchain
 
 EXPOSE 7597

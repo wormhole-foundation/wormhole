@@ -76,6 +76,7 @@ import (
 	ibcclient "github.com/cosmos/ibc-go/v4/modules/core/02-client"
 	ibcporttypes "github.com/cosmos/ibc-go/v4/modules/core/05-port/types"
 	ibchost "github.com/cosmos/ibc-go/v4/modules/core/24-host"
+	ibcante "github.com/cosmos/ibc-go/v4/modules/core/ante"
 	ibckeeper "github.com/cosmos/ibc-go/v4/modules/core/keeper"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cast"
@@ -420,7 +421,8 @@ func New(
 
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := ibcporttypes.NewRouter()
-	ibcRouter.AddRoute(ibctransfertypes.ModuleName, transferIBCModule)
+	ibcRouter.AddRoute(ibctransfertypes.ModuleName, transferIBCModule).
+		AddRoute(wasm.ModuleName, wasm.NewIBCHandler(app.wasmKeeper, app.IBCKeeper.ChannelKeeper, app.IBCKeeper.ChannelKeeper))
 	// this line is used by starport scaffolding # ibc/app/router
 	app.IBCKeeper.SetRouter(ibcRouter)
 
@@ -565,7 +567,7 @@ func New(
 	if err != nil {
 		panic(err)
 	}
-	wrappedAnteHandler := WrapAnteHandler(anteHandlerSdk, app.WormholeKeeper)
+	wrappedAnteHandler := WrapAnteHandler(anteHandlerSdk, app.WormholeKeeper, app.IBCKeeper)
 
 	app.SetAnteHandler(wrappedAnteHandler)
 	app.SetEndBlocker(app.EndBlocker)
@@ -584,17 +586,23 @@ func New(
 	return app
 }
 
-// Wrap the standard cosmos-sdk antehandlers with our wormhole allowlist antehandler.
-func WrapAnteHandler(originalHandler sdk.AnteHandler, wormKeeper wormholemodulekeeper.Keeper) sdk.AnteHandler {
+// Wrap the standard cosmos-sdk antehandlers with additional antehandlers:
+// - wormhole allowlist antehandler
+// - default ibc antehandler
+func WrapAnteHandler(originalHandler sdk.AnteHandler, wormKeeper wormholemodulekeeper.Keeper, ibcKeeper *ibckeeper.Keeper) sdk.AnteHandler {
 	whHandler := wormholemoduleante.NewWormholeAllowlistDecorator(wormKeeper)
+	ibcHandler := ibcante.NewAnteDecorator(ibcKeeper)
+	newHandlers := sdk.ChainAnteDecorators(whHandler, ibcHandler)
 	return func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
 		newCtx, err := originalHandler(ctx, tx, simulate)
 		if err != nil {
 			return newCtx, err
 		}
-		return whHandler.AnteHandle(newCtx, tx, simulate, func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
-			return ctx, nil
-		})
+		newCtx, err = newHandlers(newCtx, tx, simulate)
+		if err != nil {
+			return newCtx, err
+		}
+		return newCtx, err
 	}
 }
 
