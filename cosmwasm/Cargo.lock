@@ -1475,6 +1475,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "semver"
+version = "1.0.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bebd363326d05ec3e2f532ab7660680f3b02130d780c299bca73469d521bc0ed"
+
+[[package]]
 name = "serde"
 version = "1.0.147"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2136,6 +2142,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
+name = "wormchain-ibc-receiver"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "cw2",
+ "semver",
+ "serde_wormhole",
+ "thiserror",
+ "wormhole-bindings",
+ "wormhole-core",
+]
+
+[[package]]
 name = "wormhole-bindings"
 version = "0.1.0"
 dependencies = [
@@ -2176,6 +2198,22 @@ dependencies = [
  "serde_wormhole",
  "sha3 0.10.6",
  "thiserror",
+]
+
+[[package]]
+name = "wormhole-ibc"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "cw2",
+ "schemars",
+ "semver",
+ "serde",
+ "thiserror",
+ "wormhole-bridge-terra-2",
 ]
 
 [[package]]

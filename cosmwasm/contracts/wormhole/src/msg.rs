@@ -6,7 +6,7 @@ use crate::state::{GuardianAddress, GuardianSetInfo};
 
 type HumanAddr = String;
 
-/// The instantiation parameters of the token bridge contract. See
+/// The instantiation parameters of the core bridge contract. See
 /// [`crate::state::ConfigInfo`] for more details on what these fields mean.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct InstantiateMsg {
