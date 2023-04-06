@@ -4,12 +4,17 @@
 /// and initialize `State` as a shared object.
 module token_bridge::setup {
     use sui::object::{Self, UID};
-    use sui::package::{UpgradeCap};
+    use sui::package::{Self, UpgradeCap};
     use sui::transfer::{Self};
     use sui::tx_context::{Self, TxContext};
     use wormhole::state::{State as WormholeState};
 
     use token_bridge::state::{Self};
+
+    /// `UpgradeCap` is not as expected when initializing `State`.
+    const E_INVALID_UPGRADE_CAP: u64 = 0;
+    /// Build version for setup must only be `1`.
+    const E_INVALID_BUILD_VERSION: u64 = 1;
 
     /// Capability created at `init`, which will be destroyed once
     /// `init_and_share_state` is called. This ensures only the deployer can
@@ -50,6 +55,15 @@ module token_bridge::setup {
         upgrade_cap: UpgradeCap,
         ctx: &mut TxContext
     ) {
+        let version = token_bridge::version_control::version();
+        assert!(version == 1, E_INVALID_BUILD_VERSION);
+
+        wormhole::setup::assert_package_upgrade_cap<DeployerCap>(
+            &upgrade_cap,
+            package::compatible_policy(),
+            version
+        );
+
         // Destroy deployer cap.
         let DeployerCap { id } = deployer;
         object::delete(id);

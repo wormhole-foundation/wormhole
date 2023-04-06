@@ -38,8 +38,6 @@ module token_bridge::state {
     const E_VAA_ALREADY_CONSUMED: u64 = 4;
     /// Build does not agree with expected upgrade.
     const E_BUILD_VERSION_MISMATCH: u64 = 5;
-    /// `UpgradeCap` is not as expected when initializing `State`.
-    const E_INVALID_UPGRADE_CAP: u64 = 6;
 
     friend token_bridge::attest_token;
     friend token_bridge::complete_transfer;
@@ -88,21 +86,6 @@ module token_bridge::state {
         upgrade_cap: UpgradeCap,
         ctx: &mut TxContext
     ): State {
-        // Verify that this `UpgradeCap` belongs to the Token Bridge package and
-        // equals the build version defined in the `version_control` module.
-        //
-        // When the contract is first published and `State` is being created,
-        // this is expected to be `1`.
-        let package_id = package::upgrade_package(&upgrade_cap);
-        assert!(
-            (
-                package_id == object::id_from_address(@token_bridge) &&
-                control::version() == 1 &&
-                package::version(&upgrade_cap) == control::version()
-            ),
-            E_INVALID_UPGRADE_CAP
-        );
-
         let state = State {
             id: object::new(ctx),
             consumed_vaas: consumed_vaas::new(ctx),
