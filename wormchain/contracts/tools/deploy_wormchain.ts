@@ -8,7 +8,7 @@ import {
     VAA,
 } from "@certusone/wormhole-sdk";
 import { toBinary } from "@cosmjs/cosmwasm-stargate";
-import { fromBase64, toUtf8 } from "@cosmjs/encoding";
+import { fromBase64, toUtf8, fromBech32 } from "@cosmjs/encoding";
 import {
     getWallet,
     getWormchainSigningClient,
@@ -40,7 +40,10 @@ const readFileAsync = util.promisify(fs.readFile);
   deterministic.
 */
 type ContractName = string;
-const artifacts: ContractName[] = ["global_accountant.wasm"];
+const artifacts: ContractName[] = [
+  "global_accountant.wasm",
+  "wormchain_ibc_receiver.wasm"
+];
 
 const ARTIFACTS_PATH = "../artifacts/";
 /* Check that the artifact folder contains all the wasm files we expect and nothing else */
@@ -205,6 +208,8 @@ async function main() {
             ...ZERO_FEE,
             gas: "10000000",
         });
+        console.log("contract instantiation msg: ", msg);
+        console.log("contract instantiation result: ", result);
         const addr = JSON.parse(result.rawLog)[0]
             .events.find(({ type }) => type === "instantiate")
             .attributes.find(({ key }) => key === "_contract_address").value;
@@ -263,6 +268,14 @@ async function main() {
         gas: "10000000",
     });
     console.log(`sent accounting chain registrations, tx: `, res.transactionHash);
+
+    const wormchainIbcReceiverInstantiateMsg = {};
+    addresses["wormchain_ibc_receiver.wasm"] = await instantiate(
+      codeIds["wormchain_ibc_receiver.wasm"],
+      wormchainIbcReceiverInstantiateMsg,
+      "wormchainIbcReceiver"
+    );
+    console.log("instantiated wormchain ibc receiver contract: ", addresses["wormchain_ibc_receiver.wasm"]);
 }
 
 try {
