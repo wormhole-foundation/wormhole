@@ -1011,7 +1011,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			wormchainKeyPathName = fmt.Sprint(*wormchainKeyPath, idx)
 		}
 
-		logger.Debug("acct: loading key file", zap.String("key path", wormchainKeyPathName))
+		logger.Debug("loading key file", zap.String("key path", wormchainKeyPathName))
 		wormchainKey, err = wormconn.LoadWormchainPrivKey(wormchainKeyPathName, *wormchainKeyPassPhrase)
 		if err != nil {
 			logger.Fatal("failed to load wormchain private key", zap.Error(err))
@@ -1029,20 +1029,21 @@ func runNode(cmd *cobra.Command, args []string) {
 	// will be passed to it for processing. It will forward all token bridge transfers to the accountant contract.
 	// If accountantCheckEnabled is set to true, token bridge transfers will not be signed and published until they
 	// are approved by the accountant smart contract.
+	acctLogger := logger.With(zap.String("component", "gacct"))
 	acctReadC, acctWriteC := makeChannelPair[*common.MessagePublication](0)
 
 	var acct *accountant.Accountant
 	if *accountantContract != "" {
 		if *accountantWS == "" {
-			logger.Fatal("acct: if accountantContract is specified, accountantWS is required")
+			acctLogger.Fatal("if accountantContract is specified, accountantWS is required")
 		}
 		if wormchainConn == nil {
-			logger.Fatal("acct: if accountantContract is specified, the wormchain sending connection must be enabled")
+			acctLogger.Fatal("if accountantContract is specified, the wormchain sending connection must be enabled")
 		}
 		if *accountantCheckEnabled {
-			logger.Info("acct: accountant is enabled and will be enforced")
+			acctLogger.Info("accountant is enabled and will be enforced")
 		} else {
-			logger.Info("acct: accountant is enabled but will not be enforced")
+			acctLogger.Info("accountant is enabled but will not be enforced")
 		}
 		env := accountant.MainNetMode
 		if *testnetMode {
@@ -1065,7 +1066,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			env,
 		)
 	} else {
-		logger.Info("acct: accountant is disabled")
+		acctLogger.Info("accountant is disabled")
 	}
 
 	var gov *governor.ChainGovernor
@@ -1425,7 +1426,7 @@ func runNode(cmd *cobra.Command, args []string) {
 
 		if acct != nil {
 			if err := acct.Start(ctx); err != nil {
-				logger.Fatal("acct: failed to start accountant", zap.Error(err))
+				acctLogger.Fatal("failed to start accountant", zap.Error(err))
 			}
 		}
 
