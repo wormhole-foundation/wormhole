@@ -1,5 +1,5 @@
 [package]
-name = "core_messages"
+name = "CoreMessages"
 version = "1.0.0"
 
 [dependencies.Sui]
