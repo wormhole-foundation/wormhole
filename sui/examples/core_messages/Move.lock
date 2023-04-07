@@ -5,9 +5,6 @@ version = 0
 
 dependencies = [
   { name = "Sui" },
-]
-
-dev-dependencies = [
   { name = "Wormhole" },
 ]
 
