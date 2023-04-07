@@ -12,6 +12,7 @@ import {
   getOwnedObjectId,
   getProvider,
   getSigner,
+  getUpgradeCapObjectId,
   isSuiCreateEvent,
 } from "../../sui";
 import { assertNetwork } from "../../utils";
@@ -121,12 +122,10 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           "setup",
           "DeployerCap"
         );
-        const upgradeCapObjectId = await getOwnedObjectId(
+        const upgradeCapObjectId = await getUpgradeCapObjectId(
           provider,
           owner,
-          "0x2",
-          "package",
-          "UpgradeCap"
+          packageId
         );
 
         console.log("Owner", owner);
@@ -228,12 +227,10 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           "setup",
           "DeployerCap"
         );
-        const upgradeCapObjectId = await getOwnedObjectId(
+        const upgradeCapObjectId = await getUpgradeCapObjectId(
           provider,
           owner,
-          "0x2",
-          "package",
-          "UpgradeCap"
+          packageId
         );
 
         console.log("Network", network);
