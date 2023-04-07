@@ -78,6 +78,9 @@ pub struct GovernancePacket {
     pub action: Action,
 }
 
+// MODULE = "NFTBridge"
+pub const MODULE: [u8; 32] = *b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00NFTBridge";
+
 // The wire format for GovernancePackets is wonky and doesn't lend itself well to auto-deriving
 // Serialize / Deserialize so we implement it manually here.
 mod governance_packet_impl {
@@ -90,16 +93,9 @@ mod governance_packet_impl {
     };
 
     use crate::{
-        nft::{Action, GovernancePacket},
+        nft::{Action, GovernancePacket, MODULE},
         Address, Chain,
     };
-
-    // MODULE = "NFTBridge"
-    const MODULE: [u8; 32] = [
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4e, 0x46, 0x54, 0x42, 0x72, 0x69, 0x64,
-        0x67, 0x65,
-    ];
 
     struct Module;
 

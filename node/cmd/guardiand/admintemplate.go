@@ -31,6 +31,7 @@ var module *string
 var shutdownGuardianKey *string
 var shutdownPubKey *string
 
+var circleIntegrationChainID *string
 var circleIntegrationFinality *string
 var circleIntegrationForeignEmitterChainID *string
 var circleIntegrationForeignEmitterAddress *string
@@ -68,8 +69,12 @@ func init() {
 	AdminClientShutdownProofCmd.Flags().AddFlagSet(authProofFlagSet)
 	TemplateCmd.AddCommand(AdminClientShutdownProofCmd)
 
+	circleIntegrationChainIDFlagSet := pflag.NewFlagSet("circle-integ", pflag.ExitOnError)
+	circleIntegrationChainID = circleIntegrationChainIDFlagSet.String("chain-id", "", "Target chain ID")
+
 	circleIntegrationFinalityFlagSet := pflag.NewFlagSet("finality", pflag.ExitOnError)
 	circleIntegrationFinality = circleIntegrationFinalityFlagSet.String("finality", "", "Desired wormhole finality")
+	AdminClientCircleIntegrationUpdateWormholeFinalityCmd.Flags().AddFlagSet(circleIntegrationChainIDFlagSet)
 	AdminClientCircleIntegrationUpdateWormholeFinalityCmd.Flags().AddFlagSet(circleIntegrationFinalityFlagSet)
 	TemplateCmd.AddCommand(AdminClientCircleIntegrationUpdateWormholeFinalityCmd)
 
@@ -77,11 +82,13 @@ func init() {
 	circleIntegrationForeignEmitterChainID = circleIntegrationRegisterEmitterFlagSet.String("foreign-emitter-chain-id", "", "Foreign emitter chain ID")
 	circleIntegrationForeignEmitterAddress = circleIntegrationRegisterEmitterFlagSet.String("foreign-emitter-address", "", "Foreign emitter address (hex, base58 or bech32)")
 	circleIntegrationCircleDomain = circleIntegrationRegisterEmitterFlagSet.String("circle-domain", "", "Circle domain")
+	AdminClientCircleIntegrationRegisterEmitterAndDomainCmd.Flags().AddFlagSet(circleIntegrationChainIDFlagSet)
 	AdminClientCircleIntegrationRegisterEmitterAndDomainCmd.Flags().AddFlagSet(circleIntegrationRegisterEmitterFlagSet)
 	TemplateCmd.AddCommand(AdminClientCircleIntegrationRegisterEmitterAndDomainCmd)
 
 	circleIntegrationUpgradeContractImplementationFlagSet := pflag.NewFlagSet("upgrade", pflag.ExitOnError)
 	circleIntegrationNewImplementationAddress = circleIntegrationUpgradeContractImplementationFlagSet.String("new-implementation-address", "", "New implementation address (hex, base58 or bech32)")
+	AdminClientCircleIntegrationUpgradeContractImplementationCmd.Flags().AddFlagSet(circleIntegrationChainIDFlagSet)
 	AdminClientCircleIntegrationUpgradeContractImplementationCmd.Flags().AddFlagSet(circleIntegrationUpgradeContractImplementationFlagSet)
 	TemplateCmd.AddCommand(AdminClientCircleIntegrationUpgradeContractImplementationCmd)
 }
@@ -315,6 +322,13 @@ func runShutdownProofTemplate(cmd *cobra.Command, args []string) {
 }
 
 func runCircleIntegrationUpdateWormholeFinalityTemplate(cmd *cobra.Command, args []string) {
+	if *circleIntegrationChainID == "" {
+		log.Fatal("--chain-id must be specified.")
+	}
+	chainID, err := parseChainID(*circleIntegrationChainID)
+	if err != nil {
+		log.Fatal("failed to parse chain id:", err)
+	}
 	if *circleIntegrationFinality == "" {
 		log.Fatal("--finality must be specified.")
 	}
@@ -331,7 +345,8 @@ func runCircleIntegrationUpdateWormholeFinalityTemplate(cmd *cobra.Command, args
 				Nonce:    rand.Uint32(),
 				Payload: &nodev1.GovernanceMessage_CircleIntegrationUpdateWormholeFinality{
 					CircleIntegrationUpdateWormholeFinality: &nodev1.CircleIntegrationUpdateWormholeFinality{
-						Finality: uint32(finality),
+						TargetChainId: uint32(chainID),
+						Finality:      uint32(finality),
 					},
 				},
 			},
@@ -346,6 +361,13 @@ func runCircleIntegrationUpdateWormholeFinalityTemplate(cmd *cobra.Command, args
 }
 
 func runCircleIntegrationRegisterEmitterAndDomainTemplate(cmd *cobra.Command, args []string) {
+	if *circleIntegrationChainID == "" {
+		log.Fatal("--chain-id must be specified.")
+	}
+	chainID, err := parseChainID(*circleIntegrationChainID)
+	if err != nil {
+		log.Fatal("failed to parse chain id:", err)
+	}
 	if *circleIntegrationForeignEmitterChainID == "" {
 		log.Fatal("--foreign-emitter-chain-id must be specified.")
 	}
@@ -376,6 +398,7 @@ func runCircleIntegrationRegisterEmitterAndDomainTemplate(cmd *cobra.Command, ar
 				Nonce:    rand.Uint32(),
 				Payload: &nodev1.GovernanceMessage_CircleIntegrationRegisterEmitterAndDomain{
 					CircleIntegrationRegisterEmitterAndDomain: &nodev1.CircleIntegrationRegisterEmitterAndDomain{
+						TargetChainId:         uint32(chainID),
 						ForeignEmitterChainId: uint32(foreignEmitterChainId),
 						ForeignEmitterAddress: foreignEmitterAddress,
 						CircleDomain:          uint32(circleDomain),
@@ -393,6 +416,13 @@ func runCircleIntegrationRegisterEmitterAndDomainTemplate(cmd *cobra.Command, ar
 }
 
 func runCircleIntegrationUpgradeContractImplementationTemplate(cmd *cobra.Command, args []string) {
+	if *circleIntegrationChainID == "" {
+		log.Fatal("--chain-id must be specified.")
+	}
+	chainID, err := parseChainID(*circleIntegrationChainID)
+	if err != nil {
+		log.Fatal("failed to parse chain id:", err)
+	}
 	if *circleIntegrationNewImplementationAddress == "" {
 		log.Fatal("--new-implementation-address must be specified.")
 	}
@@ -409,6 +439,7 @@ func runCircleIntegrationUpgradeContractImplementationTemplate(cmd *cobra.Comman
 				Nonce:    rand.Uint32(),
 				Payload: &nodev1.GovernanceMessage_CircleIntegrationUpgradeContractImplementation{
 					CircleIntegrationUpgradeContractImplementation: &nodev1.CircleIntegrationUpgradeContractImplementation{
+						TargetChainId:            uint32(chainID),
 						NewImplementationAddress: newImplementationAddress,
 					},
 				},

@@ -80,7 +80,7 @@ func (acct *Accountant) handleEvents(ctx context.Context, evts <-chan tmCoreType
 		case e := <-evts:
 			tx, ok := e.Data.(tmTypes.EventDataTx)
 			if !ok {
-				acct.logger.Error("acctwatcher: unknown data from event subscription", zap.Stringer("e.Data", reflect.TypeOf(e.Data)), zap.Any("event", e))
+				acct.logger.Error("unknown data from event subscription", zap.Stringer("e.Data", reflect.TypeOf(e.Data)), zap.Any("event", e))
 				continue
 			}
 
@@ -88,7 +88,7 @@ func (acct *Accountant) handleEvents(ctx context.Context, evts <-chan tmCoreType
 				if event.Type == "wasm-Observation" {
 					evt, err := parseEvent[WasmObservation](acct.logger, event, "wasm-Observation", acct.contract)
 					if err != nil {
-						acct.logger.Error("acctwatcher: failed to parse wasm transfer event", zap.Error(err), zap.Stringer("e.Data", reflect.TypeOf(e.Data)), zap.Any("event", event))
+						acct.logger.Error("failed to parse wasm transfer event", zap.Error(err), zap.Stringer("e.Data", reflect.TypeOf(e.Data)), zap.Any("event", event))
 						continue
 					}
 
@@ -97,14 +97,14 @@ func (acct *Accountant) handleEvents(ctx context.Context, evts <-chan tmCoreType
 				} else if event.Type == "wasm-ObservationError" {
 					evt, err := parseEvent[WasmObservationError](acct.logger, event, "wasm-ObservationError", acct.contract)
 					if err != nil {
-						acct.logger.Error("acctwatcher: failed to parse wasm observation error event", zap.Error(err), zap.Stringer("e.Data", reflect.TypeOf(e.Data)), zap.Any("event", event))
+						acct.logger.Error("failed to parse wasm observation error event", zap.Error(err), zap.Stringer("e.Data", reflect.TypeOf(e.Data)), zap.Any("event", event))
 						continue
 					}
 
 					errorEventsReceived.Inc()
-					acct.handleTransferError(evt.Key.String(), evt.Error, "acct: transfer error event received")
+					acct.handleTransferError(evt.Key.String(), evt.Error, "transfer error event received")
 				} else {
-					acct.logger.Debug("acctwatcher: ignoring uninteresting event", zap.String("eventType", event.Type))
+					acct.logger.Debug("ignoring uninteresting event", zap.String("eventType", event.Type))
 				}
 			}
 		}
@@ -130,7 +130,7 @@ func parseEvent[T any](logger *zap.Logger, event tmAbci.Event, name string, cont
 				return nil, fmt.Errorf("%s event from unexpected contract: %s", name, string(attr.Value))
 			}
 		} else {
-			logger.Debug("acctwatcher: event attribute", zap.String("event", name), zap.String("key", string(attr.Key)), zap.String("value", string(attr.Value)))
+			logger.Debug("event attribute", zap.String("event", name), zap.String("key", string(attr.Key)), zap.String("value", string(attr.Value)))
 			attrs[string(attr.Key)] = attr.Value
 		}
 	}

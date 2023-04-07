@@ -125,15 +125,16 @@ func TestBodyWormchainMigrateContractSerialize(t *testing.T) {
 }
 
 func TestBodyCircleIntegrationUpdateWormholeFinalitySerialize(t *testing.T) {
-	expected := "000000000000000000000000000000436972636c65496e746567726174696f6e0100002a"
-	bodyCircleIntegrationUpdateWormholeFinality := BodyCircleIntegrationUpdateWormholeFinality{Finality: 42}
+	expected := "000000000000000000000000000000436972636c65496e746567726174696f6e0100022a"
+	bodyCircleIntegrationUpdateWormholeFinality := BodyCircleIntegrationUpdateWormholeFinality{TargetChainID: ChainIDEthereum, Finality: 42}
 	assert.Equal(t, expected, hex.EncodeToString(bodyCircleIntegrationUpdateWormholeFinality.Serialize()))
 }
 
 func TestBodyCircleIntegrationRegisterEmitterAndDomainSerialize(t *testing.T) {
-	expected := "000000000000000000000000000000436972636c65496e746567726174696f6e020000000200000000000000000000000000000000000000000000000000000000000000040000002a"
+	expected := "000000000000000000000000000000436972636c65496e746567726174696f6e020002000600000000000000000000000000000000000000000000000000000000000000040000002a"
 	bodyCircleIntegrationRegisterEmitterAndDomain := BodyCircleIntegrationRegisterEmitterAndDomain{
-		ForeignEmitterChainId: ChainIDEthereum,
+		TargetChainID:         ChainIDEthereum,
+		ForeignEmitterChainId: ChainIDAvalanche,
 		ForeignEmitterAddress: addr,
 		CircleDomain:          42,
 	}
@@ -141,8 +142,9 @@ func TestBodyCircleIntegrationRegisterEmitterAndDomainSerialize(t *testing.T) {
 }
 
 func TestBodyCircleIntegrationUpgradeContractImplementationSerialize(t *testing.T) {
-	expected := "000000000000000000000000000000436972636c65496e746567726174696f6e0300000000000000000000000000000000000000000000000000000000000000000004"
+	expected := "000000000000000000000000000000436972636c65496e746567726174696f6e0300020000000000000000000000000000000000000000000000000000000000000004"
 	bodyCircleIntegrationUpgradeContractImplementation := BodyCircleIntegrationUpgradeContractImplementation{
+		TargetChainID:            ChainIDEthereum,
 		NewImplementationAddress: addr,
 	}
 	assert.Equal(t, expected, hex.EncodeToString(bodyCircleIntegrationUpgradeContractImplementation.Serialize()))

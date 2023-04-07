@@ -135,9 +135,10 @@ fn missing_account() {
         [(count + 3) as u8; 32].into(),
     );
 
-    contract
+    let err = contract
         .query_balance(missing)
         .expect_err("successfully queried missing account key");
+    assert!(err.to_string().to_lowercase().contains("balance not found"));
 }
 
 #[test]
@@ -243,9 +244,10 @@ fn missing_transfer() {
         (count + 3) as u64,
     );
 
-    contract
+    let err = contract
         .query_transfer(missing)
         .expect_err("successfully queried missing transfer key");
+    assert!(err.to_string().to_lowercase().contains("not found"));
 }
 
 #[test]
@@ -335,9 +337,10 @@ fn missing_modification() {
 
     let missing = (count + 1) as u64;
 
-    contract
+    let err = contract
         .query_modification(missing)
         .expect_err("successfully queried missing modification key");
+    assert!(err.to_string().to_lowercase().contains("not found"));
 }
 
 #[test]

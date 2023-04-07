@@ -51,6 +51,7 @@ type nodePrivilegedService struct {
 	gsCache         sync.Map
 	gk              *ecdsa.PrivateKey
 	guardianAddress ethcommon.Address
+	testnetMode     bool
 }
 
 // adminGuardianSetUpdateToVAA converts a nodev1.GuardianSetUpdate message to its canonical VAA representation.
@@ -146,9 +147,9 @@ func tokenBridgeRegisterChain(req *nodev1.BridgeRegisterChain, timestamp time.Ti
 	return v, nil
 }
 
-// tokenBridgeModifyBalance converts a nodev1.TokenBridgeModifyBalance message to its canonical VAA representation.
+// accountantModifyBalance converts a nodev1.AccountantModifyBalance message to its canonical VAA representation.
 // Returns an error if the data is invalid.
-func tokenBridgeModifyBalance(req *nodev1.BridgeModifyBalance, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+func accountantModifyBalance(req *nodev1.AccountantModifyBalance, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
 	if req.TargetChainId > math.MaxUint16 {
 		return nil, errors.New("invalid target_chain_id")
 	}
@@ -179,16 +180,16 @@ func tokenBridgeModifyBalance(req *nodev1.BridgeModifyBalance, timestamp time.Ti
 	}
 
 	// uint256 has Bytes32 method for easier serialization
-	amount, ok := uint256.FromBig(amount_big)
-	if !ok {
-		return nil, errors.New("invalid amount")
+	amount, overflow := uint256.FromBig(amount_big)
+	if overflow {
+		return nil, errors.New("amount overflow")
 	}
 
 	tokenAdress := vaa.Address{}
 	copy(tokenAdress[:], b)
 
 	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
-		vaa.BodyTokenBridgeModifyBalance{
+		vaa.BodyAccountantModifyBalance{
 			Module:        req.Module,
 			TargetChainID: vaa.ChainID(req.TargetChainId),
 
@@ -285,12 +286,16 @@ func wormchainMigrateContract(req *nodev1.WormchainMigrateContract, timestamp ti
 // circleIntegrationUpdateWormholeFinality converts a nodev1.CircleIntegrationUpdateWormholeFinality to its canonical VAA representation
 // Returns an error if the data is invalid
 func circleIntegrationUpdateWormholeFinality(req *nodev1.CircleIntegrationUpdateWormholeFinality, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	if req.TargetChainId > math.MaxUint16 {
+		return nil, fmt.Errorf("invalid target chain id, must be <= %d", math.MaxUint16)
+	}
 	if req.Finality > math.MaxUint8 {
 		return nil, fmt.Errorf("invalid finality, must be <= %d", math.MaxUint8)
 	}
 	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
 		vaa.BodyCircleIntegrationUpdateWormholeFinality{
-			Finality: uint8(req.Finality),
+			TargetChainID: vaa.ChainID(req.TargetChainId),
+			Finality:      uint8(req.Finality),
 		}.Serialize())
 
 	return v, nil
@@ -299,6 +304,9 @@ func circleIntegrationUpdateWormholeFinality(req *nodev1.CircleIntegrationUpdate
 // circleIntegrationRegisterEmitterAndDomain converts a nodev1.CircleIntegrationRegisterEmitterAndDomain to its canonical VAA representation
 // Returns an error if the data is invalid
 func circleIntegrationRegisterEmitterAndDomain(req *nodev1.CircleIntegrationRegisterEmitterAndDomain, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	if req.TargetChainId > math.MaxUint16 {
+		return nil, fmt.Errorf("invalid target chain id, must be <= %d", math.MaxUint16)
+	}
 	if req.ForeignEmitterChainId > math.MaxUint16 {
 		return nil, fmt.Errorf("invalid foreign emitter chain id, must be <= %d", math.MaxUint16)
 	}
@@ -316,6 +324,7 @@ func circleIntegrationRegisterEmitterAndDomain(req *nodev1.CircleIntegrationRegi
 
 	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
 		vaa.BodyCircleIntegrationRegisterEmitterAndDomain{
+			TargetChainID:         vaa.ChainID(req.TargetChainId),
 			ForeignEmitterChainId: vaa.ChainID(req.ForeignEmitterChainId),
 			ForeignEmitterAddress: foreignEmitterAddress,
 			CircleDomain:          req.CircleDomain,
@@ -327,6 +336,9 @@ func circleIntegrationRegisterEmitterAndDomain(req *nodev1.CircleIntegrationRegi
 // circleIntegrationUpgradeContractImplementation converts a nodev1.CircleIntegrationUpgradeContractImplementation to its canonical VAA representation
 // Returns an error if the data is invalid
 func circleIntegrationUpgradeContractImplementation(req *nodev1.CircleIntegrationUpgradeContractImplementation, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+	if req.TargetChainId > math.MaxUint16 {
+		return nil, fmt.Errorf("invalid target chain id, must be <= %d", math.MaxUint16)
+	}
 	b, err := hex.DecodeString(req.NewImplementationAddress)
 	if err != nil {
 		return nil, errors.New("invalid new implementation address encoding (expected hex)")
@@ -341,6 +353,7 @@ func circleIntegrationUpgradeContractImplementation(req *nodev1.CircleIntegratio
 
 	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
 		vaa.BodyCircleIntegrationUpgradeContractImplementation{
+			TargetChainID:            vaa.ChainID(req.TargetChainId),
 			NewImplementationAddress: newImplementationAddress,
 		}.Serialize())
 
@@ -369,8 +382,8 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 			v, err = tokenBridgeRegisterChain(payload.BridgeRegisterChain, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		case *nodev1.GovernanceMessage_BridgeContractUpgrade:
 			v, err = tokenBridgeUpgradeContract(payload.BridgeContractUpgrade, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
-		case *nodev1.GovernanceMessage_BridgeModifyBalance:
-			v, err = tokenBridgeModifyBalance(payload.BridgeModifyBalance, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_AccountantModifyBalance:
+			v, err = accountantModifyBalance(payload.AccountantModifyBalance, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		case *nodev1.GovernanceMessage_WormchainStoreCode:
 			v, err = wormchainStoreCode(payload.WormchainStoreCode, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		case *nodev1.GovernanceMessage_WormchainInstantiateContract:
@@ -556,6 +569,7 @@ func adminServiceRunnable(
 	gk *ecdsa.PrivateKey,
 	ethRpc *string,
 	ethContract *string,
+	testnetMode bool,
 ) (supervisor.Runnable, error) {
 	// Delete existing UNIX socket, if present.
 	fi, err := os.Stat(socketPath)
@@ -610,6 +624,7 @@ func adminServiceRunnable(
 		gk:              gk,
 		guardianAddress: ethcrypto.PubkeyToAddress(gk.PublicKey),
 		evmConnector:    evmConnector,
+		testnetMode:     testnetMode,
 	}
 
 	publicrpcService := publicrpc.NewPublicrpcServer(logger, db, gst, gov)
@@ -862,6 +877,9 @@ func (s *nodePrivilegedService) DumpRPCs(ctx context.Context, req *nodev1.DumpRP
 	rpcMap["polygonRPC"] = *polygonRPC
 	rpcMap["pythnetRPC"] = *pythnetRPC
 	rpcMap["pythnetWS"] = *pythnetWS
+	if s.testnetMode {
+		rpcMap["sepoliaRPC"] = *sepoliaRPC
+	}
 	rpcMap["solanaRPC"] = *solanaRPC
 	rpcMap["terraWS"] = *terraWS
 	rpcMap["terraLCD"] = *terraLCD

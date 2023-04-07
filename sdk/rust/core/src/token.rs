@@ -10,7 +10,6 @@ use serde::{Deserialize, Serialize};
 use serde_wormhole::RawMessage;
 
 use crate::{Address, Amount, Chain};
-use serde::{Deserializer, Serializer};
 
 /// Represents a non-governance action targeted at the token bridge.
 ///
@@ -202,52 +201,6 @@ pub enum Message<P = Box<RawMessage>> {
     },
 }
 
-#[repr(u8)]
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Copy)]
-pub enum ModificationKind {
-    Unknown = 0,
-    Add = 1,
-    Subtract = 2,
-}
-
-impl From<u8> for ModificationKind {
-    fn from(other: u8) -> ModificationKind {
-        match other {
-            1 => ModificationKind::Add,
-            2 => ModificationKind::Subtract,
-            _ => ModificationKind::Unknown,
-        }
-    }
-}
-
-impl From<ModificationKind> for u8 {
-    fn from(other: ModificationKind) -> u8 {
-        match other {
-            ModificationKind::Unknown => 0,
-            ModificationKind::Add => 1,
-            ModificationKind::Subtract => 2,
-        }
-    }
-}
-
-impl Serialize for ModificationKind {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_u8((*self).into())
-    }
-}
-
-impl<'de> Deserialize<'de> for ModificationKind {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        <u8 as Deserialize>::deserialize(deserializer).map(Self::from)
-    }
-}
-
 /// Represents a governance action targeted at the token bridge.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Action {
@@ -263,19 +216,6 @@ pub enum Action {
     /// Upgrades the token bridge contract to a new address.
     #[serde(rename = "2")]
     ContractUpgrade { new_contract: Address },
-
-    // Modify balance for tokenbridge
-    #[serde(rename = "3")]
-    ModifyBalance {
-        sequence: u64,
-        chain_id: u16,
-        token_chain: u16,
-        token_address: Address,
-        kind: ModificationKind,
-        amount: Amount,
-        #[serde(with = "crate::arraystring")]
-        reason: BString,
-    },
 }
 
 /// Represents the payload for a governance VAA targeted at the token bridge.
@@ -287,6 +227,9 @@ pub struct GovernancePacket {
     /// The actual governance action to be carried out.
     pub action: Action,
 }
+
+// MODULE = "TokenBridge"
+pub const MODULE: [u8; 32] = *b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00TokenBridge";
 
 // The wire format for GovernancePackets is wonky and doesn't lend itself well to auto-deriving
 // Serialize / Deserialize so we implement it manually here.
@@ -300,16 +243,9 @@ mod governance_packet_impl {
     };
 
     use crate::{
-        token::{Action, GovernancePacket},
-        Address, Amount, Chain,
+        token::{Action, GovernancePacket, MODULE},
+        Address, Chain,
     };
-
-    // MODULE = "TokenBridge"
-    const MODULE: [u8; 32] = [
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54, 0x6f, 0x6b, 0x65, 0x6e, 0x42, 0x72, 0x69, 0x64,
-        0x67, 0x65,
-    ];
 
     struct Module;
 
@@ -350,18 +286,6 @@ mod governance_packet_impl {
         emitter_address: Address,
     }
 
-    #[derive(Serialize, Deserialize)]
-    struct ModifyBalance {
-        sequence: u64,
-        chain_id: u16,
-        token_chain: u16,
-        token_address: Address,
-        kind: super::ModificationKind,
-        amount: Amount,
-        #[serde(with = "crate::arraystring")]
-        reason: bstr::BString,
-    }
-
     impl Serialize for GovernancePacket {
         fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where
@@ -391,30 +315,6 @@ mod governance_packet_impl {
                     seq.serialize_field("action", &2u8)?;
                     seq.serialize_field("chain", &self.chain)?;
                     seq.serialize_field("payload", &ContractUpgrade { new_contract })?;
-                }
-                Action::ModifyBalance {
-                    sequence,
-                    chain_id,
-                    token_chain,
-                    token_address,
-                    kind,
-                    amount,
-                    reason,
-                } => {
-                    seq.serialize_field("action", &3u8)?;
-                    seq.serialize_field("chain", &self.chain)?;
-                    seq.serialize_field(
-                        "payload",
-                        &ModifyBalance {
-                            sequence,
-                            chain_id,
-                            token_chain,
-                            token_address,
-                            kind,
-                            amount,
-                            reason,
-                        },
-                    )?;
                 }
             }
 
@@ -469,31 +369,9 @@ mod governance_packet_impl {
 
                     Action::ContractUpgrade { new_contract }
                 }
-                3 => {
-                    let ModifyBalance {
-                        sequence,
-                        chain_id,
-                        token_chain,
-                        token_address,
-                        kind,
-                        amount,
-                        reason,
-                    } = seq
-                        .next_element()?
-                        .ok_or_else(|| Error::invalid_length(3, &EXPECTING))?;
-                    Action::ModifyBalance {
-                        sequence,
-                        chain_id,
-                        token_chain,
-                        token_address,
-                        kind,
-                        amount,
-                        reason,
-                    }
-                }
                 v => {
                     return Err(Error::custom(format_args!(
-                        "invalid value: {v}, expected one of 1, 2, 3"
+                        "invalid value: {v}, expected one of 1, 2"
                     )))
                 }
             };
@@ -567,26 +445,6 @@ mod governance_packet_impl {
                                 let ContractUpgrade { new_contract } = map.next_value()?;
 
                                 Action::ContractUpgrade { new_contract }
-                            }
-                            3 => {
-                                let ModifyBalance {
-                                    sequence,
-                                    chain_id,
-                                    token_chain,
-                                    token_address,
-                                    kind,
-                                    amount,
-                                    reason,
-                                } = map.next_value()?;
-                                Action::ModifyBalance {
-                                    sequence,
-                                    chain_id,
-                                    token_chain,
-                                    token_address,
-                                    kind,
-                                    amount,
-                                    reason,
-                                }
                             }
                             v => {
                                 return Err(Error::custom(format_args!(

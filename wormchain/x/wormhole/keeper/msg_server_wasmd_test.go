@@ -489,8 +489,8 @@ func TestWasmdAccountantContractModify(t *testing.T) {
 	}
 
 	// construct the modify balance vaa
-	modify_msg := vaa.BodyTokenBridgeModifyBalance{
-		Module:        "TokenBridge",
+	modify_msg := vaa.BodyAccountantModifyBalance{
+		Module:        "GlobalAccountant",
 		TargetChainID: vaa.ChainIDWormchain,
 		Sequence:      uint64(lastestSequence),
 		ChainId:       vaa.ChainIDSolana,

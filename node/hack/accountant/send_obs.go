@@ -124,18 +124,18 @@ func testSubmit(
 	msgs := []*common.MessagePublication{&msg}
 	txResp, err := submit(ctx, logger, gk, wormchainConn, contract, msgs)
 	if err != nil {
-		logger.Error("acct: failed to broadcast Observation request", zap.String("test", tag), zap.Error(err))
+		logger.Error("failed to broadcast Observation request", zap.String("test", tag), zap.Error(err))
 		return false
 	}
 
 	responses, err := accountant.GetObservationResponses(txResp)
 	if err != nil {
-		logger.Error("acct: failed to get responses", zap.Error(err))
+		logger.Error("failed to get responses", zap.Error(err))
 		return false
 	}
 
 	if len(responses) != len(msgs) {
-		logger.Error("acct: number of responses does not match number of messages", zap.Int("numMsgs", len(msgs)), zap.Int("numResp", len(responses)), zap.Error(err))
+		logger.Error("number of responses does not match number of messages", zap.Int("numMsgs", len(msgs)), zap.Int("numResp", len(responses)), zap.Error(err))
 		return false
 	}
 
@@ -203,18 +203,18 @@ func testBatch(
 
 	txResp, err := submit(ctx, logger, gk, wormchainConn, contract, msgs)
 	if err != nil {
-		logger.Error("acct: failed to broadcast Observation request", zap.Error(err))
+		logger.Error("failed to broadcast Observation request", zap.Error(err))
 		return false
 	}
 
 	responses, err := accountant.GetObservationResponses(txResp)
 	if err != nil {
-		logger.Error("acct: failed to get responses", zap.Error(err))
+		logger.Error("failed to get responses", zap.Error(err))
 		return false
 	}
 
 	if len(responses) != len(msgs) {
-		logger.Error("acct: number of responses does not match number of messages", zap.Int("numMsgs", len(msgs)), zap.Int("numResp", len(responses)), zap.Error(err))
+		logger.Error("number of responses does not match number of messages", zap.Int("numMsgs", len(msgs)), zap.Int("numResp", len(responses)), zap.Error(err))
 		return false
 	}
 
@@ -222,12 +222,12 @@ func testBatch(
 		msgId := msg.MessageIDString()
 		status, exists := responses[msgId]
 		if !exists {
-			logger.Error("acct: did not receive an observation response for message", zap.Int("idx", idx), zap.String("msgId", msgId))
+			logger.Error("did not receive an observation response for message", zap.Int("idx", idx), zap.String("msgId", msgId))
 			return false
 		}
 
 		if status.Type != "committed" {
-			logger.Error("acct: unexpected response on observation", zap.Int("idx", idx), zap.String("msgId", msgId), zap.String("status", status.Type), zap.String("text", status.Data))
+			logger.Error("unexpected response on observation", zap.Int("idx", idx), zap.String("msgId", msgId), zap.String("status", status.Type), zap.String("text", status.Data))
 			return false
 		}
 	}
@@ -268,7 +268,7 @@ func testBatchWithcommitted(
 
 	_, err := submit(ctx, logger, gk, wormchainConn, contract, msgs)
 	if err != nil {
-		logger.Error("acct: failed to submit initial observation that should work", zap.Error(err))
+		logger.Error("failed to submit initial observation that should work", zap.Error(err))
 		return false
 	}
 
@@ -295,18 +295,18 @@ func testBatchWithcommitted(
 
 	txResp, err := submit(ctx, logger, gk, wormchainConn, contract, msgs)
 	if err != nil {
-		logger.Error("acct: failed to broadcast Observation request", zap.Error(err))
+		logger.Error("failed to broadcast Observation request", zap.Error(err))
 		return false
 	}
 
 	responses, err := accountant.GetObservationResponses(txResp)
 	if err != nil {
-		logger.Error("acct: failed to get responses", zap.Error(err))
+		logger.Error("failed to get responses", zap.Error(err))
 		return false
 	}
 
 	if len(responses) != len(msgs) {
-		logger.Error("acct: number of responses does not match number of messages", zap.Int("numMsgs", len(msgs)), zap.Int("numResp", len(responses)), zap.Error(err))
+		logger.Error("number of responses does not match number of messages", zap.Int("numMsgs", len(msgs)), zap.Int("numResp", len(responses)), zap.Error(err))
 		return false
 	}
 
@@ -314,12 +314,12 @@ func testBatchWithcommitted(
 		msgId := msg.MessageIDString()
 		status, exists := responses[msgId]
 		if !exists {
-			logger.Error("acct: did not receive an observation response for message", zap.Int("idx", idx), zap.String("msgId", msgId))
+			logger.Error("did not receive an observation response for message", zap.Int("idx", idx), zap.String("msgId", msgId))
 			return false
 		}
 
 		if status.Type != "committed" {
-			logger.Error("acct: unexpected response on observation", zap.Int("idx", idx), zap.String("msgId", msgId), zap.String("status", status.Type), zap.String("text", status.Data))
+			logger.Error("unexpected response on observation", zap.Int("idx", idx), zap.String("msgId", msgId), zap.String("status", status.Type), zap.String("text", status.Data))
 			return false
 		}
 	}
@@ -360,7 +360,7 @@ func testBatchWithDigestError(
 
 	_, err := submit(ctx, logger, gk, wormchainConn, contract, msgs)
 	if err != nil {
-		logger.Error("acct: failed to submit initial observation that should work", zap.Error(err))
+		logger.Error("failed to submit initial observation that should work", zap.Error(err))
 		return false
 	}
 
@@ -388,47 +388,47 @@ func testBatchWithDigestError(
 
 	txResp, err := submit(ctx, logger, gk, wormchainConn, contract, msgs)
 	if err != nil {
-		logger.Error("acct: failed to submit second observation that should work", zap.Error(err))
+		logger.Error("failed to submit second observation that should work", zap.Error(err))
 		return false
 	}
 
 	responses, err := accountant.GetObservationResponses(txResp)
 	if err != nil {
-		logger.Error("acct: failed to get responses", zap.Error(err))
+		logger.Error("failed to get responses", zap.Error(err))
 		return false
 	}
 
 	if len(responses) != len(msgs) {
-		logger.Error("acct: number of responses does not match number of messages", zap.Int("numMsgs", len(msgs)), zap.Int("numResp", len(responses)), zap.Error(err))
+		logger.Error("number of responses does not match number of messages", zap.Int("numMsgs", len(msgs)), zap.Int("numResp", len(responses)), zap.Error(err))
 		return false
 	}
 
 	msgId := msgs[0].MessageIDString()
 	status, exists := responses[msgId]
 	if !exists {
-		logger.Error("acct: did not receive an observation response for message 0", zap.String("msgId", msgId))
+		logger.Error("did not receive an observation response for message 0", zap.String("msgId", msgId))
 		return false
 	}
 
 	if status.Type != "committed" {
-		logger.Error("acct: unexpected response on observation for message 0", zap.String("msgId", msgId), zap.String("status", status.Type), zap.String("text", status.Data))
+		logger.Error("unexpected response on observation for message 0", zap.String("msgId", msgId), zap.String("status", status.Type), zap.String("text", status.Data))
 		return false
 	}
 
 	msgId = msgs[1].MessageIDString()
 	status, exists = responses[msgId]
 	if !exists {
-		logger.Error("acct: did not receive an observation response for message 1", zap.String("msgId", msgId))
+		logger.Error("did not receive an observation response for message 1", zap.String("msgId", msgId))
 		return false
 	}
 
 	if status.Type != "error" {
-		logger.Error("acct: unexpected response on observation for message 1", zap.String("status", status.Type), zap.String("text", status.Data))
+		logger.Error("unexpected response on observation for message 1", zap.String("status", status.Type), zap.String("text", status.Data))
 		return false
 	}
 
 	if status.Data != "digest mismatch for processed message" {
-		logger.Error("acct: unexpected error text on observation for message 1", zap.String("text", status.Data))
+		logger.Error("unexpected error text on observation for message 1", zap.String("text", status.Data))
 		return false
 	}
 

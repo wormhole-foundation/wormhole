@@ -210,6 +210,8 @@ func (c ChainID) String() string {
 		return "btc"
 	case ChainIDBase:
 		return "base"
+	case ChainIDSepolia:
+		return "sepolia"
 	default:
 		return fmt.Sprintf("unknown chain ID: %d", c)
 	}
@@ -275,6 +277,8 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDBtc, nil
 	case "base":
 		return ChainIDBase, nil
+	case "sepolia":
+		return ChainIDSepolia, nil
 	default:
 		return ChainIDUnset, fmt.Errorf("unknown chain ID: %s", s)
 	}
@@ -310,6 +314,7 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDBtc,
 		ChainIDBase,
 		ChainIDWormchain,
+		ChainIDSepolia,
 	}
 }
 
@@ -371,6 +376,8 @@ const (
 	ChainIDBase ChainID = 30
 	//ChainIDWormchain is the ChainID of Wormchain
 	ChainIDWormchain ChainID = 3104
+	// ChainIDSepolia is the ChainID of Sepolia
+	ChainIDSepolia ChainID = 10002
 
 	// Minimum VAA size is derrived from the following assumptions:
 	//  HEADER
@@ -405,15 +412,10 @@ const (
 
 	SupportedVAAVersion = 0x01
 	BatchVAAVersion     = 0x02
-
-	InternalTruncatedPayloadSafetyLimit = 1000
 )
 
 // UnmarshalBody deserializes the binary representation of a VAA's "BODY" properties
 // The BODY fields are common among multiple types of VAA - v1, v2 (BatchVAA), etc
-//
-// WARNING: UnmarshallBody will truncate payloads at 1000 bytes, this is done mainly to avoid denial of service
-//   - If you need to access the full payload, consider parsing VAA from Bytes instead of Unmarshal
 func UnmarshalBody(data []byte, reader *bytes.Reader, v *VAA) (*VAA, error) {
 	unixSeconds := uint32(0)
 	if err := binary.Read(reader, binary.BigEndian, &unixSeconds); err != nil {
@@ -445,7 +447,7 @@ func UnmarshalBody(data []byte, reader *bytes.Reader, v *VAA) (*VAA, error) {
 
 	// Make sure to only read the payload if the VAA has one; VAAs may have a 0 length payload
 	if reader.Len() != 0 {
-		payload := make([]byte, InternalTruncatedPayloadSafetyLimit)
+		payload := make([]byte, reader.Len())
 		n, err := reader.Read(payload)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read payload [%d]: %w", n, err)

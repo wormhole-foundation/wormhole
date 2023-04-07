@@ -72,7 +72,7 @@ type (
 		// Human-readable name of the Eth network, for logging and monitoring.
 		networkName string
 		// Readiness component
-		readiness readiness.Component
+		readinessSync readiness.Component
 		// VAA ChainID of the network we're connecting to.
 		chainID vaa.ChainID
 
@@ -139,7 +139,6 @@ func NewEthWatcher(
 	url string,
 	contract eth_common.Address,
 	networkName string,
-	readiness readiness.Component,
 	chainID vaa.ChainID,
 	msgC chan<- *common.MessagePublication,
 	setC chan<- *common.GuardianSet,
@@ -151,7 +150,7 @@ func NewEthWatcher(
 		url:                  url,
 		contract:             contract,
 		networkName:          networkName,
-		readiness:            readiness,
+		readinessSync:        common.MustConvertChainIdToReadinessSyncing(chainID),
 		waitForConfirmations: false,
 		maxWaitConfirmations: 60,
 		chainID:              chainID,
@@ -166,7 +165,7 @@ func NewEthWatcher(
 func (w *Watcher) Run(ctx context.Context) error {
 	logger := supervisor.Logger(ctx)
 
-	useFinalizedBlocks := (w.chainID == vaa.ChainIDEthereum && (!w.unsafeDevMode))
+	useFinalizedBlocks := ((w.chainID == vaa.ChainIDEthereum || w.chainID == vaa.ChainIDSepolia) && (!w.unsafeDevMode))
 	if (w.chainID == vaa.ChainIDKarura || w.chainID == vaa.ChainIDAcala) && (!w.unsafeDevMode) {
 		ufb, err := w.getAcalaMode(ctx)
 		if err != nil {
@@ -199,7 +198,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
 	} else if useFinalizedBlocks {
-		if w.chainID == vaa.ChainIDEthereum && !w.unsafeDevMode {
+		if (w.chainID == vaa.ChainIDEthereum || w.chainID == vaa.ChainIDSepolia) && !w.unsafeDevMode {
 			safeBlocksSupported = true
 			logger.Info("using finalized blocks, will publish safe blocks")
 		} else {
@@ -266,14 +265,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
 		finalizer := finalizers.NewArbitrumFinalizer(logger, w.l1Finalizer)
-		pollConnector, err := connectors.NewBlockPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond, false, false)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("creating block poll connector failed: %w", err)
-		}
-		// The standard geth BlockByHash() does not work on Arbitrum.
-		w.ethConn, err = connectors.NewConnectorWithGetTimeOfBlockOverride(ctx, pollConnector)
+		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond, false, false)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
@@ -313,14 +305,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 				return fmt.Errorf("dialing eth client failed: %w", err)
 			}
-			pollConnector, err := connectors.NewBlockPollConnector(ctx, baseConnector, finalizers.NewDefaultFinalizer(), 250*time.Millisecond, useFinalizedBlocks, safeBlocksSupported)
-			if err != nil {
-				ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-				return fmt.Errorf("creating block poll connector failed: %w", err)
-			}
-			// The standard geth BlockByHash() does not work on Optimism Bedrock.
-			w.ethConn, err = connectors.NewConnectorWithGetTimeOfBlockOverride(ctx, pollConnector)
+			w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizers.NewDefaultFinalizer(), 250*time.Millisecond, useFinalizedBlocks, safeBlocksSupported)
 			if err != nil {
 				ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
@@ -351,14 +336,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
-		pollConnector, err := connectors.NewBlockPollConnector(ctx, baseConnector, finalizers.NewDefaultFinalizer(), 250*time.Millisecond, true, true)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("creating block poll connector failed: %w", err)
-		}
-		// The standard geth BlockByHash() does not work on Base.
-		w.ethConn, err = connectors.NewConnectorWithGetTimeOfBlockOverride(ctx, pollConnector)
+		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizers.NewDefaultFinalizer(), 250*time.Millisecond, true, true)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
@@ -446,7 +424,8 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 				if err != nil {
 					logger.Error("failed to process observation request",
-						zap.Error(err), zap.String("eth_network", w.networkName))
+						zap.Error(err), zap.String("eth_network", w.networkName),
+						zap.String("tx_hash", tx.Hex()))
 					continue
 				}
 
@@ -586,6 +565,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 						zap.Stringer("tx", ev.Raw.TxHash),
 						zap.Uint64("block", ev.Raw.BlockNumber),
 						zap.Stringer("blockhash", ev.Raw.BlockHash),
+						zap.Uint64("blockTime", blockTime),
 						zap.Uint64("Sequence", ev.Sequence),
 						zap.Uint32("Nonce", ev.Nonce),
 						zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
@@ -600,6 +580,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 					zap.Stringer("tx", ev.Raw.TxHash),
 					zap.Uint64("block", ev.Raw.BlockNumber),
 					zap.Stringer("blockhash", ev.Raw.BlockHash),
+					zap.Uint64("blockTime", blockTime),
 					zap.Uint64("Sequence", ev.Sequence),
 					zap.Uint32("Nonce", ev.Nonce),
 					zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
@@ -660,7 +641,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 					zap.Bool("is_safe_block", ev.Safe),
 					zap.String("eth_network", w.networkName))
 				currentEthHeight.WithLabelValues(w.networkName).Set(float64(ev.Number.Int64()))
-				readiness.SetReady(w.readiness)
+				readiness.SetReady(w.readinessSync)
 				p2p.DefaultRegistry.SetNetworkStats(w.chainID, &gossipv1.Heartbeat_Network{
 					Height:          ev.Number.Int64(),
 					ContractAddress: w.contract.Hex(),
@@ -819,7 +800,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 	// Now that the init is complete, peg readiness. That will also happen when we process a new head, but chains
 	// that wait for finality may take a while to receive the first block and we don't want to hold up the init.
-	readiness.SetReady(w.readiness)
+	readiness.SetReady(w.readinessSync)
 
 	select {
 	case <-ctx.Done():

@@ -56,6 +56,8 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "xpla", output: ChainIDXpla},
 		{input: "btc", output: ChainIDBtc},
 		{input: "base", output: ChainIDBase},
+		{input: "wormchain", output: ChainIDWormchain},
+		{input: "sepolia", output: ChainIDSepolia},
 
 		{input: "Solana", output: ChainIDSolana},
 		{input: "Ethereum", output: ChainIDEthereum},
@@ -85,7 +87,7 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "BTC", output: ChainIDBtc},
 		{input: "Base", output: ChainIDBase},
 		{input: "Wormchain", output: ChainIDWormchain},
-		{input: "wormchain", output: ChainIDWormchain},
+		{input: "Sepolia", output: ChainIDSepolia},
 	}
 
 	// Negative Test Cases
@@ -255,6 +257,7 @@ func TestChainId_String(t *testing.T) {
 		{input: 29, output: "btc"},
 		{input: 30, output: "base"},
 		{input: 3104, output: "wormchain"},
+		{input: 10002, output: "sepolia"},
 		{input: 10000, output: "unknown chain ID: 10000"},
 	}
 
@@ -367,30 +370,24 @@ func TestUnmarshalNoPayload(t *testing.T) {
 	assert.Equal(t, &vaa1, vaa2)
 }
 
-func TestUnmarshalTooBig(t *testing.T) {
+func TestUnmarshalBigPayload(t *testing.T) {
 	vaa := getVaa()
 
-	// Overwrite an oversized payload for the VAA that we cannot unmarshal
+	// Create a payload of more than 1000 bytes.
 	var payload []byte
 	for i := 0; i < 2000; i++ {
-		payload = append(payload, 'a')
+		ch := i % 255
+		payload = append(payload, byte(ch))
 	}
 	vaa.Payload = payload
 
-	// Let's marshal the VAA to bytes to unmarshaled
 	marshalBytes, err := vaa.Marshal()
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
-	// Let's now unmarshal the oversized VAA and cause it to panic
-	vaa2, err2 := Unmarshal(marshalBytes)
-	assert.Nil(t, err2)
+	vaa2, err := Unmarshal(marshalBytes)
+	require.NoError(t, err)
 
-	// Marshal the VAA
-	marshalBytes2, err3 := vaa2.Marshal()
-	assert.Nil(t, err3)
-
-	// Verify that it's truncated at to 1057 (57 byte header + 1000 byte payload)
-	assert.Equal(t, marshalBytes[:1057], marshalBytes2)
+	assert.Equal(t, vaa, *vaa2)
 }
 
 func TestVerifySignatures(t *testing.T) {

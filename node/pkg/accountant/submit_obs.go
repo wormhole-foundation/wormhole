@@ -197,9 +197,9 @@ func (acct *Accountant) submitObservationsToContract(msgs []*common.MessagePubli
 	txResp, err := SubmitObservationsToContract(acct.ctx, acct.logger, acct.gk, gsIndex, guardianIndex, acct.wormchainConn, acct.contract, msgs)
 	if err != nil {
 		// This means the whole batch failed. They will all get retried the next audit cycle.
-		acct.logger.Error("acct: failed to submit any observations in batch", zap.Int("numMsgs", len(msgs)), zap.Error(err))
+		acct.logger.Error("failed to submit any observations in batch", zap.Int("numMsgs", len(msgs)), zap.Error(err))
 		for idx, msg := range msgs {
-			acct.logger.Error("acct: failed to submit observation", zap.Int("idx", idx), zap.String("msgId", msg.MessageIDString()))
+			acct.logger.Error("failed to submit observation", zap.Int("idx", idx), zap.String("msgId", msg.MessageIDString()))
 		}
 
 		submitFailures.Add(float64(len(msgs)))
@@ -210,9 +210,9 @@ func (acct *Accountant) submitObservationsToContract(msgs []*common.MessagePubli
 	responses, err := GetObservationResponses(txResp)
 	if err != nil {
 		// This means the whole batch failed. They will all get retried the next audit cycle.
-		acct.logger.Error("acct: failed to get responses from batch", zap.Error(err), zap.String("txResp", acct.wormchainConn.BroadcastTxResponseToString(txResp)))
+		acct.logger.Error("failed to get responses from batch", zap.Error(err), zap.String("txResp", acct.wormchainConn.BroadcastTxResponseToString(txResp)))
 		for idx, msg := range msgs {
-			acct.logger.Error("acct: need to retry observation", zap.Int("idx", idx), zap.String("msgId", msg.MessageIDString()))
+			acct.logger.Error("need to retry observation", zap.Int("idx", idx), zap.String("msgId", msg.MessageIDString()))
 		}
 
 		submitFailures.Add(float64(len(msgs)))
@@ -222,9 +222,9 @@ func (acct *Accountant) submitObservationsToContract(msgs []*common.MessagePubli
 
 	if len(responses) != len(msgs) {
 		// This means the whole batch failed. They will all get retried the next audit cycle.
-		acct.logger.Error("acct: number of responses does not match number of messages", zap.Int("numMsgs", len(msgs)), zap.Int("numResp", len(responses)), zap.Error(err))
+		acct.logger.Error("number of responses does not match number of messages", zap.Int("numMsgs", len(msgs)), zap.Int("numResp", len(responses)), zap.Error(err))
 		for idx, msg := range msgs {
-			acct.logger.Error("acct: need to retry observation", zap.Int("idx", idx), zap.String("msgId", msg.MessageIDString()))
+			acct.logger.Error("need to retry observation", zap.Int("idx", idx), zap.String("msgId", msg.MessageIDString()))
 		}
 
 		submitFailures.Add(float64(len(msgs)))
@@ -238,22 +238,22 @@ func (acct *Accountant) submitObservationsToContract(msgs []*common.MessagePubli
 		status, exists := responses[msgId]
 		if !exists {
 			// This will get retried next audit interval.
-			acct.logger.Error("acct: did not receive an observation response for message", zap.String("msgId", msgId))
+			acct.logger.Error("did not receive an observation response for message", zap.String("msgId", msgId))
 			submitFailures.Inc()
 			continue
 		}
 
 		switch status.Type {
 		case "pending":
-			acct.logger.Info("acct: transfer is pending", zap.String("msgId", msgId))
+			acct.logger.Info("transfer is pending", zap.String("msgId", msgId))
 		case "committed":
 			acct.handleCommittedTransfer(msgId)
 		case "error":
 			submitFailures.Inc()
-			acct.handleTransferError(msgId, status.Data, "acct: transfer failed")
+			acct.handleTransferError(msgId, status.Data, "transfer failed")
 		default:
 			// This will get retried next audit interval.
-			acct.logger.Error("acct: unexpected status response on observation", zap.String("msgId", msgId), zap.String("status", status.Type), zap.String("text", status.Data))
+			acct.logger.Error("unexpected status response on observation", zap.String("msgId", msgId), zap.String("status", status.Type), zap.String("text", status.Data))
 			submitFailures.Inc()
 		}
 	}
@@ -267,11 +267,11 @@ func (acct *Accountant) handleCommittedTransfer(msgId string) {
 	defer acct.pendingTransfersLock.Unlock()
 	pe, exists := acct.pendingTransfers[msgId]
 	if exists {
-		acct.logger.Info("acct: transfer has been committed, publishing it", zap.String("msgId", msgId))
+		acct.logger.Info("transfer has been committed, publishing it", zap.String("msgId", msgId))
 		acct.publishTransferAlreadyLocked(pe)
 		transfersApproved.Inc()
 	} else {
-		acct.logger.Debug("acct: transfer has been committed but it is no longer in our map", zap.String("msgId", msgId))
+		acct.logger.Debug("transfer has been committed but it is no longer in our map", zap.String("msgId", msgId))
 	}
 }
 
@@ -279,7 +279,7 @@ func (acct *Accountant) handleCommittedTransfer(msgId string) {
 func (acct *Accountant) handleTransferError(msgId string, errText string, logText string) {
 	if strings.Contains(errText, "insufficient balance") {
 		balanceErrors.Inc()
-		acct.logger.Error("acct: insufficient balance error detected, dropping transfer", zap.String("msgId", msgId), zap.String("text", errText))
+		acct.logger.Error("insufficient balance error detected, dropping transfer", zap.String("msgId", msgId), zap.String("text", errText))
 		acct.deletePendingTransfer(msgId)
 	} else {
 		// This will get retried next audit interval.
@@ -313,7 +313,7 @@ func SubmitObservationsToContract(
 			Payload:          msg.Payload,
 		}
 
-		logger.Debug("acct: in SubmitObservationsToContract, encoding observation",
+		logger.Debug("in SubmitObservationsToContract, encoding observation",
 			zap.Int("idx", idx),
 			zap.String("txHash", msg.TxHash.String()), zap.String("encTxHash", hex.EncodeToString(obs[idx].TxHash[:])),
 			zap.Stringer("timeStamp", msg.Timestamp), zap.Uint32("encTimestamp", obs[idx].Timestamp),
@@ -328,17 +328,17 @@ func SubmitObservationsToContract(
 
 	bytes, err := json.Marshal(obs)
 	if err != nil {
-		return nil, fmt.Errorf("acct: failed to marshal accountant observation request: %w", err)
+		return nil, fmt.Errorf("failed to marshal accountant observation request: %w", err)
 	}
 
 	digest, err := vaa.MessageSigningDigest(submitObservationPrefix, bytes)
 	if err != nil {
-		return nil, fmt.Errorf("acct: failed to sign accountant Observation request: %w", err)
+		return nil, fmt.Errorf("failed to sign accountant Observation request: %w", err)
 	}
 
 	sigBytes, err := ethCrypto.Sign(digest.Bytes(), gk)
 	if err != nil {
-		return nil, fmt.Errorf("acct: failed to sign accountant Observation request: %w", err)
+		return nil, fmt.Errorf("failed to sign accountant Observation request: %w", err)
 	}
 
 	sig := SignatureType{Index: guardianIndex, Signature: sigBytes}
@@ -353,7 +353,7 @@ func SubmitObservationsToContract(
 
 	msgBytes, err := json.Marshal(msgData)
 	if err != nil {
-		return nil, fmt.Errorf("acct: failed to marshal accountant observation request: %w", err)
+		return nil, fmt.Errorf("failed to marshal accountant observation request: %w", err)
 	}
 
 	subMsg := wasmdtypes.MsgExecuteContract{
@@ -363,7 +363,7 @@ func SubmitObservationsToContract(
 		Funds:    sdktypes.Coins{},
 	}
 
-	logger.Debug("acct: in SubmitObservationsToContract, sending broadcast",
+	logger.Debug("in SubmitObservationsToContract, sending broadcast",
 		zap.Int("numObs", len(obs)),
 		zap.String("observations", string(bytes)),
 		zap.Uint32("gsIndex", gsIndex), zap.Uint32("guardianIndex", guardianIndex),
@@ -395,8 +395,8 @@ func SubmitObservationsToContract(
 		return txResp, fmt.Errorf("failed to submit observations: %s", txResp.TxResponse.RawLog)
 	}
 
-	logger.Info("acct: done sending broadcast", zap.Int("numObs", len(obs)), zap.Int64("gasUsed", txResp.TxResponse.GasUsed), zap.Stringer("elapsedTime", time.Since(start)))
-	logger.Debug("acct: in SubmitObservationsToContract, done sending broadcast", zap.String("resp", wormchainConn.BroadcastTxResponseToString(txResp)))
+	logger.Info("done sending broadcast", zap.Int("numObs", len(obs)), zap.Int64("gasUsed", txResp.TxResponse.GasUsed), zap.Stringer("elapsedTime", time.Since(start)))
+	logger.Debug("in SubmitObservationsToContract, done sending broadcast", zap.String("resp", wormchainConn.BroadcastTxResponseToString(txResp)))
 	return txResp, nil
 }
 

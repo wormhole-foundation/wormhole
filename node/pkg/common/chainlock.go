@@ -98,7 +98,7 @@ func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
 	}
 	msg.EmitterAddress = emitterAddress
 
-	payload := make([]byte, vaa.InternalTruncatedPayloadSafetyLimit)
+	payload := make([]byte, reader.Len())
 	n, err := reader.Read(payload)
 	if err != nil || n == 0 {
 		return nil, fmt.Errorf("failed to read payload [%d]: %w", n, err)
