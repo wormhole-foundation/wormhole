@@ -3,12 +3,16 @@ import {
   Ed25519Keypair,
   fromB64,
   JsonRpcProvider,
+  normalizeSuiAddress,
   RawSigner,
   TransactionBlock,
 } from "@mysten/sui.js";
 import { NETWORKS } from "../networks";
 import { Network } from "../utils";
+import { SuiRpcValidationError } from "./error";
 import { SuiCreateEvent, SuiPublishEvent } from "./types";
+
+const UPGRADE_CAP_TYPE = "0x2::package::UpgradeCap";
 
 export async function executeTransactionBlock(
   signer: RawSigner,
@@ -46,43 +50,79 @@ export const getOwnedObjectId = async (
   structName: string
 ): Promise<string | null> => {
   const type = `${packageId}::${moduleName}::${structName}`;
-  const objects = (
-    await provider.getOwnedObjects({
-      owner,
-      filter: { StructType: type },
-      options: {
-        showContent: true,
-      },
-    })
-  ).data.filter((o) => o.data?.objectId);
 
-  // Structs such as UpgradeCaps have the same type and have another field we
-  // can use to differentiate them. We have to check this first as we could have
-  // only one UpgradeCap that belongs to a different package.
-  const filteredObjects = objects.filter(
-    (o) =>
-      o.data?.content?.dataType === "moveObject" &&
-      o.data?.content?.fields?.package === packageId
-  );
-  if (filteredObjects.length === 1) {
-    // We've found the object we're looking for
-    return filteredObjects[0].data?.objectId;
-  } else if (filteredObjects.length > 1) {
-    const objectsStr = JSON.stringify(filteredObjects, null, 2);
+  // Upgrade caps are a special case
+  if (normalizeSuiType(type) === normalizeSuiType(UPGRADE_CAP_TYPE)) {
     throw new Error(
-      `Found multiple objects owned by ${owner} of type ${type}. Objects: ${objectsStr}`
+      "`getOwnedObjectId` should not be used to get the object ID of an `UpgradeCap`. Use `getUpgradeCapObjectId` instead."
     );
   }
 
-  // Those properties aren't returned for other structs (as of Sui SDK ver.
-  // 0.30.0) and we can assume that if we've found a single object with the
-  // correct type, that's what we're looking for.
+  const res = await provider.getOwnedObjects({
+    owner,
+    filter: { StructType: type },
+    options: {
+      showContent: true,
+    },
+  });
+  if (!res || !res.data) {
+    throw new SuiRpcValidationError(res);
+  }
+
+  const objects = res.data.filter((o) => o.data?.objectId);
   if (objects.length === 1) {
     return objects[0].data?.objectId;
   } else if (objects.length > 1) {
     const objectsStr = JSON.stringify(objects, null, 2);
     throw new Error(
       `Found multiple objects owned by ${owner} of type ${type}. This may mean that we've received an unexpected response from the Sui RPC and \`worm\` logic needs to be updated to handle this. Objects: ${objectsStr}`
+    );
+  } else {
+    return null;
+  }
+};
+
+/**
+ * This function returns the object ID of the `UpgradeCap` that belongs to the
+ * given package and owner if it exists.
+ *
+ * Structs created by the Sui framework such as `UpgradeCap`s all have the same
+ * type (e.g. `0x2::package::UpgradeCap`) and have a special field, `package`,
+ * we can use to differentiate them.
+ * @param provider Sui RPC provider
+ * @param owner Address of the current owner of the `UpgradeCap`
+ * @param packageId ID of the package that the `UpgradeCap` was created for
+ * @returns The object ID of the `UpgradeCap` if it exists, otherwise `null`
+ */
+export const getUpgradeCapObjectId = async (
+  provider: JsonRpcProvider,
+  owner: string,
+  packageId: string
+): Promise<string | null> => {
+  const res = await provider.getOwnedObjects({
+    owner,
+    filter: { StructType: UPGRADE_CAP_TYPE },
+    options: {
+      showContent: true,
+    },
+  });
+  if (!res || !res.data) {
+    throw new SuiRpcValidationError(res);
+  }
+
+  const objects = res.data.filter(
+    (o) =>
+      o.data?.objectId &&
+      o.data?.content?.dataType === "moveObject" &&
+      o.data?.content?.fields?.package === packageId
+  );
+  if (objects.length === 1) {
+    // We've found the object we're looking for
+    return objects[0].data?.objectId;
+  } else if (objects.length > 1) {
+    const objectsStr = JSON.stringify(objects, null, 2);
+    throw new Error(
+      `Found multiple upgrade capabilities owned by ${owner} from package ${packageId}. Objects: ${objectsStr}`
     );
   } else {
     return null;
@@ -121,8 +161,8 @@ export const getSigner = (
   return new RawSigner(keypair, provider);
 };
 
-export const isValidSuiObjectId = (objectId: string): boolean => {
-  return /^(0x)?[0-9a-f]{64}$/i.test(objectId);
+export const isValidSuiAddress = (objectId: string): boolean => {
+  return /^(0x)?[0-9a-f]{1,64}$/.test(objectId);
 };
 
 export const isSuiPublishEvent = (event: any): event is SuiPublishEvent => {
@@ -131,4 +171,13 @@ export const isSuiPublishEvent = (event: any): event is SuiPublishEvent => {
 
 export const isSuiCreateEvent = (event: any): event is SuiCreateEvent => {
   return event.type === "created";
+};
+
+export const normalizeSuiType = (type: string): string => {
+  const tokens = type.split("::");
+  if (tokens.length !== 3 || !isValidSuiAddress(tokens[0])) {
+    throw new Error(`Invalid Sui type: ${type}`);
+  }
+
+  return [normalizeSuiAddress(tokens[0]), tokens[1], tokens[2]].join("::");
 };
