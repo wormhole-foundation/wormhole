@@ -177,6 +177,9 @@ var (
 	baseRPC      *string
 	baseContract *string
 
+	sepoliaRPC      *string
+	sepoliaContract *string
+
 	logLevel                *string
 	publicRpcLogDetailStr   *string
 	publicRpcLogToTelemetry *bool
@@ -316,6 +319,9 @@ func init() {
 
 	arbitrumRPC = NodeCmd.Flags().String("arbitrumRPC", "", "Arbitrum RPC URL")
 	arbitrumContract = NodeCmd.Flags().String("arbitrumContract", "", "Arbitrum contract address")
+
+	sepoliaRPC = NodeCmd.Flags().String("sepoliaRPC", "", "Sepolia RPC URL")
+	sepoliaContract = NodeCmd.Flags().String("sepoliaContract", "", "Sepolia contract address")
 
 	optimismRPC = NodeCmd.Flags().String("optimismRPC", "", "Optimism RPC URL")
 	optimismContract = NodeCmd.Flags().String("optimismContract", "", "Optimism contract address")
@@ -494,6 +500,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		*arbitrumContract = unsafeDevModeEvmContractAddress(*arbitrumContract)
 		*optimismContract = unsafeDevModeEvmContractAddress(*optimismContract)
 		*baseContract = unsafeDevModeEvmContractAddress(*baseContract)
+		*sepoliaContract = unsafeDevModeEvmContractAddress(*sepoliaContract)
 	}
 
 	// Verify flags
@@ -647,6 +654,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *baseContract == "" {
 			logger.Fatal("Please specify --baseContract")
 		}
+		if *sepoliaRPC == "" {
+			logger.Fatal("Please specify --sepoliaRPC")
+		}
+		if *sepoliaContract == "" {
+			logger.Fatal("Please specify --sepoliaContract")
+		}
 	} else {
 		if *neonRPC != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --neonRPC")
@@ -659,6 +672,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 		if *baseContract != "" && !*unsafeDevMode {
 			logger.Fatal("Please do not specify --baseContract")
+		}
+		if *sepoliaRPC != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --sepoliaRPC")
+		}
+		if *sepoliaContract != "" && !*unsafeDevMode {
+			logger.Fatal("Please do not specify --sepoliaContract")
 		}
 	}
 
@@ -797,6 +816,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	optimismContractAddr := eth_common.HexToAddress(*optimismContract)
 	baseContractAddr := eth_common.HexToAddress(*baseContract)
 	solAddress, err := solana_types.PublicKeyFromBase58(*solanaContract)
+	sepoliaContractAddr := eth_common.HexToAddress(*sepoliaContract)
 	if err != nil {
 		logger.Fatal("invalid Solana contract address", zap.Error(err))
 	}
@@ -991,7 +1011,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			wormchainKeyPathName = fmt.Sprint(*wormchainKeyPath, idx)
 		}
 
-		logger.Debug("acct: loading key file", zap.String("key path", wormchainKeyPathName))
+		logger.Debug("loading key file", zap.String("key path", wormchainKeyPathName))
 		wormchainKey, err = wormconn.LoadWormchainPrivKey(wormchainKeyPathName, *wormchainKeyPassPhrase)
 		if err != nil {
 			logger.Fatal("failed to load wormchain private key", zap.Error(err))
@@ -1009,20 +1029,21 @@ func runNode(cmd *cobra.Command, args []string) {
 	// will be passed to it for processing. It will forward all token bridge transfers to the accountant contract.
 	// If accountantCheckEnabled is set to true, token bridge transfers will not be signed and published until they
 	// are approved by the accountant smart contract.
+	acctLogger := logger.With(zap.String("component", "gacct"))
 	acctReadC, acctWriteC := makeChannelPair[*common.MessagePublication](0)
 
 	var acct *accountant.Accountant
 	if *accountantContract != "" {
 		if *accountantWS == "" {
-			logger.Fatal("acct: if accountantContract is specified, accountantWS is required")
+			acctLogger.Fatal("if accountantContract is specified, accountantWS is required")
 		}
 		if wormchainConn == nil {
-			logger.Fatal("acct: if accountantContract is specified, the wormchain sending connection must be enabled")
+			acctLogger.Fatal("if accountantContract is specified, the wormchain sending connection must be enabled")
 		}
 		if *accountantCheckEnabled {
-			logger.Info("acct: accountant is enabled and will be enforced")
+			acctLogger.Info("accountant is enabled and will be enforced")
 		} else {
-			logger.Info("acct: accountant is enabled but will not be enforced")
+			acctLogger.Info("accountant is enabled but will not be enforced")
 		}
 		env := accountant.MainNetMode
 		if *testnetMode {
@@ -1045,7 +1066,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			env,
 		)
 	} else {
-		logger.Info("acct: accountant is disabled")
+		acctLogger.Info("accountant is disabled")
 	}
 
 	var gov *governor.ChainGovernor
@@ -1387,12 +1408,25 @@ func runNode(cmd *cobra.Command, args []string) {
 					return err
 				}
 			}
+			if shouldStart(sepoliaRPC) {
+				if ethWatcher == nil {
+					log.Fatalf("if sepolia is enabled then ethereum must also be enabled.")
+				}
+				logger.Info("Starting Sepolia watcher")
+				common.MustRegisterReadinessSyncing(vaa.ChainIDSepolia)
+				chainObsvReqC[vaa.ChainIDSepolia] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
+				sepoliaWatcher := evm.NewEthWatcher(*sepoliaRPC, sepoliaContractAddr, "sepolia", vaa.ChainIDSepolia, chainMsgC[vaa.ChainIDSepolia], nil, chainObsvReqC[vaa.ChainIDSepolia], *unsafeDevMode)
+				if err := supervisor.Run(ctx, "sepoliawatch", common.WrapWithScissors(sepoliaWatcher.Run, "sepoliawatch")); err != nil {
+					return err
+				}
+			}
 		}
+
 		go handleReobservationRequests(rootCtx, clock.New(), logger, obsvReqReadC, chainObsvReqC)
 
 		if acct != nil {
 			if err := acct.Start(ctx); err != nil {
-				logger.Fatal("acct: failed to start accountant", zap.Error(err))
+				acctLogger.Fatal("failed to start accountant", zap.Error(err))
 			}
 		}
 
@@ -1422,7 +1456,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			return err
 		}
 
-		adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectWriteC, signedInWriteC, obsvReqSendWriteC, db, gst, gov, gk, ethRPC, ethContract)
+		adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectWriteC, signedInWriteC, obsvReqSendWriteC, db, gst, gov, gk, ethRPC, ethContract, *testnetMode)
 		if err != nil {
 			logger.Fatal("failed to create admin service socket", zap.Error(err))
 		}

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.12
+
+### Added
+
+Sepolia testnet support
+
 ## 0.9.11
 
 ### Added

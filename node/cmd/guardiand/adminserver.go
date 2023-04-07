@@ -51,6 +51,7 @@ type nodePrivilegedService struct {
 	gsCache         sync.Map
 	gk              *ecdsa.PrivateKey
 	guardianAddress ethcommon.Address
+	testnetMode     bool
 }
 
 // adminGuardianSetUpdateToVAA converts a nodev1.GuardianSetUpdate message to its canonical VAA representation.
@@ -568,6 +569,7 @@ func adminServiceRunnable(
 	gk *ecdsa.PrivateKey,
 	ethRpc *string,
 	ethContract *string,
+	testnetMode bool,
 ) (supervisor.Runnable, error) {
 	// Delete existing UNIX socket, if present.
 	fi, err := os.Stat(socketPath)
@@ -622,6 +624,7 @@ func adminServiceRunnable(
 		gk:              gk,
 		guardianAddress: ethcrypto.PubkeyToAddress(gk.PublicKey),
 		evmConnector:    evmConnector,
+		testnetMode:     testnetMode,
 	}
 
 	publicrpcService := publicrpc.NewPublicrpcServer(logger, db, gst, gov)
@@ -874,6 +877,9 @@ func (s *nodePrivilegedService) DumpRPCs(ctx context.Context, req *nodev1.DumpRP
 	rpcMap["polygonRPC"] = *polygonRPC
 	rpcMap["pythnetRPC"] = *pythnetRPC
 	rpcMap["pythnetWS"] = *pythnetWS
+	if s.testnetMode {
+		rpcMap["sepoliaRPC"] = *sepoliaRPC
+	}
 	rpcMap["solanaRPC"] = *solanaRPC
 	rpcMap["terraWS"] = *terraWS
 	rpcMap["terraLCD"] = *terraLCD

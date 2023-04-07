@@ -196,7 +196,7 @@ func (p *Processor) Run(ctx context.Context) error {
 			if p.acct != nil {
 				shouldPub, err := p.acct.SubmitObservation(k)
 				if err != nil {
-					return fmt.Errorf("acct: failed to process message `%s`: %w", k.MessageIDString(), err)
+					return fmt.Errorf("failed to process message `%s`: %w", k.MessageIDString(), err)
 				}
 				if !shouldPub {
 					continue
@@ -206,11 +206,11 @@ func (p *Processor) Run(ctx context.Context) error {
 
 		case k := <-p.acctReadC:
 			if p.acct == nil {
-				return fmt.Errorf("acct: received an accountant event when accountant is not configured")
+				return fmt.Errorf("received an accountant event when accountant is not configured")
 			}
 			// SECURITY defense-in-depth: Make sure the accountant did not generate an unexpected message.
 			if !p.acct.IsMessageCoveredByAccountant(k) {
-				return fmt.Errorf("acct: accountant published a message that is not covered by it: `%s`", k.MessageIDString())
+				return fmt.Errorf("accountant published a message that is not covered by it: `%s`", k.MessageIDString())
 			}
 			p.handleMessage(ctx, k)
 		case v := <-p.injectC:
@@ -238,7 +238,7 @@ func (p *Processor) Run(ctx context.Context) error {
 						if p.acct != nil {
 							shouldPub, err := p.acct.SubmitObservation(k)
 							if err != nil {
-								return fmt.Errorf("acct: failed to process message released by governor `%s`: %w", k.MessageIDString(), err)
+								return fmt.Errorf("failed to process message released by governor `%s`: %w", k.MessageIDString(), err)
 							}
 							if !shouldPub {
 								continue

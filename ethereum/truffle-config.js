@@ -357,6 +357,15 @@ module.exports = {
       },
       network_id: 84531,
     },
+    sepolia_testnet: {
+      provider: () => {
+        return new HDWalletProvider(
+          process.env.MNEMONIC,
+          "https://rpc.ankr.com/eth_sepolia"
+        );
+      },
+      network_id: "11155111",
+    },
   },
 
   compilers: {
