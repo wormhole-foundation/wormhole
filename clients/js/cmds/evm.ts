@@ -11,15 +11,7 @@ import {
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 import { evm_address } from "../consts";
 import { config } from '../config';
-import { spawnSync } from 'child_process';
-
-const validator_args = {
-  alias: "a",
-  type: "string",
-  array: true,
-  default: [],
-  describe: "Additional args to validator",
-} as const;
+import { runCommand, validator_args } from '../start-validator';
 
 exports.command = "evm";
 exports.desc = "EVM utilities";
@@ -214,10 +206,3 @@ exports.builder = function (y: typeof yargs) {
     .strict()
     .demandCommand();
 };
-
-function runCommand(baseCmd: string, args: readonly string[]) {
-  const args_string = args.map(a => `"${a}"`).join(" ");
-  const cmd = `${baseCmd} ${args_string}`;
-  console.log("\x1b[33m%s\x1b[0m", cmd);
-  spawnSync(cmd, { shell: true, stdio: "inherit" });
-}
