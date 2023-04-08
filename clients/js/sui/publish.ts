@@ -7,7 +7,7 @@ import {
 import { execSync } from "child_process";
 import fs from "fs";
 import { resolve } from "path";
-import { isSuiCreateEvent, isSuiPublishEvent } from ".";
+import { isSuiPublishEvent } from ".";
 import { Network } from "../utils";
 import { MoveToml } from "./MoveToml";
 
@@ -20,7 +20,7 @@ export const publishPackage = async (
   console.log("Package path", packagePath);
 
   try {
-    setupToml(packagePath, network);
+    setupMainToml(packagePath, network);
 
     // Build contracts
     const buildOutput: {
@@ -58,8 +58,6 @@ export const publishPackage = async (
     });
 
     // Update network-specific Move.toml with package ID
-    const tomlPath = getTomlPathByNetwork(packagePath, network);
-    const tomlStr = fs.readFileSync(tomlPath, "utf8");
     const publishEvent = res.objectChanges.find(isSuiPublishEvent);
     if (!publishEvent) {
       throw new Error(
@@ -68,48 +66,25 @@ export const publishPackage = async (
       );
     }
 
-    const updatedTomlStr = new MoveToml(tomlStr)
-      .addRow("package", "published-at", publishEvent.packageId)
-      .updateRow(
-        "addresses",
-        getPackageNameFromPath(packagePath),
-        publishEvent.packageId
-      )
-      .serialize();
-    fs.writeFileSync(tomlPath, updatedTomlStr, "utf8");
-
-    // Dump deployment info to console
-    console.log("Transaction digest", res.digest);
-    console.log("Deployer", res.transaction.data.sender);
-    console.log("Published to", publishEvent.packageId);
-    console.log(
-      "Created objects",
-      res.objectChanges.filter(isSuiCreateEvent).map((e) => {
-        return {
-          type: e.objectType,
-          objectId: e.objectId,
-          owner: e.owner["AddressOwner"] || e.owner["ObjectOwner"] || e.owner,
-        };
-      })
-    );
+    updateNetworkToml(packagePath, network, publishEvent.packageId);
 
     // Return publish transaction info
     return res;
   } catch (e) {
     throw e;
   } finally {
-    cleanupToml(packagePath);
+    cleanupTempToml(packagePath);
   }
 };
 
-const cleanupToml = (packagePath: string): void => {
+const cleanupTempToml = (packagePath: string): void => {
   const defaultTomlPath = getDefaultTomlPath(packagePath);
   const tempTomlPath = getTempTomlPath(packagePath);
   if (fs.existsSync(tempTomlPath)) {
     // Clean up Move.toml for dependencies
-    const dependencyPaths = getAllLocalPackageDependencyPaths(packagePath);
+    const dependencyPaths = getAllLocalPackageDependencyPaths(defaultTomlPath);
     for (const path of dependencyPaths) {
-      cleanupToml(path);
+      cleanupTempToml(path);
     }
 
     fs.renameSync(tempTomlPath, defaultTomlPath);
@@ -124,8 +99,7 @@ const cleanupToml = (packagePath: string): void => {
  * @param packagePath
  * @returns
  */
-const getAllLocalPackageDependencyPaths = (packagePath: string): string[] => {
-  const tomlPath = getDefaultTomlPath(packagePath);
+const getAllLocalPackageDependencyPaths = (tomlPath: string): string[] => {
   const tomlStr = fs.readFileSync(tomlPath, "utf8").toString();
   const toml = new MoveToml(tomlStr);
 
@@ -140,6 +114,7 @@ const getAllLocalPackageDependencyPaths = (packagePath: string): string[] => {
     );
   }
 
+  const packagePath = getPackagePathFromTomlPath(tomlPath);
   return [...tomlStr.matchAll(/local = "(.*)"/g)].map((match) =>
     resolve(packagePath, match[1])
   );
@@ -147,6 +122,9 @@ const getAllLocalPackageDependencyPaths = (packagePath: string): string[] => {
 
 const getDefaultTomlPath = (packagePath: string): string =>
   `${packagePath}/Move.toml`;
+
+const getPackagePathFromTomlPath = (tomlPath: string): string =>
+  tomlPath.split("/").slice(0, -1).join("/");
 
 const getTempTomlPath = (packagePath: string): string =>
   `${packagePath}/Move.temp.toml`;
@@ -157,13 +135,39 @@ const getTomlPathByNetwork = (packagePath: string, network: Network): string =>
 const getPackageNameFromPath = (packagePath: string): string =>
   packagePath.split("/").pop() || "";
 
-const setupToml = (
+const resetNetworkToml = (
+  packagePath: string,
+  network: Network,
+  recursive: boolean = false
+): void => {
+  const networkTomlPath = getTomlPathByNetwork(packagePath, network);
+  const tomlStr = fs.readFileSync(networkTomlPath, "utf8").toString();
+  const toml = new MoveToml(tomlStr);
+  if (toml.isPublished()) {
+    if (recursive) {
+      const dependencyPaths =
+        getAllLocalPackageDependencyPaths(networkTomlPath);
+      for (const path of dependencyPaths) {
+        resetNetworkToml(path, network);
+      }
+    }
+
+    const updatedTomlStr = toml
+      .removeRow("package", "published-at")
+      .updateRow("addresses", getPackageNameFromPath(packagePath), "_")
+      .serialize();
+    fs.writeFileSync(networkTomlPath, updatedTomlStr, "utf8");
+  }
+};
+
+const setupMainToml = (
   packagePath: string,
   network: Network,
   isDependency: boolean = false
 ): void => {
   const defaultTomlPath = getDefaultTomlPath(packagePath);
   const tempTomlPath = getTempTomlPath(packagePath);
+  const srcTomlPath = getTomlPathByNetwork(packagePath, network);
 
   if (fs.existsSync(tempTomlPath)) {
     // It's possible that this dependency has been set up by another package
@@ -172,6 +176,14 @@ const setupToml = (
     }
 
     throw new Error("Move.temp.toml exists, is there a publish in progress?");
+  }
+
+  // Make deploying on devnet more convenient by resetting Move.toml so we
+  // don't have to manually reset them repeatedly during local development.
+  // This is not recursive because we assume that packages are deployed bottom
+  // up.
+  if (!isDependency && network === "DEVNET") {
+    resetNetworkToml(packagePath, network);
   }
 
   // Save default Move.toml
@@ -184,7 +196,6 @@ const setupToml = (
   fs.renameSync(defaultTomlPath, tempTomlPath);
 
   // Set Move.toml from appropriate network
-  const srcTomlPath = getTomlPathByNetwork(packagePath, network);
   if (!fs.existsSync(srcTomlPath)) {
     throw new Error(`Move.toml for ${network} not found at ${srcTomlPath}`);
   }
@@ -211,8 +222,22 @@ const setupToml = (
   }
 
   // Set up Move.toml for dependencies
-  const dependencyPaths = getAllLocalPackageDependencyPaths(packagePath);
+  const dependencyPaths = getAllLocalPackageDependencyPaths(defaultTomlPath);
   for (const path of dependencyPaths) {
-    setupToml(path, network, true);
+    setupMainToml(path, network, true);
   }
+};
+
+const updateNetworkToml = (
+  packagePath: string,
+  network: Network,
+  packageId: string
+): void => {
+  const tomlPath = getTomlPathByNetwork(packagePath, network);
+  const tomlStr = fs.readFileSync(tomlPath, "utf8");
+  const updatedTomlStr = new MoveToml(tomlStr)
+    .addRow("package", "published-at", packageId)
+    .updateRow("addresses", getPackageNameFromPath(packagePath), packageId)
+    .serialize();
+  fs.writeFileSync(tomlPath, updatedTomlStr, "utf8");
 };

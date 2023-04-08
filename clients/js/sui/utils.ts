@@ -25,7 +25,8 @@ export async function executeTransactionBlock(
     );
   }
 
-  const res = await signer.signAndExecuteTransactionBlock({
+  // Let caller handle parsing and logging info
+  return signer.signAndExecuteTransactionBlock({
     transactionBlock,
     options: {
       showInput: true,
@@ -34,12 +35,6 @@ export async function executeTransactionBlock(
       showObjectChanges: true,
     },
   });
-
-  console.log("Digest", res.digest, res.effects.transactionDigest);
-  console.log("Sender", res.transaction.data.sender);
-
-  // Let caller handle parsing and logging info
-  return res;
 }
 
 export const getOwnedObjectId = async (
