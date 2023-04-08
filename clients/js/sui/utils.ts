@@ -18,13 +18,6 @@ export async function executeTransactionBlock(
   signer: RawSigner,
   transactionBlock: TransactionBlock
 ) {
-  const testRes = await signer.dryRunTransactionBlock({ transactionBlock });
-  if (testRes.effects.status.status !== "success") {
-    throw new Error(
-      `Failed to execute transaction: ${testRes.effects.status.error}`
-    );
-  }
-
   // Let caller handle parsing and logging info
   return signer.signAndExecuteTransactionBlock({
     transactionBlock,
