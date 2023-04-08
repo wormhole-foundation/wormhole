@@ -69,6 +69,9 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           arguments: [transactionBlock.object(wormholeStateObjectId)],
         });
         const res = await executeTransactionBlock(signer, transactionBlock);
+
+        console.log("Digest", res.digest, res.effects.transactionDigest);
+        console.log("Sender", res.transaction.data.sender);
         console.log(
           "Example app state object ID",
           res.objectChanges
@@ -158,6 +161,8 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         });
         const res = await executeTransactionBlock(signer, transactionBlock);
 
+        console.log("Digest", res.digest, res.effects.transactionDigest);
+        console.log("Sender", res.transaction.data.sender);
         console.log(
           "Token bridge state object ID",
           res.objectChanges
@@ -268,6 +273,9 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           ],
         });
         const res = await executeTransactionBlock(signer, transactionBlock);
+
+        console.log("Digest", res.digest, res.effects.transactionDigest);
+        console.log("Sender", res.transaction.data.sender);
         console.log(
           "Wormhole state object ID",
           res.objectChanges
