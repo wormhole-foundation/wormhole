@@ -1,5 +1,4 @@
 import yargs from "yargs";
-import { config } from "../../config";
 import { NETWORK_OPTIONS, RPC_OPTIONS } from "../../consts";
 import { NETWORKS } from "../../networks";
 import {
@@ -45,13 +44,12 @@ export const addDeployCommands: YargsAddCommandsFn = (y: typeof yargs) =>
       console.log("Package", packageDir);
       console.log("RPC", rpc);
 
-      const res = await publishPackage(
-        signer,
-        network,
-        packageDir.startsWith("/") // Allow absolute paths, otherwise assume relative to sui directory
-          ? packageDir
-          : `${config.wormholeDir}/sui/${packageDir}`
-      );
+      // Allow absolute paths, otherwise assume relative to directory `worm` command is run from
+      const dir = packageDir.startsWith("/")
+        ? packageDir
+        : `${process.cwd()}/${packageDir}`;
+      const packagePath = dir.endsWith("/") ? dir.slice(0, -1) : dir;
+      const res = await publishPackage(signer, network, packagePath);
 
       // Dump deployment info to console
       console.log("Transaction digest", res.digest);
