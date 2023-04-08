@@ -16,11 +16,7 @@ export class MoveToml {
       }
     }
 
-    const section = this.toml.find((s) => s.name === sectionName);
-    if (section === undefined) {
-      throw new Error(`Section "${sectionName}" not found`);
-    }
-
+    const section = this.getSection(sectionName);
     section.rows.push({ key, value });
     return this;
   }
@@ -30,13 +26,13 @@ export class MoveToml {
   }
 
   isPublished(): boolean {
-    const section = this.toml.find((s) => s.name === "package");
-    if (section === undefined) {
-      throw new Error('Section "package" not found');
-    }
+    return !!this.getRow("package", "published-at", false);
+  }
 
-    const row = section.rows.find((r) => r.key === "published-at");
-    return row !== undefined;
+  removeRow(sectionName: string, key: string) {
+    const section = this.getSection(sectionName);
+    section.rows = section.rows.filter((r) => r.key !== key);
+    return this;
   }
 
   serialize(): string {
@@ -65,16 +61,7 @@ export class MoveToml {
       }
     }
 
-    const section = this.toml.find((s) => s.name === sectionName);
-    if (section === undefined) {
-      throw new Error(`Section "${sectionName}" not found`);
-    }
-
-    const row = section.rows.find((r) => r.key === key);
-    if (row === undefined) {
-      throw new Error(`Row "${key}" not found in section "${sectionName}"`);
-    }
-
+    const row = this.getRow(sectionName, key);
     row.value = value;
     return this;
   }
@@ -112,5 +99,31 @@ export class MoveToml {
     }
 
     return toml;
+  }
+
+  private getRow(
+    sectionName: string,
+    key: string,
+    errorIfMissing: boolean = true
+  ): ParsedMoveToml[number]["rows"][number] {
+    const section = this.getSection(sectionName);
+    const row = section.rows.find((r) => r.key === key);
+    if (errorIfMissing && row === undefined) {
+      throw new Error(`Row "${key}" not found in section "${sectionName}"`);
+    }
+
+    return row;
+  }
+
+  private getSection(
+    sectionName: string,
+    errorIfMissing: boolean = true
+  ): ParsedMoveToml[number] {
+    const section = this.toml.find((s) => s.name === sectionName);
+    if (errorIfMissing && section === undefined) {
+      throw new Error(`Section "${sectionName}" not found`);
+    }
+
+    return section;
   }
 }
