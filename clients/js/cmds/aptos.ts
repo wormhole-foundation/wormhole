@@ -43,6 +43,14 @@ const named_addresses = {
   require: false
 } as const;
 
+const validator_args = {
+  alias: "a",
+  type: "string",
+  array: true,
+  default: [],
+  describe: "Additional args to validator",
+} as const;
+
 // TODO(csongor): this could be useful elsewhere
 function assertNetwork(n: string): asserts n is Network {
   if (
@@ -350,7 +358,16 @@ exports.builder = function(y: typeof yargs) {
         const faucetClient = new FaucetClient(NODE_URL, FAUCET_URL);
         await faucetClient.fundAccount(account, amount);
         console.log(`Funded ${account} with ${amount} coins`);
-      })
+    })
+    .command("start-validator", "Start a local aptos validator", (yargs) => {
+      return yargs
+        .option("validator-args", validator_args)
+    }, (argv) => {
+        const dir = `${config.wormholeDir}/aptos`;
+        checkAptosBinary();
+        const cmd = `cd ${dir} && aptos node run-local-testnet --with-faucet --force-restart --assume-yes`;
+        runCommand(cmd, argv['validator-args']);
+    })
     .strict().demandCommand();
 }
 
@@ -413,4 +430,11 @@ function serializePackage(p: Package): PackageBCS {
     bytecodes: serializedModules,
     codeHash
   }
+}
+
+function runCommand(baseCmd: string, args: readonly string[]) {
+  const args_string = args.map(a => `"${a}"`).join(" ");
+  const cmd = `${baseCmd} ${args_string}`;
+  console.log("\x1b[33m%s\x1b[0m", cmd);
+  spawnSync(cmd, { shell: true, stdio: "inherit" });
 }
