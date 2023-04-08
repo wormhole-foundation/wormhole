@@ -196,7 +196,7 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
             type: "number",
             required: false,
           })
-          .option("governance-contract-address", {
+          .option("governance-address", {
             alias: "a",
             describe: "Governance contract address",
             type: "string",
@@ -217,7 +217,7 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         const packageId = argv["package-id"];
         const initialGuardian = argv["initial-guardian"];
         const governanceChainId = argv["governance-chain-id"];
-        const governanceContract = argv["governance-contract-address"];
+        const governanceContract = argv["governance-address"];
         const privateKey = argv["private-key"];
         const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
 
