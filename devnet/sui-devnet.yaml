@@ -55,5 +55,17 @@ spec:
           readinessProbe:
             tcpSocket:
               port: 9000
-
-      restartPolicy: Always
+        - name: sui-contracts
+          image: sui-node
+          command: ["/bin/bash", "-c"]
+          args:
+            [
+              "cd /tmp/scripts && ./wait_for_devnet.sh && ./deploy.sh devnet && touch success && sleep infinity",
+            ]
+          readinessProbe:
+            periodSeconds: 1
+            failureThreshold: 300
+            exec:
+              command:
+                - cat
+                - /tmp/scripts/success
