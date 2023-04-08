@@ -2,7 +2,13 @@ import yargs from "yargs";
 import { config } from "../../config";
 import { NETWORK_OPTIONS, RPC_OPTIONS } from "../../consts";
 import { NETWORKS } from "../../networks";
-import { getProvider, getSigner, publishPackage } from "../../sui";
+import {
+  getProvider,
+  getSigner,
+  isSuiCreateEvent,
+  isSuiPublishEvent,
+  publishPackage,
+} from "../../sui";
 import { assertNetwork, checkBinary } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
 
@@ -39,12 +45,30 @@ export const addDeployCommands: YargsAddCommandsFn = (y: typeof yargs) =>
       console.log("Package", packageDir);
       console.log("RPC", rpc);
 
-      await publishPackage(
+      const res = await publishPackage(
         signer,
         network,
         packageDir.startsWith("/") // Allow absolute paths, otherwise assume relative to sui directory
           ? packageDir
           : `${config.wormholeDir}/sui/${packageDir}`
+      );
+
+      // Dump deployment info to console
+      console.log("Transaction digest", res.digest);
+      console.log("Deployer", res.transaction.data.sender);
+      console.log(
+        "Published to",
+        res.objectChanges.find(isSuiPublishEvent).packageId
+      );
+      console.log(
+        "Created objects",
+        res.objectChanges.filter(isSuiCreateEvent).map((e) => {
+          return {
+            type: e.objectType,
+            objectId: e.objectId,
+            owner: e.owner["AddressOwner"] || e.owner["ObjectOwner"] || e.owner,
+          };
+        })
       );
     }
   );

@@ -88,6 +88,8 @@ export const addPublishMessageCommands: YargsAddCommandsFn = (
         );
       }
 
+      console.log("Digest", res.digest, res.effects.transactionDigest);
+      console.log("Sender", res.transaction.data.sender);
       console.log("Publish message succeeded:", {
         sender: event.sender,
         type: event.type,
