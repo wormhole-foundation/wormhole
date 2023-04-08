@@ -10,6 +10,16 @@ import {
   toChainName,
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 import { evm_address } from "../consts";
+import { config } from '../config';
+import { spawnSync } from 'child_process';
+
+const validator_args = {
+  alias: "a",
+  type: "string",
+  array: true,
+  default: [],
+  describe: "Additional args to validator",
+} as const;
 
 exports.command = "evm";
 exports.desc = "EVM utilities";
@@ -193,6 +203,21 @@ exports.builder = function (y: typeof yargs) {
         );
       }
     )
+    .command("start-validator", "Start a local EVM validator", (yargs) => {
+      return yargs
+      .option("validator-args", validator_args)
+    }, (argv) => {
+        const dir = `${config.wormholeDir}/ethereum`;
+        const cmd = `cd ${dir} && npx ganache-cli -e 10000 --deterministic --time="1970-01-01T00:00:00+00:00"`;
+        runCommand(cmd, argv['validator-args'])
+    })
     .strict()
     .demandCommand();
 };
+
+function runCommand(baseCmd: string, args: readonly string[]) {
+  const args_string = args.map(a => `"${a}"`).join(" ");
+  const cmd = `${baseCmd} ${args_string}`;
+  console.log("\x1b[33m%s\x1b[0m", cmd);
+  spawnSync(cmd, { shell: true, stdio: "inherit" });
+}
