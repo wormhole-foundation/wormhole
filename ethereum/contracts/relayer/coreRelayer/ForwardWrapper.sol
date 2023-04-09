@@ -2,14 +2,14 @@
 
 pragma solidity ^0.8.0;
 
-import "../interfaces/IWormholeReceiver.sol";
-import "../interfaces/IWormhole.sol";
-import "../interfaces/IRelayProvider.sol";
-import "../interfaces/IForwardInstructionViewer.sol";
-import "../interfaces/IWormholeRelayerInternalStructs.sol";
-import "../interfaces/IForwardWrapper.sol";
-import "../interfaces/IWormholeReceiver.sol";
-import "../interfaces/IRelayProvider.sol";
+import "../../interfaces/relayer/IWormholeReceiver.sol";
+import "../../interfaces/IWormhole.sol";
+import "../../interfaces/relayer/IRelayProvider.sol";
+import "../../interfaces/relayer/IForwardInstructionViewer.sol";
+import "../../interfaces/relayer/IWormholeRelayerInternalStructs.sol";
+import "../../interfaces/relayer/IForwardWrapper.sol";
+import "../../interfaces/relayer/IWormholeReceiver.sol";
+import "../../interfaces/relayer/IRelayProvider.sol";
 
 contract ForwardWrapper {
     IForwardInstructionViewer forwardInstructionViewer;

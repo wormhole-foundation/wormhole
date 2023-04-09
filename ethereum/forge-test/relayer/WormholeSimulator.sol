@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache 2
 pragma solidity ^0.8.0;
 
-import {IWormhole} from "../contracts/interfaces/IWormhole.sol";
-import {MockWormhole} from "../contracts/mock/MockWormhole.sol";
-import "../contracts/libraries/external/BytesLib.sol";
+import {IWormhole} from "../../contracts/interfaces/IWormhole.sol";
+import {MockWormhole} from "../../contracts/mock/MockWormhole.sol";
+import "../../contracts/libraries/external/BytesLib.sol";
 
 import "forge-std/Vm.sol";
 import "forge-std/console.sol";
