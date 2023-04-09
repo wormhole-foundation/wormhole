@@ -17,15 +17,17 @@ private keys, based on `.env.sample` in this folder.
 worm [command]
 
 Commands:
-  worm generate                             generate VAAs (devnet and testnet
-                                            only)
-  worm parse <vaa>                          Parse a VAA (can be in either hex or
-                                            base64 format)
-  worm recover <digest> <signature>         Recover an address from a signature
-  worm contract <network> <chain> <module>  Print contract address
-  worm rpc <network> <chain>                Print RPC address
-  worm evm                                  EVM utilites
-  worm submit <vaa>                         Execute a VAA
+  worm generate                                   generate VAAs (devnet and testnet
+                                                  only)
+  worm parse <vaa>                                Parse a VAA (can be in either hex or
+                                                  base64 format)
+  worm recover <digest> <signature>               Recover an address from a signature
+  worm info contract <network> <chain> <module>   Print contract address
+  worm info rpc <network> <chain>                 Print RPC address
+  worm info chain-id <chain>                      Print the wormhole chain ID integer
+                                                  associated with the specified chain name
+  worm evm                                        EVM utilites
+  worm submit <vaa>                               Execute a VAA
 
 Options:
   --help     Show help                                                 [boolean]
@@ -185,8 +187,8 @@ $ worm evm info -c bsc -n mainnet -m TokenBridge
 
 To get the contract address for a module:
 
-    $ worm contract mainnet bsc NFTBridge
+    $ worm info contract mainnet bsc NFTBridge
 
 To get the RPC address for a chain
 
-    $ worm rpc mainnet bsc
+    $ worm info rpc mainnet bsc
