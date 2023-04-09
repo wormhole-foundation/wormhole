@@ -11,7 +11,7 @@ import base58 from "bs58";
 import { sha3_256 } from "js-sha3";
 import yargs from "yargs";
 import { GOVERNANCE_CHAIN, GOVERNANCE_EMITTER } from "../consts";
-import { evm_address, hex } from "../utils";
+import { evm_address } from "../utils";
 import {
   ContractUpgrade,
   impossible,
@@ -283,11 +283,11 @@ function parseAddress(chain: ChainName, address: string): string {
     // TODO: is there a better native format for algorand?
     return "0x" + evm_address(address);
   } else if (chain === "near") {
-    return "0x" + hex(address).substring(2).padStart(64, "0");
+    return "0x" + evm_address(address);
   } else if (chain === "osmosis") {
     throw Error("OSMOSIS is not supported yet");
   } else if (chain === "sui") {
-    throw Error("SUI is not supported yet");
+    return "0x" + evm_address(address);
   } else if (chain === "aptos") {
     if (/^(0x)?[0-9a-fA-F]+$/.test(address)) {
       return "0x" + evm_address(address);
