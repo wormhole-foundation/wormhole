@@ -62,8 +62,10 @@ async function readState(
     const relayProvider = getRelayProvider(chain, getProvider(chain));
     const contractAddress = getRelayProviderAddress(chain);
     const rewardAddress = await relayProvider.getRewardAddress();
-    const providerAddresses: { chainId: number; providerAddress: string }[] =
-      [];
+    const providerAddresses: {
+      chainId: number;
+      providerAddress: string;
+    }[] = [];
     const deliveryOverheads: {
       chainId: number;
       deliveryOverhead: BigNumber;
@@ -79,12 +81,13 @@ async function readState(
     const owner: string = await relayProvider.owner();
 
     for (const chainInfo of chains) {
-      providerAddresses.push({
-        chainId: chainInfo.chainId,
-        providerAddress: (
-          await relayProvider.getDeliveryAddress(chainInfo.chainId)
-        ).toString(),
-      });
+      //TODO
+      // providerAddresses.push({
+      //   chainId: chainInfo.chainId,
+      //   providerAddress: (
+      //     await relayProvider.getDeliveryAddress(chainInfo.chainId)
+      //   ).toString(),
+      // });
       deliveryOverheads.push({
         chainId: chainInfo.chainId,
         deliveryOverhead: await relayProvider.quoteDeliveryOverhead(

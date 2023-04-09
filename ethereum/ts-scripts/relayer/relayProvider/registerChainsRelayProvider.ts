@@ -37,9 +37,10 @@ async function registerChainsRelayProvider(chain: ChainInfo) {
     const targetChainProviderAddress = getRelayProviderAddress(chains[i]);
     const whAddress =
       "0x" + tryNativeToHexString(targetChainProviderAddress, "ethereum");
-    await relayProvider
-      .updateDeliveryAddress(chains[i].chainId, whAddress)
-      .then(wait);
+    //TODO chain support & targetaddresses instead
+    // await relayProvider
+    //   .updateDeliveryAddress(chains[i].chainId, whAddress)
+    //   .then(wait);
   }
 
   console.log("done with registrations on " + chain.chainId);
