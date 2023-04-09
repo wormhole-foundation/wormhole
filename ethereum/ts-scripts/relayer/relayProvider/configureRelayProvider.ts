@@ -10,13 +10,14 @@ import { wait } from "../helpers/utils";
 
 const processName = "configureRelayProvider";
 init();
-const chains = getOperatingChains();
+const operatingChains = getOperatingChains();
+const chains = loadChains();
 const config = loadScriptConfig(processName);
 
 async function run() {
   console.log("Start! " + processName);
 
-  for (let i = 0; i < chains.length; i++) {
+  for (let i = 0; i < operatingChains.length; i++) {
     await configureChainsRelayProvider(chains[i]);
   }
 }
@@ -46,14 +47,7 @@ async function configureChainsRelayProvider(chain: ChainInfo) {
   }
 
   console.log("Set address info...");
-  await relayProvider
-    .updateRewardAddress(thisChainsConfigInfo.rewardAddress)
-    .then(wait);
-  for (const { address, approved } of thisChainsConfigInfo.approvedSenders) {
-    console.log(`Setting approved sender: ${address}, approved: ${approved}`);
-    //TODO not this
-    //await relayProvider.updateApprovedSender(address, approved).then(wait);
-  }
+  await relayProvider.updateRewardAddress(thisChainsConfigInfo.rewardAddress);
 
   //TODO refactor to use the batch price update, probably
   console.log("Set gas and native prices...");
