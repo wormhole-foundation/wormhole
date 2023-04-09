@@ -1,0 +1,35 @@
+{
+  "name": "offchain-generic-relayer",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "ts-node src/app.ts --flag=testnet",
+    "tilt": "ts-node src/app.ts --flag=tilt",
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Joe Howarth",
+  "license": "ISC",
+  "dependencies": {
+    "@certusone/wormhole-sdk": "^0.9.11",
+    "@types/clone": "^2.1.1",
+    "@types/koa": "^2.13.5",
+    "clone": "^2.1.2",
+    "koa": "^2.14.1",
+    "wormhole-relayer": "github:gabzim/wormhole-relayer#bb152e209a680396e986c8776c388e14774c59f6",
+    "yargs": "^17.7.1"
+  },
+  "peerDependencies": {
+    "ethers": "^5",
+    "winston": "3.8.2"
+  },
+  "devDependencies": {
+    "@types/yargs": "^17.0.23",
+    "nodemon": "^2.0.20",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.8.4",
+    "winston": "3.8.2"
+  }
+}
