@@ -20,7 +20,6 @@ USER 1000
 
 RUN mkdir -p /home/node/app
 RUN mkdir -p /home/node/.npm
-RUN mkdir -p /home/node/app/relayers
 
 WORKDIR /home/node/app
 
@@ -38,16 +37,6 @@ RUN if [ -e /certs/cert.pem ]; then npm config set cafile /certs/cert.pem; fi
 RUN if [ -e /certs/cert.pem ]; then git config --global http.sslCAInfo /certs/cert.pem; fi
 
 
-WORKDIR /home/node/app/relayers
-
-COPY --chown=node:node relayers/package.json .
-COPY --chown=node:node relayers/package-lock.json .
-
-RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/app/relayers/.npm \
-  --mount=type=cache,uid=1000,gid=1000,target=/home/node/app/relayers/node_modules \
-  npm ci && \                                                 
-  cp -R node_modules node_modules_cache
-
 WORKDIR /home/node/app
 
 # Only invalidate the npm install step if package.json changed
@@ -56,15 +45,12 @@ COPY --chown=node:node package-lock.json .
 COPY --from=const-export --chown=node:node .env.0x .env
 
 
-
 # We want to cache node_modules *and* incorporate it into the final image.
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
   --mount=type=cache,uid=1000,gid=1000,target=node_modules \
   npm ci && \                                                 
   cp -R node_modules node_modules_cache
   
-
-
 
 # Amusingly, Debian's coreutils version has a bug where mv believes that
 # the target is on a different fs and does a full recursive copy for what
