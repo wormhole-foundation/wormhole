@@ -2,13 +2,13 @@
 
 pragma solidity ^0.8.0;
 
-import {IWormholeRelayer} from "../contracts/interfaces/IWormholeRelayer.sol";
-import {IDelivery} from "../contracts/interfaces/IDelivery.sol";
-import {IWormholeRelayerInstructionParser} from "./IWormholeRelayerInstructionParser.sol";
-import {IWormhole} from "../contracts/interfaces/IWormhole.sol";
+import {IWormholeRelayer} from "../../contracts/interfaces/relayer/IWormholeRelayer.sol";
+import {IDelivery} from "../../contracts/interfaces/relayer/IDelivery.sol";
+import {IWormholeRelayerInstructionParser} from "../../contracts/interfaces/relayer/IWormholeRelayerInstructionParser.sol";
+import {IWormhole} from "../../contracts/interfaces/IWormhole.sol";
 import {WormholeSimulator} from "./WormholeSimulator.sol";
 
-import "../contracts/libraries/external/BytesLib.sol";
+import "../../contracts/libraries/external/BytesLib.sol";
 import "forge-std/Vm.sol";
 
 contract MockGenericRelayer {

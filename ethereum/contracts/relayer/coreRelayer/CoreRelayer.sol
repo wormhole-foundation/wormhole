@@ -2,9 +2,9 @@
 
 pragma solidity ^0.8.0;
 
-import "../interfaces/IWormholeRelayer.sol";
+import "../../interfaces/relayer/IWormholeRelayer.sol";
 import "./CoreRelayerDelivery.sol";
-import "../interfaces/IWormholeRelayerInternalStructs.sol";
+import "../../interfaces/relayer/IWormholeRelayerInternalStructs.sol";
 
 contract CoreRelayer is CoreRelayerDelivery {
     /**

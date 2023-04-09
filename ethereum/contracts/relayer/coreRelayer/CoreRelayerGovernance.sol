@@ -4,14 +4,14 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 
-import "../libraries/external/BytesLib.sol";
+import "../../libraries/external/BytesLib.sol";
 
 import "./CoreRelayerGetters.sol";
 import "./CoreRelayerSetters.sol";
-import "../interfaces/IWormholeRelayerInternalStructs.sol";
+import "../../interfaces/relayer/IWormholeRelayerInternalStructs.sol";
 import "./CoreRelayerMessages.sol";
 
-import "../interfaces/IWormhole.sol";
+import "../../interfaces/IWormhole.sol";
 import "./CoreRelayerLibrary.sol";
 
 abstract contract CoreRelayerGovernance is

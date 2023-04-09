@@ -2,11 +2,11 @@
 
 pragma solidity ^0.8.0;
 
-import "../interfaces/IWormholeReceiver.sol";
-import "../interfaces/IDelivery.sol";
-import "../interfaces/IForwardWrapper.sol";
+import "../../interfaces/relayer/IWormholeReceiver.sol";
+import "../../interfaces/relayer/IDelivery.sol";
+import "../../interfaces/relayer/IForwardWrapper.sol";
 import "./CoreRelayerGovernance.sol";
-import "../interfaces/IWormholeRelayerInternalStructs.sol";
+import "../../interfaces/relayer/IWormholeRelayerInternalStructs.sol";
 import "./CoreRelayerMessages.sol";
 
 contract CoreRelayerDelivery is CoreRelayerGovernance {

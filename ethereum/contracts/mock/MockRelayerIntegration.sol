@@ -5,8 +5,8 @@ pragma solidity ^0.8.0;
 
 import "../libraries/external/BytesLib.sol";
 import "../interfaces/IWormhole.sol";
-import "../interfaces/IWormholeRelayer.sol";
-import "../interfaces/IWormholeReceiver.sol";
+import "../interfaces/relayer/IWormholeRelayer.sol";
+import "../interfaces/relayer/IWormholeReceiver.sol";
 
 import "forge-std/console.sol";
 
