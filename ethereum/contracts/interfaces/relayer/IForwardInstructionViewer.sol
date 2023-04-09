@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import "../interfaces/IWormholeRelayerInternalStructs.sol";
+import "./IWormholeRelayerInternalStructs.sol";
 
 interface IForwardInstructionViewer {
     function getForwardInstruction()

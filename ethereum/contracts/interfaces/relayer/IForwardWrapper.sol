@@ -2,9 +2,9 @@
 
 pragma solidity ^0.8.0;
 
-import "../interfaces/IWormholeRelayerInternalStructs.sol";
-import "../interfaces/IWormholeReceiver.sol";
-import "../interfaces/IRelayProvider.sol";
+import "./IWormholeRelayerInternalStructs.sol";
+import "./IWormholeReceiver.sol";
+import "./IRelayProvider.sol";
 
 interface IForwardWrapper {
     function executeInstruction(

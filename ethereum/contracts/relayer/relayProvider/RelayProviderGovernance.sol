@@ -5,7 +5,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 
-import "../libraries/external/BytesLib.sol";
+import "../../libraries/external/BytesLib.sol";
 
 import "./RelayProviderGetters.sol";
 import "./RelayProviderSetters.sol";
