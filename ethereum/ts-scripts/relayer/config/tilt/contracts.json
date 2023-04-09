@@ -4,19 +4,31 @@
   "relayProviders": [
     {
       "chainId": 2,
-      "address": "0xb4fFe5983B0B748124577Af4d16953bd096b6897"
+      "address": "0x83752ecAfeBf4707258dedFFbD9c7443148169db"
+    },
+    {
+      "chainId": 4,
+      "address": "0x83752ecAfeBf4707258dedFFbD9c7443148169db"
     }
   ],
   "coreRelayers": [
     {
       "chainId": 2,
-      "address": "0x42D4BA5e542d9FeD87EA657f0295F1968A61c00A"
+      "address": "0x0eb0dD3aa41bD15C706BC09bC03C002b7B85aeAC"
+    },
+    {
+      "chainId": 4,
+      "address": "0x0eb0dD3aa41bD15C706BC09bC03C002b7B85aeAC"
     }
   ],
   "mockIntegrations": [
     {
       "chainId": 2,
-      "address": "0x3F4E941ef5071a1D09C2eB4a24DA1Fc43F76fcfF"
+      "address": "0x7a082f0e362f8125e587B0aD5E9EA3B3Bdc8eCaD"
+    },
+    {
+      "chainId": 4,
+      "address": "0x7a082f0e362f8125e587B0aD5E9EA3B3Bdc8eCaD"
     }
   ]
 }
