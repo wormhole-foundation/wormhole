@@ -30,7 +30,7 @@ const module_args = {
 } as const;
 
 exports.command = "info";
-exports.desc = "Contract/chain/rpc information utilities";
+exports.desc = "Contract, chain and rpc information utilities";
 exports.builder = (y: typeof yargs) => {
   return y
   .command("chain-id <chain>", "Print the wormhole chain ID integer associated with the specified chain name", (yargs) => {
