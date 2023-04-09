@@ -1,0 +1,37 @@
+{
+  "name": "generic-relayer-sdk",
+  "version": "1.0.0",
+  "description": "",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "devDependencies": {
+    "@openzeppelin/contracts": "^4.7.3",
+    "@poanet/solidity-flattener": "^3.0.8",
+    "@types/chai": "^4.3.3",
+    "@types/mocha": "^9.1.1",
+    "chai": "^4.3.6",
+    "ethers": "^5.7.1",
+    "mocha": "^10.0.0",
+    "ts-mocha": "^10.0.0"
+  },
+  "scripts": {
+    "clean": "rm -rf node_modules src/ethers-contracts",
+    "typecheck": "tsc --noEmit",
+    "tsc": "tsc",
+    "build": "bash scripts/make_ethers_types.sh",
+    "test": "ts-mocha src/__tests__/*.ts --timeout 60000"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@certusone/wormhole-sdk": "^0.9.6",
+    "@certusone/wormhole-sdk-proto-web": "^0.0.6",
+    "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
+    "@typechain/ethers-v5": "^10.1.0",
+    "dotenv": "^16.0.2",
+    "elliptic": "^6.5.4",
+    "jsonfile": "^6.1.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.8.3"
+  }
+}
