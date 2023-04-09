@@ -28,24 +28,20 @@ contract RelayProviderSetters is Context, RelayProviderState {
         _state.coreRelayer = coreRelayer;
     }
 
-    function setApprovedSender(address sender, bool approved) internal {
-        _state.approvedSenders[sender] = approved;
+    function setChainSupported(uint16 targetChainId, bool isSupported) internal {
+        _state.supportedChains[targetChainId] = isSupported;
     }
 
     function setDeliverGasOverhead(uint16 chainId, uint32 deliverGasOverhead) internal {
         _state.deliverGasOverhead[chainId] = deliverGasOverhead;
     }
 
-    function setWormholeFee(uint16 chainId, uint32 wormholeFee) internal {
-        _state.wormholeFee[chainId] = wormholeFee;
-    }
-
     function setRewardAddress(address payable rewardAddress) internal {
         _state.rewardAddress = rewardAddress;
     }
 
-    function setDeliveryAddress(uint16 chainId, bytes32 whFormatDeliveryAddress) internal {
-        _state.deliveryAddressMap[chainId] = whFormatDeliveryAddress;
+    function setTargetChainAddress(bytes32 newAddress, uint16 targetChain) internal {
+        _state.targetChainAddresses[targetChain] = newAddress;
     }
 
     function setMaximumBudget(uint16 targetChainId, uint256 amount) internal {

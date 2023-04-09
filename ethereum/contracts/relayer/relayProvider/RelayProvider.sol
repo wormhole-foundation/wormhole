@@ -5,29 +5,16 @@ pragma solidity ^0.8.0;
 
 import "./RelayProviderGovernance.sol";
 import "./RelayProviderStructs.sol";
-import "../../interfaces/relayer/IRelayProvider.sol";
-import "../../interfaces/relayer/IDelivery.sol";
+import "../interfaces/IRelayProvider.sol";
+import "../interfaces/IDelivery.sol";
 
 contract RelayProvider is RelayProviderGovernance, IRelayProvider {
     error CallerNotApproved(address msgSender);
 
-    modifier onlyApprovedSender() {
-        if (!approvedSender(_msgSender())) {
-            revert CallerNotApproved(_msgSender());
-        }
-        _;
-    }
-
     //Returns the delivery overhead fee required to deliver a message to targetChain, denominated in this chain's wei.
     function quoteDeliveryOverhead(uint16 targetChain) public view override returns (uint256 nativePriceQuote) {
-        uint256 targetFees =
-            uint256(1) * deliverGasOverhead(targetChain) * gasPrice(targetChain) + wormholeFee(targetChain);
+        uint256 targetFees = uint256(1) * deliverGasOverhead(targetChain) * gasPrice(targetChain);
         return quoteAssetConversion(targetChain, targetFees, chainId());
-    }
-
-    //Returns the redelivery overhead fee required to deliver a message to targetChain, denominated in this chain's wei.
-    function quoteRedeliveryOverhead(uint16 targetChain) public view override returns (uint256 nativePriceQuote) {
-        return quoteDeliveryOverhead(targetChain);
     }
 
     //Returns the price of purchasing 1 unit of gas on targetChain, denominated in this chain's wei.
@@ -45,11 +32,6 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
         return maximumBudget(targetChain);
     }
 
-    //Returns the address (in wormhole format) which is allowed to deliver VAAs for this provider on targetChain
-    function getDeliveryAddress(uint16 targetChain) public view override returns (bytes32 whAddress) {
-        return deliveryAddress(targetChain);
-    }
-
     //Returns the address on this chain that rewards should be sent to
     function getRewardAddress() public view override returns (address payable) {
         return rewardAddress();
@@ -58,6 +40,14 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
     //returns the consistency level that should be put on delivery VAAs
     function getConsistencyLevel() public pure override returns (uint8 consistencyLevel) {
         return 200; //REVISE consider adding state variable for this
+    }
+
+    function isChainSupported(uint16 targetChainId) public view override returns (bool supported) {
+        return _state.supportedChains[targetChainId];
+    }
+
+    function getTargetChainAddress(uint16 targetChainId) external view returns (bytes32 relayProviderAddress) {
+        return targetChainAddress(targetChainId);
     }
 
     //Returns a buffer amount, and a buffer denominator, whereby the bufferAmount / bufferDenominator will be reduced from
@@ -88,26 +78,5 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
 
         // round up
         return (sourceAmount * srcNativeCurrencyPrice + dstNativeCurrencyPrice - 1) / dstNativeCurrencyPrice;
-    }
-
-    //Internal delivery proxies
-    function redeliverSingle(IDelivery.TargetRedeliveryByTxHashParamsSingle memory targetParams)
-        public
-        payable
-        onlyApprovedSender
-    {
-        IDelivery cr = IDelivery(coreRelayer());
-        targetParams.relayerRefundAddress = payable(msg.sender);
-        cr.redeliverSingle{value: msg.value}(targetParams);
-    }
-
-    function deliverSingle(IDelivery.TargetDeliveryParametersSingle memory targetParams)
-        public
-        payable
-        onlyApprovedSender
-    {
-        IDelivery cr = IDelivery(coreRelayer());
-        targetParams.relayerRefundAddress = payable(msg.sender);
-        cr.deliverSingle{value: msg.value}(targetParams);
     }
 }

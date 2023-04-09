@@ -3,7 +3,7 @@
 
 pragma solidity ^0.8.0;
 
-import "../../interfaces/IWormhole.sol";
+import "../interfaces/IWormhole.sol";
 
 import "./RelayProviderState.sol";
 
@@ -28,10 +28,6 @@ contract RelayProviderGetters is RelayProviderState {
         return _state.coreRelayer;
     }
 
-    function approvedSender(address sender) public view returns (bool) {
-        return _state.approvedSenders[sender];
-    }
-
     function gasPrice(uint16 targetChainId) public view returns (uint128) {
         return _state.data[targetChainId].gasPrice;
     }
@@ -48,16 +44,12 @@ contract RelayProviderGetters is RelayProviderState {
         return _state.maximumBudget[targetChainId];
     }
 
-    function wormholeFee(uint16 targetChainId) public view returns (uint32) {
-        return _state.wormholeFee[targetChainId];
+    function targetChainAddress(uint16 targetChainId) public view returns (bytes32) {
+        return _state.targetChainAddresses[targetChainId];
     }
 
     function rewardAddress() public view returns (address payable) {
         return _state.rewardAddress;
-    }
-
-    function deliveryAddress(uint16 targetChain) public view returns (bytes32 whFormatAddress) {
-        return _state.deliveryAddressMap[targetChain];
     }
 
     function assetConversionBuffer(uint16 targetChain)

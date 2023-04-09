@@ -1,15 +1,14 @@
-// contracts/Structs.sol
 // SPDX-License-Identifier: Apache 2
 
 pragma solidity ^0.8.0;
 
-import "../../interfaces/relayer/IWormholeRelayer.sol";
+import "../interfaces/IWormholeRelayer.sol";
 
-abstract contract CoreRelayerStructs {
+interface IWormholeRelayerInternalStructs {
     struct DeliveryInstructionsContainer {
         uint8 payloadId; //1
-        bool sufficientlyFunded;
-        IWormholeRelayer.MessageInfo[] messages;
+        bytes32 senderAddress;
+        IWormholeRelayer.MessageInfo[] messageInfos;
         DeliveryInstruction[] instructions;
     }
 
@@ -17,27 +16,17 @@ abstract contract CoreRelayerStructs {
         uint16 targetChain;
         bytes32 targetAddress;
         bytes32 refundAddress;
+        uint16 refundChain;
         uint256 maximumRefundTarget;
         uint256 receiverValueTarget;
+        bytes32 targetRelayProvider;
         ExecutionParameters executionParameters;
+        bytes payload;
     }
 
     struct ExecutionParameters {
         uint8 version;
         uint32 gasLimit;
-        bytes32 providerDeliveryAddress;
-    }
-
-    struct RedeliveryByTxHashInstruction {
-        uint8 payloadId; //2
-        uint16 sourceChain;
-        bytes32 sourceTxHash;
-        uint64 deliveryVAASequence;
-        uint16 targetChain;
-        uint8 multisendIndex;
-        uint256 newMaximumRefundTarget;
-        uint256 newReceiverValueTarget;
-        ExecutionParameters executionParameters;
     }
 
     struct ForwardInstruction {
@@ -53,5 +42,9 @@ abstract contract CoreRelayerStructs {
         uint16 sourceChain;
         uint64 sourceSequence;
         bytes32 deliveryVaaHash;
+        bytes[] encodedVMs;
+        address payable relayerRefundAddress;
+        DeliveryInstructionsContainer deliveryContainer;
+        DeliveryInstruction internalInstruction;
     }
 }
