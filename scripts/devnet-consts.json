@@ -241,6 +241,17 @@
                 }
             }
         },
+        "21": {
+            "contracts": {
+                "tokenBridgeEmitterAddress": "0000000000000000000000000000000000000000000000000000000000000001"
+            }
+        },
+        "22": {
+            "contracts": {
+                "tokenBridgeEmitterAddress": "0000000000000000000000000000000000000000000000000000000000000001",
+                "nftBridgeEmitterAddress": "0000000000000000000000000000000000000000000000000000000000000002"
+            }
+        },
         "3104": {
             "rpcUrlTilt": "http://wormchain:1317",
             "rpcUrlLocal": "http://localhost:1319",
@@ -303,12 +314,6 @@
                     "symbol": "MCK",
                     "decimals": 6
                 }
-            }
-        },
-        "22": {
-            "contracts": {
-                "tokenBridgeEmitterAddress": "0000000000000000000000000000000000000000000000000000000000000001",
-                "nftBridgeEmitterAddress": "0000000000000000000000000000000000000000000000000000000000000002"
             }
         }
     },

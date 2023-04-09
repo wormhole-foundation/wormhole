@@ -10,7 +10,7 @@ addressesJson="./scripts/devnet-consts.json"
 
 # working files for accumulating state
 envFile="./scripts/.env.hex" # for generic hex data, for solana, terra, etc
-ethFile="./scripts/.env.0x" # for "0x" prefixed data, for ethereum scripts
+ethFile="./scripts/.env.0x"  # for "0x" prefixed data, for ethereum scripts
 
 # copy the eth defaults so we can override just the things we need
 cp ./ethereum/.env.test $ethFile
@@ -59,7 +59,7 @@ guardiansPublicEth=$(jq -c --argjson lastIndex $numGuardians '.devnetGuardians[:
 # guardiansPublicHex does not have a leading "0x", just hex strings.
 guardiansPublicHex=$(jq -c --argjson lastIndex $numGuardians '.devnetGuardians[:$lastIndex] | [.[].public[2:]]' $addressesJson)
 # also make a CSV string of the hex addresses, so the client scripts that need that format don't have to.
-guardiansPublicHexCSV=$(echo ${guardiansPublicHex} | jq --raw-output -c  '. | join(",")')
+guardiansPublicHexCSV=$(echo ${guardiansPublicHex} | jq --raw-output -c '. | join(",")')
 
 # write the lists of addresses to the env files
 initSigners="INIT_SIGNERS"
@@ -73,7 +73,7 @@ echo "generating guardian set keys"
 # create an array of strings containing the private keys of the devnet guardians in the guardianset
 guardiansPrivate=$(jq -c --argjson lastIndex $numGuardians '.devnetGuardians[:$lastIndex] | [.[].private]' $addressesJson)
 # create a CSV string with the private keys of the guardians in the guardianset, that will be used to create registration VAAs
-guardiansPrivateCSV=$( echo ${guardiansPrivate} | jq --raw-output -c  '. | join(",")')
+guardiansPrivateCSV=$(echo ${guardiansPrivate} | jq --raw-output -c '. | join(",")')
 
 # write the lists of keys to the env files
 upsert_env_file $ethFile "INIT_SIGNERS_KEYS_JSON" $guardiansPrivate
@@ -90,8 +90,9 @@ bscTokenBridge=$(jq --raw-output '.chains."4".contracts.tokenBridgeEmitterAddres
 algoTokenBridge=$(jq --raw-output '.chains."8".contracts.tokenBridgeEmitterAddress' $addressesJson)
 nearTokenBridge=$(jq --raw-output '.chains."15".contracts.tokenBridgeEmitterAddress' $addressesJson)
 terra2TokenBridge=$(jq --raw-output '.chains."18".contracts.tokenBridgeEmitterAddress' $addressesJson)
-wormchainTokenBridge=$(jq --raw-output '.chains."3104".contracts.tokenBridgeEmitterAddress' $addressesJson)
+suiTokenBridge=$(jq --raw-output '.chains."21".contracts.tokenBridgeEmitterAddress' $addressesJson)
 aptosTokenBridge=$(jq --raw-output '.chains."22".contracts.tokenBridgeEmitterAddress' $addressesJson)
+wormchainTokenBridge=$(jq --raw-output '.chains."3104".contracts.tokenBridgeEmitterAddress' $addressesJson)
 
 solNFTBridge=$(jq --raw-output '.chains."1".contracts.nftBridgeEmitterAddress' $addressesJson)
 ethNFTBridge=$(jq --raw-output '.chains."2".contracts.nftBridgeEmitterAddress' $addressesJson)
@@ -102,14 +103,15 @@ aptosNFTBridge=$(jq --raw-output '.chains."22".contracts.nftBridgeEmitterAddress
 # 4) create token bridge registration VAAs
 # invoke CLI commands to create registration VAAs
 solTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c solana -a ${solTokenBridge} -g ${guardiansPrivateCSV})
-ethTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c ethereum -a ${ethTokenBridge} -g ${guardiansPrivateCSV} )
+ethTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c ethereum -a ${ethTokenBridge} -g ${guardiansPrivateCSV})
 terraTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c terra -a ${terraTokenBridge} -g ${guardiansPrivateCSV})
 bscTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c bsc -a ${bscTokenBridge} -g ${guardiansPrivateCSV})
 algoTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c algorand -a ${algoTokenBridge} -g ${guardiansPrivateCSV})
 nearTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c near -a ${nearTokenBridge} -g ${guardiansPrivateCSV})
 terra2TokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c terra2 -a ${terra2TokenBridge} -g ${guardiansPrivateCSV})
-wormchainTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c wormchain -a ${wormchainTokenBridge} -g ${guardiansPrivateCSV})
+suiTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c sui -a ${suiTokenBridge} -g ${guardiansPrivateCSV})
 aptosTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c aptos -a ${aptosTokenBridge} -g ${guardiansPrivateCSV})
+wormchainTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c wormchain -a ${wormchainTokenBridge} -g ${guardiansPrivateCSV})
 
 
 # 5) create nft bridge registration VAAs
@@ -131,15 +133,15 @@ bscTokenBridge="REGISTER_BSC_TOKEN_BRIDGE_VAA"
 algoTokenBridge="REGISTER_ALGO_TOKEN_BRIDGE_VAA"
 terra2TokenBridge="REGISTER_TERRA2_TOKEN_BRIDGE_VAA"
 nearTokenBridge="REGISTER_NEAR_TOKEN_BRIDGE_VAA"
-wormchainTokenBridge="REGISTER_WORMCHAIN_TOKEN_BRIDGE_VAA"
+suiTokenBridge="REGISTER_SUI_TOKEN_BRIDGE_VAA"
 aptosTokenBridge="REGISTER_APTOS_TOKEN_BRIDGE_VAA"
+wormchainTokenBridge="REGISTER_WORMCHAIN_TOKEN_BRIDGE_VAA"
 
 solNFTBridge="REGISTER_SOL_NFT_BRIDGE_VAA"
 ethNFTBridge="REGISTER_ETH_NFT_BRIDGE_VAA"
 terraNFTBridge="REGISTER_TERRA_NFT_BRIDGE_VAA"
 nearNFTBridge="REGISTER_NEAR_NFT_BRIDGE_VAA"
 aptosNFTBridge="REGISTER_APTOS_NFT_BRIDGE_VAA"
-
 
 # solana token bridge
 upsert_env_file $ethFile $solTokenBridge $solTokenBridgeVAA
@@ -148,7 +150,6 @@ upsert_env_file $envFile $solTokenBridge $solTokenBridgeVAA
 upsert_env_file $ethFile $solNFTBridge $solNFTBridgeVAA
 upsert_env_file $envFile $solNFTBridge $solNFTBridgeVAA
 
-
 # ethereum token bridge
 upsert_env_file $ethFile $ethTokenBridge $ethTokenBridgeVAA
 upsert_env_file $envFile $ethTokenBridge $ethTokenBridgeVAA
@@ -156,14 +157,12 @@ upsert_env_file $envFile $ethTokenBridge $ethTokenBridgeVAA
 upsert_env_file $ethFile $ethNFTBridge $ethNFTBridgeVAA
 upsert_env_file $envFile $ethNFTBridge $ethNFTBridgeVAA
 
-
 # terra token bridge
 upsert_env_file $ethFile $terraTokenBridge $terraTokenBridgeVAA
 upsert_env_file $envFile $terraTokenBridge $terraTokenBridgeVAA
 # terra nft bridge
 upsert_env_file $ethFile $terraNFTBridge $terraNFTBridgeVAA
 upsert_env_file $envFile $terraNFTBridge $terraNFTBridgeVAA
-
 
 # bsc token bridge
 upsert_env_file $ethFile $bscTokenBridge $bscTokenBridgeVAA
@@ -177,21 +176,23 @@ upsert_env_file $envFile $algoTokenBridge $algoTokenBridgeVAA
 upsert_env_file $ethFile $terra2TokenBridge $terra2TokenBridgeVAA
 upsert_env_file $envFile $terra2TokenBridge $terra2TokenBridgeVAA
 
-# aptos token bridge
-upsert_env_file $ethFile $aptosTokenBridge $aptosTokenBridgeVAA
-upsert_env_file $envFile $aptosTokenBridge $aptosTokenBridgeVAA
-
-# aptos nft bridge
-upsert_env_file $ethFile $aptosNFTBridge $aptosNFTBridgeVAA
-upsert_env_file $envFile $aptosNFTBridge $aptosNFTBridgeVAA
-
 # near token bridge
 upsert_env_file $ethFile $nearTokenBridge $nearTokenBridgeVAA
 upsert_env_file $envFile $nearTokenBridge $nearTokenBridgeVAA
-
 # near nft bridge
 upsert_env_file $ethFile $nearNFTBridge $nearNFTBridgeVAA
 upsert_env_file $envFile $nearNFTBridge $nearNFTBridgeVAA
+
+# sui token bridge
+upsert_env_file $ethFile $suiTokenBridge $suiTokenBridgeVAA
+upsert_env_file $envFile $suiTokenBridge $suiTokenBridgeVAA
+
+# aptos token bridge
+upsert_env_file $ethFile $aptosTokenBridge $aptosTokenBridgeVAA
+upsert_env_file $envFile $aptosTokenBridge $aptosTokenBridgeVAA
+# aptos nft bridge
+upsert_env_file $ethFile $aptosNFTBridge $aptosNFTBridgeVAA
+upsert_env_file $envFile $aptosNFTBridge $aptosNFTBridgeVAA
 
 # wormchain token bridge
 upsert_env_file $ethFile $wormchainTokenBridge $wormchainTokenBridgeVAA
@@ -212,6 +213,8 @@ paths=(
     ./solana/.env
     ./terra/tools/.env
     ./cosmwasm/deployment/terra2/tools/.env
+    ./sui/.env
+    ./aptos/.env
     ./wormchain/contracts/tools/.env
 )
 
