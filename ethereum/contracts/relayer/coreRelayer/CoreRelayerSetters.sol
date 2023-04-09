@@ -1,12 +1,11 @@
-// contracts/Setters.sol
 // SPDX-License-Identifier: Apache 2
 
 pragma solidity ^0.8.0;
 
 import "./CoreRelayerState.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
-import "./CoreRelayerStructs.sol";
-import {IWormhole} from "../../interfaces/IWormhole.sol";
+import "../interfaces/IWormholeRelayerInternalStructs.sol";
+import {IWormhole} from "../interfaces/IWormhole.sol";
 
 contract CoreRelayerSetters is CoreRelayerState, Context {
     error InvalidEvmChainId();
@@ -43,7 +42,7 @@ contract CoreRelayerSetters is CoreRelayerState, Context {
         _state.registeredCoreRelayerContract[chainId] = relayerAddress;
     }
 
-    function setForwardInstruction(CoreRelayerStructs.ForwardInstruction memory request) internal {
+    function setForwardInstruction(IWormholeRelayerInternalStructs.ForwardInstruction memory request) internal {
         _state.forwardInstruction = request;
     }
 
@@ -57,6 +56,10 @@ contract CoreRelayerSetters is CoreRelayerState, Context {
 
     function setLockedTargetAddress(address targetAddress) internal {
         _state.targetAddress = targetAddress;
+    }
+
+    function setForwardWrapper(address newForwardWrapperAddress) internal {
+        _state.forwardWrapper = newForwardWrapperAddress;
     }
 
     function setEvmChainId(uint256 evmChainId) internal {

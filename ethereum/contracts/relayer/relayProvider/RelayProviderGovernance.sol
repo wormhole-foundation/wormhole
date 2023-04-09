@@ -5,7 +5,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 
-import "../../libraries/external/BytesLib.sol";
+import "../libraries/external/BytesLib.sol";
 
 import "./RelayProviderGetters.sol";
 import "./RelayProviderSetters.sol";
@@ -22,12 +22,12 @@ abstract contract RelayProviderGovernance is RelayProviderGetters, RelayProvider
     error CallerMustBeOwner();
 
     event ContractUpgraded(address indexed oldContract, address indexed newContract);
+    event ChainSupportUpdated(uint16 targetChainId, bool isSupported);
     event OwnershipTransfered(address indexed oldOwner, address indexed newOwner);
     event RewardAddressUpdated(address indexed newAddress);
-    event DeliveryAddressUpdated(uint16 indexed targetChainId, bytes32 indexed newAddress);
+    event TargetChainAddressUpdated(bytes32 indexed newAddress, uint16 indexed targetChain);
     event DeliverGasOverheadUpdated(uint32 indexed oldGasOverhead, uint32 indexed newGasOverhead);
     event CoreRelayerUpdated(address coreRelayer);
-    event ApprovedSenderUpdated(address sender, bool approved);
     event AssetConversionBufferUpdated(uint16 targetChain, uint16 buffer, uint16 bufferDenominator);
 
     function updateCoreRelayer(address payable newAddress) public onlyOwner {
@@ -35,9 +35,9 @@ abstract contract RelayProviderGovernance is RelayProviderGetters, RelayProvider
         emit CoreRelayerUpdated(newAddress);
     }
 
-    function updateApprovedSender(address sender, bool approved) public onlyOwner {
-        setApprovedSender(sender, approved);
-        emit ApprovedSenderUpdated(sender, approved);
+    function updateSupportedChain(uint16 targetChainId, bool isSupported) public onlyOwner {
+        setChainSupported(targetChainId, isSupported);
+        emit ChainSupportUpdated(targetChainId, isSupported);
     }
 
     function updateRewardAddress(address payable newAddress) public onlyOwner {
@@ -45,19 +45,15 @@ abstract contract RelayProviderGovernance is RelayProviderGetters, RelayProvider
         emit RewardAddressUpdated(newAddress);
     }
 
-    function updateDeliveryAddress(uint16 targetChain, bytes32 newAddress) public onlyOwner {
-        setDeliveryAddress(targetChain, newAddress);
-        emit DeliveryAddressUpdated(targetChain, newAddress);
+    function updateTargetChainAddress(bytes32 newAddress, uint16 targetChain) public onlyOwner {
+        setTargetChainAddress(newAddress, targetChain);
+        emit TargetChainAddressUpdated(newAddress, targetChain);
     }
 
     function updateDeliverGasOverhead(uint16 chainId, uint32 newGasOverhead) public onlyOwner {
         uint32 currentGasOverhead = deliverGasOverhead(chainId);
         setDeliverGasOverhead(chainId, newGasOverhead);
         emit DeliverGasOverheadUpdated(currentGasOverhead, newGasOverhead);
-    }
-
-    function updateWormholeFee(uint16 chainId, uint32 newWormholeFee) public onlyOwner {
-        setWormholeFee(chainId, newWormholeFee);
     }
 
     function updatePrice(uint16 updateChainId, uint128 updateGasPrice, uint128 updateNativeCurrencyPrice)
