@@ -1,14 +1,13 @@
-// contracts/Getters.sol
 // SPDX-License-Identifier: Apache 2
 
 pragma solidity ^0.8.0;
 
-import "../../interfaces/IWormhole.sol";
-import "../../interfaces/relayer/IRelayProvider.sol";
-import "./CoreRelayerStructs.sol";
+import "../interfaces/IWormhole.sol";
+import "../interfaces/IRelayProvider.sol";
+import "../interfaces/IWormholeRelayerInternalStructs.sol";
 
 import "./CoreRelayerState.sol";
-import "../../libraries/external/BytesLib.sol";
+import "../libraries/external/BytesLib.sol";
 
 contract CoreRelayerGetters is CoreRelayerState {
     using BytesLib for bytes;
@@ -53,8 +52,12 @@ contract CoreRelayerGetters is CoreRelayerState {
         return _state.defaultRelayProvider;
     }
 
-    function getForwardInstruction() internal view returns (CoreRelayerStructs.ForwardInstruction memory) {
+    function getForwardInstruction() public view returns (IWormholeRelayerInternalStructs.ForwardInstruction memory) {
         return _state.forwardInstruction;
+    }
+
+    function getWormholeRelayerCallerAddress() public view returns (address) {
+        return _state.forwardWrapper;
     }
 
     function isContractLocked() internal view returns (bool) {
