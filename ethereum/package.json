@@ -31,7 +31,9 @@
     "deploy-batched-vaa-sender": "mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle migrate --f 10 --to 10",
     "verify": "patch -u -f node_modules/truffle-plugin-verify/constants.js -i truffle-verify-constants.patch; truffle run verify $npm_config_module@$npm_config_contract_address --network $npm_config_network",
     "verify-token": "patch -u -f node_modules/truffle-plugin-verify/constants.js -i truffle-verify-constants.patch; truffle run verify BridgeToken@$npm_config_contract_address --forceConstructorArgs string:$npm_config_constructor_args --network $npm_config_network",
-    "abigen": "truffle run abigen"
+    "abigen": "truffle run abigen",
+    "deploy-relayers-evm1": "ENV=kubernetes CONTAINER=evm1 bash ./ts-scripts/relayer/shell/deployInContainer.sh",
+    "deploy-relayers-evm2": "ENV=kubernetes CONTAINER=evm2 bash ./ts-scripts/relayer/shell/deployInContainer.sh"
   },
   "author": "",
   "license": "ISC",

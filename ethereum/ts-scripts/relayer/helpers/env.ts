@@ -1,14 +1,14 @@
 import { ChainId } from "@certusone/wormhole-sdk";
 import { ethers, Signer } from "ethers";
 import fs from "fs";
-import {
-  CoreRelayer,
-  RelayProvider,
-  RelayProvider__factory,
-  CoreRelayer__factory,
-  MockRelayerIntegration,
-  MockRelayerIntegration__factory,
-} from "../../../ethers-contracts";
+
+import { CoreRelayer } from "../../../ethers-contracts/CoreRelayer";
+import { RelayProvider } from "../../../ethers-contracts/RelayProvider";
+import { MockRelayerIntegration } from "../../../ethers-contracts/MockRelayerIntegration";
+
+import { RelayProvider__factory } from "../../../ethers-contracts/factories/RelayProvider__factory";
+import { CoreRelayer__factory } from "../../../ethers-contracts/factories/CoreRelayer__factory";
+import { MockRelayerIntegration__factory } from "../../../ethers-contracts/factories/MockRelayerIntegration__factory";
 
 export type ChainInfo = {
   evmNetworkId: number;
@@ -38,7 +38,7 @@ export function init(overrides: { lastRunOverride?: boolean } = {}): string {
   lastRunOverride = overrides?.lastRunOverride;
 
   require("dotenv").config({
-    path: `./ts-scripts/.env${env != DEFAULT_ENV ? "." + env : ""}`,
+    path: `./ts-scripts/relayer/.env${env != DEFAULT_ENV ? "." + env : ""}`,
   });
   return env;
 }
@@ -59,7 +59,7 @@ function getContainer(): string | null {
 
 export function loadScriptConfig(processName: string): any {
   const configFile = fs.readFileSync(
-    `./ts-scripts/config/${env}/scriptConfigs/${processName}.json`
+    `./ts-scripts/relayer/config/${env}/scriptConfigs/${processName}.json`
   );
   const config = JSON.parse(configFile.toString());
   if (!config) {
@@ -80,7 +80,9 @@ export function getOperatingChains(): ChainInfo[] {
     operatingChains = [4];
   }
 
-  const chainFile = fs.readFileSync(`./ts-scripts/config/${env}/chains.json`);
+  const chainFile = fs.readFileSync(
+    `./ts-scripts/relayer/config/${env}/chains.json`
+  );
   const chains = JSON.parse(chainFile.toString());
   if (chains.operatingChains) {
     operatingChains = chains.operatingChains;
@@ -103,7 +105,9 @@ export function getOperatingChains(): ChainInfo[] {
 }
 
 export function loadChains(): ChainInfo[] {
-  const chainFile = fs.readFileSync(`./ts-scripts/config/${env}/chains.json`);
+  const chainFile = fs.readFileSync(
+    `./ts-scripts/relayer/config/${env}/chains.json`
+  );
   const chains = JSON.parse(chainFile.toString());
   if (!chains.chains) {
     throw Error("Failed to pull chain config file!");
@@ -130,7 +134,9 @@ export function loadPrivateKey(): string {
 }
 
 export function loadGuardianSetIndex(): number {
-  const chainFile = fs.readFileSync(`./ts-scripts/config/${env}/chains.json`);
+  const chainFile = fs.readFileSync(
+    `./ts-scripts/relayer/config/${env}/chains.json`
+  );
   const chains = JSON.parse(chainFile.toString());
   if (chains.guardianSetIndex == undefined) {
     throw Error("Failed to pull guardian set index from the chains file!");
@@ -140,7 +146,7 @@ export function loadGuardianSetIndex(): number {
 
 export function loadRelayProviders(): Deployment[] {
   const contractsFile = fs.readFileSync(
-    `./ts-scripts/config/${env}/contracts.json`
+    `./ts-scripts/relayer/config/${env}/contracts.json`
   );
   if (!contractsFile) {
     throw Error("Failed to find contracts file for this process!");
@@ -148,7 +154,7 @@ export function loadRelayProviders(): Deployment[] {
   const contracts = JSON.parse(contractsFile.toString());
   if (contracts.useLastRun || lastRunOverride) {
     const lastRunFile = fs.readFileSync(
-      `./ts-scripts/output/${env}/deployRelayProvider/lastrun.json`
+      `./ts-scripts/relayer/output/${env}/deployRelayProvider/lastrun.json`
     );
     if (!lastRunFile) {
       throw Error(
@@ -166,7 +172,7 @@ export function loadRelayProviders(): Deployment[] {
 
 export function loadCoreRelayers(): Deployment[] {
   const contractsFile = fs.readFileSync(
-    `./ts-scripts/config/${env}/contracts.json`
+    `./ts-scripts/relayer/config/${env}/contracts.json`
   );
   if (!contractsFile) {
     throw Error("Failed to find contracts file for this process!");
@@ -174,7 +180,7 @@ export function loadCoreRelayers(): Deployment[] {
   const contracts = JSON.parse(contractsFile.toString());
   if (contracts.useLastRun || lastRunOverride) {
     const lastRunFile = fs.readFileSync(
-      `./ts-scripts/output/${env}/deployCoreRelayer/lastrun.json`
+      `./ts-scripts/relayer/output/${env}/deployCoreRelayer/lastrun.json`
     );
     if (!lastRunFile) {
       throw Error("Failed to find last run file for the Core Relayer process!");
@@ -188,7 +194,7 @@ export function loadCoreRelayers(): Deployment[] {
 
 export function loadMockIntegrations(): Deployment[] {
   const contractsFile = fs.readFileSync(
-    `./ts-scripts/config/${env}/contracts.json`
+    `./ts-scripts/relayer/config/${env}/contracts.json`
   );
   if (!contractsFile) {
     throw Error("Failed to find contracts file for this process!");
@@ -196,7 +202,7 @@ export function loadMockIntegrations(): Deployment[] {
   const contracts = JSON.parse(contractsFile.toString());
   if (contracts.useLastRun || lastRunOverride) {
     const lastRunFile = fs.readFileSync(
-      `./ts-scripts/output/${env}/deployMockIntegration/lastrun.json`
+      `./ts-scripts/relayer/output/${env}/deployMockIntegration/lastrun.json`
     );
     if (!lastRunFile) {
       throw Error(
@@ -219,16 +225,16 @@ export function loadGuardianKey(): string {
 }
 
 export function writeOutputFiles(output: any, processName: string) {
-  fs.mkdirSync(`./ts-scripts/output/${env}/${processName}`, {
+  fs.mkdirSync(`./ts-scripts/relayer/output/${env}/${processName}`, {
     recursive: true,
   });
   fs.writeFileSync(
-    `./ts-scripts/output/${env}/${processName}/lastrun.json`,
+    `./ts-scripts/relayer/output/${env}/${processName}/lastrun.json`,
     JSON.stringify(output),
     { flag: "w" }
   );
   fs.writeFileSync(
-    `./ts-scripts/output/${env}/${processName}/${Date.now()}.json`,
+    `./ts-scripts/relayer/output/${env}/${processName}/${Date.now()}.json`,
     JSON.stringify(output),
     { flag: "w" }
   );

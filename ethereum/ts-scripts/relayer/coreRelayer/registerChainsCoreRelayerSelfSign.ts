@@ -14,7 +14,7 @@ import {
   createDefaultRelayProviderVAA,
 } from "../helpers/vaa";
 
-const processName = "registerChainsCoreRelayer";
+const processName = "registerChainsCoreRelayerSelfSign";
 init();
 const operatingChains = getOperatingChains();
 const chains = loadChains();
