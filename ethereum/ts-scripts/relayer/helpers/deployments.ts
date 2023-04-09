@@ -1,4 +1,11 @@
-import {RelayProviderProxy__factory, RelayProviderSetup__factory, RelayProviderImplementation__factory, MockRelayerIntegration__factory, CoreRelayerProxy__factory, CoreRelayerSetup__factory, CoreRelayerImplementation__factory, CoreRelayerLibrary__factory } from "../../../ethers-contracts";
+import { RelayProviderProxy__factory } from "../../../ethers-contracts/factories/RelayProviderProxy__factory";
+import { RelayProviderSetup__factory } from "../../../ethers-contracts/factories/RelayProviderSetup__factory";
+import { RelayProviderImplementation__factory } from "../../../ethers-contracts/factories/RelayProviderImplementation__factory";
+import { MockRelayerIntegration__factory } from "../../../ethers-contracts/factories/MockRelayerIntegration__factory";
+import { CoreRelayerProxy__factory } from "../../../ethers-contracts/factories/CoreRelayerProxy__factory";
+import { CoreRelayerSetup__factory } from "../../../ethers-contracts/factories/CoreRelayerSetup__factory";
+import { CoreRelayerImplementation__factory } from "../../../ethers-contracts/factories/CoreRelayerImplementation__factory";
+import { CoreRelayerLibrary__factory } from "../../../ethers-contracts/factories/CoreRelayerLibrary__factory";
 
 import {
   init,
@@ -18,8 +25,7 @@ export async function deployRelayProviderImplementation(
   console.log("deployRelayProviderImplementation " + chain.chainId);
   const signer = getSigner(chain);
 
-  const contractInterface =
-    RelayProviderImplementation__factory.createInterface();
+  const contractInterface = RelayProviderImplementation__factory.createInterface();
   const bytecode = RelayProviderImplementation__factory.bytecode;
   //@ts-ignore
   const factory = new ethers.ContractFactory(
@@ -133,8 +139,7 @@ export async function deployCoreRelayerImplementation(
 ): Promise<Deployment> {
   console.log("deployCoreRelayerImplementation " + chain.chainId);
   const signer = getSigner(chain);
-  const contractInterface =
-    CoreRelayerImplementation__factory.createInterface();
+  const contractInterface = CoreRelayerImplementation__factory.createInterface();
   const bytecode: string = CoreRelayerImplementation__factory.bytecode;
 
   /*

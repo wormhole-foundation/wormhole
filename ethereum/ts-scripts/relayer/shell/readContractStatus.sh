@@ -1,1 +1,1 @@
-ts-node ./ts-scripts/relayProvider/readRelayProviderContractState.ts
+ts-node ./ts-scripts/relayer/relayProvider/readRelayProviderContractState.ts
