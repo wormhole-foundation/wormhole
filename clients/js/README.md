@@ -27,7 +27,10 @@ Commands:
   worm info chain-id <chain>                      Print the wormhole chain ID integer
                                                   associated with the specified chain name
   worm evm                                        EVM utilites
+  worm aptos                                      Aptos utilities
+  worm near                                       NEAR utilities
   worm submit <vaa>                               Execute a VAA
+  worm update                                     Update this tool by rebuilding it
 
 Options:
   --help     Show help                                                 [boolean]
