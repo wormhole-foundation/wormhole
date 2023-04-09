@@ -62,6 +62,9 @@ config.define_bool("node_metrics", False, "Enable Prometheus & Grafana for Guard
 config.define_bool("guardiand_governor", False, "Enable chain governor in guardiand")
 config.define_bool("wormchain", False, "Enable a wormchain node")
 config.define_bool("ibc_relayer", False, "Enable IBC relayer between cosmos chains")
+config.define_bool("redis", False, "Enable a redis instance")
+config.define_bool("generic_relayer", False, "Enable the generic relayer off-chain component")
+
 
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "1"))
@@ -87,6 +90,8 @@ node_metrics = cfg.get("node_metrics", False)
 guardiand_governor = cfg.get("guardiand_governor", False)
 ibc_relayer = cfg.get("ibc_relayer", False)
 btc = cfg.get("btc", False)
+redis = cfg.get('redis', False)
+generic_relayer = cfg.get("generic_relayer", False)
 
 if cfg.get("manual", False):
     trigger_mode = TRIGGER_MODE_MANUAL
@@ -450,7 +455,15 @@ docker_build(
     ],
 )
 
-if spy_relayer:
+if spy_relayer or redis or generic_relayer:
+    k8s_resource(
+        "redis",
+        port_forwards = [
+            port_forward(6379, name = "Redis Default [:6379]", host = webHost),
+        ],
+        labels = ["redis"],
+        trigger_mode = trigger_mode,
+    )
     docker_build(
         ref = "redis",
         context = ".",
@@ -460,14 +473,7 @@ if spy_relayer:
 
     k8s_yaml_with_ns("devnet/redis.yaml")
 
-    k8s_resource(
-        "redis",
-        port_forwards = [
-            port_forward(6379, name = "Redis Default [:6379]", host = webHost),
-        ],
-        labels = ["spy-relayer"],
-        trigger_mode = trigger_mode,
-    )
+if spy_relayer:
 
     docker_build(
         ref = "spy-relay-image",
