@@ -2,22 +2,22 @@
 
 pragma solidity ^0.8.0;
 
-import {IRelayProvider} from "../../contracts/interfaces/relayer/IRelayProvider.sol";
-import {RelayProvider} from "../../contracts/relayer/relayProvider/RelayProvider.sol";
-import {RelayProviderSetup} from "../../contracts/relayer/relayProvider/RelayProviderSetup.sol";
-import {RelayProviderImplementation} from "../../contracts/relayer/relayProvider/RelayProviderImplementation.sol";
-import {RelayProviderProxy} from "../../contracts/relayer/relayProvider/RelayProviderProxy.sol";
-import {IWormholeRelayer} from "../../contracts/interfaces/relayer/IWormholeRelayer.sol";
-import {CoreRelayer} from "../../contracts/relayer/coreRelayer/CoreRelayer.sol";
-import {CoreRelayerSetup} from "../../contracts/relayer/coreRelayer/CoreRelayerSetup.sol";
-import {CoreRelayerImplementation} from "../../contracts/relayer/coreRelayer/CoreRelayerImplementation.sol";
-import {CoreRelayerProxy} from "../../contracts/relayer/coreRelayer/CoreRelayerProxy.sol";
-import {CoreRelayerGovernance} from "../../contracts/relayer/coreRelayer/CoreRelayerGovernance.sol";
-import {MockGenericRelayer} from "../../contracts/mock/MockGenericRelayer.sol";
-import {MockWormhole} from "../../contracts/mock/MockWormhole.sol";
-import {IWormhole} from "../../contracts/interfaces/IWormhole.sol";
-import {WormholeSimulator, FakeWormholeSimulator} from "../../contracts/mock/WormholeSimulator.sol";
-import "../../contracts/libraries/external/BytesLib.sol";
+import {IRelayProvider} from "../contracts/interfaces/IRelayProvider.sol";
+import {RelayProvider} from "../contracts/relayProvider/RelayProvider.sol";
+import {RelayProviderSetup} from "../contracts/relayProvider/RelayProviderSetup.sol";
+import {RelayProviderImplementation} from "../contracts/relayProvider/RelayProviderImplementation.sol";
+import {RelayProviderProxy} from "../contracts/relayProvider/RelayProviderProxy.sol";
+import {IWormholeRelayer} from "../contracts/interfaces/IWormholeRelayer.sol";
+import {CoreRelayer} from "../contracts/coreRelayer/CoreRelayer.sol";
+import {CoreRelayerSetup} from "../contracts/coreRelayer/CoreRelayerSetup.sol";
+import {CoreRelayerImplementation} from "../contracts/coreRelayer/CoreRelayerImplementation.sol";
+import {CoreRelayerProxy} from "../contracts/coreRelayer/CoreRelayerProxy.sol";
+import {CoreRelayerGovernance} from "../contracts/coreRelayer/CoreRelayerGovernance.sol";
+import {MockGenericRelayer} from "./MockGenericRelayer.sol";
+import {MockWormhole} from "../contracts/mock/MockWormhole.sol";
+import {IWormhole} from "../contracts/interfaces/IWormhole.sol";
+import {WormholeSimulator, FakeWormholeSimulator} from "./WormholeSimulator.sol";
+import "../contracts/libraries/external/BytesLib.sol";
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
