@@ -49,7 +49,7 @@ async function run() {
 }
 
 async function configureChainsRelayProvider(chain: ChainInfo) {
-  console.log("about to perform configurations for chain " + chain.chainId);
+  console.log("about to perform RelayProvider configuration for chain " + chain.chainId);
   const relayProvider = getRelayProvider(chain);
   const coreRelayer = getCoreRelayerAddress(chain);
 
@@ -111,7 +111,7 @@ async function configureChainsRelayProvider(chain: ChainInfo) {
   }
   await relayProvider.updateConfig(updates, coreConfig).then(wait);
 
-  console.log("done with registrations on " + chain.chainId);
+  console.log("done with RelayProvider configuration on " + chain.chainId);
 }
 
 run().then(() => console.log("Done! " + processName));
