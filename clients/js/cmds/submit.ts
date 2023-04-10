@@ -1,13 +1,13 @@
-import yargs from "yargs";
 import {
-  CHAINS,
   assertChain,
-  toChainName,
   ChainName,
+  CHAINS,
+  coalesceChainName,
   isEVMChain,
   isTerraChain,
-  coalesceChainName,
+  toChainName,
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+import yargs from "yargs";
 import * as vaa from "../vaa";
 
 exports.command = "submit <vaa>";
@@ -133,7 +133,15 @@ exports.handler = async (argv) => {
   } else if (chain === "osmosis") {
     throw Error("OSMOSIS is not supported yet");
   } else if (chain === "sui") {
-    throw Error("SUI is not supported yet");
+    const sui = require("../sui/utils");
+    await sui.execute_sui(
+      parsed_vaa.payload,
+      buf,
+      network,
+      argv["contract-address"],
+      undefined,
+      argv["rpc"]
+    );
   } else if (chain === "aptos") {
     const aptos = require("../aptos");
     await aptos.execute_aptos(
