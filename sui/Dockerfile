@@ -18,6 +18,7 @@ COPY token_bridge/ token_bridge
 COPY testing/ testing
 COPY examples/ examples
 COPY Makefile Makefile
+COPY .env* .
 
 FROM sui AS tests
 
