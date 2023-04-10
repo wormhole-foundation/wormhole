@@ -325,6 +325,10 @@ func (gov *ChainGovernor) IsVAAEnqueued(msgId *publicrpcv1.MessageID) (bool, err
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
+	if msgId == nil {
+		return false, fmt.Errorf("no message ID specified")
+	}
+
 	emitterChain := vaa.ChainID(msgId.EmitterChain)
 
 	emitterAddress, err := vaa.StringToAddress(msgId.EmitterAddress)
