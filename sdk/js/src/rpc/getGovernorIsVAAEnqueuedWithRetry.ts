@@ -31,5 +31,6 @@ export async function getGovernorIsVAAEnqueuedWithRetry(
       }
     }
   }
+
   return result;
 }

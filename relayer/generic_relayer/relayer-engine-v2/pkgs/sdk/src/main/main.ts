@@ -94,9 +94,6 @@ export function stringifyWormholeRelayerInfo(info: DeliveryInfo): string {
               } of ${CHAIN_ID_TO_NAME[instruction.targetChain as ChainId]} currency\n`
             : ``
           result += `Gas limit: ${instruction.executionParameters.gasLimit} ${targetChainName} gas\n`
-          result += `Relay Provider Delivery Address: 0x${instruction.executionParameters.providerDeliveryAddress.toString(
-            "hex"
-          )}\n`
           result += info.targetChainStatuses[i].events
             .map(
               (e, i) =>

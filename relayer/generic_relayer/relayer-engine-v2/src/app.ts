@@ -12,6 +12,7 @@ import {
   CHAIN_ID_ETH,
   CHAIN_ID_BSC,
   EVMChainId,
+  tryNativeToHexString,
 } from "@certusone/wormhole-sdk";
 import { rootLogger } from "./log";
 import { processGenericRelayerVaa } from "./processor";
@@ -46,7 +47,7 @@ const SCRIPTS_DIR = "../../../ethereum/ts-scripts/relayer";
 async function main() {
   let opts = yargs(process.argv.slice(2)).argv as unknown as Opts;
   const contracts = await loadContractsJson(opts.flag);
-  console.log("hi");
+
   const app = new StandardRelayerApp<GRContext>(flagToEnvironment(opts.flag), {
     name: "GenericRelayer",
     privateKeys: privateKeys(contracts),
@@ -64,7 +65,7 @@ async function main() {
     },
     logger: defaultLogger,
     fetchSourceTxhash: false,
-    // redis: {},
+    redis: {},
     // redisCluster: {},
     // redisClusterEndpoints: [],
   });
@@ -87,6 +88,13 @@ async function main() {
     ctx.wormholeRelayers = deepCopy(wormholeRelayers);
     next();
   });
+
+  // app
+  //   .chain(CHAIN_ID_BSC)
+  //   .address(
+  //     "0x0eb0dd3aa41bd15c706bc09bc03c002b7b85aeac",
+  //     processGenericRelayerVaa
+  //   );
 
   // Set up routes
   app.multiple(deepCopy(wormholeRelayers), processGenericRelayerVaa);
@@ -131,7 +139,8 @@ async function loadContractsJson(flag: Flag): Promise<ContractsJson> {
 
 function privateKeys(contracts: ContractsJson) {
   const chainIds = new Set(contracts.coreRelayers.map((r) => r.chainId));
-  const privateKey = process.env["PRIVATE_KEY"]! as string;
+  const privateKey =
+    "6cbed15c793ce57650b9877cf6fa156fbef513c4e6134f022a85b1ffdd59b2a1"; //private key 1 for tilt //process.env["PRIVATE_KEY"]! as string;
   const privateKeys = {} as Record<EVMChainId, [string]>;
   for (const chainId of chainIds) {
     privateKeys[chainId] = [privateKey];
