@@ -4,7 +4,7 @@ const KLAYHDWalletProvider = require("truffle-hdwallet-provider-klaytn");
 const Caver = require("caver-js");
 
 module.exports = {
-  contracts_directory: "./contracts/{^relayers}",
+  contracts_directory: "./contracts/{^relayer}",
   networks: {
     development: {
       host: "127.0.0.1",
