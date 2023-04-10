@@ -8,8 +8,6 @@ import "../interfaces/IWormhole.sol";
 import "../interfaces/relayer/IWormholeRelayer.sol";
 import "../interfaces/relayer/IWormholeReceiver.sol";
 
-import "forge-std/console.sol";
-
 interface Structs {
     struct XAddress {
         uint16 chainId;

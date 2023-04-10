@@ -14,7 +14,7 @@ import {CoreRelayerImplementation} from "../../contracts/relayer/coreRelayer/Cor
 import {CoreRelayerProxy} from "../../contracts/relayer/coreRelayer/CoreRelayerProxy.sol";
 import {CoreRelayerGovernance} from "../../contracts/relayer/coreRelayer/CoreRelayerGovernance.sol";
 import {MockGenericRelayer} from "./MockGenericRelayer.sol";
-import {MockWormhole} from "../../contracts/mock/MockWormhole.sol";
+import {MockWormhole} from "./MockWormhole.sol";
 import {IWormhole} from "../../contracts/interfaces/IWormhole.sol";
 import {WormholeSimulator, FakeWormholeSimulator} from "./WormholeSimulator.sol";
 import "../../contracts/libraries/external/BytesLib.sol";
