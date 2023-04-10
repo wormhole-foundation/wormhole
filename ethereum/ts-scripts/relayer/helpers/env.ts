@@ -241,9 +241,7 @@ export function writeOutputFiles(output: any, processName: string) {
 }
 
 export function getSigner(chain: ChainInfo): Signer {
-  let provider = new ethers.providers.StaticJsonRpcProvider(
-    loadChains().find((x: any) => x.chainId == chain.chainId)?.rpc || ""
-  );
+  let provider = getProvider(chain);
   let signer = new ethers.Wallet(loadPrivateKey(), provider);
   return signer;
 }
