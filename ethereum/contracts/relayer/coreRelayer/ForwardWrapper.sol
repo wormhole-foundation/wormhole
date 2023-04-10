@@ -39,7 +39,7 @@ contract ForwardWrapper {
         (callToTargetContractSucceeded,) = forwardInstructionViewer.fromWormholeFormat(instruction.targetAddress).call{
             gas: instruction.executionParameters.gasLimit,
             value: instruction.receiverValueTarget
-        }(abi.encodeCall(IWormholeReceiver.receiveWormholeMessages, ((data), signedVaas)));
+        }(abi.encodeWithSelector(IWormholeReceiver.receiveWormholeMessages.selector, data, signedVaas));
 
         uint256 postGas = gasleft();
 

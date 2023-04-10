@@ -125,7 +125,7 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
 
         (bool callToInstructionExecutorSucceeded, bytes memory data) = getWormholeRelayerCallerAddress().call{
             value: vaaInfo.internalInstruction.receiverValueTarget
-        }(abi.encodeCall(IForwardWrapper.executeInstruction, (vaaInfo.internalInstruction, deliveryData, vaaInfo.encodedVMs)));
+        }(abi.encodeWithSelector(IForwardWrapper.executeInstruction.selector ,vaaInfo.internalInstruction, deliveryData, vaaInfo.encodedVMs));
 
         uint256 postGas = gasleft();
 
@@ -222,7 +222,7 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
             IRelayProvider provider = IRelayProvider(fromWormholeFormat(relayerAddress));
 
             (bool success, bytes memory data) = getWormholeRelayerCallerAddress().call(
-                abi.encodeCall(IForwardWrapper.safeRelayProviderSupportsChain, (provider)));
+                abi.encodeWithSelector(IForwardWrapper.safeRelayProviderSupportsChain.selector, provider, instruction.refundChain));
 
             if(!success){
                 return false;
