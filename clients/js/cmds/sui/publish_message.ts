@@ -1,4 +1,8 @@
-import { SUI_CLOCK_OBJECT_ID, TransactionBlock } from "@mysten/sui.js";
+import {
+  normalizeSuiAddress,
+  SUI_CLOCK_OBJECT_ID,
+  TransactionBlock,
+} from "@mysten/sui.js";
 import yargs from "yargs";
 import { NETWORK_OPTIONS, RPC_OPTIONS } from "../../consts";
 import { NETWORKS } from "../../networks";
@@ -78,7 +82,7 @@ export const addPublishMessageCommands: YargsAddCommandsFn = (
       // command.
       const event = res.events.find(
         (e) =>
-          e.packageId === packageId &&
+          normalizeSuiAddress(e.packageId) === normalizeSuiAddress(packageId) &&
           e.type.includes("publish_message::WormholeMessage")
       );
       if (!event) {
