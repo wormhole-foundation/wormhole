@@ -11,19 +11,15 @@ This issue is for grouping *ADD_COMPONENT* related tasks that are necessary for 
 
 ### Other tracking issues for the same project:
 <!--- Link related tracking issues within the project for easier navigation. -->
+<!--- Assign tasks to the appropriate tracking issue if there is more than one. -->
 
 - #XXXX
 - #XXXX
 - #XXXX
 
+<!--- Subtasks MUST be inside the ``` -> ``` code block. -->
+```[tasklist]
 ### Task list
-<!--- Assign tasks to the appropriate tracking issue if there are multiple. -->
-
-- [ ] #XXXX
-- [ ] #XXXX
-- [ ] #XXXX
-- [ ] #XXXX
-- [ ] #XXXX
-- [ ] #XXXX
-- [ ] #XXXX
-- [ ] #XXXX
+- [ ] XXXX
+- [ ] XXXX
+```
