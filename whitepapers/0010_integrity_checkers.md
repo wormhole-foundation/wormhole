@@ -33,13 +33,13 @@ Conversely, the lack of synchronized state in the distributed xApp model often l
 
 After making an observation, a Guardian checks if there are integrity checkers configured for the emitter. If there are, it submits a pre-observation to the integrity-checker smart contract on Wormchain. It then saves the pre-observation to a local database.
 
-After its conditions have been met, an integrity-checker emits the wormhole message it deems to be valid.
+After its conditions are met, an integrity-checker approves the wormhole message it deems to be valid.
 
-The Guardian picks up the messages emitted from the integrity-checkers on Wormchain when they correspond to an observation the Guardian has made itself. It signs and broadcasts the signature to the Guardian peer to peer network. Thereby, an integrity-checker is unable to modify or inject messages and can only block messages.
+The Guardian picks up the messages approved from the integrity-checkers on Wormchain when they correspond to an observation the Guardian has made itself. It signs and broadcasts the signature to the Guardian peer to peer network. Thereby, an integrity-checker is unable to modify or inject messages and can only block messages.
 
 ## Terminology
 
-* `Pre-Observation` - used to designate an observation being submitted to the accountant contract by a Wormhole Guardian. They are similar to observations, i.e. a Wormhole message signed by a single guardian, but can be distinguished by their prefix and signature format. They follow the same signature format as signed gossip messages described in [guardian key usage](0009_guardian_key.md) with a unique signature prefix.  Signed pre-observations therefore cannot be used like signed observations to create a VAA.
+* `Pre-Observation` - used to designate an observation being submitted to the integrity checker contract by a Wormhole Guardian. They are similar to observations, i.e. a Wormhole message signed by a single guardian, but can be distinguished by their prefix and signature format. They follow the same signature format as signed gossip messages described in [guardian key usage](0009_guardian_key.md) with a unique signature prefix.  Signed pre-observations therefore cannot be used like signed observations to create a VAA.
 * `Batching` - pre-observations accumulate over a configurable time period and are batch submitted to Wormchain. This both saves on gas costs and results in less computational overhead.
 * `Persistence` - the Guardian persists the status of pre-observations to the local database.
 * `Retry` - the Guardian periodically watches the Wormchain state and ensures that all local pre-observations have been submitted correctly. In case of an error, it retries the submission.

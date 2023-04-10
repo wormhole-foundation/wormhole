@@ -16,7 +16,7 @@ A core feature of the token bridge is that xAssets are fungible across all chain
 
 It is unfortunately not practical to synchronize the state of the token bridge across all chains: If a transfer of Portal-wrapped ETH happens from Solana to Polygon, the token bridge contract on Ethereum is not aware of that transfer and therefore doesn't know where the wrapped assets are currently located.
 
-If any connected chain gets compromised, e.g. through a bug in the rpc nodes, this could cause the arbitrarily mint of “unbacked” wrapped assets, i.e. wrapped assets that are not backed by native assets.  Those unbacked wrapped assets could then be transferred to the native chain.  Because wrapped assets are fungible, the smart contract on the native chain cannot distinguish those unbacked wrapped assets and would proceed with unlocking the native assets, effectively draining the bridge.
+If any connected chain gets compromised, e.g. through a bug in the rpc nodes, this could cause arbitrary minting of “unbacked” wrapped assets, i.e. wrapped assets that are not backed by native assets.  Those unbacked wrapped assets could then be transferred to the native chain.  Because wrapped assets are fungible, the smart contract on the native chain cannot distinguish those unbacked wrapped assets and would proceed with unlocking the native assets, effectively draining the bridge.
 
 The [Governor](0007_governor.md) limits the maximal impact of such an attack, but cannot fully prevent it.
 
@@ -93,7 +93,7 @@ When a guardian submits a transfer (observation) to the contract, the contract w
 
 If the guardian receives a `Committed` status for a transfer then it can immediately proceed to signing the VAA.  If it receives an `Error` status, then it should halt further processing of the transfer (see the [Handling Rejections](#handling-rejections) section for more details).  If it receives a `Pending` status, then it should add the observation to a local database of pending transfers and wait for an event from the accountant.
 
-#### Observing Events from Wormhole Chain
+#### Observing Events from Wormchain
 
 Each guardian sets up a watcher for the accountant watching for events emitted signalling a determination on a transfer.  An event for a transfer is emitted when there is a quorum of pre-observations.
 
@@ -114,12 +114,12 @@ Upgrading the contract is performed with a migrate contract governance action fr
 
 ### Account Management
 
-The accountant keeps track of token balances on each blockchain ensuring they never become negative.  When committing a transfer, the accountant parses the tokenbridge payload to get the emitter chain, recipient chain, token chain, and token address.  These values are used to look up the relevant accounts and adjust the balances as needed.
+The accountant keeps track of token balances for each blockchain ensuring they never become negative.  When committing a transfer, the accountant parses the tokenbridge payload to get the emitter chain, recipient chain, token chain, and token address.  These values are used to look up the relevant accounts and adjust the balances as needed.
 
 It will have the following accounts:
 
 - Accounts for native tokens ($SOL on solana, $ETH or $wETH on ethereum).  These are classified as assets because they represent actual tokens held by smart contracts on the various chains.  All tokens not issued by the token bridge are considered native tokens, even if they are wrapped tokens issued by another bridge.  If the token is held by the bridge contract rather than burned, it is an asset.  We'll call these "custody accounts".
-- Accounts for wrapped tokens (wrapped SOL on ethereum, wrapped ETH on solana).  These are classified as liabilities.  These tokens are not held by the smart contract and instead represent a liability for the bridge: if a user returns a wrapped token to the bridge, the bridge **must** be able to transfer the native token to that user on its native chain.  We'll call these “wrapped accounts”.
+- Accounts for wormhole wrapped tokens (wrapped SOL on ethereum, wrapped ETH on solana).  These are classified as liabilities.  These tokens are not held by the smart contract and instead represent a liability for the bridge: if a user returns a wrapped token to the bridge, the bridge **must** be able to transfer the native token to that user on its native chain.  We'll call these “wrapped accounts”.
 
 Transferring a native token across the tokenbridge (locking) increases the balance on both the custody account and wrapped account on the destination chain.  Transferring a wrapped token back across the tokenbridge (burning) and subsequently unlocking its native asset decreases the balance on both the wrapped and custody accounts.  Any transfer causing the balance of an account to become negative is invalid and gets rejected.
 
