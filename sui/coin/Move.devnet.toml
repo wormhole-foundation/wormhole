@@ -5,7 +5,7 @@ version = "0.0.1"
 [dependencies.Sui]
 git = "https://github.com/MystenLabs/sui.git"
 subdir = "crates/sui-framework/packages/sui-framework"
-rev = "81dbcf2b6cab07d623a1012bf31daf658963c765"
+rev = "ddfc3fa0768a38286787319603a5458a9ff91cc1"
 
 [dependencies.TokenBridge]
 local = "../token_bridge"
