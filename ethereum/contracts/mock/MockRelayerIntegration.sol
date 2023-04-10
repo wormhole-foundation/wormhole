@@ -322,6 +322,10 @@ contract MockRelayerIntegration is IWormholeReceiver {
         }
     }
 
+    function getRegisteredContract(uint16 chainId) public view returns (bytes32) {
+        return registeredContracts[chainId];
+    }
+
     function encodeFurtherInstructions(FurtherInstructions memory furtherInstructions)
         public
         pure
