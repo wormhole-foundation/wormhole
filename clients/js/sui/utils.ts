@@ -1,3 +1,5 @@
+import { CHAIN_ID_SUI } from "@certusone/wormhole-sdk";
+import { CHAIN_ID_TO_NAME } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 import {
   Connection,
   Ed25519Keypair,
@@ -5,19 +7,113 @@ import {
   JsonRpcProvider,
   normalizeSuiAddress,
   RawSigner,
+  SuiTransactionBlockResponse,
+  SUI_CLOCK_OBJECT_ID,
   TransactionBlock,
 } from "@mysten/sui.js";
+import { CONTRACTS } from "../consts";
 import { NETWORKS } from "../networks";
 import { Network } from "../utils";
+import { impossible, Payload } from "../vaa";
+import { SuiAddresses, SUI_OBJECT_IDS } from "./consts";
 import { SuiRpcValidationError } from "./error";
 import { SuiCreateEvent, SuiPublishEvent } from "./types";
 
 const UPGRADE_CAP_TYPE = "0x2::package::UpgradeCap";
 
-export async function executeTransactionBlock(
+export const execute_sui = async (
+  payload: Payload,
+  vaa: Buffer,
+  network: Network,
+  packageId?: string,
+  addresses?: Partial<SuiAddresses>,
+  rpc?: string,
+  privateKey?: string
+) => {
+  const chain = CHAIN_ID_TO_NAME[CHAIN_ID_SUI];
+  const provider = getProvider(network, rpc);
+  const signer = getSigner(provider, network, privateKey);
+  addresses = { ...SUI_OBJECT_IDS, ...addresses };
+
+  switch (payload.module) {
+    case "Core":
+      packageId = packageId ?? CONTRACTS[network][chain]["core"];
+      if (!packageId) {
+        throw Error("Core bridge contract is undefined");
+      }
+
+      switch (payload.type) {
+        case "GuardianSetUpgrade": {
+          console.log("Submitting new guardian set");
+          const tx = new TransactionBlock();
+          tx.moveCall({
+            target: `${packageId}::wormhole::update_guardian_set`,
+            arguments: [
+              tx.object(addresses[network].core_state),
+              tx.pure([...vaa]),
+              tx.object(SUI_CLOCK_OBJECT_ID),
+            ],
+          });
+          await executeTransactionBlock(signer, tx);
+          break;
+        }
+        case "ContractUpgrade":
+          throw new Error("ContractUpgrade not supported on Sui");
+        case "RecoverChainId":
+          throw new Error("RecoverChainId not supported on Sui");
+        default:
+          impossible(payload);
+      }
+      break;
+    case "NFTBridge":
+      throw new Error("NFT bridge not supported on Sui");
+    case "TokenBridge":
+      packageId = packageId ?? CONTRACTS[network][chain]["token_bridge"];
+      if (!packageId) {
+        throw Error("Token bridge contract is undefined");
+      }
+
+      switch (payload.type) {
+        case "ContractUpgrade":
+          throw new Error("ContractUpgrade not supported on Sui");
+        case "RecoverChainId":
+          throw new Error("RecoverChainId not supported on Sui");
+        case "RegisterChain": {
+          console.log("Registering chain");
+          const tx = new TransactionBlock();
+          tx.setGasBudget(1000000);
+          tx.moveCall({
+            target: `${packageId}::register_chain::register_chain`,
+            arguments: [
+              tx.object(addresses[network].token_bridge_state),
+              tx.object(addresses[network].core_state),
+              tx.pure([...vaa]),
+              tx.object(SUI_CLOCK_OBJECT_ID),
+            ],
+          });
+          await executeTransactionBlock(signer, tx);
+          break;
+        }
+        case "AttestMeta":
+          throw new Error("AttestMeta not supported on Sui");
+        case "Transfer":
+          throw new Error("Transfer not supported on Sui");
+        case "TransferWithPayload":
+          throw Error("Can't complete payload 3 transfer from CLI");
+        default:
+          impossible(payload);
+          break;
+      }
+      break;
+    default:
+      impossible(payload);
+  }
+};
+
+export const executeTransactionBlock = async (
   signer: RawSigner,
   transactionBlock: TransactionBlock
-) {
+): Promise<SuiTransactionBlockResponse> => {
   // Let caller handle parsing and logging info
   return signer.signAndExecuteTransactionBlock({
     transactionBlock,
@@ -28,7 +124,7 @@ export async function executeTransactionBlock(
       showObjectChanges: true,
     },
   });
-}
+};
 
 export const getOwnedObjectId = async (
   provider: JsonRpcProvider,

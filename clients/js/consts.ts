@@ -5,6 +5,10 @@ import {
 
 const OVERRIDES = {
   MAINNET: {
+    sui: {
+      core: undefined,
+      token_bridge: undefined,
+    },
     aptos: {
       token_bridge:
         "0x576410486a2da45eee6c949c995670112ddf2fbeedab20350d506328eefc9d4f",
@@ -14,6 +18,10 @@ const OVERRIDES = {
     },
   },
   TESTNET: {
+    sui: {
+      core: undefined,
+      token_bridge: undefined,
+    },
     aptos: {
       token_bridge:
         "0x576410486a2da45eee6c949c995670112ddf2fbeedab20350d506328eefc9d4f",
@@ -23,6 +31,11 @@ const OVERRIDES = {
     },
   },
   DEVNET: {
+    sui: {
+      core: "0x3c2d3997e7230d07b457accf69013a501b7e9f7841ba2da37201b3bb85314fdc",
+      token_bridge:
+        "0x199993e108d321f96da1c1167677affbefce6b43f34d9a255cae08224901637e",
+    },
     aptos: {
       token_bridge:
         "0x84a5f374d29fc77e370014dce4fd6a55b58ad608de8074b0be5571701724da31",
@@ -33,6 +46,7 @@ const OVERRIDES = {
   },
 };
 
+// TODO(aki): move this to SDK at some point
 export const CONTRACTS = {
   MAINNET: { ...SDK_CONTRACTS.MAINNET, ...OVERRIDES.MAINNET },
   TESTNET: { ...SDK_CONTRACTS.TESTNET, ...OVERRIDES.TESTNET },
