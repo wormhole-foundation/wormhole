@@ -22,6 +22,7 @@ export enum DeliveryStatus {
 export interface DeliveryInstructionsContainer {
   payloadId: number; // 1
   senderAddress: Buffer;
+  sourceProvider: Buffer;
   messages: MessageInfo[];
   instructions: DeliveryInstruction[];
 }
@@ -78,22 +79,17 @@ export function parseWormholeRelayerSend(
   }
   idx += 1;
 
-  dbg(payloadId, "payloadId");
-
   const senderAddress = bytes.slice(idx, idx + 32);
   idx += 32;
 
-  dbg(senderAddress, "senderAddress");
+  const sourceProvider = bytes.slice(idx, idx + 32);
+  idx += 32;
 
   const numMessages = bytes.readUInt8(idx);
   idx += 1;
 
-  dbg(numMessages, "numMessages");
-
   const numInstructions = bytes.readUInt8(idx);
   idx += 1;
-
-  dbg(numInstructions, "numInstructions");
 
   let messages = [] as MessageInfo[];
   for (let i = 0; i < numMessages; ++i) {
@@ -146,6 +142,7 @@ export function parseWormholeRelayerSend(
   return {
     payloadId,
     senderAddress,
+    sourceProvider,
     messages,
     instructions,
   };
