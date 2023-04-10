@@ -38,8 +38,9 @@ type RelayProviderContractState = {
   chainId: number;
   contractAddress: string;
   rewardAddress: string;
-  providerAddresses: { chainId: number; providerAddress: string }[];
   deliveryOverheads: { chainId: number; deliveryOverhead: BigNumber }[];
+  supportedChains: { chainId: number; isSupported: boolean }[];
+  targetChainAddresses: { chainId: number; whAddress: string }[];
   maximumBudgets: { chainId: number; maximumBudget: BigNumber }[];
   gasPrices: { chainId: number; gasPrice: BigNumber }[];
   usdPrices: { chainId: number; usdPrice: BigNumber }[];
@@ -62,9 +63,13 @@ async function readState(
     const relayProvider = getRelayProvider(chain, getProvider(chain));
     const contractAddress = getRelayProviderAddress(chain);
     const rewardAddress = await relayProvider.getRewardAddress();
-    const providerAddresses: {
+    const supportedChains: {
       chainId: number;
-      providerAddress: string;
+      isSupported: boolean;
+    }[] = [];
+    const targetChainAddresses: {
+      chainId: number;
+      whAddress: string;
     }[] = [];
     const deliveryOverheads: {
       chainId: number;
@@ -81,13 +86,16 @@ async function readState(
     const owner: string = await relayProvider.owner();
 
     for (const chainInfo of chains) {
-      //TODO
-      // providerAddresses.push({
-      //   chainId: chainInfo.chainId,
-      //   providerAddress: (
-      //     await relayProvider.getDeliveryAddress(chainInfo.chainId)
-      //   ).toString(),
-      // });
+      supportedChains.push({
+        chainId: chainInfo.chainId,
+        isSupported: await relayProvider.isChainSupported(chainInfo.chainId),
+      });
+
+      targetChainAddresses.push({
+        chainId: chainInfo.chainId,
+        whAddress: await relayProvider.getTargetChainAddress(chainInfo.chainId),
+      });
+
       deliveryOverheads.push({
         chainId: chainInfo.chainId,
         deliveryOverhead: await relayProvider.quoteDeliveryOverhead(
@@ -122,8 +130,9 @@ async function readState(
       chainId: chain.chainId,
       contractAddress,
       rewardAddress,
-      providerAddresses,
       deliveryOverheads,
+      supportedChains,
+      targetChainAddresses,
       maximumBudgets,
       gasPrices,
       usdPrices,
@@ -148,9 +157,15 @@ function printState(state: RelayProviderContractState) {
 
   console.log("");
 
-  printFixed("Registered Providers", "");
-  state.providerAddresses.forEach((x) => {
-    printFixed("  Chain: " + x.chainId, x.providerAddress);
+  printFixed("Supported Chains", "");
+  state.supportedChains.forEach((x) => {
+    printFixed("  Chain: " + x.chainId, x.isSupported.toString());
+  });
+  console.log("");
+
+  printFixed("Target Chain Addresses", "");
+  state.targetChainAddresses.forEach((x) => {
+    printFixed("  Chain: " + x.chainId, x.whAddress.toString());
   });
   console.log("");
 

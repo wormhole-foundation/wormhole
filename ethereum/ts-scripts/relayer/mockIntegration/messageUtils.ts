@@ -98,7 +98,6 @@ async function queryMessageOnTarget(
     process.stdout.write("..");
   }
   console.log("");
-
   if (notFound) {
     console.log(`ERROR: Did not receive message!`);
     return false;
