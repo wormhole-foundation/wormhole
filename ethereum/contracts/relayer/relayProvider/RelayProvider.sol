@@ -46,7 +46,7 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
         return _state.supportedChains[targetChainId];
     }
 
-    function getTargetChainAddress(uint16 targetChainId) external view returns (bytes32 relayProviderAddress) {
+    function getTargetChainAddress(uint16 targetChainId) public view override returns (bytes32 relayProviderAddress) {
         return targetChainAddress(targetChainId);
     }
 

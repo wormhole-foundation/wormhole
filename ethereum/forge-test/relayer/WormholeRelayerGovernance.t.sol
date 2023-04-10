@@ -19,11 +19,11 @@ import {CoreRelayerProxy} from "../../contracts/relayer/coreRelayer/CoreRelayerP
 import {CoreRelayerMessages} from "../../contracts/relayer/coreRelayer/CoreRelayerMessages.sol";
 import {CoreRelayerGovernance} from "../../contracts/relayer/coreRelayer/CoreRelayerGovernance.sol";
 import {MockGenericRelayer} from "./MockGenericRelayer.sol";
-import {MockWormhole} from "../../contracts/mock/MockWormhole.sol";
+import {MockWormhole} from "./MockWormhole.sol";
 import {IWormhole} from "../../contracts/interfaces/IWormhole.sol";
 import {WormholeSimulator, FakeWormholeSimulator} from "./WormholeSimulator.sol";
 import {IWormholeReceiver} from "../../contracts/interfaces/relayer/IWormholeReceiver.sol";
-import {AttackForwardIntegration} from "../../contracts/mock/AttackForwardIntegration.sol";
+import {AttackForwardIntegration} from "./AttackForwardIntegration.sol";
 import {MockRelayerIntegration, Structs} from "../../contracts/mock/MockRelayerIntegration.sol";
 import {ForwardTester} from "./ForwardTester.sol";
 import {TestHelpers} from "./TestHelpers.sol";
