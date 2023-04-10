@@ -54,6 +54,7 @@ contract CoreRelayerMessages is CoreRelayerGetters {
         instructionsContainer.payloadId = 1;
         instructionsContainer.senderAddress = toWormholeFormat(msg.sender);
         IRelayProvider relayProvider = IRelayProvider(sendContainer.relayProviderAddress);
+        instructionsContainer.sourceProvider = toWormholeFormat(sendContainer.relayProviderAddress);
         instructionsContainer.messageInfos = sendContainer.messageInfos;
 
         uint256 length = sendContainer.requests.length;
@@ -139,6 +140,7 @@ contract CoreRelayerMessages is CoreRelayerGetters {
         encoded = abi.encodePacked(
             container.payloadId,
             container.senderAddress,
+            container.sourceProvider,
             uint8(container.messageInfos.length),
             uint8(container.instructions.length)
         );
@@ -447,6 +449,9 @@ contract CoreRelayerMessages is CoreRelayerGetters {
         bytes32 senderAddress = encoded.toBytes32(index);
         index += 32;
 
+        bytes32 sourceProvider = encoded.toBytes32(index);
+        index += 32;
+
         uint8 messagesArrayLen = encoded.toUint8(index);
         index += 1;
 
@@ -471,6 +476,7 @@ contract CoreRelayerMessages is CoreRelayerGetters {
         return IWormholeRelayerInternalStructs.DeliveryInstructionsContainer({
             payloadId: payloadId,
             senderAddress: senderAddress,
+            sourceProvider: sourceProvider,
             messageInfos: messageInfos,
             instructions: instructionArray
         });

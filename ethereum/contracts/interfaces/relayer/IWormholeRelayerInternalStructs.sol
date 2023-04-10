@@ -8,6 +8,7 @@ interface IWormholeRelayerInternalStructs {
     struct DeliveryInstructionsContainer {
         uint8 payloadId; //1
         bytes32 senderAddress;
+        bytes32 sourceProvider;
         IWormholeRelayer.MessageInfo[] messageInfos;
         DeliveryInstruction[] instructions;
     }
