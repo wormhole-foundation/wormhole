@@ -214,6 +214,9 @@ abstract contract RelayProviderGovernance is RelayProviderGetters, RelayProvider
             if (update.updateAssetConversionBuffer) {
                 updateAssetConversionBufferImpl(update.chainId, update.buffer, update.bufferDenominator);
             }
+            if (update.updateSupportedChain) {
+                updateSupportedChainImpl(update.chainId, update.isSupported);
+            }
             unchecked {
                 i += 1;
             }
