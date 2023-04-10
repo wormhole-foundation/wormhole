@@ -13,6 +13,7 @@ import {
   getProvider,
   getSigner,
   getUpgradeCapObjectId,
+  isSameType,
   isSuiCreateEvent,
 } from "../../sui";
 import { assertNetwork } from "../../utils";
@@ -76,8 +77,9 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           "Example app state object ID",
           res.objectChanges
             .filter(isSuiCreateEvent)
-            .find((e) => e.objectType === `${packageId}::sender::State`)
-            .objectId
+            .find((e) =>
+              isSameType(e.objectType, `${packageId}::sender::State`)
+            ).objectId
         );
       }
     )
@@ -146,7 +148,7 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
 
         if (!upgradeCapObjectId) {
           throw new Error(
-            `Wormhole cannot be initialized because upgrade capability cannot be found under ${owner}. Is the package published?`
+            `Token bridge cannot be initialized because upgrade capability cannot be found under ${owner}. Is the package published?`
           );
         }
 
@@ -167,7 +169,8 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           "Token bridge state object ID",
           res.objectChanges
             .filter(isSuiCreateEvent)
-            .find((e) => e.objectType === `${packageId}::state::State`).objectId
+            .find((e) => isSameType(e.objectType, `${packageId}::state::State`))
+            .objectId
         );
       }
     )
@@ -280,7 +283,8 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           "Wormhole state object ID",
           res.objectChanges
             .filter(isSuiCreateEvent)
-            .find((e) => e.objectType === `${packageId}::state::State`).objectId
+            .find((e) => isSameType(e.objectType, `${packageId}::state::State`))
+            .objectId
         );
       }
     );

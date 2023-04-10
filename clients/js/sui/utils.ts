@@ -21,6 +21,14 @@ import { SuiCreateEvent, SuiPublishEvent } from "./types";
 
 const UPGRADE_CAP_TYPE = "0x2::package::UpgradeCap";
 
+export const isSameType = (a: string, b: string) => {
+  try {
+    return normalizeSuiType(a) === normalizeSuiType(b);
+  } catch (e) {
+    return false;
+  }
+};
+
 export const execute_sui = async (
   payload: Payload,
   vaa: Buffer,
@@ -257,6 +265,8 @@ export const isSuiCreateEvent = (event: any): event is SuiCreateEvent => {
   return event.type === "created";
 };
 
+// todo(aki): this needs to correctly handle types such as
+// 0x2::dynamic_field::Field<0x3c6d386861470e6f9cb35f3c91f69e6c1f1737bd5d217ca06a15f582e1dc1ce3::state::MigrationControl, bool>
 export const normalizeSuiType = (type: string): string => {
   const tokens = type.split("::");
   if (tokens.length !== 3 || !isValidSuiAddress(tokens[0])) {
