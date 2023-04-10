@@ -25,15 +25,6 @@ interface PricingInfo {
   maximumBudget: BigNumberish
 };
 
-/**
- * Must match `RelayProviderStructs.UpdatePrice`
- */
-interface UpdatePrice {
-  chainId: ChainId
-  gasPrice: BigNumberish
-  nativeCurrencyPrice: BigNumberish
-};
-
 const processName = "configureRelayProvider";
 init();
 const operatingChains = getOperatingChains();
