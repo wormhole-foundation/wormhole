@@ -372,10 +372,15 @@ func ibcReceiverUpdateChainConnection(
 		return nil, fmt.Errorf("invalid chain id, must be <= %d", math.MaxUint16)
 	}
 
+	if len(req.ConnectionId) > 64 {
+		return nil, fmt.Errorf("invalid connection ID length, must be <= 64")
+	}
+	connectionId := vaa.GetIbcConnectionIdBytes(req.ConnectionId)
+
 	// create governance VAA
 	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
 		vaa.BodyIbcReceiverUpdateChainConnection{
-			ConnectionId: req.ConnectionId,
+			ConnectionId: connectionId,
 			ChainId:      vaa.ChainID(req.ChainId),
 		}.Serialize())
 

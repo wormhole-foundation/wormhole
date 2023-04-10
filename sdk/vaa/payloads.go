@@ -3,6 +3,7 @@ package vaa
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
@@ -141,7 +142,9 @@ type (
 
 	// BodyIbcReceiverUpdateChainConnection is a governance message to update the ibc connection_id -> chain_id mapping in the ibc_receiver contract
 	BodyIbcReceiverUpdateChainConnection struct {
-		ConnectionId string
+		// This should follow the IBC Identifier standard: https://github.com/cosmos/ibc/tree/main/spec/core/ics-024-host-requirements#paths-identifiers-separators
+		// If the identifier string is shorter than 64 bytes, the correct number of 0x00 bytes should be prepended.
+		ConnectionId [64]byte
 		ChainId      ChainID
 	}
 )
@@ -247,23 +250,13 @@ func (r BodyCircleIntegrationUpgradeContractImplementation) Serialize() []byte {
 
 func (r BodyIbcReceiverUpdateChainConnection) Serialize() []byte {
 	payload := &bytes.Buffer{}
-	payload.Write([]byte(r.ConnectionId))
+	payload.Write(r.ConnectionId[:])
 	MustWrite(payload, binary.BigEndian, r.ChainId)
 	return serializeBridgeGovernanceVaa(IbcReceiverModuleStr, IbcReceiverActionUpdateChainConnection, 0, payload.Bytes())
 }
 
 func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chainId ChainID, payload []byte) []byte {
-	if len(module) > 32 {
-		panic("module longer than 32 byte")
-	}
-
-	buf := &bytes.Buffer{}
-
-	// Write token bridge header
-	for i := 0; i < (32 - len(module)); i++ {
-		buf.WriteByte(0x00)
-	}
-	buf.Write([]byte(module))
+	buf := PrependBufferBytesFixed(module, 32)
 	// Write action ID
 	MustWrite(buf, binary.BigEndian, actionId)
 	// Write target chain
@@ -272,4 +265,34 @@ func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chai
 	buf.Write(payload[:])
 
 	return buf.Bytes()
+}
+
+func GetIbcConnectionIdBytes(connectionId string) [64]byte {
+	connectionIdBuf := PrependBufferBytesFixed(connectionId, 64)
+	var connectionIdFixedSize [64]byte
+	copy(connectionIdFixedSize[:], connectionIdBuf.Bytes())
+	return connectionIdFixedSize
+}
+
+// Prepends 0x00 bytes to the payload buffer, up to a size of `length`
+func PrependBufferBytesFixed(payload string, length int) *bytes.Buffer {
+	if length < 0 {
+		panic("cannot prepend bytes to a negative length buffer")
+	}
+
+	if len(payload) > length {
+		panic(fmt.Sprintf("payload longer than %d bytes", length))
+	}
+
+	buf := &bytes.Buffer{}
+
+	// Prepend correct number of 0x00 bytes to the payload slice
+	for i := 0; i < (length - len(payload)); i++ {
+		buf.WriteByte(0x00)
+	}
+
+	// add the payload slice
+	buf.Write([]byte(payload))
+
+	return buf
 }
