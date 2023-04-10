@@ -25,14 +25,14 @@ async function run() {
     relayProviderProxies: [],
   };
 
-  for (let i = 0; i < chains.length; i++) {
-    console.log(`Deploying for chain ${chains[i].chainId}...`);
+  for (const chain of chains) {
+    console.log(`Deploying for chain ${chain.chainId}...`);
     const relayProviderImplementation = await deployRelayProviderImplementation(
-      chains[i]
+      chain
     );
-    const relayProviderSetup = await deployRelayProviderSetup(chains[i]);
+    const relayProviderSetup = await deployRelayProviderSetup(chain);
     const relayProviderProxy = await deployRelayProviderProxy(
-      chains[i],
+      chain,
       relayProviderSetup.address,
       relayProviderImplementation.address
     );
