@@ -14,7 +14,7 @@ Token Bridges built on Wormhole (e.g. [Portal](0003_token_bridge.md)) allow tran
 
 A core feature of the token bridge is that xAssets are fungible across all chains.  ETH sent from Ethereum to Solana to Polygon is the same as the ETH sent from Ethereum to Aptos to Polygon.  Transfers work by locking native assets (or burning wrapped assets) on the source chain and emitting a Wormhole message that allows the minting of wrapped assets (or unlocking of native assets) on the destination chain.
 
-It is unfortunately not practical to synchronize the state of the token bridge across all chains: If a transfer of Portal-wrapped ETH happens from Solana to Polygon, the token bridge contract on Ethereum is not aware of that transfer and therefore doesn't know on which chain the wrapped assets currently are.
+It is unfortunately not practical to synchronize the state of the token bridge across all chains: If a transfer of Portal-wrapped ETH happens from Solana to Polygon, the token bridge contract on Ethereum is not aware of that transfer and therefore doesn't know where the wrapped assets are currently located.
 
 If any connected chain gets compromised, e.g. through a bug in the rpc nodes, this could cause the arbitrarily mint of “unbacked” wrapped assets, i.e. wrapped assets that are not backed by native assets.  Those unbacked wrapped assets could then be transferred to the native chain.  Because wrapped assets are fungible, the smart contract on the native chain cannot distinguish those unbacked wrapped assets and would proceed with unlocking the native assets, effectively draining the bridge.
 
@@ -110,7 +110,7 @@ Guardians are expected to periodically run this query and re-observe transaction
 
 #### Contract Upgrades
 
-Upgrading the contract will be done via a governance action from the guardian network with the same mechanism we use for the existing wormhole cosmwasm contracts.
+Upgrading the contract is performed with a migrate contract governance action from the guardian network. Once quorum+1 guardians (13) have signed the migrate contract governance VAA, the [wormchain client migrate command](https://github.com/wormhole-foundation/wormhole/blob/a846036b6ebff3af6f12ff375f5c3801ada20291/wormchain/x/wormhole/client/cli/tx_wasmd.go#L148) can be ran by anyone with an authorized wallet to submit the valid governance vaa and updated wasm contract to wormchain.
 
 ### Account Management
 
@@ -139,11 +139,11 @@ Example 3: An attacker exploits a bug in the solana contract to print fake wrapp
 
 Wormhole decides to cover the cost of the hack and transfers the ETH equivalent to the stolen amount to the token bridge contract on ethereum.  To update the accounts, the guardians must issue 2 governance actions: one to increase the balance of the `(Ethereum, Ethereum, ETH)` custody account and one to increase the balance of the `(Solana, Ethereum, ETH)` wrapped account.
 
-Example 4: A user sends wrapped SOL from ethereum to polygon.  Even though SOL is not native to either chain, the transaction is still recorded the same way: the `Ethereum/SOL` mint account is debited and the `Polygon/SOL` mint account is credited.  The total liability of the token bridge has not changed and instead we have just moved some liability from ethereum to polygon.
+Example 4: A user sends wrapped SOL from ethereum to polygon.  Even though SOL is not native to either chain, the transaction is still recorded the same way: the `(Ethereum, Solana, SOL)` wrapped account is debited and the `(Polygon, Solana, SOL)` wrapped account is credited.  The total liability of the token bridge has not changed and instead we have just moved some liability from ethereum to polygon.
 
 #### Creating accounts
 
-Since users can send any arbitrary token over the token bridge, the accountant should automatically create accounts for any new token.  To determine whether the newly created account should be a custody account or a mint account, these steps are followed:
+Since users can send any arbitrary token over the token bridge, the accountant should automatically create accounts for any new token.  To determine whether the newly created account should be a custody account or a wrapped account, these steps are followed:
 
 - If `emitter_chain == token_chain` and a custody account doesn't already exist, create one.
 - If `emitter_chain != token_chain` and a wrapped account doesn't already exist, reject the transaction.  The wrapped account should have been created when the tokens were originally transferred to `emitter_chain`.
