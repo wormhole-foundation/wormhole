@@ -1285,6 +1285,7 @@ contract WormholeRelayerTests is Test {
             .DeliveryInstructionsContainer({
             payloadId: 1,
             senderAddress: bytes32("234"),
+            sourceProvider: setup.source.coreRelayerFull.toWormholeFormat(address(setup.source.relayProvider)),
             messageInfos: messageInfos,
             instructions: instructions
         });
