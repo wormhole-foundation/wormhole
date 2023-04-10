@@ -22,8 +22,8 @@ const chains = loadChains();
 async function run() {
   console.log("Start! " + processName);
 
-  for (let i = 0; i < operatingChains.length; i++) {
-    await registerChainsCoreRelayer(operatingChains[i]);
+  for (const operatingChain of operatingChains) {
+    await registerChainsCoreRelayer(operatingChain);
   }
 }
 
@@ -31,12 +31,9 @@ async function registerChainsCoreRelayer(chain: ChainInfo) {
   console.log("registerChainsCoreRelayer " + chain.chainId);
 
   const coreRelayer = getCoreRelayer(chain);
-  await coreRelayer
-    .setDefaultRelayProvider(createDefaultRelayProviderVAA(chain))
-    .then(wait);
-  for (let i = 0; i < chains.length; i++) {
+  for (const targetChain of chains) {
     await coreRelayer
-      .registerCoreRelayerContract(createRegisterChainVAA(chains[i]))
+      .registerCoreRelayerContract(createRegisterChainVAA(targetChain))
       .then(wait);
   }
 
