@@ -62,7 +62,7 @@ async function processDelivery(ctx: GRContext) {
   try {
     for (let i = 0; i < vaaIds.length; i++) {
       const { vaaBytes: signedVAA } = await wh.getSignedVAAWithRetry(
-        ["localhost:7071"],
+        ["http://localhost:7071"],
         parseInt(chainId.toString()) as any,
         vaaIds[i].emitterAddress.toString("hex"),
         vaaIds[i].sequence.toString(),
@@ -103,15 +103,35 @@ async function processDelivery(ctx: GRContext) {
       };
 
       ctx.logger.debug("Sending 'deliver' tx...");
-      await coreRelayer
+      const receipt = await coreRelayer
         .deliver(input, { value: budget, gasLimit: 3000000 })
         .then((x) => x.wait());
 
+      const relayerContractLog = receipt.logs?.find((x) => {
+        return x.address === ctx.wormholeRelayers[chainId];
+      });
+      if (relayerContractLog) {
+        const parsedLog = coreRelayer.interface.parseLog(relayerContractLog!);
+        const recipientAddress = parsedLog.args[0];
+        const sourceChain = parsedLog.args[1];
+        const sourceSequence = parsedLog.args[2];
+        const vaaHash = parsedLog.args[3];
+        const status = parsedLog.args[4];
+
+        ctx.logger.info("resultant event!");
+        ctx.logger.info("recipientAddress: " + recipientAddress);
+        ctx.logger.info("sourceChain: " + sourceChain);
+        ctx.logger.info("sourceSequence: " + sourceSequence.toString());
+        ctx.logger.info("vaaHash: " + vaaHash);
+        ctx.logger.info("status: " + status);
+      }
       ctx.logger.info(
         `Relayed instruction ${i + 1} of ${
           payload.instructions.length
-        } to chain ${chainId}`
+        } to chain ${chainId}, tx hash: ${receipt.transactionHash}`
       );
+
+      ctx.logger.info("exiting processor");
     });
   }
 }
