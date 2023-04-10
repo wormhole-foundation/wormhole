@@ -26,20 +26,20 @@ async function run() {
     coreRelayerProxies: [],
   };
 
-  for (let i = 0; i < chains.length; i++) {
-    console.log(`Deploying for chain ${chains[i].chainId}...`);
-    const coreRelayerLibrary = await deployCoreRelayerLibrary(chains[i]);
+  for (const chain of chains) {
+    console.log(`Deploying for chain ${chain.chainId}...`);
+    const coreRelayerLibrary = await deployCoreRelayerLibrary(chain);
     const coreRelayerImplementation = await deployCoreRelayerImplementation(
-      chains[i],
+      chain,
       coreRelayerLibrary.address
     );
-    const coreRelayerSetup = await deployCoreRelayerSetup(chains[i]);
+    const coreRelayerSetup = await deployCoreRelayerSetup(chain);
     const coreRelayerProxy = await deployCoreRelayerProxy(
-      chains[i],
+      chain,
       coreRelayerSetup.address,
       coreRelayerImplementation.address,
-      chains[i].wormholeAddress,
-      getRelayProviderAddress(chains[i])
+      chain.wormholeAddress,
+      getRelayProviderAddress(chain)
     );
 
     output.coreRelayerLibraries.push(coreRelayerLibrary);

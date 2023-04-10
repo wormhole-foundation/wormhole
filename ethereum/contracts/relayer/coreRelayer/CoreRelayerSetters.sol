@@ -26,8 +26,8 @@ contract CoreRelayerSetters is CoreRelayerState, Context {
         _state.provider.governanceContract = governanceContract;
     }
 
-    function setChainId(uint16 chainId_) internal {
-        _state.provider.chainId = chainId_;
+    function setChainId(uint16 chainId) internal {
+        _state.provider.chainId = chainId;
     }
 
     function setWormhole(address wh) internal {
