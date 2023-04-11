@@ -473,22 +473,23 @@ if spy_relayer or redis or generic_relayer:
 
     k8s_yaml_with_ns("devnet/redis.yaml")
 
-# if generic_relayer:
-#     k8s_resource(
-#         "relayer-engine",
-#         port_forwards = [
-#             port_forward(3003, container_port=3000 name = "Bullseye [:3003]", host = webHost),
-#         ],
-#         labels = ["relayer-engine"],
-#         trigger_mode = trigger_mode,
-#     )
-#     docker_build(
-#         ref = "relayer-engine",
-#         context = ".",
-#         only = ["./ethereum", "./relayer/generic_relayer"],
-#         dockerfile = "relayer/generic_relayer/relayer-engine-v2/Dockerfile",
-#     )
-#     k8s_yaml_with_ns("devnet/relayer-engine.yaml")
+if generic_relayer:
+    k8s_resource(
+        "relayer-engine",
+        resource_deps = ["guardian", "redis", "spy"],
+        port_forwards = [
+            port_forward(3003, container_port=3000, name = "Bullmq UI [:3003]", host = webHost),
+        ],
+        labels = ["relayer-engine"],
+        trigger_mode = trigger_mode,
+    )
+    docker_build(
+        ref = "relayer-engine",
+        context = ".",
+        only = ["./ethereum", "./relayer/generic_relayer"],
+        dockerfile = "relayer/generic_relayer/relayer-engine-v2/Dockerfile",
+    )
+    k8s_yaml_with_ns("devnet/relayer-engine.yaml")
 
 if spy_relayer:
 

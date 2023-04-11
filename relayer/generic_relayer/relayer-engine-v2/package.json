@@ -6,6 +6,7 @@
   "scripts": {
     "start": "ts-node src/app.ts --flag=testnet",
     "tilt": "ts-node src/app.ts --flag=tilt",
+    "tiltkub": "ts-node src/app.ts --flag=tiltkub",
     "build": "tsc",
     "watch": "tsc --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -18,7 +19,7 @@
     "@types/koa": "^2.13.5",
     "clone": "^2.1.2",
     "koa": "^2.14.1",
-    "wormhole-relayer": "github:gabzim/wormhole-relayer#658c08d6816ab8b035ddb9a04819052f65f3aaf8",
+    "wormhole-relayer": "github:gabzim/wormhole-relayer#0949142efead696d18957ad38533d03b15dcbbea",
     "yargs": "^17.7.1"
   },
   "peerDependencies": {
