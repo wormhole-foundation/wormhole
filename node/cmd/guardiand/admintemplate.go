@@ -474,6 +474,10 @@ func runIbcReceiverUpdateChainConnectionTemplate(cmd *cobra.Command, args []stri
 	if *ibcReceiverUpdateChainConnectionConnectionId == "" {
 		log.Fatal("--connection-id must be specified")
 	}
+	if len(*ibcReceiverUpdateChainConnectionConnectionId) > 64 {
+		log.Fatal("invalid connection id length, must be <= 64")
+	}
+
 	if *ibcReceiverUpdateChainConnectionChainId == "" {
 		log.Fatal("--chain-id must be specified")
 	}
