@@ -8,7 +8,7 @@ export type SuiCreateEvent = {
   type: "created";
   objectType: string;
   objectId: string;
-  version: number;
+  version: string;
   digest: string;
   owner:
     | {
