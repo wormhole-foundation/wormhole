@@ -256,7 +256,7 @@ func (r BodyIbcReceiverUpdateChainConnection) Serialize() []byte {
 }
 
 func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chainId ChainID, payload []byte) []byte {
-	buf := PrependBufferBytesFixed(module, 32)
+	buf := LeftPadBytes(module, 32)
 	// Write action ID
 	MustWrite(buf, binary.BigEndian, actionId)
 	// Write target chain
@@ -268,14 +268,14 @@ func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chai
 }
 
 func GetIbcConnectionIdBytes(connectionId string) [64]byte {
-	connectionIdBuf := PrependBufferBytesFixed(connectionId, 64)
+	connectionIdBuf := LeftPadBytes(connectionId, 64)
 	var connectionIdFixedSize [64]byte
 	copy(connectionIdFixedSize[:], connectionIdBuf.Bytes())
 	return connectionIdFixedSize
 }
 
 // Prepends 0x00 bytes to the payload buffer, up to a size of `length`
-func PrependBufferBytesFixed(payload string, length int) *bytes.Buffer {
+func LeftPadBytes(payload string, length int) *bytes.Buffer {
 	if length < 0 {
 		panic("cannot prepend bytes to a negative length buffer")
 	}

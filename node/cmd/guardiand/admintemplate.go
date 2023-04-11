@@ -38,6 +38,9 @@ var circleIntegrationForeignEmitterAddress *string
 var circleIntegrationCircleDomain *string
 var circleIntegrationNewImplementationAddress *string
 
+var ibcReceiverUpdateChainConnectionConnectionId *string
+var ibcReceiverUpdateChainConnectionChainId *string
+
 func init() {
 	governanceFlagSet := pflag.NewFlagSet("governance", pflag.ExitOnError)
 	chainID = governanceFlagSet.String("chain-id", "", "Chain ID")
@@ -91,6 +94,13 @@ func init() {
 	AdminClientCircleIntegrationUpgradeContractImplementationCmd.Flags().AddFlagSet(circleIntegrationChainIDFlagSet)
 	AdminClientCircleIntegrationUpgradeContractImplementationCmd.Flags().AddFlagSet(circleIntegrationUpgradeContractImplementationFlagSet)
 	TemplateCmd.AddCommand(AdminClientCircleIntegrationUpgradeContractImplementationCmd)
+
+	// flags for the ibc-receiver-update-chain-connection command
+	ibcReceiverUpdateChainConnectionFlagSet := pflag.NewFlagSet("ibc-mapping", pflag.ExitOnError)
+	ibcReceiverUpdateChainConnectionConnectionId = ibcReceiverUpdateChainConnectionFlagSet.String("connection-id", "", "IBC Connection ID on Wormchain")
+	ibcReceiverUpdateChainConnectionChainId = ibcReceiverUpdateChainConnectionFlagSet.String("chain-id", "", "IBC Chain ID that the connection ID corresponds to")
+	AdminClientIbcReceiverUpdateChainConnectionCmd.Flags().AddFlagSet(ibcReceiverUpdateChainConnectionFlagSet)
+	TemplateCmd.AddCommand(AdminClientIbcReceiverUpdateChainConnectionCmd)
 }
 
 var TemplateCmd = &cobra.Command{
@@ -143,6 +153,12 @@ var AdminClientCircleIntegrationUpgradeContractImplementationCmd = &cobra.Comman
 	Use:   "circle-integration-upgrade-contract-implementation",
 	Short: "Generate an empty circle integration upgrade contract implementation template at specified path",
 	Run:   runCircleIntegrationUpgradeContractImplementationTemplate,
+}
+
+var AdminClientIbcReceiverUpdateChainConnectionCmd = &cobra.Command{
+	Use:   "ibc-receiver-update-chain-connection",
+	Short: "Generate an empty ibc receiver connectionId to chainId mapping update template at specified path",
+	Run:   runIbcReceiverUpdateChainConnectionTemplate,
 }
 
 func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
@@ -441,6 +457,41 @@ func runCircleIntegrationUpgradeContractImplementationTemplate(cmd *cobra.Comman
 					CircleIntegrationUpgradeContractImplementation: &nodev1.CircleIntegrationUpgradeContractImplementation{
 						TargetChainId:            uint32(chainID),
 						NewImplementationAddress: newImplementationAddress,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
+}
+
+func runIbcReceiverUpdateChainConnectionTemplate(cmd *cobra.Command, args []string) {
+	if *ibcReceiverUpdateChainConnectionConnectionId == "" {
+		log.Fatal("--connection-id must be specified")
+	}
+	if *ibcReceiverUpdateChainConnectionChainId == "" {
+		log.Fatal("--chain-id must be specified")
+	}
+	chainId, err := parseChainID(*ibcReceiverUpdateChainConnectionChainId)
+	if err != nil {
+		log.Fatal("failed to parse chain id: ", err)
+	}
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_IbcReceiverUpdateChainConnection{
+					IbcReceiverUpdateChainConnection: &nodev1.IbcReceiverUpdateChainConnection{
+						ConnectionId: *ibcReceiverUpdateChainConnectionConnectionId,
+						ChainId:      uint32(chainId),
 					},
 				},
 			},
