@@ -32,8 +32,6 @@ module wormhole::wormhole_scenario {
         message_fee: u64,
         initial_guardians: vector<vector<u8>>,
     ) {
-        clock::create_for_testing(test_scenario::ctx(scenario));
-
         // Process effects prior. `init_test_only` will be executed as the
         // Wormhole contract deployer.
         test_scenario::next_tx(scenario, DEPLOYER);
@@ -191,11 +189,11 @@ module wormhole::wormhole_scenario {
         vaa::take_payload(parse_and_verify_vaa(scenario, vaa_buf))
     }
 
-    public fun take_clock(scenario: &Scenario): Clock {
-        test_scenario::take_shared(scenario)
+    public fun take_clock(scenario: &mut Scenario): Clock {
+        clock::create_for_testing(test_scenario::ctx(scenario))
     }
 
     public fun return_clock(the_clock: Clock) {
-        test_scenario::return_shared(the_clock)
+        clock::destroy_for_testing(the_clock)
     }
 }

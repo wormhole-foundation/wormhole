@@ -4,13 +4,22 @@
 /// Wormhole messages. Its external address is determined by the capability's
 /// `id`, which is a 32-byte vector.
 module wormhole::emitter {
-    use sui::object::{Self, UID};
+    use sui::event::{Self};
+    use sui::object::{Self, ID, UID};
     use sui::tx_context::{TxContext};
 
     use wormhole::state::{Self, State};
     use wormhole::version_control::{Emitter as EmitterControl};
 
     friend wormhole::publish_message;
+
+    struct EmitterCreated has drop, copy {
+        emitter_cap: ID
+    }
+
+    struct EmitterDestroyed has drop, copy {
+        emitter_cap: ID
+    }
 
     /// `EmitterCap` is a Sui object that gives a user or smart contract the
     /// capability to send Wormhole messages. For every Wormhole message
@@ -26,10 +35,15 @@ module wormhole::emitter {
     public fun new(wormhole_state: &State, ctx: &mut TxContext): EmitterCap {
         state::check_minimum_requirement<EmitterControl>(wormhole_state);
 
-        EmitterCap {
-            id: object::new(ctx),
-            sequence: 0
-        }
+        let cap =
+            EmitterCap {
+                id: object::new(ctx),
+                sequence: 0
+            };
+
+        event::emit(EmitterCreated { emitter_cap: object::id(&cap)});
+
+        cap
     }
 
     /// Returns current sequence (which will be used in the next Wormhole
@@ -51,6 +65,8 @@ module wormhole::emitter {
     /// Note that this operation removes the ability to send messages using the
     /// emitter id, and is irreversible.
     public fun destroy(cap: EmitterCap) {
+        event::emit(EmitterDestroyed { emitter_cap: object::id(&cap)});
+
         let EmitterCap { id, sequence: _ } = cap;
         object::delete(id);
     }

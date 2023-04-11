@@ -12,4 +12,4 @@ build:
 ## Run tests
 test:
 	sui move build -d || exit $?
-	sui move test -t 1
+	sui move test -d -t 1
