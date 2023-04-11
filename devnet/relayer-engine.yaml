@@ -34,7 +34,9 @@ spec:
         - name: relayer-engine
           image: relayer-engine
           command:
-            - npm run --prefix ./relayer/kubernetes
+            - /bin/sh
+            - -c
+            - "npm run tiltkub"
           readinessProbe:
             tcpSocket:
               port: 3000

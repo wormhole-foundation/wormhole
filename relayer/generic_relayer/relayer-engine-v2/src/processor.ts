@@ -13,6 +13,8 @@ import { GRContext } from "./app";
 
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 import { GetARGsTypeFromFactory } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts/commons";
+import { getAppConfig } from "./env";
+import { ethers } from "ethers";
 
 export async function processGenericRelayerVaa(ctx: GRContext, next: Next) {
   ctx.logger.info(`Processing generic relayer vaa`);
@@ -58,11 +60,13 @@ async function processDelivery(ctx: GRContext) {
 
   const results: Uint8Array[] = [];
 
+  const appConfig = getAppConfig();
+
   //TODO not anything even resembling this
   try {
     for (let i = 0; i < vaaIds.length; i++) {
       const { vaaBytes: signedVAA } = await wh.getSignedVAAWithRetry(
-        ["http://localhost:7071"],
+        appConfig.wormholeRpcs,
         parseInt(chainId.toString()) as any,
         vaaIds[i].emitterAddress.toString("hex"),
         vaaIds[i].sequence.toString(),
@@ -90,6 +94,17 @@ async function processDelivery(ctx: GRContext) {
     const budget = ix.receiverValueTarget.add(ix.maximumRefundTarget);
 
     await ctx.wallets.onEVM(chainId, async ({ wallet }) => {
+      //Provider is exploding, not sure why.
+      // uncomment to independently test ethers provider
+      // const rpc: any = getAppConfig().providers.chains;
+      // const obj = rpc[ix.targetChain];
+      // const url = obj.endpoints[0];
+      // let provider = new ethers.providers.StaticJsonRpcProvider(url);
+
+      // console.log("url", url);
+      // const blockNumber = await provider.getBlockNumber();
+      // console.log("blocknumber", blockNumber);
+
       const coreRelayer = CoreRelayer__factory.connect(
         ctx.wormholeRelayers[chainId],
         wallet
@@ -105,9 +120,9 @@ async function processDelivery(ctx: GRContext) {
       ctx.logger.debug("Sending 'deliver' tx...");
       const receipt = await coreRelayer
         .deliver(input, { value: budget, gasLimit: 3000000 })
-        .then((x) => x.wait());
+        .then((x: any) => x.wait());
 
-      const relayerContractLog = receipt.logs?.find((x) => {
+      const relayerContractLog = receipt.logs?.find((x: any) => {
         return x.address === ctx.wormholeRelayers[chainId];
       });
       if (relayerContractLog) {
