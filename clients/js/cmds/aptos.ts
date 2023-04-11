@@ -8,6 +8,7 @@ import { callEntryFunc, deriveResourceAccount, deriveWrappedAssetAddress } from 
 import { config } from '../config';
 import { NETWORKS } from "../networks";
 import { evm_address, hex } from "../consts";
+import { runCommand, validator_args } from '../start-validator';
 
 type Network = "MAINNET" | "TESTNET" | "DEVNET"
 
@@ -350,7 +351,16 @@ exports.builder = function(y: typeof yargs) {
         const faucetClient = new FaucetClient(NODE_URL, FAUCET_URL);
         await faucetClient.fundAccount(account, amount);
         console.log(`Funded ${account} with ${amount} coins`);
-      })
+    })
+    .command("start-validator", "Start a local aptos validator", (yargs) => {
+      return yargs
+        .option("validator-args", validator_args)
+    }, (argv) => {
+        const dir = `${config.wormholeDir}/aptos`;
+        checkAptosBinary();
+        const cmd = `cd ${dir} && aptos node run-local-testnet --with-faucet --force-restart --assume-yes`;
+        runCommand(cmd, argv['validator-args']);
+    })
     .strict().demandCommand();
 }
 
