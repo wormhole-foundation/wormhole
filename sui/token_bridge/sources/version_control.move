@@ -29,6 +29,9 @@ module token_bridge::version_control {
     /// module.
     struct CreateWrapped {}
 
+    /// Key used to check minimum version requirement for `migrate` module.
+    struct Migrate {}
+
     /// Key used to check minimum version requirement for `register_chain`
     /// module.
     struct RegisterChain {}

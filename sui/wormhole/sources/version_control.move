@@ -21,6 +21,9 @@ module wormhole::version_control {
     /// module.
     struct GovernanceMessage {}
 
+    /// Key used to check minimum version requirement for `migrate` module.
+    struct Migrate {}
+
     /// Key used to check minimum version requirement for `publish_module`
     /// module.
     struct PublishMessage {}
