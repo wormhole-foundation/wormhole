@@ -65,7 +65,7 @@ func NewBlockFromBytes(bytes []byte) (Block, error) {
 	json := gjson.ParseBytes(bytes)
 
 	ts_nanosec := jsonGetUint(json, "result.header.timestamp")
-	ts := uint64(ts_nanosec) / 1_000_000_000
+	ts := ts_nanosec / 1_000_000_000
 
 	header := BlockHeader{
 		jsonGetString(json, "result.header.hash"),
@@ -84,7 +84,7 @@ func NewBlockFromBytes(bytes []byte) (Block, error) {
 
 func (b Block) Timestamp() uint64 {
 	ts_nanosec := jsonGetUint(b.json, "result.header.timestamp")
-	return uint64(ts_nanosec) / 1000000000
+	return ts_nanosec / 1000000000
 }
 
 func (b Block) ChunkHashes() []ChunkHeader {

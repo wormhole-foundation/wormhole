@@ -12,8 +12,6 @@ import (
 func (e *Watcher) fetchAndParseChunk(logger *zap.Logger, ctx context.Context, chunkHeader nearapi.ChunkHeader) ([]*transactionProcessingJob, error) {
 	logger.Debug("near.fetchAndParseChunk", zap.String("chunk_hash", chunkHeader.Hash))
 
-	var result []*transactionProcessingJob
-
 	chunk, err := e.nearAPI.GetChunk(ctx, chunkHeader)
 	if err != nil {
 		return nil, err
@@ -21,15 +19,16 @@ func (e *Watcher) fetchAndParseChunk(logger *zap.Logger, ctx context.Context, ch
 
 	txns := chunk.Transactions()
 
-	for _, tx := range txns {
-		result = append(result, newTransactionProcessingJob(tx.Hash, tx.SignerId))
+	result := make([]*transactionProcessingJob, len(txns))
+	for i, tx := range txns {
+		result[i] = newTransactionProcessingJob(tx.Hash, tx.SignerId)
 	}
 	return result, nil
 }
 
 // recursivelyReadFinalizedBlocks walks back the blockchain from the startBlock (inclusive)
 // until it reaches a block of height stopHeight or less (exclusive). Chunks from all these blocks are put
-// into e.chunkProcessingqueue with the chunks from the oldest block first
+// into chunkSink with the chunks from the oldest block first
 // if there is an error while walking back the chain, no chunks will be returned
 func (e *Watcher) recursivelyReadFinalizedBlocks(logger *zap.Logger, ctx context.Context, startBlock nearapi.Block, stopHeight uint64, chunkSink chan<- nearapi.ChunkHeader, recursionDepth uint) error {
 
@@ -39,7 +38,7 @@ func (e *Watcher) recursivelyReadFinalizedBlocks(logger *zap.Logger, ctx context
 	}
 
 	// SECURITY: We know that this block is finalized because it is a parent of a finalized block.
-	e.finalizer.setFinalized(logger, ctx, startBlock.Header)
+	e.finalizer.setFinalized(startBlock.Header)
 
 	// we want to avoid going too far back because that would increase the likelihood of error somewhere in the recursion stack.
 	// If we go back too far, we just report the error and terminate early.
@@ -70,7 +69,7 @@ func (e *Watcher) recursivelyReadFinalizedBlocks(logger *zap.Logger, ctx context
 	chunks := startBlock.ChunkHashes()
 	// process chunks after recursion such that youngest chunks get processed first
 	for i := 0; i < len(chunks); i++ {
-		e.chunkProcessingQueue <- chunks[i]
+		chunkSink <- chunks[i]
 	}
 	return nil
 }

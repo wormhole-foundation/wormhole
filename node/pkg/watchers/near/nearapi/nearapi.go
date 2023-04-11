@@ -50,7 +50,7 @@ type (
 
 func NewHttpNearRpc(nearRPC string) HttpNearRpc {
 	// Customize the Transport to have larger connection pool (default is only 2 per host)
-	t := http.DefaultTransport.(*http.Transport).Clone()
+	t := http.DefaultTransport.(*http.Transport).Clone() //nolint:forcetypeassert
 	t.MaxConnsPerHost = nearRPCConcurrentConnections
 	t.MaxIdleConnsPerHost = nearRPCConcurrentConnections
 	var httpClient = &http.Client{
