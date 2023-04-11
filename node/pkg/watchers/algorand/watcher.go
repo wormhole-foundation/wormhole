@@ -186,7 +186,6 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	// Create an error channel
 	errC := make(chan error)
-	defer close(errC)
 
 	// Signal that basic initialization is complete
 	readiness.SetReady(e.readinessSync)
@@ -200,9 +199,6 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 		for {
 			select {
-			case err := <-errC:
-				logger.Error("core_events_and_block_height died", zap.Error(err))
-				return fmt.Errorf("core_events_and_block_height died: %w", err)
 			case <-ctx.Done():
 				logger.Error("core_events_and_block_height context done")
 				return ctx.Err()
@@ -256,9 +252,6 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 		for {
 			select {
-			case err := <-errC:
-				logger.Error("fetch_obvs_req died", zap.Error(err))
-				return fmt.Errorf("fetch_obvs_req died: %w", err)
 			case <-ctx.Done():
 				logger.Error("fetch_obvs_req context done")
 				return ctx.Err()
