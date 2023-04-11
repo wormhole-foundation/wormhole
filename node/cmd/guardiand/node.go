@@ -910,14 +910,13 @@ func runNode(cmd *cobra.Command, args []string) {
 	for _, chainId := range vaa.GetAllNetworkIDs() {
 		chainMsgC[chainId] = make(chan *common.MessagePublication)
 		go func(c <-chan *common.MessagePublication, chainId vaa.ChainID) {
+			zeroAddress := vaa.Address{}
 			for {
 				select {
 				case <-rootCtx.Done():
 					return
 				case msg := <-c:
-					if msg.EmitterChain == chainId {
-						msgWriteC <- msg
-					} else {
+					if msg.EmitterChain != chainId {
 						// SECURITY: This should never happen. If it does, a watcher has been compromised.
 						logger.Fatal("SECURITY CRITICAL: Received observation from a chain that was not marked as originating from that chain",
 							zap.Stringer("tx", msg.TxHash),
@@ -926,6 +925,17 @@ func runNode(cmd *cobra.Command, args []string) {
 							zap.Stringer("msgChainId", msg.EmitterChain),
 							zap.Stringer("watcherChainId", chainId),
 						)
+					} else if msg.EmitterAddress == zeroAddress {
+						// SECURITY: This should never happen. If it does, a watcher has been compromised.
+						logger.Error("SECURITY ERROR: Received observation with EmitterAddress == 0x00",
+							zap.Stringer("tx", msg.TxHash),
+							zap.Stringer("emitter_address", msg.EmitterAddress),
+							zap.Uint64("sequence", msg.Sequence),
+							zap.Stringer("msgChainId", msg.EmitterChain),
+							zap.Stringer("watcherChainId", chainId),
+						)
+					} else {
+						msgWriteC <- msg
 					}
 				}
 			}
