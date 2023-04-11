@@ -151,12 +151,11 @@ func (w *Watcher) Run(ctx context.Context) error {
 	w.logger = supervisor.Logger(ctx)
 
 	errC := make(chan error)
-	defer close(errC)
 
 	// Query the contract for the chain ID to IBC connection ID mapping.
 	connectionIdMap, err := w.queryConnectionIdMap()
 	if err != nil {
-		return fmt.Errorf("failed to query for connection ID map: %w", err)
+		return fmt.Errorf("failed to query for connection ID map, please make sure the contract address is correct, error: %w", err)
 	}
 
 	// Build our internal data structures based on the config passed in.
@@ -274,8 +273,6 @@ func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn, errC chan
 		select {
 		case <-ctx.Done():
 			return nil
-		case err := <-errC:
-			return fmt.Errorf("handleEvents died: %w", err)
 		default:
 			_, message, err := c.Read(ctx)
 			if err != nil {
@@ -341,8 +338,6 @@ func (w *Watcher) handleQueryBlockHeight(ctx context.Context, c *websocket.Conn,
 		select {
 		case <-ctx.Done():
 			return nil
-		case err := <-errC:
-			return fmt.Errorf("handleQueryBlockHeight died: %w", err)
 		case <-t.C:
 			resp, err := client.Get(fmt.Sprintf("%s/%s", w.lcdUrl, latestBlockURL))
 			if err != nil {
@@ -382,8 +377,6 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, errC chan error
 		select {
 		case <-ctx.Done():
 			return nil
-		case err := <-errC:
-			return fmt.Errorf("handleObservationRequests died: %w", err)
 		case r := <-ce.obsvReqC:
 			if vaa.ChainID(r.ChainId) != ce.chainID {
 				panic("invalid chain ID")
