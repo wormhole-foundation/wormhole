@@ -443,7 +443,7 @@ docker_build(
     dockerfile = "./ethereum/Dockerfile",
 
     # ignore local node_modules (in case they're present)
-    ignore = ["./ethereum/node_modules", "./ethereum/ts-scripts"],
+    ignore = ["./ethereum/node_modules", "./ethereum/ts-scripts", "./ethereum/ts-test"],
 
     # sync external scripts for incremental development
     # (everything else needs to be restarted from scratch for determinism)
