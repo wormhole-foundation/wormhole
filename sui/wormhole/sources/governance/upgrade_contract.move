@@ -17,7 +17,7 @@ module wormhole::upgrade_contract {
     use wormhole::consumed_vaas::{Self};
     use wormhole::cursor::{Self};
     use wormhole::governance_message::{Self, GovernanceMessage};
-    use wormhole::state::{Self, State};
+    use wormhole::state::{Self, MigrationKey, State};
 
     /// Digest is all zeros.
     const E_DIGEST_ZERO_BYTES: u64 = 0;
@@ -70,8 +70,11 @@ module wormhole::upgrade_contract {
     public fun commit_upgrade(
         self: &mut State,
         receipt: UpgradeReceipt,
-    ) {
-        let latest_package_id = state::commit_upgrade(self, receipt);
+    ): MigrationKey {
+        let (
+            migration_key,
+            latest_package_id
+        ) = state::commit_upgrade(self, receipt);
 
         // Emit an event reflecting package ID change.
         event::emit(
@@ -80,6 +83,9 @@ module wormhole::upgrade_contract {
                 new_contract: latest_package_id
             }
         );
+
+        // Either destroy via `state` or mutate State via `migrate`.
+        migration_key
     }
 
     fun handle_upgrade_contract(

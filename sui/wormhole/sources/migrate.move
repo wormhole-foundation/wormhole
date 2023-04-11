@@ -8,22 +8,22 @@
 /// any of Wormhole's methods by enforcing the current build version as their
 /// required minimum version.
 module wormhole::migrate {
-    use wormhole::state::{Self, State};
+    use wormhole::state::{Self, MigrationKey, State};
+    use wormhole::version_control::{Migrate as MigrateControl};
 
     // This import is only used when `state::require_current_version` is used.
     //use wormhole::version_control::{Self as control};
 
-    /// Upgrade procedure is not complete (most likely due to an upgrade not
-    /// being initialized since upgrades can only be performed via programmable
-    /// transaction).
-    const E_CANNOT_MIGRATE: u64 = 0;
-
     /// Execute migration logic. See `wormhole::migrate` description for more
     /// info.
-    public entry fun migrate(wormhole_state: &mut State) {
-        // Wormhole `State` only allows one to call `migrate` after the upgrade
-        // procedure completed.
-        assert!(state::can_migrate(wormhole_state), E_CANNOT_MIGRATE);
+    public fun migrate(
+        wormhole_state: &mut State,
+        migration_key: MigrationKey
+    ) {
+        state::check_minimum_requirement<MigrateControl>(wormhole_state);
+
+        // Wormhole `State` destroys the `MigrationKey` as the final step.
+        state::destroy_migration_key(migration_key);
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -60,7 +60,7 @@ module wormhole::migrate {
 
 
         ////////////////////////////////////////////////////////////////////////
-        // Ensure that `migrate` cannot be called again.
-        state::disable_migration(wormhole_state);
+        // Done.
+        ////////////////////////////////////////////////////////////////////////
     }
 }

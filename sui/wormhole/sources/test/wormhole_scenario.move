@@ -94,8 +94,6 @@ module wormhole::wormhole_scenario {
     /// Perform an upgrade (which just upticks the current version of what the
     /// `State` believes is true).
     public fun upgrade_wormhole(scenario: &mut Scenario) {
-        use wormhole::migrate::{migrate};
-
         // Clean up from activity prior.
         test_scenario::next_tx(scenario, person());
 
@@ -105,9 +103,6 @@ module wormhole::wormhole_scenario {
             state::current_version(&worm_state) > control::version(),
             0
         );
-
-        // Call `migrate` to wrap things up.
-        migrate(&mut worm_state);
 
         // Clean up.
         test_scenario::return_shared(worm_state);

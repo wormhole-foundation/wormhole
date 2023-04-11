@@ -10,7 +10,6 @@ module wormhole::state {
     use std::vector::{Self};
     use sui::balance::{Balance};
     use sui::clock::{Clock};
-    use sui::dynamic_field::{Self as field};
     use sui::object::{Self, ID, UID};
     use sui::package::{Self, UpgradeCap, UpgradeReceipt, UpgradeTicket};
     use sui::sui::{SUI};
@@ -48,11 +47,10 @@ module wormhole::state {
     /// Sui's chain ID is hard-coded to one value.
     const CHAIN_ID: u16 = 21;
 
-    /// Used as key for dynamic field reflecting whether `migrate` can be
-    /// called.
+    /// Used as key to finish upgrade process after upgrade has been committed.
     ///
     /// See `migrate` module for more info.
-    struct MigrationControl has store, drop, copy {}
+    struct MigrationKey {}
 
     /// Container for all state variables for Wormhole.
     struct State has key, store {
@@ -144,15 +142,10 @@ module wormhole::state {
             guardian_set::new(guardian_set_index, guardians)
         );
 
-        // Add dynamic field to control whether someone can call `migrate`. Set
-        // this value to `false` by default.
-        //
-        // See `migrate` module for more info.
-        field::add(&mut state.id, MigrationControl {}, false);
-
         let tracker = &mut state.required_version;
         required_version::add<control::Emitter>(tracker);
         required_version::add<control::GovernanceMessage>(tracker);
+        required_version::add<control::Migrate>(tracker);
         required_version::add<control::PublishMessage>(tracker);
         required_version::add<control::SetFee>(tracker);
         required_version::add<control::TransferFee>(tracker);
@@ -186,11 +179,17 @@ module wormhole::state {
         self: &mut State,
         implementation_digest: Bytes32
     ): UpgradeTicket {
+        // Check that the hard-coded version version agrees with the version
+        // number in the `UpgradeCap`. We should only be allowed to upgrade
+        // using the latest build.
+        assert!(
+            package::version(&self.upgrade_cap) == control::version(),
+            E_BUILD_VERSION_MISMATCH
+        );
+
         let policy = package::upgrade_policy(&self.upgrade_cap);
 
-        // TODO: grab package ID from `UpgradeCap` and store it
-        // in a dynamic field. This will be the old ID after the upgrade.
-        // Both IDs will be emitted in a `ContractUpgraded` event.
+        // Finally authorize upgrade.
         package::authorize_upgrade(
             &mut self.upgrade_cap,
             policy,
@@ -202,16 +201,9 @@ module wormhole::state {
     public(friend) fun commit_upgrade(
         self: &mut State,
         receipt: UpgradeReceipt
-    ): ID {
+    ): (MigrationKey, ID) {
         // Uptick the upgrade cap version number using this receipt.
         package::commit_upgrade(&mut self.upgrade_cap, receipt);
-
-        // Check that the upticked hard-coded version version agrees with the
-        // upticked version number.
-        assert!(
-            package::version(&self.upgrade_cap) == control::version() + 1,
-            E_BUILD_VERSION_MISMATCH
-        );
 
         // Update global version.
         required_version::update_latest(
@@ -219,19 +211,22 @@ module wormhole::state {
             &self.upgrade_cap
         );
 
-        // Enable `migrate` to be called after commiting the upgrade.
+        // Require that `migrate` be called only from the current build.
+        require_current_version<control::Migrate>(self);
+
+        // We require that a `MigrationKey` struct be destroyed as the final
+        // step to an upgrade. Either the caller calls `destroy_migration_key`
+        // via this module or calls `migrate` from the `migrate` module. Both
+        // methods destroy the migration key.
         //
         // A separate method is required because `state` is a dependency of
         // `migrate`. This method warehouses state modifications required
         // for the new implementation plus enabling any methods required to be
         // gated by the current implementation version. In most cases `migrate`
-        // is a no-op. But it still must be called in order to reset the
-        // migration control to `false`.
+        // is a no-op.
         //
         // See `migrate` module for more info.
-        enable_migration(self);
-
-        package::upgrade_package(&self.upgrade_cap)
+        (MigrationKey{}, package::upgrade_package(&self.upgrade_cap))
     }
 
     /// Enforce a particular method to use the current build version as its
@@ -252,25 +247,11 @@ module wormhole::state {
         )
     }
 
-    /// Check whether `migrate` can be called.
+    /// After committing an upgrade, destroy `MigrationKey`.
     ///
     /// See `wormhole::migrate` module for more info.
-    public fun can_migrate(self: &State): bool {
-        *field::borrow(&self.id, MigrationControl {})
-    }
-
-    /// Allow `migrate` to be called after upgrade.
-    ///
-    /// See `wormhole::migrate` module for more info.
-    public(friend) fun enable_migration(self: &mut State) {
-        *field::borrow_mut(&mut self.id, MigrationControl {}) = true;
-    }
-
-    /// Disallow `migrate` to be called.
-    ///
-    /// See `wormhole::migrate` module for more info.
-    public(friend) fun disable_migration(self: &mut State) {
-        *field::borrow_mut(&mut self.id, MigrationControl {}) = false;
+    public fun destroy_migration_key(key: MigrationKey) {
+        let MigrationKey {} = key;
     }
 
     /// Retrieve governance chain ID, which is governance's emitter chain ID.
@@ -410,6 +391,9 @@ module wormhole::state {
         let ticket =
             authorize_upgrade(self, bytes32::new(keccak256(&b"new build")));
         let receipt = package::test_upgrade(ticket);
-        commit_upgrade(self, receipt);
+
+        // Destroy migration key to wrap things up.
+        let (key, _) = commit_upgrade(self, receipt);
+        destroy_migration_key(key);
     }
 }
