@@ -1,5 +1,6 @@
 import {
   fromB64,
+  getPublishedObjectChanges,
   normalizeSuiObjectId,
   RawSigner,
   TransactionBlock,
@@ -7,7 +8,6 @@ import {
 import { execSync } from "child_process";
 import fs from "fs";
 import { resolve } from "path";
-import { isSuiPublishEvent } from ".";
 import { Network } from "../utils";
 import { MoveToml } from "./MoveToml";
 
@@ -37,10 +37,12 @@ export const publishPackage = async (
 
     // Publish contracts
     const transactionBlock = new TransactionBlock();
-    const [upgradeCap] = transactionBlock.publish(
-      buildOutput.modules.map((m: string) => Array.from(fromB64(m))),
-      buildOutput.dependencies.map((d: string) => normalizeSuiObjectId(d))
-    );
+    const [upgradeCap] = transactionBlock.publish({
+      modules: buildOutput.modules.map((m: string) => Array.from(fromB64(m))),
+      dependencies: buildOutput.dependencies.map((d: string) =>
+        normalizeSuiObjectId(d)
+      ),
+    });
 
     // Transfer upgrade capability to deployer
     transactionBlock.transferObjects(
@@ -58,15 +60,15 @@ export const publishPackage = async (
     });
 
     // Update network-specific Move.toml with package ID
-    const publishEvent = res.objectChanges.find(isSuiPublishEvent);
-    if (!publishEvent) {
+    const publishEvents = getPublishedObjectChanges(res);
+    if (publishEvents.length !== 1) {
       throw new Error(
         "No publish event found in transaction:" +
           JSON.stringify(res.objectChanges, null, 2)
       );
     }
 
-    updateNetworkToml(packagePath, network, publishEvent.packageId);
+    updateNetworkToml(packagePath, network, publishEvents[0].packageId);
 
     // Return publish transaction info
     return res;
