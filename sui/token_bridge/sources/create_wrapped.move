@@ -32,6 +32,7 @@ module token_bridge::create_wrapped {
     use std::type_name::{Self};
     use sui::balance::{Self, Supply};
     use sui::object::{Self, UID};
+    use sui::package::{UpgradeCap};
     use sui::tx_context::{TxContext};
     use wormhole::vaa::{VAA};
 
@@ -116,6 +117,7 @@ module token_bridge::create_wrapped {
     public fun complete_registration<CoinType: drop>(
         token_bridge_state: &mut State,
         setup: WrappedAssetSetup<CoinType>,
+        coin_upgrade_cap: UpgradeCap,
         parsed: VAA,
         ctx: &mut TxContext,
     ) {
@@ -158,6 +160,7 @@ module token_bridge::create_wrapped {
             state::borrow_mut_token_registry(token_bridge_state),
             token_meta,
             supply,
+            coin_upgrade_cap,
             ctx
         );
     }
@@ -201,13 +204,22 @@ module token_bridge::create_wrapped {
         witness: CoinType,
         vaa_buf: vector<u8>,
         ctx: &mut TxContext
-    ): WrappedAssetSetup<CoinType> {
-        WrappedAssetSetup {
-            id: object::new(ctx),
-            vaa_buf,
-            supply: balance::create_supply(witness),
-            build_version: control::version()
-        }
+    ): (WrappedAssetSetup<CoinType>, UpgradeCap) {
+        let setup =
+            WrappedAssetSetup {
+                id: object::new(ctx),
+                vaa_buf,
+                supply: balance::create_supply(witness),
+                build_version: control::version()
+            };
+
+        let upgrade_cap =
+            sui::package::test_publish(
+                object::id_from_address(@token_bridge),
+                ctx
+            );
+
+        (setup, upgrade_cap)
     }
 
     #[test_only]
@@ -305,7 +317,7 @@ module token_bridge::create_wrapped_tests {
         test_scenario::next_tx(scenario, coin_deployer);
 
         // Publish coin.
-        let wrapped_asset_setup =
+        let (wrapped_asset_setup, upgrade_cap) =
             create_wrapped::new_setup_test_only(
                 CREATE_WRAPPED_TESTS {},
                 coin_wrapped_12::encoded_vaa(),
@@ -319,6 +331,7 @@ module token_bridge::create_wrapped_tests {
         create_wrapped::complete_registration(
             &mut token_bridge_state,
             wrapped_asset_setup,
+            upgrade_cap,
             parsed,
             test_scenario::ctx(scenario)
         );
@@ -414,7 +427,7 @@ module token_bridge::create_wrapped_tests {
         test_scenario::next_tx(scenario, coin_deployer);
 
         // Publish coin.
-        let wrapped_asset_setup =
+        let (wrapped_asset_setup, upgrade_cap) =
             create_wrapped::new_setup_test_only(
                 CREATE_WRAPPED_TESTS {},
                 coin_wrapped_12::encoded_vaa(),
@@ -428,6 +441,7 @@ module token_bridge::create_wrapped_tests {
         create_wrapped::complete_registration(
             &mut token_bridge_state,
             wrapped_asset_setup,
+            upgrade_cap,
             parsed,
             test_scenario::ctx(scenario)
         );
@@ -470,7 +484,10 @@ module token_bridge::create_wrapped_tests {
         test_scenario::next_tx(scenario, coin_deployer);
 
         // Publish coin.
-        let wrapped_asset_setup =
+        let (
+            wrapped_asset_setup,
+            upgrade_cap
+        ) =
             create_wrapped::new_setup_test_only(
                 CREATE_WRAPPED_TESTS {},
                 coin_wrapped_12::encoded_vaa(),
@@ -483,6 +500,7 @@ module token_bridge::create_wrapped_tests {
         create_wrapped::complete_registration(
             &mut token_bridge_state,
             wrapped_asset_setup,
+            upgrade_cap,
             parse_and_verify_vaa(scenario, coin_wrapped_7::encoded_vaa()),
             test_scenario::ctx(scenario)
         );
