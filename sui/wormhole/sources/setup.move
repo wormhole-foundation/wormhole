@@ -10,10 +10,8 @@ module wormhole::setup {
 
     use wormhole::state::{Self};
 
-    /// `UpgradeCap` is not as expected when initializing `State`.
-    const E_INVALID_UPGRADE_CAP: u64 = 0;
     /// Build version for setup must only be `1`.
-    const E_INVALID_BUILD_VERSION: u64 = 1;
+    const E_INVALID_BUILD_VERSION: u64 = 0;
 
     /// Capability created at `init`, which will be destroyed once
     /// `init_and_share_state` is called. This ensures only the deployer can
@@ -58,7 +56,7 @@ module wormhole::setup {
         let version = wormhole::version_control::version();
         assert!(version == 1, E_INVALID_BUILD_VERSION);
 
-        assert_package_upgrade_cap<DeployerCap>(
+        wormhole::package_utils::assert_package_upgrade_cap<DeployerCap>(
             &upgrade_cap,
             package::compatible_policy(),
             version
@@ -79,36 +77,6 @@ module wormhole::setup {
                 message_fee,
                 ctx
             )
-        );
-    }
-
-    /// Convenience method that can be used with any package that requires
-    /// `UpgradeCap` to have certain preconditions before it is considered
-    /// belonging to `T` object's package.
-    public fun assert_package_upgrade_cap<T>(
-        cap: &UpgradeCap,
-        expected_policy: u8,
-        expected_version: u64
-    ) {
-        let expected_package =
-            sui::address::from_bytes(
-                sui::hex::decode(
-                    std::ascii::into_bytes(
-                        std::type_name::get_address(
-                            &std::type_name::get<T>()
-                        )
-                    )
-                )
-            );
-        let cap_package =
-            object::id_to_address(&package::upgrade_package(cap));
-        assert!(
-            (
-                cap_package == expected_package &&
-                package::upgrade_policy(cap) == expected_policy &&
-                package::version(cap) == expected_version
-            ),
-            E_INVALID_UPGRADE_CAP
         );
     }
 }
@@ -285,7 +253,9 @@ module wormhole::setup_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = setup::E_INVALID_UPGRADE_CAP)]
+    #[expected_failure(
+        abort_code = wormhole::package_utils::E_INVALID_UPGRADE_CAP
+    )]
     public fun test_cannot_complete_invalid_upgrade_cap() {
         let deployer = person();
         let my_scenario = test_scenario::begin(deployer);

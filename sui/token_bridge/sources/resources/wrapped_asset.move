@@ -10,6 +10,7 @@ module token_bridge::wrapped_asset {
     use std::string::{String};
     use sui::balance::{Self, Balance, Supply};
     use sui::object::{Self, UID};
+    use sui::package::{Self, UpgradeCap};
     use sui::tx_context::{TxContext};
     use wormhole::external_address::{ExternalAddress};
     use wormhole::state::{chain_id};
@@ -43,6 +44,7 @@ module token_bridge::wrapped_asset {
         metadata: ForeignMetadata<C>,
         total_supply: Supply<C>,
         decimals: u8,
+        upgrade_cap: UpgradeCap
     }
 
     /// Create new `WrappedAsset`.
@@ -51,8 +53,18 @@ module token_bridge::wrapped_asset {
     public(friend) fun new<C>(
         token_meta: AssetMeta,
         supply: Supply<C>,
+        upgrade_cap: UpgradeCap,
         ctx: &mut TxContext
     ): WrappedAsset<C> {
+        // Verify that the upgrade cap is from the same package as coin type.
+        // This cap should not have been modified prior to creating this asset
+        // (i.e. should have the default upgrade policy and build version == 1).
+        wormhole::package_utils::assert_package_upgrade_cap<C>(
+            &upgrade_cap,
+            package::compatible_policy(),
+            1
+        );
+
         let (
             token_address,
             token_chain,
@@ -77,7 +89,8 @@ module token_bridge::wrapped_asset {
         WrappedAsset {
             metadata,
             total_supply: supply,
-            decimals: cap_decimals(native_decimals)
+            decimals: cap_decimals(native_decimals),
+            upgrade_cap
         }
     }
 
@@ -85,9 +98,10 @@ module token_bridge::wrapped_asset {
     public fun new_test_only<C>(
         token_meta: AssetMeta,
         supply: Supply<C>,
+        upgrade_cap: UpgradeCap,
         ctx: &mut TxContext
     ): WrappedAsset<C> {
-        new(token_meta, supply, ctx)
+        new(token_meta, supply, upgrade_cap, ctx)
     }
 
     /// Update existing `ForeignMetadata` using new `AssetMeta`.
@@ -235,7 +249,8 @@ module token_bridge::wrapped_asset {
         let WrappedAsset {
             metadata,
             total_supply,
-            decimals: _
+            decimals: _,
+            upgrade_cap
         } = asset;
         sui::test_utils::destroy(total_supply);
 
@@ -248,6 +263,8 @@ module token_bridge::wrapped_asset {
             name: _
         } = metadata;
         sui::object::delete(id);
+
+        sui::package::make_immutable(upgrade_cap);
     }
 }
 
@@ -255,6 +272,8 @@ module token_bridge::wrapped_asset {
 module token_bridge::wrapped_asset_tests {
     use std::string::{Self};
     use sui::balance::{Self};
+    use sui::object::{Self};
+    use sui::package::{Self};
     use sui::test_scenario::{Self};
     use wormhole::external_address::{Self};
     use wormhole::state::{chain_id};
@@ -286,11 +305,19 @@ module token_bridge::wrapped_asset_tests {
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
 
+        // Upgrade cap belonging to coin type.
+        let upgrade_cap =
+            package::test_publish(
+                object::id_from_address(@token_bridge),
+                test_scenario::ctx(scenario)
+            );
+
         // Make new.
         let asset =
             wrapped_asset::new_test_only(
                 parsed_meta,
                 supply,
+                upgrade_cap,
                 test_scenario::ctx(scenario)
             );
 
@@ -406,11 +433,19 @@ module token_bridge::wrapped_asset_tests {
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
 
+        // Upgrade cap belonging to coin type.
+        let upgrade_cap =
+            package::test_publish(
+                object::id_from_address(@token_bridge),
+                test_scenario::ctx(scenario)
+            );
+
         // Make new.
         let asset =
             wrapped_asset::new_test_only(
                 parsed_meta,
                 supply,
+                upgrade_cap,
                 test_scenario::ctx(scenario)
             );
 
@@ -531,11 +566,19 @@ module token_bridge::wrapped_asset_tests {
                 string::utf8(b"")
             );
 
+        // Upgrade cap belonging to coin type.
+        let upgrade_cap =
+            package::test_publish(
+                object::id_from_address(@token_bridge),
+                test_scenario::ctx(scenario)
+            );
+
         // You shall not pass!
         let asset =
             wrapped_asset::new_test_only(
                 invalid_meta,
                 coin_native_10::create_supply(),
+                upgrade_cap,
                 test_scenario::ctx(scenario)
             );
 
@@ -567,11 +610,19 @@ module token_bridge::wrapped_asset_tests {
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
 
+        // Upgrade cap belonging to coin type.
+        let upgrade_cap =
+            package::test_publish(
+                object::id_from_address(@token_bridge),
+                test_scenario::ctx(scenario)
+            );
+
         // Make new.
         let asset =
             wrapped_asset::new_test_only(
                 parsed_meta,
                 supply,
+                upgrade_cap,
                 test_scenario::ctx(scenario)
             );
 
@@ -627,11 +678,19 @@ module token_bridge::wrapped_asset_tests {
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
 
+        // Upgrade cap belonging to coin type.
+        let upgrade_cap =
+            package::test_publish(
+                object::id_from_address(@token_bridge),
+                test_scenario::ctx(scenario)
+            );
+
         // Make new.
         let asset =
             wrapped_asset::new_test_only(
                 parsed_meta,
                 supply,
+                upgrade_cap,
                 test_scenario::ctx(scenario)
             );
 
@@ -658,6 +717,44 @@ module token_bridge::wrapped_asset_tests {
 
         // You shall not pass!
         wrapped_asset::update_metadata_test_only(&mut asset, invalid_meta);
+
+        // Clean up.
+        wrapped_asset::destroy(asset);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(
+        abort_code = wormhole::package_utils::E_INVALID_UPGRADE_CAP
+    )]
+    fun test_cannot_new_upgrade_cap_mismatch() {
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
+
+        // Publish coin.
+        let supply = coin_wrapped_12::init_and_take_supply(scenario, caller);
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, caller);
+
+        // Upgrade cap belonging to coin type.
+        let upgrade_cap =
+            package::test_publish(
+                object::id_from_address(@0xbadc0de),
+                test_scenario::ctx(scenario)
+            );
+
+        // You shall not pass!
+        let asset =
+            wrapped_asset::new_test_only(
+                coin_wrapped_12::token_meta(),
+                supply,
+                upgrade_cap,
+                test_scenario::ctx(scenario)
+            );
 
         // Clean up.
         wrapped_asset::destroy(asset);

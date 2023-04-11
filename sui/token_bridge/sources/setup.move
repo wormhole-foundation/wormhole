@@ -58,7 +58,7 @@ module token_bridge::setup {
         let version = token_bridge::version_control::version();
         assert!(version == 1, E_INVALID_BUILD_VERSION);
 
-        wormhole::setup::assert_package_upgrade_cap<DeployerCap>(
+        wormhole::package_utils::assert_package_upgrade_cap<DeployerCap>(
             &upgrade_cap,
             package::compatible_policy(),
             version

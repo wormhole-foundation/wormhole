@@ -11,5 +11,5 @@ check:
 	sui move build -d
 
 .PHONY: test
-test:
+test: check
 	sui move test -d

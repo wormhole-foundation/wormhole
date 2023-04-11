@@ -3,6 +3,7 @@
 #[test_only]
 module token_bridge::coin_wrapped_12 {
     use sui::balance::{Balance, Supply};
+    use sui::package::{UpgradeCap};
     use sui::test_scenario::{Self, Scenario};
     use sui::transfer::{Self};
     use sui::tx_context::{Self, TxContext};
@@ -21,15 +22,19 @@ module token_bridge::coin_wrapped_12 {
     const UPDATED_VAA: vector<u8> =
         x"01000000000100b0571650590e147fce4eb60105e0463522c1244a97bd5dcb365d3e7bc7f32e4071e18c31bd8240bff6451991c86cb9176003379ba470a5124245b60547516ecc010000000000000045000200000000000000000000000000000000000000000000000000000000deadbeef00000000000000010f0200000000000000000000000000000000000000000000000000000000beefface00020c0000000000000000000000000000424545463f3f3f20616e642070726f66697400000042656566206661636520546f6b656e3f3f3f20616e642070726f666974";
 
+    #[test_only]
     fun init(witness: COIN_WRAPPED_12, ctx: &mut TxContext) {
-        transfer::public_transfer(
+        let (
+            setup,
+            upgrade_cap
+        ) =
             create_wrapped::new_setup_test_only(
                 witness,
                 VAA,
                 ctx
-            ),
-            tx_context::sender(ctx)
-        );
+            );
+        transfer::public_transfer(setup, tx_context::sender(ctx));
+        transfer::public_transfer(upgrade_cap, tx_context::sender(ctx));
     }
 
     public fun encoded_vaa(): vector<u8> {
@@ -104,6 +109,7 @@ module token_bridge::coin_wrapped_12 {
             test_scenario::take_from_sender<WrappedAssetSetup<COIN_WRAPPED_12>>(
                 scenario
             ),
+            test_scenario::take_from_sender<UpgradeCap>(scenario),
             parsed,
             test_scenario::ctx(scenario)
         );
