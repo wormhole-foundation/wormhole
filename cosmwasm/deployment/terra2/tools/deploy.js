@@ -103,8 +103,6 @@ const govChain = 1;
 const govAddress =
   "0000000000000000000000000000000000000000000000000000000000000004";
 
-const wormchainIbcReceiverAddress = "0000000000000000000000000000000000000000000000000000000000000000";
-
 async function instantiate(contract, inst_msg, label) {
   var address;
   await wallet
@@ -244,14 +242,16 @@ for (const [contract, registrations] of Object.entries(
       .catch((error) => {
         if (error.response) {
           // Request made and server responded
-          console.log(error.response.data, error.response.status, error.response.headers);
+          console.error(error.response.data, error.response.status, error.response.headers);
         } else if (error.request) {
           // The request was made but no response was received
-          console.log(error.request);
+          console.error(error.request);
         } else {
           // Something happened in setting up the request that triggered an Error
-          console.log('Error', error.message);
+          console.error('Error', error.message);
         }
+
+        throw new Error(`Registering chain failed: ${registration}`);
       });
   }
 }
