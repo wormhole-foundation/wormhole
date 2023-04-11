@@ -122,13 +122,15 @@ fn handle_vaa(deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<Event
             connection_id,
             chain_id,
         } => {
+            let connection_id_str = String::from_utf8(connection_id.to_vec()).context("failed to parse connection-id as utf-8")?;
+
             // update storage with the mapping
             CHAIN_CONNECTIONS
-                .save(deps.storage, connection_id.to_string(), &chain_id.into())
+                .save(deps.storage, connection_id_str.clone(), &chain_id.into())
                 .context("failed to save chain connection")?;
             Ok(Event::new("UpdateChainConnection")
                 .add_attribute("chain_id", chain_id.to_string())
-                .add_attribute("connection_id", connection_id.to_string()))
+                .add_attribute("connection_id", connection_id_str))
         }
     }
 }
@@ -139,7 +141,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ChainConnection { connection_id } => {
             query_chain_connection(deps, connection_id).and_then(|resp| to_binary(&resp))
         }
-        QueryMsg::AllChainConnections {} => {
+        QueryMsg::AllChainConnections => {
             query_all_chain_connections(deps).and_then(|resp| to_binary(&resp))
         }
     }

@@ -6,7 +6,7 @@ use cosmwasm_std::{
 };
 use wormhole::msg::{ExecuteMsg, InstantiateMsg};
 
-use super::{execute, find_wormchain_channel_id, instantiate, WORMCHAIN_IBC_RECEIVER_PORT};
+use super::{execute, instantiate, WORMCHAIN_IBC_RECEIVER_PORT};
 
 // instantiate
 // 1. success - happy path
@@ -57,49 +57,4 @@ fn execute_post_message_ibc_happy_path() {
     )
     .unwrap();
     assert_eq!(res.attributes.len(), 5);
-}
-
-// find_wormchain_channel_id
-// 1. failure - no matching channel found
-#[test]
-fn find_wormchain_channel_id_failure() {
-    let channel = IbcChannel::new(
-        IbcEndpoint {
-            port_id: String::from("transfer"),
-            channel_id: String::from("channel-0"),
-        },
-        IbcEndpoint {
-            port_id: String::from("transfer"),
-            channel_id: String::from("channel-0"),
-        },
-        IbcOrder::Unordered,
-        String::from("version"),
-        String::from("connection-0"),
-    );
-
-    let result = find_wormchain_channel_id(vec![channel]);
-    assert_eq!(result.is_err(), true)
-}
-
-// 2. success - matching channel found (happy path)
-#[test]
-fn find_wormchain_channel_id_happy_path() {
-    let expected_channel_id = "channel-0";
-
-    let channel = IbcChannel::new(
-        IbcEndpoint {
-            port_id: String::from("transfer"),
-            channel_id: String::from("channel-0"),
-        },
-        IbcEndpoint {
-            port_id: String::from(WORMCHAIN_IBC_RECEIVER_PORT),
-            channel_id: String::from(expected_channel_id),
-        },
-        IbcOrder::Unordered,
-        String::from("version"),
-        String::from("connection-0"),
-    );
-
-    let matching_channel_id = find_wormchain_channel_id(vec![channel]).unwrap();
-    assert_eq!(matching_channel_id, expected_channel_id);
 }

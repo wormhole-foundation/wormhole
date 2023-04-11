@@ -85,9 +85,16 @@ fn post_message_ibc(
     let ibc_channels = deps
         .querier
         .query::<ListChannelsResponse>(&IbcQuery::ListChannels { port_id: None }.into())
+        .map(|res| res.channels)
         .context("failed to query ibc channels")?;
 
-    let channel_id = find_wormchain_channel_id(ibc_channels.channels)?;
+    let channel_id = ibc_channels
+        .iter()
+        .find(|c| c.counterparty_endpoint.port_id == WORMCHAIN_IBC_RECEIVER_PORT)
+        .map(|c| c.endpoint.channel_id.clone())
+        .context(
+            "no channel connecting to wormchain contract port {WORMCHAIN_IBC_RECEIVER_PORT}",
+        )?;
 
     // compute the packet timeout (infinite timeout)
     let packet_timeout = env.block.time.plus_seconds(PACKET_LIFETIME).into();
@@ -101,20 +108,17 @@ fn post_message_ibc(
     let tx_index = env.transaction.as_ref().map(|tx_info| tx_info.index);
 
     // actually execute the postMessage call on the core contract
-    let res = wormhole::contract::execute(deps, env, info, msg)
+    let mut res = wormhole::contract::execute(deps, env, info, msg)
         .context("wormhole core execution failed")?;
 
-    let res_with_tx_index = match tx_index {
+    res = match tx_index {
         Some(index) => res.add_attribute("message.tx_index", index.to_string()),
         None => res,
     };
-    let res_with_block_height =
-        res_with_tx_index.add_attribute("message.block_height", block_height);
+    res = res.add_attribute("message.block_height", block_height);
 
     // Send the result attributes over IBC on this channel
-    let packet = WormholeIbcPacketMsg::Publish {
-        msg: res_with_block_height.clone(),
-    };
+    let packet = WormholeIbcPacketMsg::Publish { msg: res.clone() };
     let ibc_msg = IbcMsg::SendPacket {
         channel_id,
         data: to_binary(&packet)?,
@@ -122,22 +126,9 @@ fn post_message_ibc(
     };
 
     // add the IBC message to the response
-    Ok(res_with_block_height
+    Ok(res
         .add_attribute("is_ibc", true.to_string())
         .add_message(ibc_msg))
-}
-
-/// Find any IBC channel that is connected to the wormchain integrator contract
-fn find_wormchain_channel_id(channels: Vec<IbcChannel>) -> StdResult<String> {
-    for c in channels {
-        if c.counterparty_endpoint.port_id == WORMCHAIN_IBC_RECEIVER_PORT {
-            return Ok(c.endpoint.channel_id);
-        }
-    }
-
-    Err(StdError::not_found(format!(
-        "no channel connecting to wormchain contract port {WORMCHAIN_IBC_RECEIVER_PORT}"
-    )))
 }
 
 #[cfg(test)]
