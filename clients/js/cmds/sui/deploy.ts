@@ -1,13 +1,13 @@
 import yargs from "yargs";
 import { NETWORK_OPTIONS, RPC_OPTIONS } from "../../consts";
 import { NETWORKS } from "../../networks";
+import { getProvider, getSigner, publishPackage } from "../../sui";
 import {
-  getProvider,
-  getSigner,
-  isSuiCreateEvent,
-  isSuiPublishEvent,
-  publishPackage,
-} from "../../sui";
+  logCreatedObjects,
+  logPublishedPackageId,
+  logTransactionDigest,
+  logTransactionSender,
+} from "../../sui/log";
 import { assertNetwork, checkBinary } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
 
@@ -52,21 +52,9 @@ export const addDeployCommands: YargsAddCommandsFn = (y: typeof yargs) =>
       const res = await publishPackage(signer, network, packagePath);
 
       // Dump deployment info to console
-      console.log("Transaction digest", res.digest);
-      console.log("Deployer", res.transaction.data.sender);
-      console.log(
-        "Published to",
-        res.objectChanges.find(isSuiPublishEvent).packageId
-      );
-      console.log(
-        "Created objects",
-        res.objectChanges.filter(isSuiCreateEvent).map((e) => {
-          return {
-            type: e.objectType,
-            objectId: e.objectId,
-            owner: e.owner["AddressOwner"] || e.owner["ObjectOwner"] || e.owner,
-          };
-        })
-      );
+      logTransactionDigest(res);
+      logTransactionSender(res);
+      logPublishedPackageId(res);
+      logCreatedObjects(res);
     }
   );
