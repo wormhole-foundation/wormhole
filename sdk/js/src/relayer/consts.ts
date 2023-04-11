@@ -1,4 +1,4 @@
-import { ChainId, Network, ChainName} from "@certusone/wormhole-sdk"
+import { ChainId, Network, ChainName} from "../"
 import { ethers } from "ethers"
 import { CoreRelayer__factory, CoreRelayer  } from "../ethers-contracts/"
 
@@ -11,8 +11,8 @@ const TESTNET = [
 ]
 
 const DEVNET = [
-  { chainId: 2, coreRelayerAddress: "0x42D4BA5e542d9FeD87EA657f0295F1968A61c00A" },
-  { chainId: 4, coreRelayerAddress: "0xFF5181e2210AB92a5c9db93729Bc47332555B9E9" },
+  { chainId: 2, coreRelayerAddress: "0x0eb0dD3aa41bD15C706BC09bC03C002b7B85aeAC" },
+  { chainId: 4, coreRelayerAddress: "0x0eb0dD3aa41bD15C706BC09bC03C002b7B85aeAC" },
 ]
 
 const MAINNET: any[] = []

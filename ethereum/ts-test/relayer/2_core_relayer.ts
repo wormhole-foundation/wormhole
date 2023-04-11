@@ -4,18 +4,13 @@ import { ChainId, tryNativeToHexString } from "@certusone/wormhole-sdk"
 import { ChainInfo, RELAYER_DEPLOYER_PRIVATE_KEY } from "./helpers/consts"
 import { generateRandomString } from "./helpers/utils"
 import {
-  CoreRelayer__factory,
-  IWormhole__factory,
-  MockRelayerIntegration__factory,
-} from "../../ethers-contracts"
-import {
   init,
   loadChains,
   loadCoreRelayers,
   loadMockIntegrations,
 } from "../../ts-scripts/relayer/helpers/env"
-import { MockRelayerIntegration, IWormholeRelayer } from "../../ethers-contracts"
-//import { getDeliveryInfoBySourceTx, DeliveryInfo, RedeliveryInfo } from "../../sdk/src"
+import {relayer, ethers_contracts} from "../../../sdk/js/src"
+
 const ETHEREUM_ROOT = `${__dirname}/..`
 
 init()
@@ -52,19 +47,19 @@ describe("Core Relayer Integration Test - Two Chains", () => {
     (p) => p.chainId == targetChain.chainId
   )?.address as string
 
-  const sourceCoreRelayer = CoreRelayer__factory.connect(
+  const sourceCoreRelayer = ethers_contracts.CoreRelayer__factory.connect(
     sourceCoreRelayerAddress,
     walletSource
   )
-  const sourceMockIntegration = MockRelayerIntegration__factory.connect(
+  const sourceMockIntegration = ethers_contracts.MockRelayerIntegration__factory.connect(
     sourceMockIntegrationAddress,
     walletSource
   )
-  const targetCoreRelayer = CoreRelayer__factory.connect(
+  const targetCoreRelayer = ethers_contracts.CoreRelayer__factory.connect(
     targetCoreRelayerAddress,
     walletTarget
   )
-  const targetMockIntegration = MockRelayerIntegration__factory.connect(
+  const targetMockIntegration = ethers_contracts.MockRelayerIntegration__factory.connect(
     targetMockIntegrationAddress,
     walletTarget
   )
@@ -280,76 +275,7 @@ describe("Core Relayer Integration Test - Two Chains", () => {
     expect(message2).to.equal(arbitraryPayload2)
   })
 
-  /*
-  it("Executes a redelivery", async () => {
-    const arbitraryPayload = ethers.utils.hexlify(
-      ethers.utils.toUtf8Bytes(generateRandomString(32))
-    )
-    console.log(`Sent message: ${arbitraryPayload}`)
-    const valueNotEnough = await sourceCoreRelayer.quoteGas(
-      targetChain.chainId,
-      10000,
-      await sourceCoreRelayer.getDefaultRelayProvider()
-    )
-    const value = await sourceCoreRelayer.quoteGas(
-      targetChain.chainId,
-      500000,
-      await sourceCoreRelayer.getDefaultRelayProvider()
-    )
-    console.log(`Quoted gas delivery fee (not enough): ${valueNotEnough}`)
-    const tx = await sourceMockIntegration.sendMessage(
-      arbitraryPayload,
-      targetChain.chainId,
-      targetMockIntegrationAddress,
-      { value: valueNotEnough, gasLimit: 500000 }
-    )
-    console.log("Sent delivery request!")
-    const rx = await tx.wait()
-    console.log("Message confirmed!")
-
-    await new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(0)
-      }, 2000)
-    })
-
-    console.log("Checking if message was relayed (it shouldn't have been!)")
-    const message = await targetMockIntegration.getMessage()
-    console.log(`Sent message: ${arbitraryPayload}`) 
-    console.log(`Received message: ${message}`)
-    expect(message).to.not.equal(arbitraryPayload)
-
-    
-
-    console.log("Resending the message");
-    const request: IWormholeRelayer.ResendByTxStruct = {
-      sourceChain: sourceChain.chainId,
-      sourceTxHash: tx.hash,
-      deliveryVAASequence: getWormholeSequenceNumber(rx, sourceChain.wormholeAddress),
-      targetChain: targetChain.chainId, 
-      multisendIndex: 0,
-      newMaxTransactionFee: value, 
-      newReceiverValue: 0,
-      newRelayParameters: sourceCoreRelayer.getDefaultRelayParams()
-    };
-    await sourceCoreRelayer.resend(request, sourceCoreRelayer.getDefaultRelayProvider(), {value: value, gasLimit: 500000}).then((t)=>t.wait);
-    console.log("Message resent");
-
-    await new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(0)
-      }, 4000)
-    })
-
-    console.log("Checking if message was relayed")
-    const messageNew = await targetMockIntegration.getMessage()
-    console.log(`Sent message: ${arbitraryPayload}`)
-    console.log(`Received message: ${messageNew}`)
-    expect(messageNew).to.equal(arbitraryPayload)
-
-  })
-
-  it("Executes a redelivery when delivery succeeds but forward fails", async () => {
+  it("Executes a delivery that results in a forward failure", async () => {
     const arbitraryPayload1 = ethers.utils.hexlify(
       ethers.utils.toUtf8Bytes(generateRandomString(32))
     )
@@ -397,13 +323,13 @@ describe("Core Relayer Integration Test - Two Chains", () => {
         }, 4000)
       })
   
-      console.log("Checking if message was relayed")
+      console.log("Checking if message was relayed (it shouldn't have been!")
       const message1 = await targetMockIntegration.getMessage()
       console.log(
         `Sent message: ${arbitraryPayload1} (expecting ${arbitraryPayload2} from forward)`
       )
       console.log(`Received message on target: ${message1}`)
-      expect(message1).to.equal(arbitraryPayload1)
+      expect(message1).to.not.equal(arbitraryPayload1)
   
       console.log("Checking if forward message was relayed back (it shouldn't have been!)")
       const message2 = await sourceMockIntegration.getMessage()
@@ -411,51 +337,14 @@ describe("Core Relayer Integration Test - Two Chains", () => {
       console.log(`Received message on source: ${message2}`)
       expect(message2).to.not.equal(arbitraryPayload2)
 
-      let info: DeliveryInfo = (await getDeliveryInfoBySourceTx({environment: "DEVNET", sourceChain: sourceChain.chainId, sourceTransaction: tx.hash})) as DeliveryInfo
+      let info: DeliveryInfo = (await relayer.getWormholeRelayerInfo({environment: "DEVNET", sourceChain: sourceChain.chainId, sourceTransaction: tx.hash})) as DeliveryInfo
       let status = info.targetChainStatuses[0].events[0].status
-      console.log(`Status: ${status}`)
-  
-      // RESEND THE MESSAGE SOMEHOW!
-  
-      console.log("Resending the message");
-      const request: IWormholeRelayer.ResendByTxStruct = {
-        sourceChain: targetChain.chainId,
-        sourceTxHash: info.targetChainStatuses[0].events[0].transactionHash as string,
-        deliveryVAASequence: getWormholeSequenceNumber(rx, sourceChain.wormholeAddress),
-        targetChain: sourceChain.chainId, 
-        multisendIndex: 0,
-        newMaxTransactionFee: value, 
-        newReceiverValue: 0,
-        newRelayParameters: sourceCoreRelayer.getDefaultRelayParams()
-      };
-      await sourceCoreRelayer.resend(request, sourceCoreRelayer.getDefaultRelayProvider(), {value: value.add(enoughExtraForwardingValue), gasLimit: 500000}).then((t)=>t.wait);
-      console.log("Message resent");
-  
-      
-      await new Promise((resolve) => {
-        setTimeout(() => {
-          resolve(0)
-        }, 4000)
-      })
-      console.log("Checking if message was relayed")
-      const message3 = await targetMockIntegration.getMessage()
-      console.log(
-        `Sent message: ${arbitraryPayload1} (expecting ${arbitraryPayload2} from forward)`
-      )
-      console.log(`Received message on target: ${message3}`)
-      expect(message3).to.equal(arbitraryPayload1)
-      console.log("Checking if forward message was relayed back (it should now have been!)")
-      const message4 = await sourceMockIntegration.getMessage()
-      console.log(`Sent message: ${arbitraryPayload2}`)
-      console.log(`Received message on source: ${message4}`)
-      expect(message4).to.equal(arbitraryPayload2)
-      
-  
+      expect(status).to.equal("Forward Request Failure")
     })
-*/
 
-    /*
-  it("Tests the Typescript SDK during a delivery", async () => {
+
+    
+  it("Tests the Typescript SDK with a Delivery Success", async () => {
     const arbitraryPayload = ethers.utils.hexlify(
       ethers.utils.toUtf8Bytes(generateRandomString(32))
     )
@@ -478,7 +367,7 @@ describe("Core Relayer Integration Test - Two Chains", () => {
     console.log("Message confirmed!")
 
     console.log("Checking status using SDK");
-    let info: DeliveryInfo = (await getDeliveryInfoBySourceTx({environment: "DEVNET", sourceChain: sourceChain.chainId, sourceTransaction: tx.hash})) as DeliveryInfo
+    let info: DeliveryInfo = (await relayer.getWormholeRelayerInfo({environment: "DEVNET", sourceChain: sourceChain.chainId, sourceTransaction: tx.hash})) as DeliveryInfo
     let status = info.targetChainStatuses[0].events[0].status
 
     expect(status.substring(0, 22)).to.equal("Delivery didn't happen")
@@ -495,13 +384,13 @@ describe("Core Relayer Integration Test - Two Chains", () => {
     expect(message).to.equal(arbitraryPayload)
 
     console.log("Checking status using SDK");
-    info = await getDeliveryInfoBySourceTx({environment: "DEVNET", sourceChain: sourceChain.chainId, sourceTransaction: tx.hash}) as DeliveryInfo;
+    info = await relayer.getWormholeRelayerInfo({environment: "DEVNET", sourceChain: sourceChain.chainId, sourceTransaction: tx.hash}) as DeliveryInfo;
     status = info.targetChainStatuses[0].events[0].status
     expect(status).to.equal("Delivery Success")
   })
 
     
-  it("Tests the Typescript SDK during a redelivery", async () => {
+  it("Tests the Typescript SDK with a Delivery Failure", async () => {
     const arbitraryPayload = ethers.utils.hexlify(
       ethers.utils.toUtf8Bytes(generateRandomString(32))
     )
@@ -528,7 +417,7 @@ describe("Core Relayer Integration Test - Two Chains", () => {
     console.log("Message confirmed!")
 
     console.log("Checking status using SDK");
-    let info: DeliveryInfo = (await getDeliveryInfoBySourceTx({environment: "DEVNET", sourceChain: sourceChain.chainId, sourceTransaction: tx.hash })) as DeliveryInfo
+    let info: DeliveryInfo = (await relayer.getWormholeRelayerInfo({environment: "DEVNET", sourceChain: sourceChain.chainId, sourceTransaction: tx.hash })) as DeliveryInfo
     let status = info.targetChainStatuses[0].events[0].status
     expect(status.substring(0, 22)).to.equal("Delivery didn't happen")
 
@@ -544,43 +433,10 @@ describe("Core Relayer Integration Test - Two Chains", () => {
     expect(message).to.not.equal(arbitraryPayload)
 
     console.log("Checking status using SDK");
-    info = await getDeliveryInfoBySourceTx({environment: "DEVNET", sourceChain: sourceChain.chainId, sourceTransaction: tx.hash}) as DeliveryInfo;
+    info = await relayer.getWormholeRelayerInfo({environment: "DEVNET", sourceChain: sourceChain.chainId, sourceTransaction: tx.hash}) as DeliveryInfo;
     status = info.targetChainStatuses[0].events[0].status
     expect(status).to.equal("Receiver Failure")
-
-    console.log("Resending the message");
-    const request: IWormholeRelayer.ResendByTxStruct = {
-      sourceChain: sourceChain.chainId,
-      sourceTxHash: tx.hash,
-      deliveryVAASequence: getWormholeSequenceNumber(rx, sourceChain.wormholeAddress),
-      targetChain: targetChain.chainId, 
-      multisendIndex: 0,
-      newMaxTransactionFee: value, 
-      newReceiverValue: 0,
-      newRelayParameters: sourceCoreRelayer.getDefaultRelayParams()
-    };
-    const newTx = await sourceCoreRelayer.resend(request, sourceCoreRelayer.getDefaultRelayProvider(), {value: value, gasLimit: 500000});
-    await newTx.wait();
-    console.log("Message resent");
-
-    await new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(0)
-      }, 6000)
-    })
-
-    console.log("Checking if message was relayed")
-    const messageNew = await targetMockIntegration.getMessage()
-    console.log(`Sent message: ${arbitraryPayload}`)
-    console.log(`Received message: ${messageNew}`)
-    expect(messageNew).to.equal(arbitraryPayload)
-
-    console.log("Checking status using SDK");
-    info = await getDeliveryInfoBySourceTx({environment: "DEVNET", sourceChain: sourceChain.chainId, sourceTransaction: tx.hash}) as DeliveryInfo;
-    status = info.targetChainStatuses[0].events[1].status
-
-    expect(status).to.equal("Delivery Success")
   })
-  */
+  
 })
     
