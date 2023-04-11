@@ -115,7 +115,7 @@ func (e *Watcher) processOutcome(logger *zap.Logger, ctx context.Context, job *t
 	return nil // SUCCESS
 }
 
-func (e *Watcher) processWormholeLog(logger *zap.Logger, ctx context.Context, job *transactionProcessingJob, outcomeBlockHeader nearapi.BlockHeader, successValue string, log gjson.Result) error {
+func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job *transactionProcessingJob, outcomeBlockHeader nearapi.BlockHeader, successValue string, log gjson.Result) error {
 	event := log.String()
 
 	// SECURITY CRITICAL: Ensure that we're reading a correct log message.
