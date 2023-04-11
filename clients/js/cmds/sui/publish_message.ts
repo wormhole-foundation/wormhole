@@ -7,6 +7,7 @@ import yargs from "yargs";
 import { NETWORK_OPTIONS, RPC_OPTIONS } from "../../consts";
 import { NETWORKS } from "../../networks";
 import { executeTransactionBlock, getProvider, getSigner } from "../../sui";
+import { logTransactionDigest, logTransactionSender } from "../../sui/log";
 import { assertNetwork } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
 
@@ -92,8 +93,8 @@ export const addPublishMessageCommands: YargsAddCommandsFn = (
         );
       }
 
-      console.log("Digest", res.digest, res.effects.transactionDigest);
-      console.log("Sender", res.transaction.data.sender);
+      logTransactionDigest(res);
+      logTransactionSender(res);
       console.log("Publish message succeeded:", {
         sender: event.sender,
         type: event.type,

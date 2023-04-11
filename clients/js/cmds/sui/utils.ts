@@ -7,7 +7,7 @@ import { YargsAddCommandsFn } from "../Yargs";
 
 export const addUtilsCommands: YargsAddCommandsFn = (y: typeof yargs) =>
   y.command(
-    "get-owned-objects",
+    "objects <owner>",
     "Get owned objects by owner",
     (yargs) => {
       return yargs
@@ -24,9 +24,19 @@ export const addUtilsCommands: YargsAddCommandsFn = (y: typeof yargs) =>
       const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
       const owner = argv.owner;
 
-      // todo(aki): handle pagination
       const provider = getProvider(network, rpc);
-      const objects = await provider.getOwnedObjects({ owner });
+      const objects = [];
+
+      let cursor = undefined;
+      while (true) {
+        const res = await provider.getOwnedObjects({ owner, cursor });
+        objects.push(...res.data);
+        if (res.hasNextPage) {
+          cursor = res.nextCursor;
+        } else {
+          break;
+        }
+      }
 
       console.log("Network", network);
       console.log("Owner", owner);

@@ -21,14 +21,6 @@ import { SuiCreateEvent, SuiPublishEvent } from "./types";
 
 const UPGRADE_CAP_TYPE = "0x2::package::UpgradeCap";
 
-export const isSameType = (a: string, b: string) => {
-  try {
-    return normalizeSuiType(a) === normalizeSuiType(b);
-  } catch (e) {
-    return false;
-  }
-};
-
 export const execute_sui = async (
   payload: Payload,
   vaa: Buffer,
@@ -134,6 +126,16 @@ export const executeTransactionBlock = async (
   });
 };
 
+export const getCreatedObjects = (
+  res: SuiTransactionBlockResponse
+): { type: string; objectId: string; owner: string }[] => {
+  return res.objectChanges.filter(isSuiCreateEvent).map((e) => ({
+    type: e.objectType,
+    objectId: e.objectId,
+    owner: e.owner["AddressOwner"] || e.owner["ObjectOwner"] || e.owner,
+  }));
+};
+
 export const getOwnedObjectId = async (
   provider: JsonRpcProvider,
   owner: string,
@@ -172,6 +174,38 @@ export const getOwnedObjectId = async (
   } else {
     return null;
   }
+};
+
+export const getProvider = (
+  network?: Network,
+  rpc?: string
+): JsonRpcProvider => {
+  if (!network && !rpc) {
+    throw new Error("Must provide network or RPC to initialize provider");
+  }
+
+  rpc = rpc || NETWORKS[network]["sui"].rpc;
+  if (!rpc) {
+    throw new Error(`No default RPC found for Sui ${network}`);
+  }
+
+  return new JsonRpcProvider(new Connection({ fullnode: rpc }));
+};
+
+export const getSigner = (
+  provider: JsonRpcProvider,
+  network: Network,
+  customPrivateKey?: string
+): RawSigner => {
+  const privateKey: string | undefined =
+    customPrivateKey || NETWORKS[network]["sui"].key;
+  if (!privateKey) {
+    throw new Error(`No private key found for Sui ${network}`);
+  }
+
+  const bytes = fromB64(privateKey);
+  const keypair = Ed25519Keypair.fromSecretKey(bytes.slice(1));
+  return new RawSigner(keypair, provider);
 };
 
 /**
@@ -221,40 +255,12 @@ export const getUpgradeCapObjectId = async (
   }
 };
 
-export const getProvider = (
-  network?: Network,
-  rpc?: string
-): JsonRpcProvider => {
-  if (!network && !rpc) {
-    throw new Error("Must provide network or RPC to initialize provider");
+export const isSameType = (a: string, b: string) => {
+  try {
+    return normalizeSuiType(a) === normalizeSuiType(b);
+  } catch (e) {
+    return false;
   }
-
-  rpc = rpc || NETWORKS[network]["sui"].rpc;
-  if (!rpc) {
-    throw new Error(`No default RPC found for Sui ${network}`);
-  }
-
-  return new JsonRpcProvider(new Connection({ fullnode: rpc }));
-};
-
-export const getSigner = (
-  provider: JsonRpcProvider,
-  network: Network,
-  customPrivateKey?: string
-): RawSigner => {
-  const privateKey: string | undefined =
-    customPrivateKey || NETWORKS[network]["sui"].key;
-  if (!privateKey) {
-    throw new Error(`No private key found for Sui ${network}`);
-  }
-
-  const bytes = fromB64(privateKey);
-  const keypair = Ed25519Keypair.fromSecretKey(bytes.slice(1));
-  return new RawSigner(keypair, provider);
-};
-
-export const isValidSuiAddress = (objectId: string): boolean => {
-  return /^(0x)?[0-9a-f]{1,64}$/.test(objectId);
 };
 
 export const isSuiPublishEvent = (event: any): event is SuiPublishEvent => {
@@ -263,6 +269,10 @@ export const isSuiPublishEvent = (event: any): event is SuiPublishEvent => {
 
 export const isSuiCreateEvent = (event: any): event is SuiCreateEvent => {
   return event.type === "created";
+};
+
+export const isValidSuiAddress = (objectId: string): boolean => {
+  return /^(0x)?[0-9a-f]{1,64}$/.test(objectId);
 };
 
 // todo(aki): this needs to correctly handle types such as

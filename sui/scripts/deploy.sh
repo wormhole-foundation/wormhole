@@ -98,6 +98,7 @@ if [ "$NETWORK" = devnet ]; then
   
   EXAMPLE_INIT_OUTPUT=$($(echo worm sui init-example-message-app -n "$NETWORK" -p "$EXAMPLE_PACKAGE_ID" -w "$WORMHOLE_STATE_OBJECT_ID" "$PRIVATE_KEY_ARG"))
   EXAMPLE_STATE_OBJECT_ID=$(echo "$EXAMPLE_INIT_OUTPUT" | grep -oP 'Example app state object ID +\K.*')
+  echo "$EXAMPLE_INIT_OUTPUT"
 
   echo -e "\nPublish message command:" worm sui publish-example-message -n devnet -p "$EXAMPLE_PACKAGE_ID" -s "$EXAMPLE_STATE_OBJECT_ID" -w "$WORMHOLE_STATE_OBJECT_ID" -m "hello" "$PRIVATE_KEY_ARG"
 fi

@@ -9,13 +9,14 @@ import {
 import { NETWORKS } from "../../networks";
 import {
   executeTransactionBlock,
+  getCreatedObjects,
   getOwnedObjectId,
   getProvider,
   getSigner,
   getUpgradeCapObjectId,
   isSameType,
-  isSuiCreateEvent,
 } from "../../sui";
+import { logTransactionDigest, logTransactionSender } from "../../sui/log";
 import { assertNetwork } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
 
@@ -71,15 +72,13 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         });
         const res = await executeTransactionBlock(signer, transactionBlock);
 
-        console.log("Digest", res.digest, res.effects.transactionDigest);
-        console.log("Sender", res.transaction.data.sender);
+        logTransactionDigest(res);
+        logTransactionSender(res);
         console.log(
           "Example app state object ID",
-          res.objectChanges
-            .filter(isSuiCreateEvent)
-            .find((e) =>
-              isSameType(e.objectType, `${packageId}::sender::State`)
-            ).objectId
+          getCreatedObjects(res).find((e) =>
+            isSameType(e.type, `${packageId}::sender::State`)
+          ).objectId
         );
       }
     )
@@ -163,14 +162,13 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         });
         const res = await executeTransactionBlock(signer, transactionBlock);
 
-        console.log("Digest", res.digest, res.effects.transactionDigest);
-        console.log("Sender", res.transaction.data.sender);
+        logTransactionDigest(res);
+        logTransactionSender(res);
         console.log(
           "Token bridge state object ID",
-          res.objectChanges
-            .filter(isSuiCreateEvent)
-            .find((e) => isSameType(e.objectType, `${packageId}::state::State`))
-            .objectId
+          getCreatedObjects(res).find((e) =>
+            isSameType(e.type, `${packageId}::state::State`)
+          ).objectId
         );
       }
     )
@@ -277,14 +275,13 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         });
         const res = await executeTransactionBlock(signer, transactionBlock);
 
-        console.log("Digest", res.digest, res.effects.transactionDigest);
-        console.log("Sender", res.transaction.data.sender);
+        logTransactionDigest(res);
+        logTransactionSender(res);
         console.log(
           "Wormhole state object ID",
-          res.objectChanges
-            .filter(isSuiCreateEvent)
-            .find((e) => isSameType(e.objectType, `${packageId}::state::State`))
-            .objectId
+          getCreatedObjects(res).find((e) =>
+            isSameType(e.type, `${packageId}::state::State`)
+          ).objectId
         );
       }
     );
