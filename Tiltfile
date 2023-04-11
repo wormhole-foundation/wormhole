@@ -497,6 +497,7 @@ if generic_relayer:
         context = ".",
         only = ["./ethereum", "./relayer/generic_relayer"],
         dockerfile = "relayer/generic_relayer/relayer-engine-v2/Dockerfile",
+        ignore = ["./ethereum/node_modules", "./ethereum/ts-test"]
     )
     k8s_yaml_with_ns("devnet/relayer-engine.yaml")
 
