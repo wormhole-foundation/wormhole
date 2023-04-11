@@ -129,6 +129,10 @@ module wormhole::publish_message_tests {
                     test_scenario::ctx(scenario)
                 );
 
+            // Check for event corresponding to new emitter.
+            let effects = test_scenario::next_tx(scenario, user);
+            assert!(test_scenario::num_user_events(&effects) == 1, 0);
+
             // Finally publish Wormhole message.
             let sequence =
                 publish_message(

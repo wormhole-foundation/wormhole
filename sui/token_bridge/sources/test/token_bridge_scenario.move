@@ -124,7 +124,7 @@ module token_bridge::token_bridge_scenario {
         wormhole::wormhole_scenario::return_state(worm_state);
     }
 
-    public fun take_clock(scenario: &Scenario): Clock {
+    public fun take_clock(scenario: &mut Scenario): Clock {
         wormhole::wormhole_scenario::take_clock(scenario)
     }
 
