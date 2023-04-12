@@ -19,7 +19,7 @@
     "@types/koa": "^2.13.5",
     "clone": "^2.1.2",
     "koa": "^2.14.1",
-    "wormhole-relayer": "github:gabzim/wormhole-relayer#0949142efead696d18957ad38533d03b15dcbbea",
+    "relayer-engine": "github:wormhole-foundation/relayer-engine#361baf3",
     "yargs": "^17.7.1"
   },
   "peerDependencies": {

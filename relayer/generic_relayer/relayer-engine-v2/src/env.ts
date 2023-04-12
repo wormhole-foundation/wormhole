@@ -5,13 +5,15 @@ import {
   ProvidersOpts,
   RedisOptions,
   StandardRelayerAppOpts,
-} from "wormhole-relayer";
+} from "relayer-engine";
 import {
   CHAIN_ID_ETH,
   CHAIN_ID_BSC,
   EVMChainId,
 } from "@certusone/wormhole-sdk";
 import { ClusterOptions } from "ioredis";
+import { rootLogger } from "./log";
+import { dbg } from "../pkgs/sdk/src";
 
 const SCRIPTS_DIR = "../../../ethereum/ts-scripts/relayer";
 
@@ -34,7 +36,7 @@ type ContractsJson = {
   mockIntegrations: ContractConfigEntry[];
 };
 
-interface GRRelayerAppConfig {
+export interface GRRelayerAppConfig {
   contractsJsonPath: string;
   name: string;
   spyEndpoint: string;
@@ -42,7 +44,8 @@ interface GRRelayerAppConfig {
   providers: ProvidersOpts;
   fetchSourceTxhash: boolean;
   logLevel: string;
-  redis: RedisOptions;
+  logFormat: "json" | "text";
+  redis?: RedisOptions;
   redisCluster?: StandardRelayerAppOpts["redisCluster"];
   redisClusterEndpoints?: StandardRelayerAppOpts["redisClusterEndpoints"];
 }
@@ -53,6 +56,7 @@ const defaults: { [key in Flag]: GRRelayerAppConfig } = {
     contractsJsonPath: `${SCRIPTS_DIR}/config/${Flag.TiltKub}/contracts.json`,
     spyEndpoint: "spy:7072",
     logLevel: "debug",
+    logFormat: "text",
     wormholeRpcs: ["http://guardian:7071"],
     providers: {
       chains: {
@@ -71,6 +75,7 @@ const defaults: { [key in Flag]: GRRelayerAppConfig } = {
     name: "GenericRelayer",
     contractsJsonPath: `${SCRIPTS_DIR}/config/${Flag.Tilt}/contracts.json`,
     logLevel: "debug",
+    logFormat: "text",
     spyEndpoint: "localhost:7072",
     wormholeRpcs: ["http://localhost:7071"],
     providers: {
@@ -86,18 +91,11 @@ const defaults: { [key in Flag]: GRRelayerAppConfig } = {
     fetchSourceTxhash: false,
     redis: {},
   },
+  // TODO
   [Flag.K8sTestnet]: {} as any,
   [Flag.Testnet]: {} as any,
   [Flag.Mainnet]: {} as any,
 };
-
-// async function loadAndMergeConfig(flag: Flag): Promise<GRRelayerAppConfig> {
-//   const file = await fs.readFile(`./configs/${flag}.json`, {
-//     encoding: "utf-8",
-//   });
-//   const config = JSON.parse(file);
-//   return mergeDeep({}, [defaults[flag] ?? {}, config]) as GRRelayerAppConfig;
-// }
 
 export async function loadAppConfig(): Promise<{
   env: Environment;
@@ -126,6 +124,7 @@ export async function loadAppConfig(): Promise<{
     env: flagToEnvironment(flag),
     opts: {
       ...config,
+      logger: rootLogger(config.logLevel, config.logFormat),
       privateKeys: privateKeys(contracts),
     },
   };
@@ -150,6 +149,7 @@ function loadAndMergeConfig(flag: Flag): GRRelayerAppConfig {
     // env: process.env.NODE_ENV?.trim()?.toLowerCase() || "local",
     contractsJsonPath:
       process.env.CONTRACTS_JSON_PATH || base.contractsJsonPath,
+    logFormat: (process.env.LOG_FORMAT as "text" | "json") || base.logFormat,
     logLevel: process.env.LOG_LEVEL || base.logLevel,
     spyEndpoint: process.env.SPY_URL || base.spyEndpoint,
     wormholeRpcs: process.env.WORMHOLE_RPCS
@@ -161,6 +161,7 @@ function loadAndMergeConfig(flag: Flag): GRRelayerAppConfig {
     fetchSourceTxhash: process.env.FETCH_SOURCE_TX_HASH
       ? JSON.parse(process.env.FETCH_SOURCE_TX_HASH)
       : base.fetchSourceTxhash,
+
     // concurrency: Number(process.env.RELAY_CONCURRENCY) || 5,
     // influx: {
     //   url: process.env.INFLUXDB_URL,
