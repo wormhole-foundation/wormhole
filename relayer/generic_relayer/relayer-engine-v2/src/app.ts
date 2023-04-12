@@ -18,14 +18,7 @@ import { rootLogger } from "./log";
 import { processGenericRelayerVaa } from "./processor";
 import { Logger } from "winston";
 import * as deepCopy from "clone";
-import {
-  ContractConfigEntry,
-  getAppConfig,
-  getContractsJson,
-  getEnvironment,
-  getEnvironmentOptions,
-  init,
-} from "./env";
+import { loadAppConfig } from "./env";
 
 export type GRContext = StandardRelayerContext & {
   relayProviders: Record<EVMChainId, string>;
@@ -33,25 +26,8 @@ export type GRContext = StandardRelayerContext & {
 };
 
 async function main() {
-  await init();
-  const app = new StandardRelayerApp<GRContext>(
-    getEnvironment(),
-    getAppConfig()
-  );
-  const opts = getEnvironmentOptions();
-
-  // Build contract address maps
-  const contracts = getContractsJson();
-  const relayProviders = {} as Record<EVMChainId, string>;
-  const wormholeRelayers = {} as Record<EVMChainId, string>;
-  contracts.relayProviders.forEach(
-    ({ chainId, address }: ContractConfigEntry) =>
-      (relayProviders[chainId] = address)
-  );
-  contracts.coreRelayers.forEach(
-    ({ chainId, address }: ContractConfigEntry) =>
-      (wormholeRelayers[chainId] = address)
-  );
+  const { env, opts, relayProviders, wormholeRelayers } = await loadAppConfig();
+  const app = new StandardRelayerApp<GRContext>(env, opts);
 
   // Set up middleware
   app.use(async (ctx: GRContext, next: Next) => {
