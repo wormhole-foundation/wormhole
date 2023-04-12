@@ -11,6 +11,7 @@ describe("worm chain-id", () => {
       // Run the command module with --help as argument
       const output = await new Promise((resolve) => {
         command.parse("--help", (_err, _argv, output) => {
+          console.log("output", output);
           resolve(output);
         });
       });
