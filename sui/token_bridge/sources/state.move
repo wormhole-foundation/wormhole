@@ -10,6 +10,7 @@ module token_bridge::state {
     use sui::clock::{Clock};
     use sui::coin::{Coin};
     use sui::dynamic_field::{Self as field};
+    use sui::event::{Self};
     use sui::object::{Self, ID, UID};
     use sui::package::{Self, UpgradeCap, UpgradeReceipt, UpgradeTicket};
     use sui::sui::{SUI};
@@ -55,6 +56,12 @@ module token_bridge::state {
     ///
     /// See `migrate` module for more info.
     struct MigrateTicket has store {}
+
+    /// Event when `MigrateTicket` is consumed either by `migrate` or
+    /// `authorize_upgrade`.
+    struct MigrateTicketConsumed has drop, copy {
+        version: u64
+    }
 
     /// Container for all state variables for Token Bridge.
     struct State has key, store {
@@ -135,6 +142,12 @@ module token_bridge::state {
             E_BUILD_VERSION_MISMATCH
         );
 
+        // We remove the `migrate` guard on another upgrade so that we constrain
+        // calling `migrate` at most once.
+        if (field::exists_(&mut self.id, b"migrate")) {
+            consume_migrate_ticket(self);
+        };
+
         let policy = package::upgrade_policy(&self.upgrade_cap);
 
         // Finally authorize upgrade.
@@ -149,7 +162,7 @@ module token_bridge::state {
     public(friend) fun commit_upgrade(
         self: &mut State,
         receipt: UpgradeReceipt
-    ): ID {
+    ): (ID, ID) {
         // Check that the hard-coded version version agrees with the version
         // number in the `UpgradeCap`. We should only be allowed to upgrade
         // using the latest build.
@@ -157,6 +170,9 @@ module token_bridge::state {
             package::version(&self.upgrade_cap) == control::version(),
             E_BUILD_VERSION_MISMATCH
         );
+
+        // Save current package ID before committing upgrade.
+        let current_package_id = package::upgrade_package(&self.upgrade_cap);
 
         // Uptick the upgrade cap version number using this receipt.
         package::commit_upgrade(&mut self.upgrade_cap, receipt);
@@ -186,7 +202,7 @@ module token_bridge::state {
         field::add(&mut self.id, b"migrate", MigrateTicket {});
 
         // Return the latest package ID.
-        package::upgrade_package(&self.upgrade_cap)
+        (current_package_id, package::upgrade_package(&self.upgrade_cap))
     }
 
     /// Enforce a particular method to use the current build version as its
@@ -226,6 +242,12 @@ module token_bridge::state {
     /// See `wormhole::migrate` module for more info.
     public(friend) fun consume_migrate_ticket(self: &mut State) {
         let MigrateTicket {} = field::remove(&mut self.id, b"migrate");
+
+        event::emit(
+            MigrateTicketConsumed {
+                version: package::version(&self.upgrade_cap)
+            }
+        );
     }
 
     /// Publish Wormhole message using Token Bridge's `EmitterCap`.
