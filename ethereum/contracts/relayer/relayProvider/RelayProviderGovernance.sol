@@ -25,7 +25,7 @@ abstract contract RelayProviderGovernance is RelayProviderGetters, RelayProvider
     event ChainSupportUpdated(uint16 targetChainId, bool isSupported);
     event OwnershipTransfered(address indexed oldOwner, address indexed newOwner);
     event RewardAddressUpdated(address indexed newAddress);
-    event TargetChainAddressUpdated(bytes32 indexed newAddress, uint16 indexed targetChain);
+    event TargetChainAddressUpdated(uint16 indexed targetChain, bytes32 indexed newAddress);
     event DeliverGasOverheadUpdated(uint32 indexed oldGasOverhead, uint32 indexed newGasOverhead);
     event CoreRelayerUpdated(address coreRelayer);
     event AssetConversionBufferUpdated(uint16 targetChain, uint16 buffer, uint16 bufferDenominator);
@@ -69,7 +69,7 @@ abstract contract RelayProviderGovernance is RelayProviderGetters, RelayProvider
         emit RewardAddressUpdated(newAddress);
     }
 
-    function updateTargetChainAddress(bytes32 newAddress, uint16 targetChain) public onlyOwner {
+    function updateTargetChainAddress(uint16 targetChain, bytes32 newAddress) public onlyOwner {
         updateTargetChainAddressImpl(newAddress, targetChain);
     }
 
@@ -77,14 +77,14 @@ abstract contract RelayProviderGovernance is RelayProviderGetters, RelayProvider
         uint256 updatesLength = updates.length;
         for (uint256 i = 0; i < updatesLength;) {
             RelayProviderStructs.TargetChainUpdate memory update = updates[i];
-            updateTargetChainAddressImpl(update.targetChainAddress, update.chainId);
+            updateTargetChainAddressImpl(update.chainId, update.targetChainAddress);
             unchecked {
                 i += 1;
             }
         }
     }
 
-    function updateTargetChainAddressImpl(bytes32 newAddress, uint16 targetChain) internal {
+    function updateTargetChainAddressImpl( uint16 targetChain, bytes32 newAddress) internal {
         setTargetChainAddress(newAddress, targetChain);
         emit TargetChainAddressUpdated(newAddress, targetChain);
     }

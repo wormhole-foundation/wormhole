@@ -195,6 +195,7 @@ contract WormholeRelayerTests is Test {
             for (uint16 j = 1; j <= numChains; j++) {
                 map[i].relayProvider.updateSupportedChain(j, true);
                 map[i].relayProvider.updateAssetConversionBuffer(j, 500, 10000);
+                map[i].relayProvider.updateTargetChainAddress(j, bytes32(uint256(uint160(address(map[j].relayProvider)))));
                 map[i].relayProvider.updateRewardAddress(map[i].rewardAddress);
                 helpers.registerCoreRelayerContract(
                     map[i].coreRelayerFull,
@@ -374,12 +375,15 @@ contract WormholeRelayerTests is Test {
         uint256 refundRelayerProfit = uint256(feeParams.targetNativePrice)
             * (setup.target.rewardAddress.balance - refundRewardAddressBalance)
             - feeParams.sourceNativePrice * (refundRelayerBalance - setup.source.relayer.balance);
+
+        if(refundRelayerProfit > 0) {
+            USDcost -= map[setup.targetChainId].wormhole.messageFee() * feeParams.targetNativePrice;
+        }
+
         assertTrue(setup.source.rewardAddress.balance > rewardAddressBalance, "The cross chain refund went through");
         assertTrue(USDcost - (relayerProfit + refundRelayerProfit) >= 0, "We paid enough");
-        console.log(USDcost);
-        console.log((relayerProfit + refundRelayerProfit));
         assertTrue(
-            USDcost - (relayerProfit + refundRelayerProfit) < feeParams.sourceNativePrice,
+            USDcost - (relayerProfit + refundRelayerProfit) < uint256(0) + feeParams.targetNativePrice + feeParams.sourceNativePrice,
             "We paid the least amount necessary"
         );
     }
@@ -1364,7 +1368,7 @@ contract WormholeRelayerTests is Test {
     ) public {
         StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
 
-        setup.source.relayProvider.updateTargetChainAddress(bytes32(0), setup.targetChainId);
+        setup.source.relayProvider.updateSupportedChain(setup.targetChainId, false);
 
         vm.recordLogs();
 

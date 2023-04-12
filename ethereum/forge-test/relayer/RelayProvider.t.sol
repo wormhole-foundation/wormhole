@@ -229,10 +229,10 @@ contract TestRelayProvider is Test {
         require(readValues == expected, "relayProvider.quotePrices != expected");
     }
 
-    function testUpdateTargetChainContracts(bytes32 newAddress, uint16 targetChain) public {
+    function testUpdateTargetChainContracts(uint16 targetChain, bytes32 newAddress) public {
         initializeRelayProvider();
 
-        relayProvider.updateTargetChainAddress(newAddress, targetChain);
+        relayProvider.updateTargetChainAddress(targetChain, newAddress);
         bytes32 updated = relayProvider.getTargetChainAddress(targetChain);
 
         assertTrue(newAddress == updated);
