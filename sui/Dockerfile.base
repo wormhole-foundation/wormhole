@@ -16,19 +16,8 @@ RUN /tmp/node_builder.sh
 FROM docker.io/redhat/ubi8@sha256:56c374376a42da40f3aec753c4eab029b5ea162d70cb5f0cda24758780c31d81 as export-stage
 
 RUN dnf -y update
-RUN dnf -y install jq curl git make npm
+RUN dnf -y install jq curl git
 
 COPY --from=sui-node /root/.cargo/bin/sui /bin/sui
 COPY --from=sui-node /root/.cargo/bin/sui-faucet /bin/sui-faucet
 COPY --from=sui-node /root/.cargo/bin/sui-node /bin/sui-node
-
-WORKDIR /tmp
-
-RUN npm install -g n typescript ts-node
-RUN n stable
-
-COPY clients/js /tmp/clients/js
-
-WORKDIR /tmp/clients/js
-
-RUN make install
