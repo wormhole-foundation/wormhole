@@ -18,4 +18,27 @@ describe("worm chain-id", () => {
       expect(output).toContain(FIRST_POSITIONAL_ARGUMENT);
     });
   });
+
+  describe("check functionality", () => {
+    const SOLANA_CHAIN_ID = 1;
+    const ETHEREUM_CHAIN_ID = 2;
+
+    it(`should return solana chain-id correctly`, async () => {
+      const consoleSpy = jest.spyOn(console, "log");
+
+      const command = yargs.command(require("../cmds/chainId")).help();
+      await command.parse(["chain-id", "solana"]);
+
+      expect(consoleSpy).toBeCalledWith(SOLANA_CHAIN_ID);
+    });
+
+    it(`should return ethereum chain-id correctly`, async () => {
+      const consoleSpy = jest.spyOn(console, "log");
+
+      const command = yargs.command(require("../cmds/chainId")).help();
+      await command.parse(["chain-id", "ethereum"]);
+
+      expect(consoleSpy).toBeCalledWith(ETHEREUM_CHAIN_ID);
+    });
+  });
 });
