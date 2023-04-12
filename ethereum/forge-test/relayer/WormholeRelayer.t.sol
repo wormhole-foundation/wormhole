@@ -551,8 +551,8 @@ contract WormholeRelayerTests is Test {
         setup.source.coreRelayer.send{value: stack.payment + stack.wormholeFee}(
             setup.targetChainId,
             stack.targetAddress,
-            stack.targetAddress,
             setup.targetChainId,
+            stack.targetAddress,
             stack.payment,
             0,
             stack.payload,
@@ -1135,8 +1135,8 @@ contract WormholeRelayerTests is Test {
         setup.source.coreRelayer.send{value: stack.payment}(
             setup.targetChainId,
             stack.targetAddress,
-            stack.targetAddress,
             setup.targetChainId,
+            stack.targetAddress,
             stack.payment - stack.wormholeFee,
             0,
             bytes(""),
@@ -1165,7 +1165,7 @@ contract WormholeRelayerTests is Test {
         IWormholeRelayer.MessageInfo[] memory msgInfoArray = messageInfoArray(0, address(this));
         vm.expectRevert(abi.encodeWithSignature("NoDeliveryInProgress()"));
         setup.source.coreRelayer.forward(
-            setup.targetChainId, targetAddress, targetAddress, setup.targetChainId, 0, 0, bytes(""), msgInfoArray, 200
+            setup.targetChainId, targetAddress, setup.targetChainId,  targetAddress, 0, 0, bytes(""), msgInfoArray, 200
         );
     }
 
@@ -1335,14 +1335,14 @@ contract WormholeRelayerTests is Test {
 
         uint256 payment = setup.source.coreRelayer.quoteGas(
             setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
-        ) + 3 * setup.source.wormhole.messageFee();
+        )  + setup.source.wormhole.messageFee();
 
-        uint256 maxTransactionFee = payment - 3 * setup.source.wormhole.messageFee();
+        uint256 maxTransactionFee = payment - setup.source.wormhole.messageFee();
 
         bytes memory payload = abi.encodePacked(uint256(6));
 
-        setup.source.integration.sendMessageWithPayload{value: payment}(
-            message, setup.targetChainId, address(setup.target.integration), payload
+        setup.source.integration.sendOnlyPayload{value: payment}(
+            payload, setup.targetChainId, address(setup.target.integration)
         );
 
         genericRelayer.relay(setup.sourceChainId);
@@ -1355,7 +1355,6 @@ contract WormholeRelayerTests is Test {
         if(maxTransactionFee > setup.source.relayProvider.quoteDeliveryOverhead(setup.targetChainId)) {
             calculatedRefund = (maxTransactionFee - setup.source.relayProvider.quoteDeliveryOverhead(setup.targetChainId)) * feeParams.sourceNativePrice * 100 / (uint256(feeParams.targetNativePrice) * 105);
         }
-        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
         assertTrue(setup.target.coreRelayer.fromWormholeFormat(deliveryData.sourceAddress) == address(setup.source.integration));
         assertTrue(deliveryData.sourceChain == setup.sourceChainId);
         assertTrue(deliveryData.maximumRefund == calculatedRefund);
@@ -1368,7 +1367,7 @@ contract WormholeRelayerTests is Test {
     ) public {
         StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
 
-        setup.source.relayProvider.updateSupportedChain(setup.targetChainId, false);
+        setup.target.relayProvider.updateSupportedChain(setup.sourceChainId, false);
 
         vm.recordLogs();
 
