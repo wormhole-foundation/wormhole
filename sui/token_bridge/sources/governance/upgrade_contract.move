@@ -9,7 +9,7 @@
 /// 4.  Commit upgrade.
 module token_bridge::upgrade_contract {
     use sui::event::{Self};
-    use sui::object::{Self, ID};
+    use sui::object::{ID};
     use sui::package::{UpgradeReceipt, UpgradeTicket};
     use wormhole::bytes32::{Self, Bytes32};
     use wormhole::consumed_vaas::{Self};
@@ -63,15 +63,10 @@ module token_bridge::upgrade_contract {
         self: &mut State,
         receipt: UpgradeReceipt,
     ) {
-        let latest_package_id = state::commit_upgrade(self, receipt);
+        let (old_contract, new_contract) = state::commit_upgrade(self, receipt);
 
         // Emit an event reflecting package ID change.
-        event::emit(
-            ContractUpgraded {
-                old_contract: object::id_from_address(@token_bridge),
-                new_contract: latest_package_id
-            }
-        );
+        event::emit(ContractUpgraded { old_contract, new_contract });
     }
 
     fun handle_upgrade_contract(
