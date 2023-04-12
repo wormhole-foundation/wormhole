@@ -5,34 +5,39 @@ import {
   Environment,
   Next,
   StandardRelayerApp,
+  StandardRelayerAppOpts,
   StandardRelayerContext,
-} from "wormhole-relayer";
-import { defaultLogger } from "wormhole-relayer/lib/logging";
+} from "relayer-engine";
 import {
   CHAIN_ID_ETH,
   CHAIN_ID_BSC,
   EVMChainId,
   tryNativeToHexString,
 } from "@certusone/wormhole-sdk";
-import { rootLogger } from "./log";
 import { processGenericRelayerVaa } from "./processor";
 import { Logger } from "winston";
 import * as deepCopy from "clone";
-import { loadAppConfig } from "./env";
+import { GRRelayerAppConfig, loadAppConfig } from "./env";
+import { dbg } from "../pkgs/sdk/src";
 
 export type GRContext = StandardRelayerContext & {
   relayProviders: Record<EVMChainId, string>;
   wormholeRelayers: Record<EVMChainId, string>;
+  opts: StandardRelayerAppOpts;
 };
 
 async function main() {
   const { env, opts, relayProviders, wormholeRelayers } = await loadAppConfig();
+  // gets mangled by app constructor somehow...
+  const logger = opts.logger!;
+
   const app = new StandardRelayerApp<GRContext>(env, opts);
 
   // Set up middleware
   app.use(async (ctx: GRContext, next: Next) => {
     ctx.relayProviders = deepCopy(relayProviders);
     ctx.wormholeRelayers = deepCopy(wormholeRelayers);
+    ctx.opts = deepCopy(opts);
     next();
   });
 
@@ -40,7 +45,7 @@ async function main() {
   app.multiple(deepCopy(wormholeRelayers), processGenericRelayerVaa);
 
   app.listen();
-  runUI(app, opts, rootLogger);
+  runUI(app, opts, logger);
 }
 
 function runUI(relayer: any, { port }: any, logger: Logger) {
