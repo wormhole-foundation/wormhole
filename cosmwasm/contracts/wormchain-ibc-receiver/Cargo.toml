@@ -14,7 +14,6 @@ backtraces = ["cosmwasm-std/backtraces"]
 cosmwasm-std = { version = "1.0.0", features = ["ibc3"] }
 cosmwasm-schema = "1"
 cw-storage-plus = "0.13.2"
-cw2 = "0.13.2"
 anyhow = "1"
 semver = "1.0.16"
 thiserror = "1.0.31"

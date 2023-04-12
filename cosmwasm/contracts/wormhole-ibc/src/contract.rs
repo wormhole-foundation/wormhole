@@ -5,17 +5,10 @@ use crate::ibc::PACKET_LIFETIME;
 use anyhow::Context;
 use cosmwasm_std::{
     to_binary, DepsMut, Env, IbcMsg, IbcQuery, ListChannelsResponse, MessageInfo, Response,
-    StdError,
 };
-use cw2::{get_contract_version, set_contract_version};
-use semver::Version;
 use wormhole::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg};
 
 use crate::msg::WormholeIbcPacketMsg;
-
-// version info for migration info
-const CONTRACT_NAME: &str = "crates.io:wormhole-ibc";
-const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // TODO: Set this based on an env variable
 const WORMCHAIN_IBC_RECEIVER_PORT: &str =
@@ -28,10 +21,6 @@ pub fn instantiate(
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, anyhow::Error> {
-    // save the contract name and version
-    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)
-        .context("failed to set contract version")?;
-
     // execute the wormhole core contract instantiation
     wormhole::contract::instantiate(deps, env, info, msg)
         .context("wormhole core instantiation failed")
@@ -39,24 +28,6 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> Result<Response, anyhow::Error> {
-    let ver = get_contract_version(deps.storage)?;
-    // ensure we are migrating from an allowed contract
-    if ver.contract != CONTRACT_NAME {
-        return Err(StdError::generic_err("Can only upgrade from same type").into());
-    }
-
-    // ensure we are migrating to a newer version
-    let saved_version =
-        Version::parse(&ver.version).context("could not parse saved contract version")?;
-    let new_version =
-        Version::parse(CONTRACT_VERSION).context("could not parse new contract version")?;
-    if saved_version >= new_version {
-        return Err(StdError::generic_err("Cannot upgrade from a newer version").into());
-    }
-
-    // set the new version
-    cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-
     // call the core contract migrate function
     wormhole::contract::migrate(deps, env, msg).context("wormhole core migration failed")
 }

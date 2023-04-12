@@ -1,8 +1,6 @@
 use anyhow::{ensure, Context};
-use cosmwasm_std::{entry_point, to_binary, Binary, Deps, Empty, Event, StdError, StdResult};
+use cosmwasm_std::{entry_point, to_binary, Binary, Deps, Empty, Event, StdResult};
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Order, Response};
-use cw2::{get_contract_version, set_contract_version};
-use semver::Version;
 use serde_wormhole::RawMessage;
 use wormhole::ibc_receiver::{Action, GovernancePacket};
 use wormhole::vaa::{Body, Header};
@@ -13,46 +11,20 @@ use crate::error::ContractError;
 use crate::msg::{AllChannelChainsResponse, ChannelChainResponse, ExecuteMsg, QueryMsg};
 use crate::state::CHANNEL_CHAIN;
 
-// version info for migration info
-const CONTRACT_NAME: &str = "crates.io:wormchain-ibc-receiver";
-const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    deps: DepsMut,
+    _deps: DepsMut,
     _env: Env,
     info: MessageInfo,
     _msg: Empty,
 ) -> Result<Response, anyhow::Error> {
-    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)
-        .context("failed to set contract version")?;
-
     Ok(Response::new()
         .add_attribute("action", "instantiate")
-        .add_attribute("owner", info.sender)
-        .add_attribute("version", CONTRACT_VERSION))
+        .add_attribute("owner", info.sender))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: Empty) -> Result<Response, anyhow::Error> {
-    let ver = get_contract_version(deps.storage)?;
-    // ensure we are migrating from an allowed contract
-    if ver.contract != CONTRACT_NAME {
-        return Err(StdError::generic_err("Can only upgrade from same type").into());
-    }
-
-    // ensure we are migrating to a newer version
-    let saved_version =
-        Version::parse(&ver.version).context("could not parse saved contract version")?;
-    let new_version =
-        Version::parse(CONTRACT_VERSION).context("could not parse new contract version")?;
-    if saved_version >= new_version {
-        return Err(StdError::generic_err("Cannot upgrade from a newer or equal version").into());
-    }
-
-    // set the new version
-    cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: Empty) -> Result<Response, anyhow::Error> {
     Ok(Response::default())
 }
 
