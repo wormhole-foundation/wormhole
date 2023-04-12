@@ -1,3 +1,9 @@
+import { MsgExecuteContractCompat as MsgExecuteContractInjective } from "@injectivelabs/sdk-ts";
+import {
+  JsonRpcProvider,
+  SUI_CLOCK_OBJECT_ID,
+  TransactionBlock,
+} from "@mysten/sui.js";
 import {
   Commitment,
   Connection,
@@ -7,7 +13,7 @@ import {
   Transaction,
 } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
-import { MsgExecuteContractCompat as MsgExecuteContractInjective } from "@injectivelabs/sdk-ts";
+import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
 import {
   Algodv2,
   bigIntToBytes,
@@ -18,30 +24,29 @@ import {
   OnApplicationComplete,
   SuggestedParams,
 } from "algosdk";
+import { Types } from "aptos";
 import BN from "bn.js";
 import { ethers, PayableOverrides } from "ethers";
-import { isNativeDenom } from "../terra";
+import { FunctionCallOptions } from "near-api-js/lib/account";
+import { Provider } from "near-api-js/lib/providers";
+import { getIsWrappedAssetNear } from ".";
 import { getMessageFee, optin, TransactionSignerPair } from "../algorand";
+import { attestToken as attestTokenAptos } from "../aptos";
+import { isNativeDenomInjective, isNativeDenomXpla } from "../cosmwasm";
 import { Bridge__factory } from "../ethers-contracts";
 import { createBridgeFeeTransferInstruction } from "../solana";
 import { createAttestTokenInstruction } from "../solana/tokenBridge";
+import { isNativeDenom } from "../terra";
 import {
   callFunctionNear,
-  hashAccount,
   ChainId,
+  hashAccount,
   textToHexString,
   textToUint8Array,
   uint8ArrayToHex,
 } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
 import { createNonce } from "../utils/createNonce";
-import { getIsWrappedAssetNear } from ".";
-import { isNativeDenomInjective, isNativeDenomXpla } from "../cosmwasm";
-import { Provider } from "near-api-js/lib/providers";
-import { FunctionCallOptions } from "near-api-js/lib/account";
-import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
-import { Types } from "aptos";
-import { attestToken as attestTokenAptos } from "../aptos";
 
 export async function attestFromEth(
   tokenBridgeAddress: string,
@@ -343,4 +348,35 @@ export function attestFromAptos(
   tokenAddress: string
 ): Types.EntryFunctionPayload {
   return attestTokenAptos(tokenBridgeAddress, tokenChain, tokenAddress);
+}
+
+export async function attestFromSui(
+  provider: JsonRpcProvider,
+  tokenBridgeAddress: string,
+  coreBridgeStateObjectId: string,
+  tokenBridgeStateObjectId: string,
+  coinType: string,
+  feeAmount: number
+) {
+  const metadata = await provider.getCoinMetadata({ coinType });
+  console.log({ metadata });
+  if (!metadata || !metadata.id) {
+    throw new Error(`Coin metadata for type ${coinType} not found`);
+  }
+
+  const tx = new TransactionBlock();
+  const [feeCoin] = tx.splitCoins(tx.gas, [tx.pure(feeAmount)]);
+  tx.moveCall({
+    target: `${tokenBridgeAddress}::attest_token::attest_token`,
+    arguments: [
+      tx.object(tokenBridgeStateObjectId),
+      tx.object(coreBridgeStateObjectId),
+      feeCoin,
+      tx.object(metadata.id),
+      tx.pure(69),
+      tx.object(SUI_CLOCK_OBJECT_ID),
+    ],
+    typeArguments: [coinType],
+  });
+  return tx;
 }

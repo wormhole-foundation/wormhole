@@ -241,7 +241,8 @@ const MAINNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
-  sepolia: { // This is testnet only.
+  sepolia: {
+    // This is testnet only.
     core: undefined,
     token_bridge: undefined,
     nft_bridge: undefined,
@@ -513,8 +514,9 @@ const DEVNET = {
       "0x46da3d4c569388af61f951bdd1153f4c875f90c2991f6b2d0a38e2161a40852c",
   },
   sui: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "0xa26bb6f2c14d8921191aeb3e7b718a247e1b71c02e7598a0bfad5ad213d6f105",
+    token_bridge:
+      "0x35457da8bf2ce514014bea4d66b7461f29e7185eff06097c2451065c06f691b2",
     nft_bridge: undefined,
   },
   moonbeam: {
@@ -826,6 +828,28 @@ export function assertEVMChain(
 export const WSOL_ADDRESS = "So11111111111111111111111111111111111111112";
 export const WSOL_DECIMALS = 9;
 export const MAX_VAA_DECIMALS = 8;
+
+/**
+ * On Sui, we must hardcode both the package ID as well as the object IDs of
+ * the State objects created when we initialize the core and token bridges.
+ */
+export const SUI_OBJECT_IDS = {
+  MAINNET: {
+    core_state: undefined,
+    token_bridge_state: undefined,
+  },
+  TESTNET: {
+    core_state: undefined,
+    token_bridge_state: undefined,
+  },
+  DEVNET: {
+    core_state:
+      "0x6128b6adb677ac2da9ac5efb3003e5863825748f7a18786c5f612a4cb552fa50",
+    token_bridge_state:
+      "0xff8d34100d23d54c48c662aa0def908b42048e1d84d1e9034fcb1cb91f5704aa",
+  },
+};
+export type SuiAddresses = typeof SUI_OBJECT_IDS;
 
 export const APTOS_DEPLOYER_ADDRESS =
   "0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b";
