@@ -10,8 +10,8 @@ use wormhole::Chain;
 use wormhole_bindings::WormholeQuery;
 
 use crate::error::ContractError;
-use crate::msg::{AllChainConnectionsResponse, ChainConnectionResponse, ExecuteMsg, QueryMsg};
-use crate::state::CHAIN_CONNECTIONS;
+use crate::msg::{AllChannelChainsResponse, ChannelChainResponse, ExecuteMsg, QueryMsg};
+use crate::state::CHANNEL_CHAIN;
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:wormchain-ibc-receiver";
@@ -64,7 +64,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, anyhow::Error> {
     match msg {
-        ExecuteMsg::SubmitUpdateChainConnection { vaas } => submit_vaas(deps, info, vaas),
+        ExecuteMsg::SubmitUpdateChannelChain { vaas } => submit_vaas(deps, info, vaas),
     }
 }
 
@@ -118,20 +118,20 @@ fn handle_vaa(deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<Event
 
     // match the governance action and execute the corresponding logic
     match govpacket.action {
-        Action::UpdateChainConnection {
-            connection_id,
+        Action::UpdateChannelChain {
+            channel_id,
             chain_id,
         } => {
-            let connection_id_str = String::from_utf8(connection_id.to_vec())
-                .context("failed to parse connection-id as utf-8")?;
+            let channel_id_str = String::from_utf8(channel_id.to_vec())
+                .context("failed to parse channel-id as utf-8")?;
 
             // update storage with the mapping
-            CHAIN_CONNECTIONS
-                .save(deps.storage, connection_id_str.clone(), &chain_id.into())
-                .context("failed to save chain connection")?;
-            Ok(Event::new("UpdateChainConnection")
+            CHANNEL_CHAIN
+                .save(deps.storage, channel_id_str.clone(), &chain_id.into())
+                .context("failed to save channel chain")?;
+            Ok(Event::new("UpdateChannelChain")
                 .add_attribute("chain_id", chain_id.to_string())
-                .add_attribute("connection_id", connection_id_str))
+                .add_attribute("channel_id", channel_id_str))
         }
     }
 }
@@ -139,31 +139,29 @@ fn handle_vaa(deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<Event
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::ChainConnection { connection_id } => {
-            query_chain_connection(deps, connection_id).and_then(|resp| to_binary(&resp))
+        QueryMsg::ChannelChain { channel_id } => {
+            query_channel_chain(deps, channel_id).and_then(|resp| to_binary(&resp))
         }
-        QueryMsg::AllChainConnections => {
-            query_all_chain_connections(deps).and_then(|resp| to_binary(&resp))
+        QueryMsg::AllChannelChains => {
+            query_all_channel_chains(deps).and_then(|resp| to_binary(&resp))
         }
     }
 }
 
-fn query_chain_connection(deps: Deps, connection_id: Binary) -> StdResult<ChainConnectionResponse> {
-    CHAIN_CONNECTIONS
-        .load(deps.storage, connection_id.to_string())
-        .map(|chain_id| ChainConnectionResponse { chain_id })
+fn query_channel_chain(deps: Deps, channel_id: Binary) -> StdResult<ChannelChainResponse> {
+    CHANNEL_CHAIN
+        .load(deps.storage, channel_id.to_string())
+        .map(|chain_id| ChannelChainResponse { chain_id })
 }
 
-fn query_all_chain_connections(deps: Deps) -> StdResult<AllChainConnectionsResponse> {
-    CHAIN_CONNECTIONS
+fn query_all_channel_chains(deps: Deps) -> StdResult<AllChannelChainsResponse> {
+    CHANNEL_CHAIN
         .range(deps.storage, None, None, Order::Ascending)
         .map(|res| {
-            res.map(|(connection_id, chain_id)| {
-                (Binary::from(Vec::<u8>::from(connection_id)), chain_id)
-            })
+            res.map(|(channel_id, chain_id)| (Binary::from(Vec::<u8>::from(channel_id)), chain_id))
         })
         .collect::<StdResult<Vec<_>>>()
-        .map(|chain_connections| AllChainConnectionsResponse { chain_connections })
+        .map(|channels_chains| AllChannelChainsResponse { channels_chains })
 }
 
 #[cfg(test)]
