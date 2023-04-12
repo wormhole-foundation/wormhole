@@ -504,12 +504,14 @@ contract CoreRelayerMessages is CoreRelayerGetters {
     function multichainSendContainer(
         IWormholeRelayer.Send memory request,
         address relayProvider,
-        IWormholeRelayer.MessageInfo[] memory messageInfos
+        IWormholeRelayer.MessageInfo[] memory messageInfos,
+        uint8 consistencyLevel
     ) internal pure returns (IWormholeRelayer.MultichainSend memory container) {
         IWormholeRelayer.Send[] memory requests = new IWormholeRelayer.Send[](1);
         requests[0] = request;
         container = IWormholeRelayer.MultichainSend({
             relayProviderAddress: relayProvider,
+            consistencyLevel: consistencyLevel,
             requests: requests,
             messageInfos: messageInfos
         });

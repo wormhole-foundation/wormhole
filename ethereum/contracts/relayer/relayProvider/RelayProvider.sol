@@ -37,11 +37,6 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
         return rewardAddress();
     }
 
-    //returns the consistency level that should be put on delivery VAAs
-    function getConsistencyLevel() public pure override returns (uint8 consistencyLevel) {
-        return 200; //REVISE consider adding state variable for this
-    }
-
     function isChainSupported(uint16 targetChainId) public view override returns (bool supported) {
         return _state.supportedChains[targetChainId];
     }

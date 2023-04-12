@@ -36,6 +36,7 @@ interface IWormholeRelayerInternalStructs {
         uint256 msgValue;
         uint256 totalFee;
         address relayProvider;
+        uint8 consistencyLevel;
         bool isValid;
     }
 
