@@ -1,5 +1,5 @@
 import * as wh from "@certusone/wormhole-sdk";
-import { Next } from "wormhole-relayer";
+import { Next } from "relayer-engine";
 import {
   IDelivery,
   MessageInfoType,
@@ -60,13 +60,11 @@ async function processDelivery(ctx: GRContext) {
 
   const results: Uint8Array[] = [];
 
-  const appConfig = loadAppConfig();
-
   //TODO not anything even resembling this
   try {
     for (let i = 0; i < vaaIds.length; i++) {
       const { vaaBytes: signedVAA } = await wh.getSignedVAAWithRetry(
-        appConfig.wormholeRpcs,
+        ctx.opts.wormholeRpcs!,
         parseInt(chainId.toString()) as any,
         vaaIds[i].emitterAddress.toString("hex"),
         vaaIds[i].sequence.toString(),
@@ -127,18 +125,25 @@ async function processDelivery(ctx: GRContext) {
       });
       if (relayerContractLog) {
         const parsedLog = coreRelayer.interface.parseLog(relayerContractLog!);
-        const recipientAddress = parsedLog.args[0];
-        const sourceChain = parsedLog.args[1];
-        const sourceSequence = parsedLog.args[2];
-        const vaaHash = parsedLog.args[3];
-        const status = parsedLog.args[4];
-
-        ctx.logger.info("resultant event!");
-        ctx.logger.info("recipientAddress: " + recipientAddress);
-        ctx.logger.info("sourceChain: " + sourceChain);
-        ctx.logger.info("sourceSequence: " + sourceSequence.toString());
-        ctx.logger.info("vaaHash: " + vaaHash);
-        ctx.logger.info("status: " + status);
+        const logArgs = {
+          recipientAddress: parsedLog.args[0],
+          sourceChain: parsedLog.args[1],
+          sourceSequence: parsedLog.args[2],
+          vaaHash: parsedLog.args[3],
+          status: parsedLog.args[4],
+        };
+        ctx.logger.info("Parsed Delivery event", logArgs);
+        switch (logArgs.status) {
+          case 0:
+            ctx.logger.info("Delivery Success");
+            break;
+          case 1:
+            ctx.logger.info("Receiver Failure");
+            break;
+          case 2:
+            ctx.logger.info("Forwarding Failure");
+            break;
+        }
       }
       ctx.logger.info(
         `Relayed instruction ${i + 1} of ${
