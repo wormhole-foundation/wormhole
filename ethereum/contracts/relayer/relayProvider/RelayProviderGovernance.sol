@@ -30,11 +30,11 @@ abstract contract RelayProviderGovernance is RelayProviderGetters, RelayProvider
     event CoreRelayerUpdated(address coreRelayer);
     event AssetConversionBufferUpdated(uint16 targetChain, uint16 buffer, uint16 bufferDenominator);
 
-    function updateCoreRelayer(address newAddress) external onlyOwner {
+    function updateCoreRelayer(address payable newAddress) external onlyOwner {
         updateCoreRelayerImpl(newAddress);
     }
 
-    function updateCoreRelayerImpl(address newAddress) internal {
+    function updateCoreRelayerImpl(address payable newAddress) internal {
         setCoreRelayer(newAddress);
         emit CoreRelayerUpdated(newAddress);
     }

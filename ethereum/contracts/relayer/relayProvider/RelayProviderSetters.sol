@@ -24,7 +24,7 @@ contract RelayProviderSetters is Context, RelayProviderState {
         _state.chainId = thisChain;
     }
 
-    function setCoreRelayer(address coreRelayer) internal {
+    function setCoreRelayer(address payable coreRelayer) internal {
         _state.coreRelayer = coreRelayer;
     }
 

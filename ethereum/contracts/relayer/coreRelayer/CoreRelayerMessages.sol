@@ -162,7 +162,7 @@ contract CoreRelayerMessages is CoreRelayerGetters {
     {
         encoded = abi.encodePacked(uint8(1), uint8(messageInfo.infoType));
         if (messageInfo.infoType == IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE) {
-            encoded = abi.encodePacked(encoded, messageInfo.emitterAddress, messageInfo.sequence);
+            encoded = abi.encodePacked(encoded, messageInfo.chainId, messageInfo.emitterAddress, messageInfo.sequence);
         } else if (messageInfo.infoType == IWormholeRelayer.MessageInfoType.VAAHASH) {
             encoded = abi.encodePacked(encoded, messageInfo.vaaHash);
         }
@@ -418,8 +418,11 @@ contract CoreRelayerMessages is CoreRelayerGetters {
 
         messageInfo.infoType = IWormholeRelayer.MessageInfoType(encoded.toUint8(index));
         index += 1;
-        
+
         if (messageInfo.infoType == IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE) {
+            messageInfo.chainId = encoded.toUint16(index);
+            index += 2;
+
             messageInfo.emitterAddress = encoded.toBytes32(index);
             index += 32;
 

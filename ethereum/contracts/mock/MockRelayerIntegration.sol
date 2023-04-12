@@ -91,12 +91,14 @@ contract MockRelayerIntegration is IWormholeReceiver {
         messageInfos = new IWormholeRelayer.MessageInfo[](2);
         messageInfos[0] = IWormholeRelayer.MessageInfo(
             IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE,
+            wormhole.chainId(),
             relayer.toWormholeFormat(address(this)),
             sequence1,
             bytes32(0x0)
         );
         messageInfos[1] = IWormholeRelayer.MessageInfo(
             IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE,
+            wormhole.chainId(),
             relayer.toWormholeFormat(address(this)),
             sequence2,
             bytes32(0x0)
@@ -159,6 +161,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
             uint64 sequence = wormhole.publishMessage{value: wormhole.messageFee()}(0, messages[i], 200);
             messageInfos[i] = IWormholeRelayer.MessageInfo(
                 IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE,
+                wormhole.chainId(),
                 relayer.toWormholeFormat(address(this)),
                 sequence,
                 bytes32(0x0)
@@ -169,6 +172,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
         );
         messageInfos[messages.length] = IWormholeRelayer.MessageInfo(
             IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE,
+            wormhole.chainId(),
             relayer.toWormholeFormat(address(this)),
             lastSequence,
             bytes32(0x0)
@@ -253,6 +257,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
                 );
                 messageInfos[i] = IWormholeRelayer.MessageInfo(
                     IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE,
+                    wormhole.chainId(),
                     relayer.toWormholeFormat(address(this)),
                     sequence,
                     bytes32(0x0)

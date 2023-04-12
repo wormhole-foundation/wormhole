@@ -85,7 +85,6 @@ interface IWormholeRelayer {
     ) external payable returns (uint64 sequence);
 
     enum MessageInfoType {
-        INVALID_TYPE,
         EMITTER_SEQUENCE,
         VAAHASH
     }
@@ -101,6 +100,7 @@ interface IWormholeRelayer {
      */
     struct MessageInfo {
         MessageInfoType infoType;
+        uint16 chainId;
         bytes32 emitterAddress;
         uint64 sequence;
         bytes32 vaaHash;

@@ -226,32 +226,35 @@ contract WormholeRelayerTests is Test {
         status = getDeliveryStatus(logs[logs.length - 1]);
     }
 
-    function messageInfoArray(uint64 sequence, address emitterAddress)
+    function messageInfoArray(uint16 chainId, uint64 sequence, address emitterAddress)
         internal
         returns (IWormholeRelayer.MessageInfo[] memory messageInfos)
     {
         messageInfos = new IWormholeRelayer.MessageInfo[](1);
         messageInfos[0] = IWormholeRelayer.MessageInfo(
             IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE,
+            chainId,
             map[1].coreRelayer.toWormholeFormat(emitterAddress),
             sequence,
             bytes32(0x0)
         );
     }
 
-    function messageInfoArray(uint64 sequence1, address emitterAddress1, uint64 sequence2, address emitterAddress2)
+    function messageInfoArray(uint16 chainId, uint64 sequence1, address emitterAddress1, uint64 sequence2, address emitterAddress2)
         internal
         returns (IWormholeRelayer.MessageInfo[] memory messageInfos)
     {
         messageInfos = new IWormholeRelayer.MessageInfo[](2);
         messageInfos[0] = IWormholeRelayer.MessageInfo(
             IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE,
+            chainId,
             map[1].coreRelayer.toWormholeFormat(emitterAddress1),
             sequence1,
             bytes32(0x0)
         );
         messageInfos[1] = IWormholeRelayer.MessageInfo(
             IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE,
+            chainId,
             map[1].coreRelayer.toWormholeFormat(emitterAddress2),
             sequence2,
             bytes32(0x0)
@@ -550,6 +553,9 @@ contract WormholeRelayerTests is Test {
     }
 
     function sendHelper(StandardSetupTwoChains memory setup, ForwardRequestFailStack memory stack) public {
+        IWormholeRelayer.MessageInfo[] memory messageInfos = messageInfoArray(
+                setup.sourceChainId, stack.sequence1, address(setup.source.integration), stack.sequence2, address(setup.source.integration)
+            );
         setup.source.coreRelayer.send{value: stack.payment + stack.wormholeFee}(
             setup.targetChainId,
             stack.targetAddress,
@@ -558,9 +564,7 @@ contract WormholeRelayerTests is Test {
             stack.payment,
             0,
             stack.payload,
-            messageInfoArray(
-                stack.sequence1, address(setup.source.integration), stack.sequence2, address(setup.source.integration)
-            ),
+            messageInfos,
             200
         );
     }
@@ -1038,7 +1042,7 @@ contract WormholeRelayerTests is Test {
 
         uint256 wormholeFee = setup.source.wormhole.messageFee();
 
-        IWormholeRelayer.MessageInfo[] memory msgInfoArray = messageInfoArray(sequence, address(this));
+        IWormholeRelayer.MessageInfo[] memory msgInfoArray = messageInfoArray(setup.sourceChainId, sequence, address(this));
         vm.expectRevert(abi.encodeWithSignature("MsgValueTooLow()"));
         setup.source.coreRelayer.send{value: maxTransactionFee + wormholeFee - 1}(
             deliveryRequest, msgInfoArray, address(setup.source.relayProvider), 200
@@ -1142,7 +1146,7 @@ contract WormholeRelayerTests is Test {
             stack.payment - stack.wormholeFee,
             0,
             bytes(""),
-            messageInfoArray(sequence, address(this)),
+            messageInfoArray(setup.sourceChainId, sequence, address(this)),
             200
         );
         genericRelayer.relay(setup.sourceChainId);
@@ -1164,7 +1168,7 @@ contract WormholeRelayerTests is Test {
 
         bytes32 targetAddress = setup.source.coreRelayer.toWormholeFormat(address(forwardTester));
 
-        IWormholeRelayer.MessageInfo[] memory msgInfoArray = messageInfoArray(0, address(this));
+        IWormholeRelayer.MessageInfo[] memory msgInfoArray = messageInfoArray(0, 0, address(this));
         vm.expectRevert(abi.encodeWithSignature("NoDeliveryInProgress()"));
         setup.source.coreRelayer.forward(
             setup.targetChainId, targetAddress, setup.targetChainId,  targetAddress, 0, 0, bytes(""), msgInfoArray, 200
@@ -1277,6 +1281,7 @@ contract WormholeRelayerTests is Test {
         IWormholeRelayer.MessageInfo[] memory messageInfos = new IWormholeRelayer.MessageInfo[](1);
         messageInfos[0] = IWormholeRelayer.MessageInfo({
             infoType: IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE,
+            chainId: setup.sourceChainId,
             emitterAddress: bytes32(""),
             sequence: 25,
             vaaHash: bytes32("")
