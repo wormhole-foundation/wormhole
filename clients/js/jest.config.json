@@ -1,5 +1,5 @@
 {
-  "verbose": false,
+  "verbose": true,
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },
