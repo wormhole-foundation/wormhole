@@ -1,11 +1,11 @@
 import yargs from "yargs";
-import { describe, expect, it } from "@jest/globals";
+import { describe, expect, it, jest } from "@jest/globals";
 
 describe("worm chain-id", () => {
   describe("check arguments", () => {
     const FIRST_POSITIONAL_ARGUMENT = "<chain>";
 
-    it(`should has ${FIRST_POSITIONAL_ARGUMENT} as first positional argument`, async () => {
+    it(`should has correct positional arguments`, async () => {
       const command = await yargs.command(require("../cmds/chainId")).help();
 
       // Run the command module with --help as argument
