@@ -212,8 +212,8 @@ contract WormholeRelayerTests is Test {
         }
     }
 
-    function getDeliveryVAAHash() internal returns (bytes32 vaaHash) {
-        vaaHash = vm.getRecordedLogs()[0].data.toBytes32(0);
+    function getDeliveryVAAHash(Vm.Log[] memory logs) internal returns (bytes32 vaaHash) {
+        vaaHash = logs[0].data.toBytes32(0);
     }
 
     function getDeliveryStatus(Vm.Log memory log) internal returns (DeliveryStatus status) {
@@ -672,8 +672,6 @@ contract WormholeRelayerTests is Test {
             (keccak256(setup.target.integration.getMessage()) != keccak256(message))
                 || (keccak256(message) == keccak256(bytes("")))
         );
-
-        deliveryVaaHash = getDeliveryVAAHash();
     }
 
     function testQuoteReceiverValueIsEnough(
@@ -1331,33 +1329,33 @@ contract WormholeRelayerTests is Test {
 
         vm.recordLogs();
 
-        DeliveryStack memory stack;
-
-        stack.payment = setup.source.coreRelayer.quoteGas(
+        uint256 payment = setup.source.coreRelayer.quoteGas(
             setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
         ) + 3 * setup.source.wormhole.messageFee();
 
+        uint256 maxTransactionFee = payment - 3 * setup.source.wormhole.messageFee();
+
         bytes memory payload = abi.encodePacked(uint256(6));
 
-        setup.source.integration.sendMessageWithRefundAddress{value: stack.payment}(
-            message, setup.targetChainId, address(setup.target.integration), setup.target.refundAddress, payload
+        setup.source.integration.sendMessageWithPayload{value: payment}(
+            message, setup.targetChainId, address(setup.target.integration), payload
         );
 
-        prepareDeliveryStack(stack, setup);
+        genericRelayer.relay(setup.sourceChainId);
 
-        setup.target.coreRelayerFull.deliver{value: stack.budget}(stack.package);
+         bytes32 deliveryVaaHash = getDeliveryVAAHash(vm.getRecordedLogs());
 
-        IWormholeReceiver.DeliveryData memory deliveryData = setup.target.integration.getDeliveryData(stack.parsed.hash);
+        IWormholeReceiver.DeliveryData memory deliveryData = setup.target.integration.getDeliveryData();
 
-
-        // console.log(payload.toUint256(0));
-        // console.log(deliveryData.payload.toUint256(0));
-
+        uint256 calculatedRefund = 0;
+        if(maxTransactionFee > setup.source.relayProvider.quoteDeliveryOverhead(setup.targetChainId)) {
+            calculatedRefund = (maxTransactionFee - setup.source.relayProvider.quoteDeliveryOverhead(setup.targetChainId)) * feeParams.sourceNativePrice * 100 / (uint256(feeParams.targetNativePrice) * 105);
+        }
         assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
         assertTrue(setup.target.coreRelayer.fromWormholeFormat(deliveryData.sourceAddress) == address(setup.source.integration));
         assertTrue(deliveryData.sourceChain == setup.sourceChainId);
-        assertTrue(deliveryData.maximumRefund > 0);
-        assertTrue(deliveryData.deliveryHash == stack.parsed.hash);
+        assertTrue(deliveryData.maximumRefund == calculatedRefund);
+        assertTrue(deliveryData.deliveryHash == deliveryVaaHash);
         assertTrue(keccak256(deliveryData.payload) == keccak256(payload));
     }
 

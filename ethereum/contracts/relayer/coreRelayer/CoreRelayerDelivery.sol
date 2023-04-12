@@ -114,12 +114,13 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
         setContractLock(true);
         setLockedTargetAddress(fromWormholeFormat(vaaInfo.internalInstruction.targetAddress));
 
-        IWormholeReceiver.DeliveryData memory deliveryData;
-        deliveryData.sourceAddress = vaaInfo.deliveryContainer.senderAddress;
-        deliveryData.sourceChain = vaaInfo.sourceChain;
-        deliveryData.maximumRefund = vaaInfo.internalInstruction.maximumRefundTarget;
-        deliveryData.deliveryHash = vaaInfo.deliveryVaaHash;
-        deliveryData.payload = vaaInfo.internalInstruction.payload;
+        IWormholeReceiver.DeliveryData memory deliveryData = IWormholeReceiver.DeliveryData({
+            sourceAddress: vaaInfo.deliveryContainer.senderAddress,
+            sourceChain: vaaInfo.sourceChain,
+            maximumRefund: vaaInfo.internalInstruction.maximumRefundTarget,
+            deliveryHash: vaaInfo.deliveryVaaHash,
+            payload: vaaInfo.internalInstruction.payload
+        });
 
         uint256 preGas = gasleft();
 

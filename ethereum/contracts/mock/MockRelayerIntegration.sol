@@ -30,8 +30,8 @@ contract MockRelayerIntegration is IWormholeReceiver {
     // map that stores payloads from received VAAs
     mapping(bytes32 => bytes) verifiedPayloads;
 
-    // map that stores deliverydata from received deliveries
-    mapping(bytes32 => bytes) deliveryDatas;
+    // latest delivery data
+    DeliveryData latestDeliveryData;
 
     // mapping of other MockRelayerIntegration contracts
     mapping(uint16 => bytes32) registeredContracts;
@@ -59,6 +59,15 @@ contract MockRelayerIntegration is IWormholeReceiver {
     {
         sequence = sendMessageGeneral(_message, targetChainId, destination, targetChainId, destination, 0, bytes(""));
     }
+
+    function sendMessageWithPayload(bytes memory _message, uint16 targetChainId, address destination, bytes memory payload)
+        public
+        payable
+        returns (uint64 sequence)
+    {
+        sequence = sendMessageGeneral(_message, targetChainId, destination, targetChainId, destination, 0, payload);
+    }
+
 
     function sendMessageWithRefundAddress(
         bytes memory _message,
@@ -214,7 +223,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
         bytes[] memory wormholeObservations
     ) public payable override {
         // loop through the array of wormhole observations from the batch and store each payload
-        deliveryDatas[deliveryData.deliveryHash] = encodeDeliveryData(deliveryData);
+        latestDeliveryData = deliveryData;
         uint256 numObservations = wormholeObservations.length;
         bytes[] memory messages = new bytes[](numObservations - 1);
         uint16 emitterChainId;
@@ -290,8 +299,8 @@ contract MockRelayerIntegration is IWormholeReceiver {
         return messageHistory[messageHistory.length - 1];
     }
 
-    function getDeliveryData(bytes32 vaaHash) public returns (DeliveryData memory deliveryData){
-        deliveryData = decodeDeliveryData(deliveryDatas[vaaHash]);
+    function getDeliveryData() public returns (DeliveryData memory deliveryData){
+        deliveryData = latestDeliveryData;
     }
 
     function getMessageHistory() public view returns (bytes[][] memory) {
