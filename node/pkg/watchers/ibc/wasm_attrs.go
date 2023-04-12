@@ -56,9 +56,7 @@ func (wa *WasmAttributes) GetAsInt(key string, bitSize int) (int64, error) {
 	return value, nil
 }
 
-// Parse parses the attributes in a wasm event. If the contract and action match the desired values (or the desired values are not set)
-// the attributes are loaded into the object. If the event is not of the desired contract, an error is returned (since the watcher subscribes
-// to a specific contract), but if the action does not match, that is not an error (since contracts may return multiple actions).
+// Parse parses the attributes in a wasm event.
 func (wa *WasmAttributes) Parse(logger *zap.Logger, event gjson.Result) error {
 	wa.m = make(map[string]string)
 	attributes := gjson.Get(event.String(), "attributes")
@@ -95,7 +93,7 @@ func (wa *WasmAttributes) Parse(logger *zap.Logger, event gjson.Result) error {
 		}
 
 		logger.Debug("event attribute", zap.String("key", key), zap.String("value", value))
-		wa.m[string(key)] = value
+		wa.m[key] = value
 	}
 
 	return nil

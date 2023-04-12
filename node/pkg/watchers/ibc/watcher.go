@@ -86,17 +86,17 @@ type (
 		// chainConfig is the list of chains to be monitored, along with their channel data.
 		chainConfig ChainConfig
 
-		// channelMap provides access by IBC connection ID.
+		// connectionMap provides access by IBC connection ID.
 		connectionMap map[string]*connectionEntry
 
 		// chainMap provides access by chain ID.
 		chainMap map[vaa.ChainID]*connectionEntry
 
-		// connectionIdMap provides a mapping from IBC channel ID to IBC connection ID.
-		connectionIdMap map[string]string
+		// channelIdToConnectionIdMap provides a mapping from IBC channel ID to IBC connection ID.
+		channelIdToConnectionIdMap map[string]string
 
-		// connectionIdLock protects connectionIdMap.
-		connectionIdLock sync.Mutex
+		// channelIdToConnectionIdLock protects channelIdToConnectionIdMap.
+		channelIdToConnectionIdLock sync.Mutex
 	}
 
 	// connectionEntry defines the chain that is associated with an IBC connection.
@@ -118,13 +118,13 @@ func NewWatcher(
 	chainConfig ChainConfig,
 ) *Watcher {
 	return &Watcher{
-		wsUrl:           wsUrl,
-		lcdUrl:          lcdUrl,
-		contractAddress: contractAddress,
-		chainConfig:     chainConfig,
-		connectionIdMap: make(map[string]string),
-		connectionMap:   make(map[string]*connectionEntry),
-		chainMap:        make(map[vaa.ChainID]*connectionEntry),
+		wsUrl:                      wsUrl,
+		lcdUrl:                     lcdUrl,
+		contractAddress:            contractAddress,
+		chainConfig:                chainConfig,
+		channelIdToConnectionIdMap: make(map[string]string),
+		connectionMap:              make(map[string]*connectionEntry),
+		chainMap:                   make(map[vaa.ChainID]*connectionEntry),
 	}
 }
 
@@ -153,7 +153,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 	errC := make(chan error)
 
 	// Query the contract for the chain ID to IBC connection ID mapping.
-	connectionIdMap, err := w.queryConnectionIdMap()
+	chainIdToConnectionIdMap, err := w.queryChainIdToConnectionIdMap()
 	if err != nil {
 		return fmt.Errorf("failed to query for connection ID map, please make sure the contract address is correct, error: %w", err)
 	}
@@ -167,7 +167,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 				return fmt.Errorf("detected duplicate chainID: %v", chainToMonitor.ChainID)
 			}
 
-			connID, exists := connectionIdMap[chainToMonitor.ChainID]
+			connID, exists := chainIdToConnectionIdMap[chainToMonitor.ChainID]
 			if !exists {
 				return fmt.Errorf("there is no IBC connection ID defined for chainID %v", chainToMonitor.ChainID)
 			}
@@ -603,8 +603,8 @@ type ibcAllChainConnectionsQueryResults struct {
 
 var connectionIdMapQuery = url.QueryEscape(base64.StdEncoding.EncodeToString([]byte(`{"all_chain_connections":{}}`)))
 
-// queryConnectionIdMap queries the contract for the set of chain IDs available on IBC and their corresponding IBC connections.
-func (w *Watcher) queryConnectionIdMap() (map[vaa.ChainID]string, error) {
+// queryChainIdToConnectionIdMap queries the contract for the set of chain IDs available on IBC and their corresponding IBC connections.
+func (w *Watcher) queryChainIdToConnectionIdMap() (map[vaa.ChainID]string, error) {
 	client := &http.Client{
 		Timeout: time.Second * 5,
 	}
@@ -652,11 +652,13 @@ func (w *Watcher) queryConnectionIdMap() (map[vaa.ChainID]string, error) {
 }
 
 // getConnectionID returns the IBC connection ID associated with the given IBC channel. It uses a cache to avoid constantly
-// querying worm chain. This works because once an IBC channel is closed its ID will never be reused.
+// querying worm chain. This works because once an IBC channel is closed its ID will never be reused. For details, see the IBC spec:
+// - Connection spec stating that connections can never be closed and identifiers never re-allocated: https://github.com/cosmos/ibc/tree/main/spec/core/ics-003-connection-semantics#sub-protocols
+// - Channel spec stating channels cannot be reopened and identifiers not re-used: https://github.com/cosmos/ibc/tree/main/spec/core/ics-004-channel-and-packet-semantics#closing-handshake
 func (w *Watcher) getConnectionID(channelID string) (string, error) {
-	w.connectionIdLock.Lock()
-	defer w.connectionIdLock.Unlock()
-	connectionID, exists := w.connectionIdMap[channelID]
+	w.channelIdToConnectionIdLock.Lock()
+	defer w.channelIdToConnectionIdLock.Unlock()
+	connectionID, exists := w.channelIdToConnectionIdMap[channelID]
 	if exists {
 		return connectionID, nil
 	}
@@ -666,7 +668,7 @@ func (w *Watcher) getConnectionID(channelID string) (string, error) {
 		return connectionID, err
 	}
 
-	w.connectionIdMap[channelID] = connectionID
+	w.channelIdToConnectionIdMap[channelID] = connectionID
 	return connectionID, nil
 }
 
