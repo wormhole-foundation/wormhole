@@ -4,8 +4,8 @@ use cosmwasm_std::entry_point;
 use crate::ibc::PACKET_LIFETIME;
 use anyhow::Context;
 use cosmwasm_std::{
-    to_binary, DepsMut, Env, IbcChannel, IbcMsg, IbcQuery, ListChannelsResponse, MessageInfo,
-    Response, StdError, StdResult,
+    to_binary, DepsMut, Env, IbcMsg, IbcQuery, ListChannelsResponse, MessageInfo, Response,
+    StdError,
 };
 use cw2::{get_contract_version, set_contract_version};
 use semver::Version;

@@ -122,7 +122,8 @@ fn handle_vaa(deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<Event
             connection_id,
             chain_id,
         } => {
-            let connection_id_str = String::from_utf8(connection_id.to_vec()).context("failed to parse connection-id as utf-8")?;
+            let connection_id_str = String::from_utf8(connection_id.to_vec())
+                .context("failed to parse connection-id as utf-8")?;
 
             // update storage with the mapping
             CHAIN_CONNECTIONS
