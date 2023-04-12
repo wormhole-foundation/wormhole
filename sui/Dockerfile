@@ -22,7 +22,6 @@ WORKDIR /tmp
 COPY sui/scripts/ scripts
 COPY sui/wormhole/ wormhole
 COPY sui/token_bridge/ token_bridge
-COPY sui/testing/ testing
 COPY sui/examples/ examples
 COPY sui/Makefile Makefile
 COPY sui/.env* .

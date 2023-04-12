@@ -1,5 +1,5 @@
 BUILD_CONTRACT_DIRS := wormhole token_bridge
-TEST_CONTRACT_DIRS := wormhole token_bridge testing/coin_wrapped_12 examples/core_messages
+TEST_CONTRACT_DIRS := wormhole token_bridge examples/coins examples/core_messages
 
 .PHONY: test
 test:

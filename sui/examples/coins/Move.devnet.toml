@@ -1,5 +1,5 @@
 [package]
-name = "CoinWrapped12"
+name = "Coins"
 version = "0.0.1"
 
 [dependencies.Sui]
@@ -14,15 +14,4 @@ local = "../../wormhole"
 local = "../../token_bridge"
 
 [addresses]
-coin_wrapped_12 = "_"
-
-[dev-dependencies.Wormhole]
-local = "../../wormhole"
-
-[dev-dependencies.TokenBridge]
-local = "../../token_bridge"
-
-[dev-addresses]
-wormhole = "0x100"
-token_bridge = "0x200"
-coin_wrapped_12 = "0x20c"
+coins = "_"
