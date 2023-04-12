@@ -175,6 +175,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
         }
         IWormholeRelayer.MultichainSend memory container = IWormholeRelayer.MultichainSend({
             requests: requests,
+            consistencyLevel: 200,
             relayProviderAddress: relayer.getDefaultRelayProvider(),
             messageInfos: messageInfos
         });
@@ -204,7 +205,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
         });
 
         sequence = relayer.send{value: msg.value - 2 * wormhole.messageFee()}(
-            request, messageInfos, relayer.getDefaultRelayProvider()
+            request, messageInfos, relayer.getDefaultRelayProvider(), 200
         );
     }
 
@@ -262,6 +263,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
             }
             IWormholeRelayer.MultichainSend memory container = IWormholeRelayer.MultichainSend({
                 requests: sendRequests,
+                consistencyLevel: 200,
                 relayProviderAddress: relayer.getDefaultRelayProvider(),
                 messageInfos: messageInfos
             });

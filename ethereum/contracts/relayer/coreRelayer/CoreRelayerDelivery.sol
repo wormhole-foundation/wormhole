@@ -68,7 +68,7 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
 
         // Publishes the DeliveryInstruction
         wormhole.publishMessage{value: wormholeMessageFee}(
-            0, encodeDeliveryInstructionsContainer(container), relayProvider.getConsistencyLevel()
+            0, encodeDeliveryInstructionsContainer(container), forwardInstruction.consistencyLevel
         );
 
         // if funded, pay out reward to provider. Otherwise, the delivery code will handle sending a refund.
@@ -254,7 +254,7 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
                         instruction.refundChain, instruction.refundAddress, refundAmount - overhead, provider
                     )
                 ),
-                provider.getConsistencyLevel()
+                200 // consistencyLevel, remote refunds are emitted instantly
             );
 
             pay(provider.getRewardAddress(), refundAmount - wormholeMessageFee);
@@ -286,7 +286,8 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
                     relayParameters: bytes("")
                 }),
                 address(provider),
-                new IWormholeRelayer.MessageInfo[](0)
+                new IWormholeRelayer.MessageInfo[](0),
+                200 //send message instantly
             )
         );
 

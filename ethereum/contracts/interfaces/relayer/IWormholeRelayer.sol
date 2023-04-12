@@ -47,45 +47,6 @@ interface IWormholeRelayer {
     /**
      * @notice This 'send' function emits a wormhole message (VAA) that alerts the default wormhole relay provider to
      * call the receiveWormholeMessage(bytes[] memory signedVaas, bytes[] memory additionalData) endpoint of the contract on chain 'targetChain' and address 'targetAddress'
-     * with the first argument being one wormhole message (VAA) from the current transaction that matches the wormholeMessageEmitterAddress and wormholeMessageSequenceNumber provided (which have additionally been encoded and signed by the Guardian set to form 'signed VAAs'),
-     * and with the second argument empty
-     *
-     *
-     *  @param targetChain The chain that the vaas are delivered to, in Wormhole Chain ID format
-     *  @param targetAddress The address (in Wormhole 32-byte format) on chain 'targetChain' of the contract to which the vaas are delivered.
-     *  This contract must implement the IWormholeReceiver interface, which simply requires a 'receiveWormholeMessage(bytes[] memory vaas, bytes[] memory additionalData)' endpoint
-     *  @param refundAddress The address (in Wormhole 32-byte format) on chain 'targetChain' to which any leftover funds (that weren't used for target chain gas or passed into targetAddress as value) should be sent
-     *  @param refundChain The chain where the refund should be sent. If the refundchain is not the targetchain, a new empty delivery will be initiated in order to perform the refund, which is subject to the provider's rates on the target chain.
-     *  @param maxTransactionFee The maximum amount (denominated in source chain (this chain) currency) that you wish to spend on funding gas for the target chain.
-     *  If more gas is needed on the target chain than is paid for, there will be a Receiver Failure.
-     *  Any unused value out of this fee will be refunded to 'refundAddress'
-     *  If maxTransactionFee >= quoteGas(targetChain, gasLimit, getDefaultRelayProvider()), then as long as 'targetAddress''s receiveWormholeMessage function uses at most 'gasLimit' units of gas (and doesn't revert), the delivery will succeed
-     *  @param receiverValue The amount (denominated in source chain currency) that will be converted to target chain currency and passed into the receiveWormholeMessage endpoint as value.
-     *  If receiverValue >= quoteReceiverValue(targetChain, targetAmount, getDefaultRelayProvider()), then at least 'targetAmount' of targetChain currency will be passed into the 'receiveWormholeFunction' as value.
-     *  @param payload an arbitrary payload which will be sent to the receiver contract.
-     *  @param wormholeMessageEmitterAddress emitter address identifying the wormhole message
-     *  @param wormholeMessageSequenceNumber sequence number identifying the wormhole message
-     *
-     *  This function must be called with a payment of at least maxTransactionFee + receiverValue + one wormhole message fee.
-     *
-     *  @return sequence The sequence number for the emitted wormhole message, which contains encoded delivery instructions meant for the default wormhole relay provider.
-     *  The relay provider will listen for these messages, and then execute the delivery as described.
-     */
-    function send(
-        uint16 targetChain,
-        bytes32 targetAddress,
-        bytes32 refundAddress,
-        uint16 refundChain,
-        uint256 maxTransactionFee,
-        uint256 receiverValue,
-        bytes memory payload,
-        address wormholeMessageEmitterAddress,
-        uint64 wormholeMessageSequenceNumber
-    ) external payable returns (uint64 sequence);
-
-    /**
-     * @notice This 'send' function emits a wormhole message (VAA) that alerts the default wormhole relay provider to
-     * call the receiveWormholeMessage(bytes[] memory signedVaas, bytes[] memory additionalData) endpoint of the contract on chain 'targetChain' and address 'targetAddress'
      * with the first argument being wormhole messages (VAAs) from the current transaction that match the descriptions in the 'messageInfos' array (which have additionally been encoded and signed by the Guardian set to form 'signed VAAs'),
      * and with the second argument empty
      *
@@ -119,7 +80,8 @@ interface IWormholeRelayer {
         uint256 maxTransactionFee,
         uint256 receiverValue,
         bytes memory payload,
-        MessageInfo[] memory messageInfos
+        MessageInfo[] memory messageInfos,
+        uint8 consistencyLevel
     ) external payable returns (uint64 sequence);
 
     enum MessageInfoType {
@@ -190,7 +152,7 @@ interface IWormholeRelayer {
      *  @return sequence The sequence number for the emitted wormhole message, which contains encoded delivery instructions meant for your specified relay provider.
      *  The relay provider will listen for these messages, and then execute the delivery as described.
      */
-    function send(Send memory request, MessageInfo[] memory messageInfos, address relayProvider)
+    function send(Send memory request, MessageInfo[] memory messageInfos, address relayProvider, uint8 consistencyLevel)
         external
         payable
         returns (uint64 sequence);
@@ -239,7 +201,8 @@ interface IWormholeRelayer {
         uint256 maxTransactionFee,
         uint256 receiverValue,
         bytes memory payload,
-        MessageInfo[] memory messageInfos
+        MessageInfo[] memory messageInfos,
+        uint8 consistencyLevel
     ) external payable;
 
     /**
@@ -275,7 +238,7 @@ interface IWormholeRelayer {
      *
      *  This function must be called with a payment of at least request.maxTransactionFee + request.receiverValue + one wormhole message fee.
      */
-    function forward(Send memory request, MessageInfo[] memory messageInfos, address relayProvider) external payable;
+    function forward(Send memory request, MessageInfo[] memory messageInfos, address relayProvider, uint8 consistencyLevel) external payable;
 
     /**
      * @notice This 'MultichainSend' struct represents a collection of send requests 'requests' and a specified relay provider 'relayProviderAddress'
@@ -293,6 +256,7 @@ interface IWormholeRelayer {
         address relayProviderAddress;
         IWormholeRelayer.MessageInfo[] messageInfos;
         Send[] requests;
+        uint8 consistencyLevel;
     }
 
     /**
