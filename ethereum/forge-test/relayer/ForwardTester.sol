@@ -38,7 +38,7 @@ contract ForwardTester is IWormholeReceiver {
         WorksCorrectly
     }
 
-    function receiveWormholeMessages(IWormholeReceiver.DeliveryData memory deliveryData, bytes[] memory vaas)
+    function receiveWormholeMessages(IWormholeReceiver.DeliveryData memory, bytes[] memory vaas)
         public
         payable
         override
@@ -173,7 +173,7 @@ contract DummyContract {
         IWormholeRelayer.MessageInfo[] memory messages
     ) public {
         wormholeRelayer.forward(
-            chainId, targetAddress, chainId, refundAddress, maxTransactionFee, receiverValue, bytes(""), messages, 200
+            chainId, targetAddress, chainId, refundAddress, maxTransactionFee, receiverValue, payload, messages, 200
         );
     }
 }

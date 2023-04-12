@@ -213,11 +213,11 @@ contract WormholeRelayerTests is Test {
         }
     }
 
-    function getDeliveryVAAHash(Vm.Log[] memory logs) internal returns (bytes32 vaaHash) {
+    function getDeliveryVAAHash(Vm.Log[] memory logs) internal pure returns (bytes32 vaaHash) {
         vaaHash = logs[0].data.toBytes32(0);
     }
 
-    function getDeliveryStatus(Vm.Log memory log) internal returns (DeliveryStatus status) {
+    function getDeliveryStatus(Vm.Log memory log) internal pure returns (DeliveryStatus status) {
         status = DeliveryStatus(log.data.toUint256(32));
     }
 
@@ -227,7 +227,7 @@ contract WormholeRelayerTests is Test {
     }
 
     function messageInfoArray(uint16 chainId, uint64 sequence, address emitterAddress)
-        internal
+        internal view
         returns (IWormholeRelayer.MessageInfo[] memory messageInfos)
     {
         messageInfos = new IWormholeRelayer.MessageInfo[](1);
@@ -241,7 +241,7 @@ contract WormholeRelayerTests is Test {
     }
 
     function messageInfoArray(uint16 chainId, uint64 sequence1, address emitterAddress1, uint64 sequence2, address emitterAddress2)
-        internal
+        internal view
         returns (IWormholeRelayer.MessageInfo[] memory messageInfos)
     {
         messageInfos = new IWormholeRelayer.MessageInfo[](2);
@@ -661,27 +661,6 @@ contract WormholeRelayerTests is Test {
 
         // Assert that the attack wasn't successful.
         assertTrue(attackerSourceAddress.balance == 0);
-    }
-
-    function sendWithoutEnoughMaxTransactionFee(bytes memory message, StandardSetupTwoChains memory setup)
-        internal
-        returns (bytes32 deliveryVaaHash, uint64 sequence)
-    {
-        uint256 paymentNotEnough = setup.source.coreRelayer.quoteGas(
-            setup.targetChainId, 10, address(setup.source.relayProvider)
-        ) + setup.source.wormhole.messageFee() * 3;
-
-        vm.deal(address(this), paymentNotEnough);
-        sequence = setup.source.integration.sendMessageWithRefundAddress{value: paymentNotEnough}(
-            message, setup.targetChainId, address(setup.target.integration), address(setup.target.refundAddress), bytes("")
-        );
-
-        genericRelayer.relay(setup.sourceChainId);
-
-        assertTrue(
-            (keccak256(setup.target.integration.getMessage()) != keccak256(message))
-                || (keccak256(message) == keccak256(bytes("")))
-        );
     }
 
     function testQuoteReceiverValueIsEnough(
@@ -1324,7 +1303,7 @@ contract WormholeRelayerTests is Test {
     ) public {
         StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
 
-        (IWormholeRelayerInternalStructs.DeliveryInstruction memory newInstruction, uint256 index) = setup
+        (IWormholeRelayerInternalStructs.DeliveryInstruction memory newInstruction,) = setup
             .source
             .coreRelayerFull
             .decodeDeliveryInstruction(setup.source.coreRelayerFull.encodeDeliveryInstruction(instruction), 0);
@@ -1334,7 +1313,7 @@ contract WormholeRelayerTests is Test {
     }
 
     function testDeliveryData(
-        GasParameters memory gasParams, FeeParameters memory feeParams, bytes memory message
+        GasParameters memory gasParams, FeeParameters memory feeParams
     ) public {
         StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
 

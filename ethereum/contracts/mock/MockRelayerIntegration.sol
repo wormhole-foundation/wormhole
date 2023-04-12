@@ -158,7 +158,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
     ) public payable returns (uint64 sequence) {
         IWormholeRelayer.MessageInfo[] memory messageInfos = new IWormholeRelayer.MessageInfo[](messages.length + 1);
         for (uint16 i = 0; i < messages.length; i++) {
-            uint64 sequence = wormhole.publishMessage{value: wormhole.messageFee()}(0, messages[i], 200);
+            sequence = wormhole.publishMessage{value: wormhole.messageFee()}(0, messages[i], 200);
             messageInfos[i] = IWormholeRelayer.MessageInfo(
                 IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE,
                 wormhole.chainId(),
@@ -236,17 +236,18 @@ contract MockRelayerIntegration is IWormholeReceiver {
         bytes[] memory messages = new bytes[](numObservations - 1);
         uint16 emitterChainId;
         for (uint256 i = 0; i < numObservations - 1; i++) {
-            (IWormhole.VM memory parsed, bool valid, string memory reason) =
+            (IWormhole.VM memory parsed_, bool valid_, string memory reason_) =
                 wormhole.parseAndVerifyVM(wormholeObservations[i]);
-            require(valid, reason);
+            require(valid_, reason_);
             //require(registeredContracts[parsed.emitterChainId] == parsed.emitterAddress, "Emitter address not valid");
-            emitterChainId = parsed.emitterChainId;
-            messages[i] = parsed.payload;
+            emitterChainId = parsed_.emitterChainId;
+            messages[i] = parsed_.payload;
         }
         messageHistory.push(messages);
 
         (IWormhole.VM memory parsed, bool valid, string memory reason) =
             wormhole.parseAndVerifyVM(wormholeObservations[numObservations - 1]);
+        require(valid, reason);
         FurtherInstructions memory instructions = decodeFurtherInstructions(parsed.payload);
         if (instructions.keepSending) {
             IWormholeRelayer.MessageInfo[] memory messageInfos =
@@ -328,9 +329,9 @@ contract MockRelayerIntegration is IWormholeReceiver {
         return bytes32(uint256(uint160(address(this))));
     }
 
-    function registerEmitter(uint16 chainId, bytes32 emitterAddress) public {
+    function registerEmitter(uint16 chainId, bytes32 emitterAddress_) public {
         require(msg.sender == owner);
-        registeredContracts[chainId] = emitterAddress;
+        registeredContracts[chainId] = emitterAddress_;
     }
 
     function registerEmitters(Structs.XAddress[] calldata emitters) public {
