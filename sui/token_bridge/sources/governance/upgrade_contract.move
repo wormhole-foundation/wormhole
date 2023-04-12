@@ -39,10 +39,7 @@ module token_bridge::upgrade_contract {
     /// a contract upgrade VAA. This governance message is only relevant for Sui
     /// because a contract upgrade is only relevant to one particular network
     /// (in this case Sui), whose build digest is encoded in this message.
-    ///
-    /// NOTE: This method is guarded by a minimum build version check. This
-    /// method could break backward compatibility on an upgrade.
-    public fun upgrade_contract(
+    public fun authorize_upgrade(
         token_bridge_state: &mut State,
         msg: GovernanceMessage
     ): UpgradeTicket {
