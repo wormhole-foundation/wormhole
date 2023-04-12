@@ -64,13 +64,6 @@ interface IRelayProvider {
     function getRewardAddress() external view returns (address payable rewardAddress);
 
     /**
-     * @notice This function specifies the consistencyLevel that will be put on all delivery VAAs for this provider.
-     * This function should return 200 if the RelayProvider supports delivery of instant VAAs.
-     *
-     */
-    function getConsistencyLevel() external view returns (uint8 consistencyLevel);
-
-    /**
      * @notice This function determines whether a relay provider supports deliveries to a given chain or not.
      *
      * @param targetChain - The chain which is being delivered to.

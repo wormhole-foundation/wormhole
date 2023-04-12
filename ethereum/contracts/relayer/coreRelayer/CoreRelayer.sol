@@ -24,8 +24,6 @@ contract CoreRelayer is CoreRelayerDelivery {
      *  @param receiverValue The amount (denominated in source chain currency) that will be converted to target chain currency and passed into the receiveWormholeMessage endpoint as value.
      *  If receiverValue >= quoteReceiverValue(targetChain, targetAmount, getDefaultRelayProvider()), then at least 'targetAmount' of targetChain currency will be passed into the 'receiveWormholeFunction' as value.
      *  @param payload An optional arbitrary payload that will be included in the delivery
-     *  @param wormholeMessageEmitterAddress emitter address identifying the wormhole message
-     *  @param wormholeMessageSequenceNumber sequence number identifying the wormhole message
      *
      *  This function must be called with a payment of at least maxTransactionFee + receiverValue + one wormhole message fee.
      *
@@ -39,17 +37,8 @@ contract CoreRelayer is CoreRelayerDelivery {
         uint16 refundChain,
         uint256 maxTransactionFee,
         uint256 receiverValue,
-        bytes memory payload,
-        address wormholeMessageEmitterAddress,
-        uint64 wormholeMessageSequenceNumber
+        bytes memory payload
     ) public payable returns (uint64 sequence) {
-        IWormholeRelayer.MessageInfo[] memory messageInfos = new IWormholeRelayer.MessageInfo[](1);
-        messageInfos[0] = IWormholeRelayer.MessageInfo({
-            infoType: IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE,
-            emitterAddress: toWormholeFormat(wormholeMessageEmitterAddress),
-            sequence: wormholeMessageSequenceNumber,
-            vaaHash: bytes32(0x0)
-        });
         sequence = send(
             IWormholeRelayer.Send(
                 targetChain,
@@ -61,8 +50,9 @@ contract CoreRelayer is CoreRelayerDelivery {
                 payload,
                 getDefaultRelayParams()
             ),
-            messageInfos,
-            getDefaultRelayProvider()
+            new IWormholeRelayer.MessageInfo[](0),
+            getDefaultRelayProvider(),
+            15 //finality on all EVM chains
         );
     }
 
@@ -100,7 +90,8 @@ contract CoreRelayer is CoreRelayerDelivery {
         uint256 maxTransactionFee,
         uint256 receiverValue,
         bytes memory payload,
-        IWormholeRelayer.MessageInfo[] memory messageInfos
+        IWormholeRelayer.MessageInfo[] memory messageInfos,
+        uint8 consistencyLevel
     ) external payable returns (uint64 sequence) {
         sequence = send(
             IWormholeRelayer.Send(
@@ -114,7 +105,8 @@ contract CoreRelayer is CoreRelayerDelivery {
                 getDefaultRelayParams()
             ),
             messageInfos,
-            getDefaultRelayProvider()
+            getDefaultRelayProvider(),
+            consistencyLevel
         );
     }
 
@@ -141,10 +133,11 @@ contract CoreRelayer is CoreRelayerDelivery {
     function send(
         IWormholeRelayer.Send memory request,
         IWormholeRelayer.MessageInfo[] memory messageInfos,
-        address relayProvider
+        address relayProvider,
+        uint8 consistencyLevel
     ) public payable returns (uint64 sequence) {
         // call multichainSend with one 'Send' in the requests array
-        sequence = multichainSend(multichainSendContainer(request, relayProvider, messageInfos));
+        sequence = multichainSend(multichainSendContainer(request, relayProvider, messageInfos, consistencyLevel));
     }
 
     /**
@@ -192,7 +185,8 @@ contract CoreRelayer is CoreRelayerDelivery {
         uint256 maxTransactionFee,
         uint256 receiverValue,
         bytes memory payload,
-        IWormholeRelayer.MessageInfo[] memory messageInfos
+        IWormholeRelayer.MessageInfo[] memory messageInfos,
+        uint8 consistencyLevel
     ) external payable {
         forward(
             IWormholeRelayer.Send(
@@ -206,7 +200,8 @@ contract CoreRelayer is CoreRelayerDelivery {
                 getDefaultRelayParams()
             ),
             messageInfos,
-            getDefaultRelayProvider()
+            getDefaultRelayProvider(),
+            consistencyLevel
         );
     }
 
@@ -246,10 +241,11 @@ contract CoreRelayer is CoreRelayerDelivery {
     function forward(
         IWormholeRelayer.Send memory request,
         IWormholeRelayer.MessageInfo[] memory messageInfos,
-        address relayProvider
+        address relayProvider,
+        uint8 consistencyLevel
     ) public payable {
         // call multichainForward with one 'Send' in the requests array
-        multichainForward(multichainSendContainer(request, relayProvider, messageInfos));
+        multichainForward(multichainSendContainer(request, relayProvider, messageInfos, consistencyLevel));
     }
 
     /**
@@ -294,7 +290,7 @@ contract CoreRelayer is CoreRelayerDelivery {
         // Publish a wormhole message indicating to the relay provider (who is watching wormhole messages from this contract)
         // to relay the messages from this transaction (of nonce 'nonce') to the specified chains, each with the calculated amount of gas and receiverValue
         sequence = wormhole.publishMessage{value: wormholeMessageFee}(
-            0, encodeDeliveryInstructionsContainer(instructionsContainer), relayProvider.getConsistencyLevel()
+            0, encodeDeliveryInstructionsContainer(instructionsContainer), sendContainer.consistencyLevel
         );
 
         // Pay the relay provider
@@ -349,6 +345,7 @@ contract CoreRelayer is CoreRelayerDelivery {
         setForwardInstruction(
             IWormholeRelayerInternalStructs.ForwardInstruction({
                 container: encodeDeliveryInstructionsContainer(instructionsContainer),
+                consistencyLevel: sendContainer.consistencyLevel,
                 msgValue: msg.value,
                 totalFee: totalFee,
                 sender: msg.sender,
