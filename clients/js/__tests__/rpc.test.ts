@@ -6,7 +6,7 @@ describe("worm rpc", () => {
     const FIRST_POSITIONAL_ARGUMENT = "<network>";
     const SECOND_POSITIONAL_ARGUMENT = "<chain>";
 
-    it(`should has correct positional arguments`, async () => {
+    it(`should have correct positional arguments`, async () => {
       const command = await yargs.command(require("../cmds/rpc")).help();
 
       // Run the command module with --help as argument

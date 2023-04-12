@@ -5,7 +5,7 @@ describe("worm chain-id", () => {
   describe("check arguments", () => {
     const FIRST_POSITIONAL_ARGUMENT = "<chain>";
 
-    it(`should has correct positional arguments`, async () => {
+    it(`should have correct positional arguments`, async () => {
       const command = await yargs.command(require("../cmds/chainId")).help();
 
       // Run the command module with --help as argument

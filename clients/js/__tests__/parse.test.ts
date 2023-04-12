@@ -5,7 +5,7 @@ describe("worm parse", () => {
   describe("check commands", () => {
     const FIRST_POSITIONAL_ARGUMENT = "<vaa>";
 
-    it(`should has correct commands`, async () => {
+    it(`should have correct commands`, async () => {
       const command = await yargs.command(require("../cmds/parse")).help();
 
       // Run the command module with --help as argument

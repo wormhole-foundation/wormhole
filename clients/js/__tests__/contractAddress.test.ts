@@ -7,7 +7,7 @@ describe("worm contract", () => {
     const SECOND_POSITIONAL_ARGUMENT = "<chain>";
     const THIRD_POSITIONAL_ARGUMENT = "<module>";
 
-    it(`should has correct positional arguments`, async () => {
+    it(`should have correct positional arguments`, async () => {
       const command = await yargs
         .command(require("../cmds/contractAddress"))
         .help();

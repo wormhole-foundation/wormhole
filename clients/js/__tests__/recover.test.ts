@@ -6,7 +6,7 @@ describe("worm recover", () => {
     const FIRST_POSITIONAL_ARGUMENT = "<digest>";
     const SECOND_POSITIONAL_ARGUMENT = "<signature>";
 
-    it(`should has correct positional arguments`, async () => {
+    it(`should have correct positional arguments`, async () => {
       const command = await yargs.command(require("../cmds/recover")).help();
 
       // Run the command module with --help as argument
