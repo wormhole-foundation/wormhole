@@ -25,7 +25,8 @@ use k256::{
         recoverable::{Id as RecoverableId, Signature as RecoverableSignature},
         Signature, VerifyingKey,
     },
-    EncodedPoint,
+    elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint},
+    AffinePoint, EncodedPoint,
 };
 use sha3::{Digest, Keccak256};
 
@@ -208,7 +209,7 @@ fn parse_and_verify_vaa(
             .or_else(|_| ContractError::CannotDecodeSignature.std_err())?;
 
         let verify_key = recoverable_signature
-            .recover_verify_key_from_digest_bytes(GenericArray::from_slice(vaa.hash.as_slice()))
+            .recover_verifying_key_from_digest_bytes(GenericArray::from_slice(vaa.hash.as_slice()))
             .or_else(|_| ContractError::CannotRecoverKey.std_err())?;
 
         let index = index as usize;
@@ -377,13 +378,16 @@ pub fn query_state(deps: Deps) -> StdResult<GetStateResponse> {
 fn keys_equal(a: &VerifyingKey, b: &GuardianAddress) -> bool {
     let mut hasher = Keccak256::new();
 
-    let point = if let Some(p) = EncodedPoint::from(a).decompress() {
-        p
+    let affine_point_option = AffinePoint::from_encoded_point(&EncodedPoint::from(a));
+    let affine_point = if affine_point_option.is_some().into() {
+        affine_point_option.unwrap()
     } else {
         return false;
     };
 
-    hasher.update(&point.as_bytes()[1..]);
+    let decompressed_point = affine_point.to_encoded_point(false);
+
+    hasher.update(&decompressed_point.as_bytes()[1..]);
     let a = &hasher.finalize()[12..];
 
     let b = &b.bytes;
@@ -408,7 +412,8 @@ mod test {
     use super::keys_equal;
 
     const DECOMPRESSED_KEY: &str = "049678ad0aa2fbd7f212239e21ed1472e84ca558fecf70a54bbf7901d89c306191c52e7f10012960085ecdbbeeb22e63a8e86b58f788990b4db53cdf4e0a55ac1e";
-    const COMPRESSED_KEY: &str = "029678ad0aa2fbd7f212239e21ed1472e84ca558fecf70a54bbf7901d89c306191";
+    const COMPRESSED_KEY: &str =
+        "029678ad0aa2fbd7f212239e21ed1472e84ca558fecf70a54bbf7901d89c306191";
     const ADDRESS: &str = "54dbb737eac5007103e729e9ab7ce64a6850a310";
 
     fn test_keys_equal(point: Vec<u8>) {
@@ -432,9 +437,7 @@ mod test {
 
     #[test]
     fn keys_equal_compressed_point() {
-        let compressed_point =
-            hex::decode(COMPRESSED_KEY)
-                .unwrap();
+        let compressed_point = hex::decode(COMPRESSED_KEY).unwrap();
         test_keys_equal(compressed_point)
     }
 }

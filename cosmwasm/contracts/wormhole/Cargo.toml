@@ -24,7 +24,7 @@ cosmwasm-storage = { version = "1.0.0" }
 schemars = "0.8.8"
 serde = { version = "1.0.137", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.31" }
-k256 = { version = "0.9.4", default-features = false, features = ["ecdsa"] }
+k256 = { version = "0.11", default-features = false, features = ["ecdsa"] }
 sha3 = { version = "0.9.1", default-features = false }
 generic-array = { version = "0.14.4" }
 hex = "0.4.2"
