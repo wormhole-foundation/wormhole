@@ -234,7 +234,7 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
             if(!success){
                 return false;
             }
-            payRefundRemote(instruction, refundAmount, provider);   
+            refundPaidToRefundAddress = payRefundRemote(instruction, refundAmount, provider);   
         }
     }
 
@@ -248,12 +248,16 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
         uint256 overhead = wormholeMessageFee + provider.quoteDeliveryOverhead(instruction.refundChain);
 
         if (refundAmount > overhead) {
+            IWormholeRelayerInternalStructs.DeliveryInstructionsContainer memory container = getInstructionsForEmptyMessageWithReceiverValue(
+                        instruction.refundChain, instruction.refundAddress, refundAmount - overhead, provider
+            );
+            if(container.instructions[0].receiverValueTarget == 0) {
+                return false;
+            }
             wormhole.publishMessage{value: wormholeMessageFee}(
                 0,
                 encodeDeliveryInstructionsContainer(
-                    getInstructionsForEmptyMessageWithReceiverValue(
-                        instruction.refundChain, instruction.refundAddress, refundAmount - overhead, provider
-                    )
+                    container
                 ),
                 200 // consistencyLevel, remote refunds are emitted instantly
             );

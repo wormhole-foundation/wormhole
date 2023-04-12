@@ -380,7 +380,9 @@ contract WormholeRelayerTests is Test {
             USDcost -= map[setup.targetChainId].wormhole.messageFee() * feeParams.targetNativePrice;
         }
 
-        assertTrue(setup.source.rewardAddress.balance > rewardAddressBalance, "The cross chain refund went through");
+        if(refundRelayerProfit > 0) {
+            assertTrue(setup.source.refundAddress.balance > refundAddressBalance, "The cross chain refund went through");
+        }
         assertTrue(USDcost - (relayerProfit + refundRelayerProfit) >= 0, "We paid enough");
         assertTrue(
             USDcost - (relayerProfit + refundRelayerProfit) < uint256(0) + feeParams.targetNativePrice + feeParams.sourceNativePrice,
