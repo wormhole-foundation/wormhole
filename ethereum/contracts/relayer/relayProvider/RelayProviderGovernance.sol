@@ -70,7 +70,7 @@ abstract contract RelayProviderGovernance is RelayProviderGetters, RelayProvider
     }
 
     function updateTargetChainAddress(uint16 targetChain, bytes32 newAddress) public onlyOwner {
-        updateTargetChainAddressImpl(newAddress, targetChain);
+        updateTargetChainAddressImpl( targetChain, newAddress);
     }
 
     function updateTargetChainAddresses(RelayProviderStructs.TargetChainUpdate[] memory updates) external onlyOwner {
@@ -85,8 +85,8 @@ abstract contract RelayProviderGovernance is RelayProviderGetters, RelayProvider
     }
 
     function updateTargetChainAddressImpl( uint16 targetChain, bytes32 newAddress) internal {
-        setTargetChainAddress(newAddress, targetChain);
-        emit TargetChainAddressUpdated(newAddress, targetChain);
+        setTargetChainAddress(targetChain, newAddress);
+        emit TargetChainAddressUpdated(targetChain, newAddress);
     }
 
     function updateDeliverGasOverhead(uint16 chainId, uint32 newGasOverhead) external onlyOwner {
@@ -203,7 +203,7 @@ abstract contract RelayProviderGovernance is RelayProviderGetters, RelayProvider
                 updatePriceImpl(update.chainId, update.gasPrice, update.nativeCurrencyPrice);
             }
             if (update.updateTargetChainAddress) {
-                updateTargetChainAddressImpl(update.targetChainAddress, update.chainId);
+                updateTargetChainAddressImpl(update.chainId, update.targetChainAddress);
             }
             if (update.updateDeliverGasOverhead) {
                 updateDeliverGasOverheadImpl(update.chainId, update.newGasOverhead);
