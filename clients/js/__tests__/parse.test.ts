@@ -3,7 +3,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 
 describe("worm parse", () => {
   describe("check commands", () => {
-    const FIRST_COMMAND = "parse <vaa>";
+    const FIRST_POSITIONAL_ARGUMENT = "<vaa>";
 
     it(`should has correct commands`, async () => {
       const command = await yargs.command(require("../cmds/parse")).help();
@@ -16,7 +16,7 @@ describe("worm parse", () => {
         });
       });
 
-      expect(output).toContain(FIRST_COMMAND);
+      expect(output).toContain(FIRST_POSITIONAL_ARGUMENT);
     });
   });
 
