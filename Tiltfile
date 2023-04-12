@@ -716,10 +716,10 @@ if sui:
     docker_build(
         ref = "sui-node",
         target = "sui",
-        context = "sui",
+        context = ".",
         dockerfile = "sui/Dockerfile",
         ignore = ["./sui/sui.log*", "sui/sui.log*", "sui.log.*"],
-        only = [],
+        only = ["./sui", "./clients/js"],
     )
 
     k8s_resource(

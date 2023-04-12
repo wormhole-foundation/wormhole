@@ -1,24 +1,31 @@
-FROM ghcr.io/wormhole-foundation/sui:0.31.0_1@sha256:5df513dc4fa0317f3068929811b4fa205d55d9378ca0e12721512486471bf6a9 as sui
+FROM ghcr.io/wormhole-foundation/sui:0.31.0_2@sha256:64c47edd2ab6e6146c07e8835bb9e6d56bb64b4023903e9ff00205cafbeb0fc8 as sui
 
-RUN dnf -y install make git
+RUN dnf -y install make git npm
 
-COPY README.md cert.pem* /certs/
+COPY sui/README.md sui/cert.pem* /certs/
 RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/certs/ca-certificates.crt; fi
 RUN if [ -e /certs/cert.pem ]; then git config --global http.sslCAInfo /certs/cert.pem; fi
 
 RUN sui genesis -f
 
-COPY devnet/ /root/.sui/sui_config/
+COPY sui/devnet/ /root/.sui/sui_config/
+
+# Build CLI, TODO(aki): move this to base image before merging into main
+RUN npm install -g n typescript ts-node
+RUN n stable
+COPY clients/js /tmp/clients/js
+WORKDIR /tmp/clients/js
+RUN make install
 
 WORKDIR /tmp
 
-COPY scripts/ scripts
-COPY wormhole/ wormhole
-COPY token_bridge/ token_bridge
-COPY testing/ testing
-COPY examples/ examples
-COPY Makefile Makefile
-COPY .env* .
+COPY sui/scripts/ scripts
+COPY sui/wormhole/ wormhole
+COPY sui/token_bridge/ token_bridge
+COPY sui/testing/ testing
+COPY sui/examples/ examples
+COPY sui/Makefile Makefile
+COPY sui/.env* .
 
 FROM sui AS tests
 

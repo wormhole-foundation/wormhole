@@ -207,16 +207,12 @@ jobs:
   sui:
     name: Sui
     runs-on: ubuntu-20.04
-    defaults:
-      run:
-        shell: bash
-        working-directory: ./sui
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
 
       - name: Run tests via docker
-        run: make test-docker
+        run: cd sui && make test-docker
 
   terra:
     runs-on: ubuntu-20.04
