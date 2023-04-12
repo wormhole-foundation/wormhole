@@ -1,5 +1,7 @@
+// Example wrapped coin for testing purposes 
+
 #[test_only]
-module coin_wrapped_12::coin {
+module coins::coin {
     use sui::transfer::{Self};
     use sui::tx_context::{Self, TxContext};
 
@@ -55,7 +57,7 @@ module coin_wrapped_12::coin {
 }
 
 #[test_only]
-module coin_wrapped_12::coin_tests {
+module coins::coin_tests {
     use sui::test_scenario::{Self};
     use token_bridge::asset_meta::{Self};
     use token_bridge::create_wrapped::{Self, WrappedAssetSetup};
@@ -72,11 +74,11 @@ module coin_wrapped_12::coin_tests {
     use token_bridge::token_registry::{Self};
     use token_bridge::wrapped_asset::{Self};
 
-    use coin_wrapped_12::coin::{Self as coin_wrapped_12, COIN};
+    use coins::coin::{Self as coins, COIN};
 
     #[test]
     public fun test_native_decimals() {
-        let meta = coin_wrapped_12::token_meta();
+        let meta = coins::token_meta();
         assert!(asset_meta::native_decimals(&meta) == 12, 0);
         asset_meta::destroy(meta);
     }
@@ -100,7 +102,7 @@ module coin_wrapped_12::coin_tests {
         test_scenario::next_tx(scenario, coin_deployer);
 
         // Publish coin.
-        coin_wrapped_12::init_test_only(test_scenario::ctx(scenario));
+        coins::init_test_only(test_scenario::ctx(scenario));
 
         test_scenario::next_tx(scenario, coin_deployer);
 
@@ -127,7 +129,7 @@ module coin_wrapped_12::coin_tests {
             native_decimals,
             symbol,
             name
-        ) = asset_meta::unpack(coin_wrapped_12::token_meta());
+        ) = asset_meta::unpack(coins::token_meta());
 
         // Check registry.
         {
@@ -158,7 +160,7 @@ module coin_wrapped_12::coin_tests {
         create_wrapped::update_attestation<COIN>(
             &mut token_bridge_state,
             &worm_state,
-            coin_wrapped_12::encoded_updated_vaa(),
+            coins::encoded_updated_vaa(),
             &the_clock
         );
 
@@ -172,7 +174,7 @@ module coin_wrapped_12::coin_tests {
             _,
             new_symbol,
             new_name
-        ) = asset_meta::unpack(coin_wrapped_12::updated_token_meta());
+        ) = asset_meta::unpack(coins::updated_token_meta());
 
         assert!(symbol != new_symbol, 0);
         assert!(wrapped_asset::symbol(metadata) == new_symbol, 0);
