@@ -13,7 +13,7 @@ import { GRContext } from "./app";
 
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 import { GetARGsTypeFromFactory } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts/commons";
-import { getAppConfig } from "./env";
+import { loadAppConfig } from "./env";
 import { ethers } from "ethers";
 
 export async function processGenericRelayerVaa(ctx: GRContext, next: Next) {
@@ -60,7 +60,7 @@ async function processDelivery(ctx: GRContext) {
 
   const results: Uint8Array[] = [];
 
-  const appConfig = getAppConfig();
+  const appConfig = loadAppConfig();
 
   //TODO not anything even resembling this
   try {
