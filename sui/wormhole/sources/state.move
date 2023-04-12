@@ -199,6 +199,13 @@ module wormhole::state {
             consume_migrate_ticket(self);
         };
 
+        // Save current package ID before committing upgrade.
+        field::add(
+            &mut self.id,
+            b"current_package_id",
+            package::upgrade_package(&self.upgrade_cap)
+        );
+
         let policy = package::upgrade_policy(&self.upgrade_cap);
 
         // Finally authorize upgrade.
@@ -221,9 +228,6 @@ module wormhole::state {
             package::version(&self.upgrade_cap) == control::version(),
             E_BUILD_VERSION_MISMATCH
         );
-
-        // Save current package ID before committing upgrade.
-        let current_package_id = package::upgrade_package(&self.upgrade_cap);
 
         // Uptick the upgrade cap version number using this receipt.
         package::commit_upgrade(&mut self.upgrade_cap, receipt);
@@ -252,8 +256,11 @@ module wormhole::state {
         // See `migrate` module for more info.
         field::add(&mut self.id, b"migrate", MigrateTicket {});
 
-        // Return the latest package ID.
-        (current_package_id, package::upgrade_package(&self.upgrade_cap))
+        // Return the package IDs.
+        (
+            field::remove(&mut self.id, b"current_package_id"),
+            package::upgrade_package(&self.upgrade_cap)
+        )
     }
 
     /// Enforce a particular method to use the current build version as its
