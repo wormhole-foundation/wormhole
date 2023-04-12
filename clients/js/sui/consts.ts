@@ -15,9 +15,9 @@ export const SUI_OBJECT_IDS = {
   },
   DEVNET: {
     core_state:
-      "0x363f879229a8c71bdf2c739864d236d30437acc01b664ffd4799037398861440",
+      "0x3f1cf66ea19cbef95205a36c69b6bc04a6097174f47a84944072b63983a0a63c",
     token_bridge_state:
-      "0xd194d83e1e8839ec80179fd7b5f0d14de4a906adda3d8f119c24ee0c8f3964f9",
+      "0x92c5755e78b9462a9f0cef556dc8e5b3d80d81bc7738bd8104bcabcf50a4a3c6",
   },
 };
 
