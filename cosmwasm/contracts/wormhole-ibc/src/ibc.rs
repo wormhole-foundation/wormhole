@@ -68,14 +68,9 @@ pub fn ibc_channel_connect(
 pub fn ibc_channel_close(
     _deps: DepsMut,
     _env: Env,
-    msg: IbcChannelCloseMsg,
+    _msg: IbcChannelCloseMsg,
 ) -> StdResult<IbcBasicResponse> {
-    let channel = msg.channel();
-    let channel_id = &channel.endpoint.channel_id;
-
-    Ok(IbcBasicResponse::new()
-        .add_attribute("action", "ibc_close")
-        .add_attribute("channel_id", channel_id))
+    Err(StdError::generic_err("user cannot close channel"))
 }
 
 /// 4. Receiving a packet.
@@ -86,9 +81,9 @@ pub fn ibc_packet_receive(
     _env: Env,
     _msg: IbcPacketReceiveMsg,
 ) -> StdResult<IbcReceiveResponse> {
-    Ok(IbcReceiveResponse::new()
-        .set_ack(b"{}")
-        .add_attribute("action", "ibc_packet_ack"))
+    Err(StdError::generic_err(
+        "receive should never be called as this contract should never receive packets",
+    ))
 }
 
 /// 5. Acknowledging a packet. Called when the other chain successfully receives a packet from us.

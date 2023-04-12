@@ -65,14 +65,9 @@ pub fn ibc_channel_connect(
 pub fn ibc_channel_close(
     _deps: DepsMut,
     _env: Env,
-    msg: IbcChannelCloseMsg,
+    _msg: IbcChannelCloseMsg,
 ) -> StdResult<IbcBasicResponse> {
-    let channel = msg.channel();
-    let channel_id = &channel.endpoint.channel_id;
-
-    Ok(IbcBasicResponse::new()
-        .add_attribute("action", "ibc_close")
-        .add_attribute("channel_id", channel_id))
+    Err(StdError::generic_err("user cannot close channel"))
 }
 
 /// 4. Receiving a packet.
@@ -133,7 +128,9 @@ pub fn ibc_packet_ack(
     _env: Env,
     _msg: IbcPacketAckMsg,
 ) -> StdResult<IbcBasicResponse> {
-    Ok(IbcBasicResponse::new().add_attribute("action", "ibc_packet_ack"))
+    Err(StdError::generic_err(
+        "ack should never be called as this contract never sends packets",
+    ))
 }
 
 /// 6. Timing out a packet. Called when the packet was not recieved on the other chain before the timeout.
@@ -144,7 +141,9 @@ pub fn ibc_packet_timeout(
     _env: Env,
     _msg: IbcPacketTimeoutMsg,
 ) -> StdResult<IbcBasicResponse> {
-    Ok(IbcBasicResponse::new().add_attribute("action", "ibc_packet_timeout"))
+    Err(StdError::generic_err(
+        "timeout should never be called as this contract never sends packets",
+    ))
 }
 
 #[cfg(test)]
