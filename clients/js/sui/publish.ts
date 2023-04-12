@@ -28,7 +28,7 @@ export const publishPackage = async (
       dependencies: string[];
     } = JSON.parse(
       execSync(
-        `sui move build --dump-bytecode-as-base64 --path ${packagePath}`,
+        `sui move build --dump-bytecode-as-base64 --path ${packagePath} 2> /dev/null`,
         {
           encoding: "utf-8",
         }
