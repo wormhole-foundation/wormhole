@@ -814,7 +814,8 @@ export function isCosmWasmChain(
     chainId === CHAIN_ID_TERRA ||
     chainId === CHAIN_ID_TERRA2 ||
     chainId === CHAIN_ID_INJECTIVE ||
-    chainId === CHAIN_ID_XPLA
+    chainId === CHAIN_ID_XPLA ||
+    chainId === CHAIN_ID_SEI
   );
 }
 
