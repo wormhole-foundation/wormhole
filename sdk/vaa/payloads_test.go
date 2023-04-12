@@ -150,14 +150,14 @@ func TestBodyCircleIntegrationUpgradeContractImplementationSerialize(t *testing.
 	assert.Equal(t, expected, hex.EncodeToString(bodyCircleIntegrationUpgradeContractImplementation.Serialize()))
 }
 
-func TestBodyIbcReceiverUpdateChainConnection(t *testing.T) {
-	expected := "000000000000000000000000000000000000000000496263526563656976657201000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000636f6e6e656374696f6e2d300013"
+func TestBodyIbcReceiverUpdateChannelChain(t *testing.T) {
+	expected := "0000000000000000000000000000000000000000004962635265636569766572010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006368616e6e656c2d300013"
 
-	connectionId := GetIbcConnectionIdBytes("connection-0")
+	channelId := LeftPadIbcChannelId("channel-0")
 
-	bodyIbcReceiverUpdateChainConnection := BodyIbcReceiverUpdateChainConnection{
-		ConnectionId: connectionId,
-		ChainId:      ChainIDInjective,
+	bodyIbcReceiverUpdateChannelChain := BodyIbcReceiverUpdateChannelChain{
+		ChannelId: channelId,
+		ChainId:   ChainIDInjective,
 	}
-	assert.Equal(t, expected, hex.EncodeToString(bodyIbcReceiverUpdateChainConnection.Serialize()))
+	assert.Equal(t, expected, hex.EncodeToString(bodyIbcReceiverUpdateChannelChain.Serialize()))
 }

@@ -360,8 +360,8 @@ func circleIntegrationUpgradeContractImplementation(req *nodev1.CircleIntegratio
 	return v, nil
 }
 
-func ibcReceiverUpdateChainConnection(
-	req *nodev1.IbcReceiverUpdateChainConnection,
+func ibcReceiverUpdateChannelChain(
+	req *nodev1.IbcReceiverUpdateChannelChain,
 	timestamp time.Time,
 	guardianSetIndex uint32,
 	nonce uint32,
@@ -372,16 +372,16 @@ func ibcReceiverUpdateChainConnection(
 		return nil, fmt.Errorf("invalid chain id, must be <= %d", math.MaxUint16)
 	}
 
-	if len(req.ConnectionId) > 64 {
-		return nil, fmt.Errorf("invalid connection ID length, must be <= 64")
+	if len(req.ChannelId) > 64 {
+		return nil, fmt.Errorf("invalid channel ID length, must be <= 64")
 	}
-	connectionId := vaa.GetIbcConnectionIdBytes(req.ConnectionId)
+	channelId := vaa.LeftPadIbcChannelId(req.ChannelId)
 
 	// create governance VAA
 	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
-		vaa.BodyIbcReceiverUpdateChainConnection{
-			ConnectionId: connectionId,
-			ChainId:      vaa.ChainID(req.ChainId),
+		vaa.BodyIbcReceiverUpdateChannelChain{
+			ChannelId: channelId,
+			ChainId:   vaa.ChainID(req.ChainId),
 		}.Serialize())
 
 	return v, nil
@@ -423,8 +423,8 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 			v, err = circleIntegrationRegisterEmitterAndDomain(payload.CircleIntegrationRegisterEmitterAndDomain, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		case *nodev1.GovernanceMessage_CircleIntegrationUpgradeContractImplementation:
 			v, err = circleIntegrationUpgradeContractImplementation(payload.CircleIntegrationUpgradeContractImplementation, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
-		case *nodev1.GovernanceMessage_IbcReceiverUpdateChainConnection:
-			v, err = ibcReceiverUpdateChainConnection(payload.IbcReceiverUpdateChainConnection, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_IbcReceiverUpdateChannelChain:
+			v, err = ibcReceiverUpdateChannelChain(payload.IbcReceiverUpdateChannelChain, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		default:
 			panic(fmt.Sprintf("unsupported VAA type: %T", payload))
 		}

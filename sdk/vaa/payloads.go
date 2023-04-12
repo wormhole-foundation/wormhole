@@ -62,7 +62,7 @@ var (
 	CircleIntegrationActionUpgradeContractImplementation GovernanceAction = 3
 
 	// Ibc Receiver governance actions
-	IbcReceiverActionUpdateChainConnection GovernanceAction = 1
+	IbcReceiverActionUpdateChannelChain GovernanceAction = 1
 )
 
 type (
@@ -140,12 +140,12 @@ type (
 		NewImplementationAddress [32]byte
 	}
 
-	// BodyIbcReceiverUpdateChainConnection is a governance message to update the ibc connection_id -> chain_id mapping in the ibc_receiver contract
-	BodyIbcReceiverUpdateChainConnection struct {
-		// This should follow the IBC Identifier standard: https://github.com/cosmos/ibc/tree/main/spec/core/ics-024-host-requirements#paths-identifiers-separators
+	// BodyIbcReceiverUpdateChannelChain is a governance message to update the ibc channel_id -> chain_id mapping in the ibc_receiver contract
+	BodyIbcReceiverUpdateChannelChain struct {
+		// This should follow the IBC channel identifier standard: https://github.com/cosmos/ibc/tree/main/spec/core/ics-024-host-requirements#paths-identifiers-separators
 		// If the identifier string is shorter than 64 bytes, the correct number of 0x00 bytes should be prepended.
-		ConnectionId [64]byte
-		ChainId      ChainID
+		ChannelId [64]byte
+		ChainId   ChainID
 	}
 )
 
@@ -248,11 +248,11 @@ func (r BodyCircleIntegrationUpgradeContractImplementation) Serialize() []byte {
 	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionUpgradeContractImplementation, r.TargetChainID, payload.Bytes())
 }
 
-func (r BodyIbcReceiverUpdateChainConnection) Serialize() []byte {
+func (r BodyIbcReceiverUpdateChannelChain) Serialize() []byte {
 	payload := &bytes.Buffer{}
-	payload.Write(r.ConnectionId[:])
+	payload.Write(r.ChannelId[:])
 	MustWrite(payload, binary.BigEndian, r.ChainId)
-	return serializeBridgeGovernanceVaa(IbcReceiverModuleStr, IbcReceiverActionUpdateChainConnection, 0, payload.Bytes())
+	return serializeBridgeGovernanceVaa(IbcReceiverModuleStr, IbcReceiverActionUpdateChannelChain, 0, payload.Bytes())
 }
 
 func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chainId ChainID, payload []byte) []byte {
@@ -267,11 +267,11 @@ func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chai
 	return buf.Bytes()
 }
 
-func GetIbcConnectionIdBytes(connectionId string) [64]byte {
-	connectionIdBuf := LeftPadBytes(connectionId, 64)
-	var connectionIdFixedSize [64]byte
-	copy(connectionIdFixedSize[:], connectionIdBuf.Bytes())
-	return connectionIdFixedSize
+func LeftPadIbcChannelId(channelId string) [64]byte {
+	channelIdBuf := LeftPadBytes(channelId, 64)
+	var channelIdIdLeftPadded [64]byte
+	copy(channelIdIdLeftPadded[:], channelIdBuf.Bytes())
+	return channelIdIdLeftPadded
 }
 
 // Prepends 0x00 bytes to the payload buffer, up to a size of `length`

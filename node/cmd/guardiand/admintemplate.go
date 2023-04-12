@@ -38,8 +38,8 @@ var circleIntegrationForeignEmitterAddress *string
 var circleIntegrationCircleDomain *string
 var circleIntegrationNewImplementationAddress *string
 
-var ibcReceiverUpdateChainConnectionConnectionId *string
-var ibcReceiverUpdateChainConnectionChainId *string
+var ibcReceiverUpdateChannelChainChannelId *string
+var ibcReceiverUpdateChannelChainChainId *string
 
 func init() {
 	governanceFlagSet := pflag.NewFlagSet("governance", pflag.ExitOnError)
@@ -95,12 +95,12 @@ func init() {
 	AdminClientCircleIntegrationUpgradeContractImplementationCmd.Flags().AddFlagSet(circleIntegrationUpgradeContractImplementationFlagSet)
 	TemplateCmd.AddCommand(AdminClientCircleIntegrationUpgradeContractImplementationCmd)
 
-	// flags for the ibc-receiver-update-chain-connection command
-	ibcReceiverUpdateChainConnectionFlagSet := pflag.NewFlagSet("ibc-mapping", pflag.ExitOnError)
-	ibcReceiverUpdateChainConnectionConnectionId = ibcReceiverUpdateChainConnectionFlagSet.String("connection-id", "", "IBC Connection ID on Wormchain")
-	ibcReceiverUpdateChainConnectionChainId = ibcReceiverUpdateChainConnectionFlagSet.String("chain-id", "", "IBC Chain ID that the connection ID corresponds to")
-	AdminClientIbcReceiverUpdateChainConnectionCmd.Flags().AddFlagSet(ibcReceiverUpdateChainConnectionFlagSet)
-	TemplateCmd.AddCommand(AdminClientIbcReceiverUpdateChainConnectionCmd)
+	// flags for the ibc-receiver-update-channel-chain command
+	ibcReceiverUpdateChannelChainFlagSet := pflag.NewFlagSet("ibc-mapping", pflag.ExitOnError)
+	ibcReceiverUpdateChannelChainChannelId = ibcReceiverUpdateChannelChainFlagSet.String("channel-id", "", "IBC Channel ID on Wormchain")
+	ibcReceiverUpdateChannelChainChainId = ibcReceiverUpdateChannelChainFlagSet.String("chain-id", "", "IBC Chain ID that the channel ID corresponds to")
+	AdminClientIbcReceiverUpdateChannelChainCmd.Flags().AddFlagSet(ibcReceiverUpdateChannelChainFlagSet)
+	TemplateCmd.AddCommand(AdminClientIbcReceiverUpdateChannelChainCmd)
 }
 
 var TemplateCmd = &cobra.Command{
@@ -155,10 +155,10 @@ var AdminClientCircleIntegrationUpgradeContractImplementationCmd = &cobra.Comman
 	Run:   runCircleIntegrationUpgradeContractImplementationTemplate,
 }
 
-var AdminClientIbcReceiverUpdateChainConnectionCmd = &cobra.Command{
-	Use:   "ibc-receiver-update-chain-connection",
-	Short: "Generate an empty ibc receiver connectionId to chainId mapping update template at specified path",
-	Run:   runIbcReceiverUpdateChainConnectionTemplate,
+var AdminClientIbcReceiverUpdateChannelChainCmd = &cobra.Command{
+	Use:   "ibc-receiver-update-channel-chain",
+	Short: "Generate an empty ibc receiver channelId to chainId mapping update template at specified path",
+	Run:   runIbcReceiverUpdateChannelChainTemplate,
 }
 
 func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
@@ -470,18 +470,18 @@ func runCircleIntegrationUpgradeContractImplementationTemplate(cmd *cobra.Comman
 	fmt.Print(string(b))
 }
 
-func runIbcReceiverUpdateChainConnectionTemplate(cmd *cobra.Command, args []string) {
-	if *ibcReceiverUpdateChainConnectionConnectionId == "" {
-		log.Fatal("--connection-id must be specified")
+func runIbcReceiverUpdateChannelChainTemplate(cmd *cobra.Command, args []string) {
+	if *ibcReceiverUpdateChannelChainChannelId == "" {
+		log.Fatal("--channel-id must be specified")
 	}
-	if len(*ibcReceiverUpdateChainConnectionConnectionId) > 64 {
-		log.Fatal("invalid connection id length, must be <= 64")
+	if len(*ibcReceiverUpdateChannelChainChannelId) > 64 {
+		log.Fatal("invalid channel id length, must be <= 64")
 	}
 
-	if *ibcReceiverUpdateChainConnectionChainId == "" {
+	if *ibcReceiverUpdateChannelChainChainId == "" {
 		log.Fatal("--chain-id must be specified")
 	}
-	chainId, err := parseChainID(*ibcReceiverUpdateChainConnectionChainId)
+	chainId, err := parseChainID(*ibcReceiverUpdateChannelChainChainId)
 	if err != nil {
 		log.Fatal("failed to parse chain id: ", err)
 	}
@@ -492,10 +492,10 @@ func runIbcReceiverUpdateChainConnectionTemplate(cmd *cobra.Command, args []stri
 			{
 				Sequence: rand.Uint64(),
 				Nonce:    rand.Uint32(),
-				Payload: &nodev1.GovernanceMessage_IbcReceiverUpdateChainConnection{
-					IbcReceiverUpdateChainConnection: &nodev1.IbcReceiverUpdateChainConnection{
-						ConnectionId: *ibcReceiverUpdateChainConnectionConnectionId,
-						ChainId:      uint32(chainId),
+				Payload: &nodev1.GovernanceMessage_IbcReceiverUpdateChannelChain{
+					IbcReceiverUpdateChannelChain: &nodev1.IbcReceiverUpdateChannelChain{
+						ChannelId: *ibcReceiverUpdateChannelChainChannelId,
+						ChainId:   uint32(chainId),
 					},
 				},
 			},

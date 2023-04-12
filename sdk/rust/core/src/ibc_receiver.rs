@@ -6,11 +6,11 @@ use crate::Chain;
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Action {
     #[serde(rename = "1")]
-    UpdateChainConnection {
-        // an existing IBC connection ID
+    UpdateChannelChain {
+        // an existing IBC channel ID
         #[serde(with = "crate::serde_array")]
-        connection_id: [u8; 64],
-        // the chain associated with this IBC connection_id
+        channel_id: [u8; 64],
+        // the chain associated with this IBC channel_id
         chain_id: Chain,
     },
 }
@@ -72,9 +72,9 @@ mod governance_packet_impl {
 
     // governance actions
     #[derive(Serialize, Deserialize)]
-    struct UpdateChainConnection {
+    struct UpdateChannelChain {
         #[serde(with = "crate::serde_array")]
-        connection_id: [u8; 64],
+        channel_id: [u8; 64],
         chain_id: Chain,
     }
 
@@ -89,16 +89,16 @@ mod governance_packet_impl {
             // The wire format encodes the action before the chain and then appends the actual
             // action payload.
             match self.action.clone() {
-                Action::UpdateChainConnection {
-                    connection_id,
+                Action::UpdateChannelChain {
+                    channel_id,
                     chain_id,
                 } => {
                     seq.serialize_field("action", &1u8)?;
                     seq.serialize_field("chain", &self.chain)?;
                     seq.serialize_field(
                         "payload",
-                        &UpdateChainConnection {
-                            connection_id,
+                        &UpdateChannelChain {
+                            channel_id,
                             chain_id,
                         },
                     )?;
@@ -137,15 +137,15 @@ mod governance_packet_impl {
 
             let action = match act {
                 1 => {
-                    let UpdateChainConnection {
-                        connection_id,
+                    let UpdateChannelChain {
+                        channel_id,
                         chain_id,
                     } = seq
                         .next_element()?
                         .ok_or_else(|| Error::invalid_length(3, &EXPECTING))?;
 
-                    Action::UpdateChainConnection {
-                        connection_id,
+                    Action::UpdateChannelChain {
+                        channel_id,
                         chain_id,
                     }
                 }
@@ -211,13 +211,13 @@ mod governance_packet_impl {
 
                         let p = match a {
                             1 => {
-                                let UpdateChainConnection {
-                                    connection_id,
+                                let UpdateChannelChain {
+                                    channel_id,
                                     chain_id,
                                 } = map.next_value()?;
 
-                                Action::UpdateChainConnection {
-                                    connection_id,
+                                Action::UpdateChannelChain {
+                                    channel_id,
                                     chain_id,
                                 }
                             }
@@ -280,19 +280,19 @@ mod test {
             0x00, //  module = "IbcReceiver"
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x49, 0x62, 0x63, 0x52, 0x65, 0x63, 0x65,
-            0x69, 0x76, 0x65, 0x72, // action (IbcReceiverActionUpdateChainConnection)
+            0x69, 0x76, 0x65, 0x72, // action (IbcReceiverActionUpdateChannelChain)
             0x01, // target chain_id (unset)
-            0x00, 0x00, // IBC connection_id for the mapping ("connection-0")
+            0x00, 0x00, // IBC channel_id for the mapping ("channel-0")
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x63, 0x6f, 0x6e, 0x6e,
-            0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x2d, 0x30, // IBC chain_id for the mapping
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x63,
+            0x68, 0x61, 0x6e, 0x6e, 0x65, 0x6c, 0x2d, 0x30, // IBC chain_id for the mapping
             0x00, 0x13,
         ];
 
-        let connection_id_bytes: [u8; 64] =
-            *b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00connection-0";
+        let channel_id_bytes: [u8; 64] =
+            *b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00channel-0";
 
         let vaa = Vaa {
             version: 1,
@@ -315,8 +315,8 @@ mod test {
             consistency_level: 0,
             payload: GovernancePacket {
                 chain: Chain::Any,
-                action: Action::UpdateChainConnection {
-                    connection_id: connection_id_bytes,
+                action: Action::UpdateChannelChain {
+                    channel_id: channel_id_bytes,
                     chain_id: Chain::Injective,
                 },
             },

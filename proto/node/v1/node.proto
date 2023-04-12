@@ -102,7 +102,7 @@ message GovernanceMessage {
     CircleIntegrationUpgradeContractImplementation circle_integration_upgrade_contract_implementation = 20;
 
     // IBC Receiver Integration
-    IbcReceiverUpdateChainConnection ibc_receiver_update_chain_connection = 21;
+    IbcReceiverUpdateChannelChain ibc_receiver_update_channel_chain = 21;
   }
 }
 
@@ -239,10 +239,10 @@ message CircleIntegrationUpgradeContractImplementation {
   uint32 target_chain_id = 2;
 }
 
-message IbcReceiverUpdateChainConnection {
-  // IBC connection ID
-  string connection_id = 1;
-  // ChainID corresponding to the IBC connection
+message IbcReceiverUpdateChannelChain {
+  // IBC channel ID
+  string channel_id = 1;
+  // ChainID corresponding to the IBC channel
   uint32 chain_id = 2;
 }
 
