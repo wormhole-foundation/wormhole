@@ -1,12 +1,21 @@
 import yargs from "yargs";
+import { describe, expect, it } from "@jest/globals";
 
 describe("worm chain-id", () => {
-  const FIRST_POSITIONAL_ARGUMENT = "chain";
+  describe("check arguments", () => {
+    const FIRST_POSITIONAL_ARGUMENT = "<chain>";
 
-  it("should has <chain> as first positional argument", async () => {
-    const commandArgvs = await yargs.command(require("../cmds/chainId")).argv;
-    const argvList = commandArgvs._;
+    it(`should has ${FIRST_POSITIONAL_ARGUMENT} as first positional argument`, async () => {
+      const command = await yargs.command(require("../cmds/chainId")).help();
 
-    expect(argvList[0]).toEqual(FIRST_POSITIONAL_ARGUMENT);
+      // Run the command module with --help as argument
+      const output = await new Promise((resolve) => {
+        command.parse("--help", (_err, _argv, output) => {
+          resolve(output);
+        });
+      });
+
+      expect(output).toContain(FIRST_POSITIONAL_ARGUMENT);
+    });
   });
 });
