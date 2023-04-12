@@ -66,4 +66,8 @@ contract ForwardWrapper {
             msg.sender.call{value: msg.value}("");
         }
     }
+
+    function safeRelayProviderSupportsChain(IRelayProvider relayProvider, uint16 chainId) view external returns (bool isSupported){
+        return relayProvider.isChainSupported(chainId);
+    }
 }

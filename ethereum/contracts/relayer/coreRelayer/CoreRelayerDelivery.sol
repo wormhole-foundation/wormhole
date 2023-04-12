@@ -221,11 +221,20 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
             refundPaidToRefundAddress = pay(payable(fromWormholeFormat(instruction.refundAddress)), refundAmount);
         } else {
             IRelayProvider provider = IRelayProvider(fromWormholeFormat(relayerAddress));
-            if(!provider.isChainSupported(instruction.refundChain)){
+
+            (bool success, bytes memory data) = getWormholeRelayerCallerAddress().call(
+                abi.encodeWithSelector(IForwardWrapper.safeRelayProviderSupportsChain.selector, provider, instruction.refundChain));
+
+            if(!success){
                 return false;
-            } else {
-                refundPaidToRefundAddress = payRefundRemote(instruction, refundAmount, provider);   
             }
+
+            success = abi.decode(data, (bool));
+
+            if(!success){
+                return false;
+            }
+            payRefundRemote(instruction, refundAmount, provider);   
         }
     }
 
