@@ -3,6 +3,7 @@ build
 **/node_modules
 /aptos/.aptos/**
 .idea
+.vscode
 .dccache
 .arcconfig
 *.iml
