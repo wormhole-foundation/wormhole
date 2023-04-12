@@ -31,7 +31,7 @@ describe("worm contract", () => {
     const ETHEREUM_NFT_BRIDGE_CONTRACT =
       "0x6FFd7EdE62328b3Af38FCD61461Bbfc52F5651fE";
 
-    it(`should return solana core contract correctly`, async () => {
+    it(`should return solana core mainnet contract correctly`, async () => {
       const consoleSpy = jest.spyOn(console, "log");
 
       const command = yargs.command(require("../cmds/contractAddress")).help();
@@ -40,7 +40,7 @@ describe("worm contract", () => {
       expect(consoleSpy).toBeCalledWith(SOLANA_CORE_CONTRACT);
     });
 
-    it(`should return ethereum NFTBridge contract correctly`, async () => {
+    it(`should return ethereum mainnet NFTBridge contract correctly`, async () => {
       const consoleSpy = jest.spyOn(console, "log");
 
       const command = yargs.command(require("../cmds/contractAddress")).help();
