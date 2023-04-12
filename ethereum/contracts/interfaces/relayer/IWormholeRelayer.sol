@@ -85,6 +85,7 @@ interface IWormholeRelayer {
     ) external payable returns (uint64 sequence);
 
     enum MessageInfoType {
+        INVALID_TYPE,
         EMITTER_SEQUENCE,
         VAAHASH
     }

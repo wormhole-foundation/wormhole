@@ -278,7 +278,7 @@ contract CoreRelayerMessages is CoreRelayerGetters {
         uint256 overhead,
         IRelayProvider provider
     ) internal view returns (uint256 maximumRefund) {
-        if (maxTransactionFee >= overhead) {
+        if (maxTransactionFee > overhead) {
             (uint16 buffer, uint16 denominator) = provider.getAssetConversionBuffer(targetChain);
             uint256 remainder = maxTransactionFee - overhead;
             maximumRefund = assetConversionHelper(
@@ -416,16 +416,16 @@ contract CoreRelayerMessages is CoreRelayerGetters {
             revert InvalidPayloadId(payloadId);
         }
 
-        IWormholeRelayer.MessageInfoType infoType = IWormholeRelayer.MessageInfoType(encoded.toUint8(index));
+        messageInfo.infoType = IWormholeRelayer.MessageInfoType(encoded.toUint8(index));
         index += 1;
-
-        if (infoType == IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE) {
+        
+        if (messageInfo.infoType == IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE) {
             messageInfo.emitterAddress = encoded.toBytes32(index);
             index += 32;
 
             messageInfo.sequence = encoded.toUint64(index);
             index += 8;
-        } else if (infoType == IWormholeRelayer.MessageInfoType.VAAHASH) {
+        } else if (messageInfo.infoType == IWormholeRelayer.MessageInfoType.VAAHASH) {
             messageInfo.vaaHash = encoded.toBytes32(index);
             index += 32;
         }
