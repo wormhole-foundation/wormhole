@@ -4,9 +4,10 @@ use cosmwasm_std::entry_point;
 use crate::ibc::PACKET_LIFETIME;
 use anyhow::Context;
 use cosmwasm_std::{
-    to_binary, DepsMut, Env, IbcMsg, IbcQuery, ListChannelsResponse, MessageInfo, Response,
+    to_binary, Binary, Deps, DepsMut, Env, IbcMsg, IbcQuery, ListChannelsResponse, MessageInfo,
+    Response, StdResult,
 };
-use wormhole::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg};
+use wormhole::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
 use crate::msg::WormholeIbcPacketMsg;
 
@@ -100,6 +101,12 @@ fn post_message_ibc(
     Ok(res
         .add_attribute("is_ibc", true.to_string())
         .add_message(ibc_msg))
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    // defer to the core contract logic for all query handling
+    wormhole::contract::query(deps, env, msg)
 }
 
 #[cfg(test)]
