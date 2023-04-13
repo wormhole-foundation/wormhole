@@ -30,7 +30,7 @@ async function main() {
   const { env, opts, relayProviders, wormholeRelayers } = await loadAppConfig();
   // gets mangled by app constructor somehow...
   const logger = opts.logger!;
-
+  dbg(opts.redis, "redis config");
   const app = new StandardRelayerApp<GRContext>(env, opts);
 
   // Set up middleware
