@@ -69,7 +69,7 @@ export function stringifyWormholeRelayerInfo(info: DeliveryInfo): string {
         let result = "";
         result += `\n(Message ${i}): `;
         if (msgInfo.payloadType == MessageInfoType.EMITTER_SEQUENCE) {
-          result += `Message with emitter address ${msgInfo.emitterAddress?.toString(
+          result += `Message from ${msgInfo.chainId ? printChain(msgInfo.chainId) : ""}, emitter address ${msgInfo.emitterAddress?.toString(
             "hex"
           )} and sequence number ${msgInfo.sequence}\n`;
         } else if (msgInfo.payloadType == MessageInfoType.VAAHASH) {

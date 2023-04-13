@@ -33,8 +33,8 @@ contract CoreRelayer is CoreRelayerDelivery {
     function send(
         uint16 targetChain,
         bytes32 targetAddress,
-        bytes32 refundAddress,
         uint16 refundChain,
+        bytes32 refundAddress,
         uint256 maxTransactionFee,
         uint256 receiverValue,
         bytes memory payload
@@ -43,8 +43,8 @@ contract CoreRelayer is CoreRelayerDelivery {
             IWormholeRelayer.Send(
                 targetChain,
                 targetAddress,
-                refundAddress,
                 refundChain,
+                refundAddress,
                 maxTransactionFee,
                 receiverValue,
                 payload,
@@ -85,8 +85,8 @@ contract CoreRelayer is CoreRelayerDelivery {
     function send(
         uint16 targetChain,
         bytes32 targetAddress,
-        bytes32 refundAddress,
         uint16 refundChain,
+        bytes32 refundAddress,
         uint256 maxTransactionFee,
         uint256 receiverValue,
         bytes memory payload,
@@ -97,8 +97,8 @@ contract CoreRelayer is CoreRelayerDelivery {
             IWormholeRelayer.Send(
                 targetChain,
                 targetAddress,
-                refundAddress,
                 refundChain,
+                refundAddress,
                 maxTransactionFee,
                 receiverValue,
                 payload,
@@ -180,8 +180,8 @@ contract CoreRelayer is CoreRelayerDelivery {
     function forward(
         uint16 targetChain,
         bytes32 targetAddress,
-        bytes32 refundAddress,
         uint16 refundChain,
+        bytes32 refundAddress,
         uint256 maxTransactionFee,
         uint256 receiverValue,
         bytes memory payload,
@@ -192,8 +192,8 @@ contract CoreRelayer is CoreRelayerDelivery {
             IWormholeRelayer.Send(
                 targetChain,
                 targetAddress,
-                refundAddress,
                 refundChain,
+                refundAddress,
                 maxTransactionFee,
                 receiverValue,
                 payload,

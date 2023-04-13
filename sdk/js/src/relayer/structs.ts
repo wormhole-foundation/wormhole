@@ -27,6 +27,7 @@ export interface DeliveryInstructionsContainer {
 
 export interface MessageInfo {
   payloadType: MessageInfoType;
+  chainId ?: number;
   emitterAddress?: Buffer;
   sequence?: BigNumber;
   vaaHash?: Buffer;
@@ -164,6 +165,8 @@ function parseMessageInfo(bytes: Buffer, idx: number): [MessageInfo, number] {
   dbg(payloadType, "payloadType");
   if (payloadType == MessageInfoType.EMITTER_SEQUENCE) {
     dbg(null, "parsingEmitterSequence");
+    const chainId = bytes.readUInt16BE(idx);
+    idx += 2;
     const emitterAddress = bytes.slice(idx, idx + 32);
     idx += 32;
     const sequence = ethers.BigNumber.from(
@@ -173,6 +176,7 @@ function parseMessageInfo(bytes: Buffer, idx: number): [MessageInfo, number] {
     return [
       {
         payloadType,
+        chainId,
         emitterAddress,
         sequence,
       },
