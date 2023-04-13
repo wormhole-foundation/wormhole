@@ -1,6 +1,7 @@
 import * as fs from "fs/promises";
 import yargs from "yargs";
-import * as Koa from "koa";
+import Koa from "koa";
+import Router from "koa-router";
 import {
   Environment,
   Next,
@@ -16,7 +17,7 @@ import {
 } from "@certusone/wormhole-sdk";
 import { processGenericRelayerVaa } from "./processor";
 import { Logger } from "winston";
-import * as deepCopy from "clone";
+import deepCopy from "clone";
 import { GRRelayerAppConfig, loadAppConfig } from "./env";
 import { dbg } from "../pkgs/sdk/src";
 
@@ -45,11 +46,19 @@ async function main() {
   app.multiple(deepCopy(wormholeRelayers), processGenericRelayerVaa);
 
   app.listen();
-  runUI(app, opts, logger);
+  runApi(app, opts, logger);
 }
 
-function runUI(relayer: any, { port }: any, logger: Logger) {
+function runApi(relayer: any, { port }: any, logger: Logger) {
   const app = new Koa();
+  const router = new Router();
+
+  router.get('/metrics', async (ctx: Koa.Context) => {
+    ctx.body = await relayer.metricsRegistry?.metrics();
+  });
+  
+  app.use(router.routes());
+  app.use(router.allowedMethods());
 
   app.use(relayer.storageKoaUI("/ui"));
 
@@ -57,6 +66,7 @@ function runUI(relayer: any, { port }: any, logger: Logger) {
   app.listen(port, () => {
     logger.info(`Running on ${port}...`);
     logger.info(`For the UI, open http://localhost:${port}/ui`);
+    logger.info(`For prometheus metrics, open http://localhost:${port}/metrics`);
     logger.info("Make sure Redis is running on port 6379 by default");
   });
 }
