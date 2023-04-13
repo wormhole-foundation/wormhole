@@ -6,12 +6,15 @@
 ///
 /// See `state` module for more details.
 module token_bridge::token_registry {
+    use std::ascii::{String};
+    use std::type_name::{Self};
     use sui::balance::{Supply};
     use sui::coin::{CoinMetadata};
     use sui::dynamic_field::{Self};
     use sui::object::{Self, UID};
+    use sui::table::{Self, Table};
     use sui::tx_context::{TxContext};
-    use wormhole::external_address::{ExternalAddress};
+    use wormhole::external_address::{Self, ExternalAddress};
 
     use token_bridge::asset_meta::{Self, AssetMeta};
     use token_bridge::native_asset::{Self, NativeAsset};
@@ -36,7 +39,8 @@ module token_bridge::token_registry {
     struct TokenRegistry has key, store {
         id: UID,
         num_wrapped: u64,
-        num_native: u64
+        num_native: u64,
+        coin_types: Table<CoinTypeKey, String>
     }
 
     /// Container to provide convenient checking of whether an asset is wrapped
@@ -55,6 +59,14 @@ module token_bridge::token_registry {
     /// Wrapper of coin type to act as dynamic field key.
     struct Key<phantom CoinType> has copy, drop, store {}
 
+    /// This struct is not used for anything within the contract. It exists
+    /// purely for someone to be able to fetch the type name of coin type
+    /// as a string via `TokenRegistry`.
+    struct CoinTypeKey has drop, copy, store {
+        chain: u16,
+        addr: vector<u8>
+    }
+
     /// Create new `TokenRegistry`.
     ///
     /// See `setup` module for more info.
@@ -62,7 +74,8 @@ module token_bridge::token_registry {
         TokenRegistry {
             id: object::new(ctx),
             num_wrapped: 0,
-            num_native: 0
+            num_native: 0,
+            coin_types: table::new(ctx)
         }
     }
 
@@ -162,7 +175,8 @@ module token_bridge::token_registry {
         supply: Supply<CoinType>,
         ctx: &mut TxContext
     ): ExternalAddress {
-        // Grab canonical token address for return value.
+        // Grab canonical token info.
+        let token_chain = asset_meta::token_chain(&token_meta);
         let token_addr = asset_meta::token_address(&token_meta);
 
         // NOTE: We do not assert that the coin type has not already been
@@ -175,6 +189,16 @@ module token_bridge::token_registry {
         let asset = wrapped_asset::new(token_meta, supply, ctx);
         dynamic_field::add(&mut self.id, Key<CoinType> {}, asset);
         self.num_wrapped = self.num_wrapped + 1;
+
+        // Now add the coin type.
+        table::add(
+            &mut self.coin_types,
+            CoinTypeKey {
+                chain: token_chain,
+                addr: external_address::to_bytes(token_addr)
+            },
+            type_name::into_string(type_name::get<CoinType>())
+        );
 
         token_addr
     }
@@ -210,6 +234,16 @@ module token_bridge::token_registry {
         // Add to registry.
         dynamic_field::add(&mut self.id, Key<CoinType> {}, asset);
         self.num_native = self.num_native + 1;
+
+        // Now add the coin type.
+        table::add(
+            &mut self.coin_types,
+            CoinTypeKey {
+                chain: wormhole::state::chain_id(),
+                addr: external_address::to_bytes(token_addr)
+            },
+            type_name::into_string(type_name::get<CoinType>())
+        );
 
         // Return the token address.
         token_addr
@@ -276,9 +310,20 @@ module token_bridge::token_registry {
         let TokenRegistry {
             id,
             num_wrapped: _,
-            num_native: _
+            num_native: _,
+            coin_types
         } = registry;
         object::delete(id);
+        table::drop(coin_types);
+    }
+
+    #[test_only]
+    public fun coin_type_for(
+        self: &TokenRegistry,
+        chain: u16,
+        addr: vector<u8>
+    ): String {
+        *table::borrow(&self.coin_types, CoinTypeKey { chain, addr })
     }
 }
 
@@ -288,8 +333,10 @@ module token_bridge::token_registry {
 // storing metadata about the tokens.
 #[test_only]
 module token_bridge::token_registry_tests {
+    use std::type_name::{Self};
     use sui::balance::{Self};
     use sui::test_scenario::{Self};
+    use wormhole::external_address::{Self};
     use wormhole::state::{chain_id};
 
     use token_bridge::asset_meta::{Self};
@@ -381,6 +428,20 @@ module token_bridge::token_registry_tests {
         assert!(token_registry::token_chain(&verified) == chain_id(), 0);
         assert!(
             token_registry::token_address(&verified) == expected_token_address,
+            0
+        );
+
+        // Check coin type.
+        let coin_type =
+            token_registry::coin_type_for(
+                &registry,
+                token_registry::token_chain(&verified),
+                external_address::to_bytes(
+                    token_registry::token_address(&verified)
+                )
+            );
+        assert!(
+            coin_type == type_name::into_string(type_name::get<COIN_NATIVE_10>()),
             0
         );
 
@@ -483,6 +544,21 @@ module token_bridge::token_registry_tests {
             token_registry::token_address(&verified) == asset_meta::token_address(&wrapped_token_meta),
             0
         );
+
+        // Check coin type.
+        let coin_type =
+            token_registry::coin_type_for(
+                &registry,
+                token_registry::token_chain(&verified),
+                external_address::to_bytes(
+                    token_registry::token_address(&verified)
+                )
+            );
+        assert!(
+            coin_type == type_name::into_string(type_name::get<COIN_WRAPPED_7>()),
+            0
+        );
+
 
         // Clean up.
         token_registry::destroy(registry);
