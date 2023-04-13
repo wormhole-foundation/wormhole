@@ -56,8 +56,12 @@ RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
 # could be a renameat syscall. Alpine does not have this bug.
 RUN rm -rf node_modules && mv node_modules_cache node_modules
 
-RUN cd ethereum; forge install; cd ..
 COPY --chown=node:node ./ethereum .
+
+WORKDIR /home/node/app/
+#git init so forge works
+RUN git init
+RUN forge install foundry-rs/forge-std@2c7cbfc6fbede6d7c9e6b17afe997e3fdfe22fef --no-git --no-commit
 
 #typechain needs to be on the path
 USER root
