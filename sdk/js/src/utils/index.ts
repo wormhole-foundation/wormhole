@@ -7,4 +7,3 @@ export * from "./injective";
 export * from "./keccak";
 export * from "./near";
 export * from "./parseVaa";
-export * from "./sui";
