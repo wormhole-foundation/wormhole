@@ -18,13 +18,13 @@ use global_accountant::{
     state,
 };
 use serde::Serialize;
+use wormhole_bindings::{fake, WormholeQuery};
 use wormhole_sdk::{
     accountant::{self as accountant_module, ModificationKind},
     token,
     vaa::{Body, Header, Signature},
     Address, Amount, Chain, Vaa,
 };
-use wormhole_bindings::{fake, WormholeQuery};
 
 #[cw_serde]
 pub struct TransferResponse {

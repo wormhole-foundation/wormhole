@@ -10,7 +10,7 @@ use std::{
 };
 use terraswap::asset::{Asset, AssetInfo};
 
-use wormhole::{
+use cw_wormhole::{
     byte_utils::{
         extend_address_to_32, extend_address_to_32_array, extend_string_to_32, get_string_from_32,
         ByteUtils,

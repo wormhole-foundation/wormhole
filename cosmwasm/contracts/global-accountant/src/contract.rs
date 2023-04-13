@@ -16,12 +16,12 @@ use cw2::set_contract_version;
 use cw_storage_plus::Bound;
 use serde_wormhole::RawMessage;
 use tinyvec::{Array, TinyVec};
+use wormhole_bindings::WormholeQuery;
 use wormhole_sdk::{
     accountant as accountant_module, token,
     vaa::{self, Body, Header, Signature},
     Chain,
 };
-use wormhole_bindings::WormholeQuery;
 
 use crate::{
     bail,

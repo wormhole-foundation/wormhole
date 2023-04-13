@@ -32,8 +32,8 @@ accountant = { path = "packages/accountant" }
 cw_transcode = { path = "packages/cw_transcode" }
 cw20-wrapped-2 = { path = "contracts/cw20-wrapped" }
 serde_wormhole = { path = "../sdk/rust/serde_wormhole" }
-token-bridge-terra-2 = { path = "contracts/token-bridge" }
+token-bridge-cosmwasm = { path = "contracts/token-bridge" }
 global-accountant = { path = "contracts/global-accountant" }
 wormhole-bindings = { path = "packages/wormhole-bindings" }
-wormhole-bridge-terra-2 = { path = "contracts/wormhole" }
+wormhole-cosmwasm = { path = "contracts/wormhole" }
 wormhole-sdk = { path = "../sdk/rust/core" }

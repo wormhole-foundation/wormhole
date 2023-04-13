@@ -18,8 +18,8 @@ cosmwasm-storage = { version = "1.0.0" }
 schemars = "0.8.8"
 serde = { version = "1.0.137", default-features = false, features = ["derive"] }
 
-wormhole-bridge-terra-2 = { version = "0.1.0", features = ["library"] }
-token-bridge-terra-2 = { version = "0.1.0", features = ["library"] }
+wormhole-cosmwasm = { version = "0.1.0", features = ["library"] }
+token-bridge-cosmwasm = { version = "0.1.0", features = ["library"] }
 
 [dev-dependencies]
 cosmwasm-vm = { version = "1.0.0", default-features = false }
