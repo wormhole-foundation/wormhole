@@ -181,96 +181,35 @@ func TestParseEventForNoActionSpecified(t *testing.T) {
 	assert.Nil(t, evt)
 }
 
-func TestParseIbcChannelQueryResults(t *testing.T) {
-	connJson := []byte(`
-	{
-		"channel": {
-		  "state": "STATE_OPEN",
-		  "ordering": "ORDER_UNORDERED",
-		  "counterparty": {
-			"port_id": "wasm.terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au",
-			"channel_id": "channel-0"
-		  },
-		  "connection_hops": [
-			"connection-0"
-		  ],
-		  "version": "ibc-wormhole-v1"
-		},
-		"proof": null,
-		"proof_height": {
-		  "revision_number": "0",
-		  "revision_height": "90"
-		}
-	  }
-	  `)
-
-	var result ibcChannelQueryResults
-	err := json.Unmarshal(connJson, &result)
-	require.NoError(t, err)
-	require.Equal(t, 1, len(result.Channel.ConnectionHops))
-	assert.Equal(t, "connection-0", result.Channel.ConnectionHops[0])
-}
-
-func TestParseIbcChannelQueryResultsMultipleHops(t *testing.T) {
-	connJson := []byte(`
-	{
-		"channel": {
-		  "state": "STATE_OPEN",
-		  "ordering": "ORDER_UNORDERED",
-		  "counterparty": {
-			"port_id": "wasm.terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au",
-			"channel_id": "channel-0"
-		  },
-		  "connection_hops": [
-			"connection-0",
-			"connection-42"
-		  ],
-		  "version": "ibc-wormhole-v1"
-		},
-		"proof": null,
-		"proof_height": {
-		  "revision_number": "0",
-		  "revision_height": "90"
-		}
-	  }
-	  `)
-
-	var result ibcChannelQueryResults
-	err := json.Unmarshal(connJson, &result)
-	require.NoError(t, err)
-	require.Equal(t, 2, len(result.Channel.ConnectionHops))
-	assert.Equal(t, "connection-0", result.Channel.ConnectionHops[0])
-}
-
-func TestParseIbcAllChainConnectionsQueryResults(t *testing.T) {
-	connJson := []byte(`
+func TestParseIbcAllChannelChainsQueryResults(t *testing.T) {
+	respJson := []byte(`
 	{
 		"data": {
-		  "chain_connections": [
-			[
-			  "Y29ubmVjdGlvbi0w",
-			  18
-			],
-			[
-			  "Y29ubmVjdGlvbi00Mg==",
-			  22
+			"channels_chains": [
+				[
+					"Y2hhbm5lbC0w",
+					18
+				],
+				[
+					"Y2hhbm5lbC00Mg==",
+					22
+				]
 			]
-		  ]
 		}
 	}
 	`)
 
-	var result ibcAllChainConnectionsQueryResults
-	err := json.Unmarshal(connJson, &result)
+	var result ibcAllChannelChainsQueryResults
+	err := json.Unmarshal(respJson, &result)
 	require.NoError(t, err)
 
-	expectedConnStr1 := base64.StdEncoding.EncodeToString([]byte("connection-0"))
-	expectedConnStr2 := base64.StdEncoding.EncodeToString([]byte("connection-42"))
+	expectedChannStr1 := base64.StdEncoding.EncodeToString([]byte("channel-0"))
+	expectedChannStr2 := base64.StdEncoding.EncodeToString([]byte("channel-42"))
 
-	require.Equal(t, 2, len(result.Data.ChainConnections))
-	require.Equal(t, 2, len(result.Data.ChainConnections[0]))
-	assert.Equal(t, expectedConnStr1, result.Data.ChainConnections[0][0].(string))
-	assert.Equal(t, uint16(18), uint16(result.Data.ChainConnections[0][1].(float64)))
-	assert.Equal(t, expectedConnStr2, result.Data.ChainConnections[1][0].(string))
-	assert.Equal(t, uint16(22), uint16(result.Data.ChainConnections[1][1].(float64)))
+	require.Equal(t, 2, len(result.Data.ChannelChains))
+	require.Equal(t, 2, len(result.Data.ChannelChains[0]))
+	assert.Equal(t, expectedChannStr1, result.Data.ChannelChains[0][0].(string))
+	assert.Equal(t, uint16(18), uint16(result.Data.ChannelChains[0][1].(float64)))
+	assert.Equal(t, expectedChannStr2, result.Data.ChannelChains[1][0].(string))
+	assert.Equal(t, uint16(22), uint16(result.Data.ChannelChains[1][1].(float64)))
 }

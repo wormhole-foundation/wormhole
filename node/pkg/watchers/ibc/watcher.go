@@ -38,7 +38,7 @@ type (
 	// ChainConfig is the list of chains to be monitored over IBC, along with their channel data.
 	ChainConfig []ChainConfigEntry
 
-	// ChainConfigEntry defines the entry for chain being monitored by IBC.
+	// ChainConfigEntry defines the entry for a chain being monitored by IBC.
 	ChainConfigEntry struct {
 		ChainID  vaa.ChainID
 		MsgC     chan<- *common.MessagePublication
@@ -53,10 +53,10 @@ var (
 	// Features is the feature string to be published in the gossip heartbeat messages. It will include all chains that are actually enabled on IBC.
 	Features = ""
 
-	connectionErrors = promauto.NewCounterVec(
+	ibcErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "ibc_connection_errors_total",
-			Help: "Total number of connection errors on IBC connection",
+			Name: "ibc_errors_by_reason",
+			Help: "Total number of errors on IBC",
 		}, []string{"reason"})
 	messagesConfirmed = promauto.NewCounterVec(
 		prometheus.CounterOpts{
@@ -83,30 +83,23 @@ type (
 		contractAddress string
 		logger          *zap.Logger
 
-		// chainConfig is the list of chains to be monitored, along with their channel data.
-		chainConfig ChainConfig
+		// chainMap defines the data associated with all connected / enabled chains.
+		chainMap map[vaa.ChainID]*chainEntry
 
-		// connectionMap provides access by IBC connection ID.
-		connectionMap map[string]*connectionEntry
+		// channelIdToChainIdMap provides a mapping from IBC channel ID to chain ID. Note that there can be multiple channels IDs for the same chain.
+		channelIdToChainIdMap map[string]vaa.ChainID
 
-		// chainMap provides access by chain ID.
-		chainMap map[vaa.ChainID]*connectionEntry
-
-		// channelIdToConnectionIdMap provides a mapping from IBC channel ID to IBC connection ID.
-		channelIdToConnectionIdMap map[string]string
-
-		// channelIdToConnectionIdLock protects channelIdToConnectionIdMap.
-		channelIdToConnectionIdLock sync.Mutex
+		// channelIdToChainIdLock protects channelIdToChainIdMap.
+		channelIdToChainIdLock sync.Mutex
 	}
 
-	// connectionEntry defines the chain that is associated with an IBC connection.
-	connectionEntry struct {
-		connectionID string
-		chainID      vaa.ChainID
-		chainName    string
-		readiness    readiness.Component
-		msgC         chan<- *common.MessagePublication
-		obsvReqC     <-chan *gossipv1.ObservationRequest
+	// chainEntry defines the data associated with a chain.
+	chainEntry struct {
+		chainID   vaa.ChainID
+		chainName string
+		readiness readiness.Component
+		msgC      chan<- *common.MessagePublication
+		obsvReqC  <-chan *gossipv1.ObservationRequest
 	}
 )
 
@@ -117,14 +110,40 @@ func NewWatcher(
 	contractAddress string,
 	chainConfig ChainConfig,
 ) *Watcher {
+	features := ""
+	chainMap := make(map[vaa.ChainID]*chainEntry)
+	for _, chainToMonitor := range chainConfig {
+		_, exists := chainMap[chainToMonitor.ChainID]
+		if exists {
+			panic(fmt.Sprintf("detected duplicate chainID: %v", chainToMonitor.ChainID))
+		}
+
+		ce := &chainEntry{
+			chainID:   chainToMonitor.ChainID,
+			chainName: chainToMonitor.ChainID.String(),
+			readiness: common.MustConvertChainIdToReadinessSyncing(chainToMonitor.ChainID),
+			msgC:      chainToMonitor.MsgC,
+			obsvReqC:  chainToMonitor.ObsvReqC,
+		}
+
+		chainMap[ce.chainID] = ce
+
+		if features == "" {
+			features = "ibc:"
+		} else {
+			features += "|"
+		}
+		features += ce.chainID.String()
+	}
+
+	Features = features
+
 	return &Watcher{
-		wsUrl:                      wsUrl,
-		lcdUrl:                     lcdUrl,
-		contractAddress:            contractAddress,
-		chainConfig:                chainConfig,
-		channelIdToConnectionIdMap: make(map[string]string),
-		connectionMap:              make(map[string]*connectionEntry),
-		chainMap:                   make(map[vaa.ChainID]*connectionEntry),
+		wsUrl:                 wsUrl,
+		lcdUrl:                lcdUrl,
+		contractAddress:       contractAddress,
+		chainMap:              chainMap,
+		channelIdToChainIdMap: make(map[string]vaa.ChainID),
 	}
 }
 
@@ -149,54 +168,7 @@ type ibcReceivePublishEvent struct {
 // Run is the runnable for monitoring the IBC contract on wormchain.
 func (w *Watcher) Run(ctx context.Context) error {
 	w.logger = supervisor.Logger(ctx)
-
 	errC := make(chan error)
-
-	// Query the contract for the chain ID to IBC connection ID mapping.
-	chainIdToConnectionIdMap, err := w.queryChainIdToConnectionIdMap()
-	if err != nil {
-		return fmt.Errorf("failed to query for connection ID map, please make sure the contract address is correct, error: %w", err)
-	}
-
-	// Build our internal data structures based on the config passed in.
-	if len(w.connectionMap) == 0 {
-		features := ""
-		for _, chainToMonitor := range w.chainConfig {
-			_, exists := w.chainMap[chainToMonitor.ChainID]
-			if exists {
-				return fmt.Errorf("detected duplicate chainID: %v", chainToMonitor.ChainID)
-			}
-
-			connID, exists := chainIdToConnectionIdMap[chainToMonitor.ChainID]
-			if !exists {
-				return fmt.Errorf("there is no IBC connection ID defined for chainID %v", chainToMonitor.ChainID)
-			}
-
-			ce := &connectionEntry{
-				connectionID: connID,
-				chainID:      chainToMonitor.ChainID,
-				chainName:    vaa.ChainID(chainToMonitor.ChainID).String(),
-				readiness:    common.MustConvertChainIdToReadinessSyncing(chainToMonitor.ChainID),
-				msgC:         chainToMonitor.MsgC,
-				obsvReqC:     chainToMonitor.ObsvReqC,
-			}
-
-			w.logger.Info("will monitor chain over IBC", zap.String("chain", ce.chainName), zap.String("IBC connection", ce.connectionID))
-			w.connectionMap[ce.connectionID] = ce
-			w.chainMap[ce.chainID] = ce
-
-			if features == "" {
-				features = "ibc:"
-			} else {
-				features += "|"
-			}
-			features += ce.chainID.String()
-
-			p2p.DefaultRegistry.SetNetworkStats(ce.chainID, &gossipv1.Heartbeat_Network{ContractAddress: w.contractAddress})
-		}
-
-		Features = features
-	}
 
 	w.logger.Info("creating watcher",
 		zap.String("wsUrl", w.wsUrl),
@@ -205,9 +177,14 @@ func (w *Watcher) Run(ctx context.Context) error {
 		zap.String("features", Features),
 	)
 
+	for _, ce := range w.chainMap {
+		w.logger.Info("will monitor chain over IBC", zap.String("chain", ce.chainName))
+		p2p.DefaultRegistry.SetNetworkStats(ce.chainID, &gossipv1.Heartbeat_Network{ContractAddress: w.contractAddress})
+	}
+
 	c, _, err := websocket.Dial(ctx, w.wsUrl, nil)
 	if err != nil {
-		connectionErrors.WithLabelValues("websocket_dial_error").Inc()
+		ibcErrors.WithLabelValues("websocket_dial_error").Inc()
 		return fmt.Errorf("failed to establish tendermint websocket connection: %w", err)
 	}
 	defer c.Close(websocket.StatusNormalClosure, "")
@@ -224,18 +201,18 @@ func (w *Watcher) Run(ctx context.Context) error {
 	}
 	err = wsjson.Write(ctx, c, command)
 	if err != nil {
-		connectionErrors.WithLabelValues("websocket_subscription_error").Inc()
+		ibcErrors.WithLabelValues("websocket_subscription_error").Inc()
 		return fmt.Errorf("failed to subscribe to events: %w", err)
 	}
 
 	// Wait for the success response.
 	_, subResp, err := c.Read(ctx)
 	if err != nil {
-		connectionErrors.WithLabelValues("websocket_subscription_error").Inc()
+		ibcErrors.WithLabelValues("websocket_subscription_error").Inc()
 		return fmt.Errorf("failed to receive response to subscribe request: %w", err)
 	}
 	if strings.Contains(string(subResp), "error") {
-		connectionErrors.WithLabelValues("websocket_subscription_error").Inc()
+		ibcErrors.WithLabelValues("websocket_subscription_error").Inc()
 		return fmt.Errorf("failed to subscribe to events, response: %s", string(subResp))
 	}
 
@@ -277,7 +254,7 @@ func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn, errC chan
 			_, message, err := c.Read(ctx)
 			if err != nil {
 				w.logger.Error("failed to read socket", zap.Error(err))
-				connectionErrors.WithLabelValues("channel_read_error").Inc()
+				ibcErrors.WithLabelValues("channel_read_error").Inc()
 				return fmt.Errorf("failed to read socket: %w", err)
 			}
 
@@ -315,7 +292,9 @@ func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn, errC chan
 					}
 
 					if evt != nil {
-						w.processIbcReceivePublishEvent(txHash, evt, "new")
+						if err := w.processIbcReceivePublishEvent(txHash, evt, "new"); err != nil {
+							return fmt.Errorf("failed to process new IBC event: %w", err)
+						}
 					}
 				} else {
 					w.logger.Debug("ignoring uninteresting event", zap.String("eventType", eventType))
@@ -372,7 +351,7 @@ func (w *Watcher) handleQueryBlockHeight(ctx context.Context, c *websocket.Conn,
 
 // handleObservationRequests listens for observation requests for a single chain and processes them by reading the requested transaction
 // from wormchain and publishing the associated message. This function is instantiated for each connected chain.
-func (w *Watcher) handleObservationRequests(ctx context.Context, errC chan error, ce *connectionEntry) error {
+func (w *Watcher) handleObservationRequests(ctx context.Context, errC chan error, ce *chainEntry) error {
 	for {
 		select {
 		case <-ctx.Done():
@@ -437,7 +416,9 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, errC chan error
 					}
 
 					if evt != nil {
-						w.processIbcReceivePublishEvent(txHash, evt, "reobservation")
+						if err := w.processIbcReceivePublishEvent(txHash, evt, "reobservation"); err != nil {
+							return fmt.Errorf("failed to process reobserved IBC event: %w", err)
+						}
 					}
 				} else {
 					w.logger.Debug("ignoring uninteresting event in reobservation", zap.String("chain", ce.chainName), zap.Stringer("txHash", txHash), zap.String("eventType", eventType.String()))
@@ -526,37 +507,77 @@ func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, eve
 }
 
 // processIbcReceivePublishEvent takes an IBC event, maps it to a message publication and publishes it.
-func (w *Watcher) processIbcReceivePublishEvent(txHash ethCommon.Hash, evt *ibcReceivePublishEvent, observationType string) {
-	connectionID, err := w.getConnectionID(evt.ChannelID)
+func (w *Watcher) processIbcReceivePublishEvent(txHash ethCommon.Hash, evt *ibcReceivePublishEvent, observationType string) error {
+	mappedChainID, err := w.getChainIdFromChannelID(evt.ChannelID)
 	if err != nil {
-		w.logger.Error("failed to query IBC connectionID for channel", zap.String("ibcChannel", evt.ChannelID), zap.Error(err))
-		connectionErrors.WithLabelValues("unexpected_ibc_channel_error").Inc()
-		return
+		w.logger.Error("query for IBC channel ID failed",
+			zap.String("IbcChannelID", evt.ChannelID),
+			zap.Stringer("TxHash", evt.Msg.TxHash),
+			zap.Stringer("EmitterChain", evt.Msg.EmitterChain),
+			zap.Stringer("EmitterAddress", evt.Msg.EmitterAddress),
+			zap.Uint64("Sequence", evt.Msg.Sequence),
+			zap.Uint32("Nonce", evt.Msg.Nonce),
+			zap.Stringer("Timestamp", evt.Msg.Timestamp),
+			zap.Uint8("ConsistencyLevel", evt.Msg.ConsistencyLevel),
+			zap.Error(err),
+		)
+		ibcErrors.WithLabelValues("query_error").Inc()
+		return fmt.Errorf("failed to query IBC channel ID mapping: %w", err)
 	}
 
-	ce, exists := w.connectionMap[connectionID]
+	if mappedChainID == vaa.ChainIDUnset {
+		// This can happen if the channel ID to chain ID mapping in the contract hasn't been updated yet (pending governance).
+		// Therefore we don't want to return an error here. Restarting won't help.
+		w.logger.Error(fmt.Sprintf("received %s message from unknown IBC channel, dropping observation", observationType),
+			zap.String("IbcChannelID", evt.ChannelID),
+			zap.Stringer("TxHash", evt.Msg.TxHash),
+			zap.Stringer("EmitterChain", evt.Msg.EmitterChain),
+			zap.Stringer("EmitterAddress", evt.Msg.EmitterAddress),
+			zap.Uint64("Sequence", evt.Msg.Sequence),
+			zap.Uint32("Nonce", evt.Msg.Nonce),
+			zap.Stringer("Timestamp", evt.Msg.Timestamp),
+			zap.Uint8("ConsistencyLevel", evt.Msg.ConsistencyLevel),
+		)
+		ibcErrors.WithLabelValues("unexpected_ibc_channel_error").Inc()
+		return nil
+	}
+
+	ce, exists := w.chainMap[mappedChainID]
 	if !exists {
-		w.logger.Error("ignoring an event from an unexpected IBC connection", zap.String("ibcConnection", connectionID))
-		connectionErrors.WithLabelValues("unexpected_ibc_channel_error").Inc()
-		return
+		// This is not an error because some guardians may choose to run the full node and not listen to this chain over IBC.
+		w.logger.Debug(fmt.Sprintf("received %s message from an unconfigured chain, dropping observation", observationType),
+			zap.String("IbcChannelID", evt.ChannelID),
+			zap.Stringer("ChainID", mappedChainID),
+			zap.Stringer("TxHash", evt.Msg.TxHash),
+			zap.Stringer("EmitterChain", evt.Msg.EmitterChain),
+			zap.Stringer("EmitterAddress", evt.Msg.EmitterAddress),
+			zap.Uint64("Sequence", evt.Msg.Sequence),
+			zap.Uint32("Nonce", evt.Msg.Nonce),
+			zap.Stringer("Timestamp", evt.Msg.Timestamp),
+			zap.Uint8("ConsistencyLevel", evt.Msg.ConsistencyLevel),
+		)
+		return nil
 	}
 
 	if evt.Msg.EmitterChain != ce.chainID {
 		w.logger.Error(fmt.Sprintf("chain id mismatch in %s message", observationType),
-			zap.String("ibcConnectionID", connectionID),
-			zap.String("ibcChannelID", evt.ChannelID),
-			zap.Uint16("expectedChainID", uint16(ce.chainID)),
-			zap.Uint16("actualChainID", uint16(evt.Msg.EmitterChain)),
-			zap.Stringer("txHash", txHash),
-			zap.String("msgId", evt.Msg.MessageIDString()),
+			zap.String("IbcChannelID", evt.ChannelID),
+			zap.Uint16("MappedChainID", uint16(mappedChainID)),
+			zap.Uint16("ExpectedChainID", uint16(ce.chainID)),
+			zap.Stringer("TxHash", evt.Msg.TxHash),
+			zap.Stringer("EmitterChain", evt.Msg.EmitterChain),
+			zap.Stringer("EmitterAddress", evt.Msg.EmitterAddress),
+			zap.Uint64("Sequence", evt.Msg.Sequence),
+			zap.Uint32("Nonce", evt.Msg.Nonce),
+			zap.Stringer("Timestamp", evt.Msg.Timestamp),
+			zap.Uint8("ConsistencyLevel", evt.Msg.ConsistencyLevel),
 		)
 		invalidChainIdMismatches.WithLabelValues(evt.ChannelID).Inc()
-		return
+		return nil // Don't return an error here because we don't want an external source to be able to kill the watcher.
 	}
 
 	w.logger.Info(fmt.Sprintf("%s message detected", observationType),
-		zap.String("ChannelID", evt.ChannelID),
-		zap.String("ConnectionID", ce.connectionID),
+		zap.String("IbcChannelID", evt.ChannelID),
 		zap.String("ChainName", ce.chainName),
 		zap.Stringer("TxHash", evt.Msg.TxHash),
 		zap.Stringer("EmitterChain", evt.Msg.EmitterChain),
@@ -569,172 +590,111 @@ func (w *Watcher) processIbcReceivePublishEvent(txHash ethCommon.Hash, evt *ibcR
 
 	ce.msgC <- evt.Msg
 	messagesConfirmed.WithLabelValues(ce.chainName).Inc()
+	return nil
+}
+
+// getChainIdFromChannelID returns the chain ID associated with the specified IBC channel. It uses a cache to avoid constantly querying
+// wormchain. This works because once an IBC channel is closed its ID will never be reused. This also means that there could be multiple
+// IBC channels for the same chain ID.
+// See the IBC spec for details: https://github.com/cosmos/ibc/tree/main/spec/core/ics-004-channel-and-packet-semantics#closing-handshake
+func (w *Watcher) getChainIdFromChannelID(channelID string) (vaa.ChainID, error) {
+	w.channelIdToChainIdLock.Lock()
+	defer w.channelIdToChainIdLock.Unlock()
+	chainID, exists := w.channelIdToChainIdMap[channelID]
+	if exists {
+		return chainID, nil
+	}
+
+	// We continue to hold the lock here because we don't want two routines (event handler and reobservation) both querying at the same time.
+	channelIdToChainIdMap, err := w.queryChannelIdToChainIdMapping()
+	if err != nil {
+		w.logger.Error("failed to query channelID to chainID mapping", zap.Error(err))
+		return vaa.ChainIDUnset, err
+	}
+
+	w.channelIdToChainIdMap = channelIdToChainIdMap
+
+	chainID, exists = w.channelIdToChainIdMap[channelID]
+	if exists {
+		return chainID, nil
+	}
+
+	return vaa.ChainIDUnset, nil
 }
 
 /*
 This query:
-  `{"all_chain_connections":{}}` is `eyJhbGxfY2hhaW5fY29ubmVjdGlvbnMiOnt9fQ==`
-  which becomes:
-  http://localhost:1319/cosmwasm/wasm/v1/contract/wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj/smart/eyJhbGxfY2hhaW5fY29ubmVjdGlvbnMiOnt9fQ%3D%3D
+`"all_channel_chains"` is `ImFsbF9jaGFubmVsX2NoYWlucyI=`
+which becomes:
+http://localhost:1319/cosmwasm/wasm/v1/contract/wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj/smart/ImFsbF9jaGFubmVsX2NoYWlucyI%3D
 
 Returns something like this:
 {
-	"data": {
-		"chain_connections": [
-			[
-				"Y29ubmVjdGlvbi0w",
-				18
-			],
-			[
-				"Y29ubmVjdGlvbi00Mg==",
-				22
-			]
-		]
-	}
+  "data": {
+    "channels_chains": [
+      [
+        "Y2hhbm5lbC0w",
+        18
+      ]
+    ]
+  }
 }
 
 */
 
-type ibcAllChainConnectionsQueryResults struct {
+type ibcAllChannelChainsQueryResults struct {
 	Data struct {
-		ChainConnections [][]interface{} `json:"chain_connections"`
+		ChannelChains [][]interface{} `json:"channels_chains"`
 	}
 }
 
-var connectionIdMapQuery = url.QueryEscape(base64.StdEncoding.EncodeToString([]byte(`{"all_chain_connections":{}}`)))
+var allChannelChainsQuery = url.QueryEscape(base64.StdEncoding.EncodeToString([]byte(`"all_channel_chains"`)))
 
-// queryChainIdToConnectionIdMap queries the contract for the set of chain IDs available on IBC and their corresponding IBC connections.
-func (w *Watcher) queryChainIdToConnectionIdMap() (map[vaa.ChainID]string, error) {
+// queryChannelIdToChainIdMapping queries the contract for the set of IBC channels and their correspond chain IDs.
+func (w *Watcher) queryChannelIdToChainIdMapping() (map[string]vaa.ChainID, error) {
 	client := &http.Client{
 		Timeout: time.Second * 5,
 	}
 
-	query := fmt.Sprintf(`%s/cosmwasm/wasm/v1/contract/%s/smart/%s`, w.lcdUrl, w.contractAddress, connectionIdMapQuery)
-	connResp, err := client.Get(query)
+	query := fmt.Sprintf(`%s/cosmwasm/wasm/v1/contract/%s/smart/%s`, w.lcdUrl, w.contractAddress, allChannelChainsQuery)
+	resp, err := client.Get(query)
 	if err != nil {
-		w.logger.Error("channel map query failed", zap.String("query", query), zap.Error(err))
 		return nil, fmt.Errorf("query failed: %w", err)
 	}
-	connBody, err := io.ReadAll(connResp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("read failed: %w", err)
 	}
-	connResp.Body.Close()
+	resp.Body.Close()
 
-	var result ibcAllChainConnectionsQueryResults
-	err = json.Unmarshal(connBody, &result)
+	var result ibcAllChannelChainsQueryResults
+	err = json.Unmarshal(body, &result)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %s, error: %w", string(connBody), err)
+		return nil, fmt.Errorf("failed to unmarshal response: %s, error: %w", string(body), err)
 	}
 
-	if len(result.Data.ChainConnections) == 0 {
+	if len(result.Data.ChannelChains) == 0 {
 		return nil, fmt.Errorf("query did not return any data")
 	}
 
-	connIdMap := make(map[vaa.ChainID]string)
-	for idx, connData := range result.Data.ChainConnections {
-		if len(connData) != 2 {
-			return nil, fmt.Errorf("connection map entry %d contains %d items when it should contain exactly two, json: %s", idx, len(connData), string(connBody))
+	w.logger.Info("queried IBC channel ID mapping", zap.Int("numEntriesReturned", len(result.Data.ChannelChains)))
+
+	ret := make(map[string]vaa.ChainID)
+	for idx, entry := range result.Data.ChannelChains {
+		if len(entry) != 2 {
+			return nil, fmt.Errorf("channel map entry %d contains %d items when it should contain exactly two, json: %s", idx, len(entry), string(body))
 		}
 
-		connectionIdBytes, err := base64.StdEncoding.DecodeString(connData[0].(string))
+		channelIdBytes, err := base64.StdEncoding.DecodeString(entry[0].(string))
 		if err != nil {
-			return nil, fmt.Errorf("connection ID for entry %d is invalid base64: %s, err: %s", idx, connData[0], err)
+			return nil, fmt.Errorf("channel ID for entry %d is invalid base64: %s, err: %s", idx, entry[0], err)
 		}
 
-		connectionID := string(connectionIdBytes)
-		chainID := vaa.ChainID(connData[1].(float64))
-		connIdMap[chainID] = connectionID
-		w.logger.Debug("IBC connection ID mapping", zap.String("connectionID", connectionID), zap.Uint16("chainID", uint16(chainID)))
+		channelID := string(channelIdBytes)
+		chainID := vaa.ChainID(entry[1].(float64))
+		ret[channelID] = chainID
+		w.logger.Info("IBC channel ID mapping", zap.String("channelID", channelID), zap.Uint16("chainID", uint16(chainID)))
 	}
 
-	return connIdMap, nil
-}
-
-// getConnectionID returns the IBC connection ID associated with the given IBC channel. It uses a cache to avoid constantly
-// querying worm chain. This works because once an IBC channel is closed its ID will never be reused. For details, see the IBC spec:
-// - Connection spec stating that connections can never be closed and identifiers never re-allocated: https://github.com/cosmos/ibc/tree/main/spec/core/ics-003-connection-semantics#sub-protocols
-// - Channel spec stating channels cannot be reopened and identifiers not re-used: https://github.com/cosmos/ibc/tree/main/spec/core/ics-004-channel-and-packet-semantics#closing-handshake
-func (w *Watcher) getConnectionID(channelID string) (string, error) {
-	w.channelIdToConnectionIdLock.Lock()
-	defer w.channelIdToConnectionIdLock.Unlock()
-	connectionID, exists := w.channelIdToConnectionIdMap[channelID]
-	if exists {
-		return connectionID, nil
-	}
-
-	connectionID, err := w.queryConnectionID(channelID)
-	if err != nil {
-		return connectionID, err
-	}
-
-	w.channelIdToConnectionIdMap[channelID] = connectionID
-	return connectionID, nil
-}
-
-/*
-This query:
-  http://localhost:1319/ibc/core/channel/v1/channels/channel-0/ports/wasm.wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj
-
-Returns something like this:
-{
-  "channel": {
-    "state": "STATE_OPEN",
-    "ordering": "ORDER_UNORDERED",
-    "counterparty": {
-      "port_id": "wasm.terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au",
-      "channel_id": "channel-0"
-    },
-    "connection_hops": [
-      "connection-0"
-    ],
-    "version": "ibc-wormhole-v1"
-  },
-  "proof": null,
-  "proof_height": {
-    "revision_number": "0",
-    "revision_height": "358"
-  }
-}
-*/
-
-// ibcChannelQueryResults is used to parse the result from the IBC connection ID query.
-type ibcChannelQueryResults struct {
-	Channel struct {
-		State          string
-		ConnectionHops []string `json:"connection_hops"`
-		Version        string
-	}
-}
-
-// getConnectionID queries the contract on wormchain to map a channel ID to a connection ID.
-func (w *Watcher) queryConnectionID(channelID string) (string, error) {
-	client := &http.Client{
-		Timeout: time.Second * 5,
-	}
-
-	query := fmt.Sprintf("%s/ibc/core/channel/v1/channels/%s/ports/wasm.%s", w.lcdUrl, channelID, w.contractAddress)
-	connResp, err := client.Get(query)
-	if err != nil {
-		w.logger.Error("channel query failed", zap.String("query", query), zap.Error(err))
-		return "", fmt.Errorf("query failed: %w", err)
-	}
-	connBody, err := io.ReadAll(connResp.Body)
-	if err != nil {
-		return "", fmt.Errorf("read failed: %w", err)
-	}
-	connResp.Body.Close()
-
-	var result ibcChannelQueryResults
-	err = json.Unmarshal(connBody, &result)
-	if err != nil {
-		return "", fmt.Errorf("failed to unmarshal response: %s, error: %w", string(connBody), err)
-	}
-
-	if len(result.Channel.ConnectionHops) != 1 {
-		return "", fmt.Errorf("response contained %d hops when it should return exactly one, json: %s", len(result.Channel.ConnectionHops), string(connBody))
-	}
-
-	w.logger.Info("queried connection ID", zap.String("channelID", channelID), zap.String("connectionID", result.Channel.ConnectionHops[0]))
-	return result.Channel.ConnectionHops[0], nil
+	return ret, nil
 }
