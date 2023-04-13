@@ -425,4 +425,12 @@ contract CoreRelayer is CoreRelayerDelivery {
     function getDefaultRelayParams() public pure returns (bytes memory relayParams) {
         return new bytes(0);
     }
+
+    /**
+    * @notice returns the address of the contract which delivers messages on this chain.
+    * I.E this is the address which will call receiveWormholeMessages.
+    */
+    function getDeliveryAddress() external view returns (address deliveryAddress) {
+        return getWormholeRelayerCallerAddress();
+    }
 }
