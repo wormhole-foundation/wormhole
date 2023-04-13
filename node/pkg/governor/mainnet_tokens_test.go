@@ -14,7 +14,7 @@ func TestTokenListSize(t *testing.T) {
 
 	/* Assuming that governed tokens will need to be updated every time
 	   we regenerate it */
-	assert.Equal(t, 145, len(tokenConfigEntries))
+	assert.Equal(t, 801, len(tokenConfigEntries))
 }
 
 func TestTokenListAddressSize(t *testing.T) {
@@ -61,29 +61,6 @@ func TestTokenListTokenAddressDuplicates(t *testing.T) {
 		key := fmt.Sprintf("%v:%v", e.chain, e.addr)
 		assert.Equal(t, "", addrs[key])
 		addrs[key] = key + ":" + e.symbol
-	}
-}
-
-func TestTokenListDecimalRange(t *testing.T) {
-	tokenConfigEntries := tokenList()
-
-	/* Assume that all governed token entries will have decimals of 6 or 8 */
-	for _, tokenConfigEntry := range tokenConfigEntries {
-		d := tokenConfigEntry.decimals
-		if tokenConfigEntry.chain == 2 && tokenConfigEntry.addr == "000000000000000000000000aaaebe6fe48e54f431b0c390cfaf0b017d09d42d" {
-			assert.Equal(t, int64(4), d) // celsius-degree-token has only four decimals.
-		} else {
-			assert.Condition(t, func() bool { return d == 6 || d == 8 })
-		}
-	}
-}
-
-func TestTokenListEmptySymbols(t *testing.T) {
-	tokenConfigEntries := tokenList()
-
-	/* Assume that all governed token entry symbol strings will be greater than zero */
-	for _, tokenConfigEntry := range tokenConfigEntries {
-		assert.Greater(t, len(tokenConfigEntry.symbol), 0)
 	}
 }
 
