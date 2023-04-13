@@ -1,0 +1,19 @@
+[package]
+name = "WrappedCoin"
+version = "0.0.1"
+
+[dependencies.Sui]
+git = "https://github.com/MystenLabs/sui.git"
+subdir = "crates/sui-framework/packages/sui-framework"
+rev = "a63f425b9999c7fdfe483598720a9effc0acdc9e"
+
+[dependencies.Wormhole]
+local = "../dependencies/wormhole"
+
+[dependencies.TokenBridge]
+local = "../dependencies/token_bridge"
+
+[addresses]
+wormhole = "_"
+token_bridge = "_"
+wrapped_coin = "0x0"
