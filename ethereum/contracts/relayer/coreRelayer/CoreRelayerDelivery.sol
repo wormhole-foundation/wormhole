@@ -33,46 +33,55 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
      * - Pays the relayer's reward address to deliver the forward
      *
      * @param transactionFeeRefundAmount amount of maxTransactionFee that was unused
-     * @param forwardInstruction A struct containing information about the user's forward/multichainForward request
+     * @param forwardInstructions A struct containing information about the user's forward/multichainForward request
      *
      */
     function emitForward(
         uint256 transactionFeeRefundAmount,
-        IWormholeRelayerInternalStructs.ForwardInstruction memory forwardInstruction
+        IWormholeRelayerInternalStructs.ForwardInstruction[] memory forwardInstructions
     ) internal {
-        IWormholeRelayerInternalStructs.DeliveryInstructionsContainer memory container =
-            decodeDeliveryInstructionsContainer(forwardInstruction.container);
 
-        // Add any additional funds which were passed in to the forward as msg.value
-        uint256 fundsForForward = transactionFeeRefundAmount + forwardInstruction.msgValue;
-
-        // Checks if enough funds were passed into the forward (should always be true as it was already checked)
-        if (fundsForForward < forwardInstruction.totalFee) {
-            revert IDelivery.ForwardNotSufficientlyFunded(fundsForForward, forwardInstruction.totalFee);
+        IWormholeRelayerInternalStructs.DeliveryInstruction[] memory instructions = new IWormholeRelayerInternalStructs.DeliveryInstruction[](forwardInstructions.length);
+        uint256 totalMsgValue = 0;
+        uint256 totalFee = 0;
+        for(uint8 i=0; i<forwardInstructions.length; i++) {
+            totalMsgValue += forwardInstructions[i].msgValue;
+            totalFee += forwardInstructions[i].totalFee;
+            instructions[i] = decodeDeliveryInstruction(forwardInstructions[i].encodedInstruction);
         }
 
-        IRelayProvider relayProvider = IRelayProvider(forwardInstruction.relayProvider);
+        // Add any additional funds which were passed in to the forward as msg.value
+        uint256 fundsForForward = transactionFeeRefundAmount + totalMsgValue;
+
+        // Checks if enough funds were passed into the forward (should always be true as it was already checked)
+        if (fundsForForward < totalFee) {
+            revert IDelivery.ForwardNotSufficientlyFunded(fundsForForward, totalFee);
+        }
+
+      // Increases the maxTransactionFee of the first forward 
+        // in order to use all of the funds
+
+        IRelayProvider relayProvider = IRelayProvider(fromWormholeFormat(instructions[0].sourceRelayProvider));
         IWormhole wormhole = wormhole();
         uint256 wormholeMessageFee = wormhole.messageFee();
 
-        // Increases the maxTransactionFee of the first forward in the MultichainSend container
-        // in order to use all of the funds
 
-        uint256 amountUnderMaximum = relayProvider.quoteMaximumBudget(container.instructions[0].targetChain)
-            - (container.instructions[0].maximumRefundTarget + container.instructions[0].receiverValueTarget);
+
+        uint256 amountUnderMaximum = relayProvider.quoteMaximumBudget(instructions[0].targetChain)
+            - (instructions[0].maximumRefundTarget + instructions[0].receiverValueTarget);
         uint256 convertedExtraAmount = calculateTargetDeliveryMaximumRefundHelper(
-            container.instructions[0].targetChain, fundsForForward - forwardInstruction.totalFee, 0, relayProvider
+            instructions[0].targetChain, fundsForForward - totalFee, 0, relayProvider
         );
-        container.instructions[0].maximumRefundTarget +=
+        instructions[0].maximumRefundTarget +=
             (amountUnderMaximum > convertedExtraAmount) ? convertedExtraAmount : amountUnderMaximum;
 
         // Publishes the DeliveryInstruction
-        wormhole.publishMessage{value: wormholeMessageFee}(
-            0, encodeDeliveryInstructionsContainer(container), forwardInstruction.consistencyLevel
-        );
-
-        // if funded, pay out reward to provider. Otherwise, the delivery code will handle sending a refund.
-        pay(relayProvider.getRewardAddress(), fundsForForward - wormholeMessageFee);
+        for(uint8 i=0; i<forwardInstructions.length; i++) {
+            wormhole.publishMessage{value: wormholeMessageFee}(
+                0, i==0 ? encodeDeliveryInstruction(instructions[0]) : forwardInstructions[i].encodedInstruction, instructions[i].consistencyLevel
+            );
+            pay(IRelayProvider(fromWormholeFormat(instructions[i].sourceRelayProvider)).getRewardAddress(), forwardInstructions[i].totalFee - wormholeMessageFee);
+        }
     }
 
     /**
@@ -113,9 +122,10 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
 
         setContractLock(true);
         setLockedTargetAddress(fromWormholeFormat(vaaInfo.internalInstruction.targetAddress));
+        clearForwardInstructions();
 
         IWormholeReceiver.DeliveryData memory deliveryData = IWormholeReceiver.DeliveryData({
-            sourceAddress: vaaInfo.deliveryContainer.senderAddress,
+            sourceAddress: vaaInfo.internalInstruction.senderAddress,
             sourceChain: vaaInfo.sourceChain,
             maximumRefund: vaaInfo.internalInstruction.maximumRefundTarget,
             deliveryHash: vaaInfo.deliveryVaaHash,
@@ -146,18 +156,18 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
         }
 
         // Retrieve the forward instruction created during execution of 'receiveWormholeMessages'
-        IWormholeRelayerInternalStructs.ForwardInstruction memory forwardInstruction = getForwardInstruction();
+        IWormholeRelayerInternalStructs.ForwardInstruction[] memory forwardInstructions = getForwardInstructions();
 
         //clear forwarding request from storage
-        clearForwardInstruction();
+        clearForwardInstructions();
 
         // unlock the contract
         setContractLock(false);
 
         DeliveryStatus status;
-        if (forwardInstruction.isValid) {
+        if (forwardInstructions.length > 0) {
             // If the user made a forward/multichainForward request, then try to execute it
-            emitForward(transactionFeeRefundAmount, forwardInstruction);
+            emitForward(transactionFeeRefundAmount, forwardInstructions);
             status = DeliveryStatus.FORWARD_REQUEST_SUCCESS;
         } else {
             status = callToTargetContractSucceeded
@@ -179,7 +189,7 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
             vaaInfo.relayerRefundAddress,
             transactionFeeRefundAmount,
             callToInstructionExecutorSucceeded && callToTargetContractSucceeded,
-            forwardInstruction.isValid,
+            forwardInstructions.length > 0,
             vaaInfo.internalInstruction.targetRelayProvider
         );
     }
@@ -248,18 +258,18 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
         uint256 overhead = wormholeMessageFee + provider.quoteDeliveryOverhead(instruction.refundChain);
 
         if (refundAmount > overhead) {
-            IWormholeRelayerInternalStructs.DeliveryInstructionsContainer memory container = getInstructionsForEmptyMessageWithReceiverValue(
+            IWormholeRelayerInternalStructs.DeliveryInstruction memory refundInstruction = getInstructionForEmptyMessageWithReceiverValue(
                         instruction.refundChain, instruction.refundAddress, refundAmount - overhead, provider
             );
-            if(container.instructions[0].receiverValueTarget == 0) {
+            if(refundInstruction.receiverValueTarget == 0) {
                 return false;
             }
             wormhole.publishMessage{value: wormholeMessageFee}(
                 0,
-                encodeDeliveryInstructionsContainer(
-                    container
+                encodeDeliveryInstruction(
+                    refundInstruction
                 ),
-                200 // consistencyLevel, remote refunds are emitted instantly
+                refundInstruction.consistencyLevel
             );
 
             pay(provider.getRewardAddress(), refundAmount - wormholeMessageFee);
@@ -272,14 +282,14 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
         
     }
 
-    function getInstructionsForEmptyMessageWithReceiverValue(
+    function getInstructionForEmptyMessageWithReceiverValue(
         uint16 targetChain,
         bytes32 targetAddress,
         uint256 receiverValue,
         IRelayProvider provider
-    ) internal view returns (IWormholeRelayerInternalStructs.DeliveryInstructionsContainer memory container) {
-        container = convertMultichainSendToDeliveryInstructionsContainer(
-            multichainSendContainer(
+    ) internal view returns (IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction) {
+        instruction = convertSendToDeliveryInstruction(
+
                 IWormholeRelayer.Send({
                     targetChain: targetChain,
                     targetAddress: bytes32(0x0),
@@ -287,18 +297,18 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
                     refundChain: targetChain,
                     maxTransactionFee: 0,
                     receiverValue: receiverValue,
+                    relayProviderAddress: address(provider),
+                    vaaKeys: new IWormholeRelayer.VaaKey[](0),
+                    consistencyLevel: 200, //send message instantly
                     payload: bytes(""),
                     relayParameters: bytes("")
-                }),
-                address(provider),
-                new IWormholeRelayer.VaaKey[](0),
-                200 //send message instantly
-            )
+                })
+                
         );
 
         uint256 maximumBudget = provider.quoteMaximumBudget(targetChain);
-        if (container.instructions[0].receiverValueTarget > maximumBudget) {
-            container.instructions[0].receiverValueTarget = maximumBudget;
+        if (instruction.receiverValueTarget > maximumBudget) {
+            instruction.receiverValueTarget = maximumBudget;
         }
     }
 
@@ -344,14 +354,8 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
             revert IDelivery.InvalidEmitter();
         }
 
-        IWormholeRelayerInternalStructs.DeliveryInstructionsContainer memory container =
-            decodeDeliveryInstructionsContainer(deliveryVM.payload);
-
-        // Obtain the specific instruction that is intended to be executed in this function
-        // specifying the the target chain (must be this chain), target address, refund address, maximum refund (in this chain's currency),
-        // receiverValue (in this chain's currency), upper bound on gas
         IWormholeRelayerInternalStructs.DeliveryInstruction memory deliveryInstruction =
-            container.instructions[targetParams.multisendIndex];
+            decodeDeliveryInstruction(deliveryVM.payload);
 
         // Check that the relay provider passed in at least [(one wormhole message fee) + instruction.maximumRefund + instruction.receiverValue] of this chain's currency as msg.value
         if (msg.value < deliveryInstruction.maximumRefundTarget + deliveryInstruction.receiverValueTarget) {
@@ -364,7 +368,7 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
         }
 
         // Check that the relayed signed VAAs match the descriptions in container.messages (the VAA hashes match, or the emitter address, sequence number pair matches, depending on the description given)
-        checkVaaKeysWithVAAs(container.vaaKeys, targetParams.encodedVMs);
+        checkVaaKeysWithVAAs(deliveryInstruction.vaaKeys, targetParams.encodedVMs);
 
         _executeDelivery(
             IWormholeRelayerInternalStructs.DeliveryVAAInfo({
@@ -373,8 +377,7 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
                 deliveryVaaHash: deliveryVM.hash,
                 relayerRefundAddress: targetParams.relayerRefundAddress,
                 encodedVMs: targetParams.encodedVMs,
-                internalInstruction: deliveryInstruction,
-                deliveryContainer: container
+                internalInstruction: deliveryInstruction
             })
         );
     }

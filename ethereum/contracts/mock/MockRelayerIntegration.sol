@@ -187,16 +187,21 @@ contract MockRelayerIntegration is IWormholeReceiver {
                 maxTransactionFee: computeBudgets[i],
                 receiverValue: 0,
                 payload: bytes(""),
+                vaaKeys: vaaKeys,
+                consistencyLevel: 200,
+                relayProviderAddress:  relayer.getDefaultRelayProvider(),
                 relayParameters: relayer.getDefaultRelayParams()
             });
         }
-        IWormholeRelayer.MultichainSend memory container = IWormholeRelayer.MultichainSend({
-            requests: requests,
-            consistencyLevel: 200,
-            relayProviderAddress: relayer.getDefaultRelayProvider(),
-            vaaKeys: vaaKeys
-        });
-        sequence = relayer.multichainSend{value: (msg.value - wormhole.messageFee() * (1 + messages.length))}(container);
+        bool set = false;
+        for(uint8 i=0; i<requests.length; i++) {
+            uint64 thisSequence = relayer.send{value: wormhole.messageFee() + computeBudgets[i]}(requests[i]);
+            if(!set) {
+                set = true;
+                sequence = thisSequence;
+            }
+        }
+        
     }
 
     function executeSend(
@@ -216,12 +221,15 @@ contract MockRelayerIntegration is IWormholeReceiver {
             refundAddress: relayer.toWormholeFormat(address(refundAddress)), // This will be ignored on the target chain if the intent is to perform a forward
             maxTransactionFee: msg.value - 3 * wormhole.messageFee() - receiverValue,
             receiverValue: receiverValue,
+            consistencyLevel: 200,
+            relayProviderAddress: relayer.getDefaultRelayProvider(),
+            vaaKeys: vaaKeys,
             payload: payload,
             relayParameters: relayer.getDefaultRelayParams()
         });
 
         sequence = relayer.send{value: msg.value - 2 * wormhole.messageFee()}(
-            request, vaaKeys, relayer.getDefaultRelayProvider(), 200
+            request
         );
     }
 
@@ -277,17 +285,16 @@ contract MockRelayerIntegration is IWormholeReceiver {
                         ),
                     receiverValue: 0,
                     payload: emptyArray,
+                    consistencyLevel: 200,
+                    relayProviderAddress: relayer.getDefaultRelayProvider(),
+                    vaaKeys: vaaKeys,
                     relayParameters: relayer.getDefaultRelayParams()
                 });
             }
-            IWormholeRelayer.MultichainSend memory container = IWormholeRelayer.MultichainSend({
-                requests: sendRequests,
-                consistencyLevel: 200,
-                relayProviderAddress: relayer.getDefaultRelayProvider(),
-                vaaKeys: vaaKeys
-            });
 
-            relayer.multichainForward(container);
+            for(uint8 i=0; i<sendRequests.length; i++) {
+                relayer.forward(sendRequests[i]);
+            }
         }
     }
 
