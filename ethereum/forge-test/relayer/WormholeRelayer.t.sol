@@ -226,13 +226,13 @@ contract WormholeRelayerTests is Test {
         status = getDeliveryStatus(logs[logs.length - 1]);
     }
 
-    function messageInfoArray(uint16 chainId, uint64 sequence, address emitterAddress)
+    function vaaKeyArray(uint16 chainId, uint64 sequence, address emitterAddress)
         internal view
-        returns (IWormholeRelayer.MessageInfo[] memory messageInfos)
+        returns (IWormholeRelayer.VaaKey[] memory vaaKeys)
     {
-        messageInfos = new IWormholeRelayer.MessageInfo[](1);
-        messageInfos[0] = IWormholeRelayer.MessageInfo(
-            IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE,
+        vaaKeys = new IWormholeRelayer.VaaKey[](1);
+        vaaKeys[0] = IWormholeRelayer.VaaKey(
+            IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE,
             chainId,
             map[1].coreRelayer.toWormholeFormat(emitterAddress),
             sequence,
@@ -240,20 +240,20 @@ contract WormholeRelayerTests is Test {
         );
     }
 
-    function messageInfoArray(uint16 chainId, uint64 sequence1, address emitterAddress1, uint64 sequence2, address emitterAddress2)
+    function vaaKeyArray(uint16 chainId, uint64 sequence1, address emitterAddress1, uint64 sequence2, address emitterAddress2)
         internal view
-        returns (IWormholeRelayer.MessageInfo[] memory messageInfos)
+        returns (IWormholeRelayer.VaaKey[] memory vaaKeys)
     {
-        messageInfos = new IWormholeRelayer.MessageInfo[](2);
-        messageInfos[0] = IWormholeRelayer.MessageInfo(
-            IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE,
+        vaaKeys = new IWormholeRelayer.VaaKey[](2);
+        vaaKeys[0] = IWormholeRelayer.VaaKey(
+            IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE,
             chainId,
             map[1].coreRelayer.toWormholeFormat(emitterAddress1),
             sequence1,
             bytes32(0x0)
         );
-        messageInfos[1] = IWormholeRelayer.MessageInfo(
-            IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE,
+        vaaKeys[1] = IWormholeRelayer.VaaKey(
+            IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE,
             chainId,
             map[1].coreRelayer.toWormholeFormat(emitterAddress2),
             sequence2,
@@ -553,7 +553,7 @@ contract WormholeRelayerTests is Test {
     }
 
     function sendHelper(StandardSetupTwoChains memory setup, ForwardRequestFailStack memory stack) public {
-        IWormholeRelayer.MessageInfo[] memory messageInfos = messageInfoArray(
+        IWormholeRelayer.VaaKey[] memory vaaKeys = vaaKeyArray(
                 setup.sourceChainId, stack.sequence1, address(setup.source.integration), stack.sequence2, address(setup.source.integration)
             );
         setup.source.coreRelayer.send{value: stack.payment + stack.wormholeFee}(
@@ -564,7 +564,7 @@ contract WormholeRelayerTests is Test {
             stack.payment,
             0,
             stack.payload,
-            messageInfos,
+            vaaKeys,
             200
         );
     }
@@ -1021,7 +1021,7 @@ contract WormholeRelayerTests is Test {
 
         uint256 wormholeFee = setup.source.wormhole.messageFee();
 
-        IWormholeRelayer.MessageInfo[] memory msgInfoArray = messageInfoArray(setup.sourceChainId, sequence, address(this));
+        IWormholeRelayer.VaaKey[] memory msgInfoArray = vaaKeyArray(setup.sourceChainId, sequence, address(this));
         vm.expectRevert(abi.encodeWithSignature("MsgValueTooLow()"));
         setup.source.coreRelayer.send{value: maxTransactionFee + wormholeFee - 1}(
             deliveryRequest, msgInfoArray, address(setup.source.relayProvider), 200
@@ -1087,7 +1087,7 @@ contract WormholeRelayerTests is Test {
 
         setup.source.coreRelayer.multichainSend{value: wormholeFee}(
             IWormholeRelayer.MultichainSend(
-                address(0x1), new IWormholeRelayer.MessageInfo[](0), new IWormholeRelayer.Send[](0), 200
+                address(0x1), new IWormholeRelayer.VaaKey[](0), new IWormholeRelayer.Send[](0), 200
             )
         );
     }
@@ -1125,7 +1125,7 @@ contract WormholeRelayerTests is Test {
             stack.payment - stack.wormholeFee,
             0,
             bytes(""),
-            messageInfoArray(setup.sourceChainId, sequence, address(this)),
+            vaaKeyArray(setup.sourceChainId, sequence, address(this)),
             200
         );
         genericRelayer.relay(setup.sourceChainId);
@@ -1147,7 +1147,7 @@ contract WormholeRelayerTests is Test {
 
         bytes32 targetAddress = setup.source.coreRelayer.toWormholeFormat(address(forwardTester));
 
-        IWormholeRelayer.MessageInfo[] memory msgInfoArray = messageInfoArray(0, 0, address(this));
+        IWormholeRelayer.VaaKey[] memory msgInfoArray = vaaKeyArray(0, 0, address(this));
         vm.expectRevert(abi.encodeWithSignature("NoDeliveryInProgress()"));
         setup.source.coreRelayer.forward(
             setup.targetChainId, targetAddress, setup.targetChainId,  targetAddress, 0, 0, bytes(""), msgInfoArray, 200
@@ -1257,9 +1257,9 @@ contract WormholeRelayerTests is Test {
     ) public {
         StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
 
-        IWormholeRelayer.MessageInfo[] memory messageInfos = new IWormholeRelayer.MessageInfo[](1);
-        messageInfos[0] = IWormholeRelayer.MessageInfo({
-            infoType: IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE,
+        IWormholeRelayer.VaaKey[] memory vaaKeys = new IWormholeRelayer.VaaKey[](1);
+        vaaKeys[0] = IWormholeRelayer.VaaKey({
+            infoType: IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE,
             chainId: setup.sourceChainId,
             emitterAddress: bytes32(""),
             sequence: 25,
@@ -1276,7 +1276,7 @@ contract WormholeRelayerTests is Test {
             payloadId: 1,
             senderAddress: bytes32("234"),
             sourceProvider: setup.source.coreRelayerFull.toWormholeFormat(address(setup.source.relayProvider)),
-            messageInfos: messageInfos,
+            vaaKeys: vaaKeys,
             instructions: instructions
         });
 

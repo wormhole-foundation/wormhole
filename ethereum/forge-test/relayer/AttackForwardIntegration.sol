@@ -64,7 +64,7 @@ contract AttackForwardIntegration is IWormholeReceiver {
         });
 
         core_relayer.forward{value: maxTransactionFee}(
-            request, new IWormholeRelayer.MessageInfo[](0), core_relayer.getDefaultRelayProvider(), 200
+            request, new IWormholeRelayer.VaaKey[](0), core_relayer.getDefaultRelayProvider(), 200
         );
     }
 

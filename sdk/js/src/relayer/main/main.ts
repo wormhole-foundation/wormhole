@@ -12,7 +12,7 @@ import {
   RelayerPayloadId,
   DeliveryInstruction,
   DeliveryInstructionsContainer,
-  MessageInfoType,
+  VaaKeyType,
   DeliveryStatus,
 } from "../structs";
 import {
@@ -68,11 +68,11 @@ export function stringifyWormholeRelayerInfo(info: DeliveryInfo): string {
       (msgInfo, i) => {
         let result = "";
         result += `\n(Message ${i}): `;
-        if (msgInfo.payloadType == MessageInfoType.EMITTER_SEQUENCE) {
+        if (msgInfo.payloadType == VaaKeyType.EMITTER_SEQUENCE) {
           result += `Message from ${msgInfo.chainId ? printChain(msgInfo.chainId) : ""}, with emitter address ${msgInfo.emitterAddress?.toString(
             "hex"
           )} and sequence number ${msgInfo.sequence}\n`;
-        } else if (msgInfo.payloadType == MessageInfoType.VAAHASH) {
+        } else if (msgInfo.payloadType == VaaKeyType.VAAHASH) {
           result += `Message with VAA Hash ${msgInfo.vaaHash?.toString(
             "hex"
           )}\n`;

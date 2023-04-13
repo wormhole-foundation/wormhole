@@ -2,7 +2,7 @@ import * as wh from "@certusone/wormhole-sdk";
 import { Next } from "relayer-engine";
 import {
   IDelivery,
-  MessageInfoType,
+  VaaKeyType,
   RelayerPayloadId,
   CoreRelayer__factory,
   parseWormholeRelayerPayloadType,
@@ -35,10 +35,10 @@ async function processDelivery(ctx: GRContext) {
   //TODO this check is not quite correct
   if (
     payload.messages.findIndex(
-      (m) => m.payloadType !== MessageInfoType.EMITTER_SEQUENCE
+      (m) => m.payloadType !== VaaKeyType.EMITTER_SEQUENCE
     ) != -1
   ) {
-    throw new Error(`Only supports EmitterSequence MessageInfoType`);
+    throw new Error(`Only supports EmitterSequence VaaKeyType`);
   }
   ctx.logger.info(`Fetching vaas from parsed delivery vaa manifest...`, {
     manifest: payload.messages,

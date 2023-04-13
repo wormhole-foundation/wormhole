@@ -84,20 +84,20 @@ contract MockRelayerIntegration is IWormholeReceiver {
         sequence = sendMessageGeneral(_message, targetChainId, destination, targetChainId, refundAddress, 0, payload);
     }
 
-    function messageInfosCreator(uint64 sequence1, uint64 sequence2)
+    function vaaKeysCreator(uint64 sequence1, uint64 sequence2)
         internal view
-        returns (IWormholeRelayer.MessageInfo[] memory messageInfos)
+        returns (IWormholeRelayer.VaaKey[] memory vaaKeys)
     {
-        messageInfos = new IWormholeRelayer.MessageInfo[](2);
-        messageInfos[0] = IWormholeRelayer.MessageInfo(
-            IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE,
+        vaaKeys = new IWormholeRelayer.VaaKey[](2);
+        vaaKeys[0] = IWormholeRelayer.VaaKey(
+            IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE,
             wormhole.chainId(),
             relayer.toWormholeFormat(address(this)),
             sequence1,
             bytes32(0x0)
         );
-        messageInfos[1] = IWormholeRelayer.MessageInfo(
-            IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE,
+        vaaKeys[1] = IWormholeRelayer.VaaKey(
+            IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE,
             wormhole.chainId(),
             relayer.toWormholeFormat(address(this)),
             sequence2,
@@ -124,7 +124,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
         uint64 sequence1 =
             wormhole.publishMessage{value: wormhole.messageFee()}(0, encodeFurtherInstructions(instructions), 200);
         sequence = executeSend(
-            targetChainId, destination, targetChainId, refundAddress, 0, bytes(""), messageInfosCreator(sequence0, sequence1)
+            targetChainId, destination, targetChainId, refundAddress, 0, bytes(""), vaaKeysCreator(sequence0, sequence1)
         );
     }
 
@@ -146,7 +146,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
             refundAddress,
             receiverValue,
             payload,
-            messageInfosCreator(sequence0, sequence1)
+            vaaKeysCreator(sequence0, sequence1)
         );
     }
 
@@ -156,11 +156,11 @@ contract MockRelayerIntegration is IWormholeReceiver {
         uint16[] memory chains,
         uint256[] memory computeBudgets
     ) public payable returns (uint64 sequence) {
-        IWormholeRelayer.MessageInfo[] memory messageInfos = new IWormholeRelayer.MessageInfo[](messages.length + 1);
+        IWormholeRelayer.VaaKey[] memory vaaKeys = new IWormholeRelayer.VaaKey[](messages.length + 1);
         for (uint16 i = 0; i < messages.length; i++) {
             sequence = wormhole.publishMessage{value: wormhole.messageFee()}(0, messages[i], 200);
-            messageInfos[i] = IWormholeRelayer.MessageInfo(
-                IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE,
+            vaaKeys[i] = IWormholeRelayer.VaaKey(
+                IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE,
                 wormhole.chainId(),
                 relayer.toWormholeFormat(address(this)),
                 sequence,
@@ -170,8 +170,8 @@ contract MockRelayerIntegration is IWormholeReceiver {
         uint64 lastSequence = wormhole.publishMessage{value: wormhole.messageFee()}(
             0, encodeFurtherInstructions(furtherInstructions), 200
         );
-        messageInfos[messages.length] = IWormholeRelayer.MessageInfo(
-            IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE,
+        vaaKeys[messages.length] = IWormholeRelayer.VaaKey(
+            IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE,
             wormhole.chainId(),
             relayer.toWormholeFormat(address(this)),
             lastSequence,
@@ -194,7 +194,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
             requests: requests,
             consistencyLevel: 200,
             relayProviderAddress: relayer.getDefaultRelayProvider(),
-            messageInfos: messageInfos
+            vaaKeys: vaaKeys
         });
         sequence = relayer.multichainSend{value: (msg.value - wormhole.messageFee() * (1 + messages.length))}(container);
     }
@@ -206,7 +206,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
         address refundAddress,
         uint256 receiverValue,
         bytes memory payload,
-        IWormholeRelayer.MessageInfo[] memory messageInfos
+        IWormholeRelayer.VaaKey[] memory vaaKeys
     ) internal returns (uint64 sequence) {
 
         IWormholeRelayer.Send memory request = IWormholeRelayer.Send({
@@ -221,7 +221,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
         });
 
         sequence = relayer.send{value: msg.value - 2 * wormhole.messageFee()}(
-            request, messageInfos, relayer.getDefaultRelayProvider(), 200
+            request, vaaKeys, relayer.getDefaultRelayProvider(), 200
         );
     }
 
@@ -250,14 +250,14 @@ contract MockRelayerIntegration is IWormholeReceiver {
         require(valid, reason);
         FurtherInstructions memory instructions = decodeFurtherInstructions(parsed.payload);
         if (instructions.keepSending) {
-            IWormholeRelayer.MessageInfo[] memory messageInfos =
-                new IWormholeRelayer.MessageInfo[](instructions.newMessages.length);
+            IWormholeRelayer.VaaKey[] memory vaaKeys =
+                new IWormholeRelayer.VaaKey[](instructions.newMessages.length);
             for (uint16 i = 0; i < instructions.newMessages.length; i++) {
                 uint64 sequence = wormhole.publishMessage{value: wormhole.messageFee()}(
                     parsed.nonce, instructions.newMessages[i], 200
                 );
-                messageInfos[i] = IWormholeRelayer.MessageInfo(
-                    IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE,
+                vaaKeys[i] = IWormholeRelayer.VaaKey(
+                    IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE,
                     wormhole.chainId(),
                     relayer.toWormholeFormat(address(this)),
                     sequence,
@@ -284,7 +284,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
                 requests: sendRequests,
                 consistencyLevel: 200,
                 relayProviderAddress: relayer.getDefaultRelayProvider(),
-                messageInfos: messageInfos
+                vaaKeys: vaaKeys
             });
 
             relayer.multichainForward(container);

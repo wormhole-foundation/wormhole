@@ -55,7 +55,7 @@ contract CoreRelayerMessages is CoreRelayerGetters {
         instructionsContainer.senderAddress = toWormholeFormat(msg.sender);
         IRelayProvider relayProvider = IRelayProvider(sendContainer.relayProviderAddress);
         instructionsContainer.sourceProvider = toWormholeFormat(sendContainer.relayProviderAddress);
-        instructionsContainer.messageInfos = sendContainer.messageInfos;
+        instructionsContainer.vaaKeys = sendContainer.vaaKeys;
 
         uint256 length = sendContainer.requests.length;
         instructionsContainer.instructions = new IWormholeRelayerInternalStructs.DeliveryInstruction[](length);
@@ -141,12 +141,12 @@ contract CoreRelayerMessages is CoreRelayerGetters {
             container.payloadId,
             container.senderAddress,
             container.sourceProvider,
-            uint8(container.messageInfos.length),
+            uint8(container.vaaKeys.length),
             uint8(container.instructions.length)
         );
 
-        for (uint256 i = 0; i < container.messageInfos.length; i++) {
-            encoded = abi.encodePacked(encoded, encodeMessageInfo(container.messageInfos[i]));
+        for (uint256 i = 0; i < container.vaaKeys.length; i++) {
+            encoded = abi.encodePacked(encoded, encodeVaaKey(container.vaaKeys[i]));
         }
 
         for (uint256 i = 0; i < container.instructions.length; i++) {
@@ -154,17 +154,17 @@ contract CoreRelayerMessages is CoreRelayerGetters {
         }
     }
 
-    // encode a 'MessageInfo' into bytes
-    function encodeMessageInfo(IWormholeRelayer.MessageInfo memory messageInfo)
+    // encode a 'VaaKey' into bytes
+    function encodeVaaKey(IWormholeRelayer.VaaKey memory vaaKey)
         internal
         pure
         returns (bytes memory encoded)
     {
-        encoded = abi.encodePacked(uint8(1), uint8(messageInfo.infoType));
-        if (messageInfo.infoType == IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE) {
-            encoded = abi.encodePacked(encoded, messageInfo.chainId, messageInfo.emitterAddress, messageInfo.sequence);
-        } else if (messageInfo.infoType == IWormholeRelayer.MessageInfoType.VAAHASH) {
-            encoded = abi.encodePacked(encoded, messageInfo.vaaHash);
+        encoded = abi.encodePacked(uint8(1), uint8(vaaKey.infoType));
+        if (vaaKey.infoType == IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE) {
+            encoded = abi.encodePacked(encoded, vaaKey.chainId, vaaKey.emitterAddress, vaaKey.sequence);
+        } else if (vaaKey.infoType == IWormholeRelayer.VaaKeyType.VAAHASH) {
+            encoded = abi.encodePacked(encoded, vaaKey.vaaHash);
         }
     }
 
@@ -403,11 +403,11 @@ contract CoreRelayerMessages is CoreRelayerGetters {
         newIndex = index;
     }
 
-    // decode a 'MessageInfo' from bytes
-    function decodeMessageInfo(bytes memory encoded, uint256 index)
+    // decode a 'VaaKey' from bytes
+    function decodeVaaKey(bytes memory encoded, uint256 index)
         public
         pure
-        returns (IWormholeRelayer.MessageInfo memory messageInfo, uint256 newIndex)
+        returns (IWormholeRelayer.VaaKey memory vaaKey, uint256 newIndex)
     {
         uint8 payloadId = encoded.toUint8(index);
         index += 1;
@@ -416,20 +416,20 @@ contract CoreRelayerMessages is CoreRelayerGetters {
             revert InvalidPayloadId(payloadId);
         }
 
-        messageInfo.infoType = IWormholeRelayer.MessageInfoType(encoded.toUint8(index));
+        vaaKey.infoType = IWormholeRelayer.VaaKeyType(encoded.toUint8(index));
         index += 1;
 
-        if (messageInfo.infoType == IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE) {
-            messageInfo.chainId = encoded.toUint16(index);
+        if (vaaKey.infoType == IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE) {
+            vaaKey.chainId = encoded.toUint16(index);
             index += 2;
 
-            messageInfo.emitterAddress = encoded.toBytes32(index);
+            vaaKey.emitterAddress = encoded.toBytes32(index);
             index += 32;
 
-            messageInfo.sequence = encoded.toUint64(index);
+            vaaKey.sequence = encoded.toUint64(index);
             index += 8;
-        } else if (messageInfo.infoType == IWormholeRelayer.MessageInfoType.VAAHASH) {
-            messageInfo.vaaHash = encoded.toBytes32(index);
+        } else if (vaaKey.infoType == IWormholeRelayer.VaaKeyType.VAAHASH) {
+            vaaKey.vaaHash = encoded.toBytes32(index);
             index += 32;
         }
         newIndex = index;
@@ -461,9 +461,9 @@ contract CoreRelayerMessages is CoreRelayerGetters {
         uint8 instructionsArrayLen = encoded.toUint8(index);
         index += 1;
 
-        IWormholeRelayer.MessageInfo[] memory messageInfos = new IWormholeRelayer.MessageInfo[](messagesArrayLen);
+        IWormholeRelayer.VaaKey[] memory vaaKeys = new IWormholeRelayer.VaaKey[](messagesArrayLen);
         for (uint8 i = 0; i < messagesArrayLen; i++) {
-            (messageInfos[i], index) = decodeMessageInfo(encoded, index);
+            (vaaKeys[i], index) = decodeVaaKey(encoded, index);
         }
 
         IWormholeRelayerInternalStructs.DeliveryInstruction[] memory instructionArray =
@@ -480,7 +480,7 @@ contract CoreRelayerMessages is CoreRelayerGetters {
             payloadId: payloadId,
             senderAddress: senderAddress,
             sourceProvider: sourceProvider,
-            messageInfos: messageInfos,
+            vaaKeys: vaaKeys,
             instructions: instructionArray
         });
     }
@@ -507,7 +507,7 @@ contract CoreRelayerMessages is CoreRelayerGetters {
     function multichainSendContainer(
         IWormholeRelayer.Send memory request,
         address relayProvider,
-        IWormholeRelayer.MessageInfo[] memory messageInfos,
+        IWormholeRelayer.VaaKey[] memory vaaKeys,
         uint8 consistencyLevel
     ) internal pure returns (IWormholeRelayer.MultichainSend memory container) {
         IWormholeRelayer.Send[] memory requests = new IWormholeRelayer.Send[](1);
@@ -516,7 +516,7 @@ contract CoreRelayerMessages is CoreRelayerGetters {
             relayProviderAddress: relayProvider,
             consistencyLevel: consistencyLevel,
             requests: requests,
-            messageInfos: messageInfos
+            vaaKeys: vaaKeys
         });
     }
 }

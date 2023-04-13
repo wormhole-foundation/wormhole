@@ -51,7 +51,7 @@ interface IDelivery {
     error InsufficientRelayerFunds(); // The relay provider didn't pass in sufficient funds (msg.value does not cover the necessary budget fees)
     error TargetChainIsNotThisChain(uint16 targetChainId); // The specified target chain is not the current chain
     error ReentrantCall(); // A delivery cannot occur during another delivery
-    error MessageInfosDoNotMatchVaas(uint8 index); // The VAA at index 'index' does not match the 'index'-th description given on the source chain in the 'messages' field
-    error MessageInfosLengthDoesNotMatchVaasLength(); // The VAA array has a different length than the original array of MessageInfo descriptions from the source chain
+    error VaaKeysDoNotMatchVaas(uint8 index); // The VAA at index 'index' does not match the 'index'-th description given on the source chain in the 'messages' field
+    error VaaKeysLengthDoesNotMatchVaasLength(); // The VAA array has a different length than the original array of VaaKey descriptions from the source chain
     error ForwardNotSufficientlyFunded(uint256 amountOfFunds, uint256 amountOfFundsNeeded); // Should never happen as this should have already been checked for
 }

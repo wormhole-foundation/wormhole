@@ -9,7 +9,7 @@ interface IWormholeRelayerInstructionParser {
         uint8 payloadId; //1
         bytes32 senderAddress;
         bytes32 sourceProvider;
-        IWormholeRelayer.MessageInfo[] messages;
+        IWormholeRelayer.VaaKey[] messages;
         DeliveryInstruction[] instructions;
     }
 
