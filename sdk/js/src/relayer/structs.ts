@@ -17,14 +17,6 @@ export enum DeliveryStatus {
   DeliveryDidntHappenWithinRange = "Delivery didn't happen within given block range",
 }
 
-export interface DeliveryInstructionsContainer {
-  payloadId: number; // 1
-  senderAddress: Buffer;
-  sourceProvider: Buffer;
-  messages: VaaKey[];
-  instructions: DeliveryInstruction[];
-}
-
 export interface VaaKey {
   payloadType: VaaKeyType;
   chainId ?: number;
@@ -40,7 +32,11 @@ export interface DeliveryInstruction {
   refundChain: number;
   maximumRefundTarget: BigNumber;
   receiverValueTarget: BigNumber;
+  sourceRelayProvider: Buffer;
   targetRelayProvider: Buffer;
+  senderAddress: Buffer;
+  vaaKeys: VaaKey[];
+  consistencyLevel: number;
   executionParameters: ExecutionParameters;
   payload: Buffer;
 }
@@ -68,7 +64,7 @@ export function parseWormholeRelayerPayloadType(
 
 export function parseWormholeRelayerSend(
   bytes: Buffer
-): DeliveryInstructionsContainer {
+): DeliveryInstruction {
   let idx = 0;
   const payloadId = bytes.readUInt8(idx);
   if (payloadId !== RelayerPayloadId.Delivery) {
@@ -78,35 +74,15 @@ export function parseWormholeRelayerSend(
   }
   idx += 1;
 
-  const senderAddress = bytes.slice(idx, idx + 32);
-  idx += 32;
-
-  const sourceProvider = bytes.slice(idx, idx + 32);
-  idx += 32;
-
-  const numMessages = bytes.readUInt8(idx);
-  idx += 1;
-
-  const numInstructions = bytes.readUInt8(idx);
-  idx += 1;
-
-  let messages = [] as VaaKey[];
-  for (let i = 0; i < numMessages; ++i) {
-    const res = parseVaaKey(bytes, idx);
-    idx = res[1];
-    messages.push(res[0]);
-  }
-
-  let instructions = [] as DeliveryInstruction[];
-  for (let i = 0; i < numInstructions; ++i) {
+  
     const targetChain = bytes.readUInt16BE(idx);
     idx += 2;
     const targetAddress = bytes.slice(idx, idx + 32);
     idx += 32;
-    const refundAddress = bytes.slice(idx, idx + 32);
-    idx += 32;
     const refundChain = bytes.readUInt16BE(idx);
     idx += 2;
+    const refundAddress = bytes.slice(idx, idx + 32);
+    idx += 32;
     const maximumRefundTarget = ethers.BigNumber.from(
       Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
     );
@@ -115,35 +91,47 @@ export function parseWormholeRelayerSend(
       Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
     );
     idx += 32;
+    const sourceRelayProvider = bytes.slice(idx, idx + 32);
+    idx += 32;
     const targetRelayProvider = bytes.slice(idx, idx + 32);
     idx += 32;
+    const senderAddress = bytes.slice(idx, idx + 32);
+    idx += 32;
+    const numMessages = bytes.readUInt8(idx);
+    idx += 1;
+
+    let messages = [] as VaaKey[];
+    for (let i = 0; i < numMessages; ++i) {
+      const res = parseVaaKey(bytes, idx);
+      idx = res[1];
+      messages.push(res[0]);
+    }
+
+    const consistencyLevel = bytes.readUInt8(idx);
+    idx += 1;
+
+
     let res = parseWormholeRelayerExecutionParameters(bytes, idx);
     const executionParameters = res[0];
     idx = res[1];
     let payload: Buffer;
     [payload, idx] = parsePayload(bytes, idx);
-    instructions.push(
-      // dumb typechain format
-      {
-        targetChain,
+    
+
+  return {
+    targetChain,
         targetAddress,
         refundAddress,
         refundChain,
         maximumRefundTarget,
         receiverValueTarget,
+        sourceRelayProvider,
         targetRelayProvider,
+        senderAddress,
+        vaaKeys: messages,
         executionParameters,
+        consistencyLevel,
         payload,
-      }
-    );
-  }
-
-  return {
-    payloadId,
-    senderAddress,
-    sourceProvider,
-    messages,
-    instructions,
   };
 }
 

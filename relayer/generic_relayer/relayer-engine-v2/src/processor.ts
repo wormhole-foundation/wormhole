@@ -29,22 +29,21 @@ export async function processGenericRelayerVaa(ctx: GRContext, next: Next) {
 }
 
 async function processDelivery(ctx: GRContext) {
-  const chainId = ctx.vaa!.emitterChain as wh.EVMChainId;
   const payload = parseWormholeRelayerSend(ctx.vaa!.payload);
 
   //TODO this check is not quite correct
   if (
-    payload.messages.findIndex(
+    payload.vaaKeys.findIndex(
       (m) => m.payloadType !== VaaKeyType.EMITTER_SEQUENCE
     ) != -1
   ) {
     throw new Error(`Only supports EmitterSequence VaaKeyType`);
   }
   ctx.logger.info(`Fetching vaas from parsed delivery vaa manifest...`, {
-    manifest: payload.messages,
+    manifest: payload.vaaKeys,
   });
 
-  const vaaIds = payload.messages.map((m) => ({
+  const vaaIds = payload.vaaKeys.map((m) => ({
     emitterAddress: m.emitterAddress!,
     emitterChain: m.chainId!,
     sequence: m.sequence!.toBigInt(),
@@ -81,10 +80,10 @@ async function processDelivery(ctx: GRContext) {
   }
 
   ctx.logger.debug(`Vaas fetched`);
-  for (let i = 0; i < payload.instructions.length; i++) {
-    const ix = payload.instructions[i];
+
+    const ix = payload;
     ctx.logger.debug(
-      `Processing instruction ${i + 1} of ${payload.instructions.length}`,
+      `Processing instruction ${1} of ${1}`,
       { instruction: ix }
     );
     // const chainId = assertEvmChainId(ix.targetChain)
@@ -111,7 +110,6 @@ async function processDelivery(ctx: GRContext) {
       const input: IDelivery.TargetDeliveryParametersStruct = {
         encodedVMs: results.map((v) => v),
         encodedDeliveryVAA: ctx.vaaBytes!,
-        multisendIndex: i,
         relayerRefundAddress: wallet.address,
       };
 
@@ -146,12 +144,12 @@ async function processDelivery(ctx: GRContext) {
         }
       }
       ctx.logger.info(
-        `Relayed instruction ${i + 1} of ${
-          payload.instructions.length
+        `Relayed instruction ${1} of ${
+          1
         } to chain ${chainId}, tx hash: ${receipt.transactionHash}`
       );
 
       ctx.logger.info("exiting processor");
     });
-  }
+  
 }
