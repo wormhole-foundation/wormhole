@@ -859,7 +859,7 @@ dependencies = [
  "thiserror",
  "tinyvec",
  "wormhole-bindings",
- "wormhole-core",
+ "wormhole-sdk",
 ]
 
 [[package]]
@@ -2146,7 +2146,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_wormhole",
- "wormhole-core",
+ "wormhole-sdk",
 ]
 
 [[package]]
@@ -2165,7 +2165,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "wormhole-core"
+name = "wormhole-sdk"
 version = "0.1.0"
 dependencies = [
  "anyhow",

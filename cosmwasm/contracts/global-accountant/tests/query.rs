@@ -9,7 +9,7 @@ use accountant::state::{
 use cosmwasm_std::Uint256;
 use global_accountant::msg::TransferStatus;
 use helpers::*;
-use wormhole::{token::Message, vaa::Body, Address, Amount};
+use wormhole_sdk::{token::Message, vaa::Body, Address, Amount};
 use wormhole_bindings::fake;
 
 fn create_accounts(wh: &fake::WormholeKeeper, contract: &mut Contract, count: usize) {

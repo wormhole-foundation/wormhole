@@ -3,7 +3,7 @@ use std::ops::{Deref, DerefMut};
 use anyhow::anyhow;
 use cosmwasm_std::StdError;
 use thiserror::Error;
-use wormhole::Chain;
+use wormhole_sdk::Chain;
 
 #[derive(Error, Debug)]
 pub enum ContractError {

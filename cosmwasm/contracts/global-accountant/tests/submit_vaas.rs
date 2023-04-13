@@ -5,7 +5,7 @@ use cosmwasm_std::{from_binary, to_binary, Binary, Event, Uint256};
 use global_accountant::msg::{Observation, ObservationStatus, SubmitObservationResponse};
 use helpers::*;
 use serde_wormhole::RawMessage;
-use wormhole::{
+use wormhole_sdk::{
     token::Message,
     vaa::{Body, Header, Vaa},
     Address, Amount, Chain,

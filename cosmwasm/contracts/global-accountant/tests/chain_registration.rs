@@ -3,7 +3,7 @@ mod helpers;
 use cosmwasm_std::{to_binary, Event};
 use global_accountant::msg::ChainRegistrationResponse;
 use helpers::*;
-use wormhole::{
+use wormhole_sdk::{
     token::{Action, GovernancePacket},
     vaa::Body,
     Address, Chain,
@@ -14,7 +14,7 @@ fn create_vaa_body() -> Body<GovernancePacket> {
         timestamp: 1,
         nonce: 1,
         emitter_chain: Chain::Solana,
-        emitter_address: wormhole::GOVERNANCE_EMITTER,
+        emitter_address: wormhole_sdk::GOVERNANCE_EMITTER,
         sequence: 15920283,
         consistency_level: 0,
         payload: GovernancePacket {

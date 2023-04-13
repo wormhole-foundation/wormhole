@@ -16,7 +16,7 @@ use cw2::set_contract_version;
 use cw_storage_plus::Bound;
 use serde_wormhole::RawMessage;
 use tinyvec::{Array, TinyVec};
-use wormhole::{
+use wormhole_sdk::{
     accountant as accountant_module, token,
     vaa::{self, Body, Header, Signature},
     Chain,
@@ -332,7 +332,7 @@ fn handle_vaa(
 
     // We may also accept governance messages from wormchain in the future
     let mut evt = if body.emitter_chain == Chain::Solana
-        && body.emitter_address == wormhole::GOVERNANCE_EMITTER
+        && body.emitter_address == wormhole_sdk::GOVERNANCE_EMITTER
     {
         if body.payload.len() < 32 {
             bail!("governance module missing");

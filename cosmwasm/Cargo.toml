@@ -36,4 +36,4 @@ token-bridge-terra-2 = { path = "contracts/token-bridge" }
 global-accountant = { path = "contracts/global-accountant" }
 wormhole-bindings = { path = "packages/wormhole-bindings" }
 wormhole-bridge-terra-2 = { path = "contracts/wormhole" }
-wormhole-core = { path = "../sdk/rust/core" }
+wormhole-sdk = { path = "../sdk/rust/core" }

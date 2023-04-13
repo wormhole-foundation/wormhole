@@ -18,7 +18,7 @@ use global_accountant::{
     state,
 };
 use serde::Serialize;
-use wormhole::{
+use wormhole_sdk::{
     accountant::{self as accountant_module, ModificationKind},
     token,
     vaa::{Body, Header, Signature},
@@ -94,7 +94,7 @@ impl Contract {
             timestamp: self.sequence as u32,
             nonce: self.sequence as u32,
             emitter_chain: Chain::Solana,
-            emitter_address: wormhole::GOVERNANCE_EMITTER,
+            emitter_address: wormhole_sdk::GOVERNANCE_EMITTER,
             sequence: self.sequence,
             consistency_level: 0,
             payload: accountant_module::GovernancePacket {
@@ -364,7 +364,7 @@ pub fn register_emitters(wh: &fake::WormholeKeeper, contract: &mut Contract, cou
             timestamp: i as u32,
             nonce: i as u32,
             emitter_chain: Chain::Solana,
-            emitter_address: wormhole::GOVERNANCE_EMITTER,
+            emitter_address: wormhole_sdk::GOVERNANCE_EMITTER,
             sequence: i as u64,
             consistency_level: 0,
             payload: token::GovernancePacket {
