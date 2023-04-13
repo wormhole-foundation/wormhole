@@ -23,12 +23,12 @@ export interface DeliveryInstructionsContainer {
   payloadId: number; // 1
   senderAddress: Buffer;
   sourceProvider: Buffer;
-  messages: MessageInfo[];
+  messages: VaaKey[];
   instructions: DeliveryInstruction[];
 }
 
-export interface MessageInfo {
-  payloadType: MessageInfoType;
+export interface VaaKey {
+  payloadType: VaaKeyType;
   chainId?: number;
   emitterAddress?: Buffer;
   sequence?: BigNumber;
@@ -52,7 +52,7 @@ export interface ExecutionParameters {
   gasLimit: number;
 }
 
-export enum MessageInfoType {
+export enum VaaKeyType {
   EMITTER_SEQUENCE = 0,
   VAAHASH = 1,
 }
@@ -92,9 +92,9 @@ export function parseWormholeRelayerSend(
   const numInstructions = bytes.readUInt8(idx);
   idx += 1;
 
-  let messages = [] as MessageInfo[];
+  let messages = [] as VaaKey[];
   for (let i = 0; i < numMessages; ++i) {
-    const res = parseMessageInfo(bytes, idx);
+    const res = parseVaaKey(bytes, idx);
     idx = res[1];
     messages.push(res[0]);
   }
@@ -157,15 +157,15 @@ function parsePayload(bytes: Buffer, idx: number): [Buffer, number] {
   return [payload, idx];
 }
 
-function parseMessageInfo(bytes: Buffer, idx: number): [MessageInfo, number] {
+function parseVaaKey(bytes: Buffer, idx: number): [VaaKey, number] {
   const version = bytes.readUint8(idx);
   idx += 1;
 
-  const payloadType = bytes.readUint8(idx) as MessageInfoType;
+  const payloadType = bytes.readUint8(idx) as VaaKeyType;
   idx += 1;
 
   dbg(payloadType, "payloadType");
-  if (payloadType == MessageInfoType.EMITTER_SEQUENCE) {
+  if (payloadType == VaaKeyType.EMITTER_SEQUENCE) {
     dbg(null, "parsingEmitterSequence");
     const chainId = bytes.readUInt16BE(idx);
     idx += 2;
@@ -184,7 +184,7 @@ function parseMessageInfo(bytes: Buffer, idx: number): [MessageInfo, number] {
       },
       idx,
     ];
-  } else if (payloadType == MessageInfoType.VAAHASH) {
+  } else if (payloadType == VaaKeyType.VAAHASH) {
     const vaaHash = bytes.slice(idx, idx + 32);
     idx += 32;
     return [
@@ -195,7 +195,7 @@ function parseMessageInfo(bytes: Buffer, idx: number): [MessageInfo, number] {
       idx,
     ];
   } else {
-    throw new Error("Unexpected MessageInfo payload type");
+    throw new Error("Unexpected VaaKey payload type");
   }
 }
 

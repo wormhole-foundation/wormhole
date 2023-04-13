@@ -49,7 +49,7 @@ contract ForwardTester is IWormholeReceiver {
         bytes memory payload = vaa.payload;
         Action action = Action(payload.toUint8(0));
 
-        IWormholeRelayer.MessageInfo[] memory empty = new IWormholeRelayer.MessageInfo[](0);
+        IWormholeRelayer.VaaKey[] memory empty = new IWormholeRelayer.VaaKey[](0);
 
         if (action == Action.MultipleForwardsRequested) {
             uint256 maxTransactionFee =
@@ -170,7 +170,7 @@ contract DummyContract {
         uint256 maxTransactionFee,
         uint256 receiverValue,
         bytes memory payload,
-        IWormholeRelayer.MessageInfo[] memory messages
+        IWormholeRelayer.VaaKey[] memory messages
     ) public {
         wormholeRelayer.forward(
             chainId, targetAddress, chainId, refundAddress, maxTransactionFee, receiverValue, payload, messages, 200
