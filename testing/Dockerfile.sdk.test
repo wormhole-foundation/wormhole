@@ -5,6 +5,10 @@ RUN apk update && apk add g++ make python3 curl
 RUN mkdir -p /app
 WORKDIR /app
 
+COPY scripts/install-foundry ./install-foundry
+RUN ./install-foundry
+ENV PATH="$PATH:$HOME/.foundry/bin/"
+
 COPY ethereum/package.json ethereum/package-lock.json ./ethereum/
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
     npm ci --prefix ethereum
