@@ -60,8 +60,8 @@ module token_bridge::token_registry {
     struct Key<phantom CoinType> has copy, drop, store {}
 
     /// This struct is not used for anything within the contract. It exists
-    /// purely for someone to be able to fetch the type name of coin type
-    /// as a string via `TokenRegistry`.
+    /// purely for someone with an RPC query to be able to fetch the type name
+    /// of coin type as a string via `TokenRegistry`.
     struct CoinTypeKey has drop, copy, store {
         chain: u16,
         addr: vector<u8>
