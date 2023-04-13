@@ -1,19 +1,19 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-
-use crate::ibc::PACKET_LIFETIME;
-use anyhow::Context;
-use cosmwasm_std::{
-    to_binary, Binary, Deps, DepsMut, Env, IbcMsg, IbcQuery, ListChannelsResponse, MessageInfo,
-    Response, StdResult,
+use wormhole::{contract::query_parse_and_verify_vaa, state::config_read};
+use wormhole_sdk::{
+    ibc_receiver::{Action, GovernancePacket},
+    Chain,
 };
-use wormhole::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+
+use crate::{ibc::PACKET_LIFETIME, msg::ExecuteMsg, state::WORMCHAIN_CHANNEL_ID};
+use anyhow::{ensure, Context};
+use cosmwasm_std::{
+    to_binary, Binary, Deps, DepsMut, Env, Event, IbcMsg, MessageInfo, Response, StdResult,
+};
+use wormhole::msg::{ExecuteMsg as WormholeExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
 use crate::msg::WormholeIbcPacketMsg;
-
-// TODO: Set this based on an env variable
-const WORMCHAIN_IBC_RECEIVER_PORT: &str =
-    "wasm.wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj";
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -41,9 +41,85 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, anyhow::Error> {
     match msg {
-        ExecuteMsg::SubmitVAA { .. } => wormhole::contract::execute(deps, env, info, msg)
-            .context("failed core submit_vaa execution"),
-        ExecuteMsg::PostMessage { .. } => post_message_ibc(deps, env, info, msg),
+        ExecuteMsg::SubmitVAA { vaa } => {
+            wormhole::contract::execute(deps, env, info, WormholeExecuteMsg::SubmitVAA { vaa })
+                .context("failed core submit_vaa execution")
+        }
+        ExecuteMsg::PostMessage { message, nonce } => post_message_ibc(
+            deps,
+            env,
+            info,
+            WormholeExecuteMsg::PostMessage { message, nonce },
+        ),
+        ExecuteMsg::SubmitUpdateChannelChain { vaas } => submit_vaas(deps, env, info, vaas),
+    }
+}
+
+fn submit_vaas(
+    mut deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    vaas: Vec<Binary>,
+) -> Result<Response, anyhow::Error> {
+    let evts = vaas
+        .into_iter()
+        .map(|v| handle_vaa(deps.branch(), env.clone(), v))
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    Ok(Response::new()
+        .add_attribute("action", "submit_vaas")
+        .add_attribute("owner", info.sender)
+        .add_events(evts))
+}
+
+fn handle_vaa(deps: DepsMut, env: Env, vaa: Binary) -> anyhow::Result<Event> {
+    // parse the VAA header and data
+    let vaa = query_parse_and_verify_vaa(deps.as_ref(), vaa.as_slice(), env.block.time.seconds())
+        .context("failed to parse vaa")?;
+
+    // validate this is a governance VAA
+    ensure!(
+        Chain::from(vaa.emitter_chain) == Chain::Solana
+            && vaa.emitter_address == wormhole_sdk::GOVERNANCE_EMITTER.0,
+        "not a governance VAA"
+    );
+
+    // parse the governance packet
+    let govpacket = serde_wormhole::from_slice::<GovernancePacket>(&vaa.payload)
+        .context("failed to parse governance packet")?;
+
+    // validate the governance VAA is directed to this chain
+    let state = config_read(deps.storage)
+        .load()
+        .context("failed to load contract config")?;
+    ensure!(
+        govpacket.chain == Chain::from(state.chain_id),
+        "this governance VAA is for another chain"
+    );
+
+    // match the governance action and execute the corresponding logic
+    match govpacket.action {
+        Action::UpdateChannelChain {
+            channel_id,
+            chain_id,
+        } => {
+            // validate that the chain_id for the channel is wormchain
+            // we should only be whitelisting IBC connections to wormchain
+            ensure!(
+                chain_id == Chain::Wormchain,
+                "whitelisted ibc channel not for wormchain"
+            );
+
+            let channel_id_str = String::from_utf8(channel_id.to_vec())
+                .context("failed to parse channel-id as utf-8")?;
+
+            // update the whitelisted wormchain channel id
+            WORMCHAIN_CHANNEL_ID
+                .save(deps.storage, &channel_id_str)
+                .context("failed to save channel chain")?;
+            Ok(Event::new("UpdateChannelChain")
+                .add_attribute("chain_id", chain_id.to_string())
+                .add_attribute("channel_id", channel_id_str))
+        }
     }
 }
 
@@ -51,22 +127,11 @@ fn post_message_ibc(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    msg: ExecuteMsg,
+    msg: WormholeExecuteMsg,
 ) -> anyhow::Result<Response> {
-    // search for a channel bound to counterparty with the port "wasm.<wormchain_addr>"
-    let ibc_channels = deps
-        .querier
-        .query::<ListChannelsResponse>(&IbcQuery::ListChannels { port_id: None }.into())
-        .map(|res| res.channels)
-        .context("failed to query ibc channels")?;
-
-    let channel_id = ibc_channels
-        .iter()
-        .find(|c| c.counterparty_endpoint.port_id == WORMCHAIN_IBC_RECEIVER_PORT)
-        .map(|c| c.endpoint.channel_id.clone())
-        .context(
-            "no channel connecting to wormchain contract port {WORMCHAIN_IBC_RECEIVER_PORT}",
-        )?;
+    let channel_id = WORMCHAIN_CHANNEL_ID
+        .load(deps.storage)
+        .context("failed to load whitelisted wormchain channel id")?;
 
     // compute the packet timeout (infinite timeout)
     let packet_timeout = env.block.time.plus_seconds(PACKET_LIFETIME).into();

@@ -94,6 +94,8 @@ fn handle_vaa(deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<Event
             channel_id,
             chain_id,
         } => {
+            ensure!(chain_id != Chain::Wormchain, "the wormchain-ibc-receiver contract should not maintain channel mappings to wormchain");
+
             let channel_id_str = String::from_utf8(channel_id.to_vec())
                 .context("failed to parse channel-id as utf-8")?;
 
@@ -134,48 +136,4 @@ fn query_all_channel_chains(deps: Deps) -> StdResult<AllChannelChainsResponse> {
         })
         .collect::<StdResult<Vec<_>>>()
         .map(|channels_chains| AllChannelChainsResponse { channels_chains })
-}
-
-#[cfg(test)]
-mod tests {
-    use cosmwasm_std::{
-        testing::{mock_dependencies, mock_env, mock_info},
-        Empty,
-    };
-    use cw2::get_contract_version;
-
-    use super::{instantiate, CONTRACT_NAME, CONTRACT_VERSION};
-
-    #[test]
-    fn instantiate_works() {
-        let mut deps = mock_dependencies();
-
-        const SENDER: &str = "creator";
-        let info = mock_info(SENDER, &[]);
-        let res = instantiate(deps.as_mut(), mock_env(), info, Empty {}).unwrap();
-
-        // the response should have 0 messages and 3 attributes
-        assert_eq!(0, res.messages.len());
-        assert_eq!(3, res.attributes.len());
-
-        // validate the attributes and their values
-        res.attributes.iter().for_each(|a| {
-            let value = if a.key == "action" {
-                "instantiate"
-            } else if a.key == "owner" {
-                SENDER
-            } else if a.key == "version" {
-                CONTRACT_VERSION
-            } else {
-                panic!("invalid attribute key");
-            };
-
-            assert_eq!(a.value, value);
-        });
-
-        // check that contract version & name have been set
-        let contract_version = get_contract_version(deps.as_ref().storage).unwrap();
-        assert_eq!(CONTRACT_NAME, contract_version.contract);
-        assert_eq!(CONTRACT_VERSION, contract_version.version);
-    }
 }

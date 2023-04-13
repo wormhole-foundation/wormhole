@@ -2207,11 +2207,14 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-storage-plus",
+ "hex",
  "schemars",
  "semver",
  "serde",
+ "serde_wormhole",
  "thiserror",
  "wormhole-bridge-terra-2",
+ "wormhole-core",
 ]
 
 [[package]]
