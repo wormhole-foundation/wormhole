@@ -291,7 +291,7 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
                     relayParameters: bytes("")
                 }),
                 address(provider),
-                new IWormholeRelayer.MessageInfo[](0),
+                new IWormholeRelayer.VaaKey[](0),
                 200 //send message instantly
             )
         );
@@ -364,7 +364,7 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
         }
 
         // Check that the relayed signed VAAs match the descriptions in container.messages (the VAA hashes match, or the emitter address, sequence number pair matches, depending on the description given)
-        checkMessageInfosWithVAAs(container.messageInfos, targetParams.encodedVMs);
+        checkVaaKeysWithVAAs(container.vaaKeys, targetParams.encodedVMs);
 
         _executeDelivery(
             IWormholeRelayerInternalStructs.DeliveryVAAInfo({
@@ -380,46 +380,46 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
     }
 
     /**
-     * @notice checkMessageInfosWithVAAs checks that the array of signed VAAs 'signedVaas' matches the descriptions
-     * given by the array of MessageInfo structs 'messageInfos'
+     * @notice checkVaaKeysWithVAAs checks that the array of signed VAAs 'signedVaas' matches the descriptions
+     * given by the array of VaaKey structs 'vaaKeys'
      *
-     * @param messageInfos Array of MessageInfo structs, each describing a wormhole message (VAA)
+     * @param vaaKeys Array of VaaKey structs, each describing a wormhole message (VAA)
      * @param signedVaas Array of signed wormhole messages (signed VAAs)
      */
-    function checkMessageInfosWithVAAs(IWormholeRelayer.MessageInfo[] memory messageInfos, bytes[] memory signedVaas)
+    function checkVaaKeysWithVAAs(IWormholeRelayer.VaaKey[] memory vaaKeys, bytes[] memory signedVaas)
         internal
         view
     {
-        if (messageInfos.length != signedVaas.length) {
-            revert IDelivery.MessageInfosLengthDoesNotMatchVaasLength();
+        if (vaaKeys.length != signedVaas.length) {
+            revert IDelivery.VaaKeysLengthDoesNotMatchVaasLength();
         }
-        for (uint8 i = 0; i < messageInfos.length; i++) {
-            if (!messageInfoMatchesVAA(messageInfos[i], signedVaas[i])) {
-                revert IDelivery.MessageInfosDoNotMatchVaas(i);
+        for (uint8 i = 0; i < vaaKeys.length; i++) {
+            if (!vaaKeyMatchesVAA(vaaKeys[i], signedVaas[i])) {
+                revert IDelivery.VaaKeysDoNotMatchVaas(i);
             }
         }
     }
 
     /**
-     * @notice messageInfosWithVAAs checks that signedVaa matches the description given by 'messageInfo'
-     * Specifically, if 'messageInfo.infoType' is MessageInfoType.EMITTER_SEQUENCE, then we check
+     * @notice vaaKeysWithVAAs checks that signedVaa matches the description given by 'vaaKey'
+     * Specifically, if 'vaaKey.infoType' is VaaKeyType.EMITTER_SEQUENCE, then we check
      * if the emitterAddress and sequence match
-     * else if 'messageInfo.infoType' is MessageInfoType.EMITTER_SEQUENCE, then we check if the VAA hash matches
+     * else if 'vaaKey.infoType' is VaaKeyType.EMITTER_SEQUENCE, then we check if the VAA hash matches
      *
-     * @param messageInfo MessageInfo struct describing a wormhole message (VAA)
+     * @param vaaKey VaaKey struct describing a wormhole message (VAA)
      * @param signedVaa signed wormhole message
      */
-    function messageInfoMatchesVAA(IWormholeRelayer.MessageInfo memory messageInfo, bytes memory signedVaa)
+    function vaaKeyMatchesVAA(IWormholeRelayer.VaaKey memory vaaKey, bytes memory signedVaa)
         internal
         view
         returns (bool)
     {
         IWormhole.VM memory parsedVaa = wormhole().parseVM(signedVaa);
-        if (messageInfo.infoType == IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE) {
+        if (vaaKey.infoType == IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE) {
             return
-                (messageInfo.chainId == parsedVaa.emitterChainId) && (messageInfo.emitterAddress == parsedVaa.emitterAddress) && (messageInfo.sequence == parsedVaa.sequence);
-        } else if (messageInfo.infoType == IWormholeRelayer.MessageInfoType.VAAHASH) {
-            return (messageInfo.vaaHash == parsedVaa.hash);
+                (vaaKey.chainId == parsedVaa.emitterChainId) && (vaaKey.emitterAddress == parsedVaa.emitterAddress) && (vaaKey.sequence == parsedVaa.sequence);
+        } else if (vaaKey.infoType == IWormholeRelayer.VaaKeyType.VAAHASH) {
+            return (vaaKey.vaaHash == parsedVaa.hash);
         } else {
             return false;
         }

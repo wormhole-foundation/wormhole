@@ -60,17 +60,17 @@ contract MockGenericRelayer {
         relay(vm.getRecordedLogs(), chainId);
     }
 
-    function messageInfoMatchesVAA(IWormholeRelayer.MessageInfo memory messageInfo, bytes memory signedVaa)
+    function vaaKeyMatchesVAA(IWormholeRelayer.VaaKey memory vaaKey, bytes memory signedVaa)
         internal
         view
         returns (bool)
     {
         IWormhole.VM memory parsedVaa = relayerWormhole.parseVM(signedVaa);
-        if (messageInfo.infoType == IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE) {
+        if (vaaKey.infoType == IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE) {
             return
-                (messageInfo.chainId == parsedVaa.emitterChainId) && (messageInfo.emitterAddress == parsedVaa.emitterAddress) && (messageInfo.sequence == parsedVaa.sequence);
-        } else if (messageInfo.infoType == IWormholeRelayer.MessageInfoType.VAAHASH) {
-            return (messageInfo.vaaHash == parsedVaa.hash);
+                (vaaKey.chainId == parsedVaa.emitterChainId) && (vaaKey.emitterAddress == parsedVaa.emitterAddress) && (vaaKey.sequence == parsedVaa.sequence);
+        } else if (vaaKey.infoType == IWormholeRelayer.VaaKeyType.VAAHASH) {
+            return (vaaKey.vaaHash == parsedVaa.hash);
         } else {
             return false;
         }
@@ -112,7 +112,7 @@ contract MockGenericRelayer {
 
             for (uint8 i = 0; i < container.messages.length; i++) {
                 for (uint8 j = 0; j < encodedVMs.length; j++) {
-                    if (messageInfoMatchesVAA(container.messages[i], encodedVMs[j])) {
+                    if (vaaKeyMatchesVAA(container.messages[i], encodedVMs[j])) {
                         encodedVMsToBeDelivered[i] = encodedVMs[j];
                         break;
                     }

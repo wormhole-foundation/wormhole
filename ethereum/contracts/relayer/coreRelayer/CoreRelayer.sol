@@ -50,7 +50,7 @@ contract CoreRelayer is CoreRelayerDelivery {
                 payload,
                 getDefaultRelayParams()
             ),
-            new IWormholeRelayer.MessageInfo[](0),
+            new IWormholeRelayer.VaaKey[](0),
             getDefaultRelayProvider(),
             15 //finality on all EVM chains
         );
@@ -72,10 +72,10 @@ contract CoreRelayer is CoreRelayerDelivery {
      *  If maxTransactionFee >= quoteGas(targetChain, gasLimit, getDefaultRelayProvider()), then as long as 'targetAddress''s receiveWormholeMessage function uses at most 'gasLimit' units of gas (and doesn't revert), the delivery will succeed
      *  @param receiverValue The amount (denominated in source chain currency) that will be converted to target chain currency and passed into the receiveWormholeMessage endpoint as value.
      *  If receiverValue >= quoteReceiverValue(targetChain, targetAmount, getDefaultRelayProvider()), then at least 'targetAmount' of targetChain currency will be passed into the 'receiveWormholeFunction' as value.
-     *  @param messageInfos Array of MessageInfo structs identifying each message to be relayed. Each MessageInfo struct specifies a wormhole message in the current transaction, either by the VAA hash, or by the (emitter address, sequence number) pair.
+     *  @param vaaKeys Array of VaaKey structs identifying each message to be relayed. Each VaaKey struct specifies a wormhole message in the current transaction, either by the VAA hash, or by the (emitter address, sequence number) pair.
      *  @param payload An optional additional payload that should be included in the delivery.
      *  The relay provider will call receiveWormholeMessages with an array of signed VAAs specified by this messages array.
-     *  Specifically, the 'signedVaas' array will have the same length as 'messageInfos', and additionally for each 0 <= i < messages.length, signedVaas[i] will match the description in messages[i]
+     *  Specifically, the 'signedVaas' array will have the same length as 'vaaKeys', and additionally for each 0 <= i < messages.length, signedVaas[i] will match the description in messages[i]
      *
      *  This function must be called with a payment of at least maxTransactionFee + receiverValue + one wormhole message fee.
      *
@@ -90,7 +90,7 @@ contract CoreRelayer is CoreRelayerDelivery {
         uint256 maxTransactionFee,
         uint256 receiverValue,
         bytes memory payload,
-        IWormholeRelayer.MessageInfo[] memory messageInfos,
+        IWormholeRelayer.VaaKey[] memory vaaKeys,
         uint8 consistencyLevel
     ) external payable returns (uint64 sequence) {
         sequence = send(
@@ -104,7 +104,7 @@ contract CoreRelayer is CoreRelayerDelivery {
                 payload,
                 getDefaultRelayParams()
             ),
-            messageInfos,
+            vaaKeys,
             getDefaultRelayProvider(),
             consistencyLevel
         );
@@ -116,9 +116,9 @@ contract CoreRelayer is CoreRelayerDelivery {
      *
      *
      *  @param request The Send request containing info about the targetChain, targetAddress, refundAddress, maxTransactionFee, receiverValue, payload, and relayParameters
-     *  @param messageInfos Array of MessageInfo structs identifying each message to be relayed. Each MessageInfo struct specifies a wormhole message in the current transaction, either by the VAA hash, or by the (emitter address, sequence number) pair.
+     *  @param vaaKeys Array of VaaKey structs identifying each message to be relayed. Each VaaKey struct specifies a wormhole message in the current transaction, either by the VAA hash, or by the (emitter address, sequence number) pair.
      *  The relay provider will call receiveWormholeMessages with an array of signed VAAs specified by this messages array.
-     *  Specifically, the 'signedVaas' array will have the same length as 'messageInfos', and additionally for each 0 <= i < messages.length, signedVaas[i] will match the description in messages[i]
+     *  Specifically, the 'signedVaas' array will have the same length as 'vaaKeys', and additionally for each 0 <= i < messages.length, signedVaas[i] will match the description in messages[i]
      *  @param relayProvider The address of (the relay provider you wish to deliver the messages)'s contract on this source chain. This must be a contract that implements IRelayProvider.
      *  If request.maxTransactionFee >= quoteGas(request.targetChain, gasLimit, relayProvider),
      *  then as long as 'request.targetAddress''s receiveWormholeMessage function uses at most 'gasLimit' units of gas (and doesn't revert), the delivery will succeed
@@ -132,12 +132,12 @@ contract CoreRelayer is CoreRelayerDelivery {
      */
     function send(
         IWormholeRelayer.Send memory request,
-        IWormholeRelayer.MessageInfo[] memory messageInfos,
+        IWormholeRelayer.VaaKey[] memory vaaKeys,
         address relayProvider,
         uint8 consistencyLevel
     ) public payable returns (uint64 sequence) {
         // call multichainSend with one 'Send' in the requests array
-        sequence = multichainSend(multichainSendContainer(request, relayProvider, messageInfos, consistencyLevel));
+        sequence = multichainSend(multichainSendContainer(request, relayProvider, vaaKeys, consistencyLevel));
     }
 
     /**
@@ -156,7 +156,7 @@ contract CoreRelayer is CoreRelayerDelivery {
      *
      * Specifically, this 'forward' function is only callable within a delivery (during receiveWormholeMessages) and indicates the in-progress delivery to use any leftover funds from the current delivery to fund a new delivery
      * or equivalently, indicates the in-progress delivery to call the receiveWormholeMessage(bytes[] memory vaas, bytes[] memory additionalData) endpoint of the contract on chain 'targetChain' and address 'targetAddress'
-     * with the first argument being wormhole messages (VAAs) from the current transaction that match the descriptions in the 'messageInfos' array (which have additionally been encoded and signed by the Guardian set to form 'signed VAAs'),
+     * with the first argument being wormhole messages (VAAs) from the current transaction that match the descriptions in the 'vaaKeys' array (which have additionally been encoded and signed by the Guardian set to form 'signed VAAs'),
      * and with the second argument empty
      *
      *  @param targetChain The chain that the vaas are delivered to, in Wormhole Chain ID format
@@ -171,9 +171,9 @@ contract CoreRelayer is CoreRelayerDelivery {
      *  @param receiverValue The amount (denominated in source chain currency) that will be converted to target chain currency and passed into the receiveWormholeMessage endpoint as value.
      *  If receiverValue >= quoteReceiverValue(targetChain, targetAmount, getDefaultRelayProvider()), then at least 'targetAmount' of targetChain currency will be passed into the 'receiveWormholeFunction' as value.
      *  @param payload An optional additional payload that should be included in the delivery.
-     *  @param messageInfos Array of MessageInfo structs identifying each message to be relayed. Each MessageInfo struct specifies a wormhole message in the current transaction, either by the VAA hash, or by the (emitter address, sequence number) pair.
+     *  @param vaaKeys Array of VaaKey structs identifying each message to be relayed. Each VaaKey struct specifies a wormhole message in the current transaction, either by the VAA hash, or by the (emitter address, sequence number) pair.
      *  The relay provider will call receiveWormholeMessages with an array of signed VAAs specified by this messages array.
-     *  Specifically, the 'signedVaas' array will have the same length as 'messageInfos', and additionally for each 0 <= i < messages.length, signedVaas[i] will match the description in messages[i]
+     *  Specifically, the 'signedVaas' array will have the same length as 'vaaKeys', and additionally for each 0 <= i < messages.length, signedVaas[i] will match the description in messages[i]
      *
      *  This forward will succeed if (leftover funds from the current delivery that would have been refunded) + (any extra msg.value passed into forward) is at least maxTransactionFee + receiverValue + one wormhole message fee.
      */
@@ -185,7 +185,7 @@ contract CoreRelayer is CoreRelayerDelivery {
         uint256 maxTransactionFee,
         uint256 receiverValue,
         bytes memory payload,
-        IWormholeRelayer.MessageInfo[] memory messageInfos,
+        IWormholeRelayer.VaaKey[] memory vaaKeys,
         uint8 consistencyLevel
     ) external payable {
         forward(
@@ -199,7 +199,7 @@ contract CoreRelayer is CoreRelayerDelivery {
                 payload,
                 getDefaultRelayParams()
             ),
-            messageInfos,
+            vaaKeys,
             getDefaultRelayProvider(),
             consistencyLevel
         );
@@ -221,15 +221,15 @@ contract CoreRelayer is CoreRelayerDelivery {
      *
      * Specifically, this 'forward' function is only callable within a delivery (during receiveWormholeMessages) and indicates the in-progress delivery to use any leftover funds from the current delivery to fund a new delivery
      * or equivalently, indicates the in-progress delivery to call the receiveWormholeMessage(bytes[] memory vaas, bytes[] memory additionalData) endpoint of the contract on chain 'targetChain' and address 'targetAddress'
-     * with the first argument being wormhole messages (VAAs) from the current transaction that match the descriptions in the 'messageInfos' array (which have additionally been encoded and signed by the Guardian set to form 'signed VAAs'),
+     * with the first argument being wormhole messages (VAAs) from the current transaction that match the descriptions in the 'vaaKeys' array (which have additionally been encoded and signed by the Guardian set to form 'signed VAAs'),
      * and with the second argument empty
      *
      *  @param request The Send request containing info about the targetChain, targetAddress, refundAddress, maxTransactionFee, receiverValue, payload, and relayParameters
      *  (specifically, the send info that will be used to deliver all of the wormhole messages emitted during the execution of oldTargetAddress's receiveWormholeMessages)
      *  This forward will succeed if (leftover funds from the current delivery that would have been refunded) + (any extra msg.value passed into forward) is at least maxTransactionFee + receiverValue + one wormhole message fee.
-     *  @param messageInfos Array of MessageInfo structs identifying each message to be relayed. Each MessageInfo struct specifies a wormhole message in the current transaction, either by the VAA hash, or by the (emitter address, sequence number) pair.
+     *  @param vaaKeys Array of VaaKey structs identifying each message to be relayed. Each VaaKey struct specifies a wormhole message in the current transaction, either by the VAA hash, or by the (emitter address, sequence number) pair.
      *  The relay provider will call receiveWormholeMessages with an array of signed VAAs specified by this messageInrow array.
-     *  Specifically, the 'signedVaas' array will have the same length as 'messageInfos', and additionally for each 0 <= i < messages.length, signedVaas[i] will match the description in messages[i]
+     *  Specifically, the 'signedVaas' array will have the same length as 'vaaKeys', and additionally for each 0 <= i < messages.length, signedVaas[i] will match the description in messages[i]
      *  @param relayProvider The address of (the relay provider you wish to deliver the messages)'s contract on this source chain. This must be a contract that implements IRelayProvider.
      *  If request.maxTransactionFee >= quoteGas(request.targetChain, gasLimit, relayProvider),
      *  then as long as 'request.targetAddress''s receiveWormholeMessage function uses at most 'gasLimit' units of gas (and doesn't revert), the delivery will succeed
@@ -240,16 +240,16 @@ contract CoreRelayer is CoreRelayerDelivery {
      */
     function forward(
         IWormholeRelayer.Send memory request,
-        IWormholeRelayer.MessageInfo[] memory messageInfos,
+        IWormholeRelayer.VaaKey[] memory vaaKeys,
         address relayProvider,
         uint8 consistencyLevel
     ) public payable {
         // call multichainForward with one 'Send' in the requests array
-        multichainForward(multichainSendContainer(request, relayProvider, messageInfos, consistencyLevel));
+        multichainForward(multichainSendContainer(request, relayProvider, vaaKeys, consistencyLevel));
     }
 
     /**
-     * @notice The multichainSend function delivers the messages in the current transaction specified by the 'messageInfos' array,
+     * @notice The multichainSend function delivers the messages in the current transaction specified by the 'vaaKeys' array,
      * with each destination specified in a Send struct, describing the desired targetAddress, targetChain, maxTransactionFee, receiverValue, refundAddress, payload, and relayParameters
      *
      * @param sendContainer The MultichainSend struct, containing the array of Send requests, the message array specifying the messages to be relayed, as well as the desired relayProviderAddress
