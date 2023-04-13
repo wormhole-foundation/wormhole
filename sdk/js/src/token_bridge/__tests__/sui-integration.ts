@@ -16,13 +16,13 @@ import {
   RawSigner,
 } from "@mysten/sui.js";
 import {
-  assertIsNotNullOrUndefined,
   CONTRACTS,
   executeTransactionBlock,
   getInnerType,
   SUI_OBJECT_IDS,
 } from "../../utils";
 import { attestFromSui } from "../attest";
+import { assertIsNotNullOrUndefined } from "./helpers";
 
 const JEST_TEST_TIMEOUT = 60000;
 jest.setTimeout(JEST_TEST_TIMEOUT);

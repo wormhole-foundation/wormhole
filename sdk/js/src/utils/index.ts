@@ -8,4 +8,3 @@ export * from "./keccak";
 export * from "./near";
 export * from "./parseVaa";
 export * from "./sui";
-export * from "./test";
