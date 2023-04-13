@@ -4,6 +4,7 @@
   "description": "",
   "main": "networks.js",
   "devDependencies": {
+    "@certusone/wormhole-sdk-proto-web": "^0.0.6",
     "@chainsafe/truffle-plugin-abigen": "0.0.1",
     "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
     "@openzeppelin/cli": "^2.8.2",
@@ -17,10 +18,10 @@
     "truffle-assertions": "^0.9.2",
     "truffle-flattener": "^1.6.0",
     "truffle-plugin-verify": "^0.5.11",
+    "ts-mocha": "^10.0.0",
     "ts-node": "^10.9.1",
     "typescript": "^4.9.5"
   },
-  
   "scripts": {
     "build": "truffle compile && forge build -o build && typechain --target=ethers-v5 --out-dir=./ethers-contracts build/*.sol/*.json && echo `TODO .. MAKE SURE THAT IT IS OKAY TO TYPECHAIN ON ONLY THE FORGE OUTPUT. DONT MERGE THIS YET`",
     "test": "mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle test --network test",
@@ -36,7 +37,8 @@
     "abigen": "truffle run abigen",
     "deploy-relayers-evm1": "ENV=kubernetes CONTAINER=evm1 bash ./ts-scripts/relayer/shell/deployInContainer.sh",
     "deploy-relayers-evm2": "ENV=kubernetes CONTAINER=evm2 bash ./ts-scripts/relayer/shell/deployInContainer.sh",
-    "relayer-tilt-test": "ENV=tilt WALLET_KEY=4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d npx ts-mocha -t 1000000 ts-test/relayer/*.ts"
+    "relayer-tilt-test": "ENV=tilt WALLET_KEY=4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d npx ts-mocha -t 1000000 ts-test/relayer/*.ts",
+    "relayer-tilt-test-other": "ENV=tilt WALLET_KEY=4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d ts-mocha -t 1000000 ts-test/relayer/*.ts"
   },
   "author": "",
   "license": "ISC",
@@ -52,7 +54,6 @@
     "jsonfile": "^4.0.0",
     "solc": "^0.8.4",
     "truffle-hdwallet-provider-klaytn": "^1.4.2",
-    "ts-mocha": "^10.0.0",
     "typechain": "^8.1.1"
   }
 }
