@@ -126,7 +126,7 @@ type ChainGovernor struct {
 	msgsSeen              map[string]bool // Key is hash, payload is consts transferComplete and transferEnqueued.
 	msgsToPublish         []*common.MessagePublication
 	dayLengthInMinutes    int
-	coinGeckoQuery        string
+	coinGeckoQueries      []string
 	env                   int
 	nextStatusPublishTime time.Time
 	nextConfigPublishTime time.Time
