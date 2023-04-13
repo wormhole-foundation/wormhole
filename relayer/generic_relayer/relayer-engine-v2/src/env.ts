@@ -92,7 +92,18 @@ const defaults: { [key in Flag]: GRRelayerAppConfig } = {
     redis: {},
   },
   // TODO
-  [Flag.K8sTestnet]: {} as any,
+  [Flag.K8sTestnet]: {
+    name: "GenericRelayer",
+    contractsJsonPath: `./contracts.json`,
+    logLevel: "debug",
+    logFormat: "json",
+    spyEndpoint: "spy:7073",
+    wormholeRpcs: ["https://wormhole-v2-testnet-api.certus.one"],
+    fetchSourceTxhash: true,
+    redisCluster: {
+      port
+    }
+  } as any,
   [Flag.Testnet]: {} as any,
   [Flag.Mainnet]: {} as any,
 };
