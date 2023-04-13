@@ -58,17 +58,12 @@ RUN rm -rf node_modules && mv node_modules_cache node_modules
 
 COPY --chown=node:node ./ethereum .
 
-# WORKDIR /home/node/app/
-#git init so forge works
-# RUN git init
-RUN forge install --no-git --no-commit
-# RUN forge install foundry-rs/forge-std@2c7cbfc6fbede6d7c9e6b17afe997e3fdfe22fef --no-git --no-commit
-# RUN forge install openzeppelin/openzeppelin-contracts@0457042d93d9dfd760dbaa06a4d2f1216fdbe297 --no-git --no-commit
 
 
 #typechain needs to be on the path
 USER root
 RUN npm i --save-dev --global typechain
+RUN forge install --no-git --no-commit
 RUN forge build -o build
 RUN typechain --target=ethers-v5 --out-dir=./ethers-contracts ./build/**/*.json
 
