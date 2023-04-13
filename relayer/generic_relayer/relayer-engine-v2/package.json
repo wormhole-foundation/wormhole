@@ -17,9 +17,11 @@
     "@certusone/wormhole-sdk": "^0.9.11",
     "@types/clone": "^2.1.1",
     "@types/koa": "^2.13.5",
+    "@types/koa-router": "^7.4.4",
     "clone": "^2.1.2",
     "koa": "^2.14.1",
-    "relayer-engine": "github:wormhole-foundation/relayer-engine#361baf3",
+    "koa-router": "^12.0.0",
+    "relayer-engine": "github:wormhole-foundation/relayer-engine#1d963d6689f8ec614d4e3081a2b3b44c66de8b7b",
     "yargs": "^17.7.1"
   },
   "peerDependencies": {
