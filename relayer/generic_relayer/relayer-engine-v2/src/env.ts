@@ -53,7 +53,7 @@ export interface GRRelayerAppConfig {
 const defaults: { [key in Flag]: GRRelayerAppConfig } = {
   [Flag.TiltKub]: {
     name: "GenericRelayer",
-    contractsJsonPath: `${SCRIPTS_DIR}/config/${Flag.TiltKub}/contracts.json`,
+    contractsJsonPath: `${SCRIPTS_DIR}/config/${Flag.Tilt}/contracts.json`,
     spyEndpoint: "spy:7072",
     logLevel: "debug",
     logFormat: "text",
@@ -93,16 +93,16 @@ const defaults: { [key in Flag]: GRRelayerAppConfig } = {
   },
   // TODO
   [Flag.K8sTestnet]: {
-    name: "GenericRelayer",
-    contractsJsonPath: `./contracts.json`,
-    logLevel: "debug",
-    logFormat: "json",
-    spyEndpoint: "spy:7073",
-    wormholeRpcs: ["https://wormhole-v2-testnet-api.certus.one"],
-    fetchSourceTxhash: true,
-    redisCluster: {
-      port
-    }
+    // name: "GenericRelayer",
+    // contractsJsonPath: `./contracts.json`,
+    // logLevel: "debug",
+    // logFormat: "json",
+    // spyEndpoint: "spy:7073",
+    // wormholeRpcs: ["https://wormhole-v2-testnet-api.certus.one"],
+    // fetchSourceTxhash: true,
+    // redisCluster: {
+    //   port
+    // }
   } as any,
   [Flag.Testnet]: {} as any,
   [Flag.Mainnet]: {} as any,
@@ -187,18 +187,18 @@ function loadAndMergeConfig(flag: Flag): GRRelayerAppConfig {
           dnsLookup: (address: any, callback: any) => callback(null, address),
           slotsRefreshTimeout: 1000,
           redisOptions: {
-            tls: process.env.REDIS_TLS ? {} : undefined,
+            tls: process.env.REDIS_TLS ? {} : base.redis?.tls,
             username: process.env.REDIS_USERNAME,
             password: process.env.REDIS_PASSWORD,
           },
         }
       : undefined,
     redis: <RedisOptions>{
-      tls: process.env.REDIS_TLS ? {} : undefined,
-      host: process.env.REDIS_HOST ? undefined : process.env.REDIS_HOST,
+      tls: process.env.REDIS_TLS ? {} : base.redis?.tls,
+      host: process.env.REDIS_HOST ? process.env.REDIS_HOST : base.redis?.host,
       port: process.env.REDIS_CLUSTER_ENDPOINTS
         ? undefined
-        : Number(process.env.REDIS_PORT) || undefined,
+        : Number(process.env.REDIS_PORT) || base.redis?.port,
       username: process.env.REDIS_USERNAME,
       password: process.env.REDIS_PASSWORD,
     },
