@@ -37,8 +37,8 @@ interface IWormholeRelayer {
     function send(
         uint16 targetChain,
         bytes32 targetAddress,
-        bytes32 refundAddress,
         uint16 refundChain,
+        bytes32 refundAddress,
         uint256 maxTransactionFee,
         uint256 receiverValue,
         bytes memory payload
@@ -75,8 +75,8 @@ interface IWormholeRelayer {
     function send(
         uint16 targetChain,
         bytes32 targetAddress,
-        bytes32 refundAddress,
         uint16 refundChain,
+        bytes32 refundAddress,
         uint256 maxTransactionFee,
         uint256 receiverValue,
         bytes memory payload,
@@ -100,6 +100,7 @@ interface IWormholeRelayer {
      */
     struct MessageInfo {
         MessageInfoType infoType;
+        uint16 chainId;
         bytes32 emitterAddress;
         uint64 sequence;
         bytes32 vaaHash;
@@ -122,8 +123,8 @@ interface IWormholeRelayer {
     struct Send {
         uint16 targetChain;
         bytes32 targetAddress;
-        bytes32 refundAddress;
         uint16 refundChain;
+        bytes32 refundAddress;
         uint256 maxTransactionFee;
         uint256 receiverValue;
         bytes payload;
@@ -196,8 +197,8 @@ interface IWormholeRelayer {
     function forward(
         uint16 targetChain,
         bytes32 targetAddress,
-        bytes32 refundAddress,
         uint16 refundChain,
+        bytes32 refundAddress,
         uint256 maxTransactionFee,
         uint256 receiverValue,
         bytes memory payload,
