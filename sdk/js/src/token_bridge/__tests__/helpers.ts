@@ -1,3 +1,4 @@
+import { expect } from "@jest/globals";
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 import { LCDClient, MnemonicKey, TxInfo } from "@terra-money/terra.js";
 import axios from "axios";
@@ -98,3 +99,15 @@ export async function queryBalanceOnTerra(asset: string): Promise<number> {
 export async function getTerraGasPrices() {
   return axios.get(TERRA_GAS_PRICES_URL).then((result) => result.data);
 }
+
+// https://github.com/microsoft/TypeScript/issues/34523
+export const assertIsNotNull: <T>(x: T | null) => asserts x is T = (x) => {
+  expect(x).not.toBeNull();
+};
+
+export const assertIsNotNullOrUndefined: <T>(
+  x: T | null | undefined
+) => asserts x is T = (x) => {
+  expect(x).not.toBeNull();
+  expect(x).not.toBeUndefined();
+};
