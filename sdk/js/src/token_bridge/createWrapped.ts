@@ -1,33 +1,35 @@
 import {
+  JsonRpcProvider,
+  SUI_CLOCK_OBJECT_ID,
+  TransactionBlock
+} from "@mysten/sui.js";
+import {
   Commitment,
   Connection,
   PublicKey,
   PublicKeyInitData,
-  Transaction,
+  Transaction
 } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
+import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
 import { Algodv2 } from "algosdk";
 import { Types } from "aptos";
 import BN from "bn.js";
 import { ethers, Overrides } from "ethers";
 import { fromUint8Array } from "js-base64";
-import {
-  TransactionSignerPair,
-  _parseVAAAlgorand,
-  _submitVAAAlgorand,
-} from "../algorand";
-import { Bridge__factory } from "../ethers-contracts";
-import { submitVAAOnInjective } from "./redeem";
 import { FunctionCallOptions } from "near-api-js/lib/account";
 import { Provider } from "near-api-js/lib/providers";
-import { callFunctionNear } from "../utils";
-import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
+import { TransactionSignerPair, _submitVAAAlgorand } from "../algorand";
 import {
   createWrappedCoin as createWrappedCoinAptos,
-  createWrappedCoinType as createWrappedCoinTypeAptos,
+  createWrappedCoinType as createWrappedCoinTypeAptos
 } from "../aptos";
+import { Bridge__factory } from "../ethers-contracts";
 import { createCreateWrappedInstruction } from "../solana/tokenBridge";
+import { getWrappedCoinType, publishCoin } from "../sui";
+import { callFunctionNear, Network, uint8ArrayToHex } from "../utils";
 import { SignedVaa } from "../vaa";
+import { submitVAAOnInjective } from "./redeem";
 
 export async function createWrappedOnEth(
   tokenBridgeAddress: string,
@@ -132,9 +134,9 @@ export async function createWrappedOnNear(
 /**
  * Constructs payload to create wrapped asset type. The type is of form `{{address}}::coin::T`,
  * where address is `sha256_hash(tokenBridgeAddress | chainID | "::" | originAddress | 0xFF)`.
- * 
- * Note that the typical createWrapped call is broken into two parts on Aptos because we must first 
- * create the CoinType that is used by `create_wrapped_coin<CoinType>`. Since it's not possible to 
+ *
+ * Note that the typical createWrapped call is broken into two parts on Aptos because we must first
+ * create the CoinType that is used by `create_wrapped_coin<CoinType>`. Since it's not possible to
  * create a resource and use it in the same transaction, this is broken into separate transactions.
  * @param tokenBridgeAddress Address of token bridge
  * @param attestVAA Bytes of attest VAA
@@ -148,11 +150,11 @@ export function createWrappedTypeOnAptos(
 }
 
 /**
- * Constructs payload to create wrapped asset. 
- * 
- * Note that this function is typically called in tandem with `createWrappedTypeOnAptos` because 
- * we must first create the CoinType that is used by `create_wrapped_coin<CoinType>`. Since it's 
- * not possible to create a resource and use it in the same transaction, this is broken into 
+ * Constructs payload to create wrapped asset.
+ *
+ * Note that this function is typically called in tandem with `createWrappedTypeOnAptos` because
+ * we must first create the CoinType that is used by `create_wrapped_coin<CoinType>`. Since it's
+ * not possible to create a resource and use it in the same transaction, this is broken into
  * separate transactions.
  * @param tokenBridgeAddress Address of token bridge
  * @param attestVAA Bytes of attest VAA
@@ -163,4 +165,61 @@ export function createWrappedOnAptos(
   attestVAA: Uint8Array
 ): Types.EntryFunctionPayload {
   return createWrappedCoinAptos(tokenBridgeAddress, attestVAA);
+}
+
+export async function createWrappedOnSuiPrepare(
+  network: Network,
+  coreBridgeAddress: string,
+  tokenBridgeAddress: string,
+  attestVAA: Uint8Array,
+  signerAddress: string
+): Promise<TransactionBlock> {
+  return publishCoin(
+    network,
+    coreBridgeAddress,
+    tokenBridgeAddress,
+    uint8ArrayToHex(attestVAA),
+    signerAddress
+  );
+}
+
+export async function createWrappedOnSui(
+  provider: JsonRpcProvider,
+  tokenBridgeAddress: string,
+  coreBridgeStateObjectId: string,
+  tokenBridgeStateObjectId: string,
+  signerAddress: string,
+  coinPackageId: string
+): Promise<TransactionBlock> {
+  // Get WrappedAssetSetup object ID
+  const coinType = getWrappedCoinType(coinPackageId);
+  const type = `${tokenBridgeAddress}::create_wrapped::WrappedAssetSetup<${coinType}>`;
+  const res = await provider.getOwnedObjects({
+    owner: signerAddress,
+    filter: { StructType: type },
+  });
+  if (!res || !res.data || res.data.length === 0) {
+    throw new Error(
+      `No WrappedAssetSetup object found for ${coinType} under owner ${signerAddress}. You must call 'createWrappedOnSuiPrepare' first.`
+    );
+  }
+
+  const wrappedAssetSetupObjectId = res.data[0].data?.objectId;
+  if (!wrappedAssetSetupObjectId) {
+    throw new Error(`WrappedAssetSetup object is invalid`);
+  }
+
+  // Construct complete registration payload
+  const tx = new TransactionBlock();
+  tx.moveCall({
+    target: `${tokenBridgeAddress}::create_wrapped::complete_registration`,
+    arguments: [
+      tx.object(tokenBridgeStateObjectId),
+      tx.object(coreBridgeStateObjectId),
+      tx.object(wrappedAssetSetupObjectId),
+      tx.object(SUI_CLOCK_OBJECT_ID),
+    ],
+    typeArguments: [coinType],
+  });
+  return tx;
 }
