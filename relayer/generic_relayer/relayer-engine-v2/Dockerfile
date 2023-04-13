@@ -56,6 +56,7 @@ RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
 # could be a renameat syscall. Alpine does not have this bug.
 RUN rm -rf node_modules && mv node_modules_cache node_modules
 
+RUN cd ethereum; forge install; cd ..
 COPY --chown=node:node ./ethereum .
 
 #typechain needs to be on the path
