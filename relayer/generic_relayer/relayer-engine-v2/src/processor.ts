@@ -46,7 +46,7 @@ async function processDelivery(ctx: GRContext) {
 
   const vaaIds = payload.messages.map((m) => ({
     emitterAddress: m.emitterAddress!,
-    emitterChain: m.chainId,
+    emitterChain: m.chainId!,
     sequence: m.sequence!.toBigInt(),
   }));
 
