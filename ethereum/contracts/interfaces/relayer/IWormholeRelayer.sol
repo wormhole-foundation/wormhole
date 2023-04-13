@@ -353,6 +353,12 @@ interface IWormholeRelayer {
      */
     function getDefaultRelayParams() external pure returns (bytes memory relayParams);
 
+    /**
+    * @notice returns the address of the contract which delivers messages on this chain.
+    * I.E this is the address which will call receiveWormholeMessages.
+    */
+    function getDeliveryAddress() external view returns (address deliveryAddress);
+
     error FundsTooMuch(uint8 multisendIndex); // (maxTransactionFee, converted to target chain currency) + (receiverValue, converted to target chain currency) is greater than what your chosen relay provider allows
     error MaxTransactionFeeNotEnough(uint8 multisendIndex); // maxTransactionFee is less than the minimum needed by your chosen relay provider
     error MsgValueTooLow(); // msg.value is too low
