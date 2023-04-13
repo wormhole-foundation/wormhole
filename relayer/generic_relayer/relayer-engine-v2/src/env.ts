@@ -93,8 +93,8 @@ const defaults: { [key in Flag]: GRRelayerAppConfig } = {
   },
   // TODO
   [Flag.K8sTestnet]: {
+    contractsJsonPath: `${SCRIPTS_DIR}/config/${Flag.K8sTestnet}/contracts.json`,
     // name: "GenericRelayer",
-    // contractsJsonPath: `./contracts.json`,
     // logLevel: "debug",
     // logFormat: "json",
     // spyEndpoint: "spy:7073",
