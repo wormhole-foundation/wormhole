@@ -2,7 +2,7 @@
 
 set -e
 
-DOTENV=../.env
+DOTENV=$(realpath "$(dirname "$0")"/../.env)
 [ -f $DOTENV ] || (echo "$DOTENV does not exist." >&2; exit 1)
 
 # 1. load variables from .env file

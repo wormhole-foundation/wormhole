@@ -725,7 +725,7 @@ if sui:
             port_forward(5003, name = "Faucet [:5003]", host = webHost),
             port_forward(9184, name = "Prometheus [:9184]", host = webHost),
         ],
-#        resource_deps = ["const-gen"],
+        resource_deps = ["const-gen"],
         labels = ["sui"],
         trigger_mode = trigger_mode,
     )
