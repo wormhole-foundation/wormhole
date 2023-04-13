@@ -23,6 +23,7 @@ import {
 } from "../../utils";
 import { attestFromSui } from "../attest";
 import { assertIsNotNullOrUndefined } from "./helpers";
+import { SUI_FAUCET_URL, SUI_NODE_URL } from "./consts";
 
 const JEST_TEST_TIMEOUT = 60000;
 jest.setTimeout(JEST_TEST_TIMEOUT);
@@ -56,8 +57,8 @@ beforeEach(async () => {
   suiAddress = suiKeypair.getPublicKey().toSuiAddress();
   suiProvider = new JsonRpcProvider(
     new Connection({
-      fullnode: "http://127.0.0.1:9000",
-      faucet: "http://127.0.0.1:5003/gas",
+      fullnode: SUI_NODE_URL,
+      faucet: SUI_FAUCET_URL,
     })
   );
   suiSigner = new RawSigner(suiKeypair, suiProvider);
