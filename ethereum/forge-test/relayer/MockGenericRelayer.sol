@@ -60,15 +60,15 @@ contract MockGenericRelayer {
         relay(vm.getRecordedLogs(), chainId);
     }
 
-    function messageInfoMatchesVAA(IWormholeRelayer.MessageInfo memory messageInfo, bytes memory vaa)
+    function messageInfoMatchesVAA(IWormholeRelayer.MessageInfo memory messageInfo, bytes memory signedVaa)
         internal
         view
         returns (bool)
     {
-        IWormhole.VM memory parsedVaa = relayerWormhole.parseVM(vaa);
+        IWormhole.VM memory parsedVaa = relayerWormhole.parseVM(signedVaa);
         if (messageInfo.infoType == IWormholeRelayer.MessageInfoType.EMITTER_SEQUENCE) {
             return
-                (messageInfo.emitterAddress == parsedVaa.emitterAddress) && (messageInfo.sequence == parsedVaa.sequence);
+                (messageInfo.chainId == parsedVaa.emitterChainId) && (messageInfo.emitterAddress == parsedVaa.emitterAddress) && (messageInfo.sequence == parsedVaa.sequence);
         } else if (messageInfo.infoType == IWormholeRelayer.MessageInfoType.VAAHASH) {
             return (messageInfo.vaaHash == parsedVaa.hash);
         } else {

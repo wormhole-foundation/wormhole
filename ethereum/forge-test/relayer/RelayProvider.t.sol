@@ -155,10 +155,7 @@ contract TestRelayProvider is Test {
         uint128 dstGasPrice,
         uint64 dstNativeCurrencyPrice,
         uint128 srcGasPrice,
-        uint64 srcNativeCurrencyPrice,
-        uint32 gasLimit,
-        uint32 deliverGasOverhead,
-        uint32 targetWormholeFee
+        uint64 srcNativeCurrencyPrice
     ) public {
         vm.assume(dstChainId > 0);
         vm.assume(dstChainId != TEST_ORACLE_CHAIN_ID);
@@ -192,10 +189,7 @@ contract TestRelayProvider is Test {
         uint128 dstGasPrice,
         uint64 dstNativeCurrencyPrice,
         uint128 srcGasPrice,
-        uint64 srcNativeCurrencyPrice,
-        uint32 gasLimit,
-        uint32 deliverGasOverhead,
-        uint32 targetWormholeFee
+        uint64 srcNativeCurrencyPrice
     ) public {
         vm.assume(dstChainId > 0);
         vm.assume(dstChainId != TEST_ORACLE_CHAIN_ID); // wormhole.chainId()
@@ -229,10 +223,10 @@ contract TestRelayProvider is Test {
         require(readValues == expected, "relayProvider.quotePrices != expected");
     }
 
-    function testUpdateTargetChainContracts(bytes32 newAddress, uint16 targetChain) public {
+    function testUpdateTargetChainContracts(uint16 targetChain, bytes32 newAddress) public {
         initializeRelayProvider();
 
-        relayProvider.updateTargetChainAddress(newAddress, targetChain);
+        relayProvider.updateTargetChainAddress(targetChain, newAddress);
         bytes32 updated = relayProvider.getTargetChainAddress(targetChain);
 
         assertTrue(newAddress == updated);

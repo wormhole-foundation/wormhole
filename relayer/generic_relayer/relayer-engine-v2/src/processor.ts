@@ -46,7 +46,7 @@ async function processDelivery(ctx: GRContext) {
 
   const vaaIds = payload.messages.map((m) => ({
     emitterAddress: m.emitterAddress!,
-    emitterChain: chainId,
+    emitterChain: m.chainId!,
     sequence: m.sequence!.toBigInt(),
   }));
 
@@ -65,7 +65,7 @@ async function processDelivery(ctx: GRContext) {
     for (let i = 0; i < vaaIds.length; i++) {
       const { vaaBytes: signedVAA } = await wh.getSignedVAAWithRetry(
         ctx.opts.wormholeRpcs!,
-        parseInt(chainId.toString()) as any,
+        parseInt(vaaIds[i].emitterChain.toString()) as any,
         vaaIds[i].emitterAddress.toString("hex"),
         vaaIds[i].sequence.toString(),
         { transport: NodeHttpTransport() },
