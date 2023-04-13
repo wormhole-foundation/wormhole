@@ -203,7 +203,7 @@ fn bad_signature() {
         .submit_vaas(vec![data])
         .expect_err("successfully submitted VAA with bad signature");
     assert_eq!(
-        "generic error: querier contract error: failed to recover verifying key",
+        "generic error: querier contract error: failed to verify signature",
         err.root_cause().to_string().to_lowercase()
     );
 }

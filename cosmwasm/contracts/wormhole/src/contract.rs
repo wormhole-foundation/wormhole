@@ -426,7 +426,7 @@ mod test {
         // pass into function
         // verifying key should == addr
         let is_equal = keys_equal(&verifying_key, &addr);
-        assert_eq!(is_equal, true)
+        assert!(is_equal)
     }
 
     #[test]
