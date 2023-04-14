@@ -144,7 +144,7 @@ impl WormholeKeeper {
             let s = recoverable::Signature::try_from(&sig.signature[..])
                 .context("failed to decode signature")?;
             let verifying_key = s
-                .recover_verify_key_from_digest_bytes(&d.hash.into())
+                .recover_verifying_key_from_digest_bytes(&d.hash.into())
                 .context("failed to recover verifying key")?;
             ensure!(
                 g.verifying_key() == verifying_key,
