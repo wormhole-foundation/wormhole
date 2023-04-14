@@ -10,9 +10,9 @@ set -euo pipefail
 # Make sure this is a supported OS.
 DISTRO="$(lsb_release --id --short)-$(lsb_release --release --short)"
 case "$DISTRO" in
-    Debian-10 | Debian-11 | RedHatEnterprise-8.*) true ;;  # okay (no operation)
+    Debian-10 | Debian-11 | RedHatEnterprise-8.* | Ubuntu-22.*) true ;;  # okay (no operation)
     *)
-        echo "This script is only for Debian 10 or 11, or RHEL 8"
+        echo "This script is only for Debian 10 or 11, RHEL 8, or Ubuntu 22"
         exit 1
     ;;
 esac
@@ -31,9 +31,9 @@ fi
 
 # Make sure OS-provided Docker package isn't installed
 case "$DISTRO" in
-    Debian-*)
+    Debian-*|Ubuntu-*)
         if dpkg -s docker.io &>/dev/null; then
-            echo "Docker is already installed from Debian's repository. Please uninstall it first."
+            echo "Docker is already installed from repository. Please uninstall it first."
             exit 1
         fi
     ;;
@@ -49,15 +49,15 @@ esac
 # Upgrade everything
 # (this ensures that an existing Docker CE installation is up to date before continuing)
 case "$DISTRO" in
-    Debian-*)             sudo apt-get update && sudo apt-get upgrade -y ;;
+    Debian-*|Ubuntu-*)    sudo apt-get update && sudo apt-get upgrade -y ;;
     RedHatEnterprise-8.*) sudo dnf upgrade -y ;;
     *) echo "Internal error: $DISTRO not matched in case block." && exit 1 ;;
 esac
 
 # Install dependencies
 case "$DISTRO" in
-    Debian-*)             sudo apt-get -y install bash-completion git git-review vim ;;
-    RedHatEnterprise-8.*) sudo dnf -y install bash-completion git git-review vim ;;
+    Debian-*|Ubuntu-*)             sudo apt-get -y install bash-completion git git-review vim ;;
+    RedHatEnterprise-8.*) sudo dnf -y install curl bash-completion git git-review vim ;;
     *) echo "Internal error: $DISTRO not matched in case block." && exit 1 ;;
 esac
 
@@ -91,7 +91,7 @@ if [[ ! -f /usr/bin/docker ]]; then
   (
     cd "$TMP"
     case "$DISTRO" in
-      Debian-*)
+      Debian-*|Ubuntu-*)
         curl -fsSL https://get.docker.com -o get-docker.sh
         sudo sh get-docker.sh
       ;;
@@ -114,7 +114,7 @@ sudo systemctl enable --now docker
 # Use 1.24 until this regression is resolved:
 #    https://github.com/kubernetes/minikube/issues/13542
 case "$DISTRO" in
-  Debian-*)
+  Debian-*|Ubuntu-*)
     TMP=$(mktemp -d)
     (
       cd "$TMP"
@@ -133,7 +133,7 @@ esac
 # This script places the binary at /usr/local/bin/tilt and then self-tests by trying to execute it from PATH.
 # So we need to ensure that PATH contains /usr/local/bin, which is not the case in the environment created by sudo by default on RHEL.
 case "$DISTRO" in
-  Debian-*) true ;;
+  Debian-*|Ubuntu-*) true ;;
   RedHatEnterprise-*)
     echo -e "Defaults\tsecure_path=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin" | sudo tee /etc/sudoers.d/tilt_installer_path
   ;;
