@@ -41,7 +41,7 @@ export interface GRRelayerAppConfig {
   name: string;
   spyEndpoint: string;
   wormholeRpcs: [string];
-  providers: ProvidersOpts;
+  providers?: ProvidersOpts;
   fetchSourceTxhash: boolean;
   logLevel: string;
   logFormat: "json" | "text";
@@ -113,11 +113,6 @@ const defaults: { [key in Flag]: GRRelayerAppConfig } = {
     wormholeRpcs: ["https://wormhole-v2-testnet-api.certus.one"],
     fetchSourceTxhash: true,
     redis: { host: "localhost", port: 6379 },
-    providers: {
-      chains: {
-        
-      }
-    }
   },
   [Flag.Mainnet]: {} as any,
 };
