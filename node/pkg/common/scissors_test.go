@@ -128,6 +128,7 @@ func TestRunWithScissorsPanicReturned(t *testing.T) {
 
 	require.Equal(t, true, itRan)
 	assert.Error(t, err)
+	assert.Equal(t, "TestRunWithScissorsPanicReturned: Some random panic", err.Error())
 	assert.Equal(t, 0.0, getCounterValue(ScissorsErrorsCaught, "TestRunWithScissorsPanicReturned"))
 	assert.Equal(t, 1.0, getCounterValue(ScissorsPanicsCaught, "TestRunWithScissorsPanicReturned"))
 }
@@ -168,6 +169,7 @@ func TestRunWithScissorsErrorReturned(t *testing.T) {
 
 	require.Equal(t, true, itRan)
 	assert.Error(t, err)
+	assert.Equal(t, "Some random error", err.Error())
 	assert.Equal(t, 1.0, getCounterValue(ScissorsErrorsCaught, "TestRunWithScissorsErrorReturned"))
 	assert.Equal(t, 0.0, getCounterValue(ScissorsPanicsCaught, "TestRunWithScissorsErrorReturned"))
 }
