@@ -1,27 +1,21 @@
 import { ChainGrpcWasmApi } from "@injectivelabs/sdk-ts";
-import {
-  Commitment,
-  Connection,
-  PublicKey,
-  PublicKeyInitData,
-} from "@solana/web3.js";
+import { JsonRpcProvider } from "@mysten/sui.js";
+import { Commitment, Connection, PublicKeyInitData } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { Algodv2, getApplicationAddress } from "algosdk";
 import { AptosClient } from "aptos";
 import { ethers } from "ethers";
 import { Bridge__factory } from "../ethers-contracts";
+import { getWrappedMeta } from "../solana/tokenBridge";
+import { getObjectFields, isValidSuiType } from "../sui";
 import {
   CHAIN_ID_INJECTIVE,
-  ensureHexPrefix,
   coalesceModuleAddress,
+  ensureHexPrefix,
   tryNativeToHexString,
 } from "../utils";
-import { deriveWrappedMetaKey, getWrappedMeta } from "../solana/tokenBridge";
 import { safeBigIntToNumber } from "../utils/bigint";
-import {
-  getForeignAssetSolana,
-  getForeignAssetInjective,
-} from "./getForeignAsset";
+import { getForeignAssetInjective } from "./getForeignAsset";
 
 /**
  * Returns whether or not an asset address on Ethereum is a wormhole wrapped asset
@@ -150,5 +144,58 @@ export async function getIsWrappedAssetAptos(
     return true;
   } catch {
     return false;
+  }
+}
+
+export async function getIsWrappedAssetSui(
+  provider: JsonRpcProvider,
+  tokenBridgeAddress: string,
+  tokenBridgeStateObjectId: string,
+  type: string
+): Promise<boolean> {
+  if (!isValidSuiType(type)) {
+    throw new Error(`Invalid Sui type: ${type}`);
+  }
+
+  // An easy way to determine if given asset isn't a wrapped asset is to ensure
+  // module name and struct name are coin and COIN respectively.
+  if (!type.endsWith("::coin::COIN")) {
+    return false;
+  }
+
+  const tokenBridgeStateFields = await getObjectFields(
+    provider,
+    tokenBridgeStateObjectId
+  );
+  if (!tokenBridgeStateFields) {
+    throw new Error(
+      `Unable to fetch object fields from token bridge state. Object ID: ${tokenBridgeStateObjectId}`
+    );
+  }
+
+  const tokenRegistryObjectId =
+    tokenBridgeStateFields.token_registry?.fields?.id?.id;
+  if (!tokenRegistryObjectId) {
+    throw new Error("Unable to fetch token registry object ID");
+  }
+
+  try {
+    // This call errors if the type doesn't exist in the TokenRegistry
+    await provider.getDynamicFieldObject({
+      parentId: tokenRegistryObjectId,
+      name: {
+        type: `${tokenBridgeAddress}::token_registry::Key<${type}>`,
+        value: {
+          dummy_field: false,
+        },
+      },
+    });
+    return true;
+  } catch (e) {
+    if (e.code === -32000 && e.message.includes("RPC Error")) {
+      return false
+    }
+    
+    throw e;
   }
 }
