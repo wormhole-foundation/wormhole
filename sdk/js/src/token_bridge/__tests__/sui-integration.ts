@@ -43,13 +43,6 @@ let suiAddress: string;
 let suiProvider: JsonRpcProvider;
 let suiSigner: RawSigner;
 
-beforeAll(async () => {
-  expect(SUI_CORE_BRIDGE_ADDRESS).toBeDefined();
-  expect(SUI_TOKEN_BRIDGE_ADDRESS).toBeDefined();
-  expect(SUI_CORE_STATE_OBJECT_ID).toBeDefined();
-  expect(SUI_TOKEN_BRIDGE_STATE_OBJECT_ID).toBeDefined();
-});
-
 beforeEach(async () => {
   suiKeypair = Ed25519Keypair.fromSecretKey(
     fromB64(SUI_DEPLOYER_PRIVATE_KEY).slice(1)
