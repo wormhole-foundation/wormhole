@@ -13,10 +13,19 @@ DOTENV=../.env
 VAAS=$(set | grep "REGISTER_.*_TOKEN_BRIDGE_VAA" | grep -v SUI | cut -d '=' -f1)
 
 # 3. use 'worm' to submit each registration VAA
+# we'll send the registration calls in parallel, but we want to wait on them at
+# the end, so we collect the PIDs
+registration_pids=()
 for VAA in $VAAS
 do
     VAA=${!VAA}
-    worm submit $VAA --chain sui --network devnet
+    worm submit "$VAA" --chain sui --network devnet &
+    registration_pids+=( $! )
+done
+
+# wait on registration calls
+for pid in "${registration_pids[@]}"; do
+        wait "$pid"
 done
 
 echo "Registrations successful."
