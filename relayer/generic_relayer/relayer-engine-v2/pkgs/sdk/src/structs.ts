@@ -105,10 +105,10 @@ export function parseWormholeRelayerSend(
     idx += 2;
     const targetAddress = bytes.slice(idx, idx + 32);
     idx += 32;
-    const refundAddress = bytes.slice(idx, idx + 32);
-    idx += 32;
     const refundChain = bytes.readUInt16BE(idx);
     idx += 2;
+    const refundAddress = bytes.slice(idx, idx + 32);
+    idx += 32;
     const maximumRefundTarget = ethers.BigNumber.from(
       Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
     );
