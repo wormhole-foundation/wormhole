@@ -3,9 +3,11 @@ import {
   JsonRpcProvider,
   normalizeSuiAddress,
   RawSigner,
+  SuiObjectResponse,
   SuiTransactionBlockResponse,
   TransactionBlock,
 } from "@mysten/sui.js";
+import { SuiError } from "./types";
 
 export const executeTransactionBlock = async (
   signer: RawSigner,
@@ -22,6 +24,11 @@ export const executeTransactionBlock = async (
       showObjectChanges: true,
     },
   });
+};
+
+export const getFieldsFromObjectResponse = (object: SuiObjectResponse) => {
+  const content = object.data?.content;
+  return content && content.dataType === "moveObject" ? content.fields : null;
 };
 
 export const getInnerType = (type: string): string | null => {
@@ -41,14 +48,50 @@ export const getObjectFields = async (
     throw new Error(`Invalid object ID: ${objectId}`);
   }
 
-  const object = await provider.getObject({
+  const res = await provider.getObject({
     id: objectId,
     options: {
       showContent: true,
     },
   });
-  const content = object.data?.content;
-  return content && content.dataType === "moveObject" ? content.fields : null;
+  return getFieldsFromObjectResponse(res);
+};
+
+export const getTokenFromTokenRegistry = async (
+  provider: JsonRpcProvider,
+  tokenBridgeAddress: string,
+  tokenBridgeStateObjectId: string,
+  tokenType: string
+): Promise<SuiObjectResponse> => {
+  if (!isValidSuiType(tokenType)) {
+    throw new Error(`Invalid Sui type: ${tokenType}`);
+  }
+
+  const tokenBridgeStateFields = await getObjectFields(
+    provider,
+    tokenBridgeStateObjectId
+  );
+  if (!tokenBridgeStateFields) {
+    throw new Error(
+      `Unable to fetch object fields from token bridge state. Object ID: ${tokenBridgeStateObjectId}`
+    );
+  }
+
+  const tokenRegistryObjectId =
+    tokenBridgeStateFields.token_registry?.fields?.id?.id;
+  if (!tokenRegistryObjectId) {
+    throw new Error("Unable to fetch token registry object ID");
+  }
+
+  return provider.getDynamicFieldObject({
+    parentId: tokenRegistryObjectId,
+    name: {
+      type: `${tokenBridgeAddress}::token_registry::Key<${tokenType}>`,
+      value: {
+        dummy_field: false,
+      },
+    },
+  });
 };
 
 /**
@@ -68,6 +111,12 @@ export const getWrappedCoinType = (coinPackageId: string): string => {
   }
 
   return `${coinPackageId}::coin::COIN`;
+};
+
+export const isSuiError = (error: any): error is SuiError => {
+  return (
+    error && typeof error === "object" && "code" in error && "message" in error
+  );
 };
 
 /**
