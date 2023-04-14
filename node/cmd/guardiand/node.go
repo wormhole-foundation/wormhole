@@ -155,10 +155,9 @@ var (
 	aptosAccount *string
 	aptosHandle  *string
 
-	suiRPC     *string
-	suiWS      *string
-	suiAccount *string
-	suiPackage *string
+	suiRPC           *string
+	suiWS            *string
+	suiMoveEventType *string
 
 	solanaRPC *string
 
@@ -308,8 +307,7 @@ func init() {
 
 	suiRPC = NodeCmd.Flags().String("suiRPC", "", "sui RPC URL")
 	suiWS = NodeCmd.Flags().String("suiWS", "", "sui WS URL")
-	suiAccount = NodeCmd.Flags().String("suiAccount", "", "sui account")
-	suiPackage = NodeCmd.Flags().String("suiPackage", "", "sui package")
+	suiMoveEventType = NodeCmd.Flags().String("suiMoveEventType", "", "sui move event type for publish_message")
 
 	solanaRPC = NodeCmd.Flags().String("solanaRPC", "", "Solana RPC URL (required)")
 
@@ -629,11 +627,8 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *suiWS == "" {
 			logger.Fatal("If --suiRPC is specified, then --suiWS must be specified")
 		}
-		if *suiAccount == "" {
-			logger.Fatal("If --suiRPC is specified, then --suiAccount must be specified")
-		}
-		if *suiPackage == "" && !*unsafeDevMode {
-			logger.Fatal("If --suiRPC is specified, then --suiPackage must be specified")
+		if *suiMoveEventType == "" {
+			logger.Fatal("If --suiRPC is specified, then --suiMoveEventType must be specified")
 		}
 	}
 
@@ -1355,7 +1350,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			common.MustRegisterReadinessSyncing(vaa.ChainIDSui)
 			chainObsvReqC[vaa.ChainIDSui] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "suiwatch",
-				sui.NewWatcher(*suiRPC, *suiWS, *suiAccount, *suiPackage, *unsafeDevMode, chainMsgC[vaa.ChainIDSui], chainObsvReqC[vaa.ChainIDSui]).Run); err != nil {
+				sui.NewWatcher(*suiRPC, *suiWS, *suiMoveEventType, *unsafeDevMode, chainMsgC[vaa.ChainIDSui], chainObsvReqC[vaa.ChainIDSui]).Run); err != nil {
 				return err
 			}
 		}

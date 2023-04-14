@@ -35,10 +35,9 @@ import (
 type (
 	// Watcher is responsible for looking over Sui blockchain and reporting new transactions to the wormhole contract
 	Watcher struct {
-		suiRPC     string
-		suiWS      string
-		suiAccount string
-		suiPackage string
+		suiRPC           string
+		suiWS            string
+		suiMoveEventType string
 
 		unsafeDevMode bool
 
@@ -148,22 +147,20 @@ var (
 func NewWatcher(
 	suiRPC string,
 	suiWS string,
-	suiAccount string,
-	suiPackage string,
+	suiMoveEventType string,
 	unsafeDevMode bool,
 	messageEvents chan *common.MessagePublication,
 	obsvReqC chan *gossipv1.ObservationRequest,
 ) *Watcher {
 	return &Watcher{
-		suiRPC:        suiRPC,
-		suiWS:         suiWS,
-		suiAccount:    suiAccount,
-		suiPackage:    suiPackage,
-		unsafeDevMode: unsafeDevMode,
-		msgChan:       messageEvents,
-		obsvReqC:      obsvReqC,
-		readinessSync: common.MustConvertChainIdToReadinessSyncing(vaa.ChainIDSui),
-		subId:         0,
+		suiRPC:           suiRPC,
+		suiWS:            suiWS,
+		suiMoveEventType: suiMoveEventType,
+		unsafeDevMode:    unsafeDevMode,
+		msgChan:          messageEvents,
+		obsvReqC:         obsvReqC,
+		readinessSync:    common.MustConvertChainIdToReadinessSyncing(vaa.ChainIDSui),
+		subId:            0,
 	}
 }
 
@@ -171,29 +168,21 @@ func (e *Watcher) inspectBody(logger *zap.Logger, body SuiResult) error {
 	if body.ID.TxDigest == nil {
 		return errors.New("Missing TxDigest field")
 	}
-	if body.PackageID == nil {
-		return errors.New("Missing PackageID field")
-	}
-	if body.Sender == nil {
-		return errors.New("Missing Sender field")
+	if body.Type == nil {
+		return errors.New("Missing Type field")
 	}
 	if body.Fields == nil {
 		return nil
 	}
 
+	if e.suiMoveEventType != *body.Type {
+		logger.Info("type mismatch", zap.String("e.suiMoveEventType", e.suiMoveEventType), zap.String("type", *body.Type))
+		return errors.New("type mismatch")
+	}
+
 	fields := *body.Fields
 	if (fields.ConsistencyLevel == nil) || (fields.Nonce == nil) || (fields.Payload == nil) || (fields.Sender == nil) || (fields.Sequence == nil) {
 		return nil
-	}
-
-	if e.suiAccount != *body.Sender {
-		logger.Info("account mismatch", zap.String("e.suiAccount", e.suiAccount), zap.String("account", *body.Sender))
-		return errors.New("account mismatch")
-	}
-
-	if !e.unsafeDevMode && e.suiPackage != *body.PackageID {
-		logger.Info("package mismatch", zap.String("e.suiPackage", e.suiPackage), zap.String("package", *body.PackageID))
-		return errors.New("package mismatch")
 	}
 
 	emitter, err := vaa.StringToAddress(*fields.Sender)
@@ -260,7 +249,7 @@ func (e *Watcher) inspectBody(logger *zap.Logger, body SuiResult) error {
 
 func (e *Watcher) Run(ctx context.Context) error {
 	p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDSui, &gossipv1.Heartbeat_Network{
-		ContractAddress: e.suiAccount,
+		ContractAddress: e.suiMoveEventType,
 	})
 
 	logger := supervisor.Logger(ctx)
@@ -268,7 +257,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	u := url.URL{Scheme: "ws", Host: e.suiWS}
 
 	logger.Info("Sui watcher connecting to WS node ", zap.String("url", u.String()))
-	logger.Debug("SUI watcher:", zap.String("suiRPC", e.suiRPC), zap.String("suiWS", e.suiWS), zap.String("suiAccount", e.suiAccount), zap.String("suiPackage", e.suiPackage))
+	logger.Debug("SUI watcher:", zap.String("suiRPC", e.suiRPC), zap.String("suiWS", e.suiWS), zap.String("suiMoveEventType", e.suiMoveEventType))
 
 	ws, _, err := websocket.Dial(ctx, u.String(), nil)
 	if err != nil {
@@ -281,22 +270,11 @@ func (e *Watcher) Run(ctx context.Context) error {
 	nBig, _ := rand.Int(rand.Reader, big.NewInt(27))
 	e.subId = nBig.Int64()
 
-	var temp string
-	if e.unsafeDevMode {
-		// There is no way to have a fixed package id on
-		// deployment.  This means that in devnet, everytime
-		// we publish the contracts we will get a new package
-		// id.  The solution is to just subscribe to the whole
-		// deployer account instead of to a specific package
-		// in that account...
-		temp = fmt.Sprintf(`{"jsonrpc":"2.0", "id": %d, "method": "suix_subscribeEvent", "params": [{"Sender": "%s"}]}`, e.subId, e.suiAccount)
-	} else {
-		temp = fmt.Sprintf(`{"jsonrpc":"2.0", "id": %d, "method": "suix_subscribeEvent", "params": [{"Sender": "%s"}, {"Package": "%s"}]}`, e.subId, e.suiAccount, e.suiPackage)
-	}
+	subscription := fmt.Sprintf(`{"jsonrpc":"2.0", "id": %d, "method": "suix_subscribeEvent", "params": [{"MoveEventType": "%s"}]}`, e.subId, e.suiMoveEventType)
 
-	logger.Info("Subscribing using", zap.String("json:", temp))
+	logger.Info("Subscribing using", zap.String("json:", subscription))
 
-	err = ws.Write(ctx, websocket.MessageText, []byte(temp))
+	err = ws.Write(ctx, websocket.MessageText, []byte(subscription))
 	if err != nil {
 		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
 		suiConnectionErrors.WithLabelValues("websocket_subscription_error").Inc()
@@ -414,7 +392,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 					p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDSui, &gossipv1.Heartbeat_Network{
 						Height:          int64(height),
-						ContractAddress: e.suiAccount,
+						ContractAddress: e.suiMoveEventType,
 					})
 				}
 
