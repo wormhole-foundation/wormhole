@@ -367,6 +367,11 @@
             "name": "9",
             "public": "0x1dF62f291b2E969fB0849d99D9Ce41e2F137006e",
             "private": "0xb0057716d5917badaf911b193b12b910811c1497b5bada8d7711f758981c3773"
+        },
+        {
+            "name": "10",
+            "public": "0x22d491Bde2303f2f43325b2108D26f1eAbA1e32b",
+            "private": "0x6370fd033278c143179d81c5526140625662b8daa446c22ee2d73db3707e620c"
         }
     ],
     "devnetGuardians": [
