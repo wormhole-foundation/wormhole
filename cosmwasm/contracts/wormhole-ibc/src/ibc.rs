@@ -12,9 +12,8 @@ use std::str;
 
 pub const IBC_APP_VERSION: &str = "ibc-wormhole-v1";
 
-// TODO: make configurable?
-/// packets live one hour
-pub const PACKET_LIFETIME: u64 = 60 * 60;
+/// packets live one year
+pub const PACKET_LIFETIME: u64 = 31_536_000;
 
 /// 1. Opening a channel. Step 1 of handshake. Combines ChanOpenInit and ChanOpenTry from the spec.
 /// The only valid action of the contract is to accept the channel or reject it.
