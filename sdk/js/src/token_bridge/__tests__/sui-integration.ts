@@ -16,10 +16,15 @@ import {
   createWrappedOnSui,
   createWrappedOnSuiPrepare,
   getEmitterAddressEth,
+  getIsWrappedAssetSui,
   getSignedVAAWithRetry,
   parseSequenceFromLogEth,
 } from "../..";
-import { executeTransactionBlock, getInnerType } from "../../sui";
+import {
+  executeTransactionBlock,
+  getInnerType,
+  getWrappedCoinType,
+} from "../../sui";
 import { CHAIN_ID_ETH, CONTRACTS, SUI_OBJECT_IDS } from "../../utils";
 import {
   ETH_NODE_URL,
@@ -98,7 +103,6 @@ describe("Sui SDK tests", () => {
       1000,
       5
     );
-    console.log({ attestVAA: Buffer.from(attestVAA).toString("hex") });
     expect(attestVAA).toBeTruthy();
 
     // Start create wrapped on Sui
@@ -136,8 +140,15 @@ describe("Sui SDK tests", () => {
       suiSigner,
       suiCompleteRegistrationTxPayload
     );
-    console.log(JSON.stringify(suiCompleteRegistrationTxRes, null, 2));
-    expect(suiCompleteRegistrationTxRes.effects?.status.status).toBe("success"); // fails because mock VAA is not from registered emitter
+    expect(suiCompleteRegistrationTxRes.effects?.status.status).toBe("success");
+    expect(
+      await getIsWrappedAssetSui(
+        suiProvider,
+        SUI_TOKEN_BRIDGE_ADDRESS,
+        SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
+        getWrappedCoinType(coinPackageId)
+      )
+    ).toBe(true);
   });
   test("Transfer non-SUI Sui token to Ethereum", async () => {
     // Get COIN_8 coin type
@@ -145,16 +156,24 @@ describe("Sui SDK tests", () => {
       owner: suiAddress,
       options: { showContent: true, showType: true },
     });
-    console.log(JSON.stringify(res.data, null, 2));
     const coins = res.data.filter((o) =>
       (o.data?.type ?? "").includes("COIN_8")
     );
     expect(coins.length).toBe(1);
+
     const coin8 = coins[0];
     const coin8Type = getInnerType(getMoveObjectType(coin8) ?? "");
     const coin8TreasuryCapObjectId = coin8.data?.objectId;
     assertIsNotNullOrUndefined(coin8Type);
     assertIsNotNullOrUndefined(coin8TreasuryCapObjectId);
+    expect(
+      await getIsWrappedAssetSui(
+        suiProvider,
+        SUI_TOKEN_BRIDGE_ADDRESS,
+        SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
+        coin8Type
+      )
+    ).toBe(false);
 
     // Attest on Sui
     const suiAttestTxPayload = await attestFromSui(

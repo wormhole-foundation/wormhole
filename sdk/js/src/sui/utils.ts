@@ -1,5 +1,6 @@
 import {
   isValidSuiAddress as isValidFullSuiAddress,
+  JsonRpcProvider,
   normalizeSuiAddress,
   RawSigner,
   SuiTransactionBlockResponse,
@@ -23,6 +24,33 @@ export const executeTransactionBlock = async (
   });
 };
 
+export const getInnerType = (type: string): string | null => {
+  const match = type.match(/<(.*)>/);
+  if (!match || !isValidSuiType(match[1])) {
+    return null;
+  }
+
+  return match[1];
+};
+
+export const getObjectFields = async (
+  provider: JsonRpcProvider,
+  objectId: string
+): Promise<Record<string, any> | null> => {
+  if (!isValidSuiAddress(objectId)) {
+    throw new Error(`Invalid object ID: ${objectId}`);
+  }
+
+  const object = await provider.getObject({
+    id: objectId,
+    options: {
+      showContent: true,
+    },
+  });
+  const content = object.data?.content;
+  return content && content.dataType === "moveObject" ? content.fields : null;
+};
+
 /**
  * Get the fully qualified type of a wrapped asset published to the given
  * package ID.
@@ -40,15 +68,6 @@ export const getWrappedCoinType = (coinPackageId: string): string => {
   }
 
   return `${coinPackageId}::coin::COIN`;
-};
-
-export const getInnerType = (type: string): string | null => {
-  const match = type.match(/<(.*)>/);
-  if (!match || !isValidSuiType(match[1])) {
-    return null;
-  }
-
-  return match[1];
 };
 
 /**
