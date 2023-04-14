@@ -52,8 +52,8 @@ contract CoreRelayerGetters is CoreRelayerState {
         return _state.defaultRelayProvider;
     }
 
-    function getForwardInstruction() public view returns (IWormholeRelayerInternalStructs.ForwardInstruction memory) {
-        return _state.forwardInstruction;
+    function getForwardInstructions() public view returns (IWormholeRelayerInternalStructs.ForwardInstruction[] memory) {
+        return _state.forwardInstructions;
     }
 
     function getWormholeRelayerCallerAddress() public view returns (address) {

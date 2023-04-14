@@ -11,7 +11,6 @@ import { getWormholeRelayerAddress } from "../consts";
 import {
   RelayerPayloadId,
   DeliveryInstruction,
-  DeliveryInstructionsContainer,
   VaaKeyType,
   DeliveryStatus,
 } from "../structs";
@@ -23,8 +22,7 @@ import {
   getBlockRange,
   getWormholeRelayerDeliveryEventsBySourceSequence,
 } from "./helpers";
-
-type InfoRequest = {
+export type InfoRequest = {
   environment: Network;
   sourceChain: ChainId;
   sourceTransaction: string;
@@ -42,14 +40,14 @@ export type DeliveryInfo = {
   sourceChainId: ChainId;
   sourceTransactionHash: string;
   sourceDeliverySequenceNumber: number;
-  deliveryInstructionsContainer: DeliveryInstructionsContainer;
-  targetChainStatuses: {
+  deliveryInstruction: DeliveryInstruction;
+  targetChainStatus: {
     chainId: ChainId;
     events: {
       status: DeliveryStatus | string;
       transactionHash: string | null;
     }[];
-  }[];
+  };
 };
 
 export function printWormholeRelayerInfo(info: DeliveryInfo) {
@@ -62,14 +60,14 @@ export function stringifyWormholeRelayerInfo(info: DeliveryInfo): string {
       info.sourceTransactionHash
     } on ${printChain(info.sourceChainId)}\n`;
 
-    const numMsgs = info.deliveryInstructionsContainer.messages.length;
+    const numMsgs = info.deliveryInstruction.vaaKeys.length;
     stringifiedInfo += `\nThe following ${numMsgs} messages were requested to be relayed:\n`;
-    stringifiedInfo += info.deliveryInstructionsContainer.messages.map(
+    stringifiedInfo += info.deliveryInstruction.vaaKeys.map(
       (msgInfo, i) => {
         let result = "";
         result += `\n(Message ${i}): `;
         if (msgInfo.payloadType == VaaKeyType.EMITTER_SEQUENCE) {
-          result += `Message from ${msgInfo.chainId ? printChain(msgInfo.chainId) : ""}, emitter address ${msgInfo.emitterAddress?.toString(
+          result += `Message from ${msgInfo.chainId ? printChain(msgInfo.chainId) : ""}, with emitter address ${msgInfo.emitterAddress?.toString(
             "hex"
           )} and sequence number ${msgInfo.sequence}\n`;
         } else if (msgInfo.payloadType == VaaKeyType.VAAHASH) {
@@ -82,12 +80,12 @@ export function stringifyWormholeRelayerInfo(info: DeliveryInfo): string {
       }
     );
 
-    const length = info.deliveryInstructionsContainer.instructions.length;
+    const length = 1;
     stringifiedInfo += `\nMessages were requested to be sent to ${length} destination${
       length == 1 ? "" : "s"
     }:\n`;
     stringifiedInfo +=
-      info.deliveryInstructionsContainer.instructions
+      [info.deliveryInstruction]
         .map((instruction: DeliveryInstruction, i) => {
           let result = "";
           const targetChainName =
@@ -104,7 +102,7 @@ export function stringifyWormholeRelayerInfo(info: DeliveryInfo): string {
               } currency\n`
             : ``;
           result += `Gas limit: ${instruction.executionParameters.gasLimit} ${targetChainName} gas\n`;
-          result += info.targetChainStatuses[i].events
+          result += info.targetChainStatus.events
             .map(
               (e, i) =>
                 `Delivery attempt ${i + 1}: ${e.status}${
@@ -160,11 +158,9 @@ export async function getWormholeRelayerInfo(
 
   const { type, parsed } = parseWormholeLog(deliveryLog.log);
 
-  const deliveryInstructionsContainer = parsed as DeliveryInstructionsContainer;
+  const instruction = parsed as DeliveryInstruction;
 
-  const targetChainStatuses = await Promise.all(
-    deliveryInstructionsContainer.instructions.map(
-      async (instruction: DeliveryInstruction) => {
+
         const targetChain = instruction.targetChain as ChainId;
         if (!isChain(targetChain)) throw Error(`Invalid Chain: ${targetChain}`);
         const targetChainProvider =
@@ -220,16 +216,16 @@ export async function getWormholeRelayerInfo(
             sourceVaaSequence: BigNumber.from(deliveryLog.sequence),
           });
         }
-        return {
+        const targetChainStatus = {
           chainId: targetChain,
           events: deliveryEvents.map((e) => ({
             status: e.status,
             transactionHash: e.deliveryTxHash,
           })),
         };
-      }
-    )
-  );
+      
+    
+  
 
   return {
     type,
@@ -238,7 +234,7 @@ export async function getWormholeRelayerInfo(
     sourceDeliverySequenceNumber: BigNumber.from(
       deliveryLog.sequence
     ).toNumber(),
-    deliveryInstructionsContainer,
-    targetChainStatuses,
+    deliveryInstruction: instruction,
+    targetChainStatus,
   };
 }

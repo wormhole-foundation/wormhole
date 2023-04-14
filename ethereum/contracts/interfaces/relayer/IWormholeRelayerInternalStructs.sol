@@ -5,13 +5,6 @@ pragma solidity ^0.8.0;
 import "./IWormholeRelayer.sol";
 
 interface IWormholeRelayerInternalStructs {
-    struct DeliveryInstructionsContainer {
-        uint8 payloadId; //1
-        bytes32 senderAddress;
-        bytes32 sourceProvider;
-        IWormholeRelayer.VaaKey[] vaaKeys;
-        DeliveryInstruction[] instructions;
-    }
 
     struct DeliveryInstruction {
         uint16 targetChain;
@@ -20,7 +13,11 @@ interface IWormholeRelayerInternalStructs {
         uint16 refundChain;
         uint256 maximumRefundTarget;
         uint256 receiverValueTarget;
+        bytes32 sourceRelayProvider;
         bytes32 targetRelayProvider;
+        bytes32 senderAddress;
+        IWormholeRelayer.VaaKey[] vaaKeys;
+        uint8 consistencyLevel;
         ExecutionParameters executionParameters;
         bytes payload;
     }
@@ -31,13 +28,9 @@ interface IWormholeRelayerInternalStructs {
     }
 
     struct ForwardInstruction {
-        bytes container;
-        address sender;
+        bytes encodedInstruction;
         uint256 msgValue;
         uint256 totalFee;
-        address relayProvider;
-        uint8 consistencyLevel;
-        bool isValid;
     }
 
     struct DeliveryVAAInfo {
@@ -46,7 +39,6 @@ interface IWormholeRelayerInternalStructs {
         bytes32 deliveryVaaHash;
         bytes[] encodedVMs;
         address payable relayerRefundAddress;
-        DeliveryInstructionsContainer deliveryContainer;
         DeliveryInstruction internalInstruction;
     }
 }

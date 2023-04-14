@@ -15,57 +15,6 @@ contract CoreRelayerMessages is CoreRelayerGetters {
     error InvalidDeliveryInstructionsPayload(uint256 length);
 
     /**
-     * @notice This function calculates the total fee to execute all of the Send requests in this MultichainSend container
-     * @param sendContainer A MultichainSend struct describing all of the Send requests
-     * @return totalFee
-     */
-    function getTotalFeeMultichainSend(IWormholeRelayer.MultichainSend memory sendContainer, uint256 wormholeMessageFee)
-        internal
-        pure
-        returns (uint256 totalFee)
-    {
-        totalFee = wormholeMessageFee;
-        uint256 length = sendContainer.requests.length;
-        for (uint256 i = 0; i < length; i++) {
-            IWormholeRelayer.Send memory request = sendContainer.requests[i];
-            totalFee += request.maxTransactionFee + request.receiverValue;
-        }
-    }
-
-    /**
-     * @notice This function converts a MultichainSend struct into a DeliveryInstructionsContainer struct that
-     * describes to the relayer exactly how to relay for each of the Send requests.
-     * Specifically, each Send is converted to a DeliveryInstruction, which is a struct that contains six fields:
-     * 1) targetChain, 2) targetAddress, 3) refundAddress (all which are part of the Send struct),
-     * 4) maximumRefundTarget: The maximum amount that can be refunded to 'refundAddress' (e.g. if the call to 'receiveWormholeMessages' takes 0 gas),
-     * 5) receiverValueTarget: The amount that will be passed into 'receiveWormholeMessages' as value, in target chain currency
-     * 6) executionParameters: a struct with information about execution, specifically:
-     *    executionParameters.gasLimit: The maximum amount of gas 'receiveWormholeMessages' is allowed to use
-     *    executionParameters.providerDeliveryAddress: The address of the relayer that will execute this Send request
-     * The latter 3 fields are calculated using the relayProvider's getters
-     * @param sendContainer A MultichainSend struct describing all of the Send requests
-     * @return instructionsContainer A DeliveryInstructionsContainer struct
-     */
-    function convertMultichainSendToDeliveryInstructionsContainer(IWormholeRelayer.MultichainSend memory sendContainer)
-        internal
-        view
-        returns (IWormholeRelayerInternalStructs.DeliveryInstructionsContainer memory instructionsContainer)
-    {
-        instructionsContainer.payloadId = 1;
-        instructionsContainer.senderAddress = toWormholeFormat(msg.sender);
-        IRelayProvider relayProvider = IRelayProvider(sendContainer.relayProviderAddress);
-        instructionsContainer.sourceProvider = toWormholeFormat(sendContainer.relayProviderAddress);
-        instructionsContainer.vaaKeys = sendContainer.vaaKeys;
-
-        uint256 length = sendContainer.requests.length;
-        instructionsContainer.instructions = new IWormholeRelayerInternalStructs.DeliveryInstruction[](length);
-        for (uint256 i = 0; i < length; i++) {
-            instructionsContainer.instructions[i] =
-                convertSendToDeliveryInstruction(sendContainer.requests[i], relayProvider);
-        }
-    }
-
-    /**
      * @notice This function converts a Send struct into a DeliveryInstruction struct that
      * describes to the relayer exactly how to relay for the Send.
      * Specifically, the DeliveryInstruction struct that contains six fields:
@@ -77,10 +26,9 @@ contract CoreRelayerMessages is CoreRelayerGetters {
      *    executionParameters.providerDeliveryAddress: The address of the relayer that will execute this Send request
      * The latter 3 fields are calculated using the relayProvider's getters
      * @param send A Send struct
-     * @param relayProvider The relay provider chosen for this Send
      * @return instruction A DeliveryInstruction
      */
-    function convertSendToDeliveryInstruction(IWormholeRelayer.Send memory send, IRelayProvider relayProvider)
+    function convertSendToDeliveryInstruction(IWormholeRelayer.Send memory send)
         internal
         view
         returns (IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction)
@@ -90,14 +38,20 @@ contract CoreRelayerMessages is CoreRelayerGetters {
         instruction.refundChain = send.refundChain;
         instruction.refundAddress = send.refundAddress;
 
+        IRelayProvider relayProvider = IRelayProvider(send.relayProviderAddress);
+
         instruction.maximumRefundTarget =
             calculateTargetDeliveryMaximumRefund(send.targetChain, send.maxTransactionFee, relayProvider);
 
         instruction.receiverValueTarget =
             convertReceiverValueAmount(send.receiverValue, send.targetChain, relayProvider);
 
-        instruction.targetRelayProvider = relayProvider.getTargetChainAddress(send.targetChain);
+        instruction.sourceRelayProvider = toWormholeFormat(address(relayProvider));
 
+        instruction.targetRelayProvider = relayProvider.getTargetChainAddress(send.targetChain);
+        instruction.senderAddress = toWormholeFormat(msg.sender);
+        instruction.vaaKeys = send.vaaKeys;
+        instruction.consistencyLevel = send.consistencyLevel;
         instruction.payload = send.payload;
 
         instruction.executionParameters = IWormholeRelayerInternalStructs.ExecutionParameters({
@@ -111,47 +65,22 @@ contract CoreRelayerMessages is CoreRelayerGetters {
      * - the total amount of target chain currency needed for execution of the instruction is within the maximum budget,
      *   i.e. (maximumRefundTarget + receiverValueTarget) <= (the relayProvider's maximum budget for the target chain)
      * - the gasLimit is greater than 0
-     * @param container A DeliveryInstructionsContainer
+     * @param instruction A DeliveryInstruction 
      * @param relayProvider The relayProvider whos maximum budget we are checking against
      */
-    function checkInstructions(
-        IWormholeRelayerInternalStructs.DeliveryInstructionsContainer memory container,
+    function checkInstruction(
+        IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction,
         IRelayProvider relayProvider
     ) internal view {
-        uint256 length = container.instructions.length;
-        for (uint8 i = 0; i < length; i++) {
-            IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction = container.instructions[i];
             if (instruction.executionParameters.gasLimit == 0) {
-                revert IWormholeRelayer.MaxTransactionFeeNotEnough(i);
+                revert IWormholeRelayer.MaxTransactionFeeNotEnough();
             }
             if (
                 instruction.maximumRefundTarget + instruction.receiverValueTarget
                     > relayProvider.quoteMaximumBudget(instruction.targetChain)
             ) {
-                revert IWormholeRelayer.FundsTooMuch(i);
+                revert IWormholeRelayer.FundsTooMuch();
             }
-        }
-    }
-
-    // encode a 'IWormholeRelayerInternalStructs.DeliveryInstructionsContainer' into bytes
-    function encodeDeliveryInstructionsContainer(
-        IWormholeRelayerInternalStructs.DeliveryInstructionsContainer memory container
-    ) public pure returns (bytes memory encoded) {
-        encoded = abi.encodePacked(
-            container.payloadId,
-            container.senderAddress,
-            container.sourceProvider,
-            uint8(container.vaaKeys.length),
-            uint8(container.instructions.length)
-        );
-
-        for (uint256 i = 0; i < container.vaaKeys.length; i++) {
-            encoded = abi.encodePacked(encoded, encodeVaaKey(container.vaaKeys[i]));
-        }
-
-        for (uint256 i = 0; i < container.instructions.length; i++) {
-            encoded = abi.encodePacked(encoded, encodeDeliveryInstruction(container.instructions[i]));
-        }
     }
 
     // encode a 'VaaKey' into bytes
@@ -174,14 +103,26 @@ contract CoreRelayerMessages is CoreRelayerGetters {
         pure
         returns (bytes memory encoded)
     {
+        uint8 length = uint8(instruction.vaaKeys.length);
+        bytes memory encodedVaaKeys = abi.encodePacked(length);
+        for(uint8 i=0; i<length; i++) {
+            encodedVaaKeys = abi.encodePacked(encodedVaaKeys, encodeVaaKey(instruction.vaaKeys[i]));
+        }
         encoded = abi.encodePacked(
+            uint8(1),
             instruction.targetChain,
             instruction.targetAddress,
             instruction.refundChain,
             instruction.refundAddress,
             instruction.maximumRefundTarget,
-            instruction.receiverValueTarget,
+            instruction.receiverValueTarget);
+        encoded = abi.encodePacked(encoded, 
+            instruction.sourceRelayProvider,
             instruction.targetRelayProvider,
+            instruction.senderAddress,
+            encodedVaaKeys,
+            instruction.consistencyLevel);
+        encoded = abi.encodePacked(encoded, 
             instruction.executionParameters.version,
             instruction.executionParameters.gasLimit,
             uint32(instruction.payload.length),
@@ -360,11 +301,18 @@ contract CoreRelayerMessages is CoreRelayerGetters {
     }
 
     // decode a 'DeliveryInstruction' from bytes
-    function decodeDeliveryInstruction(bytes memory encoded, uint256 index)
+    function decodeDeliveryInstruction(bytes memory encoded)
         public
         pure
-        returns (IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction, uint256 newIndex)
+        returns (IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction)
     {
+        uint256 index = 0;
+
+        uint8 payloadId = encoded.toUint8(index);
+        index += 1;
+        if(payloadId != 1) {
+            revert InvalidPayloadId(payloadId);
+        }
         // target chain of the delivery instruction
         instruction.targetChain = encoded.toUint16(index);
         index += 2;
@@ -385,8 +333,25 @@ contract CoreRelayerMessages is CoreRelayerGetters {
         instruction.receiverValueTarget = encoded.toUint256(index);
         index += 32;
 
+        instruction.sourceRelayProvider = encoded.toBytes32(index);
+        index += 32;
+
         instruction.targetRelayProvider = encoded.toBytes32(index);
         index += 32;
+
+        instruction.senderAddress = encoded.toBytes32(index);
+        index += 32;
+
+        uint8 length = encoded.toUint8(index);
+        index += 1;
+
+        instruction.vaaKeys = new IWormholeRelayer.VaaKey[](length);
+        for(uint8 i=0; i<length; i++) {
+            (instruction.vaaKeys[i], index) = decodeVaaKey(encoded, index);
+        }
+
+        instruction.consistencyLevel = encoded.toUint8(index);
+        index += 1;
 
         instruction.executionParameters.version = encoded.toUint8(index);
         index += 1;
@@ -399,8 +364,6 @@ contract CoreRelayerMessages is CoreRelayerGetters {
 
         instruction.payload = encoded.slice(index, payloadLength);
         index += payloadLength;
-
-        newIndex = index;
     }
 
     // decode a 'VaaKey' from bytes
@@ -435,56 +398,6 @@ contract CoreRelayerMessages is CoreRelayerGetters {
         newIndex = index;
     }
 
-    // decode a 'DeliveryInstructionsContainer' from bytes
-    function decodeDeliveryInstructionsContainer(bytes memory encoded)
-        public
-        pure
-        returns (IWormholeRelayerInternalStructs.DeliveryInstructionsContainer memory)
-    {
-        uint256 index = 0;
-
-        uint8 payloadId = encoded.toUint8(index);
-        if (payloadId != 1) {
-            revert InvalidPayloadId(payloadId);
-        }
-        index += 1;
-
-        bytes32 senderAddress = encoded.toBytes32(index);
-        index += 32;
-
-        bytes32 sourceProvider = encoded.toBytes32(index);
-        index += 32;
-
-        uint8 messagesArrayLen = encoded.toUint8(index);
-        index += 1;
-
-        uint8 instructionsArrayLen = encoded.toUint8(index);
-        index += 1;
-
-        IWormholeRelayer.VaaKey[] memory vaaKeys = new IWormholeRelayer.VaaKey[](messagesArrayLen);
-        for (uint8 i = 0; i < messagesArrayLen; i++) {
-            (vaaKeys[i], index) = decodeVaaKey(encoded, index);
-        }
-
-        IWormholeRelayerInternalStructs.DeliveryInstruction[] memory instructionArray =
-            new IWormholeRelayerInternalStructs.DeliveryInstruction[](instructionsArrayLen);
-        for (uint8 i = 0; i < instructionsArrayLen; i++) {
-            (instructionArray[i], index) = decodeDeliveryInstruction(encoded, index);
-        }
-
-        if (index != encoded.length) {
-            revert InvalidDeliveryInstructionsPayload(encoded.length);
-        }
-
-        return IWormholeRelayerInternalStructs.DeliveryInstructionsContainer({
-            payloadId: payloadId,
-            senderAddress: senderAddress,
-            sourceProvider: sourceProvider,
-            vaaKeys: vaaKeys,
-            instructions: instructionArray
-        });
-    }
-
     /**
      * @notice Helper function that converts an EVM address to wormhole format
      * @param addr (EVM 20-byte address)
@@ -503,20 +416,4 @@ contract CoreRelayerMessages is CoreRelayerGetters {
         return address(uint160(uint256(whFormatAddress)));
     }
 
-    // Helper to put one Send struct into a MultichainSend struct
-    function multichainSendContainer(
-        IWormholeRelayer.Send memory request,
-        address relayProvider,
-        IWormholeRelayer.VaaKey[] memory vaaKeys,
-        uint8 consistencyLevel
-    ) internal pure returns (IWormholeRelayer.MultichainSend memory container) {
-        IWormholeRelayer.Send[] memory requests = new IWormholeRelayer.Send[](1);
-        requests[0] = request;
-        container = IWormholeRelayer.MultichainSend({
-            relayProviderAddress: relayProvider,
-            consistencyLevel: consistencyLevel,
-            requests: requests,
-            vaaKeys: vaaKeys
-        });
-    }
 }
