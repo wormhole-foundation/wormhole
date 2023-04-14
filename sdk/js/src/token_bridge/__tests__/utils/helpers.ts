@@ -2,7 +2,7 @@ import { expect } from "@jest/globals";
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 import { LCDClient, MnemonicKey, TxInfo } from "@terra-money/terra.js";
 import axios from "axios";
-import { ChainId, getSignedVAAWithRetry } from "../..";
+import { ChainId, getSignedVAAWithRetry } from "../../..";
 import {
   TERRA_CHAIN_ID,
   TERRA_GAS_PRICES_URL,

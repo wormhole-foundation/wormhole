@@ -44,7 +44,7 @@ import {
   SOLANA_HOST,
   SOLANA_PRIVATE_KEY2,
   TEST_SOLANA_TOKEN3,
-} from "./consts";
+} from "./utils/consts";
 import {
   deployTestNftOnAptos,
   deployTestNftOnEthereum,
