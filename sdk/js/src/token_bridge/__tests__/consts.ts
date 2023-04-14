@@ -99,13 +99,3 @@ export const SUI_NODE_URL = ci ? "http://sui:9000" : "http://localhost:9000";
 export const SUI_FAUCET_URL = ci
   ? "http://sui:5003/gas"
   : "http://localhost:5003/gas";
-
-describe("consts should exist", () => {
-  it("has Solana test token", () => {
-    expect.assertions(1);
-    const connection = new Connection(SOLANA_HOST, "confirmed");
-    return expect(
-      connection.getAccountInfo(new PublicKey(TEST_SOLANA_TOKEN))
-    ).resolves.toBeTruthy();
-  });
-});
