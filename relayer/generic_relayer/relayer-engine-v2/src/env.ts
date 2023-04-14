@@ -93,18 +93,32 @@ const defaults: { [key in Flag]: GRRelayerAppConfig } = {
   },
   // TODO
   [Flag.K8sTestnet]: {
-    contractsJsonPath: `${SCRIPTS_DIR}/config/${Flag.K8sTestnet}/contracts.json`,
-    // name: "GenericRelayer",
-    // logLevel: "debug",
-    // logFormat: "json",
-    // spyEndpoint: "spy:7073",
-    // wormholeRpcs: ["https://wormhole-v2-testnet-api.certus.one"],
-    // fetchSourceTxhash: true,
-    // redisCluster: {
-    //   port
-    // }
+    contractsJsonPath: `${SCRIPTS_DIR}/config/${Flag.Testnet}/contracts.json`,
+    name: "GenericRelayer",
+    logLevel: "debug",
+    logFormat: "json",
+    spyEndpoint: "spy:7073",
+    wormholeRpcs: ["https://wormhole-v2-testnet-api.certus.one"],
+    fetchSourceTxhash: true,
+    redisCluster: {
+      redis: { host: "redis", port: 6379 },
+    },
   } as any,
-  [Flag.Testnet]: {} as any,
+  [Flag.Testnet]: {
+    contractsJsonPath: `${SCRIPTS_DIR}/config/${Flag.Testnet}/contracts.json`,
+    name: "GenericRelayer",
+    logLevel: "debug",
+    logFormat: "text",
+    spyEndpoint: "localhost:7073",
+    wormholeRpcs: ["https://wormhole-v2-testnet-api.certus.one"],
+    fetchSourceTxhash: true,
+    redis: { host: "localhost", port: 6379 },
+    providers: {
+      chains: {
+        
+      }
+    }
+  },
   [Flag.Mainnet]: {} as any,
 };
 

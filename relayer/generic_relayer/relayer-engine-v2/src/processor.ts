@@ -108,6 +108,8 @@ async function processDelivery(ctx: GRContext) {
         wallet
       );
 
+      ctx.logger.debug("delivery vaa: ", { vaa: ctx.vaaBytes! });
+
       const input: IDelivery.TargetDeliveryParametersStruct = {
         encodedVMs: results.map((v) => v),
         encodedDeliveryVAA: ctx.vaaBytes!,
