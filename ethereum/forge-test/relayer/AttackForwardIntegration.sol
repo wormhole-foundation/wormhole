@@ -60,11 +60,14 @@ contract AttackForwardIntegration is IWormholeReceiver {
             maxTransactionFee: maxTransactionFee,
             receiverValue: 0,
             payload: emptyArray,
+            vaaKeys: new IWormholeRelayer.VaaKey[](0),
+            consistencyLevel: 200,
+            relayProviderAddress: core_relayer.getDefaultRelayProvider(),
             relayParameters: core_relayer.getDefaultRelayParams()
         });
 
         core_relayer.forward{value: maxTransactionFee}(
-            request, new IWormholeRelayer.VaaKey[](0), core_relayer.getDefaultRelayProvider(), 200
+            request
         );
     }
 

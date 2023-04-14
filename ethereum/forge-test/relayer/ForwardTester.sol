@@ -85,12 +85,6 @@ contract ForwardTester is IWormholeReceiver {
             dc.forward(
                 vaa.emitterChainId, vaa.emitterAddress, vaa.emitterAddress, maxTransactionFee, 0, bytes(""), empty
             );
-        } else if (action == Action.MultichainSendEmpty) {
-            wormholeRelayer.multichainForward(
-                IWormholeRelayer.MultichainSend(
-                    wormholeRelayer.getDefaultRelayProvider(), empty, new IWormholeRelayer.Send[](0), 200
-                )
-            );
         } else if (action == Action.MaxTransactionFeeNotEnough) {
             uint256 maxTransactionFee =
                 wormholeRelayer.quoteGas(vaa.emitterChainId, 1, wormholeRelayer.getDefaultRelayProvider()) - 1;

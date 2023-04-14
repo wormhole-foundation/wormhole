@@ -16,7 +16,6 @@ interface IDelivery {
     struct TargetDeliveryParameters {
         bytes[] encodedVMs;
         bytes encodedDeliveryVAA;
-        uint8 multisendIndex;
         address payable relayerRefundAddress;
     }
 

@@ -105,35 +105,34 @@ contract MockGenericRelayer {
     ) internal {
         uint8 payloadId = parsedDeliveryVAA.payload.toUint8(0);
         if (payloadId == 1) {
-            IWormholeRelayerInstructionParser.DeliveryInstructionsContainer memory container =
-                parser.decodeDeliveryInstructionsContainer(parsedDeliveryVAA.payload);
+            IWormholeRelayerInstructionParser.DeliveryInstruction memory instruction =
+                parser.decodeDeliveryInstruction(parsedDeliveryVAA.payload);
 
-            bytes[] memory encodedVMsToBeDelivered = new bytes[](container.messages.length);
+            bytes[] memory encodedVMsToBeDelivered = new bytes[](instruction.vaaKeys.length);
 
-            for (uint8 i = 0; i < container.messages.length; i++) {
+            for (uint8 i = 0; i < instruction.vaaKeys.length; i++) {
                 for (uint8 j = 0; j < encodedVMs.length; j++) {
-                    if (vaaKeyMatchesVAA(container.messages[i], encodedVMs[j])) {
+                    if (vaaKeyMatchesVAA(instruction.vaaKeys[i], encodedVMs[j])) {
                         encodedVMsToBeDelivered[i] = encodedVMs[j];
                         break;
                     }
                 }
             }
 
-            for (uint8 k = 0; k < container.instructions.length; k++) {
+            
                 uint256 budget =
-                    container.instructions[k].maximumRefundTarget + container.instructions[k].receiverValueTarget;
+                    instruction.maximumRefundTarget + instruction.receiverValueTarget;
 
-                uint16 targetChain = container.instructions[k].targetChain;
+                uint16 targetChain = instruction.targetChain;
                 IDelivery.TargetDeliveryParameters memory package = IDelivery.TargetDeliveryParameters({
                     encodedVMs: encodedVMsToBeDelivered,
                     encodedDeliveryVAA: encodedDeliveryVAA,
-                    multisendIndex: k,
                     relayerRefundAddress: payable(relayers[targetChain])
                 });
 
                 vm.prank(relayers[targetChain]);
                 IDelivery(wormholeRelayerContracts[targetChain]).deliver{value: budget}(package);
-            }
+            
             bytes32 key = keccak256(abi.encodePacked(parsedDeliveryVAA.emitterChainId, parsedDeliveryVAA.sequence));
             pastEncodedVMs[key] = encodedVMsToBeDelivered;
             pastEncodedDeliveryVAA[key] = encodedDeliveryVAA;
