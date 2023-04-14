@@ -914,32 +914,33 @@ func runNode(cmd *cobra.Command, args []string) {
 	for _, chainId := range vaa.GetAllNetworkIDs() {
 		chainMsgC[chainId] = make(chan *common.MessagePublication)
 		go func(c <-chan *common.MessagePublication, chainId vaa.ChainID) {
-			zeroAddress := vaa.Address{}
 			for {
 				select {
 				case <-rootCtx.Done():
 					return
 				case msg := <-c:
-					if msg.EmitterChain != chainId {
-						// SECURITY: This should never happen. If it does, a watcher has been compromised.
-						logger.Fatal("SECURITY CRITICAL: Received observation from a chain that was not marked as originating from that chain",
+					shouldPublish, err := validateMessage(logger, msg, chainId)
+					if err != nil {
+						logger.Fatal("SECURITY CRITICAL: invalid message received",
 							zap.Stringer("tx", msg.TxHash),
 							zap.Stringer("emitter_address", msg.EmitterAddress),
 							zap.Uint64("sequence", msg.Sequence),
 							zap.Stringer("msgChainId", msg.EmitterChain),
 							zap.Stringer("watcherChainId", chainId),
+							zap.Error(err),
 						)
-					} else if msg.EmitterAddress == zeroAddress {
-						// SECURITY: This should never happen. If it does, a watcher has been compromised.
-						logger.Error("SECURITY ERROR: Received observation with EmitterAddress == 0x00",
-							zap.Stringer("tx", msg.TxHash),
-							zap.Stringer("emitter_address", msg.EmitterAddress),
-							zap.Uint64("sequence", msg.Sequence),
-							zap.Stringer("msgChainId", msg.EmitterChain),
-							zap.Stringer("watcherChainId", chainId),
-						)
-					} else {
-						msgWriteC <- msg
+					}
+					if shouldPublish {
+						select {
+						case msgWriteC <- msg:
+						default:
+							logger.Error("Failed to post message to processor, dropping it",
+								zap.Stringer("tx", msg.TxHash),
+								zap.Stringer("emitter_chain", msg.EmitterChain),
+								zap.Stringer("emitter_address", msg.EmitterAddress),
+								zap.Uint64("sequence", msg.Sequence),
+							)
+						}
 					}
 				}
 			}
@@ -1626,4 +1627,27 @@ func unsafeDevModeEvmContractAddress(contractAddr string) string {
 func makeChannelPair[T any](cap int) (<-chan T, chan<- T) {
 	out := make(chan T, cap)
 	return out, out
+}
+
+var zeroAddress vaa.Address
+
+func validateMessage(logger *zap.Logger, msg *common.MessagePublication, chainId vaa.ChainID) (bool, error) {
+	if msg.EmitterChain != chainId {
+		// SECURITY: This should never happen. If it does, a watcher has been compromised.
+		return false, fmt.Errorf("received observation from a chain that was not marked as originating from that chain")
+	}
+
+	if msg.EmitterAddress == zeroAddress {
+		// SECURITY: This could happen based on external input. We want to block it but not restart the guardian.
+		logger.Error("SECURITY ERROR: Received observation with EmitterAddress == 0x00",
+			zap.Stringer("tx", msg.TxHash),
+			zap.Stringer("emitter_address", msg.EmitterAddress),
+			zap.Uint64("sequence", msg.Sequence),
+			zap.Stringer("msgChainId", msg.EmitterChain),
+			zap.Stringer("watcherChainId", chainId),
+		)
+		return false, nil
+	}
+
+	return true, nil
 }
