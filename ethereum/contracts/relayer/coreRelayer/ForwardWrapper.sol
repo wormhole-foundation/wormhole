@@ -10,6 +10,7 @@ import "../../interfaces/relayer/IWormholeRelayerInternalStructs.sol";
 import "../../interfaces/relayer/IForwardWrapper.sol";
 import "../../interfaces/relayer/IWormholeReceiver.sol";
 import "../../interfaces/relayer/IRelayProvider.sol";
+import "forge-std/console.sol";
 
 contract ForwardWrapper {
     IForwardInstructionViewer forwardInstructionViewer;
@@ -52,13 +53,20 @@ contract ForwardWrapper {
         transactionFeeRefundAmount = (instruction.executionParameters.gasLimit - gasUsed)
             * instruction.maximumRefundTarget / instruction.executionParameters.gasLimit;
 
-        IWormholeRelayerInternalStructs.ForwardInstruction memory forwardInstruction =
-            forwardInstructionViewer.getForwardInstruction();
+        IWormholeRelayerInternalStructs.ForwardInstruction[] memory forwardInstructions =
+            forwardInstructionViewer.getForwardInstructions();
 
-        if (forwardInstruction.isValid) {
-            uint256 feeForForward = transactionFeeRefundAmount + forwardInstruction.msgValue;
-            if (feeForForward < forwardInstruction.totalFee) {
-                revert ForwardNotSufficientlyFunded(feeForForward, forwardInstruction.totalFee);
+        if (forwardInstructions.length > 0) {
+            uint256 totalMsgValue = 0;
+            uint256 totalFee = 0;
+            for(uint8 i=0; i<forwardInstructions.length; i++) {
+                totalMsgValue += forwardInstructions[i].msgValue;
+                totalFee += forwardInstructions[i].totalFee;
+            }
+            uint256 feeForForward = transactionFeeRefundAmount + totalMsgValue;
+            if (feeForForward < totalFee) {
+                console.log(instruction.maximumRefundTarget);
+                revert ForwardNotSufficientlyFunded(feeForForward, totalFee);
             }
         }
 

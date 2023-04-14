@@ -225,12 +225,12 @@ describe("Core Relayer Integration Test - Two Chains", () => {
     )
     const value2 = (await targetCoreRelayer.quoteGas(
       sourceChain.chainId,
-      500000,
+      1000000,
       await targetCoreRelayer.getDefaultRelayProvider()
     ))
     const value3 = (await targetCoreRelayer.quoteGas(
       targetChain.chainId,
-      500000,
+      1000000,
       await targetCoreRelayer.getDefaultRelayProvider()
     ))
     console.log(`Quoted gas delivery fee: ${value1.add(value2).add(value3)}`)
@@ -239,7 +239,7 @@ describe("Core Relayer Integration Test - Two Chains", () => {
       keepSending: true,
       newMessages: [arbitraryPayload2, "0x00"],
       chains: [sourceChain.chainId, targetChain.chainId],
-      gasLimits: [500000, 500000],
+      gasLimits: [1000000, 1000000],
     }
     const tx = await sourceMockIntegration.sendMessagesWithFurtherInstructions(
       [arbitraryPayload1],
@@ -338,7 +338,7 @@ describe("Core Relayer Integration Test - Two Chains", () => {
       expect(message2).to.not.equal(arbitraryPayload2)
 
       let info: DeliveryInfo = (await relayer.getWormholeRelayerInfo({environment: "DEVNET", sourceChain: sourceChain.chainId, sourceTransaction: tx.hash})) as DeliveryInfo
-      let status = info.targetChainStatuses[0].events[0].status
+      let status = info.targetChainStatus.events[0].status
       expect(status).to.equal("Forward Request Failure")
     })
 
@@ -368,7 +368,7 @@ describe("Core Relayer Integration Test - Two Chains", () => {
 
     console.log("Checking status using SDK");
     let info: DeliveryInfo = (await relayer.getWormholeRelayerInfo({environment: "DEVNET", sourceChain: sourceChain.chainId, sourceTransaction: tx.hash})) as DeliveryInfo
-    let status = info.targetChainStatuses[0].events[0].status
+    let status = info.targetChainStatus.events[0].status
 
     expect(status.substring(0, 22)).to.equal("Delivery didn't happen")
 
@@ -385,7 +385,7 @@ describe("Core Relayer Integration Test - Two Chains", () => {
 
     console.log("Checking status using SDK");
     info = await relayer.getWormholeRelayerInfo({environment: "DEVNET", sourceChain: sourceChain.chainId, sourceTransaction: tx.hash}) as DeliveryInfo;
-    status = info.targetChainStatuses[0].events[0].status
+    status = info.targetChainStatus.events[0].status
     expect(status).to.equal("Delivery Success")
   })
 
@@ -418,7 +418,7 @@ describe("Core Relayer Integration Test - Two Chains", () => {
 
     console.log("Checking status using SDK");
     let info: DeliveryInfo = (await relayer.getWormholeRelayerInfo({environment: "DEVNET", sourceChain: sourceChain.chainId, sourceTransaction: tx.hash })) as DeliveryInfo
-    let status = info.targetChainStatuses[0].events[0].status
+    let status = info.targetChainStatus.events[0].status
     expect(status.substring(0, 22)).to.equal("Delivery didn't happen")
 
     await new Promise((resolve) => {
@@ -434,7 +434,7 @@ describe("Core Relayer Integration Test - Two Chains", () => {
 
     console.log("Checking status using SDK");
     info = await relayer.getWormholeRelayerInfo({environment: "DEVNET", sourceChain: sourceChain.chainId, sourceTransaction: tx.hash}) as DeliveryInfo;
-    status = info.targetChainStatuses[0].events[0].status
+    status = info.targetChainStatus.events[0].status
     expect(status).to.equal("Receiver Failure")
   })
   

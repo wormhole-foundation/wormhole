@@ -47,12 +47,13 @@ contract CoreRelayer is CoreRelayerDelivery {
                 refundAddress,
                 maxTransactionFee,
                 receiverValue,
+                getDefaultRelayProvider(),
+                new IWormholeRelayer.VaaKey[](0),
+                 15, //finality on all EVM chains
                 payload,
                 getDefaultRelayParams()
-            ),
-            new IWormholeRelayer.VaaKey[](0),
-            getDefaultRelayProvider(),
-            15 //finality on all EVM chains
+            )
+           
         );
     }
 
@@ -101,12 +102,12 @@ contract CoreRelayer is CoreRelayerDelivery {
                 refundAddress,
                 maxTransactionFee,
                 receiverValue,
+                 getDefaultRelayProvider(),
+                 vaaKeys,
+                 consistencyLevel,
                 payload,
                 getDefaultRelayParams()
-            ),
-            vaaKeys,
-            getDefaultRelayProvider(),
-            consistencyLevel
+            )
         );
     }
 
@@ -115,29 +116,46 @@ contract CoreRelayer is CoreRelayerDelivery {
      * call the 'deliver' endpoint of the contract on chain 'targetChain' and address 'targetAddress'
      *
      *
-     *  @param request The Send request containing info about the targetChain, targetAddress, refundAddress, maxTransactionFee, receiverValue, payload, and relayParameters
-     *  @param vaaKeys Array of VaaKey structs identifying each message to be relayed. Each VaaKey struct specifies a wormhole message in the current transaction, either by the VAA hash, or by the (emitter address, sequence number) pair.
-     *  The relay provider will call receiveWormholeMessages with an array of signed VAAs specified by this messages array.
-     *  Specifically, the 'signedVaas' array will have the same length as 'vaaKeys', and additionally for each 0 <= i < messages.length, signedVaas[i] will match the description in messages[i]
-     *  @param relayProvider The address of (the relay provider you wish to deliver the messages)'s contract on this source chain. This must be a contract that implements IRelayProvider.
-     *  If request.maxTransactionFee >= quoteGas(request.targetChain, gasLimit, relayProvider),
-     *  then as long as 'request.targetAddress''s receiveWormholeMessage function uses at most 'gasLimit' units of gas (and doesn't revert), the delivery will succeed
-     *  If request.receiverValue >= quoteReceiverValue(request.targetChain, targetAmount, relayProvider), then at least 'targetAmount' of targetChain currency will be passed into the 'receiveWormholeFunction' as value.
-     *  To use the default relay provider, set this field to be getDefaultRelayProvider()
-     *
+     *  @param sendParams The Send request containing info about the targetChain, targetAddress, refundAddress, maxTransactionFee, receiverValue, payload, and relayParameters
+
      *  This function must be called with a payment of at least request.maxTransactionFee + request.receiverValue + one wormhole message fee.
      *
      *  @return sequence The sequence number for the emitted wormhole message, which contains encoded delivery instructions meant for your specified relay provider.
      *  The relay provider will listen for these messages, and then execute the delivery as described.
      */
     function send(
-        IWormholeRelayer.Send memory request,
-        IWormholeRelayer.VaaKey[] memory vaaKeys,
-        address relayProvider,
-        uint8 consistencyLevel
+        IWormholeRelayer.Send memory sendParams
     ) public payable returns (uint64 sequence) {
         // call multichainSend with one 'Send' in the requests array
-        sequence = multichainSend(multichainSendContainer(request, relayProvider, vaaKeys, consistencyLevel));
+        IWormhole wormhole = wormhole();
+        uint256 wormholeMessageFee = wormhole.messageFee();
+        uint256 totalFee = sendParams.maxTransactionFee +  sendParams.receiverValue + wormholeMessageFee;
+
+        if (totalFee > msg.value) {
+            revert IWormholeRelayer.MsgValueTooLow();
+        }
+
+        IRelayProvider relayProvider = IRelayProvider(sendParams.relayProviderAddress);
+
+        // For each 'Send' request,
+        // calculate how much gas the relay provider can pay for on 'request.targetChain' using 'request.newTransactionFee',
+        // and calculate how much value the relay provider will pass into 'request.targetAddress'
+        IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction =
+            convertSendToDeliveryInstruction(sendParams);
+
+        // For each 'Send' request,
+        // Check that the total amount of value the relay provider needs to use for this send is <= the relayProvider's maximum budget for 'targetChain'
+        // and check that the calculated gas is greater than 0
+        checkInstruction(instruction, relayProvider);
+
+        // Publish a wormhole message indicating to the relay provider (who is watching wormhole messages from this contract)
+        // to relay the messages from this transaction (of nonce 'nonce') to the specified chains, each with the calculated amount of gas and receiverValue
+        sequence = wormhole.publishMessage{value: wormholeMessageFee}(
+            0, encodeDeliveryInstruction(instruction), sendParams.consistencyLevel
+        );
+
+        // Pay the relay provider
+        pay(relayProvider.getRewardAddress(), totalFee - wormholeMessageFee);
     }
 
     /**
@@ -196,12 +214,12 @@ contract CoreRelayer is CoreRelayerDelivery {
                 refundAddress,
                 maxTransactionFee,
                 receiverValue,
+                getDefaultRelayProvider(),
+                vaaKeys,
+                consistencyLevel,
                 payload,
                 getDefaultRelayParams()
-            ),
-            vaaKeys,
-            getDefaultRelayProvider(),
-            consistencyLevel
+            )   
         );
     }
 
@@ -224,13 +242,13 @@ contract CoreRelayer is CoreRelayerDelivery {
      * with the first argument being wormhole messages (VAAs) from the current transaction that match the descriptions in the 'vaaKeys' array (which have additionally been encoded and signed by the Guardian set to form 'signed VAAs'),
      * and with the second argument empty
      *
-     *  @param request The Send request containing info about the targetChain, targetAddress, refundAddress, maxTransactionFee, receiverValue, payload, and relayParameters
+     *  @param sendParams The Send request containing info about the targetChain, targetAddress, refundAddress, maxTransactionFee, receiverValue, payload, and relayParameters
      *  (specifically, the send info that will be used to deliver all of the wormhole messages emitted during the execution of oldTargetAddress's receiveWormholeMessages)
      *  This forward will succeed if (leftover funds from the current delivery that would have been refunded) + (any extra msg.value passed into forward) is at least maxTransactionFee + receiverValue + one wormhole message fee.
-     *  @param vaaKeys Array of VaaKey structs identifying each message to be relayed. Each VaaKey struct specifies a wormhole message in the current transaction, either by the VAA hash, or by the (emitter address, sequence number) pair.
+     *  noparam vaaKeys Array of VaaKey structs identifying each message to be relayed. Each VaaKey struct specifies a wormhole message in the current transaction, either by the VAA hash, or by the (emitter address, sequence number) pair.
      *  The relay provider will call receiveWormholeMessages with an array of signed VAAs specified by this messageInrow array.
      *  Specifically, the 'signedVaas' array will have the same length as 'vaaKeys', and additionally for each 0 <= i < messages.length, signedVaas[i] will match the description in messages[i]
-     *  @param relayProvider The address of (the relay provider you wish to deliver the messages)'s contract on this source chain. This must be a contract that implements IRelayProvider.
+     *  noparam relayProvider The address of (the relay provider you wish to deliver the messages)'s contract on this source chain. This must be a contract that implements IRelayProvider.
      *  If request.maxTransactionFee >= quoteGas(request.targetChain, gasLimit, relayProvider),
      *  then as long as 'request.targetAddress''s receiveWormholeMessage function uses at most 'gasLimit' units of gas (and doesn't revert), the delivery will succeed
      *  If request.receiverValue >= quoteReceiverValue(request.targetChain, targetAmount, relayProvider), then at least 'targetAmount' of targetChain currency will be passed into the 'receiveWormholeFunction' as value.
@@ -239,121 +257,41 @@ contract CoreRelayer is CoreRelayerDelivery {
      *  This function must be called with a payment of at least request.maxTransactionFee + request.receiverValue + one wormhole message fee.
      */
     function forward(
-        IWormholeRelayer.Send memory request,
-        IWormholeRelayer.VaaKey[] memory vaaKeys,
-        address relayProvider,
-        uint8 consistencyLevel
+        IWormholeRelayer.Send memory sendParams
     ) public payable {
-        // call multichainForward with one 'Send' in the requests array
-        multichainForward(multichainSendContainer(request, relayProvider, vaaKeys, consistencyLevel));
-    }
-
-    /**
-     * @notice The multichainSend function delivers the messages in the current transaction specified by the 'vaaKeys' array,
-     * with each destination specified in a Send struct, describing the desired targetAddress, targetChain, maxTransactionFee, receiverValue, refundAddress, payload, and relayParameters
-     *
-     * @param sendContainer The MultichainSend struct, containing the array of Send requests, the message array specifying the messages to be relayed, as well as the desired relayProviderAddress
-     *
-     *  This function must be called with a payment of at least (one wormhole message fee) + Sum_(i=0 -> sendContainer.requests.length - 1) [sendContainer.requests[i].maxTransactionFee + sendContainer.requests[i].receiverValue].
-     *
-     *  @return sequence The sequence number for the emitted wormhole message, which contains encoded delivery instructions meant for the default wormhole relay provider.
-     *  The relay provider will listen for these messages, and then execute the delivery as described
-     */
-    function multichainSend(IWormholeRelayer.MultichainSend memory sendContainer)
-        public
-        payable
-        returns (uint64 sequence)
-    {
-        IWormhole wormhole = wormhole();
-        uint256 wormholeMessageFee = wormhole.messageFee();
-        uint256 totalFee = getTotalFeeMultichainSend(sendContainer, wormholeMessageFee);
-        if (totalFee > msg.value) {
-            revert IWormholeRelayer.MsgValueTooLow();
-        }
-        if (sendContainer.requests.length == 0) {
-            revert IWormholeRelayer.MultichainSendEmpty();
-        }
-
-        IRelayProvider relayProvider = IRelayProvider(sendContainer.relayProviderAddress);
-
-        // For each 'Send' request,
-        // calculate how much gas the relay provider can pay for on 'request.targetChain' using 'request.newTransactionFee',
-        // and calculate how much value the relay provider will pass into 'request.targetAddress'
-        IWormholeRelayerInternalStructs.DeliveryInstructionsContainer memory instructionsContainer =
-            convertMultichainSendToDeliveryInstructionsContainer(sendContainer);
-
-        // For each 'Send' request,
-        // Check that the total amount of value the relay provider needs to use for this send is <= the relayProvider's maximum budget for 'targetChain'
-        // and check that the calculated gas is greater than 0
-        checkInstructions(instructionsContainer, IRelayProvider(sendContainer.relayProviderAddress));
-
-        // Publish a wormhole message indicating to the relay provider (who is watching wormhole messages from this contract)
-        // to relay the messages from this transaction (of nonce 'nonce') to the specified chains, each with the calculated amount of gas and receiverValue
-        sequence = wormhole.publishMessage{value: wormholeMessageFee}(
-            0, encodeDeliveryInstructionsContainer(instructionsContainer), sendContainer.consistencyLevel
-        );
-
-        // Pay the relay provider
-        pay(relayProvider.getRewardAddress(), totalFee - wormholeMessageFee);
-    }
-
-    /**
-     * @notice The multichainForward function can only be called in a IWormholeReceiver within the 'receiveWormholeMessages' function
-     * It's purpose is to use any leftover fee from the 'maxTransactionFee' of the current delivery to fund another delivery, specifically a multichain delivery to many destinations
-     * See the description of 'forward' for further explanation of what a forward is.
-     * multichainForward provides the same functionality of forward, while additionally allowing the same array of wormhole messages to be sent to many destinations
-     *
-     * Let LEFTOVER_VALUE = (leftover funds from the current delivery that would have been refunded) + (any extra msg.value passed into forward)
-     * and let NEEDED_VALUE = (one wormhole message fee) + Sum_(i=0 -> requests.requests.length - 1) [requests.requests[i].maxTransactionFee + requests.requests[i].receiverValue].
-     * The multichainForward will succeed if LEFTOVER_VALUE >= NEEDED_VALUE
-     *
-     * note: If LEFTOVER_VALUE > NEEDED_VALUE, then the maxTransactionFee of the first request in the array of sends will be incremented by 'LEFTOVER_VALUE - NEEDED_VALUE'
-     *
-     *  @param sendContainer The MultichainSend struct, containing the array of Send requests, the message array specifying the messages to be relayed, as well as the desired relayProviderAddress
-     *
-     */
-    function multichainForward(IWormholeRelayer.MultichainSend memory sendContainer) public payable {
         if (!isContractLocked()) {
             revert IWormholeRelayer.NoDeliveryInProgress();
-        }
-        if (getForwardInstruction().isValid) {
-            revert IWormholeRelayer.MultipleForwardsRequested();
         }
         if (msg.sender != lockedTargetAddress()) {
             revert IWormholeRelayer.ForwardRequestFromWrongAddress();
         }
-        if (sendContainer.requests.length == 0) {
-            revert IWormholeRelayer.MultichainSendEmpty();
-        }
 
         uint256 wormholeMessageFee = wormhole().messageFee();
-        uint256 totalFee = getTotalFeeMultichainSend(sendContainer, wormholeMessageFee);
+        uint256 totalFee = sendParams.maxTransactionFee +  sendParams.receiverValue + wormholeMessageFee;
 
         // For each 'Send' request,
         // calculate how much gas the relay provider can pay for on 'request.targetChain' using 'request.newTransactionFee',
         // and calculate how much value the relay provider will pass into 'request.targetAddress'
-        IWormholeRelayerInternalStructs.DeliveryInstructionsContainer memory instructionsContainer =
-            convertMultichainSendToDeliveryInstructionsContainer(sendContainer);
+        IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction =
+            convertSendToDeliveryInstruction(sendParams);
 
         // For each 'Send' request,
         // Check that the total amount of value the relay provider needs to use for this send is <= the relayProvider's maximum budget for 'targetChain'
         // and check that the calculated gas is greater than 0
-        checkInstructions(instructionsContainer, IRelayProvider(sendContainer.relayProviderAddress));
+        checkInstruction(instruction, IRelayProvider(sendParams.relayProviderAddress));
 
         // Save information about the forward in state, so it can be processed after the execution of 'receiveWormholeMessages',
         // because we will then know how much of the 'maxTransactionFee' of the current delivery is still available for use in this forward
-        setForwardInstruction(
+        appendForwardInstruction(
             IWormholeRelayerInternalStructs.ForwardInstruction({
-                container: encodeDeliveryInstructionsContainer(instructionsContainer),
-                consistencyLevel: sendContainer.consistencyLevel,
+                encodedInstruction: encodeDeliveryInstruction(instruction),
                 msgValue: msg.value,
-                totalFee: totalFee,
-                sender: msg.sender,
-                relayProvider: sendContainer.relayProviderAddress,
-                isValid: true
+                totalFee: totalFee
             })
         );
     }
+
+
 
     /**
      * @notice quoteGas tells you how much maxTransactionFee (denominated in current (source) chain currency) must be in order to fund a call to

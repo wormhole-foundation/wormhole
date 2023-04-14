@@ -5,13 +5,13 @@ pragma solidity ^0.8.0;
 import "./IWormholeRelayerInternalStructs.sol";
 
 interface IForwardInstructionViewer {
-    function getForwardInstruction()
+    function getForwardInstructions()
         external
         view
-        returns (IWormholeRelayerInternalStructs.ForwardInstruction memory);
+        returns (IWormholeRelayerInternalStructs.ForwardInstruction[] memory);
 
-    function encodeDeliveryInstructionsContainer(
-        IWormholeRelayerInternalStructs.DeliveryInstructionsContainer memory container
+    function encodeDeliveryInstruction(
+        IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction
     ) external pure returns (bytes memory encoded);
 
     /**
