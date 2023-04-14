@@ -7,7 +7,7 @@ import { AptosClient } from "aptos";
 import { ethers } from "ethers";
 import { Bridge__factory } from "../ethers-contracts";
 import { getWrappedMeta } from "../solana/tokenBridge";
-import { getObjectFields, isValidSuiType } from "../sui";
+import { getTokenFromTokenRegistry, isSuiError } from "../sui";
 import {
   CHAIN_ID_INJECTIVE,
   coalesceModuleAddress,
@@ -153,49 +153,26 @@ export async function getIsWrappedAssetSui(
   tokenBridgeStateObjectId: string,
   type: string
 ): Promise<boolean> {
-  if (!isValidSuiType(type)) {
-    throw new Error(`Invalid Sui type: ${type}`);
-  }
-
   // An easy way to determine if given asset isn't a wrapped asset is to ensure
   // module name and struct name are coin and COIN respectively.
   if (!type.endsWith("::coin::COIN")) {
     return false;
   }
 
-  const tokenBridgeStateFields = await getObjectFields(
-    provider,
-    tokenBridgeStateObjectId
-  );
-  if (!tokenBridgeStateFields) {
-    throw new Error(
-      `Unable to fetch object fields from token bridge state. Object ID: ${tokenBridgeStateObjectId}`
-    );
-  }
-
-  const tokenRegistryObjectId =
-    tokenBridgeStateFields.token_registry?.fields?.id?.id;
-  if (!tokenRegistryObjectId) {
-    throw new Error("Unable to fetch token registry object ID");
-  }
-
   try {
     // This call errors if the type doesn't exist in the TokenRegistry
-    await provider.getDynamicFieldObject({
-      parentId: tokenRegistryObjectId,
-      name: {
-        type: `${tokenBridgeAddress}::token_registry::Key<${type}>`,
-        value: {
-          dummy_field: false,
-        },
-      },
-    });
+    await getTokenFromTokenRegistry(
+      provider,
+      tokenBridgeAddress,
+      tokenBridgeStateObjectId,
+      type
+    );
     return true;
   } catch (e) {
-    if (e.code === -32000 && e.message.includes("RPC Error")) {
-      return false
+    if (isSuiError(e) && e.code === -32000 && e.message.includes("RPC Error")) {
+      return false;
     }
-    
+
     throw e;
   }
 }
