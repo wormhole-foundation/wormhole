@@ -282,6 +282,51 @@ contract WormholeRelayerTests is Test {
         assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
     }
 
+    function testMultipleForwards(GasParameters memory gasParams, FeeParameters memory feeParams, bytes memory message) public {
+        StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, 2000000);
+
+        uint256 payment = setup.source.coreRelayer.quoteGas(setup.targetChainId, 2000000, setup.source.coreRelayer.getDefaultRelayProvider()) + ((setup.target.coreRelayer.quoteGas(setup.sourceChainId, 800000, setup.target.coreRelayer.getDefaultRelayProvider()) + setup.target.coreRelayer.quoteGas(setup.targetChainId, 800000, setup.target.coreRelayer.getDefaultRelayProvider()))*feeParams.targetNativePrice / feeParams.sourceNativePrice + 1)*105/100 + 1;
+        payment += 3*setup.source.wormhole.messageFee() + (6 * setup.target.wormhole.messageFee() * feeParams.targetNativePrice / feeParams.sourceNativePrice + 1)*105/100 + 10;
+
+        uint16[] memory chains = new uint16[](2);
+        bytes[] memory newMessages = new bytes[](2);
+        uint32[] memory gasLimits = new uint32[](2);
+        newMessages[0] = message;
+        newMessages[1] = message;
+        chains[0] = setup.sourceChainId;
+        chains[1] = setup.targetChainId;
+        gasLimits[0] = 800000;
+        gasLimits[1] = 800000;
+
+        MockRelayerIntegration.FurtherInstructions memory furtherInstructions =   MockRelayerIntegration.FurtherInstructions({
+            keepSending: true,
+            newMessages: newMessages,
+            chains: chains,
+            gasLimits: gasLimits
+        });
+
+        vm.recordLogs();
+
+        uint16[] memory sendChains = new uint16[](1);
+        sendChains[0] = setup.targetChainId;
+
+        uint256[] memory computeBudgets = new uint256[](1);
+        computeBudgets[0] = payment - setup.source.wormhole.messageFee();
+
+        setup.source.integration.sendMessagesWithFurtherInstructions{value: payment}(
+            new bytes[](0), furtherInstructions, sendChains, computeBudgets
+        );
+
+        genericRelayer.relay(setup.sourceChainId);
+
+        genericRelayer.relay(setup.targetChainId);
+
+
+        assertTrue(keccak256(setup.source.integration.getMessage()) == keccak256(message));
+        
+        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
+    }
+
     function testFundsCorrectForASend(
         GasParameters memory gasParams,
         FeeParameters memory feeParams,
