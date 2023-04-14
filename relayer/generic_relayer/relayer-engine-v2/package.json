@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "ts-node src/app.ts --flag=testnet",
+    "testnet": "ts-node src/app.ts --flag=testnet",
     "tilt": "ts-node src/app.ts --flag=tilt",
     "tiltkub": "ts-node src/app.ts --flag=tiltkub",
     "build": "tsc",
@@ -17,7 +18,6 @@
     "@certusone/wormhole-sdk": "^0.9.11",
     "@types/clone": "^2.1.1",
     "@types/koa": "^2.13.5",
-    "@types/koa-router": "^7.4.4",
     "clone": "^2.1.2",
     "koa": "^2.14.1",
     "koa-router": "^12.0.0",
@@ -29,6 +29,7 @@
     "winston": "3.8.2"
   },
   "devDependencies": {
+    "@types/koa-router": "^7.4.4",
     "@types/yargs": "^17.0.23",
     "nodemon": "^2.0.20",
     "ts-node": "^10.9.1",
