@@ -220,17 +220,17 @@ describe("Core Relayer Integration Test - Two Chains", () => {
     console.log(`Sent message: ${arbitraryPayload1}`)
     const value1 = await sourceCoreRelayer.quoteGas(
       targetChain.chainId,
-      1000000,
+      900000,
       await sourceCoreRelayer.getDefaultRelayProvider()
     )
     const value2 = (await targetCoreRelayer.quoteGas(
       sourceChain.chainId,
-      1000000,
+      500000,
       await targetCoreRelayer.getDefaultRelayProvider()
     ))
     const value3 = (await targetCoreRelayer.quoteGas(
       targetChain.chainId,
-      1000000,
+      500000,
       await targetCoreRelayer.getDefaultRelayProvider()
     ))
     console.log(`Quoted gas delivery fee: ${value1.add(value2).add(value3)}`)
@@ -239,14 +239,14 @@ describe("Core Relayer Integration Test - Two Chains", () => {
       keepSending: true,
       newMessages: [arbitraryPayload2, "0x00"],
       chains: [sourceChain.chainId, targetChain.chainId],
-      gasLimits: [1000000, 1000000],
+      gasLimits: [500000, 500000],
     }
     const tx = await sourceMockIntegration.sendMessagesWithFurtherInstructions(
       [arbitraryPayload1],
       furtherInstructions,
       [targetChain.chainId],
       [value1.add(value2).add(value3)],
-      { value: value1.add(value2).add(value3), gasLimit: 500000 }
+      { value: value1.add(value2).add(value3), gasLimit: 800000 }
     )
     console.log("Sent delivery request!")
     const rx = await tx.wait()
