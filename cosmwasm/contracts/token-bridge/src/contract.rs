@@ -31,8 +31,9 @@ use cosmwasm_std::{
 
 use crate::{
     msg::{
-        ChainRegistrationResponse, ExecuteMsg, ExternalIdResponse, InstantiateMsg,
-        IsVaaRedeemedResponse, MigrateMsg, QueryMsg, TransferInfoResponse, WrappedRegistryResponse,
+        ChainRegistrationResponse, CompleteTransferResponse, ExecuteMsg, ExternalIdResponse,
+        InstantiateMsg, IsVaaRedeemedResponse, MigrateMsg, QueryMsg, TransferInfoResponse,
+        WrappedRegistryResponse,
     },
     state::{
         bridge_contracts, bridge_contracts_read, bridge_deposit, config, config_read,
@@ -887,6 +888,16 @@ fn handle_complete_transfer_token(
                 }))
             }
 
+            // serialize response data that will be returned to the caller
+            let response_data = to_binary(&CompleteTransferResponse {
+                contract: Some(contract_addr.clone()),
+                denom: None,
+                recipient: recipient.clone().into_string(),
+                amount: amount.into(),
+                relayer: relayer_address.to_string(),
+                fee: fee.into(),
+            })?;
+
             Ok(Response::new()
                 .add_messages(messages)
                 .add_attribute("action", "complete_transfer_wrapped")
@@ -894,7 +905,8 @@ fn handle_complete_transfer_token(
                 .add_attribute("recipient", recipient)
                 .add_attribute("amount", amount.to_string())
                 .add_attribute("relayer", relayer_address)
-                .add_attribute("fee", fee.to_string()))
+                .add_attribute("fee", fee.to_string())
+                .set_data(response_data))
         }
         ContractId::NativeCW20 { contract_address } => {
             // note -- here the amount is the amount the recipient will receive;
@@ -933,6 +945,16 @@ fn handle_complete_transfer_token(
                 }))
             }
 
+            // serialize response data that will be returned to the caller
+            let response_data = to_binary(&CompleteTransferResponse {
+                contract: Some(contract_address.to_string()),
+                denom: None,
+                recipient: recipient.clone().into_string(),
+                amount: amount.into(),
+                relayer: relayer_address.to_string(),
+                fee: fee.into(),
+            })?;
+
             Ok(Response::new()
                 .add_messages(messages)
                 .add_attribute("action", "complete_transfer_native")
@@ -940,7 +962,8 @@ fn handle_complete_transfer_token(
                 .add_attribute("contract", contract_address)
                 .add_attribute("amount", amount.to_string())
                 .add_attribute("relayer", relayer_address)
-                .add_attribute("fee", fee.to_string()))
+                .add_attribute("fee", fee.to_string())
+                .set_data(response_data))
         }
     }
 }
@@ -1023,6 +1046,16 @@ fn handle_complete_transfer_token_native(
         }));
     }
 
+    // serialize response data that will be returned to the caller
+    let response_data = to_binary(&CompleteTransferResponse {
+        contract: None,
+        denom: Some(denom.clone()),
+        recipient: recipient.clone().into_string(),
+        amount: amount.into(),
+        relayer: relayer_address.to_string(),
+        fee: fee.into(),
+    })?;
+
     Ok(Response::new()
         .add_messages(messages)
         .add_attribute("action", "complete_transfer_terra_native")
@@ -1030,7 +1063,8 @@ fn handle_complete_transfer_token_native(
         .add_attribute("denom", denom)
         .add_attribute("amount", amount.to_string())
         .add_attribute("relayer", relayer_address)
-        .add_attribute("fee", fee.to_string()))
+        .add_attribute("fee", fee.to_string())
+        .set_data(response_data))
 }
 
 #[allow(clippy::too_many_arguments)]
