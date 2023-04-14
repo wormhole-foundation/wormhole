@@ -359,7 +359,6 @@ export async function attestFromSui(
   feeAmount: number
 ): Promise<TransactionBlock> {
   const metadata = await provider.getCoinMetadata({ coinType });
-  console.log({ metadata });
   if (!metadata || !metadata.id) {
     throw new Error(`Coin metadata for type ${coinType} not found`);
   }

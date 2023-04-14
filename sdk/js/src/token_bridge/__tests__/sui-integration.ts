@@ -17,6 +17,7 @@ import {
   createWrappedOnSuiPrepare,
   getEmitterAddressEth,
   getIsWrappedAssetSui,
+  getOriginalAssetSui,
   getSignedVAAWithRetry,
   parseSequenceFromLogEth,
 } from "../..";
@@ -25,7 +26,12 @@ import {
   getInnerType,
   getWrappedCoinType,
 } from "../../sui";
-import { CHAIN_ID_ETH, CONTRACTS, SUI_OBJECT_IDS } from "../../utils";
+import {
+  CHAIN_ID_ETH,
+  CHAIN_ID_SUI,
+  CONTRACTS,
+  SUI_OBJECT_IDS,
+} from "../../utils";
 import {
   ETH_NODE_URL,
   ETH_PRIVATE_KEY10,
@@ -150,6 +156,18 @@ describe("Sui SDK tests", () => {
         getWrappedCoinType(coinPackageId)
       )
     ).toBe(true);
+    expect(
+      await getOriginalAssetSui(
+        suiProvider,
+        SUI_TOKEN_BRIDGE_ADDRESS,
+        SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
+        getWrappedCoinType(coinPackageId)
+      )
+    ).toMatchObject({
+      isWrapped: true,
+      chainId: CHAIN_ID_ETH,
+      assetAddress: Buffer.from(TEST_ERC20, "hex"),
+    });
   });
   test("Transfer non-SUI Sui token to Ethereum", async () => {
     // Get COIN_8 coin type
@@ -190,6 +208,18 @@ describe("Sui SDK tests", () => {
       suiAttestTxPayload
     );
     expect(suiAttestTxRes.effects?.status.status).toBe("success");
+    expect(
+      await getOriginalAssetSui(
+        suiProvider,
+        SUI_TOKEN_BRIDGE_ADDRESS,
+        SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
+        coin8Type
+      )
+    ).toMatchObject({
+      isWrapped: false,
+      chainId: CHAIN_ID_SUI,
+      assetAddress: Buffer.from(coin8Type.split("::")[0], "hex"),
+    });
 
     // transfer tokens to Ethereum
     // const coinsObject = (
