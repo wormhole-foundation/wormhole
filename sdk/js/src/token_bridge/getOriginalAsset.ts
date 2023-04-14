@@ -1,4 +1,5 @@
 import { ChainGrpcWasmApi } from "@injectivelabs/sdk-ts";
+import { JsonRpcProvider } from "@mysten/sui.js";
 import {
   Commitment,
   Connection,
@@ -6,30 +7,42 @@ import {
   PublicKeyInitData,
 } from "@solana/web3.js";
 import { LCDClient as TerraLCDClient } from "@terra-money/terra.js";
+import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
 import { Algodv2 } from "algosdk";
+import { AptosClient } from "aptos";
 import { ethers } from "ethers";
 import { arrayify, sha256, zeroPad } from "ethers/lib/utils";
+import { sha3_256 } from "js-sha3";
+import { Provider } from "near-api-js/lib/providers";
 import { decodeLocalState } from "../algorand";
+import { OriginInfo } from "../aptos/types";
+import { canonicalAddress } from "../cosmos";
 import { buildTokenId, isNativeCosmWasmDenom } from "../cosmwasm/address";
 import { TokenImplementation__factory } from "../ethers-contracts";
+import { getWrappedMeta } from "../solana/tokenBridge";
+import {
+  getFieldsFromObjectResponse,
+  getTokenFromTokenRegistry,
+  isValidSuiType,
+} from "../sui";
 import { buildNativeId } from "../terra";
-import { canonicalAddress } from "../cosmos";
 import {
   assertChain,
+  callFunctionNear,
   ChainId,
   ChainName,
   CHAIN_ID_ALGORAND,
   CHAIN_ID_APTOS,
-  CHAIN_ID_NEAR,
   CHAIN_ID_INJECTIVE,
+  CHAIN_ID_NEAR,
   CHAIN_ID_SOLANA,
+  CHAIN_ID_SUI,
   CHAIN_ID_TERRA,
   coalesceChainId,
+  coalesceCosmWasmChainId,
   CosmWasmChainId,
   CosmWasmChainName,
   hexToUint8Array,
-  coalesceCosmWasmChainId,
-  callFunctionNear,
   isValidAptosType,
   parseSmartContractStateResponse,
 } from "../utils";
@@ -39,12 +52,6 @@ import {
   getIsWrappedAssetEth,
   getIsWrappedAssetNear,
 } from "./getIsWrappedAsset";
-import { Provider } from "near-api-js/lib/providers";
-import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
-import { AptosClient } from "aptos";
-import { OriginInfo } from "../aptos/types";
-import { sha3_256 } from "js-sha3";
-import { getWrappedMeta } from "../solana/tokenBridge";
 
 // TODO: remove `as ChainId` and return number in next minor version as we can't ensure it will match our type definition
 export interface WormholeWrappedInfo {
@@ -360,4 +367,56 @@ export async function getOriginalAssetAptos(
       assetAddress: hexToUint8Array(sha3_256(fullyQualifiedType)),
     };
   }
+}
+
+export async function getOriginalAssetSui(
+  provider: JsonRpcProvider,
+  tokenBridgeAddress: string,
+  tokenBridgeStateObjectId: string,
+  type: string
+): Promise<WormholeWrappedInfo> {
+  if (!isValidSuiType(type)) {
+    throw new Error(`Invalid Sui type: ${type}`);
+  }
+
+  const res = await getTokenFromTokenRegistry(
+    provider,
+    tokenBridgeAddress,
+    tokenBridgeStateObjectId,
+    type
+  );
+  const fields = getFieldsFromObjectResponse(res);
+  if (!fields) {
+    throw new Error(
+      `Token of type ${type} has not been registered with the token bridge`
+    );
+  }
+
+  if (
+    fields.value.type ===
+    `${tokenBridgeAddress}::wrapped_asset::WrappedAsset<${type}>`
+  ) {
+    return {
+      isWrapped: true,
+      chainId: Number(
+        fields.value.fields.metadata.fields.token_chain
+      ) as ChainId,
+      assetAddress:
+        fields.value.fields.metadata.fields.token_address.fields.value.fields
+          .data,
+    };
+  } else if (
+    fields.value.type ===
+    `${tokenBridgeAddress}::native_asset::NativeAsset<${type}>`
+  ) {
+    return {
+      isWrapped: false,
+      chainId: CHAIN_ID_SUI,
+      assetAddress: fields.value.fields.token_address.fields.value.fields.data,
+    };
+  }
+
+  throw new Error(
+    `Unrecognized token metadata: ${JSON.stringify(fields, null, 2)}, ${type}`
+  );
 }

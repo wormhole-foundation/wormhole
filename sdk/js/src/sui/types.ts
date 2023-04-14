@@ -21,3 +21,9 @@ export type SuiBuildOutput = {
   modules: string[];
   dependencies: string[];
 };
+
+export type SuiError = {
+  code: number;
+  message: string;
+  data: any;
+};
