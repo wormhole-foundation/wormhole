@@ -219,7 +219,7 @@ describe("Core Relayer Integration Test - Two Chains", () => {
     )
     console.log(`Sent message: ${arbitraryPayload1}`)
     const value1 = await sourceCoreRelayer.quoteGas(
-      sourceChain.chainId,
+      targetChain.chainId,
       1000000,
       await sourceCoreRelayer.getDefaultRelayProvider()
     )
