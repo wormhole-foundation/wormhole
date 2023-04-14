@@ -218,18 +218,18 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 	// Start a routine to listen for messages from the contract.
 	common.RunWithScissors(ctx, errC, "ibc_data_pump", func(ctx context.Context) error {
-		return w.handleEvents(ctx, c, errC)
+		return w.handleEvents(ctx, c)
 	})
 
 	// Start a routine to periodically query the wormchain block height.
 	common.RunWithScissors(ctx, errC, "ibc_block_height", func(ctx context.Context) error {
-		return w.handleQueryBlockHeight(ctx, c, errC)
+		return w.handleQueryBlockHeight(ctx, c)
 	})
 
 	// Start a routine for each chain to listen for observation requests.
 	for _, ce := range w.chainMap {
 		common.RunWithScissors(ctx, errC, "ibc_objs_req", func(ctx context.Context) error {
-			return w.handleObservationRequests(ctx, errC, ce)
+			return w.handleObservationRequests(ctx, ce)
 		})
 	}
 
@@ -245,7 +245,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 }
 
 // handleEvents reads messages from the IBC receiver contract and processes them.
-func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn, errC chan error) error {
+func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn) error {
 	for {
 		select {
 		case <-ctx.Done():
@@ -305,7 +305,7 @@ func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn, errC chan
 }
 
 // handleQueryBlockHeight gets the latest block height from wormchain each interval and updates the status on all the connected chains.
-func (w *Watcher) handleQueryBlockHeight(ctx context.Context, c *websocket.Conn, errC chan error) error {
+func (w *Watcher) handleQueryBlockHeight(ctx context.Context, c *websocket.Conn) error {
 	const latestBlockURL = "blocks/latest"
 
 	t := time.NewTicker(5 * time.Second)
@@ -351,7 +351,7 @@ func (w *Watcher) handleQueryBlockHeight(ctx context.Context, c *websocket.Conn,
 
 // handleObservationRequests listens for observation requests for a single chain and processes them by reading the requested transaction
 // from wormchain and publishing the associated message. This function is instantiated for each connected chain.
-func (w *Watcher) handleObservationRequests(ctx context.Context, errC chan error, ce *chainEntry) error {
+func (w *Watcher) handleObservationRequests(ctx context.Context, ce *chainEntry) error {
 	for {
 		select {
 		case <-ctx.Done():
