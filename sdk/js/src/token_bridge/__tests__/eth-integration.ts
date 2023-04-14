@@ -41,7 +41,7 @@ import {
   SOLANA_PRIVATE_KEY,
   TEST_ERC20,
   WORMHOLE_RPC_HOSTS,
-} from "./consts";
+} from "./utils/consts";
 
 jest.setTimeout(60000);
 

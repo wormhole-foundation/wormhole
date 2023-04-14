@@ -22,8 +22,8 @@ import {
   SUI_OBJECT_IDS,
 } from "../../utils";
 import { attestFromSui } from "../attest";
-import { assertIsNotNullOrUndefined } from "./helpers";
-import { SUI_FAUCET_URL, SUI_NODE_URL } from "./consts";
+import { assertIsNotNullOrUndefined } from "./utils/helpers";
+import { SUI_FAUCET_URL, SUI_NODE_URL } from "./utils/consts";
 
 const JEST_TEST_TIMEOUT = 60000;
 jest.setTimeout(JEST_TEST_TIMEOUT);
