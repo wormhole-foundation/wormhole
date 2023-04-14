@@ -285,8 +285,7 @@ contract WormholeRelayerTests is Test {
     function testMultipleForwards(GasParameters memory gasParams, FeeParameters memory feeParams, bytes memory message) public {
         StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, 2000000);
 
-        uint256 payment = setup.source.coreRelayer.quoteGas(setup.targetChainId, 2000000, setup.source.coreRelayer.getDefaultRelayProvider()) + ((setup.target.coreRelayer.quoteGas(setup.sourceChainId, 800000, setup.target.coreRelayer.getDefaultRelayProvider()) + setup.target.coreRelayer.quoteGas(setup.targetChainId, 800000, setup.target.coreRelayer.getDefaultRelayProvider()))*feeParams.targetNativePrice / feeParams.sourceNativePrice + 1)*105/100 + 1;
-        payment += 3*setup.source.wormhole.messageFee() + (6 * setup.target.wormhole.messageFee() * feeParams.targetNativePrice / feeParams.sourceNativePrice + 1)*105/100 + 10;
+        uint256 payment = assumeAndGetForwardPayment(gasParams.targetGasLimit, 500000, setup, gasParams, feeParams) * 2;
 
         uint16[] memory chains = new uint16[](2);
         bytes[] memory newMessages = new bytes[](2);
@@ -295,8 +294,8 @@ contract WormholeRelayerTests is Test {
         newMessages[1] = message;
         chains[0] = setup.sourceChainId;
         chains[1] = setup.targetChainId;
-        gasLimits[0] = 800000;
-        gasLimits[1] = 800000;
+        gasLimits[0] = 500000;
+        gasLimits[1] = 500000;
 
         MockRelayerIntegration.FurtherInstructions memory furtherInstructions =   MockRelayerIntegration.FurtherInstructions({
             keepSending: true,
