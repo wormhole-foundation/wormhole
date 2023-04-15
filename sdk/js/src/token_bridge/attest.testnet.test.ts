@@ -56,7 +56,7 @@ test.skip("testnet - injective attest native token", async () => {
   /** Prepare the Transaction **/
   console.log("Prepare the transaction");
   const { signBytes, txRaw } = createTransaction({
-    message: msg.toDirectSign(),
+    message: msg,
     memo: "",
     fee: getStdFee((parseInt(DEFAULT_STD_FEE.gas, 10) * 2.5).toString()),
     pubKey: publicKey,
@@ -74,7 +74,7 @@ test.skip("testnet - injective attest native token", async () => {
 
   /** Append Signatures */
   console.log("Append signatures");
-  txRaw.setSignaturesList([signature]);
+  txRaw.signatures = [signature];
 
   /** Calculate hash of the transaction */
   console.log("Calculate hash");

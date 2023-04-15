@@ -7,41 +7,40 @@ import {
   Transaction,
 } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
-import { MsgExecuteContractCompat as MsgExecuteContractInjective } from "@injectivelabs/sdk-ts";
+import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
 import {
   Algodv2,
+  OnApplicationComplete,
+  SuggestedParams,
   bigIntToBytes,
   decodeAddress,
   getApplicationAddress,
   makeApplicationCallTxnFromObject,
   makePaymentTxnWithSuggestedParamsFromObject,
-  OnApplicationComplete,
-  SuggestedParams,
 } from "algosdk";
+import { Types } from "aptos";
 import BN from "bn.js";
-import { ethers, PayableOverrides } from "ethers";
-import { isNativeDenom } from "../terra";
-import { getMessageFee, optin, TransactionSignerPair } from "../algorand";
+import { PayableOverrides, ethers } from "ethers";
+import { FunctionCallOptions } from "near-api-js/lib/account";
+import { Provider } from "near-api-js/lib/providers";
+import { getIsWrappedAssetNear } from ".";
+import { TransactionSignerPair, getMessageFee, optin } from "../algorand";
+import { attestToken as attestTokenAptos } from "../aptos";
+import { isNativeDenomXpla } from "../cosmwasm";
 import { Bridge__factory } from "../ethers-contracts";
 import { createBridgeFeeTransferInstruction } from "../solana";
 import { createAttestTokenInstruction } from "../solana/tokenBridge";
+import { isNativeDenom } from "../terra";
 import {
+  ChainId,
   callFunctionNear,
   hashAccount,
-  ChainId,
   textToHexString,
   textToUint8Array,
   uint8ArrayToHex,
 } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
 import { createNonce } from "../utils/createNonce";
-import { getIsWrappedAssetNear } from ".";
-import { isNativeDenomInjective, isNativeDenomXpla } from "../cosmwasm";
-import { Provider } from "near-api-js/lib/providers";
-import { FunctionCallOptions } from "near-api-js/lib/account";
-import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
-import { Types } from "aptos";
-import { attestToken as attestTokenAptos } from "../aptos";
 
 export async function attestFromEth(
   tokenBridgeAddress: string,
@@ -74,43 +73,6 @@ export async function attestFromTerra(
             },
           },
       nonce: nonce,
-    },
-  });
-}
-
-/**
- * Creates attestation message
- * @param tokenBridgeAddress Address of Inj token bridge contract
- * @param walletAddress Address of wallet in inj format
- * @param asset Name or address of the asset to be attested
- * For native assets the asset string is the denomination.
- * For foreign assets the asset string is the inj address of the foreign asset
- * @returns Message to be broadcast
- */
-export async function attestFromInjective(
-  tokenBridgeAddress: string,
-  walletAddress: string,
-  asset: string
-): Promise<MsgExecuteContractInjective> {
-  const nonce = Math.round(Math.random() * 100000);
-  const isNativeAsset = isNativeDenomInjective(asset);
-  return MsgExecuteContractInjective.fromJSON({
-    contractAddress: tokenBridgeAddress,
-    sender: walletAddress,
-    exec: {
-      msg: {
-        asset_info: isNativeAsset
-          ? {
-              native_token: { denom: asset },
-            }
-          : {
-              token: {
-                contract_addr: asset,
-              },
-            },
-        nonce: nonce,
-      },
-      action: "create_asset_meta",
     },
   });
 }

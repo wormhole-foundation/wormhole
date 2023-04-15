@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.13
+
+### Added
+
+"sideEffects": false
+
+### Changed
+
+injective dependencies updated 
+
 ## 0.9.12
 
 ### Added

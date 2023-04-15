@@ -1,9 +1,9 @@
 import { ChainGrpcWasmApi } from "@injectivelabs/sdk-ts";
-import { QuerySmartContractStateResponse } from "@injectivelabs/chain-api/cosmwasm/wasm/v1/query_pb";
+import { CosmwasmWasmV1Query } from '@injectivelabs/core-proto-ts';
 
-export const parseSmartContractStateResponse: any = ({
+export const parseSmartContractStateResponse = ({
   data,
-}: QuerySmartContractStateResponse.AsObject) =>
+}: CosmwasmWasmV1Query.QuerySmartContractStateResponse) =>
   JSON.parse(
     Buffer.from(
       typeof data === "string" ? data : Buffer.from(data).toString(),

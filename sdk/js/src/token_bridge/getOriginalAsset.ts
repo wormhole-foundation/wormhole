@@ -1,4 +1,3 @@
-import { ChainGrpcWasmApi } from "@injectivelabs/sdk-ts";
 import {
   Commitment,
   Connection,
@@ -6,32 +5,36 @@ import {
   PublicKeyInitData,
 } from "@solana/web3.js";
 import { LCDClient as TerraLCDClient } from "@terra-money/terra.js";
+import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
 import { Algodv2 } from "algosdk";
+import { AptosClient } from "aptos";
 import { ethers } from "ethers";
 import { arrayify, sha256, zeroPad } from "ethers/lib/utils";
+import { sha3_256 } from "js-sha3";
+import { Provider } from "near-api-js/lib/providers";
 import { decodeLocalState } from "../algorand";
+import { OriginInfo } from "../aptos/types";
+import { canonicalAddress } from "../cosmos";
 import { buildTokenId, isNativeCosmWasmDenom } from "../cosmwasm/address";
 import { TokenImplementation__factory } from "../ethers-contracts";
+import { getWrappedMeta } from "../solana/tokenBridge";
 import { buildNativeId } from "../terra";
-import { canonicalAddress } from "../cosmos";
 import {
-  assertChain,
-  ChainId,
-  ChainName,
   CHAIN_ID_ALGORAND,
   CHAIN_ID_APTOS,
   CHAIN_ID_NEAR,
-  CHAIN_ID_INJECTIVE,
   CHAIN_ID_SOLANA,
   CHAIN_ID_TERRA,
-  coalesceChainId,
+  ChainId,
+  ChainName,
   CosmWasmChainId,
   CosmWasmChainName,
-  hexToUint8Array,
-  coalesceCosmWasmChainId,
+  assertChain,
   callFunctionNear,
+  coalesceChainId,
+  coalesceCosmWasmChainId,
+  hexToUint8Array,
   isValidAptosType,
-  parseSmartContractStateResponse,
 } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
 import {
@@ -39,12 +42,6 @@ import {
   getIsWrappedAssetEth,
   getIsWrappedAssetNear,
 } from "./getIsWrappedAsset";
-import { Provider } from "near-api-js/lib/providers";
-import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
-import { AptosClient } from "aptos";
-import { OriginInfo } from "../aptos/types";
-import { sha3_256 } from "js-sha3";
-import { getWrappedMeta } from "../solana/tokenBridge";
 
 // TODO: remove `as ChainId` and return number in next minor version as we can't ensure it will match our type definition
 export interface WormholeWrappedInfo {
@@ -96,47 +93,6 @@ export async function getOriginalAssetTerra(
   wrappedAddress: string
 ) {
   return getOriginalAssetCosmWasm(client, wrappedAddress, CHAIN_ID_TERRA);
-}
-
-/**
- * Returns information about the asset
- * @param wrappedAddress Address of the asset in wormhole wrapped format (hex string)
- * @param client WASM api client
- * @returns Information about the asset
- */
-export async function getOriginalAssetInjective(
-  wrappedAddress: string,
-  client: ChainGrpcWasmApi
-): Promise<WormholeWrappedInfo> {
-  const chainId = CHAIN_ID_INJECTIVE;
-  if (isNativeCosmWasmDenom(chainId, wrappedAddress)) {
-    return {
-      isWrapped: false,
-      chainId,
-      assetAddress: hexToUint8Array(buildTokenId(chainId, wrappedAddress)),
-    };
-  }
-  try {
-    const response = await client.fetchSmartContractState(
-      wrappedAddress,
-      Buffer.from(
-        JSON.stringify({
-          wrapped_asset_info: {},
-        })
-      ).toString("base64")
-    );
-    const parsed = parseSmartContractStateResponse(response);
-    return {
-      isWrapped: true,
-      chainId: parsed.asset_chain,
-      assetAddress: new Uint8Array(Buffer.from(parsed.asset_address, "base64")),
-    };
-  } catch {}
-  return {
-    isWrapped: false,
-    chainId: chainId,
-    assetAddress: hexToUint8Array(buildTokenId(chainId, wrappedAddress)),
-  };
 }
 
 export async function getOriginalAssetXpla(

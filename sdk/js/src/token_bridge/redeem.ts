@@ -18,37 +18,36 @@ import {
   Transaction,
 } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
+import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
 import { Algodv2 } from "algosdk";
+import { AptosClient, Types } from "aptos";
+import BN from "bn.js";
 import { ethers, Overrides } from "ethers";
 import { fromUint8Array } from "js-base64";
-import BN from "bn.js";
+import { FunctionCallOptions } from "near-api-js/lib/account";
+import { Provider } from "near-api-js/lib/providers";
 import {
-  TransactionSignerPair,
   _parseVAAAlgorand,
   _submitVAAAlgorand,
+  TransactionSignerPair,
 } from "../algorand";
+import { completeTransferAndRegister } from "../aptos";
 import { Bridge__factory } from "../ethers-contracts";
-import {
-  CHAIN_ID_NEAR,
-  CHAIN_ID_SOLANA,
-  ChainId,
-  MAX_VAA_DECIMALS,
-  uint8ArrayToHex,
-  callFunctionNear,
-  hashLookup,
-} from "../utils";
-import { MsgExecuteContractCompat as MsgExecuteContractInjective } from "@injectivelabs/sdk-ts";
 import {
   createCompleteTransferNativeInstruction,
   createCompleteTransferWrappedInstruction,
 } from "../solana/tokenBridge";
-import { SignedVaa, parseTokenTransferVaa } from "../vaa";
+import {
+  callFunctionNear,
+  CHAIN_ID_NEAR,
+  CHAIN_ID_SOLANA,
+  ChainId,
+  hashLookup,
+  MAX_VAA_DECIMALS,
+  uint8ArrayToHex,
+} from "../utils";
+import { parseTokenTransferVaa, SignedVaa } from "../vaa";
 import { getForeignAssetNear } from "./getForeignAsset";
-import { FunctionCallOptions } from "near-api-js/lib/account";
-import { Provider } from "near-api-js/lib/providers";
-import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
-import { AptosClient, Types } from "aptos";
-import { completeTransferAndRegister } from "../aptos";
 
 export async function redeemOnEth(
   tokenBridgeAddress: string,
@@ -85,31 +84,6 @@ export async function redeemOnTerra(
     },
   });
 }
-
-/**
- * Submits the supplied VAA to Injective
- * @param tokenBridgeAddress Address of Inj token bridge contract
- * @param walletAddress Address of wallet in inj format
- * @param signedVAA VAA with the attestation message
- * @returns Message to be broadcast
- */
-export async function submitVAAOnInjective(
-  tokenBridgeAddress: string,
-  walletAddress: string,
-  signedVAA: Uint8Array
-): Promise<MsgExecuteContractInjective> {
-  return MsgExecuteContractInjective.fromJSON({
-    contractAddress: tokenBridgeAddress,
-    sender: walletAddress,
-    exec: {
-      msg: {
-        data: fromUint8Array(signedVAA),
-      },
-      action: "submit_vaa",
-    },
-  });
-}
-export const redeemOnInjective = submitVAAOnInjective;
 
 export function redeemOnXpla(
   tokenBridgeAddress: string,

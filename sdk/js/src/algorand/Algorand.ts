@@ -60,7 +60,7 @@ const ALGO_VERIFY = new Uint8Array([
   137,
 ]);
 
-let accountExistsCache = new Set<[bigint, string]>();
+const accountExistsCache = new Set<[bigint, string]>();
 
 type Signer = {
   addr: string;
