@@ -1493,4 +1493,39 @@ contract WormholeRelayerTests is Test {
         setup.target.coreRelayerFull.deliver{value: stack.budget}(stack.package);
         assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
     }
+
+    function testDeliverWithOverrideRevert(GasParameters memory gasParams, FeeParameters memory feeParams, bytes memory message) public {
+        StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
+
+        vm.recordLogs();
+
+        DeliveryStack memory stack;
+
+        stack.payment = setup.source.coreRelayer.quoteGas(
+            setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
+        ) + 3 * setup.source.wormhole.messageFee();
+
+        setup.source.integration.sendMessageWithRefundAddress{value: stack.payment}(
+            message, setup.targetChainId, address(setup.target.integration), setup.target.refundAddress, bytes("")
+        );
+
+        prepareDeliveryStack(stack, setup);
+
+        IDelivery.DeliveryOverride memory deliveryOverride = IDelivery.DeliveryOverride(
+            stack.instruction.executionParameters.gasLimit,
+            stack.instruction.maximumRefundTarget -1,
+            stack.instruction.receiverValueTarget,
+            stack.deliveryVaaHash //really redeliveryHash
+            );
+
+        stack.package = IDelivery.TargetDeliveryParameters({
+            encodedVMs: stack.encodedVMs,
+            encodedDeliveryVAA: stack.deliveryVM,
+            relayerRefundAddress: payable(setup.target.relayer),
+            overrides: encodeDeliveryOverride(deliveryOverride)
+        });
+
+        vm.expectRevert();
+        setup.target.coreRelayerFull.deliver{value: stack.budget}(stack.package);
+    }
 }
