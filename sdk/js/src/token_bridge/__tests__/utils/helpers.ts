@@ -10,6 +10,9 @@ import {
   TERRA_PRIVATE_KEY,
   WORMHOLE_RPC_HOSTS,
 } from "./consts";
+import { SuiTransactionBlockResponse, TransactionBlock } from "@mysten/sui.js";
+import { SuiCoinObject } from "../../../sui/types";
+import { hexZeroPad } from "ethers/lib/utils";
 
 export async function waitForTerraExecution(
   transaction: string,
@@ -110,4 +113,37 @@ export const assertIsNotNullOrUndefined: <T>(
 ) => asserts x is T = (x) => {
   expect(x).not.toBeNull();
   expect(x).not.toBeUndefined();
+};
+
+export function mintAndTransferCoinSui(
+  treasuryCap: string,
+  coinType: string,
+  amount: bigint,
+  recipient: string
+) {
+  const tx = new TransactionBlock();
+  tx.moveCall({
+    target: "0x2::coin::mint_and_transfer",
+    arguments: [tx.object(treasuryCap), tx.pure(amount), tx.pure(recipient)],
+    typeArguments: [coinType],
+  });
+  return tx;
+}
+
+export const getEmitterAddressAndSequenceFromResponseSui = (
+  coreBridgeAddress: string,
+  response: SuiTransactionBlockResponse
+): { emitterAddress: string; sequence: string } => {
+  const wormholeMessageEventType = `${coreBridgeAddress}::publish_message::WormholeMessage`;
+  const event = response.events?.find(
+    (e) => e.type === wormholeMessageEventType
+  );
+  if (event === undefined) {
+    throw new Error(`${wormholeMessageEventType} event type not found`);
+  }
+  const { sender, sequence } = event.parsedJson || {};
+  if (sender === undefined || sequence === undefined) {
+    throw new Error("Unexpected response payload");
+  }
+  return { emitterAddress: sender.substring(2), sequence };
 };

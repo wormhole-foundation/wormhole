@@ -49,6 +49,12 @@ import { Provider } from "near-api-js/lib/providers";
 import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
 import { AptosClient, Types } from "aptos";
 import { completeTransferAndRegister } from "../aptos";
+import {
+  JsonRpcProvider,
+  SUI_CLOCK_OBJECT_ID,
+  TransactionBlock,
+} from "@mysten/sui.js";
+import { getTokenCoinType, getObjectFields } from "../sui";
 
 export async function redeemOnEth(
   tokenBridgeAddress: string,
@@ -381,4 +387,36 @@ export function redeemOnAptos(
   transferVAA: Uint8Array
 ): Promise<Types.EntryFunctionPayload> {
   return completeTransferAndRegister(client, tokenBridgeAddress, transferVAA);
+}
+
+export async function redeemOnSui(
+  provider: JsonRpcProvider,
+  tokenBridgeAddress: string,
+  coreBridgeStateObjectId: string,
+  tokenBridgeStateObjectId: string,
+  transferVAA: Uint8Array
+): Promise<TransactionBlock> {
+  const parsed = parseTokenTransferVaa(transferVAA);
+  const coinType = await getTokenCoinType(
+    provider,
+    tokenBridgeAddress,
+    tokenBridgeStateObjectId,
+    parsed.tokenAddress,
+    parsed.tokenChain
+  );
+  if (coinType === null) {
+    throw new Error("Unable to fetch coin type for token");
+  }
+  const tx = new TransactionBlock();
+  tx.moveCall({
+    target: `${tokenBridgeAddress}::token_bridge::complete_transfer`,
+    arguments: [
+      tx.object(tokenBridgeStateObjectId),
+      tx.object(coreBridgeStateObjectId),
+      tx.pure([...transferVAA]),
+      tx.object(SUI_CLOCK_OBJECT_ID),
+    ],
+    typeArguments: [coinType],
+  });
+  return tx;
 }

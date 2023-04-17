@@ -27,6 +27,8 @@ import { getClaim } from "../solana/wormhole";
 import { safeBigIntToNumber } from "../utils/bigint";
 import { callFunctionNear } from "../utils/near";
 import { parseVaa, SignedVaa } from "../vaa/wormhole";
+import { JsonRpcProvider } from "@mysten/sui.js";
+import { getObjectFields } from "../sui/utils";
 
 export async function getIsTransferCompletedEth(
   tokenBridgeAddress: string,
@@ -294,5 +296,48 @@ export async function getIsTransferCompletedAptos(
     return true;
   } catch {
     return false;
+  }
+}
+
+export async function getIsTransferCompletedSui(
+  provider: JsonRpcProvider,
+  tokenBridgeStateObjectId: string,
+  coreBridgeAddress: string,
+  transferVAA: Uint8Array
+): Promise<boolean> {
+  const tokenBridgeStateFields = await getObjectFields(
+    provider,
+    tokenBridgeStateObjectId
+  );
+  if (!tokenBridgeStateFields) {
+    throw new Error(
+      `Unable to fetch object fields from token bridge state. Object ID: ${tokenBridgeStateObjectId}`
+    );
+  }
+  const consumedVAAsTableObjectId =
+    tokenBridgeStateFields.consumed_vaas?.fields?.hashes?.fields?.items?.fields
+      ?.id?.id;
+  if (!consumedVAAsTableObjectId) {
+    throw new Error("Unable to fetch consumed_vaas table object ID");
+  }
+  const hash = getSignedVAAHash(transferVAA);
+  try {
+    // This call errors if the type doesn't exist in ConsumedVAAs
+    await provider.getDynamicFieldObject({
+      parentId: consumedVAAsTableObjectId,
+      name: {
+        type: `${coreBridgeAddress}::bytes32::Bytes32`,
+        value: {
+          data: [...Buffer.from(hash.slice(2), "hex")],
+        },
+      },
+    });
+    return true;
+  } catch (e: any) {
+    console.error(e);
+    if (e.code === -32000 && e.message?.includes("RPC Error")) {
+      return false;
+    }
+    throw e;
   }
 }

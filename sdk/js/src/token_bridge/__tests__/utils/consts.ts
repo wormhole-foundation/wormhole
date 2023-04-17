@@ -23,7 +23,7 @@ export const ETH_PRIVATE_KEY7 =
 export const ETH_PRIVATE_KEY9 =
   "0xb0057716d5917badaf911b193b12b910811c1497b5bada8d7711f758981c3773"; // account 9 - accountant tests
 export const ETH_PRIVATE_KEY10 =
-  "0x6370fd033278c143179d81c5526140625662b8daa446c22ee2d73db3707e620c"; // account 10 - sui tests
+  "0x77c5495fbb039eed474fc940f29955ed0531693cc9212911efd35dff0373153f"; // account 10 - sui tests
 export const SOLANA_HOST = ci
   ? "http://solana-devnet:8899"
   : "http://localhost:8899";

@@ -401,9 +401,9 @@ export async function getOriginalAssetSui(
       chainId: Number(
         fields.value.fields.metadata.fields.token_chain
       ) as ChainId,
-      assetAddress:
-        fields.value.fields.metadata.fields.token_address.fields.value.fields
-          .data,
+      assetAddress: new Uint8Array(
+        fields.value.fields.metadata.fields.token_address.fields.value.fields.data
+      ),
     };
   } else if (
     fields.value.type ===
@@ -412,7 +412,9 @@ export async function getOriginalAssetSui(
     return {
       isWrapped: false,
       chainId: CHAIN_ID_SUI,
-      assetAddress: fields.value.fields.token_address.fields.value.fields.data,
+      assetAddress: new Uint8Array(
+        fields.value.fields.token_address.fields.value.fields.data
+      ),
     };
   }
 

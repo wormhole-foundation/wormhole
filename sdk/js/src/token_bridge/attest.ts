@@ -356,7 +356,7 @@ export async function attestFromSui(
   coreBridgeStateObjectId: string,
   tokenBridgeStateObjectId: string,
   coinType: string,
-  feeAmount: number
+  feeAmount: BigInt = BigInt(0)
 ): Promise<TransactionBlock> {
   const metadata = await provider.getCoinMetadata({ coinType });
   if (!metadata || !metadata.id) {

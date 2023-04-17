@@ -5,6 +5,7 @@ import { AptosClient, Types } from "aptos";
 import { BigNumber, ContractReceipt } from "ethers";
 import { FinalExecutionOutcome } from "near-api-js/lib/providers";
 import { Implementation__factory } from "../ethers-contracts";
+import { SuiTransactionBlockResponse } from "@mysten/sui.js";
 
 export function parseSequenceFromLogEth(
   receipt: ContractReceipt,
@@ -179,4 +180,14 @@ export function parseSequenceFromLogAptos(
   }
 
   return null;
+}
+
+export function parseSequenceFromLogSui(
+  coreBridgeAddress: string,
+  response: SuiTransactionBlockResponse
+): string | null {
+  const event = response.events?.find(
+    (e) => e.type === `${coreBridgeAddress}::publish_message::WormholeMessage`
+  );
+  return event?.parsedJson?.sequence || null;
 }

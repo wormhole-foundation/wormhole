@@ -14,7 +14,7 @@ import {
 import { CONTRACTS } from "../consts";
 import { NETWORKS } from "../networks";
 import { Network } from "../utils";
-import { impossible, Payload } from "../vaa";
+import { impossible, parse, Payload, serialiseVAA, VAA } from "../vaa";
 import { SuiAddresses, SUI_OBJECT_IDS } from "./consts";
 import { SuiRpcValidationError } from "./error";
 import { SuiCreateEvent, SuiPublishEvent } from "./types";
@@ -54,7 +54,8 @@ export const execute_sui = async (
               tx.object(SUI_CLOCK_OBJECT_ID),
             ],
           });
-          await executeTransactionBlock(signer, tx);
+          const result = await executeTransactionBlock(signer, tx);
+          console.log(JSON.stringify(result));
           break;
         }
         case "ContractUpgrade":
@@ -80,6 +81,15 @@ export const execute_sui = async (
           throw new Error("RecoverChainId not supported on Sui");
         case "RegisterChain": {
           console.log("Registering chain");
+          if (network === "DEVNET") {
+            // Modify the VAA to only have 1 guardian signature
+            // TODO: remove this when we can deploy the devnet core contract
+            // deterministically with multiple guardians in the initial guardian set
+            // Currently the core contract is setup with only 1 guardian in the set
+            const parsedVaa = parse(vaa);
+            parsedVaa.signatures = [parsedVaa.signatures[0]];
+            vaa = Buffer.from(serialiseVAA(parsedVaa as VAA<Payload>), "hex");
+          }
           const tx = new TransactionBlock();
           tx.setGasBudget(1000000);
           tx.moveCall({
@@ -91,7 +101,8 @@ export const execute_sui = async (
               tx.object(SUI_CLOCK_OBJECT_ID),
             ],
           });
-          await executeTransactionBlock(signer, tx);
+          const result = await executeTransactionBlock(signer, tx);
+          console.log(JSON.stringify(result));
           break;
         }
         case "AttestMeta":

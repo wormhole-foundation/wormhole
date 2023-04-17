@@ -8,6 +8,7 @@ import {
   TransactionBlock,
 } from "@mysten/sui.js";
 import { SuiError } from "./types";
+import { ChainId, ChainName, coalesceChainId } from "../utils";
 
 export const executeTransactionBlock = async (
   signer: RawSigner,
@@ -92,6 +93,46 @@ export const getTokenFromTokenRegistry = async (
       },
     },
   });
+};
+
+export const getTokenCoinType = async (
+  provider: JsonRpcProvider,
+  tokenBridgeAddress: string,
+  tokenBridgeStateObjectId: string,
+  tokenAddress: Uint8Array,
+  tokenChain: number
+): Promise<string | null> => {
+  const tokenBridgeStateFields = await getObjectFields(
+    provider,
+    tokenBridgeStateObjectId
+  );
+  if (!tokenBridgeStateFields) {
+    throw new Error(
+      `Unable to fetch object fields from token bridge state. Object ID: ${tokenBridgeStateObjectId}`
+    );
+  }
+  const coinTypesObjectId =
+    tokenBridgeStateFields?.token_registry?.fields?.coin_types?.fields?.id?.id;
+  if (!coinTypesObjectId) {
+    throw new Error("Unable to fetch coin types object ID");
+  }
+  try {
+    // This call errors if the key doesn't exist in the coin_types table
+    const coinTypeValue = await provider.getDynamicFieldObject({
+      parentId: coinTypesObjectId,
+      name: {
+        type: `${tokenBridgeAddress}::token_registry::CoinTypeKey`,
+        value: {
+          addr: [...tokenAddress],
+          chain: tokenChain,
+        },
+      },
+    });
+    const fields = getFieldsFromObjectResponse(coinTypeValue);
+    return fields?.value || null;
+  } catch {
+    return null;
+  }
 };
 
 /**

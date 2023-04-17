@@ -243,7 +243,7 @@
         },
         "21": {
             "contracts": {
-                "tokenBridgeEmitterAddress": "af965b860730651b06aa0bf4c013e33ef56389ac826da3335d37cfb596449ed3"
+                "tokenBridgeEmitterAddress": "4c6e17eba2ed24d21846217bd689c99bb57eb2a1fbc268840a4a41072548b5ad"
             }
         },
         "22": {
@@ -369,9 +369,9 @@
             "private": "0xb0057716d5917badaf911b193b12b910811c1497b5bada8d7711f758981c3773"
         },
         {
-            "name": "10",
-            "public": "0x22d491Bde2303f2f43325b2108D26f1eAbA1e32b",
-            "private": "0x6370fd033278c143179d81c5526140625662b8daa446c22ee2d73db3707e620c"
+          "name": "10",
+          "public": "0x610bb1573d1046fcb8a70bbbd395754cd57c2b60",
+          "private": "0x77c5495fbb039eed474fc940f29955ed0531693cc9212911efd35dff0373153f"
         }
     ],
     "devnetGuardians": [
