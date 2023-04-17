@@ -48,7 +48,7 @@ type (
 
 var (
 	// Chains defines the list of chains to be monitored by IBC. Add new chains here as necessary.
-	Chains = []vaa.ChainID{}
+	Chains = []vaa.ChainID{vaa.ChainIDSei}
 
 	// Features is the feature string to be published in the gossip heartbeat messages. It will include all chains that are actually enabled on IBC.
 	Features = ""
