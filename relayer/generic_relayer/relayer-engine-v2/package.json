@@ -1,5 +1,5 @@
 {
-  "name": "offchain-generic-relayer",
+  "name": "@wormhole-foundation/offchain-generic-relayer",
   "version": "0.1.0",
   "description": "",
   "main": "index.js",
