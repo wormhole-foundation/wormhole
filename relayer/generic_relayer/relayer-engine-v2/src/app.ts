@@ -49,26 +49,26 @@ async function main() {
     wormholeRpcs,
   } = opts;
   app.spy(spyEndpoint);
-  // app.useStorage({
-  //   redis,
-  //   redisClusterEndpoints,
-  //   redisCluster,
-  //   attempts: 3,
-  //   namespace: name,
-  //   queueName: `${name}-relays`,
-  // });
+  app.useStorage({
+    redis,
+    redisClusterEndpoints,
+    redisCluster,
+    attempts: 3,
+    namespace: name,
+    queueName: `${name}-relays`,
+  });
   app.logger(logger);
   app.use(logging(logger)); // <-- logging middleware
-  // app.use(
-  //   missedVaas(app, {
-  //     namespace: name,
-  //     logger,
-  //     redis,
-  //     redisCluster,
-  //     redisClusterEndpoints,
-  //     wormholeRpcs,
-  //   })
-  // );
+  app.use(
+    missedVaas(app, {
+      namespace: name,
+      logger,
+      redis,
+      redisCluster,
+      redisClusterEndpoints,
+      wormholeRpcs,
+    })
+  );
   app.use(providers(opts.providers));
   if (opts.privateKeys && Object.keys(opts.privateKeys).length) {
     app.use(
@@ -76,13 +76,13 @@ async function main() {
         logger,
         namespace: name,
         privateKeys: privateKeys!,
-        // metrics: { registry: app.metricsRegistry },
+        metrics: { registry: app.metricsRegistry },
       })
-    ); // <-- you need valid private keys to turn on this middleware
+    ); 
   }
-  // if (opts.fetchSourceTxhash) {
-  //   app.use(sourceTx());
-  // }
+  if (opts.fetchSourceTxhash) {
+    app.use(sourceTx());
+  }
 
   // Set up middleware
   app.use(async (ctx: GRContext, next: Next) => {
@@ -110,9 +110,9 @@ function runApi(relayer: any, { port, redis }: any, logger: Logger) {
   app.use(router.routes());
   app.use(router.allowedMethods());
 
-  // if (redis?.host) {
-  //   app.use(relayer.storageKoaUI("/ui"));
-  // }
+  if (redis?.host) {
+    app.use(relayer.storageKoaUI("/ui"));
+  }
 
   port = Number(port) || 3000;
   app.listen(port, () => {
