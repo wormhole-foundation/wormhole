@@ -64,6 +64,18 @@ func TestTokenListTokenAddressDuplicates(t *testing.T) {
 	}
 }
 
+func TestTokenListEmptySymbols(t *testing.T) {
+	tokenConfigEntries := tokenList()
+
+	/* Assume that all governed token entry symbol strings will be greater than zero */
+	for _, tokenConfigEntry := range tokenConfigEntries {
+		// Some Solana tokens don't have the symbol set. For now, we'll still enforce this for other chains.
+		if len(tokenConfigEntry.symbol) == 0 && vaa.ChainID(tokenConfigEntry.chain) != vaa.ChainIDSolana {
+			assert.Equal(t, "", fmt.Sprintf("token %v:%v does not have the symbol set", tokenConfigEntry.chain, tokenConfigEntry.addr))
+		}
+	}
+}
+
 func TestTokenListEmptyCoinGeckoId(t *testing.T) {
 	tokenConfigEntries := tokenList()
 
