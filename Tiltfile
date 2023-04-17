@@ -130,7 +130,7 @@ docker_build(
     context = ".",
     dockerfile = "node/Dockerfile",
     target = "build",
-    ignore=["./sdk/js"]
+    ignore=["./sdk/js", "./relayer"]
 )
 
 def command_with_dlv(argv):
