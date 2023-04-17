@@ -931,16 +931,7 @@ func runNode(cmd *cobra.Command, args []string) {
 						)
 					}
 					if shouldPublish {
-						select {
-						case msgWriteC <- msg:
-						default:
-							logger.Error("Failed to post message to processor, dropping it",
-								zap.Stringer("tx", msg.TxHash),
-								zap.Stringer("emitter_chain", msg.EmitterChain),
-								zap.Stringer("emitter_address", msg.EmitterAddress),
-								zap.Uint64("sequence", msg.Sequence),
-							)
-						}
+						msgWriteC <- msg
 					}
 				}
 			}
