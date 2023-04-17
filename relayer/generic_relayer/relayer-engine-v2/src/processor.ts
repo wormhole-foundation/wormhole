@@ -1,11 +1,5 @@
 import * as wh from "@certusone/wormhole-sdk";
-import {
-  FetchVaaFn,
-  Next,
-  ParsedVaaWithBytes,
-  parseVaaWithBytes,
-  sleep,
-} from "relayer-engine";
+import { Next } from "relayer-engine";
 import {
   IDelivery,
   VaaKeyType,
@@ -18,10 +12,6 @@ import {
 } from "../pkgs/sdk/src";
 import { EVMChainId } from "@certusone/wormhole-sdk";
 import { GRContext } from "./app";
-
-import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
-import { GetARGsTypeFromFactory } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts/commons";
-import { loadAppConfig } from "./env";
 import { ethers } from "ethers";
 
 export async function processGenericRelayerVaa(ctx: GRContext, next: Next) {
@@ -57,18 +47,10 @@ async function processDelivery(ctx: GRContext) {
     sequence: m.sequence!.toBigInt(),
   }));
 
-  //Doesn't seem to work at the moment
   let results = await ctx.fetchVaas({
     ids: vaaIds,
     // txHash: ctx.sourceTxHash,
   });
-
-  // const results = await Promise.all(
-  //   vaaIds.map((id) =>
-  //     ctx.fetchVaa(id.emitterChain, id.emitterAddress, id.sequence)
-  //   )
-  // );
-  ctx.logger.debug(`Vaas fetched`);
 
   ctx.logger.debug(`Processing delivery`, {
     deliveryVaa: deliveryInstructionsPrintable(deliveryVaa),
