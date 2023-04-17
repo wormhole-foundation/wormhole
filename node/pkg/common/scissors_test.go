@@ -104,7 +104,10 @@ func TestRunWithScissorsCleanExit(t *testing.T) {
 
 	shouldHaveRun := <-itRan
 	require.Equal(t, true, shouldHaveRun)
+
+	// Need to wait a bit to make sure the scissors code completes without hanging.
 	time.Sleep(100 * time.Millisecond)
+
 	assert.Equal(t, 0.0, getCounterValue(ScissorsErrorsCaught, "TestRunWithScissorsCleanExit"))
 	assert.Equal(t, 0.0, getCounterValue(ScissorsPanicsCaught, "TestRunWithScissorsCleanExit"))
 }
@@ -147,7 +150,10 @@ func TestRunWithScissorsPanicDoesNotBlockWhenNoListener(t *testing.T) {
 
 	shouldHaveRun := <-itRan
 	require.Equal(t, true, shouldHaveRun)
+
+	// Need to wait a bit to make sure the scissors code completes without hanging.
 	time.Sleep(100 * time.Millisecond)
+
 	assert.Equal(t, 0.0, getCounterValue(ScissorsErrorsCaught, "TestRunWithScissorsPanicDoesNotBlockWhenNoListener"))
 	assert.Equal(t, 1.0, getCounterValue(ScissorsPanicsCaught, "TestRunWithScissorsPanicDoesNotBlockWhenNoListener"))
 }
@@ -190,7 +196,10 @@ func TestRunWithScissorsErrorDoesNotBlockWhenNoListener(t *testing.T) {
 
 	shouldHaveRun := <-itRan
 	require.Equal(t, true, shouldHaveRun)
+
+	// Need to wait a bit to make sure the scissors code completes without hanging.
 	time.Sleep(100 * time.Millisecond)
+
 	assert.Equal(t, 1.0, getCounterValue(ScissorsErrorsCaught, "TestRunWithScissorsErrorDoesNotBlockWhenNoListener"))
 	assert.Equal(t, 0.0, getCounterValue(ScissorsPanicsCaught, "TestRunWithScissorsErrorDoesNotBlockWhenNoListener"))
 }
