@@ -302,22 +302,22 @@ contract CoreRelayer is CoreRelayerDelivery {
      * - If the targetChain does not equal the targetChain of the original delivery.
      * - If the newMaxTransactionFee is lower than the original maxTransactionFee.
      * - If the newReceiverValue is lower than the original receiverValue.
+     * - If the new calculated maxRefund is lower than the original maxRefund.
      *
      * Similar to send, you must call this function with msg.value = nexMaxTransactionFee + newReceiverValue + wormhole.messageFee() in order to pay for the delivery.
      *
      *  @param key a VAA Key corresponding to the delivery which should be performed again. This must correspond to a valid delivery instruction VAA.
      *  @param newMaxTransactionFee - the maxTransactionFee (in this chain's wei) that should be used on the redelivery. Must correspond to a gas amount equal to or greater than the original delivery.
      *  @param newReceiverValue - the receiveValue (in this chain's wei) that should be used on the redelivery. Must result in receiverValue on the target chain which is equal to or greater that the original delivery.
-     *  @param originalMaxRefund - The maximum refund that was specified on the original delivery. (in target chain native currency)
      *  @param targetChain - the chain which the original delivery targetted.
      *  @param relayProviderAddress - the address of the relayProvider (on this chain) which should be used for this redelivery.
      */
-    function resend(IWormholeRelayer.VaaKey memory key, uint256 newMaxTransactionFee, uint256 newReceiverValue, uint256 originalMaxRefund, uint16 targetChain, address relayProviderAddress) external payable returns (uint64 sequence) {
+    function resend(IWormholeRelayer.VaaKey memory key, uint256 newMaxTransactionFee, uint256 newReceiverValue, uint16 targetChain, address relayProviderAddress) external payable returns (uint64 sequence) {
         IWormhole wormhole = wormhole();
         uint256 wormholeMessageFee = wormhole.messageFee();
         IRelayProvider relayProvider = IRelayProvider(relayProviderAddress);
 
-        (bytes memory encoded, uint256 sourceFee) = verifyRedeliveryFunds(VerifyRedeliveryFundsHelper(relayProvider, key, targetChain, newMaxTransactionFee, newReceiverValue, originalMaxRefund, wormholeMessageFee));
+        (bytes memory encoded, uint256 sourceFee) = verifyRedeliveryFunds(VerifyRedeliveryFundsHelper(relayProvider, key, targetChain, newMaxTransactionFee, newReceiverValue, wormholeMessageFee));
 
         sequence = wormhole.publishMessage{value: wormholeMessageFee}(
             0, encoded, 200 //emit immediately
@@ -390,7 +390,6 @@ contract CoreRelayer is CoreRelayerDelivery {
         uint16 targetChain; 
         uint256 newMaxTransactionFee; 
         uint256 newReceiverValue; 
-        uint256 originalMaxRefund; 
         uint256 wormholeFee;
     }
 
@@ -398,8 +397,11 @@ contract CoreRelayer is CoreRelayerDelivery {
         if(!helper.relayProvider.isChainSupported(helper.targetChain)) {
             revert IWormholeRelayer.RelayProviderDoesNotSupportTargetChain();
         }
+        if(helper.newMaxTransactionFee < helper.relayProvider.quoteDeliveryOverhead(helper.targetChain)){
+            revert IWormholeRelayer.MaxTransactionFeeNotEnough();
+        }
 
-        (uint256 sourceFee, uint256 targetRefund, uint256 targetReceiverValue) = redeliveryFundsHelper(helper.targetChain, helper.newMaxTransactionFee, helper.newReceiverValue, helper.originalMaxRefund, address(helper.relayProvider));
+        (uint256 sourceFee, uint256 targetRefund, uint256 targetReceiverValue) = redeliveryFundsHelper(helper.targetChain, helper.newMaxTransactionFee, helper.newReceiverValue, address(helper.relayProvider));
 
         if(msg.value < (sourceFee + helper.wormholeFee)){
             revert IWormholeRelayer.MsgValueTooLow();
@@ -420,24 +422,11 @@ contract CoreRelayer is CoreRelayerDelivery {
         )), sourceFee);
     }
 
-    function quoteResend(uint16 targetChain, uint256 newMaxTransactionFee, uint256 newReceiverValue, uint256 originalMaxRefund, address relayProvider) public view returns (uint256 quote) {
-        (uint256 source,,) = redeliveryFundsHelper(targetChain, newMaxTransactionFee, newReceiverValue, originalMaxRefund, relayProvider);
-        quote= source + wormhole().messageFee();
-    }
-
-    function redeliveryFundsHelper(uint16 targetChain, uint256 newMaxTransactionFee, uint256 newReceiverValue, uint256 originalMaxRefund, address relayProvider) internal view returns(uint256 sourceQuote, uint256 targetRefund, uint256 targetReceiverValue) {
+    function redeliveryFundsHelper(uint16 targetChain, uint256 newMaxTransactionFee, uint256 newReceiverValue, address relayProvider) internal view returns(uint256 sourceQuote, uint256 targetRefund, uint256 targetReceiverValue) {
         IRelayProvider provider = IRelayProvider(relayProvider);
-        uint256 newMaxRefund = calculateTargetDeliveryMaximumRefund(targetChain, newMaxTransactionFee, provider);
-        targetRefund = newMaxRefund > originalMaxRefund? newMaxRefund : originalMaxRefund;
+        targetRefund = calculateTargetDeliveryMaximumRefund(targetChain, newMaxTransactionFee, provider);
         targetReceiverValue = convertReceiverValueAmount(newReceiverValue, targetChain, provider);
-        
-        //Source quote is the amount that needs to be paid by the caller (less one wormhole message fee)
-        //The specified receiver value is obviously needed. 
-        //However, the maxTransactionFee could actually be one of two different values.
-        //If the new refund is greater than the old refund, then the value is simply the newMaxTransactionFee.
-        //However, if the originalMaxRefund is larger, then we need to capture the deliveryOverhead + originalMaxRefund (converted to sourceCurrency)
-        //We use quoteReceiverValue for this, as it inverts the assetConversionBuffer, and is identical to the calculation needed here.
-        sourceQuote = newReceiverValue + (newMaxRefund > originalMaxRefund ? newMaxTransactionFee : provider.quoteDeliveryOverhead(targetChain) + quoteReceiverValue(targetChain, originalMaxRefund, relayProvider));
+        sourceQuote = newReceiverValue + newMaxTransactionFee;
 
     }
 

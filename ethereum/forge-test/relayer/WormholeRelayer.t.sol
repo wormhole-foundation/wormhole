@@ -1365,26 +1365,19 @@ contract WormholeRelayerTests is Test {
         assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
     }
 
-    function testEmitRedelivery(GasParameters memory gasParams, FeeParameters memory feeParams, bytes memory message, uint256 originalMaxRefund) public {
+    function testEmitRedelivery(GasParameters memory gasParams, FeeParameters memory feeParams) public {
         StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
         vm.recordLogs();
         DeliveryStack memory stack;
 
-        stack.payment = setup.source.coreRelayer.quoteGas(
+        uint256 maxTransactionSource = setup.source.coreRelayer.quoteGas(
             setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
-        ) + 3 * setup.source.wormhole.messageFee();
-
-        uint256 originalMaxRefund = feeParams.receiverValueTarget;
+        );
 
         uint256 receiverValueSource = setup.source.coreRelayer.quoteReceiverValue(
             setup.targetChainId, feeParams.receiverValueTarget, address(setup.source.relayProvider));
 
-        uint256 quote = setup.source.coreRelayer.quoteResend(setup.targetChainId, 
-            stack.payment, 
-            receiverValueSource, //newReceiverValue
-            originalMaxRefund, //originalMaxRefund
-            address(setup.source.relayProvider
-        ));
+        uint256 quote = maxTransactionSource +  receiverValueSource + 1 * setup.source.wormhole.messageFee();
 
         //The key isn't read, so just instantiate dummy values
         IWormholeRelayer.VaaKey memory junkKey = IWormholeRelayer.VaaKey(
@@ -1395,11 +1388,16 @@ contract WormholeRelayerTests is Test {
             bytes32(0x0)
         );
 
+        // console.log("LOGGING");
+        // console.log(quote);
+        // console.log(maxTransactionSource);
+        // console.log(receiverValueSource);
+        // console.log(setup.source.wormhole.messageFee());
+
         setup.source.coreRelayer.resend{value: quote}(
             junkKey,
-            stack.payment, //newMaxTransactionFee
+            maxTransactionSource, //newMaxTransactionFee
             receiverValueSource, //new receiver
-            originalMaxRefund, //originalMaxRefund, here overloading the receiverValue field
             setup.targetChainId,
             address(setup.source.relayProvider)
         );
@@ -1416,7 +1414,6 @@ contract WormholeRelayerTests is Test {
 
         assertTrue(ins.key.chainId == setup.sourceChainId, "VAA key has correct chainID");
         assertTrue(ins.key.infoType == IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE, "VAA key type matches");
-        assertTrue(ins.newMaxRefundTarget >= originalMaxRefund, "New maximum refund is larger than the original");
         assertTrue(ins.newReceiverValue >= feeParams.receiverValueTarget, "new receiver value greater than the old value");
         assertTrue(ins.sourceRelayProvider == setup.source.coreRelayer.toWormholeFormat(address(setup.source.relayProvider)), "specified relay provider is listed");
         assertTrue(ins.executionParameters.gasLimit >= gasParams.targetGasLimit, "new gaslimit was recorded");
@@ -1450,7 +1447,7 @@ contract WormholeRelayerTests is Test {
     }
 
     //TODO put this elsewhere
-    function encodeDeliveryOverride(IDelivery.DeliveryOverride memory request) public returns (bytes memory encoded){
+    function encodeDeliveryOverride(IDelivery.DeliveryOverride memory request) public pure returns (bytes memory encoded){
         encoded = abi.encodePacked(
             uint8(1),
             request.gasLimit,

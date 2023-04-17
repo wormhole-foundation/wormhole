@@ -221,17 +221,17 @@ interface IWormholeRelayer {
      * - If the targetChain does not equal the targetChain of the original delivery.
      * - If the newMaxTransactionFee is lower than the original maxTransactionFee.
      * - If the newReceiverValue is lower than the original receiverValue.
+     * - If the new calculated maxRefund is lower than the original maxRefund.
      *
      * Similar to send, you must call this function with msg.value = nexMaxTransactionFee + newReceiverValue + wormhole.messageFee() in order to pay for the delivery.
      *
      *  @param key a VAA Key corresponding to the delivery which should be performed again. This must correspond to a valid delivery instruction VAA.
      *  @param newMaxTransactionFee - the maxTransactionFee (in this chain's wei) that should be used on the redelivery. Must correspond to a gas amount equal to or greater than the original delivery.
      *  @param newReceiverValue - the receiveValue (in this chain's wei) that should be used on the redelivery. Must result in receiverValue on the target chain which is equal to or greater that the original delivery.
-     *  @param originalMaxRefund - the maximum refund amount specified on the original delivery.
      *  @param targetChain - the chain which the original delivery targetted.
      *  @param relayProvider - the address of the relayProvider (on this chain) which should be used for this redelivery.
      */
-    function resend(VaaKey memory key, uint256 newMaxTransactionFee, uint256 newReceiverValue, uint256 originalMaxRefund, uint16 targetChain, address relayProvider) external payable returns (uint64 sequence);
+    function resend(VaaKey memory key, uint256 newMaxTransactionFee, uint256 newReceiverValue, uint16 targetChain, address relayProvider) external payable returns (uint64 sequence);
 
     /**
      * @notice This 'forward' function can only be called in a IWormholeReceiver within the 'receiveWormholeMessages' function
@@ -307,21 +307,6 @@ interface IWormholeRelayer {
         pure
         returns (uint256 receiverValue);
 
-    /**
-     * @notice quoteResend is intended to help integrators calculate the cost required to perform a redelivery.
-     * 
-     *
-     * @param targetChain - The chain where the original send and resend are targetted.
-     * @param newMaxTransactionFee - The newMaxTransactionFee you'd like to request. This is usually the output from calling the quoteGas function.
-     * Redeliveries can't decrease the maximum transaction fee, so make the newMaxTransactionFee is equal to or larger than the original.
-     * @param newReceiverValue - The newReceiverValue you'd like to request. This is usually the output from calling quoteReceiverValue. 
-     * Redeliveries can't decrease the receiverValue of a delivery, so make sure the redelivery amount is equal to or larger than the original.
-     * @param originalMaxRefund - the maximumRefund of the original delivery. This field is found inside the original delivery VAA.
-     * @param relayProvider - the relayProvider you want to perform the redelivery.
-     *
-     * @return quote - the quote needed to deliver this message.
-     */
-    function quoteResend(uint16 targetChain, uint256 newMaxTransactionFee, uint256 newReceiverValue, uint256 originalMaxRefund, address relayProvider) external pure returns (uint256 quote);
 
     /**
      * @notice Helper function that converts an EVM address to wormhole format
