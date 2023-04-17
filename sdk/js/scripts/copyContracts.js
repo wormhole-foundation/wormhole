@@ -1,4 +1,3 @@
 const copydir = require("copy-dir");
-const fs = require("fs");
-fs.rmSync("src/ethers-contracts", { recursive: true, force: true });
+console.log("Copying from ../../ethereum/ethers-contracts");
 copydir.sync("../../ethereum/ethers-contracts", "src/ethers-contracts");
