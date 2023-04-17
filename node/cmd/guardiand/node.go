@@ -921,7 +921,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				case msg := <-c:
 					shouldPublish, err := validateMessage(logger, msg, chainId)
 					if err != nil {
-						logger.Fatal("SECURITY CRITICAL: invalid message received",
+						logger.Fatal("SECURITY CRITICAL: invalid message detected",
 							zap.Stringer("tx", msg.TxHash),
 							zap.Stringer("emitter_address", msg.EmitterAddress),
 							zap.Uint64("sequence", msg.Sequence),
@@ -1639,7 +1639,7 @@ func validateMessage(logger *zap.Logger, msg *common.MessagePublication, chainId
 
 	if msg.EmitterAddress == zeroAddress {
 		// SECURITY: This could happen based on external input. We want to block it but not restart the guardian.
-		logger.Error("SECURITY ERROR: Received observation with EmitterAddress == 0x00",
+		logger.Error("SECURITY ERROR: received observation with EmitterAddress == 0x00",
 			zap.Stringer("tx", msg.TxHash),
 			zap.Stringer("emitter_address", msg.EmitterAddress),
 			zap.Uint64("sequence", msg.Sequence),

@@ -33,8 +33,8 @@ func TestValidateMessageSuccess(t *testing.T) {
 	}
 
 	shouldPublish, err := validateMessage(logger, msg, vaa.ChainIDEthereum)
-	require.NoError(t, err)
-	assert.Equal(t, true, shouldPublish)
+	assert.NoError(t, err)
+	assert.True(t, shouldPublish)
 }
 
 func TestValidateMessageWrongChainShouldReturnError(t *testing.T) {
@@ -56,9 +56,9 @@ func TestValidateMessageWrongChainShouldReturnError(t *testing.T) {
 
 	shouldPublish, err := validateMessage(logger, msg, vaa.ChainIDBSC)
 
-	assert.Error(t, err)
-	assert.Equal(t, "Received observation from a chain that was not marked as originating from that chain", err.Error())
-	assert.Equal(t, false, shouldPublish)
+	require.Error(t, err)
+	assert.Equal(t, "received observation from a chain that was not marked as originating from that chain", err.Error())
+	assert.False(t, shouldPublish)
 }
 
 func TestValidateMessageZeroAddressShouldNotPublish(t *testing.T) {
@@ -76,6 +76,6 @@ func TestValidateMessageZeroAddressShouldNotPublish(t *testing.T) {
 	}
 
 	shouldPublish, err := validateMessage(logger, msg, vaa.ChainIDEthereum)
-	require.NoError(t, err)
-	assert.Equal(t, false, shouldPublish)
+	assert.NoError(t, err)
+	assert.False(t, shouldPublish)
 }
