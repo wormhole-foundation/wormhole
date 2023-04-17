@@ -351,7 +351,7 @@ func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time
 
 		if len(oldPendingToUpdate) != 0 {
 			for _, pending := range oldPendingToUpdate {
-				logger.Info("cgov: updating format of database entry for pending vaa", zap.String("msgId", pending.Msg.MessageIDString()))
+				logger.Info("updating format of database entry for pending vaa", zap.String("msgId", pending.Msg.MessageIDString()))
 				err := d.StorePendingMsg(pending)
 				if err != nil {
 					return fmt.Errorf("failed to write new pending msg for key [%v]: %w", pending.Msg.MessageIDString(), err)
@@ -369,7 +369,7 @@ func (d *Database) GetChainGovernorDataForTime(logger *zap.Logger, now time.Time
 
 		if len(oldTransfers) != 0 {
 			for _, xfer := range oldTransfers {
-				logger.Info("cgov: updating format of database entry for completed transfer", zap.String("msgId", xfer.MsgID))
+				logger.Info("updating format of database entry for completed transfer", zap.String("msgId", xfer.MsgID))
 				err := d.StoreTransfer(xfer)
 				if err != nil {
 					return fmt.Errorf("failed to write new completed transfer for key [%v]: %w", xfer.MsgID, err)

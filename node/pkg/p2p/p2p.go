@@ -547,12 +547,10 @@ func Run(
 					}
 				}
 			case *gossipv1.GossipMessage_SignedChainGovernorConfig:
-				logger.Debug("cgov: received config message")
 				if signedGovCfg != nil {
 					signedGovCfg <- m.SignedChainGovernorConfig
 				}
 			case *gossipv1.GossipMessage_SignedChainGovernorStatus:
-				logger.Debug("cgov: received status message")
 				if signedGovSt != nil {
 					signedGovSt <- m.SignedChainGovernorStatus
 				}
