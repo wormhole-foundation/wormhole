@@ -71,6 +71,12 @@ import {
   transferTokens as transferTokensAptos,
   transferTokensWithPayload,
 } from "../aptos";
+import {
+  SUI_CLOCK_OBJECT_ID,
+  SUI_TYPE_ARG,
+  TransactionBlock,
+} from "@mysten/sui.js";
+import { SuiCoinObject } from "../sui/types";
 
 export async function getAllowanceEth(
   tokenBridgeAddress: string,
@@ -1014,4 +1020,63 @@ export function transferFromAptos(
     relayerFee,
     createNonce().readUInt32LE(0)
   );
+}
+
+export function transferFromSui(
+  coreBridgeStateObjectId: string,
+  tokenBridgePackageId: string,
+  tokenBridgeStateObjectId: string,
+  coins: SuiCoinObject[],
+  coinType: string, // such as 0x2::sui::SUI
+  amount: bigint,
+  recipientChain: ChainId | ChainName,
+  recipient: Uint8Array,
+  feeAmount: bigint = BigInt(0),
+  relayerFee: bigint = BigInt(0)
+) {
+  const [primaryCoin, ...mergeCoins] = coins.filter(
+    (coin) => coin.type === coinType
+  );
+  if (primaryCoin === undefined) {
+    throw new Error(
+      `Coins array doesn't contain any coins of type ${coinType}`
+    );
+  }
+  const tx = new TransactionBlock();
+  const [transferCoin] = (() => {
+    if (coinType === SUI_TYPE_ARG) {
+      return tx.splitCoins(tx.gas, [tx.pure(amount)]);
+    } else {
+      const primaryCoinInput = tx.object(primaryCoin.objectId);
+      if (mergeCoins.length) {
+        tx.mergeCoins(
+          primaryCoinInput,
+          mergeCoins.map((coin) => tx.object(coin.objectId))
+        );
+      }
+      return tx.splitCoins(primaryCoinInput, [tx.pure(amount)]);
+    }
+  })();
+  const [feeCoin] = tx.splitCoins(tx.gas, [tx.pure(feeAmount)]);
+  const [, dust] = tx.moveCall({
+    target: `${tokenBridgePackageId}::transfer_tokens::transfer_tokens`,
+    arguments: [
+      tx.object(tokenBridgeStateObjectId),
+      tx.object(coreBridgeStateObjectId),
+      transferCoin,
+      feeCoin,
+      tx.pure(coalesceChainId(recipientChain)),
+      tx.pure([...recipient]),
+      tx.pure(relayerFee),
+      tx.pure(createNonce().readUInt32LE()),
+      tx.object(SUI_CLOCK_OBJECT_ID),
+    ],
+    typeArguments: [coinType],
+  });
+  tx.moveCall({
+    target: `${tokenBridgePackageId}::coin_utils::return_nonzero`,
+    arguments: [dust],
+    typeArguments: [coinType],
+  });
+  return tx;
 }

@@ -15,47 +15,68 @@ import {
 import { CONTRACTS } from "../consts";
 import { NETWORKS } from "../networks";
 import { Network } from "../utils";
-import { Payload, impossible } from "../vaa";
-import { SUI_OBJECT_IDS, SuiAddresses } from "./consts";
+import { Payload, VAA, impossible, parse, serialiseVAA } from "../vaa";
 import { SuiRpcValidationError } from "./error";
 import { SuiCreateEvent, SuiPublishEvent } from "./types";
 
 const UPGRADE_CAP_TYPE = "0x2::package::UpgradeCap";
 
+// TODO(kp): remove this once it's in the sdk
+export async function getPackageId(
+  provider: JsonRpcProvider,
+  stateObjectId: string
+): Promise<string> {
+  const fields = await provider
+    .getObject({
+      id: stateObjectId,
+      options: {
+        showContent: true,
+      },
+    })
+    .then((result) => {
+      if (result.data?.content?.dataType === "moveObject") {
+        return result.data.content.fields;
+      }
+      throw new Error("Not a moveObject");
+    });
+  if ("upgrade_cap" in fields) {
+    return fields.upgrade_cap.fields.package;
+  }
+  throw new Error("upgrade_cap not found");
+}
+
 export const execute_sui = async (
   payload: Payload,
   vaa: Buffer,
   network: Network,
-  packageId?: string,
-  addresses?: Partial<SuiAddresses>,
   rpc?: string,
   privateKey?: string
 ) => {
   const chain = CHAIN_ID_TO_NAME[CHAIN_ID_SUI];
   const provider = getProvider(network, rpc);
   const signer = getSigner(provider, network, privateKey);
-  addresses = { ...SUI_OBJECT_IDS, ...addresses };
 
   switch (payload.module) {
-    case "Core":
-      packageId = packageId ?? CONTRACTS[network][chain]["core"];
-      if (!packageId) {
-        throw Error("Core bridge contract is undefined");
+    case "Core": {
+      const coreObjectId = CONTRACTS[network][chain].core;
+      if (!coreObjectId) {
+        throw Error("Core bridge object ID is undefined");
       }
-
+      const corePackageId = await getPackageId(provider, coreObjectId);
       switch (payload.type) {
         case "GuardianSetUpgrade": {
           console.log("Submitting new guardian set");
           const tx = new TransactionBlock();
           tx.moveCall({
-            target: `${packageId}::wormhole::update_guardian_set`,
+            target: `${corePackageId}::wormhole::update_guardian_set`,
             arguments: [
-              tx.object(addresses[network].core_state),
+              tx.object(coreObjectId),
               tx.pure([...vaa]),
               tx.object(SUI_CLOCK_OBJECT_ID),
             ],
           });
-          await executeTransactionBlock(signer, tx);
+          const result = await executeTransactionBlock(signer, tx);
+          console.log(JSON.stringify(result));
           break;
         }
         case "ContractUpgrade":
@@ -66,15 +87,29 @@ export const execute_sui = async (
           impossible(payload);
       }
       break;
-    case "NFTBridge":
+    }
+    case "NFTBridge": {
       throw new Error("NFT bridge not supported on Sui");
+    }
     case "TokenBridge": {
-      const coreBridgePackageId = CONTRACTS[network][chain]["core"];
-      const tokenBridgePackageId =
-        packageId ?? CONTRACTS[network][chain]["token_bridge"];
-      if (!tokenBridgePackageId) {
-        throw Error("Token bridge contract is undefined");
+      const coreBridgeStateObjectId = CONTRACTS[network][chain].core;
+      if (!coreBridgeStateObjectId) {
+        throw Error("Core bridge object ID is undefined");
       }
+
+      const tokenBridgeStateObjectId = CONTRACTS[network][chain].token_bridge;
+      if (!tokenBridgeStateObjectId) {
+        throw Error("Token bridge object ID is undefined");
+      }
+
+      const coreBridgePackageId = await getPackageId(
+        provider,
+        coreBridgeStateObjectId
+      );
+      const tokenBridgePackageId = await getPackageId(
+        provider,
+        tokenBridgeStateObjectId
+      );
 
       switch (payload.type) {
         case "ContractUpgrade":
@@ -83,14 +118,23 @@ export const execute_sui = async (
           throw new Error("RecoverChainId not supported on Sui");
         case "RegisterChain": {
           console.log("Registering chain");
-          const tx = new TransactionBlock();
-          tx.setGasBudget(1000000);
+          if (network === "DEVNET") {
+            // Modify the VAA to only have 1 guardian signature
+            // TODO: remove this when we can deploy the devnet core contract
+            // deterministically with multiple guardians in the initial guardian set
+            // Currently the core contract is setup with only 1 guardian in the set
+            const parsedVaa = parse(vaa);
+            parsedVaa.signatures = [parsedVaa.signatures[0]];
+            vaa = Buffer.from(serialiseVAA(parsedVaa as VAA<Payload>), "hex");
+          }
 
           // Get VAA
-          const [parsedVaa] = tx.moveCall({
+          const tx = new TransactionBlock();
+          tx.setGasBudget(1000000);
+          const [verifiedVaa] = tx.moveCall({
             target: `${coreBridgePackageId}::vaa::parse_and_verify`,
             arguments: [
-              tx.object(addresses[network].core_state),
+              tx.object(coreBridgeStateObjectId),
               tx.pure([...vaa]),
               tx.object(SUI_CLOCK_OBJECT_ID),
             ],
@@ -99,15 +143,15 @@ export const execute_sui = async (
           // Get decree ticket
           const [decreeTicket] = tx.moveCall({
             target: `${tokenBridgePackageId}::register_chain::authorize_governance`,
-            arguments: [tx.object(addresses[network].token_bridge_state)],
+            arguments: [tx.object(tokenBridgeStateObjectId)],
           });
 
           // Get decree receipt
           const [decreeReceipt] = tx.moveCall({
             target: `${coreBridgePackageId}::governance_message::verify_vaa`,
             arguments: [
-              tx.object(addresses[network].core_state),
-              parsedVaa,
+              tx.object(coreBridgeStateObjectId),
+              verifiedVaa,
               decreeTicket,
             ],
             typeArguments: [
@@ -118,10 +162,7 @@ export const execute_sui = async (
           // Register chain
           tx.moveCall({
             target: `${tokenBridgePackageId}::register_chain::register_chain`,
-            arguments: [
-              tx.object(addresses[network].token_bridge_state),
-              decreeReceipt,
-            ],
+            arguments: [tx.object(tokenBridgeStateObjectId), decreeReceipt],
           });
 
           await executeTransactionBlock(signer, tx);

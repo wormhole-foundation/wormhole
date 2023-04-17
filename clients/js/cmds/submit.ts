@@ -134,14 +134,7 @@ exports.handler = async (argv) => {
     throw Error("OSMOSIS is not supported yet");
   } else if (chain === "sui") {
     const sui = require("../sui/utils");
-    await sui.execute_sui(
-      parsed_vaa.payload,
-      buf,
-      network,
-      argv["contract-address"],
-      undefined,
-      argv["rpc"]
-    );
+    await sui.execute_sui(parsed_vaa.payload, buf, network, argv["rpc"]);
   } else if (chain === "aptos") {
     const aptos = require("../aptos");
     await aptos.execute_aptos(

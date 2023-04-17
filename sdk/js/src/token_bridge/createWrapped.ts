@@ -168,14 +168,14 @@ export function createWrappedOnAptos(
 }
 
 export async function createWrappedOnSuiPrepare(
-  coreBridgeAddress: string,
-  tokenBridgeAddress: string,
+  coreBridgePackageId: string,
+  tokenBridgePackageId: string,
   attestVAA: Uint8Array,
   signerAddress: string
 ): Promise<TransactionBlock> {
   return publishCoin(
-    coreBridgeAddress,
-    tokenBridgeAddress,
+    coreBridgePackageId,
+    tokenBridgePackageId,
     uint8ArrayToHex(attestVAA),
     signerAddress
   );
@@ -183,7 +183,7 @@ export async function createWrappedOnSuiPrepare(
 
 export async function createWrappedOnSui(
   provider: JsonRpcProvider,
-  tokenBridgeAddress: string,
+  tokenBridgePackageId: string,
   coreBridgeStateObjectId: string,
   tokenBridgeStateObjectId: string,
   signerAddress: string,
@@ -191,7 +191,7 @@ export async function createWrappedOnSui(
 ): Promise<TransactionBlock> {
   // Get WrappedAssetSetup object ID
   const coinType = getWrappedCoinType(coinPackageId);
-  const type = `${tokenBridgeAddress}::create_wrapped::WrappedAssetSetup<${coinType}>`;
+  const type = `${tokenBridgePackageId}::create_wrapped::WrappedAssetSetup<${coinType}>`;
   const res = await provider.getOwnedObjects({
     owner: signerAddress,
     filter: { StructType: type },
@@ -210,7 +210,7 @@ export async function createWrappedOnSui(
   // Construct complete registration payload
   const tx = new TransactionBlock();
   tx.moveCall({
-    target: `${tokenBridgeAddress}::create_wrapped::complete_registration`,
+    target: `${tokenBridgePackageId}::create_wrapped::complete_registration`,
     arguments: [
       tx.object(tokenBridgeStateObjectId),
       tx.object(coreBridgeStateObjectId),

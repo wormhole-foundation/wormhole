@@ -318,13 +318,13 @@ export async function getOriginalAssetNear(
 /**
  * Gets the origin chain ID and address of an asset on Aptos, given its fully qualified type.
  * @param client Client used to transfer data to/from Aptos node
- * @param tokenBridgeAddress Address of token bridge
+ * @param tokenBridgePackageId Address of token bridge
  * @param fullyQualifiedType Fully qualified type of asset
  * @returns Original chain ID and address of asset
  */
 export async function getOriginalAssetAptos(
   client: AptosClient,
-  tokenBridgeAddress: string,
+  tokenBridgePackageId: string,
   fullyQualifiedType: string
 ): Promise<WormholeWrappedInfo> {
   if (!isValidAptosType(fullyQualifiedType)) {
@@ -336,7 +336,7 @@ export async function getOriginalAssetAptos(
     originInfo = (
       await client.getAccountResource(
         fullyQualifiedType.split("::")[0],
-        `${tokenBridgeAddress}::state::OriginInfo`
+        `${tokenBridgePackageId}::state::OriginInfo`
       )
     ).data as OriginInfo;
   } catch {
@@ -371,52 +371,52 @@ export async function getOriginalAssetAptos(
 
 export async function getOriginalAssetSui(
   provider: JsonRpcProvider,
-  tokenBridgeAddress: string,
   tokenBridgeStateObjectId: string,
-  type: string
+  coinType: string
 ): Promise<WormholeWrappedInfo> {
-  if (!isValidSuiType(type)) {
-    throw new Error(`Invalid Sui type: ${type}`);
+  if (!isValidSuiType(coinType)) {
+    throw new Error(`Invalid Sui type: ${coinType}`);
   }
 
   const res = await getTokenFromTokenRegistry(
     provider,
-    tokenBridgeAddress,
     tokenBridgeStateObjectId,
-    type
+    coinType
   );
   const fields = getFieldsFromObjectResponse(res);
   if (!fields) {
     throw new Error(
-      `Token of type ${type} has not been registered with the token bridge`
+      `Token of type ${coinType} has not been registered with the token bridge`
     );
   }
 
-  if (
-    fields.value.type ===
-    `${tokenBridgeAddress}::wrapped_asset::WrappedAsset<${type}>`
-  ) {
+  if (fields.value.type.includes(`wrapped_asset::WrappedAsset<${coinType}>`)) {
     return {
       isWrapped: true,
       chainId: Number(
         fields.value.fields.metadata.fields.token_chain
       ) as ChainId,
-      assetAddress:
-        fields.value.fields.metadata.fields.token_address.fields.value.fields
-          .data,
+      assetAddress: new Uint8Array(
+        fields.value.fields.metadata.fields.token_address.fields.value.fields.data
+      ),
     };
   } else if (
-    fields.value.type ===
-    `${tokenBridgeAddress}::native_asset::NativeAsset<${type}>`
+    fields.value.type.includes(`native_asset::NativeAsset<${coinType}>`)
   ) {
     return {
       isWrapped: false,
       chainId: CHAIN_ID_SUI,
-      assetAddress: fields.value.fields.token_address.fields.value.fields.data,
+      assetAddress: new Uint8Array(
+        fields.value.fields.token_address.fields.value.fields.data
+      ),
     };
   }
 
   throw new Error(
-    `Unrecognized token metadata: ${JSON.stringify(fields, null, 2)}, ${type}`
+    `Unrecognized token metadata: ${JSON.stringify(
+      fields,
+      null,
+      2
+    )}, ${coinType}`
   );
 }

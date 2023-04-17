@@ -149,7 +149,6 @@ export async function getIsWrappedAssetAptos(
 
 export async function getIsWrappedAssetSui(
   provider: JsonRpcProvider,
-  tokenBridgeAddress: string,
   tokenBridgeStateObjectId: string,
   type: string
 ): Promise<boolean> {
@@ -161,12 +160,7 @@ export async function getIsWrappedAssetSui(
 
   try {
     // This call errors if the type doesn't exist in the TokenRegistry
-    await getTokenFromTokenRegistry(
-      provider,
-      tokenBridgeAddress,
-      tokenBridgeStateObjectId,
-      type
-    );
+    await getTokenFromTokenRegistry(provider, tokenBridgeStateObjectId, type);
     return true;
   } catch (e) {
     if (isSuiError(e) && e.code === -32000 && e.message.includes("RPC Error")) {

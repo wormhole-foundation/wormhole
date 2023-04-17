@@ -32,12 +32,29 @@ export const getFieldsFromObjectResponse = (object: SuiObjectResponse) => {
 };
 
 export const getInnerType = (type: string): string | null => {
+  if (!type) return null;
   const match = type.match(/<(.*)>/);
   if (!match || !isValidSuiType(match[1])) {
     return null;
   }
 
   return match[1];
+};
+
+export const getPackageIdFromType = (type: string): string | null => {
+  if (!isValidSuiType(type)) return null;
+  const packageId = type.split("::")[0];
+  if (!isValidSuiAddress(packageId)) return null;
+  return packageId;
+};
+
+export const getTableKeyType = (tableType: string): string | null => {
+  if (!tableType) return null;
+  const match = tableType.match(/0x2::table::Table<(.*)>/);
+  if (!match) return null;
+  const [keyType] = match[1].split(",");
+  if (!isValidSuiType(keyType)) return null;
+  return keyType;
 };
 
 export const getObjectFields = async (
@@ -59,7 +76,6 @@ export const getObjectFields = async (
 
 export const getTokenFromTokenRegistry = async (
   provider: JsonRpcProvider,
-  tokenBridgeAddress: string,
   tokenBridgeStateObjectId: string,
   tokenType: string
 ): Promise<SuiObjectResponse> => {
@@ -76,22 +92,70 @@ export const getTokenFromTokenRegistry = async (
       `Unable to fetch object fields from token bridge state. Object ID: ${tokenBridgeStateObjectId}`
     );
   }
-
   const tokenRegistryObjectId =
     tokenBridgeStateFields.token_registry?.fields?.id?.id;
   if (!tokenRegistryObjectId) {
     throw new Error("Unable to fetch token registry object ID");
   }
-
+  const tokenRegistryPackageId = getPackageIdFromType(
+    tokenBridgeStateFields.token_registry?.type
+  );
+  if (!tokenRegistryObjectId) {
+    throw new Error("Unable to fetch token registry package ID");
+  }
   return provider.getDynamicFieldObject({
     parentId: tokenRegistryObjectId,
     name: {
-      type: `${tokenBridgeAddress}::token_registry::Key<${tokenType}>`,
+      type: `${tokenRegistryPackageId}::token_registry::Key<${tokenType}>`,
       value: {
         dummy_field: false,
       },
     },
   });
+};
+
+export const getTokenCoinType = async (
+  provider: JsonRpcProvider,
+  tokenBridgeStateObjectId: string,
+  tokenAddress: Uint8Array,
+  tokenChain: number
+): Promise<string | null> => {
+  const tokenBridgeStateFields = await getObjectFields(
+    provider,
+    tokenBridgeStateObjectId
+  );
+  if (!tokenBridgeStateFields) {
+    throw new Error("Unable to fetch object fields from token bridge state");
+  }
+  const coinTypes = tokenBridgeStateFields?.token_registry?.fields?.coin_types;
+  const coinTypesObjectId = coinTypes?.fields?.id?.id;
+  if (!coinTypesObjectId) {
+    throw new Error("Unable to fetch coin types");
+  }
+  const keyType = getTableKeyType(coinTypes?.type);
+  if (!keyType) {
+    throw new Error("Unable to get key type");
+  }
+  try {
+    // This call throws if the key doesn't exist in CoinTypes
+    const coinTypeValue = await provider.getDynamicFieldObject({
+      parentId: coinTypesObjectId,
+      name: {
+        type: keyType,
+        value: {
+          addr: [...tokenAddress],
+          chain: tokenChain,
+        },
+      },
+    });
+    const fields = getFieldsFromObjectResponse(coinTypeValue);
+    return fields?.value || null;
+  } catch (e: any) {
+    if (e.code === -32000 && e.message?.includes("RPC Error")) {
+      return null;
+    }
+    throw e;
+  }
 };
 
 /**
@@ -136,4 +200,34 @@ export const isValidSuiType = (type: string): boolean => {
   }
 
   return isValidSuiAddress(tokens[0]) && !!tokens[1] && !!tokens[2];
+};
+
+export const getPackageId = async (
+  provider: JsonRpcProvider,
+  objectId: string
+): Promise<string> => {
+  const fields = await getObjectFields(provider, objectId);
+  if (fields && "upgrade_cap" in fields) {
+    return fields.upgrade_cap.fields.package;
+  }
+  throw new Error("upgrade_cap not found");
+};
+
+// TODO: can we pass in the latest core bridge package Id after an upgrade?
+// or do we have to use the first one?
+// this is the same type that the guardian will look for
+export const getEmitterAddressAndSequenceFromResponseSui = (
+  coreBridgePackageId: string,
+  response: SuiTransactionBlockResponse
+): { emitterAddress: string; sequence: string } => {
+  const eventType = `${coreBridgePackageId}::publish_message::WormholeMessage`;
+  const event = response.events?.find((e) => e.type === eventType);
+  if (event === undefined) {
+    throw new Error(`${eventType} event type not found`);
+  }
+  const { sender, sequence } = event.parsedJson || {};
+  if (sender === undefined || sequence === undefined) {
+    throw new Error("Can't find sender or sequence");
+  }
+  return { emitterAddress: sender.substring(2), sequence };
 };

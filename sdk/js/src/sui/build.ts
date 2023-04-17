@@ -11,22 +11,22 @@ const TEMPORARY_SUI_BRANCH = "sui/integration_v2";
 
 export const getCoinBuildOutputManual = async (
   network: Network,
-  coreBridgeAddress: string,
-  tokenBridgeAddress: string,
+  coreBridgePackageId: string,
+  tokenBridgePackageId: string,
   vaa: string
 ): Promise<SuiBuildOutput> => {
   await cloneDependencies();
   setupMainToml(
     `${__dirname}/dependencies/wormhole`,
     network,
-    coreBridgeAddress
+    coreBridgePackageId
   );
   setupMainToml(
     `${__dirname}/dependencies/token_bridge`,
     network,
-    tokenBridgeAddress
+    tokenBridgePackageId
   );
-  setupCoin(coreBridgeAddress, tokenBridgeAddress, vaa);
+  setupCoin(coreBridgePackageId, tokenBridgePackageId, vaa);
   const buildOutput = buildPackage(`${__dirname}/wrapped_coin`);
   cleanupTempToml(`${__dirname}/dependencies/wormhole`);
   cleanupTempToml(`${__dirname}/dependencies/token_bridge`);
@@ -150,8 +150,8 @@ const getPackageNameFromPath = (packagePath: string): string =>
 
 // TODO(aki): parallelize
 const setupCoin = (
-  coreBridgeAddress: string,
-  tokenBridgeAddress: string,
+  coreBridgePackageId: string,
+  tokenBridgePackageId: string,
   vaa: string
 ): void => {
   fs.rmSync(`${__dirname}/wrapped_coin`, { recursive: true, force: true });
@@ -167,8 +167,8 @@ const setupCoin = (
   );
 
   const toml = new MoveToml(`${__dirname}/templates/wrapped_coin/Move.toml`)
-    .updateRow("addresses", "wormhole", coreBridgeAddress)
-    .updateRow("addresses", "token_bridge", tokenBridgeAddress)
+    .updateRow("addresses", "wormhole", coreBridgePackageId)
+    .updateRow("addresses", "token_bridge", tokenBridgePackageId)
     .serialize();
   fs.writeFileSync(`${__dirname}/wrapped_coin/Move.toml`, toml, "utf8");
 };
