@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/test-go/testify/require"
 
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
@@ -96,14 +96,15 @@ func TestRunWithScissorsCleanExit(t *testing.T) {
 	ctx := context.Background()
 	errC := make(chan error)
 
-	itRan := false
+	itRan := make(chan bool, 1)
 	RunWithScissors(ctx, errC, "TestRunWithScissorsCleanExit", func(ctx context.Context) error {
-		itRan = true
+		itRan <- true
 		return nil
 	})
 
+	shouldHaveRun := <-itRan
+	require.Equal(t, true, shouldHaveRun)
 	time.Sleep(100 * time.Millisecond)
-	require.Equal(t, true, itRan)
 	assert.Equal(t, 0.0, getCounterValue(ScissorsErrorsCaught, "TestRunWithScissorsCleanExit"))
 	assert.Equal(t, 0.0, getCounterValue(ScissorsPanicsCaught, "TestRunWithScissorsCleanExit"))
 }
@@ -112,9 +113,9 @@ func TestRunWithScissorsPanicReturned(t *testing.T) {
 	ctx := context.Background()
 	errC := make(chan error)
 
-	itRan := false
+	itRan := make(chan bool, 1)
 	RunWithScissors(ctx, errC, "TestRunWithScissorsPanicReturned", func(ctx context.Context) error {
-		itRan = true
+		itRan <- true
 		panic("Some random panic")
 	})
 
@@ -126,7 +127,8 @@ func TestRunWithScissorsPanicReturned(t *testing.T) {
 		break
 	}
 
-	require.Equal(t, true, itRan)
+	shouldHaveRun := <-itRan
+	require.Equal(t, true, shouldHaveRun)
 	assert.Error(t, err)
 	assert.Equal(t, "TestRunWithScissorsPanicReturned: Some random panic", err.Error())
 	assert.Equal(t, 0.0, getCounterValue(ScissorsErrorsCaught, "TestRunWithScissorsPanicReturned"))
@@ -137,14 +139,15 @@ func TestRunWithScissorsPanicDoesNotBlockWhenNoListener(t *testing.T) {
 	ctx := context.Background()
 	errC := make(chan error)
 
-	itRan := false
+	itRan := make(chan bool, 1)
 	RunWithScissors(ctx, errC, "TestRunWithScissorsPanicDoesNotBlockWhenNoListener", func(ctx context.Context) error {
-		itRan = true
+		itRan <- true
 		panic("Some random panic")
 	})
 
+	shouldHaveRun := <-itRan
+	require.Equal(t, true, shouldHaveRun)
 	time.Sleep(100 * time.Millisecond)
-	require.Equal(t, true, itRan)
 	assert.Equal(t, 0.0, getCounterValue(ScissorsErrorsCaught, "TestRunWithScissorsPanicDoesNotBlockWhenNoListener"))
 	assert.Equal(t, 1.0, getCounterValue(ScissorsPanicsCaught, "TestRunWithScissorsPanicDoesNotBlockWhenNoListener"))
 }
@@ -153,9 +156,9 @@ func TestRunWithScissorsErrorReturned(t *testing.T) {
 	ctx := context.Background()
 	errC := make(chan error)
 
-	itRan := false
+	itRan := make(chan bool, 1)
 	RunWithScissors(ctx, errC, "TestRunWithScissorsErrorReturned", func(ctx context.Context) error {
-		itRan = true
+		itRan <- true
 		return fmt.Errorf("Some random error")
 	})
 
@@ -167,7 +170,8 @@ func TestRunWithScissorsErrorReturned(t *testing.T) {
 		break
 	}
 
-	require.Equal(t, true, itRan)
+	shouldHaveRun := <-itRan
+	require.Equal(t, true, shouldHaveRun)
 	assert.Error(t, err)
 	assert.Equal(t, "Some random error", err.Error())
 	assert.Equal(t, 1.0, getCounterValue(ScissorsErrorsCaught, "TestRunWithScissorsErrorReturned"))
@@ -178,14 +182,15 @@ func TestRunWithScissorsErrorDoesNotBlockWhenNoListener(t *testing.T) {
 	ctx := context.Background()
 	errC := make(chan error)
 
-	itRan := false
+	itRan := make(chan bool, 1)
 	RunWithScissors(ctx, errC, "TestRunWithScissorsErrorDoesNotBlockWhenNoListener", func(ctx context.Context) error {
-		itRan = true
+		itRan <- true
 		return fmt.Errorf("Some random error")
 	})
 
+	shouldHaveRun := <-itRan
+	require.Equal(t, true, shouldHaveRun)
 	time.Sleep(100 * time.Millisecond)
-	require.Equal(t, true, itRan)
 	assert.Equal(t, 1.0, getCounterValue(ScissorsErrorsCaught, "TestRunWithScissorsErrorDoesNotBlockWhenNoListener"))
 	assert.Equal(t, 0.0, getCounterValue(ScissorsPanicsCaught, "TestRunWithScissorsErrorDoesNotBlockWhenNoListener"))
 }
