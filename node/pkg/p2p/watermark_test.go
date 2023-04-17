@@ -180,5 +180,7 @@ func startGuardian(t *testing.T, ctx context.Context, g *G) {
 			g.gov,
 			g.signedGovCfg,
 			g.signedGovSt,
-			g.components))
+			g.components,
+			nil, // ibc feature string
+		))
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/watchers/algorand"
 	"github.com/certusone/wormhole/node/pkg/watchers/aptos"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm"
+	"github.com/certusone/wormhole/node/pkg/watchers/ibc"
 	"github.com/certusone/wormhole/node/pkg/watchers/near"
 	"github.com/certusone/wormhole/node/pkg/watchers/solana"
 	"github.com/certusone/wormhole/node/pkg/watchers/sui"
@@ -146,6 +147,10 @@ var (
 	wormchainURL           *string
 	wormchainKeyPath       *string
 	wormchainKeyPassPhrase *string
+
+	ibcWS       *string
+	ibcLCD      *string
+	ibcContract *string
 
 	accountantContract     *string
 	accountantWS           *string
@@ -297,6 +302,10 @@ func init() {
 	wormchainURL = NodeCmd.Flags().String("wormchainURL", "", "wormhole-chain gRPC URL")
 	wormchainKeyPath = NodeCmd.Flags().String("wormchainKeyPath", "", "path to wormhole-chain private key for signing transactions")
 	wormchainKeyPassPhrase = NodeCmd.Flags().String("wormchainKeyPassPhrase", "", "pass phrase used to unarmor the wormchain key file")
+
+	ibcWS = NodeCmd.Flags().String("ibcWS", "", "Websocket used to listen to the IBC receiver smart contract on wormchain")
+	ibcLCD = NodeCmd.Flags().String("ibcLCD", "", "Path to LCD service root for http calls")
+	ibcContract = NodeCmd.Flags().String("ibcContract", "", "Address of the IBC smart contract on wormchain")
 
 	accountantWS = NodeCmd.Flags().String("accountantWS", "", "Websocket used to listen to the accountant smart contract on wormchain")
 	accountantContract = NodeCmd.Flags().String("accountantContract", "", "Address of the accountant smart contract on wormchain")
@@ -1114,7 +1123,10 @@ func runNode(cmd *cobra.Command, args []string) {
 			rootCtxCancel,
 			acct,
 			gov,
-			nil, nil, components)); err != nil {
+			nil,
+			nil,
+			components,
+			&ibc.Features)); err != nil {
 			return err
 		}
 
@@ -1310,7 +1322,6 @@ func runNode(cmd *cobra.Command, args []string) {
 				return err
 			}
 		}
-
 		if shouldStart(algorandIndexerRPC) {
 			logger.Info("Starting Algorand watcher")
 			common.MustRegisterReadinessSyncing(vaa.ChainIDAlgorand)
@@ -1429,6 +1440,49 @@ func runNode(cmd *cobra.Command, args []string) {
 				if err := supervisor.Run(ctx, "sepoliawatch", common.WrapWithScissors(sepoliaWatcher.Run, "sepoliawatch")); err != nil {
 					return err
 				}
+			}
+		}
+
+		if shouldStart(ibcWS) {
+			if *ibcLCD == "" {
+				logger.Fatal("If --ibcWS is specified, then --ibcLCD must be specified")
+			}
+			if *ibcContract == "" {
+				logger.Fatal("If --ibcWS is specified, then --ibcContract must be specified")
+			}
+
+			var chainConfig ibc.ChainConfig
+			for _, chainID := range ibc.Chains {
+				// Make sure the chain ID is valid.
+				if _, exists := chainMsgC[chainID]; !exists {
+					panic("invalid IBC chain ID")
+				}
+
+				// Make sure this chain isn't already configured.
+				if _, exists := chainObsvReqC[chainID]; exists {
+					logger.Info("not monitoring chain with IBC because it is already registered.", zap.Stringer("chainID", chainID))
+					continue
+				}
+
+				chainObsvReqC[chainID] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
+				common.MustRegisterReadinessSyncing(chainID)
+
+				chainConfig = append(chainConfig, ibc.ChainConfigEntry{
+					ChainID:  chainID,
+					MsgC:     chainMsgC[chainID],
+					ObsvReqC: chainObsvReqC[chainID],
+				})
+			}
+
+			if len(chainConfig) > 0 {
+				logger.Info("Starting IBC watcher")
+				readiness.RegisterComponent(common.ReadinessIBCSyncing)
+				if err := supervisor.Run(ctx, "ibcwatch",
+					ibc.NewWatcher(*ibcWS, *ibcLCD, *ibcContract, chainConfig).Run); err != nil {
+					return err
+				}
+			} else {
+				logger.Error("Although IBC is enabled, there are no chains for it to monitor")
 			}
 		}
 

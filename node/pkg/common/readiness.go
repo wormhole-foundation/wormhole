@@ -9,6 +9,7 @@ import (
 
 const (
 	ReadinessEthSyncing readiness.Component = "ethSyncing"
+	ReadinessIBCSyncing readiness.Component = "IBCSyncing"
 )
 
 // MustRegisterReadinessSyncing registers the specified chain for readiness syncing. It panics if the chain ID is invalid so it should only be used during initialization.

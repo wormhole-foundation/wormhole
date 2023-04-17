@@ -29,6 +29,11 @@ import (
 	"nhooyr.io/websocket/wsjson"
 )
 
+// ReadLimitSize can be used to increase the read limit size on the listening connection. The default read limit size is not large enough,
+// causing "failed to read: read limited at 32769 bytes" errors during testing. Increasing this limit effects an internal buffer that
+// is used to as part of the zero alloc/copy design.
+const ReadLimitSize = 524288
+
 type (
 	// Watcher is responsible for looking over a cosmwasm blockchain and reporting new transactions to the contract
 	Watcher struct {
@@ -150,10 +155,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	}
 	defer c.Close(websocket.StatusNormalClosure, "")
 
-	// During testing, I got a message larger then the default
-	// 32768.  Increasing this limit effects an internal buffer that is used
-	// to as part of the zero alloc/copy design.
-	c.SetReadLimit(524288)
+	c.SetReadLimit(ReadLimitSize)
 
 	// Subscribe to smart contract transactions
 	params := [...]string{fmt.Sprintf("tm.event='Tx' AND %s='%s'", e.contractAddressFilterKey, e.contract)}
