@@ -38,6 +38,9 @@ spec:
       containers:
         - name: sui-node
           image: sui-node
+          resources:
+            requests:
+              memory: "2048Mi"
           command:
             - /bin/sh
             - -c

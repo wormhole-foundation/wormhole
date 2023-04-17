@@ -24,6 +24,8 @@ import {
 } from "../utils";
 import { Provider } from "near-api-js/lib/providers";
 import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
+import { JsonRpcProvider } from "@mysten/sui.js";
+import { getTokenCoinType } from "../sui";
 
 /**
  * Returns a foreign asset address on Ethereum for a provided native chain and asset address, AddressZero if it does not exist
@@ -236,4 +238,19 @@ export async function getForeignAssetAptos(
   } catch (e) {
     return null;
   }
+}
+
+export async function getForeignAssetSui(
+  provider: JsonRpcProvider,
+  tokenBridgeStateObjectId: string,
+  originChain: ChainId | ChainName,
+  originAddress: Uint8Array
+): Promise<string | null> {
+  const originChainId = coalesceChainId(originChain);
+  return await getTokenCoinType(
+    provider,
+    tokenBridgeStateObjectId,
+    originAddress,
+    originChainId
+  );
 }

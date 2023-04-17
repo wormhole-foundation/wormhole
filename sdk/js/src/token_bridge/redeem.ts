@@ -49,6 +49,12 @@ import { Provider } from "near-api-js/lib/providers";
 import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
 import { AptosClient, Types } from "aptos";
 import { completeTransferAndRegister } from "../aptos";
+import {
+  JsonRpcProvider,
+  SUI_CLOCK_OBJECT_ID,
+  TransactionBlock,
+} from "@mysten/sui.js";
+import { getTokenCoinType, getObjectFields } from "../sui";
 
 export async function redeemOnEth(
   tokenBridgeAddress: string,
@@ -381,4 +387,48 @@ export function redeemOnAptos(
   transferVAA: Uint8Array
 ): Promise<Types.EntryFunctionPayload> {
   return completeTransferAndRegister(client, tokenBridgeAddress, transferVAA);
+}
+
+export async function redeemOnSui(
+  provider: JsonRpcProvider,
+  coreBridgePackageId: string,
+  coreBridgeStateObjectId: string,
+  tokenBridgePackageId: string,
+  tokenBridgeStateObjectId: string,
+  transferVAA: Uint8Array
+): Promise<TransactionBlock> {
+  const { tokenAddress, tokenChain } = parseTokenTransferVaa(transferVAA);
+  const coinType = await getTokenCoinType(
+    provider,
+    tokenBridgeStateObjectId,
+    tokenAddress,
+    tokenChain
+  );
+  if (!coinType) {
+    throw new Error("Unable to fetch token coinType");
+  }
+  const tx = new TransactionBlock();
+  const [verifiedVAA] = tx.moveCall({
+    target: `${coreBridgePackageId}::vaa::parse_and_verify`,
+    arguments: [
+      tx.object(coreBridgeStateObjectId),
+      tx.pure([...transferVAA]),
+      tx.object(SUI_CLOCK_OBJECT_ID),
+    ],
+  });
+  const [tokenBridgeMessage] = tx.moveCall({
+    target: `${tokenBridgePackageId}::vaa::verify_only_once`,
+    arguments: [tx.object(tokenBridgeStateObjectId), verifiedVAA],
+  });
+  const [coins] = tx.moveCall({
+    target: `${tokenBridgePackageId}::complete_transfer::complete_transfer`,
+    arguments: [tx.object(tokenBridgeStateObjectId), tokenBridgeMessage],
+    typeArguments: [coinType],
+  });
+  tx.moveCall({
+    target: `${tokenBridgePackageId}::coin_utils::return_nonzero`,
+    arguments: [coins],
+    typeArguments: [coinType],
+  });
+  return tx;
 }

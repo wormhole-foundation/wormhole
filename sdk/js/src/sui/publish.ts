@@ -7,18 +7,22 @@ import {
 import { SuiBuildOutput } from "./types";
 
 export const publishCoin = async (
-  coreBridgeAddress: string,
-  tokenBridgeAddress: string,
+  coreBridgePackageId: string,
+  tokenBridgePackageId: string,
   vaa: string,
   signerAddress: string
 ) => {
-  const build = getCoinBuildOutput(coreBridgeAddress, tokenBridgeAddress, vaa);
+  const build = getCoinBuildOutput(
+    coreBridgePackageId,
+    tokenBridgePackageId,
+    vaa
+  );
   return publishPackage(build, signerAddress);
 };
 
 export const getCoinBuildOutput = (
-  coreBridgeAddress: string,
-  tokenBridgeAddress: string,
+  coreBridgePackageId: string,
+  tokenBridgePackageId: string,
   vaa: string
 ): SuiBuildOutput => {
   const bytecode =
@@ -30,8 +34,8 @@ export const getCoinBuildOutput = (
     dependencies: [
       normalizeSuiAddress("0x1"),
       normalizeSuiAddress("0x2"),
-      tokenBridgeAddress,
-      coreBridgeAddress,
+      tokenBridgePackageId,
+      coreBridgePackageId,
     ],
   };
 };

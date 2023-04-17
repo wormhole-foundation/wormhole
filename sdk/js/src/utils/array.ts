@@ -34,6 +34,8 @@ import {
 } from "./consts";
 import { hashLookup } from "./near";
 import { getExternalAddressFromType, isValidAptosType } from "./aptos";
+import { isValidSuiAddress } from "@mysten/sui.js";
+import { isValidSuiType } from "../sui";
 
 /**
  *
@@ -66,7 +68,7 @@ export const uint8ArrayToHex = (a: Uint8Array): string =>
 export const hexToUint8Array = (h: string): Uint8Array => {
   if (h.startsWith("0x")) h = h.slice(2);
   return new Uint8Array(Buffer.from(h, "hex"));
-}
+};
 
 /**
  *
@@ -246,7 +248,12 @@ export const tryNativeToHexString = (
   } else if (chainId === CHAIN_ID_OSMOSIS) {
     throw Error("hexToNativeString: Osmosis not supported yet.");
   } else if (chainId === CHAIN_ID_SUI) {
-    throw Error("hexToNativeString: Sui not supported yet.");
+    if (!isValidSuiType(address) && isValidSuiAddress(address)) {
+      return uint8ArrayToHex(
+        zeroPad(arrayify(address, { allowMissingPrefix: true }), 32)
+      );
+    }
+    throw Error("hexToNativeString: Sui types not supported yet.");
   } else if (chainId === CHAIN_ID_BTC) {
     throw Error("hexToNativeString: Btc not supported yet.");
   } else if (chainId === CHAIN_ID_APTOS) {
@@ -254,7 +261,9 @@ export const tryNativeToHexString = (
       return getExternalAddressFromType(address);
     }
 
-    return uint8ArrayToHex(zeroPad(arrayify(address, { allowMissingPrefix:true }), 32));
+    return uint8ArrayToHex(
+      zeroPad(arrayify(address, { allowMissingPrefix: true }), 32)
+    );
   } else if (chainId === CHAIN_ID_UNSET) {
     throw Error("hexToNativeString: Chain id unset");
   } else {

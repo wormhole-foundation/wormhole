@@ -352,27 +352,27 @@ export function attestFromAptos(
 
 export async function attestFromSui(
   provider: JsonRpcProvider,
-  tokenBridgeAddress: string,
+  tokenBridgePackageId: string,
   coreBridgeStateObjectId: string,
   tokenBridgeStateObjectId: string,
   coinType: string,
-  feeAmount: number
+  feeAmount: BigInt = BigInt(0)
 ): Promise<TransactionBlock> {
   const metadata = await provider.getCoinMetadata({ coinType });
+  console.log(metadata);
   if (!metadata || !metadata.id) {
     throw new Error(`Coin metadata for type ${coinType} not found`);
   }
-
   const tx = new TransactionBlock();
   const [feeCoin] = tx.splitCoins(tx.gas, [tx.pure(feeAmount)]);
   tx.moveCall({
-    target: `${tokenBridgeAddress}::attest_token::attest_token`,
+    target: `${tokenBridgePackageId}::attest_token::attest_token`,
     arguments: [
       tx.object(tokenBridgeStateObjectId),
       tx.object(coreBridgeStateObjectId),
       feeCoin,
       tx.object(metadata.id),
-      tx.pure(69),
+      tx.pure(createNonce().readUInt32LE()),
       tx.object(SUI_CLOCK_OBJECT_ID),
     ],
     typeArguments: [coinType],

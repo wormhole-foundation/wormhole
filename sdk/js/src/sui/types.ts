@@ -27,3 +27,8 @@ export type SuiError = {
   message: string;
   data: any;
 };
+
+export type SuiCoinObject = {
+  type: string;
+  objectId: string;
+};
