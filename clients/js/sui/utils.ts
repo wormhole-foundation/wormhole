@@ -3,19 +3,19 @@ import { CHAIN_ID_TO_NAME } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 import {
   Connection,
   Ed25519Keypair,
-  fromB64,
   JsonRpcProvider,
-  normalizeSuiAddress,
   RawSigner,
-  SuiTransactionBlockResponse,
   SUI_CLOCK_OBJECT_ID,
+  SuiTransactionBlockResponse,
   TransactionBlock,
+  fromB64,
+  normalizeSuiAddress,
 } from "@mysten/sui.js";
 import { CONTRACTS } from "../consts";
 import { NETWORKS } from "../networks";
 import { Network } from "../utils";
-import { impossible, Payload } from "../vaa";
-import { SuiAddresses, SUI_OBJECT_IDS } from "./consts";
+import { Payload, impossible } from "../vaa";
+import { SUI_OBJECT_IDS, SuiAddresses } from "./consts";
 import { SuiRpcValidationError } from "./error";
 import { SuiCreateEvent, SuiPublishEvent } from "./types";
 
@@ -278,7 +278,7 @@ export const isValidSuiAddress = (objectId: string): boolean => {
 // todo(aki): this needs to correctly handle types such as
 // 0x2::dynamic_field::Field<0x3c6d386861470e6f9cb35f3c91f69e6c1f1737bd5d217ca06a15f582e1dc1ce3::state::MigrationControl, bool>
 export const normalizeSuiType = (type: string): string => {
-  const tokens = type.split("::");
+  const tokens = type.split("::").map((t) => t.replace(/[^a-zA-Z0-9_]/gi, ""));
   if (tokens.length !== 3 || !isValidSuiAddress(tokens[0])) {
     throw new Error(`Invalid Sui type: ${type}`);
   }
