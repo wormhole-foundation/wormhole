@@ -1,12 +1,8 @@
-import * as fs from "fs/promises";
-import yargs from "yargs";
 import Koa from "koa";
 import Router from "koa-router";
 import {
-  Environment,
   Next,
   RelayerApp,
-  StandardRelayerApp,
   StandardRelayerAppOpts,
   StandardRelayerContext,
   logging,
@@ -15,17 +11,11 @@ import {
   providers,
   sourceTx,
 } from "relayer-engine";
-import {
-  CHAIN_ID_ETH,
-  CHAIN_ID_BSC,
-  EVMChainId,
-  tryNativeToHexString,
-} from "@certusone/wormhole-sdk";
+import { EVMChainId } from "@certusone/wormhole-sdk";
 import { processGenericRelayerVaa } from "./processor";
 import { Logger } from "winston";
 import deepCopy from "clone";
-import { GRRelayerAppConfig, loadAppConfig } from "./env";
-import { dbg } from "../pkgs/sdk/src";
+import { loadAppConfig } from "./env";
 
 export type GRContext = StandardRelayerContext & {
   relayProviders: Record<EVMChainId, string>;
@@ -58,7 +48,7 @@ async function main() {
     queueName: `${name}-relays`,
   });
   app.logger(logger);
-  app.use(logging(logger)); // <-- logging middleware
+  app.use(logging(logger));
   app.use(
     missedVaas(app, {
       namespace: name,
@@ -78,7 +68,7 @@ async function main() {
         privateKeys: privateKeys!,
         metrics: { registry: app.metricsRegistry },
       })
-    ); 
+    );
   }
   if (opts.fetchSourceTxhash) {
     app.use(sourceTx());
@@ -88,7 +78,7 @@ async function main() {
   app.use(async (ctx: GRContext, next: Next) => {
     ctx.relayProviders = deepCopy(relayProviders);
     ctx.wormholeRelayers = deepCopy(wormholeRelayers);
-    ctx.opts = { ...opts }; 
+    ctx.opts = { ...opts };
     next();
   });
 
