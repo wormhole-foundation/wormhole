@@ -14,7 +14,7 @@
     "build-abis": "typechain --target=ethers-v5 --out-dir=src/ethers-contracts/abi src/abi/Wormhole.abi.json",
     "build-idl": "node scripts/compileAnchorIdls.js",
     "build-deps": "npm run build-abis && npm run build-contracts && npm run build-idl",
-    "build-lib": "tsc -p tsconfig.json && tsc -p tsconfig-cjs.json && node scripts/copyEthersTypes.js",
+    "build-lib": "node scripts/copyEthersTypes.js && tsc -p tsconfig.json && tsc -p tsconfig-cjs.json",
     "build-all": "npm run build-deps && npm run build-lib",
     "docs": "typedoc src/index.ts",
     "test": "jest --config jestconfig.json --verbose",
