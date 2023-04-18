@@ -35,7 +35,7 @@ node_modules: package-lock.json
 forge_dependencies: lib/forge-std lib/openzeppelin-contracts
 
 lib/forge-std:
-	forge install foundry-rs/forge-std@2c7cbfc6fbede6d7c9e6b17afe997e3fdfe22fef --no-git --no-commit
+	forge install foundry-rs/forge-std@fc560fa34fa12a335a50c35d92e55a6628ca467c --no-git --no-commit
 
 lib/openzeppelin-contracts:
 	forge install openzeppelin/openzeppelin-contracts@0457042d93d9dfd760dbaa06a4d2f1216fdbe297 --no-git --no-commit

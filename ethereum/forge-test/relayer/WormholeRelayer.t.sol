@@ -92,11 +92,9 @@ contract WormholeRelayerTests is Test {
         Contracts target;
     }
 
-    function standardAssumeAndSetupTwoChains(
-        GasParameters memory gasParams,
-        FeeParameters memory feeParams,
-        uint32 minTargetGasLimit
-    ) public returns (StandardSetupTwoChains memory s) {
+    function standardAssume(GasParameters memory gasParams,
+        FeeParameters memory feeParams, 
+        uint32 minTargetGasLimit) public {
         vm.assume(gasParams.evmGasOverhead > 0);
         vm.assume(gasParams.targetGasLimit > 0);
         vm.assume(feeParams.targetNativePrice > 0);
@@ -132,6 +130,15 @@ contract WormholeRelayerTests is Test {
                     / (uint256(0) + feeParams.targetNativePrice / feeParams.sourceNativePrice + 2) / gasParams.targetGasLimit
         );
         vm.assume(feeParams.receiverValueTarget < uint256(1) * (uint256(2) ** 239) / feeParams.targetNativePrice);
+    }
+
+    function standardAssumeAndSetupTwoChains(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams,
+        uint32 minTargetGasLimit
+    ) public returns (StandardSetupTwoChains memory s) {
+        
+        standardAssume(gasParams, feeParams, minTargetGasLimit);
 
         s.sourceChainId = 1;
         s.targetChainId = 2;
@@ -381,8 +388,30 @@ contract WormholeRelayerTests is Test {
     }
 
 
+    struct FundsCorrectTest {
+        uint256 refundAddressBalance;
+        uint256 relayerBalance;
+        uint256 rewardAddressBalance; 
+        uint256 destinationBalance;
 
-    function testFundsCorrectForASend() public {
+        uint256 receiverValueSource;
+        uint256 transactionFee;
+        uint256 payment;
+        uint256 maximumRefundTarget;
+        uint32 gasAmount;
+
+        uint256 refundAddressAmount;
+        uint256 relayerPayment;
+        uint256 rewardAddressAmount;
+        uint256 destinationAmount;
+    }
+
+    function testFundsCorrectForASend(GasParameters memory gasParams, FeeParameters memory feeParams) public {
+
+
+        standardAssume(gasParams, feeParams, 220000);
+
+        FundsCorrectTest memory test;
         Contracts memory source = map[1];
         Contracts memory target = map[2];
 
@@ -392,19 +421,20 @@ contract WormholeRelayerTests is Test {
         vm.deal(address(source.integration), type(uint256).max / 2);
         vm.deal(address(target.integration), type(uint256).max / 2);
 
-        GasParams memory gasParams = GasParams({
-            evmGasOverhead: 123,
-            targetGasLimit: 0,
-            targetGasPrice: 567,
-            sourceGasPrice: 234
+        /*
+        GasParameters memory gasParams = GasParameters({
+            evmGasOverhead: 1,
+            targetGasLimit: 220000,
+            targetGasPrice: 1,
+            sourceGasPrice: 1
         });
-        FeeParams memory feeParams = FeeParams({
-            targetNativePrice: 1985,
-            sourceNativePrice: 2752,
-            wormholeFeeOnSource: 235,
-            wormholeFeeOnTarget: 682,
-            receiverValueTarget: 2852
-        });
+        FeeParameters memory feeParams = FeeParameters({
+            targetNativePrice: 1,
+            sourceNativePrice: 2,
+            wormholeFeeOnSource: 0,
+            wormholeFeeOnTarget: 0,
+            receiverValueTarget: 40716248073368259169776655240941468490787558810188006515
+        });*/
 
         source.relayProvider.updatePrice(1, gasParams.sourceGasPrice, feeParams.sourceNativePrice);
         source.relayProvider.updatePrice(2, gasParams.targetGasPrice, feeParams.targetNativePrice);
@@ -417,50 +447,49 @@ contract WormholeRelayerTests is Test {
     
         vm.recordLogs();
 
-        uint256 refundAddressBalance = target.refundAddress.balance;
-        uint256 relayerBalance = target.relayer.balance;
-        uint256 rewardAddressBalance = source.rewardAddress.balance;
-        
-        uint256 receiverValueSource = source.coreRelayer.quoteReceiverValue(
-            setup.targetChainId, feeParams.receiverValueTarget, address(setup.source.relayProvider)
-        );
-        uint256 payment = setup.source.coreRelayer.quoteGas(
-            setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
-        ) + uint256(3) * setup.source.wormhole.messageFee() + receiverValueSource;
 
-        setup.source.integration.sendMessageGeneral{value: payment}(
-            message,
-            setup.targetChainId,
-            address(setup.target.integration),
-            setup.targetChainId,
-            address(setup.target.refundAddress),
-            receiverValueSource,
+        test.refundAddressBalance = target.refundAddress.balance;
+        test.relayerBalance = target.relayer.balance;
+        test.rewardAddressBalance = source.rewardAddress.balance;
+        test.destinationBalance = address(target.integration).balance;
+        
+        test.receiverValueSource = source.coreRelayer.quoteReceiverValue(
+            2, feeParams.receiverValueTarget, address(source.relayProvider)
+        );
+        test.transactionFee = source.coreRelayer.quoteGas(
+            2, gasParams.targetGasLimit, address(source.relayProvider)
+        );
+        test.payment = test.transactionFee + uint256(3) * source.wormhole.messageFee() + test.receiverValueSource;
+
+        source.integration.sendMessageGeneral{value: test.payment}(
+            bytes("Hello!"),
+            2,
+            address(target.integration),
+            2,
+            address(target.refundAddress),
+            test.receiverValueSource,
             bytes("")
         );
 
-        genericRelayer.relay(setup.sourceChainId);
+        genericRelayer.relay(1);
 
-        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
+        assertTrue(keccak256(target.integration.getMessage()) == keccak256(bytes("Hello!")));
 
-        uint256 USDcost = (uint256(payment) - uint256(3) * map[setup.sourceChainId].wormhole.messageFee())
-            * feeParams.sourceNativePrice
-            - (setup.target.refundAddress.balance - refundAddressBalance) * feeParams.targetNativePrice;
-        uint256 relayerProfit = uint256(feeParams.sourceNativePrice)
-            * (setup.source.rewardAddress.balance - rewardAddressBalance)
-            - feeParams.targetNativePrice * (relayerBalance - setup.target.relayer.balance);
+        test.refundAddressAmount = target.refundAddress.balance - test.refundAddressBalance;
+        test.rewardAddressAmount = source.rewardAddress.balance - test.rewardAddressBalance;
+        test.relayerPayment = test.relayerBalance - target.relayer.balance;
+        test.destinationAmount = address(target.integration).balance - test.destinationBalance;
 
-        uint256 howMuchGasRelayerCouldHavePaidForAndStillProfited =
-            relayerProfit / gasParams.targetGasPrice / feeParams.targetNativePrice;
-        assertTrue(howMuchGasRelayerCouldHavePaidForAndStillProfited >= 30000); // takes around this much gas (seems to go from 36k-200k?!?)
-        assertTrue(
-            USDcost - (relayerProfit + (uint256(1) * feeParams.receiverValueTarget * feeParams.targetNativePrice)) >= 0,
-            "We paid enough"
-        );
-        assertTrue(
-            USDcost - (relayerProfit + (uint256(1) * feeParams.receiverValueTarget * feeParams.targetNativePrice))
-                < feeParams.sourceNativePrice,
-            "We paid the least amount necessary"
-        );
+        assertTrue(test.destinationAmount >= feeParams.receiverValueTarget, "Receiver value was sent to the contract");
+        assertTrue(test.destinationAmount == test.receiverValueSource * feeParams.sourceNativePrice * 100 / (feeParams.targetNativePrice * 105), "Receiver value was the right amount");
+        assertTrue(test.rewardAddressAmount == test.transactionFee + test.receiverValueSource, "Reward address was paid correctly");
+        test.maximumRefundTarget = test.transactionFee * feeParams.sourceNativePrice * 100 / (feeParams.targetNativePrice * 105);
+        console.log((gasParams.targetGasLimit  - test.refundAddressAmount * gasParams.targetGasLimit / test.maximumRefundTarget));
+        test.gasAmount = uint32(gasParams.targetGasLimit  - test.refundAddressAmount * gasParams.targetGasLimit / test.maximumRefundTarget);
+        assertTrue(test.gasAmount >= 100000, "Gas amount (calculated from refund address payment) lower than expected");
+        assertTrue(test.gasAmount <= 300000, "Gas amount (calculated from refund address payment) higher than expected");
+        assertTrue(test.relayerPayment == test.destinationAmount + test.refundAddressAmount, "Relayer paid the correct amount");
+    
     }
 
     function testFundsCorrectForASendCrossChainRefund(
@@ -522,7 +551,7 @@ contract WormholeRelayerTests is Test {
         );
     }
 
-    function testtestNoFundsLostForASendIfReceiveWormholeMessagesReverts(
+    function testNoFundsLostForASendIfReceiveWormholeMessagesReverts(
         GasParameters memory gasParams,
         FeeParameters memory feeParams,
         bytes memory message
