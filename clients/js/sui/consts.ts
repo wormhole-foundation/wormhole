@@ -17,7 +17,7 @@ export const SUI_OBJECT_IDS = {
     core_state:
       "0x6128b6adb677ac2da9ac5efb3003e5863825748f7a18786c5f612a4cb552fa50",
     token_bridge_state:
-      "0xff8d34100d23d54c48c662aa0def908b42048e1d84d1e9034fcb1cb91f5704aa",
+      "0xc9a5d6d04aec996e60efe6d675b3c9c8ecddd4544f20474916771b4f90b4b0dc",
   },
 };
 
