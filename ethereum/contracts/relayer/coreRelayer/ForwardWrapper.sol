@@ -10,7 +10,6 @@ import "../../interfaces/relayer/IWormholeRelayerInternalStructs.sol";
 import "../../interfaces/relayer/IForwardWrapper.sol";
 import "../../interfaces/relayer/IWormholeReceiver.sol";
 import "../../interfaces/relayer/IRelayProvider.sol";
-import "forge-std/console.sol";
 
 contract ForwardWrapper {
     IForwardInstructionViewer forwardInstructionViewer;
@@ -65,7 +64,6 @@ contract ForwardWrapper {
             }
             uint256 feeForForward = transactionFeeRefundAmount + totalMsgValue;
             if (feeForForward < totalFee) {
-                console.log(instruction.maximumRefundTarget);
                 revert ForwardNotSufficientlyFunded(feeForForward, totalFee);
             }
         }
