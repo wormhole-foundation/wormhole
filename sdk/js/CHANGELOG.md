@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.14
+
+### Added
+
+Sei testnet support
+
 ## 0.9.13
 
 ### Added
@@ -8,7 +14,7 @@
 
 ### Changed
 
-injective dependencies updated 
+injective dependencies updated
 
 ## 0.9.12
 
