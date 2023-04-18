@@ -90,8 +90,8 @@ node_metrics = cfg.get("node_metrics", False)
 guardiand_governor = cfg.get("guardiand_governor", False)
 ibc_relayer = cfg.get("ibc_relayer", False)
 btc = cfg.get("btc", False)
-redis = cfg.get('redis', False)
-generic_relayer = cfg.get("generic_relayer", False)
+redis = cfg.get('redis', ci)
+generic_relayer = cfg.get("generic_relayer", ci)
 
 if cfg.get("manual", False):
     trigger_mode = TRIGGER_MODE_MANUAL
@@ -130,7 +130,7 @@ docker_build(
     context = ".",
     dockerfile = "node/Dockerfile",
     target = "build",
-    ignore=["./sdk/js"]
+    ignore=["./sdk/js", "./relayer"]
 )
 
 def command_with_dlv(argv):
@@ -461,7 +461,7 @@ docker_build(
     ],
 )
 
-if spy_relayer or redis or generic_relayer:
+if spy_relayer or redis or generic_relayer or ci_tests:
     k8s_resource(
         "redis",
         port_forwards = [
@@ -479,7 +479,7 @@ if spy_relayer or redis or generic_relayer:
 
     k8s_yaml_with_ns("devnet/redis.yaml")
 
-if generic_relayer:
+if generic_relayer or ci_tests:
     k8s_resource(
         "relayer-engine",
         resource_deps = ["guardian", "redis", "spy"],

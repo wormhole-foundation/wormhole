@@ -11,7 +11,6 @@ import {
   CHAIN_ID_BSC,
   EVMChainId,
 } from "@certusone/wormhole-sdk";
-import { ClusterOptions } from "ioredis";
 import { rootLogger } from "./log";
 import { dbg } from "../pkgs/sdk/src";
 
@@ -89,7 +88,7 @@ const defaults: { [key in Flag]: GRRelayerAppConfig } = {
       },
     },
     fetchSourceTxhash: false,
-    redis: {},
+    redis: { host: "localhost", port: 6379 },
   },
   // TODO
   [Flag.K8sTestnet]: {
@@ -119,7 +118,7 @@ const defaults: { [key in Flag]: GRRelayerAppConfig } = {
 
 export async function loadAppConfig(): Promise<{
   env: Environment;
-  opts: StandardRelayerAppOpts;
+  opts: GRRelayerAppConfig & StandardRelayerAppOpts;
   relayProviders: Record<EVMChainId, string>;
   wormholeRelayers: Record<EVMChainId, string>;
 }> {
@@ -192,7 +191,7 @@ function loadAndMergeConfig(flag: Flag): GRRelayerAppConfig {
 
     redisClusterEndpoints: process.env.REDIS_CLUSTER_ENDPOINTS?.split(","), // "url1:port,url2:port"
     redisCluster: isRedisCluster
-      ? <ClusterOptions>{
+      ? {
           dnsLookup: (address: any, callback: any) => callback(null, address),
           slotsRefreshTimeout: 1000,
           redisOptions: {
