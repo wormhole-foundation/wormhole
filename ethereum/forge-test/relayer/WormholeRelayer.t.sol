@@ -393,6 +393,9 @@ contract WormholeRelayerTests is Test {
         uint256 relayerBalance;
         uint256 rewardAddressBalance; 
         uint256 destinationBalance;
+        uint256 sourceContractBalance;
+        uint256 targetContractBalance;
+        uint256 overhead;
 
         uint256 receiverValueSource;
         uint256 transactionFee;
@@ -406,35 +409,17 @@ contract WormholeRelayerTests is Test {
         uint256 destinationAmount;
     }
 
-    function testFundsCorrectForASend(GasParameters memory gasParams, FeeParameters memory feeParams) public {
-
-
+    function setupFundsCorrectTest(GasParameters memory gasParams, FeeParameters memory feeParams, uint32 minGasLimit) public returns (Contracts memory source, Contracts memory target, FundsCorrectTest memory test) {
         standardAssume(gasParams, feeParams, 220000);
 
-        FundsCorrectTest memory test;
-        Contracts memory source = map[1];
-        Contracts memory target = map[2];
+        source = map[1];
+        target = map[2];
 
         vm.deal(source.relayer, type(uint256).max/2);
         vm.deal(target.relayer, type(uint256).max/2);
         vm.deal(address(this), type(uint256).max/2);
         vm.deal(address(source.integration), type(uint256).max / 2);
         vm.deal(address(target.integration), type(uint256).max / 2);
-
-        /*
-        GasParameters memory gasParams = GasParameters({
-            evmGasOverhead: 1,
-            targetGasLimit: 220000,
-            targetGasPrice: 1,
-            sourceGasPrice: 1
-        });
-        FeeParameters memory feeParams = FeeParameters({
-            targetNativePrice: 1,
-            sourceNativePrice: 2,
-            wormholeFeeOnSource: 0,
-            wormholeFeeOnTarget: 0,
-            receiverValueTarget: 40716248073368259169776655240941468490787558810188006515
-        });*/
 
         source.relayProvider.updatePrice(1, gasParams.sourceGasPrice, feeParams.sourceNativePrice);
         source.relayProvider.updatePrice(2, gasParams.targetGasPrice, feeParams.targetNativePrice);
@@ -445,13 +430,15 @@ contract WormholeRelayerTests is Test {
         
         source.wormholeSimulator.setMessageFee(feeParams.wormholeFeeOnSource);
     
-        vm.recordLogs();
+        
 
 
         test.refundAddressBalance = target.refundAddress.balance;
         test.relayerBalance = target.relayer.balance;
         test.rewardAddressBalance = source.rewardAddress.balance;
         test.destinationBalance = address(target.integration).balance;
+        test.sourceContractBalance = address(source.coreRelayer).balance;
+        test.targetContractBalance = address(target.coreRelayer).balance;
         
         test.receiverValueSource = source.coreRelayer.quoteReceiverValue(
             2, feeParams.receiverValueTarget, address(source.relayProvider)
@@ -459,6 +446,14 @@ contract WormholeRelayerTests is Test {
         test.transactionFee = source.coreRelayer.quoteGas(
             2, gasParams.targetGasLimit, address(source.relayProvider)
         );
+        test.overhead = IRelayProvider(source.coreRelayer.getDefaultRelayProvider()).quoteDeliveryOverhead(2);
+    }
+
+    function testFundsCorrectForASend(GasParameters memory gasParams, FeeParameters memory feeParams) public {
+
+        vm.recordLogs();
+        (Contracts memory source, Contracts memory target, FundsCorrectTest memory test) = setupFundsCorrectTest(gasParams, feeParams, 210000);
+
         test.payment = test.transactionFee + uint256(3) * source.wormhole.messageFee() + test.receiverValueSource;
 
         source.integration.sendMessageGeneral{value: test.payment}(
@@ -479,20 +474,20 @@ contract WormholeRelayerTests is Test {
         test.rewardAddressAmount = source.rewardAddress.balance - test.rewardAddressBalance;
         test.relayerPayment = test.relayerBalance - target.relayer.balance;
         test.destinationAmount = address(target.integration).balance - test.destinationBalance;
-
+        
+        assertTrue(test.sourceContractBalance == address(source.coreRelayer).balance);
+        assertTrue(test.targetContractBalance == address(target.coreRelayer).balance);
         assertTrue(test.destinationAmount >= feeParams.receiverValueTarget, "Receiver value was sent to the contract");
-        assertTrue(test.destinationAmount == test.receiverValueSource * feeParams.sourceNativePrice * 100 / (feeParams.targetNativePrice * 105), "Receiver value was the right amount");
+        assertTrue(test.destinationAmount == test.receiverValueSource * feeParams.sourceNativePrice * 100 / (uint256(1) * feeParams.targetNativePrice * 105), "Receiver value was the right amount");
         assertTrue(test.rewardAddressAmount == test.transactionFee + test.receiverValueSource, "Reward address was paid correctly");
-        test.maximumRefundTarget = test.transactionFee * feeParams.sourceNativePrice * 100 / (feeParams.targetNativePrice * 105);
-        console.log((gasParams.targetGasLimit  - test.refundAddressAmount * gasParams.targetGasLimit / test.maximumRefundTarget));
+        test.maximumRefundTarget = (test.transactionFee - test.overhead) * feeParams.sourceNativePrice * 100 / (uint256(1) * feeParams.targetNativePrice * 105);
         test.gasAmount = uint32(gasParams.targetGasLimit  - test.refundAddressAmount * gasParams.targetGasLimit / test.maximumRefundTarget);
-        assertTrue(test.gasAmount >= 100000, "Gas amount (calculated from refund address payment) lower than expected");
-        assertTrue(test.gasAmount <= 300000, "Gas amount (calculated from refund address payment) higher than expected");
+        assertTrue(test.gasAmount >= 203000, "Gas amount (calculated from refund address payment) lower than expected");
+        assertTrue(test.gasAmount <= 210000, "Gas amount (calculated from refund address payment) higher than expected");
         assertTrue(test.relayerPayment == test.destinationAmount + test.refundAddressAmount, "Relayer paid the correct amount");
-    
     }
 
-    function testFundsCorrectForASendCrossChainRefund(
+    function testNoFundsLostForASendCrossChainRefund(
         GasParameters memory gasParams,
         FeeParameters memory feeParams,
         bytes memory message
