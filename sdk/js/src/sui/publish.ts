@@ -1,5 +1,6 @@
 import {
   fromB64,
+  normalizeSuiAddress,
   normalizeSuiObjectId,
   TransactionBlock,
 } from "@mysten/sui.js";
@@ -15,12 +16,41 @@ import { isValidSuiAddress } from "./utils";
 const TEMPORARY_SUI_BRANCH = "sui/integration_v2";
 
 export const publishCoin = async (
-  network: Network,
   coreBridgeAddress: string,
   tokenBridgeAddress: string,
   vaa: string,
   signerAddress: string
-): Promise<TransactionBlock> => {
+) => {
+  const build = getCoinBuildOutput(coreBridgeAddress, tokenBridgeAddress, vaa);
+  return publishPackage(build, signerAddress);
+};
+
+export const getCoinBuildOutput = (
+  coreBridgeAddress: string,
+  tokenBridgeAddress: string,
+  vaa: string
+): SuiBuildOutput => {
+  const bytecode =
+    "oRzrCwYAAAAKAQAIAggOAxYWBCwEBTAoB1iGAQjeAWAGvgLlAQqjBAUMqAQWAAMBCgELAgQAAAIAAgECAAMCDAEAAQAGAAEAAQgIAQEMAgkFBgADBwMEAQIDAgEHAggABwgBAAEIAAMJAAoCBwgBAQsCAQkAAQYIAQEFAQsCAQgAAgkABQRDT0lOCVR4Q29udGV4dBFXcmFwcGVkQXNzZXRTZXR1cARjb2luDmNyZWF0ZV93cmFwcGVkC2R1bW15X2ZpZWxkBGluaXQUcHJlcGFyZV9yZWdpc3RyYXRpb24PcHVibGljX3RyYW5zZmVyBnNlbmRlcgh0cmFuc2Zlcgp0eF9jb250ZXh0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAjVFfai/LOUUAUvqTWa3Rh8p5xhe/wYJfCRRBlwG9pGyCgLhAd8B" +
+    Buffer.from(vaa, "hex").toString("base64").replace(/\=+$/, "") +
+    "ACAQUBAAAAAAEJCwAHAAoBOAALAS4RAjgBAgA=";
+  return {
+    modules: [bytecode],
+    dependencies: [
+      normalizeSuiAddress("0x1"),
+      normalizeSuiAddress("0x2"),
+      tokenBridgeAddress,
+      coreBridgeAddress,
+    ],
+  };
+};
+
+export const getCoinBuildOutputManual = async (
+  network: Network,
+  coreBridgeAddress: string,
+  tokenBridgeAddress: string,
+  vaa: string
+): Promise<SuiBuildOutput> => {
   await cloneDependencies();
   setupMainToml(
     `${__dirname}/dependencies/wormhole`,
@@ -34,9 +64,26 @@ export const publishCoin = async (
   );
   setupCoin(coreBridgeAddress, tokenBridgeAddress, vaa);
   const buildOutput = buildPackage(`${__dirname}/wrapped_coin`);
-  const tx = publishPackage(buildOutput, signerAddress);
   cleanupTempToml(`${__dirname}/dependencies/wormhole`);
   cleanupTempToml(`${__dirname}/dependencies/token_bridge`);
+  return buildOutput;
+};
+
+export const publishPackage = async (
+  buildOutput: SuiBuildOutput,
+  signerAddress: string
+): Promise<TransactionBlock> => {
+  // Publish contracts
+  const tx = new TransactionBlock();
+  const [upgradeCap] = tx.publish({
+    modules: buildOutput.modules.map((m: string) => Array.from(fromB64(m))),
+    dependencies: buildOutput.dependencies.map((d: string) =>
+      normalizeSuiObjectId(d)
+    ),
+  });
+
+  // Transfer upgrade capability to recipient
+  tx.transferObjects([upgradeCap], tx.pure(signerAddress));
   return tx;
 };
 
@@ -154,24 +201,6 @@ const getTomlPathByNetwork = (packagePath: string, network: Network): string =>
 
 const getPackageNameFromPath = (packagePath: string): string =>
   packagePath.split("/").pop() || "";
-
-const publishPackage = async (
-  buildOutput: SuiBuildOutput,
-  signerAddress: string
-): Promise<TransactionBlock> => {
-  // Publish contracts
-  const tx = new TransactionBlock();
-  const [upgradeCap] = tx.publish({
-    modules: buildOutput.modules.map((m: string) => Array.from(fromB64(m))),
-    dependencies: buildOutput.dependencies.map((d: string) =>
-      normalizeSuiObjectId(d)
-    ),
-  });
-
-  // Transfer upgrade capability to recipient
-  tx.transferObjects([upgradeCap], tx.pure(signerAddress));
-  return tx;
-};
 
 // TODO(aki): parallelize
 const setupCoin = (

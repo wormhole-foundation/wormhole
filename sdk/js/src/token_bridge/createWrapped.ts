@@ -1,33 +1,33 @@
 import {
   JsonRpcProvider,
   SUI_CLOCK_OBJECT_ID,
-  TransactionBlock
+  TransactionBlock,
 } from "@mysten/sui.js";
 import {
   Commitment,
   Connection,
   PublicKey,
   PublicKeyInitData,
-  Transaction
+  Transaction,
 } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
 import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
 import { Algodv2 } from "algosdk";
 import { Types } from "aptos";
 import BN from "bn.js";
-import { ethers, Overrides } from "ethers";
+import { Overrides, ethers } from "ethers";
 import { fromUint8Array } from "js-base64";
 import { FunctionCallOptions } from "near-api-js/lib/account";
 import { Provider } from "near-api-js/lib/providers";
 import { TransactionSignerPair, _submitVAAAlgorand } from "../algorand";
 import {
   createWrappedCoin as createWrappedCoinAptos,
-  createWrappedCoinType as createWrappedCoinTypeAptos
+  createWrappedCoinType as createWrappedCoinTypeAptos,
 } from "../aptos";
 import { Bridge__factory } from "../ethers-contracts";
 import { createCreateWrappedInstruction } from "../solana/tokenBridge";
 import { getWrappedCoinType, publishCoin } from "../sui";
-import { callFunctionNear, Network, uint8ArrayToHex } from "../utils";
+import { callFunctionNear, uint8ArrayToHex } from "../utils";
 import { SignedVaa } from "../vaa";
 import { submitVAAOnInjective } from "./redeem";
 
@@ -168,14 +168,12 @@ export function createWrappedOnAptos(
 }
 
 export async function createWrappedOnSuiPrepare(
-  network: Network,
   coreBridgeAddress: string,
   tokenBridgeAddress: string,
   attestVAA: Uint8Array,
   signerAddress: string
 ): Promise<TransactionBlock> {
   return publishCoin(
-    network,
     coreBridgeAddress,
     tokenBridgeAddress,
     uint8ArrayToHex(attestVAA),
