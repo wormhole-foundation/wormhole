@@ -38,7 +38,7 @@ func TestValidateMessageSuccess(t *testing.T) {
 }
 
 func TestValidateMessageWrongChainShouldReturnError(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger := zap.NewNop()
 
 	emitterAddress, err := vaa.StringToAddress("0x707f9118e33a9b8998bea41dd0d46f38bb963fc8")
 	require.NoError(t, err)
