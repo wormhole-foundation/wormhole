@@ -1,11 +1,12 @@
 [package]
-name = "token-bridge-terra-2"
+name = "token-bridge-cosmwasm"
 version = "0.1.0"
 authors = ["Yuriy Savchenko <yuriy.savchenko@gmail.com>"]
 edition = "2018"
 description = "Wormhole token bridge"
 
 [lib]
+name = "cw_token_bridge"
 crate-type = ["cdylib", "rlib"]
 
 [features]
@@ -14,7 +15,7 @@ backtraces = ["cosmwasm-std/backtraces"]
 library = []
 # The 'full' feature enables all non-shutdown functionality.  Without the 'full' feature
 # enabled, only shutdown functionality is enabled (basically governance).
-full = ["wormhole-bridge-terra-2/full"]
+full = ["wormhole-cosmwasm/full"]
 default = ["full"]
 
 [dependencies]
@@ -26,7 +27,7 @@ cw20 = "0.13.2"
 cw20-base = { version = "0.13.2", features = ["library"] }
 cw20-wrapped-2 = { version = "0.1.0", features = ["library"] }
 terraswap = "2.6.1"
-wormhole-bridge-terra-2 = { version = "0.1.0", default-features = false, features = ["library"] }
+wormhole-cosmwasm = { version = "0.1.0", default-features = false, features = ["library"] }
 thiserror = { version = "1.0.31" }
 sha3 = { version = "0.9.1", default-features = false }
 hex = "0.4.2"

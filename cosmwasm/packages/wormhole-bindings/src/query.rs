@@ -1,6 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Binary, CustomQuery, Empty};
-use wormhole::vaa::Signature;
+use wormhole_sdk::vaa::Signature;
 
 #[cw_serde]
 #[derive(QueryResponses)]

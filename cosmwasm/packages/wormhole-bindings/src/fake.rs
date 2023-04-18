@@ -7,7 +7,7 @@ use k256::ecdsa::{recoverable, signature::Signer, SigningKey};
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 use serde_wormhole::RawMessage;
-use wormhole::vaa::{digest, Header, Signature};
+use wormhole_sdk::vaa::{digest, Header, Signature};
 
 use crate::WormholeQuery;
 

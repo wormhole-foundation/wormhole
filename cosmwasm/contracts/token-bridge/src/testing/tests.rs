@@ -2,7 +2,7 @@ use std::convert::TryInto;
 
 use cosmwasm_std::{Binary, StdResult};
 
-use wormhole::state::ParsedVAA;
+use cw_wormhole::state::ParsedVAA;
 
 use crate::{
     state::{Action, TokenBridgeMessage, TransferInfo, TransferWithPayloadInfo},

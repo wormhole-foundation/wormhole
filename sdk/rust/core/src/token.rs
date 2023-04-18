@@ -75,7 +75,7 @@ pub enum Message<P = Box<RawMessage>> {
     ///
     /// ```
     /// # fn example() -> anyhow::Result<()> {
-    /// #     use wormhole::{Address, Amount, Chain, vaa::Signature, GOVERNANCE_EMITTER};
+    /// #     use wormhole_sdk::{Address, Amount, Chain, vaa::Signature, GOVERNANCE_EMITTER};
     /// #
     /// #     let data = [
     /// #         0x01, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0xb0, 0x72, 0x50, 0x5b, 0x5b, 0x99, 0x9c, 0x1d,
@@ -102,7 +102,7 @@ pub enum Message<P = Box<RawMessage>> {
     /// #         0xad, 0x0f, 0x4b, 0xc9, 0x17, 0x1e, 0x91, 0x25, 0x11,
     /// #     ];
     ///       use serde_wormhole::RawMessage;
-    ///       use wormhole::{token::Message, Vaa};
+    ///       use wormhole_sdk::{token::Message, Vaa};
     ///
     ///       let msg = serde_wormhole::from_slice::<Vaa<Message<&RawMessage>>>(&data)?;
     ///       match msg.payload {
@@ -127,7 +127,7 @@ pub enum Message<P = Box<RawMessage>> {
     /// ```
     /// # fn example() -> anyhow::Result<()> {
     /// #     use serde_wormhole::RawMessage;
-    /// #     use wormhole::{Address, Amount, Chain, vaa::Signature, GOVERNANCE_EMITTER};
+    /// #     use wormhole_sdk::{Address, Amount, Chain, vaa::Signature, GOVERNANCE_EMITTER};
     /// #     let tx_payload = [
     /// #         0x93, 0xd7, 0xc0, 0x9e, 0xe8, 0x87, 0xae, 0x16, 0xbf, 0xfa, 0x5e, 0x70, 0xea, 0x36, 0xa2,
     /// #         0x82, 0x37, 0x1d, 0x46, 0x81, 0x94, 0x10, 0x34, 0xb1, 0xad, 0x0f, 0x4b, 0xc9,
@@ -156,7 +156,7 @@ pub enum Message<P = Box<RawMessage>> {
     /// #
     /// #     let data = serde_json::to_vec(&vaa)?;
     ///       use anyhow::anyhow;
-    ///       use wormhole::{token::Message, Vaa};
+    ///       use wormhole_sdk::{token::Message, Vaa};
     ///
     ///       let msg = serde_json::from_slice::<Vaa<Message>>(&data)?;
     /// #     assert_eq!(vaa, msg);

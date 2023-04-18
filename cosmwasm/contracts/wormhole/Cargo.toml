@@ -1,12 +1,12 @@
 [package]
-name = "wormhole-bridge-terra-2"
+name = "wormhole-cosmwasm"
 version = "0.1.0"
 authors = ["Yuriy Savchenko <yuriy.savchenko@gmail.com>"]
 edition = "2018"
 description = "Wormhole contract"
 
 [lib]
-name = "wormhole"
+name = "cw_wormhole"
 crate-type = ["cdylib", "rlib"]
 
 [features]

@@ -7,12 +7,12 @@ use cosmwasm_std::{from_binary, to_binary, Binary, Event, Uint256};
 use cw_multi_test::AppResponse;
 use global_accountant::msg::{Observation, ObservationStatus, SubmitObservationResponse};
 use helpers::*;
-use wormhole::{
+use wormhole_bindings::fake;
+use wormhole_sdk::{
     token::Message,
     vaa::{Body, Header},
     Address, Amount,
 };
-use wormhole_bindings::fake;
 
 fn set_up(count: usize) -> (Vec<Message>, Vec<Observation>) {
     let mut txs = Vec::with_capacity(count);
