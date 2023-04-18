@@ -243,8 +243,7 @@ func (gov *ChainGovernor) revertAllPrices() {
 		for _, te := range cge {
 			gov.logger.Info("cgov: reverting to configured price",
 				zap.String("symbol", te.symbol),
-				zap.String("coinGeckoId",
-					te.coinGeckoId),
+				zap.String("coinGeckoId", te.coinGeckoId),
 				zap.Stringer("cfgPrice", te.cfgPrice),
 			)
 

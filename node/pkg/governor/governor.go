@@ -203,8 +203,14 @@ func (gov *ChainGovernor) initConfig() error {
 		decimalsFloat := big.NewFloat(math.Pow(10.0, float64(dec)))
 		decimals, _ := decimalsFloat.Int(nil)
 
+		// Some Solana tokens don't have the symbol set. In that case, use the chain and token address as the symbol.
+		symbol := ct.symbol
+		if symbol == "" {
+			symbol = fmt.Sprintf("%d:%s", ct.chain, ct.addr)
+		}
+
 		key := tokenKey{chain: vaa.ChainID(ct.chain), addr: addr}
-		te := &tokenEntry{cfgPrice: cfgPrice, price: initialPrice, decimals: decimals, symbol: ct.symbol, coinGeckoId: ct.coinGeckoId, token: key}
+		te := &tokenEntry{cfgPrice: cfgPrice, price: initialPrice, decimals: decimals, symbol: symbol, coinGeckoId: ct.coinGeckoId, token: key}
 		te.updatePrice()
 
 		gov.tokens[key] = te

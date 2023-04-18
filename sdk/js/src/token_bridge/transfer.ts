@@ -12,13 +12,14 @@ import {
   Keypair,
   PublicKey,
   PublicKeyInitData,
-  SystemProgram,
   Transaction as SolanaTransaction,
+  SystemProgram,
 } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
-import { MsgExecuteContractCompat as MsgExecuteContractInjective } from "@injectivelabs/sdk-ts";
+import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
 import {
   Algodv2,
+  Transaction as AlgorandTransaction,
   bigIntToBytes,
   getApplicationAddress,
   makeApplicationCallTxnFromObject,
@@ -26,11 +27,12 @@ import {
   makePaymentTxnWithSuggestedParamsFromObject,
   OnApplicationComplete,
   SuggestedParams,
-  Transaction as AlgorandTransaction,
 } from "algosdk";
-import { ethers, Overrides, PayableOverrides } from "ethers";
+import { Types } from "aptos";
 import BN from "bn.js";
-import { isNativeDenom } from "../terra";
+import { ethers, Overrides, PayableOverrides } from "ethers";
+import { FunctionCallOptions } from "near-api-js/lib/account";
+import { Provider } from "near-api-js/lib/providers";
 import { getIsWrappedAssetNear } from "..";
 import {
   assetOptinCheck,
@@ -38,7 +40,12 @@ import {
   optin,
   TransactionSignerPair,
 } from "../algorand";
+import {
+  transferTokens as transferTokensAptos,
+  transferTokensWithPayload,
+} from "../aptos";
 import { getEmitterAddressAlgorand } from "../bridge";
+import { isNativeDenomXpla } from "../cosmwasm";
 import {
   Bridge__factory,
   TokenImplementation__factory,
@@ -50,7 +57,10 @@ import {
   createTransferWrappedInstruction,
   createTransferWrappedWithPayloadInstruction,
 } from "../solana/tokenBridge";
+import { isNativeDenom } from "../terra";
 import {
+  callFunctionNear,
+  CHAIN_ID_SOLANA,
   ChainId,
   ChainName,
   coalesceChainId,
@@ -59,18 +69,7 @@ import {
   safeBigIntToNumber,
   textToUint8Array,
   uint8ArrayToHex,
-  CHAIN_ID_SOLANA,
-  callFunctionNear,
 } from "../utils";
-import { isNativeDenomInjective, isNativeDenomXpla } from "../cosmwasm";
-import { Types } from "aptos";
-import { FunctionCallOptions } from "near-api-js/lib/account";
-import { Provider } from "near-api-js/lib/providers";
-import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
-import {
-  transferTokens as transferTokensAptos,
-  transferTokensWithPayload,
-} from "../aptos";
 
 export async function getAllowanceEth(
   tokenBridgeAddress: string,
@@ -258,107 +257,6 @@ export async function transferFromTerra(
           }),
           {}
         ),
-      ];
-}
-
-/**
- * Creates the necessary messages to transfer an asset
- * @param walletAddress Address of the Inj wallet
- * @param tokenBridgeAddress Address of the token bridge contract
- * @param tokenAddress Address of the token being transferred
- * @param amount Amount of token to be transferred
- * @param recipientChain Destination chain
- * @param recipientAddress Destination wallet address
- * @param relayerFee Relayer fee
- * @param payload Optional payload
- * @returns Transfer messages to be sent on chain
- */
-export async function transferFromInjective(
-  walletAddress: string,
-  tokenBridgeAddress: string,
-  tokenAddress: string,
-  amount: string,
-  recipientChain: ChainId | ChainName,
-  recipientAddress: Uint8Array,
-  relayerFee: string = "0",
-  payload: Uint8Array | null = null
-) {
-  const recipientChainId = coalesceChainId(recipientChain);
-  const nonce = Math.round(Math.random() * 100000);
-  const isNativeAsset = isNativeDenomInjective(tokenAddress);
-  const mk_action: string = payload
-    ? "initiate_transfer_with_payload"
-    : "initiate_transfer";
-  const mk_initiate_transfer = (info: object) =>
-    payload
-      ? {
-          asset: {
-            amount,
-            info,
-          },
-          recipient_chain: recipientChainId,
-          recipient: Buffer.from(recipientAddress).toString("base64"),
-          fee: relayerFee,
-          nonce,
-          payload,
-        }
-      : {
-          asset: {
-            amount,
-            info,
-          },
-          recipient_chain: recipientChainId,
-          recipient: Buffer.from(recipientAddress).toString("base64"),
-          fee: relayerFee,
-          nonce,
-        };
-  return isNativeAsset
-    ? [
-        MsgExecuteContractInjective.fromJSON({
-          contractAddress: tokenBridgeAddress,
-          sender: walletAddress,
-          exec: {
-            msg: {},
-            action: "deposit_tokens",
-          },
-          funds: { denom: tokenAddress, amount },
-        }),
-        MsgExecuteContractInjective.fromJSON({
-          contractAddress: tokenBridgeAddress,
-          sender: walletAddress,
-          exec: {
-            msg: mk_initiate_transfer({
-              native_token: { denom: tokenAddress },
-            }),
-            action: mk_action,
-          },
-        }),
-      ]
-    : [
-        MsgExecuteContractInjective.fromJSON({
-          contractAddress: tokenAddress,
-          sender: walletAddress,
-          exec: {
-            msg: {
-              spender: tokenBridgeAddress,
-              amount,
-              expires: {
-                never: {},
-              },
-            },
-            action: "increase_allowance",
-          },
-        }),
-        MsgExecuteContractInjective.fromJSON({
-          contractAddress: tokenBridgeAddress,
-          sender: walletAddress,
-          exec: {
-            msg: mk_initiate_transfer({
-              token: { contract_addr: tokenAddress },
-            }),
-            action: mk_action,
-          },
-        }),
       ];
 }
 

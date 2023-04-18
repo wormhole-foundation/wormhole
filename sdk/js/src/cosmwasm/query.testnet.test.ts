@@ -162,7 +162,7 @@ test.skip("testnet - injective attest native asset", async () => {
   // Create the transaction
   console.log("creating transaction...");
   const { signBytes, txRaw } = createTransaction({
-    message: result.toDirectSign(),
+    message: result,
     memo: "",
     fee: getStdFee((parseInt(DEFAULT_STD_FEE.gas, 10) * 2.5).toString()),
     pubKey: walletPublicKey,
@@ -178,7 +178,7 @@ test.skip("testnet - injective attest native asset", async () => {
   const signature = await walletPK.sign(Buffer.from(signBytes));
 
   /** Append Signatures */
-  txRaw.setSignaturesList([signature]);
+  txRaw.signatures = [signature];
   const txService = new TxGrpcApi(network.grpc);
 
   console.log("Simulating transaction...");
@@ -250,7 +250,7 @@ test.skip("testnet - injective attest foreign asset", async () => {
     walletInjAddr
   );
   const { signBytes, txRaw } = createTransaction({
-    message: result.toDirectSign(),
+    message: result,
     memo: "",
     fee: getStdFee((parseInt(DEFAULT_STD_FEE.gas, 10) * 2.5).toString()),
     pubKey: walletPublicKey,
@@ -265,7 +265,7 @@ test.skip("testnet - injective attest foreign asset", async () => {
   const signature = await walletPK.sign(Buffer.from(signBytes));
 
   /** Append Signatures */
-  txRaw.setSignaturesList([signature]);
+  txRaw.signatures = [signature];
   const txService = new TxGrpcApi(network.grpc);
 
   /** Simulate transaction */
@@ -407,7 +407,7 @@ test.skip("testnet - injective submit a vaa", async () => {
     txFee.amount[0] = { amount: "250000000000000", denom: "inj" };
     txFee.gas = "500000";
     const { signBytes, txRaw } = createTransaction({
-      message: msg.toDirectSign(),
+      message: msg,
       memo: "",
       fee: txFee,
       pubKey: walletPublicKey,
@@ -425,7 +425,7 @@ test.skip("testnet - injective submit a vaa", async () => {
     const signature = await walletPK.sign(Buffer.from(signBytes));
 
     /** Append Signatures */
-    txRaw.setSignaturesList([signature]);
+    txRaw.signatures = [signature];
 
     const txService = new TxGrpcApi(network.grpc);
 
@@ -502,7 +502,7 @@ test.skip("testnet - injective submit a vaa", async () => {
         network.rest
       ).fetchAccount(walletInjAddr);
       const { signBytes, txRaw } = createTransaction({
-        message: roi.toDirectSign(),
+        message: roi,
         memo: "",
         fee: txFee,
         pubKey: walletPublicKey,
@@ -520,7 +520,7 @@ test.skip("testnet - injective submit a vaa", async () => {
       const sig = await walletPK.sign(Buffer.from(signBytes));
 
       /** Append Signatures */
-      txRaw.setSignaturesList([sig]);
+      txRaw.signatures = [sig];
 
       const txService = new TxGrpcApi(network.grpc);
 
@@ -635,7 +635,7 @@ test.skip("Attest and transfer token from Injective to Algorand", async () => {
     walletInjAddr
   );
   const { signBytes, txRaw } = createTransaction({
-    message: attestMsg.toDirectSign(),
+    message: attestMsg,
     memo: "",
     fee: txFee,
     pubKey: walletPublicKey,
@@ -653,7 +653,7 @@ test.skip("Attest and transfer token from Injective to Algorand", async () => {
   const signedMsg = await walletPK.sign(Buffer.from(signBytes));
 
   /** Append Signatures */
-  txRaw.setSignaturesList([signedMsg]);
+  txRaw.signatures = [signedMsg];
 
   const txService = new TxGrpcApi(network.grpc);
 
@@ -752,19 +752,16 @@ test.skip("Attest and transfer token from Injective to Algorand", async () => {
     decodeAddress(algoWallet.addr).publicKey
   );
   console.log("number of msgs = ", transferMsgs.length);
-  let xferMsgsSigned: MsgArg[] = transferMsgs.map((element) =>
-    element.toDirectSign()
-  );
   {
-    console.log("xferMsgsSigned", xferMsgsSigned);
+    console.log("xferMsgsSigned", transferMsgs);
     const { signBytes, txRaw } = createTransaction({
-      message: xferMsgsSigned,
+      message: transferMsgs,
       memo: "",
       fee: txFee,
       pubKey: walletPublicKey,
       sequence:
         parseInt(accountDetails.account.base_account.sequence, 10) +
-        xferMsgsSigned.length -
+        transferMsgs.length -
         1,
       accountNumber: parseInt(
         accountDetails.account.base_account.account_number,
@@ -779,7 +776,7 @@ test.skip("Attest and transfer token from Injective to Algorand", async () => {
     const signedMsg = await walletPK.sign(Buffer.from(signBytes));
 
     /** Append Signatures */
-    txRaw.setSignaturesList([signedMsg]);
+    txRaw.signatures = [signedMsg];
 
     const txService = new TxGrpcApi(network.grpc);
 
