@@ -56,6 +56,7 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "xpla", output: ChainIDXpla},
 		{input: "btc", output: ChainIDBtc},
 		{input: "base", output: ChainIDBase},
+		{input: "sei", output: ChainIDSei},
 		{input: "wormchain", output: ChainIDWormchain},
 		{input: "sepolia", output: ChainIDSepolia},
 
@@ -86,6 +87,7 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "XPLA", output: ChainIDXpla},
 		{input: "BTC", output: ChainIDBtc},
 		{input: "Base", output: ChainIDBase},
+		{input: "Sei", output: ChainIDSei},
 		{input: "Wormchain", output: ChainIDWormchain},
 		{input: "Sepolia", output: ChainIDSepolia},
 	}
@@ -256,6 +258,7 @@ func TestChainId_String(t *testing.T) {
 		{input: 28, output: "xpla"},
 		{input: 29, output: "btc"},
 		{input: 30, output: "base"},
+		{input: 32, output: "sei"},
 		{input: 3104, output: "wormchain"},
 		{input: 10002, output: "sepolia"},
 		{input: 10000, output: "unknown chain ID: 10000"},
