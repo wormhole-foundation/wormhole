@@ -2,10 +2,10 @@ use anyhow::{ensure, Context};
 use cosmwasm_std::{entry_point, to_binary, Binary, Deps, Empty, Event, StdResult};
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Order, Response};
 use serde_wormhole::RawMessage;
-use wormhole::ibc_receiver::{Action, GovernancePacket};
-use wormhole::vaa::{Body, Header};
-use wormhole::Chain;
 use wormhole_bindings::WormholeQuery;
+use wormhole_sdk::ibc_receiver::{Action, GovernancePacket};
+use wormhole_sdk::vaa::{Body, Header};
+use wormhole_sdk::Chain;
 
 use crate::error::ContractError;
 use crate::msg::{AllChannelChainsResponse, ChannelChainResponse, ExecuteMsg, QueryMsg};
@@ -74,7 +74,8 @@ fn handle_vaa(deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<Event
 
     // validate this is a governance VAA
     ensure!(
-        body.emitter_chain == Chain::Solana && body.emitter_address == wormhole::GOVERNANCE_EMITTER,
+        body.emitter_chain == Chain::Solana
+            && body.emitter_address == wormhole_sdk::GOVERNANCE_EMITTER,
         "not a governance VAA"
     );
 

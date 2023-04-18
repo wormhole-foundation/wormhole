@@ -32,7 +32,7 @@ pub enum WormholeIbcPacketMsg {
 #[cfg(test)]
 mod test {
     use cosmwasm_std::to_binary;
-    use wormhole::msg::ExecuteMsg as WormholeExecuteMsg;
+    use cw_wormhole::msg::ExecuteMsg as WormholeExecuteMsg;
 
     use super::ExecuteMsg;
 

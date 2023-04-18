@@ -1,6 +1,12 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use wormhole::{contract::query_parse_and_verify_vaa, state::config_read};
+use cw_wormhole::{
+    contract::{
+        execute as core_execute, instantiate as core_instantiate, migrate as core_migrate,
+        query as core_query, query_parse_and_verify_vaa,
+    },
+    state::config_read,
+};
 use wormhole_sdk::{
     ibc_receiver::{Action, GovernancePacket},
     Chain,
@@ -11,7 +17,7 @@ use anyhow::{ensure, Context};
 use cosmwasm_std::{
     to_binary, Binary, Deps, DepsMut, Env, Event, IbcMsg, MessageInfo, Response, StdResult,
 };
-use wormhole::msg::{ExecuteMsg as WormholeExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use cw_wormhole::msg::{ExecuteMsg as WormholeExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
 use crate::msg::WormholeIbcPacketMsg;
 
@@ -23,14 +29,13 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, anyhow::Error> {
     // execute the wormhole core contract instantiation
-    wormhole::contract::instantiate(deps, env, info, msg)
-        .context("wormhole core instantiation failed")
+    core_instantiate(deps, env, info, msg).context("wormhole core instantiation failed")
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> Result<Response, anyhow::Error> {
     // call the core contract migrate function
-    wormhole::contract::migrate(deps, env, msg).context("wormhole core migration failed")
+    core_migrate(deps, env, msg).context("wormhole core migration failed")
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -42,7 +47,7 @@ pub fn execute(
 ) -> Result<Response, anyhow::Error> {
     match msg {
         ExecuteMsg::SubmitVAA { vaa } => {
-            wormhole::contract::execute(deps, env, info, WormholeExecuteMsg::SubmitVAA { vaa })
+            core_execute(deps, env, info, WormholeExecuteMsg::SubmitVAA { vaa })
                 .context("failed core submit_vaa execution")
         }
         ExecuteMsg::PostMessage { message, nonce } => post_message_ibc(
@@ -145,8 +150,7 @@ fn post_message_ibc(
     let tx_index = env.transaction.as_ref().map(|tx_info| tx_info.index);
 
     // actually execute the postMessage call on the core contract
-    let mut res = wormhole::contract::execute(deps, env, info, msg)
-        .context("wormhole core execution failed")?;
+    let mut res = core_execute(deps, env, info, msg).context("wormhole core execution failed")?;
 
     res = match tx_index {
         Some(index) => res.add_attribute("message.tx_index", index.to_string()),
@@ -171,7 +175,7 @@ fn post_message_ibc(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     // defer to the core contract logic for all query handling
-    wormhole::contract::query(deps, env, msg)
+    core_query(deps, env, msg)
 }
 
 #[cfg(test)]
