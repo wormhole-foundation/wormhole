@@ -25,7 +25,7 @@ type DeliveryTargetInfo = {
 
 export function parseWormholeLog(log: ethers.providers.Log): {
   type: RelayerPayloadId;
-  parsed: DeliveryInstruction| string;
+  parsed: DeliveryInstruction | string;
 } {
   const abi = [
     "event LogMessagePublished(address indexed sender, uint64 sequence, uint32 nonce, bytes payload, uint8 consistencyLevel);",
