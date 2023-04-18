@@ -23,6 +23,8 @@ import {
 } from "../..";
 import {
   executeTransactionBlock,
+  getCoinBuildOutput,
+  getCoinBuildOutputManual,
   getInnerType,
   getWrappedCoinType,
 } from "../../sui";
@@ -83,6 +85,23 @@ afterAll(async () => {
 });
 
 describe("Sui SDK tests", () => {
+  test("Test prebuilt coin build output", async () => {
+    const vaa =
+      "0100000000010026ff86c07ef853ef955a63c58a8d08eeb2ac232b91e725bd41baeb3c05c5c18d07aef3c02dc3d5ca8ad0600a447c3d55386d0a0e85b23378d438fbb1e207c3b600000002c3a86f000000020000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16000000000000000001020000000000000000000000002d8be6bf0baa74e0a907016679cae9190e80dd0a000212544b4e0000000000000000000000000000000000000000000000000000000000457468657265756d205465737420546f6b656e00000000000000000000000000";
+    const build = getCoinBuildOutput(
+      SUI_CORE_BRIDGE_ADDRESS,
+      SUI_TOKEN_BRIDGE_ADDRESS,
+      vaa
+    );
+    const buildManual = await getCoinBuildOutputManual(
+      "DEVNET",
+      SUI_CORE_BRIDGE_ADDRESS,
+      SUI_TOKEN_BRIDGE_ADDRESS,
+      vaa
+    );
+    expect(build).toMatchObject(buildManual);
+    expect(buildManual).toMatchObject(build);
+  });
   test("Transfer native ERC-20 from Ethereum to Sui", async () => {
     // Attest on Eth
     const ethAttestTxRes = await attestFromEth(
@@ -115,7 +134,6 @@ describe("Sui SDK tests", () => {
     // const MOCK_VAA =
     //   "0100000000010026ff86c07ef853ef955a63c58a8d08eeb2ac232b91e725bd41baeb3c05c5c18d07aef3c02dc3d5ca8ad0600a447c3d55386d0a0e85b23378d438fbb1e207c3b600000002c3a86f000000020000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16000000000000000001020000000000000000000000002d8be6bf0baa74e0a907016679cae9190e80dd0a000212544b4e0000000000000000000000000000000000000000000000000000000000457468657265756d205465737420546f6b656e00000000000000000000000000";
     const suiPrepareRegistrationTxPayload = await createWrappedOnSuiPrepare(
-      "DEVNET",
       SUI_CORE_BRIDGE_ADDRESS,
       SUI_TOKEN_BRIDGE_ADDRESS,
       attestVAA,
