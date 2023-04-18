@@ -24,10 +24,10 @@ import {
 import {
   executeTransactionBlock,
   getCoinBuildOutput,
-  getCoinBuildOutputManual,
   getInnerType,
   getWrappedCoinType,
 } from "../../sui";
+import { getCoinBuildOutputManual } from "../../sui/test";
 import {
   CHAIN_ID_ETH,
   CHAIN_ID_SUI,
