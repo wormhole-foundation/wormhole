@@ -147,6 +147,8 @@ exports.handler = async (argv) => {
     throw Error("Wormchain is not supported yet");
   } else if (chain === "btc") {
     throw Error("btc is not supported yet");
+  } else if (chain === "sei") {
+    throw Error("sei is not supported yet");
   } else {
     // If you get a type error here, hover over `chain`'s type and it tells you
     // which cases are not handled

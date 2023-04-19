@@ -56,7 +56,7 @@ export async function execute_injective(
           console.log("Upgrading core contract");
           break;
         case "RecoverChainId":
-          throw new Error("RecoverChainId not supported on injective")
+          throw new Error("RecoverChainId not supported on injective");
         default:
           impossible(payload);
       }
@@ -80,7 +80,7 @@ export async function execute_injective(
           console.log("Upgrading contract");
           break;
         case "RecoverChainId":
-          throw new Error("RecoverChainId not supported on injective")
+          throw new Error("RecoverChainId not supported on injective");
         case "RegisterChain":
           console.log("Registering chain");
           break;
@@ -108,7 +108,7 @@ export async function execute_injective(
           console.log("Upgrading contract");
           break;
         case "RecoverChainId":
-          throw new Error("RecoverChainId not supported on injective")
+          throw new Error("RecoverChainId not supported on injective");
         case "RegisterChain":
           console.log("Registering chain");
           break;
@@ -147,7 +147,7 @@ export async function execute_injective(
     walletInjAddr
   );
   const { signBytes, txRaw } = createTransaction({
-    message: transaction.toDirectSign(),
+    message: transaction,
     memo: "",
     fee: getStdFee((parseInt(DEFAULT_STD_FEE.gas, 10) * 2.5).toString()),
     pubKey: walletPublicKey,
@@ -165,7 +165,7 @@ export async function execute_injective(
   const sig = await walletPK.sign(Buffer.from(signBytes));
 
   /** Append Signatures */
-  txRaw.setSignaturesList([sig]);
+  txRaw.signatures = [sig];
 
   const txService = new TxGrpcApi(network.grpc);
 

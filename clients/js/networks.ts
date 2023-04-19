@@ -148,6 +148,14 @@ const MAINNET = {
     rpc: undefined,
     key: get_env_var("ETH_KEY"),
   },
+  sei: {
+    rpc: undefined,
+    key: get_env_var("SEI_KEY"),
+  },
+  sepolia: {
+    rpc: `https://rpc.ankr.com/eth_sepolia`,
+    key: get_env_var("ETH_KEY"),
+  },
 };
 
 const TESTNET = {
@@ -282,6 +290,14 @@ const TESTNET = {
     rpc: "https://goerli.base.org",
     key: get_env_var("ETH_KEY_TESTNET"),
   },
+  sei: {
+    rpc: undefined,
+    key: get_env_var("SEI_KEY"),
+  },
+  sepolia: {
+    rpc: `https://rpc.ankr.com/eth_sepolia`,
+    key: get_env_var("ETH_KEY"),
+  },
 };
 
 const DEVNET = {
@@ -414,6 +430,14 @@ const DEVNET = {
   base: {
     rpc: undefined,
     key: undefined,
+  },
+  sei: {
+    rpc: undefined,
+    key: get_env_var("SEI_KEY"),
+  },
+  sepolia: {
+    rpc: `https://rpc.ankr.com/eth_sepolia`,
+    key: get_env_var("ETH_KEY"),
   },
 };
 
