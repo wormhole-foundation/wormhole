@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache 2
 
-/// This module implements an entry method intended to be called after an
+/// This module implements a public method intended to be called after an
 /// upgrade has been commited. The purpose is to add one-off migration logic
 /// that would alter Token Bridge `State`.
 ///
@@ -20,7 +20,7 @@ module token_bridge::migrate {
 
     /// Execute migration logic. See `wormhole::migrate` description for more
     /// info.
-    public entry fun migrate(token_bridge_state: &mut State) {
+    public fun migrate(token_bridge_state: &mut State) {
         // Wormhole `State` only allows one to call `migrate` after the upgrade
         // procedure completed.
         assert!(state::can_migrate(token_bridge_state), E_CANNOT_MIGRATE);

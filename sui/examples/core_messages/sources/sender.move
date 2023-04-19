@@ -16,7 +16,7 @@ module core_messages::sender {
     /// Register ourselves as a wormhole emitter. This gives back an
     /// `EmitterCap` which will be required to send messages through
     /// wormhole.
-    public entry fun init_with_params(
+    public fun init_with_params(
         wormhole_state: &WormholeState,
         ctx: &mut TxContext
     ) {
@@ -28,7 +28,7 @@ module core_messages::sender {
         );
     }
 
-    public entry fun send_message_entry(
+    public fun send_message_entry(
         state: &mut State,
         wormhole_state: &mut WormholeState,
         payload: vector<u8>,
