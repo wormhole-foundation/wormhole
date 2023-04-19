@@ -33,13 +33,6 @@ interface IWormholeRelayerInternalStructs {
         uint256 totalFee;
     }
 
-    struct FirstForwardInfo {
-        uint256 maxTransactionFee;
-        uint256 receiverValue;
-        address relayProviderAddress;
-        bytes relayParameters;
-    }
-
     struct DeliveryVAAInfo {
         uint16 sourceChain;
         uint64 sourceSequence;
