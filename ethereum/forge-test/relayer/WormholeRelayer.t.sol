@@ -495,6 +495,46 @@ contract WormholeRelayerTests is Test {
         assertTrue(test.relayerPayment == test.destinationAmount + test.refundAddressAmount, "Relayer paid the correct amount");
     }
 
+    function testFundsCorrectForASendFailure(GasParameters memory gasParams, FeeParameters memory feeParams) public {
+
+        vm.recordLogs();
+        gasParams.targetGasLimit = 123000;
+        (Contracts memory source, Contracts memory target, FundsCorrectTest memory test) = setupFundsCorrectTest(gasParams, feeParams, 10000);
+
+        test.payment = test.transactionFee + uint256(3) * source.wormhole.messageFee() + test.receiverValueSource;
+
+        uint256 actualGasLimit = (test.transactionFee - source.relayProvider.quoteDeliveryOverhead(2)) / source.relayProvider.quoteGasPrice(2);
+        if(actualGasLimit > type(uint32).max) {
+            actualGasLimit = type(uint32).max;
+        }
+
+        source.integration.sendMessageGeneral{value: test.payment}(
+            bytes("Hello!"),
+            2,
+            address(target.integration),
+            2,
+            address(target.refundAddress),
+            test.receiverValueSource,
+            bytes("")
+        );
+
+        genericRelayer.relay(1);
+
+        assertTrue(keccak256(target.integration.getMessage()) != keccak256(bytes("Hello!")));
+
+        test.refundAddressAmount = target.refundAddress.balance - test.refundAddressBalance;
+        test.rewardAddressAmount = source.rewardAddress.balance - test.rewardAddressBalance;
+        test.relayerPayment = test.relayerBalance - target.relayer.balance;
+        test.destinationAmount = address(target.integration).balance - test.destinationBalance;
+        
+        assertTrue(test.sourceContractBalance == address(source.coreRelayer).balance);
+        assertTrue(test.targetContractBalance == address(target.coreRelayer).balance);
+        assertTrue(test.destinationAmount == 0, "No receiver value was sent to the contract");
+        assertTrue(test.rewardAddressAmount == test.transactionFee + test.receiverValueSource, "Reward address was paid correctly");
+        assertTrue(test.refundAddressAmount == test.receiverValueSource * feeParams.sourceNativePrice * 100 / (uint256(1) * feeParams.targetNativePrice * 105), "Receiver value was refunded");
+        assertTrue(test.relayerPayment == test.destinationAmount + test.refundAddressAmount, "Relayer paid the correct amount");
+    }
+
     function testFundsCorrectForAForward(GasParameters memory gasParams, FeeParameters memory feeParams) public {
 
         vm.recordLogs();
