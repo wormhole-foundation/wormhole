@@ -64,7 +64,9 @@ COPY --chown=node:node ./ethereum .
 USER root
 RUN npm i --save-dev --global typechain
 RUN forge install --no-git --no-commit
-RUN forge build -o build
+RUN apt-get install tree
+RUN make dependencies
+RUN tree -L 1; forge build -o build
 RUN typechain --target=ethers-v5 --out-dir=./ethers-contracts ./build/**/*.json
 
 
