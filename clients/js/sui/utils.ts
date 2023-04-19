@@ -8,6 +8,7 @@ import {
   SUI_CLOCK_OBJECT_ID,
   SuiTransactionBlockResponse,
   TransactionBlock,
+  TransactionDigest,
   fromB64,
   normalizeSuiAddress,
 } from "@mysten/sui.js";
@@ -54,7 +55,8 @@ export const execute_sui = async (
               tx.object(SUI_CLOCK_OBJECT_ID),
             ],
           });
-          await executeTransactionBlock(signer, tx);
+          const { digest } = await executeTransactionBlock(signer, tx);
+          await pollTransactionForEffectsCert(signer, digest);
           break;
         }
         case "ContractUpgrade":
@@ -122,7 +124,9 @@ export const execute_sui = async (
               decreeReceipt,
             ],
           });
-          await executeTransactionBlock(signer, tx);
+
+          const { digest } = await executeTransactionBlock(signer, tx);
+          await pollTransactionForEffectsCert(signer, digest);
           break;
         }
         case "AttestMeta":
@@ -150,12 +154,39 @@ export const executeTransactionBlock = async (
   // Let caller handle parsing and logging info
   return signer.signAndExecuteTransactionBlock({
     transactionBlock,
+    requestType: "WaitForEffectsCert",
     options: {
       showInput: true,
       showEffects: true,
       showEvents: true,
       showObjectChanges: true,
     },
+  });
+};
+
+export const pollTransactionForEffectsCert = async (
+  signer: RawSigner,
+  digest: TransactionDigest
+): Promise<SuiTransactionBlockResponse> => {
+  return new Promise(async (resolve, reject) => {
+    let transactionCompleted = false;
+
+    while (!transactionCompleted) {
+      try {
+        const transaction = await signer.provider.getTransactionBlock({
+          digest,
+          options: {
+            showEffects: true,
+          },
+        });
+
+        const completed = transaction.effects.status.status === "success";
+        transactionCompleted = completed;
+        if (completed) return resolve(transaction);
+      } catch (error) {
+        reject(error);
+      }
+    }
   });
 };
 
