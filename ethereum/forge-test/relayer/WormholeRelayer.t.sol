@@ -291,7 +291,7 @@ contract WormholeRelayerTests is Test {
         bytes[] memory newMessages = new bytes[](2);
         uint32[] memory gasLimits = new uint32[](2);
         newMessages[0] = message;
-        newMessages[1] = message;
+        newMessages[1] = abi.encodePacked(uint8(0));
         chains[0] = setup.sourceChainId;
         chains[1] = setup.targetChainId;
         gasLimits[0] = 500000;
