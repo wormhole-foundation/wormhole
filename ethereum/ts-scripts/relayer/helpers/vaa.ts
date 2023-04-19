@@ -63,6 +63,7 @@ export function createDefaultRelayProviderVAA(chain: ChainInfo) {
 
 export function createRegisterChainVAA(chain: ChainInfo): string {
   const coreRelayerAddress = getCoreRelayerAddress(chain);
+  console.log(`Registering ${coreRelayerAddress} on chain ${chain.chainId}`);
 
   // bytes32 module;
   // uint8 action;

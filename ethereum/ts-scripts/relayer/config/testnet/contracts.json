@@ -24,11 +24,11 @@
   "mockIntegrations": [
     {
       "chainId": 6,
-      "address": "0x05cDBE523b45a33e866C5199394C7C559816CDaD"
+      "address": "0x6db8E2aa8F35aC06be072776fD652d9415794DFe"
     },
     {
       "chainId": 14,
-      "address": "0xC8865eFc8F73a8A3C3e590Bee9491F0EB5bf66b2"
+      "address": "0x33Fd17335a7ADF68fAedfA5D2f4D22895D66710a"
     }
   ]
 }
