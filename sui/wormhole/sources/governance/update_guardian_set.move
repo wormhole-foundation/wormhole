@@ -29,7 +29,7 @@ module wormhole::update_guardian_set {
 
     /// Event reflecting a Guardian Set update.
     struct GuardianSetAdded has drop, copy {
-        index: u32
+        new_index: u32
     }
 
     struct UpdateGuardianSet {
@@ -45,19 +45,12 @@ module wormhole::update_guardian_set {
     /// method could break backward compatibility on an upgrade.
     public fun update_guardian_set(
         wormhole_state: &mut State,
-        vaa_buf: vector<u8>,
+        msg: GovernanceMessage,
         the_clock: &Clock
     ): u32 {
         state::check_minimum_requirement<UpdateGuardianSetControl>(
             wormhole_state
         );
-
-        let msg =
-            governance_message::parse_and_verify_vaa(
-                wormhole_state,
-                vaa_buf,
-                the_clock
-            );
 
         // Do not allow this VAA to be replayed (although it may be impossible
         // to do so due to the guardian set of a previous VAA being illegitimate
@@ -107,7 +100,7 @@ module wormhole::update_guardian_set {
             guardian_set::new(new_index, guardians)
         );
 
-        event::emit(GuardianSetAdded { index: new_index });
+        event::emit(GuardianSetAdded { new_index });
 
         new_index
     }
@@ -150,6 +143,7 @@ module wormhole::update_guardian_set_tests {
     use wormhole::required_version::{Self};
     use wormhole::state::{Self};
     use wormhole::update_guardian_set::{Self};
+    use wormhole::vaa::{Self};
     use wormhole::version_control::{Self as control};
     use wormhole::wormhole_scenario::{
         person,
@@ -193,12 +187,14 @@ module wormhole::update_guardian_set_tests {
         let worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
 
-        let new_index =
-            update_guardian_set(
-                &mut worm_state,
+        let parsed =
+            vaa::parse_and_verify(
+                &worm_state,
                 VAA_UPDATE_GUARDIAN_SET_1,
                 &the_clock
             );
+        let msg = governance_message::verify_vaa(&worm_state, parsed);
+        let new_index = update_guardian_set(&mut worm_state, msg, &the_clock);
         assert!(new_index == 1, 0);
 
         let new_guardian_set = state::guardian_set_at(&worm_state, new_index);
@@ -290,12 +286,14 @@ module wormhole::update_guardian_set_tests {
         let worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
 
-        let new_index =
-            update_guardian_set(
-                &mut worm_state,
+        let parsed =
+            vaa::parse_and_verify(
+                &worm_state,
                 VAA_UPDATE_GUARDIAN_SET_1,
                 &the_clock
             );
+        let msg = governance_message::verify_vaa(&worm_state, parsed);
+        let new_index = update_guardian_set(&mut worm_state, msg, &the_clock);
         assert!(new_index == 1, 0);
 
         // Clean up.
@@ -328,28 +326,36 @@ module wormhole::update_guardian_set_tests {
         let worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
 
-        update_guardian_set(
-            &mut worm_state,
-            VAA_UPDATE_GUARDIAN_SET_2A,
-            &the_clock
-        );
+        let parsed =
+            vaa::parse_and_verify(
+                &worm_state,
+                VAA_UPDATE_GUARDIAN_SET_2A,
+                &the_clock
+            );
+        let msg = governance_message::verify_vaa(&worm_state, parsed);
+        update_guardian_set(&mut worm_state, msg, &the_clock);
 
         // Update guardian set again with new VAA.
-        let new_index =
-            update_guardian_set(
-                &mut worm_state,
+        let parsed =
+            vaa::parse_and_verify(
+                &worm_state,
                 VAA_UPDATE_GUARDIAN_SET_2B,
                 &the_clock
             );
+        let msg = governance_message::verify_vaa(&worm_state, parsed);
+        let new_index = update_guardian_set(&mut worm_state, msg, &the_clock);
         assert!(new_index == 2, 0);
         assert!(state::guardian_set_index(&worm_state) == 2, 0);
 
+        let parsed =
+            vaa::parse_and_verify(
+                &worm_state,
+                VAA_UPDATE_GUARDIAN_SET_2A,
+                &the_clock
+            );
+        let msg = governance_message::verify_vaa(&worm_state, parsed);
         // You shall not pass!
-        update_guardian_set(
-            &mut worm_state,
-            VAA_UPDATE_GUARDIAN_SET_2A,
-            &the_clock
-        );
+        update_guardian_set(&mut worm_state, msg, &the_clock);
 
         // Clean up.
         return_state(worm_state);
@@ -384,21 +390,17 @@ module wormhole::update_guardian_set_tests {
 
         // Updating the guardidan set must be applied globally (not for just
         // one chain).
-        let msg =
-            governance_message::parse_and_verify_vaa_test_only(
+        let parsed =
+            vaa::parse_and_verify(
                 &worm_state,
                 VAA_BOGUS_TARGET_CHAIN,
                 &the_clock
             );
+        let msg = governance_message::verify_vaa(&worm_state, parsed);
         assert!(!governance_message::is_global_action(&msg), 0);
-        governance_message::destroy(msg);
 
         // You shall not pass!
-        update_guardian_set(
-            &mut worm_state,
-            VAA_BOGUS_TARGET_CHAIN,
-            &the_clock
-        );
+        update_guardian_set(&mut worm_state, msg, &the_clock);
 
         // Clean up.
         return_state(worm_state);
@@ -433,24 +435,20 @@ module wormhole::update_guardian_set_tests {
 
         // Updating the guardidan set must be applied globally (not for just
         // one chain).
-        let msg =
-            governance_message::parse_and_verify_vaa_test_only(
+        let parsed =
+            vaa::parse_and_verify(
                 &worm_state,
                 VAA_BOGUS_ACTION,
                 &the_clock
             );
+        let msg = governance_message::verify_vaa(&worm_state, parsed);
         assert!(
             governance_message::action(&msg) != update_guardian_set::action(),
             0
         );
-        governance_message::destroy(msg);
 
         // You shall not pass!
-        update_guardian_set(
-            &mut worm_state,
-            VAA_BOGUS_ACTION,
-            &the_clock
-        );
+        update_guardian_set(&mut worm_state, msg, &the_clock);
 
         // Clean up.
         return_state(worm_state);
@@ -482,13 +480,14 @@ module wormhole::update_guardian_set_tests {
 
 
         // Show that the encoded number of guardians is zero.
-        let msg =
-            governance_message::parse_and_verify_vaa_test_only(
+        let parsed =
+            vaa::parse_and_verify(
                 &worm_state,
                 VAA_UPDATE_GUARDIAN_SET_EMPTY,
                 &the_clock
             );
-        let payload = governance_message::take_payload(msg);
+        let msg = governance_message::verify_vaa(&worm_state, parsed);
+        let payload = governance_message::payload(&msg);
         let cur = cursor::new(payload);
 
         let new_guardian_set_index = bytes::take_u32_be(&mut cur);
@@ -500,11 +499,7 @@ module wormhole::update_guardian_set_tests {
         cursor::destroy_empty(cur);
 
         // You shall not pass!
-        update_guardian_set(
-            &mut worm_state,
-            VAA_UPDATE_GUARDIAN_SET_EMPTY,
-            &the_clock
-        );
+        update_guardian_set(&mut worm_state, msg, &the_clock);
 
         // Clean up.
         return_state(worm_state);
@@ -543,12 +538,15 @@ module wormhole::update_guardian_set_tests {
             control::version() + 1
         );
 
+        let parsed =
+            vaa::parse_and_verify(
+                &worm_state,
+                VAA_UPDATE_GUARDIAN_SET_1,
+                &the_clock
+            );
+        let msg = governance_message::verify_vaa(&worm_state, parsed);
         // You shall not pass!
-        update_guardian_set(
-            &mut worm_state,
-            VAA_UPDATE_GUARDIAN_SET_1,
-            &the_clock
-        );
+        update_guardian_set(&mut worm_state, msg, &the_clock);
 
         // Clean up.
         return_state(worm_state);

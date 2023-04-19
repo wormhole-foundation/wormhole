@@ -186,21 +186,6 @@ module wormhole::vaa {
         vaa
     }
 
-    public fun parse_verify_and_consume(
-        hashes: &mut ConsumedVAAs,
-        wormhole_state: &State,
-        buf: vector<u8>,
-        the_clock: &Clock
-    ): VAA {
-        let verified = parse_and_verify(wormhole_state, buf, the_clock);
-
-        // Do not allow this VAA to be replayed.
-        consume(hashes, &verified);
-
-        verified
-
-    }
-
     public fun consume(consumed: &mut ConsumedVAAs, parsed: &VAA) {
         consumed_vaas::consume(consumed, digest(parsed))
     }
