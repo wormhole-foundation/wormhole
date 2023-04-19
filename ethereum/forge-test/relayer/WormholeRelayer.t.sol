@@ -892,7 +892,8 @@ contract WormholeRelayerTests is Test {
         stack.package = IDelivery.TargetDeliveryParameters({
             encodedVMs: stack.encodedVMs,
             encodedDeliveryVAA: stack.deliveryVM,
-            relayerRefundAddress: payable(setup.target.relayer)
+            relayerRefundAddress: payable(setup.target.relayer),
+            overrides:bytes("")
         });
 
         stack.parsed = relayerWormhole.parseVM(stack.deliveryVM);
@@ -932,7 +933,8 @@ contract WormholeRelayerTests is Test {
         stack.package = IDelivery.TargetDeliveryParameters({
             encodedVMs: stack.encodedVMs,
             encodedDeliveryVAA: stack.deliveryVM,
-            relayerRefundAddress: payable(setup.target.relayer)
+            relayerRefundAddress: payable(setup.target.relayer),
+            overrides:bytes("")
         });
 
         vm.prank(setup.target.relayer);
@@ -966,7 +968,8 @@ contract WormholeRelayerTests is Test {
         stack.package = IDelivery.TargetDeliveryParameters({
             encodedVMs: stack.encodedVMs,
             encodedDeliveryVAA: stack.deliveryVM,
-            relayerRefundAddress: payable(setup.target.relayer)
+            relayerRefundAddress: payable(setup.target.relayer),
+            overrides: bytes("")
         });
 
         vm.prank(setup.target.relayer);
@@ -1362,4 +1365,164 @@ contract WormholeRelayerTests is Test {
         assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
     }
 
+    function testEmitRedelivery(GasParameters memory gasParams, FeeParameters memory feeParams) public {
+        StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
+        vm.recordLogs();
+        DeliveryStack memory stack;
+
+        uint256 maxTransactionSource = setup.source.coreRelayer.quoteGas(
+            setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
+        );
+
+        uint256 receiverValueSource = setup.source.coreRelayer.quoteReceiverValue(
+            setup.targetChainId, feeParams.receiverValueTarget, address(setup.source.relayProvider));
+
+        uint256 quote = maxTransactionSource +  receiverValueSource + 1 * setup.source.wormhole.messageFee();
+
+        //The key isn't read, so just instantiate dummy values
+        IWormholeRelayer.VaaKey memory junkKey = IWormholeRelayer.VaaKey(
+            IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE,
+            setup.sourceChainId,
+            0x0,
+            1,
+            bytes32(0x0)
+        );
+
+        // console.log("LOGGING");
+        // console.log(quote);
+        // console.log(maxTransactionSource);
+        // console.log(receiverValueSource);
+        // console.log(setup.source.wormhole.messageFee());
+
+        setup.source.coreRelayer.resend{value: quote}(
+            junkKey,
+            maxTransactionSource, //newMaxTransactionFee
+            receiverValueSource, //new receiver
+            setup.targetChainId,
+            address(setup.source.relayProvider)
+        );
+
+        stack.entries = vm.getRecordedLogs();
+
+        bytes memory redeliveryVM = relayerWormholeSimulator.fetchSignedMessageFromLogs(
+            stack.entries[0], setup.sourceChainId, address(setup.source.coreRelayer)
+        );
+
+        IWormhole.VM memory vm = setup.source.wormhole.parseVM(redeliveryVM);
+        IWormholeRelayerInternalStructs.RedeliveryInstruction memory ins = decodeRedeliveryInstruction(vm.payload);
+
+
+        assertTrue(ins.key.chainId == setup.sourceChainId, "VAA key has correct chainID");
+        assertTrue(ins.key.infoType == IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE, "VAA key type matches");
+        assertTrue(ins.newReceiverValue >= feeParams.receiverValueTarget, "new receiver value greater than the old value");
+        assertTrue(ins.sourceRelayProvider == setup.source.coreRelayer.toWormholeFormat(address(setup.source.relayProvider)), "specified relay provider is listed");
+        assertTrue(ins.executionParameters.gasLimit >= gasParams.targetGasLimit, "new gaslimit was recorded");
+
+    }
+
+
+    //TODO put this elsewhere
+    function decodeRedeliveryInstruction(bytes memory encoded) public view returns (IWormholeRelayerInternalStructs.RedeliveryInstruction memory output) {
+        uint256 index = 0;
+        
+        encoded.toUint8(index); //not actually on the object
+        index += 1;
+
+        (output.key, index) = utilityCoreRelayer.decodeVaaKey(encoded, index);
+
+        output.newMaxRefundTarget = encoded.toUint256(index);
+        index+=32;
+
+        output.newReceiverValue = encoded.toUint256(index);
+        index+=32;
+
+        output.sourceRelayProvider = encoded.toBytes32(index);
+        index+=32;
+
+        output.executionParameters.version = 1;
+        index+=1;
+
+        output.executionParameters.gasLimit = encoded.toUint32(index);
+        index+=4;
+    }
+
+    //TODO put this elsewhere
+    function encodeDeliveryOverride(IDelivery.DeliveryOverride memory request) public pure returns (bytes memory encoded){
+        encoded = abi.encodePacked(
+            uint8(1),
+            request.gasLimit,
+            request.maximumRefund,
+            request.receiverValue,
+            request.redeliveryHash);
+    }
+
+    function testDeliverWithOverrides(GasParameters memory gasParams, FeeParameters memory feeParams, bytes memory message) public {
+        StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
+
+        vm.recordLogs();
+
+        DeliveryStack memory stack;
+
+        stack.payment = setup.source.coreRelayer.quoteGas(
+            setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
+        ) + 3 * setup.source.wormhole.messageFee();
+
+        setup.source.integration.sendMessageWithRefundAddress{value: stack.payment}(
+            message, setup.targetChainId, address(setup.target.integration), setup.target.refundAddress, bytes("")
+        );
+
+        prepareDeliveryStack(stack, setup);
+
+        IDelivery.DeliveryOverride memory deliveryOverride = IDelivery.DeliveryOverride(
+            stack.instruction.executionParameters.gasLimit,
+            stack.instruction.maximumRefundTarget,
+            stack.instruction.receiverValueTarget,
+            stack.deliveryVaaHash //really redeliveryHash
+            );
+
+        stack.package = IDelivery.TargetDeliveryParameters({
+            encodedVMs: stack.encodedVMs,
+            encodedDeliveryVAA: stack.deliveryVM,
+            relayerRefundAddress: payable(setup.target.relayer),
+            overrides: encodeDeliveryOverride(deliveryOverride)
+        });
+
+        setup.target.coreRelayerFull.deliver{value: stack.budget}(stack.package);
+        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
+    }
+
+    function testDeliverWithOverrideRevert(GasParameters memory gasParams, FeeParameters memory feeParams, bytes memory message) public {
+        StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
+
+        vm.recordLogs();
+
+        DeliveryStack memory stack;
+
+        stack.payment = setup.source.coreRelayer.quoteGas(
+            setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
+        ) + 3 * setup.source.wormhole.messageFee();
+
+        setup.source.integration.sendMessageWithRefundAddress{value: stack.payment}(
+            message, setup.targetChainId, address(setup.target.integration), setup.target.refundAddress, bytes("")
+        );
+
+        prepareDeliveryStack(stack, setup);
+
+        IDelivery.DeliveryOverride memory deliveryOverride = IDelivery.DeliveryOverride(
+            stack.instruction.executionParameters.gasLimit,
+            stack.instruction.maximumRefundTarget -1,
+            stack.instruction.receiverValueTarget,
+            stack.deliveryVaaHash //really redeliveryHash
+            );
+
+        stack.package = IDelivery.TargetDeliveryParameters({
+            encodedVMs: stack.encodedVMs,
+            encodedDeliveryVAA: stack.deliveryVM,
+            relayerRefundAddress: payable(setup.target.relayer),
+            overrides: encodeDeliveryOverride(deliveryOverride)
+        });
+
+        vm.expectRevert();
+        setup.target.coreRelayerFull.deliver{value: stack.budget}(stack.package);
+    }
 }
