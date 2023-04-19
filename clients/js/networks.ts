@@ -111,6 +111,14 @@ const MAINNET = {
     chain_id: "dimension_37-1",
     key: get_env_var("XPLA_KEY"),
   },
+  sei: {
+    rpc: undefined,
+    key: undefined,
+  },
+  sepolia: {
+    rpc: undefined,
+    key: undefined,
+  },
   btc: {
     rpc: undefined,
     key: undefined,
@@ -245,6 +253,14 @@ const TESTNET = {
     chain_id: "cube_47-5",
     key: get_env_var("XPLA_KEY_TESTNET"),
   },
+  sei: {
+    rpc: "https://rpc.atlantic-2.seinetwork.io",
+    key: get_env_var("SEI_KEY_TESTNET"),
+  },
+  sepolia: {
+    rpc: "https://rpc.ankr.com/eth_sepolia",
+    key: get_env_var("ETH_KEY_TESTNET"),
+  },
   btc: {
     rpc: undefined,
     key: undefined,
@@ -373,6 +389,14 @@ const DEVNET = {
     chain_id: undefined,
     key: undefined,
   },
+  sei: {
+    rpc: undefined,
+    key: undefined,
+  },
+  sepolia: {
+    rpc: undefined,
+    key: undefined,
+  }, 
   wormchain: {
     rpc: "http://localhost:1319",
     chain_id: "wormchain",
