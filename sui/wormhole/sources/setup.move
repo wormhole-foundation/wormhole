@@ -45,7 +45,7 @@ module wormhole::setup {
 
     /// Only the owner of the `DeployerCap` can call this method. This
     /// method destroys the capability and shares the `State` object.
-    public entry fun complete(
+    public fun complete(
         deployer: DeployerCap,
         upgrade_cap: UpgradeCap,
         governance_chain: u16,
