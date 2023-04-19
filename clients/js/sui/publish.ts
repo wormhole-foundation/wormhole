@@ -10,6 +10,7 @@ import fs from "fs";
 import { resolve } from "path";
 import { Network } from "../utils";
 import { MoveToml } from "./MoveToml";
+import { pollTransactionForEffectsCert } from "./utils";
 
 export const publishPackage = async (
   signer: RawSigner,
@@ -51,13 +52,15 @@ export const publishPackage = async (
     );
 
     // Execute transactions
-    const res = await signer.signAndExecuteTransactionBlock({
+    const { digest } = await signer.signAndExecuteTransactionBlock({
       transactionBlock,
+      requestType: "WaitForEffectsCert",
       options: {
         showInput: true,
         showObjectChanges: true,
       },
     });
+    const res = await pollTransactionForEffectsCert(signer, digest);
 
     // Update network-specific Move.toml with package ID
     const publishEvents = getPublishedObjectChanges(res);
