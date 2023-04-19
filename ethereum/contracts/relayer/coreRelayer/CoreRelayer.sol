@@ -287,7 +287,7 @@ contract CoreRelayer is CoreRelayerDelivery {
                 encodedInstruction: encodeDeliveryInstruction(instruction),
                 msgValue: msg.value,
                 totalFee: totalFee
-            })
+            }), sendParams
         );
     }
 

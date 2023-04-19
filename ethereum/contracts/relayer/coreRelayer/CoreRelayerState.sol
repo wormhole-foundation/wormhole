@@ -24,8 +24,9 @@ contract CoreRelayerStorage {
         mapping(bytes32 => bool) consumedGovernanceActions;
         // address of the default relay provider on this chain
         address defaultRelayProvider;
-        // Request which will be forwarded from the current delivery.
+        // Requests which will be forwarded from the current delivery.
         IWormholeRelayerInternalStructs.ForwardInstruction[] forwardInstructions;
+        IWormholeRelayerInternalStructs.FirstForwardInfo firstForwardInfo;
         // Wrapper contract to facilitate forwards
         address forwardWrapper;
         // mapping of initialized implementations
