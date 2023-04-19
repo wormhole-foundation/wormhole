@@ -41,6 +41,9 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
         IWormholeRelayerInternalStructs.ForwardInstruction[] memory forwardInstructions
     ) internal {
 
+        IWormhole wormhole = wormhole();
+        uint256 wormholeMessageFee = wormhole.messageFee();
+
         IWormholeRelayerInternalStructs.DeliveryInstruction[] memory instructions = new IWormholeRelayerInternalStructs.DeliveryInstruction[](forwardInstructions.length);
         uint256 totalMsgValue = 0;
         uint256 totalFee = 0;
@@ -62,10 +65,6 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
         // in order to use all of the funds
 
         IRelayProvider relayProvider = IRelayProvider(fromWormholeFormat(instructions[0].sourceRelayProvider));
-        IWormhole wormhole = wormhole();
-        uint256 wormholeMessageFee = wormhole.messageFee();
-
-
 
         uint256 amountUnderMaximum = relayProvider.quoteMaximumBudget(instructions[0].targetChain)
             - (instructions[0].maximumRefundTarget + instructions[0].receiverValueTarget);
@@ -74,6 +73,7 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
         );
         instructions[0].maximumRefundTarget +=
             (amountUnderMaximum > convertedExtraAmount) ? convertedExtraAmount : amountUnderMaximum;
+        forwardInstructions[0].totalFee += (fundsForForward - totalFee);
 
         // Publishes the DeliveryInstruction
         for(uint8 i=0; i<forwardInstructions.length; i++) {
@@ -133,7 +133,6 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
         });
 
         uint256 preGas = gasleft();
-
         (bool callToInstructionExecutorSucceeded, bytes memory data) = getWormholeRelayerCallerAddress().call{
             value: vaaInfo.internalInstruction.receiverValueTarget
         }(abi.encodeWithSelector(IForwardWrapper.executeInstruction.selector ,vaaInfo.internalInstruction, deliveryData, vaaInfo.encodedVMs));
