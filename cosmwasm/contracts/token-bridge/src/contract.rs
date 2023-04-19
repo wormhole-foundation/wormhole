@@ -8,7 +8,6 @@ use std::{
     cmp::{max, min},
     str::FromStr,
 };
-use terraswap::asset::{Asset, AssetInfo};
 
 use cw_wormhole::{
     byte_utils::{
@@ -31,9 +30,9 @@ use cosmwasm_std::{
 
 use crate::{
     msg::{
-        ChainRegistrationResponse, CompleteTransferResponse, ExecuteMsg, ExternalIdResponse,
-        InstantiateMsg, IsVaaRedeemedResponse, MigrateMsg, QueryMsg, TransferInfoResponse,
-        WrappedRegistryResponse,
+        Asset, AssetInfo, ChainRegistrationResponse, CompleteTransferResponse, ExecuteMsg,
+        ExternalIdResponse, InstantiateMsg, IsVaaRedeemedResponse, MigrateMsg, QueryMsg,
+        TransferInfoResponse, WrappedRegistryResponse,
     },
     state::{
         bridge_contracts, bridge_contracts_read, bridge_deposit, config, config_read,
