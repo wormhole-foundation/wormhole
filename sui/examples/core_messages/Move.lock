@@ -5,16 +5,19 @@ version = 0
 
 dependencies = [
   { name = "Sui" },
+]
+
+dev-dependencies = [
   { name = "Wormhole" },
 ]
 
 [[move.package]]
 name = "MoveStdlib"
-source = { git = "https://github.com/MystenLabs/sui.git", rev = "a63f425b9999c7fdfe483598720a9effc0acdc9e", subdir = "crates/sui-framework/packages/move-stdlib" }
+source = { git = "https://github.com/MystenLabs/sui.git", rev = "3a70c4374090b020b95465787f3220a95d8ab0ba", subdir = "crates/sui-framework/packages/move-stdlib" }
 
 [[move.package]]
 name = "Sui"
-source = { git = "https://github.com/MystenLabs/sui.git", rev = "a63f425b9999c7fdfe483598720a9effc0acdc9e", subdir = "crates/sui-framework/packages/sui-framework" }
+source = { git = "https://github.com/MystenLabs/sui.git", rev = "3a70c4374090b020b95465787f3220a95d8ab0ba", subdir = "crates/sui-framework/packages/sui-framework" }
 
 dependencies = [
   { name = "MoveStdlib" },
