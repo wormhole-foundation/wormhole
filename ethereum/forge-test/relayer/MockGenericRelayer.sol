@@ -76,7 +76,7 @@ contract MockGenericRelayer {
         }
     }
 
-    function relay(Vm.Log[] memory logs, uint16 chainId, bytes memory overrides) public {
+    function relay(Vm.Log[] memory logs, uint16 chainId, bytes memory deliveryOverrides) public {
         Vm.Log[] memory entries = relayerWormholeSimulator.fetchWormholeMessageFromLog(logs);
         bytes[] memory encodedVMs = new bytes[](entries.length);
         for (uint256 i = 0; i < encodedVMs.length; i++) {
@@ -93,20 +93,20 @@ contract MockGenericRelayer {
                 parsed[i].emitterAddress == parser.toWormholeFormat(wormholeRelayerContracts[chainId])
                     && (parsed[i].emitterChainId == chainId)
             ) {
-                genericRelay(encodedVMs[i], encodedVMs, parsed[i], overrides);
+                genericRelay(encodedVMs[i], encodedVMs, parsed[i], deliveryOverrides);
             }
         }
     }
 
-    function relay(uint16 chainId, bytes memory overrides) public {
-        relay(vm.getRecordedLogs(), chainId, overrides);
+    function relay(uint16 chainId, bytes memory deliveryOverrides) public {
+        relay(vm.getRecordedLogs(), chainId, deliveryOverrides);
     }
 
     function genericRelay(
         bytes memory encodedDeliveryVAA,
         bytes[] memory encodedVMs,
         IWormhole.VM memory parsedDeliveryVAA,
-        bytes memory overrides
+        bytes memory deliveryOverrides
     ) internal {
         uint8 payloadId = parsedDeliveryVAA.payload.toUint8(0);
         if (payloadId == 1) {
@@ -133,7 +133,7 @@ contract MockGenericRelayer {
                     encodedVMs: encodedVMsToBeDelivered,
                     encodedDeliveryVAA: encodedDeliveryVAA,
                     relayerRefundAddress: payable(relayers[targetChain]),
-                    overrides:overrides
+                    overrides:deliveryOverrides
                 });
 
                 vm.prank(relayers[targetChain]);
