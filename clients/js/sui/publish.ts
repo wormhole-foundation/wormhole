@@ -10,11 +10,13 @@ import fs from "fs";
 import { resolve } from "path";
 import { Network } from "../utils";
 import { MoveToml } from "./MoveToml";
+import { executeTransactionBlock } from "./utils";
 
 export const publishPackage = async (
   signer: RawSigner,
   network: Network,
-  packagePath: string
+  packagePath: string,
+  dryRun: boolean = false
 ) => {
   console.log("Network", network);
   console.log("Package path", packagePath);
@@ -51,13 +53,8 @@ export const publishPackage = async (
     );
 
     // Execute transactions
-    const res = await signer.signAndExecuteTransactionBlock({
-      transactionBlock,
-      options: {
-        showInput: true,
-        showObjectChanges: true,
-      },
-    });
+    const res = await executeTransactionBlock(signer, transactionBlock, dryRun);
+    if (!res) return;
 
     // Update network-specific Move.toml with package ID
     const publishEvents = getPublishedObjectChanges(res);

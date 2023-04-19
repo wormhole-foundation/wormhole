@@ -50,6 +50,12 @@ export const addPublishMessageCommands: YargsAddCommandsFn = (
           required: false,
           type: "string",
         })
+        .option("dry-run", {
+          alias: "d",
+          describe: "Execute dry run instead of executing the tx on-chain",
+          required: false,
+          type: "boolean",
+        })
         .option("rpc", RPC_OPTIONS);
     },
     async (argv) => {
@@ -60,6 +66,7 @@ export const addPublishMessageCommands: YargsAddCommandsFn = (
       const wormholeStateObjectId = argv["wormhole-state"];
       const message = argv["message"];
       const privateKey = argv["private-key"];
+      const dryRun = argv["dry-run"];
       const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
 
       const provider = getProvider(network, rpc);
@@ -76,7 +83,12 @@ export const addPublishMessageCommands: YargsAddCommandsFn = (
           transactionBlock.object(SUI_CLOCK_OBJECT_ID),
         ],
       });
-      const res = await executeTransactionBlock(signer, transactionBlock);
+      const res = await executeTransactionBlock(
+        signer,
+        transactionBlock,
+        dryRun
+      );
+      if (!res) return;
 
       // Hacky way to grab event since we don't require package ID of the
       // core bridge as input. Doesn't really matter since this is a test

@@ -3,19 +3,19 @@ import { CHAIN_ID_TO_NAME } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 import {
   Connection,
   Ed25519Keypair,
-  fromB64,
   JsonRpcProvider,
-  normalizeSuiAddress,
   RawSigner,
-  SuiTransactionBlockResponse,
   SUI_CLOCK_OBJECT_ID,
+  SuiTransactionBlockResponse,
   TransactionBlock,
+  fromB64,
+  normalizeSuiAddress,
 } from "@mysten/sui.js";
 import { CONTRACTS } from "../consts";
 import { NETWORKS } from "../networks";
 import { Network } from "../utils";
-import { impossible, Payload } from "../vaa";
-import { SuiAddresses, SUI_OBJECT_IDS } from "./consts";
+import { Payload, impossible } from "../vaa";
+import { SUI_OBJECT_IDS, SuiAddresses } from "./consts";
 import { SuiRpcValidationError } from "./error";
 import { SuiCreateEvent, SuiPublishEvent } from "./types";
 
@@ -112,10 +112,15 @@ export const execute_sui = async (
 
 export const executeTransactionBlock = async (
   signer: RawSigner,
-  transactionBlock: TransactionBlock
-): Promise<SuiTransactionBlockResponse> => {
-  // Let caller handle parsing and logging info
-  return signer.signAndExecuteTransactionBlock({
+  transactionBlock: TransactionBlock,
+  dryRun: boolean = false,
+  gasBudget?: number
+): Promise<SuiTransactionBlockResponse | void> => {
+  if (gasBudget) {
+    transactionBlock.setGasBudget(gasBudget);
+  }
+
+  const input = {
     transactionBlock,
     options: {
       showInput: true,
@@ -123,7 +128,15 @@ export const executeTransactionBlock = async (
       showEvents: true,
       showObjectChanges: true,
     },
-  });
+  };
+  if (dryRun) {
+    console.log(
+      JSON.stringify(await signer.dryRunTransactionBlock(input), null, 2)
+    );
+    return;
+  }
+
+  return signer.signAndExecuteTransactionBlock(input);
 };
 
 export const getCreatedObjects = (

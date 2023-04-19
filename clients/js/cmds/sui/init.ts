@@ -46,6 +46,12 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
             required: false,
             type: "string",
           })
+          .option("dry-run", {
+            alias: "d",
+            describe: "Execute dry run instead of executing the tx on-chain",
+            required: false,
+            type: "boolean",
+          })
           .option("rpc", RPC_OPTIONS);
       },
       async (argv) => {
@@ -54,6 +60,7 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         const packageId = argv["package-id"];
         const wormholeStateObjectId = argv["wormhole-state"];
         const privateKey = argv["private-key"];
+        const dryRun = argv["dry-run"];
         const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
 
         const provider = getProvider(network, rpc);
@@ -70,7 +77,12 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           target: `${packageId}::sender::init_with_params`,
           arguments: [transactionBlock.object(wormholeStateObjectId)],
         });
-        const res = await executeTransactionBlock(signer, transactionBlock);
+        const res = await executeTransactionBlock(
+          signer,
+          transactionBlock,
+          dryRun
+        );
+        if (!res) return;
 
         logTransactionDigest(res);
         logTransactionSender(res);
@@ -106,6 +118,12 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
             required: false,
             type: "string",
           })
+          .option("dry-run", {
+            alias: "d",
+            describe: "Execute dry run instead of executing the tx on-chain",
+            required: false,
+            type: "boolean",
+          })
           .option("rpc", RPC_OPTIONS);
       },
       async (argv) => {
@@ -114,6 +132,7 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         const packageId = argv["package-id"];
         const wormholeStateObjectId = argv["wormhole-state"];
         const privateKey = argv["private-key"];
+        const dryRun = argv["dry-run"];
         const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
 
         const provider = getProvider(network, rpc);
@@ -160,7 +179,12 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
             transactionBlock.object(upgradeCapObjectId),
           ],
         });
-        const res = await executeTransactionBlock(signer, transactionBlock);
+        const res = await executeTransactionBlock(
+          signer,
+          transactionBlock,
+          dryRun
+        );
+        if (!res) return;
 
         logTransactionDigest(res);
         logTransactionSender(res);
@@ -210,6 +234,12 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
             required: false,
             type: "string",
           })
+          .option("dry-run", {
+            alias: "d",
+            describe: "Execute dry run instead of executing the tx on-chain",
+            required: false,
+            type: "boolean",
+          })
           .option("rpc", RPC_OPTIONS);
       },
       async (argv) => {
@@ -220,6 +250,7 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         const governanceChainId = argv["governance-chain-id"];
         const governanceContract = argv["governance-address"];
         const privateKey = argv["private-key"];
+        const dryRun = argv["dry-run"];
         const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
 
         const provider = getProvider(network, rpc);
@@ -273,7 +304,12 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
             transactionBlock.pure("0"), // Message fee
           ],
         });
-        const res = await executeTransactionBlock(signer, transactionBlock);
+        const res = await executeTransactionBlock(
+          signer,
+          transactionBlock,
+          dryRun
+        );
+        if (!res) return;
 
         logTransactionDigest(res);
         logTransactionSender(res);

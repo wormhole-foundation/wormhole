@@ -27,6 +27,12 @@ export const addDeployCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           required: false,
           type: "string",
         })
+        .option("dry-run", {
+          alias: "d",
+          describe: "Execute dry run instead of executing the tx on-chain",
+          required: false,
+          type: "boolean",
+        })
         .option("rpc", RPC_OPTIONS);
     },
     async (argv) => {
@@ -36,6 +42,7 @@ export const addDeployCommands: YargsAddCommandsFn = (y: typeof yargs) =>
       const network = argv.network.toUpperCase();
       assertNetwork(network);
       const privateKey = argv["private-key"];
+      const dryRun = argv["dry-run"];
       const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
 
       const provider = getProvider(network, rpc);
@@ -49,7 +56,7 @@ export const addDeployCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         ? packageDir
         : `${process.cwd()}/${packageDir}`;
       const packagePath = dir.endsWith("/") ? dir.slice(0, -1) : dir;
-      const res = await publishPackage(signer, network, packagePath);
+      const res = await publishPackage(signer, network, packagePath, dryRun);
 
       // Dump deployment info to console
       logTransactionDigest(res);
