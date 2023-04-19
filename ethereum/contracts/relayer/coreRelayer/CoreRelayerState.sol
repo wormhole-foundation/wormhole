@@ -26,7 +26,6 @@ contract CoreRelayerStorage {
         address defaultRelayProvider;
         // Requests which will be forwarded from the current delivery.
         IWormholeRelayerInternalStructs.ForwardInstruction[] forwardInstructions;
-        IWormholeRelayerInternalStructs.FirstForwardInfo firstForwardInfo;
         // Wrapper contract to facilitate forwards
         address forwardWrapper;
         // mapping of initialized implementations

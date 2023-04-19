@@ -199,7 +199,7 @@ contract WormholeRelayerTests is Test {
             map[i] = mapEntry;
         }
 
-        uint256 maxBudget = type(uint256).max;
+        uint256 maxBudget = 2**239;
         for (uint16 i = 1; i <= numChains; i++) {
             for (uint16 j = 1; j <= numChains; j++) {
                 map[i].relayProvider.updateSupportedChain(j, true);
@@ -501,6 +501,7 @@ contract WormholeRelayerTests is Test {
         (Contracts memory source, Contracts memory target, FundsCorrectTest memory test) = setupFundsCorrectTest(gasParams, feeParams, 1000000);
 
         test.payment = assumeAndGetForwardPayment(gasParams.targetGasLimit, 500000, StandardSetupTwoChains({source: source, target: target, sourceChainId: 1, targetChainId: 2, differentChainId: 3}), gasParams, feeParams);
+        vm.assume(test.payment + test.receiverValueSource < uint256(2) ** 222);
         test.transactionFee = test.payment - uint256(3) * feeParams.wormholeFeeOnSource;
         uint256 actualGasLimit = (test.transactionFee - source.relayProvider.quoteDeliveryOverhead(2)) / source.relayProvider.quoteGasPrice(2);
         if(actualGasLimit > type(uint32).max) {
@@ -546,8 +547,8 @@ contract WormholeRelayerTests is Test {
         test.gasAmount = uint32(actualGasLimit  - refundIntermediate * actualGasLimit / test.maximumRefundTarget);
 
         assertTrue(test.relayerPayment == receiverValueTargetActual + refundIntermediate, "Relayer paid the correct amount");
-        assertTrue(test.gasAmount >= 620000, "Gas amount (calculated from refund address payment) lower than expected");
-        assertTrue(test.gasAmount <= 670000, "Gas amount (calculated from refund address payment) higher than expected");
+        assertTrue(test.gasAmount >= 500000, "Gas amount (calculated from refund address payment) lower than expected");
+        assertTrue(test.gasAmount <= 650000, "Gas amount (calculated from refund address payment) higher than expected");
 
     }
 
@@ -680,7 +681,7 @@ contract WormholeRelayerTests is Test {
                 + uint256(2) * setup.target.wormhole.messageFee()
         ) * feeParams.targetNativePrice / feeParams.sourceNativePrice + 1;
 
-        vm.assume((payment + payment2 * 105 / 100) < (uint256(2) ** 222));
+        vm.assume((payment + payment2 * 105 / 100 + 1) < (uint256(2) ** 222));
 
         return (payment + payment2 * 105 / 100 + 1);
     }

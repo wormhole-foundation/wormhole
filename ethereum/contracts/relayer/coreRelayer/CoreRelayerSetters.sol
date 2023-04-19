@@ -42,20 +42,11 @@ contract CoreRelayerSetters is CoreRelayerState, Context {
         _state.registeredCoreRelayerContract[chainId] = relayerAddress;
     }
 
-    function appendForwardInstruction(IWormholeRelayerInternalStructs.ForwardInstruction memory forwardInstruction, IWormholeRelayer.Send memory sendParams) internal {
-        if(_state.forwardInstructions.length == 0) {
-            _state.firstForwardInfo = IWormholeRelayerInternalStructs.FirstForwardInfo({
-                maxTransactionFee: sendParams.maxTransactionFee,
-                receiverValue: sendParams.receiverValue,
-                relayProviderAddress: sendParams.relayProviderAddress,
-                relayParameters: sendParams.relayParameters
-            });
-        }
+    function appendForwardInstruction(IWormholeRelayerInternalStructs.ForwardInstruction memory forwardInstruction) internal {
         _state.forwardInstructions.push(forwardInstruction);
     }
 
     function clearForwardInstructions() internal {
-       delete _state.firstForwardInfo;
        delete _state.forwardInstructions;
     }
 

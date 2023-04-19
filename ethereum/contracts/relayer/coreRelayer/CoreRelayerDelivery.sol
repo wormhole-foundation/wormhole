@@ -38,20 +38,19 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
      */
     function emitForward(
         uint256 transactionFeeRefundAmount,
-        IWormholeRelayerInternalStructs.ForwardInstruction[] memory forwardInstructions,
-        IWormholeRelayerInternalStructs.FirstForwardInfo memory firstForwardInfo
-    ) internal {
+        IWormholeRelayerInternalStructs.ForwardInstruction[] memory forwardInstructions
+    ) internal returns (uint256 remainingRefundAmount) {
 
         IWormhole wormhole = wormhole();
         uint256 wormholeMessageFee = wormhole.messageFee();
 
-        IWormholeRelayerInternalStructs.DeliveryInstruction[] memory instructions = new IWormholeRelayerInternalStructs.DeliveryInstruction[](forwardInstructions.length);
+        IWormholeRelayer.Send[] memory sendRequests = new IWormholeRelayer.Send[](forwardInstructions.length);
         uint256 totalMsgValue = 0;
         uint256 totalFee = 0;
         for(uint8 i=0; i<forwardInstructions.length; i++) {
             totalMsgValue += forwardInstructions[i].msgValue;
             totalFee += forwardInstructions[i].totalFee;
-            instructions[i] = decodeDeliveryInstruction(forwardInstructions[i].encodedInstruction);
+            sendRequests[i] = decodeSend(forwardInstructions[i].encodedSend);
         }
 
         // Add any additional funds which were passed in to the forward as msg.value
@@ -65,38 +64,25 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
         // Increases the maxTransactionFee of the first forward 
         // in order to use all of the funds
 
-        firstForwardInfo.maxTransactionFee += amountToIncreaseMaxTransactionFeeToStayUnderMaximumBudget(instructions[0], firstForwardInfo.maxTransactionFee + firstForwardInfo.receiverValue, (fundsForForward - totalFee));
-        IWormholeRelayerInternalStructs.DeliveryInstruction memory modifiedFirstInstruction = convertSendToDeliveryInstruction(IWormholeRelayer.Send({
-                    targetChain: instructions[0].targetChain,
-                    targetAddress: instructions[0].targetAddress,
-                    refundChain: instructions[0].refundChain,
-                    refundAddress: instructions[0].refundAddress,
-                    maxTransactionFee: firstForwardInfo.maxTransactionFee, 
-                    receiverValue: firstForwardInfo.receiverValue,
-                    relayProviderAddress: firstForwardInfo.relayProviderAddress,
-                    vaaKeys: instructions[0].vaaKeys,
-                    consistencyLevel: instructions[0].consistencyLevel,
-                    payload: instructions[0].payload,
-                    relayParameters: firstForwardInfo.relayParameters
-        }));
+        uint256 increaseAmount = amountToIncreaseMaxTransactionFeeToStayUnderMaximumBudget(sendRequests[0], (fundsForForward - totalFee));
+        sendRequests[0].maxTransactionFee += increaseAmount;
         
         // Publishes the DeliveryInstruction
         for(uint8 i=0; i<forwardInstructions.length; i++) {
             wormhole.publishMessage{value: wormholeMessageFee}(
-                0, i==0 ? encodeDeliveryInstruction(modifiedFirstInstruction) : forwardInstructions[i].encodedInstruction, instructions[i].consistencyLevel
+                0, encodeDeliveryInstruction(convertSendToDeliveryInstruction(sendRequests[i])), sendRequests[i].consistencyLevel
             );
-            pay(IRelayProvider(fromWormholeFormat(instructions[i].sourceRelayProvider)).getRewardAddress(), forwardInstructions[i].totalFee - wormholeMessageFee);
+            pay(IRelayProvider(sendRequests[i].relayProviderAddress).getRewardAddress(), sendRequests[i].maxTransactionFee + sendRequests[i].receiverValue);
         }
+
+        return (fundsForForward - totalFee) - increaseAmount;
     }
 
-    function amountToIncreaseMaxTransactionFeeToStayUnderMaximumBudget(IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction, uint256 payment, uint256 increaseAmount) internal view returns (uint256) {
-        IRelayProvider relayProvider = IRelayProvider(fromWormholeFormat(instruction.sourceRelayProvider));
+    function amountToIncreaseMaxTransactionFeeToStayUnderMaximumBudget(IWormholeRelayer.Send memory sendParams, uint256 increaseAmount) internal view returns (uint256) {
+        IRelayProvider relayProvider = IRelayProvider(sendParams.relayProviderAddress);
 
-        (uint16 buffer, uint16 denominator) = relayProvider.getAssetConversionBuffer(instruction.targetChain);
-        uint256 maxPaymentUnderMaximumBudget = assetConversionHelper(
-            instruction.targetChain, relayProvider.quoteMaximumBudget(instruction.targetChain) + 1, chainId(), uint256(0) + denominator + buffer, denominator, true, relayProvider
-        ) - 1 - payment;
-
+        (uint16 buffer, uint16 denominator) = relayProvider.getAssetConversionBuffer(sendParams.targetChain);
+        uint256 maxPaymentUnderMaximumBudget = relayProvider.quoteMaximumBudget(sendParams.targetChain) * (denominator + buffer) / denominator - sendParams.maxTransactionFee - sendParams.receiverValue;
         return increaseAmount > maxPaymentUnderMaximumBudget ? maxPaymentUnderMaximumBudget : increaseAmount;
     }
 
@@ -128,7 +114,7 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
     ) internal {
         if (vaaInfo.internalInstruction.targetAddress == 0x0) {
             payRefunds(
-                vaaInfo.internalInstruction, vaaInfo.relayerRefundAddress, vaaInfo.internalInstruction.maximumRefundTarget, false, false, vaaInfo.internalInstruction.targetRelayProvider
+                vaaInfo.internalInstruction, vaaInfo.relayerRefundAddress, vaaInfo.internalInstruction.maximumRefundTarget, false, vaaInfo.internalInstruction.maximumRefundTarget, vaaInfo.internalInstruction.targetRelayProvider
             );
             return;
         }
@@ -170,7 +156,7 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
         }
 
         // Retrieve the forward instruction created during execution of 'receiveWormholeMessages'
-        (IWormholeRelayerInternalStructs.ForwardInstruction[] memory forwardInstructions, IWormholeRelayerInternalStructs.FirstForwardInfo memory firstForwardInfo) = getForwardInstructions();
+        IWormholeRelayerInternalStructs.ForwardInstruction[] memory forwardInstructions = getForwardInstructions();
 
         //clear forwarding request from storage
         clearForwardInstructions();
@@ -179,9 +165,10 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
         setContractLock(false);
 
         DeliveryStatus status;
+        uint256 transactionFeeRefundAmountPostForward = transactionFeeRefundAmount;
         if (forwardInstructions.length > 0) {
             // If the user made a forward/multichainForward request, then try to execute it
-            emitForward(transactionFeeRefundAmount, forwardInstructions, firstForwardInfo);
+            transactionFeeRefundAmountPostForward = emitForward(transactionFeeRefundAmount, forwardInstructions);
             status = DeliveryStatus.FORWARD_REQUEST_SUCCESS;
         } else {
             status = callToTargetContractSucceeded
@@ -203,7 +190,7 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
             vaaInfo.relayerRefundAddress,
             transactionFeeRefundAmount,
             callToInstructionExecutorSucceeded && callToTargetContractSucceeded,
-            forwardInstructions.length > 0,
+            transactionFeeRefundAmountPostForward,
             vaaInfo.internalInstruction.targetRelayProvider
         );
     }
@@ -213,7 +200,7 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
         address payable relayerRefundAddress,
         uint256 transactionFeeRefundAmount,
         bool receiverValueWasPaid,
-        bool forwardingRequestExists,
+        uint256 transactionFeeRefundAmountPostForward,
         bytes32 providerAddress
     ) internal {
         // Amount of receiverValue that is refunded to the user (0 if the call to 'receiveWormholeMessages' did not revert, or the full receiverValue otherwise)
@@ -221,7 +208,7 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
 
         // Total refund to the user
         uint256 refundToRefundAddress =
-            receiverValueRefundAmount + (forwardingRequestExists ? 0 : transactionFeeRefundAmount);
+            receiverValueRefundAmount + transactionFeeRefundAmountPostForward;
 
         // Whether or not the refund succeeded
         bool refundPaidToRefundAddress = payRefundToRefundAddress(internalInstruction, refundToRefundAddress, providerAddress);

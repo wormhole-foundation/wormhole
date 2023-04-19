@@ -42,16 +42,14 @@ contract ForwardWrapper {
         }(abi.encodeWithSelector(IWormholeReceiver.receiveWormholeMessages.selector, data, signedVaas));
 
         uint256 postGas = gasleft();
-
         // Calculate the amount of gas used in the call (upperbounding at the gas limit, which shouldn't have been exceeded)
         uint256 gasUsed = (preGas - postGas) > instruction.executionParameters.gasLimit
             ? instruction.executionParameters.gasLimit
             : (preGas - postGas);
-
+            
         // Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the fraction of gas unused)
         transactionFeeRefundAmount = (instruction.executionParameters.gasLimit - gasUsed)
             * instruction.maximumRefundTarget / instruction.executionParameters.gasLimit;
-
         IWormholeRelayerInternalStructs.ForwardInstruction[] memory forwardInstructions =
             forwardInstructionViewer.getForwardInstructions();
 
