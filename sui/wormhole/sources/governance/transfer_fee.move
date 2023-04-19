@@ -3,7 +3,6 @@
 /// This module implements handling a governance VAA to enact transferring some
 /// amount of collected fees to an intended recipient.
 module wormhole::transfer_fee {
-    use sui::clock::{Clock};
     use sui::coin::{Self};
     use sui::transfer::{Self};
     use sui::tx_context::{TxContext};
@@ -33,18 +32,10 @@ module wormhole::transfer_fee {
     /// method could break backward compatibility on an upgrade.
     public fun transfer_fee(
         wormhole_state: &mut State,
-        vaa_buf: vector<u8>,
-        the_clock: &Clock,
+        msg: GovernanceMessage,
         ctx: &mut TxContext
     ): u64 {
         state::check_minimum_requirement<TransferFeeControl>(wormhole_state);
-
-        let msg =
-            governance_message::parse_and_verify_vaa(
-                wormhole_state,
-                vaa_buf,
-                the_clock
-            );
 
         // Do not allow this VAA to be replayed.
         consumed_vaas::consume(
@@ -122,6 +113,7 @@ module wormhole::transfer_fee_tests {
     use wormhole::required_version::{Self};
     use wormhole::state::{Self};
     use wormhole::transfer_fee::{Self};
+    use wormhole::vaa::{Self};
     use wormhole::version_control::{Self as control};
     use wormhole::wormhole_scenario::{
         person,
@@ -181,12 +173,11 @@ module wormhole::transfer_fee_tests {
         let total_deposited = n * wormhole_fee;
         assert!(state::fees_collected(&worm_state) == total_deposited, 0);
 
-        let withdrawn = transfer_fee(
-            &mut worm_state,
-            VAA_TRANSFER_FEE_1,
-            &the_clock,
-            test_scenario::ctx(scenario)
-        );
+        let parsed =
+            vaa::parse_and_verify(&worm_state, VAA_TRANSFER_FEE_1, &the_clock);
+        let msg = governance_message::verify_vaa(&worm_state, parsed);
+        let withdrawn =
+            transfer_fee(&mut worm_state, msg, test_scenario::ctx(scenario));
         assert!(withdrawn == 1200, 0);
 
         // Ignore effects.
@@ -249,12 +240,11 @@ module wormhole::transfer_fee_tests {
         let total_deposited = n * wormhole_fee;
         assert!(state::fees_collected(&worm_state) == total_deposited, 0);
 
-        let withdrawn = transfer_fee(
-            &mut worm_state,
-            VAA_TRANSFER_FEE_1,
-            &the_clock,
-            test_scenario::ctx(scenario)
-        );
+        let parsed =
+            vaa::parse_and_verify(&worm_state, VAA_TRANSFER_FEE_1, &the_clock);
+        let msg = governance_message::verify_vaa(&worm_state, parsed);
+        let withdrawn =
+            transfer_fee(&mut worm_state, msg, test_scenario::ctx(scenario));
         assert!(withdrawn == 1200, 0);
 
         // Clean up.
@@ -299,20 +289,16 @@ module wormhole::transfer_fee_tests {
         };
 
         // Transfer once.
-        transfer_fee(
-            &mut worm_state,
-            VAA_TRANSFER_FEE_1,
-            &the_clock,
-            test_scenario::ctx(scenario)
-        );
+        let parsed =
+            vaa::parse_and_verify(&worm_state, VAA_TRANSFER_FEE_1, &the_clock);
+        let msg = governance_message::verify_vaa(&worm_state, parsed);
+        transfer_fee(&mut worm_state, msg, test_scenario::ctx(scenario));
 
+        let parsed =
+            vaa::parse_and_verify(&worm_state, VAA_TRANSFER_FEE_1, &the_clock);
+        let msg = governance_message::verify_vaa(&worm_state, parsed);
         // You shall not pass!
-        transfer_fee(
-            &mut worm_state,
-            VAA_TRANSFER_FEE_1,
-            &the_clock,
-            test_scenario::ctx(scenario)
-        );
+        transfer_fee(&mut worm_state, msg, test_scenario::ctx(scenario));
 
         // Clean up.
         return_state(worm_state);
@@ -346,22 +332,18 @@ module wormhole::transfer_fee_tests {
 
         // Setting a new fee only applies to this chain since the denomination
         // is SUI.
-        let msg =
-            governance_message::parse_and_verify_vaa_test_only(
+        let parsed =
+            vaa::parse_and_verify(
                 &worm_state,
                 VAA_BOGUS_TARGET_CHAIN,
                 &the_clock
             );
+        let msg = governance_message::verify_vaa(&worm_state, parsed);
+
         assert!(!governance_message::is_local_action(&msg), 0);
-        governance_message::destroy(msg);
 
         // You shall not pass!
-        transfer_fee(
-            &mut worm_state,
-            VAA_BOGUS_TARGET_CHAIN,
-            &the_clock,
-            test_scenario::ctx(scenario)
-        );
+        transfer_fee(&mut worm_state, msg, test_scenario::ctx(scenario));
 
         // Clean up.
         return_state(worm_state);
@@ -395,22 +377,13 @@ module wormhole::transfer_fee_tests {
 
         // Setting a new fee only applies to this chain since the denomination
         // is SUI.
-        let msg =
-            governance_message::parse_and_verify_vaa_test_only(
-                &worm_state,
-                VAA_BOGUS_ACTION,
-                &the_clock
-            );
+        let parsed =
+            vaa::parse_and_verify(&worm_state, VAA_BOGUS_ACTION, &the_clock);
+        let msg = governance_message::verify_vaa(&worm_state, parsed);
         assert!(governance_message::action(&msg) != transfer_fee::action(), 0);
-        governance_message::destroy(msg);
 
         // You shall not pass!
-        transfer_fee(
-            &mut worm_state,
-            VAA_BOGUS_ACTION,
-            &the_clock,
-            test_scenario::ctx(scenario)
-        );
+        transfer_fee(&mut worm_state, msg, test_scenario::ctx(scenario));
 
         // Clean up.
         return_state(worm_state);
@@ -444,13 +417,10 @@ module wormhole::transfer_fee_tests {
         assert!(state::fees_collected(&worm_state) == 0, 0);
 
         // Show that the encoded fee is greater than zero.
-        let msg =
-            governance_message::parse_and_verify_vaa_test_only(
-                &worm_state,
-                VAA_TRANSFER_FEE_1,
-                &the_clock
-            );
-        let payload = governance_message::take_payload(msg);
+        let parsed =
+            vaa::parse_and_verify(&worm_state, VAA_TRANSFER_FEE_1, &the_clock);
+        let msg = governance_message::verify_vaa(&worm_state, parsed);
+        let payload = governance_message::payload(&msg);
         let cur = cursor::new(payload);
 
         let amount = bytes::take_u256_be(&mut cur);
@@ -458,12 +428,7 @@ module wormhole::transfer_fee_tests {
         cursor::take_rest(cur);
 
         // You shall not pass!
-        transfer_fee(
-            &mut worm_state,
-            VAA_TRANSFER_FEE_1,
-            &the_clock,
-            test_scenario::ctx(scenario)
-        );
+        transfer_fee(&mut worm_state, msg, test_scenario::ctx(scenario));
 
         // Clean up.
         return_state(worm_state);
@@ -497,13 +462,14 @@ module wormhole::transfer_fee_tests {
         assert!(state::fees_collected(&worm_state) == 0, 0);
 
         // Show that the encoded fee is greater than zero.
-        let msg =
-            governance_message::parse_and_verify_vaa_test_only(
+        let parsed =
+            vaa::parse_and_verify(
                 &worm_state,
                 VAA_TRANSFER_FEE_ZERO_ADDRESS,
                 &the_clock
             );
-        let payload = governance_message::take_payload(msg);
+        let msg = governance_message::verify_vaa(&worm_state, parsed);
+        let payload = governance_message::payload(&msg);
         let cur = cursor::new(payload);
 
         bytes::take_u256_be(&mut cur);
@@ -514,12 +480,7 @@ module wormhole::transfer_fee_tests {
         cursor::destroy_empty(cur);
 
         // You shall not pass!
-        transfer_fee(
-            &mut worm_state,
-            VAA_TRANSFER_FEE_ZERO_ADDRESS,
-            &the_clock,
-            test_scenario::ctx(scenario)
-        );
+        transfer_fee(&mut worm_state, msg, test_scenario::ctx(scenario));
 
         // Clean up.
         return_state(worm_state);
@@ -553,13 +514,14 @@ module wormhole::transfer_fee_tests {
         assert!(state::fees_collected(&worm_state) == 0, 0);
 
         // Show that the encoded fee is greater than zero.
-        let msg =
-            governance_message::parse_and_verify_vaa_test_only(
+        let parsed =
+            vaa::parse_and_verify(
                 &worm_state,
                 VAA_TRANSFER_FEE_OVERFLOW,
                 &the_clock
             );
-        let payload = governance_message::take_payload(msg);
+        let msg = governance_message::verify_vaa(&worm_state, parsed);
+        let payload = governance_message::payload(&msg);
         let cur = cursor::new(payload);
 
         let amount = bytes::take_u256_be(&mut cur);
@@ -567,12 +529,7 @@ module wormhole::transfer_fee_tests {
         cursor::take_rest(cur);
 
         // You shall not pass!
-        transfer_fee(
-            &mut worm_state,
-            VAA_TRANSFER_FEE_OVERFLOW,
-            &the_clock,
-            test_scenario::ctx(scenario)
-        );
+        transfer_fee(&mut worm_state, msg, test_scenario::ctx(scenario));
 
         // Clean up.
         return_state(worm_state);
@@ -630,13 +587,15 @@ module wormhole::transfer_fee_tests {
             control::version() + 1
         );
 
+        let parsed =
+            vaa::parse_and_verify(
+                &worm_state,
+                VAA_TRANSFER_FEE_1,
+                &the_clock
+            );
+        let msg = governance_message::verify_vaa(&worm_state, parsed);
         // You shall not pass!
-        transfer_fee(
-            &mut worm_state,
-            VAA_TRANSFER_FEE_1,
-            &the_clock,
-            test_scenario::ctx(scenario)
-        );
+        transfer_fee(&mut worm_state, msg, test_scenario::ctx(scenario));
 
         // Clean up.
         return_state(worm_state);
