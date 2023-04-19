@@ -193,7 +193,7 @@ export const pollTransactionForEffectsCert = async (
         });
         const completed = transaction.effects.status.status === "success";
         if (completed) return resolve(transaction);
-        setTimeout(poll, interval);
+        setTimeout(poll, interval, resolve, reject);
       } catch (error) {
         return reject(error);
       }
