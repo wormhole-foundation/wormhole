@@ -197,6 +197,8 @@ export const pollTransactionForEffectsCert = async (
       } catch (error) {
         return reject(error);
       }
+    } else {
+      return reject(new Error("Retry attempts exceeded"));
     }
   };
 
