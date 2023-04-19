@@ -25,6 +25,13 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
         DeliveryStatus status
     );
 
+    event Redelivery(
+        bytes32 indexed redeliveryVaaHash,
+        uint256 maximumRefund,
+        uint256 receiverValue,
+        uint32 gasAmount
+    );
+
     /**
      * - Checks if enough funds were passed into a forward
      * - Increases the maxTransactionFee of the first forward in the MultichainSend container
@@ -183,6 +190,11 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
             deliveryVaaHash: vaaInfo.deliveryVaaHash,
             status: status
         });
+
+        //If the relayer provided a redelivery address, log a redelivery event
+        if(vaaInfo.redeliveryHash != 0x0){
+            emit Redelivery(vaaInfo.redeliveryHash, vaaInfo.internalInstruction.maximumRefundTarget , vaaInfo.internalInstruction.receiverValueTarget, vaaInfo.internalInstruction.executionParameters.gasLimit);
+        }
 
         payRefunds(
             vaaInfo.internalInstruction,
@@ -357,6 +369,9 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
         IWormholeRelayerInternalStructs.DeliveryInstruction memory deliveryInstruction =
             decodeDeliveryInstruction(deliveryVM.payload);
 
+        bytes32 redeliveryHash = 0x0;
+        (deliveryInstruction,redeliveryHash) = processOverrides(deliveryInstruction, targetParams.overrides);
+
         // Check that the relay provider passed in at least [(one wormhole message fee) + instruction.maximumRefund + instruction.receiverValue] of this chain's currency as msg.value
         if (msg.value < deliveryInstruction.maximumRefundTarget + deliveryInstruction.receiverValueTarget) {
             revert IDelivery.InsufficientRelayerFunds();
@@ -377,7 +392,8 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
                 deliveryVaaHash: deliveryVM.hash,
                 relayerRefundAddress: targetParams.relayerRefundAddress,
                 encodedVMs: targetParams.encodedVMs,
-                internalInstruction: deliveryInstruction
+                internalInstruction: deliveryInstruction,
+                redeliveryHash: redeliveryHash
             })
         );
     }
@@ -400,6 +416,22 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
             if (!vaaKeyMatchesVAA(vaaKeys[i], signedVaas[i])) {
                 revert IDelivery.VaaKeysDoNotMatchVaas(i);
             }
+        }
+    }
+
+    function processOverrides(IWormholeRelayerInternalStructs.DeliveryInstruction memory deliveryInstruction, bytes memory encoded) internal pure returns (IWormholeRelayerInternalStructs.DeliveryInstruction memory withOverrides, bytes32 redelivery){
+        if(encoded.length == 0){
+            return (deliveryInstruction, 0x0);
+        } else {
+            IDelivery.DeliveryOverride memory overrides = decodeDeliveryOverride(encoded);
+            require(overrides.gasLimit >= deliveryInstruction.executionParameters.gasLimit);
+            require(overrides.receiverValue >= deliveryInstruction.receiverValueTarget );
+            require(overrides.maximumRefund >= deliveryInstruction.maximumRefundTarget);
+
+            deliveryInstruction.executionParameters.gasLimit = overrides.gasLimit;
+            deliveryInstruction.receiverValueTarget = overrides.receiverValue;
+            deliveryInstruction.maximumRefundTarget = overrides.maximumRefund;
+            return (deliveryInstruction, overrides.redeliveryHash);
         }
     }
 
