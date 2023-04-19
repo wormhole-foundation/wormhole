@@ -169,7 +169,7 @@ export const pollTransactionForEffectsCert = async (
   digest: TransactionDigest,
   options?: {
     retryAttempts?: number;
-    retryIntervalInMilliseconds: number;
+    retryIntervalInMilliseconds?: number;
   }
 ): Promise<SuiTransactionBlockResponse> => {
   const DEFAULT_ATTEMPTS_LIMIT = 10;
