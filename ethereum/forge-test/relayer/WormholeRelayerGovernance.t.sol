@@ -160,7 +160,8 @@ contract WormholeRelayerGovernanceTests is Test {
 
     function testUpgradeContractToItself() public {
         CoreRelayerSetup coreRelayerSetup = new CoreRelayerSetup();
-        CoreRelayerImplementation coreRelayerImplementation = new CoreRelayerImplementation();
+        // todo: fixme
+        CoreRelayerImplementation coreRelayerImplementation = new CoreRelayerImplementation(address(0x0));
         CoreRelayerProxy myCoreRelayer = new CoreRelayerProxy(
             address(coreRelayerSetup),
             abi.encodeCall(
@@ -178,7 +179,8 @@ contract WormholeRelayerGovernanceTests is Test {
         );
 
         for (uint256 i = 0; i < 10; i++) {
-            CoreRelayerImplementation coreRelayerImplementationNew = new CoreRelayerImplementation();
+            // todo: fixme
+            CoreRelayerImplementation coreRelayerImplementationNew = new CoreRelayerImplementation(address(0x0));
 
             bytes memory message = abi.encodePacked(
                 relayerModule,

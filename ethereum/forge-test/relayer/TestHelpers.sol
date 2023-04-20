@@ -107,7 +107,8 @@ contract TestHelpers {
         returns (IWormholeRelayer coreRelayer)
     {
         CoreRelayerSetup coreRelayerSetup = new CoreRelayerSetup();
-        CoreRelayerImplementation coreRelayerImplementation = new CoreRelayerImplementation();
+        // todo: fixme
+        CoreRelayerImplementation coreRelayerImplementation = new CoreRelayerImplementation(address(0x0));
         CoreRelayerProxy myCoreRelayer = new CoreRelayerProxy(
             address(coreRelayerSetup),
             abi.encodeCall(

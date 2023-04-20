@@ -4,31 +4,31 @@
   "relayProviders": [
     {
       "chainId": 6,
-      "address": "0x79357aA0CC8f1B4Bf3AC51Ae365cED1A83850870"
+      "address": "0x4c349ef40094Df3E1568670C616F7546911153a3"
     },
     {
       "chainId": 14,
-      "address": "0xd5A128895A4fe5b1E9615755698F65e45E42ee2f"
+      "address": "0x0F4a9931bef0EBF84d5E8003F69a6A98C7Dd2732"
     }
   ],
   "coreRelayers": [
     {
       "chainId": 6,
-      "address": "0x607cE9D0f9Cd772Dab917507C331257FF561DBA5"
+      "address": "0x5a37ED1c0244E6ee0404a107691521cCcA55A44d"
     },
     {
       "chainId": 14,
-      "address": "0x38bCfa6D311154824Bb98EE9D7e9bD6f5C706aab"
+      "address": "0x86C7Cfa1B2Bf232d2F8E8eA9cF3CA9b243f1Af96"
     }
   ],
   "mockIntegrations": [
     {
       "chainId": 6,
-      "address": "0x05cDBE523b45a33e866C5199394C7C559816CDaD"
+      "address": "0x3f77cFB8273f069334a447a2dA5339313d37328A"
     },
     {
       "chainId": 14,
-      "address": "0xC8865eFc8F73a8A3C3e590Bee9491F0EB5bf66b2"
+      "address": "0xa2c86bA93db3d9ABCab584EF88b875A54C82AE05"
     }
   ]
 }

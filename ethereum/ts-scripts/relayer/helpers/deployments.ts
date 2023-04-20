@@ -185,6 +185,7 @@ export async function deployCoreRelayerSetup(
     return { address: result.address, chainId: chain.chainId };
   });
 }
+
 export async function deployCoreRelayerProxy(
   chain: ChainInfo,
   coreRelayerSetupAddress: string,
@@ -207,19 +208,18 @@ export async function deployCoreRelayerProxy(
   const governanceContract =
     "0x0000000000000000000000000000000000000000000000000000000000000004";
 
-  let ABI = [
-    "function setup(address,uint16,address,address,uint16,bytes32,uint256)",
-  ];
-  let iface = new ethers.utils.Interface(ABI);
-  let encodedData = iface.encodeFunctionData("setup", [
-    coreRelayerImplementationAddress,
-    chain.chainId,
-    wormholeAddress,
-    relayProviderProxyAddress,
-    governanceChainId,
-    governanceContract,
-    chain.evmNetworkId,
-  ]);
+  let encodedData = CoreRelayerSetup__factory.createInterface().encodeFunctionData(
+    "setup",
+    [
+      coreRelayerImplementationAddress,
+      chain.chainId,
+      wormholeAddress,
+      relayProviderProxyAddress,
+      governanceChainId,
+      governanceContract,
+      chain.evmNetworkId,
+    ]
+  );
 
   const contract = await factory.deploy(coreRelayerSetupAddress, encodedData);
   return await contract.deployed().then((result) => {
