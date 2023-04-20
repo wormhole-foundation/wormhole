@@ -7,6 +7,7 @@ import "../../libraries/external/BytesLib.sol";
 import "./CoreRelayerGetters.sol";
 import "../../interfaces/relayer/IWormholeRelayerInternalStructs.sol";
 import "../../interfaces/relayer/IWormholeRelayer.sol";
+import "../../interfaces/relayer/IDelivery.sol";
 
 contract CoreRelayerMessages is CoreRelayerGetters {
     using BytesLib for bytes;
@@ -128,6 +129,94 @@ contract CoreRelayerMessages is CoreRelayerGetters {
             uint32(instruction.payload.length),
             instruction.payload
         );
+    }
+
+    // encode a 'Send' into bytes
+    function encodeSend(IWormholeRelayer.Send memory sendParams)
+        public
+        pure
+        returns (bytes memory encoded)
+    {
+        uint8 length = uint8(sendParams.vaaKeys.length);
+        bytes memory encodedVaaKeys = abi.encodePacked(length);
+        for(uint8 i=0; i<length; i++) {
+            encodedVaaKeys = abi.encodePacked(encodedVaaKeys, encodeVaaKey(sendParams.vaaKeys[i]));
+        }
+        encoded = abi.encodePacked(
+           sendParams.targetChain,
+            sendParams.targetAddress,
+           sendParams.refundChain,
+            sendParams.refundAddress,
+            sendParams.maxTransactionFee,
+            sendParams.receiverValue);
+        encoded = abi.encodePacked(encoded, 
+            sendParams.relayProviderAddress,
+            encodedVaaKeys,
+            sendParams.consistencyLevel);
+        encoded = abi.encodePacked(encoded, 
+            uint32(sendParams.payload.length),
+            sendParams.payload,
+            uint32(sendParams.relayParameters.length),
+            sendParams.relayParameters
+        );
+    }
+
+    // decode a 'Send' from bytes
+    function decodeSend(bytes memory encoded)
+        public
+        pure
+        returns (IWormholeRelayer.Send memory sendParams)
+    {
+        uint256 index = 0;
+
+        // target chain 
+        sendParams.targetChain = encoded.toUint16(index);
+        index += 2;
+
+        // target contract address
+        sendParams.targetAddress = encoded.toBytes32(index);
+        index += 32;
+
+        sendParams.refundChain = encoded.toUint16(index);
+        index += 2;
+        // address to send the refund to
+        sendParams.refundAddress = encoded.toBytes32(index);
+        index += 32;
+
+        sendParams.maxTransactionFee = encoded.toUint256(index);
+        index += 32;
+
+        sendParams.receiverValue = encoded.toUint256(index);
+        index += 32;
+
+        sendParams.relayProviderAddress = encoded.toAddress(index);
+        index += 20;
+
+        uint8 length = encoded.toUint8(index);
+        index += 1;
+
+        sendParams.vaaKeys = new IWormholeRelayer.VaaKey[](length);
+        for(uint8 i=0; i<length; i++) {
+            ( sendParams.vaaKeys[i], index) = decodeVaaKey(encoded, index);
+        }
+
+       
+
+         sendParams.consistencyLevel = encoded.toUint8(index);
+        index += 1;
+
+        uint32 payloadLength = encoded.toUint32(index);
+        index += 4;
+
+        sendParams.payload = encoded.slice(index, payloadLength);
+        index += payloadLength;
+
+        uint32 relayParametersLength = encoded.toUint32(index);
+        index += 4;
+
+        sendParams.payload = encoded.slice(index, relayParametersLength);
+        index += relayParametersLength;
+
     }
 
     /**
@@ -397,6 +486,38 @@ contract CoreRelayerMessages is CoreRelayerGetters {
         }
         newIndex = index;
     }
+
+    function decodeDeliveryOverride(bytes memory encoded) public pure returns (IDelivery.DeliveryOverride memory output) {
+        uint256 index = 0;
+        //Version is not on the struct
+        encoded.toUint8(index);
+        index += 1;
+
+        output.gasLimit = encoded.toUint32(index);
+        index +=4;
+
+        output.maximumRefund = encoded.toUint256(index);
+        index+=32;
+
+        output.receiverValue = encoded.toUint256(index);
+        index+=32;
+
+        output.redeliveryHash = encoded.toBytes32(index);
+    }
+
+    function encodeRedeliveryInstruction(IWormholeRelayerInternalStructs.RedeliveryInstruction memory ins) public pure returns(bytes memory encoded) {
+        bytes memory vaaKey = encodeVaaKey(ins.key);
+        encoded = abi.encodePacked(
+            uint8(2),
+            vaaKey,
+            ins.newMaxRefundTarget,
+            ins.newReceiverValue,
+            ins.sourceRelayProvider,
+            ins.executionParameters.version,
+            ins.executionParameters.gasLimit);
+    }
+
+
 
     /**
      * @notice Helper function that converts an EVM address to wormhole format

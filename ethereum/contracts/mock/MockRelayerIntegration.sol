@@ -109,7 +109,8 @@ contract MockRelayerIntegration is IWormholeReceiver {
         bytes memory _message,
         uint16 targetChainId,
         address destination,
-        address refundAddress
+        address refundAddress,
+        uint256 receiverValue
     ) public payable returns (uint64 sequence) {
         uint16[] memory chains = new uint16[](1);
         chains[0] = wormhole.chainId();
@@ -124,7 +125,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
         uint64 sequence1 =
             wormhole.publishMessage{value: wormhole.messageFee()}(0, encodeFurtherInstructions(instructions), 200);
         sequence = executeSend(
-            targetChainId, destination, targetChainId, refundAddress, 0, bytes(""), vaaKeysCreator(sequence0, sequence1)
+            targetChainId, destination, targetChainId, refundAddress, receiverValue, bytes(""), vaaKeysCreator(sequence0, sequence1)
         );
     }
 
@@ -293,7 +294,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
             }
 
             for(uint8 i=0; i<sendRequests.length; i++) {
-                relayer.forward(sendRequests[i]);
+                relayer.forward{value:(i==0)?msg.value:0}(sendRequests[i]);
             }
         }
     }
