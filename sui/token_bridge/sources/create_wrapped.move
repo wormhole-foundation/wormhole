@@ -142,7 +142,7 @@ module token_bridge::create_wrapped {
 
         // Verify that the encoded VAA agrees with the parsed VAA passed into
         // this method by checking that the digests are equal.
-        let digest = wormhole::vaa::digest_of_encoded_vaa(vaa_buf);
+        let digest = wormhole::vaa::encoded_vaa_digest(vaa_buf);
         assert!(digest == wormhole::vaa::digest(&parsed), E_VAA_MISMATCH);
 
         // Deserialize to `AssetMeta`.

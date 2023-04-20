@@ -4,6 +4,21 @@
 /// verified Wormhole messages (messages with Guardian signatures attesting to
 /// its observation). Signatures on VAA are checked against an existing Guardian
 /// set that exists in the `State` (see `wormhole::state`).
+///
+/// A Wormhole integrator is discouraged from integrating `parse_and_verify` in
+/// his contract. If there is a breaking change to the `vaa` module, Wormhole
+/// will be upgraded to prevent previous build versions of this module to work.
+/// If an integrator happened to use `parse_and_verify` in his contract, he will
+/// need to be prepared to upgrade his contract to take the change (by building
+/// with the latest package implementation).
+///
+/// Instead, an integrator is encouraged to execute a transaction block, which
+/// executes `parse_and_verify` from the latest Wormhole package ID and to
+/// implement his methods that require redeeming a VAA to take `VAA` as an
+/// argument.
+///
+/// A good example of how this methodology is implemented is how the Token
+/// Bridge contract redeems its VAAs.
 module wormhole::vaa {
     use std::option::{Self};
     use std::vector::{Self};
@@ -23,10 +38,15 @@ module wormhole::vaa {
 
     friend wormhole::governance_message;
 
+    /// Incorrect VAA version.
     const E_WRONG_VERSION: u64 = 0;
+    /// Not enough guardians attested to this Wormhole observation.
     const E_NO_QUORUM: u64 = 1;
+    /// Signature does not match expected Guardian public key.
     const E_INVALID_SIGNATURE: u64 = 2;
+    /// Prior guardian set is no longer valid.
     const E_GUARDIAN_SET_EXPIRED: u64 = 3;
+    /// Guardian signature is encoded out of sequence.
     const E_NON_INCREASING_SIGNERS: u64 = 4;
 
     const VERSION_VAA: u8 = 1;
@@ -186,7 +206,7 @@ module wormhole::vaa {
         vaa
     }
 
-    public fun digest_of_encoded_vaa(buf: vector<u8>): Bytes32 {
+    public fun encoded_vaa_digest(buf: vector<u8>): Bytes32 {
         let (_, parsed) = parse(buf);
 
         let digest = parsed.digest;
