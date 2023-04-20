@@ -60,24 +60,14 @@ pub fn execute(
             info,
             WormholeExecuteMsg::PostMessage { message, nonce },
         ),
-        ExecuteMsg::SubmitUpdateChannelChain { vaas } => submit_vaas(deps, env, info, vaas),
+        ExecuteMsg::SubmitUpdateChannelChain { vaa } => {
+            let evt = handle_vaa(deps, env, vaa)?;
+            Ok(Response::new()
+                .add_attribute("action", "submit_vaas")
+                .add_attribute("owner", info.sender)
+                .add_event(evt))
+        }
     }
-}
-
-fn submit_vaas(
-    mut deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    vaas: Vec<Binary>,
-) -> Result<Response, anyhow::Error> {
-    let evts = vaas
-        .into_iter()
-        .map(|v| handle_vaa(deps.branch(), env.clone(), v))
-        .collect::<anyhow::Result<Vec<_>>>()?;
-    Ok(Response::new()
-        .add_attribute("action", "submit_vaas")
-        .add_attribute("owner", info.sender)
-        .add_events(evts))
 }
 
 fn handle_vaa(deps: DepsMut, env: Env, vaa: Binary) -> anyhow::Result<Event> {

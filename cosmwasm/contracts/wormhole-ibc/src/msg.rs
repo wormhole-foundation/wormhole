@@ -14,12 +14,12 @@ pub enum ExecuteMsg {
         message: Binary,
         nonce: u32,
     },
-    /// Submit one or more signed VAAs to update the on-chain state.  If processing any of the VAAs
+    /// Submit a signed VAA to update the on-chain state.  If processing any of the VAAs
     /// returns an error, the entire transaction is aborted and none of the VAAs are committed.
     SubmitUpdateChannelChain {
-        /// One or more VAAs to be submitted.  Each VAA should be encoded in the standard wormhole
+        /// VAA to submit.  The VAA should be encoded in the standard wormhole
         /// wire format.
-        vaas: Vec<Binary>,
+        vaa: Binary,
     },
 }
 
