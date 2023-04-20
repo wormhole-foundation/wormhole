@@ -12,7 +12,7 @@ import "../../interfaces/relayer/IWormholeReceiver.sol";
 import "../../interfaces/relayer/IRelayProvider.sol";
 
 contract ForwardWrapper {
-    IForwardInstructionViewer forwardInstructionViewer;
+    IForwardInstructionViewer public forwardInstructionViewer;
     IWormhole wormhole;
 
     error RequesterNotCoreRelayer();
@@ -58,7 +58,7 @@ contract ForwardWrapper {
         if (forwardInstructions.length > 0) {
             uint256 totalMsgValue = 0;
             uint256 totalFee = 0;
-            for(uint8 i=0; i<forwardInstructions.length; i++) {
+            for (uint8 i = 0; i < forwardInstructions.length; i++) {
                 totalMsgValue += forwardInstructions[i].msgValue;
                 totalFee += forwardInstructions[i].totalFee;
             }
@@ -73,7 +73,11 @@ contract ForwardWrapper {
         }
     }
 
-    function safeRelayProviderSupportsChain(IRelayProvider relayProvider, uint16 chainId) view external returns (bool isSupported){
+    function safeRelayProviderSupportsChain(IRelayProvider relayProvider, uint16 chainId)
+        external
+        view
+        returns (bool isSupported)
+    {
         return relayProvider.isChainSupported(chainId);
     }
 }

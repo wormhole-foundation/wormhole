@@ -9,8 +9,15 @@ import "../../interfaces/relayer/IWormholeRelayerInternalStructs.sol";
 import "./CoreRelayerState.sol";
 import "../../libraries/external/BytesLib.sol";
 
-contract CoreRelayerGetters is CoreRelayerState {
+abstract contract CoreRelayerGetters is CoreRelayerState {
     using BytesLib for bytes;
+
+    // immutable var set in implementation, not proxy state
+    address immutable forwardWrapper;
+
+    constructor(address _forwardWrapper) {
+        forwardWrapper = _forwardWrapper;
+    }
 
     function governanceActionIsConsumed(bytes32 hash) public view returns (bool) {
         return _state.consumedGovernanceActions[hash];
@@ -52,12 +59,16 @@ contract CoreRelayerGetters is CoreRelayerState {
         return _state.defaultRelayProvider;
     }
 
-    function getForwardInstructions() public view returns (IWormholeRelayerInternalStructs.ForwardInstruction[] memory) {
+    function getForwardInstructions()
+        public
+        view
+        returns (IWormholeRelayerInternalStructs.ForwardInstruction[] memory)
+    {
         return _state.forwardInstructions;
     }
 
     function getWormholeRelayerCallerAddress() public view returns (address) {
-        return _state.forwardWrapper;
+        return forwardWrapper;
     }
 
     function isContractLocked() internal view returns (bool) {

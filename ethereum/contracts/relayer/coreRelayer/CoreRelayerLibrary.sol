@@ -2,8 +2,9 @@
 pragma solidity ^0.8.0;
 
 import "../../libraries/external/BytesLib.sol";
+import "../../interfaces/relayer/IForwardWrapper.sol";
 
-library CoreRelayerLibrary {
+contract CoreRelayerLibrary {
     using BytesLib for bytes;
 
     error WrongModule(bytes32 module);
@@ -17,7 +18,7 @@ library CoreRelayerLibrary {
     function parseUpgrade(bytes memory encodedUpgrade, bytes32 module)
         public
         pure
-        returns (ContractUpgrade memory cu)
+        returns (IForwardWrapper.ContractUpgrade memory cu)
     {
         uint256 index = 0;
 
@@ -49,7 +50,7 @@ library CoreRelayerLibrary {
     function parseRegisterChain(bytes memory encodedRegistration, bytes32 module)
         public
         pure
-        returns (RegisterChain memory registerChain)
+        returns (IForwardWrapper.RegisterChain memory registerChain)
     {
         uint256 index = 0;
 
@@ -84,7 +85,7 @@ library CoreRelayerLibrary {
     function parseUpdateDefaultProvider(bytes memory encodedDefaultProvider, bytes32 module)
         public
         pure
-        returns (UpdateDefaultProvider memory defaultProvider)
+        returns (IForwardWrapper.UpdateDefaultProvider memory defaultProvider)
     {
         uint256 index = 0;
 
@@ -111,28 +112,5 @@ library CoreRelayerLibrary {
         if (encodedDefaultProvider.length != index) {
             revert InvalidDefaultProviderLength(encodedDefaultProvider.length);
         }
-    }
-
-    struct ContractUpgrade {
-        bytes32 module;
-        uint8 action;
-        uint16 chain;
-        address newContract;
-    }
-
-    struct RegisterChain {
-        bytes32 module;
-        uint8 action;
-        uint16 chain; //TODO Why is this on this object?
-        uint16 emitterChain;
-        bytes32 emitterAddress;
-    }
-
-    //This could potentially be combined with ContractUpgrade
-    struct UpdateDefaultProvider {
-        bytes32 module;
-        uint8 action;
-        uint16 chain;
-        address newProvider;
     }
 }

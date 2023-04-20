@@ -9,6 +9,8 @@ import "./CoreRelayer.sol";
 contract CoreRelayerImplementation is CoreRelayer {
     error ImplementationAlreadyInitialized();
 
+    constructor(address _forwardWrapper) CoreRelayerGetters(_forwardWrapper) {}
+
     function initialize() public virtual initializer {
         // this function needs to be exposed for an upgrade to pass
     }

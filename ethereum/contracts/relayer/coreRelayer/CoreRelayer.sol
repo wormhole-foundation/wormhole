@@ -6,7 +6,7 @@ import "../../interfaces/relayer/IWormholeRelayer.sol";
 import "./CoreRelayerDelivery.sol";
 import "../../interfaces/relayer/IWormholeRelayerInternalStructs.sol";
 
-contract CoreRelayer is CoreRelayerDelivery {
+abstract contract CoreRelayer is CoreRelayerDelivery {
     /**
      * @notice This 'send' function emits a wormhole message (VAA) that alerts the default wormhole relay provider to
      * call the 'deliver' endpoint of the contract on chain 'targetChain' and address 'targetAddress'

@@ -9,10 +9,10 @@ import "../../libraries/external/BytesLib.sol";
 import "./CoreRelayerGetters.sol";
 import "./CoreRelayerSetters.sol";
 import "../../interfaces/relayer/IWormholeRelayerInternalStructs.sol";
+import "../../interfaces/relayer/IForwardWrapper.sol";
 import "./CoreRelayerMessages.sol";
 
 import "../../interfaces/IWormhole.sol";
-import "./CoreRelayerLibrary.sol";
 
 abstract contract CoreRelayerGovernance is
     CoreRelayerGetters,
@@ -45,7 +45,8 @@ abstract contract CoreRelayerGovernance is
 
         setConsumedGovernanceAction(vm.hash);
 
-        CoreRelayerLibrary.ContractUpgrade memory contractUpgrade = CoreRelayerLibrary.parseUpgrade(vm.payload, module);
+        IForwardWrapper wrapper = IForwardWrapper(getWormholeRelayerCallerAddress());
+        IForwardWrapper.ContractUpgrade memory contractUpgrade = wrapper.parseUpgrade(vm.payload, module);
         if (contractUpgrade.chain != chainId()) {
             revert WrongChainId(contractUpgrade.chain);
         }
@@ -61,7 +62,8 @@ abstract contract CoreRelayerGovernance is
 
         setConsumedGovernanceAction(vm.hash);
 
-        CoreRelayerLibrary.RegisterChain memory rc = CoreRelayerLibrary.parseRegisterChain(vm.payload, module);
+        IForwardWrapper wrapper = IForwardWrapper(getWormholeRelayerCallerAddress());
+        IForwardWrapper.RegisterChain memory rc = wrapper.parseRegisterChain(vm.payload, module);
 
         if ((rc.chain != chainId() || isFork()) && rc.chain != 0) {
             revert InvalidChainId(rc.chain);
@@ -78,8 +80,8 @@ abstract contract CoreRelayerGovernance is
 
         setConsumedGovernanceAction(vm.hash);
 
-        CoreRelayerLibrary.UpdateDefaultProvider memory provider =
-            CoreRelayerLibrary.parseUpdateDefaultProvider(vm.payload, module);
+        IForwardWrapper wrapper = IForwardWrapper(getWormholeRelayerCallerAddress());
+        IForwardWrapper.UpdateDefaultProvider memory provider = wrapper.parseUpdateDefaultProvider(vm.payload, module);
 
         if ((provider.chain != chainId() || isFork()) && provider.chain != 0) {
             revert InvalidChainId(provider.chain);

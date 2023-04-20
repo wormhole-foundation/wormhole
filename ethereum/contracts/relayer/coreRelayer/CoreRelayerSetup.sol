@@ -3,7 +3,6 @@
 pragma solidity ^0.8.0;
 
 import "./CoreRelayerGovernance.sol";
-import "./ForwardWrapper.sol";
 
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 
@@ -43,7 +42,6 @@ contract CoreRelayerSetup is CoreRelayerSetters, ERC1967Upgrade {
         setGovernanceContract(governanceContract);
         setEvmChainId(evmChainId);
 
-        setForwardWrapper(address(new ForwardWrapper(address(this), wormhole)));
 
         _upgradeTo(implementation);
 
