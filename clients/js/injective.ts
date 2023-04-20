@@ -5,7 +5,7 @@ import {
   TxGrpcApi,
   ChainRestAuthApi,
   createTransaction,
-  MsgExecuteContract,
+  MsgExecuteContractCompat,
 } from "@injectivelabs/sdk-ts";
 import { fromUint8Array } from "js-base64";
 import { impossible, Payload } from "./vaa";
@@ -131,7 +131,7 @@ export async function execute_injective(
   }
 
   console.log("execute_msg", execute_msg);
-  const transaction = MsgExecuteContract.fromJSON({
+  const transaction = MsgExecuteContractCompat.fromJSON({
     sender: walletInjAddr,
     contractAddress: target_contract,
     exec: {
@@ -147,7 +147,7 @@ export async function execute_injective(
     walletInjAddr
   );
   const { signBytes, txRaw } = createTransaction({
-    message: transaction.toDirectSign(),
+    message: transaction,
     memo: "",
     fee: getStdFee((parseInt(DEFAULT_STD_FEE.gas, 10) * 2.5).toString()),
     pubKey: walletPublicKey,
@@ -165,7 +165,7 @@ export async function execute_injective(
   const sig = await walletPK.sign(Buffer.from(signBytes));
 
   /** Append Signatures */
-  txRaw.setSignaturesList([sig]);
+  txRaw.signatures = [sig];
 
   const txService = new TxGrpcApi(network.grpc);
 

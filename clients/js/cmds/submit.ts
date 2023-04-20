@@ -130,6 +130,9 @@ exports.handler = async (argv) => {
   } else if (chain === "xpla") {
     const xpla = require("../xpla");
     await xpla.execute_xpla(parsed_vaa.payload, buf, network);
+  } else if (chain === "sei") {
+    const sei = require("../sei");    
+    await sei.execute_sei(parsed_vaa.payload, buf, network);
   } else if (chain === "osmosis") {
     throw Error("OSMOSIS is not supported yet");
   } else if (chain === "sui") {
