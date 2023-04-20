@@ -116,8 +116,8 @@ func NewWatcher(
 	// Do not add a leading slash
 	latestBlockURL := "blocks/latest"
 
-	// Injective does things slightly differently than terra
-	if chainID == vaa.ChainIDInjective {
+	// Terra2 and Injective do things slightly differently than terra classic
+	if chainID == vaa.ChainIDInjective || chainID == vaa.ChainIDTerra2 {
 		latestBlockURL = "cosmos/base/tendermint/v1beta1/blocks/latest"
 	}
 
