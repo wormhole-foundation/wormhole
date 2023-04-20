@@ -35,7 +35,7 @@ module token_bridge::vaa {
     /// Token Bridge.
     public(friend) fun verify_only_once(
         token_bridge_state: &mut State,
-        parsed: VAA
+        verified_vaa: VAA
     ): VAA {
         state::check_minimum_requirement<VaaControl>(
             token_bridge_state
@@ -45,21 +45,21 @@ module token_bridge::vaa {
         // hash to prevent replay.
         consumed_vaas::consume(
             state::borrow_mut_consumed_vaas(token_bridge_state),
-            vaa::digest(&parsed)
+            vaa::digest(&verified_vaa)
         );
 
         // Does the emitter agree with a registered Token Bridge?
-        state::assert_registered_emitter(token_bridge_state, &parsed);
+        state::assert_registered_emitter(token_bridge_state, &verified_vaa);
 
-        parsed
+        verified_vaa
     }
 
     #[test_only]
     public fun verify_only_once_test_only(
         token_bridge_state: &mut State,
-        parsed: VAA
+        verified_vaa: VAA
     ): VAA {
-        verify_only_once(token_bridge_state, parsed)
+        verify_only_once(token_bridge_state, verified_vaa)
     }
 }
 
@@ -100,9 +100,12 @@ module token_bridge::vaa_tests {
         let token_bridge_state = take_state(scenario);
 
         // You shall not pass!
-        let parsed = parse_and_verify_vaa(scenario, VAA);
+        let verified_vaa = parse_and_verify_vaa(scenario, VAA);
         let verified =
-            vaa::verify_only_once_test_only(&mut token_bridge_state, parsed);
+            vaa::verify_only_once_test_only(
+                &mut token_bridge_state,
+                verified_vaa
+            );
 
         // Clean up.
         wormhole::vaa::destroy(verified);
@@ -138,15 +141,18 @@ module token_bridge::vaa_tests {
         );
 
         // Confirm that encoded emitter disagrees with registered emitter.
-        let parsed = parse_and_verify_vaa(scenario, VAA);
-        assert!(wormhole::vaa::emitter_address(&parsed) != emitter_addr, 0);
+        let verified_vaa = parse_and_verify_vaa(scenario, VAA);
+        assert!(
+            wormhole::vaa::emitter_address(&verified_vaa) != emitter_addr,
+            0
+        );
 
         // You shall not pass!
-        let verified =
-            vaa::verify_only_once_test_only(&mut token_bridge_state, parsed);
+        let authorized_vaa =
+            vaa::verify_only_once_test_only(&mut token_bridge_state, verified_vaa);
 
         // Clean up.
-        wormhole::vaa::destroy(verified);
+        wormhole::vaa::destroy(authorized_vaa);
         return_state(token_bridge_state);
 
         // Done.
@@ -173,18 +179,18 @@ module token_bridge::vaa_tests {
         let token_bridge_state = take_state(scenario);
 
         // Confirm VAA originated from where we expect.
-        let parsed = parse_and_verify_vaa(scenario, VAA);
+        let verified_vaa = parse_and_verify_vaa(scenario, VAA);
         assert!(
-            wormhole::vaa::emitter_chain(&parsed) == expected_source_chain,
+            wormhole::vaa::emitter_chain(&verified_vaa) == expected_source_chain,
             0
         );
 
         // Finally verify.
-        let verified =
-            vaa::verify_only_once_test_only(&mut token_bridge_state, parsed);
+        let authorized_vaa =
+            vaa::verify_only_once_test_only(&mut token_bridge_state, verified_vaa);
 
         // Clean up.
-        wormhole::vaa::destroy(verified);
+        wormhole::vaa::destroy(authorized_vaa);
         return_state(token_bridge_state);
 
         // Done.
@@ -212,22 +218,30 @@ module token_bridge::vaa_tests {
         let token_bridge_state = take_state(scenario);
 
         // Confirm VAA originated from where we expect.
-        let parsed = parse_and_verify_vaa(scenario, VAA);
+        let verified_vaa = parse_and_verify_vaa(scenario, VAA);
         assert!(
-            wormhole::vaa::emitter_chain(&parsed) == expected_source_chain,
+            wormhole::vaa::emitter_chain(&verified_vaa) == expected_source_chain,
             0
         );
 
         // Finally verify.
-        let verified =
-            vaa::verify_only_once_test_only(&mut token_bridge_state, parsed);
+        let authorized_vaa =
+            vaa::verify_only_once_test_only(
+                &mut token_bridge_state,
+                verified_vaa
+            );
+        wormhole::vaa::destroy(authorized_vaa);
 
+        let verified_vaa = parse_and_verify_vaa(scenario, VAA);
         // You shall not pass!
-        let verified_again =
-            vaa::verify_only_once_test_only(&mut token_bridge_state, verified);
+        let authorized_vaa =
+            vaa::verify_only_once_test_only(
+                &mut token_bridge_state,
+                verified_vaa
+            );
 
         // Clean up.
-        wormhole::vaa::destroy(verified_again);
+        wormhole::vaa::destroy(authorized_vaa);
         return_state(token_bridge_state);
 
         // Done.

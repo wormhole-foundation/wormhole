@@ -118,7 +118,7 @@ module token_bridge::create_wrapped {
         token_bridge_state: &mut State,
         setup: WrappedAssetSetup<CoinType>,
         coin_upgrade_cap: UpgradeCap,
-        parsed: VAA,
+        verified_vaa: VAA,
         ctx: &mut TxContext,
     ) {
         state::check_minimum_requirement<CreateWrappedControl>(
@@ -142,13 +142,13 @@ module token_bridge::create_wrapped {
         // Finally destroy the object.
         object::delete(id);
 
-        // Verify that the encoded VAA agrees with the parsed VAA passed into
+        // Verify that the encoded VAA agrees with the verified VAA passed into
         // this method by checking that the digests are equal.
         let digest = wormhole::vaa::encoded_vaa_digest(vaa_buf);
-        assert!(digest == wormhole::vaa::digest(&parsed), E_VAA_MISMATCH);
+        assert!(digest == wormhole::vaa::digest(&verified_vaa), E_VAA_MISMATCH);
 
         // Deserialize to `AssetMeta`.
-        let token_meta = verify_asset_meta(token_bridge_state, parsed);
+        let token_meta = verify_asset_meta(token_bridge_state, verified_vaa);
 
         // `register_wrapped_asset` uses `token_registry::add_new_wrapped`,
         // which will check whether the asset has already been registered and if
@@ -169,14 +169,14 @@ module token_bridge::create_wrapped {
     /// given `CoinType` with a new asset meta VAA emitted from another network.
     public fun update_attestation<CoinType>(
         token_bridge_state: &mut State,
-        parsed: VAA
+        verified_vaa: VAA
     ) {
         state::check_minimum_requirement<CreateWrappedControl>(
             token_bridge_state
         );
 
         // Deserialize to `AssetMeta`.
-        let token_meta = verify_asset_meta(token_bridge_state, parsed);
+        let token_meta = verify_asset_meta(token_bridge_state, verified_vaa);
 
         // This asset must exist in the registry.
         let registry = state::borrow_mut_token_registry(token_bridge_state);
@@ -191,12 +191,13 @@ module token_bridge::create_wrapped {
 
     fun verify_asset_meta(
         token_bridge_state: &mut State,
-        parsed: VAA
+        verified_vaa: VAA
     ): AssetMeta {
-        let verified = vaa::verify_only_once(token_bridge_state, parsed);
+        let authorized_vaa =
+            vaa::verify_only_once(token_bridge_state, verified_vaa);
 
         // Finally deserialize the VAA payload.
-        asset_meta::deserialize(wormhole::vaa::take_payload(verified))
+        asset_meta::deserialize(wormhole::vaa::take_payload(authorized_vaa))
     }
 
     #[test_only]
@@ -326,13 +327,13 @@ module token_bridge::create_wrapped_tests {
 
         let token_bridge_state = take_state(scenario);
 
-        let parsed =
+        let verified_vaa =
             parse_and_verify_vaa(scenario, coin_wrapped_12::encoded_vaa());
         create_wrapped::complete_registration(
             &mut token_bridge_state,
             wrapped_asset_setup,
             upgrade_cap,
-            parsed,
+            verified_vaa,
             test_scenario::ctx(scenario)
         );
 
@@ -371,14 +372,14 @@ module token_bridge::create_wrapped_tests {
         };
 
         // Now update metadata.
-        let parsed =
+        let verified_vaa =
             parse_and_verify_vaa(
                 scenario,
                 coin_wrapped_12::encoded_updated_vaa()
             );
         create_wrapped::update_attestation<CREATE_WRAPPED_TESTS>(
             &mut token_bridge_state,
-            parsed
+            verified_vaa
         );
 
         // Check updated name and symbol.
@@ -436,25 +437,25 @@ module token_bridge::create_wrapped_tests {
 
         let token_bridge_state = take_state(scenario);
 
-        let parsed =
+        let verified_vaa =
             parse_and_verify_vaa(scenario, coin_wrapped_12::encoded_vaa());
         create_wrapped::complete_registration(
             &mut token_bridge_state,
             wrapped_asset_setup,
             upgrade_cap,
-            parsed,
+            verified_vaa,
             test_scenario::ctx(scenario)
         );
         // This VAA is for COIN_WRAPPED_7 metadata, which disagrees with
         // COIN_WRAPPED_12.
         let invalid_asset_meta_vaa = coin_wrapped_7::encoded_vaa();
 
-        let parsed =
+        let verified_vaa =
             parse_and_verify_vaa(scenario, invalid_asset_meta_vaa);
         // You shall not pass!
         create_wrapped::update_attestation<CREATE_WRAPPED_TESTS>(
             &mut token_bridge_state,
-            parsed
+            verified_vaa
         );
 
         // Clean up.

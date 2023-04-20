@@ -98,7 +98,7 @@ module token_bridge::coin_wrapped_12 {
 
         let token_bridge_state = take_state(scenario);
 
-        let parsed = parse_and_verify_vaa(scenario, VAA);
+        let verified_vaa = parse_and_verify_vaa(scenario, VAA);
 
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
@@ -110,7 +110,7 @@ module token_bridge::coin_wrapped_12 {
                 scenario
             ),
             test_scenario::take_from_sender<UpgradeCap>(scenario),
-            parsed,
+            verified_vaa,
             test_scenario::ctx(scenario)
         );
 

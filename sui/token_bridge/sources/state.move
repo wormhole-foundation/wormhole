@@ -130,6 +130,11 @@ module token_bridge::state {
     }
 
     /// Issue an `UpgradeTicket` for the upgrade.
+    ///
+    /// NOTE: The Sui VM performs a check that this method is executed from the
+    /// latest published package. If someone were to try to execute this using
+    /// a stale build, the transaction will revert with `PackageUpgradeError`,
+    /// specifically `PackageIDDoesNotMatch`.
     public(friend) fun authorize_upgrade(
         self: &mut State,
         implementation_digest: Bytes32
@@ -158,6 +163,11 @@ module token_bridge::state {
     }
 
     /// Finalize the upgrade that ran to produce the given `receipt`.
+    ///
+    /// NOTE: The Sui VM performs a check that this method is executed from the
+    /// latest published package. If someone were to try to execute this using
+    /// a stale build, the transaction will revert with `PackageUpgradeError`,
+    /// specifically `PackageIDDoesNotMatch`.
     public(friend) fun commit_upgrade(
         self: &mut State,
         receipt: UpgradeReceipt
@@ -290,13 +300,13 @@ module token_bridge::state {
 
     /// Assert that a given emitter equals one that is registered as a foreign
     /// Token Bridge.
-    public fun assert_registered_emitter(self: &State, parsed: &VAA) {
-        let chain = vaa::emitter_chain(parsed);
+    public fun assert_registered_emitter(self: &State, verified_vaa: &VAA) {
+        let chain = vaa::emitter_chain(verified_vaa);
         let registry = &self.emitter_registry;
         assert!(table::contains(registry, chain), E_UNREGISTERED_EMITTER);
 
         let registered = table::borrow(registry, chain);
-        let emitter_addr = vaa::emitter_address(parsed);
+        let emitter_addr = vaa::emitter_address(verified_vaa);
         assert!(*registered == emitter_addr, E_EMITTER_ADDRESS_MISMATCH);
     }
 
