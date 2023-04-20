@@ -289,6 +289,26 @@ contract WormholeRelayerTests is Test {
         assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
     }
 
+    function testSendCheckConsistencyLevel(GasParameters memory gasParams, FeeParameters memory feeParams, bytes memory message) public {
+        StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
+
+        vm.recordLogs();
+
+        // estimate the cost based on the intialized values
+        uint256 maxTransactionFee = setup.source.coreRelayer.quoteGas(
+            setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
+        );
+
+        uint64 sequence = setup.source.wormhole.publishMessage{value: feeParams.wormholeFeeOnSource}(0, bytes("Hi!"), 200);
+
+        setup.source.coreRelayer.send{value: maxTransactionFee + feeParams.wormholeFeeOnSource}(setup.targetChainId, setup.source.coreRelayer.toWormholeFormat(address(setup.target.integration)), setup.targetChainId, setup.source.coreRelayer.toWormholeFormat(address(setup.target.integration)), maxTransactionFee, 0, bytes(""), vaaKeyArray(setup.sourceChainId, sequence, address(this)), uint8(23));
+
+        Vm.Log memory log = vm.getRecordedLogs()[1];
+        uint8 consistencyLevel = log.data.toUint8(32 + 32 + 32 + 32 - 1);
+
+        assertTrue(consistencyLevel == 23);
+    }
+
     function testMultipleForwards(GasParameters memory gasParams, FeeParameters memory feeParams, bytes memory message) public {
         StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, 2000000);
 
