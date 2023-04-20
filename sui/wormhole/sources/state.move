@@ -181,6 +181,11 @@ module wormhole::state {
     }
 
     /// Issue an `UpgradeTicket` for the upgrade.
+    ///
+    /// NOTE: The Sui VM performs a check that this method is executed from the
+    /// latest published package. If someone were to try to execute this using
+    /// a stale build, the transaction will revert with `PackageUpgradeError`,
+    /// specifically `PackageIDDoesNotMatch`.
     public(friend) fun authorize_upgrade(
         self: &mut State,
         implementation_digest: Bytes32
@@ -209,6 +214,11 @@ module wormhole::state {
     }
 
     /// Finalize the upgrade that ran to produce the given `receipt`.
+    ///
+    /// NOTE: The Sui VM performs a check that this method is executed from the
+    /// latest published package. If someone were to try to execute this using
+    /// a stale build, the transaction will revert with `PackageUpgradeError`,
+    /// specifically `PackageIDDoesNotMatch`.
     public(friend) fun commit_upgrade(
         self: &mut State,
         receipt: UpgradeReceipt

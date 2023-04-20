@@ -46,7 +46,7 @@ module token_bridge::complete_transfer {
     /// recipient, a relayer fee is split from this coin and sent to `relayer`.
     public fun complete_transfer<CoinType>(
         token_bridge_state: &mut State,
-        parsed: VAA,
+        verified_vaa: VAA,
         ctx: &mut TxContext
     ): Coin<CoinType> {
         state::check_minimum_requirement<CompleteTransferControl>(
@@ -55,15 +55,16 @@ module token_bridge::complete_transfer {
 
         // Verify Token Bridge transfer message. This method guarantees that a
         // verified transfer message cannot be redeemed again.
-        let verified = vaa::verify_only_once(token_bridge_state, parsed);
+        let authorized_vaa =
+            vaa::verify_only_once(token_bridge_state, verified_vaa);
 
         // Emitting the transfer being redeemed (and disregard return value).
-        emit_transfer_redeemed(&verified);
+        emit_transfer_redeemed(&authorized_vaa);
 
         // Deserialize transfer message and process.
         handle_complete_transfer<CoinType>(
             token_bridge_state,
-            wormhole::vaa::take_payload(verified),
+            wormhole::vaa::take_payload(authorized_vaa),
             ctx
         )
     }
@@ -303,7 +304,7 @@ module token_bridge::complete_transfer_tests {
             transfer::destroy(parsed);
         };
 
-        let parsed = parse_and_verify_vaa(scenario, transfer_vaa);
+        let verified_vaa = parse_and_verify_vaa(scenario, transfer_vaa);
 
         // Ignore effects.
         test_scenario::next_tx(scenario, tx_relayer);
@@ -311,7 +312,7 @@ module token_bridge::complete_transfer_tests {
         let payout =
             complete_transfer::complete_transfer<COIN_NATIVE_10>(
                 &mut token_bridge_state,
-                parsed,
+                verified_vaa,
                 test_scenario::ctx(scenario)
             );
         assert!(coin::value(&payout) == expected_relayer_fee, 0);
@@ -420,7 +421,7 @@ module token_bridge::complete_transfer_tests {
             transfer::destroy(parsed);
         };
 
-        let parsed = parse_and_verify_vaa(scenario, transfer_vaa);
+        let verified_vaa = parse_and_verify_vaa(scenario, transfer_vaa);
 
         // Ignore effects.
         test_scenario::next_tx(scenario, tx_relayer);
@@ -428,7 +429,7 @@ module token_bridge::complete_transfer_tests {
         let payout =
             complete_transfer::complete_transfer<COIN_NATIVE_4>(
                 &mut token_bridge_state,
-                parsed,
+                verified_vaa,
                 test_scenario::ctx(scenario)
             );
         assert!(coin::value(&payout) == expected_relayer_fee, 0);
@@ -532,7 +533,7 @@ module token_bridge::complete_transfer_tests {
             transfer::destroy(parsed);
         };
 
-        let parsed = parse_and_verify_vaa(scenario, transfer_vaa);
+        let verified_vaa = parse_and_verify_vaa(scenario, transfer_vaa);
 
         // Ignore effects.
         test_scenario::next_tx(scenario, tx_relayer);
@@ -540,7 +541,7 @@ module token_bridge::complete_transfer_tests {
         let payout =
             complete_transfer::complete_transfer<COIN_WRAPPED_7>(
                 &mut token_bridge_state,
-                parsed,
+                verified_vaa,
                 test_scenario::ctx(scenario)
             );
         assert!(coin::value(&payout) == expected_relayer_fee, 0);
@@ -646,7 +647,7 @@ module token_bridge::complete_transfer_tests {
             transfer::destroy(parsed);
         };
 
-        let parsed = parse_and_verify_vaa(scenario, transfer_vaa);
+        let verified_vaa = parse_and_verify_vaa(scenario, transfer_vaa);
 
         // Ignore effects.
         test_scenario::next_tx(scenario, tx_relayer);
@@ -654,7 +655,7 @@ module token_bridge::complete_transfer_tests {
         let payout =
             complete_transfer::complete_transfer<COIN_WRAPPED_12>(
                 &mut token_bridge_state,
-                parsed,
+                verified_vaa,
                 test_scenario::ctx(scenario)
             );
         assert!(coin::value(&payout) == expected_relayer_fee, 0);
@@ -768,7 +769,7 @@ module token_bridge::complete_transfer_tests {
             transfer::destroy(parsed);
         };
 
-        let parsed = parse_and_verify_vaa(scenario, transfer_vaa);
+        let verified_vaa = parse_and_verify_vaa(scenario, transfer_vaa);
 
         // Ignore effects.
         test_scenario::next_tx(scenario, expected_recipient);
@@ -776,7 +777,7 @@ module token_bridge::complete_transfer_tests {
         let payout =
             complete_transfer::complete_transfer<COIN_NATIVE_10>(
                 &mut token_bridge_state,
-                parsed,
+                verified_vaa,
                 test_scenario::ctx(scenario)
             );
         assert!(coin::value(&payout) == expected_relayer_fee, 0);
@@ -863,7 +864,7 @@ module token_bridge::complete_transfer_tests {
             assert!(native_asset::custody(coin_4) == custody_amount_coin_4, 0);
         };
 
-        let parsed = parse_and_verify_vaa(scenario, transfer_vaa);
+        let verified_vaa = parse_and_verify_vaa(scenario, transfer_vaa);
 
         // Ignore effects.
         test_scenario::next_tx(scenario, tx_relayer);
@@ -874,7 +875,7 @@ module token_bridge::complete_transfer_tests {
         let payout =
             complete_transfer::complete_transfer<COIN_NATIVE_4>(
                 &mut token_bridge_state,
-                parsed,
+                verified_vaa,
                 test_scenario::ctx(scenario)
             );
 
@@ -931,7 +932,7 @@ module token_bridge::complete_transfer_tests {
             assert!(wrapped_asset::total_supply(coin_7) == 0, 0);
         };
 
-        let parsed = parse_and_verify_vaa(scenario, transfer_vaa);
+        let verified_vaa = parse_and_verify_vaa(scenario, transfer_vaa);
 
         // Ignore effects.
         test_scenario::next_tx(scenario, tx_relayer);
@@ -942,7 +943,7 @@ module token_bridge::complete_transfer_tests {
         let payout =
             complete_transfer::complete_transfer<COIN_WRAPPED_7>(
                 &mut token_bridge_state,
-                parsed,
+                verified_vaa,
                 test_scenario::ctx(scenario)
             );
 
@@ -986,7 +987,7 @@ module token_bridge::complete_transfer_tests {
 
         let token_bridge_state = take_state(scenario);
 
-        let parsed = parse_and_verify_vaa(scenario, transfer_vaa);
+        let verified_vaa = parse_and_verify_vaa(scenario, transfer_vaa);
 
         // Ignore effects.
         test_scenario::next_tx(scenario, tx_relayer);
@@ -995,7 +996,7 @@ module token_bridge::complete_transfer_tests {
         // chain 69 instead of chain 21 (Sui).
         let payout = complete_transfer::complete_transfer<COIN_WRAPPED_12>(
             &mut token_bridge_state,
-            parsed,
+            verified_vaa,
             test_scenario::ctx(scenario)
         );
 

@@ -135,13 +135,13 @@ module token_bridge::register_chain_tests {
             assert!(!table::contains(registry, expected_chain), 0);
         };
 
-        let parsed =
+        let verified_vaa =
             vaa::parse_and_verify(
                 &worm_state,
                 VAA_REGISTER_CHAIN_1,
                 &the_clock
             );
-        let msg = governance_message::verify_vaa(&worm_state, parsed);
+        let msg = governance_message::verify_vaa(&worm_state, verified_vaa);
         let (
             chain,
             contract_address
@@ -187,13 +187,13 @@ module token_bridge::register_chain_tests {
         let (token_bridge_state, worm_state) = take_states(scenario);
         let the_clock = take_clock(scenario);
 
-        let parsed =
+        let verified_vaa =
             vaa::parse_and_verify(
                 &worm_state,
                 VAA_REGISTER_CHAIN_1,
                 &the_clock
             );
-        let msg = governance_message::verify_vaa(&worm_state, parsed);
+        let msg = governance_message::verify_vaa(&worm_state, verified_vaa);
         let (
             chain,
             _
@@ -226,13 +226,13 @@ module token_bridge::register_chain_tests {
         let another_contract = external_address::take_bytes(&mut cur);
         assert!(another_contract != expected_contract, 0);
 
-        let parsed =
+        let verified_vaa =
             vaa::parse_and_verify(
                 &worm_state,
                 VAA_REGISTER_SAME_CHAIN,
                 &the_clock
             );
-        let msg = governance_message::verify_vaa(&worm_state, parsed);
+        let msg = governance_message::verify_vaa(&worm_state, verified_vaa);
 
         // You shall not pass!
         register_chain(&mut token_bridge_state, msg);

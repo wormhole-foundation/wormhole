@@ -124,7 +124,7 @@ module coins::coin_tests {
 
         let token_bridge_state = take_state(scenario);
 
-        let parsed = parse_and_verify_vaa(scenario, coins::encoded_vaa());
+        let verified_vaa = parse_and_verify_vaa(scenario, coins::encoded_vaa());
 
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
@@ -136,7 +136,7 @@ module coins::coin_tests {
                 scenario,
                 coin_deployer
             ),
-            parsed,
+            verified_vaa,
             test_scenario::ctx(scenario)
         );
 
@@ -173,7 +173,7 @@ module coins::coin_tests {
             assert!(wrapped_asset::name(metadata) == name, 0);
         };
 
-        let parsed =
+        let verified_vaa =
             parse_and_verify_vaa(scenario, coins::encoded_updated_vaa());
 
         // Ignore effects.
@@ -182,7 +182,7 @@ module coins::coin_tests {
         // Now update metadata.
         create_wrapped::update_attestation<COIN>(
             &mut token_bridge_state,
-            parsed
+            verified_vaa
         );
 
         // Check updated name and symbol.
