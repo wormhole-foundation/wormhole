@@ -28,7 +28,7 @@ interface IWormholeRelayerInternalStructs {
     }
 
     struct ForwardInstruction {
-        bytes encodedInstruction;
+        bytes encodedSend;
         uint256 msgValue;
         uint256 totalFee;
     }
