@@ -39,7 +39,7 @@ Launch the devnet:
 
 By default this runs a network consisting of one guardian, two ganache (Eth) chains, a Solana test validator, an Algorand sandbox, and LocalTerra for both Terra Classic and Terra 2. If you want to work on non-consensus parts of the code, running with a single guardian is easiest since you won't have to wait for k8s to restart all pods. See the usage guide below for arguments to customize the tilt network.
 
-## Usage
+### Usage
 
 Watch pod status in your cluster:
 
@@ -127,6 +127,24 @@ IntelliJ's [remote development backend](https://www.jetbrains.com/remote-develop
 
 [Projector](https://lp.jetbrains.com/projector/) should also work for clients that can't run the native UI locally
 (if you want to code on your VR headset, smart toaster or Chromebook - this is the way!).
+
+## JavaScript / TypeScript
+
+This repo uses [npm workspaces](https://docs.npmjs.com/cli/v9/using-npm/workspaces)
+
+To get started, run the following from the root of the repo:
+
+    npm ci
+
+When working with packages included in the workspace, **always** run `npm` from the root with the corresponding `-w <folder>`. **This includes when installing packages.**
+
+For example, to run the sdk tests:
+
+    npm test -w sdk/js
+
+You can also run all of the commands within a workspace, if they exist:
+
+    npm run build -ws --if-present
 
 ## Tips and tricks
 

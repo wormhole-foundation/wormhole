@@ -1,0 +1,8 @@
+{
+  "name": "@wormhole-foundation/wormhole",
+  "workspaces": [
+    "ethereum",
+    "sdk/js",
+    "clients/js"
+  ]
+}
