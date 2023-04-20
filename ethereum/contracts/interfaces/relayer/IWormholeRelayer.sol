@@ -209,6 +209,30 @@ interface IWormholeRelayer {
         uint8 consistencyLevel
     ) external payable;
 
+
+    /**
+     * @notice This 'resend' function allows a caller to request a second delivery of a specified VAA, with an updated provider, maxTransactionFee, and receiveValue.
+     * This function is intended to help integrators more eaily resolve Receiver Failure cases, or other scenarios where an delivery was not able to be correctly performed.
+     * 
+     * No checks about the original delivery VAA are performed prior to the emission of the redelivery instruction. Therefore, caller should be careful not to request
+     * redeliveries in the following cases, as they will result in an undeliverable, invalid redelivery instruction that the provider will not be able to perform:
+     *
+     * - If the specified VaaKey does not correspond to a valid delivery VAA.
+     * - If the targetChain does not equal the targetChain of the original delivery.
+     * - If the newMaxTransactionFee is lower than the original maxTransactionFee.
+     * - If the newReceiverValue is lower than the original receiverValue.
+     * - If the new calculated maxRefund is lower than the original maxRefund.
+     *
+     * Similar to send, you must call this function with msg.value = nexMaxTransactionFee + newReceiverValue + wormhole.messageFee() in order to pay for the delivery.
+     *
+     *  @param key a VAA Key corresponding to the delivery which should be performed again. This must correspond to a valid delivery instruction VAA.
+     *  @param newMaxTransactionFee - the maxTransactionFee (in this chain's wei) that should be used on the redelivery. Must correspond to a gas amount equal to or greater than the original delivery.
+     *  @param newReceiverValue - the receiveValue (in this chain's wei) that should be used on the redelivery. Must result in receiverValue on the target chain which is equal to or greater that the original delivery.
+     *  @param targetChain - the chain which the original delivery targetted.
+     *  @param relayProvider - the address of the relayProvider (on this chain) which should be used for this redelivery.
+     */
+    function resend(VaaKey memory key, uint256 newMaxTransactionFee, uint256 newReceiverValue, uint16 targetChain, address relayProvider) external payable returns (uint64 sequence);
+
     /**
      * @notice This 'forward' function can only be called in a IWormholeReceiver within the 'receiveWormholeMessages' function
      * It's purpose is to use any leftover fee from the 'maxTransactionFee' of the current delivery to fund another delivery
@@ -283,6 +307,7 @@ interface IWormholeRelayer {
         pure
         returns (uint256 receiverValue);
 
+
     /**
      * @notice Helper function that converts an EVM address to wormhole format
      * @param addr (EVM 20-byte address)
@@ -320,8 +345,6 @@ interface IWormholeRelayer {
     error MsgValueTooLow(); // msg.value is too low
     // Specifically, (msg.value) + (any leftover funds if this is a forward) is less than (maxTransactionFee + receiverValue), summed over all of your requests if this is a multichainSend/multichainForward
     error NoDeliveryInProgress(); // Forwards can only be requested within execution of 'receiveWormholeMessages', or when a delivery is in progress
-    error MultipleForwardsRequested(); // Only one forward can be requested in a transaction
     error ForwardRequestFromWrongAddress(); // A forward was requested from an address that is not the 'targetAddress' of the original delivery
     error RelayProviderDoesNotSupportTargetChain(); // Your relay provider does not support the target chain you specified
-    error MultichainSendEmpty(); // Your delivery request container has size 0
 }

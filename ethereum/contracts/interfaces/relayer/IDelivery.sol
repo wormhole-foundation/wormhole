@@ -12,11 +12,29 @@ interface IDelivery {
      * @custom:member multisendIndex The delivery instruction container in encodedDeliveryVAA contains many delivery instructions, each specifying a different destination address
      * This 'multisendIndex' indicates which of those delivery instructions should be executed (specifically, the instruction deliveryInstructionsContainer.instructions[multisendIndex])
      * @custom:member relayerRefundAddress The address to which any refunds to the relay provider should be sent
+     * @custom:member overrides. Optional overrides field which must parse to executionParameters.
      */
     struct TargetDeliveryParameters {
         bytes[] encodedVMs;
         bytes encodedDeliveryVAA;
         address payable relayerRefundAddress;
+        bytes overrides;
+    }
+
+    /**
+     * @notice TargetDeliveryParameters is the struct that the relay provider passes into 'deliver'
+     * containing an array of the signed wormhole messages that are to be relayed
+     *
+     * @custom:member version the version of this payload
+     * @custom:member gaslimit override, must be greater than the gasLimit specified in the delivery instruction.
+     * @custom:member receiverValue override, must be greater than the receiverValue specified in the delivery instruction.
+     * @custom:member the hash of the redelivery which is being performed, or 0 if none.
+     */
+    struct DeliveryOverride {
+        uint32 gasLimit;
+        uint256 maximumRefund;
+        uint256 receiverValue;
+        bytes32 redeliveryHash;
     }
 
     /**

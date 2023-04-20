@@ -40,5 +40,15 @@ interface IWormholeRelayerInternalStructs {
         bytes[] encodedVMs;
         address payable relayerRefundAddress;
         DeliveryInstruction internalInstruction;
+        bytes32 redeliveryHash;
     }
+
+    struct RedeliveryInstruction {
+        IWormholeRelayer.VaaKey key;
+        uint256 newMaxRefundTarget;
+        uint256 newReceiverValue;
+        bytes32 sourceRelayProvider;
+        ExecutionParameters executionParameters;
+    }
+
 }

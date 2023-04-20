@@ -7,6 +7,7 @@ import "../../libraries/external/BytesLib.sol";
 import "./CoreRelayerGetters.sol";
 import "../../interfaces/relayer/IWormholeRelayerInternalStructs.sol";
 import "../../interfaces/relayer/IWormholeRelayer.sol";
+import "../../interfaces/relayer/IDelivery.sol";
 
 contract CoreRelayerMessages is CoreRelayerGetters {
     using BytesLib for bytes;
@@ -485,6 +486,38 @@ contract CoreRelayerMessages is CoreRelayerGetters {
         }
         newIndex = index;
     }
+
+    function decodeDeliveryOverride(bytes memory encoded) public pure returns (IDelivery.DeliveryOverride memory output) {
+        uint256 index = 0;
+        //Version is not on the struct
+        encoded.toUint8(index);
+        index += 1;
+
+        output.gasLimit = encoded.toUint32(index);
+        index +=4;
+
+        output.maximumRefund = encoded.toUint256(index);
+        index+=32;
+
+        output.receiverValue = encoded.toUint256(index);
+        index+=32;
+
+        output.redeliveryHash = encoded.toBytes32(index);
+    }
+
+    function encodeRedeliveryInstruction(IWormholeRelayerInternalStructs.RedeliveryInstruction memory ins) public pure returns(bytes memory encoded) {
+        bytes memory vaaKey = encodeVaaKey(ins.key);
+        encoded = abi.encodePacked(
+            uint8(2),
+            vaaKey,
+            ins.newMaxRefundTarget,
+            ins.newReceiverValue,
+            ins.sourceRelayProvider,
+            ins.executionParameters.version,
+            ins.executionParameters.gasLimit);
+    }
+
+
 
     /**
      * @notice Helper function that converts an EVM address to wormhole format
