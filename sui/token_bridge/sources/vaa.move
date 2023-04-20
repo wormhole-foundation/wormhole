@@ -11,8 +11,7 @@
 /// in its `State`. If the encoded VAA passes through `parse_and_verify` again,
 /// it will abort.
 module token_bridge::vaa {
-    use sui::clock::{Clock};
-    use wormhole::state::{State as WormholeState};
+    use wormhole::consumed_vaas::{Self};
     use wormhole::vaa::{Self, VAA};
 
     use token_bridge::state::{Self, State};
@@ -34,11 +33,9 @@ module token_bridge::vaa {
     /// NOTE: This method has `friend` visibility so it is only callable by this
     /// contract. Otherwise the replay protection could be abused to DoS the
     /// Token Bridge.
-    public(friend) fun parse_verify_and_consume(
+    public(friend) fun verify_only_once(
         token_bridge_state: &mut State,
-        worm_state: &WormholeState,
-        vaa_buf: vector<u8>,
-        the_clock: &Clock
+        parsed: VAA
     ): VAA {
         state::check_minimum_requirement<VaaControl>(
             token_bridge_state
@@ -46,13 +43,10 @@ module token_bridge::vaa {
 
         // First parse and verify VAA using Wormhole. This also consumes the VAA
         // hash to prevent replay.
-        let parsed =
-            vaa::parse_verify_and_consume(
-                state::borrow_mut_consumed_vaas(token_bridge_state),
-                worm_state,
-                vaa_buf,
-                the_clock
-            );
+        consumed_vaas::consume(
+            state::borrow_mut_consumed_vaas(token_bridge_state),
+            vaa::digest(&parsed)
+        );
 
         // Does the emitter agree with a registered Token Bridge?
         state::assert_registered_emitter(token_bridge_state, &parsed);
@@ -61,18 +55,11 @@ module token_bridge::vaa {
     }
 
     #[test_only]
-    public fun parse_verify_and_consume_test_only(
+    public fun verify_only_once_test_only(
         token_bridge_state: &mut State,
-        worm_state: &WormholeState,
-        vaa_buf: vector<u8>,
-        the_clock: &Clock
+        parsed: VAA
     ): VAA {
-        parse_verify_and_consume(
-            token_bridge_state,
-            worm_state,
-            vaa_buf,
-            the_clock
-        )
+        verify_only_once(token_bridge_state, parsed)
     }
 }
 
@@ -80,16 +67,15 @@ module token_bridge::vaa {
 module token_bridge::vaa_tests {
     use sui::test_scenario::{Self};
     use wormhole::external_address::{Self};
+    use wormhole::wormhole_scenario::{parse_and_verify_vaa};
 
     use token_bridge::state::{Self};
     use token_bridge::token_bridge_scenario::{
         person,
         register_dummy_emitter,
-        return_clock,
-        return_states,
+        return_state,
         set_up_wormhole_and_token_bridge,
-        take_clock,
-        take_states
+        take_state
     };
     use token_bridge::vaa::{Self};
 
@@ -111,22 +97,16 @@ module token_bridge::vaa_tests {
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
 
-        let (token_bridge_state, worm_state) = take_states(scenario);
-        let the_clock = take_clock(scenario);
+        let token_bridge_state = take_state(scenario);
 
         // You shall not pass!
-        let parsed =
-            vaa::parse_verify_and_consume_test_only(
-                &mut token_bridge_state,
-                &worm_state,
-                VAA,
-                &the_clock
-            );
+        let parsed = parse_and_verify_vaa(scenario, VAA);
+        let verified =
+            vaa::verify_only_once_test_only(&mut token_bridge_state, parsed);
 
         // Clean up.
-        wormhole::vaa::destroy(parsed);
-        return_states(token_bridge_state, worm_state);
-        return_clock(the_clock);
+        wormhole::vaa::destroy(verified);
+        return_state(token_bridge_state);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -146,8 +126,7 @@ module token_bridge::vaa_tests {
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
 
-        let (token_bridge_state, worm_state) = take_states(scenario);
-        let the_clock = take_clock(scenario);
+        let token_bridge_state = take_state(scenario);
 
         // First register emitter.
         let emitter_chain = 2;
@@ -159,24 +138,16 @@ module token_bridge::vaa_tests {
         );
 
         // Confirm that encoded emitter disagrees with registered emitter.
-        let parsed =
-            wormhole::vaa::parse_and_verify(&worm_state, VAA, &the_clock);
+        let parsed = parse_and_verify_vaa(scenario, VAA);
         assert!(wormhole::vaa::emitter_address(&parsed) != emitter_addr, 0);
-        wormhole::vaa::destroy(parsed);
 
         // You shall not pass!
-        let parsed =
-            vaa::parse_verify_and_consume_test_only(
-                &mut token_bridge_state,
-                &worm_state,
-                VAA,
-                &the_clock
-            );
+        let verified =
+            vaa::verify_only_once_test_only(&mut token_bridge_state, parsed);
 
         // Clean up.
-        wormhole::vaa::destroy(parsed);
-        return_states(token_bridge_state, worm_state);
-        return_clock(the_clock);
+        wormhole::vaa::destroy(verified);
+        return_state(token_bridge_state);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -199,31 +170,22 @@ module token_bridge::vaa_tests {
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
 
-        let (token_bridge_state, worm_state) = take_states(scenario);
-        let the_clock = take_clock(scenario);
+        let token_bridge_state = take_state(scenario);
 
         // Confirm VAA originated from where we expect.
-        let parsed =
-            wormhole::vaa::parse_and_verify(&worm_state, VAA, &the_clock);
+        let parsed = parse_and_verify_vaa(scenario, VAA);
         assert!(
             wormhole::vaa::emitter_chain(&parsed) == expected_source_chain,
             0
         );
-        wormhole::vaa::destroy(parsed);
 
-        // Finally deserialize.
-        let parsed =
-            vaa::parse_verify_and_consume_test_only(
-                &mut token_bridge_state,
-                &worm_state,
-                VAA,
-                &the_clock
-            );
+        // Finally verify.
+        let verified =
+            vaa::verify_only_once_test_only(&mut token_bridge_state, parsed);
 
         // Clean up.
-        wormhole::vaa::destroy(parsed);
-        return_states(token_bridge_state, worm_state);
-        return_clock(the_clock);
+        wormhole::vaa::destroy(verified);
+        return_state(token_bridge_state);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -247,45 +209,26 @@ module token_bridge::vaa_tests {
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
 
-        let (token_bridge_state, worm_state) = take_states(scenario);
-        let the_clock = take_clock(scenario);
+        let token_bridge_state = take_state(scenario);
 
         // Confirm VAA originated from where we expect.
-        let parsed =
-            wormhole::vaa::parse_and_verify(
-                &worm_state,
-                VAA,
-                &the_clock
-            );
+        let parsed = parse_and_verify_vaa(scenario, VAA);
         assert!(
             wormhole::vaa::emitter_chain(&parsed) == expected_source_chain,
             0
         );
-        wormhole::vaa::destroy(parsed);
 
-        // Finally deserialize.
-        let parsed =
-            vaa::parse_verify_and_consume_test_only(
-                &mut token_bridge_state,
-                &worm_state,
-                VAA,
-                &the_clock
-            );
-        wormhole::vaa::destroy(parsed);
+        // Finally verify.
+        let verified =
+            vaa::verify_only_once_test_only(&mut token_bridge_state, parsed);
 
         // You shall not pass!
-        let parsed =
-            vaa::parse_verify_and_consume_test_only(
-                &mut token_bridge_state,
-                &worm_state,
-                VAA,
-                &the_clock
-            );
+        let verified_again =
+            vaa::verify_only_once_test_only(&mut token_bridge_state, verified);
 
         // Clean up.
-        wormhole::vaa::destroy(parsed);
-        return_states(token_bridge_state, worm_state);
-        return_clock(the_clock);
+        wormhole::vaa::destroy(verified_again);
+        return_state(token_bridge_state);
 
         // Done.
         test_scenario::end(my_scenario);

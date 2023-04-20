@@ -3,12 +3,11 @@
 /// This module implements handling a governance VAA to enact registering a
 /// foreign Token Bridge for a particular chain ID.
 module token_bridge::register_chain {
-    use sui::clock::{Clock};
     use wormhole::bytes::{Self};
+    use wormhole::consumed_vaas::{Self};
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::governance_message::{Self, GovernanceMessage};
-    use wormhole::state::{State as WormholeState};
 
     use token_bridge::state::{Self, State};
     use token_bridge::version_control::{RegisterChain as RegisterChainControl};
@@ -24,22 +23,17 @@ module token_bridge::register_chain {
 
     public fun register_chain(
         token_bridge_state: &mut State,
-        worm_chain: &WormholeState,
-        vaa_buf: vector<u8>,
-        the_clock: &Clock
+        msg: GovernanceMessage
     ): (u16, ExternalAddress) {
         state::check_minimum_requirement<RegisterChainControl>(
             token_bridge_state
         );
 
         // Protect against replaying the VAA.
-        let msg =
-            governance_message::parse_verify_and_consume_vaa(
-                state::borrow_mut_consumed_vaas(token_bridge_state),
-                worm_chain,
-                vaa_buf,
-                the_clock
-            );
+        consumed_vaas::consume(
+            state::borrow_mut_consumed_vaas(token_bridge_state),
+            governance_message::vaa_hash(&msg)
+        );
 
         handle_register_chain(token_bridge_state, msg)
     }
@@ -97,6 +91,7 @@ module token_bridge::register_chain_tests {
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self};
     use wormhole::governance_message::{Self};
+    use wormhole::vaa::{Self};
 
     use token_bridge::state::{Self};
     use token_bridge::token_bridge_scenario::{
@@ -140,16 +135,17 @@ module token_bridge::register_chain_tests {
             assert!(!table::contains(registry, expected_chain), 0);
         };
 
-        let (
-            chain,
-            contract_address
-        ) =
-            register_chain(
-                &mut token_bridge_state,
+        let parsed =
+            vaa::parse_and_verify(
                 &worm_state,
                 VAA_REGISTER_CHAIN_1,
                 &the_clock
             );
+        let msg = governance_message::verify_vaa(&worm_state, parsed);
+        let (
+            chain,
+            contract_address
+        ) = register_chain(&mut token_bridge_state, msg);
         assert!(chain == expected_chain, 0);
 
         let expected_contract =
@@ -191,16 +187,17 @@ module token_bridge::register_chain_tests {
         let (token_bridge_state, worm_state) = take_states(scenario);
         let the_clock = take_clock(scenario);
 
-        let (
-            chain,
-            _
-        ) =
-            register_chain(
-                &mut token_bridge_state,
+        let parsed =
+            vaa::parse_and_verify(
                 &worm_state,
                 VAA_REGISTER_CHAIN_1,
                 &the_clock
             );
+        let msg = governance_message::verify_vaa(&worm_state, parsed);
+        let (
+            chain,
+            _
+        ) = register_chain(&mut token_bridge_state, msg);
 
         // Check registry.
         let expected_contract =
@@ -211,10 +208,13 @@ module token_bridge::register_chain_tests {
 
         let payload =
             governance_message::take_payload(
-                governance_message::parse_and_verify_vaa_test_only(
+                governance_message::verify_vaa(
                     &worm_state,
-                    VAA_REGISTER_SAME_CHAIN,
-                    &the_clock
+                    vaa::parse_and_verify(
+                        &worm_state,
+                        VAA_REGISTER_SAME_CHAIN,
+                        &the_clock
+                    )
                 )
             );
         let cur = cursor::new(payload);
@@ -226,13 +226,16 @@ module token_bridge::register_chain_tests {
         let another_contract = external_address::take_bytes(&mut cur);
         assert!(another_contract != expected_contract, 0);
 
+        let parsed =
+            vaa::parse_and_verify(
+                &worm_state,
+                VAA_REGISTER_SAME_CHAIN,
+                &the_clock
+            );
+        let msg = governance_message::verify_vaa(&worm_state, parsed);
+
         // You shall not pass!
-        register_chain(
-            &mut token_bridge_state,
-            &worm_state,
-            VAA_REGISTER_SAME_CHAIN,
-            &the_clock
-        );
+        register_chain(&mut token_bridge_state, msg);
 
         // Clean up.
         cursor::destroy_empty(cur);

@@ -19,6 +19,8 @@ module token_bridge::transfer_with_payload {
 
     use token_bridge::normalized_amount::{Self, NormalizedAmount};
 
+    friend token_bridge::transfer_tokens_with_payload;
+
     /// Message payload is not `TransferWithPayload`.
     const E_INVALID_PAYLOAD: u64 = 0;
 
@@ -47,8 +49,9 @@ module token_bridge::transfer_with_payload {
         payload: vector<u8>,
     }
 
-    /// Create new `TransferWithPayload` using `EmitterCap` as the sender.
-    public fun new_from_emitter(
+    /// Create new `TransferWithPayload` using Token Bridge's `EmitterCap` as
+    /// the sender.
+    public(friend) fun new_from_emitter(
         emitter_cap: &EmitterCap,
         amount: NormalizedAmount,
         token_address: ExternalAddress,
@@ -66,6 +69,27 @@ module token_bridge::transfer_with_payload {
             sender: external_address::from_id(object::id((emitter_cap))),
             payload
         }
+    }
+
+    #[test_only]
+    public fun new_from_emitter_test_only(
+        emitter_cap: &EmitterCap,
+        amount: NormalizedAmount,
+        token_address: ExternalAddress,
+        token_chain: u16,
+        redeemer: ExternalAddress,
+        redeemer_chain: u16,
+        payload: vector<u8>
+    ): TransferWithPayload {
+        new_from_emitter(
+            emitter_cap,
+            amount,
+            token_address,
+            token_chain,
+            redeemer,
+            redeemer_chain,
+            payload
+        )
     }
 
     /// Destroy `TransferWithPayload` and take only its payload.
@@ -204,7 +228,7 @@ module token_bridge::transfer_with_payload_tests {
         let payload = b"All your base are belong to us.";
 
         let new_transfer =
-            transfer_with_payload::new_from_emitter(
+            transfer_with_payload::new_from_emitter_test_only(
                 &emitter_cap,
                 amount,
                 token_address,
