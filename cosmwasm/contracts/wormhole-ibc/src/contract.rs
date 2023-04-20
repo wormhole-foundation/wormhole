@@ -92,7 +92,7 @@ fn handle_vaa(deps: DepsMut, env: Env, vaa: Binary) -> anyhow::Result<Event> {
         .context("failed to load contract config")?;
     ensure!(
         govpacket.chain == Chain::from(state.chain_id),
-        "this governance VAA is for another chain"
+        format!("this governance VAA is for chain {}, which does not match this chain ({})", u16::from(govpacket.chain), state.chain_id)
     );
 
     // governance VAA replay protection
