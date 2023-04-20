@@ -142,6 +142,9 @@ type (
 
 	// BodyIbcReceiverUpdateChannelChain is a governance message to update the ibc channel_id -> chain_id mapping in the ibc_receiver contract
 	BodyIbcReceiverUpdateChannelChain struct {
+		// The chain that this governance VAA should be redeemed on
+		TargetChainId ChainID
+
 		// This should follow the IBC channel identifier standard: https://github.com/cosmos/ibc/tree/main/spec/core/ics-024-host-requirements#paths-identifiers-separators
 		// If the identifier string is shorter than 64 bytes, the correct number of 0x00 bytes should be prepended.
 		ChannelId [64]byte
@@ -252,7 +255,7 @@ func (r BodyIbcReceiverUpdateChannelChain) Serialize() []byte {
 	payload := &bytes.Buffer{}
 	payload.Write(r.ChannelId[:])
 	MustWrite(payload, binary.BigEndian, r.ChainId)
-	return serializeBridgeGovernanceVaa(IbcReceiverModuleStr, IbcReceiverActionUpdateChannelChain, 0, payload.Bytes())
+	return serializeBridgeGovernanceVaa(IbcReceiverModuleStr, IbcReceiverActionUpdateChannelChain, r.TargetChainId, payload.Bytes())
 }
 
 func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chainId ChainID, payload []byte) []byte {

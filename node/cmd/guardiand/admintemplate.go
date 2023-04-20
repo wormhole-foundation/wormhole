@@ -38,6 +38,7 @@ var circleIntegrationForeignEmitterAddress *string
 var circleIntegrationCircleDomain *string
 var circleIntegrationNewImplementationAddress *string
 
+var ibcReceiverUpdateChannelChainTargetChainId *string
 var ibcReceiverUpdateChannelChainChannelId *string
 var ibcReceiverUpdateChannelChainChainId *string
 
@@ -97,6 +98,7 @@ func init() {
 
 	// flags for the ibc-receiver-update-channel-chain command
 	ibcReceiverUpdateChannelChainFlagSet := pflag.NewFlagSet("ibc-mapping", pflag.ExitOnError)
+	ibcReceiverUpdateChannelChainTargetChainId = ibcReceiverUpdateChannelChainFlagSet.String("target-chain-id", "", "Target Chain ID for the governance VAA")
 	ibcReceiverUpdateChannelChainChannelId = ibcReceiverUpdateChannelChainFlagSet.String("channel-id", "", "IBC Channel ID on Wormchain")
 	ibcReceiverUpdateChannelChainChainId = ibcReceiverUpdateChannelChainFlagSet.String("chain-id", "", "IBC Chain ID that the channel ID corresponds to")
 	AdminClientIbcReceiverUpdateChannelChainCmd.Flags().AddFlagSet(ibcReceiverUpdateChannelChainFlagSet)
@@ -471,6 +473,14 @@ func runCircleIntegrationUpgradeContractImplementationTemplate(cmd *cobra.Comman
 }
 
 func runIbcReceiverUpdateChannelChainTemplate(cmd *cobra.Command, args []string) {
+	if *ibcReceiverUpdateChannelChainTargetChainId == "" {
+		log.Fatal("--target-chain-id must be specified")
+	}
+	targetChainId, err := parseChainID(*ibcReceiverUpdateChannelChainTargetChainId)
+	if err != nil {
+		log.Fatal("failed to parse chain id: ", err)
+	}
+
 	if *ibcReceiverUpdateChannelChainChannelId == "" {
 		log.Fatal("--channel-id must be specified")
 	}
@@ -494,8 +504,9 @@ func runIbcReceiverUpdateChannelChainTemplate(cmd *cobra.Command, args []string)
 				Nonce:    rand.Uint32(),
 				Payload: &nodev1.GovernanceMessage_IbcReceiverUpdateChannelChain{
 					IbcReceiverUpdateChannelChain: &nodev1.IbcReceiverUpdateChannelChain{
-						ChannelId: *ibcReceiverUpdateChannelChainChannelId,
-						ChainId:   uint32(chainId),
+						TargetChainId: uint32(targetChainId),
+						ChannelId:     *ibcReceiverUpdateChannelChainChannelId,
+						ChainId:       uint32(chainId),
 					},
 				},
 			},

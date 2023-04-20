@@ -368,6 +368,10 @@ func ibcReceiverUpdateChannelChain(
 	sequence uint64,
 ) (*vaa.VAA, error) {
 	// validate parameters
+	if req.TargetChainId > math.MaxUint16 {
+		return nil, fmt.Errorf("invalid target chain id, must be <= %d", math.MaxUint16)
+	}
+
 	if req.ChainId > math.MaxUint16 {
 		return nil, fmt.Errorf("invalid chain id, must be <= %d", math.MaxUint16)
 	}
@@ -380,8 +384,9 @@ func ibcReceiverUpdateChannelChain(
 	// create governance VAA
 	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
 		vaa.BodyIbcReceiverUpdateChannelChain{
-			ChannelId: channelId,
-			ChainId:   vaa.ChainID(req.ChainId),
+			TargetChainId: vaa.ChainID(req.TargetChainId),
+			ChannelId:     channelId,
+			ChainId:       vaa.ChainID(req.ChainId),
 		}.Serialize())
 
 	return v, nil

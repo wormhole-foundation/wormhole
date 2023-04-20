@@ -240,10 +240,12 @@ message CircleIntegrationUpgradeContractImplementation {
 }
 
 message IbcReceiverUpdateChannelChain {
+  // Chain ID that this governance VAA should be redeemed on
+  uint32 target_chain_id = 1;
   // IBC channel ID
-  string channel_id = 1;
+  string channel_id = 2;
   // ChainID corresponding to the IBC channel
-  uint32 chain_id = 2;
+  uint32 chain_id = 3;
 }
 
 message FindMissingMessagesRequest {
