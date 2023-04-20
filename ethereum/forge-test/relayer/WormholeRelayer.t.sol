@@ -572,7 +572,6 @@ contract WormholeRelayerTests is Test {
         uint256 transactionFeeRefundAmount = test.refundAddressAmount - test.receiverValueSource * feeParams.sourceNativePrice * 100 / (uint256(1) * feeParams.targetNativePrice * 105);
         test.maximumRefundTarget = (test.transactionFee - test.overhead) * feeParams.sourceNativePrice * 100 / (uint256(1) * feeParams.targetNativePrice * 105);
         test.gasAmount = uint32(actualGasLimit  - transactionFeeRefundAmount * actualGasLimit / test.maximumRefundTarget);
-        console.log(test.gasAmount);
         assertTrue(test.gasAmount >= 250000, "Gas amount (calculated from refund address payment) lower than expected");
         assertTrue(test.gasAmount <= 350000, "Gas amount (calculated from refund address payment) higher than expected");
         assertTrue(test.relayerPayment == test.destinationAmount + test.refundAddressAmount, "Relayer paid the correct amount");
