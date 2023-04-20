@@ -80,6 +80,7 @@ module coins::coin_tests {
         two_people
     };
     use token_bridge::token_registry::{Self};
+    use token_bridge::vaa::{Self};
     use token_bridge::wrapped_asset::{Self};
     use wormhole::wormhole_scenario::{parse_and_verify_vaa};
 
@@ -125,6 +126,7 @@ module coins::coin_tests {
         let token_bridge_state = take_state(scenario);
 
         let verified_vaa = parse_and_verify_vaa(scenario, coins::encoded_vaa());
+        let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
 
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
@@ -136,7 +138,7 @@ module coins::coin_tests {
                 scenario,
                 coin_deployer
             ),
-            verified_vaa,
+            msg,
             test_scenario::ctx(scenario)
         );
 
@@ -175,15 +177,13 @@ module coins::coin_tests {
 
         let verified_vaa =
             parse_and_verify_vaa(scenario, coins::encoded_updated_vaa());
+        let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
 
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
 
         // Now update metadata.
-        create_wrapped::update_attestation<COIN>(
-            &mut token_bridge_state,
-            verified_vaa
-        );
+        create_wrapped::update_attestation<COIN>(&mut token_bridge_state, msg);
 
         // Check updated name and symbol.
         let registry = state::borrow_token_registry(&token_bridge_state);
