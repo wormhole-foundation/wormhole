@@ -1,18 +1,22 @@
 SOURCE_FILES:=$(shell find . -type d -name node_modules -prune -o -name "*.ts")
 
+# Since the introduction of npm workspaces (#2752), the npm commands need to run
+# from the root of the repo.
+REPO_ROOT=../..
+
 .PHONY: all
 all: build
 
-node_modules: package-lock.json
-	@touch -m node_modules
-	npm ci
+$(REPO_ROOT)/sdk/js/lib/cjs:
+	cd $(REPO_ROOT) && npm -w sdk/js run build
 
-.PHONY: dependencies
-dependencies: node_modules
+$(REPO_ROOT)/node_modules: $(REPO_ROOT)/package-lock.json
+	@touch -m $@
+	cd $(REPO_ROOT) && npm ci
 
-build: node_modules $(SOURCE_FILES)
+build: $(REPO_ROOT)/node_modules $(REPO_ROOT)/sdk/js/lib/cjs $(SOURCE_FILES)
 	@mkdir -p build
-	npm run build
+	cd $(REPO_ROOT)/ && npm -w clients/js run build
 	@touch -m build
 
 install: build
@@ -28,4 +32,4 @@ test: build
 	./run_parse_tests
 
 clean:
-	rm -rf build node_modules
+	rm -rf build
