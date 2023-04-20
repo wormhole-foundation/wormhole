@@ -4,7 +4,7 @@ source $HOME/.cargo/env
 
 git clone https://github.com/MystenLabs/sui.git --branch devnet
 cd sui
-git reset --hard a63f425b9999c7fdfe483598720a9effc0acdc9e
+git reset --hard 3a70c4374090b020b95465787f3220a95d8ab0ba
 
 cargo --locked install --path crates/sui
 cargo --locked install --path crates/sui-faucet
