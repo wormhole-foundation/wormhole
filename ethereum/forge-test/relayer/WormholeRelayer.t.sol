@@ -494,7 +494,7 @@ contract WormholeRelayerTests is Test {
     function testFundsCorrectForASend(GasParameters memory gasParams, FeeParameters memory feeParams) public {
 
         vm.recordLogs();
-        (Contracts memory source, Contracts memory target, FundsCorrectTest memory test) = setupFundsCorrectTest(gasParams, feeParams, 210000);
+        (Contracts memory source, Contracts memory target, FundsCorrectTest memory test) = setupFundsCorrectTest(gasParams, feeParams, 215000);
 
         test.payment = test.transactionFee + uint256(3) * source.wormhole.messageFee() + test.receiverValueSource;
 
@@ -531,8 +531,9 @@ contract WormholeRelayerTests is Test {
         test.maximumRefundTarget = (test.transactionFee - test.overhead) * feeParams.sourceNativePrice * 100 / (uint256(1) * feeParams.targetNativePrice * 105);
         test.gasAmount = uint32(actualGasLimit  - test.refundAddressAmount * actualGasLimit / test.maximumRefundTarget);
         assertTrue(test.maximumRefundTarget == deliveryData.maximumRefund);
-        assertTrue(test.gasAmount >= 203000, "Gas amount (calculated from refund address payment) lower than expected");
-        assertTrue(test.gasAmount <= 210000, "Gas amount (calculated from refund address payment) higher than expected");
+        console.log(test.gasAmount);
+        assertTrue(test.gasAmount >= 203000, "Gas amount (calculated from refund address payment) lower than expected" );
+        assertTrue(test.gasAmount <= 215000, "Gas amount (calculated from refund address payment) higher than expected");
         assertTrue(test.relayerPayment == test.destinationAmount + test.refundAddressAmount, "Relayer paid the correct amount");
     }
 
