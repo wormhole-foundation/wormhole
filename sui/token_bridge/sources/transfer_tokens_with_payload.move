@@ -25,9 +25,9 @@ module token_bridge::transfer_tokens_with_payload {
         TransferTokensWithPayload as TransferTokensWithPayloadControl
     };
 
-    /// `transfer_tokens_with_payload` takes a `Balance` of a coin type and
-    /// bridges this asset out of Sui by either joining this balance in the
-    /// Token Bridge's custody for native assets or burning the balance
+    /// `transfer_tokens_with_payload` takes a `Coin` object of a coin type and
+    /// bridges this asset out of Sui by either joining its balance in the
+    /// Token Bridge's custody for native assets or burning its balance
     /// for wrapped assets.
     ///
     /// The `EmitterCap` is encoded as the sender of these assets. And
@@ -385,7 +385,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
         );
 
         let expected_payload =
-            transfer_with_payload::new_from_emitter(
+            transfer_with_payload::new_from_emitter_test_only(
                 &emitter_cap,
                 expected_amount,
                 expected_token_address,
@@ -545,7 +545,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
         );
 
         let expected_payload =
-            transfer_with_payload::new_from_emitter(
+            transfer_with_payload::new_from_emitter_test_only(
                 &emitter_cap,
                 expected_amount,
                 expected_token_address,

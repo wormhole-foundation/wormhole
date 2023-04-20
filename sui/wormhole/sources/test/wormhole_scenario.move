@@ -13,6 +13,7 @@ module wormhole::wormhole_scenario {
     use sui::package::{UpgradeCap};
     use sui::test_scenario::{Self, Scenario};
 
+    use wormhole::emitter::{EmitterCap};
     use wormhole::setup::{Self, DeployerCap};
     use wormhole::state::{Self, State};
     use wormhole::vaa::{Self, VAA};
@@ -22,6 +23,8 @@ module wormhole::wormhole_scenario {
     const WALLET_1: address = @0xB0B1;
     const WALLET_2: address = @0xB0B2;
     const WALLET_3: address = @0xB0B3;
+    const VAA_VERIFIER: address = @0xD00D;
+    const EMITTER_MAKER: address = @0xFEED;
 
     /// Set up Wormhole with any guardian pubkeys. For most testing purposes,
     /// please use `set_up_wormhole` which only uses one guardian.
@@ -165,6 +168,8 @@ module wormhole::wormhole_scenario {
         scenario: &mut Scenario,
         vaa_buf: vector<u8>
     ): VAA {
+        test_scenario::next_tx(scenario, VAA_VERIFIER);
+
         let the_clock = take_clock(scenario);
         let worm_state = take_state(scenario);
 
@@ -182,11 +187,20 @@ module wormhole::wormhole_scenario {
         out
     }
 
-    public fun parse_verify_and_take_vaa_payload(
-        scenario: &mut Scenario,
-        vaa_buf: vector<u8>
-    ): vector<u8> {
-        vaa::take_payload(parse_and_verify_vaa(scenario, vaa_buf))
+    public fun new_emitter(
+        scenario: &mut Scenario
+    ): EmitterCap {
+        test_scenario::next_tx(scenario, EMITTER_MAKER);
+
+        let worm_state = take_state(scenario);
+
+        let emitter =
+            wormhole::emitter::new(&worm_state, test_scenario::ctx(scenario));
+
+        // Clean up.
+        return_state(worm_state);
+
+        emitter
     }
 
     public fun take_clock(scenario: &mut Scenario): Clock {

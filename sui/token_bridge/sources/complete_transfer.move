@@ -8,11 +8,9 @@
 /// message payload.
 module token_bridge::complete_transfer {
     use sui::balance::{Self, Balance};
-    use sui::clock::{Clock};
     use sui::coin::{Self, Coin};
     use sui::event::{Self};
     use sui::tx_context::{Self, TxContext};
-    use wormhole::state::{State as WormholeState};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::vaa::{VAA};
 
@@ -48,32 +46,24 @@ module token_bridge::complete_transfer {
     /// recipient, a relayer fee is split from this coin and sent to `relayer`.
     public fun complete_transfer<CoinType>(
         token_bridge_state: &mut State,
-        worm_state: &WormholeState,
-        vaa_buf: vector<u8>,
-        the_clock: &Clock,
+        parsed: VAA,
         ctx: &mut TxContext
     ): Coin<CoinType> {
         state::check_minimum_requirement<CompleteTransferControl>(
             token_bridge_state
         );
 
-        // Parse and verify Token Bridge transfer message. This method
-        // guarantees that a verified transfer message cannot be redeemed again.
-        let parsed_vaa =
-            vaa::parse_verify_and_consume(
-                token_bridge_state,
-                worm_state,
-                vaa_buf,
-                the_clock
-            );
+        // Verify Token Bridge transfer message. This method guarantees that a
+        // verified transfer message cannot be redeemed again.
+        let verified = vaa::verify_only_once(token_bridge_state, parsed);
 
         // Emitting the transfer being redeemed (and disregard return value).
-        emit_transfer_redeemed(&parsed_vaa);
+        emit_transfer_redeemed(&verified);
 
         // Deserialize transfer message and process.
         handle_complete_transfer<CoinType>(
             token_bridge_state,
-            wormhole::vaa::take_payload(parsed_vaa),
+            wormhole::vaa::take_payload(verified),
             ctx
         )
     }
@@ -101,7 +91,7 @@ module token_bridge::complete_transfer {
             E_TARGET_NOT_SUI
         );
 
-        let verified =
+        let asset_info =
             token_registry::verify_token_info(
                 state::borrow_token_registry(token_bridge_state),
                 token_chain,
@@ -112,14 +102,14 @@ module token_bridge::complete_transfer {
         let raw_amount =
             normalized_amount::to_raw(
                 amount,
-                token_registry::coin_decimals(&verified)
+                token_registry::coin_decimals(&asset_info)
             );
 
         // If the token is wrapped by Token Bridge, we will mint these tokens.
         // Otherwise, we will withdraw from custody.
         let bridged_out = {
             let registry = state::borrow_mut_token_registry(token_bridge_state);
-            if (token_registry::is_wrapped(&verified)) {
+            if (token_registry::is_wrapped(&asset_info)) {
                 wrapped_asset::mint(
                     token_registry::borrow_mut_wrapped(registry),
                     raw_amount
@@ -131,7 +121,8 @@ module token_bridge::complete_transfer {
                 )
             }
         };
-        (verified, bridged_out)
+
+        (asset_info, bridged_out)
     }
 
     public(friend) fun emit_transfer_redeemed(parsed_vaa: &VAA): u16 {
@@ -213,6 +204,7 @@ module token_bridge::complete_transfer_tests {
     use sui::coin::{Self, Coin};
     use sui::test_scenario::{Self};
     use wormhole::state::{chain_id};
+    use wormhole::wormhole_scenario::{parse_and_verify_vaa};
 
     use token_bridge::coin_wrapped_12::{Self, COIN_WRAPPED_12};
     use token_bridge::coin_wrapped_7::{Self, COIN_WRAPPED_7};
@@ -225,10 +217,8 @@ module token_bridge::complete_transfer_tests {
     use token_bridge::token_bridge_scenario::{
         set_up_wormhole_and_token_bridge,
         register_dummy_emitter,
-        return_clock,
-        return_states,
-        take_clock,
-        take_states,
+        return_state,
+        take_state,
         three_people
     };
     use token_bridge::token_registry::{Self};
@@ -265,8 +255,7 @@ module token_bridge::complete_transfer_tests {
         // Ignore effects.
         test_scenario::next_tx(scenario, tx_relayer);
 
-        let (token_bridge_state, worm_state) = take_states(scenario);
-        let the_clock = take_clock(scenario);
+        let token_bridge_state = take_state(scenario);
 
         // These will be checked later.
         let expected_relayer_fee = 100000;
@@ -283,11 +272,7 @@ module token_bridge::complete_transfer_tests {
             let parsed =
                 transfer::deserialize(
                     wormhole::vaa::take_payload(
-                        wormhole::vaa::parse_and_verify(
-                            &worm_state,
-                            transfer_vaa,
-                            &the_clock
-                        )
+                        parse_and_verify_vaa(scenario, transfer_vaa)
                     )
                 );
 
@@ -318,12 +303,15 @@ module token_bridge::complete_transfer_tests {
             transfer::destroy(parsed);
         };
 
+        let parsed = parse_and_verify_vaa(scenario, transfer_vaa);
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, tx_relayer);
+
         let payout =
             complete_transfer::complete_transfer<COIN_NATIVE_10>(
                 &mut token_bridge_state,
-                &mut worm_state,
-                transfer_vaa,
-                &the_clock,
+                parsed,
                 test_scenario::ctx(scenario)
             );
         assert!(coin::value(&payout) == expected_relayer_fee, 0);
@@ -350,8 +338,7 @@ module token_bridge::complete_transfer_tests {
         // Clean up.
         coin::burn_for_testing(payout);
         coin::burn_for_testing(received);
-        return_states(token_bridge_state, worm_state);
-        return_clock(the_clock);
+        return_state(token_bridge_state);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -385,8 +372,7 @@ module token_bridge::complete_transfer_tests {
         // Ignore effects.
         test_scenario::next_tx(scenario, tx_relayer);
 
-        let (token_bridge_state, worm_state) = take_states(scenario);
-        let the_clock = take_clock(scenario);
+        let token_bridge_state = take_state(scenario);
 
         // These will be checked later.
         let expected_relayer_fee = 1000;
@@ -403,11 +389,7 @@ module token_bridge::complete_transfer_tests {
             let parsed =
                 transfer::deserialize(
                     wormhole::vaa::take_payload(
-                        wormhole::vaa::parse_and_verify(
-                            &worm_state,
-                            transfer_vaa,
-                            &the_clock
-                        )
+                        parse_and_verify_vaa(scenario, transfer_vaa)
                     )
                 );
 
@@ -438,12 +420,15 @@ module token_bridge::complete_transfer_tests {
             transfer::destroy(parsed);
         };
 
+        let parsed = parse_and_verify_vaa(scenario, transfer_vaa);
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, tx_relayer);
+
         let payout =
             complete_transfer::complete_transfer<COIN_NATIVE_4>(
                 &mut token_bridge_state,
-                &mut worm_state,
-                transfer_vaa,
-                &the_clock,
+                parsed,
                 test_scenario::ctx(scenario)
             );
         assert!(coin::value(&payout) == expected_relayer_fee, 0);
@@ -470,8 +455,7 @@ module token_bridge::complete_transfer_tests {
         // Clean up.
         coin::burn_for_testing(payout);
         coin::burn_for_testing(received);
-        return_states(token_bridge_state, worm_state);
-        return_clock(the_clock);
+        return_state(token_bridge_state);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -499,8 +483,7 @@ module token_bridge::complete_transfer_tests {
         // Ignore effects.
         test_scenario::next_tx(scenario, tx_relayer);
 
-        let (token_bridge_state, worm_state) = take_states(scenario);
-        let the_clock = take_clock(scenario);
+        let token_bridge_state = take_state(scenario);
 
         // These will be checked later.
         let expected_relayer_fee = 1000;
@@ -518,11 +501,7 @@ module token_bridge::complete_transfer_tests {
             let parsed =
                 transfer::deserialize(
                     wormhole::vaa::take_payload(
-                        wormhole::vaa::parse_and_verify(
-                            &worm_state,
-                            transfer_vaa,
-                            &the_clock
-                        )
+                        parse_and_verify_vaa(scenario, transfer_vaa)
                     )
                 );
 
@@ -553,12 +532,15 @@ module token_bridge::complete_transfer_tests {
             transfer::destroy(parsed);
         };
 
+        let parsed = parse_and_verify_vaa(scenario, transfer_vaa);
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, tx_relayer);
+
         let payout =
             complete_transfer::complete_transfer<COIN_WRAPPED_7>(
                 &mut token_bridge_state,
-                &mut worm_state,
-                transfer_vaa,
-                &the_clock,
+                parsed,
                 test_scenario::ctx(scenario)
             );
         assert!(coin::value(&payout) == expected_relayer_fee, 0);
@@ -584,8 +566,7 @@ module token_bridge::complete_transfer_tests {
         // Clean up.
         coin::burn_for_testing(payout);
         coin::burn_for_testing(received);
-        return_states(token_bridge_state, worm_state);
-        return_clock(the_clock);
+        return_state(token_bridge_state);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -616,8 +597,7 @@ module token_bridge::complete_transfer_tests {
         assert!(expected_recipient != tx_relayer, 0);
         test_scenario::next_tx(scenario, tx_relayer);
 
-        let (token_bridge_state, worm_state) = take_states(scenario);
-        let the_clock = take_clock(scenario);
+        let token_bridge_state = take_state(scenario);
 
         // These will be checked later.
         let expected_relayer_fee = 1000;
@@ -635,11 +615,7 @@ module token_bridge::complete_transfer_tests {
             let parsed =
                 transfer::deserialize(
                     wormhole::vaa::take_payload(
-                        wormhole::vaa::parse_and_verify(
-                            &worm_state,
-                            transfer_vaa,
-                            &the_clock
-                        )
+                        parse_and_verify_vaa(scenario, transfer_vaa)
                     )
                 );
 
@@ -670,13 +646,17 @@ module token_bridge::complete_transfer_tests {
             transfer::destroy(parsed);
         };
 
-        let payout = complete_transfer::complete_transfer<COIN_WRAPPED_12>(
-            &mut token_bridge_state,
-            &mut worm_state,
-            transfer_vaa,
-            &the_clock,
-            test_scenario::ctx(scenario)
-        );
+        let parsed = parse_and_verify_vaa(scenario, transfer_vaa);
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, tx_relayer);
+
+        let payout =
+            complete_transfer::complete_transfer<COIN_WRAPPED_12>(
+                &mut token_bridge_state,
+                parsed,
+                test_scenario::ctx(scenario)
+            );
         assert!(coin::value(&payout) == expected_relayer_fee, 0);
 
         // TODO: Check for one event? `TransferRedeemed`.
@@ -700,8 +680,7 @@ module token_bridge::complete_transfer_tests {
         // Clean up.
         coin::burn_for_testing(payout);
         coin::burn_for_testing(received);
-        return_states(token_bridge_state, worm_state);
-        return_clock(the_clock);
+        return_state(token_bridge_state);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -737,8 +716,7 @@ module token_bridge::complete_transfer_tests {
         // Ignore effects.
         test_scenario::next_tx(scenario, expected_recipient);
 
-        let (token_bridge_state, worm_state) = take_states(scenario);
-        let the_clock = take_clock(scenario);
+        let token_bridge_state = take_state(scenario);
 
         // NOTE: Although there is a fee encoded in the VAA, the relayer
         // shouldn't receive this fee. The `expected_relayer_fee` should
@@ -760,11 +738,7 @@ module token_bridge::complete_transfer_tests {
             let parsed =
                 transfer::deserialize(
                     wormhole::vaa::take_payload(
-                        wormhole::vaa::parse_and_verify(
-                            &worm_state,
-                            transfer_vaa,
-                            &the_clock
-                        )
+                        parse_and_verify_vaa(scenario, transfer_vaa)
                     )
                 );
 
@@ -794,12 +768,15 @@ module token_bridge::complete_transfer_tests {
             transfer::destroy(parsed);
         };
 
+        let parsed = parse_and_verify_vaa(scenario, transfer_vaa);
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, expected_recipient);
+
         let payout =
             complete_transfer::complete_transfer<COIN_NATIVE_10>(
                 &mut token_bridge_state,
-                &mut worm_state,
-                transfer_vaa,
-                &the_clock,
+                parsed,
                 test_scenario::ctx(scenario)
             );
         assert!(coin::value(&payout) == expected_relayer_fee, 0);
@@ -826,8 +803,7 @@ module token_bridge::complete_transfer_tests {
         // Clean up.
         coin::burn_for_testing(payout);
         coin::burn_for_testing(received);
-        return_states(token_bridge_state, worm_state);
-        return_clock(the_clock);
+        return_state(token_bridge_state);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -871,8 +847,7 @@ module token_bridge::complete_transfer_tests {
         // Ignore effects.
         test_scenario::next_tx(scenario, tx_relayer);
 
-        let (token_bridge_state, worm_state) = take_states(scenario);
-        let the_clock = take_clock(scenario);
+        let token_bridge_state = take_state(scenario);
 
         // Scope to allow immutable reference to `TokenRegistry`. This verifies
         // that both coin types have been registered.
@@ -888,22 +863,24 @@ module token_bridge::complete_transfer_tests {
             assert!(native_asset::custody(coin_4) == custody_amount_coin_4, 0);
         };
 
+        let parsed = parse_and_verify_vaa(scenario, transfer_vaa);
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, tx_relayer);
+
         // NOTE: this call should revert since the transfer VAA is for
         // a coin of type COIN_NATIVE_10. However, the `complete_transfer`
         // method is called using the COIN_NATIVE_4 type.
         let payout =
             complete_transfer::complete_transfer<COIN_NATIVE_4>(
                 &mut token_bridge_state,
-                &mut worm_state,
-                transfer_vaa,
-                &the_clock,
+                parsed,
                 test_scenario::ctx(scenario)
             );
 
         // Clean up.
         coin::burn_for_testing(payout);
-        return_states(token_bridge_state, worm_state);
-        return_clock(the_clock);
+        return_state(token_bridge_state);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -933,13 +910,12 @@ module token_bridge::complete_transfer_tests {
         coin_wrapped_7::init_and_register(scenario, coin_deployer);
 
         // Ignore effects.
-        //
-        // NOTE: `tx_relayer` != `expected_recipient`.
-        assert!(expected_recipient != tx_relayer, 0);
         test_scenario::next_tx(scenario, tx_relayer);
 
-        let (token_bridge_state, worm_state) = take_states(scenario);
-        let the_clock = take_clock(scenario);
+        // NOTE: `tx_relayer` != `expected_recipient`.
+        assert!(expected_recipient != tx_relayer, 0);
+
+        let token_bridge_state = take_state(scenario);
 
         // Scope to allow immutable reference to `TokenRegistry`. This verifies
         // that both coin types have been registered.
@@ -955,21 +931,24 @@ module token_bridge::complete_transfer_tests {
             assert!(wrapped_asset::total_supply(coin_7) == 0, 0);
         };
 
+        let parsed = parse_and_verify_vaa(scenario, transfer_vaa);
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, tx_relayer);
+
         // NOTE: this call should revert since the transfer VAA is for
         // a coin of type COIN_WRAPPED_12. However, the `complete_transfer`
         // method is called using the COIN_WRAPPED_7 type.
-        let payout = complete_transfer::complete_transfer<COIN_WRAPPED_7>(
-            &mut token_bridge_state,
-            &mut worm_state,
-            transfer_vaa,
-            &the_clock,
-            test_scenario::ctx(scenario)
-        );
+        let payout =
+            complete_transfer::complete_transfer<COIN_WRAPPED_7>(
+                &mut token_bridge_state,
+                parsed,
+                test_scenario::ctx(scenario)
+            );
 
         // Clean up.
         coin::burn_for_testing(payout);
-        return_states(token_bridge_state, worm_state);
-        return_clock(the_clock);
+        return_state(token_bridge_state);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -1001,25 +980,28 @@ module token_bridge::complete_transfer_tests {
         //
         // NOTE: `tx_relayer` != `expected_recipient`.
         assert!(expected_recipient != tx_relayer, 0);
+
+        // Ignore effects.
         test_scenario::next_tx(scenario, tx_relayer);
 
-        let (token_bridge_state, worm_state) = take_states(scenario);
-        let the_clock = take_clock(scenario);
+        let token_bridge_state = take_state(scenario);
+
+        let parsed = parse_and_verify_vaa(scenario, transfer_vaa);
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, tx_relayer);
 
         // NOTE: this call should revert since the target chain encoded is
         // chain 69 instead of chain 21 (Sui).
         let payout = complete_transfer::complete_transfer<COIN_WRAPPED_12>(
             &mut token_bridge_state,
-            &mut worm_state,
-            transfer_vaa,
-            &the_clock,
+            parsed,
             test_scenario::ctx(scenario)
         );
 
         // Clean up.
         coin::burn_for_testing(payout);
-        return_states(token_bridge_state, worm_state);
-        return_clock(the_clock);
+        return_state(token_bridge_state);
 
         // Done.
         test_scenario::end(my_scenario);

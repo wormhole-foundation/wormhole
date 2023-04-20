@@ -186,6 +186,15 @@ module wormhole::vaa {
         vaa
     }
 
+    public fun digest_of_encoded_vaa(buf: vector<u8>): Bytes32 {
+        let (_, parsed) = parse(buf);
+
+        let digest = parsed.digest;
+        take_payload(parsed);
+
+        digest
+    }
+
     public fun consume(consumed: &mut ConsumedVAAs, parsed: &VAA) {
         consumed_vaas::consume(consumed, digest(parsed))
     }

@@ -64,15 +64,14 @@ module coins::coin_tests {
     use token_bridge::state::{Self};
     use token_bridge::token_bridge_scenario::{
         register_dummy_emitter,
-        return_clock,
-        return_states,
+        return_state,
         set_up_wormhole_and_token_bridge,
-        take_clock,
-        take_states,
+        take_state,
         two_people
     };
     use token_bridge::token_registry::{Self};
     use token_bridge::wrapped_asset::{Self};
+    use wormhole::wormhole_scenario::{parse_and_verify_vaa};
 
     use coins::coin::{Self as coins, COIN};
 
@@ -104,6 +103,7 @@ module coins::coin_tests {
         // Publish coin.
         coins::init_test_only(test_scenario::ctx(scenario));
 
+        // Ignore effects.
         test_scenario::next_tx(scenario, coin_deployer);
 
         let wrapped_asset_setup =
@@ -112,14 +112,17 @@ module coins::coin_tests {
                 coin_deployer
             );
 
-        let (token_bridge_state, worm_state) = take_states(scenario);
-        let the_clock = take_clock(scenario);
+        let token_bridge_state = take_state(scenario);
+
+        let parsed = parse_and_verify_vaa(scenario, coins::encoded_vaa());
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, caller);
 
         create_wrapped::complete_registration(
             &mut token_bridge_state,
-            &worm_state,
             wrapped_asset_setup,
-            &the_clock,
+            parsed,
             test_scenario::ctx(scenario)
         );
 
@@ -156,12 +159,16 @@ module coins::coin_tests {
             assert!(wrapped_asset::name(metadata) == name, 0);
         };
 
+        let parsed =
+            parse_and_verify_vaa(scenario, coins::encoded_updated_vaa());
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, caller);
+
         // Now update metadata.
         create_wrapped::update_attestation<COIN>(
             &mut token_bridge_state,
-            &worm_state,
-            coins::encoded_updated_vaa(),
-            &the_clock
+            parsed
         );
 
         // Check updated name and symbol.
@@ -183,8 +190,7 @@ module coins::coin_tests {
         assert!(wrapped_asset::name(metadata) == new_name, 0);
 
         // Clean up.
-        return_states(token_bridge_state, worm_state);
-        return_clock(the_clock);
+        return_state(token_bridge_state);
 
         // Done.
         test_scenario::end(my_scenario);
