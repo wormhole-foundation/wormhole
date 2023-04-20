@@ -36,12 +36,11 @@ module token_bridge::complete_transfer_with_payload {
     use sui::object::{Self};
     use sui::tx_context::{TxContext};
     use wormhole::emitter::{EmitterCap};
-    use wormhole::vaa::{VAA};
 
     use token_bridge::complete_transfer::{Self};
     use token_bridge::state::{Self, State};
     use token_bridge::transfer_with_payload::{Self, TransferWithPayload};
-    use token_bridge::vaa::{Self};
+    use token_bridge::vaa::{Self, TokenBridgeMessage};
     use token_bridge::version_control::{
         CompleteTransferWithPayload as CompleteTransferWithPayloadControl
     };
@@ -64,31 +63,26 @@ module token_bridge::complete_transfer_with_payload {
     /// `TransferWithPayload`.
     public fun authorize_transfer<CoinType>(
         token_bridge_state: &mut State,
-        verified_vaa: VAA,
+        msg: TokenBridgeMessage,
         ctx: &mut TxContext
     ): RedeemerTicket<CoinType> {
         state::check_minimum_requirement<CompleteTransferWithPayloadControl>(
             token_bridge_state
         );
 
-        // Verify Token Bridge transfer message. This method guarantees that a
-        // verified transfer message cannot be redeemed again.
-        let authorized_vaa =
-            vaa::verify_only_once(token_bridge_state, verified_vaa);
-
         // Emitting the transfer being redeemed.
         //
         // NOTE: We save the emitter chain ID to save the integrator from
         // having to `parse_and_verify` the same encoded VAA to get this info.
         let source_chain =
-            complete_transfer::emit_transfer_redeemed(&authorized_vaa);
+            complete_transfer::emit_transfer_redeemed(&msg);
 
         // Finally deserialize the Wormhole message payload and handle bridging
         // out token of a given coin type.
         handle_authorize_transfer(
             token_bridge_state,
             source_chain,
-            wormhole::vaa::take_payload(authorized_vaa),
+            vaa::take_payload(msg),
             ctx
         )
     }
@@ -180,6 +174,7 @@ module token_bridge::complete_transfer_with_payload_tests {
     };
     use token_bridge::token_registry::{Self};
     use token_bridge::transfer_with_payload::{Self};
+    use token_bridge::vaa::{Self};
     use token_bridge::wrapped_asset::{Self};
 
     #[test]
@@ -242,6 +237,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         );
 
         let verified_vaa = parse_and_verify_vaa(scenario, transfer_vaa);
+        let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
 
         // Ignore effects. Begin processing as arbitrary tx executor.
         test_scenario::next_tx(scenario, user);
@@ -250,7 +246,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         let ticket =
             authorize_transfer<COIN_NATIVE_10>(
                 &mut token_bridge_state,
-                verified_vaa,
+                msg,
                 test_scenario::ctx(scenario)
             );
         let (
@@ -366,6 +362,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         );
 
         let verified_vaa = parse_and_verify_vaa(scenario, transfer_vaa);
+        let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
 
         // Ignore effects. Begin processing as arbitrary tx executor.
         test_scenario::next_tx(scenario, user);
@@ -374,7 +371,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         let ticket =
             authorize_transfer<COIN_WRAPPED_12>(
                 &mut token_bridge_state,
-                verified_vaa,
+                msg,
                 test_scenario::ctx(scenario)
             );
         let (
@@ -481,6 +478,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         );
 
         let verified_vaa = parse_and_verify_vaa(scenario, transfer_vaa);
+        let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
 
         // Ignore effects. Begin processing as arbitrary tx executor.
         test_scenario::next_tx(scenario, user);
@@ -488,7 +486,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         let ticket =
             authorize_transfer<COIN_WRAPPED_12>(
                 &mut token_bridge_state,
-                verified_vaa,
+                msg,
                 test_scenario::ctx(scenario)
             );
         // You shall not pass!
@@ -578,6 +576,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         );
 
         let verified_vaa = parse_and_verify_vaa(scenario, transfer_vaa);
+        let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
 
         // Ignore effects. Begin processing as arbitrary tx executor.
         test_scenario::next_tx(scenario, user);
@@ -586,7 +585,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         let ticket =
             authorize_transfer<COIN_NATIVE_10>(
                 &mut token_bridge_state,
-                verified_vaa,
+                msg,
                 test_scenario::ctx(scenario)
             );
 
@@ -647,6 +646,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         );
 
         let verified_vaa = parse_and_verify_vaa(scenario, transfer_vaa);
+        let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
 
         // Ignore effects. Begin processing as arbitrary tx executor.
         test_scenario::next_tx(scenario, user);
@@ -655,7 +655,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         let ticket =
             authorize_transfer<COIN_WRAPPED_12>(
                 &mut token_bridge_state,
-                verified_vaa,
+                msg,
                 test_scenario::ctx(scenario)
             );
 

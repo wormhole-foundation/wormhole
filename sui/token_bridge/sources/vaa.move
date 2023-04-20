@@ -11,16 +11,25 @@
 /// in its `State`. If the encoded VAA passes through `parse_and_verify` again,
 /// it will abort.
 module token_bridge::vaa {
+    use wormhole::bytes32::{Bytes32};
     use wormhole::consumed_vaas::{Self};
+    use wormhole::external_address::{ExternalAddress};
     use wormhole::vaa::{Self, VAA};
 
     use token_bridge::state::{Self, State};
     use token_bridge::version_control::{Vaa as VaaControl};
 
-    // All friends need `parse_and_verify`.
     friend token_bridge::create_wrapped;
     friend token_bridge::complete_transfer;
     friend token_bridge::complete_transfer_with_payload;
+
+    struct TokenBridgeMessage {
+        emitter_chain: u16,
+        emitter_address: ExternalAddress,
+        sequence: u64,
+        payload: vector<u8>,
+        digest: Bytes32
+    }
 
     /// Parses and verifies encoded VAA. Because Token Bridge does not allow
     /// VAAs to be replayed, the VAA hash is stored in a set, which is checked
@@ -33,10 +42,10 @@ module token_bridge::vaa {
     /// NOTE: This method has `friend` visibility so it is only callable by this
     /// contract. Otherwise the replay protection could be abused to DoS the
     /// Token Bridge.
-    public(friend) fun verify_only_once(
+    public fun verify_only_once(
         token_bridge_state: &mut State,
         verified_vaa: VAA
-    ): VAA {
+    ): TokenBridgeMessage {
         state::check_minimum_requirement<VaaControl>(
             token_bridge_state
         );
@@ -51,15 +60,62 @@ module token_bridge::vaa {
         // Does the emitter agree with a registered Token Bridge?
         state::assert_registered_emitter(token_bridge_state, &verified_vaa);
 
-        verified_vaa
+        // Take emitter info, sequence and payload.
+        let sequence = vaa::sequence(&verified_vaa);
+        let digest = vaa::digest(&verified_vaa);
+        let (
+            emitter_chain,
+            emitter_address,
+            payload
+        ) = vaa::take_emitter_info_and_payload(verified_vaa);
+
+        TokenBridgeMessage {
+            emitter_chain,
+            emitter_address,
+            sequence,
+            payload,
+            digest
+        }
+    }
+
+    public fun emitter_chain(self: &TokenBridgeMessage): u16 {
+        self.emitter_chain
+    }
+
+    public fun emitter_address(self: &TokenBridgeMessage): ExternalAddress {
+        self.emitter_address
+    }
+
+    public fun sequence(self: &TokenBridgeMessage): u64 {
+        self.sequence
+    }
+
+    public fun digest(self: &TokenBridgeMessage): Bytes32 {
+        self.digest
+    }
+
+    /// Destroy `TokenBridgeMessage` and extract payload, which is the same
+    /// payload in the `VAA`.
+    ///
+    /// NOTE: This is a privileged method, which only friends within the Token
+    /// Bridge package can use. This guarantees that no other package can redeem
+    /// a VAA intended for Token Bridge as a denial-of-service by calling
+    /// `verify_only_once` and then destroying it by calling it this method.
+    public(friend) fun take_payload(msg: TokenBridgeMessage): vector<u8> {
+        let TokenBridgeMessage {
+            emitter_chain: _,
+            emitter_address: _,
+            sequence: _,
+            payload,
+            digest: _
+        } = msg;
+
+        payload
     }
 
     #[test_only]
-    public fun verify_only_once_test_only(
-        token_bridge_state: &mut State,
-        verified_vaa: VAA
-    ): VAA {
-        verify_only_once(token_bridge_state, verified_vaa)
+    public fun destroy(msg: TokenBridgeMessage) {
+        take_payload(msg);
     }
 }
 
@@ -99,16 +155,12 @@ module token_bridge::vaa_tests {
 
         let token_bridge_state = take_state(scenario);
 
-        // You shall not pass!
         let verified_vaa = parse_and_verify_vaa(scenario, VAA);
-        let verified =
-            vaa::verify_only_once_test_only(
-                &mut token_bridge_state,
-                verified_vaa
-            );
+        // You shall not pass!
+        let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
 
         // Clean up.
-        wormhole::vaa::destroy(verified);
+        vaa::destroy(msg);
         return_state(token_bridge_state);
 
         // Done.
@@ -148,11 +200,10 @@ module token_bridge::vaa_tests {
         );
 
         // You shall not pass!
-        let authorized_vaa =
-            vaa::verify_only_once_test_only(&mut token_bridge_state, verified_vaa);
+        let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
 
         // Clean up.
-        wormhole::vaa::destroy(authorized_vaa);
+        vaa::destroy(msg);
         return_state(token_bridge_state);
 
         // Done.
@@ -186,11 +237,10 @@ module token_bridge::vaa_tests {
         );
 
         // Finally verify.
-        let authorized_vaa =
-            vaa::verify_only_once_test_only(&mut token_bridge_state, verified_vaa);
+        let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
 
         // Clean up.
-        wormhole::vaa::destroy(authorized_vaa);
+        vaa::destroy(msg);
         return_state(token_bridge_state);
 
         // Done.
@@ -225,23 +275,15 @@ module token_bridge::vaa_tests {
         );
 
         // Finally verify.
-        let authorized_vaa =
-            vaa::verify_only_once_test_only(
-                &mut token_bridge_state,
-                verified_vaa
-            );
-        wormhole::vaa::destroy(authorized_vaa);
+        let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
+        vaa::destroy(msg);
 
         let verified_vaa = parse_and_verify_vaa(scenario, VAA);
         // You shall not pass!
-        let authorized_vaa =
-            vaa::verify_only_once_test_only(
-                &mut token_bridge_state,
-                verified_vaa
-            );
+        let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
 
         // Clean up.
-        wormhole::vaa::destroy(authorized_vaa);
+        vaa::destroy(msg);
         return_state(token_bridge_state);
 
         // Done.
