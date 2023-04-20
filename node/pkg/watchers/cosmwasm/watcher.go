@@ -116,7 +116,7 @@ func NewWatcher(
 	// Do not add a leading slash
 	latestBlockURL := "blocks/latest"
 
-	// Terra2 and Injective do things slightly differently than classic terra
+	// Terra2 and Injective do things slightly differently than terra classic
 	if chainID == vaa.ChainIDInjective || chainID == vaa.ChainIDTerra2 {
 		latestBlockURL = "cosmos/base/tendermint/v1beta1/blocks/latest"
 	}
@@ -276,7 +276,6 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, e.contractAddressLogKey)
 				for _, msg := range msgs {
-					logger.Info("BOINK: publishing reobserved tx")
 					e.msgC <- msg
 					messagesConfirmed.WithLabelValues(networkName).Inc()
 				}
