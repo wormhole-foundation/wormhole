@@ -1,4 +1,4 @@
-use anyhow::{ensure, Context};
+use anyhow::{bail, ensure, Context};
 use cosmwasm_std::{entry_point, to_binary, Binary, Deps, Empty, Event, StdResult};
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Order, Response};
 use serde_wormhole::RawMessage;
@@ -9,7 +9,7 @@ use wormhole_sdk::Chain;
 
 use crate::error::ContractError;
 use crate::msg::{AllChannelChainsResponse, ChannelChainResponse, ExecuteMsg, QueryMsg};
-use crate::state::CHANNEL_CHAIN;
+use crate::state::{CHANNEL_CHAIN, VAA_ARCHIVE};
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -88,6 +88,18 @@ fn handle_vaa(deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<Event
         govpacket.chain == Chain::Wormchain,
         "this governance VAA is for another chain"
     );
+
+    // governance VAA replay protection
+    let digest = body
+        .digest()
+        .context("failed to compute governance VAA digest")?;
+
+    if VAA_ARCHIVE.has(deps.storage, &digest.hash) {
+        bail!("governance vaa already executed");
+    }
+    VAA_ARCHIVE
+        .save(deps.storage, &digest.hash, &true)
+        .context("failed to save governance VAA to archive")?;
 
     // match the governance action and execute the corresponding logic
     match govpacket.action {

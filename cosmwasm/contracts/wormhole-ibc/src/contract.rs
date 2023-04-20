@@ -12,8 +12,12 @@ use wormhole_sdk::{
     Chain,
 };
 
-use crate::{ibc::PACKET_LIFETIME, msg::ExecuteMsg, state::WORMCHAIN_CHANNEL_ID};
-use anyhow::{ensure, Context};
+use crate::{
+    ibc::PACKET_LIFETIME,
+    msg::ExecuteMsg,
+    state::{VAA_ARCHIVE, WORMCHAIN_CHANNEL_ID},
+};
+use anyhow::{bail, ensure, Context};
 use cosmwasm_std::{
     to_binary, Binary, Deps, DepsMut, Env, Event, IbcMsg, MessageInfo, Response, StdResult,
 };
@@ -100,6 +104,14 @@ fn handle_vaa(deps: DepsMut, env: Env, vaa: Binary) -> anyhow::Result<Event> {
         govpacket.chain == Chain::from(state.chain_id),
         "this governance VAA is for another chain"
     );
+
+    // governance VAA replay protection
+    if VAA_ARCHIVE.has(deps.storage, vaa.hash.as_slice()) {
+        bail!("governance vaa already executed");
+    }
+    VAA_ARCHIVE
+        .save(deps.storage, vaa.hash.as_slice(), &true)
+        .context("failed to save governance VAA to archive")?;
 
     // match the governance action and execute the corresponding logic
     match govpacket.action {
