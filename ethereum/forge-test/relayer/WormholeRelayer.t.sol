@@ -348,6 +348,8 @@ contract WormholeRelayerTests is Test {
         uint256 receiverValueSource = setup.source.coreRelayer.quoteReceiverValue(
             setup.targetChainId, feeParams.receiverValueTarget, address(setup.source.relayProvider)
         );
+        uint256 receiverValueTargetActual = (receiverValueSource * feeParams.sourceNativePrice * 100 / (uint256(1) * feeParams.targetNativePrice * 105)); 
+
         uint256 payment = setup.source.coreRelayer.quoteGas(
             setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
         ) + uint256(3) * setup.source.wormhole.messageFee() + receiverValueSource;
@@ -377,13 +379,8 @@ contract WormholeRelayerTests is Test {
             relayerProfit / gasParams.targetGasPrice / feeParams.targetNativePrice;
         assertTrue(howMuchGasRelayerCouldHavePaidForAndStillProfited >= 30000); // takes around this much gas (seems to go from 36k-200k?!?)
         assertTrue(
-            USDcost - (relayerProfit + (uint256(1) * feeParams.receiverValueTarget * feeParams.targetNativePrice)) >= 0,
-            "We paid enough"
-        );
-        assertTrue(
-            USDcost - (relayerProfit + (uint256(1) * feeParams.receiverValueTarget * feeParams.targetNativePrice))
-                < feeParams.sourceNativePrice,
-            "We paid the least amount necessary"
+            USDcost - (relayerProfit + (uint256(1) * receiverValueTargetActual * feeParams.targetNativePrice)) == 0,
+            "We did not lose any funds"
         );
     }
 
@@ -695,11 +692,7 @@ contract WormholeRelayerTests is Test {
         if(refundRelayerProfit > 0) {
             assertTrue(setup.source.refundAddress.balance > refundAddressBalance, "The cross chain refund went through");
         }
-        assertTrue(USDcost - (relayerProfit + refundRelayerProfit) >= 0, "We paid enough");
-        assertTrue(
-            USDcost - (relayerProfit + refundRelayerProfit) < uint256(0) + feeParams.targetNativePrice + feeParams.sourceNativePrice,
-            "We paid the least amount necessary"
-        );
+        assertTrue(USDcost - (relayerProfit + refundRelayerProfit) == 0, "We did not lose any funds");
     }
 
     function testNoFundsLostForASendIfReceiveWormholeMessagesReverts(
@@ -717,6 +710,7 @@ contract WormholeRelayerTests is Test {
         uint256 receiverValueSource = setup.source.coreRelayer.quoteReceiverValue(
             setup.targetChainId, feeParams.receiverValueTarget, address(setup.source.relayProvider)
         );
+        
 
         uint256 payment = setup.source.coreRelayer.quoteGas(
             setup.targetChainId, 21000, address(setup.source.relayProvider)
@@ -795,6 +789,77 @@ contract WormholeRelayerTests is Test {
         genericRelayer.relay(setup.targetChainId);
 
         assertTrue(keccak256(setup.source.integration.getMessage()) == keccak256(bytes("received!")));
+    }
+
+    function testNoFundsLostForAForward(GasParameters memory gasParams, FeeParameters memory feeParams, bytes memory message) public {
+        StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
+
+        uint256 payment = assumeAndGetForwardPayment(gasParams.targetGasLimit, 500000, setup, gasParams, feeParams);
+
+        vm.recordLogs();
+
+        uint256 sourceIntegrationBalance = address(setup.source.integration).balance;
+        uint256 sourceRelayerBalance = address(setup.source.relayer).balance;
+        uint256 targetRelayerBalance = address(setup.target.relayer).balance;
+
+        setup.source.integration.sendMessageWithForwardedResponse{value: payment}(
+            message, setup.targetChainId, address(setup.target.integration), address(setup.target.refundAddress), 0
+        );
+
+        genericRelayer.relay(setup.sourceChainId);
+
+        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
+        assertTrue(address(setup.source.integration).balance == sourceIntegrationBalance);
+
+        genericRelayer.relay(setup.targetChainId);
+
+        assertTrue(keccak256(setup.source.integration.getMessage()) == keccak256(bytes("received!")));
+
+
+        uint256 USDCost = (payment - uint256(3) * feeParams.wormholeFeeOnSource)* feeParams.sourceNativePrice - uint256(1)*feeParams.wormholeFeeOnTarget*feeParams.targetNativePrice;
+        USDCost -= (address(setup.source.integration).balance - sourceIntegrationBalance) * feeParams.sourceNativePrice;
+        uint256 relayerProfit= (address(setup.source.rewardAddress).balance * feeParams.sourceNativePrice + address(setup.target.rewardAddress).balance * feeParams.targetNativePrice) - (sourceRelayerBalance - address(setup.source.relayer).balance) * feeParams.sourceNativePrice - (targetRelayerBalance - address(setup.target.relayer).balance) * feeParams.targetNativePrice;
+        assertTrue(USDCost == relayerProfit, "We did not lose any funds along the way");
+    }
+
+    function testNoFundsLostForAForwardFailure(GasParameters memory gasParams, FeeParameters memory feeParams, bytes memory message) public {
+        StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
+        vm.assume(keccak256(message) != keccak256(bytes("")));
+         vm.assume(feeParams.receiverValueTarget < setup.target.coreRelayer.quoteGas(1, 500000, address(setup.target.relayProvider)));
+        vm.assume(
+            uint256(10) * feeParams.targetNativePrice * gasParams.targetGasPrice 
+                < uint256(1) * feeParams.sourceNativePrice * gasParams.sourceGasPrice
+        );
+        
+        uint256 payment = setup.source.coreRelayer.quoteGas(2, 1000000, address(setup.source.relayProvider)) + uint256(3) * feeParams.wormholeFeeOnSource;
+
+        uint256 receiverValueSource = setup.source.coreRelayer.quoteReceiverValue(2, feeParams.receiverValueTarget, address(setup.source.relayProvider));
+
+        vm.assume(payment + receiverValueSource < uint256(2)**222);
+        vm.assume(uint256(2)**255 /  feeParams.sourceNativePrice > receiverValueSource * uint256(100) );
+
+
+        vm.recordLogs();
+
+        uint256 targetRefundBalance = address(setup.target.refundAddress).balance;
+        uint256 sourceRelayerBalance = address(setup.source.relayer).balance;
+        uint256 targetRelayerBalance = address(setup.target.relayer).balance;
+
+        setup.source.integration.sendMessageWithForwardedResponse{value: payment}(
+            message, setup.targetChainId, address(setup.target.integration), address(setup.target.refundAddress), 0
+        );
+
+        genericRelayer.relay(setup.sourceChainId);
+
+        assertTrue(keccak256(setup.target.integration.getMessage()) != keccak256(message));
+
+
+        uint256 USDCost = (payment - uint256(3) * feeParams.wormholeFeeOnSource)* feeParams.sourceNativePrice - uint256(0)*feeParams.wormholeFeeOnTarget*feeParams.targetNativePrice;
+        USDCost -= (address(setup.target.refundAddress).balance - targetRefundBalance) * feeParams.targetNativePrice;
+        console.log(USDCost);
+        uint256 relayerProfit= (address(setup.source.rewardAddress).balance * feeParams.sourceNativePrice + address(setup.target.rewardAddress).balance * feeParams.targetNativePrice) - (sourceRelayerBalance - address(setup.source.relayer).balance) * feeParams.sourceNativePrice - (targetRelayerBalance - address(setup.target.relayer).balance) * feeParams.targetNativePrice;
+        console.log(relayerProfit);
+        assertTrue(USDCost == relayerProfit, "We did not lose any funds along the way");
     }
 
     struct ForwardRequestFailStack {
