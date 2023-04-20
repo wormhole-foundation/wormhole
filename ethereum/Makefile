@@ -15,13 +15,17 @@ FLATTEN_FILES:= contracts/Implementation.sol \
                 contracts/nft/token/NFTImplementation.sol \
                 contracts/nft/token/NFT.sol
 
+# Since the introduction of npm workspaces (#2752), the npm commands need to run
+# from the root of the repo.
+REPO_ROOT=..
+
 .PHONY: dependencies test clean all
 
 all: build
 
-node_modules: package-lock.json
-	touch -m node_modules
-	npm ci
+$(REPO_ROOT)/node_modules: $(REPO_ROOT)/package-lock.json
+	@touch -m $@
+	cd $(REPO_ROOT) && npm ci
 
 # Note: Forge really wants to manage dependencies via submodules, but that
 # workflow is a little awkward. There's currently no support for a more
@@ -37,14 +41,14 @@ forge_dependencies: lib/forge-std
 lib/forge-std:
 	forge install foundry-rs/forge-std@2c7cbfc6fbede6d7c9e6b17afe997e3fdfe22fef --no-git --no-commit
 
-dependencies: node_modules forge_dependencies
+dependencies: $(REPO_ROOT)/node_modules forge_dependencies
 
-build: node_modules ${SOURCE_FILES}
+build: $(REPO_ROOT)/node_modules ${SOURCE_FILES}
 	mkdir -p build
 	touch -m build
 	npm run build
 
-flattened/%.sol: contracts/%.sol node_modules
+flattened/%.sol: contracts/%.sol $(REPO_ROOT)/node_modules
 	@mkdir -p $(dir $@)
     # We remove the license (SPDX) lines and ABIEncoderV2 lines because they
     # break compilation in the flattened file if there are multiple conflicting
@@ -68,7 +72,7 @@ test-ganache: build .env dependencies
 	pkill ganache-cli || true
 
 .PHONY: test-upgrade
-test-upgrade: build .env node_modules
+test-upgrade: build .env $(REPO_ROOT)/node_modules
 	./simulate_upgrades
 
 .PHONY:
