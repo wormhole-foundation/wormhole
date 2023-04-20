@@ -14,11 +14,6 @@ module wormhole::governance_message {
         GovernanceMessage as GovernanceMessageControl
     };
 
-    friend wormhole::set_fee;
-    friend wormhole::transfer_fee;
-    friend wormhole::update_guardian_set;
-    friend wormhole::upgrade_contract;
-
     /// Guardian set used to sign VAA did not use current Guardian set.
     const E_OLD_GUARDIAN_SET_GOVERNANCE: u64 = 0;
     /// Governance chain disagrees with what is stored in Wormhole `State`.

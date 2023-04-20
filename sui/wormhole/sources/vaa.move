@@ -36,8 +36,6 @@ module wormhole::vaa {
     use wormhole::state::{Self, State};
     use wormhole::version_control::{Vaa as VaaControl};
 
-    friend wormhole::governance_message;
-
     /// Incorrect VAA version.
     const E_WRONG_VERSION: u64 = 0;
     /// Not enough guardians attested to this Wormhole observation.
@@ -73,7 +71,7 @@ module wormhole::vaa {
         /// Arbitrary payload encoding data relevant to receiver.
         payload: vector<u8>,
 
-        /// Double Keccak256 hashes of message body.
+        /// Double Keccak256 hash of message body.
         digest: Bytes32
     }
 
@@ -284,12 +282,6 @@ module wormhole::vaa {
 
         bytes32::new(keccak256(&keccak256(&buf)))
     }
-
-    // fun keccak256(buf: vector<u8>): Bytes32 {
-    //     use sui::hash::{keccak256};
-
-    //     bytes32::new(keccak256(&buf))
-    // }
 
     /// Using the Guardian signatures deserialized from VAA, verify that all of
     /// the Guardian public keys are recovered using these signatures and the
