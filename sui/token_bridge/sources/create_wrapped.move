@@ -470,10 +470,7 @@ module token_bridge::create_wrapped_tests {
         test_scenario::next_tx(scenario, coin_deployer);
 
         // Publish coin.
-        let (
-            wrapped_asset_setup,
-            upgrade_cap
-        ) =
+        let wrapped_asset_setup =
             create_wrapped::new_setup_test_only(
                 CREATE_WRAPPED_TESTS {},
                 coin_wrapped_12::encoded_vaa(),
@@ -486,7 +483,6 @@ module token_bridge::create_wrapped_tests {
         create_wrapped::complete_registration(
             &mut token_bridge_state,
             wrapped_asset_setup,
-            upgrade_cap,
             parse_and_verify_vaa(scenario, coin_wrapped_7::encoded_vaa()),
             test_scenario::ctx(scenario)
         );

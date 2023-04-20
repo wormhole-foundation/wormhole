@@ -32,6 +32,8 @@ module token_bridge::token_registry {
     const E_ALREADY_REGISTERED: u64 = 1;
     /// Input token info does not match registered info.
     const E_CANONICAL_TOKEN_INFO_MISMATCH: u64 = 2;
+    /// Cannot register wrapped asset with same canonical token info.
+    const E_ALREADY_WRAPPED: u64 = 3;
 
     /// This container is used to store native and wrapped assets of coin type
     /// as dynamic fields under its `UID`. It also uses a mechanism to generate
@@ -179,6 +181,25 @@ module token_bridge::token_registry {
         let token_chain = asset_meta::token_chain(&token_meta);
         let token_addr = asset_meta::token_address(&token_meta);
 
+        let coin_types = &mut self.coin_types;
+        let key =
+            CoinTypeKey {
+                chain: token_chain,
+                addr: external_address::to_bytes(token_addr)
+            };
+        // We need to make sure that the canonical token info has not been
+        // created for another coin type. This can happen if asset metadata
+        // is attested again from a foreign chain and another coin type is
+        // published using its VAA.
+        assert!(!table::contains(coin_types, key), E_ALREADY_WRAPPED);
+
+        // Now add the coin type.
+        table::add(
+            coin_types,
+            key,
+            type_name::into_string(type_name::get<CoinType>())
+        );
+
         // NOTE: We do not assert that the coin type has not already been
         // registered using !has<CoinType>(self) because `wrapped_asset::new`
         // consumes `Supply`. This `Supply` is only created once for a particuar
@@ -189,16 +210,6 @@ module token_bridge::token_registry {
         let asset = wrapped_asset::new(token_meta, supply, ctx);
         dynamic_field::add(&mut self.id, Key<CoinType> {}, asset);
         self.num_wrapped = self.num_wrapped + 1;
-
-        // Now add the coin type.
-        table::add(
-            &mut self.coin_types,
-            CoinTypeKey {
-                chain: token_chain,
-                addr: external_address::to_bytes(token_addr)
-            },
-            type_name::into_string(type_name::get<CoinType>())
-        );
 
         token_addr
     }
@@ -346,6 +357,8 @@ module token_bridge::token_registry_tests {
     use token_bridge::token_registry::{Self};
     use token_bridge::token_bridge_scenario::{person};
     use token_bridge::wrapped_asset::{Self};
+
+    struct SCAM_COIN has drop {}
 
     #[test]
     fun test_registered_tokens_native() {
@@ -583,14 +596,14 @@ module token_bridge::token_registry_tests {
         test_scenario::next_tx(scenario, caller);
 
         // Initialize new token registry.
-        let registy =
+        let registry =
             token_registry::new_test_only(test_scenario::ctx(scenario));
 
         let coin_meta = coin_native_10::take_metadata(scenario);
 
         // Add new native asset.
         token_registry::add_new_native_test_only(
-            &mut registy,
+            &mut registry,
             &coin_meta
         );
 
@@ -599,13 +612,13 @@ module token_bridge::token_registry_tests {
         // NOTE: We don't have a custom error for this. This will trigger a
         // `sui::dynamic_field` error.
         token_registry::add_new_native_test_only(
-            &mut registy,
+            &mut registry,
             &coin_meta
         );
 
         // Clean up.
         coin_native_10::return_metadata(coin_meta);
-        token_registry::destroy(registy);
+        token_registry::destroy(registry);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -711,6 +724,46 @@ module token_bridge::token_registry_tests {
         // Clean up.
         coin_native_10::return_metadata(coin_meta);
         balance::destroy_for_testing(minted);
+        token_registry::destroy(registry);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = token_registry::E_ALREADY_WRAPPED)]
+    fun test_cannot_add_new_wrapped_with_same_canonical_info() {
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
+
+        // Initialize new coin.
+        let supply = coin_wrapped_7::init_and_take_supply(scenario, caller);
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, caller);
+
+        // Initialize new token registry.
+        let registry =
+            token_registry::new_test_only(test_scenario::ctx(scenario));
+
+        // Register wrapped asset.
+        token_registry::add_new_wrapped_test_only(
+            &mut registry,
+            coin_wrapped_7::token_meta(),
+            supply,
+            test_scenario::ctx(scenario)
+        );
+
+        // You shall not pass!
+        token_registry::add_new_wrapped_test_only(
+            &mut registry,
+            coin_wrapped_7::token_meta(),
+            balance::create_supply(SCAM_COIN {}),
+            test_scenario::ctx(scenario)
+        );
+
+        // Clean up.
         token_registry::destroy(registry);
 
         // Done.
