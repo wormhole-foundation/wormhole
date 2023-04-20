@@ -1,3 +1,5 @@
+FROM cli-gen AS cli-export
+FROM const-gen AS const-export
 FROM ghcr.io/wormhole-foundation/sui:1.0.0-testnet@sha256:63a8094590ddb90320aa1c86414f17cc73c759ecbdfaf2fe78f135b7c08ec536 as sui
 
 RUN dnf -y install make git npm
@@ -10,12 +12,7 @@ RUN sui genesis -f
 
 COPY sui/devnet/ /root/.sui/sui_config/
 
-# Build CLI, TODO(aki): move this to base image before merging into main
-RUN npm install -g n typescript ts-node
-RUN n stable
-COPY clients/js /tmp/clients/js
-WORKDIR /tmp/clients/js
-RUN make install
+COPY --from=cli-export ./clients/js/build/main.js /app/
 
 WORKDIR /tmp
 
@@ -24,7 +21,7 @@ COPY sui/wormhole/ wormhole
 COPY sui/token_bridge/ token_bridge
 COPY sui/examples/ examples
 COPY sui/Makefile Makefile
-COPY sui/.env* .
+COPY --from=const-export .env .
 
 FROM sui AS tests
 

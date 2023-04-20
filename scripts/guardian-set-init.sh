@@ -46,11 +46,6 @@ if ! type -p jq; then
     exit 1
 fi
 
-# Rebuild the CLI binary if needed. If the binary is already up to date, this
-# command finishes in a fraction of a second.
-make build -C ./clients/js
-
-
 # 1) guardian public keys - used as the inital guardian set when initializing contracts.
 echo "generating guardian set addresses"
 # create an array of strings containing the ECDSA public keys of the devnet guardians in the guardianset:
@@ -102,25 +97,25 @@ aptosNFTBridge=$(jq --raw-output '.chains."22".contracts.nftBridgeEmitterAddress
 
 # 4) create token bridge registration VAAs
 # invoke CLI commands to create registration VAAs
-solTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c solana -a ${solTokenBridge} -g ${guardiansPrivateCSV})
-ethTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c ethereum -a ${ethTokenBridge} -g ${guardiansPrivateCSV})
-terraTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c terra -a ${terraTokenBridge} -g ${guardiansPrivateCSV})
-bscTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c bsc -a ${bscTokenBridge} -g ${guardiansPrivateCSV})
-algoTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c algorand -a ${algoTokenBridge} -g ${guardiansPrivateCSV})
-nearTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c near -a ${nearTokenBridge} -g ${guardiansPrivateCSV})
-terra2TokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c terra2 -a ${terra2TokenBridge} -g ${guardiansPrivateCSV})
-suiTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c sui -a ${suiTokenBridge} -g ${guardiansPrivateCSV})
-aptosTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c aptos -a ${aptosTokenBridge} -g ${guardiansPrivateCSV})
-wormchainTokenBridgeVAA=$(node ./clients/js/build/main.js generate registration -m TokenBridge -c wormchain -a ${wormchainTokenBridge} -g ${guardiansPrivateCSV})
+solTokenBridgeVAA=$(node /app/main.js generate registration -m TokenBridge -c solana -a ${solTokenBridge} -g ${guardiansPrivateCSV})
+ethTokenBridgeVAA=$(node /app/main.js generate registration -m TokenBridge -c ethereum -a ${ethTokenBridge} -g ${guardiansPrivateCSV})
+terraTokenBridgeVAA=$(node /app/main.js generate registration -m TokenBridge -c terra -a ${terraTokenBridge} -g ${guardiansPrivateCSV})
+bscTokenBridgeVAA=$(node /app/main.js generate registration -m TokenBridge -c bsc -a ${bscTokenBridge} -g ${guardiansPrivateCSV})
+algoTokenBridgeVAA=$(node /app/main.js generate registration -m TokenBridge -c algorand -a ${algoTokenBridge} -g ${guardiansPrivateCSV})
+nearTokenBridgeVAA=$(node /app/main.js generate registration -m TokenBridge -c near -a ${nearTokenBridge} -g ${guardiansPrivateCSV})
+terra2TokenBridgeVAA=$(node /app/main.js generate registration -m TokenBridge -c terra2 -a ${terra2TokenBridge} -g ${guardiansPrivateCSV})
+suiTokenBridgeVAA=$(node /app/main.js generate registration -m TokenBridge -c sui -a ${suiTokenBridge} -g ${guardiansPrivateCSV})
+aptosTokenBridgeVAA=$(node /app/main.js generate registration -m TokenBridge -c aptos -a ${aptosTokenBridge} -g ${guardiansPrivateCSV})
+wormchainTokenBridgeVAA=$(node /app/main.js generate registration -m TokenBridge -c wormchain -a ${wormchainTokenBridge} -g ${guardiansPrivateCSV})
 
 
 # 5) create nft bridge registration VAAs
 echo "generating contract registration VAAs for nft bridges"
-solNFTBridgeVAA=$(node ./clients/js/build/main.js generate registration -m NFTBridge -c solana -a ${solNFTBridge} -g ${guardiansPrivateCSV})
-ethNFTBridgeVAA=$(node ./clients/js/build/main.js generate registration -m NFTBridge -c ethereum -a ${ethNFTBridge} -g ${guardiansPrivateCSV})
-terraNFTBridgeVAA=$(node ./clients/js/build/main.js generate registration -m NFTBridge -c terra -a ${terraNFTBridge} -g ${guardiansPrivateCSV})
-nearNFTBridgeVAA=$(node ./clients/js/build/main.js generate registration -m NFTBridge -c near -a ${nearNFTBridge} -g ${guardiansPrivateCSV})
-aptosNFTBridgeVAA=$(node ./clients/js/build/main.js generate registration -m NFTBridge -c aptos -a ${aptosNFTBridge} -g ${guardiansPrivateCSV})
+solNFTBridgeVAA=$(node /app/main.js generate registration -m NFTBridge -c solana -a ${solNFTBridge} -g ${guardiansPrivateCSV})
+ethNFTBridgeVAA=$(node /app/main.js generate registration -m NFTBridge -c ethereum -a ${ethNFTBridge} -g ${guardiansPrivateCSV})
+terraNFTBridgeVAA=$(node /app/main.js generate registration -m NFTBridge -c terra -a ${terraNFTBridge} -g ${guardiansPrivateCSV})
+nearNFTBridgeVAA=$(node /app/main.js generate registration -m NFTBridge -c near -a ${nearNFTBridge} -g ${guardiansPrivateCSV})
+aptosNFTBridgeVAA=$(node /app/main.js generate registration -m NFTBridge -c aptos -a ${aptosNFTBridge} -g ${guardiansPrivateCSV})
 
 
 # 6) write the registration VAAs to env files

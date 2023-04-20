@@ -1,3 +1,4 @@
+FROM const-gen AS const-export
 FROM ghcr.io/wormhole-foundation/aptos:1.0.4@sha256:0610c97ba32aab7113765b05a0c71d75b3842f7ee11ff8d7f75bd0ea03ad95b2 as aptos
 
 # Support additional root CAs
@@ -14,8 +15,8 @@ COPY coin/ coin
 COPY examples/ examples
 COPY Makefile Makefile
 COPY scripts scripts
-# In this step we optionally copy the .env file too
-COPY start_node.sh .env* .
+COPY start_node.sh .
+COPY --from=const-export .env .
 
 FROM aptos AS tests
 

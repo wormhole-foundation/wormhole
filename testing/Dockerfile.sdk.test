@@ -1,22 +1,12 @@
-FROM node:16-alpine@sha256:004dbac84fed48e20f9888a23e32fa7cf83c2995e174a78d41d9a9dd1e051a20
+FROM cli-gen AS cli-export
+FROM node:18-alpine@sha256:44aaf1ccc80eaed6572a0f2ef7d6b5a2982d54481e4255480041ac92221e2f11
 
 RUN apk update && apk add g++ make python3 curl
 
 RUN mkdir -p /app
 WORKDIR /app
 
-COPY ethereum/package.json ethereum/package-lock.json ./ethereum/
-RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
-    npm ci --prefix ethereum
-COPY ethereum ./ethereum
-
-COPY solana/idl ./solana/idl/
-
-COPY sdk/js/package.json sdk/js/package-lock.json  ./sdk/js/
-RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
-    npm ci --prefix sdk/js
-COPY sdk/js ./sdk/js
-RUN npm run build --prefix sdk/js
+COPY --from=cli-export ./ ./
 
 COPY testing ./testing
 

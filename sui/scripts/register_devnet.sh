@@ -16,7 +16,7 @@ VAAS=$(set | grep "REGISTER_.*_TOKEN_BRIDGE_VAA" | grep -v SUI | cut -d '=' -f1)
 for VAA in $VAAS
 do
     VAA=${!VAA}
-    worm submit $VAA --chain sui --network devnet
+    node /app/main.js submit $VAA --chain sui --network devnet
 done
 
 echo "Registrations successful."

@@ -1,0 +1,10 @@
+{
+  "name": "@wormhole-foundation/wormhole",
+  "workspaces": [
+    "sdk/js",
+    "clients/js"
+  ],
+  "scripts": {
+    "build": "npm run build -w sdk/js && npm run build -w clients/js"
+  }
+}
