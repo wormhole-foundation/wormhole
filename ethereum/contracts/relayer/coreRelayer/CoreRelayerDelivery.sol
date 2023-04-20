@@ -65,7 +65,7 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
             revert IDelivery.ForwardNotSufficientlyFunded(fundsForForward, totalFee);
         }
 
-      // Increases the maxTransactionFee of the first forward 
+        // Increases the maxTransactionFee of the first forward 
         // in order to use all of the funds
 
         IRelayProvider relayProvider = IRelayProvider(fromWormholeFormat(instructions[0].sourceRelayProvider));
@@ -424,9 +424,11 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
             return (deliveryInstruction, 0x0);
         } else {
             IDelivery.DeliveryOverride memory overrides = decodeDeliveryOverride(encoded);
-            require(overrides.gasLimit >= deliveryInstruction.executionParameters.gasLimit);
-            require(overrides.receiverValue >= deliveryInstruction.receiverValueTarget );
-            require(overrides.maximumRefund >= deliveryInstruction.maximumRefundTarget);
+            if(overrides.gasLimit < deliveryInstruction.executionParameters.gasLimit 
+                || overrides.receiverValue < deliveryInstruction.receiverValueTarget 
+                || overrides.maximumRefund < deliveryInstruction.maximumRefundTarget){
+                revert IDelivery.InvalidOverride();
+            }
 
             deliveryInstruction.executionParameters.gasLimit = overrides.gasLimit;
             deliveryInstruction.receiverValueTarget = overrides.receiverValue;
