@@ -185,14 +185,6 @@ module wormhole::state {
         self: &mut State,
         implementation_digest: Bytes32
     ): UpgradeTicket {
-        // Check that the hard-coded version version agrees with the version
-        // number in the `UpgradeCap`. We should only be allowed to upgrade
-        // using the latest build.
-        assert!(
-            package::version(&self.upgrade_cap) == control::version(),
-            E_BUILD_VERSION_MISMATCH
-        );
-
         // We remove the `migrate` guard on another upgrade so that we constrain
         // calling `migrate` at most once.
         if (field::exists_(&mut self.id, b"migrate")) {
@@ -221,14 +213,6 @@ module wormhole::state {
         self: &mut State,
         receipt: UpgradeReceipt
     ): (ID, ID) {
-        // Check that the hard-coded version version agrees with the version
-        // number in the `UpgradeCap`. We should only be allowed to upgrade
-        // using the latest build.
-        assert!(
-            package::version(&self.upgrade_cap) == control::version(),
-            E_BUILD_VERSION_MISMATCH
-        );
-
         // Uptick the upgrade cap version number using this receipt.
         package::commit_upgrade(&mut self.upgrade_cap, receipt);
 
