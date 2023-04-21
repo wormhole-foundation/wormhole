@@ -223,6 +223,7 @@ export function loadMockIntegrations(): Deployment[] {
   }
 }
 
+
 export function loadCreate2Factories(): Deployment[] {
   const contractsFile = fs.readFileSync(
     `./ts-scripts/relayer/config/${env}/contracts.json`
@@ -247,12 +248,20 @@ export function loadCreate2Factories(): Deployment[] {
   }
 }
 
-export function loadGuardianKey(): string {
+//TODO load these keys more intelligently,
+//potentially from devnet-consts
+export function loadGuardianKeys(): string[] {
+  const output = [];
   const guardianKey = get_env_var("GUARDIAN_KEY");
+  const guardianKey2 = get_env_var("GUARDIAN_KEY2");
   if (!guardianKey) {
     throw Error("Failed to find guardian key for this process!");
   }
-  return guardianKey;
+  if(guardianKey2) {
+    output.push(guardianKey2);
+  } 
+  output.push(guardianKey);
+  return output;
 }
 
 export function writeOutputFiles(output: any, processName: string) {

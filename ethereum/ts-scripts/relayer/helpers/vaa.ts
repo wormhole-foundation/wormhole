@@ -4,7 +4,7 @@ import {
   ChainInfo,
   getCoreRelayerAddress,
   getRelayProviderAddress,
-  loadGuardianKey,
+  loadGuardianKeys,
   loadGuardianSetIndex,
 } from "./env";
 const elliptic = require("elliptic");
@@ -106,28 +106,33 @@ export function encodeAndSignGovernancePayload(payload: string): string {
 
   const hash = doubleKeccak256(encodedVAABody);
 
-  // sign the hash
-  const ec = new elliptic.ec("secp256k1");
-  const key = ec.keyFromPrivate(loadGuardianKey());
-  const signature = key.sign(hash.substring(2), { canonical: true });
+  const pks = loadGuardianKeys();
+  let signatures = "";
 
-  // pack the signatures
-  const packSig = [
-    ethers.utils.solidityPack(["uint8"], [0]).substring(2),
-    zeroPadBytes(signature.r.toString(16), 32),
-    zeroPadBytes(signature.s.toString(16), 32),
-    ethers.utils
-      .solidityPack(["uint8"], [signature.recoveryParam])
-      .substring(2),
-  ];
-  const signatures = packSig.join("");
+  for (let pk of pks) {
+    // sign the hash
+    const ec = new elliptic.ec("secp256k1");
+    const key = ec.keyFromPrivate(pk);
+    const signature = key.sign(hash.substring(2), { canonical: true });
+
+    // pack the signatures
+    const packSig = [
+      ethers.utils.solidityPack(["uint8"], [0]).substring(2),
+      zeroPadBytes(signature.r.toString(16), 32),
+      zeroPadBytes(signature.s.toString(16), 32),
+      ethers.utils
+        .solidityPack(["uint8"], [signature.recoveryParam])
+        .substring(2),
+    ];
+    signatures += packSig.join("");
+  }
 
   const vm = [
     ethers.utils.solidityPack(["uint8"], [1]).substring(2),
     ethers.utils
       .solidityPack(["uint32"], [loadGuardianSetIndex()])
       .substring(2), // guardianSetIndex
-    ethers.utils.solidityPack(["uint8"], [1]).substring(2), // number of signers
+    ethers.utils.solidityPack(["uint8"], [pks.length]).substring(2), // number of signers
     signatures,
     encodedVAABody.substring(2),
   ].join("");
