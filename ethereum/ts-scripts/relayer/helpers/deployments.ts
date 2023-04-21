@@ -17,6 +17,7 @@ import {
   getCoreRelayerAddress,
   getCreate2Factory,
   getCoreRelayer,
+  fetchSetupAddressCreate2,
 } from "./env";
 import { ethers } from "ethers";
 import {
@@ -24,6 +25,9 @@ import {
   ForwardWrapper__factory,
 } from "../../../ethers-contracts";
 import { wait } from "./utils";
+
+export const setupContractSalt = Buffer.from("0xSetup");
+export const proxyContractSalt = Buffer.from("0xGenericRelayer");
 
 export async function deployRelayProviderImplementation(
   chain: ChainInfo
@@ -111,7 +115,7 @@ export async function deployMockIntegration(
   );
   const contract = await factory.deploy(
     chain.wormholeAddress,
-    getCoreRelayerAddress(chain)
+    await getCoreRelayerAddress(chain)
   );
   return await contract.deployed().then((result) => {
     console.log("Successfully deployed contract at " + result.address);
@@ -162,12 +166,15 @@ export async function deployCoreRelayerSetup(
 ): Promise<Deployment> {
   console.log("deployCoreRelayerSetup " + chain.chainId);
 
-  const result = await new CoreRelayerSetup__factory(getSigner(chain))
-    .deploy()
-    .then(deployed);
+  const create2Factory = getCreate2Factory(chain);
+  const rx = await create2Factory
+    .create2(setupContractSalt, CoreRelayerSetup__factory.bytecode)
+    .then(wait);
+  const address = Create2Factory__factory.createInterface().parseLog(rx.logs[0])
+    .args[0];
 
-  console.log("Successfully deployed contract at " + result.address);
-  return { address: result.address, chainId: chain.chainId };
+  console.log("Successfully deployed contract at " + address);
+  return { address, chainId: chain.chainId };
 }
 
 export async function deployCoreRelayerProxy(
@@ -180,10 +187,9 @@ export async function deployCoreRelayerProxy(
   console.log("deployCoreRelayerProxy " + chain.chainId);
 
   const create2Factory = getCreate2Factory(chain);
-  const expectedSetupAddr = await create2Factory.computeAddress(
-    getSigner(chain).address,
-    "setup",
-    CoreRelayerSetup__factory.bytecode
+  const expectedSetupAddr = await fetchSetupAddressCreate2(
+    chain,
+    create2Factory
   );
   if (coreRelayerSetupAddress !== expectedSetupAddr) {
     throw new Error(
@@ -192,21 +198,10 @@ export async function deployCoreRelayerProxy(
   }
 
   // deploy proxy and point at setup contract
-  const rx = await create2Factory
-    .create2(
-      "generic-relayer",
-      ethers.utils.solidityPack(
-        ["bytes", "bytes"],
-        [
-          CoreRelayerProxy__factory.bytecode,
-          ethers.utils.defaultAbiCoder.encode(
-            ["address"],
-            [coreRelayerSetupAddress]
-          ),
-        ]
-      )
-    )
-    .then(wait);
+  const data = new CoreRelayerProxy__factory().getDeployTransaction(
+    coreRelayerSetupAddress
+  ).data!;
+  const rx = await create2Factory.create2(proxyContractSalt, data).then(wait);
 
   // call setup
   const governanceChainId = 1;

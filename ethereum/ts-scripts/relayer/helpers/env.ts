@@ -15,6 +15,7 @@ import {
   Create2Factory__factory,
 } from "../../../ethers-contracts";
 import { CoreRelayerSetup__factory } from "../../../ethers-contracts";
+import { proxyContractSalt, setupContractSalt } from "./deployments";
 
 export type ChainInfo = {
   evmNetworkId: number;
@@ -311,25 +312,36 @@ export function getRelayProvider(
   return contract;
 }
 
+export function fetchSetupAddressCreate2(
+  chain: ChainInfo,
+  create2Factory = getCreate2Factory(chain)
+): Promise<string> {
+  const signer = getSigner(chain).address;
+  return create2Factory.computeAddress(
+    signer,
+    setupContractSalt,
+    ethers.utils.solidityKeccak256(
+      ["bytes"],
+      [CoreRelayerSetup__factory.bytecode]
+    )
+  );
+}
+
 const coreRelayerAddressesCache: Partial<Record<ChainId, string>> = {};
 export async function getCoreRelayerAddress(chain: ChainInfo): Promise<string> {
   if (!coreRelayerAddressesCache[chain.chainId]) {
     const create2Factory = getCreate2Factory(chain);
     const signer = getSigner(chain).address;
-    const setupAddr = await create2Factory.computeAddress(
-      signer,
-      "setup",
-      CoreRelayerSetup__factory.bytecode
-    );
+    const setupAddr = await fetchSetupAddressCreate2(chain, create2Factory);
+
+    const data = new CoreRelayerProxy__factory().getDeployTransaction(setupAddr)
+      .data!;
     coreRelayerAddressesCache[
       chain.chainId
     ] = await create2Factory.computeAddress(
       signer,
-      "generic-relayer",
-      ethers.utils.solidityPack(
-        ["bytes", "bytes"],
-        [CoreRelayerProxy__factory.bytecode, setupAddr]
-      )
+      proxyContractSalt,
+      ethers.utils.solidityKeccak256(["bytes"], [data])
     );
   }
   return coreRelayerAddressesCache[chain.chainId]!;
