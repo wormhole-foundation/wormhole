@@ -334,20 +334,14 @@ export async function getCoreRelayerAddress(chain: ChainInfo): Promise<string> {
     const signer = getSigner(chain).address;
     const setupAddr = await fetchSetupAddressCreate2(chain, create2Factory);
 
+    const data = new CoreRelayerProxy__factory().getDeployTransaction(setupAddr)
+      .data!;
     coreRelayerAddressesCache[
       chain.chainId
     ] = await create2Factory.computeAddress(
       signer,
       proxyContractSalt,
-      ethers.utils.solidityKeccak256(
-        ["bytes"],
-        [
-          ethers.utils.solidityPack(
-            ["bytes", "bytes"],
-            [CoreRelayerProxy__factory.bytecode, setupAddr]
-          ),
-        ]
-      )
+      ethers.utils.solidityKeccak256(["bytes"], [data])
     );
   }
   return coreRelayerAddressesCache[chain.chainId]!;

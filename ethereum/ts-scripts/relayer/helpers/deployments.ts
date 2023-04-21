@@ -115,7 +115,7 @@ export async function deployMockIntegration(
   );
   const contract = await factory.deploy(
     chain.wormholeAddress,
-    getCoreRelayerAddress(chain)
+    await getCoreRelayerAddress(chain)
   );
   return await contract.deployed().then((result) => {
     console.log("Successfully deployed contract at " + result.address);
@@ -198,21 +198,10 @@ export async function deployCoreRelayerProxy(
   }
 
   // deploy proxy and point at setup contract
-  const rx = await create2Factory
-    .create2(
-      proxyContractSalt,
-      ethers.utils.solidityPack(
-        ["bytes", "bytes"],
-        [
-          CoreRelayerProxy__factory.bytecode,
-          ethers.utils.defaultAbiCoder.encode(
-            ["address"],
-            [coreRelayerSetupAddress]
-          ),
-        ]
-      )
-    )
-    .then(wait);
+  const data = new CoreRelayerProxy__factory().getDeployTransaction(
+    coreRelayerSetupAddress
+  ).data!;
+  const rx = await create2Factory.create2(proxyContractSalt, data).then(wait);
 
   // call setup
   const governanceChainId = 1;

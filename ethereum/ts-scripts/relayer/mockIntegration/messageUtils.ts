@@ -8,9 +8,11 @@ import {
   getMockIntegrationAddress,
   getProvider,
   getRelayProvider,
+  getSigner,
 } from "../helpers/env";
 import * as grpcWebNodeHttpTransport from "@improbable-eng/grpc-web-node-http-transport";
 import { ethers } from "ethers";
+import { RelayProvider__factory } from "../../../ethers-contracts";
 
 export async function sendMessage(
   sourceChain: ChainInfo,
@@ -22,8 +24,15 @@ export async function sendMessage(
     `Sending message from chain ${sourceChain.chainId} to ${targetChain.chainId}...`
   );
 
-  const sourceRelayer = getCoreRelayer(sourceChain);
+  const sourceRelayer = await getCoreRelayer(sourceChain);
   const sourceProvider = await sourceRelayer.getDefaultRelayProvider();
+
+  console.log(sourceProvider);
+  const result = await RelayProvider__factory.connect(
+    sourceProvider,
+    getSigner(sourceChain)
+  ).isChainSupported(targetChain.chainId);
+  console.log("isCHain supported", result);
 
   const relayQuote = await (
     await sourceRelayer.quoteGas(targetChain.chainId, 2000000, sourceProvider)
