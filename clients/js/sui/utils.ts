@@ -56,8 +56,7 @@ export const execute_sui = async (
               tx.object(SUI_CLOCK_OBJECT_ID),
             ],
           });
-          const { digest } = await executeTransactionBlock(signer, tx);
-          await pollTransactionForEffectsCert(signer, digest);
+          await executeTransactionBlock(signer, tx);
           break;
         }
         case "ContractUpgrade":
@@ -126,8 +125,7 @@ export const execute_sui = async (
             ],
           });
 
-          const { digest } = await executeTransactionBlock(signer, tx);
-          await pollTransactionForEffectsCert(signer, digest);
+          await executeTransactionBlock(signer, tx);
           break;
         }
         case "AttestMeta":
@@ -155,7 +153,6 @@ export const executeTransactionBlock = async (
   // Let caller handle parsing and logging info
   return signer.signAndExecuteTransactionBlock({
     transactionBlock,
-    requestType: "WaitForEffectsCert",
     options: {
       showInput: true,
       showEffects: true,
