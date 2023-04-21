@@ -1845,8 +1845,8 @@ contract WormholeRelayerTests is Test {
 
         IDelivery.DeliveryOverride memory deliveryOverride = IDelivery.DeliveryOverride(
             ins.executionParameters.gasLimit,
-            ins.newMaxRefundTarget,
-            ins.newReceiverValue,
+            ins.newMaximumRefundTarget,
+            ins.newReceiverValueTarget,
             redeliveryVmParsed.hash
         );
 
