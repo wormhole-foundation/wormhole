@@ -32,9 +32,9 @@ const OVERRIDES = {
   },
   DEVNET: {
     sui: {
-      core: "0xa26bb6f2c14d8921191aeb3e7b718a247e1b71c02e7598a0bfad5ad213d6f105",
+      core: "0xe30c1b99ec028b93440a739bbbbca77d5eba502c916c3bec18f4c408ac49e7ac",
       token_bridge:
-        "0x6ec5e8a372cdc308917ccb28b5d24bed4fddb00451c1f7edc36feb36dbdfe190",
+        "0xaf230c5cc9da1c6234d819dc868baa591f22687ec727cdf8aa988df1a9915e62",
     },
     aptos: {
       token_bridge:
