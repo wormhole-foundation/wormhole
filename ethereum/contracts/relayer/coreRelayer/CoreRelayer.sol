@@ -269,22 +269,13 @@ contract CoreRelayer is CoreRelayerDelivery {
         uint256 wormholeMessageFee = wormhole().messageFee();
         uint256 totalFee = sendParams.maxTransactionFee +  sendParams.receiverValue + wormholeMessageFee;
 
-        // For each 'Send' request,
-        // calculate how much gas the relay provider can pay for on 'request.targetChain' using 'request.newTransactionFee',
-        // and calculate how much value the relay provider will pass into 'request.targetAddress'
-        IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction =
-            convertSendToDeliveryInstruction(sendParams);
-
-        // For each 'Send' request,
-        // Check that the total amount of value the relay provider needs to use for this send is <= the relayProvider's maximum budget for 'targetChain'
-        // and check that the calculated gas is greater than 0
-        checkInstruction(instruction, IRelayProvider(sendParams.relayProviderAddress));
+        checkInstruction(convertSendToDeliveryInstruction(sendParams), IRelayProvider(sendParams.relayProviderAddress));
 
         // Save information about the forward in state, so it can be processed after the execution of 'receiveWormholeMessages',
         // because we will then know how much of the 'maxTransactionFee' of the current delivery is still available for use in this forward
         appendForwardInstruction(
             IWormholeRelayerInternalStructs.ForwardInstruction({
-                encodedInstruction: encodeDeliveryInstruction(instruction),
+                encodedSend: encodeSend(sendParams),
                 msgValue: msg.value,
                 totalFee: totalFee
             })

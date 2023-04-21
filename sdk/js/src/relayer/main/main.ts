@@ -63,23 +63,21 @@ export function stringifyWormholeRelayerInfo(info: DeliveryInfo): string {
 
     const numMsgs = info.deliveryInstruction.vaaKeys.length;
     stringifiedInfo += `\nThe following ${numMsgs} messages were requested to be relayed:\n`;
-    stringifiedInfo += info.deliveryInstruction.vaaKeys.map(
-      (msgInfo, i) => {
-        let result = "";
-        result += `\n(Message ${i}): `;
-        if (msgInfo.payloadType == VaaKeyType.EMITTER_SEQUENCE) {
-          result += `Message from ${msgInfo.chainId ? printChain(msgInfo.chainId) : ""}, with emitter address ${msgInfo.emitterAddress?.toString(
-            "hex"
-          )} and sequence number ${msgInfo.sequence}\n`;
-        } else if (msgInfo.payloadType == VaaKeyType.VAAHASH) {
-          result += `Message with VAA Hash ${msgInfo.vaaHash?.toString(
-            "hex"
-          )}\n`;
-        } else {
-          result += `Message not specified correctly\n`;
-        }
+    stringifiedInfo += info.deliveryInstruction.vaaKeys.map((msgInfo, i) => {
+      let result = "";
+      result += `\n(Message ${i}): `;
+      if (msgInfo.payloadType == VaaKeyType.EMITTER_SEQUENCE) {
+        result += `Message from ${
+          msgInfo.chainId ? printChain(msgInfo.chainId) : ""
+        }, with emitter address ${msgInfo.emitterAddress?.toString(
+          "hex"
+        )} and sequence number ${msgInfo.sequence}\n`;
+      } else if (msgInfo.payloadType == VaaKeyType.VAAHASH) {
+        result += `Message with VAA Hash ${msgInfo.vaaHash?.toString("hex")}\n`;
+      } else {
+        result += `Message not specified correctly\n`;
       }
-    );
+    });
 
     const length = 1;
     stringifiedInfo += `\nMessages were requested to be sent to ${length} destination${
@@ -161,72 +159,63 @@ export async function getWormholeRelayerInfo(
 
   const instruction = parsed as DeliveryInstruction;
 
+  const targetChain = instruction.targetChain as ChainId;
+  if (!isChain(targetChain)) throw Error(`Invalid Chain: ${targetChain}`);
+  const targetChainProvider =
+    infoRequest.targetChainProviders?.get(targetChain) ||
+    getDefaultProvider(infoRequest.environment, targetChain);
 
-        const targetChain = instruction.targetChain as ChainId;
-        if (!isChain(targetChain)) throw Error(`Invalid Chain: ${targetChain}`);
-        const targetChainProvider =
-          infoRequest.targetChainProviders?.get(targetChain) ||
-          getDefaultProvider(infoRequest.environment, targetChain);
+  if (!targetChainProvider)
+    throw Error(
+      "No default RPC for this chain; pass in your own provider (as targetChainProvider)"
+    );
 
-        if (!targetChainProvider)
-          throw Error(
-            "No default RPC for this chain; pass in your own provider (as targetChainProvider)"
-          );
+  const sourceChainBlock = await sourceChainProvider.getBlock(
+    receipt.blockNumber
+  );
+  const [blockStartNumber, blockEndNumber] =
+    infoRequest.targetChainBlockRanges?.get(targetChain) ||
+    getBlockRange(targetChainProvider, sourceChainBlock.timestamp);
 
-        const sourceChainBlock = await sourceChainProvider.getBlock(
-          receipt.blockNumber
-        );
-        const [blockStartNumber, blockEndNumber] =
-          infoRequest.targetChainBlockRanges?.get(targetChain) ||
-          getBlockRange(targetChainProvider, sourceChainBlock.timestamp);
-
-        const deliveryEvents =
-          await getWormholeRelayerDeliveryEventsBySourceSequence(
-            infoRequest.environment,
-            targetChain,
-            targetChainProvider,
-            infoRequest.sourceChain,
-            BigNumber.from(deliveryLog.sequence),
-            blockStartNumber,
-            blockEndNumber
-          );
-        if (deliveryEvents.length == 0) {
-          let status = `Delivery didn't happen on ${printChain(
-            targetChain
-          )} within blocks ${blockStartNumber} to ${blockEndNumber}.`;
-          try {
-            const blockStart = await targetChainProvider.getBlock(
-              blockStartNumber
-            );
-            const blockEnd = await targetChainProvider.getBlock(blockEndNumber);
-            status = `Delivery didn't happen on ${printChain(
-              targetChain
-            )} within blocks ${blockStart.number} to ${
-              blockEnd.number
-            } (within times ${new Date(
-              blockStart.timestamp * 1000
-            ).toString()} to ${new Date(
-              blockEnd.timestamp * 1000
-            ).toString()})`;
-          } catch (e) {}
-          deliveryEvents.push({
-            status,
-            deliveryTxHash: null,
-            vaaHash: null,
-            sourceChain: infoRequest.sourceChain,
-            sourceVaaSequence: BigNumber.from(deliveryLog.sequence),
-          });
-        }
-        const targetChainStatus = {
-          chainId: targetChain,
-          events: deliveryEvents.map((e) => ({
-            status: e.status,
-            transactionHash: e.deliveryTxHash,
-          })),
-        };
-      
-    
-  
+  const deliveryEvents = await getWormholeRelayerDeliveryEventsBySourceSequence(
+    infoRequest.environment,
+    targetChain,
+    targetChainProvider,
+    infoRequest.sourceChain,
+    BigNumber.from(deliveryLog.sequence),
+    blockStartNumber,
+    blockEndNumber
+  );
+  if (deliveryEvents.length == 0) {
+    let status = `Delivery didn't happen on ${printChain(
+      targetChain
+    )} within blocks ${blockStartNumber} to ${blockEndNumber}.`;
+    try {
+      const blockStart = await targetChainProvider.getBlock(blockStartNumber);
+      const blockEnd = await targetChainProvider.getBlock(blockEndNumber);
+      status = `Delivery didn't happen on ${printChain(
+        targetChain
+      )} within blocks ${blockStart.number} to ${
+        blockEnd.number
+      } (within times ${new Date(
+        blockStart.timestamp * 1000
+      ).toString()} to ${new Date(blockEnd.timestamp * 1000).toString()})`;
+    } catch (e) {}
+    deliveryEvents.push({
+      status,
+      deliveryTxHash: null,
+      vaaHash: null,
+      sourceChain: infoRequest.sourceChain,
+      sourceVaaSequence: BigNumber.from(deliveryLog.sequence),
+    });
+  }
+  const targetChainStatus = {
+    chainId: targetChain,
+    events: deliveryEvents.map((e) => ({
+      status: e.status,
+      transactionHash: e.deliveryTxHash,
+    })),
+  };
 
   return {
     type,
