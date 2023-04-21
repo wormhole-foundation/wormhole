@@ -10,8 +10,9 @@ import "../../interfaces/relayer/IWormholeRelayerInternalStructs.sol";
 import "../../interfaces/relayer/IForwardWrapper.sol";
 import "../../interfaces/relayer/IWormholeReceiver.sol";
 import "../../interfaces/relayer/IRelayProvider.sol";
+import {CoreRelayerLibrary} from "../coreRelayer/CoreRelayerLibrary.sol";
 
-contract ForwardWrapper {
+contract ForwardWrapper is CoreRelayerLibrary {
     IForwardInstructionViewer public forwardInstructionViewer;
     IWormhole wormhole;
 
