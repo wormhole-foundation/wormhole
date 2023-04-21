@@ -7,3 +7,5 @@ npx ts-node ./ts-scripts/relayer/config/checkNetworks.ts --set-last-run \
   && npx ts-node ./ts-scripts/relayer/mockIntegration/deployMockIntegration.ts \
   && npx ts-node ./ts-scripts/relayer/mockIntegration/messageTest.ts \
   && npx ts-node ./ts-scripts/relayer/config/syncContractsJson.ts
+
+ # put this as 2nd script if not deployed aleady

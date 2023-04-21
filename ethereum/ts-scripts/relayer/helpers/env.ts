@@ -312,24 +312,41 @@ export function getRelayProvider(
   return contract;
 }
 
+export function fetchSetupAddressCreate2(
+  chain: ChainInfo,
+  create2Factory = getCreate2Factory(chain)
+): Promise<string> {
+  const signer = getSigner(chain).address;
+  return create2Factory.computeAddress(
+    signer,
+    setupContractSalt,
+    ethers.utils.solidityKeccak256(
+      ["bytes"],
+      [CoreRelayerSetup__factory.bytecode]
+    )
+  );
+}
+
 const coreRelayerAddressesCache: Partial<Record<ChainId, string>> = {};
 export async function getCoreRelayerAddress(chain: ChainInfo): Promise<string> {
   if (!coreRelayerAddressesCache[chain.chainId]) {
     const create2Factory = getCreate2Factory(chain);
     const signer = getSigner(chain).address;
-    const setupAddr = await create2Factory.computeAddress(
-      signer,
-      setupContractSalt,
-      CoreRelayerSetup__factory.bytecode
-    );
+    const setupAddr = await fetchSetupAddressCreate2(chain, create2Factory);
+
     coreRelayerAddressesCache[
       chain.chainId
     ] = await create2Factory.computeAddress(
       signer,
       proxyContractSalt,
-      ethers.utils.solidityPack(
-        ["bytes", "bytes"],
-        [CoreRelayerProxy__factory.bytecode, setupAddr]
+      ethers.utils.solidityKeccak256(
+        ["bytes"],
+        [
+          ethers.utils.solidityPack(
+            ["bytes", "bytes"],
+            [CoreRelayerProxy__factory.bytecode, setupAddr]
+          ),
+        ]
       )
     );
   }

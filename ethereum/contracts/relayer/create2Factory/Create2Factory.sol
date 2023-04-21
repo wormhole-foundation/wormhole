@@ -11,17 +11,21 @@ contract Create2Factory {
     event Created(address);
 
     /// @dev create2 hashes the userSalt with msg.sender, then uses the CREATE2 opcode to deterministically create a contract
-    function create2(bytes32 userSalt, bytes memory bytecode) public payable returns (address payable) {
+    function create2(bytes memory userSalt, bytes memory bytecode) public payable returns (address payable) {
         address addr = Create2.deploy(msg.value, salt(msg.sender, userSalt), bytecode);
         emit Created(addr);
         return payable(addr);
     }
 
-    function computeAddress(address creator, bytes32 userSalt, bytes32 bytecodeHash) public view returns (address) {
+    function computeAddress(address creator, bytes memory userSalt, bytes32 bytecodeHash)
+        public
+        view
+        returns (address)
+    {
         return Create2.computeAddress(salt(creator, userSalt), bytecodeHash);
     }
 
-    function salt(address creator, bytes32 userSalt) internal pure returns (bytes32) {
+    function salt(address creator, bytes memory userSalt) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(creator, userSalt));
     }
 }
