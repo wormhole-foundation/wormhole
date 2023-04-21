@@ -1,5 +1,7 @@
 import yargs from "yargs";
 import {
+  ChainId,
+  ChainName,
   CHAINS,
   assertChain,
   isCosmWasmChain,
@@ -57,19 +59,25 @@ exports.handler = async (argv) => {
       impossible(module);
   }
   if (argv["emitter"]) {
-    const emitter = require("@certusone/wormhole-sdk/lib/cjs/bridge/getEmitterAddress");
-    if (chain === "solana" || chain === "pythnet") {
-      // TODO: Create an isSolanaChain()
-      addr = await emitter.getEmitterAddressSolana(addr);
-    } else if (isCosmWasmChain(chain)) {
-      addr = await emitter.getEmitterAddressTerra(addr);
-    } else if (chain === "algorand") {
-      addr = emitter.getEmitterAddressAlgorand(BigInt(addr));
-    } else if (chain === "near") {
-      addr = emitter.getEmitterAddressNear(addr);
-    } else {
-      addr = emitter.getEmitterAddressEth(addr);
-    }
+    addr = await getEmitterAddress(chain, addr);
   }
   console.log(addr);
 };
+
+export async function getEmitterAddress(chain: ChainId | ChainName, addr: string) {
+  const emitter = require("@certusone/wormhole-sdk/lib/cjs/bridge/getEmitterAddress");
+  if (chain === "solana" || chain === "pythnet") {
+    // TODO: Create an isSolanaChain()
+    addr = emitter.getEmitterAddressSolana(addr);
+  } else if (isCosmWasmChain(chain)) {
+    addr = await emitter.getEmitterAddressTerra(addr);
+  } else if (chain === "algorand") {
+    addr = emitter.getEmitterAddressAlgorand(BigInt(addr));
+  } else if (chain === "near") {
+    addr = emitter.getEmitterAddressNear(addr);
+  } else {
+    addr = emitter.getEmitterAddressEth(addr);
+  }
+
+  return addr;
+}
