@@ -29,6 +29,10 @@ module token_bridge::normalized_amount {
         value: u64
     }
 
+    public fun max_decimals(): u8 {
+        MAX_DECIMALS
+    }
+
     /// Utility function to cap decimal amount to 8.
     public fun cap_decimals(decimals: u8): u8 {
         if (decimals > MAX_DECIMALS) {

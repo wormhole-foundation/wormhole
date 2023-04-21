@@ -30,15 +30,16 @@
 /// https://examples.sui.io/basics/one-time-witness.html
 module token_bridge::create_wrapped {
     use std::ascii::{Self};
+    use std::option::{Self};
     use std::type_name::{Self};
-    use std::option;
-    use sui::transfer;
     use sui::coin::{Self, TreasuryCap, CoinMetadata};
     use sui::object::{Self, UID};
     use sui::package::{UpgradeCap};
+    use sui::transfer::{Self};
     use sui::tx_context::{TxContext};
 
     use token_bridge::asset_meta::{Self};
+    use token_bridge::normalized_amount::{max_decimals};
     use token_bridge::state::{Self, State};
     use token_bridge::token_registry::{Self};
     use token_bridge::vaa::{Self, TokenBridgeMessage};
@@ -56,6 +57,8 @@ module token_bridge::create_wrapped {
     const E_BAD_WITNESS: u64 = 2;
     /// Coin witness does not equal "COIN".
     const E_INVALID_COIN_MODULE_NAME: u64 = 3;
+    /// Decimals value exceeds `MAX_DECIMALS` from `normalized_amount`.
+    const E_DECIMALS_EXCEED_WRAPPED_MAX: u64 = 4;
 
     /// A.K.A. "coin".
     const COIN_MODULE_NAME: vector<u8> = b"coin";
@@ -105,6 +108,10 @@ module token_bridge::create_wrapped {
         // Technically this check is redundant as it's performed by
         // `coin::create_currency` below, but it doesn't hurt.
         assert!(sui::types::is_one_time_witness(&witness), E_BAD_WITNESS);
+
+        // Ensure that the decimals passed into this method do not exceed max
+        // decimals (see `normalized_amount` module).
+        assert!(decimals <= max_decimals(), E_DECIMALS_EXCEED_WRAPPED_MAX);
 
         // We initialise the currency with empty metadata. Later on, in the
         // `complete_registration` call, when `CoinType` gets associated with a
@@ -156,8 +163,7 @@ module token_bridge::create_wrapped {
         coin_meta: &mut CoinMetadata<CoinType>,
         setup: WrappedAssetSetup<CoinType>,
         coin_upgrade_cap: UpgradeCap,
-        msg: TokenBridgeMessage,
-        ctx: &mut TxContext,
+        msg: TokenBridgeMessage
     ) {
         state::check_minimum_requirement<CreateWrappedControl>(
             token_bridge_state
@@ -193,8 +199,7 @@ module token_bridge::create_wrapped {
             token_meta,
             coin_meta,
             treasury_cap,
-            coin_upgrade_cap,
-            ctx
+            coin_upgrade_cap
         );
     }
 
@@ -222,6 +227,20 @@ module token_bridge::create_wrapped {
             coin_meta,
             token_meta
         );
+    }
+
+    public fun incomplete_metadata<CoinType>(
+        coin_meta: &CoinMetadata<CoinType>
+    ): bool {
+        use std::string::{bytes};
+        use std::vector::{is_empty};
+
+        (
+            is_empty(ascii::as_bytes(&coin::get_symbol(coin_meta))) &&
+            is_empty(bytes(&coin::get_name(coin_meta))) &&
+            is_empty(bytes(&coin::get_description(coin_meta))) &&
+            std::option::is_none(&coin::get_icon_url(coin_meta))
+        )
     }
 
     #[test_only]
@@ -363,8 +382,7 @@ module token_bridge::create_wrapped_tests {
             &mut coin_meta,
             wrapped_asset_setup,
             upgrade_cap,
-            msg,
-            test_scenario::ctx(scenario)
+            msg
         );
 
         let (
@@ -480,8 +498,7 @@ module token_bridge::create_wrapped_tests {
             &mut coin_meta,
             wrapped_asset_setup,
             upgrade_cap,
-            msg,
-            test_scenario::ctx(scenario)
+            msg
         );
         // This VAA is for COIN_WRAPPED_7 metadata, which disagrees with
         // COIN_WRAPPED_12.

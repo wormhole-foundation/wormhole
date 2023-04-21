@@ -36,7 +36,6 @@ module token_bridge::coin_wrapped_7 {
     const VAA: vector<u8> =
         x"010000000001003d8fd671611d84801dc9d14a07835e8729d217b1aac77b054175d0f91294040742a1ed6f3e732b2fbf208e64422816accf89dd0cd3ead20d2e0fb3d372ce221c010000000000000045000200000000000000000000000000000000000000000000000000000000deadbeef00000000000000010f0200000000000000000000000000000000000000000000000000000000deafface000207000000000000000000000000000000000000000000000000000000004445433700000000000000000000000000000000000000000000444543494d414c532037";
 
-    #[test_only]
     fun init(witness: COIN_WRAPPED_7, ctx: &mut TxContext) {
         let (
             setup,
@@ -49,6 +48,11 @@ module token_bridge::coin_wrapped_7 {
             );
         transfer::public_transfer(setup, tx_context::sender(ctx));
         transfer::public_transfer(upgrade_cap, tx_context::sender(ctx));
+    }
+
+    #[test_only]
+    public fun init_test_only(ctx: &mut TxContext) {
+        init(COIN_WRAPPED_7 {}, ctx);
     }
 
     public fun encoded_vaa(): vector<u8> {
@@ -122,8 +126,7 @@ module token_bridge::coin_wrapped_7 {
                 scenario
             ),
             test_scenario::take_from_sender<UpgradeCap>(scenario),
-            msg,
-            test_scenario::ctx(scenario)
+            msg
         );
 
         test_scenario::return_shared(coin_meta);

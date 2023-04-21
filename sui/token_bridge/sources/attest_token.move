@@ -17,12 +17,16 @@ module token_bridge::attest_token {
     use wormhole::state::{State as WormholeState};
 
     use token_bridge::asset_meta::{Self};
+    use token_bridge::create_wrapped::{Self};
     use token_bridge::state::{Self, State};
     use token_bridge::token_registry::{Self};
     use token_bridge::version_control::{AttestToken as AttestTokenControl};
 
-    /// coin type belongs to a wrapped asset.
+    /// Coin type belongs to a wrapped asset.
     const E_WRAPPED_ASSET: u64 = 0;
+    /// Coin type belongs to an untrusted contract from `create_wrapped` which
+    /// has not completed registration.
+    const E_FROM_CREATE_WRAPPED: u64 = 1;
 
     /// `attest_token` takes `CoinMetadata` of a coin type and sends a Wormhole
     /// message with encoded asset metadata for a foreign Token Bridge contract
@@ -34,7 +38,7 @@ module token_bridge::attest_token {
         token_bridge_state: &mut State,
         worm_state: &mut WormholeState,
         wormhole_fee: Coin<SUI>,
-        coin_metadata: &CoinMetadata<CoinType>,
+        coin_meta: &CoinMetadata<CoinType>,
         nonce: u32,
         the_clock: &Clock
     ): u64 {
@@ -44,7 +48,7 @@ module token_bridge::attest_token {
 
         // Encode Wormhole message payload.
         let encoded_asset_meta =
-            serialize_asset_meta(token_bridge_state, coin_metadata);
+            serialize_asset_meta(token_bridge_state, coin_meta);
 
         // Publish.
         state::publish_wormhole_message(
@@ -59,7 +63,7 @@ module token_bridge::attest_token {
 
     fun serialize_asset_meta<CoinType>(
         token_bridge_state: &mut State,
-        coin_metadata: &CoinMetadata<CoinType>,
+        coin_meta: &CoinMetadata<CoinType>,
     ): vector<u8> {
         let verified =
             state::maybe_verified_asset<CoinType>(token_bridge_state);
@@ -78,14 +82,22 @@ module token_bridge::attest_token {
                 E_WRAPPED_ASSET
             );
         } else {
-            // Otherwise, register it.
+            // Before we consider registering, we should not accidentally
+            // perform this registration that may be the `CoinMetadata` from
+            // `create_wrapped::prepare_registration`, which has empty fields.
+            assert!(
+                !create_wrapped::incomplete_metadata(coin_meta),
+                E_FROM_CREATE_WRAPPED
+            );
+
+            // Now register it.
             token_registry::add_new_native(
                 state::borrow_mut_token_registry(token_bridge_state),
-                coin_metadata
+                coin_meta
             );
         };
 
-        asset_meta::serialize(asset_meta::from_metadata(coin_metadata))
+        asset_meta::serialize(asset_meta::from_metadata(coin_meta))
     }
 
     #[test_only]
@@ -106,7 +118,9 @@ module token_bridge::attest_token_tests {
     use wormhole::state::{chain_id};
 
     use token_bridge::asset_meta::{Self};
+    use token_bridge::attest_token::{Self};
     use token_bridge::coin_native_10::{Self, COIN_NATIVE_10};
+    use token_bridge::coin_wrapped_7::{Self, COIN_WRAPPED_7};
     use token_bridge::native_asset::{Self};
     use token_bridge::state::{Self};
     use token_bridge::token_bridge_scenario::{
@@ -295,6 +309,54 @@ module token_bridge::attest_token_tests {
         // Clean up.
         return_state(token_bridge_state);
         coin_native_10::return_globals(treasury_cap, coin_meta);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = attest_token::E_FROM_CREATE_WRAPPED)]
+    fun test_cannot_attest_token_from_create_wrapped() {
+        use token_bridge::attest_token::{attest_token};
+
+        let user = person();
+        let my_scenario = test_scenario::begin(user);
+        let scenario = &mut my_scenario;
+
+        // Publish coin.
+        coin_wrapped_7::init_test_only(test_scenario::ctx(scenario));
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, user);
+
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, user);
+
+        let (token_bridge_state, worm_state) = take_states(scenario);
+        let the_clock = take_clock(scenario);
+        let coin_meta = test_scenario::take_shared(scenario);
+
+        // You shall not pass!
+        attest_token<COIN_WRAPPED_7>(
+            &mut token_bridge_state,
+            &mut worm_state,
+            coin::mint_for_testing(
+                wormhole_fee,
+                test_scenario::ctx(scenario)
+            ),
+            &coin_meta,
+            1234, // nonce
+            &the_clock
+        );
+
+        // Clean up.
+        return_states(token_bridge_state, worm_state);
+        return_clock(the_clock);
+        test_scenario::return_shared(coin_meta);
 
         // Done.
         test_scenario::end(my_scenario);

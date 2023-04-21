@@ -90,7 +90,7 @@ module coins::coin_tests {
 // | Name: Beef face Token??? and profit                                          |
 // +------------------------------------------------------------------------------+
     const UPDATED_VAA: vector<u8> =
-        x"01000000000100b0571650590e147fce4eb60105e0463522c1244a97bd5dcb365d3e7bc7f32e4071e18c31bd8240bff6451991c86cb9176003379ba470a5124245b60547516ecc010000000000000045000200000000000000000000000000000000000000000000000000000000deadbeef00000000000000010f0200000000000000000000000000000000000000000000000000000000beefface00020c0000000000000000000000000000424545463f3f3f20616e642070726f66697400000042656566206661636520546f6b656e3f3f3f20616e642070726f666974";
+        x"0100000000010062f4dcd21bbbc4af8b8baaa2da3a0b168efc4c975de5b828c7a3c710b67a0a0d476d10a74aba7a7867866daf97d1372d8e6ee62ccc5ae522e3e603c67fa23787000000000000000045000200000000000000000000000000000000000000000000000000000000deadbeef00000000000000010f0200000000000000000000000000000000000000000000000000000000beefface00020c424545463f3f3f20616e642070726f666974000000000000000000000000000042656566206661636520546f6b656e3f3f3f20616e642070726f666974000000";
 
 
     #[test]
@@ -148,8 +148,7 @@ module coins::coin_tests {
                 scenario,
                 coin_deployer
             ),
-            msg,
-            test_scenario::ctx(scenario)
+            msg
         );
 
         // Check registry.
@@ -188,11 +187,14 @@ module coins::coin_tests {
         create_wrapped::update_attestation<COIN>(&mut token_bridge_state, &mut coin_meta, msg);
 
         // Check updated name and symbol.
-        // TODO: these two don't match, there's some junk at the front of the
-        // actual parsed data
-        std::debug::print(&coin::get_name(&coin_meta));
-        // assert!(coin::get_name(&coin_meta) == std::string::utf8(b"Beef face Token??? and profit"), 0);
-        // assert!(coin::get_symbol(&coin_meta) == std::ascii::string(b"BEEF??? and profit"), 0);
+        assert!(
+            coin::get_name(&coin_meta) == std::string::utf8(b"Beef face Token??? and profit"),
+            0
+        );
+        assert!(
+            coin::get_symbol(&coin_meta) == std::ascii::string(b"BEEF??? and profit"),
+            0
+        );
 
         // Clean up.
         return_state(token_bridge_state);

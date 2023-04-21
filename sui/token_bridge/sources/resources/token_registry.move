@@ -55,6 +55,7 @@ module token_bridge::token_registry {
         is_wrapped: bool,
         chain: u16,
         addr: ExternalAddress,
+        coin_decimals: u8
     }
 
     /// Wrapper of coin type to act as dynamic field key.
@@ -128,13 +129,15 @@ module token_bridge::token_registry {
         if (is_wrapped) {
             let asset = borrow_wrapped<CoinType>(self);
             let (chain, addr) = wrapped_asset::canonical_info(asset);
+            let coin_decimals = wrapped_asset::decimals(asset);
 
-            VerifiedAsset { is_wrapped, chain, addr }
+            VerifiedAsset { is_wrapped, chain, addr, coin_decimals }
         } else {
             let asset = borrow_native<CoinType>(self);
             let (chain, addr) = native_asset::canonical_info(asset);
+            let coin_decimals = native_asset::decimals(asset);
 
-            VerifiedAsset { is_wrapped, chain, addr }
+            VerifiedAsset { is_wrapped, chain, addr, coin_decimals }
         }
     }
 
@@ -157,6 +160,13 @@ module token_bridge::token_registry {
         verified.addr
     }
 
+    /// Retrieve decimals for a `VerifiedAsset`.
+    public fun coin_decimals<CoinType>(
+        verified: &VerifiedAsset<CoinType>
+    ): u8 {
+        verified.coin_decimals
+    }
+
     /// Add a new wrapped asset to the registry and return the canonical token
     /// address.
     ///
@@ -166,8 +176,7 @@ module token_bridge::token_registry {
         token_meta: AssetMeta,
         coin_meta: &mut CoinMetadata<CoinType>,
         treasury_cap: TreasuryCap<CoinType>,
-        upgrade_cap: UpgradeCap,
-        ctx: &mut TxContext
+        upgrade_cap: UpgradeCap
     ): ExternalAddress {
         // Grab canonical token info.
         let token_chain = asset_meta::token_chain(&token_meta);
@@ -199,7 +208,13 @@ module token_bridge::token_registry {
         // `TreasuryCap` is globally unique and can only be created once, there is no
         // risk that `add_new_wrapped` can be called again on the same coin
         // type.
-        let asset = wrapped_asset::new(token_meta, coin_meta, treasury_cap, upgrade_cap, ctx);
+        let asset =
+            wrapped_asset::new(
+                token_meta,
+                coin_meta,
+                treasury_cap,
+                upgrade_cap
+            );
         dynamic_field::add(&mut self.id, Key<CoinType> {}, asset);
         self.num_wrapped = self.num_wrapped + 1;
 
@@ -222,8 +237,7 @@ module token_bridge::token_registry {
             sui::package::test_publish(
                 object::id_from_address(@token_bridge),
                 ctx
-            ),
-            ctx
+            )
         )
     }
 
@@ -441,6 +455,7 @@ module token_bridge::token_registry_tests {
 
         let verified = token_registry::verified_asset<COIN_NATIVE_10>(&registry);
         assert!(!token_registry::is_wrapped(&verified), 0);
+        assert!(token_registry::coin_decimals(&verified) == 10, 0);
         assert!(token_registry::token_chain(&verified) == chain_id(), 0);
         assert!(
             token_registry::token_address(&verified) == expected_token_address,
@@ -554,6 +569,7 @@ module token_bridge::token_registry_tests {
 
         let verified = token_registry::verified_asset<COIN_WRAPPED_7>(&registry);
         assert!(token_registry::is_wrapped(&verified), 0);
+        assert!(token_registry::coin_decimals(&verified) == 7, 0);
 
         let wrapped_token_meta = coin_wrapped_7::token_meta();
         assert!(

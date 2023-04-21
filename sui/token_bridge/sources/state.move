@@ -356,6 +356,11 @@ module token_bridge::state {
         token_registry::verified_asset(&self.token_registry)
     }
 
+    /// Retrieve decimals from for a given coin type in `TokenRegistry`.
+    public fun coin_decimals<CoinType>(self: &State): u8 {
+        token_registry::coin_decimals(&verified_asset<CoinType>(self))
+    }
+
     #[test_only]
     public fun borrow_emitter_registry(
         self: &State
