@@ -42,7 +42,7 @@ async function run() {
 async function configureChainsRelayProvider(chain: ChainInfo) {
   console.log("about to perform RelayProvider configuration for chain " + chain.chainId);
   const relayProvider = getRelayProvider(chain);
-  const coreRelayer = getCoreRelayerAddress(chain);
+  const coreRelayer = await getCoreRelayerAddress(chain);
 
   const thisChainsConfigInfo = config.addresses.find(
     (x: any) => x.chainId == chain.chainId

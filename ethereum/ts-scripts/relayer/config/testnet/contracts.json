@@ -4,31 +4,41 @@
   "relayProviders": [
     {
       "chainId": 6,
-      "address": "0x9FC6F49DE28787229DAB22609C75F9b9CC9bF0C8"
+      "address": "0x58DFf38a3E97568CA2acfd95ca0901E8B4D3D3A8"
     },
     {
       "chainId": 14,
-      "address": "0x2BFE9CfE229c7C018A724174C2e5C6a08Ff112c9"
+      "address": "0x64847cD62c8116231BD082d0b3E0eC93F205A7A3"
     }
   ],
   "coreRelayers": [
     {
       "chainId": 6,
-      "address": "0xDfDFAEebdB7c410352c469F816A257f956C08E05"
+      "address": "0xeF5d96cC539dae286513A498f54B17f8b49ecae2"
     },
     {
       "chainId": 14,
-      "address": "0x45148Ea83EC45f5cD8ac30E667f484CbB5bbfdfC"
+      "address": "0x4406CE49fD696C5eB1b30dfece71eb1b9322514d"
     }
   ],
   "mockIntegrations": [
     {
       "chainId": 6,
-      "address": "0x3f77cFB8273f069334a447a2dA5339313d37328A"
+      "address": "0x66dd3fBFf7fF50C074B6Bb159519dCa98ECC552F"
     },
     {
       "chainId": 14,
-      "address": "0xa2c86bA93db3d9ABCab584EF88b875A54C82AE05"
+      "address": "0xb9E73a5c623f241a6a676BA830cfB0C677b37ca1"
+    }
+  ],
+  "create2Factories": [
+    {
+      "chainId": 6,
+      "address": "0xBD49c3FEd4d972D2125D6B12DaA93881E92eaA2d"
+    },
+    {
+      "chainId": 14,
+      "address": "0x030005bA700CE16b13c249B8029fc7d8f4e0b134"
     }
   ]
 }

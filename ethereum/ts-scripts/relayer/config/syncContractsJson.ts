@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from "fs";
 import {
   getCoreRelayer,
+  getCreate2Factory,
   getMockIntegration,
   getRelayProvider,
   init,
@@ -18,6 +19,7 @@ interface ContractsJson {
   relayProviders: Address[];
   coreRelayers: Address[];
   mockIntegrations: Address[];
+  create2Factories: Address[];
 }
 
 async function main() {
@@ -29,6 +31,7 @@ async function main() {
   contracts.relayProviders = [] as any;
   contracts.coreRelayers = [] as any;
   contracts.mockIntegrations = [] as any;
+  contracts.create2Factories = [] as any;
   for (const chain of chains) {
     update(contracts.relayProviders, {
       chainId: chain.chainId,
@@ -41,6 +44,10 @@ async function main() {
     update(contracts.mockIntegrations, {
       chainId: chain.chainId,
       address: getMockIntegration(chain).address,
+    });
+    update(contracts.create2Factories, {
+      chainId: chain.chainId,
+      address: getCreate2Factory(chain).address,
     });
   }
   const newStr = JSON.stringify(contracts, undefined, 2);
