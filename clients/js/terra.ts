@@ -166,7 +166,7 @@ export async function execute_terra(
 
 export async function query_registrations_terra(
   network: "MAINNET" | "TESTNET" | "DEVNET",
-  chain: TerraChainName,
+  chain: string,
   module: "Core" | "NFTBridge" | "TokenBridge",
 ) {
   let n = NETWORKS[network][chain];
