@@ -30,6 +30,7 @@ module token_bridge::asset_meta {
         /// Number of decimals of the token.
         native_decimals: u8,
         /// Symbol of the token (UTF-8).
+        /// TODO(csongor): maybe turn these into String32s?
         symbol: String,
         /// Name of the token (UTF-8).
         name: String,

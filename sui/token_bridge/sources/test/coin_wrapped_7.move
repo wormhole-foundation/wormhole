@@ -2,7 +2,8 @@
 
 #[test_only]
 module token_bridge::coin_wrapped_7 {
-    use sui::balance::{Balance, Supply};
+    use sui::balance::{Balance};
+    use sui::coin::{CoinMetadata, TreasuryCap};
     use sui::package::{UpgradeCap};
     use sui::test_scenario::{Self, Scenario};
     use sui::transfer::{Self};
@@ -17,6 +18,21 @@ module token_bridge::coin_wrapped_7 {
     struct COIN_WRAPPED_7 has drop {}
 
     // TODO: need to fix the emitter address
+    // +------------------------------------------------------------------------------+
+    // | Wormhole VAA v1         | nonce: 69               | time: 0                  |
+    // | guardian set #0         | #1                      | consistency: 15          |
+    // |------------------------------------------------------------------------------|
+    // | Signature:                                                                   |
+    // |   #0: 3d8fd671611d84801dc9d14a07835e8729d217b1aac77b054175d0f91294...        |
+    // |------------------------------------------------------------------------------|
+    // | Emitter: 0x00000000000000000000000000000000deadbeef (Ethereum)               |
+    // |------------------------------------------------------------------------------|
+    // | Token attestation                                                            |
+    // | decimals: 7                                                                  |
+    // | Token: 0x00000000000000000000000000000000deafface (Ethereum)                 |
+    // | Symbol: DEC7                                                                 |
+    // | Name: DECIMALS 7                                                             |
+    // +------------------------------------------------------------------------------+
     const VAA: vector<u8> =
         x"010000000001003d8fd671611d84801dc9d14a07835e8729d217b1aac77b054175d0f91294040742a1ed6f3e732b2fbf208e64422816accf89dd0cd3ead20d2e0fb3d372ce221c010000000000000045000200000000000000000000000000000000000000000000000000000000deadbeef00000000000000010f0200000000000000000000000000000000000000000000000000000000deafface000207000000000000000000000000000000000000000000000000000000004445433700000000000000000000000000000000000000000000444543494d414c532037";
 
@@ -28,7 +44,7 @@ module token_bridge::coin_wrapped_7 {
         ) =
             create_wrapped::new_setup_test_only(
                 witness,
-                VAA,
+                7,
                 ctx
             );
         transfer::public_transfer(setup, tx_context::sender(ctx));
@@ -46,12 +62,12 @@ module token_bridge::coin_wrapped_7 {
     }
 
     #[test_only]
-    /// for a test scenario, simply deploy the coin and expose `Supply`.
-    public fun init_and_take_supply(
+    /// for a test scenario, simply deploy the coin and expose `TreasuryCap`.
+    public fun init_and_take_treasury_cap(
         scenario: &mut Scenario,
         caller: address
-    ): Supply<COIN_WRAPPED_7> {
-        use token_bridge::create_wrapped::{take_supply};
+    ): TreasuryCap<COIN_WRAPPED_7> {
+        use token_bridge::create_wrapped;
 
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
@@ -62,7 +78,7 @@ module token_bridge::coin_wrapped_7 {
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
 
-        take_supply(test_scenario::take_from_sender(scenario))
+        create_wrapped::take_treasury_cap(test_scenario::take_from_sender(scenario))
     }
 
     #[test_only]
@@ -96,9 +112,12 @@ module token_bridge::coin_wrapped_7 {
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
 
+        let coin_meta = test_scenario::take_shared<CoinMetadata<COIN_WRAPPED_7>>(scenario);
+
         // Register the attested asset.
         create_wrapped::complete_registration(
             &mut token_bridge_state,
+            &mut coin_meta,
             test_scenario::take_from_sender<WrappedAssetSetup<COIN_WRAPPED_7>>(
                 scenario
             ),
@@ -106,6 +125,8 @@ module token_bridge::coin_wrapped_7 {
             msg,
             test_scenario::ctx(scenario)
         );
+
+        test_scenario::return_shared(coin_meta);
 
         // Clean up.
         return_state(token_bridge_state);

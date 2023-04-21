@@ -3,7 +3,7 @@
 #[test_only]
 module token_bridge::coin_native_10 {
     use std::option::{Self};
-    use sui::balance::{Self, Balance, Supply};
+    use sui::balance::{Self, Balance};
     use sui::coin::{Self, CoinMetadata, TreasuryCap};
     use sui::test_scenario::{Self, Scenario};
     use sui::transfer::{Self};
@@ -38,12 +38,7 @@ module token_bridge::coin_native_10 {
         transfer::public_share_object(coin_metadata);
 
         // Give everyone access to `TrasuryCap`.
-        transfer::public_freeze_object(treasury_cap);
-    }
-
-    #[test_only]
-    public fun create_supply(): Supply<COIN_NATIVE_10> {
-        balance::create_supply(COIN_NATIVE_10 {})
+        transfer::public_share_object(treasury_cap);
     }
 
     #[test_only]
@@ -139,13 +134,13 @@ module token_bridge::coin_native_10 {
     public fun take_treasury_cap(
         scenario: &Scenario
     ): TreasuryCap<COIN_NATIVE_10> {
-        test_scenario::take_immutable(scenario)
+        test_scenario::take_shared(scenario)
     }
 
     public fun return_treasury_cap(
         treasury_cap: TreasuryCap<COIN_NATIVE_10>
     ) {
-        test_scenario::return_immutable(treasury_cap);
+        test_scenario::return_shared(treasury_cap);
     }
 
     public fun take_globals(

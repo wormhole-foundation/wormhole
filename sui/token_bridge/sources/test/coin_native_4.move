@@ -34,11 +34,11 @@ module token_bridge::coin_native_4 {
                 ctx
             );
 
-        // Let's make the metadata immutable.
-        transfer::public_freeze_object(coin_metadata);
+        // Let's make the metadata shared.
+        transfer::public_share_object(coin_metadata);
 
         // Give everyone access to `TrasuryCap`.
-        transfer::public_freeze_object(treasury_cap);
+        transfer::public_share_object(treasury_cap);
     }
 
     #[test_only]
@@ -122,25 +122,25 @@ module token_bridge::coin_native_4 {
     public fun take_metadata(
         scenario: &Scenario
     ): CoinMetadata<COIN_NATIVE_4> {
-        test_scenario::take_immutable(scenario)
+        test_scenario::take_shared(scenario)
     }
 
     public fun return_metadata(
         metadata: CoinMetadata<COIN_NATIVE_4>
     ) {
-        test_scenario::return_immutable(metadata);
+        test_scenario::return_shared(metadata);
     }
 
     public fun take_treasury_cap(
         scenario: &Scenario
     ): TreasuryCap<COIN_NATIVE_4> {
-        test_scenario::take_immutable(scenario)
+        test_scenario::take_shared(scenario)
     }
 
     public fun return_treasury_cap(
         treasury_cap: TreasuryCap<COIN_NATIVE_4>
     ) {
-        test_scenario::return_immutable(treasury_cap);
+        test_scenario::return_shared(treasury_cap);
     }
 
     public fun take_globals(
