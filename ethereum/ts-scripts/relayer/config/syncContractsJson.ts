@@ -36,7 +36,7 @@ async function main() {
     });
     update(contracts.coreRelayers, {
       chainId: chain.chainId,
-      address: getCoreRelayer(chain).address,
+      address: (await getCoreRelayer(chain)).address,
     });
     update(contracts.mockIntegrations, {
       chainId: chain.chainId,

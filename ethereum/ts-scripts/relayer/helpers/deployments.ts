@@ -17,6 +17,7 @@ import {
   getCoreRelayerAddress,
   getCreate2Factory,
   getCoreRelayer,
+  fetchSetupAddressCreate2,
 } from "./env";
 import { ethers } from "ethers";
 import {
@@ -186,10 +187,9 @@ export async function deployCoreRelayerProxy(
   console.log("deployCoreRelayerProxy " + chain.chainId);
 
   const create2Factory = getCreate2Factory(chain);
-  const expectedSetupAddr = await create2Factory.computeAddress(
-    getSigner(chain).address,
-    setupContractSalt,
-    CoreRelayerSetup__factory.bytecode
+  const expectedSetupAddr = await fetchSetupAddressCreate2(
+    chain,
+    create2Factory
   );
   if (coreRelayerSetupAddress !== expectedSetupAddr) {
     throw new Error(
