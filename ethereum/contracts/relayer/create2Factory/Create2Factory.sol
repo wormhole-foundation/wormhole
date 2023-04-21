@@ -8,7 +8,17 @@ import "@openzeppelin/contracts/utils/Create2.sol";
  * Contract factory that facilitates predfictable deployment addresses
  */
 contract Create2Factory {
-    constructor() { }
+    constructor() {}
+
+    function create2(bytes32 userSalt, bytes memory bytecode, address proxyAddr)
+        public
+        payable
+        returns (address payable)
+    {
+        return payable(
+            Create2.deploy(msg.value, salt(msg.sender, userSalt), abi.encodePacked(bytecode, abi.encode(proxyAddr)))
+        );
+    }
 
     /// @dev create2 hashes the userSalt with msg.sender, then uses the CREATE2 opcode to deterministically create a contract
     function create2(bytes32 userSalt, bytes memory bytecode) public payable returns (address payable) {

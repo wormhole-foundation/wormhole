@@ -115,7 +115,7 @@ contract TestHelpers {
         address proxyAddressComputed = create2Factory.computeAddress(
             address(this),
             "generic-relayer",
-            keccak256(abi.encodePacked(type(CoreRelayerProxy).creationCode, address(coreRelayerSetup)))
+            keccak256(abi.encodePacked(type(CoreRelayerProxy).creationCode, abi.encode(address(coreRelayerSetup))))
         );
         ForwardWrapper forwardWrapper = new ForwardWrapper(proxyAddressComputed, address(wormhole));
 
@@ -123,9 +123,13 @@ contract TestHelpers {
 
         CoreRelayerProxy myCoreRelayer = CoreRelayerProxy(
             create2Factory.create2(
-                "generic-relayer", abi.encodePacked(type(CoreRelayerProxy).creationCode, address(coreRelayerSetup))
+                "generic-relayer",
+                abi.encodePacked(type(CoreRelayerProxy).creationCode, abi.encode(address(coreRelayerSetup)))
             )
         );
+        // CoreRelayerProxy myCoreRelayer = CoreRelayerProxy(
+        //     create2Factory.create2("generic-relayer", type(CoreRelayerProxy).creationCode, address(coreRelayerSetup))
+        // );
         CoreRelayerSetup(address(myCoreRelayer)).setup(
             address(coreRelayerImplementation),
             chainId,
