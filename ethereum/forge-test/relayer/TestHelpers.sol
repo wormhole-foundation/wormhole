@@ -8,7 +8,9 @@ import {RelayProviderSetup} from "../../contracts/relayer/relayProvider/RelayPro
 import {RelayProviderImplementation} from "../../contracts/relayer/relayProvider/RelayProviderImplementation.sol";
 import {RelayProviderProxy} from "../../contracts/relayer/relayProvider/RelayProviderProxy.sol";
 import {IWormholeRelayer} from "../../contracts/interfaces/relayer/IWormholeRelayer.sol";
+import {ForwardWrapper} from "../../contracts/relayer/coreRelayer/ForwardWrapper.sol";
 import {CoreRelayer} from "../../contracts/relayer/coreRelayer/CoreRelayer.sol";
+import {Create2Factory} from "../../contracts/relayer/create2Factory/Create2Factory.sol";
 import {CoreRelayerSetup} from "../../contracts/relayer/coreRelayer/CoreRelayerSetup.sol";
 import {CoreRelayerImplementation} from "../../contracts/relayer/coreRelayer/CoreRelayerImplementation.sol";
 import {CoreRelayerProxy} from "../../contracts/relayer/coreRelayer/CoreRelayerProxy.sol";
@@ -106,23 +108,32 @@ contract TestHelpers {
         public
         returns (IWormholeRelayer coreRelayer)
     {
-        CoreRelayerSetup coreRelayerSetup = new CoreRelayerSetup();
-        // todo: fixme
-        CoreRelayerImplementation coreRelayerImplementation = new CoreRelayerImplementation(address(0x0));
-        CoreRelayerProxy myCoreRelayer = new CoreRelayerProxy(
-            address(coreRelayerSetup),
-            abi.encodeCall(
-                CoreRelayerSetup.setup,
-                (
-                    address(coreRelayerImplementation),
-                    chainId,
-                    address(wormhole),
-                    defaultRelayProvider,
-                    wormhole.governanceChainId(),
-                    wormhole.governanceContract(),
-                    block.chainid
-                )
+        Create2Factory create2Factory = new Create2Factory();
+        CoreRelayerSetup coreRelayerSetup =
+            CoreRelayerSetup(create2Factory.create2("setup", type(CoreRelayerSetup).creationCode));
+
+        address proxyAddressComputed = create2Factory.computeAddress(
+            address(this),
+            "generic-relayer",
+            keccak256(abi.encodePacked(type(CoreRelayerProxy).creationCode, address(coreRelayerSetup)))
+        );
+        ForwardWrapper forwardWrapper = new ForwardWrapper(proxyAddressComputed, address(wormhole));
+
+        CoreRelayerImplementation coreRelayerImplementation = new CoreRelayerImplementation(address(forwardWrapper));
+
+        CoreRelayerProxy myCoreRelayer = CoreRelayerProxy(
+            create2Factory.create2(
+                "generic-relayer", abi.encodePacked(type(CoreRelayerProxy).creationCode, address(coreRelayerSetup))
             )
+        );
+        CoreRelayerSetup(address(myCoreRelayer)).setup(
+            address(coreRelayerImplementation),
+            chainId,
+            address(wormhole),
+            defaultRelayProvider,
+            wormhole.governanceChainId(),
+            wormhole.governanceContract(),
+            block.chainid
         );
         coreRelayer = IWormholeRelayer(address(myCoreRelayer));
     }
