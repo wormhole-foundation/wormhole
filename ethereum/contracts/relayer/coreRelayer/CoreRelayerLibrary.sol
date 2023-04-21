@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "../../libraries/external/BytesLib.sol";
 import "../../interfaces/relayer/IForwardWrapper.sol";
+import "../../interfaces/IWormhole.sol";
 
 contract CoreRelayerLibrary {
     using BytesLib for bytes;
@@ -14,6 +15,7 @@ contract CoreRelayerLibrary {
     error InvalidRegisterChainLength(uint256);
     error InvalidDefaultProviderAction(uint8);
     error InvalidDefaultProviderLength(uint256);
+
 
     function parseUpgrade(bytes memory encodedUpgrade, bytes32 module)
         public
@@ -112,5 +114,88 @@ contract CoreRelayerLibrary {
         if (encodedDefaultProvider.length != index) {
             revert InvalidDefaultProviderLength(encodedDefaultProvider.length);
         }
+    }
+
+    struct ContractUpgrade {
+        bytes32 module;
+        uint8 action;
+        uint16 chain;
+        address newContract;
+    }
+
+    struct RegisterChain {
+        bytes32 module;
+        uint8 action;
+        uint16 chain; //TODO Why is this on this object?
+        uint16 emitterChain;
+        bytes32 emitterAddress;
+    }
+
+    //This could potentially be combined with ContractUpgrade
+    struct UpdateDefaultProvider {
+        bytes32 module;
+        uint8 action;
+        uint16 chain;
+        address newProvider;
+    }
+
+    error InvalidFork();
+    error InvalidGovernanceVM(string reason);
+
+    function submitContractUpgrade(bytes memory _vm) external {
+        if (isFork()) {
+            revert InvalidFork();
+        }
+
+        (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(_vm);
+        if (!valid) {
+            revert InvalidGovernanceVM(string(reason));
+        }
+
+        setConsumedGovernanceAction(vm.hash);
+
+        CoreRelayerLibrary.ContractUpgrade memory contractUpgrade = CoreRelayerLibrary.parseUpgrade(vm.payload, module);
+        if (contractUpgrade.chain != chainId()) {
+            revert WrongChainId(contractUpgrade.chain);
+        }
+
+        upgradeImplementation(contractUpgrade.newContract);
+    }
+
+    function evmChainId() public view returns (uint256) {
+        return _state.evmChainId;
+    }
+
+    function isFork() public view returns (bool) {
+        return evmChainId() != block.chainid;
+    }
+
+    function verifyGovernanceVM(bytes memory encodedVM)
+        internal
+        view
+        returns (IWormhole.VM memory parsedVM, bool isValid, string memory invalidReason)
+    {
+        (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVM);
+
+        if (!valid) {
+            return (vm, valid, reason);
+        }
+
+        if (vm.emitterChainId != governanceChainId()) {
+            return (vm, false, "wrong governance chain");
+        }
+        if (vm.emitterAddress != governanceContract()) {
+            return (vm, false, "wrong governance contract");
+        }
+
+        if (governanceActionIsConsumed(vm.hash)) {
+            return (vm, false, "governance action already consumed");
+        }
+
+        return (vm, true, "");
+    }
+
+    function setConsumedGovernanceAction(bytes32 hash) internal {
+        _state.consumedGovernanceActions[hash] = true;
     }
 }
