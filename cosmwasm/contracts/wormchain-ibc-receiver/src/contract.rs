@@ -111,14 +111,15 @@ fn handle_vaa(deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<Event
 
             let channel_id_str = String::from_utf8(channel_id.to_vec())
                 .context("failed to parse channel-id as utf-8")?;
+            let channel_id_trimmed = channel_id_str.trim_start_matches(char::from(0));
 
             // update storage with the mapping
             CHANNEL_CHAIN
-                .save(deps.storage, channel_id_str.clone(), &chain_id.into())
+                .save(deps.storage, channel_id_trimmed.to_string(), &chain_id.into())
                 .context("failed to save channel chain")?;
             Ok(Event::new("UpdateChannelChain")
                 .add_attribute("chain_id", chain_id.to_string())
-                .add_attribute("channel_id", channel_id_str))
+                .add_attribute("channel_id", channel_id_trimmed))
         }
     }
 }

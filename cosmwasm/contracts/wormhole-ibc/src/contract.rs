@@ -92,7 +92,11 @@ fn handle_vaa(deps: DepsMut, env: Env, vaa: Binary) -> anyhow::Result<Event> {
         .context("failed to load contract config")?;
     ensure!(
         govpacket.chain == Chain::from(state.chain_id),
-        format!("this governance VAA is for chain {}, which does not match this chain ({})", u16::from(govpacket.chain), state.chain_id)
+        format!(
+            "this governance VAA is for chain {}, which does not match this chain ({})",
+            u16::from(govpacket.chain),
+            state.chain_id
+        )
     );
 
     // governance VAA replay protection
@@ -118,14 +122,15 @@ fn handle_vaa(deps: DepsMut, env: Env, vaa: Binary) -> anyhow::Result<Event> {
 
             let channel_id_str = String::from_utf8(channel_id.to_vec())
                 .context("failed to parse channel-id as utf-8")?;
+            let channel_id_trimmed = channel_id_str.trim_start_matches(char::from(0));
 
             // update the whitelisted wormchain channel id
             WORMCHAIN_CHANNEL_ID
-                .save(deps.storage, &channel_id_str)
+                .save(deps.storage, &channel_id_trimmed.to_string())
                 .context("failed to save channel chain")?;
             Ok(Event::new("UpdateChannelChain")
                 .add_attribute("chain_id", chain_id.to_string())
-                .add_attribute("channel_id", channel_id_str))
+                .add_attribute("channel_id", channel_id_trimmed))
         }
     }
 }
