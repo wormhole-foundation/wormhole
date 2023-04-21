@@ -82,13 +82,23 @@ export const execute_sui = async (
           console.log("Registering chain");
           const tx = new TransactionBlock();
           tx.setGasBudget(1000000);
+          const [parsedVaa] = tx.moveCall({
+            target: `${CONTRACTS[network][chain].core}::vaa::parse_and_verify`,
+            arguments: [
+              tx.object(addresses[network].core_state),
+              tx.pure([...vaa]),
+              tx.object(SUI_CLOCK_OBJECT_ID),
+            ],
+          });
+          const [governanceMessage] = tx.moveCall({
+            target: `${CONTRACTS[network][chain].core}::governance_message::verify_vaa`,
+            arguments: [tx.object(addresses[network].core_state), parsedVaa],
+          });
           tx.moveCall({
             target: `${packageId}::register_chain::register_chain`,
             arguments: [
               tx.object(addresses[network].token_bridge_state),
-              tx.object(addresses[network].core_state),
-              tx.pure([...vaa]),
-              tx.object(SUI_CLOCK_OBJECT_ID),
+              governanceMessage,
             ],
           });
           await executeTransactionBlock(signer, tx);
