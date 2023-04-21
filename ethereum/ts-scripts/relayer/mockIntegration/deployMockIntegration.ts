@@ -28,14 +28,14 @@ async function run() {
   };
 
   for (let i = 0; i < operatingChains.length; i++) {
-    const mockIntegration = await deployMockIntegration(chains[i]);
+    const mockIntegration = await deployMockIntegration(operatingChains[i]);
     output.mockIntegrations.push(mockIntegration);
   }
 
   writeOutputFiles(output, processName);
 
   for (let i = 0; i < operatingChains.length; i++) {
-    console.log(`Registering emitters for chainId ${chains[i].chainId}`);
+    console.log(`Registering emitters for chainId ${operatingChains[i].chainId}`);
     // note: must use useLastRun = true
     const mockIntegration = getMockIntegration(operatingChains[i]);
 
