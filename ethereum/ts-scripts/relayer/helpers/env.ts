@@ -2,19 +2,19 @@ import { ChainId } from "@certusone/wormhole-sdk";
 import { ethers, Signer } from "ethers";
 import fs from "fs";
 
-import { CoreRelayer } from "../../../ethers-contracts/CoreRelayer";
-import { RelayProvider } from "../../../ethers-contracts/RelayProvider";
-import { MockRelayerIntegration } from "../../../ethers-contracts/MockRelayerIntegration";
+import { CoreRelayer } from "../../../ethers-contracts";
+import { RelayProvider } from "../../../ethers-contracts";
+import { MockRelayerIntegration } from "../../../ethers-contracts";
 
-import { RelayProvider__factory } from "../../../ethers-contracts/factories/RelayProvider__factory";
-import { CoreRelayer__factory } from "../../../ethers-contracts/factories/CoreRelayer__factory";
-import { MockRelayerIntegration__factory } from "../../../ethers-contracts/factories/MockRelayerIntegration__factory";
+import { RelayProvider__factory } from "../../../ethers-contracts";
+import { CoreRelayer__factory } from "../../../ethers-contracts";
+import { MockRelayerIntegration__factory } from "../../../ethers-contracts";
 import {
   CoreRelayerProxy__factory,
   Create2Factory,
   Create2Factory__factory,
 } from "../../../ethers-contracts";
-import { CoreRelayerSetup__factory } from "../../../ethers-contracts/factories/contracts";
+import { CoreRelayerSetup__factory } from "../../../ethers-contracts";
 
 export type ChainInfo = {
   evmNetworkId: number;
