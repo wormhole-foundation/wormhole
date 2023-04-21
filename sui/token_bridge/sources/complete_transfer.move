@@ -8,7 +8,7 @@
 /// message payload.
 module token_bridge::complete_transfer {
     use sui::balance::{Self, Balance};
-    use sui::coin::{Self, Coin, CoinMetadata};
+    use sui::coin::{Self, Coin};
     use sui::event::{Self};
     use sui::tx_context::{Self, TxContext};
     use wormhole::external_address::{Self, ExternalAddress};
@@ -45,7 +45,6 @@ module token_bridge::complete_transfer {
     /// recipient, a relayer fee is split from this coin and sent to `relayer`.
     public fun complete_transfer<CoinType>(
         token_bridge_state: &mut State,
-        coin_meta: &CoinMetadata<CoinType>,
         msg: TokenBridgeMessage,
         ctx: &mut TxContext
     ): Coin<CoinType> {
@@ -59,7 +58,6 @@ module token_bridge::complete_transfer {
         // Deserialize transfer message and process.
         handle_complete_transfer<CoinType>(
             token_bridge_state,
-            coin_meta,
             vaa::take_payload(msg),
             ctx
         )
@@ -77,7 +75,6 @@ module token_bridge::complete_transfer {
     /// from Token Bridge's custody.
     public(friend) fun verify_and_bridge_out<CoinType>(
         token_bridge_state: &mut State,
-        coin_meta: &CoinMetadata<CoinType>,
         token_chain: u16,
         token_address: ExternalAddress,
         target_chain: u16,
@@ -100,7 +97,7 @@ module token_bridge::complete_transfer {
         let raw_amount =
             normalized_amount::to_raw(
                 amount,
-                coin::get_decimals(coin_meta)
+                token_registry::coin_decimals(&asset_info)
             );
 
         // If the token is wrapped by Token Bridge, we will mint these tokens.
@@ -140,7 +137,6 @@ module token_bridge::complete_transfer {
 
     fun handle_complete_transfer<CoinType>(
         token_bridge_state: &mut State,
-        coin_meta: &CoinMetadata<CoinType>,
         transfer_vaa_payload: vector<u8>,
         ctx: &mut TxContext
     ): Coin<CoinType> {
@@ -154,12 +150,11 @@ module token_bridge::complete_transfer {
         ) = transfer::unpack(transfer::deserialize(transfer_vaa_payload));
 
         let (
-            _verified,
+            asset_info,
             bridged_out
         ) =
             verify_and_bridge_out(
                 token_bridge_state,
-                coin_meta,
                 token_chain,
                 token_address,
                 recipient_chain,
@@ -180,7 +175,7 @@ module token_bridge::complete_transfer {
             let payout_amount =
                 normalized_amount::to_raw(
                     relayer_fee,
-                    coin::get_decimals(coin_meta),
+                    token_registry::coin_decimals(&asset_info)
                 );
             balance::split(&mut bridged_out, payout_amount)
         };
@@ -308,18 +303,14 @@ module token_bridge::complete_transfer_tests {
 
         // Ignore effects.
         test_scenario::next_tx(scenario, tx_relayer);
-        let coin_meta = test_scenario::take_shared(scenario);
 
         let payout =
             complete_transfer::complete_transfer<COIN_NATIVE_10>(
                 &mut token_bridge_state,
-                &coin_meta,
                 msg,
                 test_scenario::ctx(scenario)
             );
         assert!(coin::value(&payout) == expected_relayer_fee, 0);
-
-        test_scenario::return_shared(coin_meta);
 
         // TODO: Check for one event? `TransferRedeemed`.
         let _effects = test_scenario::next_tx(scenario, tx_relayer);
@@ -431,18 +422,14 @@ module token_bridge::complete_transfer_tests {
 
         // Ignore effects.
         test_scenario::next_tx(scenario, tx_relayer);
-        let coin_meta = test_scenario::take_shared(scenario);
 
         let payout =
             complete_transfer::complete_transfer<COIN_NATIVE_4>(
                 &mut token_bridge_state,
-                &coin_meta,
                 msg,
                 test_scenario::ctx(scenario)
             );
         assert!(coin::value(&payout) == expected_relayer_fee, 0);
-
-        test_scenario::return_shared(coin_meta);
 
         // TODO: Check for one event? `TransferRedeemed`.
         let _effects = test_scenario::next_tx(scenario, tx_relayer);
@@ -549,12 +536,10 @@ module token_bridge::complete_transfer_tests {
 
         // Ignore effects.
         test_scenario::next_tx(scenario, tx_relayer);
-        let coin_meta = test_scenario::take_shared(scenario);
 
         let payout =
             complete_transfer::complete_transfer<COIN_WRAPPED_7>(
                 &mut token_bridge_state,
-                &coin_meta,
                 msg,
                 test_scenario::ctx(scenario)
             );
@@ -582,7 +567,6 @@ module token_bridge::complete_transfer_tests {
         coin::burn_for_testing(payout);
         coin::burn_for_testing(received);
         return_state(token_bridge_state);
-        test_scenario::return_shared(coin_meta);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -668,18 +652,14 @@ module token_bridge::complete_transfer_tests {
 
         // Ignore effects.
         test_scenario::next_tx(scenario, tx_relayer);
-        let coin_meta = test_scenario::take_shared(scenario);
 
         let payout =
             complete_transfer::complete_transfer<COIN_WRAPPED_12>(
                 &mut token_bridge_state,
-                &coin_meta,
                 msg,
                 test_scenario::ctx(scenario)
             );
         assert!(coin::value(&payout) == expected_relayer_fee, 0);
-
-        test_scenario::return_shared(coin_meta);
 
         // TODO: Check for one event? `TransferRedeemed`.
         let _effects = test_scenario::next_tx(scenario, tx_relayer);
@@ -798,18 +778,14 @@ module token_bridge::complete_transfer_tests {
 
         // Ignore effects.
         test_scenario::next_tx(scenario, expected_recipient);
-        let coin_meta = test_scenario::take_shared(scenario);
 
         let payout =
             complete_transfer::complete_transfer<COIN_NATIVE_10>(
                 &mut token_bridge_state,
-                &coin_meta,
                 msg,
                 test_scenario::ctx(scenario)
             );
         assert!(coin::value(&payout) == expected_relayer_fee, 0);
-
-        test_scenario::return_shared(coin_meta);
 
         // TODO: Check for one event? `TransferRedeemed`.
         let _effects = test_scenario::next_tx(scenario, expected_recipient);
@@ -898,7 +874,6 @@ module token_bridge::complete_transfer_tests {
 
         // Ignore effects.
         test_scenario::next_tx(scenario, tx_relayer);
-        let coin_meta = test_scenario::take_shared(scenario);
 
         // NOTE: this call should revert since the transfer VAA is for
         // a coin of type COIN_NATIVE_10. However, the `complete_transfer`
@@ -906,12 +881,9 @@ module token_bridge::complete_transfer_tests {
         let payout =
             complete_transfer::complete_transfer<COIN_NATIVE_4>(
                 &mut token_bridge_state,
-                &coin_meta,
                 msg,
                 test_scenario::ctx(scenario)
             );
-
-        test_scenario::return_shared(coin_meta);
 
         // Clean up.
         coin::burn_for_testing(payout);
@@ -971,7 +943,6 @@ module token_bridge::complete_transfer_tests {
 
         // Ignore effects.
         test_scenario::next_tx(scenario, tx_relayer);
-        let coin_meta = test_scenario::take_shared(scenario);
 
         // NOTE: this call should revert since the transfer VAA is for
         // a coin of type COIN_WRAPPED_12. However, the `complete_transfer`
@@ -979,12 +950,9 @@ module token_bridge::complete_transfer_tests {
         let payout =
             complete_transfer::complete_transfer<COIN_WRAPPED_7>(
                 &mut token_bridge_state,
-                &coin_meta,
                 msg,
                 test_scenario::ctx(scenario)
             );
-
-        test_scenario::return_shared(coin_meta);
 
         // Clean up.
         coin::burn_for_testing(payout);
@@ -1031,19 +999,15 @@ module token_bridge::complete_transfer_tests {
 
         // Ignore effects.
         test_scenario::next_tx(scenario, tx_relayer);
-        let coin_meta = test_scenario::take_shared(scenario);
 
         // NOTE: this call should revert since the target chain encoded is
         // chain 69 instead of chain 21 (Sui).
         let payout =
             complete_transfer::complete_transfer<COIN_WRAPPED_12>(
                 &mut token_bridge_state,
-                &coin_meta,
                 msg,
                 test_scenario::ctx(scenario)
             );
-
-        test_scenario::return_shared(coin_meta);
 
         // Clean up.
         coin::burn_for_testing(payout);

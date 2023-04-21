@@ -32,7 +32,7 @@
 /// See `transfer_with_payload` module for serialization and deserialization of
 /// Wormhole message payload.
 module token_bridge::complete_transfer_with_payload {
-    use sui::coin::{Self, Coin, CoinMetadata};
+    use sui::coin::{Self, Coin};
     use sui::object::{Self};
     use sui::tx_context::{TxContext};
     use wormhole::emitter::{EmitterCap};
@@ -63,7 +63,6 @@ module token_bridge::complete_transfer_with_payload {
     /// `TransferWithPayload`.
     public fun authorize_transfer<CoinType>(
         token_bridge_state: &mut State,
-        coin_meta: &CoinMetadata<CoinType>,
         msg: TokenBridgeMessage,
         ctx: &mut TxContext
     ): RedeemerTicket<CoinType> {
@@ -82,7 +81,6 @@ module token_bridge::complete_transfer_with_payload {
         // out token of a given coin type.
         handle_authorize_transfer(
             token_bridge_state,
-            coin_meta,
             source_chain,
             vaa::take_payload(msg),
             ctx
@@ -115,7 +113,6 @@ module token_bridge::complete_transfer_with_payload {
 
     fun handle_authorize_transfer<CoinType>(
         token_bridge_state: &mut State,
-        coin_meta: &CoinMetadata<CoinType>,
         source_chain: u16,
         transfer_vaa_payload: vector<u8>,
         ctx: &mut TxContext
@@ -132,7 +129,6 @@ module token_bridge::complete_transfer_with_payload {
         ) =
             complete_transfer::verify_and_bridge_out(
                 token_bridge_state,
-                coin_meta,
                 transfer_with_payload::token_chain(&parsed),
                 transfer_with_payload::token_address(&parsed),
                 transfer_with_payload::redeemer_chain(&parsed),
@@ -246,13 +242,10 @@ module token_bridge::complete_transfer_with_payload_tests {
         // Ignore effects. Begin processing as arbitrary tx executor.
         test_scenario::next_tx(scenario, user);
 
-        let coin_meta = test_scenario::take_shared(scenario);
-
         // Execute authorize_transfer.
         let ticket =
             authorize_transfer<COIN_NATIVE_10>(
                 &mut token_bridge_state,
-                &coin_meta,
                 msg,
                 test_scenario::ctx(scenario)
             );
@@ -261,8 +254,6 @@ module token_bridge::complete_transfer_with_payload_tests {
             parsed_transfer,
             source_chain
         ) = redeem_coin(&emitter_cap, ticket);
-
-        test_scenario::return_shared(coin_meta);
 
         assert!(source_chain == expected_source_chain, 0);
 
@@ -376,13 +367,10 @@ module token_bridge::complete_transfer_with_payload_tests {
         // Ignore effects. Begin processing as arbitrary tx executor.
         test_scenario::next_tx(scenario, user);
 
-        let coin_meta = test_scenario::take_shared(scenario);
-
         // Execute authorize_transfer.
         let ticket =
             authorize_transfer<COIN_WRAPPED_12>(
                 &mut token_bridge_state,
-                &coin_meta,
                 msg,
                 test_scenario::ctx(scenario)
             );
@@ -392,8 +380,6 @@ module token_bridge::complete_transfer_with_payload_tests {
             source_chain
         ) = redeem_coin(&emitter_cap, ticket);
         assert!(source_chain == expected_source_chain, 0);
-
-        test_scenario::return_shared(coin_meta);
 
         // Assert coin value, source chain, and parsed transfer details are correct.
         let expected_bridged = 3000;
@@ -497,12 +483,9 @@ module token_bridge::complete_transfer_with_payload_tests {
         // Ignore effects. Begin processing as arbitrary tx executor.
         test_scenario::next_tx(scenario, user);
 
-        let coin_meta = test_scenario::take_shared(scenario);
-
         let ticket =
             authorize_transfer<COIN_WRAPPED_12>(
                 &mut token_bridge_state,
-                &coin_meta,
                 msg,
                 test_scenario::ctx(scenario)
             );
@@ -512,8 +495,6 @@ module token_bridge::complete_transfer_with_payload_tests {
             _,
             _
         ) = redeem_coin(&emitter_cap, ticket);
-
-        test_scenario::return_shared(coin_meta);
 
         // Clean up.
         return_state(token_bridge_state);
@@ -600,18 +581,13 @@ module token_bridge::complete_transfer_with_payload_tests {
         // Ignore effects. Begin processing as arbitrary tx executor.
         test_scenario::next_tx(scenario, user);
 
-        let coin_meta = test_scenario::take_shared(scenario);
-
         // You shall not pass!
         let ticket =
             authorize_transfer<COIN_NATIVE_10>(
                 &mut token_bridge_state,
-                &coin_meta,
                 msg,
                 test_scenario::ctx(scenario)
             );
-
-        test_scenario::return_shared(coin_meta);
 
         // Clean up.
         return_state(token_bridge_state);
@@ -675,18 +651,13 @@ module token_bridge::complete_transfer_with_payload_tests {
         // Ignore effects. Begin processing as arbitrary tx executor.
         test_scenario::next_tx(scenario, user);
 
-        let coin_meta = test_scenario::take_shared(scenario);
-
         // Execute authorize_transfer.
         let ticket =
             authorize_transfer<COIN_WRAPPED_12>(
                 &mut token_bridge_state,
-                &coin_meta,
                 msg,
                 test_scenario::ctx(scenario)
             );
-
-        test_scenario::return_shared(coin_meta);
 
         // Clean up.
         return_state(token_bridge_state);

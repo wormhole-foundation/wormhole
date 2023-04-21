@@ -7,11 +7,10 @@
 ///
 /// See `create_wrapped` and 'token_registry' modules for more details.
 module token_bridge::wrapped_asset {
+    use std::string::{String};
     use sui::balance::{Self, Balance};
-    use sui::object::{Self, UID};
     use sui::coin::{Self, TreasuryCap, CoinMetadata};
     use sui::package::{Self, UpgradeCap};
-    use sui::tx_context::{TxContext};
     use wormhole::external_address::{ExternalAddress};
     use wormhole::state::{chain_id};
 
@@ -32,11 +31,11 @@ module token_bridge::wrapped_asset {
     const E_DECIMALS_MISMATCH: u64 = 2;
 
     /// Container storing foreign asset info.
-    struct ForeignInfo<phantom C> has key, store {
-        id: UID,
+    struct ForeignInfo<phantom C> has store {
         token_chain: u16,
         token_address: ExternalAddress,
         native_decimals: u8,
+        symbol: String
     }
 
     /// Container managing `ForeignInfo` and `TreasuryCap` for a wrapped asset
@@ -44,6 +43,7 @@ module token_bridge::wrapped_asset {
     struct WrappedAsset<phantom C> has store {
         info: ForeignInfo<C>,
         treasury_cap: TreasuryCap<C>,
+        decimals: u8,
         upgrade_cap: UpgradeCap
     }
 
@@ -54,8 +54,7 @@ module token_bridge::wrapped_asset {
         token_meta: AssetMeta,
         coin_meta: &mut CoinMetadata<C>,
         treasury_cap: TreasuryCap<C>,
-        upgrade_cap: UpgradeCap,
-        ctx: &mut TxContext
+        upgrade_cap: UpgradeCap
     ): WrappedAsset<C> {
         // Verify that the upgrade cap is from the same package as coin type.
         // This cap should not have been modified prior to creating this asset
@@ -91,15 +90,16 @@ module token_bridge::wrapped_asset {
 
         let info =
             ForeignInfo {
-                id: object::new(ctx),
                 token_address,
                 token_chain,
-                native_decimals
+                native_decimals,
+                symbol
             };
 
         WrappedAsset {
             info,
             treasury_cap,
+            decimals,
             upgrade_cap
         }
     }
@@ -109,10 +109,9 @@ module token_bridge::wrapped_asset {
         token_meta: AssetMeta,
         coin_meta: &mut CoinMetadata<C>,
         treasury_cap: TreasuryCap<C>,
-        upgrade_cap: UpgradeCap,
-        ctx: &mut TxContext
+        upgrade_cap: UpgradeCap
     ): WrappedAsset<C> {
-        new(token_meta, coin_meta, treasury_cap, upgrade_cap, ctx)
+        new(token_meta, coin_meta, treasury_cap, upgrade_cap)
     }
 
     /// Update existing `ForeignInfo` using new `AssetMeta`.
@@ -149,6 +148,7 @@ module token_bridge::wrapped_asset {
         );
 
         // Finally only update the name and symbol.
+        self.info.symbol = symbol;
         coin::update_name(&mut self.treasury_cap, coin_meta, name);
         coin::update_symbol(&mut self.treasury_cap, coin_meta, string_utils::to_ascii(&symbol));
     }
@@ -168,26 +168,41 @@ module token_bridge::wrapped_asset {
     }
 
     /// Retrieve canonical token chain ID from `ForeignInfo`.
-    public fun token_chain<C>(meta: &ForeignInfo<C>): u16 {
-        meta.token_chain
+    public fun token_chain<C>(info: &ForeignInfo<C>): u16 {
+        info.token_chain
     }
 
     /// Retrieve canonical token address from `ForeignInfo`.
-    public fun token_address<C>(meta: &ForeignInfo<C>): ExternalAddress {
-        meta.token_address
+    public fun token_address<C>(info: &ForeignInfo<C>): ExternalAddress {
+        info.token_address
     }
 
     /// Retrieve decimal amount from `ForeignInfo`.
     ///
     /// NOTE: This is for informational purposes. This decimal amount is not
     /// used for any calculations.
-    public fun native_decimals<C>(meta: &ForeignInfo<C>): u8 {
-        meta.native_decimals
+    public fun native_decimals<C>(info: &ForeignInfo<C>): u8 {
+        info.native_decimals
+    }
+
+    /// Retrieve asset's symbol (UTF-8) from `ForeignMetadata`.
+    ///
+    /// NOTE: This value can be updated.
+    public fun symbol<C>(info: &ForeignInfo<C>): String {
+        info.symbol
     }
 
     /// Retrieve total minted supply.
     public fun total_supply<C>(self: &WrappedAsset<C>): u64 {
         coin::total_supply(&self.treasury_cap)
+    }
+
+    /// Retrieve decimals for this wrapped asset. For any asset whose native
+    /// decimals is greater than the cap (8), this will be 8.
+    ///
+    /// See `normalized_amount` module for more info.
+    public fun decimals<C>(self: &WrappedAsset<C>): u8 {
+        self.decimals
     }
 
     /// Retrieve canonical token chain ID and token address.
@@ -240,17 +255,17 @@ module token_bridge::wrapped_asset {
         let WrappedAsset {
             info,
             treasury_cap,
+            decimals: _,
             upgrade_cap
         } = asset;
         sui::test_utils::destroy(treasury_cap);
 
         let ForeignInfo {
-            id,
             token_chain: _,
             token_address: _,
             native_decimals: _,
+            symbol: _
         } = info;
-        sui::object::delete(id);
 
         sui::package::make_immutable(upgrade_cap);
     }
@@ -310,8 +325,7 @@ module token_bridge::wrapped_asset_tests {
                 parsed_meta,
                 &mut coin_meta,
                 treasury_cap,
-                upgrade_cap,
-                test_scenario::ctx(scenario)
+                upgrade_cap
             );
 
         // Verify members.
@@ -339,7 +353,7 @@ module token_bridge::wrapped_asset_tests {
 
         // Decimals are read from `CoinMetadata`, but in this case will agree
         // with the value encoded in the VAA.
-        assert!(coin::get_decimals(&coin_meta) == 7, 0);
+        assert!(wrapped_asset::decimals(&asset) == expected_native_decimals, 0);
         assert!(coin::get_decimals(&coin_meta) == expected_native_decimals, 0);
 
         // Change name and symbol for update.
@@ -443,8 +457,7 @@ module token_bridge::wrapped_asset_tests {
                 parsed_meta,
                 &mut coin_meta,
                 treasury_cap,
-                upgrade_cap,
-                test_scenario::ctx(scenario)
+                upgrade_cap
             );
 
         // Verify members.
@@ -470,10 +483,14 @@ module token_bridge::wrapped_asset_tests {
         assert!(token_chain == expected_token_chain, 0);
         assert!(token_address == expected_token_address, 0);
 
-        // Decimals are read from `CoinMetadata`, but in this case will agree
-        // with the value encoded in the VAA.
-        assert!(coin::get_decimals(&coin_meta) == 8, 0);
-        assert!(coin::get_decimals(&coin_meta) != expected_native_decimals, 0);
+        // Decimals are read from `CoinMetadata`, but in this case will not
+        // agree with the value encoded in the VAA.
+        assert!(wrapped_asset::decimals(&asset) == 8, 0);
+        assert!(
+            coin::get_decimals(&coin_meta) == wrapped_asset::decimals(&asset),
+            0
+        );
+        assert!(wrapped_asset::decimals(&asset) != expected_native_decimals, 0);
 
         // Change name and symbol for update.
         let new_symbol = std::ascii::into_bytes(coin::get_symbol(&coin_meta));
@@ -581,8 +598,7 @@ module token_bridge::wrapped_asset_tests {
                 invalid_meta,
                 &mut coin_meta,
                 treasury_cap,
-                upgrade_cap,
-                test_scenario::ctx(scenario)
+                upgrade_cap
             );
 
         test_scenario::return_shared(coin_meta);
@@ -630,8 +646,7 @@ module token_bridge::wrapped_asset_tests {
                 parsed_meta,
                 &mut coin_meta,
                 treasury_cap,
-                upgrade_cap,
-                test_scenario::ctx(scenario)
+                upgrade_cap
             );
 
         let invalid_meta =
@@ -702,8 +717,7 @@ module token_bridge::wrapped_asset_tests {
                 parsed_meta,
                 &mut coin_meta,
                 treasury_cap,
-                upgrade_cap,
-                test_scenario::ctx(scenario)
+                upgrade_cap
             );
 
         let invalid_meta =
@@ -768,8 +782,7 @@ module token_bridge::wrapped_asset_tests {
                 coin_wrapped_12::token_meta(),
                 &mut coin_meta,
                 treasury_cap,
-                upgrade_cap,
-                test_scenario::ctx(scenario)
+                upgrade_cap
             );
 
         test_scenario::return_shared(coin_meta);
