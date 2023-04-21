@@ -299,7 +299,9 @@ contract WormholeRelayerTests is Test {
             setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
         );
 
+        vm.prank(address(setup.source.integration));
         setup.source.wormhole.publishMessage{value: feeParams.wormholeFeeOnSource}(0, abi.encodePacked(uint8(0)), 200);
+        vm.prank(address(setup.source.integration));
         setup.source.wormhole.publishMessage{value: feeParams.wormholeFeeOnSource}(0, bytes("Hi!"), 200);
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
@@ -309,14 +311,14 @@ contract WormholeRelayerTests is Test {
             chainId: setup.sourceChainId,
             emitterAddress: bytes32(0x0),
             sequence: 0,
-            vaaHash: relayerWormhole.parseVM(relayerWormholeSimulator.fetchSignedMessageFromLogs(logs[1], setup.sourceChainId, address(this))).hash
+            vaaHash: relayerWormhole.parseVM(relayerWormholeSimulator.fetchSignedMessageFromLogs(logs[1], setup.sourceChainId, address(setup.source.integration))).hash
         });
         vaaKeyArr[1] = IWormholeRelayer.VaaKey({
             infoType: IWormholeRelayer.VaaKeyType.VAAHASH,
             chainId: setup.sourceChainId,
             emitterAddress: bytes32(0x0),
             sequence: 0,
-            vaaHash: relayerWormhole.parseVM(relayerWormholeSimulator.fetchSignedMessageFromLogs(logs[0], setup.sourceChainId, address(this))).hash
+            vaaHash: relayerWormhole.parseVM(relayerWormholeSimulator.fetchSignedMessageFromLogs(logs[0], setup.sourceChainId, address(setup.source.integration))).hash
         });
 
         setup.source.coreRelayer.send{value: maxTransactionFee + feeParams.wormholeFeeOnSource}(setup.targetChainId, setup.source.coreRelayer.toWormholeFormat(address(setup.target.integration)), setup.targetChainId, setup.source.coreRelayer.toWormholeFormat(address(setup.target.integration)), maxTransactionFee, 0, bytes(""), vaaKeyArr, 200);
