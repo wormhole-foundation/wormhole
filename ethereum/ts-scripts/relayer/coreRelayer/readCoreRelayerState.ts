@@ -50,7 +50,7 @@ async function readState(
   );
 
   try {
-    const coreRelayer = getCoreRelayer(chain, getProvider(chain));
+    const coreRelayer = await getCoreRelayer(chain, getProvider(chain));
     const contractAddress = getCoreRelayerAddress(chain);
     const defaultProvider = await coreRelayer.getDefaultRelayProvider();
     const registeredContracts: { chainId: number; contract: string }[] = [];

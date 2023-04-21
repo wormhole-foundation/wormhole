@@ -33,15 +33,12 @@ contract CoreRelayerSetup is CoreRelayerSetters, ERC1967Upgrade {
         }
 
         setChainId(chainId);
+        setEvmChainId(evmChainId);
+        setGovernanceChainId(governanceChainId);
 
         setWormhole(wormhole);
-
         setRelayProvider(defaultRelayProvider);
-
-        setGovernanceChainId(governanceChainId);
         setGovernanceContract(governanceContract);
-        setEvmChainId(evmChainId);
-
 
         _upgradeTo(implementation);
 
