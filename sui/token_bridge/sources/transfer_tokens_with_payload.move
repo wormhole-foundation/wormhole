@@ -16,7 +16,8 @@ module token_bridge::transfer_tokens_with_payload {
     use sui::coin::{Coin};
     use sui::sui::{SUI};
     use wormhole::emitter::{EmitterCap};
-    use wormhole::external_address::{ExternalAddress};
+    use wormhole::external_address::{Self, ExternalAddress};
+    use wormhole::bytes32::{Self};
     use wormhole::state::{State as WormholeState};
 
     use token_bridge::state::{Self, State};
@@ -43,7 +44,7 @@ module token_bridge::transfer_tokens_with_payload {
         bridged_in: Coin<CoinType>,
         wormhole_fee: Coin<SUI>,
         redeemer_chain: u16,
-        redeemer: ExternalAddress,
+        redeemer: vector<u8>,
         payload: vector<u8>,
         nonce: u32,
         the_clock: &Clock
@@ -59,7 +60,7 @@ module token_bridge::transfer_tokens_with_payload {
                 emitter_cap,
                 &mut bridged_in,
                 redeemer_chain,
-                redeemer,
+                external_address::new(bytes32::from_bytes(redeemer)),
                 payload
             );
 
@@ -113,7 +114,7 @@ module token_bridge::transfer_tokens_with_payload {
         emitter_cap: &EmitterCap,
         bridged_in: Coin<CoinType>,
         redeemer_chain: u16,
-        redeemer: ExternalAddress,
+        redeemer: vector<u8>,
         payload: vector<u8>
     ): (vector<u8>, Coin<CoinType>) {
         let payload =
@@ -122,7 +123,7 @@ module token_bridge::transfer_tokens_with_payload {
                 emitter_cap,
                 &mut bridged_in,
                 redeemer_chain,
-                redeemer,
+                external_address::new(bytes32::from_bytes(redeemer)),
                 payload
             );
 
@@ -139,6 +140,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
     use wormhole::external_address::{Self};
     use wormhole::state::{chain_id};
     use wormhole::emitter::{Self};
+    use wormhole::bytes32::{Self};
 
     use token_bridge::coin_wrapped_7::{Self, COIN_WRAPPED_7};
     use token_bridge::coin_native_10::{Self, COIN_NATIVE_10};
@@ -163,7 +165,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
     use token_bridge::normalized_amount::{Self};
 
     /// Test consts.
-    const TEST_TARGET_RECIPIENT: address = @0xbeef4269;
+    const TEST_TARGET_RECIPIENT: vector<u8> = x"beef4269";
     const TEST_TARGET_CHAIN: u16 = 2;
     const TEST_NONCE: u32 = 0;
     const TEST_COIN_NATIVE_10_DECIMALS: u8 = 10;
@@ -221,7 +223,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
                 coin::from_balance(coin_10_balance, ctx),
                 coin::mint_for_testing(wormhole_fee, ctx),
                 TEST_TARGET_CHAIN,
-                external_address::from_address(TEST_TARGET_RECIPIENT),
+                TEST_TARGET_RECIPIENT,
                 TEST_MESSAGE_PAYLOAD,
                 TEST_NONCE,
                 &the_clock,
@@ -300,7 +302,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
             coin::from_balance(coin_10_balance, ctx),
             coin::mint_for_testing(wormhole_fee, ctx),
             TEST_TARGET_CHAIN,
-            external_address::from_address(TEST_TARGET_RECIPIENT),
+            TEST_TARGET_RECIPIENT,
             TEST_MESSAGE_PAYLOAD,
             TEST_NONCE,
             &the_clock
@@ -367,7 +369,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
             &emitter_cap,
             coin::from_balance(coin_10_balance, ctx),
             TEST_TARGET_CHAIN,
-            external_address::from_address(TEST_TARGET_RECIPIENT),
+            TEST_TARGET_RECIPIENT,
             TEST_MESSAGE_PAYLOAD
         );
         assert!(coin::value(&dust) == 0, 0);
@@ -390,7 +392,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
                 expected_amount,
                 expected_token_address,
                 chain_id(),
-                external_address::from_address(TEST_TARGET_RECIPIENT),
+                external_address::new(bytes32::from_bytes(TEST_TARGET_RECIPIENT)),
                 TEST_TARGET_CHAIN,
                 TEST_MESSAGE_PAYLOAD
             );
@@ -458,7 +460,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
                 coin::from_balance(coin_7_balance, ctx),
                 coin::mint_for_testing(wormhole_fee, ctx),
                 TEST_TARGET_CHAIN,
-                external_address::from_address(TEST_TARGET_RECIPIENT),
+                TEST_TARGET_RECIPIENT,
                 TEST_MESSAGE_PAYLOAD,
                 TEST_NONCE,
                 &the_clock,
@@ -522,7 +524,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
             &emitter_cap,
             coin::from_balance(coin_7_balance, ctx),
             TEST_TARGET_CHAIN,
-            external_address::from_address(TEST_TARGET_RECIPIENT),
+            TEST_TARGET_RECIPIENT,
             TEST_MESSAGE_PAYLOAD
         );
         assert!(coin::value(&dust) == 0, 0);
@@ -550,7 +552,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
                 expected_amount,
                 expected_token_address,
                 expected_token_chain,
-                external_address::from_address(TEST_TARGET_RECIPIENT),
+                 external_address::new(bytes32::from_bytes(TEST_TARGET_RECIPIENT)),
                 TEST_TARGET_CHAIN,
                 TEST_MESSAGE_PAYLOAD
             );

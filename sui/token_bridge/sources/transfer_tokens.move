@@ -16,8 +16,9 @@ module token_bridge::transfer_tokens {
     use sui::coin::{Self, Coin};
     use sui::sui::{SUI};
     use sui::tx_context::{Self, TxContext};
-    use wormhole::external_address::{ExternalAddress};
+    use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::state::{State as WormholeState};
+    use wormhole::bytes32::{Self};
 
     use token_bridge::native_asset::{Self};
     use token_bridge::normalized_amount::{Self, NormalizedAmount};
@@ -49,7 +50,7 @@ module token_bridge::transfer_tokens {
         bridged_in: Coin<CoinType>,
         wormhole_fee: Coin<SUI>,
         recipient_chain: u16,
-        recipient: ExternalAddress,
+        recipient: vector<u8>,
         relayer_fee: u64,
         nonce: u32,
         the_clock: &Clock
@@ -63,7 +64,7 @@ module token_bridge::transfer_tokens {
                 token_bridge_state,
                 &mut bridged_in,
                 recipient_chain,
-                recipient,
+                external_address::new(bytes32::from_bytes(recipient)),
                 relayer_fee
             );
 
@@ -191,14 +192,14 @@ module token_bridge::transfer_tokens {
         token_bridge_state: &mut State,
         bridged_in: Coin<CoinType>,
         recipient_chain: u16,
-        recipient: ExternalAddress,
+        recipient: vector<u8>,
         relayer_fee: u64
     ): (vector<u8>, Coin<CoinType>) {
         let payload = bridge_in_and_serialize_transfer(
             token_bridge_state,
             &mut bridged_in,
             recipient_chain,
-            recipient,
+            external_address::new(bytes32::from_bytes(recipient)),
             relayer_fee
         );
 
@@ -214,6 +215,7 @@ module token_bridge::transfer_token_tests {
 
     use wormhole::external_address::{Self};
     use wormhole::state::{chain_id};
+    use wormhole::bytes32::{Self};
 
     use token_bridge::coin_wrapped_7::{Self, COIN_WRAPPED_7};
     use token_bridge::coin_native_10::{Self, COIN_NATIVE_10};
@@ -235,7 +237,7 @@ module token_bridge::transfer_token_tests {
     use token_bridge::normalized_amount::{Self};
 
     /// Test consts.
-    const TEST_TARGET_RECIPIENT: address = @0xbeef4269;
+    const TEST_TARGET_RECIPIENT: vector<u8> = x"beef4269";
     const TEST_TARGET_CHAIN: u16 = 2;
     const TEST_NONCE: u32 = 0;
     const TEST_COIN_NATIVE_10_DECIMALS: u8 = 10;
@@ -290,7 +292,7 @@ module token_bridge::transfer_token_tests {
             coin::from_balance(coin_10_balance, ctx),
             coin::mint_for_testing(wormhole_fee, ctx),
             TEST_TARGET_CHAIN,
-            external_address::from_address(TEST_TARGET_RECIPIENT),
+            TEST_TARGET_RECIPIENT,
             relayer_fee,
             TEST_NONCE,
             &the_clock
@@ -366,7 +368,7 @@ module token_bridge::transfer_token_tests {
             coin::from_balance(coin_10_balance, ctx),
             coin::mint_for_testing(wormhole_fee, ctx),
             TEST_TARGET_CHAIN,
-            external_address::from_address(TEST_TARGET_RECIPIENT),
+            TEST_TARGET_RECIPIENT,
             relayer_fee,
             TEST_NONCE,
             &the_clock
@@ -431,7 +433,7 @@ module token_bridge::transfer_token_tests {
             &mut token_bridge_state,
             coin::from_balance(coin_10_balance, ctx),
             TEST_TARGET_CHAIN,
-            external_address::from_address(TEST_TARGET_RECIPIENT),
+            TEST_TARGET_RECIPIENT,
             relayer_fee
         );
         assert!(coin::value(&dust) == 0, 0);
@@ -457,7 +459,7 @@ module token_bridge::transfer_token_tests {
                 expected_amount,
                 expected_token_address,
                 chain_id(),
-                external_address::from_address(TEST_TARGET_RECIPIENT),
+                external_address::new(bytes32::from_bytes(TEST_TARGET_RECIPIENT)),
                 TEST_TARGET_CHAIN,
                 expected_relayer_fee
             );
@@ -519,7 +521,7 @@ module token_bridge::transfer_token_tests {
             coin::from_balance(coin_7_balance, ctx),
             coin::mint_for_testing(wormhole_fee, ctx),
             TEST_TARGET_CHAIN,
-            external_address::from_address(TEST_TARGET_RECIPIENT),
+            TEST_TARGET_RECIPIENT,
             relayer_fee,
             TEST_NONCE,
             &the_clock
@@ -581,7 +583,7 @@ module token_bridge::transfer_token_tests {
             &mut token_bridge_state,
             coin::from_balance(coin_7_balance, ctx),
             TEST_TARGET_CHAIN,
-            external_address::from_address(TEST_TARGET_RECIPIENT),
+            TEST_TARGET_RECIPIENT,
             relayer_fee
         );
         assert!(coin::value(&dust) == 0, 0);
@@ -612,7 +614,7 @@ module token_bridge::transfer_token_tests {
                 expected_amount,
                 expected_token_address,
                 expected_token_chain,
-                external_address::from_address(TEST_TARGET_RECIPIENT),
+                external_address::new(bytes32::from_bytes(TEST_TARGET_RECIPIENT)),
                 TEST_TARGET_CHAIN,
                 expected_relayer_fee
             );
@@ -666,7 +668,7 @@ module token_bridge::transfer_token_tests {
             test_coins,
             coin::mint_for_testing(wormhole_fee, test_scenario::ctx(scenario)),
             TEST_TARGET_CHAIN,
-            external_address::from_address(TEST_TARGET_RECIPIENT),
+            TEST_TARGET_RECIPIENT,
             relayer_fee,
             TEST_NONCE,
             &the_clock
@@ -721,7 +723,7 @@ module token_bridge::transfer_token_tests {
             test_coins,
             coin::mint_for_testing(wormhole_fee, test_scenario::ctx(scenario)),
             TEST_TARGET_CHAIN,
-            external_address::from_address(TEST_TARGET_RECIPIENT),
+            TEST_TARGET_RECIPIENT,
             relayer_fee,
             TEST_NONCE,
             &the_clock
@@ -776,7 +778,7 @@ module token_bridge::transfer_token_tests {
             coin::from_balance(coin_10_balance, ctx),
             coin::mint_for_testing(wormhole_fee, ctx),
             TEST_TARGET_CHAIN,
-            external_address::from_address(TEST_TARGET_RECIPIENT),
+            TEST_TARGET_RECIPIENT,
             relayer_fee,
             TEST_NONCE,
             &the_clock
