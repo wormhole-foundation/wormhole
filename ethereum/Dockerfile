@@ -58,3 +58,4 @@ RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
 RUN rm -rf node_modules && mv node_modules_cache node_modules
 
 COPY --chown=node:node . .
+RUN make forge_dependencies
