@@ -19,18 +19,6 @@ abstract contract CoreRelayerGetters is CoreRelayerState {
         forwardWrapper = _forwardWrapper;
     }
 
-    function governanceActionIsConsumed(bytes32 hash) public view returns (bool) {
-        return _state.consumedGovernanceActions[hash];
-    }
-
-    function governanceChainId() public view returns (uint16) {
-        return _state.provider.governanceChainId;
-    }
-
-    function governanceContract() public view returns (bytes32) {
-        return _state.provider.governanceContract;
-    }
-
     function isInitialized(address impl) public view returns (bool) {
         return _state.initializedImplementations[impl];
     }

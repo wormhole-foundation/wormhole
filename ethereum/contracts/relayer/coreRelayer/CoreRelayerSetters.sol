@@ -38,10 +38,6 @@ contract CoreRelayerSetters is CoreRelayerState, Context {
         _state.defaultRelayProvider = defaultRelayProvider;
     }
 
-    function setRegisteredCoreRelayerContract(uint16 chainId, bytes32 relayerAddress) internal {
-        _state.registeredCoreRelayerContract[chainId] = relayerAddress;
-    }
-
     function appendForwardInstruction(IWormholeRelayerInternalStructs.ForwardInstruction memory forwardInstruction) internal {
         _state.forwardInstructions.push(forwardInstruction);
     }

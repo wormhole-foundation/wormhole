@@ -1,13 +1,52 @@
 // SPDX-License-Identifier: Apache 2
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
+
 import "../../libraries/external/BytesLib.sol";
 import "../../interfaces/relayer/IForwardWrapper.sol";
 import "../../interfaces/IWormhole.sol";
+import "./CoreRelayerState.sol";
+import "../../interfaces/relayer/IForwardInstructionViewer.sol";
 
-contract CoreRelayerLibrary {
+contract CoreRelayerLibrary is 
+    CoreRelayerState,
+    ERC1967Upgrade {
     using BytesLib for bytes;
 
+    //structs, consts, errors, events
+    struct ContractUpgrade {
+        bytes32 module;
+        uint8 action;
+        uint16 chain;
+        address newContract;
+    }
+
+    struct RegisterChain {
+        bytes32 module;
+        uint8 action;
+        uint16 chain; //TODO Why is this on this object?
+        uint16 emitterChain;
+        bytes32 emitterAddress;
+    }
+
+    //This could potentially be combined with ContractUpgrade
+    struct UpdateDefaultProvider {
+        bytes32 module;
+        uint8 action;
+        uint16 chain;
+        address newProvider;
+    }
+
+    bytes32 constant module = 0x000000000000000000000000000000000000000000436f726552656c61796572;
+    IForwardInstructionViewer public immutable forwardInstructionViewer;
+    IWormhole immutable wormhole;
+    
+    error InvalidFork();
+    error InvalidGovernanceVM(string reason);
+    error WrongChainId(uint16 chainId);
+    error InvalidChainId(uint16 chainId);
+    error FailedToInitializeImplementation(string reason);
     error WrongModule(bytes32 module);
     error InvalidContractUpgradeAction(uint8 action);
     error InvalidContractUpgradeLength(uint256 length);
@@ -15,12 +54,88 @@ contract CoreRelayerLibrary {
     error InvalidRegisterChainLength(uint256);
     error InvalidDefaultProviderAction(uint8);
     error InvalidDefaultProviderLength(uint256);
+    error RequesterNotCoreRelayer();
+
+    event ContractUpgraded(address indexed oldContract, address indexed newContract);
+
+    //This modifier is used to ensure that only the wormhole relayer can call the functions in this contract via delegate call
+    modifier onlyWormholeRelayer() {
+        if (address(this) != address(forwardInstructionViewer)) {
+            revert RequesterNotCoreRelayer();
+        }
+        _;
+    }
+
+    constructor(address _wormholeRelayer, address _wormhole) {
+        forwardInstructionViewer = IForwardInstructionViewer(_wormholeRelayer);
+        wormhole = IWormhole(_wormhole);
+    }
+
+    
+    //external functions
+    function submitContractUpgrade(bytes memory _vm) external onlyWormholeRelayer {
+        if (isFork()) {
+            revert InvalidFork();
+        }
+
+        (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(_vm);
+        if (!valid) {
+            revert InvalidGovernanceVM(string(reason));
+        }
+
+        setConsumedGovernanceAction(vm.hash);
+
+        ContractUpgrade memory contractUpgrade = parseUpgrade(vm.payload);
+        if (contractUpgrade.chain != chainId()) {
+            revert WrongChainId(contractUpgrade.chain);
+        }
+
+        upgradeImplementation(contractUpgrade.newContract);
+    }
+
+    function registerCoreRelayerContract(bytes memory vaa) external onlyWormholeRelayer {
+        (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(vaa);
+        if (!valid) {
+            revert InvalidGovernanceVM(string(reason));
+        }
+
+        setConsumedGovernanceAction(vm.hash);
+
+        RegisterChain memory rc = parseRegisterChain(vm.payload);
+
+        if ((rc.chain != chainId() || isFork()) && rc.chain != 0) {
+            revert InvalidChainId(rc.chain);
+        }
+
+        setRegisteredCoreRelayerContract(rc.emitterChain, rc.emitterAddress);
+    }
+
+    function setDefaultRelayProvider(bytes memory vaa) external onlyWormholeRelayer {
+        (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(vaa);
+        if (!valid) {
+            revert InvalidGovernanceVM(string(reason));
+        }
+
+        setConsumedGovernanceAction(vm.hash);
+
+        UpdateDefaultProvider memory provider = parseUpdateDefaultProvider(vm.payload);
+
+        if ((provider.chain != chainId() || isFork()) && provider.chain != 0) {
+            revert InvalidChainId(provider.chain);
+        }
+
+        setRelayProvider(provider.newProvider);
+    }
 
 
-    function parseUpgrade(bytes memory encodedUpgrade, bytes32 module)
-        public
+
+
+
+    //parser functions
+    function parseUpgrade(bytes memory encodedUpgrade)
+        internal
         pure
-        returns (IForwardWrapper.ContractUpgrade memory cu)
+        returns (ContractUpgrade memory cu)
     {
         uint256 index = 0;
 
@@ -49,10 +164,10 @@ contract CoreRelayerLibrary {
         }
     }
 
-    function parseRegisterChain(bytes memory encodedRegistration, bytes32 module)
-        public
+    function parseRegisterChain(bytes memory encodedRegistration)
+        internal
         pure
-        returns (IForwardWrapper.RegisterChain memory registerChain)
+        returns (RegisterChain memory registerChain)
     {
         uint256 index = 0;
 
@@ -84,10 +199,10 @@ contract CoreRelayerLibrary {
         }
     }
 
-    function parseUpdateDefaultProvider(bytes memory encodedDefaultProvider, bytes32 module)
-        public
+    function parseUpdateDefaultProvider(bytes memory encodedDefaultProvider)
+        internal
         pure
-        returns (IForwardWrapper.UpdateDefaultProvider memory defaultProvider)
+        returns (UpdateDefaultProvider memory defaultProvider)
     {
         uint256 index = 0;
 
@@ -116,58 +231,30 @@ contract CoreRelayerLibrary {
         }
     }
 
-    struct ContractUpgrade {
-        bytes32 module;
-        uint8 action;
-        uint16 chain;
-        address newContract;
-    }
 
-    struct RegisterChain {
-        bytes32 module;
-        uint8 action;
-        uint16 chain; //TODO Why is this on this object?
-        uint16 emitterChain;
-        bytes32 emitterAddress;
-    }
 
-    //This could potentially be combined with ContractUpgrade
-    struct UpdateDefaultProvider {
-        bytes32 module;
-        uint8 action;
-        uint16 chain;
-        address newProvider;
-    }
 
-    error InvalidFork();
-    error InvalidGovernanceVM(string reason);
 
-    function submitContractUpgrade(bytes memory _vm) external {
-        if (isFork()) {
-            revert InvalidFork();
+
+
+
+
+
+
+    //helper functions
+    function upgradeImplementation(address newImplementation) internal {
+        address currentImplementation = _getImplementation();
+
+        _upgradeTo(newImplementation);
+
+        // Call initialize function of the new implementation
+        (bool success, bytes memory reason) = newImplementation.delegatecall(abi.encodeWithSignature("initialize()"));
+
+        if (!success) {
+            revert FailedToInitializeImplementation(string(reason));
         }
 
-        (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(_vm);
-        if (!valid) {
-            revert InvalidGovernanceVM(string(reason));
-        }
-
-        setConsumedGovernanceAction(vm.hash);
-
-        CoreRelayerLibrary.ContractUpgrade memory contractUpgrade = CoreRelayerLibrary.parseUpgrade(vm.payload, module);
-        if (contractUpgrade.chain != chainId()) {
-            revert WrongChainId(contractUpgrade.chain);
-        }
-
-        upgradeImplementation(contractUpgrade.newContract);
-    }
-
-    function evmChainId() public view returns (uint256) {
-        return _state.evmChainId;
-    }
-
-    function isFork() public view returns (bool) {
-        return evmChainId() != block.chainid;
+        emit ContractUpgraded(currentImplementation, newImplementation);
     }
 
     function verifyGovernanceVM(bytes memory encodedVM)
@@ -175,7 +262,7 @@ contract CoreRelayerLibrary {
         view
         returns (IWormhole.VM memory parsedVM, bool isValid, string memory invalidReason)
     {
-        (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVM);
+        (IWormhole.VM memory vm, bool valid, string memory reason) = getWormholeState().parseAndVerifyVM(encodedVM);
 
         if (!valid) {
             return (vm, valid, reason);
@@ -195,7 +282,54 @@ contract CoreRelayerLibrary {
         return (vm, true, "");
     }
 
+
+
+
+
+    //setters
     function setConsumedGovernanceAction(bytes32 hash) internal {
         _state.consumedGovernanceActions[hash] = true;
     }
+
+    function setRelayProvider(address defaultRelayProvider) internal {
+        _state.defaultRelayProvider = defaultRelayProvider;
+    }
+
+    function setRegisteredCoreRelayerContract(uint16 targetChain, bytes32 relayerAddress) internal {
+        _state.registeredCoreRelayerContract[targetChain] = relayerAddress;
+    }
+
+
+
+
+
+    //getters
+    function getWormholeState() internal view returns (IWormhole) {
+        return IWormhole(_state.provider.wormhole);
+    }
+
+    function chainId() internal view returns (uint16) {
+        return _state.provider.chainId;
+    }
+
+    function evmChainId() internal view returns (uint256) {
+        return _state.evmChainId;
+    }
+
+    function isFork() internal view returns (bool) {
+        return evmChainId() != block.chainid;
+    }
+
+    function governanceActionIsConsumed(bytes32 hash) internal view returns (bool) {
+        return _state.consumedGovernanceActions[hash];
+    }
+
+    function governanceChainId() internal view returns (uint16) {
+        return _state.provider.governanceChainId;
+    }
+
+    function governanceContract() internal view returns (bytes32) {
+        return _state.provider.governanceContract;
+    }
+
 }

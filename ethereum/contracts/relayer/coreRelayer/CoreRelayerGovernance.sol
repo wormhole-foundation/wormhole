@@ -2,8 +2,6 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
-
 import "../../libraries/external/BytesLib.sol";
 
 import "./CoreRelayerGetters.sol";
@@ -11,6 +9,8 @@ import "./CoreRelayerSetters.sol";
 import "../../interfaces/relayer/IWormholeRelayerInternalStructs.sol";
 import "../../interfaces/relayer/IForwardWrapper.sol";
 import "./CoreRelayerMessages.sol";
+
+import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 
 import "../../interfaces/IWormhole.sol";
 
@@ -22,111 +22,19 @@ abstract contract CoreRelayerGovernance is
 {
     using BytesLib for bytes;
 
-    error InvalidFork();
-    error InvalidGovernanceVM(string reason);
-    error WrongChainId(uint16 chainId);
-    error InvalidChainId(uint16 chainId);
-    error FailedToInitializeImplementation(string reason);
-
-    event ContractUpgraded(address indexed oldContract, address indexed newContract);
-
-    // "CoreRelayer" (left padded)
-    bytes32 constant module = 0x000000000000000000000000000000000000000000436f726552656c61796572;
-
-    function submitContractUpgrade(bytes memory _vm) public {
-        if (isFork()) {
-            revert InvalidFork();
-        }
-
-        (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(_vm);
-        if (!valid) {
-            revert InvalidGovernanceVM(string(reason));
-        }
-
-        setConsumedGovernanceAction(vm.hash);
-
-        IForwardWrapper wrapper = IForwardWrapper(getWormholeRelayerCallerAddress());
-        IForwardWrapper.ContractUpgrade memory contractUpgrade = wrapper.parseUpgrade(vm.payload, module);
-        if (contractUpgrade.chain != chainId()) {
-            revert WrongChainId(contractUpgrade.chain);
-        }
-
-        upgradeImplementation(contractUpgrade.newContract);
+    function submitContractUpgrade(bytes memory vaa) public {
+        (bool success, bytes memory reason) = getWormholeRelayerCallerAddress().delegatecall(abi.encodeWithSignature("submitContractUpgrade(bytes)", vaa));
+        require(success, string(reason));
     }
 
     function registerCoreRelayerContract(bytes memory vaa) public {
-        (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(vaa);
-        if (!valid) {
-            revert InvalidGovernanceVM(string(reason));
-        }
-
-        setConsumedGovernanceAction(vm.hash);
-
-        IForwardWrapper wrapper = IForwardWrapper(getWormholeRelayerCallerAddress());
-        IForwardWrapper.RegisterChain memory rc = wrapper.parseRegisterChain(vm.payload, module);
-
-        if ((rc.chain != chainId() || isFork()) && rc.chain != 0) {
-            revert InvalidChainId(rc.chain);
-        }
-
-        setRegisteredCoreRelayerContract(rc.emitterChain, rc.emitterAddress);
+        (bool success, bytes memory reason) = getWormholeRelayerCallerAddress().delegatecall(abi.encodeWithSignature("registerCoreRelayerContract(bytes)", vaa));
+        require(success, string(reason));
     }
 
     function setDefaultRelayProvider(bytes memory vaa) public {
-        (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(vaa);
-        if (!valid) {
-            revert InvalidGovernanceVM(string(reason));
-        }
-
-        setConsumedGovernanceAction(vm.hash);
-
-        IForwardWrapper wrapper = IForwardWrapper(getWormholeRelayerCallerAddress());
-        IForwardWrapper.UpdateDefaultProvider memory provider = wrapper.parseUpdateDefaultProvider(vm.payload, module);
-
-        if ((provider.chain != chainId() || isFork()) && provider.chain != 0) {
-            revert InvalidChainId(provider.chain);
-        }
-
-        setRelayProvider(provider.newProvider);
+        (bool success, bytes memory reason) = getWormholeRelayerCallerAddress().delegatecall(abi.encodeWithSignature("setDefaultRelayProvider(bytes)", vaa));
+        require(success, string(reason));
     }
 
-    function upgradeImplementation(address newImplementation) internal {
-        address currentImplementation = _getImplementation();
-
-        _upgradeTo(newImplementation);
-
-        // Call initialize function of the new implementation
-        (bool success, bytes memory reason) = newImplementation.delegatecall(abi.encodeWithSignature("initialize()"));
-
-        if (!success) {
-            revert FailedToInitializeImplementation(string(reason));
-        }
-
-        emit ContractUpgraded(currentImplementation, newImplementation);
-    }
-
-    function verifyGovernanceVM(bytes memory encodedVM)
-        internal
-        view
-        returns (IWormhole.VM memory parsedVM, bool isValid, string memory invalidReason)
-    {
-        (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVM);
-
-        if (!valid) {
-            return (vm, valid, reason);
-        }
-
-        if (vm.emitterChainId != governanceChainId()) {
-            return (vm, false, "wrong governance chain");
-        }
-        if (vm.emitterAddress != governanceContract()) {
-            return (vm, false, "wrong governance contract");
-        }
-
-        if (governanceActionIsConsumed(vm.hash)) {
-            return (vm, false, "governance action already consumed");
-        }
-
-        return (vm, true, "");
-    }
 }
