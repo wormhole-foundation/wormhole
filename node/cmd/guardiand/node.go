@@ -415,7 +415,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		fmt.Print(devwarning)
 	}
 
-	common.LockMemory()
+	if *testnetMode {
+		fmt.Println("This is testnet mode, not locking in memory.")
+	} else {
+		common.LockMemory()
+	}
+
 	common.SetRestrictiveUmask()
 
 	// Refuse to run as root in production mode.
