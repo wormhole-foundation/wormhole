@@ -1,11 +1,10 @@
-import { RelayProviderProxy__factory } from "../../../ethers-contracts/factories/RelayProviderProxy__factory";
-import { RelayProviderSetup__factory } from "../../../ethers-contracts/factories/RelayProviderSetup__factory";
-import { RelayProviderImplementation__factory } from "../../../ethers-contracts/factories/RelayProviderImplementation__factory";
-import { MockRelayerIntegration__factory } from "../../../ethers-contracts/factories/MockRelayerIntegration__factory";
-import { CoreRelayerProxy__factory } from "../../../ethers-contracts/factories/CoreRelayerProxy__factory";
-import { CoreRelayerSetup__factory } from "../../../ethers-contracts/factories/CoreRelayerSetup__factory";
-import { CoreRelayerImplementation__factory } from "../../../ethers-contracts/factories/CoreRelayerImplementation__factory";
-import { CoreRelayerLibrary__factory } from "../../../ethers-contracts/factories/CoreRelayerLibrary__factory";
+import { RelayProviderProxy__factory } from "../../../ethers-contracts";
+import { RelayProviderSetup__factory } from "../../../ethers-contracts";
+import { RelayProviderImplementation__factory } from "../../../ethers-contracts";
+import { MockRelayerIntegration__factory } from "../../../ethers-contracts";
+import { CoreRelayerProxy__factory } from "../../../ethers-contracts";
+import { CoreRelayerSetup__factory } from "../../../ethers-contracts";
+import { CoreRelayerImplementation__factory } from "../../../ethers-contracts";
 
 import {
   init,
@@ -20,8 +19,10 @@ import {
   getCoreRelayer,
 } from "./env";
 import { ethers } from "ethers";
-import { Create2Factory__factory } from "../../../ethers-contracts";
-import { ForwardWrapper__factory } from "../../../ethers-contracts/factories/contracts";
+import {
+  Create2Factory__factory,
+  ForwardWrapper__factory,
+} from "../../../ethers-contracts";
 import { wait } from "./utils";
 
 export async function deployRelayProviderImplementation(
@@ -191,13 +192,21 @@ export async function deployCoreRelayerProxy(
   }
 
   // deploy proxy and point at setup contract
-  const rx = await create2Factory["create2(bytes32,bytes)"](
-    "generic-relayer",
-    ethers.utils.solidityPack(
-      ["bytes", "bytes"],
-      [CoreRelayerProxy__factory.bytecode, coreRelayerSetupAddress]
+  const rx = await create2Factory
+    .create2(
+      "generic-relayer",
+      ethers.utils.solidityPack(
+        ["bytes", "bytes"],
+        [
+          CoreRelayerProxy__factory.bytecode,
+          ethers.utils.defaultAbiCoder.encode(
+            ["address"],
+            [coreRelayerSetupAddress]
+          ),
+        ]
+      )
     )
-  ).then(wait);
+    .then(wait);
 
   // call setup
   const governanceChainId = 1;
