@@ -27,13 +27,6 @@ export async function sendMessage(
   const sourceRelayer = await getCoreRelayer(sourceChain);
   const sourceProvider = await sourceRelayer.getDefaultRelayProvider();
 
-  console.log(sourceProvider);
-  const result = await RelayProvider__factory.connect(
-    sourceProvider,
-    getSigner(sourceChain)
-  ).isChainSupported(targetChain.chainId);
-  console.log("isCHain supported", result);
-
   const relayQuote = await (
     await sourceRelayer.quoteGas(targetChain.chainId, 2000000, sourceProvider)
   ).add(10000000000);
