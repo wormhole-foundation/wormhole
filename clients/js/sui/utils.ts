@@ -4,6 +4,7 @@ import {
   Connection,
   Ed25519Keypair,
   JsonRpcProvider,
+  PaginatedObjectsResponse,
   RawSigner,
   SUI_CLOCK_OBJECT_ID,
   SuiTransactionBlockResponse,
@@ -215,6 +216,41 @@ export const getCreatedObjects = (
   }));
 };
 
+export const findOwnedObjectByType = async (
+  provider: JsonRpcProvider,
+  owner: string,
+  type: string,
+  cursor?: string
+): Promise<string | null> => {
+  const res: PaginatedObjectsResponse = await provider.getOwnedObjects({
+    owner,
+    filter: undefined, // Filter must be undefined to avoid 504 responses
+    cursor: cursor || undefined,
+    options: {
+      showType: true,
+    },
+  });
+
+  if (!res || !res.data) {
+    throw new SuiRpcValidationError(res);
+  }
+
+  const object = res.data.find((d) => d.data.type === type);
+
+  if (!object && res.hasNextPage) {
+    return findOwnedObjectByType(
+      provider,
+      owner,
+      type,
+      res.nextCursor as string
+    );
+  } else if (!object && !res.hasNextPage) {
+    return null;
+  } else {
+    return object.data.objectId;
+  }
+};
+
 export const getOwnedObjectId = async (
   provider: JsonRpcProvider,
   owner: string,
@@ -231,28 +267,7 @@ export const getOwnedObjectId = async (
     );
   }
 
-  const res = await provider.getOwnedObjects({
-    owner,
-    filter: { StructType: type },
-    options: {
-      showContent: true,
-    },
-  });
-  if (!res || !res.data) {
-    throw new SuiRpcValidationError(res);
-  }
-
-  const objects = res.data.filter((o) => o.data?.objectId);
-  if (objects.length === 1) {
-    return objects[0].data?.objectId;
-  } else if (objects.length > 1) {
-    const objectsStr = JSON.stringify(objects, null, 2);
-    throw new Error(
-      `Found multiple objects owned by ${owner} of type ${type}. This may mean that we've received an unexpected response from the Sui RPC and \`worm\` logic needs to be updated to handle this. Objects: ${objectsStr}`
-    );
-  } else {
-    return null;
-  }
+  return findOwnedObjectByType(provider, owner, type);
 };
 
 export const getProvider = (
