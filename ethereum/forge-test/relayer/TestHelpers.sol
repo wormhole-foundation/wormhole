@@ -127,9 +127,6 @@ contract TestHelpers {
                 abi.encodePacked(type(CoreRelayerProxy).creationCode, abi.encode(address(coreRelayerSetup)))
             )
         );
-        // CoreRelayerProxy myCoreRelayer = CoreRelayerProxy(
-        //     create2Factory.create2("generic-relayer", type(CoreRelayerProxy).creationCode, address(coreRelayerSetup))
-        // );
         CoreRelayerSetup(address(myCoreRelayer)).setup(
             address(coreRelayerImplementation),
             chainId,
