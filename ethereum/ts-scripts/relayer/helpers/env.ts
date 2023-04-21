@@ -15,6 +15,7 @@ import {
   Create2Factory__factory,
 } from "../../../ethers-contracts";
 import { CoreRelayerSetup__factory } from "../../../ethers-contracts";
+import { proxyContractSalt, setupContractSalt } from "./deployments";
 
 export type ChainInfo = {
   evmNetworkId: number;
@@ -318,14 +319,14 @@ export async function getCoreRelayerAddress(chain: ChainInfo): Promise<string> {
     const signer = getSigner(chain).address;
     const setupAddr = await create2Factory.computeAddress(
       signer,
-      "setup",
+      setupContractSalt,
       CoreRelayerSetup__factory.bytecode
     );
     coreRelayerAddressesCache[
       chain.chainId
     ] = await create2Factory.computeAddress(
       signer,
-      "generic-relayer",
+      proxyContractSalt,
       ethers.utils.solidityPack(
         ["bytes", "bytes"],
         [CoreRelayerProxy__factory.bytecode, setupAddr]

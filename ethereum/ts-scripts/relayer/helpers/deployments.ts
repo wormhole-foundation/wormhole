@@ -25,6 +25,9 @@ import {
 } from "../../../ethers-contracts";
 import { wait } from "./utils";
 
+export const setupContractSalt = Buffer.from("0xSetup");
+export const proxyContractSalt = Buffer.from("0xGenericRelayer");
+
 export async function deployRelayProviderImplementation(
   chain: ChainInfo
 ): Promise<Deployment> {
@@ -162,12 +165,15 @@ export async function deployCoreRelayerSetup(
 ): Promise<Deployment> {
   console.log("deployCoreRelayerSetup " + chain.chainId);
 
-  const result = await new CoreRelayerSetup__factory(getSigner(chain))
-    .deploy()
-    .then(deployed);
+  const create2Factory = getCreate2Factory(chain);
+  const rx = await create2Factory
+    .create2(setupContractSalt, CoreRelayerSetup__factory.bytecode)
+    .then(wait);
+  const address = Create2Factory__factory.createInterface().parseLog(rx.logs[0])
+    .args[0];
 
-  console.log("Successfully deployed contract at " + result.address);
-  return { address: result.address, chainId: chain.chainId };
+  console.log("Successfully deployed contract at " + address);
+  return { address, chainId: chain.chainId };
 }
 
 export async function deployCoreRelayerProxy(
@@ -182,7 +188,7 @@ export async function deployCoreRelayerProxy(
   const create2Factory = getCreate2Factory(chain);
   const expectedSetupAddr = await create2Factory.computeAddress(
     getSigner(chain).address,
-    "setup",
+    setupContractSalt,
     CoreRelayerSetup__factory.bytecode
   );
   if (coreRelayerSetupAddress !== expectedSetupAddr) {
@@ -194,7 +200,7 @@ export async function deployCoreRelayerProxy(
   // deploy proxy and point at setup contract
   const rx = await create2Factory
     .create2(
-      "generic-relayer",
+      proxyContractSalt,
       ethers.utils.solidityPack(
         ["bytes", "bytes"],
         [
