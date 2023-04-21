@@ -3,6 +3,7 @@ import {
   CHAINS,
   assertChain,
   isEVMChain,
+  isTerraChain,
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 
 exports.command = "registrations <network> <chain> <module>";
@@ -40,6 +41,15 @@ exports.handler = async (argv) => {
   if (isEVMChain(chain)) {
     const evm = require("../evm");
     await evm.query_registrations_evm(network, chain, module);
+  } else if (isTerraChain(chain)) {
+    const terra = require("../terra");
+    await terra.query_registrations_terra(network, chain, module);    
+  } else if (chain === "injective") {
+    const injective = require("../injective");    
+    await injective.query_registrations_injective(network, module);
+  } else if (chain === "xpla") {
+    const xpla = require("../xpla");    
+    await xpla.query_registrations_xpla(network, module);    
   } else if (chain === "sei") {
     const sei = require("../sei");    
     await sei.query_registrations_sei(network, module);

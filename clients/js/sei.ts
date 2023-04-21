@@ -142,7 +142,7 @@ export async function query_registrations_sei(
     throw new Error(`Contract for ${module} on ${network} does not exist`);
   }
 
-  console.log(`Querying the ${module} on  ${network} ${chain} for registered chains.`);
+  console.log(`Querying the ${module} on ${network} ${chain} for registered chains.`);
 
   // Create a CosmWasmClient
   const client = await getCosmWasmClient(n.rpc);
@@ -162,6 +162,7 @@ export async function query_registrations_sei(
           try {
             result = await client.queryContractSmart(target_contract, query_msg);
           } catch {
+            // Not logging anything because a chain not registered returns an error.
           }
         
           return result;

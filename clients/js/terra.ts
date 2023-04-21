@@ -9,7 +9,7 @@ import { fromUint8Array } from "js-base64";
 import { impossible, Payload } from "./vaa";
 import { NETWORKS } from "./networks";
 import axios from "axios";
-import { CONTRACTS, TerraChainName } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+import { CHAINS, CONTRACTS, TerraChainName } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 
 export async function execute_terra(
   payload: Payload,
@@ -162,4 +162,71 @@ export async function execute_terra(
       console.log(result);
       console.log(`TX hash: ${result.txhash}`);
     });
+}
+
+export async function query_registrations_terra(
+  network: "MAINNET" | "TESTNET" | "DEVNET",
+  chain: TerraChainName,
+  module: "Core" | "NFTBridge" | "TokenBridge",
+) {
+  let n = NETWORKS[network][chain];
+  let contracts = CONTRACTS[network][chain];
+
+  let target_contract: string;
+
+  switch (module) {
+    case "TokenBridge":
+      target_contract = contracts.token_bridge;
+      break;
+    case "NFTBridge":
+      target_contract = contracts.nft_bridge;
+      break;
+    default:
+      throw new Error(`Invalid module: ${module}`);
+  }
+  
+  if (!target_contract) {
+    throw new Error(`Contract for ${module} on ${network} does not exist`);
+  }
+
+  console.log(`Querying the ${module} on ${network} ${chain} for registered chains.`);
+
+  const client = new LCDClient({
+    URL: n.rpc,
+    chainID: n.chain_id,
+    isClassic: chain === "terra",
+  });
+
+  // Query the bridge registration for all the chains in parallel.
+  const registrationsPromise = Promise.all(
+    Object.entries(CHAINS)
+      .filter(([c_name, _]) => c_name !== chain && c_name !== "unset")
+      .map(async ([c_name, c_id]) => [c_name, await (async () => {
+          let query_msg = {
+            chain_registration: {
+              chain: c_id,
+            },
+          };
+
+          let result = null;
+          try {
+            result = await client.wasm.contractQuery(target_contract, query_msg);
+          } catch {
+            // Not logging anything because a chain not registered returns an error.
+          }
+        
+          return result;
+        })()
+      ])
+  )
+
+  const registrations = await registrationsPromise;
+
+  let results = {}
+  for (let [c_name, queryResponse] of registrations) {
+    if (queryResponse) {
+        results[c_name] = Buffer.from(queryResponse.address, 'base64').toString('hex');
+    }
+  }
+  console.log(results);
 }

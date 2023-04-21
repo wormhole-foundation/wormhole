@@ -23,12 +23,17 @@ Commands:
                                                   base64 format)
   worm recover <digest> <signature>               Recover an address from a signature
   worm info contract <network> <chain> <module>   Print contract address
+  worm info convert-to-emitter <chain> <address>  Prints address in emitter address form based
+                                                  on chain encoding
+  worm info registrations <network> <chain> <mod> Prints chain registrations for the specified
+                                                  bridge contract
   worm info rpc <network> <chain>                 Print RPC address
   worm info chain-id <chain>                      Print the wormhole chain ID integer
                                                   associated with the specified chain name
   worm evm                                        EVM utilites
   worm aptos                                      Aptos utilities
   worm near                                       NEAR utilities
+  worm resign <vaa> <guardianSecret>              Resigns a VAA using the specified guardian secret
   worm submit <vaa>                               Execute a VAA
   worm update                                     Update this tool by rebuilding it
 
