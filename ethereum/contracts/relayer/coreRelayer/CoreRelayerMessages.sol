@@ -344,9 +344,6 @@ contract CoreRelayerMessages is CoreRelayerGetters {
         bool roundUp,
         IRelayProvider provider
     ) internal view returns (uint256 targetAmount) {
-        if (!provider.isChainSupported(targetChain)) {
-            revert IWormholeRelayer.RelayProviderDoesNotSupportTargetChain();
-        }
         uint256 srcNativeCurrencyPrice = provider.quoteAssetPrice(sourceChain);
         if (srcNativeCurrencyPrice == 0) {
             revert IWormholeRelayer.RelayProviderDoesNotSupportTargetChain();
@@ -510,8 +507,8 @@ contract CoreRelayerMessages is CoreRelayerGetters {
         encoded = abi.encodePacked(
             uint8(2),
             vaaKey,
-            ins.newMaxRefundTarget,
-            ins.newReceiverValue,
+            ins.newMaximumRefundTarget,
+            ins.newReceiverValueTarget,
             ins.sourceRelayProvider,
             ins.executionParameters.version,
             ins.executionParameters.gasLimit);

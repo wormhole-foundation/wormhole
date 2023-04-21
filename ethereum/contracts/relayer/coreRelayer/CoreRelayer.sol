@@ -137,6 +137,10 @@ contract CoreRelayer is CoreRelayerDelivery {
 
         IRelayProvider relayProvider = IRelayProvider(sendParams.relayProviderAddress);
 
+        if(!relayProvider.isChainSupported(sendParams.targetChain)) {
+            revert IWormholeRelayer.RelayProviderDoesNotSupportTargetChain();
+        }
+
         // For each 'Send' request,
         // calculate how much gas the relay provider can pay for on 'request.targetChain' using 'request.newTransactionFee',
         // and calculate how much value the relay provider will pass into 'request.targetAddress'
@@ -269,7 +273,13 @@ contract CoreRelayer is CoreRelayerDelivery {
         uint256 wormholeMessageFee = wormhole().messageFee();
         uint256 totalFee = sendParams.maxTransactionFee +  sendParams.receiverValue + wormholeMessageFee;
 
-        checkInstruction(convertSendToDeliveryInstruction(sendParams), IRelayProvider(sendParams.relayProviderAddress));
+        IRelayProvider relayProvider = IRelayProvider(sendParams.relayProviderAddress);
+
+        if(!relayProvider.isChainSupported(sendParams.targetChain)) {
+            revert IWormholeRelayer.RelayProviderDoesNotSupportTargetChain();
+        }
+
+        checkInstruction(convertSendToDeliveryInstruction(sendParams), relayProvider);
 
         // Save information about the forward in state, so it can be processed after the execution of 'receiveWormholeMessages',
         // because we will then know how much of the 'maxTransactionFee' of the current delivery is still available for use in this forward
@@ -308,14 +318,39 @@ contract CoreRelayer is CoreRelayerDelivery {
         uint256 wormholeMessageFee = wormhole.messageFee();
         IRelayProvider relayProvider = IRelayProvider(relayProviderAddress);
 
-        (bytes memory encoded, uint256 sourceFee) = verifyRedeliveryFunds(VerifyRedeliveryFundsHelper(relayProvider, key, targetChain, newMaxTransactionFee, newReceiverValue, wormholeMessageFee));
+        uint256 totalFee = newMaxTransactionFee + newReceiverValue + wormholeMessageFee;
+        if(msg.value < totalFee) {
+            revert IWormholeRelayer.MsgValueTooLow();
+        }
+
+        if(!relayProvider.isChainSupported(targetChain)) {
+            revert IWormholeRelayer.RelayProviderDoesNotSupportTargetChain();
+        }
+
+        IWormholeRelayerInternalStructs.RedeliveryInstruction memory instruction = IWormholeRelayerInternalStructs.RedeliveryInstruction({
+            key: key,
+            newMaximumRefundTarget: calculateTargetDeliveryMaximumRefund(targetChain, newMaxTransactionFee, relayProvider),
+            newReceiverValueTarget: convertReceiverValueAmount(newReceiverValue, targetChain, relayProvider),
+            sourceRelayProvider: toWormholeFormat(relayProviderAddress),
+            executionParameters: IWormholeRelayerInternalStructs.ExecutionParameters({
+                version: 1,
+                gasLimit: calculateTargetGasDeliveryAmount(targetChain, newMaxTransactionFee, relayProvider)
+        })});
+
+        if(instruction.executionParameters.gasLimit == 0) {
+            revert IWormholeRelayer.MaxTransactionFeeNotEnough();
+        }
+
+        if(instruction.newMaximumRefundTarget + instruction.newReceiverValueTarget > relayProvider.quoteMaximumBudget(targetChain)) {
+            revert IWormholeRelayer.FundsTooMuch();
+        }
 
         sequence = wormhole.publishMessage{value: wormholeMessageFee}(
-            0, encoded, 200 //emit immediately
+            0, encodeRedeliveryInstruction(instruction), 200 //emit immediately
         );
 
         // Pay the relay provider
-        pay(relayProvider.getRewardAddress(), sourceFee);
+        pay(relayProvider.getRewardAddress(), totalFee - wormholeMessageFee);
     }
 
 
@@ -373,52 +408,6 @@ contract CoreRelayer is CoreRelayerDelivery {
         receiverValue = assetConversionHelper(
             targetChain, targetAmount, chainId(), uint256(0) + denominator + buffer, denominator, true, provider
         );
-    }
-
-    struct VerifyRedeliveryFundsHelper {
-        IRelayProvider relayProvider; 
-        IWormholeRelayer.VaaKey key; 
-        uint16 targetChain; 
-        uint256 newMaxTransactionFee; 
-        uint256 newReceiverValue; 
-        uint256 wormholeFee;
-    }
-
-    function verifyRedeliveryFunds(VerifyRedeliveryFundsHelper memory helper) internal view returns (bytes memory, uint256) {
-        if(!helper.relayProvider.isChainSupported(helper.targetChain)) {
-            revert IWormholeRelayer.RelayProviderDoesNotSupportTargetChain();
-        }
-        if(helper.newMaxTransactionFee < helper.relayProvider.quoteDeliveryOverhead(helper.targetChain)){
-            revert IWormholeRelayer.MaxTransactionFeeNotEnough();
-        }
-
-        (uint256 sourceFee, uint256 targetRefund, uint256 targetReceiverValue) = redeliveryFundsHelper(helper.targetChain, helper.newMaxTransactionFee, helper.newReceiverValue, address(helper.relayProvider));
-
-        if(msg.value < (sourceFee + helper.wormholeFee)){
-            revert IWormholeRelayer.MsgValueTooLow();
-        }
-        if((targetRefund + targetReceiverValue) > helper.relayProvider.quoteMaximumBudget(helper.targetChain)){
-            revert IWormholeRelayer.FundsTooMuch();
-        }
-
-        return (encodeRedeliveryInstruction(IWormholeRelayerInternalStructs.RedeliveryInstruction(
-            helper.key,
-            targetRefund,
-            targetReceiverValue,
-            toWormholeFormat(address(helper.relayProvider)),
-            IWormholeRelayerInternalStructs.ExecutionParameters({
-                version: 1,
-                gasLimit: calculateTargetGasDeliveryAmount(helper.targetChain, helper.newMaxTransactionFee, helper.relayProvider)
-            })
-        )), sourceFee);
-    }
-
-    function redeliveryFundsHelper(uint16 targetChain, uint256 newMaxTransactionFee, uint256 newReceiverValue, address relayProvider) internal view returns(uint256 sourceQuote, uint256 targetRefund, uint256 targetReceiverValue) {
-        IRelayProvider provider = IRelayProvider(relayProvider);
-        targetRefund = calculateTargetDeliveryMaximumRefund(targetChain, newMaxTransactionFee, provider);
-        targetReceiverValue = convertReceiverValueAmount(newReceiverValue, targetChain, provider);
-        sourceQuote = newReceiverValue + newMaxTransactionFee;
-
     }
 
     /**
