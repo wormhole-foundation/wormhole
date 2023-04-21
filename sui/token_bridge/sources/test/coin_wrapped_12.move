@@ -2,8 +2,9 @@
 
 #[test_only]
 module token_bridge::coin_wrapped_12 {
-    use sui::balance::{Balance, Supply};
+    use sui::balance::{Balance};
     use sui::package::{UpgradeCap};
+    use sui::coin::{CoinMetadata, TreasuryCap};
     use sui::test_scenario::{Self, Scenario};
     use sui::transfer::{Self};
     use sui::tx_context::{Self, TxContext};
@@ -30,7 +31,7 @@ module token_bridge::coin_wrapped_12 {
         ) =
             create_wrapped::new_setup_test_only(
                 witness,
-                VAA,
+                8, // capped to 8
                 ctx
             );
         transfer::public_transfer(setup, tx_context::sender(ctx));
@@ -59,11 +60,11 @@ module token_bridge::coin_wrapped_12 {
 
     #[test_only]
     /// for a test scenario, simply deploy the coin and expose `Supply`.
-    public fun init_and_take_supply(
+    public fun init_and_take_treasury_cap(
         scenario: &mut Scenario,
         caller: address
-    ): Supply<COIN_WRAPPED_12> {
-        use token_bridge::create_wrapped::{take_supply};
+    ): TreasuryCap<COIN_WRAPPED_12> {
+        use token_bridge::create_wrapped;
 
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
@@ -74,7 +75,7 @@ module token_bridge::coin_wrapped_12 {
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
 
-        take_supply(test_scenario::take_from_sender(scenario))
+        create_wrapped::take_treasury_cap(test_scenario::take_from_sender(scenario))
     }
 
     #[test_only]
@@ -108,9 +109,12 @@ module token_bridge::coin_wrapped_12 {
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
 
+        let coin_meta = test_scenario::take_shared<CoinMetadata<COIN_WRAPPED_12>>(scenario);
+
         // Register the attested asset.
         create_wrapped::complete_registration(
             &mut token_bridge_state,
+            &mut coin_meta,
             test_scenario::take_from_sender<WrappedAssetSetup<COIN_WRAPPED_12>>(
                 scenario
             ),
@@ -118,6 +122,8 @@ module token_bridge::coin_wrapped_12 {
             msg,
             test_scenario::ctx(scenario)
         );
+
+        test_scenario::return_shared(coin_meta);
 
         // Clean up.
         return_state(token_bridge_state);

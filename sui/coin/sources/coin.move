@@ -1,3 +1,4 @@
+// TODO: delete this file. It doesn't compile
 module coin::example_coin {
     use sui::transfer::{Self};
     use sui::tx_context::{Self, TxContext};

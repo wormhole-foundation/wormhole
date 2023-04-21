@@ -4,23 +4,24 @@
 /// wrapped (foreign) asset, whose metadata is encoded in a VAA sent from
 /// another network.
 ///
+/// TODO: revise these
 /// Wrapped assets are created in two steps.
-///   1. `prepare_registration`: This method creates a new `Supply` for a given
+///   1. `prepare_registration`: This method creates a new `TreasuryCap` for a given
 ///      coin type and wraps an encoded asset metadata VAA. We require a one-
-///      time witness (OTW) because we only want one `Supply` for a given coin
+///      time witness (OTW) because we only want one `TreasuryCap` for a given coin
 ///      type. This coin will be published using this method, meaning the `init`
 ///      method in that package will have the asset metadata VAA hard-coded
 ///      (which is passed into `prepare_registration` as one of its arguments).
 ///      A `WrappedAssetSetup` object is transferred to the transaction sender.
 ///   2. `complete_registration`: This method destroys the `WrappedAssetSetup`
 ///      object by unpacking its members. The encoded asset metadata VAA is
-///      deserialized and moved (along with the `Supply`) to the state module
-///      to create `ForeignMetadata`.
+///      deserialized and moved (along with the `TreasuryCap`) to the state module
+///      to create `ForeignInfo`.
 ///
 /// Wrapped asset metadata can also be updated with a new asset metadata VAA.
 /// By calling `update_attestation`, Token Bridge verifies that the specific
 /// coin type is registered and agrees with the encoded asset metadata's
-/// canonical token info. `ForeignMetadata` will be updated based on the encoded
+/// canonical token info. `ForeignInfo` will be updated based on the encoded
 /// asset metadata payload.
 ///
 /// See `state` and `wrapped_asset` modules for more details.
@@ -30,7 +31,9 @@
 module token_bridge::create_wrapped {
     use std::ascii::{Self};
     use std::type_name::{Self};
-    use sui::balance::{Self, Supply};
+    use std::option;
+    use sui::transfer;
+    use sui::coin::{Self, TreasuryCap, CoinMetadata};
     use sui::object::{Self, UID};
     use sui::package::{UpgradeCap};
     use sui::tx_context::{TxContext};
@@ -53,24 +56,21 @@ module token_bridge::create_wrapped {
     const E_BAD_WITNESS: u64 = 2;
     /// Coin witness does not equal "COIN".
     const E_INVALID_COIN_MODULE_NAME: u64 = 3;
-    /// Digest of encoded VAA disagrees with `VAA` digest.
-    const E_VAA_MISMATCH: u64 = 4;
 
     /// A.K.A. "coin".
     const COIN_MODULE_NAME: vector<u8> = b"coin";
 
-    /// Container holding new coin type's `Supply` and encoded asset metadata
+    /// Container holding new coin type's `TreasuryCap` and encoded asset metadata
     /// VAA, which are required to complete this asset's registration.
     struct WrappedAssetSetup<phantom CoinType> has key, store {
         id: UID,
-        vaa_buf: vector<u8>,
-        supply: Supply<CoinType>,
+        treasury_cap: TreasuryCap<CoinType>,
         build_version: u64
     }
 
     /// This method is executed within the `init` method of an untrusted module,
     /// which defines a one-time witness (OTW) type (`CoinType`). OTW is
-    /// required to ensure that only one `Supply` exists for `CoinType`. This
+    /// required to ensure that only one `TreasuryCap` exists for `CoinType`. This
     /// is similar to how a `TreasuryCap` is created in `coin::create_currency`.
     ///
     /// Because this method is stateless (i.e. no dependency on Token Bridge's
@@ -78,12 +78,10 @@ module token_bridge::create_wrapped {
     /// `complete_registration` after this method has been executed.
     public fun prepare_registration<CoinType: drop>(
         witness: CoinType,
-        vaa_buf: vector<u8>,
+        decimals: u8,
         ctx: &mut TxContext
     ): WrappedAssetSetup<CoinType> {
-        // Make sure there's only one instance of the type `CoinType`. This
-        // resembles the same check for `coin::create_currency`.
-        assert!(sui::types::is_one_time_witness(&witness), E_BAD_WITNESS);
+        let setup = prepare_registration_internal(witness, decimals, ctx);
 
         // Also make sure that this witness module name is literally "coin".
         let module_name = type_name::get_module(&type_name::get<CoinType>());
@@ -92,13 +90,53 @@ module token_bridge::create_wrapped {
             E_INVALID_COIN_MODULE_NAME
         );
 
+        setup
+    }
+
+    /// This function performs the bulk of `prepare_registration`, except
+    /// checking the module name. This separation is useful for testing.
+    fun prepare_registration_internal<CoinType: drop>(
+        witness: CoinType,
+        decimals: u8,
+        ctx: &mut TxContext
+    ): WrappedAssetSetup<CoinType> {
+        // Make sure there's only one instance of the type `CoinType`. This
+        // resembles the same check for `coin::create_currency`.
+        // Technically this check is redundant as it's performed by
+        // `coin::create_currency` below, but it doesn't hurt.
+        assert!(sui::types::is_one_time_witness(&witness), E_BAD_WITNESS);
+
+        // We initialise the currency with empty metadata. Later on, in the
+        // `complete_registration` call, when `CoinType` gets associated with a
+        // VAA, we update these fields.
+        let no_symbol = b"";
+        let no_name = b"";
+        let no_description = b"";
+        let no_icon_url = option::none();
+
+        let (treasury_cap, coin_meta) =
+            coin::create_currency(
+                witness,
+                decimals,
+                no_symbol,
+                no_name,
+                no_description,
+                no_icon_url,
+                ctx
+            );
+
+        // The CoinMetadata is turned into a shared object so that other
+        // functions (and wallets) can easily grab references to it. This is
+        // safe to do, as the metadata setters require a `TreasuryCap` for the
+        // coin too, which is held by the token bridge.
+        transfer::public_share_object(coin_meta);
+
         // Create `WrappedAssetSetup` object and transfer to transaction sender.
         // The owner of this object will call `complete_registration` to destroy
         // it.
         WrappedAssetSetup {
             id: object::new(ctx),
-            vaa_buf,
-            supply: balance::create_supply(witness),
+            treasury_cap,
             build_version: control::version()
         }
     }
@@ -106,15 +144,16 @@ module token_bridge::create_wrapped {
     /// After executing `prepare_registration`, owner of `WrappedAssetSetup`
     /// executes this method to complete this wrapped asset's registration.
     ///
-    /// This method destroys `WrappedAssetSetup`, unpacking the `Supply` and
+    /// This method destroys `WrappedAssetSetup`, unpacking the `TreasuryCap` and
     /// encoded asset metadata VAA. The deserialized asset metadata VAA is used
-    /// to create `ForeignMetadata`.
+    /// to update the associated `CoinMetadata`.
     ///
     /// TODO: Maybe add `UpgradeCap` argument (which would come from the
     /// `CoinType` package so we can either destroy it or warehouse it in
     /// `WrappedAsset`).
     public fun complete_registration<CoinType: drop>(
         token_bridge_state: &mut State,
+        coin_meta: &mut CoinMetadata<CoinType>,
         setup: WrappedAssetSetup<CoinType>,
         coin_upgrade_cap: UpgradeCap,
         msg: TokenBridgeMessage,
@@ -126,8 +165,7 @@ module token_bridge::create_wrapped {
 
         let WrappedAssetSetup {
             id,
-            vaa_buf,
-            supply,
+            treasury_cap,
             build_version
         } = setup;
 
@@ -141,11 +179,6 @@ module token_bridge::create_wrapped {
         // Finally destroy the object.
         object::delete(id);
 
-        // Verify that the encoded VAA agrees with the verified VAA passed into
-        // this method by checking that the digests are equal.
-        let digest = wormhole::vaa::encoded_vaa_digest(vaa_buf);
-        assert!(digest == vaa::digest(&msg), E_VAA_MISMATCH);
-
         // Deserialize to `AssetMeta`.
         let token_meta = asset_meta::deserialize(vaa::take_payload(msg));
 
@@ -158,16 +191,18 @@ module token_bridge::create_wrapped {
         token_registry::add_new_wrapped(
             state::borrow_mut_token_registry(token_bridge_state),
             token_meta,
-            supply,
+            coin_meta,
+            treasury_cap,
             coin_upgrade_cap,
             ctx
         );
     }
 
-    /// For registered wrapped assets, we can update `ForeignMetadata` for a
+    /// For registered wrapped assets, we can update `ForeignInfo` for a
     /// given `CoinType` with a new asset meta VAA emitted from another network.
     public fun update_attestation<CoinType>(
         token_bridge_state: &mut State,
+        coin_meta: &mut CoinMetadata<CoinType>,
         msg: TokenBridgeMessage
     ) {
         state::check_minimum_requirement<CreateWrappedControl>(
@@ -184,6 +219,7 @@ module token_bridge::create_wrapped {
         // Now update wrapped.
         wrapped_asset::update_metadata(
             token_registry::borrow_mut_wrapped<CoinType>(registry),
+            coin_meta,
             token_meta
         );
     }
@@ -191,16 +227,15 @@ module token_bridge::create_wrapped {
     #[test_only]
     public fun new_setup_test_only<CoinType: drop>(
         witness: CoinType,
-        vaa_buf: vector<u8>,
+        decimals: u8,
         ctx: &mut TxContext
     ): (WrappedAssetSetup<CoinType>, UpgradeCap) {
         let setup =
-            WrappedAssetSetup {
-                id: object::new(ctx),
-                vaa_buf,
-                supply: balance::create_supply(witness),
-                build_version: control::version()
-            };
+            prepare_registration_internal(
+                witness,
+                decimals,
+                ctx
+            );
 
         let upgrade_cap =
             sui::package::test_publish(
@@ -212,18 +247,17 @@ module token_bridge::create_wrapped {
     }
 
     #[test_only]
-    public fun take_supply<CoinType>(
+    public fun take_treasury_cap<CoinType>(
         setup: WrappedAssetSetup<CoinType>
-    ): Supply<CoinType> {
+    ): TreasuryCap<CoinType> {
         let WrappedAssetSetup {
             id,
-            vaa_buf: _,
-            supply,
+            treasury_cap,
             build_version: _
         } = setup;
         object::delete(id);
 
-        supply
+        treasury_cap
     }
 }
 
@@ -232,10 +266,12 @@ module token_bridge::create_wrapped_tests {
     use sui::test_scenario::{Self};
     use sui::test_utils::{Self};
     use sui::tx_context::{Self};
+    use sui::coin::{Self, CoinMetadata};
     use wormhole::wormhole_scenario::{parse_and_verify_vaa};
 
     use token_bridge::asset_meta::{Self};
     use token_bridge::coin_wrapped_12::{Self};
+    use token_bridge::string_utils;
     use token_bridge::coin_wrapped_7::{Self};
     use token_bridge::create_wrapped::{Self};
     use token_bridge::state::{Self};
@@ -263,7 +299,7 @@ module token_bridge::create_wrapped_tests {
         let wrapped_asset_setup =
             create_wrapped::prepare_registration(
                 NOT_A_WITNESS {},
-                coin_wrapped_12::encoded_vaa(),
+                3,
                 ctx
             );
 
@@ -280,7 +316,7 @@ module token_bridge::create_wrapped_tests {
         let wrapped_asset_setup =
             create_wrapped::prepare_registration(
                 CREATE_WRAPPED_TESTS {},
-                coin_wrapped_12::encoded_vaa(),
+                3,
                 ctx
             );
 
@@ -310,7 +346,7 @@ module token_bridge::create_wrapped_tests {
         let (wrapped_asset_setup, upgrade_cap) =
             create_wrapped::new_setup_test_only(
                 CREATE_WRAPPED_TESTS {},
-                coin_wrapped_12::encoded_vaa(),
+                8,
                 test_scenario::ctx(scenario)
             );
 
@@ -319,8 +355,12 @@ module token_bridge::create_wrapped_tests {
         let verified_vaa =
             parse_and_verify_vaa(scenario, coin_wrapped_12::encoded_vaa());
         let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
+
+        let coin_meta = test_scenario::take_shared<CoinMetadata<CREATE_WRAPPED_TESTS>>(scenario);
+
         create_wrapped::complete_registration(
             &mut token_bridge_state,
+            &mut coin_meta,
             wrapped_asset_setup,
             upgrade_cap,
             msg,
@@ -347,19 +387,20 @@ module token_bridge::create_wrapped_tests {
             assert!(wrapped_asset::total_supply(asset) == 0, 0);
 
             // Decimals are capped for this wrapped asset.
-            assert!(wrapped_asset::decimals(asset) == 8, 0);
+            assert!(coin::get_decimals(&coin_meta) == 8, 0);
 
             // Check metadata against asset metadata.
-            let metadata = wrapped_asset::metadata(asset);
-            assert!(wrapped_asset::token_chain(metadata) == token_chain, 0);
-            assert!(wrapped_asset::token_address(metadata) == token_address, 0);
+            let info = wrapped_asset::info(asset);
+            assert!(wrapped_asset::token_chain(info) == token_chain, 0);
+            assert!(wrapped_asset::token_address(info) == token_address, 0);
             assert!(
-                wrapped_asset::native_decimals(metadata) == native_decimals,
+                wrapped_asset::native_decimals(info) == native_decimals,
                 0
             );
-            assert!(wrapped_asset::symbol(metadata) == symbol, 0);
-            assert!(wrapped_asset::name(metadata) == name, 0);
+            assert!(coin::get_symbol(&coin_meta) == string_utils::to_ascii(&symbol), 0);
+            assert!(coin::get_name(&coin_meta) == name, 0);
         };
+
 
         // Now update metadata.
         let verified_vaa =
@@ -370,14 +411,11 @@ module token_bridge::create_wrapped_tests {
         let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
         create_wrapped::update_attestation<CREATE_WRAPPED_TESTS>(
             &mut token_bridge_state,
+            &mut coin_meta,
             msg
         );
 
         // Check updated name and symbol.
-        let registry = state::borrow_token_registry(&token_bridge_state);
-        let asset =
-            token_registry::borrow_wrapped<CREATE_WRAPPED_TESTS>(registry);
-        let metadata = wrapped_asset::metadata(asset);
         let (
             _,
             _,
@@ -387,10 +425,13 @@ module token_bridge::create_wrapped_tests {
         ) = asset_meta::unpack(coin_wrapped_12::updated_token_meta());
 
         assert!(symbol != new_symbol, 0);
-        assert!(wrapped_asset::symbol(metadata) == new_symbol, 0);
+
+        assert!(coin::get_symbol(&coin_meta) == string_utils::to_ascii(&new_symbol), 0);
 
         assert!(name != new_name, 0);
-        assert!(wrapped_asset::name(metadata) == new_name, 0);
+        assert!(coin::get_name(&coin_meta) == new_name, 0);
+
+        test_scenario::return_shared(coin_meta);
 
         // Clean up.
         return_state(token_bridge_state);
@@ -422,7 +463,7 @@ module token_bridge::create_wrapped_tests {
         let (wrapped_asset_setup, upgrade_cap) =
             create_wrapped::new_setup_test_only(
                 CREATE_WRAPPED_TESTS {},
-                coin_wrapped_12::encoded_vaa(),
+                8,
                 test_scenario::ctx(scenario)
             );
 
@@ -431,8 +472,12 @@ module token_bridge::create_wrapped_tests {
         let verified_vaa =
             parse_and_verify_vaa(scenario, coin_wrapped_12::encoded_vaa());
         let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
+
+        let coin_meta = test_scenario::take_shared<CoinMetadata<CREATE_WRAPPED_TESTS>>(scenario);
+
         create_wrapped::complete_registration(
             &mut token_bridge_state,
+            &mut coin_meta,
             wrapped_asset_setup,
             upgrade_cap,
             msg,
@@ -448,59 +493,11 @@ module token_bridge::create_wrapped_tests {
         // You shall not pass!
         create_wrapped::update_attestation<CREATE_WRAPPED_TESTS>(
             &mut token_bridge_state,
+            &mut coin_meta,
             msg
         );
 
-        // Clean up.
-        return_state(token_bridge_state);
-
-        // Done.
-        test_scenario::end(my_scenario);
-    }
-
-    #[test]
-    #[expected_failure(abort_code = create_wrapped::E_VAA_MISMATCH)]
-    public fun test_cannot_update_attestation_wrong_vaa() {
-        let (caller, coin_deployer) = two_people();
-        let my_scenario = test_scenario::begin(caller);
-        let scenario = &mut my_scenario;
-
-        // Set up contracts.
-        let wormhole_fee = 350;
-        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
-
-        // Register foreign emitter on chain ID == 2.
-        let expected_source_chain = 2;
-        register_dummy_emitter(scenario, expected_source_chain);
-
-        // Ignore effects. Make sure `coin_deployer` receives
-        // `WrappedAssetSetup`.
-        test_scenario::next_tx(scenario, coin_deployer);
-
-        // Publish coin.
-        let (
-            wrapped_asset_setup,
-            upgrade_cap
-        ) =
-            create_wrapped::new_setup_test_only(
-                CREATE_WRAPPED_TESTS {},
-                coin_wrapped_12::encoded_vaa(),
-                test_scenario::ctx(scenario)
-            );
-
-        let token_bridge_state = take_state(scenario);
-
-        let verified_vaa =
-            parse_and_verify_vaa(scenario, coin_wrapped_7::encoded_vaa());
-        let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
-        // You shall not pass!
-        create_wrapped::complete_registration(
-            &mut token_bridge_state,
-            wrapped_asset_setup,
-            upgrade_cap,
-            msg,
-            test_scenario::ctx(scenario)
-        );
+        test_scenario::return_shared(coin_meta);
 
         // Clean up.
         return_state(token_bridge_state);
@@ -508,4 +505,5 @@ module token_bridge::create_wrapped_tests {
         // Done.
         test_scenario::end(my_scenario);
     }
+
 }
