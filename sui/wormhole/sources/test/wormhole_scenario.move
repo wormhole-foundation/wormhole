@@ -14,6 +14,7 @@ module wormhole::wormhole_scenario {
     use sui::test_scenario::{Self, Scenario};
 
     use wormhole::emitter::{EmitterCap};
+    use wormhole::governance_message::{Self, GovernanceMessage};
     use wormhole::setup::{Self, DeployerCap};
     use wormhole::state::{Self, State};
     use wormhole::vaa::{Self, VAA};
@@ -180,6 +181,31 @@ module wormhole::wormhole_scenario {
         return_clock(the_clock);
 
         out
+    }
+
+    public fun parse_and_verify_governance_vaa(
+        scenario: &mut Scenario,
+        vaa_buf: vector<u8>
+    ): GovernanceMessage {
+        test_scenario::next_tx(scenario, VAA_VERIFIER);
+
+        let the_clock = take_clock(scenario);
+        let worm_state = take_state(scenario);
+
+        let verified_vaa =
+            vaa::parse_and_verify(
+                &worm_state,
+                vaa_buf,
+                &the_clock
+            );
+
+        let msg = governance_message::verify_vaa(&worm_state, verified_vaa);
+
+        // Clean up.
+        return_state(worm_state);
+        return_clock(the_clock);
+
+        msg
     }
 
     public fun new_emitter(
