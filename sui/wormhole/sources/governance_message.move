@@ -82,10 +82,10 @@ module wormhole::governance_message {
     /// checks to validate governance emitter before returning deserialized
     /// `GovernanceMessage`.
     ///
-    /// NOTE: This method is friendly with Wormhole contract governance methods
-    /// because these methods manage consuming VAA hashes themselves. Other
-    /// contracts that perform guardian governance should use
-    /// `parse_verify_and_consume_vaa`.
+    /// NOTE: It is expected that these VAAs are consumed only once using
+    /// `ConsumedVAAs`. Those contracts that use Guardian governance to perform
+    /// administrative functions are expected to have this container to protect
+    /// against replaying these governance actions.
     public fun verify_vaa(
         wormhole_state: &State,
         verified_vaa: VAA,
@@ -112,6 +112,12 @@ module wormhole::governance_message {
 
     /// Check module name, action and whether this action is intended for all
     /// chains before `take_payload` is called.
+    ///
+    /// NOTE: It is expected that these governance messages are consumed only
+    /// once using `ConsumedVAAs` to store the VAA digest. Those contracts that
+    /// use Guardian governance to perform administrative functions are expected
+    /// to have this container to protect against replaying these governance
+    /// actions.
     public fun take_global_action(
         msg: GovernanceMessage,
         expected_module_name: Bytes32,
@@ -127,6 +133,12 @@ module wormhole::governance_message {
 
     /// Check module name, action and whether this action is intended for Sui's
     /// chain ID before `take_payload` is called.
+    ///
+    /// NOTE: It is expected that these governance messages are consumed only
+    /// once using `ConsumedVAAs` to store the VAA digest. Those contracts that
+    /// use Guardian governance to perform administrative functions are expected
+    /// to have this container to protect against replaying these governance
+    /// actions.
     public fun take_local_action(
         msg: GovernanceMessage,
         expected_module_name: Bytes32,

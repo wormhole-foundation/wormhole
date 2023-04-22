@@ -50,7 +50,7 @@ module token_bridge::migrate {
         //
         // WARNING: The migration does *not* proceed atomically with the
         // upgrade (as they are done in separate transactions).
-        // If the nature of your migration absolutely requires the migration to
+        // If the nature of this migration absolutely requires the migration to
         // happen before certain other functionality is available, then guard
         // that functionality with the `assert!` from above.
         //

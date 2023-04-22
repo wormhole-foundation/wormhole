@@ -23,6 +23,9 @@ module token_bridge::vaa {
     friend token_bridge::complete_transfer;
     friend token_bridge::complete_transfer_with_payload;
 
+    /// This type represents VAA data whose emitter is a registered Token Bridge
+    /// emitter. This message is also representative of a VAA that cannot be
+    /// replayed.
     struct TokenBridgeMessage {
         emitter_chain: u16,
         emitter_address: ExternalAddress,
@@ -39,9 +42,12 @@ module token_bridge::vaa {
     /// In its verification, this method checks whether the emitter is a
     /// registered Token Bridge contract on another network.
     ///
-    /// NOTE: This method has `friend` visibility so it is only callable by this
-    /// contract. Otherwise the replay protection could be abused to DoS the
-    /// Token Bridge.
+    /// NOTE: It is important for integrators to refrain from calling this
+    /// method within their contracts. This method is meant to be called within
+    /// a transaction block, passing the `TokenBridgeMessage` to one of the
+    /// Token Bridge methods that consumes this type. If in a circumstance where
+    /// this module has a breaking change in an upgrade, another method  (e.g.
+    /// `complete_transfer_with_payload`) will not be affected by this change.
     public fun verify_only_once(
         token_bridge_state: &mut State,
         verified_vaa: VAA

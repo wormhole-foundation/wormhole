@@ -22,7 +22,7 @@
 /// Instead, an integrator is encouraged to execute a transaction block, which
 /// executes `authorize_transfer` from the latest Token Bridge package ID and
 /// to implement `redeem_coin` in his contract to consume this ticket. This is
-/// similar to how an integrator with Wormhole to not implement
+/// similar to how an integrator with Wormhole is not meant to use
 /// `vaa::parse_and_verify` in his contract in case the `vaa` module needs to
 /// be upgraded due to a breaking change.
 ///
@@ -48,6 +48,13 @@ module token_bridge::complete_transfer_with_payload {
     /// `EmitterCap` address does not agree with encoded redeemer.
     const E_INVALID_REDEEMER: u64 = 0;
 
+    /// This type is only generated from `authorize_transfer` and can only be
+    /// redeemed using `redeem_coin`. Integrators are expected to implement
+    /// `redeem_coin` within their contracts and call `authorize_transfer` in a
+    /// transaction block preceding the method that consumes this ticket. The
+    /// only way to destroy this ticket is callling `redeem_coin` with an
+    /// `EmitterCap` generated from the `wormhole::emitter` module, whose ID is
+    /// the expected redeemer for this token transfer.
     struct RedeemerTicket<phantom CoinType> {
         source_chain: u16,
         parsed: TransferWithPayload,
@@ -61,6 +68,15 @@ module token_bridge::complete_transfer_with_payload {
     /// The `RedeemerTicket` returned wraps a balance reflecting the encoded
     /// transfer amount along with the source chain and deserialized
     /// `TransferWithPayload`.
+    ///
+    /// NOTE: It is important for integrators to refrain from calling this
+    /// method within their contracts. This method is meant to be called within
+    /// a transaction block, passing the `RedeemerTicket` to a method which
+    /// calls `redeem_coin` within a contract. If in a circumstance where this
+    /// module has a breaking change in an upgrade, `redeem_coin` will not be
+    /// affected by this change.
+    ///
+    /// See `redeem_coin` for more details.
     public fun authorize_transfer<CoinType>(
         token_bridge_state: &mut State,
         msg: TokenBridgeMessage,
@@ -89,9 +105,15 @@ module token_bridge::complete_transfer_with_payload {
 
     /// After a transfer is authorized, only a valid redeemer may unpack the
     /// `RedeemerTicket`. The specified `EmitterCap` is the only authorized
-    /// redeemer of the transfer. Once the redeemer is validated, balance from
-    /// this ticket becomes `Coin` of the specified coin type and is returned
-    /// alongside the deserialized `TransferWithPayload` and source chain ID.
+    /// redeemer of the transfer. Once the redeemer is validated, coin from
+    /// this ticket of the specified coin type is returned alongside the
+    /// deserialized `TransferWithPayload` and source chain ID.
+    ///
+    /// NOTE: Integrators of Token Bridge redeeming these token transfers should
+    /// be calling only this method from their contracts. This method is  not
+    /// guarded by version control (thus not requiring a reference to the
+    /// Token Bridge `State` object), so it is intended to work for any package
+    /// version.
     public fun redeem_coin<CoinType>(
         emitter_cap: &EmitterCap,
         ticket: RedeemerTicket<CoinType>
