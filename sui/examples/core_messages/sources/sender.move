@@ -44,6 +44,11 @@ module core_messages::sender {
         );
     }
 
+    /// NOTE: This is NOT the proper way of using the `prepare_message` and
+    /// `publish_message` workflow. This example app is meant for testing for
+    /// observing Wormhole messages via the guardian.
+    ///
+    /// See `publish_message` module for more info.
     public fun send_message(
         state: &mut State,
         wormhole_state: &mut WormholeState,
@@ -51,12 +56,17 @@ module core_messages::sender {
         the_clock: &Clock,
         ctx: &mut TxContext
     ): u64 {
-        wormhole::publish_message::publish_message(
+        use wormhole::publish_message::{prepare_message, publish_message};
+
+        // NOTE AGAIN: Integrators should NEVER call this within their contract.
+        publish_message(
             wormhole_state,
-            &mut state.emitter_cap,
-            0, // Set nonce to 0, intended for batch VAAs.
-            payload,
             coin::zero(ctx),
+            prepare_message(
+                &mut state.emitter_cap,
+                0, // Set nonce to 0, intended for batch VAAs.
+                payload
+            ),
             the_clock
         )
     }

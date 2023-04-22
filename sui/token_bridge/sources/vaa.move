@@ -27,10 +27,16 @@ module token_bridge::vaa {
     /// emitter. This message is also representative of a VAA that cannot be
     /// replayed.
     struct TokenBridgeMessage {
+        /// Wormhole chain ID from which network the message originated from.
         emitter_chain: u16,
+        /// Address of Token Bridge (standardized to 32 bytes) that produced
+        /// this message.
         emitter_address: ExternalAddress,
+        /// Sequence number of Token Bridge's Wormhole message.
         sequence: u64,
+        /// Token Bridge payload.
         payload: vector<u8>,
+        /// `VAA` digest.
         digest: Bytes32
     }
 

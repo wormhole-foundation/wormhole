@@ -20,7 +20,7 @@
 /// version of `complete_transfer_with_payload`.
 ///
 /// Instead, an integrator is encouraged to execute a transaction block, which
-/// executes `authorize_transfer` from the latest Token Bridge package ID and
+/// executes `authorize_transfer` using the latest Token Bridge package ID and
 /// to implement `redeem_coin` in his contract to consume this ticket. This is
 /// similar to how an integrator with Wormhole is not meant to use
 /// `vaa::parse_and_verify` in his contract in case the `vaa` module needs to
@@ -56,8 +56,11 @@ module token_bridge::complete_transfer_with_payload {
     /// `EmitterCap` generated from the `wormhole::emitter` module, whose ID is
     /// the expected redeemer for this token transfer.
     struct RedeemerTicket<phantom CoinType> {
+        /// Which chain ID this transfer originated from.
         source_chain: u16,
+        /// Deserialized transfer info.
         parsed: TransferWithPayload,
+        /// Coin of bridged asset.
         bridged_out: Coin<CoinType>
     }
 
@@ -69,12 +72,15 @@ module token_bridge::complete_transfer_with_payload {
     /// transfer amount along with the source chain and deserialized
     /// `TransferWithPayload`.
     ///
-    /// NOTE: It is important for integrators to refrain from calling this
-    /// method within their contracts. This method is meant to be called within
-    /// a transaction block, passing the `RedeemerTicket` to a method which
-    /// calls `redeem_coin` within a contract. If in a circumstance where this
-    /// module has a breaking change in an upgrade, `redeem_coin` will not be
-    /// affected by this change.
+    /// NOTE: This method is guarded by a minimum build version check. This
+    /// method could break backward compatibility on an upgrade.
+    ///
+    /// It is important for integrators to refrain from calling this method
+    /// within their contracts. This method is meant to be called in a
+    /// transaction block, passing the `RedeemerTicket` to a method which calls
+    /// `redeem_coin` within a contract. If in a circumstance where this module
+    /// has a breaking change in an upgrade, `redeem_coin` will not be affected
+    /// by this change.
     ///
     /// See `redeem_coin` for more details.
     public fun authorize_transfer<CoinType>(
@@ -110,7 +116,7 @@ module token_bridge::complete_transfer_with_payload {
     /// deserialized `TransferWithPayload` and source chain ID.
     ///
     /// NOTE: Integrators of Token Bridge redeeming these token transfers should
-    /// be calling only this method from their contracts. This method is  not
+    /// be calling only this method from their contracts. This method is not
     /// guarded by version control (thus not requiring a reference to the
     /// Token Bridge `State` object), so it is intended to work for any package
     /// version.

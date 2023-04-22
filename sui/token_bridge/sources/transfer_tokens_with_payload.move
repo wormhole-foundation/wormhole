@@ -12,13 +12,11 @@
 /// See `transfer_with_payload` module for serialization and deserialization of
 /// Wormhole message payload.
 module token_bridge::transfer_tokens_with_payload {
-    use sui::clock::{Clock};
     use sui::coin::{Coin};
-    use sui::sui::{SUI};
     use wormhole::bytes32::{Self};
     use wormhole::emitter::{EmitterCap};
     use wormhole::external_address::{Self, ExternalAddress};
-    use wormhole::state::{State as WormholeState};
+    use wormhole::publish_message::{PreparedMessage};
 
     use token_bridge::state::{Self, State};
     use token_bridge::transfer_with_payload::{Self};
@@ -40,15 +38,12 @@ module token_bridge::transfer_tokens_with_payload {
     public fun transfer_tokens_with_payload<CoinType>(
         token_bridge_state: &mut State,
         emitter_cap: &EmitterCap,
-        worm_state: &mut WormholeState,
         bridged_in: Coin<CoinType>,
-        wormhole_fee: Coin<SUI>,
         redeemer_chain: u16,
         redeemer: vector<u8>,
         payload: vector<u8>,
-        nonce: u32,
-        the_clock: &Clock
-    ): (u64, Coin<CoinType>) {
+        nonce: u32
+    ): (PreparedMessage, Coin<CoinType>) {
         state::check_minimum_requirement<TransferTokensWithPayloadControl>(
             token_bridge_state
         );
@@ -65,17 +60,14 @@ module token_bridge::transfer_tokens_with_payload {
             );
 
         // Publish.
-        let message_sequence =
-            state::publish_wormhole_message(
+        let prepared_msg =
+            state::prepare_wormhole_message(
                 token_bridge_state,
-                worm_state,
                 nonce,
-                encoded_transfer_with_payload,
-                wormhole_fee,
-                the_clock
+                encoded_transfer_with_payload
             );
 
-        (message_sequence, bridged_in)
+        (prepared_msg, bridged_in)
     }
 
     fun bridge_in_and_serialize_transfer<CoinType>(
@@ -112,22 +104,19 @@ module token_bridge::transfer_tokens_with_payload {
     public fun bridge_in_and_serialize_transfer_test_only<CoinType>(
         token_bridge_state: &mut State,
         emitter_cap: &EmitterCap,
-        bridged_in: Coin<CoinType>,
+        bridged_in: &mut Coin<CoinType>,
         redeemer_chain: u16,
         redeemer: vector<u8>,
         payload: vector<u8>
-    ): (vector<u8>, Coin<CoinType>) {
-        let payload =
-            bridge_in_and_serialize_transfer(
-                token_bridge_state,
-                emitter_cap,
-                &mut bridged_in,
-                redeemer_chain,
-                external_address::new(bytes32::from_bytes(redeemer)),
-                payload
-            );
-
-        (payload, bridged_in)
+    ): vector<u8> {
+        bridge_in_and_serialize_transfer(
+            token_bridge_state,
+            emitter_cap,
+            bridged_in,
+            redeemer_chain,
+            external_address::new(bytes32::from_bytes(redeemer)),
+            payload
+        )
     }
 }
 
@@ -135,27 +124,20 @@ module token_bridge::transfer_tokens_with_payload {
 module token_bridge::transfer_tokens_with_payload_tests {
     use sui::coin::{Self};
     use sui::test_scenario::{Self};
-    use sui::transfer::{public_transfer};
-
-    use wormhole::external_address::{Self};
-    use wormhole::state::{chain_id};
-    use wormhole::emitter::{Self};
     use wormhole::bytes32::{Self};
+    use wormhole::emitter::{Self};
+    use wormhole::external_address::{Self};
+    use wormhole::publish_message::{Self};
+    use wormhole::state::{chain_id};
 
     use token_bridge::coin_wrapped_7::{Self, COIN_WRAPPED_7};
     use token_bridge::coin_native_10::{Self, COIN_NATIVE_10};
-    use token_bridge::transfer_tokens_with_payload::{
-        transfer_tokens_with_payload,
-        bridge_in_and_serialize_transfer_test_only
-    };
     use token_bridge::state::{Self};
     use token_bridge::token_bridge_scenario::{
         set_up_wormhole_and_token_bridge,
         register_dummy_emitter,
-        return_clock,
-        return_states,
-        take_clock,
-        take_states,
+        return_state,
+        take_state,
         person
     };
     use token_bridge::token_registry::{Self};
@@ -174,6 +156,10 @@ module token_bridge::transfer_tokens_with_payload_tests {
 
     #[test]
     fun test_transfer_tokens_with_payload_native_10() {
+        use token_bridge::transfer_tokens_with_payload::{
+            transfer_tokens_with_payload
+        };
+
         let sender = person();
         let my_scenario = test_scenario::begin(sender);
         let scenario = &mut my_scenario;
@@ -187,18 +173,18 @@ module token_bridge::transfer_tokens_with_payload_tests {
 
         // Register and mint coins.
         let transfer_amount = 6942000;
-        let coin_10_balance = coin_native_10::init_register_and_mint(
-            scenario,
-            sender,
-            transfer_amount
-        );
+        let coin_10_balance =
+            coin_native_10::init_register_and_mint(
+                scenario,
+                sender,
+                transfer_amount
+            );
 
         // Ignore effects.
         test_scenario::next_tx(scenario, sender);
 
         // Fetch objects necessary for sending the transfer.
-        let (token_bridge_state, worm_state) = take_states(scenario);
-        let the_clock = take_clock(scenario);
+        let token_bridge_state = take_state(scenario);
 
         // Balance check the Token Bridge before executing the transfer. The
         // initial balance should be zero for COIN_NATIVE_10.
@@ -215,20 +201,20 @@ module token_bridge::transfer_tokens_with_payload_tests {
         let emitter_cap = emitter::dummy();
 
         // Call `transfer_tokens_with_payload`.
-        let (_, dust) =
-            transfer_tokens_with_payload<COIN_NATIVE_10>(
+        let (
+            prepared_msg,
+            dust
+        ) =
+            transfer_tokens_with_payload(
                 &mut token_bridge_state,
                 &emitter_cap,
-                &mut worm_state,
                 coin::from_balance(coin_10_balance, ctx),
-                coin::mint_for_testing(wormhole_fee, ctx),
                 TEST_TARGET_CHAIN,
                 TEST_TARGET_RECIPIENT,
                 TEST_MESSAGE_PAYLOAD,
-                TEST_NONCE,
-                &the_clock,
+                TEST_NONCE
             );
-        assert!(coin::value(&dust) == 0, 0);
+        coin::destroy_zero(dust);
 
         // Balance check the Token Bridge after executing the transfer. The
         // balance should now reflect the `transfer_amount` defined in this
@@ -239,16 +225,21 @@ module token_bridge::transfer_tokens_with_payload_tests {
             assert!(native_asset::custody(asset) == transfer_amount, 0);
         };
 
-        // Done.
-        return_states(token_bridge_state, worm_state);
-        coin::destroy_zero(dust);
+        // Clean up.
+        publish_message::destroy(prepared_msg);
+        return_state(token_bridge_state);
         emitter::destroy(emitter_cap);
-        return_clock(the_clock);
+
+        // Done.
         test_scenario::end(my_scenario);
     }
 
     #[test]
     fun test_transfer_tokens_native_10_with_dust_refund() {
+        use token_bridge::transfer_tokens_with_payload::{
+            transfer_tokens_with_payload
+        };
+
         let sender = person();
         let my_scenario = test_scenario::begin(sender);
         let scenario = &mut my_scenario;
@@ -276,8 +267,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
         test_scenario::next_tx(scenario, sender);
 
         // Fetch objects necessary for sending the transfer.
-        let (token_bridge_state, worm_state) = take_states(scenario);
-        let the_clock = take_clock(scenario);
+        let token_bridge_state = take_state(scenario);
 
         // Balance check the Token Bridge before executing the transfer. The
         // initial balance should be zero for COIN_NATIVE_10.
@@ -294,19 +284,19 @@ module token_bridge::transfer_tokens_with_payload_tests {
         let emitter_cap = emitter::dummy();
 
         // Call `transfer_tokens`.
-        let (_, dust) =
-            transfer_tokens_with_payload<COIN_NATIVE_10>(
+        let (
+            prepared_msg,
+            dust
+        ) =
+            transfer_tokens_with_payload(
                 &mut token_bridge_state,
                 &emitter_cap,
-                &mut worm_state,
                 coin::from_balance(coin_10_balance, ctx),
-                coin::mint_for_testing(wormhole_fee, ctx),
                 TEST_TARGET_CHAIN,
                 TEST_TARGET_RECIPIENT,
                 TEST_MESSAGE_PAYLOAD,
-                TEST_NONCE,
-                &the_clock
-        );
+                TEST_NONCE
+            );
         assert!(coin::value(&dust) == expected_dust, 0);
 
         // Balance check the Token Bridge after executing the transfer. The
@@ -321,16 +311,22 @@ module token_bridge::transfer_tokens_with_payload_tests {
             );
         };
 
-        // Done.
-        return_states(token_bridge_state, worm_state);
-        return_clock(the_clock);
+        // Clean up.
+        publish_message::destroy(prepared_msg);
+        coin::burn_for_testing(dust);
         emitter::destroy(emitter_cap);
-        public_transfer(dust, @0x0);
+        return_state(token_bridge_state);
+
+        // Done.
         test_scenario::end(my_scenario);
     }
 
     #[test]
     fun test_serialize_transfer_tokens_native_10() {
+        use token_bridge::transfer_tokens_with_payload::{
+            bridge_in_and_serialize_transfer_test_only
+        };
+
         let sender = person();
         let my_scenario = test_scenario::begin(sender);
         let scenario = &mut my_scenario;
@@ -344,36 +340,36 @@ module token_bridge::transfer_tokens_with_payload_tests {
 
         // Register and mint coins.
         let transfer_amount = 6942000;
-        let coin_10_balance = coin_native_10::init_register_and_mint(
-            scenario,
-            sender,
-            transfer_amount
-        );
+        let bridge_coin_10 =
+            coin::from_balance(
+                coin_native_10::init_register_and_mint(
+                    scenario,
+                    sender,
+                    transfer_amount
+                ),
+                test_scenario::ctx(scenario)
+            );
 
         // Ignore effects.
         test_scenario::next_tx(scenario, sender);
 
         // Fetch objects necessary for sending the transfer.
-        let (token_bridge_state, worm_state) = take_states(scenario);
-        let the_clock = take_clock(scenario);
-
-        // Cache context.
-        let ctx = test_scenario::ctx(scenario);
+        let token_bridge_state = take_state(scenario);
 
         // Register and obtain a new wormhole emitter cap.
         let emitter_cap = emitter::dummy();
 
         // Serialize the payload.
-        let (payload, dust) =
+        let payload =
             bridge_in_and_serialize_transfer_test_only(
                 &mut token_bridge_state,
                 &emitter_cap,
-                coin::from_balance(coin_10_balance, ctx),
+                &mut bridge_coin_10,
                 TEST_TARGET_CHAIN,
                 TEST_TARGET_RECIPIENT,
                 TEST_MESSAGE_PAYLOAD
             );
-        assert!(coin::value(&dust) == 0, 0);
+        coin::destroy_zero(bridge_coin_10);
 
         // Construct expected payload from scratch and confirm that the
         // `transfer_tokens` call produces the same payload.
@@ -402,16 +398,20 @@ module token_bridge::transfer_tokens_with_payload_tests {
             0
         );
 
-        // Done.
-        coin::destroy_zero(dust);
-        return_states(token_bridge_state, worm_state);
-        return_clock(the_clock);
+        // Clean up.
+        return_state(token_bridge_state);
         emitter::destroy(emitter_cap);
+
+        // Done.
         test_scenario::end(my_scenario);
     }
 
     #[test]
     fun test_transfer_tokens_with_payload_wrapped_7() {
+        use token_bridge::transfer_tokens_with_payload::{
+            transfer_tokens_with_payload
+        };
+
         let sender = person();
         let my_scenario = test_scenario::begin(sender);
         let scenario = &mut my_scenario;
@@ -435,8 +435,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
         test_scenario::next_tx(scenario, sender);
 
         // Fetch objects necessary for sending the transfer.
-        let (token_bridge_state, worm_state) = take_states(scenario);
-        let the_clock = take_clock(scenario);
+        let token_bridge_state = take_state(scenario);
 
         // Balance check the Token Bridge before executing the transfer. The
         // initial balance should be the `transfer_amount` for COIN_WRAPPED_7.
@@ -446,27 +445,27 @@ module token_bridge::transfer_tokens_with_payload_tests {
             assert!(wrapped_asset::total_supply(asset) == transfer_amount, 0);
         };
 
-        // Cache context.
-        let ctx = test_scenario::ctx(scenario);
-
         // Register and obtain a new wormhole emitter cap.
         let emitter_cap = emitter::dummy();
 
         // Call `transfer_tokens_with_payload`.
-        let (_, dust) =
-            transfer_tokens_with_payload<COIN_WRAPPED_7>(
+        let (
+            prepared_msg,
+            dust
+        ) =
+            transfer_tokens_with_payload(
                 &mut token_bridge_state,
                 &emitter_cap,
-                &mut worm_state,
-                coin::from_balance(coin_7_balance, ctx),
-                coin::mint_for_testing(wormhole_fee, ctx),
+                coin::from_balance(
+                    coin_7_balance,
+                    test_scenario::ctx(scenario)
+                ),
                 TEST_TARGET_CHAIN,
                 TEST_TARGET_RECIPIENT,
                 TEST_MESSAGE_PAYLOAD,
-                TEST_NONCE,
-                &the_clock,
+                TEST_NONCE
             );
-        assert!(coin::value(&dust) == 0, 0);
+        coin::destroy_zero(dust);
 
         // Balance check the Token Bridge after executing the transfer. The
         // balance should be zero, since tokens are burned when an outbound
@@ -477,16 +476,21 @@ module token_bridge::transfer_tokens_with_payload_tests {
             assert!(wrapped_asset::total_supply(asset) == 0, 0);
         };
 
-        // Done.
-        return_states(token_bridge_state, worm_state);
-        coin::destroy_zero(dust);
+        // Clean up.
+        publish_message::destroy(prepared_msg);
         emitter::destroy(emitter_cap);
-        return_clock(the_clock);
+        return_state(token_bridge_state);
+
+        // Done.
         test_scenario::end(my_scenario);
     }
 
     #[test]
     fun test_serialize_transfer_tokens_wrapped_7() {
+        use token_bridge::transfer_tokens_with_payload::{
+            bridge_in_and_serialize_transfer_test_only
+        };
+
         let sender = person();
         let my_scenario = test_scenario::begin(sender);
         let scenario = &mut my_scenario;
@@ -500,36 +504,36 @@ module token_bridge::transfer_tokens_with_payload_tests {
 
         // Register and mint coins.
         let transfer_amount = 6942000;
-        let coin_7_balance = coin_wrapped_7::init_register_and_mint(
-            scenario,
-            sender,
-            transfer_amount
-        );
+        let bridged_coin_7 =
+            coin::from_balance(
+                coin_wrapped_7::init_register_and_mint(
+                    scenario,
+                    sender,
+                    transfer_amount
+                ),
+                test_scenario::ctx(scenario)
+            );
 
         // Ignore effects.
         test_scenario::next_tx(scenario, sender);
 
         // Fetch objects necessary for sending the transfer.
-        let (token_bridge_state, worm_state) = take_states(scenario);
-        let the_clock = take_clock(scenario);
-
-        // Cache context.
-        let ctx = test_scenario::ctx(scenario);
+        let token_bridge_state = take_state(scenario);
 
         // Register and obtain a new wormhole emitter cap.
         let emitter_cap = emitter::dummy();
 
         // Serialize the payload.
-        let (payload, dust) =
+        let payload =
             bridge_in_and_serialize_transfer_test_only(
                 &mut token_bridge_state,
                 &emitter_cap,
-                coin::from_balance(coin_7_balance, ctx),
+                &mut bridged_coin_7,
                 TEST_TARGET_CHAIN,
                 TEST_TARGET_RECIPIENT,
                 TEST_MESSAGE_PAYLOAD
             );
-        assert!(coin::value(&dust) == 0, 0);
+        coin::destroy_zero(bridged_coin_7);
 
         // Construct expected payload from scratch and confirm that the
         // `transfer_tokens` call produces the same payload.
@@ -563,11 +567,11 @@ module token_bridge::transfer_tokens_with_payload_tests {
             0
         );
 
-        // Done.
-        coin::destroy_zero(dust);
-        return_states(token_bridge_state, worm_state);
-        return_clock(the_clock);
+        // Clean up.
         emitter::destroy(emitter_cap);
+        return_state(token_bridge_state);
+
+        // Done.
         test_scenario::end(my_scenario);
     }
 }
