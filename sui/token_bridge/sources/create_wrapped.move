@@ -154,10 +154,6 @@ module token_bridge::create_wrapped {
     /// This method destroys `WrappedAssetSetup`, unpacking the `TreasuryCap` and
     /// encoded asset metadata VAA. The deserialized asset metadata VAA is used
     /// to update the associated `CoinMetadata`.
-    ///
-    /// TODO: Maybe add `UpgradeCap` argument (which would come from the
-    /// `CoinType` package so we can either destroy it or warehouse it in
-    /// `WrappedAsset`).
     public fun complete_registration<CoinType: drop>(
         token_bridge_state: &mut State,
         coin_meta: &mut CoinMetadata<CoinType>,
