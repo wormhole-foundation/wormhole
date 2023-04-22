@@ -10,10 +10,10 @@ interface IWormholeRelayer {
      */
 
     /**
-     * @notice This 'send' function emits a wormhole message (VAA) that alerts the default wormhole relay provider to
-     * call the receiveWormholeMessage(bytes[] memory signedVaas, bytes[] memory additionalData) endpoint of the contract on chain 'targetChain' and address 'targetAddress'
-     * with the first argument being one wormhole message (VAA) from the current transaction that matches the wormholeMessageEmitterAddress and wormholeMessageSequenceNumber provided (which have additionally been encoded and signed by the Guardian set to form 'signed VAAs'),
-     * and with the second argument empty
+     * @notice the 'send' function emits a wormhole message (VAA) that instructs the default wormhole relay provider to 
+     * call the 'receiveWormholeMessage' endpoint of the contract on the target chain and address, 
+     * with the first argument being a matching wormhole message (VAA) from the current transaction, 
+     * and the second argument being empty.
      *
      *
      *  @param targetChain The chain that the vaas are delivered to, in Wormhole Chain ID format
@@ -24,9 +24,9 @@ interface IWormholeRelayer {
      *  @param maxTransactionFee The maximum amount (denominated in source chain (this chain) currency) that you wish to spend on funding gas for the target chain.
      *  If more gas is needed on the target chain than is paid for, there will be a Receiver Failure.
      *  Any unused value out of this fee will be refunded to 'refundAddress'
-     *  If maxTransactionFee >= quoteGas(targetChain, gasLimit, getDefaultRelayProvider()), then as long as 'targetAddress''s receiveWormholeMessage function uses at most 'gasLimit' units of gas (and doesn't revert), the delivery will succeed
+     *  If the maxTransactionFee is greater than or equal to the result of quoteGas, the delivery will succeed as long as the receiveWormholeMessage function at the target address uses no more than the specified gas limit and doesn't revert.     
      *  @param receiverValue The amount (denominated in source chain currency) that will be converted to target chain currency and passed into the receiveWormholeMessage endpoint as value.
-     *  If receiverValue >= quoteReceiverValue(targetChain, targetAmount, getDefaultRelayProvider()), then at least 'targetAmount' of targetChain currency will be passed into the 'receiveWormholeFunction' as value.
+     *  If the receiverValue is greater than or equal to the result of quoteReceiverValue, at least the target amount of target chain currency will be passed into the 'receiveWormholeMessage' function as value.     
      *  @param payload an arbitrary payload which will be sent to the receiver contract.
      *
      *  This function must be called with a payment of at least maxTransactionFee + receiverValue + one wormhole message fee.
