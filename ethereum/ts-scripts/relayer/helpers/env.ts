@@ -248,29 +248,36 @@ export function loadCreate2Factories(): Deployment[] {
 }
 
 //TODO load these keys more intelligently,
-//potentially from devnet-consts
+//potentially from devnet-consts.
+//Also, make sure the signers are correctly ordered by index,
+//As the index gets encoded into the signature.
 export function loadGuardianKeys(): string[] {
   const output = [];
   const NUM_GUARDIANS = get_env_var("NUM_GUARDIANS");
-
   const guardianKey = get_env_var("GUARDIAN_KEY");
   const guardianKey2 = get_env_var("GUARDIAN_KEY2");
 
+  let numGuardians: number = 0;
   console.log("NUM_GUARDIANS variable : " + NUM_GUARDIANS);
 
-  if (!NUM_GUARDIANS || NUM_GUARDIANS == "1") {
-    if (!guardianKey) {
-      throw Error("Failed to find guardian key for this process!");
-    }
-  } else if (NUM_GUARDIANS == "2") {
+  if (!NUM_GUARDIANS) {
+    numGuardians = 1;
+  } else {
+    numGuardians = parseInt(NUM_GUARDIANS);
+  }
+
+  if (!guardianKey) {
+    throw Error("Failed to find guardian key for this process!");
+  }
+  output.push(guardianKey);
+
+  if (numGuardians >= 2) {
     if (!guardianKey2) {
       throw Error("Failed to find guardian key 2 for this process!");
     }
     output.push(guardianKey2);
-  } else {
-    throw Error("Invalid NUM_GUARDIANS environment variable!");
   }
-  output.push(guardianKey);
+
   return output;
 }
 
