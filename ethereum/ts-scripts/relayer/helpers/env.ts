@@ -223,7 +223,6 @@ export function loadMockIntegrations(): Deployment[] {
   }
 }
 
-
 export function loadCreate2Factories(): Deployment[] {
   const contractsFile = fs.readFileSync(
     `./ts-scripts/relayer/config/${env}/contracts.json`
@@ -257,9 +256,9 @@ export function loadGuardianKeys(): string[] {
   if (!guardianKey) {
     throw Error("Failed to find guardian key for this process!");
   }
-  if(guardianKey2) {
+  if (guardianKey2) {
     output.push(guardianKey2);
-  } 
+  }
   output.push(guardianKey);
   return output;
 }
@@ -338,6 +337,28 @@ export function fetchSetupAddressCreate2(
 
 const coreRelayerAddressesCache: Partial<Record<ChainId, string>> = {};
 export async function getCoreRelayerAddress(chain: ChainInfo): Promise<string> {
+  const contractsFile = fs.readFileSync(
+    `./ts-scripts/relayer/config/${env}/contracts.json`
+  );
+  if (!contractsFile) {
+    throw Error("Failed to find contracts file for this process!");
+  }
+  const contracts = JSON.parse(contractsFile.toString());
+  //If useLastRun is false, then we want to bypass the calculations and just use what the contracts file says.
+  if (!contracts.useLastRun && !lastRunOverride) {
+    const thisChainsRelayer = loadCoreRelayers().find(
+      (x: any) => x.chainId == chain.chainId
+    )?.address;
+    if (thisChainsRelayer) {
+      return thisChainsRelayer;
+    } else {
+      throw Error(
+        "Failed to find a CoreRelayer contract address on chain " +
+          chain.chainId
+      );
+    }
+  }
+
   if (!coreRelayerAddressesCache[chain.chainId]) {
     const create2Factory = getCreate2Factory(chain);
     const signer = getSigner(chain).address;
@@ -353,6 +374,7 @@ export async function getCoreRelayerAddress(chain: ChainInfo): Promise<string> {
       ethers.utils.solidityKeccak256(["bytes"], [data])
     );
   }
+
   return coreRelayerAddressesCache[chain.chainId]!;
 }
 
