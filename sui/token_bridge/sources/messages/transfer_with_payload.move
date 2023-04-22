@@ -14,7 +14,6 @@ module token_bridge::transfer_with_payload {
     use sui::object::{Self, ID};
     use wormhole::bytes::{Self};
     use wormhole::cursor::{Self};
-    use wormhole::emitter::{EmitterCap};
     use wormhole::external_address::{Self, ExternalAddress};
 
     use token_bridge::normalized_amount::{Self, NormalizedAmount};
@@ -49,10 +48,10 @@ module token_bridge::transfer_with_payload {
         payload: vector<u8>,
     }
 
-    /// Create new `TransferWithPayload` using Token Bridge's `EmitterCap` as
-    /// the sender.
-    public(friend) fun new_from_emitter(
-        emitter_cap: &EmitterCap,
+    /// Create new `TransferWithPayload` using a Token Bridge integrator's
+    /// emitter cap ID as the sender.
+    public(friend) fun new(
+        sender: ID,
         amount: NormalizedAmount,
         token_address: ExternalAddress,
         token_chain: u16,
@@ -66,14 +65,14 @@ module token_bridge::transfer_with_payload {
             token_chain,
             redeemer,
             redeemer_chain,
-            sender: external_address::from_id(object::id((emitter_cap))),
+            sender: external_address::from_id(sender),
             payload
         }
     }
 
     #[test_only]
-    public fun new_from_emitter_test_only(
-        emitter_cap: &EmitterCap,
+    public fun new_test_only(
+        sender: ID,
         amount: NormalizedAmount,
         token_address: ExternalAddress,
         token_chain: u16,
@@ -81,8 +80,8 @@ module token_bridge::transfer_with_payload {
         redeemer_chain: u16,
         payload: vector<u8>
     ): TransferWithPayload {
-        new_from_emitter(
-            emitter_cap,
+        new(
+            sender,
             amount,
             token_address,
             token_chain,
@@ -228,8 +227,8 @@ module token_bridge::transfer_with_payload_tests {
         let payload = b"All your base are belong to us.";
 
         let new_transfer =
-            transfer_with_payload::new_from_emitter_test_only(
-                &emitter_cap,
+            transfer_with_payload::new_test_only(
+                object::id(&emitter_cap),
                 amount,
                 token_address,
                 token_chain,
