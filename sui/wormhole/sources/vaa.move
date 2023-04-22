@@ -149,33 +149,6 @@ module wormhole::vaa {
         (emitter_chain, emitter_address, payload)
     }
 
-    /// This method only grabs the Wormhole message payload from a VAA.
-    ///
-    /// THIS DOES NOT PERFORM ANY VERIFICATION OF THE VAA!
-    ///
-    /// This method may be useful if there is a multi-step process that assumes
-    /// information in a VAA is legitimate and verification will happen in one
-    /// of its steps.
-    public fun peel_payload_from_vaa(buf: &vector<u8>): vector<u8> {
-        // Just make sure that we are passing version 1 VAAs to this method.
-        assert!(*vector::borrow(buf, 0) == VERSION_VAA, E_WRONG_VERSION);
-
-        // Find the location of the payload.
-        let num_signatures = (*vector::borrow(buf, 5) as u64);
-        let i = 57 + num_signatures * 66;
-
-        // Push the payload bytes to `out` and return.
-        let out = vector::empty();
-        let len = vector::length(buf);
-        while (i < len) {
-            vector::push_back(&mut out, *vector::borrow(buf, i));
-            i = i + 1;
-        };
-
-        // Return the payload.
-        out
-    }
-
     /// Parses and verifies the signatures of a VAA.
     ///
     /// NOTE: This is the only public function that returns a VAA, and it should
@@ -206,6 +179,24 @@ module wormhole::vaa {
 
     public fun consume(consumed: &mut ConsumedVAAs, parsed: &VAA) {
         consumed_vaas::consume(consumed, digest(parsed))
+    }
+
+    public fun compute_message_hash(parsed: &VAA): Bytes32 {
+        let buf = vector::empty();
+
+        bytes::push_u32_be(&mut buf, parsed.timestamp);
+        bytes::push_u32_be(&mut buf, parsed.nonce);
+        bytes::push_u16_be(&mut buf, parsed.emitter_chain);
+        vector::append(
+            &mut buf,
+            external_address::to_bytes(parsed.emitter_address)
+        );
+        bytes::push_u64_be(&mut buf, parsed.sequence);
+        bytes::push_u8(&mut buf, parsed.consistency_level);
+        vector::append(&mut buf, parsed.payload);
+
+        // Return hash.
+        bytes32::new(keccak256(&buf))
     }
 
     /// Parses a VAA.
@@ -354,22 +345,25 @@ module wormhole::vaa {
         take_payload(vaa);
     }
 
-    public fun compute_message_hash(parsed: &VAA): Bytes32 {
-        let buf = vector::empty();
+    #[test_only]
+    public fun peel_payload_from_vaa(buf: &vector<u8>): vector<u8> {
+        // Just make sure that we are passing version 1 VAAs to this method.
+        assert!(*vector::borrow(buf, 0) == VERSION_VAA, E_WRONG_VERSION);
 
-        bytes::push_u32_be(&mut buf, parsed.timestamp);
-        bytes::push_u32_be(&mut buf, parsed.nonce);
-        bytes::push_u16_be(&mut buf, parsed.emitter_chain);
-        vector::append(
-            &mut buf,
-            external_address::to_bytes(parsed.emitter_address)
-        );
-        bytes::push_u64_be(&mut buf, parsed.sequence);
-        bytes::push_u8(&mut buf, parsed.consistency_level);
-        vector::append(&mut buf, parsed.payload);
+        // Find the location of the payload.
+        let num_signatures = (*vector::borrow(buf, 5) as u64);
+        let i = 57 + num_signatures * 66;
 
-        // Return hash.
-        bytes32::new(keccak256(&buf))
+        // Push the payload bytes to `out` and return.
+        let out = vector::empty();
+        let len = vector::length(buf);
+        while (i < len) {
+            vector::push_back(&mut out, *vector::borrow(buf, i));
+            i = i + 1;
+        };
+
+        // Return the payload.
+        out
     }
 }
 

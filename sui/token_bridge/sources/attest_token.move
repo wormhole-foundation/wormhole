@@ -11,10 +11,8 @@
 /// message payload.
 module token_bridge::attest_token {
     use std::option::{Self};
-    use sui::clock::{Clock};
-    use sui::coin::{Coin, CoinMetadata};
-    use sui::sui::{SUI};
-    use wormhole::state::{State as WormholeState};
+    use sui::coin::{CoinMetadata};
+    use wormhole::publish_message::{PreparedMessage};
 
     use token_bridge::asset_meta::{Self};
     use token_bridge::create_wrapped::{Self};
@@ -36,12 +34,9 @@ module token_bridge::attest_token {
     /// See `token_registry` and `asset_meta` module for more info.
     public fun attest_token<CoinType>(
         token_bridge_state: &mut State,
-        worm_state: &mut WormholeState,
-        wormhole_fee: Coin<SUI>,
         coin_meta: &CoinMetadata<CoinType>,
-        nonce: u32,
-        the_clock: &Clock
-    ): u64 {
+        nonce: u32
+    ): PreparedMessage {
         state::check_minimum_requirement<AttestTokenControl>(
             token_bridge_state
         );
@@ -50,14 +45,11 @@ module token_bridge::attest_token {
         let encoded_asset_meta =
             serialize_asset_meta(token_bridge_state, coin_meta);
 
-        // Publish.
-        state::publish_wormhole_message(
+        // Prepare Wormhole message.
+        state::prepare_wormhole_message(
             token_bridge_state,
-            worm_state,
             nonce,
-            encoded_asset_meta,
-            wormhole_fee,
-            the_clock
+            encoded_asset_meta
         )
     }
 
@@ -115,6 +107,7 @@ module token_bridge::attest_token_tests {
     use std::string::{Self};
     use sui::coin::{Self};
     use sui::test_scenario::{Self};
+    use wormhole::publish_message::{Self};
     use wormhole::state::{chain_id};
 
     use token_bridge::asset_meta::{Self};
@@ -125,13 +118,9 @@ module token_bridge::attest_token_tests {
     use token_bridge::state::{Self};
     use token_bridge::token_bridge_scenario::{
         person,
-        return_clock,
         return_state,
-        return_states,
         set_up_wormhole_and_token_bridge,
-        take_clock,
         take_state,
-        take_states
     };
     use token_bridge::token_registry::{Self};
 
@@ -153,29 +142,19 @@ module token_bridge::attest_token_tests {
         // Ignore effects.
         test_scenario::next_tx(scenario, user);
 
-        let (token_bridge_state, worm_state) = take_states(scenario);
-        let the_clock = take_clock(scenario);
+        let token_bridge_state = take_state(scenario);
         let coin_meta = coin_native_10::take_metadata(scenario);
 
         // Emit `AssetMeta` payload.
-        let sequence =
+        let prepared_msg =
             attest_token(
                 &mut token_bridge_state,
-                &mut worm_state,
-                coin::mint_for_testing(
-                    wormhole_fee,
-                    test_scenario::ctx(scenario)
-                ),
                 &coin_meta,
                 1234, // nonce
-                &the_clock
             );
-        assert!(sequence == 0, 0);
 
-        // Check that Wormhole message was emitted.
-        let effects = test_scenario::next_tx(scenario, user);
-        let num_events = test_scenario::num_user_events(&effects);
-        assert!(num_events == 1, 0);
+        // Ignore effects.
+        test_scenario::next_tx(scenario, user);
 
         // Check that asset is registered.
         {
@@ -205,6 +184,9 @@ module token_bridge::attest_token_tests {
             assert!(native_asset::custody(asset) == 0, 0);
         };
 
+        // Clean up for next call.
+        publish_message::destroy(prepared_msg);
+
         // Update metadata.
         let new_symbol = {
             use std::vector::{Self};
@@ -224,23 +206,16 @@ module token_bridge::attest_token_tests {
         coin::update_name(&treasury_cap, &mut coin_meta, new_name);
 
         // We should be able to call `attest_token` any time after.
-        let sequence =
+        let prepared_msg =
             attest_token(
                 &mut token_bridge_state,
-                &mut worm_state,
-                coin::mint_for_testing(
-                    wormhole_fee,
-                    test_scenario::ctx(scenario)
-                ),
                 &coin_meta,
                 1234, // nonce
-                &the_clock
             );
-        assert!(sequence == 1, 0);
 
         // Clean up.
-        return_states(token_bridge_state, worm_state);
-        return_clock(the_clock);
+        publish_message::destroy(prepared_msg);
+        return_state(token_bridge_state);
         coin_native_10::return_globals(treasury_cap, coin_meta);
 
         // Done.
@@ -336,26 +311,20 @@ module token_bridge::attest_token_tests {
         // Ignore effects.
         test_scenario::next_tx(scenario, user);
 
-        let (token_bridge_state, worm_state) = take_states(scenario);
-        let the_clock = take_clock(scenario);
+        let token_bridge_state = take_state(scenario);
         let coin_meta = test_scenario::take_shared(scenario);
 
         // You shall not pass!
-        attest_token<COIN_WRAPPED_7>(
-            &mut token_bridge_state,
-            &mut worm_state,
-            coin::mint_for_testing(
-                wormhole_fee,
-                test_scenario::ctx(scenario)
-            ),
-            &coin_meta,
-            1234, // nonce
-            &the_clock
-        );
+        let prepared_msg =
+            attest_token<COIN_WRAPPED_7>(
+                &mut token_bridge_state,
+                &coin_meta,
+                1234 // nonce
+            );
 
         // Clean up.
-        return_states(token_bridge_state, worm_state);
-        return_clock(the_clock);
+        publish_message::destroy(prepared_msg);
+        return_state(token_bridge_state);
         test_scenario::return_shared(coin_meta);
 
         // Done.

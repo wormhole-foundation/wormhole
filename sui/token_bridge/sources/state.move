@@ -7,19 +7,17 @@
 /// checking the emitter against its own registered emitters.
 module token_bridge::state {
     use std::option::{Self, Option};
-    use sui::clock::{Clock};
-    use sui::coin::{Coin};
     use sui::dynamic_field::{Self as field};
     use sui::event::{Self};
     use sui::object::{Self, ID, UID};
     use sui::package::{Self, UpgradeCap, UpgradeReceipt, UpgradeTicket};
-    use sui::sui::{SUI};
     use sui::table::{Self, Table};
     use sui::tx_context::{TxContext};
     use wormhole::bytes32::{Self, Bytes32};
     use wormhole::consumed_vaas::{Self, ConsumedVAAs};
     use wormhole::emitter::{Self, EmitterCap};
     use wormhole::external_address::{ExternalAddress};
+    use wormhole::publish_message::{PreparedMessage};
     use wormhole::required_version::{Self, RequiredVersion};
     use wormhole::state::{State as WormholeState};
     use wormhole::vaa::{Self, VAA};
@@ -252,23 +250,15 @@ module token_bridge::state {
     }
 
     /// Publish Wormhole message using Token Bridge's `EmitterCap`.
-    public(friend) fun publish_wormhole_message(
+    public(friend) fun prepare_wormhole_message(
         self: &mut State,
-        worm_state: &mut WormholeState,
         nonce: u32,
-        payload: vector<u8>,
-        message_fee: Coin<SUI>,
-        the_clock: &Clock
-    ): u64 {
-        use wormhole::publish_message::{publish_message};
-
-        publish_message(
-            worm_state,
+        payload: vector<u8>
+    ): PreparedMessage {
+        wormhole::publish_message::prepare_message(
             &mut self.emitter_cap,
             nonce,
             payload,
-            message_fee,
-            the_clock
         )
     }
 
