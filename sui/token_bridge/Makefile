@@ -1,15 +1,15 @@
 -include ../../Makefile.help
 
-.PHONY: artifacts
-artifacts: build
+.PHONY: clean
+clean:
+	rm -rf build
 
-.PHONY: build
+.PHONY: check
 ## Build contract
-build:
-	sui move build
+check:
+	sui move build -d
 
 .PHONY: test
 ## Run tests
-test:
-	sui move build -d || exit $?
+test: check
 	sui move test -t 1
