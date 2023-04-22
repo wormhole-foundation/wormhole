@@ -4,11 +4,9 @@
 module token_bridge::token_bridge_scenario {
     use std::vector::{Self};
     use sui::balance::{Self};
-    use sui::clock::{Clock};
     use sui::package::{UpgradeCap};
     use sui::test_scenario::{Self, Scenario};
     use wormhole::external_address::{Self};
-    use wormhole::state::{State as WormholeState};
     use wormhole::wormhole_scenario::{
         deployer,
         return_state as return_wormhole_state,
@@ -107,28 +105,5 @@ module token_bridge::token_bridge_scenario {
 
     public fun return_state(token_bridge_state: State) {
         test_scenario::return_shared(token_bridge_state);
-    }
-
-    public fun take_states(scenario: &Scenario): (State, WormholeState) {
-        (
-            test_scenario::take_shared<State>(scenario),
-            test_scenario::take_shared<WormholeState>(scenario)
-        )
-    }
-
-    public fun return_states(
-        token_bridge_state: State,
-        worm_state: WormholeState
-    ) {
-        return_state(token_bridge_state);
-        wormhole::wormhole_scenario::return_state(worm_state);
-    }
-
-    public fun take_clock(scenario: &mut Scenario): Clock {
-        wormhole::wormhole_scenario::take_clock(scenario)
-    }
-
-    public fun return_clock(the_clock: Clock) {
-        wormhole::wormhole_scenario::return_clock(the_clock)
     }
 }

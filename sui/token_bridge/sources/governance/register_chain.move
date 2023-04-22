@@ -91,16 +91,14 @@ module token_bridge::register_chain_tests {
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self};
     use wormhole::governance_message::{Self};
-    use wormhole::vaa::{Self};
+    use wormhole::wormhole_scenario::{parse_and_verify_governance_vaa};
 
     use token_bridge::state::{Self};
     use token_bridge::token_bridge_scenario::{
         person,
-        return_clock,
-        return_states,
+        return_state,
         set_up_wormhole_and_token_bridge,
-        take_clock,
-        take_states
+        take_state
     };
 
     const VAA_REGISTER_CHAIN_1: vector<u8> =
@@ -125,8 +123,7 @@ module token_bridge::register_chain_tests {
         // Prepare test to execute `set_fee`.
         test_scenario::next_tx(scenario, caller);
 
-        let (token_bridge_state, worm_state) = take_states(scenario);
-        let the_clock = take_clock(scenario);
+        let token_bridge_state = take_state(scenario);
 
         // Check that the emitter is not registered.
         let expected_chain = 2;
@@ -135,13 +132,8 @@ module token_bridge::register_chain_tests {
             assert!(!table::contains(registry, expected_chain), 0);
         };
 
-        let verified_vaa =
-            vaa::parse_and_verify(
-                &worm_state,
-                VAA_REGISTER_CHAIN_1,
-                &the_clock
-            );
-        let msg = governance_message::verify_vaa(&worm_state, verified_vaa);
+        let msg =
+            parse_and_verify_governance_vaa(scenario, VAA_REGISTER_CHAIN_1);
         let (
             chain,
             contract_address
@@ -159,8 +151,7 @@ module token_bridge::register_chain_tests {
         };
 
         // Clean up.
-        return_states(token_bridge_state, worm_state);
-        return_clock(the_clock);
+        return_state(token_bridge_state);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -184,16 +175,10 @@ module token_bridge::register_chain_tests {
         // Prepare test to execute `set_fee`.
         test_scenario::next_tx(scenario, caller);
 
-        let (token_bridge_state, worm_state) = take_states(scenario);
-        let the_clock = take_clock(scenario);
+        let token_bridge_state = take_state(scenario);
 
-        let verified_vaa =
-            vaa::parse_and_verify(
-                &worm_state,
-                VAA_REGISTER_CHAIN_1,
-                &the_clock
-            );
-        let msg = governance_message::verify_vaa(&worm_state, verified_vaa);
+        let msg =
+            parse_and_verify_governance_vaa(scenario, VAA_REGISTER_CHAIN_1);
         let (
             chain,
             _
@@ -206,15 +191,14 @@ module token_bridge::register_chain_tests {
                 chain
             );
 
+        // Ignore effects.
+        test_scenario::next_tx(scenario, caller);
+
         let payload =
             governance_message::take_payload(
-                governance_message::verify_vaa(
-                    &worm_state,
-                    vaa::parse_and_verify(
-                        &worm_state,
-                        VAA_REGISTER_SAME_CHAIN,
-                        &the_clock
-                    )
+                parse_and_verify_governance_vaa(
+                    scenario,
+                    VAA_REGISTER_SAME_CHAIN
                 )
             );
         let cur = cursor::new(payload);
@@ -226,21 +210,18 @@ module token_bridge::register_chain_tests {
         let another_contract = external_address::take_bytes(&mut cur);
         assert!(another_contract != expected_contract, 0);
 
-        let verified_vaa =
-            vaa::parse_and_verify(
-                &worm_state,
-                VAA_REGISTER_SAME_CHAIN,
-                &the_clock
-            );
-        let msg = governance_message::verify_vaa(&worm_state, verified_vaa);
+        // Ignore effects.
+        test_scenario::next_tx(scenario, caller);
+
+        let msg =
+            parse_and_verify_governance_vaa(scenario, VAA_REGISTER_SAME_CHAIN);
 
         // You shall not pass!
         register_chain(&mut token_bridge_state, msg);
 
         // Clean up.
         cursor::destroy_empty(cur);
-        return_states(token_bridge_state, worm_state);
-        return_clock(the_clock);
+        return_state(token_bridge_state);
 
         // Done.
         test_scenario::end(my_scenario);
