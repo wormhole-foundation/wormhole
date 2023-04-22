@@ -251,13 +251,24 @@ export function loadCreate2Factories(): Deployment[] {
 //potentially from devnet-consts
 export function loadGuardianKeys(): string[] {
   const output = [];
+  const NUM_GUARDIANS = get_env_var("NUM_GUARDIANS");
+
   const guardianKey = get_env_var("GUARDIAN_KEY");
   const guardianKey2 = get_env_var("GUARDIAN_KEY2");
-  if (!guardianKey) {
-    throw Error("Failed to find guardian key for this process!");
-  }
-  if (guardianKey2) {
+
+  console.log("NUM_GUARDIANS variable : " + NUM_GUARDIANS);
+
+  if (!NUM_GUARDIANS || NUM_GUARDIANS == "1") {
+    if (!guardianKey) {
+      throw Error("Failed to find guardian key for this process!");
+    }
+  } else if (NUM_GUARDIANS == "2") {
+    if (!guardianKey2) {
+      throw Error("Failed to find guardian key 2 for this process!");
+    }
     output.push(guardianKey2);
+  } else {
+    throw Error("Invalid NUM_GUARDIANS environment variable!");
   }
   output.push(guardianKey);
   return output;

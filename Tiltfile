@@ -450,6 +450,7 @@ docker_build(
 
     # ignore local node_modules (in case they're present)
     ignore = ["./node_modules", "./ts-test"],
+    build_args = {"num_guardians": str(num_guardians)},
 
     # sync external scripts for incremental development
     # (everything else needs to be restarted from scratch for determinism)

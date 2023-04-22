@@ -61,7 +61,9 @@ export function createDefaultRelayProviderVAA(chain: ChainInfo) {
   return encodeAndSignGovernancePayload(payload);
 }
 
-export async function createRegisterChainVAA(chain: ChainInfo): Promise<string> {
+export async function createRegisterChainVAA(
+  chain: ChainInfo
+): Promise<string> {
   const coreRelayerAddress = await getCoreRelayerAddress(chain);
   console.log(`Registering ${coreRelayerAddress} on chain ${chain.chainId}`);
 
