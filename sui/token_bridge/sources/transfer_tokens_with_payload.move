@@ -1,8 +1,37 @@
 // SPDX-License-Identifier: Apache 2
 
-/// This module implements the method `transfer_tokens_with_payload` which
-/// allows someone to bridge assets out of Sui to be redeemed on a foreign
-/// network.
+/// This module implements three methods: `prepare_transfer`,
+/// `transfer_tokens_with_payload` and `transfer_tokens_with_payload_from_tx`.
+/// `prepare_transfer` and `transfer_tokens_with_payload` are meant to work
+/// together while `transfer_tokens_with_payload_from_tx` executes both in one
+/// call.
+///
+/// `prepare_transfer` allows a contract to pack token transfer parameters with
+/// an arbitrary payload in preparation to bridge these assets to another
+/// network. Only an `EmitterCap` has the capability to create
+/// `PreparedTransferWithPayload`. The `EmitterCap` object ID is encoded as the
+/// sender.
+///
+/// `transfer_tokens_with_payload` unpacks the `PreparedTransferWithPayload` and
+/// constructs a `PreparedMessage`, which will be used by Wormhole's
+/// `publish_message` module.
+///
+/// The purpose of splitting this token transferring into two steps is in case
+/// Token Bridge needs to be upgraded and there is a breaking change for this
+/// module, an integrator would not be left broken. It is discouraged to put
+/// `transfer_tokens_with_payload` in an integrator's package logic. Otherwise,
+/// this integrator needs to be prepared to upgrade his contract to handle the
+/// latest version of `transfer_tokens_with_payload`.
+///
+/// Instead, an integrator is encouraged to execute a transaction block, which
+/// executes `transfer_tokens_with_payload` using the latest Token Bridge
+/// package ID and to implement `prepare_transfer` in his contract to produce
+/// `PrepareTransferWithPayload`.
+///
+/// Alternatively, `transfer_tokens_with_payload_from_tx` is meant to be
+/// executed directly from a transaction, which provides the convenience of
+/// sending dust back to the transaction sender and constructing
+/// `PreparedMessage` in one call.
 ///
 /// NOTE: Only assets that exist in the `TokenRegistry` can be bridged out,
 /// which are native Sui assets that have been attested for via `attest_token`
@@ -12,110 +41,232 @@
 /// See `transfer_with_payload` module for serialization and deserialization of
 /// Wormhole message payload.
 module token_bridge::transfer_tokens_with_payload {
+    use sui::balance::{Balance};
     use sui::coin::{Coin};
+    use sui::object::{Self, ID};
+    use sui::tx_context::{TxContext};
     use wormhole::bytes32::{Self};
     use wormhole::emitter::{EmitterCap};
-    use wormhole::external_address::{Self, ExternalAddress};
+    use wormhole::external_address::{Self};
     use wormhole::publish_message::{PreparedMessage};
 
+    use token_bridge::normalized_amount::{NormalizedAmount};
     use token_bridge::state::{Self, State};
+    use token_bridge::token_registry::{VerifiedAsset};
     use token_bridge::transfer_with_payload::{Self};
     use token_bridge::version_control::{
         TransferTokensWithPayload as TransferTokensWithPayloadControl
     };
 
-    /// `transfer_tokens_with_payload` takes a `Coin` object of a coin type and
-    /// bridges this asset out of Sui by either joining its balance in the
-    /// Token Bridge's custody for native assets or burning its balance
-    /// for wrapped assets.
-    ///
-    /// The `EmitterCap` is encoded as the sender of these assets. And
-    /// associated with this transfer is an arbitrary payload, which can be
-    /// consumed by the specified redeemer and used as instructions for a
-    /// contract composing with Token Bridge.
-    ///
-    /// See `token_registry and `transfer_with_payload` module for more info.
-    public fun transfer_tokens_with_payload<CoinType>(
-        token_bridge_state: &mut State,
-        emitter_cap: &EmitterCap,
-        bridged_in: Coin<CoinType>,
+    /// This type represents transfer data for a specific redeemer contract on a
+    /// foreign chain. The only way to destroy this type is calling
+    /// `transfer_tokens_with_payload`. Only the owner of an `EmitterCap` has
+    /// the capability of generating `PreparedTransferWithPayload`. This emitter
+    /// cap will usually live in an integrator's contract storage object.
+    struct PreparedTransferWithPayload<phantom CoinType> {
+        asset_info: VerifiedAsset<CoinType>,
+        bridged_in: Balance<CoinType>,
+        norm_amount: NormalizedAmount,
+        sender: ID,
         redeemer_chain: u16,
         redeemer: vector<u8>,
         payload: vector<u8>,
         nonce: u32
-    ): (PreparedMessage, Coin<CoinType>) {
+    }
+
+    /// `prepare_transfer` constructs token transfer parameters. Any remaining
+    /// amount (A.K.A. dust) from the funds provided will be returned along with
+    /// the `PreparedTransferWithPayload` type. The returned coin object is the
+    /// same object moved into this method.
+    ///
+    /// NOTE: Integrators of Token Bridge should be calling only this method
+    /// from their contracts. This method is not guarded by version control
+    /// (thus not requiring a reference to the Token Bridge `State` object), so
+    /// it is intended to work for any package version.
+    public fun prepare_transfer<CoinType>(
+        emitter_cap: &EmitterCap,
+        asset_info: VerifiedAsset<CoinType>,
+        funded: Coin<CoinType>,
+        redeemer_chain: u16,
+        redeemer: vector<u8>,
+        payload: vector<u8>,
+        nonce: u32
+    ): (
+        PreparedTransferWithPayload<CoinType>,
+        Coin<CoinType>
+    ) {
+        use token_bridge::transfer_tokens::{take_truncated_amount};
+
+        let (
+            bridged_in,
+            norm_amount
+        ) = take_truncated_amount(&asset_info, &mut funded);
+
+        let prepared_transfer =
+            PreparedTransferWithPayload {
+                asset_info,
+                bridged_in,
+                norm_amount,
+                sender: object::id(emitter_cap),
+                redeemer_chain,
+                redeemer,
+                payload,
+                nonce
+            };
+
+        // The remaining amount of funded may have dust depending on the
+        // decimals of this asset.
+        (prepared_transfer, funded)
+    }
+
+    /// `transfer_tokens_with_payload` is the only method that can unpack the
+    /// members of `PreparedTransferWithPayload`. This method takes the balance
+    /// from this type and bridges this asset out of Sui by either joining its
+    /// balance in the Token Bridge's custody for native assets or burning its
+    /// balance for wrapped assets.
+    ///
+    /// The unpacked sender ID comes from an `EmitterCap`. It is encoded as the
+    /// sender of these assets. And associated with this transfer is an
+    /// arbitrary payload, which can be consumed by the specified redeemer and
+    /// used as instructions for a contract composing with Token Bridge.
+    ///
+    /// This method returns the prepared Wormhole message (which should be
+    /// consumed by calling `publish_message` in a transaction block).
+    ///
+    /// NOTE: This method is guarded by a minimum build version check. This
+    /// method could break backward compatibility on an upgrade.
+    ///
+    /// It is important for integrators to refrain from calling this method
+    /// within their contracts. This method is meant to be called in a
+    /// tranasction block after receiving a `PreparedTransfer` from calling
+    /// `prepare_transfer` within a contract. If in a circumstance where this
+    /// module has a breaking change in an upgrade, `prepare_transfer` will not
+    /// be affected by this change.
+    public fun transfer_tokens_with_payload<CoinType>(
+        token_bridge_state: &mut State,
+        prepared_transfer: PreparedTransferWithPayload<CoinType>
+    ): PreparedMessage {
         state::check_minimum_requirement<TransferTokensWithPayloadControl>(
             token_bridge_state
         );
 
         // Encode Wormhole message payload.
-        let encoded_transfer_with_payload =
+        let (
+            nonce,
+            encoded_transfer_with_payload
+         ) =
             bridge_in_and_serialize_transfer(
                 token_bridge_state,
+                prepared_transfer
+            );
+
+        // Prepare Wormhole message with encoded `TransferWithPayload`.
+        state::prepare_wormhole_message(
+            token_bridge_state,
+            nonce,
+            encoded_transfer_with_payload
+        )
+    }
+
+    /// `transfer_tokens_with_payload_from_tx` constructs token transfer
+    /// parameters like in `prepare_transfer` and executes
+    /// `transfer_tokens_with_payload`. This method is meant to provide a
+    /// convenient way to bridge assets in one action, returning the prepared
+    /// Wormhole message (which should be consumed by calling `publish_message`
+    /// in a transaction block). Any remaining amount (A.K.A. dust) from the
+    /// funds provided will be sent back to the transaction sender. The
+    /// returned coin object is the same object moved into this method.
+    ///
+    /// NOTE: This method is guarded by a minimum build version check via
+    /// `transfer_tokens_with_payload`. This method could break backward
+    /// compatibility on an upgrade. It is important for integrators to refrain
+    /// from calling this method within their contracts.
+    public fun transfer_tokens_with_payload_from_tx<CoinType>(
+        token_bridge_state: &mut State,
+        emitter_cap: &EmitterCap,
+        funded: Coin<CoinType>,
+        redeemer_chain: u16,
+        redeemer: vector<u8>,
+        payload: vector<u8>,
+        nonce: u32,
+        ctx: &TxContext
+    ): PreparedMessage {
+        let (
+            prepared_transfer,
+            dust
+        ) =
+            prepare_transfer(
                 emitter_cap,
-                &mut bridged_in,
+                state::verified_asset(token_bridge_state),
+                funded,
                 redeemer_chain,
-                external_address::new(bytes32::from_bytes(redeemer)),
-                payload
+                redeemer,
+                payload,
+                nonce
             );
 
-        // Publish.
-        let prepared_msg =
-            state::prepare_wormhole_message(
-                token_bridge_state,
-                nonce,
-                encoded_transfer_with_payload
-            );
+        // Either destroy dust if it has zero value or send it back to the
+        // transaction sender.
+        token_bridge::coin_utils::return_nonzero(dust, ctx);
 
-        (prepared_msg, bridged_in)
+        // Finally bridge asests out.
+        transfer_tokens_with_payload(token_bridge_state, prepared_transfer)
     }
 
     fun bridge_in_and_serialize_transfer<CoinType>(
         token_bridge_state: &mut State,
-        emitter_cap: &EmitterCap,
-        bridged_in: &mut Coin<CoinType>,
-        redeemer_chain: u16,
-        redeemer: ExternalAddress,
-        payload: vector<u8>
-    ): vector<u8> {
-        use token_bridge::transfer_tokens::{verify_and_bridge_in};
+        prepared_transfer: PreparedTransferWithPayload<CoinType>
+    ): (
+        u32,
+        vector<u8>
+    ) {
+        use token_bridge::transfer_tokens::{burn_or_deposit_funds};
+
+        let PreparedTransferWithPayload {
+            asset_info,
+            bridged_in,
+            norm_amount,
+            sender,
+            redeemer_chain,
+            redeemer,
+            payload,
+            nonce
+        } = prepared_transfer;
 
         let (
             token_chain,
-            token_address,
-            norm_amount,
-            _
-        ) = verify_and_bridge_in(token_bridge_state, bridged_in, 0);
+            token_address
+        ) = burn_or_deposit_funds(token_bridge_state, &asset_info, bridged_in);
 
-        transfer_with_payload::serialize(
-            transfer_with_payload::new_from_emitter(
-                emitter_cap,
-                norm_amount,
-                token_address,
-                token_chain,
-                redeemer,
-                redeemer_chain,
-                payload
-            )
-        )
+        let redeemer = external_address::new(bytes32::from_bytes(redeemer));
+
+        let encoded =
+            transfer_with_payload::serialize(
+                transfer_with_payload::new(
+                    sender,
+                    norm_amount,
+                    token_address,
+                    token_chain,
+                    redeemer,
+                    redeemer_chain,
+                    payload
+                )
+            );
+
+        (nonce, encoded)
     }
 
     #[test_only]
     public fun bridge_in_and_serialize_transfer_test_only<CoinType>(
         token_bridge_state: &mut State,
-        emitter_cap: &EmitterCap,
-        bridged_in: &mut Coin<CoinType>,
-        redeemer_chain: u16,
-        redeemer: vector<u8>,
-        payload: vector<u8>
-    ): vector<u8> {
+        prepared_transfer: PreparedTransferWithPayload<CoinType>
+    ): (
+        u32,
+        vector<u8>
+    ) {
         bridge_in_and_serialize_transfer(
             token_bridge_state,
-            emitter_cap,
-            bridged_in,
-            redeemer_chain,
-            external_address::new(bytes32::from_bytes(redeemer)),
-            payload
+            prepared_transfer
         )
     }
 }
@@ -123,6 +274,7 @@ module token_bridge::transfer_tokens_with_payload {
 #[test_only]
 module token_bridge::transfer_tokens_with_payload_tests {
     use sui::coin::{Self};
+    use sui::object::{Self};
     use sui::test_scenario::{Self};
     use wormhole::bytes32::{Self};
     use wormhole::emitter::{Self};
@@ -157,6 +309,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
     #[test]
     fun test_transfer_tokens_with_payload_native_10() {
         use token_bridge::transfer_tokens_with_payload::{
+            prepare_transfer,
             transfer_tokens_with_payload
         };
 
@@ -194,27 +347,34 @@ module token_bridge::transfer_tokens_with_payload_tests {
             assert!(native_asset::custody(asset) == 0, 0);
         };
 
-        // Cache context.
-        let ctx = test_scenario::ctx(scenario);
-
         // Register and obtain a new wormhole emitter cap.
         let emitter_cap = emitter::dummy();
 
-        // Call `transfer_tokens_with_payload`.
+        let asset_info = state::verified_asset(&token_bridge_state);
         let (
-            prepared_msg,
+            prepared_transfer,
             dust
         ) =
-            transfer_tokens_with_payload(
-                &mut token_bridge_state,
+            prepare_transfer(
                 &emitter_cap,
-                coin::from_balance(coin_10_balance, ctx),
+                asset_info,
+                coin::from_balance(
+                    coin_10_balance,
+                    test_scenario::ctx(scenario)
+                ),
                 TEST_TARGET_CHAIN,
                 TEST_TARGET_RECIPIENT,
                 TEST_MESSAGE_PAYLOAD,
-                TEST_NONCE
+                TEST_NONCE,
             );
         coin::destroy_zero(dust);
+
+        // Call `transfer_tokens_with_payload`.
+        let prepared_msg =
+            transfer_tokens_with_payload(
+                &mut token_bridge_state,
+                prepared_transfer
+            );
 
         // Balance check the Token Bridge after executing the transfer. The
         // balance should now reflect the `transfer_amount` defined in this
@@ -237,6 +397,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
     #[test]
     fun test_transfer_tokens_native_10_with_dust_refund() {
         use token_bridge::transfer_tokens_with_payload::{
+            prepare_transfer,
             transfer_tokens_with_payload
         };
 
@@ -277,27 +438,34 @@ module token_bridge::transfer_tokens_with_payload_tests {
             assert!(native_asset::custody(asset) == 0, 0);
         };
 
-        // Cache context.
-        let ctx = test_scenario::ctx(scenario);
-
         // Register and obtain a new wormhole emitter cap.
         let emitter_cap = emitter::dummy();
 
-        // Call `transfer_tokens`.
+        let asset_info = state::verified_asset(&token_bridge_state);
         let (
-            prepared_msg,
+            prepared_transfer,
             dust
         ) =
-            transfer_tokens_with_payload(
-                &mut token_bridge_state,
+            prepare_transfer(
                 &emitter_cap,
-                coin::from_balance(coin_10_balance, ctx),
+                asset_info,
+                coin::from_balance(
+                    coin_10_balance,
+                    test_scenario::ctx(scenario)
+                ),
                 TEST_TARGET_CHAIN,
                 TEST_TARGET_RECIPIENT,
                 TEST_MESSAGE_PAYLOAD,
-                TEST_NONCE
+                TEST_NONCE,
             );
         assert!(coin::value(&dust) == expected_dust, 0);
+
+        // Call `transfer_tokens`.
+        let prepared_msg =
+            transfer_tokens_with_payload(
+                &mut token_bridge_state,
+                prepared_transfer
+            );
 
         // Balance check the Token Bridge after executing the transfer. The
         // balance should now reflect the `transfer_amount` less `expected_dust`
@@ -324,7 +492,8 @@ module token_bridge::transfer_tokens_with_payload_tests {
     #[test]
     fun test_serialize_transfer_tokens_native_10() {
         use token_bridge::transfer_tokens_with_payload::{
-            bridge_in_and_serialize_transfer_test_only
+            bridge_in_and_serialize_transfer_test_only,
+            prepare_transfer
         };
 
         let sender = person();
@@ -359,33 +528,45 @@ module token_bridge::transfer_tokens_with_payload_tests {
         // Register and obtain a new wormhole emitter cap.
         let emitter_cap = emitter::dummy();
 
-        // Serialize the payload.
-        let payload =
-            bridge_in_and_serialize_transfer_test_only(
-                &mut token_bridge_state,
+        let asset_info = state::verified_asset(&token_bridge_state);
+        let expected_token_address = token_registry::token_address(&asset_info);
+
+        let (
+            prepared_transfer,
+            dust
+        ) =
+            prepare_transfer(
                 &emitter_cap,
-                &mut bridge_coin_10,
+                asset_info,
+                bridge_coin_10,
                 TEST_TARGET_CHAIN,
                 TEST_TARGET_RECIPIENT,
-                TEST_MESSAGE_PAYLOAD
+                TEST_MESSAGE_PAYLOAD,
+                TEST_NONCE,
             );
-        coin::destroy_zero(bridge_coin_10);
+        coin::destroy_zero(dust);
+
+        // Serialize the payload.
+        let (
+            nonce,
+            payload
+         ) =
+            bridge_in_and_serialize_transfer_test_only(
+                &mut token_bridge_state,
+                prepared_transfer
+            );
+        assert!(nonce == TEST_NONCE, 0);
 
         // Construct expected payload from scratch and confirm that the
         // `transfer_tokens` call produces the same payload.
-        let expected_token_address = token_registry::token_address<COIN_NATIVE_10>(
-            &state::verified_asset<COIN_NATIVE_10>(
-                &token_bridge_state
-            )
-        );
         let expected_amount = normalized_amount::from_raw(
             transfer_amount,
             TEST_COIN_NATIVE_10_DECIMALS
         );
 
         let expected_payload =
-            transfer_with_payload::new_from_emitter_test_only(
-                &emitter_cap,
+            transfer_with_payload::new_test_only(
+                object::id(&emitter_cap),
                 expected_amount,
                 expected_token_address,
                 chain_id(),
@@ -409,6 +590,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
     #[test]
     fun test_transfer_tokens_with_payload_wrapped_7() {
         use token_bridge::transfer_tokens_with_payload::{
+            prepare_transfer,
             transfer_tokens_with_payload
         };
 
@@ -448,14 +630,14 @@ module token_bridge::transfer_tokens_with_payload_tests {
         // Register and obtain a new wormhole emitter cap.
         let emitter_cap = emitter::dummy();
 
-        // Call `transfer_tokens_with_payload`.
+        let asset_info = state::verified_asset(&token_bridge_state);
         let (
-            prepared_msg,
+            prepared_transfer,
             dust
         ) =
-            transfer_tokens_with_payload(
-                &mut token_bridge_state,
+            prepare_transfer(
                 &emitter_cap,
+                asset_info,
                 coin::from_balance(
                     coin_7_balance,
                     test_scenario::ctx(scenario)
@@ -463,9 +645,16 @@ module token_bridge::transfer_tokens_with_payload_tests {
                 TEST_TARGET_CHAIN,
                 TEST_TARGET_RECIPIENT,
                 TEST_MESSAGE_PAYLOAD,
-                TEST_NONCE
+                TEST_NONCE,
             );
         coin::destroy_zero(dust);
+
+        // Call `transfer_tokens_with_payload`.
+        let prepared_msg =
+            transfer_tokens_with_payload(
+                &mut token_bridge_state,
+                prepared_transfer
+            );
 
         // Balance check the Token Bridge after executing the transfer. The
         // balance should be zero, since tokens are burned when an outbound
@@ -488,7 +677,8 @@ module token_bridge::transfer_tokens_with_payload_tests {
     #[test]
     fun test_serialize_transfer_tokens_wrapped_7() {
         use token_bridge::transfer_tokens_with_payload::{
-            bridge_in_and_serialize_transfer_test_only
+            bridge_in_and_serialize_transfer_test_only,
+            prepare_transfer
         };
 
         let sender = person();
@@ -523,38 +713,46 @@ module token_bridge::transfer_tokens_with_payload_tests {
         // Register and obtain a new wormhole emitter cap.
         let emitter_cap = emitter::dummy();
 
-        // Serialize the payload.
-        let payload =
-            bridge_in_and_serialize_transfer_test_only(
-                &mut token_bridge_state,
+        let asset_info = state::verified_asset(&token_bridge_state);
+        let expected_token_address = token_registry::token_address(&asset_info);
+        let expected_token_chain = token_registry::token_chain(&asset_info);
+
+        let (
+            prepared_transfer,
+            dust
+        ) =
+            prepare_transfer(
                 &emitter_cap,
-                &mut bridged_coin_7,
+                asset_info,
+                bridged_coin_7,
                 TEST_TARGET_CHAIN,
                 TEST_TARGET_RECIPIENT,
-                TEST_MESSAGE_PAYLOAD
+                TEST_MESSAGE_PAYLOAD,
+                TEST_NONCE,
             );
-        coin::destroy_zero(bridged_coin_7);
+        coin::destroy_zero(dust);
+
+        // Serialize the payload.
+        let (
+            nonce,
+            payload
+         ) =
+            bridge_in_and_serialize_transfer_test_only(
+                &mut token_bridge_state,
+                prepared_transfer
+            );
+        assert!(nonce == TEST_NONCE, 0);
 
         // Construct expected payload from scratch and confirm that the
         // `transfer_tokens` call produces the same payload.
-        let expected_token_address = token_registry::token_address<COIN_WRAPPED_7>(
-            &state::verified_asset<COIN_WRAPPED_7>(
-                &token_bridge_state
-            )
-        );
-        let expected_token_chain = token_registry::token_chain<COIN_WRAPPED_7>(
-            &state::verified_asset<COIN_WRAPPED_7>(
-                &token_bridge_state
-            )
-        );
         let expected_amount = normalized_amount::from_raw(
             transfer_amount,
             TEST_COIN_WRAPPED_7_DECIMALS
         );
 
         let expected_payload =
-            transfer_with_payload::new_from_emitter_test_only(
-                &emitter_cap,
+            transfer_with_payload::new_test_only(
+                object::id(&emitter_cap),
                 expected_amount,
                 expected_token_address,
                 expected_token_chain,
