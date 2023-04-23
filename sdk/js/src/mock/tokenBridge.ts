@@ -51,10 +51,10 @@ export class MockTokenBridge extends MockEmitter {
     serialized.writeUInt8(decimals, 35);
     // truncate to 32 characters
     symbol = symbol.substring(0, 32);
-    serialized.write(symbol, 68 - symbol.length);
+    serialized.write(symbol, 36);
     // truncate to 32 characters
     name = name.substring(0, 32);
-    serialized.write(name, 100 - name.length);
+    serialized.write(name, 68);
     return this.publishTokenBridgeMessage(
       serialized,
       nonce,
