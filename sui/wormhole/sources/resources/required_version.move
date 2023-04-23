@@ -23,6 +23,8 @@ module wormhole::required_version {
 
     /// Build version passed does not meet method's minimum required version.
     const E_OUTDATED_VERSION: u64 = 0;
+    /// Method is blocked until it is enabled again.
+    const E_DISABLED: u64 = 1;
 
     /// Container to keep track of latest build version. Dynamic fields are
     /// associated with its `id`.
@@ -32,6 +34,13 @@ module wormhole::required_version {
     }
 
     struct Key<phantom MethodType> has store, drop, copy {}
+
+    /// Container storing minimum required version for a particular method and
+    /// whether this method can be used.
+    struct Control has store {
+        minimum_version: u64,
+        enabled: bool
+    }
 
     /// Create new `RequiredVersion` with a configured starting version.
     public fun new(version: u64, ctx: &mut TxContext): RequiredVersion {
@@ -50,7 +59,12 @@ module wormhole::required_version {
     /// method is added, the minimum build version associated with this method
     /// by default is the latest version.
     public fun add<MethodType>(self: &mut RequiredVersion) {
-        field::add(&mut self.id, Key<MethodType> {}, self.latest_version)
+        let control =
+            Control {
+                minimum_version: self.latest_version,
+                enabled: true
+            };
+        field::add(&mut self.id, Key<MethodType> {}, control)
     }
 
     /// This method will abort if the version for a particular `MethodType` is
@@ -94,14 +108,31 @@ module wormhole::required_version {
     /// particular method that has a breaking change, use this method to uptick
     /// that method's minimum required version to the latest.
     public fun require_current_version<MethodType>(self: &mut RequiredVersion) {
-        let min_version = field::borrow_mut(&mut self.id, Key<MethodType> {});
-        *min_version = self.latest_version;
+        borrow_mut<MethodType>(self).minimum_version = self.latest_version;
+    }
+
+    public fun disable<MethodType>(self: &mut RequiredVersion) {
+        borrow_mut<MethodType>(self).enabled = false;
+    }
+
+    public fun enable<MethodType>(self: &mut RequiredVersion) {
+        borrow_mut<MethodType>(self).enabled = true;
     }
 
     /// Retrieve the minimum required version for a particular method (via
-    /// `MethodType`).
+    /// `MethodType`). This method will abort if the method has been disabled.
     public fun minimum_for<MethodType>(self: &RequiredVersion): u64 {
-        *field::borrow(&self.id, Key<MethodType> {})
+        let control = borrow<MethodType>(self);
+        assert!(control.enabled, E_DISABLED);
+        control.minimum_version
+    }
+
+    fun borrow<MethodType>(self: &RequiredVersion): &Control {
+        field::borrow(&self.id, Key<MethodType> {})
+    }
+
+    fun borrow_mut<MethodType>(self: &mut RequiredVersion): &mut Control {
+        field::borrow_mut(&mut self.id, Key<MethodType> {})
     }
 
     #[test_only]
@@ -109,7 +140,7 @@ module wormhole::required_version {
         self: &mut RequiredVersion,
         version: u64
     ) {
-        *field::borrow_mut(&mut self.id, Key<MethodType> {}) = version;
+        borrow_mut<MethodType>(self).minimum_version = version;
     }
 
     #[test_only]
@@ -176,9 +207,16 @@ module wormhole::required_version_test {
             new_version
         );
 
+        // Disable here. We should sitll be able to modify the minimum version.
+        required_version::disable<SomeMethod>(&mut req);
+
         // Require new version for `SomeMethod` and show that
         // `check_minimum_requirement` still succeeds.
         required_version::require_current_version<SomeMethod>(&mut req);
+
+        // Enable before we check version.
+        required_version::enable<SomeMethod>(&mut req);
+
         assert!(
             required_version::minimum_for<SomeMethod>(&req) == new_version,
             0
@@ -230,6 +268,30 @@ module wormhole::required_version_test {
             &req,
             old_version
         );
+
+        // Clean up.
+        required_version::destroy(req);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = required_version::E_DISABLED)]
+    public fun test_cannot_check_minimum_requirement_if_disabled() {
+        let ctx = &mut tx_context::dummy();
+
+        let version = 1;
+        let req = required_version::new(version, ctx);
+        assert!(required_version::current(&req) == version, 0);
+
+        required_version::add<SomeMethod>(&mut req);
+
+        // Should not abort here.
+        required_version::check_minimum_requirement<SomeMethod>(&req, version);
+
+        // Disable checking.
+        required_version::disable<SomeMethod>(&mut req);
+
+        // You shall not pass!
+        required_version::check_minimum_requirement<SomeMethod>(&req, version);
 
         // Clean up.
         required_version::destroy(req);
