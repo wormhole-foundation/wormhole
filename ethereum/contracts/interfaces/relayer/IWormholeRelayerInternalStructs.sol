@@ -45,8 +45,8 @@ interface IWormholeRelayerInternalStructs {
 
     struct RedeliveryInstruction {
         IWormholeRelayer.VaaKey key;
-        uint256 newMaxRefundTarget;
-        uint256 newReceiverValue;
+        uint256 newMaximumRefundTarget;
+        uint256 newReceiverValueTarget;
         bytes32 sourceRelayProvider;
         ExecutionParameters executionParameters;
     }
