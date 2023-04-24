@@ -71,6 +71,7 @@ async function processDelivery(ctx: GRContext) {
       encodedVMs: results.map((v) => v.bytes),
       encodedDeliveryVAA: ctx.vaaBytes!,
       relayerRefundAddress: wallet.address,
+      overrides: [],
     };
 
     ctx.logger.debug("Sending 'deliver' tx...");
