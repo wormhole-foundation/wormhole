@@ -15,7 +15,7 @@ import {
 } from "../helpers/env";
 import { wait } from "../helpers/utils";
 
-const processName = "readRelayProviderContractState";
+const processName = "readCoreRelayerContractState";
 init();
 const chains = getOperatingChains();
 
