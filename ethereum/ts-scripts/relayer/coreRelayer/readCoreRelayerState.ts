@@ -50,8 +50,8 @@ async function readState(
   );
 
   try {
-    const coreRelayer = getCoreRelayer(chain, getProvider(chain));
-    const contractAddress = getCoreRelayerAddress(chain);
+    const coreRelayer = await getCoreRelayer(chain, getProvider(chain));
+    const contractAddress = await getCoreRelayerAddress(chain);
     const defaultProvider = await coreRelayer.getDefaultRelayProvider();
     const registeredContracts: { chainId: number; contract: string }[] = [];
 
@@ -59,7 +59,7 @@ async function readState(
       registeredContracts.push({
         chainId: chainInfo.chainId,
         contract: (
-          await coreRelayer.registeredCoreRelayerContract(chain.chainId)
+          await coreRelayer.registeredCoreRelayerContract(chainInfo.chainId)
         ).toString(),
       });
     }

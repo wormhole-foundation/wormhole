@@ -41,7 +41,7 @@ async function main() {
       throw Error("Failed to find contracts file for this process!");
     }
     const contracts = JSON.parse(contractsFile.toString());
-    contracts.lastRun = true;
+    contracts.useLastRun = true;
     writeFileSync(path, JSON.stringify(contracts, undefined, 2));
   }
 }

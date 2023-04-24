@@ -6,3 +6,6 @@ bin
 wormchain/build/config/gentx/
 
 ethereum/ts-scripts/relayer/output
+ethereum/build
+ethereum/cache
+ethereum/out
