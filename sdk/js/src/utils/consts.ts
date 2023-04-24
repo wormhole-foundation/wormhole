@@ -514,9 +514,9 @@ const DEVNET = {
       "0x46da3d4c569388af61f951bdd1153f4c875f90c2991f6b2d0a38e2161a40852c",
   },
   sui: {
-    core: "0xe30c1b99ec028b93440a739bbbbca77d5eba502c916c3bec18f4c408ac49e7ac",
+    core: "0xfc329a56b1c34688ca285aca200d3f14061ccfd23849e8178c345f50218a2448",
     token_bridge:
-      "0xcbd43526a6d3c50aa10f64d9ea0e378977c3dbfcccd57f0ce97e3e7f22ec6c2a",
+      "0x8c8dbbd61276b1fd9fa6b7f7cc966e556b86254d925aa39d28772250a9dc8db2",
     nft_bridge: undefined,
   },
   moonbeam: {
@@ -844,9 +844,9 @@ export const SUI_OBJECT_IDS = {
   },
   DEVNET: {
     core_state:
-      "0x50d49cf0c8f0ab33b0c4ad1693a2617f6b4fe4dac3e6e2d0ce6e9fbe83795b51",
+      "0xb8d8fd9b805e4d1aea5c1edcc2e4097b99f3335ff673cfe01d2dbaa54aa564c2",
     token_bridge_state:
-      "0x63406070af4b2ba9ba6a7c47b04ef0fb6d7529c8fa80fe2abe701d8b392cfd3f",
+      "0xcea50dafc22685e39b1469e12e4326788279d8e4108bfd2e2a59897199c65f50",
   },
 };
 export type SuiAddresses = typeof SUI_OBJECT_IDS;
