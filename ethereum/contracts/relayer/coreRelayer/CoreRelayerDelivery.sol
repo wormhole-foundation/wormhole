@@ -8,7 +8,6 @@ import "../../interfaces/relayer/IForwardWrapper.sol";
 import "./CoreRelayerGovernance.sol";
 import "../../interfaces/relayer/IWormholeRelayerInternalStructs.sol";
 import "./CoreRelayerMessages.sol";
-
 contract CoreRelayerDelivery is CoreRelayerGovernance {
     enum DeliveryStatus {
         SUCCESS,
@@ -147,6 +146,8 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
 
         uint256 postGas = gasleft();
 
+     
+       
         uint256 transactionFeeRefundAmount;
         bool callToTargetContractSucceeded = true;
         if (callToInstructionExecutorSucceeded) {
@@ -161,6 +162,7 @@ contract CoreRelayerDelivery is CoreRelayerGovernance {
             transactionFeeRefundAmount = (vaaInfo.internalInstruction.executionParameters.gasLimit - gasUsed)
                 * vaaInfo.internalInstruction.maximumRefundTarget / vaaInfo.internalInstruction.executionParameters.gasLimit;
         }
+
 
         // Retrieve the forward instruction created during execution of 'receiveWormholeMessages'
         IWormholeRelayerInternalStructs.ForwardInstruction[] memory forwardInstructions = getForwardInstructions();
