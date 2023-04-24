@@ -5,9 +5,9 @@
 ///
 /// `authorize_transfer` allows a contract to complete a Token Bridge transfer
 /// with arbitrary payload. This deserialized `TransferWithPayload` with the
-/// bridged balance and source chain ID are packaged in a `RedeemerTicket`.
+/// bridged balance and source chain ID are packaged in a `RedeemerReceipt`.
 ///
-/// `redeem_coin` unpacks the `RedeemerTicket` and checks whether the specified
+/// `redeem_coin` unpacks the `RedeemerReceipt` and checks whether the specified
 /// `EmitterCap` is the specified redeemer for this transfer. If he is the
 /// correct redeemer, the balance is unpacked and transformed into `Coin` and
 /// is returned alongside `TransferWithPayload` and source chain ID.
@@ -21,7 +21,7 @@
 ///
 /// Instead, an integrator is encouraged to execute a transaction block, which
 /// executes `authorize_transfer` using the latest Token Bridge package ID and
-/// to implement `redeem_coin` in his contract to consume this ticket. This is
+/// to implement `redeem_coin` in his contract to consume this receipt. This is
 /// similar to how an integrator with Wormhole is not meant to use
 /// `vaa::parse_and_verify` in his contract in case the `vaa` module needs to
 /// be upgraded due to a breaking change.
@@ -51,11 +51,11 @@ module token_bridge::complete_transfer_with_payload {
     /// This type is only generated from `authorize_transfer` and can only be
     /// redeemed using `redeem_coin`. Integrators are expected to implement
     /// `redeem_coin` within their contracts and call `authorize_transfer` in a
-    /// transaction block preceding the method that consumes this ticket. The
-    /// only way to destroy this ticket is callling `redeem_coin` with an
+    /// transaction block preceding the method that consumes this receipt. The
+    /// only way to destroy this receipt is callling `redeem_coin` with an
     /// `EmitterCap` generated from the `wormhole::emitter` module, whose ID is
     /// the expected redeemer for this token transfer.
-    struct RedeemerTicket<phantom CoinType> {
+    struct RedeemerReceipt<phantom CoinType> {
         /// Which chain ID this transfer originated from.
         source_chain: u16,
         /// Deserialized transfer info.
@@ -68,7 +68,7 @@ module token_bridge::complete_transfer_with_payload {
     /// encodes its own arbitrary payload (which has meaning to the redeemer).
     /// Once the transfer is authorized, an event (`TransferRedeemed`) is
     /// emitted to reflect which Token Bridge this transfer originated from.
-    /// The `RedeemerTicket` returned wraps a balance reflecting the encoded
+    /// The `RedeemerReceipt` returned wraps a balance reflecting the encoded
     /// transfer amount along with the source chain and deserialized
     /// `TransferWithPayload`.
     ///
@@ -77,7 +77,7 @@ module token_bridge::complete_transfer_with_payload {
     ///
     /// It is important for integrators to refrain from calling this method
     /// within their contracts. This method is meant to be called in a
-    /// transaction block, passing the `RedeemerTicket` to a method which calls
+    /// transaction block, passing the `RedeemerReceipt` to a method which calls
     /// `redeem_coin` within a contract. If in a circumstance where this module
     /// has a breaking change in an upgrade, `redeem_coin` will not be affected
     /// by this change.
@@ -87,7 +87,7 @@ module token_bridge::complete_transfer_with_payload {
         token_bridge_state: &mut State,
         msg: TokenBridgeMessage,
         ctx: &mut TxContext
-    ): RedeemerTicket<CoinType> {
+    ): RedeemerReceipt<CoinType> {
         state::check_minimum_requirement<CompleteTransferWithPayloadControl>(
             token_bridge_state
         );
@@ -110,9 +110,9 @@ module token_bridge::complete_transfer_with_payload {
     }
 
     /// After a transfer is authorized, only a valid redeemer may unpack the
-    /// `RedeemerTicket`. The specified `EmitterCap` is the only authorized
+    /// `RedeemerReceipt`. The specified `EmitterCap` is the only authorized
     /// redeemer of the transfer. Once the redeemer is validated, coin from
-    /// this ticket of the specified coin type is returned alongside the
+    /// this receipt of the specified coin type is returned alongside the
     /// deserialized `TransferWithPayload` and source chain ID.
     ///
     /// NOTE: Integrators of Token Bridge redeeming these token transfers should
@@ -122,20 +122,20 @@ module token_bridge::complete_transfer_with_payload {
     /// version.
     public fun redeem_coin<CoinType>(
         emitter_cap: &EmitterCap,
-        ticket: RedeemerTicket<CoinType>
+        receipt: RedeemerReceipt<CoinType>
     ): (
         Coin<CoinType>,
         TransferWithPayload,
         u16 // `wormhole::vaa::emitter_chain`
     ) {
-        let RedeemerTicket { source_chain, parsed, bridged_out } = ticket;
+        let RedeemerReceipt { source_chain, parsed, bridged_out } = receipt;
 
         // Transfer must be redeemed by the contract's registered Wormhole
         // emitter.
         let redeemer = transfer_with_payload::redeemer_id(&parsed);
         assert!(redeemer == object::id(emitter_cap), E_INVALID_REDEEMER);
 
-        // Create coin from balance and return other unpacked members of ticket.
+        // Create coin from balance and return other unpacked members of receipt.
         (bridged_out, parsed, source_chain)
     }
 
@@ -144,7 +144,7 @@ module token_bridge::complete_transfer_with_payload {
         source_chain: u16,
         transfer_vaa_payload: vector<u8>,
         ctx: &mut TxContext
-    ): RedeemerTicket<CoinType> {
+    ): RedeemerReceipt<CoinType> {
         // Deserialize for processing.
         let parsed = transfer_with_payload::deserialize(transfer_vaa_payload);
 
@@ -163,7 +163,7 @@ module token_bridge::complete_transfer_with_payload {
                 transfer_with_payload::amount(&parsed)
             );
 
-        RedeemerTicket {
+        RedeemerReceipt {
             source_chain,
             parsed,
             bridged_out: coin::from_balance(bridged_out, ctx)
@@ -171,8 +171,8 @@ module token_bridge::complete_transfer_with_payload {
     }
 
     #[test_only]
-    public fun burn<CoinType>(ticket: RedeemerTicket<CoinType>) {
-        let RedeemerTicket { source_chain: _, parsed: _, bridged_out } = ticket;
+    public fun burn<CoinType>(receipt: RedeemerReceipt<CoinType>) {
+        let RedeemerReceipt { source_chain: _, parsed: _, bridged_out } = receipt;
         coin::burn_for_testing(bridged_out);
     }
 }
@@ -271,7 +271,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         test_scenario::next_tx(scenario, user);
 
         // Execute authorize_transfer.
-        let ticket =
+        let receipt =
             authorize_transfer<COIN_NATIVE_10>(
                 &mut token_bridge_state,
                 msg,
@@ -281,7 +281,7 @@ module token_bridge::complete_transfer_with_payload_tests {
             bridged,
             parsed_transfer,
             source_chain
-        ) = redeem_coin(&emitter_cap, ticket);
+        ) = redeem_coin(&emitter_cap, receipt);
 
         assert!(source_chain == expected_source_chain, 0);
 
@@ -341,7 +341,7 @@ module token_bridge::complete_transfer_with_payload_tests {
     /// This test confirms that:
     ///   - `authorize_transfer` with `redeem_coin` deserializes the encoded
     ///      transfer and recovers the source chain, payload, and additional
-    ///      transfer details wrapped in a redeemer ticket.
+    ///      transfer details wrapped in a redeemer receipt.
     ///   - a wrapped coin with the correct value is minted by the bridge
     ///     and returned by authorize_transfer
     ///
@@ -396,7 +396,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         test_scenario::next_tx(scenario, user);
 
         // Execute authorize_transfer.
-        let ticket =
+        let receipt =
             authorize_transfer<COIN_WRAPPED_12>(
                 &mut token_bridge_state,
                 msg,
@@ -406,7 +406,7 @@ module token_bridge::complete_transfer_with_payload_tests {
             bridged,
             parsed_transfer,
             source_chain
-        ) = redeem_coin(&emitter_cap, ticket);
+        ) = redeem_coin(&emitter_cap, receipt);
         assert!(source_chain == expected_source_chain, 0);
 
         // Assert coin value, source chain, and parsed transfer details are correct.
@@ -511,7 +511,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         // Ignore effects. Begin processing as arbitrary tx executor.
         test_scenario::next_tx(scenario, user);
 
-        let ticket =
+        let receipt =
             authorize_transfer<COIN_WRAPPED_12>(
                 &mut token_bridge_state,
                 msg,
@@ -522,7 +522,7 @@ module token_bridge::complete_transfer_with_payload_tests {
             bridged_out,
             _,
             _
-        ) = redeem_coin(&emitter_cap, ticket);
+        ) = redeem_coin(&emitter_cap, receipt);
 
         // Clean up.
         return_state(token_bridge_state);
@@ -610,7 +610,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         test_scenario::next_tx(scenario, user);
 
         // You shall not pass!
-        let ticket =
+        let receipt =
             authorize_transfer<COIN_NATIVE_10>(
                 &mut token_bridge_state,
                 msg,
@@ -619,7 +619,7 @@ module token_bridge::complete_transfer_with_payload_tests {
 
         // Clean up.
         return_state(token_bridge_state);
-        complete_transfer_with_payload::burn(ticket);
+        complete_transfer_with_payload::burn(receipt);
         emitter::destroy(emitter_cap);
 
         // Done.
@@ -680,7 +680,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         test_scenario::next_tx(scenario, user);
 
         // Execute authorize_transfer.
-        let ticket =
+        let receipt =
             authorize_transfer<COIN_WRAPPED_12>(
                 &mut token_bridge_state,
                 msg,
@@ -689,7 +689,7 @@ module token_bridge::complete_transfer_with_payload_tests {
 
         // Clean up.
         return_state(token_bridge_state);
-        complete_transfer_with_payload::burn(ticket);
+        complete_transfer_with_payload::burn(receipt);
         emitter::destroy(emitter_cap);
 
         // Done.

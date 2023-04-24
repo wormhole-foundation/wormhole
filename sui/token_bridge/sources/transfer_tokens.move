@@ -7,10 +7,10 @@
 ///
 /// `prepare_transfer` allows a contract to pack token transfer parameters in
 /// preparation to bridge these assets to another network. Anyone can call this
-/// method to create `PreparedTransfer`.
+/// method to create `TransferTicket`.
 ///
-/// `transfer_tokens` unpacks the `PreparedTransfer` and constructs a
-/// `PreparedMessage`, which will be used by Wormhole's `publish_message`
+/// `transfer_tokens` unpacks the `TransferTicket` and constructs a
+/// `MessageTicket`, which will be used by Wormhole's `publish_message`
 /// module.
 ///
 /// The purpose of splitting this token transferring into two steps is in case
@@ -26,7 +26,7 @@
 ///
 /// Alternatively, `transfer_tokens_from_tx` is meant to be executed directly
 /// from a transaction, which provides the convenience of sending dust back to
-/// the transaction sender and constructing `PreparedMessage` in one call.
+/// the transaction sender and constructing `MessageTicket` in one call.
 ///
 /// NOTE: Only assets that exist in the `TokenRegistry` can be bridged out,
 /// which are native Sui assets that have been attested for via `attest_token`
@@ -41,7 +41,7 @@ module token_bridge::transfer_tokens {
     use sui::tx_context::{TxContext};
     use wormhole::bytes32::{Self};
     use wormhole::external_address::{Self, ExternalAddress};
-    use wormhole::publish_message::{PreparedMessage};
+    use wormhole::publish_message::{MessageTicket};
 
     use token_bridge::native_asset::{Self};
     use token_bridge::normalized_amount::{Self, NormalizedAmount};
@@ -66,7 +66,7 @@ module token_bridge::transfer_tokens {
     /// expects a specific redeemer to complete the transfer (transfers sent
     /// using `transfer_tokens` can be redeemed by anyone on behalf of the
     /// encoded recipient).
-    struct PreparedTransfer<phantom CoinType> {
+    struct TransferTicket<phantom CoinType> {
         asset_info: VerifiedAsset<CoinType>,
         bridged_in: Balance<CoinType>,
         norm_amount: NormalizedAmount,
@@ -78,7 +78,7 @@ module token_bridge::transfer_tokens {
 
     /// `prepare_transfer` constructs token transfer parameters. Any remaining
     /// amount (A.K.A. dust) from the funds provided will be returned along with
-    /// the `PreparedTransfer` type. The returned coin object is the same object
+    /// the `TransferTicket` type. The returned coin object is the same object
     /// moved into this method.
     ///
     /// NOTE: Integrators of Token Bridge should be calling only this method
@@ -93,7 +93,7 @@ module token_bridge::transfer_tokens {
         relayer_fee: u64,
         nonce: u32
     ): (
-        PreparedTransfer<CoinType>,
+        TransferTicket<CoinType>,
         Coin<CoinType>
     ) {
         let (
@@ -101,8 +101,8 @@ module token_bridge::transfer_tokens {
             norm_amount
         ) = take_truncated_amount(&asset_info, &mut funded);
 
-        let prepared_transfer =
-            PreparedTransfer {
+        let ticket =
+            TransferTicket {
                 asset_info,
                 bridged_in,
                 norm_amount,
@@ -114,11 +114,11 @@ module token_bridge::transfer_tokens {
 
         // The remaining amount of funded may have dust depending on the
         // decimals of this asset.
-        (prepared_transfer, funded)
+        (ticket, funded)
     }
 
     /// `transfer_tokens` is the only method that can unpack the members of
-    /// `PreparedTransfer`. This method takes the balance from this type and
+    /// `TransferTicket`. This method takes the balance from this type and
     /// bridges this asset out of Sui by either joining its balance in the Token
     /// Bridge's custody for native assets or burning its balance for wrapped
     /// assets.
@@ -135,14 +135,14 @@ module token_bridge::transfer_tokens {
     ///
     /// It is important for integrators to refrain from calling this method
     /// within their contracts. This method is meant to be called in a
-    /// tranasction block after receiving a `PreparedTransfer` from calling
+    /// tranasction block after receiving a `TransferTicket` from calling
     /// `prepare_transfer` within a contract. If in a circumstance where this
     /// module has a breaking change in an upgrade, `prepare_transfer` will not
     /// be affected by this change.
     public fun transfer_tokens<CoinType>(
         token_bridge_state: &mut State,
-        prepared_transfer: PreparedTransfer<CoinType>
-    ): PreparedMessage {
+        ticket: TransferTicket<CoinType>
+    ): MessageTicket {
         state::check_minimum_requirement<TransferTokensControl>(
             token_bridge_state
         );
@@ -153,7 +153,7 @@ module token_bridge::transfer_tokens {
         ) =
             bridge_in_and_serialize_transfer(
                 token_bridge_state,
-                prepared_transfer
+                ticket
             );
 
         // Prepare Wormhole message with encoded `Transfer`.
@@ -187,9 +187,9 @@ module token_bridge::transfer_tokens {
         relayer_fee: u64,
         nonce: u32,
         ctx: &TxContext
-    ): PreparedMessage {
+    ): MessageTicket {
         let (
-            prepared_transfer,
+            ticket,
             dust
         ) =
             prepare_transfer(
@@ -205,8 +205,8 @@ module token_bridge::transfer_tokens {
         // transaction sender.
         token_bridge::coin_utils::return_nonzero(dust, ctx);
 
-        // Finally bridge asests out.
-        transfer_tokens(token_bridge_state, prepared_transfer)
+        // Finally bridge assets out.
+        transfer_tokens(token_bridge_state, ticket)
     }
 
     /// Modify coin based on the decimals of a given coin type, which may
@@ -281,12 +281,12 @@ module token_bridge::transfer_tokens {
 
     fun bridge_in_and_serialize_transfer<CoinType>(
         token_bridge_state: &mut State,
-        prepared_transfer: PreparedTransfer<CoinType>
+        ticket: TransferTicket<CoinType>
     ): (
         u32,
         vector<u8>
     ) {
-        let PreparedTransfer {
+        let TransferTicket {
             asset_info,
             bridged_in,
             norm_amount,
@@ -294,7 +294,7 @@ module token_bridge::transfer_tokens {
             recipient,
             relayer_fee,
             nonce
-        } = prepared_transfer;
+        } = ticket;
 
         // Disallow `relayer_fee` to be greater than the `Coin` object's value.
         // Keep in mind that the relayer fee is evaluated against the truncated
@@ -333,14 +333,14 @@ module token_bridge::transfer_tokens {
     #[test_only]
     public fun bridge_in_and_serialize_transfer_test_only<CoinType>(
         token_bridge_state: &mut State,
-        prepared_transfer: PreparedTransfer<CoinType>
+        ticket: TransferTicket<CoinType>
     ): (
         u32,
         vector<u8>
     ) {
         bridge_in_and_serialize_transfer(
             token_bridge_state,
-            prepared_transfer
+            ticket
         )
     }
 }
@@ -421,7 +421,7 @@ module token_bridge::transfer_token_tests {
 
         let asset_info = state::verified_asset(&token_bridge_state);
         let (
-            prepared_transfer,
+            ticket,
             dust
         ) =
             prepare_transfer(
@@ -439,7 +439,7 @@ module token_bridge::transfer_token_tests {
 
         // Call `transfer_tokens`.
         let prepared_msg =
-            transfer_tokens(&mut token_bridge_state, prepared_transfer);
+            transfer_tokens(&mut token_bridge_state, ticket);
 
         // Balance check the Token Bridge after executing the transfer. The
         // balance should now reflect the `transfer_amount` defined in this
@@ -505,7 +505,7 @@ module token_bridge::transfer_token_tests {
 
         let asset_info = state::verified_asset(&token_bridge_state);
         let (
-            prepared_transfer,
+            ticket,
             dust
         ) =
             prepare_transfer(
@@ -523,7 +523,7 @@ module token_bridge::transfer_token_tests {
 
         // Call `transfer_tokens`.
         let prepared_msg =
-            transfer_tokens(&mut token_bridge_state, prepared_transfer);
+            transfer_tokens(&mut token_bridge_state, ticket);
 
         // Balance check the Token Bridge after executing the transfer. The
         // balance should now reflect the `transfer_amount` less `expected_dust`
@@ -589,7 +589,7 @@ module token_bridge::transfer_token_tests {
         let expected_token_address = token_registry::token_address(&asset_info);
 
         let (
-            prepared_transfer,
+            ticket,
             dust
         ) =
             prepare_transfer(
@@ -609,7 +609,7 @@ module token_bridge::transfer_token_tests {
         ) =
             bridge_in_and_serialize_transfer_test_only(
                 &mut token_bridge_state,
-                prepared_transfer
+                ticket
             );
         assert!(nonce == TEST_NONCE, 0);
 
@@ -690,7 +690,7 @@ module token_bridge::transfer_token_tests {
 
         let asset_info = state::verified_asset(&token_bridge_state);
         let (
-            prepared_transfer,
+            ticket,
             dust
         ) =
             prepare_transfer(
@@ -708,7 +708,7 @@ module token_bridge::transfer_token_tests {
 
         // Call `transfer_tokens`.
         let prepared_msg =
-            transfer_tokens(&mut token_bridge_state, prepared_transfer);
+            transfer_tokens(&mut token_bridge_state, ticket);
 
         // Balance check the Token Bridge after executing the transfer. The
         // balance should be zero, since tokens are burned when an outbound
@@ -771,7 +771,7 @@ module token_bridge::transfer_token_tests {
         let expected_token_chain = token_registry::token_chain(&asset_info);
 
         let (
-            prepared_transfer,
+            ticket,
             dust
         ) =
             prepare_transfer(
@@ -791,7 +791,7 @@ module token_bridge::transfer_token_tests {
         ) =
             bridge_in_and_serialize_transfer_test_only(
                 &mut token_bridge_state,
-                prepared_transfer
+                ticket
             );
         assert!(nonce == TEST_NONCE, 0);
 
@@ -866,7 +866,7 @@ module token_bridge::transfer_token_tests {
 
         let asset_info = state::verified_asset(&token_bridge_state);
         let (
-            prepared_transfer,
+            ticket,
             dust
         ) =
             prepare_transfer(
@@ -881,7 +881,7 @@ module token_bridge::transfer_token_tests {
 
         // Call `transfer_tokens`.
         let prepared_msg =
-            transfer_tokens(&mut token_bridge_state, prepared_transfer);
+            transfer_tokens(&mut token_bridge_state, ticket);
 
         // Clean up.
         publish_message::destroy(prepared_msg);
@@ -932,7 +932,7 @@ module token_bridge::transfer_token_tests {
 
         let asset_info = state::verified_asset(&token_bridge_state);
         let (
-            prepared_transfer,
+            ticket,
             dust
         ) =
             prepare_transfer(
@@ -947,7 +947,7 @@ module token_bridge::transfer_token_tests {
 
         // Call `transfer_tokens`.
         let prepared_msg =
-            transfer_tokens(&mut token_bridge_state, prepared_transfer);
+            transfer_tokens(&mut token_bridge_state, ticket);
 
         // Clean up.
         publish_message::destroy(prepared_msg);
@@ -994,7 +994,7 @@ module token_bridge::transfer_token_tests {
 
         let asset_info = state::verified_asset(&token_bridge_state);
         let (
-            prepared_transfer,
+            ticket,
             dust
         ) =
             prepare_transfer(
@@ -1012,7 +1012,7 @@ module token_bridge::transfer_token_tests {
 
         // Call `transfer_tokens`.
         let prepared_msg =
-            transfer_tokens(&mut token_bridge_state, prepared_transfer);
+            transfer_tokens(&mut token_bridge_state, ticket);
 
         // Done.
         publish_message::destroy(prepared_msg);
