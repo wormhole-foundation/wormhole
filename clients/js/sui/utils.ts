@@ -9,7 +9,6 @@ import {
   SUI_CLOCK_OBJECT_ID,
   SuiTransactionBlockResponse,
   TransactionBlock,
-  TransactionDigest,
   fromB64,
   normalizeSuiAddress,
 } from "@mysten/sui.js";
@@ -160,47 +159,6 @@ export const executeTransactionBlock = async (
       showObjectChanges: true,
     },
   });
-};
-
-export const pollTransactionForEffectsCert = async (
-  signer: RawSigner,
-  digest: TransactionDigest,
-  options?: {
-    retryAttempts?: number;
-    retryIntervalInMilliseconds?: number;
-  }
-): Promise<SuiTransactionBlockResponse> => {
-  const DEFAULT_ATTEMPTS_LIMIT = 10;
-  const DEFAULT_RETRY_MILLISECONDS_INTERVAL = 1000;
-
-  const limit = options?.retryAttempts || DEFAULT_ATTEMPTS_LIMIT;
-  const interval =
-    options?.retryIntervalInMilliseconds || DEFAULT_RETRY_MILLISECONDS_INTERVAL;
-
-  let attemptsCount = 0;
-
-  const poll = async (resolve, reject) => {
-    attemptsCount = attemptsCount + 1;
-    if (attemptsCount <= limit) {
-      try {
-        const transaction = await signer.provider.getTransactionBlock({
-          digest,
-          options: {
-            showEffects: true,
-          },
-        });
-        const completed = transaction.effects.status.status === "success";
-        if (completed) return resolve(transaction);
-        setTimeout(poll, interval, resolve, reject);
-      } catch (error) {
-        return reject(error);
-      }
-    } else {
-      return reject(new Error("Retry attempts exceeded"));
-    }
-  };
-
-  return new Promise(poll);
 };
 
 export const getCreatedObjects = (
