@@ -290,7 +290,8 @@ contract WormholeRelayerTests is Test {
     }
 
     function testSendCheckConsistencyLevel(GasParameters memory gasParams, FeeParameters memory feeParams, bytes memory message) public {
-        StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
+    
+         StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
 
         vm.recordLogs();
 
@@ -298,7 +299,7 @@ contract WormholeRelayerTests is Test {
         uint256 maxTransactionFee = setup.source.coreRelayer.quoteGas(
             setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
         );
-
+        
         uint64 sequence = setup.source.wormhole.publishMessage{value: feeParams.wormholeFeeOnSource}(0, bytes("Hi!"), 200);
 
         setup.source.coreRelayer.send{value: maxTransactionFee + feeParams.wormholeFeeOnSource}(setup.targetChainId, setup.source.coreRelayer.toWormholeFormat(address(setup.target.integration)), setup.targetChainId, setup.source.coreRelayer.toWormholeFormat(address(setup.target.integration)), maxTransactionFee, 0, bytes(""), vaaKeyArray(setup.sourceChainId, sequence, address(this)), uint8(23));
@@ -309,6 +310,50 @@ contract WormholeRelayerTests is Test {
         uint8 consistencyLevel = log.data.toUint8(32 + 32 + 32 + 32 - 1);
 
         assertTrue(consistencyLevel == 23);
+  }
+    function testSendUsingVaaHashAsVaaKey(GasParameters memory gasParams, FeeParameters memory feeParams, bytes memory message) public {
+
+        StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
+
+        vm.recordLogs();
+
+        // estimate the cost based on the intialized values
+        uint256 maxTransactionFee = setup.source.coreRelayer.quoteGas(
+            setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
+        );
+
+        vm.prank(address(setup.source.integration));
+        setup.source.wormhole.publishMessage{value: feeParams.wormholeFeeOnSource}(0, abi.encodePacked(uint8(0)), 200);
+        vm.prank(address(setup.source.integration));
+        setup.source.wormhole.publishMessage{value: feeParams.wormholeFeeOnSource}(0, bytes("Hi!"), 200);
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        IWormholeRelayer.VaaKey[] memory vaaKeyArr = new IWormholeRelayer.VaaKey[](2);
+        vaaKeyArr[0] = IWormholeRelayer.VaaKey({
+            infoType: IWormholeRelayer.VaaKeyType.VAAHASH,
+            chainId: setup.sourceChainId,
+            emitterAddress: bytes32(0x0),
+            sequence: 0,
+            vaaHash: relayerWormhole.parseVM(relayerWormholeSimulator.fetchSignedMessageFromLogs(logs[1], setup.sourceChainId, address(setup.source.integration))).hash
+        });
+        vaaKeyArr[1] = IWormholeRelayer.VaaKey({
+            infoType: IWormholeRelayer.VaaKeyType.VAAHASH,
+            chainId: setup.sourceChainId,
+            emitterAddress: bytes32(0x0),
+            sequence: 0,
+            vaaHash: relayerWormhole.parseVM(relayerWormholeSimulator.fetchSignedMessageFromLogs(logs[0], setup.sourceChainId, address(setup.source.integration))).hash
+        });
+
+        setup.source.coreRelayer.send{value: maxTransactionFee + feeParams.wormholeFeeOnSource}(setup.targetChainId, setup.source.coreRelayer.toWormholeFormat(address(setup.target.integration)), setup.targetChainId, setup.source.coreRelayer.toWormholeFormat(address(setup.target.integration)), maxTransactionFee, 0, bytes(""), vaaKeyArr, 200);
+        Vm.Log[] memory newLogs = new Vm.Log[](3);
+        newLogs[0] = logs[0];
+        newLogs[1] = logs[1];
+        newLogs[2] = vm.getRecordedLogs()[0];
+
+        genericRelayer.relay(newLogs, setup.sourceChainId, bytes(""));
+
+        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256("Hi!"));
+
     }
 
     function testMultipleForwards(GasParameters memory gasParams, FeeParameters memory feeParams, bytes memory message) public {
