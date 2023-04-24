@@ -1,0 +1,5 @@
+@openzeppelin/=ethereum/node_modules/@openzeppelin/
+@solidity-parser/=ethereum/node_modules/@solidity-parser/
+ds-test/=ethereum/lib/forge-std/lib/ds-test/src/
+forge-std/=ethereum/lib/forge-std/src/
+truffle/=ethereum/node_modules/truffle/

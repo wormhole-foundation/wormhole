@@ -30,7 +30,7 @@ async function run() {
 async function registerChainsCoreRelayer(chain: ChainInfo) {
   console.log("registerChainsCoreRelayer " + chain.chainId);
 
-  const coreRelayer = getCoreRelayer(chain);
+  const coreRelayer = await getCoreRelayer(chain);
   for (const targetChain of chains) {
     await coreRelayer
       .registerCoreRelayerContract(createRegisterChainVAA(targetChain))

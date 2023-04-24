@@ -1,14 +1,21 @@
-import type { ChainId } from "@certusone/wormhole-sdk";
+import { ChainId } from "@certusone/wormhole-sdk";
 import { ethers, Signer } from "ethers";
 import fs from "fs";
 
-import { CoreRelayer } from "../../../ethers-contracts/CoreRelayer";
-import { RelayProvider } from "../../../ethers-contracts/RelayProvider";
-import { MockRelayerIntegration } from "../../../ethers-contracts/MockRelayerIntegration";
+import { CoreRelayer } from "../../../ethers-contracts";
+import { RelayProvider } from "../../../ethers-contracts";
+import { MockRelayerIntegration } from "../../../ethers-contracts";
 
-import { RelayProvider__factory } from "../../../ethers-contracts/factories/RelayProvider__factory";
-import { CoreRelayer__factory } from "../../../ethers-contracts/factories/CoreRelayer__factory";
-import { MockRelayerIntegration__factory } from "../../../ethers-contracts/factories/MockRelayerIntegration__factory";
+import { RelayProvider__factory } from "../../../ethers-contracts";
+import { CoreRelayer__factory } from "../../../ethers-contracts";
+import { MockRelayerIntegration__factory } from "../../../ethers-contracts";
+import {
+  CoreRelayerProxy__factory,
+  Create2Factory,
+  Create2Factory__factory,
+} from "../../../ethers-contracts";
+import { CoreRelayerSetup__factory } from "../../../ethers-contracts";
+import { proxyContractSalt, setupContractSalt } from "./deployments";
 
 export type ChainInfo = {
   evmNetworkId: number;
@@ -216,12 +223,62 @@ export function loadMockIntegrations(): Deployment[] {
   }
 }
 
-export function loadGuardianKey(): string {
+export function loadCreate2Factories(): Deployment[] {
+  const contractsFile = fs.readFileSync(
+    `./ts-scripts/relayer/config/${env}/contracts.json`
+  );
+  if (!contractsFile) {
+    throw Error("Failed to find contracts file for this process!");
+  }
+  const contracts = JSON.parse(contractsFile.toString());
+  if (contracts.useLastRun || lastRunOverride) {
+    const lastRunFile = fs.readFileSync(
+      `./ts-scripts/relayer/output/${env}/deployCreate2Factory/lastrun.json`
+    );
+    if (!lastRunFile) {
+      throw Error(
+        "Failed to find last run file for the deployCreate2Factory process!"
+      );
+    }
+    const lastRun = JSON.parse(lastRunFile.toString());
+    return lastRun.create2Factories;
+  } else {
+    return contracts.create2Factories;
+  }
+}
+
+//TODO load these keys more intelligently,
+//potentially from devnet-consts.
+//Also, make sure the signers are correctly ordered by index,
+//As the index gets encoded into the signature.
+export function loadGuardianKeys(): string[] {
+  const output = [];
+  const NUM_GUARDIANS = get_env_var("NUM_GUARDIANS");
   const guardianKey = get_env_var("GUARDIAN_KEY");
+  const guardianKey2 = get_env_var("GUARDIAN_KEY2");
+
+  let numGuardians: number = 0;
+  console.log("NUM_GUARDIANS variable : " + NUM_GUARDIANS);
+
+  if (!NUM_GUARDIANS) {
+    numGuardians = 1;
+  } else {
+    numGuardians = parseInt(NUM_GUARDIANS);
+  }
+
   if (!guardianKey) {
     throw Error("Failed to find guardian key for this process!");
   }
-  return guardianKey;
+  output.push(guardianKey);
+
+  if (numGuardians >= 2) {
+    if (!guardianKey2) {
+      throw Error("Failed to find guardian key 2 for this process!");
+    }
+    output.push(guardianKey2);
+  }
+
+  return output;
 }
 
 export function writeOutputFiles(output: any, processName: string) {
@@ -240,7 +297,7 @@ export function writeOutputFiles(output: any, processName: string) {
   );
 }
 
-export function getSigner(chain: ChainInfo): Signer {
+export function getSigner(chain: ChainInfo): ethers.Wallet {
   let provider = getProvider(chain);
   let signer = new ethers.Wallet(loadPrivateKey(), provider);
   return signer;
@@ -281,28 +338,73 @@ export function getRelayProvider(
   return contract;
 }
 
-export function getCoreRelayerAddress(chain: ChainInfo): string {
-  const thisChainsRelayer = loadCoreRelayers().find(
-    (x: any) => x.chainId == chain.chainId
-  )?.address;
-  if (!thisChainsRelayer) {
-    throw new Error(
-      "Failed to find a CoreRelayer contract address on chain " + chain.chainId
-    );
-  }
-  return thisChainsRelayer;
+export function fetchSetupAddressCreate2(
+  chain: ChainInfo,
+  create2Factory = getCreate2Factory(chain)
+): Promise<string> {
+  const signer = getSigner(chain).address;
+  return create2Factory.computeAddress(
+    signer,
+    setupContractSalt,
+    ethers.utils.solidityKeccak256(
+      ["bytes"],
+      [CoreRelayerSetup__factory.bytecode]
+    )
+  );
 }
 
-export function getCoreRelayer(
+const coreRelayerAddressesCache: Partial<Record<ChainId, string>> = {};
+export async function getCoreRelayerAddress(chain: ChainInfo): Promise<string> {
+  const contractsFile = fs.readFileSync(
+    `./ts-scripts/relayer/config/${env}/contracts.json`
+  );
+  if (!contractsFile) {
+    throw Error("Failed to find contracts file for this process!");
+  }
+  const contracts = JSON.parse(contractsFile.toString());
+  //If useLastRun is false, then we want to bypass the calculations and just use what the contracts file says.
+  if (!contracts.useLastRun && !lastRunOverride) {
+    const thisChainsRelayer = loadCoreRelayers().find(
+      (x: any) => x.chainId == chain.chainId
+    )?.address;
+    if (thisChainsRelayer) {
+      return thisChainsRelayer;
+    } else {
+      throw Error(
+        "Failed to find a CoreRelayer contract address on chain " +
+          chain.chainId
+      );
+    }
+  }
+
+  if (!coreRelayerAddressesCache[chain.chainId]) {
+    const create2Factory = getCreate2Factory(chain);
+    const signer = getSigner(chain).address;
+    const setupAddr = await fetchSetupAddressCreate2(chain, create2Factory);
+
+    const data = new CoreRelayerProxy__factory().getDeployTransaction(setupAddr)
+      .data!;
+    coreRelayerAddressesCache[
+      chain.chainId
+    ] = await create2Factory.computeAddress(
+      signer,
+      proxyContractSalt,
+      ethers.utils.solidityKeccak256(["bytes"], [data])
+    );
+  }
+
+  return coreRelayerAddressesCache[chain.chainId]!;
+}
+
+export async function getCoreRelayer(
   chain: ChainInfo,
   provider?: ethers.providers.StaticJsonRpcProvider
-): CoreRelayer {
-  const thisChainsRelayer = getCoreRelayerAddress(chain);
-  const contract = CoreRelayer__factory.connect(
+): Promise<CoreRelayer> {
+  const thisChainsRelayer = await getCoreRelayerAddress(chain);
+  return CoreRelayer__factory.connect(
     thisChainsRelayer,
     provider || getSigner(chain)
   );
-  return contract;
 }
 
 export function getMockIntegrationAddress(chain: ChainInfo): string {
@@ -326,3 +428,22 @@ export function getMockIntegration(chain: ChainInfo): MockRelayerIntegration {
   );
   return contract;
 }
+
+export function getCreate2FactoryAddress(chain: ChainInfo): string {
+  const address = loadCreate2Factories().find(
+    (x: any) => x.chainId == chain.chainId
+  )?.address;
+  if (!address) {
+    throw new Error(
+      "Failed to find a create2Factory contract address on chain " +
+        chain.chainId
+    );
+  }
+  return address;
+}
+
+export const getCreate2Factory = (chain: ChainInfo): Create2Factory =>
+  Create2Factory__factory.connect(
+    getCreate2FactoryAddress(chain),
+    getSigner(chain)
+  );
