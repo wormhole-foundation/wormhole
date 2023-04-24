@@ -12,7 +12,7 @@
 module token_bridge::attest_token {
     use std::option::{Self};
     use sui::coin::{CoinMetadata};
-    use wormhole::publish_message::{PreparedMessage};
+    use wormhole::publish_message::{MessageTicket};
 
     use token_bridge::asset_meta::{Self};
     use token_bridge::create_wrapped::{Self};
@@ -36,7 +36,7 @@ module token_bridge::attest_token {
         token_bridge_state: &mut State,
         coin_meta: &CoinMetadata<CoinType>,
         nonce: u32
-    ): PreparedMessage {
+    ): MessageTicket {
         state::check_minimum_requirement<AttestTokenControl>(
             token_bridge_state
         );

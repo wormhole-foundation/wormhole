@@ -17,7 +17,7 @@ module token_bridge::state {
     use wormhole::consumed_vaas::{Self, ConsumedVAAs};
     use wormhole::emitter::{Self, EmitterCap};
     use wormhole::external_address::{ExternalAddress};
-    use wormhole::publish_message::{PreparedMessage};
+    use wormhole::publish_message::{MessageTicket};
     use wormhole::required_version::{Self, RequiredVersion};
     use wormhole::state::{State as WormholeState};
     use wormhole::vaa::{Self, VAA};
@@ -254,7 +254,7 @@ module token_bridge::state {
         self: &mut State,
         nonce: u32,
         payload: vector<u8>
-    ): PreparedMessage {
+    ): MessageTicket {
         wormhole::publish_message::prepare_message(
             &mut self.emitter_cap,
             nonce,

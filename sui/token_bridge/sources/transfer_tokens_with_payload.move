@@ -9,11 +9,11 @@
 /// `prepare_transfer` allows a contract to pack token transfer parameters with
 /// an arbitrary payload in preparation to bridge these assets to another
 /// network. Only an `EmitterCap` has the capability to create
-/// `PreparedTransferWithPayload`. The `EmitterCap` object ID is encoded as the
+/// `TransferTicket`. The `EmitterCap` object ID is encoded as the
 /// sender.
 ///
-/// `transfer_tokens_with_payload` unpacks the `PreparedTransferWithPayload` and
-/// constructs a `PreparedMessage`, which will be used by Wormhole's
+/// `transfer_tokens_with_payload` unpacks the `TransferTicket` and
+/// constructs a `MessageTicket`, which will be used by Wormhole's
 /// `publish_message` module.
 ///
 /// The purpose of splitting this token transferring into two steps is in case
@@ -31,7 +31,7 @@
 /// Alternatively, `transfer_tokens_with_payload_from_tx` is meant to be
 /// executed directly from a transaction, which provides the convenience of
 /// sending dust back to the transaction sender and constructing
-/// `PreparedMessage` in one call.
+/// `MessageTicket` in one call.
 ///
 /// NOTE: Only assets that exist in the `TokenRegistry` can be bridged out,
 /// which are native Sui assets that have been attested for via `attest_token`
@@ -48,7 +48,7 @@ module token_bridge::transfer_tokens_with_payload {
     use wormhole::bytes32::{Self};
     use wormhole::emitter::{EmitterCap};
     use wormhole::external_address::{Self};
-    use wormhole::publish_message::{PreparedMessage};
+    use wormhole::publish_message::{MessageTicket};
 
     use token_bridge::normalized_amount::{NormalizedAmount};
     use token_bridge::state::{Self, State};
@@ -61,9 +61,9 @@ module token_bridge::transfer_tokens_with_payload {
     /// This type represents transfer data for a specific redeemer contract on a
     /// foreign chain. The only way to destroy this type is calling
     /// `transfer_tokens_with_payload`. Only the owner of an `EmitterCap` has
-    /// the capability of generating `PreparedTransferWithPayload`. This emitter
+    /// the capability of generating `TransferTicket`. This emitter
     /// cap will usually live in an integrator's contract storage object.
-    struct PreparedTransferWithPayload<phantom CoinType> {
+    struct TransferTicket<phantom CoinType> {
         asset_info: VerifiedAsset<CoinType>,
         bridged_in: Balance<CoinType>,
         norm_amount: NormalizedAmount,
@@ -76,7 +76,7 @@ module token_bridge::transfer_tokens_with_payload {
 
     /// `prepare_transfer` constructs token transfer parameters. Any remaining
     /// amount (A.K.A. dust) from the funds provided will be returned along with
-    /// the `PreparedTransferWithPayload` type. The returned coin object is the
+    /// the `TransferTicket` type. The returned coin object is the
     /// same object moved into this method.
     ///
     /// NOTE: Integrators of Token Bridge should be calling only this method
@@ -92,7 +92,7 @@ module token_bridge::transfer_tokens_with_payload {
         payload: vector<u8>,
         nonce: u32
     ): (
-        PreparedTransferWithPayload<CoinType>,
+        TransferTicket<CoinType>,
         Coin<CoinType>
     ) {
         use token_bridge::transfer_tokens::{take_truncated_amount};
@@ -103,7 +103,7 @@ module token_bridge::transfer_tokens_with_payload {
         ) = take_truncated_amount(&asset_info, &mut funded);
 
         let prepared_transfer =
-            PreparedTransferWithPayload {
+            TransferTicket {
                 asset_info,
                 bridged_in,
                 norm_amount,
@@ -120,7 +120,7 @@ module token_bridge::transfer_tokens_with_payload {
     }
 
     /// `transfer_tokens_with_payload` is the only method that can unpack the
-    /// members of `PreparedTransferWithPayload`. This method takes the balance
+    /// members of `TransferTicket`. This method takes the balance
     /// from this type and bridges this asset out of Sui by either joining its
     /// balance in the Token Bridge's custody for native assets or burning its
     /// balance for wrapped assets.
@@ -138,14 +138,14 @@ module token_bridge::transfer_tokens_with_payload {
     ///
     /// It is important for integrators to refrain from calling this method
     /// within their contracts. This method is meant to be called in a
-    /// tranasction block after receiving a `PreparedTransfer` from calling
+    /// tranasction block after receiving a `TransferTicket` from calling
     /// `prepare_transfer` within a contract. If in a circumstance where this
     /// module has a breaking change in an upgrade, `prepare_transfer` will not
     /// be affected by this change.
     public fun transfer_tokens_with_payload<CoinType>(
         token_bridge_state: &mut State,
-        prepared_transfer: PreparedTransferWithPayload<CoinType>
-    ): PreparedMessage {
+        prepared_transfer: TransferTicket<CoinType>
+    ): MessageTicket {
         state::check_minimum_requirement<TransferTokensWithPayloadControl>(
             token_bridge_state
         );
@@ -190,7 +190,7 @@ module token_bridge::transfer_tokens_with_payload {
         payload: vector<u8>,
         nonce: u32,
         ctx: &TxContext
-    ): PreparedMessage {
+    ): MessageTicket {
         let (
             prepared_transfer,
             dust
@@ -209,20 +209,20 @@ module token_bridge::transfer_tokens_with_payload {
         // transaction sender.
         token_bridge::coin_utils::return_nonzero(dust, ctx);
 
-        // Finally bridge asests out.
+        // Finally bridge assets out.
         transfer_tokens_with_payload(token_bridge_state, prepared_transfer)
     }
 
     fun bridge_in_and_serialize_transfer<CoinType>(
         token_bridge_state: &mut State,
-        prepared_transfer: PreparedTransferWithPayload<CoinType>
+        prepared_transfer: TransferTicket<CoinType>
     ): (
         u32,
         vector<u8>
     ) {
         use token_bridge::transfer_tokens::{burn_or_deposit_funds};
 
-        let PreparedTransferWithPayload {
+        let TransferTicket {
             asset_info,
             bridged_in,
             norm_amount,
@@ -259,7 +259,7 @@ module token_bridge::transfer_tokens_with_payload {
     #[test_only]
     public fun bridge_in_and_serialize_transfer_test_only<CoinType>(
         token_bridge_state: &mut State,
-        prepared_transfer: PreparedTransferWithPayload<CoinType>
+        prepared_transfer: TransferTicket<CoinType>
     ): (
         u32,
         vector<u8>
