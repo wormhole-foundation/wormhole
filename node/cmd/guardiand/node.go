@@ -415,8 +415,8 @@ func runNode(cmd *cobra.Command, args []string) {
 		fmt.Print(devwarning)
 	}
 
-	if *testnetMode {
-		fmt.Println("This is testnet mode, not locking in memory.")
+	if *testnetMode || *unsafeDevMode {
+		fmt.Println("Not locking in memory.")
 	} else {
 		common.LockMemory()
 	}
