@@ -30,3 +30,7 @@ wormhole-cosmwasm = { version = "0.1.0", default-features = false, features = ["
 thiserror = { version = "1.0.31" }
 sha3 = { version = "0.9.1", default-features = false }
 hex = "0.4.2"
+
+[dev-dependencies]
+terraswap = "2.6.1"
+serde-json-wasm = "0.4"

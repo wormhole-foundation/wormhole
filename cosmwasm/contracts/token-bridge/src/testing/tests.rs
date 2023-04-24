@@ -1,10 +1,11 @@
 use std::convert::TryInto;
 
-use cosmwasm_std::{Binary, StdResult};
+use cosmwasm_std::{Binary, StdResult, Uint128};
 
 use cw_wormhole::state::ParsedVAA;
 
 use crate::{
+    msg::Asset,
     state::{Action, TokenBridgeMessage, TransferInfo, TransferWithPayloadInfo},
     token_address::ExternalTokenId,
 };
@@ -229,4 +230,49 @@ fn deserialize_transfer_with_payload_vaa() -> StdResult<()> {
     );
 
     Ok(())
+}
+
+// We used to have a dependency on terraswap::asset::Asset to encode whether assets are native tokens or cw20 tokens in execute msgs.
+// We removed this dependency in favor of using the same structs defined in our own codebase.
+// This test ensures that the serialization of these structs matches so that the change is backwards compatible.
+#[test]
+fn terraswap_serialization_match() {
+    let denom = "utest".to_string();
+    let contract_addr =
+        "sei1nna9mzp274djrgzhzkac2gvm3j27l402s4xzr08chq57pjsupqnqaj0d5s".to_string();
+    let amount = Uint128::new(17528070000);
+
+    // assert cw20 token serialization formats are the same
+    let ts_token_asset = serde_json_wasm::to_vec(&terraswap::asset::Asset {
+        info: terraswap::asset::AssetInfo::Token {
+            contract_addr: contract_addr.clone(),
+        },
+        amount,
+    })
+    .unwrap();
+
+    let token_asset = serde_json_wasm::to_vec(&Asset {
+        info: crate::msg::AssetInfo::Token { contract_addr },
+        amount,
+    })
+    .unwrap();
+
+    assert_eq!(ts_token_asset, token_asset);
+
+    // assert native token serialization formats are the same
+    let ts_native_token = serde_json_wasm::to_vec(&terraswap::asset::Asset {
+        info: terraswap::asset::AssetInfo::NativeToken {
+            denom: denom.clone(),
+        },
+        amount,
+    })
+    .unwrap();
+
+    let native_token = serde_json_wasm::to_vec(&Asset {
+        info: crate::msg::AssetInfo::NativeToken { denom },
+        amount,
+    })
+    .unwrap();
+
+    assert_eq!(ts_native_token, native_token);
 }
