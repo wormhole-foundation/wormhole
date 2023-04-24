@@ -856,9 +856,7 @@ contract WormholeRelayerTests is Test {
 
         uint256 USDCost = (payment - uint256(3) * feeParams.wormholeFeeOnSource)* feeParams.sourceNativePrice - uint256(0)*feeParams.wormholeFeeOnTarget*feeParams.targetNativePrice;
         USDCost -= (address(setup.target.refundAddress).balance - targetRefundBalance) * feeParams.targetNativePrice;
-        console.log(USDCost);
         uint256 relayerProfit= (address(setup.source.rewardAddress).balance * feeParams.sourceNativePrice + address(setup.target.rewardAddress).balance * feeParams.targetNativePrice) - (sourceRelayerBalance - address(setup.source.relayer).balance) * feeParams.sourceNativePrice - (targetRelayerBalance - address(setup.target.relayer).balance) * feeParams.targetNativePrice;
-        console.log(relayerProfit);
         assertTrue(USDCost == relayerProfit, "We did not lose any funds along the way");
     }
 
