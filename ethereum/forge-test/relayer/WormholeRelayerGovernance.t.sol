@@ -17,6 +17,7 @@ import {CoreRelayerSetup} from "../../contracts/relayer/coreRelayer/CoreRelayerS
 import {CoreRelayerImplementation} from "../../contracts/relayer/coreRelayer/CoreRelayerImplementation.sol";
 import {CoreRelayerProxy} from "../../contracts/relayer/coreRelayer/CoreRelayerProxy.sol";
 import {CoreRelayerMessages} from "../../contracts/relayer/coreRelayer/CoreRelayerMessages.sol";
+import {ForwardWrapper} from "../../contracts/relayer/coreRelayer/ForwardWrapper.sol";
 import {CoreRelayerGovernance} from "../../contracts/relayer/coreRelayer/CoreRelayerGovernance.sol";
 import {MockGenericRelayer} from "./MockGenericRelayer.sol";
 import {MockWormhole} from "./MockWormhole.sol";
@@ -159,26 +160,11 @@ contract WormholeRelayerGovernanceTests is Test {
     }
 
     function testUpgradeContractToItself() public {
-        CoreRelayerSetup coreRelayerSetup = new CoreRelayerSetup();
-        CoreRelayerImplementation coreRelayerImplementation = new CoreRelayerImplementation();
-        CoreRelayerProxy myCoreRelayer = new CoreRelayerProxy(
-            address(coreRelayerSetup),
-            abi.encodeCall(
-                CoreRelayerSetup.setup,
-                (
-                    address(coreRelayerImplementation),
-                    1,
-                    address(wormhole),
-                    address(relayProvider),
-                    wormhole.governanceChainId(),
-                    wormhole.governanceContract(),
-                    block.chainid
-                )
-            )
-        );
+        address myCoreRelayer = address(helpers.setUpCoreRelayer(wormhole.chainId(), wormhole, address(relayProvider)));
 
         for (uint256 i = 0; i < 10; i++) {
-            CoreRelayerImplementation coreRelayerImplementationNew = new CoreRelayerImplementation();
+            address forwardWrapper = address(new ForwardWrapper(myCoreRelayer, address(wormhole)));
+            CoreRelayerImplementation coreRelayerImplementationNew = new CoreRelayerImplementation(forwardWrapper);
 
             bytes memory message = abi.encodePacked(
                 relayerModule,
@@ -190,7 +176,22 @@ contract WormholeRelayerGovernanceTests is Test {
             bytes memory signed = signMessage(message);
 
             CoreRelayerGovernance(address(myCoreRelayer)).submitContractUpgrade(signed);
+
+            CoreRelayer(payable(address(myCoreRelayer))).getDefaultRelayProvider();
         }
+
+           bytes memory brickedMessage = abi.encodePacked(
+                relayerModule,
+                uint8(1),
+                uint16(1),
+                wormholeRelayer.toWormholeFormat(address(new RelayProviderImplementation()))
+            );
+             CoreRelayerGovernance(address(myCoreRelayer)).submitContractUpgrade(signMessage(brickedMessage));
+            
+            vm.expectRevert();
+            CoreRelayer(payable(address(myCoreRelayer))).getDefaultRelayProvider();
+
+
     }
 
     /*

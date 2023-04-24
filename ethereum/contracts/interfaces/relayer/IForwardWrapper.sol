@@ -13,5 +13,9 @@ interface IForwardWrapper {
         bytes[] memory signedVaas
     ) external payable returns (bool callToTargetContractSucceeded, uint256 transactionFeeRefundAmount);
 
-    function safeRelayProviderSupportsChain(IRelayProvider relayProvider, uint16 chainId) external view returns(bool isSupported);
+    function safeRelayProviderSupportsChain(IRelayProvider relayProvider, uint16 chainId)
+        external
+        view
+        returns (bool isSupported);
+
 }

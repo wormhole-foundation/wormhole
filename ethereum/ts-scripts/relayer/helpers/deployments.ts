@@ -1,11 +1,10 @@
-import { RelayProviderProxy__factory } from "../../../ethers-contracts/factories/RelayProviderProxy__factory";
-import { RelayProviderSetup__factory } from "../../../ethers-contracts/factories/RelayProviderSetup__factory";
-import { RelayProviderImplementation__factory } from "../../../ethers-contracts/factories/RelayProviderImplementation__factory";
-import { MockRelayerIntegration__factory } from "../../../ethers-contracts/factories/MockRelayerIntegration__factory";
-import { CoreRelayerProxy__factory } from "../../../ethers-contracts/factories/CoreRelayerProxy__factory";
-import { CoreRelayerSetup__factory } from "../../../ethers-contracts/factories/CoreRelayerSetup__factory";
-import { CoreRelayerImplementation__factory } from "../../../ethers-contracts/factories/CoreRelayerImplementation__factory";
-import { CoreRelayerLibrary__factory } from "../../../ethers-contracts/factories/CoreRelayerLibrary__factory";
+import { RelayProviderProxy__factory } from "../../../ethers-contracts";
+import { RelayProviderSetup__factory } from "../../../ethers-contracts";
+import { RelayProviderImplementation__factory } from "../../../ethers-contracts";
+import { MockRelayerIntegration__factory } from "../../../ethers-contracts";
+import { CoreRelayerProxy__factory } from "../../../ethers-contracts";
+import { CoreRelayerSetup__factory } from "../../../ethers-contracts";
+import { CoreRelayerImplementation__factory } from "../../../ethers-contracts";
 
 import {
   init,
@@ -16,8 +15,19 @@ import {
   Deployment,
   getSigner,
   getCoreRelayerAddress,
+  getCreate2Factory,
+  getCoreRelayer,
+  fetchSetupAddressCreate2,
 } from "./env";
 import { ethers } from "ethers";
+import {
+  Create2Factory__factory,
+  ForwardWrapper__factory,
+} from "../../../ethers-contracts";
+import { wait } from "./utils";
+
+export const setupContractSalt = Buffer.from("0xSetup");
+export const proxyContractSalt = Buffer.from("0xGenericRelayer");
 
 export async function deployRelayProviderImplementation(
   chain: ChainInfo
@@ -105,7 +115,7 @@ export async function deployMockIntegration(
   );
   const contract = await factory.deploy(
     chain.wormholeAddress,
-    getCoreRelayerAddress(chain)
+    await getCoreRelayerAddress(chain)
   );
   return await contract.deployed().then((result) => {
     console.log("Successfully deployed contract at " + result.address);
@@ -113,78 +123,60 @@ export async function deployMockIntegration(
   });
 }
 
-export async function deployCoreRelayerLibrary(
+export async function deployCreate2Factory(
   chain: ChainInfo
+): Promise<Deployment> {
+  console.log("deployCreate2Factory " + chain.chainId);
+
+  const result = await new Create2Factory__factory(getSigner(chain))
+    .deploy()
+    .then(deployed);
+  console.log(`Successfully deployed contract at ${result.address}`);
+  return { address: result.address, chainId: chain.chainId };
+}
+
+export async function deployForwardWrapper(
+  chain: ChainInfo,
+  coreRelayerProxyAddress: string
 ): Promise<Deployment> {
   console.log("deployCoreRelayerLibrary " + chain.chainId);
 
-  let signer = getSigner(chain);
-  const contractInterface = CoreRelayerLibrary__factory.createInterface();
-  const bytecode = CoreRelayerLibrary__factory.bytecode;
-  const factory = new ethers.ContractFactory(
-    contractInterface,
-    bytecode,
-    signer
-  );
-  const contract = await factory.deploy();
-  return await contract.deployed().then((result) => {
-    console.log("Successfully deployed contract at " + result.address);
-    return { address: result.address, chainId: chain.chainId };
-  });
+  const result = await new ForwardWrapper__factory(getSigner(chain))
+    .deploy(coreRelayerProxyAddress, chain.wormholeAddress)
+    .then(deployed);
+  console.log("Successfully deployed contract at " + result.address);
+  return { address: result.address, chainId: chain.chainId };
 }
 
 export async function deployCoreRelayerImplementation(
   chain: ChainInfo,
-  coreRelayerLibraryAddress: string
+  forwardWrapperAddress: string
 ): Promise<Deployment> {
   console.log("deployCoreRelayerImplementation " + chain.chainId);
-  const signer = getSigner(chain);
-  const contractInterface = CoreRelayerImplementation__factory.createInterface();
-  const bytecode: string = CoreRelayerImplementation__factory.bytecode;
 
-  /*
-  Linked libraries in EVM are contained in the bytecode and linked at compile time.
-  However, the linked address of the CoreRelayerLibrary is not known until deployment time,
-  So, rather that recompiling the contracts with a static link, we modify the bytecode directly 
-  once we have the CoreRelayLibraryAddress.
-  */
-  const bytecodeWithLibraryLink = link(
-    bytecode,
-    "CoreRelayerLibrary",
-    coreRelayerLibraryAddress
-  );
+  const result = await new CoreRelayerImplementation__factory(getSigner(chain))
+    .deploy(forwardWrapperAddress)
+    .then(deployed);
 
-  //@ts-ignore
-  const factory = new ethers.ContractFactory(
-    contractInterface,
-    bytecodeWithLibraryLink,
-    signer
-  );
-  const contract = await factory.deploy();
-  return await contract.deployed().then((result) => {
-    console.log("Successfully deployed contract at " + result.address);
-    return { address: result.address, chainId: chain.chainId };
-  });
+  console.log("Successfully deployed contract at " + result.address);
+  return { address: result.address, chainId: chain.chainId };
 }
 export async function deployCoreRelayerSetup(
   chain: ChainInfo
 ): Promise<Deployment> {
   console.log("deployCoreRelayerSetup " + chain.chainId);
-  const signer = getSigner(chain);
-  const contractInterface = CoreRelayerSetup__factory.createInterface();
-  const bytecode = CoreRelayerSetup__factory.bytecode;
-  //@ts-ignore
-  const factory = new ethers.ContractFactory(
-    contractInterface,
-    bytecode,
-    signer
-  );
-  const contract = await factory.deploy();
-  return await contract.deployed().then((result) => {
-    console.log("Successfully deployed contract at " + result.address);
-    return { address: result.address, chainId: chain.chainId };
-  });
+
+  const create2Factory = getCreate2Factory(chain);
+  const rx = await create2Factory
+    .create2(setupContractSalt, CoreRelayerSetup__factory.bytecode)
+    .then(wait);
+  const address = Create2Factory__factory.createInterface().parseLog(rx.logs[0])
+    .args[0];
+
+  console.log("Successfully deployed contract at " + address);
+  return { address, chainId: chain.chainId };
 }
+
 export async function deployCoreRelayerProxy(
   chain: ChainInfo,
   coreRelayerSetupAddress: string,
@@ -193,40 +185,47 @@ export async function deployCoreRelayerProxy(
   relayProviderProxyAddress: string
 ): Promise<Deployment> {
   console.log("deployCoreRelayerProxy " + chain.chainId);
-  const signer = getSigner(chain);
-  const contractInterface = CoreRelayerProxy__factory.createInterface();
-  const bytecode = CoreRelayerProxy__factory.bytecode;
-  //@ts-ignore
-  const factory = new ethers.ContractFactory(
-    contractInterface,
-    bytecode,
-    signer
-  );
 
+  const create2Factory = getCreate2Factory(chain);
+  const expectedSetupAddr = await fetchSetupAddressCreate2(
+    chain,
+    create2Factory
+  );
+  if (coreRelayerSetupAddress !== expectedSetupAddr) {
+    throw new Error(
+      `coreRelayerSetupAddress different than expected. Expected: ${expectedSetupAddr} Actual: ${coreRelayerSetupAddress}`
+    );
+  }
+
+  // deploy proxy and point at setup contract
+  const data = new CoreRelayerProxy__factory().getDeployTransaction(
+    coreRelayerSetupAddress
+  ).data!;
+  const rx = await create2Factory.create2(proxyContractSalt, data).then(wait);
+
+  // call setup
   const governanceChainId = 1;
   const governanceContract =
     "0x0000000000000000000000000000000000000000000000000000000000000004";
-
-  let ABI = [
-    "function setup(address,uint16,address,address,uint16,bytes32,uint256)",
-  ];
-  let iface = new ethers.utils.Interface(ABI);
-  let encodedData = iface.encodeFunctionData("setup", [
-    coreRelayerImplementationAddress,
-    chain.chainId,
-    wormholeAddress,
-    relayProviderProxyAddress,
-    governanceChainId,
-    governanceContract,
-    chain.evmNetworkId,
-  ]);
-
-  const contract = await factory.deploy(coreRelayerSetupAddress, encodedData);
-  return await contract.deployed().then((result) => {
-    console.log("Successfully deployed contract at " + result.address);
-    return { address: result.address, chainId: chain.chainId };
-  });
+  const proxy = CoreRelayerSetup__factory.connect(
+    await getCoreRelayerAddress(chain),
+    getSigner(chain)
+  );
+  await proxy
+    .setup(
+      coreRelayerImplementationAddress,
+      chain.chainId,
+      wormholeAddress,
+      relayProviderProxyAddress,
+      governanceChainId,
+      governanceContract,
+      chain.evmNetworkId
+    )
+    .then(wait);
+  console.log("Successfully deployed contract at " + proxy.address);
+  return { address: proxy.address, chainId: chain.chainId };
 }
+
 function link(bytecode: string, libName: String, libAddress: string) {
   //This doesn't handle the libName, because Forge embed a psuedonym into the bytecode, like
   //__$a7dd444e34bd28bbe3641e0101a6826fa7$__
@@ -235,3 +234,5 @@ function link(bytecode: string, libName: String, libAddress: string) {
   let symbol = /__.*?__/g;
   return bytecode.replace(symbol, libAddress.toLowerCase().substr(2));
 }
+
+const deployed = (x: ethers.Contract) => x.deployed();

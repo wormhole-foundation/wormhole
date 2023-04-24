@@ -51,7 +51,7 @@ async function upgradeCoreRelayer(
 ) {
   console.log("upgradeCoreRelayer " + chain.chainId);
 
-  const coreRelayer = getCoreRelayer(chain);
+  const coreRelayer = await getCoreRelayer(chain);
 
   await coreRelayer.submitContractUpgrade(
     createCoreRelayerUpgradeVAA(chain, newImplementationAddress)

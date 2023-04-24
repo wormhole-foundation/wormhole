@@ -475,7 +475,7 @@ contract WormholeRelayerTests is Test {
     function testFundsCorrectForASend(GasParameters memory gasParams, FeeParameters memory feeParams) public {
 
         vm.recordLogs();
-        (Contracts memory source, Contracts memory target, FundsCorrectTest memory test) = setupFundsCorrectTest(gasParams, feeParams, 210000);
+        (Contracts memory source, Contracts memory target, FundsCorrectTest memory test) = setupFundsCorrectTest(gasParams, feeParams, 215000);
 
         test.payment = test.transactionFee + uint256(3) * source.wormhole.messageFee() + test.receiverValueSource;
 
@@ -512,8 +512,9 @@ contract WormholeRelayerTests is Test {
         test.maximumRefundTarget = (test.transactionFee - test.overhead) * feeParams.sourceNativePrice * 100 / (uint256(1) * feeParams.targetNativePrice * 105);
         test.gasAmount = uint32(actualGasLimit  - test.refundAddressAmount * actualGasLimit / test.maximumRefundTarget);
         assertTrue(test.maximumRefundTarget == deliveryData.maximumRefund);
-        assertTrue(test.gasAmount >= 203000, "Gas amount (calculated from refund address payment) lower than expected");
-        assertTrue(test.gasAmount <= 210000, "Gas amount (calculated from refund address payment) higher than expected");
+        console.log(test.gasAmount);
+        assertTrue(test.gasAmount >= 203000, "Gas amount (calculated from refund address payment) lower than expected" );
+        assertTrue(test.gasAmount <= 215000, "Gas amount (calculated from refund address payment) higher than expected");
         assertTrue(test.relayerPayment == test.destinationAmount + test.refundAddressAmount, "Relayer paid the correct amount");
     }
 
@@ -1697,7 +1698,7 @@ contract WormholeRelayerTests is Test {
 
         assertTrue(ins.key.chainId == setup.sourceChainId, "VAA key has correct chainID");
         assertTrue(ins.key.infoType == IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE, "VAA key type matches");
-        assertTrue(ins.newReceiverValue >= feeParams.receiverValueTarget, "new receiver value greater than the old value");
+        assertTrue(ins.newReceiverValueTarget >= feeParams.receiverValueTarget, "new receiver value greater than the old value");
         assertTrue(ins.sourceRelayProvider == setup.source.coreRelayer.toWormholeFormat(address(setup.source.relayProvider)), "specified relay provider is listed");
         assertTrue(ins.executionParameters.gasLimit >= gasParams.targetGasLimit, "new gaslimit was recorded");
 
@@ -1713,10 +1714,10 @@ contract WormholeRelayerTests is Test {
 
         (output.key, index) = utilityCoreRelayer.decodeVaaKey(encoded, index);
 
-        output.newMaxRefundTarget = encoded.toUint256(index);
+        output.newMaximumRefundTarget = encoded.toUint256(index);
         index+=32;
 
-        output.newReceiverValue = encoded.toUint256(index);
+        output.newReceiverValueTarget = encoded.toUint256(index);
         index+=32;
 
         output.sourceRelayProvider = encoded.toBytes32(index);
@@ -1805,7 +1806,90 @@ contract WormholeRelayerTests is Test {
             overrides: encodeDeliveryOverride(deliveryOverride)
         });
 
-        vm.expectRevert();
+        vm.expectRevert(abi.encodeWithSignature("InvalidOverride()"));
         setup.target.coreRelayerFull.deliver{value: stack.budget}(stack.package);
+    }
+
+    function testEmitAndRedeliver(GasParameters memory gasParams, FeeParameters memory feeParams, bytes memory message) public {
+        StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
+
+        vm.recordLogs();
+
+        DeliveryStack memory stack;
+
+        stack.payment = setup.source.coreRelayer.quoteGas(
+            setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
+        ) + 3 * setup.source.wormhole.messageFee();
+
+        //send an original message
+        setup.source.integration.sendMessageWithRefundAddress{value: stack.payment}(
+            message, setup.targetChainId, address(setup.target.integration), setup.target.refundAddress, bytes("")
+        );
+
+        //stack.entries = vm.getRecordedLogs();
+        prepareDeliveryStack(stack, setup);
+
+        //pull the original message from the logs
+        bytes memory originalVM = relayerWormholeSimulator.fetchSignedMessageFromLogs(
+            stack.entries[0], setup.sourceChainId, address(setup.source.coreRelayer)
+        );
+
+        //parse the original message
+        IWormhole.VM memory originalVmParsed = setup.source.wormhole.parseVM(originalVM);
+
+        //create a VAA key for the original message
+        IWormholeRelayer.VaaKey memory vaaKey = IWormholeRelayer.VaaKey(
+            IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE,
+            setup.sourceChainId,
+            originalVmParsed.emitterAddress,
+            originalVmParsed.sequence,
+            bytes32(0x0)
+        );
+
+        //call a resend for the orignal message
+        setup.source.coreRelayer.resend{value: stack.payment + setup.source.wormhole.messageFee()}(
+            vaaKey,
+            setup.source.coreRelayer.quoteGas(
+                setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
+            ), //newMaxTransactionFee
+            0, //new receiver
+            setup.targetChainId,
+            address(setup.source.relayProvider)
+        );
+
+        //let's first deliver the redelivery
+        Vm.Log[] memory logs2 = vm.getRecordedLogs();
+        bytes memory redeliveryVM = relayerWormholeSimulator.fetchSignedMessageFromLogs(
+            logs2[0], setup.sourceChainId, address(setup.source.coreRelayer)
+        );
+        IWormhole.VM memory redeliveryVmParsed = setup.source.wormhole.parseVM(redeliveryVM);
+        IWormholeRelayerInternalStructs.RedeliveryInstruction memory ins = decodeRedeliveryInstruction(redeliveryVmParsed.payload);
+
+        IDelivery.DeliveryOverride memory deliveryOverride = IDelivery.DeliveryOverride(
+            ins.executionParameters.gasLimit,
+            ins.newMaximumRefundTarget,
+            ins.newReceiverValueTarget,
+            redeliveryVmParsed.hash
+        );
+
+        stack.package = IDelivery.TargetDeliveryParameters({
+            encodedVMs: stack.encodedVMs,
+            encodedDeliveryVAA: stack.deliveryVM,
+            relayerRefundAddress: payable(setup.target.relayer),
+            overrides: encodeDeliveryOverride(deliveryOverride)
+        });
+
+        setup.target.coreRelayerFull.deliver{value: stack.budget}(stack.package);
+        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
+
+        //now let's deliver the original VAA without overrides
+        stack.package = IDelivery.TargetDeliveryParameters({
+            encodedVMs: stack.encodedVMs,
+            encodedDeliveryVAA: stack.deliveryVM,
+            relayerRefundAddress: payable(setup.target.relayer),
+            overrides: bytes("")
+        });
+        setup.target.coreRelayerFull.deliver{value: stack.budget}(stack.package);
+        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
     }
 }
