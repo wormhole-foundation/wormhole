@@ -1,15 +1,15 @@
 import {
   deployCoreRelayerImplementation,
-  deployCoreRelayerLibrary,
   deployCoreRelayerProxy,
   deployCoreRelayerSetup,
+  deployForwardWrapper,
 } from "../helpers/deployments";
 import {
   init,
-  loadChains,
   writeOutputFiles,
   getRelayProviderAddress,
   getOperatingChains,
+  getCoreRelayerAddress,
 } from "../helpers/env";
 
 const processName = "deployCoreRelayer";
@@ -28,10 +28,14 @@ async function run() {
 
   for (const chain of chains) {
     console.log(`Deploying for chain ${chain.chainId}...`);
-    const coreRelayerLibrary = await deployCoreRelayerLibrary(chain);
+    const forwardWrapper = await deployForwardWrapper(
+      chain,
+      // uses create2 to determine address before deployment
+      await getCoreRelayerAddress(chain)
+    );
     const coreRelayerImplementation = await deployCoreRelayerImplementation(
       chain,
-      coreRelayerLibrary.address
+      forwardWrapper.address
     );
     const coreRelayerSetup = await deployCoreRelayerSetup(chain);
     const coreRelayerProxy = await deployCoreRelayerProxy(
@@ -42,7 +46,7 @@ async function run() {
       getRelayProviderAddress(chain)
     );
 
-    output.coreRelayerLibraries.push(coreRelayerLibrary);
+    output.coreRelayerLibraries.push(forwardWrapper);
     output.coreRelayerImplementations.push(coreRelayerImplementation);
     output.coreRelayerSetups.push(coreRelayerSetup);
     output.coreRelayerProxies.push(coreRelayerProxy);

@@ -59,3 +59,6 @@ RUN rm -rf node_modules && mv node_modules_cache node_modules
 
 COPY --chown=node:node . .
 RUN make forge_dependencies
+
+ARG num_guardians
+ENV NUM_GUARDIANS=$num_guardians

@@ -61,8 +61,11 @@ export function createDefaultRelayProviderVAA(chain: ChainInfo) {
   return encodeAndSignGovernancePayload(payload);
 }
 
-export function createRegisterChainVAA(chain: ChainInfo): string {
-  const coreRelayerAddress = getCoreRelayerAddress(chain);
+export async function createRegisterChainVAA(
+  chain: ChainInfo
+): Promise<string> {
+  const coreRelayerAddress = await getCoreRelayerAddress(chain);
+  console.log(`Registering ${coreRelayerAddress} on chain ${chain.chainId}`);
 
   // bytes32 module;
   // uint8 action;
@@ -105,18 +108,18 @@ export function encodeAndSignGovernancePayload(payload: string): string {
 
   const hash = doubleKeccak256(encodedVAABody);
 
-  const pks = loadGuardianKeys();
+  const signers = loadGuardianKeys();
   let signatures = "";
 
-  for (let pk of pks) {
+  for (const i in signers) {
     // sign the hash
     const ec = new elliptic.ec("secp256k1");
-    const key = ec.keyFromPrivate(pk);
+    const key = ec.keyFromPrivate(signers[i]);
     const signature = key.sign(hash.substring(2), { canonical: true });
 
     // pack the signatures
     const packSig = [
-      ethers.utils.solidityPack(["uint8"], [0]).substring(2),
+      ethers.utils.solidityPack(["uint8"], [i]).substring(2),
       zeroPadBytes(signature.r.toString(16), 32),
       zeroPadBytes(signature.s.toString(16), 32),
       ethers.utils
@@ -131,7 +134,7 @@ export function encodeAndSignGovernancePayload(payload: string): string {
     ethers.utils
       .solidityPack(["uint32"], [loadGuardianSetIndex()])
       .substring(2), // guardianSetIndex
-    ethers.utils.solidityPack(["uint8"], [pks.length]).substring(2), // number of signers
+    ethers.utils.solidityPack(["uint8"], [signers.length]).substring(2), // number of signers
     signatures,
     encodedVAABody.substring(2),
   ].join("");

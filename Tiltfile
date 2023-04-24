@@ -453,6 +453,7 @@ docker_build(
 
     # ignore local node_modules (in case they're present)
     ignore = ["./node_modules", "./ts-test"],
+    build_args = {"num_guardians": str(num_guardians)},
 
     # sync external scripts for incremental development
     # (everything else needs to be restarted from scratch for determinism)
@@ -482,7 +483,7 @@ if spy_relayer or redis or generic_relayer or ci_tests:
 
     k8s_yaml_with_ns("devnet/redis.yaml")
 
-if generic_relayer or ci_tests:
+if generic_relayer:
     k8s_resource(
         "relayer-engine",
         resource_deps = ["guardian", "redis", "spy"],

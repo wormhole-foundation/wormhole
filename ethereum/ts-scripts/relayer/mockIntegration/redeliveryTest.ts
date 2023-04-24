@@ -17,7 +17,7 @@ async function run(
   sourceTxHash: string,
   deliveryVAASequence: number,
 ) {
-  const coreRelayer = getCoreRelayer(sourceChain)
+  const coreRelayer = await getCoreRelayer(sourceChain)
   const relayProvider = await coreRelayer.getDefaultRelayProvider()
 
   const relayQuote = await (
