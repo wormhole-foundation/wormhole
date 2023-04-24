@@ -304,6 +304,8 @@ contract WormholeRelayerTests is Test {
         setup.source.coreRelayer.send{value: maxTransactionFee + feeParams.wormholeFeeOnSource}(setup.targetChainId, setup.source.coreRelayer.toWormholeFormat(address(setup.target.integration)), setup.targetChainId, setup.source.coreRelayer.toWormholeFormat(address(setup.target.integration)), maxTransactionFee, 0, bytes(""), vaaKeyArray(setup.sourceChainId, sequence, address(this)), uint8(23));
 
         Vm.Log memory log = vm.getRecordedLogs()[1];
+        
+        // Parse the consistency level from the published VAA
         uint8 consistencyLevel = log.data.toUint8(32 + 32 + 32 + 32 - 1);
 
         assertTrue(consistencyLevel == 23);
