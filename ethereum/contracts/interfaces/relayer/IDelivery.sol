@@ -22,12 +22,11 @@ interface IDelivery {
     }
 
     /**
-     * @notice TargetDeliveryParameters is the struct that the relay provider passes into 'deliver'
-     * containing an array of the signed wormhole messages that are to be relayed
+     * @notice DeliveryOverride is a struct which can alter several aspects of a delivery.
      *
-     * @custom:member version the version of this payload
      * @custom:member gaslimit override, must be greater than the gasLimit specified in the delivery instruction.
-     * @custom:member receiverValue override, must be greater than the receiverValue specified in the delivery instruction.
+     * @custom:member maximumRefund override, must be greater than or equal to the maximumRefund specified in the delivery instruction.
+     * @custom:member receiverValue override, must be greater than or equal to the receiverValue specified in the delivery instruction.
      * @custom:member the hash of the redelivery which is being performed, or 0 if none.
      */
     struct DeliveryOverride {
@@ -71,4 +70,5 @@ interface IDelivery {
     error VaaKeysDoNotMatchVaas(uint8 index); // The VAA at index 'index' does not match the 'index'-th description given on the source chain in the 'messages' field
     error VaaKeysLengthDoesNotMatchVaasLength(); // The VAA array has a different length than the original array of VaaKey descriptions from the source chain
     error ForwardNotSufficientlyFunded(uint256 amountOfFunds, uint256 amountOfFundsNeeded); // Should never happen as this should have already been checked for
+    error InvalidOverride(); // Invalid overrides were passed in to the delivery
 }
