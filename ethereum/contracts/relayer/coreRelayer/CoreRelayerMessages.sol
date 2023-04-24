@@ -9,7 +9,7 @@ import "../../interfaces/relayer/IWormholeRelayerInternalStructs.sol";
 import "../../interfaces/relayer/IWormholeRelayer.sol";
 import "../../interfaces/relayer/IDelivery.sol";
 
-contract CoreRelayerMessages is CoreRelayerGetters {
+abstract contract CoreRelayerMessages is CoreRelayerGetters {
     using BytesLib for bytes;
 
     error InvalidPayloadId(uint8 payloadId);

@@ -9,7 +9,7 @@ import "./CoreRelayerGovernance.sol";
 import "../../interfaces/relayer/IWormholeRelayerInternalStructs.sol";
 import "./CoreRelayerMessages.sol";
 
-contract CoreRelayerDelivery is CoreRelayerGovernance {
+abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
     enum DeliveryStatus {
         SUCCESS,
         RECEIVER_FAILURE,
