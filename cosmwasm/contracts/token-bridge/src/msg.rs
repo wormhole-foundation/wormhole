@@ -117,3 +117,18 @@ pub struct IsVaaRedeemedResponse {
 pub struct ChainRegistrationResponse {
     pub address: Binary,
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct CompleteTransferResponse {
+    // All addresses are bech32-encoded strings.
+
+    // contract address if this minted or unlocked a cw20, otherwise none
+    pub contract: Option<String>,
+    // denom if this unlocked a native token, otherwise none
+    pub denom: Option<String>,
+    pub recipient: String,
+    pub amount: Uint128,
+    pub relayer: String,
+    pub fee: Uint128,
+}

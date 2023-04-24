@@ -38,6 +38,7 @@ enum ChainID {
   CHAIN_ID_XPLA = 28;
   CHAIN_ID_BTC = 29;
   CHAIN_ID_BASE = 30;
+  CHAIN_ID_SEI = 32;
   CHAIN_ID_SEPOLIA = 10002;
 }
 

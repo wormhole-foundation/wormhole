@@ -231,9 +231,9 @@ func (p *Processor) Run(ctx context.Context) error {
 					for _, k := range toBePublished {
 						// SECURITY defense-in-depth: Make sure the governor did not generate an unexpected message.
 						if msgIsGoverned, err := p.governor.IsGovernedMsg(k); err != nil {
-							return fmt.Errorf("cgov: governor failed to determine if message should be governed: `%s`: %w", k.MessageIDString(), err)
+							return fmt.Errorf("governor failed to determine if message should be governed: `%s`: %w", k.MessageIDString(), err)
 						} else if !msgIsGoverned {
-							return fmt.Errorf("cgov: governor published a message that should not be governed: `%s`", k.MessageIDString())
+							return fmt.Errorf("governor published a message that should not be governed: `%s`", k.MessageIDString())
 						}
 						if p.acct != nil {
 							shouldPub, err := p.acct.SubmitObservation(k)

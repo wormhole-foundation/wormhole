@@ -43,11 +43,11 @@ func (gov *ChainGovernor) initCoinGecko(ctx context.Context, run bool) error {
 	// Create the set of queries, breaking the IDs into the appropriate size chunks.
 	gov.coinGeckoQueries = createCoinGeckoQueries(ids, tokensPerCoinGeckoQuery)
 	for queryIdx, query := range gov.coinGeckoQueries {
-		gov.logger.Info("cgov: coingecko query: ", zap.Int("queryIdx", queryIdx), zap.String("query", query))
+		gov.logger.Info("coingecko query: ", zap.Int("queryIdx", queryIdx), zap.String("query", query))
 	}
 
 	if len(gov.coinGeckoQueries) == 0 {
-		gov.logger.Info("cgov: did not find any tokens, nothing to do!")
+		gov.logger.Info("did not find any tokens, nothing to do!")
 		return nil
 	}
 
@@ -130,7 +130,7 @@ func (gov *ChainGovernor) queryCoinGecko() error {
 	for queryIdx, query := range gov.coinGeckoQueries {
 		thisResult, err := gov.queryCoinGeckoChunk(query)
 		if err != nil {
-			gov.logger.Error("cgov: CoinGecko query failed", zap.Int("queryIdx", queryIdx), zap.String("query", query), zap.Error(err))
+			gov.logger.Error("CoinGecko query failed", zap.Int("queryIdx", queryIdx), zap.String("query", query), zap.Error(err))
 			gov.revertAllPrices()
 			return err
 		}
@@ -161,7 +161,7 @@ func (gov *ChainGovernor) queryCoinGecko() error {
 				var ok bool
 				price, ok = m["usd"].(float64)
 				if !ok {
-					gov.logger.Error("cgov: failed to parse CoinGecko response, reverting to configured price for this token", zap.String("coinGeckoId", coinGeckoId))
+					gov.logger.Error("failed to parse CoinGecko response, reverting to configured price for this token", zap.String("coinGeckoId", coinGeckoId))
 					// By continuing, we leave this one in the local map so the price will get reverted below.
 					continue
 				}
@@ -175,14 +175,14 @@ func (gov *ChainGovernor) queryCoinGecko() error {
 
 			delete(localTokenMap, coinGeckoId)
 		} else {
-			gov.logger.Error("cgov: received a CoinGecko response for an unexpected symbol", zap.String("coinGeckoId", coinGeckoId))
+			gov.logger.Error("received a CoinGecko response for an unexpected symbol", zap.String("coinGeckoId", coinGeckoId))
 		}
 	}
 
 	if len(localTokenMap) != 0 {
 		for _, lcge := range localTokenMap {
 			for _, te := range lcge {
-				gov.logger.Error("cgov: did not receive a CoinGecko response for symbol, reverting to configured price",
+				gov.logger.Error("did not receive a CoinGecko response for symbol, reverting to configured price",
 					zap.String("symbol", te.symbol),
 					zap.String("coinGeckoId",
 						te.coinGeckoId),
@@ -194,7 +194,7 @@ func (gov *ChainGovernor) queryCoinGecko() error {
 			}
 		}
 
-		return fmt.Errorf("cgov: failed to update prices for some tokens")
+		return fmt.Errorf("failed to update prices for some tokens")
 	}
 
 	return nil
@@ -204,7 +204,7 @@ func (gov *ChainGovernor) queryCoinGecko() error {
 func (gov *ChainGovernor) queryCoinGeckoChunk(query string) (map[string]interface{}, error) {
 	var result map[string]interface{}
 
-	gov.logger.Debug("cgov: executing CoinGecko query", zap.String("query", query))
+	gov.logger.Debug("executing CoinGecko query", zap.String("query", query))
 	response, err := http.Get(query) //nolint:gosec
 	if err != nil {
 		return result, fmt.Errorf("failed to query CoinGecko: %w", err)
@@ -213,7 +213,7 @@ func (gov *ChainGovernor) queryCoinGeckoChunk(query string) (map[string]interfac
 	defer func() {
 		err = response.Body.Close()
 		if err != nil {
-			gov.logger.Error("cgov: failed to close CoinGecko query: %w", zap.Error(err))
+			gov.logger.Error("failed to close CoinGecko query: %w", zap.Error(err))
 		}
 	}()
 
@@ -241,7 +241,7 @@ func (gov *ChainGovernor) revertAllPrices() {
 
 	for _, cge := range gov.tokensByCoinGeckoId {
 		for _, te := range cge {
-			gov.logger.Info("cgov: reverting to configured price",
+			gov.logger.Info("reverting to configured price",
 				zap.String("symbol", te.symbol),
 				zap.String("coinGeckoId", te.coinGeckoId),
 				zap.Stringer("cfgPrice", te.cfgPrice),

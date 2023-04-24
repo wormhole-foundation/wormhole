@@ -5,9 +5,22 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/test-go/testify/require"
+
+	"github.com/prometheus/client_golang/prometheus"
+	dto "github.com/prometheus/client_model/go"
 )
+
+func getCounterValue(metric *prometheus.CounterVec, runnableName string) float64 {
+	var m = &dto.Metric{}
+	if err := metric.WithLabelValues(runnableName).Write(m); err != nil {
+		return 0
+	}
+	return m.Counter.GetValue()
+}
 
 func throwNil(ctx context.Context) error {
 	var x *int = nil
@@ -77,4 +90,116 @@ func TestSupervisor(t *testing.T) {
 		},
 		)
 	}
+}
+
+func TestRunWithScissorsCleanExit(t *testing.T) {
+	ctx := context.Background()
+	errC := make(chan error)
+
+	itRan := make(chan bool, 1)
+	RunWithScissors(ctx, errC, "TestRunWithScissorsCleanExit", func(ctx context.Context) error {
+		itRan <- true
+		return nil
+	})
+
+	shouldHaveRun := <-itRan
+	require.Equal(t, true, shouldHaveRun)
+
+	// Need to wait a bit to make sure the scissors code completes without hanging.
+	time.Sleep(100 * time.Millisecond)
+
+	assert.Equal(t, 0.0, getCounterValue(ScissorsErrorsCaught, "TestRunWithScissorsCleanExit"))
+	assert.Equal(t, 0.0, getCounterValue(ScissorsPanicsCaught, "TestRunWithScissorsCleanExit"))
+}
+
+func TestRunWithScissorsPanicReturned(t *testing.T) {
+	ctx := context.Background()
+	errC := make(chan error)
+
+	itRan := make(chan bool, 1)
+	RunWithScissors(ctx, errC, "TestRunWithScissorsPanicReturned", func(ctx context.Context) error {
+		itRan <- true
+		panic("Some random panic")
+	})
+
+	var err error
+	select {
+	case <-ctx.Done():
+		break
+	case err = <-errC:
+		break
+	}
+
+	shouldHaveRun := <-itRan
+	require.Equal(t, true, shouldHaveRun)
+	assert.Error(t, err)
+	assert.Equal(t, "TestRunWithScissorsPanicReturned: Some random panic", err.Error())
+	assert.Equal(t, 0.0, getCounterValue(ScissorsErrorsCaught, "TestRunWithScissorsPanicReturned"))
+	assert.Equal(t, 1.0, getCounterValue(ScissorsPanicsCaught, "TestRunWithScissorsPanicReturned"))
+}
+
+func TestRunWithScissorsPanicDoesNotBlockWhenNoListener(t *testing.T) {
+	ctx := context.Background()
+	errC := make(chan error)
+
+	itRan := make(chan bool, 1)
+	RunWithScissors(ctx, errC, "TestRunWithScissorsPanicDoesNotBlockWhenNoListener", func(ctx context.Context) error {
+		itRan <- true
+		panic("Some random panic")
+	})
+
+	shouldHaveRun := <-itRan
+	require.Equal(t, true, shouldHaveRun)
+
+	// Need to wait a bit to make sure the scissors code completes without hanging.
+	time.Sleep(100 * time.Millisecond)
+
+	assert.Equal(t, 0.0, getCounterValue(ScissorsErrorsCaught, "TestRunWithScissorsPanicDoesNotBlockWhenNoListener"))
+	assert.Equal(t, 1.0, getCounterValue(ScissorsPanicsCaught, "TestRunWithScissorsPanicDoesNotBlockWhenNoListener"))
+}
+
+func TestRunWithScissorsErrorReturned(t *testing.T) {
+	ctx := context.Background()
+	errC := make(chan error)
+
+	itRan := make(chan bool, 1)
+	RunWithScissors(ctx, errC, "TestRunWithScissorsErrorReturned", func(ctx context.Context) error {
+		itRan <- true
+		return fmt.Errorf("Some random error")
+	})
+
+	var err error
+	select {
+	case <-ctx.Done():
+		break
+	case err = <-errC:
+		break
+	}
+
+	shouldHaveRun := <-itRan
+	require.Equal(t, true, shouldHaveRun)
+	assert.Error(t, err)
+	assert.Equal(t, "Some random error", err.Error())
+	assert.Equal(t, 1.0, getCounterValue(ScissorsErrorsCaught, "TestRunWithScissorsErrorReturned"))
+	assert.Equal(t, 0.0, getCounterValue(ScissorsPanicsCaught, "TestRunWithScissorsErrorReturned"))
+}
+
+func TestRunWithScissorsErrorDoesNotBlockWhenNoListener(t *testing.T) {
+	ctx := context.Background()
+	errC := make(chan error)
+
+	itRan := make(chan bool, 1)
+	RunWithScissors(ctx, errC, "TestRunWithScissorsErrorDoesNotBlockWhenNoListener", func(ctx context.Context) error {
+		itRan <- true
+		return fmt.Errorf("Some random error")
+	})
+
+	shouldHaveRun := <-itRan
+	require.Equal(t, true, shouldHaveRun)
+
+	// Need to wait a bit to make sure the scissors code completes without hanging.
+	time.Sleep(100 * time.Millisecond)
+
+	assert.Equal(t, 1.0, getCounterValue(ScissorsErrorsCaught, "TestRunWithScissorsErrorDoesNotBlockWhenNoListener"))
+	assert.Equal(t, 0.0, getCounterValue(ScissorsPanicsCaught, "TestRunWithScissorsErrorDoesNotBlockWhenNoListener"))
 }

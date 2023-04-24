@@ -1,1 +1,1 @@
-pub use token_bridge_terra_2::contract;
+pub use cw_token_bridge::contract;
