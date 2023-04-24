@@ -425,9 +425,11 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
             return (deliveryInstruction, 0x0);
         } else {
             IDelivery.DeliveryOverride memory overrides = decodeDeliveryOverride(encoded);
-            require(overrides.gasLimit >= deliveryInstruction.executionParameters.gasLimit);
-            require(overrides.receiverValue >= deliveryInstruction.receiverValueTarget );
-            require(overrides.maximumRefund >= deliveryInstruction.maximumRefundTarget);
+            if(overrides.gasLimit < deliveryInstruction.executionParameters.gasLimit 
+                || overrides.receiverValue < deliveryInstruction.receiverValueTarget 
+                || overrides.maximumRefund < deliveryInstruction.maximumRefundTarget){
+                revert IDelivery.InvalidOverride();
+            }
 
             deliveryInstruction.executionParameters.gasLimit = overrides.gasLimit;
             deliveryInstruction.receiverValueTarget = overrides.receiverValue;
