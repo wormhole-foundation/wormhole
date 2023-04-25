@@ -10,9 +10,6 @@ module wormhole::governance_message {
     use wormhole::cursor::{Self};
     use wormhole::state::{Self, State, chain_id};
     use wormhole::vaa::{Self, VAA};
-    use wormhole::version_control::{
-        GovernanceMessage as GovernanceMessageControl
-    };
 
     /// Guardian set used to sign VAA did not use current Guardian set.
     const E_OLD_GUARDIAN_SET_GOVERNANCE: u64 = 0;
@@ -90,10 +87,6 @@ module wormhole::governance_message {
         wormhole_state: &State,
         verified_vaa: VAA,
     ): GovernanceMessage {
-        state::check_minimum_requirement<GovernanceMessageControl>(
-            wormhole_state
-        );
-
         // This VAA must have originated from the governance emitter.
         assert_governance_emitter(wormhole_state, &verified_vaa);
 
@@ -182,6 +175,9 @@ module wormhole::governance_message {
     /// Aborts if the VAA is not governance (i.e. sent from the governance
     /// emitter on the governance chain)
     fun assert_governance_emitter(wormhole_state: &State, verified_vaa: &VAA) {
+        // This state capability ensures that the current build version is used.
+        state::assert_current(wormhole_state);
+
         // Protect against governance actions enacted using an old guardian set.
         // This is not a protection found in the other Wormhole contracts.
         assert!(
@@ -228,6 +224,7 @@ module wormhole::governance_message_tests {
     use wormhole::state::{Self};
     use wormhole::governance_message::{Self};
     use wormhole::vaa::{Self};
+    use wormhole::version_control::{Self, V__0_1_0, V__MIGRATED};
     use wormhole::wormhole_scenario::{
         set_up_wormhole,
         person,
@@ -243,7 +240,7 @@ module wormhole::governance_message_tests {
         x"01000000000100181aa27fd44f3060fad0ae72895d42f97c45f7a5d34aa294102911370695e91e17ae82caa59f779edde2356d95cd46c2c381cdeba7a8165901a562374f212d750000bc614e000000000001000000000000000000000000000000000000000000000000000000000000000400000000000000010100000000000000000000000000000000000000000000000000000000436f7265030015000000000000000000000000000000000000000000000000000000000000015e";
 
     #[test]
-    public fun test_global_action() {
+    fun test_global_action() {
         // Set up.
         let caller = person();
         let my_scenario = test_scenario::begin(caller);
@@ -295,7 +292,7 @@ module wormhole::governance_message_tests {
     }
 
     #[test]
-    public fun test_local_action() {
+    fun test_local_action() {
         // Set up.
         let caller = person();
         let my_scenario = test_scenario::begin(caller);
@@ -350,7 +347,7 @@ module wormhole::governance_message_tests {
     #[expected_failure(
         abort_code = governance_message::E_INVALID_GOVERNANCE_MODULE
     )]
-    public fun test_cannot_assert_module_and_action_invalid_module() {
+    fun test_cannot_assert_module_and_action_invalid_module() {
         // Set up.
         let caller = person();
         let my_scenario = test_scenario::begin(caller);
@@ -399,7 +396,7 @@ module wormhole::governance_message_tests {
     #[expected_failure(
         abort_code = governance_message::E_INVALID_GOVERNANCE_ACTION
     )]
-    public fun test_cannot_assert_module_and_action_invalid_action() {
+    fun test_cannot_assert_module_and_action_invalid_action() {
         // Set up.
         let caller = person();
         let my_scenario = test_scenario::begin(caller);
@@ -448,7 +445,7 @@ module wormhole::governance_message_tests {
     #[expected_failure(
         abort_code = governance_message::E_GOVERNANCE_TARGET_CHAIN_NONZERO
     )]
-    public fun test_cannot_take_global_action_with_local() {
+    fun test_cannot_take_global_action_with_local() {
         // Set up.
         let caller = person();
         let my_scenario = test_scenario::begin(caller);
@@ -496,7 +493,7 @@ module wormhole::governance_message_tests {
     #[expected_failure(
         abort_code = governance_message::E_GOVERNANCE_TARGET_CHAIN_NOT_SUI
     )]
-    public fun test_cannot_take_local_action_with_invalid_chain() {
+    fun test_cannot_take_local_action_with_invalid_chain() {
         // Set up.
         let caller = person();
         let my_scenario = test_scenario::begin(caller);
@@ -533,6 +530,47 @@ module wormhole::governance_message_tests {
         );
 
         // Clean up.
+        return_state(worm_state);
+        return_clock(the_clock);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
+    fun test_cannot_verify_vaa_outdated_version() {
+        // Set up.
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
+
+        let wormhole_fee = 350;
+        set_up_wormhole(scenario, wormhole_fee);
+
+        // Prepare test setting sender to `caller`.
+        test_scenario::next_tx(scenario, caller);
+
+        let worm_state = take_state(scenario);
+        let the_clock = take_clock(scenario);
+
+        let verified_vaa =
+            vaa::parse_and_verify(
+                &worm_state,
+                VAA_UPDATE_GUARDIAN_SET_1,
+                &the_clock
+            );
+
+        state::migrate_version_test_only<V__0_1_0, V__MIGRATED>(
+            &mut worm_state,
+            version_control::next_version()
+        );
+
+        // You shall not pass!
+        let msg = governance_message::verify_vaa(&worm_state, verified_vaa);
+
+        // Clean up.
+        governance_message::destroy(msg);
         return_state(worm_state);
         return_clock(the_clock);
 

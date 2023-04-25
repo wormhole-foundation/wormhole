@@ -15,10 +15,7 @@ module wormhole::update_guardian_set {
     use wormhole::governance_message::{Self, GovernanceMessage};
     use wormhole::guardian::{Self, Guardian};
     use wormhole::guardian_set::{Self};
-    use wormhole::state::{Self, State};
-    use wormhole::version_control::{
-        UpdateGuardianSet as UpdateGuardianSetControl
-    };
+    use wormhole::state::{Self, State, StateCap};
 
     /// No guardians public keys found in VAA.
     const E_NO_GUARDIANS: u64 = 0;
@@ -48,24 +45,24 @@ module wormhole::update_guardian_set {
         msg: GovernanceMessage,
         the_clock: &Clock
     ): u32 {
-        state::check_minimum_requirement<UpdateGuardianSetControl>(
-            wormhole_state
-        );
+        // This state capability ensures that the current build version is used.
+        let cap = state::new_cap(wormhole_state);
 
         // Do not allow this VAA to be replayed (although it may be impossible
         // to do so due to the guardian set of a previous VAA being illegitimate
         // since `governance_message` requires new governance VAAs being signed
         // by the most recent guardian set).
         consumed_vaas::consume(
-            state::borrow_mut_consumed_vaas(wormhole_state),
+            state::borrow_mut_consumed_vaas(&cap, wormhole_state),
             governance_message::vaa_hash(&msg)
         );
 
         // Proceed with the update.
-        handle_update_guardian_set(wormhole_state, msg, the_clock)
+        handle_update_guardian_set(&cap, wormhole_state, msg, the_clock)
     }
 
     fun handle_update_guardian_set(
+        cap: &StateCap,
         wormhole_state: &mut State,
         msg: GovernanceMessage,
         the_clock: &Clock
@@ -92,10 +89,11 @@ module wormhole::update_guardian_set {
         );
 
         // Expire the existing guardian set.
-        state::expire_guardian_set(wormhole_state, the_clock);
+        state::expire_guardian_set(cap, wormhole_state, the_clock);
 
         // And store the new one.
         state::add_new_guardian_set(
+            cap,
             wormhole_state,
             guardian_set::new(new_index, guardians)
         );
@@ -140,11 +138,10 @@ module wormhole::update_guardian_set_tests {
     use wormhole::governance_message::{Self};
     use wormhole::guardian::{Self};
     use wormhole::guardian_set::{Self};
-    use wormhole::required_version::{Self};
     use wormhole::state::{Self};
     use wormhole::update_guardian_set::{Self};
     use wormhole::vaa::{Self};
-    use wormhole::version_control::{Self as control};
+    use wormhole::version_control::{Self, V__0_1_0, V__MIGRATED};
     use wormhole::wormhole_scenario::{
         person,
         return_clock,
@@ -169,7 +166,7 @@ module wormhole::update_guardian_set_tests {
         x"0100000000010098f9e45f836661d2932def9c74c587168f4f75d0282201ee6f5a98557e6212ff19b0f8881c2750646250f60dd5d565530779ecbf9442aa5ffc2d6afd7303aaa40000bc614e000000000001000000000000000000000000000000000000000000000000000000000000000400000000000000010100000000000000000000000000000000000000000000000000000000436f72650200000000000100";
 
     #[test]
-    public fun test_update_guardian_set() {
+    fun test_update_guardian_set() {
         // Testing this method.
         use wormhole::update_guardian_set::{update_guardian_set};
 
@@ -197,7 +194,8 @@ module wormhole::update_guardian_set_tests {
         let new_index = update_guardian_set(&mut worm_state, msg, &the_clock);
         assert!(new_index == 1, 0);
 
-        let new_guardian_set = state::guardian_set_at(&worm_state, new_index);
+        let new_guardian_set =
+            state::guardian_set_at(&worm_state, new_index);
 
         // Verify new guardian set index.
         assert!(state::guardian_set_index(&worm_state) == new_index, 0);
@@ -265,7 +263,7 @@ module wormhole::update_guardian_set_tests {
     }
 
     #[test]
-    public fun test_update_guardian_set_after_upgrade() {
+    fun test_update_guardian_set_after_upgrade() {
         // Testing this method.
         use wormhole::update_guardian_set::{update_guardian_set};
 
@@ -308,7 +306,7 @@ module wormhole::update_guardian_set_tests {
     #[expected_failure(
         abort_code = governance_message::E_OLD_GUARDIAN_SET_GOVERNANCE
     )]
-    public fun test_cannot_update_guardian_set_again_with_same_vaa() {
+    fun test_cannot_update_guardian_set_again_with_same_vaa() {
         // Testing this method.
         use wormhole::update_guardian_set::{update_guardian_set};
 
@@ -369,7 +367,7 @@ module wormhole::update_guardian_set_tests {
     #[expected_failure(
         abort_code = governance_message::E_GOVERNANCE_TARGET_CHAIN_NONZERO
     )]
-    public fun test_cannot_update_guardian_set_invalid_target_chain() {
+    fun test_cannot_update_guardian_set_invalid_target_chain() {
         // Testing this method.
         use wormhole::update_guardian_set::{update_guardian_set};
 
@@ -414,7 +412,7 @@ module wormhole::update_guardian_set_tests {
     #[expected_failure(
         abort_code = governance_message::E_INVALID_GOVERNANCE_ACTION
     )]
-    public fun test_cannot_update_guardian_set_invalid_action() {
+    fun test_cannot_update_guardian_set_invalid_action() {
         // Testing this method.
         use wormhole::update_guardian_set::{update_guardian_set};
 
@@ -460,7 +458,7 @@ module wormhole::update_guardian_set_tests {
 
     #[test]
     #[expected_failure(abort_code = update_guardian_set::E_NO_GUARDIANS)]
-    public fun test_cannot_update_guardian_set_with_no_guardians() {
+    fun test_cannot_update_guardian_set_with_no_guardians() {
         // Testing this method.
         use wormhole::update_guardian_set::{update_guardian_set};
 
@@ -510,8 +508,8 @@ module wormhole::update_guardian_set_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = required_version::E_OUTDATED_VERSION)]
-    public fun test_cannot_set_fee_outdated_build() {
+    #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
+    fun test_cannot_set_fee_outdated_build() {
         // Testing this method.
         use wormhole::update_guardian_set::{update_guardian_set};
 
@@ -529,13 +527,12 @@ module wormhole::update_guardian_set_tests {
         let worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
 
-
         // Simulate executing with an outdated build by upticking the minimum
         // required version for `publish_message` to something greater than
         // this build.
-        state::set_required_version<control::UpdateGuardianSet>(
+        state::migrate_version_test_only<V__0_1_0, V__MIGRATED>(
             &mut worm_state,
-            control::version() + 1
+            version_control::next_version()
         );
 
         let parsed =

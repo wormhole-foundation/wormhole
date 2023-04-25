@@ -11,7 +11,6 @@ module wormhole::state {
     use sui::balance::{Balance};
     use sui::clock::{Clock};
     use sui::dynamic_field::{Self as field};
-    use sui::event::{Self};
     use sui::object::{Self, ID, UID};
     use sui::package::{Self, UpgradeCap, UpgradeReceipt, UpgradeTicket};
     use sui::sui::{SUI};
@@ -25,8 +24,7 @@ module wormhole::state {
     use wormhole::fee_collector::{Self, FeeCollector};
     use wormhole::guardian::{Self};
     use wormhole::guardian_set::{Self, GuardianSet};
-    use wormhole::required_version::{Self, RequiredVersion};
-    use wormhole::version_control::{Self as control};
+    use wormhole::version_control::{Self};
 
     friend wormhole::emitter;
     friend wormhole::governance_message;
@@ -43,20 +41,18 @@ module wormhole::state {
     const E_ZERO_GUARDIANS: u64 = 0;
     /// Build does not agree with expected upgrade.
     const E_BUILD_VERSION_MISMATCH: u64 = 1;
+    /// Build digest does not agree with current implementation.
+    const E_INVALID_BUILD_DIGEST: u64 = 2;
 
     /// Sui's chain ID is hard-coded to one value.
     const CHAIN_ID: u16 = 21;
 
-    /// Used as key to finish upgrade process after upgrade has been committed.
-    ///
-    /// See `migrate` module for more info.
-    struct MigrateTicket has store {}
+    /// TODO: write something meaningful here
+    struct CurrentDigest has store, drop, copy {}
 
-    /// Event when `MigrateTicket` is consumed either by `migrate` or
-    /// `authorize_upgrade`.
-    struct MigrateTicketConsumed has drop, copy {
-        version: u64
-    }
+    /// Capability reflecting that the current build version is used to invoke
+    /// state methods.
+    struct StateCap has drop {}
 
     /// Container for all state variables for Wormhole.
     struct State has key, store {
@@ -89,10 +85,7 @@ module wormhole::state {
         fee_collector: FeeCollector,
 
         /// Upgrade capability.
-        upgrade_cap: UpgradeCap,
-
-        /// Contract build version tracker.
-        required_version: RequiredVersion
+        upgrade_cap: UpgradeCap
     }
 
     /// Create new `State`. This is only executed using the `setup` module.
@@ -125,9 +118,11 @@ module wormhole::state {
             guardian_set_seconds_to_live,
             consumed_vaas: consumed_vaas::new(ctx),
             fee_collector: fee_collector::new(message_fee),
-            upgrade_cap,
-            required_version: required_version::new(control::version(), ctx)
+            upgrade_cap
         };
+
+        // Set first version for this package.
+        version_control::initialize(&mut state.id);
 
         let guardians = {
             let out = vector::empty();
@@ -144,22 +139,25 @@ module wormhole::state {
 
         // Store the initial guardian set.
         add_new_guardian_set(
+            &new_cap(&state),
             &mut state,
             guardian_set::new(guardian_set_index, guardians)
         );
 
-        let tracker = &mut state.required_version;
-        required_version::add<control::Emitter>(tracker);
-        required_version::add<control::GovernanceMessage>(tracker);
-        required_version::add<control::Migrate>(tracker);
-        required_version::add<control::PublishMessage>(tracker);
-        required_version::add<control::SetFee>(tracker);
-        required_version::add<control::TransferFee>(tracker);
-        required_version::add<control::UpdateGuardianSet>(tracker);
-        required_version::add<control::Vaa>(tracker);
+        // Add dummy hash since this is the first time the package is published.
+        field::add(&mut state.id, CurrentDigest {}, bytes32::default());
 
         state
     }
+
+    ////////////////////////////////////////////////////////////////////////////
+    //
+    //  Simple Getters
+    //
+    //  These methods do not require `StateCap` for access. Anyone is free to
+    //  access these values.
+    //
+    ////////////////////////////////////////////////////////////////////////////
 
     /// Convenience method to get hard-coded Wormhole chain ID (recognized by
     /// the Wormhole network).
@@ -173,119 +171,6 @@ module wormhole::state {
         bytes32::new(
             x"00000000000000000000000000000000000000000000000000000000436f7265"
         )
-    }
-
-    /// Retrieve current build version of latest upgrade.
-    public fun current_version(self: &State): u64 {
-        required_version::current(&self.required_version)
-    }
-
-    /// Issue an `UpgradeTicket` for the upgrade.
-    ///
-    /// NOTE: The Sui VM performs a check that this method is executed from the
-    /// latest published package. If someone were to try to execute this using
-    /// a stale build, the transaction will revert with `PackageUpgradeError`,
-    /// specifically `PackageIDDoesNotMatch`.
-    public(friend) fun authorize_upgrade(
-        self: &mut State,
-        implementation_digest: Bytes32
-    ): UpgradeTicket {
-        // We remove the `migrate` guard on another upgrade so that we constrain
-        // calling `migrate` at most once.
-        if (field::exists_(&mut self.id, b"migrate")) {
-            consume_migrate_ticket(self);
-        };
-
-        // Save current package ID before committing upgrade.
-        field::add(
-            &mut self.id,
-            b"current_package_id",
-            package::upgrade_package(&self.upgrade_cap)
-        );
-
-        let policy = package::upgrade_policy(&self.upgrade_cap);
-
-        // Finally authorize upgrade.
-        package::authorize_upgrade(
-            &mut self.upgrade_cap,
-            policy,
-            bytes32::to_bytes(implementation_digest),
-        )
-    }
-
-    /// Finalize the upgrade that ran to produce the given `receipt`.
-    ///
-    /// NOTE: The Sui VM performs a check that this method is executed from the
-    /// latest published package. If someone were to try to execute this using
-    /// a stale build, the transaction will revert with `PackageUpgradeError`,
-    /// specifically `PackageIDDoesNotMatch`.
-    public(friend) fun commit_upgrade(
-        self: &mut State,
-        receipt: UpgradeReceipt
-    ): (ID, ID) {
-        // Uptick the upgrade cap version number using this receipt.
-        package::commit_upgrade(&mut self.upgrade_cap, receipt);
-
-        // Update global version.
-        required_version::update_latest(
-            &mut self.required_version,
-            &self.upgrade_cap
-        );
-
-        // Require that `migrate` be called only from the current build.
-        require_current_version<control::Migrate>(self);
-
-        // We require that a `MigrateTicket` struct be destroyed as the final
-        // step to an upgrade by calling `migrate` from the `migrate` module.
-        //
-        // A separate method is required because `state` is a dependency of
-        // `migrate`. This method warehouses state modifications required
-        // for the new implementation plus enabling any methods required to be
-        // gated by the current implementation version. In most cases `migrate`
-        // is a no-op.
-        //
-        // The only case where this would fail is if `migrate` were not called
-        // from a previous upgrade.
-        //
-        // See `migrate` module for more info.
-        field::add(&mut self.id, b"migrate", MigrateTicket {});
-
-        // Return the package IDs.
-        (
-            field::remove(&mut self.id, b"current_package_id"),
-            package::upgrade_package(&self.upgrade_cap)
-        )
-    }
-
-    /// Enforce a particular method to use the current build version as its
-    /// minimum required version. This method ensures that a method is not
-    /// backwards compatible with older builds.
-    public(friend) fun require_current_version<ControlType>(self: &mut State) {
-        required_version::require_current_version<ControlType>(
-            &mut self.required_version,
-        )
-    }
-
-    /// Check whether a particular method meets the minimum build version for
-    /// the latest Wormhole implementation.
-    public(friend) fun check_minimum_requirement<ControlType>(self: &State) {
-        required_version::check_minimum_requirement<ControlType>(
-            &self.required_version,
-            control::version()
-        )
-    }
-
-    /// After committing an upgrade, destroy `MigrateTicket`.
-    ///
-    /// See `wormhole::migrate` module for more info.
-    public(friend) fun consume_migrate_ticket(self: &mut State) {
-        let MigrateTicket {} = field::remove(&mut self.id, b"migrate");
-
-        event::emit(
-            MigrateTicketConsumed {
-                version: package::version(&self.upgrade_cap)
-            }
-        );
     }
 
     /// Retrieve governance chain ID, which is governance's emitter chain ID.
@@ -310,9 +195,85 @@ module wormhole::state {
         self.guardian_set_seconds_to_live
     }
 
+    /// Retrieve a particular Guardian set by its Guardian set index. This
+    /// method is used when verifying a VAA.
+    ///
+    /// See `wormhole::vaa` for more info.
+    public fun guardian_set_at(
+        self: &State,
+        index: u32
+    ): &GuardianSet {
+        table::borrow(&self.guardian_sets, index)
+    }
+
     /// Retrieve current fee to send Wormhole message.
     public fun message_fee(self: &State): u64 {
         fee_collector::fee_amount(&self.fee_collector)
+    }
+
+    #[test_only]
+    public fun fees_collected(self: &State): u64 {
+        fee_collector::balance_value(&self.fee_collector)
+    }
+
+    #[test_only]
+    public fun new_cap_test_only(self: &State): StateCap {
+        new_cap(self)
+    }
+
+    #[test_only]
+    public fun deposit_fee_test_only(self: &mut State, fee: Balance<SUI>) {
+        deposit_fee(&new_cap(self), self, fee)
+    }
+
+    #[test_only]
+    public fun migrate_version_test_only<Old: store + drop, New: store + drop>(
+        self: &mut State,
+        new_version: New
+    ) {
+        wormhole::package_utils::update_version_type<Old, New>(
+            &mut self.id,
+            new_version
+        );
+    }
+
+    #[test_only]
+    public fun test_upgrade(self: &mut State) {
+        let test_digest = bytes32::from_bytes(b"new build");
+        let ticket = authorize_upgrade(self, test_digest);
+        let receipt = package::test_upgrade(ticket);
+        commit_upgrade(self, receipt);
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    //
+    //  Privileged `State` Access
+    //
+    //  This section of methods require a `StateCap`, which can only be created
+    //  within the Wormhole package. This capability allows special access to
+    //  the `State` object.
+    //
+    //  NOTE: A lot of these methods are still marked as `(friend)` as a safety
+    //  precaution. When a package is upgraded, friend modifiers can be
+    //  added or removed.
+    //
+    ////////////////////////////////////////////////////////////////////////////
+
+    /// Obtain a capability to interact with `State` methods. This method checks
+    /// that we are running the current build.
+    ///
+    /// NOTE: This method allows caching the current version check so we avoid
+    /// multiple checks to dynamic fields.
+    public fun new_cap(self: &State): StateCap {
+        version_control::assert_current(&self.id);
+
+        StateCap {}
+    }
+
+    /// A more expressive method to enforce that the current build version is
+    /// used.
+    public fun assert_current(self: &State) {
+        new_cap(self);
     }
 
     /// Deposit fee when sending Wormhole message. This method does not
@@ -321,13 +282,12 @@ module wormhole::state {
     /// of calling `publish_message`.
     ///
     /// See `wormhole::publish_message` for more info.
-    public(friend) fun deposit_fee(self: &mut State, fee: Balance<SUI>) {
+    public(friend) fun deposit_fee(
+        _: &StateCap,
+        self: &mut State,
+        fee: Balance<SUI>
+    ) {
         fee_collector::deposit_balance(&mut self.fee_collector, fee);
-    }
-
-    #[test_only]
-    public fun deposit_fee_test_only(self: &mut State, fee: Balance<SUI>) {
-        deposit_fee(self, fee)
     }
 
     /// Withdraw collected fees when governance action to transfer fees to a
@@ -335,6 +295,7 @@ module wormhole::state {
     ///
     /// See `wormhole::transfer_fee` for more info.
     public(friend) fun withdraw_fee(
+        _: &StateCap,
         self: &mut State,
         amount: u64
     ): Balance<SUI> {
@@ -345,6 +306,20 @@ module wormhole::state {
     /// from being replayed. For Wormhole, the only VAAs that it cares about
     /// being replayed are its governance actions.
     public(friend) fun borrow_mut_consumed_vaas(
+        _: &StateCap,
+        self: &mut State
+    ): &mut ConsumedVAAs {
+        borrow_mut_consumed_vaas_unchecked(self)
+    }
+
+    /// Store `VAA` hash as a way to claim a VAA. This method prevents a VAA
+    /// from being replayed. For Wormhole, the only VAAs that it cares about
+    /// being replayed are its governance actions.
+    ///
+    /// NOTE: This method does not require `StateCap`. Only methods in the
+    /// `upgrade_contract` module requires this to be unprotected to prevent
+    /// a corrupted upgraded contract from bricking upgradability.
+    public(friend) fun borrow_mut_consumed_vaas_unchecked(
         self: &mut State
     ): &mut ConsumedVAAs {
         &mut self.consumed_vaas
@@ -358,9 +333,8 @@ module wormhole::state {
     /// long a Guardian set can live for.
     ///
     /// See `wormhole::update_guardian_set` for more info.
-    ///
-    /// TODO: Use `Clock` instead of `TxContext`.
     public(friend) fun expire_guardian_set(
+        _: &StateCap,
         self: &mut State,
         the_clock: &Clock
     ) {
@@ -376,6 +350,7 @@ module wormhole::state {
     ///
     /// See `wormhole::update_guardian_set` for more info.
     public(friend) fun add_new_guardian_set(
+        _: &StateCap,
         self: &mut State,
         new_guardian_set: GuardianSet
     ) {
@@ -390,45 +365,103 @@ module wormhole::state {
     /// Modify the cost to send a Wormhole message via governance.
     ///
     /// See `wormhole::set_fee` for more info.
-    public(friend) fun set_message_fee(self: &mut State, amount: u64) {
+    public(friend) fun set_message_fee(
+        _: &StateCap,
+        self: &mut State,
+        amount: u64
+    ) {
         fee_collector::change_fee(&mut self.fee_collector, amount);
     }
 
-    /// Retrieve a particular Guardian set by its Guardian set index. This
-    /// method is used when verifying a VAA.
+    ////////////////////////////////////////////////////////////////////////////
+    //
+    //  Upgradability
+    //
+    //  A special space that controls upgrade logic. These methods are invoked
+    //  via the `upgrade_contract` module.
+    //
+    //  Also in this section is managing contract migrations, which uses the
+    //  `migrate` module to officially roll state access to the latest build.
+    //  Only those methods that require `StateCap` will be affected by an
+    //  upgrade.
+    //
+    ////////////////////////////////////////////////////////////////////////////
+
+    /// Issue an `UpgradeTicket` for the upgrade.
     ///
-    /// See `wormhole::vaa` for more info.
-    public fun guardian_set_at(self: &State, index: u32): &GuardianSet {
-        table::borrow(&self.guardian_sets, index)
-    }
-
-    #[test_only]
-    public fun fees_collected(self: &State): u64 {
-        fee_collector::balance_value(&self.fee_collector)
-    }
-
-    #[test_only]
-    public fun set_required_version<ControlType>(
+    /// NOTE: The Sui VM performs a check that this method is executed from the
+    /// latest published package. If someone were to try to execute this using
+    /// a stale build, the transaction will revert with `PackageUpgradeError`,
+    /// specifically `PackageIDDoesNotMatch`.
+    public(friend) fun authorize_upgrade(
         self: &mut State,
-        version: u64
-    ) {
-        required_version::set_required_version<ControlType>(
-            &mut self.required_version,
-            version
+        implementation_digest: Bytes32
+    ): UpgradeTicket {
+        // Save current package ID before committing upgrade.
+        field::add(
+            &mut self.id,
+            b"current_package_id",
+            package::upgrade_package(&self.upgrade_cap)
+        );
+
+        let policy = package::upgrade_policy(&self.upgrade_cap);
+
+        // Manage saving the current digest.
+        let _: Bytes32 = field::remove(&mut self.id, CurrentDigest {});
+        field::add(&mut self.id, CurrentDigest {}, implementation_digest);
+
+        // Finally authorize upgrade.
+        package::authorize_upgrade(
+            &mut self.upgrade_cap,
+            policy,
+            bytes32::to_bytes(implementation_digest),
         )
     }
 
-    #[test_only]
-    public fun test_upgrade(self: &mut State) {
-        use sui::hash::{keccak256};
+    /// Finalize the upgrade that ran to produce the given `receipt`.
+    ///
+    /// NOTE: The Sui VM performs a check that this method is executed from the
+    /// latest published package. If someone were to try to execute this using
+    /// a stale build, the transaction will revert with `PackageUpgradeError`,
+    /// specifically `PackageIDDoesNotMatch`.
+    public(friend) fun commit_upgrade(
+        self: &mut State,
+        receipt: UpgradeReceipt
+    ): (ID, ID) {
+        // Uptick the upgrade cap version number using this receipt.
+        package::commit_upgrade(&mut self.upgrade_cap, receipt);
 
-        let ticket =
-            authorize_upgrade(self, bytes32::new(keccak256(&b"new build")));
-        let receipt = package::test_upgrade(ticket);
+        // We require that a `MigrateTicket` struct be destroyed as the final
+        // step to an upgrade by calling `migrate` from the `migrate` module.
+        //
+        // A separate method is required because `state` is a dependency of
+        // `migrate`. This method warehouses state modifications required
+        // for the new implementation plus enabling any methods required to be
+        // gated by the current implementation version. In most cases `migrate`
+        // is a no-op.
+        //
+        // The only case where this would fail is if `migrate` were not called
+        // from a previous upgrade.
+        //
+        // See `migrate` module for more info.
 
-        commit_upgrade(self, receipt);
+        // Return the package IDs.
+        (
+            field::remove(&mut self.id, b"current_package_id"),
+            package::upgrade_package(&self.upgrade_cap)
+        )
+    }
 
-        // Destroy migration key to wrap things up.
-        consume_migrate_ticket(self);
+    public(friend) fun migrate_version(self: &mut State) {
+        version_control::update_to_current(&mut self.id);
+    }
+
+    public(friend) fun assert_current_digest(
+        _: &StateCap,
+        self: &State,
+        digest: Bytes32
+    ) {
+        let current = *field::borrow(&self.id, CurrentDigest {});
+        assert!(digest == current, E_INVALID_BUILD_DIGEST);
     }
 }
