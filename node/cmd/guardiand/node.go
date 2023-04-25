@@ -1620,14 +1620,13 @@ func makeChannelPair[T any](cap int) (<-chan T, chan<- T) {
 	return out, out
 }
 
-var zeroAddress vaa.Address
-
 func validateMessage(logger *zap.Logger, msg *common.MessagePublication, chainId vaa.ChainID) (bool, error) {
 	if msg.EmitterChain != chainId {
 		// SECURITY: This should never happen. If it does, a watcher has been compromised.
 		return false, fmt.Errorf("received observation from a chain that was not marked as originating from that chain")
 	}
 
+	var zeroAddress vaa.Address
 	if msg.EmitterAddress == zeroAddress {
 		// SECURITY: This could happen based on external input. We want to block it but not restart the guardian.
 		logger.Error("SECURITY ERROR: received observation with EmitterAddress == 0x00",
