@@ -148,7 +148,7 @@ export class GovernanceEmitter extends MockEmitter {
   ) {
     const payload = Buffer.alloc(32);
     payload.write(
-      tryNativeToHexString(newContract, this.chain as ChainId),
+      tryNativeToHexString(newContract, chain as ChainId),
       0,
       "hex"
     );
