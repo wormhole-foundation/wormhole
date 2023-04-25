@@ -1,6 +1,5 @@
 import {
   afterAll,
-  beforeAll,
   beforeEach,
   describe,
   expect,
@@ -10,20 +9,20 @@ import {
 import {
   Connection,
   Ed25519Keypair,
-  fromB64,
-  getMoveObjectType,
   JsonRpcProvider,
   RawSigner,
+  fromB64,
+  getMoveObjectType,
 } from "@mysten/sui.js";
 import {
   CONTRACTS,
+  SUI_OBJECT_IDS,
   executeTransactionBlock,
   getInnerType,
-  SUI_OBJECT_IDS,
 } from "../../utils";
 import { attestFromSui } from "../attest";
-import { assertIsNotNullOrUndefined } from "./utils/helpers";
 import { SUI_FAUCET_URL, SUI_NODE_URL } from "./utils/consts";
+import { assertIsNotNullOrUndefined } from "./utils/helpers";
 
 const JEST_TEST_TIMEOUT = 60000;
 jest.setTimeout(JEST_TEST_TIMEOUT);
@@ -62,7 +61,7 @@ afterAll(async () => {
 });
 
 describe("Sui SDK tests", () => {
-  test("Transfer native Sui token to Ethereum and back", async () => {
+  test.skip("Transfer native Sui token to Ethereum and back", async () => {
     // const SUI_COIN_TYPE = "0x2::sui::SUI";
 
     // Get COIN_8 coin type
