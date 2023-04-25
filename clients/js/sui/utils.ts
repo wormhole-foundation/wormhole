@@ -250,6 +250,8 @@ export const getOwnedObjectId = async (
     const is504HttpError = `${error}`.includes("504 Gateway Time-out");
     if (error && is504HttpError) {
       return findOwnedObjectByType(provider, owner, type);
+    } else {
+      throw error;
     }
   }
 };
