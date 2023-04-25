@@ -92,6 +92,7 @@ message GovernanceMessage {
     WormchainStoreCode wormchain_store_code = 14;
     WormchainInstantiateContract wormchain_instantiate_contract = 15;
     WormchainMigrateContract wormchain_migrate_contract = 16;
+<<<<<<< HEAD
 
     // Global Accountant
     AccountantModifyBalance accountant_modify_balance = 17;
@@ -103,6 +104,11 @@ message GovernanceMessage {
 
     // Wormhole Relayer module
     WormholeRelayerSetDefaultRelayProvider wormhole_relayer_set_default_relay_provider = 21;
+=======
+
+    // Wormhole Relayer module
+    WormholeRelayerSetDefaultRelayProvider wormhole_relayer_set_default_relay_provider = 18;
+>>>>>>> 23e95345 (gRelayer: run make generate)
   }
 }
 
@@ -225,6 +231,7 @@ message WormchainMigrateContract {
 message CircleIntegrationUpdateWormholeFinality {
   uint32 finality = 1;
   uint32 target_chain_id = 2;
+}
 
 message CircleIntegrationUpdateWormholeFinality {
   uint32 finality = 1;
@@ -240,8 +247,6 @@ message CircleIntegrationRegisterEmitterAndDomain {
 message CircleIntegrationUpgradeContractImplementation {
   string new_implementation_address = 1;
   uint32 target_chain_id = 2;
-}
-
 }
 
 message WormholeRelayerSetDefaultRelayProvider {
