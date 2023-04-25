@@ -38,7 +38,10 @@ exports.handler = async (argv) => {
   if (module !== "TokenBridge" && module !== "NFTBridge") {
     throw Error(`Module must be TokenBridge or NFTBridge`);
   }
-  if (isEVMChain(chain)) {
+  if (chain === "solana") {
+    const solana = require("../solana");
+    await solana.query_registrations_solana(network, module);
+  } else if (isEVMChain(chain)) {
     const evm = require("../evm");
     await evm.query_registrations_evm(network, chain, module);
   } else if (isTerraChain(chain) || chain === "xpla") {

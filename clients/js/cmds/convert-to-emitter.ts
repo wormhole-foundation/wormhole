@@ -3,7 +3,7 @@ import {
   CHAINS,
   assertChain,
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
-import { getEmitterAddress } from "./contractAddress";
+import { getEmitterAddress } from "../emitter";
 
 exports.command = "convert-to-emitter <chain> <address-to-convert>";
 exports.desc = "Print address in emitter address format";
