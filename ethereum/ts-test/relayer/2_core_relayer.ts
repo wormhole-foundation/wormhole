@@ -10,6 +10,7 @@ import {
   loadMockIntegrations,
 } from "../../ts-scripts/relayer/helpers/env"
 import {relayer, ethers_contracts} from "../../../sdk/js/src"
+import { DeliveryInfo } from "../../../sdk/js/src/relayer"
 
 const ETHEREUM_ROOT = `${__dirname}/..`
 
