@@ -48,13 +48,26 @@ module token_bridge::token_bridge_scenario {
         return_wormhole_state(wormhole_state);
     }
 
+    /// Perform an upgrade (which just upticks the current version of what the
+    /// `State` believes is true).
+    public fun upgrade_token_bridge(scenario: &mut Scenario) {
+        // Clean up from activity prior.
+        test_scenario::next_tx(scenario, person());
+
+        let token_bridge_state = take_state(scenario);
+        state::test_upgrade(&mut token_bridge_state);
+
+        // Clean up.
+        return_state(token_bridge_state);
+    }
+
     /// Register arbitrary chain ID with the same emitter address (0xdeadbeef).
     public fun register_dummy_emitter(scenario: &mut Scenario, chain: u16) {
         // Ignore effects.
         test_scenario::next_tx(scenario, person());
 
         let token_bridge_state = take_state(scenario);
-        state::register_new_emitter_test_only(
+        token_bridge::register_chain::register_new_emitter_test_only(
             &mut token_bridge_state,
             chain,
             external_address::from_address(@0xdeadbeef)

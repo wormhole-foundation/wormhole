@@ -8,7 +8,6 @@
 module token_bridge::state {
     use std::option::{Self, Option};
     use sui::dynamic_field::{Self as field};
-    use sui::event::{Self};
     use sui::object::{Self, ID, UID};
     use sui::package::{Self, UpgradeCap, UpgradeReceipt, UpgradeTicket};
     use sui::table::{Self, Table};
@@ -18,25 +17,13 @@ module token_bridge::state {
     use wormhole::emitter::{Self, EmitterCap};
     use wormhole::external_address::{ExternalAddress};
     use wormhole::publish_message::{MessageTicket};
-    use wormhole::required_version::{Self, RequiredVersion};
     use wormhole::state::{State as WormholeState};
-    use wormhole::vaa::{Self, VAA};
 
     use token_bridge::token_registry::{Self, TokenRegistry, VerifiedAsset};
-    use token_bridge::version_control::{Self as control};
+    use token_bridge::version_control::{Self};
 
-    /// For a given chain ID, Token Bridge is non-existent.
-    const E_UNREGISTERED_EMITTER: u64 = 0;
-    /// Cannot register chain ID == 0.
-    const E_INVALID_EMITTER_CHAIN: u64 = 1;
-    /// Emitter already exists for a given chain ID.
-    const E_EMITTER_ALREADY_REGISTERED: u64 = 2;
-    /// Encoded emitter address does not match registered Token Bridge.
-    const E_EMITTER_ADDRESS_MISMATCH: u64 = 3;
-    /// VAA hash already exists in `Set`.
-    const E_VAA_ALREADY_CONSUMED: u64 = 4;
-    /// Build does not agree with expected upgrade.
-    const E_BUILD_VERSION_MISMATCH: u64 = 5;
+    /// Build digest does not agree with current implementation.
+    const E_INVALID_BUILD_DIGEST: u64 = 0;
 
     friend token_bridge::attest_token;
     friend token_bridge::complete_transfer;
@@ -50,16 +37,12 @@ module token_bridge::state {
     friend token_bridge::upgrade_contract;
     friend token_bridge::vaa;
 
-    /// Used as key to finish upgrade process after upgrade has been committed.
-    ///
-    /// See `migrate` module for more info.
-    struct MigrateTicket has store {}
+    /// TODO: write something meaningful here
+    struct CurrentDigest has store, drop, copy {}
 
-    /// Event when `MigrateTicket` is consumed either by `migrate` or
-    /// `authorize_upgrade`.
-    struct MigrateTicketConsumed has drop, copy {
-        version: u64
-    }
+    /// Capability reflecting that the current build version is used to invoke
+    /// state methods.
+    struct StateCap has drop {}
 
     /// Container for all state variables for Token Bridge.
     struct State has key, store {
@@ -78,10 +61,7 @@ module token_bridge::state {
         token_registry: TokenRegistry,
 
         /// Upgrade capability.
-        upgrade_cap: UpgradeCap,
-
-        /// Contract build version tracker.
-        required_version: RequiredVersion
+        upgrade_cap: UpgradeCap
     }
 
     /// Create new `State`. This is only executed using the `setup` module.
@@ -90,29 +70,33 @@ module token_bridge::state {
         upgrade_cap: UpgradeCap,
         ctx: &mut TxContext
     ): State {
+        // TODO: add governance chain and emitter here to not rely on wormhole's
         let state = State {
             id: object::new(ctx),
             consumed_vaas: consumed_vaas::new(ctx),
             emitter_cap: emitter::new(worm_state, ctx),
             emitter_registry: table::new(ctx),
             token_registry: token_registry::new(ctx),
-            upgrade_cap,
-            required_version: required_version::new(control::version(), ctx)
+            upgrade_cap
         };
 
-        let tracker = &mut state.required_version;
-        required_version::add<control::AttestToken>(tracker);
-        required_version::add<control::CompleteTransfer>(tracker);
-        required_version::add<control::CompleteTransferWithPayload>(tracker);
-        required_version::add<control::CreateWrapped>(tracker);
-        required_version::add<control::Migrate>(tracker);
-        required_version::add<control::RegisterChain>(tracker);
-        required_version::add<control::TransferTokens>(tracker);
-        required_version::add<control::TransferTokensWithPayload>(tracker);
-        required_version::add<control::Vaa>(tracker);
+        // Set first version for this package.
+        version_control::initialize(&mut state.id);
+
+        // Add dummy hash since this is the first time the package is published.
+        field::add(&mut state.id, CurrentDigest {}, bytes32::default());
 
         state
     }
+
+    ////////////////////////////////////////////////////////////////////////////
+    //
+    //  Simple Getters
+    //
+    //  These methods do not require `StateCap` for access. Anyone is free to
+    //  access these values.
+    //
+    ////////////////////////////////////////////////////////////////////////////
 
     /// Retrieve governance module name.
     public fun governance_module(): Bytes32 {
@@ -122,10 +106,178 @@ module token_bridge::state {
         )
     }
 
-    /// Retrieve current build version of latest upgrade.
-    public fun current_version(self: &State): u64 {
-        required_version::current(&self.required_version)
+    /// Retrieve immutable reference to `TokenRegistry`.
+    public fun borrow_token_registry(
+        self: &State
+    ): &TokenRegistry {
+        &self.token_registry
     }
+
+    public fun borrow_emitter_registry(
+        self: &State
+    ): &Table<u16, ExternalAddress> {
+        &self.emitter_registry
+    }
+
+    public fun maybe_verified_asset<CoinType>(
+        self: &State
+    ): Option<VerifiedAsset<CoinType>> {
+        let registry = &self.token_registry;
+        if (token_registry::has<CoinType>(registry)) {
+            option::some(token_registry::verified_asset<CoinType>(registry))
+        } else {
+            option::none()
+        }
+    }
+
+    public fun verified_asset<CoinType>(
+        self: &State
+    ): VerifiedAsset<CoinType> {
+        token_registry::assert_has<CoinType>(&self.token_registry);
+        token_registry::verified_asset(&self.token_registry)
+    }
+
+    #[test_only]
+    public fun borrow_mut_token_registry_test_only(
+        self: &mut State
+    ): &mut TokenRegistry {
+        borrow_mut_token_registry(&new_cap(self), self)
+    }
+
+    #[test_only]
+    public fun migrate_version_test_only<Old: store + drop, New: store + drop>(
+        self: &mut State,
+        new_version: New
+    ) {
+        wormhole::package_utils::update_version_type<Old, New>(
+            &mut self.id,
+            new_version
+        );
+    }
+
+    #[test_only]
+    public fun test_upgrade(self: &mut State) {
+        let test_digest = bytes32::from_bytes(b"new build");
+        let ticket = authorize_upgrade(self, test_digest);
+        let receipt = package::test_upgrade(ticket);
+        commit_upgrade(self, receipt);
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    //
+    //  Privileged `State` Access
+    //
+    //  This section of methods require a `StateCap`, which can only be created
+    //  within the Wormhole package. This capability allows special access to
+    //  the `State` object.
+    //
+    //  NOTE: A lot of these methods are still marked as `(friend)` as a safety
+    //  precaution. When a package is upgraded, friend modifiers can be
+    //  added or removed.
+    //
+    ////////////////////////////////////////////////////////////////////////////
+
+    /// Obtain a capability to interact with `State` methods. This method checks
+    /// that we are running the current build.
+    ///
+    /// NOTE: This method allows caching the current version check so we avoid
+    /// multiple checks to dynamic fields.
+    public fun new_cap(self: &State): StateCap {
+        version_control::assert_current(&self.id);
+
+        StateCap {}
+    }
+
+    /// Obtain a capability to interact with `State` methods. This method checks
+    /// that we are running the current build and that the specified `Version`
+    /// equals the current version. This method is useful when external modules
+    /// invoke Token Bridge and we need to check that the external module's
+    /// version is up-to-date (e.g. `create_wrapped::prepare_registration`).
+    ///
+    /// NOTE: This method allows caching the current version check so we avoid
+    /// multiple checks to dynamic fields.
+    public fun new_cap_specified<Version>(self: &State): StateCap {
+        version_control::assert_current_specified<Version>(&self.id);
+
+        StateCap {}
+    }
+
+    /// A more expressive method to enforce that the current build version is
+    /// used.
+    public fun assert_current(self: &State) {
+        new_cap(self);
+    }
+
+    /// Store `VAA` hash as a way to claim a VAA. This method prevents a VAA
+    /// from being replayed. For Wormhole, the only VAAs that it cares about
+    /// being replayed are its governance actions.
+    public(friend) fun borrow_mut_consumed_vaas(
+        _: &StateCap,
+        self: &mut State
+    ): &mut ConsumedVAAs {
+        borrow_mut_consumed_vaas_unchecked(self)
+    }
+
+    /// Store `VAA` hash as a way to claim a VAA. This method prevents a VAA
+    /// from being replayed. For Wormhole, the only VAAs that it cares about
+    /// being replayed are its governance actions.
+    ///
+    /// NOTE: This method does not require `StateCap`. Only methods in the
+    /// `upgrade_contract` module requires this to be unprotected to prevent
+    /// a corrupted upgraded contract from bricking upgradability.
+    public(friend) fun borrow_mut_consumed_vaas_unchecked(
+        self: &mut State
+    ): &mut ConsumedVAAs {
+        &mut self.consumed_vaas
+    }
+
+    /// Publish Wormhole message using Token Bridge's `EmitterCap`.
+    public(friend) fun prepare_wormhole_message(
+        _: &StateCap,
+        self: &mut State,
+        nonce: u32,
+        payload: vector<u8>
+    ): MessageTicket {
+        wormhole::publish_message::prepare_message(
+            &mut self.emitter_cap,
+            nonce,
+            payload,
+        )
+    }
+
+    /// Retrieve mutable reference to `TokenRegistry`.
+    public(friend) fun borrow_mut_token_registry(
+        _: &StateCap,
+        self: &mut State
+    ): &mut TokenRegistry {
+        &mut self.token_registry
+    }
+
+    public(friend) fun borrow_mut_emitter_registry(
+        _: &StateCap,
+        self: &mut State
+    ): &mut Table<u16, ExternalAddress> {
+        &mut self.emitter_registry
+    }
+
+    /// Retrieve decimals from for a given coin type in `TokenRegistry`.
+    public fun coin_decimals<CoinType>(self: &State): u8 {
+        token_registry::coin_decimals(&verified_asset<CoinType>(self))
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    //
+    //  Upgradability
+    //
+    //  A special space that controls upgrade logic. These methods are invoked
+    //  via the `upgrade_contract` module.
+    //
+    //  Also in this section is managing contract migrations, which uses the
+    //  `migrate` module to officially roll state access to the latest build.
+    //  Only those methods that require `StateCap` will be affected by an
+    //  upgrade.
+    //
+    ////////////////////////////////////////////////////////////////////////////
 
     /// Issue an `UpgradeTicket` for the upgrade.
     ///
@@ -137,12 +289,6 @@ module token_bridge::state {
         self: &mut State,
         implementation_digest: Bytes32
     ): UpgradeTicket {
-        // We remove the `migrate` guard on another upgrade so that we constrain
-        // calling `migrate` at most once.
-        if (field::exists_(&mut self.id, b"migrate")) {
-            consume_migrate_ticket(self);
-        };
-
         // Save current package ID before committing upgrade.
         field::add(
             &mut self.id,
@@ -151,6 +297,10 @@ module token_bridge::state {
         );
 
         let policy = package::upgrade_policy(&self.upgrade_cap);
+
+        // Manage saving the current digest.
+        let _: Bytes32 = field::remove(&mut self.id, CurrentDigest {});
+        field::add(&mut self.id, CurrentDigest {}, implementation_digest);
 
         // Finally authorize upgrade.
         package::authorize_upgrade(
@@ -173,15 +323,6 @@ module token_bridge::state {
         // Uptick the upgrade cap version number using this receipt.
         package::commit_upgrade(&mut self.upgrade_cap, receipt);
 
-        // Update global version.
-        required_version::update_latest(
-            &mut self.required_version,
-            &self.upgrade_cap
-        );
-
-        // Require that `migrate` be called only from the current build.
-        require_current_version<control::Migrate>(self);
-
         // We require that a `MigrateTicket` struct be destroyed as the final
         // step to an upgrade by calling `migrate` from the `migrate` module.
         //
@@ -195,7 +336,6 @@ module token_bridge::state {
         // from a previous upgrade.
         //
         // See `migrate` module for more info.
-        field::add(&mut self.id, b"migrate", MigrateTicket {});
 
         // Return the package IDs.
         (
@@ -204,171 +344,16 @@ module token_bridge::state {
         )
     }
 
-    /// Enforce a particular method to use the current build version as its
-    /// minimum required version. This method ensures that a method is not
-    /// backwards compatible with older builds.
-    public(friend) fun require_current_version<ControlType>(self: &mut State) {
-        required_version::require_current_version<ControlType>(
-            &mut self.required_version,
-        )
+    public(friend) fun migrate_version(self: &mut State) {
+        version_control::update_to_current(&mut self.id);
     }
 
-    /// Check whether a particular method meets the minimum build version for
-    /// the latest Token Bridge implementation.
-    public(friend) fun check_minimum_requirement<ControlType>(self: &State) {
-        check_minimum_requirement_specified<ControlType>(
-            self,
-            control::version()
-        )
-    }
-
-    /// Check whether a particular method meets the minimum build version for
-    /// a specified build version checked outside of this module.
-    ///
-    /// See `create_wrapped` module for an example of how this is used.
-    public(friend) fun check_minimum_requirement_specified<ControlType>(
+    public(friend) fun assert_current_digest(
+        _: &StateCap,
         self: &State,
-        build_version: u64
+        digest: Bytes32
     ) {
-        required_version::check_minimum_requirement<ControlType>(
-            &self.required_version,
-            build_version
-        )
-    }
-
-    /// After committing an upgrade, destroy `MigrateTicket`.
-    ///
-    /// See `wormhole::migrate` module for more info.
-    public(friend) fun consume_migrate_ticket(self: &mut State) {
-        let MigrateTicket {} = field::remove(&mut self.id, b"migrate");
-
-        event::emit(
-            MigrateTicketConsumed {
-                version: package::version(&self.upgrade_cap)
-            }
-        );
-    }
-
-    /// Publish Wormhole message using Token Bridge's `EmitterCap`.
-    public(friend) fun prepare_wormhole_message(
-        self: &mut State,
-        nonce: u32,
-        payload: vector<u8>
-    ): MessageTicket {
-        wormhole::publish_message::prepare_message(
-            &mut self.emitter_cap,
-            nonce,
-            payload,
-        )
-    }
-
-    /// Retrieve immutable reference to `TokenRegistry`.
-    public fun borrow_token_registry(self: &State): &TokenRegistry {
-        &self.token_registry
-    }
-
-    /// Retrieve mutable reference to `TokenRegistry`.
-    public(friend) fun borrow_mut_token_registry(
-        self: &mut State
-    ): &mut TokenRegistry {
-        &mut self.token_registry
-    }
-
-    #[test_only]
-    public fun borrow_mut_token_registry_test_only(
-        self: &mut State
-    ): &mut TokenRegistry {
-        borrow_mut_token_registry(self)
-    }
-
-    /// Retrieve mutable reference to `ConsumedVAAs`.
-    public(friend) fun borrow_mut_consumed_vaas(
-        self: &mut State
-    ): &mut ConsumedVAAs {
-        &mut self.consumed_vaas
-    }
-
-    /// Assert that a given emitter equals one that is registered as a foreign
-    /// Token Bridge.
-    public fun assert_registered_emitter(self: &State, verified_vaa: &VAA) {
-        let chain = vaa::emitter_chain(verified_vaa);
-        let registry = &self.emitter_registry;
-        assert!(table::contains(registry, chain), E_UNREGISTERED_EMITTER);
-
-        let registered = table::borrow(registry, chain);
-        let emitter_addr = vaa::emitter_address(verified_vaa);
-        assert!(*registered == emitter_addr, E_EMITTER_ADDRESS_MISMATCH);
-    }
-
-    /// Add a new Token Bridge emitter to the registry. This method will abort
-    /// if an emitter is already registered for a particular chain ID.
-    ///
-    /// See `register_chain` module for more info.
-    public(friend) fun register_new_emitter(
-        self: &mut State,
-        chain: u16,
-        contract_address: ExternalAddress
-    ) {
-        assert!(chain != 0, E_INVALID_EMITTER_CHAIN);
-
-        let registry = &mut self.emitter_registry;
-        assert!(
-            !table::contains(registry, chain),
-            E_EMITTER_ALREADY_REGISTERED
-        );
-        table::add(registry, chain, contract_address);
-    }
-
-    #[test_only]
-    public fun register_new_emitter_test_only(
-        self: &mut State,
-        chain: u16,
-        contract_address: ExternalAddress
-    ) {
-        register_new_emitter(self, chain, contract_address);
-    }
-
-    public fun maybe_verified_asset<CoinType>(
-        self: &State
-    ): Option<VerifiedAsset<CoinType>> {
-        let registry = &self.token_registry;
-        if (token_registry::has<CoinType>(registry)) {
-            option::some(token_registry::verified_asset<CoinType>(registry))
-        } else {
-            option::none()
-        }
-    }
-
-    public fun verified_asset<CoinType>(
-        self: &State
-    ): VerifiedAsset<CoinType> {
-        token_registry::assert_has<CoinType>(&self.token_registry);
-        token_registry::verified_asset(&self.token_registry)
-    }
-
-    /// Retrieve decimals from for a given coin type in `TokenRegistry`.
-    public fun coin_decimals<CoinType>(self: &State): u8 {
-        token_registry::coin_decimals(&verified_asset<CoinType>(self))
-    }
-
-    #[test_only]
-    public fun borrow_emitter_registry(
-        self: &State
-    ): &Table<u16, ExternalAddress> {
-        &self.emitter_registry
-    }
-
-    #[test_only]
-    public fun test_upgrade(self: &mut State) {
-        use sui::hash::{keccak256};
-
-        let ticket =
-            authorize_upgrade(self, bytes32::new(keccak256(&b"new build")));
-        let receipt = package::test_upgrade(ticket);
-
-        commit_upgrade(self, receipt);
-
-        // Destroy migration key to wrap things up.
-        consume_migrate_ticket(self);
+        let current = *field::borrow(&self.id, CurrentDigest {});
+        assert!(digest == current, E_INVALID_BUILD_DIGEST);
     }
 }

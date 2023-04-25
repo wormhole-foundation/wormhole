@@ -38,12 +38,9 @@ module token_bridge::complete_transfer_with_payload {
     use wormhole::emitter::{EmitterCap};
 
     use token_bridge::complete_transfer::{Self};
-    use token_bridge::state::{Self, State};
+    use token_bridge::state::{Self, State, StateCap};
     use token_bridge::transfer_with_payload::{Self, TransferWithPayload};
     use token_bridge::vaa::{Self, TokenBridgeMessage};
-    use token_bridge::version_control::{
-        CompleteTransferWithPayload as CompleteTransferWithPayloadControl
-    };
 
     /// `EmitterCap` address does not agree with encoded redeemer.
     const E_INVALID_REDEEMER: u64 = 0;
@@ -88,9 +85,8 @@ module token_bridge::complete_transfer_with_payload {
         msg: TokenBridgeMessage,
         ctx: &mut TxContext
     ): RedeemerReceipt<CoinType> {
-        state::check_minimum_requirement<CompleteTransferWithPayloadControl>(
-            token_bridge_state
-        );
+        // This state capability ensures that the current build version is used.
+        let cap = state::new_cap(token_bridge_state);
 
         // Emitting the transfer being redeemed.
         //
@@ -102,6 +98,7 @@ module token_bridge::complete_transfer_with_payload {
         // Finally deserialize the Wormhole message payload and handle bridging
         // out token of a given coin type.
         handle_authorize_transfer(
+            &cap,
             token_bridge_state,
             source_chain,
             vaa::take_payload(msg),
@@ -140,6 +137,7 @@ module token_bridge::complete_transfer_with_payload {
     }
 
     fun handle_authorize_transfer<CoinType>(
+        cap: &StateCap,
         token_bridge_state: &mut State,
         source_chain: u16,
         transfer_vaa_payload: vector<u8>,
@@ -156,6 +154,7 @@ module token_bridge::complete_transfer_with_payload {
             bridged_out,
         ) =
             complete_transfer::verify_and_bridge_out(
+                cap,
                 token_bridge_state,
                 transfer_with_payload::token_chain(&parsed),
                 transfer_with_payload::token_address(&parsed),
@@ -172,7 +171,11 @@ module token_bridge::complete_transfer_with_payload {
 
     #[test_only]
     public fun burn<CoinType>(receipt: RedeemerReceipt<CoinType>) {
-        let RedeemerReceipt { source_chain: _, parsed: _, bridged_out } = receipt;
+        let RedeemerReceipt {
+            source_chain: _,
+            parsed: _,
+            bridged_out
+        } = receipt;
         coin::burn_for_testing(bridged_out);
     }
 }
@@ -203,6 +206,7 @@ module token_bridge::complete_transfer_with_payload_tests {
     use token_bridge::token_registry::{Self};
     use token_bridge::transfer_with_payload::{Self};
     use token_bridge::vaa::{Self};
+    use token_bridge::version_control::{V__0_1_0};
     use token_bridge::wrapped_asset::{Self};
 
     #[test]
@@ -327,7 +331,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         // Clean up.
         return_state(token_bridge_state);
         coin::burn_for_testing(bridged);
-        emitter::destroy(emitter_cap);
+        emitter::destroy_test_only(emitter_cap);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -367,7 +371,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         register_dummy_emitter(scenario, expected_source_chain);
 
         // Register wrapped token.
-        coin_wrapped_12::init_and_register(scenario, coin_deployer);
+        coin_wrapped_12::init_and_register<V__0_1_0>(scenario, coin_deployer);
 
         // Ignore effects. Begin processing as arbitrary tx executor.
         test_scenario::next_tx(scenario, user);
@@ -445,7 +449,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         // Clean up.
         return_state(token_bridge_state);
         coin::burn_for_testing(bridged);
-        emitter::destroy(emitter_cap);
+        emitter::destroy_test_only(emitter_cap);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -479,7 +483,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         register_dummy_emitter(scenario, 2);
 
         // Register wrapped asset with 12 decimals.
-        coin_wrapped_12::init_and_register(scenario, coin_deployer);
+        coin_wrapped_12::init_and_register<V__0_1_0>(scenario, coin_deployer);
 
         // Ignore effects. Begin processing as arbitrary tx executor.
         test_scenario::next_tx(scenario, user);
@@ -527,7 +531,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         // Clean up.
         return_state(token_bridge_state);
         coin::burn_for_testing(bridged_out);
-        emitter::destroy(emitter_cap);
+        emitter::destroy_test_only(emitter_cap);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -561,7 +565,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         register_dummy_emitter(scenario, expected_source_chain);
 
         // Register wrapped token.
-        coin_wrapped_12::init_and_register(scenario, coin_deployer);
+        coin_wrapped_12::init_and_register<V__0_1_0>(scenario, coin_deployer);
 
         // Also register unexpected token (in this case a native one).
         coin_native_10::init_and_register(scenario, coin_deployer);
@@ -620,7 +624,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         // Clean up.
         return_state(token_bridge_state);
         complete_transfer_with_payload::burn(receipt);
-        emitter::destroy(emitter_cap);
+        emitter::destroy_test_only(emitter_cap);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -651,7 +655,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         register_dummy_emitter(scenario, expected_source_chain);
 
         // Register wrapped token.
-        coin_wrapped_12::init_and_register(scenario, coin_deployer);
+        coin_wrapped_12::init_and_register<V__0_1_0>(scenario, coin_deployer);
 
         // Ignore effects. Begin processing as arbitrary tx executor.
         test_scenario::next_tx(scenario, user);
@@ -690,7 +694,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         // Clean up.
         return_state(token_bridge_state);
         complete_transfer_with_payload::burn(receipt);
-        emitter::destroy(emitter_cap);
+        emitter::destroy_test_only(emitter_cap);
 
         // Done.
         test_scenario::end(my_scenario);

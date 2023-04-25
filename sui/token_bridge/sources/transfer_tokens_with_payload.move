@@ -51,12 +51,9 @@ module token_bridge::transfer_tokens_with_payload {
     use wormhole::publish_message::{MessageTicket};
 
     use token_bridge::normalized_amount::{NormalizedAmount};
-    use token_bridge::state::{Self, State};
+    use token_bridge::state::{Self, State, StateCap};
     use token_bridge::token_registry::{VerifiedAsset};
     use token_bridge::transfer_with_payload::{Self};
-    use token_bridge::version_control::{
-        TransferTokensWithPayload as TransferTokensWithPayloadControl
-    };
 
     /// This type represents transfer data for a specific redeemer contract on a
     /// foreign chain. The only way to destroy this type is calling
@@ -146,9 +143,8 @@ module token_bridge::transfer_tokens_with_payload {
         token_bridge_state: &mut State,
         prepared_transfer: TransferTicket<CoinType>
     ): MessageTicket {
-        state::check_minimum_requirement<TransferTokensWithPayloadControl>(
-            token_bridge_state
-        );
+        // This state capability ensures that the current build version is used.
+        let cap = state::new_cap(token_bridge_state);
 
         // Encode Wormhole message payload.
         let (
@@ -156,12 +152,14 @@ module token_bridge::transfer_tokens_with_payload {
             encoded_transfer_with_payload
          ) =
             bridge_in_and_serialize_transfer(
+                &cap,
                 token_bridge_state,
                 prepared_transfer
             );
 
         // Prepare Wormhole message with encoded `TransferWithPayload`.
         state::prepare_wormhole_message(
+            &cap,
             token_bridge_state,
             nonce,
             encoded_transfer_with_payload
@@ -214,6 +212,7 @@ module token_bridge::transfer_tokens_with_payload {
     }
 
     fun bridge_in_and_serialize_transfer<CoinType>(
+        cap: &StateCap,
         token_bridge_state: &mut State,
         prepared_transfer: TransferTicket<CoinType>
     ): (
@@ -236,7 +235,13 @@ module token_bridge::transfer_tokens_with_payload {
         let (
             token_chain,
             token_address
-        ) = burn_or_deposit_funds(token_bridge_state, &asset_info, bridged_in);
+        ) =
+            burn_or_deposit_funds(
+                cap,
+                token_bridge_state,
+                &asset_info,
+                bridged_in
+            );
 
         let redeemer = external_address::new(bytes32::from_bytes(redeemer));
 
@@ -264,7 +269,11 @@ module token_bridge::transfer_tokens_with_payload {
         u32,
         vector<u8>
     ) {
+        // This state capability ensures that the current build version is used.
+        let cap = state::new_cap(token_bridge_state);
+
         bridge_in_and_serialize_transfer(
+            &cap,
             token_bridge_state,
             prepared_transfer
         )
@@ -284,6 +293,8 @@ module token_bridge::transfer_tokens_with_payload_tests {
 
     use token_bridge::coin_wrapped_7::{Self, COIN_WRAPPED_7};
     use token_bridge::coin_native_10::{Self, COIN_NATIVE_10};
+    use token_bridge::native_asset::{Self};
+    use token_bridge::normalized_amount::{Self};
     use token_bridge::state::{Self};
     use token_bridge::token_bridge_scenario::{
         set_up_wormhole_and_token_bridge,
@@ -293,10 +304,9 @@ module token_bridge::transfer_tokens_with_payload_tests {
         person
     };
     use token_bridge::token_registry::{Self};
-    use token_bridge::wrapped_asset::{Self};
-    use token_bridge::native_asset::{Self};
     use token_bridge::transfer_with_payload::{Self};
-    use token_bridge::normalized_amount::{Self};
+    use token_bridge::wrapped_asset::{Self};
+    use token_bridge::version_control::{V__0_1_0};
 
     /// Test consts.
     const TEST_TARGET_RECIPIENT: vector<u8> = x"beef4269";
@@ -388,7 +398,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
         // Clean up.
         publish_message::destroy(prepared_msg);
         return_state(token_bridge_state);
-        emitter::destroy(emitter_cap);
+        emitter::destroy_test_only(emitter_cap);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -482,7 +492,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
         // Clean up.
         publish_message::destroy(prepared_msg);
         coin::burn_for_testing(dust);
-        emitter::destroy(emitter_cap);
+        emitter::destroy_test_only(emitter_cap);
         return_state(token_bridge_state);
 
         // Done.
@@ -581,7 +591,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
 
         // Clean up.
         return_state(token_bridge_state);
-        emitter::destroy(emitter_cap);
+        emitter::destroy_test_only(emitter_cap);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -607,11 +617,12 @@ module token_bridge::transfer_tokens_with_payload_tests {
 
         // Register and mint coins.
         let transfer_amount = 6942000;
-        let coin_7_balance = coin_wrapped_7::init_register_and_mint(
-            scenario,
-            sender,
-            transfer_amount
-        );
+        let coin_7_balance =
+            coin_wrapped_7::init_register_and_mint<V__0_1_0>(
+                scenario,
+                sender,
+                transfer_amount
+            );
 
         // Ignore effects.
         test_scenario::next_tx(scenario, sender);
@@ -667,7 +678,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
 
         // Clean up.
         publish_message::destroy(prepared_msg);
-        emitter::destroy(emitter_cap);
+        emitter::destroy_test_only(emitter_cap);
         return_state(token_bridge_state);
 
         // Done.
@@ -696,7 +707,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
         let transfer_amount = 6942000;
         let bridged_coin_7 =
             coin::from_balance(
-                coin_wrapped_7::init_register_and_mint(
+                coin_wrapped_7::init_register_and_mint<V__0_1_0>(
                     scenario,
                     sender,
                     transfer_amount
@@ -766,7 +777,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
         );
 
         // Clean up.
-        emitter::destroy(emitter_cap);
+        emitter::destroy_test_only(emitter_cap);
         return_state(token_bridge_state);
 
         // Done.

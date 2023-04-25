@@ -202,7 +202,7 @@ module token_bridge::transfer_tests {
     use token_bridge::normalized_amount::{Self};
 
     #[test]
-    public fun test_serialize_deserialize() {
+    fun test_serialize_deserialize() {
         let decimals = 8;
         let expected_amount = normalized_amount::from_raw(234567890, decimals);
         let expected_token_address = external_address::from_address(@0xbeef);
@@ -243,7 +243,7 @@ module token_bridge::transfer_tests {
 
     #[test]
     #[expected_failure(abort_code = transfer::E_INVALID_PAYLOAD)]
-    public fun test_cannot_deserialize_invalid_payload() {
+    fun test_cannot_deserialize_invalid_payload() {
         let invalid_payload = dummy_message::encoded_transfer_with_payload();
 
         // Show that the first byte is not the expected payload ID.

@@ -3,14 +3,19 @@
 /// This module implements handling a governance VAA to enact registering a
 /// foreign Token Bridge for a particular chain ID.
 module token_bridge::register_chain {
+    use sui::table::{Self};
     use wormhole::bytes::{Self};
     use wormhole::consumed_vaas::{Self};
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::governance_message::{Self, GovernanceMessage};
 
-    use token_bridge::state::{Self, State};
-    use token_bridge::version_control::{RegisterChain as RegisterChainControl};
+    use token_bridge::state::{Self, State, StateCap};
+
+    /// Cannot register chain ID == 0.
+    const E_INVALID_EMITTER_CHAIN: u64 = 0;
+    /// Emitter already exists for a given chain ID.
+    const E_EMITTER_ALREADY_REGISTERED: u64 = 1;
 
     /// Specific governance payload ID (action) for registering foreign Token
     /// Bridge contract address.
@@ -25,20 +30,20 @@ module token_bridge::register_chain {
         token_bridge_state: &mut State,
         msg: GovernanceMessage
     ): (u16, ExternalAddress) {
-        state::check_minimum_requirement<RegisterChainControl>(
-            token_bridge_state
-        );
+        // This state capability ensures that the current build version is used.
+        let cap = state::new_cap(token_bridge_state);
 
         // Protect against replaying the VAA.
         consumed_vaas::consume(
-            state::borrow_mut_consumed_vaas(token_bridge_state),
+            state::borrow_mut_consumed_vaas(&cap, token_bridge_state),
             governance_message::vaa_hash(&msg)
         );
 
-        handle_register_chain(token_bridge_state, msg)
+        handle_register_chain(&cap, token_bridge_state, msg)
     }
 
     fun handle_register_chain(
+        cap: &StateCap,
         token_bridge_state: &mut State,
         msg: GovernanceMessage
     ): (u16, ExternalAddress) {
@@ -56,7 +61,8 @@ module token_bridge::register_chain {
             contract_address
         } = deserialize(governance_payload);
 
-        state::register_new_emitter(
+        register_new_emitter(
+            cap,
             token_bridge_state,
             chain,
             contract_address
@@ -77,6 +83,39 @@ module token_bridge::register_chain {
         RegisterChain { chain, contract_address}
     }
 
+    /// Add a new Token Bridge emitter to the registry. This method will abort
+    /// if an emitter is already registered for a particular chain ID.
+    ///
+    /// See `register_chain` module for more info.
+    fun register_new_emitter(
+        cap: &StateCap,
+        token_bridge_state: &mut State,
+        chain: u16,
+        contract_address: ExternalAddress
+    ) {
+        assert!(chain != 0, E_INVALID_EMITTER_CHAIN);
+
+        let registry =
+            state::borrow_mut_emitter_registry(cap, token_bridge_state);
+        assert!(
+            !table::contains(registry, chain),
+            E_EMITTER_ALREADY_REGISTERED
+        );
+        table::add(registry, chain, contract_address);
+    }
+
+    #[test_only]
+    public fun register_new_emitter_test_only(
+        token_bridge_state: &mut State,
+        chain: u16,
+        contract_address: ExternalAddress
+    ) {
+        // This state capability ensures that the current build version is used.
+        let cap = state::new_cap(token_bridge_state);
+
+        register_new_emitter(&cap, token_bridge_state, chain, contract_address);
+    }
+
     #[test_only]
     public fun action(): u8 {
         ACTION_REGISTER_CHAIN
@@ -93,6 +132,7 @@ module token_bridge::register_chain_tests {
     use wormhole::governance_message::{Self};
     use wormhole::wormhole_scenario::{parse_and_verify_governance_vaa};
 
+    use token_bridge::register_chain::{Self};
     use token_bridge::state::{Self};
     use token_bridge::token_bridge_scenario::{
         person,
@@ -107,7 +147,7 @@ module token_bridge::register_chain_tests {
         x"01000000000100847ca782db7616135de4a835ed5b12ba7946bbd39f70ecd9912ec55bdc9cb6c6215c98d6ad5c8d7253c2bb0fb0f8df0dc6591408c366cf0c09e58abcfb8c0abe0000bc614e0000000000010000000000000000000000000000000000000000000000000000000000000004000000000000000101000000000000000000000000000000000000000000546f6b656e427269646765010000000200000000000000000000000000000000000000000000000000000000deafbeef";
 
     #[test]
-    public fun test_register_chain() {
+    fun test_register_chain() {
         // Testing this method.
         use token_bridge::register_chain::{register_chain};
 
@@ -158,8 +198,8 @@ module token_bridge::register_chain_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = state::E_EMITTER_ALREADY_REGISTERED)]
-    public fun test_cannot_register_chain_already_registered() {
+    #[expected_failure(abort_code = register_chain::E_EMITTER_ALREADY_REGISTERED)]
+    fun test_cannot_register_chain_already_registered() {
         // Testing this method.
         use token_bridge::register_chain::{register_chain};
 

@@ -374,6 +374,7 @@ module token_bridge::token_registry_tests {
     use token_bridge::native_asset::{Self};
     use token_bridge::token_registry::{Self};
     use token_bridge::token_bridge_scenario::{person};
+    use token_bridge::version_control::{V__0_1_0};
     use token_bridge::wrapped_asset::{Self};
 
     struct SCAM_COIN has drop {}
@@ -491,7 +492,11 @@ module token_bridge::token_registry_tests {
         let scenario = &mut my_scenario;
 
         // Initialize new coin.
-        let treasury_cap = coin_wrapped_7::init_and_take_treasury_cap(scenario, caller);
+        let treasury_cap =
+            coin_wrapped_7::init_and_take_treasury_cap<V__0_1_0>(
+                scenario,
+                caller
+            );
 
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
@@ -657,7 +662,11 @@ module token_bridge::token_registry_tests {
         let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
 
-        let treasury_cap = coin_wrapped_7::init_and_take_treasury_cap(scenario, caller);
+        let treasury_cap =
+            coin_wrapped_7::init_and_take_treasury_cap<V__0_1_0>(
+                scenario,
+                caller
+            );
 
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
@@ -766,7 +775,11 @@ module token_bridge::token_registry_tests {
         let scenario = &mut my_scenario;
 
         // Initialize new coin.
-        let treasury_cap = coin_wrapped_7::init_and_take_treasury_cap(scenario, caller);
+        let treasury_cap =
+            coin_wrapped_7::init_and_take_treasury_cap<V__0_1_0>(
+                scenario,
+                caller
+            );
 
         // Initialize other coin
         coin_native_10::init_test_only(test_scenario::ctx(scenario));

@@ -37,11 +37,13 @@ module token_bridge::coin_wrapped_7 {
         x"010000000001003d8fd671611d84801dc9d14a07835e8729d217b1aac77b054175d0f91294040742a1ed6f3e732b2fbf208e64422816accf89dd0cd3ead20d2e0fb3d372ce221c010000000000000045000200000000000000000000000000000000000000000000000000000000deadbeef00000000000000010f0200000000000000000000000000000000000000000000000000000000deafface000207000000000000000000000000000000000000000000000000000000004445433700000000000000000000000000000000000000000000444543494d414c532037";
 
     fun init(witness: COIN_WRAPPED_7, ctx: &mut TxContext) {
+        use token_bridge::version_control::{V__0_1_0};
+
         let (
             setup,
             upgrade_cap
         ) =
-            create_wrapped::new_setup_test_only(
+            create_wrapped::new_setup_test_only<COIN_WRAPPED_7, V__0_1_0>(
                 witness,
                 7,
                 ctx
@@ -67,7 +69,7 @@ module token_bridge::coin_wrapped_7 {
 
     #[test_only]
     /// for a test scenario, simply deploy the coin and expose `TreasuryCap`.
-    public fun init_and_take_treasury_cap(
+    public fun init_and_take_treasury_cap<Version>(
         scenario: &mut Scenario,
         caller: address
     ): TreasuryCap<COIN_WRAPPED_7> {
@@ -82,7 +84,9 @@ module token_bridge::coin_wrapped_7 {
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
 
-        create_wrapped::take_treasury_cap(test_scenario::take_from_sender(scenario))
+        create_wrapped::take_treasury_cap<COIN_WRAPPED_7, Version>(
+            test_scenario::take_from_sender(scenario)
+        )
     }
 
     #[test_only]
@@ -91,7 +95,10 @@ module token_bridge::coin_wrapped_7 {
     /// NOTE: Even though this module is `#[test_only]`, this method is tagged
     /// with the same macro as a trick to allow another method within this
     /// module to call `init` using OTW.
-    public fun init_and_register(scenario: &mut Scenario, caller: address) {
+    public fun init_and_register<Version>(
+        scenario: &mut Scenario,
+        caller: address
+    ) {
         use token_bridge::token_bridge_scenario::{return_state, take_state};
         use wormhole::wormhole_scenario::{parse_and_verify_vaa};
 
@@ -116,13 +123,16 @@ module token_bridge::coin_wrapped_7 {
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
 
-        let coin_meta = test_scenario::take_shared<CoinMetadata<COIN_WRAPPED_7>>(scenario);
+        let coin_meta =
+            test_scenario::take_shared<CoinMetadata<COIN_WRAPPED_7>>(scenario);
 
         // Register the attested asset.
         create_wrapped::complete_registration(
             &mut token_bridge_state,
             &mut coin_meta,
-            test_scenario::take_from_sender<WrappedAssetSetup<COIN_WRAPPED_7>>(
+            test_scenario::take_from_sender<
+                WrappedAssetSetup<COIN_WRAPPED_7, Version>
+            >(
                 scenario
             ),
             test_scenario::take_from_sender<UpgradeCap>(scenario),
@@ -139,7 +149,7 @@ module token_bridge::coin_wrapped_7 {
     /// NOTE: Even though this module is `#[test_only]`, this method is tagged
     /// with the same macro as a trick to allow another method within this
     /// module to call `init` using OTW.
-    public fun init_register_and_mint(
+    public fun init_register_and_mint<Version>(
         scenario: &mut Scenario,
         caller: address,
         amount: u64
@@ -147,7 +157,7 @@ module token_bridge::coin_wrapped_7 {
         use token_bridge::token_bridge_scenario::{return_state, take_state};
 
         // First publish and register.
-        init_and_register(scenario, caller);
+        init_and_register<Version>(scenario, caller);
 
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
@@ -175,7 +185,7 @@ module token_bridge::coin_wrapped_7_tests {
     use token_bridge::coin_wrapped_7::{token_meta};
 
     #[test]
-    public fun test_native_decimals() {
+    fun test_native_decimals() {
         let meta = token_meta();
         assert!(asset_meta::native_decimals(&meta) == 7, 0);
         asset_meta::destroy(meta);

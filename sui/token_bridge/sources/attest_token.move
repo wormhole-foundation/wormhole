@@ -16,9 +16,8 @@ module token_bridge::attest_token {
 
     use token_bridge::asset_meta::{Self};
     use token_bridge::create_wrapped::{Self};
-    use token_bridge::state::{Self, State};
+    use token_bridge::state::{Self, State, StateCap};
     use token_bridge::token_registry::{Self};
-    use token_bridge::version_control::{AttestToken as AttestTokenControl};
 
     /// Coin type belongs to a wrapped asset.
     const E_WRAPPED_ASSET: u64 = 0;
@@ -37,16 +36,16 @@ module token_bridge::attest_token {
         coin_meta: &CoinMetadata<CoinType>,
         nonce: u32
     ): MessageTicket {
-        state::check_minimum_requirement<AttestTokenControl>(
-            token_bridge_state
-        );
+        // This state capability ensures that the current build version is used.
+        let cap = state::new_cap(token_bridge_state);
 
         // Encode Wormhole message payload.
         let encoded_asset_meta =
-            serialize_asset_meta(token_bridge_state, coin_meta);
+            serialize_asset_meta(&cap, token_bridge_state, coin_meta);
 
         // Prepare Wormhole message.
         state::prepare_wormhole_message(
+            &cap,
             token_bridge_state,
             nonce,
             encoded_asset_meta
@@ -54,6 +53,7 @@ module token_bridge::attest_token {
     }
 
     fun serialize_asset_meta<CoinType>(
+        cap: &StateCap,
         token_bridge_state: &mut State,
         coin_meta: &CoinMetadata<CoinType>,
     ): vector<u8> {
@@ -84,7 +84,7 @@ module token_bridge::attest_token {
 
             // Now register it.
             token_registry::add_new_native(
-                state::borrow_mut_token_registry(token_bridge_state),
+                state::borrow_mut_token_registry(cap, token_bridge_state),
                 coin_meta
             );
         };
@@ -97,7 +97,10 @@ module token_bridge::attest_token {
         token_bridge_state: &mut State,
         coin_metadata: &CoinMetadata<CoinType>,
     ): vector<u8> {
-        serialize_asset_meta(token_bridge_state, coin_metadata)
+        // This state capability ensures that the current build version is used.
+        let cap = state::new_cap(token_bridge_state);
+
+        serialize_asset_meta(&cap, token_bridge_state, coin_metadata)
     }
 }
 

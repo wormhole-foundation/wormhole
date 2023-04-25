@@ -12,8 +12,10 @@ module coins::coin {
     struct COIN has drop {}
 
     fun init(witness: COIN, ctx: &mut TxContext) {
+        use token_bridge::version_control::{V__0_1_0};
+
         transfer::public_transfer(
-            create_wrapped::prepare_registration(
+            create_wrapped::prepare_registration<COIN, V__0_1_0>(
                 witness,
                 // TODO: create a version of this for each decimal to be used
                 8,
@@ -41,9 +43,11 @@ module coins::coin {
 
 #[test_only]
 module coins::coin_tests {
+    use sui::coin::{Self};
     use sui::package::{UpgradeCap};
     use sui::test_scenario::{Self};
     use token_bridge::create_wrapped::{Self, WrappedAssetSetup};
+    use token_bridge::state::{Self};
     use token_bridge::token_bridge_scenario::{
         register_dummy_emitter,
         return_state,
@@ -51,10 +55,15 @@ module coins::coin_tests {
         take_state,
         two_people
     };
+    use token_bridge::token_registry::{Self};
     use token_bridge::vaa::{Self};
+    use token_bridge::version_control::{V__0_1_0};
+    use token_bridge::wrapped_asset::{Self};
+    use wormhole::bytes32::{Self};
+    use wormhole::external_address::{Self};
     use wormhole::wormhole_scenario::{parse_and_verify_vaa};
 
-    use coins::coin::{Self as coins, COIN};
+    use coins::coin::{COIN};
 
 // +------------------------------------------------------------------------------+
 // | Wormhole VAA v1         | nonce: 1                | time: 1                  |
@@ -95,13 +104,6 @@ module coins::coin_tests {
 
     #[test]
     public fun test_complete_and_update_attestation() {
-        use token_bridge::state;
-        use token_bridge::token_registry;
-        use token_bridge::wrapped_asset;
-        use sui::coin;
-        use wormhole::external_address;
-        use wormhole::bytes32;
-
         let (caller, coin_deployer) = two_people();
         let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
@@ -119,13 +121,13 @@ module coins::coin_tests {
         test_scenario::next_tx(scenario, coin_deployer);
 
         // Publish coin.
-        coins::init_test_only(test_scenario::ctx(scenario));
+        coins::coin::init_test_only(test_scenario::ctx(scenario));
 
         // Ignore effects.
         test_scenario::next_tx(scenario, coin_deployer);
 
         let wrapped_asset_setup =
-            test_scenario::take_from_address<WrappedAssetSetup<COIN>>(
+            test_scenario::take_from_address<WrappedAssetSetup<COIN, V__0_1_0>>(
                 scenario,
                 coin_deployer
             );
