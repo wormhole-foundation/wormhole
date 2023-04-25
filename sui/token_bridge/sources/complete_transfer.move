@@ -41,13 +41,10 @@ module token_bridge::complete_transfer {
 
     use token_bridge::native_asset::{Self};
     use token_bridge::normalized_amount::{Self, NormalizedAmount};
-    use token_bridge::state::{Self, State};
+    use token_bridge::state::{Self, State, StateCap};
     use token_bridge::token_registry::{Self, VerifiedAsset};
     use token_bridge::transfer::{Self};
     use token_bridge::vaa::{Self, TokenBridgeMessage};
-    use token_bridge::version_control::{
-        CompleteTransfer as CompleteTransferControl
-    };
     use token_bridge::wrapped_asset::{Self};
 
     // Requires `handle_complete_transfer`.
@@ -100,15 +97,15 @@ module token_bridge::complete_transfer {
         msg: TokenBridgeMessage,
         ctx: &mut TxContext
     ): RelayerReceipt<CoinType> {
-        state::check_minimum_requirement<CompleteTransferControl>(
-            token_bridge_state
-        );
+        // This state capability ensures that the current build version is used.
+        let cap = state::new_cap(token_bridge_state);
 
         // Emitting the transfer being redeemed (and disregard return value).
         emit_transfer_redeemed(&msg);
 
         // Deserialize transfer message and process.
         handle_complete_transfer<CoinType>(
+            &cap,
             token_bridge_state,
             vaa::take_payload(msg),
             ctx
@@ -169,6 +166,7 @@ module token_bridge::complete_transfer {
     /// natively existing asset on Sui, the coin is either minted or withdrawn
     /// from Token Bridge's custody.
     public(friend) fun verify_and_bridge_out<CoinType>(
+        cap: &StateCap,
         token_bridge_state: &mut State,
         token_chain: u16,
         token_address: ExternalAddress,
@@ -201,7 +199,8 @@ module token_bridge::complete_transfer {
         // If the token is wrapped by Token Bridge, we will mint these tokens.
         // Otherwise, we will withdraw from custody.
         let bridged_out = {
-            let registry = state::borrow_mut_token_registry(token_bridge_state);
+            let registry =
+                state::borrow_mut_token_registry(cap, token_bridge_state);
             if (token_registry::is_wrapped(&asset_info)) {
                 wrapped_asset::mint(
                     token_registry::borrow_mut_wrapped(registry),
@@ -236,6 +235,7 @@ module token_bridge::complete_transfer {
     }
 
     fun handle_complete_transfer<CoinType>(
+        cap: &StateCap,
         token_bridge_state: &mut State,
         transfer_vaa_payload: vector<u8>,
         ctx: &mut TxContext
@@ -254,6 +254,7 @@ module token_bridge::complete_transfer {
             bridged_out
         ) =
             verify_and_bridge_out(
+                cap,
                 token_bridge_state,
                 token_chain,
                 token_address,
@@ -324,6 +325,7 @@ module token_bridge::complete_transfer_tests {
     use token_bridge::token_registry::{Self};
     use token_bridge::transfer::{Self};
     use token_bridge::vaa::{Self};
+    use token_bridge::version_control::{V__0_1_0};
     use token_bridge::wrapped_asset::{Self};
 
     struct OTHER_COIN_WITNESS has drop {}
@@ -615,7 +617,7 @@ module token_bridge::complete_transfer_tests {
         let expected_source_chain = 2;
         register_dummy_emitter(scenario, expected_source_chain);
 
-        coin_wrapped_7::init_and_register(scenario, coin_deployer);
+        coin_wrapped_7::init_and_register<V__0_1_0>(scenario, coin_deployer);
 
         // Ignore effects.
         test_scenario::next_tx(scenario, tx_relayer);
@@ -742,7 +744,7 @@ module token_bridge::complete_transfer_tests {
         let expected_source_chain = 2;
         register_dummy_emitter(scenario, expected_source_chain);
 
-        coin_wrapped_12::init_and_register(scenario, coin_deployer);
+        coin_wrapped_12::init_and_register<V__0_1_0>(scenario, coin_deployer);
 
         // Ignore effects.
         //
@@ -1085,8 +1087,8 @@ module token_bridge::complete_transfer_tests {
         register_dummy_emitter(scenario, expected_source_chain);
 
         // Register both wrapped coin types (12 and 7).
-        coin_wrapped_12::init_and_register(scenario, coin_deployer);
-        coin_wrapped_7::init_and_register(scenario, coin_deployer);
+        coin_wrapped_12::init_and_register<V__0_1_0>(scenario, coin_deployer);
+        coin_wrapped_7::init_and_register<V__0_1_0>(scenario, coin_deployer);
 
         // Ignore effects.
         test_scenario::next_tx(scenario, tx_relayer);
@@ -1156,7 +1158,7 @@ module token_bridge::complete_transfer_tests {
         let expected_source_chain = 2;
         register_dummy_emitter(scenario, expected_source_chain);
 
-        coin_wrapped_12::init_and_register(scenario, coin_deployer);
+        coin_wrapped_12::init_and_register<V__0_1_0>(scenario, coin_deployer);
 
         // Ignore effects.
         //

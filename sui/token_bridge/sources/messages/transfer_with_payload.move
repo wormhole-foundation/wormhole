@@ -275,11 +275,11 @@ module token_bridge::transfer_with_payload_tests {
         assert!(serialized == expected_serialized, 0);
 
         // Clean up.
-        emitter::destroy(emitter_cap);
+        emitter::destroy_test_only(emitter_cap);
     }
 
     #[test]
-    public fun test_deserialize() {
+    fun test_deserialize() {
         let expected_amount = normalized_amount::from_raw(234567890, 8);
         let expected_token_address = external_address::from_address(@0xbeef);
         let expected_token_chain = 1;
@@ -332,7 +332,7 @@ module token_bridge::transfer_with_payload_tests {
 
     #[test]
     #[expected_failure(abort_code = transfer_with_payload::E_INVALID_PAYLOAD)]
-    public fun test_cannot_deserialize_invalid_payload() {
+    fun test_cannot_deserialize_invalid_payload() {
         let invalid_payload = token_bridge::dummy_message::encoded_transfer();
 
         // Show that the first byte is not the expected payload ID.

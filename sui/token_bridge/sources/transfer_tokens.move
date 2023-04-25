@@ -45,12 +45,9 @@ module token_bridge::transfer_tokens {
 
     use token_bridge::native_asset::{Self};
     use token_bridge::normalized_amount::{Self, NormalizedAmount};
-    use token_bridge::state::{Self, State};
+    use token_bridge::state::{Self, State, StateCap};
     use token_bridge::token_registry::{Self, VerifiedAsset};
     use token_bridge::transfer::{Self};
-    use token_bridge::version_control::{
-        TransferTokens as TransferTokensControl
-    };
     use token_bridge::wrapped_asset::{Self};
 
     friend token_bridge::transfer_tokens_with_payload;
@@ -143,21 +140,22 @@ module token_bridge::transfer_tokens {
         token_bridge_state: &mut State,
         ticket: TransferTicket<CoinType>
     ): MessageTicket {
-        state::check_minimum_requirement<TransferTokensControl>(
-            token_bridge_state
-        );
+        // This state capability ensures that the current build version is used.
+        let cap = state::new_cap(token_bridge_state);
 
         let (
             nonce,
             encoded_transfer
         ) =
             bridge_in_and_serialize_transfer(
+                &cap,
                 token_bridge_state,
                 ticket
             );
 
         // Prepare Wormhole message with encoded `Transfer`.
         state::prepare_wormhole_message(
+            &cap,
             token_bridge_state,
             nonce,
             encoded_transfer
@@ -251,6 +249,7 @@ module token_bridge::transfer_tokens {
     /// NOTE: This is a privileged method, which only this and the
     /// `transfer_tokens_with_payload` modules can use.
     public(friend) fun burn_or_deposit_funds<CoinType>(
+        cap: &StateCap,
         token_bridge_state: &mut State,
         asset_info: &VerifiedAsset<CoinType>,
         bridged_in: Balance<CoinType>
@@ -259,7 +258,8 @@ module token_bridge::transfer_tokens {
         ExternalAddress
     ) {
         // Either burn or deposit depending on `CoinType`.
-        let registry = state::borrow_mut_token_registry(token_bridge_state);
+        let registry =
+            state::borrow_mut_token_registry(cap, token_bridge_state);
         if (token_registry::is_wrapped(asset_info)) {
             wrapped_asset::burn(
                 token_registry::borrow_mut_wrapped(registry),
@@ -280,6 +280,7 @@ module token_bridge::transfer_tokens {
     }
 
     fun bridge_in_and_serialize_transfer<CoinType>(
+        cap: &StateCap,
         token_bridge_state: &mut State,
         ticket: TransferTicket<CoinType>
     ): (
@@ -306,7 +307,11 @@ module token_bridge::transfer_tokens {
         let (
             token_chain,
             token_address
-        ) = burn_or_deposit_funds(token_bridge_state, &asset_info, bridged_in);
+        ) = burn_or_deposit_funds(
+            cap,
+            token_bridge_state,
+            &asset_info, bridged_in
+        );
 
         // Ensure that the recipient is a 32-byte address.
         let recipient = external_address::new(bytes32::from_bytes(recipient));
@@ -338,7 +343,11 @@ module token_bridge::transfer_tokens {
         u32,
         vector<u8>
     ) {
+        // This state capability ensures that the current build version is used.
+        let cap = state::new_cap(token_bridge_state);
+
         bridge_in_and_serialize_transfer(
+            &cap,
             token_bridge_state,
             ticket
         )
@@ -369,6 +378,7 @@ module token_bridge::transfer_token_tests {
     use token_bridge::token_registry::{Self};
     use token_bridge::transfer::{Self};
     use token_bridge::transfer_tokens::{Self};
+    use token_bridge::version_control::{V__0_1_0};
     use token_bridge::wrapped_asset::{Self};
 
     /// Test consts.
@@ -664,7 +674,7 @@ module token_bridge::transfer_token_tests {
         // Register and mint coins.
         let transfer_amount = 42069000;
         let coin_7_balance =
-            coin_wrapped_7::init_register_and_mint(
+            coin_wrapped_7::init_register_and_mint<V__0_1_0>(
                 scenario,
                 sender,
                 transfer_amount
@@ -749,7 +759,7 @@ module token_bridge::transfer_token_tests {
         let transfer_amount = 6942000;
         let bridged_coin_7 =
             coin::from_balance(
-                coin_wrapped_7::init_register_and_mint(
+                coin_wrapped_7::init_register_and_mint<V__0_1_0>(
                     scenario,
                     sender,
                     transfer_amount
@@ -910,7 +920,11 @@ module token_bridge::transfer_token_tests {
         // Initialize COIN_WRAPPED_7 (but don't register it).
         coin_native_10::init_test_only(test_scenario::ctx(scenario));
 
-        let treasury_cap = coin_wrapped_7::init_and_take_treasury_cap(scenario, sender);
+        let treasury_cap =
+            coin_wrapped_7::init_and_take_treasury_cap<V__0_1_0>(
+                scenario,
+                sender
+            );
         sui::test_utils::destroy(treasury_cap);
 
         // NOTE: This test purposely doesn't `attest` COIN_WRAPPED_7.

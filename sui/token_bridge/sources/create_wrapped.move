@@ -43,32 +43,23 @@ module token_bridge::create_wrapped {
     use token_bridge::state::{Self, State};
     use token_bridge::token_registry::{Self};
     use token_bridge::vaa::{Self, TokenBridgeMessage};
-    use token_bridge::version_control::{
-        Self as control,
-        CreateWrapped as CreateWrappedControl
-    };
     use token_bridge::wrapped_asset::{Self};
 
-    /// Asset metadata is for native Sui coin type.
-    const E_NATIVE_ASSET: u64 = 0;
-    /// Asset metadata has not been registered yet.
-    const E_UNREGISTERED_FOREIGN_ASSET: u64 = 1;
     /// Failed one-time witness verification.
-    const E_BAD_WITNESS: u64 = 2;
+    const E_BAD_WITNESS: u64 = 0;
     /// Coin witness does not equal "COIN".
-    const E_INVALID_COIN_MODULE_NAME: u64 = 3;
+    const E_INVALID_COIN_MODULE_NAME: u64 = 1;
     /// Decimals value exceeds `MAX_DECIMALS` from `normalized_amount`.
-    const E_DECIMALS_EXCEED_WRAPPED_MAX: u64 = 4;
+    const E_DECIMALS_EXCEED_WRAPPED_MAX: u64 = 2;
 
     /// A.K.A. "coin".
     const COIN_MODULE_NAME: vector<u8> = b"coin";
 
     /// Container holding new coin type's `TreasuryCap` and encoded asset metadata
     /// VAA, which are required to complete this asset's registration.
-    struct WrappedAssetSetup<phantom CoinType> has key, store {
+    struct WrappedAssetSetup<phantom CoinType, phantom Version> has key, store {
         id: UID,
-        treasury_cap: TreasuryCap<CoinType>,
-        build_version: u64
+        treasury_cap: TreasuryCap<CoinType>
     }
 
     /// This method is executed within the `init` method of an untrusted module,
@@ -79,11 +70,11 @@ module token_bridge::create_wrapped {
     /// Because this method is stateless (i.e. no dependency on Token Bridge's
     /// `State` object), the contract defers VAA verification to
     /// `complete_registration` after this method has been executed.
-    public fun prepare_registration<CoinType: drop>(
+    public fun prepare_registration<CoinType: drop, Version>(
         witness: CoinType,
         decimals: u8,
         ctx: &mut TxContext
-    ): WrappedAssetSetup<CoinType> {
+    ): WrappedAssetSetup<CoinType, Version> {
         let setup = prepare_registration_internal(witness, decimals, ctx);
 
         // Also make sure that this witness module name is literally "coin".
@@ -98,11 +89,11 @@ module token_bridge::create_wrapped {
 
     /// This function performs the bulk of `prepare_registration`, except
     /// checking the module name. This separation is useful for testing.
-    fun prepare_registration_internal<CoinType: drop>(
+    fun prepare_registration_internal<CoinType: drop, Version>(
         witness: CoinType,
         decimals: u8,
         ctx: &mut TxContext
-    ): WrappedAssetSetup<CoinType> {
+    ): WrappedAssetSetup<CoinType, Version> {
         // Make sure there's only one instance of the type `CoinType`. This
         // resembles the same check for `coin::create_currency`.
         // Technically this check is redundant as it's performed by
@@ -143,8 +134,7 @@ module token_bridge::create_wrapped {
         // it.
         WrappedAssetSetup {
             id: object::new(ctx),
-            treasury_cap,
-            build_version: control::version()
+            treasury_cap
         }
     }
 
@@ -154,29 +144,22 @@ module token_bridge::create_wrapped {
     /// This method destroys `WrappedAssetSetup`, unpacking the `TreasuryCap` and
     /// encoded asset metadata VAA. The deserialized asset metadata VAA is used
     /// to update the associated `CoinMetadata`.
-    public fun complete_registration<CoinType: drop>(
+    public fun complete_registration<CoinType: drop, Version>(
         token_bridge_state: &mut State,
         coin_meta: &mut CoinMetadata<CoinType>,
-        setup: WrappedAssetSetup<CoinType>,
+        setup: WrappedAssetSetup<CoinType, Version>,
         coin_upgrade_cap: UpgradeCap,
         msg: TokenBridgeMessage
     ) {
-        state::check_minimum_requirement<CreateWrappedControl>(
-            token_bridge_state
-        );
+        // This state capability ensures that the current build version is used.
+        // This call performs an additional check of whether `WrappedAssetSetup`
+        // was created using the current package.
+        let cap = state::new_cap_specified<Version>(token_bridge_state);
 
         let WrappedAssetSetup {
             id,
-            treasury_cap,
-            build_version
+            treasury_cap
         } = setup;
-
-        // Do an additional check of whether `WrappedAssetSetup` was created
-        // using the minimum required version for this module.
-        state::check_minimum_requirement_specified<CreateWrappedControl>(
-            token_bridge_state,
-            build_version
-        );
 
         // Finally destroy the object.
         object::delete(id);
@@ -191,7 +174,7 @@ module token_bridge::create_wrapped {
         // If both of these conditions are met, `register_wrapped_asset` will
         // succeed and the new wrapped coin will be registered.
         token_registry::add_new_wrapped(
-            state::borrow_mut_token_registry(token_bridge_state),
+            state::borrow_mut_token_registry(&cap, token_bridge_state),
             token_meta,
             coin_meta,
             treasury_cap,
@@ -206,15 +189,15 @@ module token_bridge::create_wrapped {
         coin_meta: &mut CoinMetadata<CoinType>,
         msg: TokenBridgeMessage
     ) {
-        state::check_minimum_requirement<CreateWrappedControl>(
-            token_bridge_state
-        );
+        // This state capability ensures that the current build version is used.
+        let cap = state::new_cap(token_bridge_state);
 
         // Deserialize to `AssetMeta`.
         let token_meta = asset_meta::deserialize(vaa::take_payload(msg));
 
         // This asset must exist in the registry.
-        let registry = state::borrow_mut_token_registry(token_bridge_state);
+        let registry =
+            state::borrow_mut_token_registry(&cap, token_bridge_state);
         token_registry::assert_has<CoinType>(registry);
 
         // Now update wrapped.
@@ -240,11 +223,11 @@ module token_bridge::create_wrapped {
     }
 
     #[test_only]
-    public fun new_setup_test_only<CoinType: drop>(
+    public fun new_setup_test_only<CoinType: drop, Version>(
         witness: CoinType,
         decimals: u8,
         ctx: &mut TxContext
-    ): (WrappedAssetSetup<CoinType>, UpgradeCap) {
+    ): (WrappedAssetSetup<CoinType, Version>, UpgradeCap) {
         let setup =
             prepare_registration_internal(
                 witness,
@@ -262,13 +245,12 @@ module token_bridge::create_wrapped {
     }
 
     #[test_only]
-    public fun take_treasury_cap<CoinType>(
-        setup: WrappedAssetSetup<CoinType>
+    public fun take_treasury_cap<CoinType, Version>(
+        setup: WrappedAssetSetup<CoinType, Version>
     ): TreasuryCap<CoinType> {
         let WrappedAssetSetup {
             id,
-            treasury_cap,
-            build_version: _
+            treasury_cap
         } = setup;
         object::delete(id);
 
@@ -299,6 +281,7 @@ module token_bridge::create_wrapped_tests {
     };
     use token_bridge::token_registry::{Self};
     use token_bridge::vaa::{Self};
+    use token_bridge::version_control::{V__0_1_0};
     use token_bridge::wrapped_asset::{Self};
 
     struct NOT_A_WITNESS has drop {}
@@ -307,12 +290,12 @@ module token_bridge::create_wrapped_tests {
 
     #[test]
     #[expected_failure(abort_code = create_wrapped::E_BAD_WITNESS)]
-    public fun test_cannot_prepare_registration_bad_witness() {
+    fun test_cannot_prepare_registration_bad_witness() {
         let ctx = &mut tx_context::dummy();
 
         // You shall not pass!
         let wrapped_asset_setup =
-            create_wrapped::prepare_registration(
+            create_wrapped::prepare_registration<NOT_A_WITNESS, V__0_1_0>(
                 NOT_A_WITNESS {},
                 3,
                 ctx
@@ -324,12 +307,15 @@ module token_bridge::create_wrapped_tests {
 
     #[test]
     #[expected_failure(abort_code = create_wrapped::E_INVALID_COIN_MODULE_NAME)]
-    public fun test_cannot_prepare_registration_invalid_coin_module_name() {
+    fun test_cannot_prepare_registration_invalid_coin_module_name() {
         let ctx = &mut tx_context::dummy();
 
         // You shall not pass!
         let wrapped_asset_setup =
-            create_wrapped::prepare_registration(
+            create_wrapped::prepare_registration<
+                CREATE_WRAPPED_TESTS,
+                V__0_1_0
+            >(
                 CREATE_WRAPPED_TESTS {},
                 3,
                 ctx
@@ -340,7 +326,7 @@ module token_bridge::create_wrapped_tests {
     }
 
     #[test]
-    public fun test_complete_and_update_attestation() {
+    fun test_complete_and_update_attestation() {
         let (caller, coin_deployer) = two_people();
         let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
@@ -358,8 +344,14 @@ module token_bridge::create_wrapped_tests {
         test_scenario::next_tx(scenario, coin_deployer);
 
         // Publish coin.
-        let (wrapped_asset_setup, upgrade_cap) =
-            create_wrapped::new_setup_test_only(
+        let (
+            wrapped_asset_setup,
+            upgrade_cap
+        ) =
+            create_wrapped::new_setup_test_only<
+                CREATE_WRAPPED_TESTS,
+                V__0_1_0
+            >(
                 CREATE_WRAPPED_TESTS {},
                 8,
                 test_scenario::ctx(scenario)
@@ -456,7 +448,7 @@ module token_bridge::create_wrapped_tests {
 
     #[test]
     #[expected_failure(abort_code = wrapped_asset::E_ASSET_META_MISMATCH)]
-    public fun test_cannot_update_attestation_wrong_canonical_info() {
+    fun test_cannot_update_attestation_wrong_canonical_info() {
         let (caller, coin_deployer) = two_people();
         let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
@@ -474,8 +466,14 @@ module token_bridge::create_wrapped_tests {
         test_scenario::next_tx(scenario, coin_deployer);
 
         // Publish coin.
-        let (wrapped_asset_setup, upgrade_cap) =
-            create_wrapped::new_setup_test_only(
+        let (
+            wrapped_asset_setup,
+            upgrade_cap
+        ) =
+            create_wrapped::new_setup_test_only<
+                CREATE_WRAPPED_TESTS,
+                V__0_1_0
+            >(
                 CREATE_WRAPPED_TESTS {},
                 8,
                 test_scenario::ctx(scenario)

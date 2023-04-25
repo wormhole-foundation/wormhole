@@ -55,13 +55,10 @@ module token_bridge::setup {
         upgrade_cap: UpgradeCap,
         ctx: &mut TxContext
     ) {
-        let version = token_bridge::version_control::version();
-        assert!(version == 1, E_INVALID_BUILD_VERSION);
-
         wormhole::package_utils::assert_package_upgrade_cap<DeployerCap>(
             &upgrade_cap,
             package::compatible_policy(),
-            version
+            1
         );
 
         // Destroy deployer cap.

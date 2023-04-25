@@ -18,6 +18,8 @@ module token_bridge::upgrade_contract {
 
     use token_bridge::state::{Self, State};
 
+    friend token_bridge::migrate;
+
     /// Digest is all zeros.
     const E_DIGEST_ZERO_BYTES: u64 = 0;
 
@@ -45,7 +47,7 @@ module token_bridge::upgrade_contract {
     ): UpgradeTicket {
         // Do not allow this VAA to be replayed.
         consumed_vaas::consume(
-            state::borrow_mut_consumed_vaas(token_bridge_state),
+            state::borrow_mut_consumed_vaas_unchecked(token_bridge_state),
             governance_message::vaa_hash(&msg)
         );
 
@@ -70,6 +72,14 @@ module token_bridge::upgrade_contract {
         wormhole_state: &mut State,
         msg: GovernanceMessage
     ): UpgradeTicket {
+        state::authorize_upgrade(wormhole_state, take_digest(msg))
+    }
+
+    /// Privileged method only to be used by this module and `migrate` module.
+    ///
+    /// During migration, we make sure that the digest equals what we expect by
+    /// passing in the same VAA used to upgrade the package.
+    public(friend) fun take_digest(msg: GovernanceMessage): Bytes32 {
         // Verify that this governance message is to update the Wormhole fee.
         let governance_payload =
             governance_message::take_local_action(
@@ -78,10 +88,10 @@ module token_bridge::upgrade_contract {
                 ACTION_UPGRADE_CONTRACT
             );
 
-        // Deserialize the payload as amount to change the Wormhole fee.
+        // Deserialize the payload as the build digest.
         let UpgradeContract { digest } = deserialize(governance_payload);
 
-        state::authorize_upgrade(wormhole_state, digest)
+        digest
     }
 
     fun deserialize(payload: vector<u8>): UpgradeContract {

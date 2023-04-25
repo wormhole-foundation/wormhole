@@ -288,10 +288,11 @@ module token_bridge::wrapped_asset_tests {
     use token_bridge::coin_wrapped_12::{COIN_WRAPPED_12, Self};
     use token_bridge::coin_wrapped_7::{COIN_WRAPPED_7, Self};
     use token_bridge::token_bridge_scenario::{person};
+    use token_bridge::version_control::{V__0_1_0};
     use token_bridge::wrapped_asset::{Self};
 
     #[test]
-    public fun test_wrapped_asset_7() {
+    fun test_wrapped_asset_7() {
         let caller = person();
         let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
@@ -305,7 +306,11 @@ module token_bridge::wrapped_asset_tests {
         let expected_name = asset_meta::name(&parsed_meta);
 
         // Publish coin.
-        let treasury_cap = coin_wrapped_7::init_and_take_treasury_cap(scenario, caller);
+        let treasury_cap =
+            coin_wrapped_7::init_and_take_treasury_cap<V__0_1_0>(
+                scenario,
+                caller
+            );
 
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
@@ -423,7 +428,7 @@ module token_bridge::wrapped_asset_tests {
     }
 
     #[test]
-    public fun test_wrapped_asset_12() {
+    fun test_wrapped_asset_12() {
         let caller = person();
         let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
@@ -437,7 +442,11 @@ module token_bridge::wrapped_asset_tests {
         let expected_name = asset_meta::name(&parsed_meta);
 
         // Publish coin.
-        let treasury_cap = coin_wrapped_12::init_and_take_treasury_cap(scenario, caller);
+        let treasury_cap =
+            coin_wrapped_12::init_and_take_treasury_cap<V__0_1_0>(
+                scenario,
+                caller
+            );
 
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
@@ -626,7 +635,11 @@ module token_bridge::wrapped_asset_tests {
             asset_meta::native_decimals(&parsed_meta);
 
         // Publish coin.
-        let treasury_cap = coin_wrapped_12::init_and_take_treasury_cap(scenario, caller);
+        let treasury_cap =
+            coin_wrapped_12::init_and_take_treasury_cap<V__0_1_0>(
+                scenario,
+                caller
+            );
 
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
@@ -697,7 +710,11 @@ module token_bridge::wrapped_asset_tests {
             asset_meta::native_decimals(&parsed_meta);
 
         // Publish coin.
-        let treasury_cap = coin_wrapped_12::init_and_take_treasury_cap(scenario, caller);
+        let treasury_cap =
+            coin_wrapped_12::init_and_take_treasury_cap<V__0_1_0>(
+                scenario,
+                caller
+            );
 
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
@@ -762,7 +779,11 @@ module token_bridge::wrapped_asset_tests {
         let scenario = &mut my_scenario;
 
         // Publish coin.
-        let treasury_cap = coin_wrapped_12::init_and_take_treasury_cap(scenario, caller);
+        let treasury_cap =
+            coin_wrapped_12::init_and_take_treasury_cap<V__0_1_0>(
+                scenario,
+                caller
+            );
 
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);

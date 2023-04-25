@@ -11,17 +11,22 @@
 /// in its `State`. If the encoded VAA passes through `parse_and_verify` again,
 /// it will abort.
 module token_bridge::vaa {
+    use sui::table::{Self};
     use wormhole::bytes32::{Bytes32};
     use wormhole::consumed_vaas::{Self};
     use wormhole::external_address::{ExternalAddress};
     use wormhole::vaa::{Self, VAA};
 
     use token_bridge::state::{Self, State};
-    use token_bridge::version_control::{Vaa as VaaControl};
 
     friend token_bridge::create_wrapped;
     friend token_bridge::complete_transfer;
     friend token_bridge::complete_transfer_with_payload;
+
+    /// For a given chain ID, Token Bridge is non-existent.
+    const E_UNREGISTERED_EMITTER: u64 = 0;
+    /// Encoded emitter address does not match registered Token Bridge.
+    const E_EMITTER_ADDRESS_MISMATCH: u64 = 1;
 
     /// This type represents VAA data whose emitter is a registered Token Bridge
     /// emitter. This message is also representative of a VAA that cannot be
@@ -58,19 +63,18 @@ module token_bridge::vaa {
         token_bridge_state: &mut State,
         verified_vaa: VAA
     ): TokenBridgeMessage {
-        state::check_minimum_requirement<VaaControl>(
-            token_bridge_state
-        );
+        // This state capability ensures that the current build version is used.
+        let cap = state::new_cap(token_bridge_state);
 
         // First parse and verify VAA using Wormhole. This also consumes the VAA
         // hash to prevent replay.
         consumed_vaas::consume(
-            state::borrow_mut_consumed_vaas(token_bridge_state),
+            state::borrow_mut_consumed_vaas(&cap, token_bridge_state),
             vaa::digest(&verified_vaa)
         );
 
         // Does the emitter agree with a registered Token Bridge?
-        state::assert_registered_emitter(token_bridge_state, &verified_vaa);
+        assert_registered_emitter(token_bridge_state, &verified_vaa);
 
         // Take emitter info, sequence and payload.
         let sequence = vaa::sequence(&verified_vaa);
@@ -125,6 +129,21 @@ module token_bridge::vaa {
         payload
     }
 
+    /// Assert that a given emitter equals one that is registered as a foreign
+    /// Token Bridge.
+    public fun assert_registered_emitter(
+        token_bridge_state: &State,
+        verified_vaa: &VAA
+    ) {
+        let chain = vaa::emitter_chain(verified_vaa);
+        let registry = state::borrow_emitter_registry(token_bridge_state);
+        assert!(table::contains(registry, chain), E_UNREGISTERED_EMITTER);
+
+        let registered = table::borrow(registry, chain);
+        let emitter_addr = vaa::emitter_address(verified_vaa);
+        assert!(*registered == emitter_addr, E_EMITTER_ADDRESS_MISMATCH);
+    }
+
     #[test_only]
     public fun destroy(msg: TokenBridgeMessage) {
         take_payload(msg);
@@ -137,7 +156,6 @@ module token_bridge::vaa_tests {
     use wormhole::external_address::{Self};
     use wormhole::wormhole_scenario::{parse_and_verify_vaa};
 
-    use token_bridge::state::{Self};
     use token_bridge::token_bridge_scenario::{
         person,
         register_dummy_emitter,
@@ -152,7 +170,7 @@ module token_bridge::vaa_tests {
         x"01000000000100102d399190fa61daccb11c2ea4f7a3db3a9365e5936bcda4cded87c1b9eeb095173514f226256d5579af71d4089eb89496befb998075ba94cd1d4460c5c57b84000000000100000001000200000000000000000000000000000000000000000000000000000000deadbeef0000000002634973000200000000000000000000000000000000000000000000000000000000beefface00020c0000000000000000000000000000000000000000000000000000000042454546000000000000000000000000000000000042656566206661636520546f6b656e";
 
     #[test]
-    #[expected_failure(abort_code = state::E_UNREGISTERED_EMITTER)]
+    #[expected_failure(abort_code = vaa::E_UNREGISTERED_EMITTER)]
     fun test_cannot_parse_verify_and_consume_unregistered_chain() {
         let caller = person();
         let my_scenario = test_scenario::begin(caller);
@@ -180,7 +198,7 @@ module token_bridge::vaa_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = state::E_EMITTER_ADDRESS_MISMATCH)]
+    #[expected_failure(abort_code = vaa::E_EMITTER_ADDRESS_MISMATCH)]
     fun test_cannot_parse_verify_and_consume_emitter_address_mismatch() {
         let caller = person();
         let my_scenario = test_scenario::begin(caller);
@@ -198,7 +216,7 @@ module token_bridge::vaa_tests {
         // First register emitter.
         let emitter_chain = 2;
         let emitter_addr = external_address::from_address(@0xdeafbeef);
-        state::register_new_emitter_test_only(
+        token_bridge::register_chain::register_new_emitter_test_only(
             &mut token_bridge_state,
             emitter_chain,
             emitter_addr
