@@ -1,5 +1,5 @@
 import * as wh from "@certusone/wormhole-sdk";
-import { Next } from "relayer-engine";
+import { Next, sleep } from "relayer-engine";
 import {
   IDelivery,
   VaaKeyType,
@@ -12,7 +12,7 @@ import {
 } from "../pkgs/sdk/src";
 import { EVMChainId } from "@certusone/wormhole-sdk";
 import { GRContext } from "./app";
-import { ethers } from "ethers";
+import { BigNumber, ethers } from "ethers";
 
 export async function processGenericRelayerVaa(ctx: GRContext, next: Next) {
   ctx.logger.info(`Processing generic relayer vaa`);
@@ -74,6 +74,27 @@ async function processDelivery(ctx: GRContext) {
       overrides: [],
     };
 
+    const gasUnitsEstimate = await coreRelayer.estimateGas.deliver(input, {
+      value: budget,
+      gasLimit: 3000000,
+    });
+    const gasPrice = await coreRelayer.provider.getGasPrice();
+    const estimatedTransactionFee = gasPrice.mul(gasUnitsEstimate);
+    const estimatedTransactionFeeEther = ethers.utils.formatEther(
+      estimatedTransactionFee
+    );
+    ctx.logger.info(
+      `Estimated transaction cost (ether): ${estimatedTransactionFeeEther}`,
+      {
+        gasUnitsEstimate: gasUnitsEstimate.toString(),
+        gasPrice: gasPrice.toString(),
+        estimatedTransactionFee: estimatedTransactionFee.toString(),
+        estimatedTransactionFeeEther,
+        valueEther: ethers.utils.formatEther(budget),
+      }
+    );
+    process.stdout.write("");
+    await sleep(200);
     ctx.logger.debug("Sending 'deliver' tx...");
     const receipt = await coreRelayer
       .deliver(input, { value: budget, gasLimit: 3000000 })

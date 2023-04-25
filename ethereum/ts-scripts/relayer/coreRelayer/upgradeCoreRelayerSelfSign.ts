@@ -1,7 +1,7 @@
 import { tryNativeToHexString } from "@certusone/wormhole-sdk";
 import {
   deployCoreRelayerImplementation,
-  deployCoreRelayerLibrary,
+  deployForwardWrapper,
 } from "../helpers/deployments";
 import {
   init,
@@ -30,16 +30,19 @@ async function run() {
     coreRelayerLibraries: [],
   };
 
-  for (let i = 0; i < chains.length; i++) {
-    const coreRelayerLibrary = await deployCoreRelayerLibrary(chains[i]);
-    const coreRelayerImplementation = await deployCoreRelayerImplementation(
-      chains[i],
-      coreRelayerLibrary.address
+  for (const chain of chains) {
+    const forwardWrapper = await deployForwardWrapper(
+      chain,
+      await getCoreRelayerAddress(chain)
     );
-    await upgradeCoreRelayer(chains[i], coreRelayerImplementation.address);
+    const coreRelayerImplementation = await deployCoreRelayerImplementation(
+      chain,
+      forwardWrapper.address
+    );
+    await upgradeCoreRelayer(chain, coreRelayerImplementation.address);
 
     output.coreRelayerImplementations.push(coreRelayerImplementation);
-    output.coreRelayerLibraries.push(coreRelayerLibrary);
+    output.coreRelayerLibraries.push(forwardWrapper);
   }
 
   writeOutputFiles(output, processName);
