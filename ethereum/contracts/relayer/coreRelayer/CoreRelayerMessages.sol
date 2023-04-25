@@ -484,10 +484,23 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
         newIndex = index;
     }
 
+    function encodeDeliveryOverride(IDelivery.DeliveryOverride memory request) public pure returns (bytes memory encoded) {
+        encoded = abi.encodePacked(
+            uint8(1),
+            request.gasLimit,
+            request.maximumRefund,
+            request.receiverValue,
+            request.redeliveryHash);
+    }
+
     function decodeDeliveryOverride(bytes memory encoded) public pure returns (IDelivery.DeliveryOverride memory output) {
         uint256 index = 0;
-        //Version is not on the struct
-        encoded.toUint8(index);
+
+        uint8 payloadId = encoded.toUint8(index);
+        if (payloadId != 1) {
+            revert InvalidPayloadId(payloadId);
+        }
+
         index += 1;
 
         output.gasLimit = encoded.toUint32(index);
@@ -513,6 +526,34 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
             ins.executionParameters.version,
             ins.executionParameters.gasLimit);
     }
+
+    function decodeRedeliveryInstruction(bytes memory encoded) public pure returns (IWormholeRelayerInternalStructs.RedeliveryInstruction memory output) {
+        uint256 index = 0;
+        
+        uint8 payloadId = encoded.toUint8(index); 
+        if (payloadId != 2) {
+            revert InvalidPayloadId(payloadId);
+        }
+        index += 1;
+
+        (output.key, index) = decodeVaaKey(encoded, index);
+
+        output.newMaximumRefundTarget = encoded.toUint256(index);
+        index+=32;
+
+        output.newReceiverValueTarget = encoded.toUint256(index);
+        index+=32;
+
+        output.sourceRelayProvider = encoded.toBytes32(index);
+        index+=32;
+
+        output.executionParameters.version = 1;
+        index+=1;
+
+        output.executionParameters.gasLimit = encoded.toUint32(index);
+        index+=4;
+    }
+
 
 
 
