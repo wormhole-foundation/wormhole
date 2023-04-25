@@ -284,6 +284,7 @@ func wormchainMigrateContract(req *nodev1.WormchainMigrateContract, timestamp ti
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 // circleIntegrationUpdateWormholeFinality converts a nodev1.CircleIntegrationUpdateWormholeFinality to its canonical VAA representation
 // Returns an error if the data is invalid
 func circleIntegrationUpdateWormholeFinality(req *nodev1.CircleIntegrationUpdateWormholeFinality, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
@@ -386,6 +387,8 @@ func circleIntegrationUpgradeContractImplementation(req *nodev1.CircleIntegratio
 
 <<<<<<< HEAD
 =======
+=======
+>>>>>>> a4732803 (Fix compile error)
 // wormholeRelayerSetDefaultRelayProvider converts a nodev1.WormholeRelayerSetDefaultRelayProvider message to its canonical VAA representation.
 // Returns an error if the data is invalid.
 func wormholeRelayerSetDefaultRelayProvider(req *nodev1.WormholeRelayerSetDefaultRelayProvider, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
@@ -414,8 +417,11 @@ func wormholeRelayerSetDefaultRelayProvider(req *nodev1.WormholeRelayerSetDefaul
 	return v, nil
 }
 
+<<<<<<< HEAD
 >>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
 >>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
+=======
+>>>>>>> a4732803 (Fix compile error)
 func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *nodev1.InjectGovernanceVAARequest) (*nodev1.InjectGovernanceVAAResponse, error) {
 	s.logger.Info("governance VAA injected via admin socket", zap.String("request", req.String()))
 
