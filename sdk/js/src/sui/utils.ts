@@ -8,6 +8,7 @@ import {
   TransactionBlock,
 } from "@mysten/sui.js";
 import { SuiError } from "./types";
+import { ensureHexPrefix } from "../utils";
 
 export const executeTransactionBlock = async (
   signer: RawSigner,
@@ -149,7 +150,7 @@ export const getTokenCoinType = async (
       },
     });
     const fields = getFieldsFromObjectResponse(coinTypeValue);
-    return fields?.value || null;
+    return fields?.value ? ensureHexPrefix(fields.value) : null;
   } catch (e: any) {
     if (e.code === -32000 && e.message?.includes("RPC Error")) {
       return null;
