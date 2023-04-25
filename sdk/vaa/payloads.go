@@ -231,15 +231,8 @@ func (r BodyWormchainMigrateContract) Serialize() []byte {
 	return serializeBridgeGovernanceVaa(WasmdModuleStr, ActionMigrateContract, ChainIDWormchain, r.MigrationParamsHash[:])
 }
 
-<<<<<<< HEAD
 func (r BodyCircleIntegrationUpdateWormholeFinality) Serialize() []byte {
 	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionUpdateWormholeFinality, r.TargetChainID, []byte{r.Finality})
-=======
-<<<<<<< HEAD
-=======
-func (r BodyCircleIntegrationUpdateWormholeFinality) Serialize() []byte {
-	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionUpdateWormholeFinality, 0, []byte{r.Finality})
->>>>>>> 6fb14a47 (Fix bugs - successfully builds)
 }
 
 func (r BodyCircleIntegrationRegisterEmitterAndDomain) Serialize() []byte {
@@ -247,22 +240,14 @@ func (r BodyCircleIntegrationRegisterEmitterAndDomain) Serialize() []byte {
 	MustWrite(payload, binary.BigEndian, r.ForeignEmitterChainId)
 	payload.Write(r.ForeignEmitterAddress[:])
 	MustWrite(payload, binary.BigEndian, r.CircleDomain)
-<<<<<<< HEAD
 	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionRegisterEmitterAndDomain, r.TargetChainID, payload.Bytes())
-=======
 	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionRegisterEmitterAndDomain, 0, payload.Bytes())
->>>>>>> 6fb14a47 (Fix bugs - successfully builds)
 }
 
 func (r BodyCircleIntegrationUpgradeContractImplementation) Serialize() []byte {
 	payload := &bytes.Buffer{}
 	payload.Write(r.NewImplementationAddress[:])
-<<<<<<< HEAD
 	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionUpgradeContractImplementation, r.TargetChainID, payload.Bytes())
-}
-
-=======
-	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionUpgradeContractImplementation, 0, payload.Bytes())
 }
 
 func (r BodyWormholeRelayerSetDefaultRelayProvider) Serialize() []byte {
@@ -271,8 +256,6 @@ func (r BodyWormholeRelayerSetDefaultRelayProvider) Serialize() []byte {
 	return serializeBridgeGovernanceVaa(CoreRelayerModuleStr, WormholeRelayerSetDefaultRelayProvider, r.ChainID, payload.Bytes())
 }
 
->>>>>>> 112c9c9d (Fix bugs - successfully builds)
->>>>>>> 6fb14a47 (Fix bugs - successfully builds)
 func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chainId ChainID, payload []byte) []byte {
 	if len(module) > 32 {
 		panic("module longer than 32 byte")
