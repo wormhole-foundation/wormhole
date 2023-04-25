@@ -222,7 +222,36 @@ export const getOwnedObjectId = async (
     );
   }
 
-  return findOwnedObjectByType(provider, owner, type);
+  try {
+    const res = await provider.getOwnedObjects({
+      owner,
+      filter: { StructType: type },
+      options: {
+        showContent: true,
+      },
+    });
+    if (!res || !res.data) {
+      throw new SuiRpcValidationError(res);
+    }
+
+    const objects = res.data.filter((o) => o.data?.objectId);
+    if (objects.length === 1) {
+      return objects[0].data?.objectId;
+    } else if (objects.length > 1) {
+      const objectsStr = JSON.stringify(objects, null, 2);
+      throw new Error(
+        `Found multiple objects owned by ${owner} of type ${type}. This may mean that we've received an unexpected response from the Sui RPC and \`worm\` logic needs to be updated to handle this. Objects: ${objectsStr}`
+      );
+    } else {
+      return null;
+    }
+  } catch (error) {
+    // Handle 504 error by using findOwnedObjectByType method
+    const is504HttpError = `${error}`.includes("504 Gateway Time-out");
+    if (error && is504HttpError) {
+      return findOwnedObjectByType(provider, owner, type);
+    }
+  }
 };
 
 export const getProvider = (
