@@ -70,5 +70,7 @@ interface IDelivery {
     error VaaKeysDoNotMatchVaas(uint8 index); // The VAA at index 'index' does not match the 'index'-th description given on the source chain in the 'messages' field
     error VaaKeysLengthDoesNotMatchVaasLength(); // The VAA array has a different length than the original array of VaaKey descriptions from the source chain
     error ForwardNotSufficientlyFunded(uint256 amountOfFunds, uint256 amountOfFundsNeeded); // Should never happen as this should have already been checked for
-    error InvalidOverride(); // Invalid overrides were passed in to the delivery
+    error InvalidOverrideGasLimit(); // Invalid gas limit override was passed in to the delivery
+    error InvalidOverrideReceiverValue(); // Invalid receiver value override was passed in to the delivery
+    error InvalidOverrideMaximumRefund(); // Invalid maximum refund override was passed in to the delivery
 }
