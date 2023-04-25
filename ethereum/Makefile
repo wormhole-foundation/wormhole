@@ -61,7 +61,7 @@ flattened: $(patsubst contracts/%, flattened/%, $(FLATTEN_FILES))
 .env: .env.test
 	cp $< $@
 
-test: test-forge test-ganache
+test: test-forge test-ganache test-ts
 
 .PHONY: test-ganache
 test-ganache: build .env dependencies
@@ -74,6 +74,10 @@ test-ganache: build .env dependencies
 .PHONY: test-upgrade
 test-upgrade: build .env node_modules
 	./simulate_upgrades
+
+.PHONY: test-ts 
+test-ts: 
+	npm run relayer-ci-test
 
 .PHONY:
 test-forge: dependencies

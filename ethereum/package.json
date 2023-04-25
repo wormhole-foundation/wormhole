@@ -39,7 +39,7 @@
     "deploy-relayers-evm2": "ENV=kubernetes CONTAINER=evm2 bash ./ts-scripts/relayer/shell/deployInContainer.sh",
     "relayer-integration-test": "ts-mocha -t 1000000 ts-test/relayer/*.ts",
     "relayer-tilt-test": "ENV=tilt WALLET_KEY=4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d ts-mocha -t 1000000 ts-test/relayer/*.ts",
-    "relayer-ci-test": "ENV=ci WALLET_KEY=4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d npx ts-mocha -t 1000000 ts-test/relayer/*.ts"
+    "relayer-ci-test": "cd ../sdk/js && npm run build && cd ../../ethereum && ENV=ci WALLET_KEY=4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d npx ts-mocha -t 1000000 ts-test/relayer/*.ts"
   },
   "author": "",
   "license": "ISC",
