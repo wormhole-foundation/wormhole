@@ -53,13 +53,10 @@ module wormhole::setup {
         message_fee: u64,
         ctx: &mut TxContext
     ) {
-        let version = wormhole::version_control::version();
-        assert!(version == 1, E_INVALID_BUILD_VERSION);
-
         wormhole::package_utils::assert_package_upgrade_cap<DeployerCap>(
             &upgrade_cap,
             package::compatible_policy(),
-            version
+            1
         );
 
         // Destroy deployer cap.
@@ -99,7 +96,7 @@ module wormhole::setup_tests {
     use wormhole::wormhole_scenario::{person};
 
     #[test]
-    public fun test_init() {
+    fun test_init() {
         let deployer = person();
         let my_scenario = test_scenario::begin(deployer);
         let scenario = &mut my_scenario;
@@ -129,7 +126,7 @@ module wormhole::setup_tests {
     }
 
     #[test]
-    public fun test_complete() {
+    fun test_complete() {
         let deployer = person();
         let my_scenario = test_scenario::begin(deployer);
         let scenario = &mut my_scenario;
@@ -215,7 +212,9 @@ module wormhole::setup_tests {
         );
 
         let guardians =
-            guardian_set::guardians(state::guardian_set_at(&worm_state, 0));
+            guardian_set::guardians(
+                state::guardian_set_at(&worm_state, 0)
+            );
         let num_guardians = vector::length(guardians);
         assert!(num_guardians == vector::length(&initial_guardians), 0);
 
@@ -256,7 +255,7 @@ module wormhole::setup_tests {
     #[expected_failure(
         abort_code = wormhole::package_utils::E_INVALID_UPGRADE_CAP
     )]
-    public fun test_cannot_complete_invalid_upgrade_cap() {
+    fun test_cannot_complete_invalid_upgrade_cap() {
         let deployer = person();
         let my_scenario = test_scenario::begin(deployer);
         let scenario = &mut my_scenario;

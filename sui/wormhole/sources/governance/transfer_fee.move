@@ -12,8 +12,7 @@ module wormhole::transfer_fee {
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self};
     use wormhole::governance_message::{Self, GovernanceMessage};
-    use wormhole::state::{Self, State};
-    use wormhole::version_control::{TransferFee as TransferFeeControl};
+    use wormhole::state::{Self, State, StateCap};
 
     /// Specific governance payload ID (action) for setting Wormhole fee.
     const ACTION_TRANSFER_FEE: u8 = 4;
@@ -35,19 +34,21 @@ module wormhole::transfer_fee {
         msg: GovernanceMessage,
         ctx: &mut TxContext
     ): u64 {
-        state::check_minimum_requirement<TransferFeeControl>(wormhole_state);
+        // This state capability ensures that the current build version is used.
+        let cap = state::new_cap(wormhole_state);
 
         // Do not allow this VAA to be replayed.
         consumed_vaas::consume(
-            state::borrow_mut_consumed_vaas(wormhole_state),
+            state::borrow_mut_consumed_vaas(&cap, wormhole_state),
             governance_message::vaa_hash(&msg)
         );
 
         // Proceed with setting the new message fee.
-        handle_transfer_fee(wormhole_state, msg, ctx)
+        handle_transfer_fee(&cap, wormhole_state, msg, ctx)
     }
 
     fun handle_transfer_fee(
+        cap: &StateCap,
         wormhole_state: &mut State,
         msg: GovernanceMessage,
         ctx: &mut TxContext
@@ -66,7 +67,7 @@ module wormhole::transfer_fee {
 
         transfer::public_transfer(
             coin::from_balance(
-                state::withdraw_fee(wormhole_state, amount),
+                state::withdraw_fee(cap, wormhole_state, amount),
                 ctx
             ),
             recipient
@@ -110,11 +111,10 @@ module wormhole::transfer_fee_tests {
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self};
     use wormhole::governance_message::{Self};
-    use wormhole::required_version::{Self};
     use wormhole::state::{Self};
     use wormhole::transfer_fee::{Self};
     use wormhole::vaa::{Self};
-    use wormhole::version_control::{Self as control};
+    use wormhole::version_control::{Self, V__0_1_0, V__MIGRATED};
     use wormhole::wormhole_scenario::{
         person,
         return_clock,
@@ -138,7 +138,7 @@ module wormhole::transfer_fee_tests {
         x"0100000000010032b2ab65a690ae4af8c85903d7b22239fc272183eefdd5a4fa784664f82aa64b381380cc03859156e88623949ce4da4435199aaac1cb09e52a09d6915725a5e70100bc614e000000000001000000000000000000000000000000000000000000000000000000000000000400000000000000010100000000000000000000000000000000000000000000000000000000436f726504001500000000000000000000000000000000000000000000000000000000000004b00000000000000000000000000000000000000000000000000000000000000000";
 
     #[test]
-    public fun test_transfer_fee() {
+    fun test_transfer_fee() {
         // Testing this method.
         use wormhole::transfer_fee::{transfer_fee};
 
@@ -202,7 +202,7 @@ module wormhole::transfer_fee_tests {
     }
 
     #[test]
-    public fun test_transfer_fee_after_upgrade() {
+    fun test_transfer_fee_after_upgrade() {
         // Testing this method.
         use wormhole::transfer_fee::{transfer_fee};
 
@@ -257,7 +257,7 @@ module wormhole::transfer_fee_tests {
 
     #[test]
     #[expected_failure(abort_code = wormhole::set::E_KEY_ALREADY_EXISTS)]
-    public fun test_cannot_transfer_fee_with_same_vaa() {
+    fun test_cannot_transfer_fee_with_same_vaa() {
         // Testing this method.
         use wormhole::transfer_fee::{transfer_fee};
 
@@ -312,7 +312,7 @@ module wormhole::transfer_fee_tests {
     #[expected_failure(
         abort_code = governance_message::E_GOVERNANCE_TARGET_CHAIN_NOT_SUI
     )]
-    public fun test_cannot_transfer_fee_invalid_target_chain() {
+    fun test_cannot_transfer_fee_invalid_target_chain() {
         // Testing this method.
         use wormhole::transfer_fee::{transfer_fee};
 
@@ -357,7 +357,7 @@ module wormhole::transfer_fee_tests {
     #[expected_failure(
         abort_code = governance_message::E_INVALID_GOVERNANCE_ACTION
     )]
-    public fun test_cannot_transfer_fee_invalid_action() {
+    fun test_cannot_transfer_fee_invalid_action() {
         // Testing this method.
         use wormhole::transfer_fee::{transfer_fee};
 
@@ -395,7 +395,7 @@ module wormhole::transfer_fee_tests {
 
     #[test]
     #[expected_failure(abort_code = sui::balance::ENotEnough)]
-    public fun test_cannot_transfer_fee_insufficient_balance() {
+    fun test_cannot_transfer_fee_insufficient_balance() {
         // Testing this method.
         use wormhole::transfer_fee::{transfer_fee};
 
@@ -440,7 +440,7 @@ module wormhole::transfer_fee_tests {
 
     #[test]
     #[expected_failure(abort_code = external_address::E_ZERO_ADDRESS)]
-    public fun test_cannot_transfer_fee_recipient_zero_address() {
+    fun test_cannot_transfer_fee_recipient_zero_address() {
         // Testing this method.
         use wormhole::transfer_fee::{transfer_fee};
 
@@ -492,7 +492,7 @@ module wormhole::transfer_fee_tests {
 
     #[test]
     #[expected_failure(abort_code = wormhole::bytes32::E_U64_OVERFLOW)]
-    public fun test_cannot_transfer_fee_withdraw_amount_overflow() {
+    fun test_cannot_transfer_fee_withdraw_amount_overflow() {
         // Testing this method.
         use wormhole::transfer_fee::{transfer_fee};
 
@@ -540,8 +540,8 @@ module wormhole::transfer_fee_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = required_version::E_OUTDATED_VERSION)]
-    public fun test_cannot_set_fee_outdated_build() {
+    #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
+    fun test_cannot_set_fee_outdated_build() {
         // Testing this method.
         use wormhole::transfer_fee::{transfer_fee};
 
@@ -582,9 +582,9 @@ module wormhole::transfer_fee_tests {
         // Simulate executing with an outdated build by upticking the minimum
         // required version for `publish_message` to something greater than
         // this build.
-        state::set_required_version<control::TransferFee>(
+        state::migrate_version_test_only<V__0_1_0, V__MIGRATED>(
             &mut worm_state,
-            control::version() + 1
+            version_control::next_version()
         );
 
         let parsed =

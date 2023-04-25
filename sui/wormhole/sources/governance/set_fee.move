@@ -7,8 +7,7 @@ module wormhole::set_fee {
     use wormhole::consumed_vaas::{Self};
     use wormhole::cursor::{Self};
     use wormhole::governance_message::{Self, GovernanceMessage};
-    use wormhole::state::{Self, State};
-    use wormhole::version_control::{SetFee as SetFeeControl};
+    use wormhole::state::{Self, State, StateCap};
 
     /// Specific governance payload ID (action) for setting Wormhole fee.
     const ACTION_SET_FEE: u8 = 3;
@@ -28,19 +27,21 @@ module wormhole::set_fee {
         wormhole_state: &mut State,
         msg: GovernanceMessage
     ): u64 {
-        state::check_minimum_requirement<SetFeeControl>(wormhole_state);
+        // This state capability ensures that the current build version is used.
+        let cap = state::new_cap(wormhole_state);
 
         // Do not allow this VAA to be replayed.
         consumed_vaas::consume(
-            state::borrow_mut_consumed_vaas(wormhole_state),
+            state::borrow_mut_consumed_vaas(&cap, wormhole_state),
             governance_message::vaa_hash(&msg)
         );
 
         // Proceed with setting the new message fee.
-        handle_set_fee(wormhole_state, msg)
+        handle_set_fee(&cap, wormhole_state, msg)
     }
 
     fun handle_set_fee(
+        cap: &StateCap,
         wormhole_state: &mut State,
         msg: GovernanceMessage
     ): u64 {
@@ -55,7 +56,7 @@ module wormhole::set_fee {
         // Deserialize the payload as amount to change the Wormhole fee.
         let SetFee { amount } = deserialize(governance_payload);
 
-        state::set_message_fee(wormhole_state, amount);
+        state::set_message_fee(cap, wormhole_state, amount);
 
         amount
     }
@@ -85,11 +86,10 @@ module wormhole::set_fee_tests {
     use wormhole::bytes::{Self};
     use wormhole::cursor::{Self};
     use wormhole::governance_message::{Self};
-    use wormhole::required_version::{Self};
     use wormhole::set_fee::{Self};
     use wormhole::state::{Self};
     use wormhole::vaa::{Self};
-    use wormhole::version_control::{Self as control};
+    use wormhole::version_control::{Self, V__0_1_0, V__MIGRATED};
     use wormhole::wormhole_scenario::{
         person,
         return_clock,
@@ -112,7 +112,7 @@ module wormhole::set_fee_tests {
         x"01000000000100950a509a797c9b40a678a5d6297f5b74e1ce1794b3c012dad5774c395e65e8b0773cf160113f571f1452ee98d10aa61273b6bc8aefa74a3c8f7e2c9c89fb25fa0000bc614e000000000001000000000000000000000000000000000000000000000000000000000000000400000000000000010100000000000000000000000000000000000000000000000000000000436f72650300150000000000000000000000000000000000000000000000010000000000000000";
 
     #[test]
-    public fun test_set_fee() {
+    fun test_set_fee() {
         // Testing this method.
         use wormhole::set_fee::{set_fee};
 
@@ -168,7 +168,7 @@ module wormhole::set_fee_tests {
     }
 
     #[test]
-    public fun test_set_fee_after_upgrade() {
+    fun test_set_fee_after_upgrade() {
         // Testing this method.
         use wormhole::set_fee::{set_fee};
 
@@ -210,7 +210,7 @@ module wormhole::set_fee_tests {
 
     #[test]
     #[expected_failure(abort_code = wormhole::set::E_KEY_ALREADY_EXISTS)]
-    public fun test_cannot_set_fee_with_same_vaa() {
+    fun test_cannot_set_fee_with_same_vaa() {
         // Testing this method.
         use wormhole::set_fee::{set_fee};
 
@@ -253,7 +253,7 @@ module wormhole::set_fee_tests {
     #[expected_failure(
         abort_code = governance_message::E_GOVERNANCE_TARGET_CHAIN_NOT_SUI
     )]
-    public fun test_cannot_set_fee_invalid_target_chain() {
+    fun test_cannot_set_fee_invalid_target_chain() {
         // Testing this method.
         use wormhole::set_fee::{set_fee};
 
@@ -297,7 +297,7 @@ module wormhole::set_fee_tests {
     #[expected_failure(
         abort_code = governance_message::E_INVALID_GOVERNANCE_ACTION
     )]
-    public fun test_cannot_set_fee_invalid_action() {
+    fun test_cannot_set_fee_invalid_action() {
         // Testing this method.
         use wormhole::set_fee::{set_fee};
 
@@ -339,7 +339,7 @@ module wormhole::set_fee_tests {
 
     #[test]
     #[expected_failure(abort_code = wormhole::bytes32::E_U64_OVERFLOW)]
-    public fun test_cannot_set_fee_with_overflow() {
+    fun test_cannot_set_fee_with_overflow() {
         // Testing this method.
         use wormhole::set_fee::{set_fee};
 
@@ -385,8 +385,8 @@ module wormhole::set_fee_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = required_version::E_OUTDATED_VERSION)]
-    public fun test_cannot_set_fee_outdated_build() {
+    #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
+    fun test_cannot_set_fee_outdated_build() {
         // Testing this method.
         use wormhole::set_fee::{set_fee};
 
@@ -407,9 +407,9 @@ module wormhole::set_fee_tests {
         // Simulate executing with an outdated build by upticking the minimum
         // required version for `publish_message` to something greater than
         // this build.
-        state::set_required_version<control::SetFee>(
+        state::migrate_version_test_only<V__0_1_0, V__MIGRATED>(
             &mut worm_state,
-            control::version() + 1
+            version_control::next_version()
         );
 
         let parsed =

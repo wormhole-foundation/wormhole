@@ -18,7 +18,6 @@ module wormhole::wormhole_scenario {
     use wormhole::setup::{Self, DeployerCap};
     use wormhole::state::{Self, State};
     use wormhole::vaa::{Self, VAA};
-    use wormhole::version_control::{Self as control};
 
     const DEPLOYER: address = @0xDEADBEEF;
     const WALLET_1: address = @0xB0B1;
@@ -99,15 +98,11 @@ module wormhole::wormhole_scenario {
         // Clean up from activity prior.
         test_scenario::next_tx(scenario, person());
 
-        let worm_state = test_scenario::take_shared<State>(scenario);
+        let worm_state = take_state(scenario);
         state::test_upgrade(&mut worm_state);
-        assert!(
-            state::current_version(&worm_state) > control::version(),
-            0
-        );
 
         // Clean up.
-        test_scenario::return_shared(worm_state);
+        return_state(worm_state);
     }
 
     /// Address of wallet that published Wormhole contract.

@@ -18,6 +18,8 @@ module wormhole::upgrade_contract {
     use wormhole::governance_message::{Self, GovernanceMessage};
     use wormhole::state::{Self, State};
 
+    friend wormhole::migrate;
+
     /// Digest is all zeros.
     const E_DIGEST_ZERO_BYTES: u64 = 0;
     /// Specific governance payload ID (action) to complete upgrading the
@@ -43,8 +45,13 @@ module wormhole::upgrade_contract {
         msg: GovernanceMessage
     ): UpgradeTicket {
         // Do not allow this VAA to be replayed.
+        //
+        // NOTE: This is the only governance method that does not enforce
+        // current package checking when consuming VAA hashes. This is because
+        // upgrades are protected by the Sui VM, enforcing the latest package
+        // is the one performing the upgrade.
         consumed_vaas::consume(
-            state::borrow_mut_consumed_vaas(wormhole_state),
+            state::borrow_mut_consumed_vaas_unchecked(wormhole_state),
             governance_message::vaa_hash(&msg)
         );
 
@@ -65,10 +72,11 @@ module wormhole::upgrade_contract {
         event::emit(ContractUpgraded { old_contract, new_contract });
     }
 
-    fun handle_upgrade_contract(
-        wormhole_state: &mut State,
-        msg: GovernanceMessage
-    ): UpgradeTicket {
+    /// Privileged method only to be used by this module and `migrate` module.
+    ///
+    /// During migration, we make sure that the digest equals what we expect by
+    /// passing in the same VAA used to upgrade the package.
+    public(friend) fun take_digest(msg: GovernanceMessage): Bytes32 {
         // Verify that this governance message is to update the Wormhole fee.
         let governance_payload =
             governance_message::take_local_action(
@@ -77,10 +85,18 @@ module wormhole::upgrade_contract {
                 ACTION_UPGRADE_CONTRACT
             );
 
-        // Deserialize the payload as amount to change the Wormhole fee.
+        // Deserialize the payload as the build digest.
         let UpgradeContract { digest } = deserialize(governance_payload);
 
-        state::authorize_upgrade(wormhole_state, digest)
+        digest
+    }
+
+    fun handle_upgrade_contract(
+        wormhole_state: &mut State,
+        msg: GovernanceMessage
+    ): UpgradeTicket {
+
+        state::authorize_upgrade(wormhole_state, take_digest(msg))
     }
 
     fun deserialize(payload: vector<u8>): UpgradeContract {

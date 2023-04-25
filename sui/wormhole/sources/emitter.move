@@ -4,12 +4,10 @@
 /// Wormhole messages. Its external address is determined by the capability's
 /// `id`, which is a 32-byte vector.
 module wormhole::emitter {
-    use sui::event::{Self};
     use sui::object::{Self, ID, UID};
     use sui::tx_context::{TxContext};
 
     use wormhole::state::{Self, State};
-    use wormhole::version_control::{Emitter as EmitterControl};
 
     friend wormhole::publish_message;
 
@@ -33,7 +31,7 @@ module wormhole::emitter {
 
     /// Generate a new `EmitterCap`.
     public fun new(wormhole_state: &State, ctx: &mut TxContext): EmitterCap {
-        state::check_minimum_requirement<EmitterControl>(wormhole_state);
+        state::assert_current(wormhole_state);
 
         let cap =
             EmitterCap {
@@ -41,7 +39,9 @@ module wormhole::emitter {
                 sequence: 0
             };
 
-        event::emit(EmitterCreated { emitter_cap: object::id(&cap)});
+        sui::event::emit(
+            EmitterCreated { emitter_cap: object::id(&cap)}
+        );
 
         cap
     }
@@ -64,9 +64,19 @@ module wormhole::emitter {
     ///
     /// Note that this operation removes the ability to send messages using the
     /// emitter id, and is irreversible.
-    public fun destroy(cap: EmitterCap) {
-        event::emit(EmitterDestroyed { emitter_cap: object::id(&cap)});
+    public fun destroy(wormhole_state: &State, cap: EmitterCap) {
+        state::assert_current(wormhole_state);
 
+        sui::event::emit(
+            EmitterDestroyed { emitter_cap: object::id(&cap) }
+        );
+
+        let EmitterCap { id, sequence: _ } = cap;
+        object::delete(id);
+    }
+
+    #[test_only]
+    public fun destroy_test_only(cap: EmitterCap) {
         let EmitterCap { id, sequence: _ } = cap;
         object::delete(id);
     }
@@ -86,6 +96,8 @@ module wormhole::emitter_tests {
     use sui::test_scenario::{Self};
 
     use wormhole::emitter::{Self};
+    use wormhole::state::{Self};
+    use wormhole::version_control::{Self, V__0_1_0, V__MIGRATED};
     use wormhole::wormhole_scenario::{
         person,
         return_state,
@@ -94,7 +106,7 @@ module wormhole::emitter_tests {
     };
 
     #[test]
-    public fun test_emitter() {
+    fun test_emitter() {
         // Set up.
         let caller = person();
         let my_scenario = test_scenario::begin(caller);
@@ -122,8 +134,43 @@ module wormhole::emitter_tests {
         assert!(object::id_to_address(&object::id(&cap)) == expected, 0);
 
         // Clean up.
-        emitter::destroy(dummy_cap);
-        emitter::destroy(cap);
+        emitter::destroy(&worm_state, dummy_cap);
+        emitter::destroy(&worm_state, cap);
+        return_state(worm_state);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
+    fun test_cannot_new_emitter_outdated_version() {
+        // Set up.
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
+
+        let wormhole_fee = 350;
+        set_up_wormhole(scenario, wormhole_fee);
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, caller);
+
+        let worm_state = take_state(scenario);
+
+        // Simulate executing with an outdated build by upticking the minimum
+        // required version for `publish_message` to something greater than
+        // this build.
+        state::migrate_version_test_only<V__0_1_0, V__MIGRATED>(
+            &mut worm_state,
+            version_control::next_version()
+        );
+
+        // You shall not pass!
+        let cap = emitter::new(&worm_state, test_scenario::ctx(scenario));
+
+        // Clean up.
+        emitter::destroy(&worm_state, cap);
         return_state(worm_state);
 
         // Done.
