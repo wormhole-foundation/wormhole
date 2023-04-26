@@ -5,7 +5,7 @@ set -euo pipefail
 # Help message
 function usage() {
 cat <<EOF >&2
-Deploy and initialize Sui core bridge and token bridge contracts to the 
+Deploy and initialize Sui core bridge and token bridge contracts to the
 specified network. Additionally deploys an example messaging contract in
 devnet.
 
@@ -90,7 +90,7 @@ echo "$TOKEN_BRIDGE_PUBLISH_OUTPUT"
 
 echo -e "\n[4/4] Initializing token bridge..."
 TOKEN_BRIDGE_PACKAGE_ID=$(echo "$TOKEN_BRIDGE_PUBLISH_OUTPUT" | grep -oP 'Published to +\K.*')
-TOKEN_BRIDGE_INIT_OUTPUT=$($(echo worm sui init-token-bridge -n "$NETWORK" -p "$TOKEN_BRIDGE_PACKAGE_ID" --wormhole-state "$WORMHOLE_STATE_OBJECT_ID" "$PRIVATE_KEY_ARG"))
+TOKEN_BRIDGE_INIT_OUTPUT=$($(echo worm sui init-token-bridge -n "$NETWORK" -p "$TOKEN_BRIDGE_PACKAGE_ID" --wormhole-package-id "$WORMHOLE_PACKAGE_ID" --wormhole-state "$WORMHOLE_STATE_OBJECT_ID" -"$PRIVATE_KEY_ARG"))
 TOKEN_BRIDGE_STATE_OBJECT_ID=$(echo "$TOKEN_BRIDGE_INIT_OUTPUT" | grep -oP 'Token bridge state object ID +\K.*')
 echo "$TOKEN_BRIDGE_INIT_OUTPUT"
 
@@ -99,7 +99,7 @@ if [ "$NETWORK" = devnet ]; then
   EXAMPLE_APP_PUBLISH_OUTPUT=$($(echo worm sui deploy "$EXAMPLE_APP_PATH" -n "$NETWORK" "$PRIVATE_KEY_ARG"))
   EXAMPLE_APP_PACKAGE_ID=$(echo "$EXAMPLE_APP_PUBLISH_OUTPUT" | grep -oP 'Published to +\K.*')
   echo "$EXAMPLE_APP_PUBLISH_OUTPUT"
-  
+
   EXAMPLE_INIT_OUTPUT=$($(echo worm sui init-example-message-app -n "$NETWORK" -p "$EXAMPLE_APP_PACKAGE_ID" -w "$WORMHOLE_STATE_OBJECT_ID" "$PRIVATE_KEY_ARG"))
   EXAMPLE_APP_STATE_OBJECT_ID=$(echo "$EXAMPLE_INIT_OUTPUT" | grep -oP 'Example app state object ID +\K.*')
   echo "$EXAMPLE_INIT_OUTPUT"
@@ -108,7 +108,7 @@ if [ "$NETWORK" = devnet ]; then
   EXAMPLE_COIN_PUBLISH_OUTPUT=$($(echo worm sui deploy "$EXAMPLE_COIN_PATH" -n "$NETWORK" "$PRIVATE_KEY_ARG"))
   echo "$EXAMPLE_COIN_PUBLISH_OUTPUT"
 
-  echo -e "\nWormhole package ID: $WORMHOLE_PACKAGE_ID" 
+  echo -e "\nWormhole package ID: $WORMHOLE_PACKAGE_ID"
   echo "Token bridge package ID: $TOKEN_BRIDGE_PACKAGE_ID"
   echo "Wormhole state object ID: $WORMHOLE_STATE_OBJECT_ID"
   echo "Token bridge state object ID: $TOKEN_BRIDGE_STATE_OBJECT_ID"

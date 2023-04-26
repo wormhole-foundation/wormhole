@@ -94,11 +94,31 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
             required: true,
             type: "string",
           })
+          .option("wormhole-package-id", {
+            alias: "i",
+            describe: "Wormhole package ID/module address",
+            required: true,
+            type: "string",
+          })
           .option("wormhole-state", {
             alias: "w",
             describe: "Wormhole state object ID",
             required: true,
             type: "string",
+          })
+          .option("governance-chain-id", {
+            alias: "c",
+            describe: "Governance chain ID",
+            default: GOVERNANCE_CHAIN,
+            type: "number",
+            required: false,
+          })
+          .option("governance-address", {
+            alias: "a",
+            describe: "Governance contract address",
+            type: "string",
+            default: GOVERNANCE_EMITTER,
+            required: false,
           })
           .option("private-key", {
             alias: "k",
@@ -112,7 +132,10 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         const network = argv.network.toUpperCase();
         assertNetwork(network);
         const packageId = argv["package-id"];
+        const wormholePackageId = argv["wormhole-package-id"];
         const wormholeStateObjectId = argv["wormhole-state"];
+        const governanceChainId = argv["governance-chain-id"];
+        const governanceContract = argv["governance-address"];
         const privateKey = argv["private-key"];
         const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
 
@@ -135,6 +158,7 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         console.log("Owner", owner);
         console.log("Network", network);
         console.log("Package ID", packageId);
+        console.log("Wormhole Package ID", wormholePackageId);
         console.log("Deployer cap object ID", deployerCapObjectId);
         console.log("Upgrade cap object ID", upgradeCapObjectId);
         console.log("Wormhole state object ID", wormholeStateObjectId);
@@ -152,12 +176,18 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         }
 
         const transactionBlock = new TransactionBlock();
+        const [emitterCap] = transactionBlock.moveCall({
+          target: `${wormholePackageId}::emitter::new`,
+          arguments: [transactionBlock.object(wormholeStateObjectId)],
+        });
         transactionBlock.moveCall({
           target: `${packageId}::setup::complete`,
           arguments: [
-            transactionBlock.object(wormholeStateObjectId),
             transactionBlock.object(deployerCapObjectId),
             transactionBlock.object(upgradeCapObjectId),
+            emitterCap,
+            transactionBlock.pure(governanceChainId),
+            transactionBlock.pure([...Buffer.from(governanceContract, "hex")]),
           ],
         });
         const res = await executeTransactionBlock(signer, transactionBlock);
