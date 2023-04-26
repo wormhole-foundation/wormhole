@@ -11,7 +11,7 @@ module wormhole::transfer_fee {
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self};
     use wormhole::governance_message::{Self, DecreeTicket, DecreeReceipt};
-    use wormhole::state::{Self, State, StateCap};
+    use wormhole::state::{Self, State, LatestOnly};
 
     /// Specific governance payload ID (action) for setting Wormhole fee.
     const ACTION_TRANSFER_FEE: u8 = 4;
@@ -44,21 +44,21 @@ module wormhole::transfer_fee {
         receipt: DecreeReceipt,
         ctx: &mut TxContext
     ): u64 {
-        // This state capability ensures that the current build version is used.
-        let cap = state::new_cap(wormhole_state);
+        // This capability ensures that the current build version is used.
+        let latest_only = state::cache_latest_only(wormhole_state);
 
         let payload =
             governance_message::take_payload(
-                state::borrow_mut_consumed_vaas(&cap, wormhole_state),
+                state::borrow_mut_consumed_vaas(&latest_only, wormhole_state),
                 receipt
             );
 
         // Proceed with setting the new message fee.
-        handle_transfer_fee(&cap, wormhole_state, payload, ctx)
+        handle_transfer_fee(&latest_only, wormhole_state, payload, ctx)
     }
 
     fun handle_transfer_fee(
-        cap: &StateCap,
+        latest_only: &LatestOnly,
         wormhole_state: &mut State,
         governance_payload: vector<u8>,
         ctx: &mut TxContext
@@ -69,7 +69,7 @@ module wormhole::transfer_fee {
 
         transfer::public_transfer(
             coin::from_balance(
-                state::withdraw_fee(cap, wormhole_state, amount),
+                state::withdraw_fee(latest_only, wormhole_state, amount),
                 ctx
             ),
             recipient
@@ -479,7 +479,7 @@ module wormhole::transfer_fee_tests {
 
     #[test]
     #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
-    fun test_cannot_set_fee_outdated_build() {
+    fun test_cannot_set_fee_outdated_version() {
         // Testing this method.
         use wormhole::transfer_fee::{transfer_fee};
 
@@ -517,12 +517,15 @@ module wormhole::transfer_fee_tests {
         // Prepare test to execute `transfer_fee`.
         test_scenario::next_tx(scenario, caller);
 
+        // Conveniently roll version back.
+        state::reverse_migrate_version(&mut worm_state);
+
         // Simulate executing with an outdated build by upticking the minimum
         // required version for `publish_message` to something greater than
         // this build.
         state::migrate_version_test_only(
             &mut worm_state,
-            version_control::first(),
+            version_control::dummy(),
             version_control::next_version()
         );
 

@@ -31,7 +31,7 @@ module wormhole::emitter {
 
     /// Generate a new `EmitterCap`.
     public fun new(wormhole_state: &State, ctx: &mut TxContext): EmitterCap {
-        state::assert_current(wormhole_state);
+        state::assert_latest_only(wormhole_state);
 
         let cap =
             EmitterCap {
@@ -65,7 +65,7 @@ module wormhole::emitter {
     /// Note that this operation removes the ability to send messages using the
     /// emitter id, and is irreversible.
     public fun destroy(wormhole_state: &State, cap: EmitterCap) {
-        state::assert_current(wormhole_state);
+        state::assert_latest_only(wormhole_state);
 
         sui::event::emit(
             EmitterDestroyed { emitter_cap: object::id(&cap) }
@@ -158,12 +158,15 @@ module wormhole::emitter_tests {
 
         let worm_state = take_state(scenario);
 
+        // Conveniently roll version back.
+        state::reverse_migrate_version(&mut worm_state);
+
         // Simulate executing with an outdated build by upticking the minimum
         // required version for `publish_message` to something greater than
         // this build.
         state::migrate_version_test_only(
             &mut worm_state,
-            version_control::first(),
+            version_control::dummy(),
             version_control::next_version()
         );
 

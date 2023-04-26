@@ -9,7 +9,7 @@ module token_bridge::register_chain {
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::governance_message::{Self, DecreeTicket, DecreeReceipt};
 
-    use token_bridge::state::{Self, State, StateCap};
+    use token_bridge::state::{Self, State, LatestOnly};
 
     /// Cannot register chain ID == 0.
     const E_INVALID_EMITTER_CHAIN: u64 = 0;
@@ -26,11 +26,11 @@ module token_bridge::register_chain {
     }
 
     public fun authorize_governance(
-        wormhole_state: &State
+        token_bridge_state: &State
     ): DecreeTicket {
         governance_message::authorize_verify_global(
-            state::governance_chain(wormhole_state),
-            state::governance_contract(wormhole_state),
+            state::governance_chain(token_bridge_state),
+            state::governance_contract(token_bridge_state),
             state::governance_module(),
             ACTION_REGISTER_CHAIN
         )
@@ -43,23 +43,29 @@ module token_bridge::register_chain {
         u16,
         ExternalAddress
     ) {
-        // This state capability ensures that the current build version is used.
-        let cap = state::new_cap(token_bridge_state);
+        // This capability ensures that the current build version is used.
+        let latest_only = state::cache_latest_only(token_bridge_state);
 
         let payload =
             governance_message::take_payload(
-                state::borrow_mut_consumed_vaas(&cap, token_bridge_state),
+                state::borrow_mut_consumed_vaas(
+                    &latest_only,
+                    token_bridge_state
+                ),
                 receipt
             );
 
-        handle_register_chain(&cap, token_bridge_state, payload)
+        handle_register_chain(&latest_only, token_bridge_state, payload)
     }
 
     fun handle_register_chain(
-        cap: &StateCap,
+        latest_only: &LatestOnly,
         token_bridge_state: &mut State,
         governance_payload: vector<u8>
-    ): (u16, ExternalAddress) {
+    ): (
+        u16,
+        ExternalAddress
+    ) {
         // Deserialize the payload as amount to change the Wormhole fee.
         let RegisterChain {
             chain,
@@ -67,7 +73,7 @@ module token_bridge::register_chain {
         } = deserialize(governance_payload);
 
         register_new_emitter(
-            cap,
+            latest_only,
             token_bridge_state,
             chain,
             contract_address
@@ -93,7 +99,7 @@ module token_bridge::register_chain {
     ///
     /// See `register_chain` module for more info.
     fun register_new_emitter(
-        cap: &StateCap,
+        latest_only: &LatestOnly,
         token_bridge_state: &mut State,
         chain: u16,
         contract_address: ExternalAddress
@@ -101,7 +107,7 @@ module token_bridge::register_chain {
         assert!(chain != 0, E_INVALID_EMITTER_CHAIN);
 
         let registry =
-            state::borrow_mut_emitter_registry(cap, token_bridge_state);
+            state::borrow_mut_emitter_registry(latest_only, token_bridge_state);
         assert!(
             !table::contains(registry, chain),
             E_EMITTER_ALREADY_REGISTERED
@@ -115,10 +121,15 @@ module token_bridge::register_chain {
         chain: u16,
         contract_address: ExternalAddress
     ) {
-        // This state capability ensures that the current build version is used.
-        let cap = state::new_cap(token_bridge_state);
+        // This capability ensures that the current build version is used.
+        let latest_only = state::cache_latest_only(token_bridge_state);
 
-        register_new_emitter(&cap, token_bridge_state, chain, contract_address);
+        register_new_emitter(
+            &latest_only,
+            token_bridge_state,
+            chain,
+            contract_address
+        );
     }
 
     #[test_only]

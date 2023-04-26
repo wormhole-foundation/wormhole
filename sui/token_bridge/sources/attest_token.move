@@ -16,7 +16,7 @@ module token_bridge::attest_token {
 
     use token_bridge::asset_meta::{Self};
     use token_bridge::create_wrapped::{Self};
-    use token_bridge::state::{Self, State, StateCap};
+    use token_bridge::state::{Self, State, LatestOnly};
     use token_bridge::token_registry::{Self};
 
     /// Coin type belongs to a wrapped asset.
@@ -25,10 +25,10 @@ module token_bridge::attest_token {
     /// has not completed registration.
     const E_FROM_CREATE_WRAPPED: u64 = 1;
 
-    /// `attest_token` takes `CoinMetadata` of a coin type and sends a Wormhole
-    /// message with encoded asset metadata for a foreign Token Bridge contract
-    /// to consume and create a wrapped asset reflecting this Sui asset. Asset
-    /// metadata is encoded using `AssetMeta`.
+    /// `attest_token` takes `CoinMetadata` of a coin type and generates a
+    /// `MessageTicket` with encoded asset metadata for a foreign Token Bridge
+    /// contract to consume and create a wrapped asset reflecting this Sui
+    /// asset. Asset metadata is encoded using `AssetMeta`.
     ///
     /// See `token_registry` and `asset_meta` module for more info.
     public fun attest_token<CoinType>(
@@ -36,16 +36,16 @@ module token_bridge::attest_token {
         coin_meta: &CoinMetadata<CoinType>,
         nonce: u32
     ): MessageTicket {
-        // This state capability ensures that the current build version is used.
-        let cap = state::new_cap(token_bridge_state);
+        // This capability ensures that the current build version is used.
+        let latest_only = state::cache_latest_only(token_bridge_state);
 
         // Encode Wormhole message payload.
         let encoded_asset_meta =
-            serialize_asset_meta(&cap, token_bridge_state, coin_meta);
+            serialize_asset_meta(&latest_only, token_bridge_state, coin_meta);
 
         // Prepare Wormhole message.
         state::prepare_wormhole_message(
-            &cap,
+            &latest_only,
             token_bridge_state,
             nonce,
             encoded_asset_meta
@@ -53,7 +53,7 @@ module token_bridge::attest_token {
     }
 
     fun serialize_asset_meta<CoinType>(
-        cap: &StateCap,
+        latest_only: &LatestOnly,
         token_bridge_state: &mut State,
         coin_meta: &CoinMetadata<CoinType>,
     ): vector<u8> {
@@ -84,7 +84,10 @@ module token_bridge::attest_token {
 
             // Now register it.
             token_registry::add_new_native(
-                state::borrow_mut_token_registry(cap, token_bridge_state),
+                state::borrow_mut_token_registry(
+                    latest_only,
+                    token_bridge_state
+                ),
                 coin_meta
             );
         };
@@ -97,10 +100,10 @@ module token_bridge::attest_token {
         token_bridge_state: &mut State,
         coin_metadata: &CoinMetadata<CoinType>,
     ): vector<u8> {
-        // This state capability ensures that the current build version is used.
-        let cap = state::new_cap(token_bridge_state);
+        // This capability ensures that the current build version is used.
+        let latest_only = state::cache_latest_only(token_bridge_state);
 
-        serialize_asset_meta(&cap, token_bridge_state, coin_metadata)
+        serialize_asset_meta(&latest_only, token_bridge_state, coin_metadata)
     }
 }
 
@@ -316,6 +319,60 @@ module token_bridge::attest_token_tests {
 
         let token_bridge_state = take_state(scenario);
         let coin_meta = test_scenario::take_shared(scenario);
+
+        // You shall not pass!
+        let prepared_msg =
+            attest_token<COIN_WRAPPED_7>(
+                &mut token_bridge_state,
+                &coin_meta,
+                1234 // nonce
+            );
+
+        // Clean up.
+        publish_message::destroy(prepared_msg);
+        return_state(token_bridge_state);
+        test_scenario::return_shared(coin_meta);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
+    fun test_cannot_attest_token_outdated_version() {
+        use token_bridge::attest_token::{attest_token};
+
+        let user = person();
+        let my_scenario = test_scenario::begin(user);
+        let scenario = &mut my_scenario;
+
+        // Publish coin.
+        coin_wrapped_7::init_test_only(test_scenario::ctx(scenario));
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, user);
+
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, user);
+
+        let token_bridge_state = take_state(scenario);
+        let coin_meta = test_scenario::take_shared(scenario);
+
+        // Conveniently roll version back.
+        state::reverse_migrate_version(&mut token_bridge_state);
+
+        // Simulate executing with an outdated build by upticking the minimum
+        // required version for `publish_message` to something greater than
+        // this build.
+        state::migrate_version_test_only(
+            &mut token_bridge_state,
+            token_bridge::version_control::dummy(),
+            token_bridge::version_control::next_version()
+        );
 
         // You shall not pass!
         let prepared_msg =

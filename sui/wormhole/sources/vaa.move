@@ -158,7 +158,7 @@ module wormhole::vaa {
         buf: vector<u8>,
         the_clock: &Clock
     ): VAA {
-        state::assert_current(wormhole_state);
+        state::assert_latest_only(wormhole_state);
 
         // Deserialize VAA buffer (and return `VAA` after verifying signatures).
         let (signatures, vaa) = parse(buf);
@@ -771,9 +771,15 @@ module wormhole::vaa_tests {
         let worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
 
+        // Conveniently roll version back.
+        state::reverse_migrate_version(&mut worm_state);
+
+        // Simulate executing with an outdated build by upticking the minimum
+        // required version for `publish_message` to something greater than
+        // this build.
         state::migrate_version_test_only(
             &mut worm_state,
-            version_control::first(),
+            version_control::dummy(),
             version_control::next_version()
         );
 

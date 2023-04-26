@@ -97,7 +97,7 @@ module wormhole::governance_message {
         verified_vaa: VAA,
         ticket: DecreeTicket
     ): DecreeReceipt {
-        state::assert_current(wormhole_state);
+        state::assert_latest_only(wormhole_state);
 
         let DecreeTicket {
             governance_chain,
@@ -654,12 +654,15 @@ module wormhole::governance_message_tests {
                 3 // set fee
             );
 
+        // Conveniently roll version back.
+        state::reverse_migrate_version(&mut worm_state);
+
         // Simulate executing with an outdated build by upticking the minimum
         // required version for `publish_message` to something greater than
         // this build.
         state::migrate_version_test_only(
             &mut worm_state,
-            version_control::first(),
+            version_control::dummy(),
             version_control::next_version()
         );
 

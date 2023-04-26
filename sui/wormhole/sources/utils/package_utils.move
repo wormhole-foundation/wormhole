@@ -3,7 +3,7 @@
 /// This module implements utilities that supplement those methods implemented
 /// in `sui::package`.
 module wormhole::package_utils {
-    use std::type_name::{Self};
+    use std::type_name::{Self, TypeName};
     use sui::dynamic_field::{Self as field};
     use sui::object::{Self, UID};
     use sui::package::{Self, UpgradeCap};
@@ -85,14 +85,179 @@ module wormhole::package_utils {
         field::add(id, CurrentVersion {}, new_version);
     }
 
-    public fun assert_version<Version: store + drop>(id: &UID, _version: Version) {
+    public fun assert_version<Version: store + drop>(
+        id: &UID,
+        _version: Version
+    ) {
         assert!(
-            field::exists_with_type<CurrentVersion, Version>(id, CurrentVersion {}),
+            field::exists_with_type<CurrentVersion, Version>(
+                id,
+                CurrentVersion {}
+            ),
             E_OUTDATED_VERSION
         )
     }
 
     public fun init_version<Version: store>(id: &mut UID, version: Version) {
         field::add(id, CurrentVersion {}, version);
+    }
+
+    public fun type_of_version<Version: drop>(_version: Version): TypeName {
+        type_name::get<Version>()
+    }
+}
+
+#[test_only]
+module wormhole::package_utils_tests {
+    use sui::object::{Self, UID};
+    use sui::tx_context::{Self};
+
+    use wormhole::package_utils::{Self};
+    use wormhole::version_control::{Self};
+
+    struct State has key {
+        id: UID
+    }
+
+    struct V_DUMMY has store, drop, copy {}
+
+    #[test]
+    fun test_assert_current() {
+        // Create dummy state.
+        let state = State { id: object::new(&mut tx_context::dummy()) };
+        package_utils::init_version(
+            &mut state.id,
+            version_control::current_version()
+        );
+
+        package_utils::assert_version(
+            &state.id,
+            version_control::current_version()
+        );
+
+        // Clean up.
+        let State { id } = state;
+        object::delete(id);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = package_utils::E_INCORRECT_OLD_VERSION)]
+    fun test_cannot_update_incorrect_old_version() {
+        // Create dummy state.
+        let state = State { id: object::new(&mut tx_context::dummy()) };
+        package_utils::init_version(
+            &mut state.id,
+            version_control::current_version()
+        );
+
+        package_utils::assert_version(
+            &state.id,
+            version_control::current_version()
+        );
+
+        // You shall not pass!
+        package_utils::update_version_type(
+            &mut state.id,
+            version_control::next_version(),
+            version_control::next_version()
+        );
+
+        // Clean up.
+        let State { id } = state;
+        object::delete(id);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = package_utils::E_SAME_VERSION)]
+    fun test_cannot_update_same_version() {
+        // Create dummy state.
+        let state = State { id: object::new(&mut tx_context::dummy()) };
+        package_utils::init_version(
+            &mut state.id,
+            version_control::current_version()
+        );
+
+        package_utils::assert_version(
+            &state.id,
+            version_control::current_version()
+        );
+
+        // You shall not pass!
+        package_utils::update_version_type(
+            &mut state.id,
+            version_control::current_version(),
+            version_control::current_version()
+        );
+
+        // Clean up.
+        let State { id } = state;
+        object::delete(id);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = package_utils::E_OUTDATED_VERSION)]
+    fun test_cannot_assert_current_outdated_version() {
+        // Create dummy state.
+        let state = State { id: object::new(&mut tx_context::dummy()) };
+        package_utils::init_version(
+            &mut state.id,
+            version_control::current_version()
+        );
+
+        package_utils::assert_version(
+            &state.id,
+            version_control::current_version()
+        );
+
+        // Valid update.
+        package_utils::update_version_type(
+            &mut state.id,
+            version_control::current_version(),
+            version_control::next_version()
+        );
+
+        // You shall not pass!
+        package_utils::assert_version(
+            &state.id,
+            version_control::current_version()
+        );
+
+        // Clean up.
+        let State { id } = state;
+        object::delete(id);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = package_utils::E_TYPE_NOT_ALLOWED)]
+    fun test_cannot_update_type_not_allowed() {
+        // Create dummy state.
+        let state = State { id: object::new(&mut tx_context::dummy()) };
+        package_utils::init_version(
+            &mut state.id,
+            version_control::current_version()
+        );
+
+        package_utils::assert_version(
+            &state.id,
+            version_control::current_version()
+        );
+
+        // You shall not pass!
+        package_utils::update_version_type(
+            &mut state.id,
+            version_control::current_version(),
+            V_DUMMY {}
+        );
+
+        // Clean up.
+        let State { id } = state;
+        object::delete(id);
+    }
+
+    #[test]
+    fun test_latest_version_different_from_previous() {
+        let prev = version_control::previous_version();
+        let curr = version_control::current_version();
+        assert!(package_utils::type_of_version(prev) != package_utils::type_of_version(curr), 0);
     }
 }

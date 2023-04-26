@@ -14,7 +14,7 @@ module wormhole::update_guardian_set {
     use wormhole::governance_message::{Self, DecreeTicket, DecreeReceipt};
     use wormhole::guardian::{Self, Guardian};
     use wormhole::guardian_set::{Self};
-    use wormhole::state::{Self, State, StateCap};
+    use wormhole::state::{Self, State, LatestOnly};
 
     /// No guardians public keys found in VAA.
     const E_NO_GUARDIANS: u64 = 0;
@@ -56,8 +56,8 @@ module wormhole::update_guardian_set {
         receipt: DecreeReceipt,
         the_clock: &Clock
     ): u32 {
-        // This state capability ensures that the current build version is used.
-        let cap = state::new_cap(wormhole_state);
+        // This capability ensures that the current build version is used.
+        let latest_only = state::cache_latest_only(wormhole_state);
 
         // Even though this disallows the VAA to be replayed, it may be
         // impossible to redeem the same VAA again because `governance_message`
@@ -65,16 +65,16 @@ module wormhole::update_guardian_set {
         // set).
         let payload =
             governance_message::take_payload(
-                state::borrow_mut_consumed_vaas(&cap, wormhole_state),
+                state::borrow_mut_consumed_vaas(&latest_only, wormhole_state),
                 receipt
             );
 
         // Proceed with the update.
-        handle_update_guardian_set(&cap, wormhole_state, payload, the_clock)
+        handle_update_guardian_set(&latest_only, wormhole_state, payload, the_clock)
     }
 
     fun handle_update_guardian_set(
-        cap: &StateCap,
+        latest_only: &LatestOnly,
         wormhole_state: &mut State,
         governance_payload: vector<u8>,
         the_clock: &Clock
@@ -93,11 +93,11 @@ module wormhole::update_guardian_set {
         );
 
         // Expire the existing guardian set.
-        state::expire_guardian_set(cap, wormhole_state, the_clock);
+        state::expire_guardian_set(latest_only, wormhole_state, the_clock);
 
         // And store the new one.
         state::add_new_guardian_set(
-            cap,
+            latest_only,
             wormhole_state,
             guardian_set::new(new_index, guardians)
         );
@@ -432,7 +432,7 @@ module wormhole::update_guardian_set_tests {
 
     #[test]
     #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
-    fun test_cannot_set_fee_outdated_build() {
+    fun test_cannot_set_fee_outdated_version() {
         // Testing this method.
         use wormhole::update_guardian_set::{update_guardian_set};
 
@@ -450,12 +450,15 @@ module wormhole::update_guardian_set_tests {
         let worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
 
+        // Conveniently roll version back.
+        state::reverse_migrate_version(&mut worm_state);
+
         // Simulate executing with an outdated build by upticking the minimum
         // required version for `publish_message` to something greater than
         // this build.
         state::migrate_version_test_only(
             &mut worm_state,
-            version_control::first(),
+            version_control::dummy(),
             version_control::next_version()
         );
 
