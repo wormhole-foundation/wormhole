@@ -147,10 +147,12 @@ module token_bridge::state {
     #[test_only]
     public fun migrate_version_test_only<Old: store + drop, New: store + drop>(
         self: &mut State,
+        old_version: Old,
         new_version: New
     ) {
         wormhole::package_utils::update_version_type<Old, New>(
             &mut self.id,
+            old_version,
             new_version
         );
     }

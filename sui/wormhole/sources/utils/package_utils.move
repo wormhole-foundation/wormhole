@@ -61,6 +61,7 @@ module wormhole::package_utils {
         New: store + drop
     >(
         id: &mut UID,
+        _old_version: Old,
         new_version: New
     ) {
         use std::ascii::{into_bytes};
@@ -84,7 +85,7 @@ module wormhole::package_utils {
         field::add(id, CurrentVersion {}, new_version);
     }
 
-    public fun assert_version<Version: store>(id: &UID) {
+    public fun assert_version<Version: store + drop>(id: &UID, _version: Version) {
         assert!(
             field::exists_with_type<CurrentVersion, Version>(id, CurrentVersion {}),
             E_OUTDATED_VERSION
