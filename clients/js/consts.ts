@@ -32,9 +32,9 @@ const OVERRIDES = {
   },
   DEVNET: {
     sui: {
-      core: "0x50d49cf0c8f0ab33b0c4ad1693a2617f6b4fe4dac3e6e2d0ce6e9fbe83795b51", // wormhole module State object ID
+      core: "0x59e9ce8f55cbd4f6b8fade7568e8ff7e594c1a37ec78eb126ebebe20d0722df2", // wormhole module State object ID
       token_bridge:
-        "0x63406070af4b2ba9ba6a7c47b04ef0fb6d7529c8fa80fe2abe701d8b392cfd3f", // token_bridge module State object ID
+        "0x7ffaddf3eda80ceafa0d958ff61a4f3532f165d6efa9ae4af2d3914db76c6a9d", // token_bridge module State object ID
     },
     aptos: {
       token_bridge:

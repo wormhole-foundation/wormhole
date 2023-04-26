@@ -54,7 +54,7 @@ import {
   SUI_CLOCK_OBJECT_ID,
   TransactionBlock,
 } from "@mysten/sui.js";
-import { getTokenCoinType, getObjectFields } from "../sui";
+import { getTokenCoinType, getObjectFields, getPackageId } from "../sui";
 
 export async function redeemOnEth(
   tokenBridgeAddress: string,
@@ -391,9 +391,7 @@ export function redeemOnAptos(
 
 export async function redeemOnSui(
   provider: JsonRpcProvider,
-  coreBridgePackageId: string,
   coreBridgeStateObjectId: string,
-  tokenBridgePackageId: string,
   tokenBridgeStateObjectId: string,
   transferVAA: Uint8Array
 ): Promise<TransactionBlock> {
@@ -407,6 +405,14 @@ export async function redeemOnSui(
   if (!coinType) {
     throw new Error("Unable to fetch token coinType");
   }
+  const coreBridgePackageId = await getPackageId(
+    provider,
+    coreBridgeStateObjectId
+  );
+  const tokenBridgePackageId = await getPackageId(
+    provider,
+    tokenBridgeStateObjectId
+  );
   const tx = new TransactionBlock();
   const [verifiedVAA] = tx.moveCall({
     target: `${coreBridgePackageId}::vaa::parse_and_verify`,
@@ -420,9 +426,14 @@ export async function redeemOnSui(
     target: `${tokenBridgePackageId}::vaa::verify_only_once`,
     arguments: [tx.object(tokenBridgeStateObjectId), verifiedVAA],
   });
-  const [coins] = tx.moveCall({
-    target: `${tokenBridgePackageId}::complete_transfer::complete_transfer`,
+  const [relayerReceipt] = tx.moveCall({
+    target: `${tokenBridgePackageId}::complete_transfer::authorize_transfer`,
     arguments: [tx.object(tokenBridgeStateObjectId), tokenBridgeMessage],
+    typeArguments: [coinType],
+  });
+  const [coins] = tx.moveCall({
+    target: `${tokenBridgePackageId}::complete_transfer::redeem_relayer_payout`,
+    arguments: [relayerReceipt],
     typeArguments: [coinType],
   });
   tx.moveCall({

@@ -47,6 +47,7 @@ import {
 } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
 import { createNonce } from "../utils/createNonce";
+import { getPackageId } from "../sui/utils";
 
 export async function attestFromEth(
   tokenBridgeAddress: string,
@@ -352,30 +353,42 @@ export function attestFromAptos(
 
 export async function attestFromSui(
   provider: JsonRpcProvider,
-  tokenBridgePackageId: string,
   coreBridgeStateObjectId: string,
   tokenBridgeStateObjectId: string,
   coinType: string,
   feeAmount: BigInt = BigInt(0)
 ): Promise<TransactionBlock> {
   const metadata = await provider.getCoinMetadata({ coinType });
-  console.log(metadata);
-  if (!metadata || !metadata.id) {
-    throw new Error(`Coin metadata for type ${coinType} not found`);
+  if (metadata.id === null) {
+    throw new Error(`Coin metadata ID for type ${coinType} not found`);
   }
+  const coreBridgePackageId = await getPackageId(
+    provider,
+    coreBridgeStateObjectId
+  );
+  const tokenBridgePackageId = await getPackageId(
+    provider,
+    tokenBridgeStateObjectId
+  );
   const tx = new TransactionBlock();
   const [feeCoin] = tx.splitCoins(tx.gas, [tx.pure(feeAmount)]);
-  tx.moveCall({
+  const [messageTicket] = tx.moveCall({
     target: `${tokenBridgePackageId}::attest_token::attest_token`,
     arguments: [
       tx.object(tokenBridgeStateObjectId),
-      tx.object(coreBridgeStateObjectId),
-      feeCoin,
       tx.object(metadata.id),
       tx.pure(createNonce().readUInt32LE()),
-      tx.object(SUI_CLOCK_OBJECT_ID),
     ],
     typeArguments: [coinType],
+  });
+  tx.moveCall({
+    target: `${coreBridgePackageId}::publish_message::publish_message`,
+    arguments: [
+      tx.object(coreBridgeStateObjectId),
+      feeCoin,
+      messageTicket,
+      tx.object(SUI_CLOCK_OBJECT_ID),
+    ],
   });
   return tx;
 }
