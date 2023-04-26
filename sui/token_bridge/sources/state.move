@@ -14,10 +14,9 @@ module token_bridge::state {
     use sui::tx_context::{TxContext};
     use wormhole::bytes32::{Self, Bytes32};
     use wormhole::consumed_vaas::{Self, ConsumedVAAs};
-    use wormhole::emitter::{Self, EmitterCap};
+    use wormhole::emitter::{EmitterCap};
     use wormhole::external_address::{ExternalAddress};
     use wormhole::publish_message::{MessageTicket};
-    use wormhole::state::{State as WormholeState};
 
     use token_bridge::token_registry::{Self, TokenRegistry, VerifiedAsset};
     use token_bridge::version_control::{Self};
@@ -48,6 +47,12 @@ module token_bridge::state {
     struct State has key, store {
         id: UID,
 
+        /// Governance chain ID.
+        governance_chain: u16,
+
+        /// Governance contract address.
+        governance_contract: ExternalAddress,
+
         /// Set of consumed VAA hashes.
         consumed_vaas: ConsumedVAAs,
 
@@ -66,15 +71,19 @@ module token_bridge::state {
 
     /// Create new `State`. This is only executed using the `setup` module.
     public(friend) fun new(
-        worm_state: &WormholeState,
+        emitter_cap: EmitterCap,
         upgrade_cap: UpgradeCap,
+        governance_chain: u16,
+        governance_contract: ExternalAddress,
         ctx: &mut TxContext
     ): State {
         // TODO: add governance chain and emitter here to not rely on wormhole's
         let state = State {
             id: object::new(ctx),
+            governance_chain,
+            governance_contract,
             consumed_vaas: consumed_vaas::new(ctx),
-            emitter_cap: emitter::new(worm_state, ctx),
+            emitter_cap,
             emitter_registry: table::new(ctx),
             token_registry: token_registry::new(ctx),
             upgrade_cap
@@ -104,6 +113,16 @@ module token_bridge::state {
         bytes32::new(
             x"000000000000000000000000000000000000000000546f6b656e427269646765"
         )
+    }
+
+    /// Retrieve governance chain ID, which is governance's emitter chain ID.
+    public fun governance_chain(self: &State): u16 {
+        self.governance_chain
+    }
+
+    /// Retrieve governance emitter address.
+    public fun governance_contract(self: &State): ExternalAddress {
+        self.governance_contract
     }
 
     /// Retrieve immutable reference to `TokenRegistry`.

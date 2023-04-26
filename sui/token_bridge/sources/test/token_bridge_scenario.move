@@ -35,12 +35,26 @@ module token_bridge::token_bridge_scenario {
         // Ignore effects.
         test_scenario::next_tx(scenario, deployer());
 
-        // Finally share `State`.
         let wormhole_state = take_wormhole_state(scenario);
+
+        let upgrade_cap =
+            test_scenario::take_from_sender<UpgradeCap>(scenario);
+        let emitter_cap =
+            wormhole::emitter::new(
+                &wormhole_state,
+                test_scenario::ctx(scenario)
+            );
+        let governance_chain = 1;
+        let governance_contract =
+            x"0000000000000000000000000000000000000000000000000000000000000004";
+
+        // Finally share `State`.
         setup::complete(
-            &mut wormhole_state,
             test_scenario::take_from_sender<DeployerCap>(scenario),
-            test_scenario::take_from_sender<UpgradeCap>(scenario),
+            upgrade_cap,
+            emitter_cap,
+            governance_chain,
+            governance_contract,
             test_scenario::ctx(scenario)
         );
 

@@ -19,10 +19,9 @@ module wormhole::state {
 
     use wormhole::bytes32::{Self, Bytes32};
     use wormhole::consumed_vaas::{Self, ConsumedVAAs};
-    use wormhole::cursor::{Self};
-    use wormhole::external_address::{Self, ExternalAddress};
+    use wormhole::external_address::{ExternalAddress};
     use wormhole::fee_collector::{Self, FeeCollector};
-    use wormhole::guardian::{Self};
+    use wormhole::guardian::{Guardian};
     use wormhole::guardian_set::{Self, GuardianSet};
     use wormhole::version_control::{Self};
 
@@ -92,8 +91,8 @@ module wormhole::state {
     public(friend) fun new(
         upgrade_cap: UpgradeCap,
         governance_chain: u16,
-        governance_contract: vector<u8>,
-        initial_guardians: vector<vector<u8>>,
+        governance_contract: ExternalAddress,
+        initial_guardians: vector<Guardian>,
         guardian_set_seconds_to_live: u32,
         message_fee: u64,
         ctx: &mut TxContext
@@ -105,10 +104,6 @@ module wormhole::state {
         // from the last recorded index.
         let guardian_set_index = 0;
 
-        let governance_contract =
-            external_address::new_nonzero(
-                bytes32::from_bytes(governance_contract)
-            );
         let state = State {
             id: object::new(ctx),
             governance_chain,
@@ -124,24 +119,11 @@ module wormhole::state {
         // Set first version for this package.
         version_control::initialize(&mut state.id);
 
-        let guardians = {
-            let out = vector::empty();
-            let cur = cursor::new(initial_guardians);
-            while (!cursor::is_empty(&cur)) {
-                vector::push_back(
-                    &mut out,
-                    guardian::new(cursor::poke(&mut cur))
-                );
-            };
-            cursor::destroy_empty(cur);
-            out
-        };
-
         // Store the initial guardian set.
         add_new_guardian_set(
             &new_cap(&state),
             &mut state,
-            guardian_set::new(guardian_set_index, guardians)
+            guardian_set::new(guardian_set_index, initial_guardians)
         );
 
         // Add dummy hash since this is the first time the package is published.

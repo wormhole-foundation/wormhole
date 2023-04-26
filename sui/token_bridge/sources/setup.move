@@ -7,7 +7,7 @@ module token_bridge::setup {
     use sui::package::{Self, UpgradeCap};
     use sui::transfer::{Self};
     use sui::tx_context::{Self, TxContext};
-    use wormhole::state::{State as WormholeState};
+    use wormhole::emitter::{EmitterCap};
 
     use token_bridge::state::{Self};
 
@@ -50,9 +50,11 @@ module token_bridge::setup {
     /// Only the owner of the `DeployerCap` can call this method. This
     /// method destroys the capability and shares the `State` object.
     public fun complete(
-        worm_state: &WormholeState,
         deployer: DeployerCap,
         upgrade_cap: UpgradeCap,
+        emitter_cap: EmitterCap,
+        governance_chain: u16,
+        governance_contract: vector<u8>,
         ctx: &mut TxContext
     ) {
         wormhole::package_utils::assert_package_upgrade_cap<DeployerCap>(
@@ -66,6 +68,15 @@ module token_bridge::setup {
         object::delete(id);
 
         // Share new state.
-        transfer::public_share_object(state::new(worm_state, upgrade_cap, ctx));
+        transfer::public_share_object(
+            state::new(
+                emitter_cap,
+                upgrade_cap,
+                governance_chain,
+                wormhole::external_address::new_nonzero(
+                    wormhole::bytes32::from_bytes(governance_contract)
+                ),
+                ctx
+            ));
     }
 }
