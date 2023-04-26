@@ -106,6 +106,7 @@ module token_bridge::migrate_tests {
         // existing build version.
         state::migrate_version_test_only<V__0_1_0, V__DUMMY>(
             &mut token_bridge_state,
+            version_control::first(),
             version_control::dummy()
         );
 
@@ -151,6 +152,7 @@ module token_bridge::migrate_tests {
         // existing build version.
         state::migrate_version_test_only<V__0_1_0, V__DUMMY>(
             &mut token_bridge_state,
+            version_control::first(),
             version_control::dummy()
         );
 

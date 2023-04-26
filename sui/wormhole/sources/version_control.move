@@ -8,7 +8,12 @@
 ///
 /// See `wormhole::state` for more info.
 module wormhole::version_control {
+    use std::type_name::{Self, TypeName};
+
     use wormhole::package_utils::{Self};
+
+    #[test_only]
+    friend wormhole::version_control_tests;
 
     ////////////////////////////////////////////////////////////////////////////
     //
@@ -20,18 +25,30 @@ module wormhole::version_control {
     //
     ////////////////////////////////////////////////////////////////////////////
 
+    public(friend) fun latest_version(): V__0_1_0 {
+       V__0_1_0 {}
+    }
+
+    public(friend) fun previous_version(): V__DUMMY {
+        V__DUMMY {}
+    }
+
+    public(friend) fun type_of_version<Version: drop>(_version: Version): TypeName {
+        type_name::get<Version>()
+    }
+
     /// Assert that the version hard-coded in this check is the current one.
     public(friend) fun assert_current(id: &UID) {
         // NOTE: This version should be the current build version. Please use
         // the struct at the top of this list of structs (where `V__DUMMY`
         // should be at the bottom).
-        package_utils::assert_version<V__0_1_0>(id);
+        package_utils::assert_version(id, latest_version());
     }
 
     /// Perform the official migration of one hard-coded version type to
     /// another.
     public(friend) fun update_to_current(id: &mut UID) {
-        package_utils::update_version_type<V__DUMMY, V__0_1_0>(id, V__0_1_0 {});
+        package_utils::update_version_type(id, previous_version(), latest_version());
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -72,9 +89,10 @@ module wormhole::version_control {
     #[test_only]
     public fun update_test_only<Old: store + drop, New: store + drop>(
         id: &mut UID,
+        old_version: Old,
         new_version: New
     ) {
-        package_utils::update_version_type<Old, New>(id, new_version);
+        package_utils::update_version_type<Old, New>(id, old_version, new_version);
     }
 
     #[test_only]
@@ -138,6 +156,7 @@ module wormhole::version_control_tests {
         // You shall not pass!
         version_control::update_test_only<V__MIGRATED, V__MIGRATED>(
             &mut state.id,
+            version_control::next_version(),
             version_control::next_version()
         );
 
@@ -158,6 +177,7 @@ module wormhole::version_control_tests {
         // You shall not pass!
         version_control::update_test_only<V__0_1_0, V__0_1_0>(
             &mut state.id,
+            version_control::first(),
             version_control::first()
         );
 
@@ -178,6 +198,7 @@ module wormhole::version_control_tests {
         // Valid update.
         version_control::update_test_only<V__0_1_0, V__MIGRATED>(
             &mut state.id,
+            version_control::first(),
             version_control::next_version()
         );
 
@@ -201,11 +222,19 @@ module wormhole::version_control_tests {
         // You shall not pass!
         version_control::update_test_only<V__0_1_0, V_DUMMY>(
             &mut state.id,
+            version_control::first(),
             V_DUMMY {}
         );
 
         // Clean up.
         let State { id } = state;
         object::delete(id);
+    }
+
+    #[test]
+    fun test_latest_version_different_from_previous() {
+        let prev = version_control::previous_version();
+        let curr = version_control::latest_version();
+        assert!(version_control::type_of_version(prev) != version_control::type_of_version(curr), 0);
     }
 }

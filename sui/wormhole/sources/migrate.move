@@ -110,6 +110,7 @@ module wormhole::migrate_tests {
         // existing build version.
         state::migrate_version_test_only<V__0_1_0, V__DUMMY>(
             &mut worm_state,
+            version_control::first(),
             version_control::dummy()
         );
 
@@ -155,6 +156,7 @@ module wormhole::migrate_tests {
         // existing build version.
         state::migrate_version_test_only<V__0_1_0, V__DUMMY>(
             &mut worm_state,
+            version_control::first(),
             version_control::dummy()
         );
 

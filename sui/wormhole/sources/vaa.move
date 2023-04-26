@@ -773,6 +773,7 @@ module wormhole::vaa_tests {
 
         state::migrate_version_test_only<V__0_1_0, V__MIGRATED>(
             &mut worm_state,
+            version_control::first(),
             version_control::next_version()
         );
 
