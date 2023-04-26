@@ -5,10 +5,9 @@
 module token_bridge::register_chain {
     use sui::table::{Self};
     use wormhole::bytes::{Self};
-    use wormhole::consumed_vaas::{Self};
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self, ExternalAddress};
-    use wormhole::governance_message::{Self, GovernanceMessage};
+    use wormhole::governance_message::{Self, DecreeTicket, DecreeReceipt};
 
     use token_bridge::state::{Self, State, StateCap};
 
@@ -26,35 +25,41 @@ module token_bridge::register_chain {
         contract_address: ExternalAddress,
     }
 
+    public fun authorize_governance(
+        wormhole_state: &State
+    ): DecreeTicket {
+        governance_message::authorize_verify_global(
+            state::governance_chain(wormhole_state),
+            state::governance_contract(wormhole_state),
+            state::governance_module(),
+            ACTION_REGISTER_CHAIN
+        )
+    }
+
     public fun register_chain(
         token_bridge_state: &mut State,
-        msg: GovernanceMessage
-    ): (u16, ExternalAddress) {
+        receipt: DecreeReceipt
+    ): (
+        u16,
+        ExternalAddress
+    ) {
         // This state capability ensures that the current build version is used.
         let cap = state::new_cap(token_bridge_state);
 
-        // Protect against replaying the VAA.
-        consumed_vaas::consume(
-            state::borrow_mut_consumed_vaas(&cap, token_bridge_state),
-            governance_message::vaa_hash(&msg)
-        );
+        let payload =
+            governance_message::take_payload(
+                state::borrow_mut_consumed_vaas(&cap, token_bridge_state),
+                receipt
+            );
 
-        handle_register_chain(&cap, token_bridge_state, msg)
+        handle_register_chain(&cap, token_bridge_state, payload)
     }
 
     fun handle_register_chain(
         cap: &StateCap,
         token_bridge_state: &mut State,
-        msg: GovernanceMessage
+        governance_payload: vector<u8>
     ): (u16, ExternalAddress) {
-        // Verify that this governance message is to update the Wormhole fee.
-        let governance_payload =
-            governance_message::take_global_action(
-                msg,
-                state::governance_module(),
-                ACTION_REGISTER_CHAIN
-            );
-
         // Deserialize the payload as amount to change the Wormhole fee.
         let RegisterChain {
             chain,
@@ -130,7 +135,10 @@ module token_bridge::register_chain_tests {
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self};
     use wormhole::governance_message::{Self};
-    use wormhole::wormhole_scenario::{parse_and_verify_governance_vaa};
+    use wormhole::wormhole_scenario::{
+        parse_and_verify_vaa,
+        verify_governance_vaa
+    };
 
     use token_bridge::register_chain::{Self};
     use token_bridge::state::{Self};
@@ -172,12 +180,14 @@ module token_bridge::register_chain_tests {
             assert!(!table::contains(registry, expected_chain), 0);
         };
 
-        let msg =
-            parse_and_verify_governance_vaa(scenario, VAA_REGISTER_CHAIN_1);
+        let verified_vaa = parse_and_verify_vaa(scenario, VAA_REGISTER_CHAIN_1);
+        let ticket = register_chain::authorize_governance(&token_bridge_state);
+        let receipt =
+            verify_governance_vaa(scenario, verified_vaa, ticket);
         let (
             chain,
             contract_address
-        ) = register_chain(&mut token_bridge_state, msg);
+        ) = register_chain(&mut token_bridge_state, receipt);
         assert!(chain == expected_chain, 0);
 
         let expected_contract =
@@ -217,12 +227,14 @@ module token_bridge::register_chain_tests {
 
         let token_bridge_state = take_state(scenario);
 
-        let msg =
-            parse_and_verify_governance_vaa(scenario, VAA_REGISTER_CHAIN_1);
+        let verified_vaa = parse_and_verify_vaa(scenario, VAA_REGISTER_CHAIN_1);
+        let ticket = register_chain::authorize_governance(&token_bridge_state);
+        let receipt =
+            verify_governance_vaa(scenario, verified_vaa, ticket);
         let (
             chain,
             _
-        ) = register_chain(&mut token_bridge_state, msg);
+        ) = register_chain(&mut token_bridge_state, receipt);
 
         // Check registry.
         let expected_contract =
@@ -234,12 +246,11 @@ module token_bridge::register_chain_tests {
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
 
+        let verified_vaa =
+            parse_and_verify_vaa(scenario, VAA_REGISTER_SAME_CHAIN);
         let payload =
-            governance_message::take_payload(
-                parse_and_verify_governance_vaa(
-                    scenario,
-                    VAA_REGISTER_SAME_CHAIN
-                )
+            governance_message::take_decree(
+                wormhole::vaa::payload(&verified_vaa)
             );
         let cur = cursor::new(payload);
 
@@ -253,11 +264,12 @@ module token_bridge::register_chain_tests {
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
 
-        let msg =
-            parse_and_verify_governance_vaa(scenario, VAA_REGISTER_SAME_CHAIN);
+        let ticket = register_chain::authorize_governance(&token_bridge_state);
+        let receipt =
+            verify_governance_vaa(scenario, verified_vaa, ticket);
 
         // You shall not pass!
-        register_chain(&mut token_bridge_state, msg);
+        register_chain(&mut token_bridge_state, receipt);
 
         // Clean up.
         cursor::destroy_empty(cur);

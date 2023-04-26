@@ -7,7 +7,9 @@
 module wormhole::governance_message {
     use wormhole::bytes::{Self};
     use wormhole::bytes32::{Self, Bytes32};
+    use wormhole::consumed_vaas::{Self, ConsumedVAAs};
     use wormhole::cursor::{Self};
+    use wormhole::external_address::{ExternalAddress};
     use wormhole::state::{Self, State, chain_id};
     use wormhole::vaa::{Self, VAA};
 
@@ -28,203 +30,167 @@ module wormhole::governance_message {
     /// Wormhole contract.
     const E_GOVERNANCE_TARGET_CHAIN_NOT_SUI: u64 = 7;
 
-    /// Deserialized governance decree from `VAA` payload.
-    struct GovernanceMessage {
+    struct DecreeTicket {
+        governance_chain: u16,
+        governance_contract: ExternalAddress,
         module_name: Bytes32,
         action: u8,
-        chain: u16,
+        global: bool
+    }
+
+    struct DecreeReceipt {
         payload: vector<u8>,
-        vaa_hash: Bytes32
+        digest: Bytes32
     }
 
-    /// Retrieve governance module name.
-    public fun module_name(self: &GovernanceMessage): Bytes32 {
-        self.module_name
+    public fun authorize_verify_global(
+        governance_chain: u16,
+        governance_contract: ExternalAddress,
+        module_name: Bytes32,
+        action: u8
+    ): DecreeTicket {
+        DecreeTicket {
+            governance_chain,
+            governance_contract,
+            module_name,
+            action,
+            global: true
+        }
     }
 
-    /// Retrieve governance action (i.e. payload ID).
-    public fun action(self: &GovernanceMessage): u8 {
-        self.action
+    public fun authorize_verify_local(
+        governance_chain: u16,
+        governance_contract: ExternalAddress,
+        module_name: Bytes32,
+        action: u8
+    ): DecreeTicket {
+        DecreeTicket {
+            governance_chain,
+            governance_contract,
+            module_name,
+            action,
+            global: false
+        }
     }
 
-    /// A.K.A. target chain == 0.
-    public fun is_global_action(self: &GovernanceMessage): bool {
-        self.chain == 0
-    }
+    public fun take_payload(
+        consumed: &mut ConsumedVAAs,
+        receipt: DecreeReceipt
+    ): vector<u8> {
+        let DecreeReceipt { payload, digest } = receipt;
 
-    /// A.K.A. target chain == `wormhole::state::chain_id()`.
-    public fun is_local_action(self: &GovernanceMessage): bool {
-        self.chain == chain_id()
-    }
-
-    /// Computed keccak256 hash of `VAA` message body.
-    public fun vaa_hash(self: &GovernanceMessage): Bytes32 {
-        self.vaa_hash
-    }
-
-    /// Destroy `GovernanceMessage` to take governance payload.
-    public fun take_payload(msg: GovernanceMessage): vector<u8> {
-        let GovernanceMessage {
-            module_name: _,
-            action: _,
-            chain: _,
-            vaa_hash: _,
-            payload
-        } = msg;
+        consumed_vaas::consume(consumed, digest);
 
         payload
     }
 
-    /// Passing in a deserialized `VAA`, Wormhole performs additional governance
-    /// checks to validate governance emitter before returning deserialized
-    /// `GovernanceMessage`.
-    ///
-    /// NOTE: It is expected that these VAAs are consumed only once using
-    /// `ConsumedVAAs`. Those contracts that use Guardian governance to perform
-    /// administrative functions are expected to have this container to protect
-    /// against replaying these governance actions.
+    public fun payload(receipt: &DecreeReceipt): vector<u8> {
+        receipt.payload
+    }
+
+    public fun destroy(receipt: DecreeReceipt) {
+        let DecreeReceipt { payload: _, digest: _ } = receipt;
+    }
+
     public fun verify_vaa(
         wormhole_state: &State,
         verified_vaa: VAA,
-    ): GovernanceMessage {
-        // This VAA must have originated from the governance emitter.
-        assert_governance_emitter(wormhole_state, &verified_vaa);
-
-        // Cache VAA digest.
-        let vaa_hash = vaa::digest(&verified_vaa);
-
-        // Finally deserialize Wormhole payload as governance message.
-        let cur = cursor::new(vaa::take_payload(verified_vaa));
-        let module_name = bytes32::take_bytes(&mut cur);
-        let action = bytes::take_u8(&mut cur);
-        let chain = bytes::take_u16_be(&mut cur);
-        let payload = cursor::take_rest(cur);
-
-        GovernanceMessage { module_name, action, chain, payload, vaa_hash }
-    }
-
-    /// Check module name, action and whether this action is intended for all
-    /// chains before `take_payload` is called.
-    ///
-    /// NOTE: It is expected that these governance messages are consumed only
-    /// once using `ConsumedVAAs` to store the VAA digest. Those contracts that
-    /// use Guardian governance to perform administrative functions are expected
-    /// to have this container to protect against replaying these governance
-    /// actions.
-    public fun take_global_action(
-        msg: GovernanceMessage,
-        expected_module_name: Bytes32,
-        expected_action: u8
-    ): vector<u8> {
-        assert_module_and_action(&msg, expected_module_name, expected_action);
-
-        // New guardian sets are applied to all Wormhole contracts.
-        assert!(is_global_action(&msg), E_GOVERNANCE_TARGET_CHAIN_NONZERO);
-
-        take_payload(msg)
-    }
-
-    /// Check module name, action and whether this action is intended for Sui's
-    /// chain ID before `take_payload` is called.
-    ///
-    /// NOTE: It is expected that these governance messages are consumed only
-    /// once using `ConsumedVAAs` to store the VAA digest. Those contracts that
-    /// use Guardian governance to perform administrative functions are expected
-    /// to have this container to protect against replaying these governance
-    /// actions.
-    public fun take_local_action(
-        msg: GovernanceMessage,
-        expected_module_name: Bytes32,
-        expected_action: u8
-    ): vector<u8> {
-        assert_module_and_action(&msg, expected_module_name, expected_action);
-
-        // New guardian sets are applied to all Wormhole contracts.
-        assert!(is_local_action(&msg), E_GOVERNANCE_TARGET_CHAIN_NOT_SUI);
-
-        take_payload(msg)
-    }
-
-    fun assert_module_and_action(
-        self: &GovernanceMessage,
-        expected_module_name: Bytes32,
-        expected_action: u8
-    ) {
-        // Governance action must be for Wormhole (Core Bridge).
-        assert!(
-            self.module_name == expected_module_name,
-            E_INVALID_GOVERNANCE_MODULE
-        );
-
-        // Action must be specifically to update the guardian set.
-        assert!(
-            self.action == expected_action,
-            E_INVALID_GOVERNANCE_ACTION
-        );
-    }
-
-    #[test_only]
-    public fun assert_module_and_action_test_only(
-        self: &GovernanceMessage,
-        expected_module_name: Bytes32,
-        expected_action: u8
-    ) {
-        assert_module_and_action(self, expected_module_name, expected_action)
-    }
-
-    /// Aborts if the VAA is not governance (i.e. sent from the governance
-    /// emitter on the governance chain)
-    fun assert_governance_emitter(wormhole_state: &State, verified_vaa: &VAA) {
-        // This state capability ensures that the current build version is used.
+        ticket: DecreeTicket
+    ): DecreeReceipt {
         state::assert_current(wormhole_state);
+
+        let DecreeTicket {
+            governance_chain,
+            governance_contract,
+            module_name,
+            action,
+            global
+        } = ticket;
 
         // Protect against governance actions enacted using an old guardian set.
         // This is not a protection found in the other Wormhole contracts.
         assert!(
-            vaa::guardian_set_index(verified_vaa) == state::guardian_set_index(wormhole_state),
+            vaa::guardian_set_index(&verified_vaa) == state::guardian_set_index(wormhole_state),
             E_OLD_GUARDIAN_SET_GOVERNANCE
         );
 
-        // Both the emitter chain and address must equal those known by the
-        // Wormhole `State`.
+        // Both the emitter chain and address must equal.
         assert!(
-            vaa::emitter_chain(verified_vaa) == state::governance_chain(wormhole_state),
+            vaa::emitter_chain(&verified_vaa) == governance_chain,
             E_INVALID_GOVERNANCE_CHAIN
         );
         assert!(
-            vaa::emitter_address(verified_vaa) == state::governance_contract(wormhole_state),
+            vaa::emitter_address(&verified_vaa) == governance_contract,
             E_INVALID_GOVERNANCE_EMITTER
         );
+
+        // Cache VAA digest.
+        let digest = vaa::digest(&verified_vaa);
+
+        // Finally deserialize Wormhole payload as governance message.
+        let (
+            parsed_module_name,
+            parsed_action,
+            chain,
+            payload
+        ) = deserialize(vaa::take_payload(verified_vaa));
+
+        assert!(module_name == parsed_module_name, E_INVALID_GOVERNANCE_MODULE);
+        assert!(action == parsed_action, E_INVALID_GOVERNANCE_ACTION);
+
+        // Target chain, which determines whether the governance VAA applies to
+        // all chains or Sui.
+        if (global) {
+            assert!(chain == 0, E_GOVERNANCE_TARGET_CHAIN_NONZERO);
+        } else {
+            assert!(chain == chain_id(), E_GOVERNANCE_TARGET_CHAIN_NOT_SUI);
+        };
+
+        DecreeReceipt { payload, digest }
+    }
+
+    fun deserialize(buf: vector<u8>): (Bytes32, u8, u16, vector<u8>) {
+        let cur = cursor::new(buf);
+
+        (
+            bytes32::take_bytes(&mut cur),
+            bytes::take_u8(&mut cur),
+            bytes::take_u16_be(&mut cur),
+            cursor::take_rest(cur)
+        )
     }
 
     #[test_only]
-    public fun assert_governance_emitter_test_only(
-        wormhole_state: &State,
-        verified_vaa: &VAA
+    public fun deserialize_test_only(
+        buf: vector<u8>
+    ): (
+        Bytes32,
+        u8,
+        u16,
+        vector<u8>
     ) {
-        assert_governance_emitter(wormhole_state, verified_vaa)
+        deserialize(buf)
     }
 
     #[test_only]
-    public fun payload(self: &GovernanceMessage): vector<u8> {
-        self.payload
-    }
-
-    #[test_only]
-    public fun destroy(msg: GovernanceMessage) {
-        take_payload(msg);
+    public fun take_decree(buf: vector<u8>): vector<u8> {
+        let (_, _, _, payload) = deserialize(buf);
+        payload
     }
 }
 
 #[test_only]
 module wormhole::governance_message_tests {
     use sui::test_scenario::{Self};
+    use sui::tx_context::{Self};
 
     use wormhole::bytes32::{Self};
-    use wormhole::state::{Self};
+    use wormhole::consumed_vaas::{Self};
+    use wormhole::external_address::{Self};
     use wormhole::governance_message::{Self};
+    use wormhole::state::{Self};
     use wormhole::vaa::{Self};
-    use wormhole::version_control::{Self, V__0_1_0, V__MIGRATED};
+    use wormhole::version_control::{Self};
     use wormhole::wormhole_scenario::{
         set_up_wormhole,
         person,
@@ -261,29 +227,31 @@ module wormhole::governance_message_tests {
                 VAA_UPDATE_GUARDIAN_SET_1,
                 &the_clock
             );
-        let msg = governance_message::verify_vaa(&worm_state, verified_vaa);
+        let (
+            _,
+            _,
+            _,
+            expected_payload
+        ) = governance_message::deserialize_test_only(
+            vaa::payload(&verified_vaa)
+        );
 
-        let expected_module = state::governance_module();
-        let expected_action = 2;
-
-        // Verify `GovernanceMessage` getters.
-        assert!(governance_message::module_name(&msg) == expected_module, 0);
-        assert!(governance_message::action(&msg) == expected_action, 0);
-        assert!(governance_message::is_global_action(&msg), 0);
-        assert!(!governance_message::is_local_action(&msg), 0);
-
-        let expected_payload = governance_message::payload(&msg);
-
-        // Take payload.
-        let payload =
-            governance_message::take_global_action(
-                msg,
-                expected_module,
-                expected_action
+        let ticket =
+            governance_message::authorize_verify_global(
+                state::governance_chain(&worm_state),
+                state::governance_contract(&worm_state),
+                state::governance_module(),
+                2 // update guadian set
             );
+        let receipt =
+            governance_message::verify_vaa(&worm_state, verified_vaa, ticket);
+
+        let consumed = consumed_vaas::new(&mut tx_context::dummy());
+        let payload = governance_message::take_payload(&mut consumed, receipt);
         assert!(payload == expected_payload, 0);
 
         // Clean up.
+        consumed_vaas::destroy(consumed);
         return_state(worm_state);
         return_clock(the_clock);
 
@@ -308,34 +276,126 @@ module wormhole::governance_message_tests {
         let the_clock = take_clock(scenario);
 
         let verified_vaa =
-            vaa::parse_and_verify(
-                &worm_state,
-                VAA_SET_FEE_1,
-                &the_clock
+            vaa::parse_and_verify(&worm_state, VAA_SET_FEE_1, &the_clock);
+        let (
+            _,
+            _,
+            _,
+            expected_payload
+        ) = governance_message::deserialize_test_only(
+            vaa::payload(&verified_vaa)
+        );
+
+        let ticket =
+            governance_message::authorize_verify_local(
+                state::governance_chain(&worm_state),
+                state::governance_contract(&worm_state),
+                state::governance_module(),
+                3 // set fee
             );
-        let msg = governance_message::verify_vaa(&worm_state, verified_vaa);
+        let receipt =
+            governance_message::verify_vaa(&worm_state, verified_vaa, ticket);
 
-        let expected_module = state::governance_module();
-        let expected_action = 3;
-
-        // Verify `GovernanceMessage` getters.
-        assert!(governance_message::module_name(&msg) == expected_module, 0);
-        assert!(governance_message::action(&msg) == expected_action, 0);
-        assert!(governance_message::is_local_action(&msg), 0);
-        assert!(!governance_message::is_global_action(&msg), 0);
-
-        let expected_payload = governance_message::payload(&msg);
-
-        // Take payload.
-        let payload =
-            governance_message::take_local_action(
-                msg,
-                expected_module,
-                expected_action
-            );
+        let consumed = consumed_vaas::new(&mut tx_context::dummy());
+        let payload = governance_message::take_payload(&mut consumed, receipt);
         assert!(payload == expected_payload, 0);
 
         // Clean up.
+        consumed_vaas::destroy(consumed);
+        return_state(worm_state);
+        return_clock(the_clock);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(
+        abort_code = governance_message::E_INVALID_GOVERNANCE_CHAIN
+    )]
+    fun test_cannot_verify_vaa_invalid_governance_chain() {
+        // Set up.
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
+
+        let wormhole_fee = 350;
+        set_up_wormhole(scenario, wormhole_fee);
+
+        // Prepare test setting sender to `caller`.
+        test_scenario::next_tx(scenario, caller);
+
+        let worm_state = take_state(scenario);
+        let the_clock = take_clock(scenario);
+
+        let verified_vaa =
+            vaa::parse_and_verify(&worm_state, VAA_SET_FEE_1, &the_clock);
+
+        // Show that this emitter chain ID does not equal the encoded one.
+        let invalid_chain = 0xffff;
+        assert!(invalid_chain != vaa::emitter_chain(&verified_vaa), 0);
+
+        let ticket =
+            governance_message::authorize_verify_local(
+                invalid_chain,
+                state::governance_contract(&worm_state),
+                state::governance_module(),
+                3 // set fee
+            );
+
+        // You shall not pass!
+        let receipt =
+            governance_message::verify_vaa(&worm_state, verified_vaa, ticket);
+
+        // Clean up.
+        governance_message::destroy(receipt);
+        return_state(worm_state);
+        return_clock(the_clock);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(
+        abort_code = governance_message::E_INVALID_GOVERNANCE_EMITTER
+    )]
+    fun test_cannot_verify_vaa_invalid_governance_emitter() {
+        // Set up.
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
+
+        let wormhole_fee = 350;
+        set_up_wormhole(scenario, wormhole_fee);
+
+        // Prepare test setting sender to `caller`.
+        test_scenario::next_tx(scenario, caller);
+
+        let worm_state = take_state(scenario);
+        let the_clock = take_clock(scenario);
+
+        let verified_vaa =
+            vaa::parse_and_verify(&worm_state, VAA_SET_FEE_1, &the_clock);
+
+        // Show that this emitter address does not equal the encoded one.
+        let invalid_emitter = external_address::new(bytes32::default());
+        assert!(invalid_emitter != vaa::emitter_address(&verified_vaa), 0);
+
+        let ticket =
+            governance_message::authorize_verify_global(
+                state::governance_chain(&worm_state),
+                invalid_emitter,
+                state::governance_module(),
+                3 // set fee
+            );
+
+        // You shall not pass!
+        let receipt =
+            governance_message::verify_vaa(&worm_state, verified_vaa, ticket);
+
+        // Clean up.
+        governance_message::destroy(receipt);
         return_state(worm_state);
         return_clock(the_clock);
 
@@ -347,7 +407,7 @@ module wormhole::governance_message_tests {
     #[expected_failure(
         abort_code = governance_message::E_INVALID_GOVERNANCE_MODULE
     )]
-    fun test_cannot_assert_module_and_action_invalid_module() {
+    fun test_cannot_verify_vaa_invalid_governance_module() {
         // Set up.
         let caller = person();
         let my_scenario = test_scenario::begin(caller);
@@ -363,28 +423,34 @@ module wormhole::governance_message_tests {
         let the_clock = take_clock(scenario);
 
         let verified_vaa =
-            vaa::parse_and_verify(
-                &worm_state,
-                VAA_SET_FEE_1,
-                &the_clock
-            );
-        let msg = governance_message::verify_vaa(&worm_state, verified_vaa);
-
-        let expected_module = bytes32::default(); // all zeros
-        let expected_action = 3;
-
-        // Action agrees, but `assert_module_and_action` should fail.
-        assert!(governance_message::action(&msg) == expected_action, 0);
-
-        // You shall not pass!
-        governance_message::assert_module_and_action_test_only(
-            &msg,
+            vaa::parse_and_verify(&worm_state, VAA_SET_FEE_1, &the_clock);
+        let (
             expected_module,
-            expected_action
+            _,
+            _,
+            _
+        ) = governance_message::deserialize_test_only(
+            vaa::payload(&verified_vaa)
         );
 
+        // Show that this module does not equal the encoded one.
+        let invalid_module = bytes32::from_bytes(b"Not Wormhole");
+        assert!(invalid_module != expected_module, 0);
+
+        let ticket =
+            governance_message::authorize_verify_local(
+                state::governance_chain(&worm_state),
+                state::governance_contract(&worm_state),
+                invalid_module,
+                3 // set fee
+            );
+
+        // You shall not pass!
+        let receipt =
+            governance_message::verify_vaa(&worm_state, verified_vaa, ticket);
+
         // Clean up.
-        governance_message::destroy(msg);
+        governance_message::destroy(receipt);
         return_state(worm_state);
         return_clock(the_clock);
 
@@ -396,7 +462,7 @@ module wormhole::governance_message_tests {
     #[expected_failure(
         abort_code = governance_message::E_INVALID_GOVERNANCE_ACTION
     )]
-    fun test_cannot_assert_module_and_action_invalid_action() {
+    fun test_cannot_verify_vaa_invalid_governance_action() {
         // Set up.
         let caller = person();
         let my_scenario = test_scenario::begin(caller);
@@ -412,28 +478,34 @@ module wormhole::governance_message_tests {
         let the_clock = take_clock(scenario);
 
         let verified_vaa =
-            vaa::parse_and_verify(
-                &worm_state,
-                VAA_SET_FEE_1,
-                &the_clock
-            );
-        let msg = governance_message::verify_vaa(&worm_state, verified_vaa);
-
-        let expected_module = state::governance_module();
-        let expected_action = 0;
-
-        // Action agrees, but `assert_module_and_action` should fail.
-        assert!(governance_message::module_name(&msg) == expected_module, 0);
-
-        // You shall not pass!
-        governance_message::assert_module_and_action_test_only(
-            &msg,
-            expected_module,
-            expected_action
+            vaa::parse_and_verify(&worm_state, VAA_SET_FEE_1, &the_clock);
+        let (
+            _,
+            expected_action,
+            _,
+            _
+        ) = governance_message::deserialize_test_only(
+            vaa::payload(&verified_vaa)
         );
 
+        // Show that this action does not equal the encoded one.
+        let invalid_action = 0xff;
+        assert!(invalid_action != expected_action, 0);
+
+        let ticket =
+            governance_message::authorize_verify_local(
+                state::governance_chain(&worm_state),
+                state::governance_contract(&worm_state),
+                state::governance_module(),
+                invalid_action
+            );
+
+        // You shall not pass!
+        let receipt =
+            governance_message::verify_vaa(&worm_state, verified_vaa, ticket);
+
         // Clean up.
-        governance_message::destroy(msg);
+        governance_message::destroy(receipt);
         return_state(worm_state);
         return_clock(the_clock);
 
@@ -445,7 +517,7 @@ module wormhole::governance_message_tests {
     #[expected_failure(
         abort_code = governance_message::E_GOVERNANCE_TARGET_CHAIN_NONZERO
     )]
-    fun test_cannot_take_global_action_with_local() {
+    fun test_cannot_verify_vaa_governance_target_chain_nonzero() {
         // Set up.
         let caller = person();
         let my_scenario = test_scenario::begin(caller);
@@ -461,27 +533,34 @@ module wormhole::governance_message_tests {
         let the_clock = take_clock(scenario);
 
         let verified_vaa =
-            vaa::parse_and_verify(
-                &worm_state,
-                VAA_SET_FEE_1,
-                &the_clock
-            );
-        let msg = governance_message::verify_vaa(&worm_state, verified_vaa);
-
-        let expected_module = state::governance_module();
-        let expected_action = 3;
-
-        // Verify this message is not a global action.
-        assert!(!governance_message::is_global_action(&msg), 0);
-
-        // You shall not pass!
-        governance_message::take_global_action(
-            msg,
-            expected_module,
-            expected_action
+            vaa::parse_and_verify(&worm_state, VAA_SET_FEE_1, &the_clock);
+        let (
+            _,
+            _,
+            expected_target_chain,
+            _
+        ) = governance_message::deserialize_test_only(
+            vaa::payload(&verified_vaa)
         );
 
+        // Show that this target chain ID does reflect a global action.
+        let not_global = expected_target_chain != 0;
+        assert!(not_global, 0);
+
+        let ticket =
+            governance_message::authorize_verify_global(
+                state::governance_chain(&worm_state),
+                state::governance_contract(&worm_state),
+                state::governance_module(),
+                3 // set fee
+            );
+
+        // You shall not pass!
+        let receipt =
+            governance_message::verify_vaa(&worm_state, verified_vaa, ticket);
+
         // Clean up.
+        governance_message::destroy(receipt);
         return_state(worm_state);
         return_clock(the_clock);
 
@@ -493,7 +572,7 @@ module wormhole::governance_message_tests {
     #[expected_failure(
         abort_code = governance_message::E_GOVERNANCE_TARGET_CHAIN_NOT_SUI
     )]
-    fun test_cannot_take_local_action_with_invalid_chain() {
+    fun test_cannot_verify_vaa_governance_target_chain_not_sui() {
         // Set up.
         let caller = person();
         let my_scenario = test_scenario::begin(caller);
@@ -514,22 +593,33 @@ module wormhole::governance_message_tests {
                 VAA_UPDATE_GUARDIAN_SET_1,
                 &the_clock
             );
-        let msg = governance_message::verify_vaa(&worm_state, verified_vaa);
-
-        let expected_module = state::governance_module();
-        let expected_action = 2;
-
-        // Verify this message is not for Sui.
-        assert!(!governance_message::is_local_action(&msg), 0);
-
-        // You shall not pass!
-        governance_message::take_local_action(
-            msg,
-            expected_module,
-            expected_action
+        let (
+            _,
+            _,
+            expected_target_chain,
+            _
+        ) = governance_message::deserialize_test_only(
+            vaa::payload(&verified_vaa)
         );
 
+        // Show that this target chain ID does reflect a global action.
+        let global = expected_target_chain == 0;
+        assert!(global, 0);
+
+        let ticket =
+            governance_message::authorize_verify_local(
+                state::governance_chain(&worm_state),
+                state::governance_contract(&worm_state),
+                state::governance_module(),
+                2 // update guardian set
+            );
+
+        // You shall not pass!
+        let receipt =
+            governance_message::verify_vaa(&worm_state, verified_vaa, ticket);
+
         // Clean up.
+        governance_message::destroy(receipt);
         return_state(worm_state);
         return_clock(the_clock);
 
@@ -555,23 +645,30 @@ module wormhole::governance_message_tests {
         let the_clock = take_clock(scenario);
 
         let verified_vaa =
-            vaa::parse_and_verify(
-                &worm_state,
-                VAA_UPDATE_GUARDIAN_SET_1,
-                &the_clock
+            vaa::parse_and_verify(&worm_state, VAA_SET_FEE_1, &the_clock);
+        let ticket =
+            governance_message::authorize_verify_local(
+                state::governance_chain(&worm_state),
+                state::governance_contract(&worm_state),
+                state::governance_module(),
+                3 // set fee
             );
 
-        state::migrate_version_test_only<V__0_1_0, V__MIGRATED>(
+        // Simulate executing with an outdated build by upticking the minimum
+        // required version for `publish_message` to something greater than
+        // this build.
+        state::migrate_version_test_only(
             &mut worm_state,
             version_control::first(),
             version_control::next_version()
         );
 
         // You shall not pass!
-        let msg = governance_message::verify_vaa(&worm_state, verified_vaa);
+        let receipt =
+            governance_message::verify_vaa(&worm_state, verified_vaa, ticket);
 
         // Clean up.
-        governance_message::destroy(msg);
+        governance_message::destroy(receipt);
         return_state(worm_state);
         return_clock(the_clock);
 

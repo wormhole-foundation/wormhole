@@ -4,16 +4,26 @@
 /// Wormhole message fee to another amount.
 module wormhole::set_fee {
     use wormhole::bytes32::{Self};
-    use wormhole::consumed_vaas::{Self};
     use wormhole::cursor::{Self};
-    use wormhole::governance_message::{Self, GovernanceMessage};
-    use wormhole::state::{Self, State, StateCap};
+    use wormhole::governance_message::{Self, DecreeTicket, DecreeReceipt};
+    use wormhole::state::{Self, State};
 
     /// Specific governance payload ID (action) for setting Wormhole fee.
     const ACTION_SET_FEE: u8 = 3;
 
     struct SetFee {
         amount: u64
+    }
+
+    public fun authorize_governance(
+        wormhole_state: &State
+    ): DecreeTicket {
+        governance_message::authorize_verify_local(
+            state::governance_chain(wormhole_state),
+            state::governance_contract(wormhole_state),
+            state::governance_module(),
+            ACTION_SET_FEE
+        )
     }
 
     /// Redeem governance VAA to configure Wormhole message fee amount in SUI
@@ -25,38 +35,21 @@ module wormhole::set_fee {
     /// method could break backward compatibility on an upgrade.
     public fun set_fee(
         wormhole_state: &mut State,
-        msg: GovernanceMessage
+        receipt: DecreeReceipt
     ): u64 {
         // This state capability ensures that the current build version is used.
         let cap = state::new_cap(wormhole_state);
 
-        // Do not allow this VAA to be replayed.
-        consumed_vaas::consume(
-            state::borrow_mut_consumed_vaas(&cap, wormhole_state),
-            governance_message::vaa_hash(&msg)
-        );
-
-        // Proceed with setting the new message fee.
-        handle_set_fee(&cap, wormhole_state, msg)
-    }
-
-    fun handle_set_fee(
-        cap: &StateCap,
-        wormhole_state: &mut State,
-        msg: GovernanceMessage
-    ): u64 {
-        // Verify that this governance message is to update the Wormhole fee.
-        let governance_payload =
-            governance_message::take_local_action(
-                msg,
-                state::governance_module(),
-                ACTION_SET_FEE
+        let payload =
+            governance_message::take_payload(
+                state::borrow_mut_consumed_vaas(&cap, wormhole_state),
+                receipt
             );
 
         // Deserialize the payload as amount to change the Wormhole fee.
-        let SetFee { amount } = deserialize(governance_payload);
+        let SetFee { amount } = deserialize(payload);
 
-        state::set_message_fee(cap, wormhole_state, amount);
+        state::set_message_fee(&cap, wormhole_state, amount);
 
         amount
     }
@@ -89,7 +82,7 @@ module wormhole::set_fee_tests {
     use wormhole::set_fee::{Self};
     use wormhole::state::{Self};
     use wormhole::vaa::{Self};
-    use wormhole::version_control::{Self, V__0_1_0, V__MIGRATED};
+    use wormhole::version_control::{Self};
     use wormhole::wormhole_scenario::{
         person,
         return_clock,
@@ -104,10 +97,6 @@ module wormhole::set_fee_tests {
         x"01000000000100181aa27fd44f3060fad0ae72895d42f97c45f7a5d34aa294102911370695e91e17ae82caa59f779edde2356d95cd46c2c381cdeba7a8165901a562374f212d750000bc614e000000000001000000000000000000000000000000000000000000000000000000000000000400000000000000010100000000000000000000000000000000000000000000000000000000436f7265030015000000000000000000000000000000000000000000000000000000000000015e";
     const VAA_SET_FEE_MAX: vector<u8> =
         x"01000000000100b0697fd31572e11b2256cf46d5934f38fbb90e6265e999bee50950846bf9f94d5b86f247cce20e3cc158163be7b5ae21ebaaf67e20d597229ca04d505fd4bc1c0000bc614e000000000001000000000000000000000000000000000000000000000000000000000000000400000000000000010100000000000000000000000000000000000000000000000000000000436f7265030015000000000000000000000000000000000000000000000000ffffffffffffffff";
-    const VAA_BOGUS_TARGET_CHAIN: vector<u8> =
-        x"010000000001000d34e2f56f1558252796b631f12b4f85b991d3ef52de57df6d45c8ad998c58202655d5cab2d6613688c0fcd7ae1504fc474eb96ec0591598339c133cbf8b68240000bc614e000000000001000000000000000000000000000000000000000000000000000000000000000400000000000000010100000000000000000000000000000000000000000000000000000000436f7265030002000000000000000000000000000000000000000000000000000000000000015e";
-    const VAA_BOGUS_ACTION: vector<u8> =
-        x"01000000000100bd79122fe306c2edd56ac5938acabfdadaae7906dfbfc140bd2f76f3996b20210fcda38caee5901d19d7f8b70169a46cf605f3f234d387c72a03accaf96f01ef0100bc614e000000000001000000000000000000000000000000000000000000000000000000000000000400000000000000010100000000000000000000000000000000000000000000000000000000436f7265010015000000000000000000000000000000000000000000000000000000000000015e";
     const VAA_SET_FEE_OVERFLOW: vector<u8> =
         x"01000000000100950a509a797c9b40a678a5d6297f5b74e1ce1794b3c012dad5774c395e65e8b0773cf160113f571f1452ee98d10aa61273b6bc8aefa74a3c8f7e2c9c89fb25fa0000bc614e000000000001000000000000000000000000000000000000000000000000000000000000000400000000000000010100000000000000000000000000000000000000000000000000000000436f72650300150000000000000000000000000000000000000000000000010000000000000000";
 
@@ -133,10 +122,12 @@ module wormhole::set_fee_tests {
         // Double-check current fee (from setup).
         assert!(state::message_fee(&worm_state) == wormhole_fee, 0);
 
-        let parsed =
+        let verified_vaa =
             vaa::parse_and_verify(&worm_state, VAA_SET_FEE_1, &the_clock);
-        let msg = governance_message::verify_vaa(&worm_state, parsed);
-        let fee_amount = set_fee(&mut worm_state, msg);
+        let ticket = set_fee::authorize_governance(&worm_state);
+        let receipt =
+            governance_message::verify_vaa(&worm_state, verified_vaa, ticket);
+        let fee_amount = set_fee(&mut worm_state, receipt);
         assert!(wormhole_fee != fee_amount, 0);
 
         // Confirm the fee changed.
@@ -151,10 +142,12 @@ module wormhole::set_fee_tests {
         // Finally set the fee again to max u64 (this will effectively pause
         // Wormhole message publishing until the fee gets adjusted back to a
         // reasonable level again).
-        let parsed =
+        let verified_vaa =
             vaa::parse_and_verify(&worm_state, VAA_SET_FEE_MAX, &the_clock);
-        let msg = governance_message::verify_vaa(&worm_state, parsed);
-        let fee_amount = set_fee(&mut worm_state, msg);
+        let ticket = set_fee::authorize_governance(&worm_state);
+        let receipt =
+            governance_message::verify_vaa(&worm_state, verified_vaa, ticket);
+        let fee_amount = set_fee(&mut worm_state, receipt);
 
         // Confirm.
         assert!(state::message_fee(&worm_state) == fee_amount, 0);
@@ -192,10 +185,12 @@ module wormhole::set_fee_tests {
         // Double-check current fee (from setup).
         assert!(state::message_fee(&worm_state) == wormhole_fee, 0);
 
-        let parsed =
+        let verified_vaa =
             vaa::parse_and_verify(&worm_state, VAA_SET_FEE_1, &the_clock);
-        let msg = governance_message::verify_vaa(&worm_state, parsed);
-        let fee_amount = set_fee(&mut worm_state, msg);
+        let ticket = set_fee::authorize_governance(&worm_state);
+        let receipt =
+            governance_message::verify_vaa(&worm_state, verified_vaa, ticket);
+        let fee_amount = set_fee(&mut worm_state, receipt);
 
         // Confirm the fee changed.
         assert!(state::message_fee(&worm_state) == fee_amount, 0);
@@ -229,105 +224,21 @@ module wormhole::set_fee_tests {
         let the_clock = take_clock(scenario);
 
         // Set once.
-        let parsed =
+        let verified_vaa =
             vaa::parse_and_verify(&worm_state, VAA_SET_FEE_1, &the_clock);
-        let msg = governance_message::verify_vaa(&worm_state, parsed);
-        set_fee(&mut worm_state, msg);
+        let ticket = set_fee::authorize_governance(&worm_state);
+        let receipt =
+            governance_message::verify_vaa(&worm_state, verified_vaa, ticket);
+        set_fee(&mut worm_state, receipt);
 
-        let parsed =
+        let verified_vaa =
             vaa::parse_and_verify(&worm_state, VAA_SET_FEE_1, &the_clock);
-        let msg = governance_message::verify_vaa(&worm_state, parsed);
+        let ticket = set_fee::authorize_governance(&worm_state);
+        let receipt =
+            governance_message::verify_vaa(&worm_state, verified_vaa, ticket);
 
         // You shall not pass!
-        set_fee(&mut worm_state, msg);
-
-        // Clean up.
-        return_state(worm_state);
-        return_clock(the_clock);
-
-        // Done.
-        test_scenario::end(my_scenario);
-    }
-
-    #[test]
-    #[expected_failure(
-        abort_code = governance_message::E_GOVERNANCE_TARGET_CHAIN_NOT_SUI
-    )]
-    fun test_cannot_set_fee_invalid_target_chain() {
-        // Testing this method.
-        use wormhole::set_fee::{set_fee};
-
-        // Set up.
-        let caller = person();
-        let my_scenario = test_scenario::begin(caller);
-        let scenario = &mut my_scenario;
-
-        let wormhole_fee = 420;
-        set_up_wormhole(scenario, wormhole_fee);
-
-        // Prepare test to execute `set_fee`.
-        test_scenario::next_tx(scenario, caller);
-
-        let worm_state = take_state(scenario);
-        let the_clock = take_clock(scenario);
-
-        // Setting a new fee only applies to this chain since the denomination
-        // is SUI.
-        let parsed =
-            vaa::parse_and_verify(
-                &worm_state,
-                VAA_BOGUS_TARGET_CHAIN,
-                &the_clock
-            );
-        let msg = governance_message::verify_vaa(&worm_state, parsed);
-        assert!(!governance_message::is_local_action(&msg), 0);
-
-        // You shall not pass!
-        set_fee(&mut worm_state, msg);
-
-        // Clean up.
-        return_state(worm_state);
-        return_clock(the_clock);
-
-        // Done.
-        test_scenario::end(my_scenario);
-    }
-
-    #[test]
-    #[expected_failure(
-        abort_code = governance_message::E_INVALID_GOVERNANCE_ACTION
-    )]
-    fun test_cannot_set_fee_invalid_action() {
-        // Testing this method.
-        use wormhole::set_fee::{set_fee};
-
-        // Set up.
-        let caller = person();
-        let my_scenario = test_scenario::begin(caller);
-        let scenario = &mut my_scenario;
-
-        let wormhole_fee = 420;
-        set_up_wormhole(scenario, wormhole_fee);
-
-        // Prepare test to execute `set_fee`.
-        test_scenario::next_tx(scenario, caller);
-
-        let worm_state = take_state(scenario);
-        let the_clock = take_clock(scenario);
-
-        // Setting a new fee only applies to this chain since the denomination
-        // is SUI.
-        let parsed =
-            vaa::parse_and_verify(
-                &worm_state,
-                VAA_BOGUS_ACTION,
-                &the_clock
-            );
-        let msg = governance_message::verify_vaa(&worm_state, parsed);
-        assert!(governance_message::action(&msg) != set_fee::action(), 0);
-
-        // You shall not pass!
-        set_fee(&mut worm_state, msg);
+        set_fee(&mut worm_state, receipt);
 
         // Clean up.
         return_state(worm_state);
@@ -358,14 +269,14 @@ module wormhole::set_fee_tests {
         let the_clock = take_clock(scenario);
 
         // Show that the encoded fee is greater than u64 max.
-        let parsed =
+        let verified_vaa =
             vaa::parse_and_verify(
                 &worm_state,
                 VAA_SET_FEE_OVERFLOW,
                 &the_clock
             );
-        let msg = governance_message::verify_vaa(&worm_state, parsed);
-        let payload = governance_message::payload(&msg);
+        let payload =
+            governance_message::take_decree(vaa::payload(&verified_vaa));
         let cur = cursor::new(payload);
 
         let fee_amount = bytes::take_u256_be(&mut cur);
@@ -373,8 +284,12 @@ module wormhole::set_fee_tests {
 
         cursor::destroy_empty(cur);
 
+        let ticket = set_fee::authorize_governance(&worm_state);
+        let receipt =
+            governance_message::verify_vaa(&worm_state, verified_vaa, ticket);
+
         // You shall not pass!
-        set_fee(&mut worm_state, msg);
+        set_fee(&mut worm_state, receipt);
 
         // Clean up.
         return_state(worm_state);
@@ -407,21 +322,25 @@ module wormhole::set_fee_tests {
         // Simulate executing with an outdated build by upticking the minimum
         // required version for `publish_message` to something greater than
         // this build.
-        state::migrate_version_test_only<V__0_1_0, V__MIGRATED>(
+        state::migrate_version_test_only(
             &mut worm_state,
             version_control::first(),
             version_control::next_version()
         );
 
-        let parsed =
+        let verified_vaa =
             vaa::parse_and_verify(
                 &worm_state,
                 VAA_SET_FEE_1,
                 &the_clock
             );
-        let msg = governance_message::verify_vaa(&worm_state, parsed);
+
+        let ticket = set_fee::authorize_governance(&worm_state);
+        let receipt =
+            governance_message::verify_vaa(&worm_state, verified_vaa, ticket);
+
         // You shall not pass!
-        set_fee(&mut worm_state, msg);
+        set_fee(&mut worm_state, receipt);
 
         // Clean up.
         return_state(worm_state);

@@ -380,7 +380,7 @@ module wormhole::vaa_tests {
     use wormhole::guardian_signature::{Self};
     use wormhole::state::{Self};
     use wormhole::vaa::{Self};
-    use wormhole::version_control::{Self, V__0_1_0, V__MIGRATED};
+    use wormhole::version_control::{Self};
     use wormhole::wormhole_scenario::{
         guardians,
         person,
@@ -771,7 +771,7 @@ module wormhole::vaa_tests {
         let worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
 
-        state::migrate_version_test_only<V__0_1_0, V__MIGRATED>(
+        state::migrate_version_test_only(
             &mut worm_state,
             version_control::first(),
             version_control::next_version()

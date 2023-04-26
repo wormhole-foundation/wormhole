@@ -9,6 +9,7 @@
 /// required minimum version.
 module wormhole::migrate {
     use sui::clock::{Clock};
+
     use wormhole::governance_message::{Self};
     use wormhole::state::{Self, State};
     use wormhole::upgrade_contract::{Self};
@@ -21,26 +22,7 @@ module wormhole::migrate {
         upgrade_vaa_buf: vector<u8>,
         the_clock: &Clock
     ) {
-        // Update the version first.
-        //
-        // See `version_control` module for hard-coded configuration.
-        state::migrate_version(wormhole_state);
-
-        // This VAA needs to have been used for upgrading this package.
-        //
-        // NOTE: All of the following methods have protections to make sure that
-        // the current build is used. Given that we officially migrated the
-        // version as the first call of `migrate`, these should be successful.
-        let verified_vaa =
-            vaa::parse_and_verify(wormhole_state, upgrade_vaa_buf, the_clock);
-        let msg = governance_message::verify_vaa(wormhole_state, verified_vaa);
-        let digest = upgrade_contract::take_digest(msg);
-
-        // This state capability ensures that the current build version is used.
-        let cap = state::new_cap(wormhole_state);
-
-        // Check if build digest is the current one.
-        state::assert_current_digest(&cap, wormhole_state, digest);
+        handle_migrate(wormhole_state, upgrade_vaa_buf, the_clock);
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -61,6 +43,47 @@ module wormhole::migrate {
 
         ////////////////////////////////////////////////////////////////////////
     }
+
+    public fun handle_migrate(
+        wormhole_state: &mut State,
+        upgrade_vaa_buf: vector<u8>,
+        the_clock: &Clock
+    ) {
+        // Update the version first.
+        //
+        // See `version_control` module for hard-coded configuration.
+        state::migrate_version(wormhole_state);
+
+        // This VAA needs to have been used for upgrading this package.
+        //
+        // NOTE: All of the following methods have protections to make sure that
+        // the current build is used. Given that we officially migrated the
+        // version as the first call of `migrate`, these should be successful.
+
+        // First we need to check that `parse_and_verify` still works.
+        let verified_vaa =
+            vaa::parse_and_verify(wormhole_state, upgrade_vaa_buf, the_clock);
+
+        // And governance methods.
+        let ticket = upgrade_contract::authorize_governance(wormhole_state);
+        let receipt =
+            governance_message::verify_vaa(
+                wormhole_state,
+                verified_vaa,
+                ticket
+            );
+
+        // This state capability ensures that the current build version is used.
+        let cap = state::new_cap(wormhole_state);
+
+        // Check if build digest is the current one.
+        let digest =
+            upgrade_contract::take_digest(
+                governance_message::payload(&receipt)
+            );
+        state::assert_current_digest(&cap, wormhole_state, digest);
+        governance_message::destroy(receipt);
+    }
 }
 
 #[test_only]
@@ -68,7 +91,7 @@ module wormhole::migrate_tests {
     use sui::test_scenario::{Self};
 
     use wormhole::state::{Self};
-    use wormhole::version_control::{Self, V__DUMMY, V__0_1_0};
+    use wormhole::version_control::{Self};
     use wormhole::wormhole_scenario::{
         person,
         return_clock,
@@ -108,7 +131,7 @@ module wormhole::migrate_tests {
 
         // First migrate to V_DUMMY to simulate migrating from this to the
         // existing build version.
-        state::migrate_version_test_only<V__0_1_0, V__DUMMY>(
+        state::migrate_version_test_only(
             &mut worm_state,
             version_control::first(),
             version_control::dummy()
@@ -154,7 +177,7 @@ module wormhole::migrate_tests {
 
         // First migrate to V_DUMMY to simulate migrating from this to the
         // existing build version.
-        state::migrate_version_test_only<V__0_1_0, V__DUMMY>(
+        state::migrate_version_test_only(
             &mut worm_state,
             version_control::first(),
             version_control::dummy()

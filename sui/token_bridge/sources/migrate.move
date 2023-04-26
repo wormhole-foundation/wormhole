@@ -8,7 +8,7 @@
 /// any of Wormhole's methods by enforcing the current build version as their
 /// required minimum version.
 module token_bridge::migrate {
-    use wormhole::governance_message::{GovernanceMessage};
+    use wormhole::governance_message::{Self, DecreeReceipt};
     //use wormhole::vaa::{VAA};
 
     use token_bridge::state::{Self, State};
@@ -16,27 +16,8 @@ module token_bridge::migrate {
 
     /// Execute migration logic. See `wormhole::migrate` description for more
     /// info.
-    public fun migrate(
-        wormhole_state: &mut State,
-        upgrade_msg: GovernanceMessage
-    ) {
-        // Update the version first.
-        //
-        // See `version_control` module for hard-coded configuration.
-        state::migrate_version(wormhole_state);
-
-        // This VAA needs to have been used for upgrading this package.
-        //
-        // NOTE: All of the following methods have protections to make sure that
-        // the current build is used. Given that we officially migrated the
-        // version as the first call of `migrate`, these should be successful.
-        let digest = upgrade_contract::take_digest(upgrade_msg);
-
-        // This state capability ensures that the current build version is used.
-        let cap = state::new_cap(wormhole_state);
-
-        // Check if build digest is the current one.
-        state::assert_current_digest(&cap, wormhole_state, digest);
+    public fun migrate(token_bridge_state: &mut State, receipt: DecreeReceipt) {
+        handle_migrate(token_bridge_state, receipt);
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -57,17 +38,37 @@ module token_bridge::migrate {
 
         ////////////////////////////////////////////////////////////////////////
     }
+
+    fun handle_migrate(token_bridge_state: &mut State, receipt: DecreeReceipt) {
+        // Update the version first.
+        //
+        // See `version_control` module for hard-coded configuration.
+        state::migrate_version(token_bridge_state);
+
+        // This state capability ensures that the current build version is used.
+        let cap = state::new_cap(token_bridge_state);
+
+        // Check if build digest is the current one.
+        let digest =
+            upgrade_contract::take_digest(
+                governance_message::payload(&receipt)
+            );
+        state::assert_current_digest(&cap, token_bridge_state, digest);
+        governance_message::destroy(receipt);
+    }
 }
 
 #[test_only]
 module token_bridge::migrate_tests {
     use sui::test_scenario::{Self};
     use wormhole::wormhole_scenario::{
-        parse_and_verify_governance_vaa
+        parse_and_verify_vaa,
+        verify_governance_vaa
     };
 
     use token_bridge::state::{Self};
-    use token_bridge::version_control::{Self, V__DUMMY, V__0_1_0};
+    use token_bridge::upgrade_contract::{Self};
+    use token_bridge::version_control::{Self};
     use token_bridge::token_bridge_scenario::{
         person,
         return_state,
@@ -104,18 +105,21 @@ module token_bridge::migrate_tests {
 
         // First migrate to V_DUMMY to simulate migrating from this to the
         // existing build version.
-        state::migrate_version_test_only<V__0_1_0, V__DUMMY>(
+        state::migrate_version_test_only(
             &mut token_bridge_state,
             version_control::first(),
             version_control::dummy()
         );
 
-        let msg =
-            parse_and_verify_governance_vaa(scenario, UPGRADE_VAA);
+        let verified_vaa = parse_and_verify_vaa(scenario, UPGRADE_VAA);
+        let ticket =
+            upgrade_contract::authorize_governance(&token_bridge_state);
+        let receipt =
+            verify_governance_vaa(scenario, verified_vaa, ticket);
         // Simulate executing with an outdated build by upticking the minimum
         // required version for `publish_message` to something greater than
         // this build.
-        migrate(&mut token_bridge_state, msg);
+        migrate(&mut token_bridge_state, receipt);
 
         // Clean up.
         return_state(token_bridge_state);
@@ -150,26 +154,32 @@ module token_bridge::migrate_tests {
 
         // First migrate to V_DUMMY to simulate migrating from this to the
         // existing build version.
-        state::migrate_version_test_only<V__0_1_0, V__DUMMY>(
+        state::migrate_version_test_only(
             &mut token_bridge_state,
             version_control::first(),
             version_control::dummy()
         );
 
-        let msg =
-            parse_and_verify_governance_vaa(scenario, UPGRADE_VAA);
+        let verified_vaa = parse_and_verify_vaa(scenario, UPGRADE_VAA);
+        let ticket =
+            upgrade_contract::authorize_governance(&token_bridge_state);
+        let receipt =
+            verify_governance_vaa(scenario, verified_vaa, ticket);
         // Simulate executing with an outdated build by upticking the minimum
         // required version for `publish_message` to something greater than
         // this build.
-        migrate(&mut token_bridge_state, msg);
+        migrate(&mut token_bridge_state, receipt);
 
         // Ignore effects.
         test_scenario::next_tx(scenario, user);
 
-        let msg =
-            parse_and_verify_governance_vaa(scenario, UPGRADE_VAA);
+        let verified_vaa = parse_and_verify_vaa(scenario, UPGRADE_VAA);
+        let ticket =
+            upgrade_contract::authorize_governance(&token_bridge_state);
+        let receipt =
+            verify_governance_vaa(scenario, verified_vaa, ticket);
         // You shall not pass!
-        migrate(&mut token_bridge_state, msg);
+        migrate(&mut token_bridge_state, receipt);
 
         // Clean up.
         return_state(token_bridge_state);
