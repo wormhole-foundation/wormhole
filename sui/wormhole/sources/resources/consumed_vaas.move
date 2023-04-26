@@ -20,4 +20,10 @@ module wormhole::consumed_vaas {
     public fun consume(self: &mut ConsumedVAAs, digest: Bytes32) {
         set::add(&mut self.hashes, digest);
     }
+
+    #[test_only]
+    public fun destroy(consumed: ConsumedVAAs) {
+        let ConsumedVAAs { hashes } = consumed;
+        set::destroy(hashes);
+    }
 }

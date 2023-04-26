@@ -97,7 +97,7 @@ module wormhole::emitter_tests {
 
     use wormhole::emitter::{Self};
     use wormhole::state::{Self};
-    use wormhole::version_control::{Self, V__0_1_0, V__MIGRATED};
+    use wormhole::version_control::{Self};
     use wormhole::wormhole_scenario::{
         person,
         return_state,
@@ -161,7 +161,7 @@ module wormhole::emitter_tests {
         // Simulate executing with an outdated build by upticking the minimum
         // required version for `publish_message` to something greater than
         // this build.
-        state::migrate_version_test_only<V__0_1_0, V__MIGRATED>(
+        state::migrate_version_test_only(
             &mut worm_state,
             version_control::first(),
             version_control::next_version()
