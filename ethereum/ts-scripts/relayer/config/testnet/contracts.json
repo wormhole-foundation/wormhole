@@ -1,34 +1,34 @@
 {
   "description": "This file contains the addresses for the contracts on each chain. If useLastRun is true, this file will be ignored, and the addresses will be taken from the lastrun.json of the deployment scripts.",
-  "useLastRun": true,
+  "useLastRun": false,
   "relayProviders": [
     {
       "chainId": 6,
-      "address": "0x58DFf38a3E97568CA2acfd95ca0901E8B4D3D3A8"
+      "address": "0xEF179777F69cE855718Df64E2E84BBA99b6E4828"
     },
     {
       "chainId": 14,
-      "address": "0x64847cD62c8116231BD082d0b3E0eC93F205A7A3"
+      "address": "0x6dbD445119F3Afa6F4d14e400B23fBF67965cE78"
     }
   ],
   "coreRelayers": [
     {
       "chainId": 6,
-      "address": "0xeF5d96cC539dae286513A498f54B17f8b49ecae2"
+      "address": "0xf4e844a9B75BB532e67E654F7F80C6232e5Ea7a0"
     },
     {
       "chainId": 14,
-      "address": "0x4406CE49fD696C5eB1b30dfece71eb1b9322514d"
+      "address": "0xF08B7c0CFf448174a7007CF5f12023C72C0e84f0"
     }
   ],
   "mockIntegrations": [
     {
       "chainId": 6,
-      "address": "0x66dd3fBFf7fF50C074B6Bb159519dCa98ECC552F"
+      "address": "0x930aE75caf862524cFAaE87352979a16fFc427b4"
     },
     {
       "chainId": 14,
-      "address": "0xb9E73a5c623f241a6a676BA830cfB0C677b37ca1"
+      "address": "0x01A4da7BA839E7afA4BF24568B18D852472Fc6e5"
     }
   ],
   "create2Factories": [
