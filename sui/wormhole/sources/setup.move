@@ -3,11 +3,13 @@
 /// This module implements the mechanism to publish the Wormhole contract and
 /// initialize `State` as a shared object.
 module wormhole::setup {
+    use std::vector::{Self};
     use sui::object::{Self, UID};
     use sui::package::{Self, UpgradeCap};
     use sui::transfer::{Self};
     use sui::tx_context::{Self, TxContext};
 
+    use wormhole::cursor::{Self};
     use wormhole::state::{Self};
 
     /// Build version for setup must only be `1`.
@@ -63,13 +65,28 @@ module wormhole::setup {
         let DeployerCap { id } = deployer;
         object::delete(id);
 
+        let guardians = {
+            let out = vector::empty();
+            let cur = cursor::new(initial_guardians);
+            while (!cursor::is_empty(&cur)) {
+                vector::push_back(
+                    &mut out,
+                    wormhole::guardian::new(cursor::poke(&mut cur))
+                );
+            };
+            cursor::destroy_empty(cur);
+            out
+        };
+
         // Share new state.
         transfer::public_share_object(
             state::new(
                 upgrade_cap,
                 governance_chain,
-                governance_contract,
-                initial_guardians,
+                wormhole::external_address::new_nonzero(
+                    wormhole::bytes32::from_bytes(governance_contract)
+                ),
+                guardians,
                 guardian_set_seconds_to_live,
                 message_fee,
                 ctx
