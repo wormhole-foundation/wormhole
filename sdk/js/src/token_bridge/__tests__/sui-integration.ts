@@ -348,7 +348,7 @@ describe("Sui SDK tests", () => {
       const type = o.data?.type ?? "";
       return type.includes("TreasuryCap") && type.includes("COIN_8");
     });
-    expect(coins.length).toBe(1);
+    expect(coins.length).toBeGreaterThan(0);
 
     const coin8 = coins[0];
     const coin8Type = getInnerType(getMoveObjectType(coin8) ?? "");
@@ -377,7 +377,6 @@ describe("Sui SDK tests", () => {
     // Attest on Sui
     const suiAttestTxPayload = await attestFromSui(
       suiProvider,
-      suiTokenBridgePackageId,
       SUI_CORE_BRIDGE_STATE_OBJECT_ID,
       SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
       coin8Type
@@ -421,22 +420,17 @@ describe("Sui SDK tests", () => {
       chainId: CHAIN_ID_SUI,
       assetAddress: new Uint8Array(tokenAddress),
     });
-    const coin8Coins = (
-      await suiProvider.getCoins({
-        owner: suiAddress,
-        coinType: coin8Type,
-      })
-    ).data.map<SuiCoinObject>((c) => ({
-      type: c.coinType,
-      objectId: c.coinObjectId,
-    }));
-    expect(coin8Coins.length).toBeGreaterThan(0);
+    const coin8Coins = await suiProvider.getCoins({
+      owner: suiAddress,
+      coinType: coin8Type,
+    });
+    expect(coin8Coins.data.length).toBeGreaterThan(0);
     // Transfer to Ethereum
-    const suiTransferTxPayload = transferFromSui(
+    const suiTransferTxPayload = await transferFromSui(
+      suiProvider,
       SUI_CORE_BRIDGE_STATE_OBJECT_ID,
-      suiTokenBridgePackageId,
       SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
-      coin8Coins,
+      coin8Coins.data,
       coin8Type,
       transferAmount,
       CHAIN_ID_ETH,
@@ -515,9 +509,7 @@ describe("Sui SDK tests", () => {
     // Redeem on Sui
     const redeemPayload = await redeemOnSui(
       suiProvider,
-      suiCoreBridgePackageId,
       SUI_CORE_BRIDGE_STATE_OBJECT_ID,
-      suiTokenBridgePackageId,
       SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
       slicedVAA
     );

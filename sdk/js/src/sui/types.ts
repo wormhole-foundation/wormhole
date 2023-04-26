@@ -29,6 +29,6 @@ export type SuiError = {
 };
 
 export type SuiCoinObject = {
-  type: string;
-  objectId: string;
+  coinType: string;
+  coinObjectId: string;
 };

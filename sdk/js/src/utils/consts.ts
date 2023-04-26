@@ -514,21 +514,9 @@ const DEVNET = {
       "0x46da3d4c569388af61f951bdd1153f4c875f90c2991f6b2d0a38e2161a40852c",
   },
   sui: {
-<<<<<<< HEAD
-    core: "0xb80e44b7c40b874f0162d2440d9f79468132e911c62591eba52fb65a1c9835bb",
-||||||| parent of b909483a (sdk/js: Added transferFromSui and other functions)
-    core: "0xb293dbf970046f0157ec881d46e3ff274ca73430b1ad597d8dbd98c0e54f904a",
-=======
     core: "0x50d49cf0c8f0ab33b0c4ad1693a2617f6b4fe4dac3e6e2d0ce6e9fbe83795b51", // wormhole module State object ID
->>>>>>> b909483a (sdk/js: Added transferFromSui and other functions)
     token_bridge:
-<<<<<<< HEAD
-      "0x68da393248d51fbe2bd7456414adefdf7eac9ef91b32b561c178f01c906ae80e",
-||||||| parent of b909483a (sdk/js: Added transferFromSui and other functions)
-      "0x7e35f61f38e4f9fedb25cd40100a694f6174d49bd2bdf91d152118c02781aed1",
-=======
       "0x63406070af4b2ba9ba6a7c47b04ef0fb6d7529c8fa80fe2abe701d8b392cfd3f", // token_bridge module State object ID
->>>>>>> b909483a (sdk/js: Added transferFromSui and other functions)
     nft_bridge: undefined,
   },
   moonbeam: {
