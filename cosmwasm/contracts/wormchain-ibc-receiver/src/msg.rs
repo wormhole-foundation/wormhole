@@ -23,7 +23,7 @@ pub enum WormholeIbcPacketMsg {
 #[derive(QueryResponses)]
 pub enum QueryMsg {
     #[returns(AllChannelChainsResponse)]
-    AllChannelChains,
+    AllChannelChains {},
     #[returns(ChannelChainResponse)]
     ChannelChain { channel_id: Binary },
 }

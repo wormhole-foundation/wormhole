@@ -115,7 +115,11 @@ fn handle_vaa(deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<Event
 
             // update storage with the mapping
             CHANNEL_CHAIN
-                .save(deps.storage, channel_id_trimmed.to_string(), &chain_id.into())
+                .save(
+                    deps.storage,
+                    channel_id_trimmed.to_string(),
+                    &chain_id.into(),
+                )
                 .context("failed to save channel chain")?;
             Ok(Event::new("UpdateChannelChain")
                 .add_attribute("chain_id", chain_id.to_string())
@@ -130,7 +134,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ChannelChain { channel_id } => {
             query_channel_chain(deps, channel_id).and_then(|resp| to_binary(&resp))
         }
-        QueryMsg::AllChannelChains => {
+        QueryMsg::AllChannelChains {} => {
             query_all_channel_chains(deps).and_then(|resp| to_binary(&resp))
         }
     }
