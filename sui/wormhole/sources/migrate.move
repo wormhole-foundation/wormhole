@@ -73,15 +73,15 @@ module wormhole::migrate {
                 ticket
             );
 
-        // This state capability ensures that the current build version is used.
-        let cap = state::new_cap(wormhole_state);
+        // This capability ensures that the current build version is used.
+        let latest_only = state::cache_latest_only(wormhole_state);
 
         // Check if build digest is the current one.
         let digest =
             upgrade_contract::take_digest(
                 governance_message::payload(&receipt)
             );
-        state::assert_current_digest(&cap, wormhole_state, digest);
+        state::assert_current_digest(&latest_only, wormhole_state, digest);
         governance_message::destroy(receipt);
     }
 }
@@ -91,7 +91,6 @@ module wormhole::migrate_tests {
     use sui::test_scenario::{Self};
 
     use wormhole::state::{Self};
-    use wormhole::version_control::{Self};
     use wormhole::wormhole_scenario::{
         person,
         return_clock,
@@ -129,13 +128,8 @@ module wormhole::migrate_tests {
         let worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
 
-        // First migrate to V_DUMMY to simulate migrating from this to the
-        // existing build version.
-        state::migrate_version_test_only(
-            &mut worm_state,
-            version_control::first(),
-            version_control::dummy()
-        );
+        // Conveniently roll version back.
+        state::reverse_migrate_version(&mut worm_state);
 
         // Simulate executing with an outdated build by upticking the minimum
         // required version for `publish_message` to something greater than
@@ -175,13 +169,8 @@ module wormhole::migrate_tests {
         let worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
 
-        // First migrate to V_DUMMY to simulate migrating from this to the
-        // existing build version.
-        state::migrate_version_test_only(
-            &mut worm_state,
-            version_control::first(),
-            version_control::dummy()
-        );
+        // Conveniently roll version back.
+        state::reverse_migrate_version(&mut worm_state);
 
         // Simulate executing with an outdated build by upticking the minimum
         // required version for `publish_message` to something greater than

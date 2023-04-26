@@ -23,6 +23,7 @@ module wormhole::state {
     use wormhole::fee_collector::{Self, FeeCollector};
     use wormhole::guardian::{Guardian};
     use wormhole::guardian_set::{Self, GuardianSet};
+    use wormhole::package_utils::{Self};
     use wormhole::version_control::{Self};
 
     friend wormhole::emitter;
@@ -51,7 +52,7 @@ module wormhole::state {
 
     /// Capability reflecting that the current build version is used to invoke
     /// state methods.
-    struct StateCap has drop {}
+    struct LatestOnly has drop {}
 
     /// Container for all state variables for Wormhole.
     struct State has key, store {
@@ -117,11 +118,14 @@ module wormhole::state {
         };
 
         // Set first version for this package.
-        version_control::initialize(&mut state.id);
+        package_utils::init_version(
+            &mut state.id,
+            version_control::current_version()
+        );
 
         // Store the initial guardian set.
         add_new_guardian_set(
-            &new_cap(&state),
+            &cache_latest_only(&state),
             &mut state,
             guardian_set::new(guardian_set_index, initial_guardians)
         );
@@ -136,7 +140,7 @@ module wormhole::state {
     //
     //  Simple Getters
     //
-    //  These methods do not require `StateCap` for access. Anyone is free to
+    //  These methods do not require `LatestOnly` for access. Anyone is free to
     //  access these values.
     //
     ////////////////////////////////////////////////////////////////////////////
@@ -199,13 +203,13 @@ module wormhole::state {
     }
 
     #[test_only]
-    public fun new_cap_test_only(self: &State): StateCap {
-        new_cap(self)
+    public fun cache_latest_only_test_only(self: &State): LatestOnly {
+        cache_latest_only(self)
     }
 
     #[test_only]
     public fun deposit_fee_test_only(self: &mut State, fee: Balance<SUI>) {
-        deposit_fee(&new_cap(self), self, fee)
+        deposit_fee(&cache_latest_only(self), self, fee)
     }
 
     #[test_only]
@@ -214,7 +218,7 @@ module wormhole::state {
         old_version: Old,
         new_version: New
     ) {
-        wormhole::package_utils::update_version_type<Old, New>(
+        package_utils::update_version_type(
             &mut self.id,
             old_version,
             new_version
@@ -233,13 +237,13 @@ module wormhole::state {
     //
     //  Privileged `State` Access
     //
-    //  This section of methods require a `StateCap`, which can only be created
+    //  This section of methods require a `LatestOnly`, which can only be created
     //  within the Wormhole package. This capability allows special access to
     //  the `State` object.
     //
     //  NOTE: A lot of these methods are still marked as `(friend)` as a safety
     //  precaution. When a package is upgraded, friend modifiers can be
-    //  added or removed.
+    //  removed.
     //
     ////////////////////////////////////////////////////////////////////////////
 
@@ -248,16 +252,19 @@ module wormhole::state {
     ///
     /// NOTE: This method allows caching the current version check so we avoid
     /// multiple checks to dynamic fields.
-    public fun new_cap(self: &State): StateCap {
-        version_control::assert_current(&self.id);
+    public(friend) fun cache_latest_only(self: &State): LatestOnly {
+        package_utils::assert_version(
+            &self.id,
+            version_control::current_version()
+        );
 
-        StateCap {}
+        LatestOnly {}
     }
 
     /// A more expressive method to enforce that the current build version is
     /// used.
-    public fun assert_current(self: &State) {
-        new_cap(self);
+    public(friend) fun assert_latest_only(self: &State) {
+        cache_latest_only(self);
     }
 
     /// Deposit fee when sending Wormhole message. This method does not
@@ -267,7 +274,7 @@ module wormhole::state {
     ///
     /// See `wormhole::publish_message` for more info.
     public(friend) fun deposit_fee(
-        _: &StateCap,
+        _: &LatestOnly,
         self: &mut State,
         fee: Balance<SUI>
     ) {
@@ -279,7 +286,7 @@ module wormhole::state {
     ///
     /// See `wormhole::transfer_fee` for more info.
     public(friend) fun withdraw_fee(
-        _: &StateCap,
+        _: &LatestOnly,
         self: &mut State,
         amount: u64
     ): Balance<SUI> {
@@ -290,7 +297,7 @@ module wormhole::state {
     /// from being replayed. For Wormhole, the only VAAs that it cares about
     /// being replayed are its governance actions.
     public(friend) fun borrow_mut_consumed_vaas(
-        _: &StateCap,
+        _: &LatestOnly,
         self: &mut State
     ): &mut ConsumedVAAs {
         borrow_mut_consumed_vaas_unchecked(self)
@@ -300,7 +307,7 @@ module wormhole::state {
     /// from being replayed. For Wormhole, the only VAAs that it cares about
     /// being replayed are its governance actions.
     ///
-    /// NOTE: This method does not require `StateCap`. Only methods in the
+    /// NOTE: This method does not require `LatestOnly`. Only methods in the
     /// `upgrade_contract` module requires this to be unprotected to prevent
     /// a corrupted upgraded contract from bricking upgradability.
     public(friend) fun borrow_mut_consumed_vaas_unchecked(
@@ -318,7 +325,7 @@ module wormhole::state {
     ///
     /// See `wormhole::update_guardian_set` for more info.
     public(friend) fun expire_guardian_set(
-        _: &StateCap,
+        _: &LatestOnly,
         self: &mut State,
         the_clock: &Clock
     ) {
@@ -334,7 +341,7 @@ module wormhole::state {
     ///
     /// See `wormhole::update_guardian_set` for more info.
     public(friend) fun add_new_guardian_set(
-        _: &StateCap,
+        _: &LatestOnly,
         self: &mut State,
         new_guardian_set: GuardianSet
     ) {
@@ -350,7 +357,7 @@ module wormhole::state {
     ///
     /// See `wormhole::set_fee` for more info.
     public(friend) fun set_message_fee(
-        _: &StateCap,
+        _: &LatestOnly,
         self: &mut State,
         amount: u64
     ) {
@@ -366,7 +373,7 @@ module wormhole::state {
     //
     //  Also in this section is managing contract migrations, which uses the
     //  `migrate` module to officially roll state access to the latest build.
-    //  Only those methods that require `StateCap` will be affected by an
+    //  Only those methods that require `LatestOnly` will be affected by an
     //  upgrade.
     //
     ////////////////////////////////////////////////////////////////////////////
@@ -437,15 +444,28 @@ module wormhole::state {
     }
 
     public(friend) fun migrate_version(self: &mut State) {
-        version_control::update_to_current(&mut self.id);
+        package_utils::update_version_type(
+            &mut self.id,
+            version_control::previous_version(),
+            version_control::current_version()
+        );
     }
 
     public(friend) fun assert_current_digest(
-        _: &StateCap,
+        _: &LatestOnly,
         self: &State,
         digest: Bytes32
     ) {
         let current = *field::borrow(&self.id, CurrentDigest {});
         assert!(digest == current, E_INVALID_BUILD_DIGEST);
+    }
+
+    #[test_only]
+    public fun reverse_migrate_version(self: &mut State) {
+        package_utils::update_version_type(
+            &mut self.id,
+            version_control::current_version(),
+            version_control::dummy()
+        );
     }
 }

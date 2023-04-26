@@ -151,10 +151,11 @@ module token_bridge::create_wrapped {
         coin_upgrade_cap: UpgradeCap,
         msg: TokenBridgeMessage
     ) {
-        // This state capability ensures that the current build version is used.
-        // This call performs an additional check of whether `WrappedAssetSetup`
-        // was created using the current package.
-        let cap = state::new_cap_specified<Version>(token_bridge_state);
+        // This capability ensures that the current build version is used. This
+        // call performs an additional check of whether `WrappedAssetSetup` was
+        // created using the current package.
+        let latest_only =
+            state::cache_latest_only_specified<Version>(token_bridge_state);
 
         let WrappedAssetSetup {
             id,
@@ -174,7 +175,7 @@ module token_bridge::create_wrapped {
         // If both of these conditions are met, `register_wrapped_asset` will
         // succeed and the new wrapped coin will be registered.
         token_registry::add_new_wrapped(
-            state::borrow_mut_token_registry(&cap, token_bridge_state),
+            state::borrow_mut_token_registry(&latest_only, token_bridge_state),
             token_meta,
             coin_meta,
             treasury_cap,
@@ -189,15 +190,15 @@ module token_bridge::create_wrapped {
         coin_meta: &mut CoinMetadata<CoinType>,
         msg: TokenBridgeMessage
     ) {
-        // This state capability ensures that the current build version is used.
-        let cap = state::new_cap(token_bridge_state);
+        // This capability ensures that the current build version is used.
+        let latest_only = state::cache_latest_only(token_bridge_state);
 
         // Deserialize to `AssetMeta`.
         let token_meta = asset_meta::deserialize(vaa::take_payload(msg));
 
         // This asset must exist in the registry.
         let registry =
-            state::borrow_mut_token_registry(&cap, token_bridge_state);
+            state::borrow_mut_token_registry(&latest_only, token_bridge_state);
         token_registry::assert_has<CoinType>(registry);
 
         // Now update wrapped.
@@ -260,18 +261,18 @@ module token_bridge::create_wrapped {
 
 #[test_only]
 module token_bridge::create_wrapped_tests {
+    use sui::coin::{Self};
     use sui::test_scenario::{Self};
     use sui::test_utils::{Self};
     use sui::tx_context::{Self};
-    use sui::coin::{Self, CoinMetadata};
     use wormhole::wormhole_scenario::{parse_and_verify_vaa};
 
     use token_bridge::asset_meta::{Self};
     use token_bridge::coin_wrapped_12::{Self};
-    use token_bridge::string_utils;
     use token_bridge::coin_wrapped_7::{Self};
     use token_bridge::create_wrapped::{Self};
     use token_bridge::state::{Self};
+    use token_bridge::string_utils::{Self};
     use token_bridge::token_bridge_scenario::{
         register_dummy_emitter,
         return_state,
@@ -281,7 +282,7 @@ module token_bridge::create_wrapped_tests {
     };
     use token_bridge::token_registry::{Self};
     use token_bridge::vaa::{Self};
-    use token_bridge::version_control::{V__0_1_0};
+    use token_bridge::version_control::{V__0_1_0, V__DUMMY};
     use token_bridge::wrapped_asset::{Self};
 
     struct NOT_A_WITNESS has drop {}
@@ -363,7 +364,7 @@ module token_bridge::create_wrapped_tests {
             parse_and_verify_vaa(scenario, coin_wrapped_12::encoded_vaa());
         let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
 
-        let coin_meta = test_scenario::take_shared<CoinMetadata<CREATE_WRAPPED_TESTS>>(scenario);
+        let coin_meta = test_scenario::take_shared(scenario);
 
         create_wrapped::complete_registration(
             &mut token_bridge_state,
@@ -485,7 +486,7 @@ module token_bridge::create_wrapped_tests {
             parse_and_verify_vaa(scenario, coin_wrapped_12::encoded_vaa());
         let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
 
-        let coin_meta = test_scenario::take_shared<CoinMetadata<CREATE_WRAPPED_TESTS>>(scenario);
+        let coin_meta = test_scenario::take_shared(scenario);
 
         create_wrapped::complete_registration(
             &mut token_bridge_state,
@@ -517,4 +518,129 @@ module token_bridge::create_wrapped_tests {
         test_scenario::end(my_scenario);
     }
 
+    #[test]
+    #[expected_failure(abort_code = state::E_VERSION_MISMATCH)]
+    fun test_cannot_complete_registration_version_mismatch() {
+        let (caller, coin_deployer) = two_people();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
+
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
+
+        // Register foreign emitter on chain ID == 2.
+        let expected_source_chain = 2;
+        register_dummy_emitter(scenario, expected_source_chain);
+
+        // Ignore effects. Make sure `coin_deployer` receives
+        // `WrappedAssetSetup`.
+        test_scenario::next_tx(scenario, coin_deployer);
+
+        // Publish coin.
+        let (
+            wrapped_asset_setup,
+            upgrade_cap
+        ) =
+            create_wrapped::new_setup_test_only<
+                CREATE_WRAPPED_TESTS,
+                V__DUMMY
+            >(
+                CREATE_WRAPPED_TESTS {},
+                8,
+                test_scenario::ctx(scenario)
+            );
+
+        let token_bridge_state = take_state(scenario);
+
+        let verified_vaa =
+            parse_and_verify_vaa(scenario, coin_wrapped_12::encoded_vaa());
+        let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
+
+        let coin_meta = test_scenario::take_shared(scenario);
+
+        create_wrapped::complete_registration(
+            &mut token_bridge_state,
+            &mut coin_meta,
+            wrapped_asset_setup,
+            upgrade_cap,
+            msg
+        );
+
+        // Clean up.
+        return_state(token_bridge_state);
+        test_scenario::return_shared(coin_meta);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
+    fun test_cannot_complete_registration_outdated_version() {
+        let (caller, coin_deployer) = two_people();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
+
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
+
+        // Register foreign emitter on chain ID == 2.
+        let expected_source_chain = 2;
+        register_dummy_emitter(scenario, expected_source_chain);
+
+        // Ignore effects. Make sure `coin_deployer` receives
+        // `WrappedAssetSetup`.
+        test_scenario::next_tx(scenario, coin_deployer);
+
+        // Publish coin.
+        let (
+            wrapped_asset_setup,
+            upgrade_cap
+        ) =
+            create_wrapped::new_setup_test_only<
+                CREATE_WRAPPED_TESTS,
+                V__0_1_0
+            >(
+                CREATE_WRAPPED_TESTS {},
+                8,
+                test_scenario::ctx(scenario)
+            );
+
+        let token_bridge_state = take_state(scenario);
+
+        let verified_vaa =
+            parse_and_verify_vaa(scenario, coin_wrapped_12::encoded_vaa());
+        let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
+
+        let coin_meta = test_scenario::take_shared(scenario);
+
+        // Conveniently roll version back.
+        state::reverse_migrate_version(&mut token_bridge_state);
+
+        // Simulate executing with an outdated build by upticking the minimum
+        // required version for `publish_message` to something greater than
+        // this build.
+        state::migrate_version_test_only(
+            &mut token_bridge_state,
+            token_bridge::version_control::dummy(),
+            token_bridge::version_control::next_version()
+        );
+
+        create_wrapped::complete_registration(
+            &mut token_bridge_state,
+            &mut coin_meta,
+            wrapped_asset_setup,
+            upgrade_cap,
+            msg
+        );
+
+        // Clean up.
+        return_state(token_bridge_state);
+        test_scenario::return_shared(coin_meta);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
 }

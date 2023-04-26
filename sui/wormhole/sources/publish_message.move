@@ -110,14 +110,14 @@ module wormhole::publish_message {
         prepared_msg: MessageTicket,
         the_clock: &Clock
     ): u64 {
-        // This state capability ensures that the current build version is used.
-        let cap = state::new_cap(wormhole_state);
+        // This capability ensures that the current build version is used.
+        let latest_only = state::cache_latest_only(wormhole_state);
 
         // Deposit `message_fee`. This method interacts with the `FeeCollector`,
         // which will abort if `message_fee` does not equal the collector's
         // expected fee amount.
         state::deposit_fee(
-            &cap,
+            &latest_only,
             wormhole_state,
             coin::into_balance(message_fee)
         );
@@ -369,7 +369,7 @@ module wormhole::publish_message_tests {
     #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
     /// This test verifies that `publish_message` will fail if the minimum
     /// required version is greater than the current build's.
-    fun test_cannot_publish_message_outdated_build() {
+    fun test_cannot_publish_message_outdated_version() {
         use wormhole::publish_message::{prepare_message, publish_message};
 
         let user = person();
@@ -391,12 +391,15 @@ module wormhole::publish_message_tests {
         let emitter_cap =
             emitter::new(&worm_state, test_scenario::ctx(scenario));
 
+        // Conveniently roll version back.
+        state::reverse_migrate_version(&mut worm_state);
+
         // Simulate executing with an outdated build by upticking the minimum
         // required version for `publish_message` to something greater than
         // this build.
         state::migrate_version_test_only(
             &mut worm_state,
-            version_control::first(),
+            version_control::dummy(),
             version_control::next_version()
         );
 

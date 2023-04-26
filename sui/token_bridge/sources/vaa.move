@@ -12,7 +12,6 @@
 /// it will abort.
 module token_bridge::vaa {
     use sui::table::{Self};
-    use wormhole::bytes32::{Bytes32};
     use wormhole::consumed_vaas::{Self};
     use wormhole::external_address::{ExternalAddress};
     use wormhole::vaa::{Self, VAA};
@@ -40,9 +39,7 @@ module token_bridge::vaa {
         /// Sequence number of Token Bridge's Wormhole message.
         sequence: u64,
         /// Token Bridge payload.
-        payload: vector<u8>,
-        /// `VAA` digest.
-        digest: Bytes32
+        payload: vector<u8>
     }
 
     /// Parses and verifies encoded VAA. Because Token Bridge does not allow
@@ -63,13 +60,13 @@ module token_bridge::vaa {
         token_bridge_state: &mut State,
         verified_vaa: VAA
     ): TokenBridgeMessage {
-        // This state capability ensures that the current build version is used.
-        let cap = state::new_cap(token_bridge_state);
+        // This capability ensures that the current build version is used.
+        let latest_only = state::cache_latest_only(token_bridge_state);
 
         // First parse and verify VAA using Wormhole. This also consumes the VAA
         // hash to prevent replay.
         consumed_vaas::consume(
-            state::borrow_mut_consumed_vaas(&cap, token_bridge_state),
+            state::borrow_mut_consumed_vaas(&latest_only, token_bridge_state),
             vaa::digest(&verified_vaa)
         );
 
@@ -78,7 +75,6 @@ module token_bridge::vaa {
 
         // Take emitter info, sequence and payload.
         let sequence = vaa::sequence(&verified_vaa);
-        let digest = vaa::digest(&verified_vaa);
         let (
             emitter_chain,
             emitter_address,
@@ -89,8 +85,7 @@ module token_bridge::vaa {
             emitter_chain,
             emitter_address,
             sequence,
-            payload,
-            digest
+            payload
         }
     }
 
@@ -106,10 +101,6 @@ module token_bridge::vaa {
         self.sequence
     }
 
-    public fun digest(self: &TokenBridgeMessage): Bytes32 {
-        self.digest
-    }
-
     /// Destroy `TokenBridgeMessage` and extract payload, which is the same
     /// payload in the `VAA`.
     ///
@@ -122,8 +113,7 @@ module token_bridge::vaa {
             emitter_chain: _,
             emitter_address: _,
             sequence: _,
-            payload,
-            digest: _
+            payload
         } = msg;
 
         payload
@@ -156,6 +146,7 @@ module token_bridge::vaa_tests {
     use wormhole::external_address::{Self};
     use wormhole::wormhole_scenario::{parse_and_verify_vaa};
 
+    use token_bridge::state::{Self};
     use token_bridge::token_bridge_scenario::{
         person,
         register_dummy_emitter,
@@ -171,7 +162,7 @@ module token_bridge::vaa_tests {
 
     #[test]
     #[expected_failure(abort_code = vaa::E_UNREGISTERED_EMITTER)]
-    fun test_cannot_parse_verify_and_consume_unregistered_chain() {
+    fun test_cannot_verify_only_once_unregistered_chain() {
         let caller = person();
         let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
@@ -199,7 +190,7 @@ module token_bridge::vaa_tests {
 
     #[test]
     #[expected_failure(abort_code = vaa::E_EMITTER_ADDRESS_MISMATCH)]
-    fun test_cannot_parse_verify_and_consume_emitter_address_mismatch() {
+    fun test_cannot_verify_only_once_emitter_address_mismatch() {
         let caller = person();
         let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
@@ -241,7 +232,7 @@ module token_bridge::vaa_tests {
     }
 
     #[test]
-    fun test_parse_verify_and_consume() {
+    fun test_verify_only_once() {
         let caller = person();
         let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
@@ -279,7 +270,7 @@ module token_bridge::vaa_tests {
 
     #[test]
     #[expected_failure(abort_code = wormhole::set::E_KEY_ALREADY_EXISTS)]
-    fun test_cannot_parse_verify_and_consume_again() {
+    fun test_cannot_verify_only_once_again() {
         let caller = person();
         let my_scenario = test_scenario::begin(caller);
         let scenario = &mut my_scenario;
@@ -309,6 +300,52 @@ module token_bridge::vaa_tests {
         vaa::destroy(msg);
 
         let verified_vaa = parse_and_verify_vaa(scenario, VAA);
+        // You shall not pass!
+        let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
+
+        // Clean up.
+        vaa::destroy(msg);
+        return_state(token_bridge_state);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
+    fun test_cannot_verify_only_once_outdated_version() {
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
+
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
+
+        // Register foreign emitter.
+        let expected_source_chain = 2;
+        register_dummy_emitter(scenario, expected_source_chain);
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, caller);
+
+        let token_bridge_state = take_state(scenario);
+
+        // Verify VAA.
+        let verified_vaa = parse_and_verify_vaa(scenario, VAA);
+
+        // Conveniently roll version back.
+        state::reverse_migrate_version(&mut token_bridge_state);
+
+        // Simulate executing with an outdated build by upticking the minimum
+        // required version for `publish_message` to something greater than
+        // this build.
+        state::migrate_version_test_only(
+            &mut token_bridge_state,
+            token_bridge::version_control::dummy(),
+            token_bridge::version_control::next_version()
+        );
+
         // You shall not pass!
         let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
 

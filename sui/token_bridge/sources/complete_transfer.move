@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache 2
 
-/// This module implements three methods: `authorize_transfer`,
-/// `redeem_relayer_payout` and `complete_transfer_from_tx`.
-/// `authorize_transfer` and `redeem_relayer_payout` are to be executed in a
-/// transaction block in this order.
+/// This module implements two methods: `authorize_transfer` and
+/// `redeem_relayer_payout`, which are to be executed in a transaction block in
+/// this order.
 ///
 /// `authorize_transfer` allows a contract to complete a Token Bridge transfer,
 /// sending assets to the encoded recipient. The coin payout incentive in
@@ -26,10 +25,6 @@
 /// `vaa::parse_and_verify` in his contract in case the `vaa` module needs to
 /// be upgraded due to a breaking change.
 ///
-/// Alternatively, `complete_transfer_from_tx` is meant to be executed directly
-/// from a transaction, which provides the convenience of sending the relayer
-/// payout to the transaction sender.
-///
 /// See `transfer` module for serialization and deserialization of Wormhole
 /// message payload.
 module token_bridge::complete_transfer {
@@ -41,7 +36,7 @@ module token_bridge::complete_transfer {
 
     use token_bridge::native_asset::{Self};
     use token_bridge::normalized_amount::{Self, NormalizedAmount};
-    use token_bridge::state::{Self, State, StateCap};
+    use token_bridge::state::{Self, State, LatestOnly};
     use token_bridge::token_registry::{Self, VerifiedAsset};
     use token_bridge::transfer::{Self};
     use token_bridge::vaa::{Self, TokenBridgeMessage};
@@ -64,11 +59,6 @@ module token_bridge::complete_transfer {
     /// contracts are expected to implement `redeem_relayer_payout` within their
     /// contracts and call `authorize_transfer` in a transaction block preceding
     /// the method that consumes this receipt.
-    ///
-    /// NOTE: It is not required to write a package to relay these token
-    /// transfers. An easier way to relay these transfers is calling
-    /// `complete_transfer_from_tx` from a transaction block and collect the
-    /// relayer fee payout as the transaction sender.
     struct RelayerReceipt<phantom CoinType> {
         /// Coin of relayer fee payout.
         payout: Coin<CoinType>
@@ -97,15 +87,15 @@ module token_bridge::complete_transfer {
         msg: TokenBridgeMessage,
         ctx: &mut TxContext
     ): RelayerReceipt<CoinType> {
-        // This state capability ensures that the current build version is used.
-        let cap = state::new_cap(token_bridge_state);
+        // This capability ensures that the current build version is used.
+        let latest_only = state::cache_latest_only(token_bridge_state);
 
         // Emitting the transfer being redeemed (and disregard return value).
         emit_transfer_redeemed(&msg);
 
         // Deserialize transfer message and process.
         handle_complete_transfer<CoinType>(
-            &cap,
+            &latest_only,
             token_bridge_state,
             vaa::take_payload(msg),
             ctx
@@ -132,30 +122,6 @@ module token_bridge::complete_transfer {
         payout
     }
 
-    /// `complete_transfer_from_tx` is meant to provide a convenient way to
-    /// complete a transfer from another network in one action, sending the
-    /// payout to the transaction sender. If someone wants to collect his payout
-    /// in his wallet, this method would allow him to do that. Otherwise if the
-    /// relayer seeks to manage the coin payout within a contract, he should use
-    /// the two-step procedure of passing a `RelayerReceipt`.
-    ///
-    /// NOTE: This method is guarded by a minimum build version check via
-    /// `authorize_transfer`. This method could break backward compatibility on
-    /// an upgrade. It is important for integrators to refrain from calling this
-    /// method within their contracts.
-    public fun complete_transfer_from_tx<CoinType>(
-        token_bridge_state: &mut State,
-        msg: TokenBridgeMessage,
-        ctx: &mut TxContext
-    ) {
-        let payout =
-            redeem_relayer_payout(
-                authorize_transfer<CoinType>(token_bridge_state, msg, ctx)
-            );
-
-        token_bridge::coin_utils::return_nonzero(payout, ctx);
-    }
-
     /// This is a privileged method only used by `complete_transfer` and
     /// `complete_transfer_with_payload` modules. This method validates the
     /// encoded token info with the passed in coin type via the `TokenRegistry`.
@@ -166,7 +132,7 @@ module token_bridge::complete_transfer {
     /// natively existing asset on Sui, the coin is either minted or withdrawn
     /// from Token Bridge's custody.
     public(friend) fun verify_and_bridge_out<CoinType>(
-        cap: &StateCap,
+        latest_only: &LatestOnly,
         token_bridge_state: &mut State,
         token_chain: u16,
         token_address: ExternalAddress,
@@ -200,7 +166,10 @@ module token_bridge::complete_transfer {
         // Otherwise, we will withdraw from custody.
         let bridged_out = {
             let registry =
-                state::borrow_mut_token_registry(cap, token_bridge_state);
+                state::borrow_mut_token_registry(
+                    latest_only,
+                    token_bridge_state
+                );
             if (token_registry::is_wrapped(&asset_info)) {
                 wrapped_asset::mint(
                     token_registry::borrow_mut_wrapped(registry),
@@ -235,7 +204,7 @@ module token_bridge::complete_transfer {
     }
 
     fun handle_complete_transfer<CoinType>(
-        cap: &StateCap,
+        latest_only: &LatestOnly,
         token_bridge_state: &mut State,
         transfer_vaa_payload: vector<u8>,
         ctx: &mut TxContext
@@ -254,7 +223,7 @@ module token_bridge::complete_transfer {
             bridged_out
         ) =
             verify_and_bridge_out(
-                cap,
+                latest_only,
                 token_bridge_state,
                 token_chain,
                 token_address,
@@ -295,7 +264,7 @@ module token_bridge::complete_transfer {
     }
 
     #[test_only]
-    public fun destroy<CoinType>(receipt: RelayerReceipt<CoinType>) {
+    public fun burn<CoinType>(receipt: RelayerReceipt<CoinType>) {
         coin::burn_for_testing(redeem_relayer_payout(receipt));
     }
 }
@@ -320,7 +289,8 @@ module token_bridge::complete_transfer_tests {
         register_dummy_emitter,
         return_state,
         take_state,
-        three_people
+        three_people,
+        two_people
     };
     use token_bridge::token_registry::{Self};
     use token_bridge::transfer::{Self};
@@ -1056,7 +1026,7 @@ module token_bridge::complete_transfer_tests {
             );
 
         // Clean up.
-        complete_transfer::destroy(receipt);
+        complete_transfer::burn(receipt);
         return_state(token_bridge_state);
 
         // Done.
@@ -1129,7 +1099,7 @@ module token_bridge::complete_transfer_tests {
             );
 
         // Clean up.
-        complete_transfer::destroy(receipt);
+        complete_transfer::burn(receipt);
         return_state(token_bridge_state);
 
         // Done.
@@ -1186,7 +1156,73 @@ module token_bridge::complete_transfer_tests {
             );
 
         // Clean up.
-        complete_transfer::destroy(receipt);
+        complete_transfer::burn(receipt);
+        return_state(token_bridge_state);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
+    fun test_cannot_complete_transfer_outdated_version() {
+        use token_bridge::complete_transfer::{authorize_transfer};
+
+        let transfer_vaa =
+            dummy_message::encoded_transfer_vaa_native_with_fee();
+
+        let (tx_relayer, coin_deployer) = two_people();
+        let my_scenario = test_scenario::begin(tx_relayer);
+        let scenario = &mut my_scenario;
+
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
+
+        // Register foreign emitter on chain ID == 2.
+        let expected_source_chain = 2;
+        register_dummy_emitter(scenario, expected_source_chain);
+
+        let custody_amount = 500000;
+        coin_native_10::init_register_and_deposit(
+            scenario,
+            coin_deployer,
+            custody_amount
+        );
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, tx_relayer);
+
+        let token_bridge_state = take_state(scenario);
+
+        let verified_vaa = parse_and_verify_vaa(scenario, transfer_vaa);
+        let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, tx_relayer);
+
+        // Conveniently roll version back.
+        state::reverse_migrate_version(&mut token_bridge_state);
+
+        // Simulate executing with an outdated build by upticking the minimum
+        // required version for `publish_message` to something greater than
+        // this build.
+        state::migrate_version_test_only(
+            &mut token_bridge_state,
+            token_bridge::version_control::dummy(),
+            token_bridge::version_control::next_version()
+        );
+
+        // You shall not pass!
+        let receipt =
+            authorize_transfer<COIN_NATIVE_10>(
+                &mut token_bridge_state,
+                msg,
+                test_scenario::ctx(scenario)
+            );
+
+        // Clean up.
+        complete_transfer::burn(receipt);
         return_state(token_bridge_state);
 
         // Done.

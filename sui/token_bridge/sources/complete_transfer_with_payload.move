@@ -38,7 +38,7 @@ module token_bridge::complete_transfer_with_payload {
     use wormhole::emitter::{EmitterCap};
 
     use token_bridge::complete_transfer::{Self};
-    use token_bridge::state::{Self, State, StateCap};
+    use token_bridge::state::{Self, State, LatestOnly};
     use token_bridge::transfer_with_payload::{Self, TransferWithPayload};
     use token_bridge::vaa::{Self, TokenBridgeMessage};
 
@@ -85,8 +85,8 @@ module token_bridge::complete_transfer_with_payload {
         msg: TokenBridgeMessage,
         ctx: &mut TxContext
     ): RedeemerReceipt<CoinType> {
-        // This state capability ensures that the current build version is used.
-        let cap = state::new_cap(token_bridge_state);
+        // This capability ensures that the current build version is used.
+        let latest_only = state::cache_latest_only(token_bridge_state);
 
         // Emitting the transfer being redeemed.
         //
@@ -98,7 +98,7 @@ module token_bridge::complete_transfer_with_payload {
         // Finally deserialize the Wormhole message payload and handle bridging
         // out token of a given coin type.
         handle_authorize_transfer(
-            &cap,
+            &latest_only,
             token_bridge_state,
             source_chain,
             vaa::take_payload(msg),
@@ -137,7 +137,7 @@ module token_bridge::complete_transfer_with_payload {
     }
 
     fun handle_authorize_transfer<CoinType>(
-        cap: &StateCap,
+        latest_only: &LatestOnly,
         token_bridge_state: &mut State,
         source_chain: u16,
         transfer_vaa_payload: vector<u8>,
@@ -154,7 +154,7 @@ module token_bridge::complete_transfer_with_payload {
             bridged_out,
         ) =
             complete_transfer::verify_and_bridge_out(
-                cap,
+                latest_only,
                 token_bridge_state,
                 transfer_with_payload::token_chain(&parsed),
                 transfer_with_payload::token_address(&parsed),
@@ -683,9 +683,92 @@ module token_bridge::complete_transfer_with_payload_tests {
         // Ignore effects. Begin processing as arbitrary tx executor.
         test_scenario::next_tx(scenario, user);
 
-        // Execute authorize_transfer.
+        // You shall not pass!
         let receipt =
             authorize_transfer<COIN_WRAPPED_12>(
+                &mut token_bridge_state,
+                msg,
+                test_scenario::ctx(scenario)
+            );
+
+        // Clean up.
+        return_state(token_bridge_state);
+        complete_transfer_with_payload::burn(receipt);
+        emitter::destroy_test_only(emitter_cap);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
+    fun test_cannot_complete_transfer_with_payload_outdated_version() {
+        use token_bridge::complete_transfer_with_payload::{authorize_transfer};
+
+        let transfer_vaa =
+            dummy_message::encoded_transfer_with_payload_vaa_native();
+
+        let (user, coin_deployer) = two_people();
+        let my_scenario = test_scenario::begin(user);
+        let scenario = &mut my_scenario;
+
+        // Initialize Wormhole and Token Bridge.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
+
+        // Register Sui as a foreign emitter.
+        let expected_source_chain = 2;
+        register_dummy_emitter(scenario, expected_source_chain);
+
+        // Initialize native token.
+        let mint_amount = 1000000;
+        coin_native_10::init_register_and_deposit(
+            scenario,
+            coin_deployer,
+            mint_amount
+        );
+
+        // Ignore effects. Begin processing as arbitrary tx executor.
+        test_scenario::next_tx(scenario, user);
+
+        let token_bridge_state = take_state(scenario);
+
+        // Set up dummy `EmitterCap` as the expected redeemer.
+        let emitter_cap = emitter::dummy();
+
+        // Verify that the emitter cap is the expected redeemer.
+        let expected_transfer =
+            transfer_with_payload::deserialize(
+                wormhole::vaa::take_payload(
+                    parse_and_verify_vaa(scenario, transfer_vaa)
+                )
+            );
+        assert!(
+            transfer_with_payload::redeemer_id(&expected_transfer) == object::id(&emitter_cap),
+            0
+        );
+
+        let verified_vaa = parse_and_verify_vaa(scenario, transfer_vaa);
+        let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
+
+        // Ignore effects. Begin processing as arbitrary tx executor.
+        test_scenario::next_tx(scenario, user);
+
+        // Conveniently roll version back.
+        state::reverse_migrate_version(&mut token_bridge_state);
+
+        // Simulate executing with an outdated build by upticking the minimum
+        // required version for `publish_message` to something greater than
+        // this build.
+        state::migrate_version_test_only(
+            &mut token_bridge_state,
+            token_bridge::version_control::dummy(),
+            token_bridge::version_control::next_version()
+        );
+
+        // You shall not pass!
+        let receipt =
+            authorize_transfer<COIN_NATIVE_10>(
                 &mut token_bridge_state,
                 msg,
                 test_scenario::ctx(scenario)

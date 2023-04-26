@@ -45,15 +45,15 @@ module token_bridge::migrate {
         // See `version_control` module for hard-coded configuration.
         state::migrate_version(token_bridge_state);
 
-        // This state capability ensures that the current build version is used.
-        let cap = state::new_cap(token_bridge_state);
+        // This capability ensures that the current build version is used.
+        let latest_only = state::cache_latest_only(token_bridge_state);
 
         // Check if build digest is the current one.
         let digest =
             upgrade_contract::take_digest(
                 governance_message::payload(&receipt)
             );
-        state::assert_current_digest(&cap, token_bridge_state, digest);
+        state::assert_current_digest(&latest_only, token_bridge_state, digest);
         governance_message::destroy(receipt);
     }
 }
@@ -68,7 +68,6 @@ module token_bridge::migrate_tests {
 
     use token_bridge::state::{Self};
     use token_bridge::upgrade_contract::{Self};
-    use token_bridge::version_control::{Self};
     use token_bridge::token_bridge_scenario::{
         person,
         return_state,
@@ -103,13 +102,8 @@ module token_bridge::migrate_tests {
 
         let token_bridge_state = take_state(scenario);
 
-        // First migrate to V_DUMMY to simulate migrating from this to the
-        // existing build version.
-        state::migrate_version_test_only(
-            &mut token_bridge_state,
-            version_control::first(),
-            version_control::dummy()
-        );
+        // Conveniently roll version back.
+        state::reverse_migrate_version(&mut token_bridge_state);
 
         let verified_vaa = parse_and_verify_vaa(scenario, UPGRADE_VAA);
         let ticket =
@@ -152,13 +146,8 @@ module token_bridge::migrate_tests {
 
         let token_bridge_state = take_state(scenario);
 
-        // First migrate to V_DUMMY to simulate migrating from this to the
-        // existing build version.
-        state::migrate_version_test_only(
-            &mut token_bridge_state,
-            version_control::first(),
-            version_control::dummy()
-        );
+        // Conveniently roll version back.
+        state::reverse_migrate_version(&mut token_bridge_state);
 
         let verified_vaa = parse_and_verify_vaa(scenario, UPGRADE_VAA);
         let ticket =

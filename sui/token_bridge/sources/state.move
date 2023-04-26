@@ -16,6 +16,7 @@ module token_bridge::state {
     use wormhole::consumed_vaas::{Self, ConsumedVAAs};
     use wormhole::emitter::{EmitterCap};
     use wormhole::external_address::{ExternalAddress};
+    use wormhole::package_utils::{Self};
     use wormhole::publish_message::{MessageTicket};
 
     use token_bridge::token_registry::{Self, TokenRegistry, VerifiedAsset};
@@ -23,6 +24,8 @@ module token_bridge::state {
 
     /// Build digest does not agree with current implementation.
     const E_INVALID_BUILD_DIGEST: u64 = 0;
+    /// Specified version does not match this build's version.
+    const E_VERSION_MISMATCH: u64 = 1;
 
     friend token_bridge::attest_token;
     friend token_bridge::complete_transfer;
@@ -41,7 +44,7 @@ module token_bridge::state {
 
     /// Capability reflecting that the current build version is used to invoke
     /// state methods.
-    struct StateCap has drop {}
+    struct LatestOnly has drop {}
 
     /// Container for all state variables for Token Bridge.
     struct State has key, store {
@@ -77,7 +80,6 @@ module token_bridge::state {
         governance_contract: ExternalAddress,
         ctx: &mut TxContext
     ): State {
-        // TODO: add governance chain and emitter here to not rely on wormhole's
         let state = State {
             id: object::new(ctx),
             governance_chain,
@@ -90,7 +92,10 @@ module token_bridge::state {
         };
 
         // Set first version for this package.
-        version_control::initialize(&mut state.id);
+        package_utils::init_version(
+            &mut state.id,
+            version_control::current_version()
+        );
 
         // Add dummy hash since this is the first time the package is published.
         field::add(&mut state.id, CurrentDigest {}, bytes32::default());
@@ -102,7 +107,7 @@ module token_bridge::state {
     //
     //  Simple Getters
     //
-    //  These methods do not require `StateCap` for access. Anyone is free to
+    //  These methods do not require `LatestOnly` for access. Anyone is free to
     //  access these values.
     //
     ////////////////////////////////////////////////////////////////////////////
@@ -156,11 +161,16 @@ module token_bridge::state {
         token_registry::verified_asset(&self.token_registry)
     }
 
+    /// Retrieve decimals from for a given coin type in `TokenRegistry`.
+    public fun coin_decimals<CoinType>(self: &State): u8 {
+        token_registry::coin_decimals(&verified_asset<CoinType>(self))
+    }
+
     #[test_only]
     public fun borrow_mut_token_registry_test_only(
         self: &mut State
     ): &mut TokenRegistry {
-        borrow_mut_token_registry(&new_cap(self), self)
+        borrow_mut_token_registry(&cache_latest_only(self), self)
     }
 
     #[test_only]
@@ -188,13 +198,14 @@ module token_bridge::state {
     //
     //  Privileged `State` Access
     //
-    //  This section of methods require a `StateCap`, which can only be created
-    //  within the Wormhole package. This capability allows special access to
-    //  the `State` object.
+    //  This section of methods require a `LatestOnly`, which can only be
+    //  created within the Token Bridge package. This capability allows special
+    //  access to the `State` object where we require that the latest build is
+    //  used for these interactions.
     //
     //  NOTE: A lot of these methods are still marked as `(friend)` as a safety
     //  precaution. When a package is upgraded, friend modifiers can be
-    //  added or removed.
+    //  removed.
     //
     ////////////////////////////////////////////////////////////////////////////
 
@@ -203,10 +214,13 @@ module token_bridge::state {
     ///
     /// NOTE: This method allows caching the current version check so we avoid
     /// multiple checks to dynamic fields.
-    public fun new_cap(self: &State): StateCap {
-        version_control::assert_current(&self.id);
+    public(friend) fun cache_latest_only(self: &State): LatestOnly {
+        package_utils::assert_version(
+            &self.id,
+            version_control::current_version()
+        );
 
-        StateCap {}
+        LatestOnly {}
     }
 
     /// Obtain a capability to interact with `State` methods. This method checks
@@ -217,33 +231,38 @@ module token_bridge::state {
     ///
     /// NOTE: This method allows caching the current version check so we avoid
     /// multiple checks to dynamic fields.
-    public fun new_cap_specified<Version>(self: &State): StateCap {
-        version_control::assert_current_specified<Version>(&self.id);
+    public(friend) fun cache_latest_only_specified<Version>(
+        self: &State
+    ): LatestOnly {
+        use std::type_name::{get};
 
-        StateCap {}
+        // Explicitly check the type names.
+        let current_type =
+            package_utils::type_of_version(version_control::current_version());
+        assert!(current_type == get<Version>(), E_VERSION_MISMATCH);
+
+        cache_latest_only(self)
     }
 
     /// A more expressive method to enforce that the current build version is
     /// used.
-    public fun assert_current(self: &State) {
-        new_cap(self);
+    public(friend) fun assert_latest_only(self: &State) {
+        cache_latest_only(self);
     }
 
     /// Store `VAA` hash as a way to claim a VAA. This method prevents a VAA
-    /// from being replayed. For Wormhole, the only VAAs that it cares about
-    /// being replayed are its governance actions.
+    /// from being replayed.
     public(friend) fun borrow_mut_consumed_vaas(
-        _: &StateCap,
+        _: &LatestOnly,
         self: &mut State
     ): &mut ConsumedVAAs {
         borrow_mut_consumed_vaas_unchecked(self)
     }
 
     /// Store `VAA` hash as a way to claim a VAA. This method prevents a VAA
-    /// from being replayed. For Wormhole, the only VAAs that it cares about
-    /// being replayed are its governance actions.
+    /// from being replayed.
     ///
-    /// NOTE: This method does not require `StateCap`. Only methods in the
+    /// NOTE: This method does not require `LatestOnly`. Only methods in the
     /// `upgrade_contract` module requires this to be unprotected to prevent
     /// a corrupted upgraded contract from bricking upgradability.
     public(friend) fun borrow_mut_consumed_vaas_unchecked(
@@ -254,7 +273,7 @@ module token_bridge::state {
 
     /// Publish Wormhole message using Token Bridge's `EmitterCap`.
     public(friend) fun prepare_wormhole_message(
-        _: &StateCap,
+        _: &LatestOnly,
         self: &mut State,
         nonce: u32,
         payload: vector<u8>
@@ -268,22 +287,17 @@ module token_bridge::state {
 
     /// Retrieve mutable reference to `TokenRegistry`.
     public(friend) fun borrow_mut_token_registry(
-        _: &StateCap,
+        _: &LatestOnly,
         self: &mut State
     ): &mut TokenRegistry {
         &mut self.token_registry
     }
 
     public(friend) fun borrow_mut_emitter_registry(
-        _: &StateCap,
+        _: &LatestOnly,
         self: &mut State
     ): &mut Table<u16, ExternalAddress> {
         &mut self.emitter_registry
-    }
-
-    /// Retrieve decimals from for a given coin type in `TokenRegistry`.
-    public fun coin_decimals<CoinType>(self: &State): u8 {
-        token_registry::coin_decimals(&verified_asset<CoinType>(self))
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -295,7 +309,7 @@ module token_bridge::state {
     //
     //  Also in this section is managing contract migrations, which uses the
     //  `migrate` module to officially roll state access to the latest build.
-    //  Only those methods that require `StateCap` will be affected by an
+    //  Only those methods that require `LatestOnly` will be affected by an
     //  upgrade.
     //
     ////////////////////////////////////////////////////////////////////////////
@@ -366,15 +380,28 @@ module token_bridge::state {
     }
 
     public(friend) fun migrate_version(self: &mut State) {
-        version_control::update_to_current(&mut self.id);
+        package_utils::update_version_type(
+            &mut self.id,
+            version_control::previous_version(),
+            version_control::current_version()
+        );
     }
 
     public(friend) fun assert_current_digest(
-        _: &StateCap,
+        _: &LatestOnly,
         self: &State,
         digest: Bytes32
     ) {
         let current = *field::borrow(&self.id, CurrentDigest {});
         assert!(digest == current, E_INVALID_BUILD_DIGEST);
+    }
+
+    #[test_only]
+    public fun reverse_migrate_version(self: &mut State) {
+        package_utils::update_version_type(
+            &mut self.id,
+            version_control::current_version(),
+            version_control::dummy()
+        );
     }
 }

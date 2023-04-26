@@ -37,19 +37,19 @@ module wormhole::set_fee {
         wormhole_state: &mut State,
         receipt: DecreeReceipt
     ): u64 {
-        // This state capability ensures that the current build version is used.
-        let cap = state::new_cap(wormhole_state);
+        // This capability ensures that the current build version is used.
+        let latest_only = state::cache_latest_only(wormhole_state);
 
         let payload =
             governance_message::take_payload(
-                state::borrow_mut_consumed_vaas(&cap, wormhole_state),
+                state::borrow_mut_consumed_vaas(&latest_only, wormhole_state),
                 receipt
             );
 
         // Deserialize the payload as amount to change the Wormhole fee.
         let SetFee { amount } = deserialize(payload);
 
-        state::set_message_fee(&cap, wormhole_state, amount);
+        state::set_message_fee(&latest_only, wormhole_state, amount);
 
         amount
     }
@@ -301,7 +301,7 @@ module wormhole::set_fee_tests {
 
     #[test]
     #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
-    fun test_cannot_set_fee_outdated_build() {
+    fun test_cannot_set_fee_outdated_version() {
         // Testing this method.
         use wormhole::set_fee::{set_fee};
 
@@ -319,12 +319,15 @@ module wormhole::set_fee_tests {
         let worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
 
+        // Conveniently roll version back.
+        state::reverse_migrate_version(&mut worm_state);
+
         // Simulate executing with an outdated build by upticking the minimum
         // required version for `publish_message` to something greater than
         // this build.
         state::migrate_version_test_only(
             &mut worm_state,
-            version_control::first(),
+            version_control::dummy(),
             version_control::next_version()
         );
 

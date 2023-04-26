@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: Apache 2
 
-/// This module implements three methods: `prepare_transfer`,
-/// `transfer_tokens_with_payload` and `transfer_tokens_with_payload_from_tx`.
-/// `prepare_transfer` and `transfer_tokens_with_payload` are meant to work
-/// together while `transfer_tokens_with_payload_from_tx` executes both in one
-/// call.
+/// This module implements three methods: `prepare_transfer` and
+/// `transfer_tokens_with_payload`, which are meant to work together.
 ///
 /// `prepare_transfer` allows a contract to pack token transfer parameters with
 /// an arbitrary payload in preparation to bridge these assets to another
@@ -28,11 +25,6 @@
 /// package ID and to implement `prepare_transfer` in his contract to produce
 /// `PrepareTransferWithPayload`.
 ///
-/// Alternatively, `transfer_tokens_with_payload_from_tx` is meant to be
-/// executed directly from a transaction, which provides the convenience of
-/// sending dust back to the transaction sender and constructing
-/// `MessageTicket` in one call.
-///
 /// NOTE: Only assets that exist in the `TokenRegistry` can be bridged out,
 /// which are native Sui assets that have been attested for via `attest_token`
 /// and wrapped foreign assets that have been created using foreign asset
@@ -44,14 +36,13 @@ module token_bridge::transfer_tokens_with_payload {
     use sui::balance::{Balance};
     use sui::coin::{Coin};
     use sui::object::{Self, ID};
-    use sui::tx_context::{TxContext};
     use wormhole::bytes32::{Self};
     use wormhole::emitter::{EmitterCap};
     use wormhole::external_address::{Self};
     use wormhole::publish_message::{MessageTicket};
 
     use token_bridge::normalized_amount::{NormalizedAmount};
-    use token_bridge::state::{Self, State, StateCap};
+    use token_bridge::state::{Self, State, LatestOnly};
     use token_bridge::token_registry::{VerifiedAsset};
     use token_bridge::transfer_with_payload::{Self};
 
@@ -143,8 +134,8 @@ module token_bridge::transfer_tokens_with_payload {
         token_bridge_state: &mut State,
         prepared_transfer: TransferTicket<CoinType>
     ): MessageTicket {
-        // This state capability ensures that the current build version is used.
-        let cap = state::new_cap(token_bridge_state);
+        // This capability ensures that the current build version is used.
+        let latest_only = state::cache_latest_only(token_bridge_state);
 
         // Encode Wormhole message payload.
         let (
@@ -152,67 +143,22 @@ module token_bridge::transfer_tokens_with_payload {
             encoded_transfer_with_payload
          ) =
             bridge_in_and_serialize_transfer(
-                &cap,
+                &latest_only,
                 token_bridge_state,
                 prepared_transfer
             );
 
         // Prepare Wormhole message with encoded `TransferWithPayload`.
         state::prepare_wormhole_message(
-            &cap,
+            &latest_only,
             token_bridge_state,
             nonce,
             encoded_transfer_with_payload
         )
     }
 
-    /// `transfer_tokens_with_payload_from_tx` constructs token transfer
-    /// parameters like in `prepare_transfer` and executes
-    /// `transfer_tokens_with_payload`. This method is meant to provide a
-    /// convenient way to bridge assets in one action, returning the prepared
-    /// Wormhole message (which should be consumed by calling `publish_message`
-    /// in a transaction block). Any remaining amount (A.K.A. dust) from the
-    /// funds provided will be sent back to the transaction sender. The
-    /// returned coin object is the same object moved into this method.
-    ///
-    /// NOTE: This method is guarded by a minimum build version check via
-    /// `transfer_tokens_with_payload`. This method could break backward
-    /// compatibility on an upgrade. It is important for integrators to refrain
-    /// from calling this method within their contracts.
-    public fun transfer_tokens_with_payload_from_tx<CoinType>(
-        token_bridge_state: &mut State,
-        emitter_cap: &EmitterCap,
-        funded: Coin<CoinType>,
-        redeemer_chain: u16,
-        redeemer: vector<u8>,
-        payload: vector<u8>,
-        nonce: u32,
-        ctx: &TxContext
-    ): MessageTicket {
-        let (
-            prepared_transfer,
-            dust
-        ) =
-            prepare_transfer(
-                emitter_cap,
-                state::verified_asset(token_bridge_state),
-                funded,
-                redeemer_chain,
-                redeemer,
-                payload,
-                nonce
-            );
-
-        // Either destroy dust if it has zero value or send it back to the
-        // transaction sender.
-        token_bridge::coin_utils::return_nonzero(dust, ctx);
-
-        // Finally bridge assets out.
-        transfer_tokens_with_payload(token_bridge_state, prepared_transfer)
-    }
-
     fun bridge_in_and_serialize_transfer<CoinType>(
-        cap: &StateCap,
+        latest_only: &LatestOnly,
         token_bridge_state: &mut State,
         prepared_transfer: TransferTicket<CoinType>
     ): (
@@ -237,7 +183,7 @@ module token_bridge::transfer_tokens_with_payload {
             token_address
         ) =
             burn_or_deposit_funds(
-                cap,
+                latest_only,
                 token_bridge_state,
                 &asset_info,
                 bridged_in
@@ -269,11 +215,11 @@ module token_bridge::transfer_tokens_with_payload {
         u32,
         vector<u8>
     ) {
-        // This state capability ensures that the current build version is used.
-        let cap = state::new_cap(token_bridge_state);
+        // This capability ensures that the current build version is used.
+        let latest_only = state::cache_latest_only(token_bridge_state);
 
         bridge_in_and_serialize_transfer(
-            &cap,
+            &latest_only,
             token_bridge_state,
             prepared_transfer
         )
@@ -779,6 +725,90 @@ module token_bridge::transfer_tokens_with_payload_tests {
         // Clean up.
         emitter::destroy_test_only(emitter_cap);
         return_state(token_bridge_state);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
+    fun test_cannot_transfer_tokens_with_payload_outdated_version() {
+        use token_bridge::transfer_tokens_with_payload::{
+            prepare_transfer,
+            transfer_tokens_with_payload
+        };
+
+        let sender = person();
+        let my_scenario = test_scenario::begin(sender);
+        let scenario = &mut my_scenario;
+
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
+
+        // Register foreign emitter on chain ID == 2.
+        register_dummy_emitter(scenario, TEST_TARGET_CHAIN);
+
+        // Register and mint coins.
+        let transfer_amount = 6942000;
+        let coin_10_balance =
+            coin_native_10::init_register_and_mint(
+                scenario,
+                sender,
+                transfer_amount
+            );
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, sender);
+
+        // Fetch objects necessary for sending the transfer.
+        let token_bridge_state = take_state(scenario);
+
+        // Register and obtain a new wormhole emitter cap.
+        let emitter_cap = emitter::dummy();
+
+        let asset_info = state::verified_asset(&token_bridge_state);
+        let (
+            prepared_transfer,
+            dust
+        ) =
+            prepare_transfer(
+                &emitter_cap,
+                asset_info,
+                coin::from_balance(
+                    coin_10_balance,
+                    test_scenario::ctx(scenario)
+                ),
+                TEST_TARGET_CHAIN,
+                TEST_TARGET_RECIPIENT,
+                TEST_MESSAGE_PAYLOAD,
+                TEST_NONCE,
+            );
+        coin::destroy_zero(dust);
+
+        // Conveniently roll version back.
+        state::reverse_migrate_version(&mut token_bridge_state);
+
+        // Simulate executing with an outdated build by upticking the minimum
+        // required version for `publish_message` to something greater than
+        // this build.
+        state::migrate_version_test_only(
+            &mut token_bridge_state,
+            token_bridge::version_control::dummy(),
+            token_bridge::version_control::next_version()
+        );
+
+        // You shall not pass!
+        let prepared_msg =
+            transfer_tokens_with_payload(
+                &mut token_bridge_state,
+                prepared_transfer
+            );
+
+        // Clean up.
+        publish_message::destroy(prepared_msg);
+        return_state(token_bridge_state);
+        emitter::destroy_test_only(emitter_cap);
 
         // Done.
         test_scenario::end(my_scenario);
