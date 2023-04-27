@@ -168,7 +168,7 @@ export async function query_registrations_terra(
   network: "MAINNET" | "TESTNET" | "DEVNET",
   chain: string,
   module: "Core" | "NFTBridge" | "TokenBridge",
-) {
+): Promise<Object> {
   let n = NETWORKS[network][chain];
   let contracts = CONTRACTS[network][chain];
 
@@ -225,8 +225,8 @@ export async function query_registrations_terra(
   let results = {}
   for (let [c_name, queryResponse] of registrations) {
     if (queryResponse) {
-        results[c_name] = Buffer.from(queryResponse.address, 'base64').toString('hex');
+        results[c_name] = `0x` + Buffer.from(queryResponse.address, 'base64').toString('hex');
     }
   }
-  console.log(results);
+  return results;
 }

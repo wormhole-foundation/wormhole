@@ -210,7 +210,7 @@ function setupConnection(rpc: string): web3s.Connection {
 export async function query_registrations_solana(
   network: "MAINNET" | "TESTNET" | "DEVNET",
   module: "Core" | "NFTBridge" | "TokenBridge",
-) {
+): Promise<Object> {
   let chain = "solana";
   let n = NETWORKS[network][chain];
   let contracts = CONTRACTS[network][chain];
@@ -268,9 +268,9 @@ export async function query_registrations_solana(
               connection,
               endpoint
             );
-            result = emitter_addr;
+            result = `0x` + emitter_addr;
           } catch {
-            result = emitter_addr + " not registered!!!!!!!!!!";
+            // Not logging anything because a chain not registered returns an error.
           }
         
           return result;
@@ -286,5 +286,5 @@ export async function query_registrations_solana(
       results[c_name] = queryResponse;
     }
   }
-  console.log(results);
+  return results;
 }
