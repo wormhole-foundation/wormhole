@@ -5,23 +5,23 @@ import { CoreRelayer__factory, CoreRelayer } from "../ethers-contracts/";
 const TESTNET = [
   {
     chainId: 4,
-    coreRelayerAddress: "0xda2592C43f2e10cBBA101464326fb132eFD8cB09",
+    coreRelayerAddress: "0x6Bf598B0eb6aef9B163565763Fe50e54d230eD4E",
   },
   {
     chainId: 5,
-    coreRelayerAddress: "0xFAd28FcD3B05B73bBf52A3c4d8b638dFf1c5605c",
+    coreRelayerAddress: "0x0c97Ef9C224b7EB0BA5e4A9fd2740EC3AeAfc9c3",
   },
   {
     chainId: 6,
-    coreRelayerAddress: "0xDDe6b89B7d0AD383FafDe6477f0d300eC4d4033e",
+    coreRelayerAddress: "0xf4e844a9B75BB532e67E654F7F80C6232e5Ea7a0",
   },
   {
     chainId: 14,
-    coreRelayerAddress: "0xA92aa4f8CBE1c2d7321F1575ad85bE396e2bbE0D",
+    coreRelayerAddress: "0xF08B7c0CFf448174a7007CF5f12023C72C0e84f0",
   },
   {
     chainId: 16,
-    coreRelayerAddress: "0x57523648FB5345CF510c1F12D346A18e55Aec5f5",
+    coreRelayerAddress: "0xd20d484eC6c57448d6871F91F4527260FD4aC141",
   },
 ];
 
