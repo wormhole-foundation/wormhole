@@ -135,7 +135,7 @@ module token_bridge::transfer_tokens_with_payload {
         prepared_transfer: TransferTicket<CoinType>
     ): MessageTicket {
         // This capability ensures that the current build version is used.
-        let latest_only = state::cache_latest_only(token_bridge_state);
+        let latest_only = state::assert_latest_only(token_bridge_state);
 
         // Encode Wormhole message payload.
         let (
@@ -216,7 +216,7 @@ module token_bridge::transfer_tokens_with_payload {
         vector<u8>
     ) {
         // This capability ensures that the current build version is used.
-        let latest_only = state::cache_latest_only(token_bridge_state);
+        let latest_only = state::assert_latest_only(token_bridge_state);
 
         bridge_in_and_serialize_transfer(
             &latest_only,

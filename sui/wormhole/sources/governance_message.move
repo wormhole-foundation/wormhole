@@ -32,7 +32,8 @@ module wormhole::governance_message {
 
     /// The public constructors for `DecreeTicket` (`authorize_verify_global`
     /// and `authorize_verify_local`) require a witness of type `T`. This is to
-    /// ensure that `DecreeTicket`s cannot be mixed up between modules maliciously.
+    /// ensure that `DecreeTicket`s cannot be mixed up between modules
+    /// maliciously.
     struct DecreeTicket<phantom T> {
         governance_chain: u16,
         governance_contract: ExternalAddress,
@@ -46,6 +47,8 @@ module wormhole::governance_message {
         digest: Bytes32
     }
 
+    /// This method prepares `DecreeTicket` for global governance action. This
+    /// means the VAA encodes target chain ID == 0.
     public fun authorize_verify_global<T: drop>(
         _witness: T,
         governance_chain: u16,
@@ -62,6 +65,8 @@ module wormhole::governance_message {
         }
     }
 
+    /// This method prepares `DecreeTicket` for local governance action. This
+    /// means the VAA encodes target chain ID == 21 (Sui's).
     public fun authorize_verify_local<T: drop>(
         _witness: T,
         governance_chain: u16,
@@ -78,6 +83,8 @@ module wormhole::governance_message {
         }
     }
 
+    /// This method unpacks `DecreeReceipt` and puts the VAA digest into a
+    /// `ConsumedVAAs` container. Then it returns the governance payload.
     public fun take_payload<T>(
         consumed: &mut ConsumedVAAs,
         receipt: DecreeReceipt<T>
@@ -89,14 +96,18 @@ module wormhole::governance_message {
         payload
     }
 
+    /// Method to peek into the payload in `DecreeReceipt`.
     public fun payload<T>(receipt: &DecreeReceipt<T>): vector<u8> {
         receipt.payload
     }
 
+    /// Destroy the receipt.
     public fun destroy<T>(receipt: DecreeReceipt<T>) {
         let DecreeReceipt { payload: _, digest: _ } = receipt;
     }
 
+    /// This method unpacks a `DecreeTicket` to validate its members to make
+    /// sure that the parameters match what was encoded in the VAA.
     public fun verify_vaa<T>(
         wormhole_state: &State,
         verified_vaa: VAA,

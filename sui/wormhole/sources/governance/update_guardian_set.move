@@ -60,7 +60,7 @@ module wormhole::update_guardian_set {
         the_clock: &Clock
     ): u32 {
         // This capability ensures that the current build version is used.
-        let latest_only = state::cache_latest_only(wormhole_state);
+        let latest_only = state::assert_latest_only(wormhole_state);
 
         // Even though this disallows the VAA to be replayed, it may be
         // impossible to redeem the same VAA again because `governance_message`

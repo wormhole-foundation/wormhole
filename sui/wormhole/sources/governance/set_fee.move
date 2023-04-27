@@ -41,7 +41,7 @@ module wormhole::set_fee {
         receipt: DecreeReceipt<GovernanceWitness>
     ): u64 {
         // This capability ensures that the current build version is used.
-        let latest_only = state::cache_latest_only(wormhole_state);
+        let latest_only = state::assert_latest_only(wormhole_state);
 
         let payload =
             governance_message::take_payload(

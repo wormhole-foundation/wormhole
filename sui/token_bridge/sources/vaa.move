@@ -61,7 +61,7 @@ module token_bridge::vaa {
         verified_vaa: VAA
     ): TokenBridgeMessage {
         // This capability ensures that the current build version is used.
-        let latest_only = state::cache_latest_only(token_bridge_state);
+        let latest_only = state::assert_latest_only(token_bridge_state);
 
         // First parse and verify VAA using Wormhole. This also consumes the VAA
         // hash to prevent replay.

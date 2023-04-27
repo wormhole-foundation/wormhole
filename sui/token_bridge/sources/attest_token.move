@@ -37,7 +37,7 @@ module token_bridge::attest_token {
         nonce: u32
     ): MessageTicket {
         // This capability ensures that the current build version is used.
-        let latest_only = state::cache_latest_only(token_bridge_state);
+        let latest_only = state::assert_latest_only(token_bridge_state);
 
         // Encode Wormhole message payload.
         let encoded_asset_meta =
@@ -101,7 +101,7 @@ module token_bridge::attest_token {
         coin_metadata: &CoinMetadata<CoinType>,
     ): vector<u8> {
         // This capability ensures that the current build version is used.
-        let latest_only = state::cache_latest_only(token_bridge_state);
+        let latest_only = state::assert_latest_only(token_bridge_state);
 
         serialize_asset_meta(&latest_only, token_bridge_state, coin_metadata)
     }
