@@ -1,6 +1,5 @@
 import * as wh from "@certusone/wormhole-sdk";
 import { Next, ParsedVaaWithBytes, sleep } from "relayer-engine";
-import { Next, sleep } from "relayer-engine";
 import {
   IDelivery,
   VaaKeyType,
