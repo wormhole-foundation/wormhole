@@ -7,22 +7,30 @@ import {
   loadChains,
   loadCoreRelayers,
   loadMockIntegrations,
+  loadPrivateKey
 } from "../../ts-scripts/relayer/helpers/env";
 import {
   relayer,
   ethers_contracts,
-  ChainId,
-  tryNativeToHexString,
   tryNativeToUint8Array,
+  Network
 } from "../../../sdk/js/src";
-import { DeliveryInfo, createVaaKey } from "../../../sdk/js/src/relayer"
 
 const ETHEREUM_ROOT = `${__dirname}/..`;
 
-init();
+const env = init();
 const chains = loadChains();
 const coreRelayers = loadCoreRelayers();
 const mockIntegrations = loadMockIntegrations();
+let PRIVATE_KEY = RELAYER_DEPLOYER_PRIVATE_KEY;
+try {
+  PRIVATE_KEY = loadPrivateKey();
+} catch {
+
+}
+
+const environment: Network = env == 'testnet' ? "TESTNET" : env == "mainnet" ? "MAINNET" : "DEVNET"; 
+
 
 const getWormholeSequenceNumber = (
   rx: ethers.providers.TransactionReceipt,
@@ -40,8 +48,9 @@ const getWormholeSequenceNumber = (
 describe("Core Relayer Integration Test - Two Chains", () => {
   // signers
 
-  const sourceChain = chains.find((c) => c.chainId == 2) as ChainInfo;
-  const targetChain = chains.find((c) => c.chainId == 4) as ChainInfo;
+
+  const sourceChain = chains.find((c) => c.chainId == (env == 'testnet' ? 6 : 2)) as ChainInfo;
+  const targetChain = chains.find((c) => c.chainId == (env == 'testnet' ? 14 : 4)) as ChainInfo;
 
   const providerSource = new ethers.providers.StaticJsonRpcProvider(
     sourceChain.rpc
@@ -51,11 +60,11 @@ describe("Core Relayer Integration Test - Two Chains", () => {
   );
 
   const walletSource = new ethers.Wallet(
-    RELAYER_DEPLOYER_PRIVATE_KEY,
+    PRIVATE_KEY,
     providerSource
   );
   const walletTarget = new ethers.Wallet(
-    RELAYER_DEPLOYER_PRIVATE_KEY,
+    PRIVATE_KEY,
     providerTarget
   );
 
@@ -171,6 +180,10 @@ describe("Core Relayer Integration Test - Two Chains", () => {
     console.log(`Sent message: ${arbitraryPayload2}`);
     console.log(`Received message on source: ${message2}`);
     expect(message2).to.equal(arbitraryPayload2);
+
+    let info: relayer.DeliveryInfo = (await relayer.getWormholeRelayerInfo(sourceChain.chainId, tx.hash, {environment: environment})) as DeliveryInfo
+    let status = info.targetChainStatus.events[0].status
+    expect(status).to.equal("Forward Request Success")
   });
 
   it("Executes a multidelivery", async () => {
@@ -348,11 +361,9 @@ describe("Core Relayer Integration Test - Two Chains", () => {
     console.log(`Received message on source: ${message2}`);
     expect(message2).to.not.equal(arbitraryPayload2);
 
-    let info: relayer.DeliveryInfo = (await relayer.getWormholeRelayerInfo({
-      environment: "DEVNET",
-      sourceChain: sourceChain.chainId as ChainId,
-      sourceTransaction: tx.hash,
-    })) as relayer.DeliveryInfo;
+    let info: relayer.DeliveryInfo = (await relayer.getWormholeRelayerInfo(sourceChain.chainId, tx.hash, {
+      environment: environment
+    })) as DeliveryInfo;
     let status = info.targetChainStatus.events[0].status;
     expect(status).to.equal("Forward Request Failure");
   });
@@ -379,16 +390,6 @@ describe("Core Relayer Integration Test - Two Chains", () => {
     const rx = await tx.wait();
     console.log("Message confirmed!");
 
-    console.log("Checking status using SDK");
-    let info: relayer.DeliveryInfo = (await relayer.getWormholeRelayerInfo({
-      environment: "DEVNET",
-      sourceChain: sourceChain.chainId as ChainId,
-      sourceTransaction: tx.hash,
-    })) as relayer.DeliveryInfo;
-    let status = info.targetChainStatus.events[0].status;
-
-    expect(status.substring(0, 22)).to.equal("Delivery didn't happen");
-
     await waitForRelay();
 
     const message = await targetMockIntegration.getMessage();
@@ -397,16 +398,69 @@ describe("Core Relayer Integration Test - Two Chains", () => {
     expect(message).to.equal(arbitraryPayload);
 
     console.log("Checking status using SDK");
-    info = (await relayer.getWormholeRelayerInfo({
-      environment: "DEVNET",
-      sourceChain: sourceChain.chainId as ChainId,
-      sourceTransaction: tx.hash,
-    })) as relayer.DeliveryInfo;
-    status = info.targetChainStatus.events[0].status;
+    const info = (await relayer.getWormholeRelayerInfo(sourceChain.chainId, tx.hash, {environment: environment})) as relayer.DeliveryInfo;
+    const status = info.targetChainStatus.events[0].status;
     expect(status).to.equal("Delivery Success");
+
   });
 
-  it("Tests the Typescript SDK with a receiver Failure", async () => {
+  /*
+  it("Test Stringify in Typescript SDK", async () => {
+    const info = (await relayer.getWormholeRelayerInfo(sourceChain.chainId, "0xf222ba282f88a0377510cc3fb1154033602925681d241cc32a00976362b3c7ae", {environment: environment})) as DeliveryInfo;
+    console.log(relayer.stringifyWormholeRelayerInfo(info));
+  })*/
+
+  it("Test getPrice in Typescript SDK", async () => {
+    const price = (await relayer.getPrice(sourceChain.chainId, targetChain.chainId, 200000, {environment: "TESTNET"}));
+    console.log(price.toString());
+    expect(price).to.not.equal(undefined);
+  })
+
+  it("Test getPriceMultipleHops in Typescript SDK", async () => {
+    const price = (await relayer.getPriceMultipleHops(sourceChain.chainId, [{targetChain: targetChain.chainId, gasAmount: 200000}, {targetChain: sourceChain.chainId, gasAmount: 200000}], "TESTNET"));
+    console.log(price.toString());
+    expect(price).to.not.equal(undefined);
+  })
+
+  it("Test the send in Typescript SDK + Cross chain refund", async () => {
+    const arbitraryPayload = ethers.utils.hexlify(
+      ethers.utils.toUtf8Bytes(generateRandomString(32))
+    );
+    console.log(`Sent message: ${arbitraryPayload}`);
+    const value = await relayer.getPrice(
+      sourceChain.chainId,
+      targetChain.chainId,
+      500000,
+      {environment: environment}
+    );
+    console.log(`Quoted gas delivery fee: ${value}`);
+    const startingBalance = await walletSource.getBalance();
+    // Dummy target address; doesn't exist
+    const tx = await relayer.send(sourceChain.chainId, targetChain.chainId, "0xa114d06ee4a140da5b6c0175f7886b7753d0343a", walletSource, Buffer.from("hi!"), value, {environment: environment});
+    console.log("Sent delivery request!");
+    const rx = await tx.wait();
+    console.log("Message confirmed!");
+    const endingBalance = await walletSource.getBalance();
+
+
+    await waitForRelay();
+
+    console.log("Checking status using SDK");
+    const info = (await relayer.getWormholeRelayerInfo(sourceChain.chainId, tx.hash, {environment: environment})) as DeliveryInfo;
+    console.log(relayer.stringifyWormholeRelayerInfo(info));
+    const status = info.targetChainStatus.events[0].status;
+    expect(status).to.equal("Delivery Success");
+
+    console.log(`Quoted gas delivery fee: ${value}`);
+    console.log(`Cost (including gas) ${startingBalance.sub(endingBalance).toString()}`);
+
+    await waitForRelay();
+    const newEndingBalance = await walletSource.getBalance();
+    console.log(`Refund: ${newEndingBalance.sub(endingBalance).toString()}`);
+    console.log(`As a percentage of original value: ${newEndingBalance.sub(endingBalance).mul(100).div(value).toString()}%`)
+  })
+
+  it("Tests the Typescript SDK with a Delivery Failure", async () => {
     const arbitraryPayload = ethers.utils.hexlify(
       ethers.utils.toUtf8Bytes(generateRandomString(32))
     );
@@ -432,15 +486,6 @@ describe("Core Relayer Integration Test - Two Chains", () => {
     const rx = await tx.wait();
     console.log("Message confirmed!");
 
-    console.log("Checking status using SDK");
-    let info: relayer.DeliveryInfo = (await relayer.getWormholeRelayerInfo({
-      environment: "DEVNET",
-      sourceChain: sourceChain.chainId as ChainId,
-      sourceTransaction: tx.hash,
-    })) as relayer.DeliveryInfo;
-    let status = info.targetChainStatus.events[0].status;
-    expect(status.substring(0, 22)).to.equal("Delivery didn't happen");
-
     await waitForRelay();
 
     const message = await targetMockIntegration.getMessage();
@@ -449,12 +494,10 @@ describe("Core Relayer Integration Test - Two Chains", () => {
     expect(message).to.not.equal(arbitraryPayload);
 
     console.log("Checking status using SDK");
-    info = (await relayer.getWormholeRelayerInfo({
-      environment: "DEVNET",
-      sourceChain: sourceChain.chainId as ChainId,
-      sourceTransaction: tx.hash,
-    })) as relayer.DeliveryInfo;
-    status = info.targetChainStatus.events[0].status;
+    const info = (await relayer.getWormholeRelayerInfo(sourceChain.chainId as ChainId,
+       tx.hash,
+       {environment: environment})) as relayer.DeliveryInfo;
+    const status = info.targetChainStatus.events[0].status;
     expect(status).to.equal("Receiver Failure");
   });
 
@@ -484,15 +527,6 @@ describe("Core Relayer Integration Test - Two Chains", () => {
     const rx = await tx.wait();
     console.log("Message confirmed!");
 
-    console.log("Checking status using SDK");
-    let info: relayer.DeliveryInfo = (await relayer.getWormholeRelayerInfo({
-      environment: "DEVNET",
-      sourceChain: sourceChain.chainId as ChainId,
-      sourceTransaction: tx.hash,
-    })) as relayer.DeliveryInfo;
-    let status = info.targetChainStatus.events[0].status;
-    expect(status.substring(0, 22)).to.equal("Delivery didn't happen");
-
     await waitForRelay();
 
     const message = await targetMockIntegration.getMessage();
@@ -501,12 +535,8 @@ describe("Core Relayer Integration Test - Two Chains", () => {
     expect(message).to.not.equal(arbitraryPayload);
 
     console.log("Checking status using SDK");
-    info = (await relayer.getWormholeRelayerInfo({
-      environment: "DEVNET",
-      sourceChain: sourceChain.chainId as ChainId,
-      sourceTransaction: tx.hash,
-    })) as relayer.DeliveryInfo;
-    status = info.targetChainStatus.events[0].status;
+    const info = (await relayer.getWormholeRelayerInfo(sourceChain.chainId, tx.hash, {environment: environment})) as DeliveryInfo;
+    const status = info.targetChainStatus.events[0].status;
     expect(status).to.equal("Receiver Failure");
 
     console.log("Redelivering message");
@@ -515,7 +545,7 @@ describe("Core Relayer Integration Test - Two Chains", () => {
       sourceChain.chainId as ChainId,
       targetChain.chainId as ChainId,
       "DEVNET",
-      createVaaKey(
+      relayer.createVaaKey(
         sourceChain.chainId,
         Buffer.from(
           tryNativeToUint8Array(sourceCoreRelayerAddress, "ethereum")
