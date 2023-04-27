@@ -3,7 +3,7 @@ import { arrayify } from "ethers/lib/utils";
 
 export enum RelayerPayloadId {
   Delivery = 1,
-  // DeliveryStatus = 3,
+  Redelivery = 2,
 }
 
 export enum DeliveryStatus {
@@ -41,6 +41,14 @@ export interface DeliveryInstruction {
   payload: Buffer;
 }
 
+export interface RedeliveryInstruction {
+  vaaKey: VaaKey;
+  newMaximumRefundTarget: BigNumber;
+  newReceiverValueTarget: BigNumber;
+  sourceRelayProvider: Buffer;
+  executionParameters: ExecutionParameters;
+}
+
 type StringLeaves<Type> =
   | string
   | string[]
@@ -49,6 +57,12 @@ type StringLeaves<Type> =
 export type DeliveryInstructionPrintable = {
   [Property in keyof DeliveryInstruction]: StringLeaves<
     DeliveryInstruction[Property]
+  >;
+};
+
+export type RedeliveryInstructionPrintable = {
+  [Property in keyof RedeliveryInstruction]: StringLeaves<
+    RedeliveryInstruction[Property]
   >;
 };
 
@@ -67,10 +81,33 @@ export function parseWormholeRelayerPayloadType(
 ): RelayerPayloadId {
   const payload =
     typeof stringPayload === "string" ? arrayify(stringPayload) : stringPayload;
-  if (payload[0] == 0 || payload[0] >= 3) {
-    throw new Error("Unrecogned payload type " + payload[0]);
+  if (
+    payload[0] != RelayerPayloadId.Delivery &&
+    payload[0] != RelayerPayloadId.Redelivery
+  ) {
+    throw new Error("Unrecognized payload type " + payload[0]);
   }
   return payload[0];
+}
+
+export function createVaaKey(
+  chainId: number,
+  emitterAddress: Buffer,
+  sequence: number | BigNumber
+): VaaKey {
+  return {
+    payloadType: VaaKeyType.EMITTER_SEQUENCE,
+    chainId,
+    emitterAddress,
+    sequence: ethers.BigNumber.from(sequence),
+  };
+}
+
+export function createVaaKeyFromVaaHash(vaaHash: Buffer): VaaKey {
+  return {
+    payloadType: VaaKeyType.VAAHASH,
+    vaaHash,
+  };
 }
 
 export function parseWormholeRelayerSend(bytes: Buffer): DeliveryInstruction {
@@ -202,6 +239,51 @@ function parseWormholeRelayerExecutionParameters(
   return [{ version, gasLimit }, idx];
 }
 
+export function parseWormholeRelayerResend(
+  bytes: Buffer
+): RedeliveryInstruction {
+  let idx = 0;
+  const payloadId = bytes.readUInt8(idx);
+  if (payloadId !== RelayerPayloadId.Redelivery) {
+    throw new Error(
+      `Expected Delivery payload type (${RelayerPayloadId.Redelivery}), found: ${payloadId}`
+    );
+  }
+  idx += 1;
+
+  const parsedKey = parseVaaKey(bytes, idx);
+  const vaaKey = parsedKey[0];
+  idx = parsedKey[1];
+
+  const newMaximumRefundTarget = ethers.BigNumber.from(
+    Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
+  );
+  idx += 32;
+
+  const newReceiverValueTarget = ethers.BigNumber.from(
+    Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
+  );
+  idx += 32;
+
+  const sourceRelayProvider = bytes.slice(idx, idx + 32);
+  idx += 32;
+
+  let parsedExecutionParams = parseWormholeRelayerExecutionParameters(
+    bytes,
+    idx
+  );
+  const executionParameters = parsedExecutionParams[0];
+  idx = parsedExecutionParams[1];
+
+  return {
+    vaaKey,
+    newMaximumRefundTarget,
+    newReceiverValueTarget,
+    sourceRelayProvider,
+    executionParameters,
+  };
+}
+
 export function deliveryInstructionsPrintable(
   ix: DeliveryInstruction
 ): DeliveryInstructionPrintable {
@@ -240,6 +322,44 @@ export function vaaKeyPrintable(ix: VaaKey): StringLeaves<VaaKey> {
         vaaHash: ix.vaaHash?.toString("hex"),
       };
   }
+}
+
+export function redeliveryInstructionPrintable(
+  ix: RedeliveryInstruction
+): RedeliveryInstructionPrintable {
+  return {
+    vaaKey: vaaKeyPrintable(ix.vaaKey),
+    newMaximumRefundTarget: ix.newMaximumRefundTarget.toString(),
+    newReceiverValueTarget: ix.newReceiverValueTarget.toString(),
+    sourceRelayProvider: ix.sourceRelayProvider.toString("hex"),
+    executionParameters: {
+      gasLimit: ix.executionParameters.gasLimit.toString(),
+      version: ix.executionParameters.version.toString(),
+    },
+  };
+}
+
+export type DeliveryOverrideArgs = {
+  gasLimit: number;
+  newMaximumRefundTarget: BigNumber;
+  newReceiverValueTarget: BigNumber;
+  redeliveryHash: Buffer;
+};
+
+export function packOverrides(overrides: DeliveryOverrideArgs): string {
+  const packed = [
+    ethers.utils.solidityPack(["uint8"], [1]).substring(2), //version
+    ethers.utils.solidityPack(["uint32"], [overrides.gasLimit]).substring(2),
+    ethers.utils
+      .solidityPack(["uint256"], [overrides.newMaximumRefundTarget])
+      .substring(2),
+    ethers.utils
+      .solidityPack(["uint256"], [overrides.newReceiverValueTarget])
+      .substring(2),
+    overrides.redeliveryHash.toString("hex"), //toString('hex') doesn't add the 0x prefix
+  ].join("");
+
+  return "0x" + packed;
 }
 
 /*

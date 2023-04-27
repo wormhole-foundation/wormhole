@@ -354,7 +354,10 @@ export function fetchSetupAddressCreate2(
 }
 
 const coreRelayerAddressesCache: Partial<Record<ChainId, string>> = {};
-export async function getCoreRelayerAddress(chain: ChainInfo): Promise<string> {
+export async function getCoreRelayerAddress(
+  chain: ChainInfo,
+  forceCalculate?: boolean
+): Promise<string> {
   const contractsFile = fs.readFileSync(
     `./ts-scripts/relayer/config/${env}/contracts.json`
   );
@@ -363,7 +366,7 @@ export async function getCoreRelayerAddress(chain: ChainInfo): Promise<string> {
   }
   const contracts = JSON.parse(contractsFile.toString());
   //If useLastRun is false, then we want to bypass the calculations and just use what the contracts file says.
-  if (!contracts.useLastRun && !lastRunOverride) {
+  if (!contracts.useLastRun && !lastRunOverride && !forceCalculate) {
     const thisChainsRelayer = loadCoreRelayers().find(
       (x: any) => x.chainId == chain.chainId
     )?.address;
