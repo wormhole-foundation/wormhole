@@ -16,9 +16,6 @@ export const publishPackage = async (
   network: Network,
   packagePath: string
 ) => {
-  console.log("Network", network);
-  console.log("Package path", packagePath);
-
   try {
     setupMainToml(packagePath, network);
 

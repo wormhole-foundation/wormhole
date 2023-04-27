@@ -3,6 +3,7 @@ import { Yargs } from "../Yargs";
 import { addDeployCommands } from "./deploy";
 import { addInitCommands } from "./init";
 import { addPublishMessageCommands } from "./publish_message";
+import { addSetupCommands } from "./setup";
 import { addUtilsCommands } from "./utils";
 
 exports.command = "sui";
@@ -12,6 +13,7 @@ exports.builder = function (y: typeof yargs) {
     .addCommands(addDeployCommands)
     .addCommands(addInitCommands)
     .addCommands(addPublishMessageCommands)
+    .addCommands(addSetupCommands)
     .addCommands(addUtilsCommands)
     .y()
     .strict()
