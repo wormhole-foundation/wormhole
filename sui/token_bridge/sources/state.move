@@ -26,6 +26,8 @@ module token_bridge::state {
     const E_INVALID_BUILD_DIGEST: u64 = 0;
     /// Specified version does not match this build's version.
     const E_VERSION_MISMATCH: u64 = 1;
+    /// Emitter has already been used to emit Wormhole messages.
+    const E_USED_EMITTER: u64 = 2;
 
     friend token_bridge::attest_token;
     friend token_bridge::complete_transfer;
@@ -80,6 +82,8 @@ module token_bridge::state {
         governance_contract: ExternalAddress,
         ctx: &mut TxContext
     ): State {
+        assert!(wormhole::emitter::sequence(&emitter_cap) == 0, E_USED_EMITTER);
+
         let state = State {
             id: object::new(ctx),
             governance_chain,
