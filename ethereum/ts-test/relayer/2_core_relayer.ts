@@ -15,7 +15,7 @@ import {
   tryNativeToHexString,
   tryNativeToUint8Array,
 } from "../../../sdk/js/src";
-import { createVaaKey } from "../../../sdk/js/src/relayer";
+import { DeliveryInfo, createVaaKey } from "../../../sdk/js/src/relayer"
 
 const ETHEREUM_ROOT = `${__dirname}/..`;
 

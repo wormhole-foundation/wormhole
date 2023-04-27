@@ -1,5 +1,6 @@
 import * as wh from "@certusone/wormhole-sdk";
-import { Next, ParsedVaaWithBytes } from "relayer-engine";
+import { Next, ParsedVaaWithBytes, sleep } from "relayer-engine";
+import { Next, sleep } from "relayer-engine";
 import {
   IDelivery,
   VaaKeyType,
@@ -187,6 +188,27 @@ async function processDeliveryInstruction(
       overrides: overrides ? packOverrides(overrides) : [],
     };
 
+    const gasUnitsEstimate = await coreRelayer.estimateGas.deliver(input, {
+      value: budget,
+      gasLimit: 3000000,
+    });
+    const gasPrice = await coreRelayer.provider.getGasPrice();
+    const estimatedTransactionFee = gasPrice.mul(gasUnitsEstimate);
+    const estimatedTransactionFeeEther = ethers.utils.formatEther(
+      estimatedTransactionFee
+    );
+    ctx.logger.info(
+      `Estimated transaction cost (ether): ${estimatedTransactionFeeEther}`,
+      {
+        gasUnitsEstimate: gasUnitsEstimate.toString(),
+        gasPrice: gasPrice.toString(),
+        estimatedTransactionFee: estimatedTransactionFee.toString(),
+        estimatedTransactionFeeEther,
+        valueEther: ethers.utils.formatEther(budget),
+      }
+    );
+    process.stdout.write("");
+    await sleep(200);
     ctx.logger.debug("Sending 'deliver' tx...");
     const receipt = await coreRelayer
       .deliver(input, { value: budget, gasLimit: 3000000 })

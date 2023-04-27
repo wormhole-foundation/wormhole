@@ -425,10 +425,12 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
             return (deliveryInstruction, 0x0);
         } else {
             IDelivery.DeliveryOverride memory overrides = decodeDeliveryOverride(encoded);
-            if(overrides.gasLimit < deliveryInstruction.executionParameters.gasLimit 
-                || overrides.receiverValue < deliveryInstruction.receiverValueTarget 
-                || overrides.maximumRefund < deliveryInstruction.maximumRefundTarget){
-                revert IDelivery.InvalidOverride();
+            if(overrides.gasLimit < deliveryInstruction.executionParameters.gasLimit) {
+                revert IDelivery.InvalidOverrideGasLimit();
+            } else if(overrides.receiverValue < deliveryInstruction.receiverValueTarget) {
+                revert IDelivery.InvalidOverrideReceiverValue();
+            } else if(overrides.maximumRefund < deliveryInstruction.maximumRefundTarget) {
+                revert IDelivery.InvalidOverrideMaximumRefund();
             }
 
             deliveryInstruction.executionParameters.gasLimit = overrides.gasLimit;
