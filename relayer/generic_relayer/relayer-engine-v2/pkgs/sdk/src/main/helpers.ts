@@ -13,8 +13,10 @@ import {
   parseWormholeRelayerSend,
   DeliveryInstruction,
   DeliveryStatus,
+  VaaKey,
 } from "../structs";
 import { DeliveryEvent } from "../../../../../../../ethereum/ethers-contracts/CoreRelayer";
+import { IWormholeRelayer } from "../../../../../../../ethereum/ethers-contracts/IWormholeRelayer";
 type DeliveryTargetInfo = {
   status: DeliveryStatus | string;
   deliveryTxHash: string | null;
@@ -164,4 +166,20 @@ export function getWormholeRelayerLog(
       sequence: filtered[index].sequence,
     };
   }
+}
+
+export function vaaKeyToVaaKeyStruct(
+  vaaKey: VaaKey
+): IWormholeRelayer.VaaKeyStruct {
+  return {
+    infoType: vaaKey.payloadType,
+    chainId: vaaKey.chainId || 0,
+    emitterAddress:
+      vaaKey.emitterAddress ||
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+    sequence: vaaKey.sequence || 0,
+    vaaHash:
+      vaaKey.vaaHash ||
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+  };
 }

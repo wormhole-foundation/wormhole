@@ -50,9 +50,16 @@ async function readState(
   );
 
   try {
-    const coreRelayer = await getCoreRelayer(chain, getProvider(chain));
     const contractAddress = await getCoreRelayerAddress(chain);
-    const defaultProvider = await coreRelayer.getDefaultRelayProvider();
+    console.log("Querying " + contractAddress);
+
+    const coreRelayer = await getCoreRelayer(chain, getProvider(chain));
+
+    console.log("Querying default provider for code");
+    const provider = getProvider(chain);
+    const codeReceipt = await provider.getCode(contractAddress);
+    console.log("Code: " + codeReceipt);
+
     const registeredContracts: { chainId: number; contract: string }[] = [];
 
     for (const chainInfo of chains) {
@@ -64,6 +71,7 @@ async function readState(
       });
     }
 
+    const defaultProvider = await coreRelayer.getDefaultRelayProvider();
     return {
       chainId: chain.chainId,
       contractAddress,

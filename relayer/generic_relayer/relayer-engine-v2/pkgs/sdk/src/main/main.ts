@@ -7,12 +7,13 @@ import {
   Network,
 } from "@certusone/wormhole-sdk";
 import { BigNumber, ethers } from "ethers";
-import { getWormholeRelayerAddress } from "../consts";
+import { getWormholeRelayer, getWormholeRelayerAddress } from "../consts";
 import {
   RelayerPayloadId,
   DeliveryInstruction,
   VaaKeyType,
   DeliveryStatus,
+  VaaKey,
 } from "../structs";
 import {
   getDefaultProvider,
@@ -21,6 +22,7 @@ import {
   parseWormholeLog,
   getBlockRange,
   getWormholeRelayerDeliveryEventsBySourceSequence,
+  vaaKeyToVaaKeyStruct,
 } from "./helpers";
 export type InfoRequest = {
   environment: Network;
@@ -217,7 +219,7 @@ export async function getWormholeRelayerInfo(
   };
 
   return {
-    type,
+    type: RelayerPayloadId.Delivery,
     sourceChainId: infoRequest.sourceChain,
     sourceTransactionHash: infoRequest.sourceTransaction,
     sourceDeliverySequenceNumber: BigNumber.from(
@@ -226,4 +228,30 @@ export async function getWormholeRelayerInfo(
     deliveryInstruction: instruction,
     targetChainStatus,
   };
+}
+
+export async function resendRaw(
+  signer: ethers.Signer,
+  sourceChain: ChainId,
+  targetChain: ChainId,
+  environment: Network,
+  vaaKey: VaaKey,
+  newMaxTransactionFee: BigNumber | number,
+  newReceiverValue: BigNumber | number,
+  relayProviderAddress: string,
+  overrides?: ethers.Overrides
+) {
+  const provider = signer.provider;
+
+  if (!provider) throw Error("No provider on signer");
+
+  const coreRelayer = getWormholeRelayer(sourceChain, environment, signer);
+
+  return coreRelayer.resend(
+    vaaKeyToVaaKeyStruct(vaaKey),
+    newMaxTransactionFee,
+    newReceiverValue,
+    targetChain,
+    relayProviderAddress
+  );
 }

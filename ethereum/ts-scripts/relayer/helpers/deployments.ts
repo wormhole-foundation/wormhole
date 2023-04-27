@@ -208,7 +208,7 @@ export async function deployCoreRelayerProxy(
   const governanceContract =
     "0x0000000000000000000000000000000000000000000000000000000000000004";
   const proxy = CoreRelayerSetup__factory.connect(
-    await getCoreRelayerAddress(chain),
+    await getCoreRelayerAddress(chain, true),
     getSigner(chain)
   );
   await proxy

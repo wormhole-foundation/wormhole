@@ -62,6 +62,10 @@ async function readState(
   try {
     const relayProvider = getRelayProvider(chain, getProvider(chain));
     const contractAddress = getRelayProviderAddress(chain);
+    console.log("Querying Relay Provider for code");
+    const provider = getProvider(chain);
+    const codeReceipt = await provider.getCode(contractAddress);
+    console.log("Code: " + codeReceipt);
     const rewardAddress = await relayProvider.getRewardAddress();
     const supportedChains: {
       chainId: number;
