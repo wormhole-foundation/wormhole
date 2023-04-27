@@ -75,7 +75,7 @@ export function getWormholeRelayerAddress(
 export function getWormholeRelayer(
   chainId: ChainId,
   env: Network,
-  provider: ethers.providers.Provider
+  provider: ethers.providers.Provider | ethers.Signer
 ): CoreRelayer {
   const thisChainsRelayer = getWormholeRelayerAddress(chainId, env);
   const contract = CoreRelayer__factory.connect(thisChainsRelayer, provider);

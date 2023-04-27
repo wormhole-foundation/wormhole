@@ -13,7 +13,9 @@ import {
   ethers_contracts,
   ChainId,
   tryNativeToHexString,
+  tryNativeToUint8Array,
 } from "../../../sdk/js/src";
+import { createVaaKey } from "../../../sdk/js/src/relayer";
 
 const ETHEREUM_ROOT = `${__dirname}/..`;
 
@@ -346,11 +348,11 @@ describe("Core Relayer Integration Test - Two Chains", () => {
     console.log(`Received message on source: ${message2}`);
     expect(message2).to.not.equal(arbitraryPayload2);
 
-    let info: DeliveryInfo = (await relayer.getWormholeRelayerInfo({
+    let info: relayer.DeliveryInfo = (await relayer.getWormholeRelayerInfo({
       environment: "DEVNET",
-      sourceChain: sourceChain.chainId,
+      sourceChain: sourceChain.chainId as ChainId,
       sourceTransaction: tx.hash,
-    })) as DeliveryInfo;
+    })) as relayer.DeliveryInfo;
     let status = info.targetChainStatus.events[0].status;
     expect(status).to.equal("Forward Request Failure");
   });
@@ -378,11 +380,11 @@ describe("Core Relayer Integration Test - Two Chains", () => {
     console.log("Message confirmed!");
 
     console.log("Checking status using SDK");
-    let info: DeliveryInfo = (await relayer.getWormholeRelayerInfo({
+    let info: relayer.DeliveryInfo = (await relayer.getWormholeRelayerInfo({
       environment: "DEVNET",
-      sourceChain: sourceChain.chainId,
+      sourceChain: sourceChain.chainId as ChainId,
       sourceTransaction: tx.hash,
-    })) as DeliveryInfo;
+    })) as relayer.DeliveryInfo;
     let status = info.targetChainStatus.events[0].status;
 
     expect(status.substring(0, 22)).to.equal("Delivery didn't happen");
@@ -397,14 +399,14 @@ describe("Core Relayer Integration Test - Two Chains", () => {
     console.log("Checking status using SDK");
     info = (await relayer.getWormholeRelayerInfo({
       environment: "DEVNET",
-      sourceChain: sourceChain.chainId,
+      sourceChain: sourceChain.chainId as ChainId,
       sourceTransaction: tx.hash,
-    })) as DeliveryInfo;
+    })) as relayer.DeliveryInfo;
     status = info.targetChainStatus.events[0].status;
     expect(status).to.equal("Delivery Success");
   });
 
-  it("Tests the Typescript SDK with a Delivery Failure", async () => {
+  it("Tests the Typescript SDK with a receiver Failure", async () => {
     const arbitraryPayload = ethers.utils.hexlify(
       ethers.utils.toUtf8Bytes(generateRandomString(32))
     );
@@ -431,11 +433,11 @@ describe("Core Relayer Integration Test - Two Chains", () => {
     console.log("Message confirmed!");
 
     console.log("Checking status using SDK");
-    let info: DeliveryInfo = (await relayer.getWormholeRelayerInfo({
+    let info: relayer.DeliveryInfo = (await relayer.getWormholeRelayerInfo({
       environment: "DEVNET",
-      sourceChain: sourceChain.chainId,
+      sourceChain: sourceChain.chainId as ChainId,
       sourceTransaction: tx.hash,
-    })) as DeliveryInfo;
+    })) as relayer.DeliveryInfo;
     let status = info.targetChainStatus.events[0].status;
     expect(status.substring(0, 22)).to.equal("Delivery didn't happen");
 
@@ -449,10 +451,96 @@ describe("Core Relayer Integration Test - Two Chains", () => {
     console.log("Checking status using SDK");
     info = (await relayer.getWormholeRelayerInfo({
       environment: "DEVNET",
-      sourceChain: sourceChain.chainId,
+      sourceChain: sourceChain.chainId as ChainId,
       sourceTransaction: tx.hash,
-    })) as DeliveryInfo;
+    })) as relayer.DeliveryInfo;
     status = info.targetChainStatus.events[0].status;
     expect(status).to.equal("Receiver Failure");
+  });
+
+  it("Tests a receiver failure and then redelivery", async () => {
+    const arbitraryPayload = ethers.utils.hexlify(
+      ethers.utils.toUtf8Bytes(generateRandomString(32))
+    );
+    console.log(`Sent message: ${arbitraryPayload}`);
+    const valueNotEnough = await sourceCoreRelayer.quoteGas(
+      targetChain.chainId,
+      10000,
+      await sourceCoreRelayer.getDefaultRelayProvider()
+    );
+    const value = await sourceCoreRelayer.quoteGas(
+      targetChain.chainId,
+      500000,
+      await sourceCoreRelayer.getDefaultRelayProvider()
+    );
+    console.log(`Quoted gas delivery fee: ${value}`);
+    const tx = await sourceMockIntegration.sendMessage(
+      arbitraryPayload,
+      targetChain.chainId,
+      targetMockIntegrationAddress,
+      { value: valueNotEnough, gasLimit: 500000 }
+    );
+    console.log("Sent delivery request!");
+    const rx = await tx.wait();
+    console.log("Message confirmed!");
+
+    console.log("Checking status using SDK");
+    let info: relayer.DeliveryInfo = (await relayer.getWormholeRelayerInfo({
+      environment: "DEVNET",
+      sourceChain: sourceChain.chainId as ChainId,
+      sourceTransaction: tx.hash,
+    })) as relayer.DeliveryInfo;
+    let status = info.targetChainStatus.events[0].status;
+    expect(status.substring(0, 22)).to.equal("Delivery didn't happen");
+
+    await waitForRelay();
+
+    const message = await targetMockIntegration.getMessage();
+    console.log(`Sent message: ${arbitraryPayload}`);
+    console.log(`Received message: ${message}`);
+    expect(message).to.not.equal(arbitraryPayload);
+
+    console.log("Checking status using SDK");
+    info = (await relayer.getWormholeRelayerInfo({
+      environment: "DEVNET",
+      sourceChain: sourceChain.chainId as ChainId,
+      sourceTransaction: tx.hash,
+    })) as relayer.DeliveryInfo;
+    status = info.targetChainStatus.events[0].status;
+    expect(status).to.equal("Receiver Failure");
+
+    console.log("Redelivering message");
+    const redeliveryReceipt = await relayer.resendRaw(
+      walletSource,
+      sourceChain.chainId as ChainId,
+      targetChain.chainId as ChainId,
+      "DEVNET",
+      createVaaKey(
+        sourceChain.chainId,
+        Buffer.from(
+          tryNativeToUint8Array(sourceCoreRelayerAddress, "ethereum")
+        ),
+        info.sourceDeliverySequenceNumber
+      ),
+      value,
+      0,
+      await sourceCoreRelayer.getDefaultRelayProvider(),
+      {
+        value: value,
+        gasLimit: 500000,
+      }
+    );
+
+    console.log("redelivery tx:", redeliveryReceipt.hash);
+
+    await waitForRelay();
+
+    console.log("Checking if message was relayed after redelivery");
+    const message2 = await targetMockIntegration.getMessage();
+    console.log(`Sent message: ${arbitraryPayload}`);
+    console.log(`Received message: ${message2}`);
+    expect(message2).to.equal(arbitraryPayload);
+
+    //TODO check for redelivery event
   });
 });
