@@ -24,6 +24,8 @@ module wormhole::update_guardian_set {
     /// Specific governance payload ID (action) for updating the guardian set.
     const ACTION_UPDATE_GUARDIAN_SET: u8 = 2;
 
+    struct GovernanceWitness has drop {}
+
     /// Event reflecting a Guardian Set update.
     struct GuardianSetAdded has drop, copy {
         new_index: u32
@@ -36,8 +38,9 @@ module wormhole::update_guardian_set {
 
     public fun authorize_governance(
         wormhole_state: &State
-    ): DecreeTicket {
+    ): DecreeTicket<GovernanceWitness> {
         governance_message::authorize_verify_global(
+            GovernanceWitness {},
             state::governance_chain(wormhole_state),
             state::governance_contract(wormhole_state),
             state::governance_module(),
@@ -53,7 +56,7 @@ module wormhole::update_guardian_set {
     /// method could break backward compatibility on an upgrade.
     public fun update_guardian_set(
         wormhole_state: &mut State,
-        receipt: DecreeReceipt,
+        receipt: DecreeReceipt<GovernanceWitness>,
         the_clock: &Clock
     ): u32 {
         // This capability ensures that the current build version is used.

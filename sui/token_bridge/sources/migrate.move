@@ -16,7 +16,7 @@ module token_bridge::migrate {
 
     /// Execute migration logic. See `wormhole::migrate` description for more
     /// info.
-    public fun migrate(token_bridge_state: &mut State, receipt: DecreeReceipt) {
+    public fun migrate(token_bridge_state: &mut State, receipt: DecreeReceipt<upgrade_contract::GovernanceWitness>) {
         handle_migrate(token_bridge_state, receipt);
 
         ////////////////////////////////////////////////////////////////////////
@@ -39,7 +39,7 @@ module token_bridge::migrate {
         ////////////////////////////////////////////////////////////////////////
     }
 
-    fun handle_migrate(token_bridge_state: &mut State, receipt: DecreeReceipt) {
+    fun handle_migrate(token_bridge_state: &mut State, receipt: DecreeReceipt<upgrade_contract::GovernanceWitness>) {
         // Update the version first.
         //
         // See `version_control` module for hard-coded configuration.

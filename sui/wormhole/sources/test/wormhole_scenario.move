@@ -178,11 +178,11 @@ module wormhole::wormhole_scenario {
         out
     }
 
-    public fun verify_governance_vaa(
+    public fun verify_governance_vaa<T>(
         scenario: &mut Scenario,
         verified_vaa: VAA,
-        ticket: DecreeTicket
-    ): DecreeReceipt {
+        ticket: DecreeTicket<T>
+    ): DecreeReceipt<T> {
         test_scenario::next_tx(scenario, VAA_VERIFIER);
 
         let worm_state = take_state(scenario);

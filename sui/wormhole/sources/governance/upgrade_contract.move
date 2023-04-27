@@ -25,6 +25,8 @@ module wormhole::upgrade_contract {
     /// contract.
     const ACTION_UPGRADE_CONTRACT: u8 = 1;
 
+    struct GovernanceWitness has drop {}
+
     // Event reflecting package upgrade.
     struct ContractUpgraded has drop, copy {
         old_contract: ID,
@@ -37,8 +39,9 @@ module wormhole::upgrade_contract {
 
     public fun authorize_governance(
         wormhole_state: &State
-    ): DecreeTicket {
+    ): DecreeTicket<GovernanceWitness> {
         governance_message::authorize_verify_local(
+            GovernanceWitness {},
             state::governance_chain(wormhole_state),
             state::governance_contract(wormhole_state),
             state::governance_module(),
@@ -52,7 +55,7 @@ module wormhole::upgrade_contract {
     /// (in this case Sui), whose build digest is encoded in this message.
     public fun authorize_upgrade(
         wormhole_state: &mut State,
-        receipt: DecreeReceipt
+        receipt: DecreeReceipt<GovernanceWitness>
     ): UpgradeTicket {
         // NOTE: This is the only governance method that does not enforce
         // current package checking when consuming VAA hashes. This is because

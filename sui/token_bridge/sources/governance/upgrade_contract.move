@@ -26,6 +26,8 @@ module token_bridge::upgrade_contract {
     /// contract.
     const ACTION_UPGRADE_CONTRACT: u8 = 1;
 
+    struct GovernanceWitness has drop {}
+
     // Event reflecting package upgrade.
     struct ContractUpgraded has drop, copy {
         old_contract: ID,
@@ -38,8 +40,9 @@ module token_bridge::upgrade_contract {
 
     public fun authorize_governance(
         wormhole_state: &State
-    ): DecreeTicket {
+    ): DecreeTicket<GovernanceWitness> {
         governance_message::authorize_verify_local(
+            GovernanceWitness {},
             state::governance_chain(wormhole_state),
             state::governance_contract(wormhole_state),
             state::governance_module(),
@@ -53,7 +56,7 @@ module token_bridge::upgrade_contract {
     /// (in this case Sui), whose build digest is encoded in this message.
     public fun authorize_upgrade(
         token_bridge_state: &mut State,
-        receipt: DecreeReceipt
+        receipt: DecreeReceipt<GovernanceWitness>
     ): UpgradeTicket {
         // current package checking when consuming VAA hashes. This is because
         // upgrades are protected by the Sui VM, enforcing the latest package

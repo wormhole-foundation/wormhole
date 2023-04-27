@@ -11,14 +11,17 @@ module wormhole::set_fee {
     /// Specific governance payload ID (action) for setting Wormhole fee.
     const ACTION_SET_FEE: u8 = 3;
 
+    struct GovernanceWitness has drop {}
+
     struct SetFee {
         amount: u64
     }
 
     public fun authorize_governance(
         wormhole_state: &State
-    ): DecreeTicket {
+    ): DecreeTicket<GovernanceWitness> {
         governance_message::authorize_verify_local(
+            GovernanceWitness {},
             state::governance_chain(wormhole_state),
             state::governance_contract(wormhole_state),
             state::governance_module(),
@@ -35,7 +38,7 @@ module wormhole::set_fee {
     /// method could break backward compatibility on an upgrade.
     public fun set_fee(
         wormhole_state: &mut State,
-        receipt: DecreeReceipt
+        receipt: DecreeReceipt<GovernanceWitness>
     ): u64 {
         // This capability ensures that the current build version is used.
         let latest_only = state::cache_latest_only(wormhole_state);
