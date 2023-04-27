@@ -90,7 +90,7 @@ echo "$TOKEN_BRIDGE_PUBLISH_OUTPUT"
 
 echo -e "\n[4/4] Initializing token bridge..."
 TOKEN_BRIDGE_PACKAGE_ID=$(echo "$TOKEN_BRIDGE_PUBLISH_OUTPUT" | grep -oP 'Published to +\K.*')
-TOKEN_BRIDGE_INIT_OUTPUT=$($(echo worm sui init-token-bridge -n "$NETWORK" -p "$TOKEN_BRIDGE_PACKAGE_ID" --wormhole-package-id "$WORMHOLE_PACKAGE_ID" --wormhole-state "$WORMHOLE_STATE_OBJECT_ID" -"$PRIVATE_KEY_ARG"))
+TOKEN_BRIDGE_INIT_OUTPUT=$($(echo worm sui init-token-bridge -n "$NETWORK" -p "$TOKEN_BRIDGE_PACKAGE_ID" --wormhole-package-id "$WORMHOLE_PACKAGE_ID" --wormhole-state "$WORMHOLE_STATE_OBJECT_ID" "$PRIVATE_KEY_ARG"))
 TOKEN_BRIDGE_STATE_OBJECT_ID=$(echo "$TOKEN_BRIDGE_INIT_OUTPUT" | grep -oP 'Token bridge state object ID +\K.*')
 echo "$TOKEN_BRIDGE_INIT_OUTPUT"
 

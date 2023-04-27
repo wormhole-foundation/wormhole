@@ -3,19 +3,19 @@ import { CHAIN_ID_TO_NAME } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 import {
   Connection,
   Ed25519Keypair,
-  fromB64,
   JsonRpcProvider,
-  normalizeSuiAddress,
   RawSigner,
-  SuiTransactionBlockResponse,
   SUI_CLOCK_OBJECT_ID,
+  SuiTransactionBlockResponse,
   TransactionBlock,
+  fromB64,
+  normalizeSuiAddress,
 } from "@mysten/sui.js";
 import { CONTRACTS } from "../consts";
 import { NETWORKS } from "../networks";
 import { Network } from "../utils";
-import { impossible, Payload } from "../vaa";
-import { SuiAddresses, SUI_OBJECT_IDS } from "./consts";
+import { Payload, impossible } from "../vaa";
+import { SUI_OBJECT_IDS, SuiAddresses } from "./consts";
 import { SuiRpcValidationError } from "./error";
 import { SuiCreateEvent, SuiPublishEvent } from "./types";
 
@@ -67,9 +67,11 @@ export const execute_sui = async (
       break;
     case "NFTBridge":
       throw new Error("NFT bridge not supported on Sui");
-    case "TokenBridge":
-      packageId = packageId ?? CONTRACTS[network][chain]["token_bridge"];
-      if (!packageId) {
+    case "TokenBridge": {
+      const coreBridgePackageId = CONTRACTS[network][chain]["core"];
+      const tokenBridgePackageId =
+        packageId ?? CONTRACTS[network][chain]["token_bridge"];
+      if (!tokenBridgePackageId) {
         throw Error("Token bridge contract is undefined");
       }
 
@@ -82,23 +84,42 @@ export const execute_sui = async (
           console.log("Registering chain");
           const tx = new TransactionBlock();
           tx.setGasBudget(1000000);
+
+          // Get VAA
           const [parsedVaa] = tx.moveCall({
-            target: `${CONTRACTS[network][chain].core}::vaa::parse_and_verify`,
+            target: `${coreBridgePackageId}::vaa::parse_and_verify`,
             arguments: [
               tx.object(addresses[network].core_state),
               tx.pure([...vaa]),
               tx.object(SUI_CLOCK_OBJECT_ID),
             ],
           });
-          const [governanceMessage] = tx.moveCall({
-            target: `${CONTRACTS[network][chain].core}::governance_message::verify_vaa`,
-            arguments: [tx.object(addresses[network].core_state), parsedVaa],
+
+          // Get decree ticket
+          const [decreeTicket] = tx.moveCall({
+            target: `${tokenBridgePackageId}::register_chain::authorize_governance`,
+            arguments: [tx.object(addresses[network].token_bridge_state)],
           });
+
+          // Get decree receipt
+          const [decreeReceipt] = tx.moveCall({
+            target: `${coreBridgePackageId}::governance_message::verify_vaa`,
+            arguments: [
+              tx.object(addresses[network].core_state),
+              parsedVaa,
+              decreeTicket,
+            ],
+            typeArguments: [
+              `${tokenBridgePackageId}::register_chain::GovernanceWitness`,
+            ],
+          });
+
+          // Register chain
           tx.moveCall({
-            target: `${packageId}::register_chain::register_chain`,
+            target: `${tokenBridgePackageId}::register_chain::register_chain`,
             arguments: [
               tx.object(addresses[network].token_bridge_state),
-              governanceMessage,
+              decreeReceipt,
             ],
           });
           await executeTransactionBlock(signer, tx);
@@ -114,7 +135,9 @@ export const execute_sui = async (
           impossible(payload);
           break;
       }
+
       break;
+    }
     default:
       impossible(payload);
   }
