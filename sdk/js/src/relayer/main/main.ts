@@ -136,20 +136,64 @@ export async function send(sourceChain: ChainId, targetChain: ChainId, targetAdd
   const defaultRelayProviderAddress = await sourceCoreRelayer.getDefaultRelayProvider();
   const sendStruct: IWormholeRelayer.SendStruct = {
     targetChain: targetChain,
-    targetAddress: targetAddress,
+    targetAddress: "0x"+tryNativeToHexString(targetAddress, "ethereum"),
     refundChain: (refundLocationExists && sendOptionalParams.refundChain) || sourceChain,
-    refundAddress: (refundLocationExists && sendOptionalParams.refundAddress) || wallet.address,
+    refundAddress: "0x"+tryNativeToHexString((refundLocationExists && sendOptionalParams.refundAddress && sendOptionalParams.refundAddress) || wallet.address,"ethereum"),
     maxTransactionFee: maxTransactionFee,
     receiverValue: sendOptionalParams?.receiverValue || 0,
     relayProviderAddress: sendOptionalParams?.relayProviderAddress || defaultRelayProviderAddress,
-    vaaKeys: sendOptionalParams?.additionalVaas ? sendOptionalParams.additionalVaas.map((additionalVaa): IWormholeRelayer.VaaKeyStruct => ({infoType: 0, chainId: additionalVaa.chainId || sourceChain, emitterAddress: tryHexToNativeString(additionalVaa.emitterAddress, "ethereum"), sequence: additionalVaa.sequenceNumber, vaaHash: ""})) : [],
+    vaaKeys: sendOptionalParams?.additionalVaas ? sendOptionalParams.additionalVaas.map((additionalVaa): IWormholeRelayer.VaaKeyStruct => ({infoType: 0, chainId: additionalVaa.chainId || sourceChain, emitterAddress: tryNativeToHexString(additionalVaa.emitterAddress, "ethereum"), sequence: additionalVaa.sequenceNumber, vaaHash: ""})) : [],
     consistencyLevel: sendOptionalParams?.consistencyLevel || 15,
     payload: payload,
-    relayParameters: sendOptionalParams?.relayParameters || ""
+    relayParameters: sendOptionalParams?.relayParameters || Buffer.from("")
   }
 
   const tx = sourceCoreRelayer["send((uint16,bytes32,uint16,bytes32,uint256,uint256,address,(uint8,uint16,bytes32,uint64,bytes32)[],uint8,bytes,bytes))"](sendStruct, {value: maxTransactionFee, gasLimit: sendOptionalParams?.gasLimitForSendTransaction || 150000});
   return tx;
+}
+
+export type GetPriceMultiHopOptParams = {
+  environment?: Network,
+  receiverValue?: ethers.BigNumberish,
+  relayProviderAddress?: string,
+  sourceChainProvider?: ethers.providers.Provider 
+}
+
+export type GetPriceOptParams = GetPriceMultiHopOptParams & {
+  environment?: Network
+}
+
+export async function getPrice(sourceChain: ChainId, targetChain: ChainId, gasAmount: ethers.BigNumberish, optionalParams?: GetPriceOptParams): Promise<ethers.BigNumber> {
+  const environment = optionalParams?.environment || "MAINNET";
+  const sourceChainProvider =
+    optionalParams?.sourceChainProvider ||
+    getDefaultProvider(environment, sourceChain);
+  if (!sourceChainProvider)
+    throw Error(
+      "No default RPC for this chain; pass in your own provider (as sourceChainProvider)"
+    );
+  const coreRelayerAddress = getWormholeRelayerAddress(
+    sourceChain,
+    environment
+  );
+  const sourceCoreRelayer = ethers_contracts.IWormholeRelayer__factory.connect(
+    coreRelayerAddress,
+    sourceChainProvider
+  );
+  const relayProviderAddress = optionalParams?.relayProviderAddress || (await sourceCoreRelayer.getDefaultRelayProvider());
+  const price = (await sourceCoreRelayer.quoteGas(targetChain, gasAmount, relayProviderAddress)).add(await sourceCoreRelayer.quoteReceiverValue(targetChain, optionalParams?.receiverValue || 0, relayProviderAddress));
+  return price
+}
+
+export async function getPriceMultipleHops(sourceChain: ChainId, targets: {targetChain: ChainId, gasAmount: ethers.BigNumberish, optionalParams?: GetPriceMultiHopOptParams}[], environment: Network = "MAINNET"): ethers.BigNumber {
+  const chains = [sourceChain].concat(targets.map((t)=>t.targetChain));
+  let currentCost = BigNumber.from(0);
+  for(let i=chains.length-2; i>=0; i--) {
+    const optParams = {environment, ...targets[i].optionalParams};
+    optParams.receiverValue = currentCost.add(optParams.receiverValue || 0);
+    currentCost = await getPrice(chains[i], chains[i+1], targets[i].gasAmount, optParams);
+  }
+  return currentCost;
 }
 
 export async function getWormholeRelayerInfo(
