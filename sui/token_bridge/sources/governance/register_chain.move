@@ -20,6 +20,8 @@ module token_bridge::register_chain {
     /// Bridge contract address.
     const ACTION_REGISTER_CHAIN: u8 = 1;
 
+    struct GovernanceWitness has drop {}
+
     struct RegisterChain {
         chain: u16,
         contract_address: ExternalAddress,
@@ -27,8 +29,9 @@ module token_bridge::register_chain {
 
     public fun authorize_governance(
         token_bridge_state: &State
-    ): DecreeTicket {
+    ): DecreeTicket<GovernanceWitness> {
         governance_message::authorize_verify_global(
+            GovernanceWitness {},
             state::governance_chain(token_bridge_state),
             state::governance_contract(token_bridge_state),
             state::governance_module(),
@@ -38,7 +41,7 @@ module token_bridge::register_chain {
 
     public fun register_chain(
         token_bridge_state: &mut State,
-        receipt: DecreeReceipt
+        receipt: DecreeReceipt<GovernanceWitness>
     ): (
         u16,
         ExternalAddress

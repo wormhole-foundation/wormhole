@@ -16,6 +16,8 @@ module wormhole::transfer_fee {
     /// Specific governance payload ID (action) for setting Wormhole fee.
     const ACTION_TRANSFER_FEE: u8 = 4;
 
+    struct GovernanceWitness has drop {}
+
     struct TransferFee {
         amount: u64,
         recipient: address
@@ -23,8 +25,9 @@ module wormhole::transfer_fee {
 
     public fun authorize_governance(
         wormhole_state: &State
-    ): DecreeTicket {
+    ): DecreeTicket<GovernanceWitness> {
         governance_message::authorize_verify_local(
+            GovernanceWitness {},
             state::governance_chain(wormhole_state),
             state::governance_contract(wormhole_state),
             state::governance_module(),
@@ -41,7 +44,7 @@ module wormhole::transfer_fee {
     /// method could break backward compatibility on an upgrade.
     public fun transfer_fee(
         wormhole_state: &mut State,
-        receipt: DecreeReceipt,
+        receipt: DecreeReceipt<GovernanceWitness>,
         ctx: &mut TxContext
     ): u64 {
         // This capability ensures that the current build version is used.

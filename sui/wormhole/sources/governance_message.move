@@ -30,7 +30,10 @@ module wormhole::governance_message {
     /// Wormhole contract.
     const E_GOVERNANCE_TARGET_CHAIN_NOT_SUI: u64 = 7;
 
-    struct DecreeTicket {
+    /// The public constructors for `DecreeTicket` (`authorize_verify_global`
+    /// and `authorize_verify_local`) require a witness of type `T`. This is to
+    /// ensure that `DecreeTicket`s cannot be mixed up between modules maliciously.
+    struct DecreeTicket<phantom T> {
         governance_chain: u16,
         governance_contract: ExternalAddress,
         module_name: Bytes32,
@@ -38,17 +41,18 @@ module wormhole::governance_message {
         global: bool
     }
 
-    struct DecreeReceipt {
+    struct DecreeReceipt<phantom T> {
         payload: vector<u8>,
         digest: Bytes32
     }
 
-    public fun authorize_verify_global(
+    public fun authorize_verify_global<T: drop>(
+        _witness: T,
         governance_chain: u16,
         governance_contract: ExternalAddress,
         module_name: Bytes32,
         action: u8
-    ): DecreeTicket {
+    ): DecreeTicket<T> {
         DecreeTicket {
             governance_chain,
             governance_contract,
@@ -58,12 +62,13 @@ module wormhole::governance_message {
         }
     }
 
-    public fun authorize_verify_local(
+    public fun authorize_verify_local<T: drop>(
+        _witness: T,
         governance_chain: u16,
         governance_contract: ExternalAddress,
         module_name: Bytes32,
         action: u8
-    ): DecreeTicket {
+    ): DecreeTicket<T> {
         DecreeTicket {
             governance_chain,
             governance_contract,
@@ -73,9 +78,9 @@ module wormhole::governance_message {
         }
     }
 
-    public fun take_payload(
+    public fun take_payload<T>(
         consumed: &mut ConsumedVAAs,
-        receipt: DecreeReceipt
+        receipt: DecreeReceipt<T>
     ): vector<u8> {
         let DecreeReceipt { payload, digest } = receipt;
 
@@ -84,19 +89,19 @@ module wormhole::governance_message {
         payload
     }
 
-    public fun payload(receipt: &DecreeReceipt): vector<u8> {
+    public fun payload<T>(receipt: &DecreeReceipt<T>): vector<u8> {
         receipt.payload
     }
 
-    public fun destroy(receipt: DecreeReceipt) {
+    public fun destroy<T>(receipt: DecreeReceipt<T>) {
         let DecreeReceipt { payload: _, digest: _ } = receipt;
     }
 
-    public fun verify_vaa(
+    public fun verify_vaa<T>(
         wormhole_state: &State,
         verified_vaa: VAA,
-        ticket: DecreeTicket
-    ): DecreeReceipt {
+        ticket: DecreeTicket<T>
+    ): DecreeReceipt<T> {
         state::assert_latest_only(wormhole_state);
 
         let DecreeTicket {
@@ -200,6 +205,8 @@ module wormhole::governance_message_tests {
         take_state
     };
 
+    struct GovernanceWitness has drop {}
+
     const VAA_UPDATE_GUARDIAN_SET_1: vector<u8> =
         x"010000000001004f74e9596bd8246ef456918594ae16e81365b52c0cf4490b2a029fb101b058311f4a5592baeac014dc58215faad36453467a85a4c3e1c6cf5166e80f6e4dc50b0100bc614e000000000001000000000000000000000000000000000000000000000000000000000000000400000000000000010100000000000000000000000000000000000000000000000000000000436f72650200000000000113befa429d57cd18b7f8a4d91a2da9ab4af05d0fbe88d7d8b32a9105d228100e72dffe2fae0705d31c58076f561cc62a47087b567c86f986426dfcd000bd6e9833490f8fa87c733a183cd076a6cbd29074b853fcf0a5c78c1b56d15fce7a154e6ebe9ed7a2af3503dbd2e37518ab04d7ce78b630f98b15b78a785632dea5609064803b1c8ea8bb2c77a6004bd109a281a698c0f5ba31f158585b41f4f33659e54d3178443ab76a60e21690dbfb17f7f59f09ae3ea1647ec26ae49b14060660504f4da1c2059e1c5ab6810ac3d8e1258bd2f004a94ca0cd4c68fc1c061180610e96d645b12f47ae5cf4546b18538739e90f2edb0d8530e31a218e72b9480202acbaeb06178da78858e5e5c4705cdd4b668ffe3be5bae4867c9d5efe3a05efc62d60e1d19faeb56a80223cdd3472d791b7d32c05abb1cc00b6381fa0c4928f0c56fc14bc029b8809069093d712a3fd4dfab31963597e246ab29fc6ebedf2d392a51ab2dc5c59d0902a03132a84dfd920b35a3d0ba5f7a0635df298f9033e";
      const VAA_SET_FEE_1: vector<u8> =
@@ -238,6 +245,7 @@ module wormhole::governance_message_tests {
 
         let ticket =
             governance_message::authorize_verify_global(
+                GovernanceWitness {},
                 state::governance_chain(&worm_state),
                 state::governance_contract(&worm_state),
                 state::governance_module(),
@@ -288,6 +296,7 @@ module wormhole::governance_message_tests {
 
         let ticket =
             governance_message::authorize_verify_local(
+                GovernanceWitness {},
                 state::governance_chain(&worm_state),
                 state::governance_contract(&worm_state),
                 state::governance_module(),
@@ -337,6 +346,7 @@ module wormhole::governance_message_tests {
 
         let ticket =
             governance_message::authorize_verify_local(
+                GovernanceWitness {},
                 invalid_chain,
                 state::governance_contract(&worm_state),
                 state::governance_module(),
@@ -384,6 +394,7 @@ module wormhole::governance_message_tests {
 
         let ticket =
             governance_message::authorize_verify_global(
+                GovernanceWitness {},
                 state::governance_chain(&worm_state),
                 invalid_emitter,
                 state::governance_module(),
@@ -439,6 +450,7 @@ module wormhole::governance_message_tests {
 
         let ticket =
             governance_message::authorize_verify_local(
+                GovernanceWitness {},
                 state::governance_chain(&worm_state),
                 state::governance_contract(&worm_state),
                 invalid_module,
@@ -494,6 +506,7 @@ module wormhole::governance_message_tests {
 
         let ticket =
             governance_message::authorize_verify_local(
+                GovernanceWitness {},
                 state::governance_chain(&worm_state),
                 state::governance_contract(&worm_state),
                 state::governance_module(),
@@ -549,6 +562,7 @@ module wormhole::governance_message_tests {
 
         let ticket =
             governance_message::authorize_verify_global(
+                GovernanceWitness {},
                 state::governance_chain(&worm_state),
                 state::governance_contract(&worm_state),
                 state::governance_module(),
@@ -608,6 +622,7 @@ module wormhole::governance_message_tests {
 
         let ticket =
             governance_message::authorize_verify_local(
+                GovernanceWitness {},
                 state::governance_chain(&worm_state),
                 state::governance_contract(&worm_state),
                 state::governance_module(),
@@ -648,6 +663,7 @@ module wormhole::governance_message_tests {
             vaa::parse_and_verify(&worm_state, VAA_SET_FEE_1, &the_clock);
         let ticket =
             governance_message::authorize_verify_local(
+                GovernanceWitness {},
                 state::governance_chain(&worm_state),
                 state::governance_contract(&worm_state),
                 state::governance_module(),
