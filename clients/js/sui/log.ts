@@ -1,10 +1,9 @@
 import {
-  getPublishedObjectChanges,
   getTransactionDigest,
   getTransactionSender,
   SuiTransactionBlockResponse,
 } from "@mysten/sui.js";
-import { getCreatedObjects } from "./utils";
+import { getCreatedObjects, getPublishedPackageId } from "./utils";
 
 export const logTransactionDigest = (res: SuiTransactionBlockResponse) => {
   console.log("Transaction digest", getTransactionDigest(res));
@@ -15,15 +14,7 @@ export const logTransactionSender = (res: SuiTransactionBlockResponse) => {
 };
 
 export const logPublishedPackageId = (res: SuiTransactionBlockResponse) => {
-  const publishEvents = getPublishedObjectChanges(res);
-  if (publishEvents.length !== 1) {
-    throw new Error(
-      "Unexpected number of publish events found:" +
-        JSON.stringify(publishEvents, null, 2)
-    );
-  }
-
-  console.log("Published to", publishEvents[0].packageId);
+  console.log("Published to", getPublishedPackageId(res));
 };
 
 export const logCreatedObjects = (res: SuiTransactionBlockResponse) => {

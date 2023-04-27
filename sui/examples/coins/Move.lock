@@ -5,9 +5,6 @@ version = 0
 
 dependencies = [
   { name = "Sui" },
-]
-
-dev-dependencies = [
   { name = "TokenBridge" },
   { name = "Wormhole" },
 ]
@@ -30,9 +27,6 @@ source = { local = "../../token_bridge" }
 
 dependencies = [
   { name = "Sui" },
-]
-
-dev-dependencies = [
   { name = "Wormhole" },
 ]
 

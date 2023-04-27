@@ -1,9 +1,11 @@
-import { TransactionBlock } from "@mysten/sui.js";
+import { SuiTransactionBlockResponse, TransactionBlock } from "@mysten/sui.js";
 import yargs from "yargs";
 import {
+  DEBUG_OPTIONS,
   GOVERNANCE_CHAIN,
   GOVERNANCE_EMITTER,
   NETWORK_OPTIONS,
+  PRIVATE_KEY_OPTIONS,
   RPC_OPTIONS,
 } from "../../consts";
 import { NETWORKS } from "../../networks";
@@ -17,7 +19,7 @@ import {
   isSameType,
 } from "../../sui";
 import { logTransactionDigest, logTransactionSender } from "../../sui/log";
-import { assertNetwork } from "../../utils";
+import { Network, assertNetwork } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
 
 export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
@@ -40,12 +42,7 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
             required: true,
             type: "string",
           })
-          .option("private-key", {
-            alias: "k",
-            describe: "Custom private key to sign txs",
-            required: false,
-            type: "string",
-          })
+          .option("private-key", PRIVATE_KEY_OPTIONS)
           .option("rpc", RPC_OPTIONS);
       },
       async (argv) => {
@@ -54,23 +51,15 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         const packageId = argv["package-id"];
         const wormholeStateObjectId = argv["wormhole-state"];
         const privateKey = argv["private-key"];
-        const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
+        const rpc = argv.rpc;
 
-        const provider = getProvider(network, rpc);
-        const signer = getSigner(provider, network, privateKey);
-        const owner = await signer.getAddress();
-
-        console.log("Owner", owner);
-        console.log("Network", network);
-        console.log("Package ID", packageId);
-        console.log("Wormhole state object ID", wormholeStateObjectId);
-
-        const transactionBlock = new TransactionBlock();
-        transactionBlock.moveCall({
-          target: `${packageId}::sender::init_with_params`,
-          arguments: [transactionBlock.object(wormholeStateObjectId)],
-        });
-        const res = await executeTransactionBlock(signer, transactionBlock);
+        const res = await initExampleApp(
+          network,
+          packageId,
+          wormholeStateObjectId,
+          rpc,
+          privateKey
+        );
 
         logTransactionDigest(res);
         logTransactionSender(res);
@@ -120,12 +109,7 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
             default: GOVERNANCE_EMITTER,
             required: false,
           })
-          .option("private-key", {
-            alias: "k",
-            describe: "Custom private key to sign txs",
-            required: false,
-            type: "string",
-          })
+          .option("private-key", PRIVATE_KEY_OPTIONS)
           .option("rpc", RPC_OPTIONS);
       },
       async (argv) => {
@@ -137,60 +121,15 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         const governanceChainId = argv["governance-chain-id"];
         const governanceContract = argv["governance-address"];
         const privateKey = argv["private-key"];
-        const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
+        const rpc = argv.rpc;
 
-        const provider = getProvider(network, rpc);
-        const signer = getSigner(provider, network, privateKey);
-        const owner = await signer.getAddress();
-        const deployerCapObjectId = await getOwnedObjectId(
-          provider,
-          owner,
+        const res = await initTokenBridge(
+          network,
           packageId,
-          "setup",
-          "DeployerCap"
+          wormholeStateObjectId,
+          rpc,
+          privateKey
         );
-        const upgradeCapObjectId = await getUpgradeCapObjectId(
-          provider,
-          owner,
-          packageId
-        );
-
-        console.log("Owner", owner);
-        console.log("Network", network);
-        console.log("Package ID", packageId);
-        console.log("Wormhole Package ID", wormholePackageId);
-        console.log("Deployer cap object ID", deployerCapObjectId);
-        console.log("Upgrade cap object ID", upgradeCapObjectId);
-        console.log("Wormhole state object ID", wormholeStateObjectId);
-
-        if (!deployerCapObjectId) {
-          throw new Error(
-            `Token bridge cannot be initialized because deployer capability cannot be found under ${owner}. Is the package published?`
-          );
-        }
-
-        if (!upgradeCapObjectId) {
-          throw new Error(
-            `Token bridge cannot be initialized because upgrade capability cannot be found under ${owner}. Is the package published?`
-          );
-        }
-
-        const transactionBlock = new TransactionBlock();
-        const [emitterCap] = transactionBlock.moveCall({
-          target: `${wormholePackageId}::emitter::new`,
-          arguments: [transactionBlock.object(wormholeStateObjectId)],
-        });
-        transactionBlock.moveCall({
-          target: `${packageId}::setup::complete`,
-          arguments: [
-            transactionBlock.object(deployerCapObjectId),
-            transactionBlock.object(upgradeCapObjectId),
-            emitterCap,
-            transactionBlock.pure(governanceChainId),
-            transactionBlock.pure([...Buffer.from(governanceContract, "hex")]),
-          ],
-        });
-        const res = await executeTransactionBlock(signer, transactionBlock);
 
         logTransactionDigest(res);
         logTransactionSender(res);
@@ -220,6 +159,7 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
             describe: "Initial guardian public keys",
             type: "string",
           })
+          .option("debug", DEBUG_OPTIONS)
           .option("governance-chain-id", {
             alias: "c",
             describe: "Governance chain ID",
@@ -234,12 +174,7 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
             default: GOVERNANCE_EMITTER,
             required: false,
           })
-          .option("private-key", {
-            alias: "k",
-            describe: "Custom private key to sign txs",
-            required: false,
-            type: "string",
-          })
+          .option("private-key", PRIVATE_KEY_OPTIONS)
           .option("rpc", RPC_OPTIONS);
       },
       async (argv) => {
@@ -247,71 +182,152 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         assertNetwork(network);
         const packageId = argv["package-id"];
         const initialGuardian = argv["initial-guardian"];
+        const debug = argv.debug ?? false;
         const governanceChainId = argv["governance-chain-id"];
         const governanceContract = argv["governance-address"];
         const privateKey = argv["private-key"];
-        const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
+        const rpc = argv.rpc;
 
-        const provider = getProvider(network, rpc);
-        const signer = getSigner(provider, network, privateKey);
-        const owner = await signer.getAddress();
-
-        const deployerCapObjectId = await getOwnedObjectId(
-          provider,
-          owner,
+        const res = await initWormhole(
+          network,
           packageId,
-          "setup",
-          "DeployerCap"
+          initialGuardian,
+          governanceChainId,
+          governanceContract,
+          rpc,
+          privateKey
         );
-        const upgradeCapObjectId = await getUpgradeCapObjectId(
-          provider,
-          owner,
-          packageId
-        );
-
-        console.log("Network", network);
-        console.log("RPC", rpc);
-        console.log("Package ID", packageId);
-        console.log("Deployer cap object ID", deployerCapObjectId);
-        console.log("Upgrade cap object ID", upgradeCapObjectId);
-        console.log("Governance chain ID", governanceChainId);
-        console.log("Governance contract", governanceContract);
-        console.log("Initial guardian", initialGuardian);
-
-        if (!deployerCapObjectId) {
-          throw new Error(
-            `Wormhole cannot be initialized because deployer capability cannot be found under ${owner}. Is the package published?`
-          );
-        }
-
-        if (!upgradeCapObjectId) {
-          throw new Error(
-            `Wormhole cannot be initialized because upgrade capability cannot be found under ${owner}. Is the package published?`
-          );
-        }
-
-        const transactionBlock = new TransactionBlock();
-        transactionBlock.moveCall({
-          target: `${packageId}::setup::complete`,
-          arguments: [
-            transactionBlock.object(deployerCapObjectId),
-            transactionBlock.object(upgradeCapObjectId),
-            transactionBlock.pure(governanceChainId),
-            transactionBlock.pure([...Buffer.from(governanceContract, "hex")]),
-            transactionBlock.pure([[...Buffer.from(initialGuardian, "hex")]]),
-            transactionBlock.pure(365 * 24 * 60 * 60), // Guardian set TTL in seconds
-            transactionBlock.pure("0"), // Message fee
-          ],
-        });
-        const res = await executeTransactionBlock(signer, transactionBlock);
 
         logTransactionDigest(res);
-        logTransactionSender(res);
         console.log(
           "Wormhole state object ID",
           getCreatedObjects(res).find((e) =>
             isSameType(e.type, `${packageId}::state::State`)
           ).objectId
         );
+        if (debug) {
+          logTransactionSender(res);
+        }
       }
     );
+
+export const initExampleApp = async (
+  network: Network,
+  packageId: string,
+  wormholeStateObjectId: string,
+  rpc?: string,
+  privateKey?: string
+): Promise<SuiTransactionBlockResponse> => {
+  rpc = rpc ?? NETWORKS[network].sui.rpc;
+  const provider = getProvider(network, rpc);
+  const signer = getSigner(provider, network, privateKey);
+
+  const transactionBlock = new TransactionBlock();
+  transactionBlock.moveCall({
+    target: `${packageId}::sender::init_with_params`,
+    arguments: [transactionBlock.object(wormholeStateObjectId)],
+  });
+  return executeTransactionBlock(signer, transactionBlock);
+};
+
+export const initTokenBridge = async (
+  network: Network,
+  packageId: string,
+  wormholeStateObjectId: string,
+  rpc?: string,
+  privateKey?: string
+): Promise<SuiTransactionBlockResponse> => {
+  rpc = rpc ?? NETWORKS[network].sui.rpc;
+  const provider = getProvider(network, rpc);
+  const signer = getSigner(provider, network, privateKey);
+  const owner = await signer.getAddress();
+
+  const deployerCapObjectId = await getOwnedObjectId(
+    provider,
+    owner,
+    packageId,
+    "setup",
+    "DeployerCap"
+  );
+  if (!deployerCapObjectId) {
+    throw new Error(
+      `Token bridge cannot be initialized because deployer capability cannot be found under ${owner}. Is the package published?`
+    );
+  }
+
+  const upgradeCapObjectId = await getUpgradeCapObjectId(
+    provider,
+    owner,
+    packageId
+  );
+  if (!upgradeCapObjectId) {
+    throw new Error(
+      `Token bridge cannot be initialized because upgrade capability cannot be found under ${owner}. Is the package published?`
+    );
+  }
+
+  const transactionBlock = new TransactionBlock();
+  transactionBlock.moveCall({
+    target: `${packageId}::setup::complete`,
+    arguments: [
+      transactionBlock.object(wormholeStateObjectId),
+      transactionBlock.object(deployerCapObjectId),
+      transactionBlock.object(upgradeCapObjectId),
+    ],
+  });
+  return executeTransactionBlock(signer, transactionBlock);
+};
+
+export const initWormhole = async (
+  network: Network,
+  packageId: string,
+  initialGuardian: string,
+  governanceChainId: number,
+  governanceContract: string,
+  rpc?: string,
+  privateKey?: string
+): Promise<SuiTransactionBlockResponse> => {
+  rpc = rpc ?? NETWORKS[network].sui.rpc;
+  const provider = getProvider(network, rpc);
+  const signer = getSigner(provider, network, privateKey);
+  const owner = await signer.getAddress();
+
+  const deployerCapObjectId = await getOwnedObjectId(
+    provider,
+    owner,
+    packageId,
+    "setup",
+    "DeployerCap"
+  );
+  if (!deployerCapObjectId) {
+    throw new Error(
+      `Wormhole cannot be initialized because deployer capability cannot be found under ${owner}. Is the package published?`
+    );
+  }
+
+  const upgradeCapObjectId = await getUpgradeCapObjectId(
+    provider,
+    owner,
+    packageId
+  );
+  if (!upgradeCapObjectId) {
+    throw new Error(
+      `Wormhole cannot be initialized because upgrade capability cannot be found under ${owner}. Is the package published?`
+    );
+  }
+
+  const transactionBlock = new TransactionBlock();
+  transactionBlock.moveCall({
+    target: `${packageId}::setup::complete`,
+    arguments: [
+      transactionBlock.object(deployerCapObjectId),
+      transactionBlock.object(upgradeCapObjectId),
+      transactionBlock.pure(governanceChainId),
+      transactionBlock.pure([...Buffer.from(governanceContract, "hex")]),
+      transactionBlock.pure([[...Buffer.from(initialGuardian, "hex")]]),
+      transactionBlock.pure(365 * 24 * 60 * 60), // Guardian set TTL in seconds
+      transactionBlock.pure("0"), // Message fee
+    ],
+  });
+  return executeTransactionBlock(signer, transactionBlock);
+};

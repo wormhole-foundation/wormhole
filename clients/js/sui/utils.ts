@@ -10,6 +10,7 @@ import {
   SuiTransactionBlockResponse,
   TransactionBlock,
   fromB64,
+  getPublishedObjectChanges,
   normalizeSuiAddress,
 } from "@mysten/sui.js";
 import { CONTRACTS } from "../consts";
@@ -311,6 +312,20 @@ export const getProvider = (
   }
 
   return new JsonRpcProvider(new Connection({ fullnode: rpc }));
+};
+
+export const getPublishedPackageId = (
+  res: SuiTransactionBlockResponse
+): string => {
+  const publishEvents = getPublishedObjectChanges(res);
+  if (publishEvents.length !== 1) {
+    throw new Error(
+      "Unexpected number of publish events found:" +
+        JSON.stringify(publishEvents, null, 2)
+    );
+  }
+
+  return publishEvents[0].packageId;
 };
 
 export const getSigner = (
