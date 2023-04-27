@@ -9,6 +9,18 @@
     {
       "chainId": 14,
       "address": "0x6dbD445119F3Afa6F4d14e400B23fBF67965cE78"
+    },
+    {
+      "chainId": 4,
+      "address": "0x267b6Bb01EF1e3Ea20589702F021759C8607794f"
+    },
+    {
+      "chainId": 5,
+      "address": "0xBB6C77Bf624DEEbC427EaEcbafAea43CC7461b9b"
+    },
+    {
+      "chainId": 16,
+      "address": "0x4695f5Ab9320831524624B734aE21F433558335c"
     }
   ],
   "coreRelayers": [
@@ -19,6 +31,18 @@
     {
       "chainId": 14,
       "address": "0xF08B7c0CFf448174a7007CF5f12023C72C0e84f0"
+    },
+    {
+      "chainId": 4,
+      "address": "0x6Bf598B0eb6aef9B163565763Fe50e54d230eD4E"
+    },
+    {
+      "chainId": 5,
+      "address": "0x0c97Ef9C224b7EB0BA5e4A9fd2740EC3AeAfc9c3"
+    },
+    {
+      "chainId": 16,
+      "address": "0xd20d484eC6c57448d6871F91F4527260FD4aC141"
     }
   ],
   "mockIntegrations": [
@@ -29,16 +53,40 @@
     {
       "chainId": 14,
       "address": "0x01A4da7BA839E7afA4BF24568B18D852472Fc6e5"
+    },
+    {
+      "chainId": 4,
+      "address": "0x259b4f3044EaDdBDB10a6FA11A9A82FCc59557C8"
+    },
+    {
+      "chainId": 5,
+      "address": "0x0b73F1c34E940F19565F0D07a27cF099Dd9C1d1B"
+    },
+    {
+      "chainId": 16,
+      "address": "0x8a53ba4fbFb09bD5aA79E9b300BBA7E38FC59907"
     }
   ],
   "create2Factories": [
     {
       "chainId": 6,
-      "address": "0xBD49c3FEd4d972D2125D6B12DaA93881E92eaA2d"
+      "address": "0xcED98aD92F3De95d9eC1951187d4C1129FcB1C9D"
     },
     {
       "chainId": 14,
-      "address": "0x030005bA700CE16b13c249B8029fc7d8f4e0b134"
+      "address": "0x983a9d38289a4917Af8e4d7dcFDd1e0D7ADAf19B"
+    },
+    {
+      "chainId": 4,
+      "address": "0x2d68Cc9E3EcBA28B91c23413168e55759Afc7Ad6"
+    },
+    {
+      "chainId": 5,
+      "address": "0xeB724fbC5961b3eD1d85b1A4f5Be0132548f2196"
+    },
+    {
+      "chainId": 16,
+      "address": "0xCD0A5e79fa374d6FCb85Db2A91ED2F336f89c387"
     }
   ]
 }

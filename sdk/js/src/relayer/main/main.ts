@@ -9,12 +9,13 @@ import {
   ethers_contracts
 } from "../../";
 import { BigNumber, ethers } from "ethers";
-import { getWormholeRelayerAddress } from "../consts";
+import { getWormholeRelayer, getWormholeRelayerAddress } from "../consts";
 import {
   RelayerPayloadId,
   DeliveryInstruction,
   VaaKeyType,
   DeliveryStatus,
+  VaaKey,
 } from "../structs";
 import {
   getDefaultProvider,
@@ -23,6 +24,7 @@ import {
   parseWormholeLog,
   getBlockRange,
   getWormholeRelayerDeliveryEventsBySourceSequence,
+  vaaKeyToVaaKeyStruct,
 } from "./helpers";
 import { IWormholeRelayer } from "../../ethers-contracts";
 
@@ -55,6 +57,7 @@ export type DeliveryInfo = {
 export function printWormholeRelayerInfo(info: DeliveryInfo) {
   console.log(stringifyWormholeRelayerInfo(info));
 }
+
 export function stringifyWormholeRelayerInfo(info: DeliveryInfo): string {
   let stringifiedInfo = "";
   if (info.type == RelayerPayloadId.Delivery) {
@@ -297,7 +300,7 @@ export async function getWormholeRelayerInfo(
   };
 
   return {
-    type,
+    type: RelayerPayloadId.Delivery,
     sourceChainId: sourceChain,
     sourceTransactionHash: sourceTransaction,
     sourceDeliverySequenceNumber: BigNumber.from(
@@ -306,4 +309,31 @@ export async function getWormholeRelayerInfo(
     deliveryInstruction: instruction,
     targetChainStatus,
   };
+}
+
+export async function resendRaw(
+  signer: ethers.Signer,
+  sourceChain: ChainId,
+  targetChain: ChainId,
+  environment: Network,
+  vaaKey: VaaKey,
+  newMaxTransactionFee: BigNumber | number,
+  newReceiverValue: BigNumber | number,
+  relayProviderAddress: string,
+  overrides?: ethers.PayableOverrides
+) {
+  const provider = signer.provider;
+
+  if (!provider) throw Error("No provider on signer");
+
+  const coreRelayer = getWormholeRelayer(sourceChain, environment, signer);
+
+  return coreRelayer.resend(
+    vaaKeyToVaaKeyStruct(vaaKey),
+    newMaxTransactionFee,
+    newReceiverValue,
+    targetChain,
+    relayProviderAddress,
+    overrides
+  );
 }

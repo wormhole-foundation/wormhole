@@ -21,15 +21,39 @@ interface IWormholeRelayerInstructionParser {
         bytes payload;
     }
 
+    struct RedeliveryInstruction {
+        IWormholeRelayer.VaaKey key;
+        uint256 newMaximumRefundTarget;
+        uint256 newReceiverValueTarget;
+        bytes32 sourceRelayProvider;
+        ExecutionParameters executionParameters;
+    }
+
     struct ExecutionParameters {
         uint8 version;
         uint32 gasLimit;
+    }
+
+    struct DeliveryOverride {
+        uint32 gasLimit;
+        uint256 maximumRefund;
+        uint256 receiverValue;
+        bytes32 redeliveryHash;
     }
 
     function decodeDeliveryInstruction(bytes memory encoded)
         external
         pure
         returns (DeliveryInstruction memory);
+
+    function decodeRedeliveryInstruction(bytes memory encoded) 
+        external
+        pure
+        returns (RedeliveryInstruction memory);
+
+    function encodeDeliveryOverride(DeliveryOverride memory request) external pure returns (bytes memory encoded);
+
+    function decodeDeliveryOverride(bytes memory encoded) external pure returns (DeliveryOverride memory output);
 
     function toWormholeFormat(address addr) external pure returns (bytes32 whFormat);
 
