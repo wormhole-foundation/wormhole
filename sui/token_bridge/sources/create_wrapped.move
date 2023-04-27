@@ -155,7 +155,7 @@ module token_bridge::create_wrapped {
         // call performs an additional check of whether `WrappedAssetSetup` was
         // created using the current package.
         let latest_only =
-            state::cache_latest_only_specified<Version>(token_bridge_state);
+            state::assert_latest_only_specified<Version>(token_bridge_state);
 
         let WrappedAssetSetup {
             id,
@@ -191,7 +191,7 @@ module token_bridge::create_wrapped {
         msg: TokenBridgeMessage
     ) {
         // This capability ensures that the current build version is used.
-        let latest_only = state::cache_latest_only(token_bridge_state);
+        let latest_only = state::assert_latest_only(token_bridge_state);
 
         // Deserialize to `AssetMeta`.
         let token_meta = asset_meta::deserialize(vaa::take_payload(msg));

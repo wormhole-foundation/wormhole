@@ -46,7 +46,7 @@ module token_bridge::migrate {
         state::migrate_version(token_bridge_state);
 
         // This capability ensures that the current build version is used.
-        let latest_only = state::cache_latest_only(token_bridge_state);
+        let latest_only = state::assert_latest_only(token_bridge_state);
 
         // Check if build digest is the current one.
         let digest =

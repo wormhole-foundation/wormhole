@@ -47,7 +47,7 @@ module token_bridge::register_chain {
         ExternalAddress
     ) {
         // This capability ensures that the current build version is used.
-        let latest_only = state::cache_latest_only(token_bridge_state);
+        let latest_only = state::assert_latest_only(token_bridge_state);
 
         let payload =
             governance_message::take_payload(
@@ -125,7 +125,7 @@ module token_bridge::register_chain {
         contract_address: ExternalAddress
     ) {
         // This capability ensures that the current build version is used.
-        let latest_only = state::cache_latest_only(token_bridge_state);
+        let latest_only = state::assert_latest_only(token_bridge_state);
 
         register_new_emitter(
             &latest_only,

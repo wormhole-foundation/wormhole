@@ -111,7 +111,7 @@ module wormhole::publish_message {
         the_clock: &Clock
     ): u64 {
         // This capability ensures that the current build version is used.
-        let latest_only = state::cache_latest_only(wormhole_state);
+        let latest_only = state::assert_latest_only(wormhole_state);
 
         // Deposit `message_fee`. This method interacts with the `FeeCollector`,
         // which will abort if `message_fee` does not equal the collector's

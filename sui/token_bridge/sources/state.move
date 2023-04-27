@@ -170,7 +170,7 @@ module token_bridge::state {
     public fun borrow_mut_token_registry_test_only(
         self: &mut State
     ): &mut TokenRegistry {
-        borrow_mut_token_registry(&cache_latest_only(self), self)
+        borrow_mut_token_registry(&assert_latest_only(self), self)
     }
 
     #[test_only]
@@ -214,7 +214,7 @@ module token_bridge::state {
     ///
     /// NOTE: This method allows caching the current version check so we avoid
     /// multiple checks to dynamic fields.
-    public(friend) fun cache_latest_only(self: &State): LatestOnly {
+    public(friend) fun assert_latest_only(self: &State): LatestOnly {
         package_utils::assert_version(
             &self.id,
             version_control::current_version()
@@ -231,7 +231,7 @@ module token_bridge::state {
     ///
     /// NOTE: This method allows caching the current version check so we avoid
     /// multiple checks to dynamic fields.
-    public(friend) fun cache_latest_only_specified<Version>(
+    public(friend) fun assert_latest_only_specified<Version>(
         self: &State
     ): LatestOnly {
         use std::type_name::{get};
@@ -241,13 +241,7 @@ module token_bridge::state {
             package_utils::type_of_version(version_control::current_version());
         assert!(current_type == get<Version>(), E_VERSION_MISMATCH);
 
-        cache_latest_only(self)
-    }
-
-    /// A more expressive method to enforce that the current build version is
-    /// used.
-    public(friend) fun assert_latest_only(self: &State) {
-        cache_latest_only(self);
+        assert_latest_only(self)
     }
 
     /// Store `VAA` hash as a way to claim a VAA. This method prevents a VAA

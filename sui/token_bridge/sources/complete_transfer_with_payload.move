@@ -86,7 +86,7 @@ module token_bridge::complete_transfer_with_payload {
         ctx: &mut TxContext
     ): RedeemerReceipt<CoinType> {
         // This capability ensures that the current build version is used.
-        let latest_only = state::cache_latest_only(token_bridge_state);
+        let latest_only = state::assert_latest_only(token_bridge_state);
 
         // Emitting the transfer being redeemed.
         //

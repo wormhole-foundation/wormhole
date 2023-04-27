@@ -74,7 +74,7 @@ module wormhole::migrate {
             );
 
         // This capability ensures that the current build version is used.
-        let latest_only = state::cache_latest_only(wormhole_state);
+        let latest_only = state::assert_latest_only(wormhole_state);
 
         // Check if build digest is the current one.
         let digest =

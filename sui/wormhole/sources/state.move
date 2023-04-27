@@ -125,7 +125,7 @@ module wormhole::state {
 
         // Store the initial guardian set.
         add_new_guardian_set(
-            &cache_latest_only(&state),
+            &assert_latest_only(&state),
             &mut state,
             guardian_set::new(guardian_set_index, initial_guardians)
         );
@@ -204,12 +204,12 @@ module wormhole::state {
 
     #[test_only]
     public fun cache_latest_only_test_only(self: &State): LatestOnly {
-        cache_latest_only(self)
+        assert_latest_only(self)
     }
 
     #[test_only]
     public fun deposit_fee_test_only(self: &mut State, fee: Balance<SUI>) {
-        deposit_fee(&cache_latest_only(self), self, fee)
+        deposit_fee(&assert_latest_only(self), self, fee)
     }
 
     #[test_only]
@@ -252,19 +252,13 @@ module wormhole::state {
     ///
     /// NOTE: This method allows caching the current version check so we avoid
     /// multiple checks to dynamic fields.
-    public(friend) fun cache_latest_only(self: &State): LatestOnly {
+    public(friend) fun assert_latest_only(self: &State): LatestOnly {
         package_utils::assert_version(
             &self.id,
             version_control::current_version()
         );
 
         LatestOnly {}
-    }
-
-    /// A more expressive method to enforce that the current build version is
-    /// used.
-    public(friend) fun assert_latest_only(self: &State) {
-        cache_latest_only(self);
     }
 
     /// Deposit fee when sending Wormhole message. This method does not
