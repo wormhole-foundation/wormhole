@@ -326,7 +326,7 @@ module token_bridge::transfer_token_tests {
     use token_bridge::token_registry::{Self};
     use token_bridge::transfer::{Self};
     use token_bridge::transfer_tokens::{Self};
-    use token_bridge::version_control::{V__0_1_0};
+    use token_bridge::version_control::{V__0_1_1};
     use token_bridge::wrapped_asset::{Self};
 
     /// Test consts.
@@ -622,7 +622,7 @@ module token_bridge::transfer_token_tests {
         // Register and mint coins.
         let transfer_amount = 42069000;
         let coin_7_balance =
-            coin_wrapped_7::init_register_and_mint<V__0_1_0>(
+            coin_wrapped_7::init_register_and_mint<V__0_1_1>(
                 scenario,
                 sender,
                 transfer_amount
@@ -707,7 +707,7 @@ module token_bridge::transfer_token_tests {
         let transfer_amount = 6942000;
         let bridged_coin_7 =
             coin::from_balance(
-                coin_wrapped_7::init_register_and_mint<V__0_1_0>(
+                coin_wrapped_7::init_register_and_mint<V__0_1_1>(
                     scenario,
                     sender,
                     transfer_amount
@@ -867,7 +867,7 @@ module token_bridge::transfer_token_tests {
         coin_native_10::init_test_only(test_scenario::ctx(scenario));
 
         let treasury_cap =
-            coin_wrapped_7::init_and_take_treasury_cap<V__0_1_0>(
+            coin_wrapped_7::init_and_take_treasury_cap<V__0_1_1>(
                 scenario,
                 sender
             );
@@ -1038,7 +1038,7 @@ module token_bridge::transfer_token_tests {
         // this build.
         state::migrate_version_test_only(
             &mut token_bridge_state,
-            token_bridge::version_control::dummy(),
+            token_bridge::version_control::previous_version_test_only(),
             token_bridge::version_control::next_version()
         );
 

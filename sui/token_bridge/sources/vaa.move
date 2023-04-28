@@ -336,7 +336,7 @@ module token_bridge::vaa_tests {
         // this build.
         state::migrate_version_test_only(
             &mut token_bridge_state,
-            token_bridge::version_control::dummy(),
+            token_bridge::version_control::previous_version_test_only(),
             token_bridge::version_control::next_version()
         );
 
