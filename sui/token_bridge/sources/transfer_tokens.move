@@ -837,16 +837,14 @@ module token_bridge::transfer_token_tests {
             );
         coin::destroy_zero(dust);
 
-        // Call `transfer_tokens`.
+        // You shall not pass!
         let prepared_msg =
             transfer_tokens(&mut token_bridge_state, ticket);
 
         // Clean up.
         publish_message::destroy(prepared_msg);
-        return_state(token_bridge_state);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -907,16 +905,14 @@ module token_bridge::transfer_token_tests {
             );
         coin::destroy_zero(dust);
 
-        // Call `transfer_tokens`.
+        // You shall not pass!
         let prepared_msg =
             transfer_tokens(&mut token_bridge_state, ticket);
 
         // Clean up.
         publish_message::destroy(prepared_msg);
-        return_state(token_bridge_state);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -972,16 +968,14 @@ module token_bridge::transfer_token_tests {
             );
         coin::destroy_zero(dust);
 
-        // Call `transfer_tokens`.
+        // You shall not pass!
         let prepared_msg =
             transfer_tokens(&mut token_bridge_state, ticket);
 
         // Done.
         publish_message::destroy(prepared_msg);
-        return_state(token_bridge_state);
 
-        // Clean up.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -1054,9 +1048,7 @@ module token_bridge::transfer_token_tests {
 
         // Clean up.
         publish_message::destroy(prepared_msg);
-        return_state(token_bridge_state);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 }

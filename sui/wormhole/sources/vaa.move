@@ -276,9 +276,6 @@ module wormhole::vaa {
     /// deserializing the VAA message body. Even though `ecdsa_k1` hashes a
     /// raw message (as of version 0.28), the "raw message" in this case is a
     /// single keccak256 hash of the VAA message body.
-    ///
-    /// TODO: rename `message_hash` to `raw_message` when `ecdsa_k1` changes in
-    /// Sui version 0.28.
     fun verify_signatures(
         set: &GuardianSet,
         signatures: vector<GuardianSignature>,
@@ -668,11 +665,8 @@ module wormhole::vaa_tests {
 
         // Clean up.
         vaa::destroy(verified_vaa);
-        return_state(worm_state);
-        return_clock(the_clock);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -702,11 +696,8 @@ module wormhole::vaa_tests {
 
         // Clean up.
         vaa::destroy(verified_vaa);
-        return_state(worm_state);
-        return_clock(the_clock);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -743,11 +734,8 @@ module wormhole::vaa_tests {
 
         // Clean up.
         vaa::destroy(verified_vaa);
-        return_state(worm_state);
-        return_clock(the_clock);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -788,10 +776,7 @@ module wormhole::vaa_tests {
 
         // Clean up.
         vaa::destroy(verified_vaa);
-        return_state(worm_state);
-        return_clock(the_clock);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 }

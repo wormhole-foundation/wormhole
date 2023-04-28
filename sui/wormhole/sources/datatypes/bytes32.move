@@ -107,17 +107,11 @@ module wormhole::bytes32 {
     }
 
     /// Destroy `Bytes32` to represent its underlying data as `address`.
-    ///
-    /// TODO: Remove bytes20 dependency because native Sui addresses will be
-    /// 32 bytes instead of 20 bytes in Sui version 0.28.
     public fun to_address(value: Bytes32): address {
         sui::address::from_bytes(to_bytes(value))
     }
 
     /// Create `Bytes32` from `address`.
-    ///
-    /// TODO: Remove bytes20 dependency because native Sui addresses will be
-    /// 32 bytes instead of 20 bytes in Sui version 0.28.
     public fun from_address(addr: address): Bytes32 {
         new(sui::address::to_bytes(addr))
     }

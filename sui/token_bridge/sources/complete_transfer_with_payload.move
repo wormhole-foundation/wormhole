@@ -529,12 +529,9 @@ module token_bridge::complete_transfer_with_payload_tests {
         ) = redeem_coin(&emitter_cap, receipt);
 
         // Clean up.
-        return_state(token_bridge_state);
         coin::burn_for_testing(bridged_out);
-        emitter::destroy_test_only(emitter_cap);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -692,12 +689,9 @@ module token_bridge::complete_transfer_with_payload_tests {
             );
 
         // Clean up.
-        return_state(token_bridge_state);
         complete_transfer_with_payload::burn(receipt);
-        emitter::destroy_test_only(emitter_cap);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -775,11 +769,8 @@ module token_bridge::complete_transfer_with_payload_tests {
             );
 
         // Clean up.
-        return_state(token_bridge_state);
         complete_transfer_with_payload::burn(receipt);
-        emitter::destroy_test_only(emitter_cap);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 }

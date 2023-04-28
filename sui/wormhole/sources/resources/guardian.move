@@ -37,9 +37,6 @@ module wormhole::guardian {
     /// Verify that the recovered public key (using `ecrecover`) equals the one
     /// that exists for this Guardian with an elliptic curve signature and raw
     /// message that was signed.
-    ///
-    /// TODO: rename `message_hash` to `raw_message` when `ecdsa_k1` changes in
-    /// Sui version 0.28.
     public fun verify(
         self: &Guardian,
         signature: GuardianSignature,

@@ -35,8 +35,8 @@ module token_bridge::native_asset {
 
     /// Create new `NativeAsset`.
     ///
-    /// TODO: Take ID from `CoinMetadata` for token address. Remove
-    /// `token_address` argument.
+    /// NOTE: The canonical token address is determined by the coin metadata's
+    /// object ID.
     public(friend) fun new<C>(metadata: &CoinMetadata<C>): NativeAsset<C> {
         NativeAsset {
             custody: balance::zero(),

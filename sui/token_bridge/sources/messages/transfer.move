@@ -257,5 +257,7 @@ module token_bridge::transfer_tests {
 
         // Clean up.
         transfer::destroy(parsed);
+
+        abort 42
     }
 }

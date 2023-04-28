@@ -4,25 +4,25 @@
 /// wrapped (foreign) asset, whose metadata is encoded in a VAA sent from
 /// another network.
 ///
-/// TODO: revise these
 /// Wrapped assets are created in two steps.
-///   1. `prepare_registration`: This method creates a new `TreasuryCap` for a given
-///      coin type and wraps an encoded asset metadata VAA. We require a one-
-///      time witness (OTW) because we only want one `TreasuryCap` for a given coin
-///      type. This coin will be published using this method, meaning the `init`
-///      method in that package will have the asset metadata VAA hard-coded
-///      (which is passed into `prepare_registration` as one of its arguments).
-///      A `WrappedAssetSetup` object is transferred to the transaction sender.
+///   1. `prepare_registration`: This method creates a new `TreasuryCap` for a
+///      given coin type and wraps an encoded asset metadata VAA. We require a
+///      one-time witness (OTW) even though it is redundant with what
+///      `create_currency` requires to throw an explicit error. This coin will
+///      be published using this method, meaning the `init` method in that
+///      untrusted package will have the asset's decimals hard-coded for its
+///      coin metadata. A `WrappedAssetSetup` object is transferred to the
+///      transaction sender.
 ///   2. `complete_registration`: This method destroys the `WrappedAssetSetup`
-///      object by unpacking its members. The encoded asset metadata VAA is
-///      deserialized and moved (along with the `TreasuryCap`) to the state module
-///      to create `ForeignInfo`.
+///      object by unpacking its `TreasuryCap`, which will be warehoused in the
+///      `TokenRegistry`. The shared coin metadata object will be updated to
+///      reflect the contents of the encoded asset metadata payload.
 ///
 /// Wrapped asset metadata can also be updated with a new asset metadata VAA.
 /// By calling `update_attestation`, Token Bridge verifies that the specific
 /// coin type is registered and agrees with the encoded asset metadata's
-/// canonical token info. `ForeignInfo` will be updated based on the encoded
-/// asset metadata payload.
+/// canonical token info. `ForeignInfo` and the coin's metadata will be updated
+/// based on the encoded asset metadata payload.
 ///
 /// See `state` and `wrapped_asset` modules for more details.
 ///
@@ -304,6 +304,8 @@ module token_bridge::create_wrapped_tests {
 
         // Clean up.
         test_utils::destroy(wrapped_asset_setup);
+
+        abort 42
     }
 
     #[test]
@@ -324,6 +326,8 @@ module token_bridge::create_wrapped_tests {
 
         // Clean up.
         test_utils::destroy(wrapped_asset_setup);
+
+        abort 42
     }
 
     #[test]
@@ -509,13 +513,7 @@ module token_bridge::create_wrapped_tests {
             msg
         );
 
-        test_scenario::return_shared(coin_meta);
-
-        // Clean up.
-        return_state(token_bridge_state);
-
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -567,12 +565,7 @@ module token_bridge::create_wrapped_tests {
             msg
         );
 
-        // Clean up.
-        return_state(token_bridge_state);
-        test_scenario::return_shared(coin_meta);
-
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -628,6 +621,7 @@ module token_bridge::create_wrapped_tests {
             token_bridge::version_control::next_version()
         );
 
+        // You shall not pass!
         create_wrapped::complete_registration(
             &mut token_bridge_state,
             &mut coin_meta,
@@ -636,11 +630,6 @@ module token_bridge::create_wrapped_tests {
             msg
         );
 
-        // Clean up.
-        return_state(token_bridge_state);
-        test_scenario::return_shared(coin_meta);
-
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 }

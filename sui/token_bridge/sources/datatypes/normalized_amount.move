@@ -162,7 +162,6 @@ module token_bridge::normalized_amount_test {
         // You shall not pass!
         normalized_amount::take_bytes(&mut cur);
 
-        // Clean up.
-        cursor::destroy_empty(cur);
+        abort 42
     }
 }

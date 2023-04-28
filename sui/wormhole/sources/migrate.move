@@ -9,11 +9,16 @@
 /// required minimum version.
 module wormhole::migrate {
     use sui::clock::{Clock};
+    use sui::object::{ID};
 
     use wormhole::governance_message::{Self};
     use wormhole::state::{Self, State};
     use wormhole::upgrade_contract::{Self};
     use wormhole::vaa::{Self};
+
+    struct MigrateComplete has drop, copy {
+        package: ID
+    }
 
     /// Execute migration logic. See `wormhole::migrate` description for more
     /// info.
@@ -81,8 +86,12 @@ module wormhole::migrate {
             upgrade_contract::take_digest(
                 governance_message::payload(&receipt)
             );
-        state::assert_current_digest(&latest_only, wormhole_state, digest);
+        state::assert_authorized_digest(&latest_only, wormhole_state, digest);
         governance_message::destroy(receipt);
+
+        // Finally emit an event reflecting a successful migrate.
+        let package = state::current_package(wormhole_state);
+        sui::event::emit(MigrateComplete { package });
     }
 }
 
@@ -136,6 +145,10 @@ module wormhole::migrate_tests {
         // this build.
         migrate(&mut worm_state, UPGRADE_VAA, &the_clock);
 
+        // Make sure we emitted an event.
+        let effects = test_scenario::next_tx(scenario, user);
+        assert!(test_scenario::num_user_events(&effects) == 1, 0);
+
         // Clean up.
         return_state(worm_state);
         return_clock(the_clock);
@@ -177,14 +190,13 @@ module wormhole::migrate_tests {
         // this build.
         migrate(&mut worm_state, UPGRADE_VAA, &the_clock);
 
+        // Make sure we emitted an event.
+        let effects = test_scenario::next_tx(scenario, user);
+        assert!(test_scenario::num_user_events(&effects) == 1, 0);
+
         // You shall not pass!
         migrate(&mut worm_state, UPGRADE_VAA, &the_clock);
 
-        // Clean up.
-        return_state(worm_state);
-        return_clock(the_clock);
-
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 }

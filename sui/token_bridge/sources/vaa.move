@@ -182,10 +182,8 @@ module token_bridge::vaa_tests {
 
         // Clean up.
         vaa::destroy(msg);
-        return_state(token_bridge_state);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -225,10 +223,8 @@ module token_bridge::vaa_tests {
 
         // Clean up.
         vaa::destroy(msg);
-        return_state(token_bridge_state);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -305,10 +301,8 @@ module token_bridge::vaa_tests {
 
         // Clean up.
         vaa::destroy(msg);
-        return_state(token_bridge_state);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -351,10 +345,8 @@ module token_bridge::vaa_tests {
 
         // Clean up.
         vaa::destroy(msg);
-        return_state(token_bridge_state);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
 }

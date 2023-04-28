@@ -346,5 +346,7 @@ module token_bridge::transfer_with_payload_tests {
 
         // Clean up.
         transfer_with_payload::destroy(parsed);
+
+        abort 42
     }
 }

@@ -7,9 +7,8 @@
 /// checking the emitter against its own registered emitters.
 module token_bridge::state {
     use std::option::{Self, Option};
-    use sui::dynamic_field::{Self as field};
     use sui::object::{Self, ID, UID};
-    use sui::package::{Self, UpgradeCap, UpgradeReceipt, UpgradeTicket};
+    use sui::package::{UpgradeCap, UpgradeReceipt, UpgradeTicket};
     use sui::table::{Self, Table};
     use sui::tx_context::{TxContext};
     use wormhole::bytes32::{Self, Bytes32};
@@ -40,9 +39,6 @@ module token_bridge::state {
     friend token_bridge::transfer_tokens_with_payload;
     friend token_bridge::upgrade_contract;
     friend token_bridge::vaa;
-
-    /// TODO: write something meaningful here
-    struct CurrentDigest has store, drop, copy {}
 
     /// Capability reflecting that the current build version is used to invoke
     /// state methods.
@@ -101,8 +97,10 @@ module token_bridge::state {
             version_control::current_version()
         );
 
-        // Add dummy hash since this is the first time the package is published.
-        field::add(&mut state.id, CurrentDigest {}, bytes32::default());
+        // Initialize package info. This will be used for emitting information
+        // of successful migrations.
+        let upgrade_cap = &state.upgrade_cap;
+        package_utils::init_package_info(&mut state.id, upgrade_cap);
 
         state
     }
@@ -170,6 +168,10 @@ module token_bridge::state {
         token_registry::coin_decimals(&verified_asset<CoinType>(self))
     }
 
+    public fun current_package(self: &State): ID {
+        package_utils::current_package(&self.id)
+    }
+
     #[test_only]
     public fun borrow_mut_token_registry_test_only(
         self: &mut State
@@ -183,7 +185,7 @@ module token_bridge::state {
         old_version: Old,
         new_version: New
     ) {
-        wormhole::package_utils::update_version_type<Old, New>(
+        wormhole::package_utils::update_version_type_test_only(
             &mut self.id,
             old_version,
             new_version
@@ -194,8 +196,17 @@ module token_bridge::state {
     public fun test_upgrade(self: &mut State) {
         let test_digest = bytes32::from_bytes(b"new build");
         let ticket = authorize_upgrade(self, test_digest);
-        let receipt = package::test_upgrade(ticket);
+        let receipt = sui::package::test_upgrade(ticket);
         commit_upgrade(self, receipt);
+    }
+
+    #[test_only]
+    public fun reverse_migrate_version(self: &mut State) {
+        package_utils::update_version_type_test_only(
+            &mut self.id,
+            version_control::current_version(),
+            version_control::dummy()
+        );
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -320,27 +331,10 @@ module token_bridge::state {
     /// specifically `PackageIDDoesNotMatch`.
     public(friend) fun authorize_upgrade(
         self: &mut State,
-        implementation_digest: Bytes32
+        package_digest: Bytes32
     ): UpgradeTicket {
-        // Save current package ID before committing upgrade.
-        field::add(
-            &mut self.id,
-            b"current_package_id",
-            package::upgrade_package(&self.upgrade_cap)
-        );
-
-        let policy = package::upgrade_policy(&self.upgrade_cap);
-
-        // Manage saving the current digest.
-        let _: Bytes32 = field::remove(&mut self.id, CurrentDigest {});
-        field::add(&mut self.id, CurrentDigest {}, implementation_digest);
-
-        // Finally authorize upgrade.
-        package::authorize_upgrade(
-            &mut self.upgrade_cap,
-            policy,
-            bytes32::to_bytes(implementation_digest),
-        )
+        let cap = &mut self.upgrade_cap;
+        package_utils::authorize_upgrade(&mut self.id, cap, package_digest)
     }
 
     /// Finalize the upgrade that ran to produce the given `receipt`.
@@ -353,53 +347,29 @@ module token_bridge::state {
         self: &mut State,
         receipt: UpgradeReceipt
     ): (ID, ID) {
-        // Uptick the upgrade cap version number using this receipt.
-        package::commit_upgrade(&mut self.upgrade_cap, receipt);
-
-        // We require that a `MigrateTicket` struct be destroyed as the final
-        // step to an upgrade by calling `migrate` from the `migrate` module.
-        //
-        // A separate method is required because `state` is a dependency of
-        // `migrate`. This method warehouses state modifications required
-        // for the new implementation plus enabling any methods required to be
-        // gated by the current implementation version. In most cases `migrate`
-        // is a no-op.
-        //
-        // The only case where this would fail is if `migrate` were not called
-        // from a previous upgrade.
-        //
-        // See `migrate` module for more info.
-
-        // Return the package IDs.
-        (
-            field::remove(&mut self.id, b"current_package_id"),
-            package::upgrade_package(&self.upgrade_cap)
-        )
+        let cap = &mut self.upgrade_cap;
+        package_utils::commit_upgrade(&mut self.id, cap, receipt)
     }
 
+    /// Method executed by the `migrate` module to roll access from one package
+    /// to another. This method will be called from the upgraded package.
     public(friend) fun migrate_version(self: &mut State) {
-        package_utils::update_version_type(
+        package_utils::migrate_version(
             &mut self.id,
             version_control::previous_version(),
             version_control::current_version()
         );
     }
 
-    public(friend) fun assert_current_digest(
+    /// As a part of the migration, we verify that the upgrade contract VAA's
+    /// encoded package digest used in `migrate` equals the one used to conduct
+    /// the upgrade.
+    public(friend) fun assert_authorized_digest(
         _: &LatestOnly,
         self: &State,
         digest: Bytes32
     ) {
-        let current = *field::borrow(&self.id, CurrentDigest {});
-        assert!(digest == current, E_INVALID_BUILD_DIGEST);
-    }
-
-    #[test_only]
-    public fun reverse_migrate_version(self: &mut State) {
-        package_utils::update_version_type(
-            &mut self.id,
-            version_control::current_version(),
-            version_control::dummy()
-        );
+        let authorized = package_utils::authorized_digest(&self.id);
+        assert!(digest == authorized, E_INVALID_BUILD_DIGEST);
     }
 }

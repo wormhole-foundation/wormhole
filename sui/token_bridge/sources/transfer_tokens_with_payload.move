@@ -807,10 +807,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
 
         // Clean up.
         publish_message::destroy(prepared_msg);
-        return_state(token_bridge_state);
-        emitter::destroy_test_only(emitter_cap);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 }

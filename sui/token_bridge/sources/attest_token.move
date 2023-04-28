@@ -330,11 +330,8 @@ module token_bridge::attest_token_tests {
 
         // Clean up.
         publish_message::destroy(prepared_msg);
-        return_state(token_bridge_state);
-        test_scenario::return_shared(coin_meta);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -384,10 +381,7 @@ module token_bridge::attest_token_tests {
 
         // Clean up.
         publish_message::destroy(prepared_msg);
-        return_state(token_bridge_state);
-        test_scenario::return_shared(coin_meta);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 }

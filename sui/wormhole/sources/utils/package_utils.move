@@ -5,8 +5,10 @@
 module wormhole::package_utils {
     use std::type_name::{Self, TypeName};
     use sui::dynamic_field::{Self as field};
-    use sui::object::{Self, UID};
-    use sui::package::{Self, UpgradeCap};
+    use sui::object::{Self, ID, UID};
+    use sui::package::{Self, UpgradeCap, UpgradeTicket, UpgradeReceipt};
+
+    use wormhole::bytes32::{Self, Bytes32};
 
     /// `UpgradeCap` is not from the same package as `T`.
     const E_INVALID_UPGRADE_CAP: u64 = 0;
@@ -21,8 +23,41 @@ module wormhole::package_utils {
     /// Version types must come from this module.
     const E_TYPE_NOT_ALLOWED: u64 = 5;
 
+    const PENDING_INFO: vector<u8> = b"pending_package_info";
+    const PENDING_DIGEST_KEY: vector<u8> = b"pending_digest";
+
     /// Key for version dynamic fields.
     struct CurrentVersion has store, drop, copy {}
+
+    /// Key for dynamic field reflecting current package info. Its value is
+    /// `PackageInfo`.
+    struct CurrentPackage has store, drop, copy {}
+    struct PendingPackage has store, drop, copy {}
+
+    struct PackageInfo has store, drop, copy {
+        package: ID,
+        digest: Bytes32
+    }
+
+    public fun current_package(id: &UID): ID {
+        let info: &PackageInfo = field::borrow(id, CurrentPackage {});
+        info.package
+    }
+
+    public fun current_digest(id: &UID): Bytes32 {
+        let info: &PackageInfo = field::borrow(id, CurrentPackage {});
+        info.digest
+    }
+
+    public fun committed_package(id: &UID): ID {
+        let info: &PackageInfo = field::borrow(id, PendingPackage {});
+        info.package
+    }
+
+    public fun authorized_digest(id: &UID): Bytes32 {
+        let info: &PackageInfo = field::borrow(id, PendingPackage {});
+        info.digest
+    }
 
     /// Convenience method that can be used with any package that requires
     /// `UpgradeCap` to have certain preconditions before it is considered
@@ -54,9 +89,113 @@ module wormhole::package_utils {
         );
     }
 
+    public fun assert_version<Version: store + drop>(
+        id: &UID,
+        _version: Version
+    ) {
+        assert!(
+            field::exists_with_type<CurrentVersion, Version>(
+                id,
+                CurrentVersion {}
+            ),
+            E_OUTDATED_VERSION
+        )
+    }
+
+    public fun init_version<Version: store>(id: &mut UID, version: Version) {
+        field::add(id, CurrentVersion {}, version);
+    }
+
+    public fun type_of_version<Version: drop>(_version: Version): TypeName {
+        type_name::get<Version>()
+    }
+
+    public fun init_package_info(id: &mut UID, upgrade_cap: &UpgradeCap) {
+        let info =
+            PackageInfo {
+                package: package::upgrade_package(upgrade_cap),
+                digest: bytes32::default()
+            };
+        field::add(id, CurrentPackage {}, info);
+
+        // Set placeholders for pending package and . We don't ever plan on removing
+        // this field.
+        field::add(
+            id,
+            PendingPackage {},
+            PackageInfo {
+                package: object::id_from_address(@0x0),
+                digest: bytes32::default()
+            }
+        );
+    }
+
+    public fun migrate_version<
+        Old: store + drop,
+        New: store + drop
+    >(
+        id: &mut UID,
+        old_version: Old,
+        new_version: New
+    ) {
+        update_version_type(id, old_version, new_version);
+
+        update_package_info_from_pending(id);
+    }
+
+    public fun update_package_info_from_pending(id: &mut UID) {
+        let pending: PackageInfo = *field::borrow(id, PendingPackage {});
+        *field::borrow_mut(id, CurrentPackage {}) = pending;
+    }
+
+    public fun authorize_upgrade(
+        id: &mut UID,
+        upgrade_cap: &mut UpgradeCap,
+        package_digest: Bytes32
+    ): UpgradeTicket {
+        let policy = package::upgrade_policy(upgrade_cap);
+
+        // Manage saving the current digest.
+        set_authorized_digest(id, package_digest);
+
+        // Finally authorize upgrade.
+        package::authorize_upgrade(
+            upgrade_cap,
+            policy,
+            bytes32::to_bytes(package_digest),
+        )
+    }
+
+    public fun commit_upgrade(
+        id: &mut UID,
+        upgrade_cap: &mut UpgradeCap,
+        receipt: UpgradeReceipt
+    ): (ID, ID) {
+        // Uptick the upgrade cap version number using this receipt.
+        package::commit_upgrade(upgrade_cap, receipt);
+
+        // Take the last pending package and replace it with the one now in
+        // the upgrade cap.
+        let previous_package = committed_package(id);
+        set_commited_package(id, upgrade_cap);
+
+        // Return the package IDs.
+        (previous_package, committed_package(id))
+    }
+
+    fun set_commited_package(id: &mut UID, upgrade_cap: &UpgradeCap) {
+        let info: &mut PackageInfo = field::borrow_mut(id, PendingPackage {});
+        info.package = package::upgrade_package(upgrade_cap);
+    }
+
+    fun set_authorized_digest(id: &mut UID, digest: Bytes32) {
+        let info: &mut PackageInfo = field::borrow_mut(id, PendingPackage {});
+        info.digest = digest;
+    }
+
     /// Update from version n to n+1. We enforce that the versions be kept in
     /// a module called "version_control".
-    public fun update_version_type<
+    fun update_version_type<
         Old: store + drop,
         New: store + drop
     >(
@@ -85,26 +224,18 @@ module wormhole::package_utils {
         field::add(id, CurrentVersion {}, new_version);
     }
 
-    public fun assert_version<Version: store + drop>(
-        id: &UID,
-        _version: Version
+    #[test_only]
+    public fun update_version_type_test_only<
+        Old: store + drop,
+        New: store + drop
+    >(
+        id: &mut UID,
+        old_version: Old,
+        new_version: New
     ) {
-        assert!(
-            field::exists_with_type<CurrentVersion, Version>(
-                id,
-                CurrentVersion {}
-            ),
-            E_OUTDATED_VERSION
-        )
+        update_version_type(id, old_version, new_version)
     }
 
-    public fun init_version<Version: store>(id: &mut UID, version: Version) {
-        field::add(id, CurrentVersion {}, version);
-    }
-
-    public fun type_of_version<Version: drop>(_version: Version): TypeName {
-        type_name::get<Version>()
-    }
 }
 
 #[test_only]
@@ -156,15 +287,13 @@ module wormhole::package_utils_tests {
         );
 
         // You shall not pass!
-        package_utils::update_version_type(
+        package_utils::update_version_type_test_only(
             &mut state.id,
             version_control::next_version(),
             version_control::next_version()
         );
 
-        // Clean up.
-        let State { id } = state;
-        object::delete(id);
+        abort 42
     }
 
     #[test]
@@ -183,15 +312,13 @@ module wormhole::package_utils_tests {
         );
 
         // You shall not pass!
-        package_utils::update_version_type(
+        package_utils::update_version_type_test_only(
             &mut state.id,
             version_control::current_version(),
             version_control::current_version()
         );
 
-        // Clean up.
-        let State { id } = state;
-        object::delete(id);
+        abort 42
     }
 
     #[test]
@@ -210,7 +337,7 @@ module wormhole::package_utils_tests {
         );
 
         // Valid update.
-        package_utils::update_version_type(
+        package_utils::update_version_type_test_only(
             &mut state.id,
             version_control::current_version(),
             version_control::next_version()
@@ -222,9 +349,7 @@ module wormhole::package_utils_tests {
             version_control::current_version()
         );
 
-        // Clean up.
-        let State { id } = state;
-        object::delete(id);
+        abort 42
     }
 
     #[test]
@@ -243,15 +368,13 @@ module wormhole::package_utils_tests {
         );
 
         // You shall not pass!
-        package_utils::update_version_type(
+        package_utils::update_version_type_test_only(
             &mut state.id,
             version_control::current_version(),
             V_DUMMY {}
         );
 
-        // Clean up.
-        let State { id } = state;
-        object::delete(id);
+        abort 42
     }
 
     #[test]

@@ -371,12 +371,7 @@ module wormhole::update_guardian_set_tests {
         // You shall not pass!
         update_guardian_set(&mut worm_state, receipt, &the_clock);
 
-        // Clean up.
-        return_state(worm_state);
-        return_clock(the_clock);
-
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -425,12 +420,7 @@ module wormhole::update_guardian_set_tests {
         // You shall not pass!
         update_guardian_set(&mut worm_state, receipt, &the_clock);
 
-        // Clean up.
-        return_state(worm_state);
-        return_clock(the_clock);
-
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -477,11 +467,6 @@ module wormhole::update_guardian_set_tests {
         // You shall not pass!
         update_guardian_set(&mut worm_state, receipt, &the_clock);
 
-        // Clean up.
-        return_state(worm_state);
-        return_clock(the_clock);
-
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 }
