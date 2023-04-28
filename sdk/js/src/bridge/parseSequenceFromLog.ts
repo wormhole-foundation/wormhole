@@ -183,11 +183,13 @@ export function parseSequenceFromLogAptos(
 }
 
 export function parseSequenceFromLogSui(
-  coreBridgePackageId: string,
+  originalCoreBridgePackageId: string,
   response: SuiTransactionBlockResponse
 ): string | null {
   const event = response.events?.find(
-    (e) => e.type === `${coreBridgePackageId}::publish_message::WormholeMessage`
+    (e) =>
+      e.type ===
+      `${originalCoreBridgePackageId}::publish_message::WormholeMessage`
   );
   return event?.parsedJson?.sequence || null;
 }
