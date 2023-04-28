@@ -91,6 +91,8 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         network,
         tokenBridgePackageId,
         coreBridgeStateObjectId,
+        GOVERNANCE_CHAIN,
+        GOVERNANCE_EMITTER,
         rpc,
         privateKey
       );

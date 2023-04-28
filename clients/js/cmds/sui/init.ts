@@ -13,6 +13,7 @@ import {
   executeTransactionBlock,
   getCreatedObjects,
   getOwnedObjectId,
+  getPackageId,
   getProvider,
   getSigner,
   getUpgradeCapObjectId,
@@ -32,7 +33,7 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           .option("network", NETWORK_OPTIONS)
           .option("package-id", {
             alias: "p",
-            describe: "Package ID/module address",
+            describe: "Example app package ID",
             required: true,
             type: "string",
           })
@@ -79,13 +80,7 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           .option("network", NETWORK_OPTIONS)
           .option("package-id", {
             alias: "p",
-            describe: "Package ID/module address",
-            required: true,
-            type: "string",
-          })
-          .option("wormhole-package-id", {
-            alias: "i",
-            describe: "Wormhole package ID/module address",
+            describe: "Token bridge package ID",
             required: true,
             type: "string",
           })
@@ -116,17 +111,18 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         const network = argv.network.toUpperCase();
         assertNetwork(network);
         const packageId = argv["package-id"];
-        const wormholePackageId = argv["wormhole-package-id"];
         const wormholeStateObjectId = argv["wormhole-state"];
         const governanceChainId = argv["governance-chain-id"];
         const governanceContract = argv["governance-address"];
         const privateKey = argv["private-key"];
-        const rpc = argv.rpc;
+        const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
 
         const res = await initTokenBridge(
           network,
           packageId,
           wormholeStateObjectId,
+          governanceChainId,
+          governanceContract,
           rpc,
           privateKey
         );
@@ -149,7 +145,7 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           .option("network", NETWORK_OPTIONS)
           .option("package-id", {
             alias: "p",
-            describe: "Package ID/module address",
+            describe: "Core bridge package ID",
             required: true,
             type: "string",
           })
@@ -232,8 +228,10 @@ export const initExampleApp = async (
 
 export const initTokenBridge = async (
   network: Network,
-  packageId: string,
-  wormholeStateObjectId: string,
+  tokenBridgePackageId: string,
+  coreBridgeStateObjectId: string,
+  governanceChainId: number,
+  governanceContract: string,
   rpc?: string,
   privateKey?: string
 ): Promise<SuiTransactionBlockResponse> => {
@@ -245,7 +243,7 @@ export const initTokenBridge = async (
   const deployerCapObjectId = await getOwnedObjectId(
     provider,
     owner,
-    packageId,
+    tokenBridgePackageId,
     "setup",
     "DeployerCap"
   );
@@ -258,7 +256,7 @@ export const initTokenBridge = async (
   const upgradeCapObjectId = await getUpgradeCapObjectId(
     provider,
     owner,
-    packageId
+    tokenBridgePackageId
   );
   if (!upgradeCapObjectId) {
     throw new Error(
@@ -266,13 +264,24 @@ export const initTokenBridge = async (
     );
   }
 
+  const wormholePackageId = await getPackageId(
+    provider,
+    coreBridgeStateObjectId
+  );
+
   const transactionBlock = new TransactionBlock();
+  const [emitterCap] = transactionBlock.moveCall({
+    target: `${wormholePackageId}::emitter::new`,
+    arguments: [transactionBlock.object(coreBridgeStateObjectId)],
+  });
   transactionBlock.moveCall({
-    target: `${packageId}::setup::complete`,
+    target: `${tokenBridgePackageId}::setup::complete`,
     arguments: [
-      transactionBlock.object(wormholeStateObjectId),
       transactionBlock.object(deployerCapObjectId),
       transactionBlock.object(upgradeCapObjectId),
+      emitterCap,
+      transactionBlock.pure(governanceChainId),
+      transactionBlock.pure([...Buffer.from(governanceContract, "hex")]),
     ],
   });
   return executeTransactionBlock(signer, transactionBlock);
@@ -280,7 +289,7 @@ export const initTokenBridge = async (
 
 export const initWormhole = async (
   network: Network,
-  packageId: string,
+  coreBridgePackageId: string,
   initialGuardian: string,
   governanceChainId: number,
   governanceContract: string,
@@ -295,7 +304,7 @@ export const initWormhole = async (
   const deployerCapObjectId = await getOwnedObjectId(
     provider,
     owner,
-    packageId,
+    coreBridgePackageId,
     "setup",
     "DeployerCap"
   );
@@ -308,7 +317,7 @@ export const initWormhole = async (
   const upgradeCapObjectId = await getUpgradeCapObjectId(
     provider,
     owner,
-    packageId
+    coreBridgePackageId
   );
   if (!upgradeCapObjectId) {
     throw new Error(
@@ -318,7 +327,7 @@ export const initWormhole = async (
 
   const transactionBlock = new TransactionBlock();
   transactionBlock.moveCall({
-    target: `${packageId}::setup::complete`,
+    target: `${coreBridgePackageId}::setup::complete`,
     arguments: [
       transactionBlock.object(deployerCapObjectId),
       transactionBlock.object(upgradeCapObjectId),
