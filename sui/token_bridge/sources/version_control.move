@@ -16,12 +16,12 @@ module token_bridge::version_control {
     //
     ////////////////////////////////////////////////////////////////////////////
 
-    public(friend) fun current_version(): V__0_1_0 {
-       V__0_1_0 {}
+    public(friend) fun current_version(): V__0_1_1 {
+       V__0_1_1 {}
     }
 
-    public(friend) fun previous_version(): V__DUMMY {
-        V__DUMMY {}
+    public(friend) fun previous_version(): V__0_1_0 {
+        V__0_1_0 {}
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -33,7 +33,21 @@ module token_bridge::version_control {
     //
     ////////////////////////////////////////////////////////////////////////////
 
+    /// RELEASE NOTES
+    ///
+    /// - Refactor state to use package management via
+    ///   `wormhole::package_utils`.
+    /// - Add `MigrateComplete` event in `migrate`.
+    ///
+    /// Also added `migrate__v__0_1_1` in `wormhole::state`, which is
+    /// meant to perform a one-time `State` modification via `migrate`.
+    struct V__0_1_1 has store, drop, copy {}
+
     /// First published package.
+    ///
+    /// NOTE: This version is published on Sui testnet.
+    ///
+    /// https://github.com/wormhole-foundation/wormhole/commit/03ff1b24cf913ed04ce59fe26b5d3abd53015f28
     struct V__0_1_0 has store, drop, copy {}
 
     // Dummy.
@@ -58,5 +72,10 @@ module token_bridge::version_control {
     #[test_only]
     public fun next_version(): V__MIGRATED {
         V__MIGRATED {}
+    }
+
+    #[test_only]
+    public fun previous_version_test_only(): V__0_1_0 {
+        previous_version()
     }
 }

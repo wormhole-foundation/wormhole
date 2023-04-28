@@ -37,13 +37,13 @@ module token_bridge::coin_wrapped_7 {
         x"010000000001003d8fd671611d84801dc9d14a07835e8729d217b1aac77b054175d0f91294040742a1ed6f3e732b2fbf208e64422816accf89dd0cd3ead20d2e0fb3d372ce221c010000000000000045000200000000000000000000000000000000000000000000000000000000deadbeef00000000000000010f0200000000000000000000000000000000000000000000000000000000deafface000207000000000000000000000000000000000000000000000000000000004445433700000000000000000000000000000000000000000000444543494d414c532037";
 
     fun init(witness: COIN_WRAPPED_7, ctx: &mut TxContext) {
-        use token_bridge::version_control::{V__0_1_0};
+        use token_bridge::version_control::{V__0_1_1};
 
         let (
             setup,
             upgrade_cap
         ) =
-            create_wrapped::new_setup_test_only<COIN_WRAPPED_7, V__0_1_0>(
+            create_wrapped::new_setup_test_only<COIN_WRAPPED_7, V__0_1_1>(
                 witness,
                 7,
                 ctx

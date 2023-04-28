@@ -451,7 +451,7 @@ module wormhole::update_guardian_set_tests {
         // this build.
         state::migrate_version_test_only(
             &mut worm_state,
-            version_control::dummy(),
+            version_control::previous_version_test_only(),
             version_control::next_version()
         );
 

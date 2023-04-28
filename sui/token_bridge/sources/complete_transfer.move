@@ -295,7 +295,7 @@ module token_bridge::complete_transfer_tests {
     use token_bridge::token_registry::{Self};
     use token_bridge::transfer::{Self};
     use token_bridge::vaa::{Self};
-    use token_bridge::version_control::{V__0_1_0};
+    use token_bridge::version_control::{V__0_1_1};
     use token_bridge::wrapped_asset::{Self};
 
     struct OTHER_COIN_WITNESS has drop {}
@@ -587,7 +587,7 @@ module token_bridge::complete_transfer_tests {
         let expected_source_chain = 2;
         register_dummy_emitter(scenario, expected_source_chain);
 
-        coin_wrapped_7::init_and_register<V__0_1_0>(scenario, coin_deployer);
+        coin_wrapped_7::init_and_register<V__0_1_1>(scenario, coin_deployer);
 
         // Ignore effects.
         test_scenario::next_tx(scenario, tx_relayer);
@@ -714,7 +714,7 @@ module token_bridge::complete_transfer_tests {
         let expected_source_chain = 2;
         register_dummy_emitter(scenario, expected_source_chain);
 
-        coin_wrapped_12::init_and_register<V__0_1_0>(scenario, coin_deployer);
+        coin_wrapped_12::init_and_register<V__0_1_1>(scenario, coin_deployer);
 
         // Ignore effects.
         //
@@ -1055,8 +1055,8 @@ module token_bridge::complete_transfer_tests {
         register_dummy_emitter(scenario, expected_source_chain);
 
         // Register both wrapped coin types (12 and 7).
-        coin_wrapped_12::init_and_register<V__0_1_0>(scenario, coin_deployer);
-        coin_wrapped_7::init_and_register<V__0_1_0>(scenario, coin_deployer);
+        coin_wrapped_12::init_and_register<V__0_1_1>(scenario, coin_deployer);
+        coin_wrapped_7::init_and_register<V__0_1_1>(scenario, coin_deployer);
 
         // Ignore effects.
         test_scenario::next_tx(scenario, tx_relayer);
@@ -1124,7 +1124,7 @@ module token_bridge::complete_transfer_tests {
         let expected_source_chain = 2;
         register_dummy_emitter(scenario, expected_source_chain);
 
-        coin_wrapped_12::init_and_register<V__0_1_0>(scenario, coin_deployer);
+        coin_wrapped_12::init_and_register<V__0_1_1>(scenario, coin_deployer);
 
         // Ignore effects.
         //
@@ -1203,7 +1203,7 @@ module token_bridge::complete_transfer_tests {
         // this build.
         state::migrate_version_test_only(
             &mut token_bridge_state,
-            token_bridge::version_control::dummy(),
+            token_bridge::version_control::previous_version_test_only(),
             token_bridge::version_control::next_version()
         );
 

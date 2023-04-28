@@ -7,8 +7,8 @@
 /// Wrapped assets are created in two steps.
 ///   1. `prepare_registration`: This method creates a new `TreasuryCap` for a
 ///      given coin type and wraps an encoded asset metadata VAA. We require a
-///      one-time witness (OTW) even though it is redundant with what
-///      `create_currency` requires to throw an explicit error. This coin will
+///      one-time witness (OTW) to throw an explicit error (even though it is
+///      redundant with what `create_currency` requires). This coin will
 ///      be published using this method, meaning the `init` method in that
 ///      untrusted package will have the asset's decimals hard-coded for its
 ///      coin metadata. A `WrappedAssetSetup` object is transferred to the
@@ -282,7 +282,7 @@ module token_bridge::create_wrapped_tests {
     };
     use token_bridge::token_registry::{Self};
     use token_bridge::vaa::{Self};
-    use token_bridge::version_control::{V__0_1_0, V__DUMMY};
+    use token_bridge::version_control::{V__0_1_1, V__DUMMY};
     use token_bridge::wrapped_asset::{Self};
 
     struct NOT_A_WITNESS has drop {}
@@ -296,7 +296,7 @@ module token_bridge::create_wrapped_tests {
 
         // You shall not pass!
         let wrapped_asset_setup =
-            create_wrapped::prepare_registration<NOT_A_WITNESS, V__0_1_0>(
+            create_wrapped::prepare_registration<NOT_A_WITNESS, V__0_1_1>(
                 NOT_A_WITNESS {},
                 3,
                 ctx
@@ -317,7 +317,7 @@ module token_bridge::create_wrapped_tests {
         let wrapped_asset_setup =
             create_wrapped::prepare_registration<
                 CREATE_WRAPPED_TESTS,
-                V__0_1_0
+                V__0_1_1
             >(
                 CREATE_WRAPPED_TESTS {},
                 3,
@@ -355,7 +355,7 @@ module token_bridge::create_wrapped_tests {
         ) =
             create_wrapped::new_setup_test_only<
                 CREATE_WRAPPED_TESTS,
-                V__0_1_0
+                V__0_1_1
             >(
                 CREATE_WRAPPED_TESTS {},
                 8,
@@ -477,7 +477,7 @@ module token_bridge::create_wrapped_tests {
         ) =
             create_wrapped::new_setup_test_only<
                 CREATE_WRAPPED_TESTS,
-                V__0_1_0
+                V__0_1_1
             >(
                 CREATE_WRAPPED_TESTS {},
                 8,
@@ -594,7 +594,7 @@ module token_bridge::create_wrapped_tests {
         ) =
             create_wrapped::new_setup_test_only<
                 CREATE_WRAPPED_TESTS,
-                V__0_1_0
+                V__0_1_1
             >(
                 CREATE_WRAPPED_TESTS {},
                 8,
@@ -617,7 +617,7 @@ module token_bridge::create_wrapped_tests {
         // this build.
         state::migrate_version_test_only(
             &mut token_bridge_state,
-            token_bridge::version_control::dummy(),
+            token_bridge::version_control::previous_version_test_only(),
             token_bridge::version_control::next_version()
         );
 

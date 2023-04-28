@@ -129,7 +129,12 @@ module wormhole::state {
         // Initialize package info. This will be used for emitting information
         // of successful migrations.
         let upgrade_cap = &state.upgrade_cap;
-        package_utils::init_package_info(&mut state.id, upgrade_cap);
+        package_utils::init_package_info(
+            &mut state.id,
+            upgrade_cap,
+            bytes32::default(),
+            bytes32::default()
+            );
 
         state
     }
@@ -195,10 +200,6 @@ module wormhole::state {
         fee_collector::fee_amount(&self.fee_collector)
     }
 
-    public fun current_package(self: &State): ID {
-        package_utils::current_package(&self.id)
-    }
-
     #[test_only]
     public fun fees_collected(self: &State): u64 {
         fee_collector::balance_value(&self.fee_collector)
@@ -220,7 +221,7 @@ module wormhole::state {
         old_version: Old,
         new_version: New
     ) {
-        package_utils::update_version_type_test_only(
+        package_utils::update_version_type(
             &mut self.id,
             old_version,
             new_version
@@ -237,10 +238,10 @@ module wormhole::state {
 
     #[test_only]
     public fun reverse_migrate_version(self: &mut State) {
-        package_utils::update_version_type_test_only(
+        package_utils::update_version_type(
             &mut self.id,
             version_control::current_version(),
-            version_control::dummy()
+            version_control::previous_version()
         );
     }
 
@@ -369,6 +370,10 @@ module wormhole::state {
         fee_collector::change_fee(&mut self.fee_collector, amount);
     }
 
+    public(friend) fun current_package(_: &LatestOnly, self: &State): ID {
+        package_utils::current_package(&self.id)
+    }
+
     ////////////////////////////////////////////////////////////////////////////
     //
     //  Upgradability
@@ -432,4 +437,59 @@ module wormhole::state {
         let authorized = package_utils::authorized_digest(&self.id);
         assert!(digest == authorized, E_INVALID_BUILD_DIGEST);
     }
+
+    ////////////////////////////////////////////////////////////////////////////
+    //
+    //  Special State Interaction via Migrate
+    //
+    //  A VERY special space that manipulates `State` via calling `migrate`.
+    //
+    //  PLEASE KEEP ANY METHODS HERE AS FRIENDS. We want the ability to remove
+    //  these for future builds.
+    //
+    ////////////////////////////////////////////////////////////////////////////
+
+    public(friend) fun migrate__v__0_1_1(self: &mut State) {
+        // We need to add dynamic fields via the new package utils method. These
+        // fields do not exist in the previous build (0.1.0).
+        // See `state::new` above.
+
+        // Need to remove old dynamic field. This was set when performing the
+        // upgrade on previous version. We need to take this digest and then
+        // initialize package info with this as the pending digest.
+        let pending_digest =
+            sui::dynamic_field::remove(&mut self.id, CurrentDigest {});
+
+        // Initialize package info. This will be used for emitting information
+        // of successful migrations.
+        let upgrade_cap = &self.upgrade_cap;
+        package_utils::init_package_info(
+            &mut self.id,
+            upgrade_cap,
+            bytes32::default(),
+            pending_digest
+        );
+    }
+
+    #[test_only]
+    /// Bloody hack.
+    public fun reverse_migrate__v__0_1_0(self: &mut State) {
+        package_utils::remove_package_info(&mut self.id);
+
+        // Add back in old dynamic field(s)...
+
+        // Add dummy hash since this is the first time the package is published.
+        sui::dynamic_field::add(&mut self.id, CurrentDigest {}, bytes32::from_bytes(b"new build"));
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    //
+    //  Deprecated
+    //
+    //  Dumping grounds for old structs and methods. These things should not
+    //  be used in future builds.
+    //
+    ////////////////////////////////////////////////////////////////////////////
+
+    struct CurrentDigest has store, drop, copy {}
 }

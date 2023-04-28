@@ -27,6 +27,10 @@ module wormhole::migrate {
         upgrade_vaa_buf: vector<u8>,
         the_clock: &Clock
     ) {
+        // This should be removed in an upgrade from 0.1.1.
+        state::migrate__v__0_1_1(wormhole_state);
+
+        // Perform standard migrate.
         handle_migrate(wormhole_state, upgrade_vaa_buf, the_clock);
 
         ////////////////////////////////////////////////////////////////////////
@@ -44,7 +48,6 @@ module wormhole::migrate {
         // that functionality with the `assert!` from above.
         //
         ////////////////////////////////////////////////////////////////////////
-
 
         ////////////////////////////////////////////////////////////////////////
     }
@@ -90,8 +93,13 @@ module wormhole::migrate {
         governance_message::destroy(receipt);
 
         // Finally emit an event reflecting a successful migrate.
-        let package = state::current_package(wormhole_state);
+        let package = state::current_package(&latest_only, wormhole_state);
         sui::event::emit(MigrateComplete { package });
+    }
+
+    #[test_only]
+    public fun set_up_migrate(wormhole_state: &mut State) {
+        state::reverse_migrate__v__0_1_0(wormhole_state);
     }
 }
 
@@ -137,6 +145,10 @@ module wormhole::migrate_tests {
         let worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
 
+        // Set up migrate (which prepares this package to be the same state as
+        // a previous release).
+        wormhole::migrate::set_up_migrate(&mut worm_state);
+
         // Conveniently roll version back.
         state::reverse_migrate_version(&mut worm_state);
 
@@ -158,7 +170,9 @@ module wormhole::migrate_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = wormhole::package_utils::E_INCORRECT_OLD_VERSION)]
+    #[expected_failure(abort_code = sui::dynamic_field::EFieldDoesNotExist)]
+    /// ^ This expected error may change depending on the migration. In most
+    /// cases, this will abort with `wormhole::package_utils::E_INCORRECT_OLD_VERSION`.
     fun test_cannot_migrate_again() {
         use wormhole::migrate::{migrate};
 
@@ -181,6 +195,10 @@ module wormhole::migrate_tests {
 
         let worm_state = take_state(scenario);
         let the_clock = take_clock(scenario);
+
+        // Set up migrate (which prepares this package to be the same state as
+        // a previous release).
+        wormhole::migrate::set_up_migrate(&mut worm_state);
 
         // Conveniently roll version back.
         state::reverse_migrate_version(&mut worm_state);

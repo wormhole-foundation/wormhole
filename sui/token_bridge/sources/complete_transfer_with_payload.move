@@ -206,7 +206,7 @@ module token_bridge::complete_transfer_with_payload_tests {
     use token_bridge::token_registry::{Self};
     use token_bridge::transfer_with_payload::{Self};
     use token_bridge::vaa::{Self};
-    use token_bridge::version_control::{V__0_1_0};
+    use token_bridge::version_control::{V__0_1_1};
     use token_bridge::wrapped_asset::{Self};
 
     #[test]
@@ -371,7 +371,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         register_dummy_emitter(scenario, expected_source_chain);
 
         // Register wrapped token.
-        coin_wrapped_12::init_and_register<V__0_1_0>(scenario, coin_deployer);
+        coin_wrapped_12::init_and_register<V__0_1_1>(scenario, coin_deployer);
 
         // Ignore effects. Begin processing as arbitrary tx executor.
         test_scenario::next_tx(scenario, user);
@@ -483,7 +483,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         register_dummy_emitter(scenario, 2);
 
         // Register wrapped asset with 12 decimals.
-        coin_wrapped_12::init_and_register<V__0_1_0>(scenario, coin_deployer);
+        coin_wrapped_12::init_and_register<V__0_1_1>(scenario, coin_deployer);
 
         // Ignore effects. Begin processing as arbitrary tx executor.
         test_scenario::next_tx(scenario, user);
@@ -562,7 +562,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         register_dummy_emitter(scenario, expected_source_chain);
 
         // Register wrapped token.
-        coin_wrapped_12::init_and_register<V__0_1_0>(scenario, coin_deployer);
+        coin_wrapped_12::init_and_register<V__0_1_1>(scenario, coin_deployer);
 
         // Also register unexpected token (in this case a native one).
         coin_native_10::init_and_register(scenario, coin_deployer);
@@ -652,7 +652,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         register_dummy_emitter(scenario, expected_source_chain);
 
         // Register wrapped token.
-        coin_wrapped_12::init_and_register<V__0_1_0>(scenario, coin_deployer);
+        coin_wrapped_12::init_and_register<V__0_1_1>(scenario, coin_deployer);
 
         // Ignore effects. Begin processing as arbitrary tx executor.
         test_scenario::next_tx(scenario, user);
@@ -756,7 +756,7 @@ module token_bridge::complete_transfer_with_payload_tests {
         // this build.
         state::migrate_version_test_only(
             &mut token_bridge_state,
-            token_bridge::version_control::dummy(),
+            token_bridge::version_control::previous_version_test_only(),
             token_bridge::version_control::next_version()
         );
 
