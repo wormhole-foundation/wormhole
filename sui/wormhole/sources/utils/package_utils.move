@@ -147,9 +147,10 @@ module wormhole::package_utils {
         current_digest: Bytes32,
         pending_digest: Bytes32
     ) {
+        let package = package::upgrade_package(upgrade_cap);
         let info =
             PackageInfo {
-                package: package::upgrade_package(upgrade_cap),
+                package,
                 digest: current_digest
             };
         field::add(id, CurrentPackage {}, info);
@@ -160,7 +161,7 @@ module wormhole::package_utils {
             id,
             PendingPackage {},
             PackageInfo {
-                package: object::id_from_address(@0x0),
+                package,
                 digest: pending_digest
             }
         );

@@ -16,12 +16,12 @@ module wormhole::version_control {
     //
     ////////////////////////////////////////////////////////////////////////////
 
-    public(friend) fun current_version(): V__0_1_1 {
-       V__0_1_1 {}
+    public(friend) fun current_version(): V__0_1_2 {
+       V__0_1_2 {}
     }
 
-    public(friend) fun previous_version(): V__0_1_0 {
-        V__0_1_0 {}
+    public(friend) fun previous_version(): V__0_1_1 {
+        V__0_1_1 {}
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -35,6 +35,14 @@ module wormhole::version_control {
 
     /// RELEASE NOTES
     ///
+    /// - Fix `package_utils` to initialize pending package ID to be the same as
+    ///   the current package ID (both from the `UpgradeCap`).
+    ///
+    /// Also added `migrate__v__0_1_2 in `wormhole::state`, which is a no-op.
+    struct V__0_1_2 has store, drop, copy {}
+
+    /// RELEASE NOTES
+    ///
     /// - Add `PackageInfo` to `wormhole::package_utils`, which allows tracking
     ///   of the most relevant package ID.
     /// - Refactor package management into `wormhole::package_utils`.
@@ -42,13 +50,15 @@ module wormhole::version_control {
     ///
     /// Also added `migrate__v__0_1_1` in `wormhole::state`, which is
     /// meant to perform a one-time `State` modification via `migrate`.
+    ///
+    /// https://github.com/wormhole-foundation/wormhole/tree/5be93774da4c6d8062521933be29250aed97245d
     struct V__0_1_1 has store, drop, copy {}
 
     /// First published package.
     ///
     /// NOTE: This version is published on Sui testnet.
     ///
-    /// https://github.com/wormhole-foundation/wormhole/commit/03ff1b24cf913ed04ce59fe26b5d3abd53015f28
+    /// https://github.com/wormhole-foundation/wormhole/tree/03ff1b24cf913ed04ce59fe26b5d3abd53015f28
     struct V__0_1_0 has store, drop, copy {}
 
     // Dummy.
@@ -79,7 +89,7 @@ module wormhole::version_control {
     }
 
     #[test_only]
-    public fun previous_version_test_only(): V__0_1_0 {
+    public fun previous_version_test_only(): V__0_1_1 {
         previous_version()
     }
 }
