@@ -516,7 +516,7 @@ const DEVNET = {
   sui: {
     core: "0xb80e44b7c40b874f0162d2440d9f79468132e911c62591eba52fb65a1c9835bb",
     token_bridge:
-      "0x4510fff0657df153bb055d8dbb223aec9a4c291cacac79472999e8ffe82de8b8",
+      "0x68da393248d51fbe2bd7456414adefdf7eac9ef91b32b561c178f01c906ae80e",
     nft_bridge: undefined,
   },
   moonbeam: {
@@ -846,7 +846,7 @@ export const SUI_OBJECT_IDS = {
     core_state:
       "0xc1867890b51a1fe873ce34fc4ebc6d87e1ebe30b340d9adccf77e38cf8f2453b",
     token_bridge_state:
-      "0x1d8a273e7c7de53925aed3fc770466f40fbf2a1ce86dde4cf5434ba9084d45dd",
+      "0xfbbe04379273ad9e09463c47c678542a8bf95a3c8e765f42d1adf5a8f54ea9bc",
   },
 };
 export type SuiAddresses = typeof SUI_OBJECT_IDS;

@@ -34,7 +34,7 @@ const OVERRIDES = {
     sui: {
       core: "0xb80e44b7c40b874f0162d2440d9f79468132e911c62591eba52fb65a1c9835bb",
       token_bridge:
-        "0x4510fff0657df153bb055d8dbb223aec9a4c291cacac79472999e8ffe82de8b8",
+        "0x68da393248d51fbe2bd7456414adefdf7eac9ef91b32b561c178f01c906ae80e",
     },
     aptos: {
       token_bridge:
