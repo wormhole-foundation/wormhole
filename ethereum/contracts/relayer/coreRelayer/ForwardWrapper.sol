@@ -13,11 +13,9 @@ import "../../interfaces/relayer/IRelayProvider.sol";
 import {CoreRelayerLibrary} from "../coreRelayer/CoreRelayerLibrary.sol";
 
 contract ForwardWrapper is CoreRelayerLibrary {
-
     error ForwardNotSufficientlyFunded(uint256 amountOfFunds, uint256 amountOfFundsNeeded);
 
-    constructor(address _wormholeRelayer, address _wormhole) CoreRelayerLibrary( _wormholeRelayer, _wormhole) {
-    }
+    constructor(address _wormholeRelayer, address _wormhole) CoreRelayerLibrary(_wormholeRelayer, _wormhole) {}
 
     function executeInstruction(
         IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction,
@@ -42,7 +40,7 @@ contract ForwardWrapper is CoreRelayerLibrary {
         uint256 gasUsed = (preGas - postGas) > instruction.executionParameters.gasLimit
             ? instruction.executionParameters.gasLimit
             : (preGas - postGas);
-            
+
         // Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the fraction of gas unused)
         transactionFeeRefundAmount = (instruction.executionParameters.gasLimit - gasUsed)
             * instruction.maximumRefundTarget / instruction.executionParameters.gasLimit;
@@ -74,5 +72,4 @@ contract ForwardWrapper is CoreRelayerLibrary {
     {
         return relayProvider.isChainSupported(chainId);
     }
-
 }

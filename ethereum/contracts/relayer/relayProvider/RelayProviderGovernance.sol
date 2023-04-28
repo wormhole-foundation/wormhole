@@ -70,7 +70,7 @@ abstract contract RelayProviderGovernance is RelayProviderGetters, RelayProvider
     }
 
     function updateTargetChainAddress(uint16 targetChain, bytes32 newAddress) public onlyOwner {
-        updateTargetChainAddressImpl( targetChain, newAddress);
+        updateTargetChainAddressImpl(targetChain, newAddress);
     }
 
     function updateTargetChainAddresses(RelayProviderStructs.TargetChainUpdate[] memory updates) external onlyOwner {
@@ -84,7 +84,7 @@ abstract contract RelayProviderGovernance is RelayProviderGetters, RelayProvider
         }
     }
 
-    function updateTargetChainAddressImpl( uint16 targetChain, bytes32 newAddress) internal {
+    function updateTargetChainAddressImpl(uint16 targetChain, bytes32 newAddress) internal {
         setTargetChainAddress(targetChain, newAddress);
         emit TargetChainAddressUpdated(targetChain, newAddress);
     }
