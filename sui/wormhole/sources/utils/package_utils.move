@@ -155,7 +155,7 @@ module wormhole::package_utils {
             };
         field::add(id, CurrentPackage {}, info);
 
-        // Set placeholders for pending package and . We don't ever plan on removing
+        // Set placeholders for pending package. We don't ever plan on removing
         // this field.
         field::add(
             id,
