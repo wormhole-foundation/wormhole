@@ -15,6 +15,7 @@ import {
   DeliveryStatus,
   RefundStatus,
   VaaKey,
+  DeliveryOverrideArgs
 } from "../structs";
 import { Implementation__factory } from "../../ethers-contracts";
 import {
@@ -32,7 +33,7 @@ type DeliveryTargetInfo = {
   refundStatus: RefundStatus;
   leftoverTransactionFee?: number; // Only defined if status is FORWARD_REQUEST_SUCCESS
   revertData?: string; // Only defined if status is RECEIVER_FAILURE or FORWARD_REQUEST_FAILURE
-  overrides?: DeliveryOverrrideArgs;
+  overrides?: DeliveryOverrideArgs;
 };
 
 export function parseWormholeLog(log: ethers.providers.Log): {
@@ -184,7 +185,7 @@ async function transformDeliveryEvents(
         sourceVaaSequence: x.args[2],
         sourceChain: x.args[1],
         gasUsed: x.args[5],
-        refundStatus: RefundStatus(x.args[6]),
+        refundStatus: x.args[6],
         overridesInfo: (x.args[8].length > 0) && parseOverrideInfoFromDeliveryEvent(Buffer.from(x.args[8]))
       };
     })
