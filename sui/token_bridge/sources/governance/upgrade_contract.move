@@ -24,7 +24,7 @@ module token_bridge::upgrade_contract {
 
     /// Specific governance payload ID (action) to complete upgrading the
     /// contract.
-    const ACTION_UPGRADE_CONTRACT: u8 = 1;
+    const ACTION_UPGRADE_CONTRACT: u8 = 2;
 
     struct GovernanceWitness has drop {}
 
