@@ -38,6 +38,7 @@ module token_bridge::version_control {
     /// - Refactor state to use package management via
     ///   `wormhole::package_utils`.
     /// - Add `MigrateComplete` event in `migrate`.
+    /// - Fix upgrade contract governance action.
     ///
     /// Also added `migrate__v__0_1_1` in `wormhole::state`, which is
     /// meant to perform a one-time `State` modification via `migrate`.
