@@ -144,8 +144,7 @@ module wormhole::fee_collector_tests {
         let fee = coin::mint_for_testing(fee_amount + 1, ctx);
         fee_collector::deposit(&mut collector, fee);
 
-        // Shouldn't get here. But we need to clean up anyway.
-        fee_collector::destroy(collector);
+        abort 42
     }
 
     #[test]
@@ -167,6 +166,7 @@ module wormhole::fee_collector_tests {
 
         // Shouldn't get here. But we need to clean up anyway.
         coin::burn_for_testing(withdrawn);
-        fee_collector::destroy(collector);
+
+        abort 42
     }
 }

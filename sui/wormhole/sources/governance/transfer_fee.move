@@ -317,12 +317,7 @@ module wormhole::transfer_fee_tests {
         // You shall not pass!
         transfer_fee(&mut worm_state, receipt, test_scenario::ctx(scenario));
 
-        // Clean up.
-        return_state(worm_state);
-        return_clock(the_clock);
-
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -365,12 +360,7 @@ module wormhole::transfer_fee_tests {
         // You shall not pass!
         transfer_fee(&mut worm_state, receipt, test_scenario::ctx(scenario));
 
-        // Clean up.
-        return_state(worm_state);
-        return_clock(the_clock);
-
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -420,12 +410,7 @@ module wormhole::transfer_fee_tests {
         // You shall not pass!
         transfer_fee(&mut worm_state, receipt, test_scenario::ctx(scenario));
 
-        // Clean up.
-        return_state(worm_state);
-                return_clock(the_clock);
-
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -472,12 +457,7 @@ module wormhole::transfer_fee_tests {
         // You shall not pass!
         transfer_fee(&mut worm_state, receipt, test_scenario::ctx(scenario));
 
-        // Clean up.
-        return_state(worm_state);
-        return_clock(the_clock);
-
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -544,11 +524,6 @@ module wormhole::transfer_fee_tests {
         // You shall not pass!
         transfer_fee(&mut worm_state, receipt, test_scenario::ctx(scenario));
 
-        // Clean up.
-        return_state(worm_state);
-        return_clock(the_clock);
-
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 }

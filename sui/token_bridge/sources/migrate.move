@@ -8,15 +8,22 @@
 /// any of Wormhole's methods by enforcing the current build version as their
 /// required minimum version.
 module token_bridge::migrate {
+    use sui::object::{ID};
     use wormhole::governance_message::{Self, DecreeReceipt};
-    //use wormhole::vaa::{VAA};
 
     use token_bridge::state::{Self, State};
     use token_bridge::upgrade_contract::{Self};
 
+    struct MigrateComplete has drop, copy {
+        package: ID
+    }
+
     /// Execute migration logic. See `wormhole::migrate` description for more
     /// info.
-    public fun migrate(token_bridge_state: &mut State, receipt: DecreeReceipt<upgrade_contract::GovernanceWitness>) {
+    public fun migrate(
+        token_bridge_state: &mut State,
+        receipt: DecreeReceipt<upgrade_contract::GovernanceWitness>
+    ) {
         handle_migrate(token_bridge_state, receipt);
 
         ////////////////////////////////////////////////////////////////////////
@@ -53,8 +60,12 @@ module token_bridge::migrate {
             upgrade_contract::take_digest(
                 governance_message::payload(&receipt)
             );
-        state::assert_current_digest(&latest_only, token_bridge_state, digest);
+        state::assert_authorized_digest(&latest_only, token_bridge_state, digest);
         governance_message::destroy(receipt);
+
+        // Finally emit an event reflecting a successful migrate.
+        let package = state::current_package(token_bridge_state);
+        sui::event::emit(MigrateComplete { package });
     }
 }
 
@@ -115,6 +126,10 @@ module token_bridge::migrate_tests {
         // this build.
         migrate(&mut token_bridge_state, receipt);
 
+        // Make sure we emitted an event.
+        let effects = test_scenario::next_tx(scenario, user);
+        assert!(test_scenario::num_user_events(&effects) == 1, 0);
+
         // Clean up.
         return_state(token_bridge_state);
 
@@ -159,8 +174,9 @@ module token_bridge::migrate_tests {
         // this build.
         migrate(&mut token_bridge_state, receipt);
 
-        // Ignore effects.
-        test_scenario::next_tx(scenario, user);
+        // Make sure we emitted an event.
+        let effects = test_scenario::next_tx(scenario, user);
+        assert!(test_scenario::num_user_events(&effects) == 1, 0);
 
         let verified_vaa = parse_and_verify_vaa(scenario, UPGRADE_VAA);
         let ticket =
@@ -170,10 +186,6 @@ module token_bridge::migrate_tests {
         // You shall not pass!
         migrate(&mut token_bridge_state, receipt);
 
-        // Clean up.
-        return_state(token_bridge_state);
-
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 }

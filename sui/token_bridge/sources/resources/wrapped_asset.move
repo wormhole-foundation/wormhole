@@ -610,13 +610,10 @@ module token_bridge::wrapped_asset_tests {
                 upgrade_cap
             );
 
-        test_scenario::return_shared(coin_meta);
-
         // Clean up.
         wrapped_asset::destroy(asset);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -688,10 +685,8 @@ module token_bridge::wrapped_asset_tests {
 
         // Clean up.
         wrapped_asset::destroy(asset);
-        test_scenario::return_shared(coin_meta);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -763,10 +758,8 @@ module token_bridge::wrapped_asset_tests {
 
         // Clean up.
         wrapped_asset::destroy(asset);
-        test_scenario::return_shared(coin_meta);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -806,12 +799,9 @@ module token_bridge::wrapped_asset_tests {
                 upgrade_cap
             );
 
-        test_scenario::return_shared(coin_meta);
-
         // Clean up.
         wrapped_asset::destroy(asset);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 }

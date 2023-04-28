@@ -175,9 +175,7 @@ module wormhole::emitter_tests {
 
         // Clean up.
         emitter::destroy(&worm_state, cap);
-        return_state(worm_state);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 }

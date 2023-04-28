@@ -357,12 +357,9 @@ module wormhole::publish_message_tests {
         );
 
         // Clean up.
-        emitter::destroy(&worm_state, emitter_cap);
-        return_state(worm_state);
-        return_clock(the_clock);
+        emitter::destroy_test_only(emitter_cap);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -422,11 +419,8 @@ module wormhole::publish_message_tests {
         );
 
         // Clean up.
-        emitter::destroy(&worm_state, emitter_cap);
-        return_state(worm_state);
-        return_clock(the_clock);
+        emitter::destroy_test_only(emitter_cap);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 }

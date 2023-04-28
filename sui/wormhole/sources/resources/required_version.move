@@ -264,13 +264,14 @@ module wormhole::required_version_test {
             new_version
         );
         let old_version = new_version - 1;
+
+        // You shall not pass!
         required_version::check_minimum_requirement<SomeMethod>(
             &req,
             old_version
         );
 
-        // Clean up.
-        required_version::destroy(req);
+        abort 42
     }
 
     #[test]
@@ -293,7 +294,6 @@ module wormhole::required_version_test {
         // You shall not pass!
         required_version::check_minimum_requirement<SomeMethod>(&req, version);
 
-        // Clean up.
-        required_version::destroy(req);
+        abort 42
     }
 }

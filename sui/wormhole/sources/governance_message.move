@@ -370,11 +370,8 @@ module wormhole::governance_message_tests {
 
         // Clean up.
         governance_message::destroy(receipt);
-        return_state(worm_state);
-        return_clock(the_clock);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -418,11 +415,8 @@ module wormhole::governance_message_tests {
 
         // Clean up.
         governance_message::destroy(receipt);
-        return_state(worm_state);
-        return_clock(the_clock);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -474,11 +468,8 @@ module wormhole::governance_message_tests {
 
         // Clean up.
         governance_message::destroy(receipt);
-        return_state(worm_state);
-        return_clock(the_clock);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -530,11 +521,8 @@ module wormhole::governance_message_tests {
 
         // Clean up.
         governance_message::destroy(receipt);
-        return_state(worm_state);
-        return_clock(the_clock);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -586,11 +574,8 @@ module wormhole::governance_message_tests {
 
         // Clean up.
         governance_message::destroy(receipt);
-        return_state(worm_state);
-        return_clock(the_clock);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -646,11 +631,8 @@ module wormhole::governance_message_tests {
 
         // Clean up.
         governance_message::destroy(receipt);
-        return_state(worm_state);
-        return_clock(the_clock);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -699,10 +681,7 @@ module wormhole::governance_message_tests {
 
         // Clean up.
         governance_message::destroy(receipt);
-        return_state(worm_state);
-        return_clock(the_clock);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 }

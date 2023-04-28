@@ -62,7 +62,6 @@ module wormhole::guardian_set {
 
     /// Retrieve whether this Guardian set is still active by checking the
     /// current time.
-    /// TODO: change `ctx` to `clock` reference.
     public fun is_active(self: &GuardianSet, clock: &Clock): bool {
         (
             self.expiration_timestamp_ms == 0 ||

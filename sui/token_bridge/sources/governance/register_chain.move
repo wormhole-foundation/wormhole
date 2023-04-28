@@ -275,6 +275,9 @@ module token_bridge::register_chain_tests {
         let another_contract = external_address::take_bytes(&mut cur);
         assert!(another_contract != expected_contract, 0);
 
+        // No more payload to read.
+        cursor::destroy_empty(cur);
+
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
 
@@ -285,12 +288,7 @@ module token_bridge::register_chain_tests {
         // You shall not pass!
         register_chain(&mut token_bridge_state, receipt);
 
-        // Clean up.
-        cursor::destroy_empty(cur);
-        return_state(token_bridge_state);
-
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 }
 

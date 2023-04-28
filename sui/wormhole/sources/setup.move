@@ -318,7 +318,6 @@ module wormhole::setup_tests {
             test_scenario::ctx(scenario)
         );
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 }

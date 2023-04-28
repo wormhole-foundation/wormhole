@@ -644,12 +644,7 @@ module token_bridge::token_registry_tests {
             &coin_meta
         );
 
-        // Clean up.
-        coin_native_10::return_metadata(coin_meta);
-        token_registry::destroy(registry);
-
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -710,11 +705,7 @@ module token_bridge::token_registry_tests {
             minted
         );
 
-        // Clean up.
-        token_registry::destroy(registry);
-
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -759,12 +750,9 @@ module token_bridge::token_registry_tests {
             );
 
         // Clean up.
-        coin_native_10::return_metadata(coin_meta);
         balance::destroy_for_testing(minted);
-        token_registry::destroy(registry);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -816,12 +804,6 @@ module token_bridge::token_registry_tests {
             test_scenario::ctx(scenario)
         );
 
-        test_scenario::return_shared(coin_meta);
-
-        // Clean up.
-        token_registry::destroy(registry);
-
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 }

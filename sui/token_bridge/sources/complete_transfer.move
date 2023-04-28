@@ -1027,10 +1027,8 @@ module token_bridge::complete_transfer_tests {
 
         // Clean up.
         complete_transfer::burn(receipt);
-        return_state(token_bridge_state);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -1100,10 +1098,8 @@ module token_bridge::complete_transfer_tests {
 
         // Clean up.
         complete_transfer::burn(receipt);
-        return_state(token_bridge_state);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -1157,10 +1153,8 @@ module token_bridge::complete_transfer_tests {
 
         // Clean up.
         complete_transfer::burn(receipt);
-        return_state(token_bridge_state);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 
     #[test]
@@ -1223,9 +1217,7 @@ module token_bridge::complete_transfer_tests {
 
         // Clean up.
         complete_transfer::burn(receipt);
-        return_state(token_bridge_state);
 
-        // Done.
-        test_scenario::end(my_scenario);
+        abort 42
     }
 }
