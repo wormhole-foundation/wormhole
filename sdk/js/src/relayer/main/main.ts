@@ -64,30 +64,38 @@ export function stringifyWormholeRelayerInfo(info: DeliveryInfo): string {
     stringifiedInfo += `Found delivery request in transaction ${
       info.sourceTransactionHash
     } on ${printChain(info.sourceChainId)}\n`;
-
     const numMsgs = info.deliveryInstruction.vaaKeys.length;
-    stringifiedInfo += `\nThe following ${numMsgs} wormhole messages (VAAs) were requested to be relayed:\n`;
-    stringifiedInfo += info.deliveryInstruction.vaaKeys.map((msgInfo, i) => {
-      let result = "";
-      result += `(VAA ${i}): `;
-      if (msgInfo.payloadType == VaaKeyType.EMITTER_SEQUENCE) {
-        result += `Message from ${
-          msgInfo.chainId ? printChain(msgInfo.chainId) : ""
-        }, with emitter address ${msgInfo.emitterAddress?.toString(
-          "hex"
-        )} and sequence number ${msgInfo.sequence}`;
-      } else if (msgInfo.payloadType == VaaKeyType.VAAHASH) {
-        result += `VAA with hash ${msgInfo.vaaHash?.toString("hex")}`;
-      } else {
-        result += `VAA not specified correctly`;
-      }
-      return result;
-    }).join(",\n");
+    const payload = info.deliveryInstruction.payload.toString("hex");
+    if(payload.length > 0) {
+      stringifiedInfo += `\nPayload to be relayed (as hex string): 0x${payload}`
+    }
+    if(numMsgs > 0) {
+      stringifiedInfo += `\nThe following ${numMsgs} wormhole messages (VAAs) were ${payload.length > 0 ? 'also ' : ''}requested to be relayed:\n`;
+      stringifiedInfo += info.deliveryInstruction.vaaKeys.map((msgInfo, i) => {
+        let result = "";
+        result += `(VAA ${i}): `;
+        if (msgInfo.payloadType == VaaKeyType.EMITTER_SEQUENCE) {
+          result += `Message from ${
+            msgInfo.chainId ? printChain(msgInfo.chainId) : ""
+          }, with emitter address ${msgInfo.emitterAddress?.toString(
+            "hex"
+          )} and sequence number ${msgInfo.sequence}`;
+        } else if (msgInfo.payloadType == VaaKeyType.VAAHASH) {
+          result += `VAA with hash ${msgInfo.vaaHash?.toString("hex")}`;
+        } else {
+          result += `VAA not specified correctly`;
+        }
+        return result;
+      }).join(",\n");
+    }
+    if(payload.length == 0 && numMsgs == 0) {
+      stringifiedInfo += `\nAn empty payload was requested to be sent`
+    }
 
     const length = 1;
     const instruction = info.deliveryInstruction;
     const targetChainName = CHAIN_ID_TO_NAME[instruction.targetChain as ChainId];
-    stringifiedInfo += `\n\nVAAs were requested to be sent to 0x${instruction.targetAddress.toString(
+    stringifiedInfo += `${numMsgs == 0 ? (payload.length == 0 ? '' : '\n\nPayload was requested to be relayed') : 'These were requested to be sent'} to 0x${instruction.targetAddress.toString(
       "hex"
     )} on ${printChain(instruction.targetChain)}\n`;
     stringifiedInfo += instruction.receiverValueTarget.gt(0)
@@ -251,13 +259,12 @@ export async function getWormholeRelayerInfo(
     throw Error(
       "No default RPC for this chain; pass in your own provider (as targetChainProvider)"
     );
-
-  const sourceChainBlock = await sourceChainProvider.getBlock(
-    receipt.blockNumber
-  );
+;
   const [blockStartNumber, blockEndNumber] =
     infoRequest?.targetChainBlockRanges?.get(targetChain) ||
-    getBlockRange(targetChainProvider, sourceChainBlock.timestamp);
+    getBlockRange(targetChainProvider);
+
+
 
   const deliveryEvents = await getWormholeRelayerDeliveryEventsBySourceSequence(
     environment,

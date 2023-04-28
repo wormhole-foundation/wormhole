@@ -404,11 +404,11 @@ describe("Core Relayer Integration Test - Two Chains", () => {
 
   });
 
-  /*
+  
   it("Test Stringify in Typescript SDK", async () => {
-    const info = (await relayer.getWormholeRelayerInfo(sourceChain.chainId, "0xf222ba282f88a0377510cc3fb1154033602925681d241cc32a00976362b3c7ae", {environment: environment})) as DeliveryInfo;
+    const info = (await relayer.getWormholeRelayerInfo(14, "0x252f364ea8a64e59ebc0b6b8555278473c229d46aebed96ffad62e9a488ada4f", {environment: "TESTNET"})) as DeliveryInfo;
     console.log(relayer.stringifyWormholeRelayerInfo(info));
-  })*/
+  })
 
   it("Test getPrice in Typescript SDK", async () => {
     const price = (await relayer.getPrice(sourceChain.chainId, targetChain.chainId, 200000, {environment: "TESTNET"}));
