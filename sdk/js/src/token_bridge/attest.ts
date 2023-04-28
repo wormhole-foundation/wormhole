@@ -359,7 +359,7 @@ export async function attestFromSui(
   feeAmount: BigInt = BigInt(0)
 ): Promise<TransactionBlock> {
   const metadata = await provider.getCoinMetadata({ coinType });
-  if (metadata.id === null) {
+  if (metadata === null || metadata.id === null) {
     throw new Error(`Coin metadata ID for type ${coinType} not found`);
   }
   const coreBridgePackageId = await getPackageId(

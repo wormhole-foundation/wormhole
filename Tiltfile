@@ -189,7 +189,7 @@ def build_node_yaml():
                     "--suiRPC",
                     "http://sui:9000",
                     "--suiMoveEventType",
-                    "0x237db734cabdcef4c0a8e97e7e4ef1c1f0c3e1ef8090f02aaf2c765bda8bc428::publish_message::WormholeMessage",
+                    "0xb80e44b7c40b874f0162d2440d9f79468132e911c62591eba52fb65a1c9835bb::publish_message::WormholeMessage",
                     "--suiWS",
                     "sui:9000",
                 ]
