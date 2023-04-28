@@ -17,15 +17,44 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
         FORWARD_REQUEST_SUCCESS
     }
 
+    enum RefundStatus {
+        REFUND_SENT,
+        REFUND_FAIL,
+        CROSS_CHAIN_REFUND_SENT,
+        CROSS_CHAIN_REFUND_SENT_MAXIMUM_BUDGET,
+        CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED,
+        CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH
+    }
+    
+
+    /**
+     * @custom:member recipientContract The target contract address
+     * @custom:member sourceChain The chain which this delivery was requested from (in wormhole ChainID format)
+     * @custom:member sequence The wormhole sequence number of the delivery VAA on the source chain corresponding to this delivery request
+     * @custom:member deliveryVaaHash The hash of the delivery VAA corresponding to this delivery request
+     * @custom:member gasUsed The amount of gas that was used to call your target contract (and, if there was a forward, to ensure that there were enough funds to complete the forward)
+     * @custom:member status either RECEIVER_FAILURE (if target contract reverts), SUCCESS (target contract doesn't revert, and no forwards requested), 
+     * FORWARD_REQUEST_FAILURE (target contract doesn't revert, at least one forward requested, not enough funds to cover all forwards), or FORWARD_REQUEST_SUCCESS (target contract doesn't revert, enough funds for all forwards). 
+     * @custom:member additionalStatusInfo empty if status is SUCCESS. 
+     * If status is FORWARD_REQUEST_SUCCESS, this is the amount of the leftover transaction fee used to fund the request(s) (not including any additional msg.value sent in the call(s) to forward). 
+     * If status is RECEIVER_FAILURE, this is 132 bytes of the return data (with revert reason information).
+     * If status is FORWARD_REQUEST_FAILURE, this is also the return data,
+     * which is specifically an error ForwardNotSufficientlyFunded(uint256 amountOfFunds, uint256 amountOfFundsNeeded)
+     * @custom:member refundStatus Result of the refund. REFUND_SUCCESS or REFUND_FAIL are for refunds where targetChain=refundChain; the others are for targetChain!=refundChain,
+     * where a cross chain refund is necessary
+     * @custom:member overridesInfo // empty if not a override, else is the encoded DeliveryOverride struct
+     */
     event Delivery(
         address indexed recipientContract,
         uint16 indexed sourceChain,
         uint64 indexed sequence,
         bytes32 deliveryVaaHash,
-        DeliveryStatus status
+        DeliveryStatus status,
+        uint32 gasUsed,
+        RefundStatus refundStatus,
+        bytes additionalStatusInfo, 
+        bytes overridesInfo 
     );
-
-    event Redelivery(bytes32 indexed redeliveryVaaHash, uint256 maximumRefund, uint256 receiverValue, uint32 gasAmount);
 
     /**
      * - Checks if enough funds were passed into a forward
@@ -140,9 +169,11 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
         setLockedTargetAddress(fromWormholeFormat(vaaInfo.internalInstruction.targetAddress));
         clearForwardInstructions();
 
-        uint256 preGas = gasleft();
+        IWormholeRelayerInternalStructs.DeliveryInternalVariables memory stack;
 
-        (bool callToInstructionExecutorSucceeded, bytes memory data) = getWormholeRelayerCallerAddress().call{
+        stack.preGas = gasleft();
+
+        (stack.callToInstructionExecutorSucceeded, stack.callToInstructionExecutorData) = getWormholeRelayerCallerAddress().call{
             value: vaaInfo.internalInstruction.receiverValueTarget
         }(
             abi.encodeWithSelector(
@@ -159,22 +190,19 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
             )
         );
 
-        uint256 postGas = gasleft();
-
-        uint256 transactionFeeRefundAmount;
-        bool callToTargetContractSucceeded = true;
-        if (callToInstructionExecutorSucceeded) {
-            (callToTargetContractSucceeded, transactionFeeRefundAmount) = abi.decode(data, (bool, uint256));
+        stack.postGas = gasleft();
+        stack.callToTargetContractSucceeded = true;
+        if (stack.callToInstructionExecutorSucceeded) {
+            (stack.callToTargetContractSucceeded, stack.gasUsed, stack.returnDataTruncated) = abi.decode(stack.callToInstructionExecutorData, (bool, uint32, bytes));
         } else {
             // Calculate the amount of gas used in the call (upperbounding at the gas limit, which shouldn't have been exceeded)
-            uint256 gasUsed = (preGas - postGas) > vaaInfo.internalInstruction.executionParameters.gasLimit
+            stack.gasUsed = uint32((stack.preGas - stack.postGas) > vaaInfo.internalInstruction.executionParameters.gasLimit
                 ? vaaInfo.internalInstruction.executionParameters.gasLimit
-                : (preGas - postGas);
-
-            // Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the fraction of gas unused)
-            transactionFeeRefundAmount = (vaaInfo.internalInstruction.executionParameters.gasLimit - gasUsed)
-                * vaaInfo.internalInstruction.maximumRefundTarget / vaaInfo.internalInstruction.executionParameters.gasLimit;
+                : (stack.preGas - stack.postGas));
         }
+         // Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the fraction of gas unused)
+        stack.transactionFeeRefundAmount = (vaaInfo.internalInstruction.executionParameters.gasLimit - stack.gasUsed)
+            * vaaInfo.internalInstruction.maximumRefundTarget / vaaInfo.internalInstruction.executionParameters.gasLimit;
 
         // Retrieve the forward instruction created during execution of 'receiveWormholeMessages'
         IWormholeRelayerInternalStructs.ForwardInstruction[] memory forwardInstructions = getForwardInstructions();
@@ -186,44 +214,46 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
         setContractLock(false);
 
         DeliveryStatus status;
-        uint256 transactionFeeRefundAmountPostForward = transactionFeeRefundAmount;
+        stack.transactionFeeRefundAmountPostForward = stack.transactionFeeRefundAmount;
         if (forwardInstructions.length > 0) {
             // If the user made a forward/multichainForward request, then try to execute it
-            transactionFeeRefundAmountPostForward = emitForward(transactionFeeRefundAmount, forwardInstructions);
+            stack.transactionFeeRefundAmountPostForward = emitForward(stack.transactionFeeRefundAmount, forwardInstructions);
             status = DeliveryStatus.FORWARD_REQUEST_SUCCESS;
         } else {
-            status = callToTargetContractSucceeded
-                ? (callToInstructionExecutorSucceeded ? DeliveryStatus.SUCCESS : DeliveryStatus.FORWARD_REQUEST_FAILURE)
+            status = stack.callToTargetContractSucceeded
+                ? (stack.callToInstructionExecutorSucceeded ? DeliveryStatus.SUCCESS : DeliveryStatus.FORWARD_REQUEST_FAILURE)
                 : DeliveryStatus.RECEIVER_FAILURE;
         }
 
-        // Emit a status update that can be read by a SDK
+        stack.additionalStatusInfo = status == DeliveryStatus.SUCCESS ? bytes("") : 
+        status == DeliveryStatus.FORWARD_REQUEST_SUCCESS ? abi.encodePacked((stack.transactionFeeRefundAmount - stack.transactionFeeRefundAmountPostForward)) :
+        status == DeliveryStatus.RECEIVER_FAILURE ? stack.returnDataTruncated : 
+        status == DeliveryStatus.FORWARD_REQUEST_FAILURE ? stack.callToInstructionExecutorData : bytes("");
+
+        RefundStatus refundStatus = payRefunds(
+            vaaInfo.internalInstruction,
+            vaaInfo.relayerRefundAddress,
+            stack.transactionFeeRefundAmount,
+            stack.callToInstructionExecutorSucceeded && stack.callToTargetContractSucceeded,
+            stack.transactionFeeRefundAmountPostForward,
+            vaaInfo.internalInstruction.targetRelayProvider
+        );
+
+        stack.overridesInfo = vaaInfo.redeliveryHash == 0x0 ? bytes("") : abi.encodePacked(vaaInfo.redeliveryHash, vaaInfo.internalInstruction.maximumRefundTarget, vaaInfo.internalInstruction.receiverValueTarget, vaaInfo.internalInstruction.executionParameters.gasLimit);
+
+         // Emit a status update that can be read by a SDK
         emit Delivery({
             recipientContract: fromWormholeFormat(vaaInfo.internalInstruction.targetAddress),
             sourceChain: vaaInfo.sourceChain,
             sequence: vaaInfo.sourceSequence,
             deliveryVaaHash: vaaInfo.deliveryVaaHash,
-            status: status
+            gasUsed: stack.gasUsed, 
+            status: status,
+            additionalStatusInfo: stack.additionalStatusInfo,
+            refundStatus: refundStatus,
+            overridesInfo: stack.overridesInfo
         });
 
-        //If the relayer provided a redelivery address, log a redelivery event
-        if (vaaInfo.redeliveryHash != 0x0) {
-            emit Redelivery(
-                vaaInfo.redeliveryHash,
-                vaaInfo.internalInstruction.maximumRefundTarget,
-                vaaInfo.internalInstruction.receiverValueTarget,
-                vaaInfo.internalInstruction.executionParameters.gasLimit
-                );
-        }
-
-        payRefunds(
-            vaaInfo.internalInstruction,
-            vaaInfo.relayerRefundAddress,
-            transactionFeeRefundAmount,
-            callToInstructionExecutorSucceeded && callToTargetContractSucceeded,
-            transactionFeeRefundAmountPostForward,
-            vaaInfo.internalInstruction.targetRelayProvider
-        );
     }
 
     function payRefunds(
@@ -233,7 +263,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
         bool receiverValueWasPaid,
         uint256 transactionFeeRefundAmountPostForward,
         bytes32 providerAddress
-    ) internal {
+    ) internal returns (RefundStatus refundStatus) {
         // Amount of receiverValue that is refunded to the user (0 if the call to 'receiveWormholeMessages' did not revert, or the full receiverValue otherwise)
         uint256 receiverValueRefundAmount = (receiverValueWasPaid ? 0 : internalInstruction.receiverValueTarget);
 
@@ -241,8 +271,8 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
         uint256 refundToRefundAddress = receiverValueRefundAmount + transactionFeeRefundAmountPostForward;
 
         // Whether or not the refund succeeded
-        bool refundPaidToRefundAddress =
-            payRefundToRefundAddress(internalInstruction, refundToRefundAddress, providerAddress);
+        bool refundPaidToRefundAddress;
+        (refundPaidToRefundAddress, refundStatus) = payRefundToRefundAddress(internalInstruction, refundToRefundAddress, providerAddress);
 
         // Refund the relayer (their extra funds) + (the amount that the relayer spent on gas)
         // + (the users refund if that refund didn't succeed)
@@ -258,9 +288,10 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
         IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction,
         uint256 refundAmount,
         bytes32 relayerAddress
-    ) internal returns (bool refundPaidToRefundAddress) {
+    ) internal returns (bool refundPaidToRefundAddress, RefundStatus refundStatus) {
         if (instruction.refundChain == chainId()) {
             refundPaidToRefundAddress = pay(payable(fromWormholeFormat(instruction.refundAddress)), refundAmount);
+            refundStatus = refundPaidToRefundAddress ? RefundStatus.REFUND_SENT : RefundStatus.REFUND_FAIL;
         } else {
             IRelayProvider provider = IRelayProvider(fromWormholeFormat(relayerAddress));
 
@@ -270,16 +301,16 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
                 )
             );
 
-            if (!success) {
-                return false;
+            if(!success){
+                return (false, RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED);
             }
 
             success = abi.decode(data, (bool));
 
-            if (!success) {
-                return false;
+            if(!success){
+                return (false, RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED);
             }
-            refundPaidToRefundAddress = payRefundRemote(instruction, refundAmount, provider);
+            (refundPaidToRefundAddress, refundStatus) = payRefundRemote(instruction, refundAmount, provider);   
         }
     }
 
@@ -287,18 +318,17 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
         IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction,
         uint256 refundAmount,
         IRelayProvider provider
-    ) internal returns (bool) {
+    ) internal returns(bool, RefundStatus){
         IWormhole wormhole = wormhole();
         uint256 wormholeMessageFee = wormhole.messageFee();
         uint256 overhead = wormholeMessageFee + provider.quoteDeliveryOverhead(instruction.refundChain);
 
         if (refundAmount > overhead) {
-            IWormholeRelayerInternalStructs.DeliveryInstruction memory refundInstruction =
-            getInstructionForEmptyMessageWithReceiverValue(
-                instruction.refundChain, instruction.refundAddress, refundAmount - overhead, provider
+            (IWormholeRelayerInternalStructs.DeliveryInstruction memory refundInstruction, bool isMaximumBudget) = getInstructionForEmptyMessageWithReceiverValue(
+                        instruction.refundChain, instruction.refundAddress, refundAmount - overhead, provider
             );
-            if (refundInstruction.receiverValueTarget == 0) {
-                return false;
+            if(refundInstruction.receiverValueTarget == 0) {
+                return (false, RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH);
             }
             wormhole.publishMessage{value: wormholeMessageFee}(
                 0, encodeDeliveryInstruction(refundInstruction), refundInstruction.consistencyLevel
@@ -306,9 +336,10 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
 
             pay(provider.getRewardAddress(), refundAmount - wormholeMessageFee);
 
-            return true;
+            return (true, isMaximumBudget ? RefundStatus.CROSS_CHAIN_REFUND_SENT_MAXIMUM_BUDGET : RefundStatus.CROSS_CHAIN_REFUND_SENT);
+            
         } else {
-            return false;
+            return (false, RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH);
         }
     }
 
@@ -317,7 +348,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
         bytes32 targetAddress,
         uint256 receiverValue,
         IRelayProvider provider
-    ) internal view returns (IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction) {
+    ) internal view returns (IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction, bool isMaximumBudget) {
         instruction = convertSendToDeliveryInstruction(
             IWormholeRelayer.Send({
                 targetChain: targetChain,
@@ -335,8 +366,10 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
         );
 
         uint256 maximumBudget = provider.quoteMaximumBudget(targetChain);
+        isMaximumBudget = false;
         if (instruction.receiverValueTarget > maximumBudget) {
             instruction.receiverValueTarget = maximumBudget;
+            isMaximumBudget = true;
         }
     }
 

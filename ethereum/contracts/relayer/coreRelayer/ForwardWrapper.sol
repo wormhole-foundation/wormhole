@@ -21,7 +21,7 @@ contract ForwardWrapper is CoreRelayerLibrary {
         IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction,
         IWormholeReceiver.DeliveryData memory data,
         bytes[] memory signedVaas
-    ) public payable returns (bool callToTargetContractSucceeded, uint256 transactionFeeRefundAmount) {
+    ) public payable returns (bool callToTargetContractSucceeded, uint32 gasUsed, bytes memory returnDataTruncated) {
         if (msg.sender != address(forwardInstructionViewer)) {
             revert RequesterNotCoreRelayer();
         }
@@ -30,19 +30,22 @@ contract ForwardWrapper is CoreRelayerLibrary {
 
         // Calls the 'receiveWormholeMessages' endpoint on the contract 'instruction.targetAddress'
         // (with the gas limit and value specified in instruction, and 'encodedVMs' as the input)
-        (callToTargetContractSucceeded,) = forwardInstructionViewer.fromWormholeFormat(instruction.targetAddress).call{
+        bytes memory returnData;
+        (callToTargetContractSucceeded, returnData) = forwardInstructionViewer.fromWormholeFormat(instruction.targetAddress).call{
             gas: instruction.executionParameters.gasLimit,
             value: instruction.receiverValueTarget
         }(abi.encodeWithSelector(IWormholeReceiver.receiveWormholeMessages.selector, data, signedVaas));
 
         uint256 postGas = gasleft();
+
+        returnDataTruncated = callToTargetContractSucceeded ? bytes("") : truncateReturnData(returnData);
         // Calculate the amount of gas used in the call (upperbounding at the gas limit, which shouldn't have been exceeded)
-        uint256 gasUsed = (preGas - postGas) > instruction.executionParameters.gasLimit
+        gasUsed = uint32((preGas - postGas) > instruction.executionParameters.gasLimit
             ? instruction.executionParameters.gasLimit
-            : (preGas - postGas);
+            : (preGas - postGas));
 
         // Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the fraction of gas unused)
-        transactionFeeRefundAmount = (instruction.executionParameters.gasLimit - gasUsed)
+        uint256 transactionFeeRefundAmount = (instruction.executionParameters.gasLimit - gasUsed)
             * instruction.maximumRefundTarget / instruction.executionParameters.gasLimit;
         IWormholeRelayerInternalStructs.ForwardInstruction[] memory forwardInstructions =
             forwardInstructionViewer.getForwardInstructions();
