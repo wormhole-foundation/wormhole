@@ -27,8 +27,8 @@ module wormhole::migrate {
         upgrade_vaa_buf: vector<u8>,
         the_clock: &Clock
     ) {
-        // This should be removed in an upgrade from 0.1.1.
-        state::migrate__v__0_1_1(wormhole_state);
+        // This should be removed in an upgrade from 0.1.2.
+        state::migrate__v__0_1_2(wormhole_state);
 
         // Perform standard migrate.
         handle_migrate(wormhole_state, upgrade_vaa_buf, the_clock);
@@ -99,7 +99,7 @@ module wormhole::migrate {
 
     #[test_only]
     public fun set_up_migrate(wormhole_state: &mut State) {
-        state::reverse_migrate__v__0_1_0(wormhole_state);
+        state::reverse_migrate__v__0_1_1(wormhole_state);
     }
 }
 
@@ -170,7 +170,7 @@ module wormhole::migrate_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = sui::dynamic_field::EFieldDoesNotExist)]
+    #[expected_failure(abort_code = wormhole::package_utils::E_INCORRECT_OLD_VERSION)]
     /// ^ This expected error may change depending on the migration. In most
     /// cases, this will abort with `wormhole::package_utils::E_INCORRECT_OLD_VERSION`.
     fun test_cannot_migrate_again() {

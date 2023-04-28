@@ -449,37 +449,14 @@ module wormhole::state {
     //
     ////////////////////////////////////////////////////////////////////////////
 
-    public(friend) fun migrate__v__0_1_1(self: &mut State) {
-        // We need to add dynamic fields via the new package utils method. These
-        // fields do not exist in the previous build (0.1.0).
-        // See `state::new` above.
-
-        // Need to remove old dynamic field. This was set when performing the
-        // upgrade on previous version. We need to take this digest and then
-        // initialize package info with this as the pending digest.
-        let pending_digest =
-            sui::dynamic_field::remove(&mut self.id, CurrentDigest {});
-
-        // Initialize package info. This will be used for emitting information
-        // of successful migrations.
-        let upgrade_cap = &self.upgrade_cap;
-        package_utils::init_package_info(
-            &mut self.id,
-            upgrade_cap,
-            bytes32::default(),
-            pending_digest
-        );
+    public(friend) fun migrate__v__0_1_2(_self: &mut State) {
+        // Intentionally do nothing.
     }
 
     #[test_only]
     /// Bloody hack.
-    public fun reverse_migrate__v__0_1_0(self: &mut State) {
-        package_utils::remove_package_info(&mut self.id);
-
-        // Add back in old dynamic field(s)...
-
-        // Add dummy hash since this is the first time the package is published.
-        sui::dynamic_field::add(&mut self.id, CurrentDigest {}, bytes32::from_bytes(b"new build"));
+    public fun reverse_migrate__v__0_1_1(_self: &mut State) {
+        // Intentionally do nothing.
     }
 
     ////////////////////////////////////////////////////////////////////////////
