@@ -27,6 +27,7 @@ import {
   createWrappedOnSuiPrepare,
   getEmitterAddressEth,
   getForeignAssetEth,
+  getForeignAssetSui,
   getIsTransferCompletedEth,
   getIsTransferCompletedSui,
   getIsWrappedAssetSui,
@@ -45,6 +46,7 @@ import {
   CHAIN_ID_SUI,
   CONTRACTS,
   hexToUint8Array,
+  tryNativeToHexString,
   tryNativeToUint8Array,
 } from "../../utils";
 import { Payload, VAA, parse, serialiseVAA } from "../../vaa/generic";
@@ -57,6 +59,7 @@ import {
   WORMHOLE_RPC_HOSTS,
 } from "./utils/consts";
 import {
+  assertIsNotNull,
   assertIsNotNullOrUndefined,
   getEmitterAddressAndSequenceFromResponseSui,
   mintAndTransferCoinSui,
@@ -135,7 +138,7 @@ describe("Sui SDK tests", () => {
     // expect(build).toMatchObject(buildManual);
     // expect(buildManual).toMatchObject(build);
   });
-  test.only("Transfer native ERC-20 from Ethereum to Sui and back", async () => {
+  test("Transfer native ERC-20 from Ethereum to Sui and back", async () => {
     // Attest on Ethereum
     const ethAttestTxRes = await attestFromEth(
       ETH_TOKEN_BRIDGE_ADDRESS,
@@ -175,7 +178,6 @@ describe("Sui SDK tests", () => {
       suiSigner,
       suiPrepareRegistrationTxPayload
     );
-    console.log(JSON.stringify(suiPrepareRegistrationTxRes, null, 2));
     expect(suiPrepareRegistrationTxRes.effects?.status.status).toBe("success");
 
     // Complete create wrapped on Sui
@@ -199,137 +201,142 @@ describe("Sui SDK tests", () => {
     expect(suiCompleteRegistrationTxRes.effects?.status.status).toBe("success");
 
     // // Get foreign asset
-    // const foreignAsset = await getForeignAssetSui(
-    //   suiProvider,
-    //   SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
-    //   CHAIN_ID_ETH,
-    //   hexToUint8Array(TEST_ERC20)
-    // );
-    // console.log({ foreignAsset });
-    // expect(
-    //   await getIsWrappedAssetSui(
-    //     suiProvider,
-    //     SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
-    //     getWrappedCoinType(coinPackageId)
-    //   )
-    // ).toBe(true);
+    const originAssetHex = tryNativeToHexString(TEST_ERC20, CHAIN_ID_ETH);
+    if (!originAssetHex) {
+      throw new Error("originAssetHex is null");
+    }
+    const foreignAsset = await getForeignAssetSui(
+      suiProvider,
+      SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
+      CHAIN_ID_ETH,
+      hexToUint8Array(originAssetHex)
+    );
+    assertIsNotNull(foreignAsset);
+    expect(
+      await getIsWrappedAssetSui(
+        suiProvider,
+        SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
+        foreignAsset
+      )
+    ).toBe(true);
 
-    // const originalAsset = await getOriginalAssetSui(
-    //   suiProvider,
-    //   SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
-    //   getWrappedCoinType(coinPackageId)
-    // );
-    // expect(originalAsset).toMatchObject({
-    //   isWrapped: true,
-    //   chainId: CHAIN_ID_ETH,
-    //   assetAddress: Buffer.from(TEST_ERC20, "hex"),
-    // });
+    const originalAsset = await getOriginalAssetSui(
+      suiProvider,
+      SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
+      foreignAsset
+    );
+    expect(originalAsset).toMatchObject({
+      isWrapped: true,
+      chainId: CHAIN_ID_ETH,
+      assetAddress: hexToUint8Array(originAssetHex),
+    });
 
-    //console.log(originalAsset, Buffer.from(TEST_ERC20, "hex"));
-    //const transferAmount = formatUnits(1, 18);
-    //// Transfer to Sui
-    //await approveEth(
-    //  CONTRACTS.DEVNET.ethereum.token_bridge,
-    //  TEST_ERC20,
-    //  ethSigner,
-    //  transferAmount
-    //);
-    //const transferReceipt = await transferFromEth(
-    //  CONTRACTS.DEVNET.ethereum.token_bridge,
-    //  ethSigner,
-    //  TEST_ERC20,
-    //  transferAmount,
-    //  CHAIN_ID_SUI,
-    //  tryNativeToUint8Array(suiAddress, CHAIN_ID_SUI)
-    //);
-    //const ethSequence = parseSequenceFromLogEth(
-    //  transferReceipt,
-    //  ETH_CORE_BRIDGE_ADDRESS
-    //);
-    //const { vaaBytes: ethTransferVAA } = await getSignedVAAWithRetry(
-    //  WORMHOLE_RPC_HOSTS,
-    //  CHAIN_ID_ETH,
-    //  getEmitterAddressEth(ETH_TOKEN_BRIDGE_ADDRESS),
-    //  ethSequence,
-    //  {
-    //    transport: NodeHttpTransport(),
-    //  },
-    //  1000,
-    //  5
-    //);
-    //expect(ethTransferVAA).toBeTruthy();
-    //// Redeem on Sui
-    //const redeemPayload = await redeemOnSui(
-    //  suiProvider,
-    //  SUI_TOKEN_BRIDGE_ADDRESS,
-    //  SUI_CORE_BRIDGE_STATE_OBJECT_ID,
-    //  SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
-    //  ethTransferVAA
-    //);
-    //await executeTransactionBlock(suiSigner, redeemPayload);
-    //expect(
-    //  await getIsTransferCompletedSui(
-    //    suiProvider,
-    //    SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
-    //    ethTransferVAA
-    //  )
-    //).toBe(true);
-    //// Transfer back to Eth
-    //const coinType = await getForeignAssetSui(
-    //  suiProvider,
-    //  SUI_TOKEN_BRIDGE_ADDRESS,
-    //  SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
-    //  CHAIN_ID_ETH,
-    //  originalAsset.assetAddress
-    //);
-    //expect(coinType).toBeTruthy();
-    //const coins = (
-    //  await suiProvider.getCoins({ owner: suiAddress, coinType })
-    //).data.map<SuiCoinObject>((c) => ({
-    //  type: c.coinType,
-    //  objectId: c.coinObjectId,
-    //}));
-    //const suiTransferTxPayload = transferFromSui(
-    //  SUI_TOKEN_BRIDGE_ADDRESS,
-    //  SUI_CORE_BRIDGE_STATE_OBJECT_ID,
-    //  SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
-    //  coins,
-    //  coinType || "",
-    //  BigInt(transferAmount),
-    //  CHAIN_ID_ETH,
-    //  tryNativeToUint8Array(ethSigner.address, CHAIN_ID_ETH)
-    //);
-    //const suiTransferTxResult = await executeTransactionBlock(
-    //  suiSigner,
-    //  suiTransferTxPayload
-    //);
-    //const { sequence, emitterAddress } =
-    //  getEmitterAddressAndSequenceFromResponseSui(
-    //    SUI_CORE_BRIDGE_ADDRESS,
-    //    suiTransferTxResult
-    //  );
-    //// Fetch the transfer VAA
-    //const { vaaBytes: transferVAA } = await getSignedVAAWithRetry(
-    //  WORMHOLE_RPC_HOSTS,
-    //  CHAIN_ID_SUI,
-    //  emitterAddress,
-    //  sequence,
-    //  {
-    //    transport: NodeHttpTransport(),
-    //  },
-    //  1000,
-    //  5
-    //);
-    //expect(transferVAA).toBeTruthy();
-    //// Redeem on Ethereum
-    //await redeemOnEth(ETH_TOKEN_BRIDGE_ADDRESS, ethSigner, transferVAA);
-    //expect(
-    //  await getIsTransferCompletedEth(
-    //    ETH_TOKEN_BRIDGE_ADDRESS,
-    //    ethProvider,
-    //    transferVAA
-    //  )
-    //).toBe(true);
+    const transferAmount = parseUnits("1", 18);
+    const returnAmount = parseUnits("1", 8);
+    // Transfer to Sui
+    await approveEth(
+      CONTRACTS.DEVNET.ethereum.token_bridge,
+      TEST_ERC20,
+      ethSigner,
+      transferAmount
+    );
+    const transferReceipt = await transferFromEth(
+      CONTRACTS.DEVNET.ethereum.token_bridge,
+      ethSigner,
+      TEST_ERC20,
+      transferAmount,
+      CHAIN_ID_SUI,
+      tryNativeToUint8Array(suiAddress, CHAIN_ID_SUI)
+    );
+    const ethSequence = parseSequenceFromLogEth(
+      transferReceipt,
+      ETH_CORE_BRIDGE_ADDRESS
+    );
+    const { vaaBytes: ethTransferVAA } = await getSignedVAAWithRetry(
+      WORMHOLE_RPC_HOSTS,
+      CHAIN_ID_ETH,
+      getEmitterAddressEth(ETH_TOKEN_BRIDGE_ADDRESS),
+      ethSequence,
+      {
+        transport: NodeHttpTransport(),
+      },
+      1000,
+      5
+    );
+    expect(ethTransferVAA).toBeTruthy();
+    // Redeem on Sui
+    const redeemPayload = await redeemOnSui(
+      suiProvider,
+      SUI_CORE_BRIDGE_STATE_OBJECT_ID,
+      SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
+      ethTransferVAA
+    );
+    const suiRedeemTxResult = await executeTransactionBlock(
+      suiSigner,
+      redeemPayload
+    );
+    expect(suiRedeemTxResult.effects?.status.status).toBe("success");
+    expect(
+      await getIsTransferCompletedSui(
+        suiProvider,
+        SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
+        ethTransferVAA
+      )
+    ).toBe(true);
+    // Transfer back to Eth
+    const coinType = await getForeignAssetSui(
+      suiProvider,
+      SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
+      CHAIN_ID_ETH,
+      originalAsset.assetAddress
+    );
+    expect(coinType).toBeTruthy();
+    const coins = (await suiProvider.getCoins({ owner: suiAddress, coinType }))
+      .data;
+    const suiTransferTxPayload = await transferFromSui(
+      suiProvider,
+      SUI_CORE_BRIDGE_STATE_OBJECT_ID,
+      SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
+      coins,
+      coinType || "",
+      returnAmount.toBigInt(),
+      CHAIN_ID_ETH,
+      tryNativeToUint8Array(ethSigner.address, CHAIN_ID_ETH)
+    );
+    const suiTransferTxResult = await executeTransactionBlock(
+      suiSigner,
+      suiTransferTxPayload
+    );
+    suiTransferTxResult.effects?.status.status === "failure" &&
+      console.error(suiTransferTxResult.effects?.status.error);
+    expect(suiTransferTxResult.effects?.status.status).toBe("success");
+    const { sequence, emitterAddress } =
+      getEmitterAddressAndSequenceFromResponseSui(
+        suiCoreBridgePackageId,
+        suiTransferTxResult
+      );
+    // Fetch the transfer VAA
+    const { vaaBytes: transferVAA } = await getSignedVAAWithRetry(
+      WORMHOLE_RPC_HOSTS,
+      CHAIN_ID_SUI,
+      emitterAddress,
+      sequence,
+      {
+        transport: NodeHttpTransport(),
+      },
+      1000,
+      5
+    );
+    expect(transferVAA).toBeTruthy();
+    // Redeem on Ethereum
+    await redeemOnEth(ETH_TOKEN_BRIDGE_ADDRESS, ethSigner, transferVAA);
+    expect(
+      await getIsTransferCompletedEth(
+        ETH_TOKEN_BRIDGE_ADDRESS,
+        ethProvider,
+        transferVAA
+      )
+    ).toBe(true);
   });
   test("Transfer non-SUI Sui token to Ethereum and back", async () => {
     // Get COIN_8 coin type

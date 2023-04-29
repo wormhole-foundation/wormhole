@@ -104,8 +104,6 @@ export const getOwnedObjectId = async (
         showContent: true,
       },
     });
-    console.log("type", type);
-    console.log("RES", JSON.stringify(res, null, 2));
     if (!res || !res.data) {
       throw new SuiRpcValidationError(res);
     }
@@ -205,7 +203,6 @@ export const getTokenCoinType = async (
     provider,
     tokenBridgeStateObjectId
   );
-  console.log("fields", JSON.stringify(tokenBridgeStateFields, null, 2));
   if (!tokenBridgeStateFields) {
     throw new Error("Unable to fetch object fields from token bridge state");
   }
@@ -217,18 +214,9 @@ export const getTokenCoinType = async (
   }
 
   const keyType = getTableKeyType(coinTypes?.type);
-  console.log("key type", keyType);
   if (!keyType) {
     throw new Error("Unable to get key type");
   }
-
-  console.log(
-    JSON.stringify(
-      await provider.getDynamicFields({ parentId: coinTypesObjectId }),
-      null,
-      2
-    )
-  );
 
   try {
     // This call throws if the key doesn't exist in CoinTypes
@@ -242,12 +230,10 @@ export const getTokenCoinType = async (
         },
       },
     });
-    console.log("cointypevalue", JSON.stringify(coinTypeValue, null, 2));
     const fields = getFieldsFromObjectResponse(coinTypeValue);
     return fields?.value ? ensureHexPrefix(fields.value) : null;
   } catch (e: any) {
     if (e.code === -32000 && e.message?.includes("RPC Error")) {
-      console.error(e);
       return null;
     }
 
@@ -397,3 +383,10 @@ export const normalizeSuiType = (type: string): string => {
 
   return [normalizeSuiAddress(tokens[0]), ...tokens.slice(1)].join("::");
 };
+
+/**
+ * This method removes leading zeroes for types, as we found some getDynamicFieldObject
+ * value types to be stripped of leading zeroes
+ */
+export const unnormalizeSuiAddress = (type: string): string =>
+  type.replace(/^(0x)(0*)/, "0x");

@@ -215,30 +215,6 @@ export async function createWrappedOnSui(
       `Coin metadata object not found for coin type ${coinType}.`
     );
   }
-  console.log("coin metadata", coinMetadataObjectId);
-
-  // console.log(
-  //   JSON.stringify(
-  //     await provider.getOwnedObjects({
-  //       owner: signerAddress,
-  //       options: {
-  //         showContent: true,
-  //       },
-  //     }),
-  //     null,
-  //     2
-  //   )
-  // );
-
-  console.log(
-    JSON.stringify(
-      await provider.getDynamicFields({
-        parentId: tokenBridgeStateObjectId,
-      }),
-      null,
-      2
-    )
-  );
 
   // Get WrappedAssetSetup object ID
   const versionTypeData = (
@@ -249,7 +225,6 @@ export async function createWrappedOnSui(
     (f) =>
       f?.name?.type === `${coreBridgePackageId}::package_utils::CurrentVersion`
   );
-  console.log("version type data", versionTypeData);
   if (!versionTypeData) {
     throw new Error(`CurrentVersion not found`);
   }
@@ -269,7 +244,6 @@ export async function createWrappedOnSui(
     signerAddress,
     coinPackageId
   );
-  console.log("coin upgrade cap", coinUpgradeCapObjectId);
   if (!coinUpgradeCapObjectId) {
     throw new Error(
       `Coin upgrade cap not found for ${coinType} under owner ${signerAddress}. You must call 'createWrappedOnSuiPrepare' first.`
