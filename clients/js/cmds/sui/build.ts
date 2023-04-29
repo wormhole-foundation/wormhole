@@ -56,5 +56,9 @@ export const addBuildCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         decimals
       );
       console.log(res);
+      console.log(
+        "Bytecode hex:",
+        Buffer.from(res.modules[0], "base64").toString("hex")
+      );
     }
   );

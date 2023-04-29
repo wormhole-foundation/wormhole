@@ -26,8 +26,14 @@ import {
 } from "../aptos";
 import { Bridge__factory } from "../ethers-contracts";
 import { createCreateWrappedInstruction } from "../solana/tokenBridge";
-import { getWrappedCoinType, publishCoin } from "../sui";
-import { callFunctionNear, uint8ArrayToHex } from "../utils";
+import {
+  getOwnedObjectId,
+  getPackageId,
+  getUpgradeCapObjectId,
+  getWrappedCoinType,
+  publishCoin,
+} from "../sui";
+import { callFunctionNear } from "../utils";
 import { SignedVaa } from "../vaa";
 import { submitVAAOnInjective } from "./redeem";
 
@@ -168,56 +174,134 @@ export function createWrappedOnAptos(
 }
 
 export async function createWrappedOnSuiPrepare(
-  coreBridgePackageId: string,
-  tokenBridgePackageId: string,
-  attestVAA: Uint8Array,
+  provider: JsonRpcProvider,
+  coreBridgeStateObjectId: string,
+  tokenBridgeStateObjectId: string,
+  decimals: number,
   signerAddress: string
 ): Promise<TransactionBlock> {
   return publishCoin(
-    coreBridgePackageId,
-    tokenBridgePackageId,
-    uint8ArrayToHex(attestVAA),
+    provider,
+    coreBridgeStateObjectId,
+    tokenBridgeStateObjectId,
+    decimals,
     signerAddress
   );
 }
 
 export async function createWrappedOnSui(
   provider: JsonRpcProvider,
-  tokenBridgePackageId: string,
   coreBridgeStateObjectId: string,
   tokenBridgeStateObjectId: string,
   signerAddress: string,
-  coinPackageId: string
+  coinPackageId: string,
+  attestVAA: Uint8Array
 ): Promise<TransactionBlock> {
-  // Get WrappedAssetSetup object ID
+  const coreBridgePackageId = await getPackageId(
+    provider,
+    coreBridgeStateObjectId
+  );
+  const tokenBridgePackageId = await getPackageId(
+    provider,
+    tokenBridgeStateObjectId
+  );
+
+  // Get coin metadata
   const coinType = getWrappedCoinType(coinPackageId);
-  const type = `${tokenBridgePackageId}::create_wrapped::WrappedAssetSetup<${coinType}>`;
-  const res = await provider.getOwnedObjects({
-    owner: signerAddress,
-    filter: { StructType: type },
-  });
-  if (!res || !res.data || res.data.length === 0) {
+  const coinMetadataObjectId = (await provider.getCoinMetadata({ coinType }))
+    .id;
+  if (!coinMetadataObjectId) {
     throw new Error(
-      `No WrappedAssetSetup object found for ${coinType} under owner ${signerAddress}. You must call 'createWrappedOnSuiPrepare' first.`
+      `Coin metadata object not found for coin type ${coinType}.`
+    );
+  }
+  console.log("coin metadata", coinMetadataObjectId);
+
+  // console.log(
+  //   JSON.stringify(
+  //     await provider.getOwnedObjects({
+  //       owner: signerAddress,
+  //       options: {
+  //         showContent: true,
+  //       },
+  //     }),
+  //     null,
+  //     2
+  //   )
+  // );
+
+  // console.log(
+  //   JSON.stringify(
+  //     await provider.getDynamicFields({
+  //       parentId: tokenBridgeStateObjectId,
+  //     }),
+  //     null,
+  //     2
+  //   )
+  // );
+
+  // Get WrappedAssetSetup object ID
+  const versionTypeData = (
+    await provider.getDynamicFields({
+      parentId: tokenBridgeStateObjectId,
+    })
+  ).data.find(
+    (f) =>
+      f?.name?.type === `${coreBridgePackageId}::package_utils::CurrentVersion`
+  );
+  console.log("version type data", versionTypeData);
+  if (!versionTypeData) {
+    throw new Error(`CurrentVersion not found`);
+  }
+
+  const wrappedAssetSetupObjectId = await getOwnedObjectId(
+    provider,
+    signerAddress,
+    `${tokenBridgePackageId}::create_wrapped::WrappedAssetSetup<${coinType}, ${versionTypeData.objectType}>`
+  );
+  if (!wrappedAssetSetupObjectId) {
+    throw new Error(`WrappedAssetSetup not found`);
+  }
+
+  // Get coin upgrade capability
+  const coinUpgradeCapObjectId = await getUpgradeCapObjectId(
+    provider,
+    signerAddress,
+    coinPackageId
+  );
+  console.log("coin upgrade cap", coinUpgradeCapObjectId);
+  if (!coinUpgradeCapObjectId) {
+    throw new Error(
+      `Coin upgrade cap not found for ${coinType} under owner ${signerAddress}. You must call 'createWrappedOnSuiPrepare' first.`
     );
   }
 
-  const wrappedAssetSetupObjectId = res.data[0].data?.objectId;
-  if (!wrappedAssetSetupObjectId) {
-    throw new Error(`WrappedAssetSetup object is invalid`);
-  }
+  // Get TokenBridgeMessage
+  const tx = new TransactionBlock();
+  const [vaa] = tx.moveCall({
+    target: `${coreBridgePackageId}::vaa::parse_and_verify`,
+    arguments: [
+      tx.object(coreBridgeStateObjectId),
+      tx.pure([...attestVAA]),
+      tx.object(SUI_CLOCK_OBJECT_ID),
+    ],
+  });
+  const [message] = tx.moveCall({
+    target: `${tokenBridgePackageId}::vaa::verify_only_once`,
+    arguments: [tx.object(tokenBridgeStateObjectId), vaa],
+  });
 
   // Construct complete registration payload
-  const tx = new TransactionBlock();
   tx.moveCall({
     target: `${tokenBridgePackageId}::create_wrapped::complete_registration`,
     arguments: [
       tx.object(tokenBridgeStateObjectId),
-      tx.object(coreBridgeStateObjectId),
+      tx.object(coinMetadataObjectId),
       tx.object(wrappedAssetSetupObjectId),
-      tx.object(SUI_CLOCK_OBJECT_ID),
+      tx.object(coinUpgradeCapObjectId),
+      message,
     ],
-    typeArguments: [coinType],
+    typeArguments: [coinType, versionTypeData.objectType],
   });
   return tx;
 }

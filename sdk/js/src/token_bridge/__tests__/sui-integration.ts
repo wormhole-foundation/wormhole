@@ -40,7 +40,12 @@ import {
   transferFromEth,
   transferFromSui,
 } from "../..";
-import { executeTransactionBlock, getInnerType, getPackageId } from "../../sui";
+import {
+  executeTransactionBlock,
+  getInnerType,
+  getPackageId,
+  getWrappedCoinType,
+} from "../../sui";
 import {
   CHAIN_ID_ETH,
   CHAIN_ID_SUI,
@@ -136,7 +141,7 @@ describe("Sui SDK tests", () => {
     // expect(build).toMatchObject(buildManual);
     // expect(buildManual).toMatchObject(build);
   });
-  test.skip("Transfer native ERC-20 from Ethereum to Sui and back", async () => {
+  test.only("Transfer native ERC-20 from Ethereum to Sui and back", async () => {
     // Attest on Ethereum
     const ethAttestTxRes = await attestFromEth(
       ETH_TOKEN_BRIDGE_ADDRESS,
@@ -150,32 +155,32 @@ describe("Sui SDK tests", () => {
       ETH_CORE_BRIDGE_ADDRESS
     );
     expect(attestSequence).toBeTruthy();
-    const { vaaBytes: attestVAA } = await getSignedVAAWithRetry(
-      WORMHOLE_RPC_HOSTS,
-      CHAIN_ID_ETH,
-      getEmitterAddressEth(ETH_TOKEN_BRIDGE_ADDRESS),
-      attestSequence,
-      {
-        transport: NodeHttpTransport(),
-      },
-      1000,
-      5
-    );
+    const { vaaBytes: attestVAA }: { vaaBytes: Uint8Array } =
+      await getSignedVAAWithRetry(
+        WORMHOLE_RPC_HOSTS,
+        CHAIN_ID_ETH,
+        getEmitterAddressEth(ETH_TOKEN_BRIDGE_ADDRESS),
+        attestSequence,
+        {
+          transport: NodeHttpTransport(),
+        },
+        1000,
+        5
+      );
     expect(attestVAA).toBeTruthy();
 
     // Start create wrapped on Sui
     const suiPrepareRegistrationTxPayload = await createWrappedOnSuiPrepare(
-      suiCoreBridgePackageId,
-      suiTokenBridgePackageId,
-      attestVAA,
+      suiProvider,
+      SUI_CORE_BRIDGE_STATE_OBJECT_ID,
+      SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
+      parseAttestMetaVaa(attestVAA).decimals,
       suiAddress
     );
     const suiPrepareRegistrationTxRes = await executeTransactionBlock(
       suiSigner,
       suiPrepareRegistrationTxPayload
     );
-    // expect(coins.length).toBe(1);
-    console.log(JSON.stringify(suiPrepareRegistrationTxRes));
     expect(suiPrepareRegistrationTxRes.effects?.status.status).toBe("success");
 
     // Complete create wrapped on Sui
@@ -186,11 +191,11 @@ describe("Sui SDK tests", () => {
     const coinPackageId = publishEvents[0].packageId;
     const suiCompleteRegistrationTxPayload = await createWrappedOnSui(
       suiProvider,
-      suiTokenBridgePackageId,
       SUI_CORE_BRIDGE_STATE_OBJECT_ID,
       SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
       suiAddress,
-      coinPackageId
+      coinPackageId,
+      attestVAA
     );
     const suiCompleteRegistrationTxRes = await executeTransactionBlock(
       suiSigner,
@@ -205,26 +210,26 @@ describe("Sui SDK tests", () => {
       CHAIN_ID_ETH,
       hexToUint8Array(TEST_ERC20)
     );
-    console.log(JSON.stringify(foreignAsset));
-    //expect(
-    //  await getIsWrappedAssetSui(
-    //    suiProvider,
-    //    SUI_TOKEN_BRIDGE_ADDRESS,
-    //    SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
-    //    getWrappedCoinType(coinPackageId)
-    //  )
-    //).toBe(true);
-    //const originalAsset = await getOriginalAssetSui(
-    //  suiProvider,
-    //  SUI_TOKEN_BRIDGE_ADDRESS,
-    //  SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
-    //  getWrappedCoinType(coinPackageId)
-    //);
-    //expect(originalAsset).toMatchObject({
-    //  isWrapped: true,
-    //  chainId: CHAIN_ID_ETH,
-    //  assetAddress: Buffer.from(TEST_ERC20, "hex"),
-    //});
+    console.log({ foreignAsset });
+    expect(
+      await getIsWrappedAssetSui(
+        suiProvider,
+        SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
+        getWrappedCoinType(coinPackageId)
+      )
+    ).toBe(true);
+
+    const originalAsset = await getOriginalAssetSui(
+      suiProvider,
+      SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
+      getWrappedCoinType(coinPackageId)
+    );
+    expect(originalAsset).toMatchObject({
+      isWrapped: true,
+      chainId: CHAIN_ID_ETH,
+      assetAddress: Buffer.from(TEST_ERC20, "hex"),
+    });
+
     //console.log(originalAsset, Buffer.from(TEST_ERC20, "hex"));
     //const transferAmount = formatUnits(1, 18);
     //// Transfer to Sui

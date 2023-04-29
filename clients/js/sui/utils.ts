@@ -183,16 +183,6 @@ export const executeTransactionBlock = async (
   });
 };
 
-export const getCreatedObjects = (
-  res: SuiTransactionBlockResponse
-): { type: string; objectId: string; owner: string }[] => {
-  return res.objectChanges.filter(isSuiCreateEvent).map((e) => ({
-    type: e.objectType,
-    objectId: e.objectId,
-    owner: e.owner["AddressOwner"] || e.owner["ObjectOwner"] || e.owner,
-  }));
-};
-
 export const findOwnedObjectByType = async (
   provider: JsonRpcProvider,
   owner: string,
@@ -226,6 +216,16 @@ export const findOwnedObjectByType = async (
   } else {
     return object.data.objectId;
   }
+};
+
+export const getCreatedObjects = (
+  res: SuiTransactionBlockResponse
+): { type: string; objectId: string; owner: string }[] => {
+  return res.objectChanges.filter(isSuiCreateEvent).map((e) => ({
+    type: e.objectType,
+    objectId: e.objectId,
+    owner: e.owner["AddressOwner"] || e.owner["ObjectOwner"] || e.owner,
+  }));
 };
 
 export const getOwnedObjectId = async (
@@ -295,16 +295,12 @@ export async function getPackageId(
         return result.data.content.fields;
       }
 
-      console.log(
-        "not a move object?",
-        stateObjectId,
-        JSON.stringify(result, null, 2)
-      );
       throw new Error("Not a moveObject");
     });
   if ("upgrade_cap" in fields) {
     return fields.upgrade_cap.fields.package;
   }
+
   throw new Error("upgrade_cap not found");
 }
 
@@ -409,12 +405,12 @@ export const isSameType = (a: string, b: string) => {
   }
 };
 
-export const isSuiPublishEvent = (event: any): event is SuiPublishEvent => {
-  return event.type === "published";
-};
-
 export const isSuiCreateEvent = (event: any): event is SuiCreateEvent => {
   return event.type === "created";
+};
+
+export const isSuiPublishEvent = (event: any): event is SuiPublishEvent => {
+  return event.type === "published";
 };
 
 export const isValidSuiAddress = (objectId: string): boolean => {
