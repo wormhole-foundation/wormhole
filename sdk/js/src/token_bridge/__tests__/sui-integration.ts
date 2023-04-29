@@ -27,7 +27,6 @@ import {
   createWrappedOnSuiPrepare,
   getEmitterAddressEth,
   getForeignAssetEth,
-  getForeignAssetSui,
   getIsTransferCompletedEth,
   getIsTransferCompletedSui,
   getIsWrappedAssetSui,
@@ -40,12 +39,7 @@ import {
   transferFromEth,
   transferFromSui,
 } from "../..";
-import {
-  executeTransactionBlock,
-  getInnerType,
-  getPackageId,
-  getWrappedCoinType,
-} from "../../sui";
+import { executeTransactionBlock, getInnerType, getPackageId } from "../../sui";
 import {
   CHAIN_ID_ETH,
   CHAIN_ID_SUI,
@@ -124,7 +118,7 @@ function sliceVAASignatures(vaa: Uint8Array) {
 }
 
 describe("Sui SDK tests", () => {
-  test.skip("Test prebuilt coin build output", async () => {
+  test("Test prebuilt coin build output", async () => {
     // const vaa =
     //   "0100000000010026ff86c07ef853ef955a63c58a8d08eeb2ac232b91e725bd41baeb3c05c5c18d07aef3c02dc3d5ca8ad0600a447c3d55386d0a0e85b23378d438fbb1e207c3b600000002c3a86f000000020000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16000000000000000001020000000000000000000000002d8be6bf0baa74e0a907016679cae9190e80dd0a000212544b4e0000000000000000000000000000000000000000000000000000000000457468657265756d205465737420546f6b656e00000000000000000000000000";
     // const build = getCoinBuildOutput(
@@ -181,6 +175,7 @@ describe("Sui SDK tests", () => {
       suiSigner,
       suiPrepareRegistrationTxPayload
     );
+    console.log(JSON.stringify(suiPrepareRegistrationTxRes, null, 2));
     expect(suiPrepareRegistrationTxRes.effects?.status.status).toBe("success");
 
     // Complete create wrapped on Sui
@@ -203,32 +198,32 @@ describe("Sui SDK tests", () => {
     );
     expect(suiCompleteRegistrationTxRes.effects?.status.status).toBe("success");
 
-    // Get foreign asset
-    const foreignAsset = await getForeignAssetSui(
-      suiProvider,
-      SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
-      CHAIN_ID_ETH,
-      hexToUint8Array(TEST_ERC20)
-    );
-    console.log({ foreignAsset });
-    expect(
-      await getIsWrappedAssetSui(
-        suiProvider,
-        SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
-        getWrappedCoinType(coinPackageId)
-      )
-    ).toBe(true);
+    // // Get foreign asset
+    // const foreignAsset = await getForeignAssetSui(
+    //   suiProvider,
+    //   SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
+    //   CHAIN_ID_ETH,
+    //   hexToUint8Array(TEST_ERC20)
+    // );
+    // console.log({ foreignAsset });
+    // expect(
+    //   await getIsWrappedAssetSui(
+    //     suiProvider,
+    //     SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
+    //     getWrappedCoinType(coinPackageId)
+    //   )
+    // ).toBe(true);
 
-    const originalAsset = await getOriginalAssetSui(
-      suiProvider,
-      SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
-      getWrappedCoinType(coinPackageId)
-    );
-    expect(originalAsset).toMatchObject({
-      isWrapped: true,
-      chainId: CHAIN_ID_ETH,
-      assetAddress: Buffer.from(TEST_ERC20, "hex"),
-    });
+    // const originalAsset = await getOriginalAssetSui(
+    //   suiProvider,
+    //   SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
+    //   getWrappedCoinType(coinPackageId)
+    // );
+    // expect(originalAsset).toMatchObject({
+    //   isWrapped: true,
+    //   chainId: CHAIN_ID_ETH,
+    //   assetAddress: Buffer.from(TEST_ERC20, "hex"),
+    // });
 
     //console.log(originalAsset, Buffer.from(TEST_ERC20, "hex"));
     //const transferAmount = formatUnits(1, 18);

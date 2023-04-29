@@ -9,10 +9,10 @@ module wrapped_coin::coin {
     struct COIN has drop {}
 
     fun init(witness: COIN, ctx: &mut TxContext) {
-        use token_bridge::version_control::{V__0_1_0};
+        use token_bridge::version_control::{V__0_1_1};
 
         transfer::public_transfer(
-            create_wrapped::prepare_registration<COIN, V__0_1_0>(
+            create_wrapped::prepare_registration<COIN, V__0_1_1>(
                 witness,
                 {{DECIMALS}},
                 ctx
