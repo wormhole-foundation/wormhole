@@ -35,20 +35,20 @@ export const executeTransactionBlock = async (
 // or do we have to use the first one?
 // this is the same type that the guardian will look for
 export const getEmitterAddressAndSequenceFromResponseSui = (
-  coreBridgePackageId: string,
+  originalCoreBridgePackageId: string,
   response: SuiTransactionBlockResponse
 ): { emitterAddress: string; sequence: string } => {
-  const eventType = `${coreBridgePackageId}::publish_message::WormholeMessage`;
-  const event = response.events?.find((e) => e.type === eventType);
+  const wormholeMessageEventType = `${originalCoreBridgePackageId}::publish_message::WormholeMessage`;
+  const event = response.events?.find(
+    (e) => e.type === wormholeMessageEventType
+  );
   if (event === undefined) {
-    throw new Error(`${eventType} event type not found`);
+    throw new Error(`${wormholeMessageEventType} event type not found`);
   }
-
   const { sender, sequence } = event.parsedJson || {};
   if (sender === undefined || sequence === undefined) {
     throw new Error("Can't find sender or sequence");
   }
-
   return { emitterAddress: sender.substring(2), sequence };
 };
 
