@@ -174,7 +174,7 @@ describe("Sui SDK tests", () => {
         transport: NodeHttpTransport(),
       },
       1000,
-      5
+      30
     );
     expect(vaaBytes).toBeTruthy();
     // Create wrapped on Ethereum
@@ -230,7 +230,7 @@ describe("Sui SDK tests", () => {
         transport: NodeHttpTransport(),
       },
       1000,
-      5
+      30
     );
     // Redeem on Ethereum
     await redeemOnEth(ETH_TOKEN_BRIDGE_ADDRESS, ethSigner, transferVAA);
@@ -278,7 +278,7 @@ describe("Sui SDK tests", () => {
         transport: NodeHttpTransport(),
       },
       1000,
-      5
+      30
     );
     const slicedVAA = sliceVAASignatures(ethTransferVAA);
     // Redeem on Sui

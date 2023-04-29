@@ -68,6 +68,10 @@ export const execute_sui = async (
         case "GuardianSetUpgrade": {
           console.log("Submitting new guardian set");
           const tx = new TransactionBlock();
+          if (network === "DEVNET") {
+            // Avoid Error checking transaction input objects: GasBudgetTooHigh { gas_budget: 50000000000, max_budget: 10000000000 }
+            tx.setGasBudget(10000000000);
+          }
           tx.moveCall({
             target: `${corePackageId}::wormhole::update_guardian_set`,
             arguments: [
