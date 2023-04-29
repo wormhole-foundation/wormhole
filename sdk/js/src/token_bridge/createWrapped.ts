@@ -1,4 +1,9 @@
 import {
+  JsonRpcProvider,
+  SUI_CLOCK_OBJECT_ID,
+  TransactionBlock,
+} from "@mysten/sui.js";
+import {
   Commitment,
   Connection,
   PublicKey,
@@ -21,7 +26,8 @@ import {
 } from "../aptos";
 import { Bridge__factory } from "../ethers-contracts";
 import { createCreateWrappedInstruction } from "../solana/tokenBridge";
-import { callFunctionNear } from "../utils";
+import { getWrappedCoinType, publishCoin } from "../sui";
+import { callFunctionNear, uint8ArrayToHex } from "../utils";
 import { SignedVaa } from "../vaa";
 import { submitVAAOnInjective } from "./redeem";
 
@@ -159,4 +165,59 @@ export function createWrappedOnAptos(
   attestVAA: Uint8Array
 ): Types.EntryFunctionPayload {
   return createWrappedCoinAptos(tokenBridgeAddress, attestVAA);
+}
+
+export async function createWrappedOnSuiPrepare(
+  coreBridgePackageId: string,
+  tokenBridgePackageId: string,
+  attestVAA: Uint8Array,
+  signerAddress: string
+): Promise<TransactionBlock> {
+  return publishCoin(
+    coreBridgePackageId,
+    tokenBridgePackageId,
+    uint8ArrayToHex(attestVAA),
+    signerAddress
+  );
+}
+
+export async function createWrappedOnSui(
+  provider: JsonRpcProvider,
+  tokenBridgePackageId: string,
+  coreBridgeStateObjectId: string,
+  tokenBridgeStateObjectId: string,
+  signerAddress: string,
+  coinPackageId: string
+): Promise<TransactionBlock> {
+  // Get WrappedAssetSetup object ID
+  const coinType = getWrappedCoinType(coinPackageId);
+  const type = `${tokenBridgePackageId}::create_wrapped::WrappedAssetSetup<${coinType}>`;
+  const res = await provider.getOwnedObjects({
+    owner: signerAddress,
+    filter: { StructType: type },
+  });
+  if (!res || !res.data || res.data.length === 0) {
+    throw new Error(
+      `No WrappedAssetSetup object found for ${coinType} under owner ${signerAddress}. You must call 'createWrappedOnSuiPrepare' first.`
+    );
+  }
+
+  const wrappedAssetSetupObjectId = res.data[0].data?.objectId;
+  if (!wrappedAssetSetupObjectId) {
+    throw new Error(`WrappedAssetSetup object is invalid`);
+  }
+
+  // Construct complete registration payload
+  const tx = new TransactionBlock();
+  tx.moveCall({
+    target: `${tokenBridgePackageId}::create_wrapped::complete_registration`,
+    arguments: [
+      tx.object(tokenBridgeStateObjectId),
+      tx.object(coreBridgeStateObjectId),
+      tx.object(wrappedAssetSetupObjectId),
+      tx.object(SUI_CLOCK_OBJECT_ID),
+    ],
+    typeArguments: [coinType],
+  });
+  return tx;
 }
