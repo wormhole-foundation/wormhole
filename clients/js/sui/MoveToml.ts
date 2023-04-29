@@ -1,9 +1,14 @@
+import fs from "fs";
 import { ParsedMoveToml } from "./types";
 
 export class MoveToml {
   private toml: ParsedMoveToml;
 
-  constructor(tomlStr: string) {
+  constructor(tomlPathOrStr: string) {
+    let tomlStr = tomlPathOrStr;
+    try {
+      tomlStr = fs.readFileSync(tomlPathOrStr, "utf8").toString();
+    } catch (e) {}
     this.toml = MoveToml.parse(tomlStr);
   }
 
@@ -16,7 +21,7 @@ export class MoveToml {
       }
     }
 
-    const section = this.getSection(sectionName);
+    const section = this.forceGetSection(sectionName);
     section.rows.push({ key, value });
     return this;
   }
@@ -26,11 +31,11 @@ export class MoveToml {
   }
 
   isPublished(): boolean {
-    return !!this.getRow("package", "published-at", false);
+    return !!this.getRow("package", "published-at");
   }
 
   removeRow(sectionName: string, key: string) {
-    const section = this.getSection(sectionName);
+    const section = this.forceGetSection(sectionName);
     section.rows = section.rows.filter((r) => r.key !== key);
     return this;
   }
@@ -61,7 +66,7 @@ export class MoveToml {
       }
     }
 
-    const row = this.getRow(sectionName, key);
+    const row = this.forceGetRow(sectionName, key);
     row.value = value;
     return this;
   }
@@ -101,29 +106,38 @@ export class MoveToml {
     return toml;
   }
 
-  private getRow(
+  private forceGetRow(
     sectionName: string,
-    key: string,
-    errorIfMissing: boolean = true
+    key: string
   ): ParsedMoveToml[number]["rows"][number] {
-    const section = this.getSection(sectionName);
+    const section = this.forceGetSection(sectionName);
     const row = section.rows.find((r) => r.key === key);
-    if (errorIfMissing && row === undefined) {
+    if (row === undefined) {
       throw new Error(`Row "${key}" not found in section "${sectionName}"`);
     }
 
     return row;
   }
 
-  private getSection(
-    sectionName: string,
-    errorIfMissing: boolean = true
-  ): ParsedMoveToml[number] {
-    const section = this.toml.find((s) => s.name === sectionName);
-    if (errorIfMissing && section === undefined) {
+  private forceGetSection(sectionName: string): ParsedMoveToml[number] {
+    const section = this.getSection(sectionName);
+    if (section === undefined) {
+      console.log(this.toml);
       throw new Error(`Section "${sectionName}" not found`);
     }
 
     return section;
+  }
+
+  private getRow(
+    sectionName: string,
+    key: string
+  ): ParsedMoveToml[number]["rows"][number] | undefined {
+    const section = this.getSection(sectionName);
+    return section && section.rows.find((r) => r.key === key);
+  }
+
+  private getSection(sectionName: string): ParsedMoveToml[number] | undefined {
+    return this.toml.find((s) => s.name === sectionName);
   }
 }

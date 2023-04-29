@@ -17,6 +17,7 @@ import {
 } from "../../sui/log";
 import { Network, assertNetwork, checkBinary } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
+
 export const addDeployCommands: YargsAddCommandsFn = (y: typeof yargs) =>
   y.command(
     "deploy <package-dir>",

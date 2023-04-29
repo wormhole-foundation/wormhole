@@ -1,4 +1,6 @@
 module wrapped_coin::coin {
+    use sui::object::{Self};
+    use sui::package::{Self};
     use sui::transfer::{Self};
     use sui::tx_context::{Self, TxContext};
 
@@ -6,13 +8,13 @@ module wrapped_coin::coin {
 
     struct COIN has drop {}
 
-    const VAA: vector<u8> = x"{{VAA_BYTES}}";
-
     fun init(witness: COIN, ctx: &mut TxContext) {
+        use token_bridge::version_control::{V__0_1_0};
+
         transfer::public_transfer(
-            create_wrapped::prepare_registration(
+            create_wrapped::prepare_registration<COIN, V__0_1_0>(
                 witness,
-                VAA,
+                {{DECIMALS}},
                 ctx
             ),
             tx_context::sender(ctx)

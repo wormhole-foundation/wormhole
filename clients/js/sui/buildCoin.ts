@@ -1,21 +1,31 @@
+import { JsonRpcProvider } from "@mysten/sui.js";
 import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import { Network } from "../utils";
 import { MoveToml } from "./MoveToml";
 import { GithubTreeResponse, SuiBuildOutput } from "./types";
-import { isValidSuiAddress } from "./utils";
+import { getPackageId, isValidSuiAddress } from "./utils";
 
 // TODO(aki): Remove this when this branch is merged in
 const TEMPORARY_SUI_BRANCH = "sui/integration_v2";
 
 export const getCoinBuildOutputManual = async (
+  provider: JsonRpcProvider,
   network: Network,
-  coreBridgePackageId: string,
-  tokenBridgePackageId: string,
-  vaa: string
+  coreBridgeStateObjectId: string,
+  tokenBridgeStateObjectId: string,
+  decimals: number
 ): Promise<SuiBuildOutput> => {
   await cloneDependencies();
+  const coreBridgePackageId = await getPackageId(
+    provider,
+    coreBridgeStateObjectId
+  );
+  const tokenBridgePackageId = await getPackageId(
+    provider,
+    tokenBridgeStateObjectId
+  );
   setupMainToml(
     `${__dirname}/dependencies/wormhole`,
     network,
@@ -26,7 +36,7 @@ export const getCoinBuildOutputManual = async (
     network,
     tokenBridgePackageId
   );
-  setupCoin(coreBridgePackageId, tokenBridgePackageId, vaa);
+  setupCoin(coreBridgePackageId, tokenBridgePackageId, decimals);
   const buildOutput = buildPackage(`${__dirname}/wrapped_coin`);
   cleanupTempToml(`${__dirname}/dependencies/wormhole`);
   cleanupTempToml(`${__dirname}/dependencies/token_bridge`);
@@ -152,7 +162,7 @@ const getPackageNameFromPath = (packagePath: string): string =>
 const setupCoin = (
   coreBridgePackageId: string,
   tokenBridgePackageId: string,
-  vaa: string
+  decimals: number
 ): void => {
   fs.rmSync(`${__dirname}/wrapped_coin`, { recursive: true, force: true });
   fs.mkdirSync(`${__dirname}/wrapped_coin/sources`, { recursive: true });
@@ -162,7 +172,7 @@ const setupCoin = (
     .toString();
   fs.writeFileSync(
     `${__dirname}/wrapped_coin/sources/coin.move`,
-    coin.replace(`{{VAA_BYTES}}`, vaa),
+    coin.replace(`{{DECIMALS}}`, decimals.toString()),
     "utf8"
   );
 
