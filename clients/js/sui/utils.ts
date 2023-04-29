@@ -22,30 +22,6 @@ import { SuiCreateEvent, SuiPublishEvent } from "./types";
 
 const UPGRADE_CAP_TYPE = "0x2::package::UpgradeCap";
 
-// TODO(kp): remove this once it's in the sdk
-export async function getPackageId(
-  provider: JsonRpcProvider,
-  stateObjectId: string
-): Promise<string> {
-  const fields = await provider
-    .getObject({
-      id: stateObjectId,
-      options: {
-        showContent: true,
-      },
-    })
-    .then((result) => {
-      if (result.data?.content?.dataType === "moveObject") {
-        return result.data.content.fields;
-      }
-      throw new Error("Not a moveObject");
-    });
-  if ("upgrade_cap" in fields) {
-    return fields.upgrade_cap.fields.package;
-  }
-  throw new Error("upgrade_cap not found");
-}
-
 export const execute_sui = async (
   payload: Payload,
   vaa: Buffer,
@@ -301,6 +277,36 @@ export const getOwnedObjectId = async (
     }
   }
 };
+
+// TODO(kp): remove this once it's in the sdk
+export async function getPackageId(
+  provider: JsonRpcProvider,
+  stateObjectId: string
+): Promise<string> {
+  const fields = await provider
+    .getObject({
+      id: stateObjectId,
+      options: {
+        showContent: true,
+      },
+    })
+    .then((result) => {
+      if (result.data?.content?.dataType === "moveObject") {
+        return result.data.content.fields;
+      }
+
+      console.log(
+        "not a move object?",
+        stateObjectId,
+        JSON.stringify(result, null, 2)
+      );
+      throw new Error("Not a moveObject");
+    });
+  if ("upgrade_cap" in fields) {
+    return fields.upgrade_cap.fields.package;
+  }
+  throw new Error("upgrade_cap not found");
+}
 
 export const getProvider = (
   network?: Network,
