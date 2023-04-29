@@ -2,13 +2,17 @@ import {
   isValidSuiAddress as isValidFullSuiAddress,
   JsonRpcProvider,
   normalizeSuiAddress,
+  PaginatedObjectsResponse,
   RawSigner,
   SuiObjectResponse,
   SuiTransactionBlockResponse,
   TransactionBlock,
 } from "@mysten/sui.js";
-import { SuiError } from "./types";
 import { ensureHexPrefix } from "../utils";
+import { SuiRpcValidationError } from "./error";
+import { SuiError } from "./types";
+
+const UPGRADE_CAP_TYPE = "0x2::package::UpgradeCap";
 
 export const executeTransactionBlock = async (
   signer: RawSigner,
@@ -27,6 +31,27 @@ export const executeTransactionBlock = async (
   });
 };
 
+// TODO: can we pass in the latest core bridge package Id after an upgrade?
+// or do we have to use the first one?
+// this is the same type that the guardian will look for
+export const getEmitterAddressAndSequenceFromResponseSui = (
+  coreBridgePackageId: string,
+  response: SuiTransactionBlockResponse
+): { emitterAddress: string; sequence: string } => {
+  const eventType = `${coreBridgePackageId}::publish_message::WormholeMessage`;
+  const event = response.events?.find((e) => e.type === eventType);
+  if (event === undefined) {
+    throw new Error(`${eventType} event type not found`);
+  }
+
+  const { sender, sequence } = event.parsedJson || {};
+  if (sender === undefined || sequence === undefined) {
+    throw new Error("Can't find sender or sequence");
+  }
+
+  return { emitterAddress: sender.substring(2), sequence };
+};
+
 export const getFieldsFromObjectResponse = (object: SuiObjectResponse) => {
   const content = object.data?.content;
   return content && content.dataType === "moveObject" ? content.fields : null;
@@ -40,6 +65,118 @@ export const getInnerType = (type: string): string | null => {
   }
 
   return match[1];
+};
+
+export const getObjectFields = async (
+  provider: JsonRpcProvider,
+  objectId: string
+): Promise<Record<string, any> | null> => {
+  if (!isValidSuiAddress(objectId)) {
+    throw new Error(`Invalid object ID: ${objectId}`);
+  }
+
+  const res = await provider.getObject({
+    id: objectId,
+    options: {
+      showContent: true,
+    },
+  });
+  return getFieldsFromObjectResponse(res);
+};
+
+export const getOwnedObjectId = async (
+  provider: JsonRpcProvider,
+  owner: string,
+  type: string
+): Promise<string | null> => {
+  // Upgrade caps are a special case
+  if (normalizeSuiType(type) === normalizeSuiType(UPGRADE_CAP_TYPE)) {
+    throw new Error(
+      "`getOwnedObjectId` should not be used to get the object ID of an `UpgradeCap`. Use `getUpgradeCapObjectId` instead."
+    );
+  }
+
+  try {
+    const res = await provider.getOwnedObjects({
+      owner,
+      filter: { StructType: type },
+      options: {
+        showContent: true,
+      },
+    });
+    console.log("type", type);
+    console.log("RES", JSON.stringify(res, null, 2));
+    if (!res || !res.data) {
+      throw new SuiRpcValidationError(res);
+    }
+
+    const objects = res.data.filter((o) => o.data?.objectId);
+    if (objects.length === 1) {
+      return objects[0].data?.objectId ?? null;
+    } else if (objects.length > 1) {
+      const objectsStr = JSON.stringify(objects, null, 2);
+      throw new Error(
+        `Found multiple objects owned by ${owner} of type ${type}. This may mean that we've received an unexpected response from the Sui RPC and \`worm\` logic needs to be updated to handle this. Objects: ${objectsStr}`
+      );
+    } else {
+      return null;
+    }
+  } catch (error) {
+    // Handle 504 error by using findOwnedObjectByType method
+    const is504HttpError = `${error}`.includes("504 Gateway Time-out");
+    if (error && is504HttpError) {
+      return getOwnedObjectIdPaginated(provider, owner, type);
+    } else {
+      throw error;
+    }
+  }
+};
+
+export const getOwnedObjectIdPaginated = async (
+  provider: JsonRpcProvider,
+  owner: string,
+  type: string,
+  cursor?: string
+): Promise<string | null> => {
+  const res: PaginatedObjectsResponse = await provider.getOwnedObjects({
+    owner,
+    filter: undefined, // Filter must be undefined to avoid 504 responses
+    cursor: cursor || undefined,
+    options: {
+      showType: true,
+    },
+  });
+
+  if (!res || !res.data) {
+    throw new SuiRpcValidationError(res);
+  }
+
+  const object = res.data.find((d) => d.data?.type === type);
+
+  if (!object && res.hasNextPage) {
+    return getOwnedObjectIdPaginated(
+      provider,
+      owner,
+      type,
+      res.nextCursor as string
+    );
+  } else if (!object && !res.hasNextPage) {
+    return null;
+  } else {
+    return object?.data?.objectId ?? null;
+  }
+};
+
+export const getPackageId = async (
+  provider: JsonRpcProvider,
+  objectId: string
+): Promise<string> => {
+  const fields = await getObjectFields(provider, objectId);
+  if (fields && "upgrade_cap" in fields) {
+    return fields.upgrade_cap.fields.package;
+  }
+
+  throw new Error("upgrade_cap not found");
 };
 
 export const getPackageIdFromType = (type: string): string | null => {
@@ -58,21 +195,52 @@ export const getTableKeyType = (tableType: string): string | null => {
   return keyType;
 };
 
-export const getObjectFields = async (
+export const getTokenCoinType = async (
   provider: JsonRpcProvider,
-  objectId: string
-): Promise<Record<string, any> | null> => {
-  if (!isValidSuiAddress(objectId)) {
-    throw new Error(`Invalid object ID: ${objectId}`);
+  tokenBridgeStateObjectId: string,
+  tokenAddress: Uint8Array,
+  tokenChain: number
+): Promise<string | null> => {
+  const tokenBridgeStateFields = await getObjectFields(
+    provider,
+    tokenBridgeStateObjectId
+  );
+  if (!tokenBridgeStateFields) {
+    throw new Error("Unable to fetch object fields from token bridge state");
   }
 
-  const res = await provider.getObject({
-    id: objectId,
-    options: {
-      showContent: true,
-    },
-  });
-  return getFieldsFromObjectResponse(res);
+  const coinTypes = tokenBridgeStateFields?.token_registry?.fields?.coin_types;
+  const coinTypesObjectId = coinTypes?.fields?.id?.id;
+  if (!coinTypesObjectId) {
+    throw new Error("Unable to fetch coin types");
+  }
+
+  const keyType = getTableKeyType(coinTypes?.type);
+  if (!keyType) {
+    throw new Error("Unable to get key type");
+  }
+
+  try {
+    // This call throws if the key doesn't exist in CoinTypes
+    const coinTypeValue = await provider.getDynamicFieldObject({
+      parentId: coinTypesObjectId,
+      name: {
+        type: keyType,
+        value: {
+          addr: [...tokenAddress],
+          chain: tokenChain,
+        },
+      },
+    });
+    const fields = getFieldsFromObjectResponse(coinTypeValue);
+    return fields?.value ? ensureHexPrefix(fields.value) : null;
+  } catch (e: any) {
+    if (e.code === -32000 && e.message?.includes("RPC Error")) {
+      return null;
+    }
+
+    throw e;
+  }
 };
 
 export const getTokenFromTokenRegistry = async (
@@ -93,17 +261,20 @@ export const getTokenFromTokenRegistry = async (
       `Unable to fetch object fields from token bridge state. Object ID: ${tokenBridgeStateObjectId}`
     );
   }
+
   const tokenRegistryObjectId =
     tokenBridgeStateFields.token_registry?.fields?.id?.id;
   if (!tokenRegistryObjectId) {
     throw new Error("Unable to fetch token registry object ID");
   }
+
   const tokenRegistryPackageId = getPackageIdFromType(
     tokenBridgeStateFields.token_registry?.type
   );
   if (!tokenRegistryObjectId) {
     throw new Error("Unable to fetch token registry package ID");
   }
+
   return provider.getDynamicFieldObject({
     parentId: tokenRegistryObjectId,
     name: {
@@ -115,47 +286,50 @@ export const getTokenFromTokenRegistry = async (
   });
 };
 
-export const getTokenCoinType = async (
+/**
+ * This function returns the object ID of the `UpgradeCap` that belongs to the
+ * given package and owner if it exists.
+ *
+ * Structs created by the Sui framework such as `UpgradeCap`s all have the same
+ * type (e.g. `0x2::package::UpgradeCap`) and have a special field, `package`,
+ * we can use to differentiate them.
+ * @param provider Sui RPC provider
+ * @param owner Address of the current owner of the `UpgradeCap`
+ * @param packageId ID of the package that the `UpgradeCap` was created for
+ * @returns The object ID of the `UpgradeCap` if it exists, otherwise `null`
+ */
+export const getUpgradeCapObjectId = async (
   provider: JsonRpcProvider,
-  tokenBridgeStateObjectId: string,
-  tokenAddress: Uint8Array,
-  tokenChain: number
+  owner: string,
+  packageId: string
 ): Promise<string | null> => {
-  const tokenBridgeStateFields = await getObjectFields(
-    provider,
-    tokenBridgeStateObjectId
+  const res = await provider.getOwnedObjects({
+    owner,
+    filter: { StructType: UPGRADE_CAP_TYPE },
+    options: {
+      showContent: true,
+    },
+  });
+  if (!res || !res.data) {
+    throw new SuiRpcValidationError(res);
+  }
+
+  const objects = res.data.filter(
+    (o) =>
+      o.data?.objectId &&
+      o.data?.content?.dataType === "moveObject" &&
+      o.data?.content?.fields?.package === packageId
   );
-  if (!tokenBridgeStateFields) {
-    throw new Error("Unable to fetch object fields from token bridge state");
-  }
-  const coinTypes = tokenBridgeStateFields?.token_registry?.fields?.coin_types;
-  const coinTypesObjectId = coinTypes?.fields?.id?.id;
-  if (!coinTypesObjectId) {
-    throw new Error("Unable to fetch coin types");
-  }
-  const keyType = getTableKeyType(coinTypes?.type);
-  if (!keyType) {
-    throw new Error("Unable to get key type");
-  }
-  try {
-    // This call throws if the key doesn't exist in CoinTypes
-    const coinTypeValue = await provider.getDynamicFieldObject({
-      parentId: coinTypesObjectId,
-      name: {
-        type: keyType,
-        value: {
-          addr: [...tokenAddress],
-          chain: tokenChain,
-        },
-      },
-    });
-    const fields = getFieldsFromObjectResponse(coinTypeValue);
-    return fields?.value ? ensureHexPrefix(fields.value) : null;
-  } catch (e: any) {
-    if (e.code === -32000 && e.message?.includes("RPC Error")) {
-      return null;
-    }
-    throw e;
+  if (objects.length === 1) {
+    // We've found the object we're looking for
+    return objects[0].data?.objectId ?? null;
+  } else if (objects.length > 1) {
+    const objectsStr = JSON.stringify(objects, null, 2);
+    throw new Error(
+      `Found multiple upgrade capabilities owned by ${owner} from package ${packageId}. Objects: ${objectsStr}`
+    );
+  } else {
+    return null;
   }
 };
 
@@ -203,13 +377,11 @@ export const isValidSuiType = (type: string): boolean => {
   return isValidSuiAddress(tokens[0]) && !!tokens[1] && !!tokens[2];
 };
 
-export const getPackageId = async (
-  provider: JsonRpcProvider,
-  objectId: string
-): Promise<string> => {
-  const fields = await getObjectFields(provider, objectId);
-  if (fields && "upgrade_cap" in fields) {
-    return fields.upgrade_cap.fields.package;
+export const normalizeSuiType = (type: string): string => {
+  const tokens = type.split("::");
+  if (tokens.length < 3 || !isValidSuiAddress(tokens[0])) {
+    throw new Error(`Invalid Sui type: ${type}`);
   }
-  throw new Error("upgrade_cap not found");
+
+  return [normalizeSuiAddress(tokens[0]), ...tokens.slice(1)].join("::");
 };
