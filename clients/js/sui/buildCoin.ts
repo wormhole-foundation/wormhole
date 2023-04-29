@@ -91,27 +91,29 @@ const setupCoin = (
   // Setup dependencies
   const paths = getAllLocalPackageDependencyPaths(tomlPath);
   for (const dependencyPath of paths) {
-    setupMainToml(dependencyPath, network, false);
-    const dependencyToml = new MoveToml(getDefaultTomlPath(dependencyPath));
-    switch (getPackageNameFromPath(dependencyPath)) {
-      case "wormhole":
-        dependencyToml
-          .addOrUpdateRow("package", "published-at", coreBridgePackageId)
-          .updateRow("addresses", "wormhole", coreBridgePackageId);
-        break;
-      case "token_bridge":
-        dependencyToml
-          .addOrUpdateRow("package", "published-at", tokenBridgePackageId)
-          .updateRow("addresses", "token_bridge", tokenBridgePackageId);
-        break;
-      default:
-        throw new Error(`Unknown dependency ${dependencyPath}`);
+    setupMainToml(dependencyPath, network, false, true);
+    if (network === "DEVNET") {
+      const dependencyToml = new MoveToml(getDefaultTomlPath(dependencyPath));
+      switch (getPackageNameFromPath(dependencyPath)) {
+        case "wormhole":
+          dependencyToml
+            .addOrUpdateRow("package", "published-at", coreBridgePackageId)
+            .updateRow("addresses", "wormhole", coreBridgePackageId);
+          break;
+        case "token_bridge":
+          dependencyToml
+            .addOrUpdateRow("package", "published-at", tokenBridgePackageId)
+            .updateRow("addresses", "token_bridge", tokenBridgePackageId);
+          break;
+        default:
+          throw new Error(`Unknown dependency ${dependencyPath}`);
+      }
+      fs.writeFileSync(
+        getDefaultTomlPath(dependencyPath),
+        dependencyToml.serialize(),
+        "utf8"
+      );
     }
-    fs.writeFileSync(
-      getDefaultTomlPath(dependencyPath),
-      dependencyToml.serialize(),
-      "utf8"
-    );
   }
 };
 
