@@ -40,7 +40,12 @@ import {
   transferFromEth,
   transferFromSui,
 } from "../..";
-import { executeTransactionBlock, getInnerType, getPackageId } from "../../sui";
+import {
+  executeTransactionBlock,
+  getEmitterAddressAndSequenceFromResponseSui,
+  getInnerType,
+  getPackageId,
+} from "../../sui";
 import {
   CHAIN_ID_ETH,
   CHAIN_ID_SUI,
@@ -61,7 +66,6 @@ import {
 import {
   assertIsNotNull,
   assertIsNotNullOrUndefined,
-  getEmitterAddressAndSequenceFromResponseSui,
   mintAndTransferCoinSui,
 } from "./utils/helpers";
 
@@ -169,6 +173,7 @@ describe("Sui SDK tests", () => {
     // Start create wrapped on Sui
     const suiPrepareRegistrationTxPayload = await createWrappedOnSuiPrepare(
       suiProvider,
+      "DEVNET",
       SUI_CORE_BRIDGE_STATE_OBJECT_ID,
       SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
       parseAttestMetaVaa(attestVAA).decimals,

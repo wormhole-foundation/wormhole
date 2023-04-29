@@ -10,7 +10,10 @@ import { YargsAddCommandsFn } from "../Yargs";
 export const addBuildCommands: YargsAddCommandsFn = (y: typeof yargs) =>
   y.command(
     "build-coin",
-    "Build wrapped coin and dump bytecode",
+    `Build wrapped coin and dump bytecode.
+    
+    Example:
+      worm sui build-coin -d 8 -v V__0_1_1 -n testnet -r "https://fullnode.testnet.sui.io:443"`,
     (yargs) =>
       yargs
         .option("decimals", {
