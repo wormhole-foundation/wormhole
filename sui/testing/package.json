@@ -1,6 +1,6 @@
 {
-  "name": "wormhole-sui-integration-test",
-  "version": "1.0.0",
+  "name": "@wormhole-foundation/wormhole-sui-integration-test",
+  "version": "0.0.1",
   "description": "Wormhole Sui Integration Test",
   "main": "index.js",
   "license": "MIT",
