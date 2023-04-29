@@ -24,6 +24,7 @@ import {
   getFieldsFromObjectResponse,
   getTokenFromTokenRegistry,
   isValidSuiType,
+  unnormalizeSuiAddress,
 } from "../sui";
 import { buildNativeId } from "../terra";
 import {
@@ -390,18 +391,24 @@ export async function getOriginalAssetSui(
     );
   }
 
-  if (fields.value.type.includes(`wrapped_asset::WrappedAsset<${coinType}>`)) {
+  if (
+    fields.value.type.includes(`wrapped_asset::WrappedAsset<${coinType}>`) ||
+    fields.value.type.includes(
+      `wrapped_asset::WrappedAsset<${unnormalizeSuiAddress(coinType)}>`
+    )
+  ) {
     return {
       isWrapped: true,
-      chainId: Number(
-        fields.value.fields.metadata.fields.token_chain
-      ) as ChainId,
+      chainId: Number(fields.value.fields.info.fields.token_chain) as ChainId,
       assetAddress: new Uint8Array(
-        fields.value.fields.metadata.fields.token_address.fields.value.fields.data
+        fields.value.fields.info.fields.token_address.fields.value.fields.data
       ),
     };
   } else if (
-    fields.value.type.includes(`native_asset::NativeAsset<${coinType}>`)
+    fields.value.type.includes(`native_asset::NativeAsset<${coinType}>`) ||
+    fields.value.type.includes(
+      `native_asset::NativeAsset<${unnormalizeSuiAddress(coinType)}>`
+    )
   ) {
     return {
       isWrapped: false,
