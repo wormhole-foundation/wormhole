@@ -209,7 +209,7 @@ export async function createWrappedOnSui(
   // Get coin metadata
   const coinType = getWrappedCoinType(coinPackageId);
   const coinMetadataObjectId = (await provider.getCoinMetadata({ coinType }))
-    .id;
+    ?.id;
   if (!coinMetadataObjectId) {
     throw new Error(
       `Coin metadata object not found for coin type ${coinType}.`
@@ -230,15 +230,15 @@ export async function createWrappedOnSui(
   //   )
   // );
 
-  // console.log(
-  //   JSON.stringify(
-  //     await provider.getDynamicFields({
-  //       parentId: tokenBridgeStateObjectId,
-  //     }),
-  //     null,
-  //     2
-  //   )
-  // );
+  console.log(
+    JSON.stringify(
+      await provider.getDynamicFields({
+        parentId: tokenBridgeStateObjectId,
+      }),
+      null,
+      2
+    )
+  );
 
   // Get WrappedAssetSetup object ID
   const versionTypeData = (
