@@ -8,10 +8,10 @@ subdir = "crates/sui-framework/packages/sui-framework"
 rev = "3a70c4374090b020b95465787f3220a95d8ab0ba"
 
 [dependencies.Wormhole]
-local = "../dependencies/wormhole"
+local = "../../wormhole"
 
 [dependencies.TokenBridge]
-local = "../dependencies/token_bridge"
+local = "../../token_bridge"
 
 [addresses]
 wormhole = "_"

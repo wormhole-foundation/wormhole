@@ -14,7 +14,6 @@ build: node_modules $(SOURCE_FILES)
 	@mkdir -p build
 	npm run build
 	@touch -m build
-	cp -r sui/templates build/sui
 
 install: build
 	@echo Linking binaries

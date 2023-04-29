@@ -32,3 +32,4 @@ bigtable-writer.json
 /ethereum/out/
 /ethereum/cache/
 sui.log.*
+sui/examples/wrapped_coin

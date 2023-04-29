@@ -10,6 +10,56 @@ import fs from "fs";
 import { resolve } from "path";
 import { Network } from "../utils";
 import { MoveToml } from "./MoveToml";
+import { SuiBuildOutput } from "./types";
+
+export const buildPackage = (packagePath: string): SuiBuildOutput => {
+  if (!fs.existsSync(packagePath)) {
+    throw new Error(`Package not found at ${packagePath}`);
+  }
+
+  return JSON.parse(
+    execSync(`sui move build --dump-bytecode-as-base64 --path ${packagePath}`, {
+      encoding: "utf-8",
+    })
+  );
+};
+
+/**
+ * Get Move.toml dependencies by looking for all lines of form 'local = ".*"'.
+ * This works because network-specific Move.toml files should not contain
+ * dev addresses, so the only lines that match this regex are the dependencies
+ * that need to be replaced.
+ * @param packagePath
+ * @returns
+ */
+export const getAllLocalPackageDependencyPaths = (
+  tomlPath: string
+): string[] => {
+  const tomlStr = fs.readFileSync(tomlPath, "utf8").toString();
+  const toml = new MoveToml(tomlStr);
+
+  // Sanity check that Move.toml does not contain dev info since this breaks
+  // building and publishing packages
+  if (
+    toml.getSectionNames().some((name) => name.includes("dev-dependencies")) ||
+    toml.getSectionNames().some((name) => name.includes("dev-addresses"))
+  ) {
+    throw new Error(
+      "Network-specific Move.toml should not contain dev-dependencies or dev-addresses."
+    );
+  }
+
+  const packagePath = getPackagePathFromTomlPath(tomlPath);
+  return [...tomlStr.matchAll(/local = "(.*)"/g)].map((match) =>
+    resolve(packagePath, match[1])
+  );
+};
+
+export const getDefaultTomlPath = (packagePath: string): string =>
+  `${packagePath}/Move.toml`;
+
+export const getPackageNameFromPath = (packagePath: string): string =>
+  packagePath.split("/").pop() || "";
 
 export const publishPackage = async (
   signer: RawSigner,
@@ -18,19 +68,7 @@ export const publishPackage = async (
 ) => {
   try {
     setupMainToml(packagePath, network);
-
-    // Build contracts
-    const buildOutput: {
-      modules: string[];
-      dependencies: string[];
-    } = JSON.parse(
-      execSync(
-        `sui move build --dump-bytecode-as-base64 --path ${packagePath} 2> /dev/null`,
-        {
-          encoding: "utf-8",
-        }
-      )
-    );
+    const build = buildPackage(packagePath);
 
     // Publish contracts
     const transactionBlock = new TransactionBlock();
@@ -39,10 +77,8 @@ export const publishPackage = async (
       transactionBlock.setGasBudget(10000000000);
     }
     const [upgradeCap] = transactionBlock.publish({
-      modules: buildOutput.modules.map((m: string) => Array.from(fromB64(m))),
-      dependencies: buildOutput.dependencies.map((d: string) =>
-        normalizeSuiObjectId(d)
-      ),
+      modules: build.modules.map((m) => Array.from(fromB64(m))),
+      dependencies: build.dependencies.map((d) => normalizeSuiObjectId(d)),
     });
 
     // Transfer upgrade capability to deployer
@@ -73,58 +109,30 @@ export const publishPackage = async (
 
     // Return publish transaction info
     return res;
-  } catch (e) {
-    throw e;
   } finally {
     cleanupTempToml(packagePath);
   }
 };
 
-const cleanupTempToml = (packagePath: string): void => {
+export const cleanupTempToml = (
+  packagePath: string,
+  cleanupDependencies: boolean = true
+): void => {
   const defaultTomlPath = getDefaultTomlPath(packagePath);
   const tempTomlPath = getTempTomlPath(packagePath);
   if (fs.existsSync(tempTomlPath)) {
     // Clean up Move.toml for dependencies
-    const dependencyPaths = getAllLocalPackageDependencyPaths(defaultTomlPath);
-    for (const path of dependencyPaths) {
-      cleanupTempToml(path);
+    if (cleanupDependencies) {
+      const dependencyPaths =
+        getAllLocalPackageDependencyPaths(defaultTomlPath);
+      for (const path of dependencyPaths) {
+        cleanupTempToml(path);
+      }
     }
 
     fs.renameSync(tempTomlPath, defaultTomlPath);
   }
 };
-
-/**
- * Get Move.toml dependencies by looking for all lines of form 'local = ".*"'.
- * This works because network-specific Move.toml files should not contain
- * dev addresses, so the only lines that match this regex are the dependencies
- * that need to be replaced.
- * @param packagePath
- * @returns
- */
-const getAllLocalPackageDependencyPaths = (tomlPath: string): string[] => {
-  const tomlStr = fs.readFileSync(tomlPath, "utf8").toString();
-  const toml = new MoveToml(tomlStr);
-
-  // Sanity check that Move.toml does not contain dev info since this breaks
-  // building and publishing packages
-  if (
-    toml.getSectionNames().some((name) => name.includes("dev-dependencies")) ||
-    toml.getSectionNames().some((name) => name.includes("dev-addresses"))
-  ) {
-    throw new Error(
-      "Network-specific Move.toml should not contain dev-dependencies or dev-addresses."
-    );
-  }
-
-  const packagePath = getPackagePathFromTomlPath(tomlPath);
-  return [...tomlStr.matchAll(/local = "(.*)"/g)].map((match) =>
-    resolve(packagePath, match[1])
-  );
-};
-
-const getDefaultTomlPath = (packagePath: string): string =>
-  `${packagePath}/Move.toml`;
 
 const getPackagePathFromTomlPath = (tomlPath: string): string =>
   tomlPath.split("/").slice(0, -1).join("/");
@@ -134,9 +142,6 @@ const getTempTomlPath = (packagePath: string): string =>
 
 const getTomlPathByNetwork = (packagePath: string, network: Network): string =>
   `${packagePath}/Move.${network.toLowerCase()}.toml`;
-
-const getPackageNameFromPath = (packagePath: string): string =>
-  packagePath.split("/").pop() || "";
 
 const resetNetworkToml = (
   packagePath: string,
@@ -163,9 +168,10 @@ const resetNetworkToml = (
   }
 };
 
-const setupMainToml = (
+export const setupMainToml = (
   packagePath: string,
   network: Network,
+  checkDependencies: boolean = true,
   isDependency: boolean = false
 ): void => {
   const defaultTomlPath = getDefaultTomlPath(packagePath);
@@ -205,8 +211,7 @@ const setupMainToml = (
 
   fs.copyFileSync(srcTomlPath, defaultTomlPath);
 
-  // Replace undefined addresses in base Move.toml and ensure dependencies are
-  // published
+  // Replace undefined addresses in base Move.toml
   const tomlStr = fs.readFileSync(defaultTomlPath, "utf8").toString();
   const toml = new MoveToml(tomlStr);
   const packageName = getPackageNameFromPath(packagePath);
@@ -225,9 +230,11 @@ const setupMainToml = (
   }
 
   // Set up Move.toml for dependencies
-  const dependencyPaths = getAllLocalPackageDependencyPaths(defaultTomlPath);
-  for (const path of dependencyPaths) {
-    setupMainToml(path, network, true);
+  if (checkDependencies) {
+    const dependencyPaths = getAllLocalPackageDependencyPaths(defaultTomlPath);
+    for (const path of dependencyPaths) {
+      setupMainToml(path, network, checkDependencies, true);
+    }
   }
 };
 
