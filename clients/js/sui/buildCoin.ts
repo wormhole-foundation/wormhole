@@ -1,23 +1,27 @@
 import { JsonRpcProvider } from "@mysten/sui.js";
-import { execSync } from "child_process";
 import fs from "fs";
-import path from "path";
 import { Network } from "../utils";
 import { MoveToml } from "./MoveToml";
-import { GithubTreeResponse, SuiBuildOutput } from "./types";
-import { getPackageId, isValidSuiAddress } from "./utils";
+import {
+  buildPackage,
+  cleanupTempToml,
+  getAllLocalPackageDependencyPaths,
+  getDefaultTomlPath,
+  getPackageNameFromPath,
+  setupMainToml,
+} from "./publish";
+import { SuiBuildOutput } from "./types";
+import { getPackageId } from "./utils";
 
-// TODO(aki): Remove this when this branch is merged in
-const TEMPORARY_SUI_BRANCH = "sui/integration_v2";
-
-export const getCoinBuildOutputManual = async (
+export const buildCoin = async (
   provider: JsonRpcProvider,
   network: Network,
+  packagePath: string,
   coreBridgeStateObjectId: string,
   tokenBridgeStateObjectId: string,
+  version: string,
   decimals: number
 ): Promise<SuiBuildOutput> => {
-  await cloneDependencies();
   const coreBridgePackageId = await getPackageId(
     provider,
     coreBridgeStateObjectId
@@ -26,220 +30,96 @@ export const getCoinBuildOutputManual = async (
     provider,
     tokenBridgeStateObjectId
   );
-  setupMainToml(
-    `${__dirname}/dependencies/wormhole`,
-    network,
-    coreBridgePackageId
-  );
-  setupMainToml(
-    `${__dirname}/dependencies/token_bridge`,
-    network,
-    tokenBridgePackageId
-  );
-  setupCoin(coreBridgePackageId, tokenBridgePackageId, decimals);
-  const buildOutput = buildPackage(`${__dirname}/wrapped_coin`);
-  cleanupTempToml(`${__dirname}/dependencies/wormhole`);
-  cleanupTempToml(`${__dirname}/dependencies/token_bridge`);
-  return buildOutput;
-};
-
-const buildPackage = (packagePath: string): SuiBuildOutput => {
-  return JSON.parse(
-    execSync(
-      `sui move build --dump-bytecode-as-base64 --path ${packagePath} 2> /dev/null`,
-      {
-        encoding: "utf-8",
-      }
-    )
-  );
-};
-
-const cleanupTempToml = (packagePath: string): void => {
-  const defaultTomlPath = getDefaultTomlPath(packagePath);
-  const tempTomlPath = getTempTomlPath(packagePath);
-  if (fs.existsSync(tempTomlPath)) {
-    fs.renameSync(tempTomlPath, defaultTomlPath);
-  }
-};
-
-const cloneDependencies = async (): Promise<void> => {
-  const { tree, sha: latestSha } = await fetchWormholeTree(
-    TEMPORARY_SUI_BRANCH
-  );
-  const suiSha = tree.find((n) => n.path === "sui")?.sha;
-  if (!suiSha) {
-    throw new Error("Failed to fetch url");
-  }
-
-  const promises: Promise<void>[] = [];
-  const { tree: suiTree } = await fetchWormholeTree(suiSha, true);
-  promises.push(fetchWormholeFilesFromTree(suiTree, latestSha, "wormhole"));
-  promises.push(fetchWormholeFilesFromTree(suiTree, latestSha, "token_bridge"));
-  await Promise.all(promises);
-};
-
-const fetchWormholeFile = async (
-  sha: string,
-  path: string
-): Promise<string> => {
-  const res = await fetch(
-    `https://raw.githubusercontent.com/wormhole-foundation/wormhole/${sha}/sui/${path}`
-  );
-  return res.text();
-};
-
-// TODO(aki): we can further optimize subsequent runs by caching every dir/blob
-const fetchWormholeFilesFromTree = async (
-  tree: GithubTreeResponse["tree"],
-  sha: string,
-  subdirName: string
-): Promise<void> => {
-  if (!tree || !tree.length) {
-    throw new Error("Received empty tree");
-  }
-
-  const latestSha = tree.find((n) => n.path === subdirName)?.sha;
-  if (!latestSha) {
-    throw new Error(
-      `Invalid response, couldn't find node with path ${subdirName}`
+  try {
+    setupCoin(
+      network,
+      packagePath,
+      coreBridgePackageId,
+      tokenBridgePackageId,
+      version,
+      decimals
     );
+    return buildPackage(`${packagePath}/wrapped_coin`);
+  } finally {
+    cleanupCoin(`${packagePath}/wrapped_coin`);
   }
-
-  const shaPath = `${__dirname}/dependencies/${subdirName}/.sha`;
-  if (
-    fs.existsSync(shaPath) &&
-    fs.readFileSync(shaPath, "utf-8") === latestSha
-  ) {
-    return;
-  } else {
-    fs.rmSync(`${__dirname}/dependencies/${subdirName}`, {
-      recursive: true,
-      force: true,
-    });
-  }
-
-  const wormhole = tree.filter(
-    (n) => n.path.startsWith(subdirName) && n.type === "blob"
-  );
-  const promises = [];
-  for (const node of wormhole) {
-    const localPath = `${__dirname}/dependencies/${node.path}`;
-    promises.push(
-      fs.promises
-        .mkdir(path.dirname(localPath), { recursive: true })
-        .then(() => fetchWormholeFile(sha, node.path))
-        .then((file) => fs.promises.writeFile(localPath, file))
-    );
-  }
-
-  await Promise.all(promises);
-  fs.writeFileSync(shaPath, latestSha);
 };
 
-const fetchWormholeTree = async (
-  sha: string,
-  recursive: boolean = false
-): Promise<GithubTreeResponse> => {
-  const res = await fetch(
-    `https://api.github.com/repos/wormhole-foundation/wormhole/git/trees/${sha}?recursive=${recursive}`
-  );
-  return res.json();
-};
-
-const getDefaultTomlPath = (packagePath: string): string =>
-  `${packagePath}/Move.toml`;
-
-const getTempTomlPath = (packagePath: string): string =>
-  `${packagePath}/Move.temp.toml`;
-
-const getTomlPathByNetwork = (packagePath: string, network: Network): string =>
-  `${packagePath}/Move.${network.toLowerCase()}.toml`;
-
-const getPackageNameFromPath = (packagePath: string): string =>
-  packagePath.split("/").pop() || "";
-
-// TODO(aki): parallelize
 const setupCoin = (
+  network: Network,
+  packagePath: string,
   coreBridgePackageId: string,
   tokenBridgePackageId: string,
+  version: string,
   decimals: number
 ): void => {
-  fs.rmSync(`${__dirname}/wrapped_coin`, { recursive: true, force: true });
-  fs.mkdirSync(`${__dirname}/wrapped_coin/sources`, { recursive: true });
+  // Check to see if the given version string is valid. We don't include the
+  // end boundary in the regex to accomodate versions such as V__0_1_0_patch,
+  // in the off chance we need such a naming scheme.
+  if (!/^V__[0-9]+_[0-9]+_[0-9]+/.test(version)) {
+    throw new Error(`Invalid version ${version}`);
+  }
 
-  const coin = fs
-    .readFileSync(`${__dirname}/templates/wrapped_coin/coin.move`, "utf8")
+  // Assemble package directory
+  fs.rmSync(`${packagePath}/wrapped_coin`, { recursive: true, force: true });
+  fs.mkdirSync(`${packagePath}/wrapped_coin/sources`, { recursive: true });
+
+  // Replace template variables
+  const coinTemplate = fs
+    .readFileSync(
+      `${packagePath}/templates/wrapped_coin/sources/coin.move`,
+      "utf8"
+    )
     .toString();
+  const coin = coinTemplate
+    .replace(/{{DECIMALS}}/, decimals.toString())
+    .replace(/{{VERSION}}/g, version);
   fs.writeFileSync(
-    `${__dirname}/wrapped_coin/sources/coin.move`,
-    coin.replace(`{{DECIMALS}}`, decimals.toString()),
+    `${packagePath}/wrapped_coin/sources/coin.move`,
+    coin,
     "utf8"
   );
 
-  const toml = new MoveToml(`${__dirname}/templates/wrapped_coin/Move.toml`)
+  // Substitute dependency package IDs
+  const toml = new MoveToml(`${packagePath}/templates/wrapped_coin/Move.toml`)
     .updateRow("addresses", "wormhole", coreBridgePackageId)
     .updateRow("addresses", "token_bridge", tokenBridgePackageId)
     .serialize();
-  fs.writeFileSync(`${__dirname}/wrapped_coin/Move.toml`, toml, "utf8");
+  const tomlPath = `${packagePath}/wrapped_coin/Move.toml`;
+  fs.writeFileSync(tomlPath, toml, "utf8");
+
+  // Setup dependencies
+  const paths = getAllLocalPackageDependencyPaths(tomlPath);
+  for (const dependencyPath of paths) {
+    setupMainToml(dependencyPath, network, false);
+    const dependencyToml = new MoveToml(getDefaultTomlPath(dependencyPath));
+    switch (getPackageNameFromPath(dependencyPath)) {
+      case "wormhole":
+        dependencyToml
+          .addOrUpdateRow("package", "published-at", coreBridgePackageId)
+          .updateRow("addresses", "wormhole", coreBridgePackageId);
+        break;
+      case "token_bridge":
+        dependencyToml
+          .addOrUpdateRow("package", "published-at", tokenBridgePackageId)
+          .updateRow("addresses", "token_bridge", tokenBridgePackageId);
+        break;
+      default:
+        throw new Error(`Unknown dependency ${dependencyPath}`);
+    }
+    fs.writeFileSync(
+      getDefaultTomlPath(dependencyPath),
+      dependencyToml.serialize(),
+      "utf8"
+    );
+  }
 };
 
-const setupMainToml = (
-  packagePath: string,
-  network: Network,
-  publishedAddress: string,
-  isDependency: boolean = false
-): void => {
-  if (!isValidSuiAddress(publishedAddress)) {
-    throw new Error(
-      `Invalid address ${publishedAddress} for package ${packagePath}`
-    );
-  }
-
-  const defaultTomlPath = getDefaultTomlPath(packagePath);
-  const tempTomlPath = getTempTomlPath(packagePath);
-  const networkTomlPath = getTomlPathByNetwork(packagePath, network);
-
-  if (fs.existsSync(tempTomlPath)) {
-    // It's possible that this dependency has been set up by another package
-    if (isDependency) {
-      return;
-    }
-
-    cleanupTempToml(packagePath);
-  }
-
-  // Save default Move.toml
-  if (!fs.existsSync(defaultTomlPath)) {
-    throw new Error(
-      `Invalid package layout. Move.toml not found at ${defaultTomlPath}`
-    );
-  }
-
-  fs.renameSync(defaultTomlPath, tempTomlPath);
-
-  // Set Move.toml from appropriate network
-  if (!fs.existsSync(networkTomlPath)) {
-    throw new Error(`Move.toml for ${network} not found at ${networkTomlPath}`);
-  }
-
-  fs.copyFileSync(networkTomlPath, defaultTomlPath);
-
-  // Replace undefined addresses in base Move.toml and ensure dependencies are
-  // published
-  const tomlStr = fs.readFileSync(defaultTomlPath, "utf8").toString();
-  const toml = new MoveToml(tomlStr);
-  const packageName = getPackageNameFromPath(packagePath);
-  if (!isDependency) {
-    if (toml.isPublished()) {
-      throw new Error(`Package ${packageName} is already published.`);
-    }
-
-    fs.writeFileSync(
-      defaultTomlPath,
-      toml
-        .addRow("package", "published-at", publishedAddress)
-        .updateRow("addresses", packageName, publishedAddress)
-        .serialize()
-    );
+const cleanupCoin = (packagePath: string) => {
+  const paths = getAllLocalPackageDependencyPaths(
+    getDefaultTomlPath(packagePath)
+  );
+  for (const dependencyPath of paths) {
+    cleanupTempToml(dependencyPath, false);
   }
 };

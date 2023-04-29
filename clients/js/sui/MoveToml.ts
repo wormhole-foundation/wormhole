@@ -26,6 +26,16 @@ export class MoveToml {
     return this;
   }
 
+  addOrUpdateRow(sectionName: string, key: string, value: string) {
+    if (this.getRow(sectionName, key) === undefined) {
+      this.addRow(sectionName, key, value);
+    } else {
+      this.updateRow(sectionName, key, value);
+    }
+
+    return this;
+  }
+
   getSectionNames(): string[] {
     return this.toml.map((s) => s.name);
   }
