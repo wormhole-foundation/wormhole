@@ -4,7 +4,8 @@ source $HOME/.cargo/env
 
 git clone https://github.com/MystenLabs/sui.git --branch devnet
 cd sui
-git reset --hard 3a70c4374090b020b95465787f3220a95d8ab0ba
+# Corresponds to https://github.com/MystenLabs/sui/releases/tag/testnet-0.33.1
+git reset --hard c525ba6489261ff6db65e87bf9a3fdda0a6c7be3
 
 cargo --locked install --path crates/sui
 cargo --locked install --path crates/sui-faucet

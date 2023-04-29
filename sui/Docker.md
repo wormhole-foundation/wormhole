@@ -4,10 +4,10 @@ cd ..; DOCKER_BUILDKIT=1 docker build --no-cache --progress plain -f sui/Dockerf
 
 # tag the image with the appropriate version
 
-docker tag sui:latest ghcr.io/wormhole-foundation/sui:0.32.0
+docker tag sui:latest ghcr.io/wormhole-foundation/sui:0.33.1-testnet
 
 # push to ghcr
 
-docker push ghcr.io/wormhole-foundation/sui:0.32.0
+docker push ghcr.io/wormhole-foundation/sui:0.33.1-testnet
 
 echo remember to update both Dockerfile and Dockerfile.export

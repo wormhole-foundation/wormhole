@@ -219,6 +219,10 @@ export const initExampleApp = async (
   const signer = getSigner(provider, network, privateKey);
 
   const transactionBlock = new TransactionBlock();
+  if (network === "DEVNET") {
+    // Avoid Error checking transaction input objects: GasBudgetTooHigh { gas_budget: 50000000000, max_budget: 10000000000 }
+    transactionBlock.setGasBudget(10000000000);
+  }
   transactionBlock.moveCall({
     target: `${packageId}::sender::init_with_params`,
     arguments: [transactionBlock.object(wormholeStateObjectId)],
@@ -270,6 +274,10 @@ export const initTokenBridge = async (
   );
 
   const transactionBlock = new TransactionBlock();
+  if (network === "DEVNET") {
+    // Avoid Error checking transaction input objects: GasBudgetTooHigh { gas_budget: 50000000000, max_budget: 10000000000 }
+    transactionBlock.setGasBudget(10000000000);
+  }
   const [emitterCap] = transactionBlock.moveCall({
     target: `${wormholePackageId}::emitter::new`,
     arguments: [transactionBlock.object(coreBridgeStateObjectId)],
@@ -326,6 +334,10 @@ export const initWormhole = async (
   }
 
   const transactionBlock = new TransactionBlock();
+  if (network === "DEVNET") {
+    // Avoid Error checking transaction input objects: GasBudgetTooHigh { gas_budget: 50000000000, max_budget: 10000000000 }
+    transactionBlock.setGasBudget(10000000000);
+  }
   transactionBlock.moveCall({
     target: `${coreBridgePackageId}::setup::complete`,
     arguments: [
