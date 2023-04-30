@@ -1,3 +1,10 @@
+import { MsgExecuteContractCompat as MsgExecuteContractInjective } from "@injectivelabs/sdk-ts";
+import {
+  JsonRpcProvider,
+  SUI_CLOCK_OBJECT_ID,
+  SUI_TYPE_ARG,
+  TransactionBlock,
+} from "@mysten/sui.js";
 import {
   ACCOUNT_SIZE,
   createCloseAccountInstruction,
@@ -12,13 +19,14 @@ import {
   Keypair,
   PublicKey,
   PublicKeyInitData,
-  SystemProgram,
   Transaction as SolanaTransaction,
+  SystemProgram,
 } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
-import { MsgExecuteContractCompat as MsgExecuteContractInjective } from "@injectivelabs/sdk-ts";
+import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
 import {
   Algodv2,
+  Transaction as AlgorandTransaction,
   bigIntToBytes,
   getApplicationAddress,
   makeApplicationCallTxnFromObject,
@@ -26,11 +34,12 @@ import {
   makePaymentTxnWithSuggestedParamsFromObject,
   OnApplicationComplete,
   SuggestedParams,
-  Transaction as AlgorandTransaction,
 } from "algosdk";
-import { ethers, Overrides, PayableOverrides } from "ethers";
+import { Types } from "aptos";
 import BN from "bn.js";
-import { isNativeDenom } from "../terra";
+import { ethers, Overrides, PayableOverrides } from "ethers";
+import { FunctionCallOptions } from "near-api-js/lib/account";
+import { Provider } from "near-api-js/lib/providers";
 import { getIsWrappedAssetNear } from "..";
 import {
   assetOptinCheck,
@@ -38,7 +47,12 @@ import {
   optin,
   TransactionSignerPair,
 } from "../algorand";
+import {
+  transferTokens as transferTokensAptos,
+  transferTokensWithPayload,
+} from "../aptos";
 import { getEmitterAddressAlgorand } from "../bridge";
+import { isNativeDenomInjective, isNativeDenomXpla } from "../cosmwasm";
 import {
   Bridge__factory,
   TokenImplementation__factory,
@@ -50,7 +64,12 @@ import {
   createTransferWrappedInstruction,
   createTransferWrappedWithPayloadInstruction,
 } from "../solana/tokenBridge";
+import { getPackageId, isSameType } from "../sui";
+import { SuiCoinObject } from "../sui/types";
+import { isNativeDenom } from "../terra";
 import {
+  callFunctionNear,
+  CHAIN_ID_SOLANA,
   ChainId,
   ChainName,
   coalesceChainId,
@@ -59,26 +78,7 @@ import {
   safeBigIntToNumber,
   textToUint8Array,
   uint8ArrayToHex,
-  CHAIN_ID_SOLANA,
-  callFunctionNear,
 } from "../utils";
-import { isNativeDenomInjective, isNativeDenomXpla } from "../cosmwasm";
-import { Types } from "aptos";
-import { FunctionCallOptions } from "near-api-js/lib/account";
-import { Provider } from "near-api-js/lib/providers";
-import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
-import {
-  transferTokens as transferTokensAptos,
-  transferTokensWithPayload,
-} from "../aptos";
-import {
-  JsonRpcProvider,
-  SUI_CLOCK_OBJECT_ID,
-  SUI_TYPE_ARG,
-  TransactionBlock,
-} from "@mysten/sui.js";
-import { SuiCoinObject } from "../sui/types";
-import { getPackageId } from "../sui";
 
 export async function getAllowanceEth(
   tokenBridgeAddress: string,
@@ -1040,8 +1040,8 @@ export async function transferFromSui(
   if (payload !== null) {
     throw new Error("Sui transfer with payload not implemented");
   }
-  const [primaryCoin, ...mergeCoins] = coins.filter(
-    (coin) => coin.coinType === coinType
+  const [primaryCoin, ...mergeCoins] = coins.filter((coin) =>
+    isSameType(coin.coinType, coinType)
   );
   if (primaryCoin === undefined) {
     throw new Error(

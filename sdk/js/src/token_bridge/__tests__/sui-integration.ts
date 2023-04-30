@@ -45,7 +45,6 @@ import {
   getEmitterAddressAndSequenceFromResponseSui,
   getInnerType,
   getPackageId,
-  unnormalizeSuiAddress,
 } from "../../sui";
 import {
   CHAIN_ID_ETH,
@@ -312,9 +311,10 @@ describe("Sui SDK tests", () => {
     const coins = (
       await suiProvider.getCoins({
         owner: suiAddress,
-        coinType: unnormalizeSuiAddress(coinType),
+        coinType: coinType,
       })
     ).data;
+    console.log({ coins, coinType });
     const suiTransferTxPayload = await transferFromSui(
       suiProvider,
       SUI_CORE_BRIDGE_STATE_OBJECT_ID,
