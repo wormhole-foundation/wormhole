@@ -33,7 +33,7 @@ import {
   getWrappedCoinType,
   publishCoin,
 } from "../sui";
-import { Network, callFunctionNear } from "../utils";
+import { callFunctionNear } from "../utils";
 import { SignedVaa } from "../vaa";
 import { submitVAAOnInjective } from "./redeem";
 
@@ -175,7 +175,6 @@ export function createWrappedOnAptos(
 
 export async function createWrappedOnSuiPrepare(
   provider: JsonRpcProvider,
-  network: Network,
   coreBridgeStateObjectId: string,
   tokenBridgeStateObjectId: string,
   decimals: number,
@@ -183,7 +182,6 @@ export async function createWrappedOnSuiPrepare(
 ): Promise<TransactionBlock> {
   return publishCoin(
     provider,
-    network,
     coreBridgeStateObjectId,
     tokenBridgeStateObjectId,
     decimals,
