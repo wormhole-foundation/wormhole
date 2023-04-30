@@ -1,4 +1,5 @@
 import {
+  getObjectType,
   isValidSuiAddress as isValidFullSuiAddress,
   JsonRpcProvider,
   normalizeSuiAddress,
@@ -82,6 +83,18 @@ export const getObjectFields = async (
     },
   });
   return getFieldsFromObjectResponse(res);
+};
+
+export const getOriginalPackageId = async (
+  provider: JsonRpcProvider,
+  stateObjectId: string
+) => {
+  return getObjectType(
+    await provider.getObject({
+      id: stateObjectId,
+      options: { showContent: true },
+    })
+  )?.split("::")[0];
 };
 
 export const getOwnedObjectId = async (
@@ -348,6 +361,14 @@ export const getWrappedCoinType = (coinPackageId: string): string => {
   }
 
   return `${coinPackageId}::coin::COIN`;
+};
+
+export const isSameType = (a: string, b: string) => {
+  try {
+    return normalizeSuiType(a) === normalizeSuiType(b);
+  } catch (e) {
+    return false;
+  }
 };
 
 export const isSuiError = (error: any): error is SuiError => {
