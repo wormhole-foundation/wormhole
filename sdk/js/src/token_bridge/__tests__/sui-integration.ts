@@ -553,6 +553,13 @@ describe("Sui SDK tests", () => {
     const slicedVAA = sliceVAASignatures(ethTransferVAA);
 
     // Redeem on Sui
+    expect(
+      await getIsTransferCompletedSui(
+        suiProvider,
+        SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
+        slicedVAA
+      )
+    ).toBe(false);
     const redeemPayload = await redeemOnSui(
       suiProvider,
       SUI_CORE_BRIDGE_STATE_OBJECT_ID,
