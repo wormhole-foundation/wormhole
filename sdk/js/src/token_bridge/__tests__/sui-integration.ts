@@ -156,7 +156,7 @@ describe("Sui SDK tests", () => {
       ETH_CORE_BRIDGE_ADDRESS
     );
     expect(attestSequence).toBeTruthy();
-    const { vaaBytes: attestVAA }: { vaaBytes: Uint8Array } =
+    let { vaaBytes: attestVAA }: { vaaBytes: Uint8Array } =
       await getSignedVAAWithRetry(
         WORMHOLE_RPC_HOSTS,
         CHAIN_ID_ETH,
@@ -168,14 +168,15 @@ describe("Sui SDK tests", () => {
         1000,
         5
       );
-    expect(attestVAA).toBeTruthy();
+    const slicedAttestVAA = sliceVAASignatures(attestVAA);
+    expect(slicedAttestVAA).toBeTruthy();
 
     // Start create wrapped on Sui
     const suiPrepareRegistrationTxPayload = await createWrappedOnSuiPrepare(
       suiProvider,
       SUI_CORE_BRIDGE_STATE_OBJECT_ID,
       SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
-      parseAttestMetaVaa(attestVAA).decimals,
+      parseAttestMetaVaa(slicedAttestVAA).decimals,
       suiAddress
     );
     const suiPrepareRegistrationTxRes = await executeTransactionBlock(
@@ -198,7 +199,7 @@ describe("Sui SDK tests", () => {
       SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
       suiAddress,
       coinPackageId,
-      attestVAA
+      slicedAttestVAA
     );
     const suiCompleteRegistrationTxRes = await executeTransactionBlock(
       suiSigner,
@@ -263,7 +264,7 @@ describe("Sui SDK tests", () => {
       transferReceipt,
       ETH_CORE_BRIDGE_ADDRESS
     );
-    const { vaaBytes: ethTransferVAA } = await getSignedVAAWithRetry(
+    let { vaaBytes: transferFromEthVAA } = await getSignedVAAWithRetry(
       WORMHOLE_RPC_HOSTS,
       CHAIN_ID_ETH,
       getEmitterAddressEth(ETH_TOKEN_BRIDGE_ADDRESS),
@@ -274,14 +275,15 @@ describe("Sui SDK tests", () => {
       1000,
       5
     );
-    expect(ethTransferVAA).toBeTruthy();
+    const slicedTransferFromEthVAA = sliceVAASignatures(transferFromEthVAA);
+    expect(slicedTransferFromEthVAA).toBeTruthy();
 
     // Redeem on Sui
     const redeemPayload = await redeemOnSui(
       suiProvider,
       SUI_CORE_BRIDGE_STATE_OBJECT_ID,
       SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
-      ethTransferVAA
+      slicedTransferFromEthVAA
     );
     const suiRedeemTxResult = await executeTransactionBlock(
       suiSigner,
@@ -292,7 +294,7 @@ describe("Sui SDK tests", () => {
       await getIsTransferCompletedSui(
         suiProvider,
         SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
-        ethTransferVAA
+        slicedTransferFromEthVAA
       )
     ).toBe(true);
     // Transfer back to Eth
@@ -329,7 +331,7 @@ describe("Sui SDK tests", () => {
       );
 
     // Fetch the transfer VAA
-    const { vaaBytes: transferVAA } = await getSignedVAAWithRetry(
+    const { vaaBytes: transferFromSuiVAA } = await getSignedVAAWithRetry(
       WORMHOLE_RPC_HOSTS,
       CHAIN_ID_SUI,
       emitterAddress,
@@ -340,15 +342,15 @@ describe("Sui SDK tests", () => {
       1000,
       5
     );
-    expect(transferVAA).toBeTruthy();
+    expect(transferFromSuiVAA).toBeTruthy();
 
     // Redeem on Ethereum
-    await redeemOnEth(ETH_TOKEN_BRIDGE_ADDRESS, ethSigner, transferVAA);
+    await redeemOnEth(ETH_TOKEN_BRIDGE_ADDRESS, ethSigner, transferFromSuiVAA);
     expect(
       await getIsTransferCompletedEth(
         ETH_TOKEN_BRIDGE_ADDRESS,
         ethProvider,
-        transferVAA
+        transferFromSuiVAA
       )
     ).toBe(true);
   });
@@ -408,7 +410,7 @@ describe("Sui SDK tests", () => {
       );
     expect(attestSequence).toBeTruthy();
     expect(attestEmitterAddress).toBeTruthy();
-    const { vaaBytes } = await getSignedVAAWithRetry(
+    const { vaaBytes: attestVAA } = await getSignedVAAWithRetry(
       WORMHOLE_RPC_HOSTS,
       CHAIN_ID_SUI,
       attestEmitterAddress,
@@ -419,15 +421,15 @@ describe("Sui SDK tests", () => {
       1000,
       30
     );
-    expect(vaaBytes).toBeTruthy();
+    expect(attestVAA).toBeTruthy();
 
     // Create wrapped on Ethereum
     try {
-      await createWrappedOnEth(ETH_TOKEN_BRIDGE_ADDRESS, ethSigner, vaaBytes);
+      await createWrappedOnEth(ETH_TOKEN_BRIDGE_ADDRESS, ethSigner, attestVAA);
     } catch (e) {
       // this could fail because the token is already attested (in an unclean env)
     }
-    const { tokenAddress } = parseAttestMetaVaa(vaaBytes);
+    const { tokenAddress } = parseAttestMetaVaa(attestVAA);
     expect(
       await getOriginalAssetSui(
         suiProvider,
