@@ -52,7 +52,7 @@ module wormhole::migrate {
         ////////////////////////////////////////////////////////////////////////
     }
 
-    public fun handle_migrate(
+    fun handle_migrate(
         wormhole_state: &mut State,
         upgrade_vaa_buf: vector<u8>,
         the_clock: &Clock
