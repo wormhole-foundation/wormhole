@@ -195,8 +195,15 @@ export async function createWrappedOnSui(
   tokenBridgeStateObjectId: string,
   signerAddress: string,
   coinPackageId: string,
+  wrappedAssetSetupType: string,
   attestVAA: Uint8Array
 ): Promise<TransactionBlock> {
+  // WrappedAssetSetup looks like
+  // 0x92d81f28c167d90f84638c654b412fe7fa8e55bdfac7f638bdcf70306289be86::create_wrapped::WrappedAssetSetup<0xa40e0511f7d6531dd2dfac0512c7fd4a874b76f5994985fb17ee04501a2bb050::coin::COIN, 0x4eb7c5bca3759ab3064b46044edb5668c9066be8a543b28b58375f041f876a80::version_control::V__0_1_1>
+
+  // ugh
+  const versionType = wrappedAssetSetupType.split(", ")[1].replace(">", "");
+
   const coreBridgePackageId = await getPackageId(
     provider,
     coreBridgeStateObjectId
@@ -216,23 +223,10 @@ export async function createWrappedOnSui(
     );
   }
 
-  // Get WrappedAssetSetup object ID
-  const versionTypeData = (
-    await provider.getDynamicFields({
-      parentId: tokenBridgeStateObjectId,
-    })
-  ).data.find(
-    (f) =>
-      f?.name?.type === `${coreBridgePackageId}::package_utils::CurrentVersion`
-  );
-  if (!versionTypeData) {
-    throw new Error(`CurrentVersion not found`);
-  }
-
   const wrappedAssetSetupObjectId = await getOwnedObjectId(
     provider,
     signerAddress,
-    `${tokenBridgePackageId}::create_wrapped::WrappedAssetSetup<${coinType}, ${versionTypeData.objectType}>`
+    wrappedAssetSetupType
   );
   if (!wrappedAssetSetupObjectId) {
     throw new Error(`WrappedAssetSetup not found`);
@@ -275,7 +269,7 @@ export async function createWrappedOnSui(
       tx.object(coinUpgradeCapObjectId),
       message,
     ],
-    typeArguments: [coinType, versionTypeData.objectType],
+    typeArguments: [coinType, versionType],
   });
   return tx;
 }

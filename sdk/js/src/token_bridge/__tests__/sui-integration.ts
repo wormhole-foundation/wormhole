@@ -188,6 +188,16 @@ describe("Sui SDK tests", () => {
     expect(suiPrepareRegistrationTxRes.effects?.status.status).toBe("success");
 
     // Complete create wrapped on Sui
+    const wrappedAssetSetupEvent =
+      suiPrepareRegistrationTxRes.objectChanges?.find(
+        (oc) =>
+          oc.type === "created" && oc.objectType.includes("WrappedAssetSetup")
+      );
+    const wrappedAssetSetupType =
+      (wrappedAssetSetupEvent?.type === "created" &&
+        wrappedAssetSetupEvent.objectType) ||
+      undefined;
+    assertIsNotNullOrUndefined(wrappedAssetSetupType);
     const publishEvents = getPublishedObjectChanges(
       suiPrepareRegistrationTxRes
     );
@@ -199,6 +209,7 @@ describe("Sui SDK tests", () => {
       SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
       suiAddress,
       coinPackageId,
+      wrappedAssetSetupType,
       slicedAttestVAA
     );
     const suiCompleteRegistrationTxRes = await executeTransactionBlock(
