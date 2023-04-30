@@ -91,7 +91,9 @@ const setupCoin = (
   // Setup dependencies
   const paths = getAllLocalPackageDependencyPaths(tomlPath);
   for (const dependencyPath of paths) {
-    setupMainToml(dependencyPath, network, false, true);
+    // todo(aki): the 4th param is a hack that makes this work, but doesn't
+    // necessarily make sense. We should probably revisit this later.
+    setupMainToml(dependencyPath, network, false, network !== "DEVNET");
     if (network === "DEVNET") {
       const dependencyToml = new MoveToml(getDefaultTomlPath(dependencyPath));
       switch (getPackageNameFromPath(dependencyPath)) {

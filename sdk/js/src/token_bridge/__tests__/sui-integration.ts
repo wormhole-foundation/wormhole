@@ -173,7 +173,6 @@ describe("Sui SDK tests", () => {
     // Start create wrapped on Sui
     const suiPrepareRegistrationTxPayload = await createWrappedOnSuiPrepare(
       suiProvider,
-      "DEVNET",
       SUI_CORE_BRIDGE_STATE_OBJECT_ID,
       SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
       parseAttestMetaVaa(attestVAA).decimals,
@@ -183,6 +182,8 @@ describe("Sui SDK tests", () => {
       suiSigner,
       suiPrepareRegistrationTxPayload
     );
+    suiPrepareRegistrationTxRes.effects?.status.status === "failure" &&
+      console.log(JSON.stringify(suiPrepareRegistrationTxRes.effects, null, 2));
     expect(suiPrepareRegistrationTxRes.effects?.status.status).toBe("success");
 
     // Complete create wrapped on Sui
@@ -203,9 +204,13 @@ describe("Sui SDK tests", () => {
       suiSigner,
       suiCompleteRegistrationTxPayload
     );
+    suiCompleteRegistrationTxRes.effects?.status.status === "failure" &&
+      console.log(
+        JSON.stringify(suiCompleteRegistrationTxRes.effects, null, 2)
+      );
     expect(suiCompleteRegistrationTxRes.effects?.status.status).toBe("success");
 
-    // // Get foreign asset
+    // Get foreign asset
     const originAssetHex = tryNativeToHexString(TEST_ERC20, CHAIN_ID_ETH);
     if (!originAssetHex) {
       throw new Error("originAssetHex is null");
@@ -238,6 +243,7 @@ describe("Sui SDK tests", () => {
 
     const transferAmount = parseUnits("1", 18);
     const returnAmount = parseUnits("1", 8);
+
     // Transfer to Sui
     await approveEth(
       CONTRACTS.DEVNET.ethereum.token_bridge,
@@ -269,6 +275,7 @@ describe("Sui SDK tests", () => {
       5
     );
     expect(ethTransferVAA).toBeTruthy();
+
     // Redeem on Sui
     const redeemPayload = await redeemOnSui(
       suiProvider,
@@ -320,6 +327,7 @@ describe("Sui SDK tests", () => {
         suiCoreBridgePackageId,
         suiTransferTxResult
       );
+
     // Fetch the transfer VAA
     const { vaaBytes: transferVAA } = await getSignedVAAWithRetry(
       WORMHOLE_RPC_HOSTS,
@@ -333,6 +341,7 @@ describe("Sui SDK tests", () => {
       5
     );
     expect(transferVAA).toBeTruthy();
+
     // Redeem on Ethereum
     await redeemOnEth(ETH_TOKEN_BRIDGE_ADDRESS, ethSigner, transferVAA);
     expect(
@@ -377,6 +386,8 @@ describe("Sui SDK tests", () => {
       suiAddress
     );
     let result = await executeTransactionBlock(suiSigner, suiMintTxPayload);
+    result.effects?.status.status === "failure" &&
+      console.log(JSON.stringify(result.effects, null, 2));
     expect(result.effects?.status.status).toBe("success");
 
     // Attest on Sui
@@ -387,6 +398,8 @@ describe("Sui SDK tests", () => {
       coin8Type
     );
     result = await executeTransactionBlock(suiSigner, suiAttestTxPayload);
+    result.effects?.status.status === "failure" &&
+      console.log(JSON.stringify(result.effects, null, 2));
     expect(result.effects?.status.status).toBe("success");
     const { sequence: attestSequence, emitterAddress: attestEmitterAddress } =
       getEmitterAddressAndSequenceFromResponseSui(
@@ -407,6 +420,7 @@ describe("Sui SDK tests", () => {
       30
     );
     expect(vaaBytes).toBeTruthy();
+
     // Create wrapped on Ethereum
     try {
       await createWrappedOnEth(ETH_TOKEN_BRIDGE_ADDRESS, ethSigner, vaaBytes);
@@ -430,6 +444,7 @@ describe("Sui SDK tests", () => {
       coinType: coin8Type,
     });
     expect(coin8Coins.data.length).toBeGreaterThan(0);
+
     // Transfer to Ethereum
     const suiTransferTxPayload = await transferFromSui(
       suiProvider,
@@ -442,6 +457,8 @@ describe("Sui SDK tests", () => {
       tryNativeToUint8Array(ethSigner.address, CHAIN_ID_ETH)
     );
     result = await executeTransactionBlock(suiSigner, suiTransferTxPayload);
+    result.effects?.status.status === "failure" &&
+      console.log(JSON.stringify(result.effects, null, 2));
     expect(result.effects?.status.status).toBe("success");
     const { sequence, emitterAddress } =
       getEmitterAddressAndSequenceFromResponseSui(
@@ -450,6 +467,7 @@ describe("Sui SDK tests", () => {
       );
     expect(sequence).toBeTruthy();
     expect(emitterAddress).toBeTruthy();
+
     // Fetch the transfer VAA
     const { vaaBytes: transferVAA } = await getSignedVAAWithRetry(
       WORMHOLE_RPC_HOSTS,
@@ -462,6 +480,7 @@ describe("Sui SDK tests", () => {
       1000,
       30
     );
+
     // Redeem on Ethereum
     await redeemOnEth(ETH_TOKEN_BRIDGE_ADDRESS, ethSigner, transferVAA);
     expect(
@@ -511,6 +530,7 @@ describe("Sui SDK tests", () => {
       30
     );
     const slicedVAA = sliceVAASignatures(ethTransferVAA);
+
     // Redeem on Sui
     const redeemPayload = await redeemOnSui(
       suiProvider,
@@ -519,6 +539,8 @@ describe("Sui SDK tests", () => {
       slicedVAA
     );
     result = await executeTransactionBlock(suiSigner, redeemPayload);
+    result.effects?.status.status === "failure" &&
+      console.log(JSON.stringify(result.effects, null, 2));
     expect(result.effects?.status.status).toBe("success");
     expect(
       await getIsTransferCompletedSui(
