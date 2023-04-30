@@ -44,14 +44,15 @@ export const addUtilsCommands: YargsAddCommandsFn = (y: typeof yargs) =>
       }
     )
     .command(
-      "get-package-id <state-object-id>",
-      "Get package id",
+      "package-id <state-object-id>",
+      "Get package ID from State object ID",
       (yargs) =>
         yargs
           .positional("state-object-id", {
             describe: "Object ID of State object",
             type: "string",
           })
+          .option("network", NETWORK_OPTIONS)
           .option("rpc", RPC_OPTIONS),
       async (argv) => {
         const network = argv.network.toUpperCase();
@@ -59,5 +60,47 @@ export const addUtilsCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
         const provider = getProvider(network, rpc);
         console.log(await getPackageId(provider, argv["state-object-id"]));
+      }
+    )
+    // This command is useful for debugging, especially when the Sui explorer
+    // goes down :)
+    .command(
+      "tx <transaction-digest>",
+      "Get transaction details",
+      (yargs) =>
+        yargs
+          .positional("transaction-digest", {
+            describe: "Digest of transaction to fetch",
+            type: "string",
+          })
+          .option("network", {
+            alias: "n",
+            describe: "Network",
+            type: "string",
+            choices: ["mainnet", "testnet", "devnet"],
+            default: "devnet",
+            required: false,
+          })
+          .option("rpc", RPC_OPTIONS),
+      async (argv) => {
+        const network = argv.network.toUpperCase();
+        assertNetwork(network);
+        const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
+        const provider = getProvider(network, rpc);
+        console.log(
+          JSON.stringify(
+            await provider.getTransactionBlock({
+              digest: argv["transaction-digest"],
+              options: {
+                showInput: true,
+                showEffects: true,
+                showEvents: true,
+                showObjectChanges: true,
+              },
+            }),
+            null,
+            2
+          )
+        );
       }
     );

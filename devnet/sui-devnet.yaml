@@ -63,7 +63,7 @@ spec:
           command: ["/bin/bash", "-c"]
           args:
             [
-              "cd /tmp && worm sui setup-devnet && ./scripts/register_devnet.sh && touch success && sleep infinity",
+              "cd /tmp && worm sui setup-devnet && touch success && sleep infinity",
             ]
           readinessProbe:
             periodSeconds: 1

@@ -1,3 +1,15 @@
+import {
+  ChainId,
+  coalesceChainName,
+  parseTokenBridgeRegisterChainVaa,
+} from "@certusone/wormhole-sdk";
+import {
+  JsonRpcProvider,
+  TransactionBlock,
+  getObjectFields,
+  getTransactionDigest,
+} from "@mysten/sui.js";
+import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
 import yargs from "yargs";
@@ -10,9 +22,13 @@ import {
 } from "../../consts";
 import { NETWORKS } from "../../networks";
 import {
+  executeTransactionBlock,
   getCreatedObjects,
+  getProvider,
   getPublishedPackageId,
+  getSigner,
   isSameType,
+  registerChain,
 } from "../../sui";
 import { logPublishedPackageId, logTransactionDigest } from "../../sui/log";
 import { YargsAddCommandsFn } from "../Yargs";
@@ -129,6 +145,13 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         }
       }
 
+      console.log({
+        coreBridgePackageId,
+        coreBridgeStateObjectId,
+        tokenBridgePackageId,
+        tokenBridgeStateObjectId,
+      });
+
       // Deploy & init example app
       console.log("\n[+1/3] Deploying example app...");
       const exampleAppDeployRes = await deploy(
@@ -171,5 +194,86 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
       if (argv.rpc) publishCommand += ` -r "${argv.rpc}"`;
       if (privateKey) publishCommand += ` -k "${privateKey}"`;
       console.log(publishCommand);
+
+      // Dump summary
+      const provider = getProvider(network, rpc);
+      const emitterCapObjectId = await getEmitterCapObjectId(
+        provider,
+        tokenBridgeStateObjectId
+      );
+      console.log("\nSummary:");
+      console.log("  Core bridge package ID", coreBridgePackageId);
+      console.log("  Core bridge state object ID", coreBridgeStateObjectId);
+      console.log("  Token bridge package ID", tokenBridgePackageId);
+      console.log("  Token bridge state object ID", tokenBridgeStateObjectId);
+      console.log("  Token bridge emitter cap ID", emitterCapObjectId);
+
+      // Chain registrations
+      console.log("\nChain registrations:");
+
+      const envPath = `${process.cwd()}/.env`;
+      if (!fs.existsSync(envPath)) {
+        throw new Error(`Couldn't find .env file at ${envPath}.`);
+      }
+
+      dotenv.config({ path: envPath });
+      const signer = getSigner(provider, network, privateKey);
+      const tx = new TransactionBlock();
+      tx.setGasBudget(10000000000);
+      const registrations = [];
+      for (const key in process.env) {
+        if (/^REGISTER_(.+)_TOKEN_BRIDGE_VAA$/.test(key)) {
+          // Get VAA info
+          const vaa = Buffer.from(String(process.env[key]), "hex");
+          const { foreignChain, module } =
+            parseTokenBridgeRegisterChainVaa(vaa);
+          const chain = coalesceChainName(foreignChain as ChainId);
+          registrations.push({ chain, module });
+
+          // Register
+          await registerChain(
+            provider,
+            network,
+            vaa,
+            coreBridgeStateObjectId,
+            tokenBridgeStateObjectId,
+            tx
+          );
+        }
+      }
+
+      const registerRes = await executeTransactionBlock(signer, tx);
+
+      // Throw if registration failed, otherwise it fails silently
+      if (registerRes?.effects?.status.status !== "success") {
+        const registerResStr = JSON.stringify(registerRes);
+        throw new Error(
+          `Chain registrations failed. Response: ${registerResStr}`
+        );
+      }
+
+      // Log registered bridges
+      for (const registration of registrations) {
+        console.log(`  ${registration.chain} ${registration.module}... done`);
+      }
+
+      console.log("Transaction digest:", getTransactionDigest(registerRes));
+
+      // Done!
+      console.log("\nDone!");
     }
   );
+
+const getEmitterCapObjectId = async (
+  provider: JsonRpcProvider,
+  tokenBridgeStateObjectId: string
+): Promise<string> => {
+  return getObjectFields(
+    await provider.getObject({
+      id: tokenBridgeStateObjectId,
+      options: {
+        showContent: true,
+      },
+    })
+  ).emitter_cap.fields.id.id;
+};

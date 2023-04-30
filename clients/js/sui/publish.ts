@@ -18,9 +18,12 @@ export const buildPackage = (packagePath: string): SuiBuildOutput => {
   }
 
   return JSON.parse(
-    execSync(`sui move build --dump-bytecode-as-base64 --path ${packagePath}`, {
-      encoding: "utf-8",
-    })
+    execSync(
+      `sui move build --dump-bytecode-as-base64 --path ${packagePath} 2> /dev/null`,
+      {
+        encoding: "utf-8",
+      }
+    )
   );
 };
 
