@@ -231,27 +231,28 @@ export const getTokenCoinType = async (
     throw new Error("Unable to get key type");
   }
 
-  try {
-    // This call throws if the key doesn't exist in CoinTypes
-    const coinTypeValue = await provider.getDynamicFieldObject({
-      parentId: coinTypesObjectId,
-      name: {
-        type: keyType,
-        value: {
-          addr: [...tokenAddress],
-          chain: tokenChain,
-        },
+  const response = await provider.getDynamicFieldObject({
+    parentId: coinTypesObjectId,
+    name: {
+      type: keyType,
+      value: {
+        addr: [...tokenAddress],
+        chain: tokenChain,
       },
-    });
-    const fields = getFieldsFromObjectResponse(coinTypeValue);
-    return fields?.value ? ensureHexPrefix(fields.value) : null;
-  } catch (e: any) {
-    if (e.code === -32000 && e.message?.includes("RPC Error")) {
+    },
+  });
+  if (response.error) {
+    if (response.error.code === "dynamicFieldNotFound") {
       return null;
     }
-
-    throw e;
+    throw new Error(
+      `Unexpected getDynamicFieldObject response ${response.error}`
+    );
   }
+  const fields = getFieldsFromObjectResponse(response);
+  return fields?.value
+    ? unnormalizeSuiAddress(ensureHexPrefix(fields.value))
+    : null;
 };
 
 export const getTokenFromTokenRegistry = async (

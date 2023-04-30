@@ -321,22 +321,22 @@ export async function getIsTransferCompletedSui(
     throw new Error("Unable to get key type");
   }
   const hash = getSignedVAAHash(transferVAA);
-  try {
-    // This call throws if the VAA doesn't exist in ConsumedVAAs
-    await provider.getDynamicFieldObject({
-      parentId: tableObjectId,
-      name: {
-        type: keyType,
-        value: {
-          data: [...Buffer.from(hash.slice(2), "hex")],
-        },
+  const response = await provider.getDynamicFieldObject({
+    parentId: tableObjectId,
+    name: {
+      type: keyType,
+      value: {
+        data: [...Buffer.from(hash.slice(2), "hex")],
       },
-    });
+    },
+  });
+  if (!response.error) {
     return true;
-  } catch (e: any) {
-    if (e.code === -32000 && e.message?.includes("RPC Error")) {
-      return false;
-    }
-    throw e;
   }
+  if (response.error.code === "dynamicFieldNotFound") {
+    return false;
+  }
+  throw new Error(
+    `Unexpected getDynamicFieldObject response ${response.error}`
+  );
 }
