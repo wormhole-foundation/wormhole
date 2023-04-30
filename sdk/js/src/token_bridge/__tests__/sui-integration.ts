@@ -45,6 +45,7 @@ import {
   getEmitterAddressAndSequenceFromResponseSui,
   getInnerType,
   getPackageId,
+  unnormalizeSuiAddress,
 } from "../../sui";
 import {
   CHAIN_ID_ETH,
@@ -289,6 +290,8 @@ describe("Sui SDK tests", () => {
       suiSigner,
       redeemPayload
     );
+    suiRedeemTxResult.effects?.status.status === "failure" &&
+      console.error(suiRedeemTxResult.effects?.status.error);
     expect(suiRedeemTxResult.effects?.status.status).toBe("success");
     expect(
       await getIsTransferCompletedSui(
@@ -297,6 +300,7 @@ describe("Sui SDK tests", () => {
         slicedTransferFromEthVAA
       )
     ).toBe(true);
+
     // Transfer back to Eth
     const coinType = await getForeignAssetSui(
       suiProvider,
@@ -304,15 +308,19 @@ describe("Sui SDK tests", () => {
       CHAIN_ID_ETH,
       originalAsset.assetAddress
     );
-    expect(coinType).toBeTruthy();
-    const coins = (await suiProvider.getCoins({ owner: suiAddress, coinType }))
-      .data;
+    assertIsNotNull(coinType);
+    const coins = (
+      await suiProvider.getCoins({
+        owner: suiAddress,
+        coinType: unnormalizeSuiAddress(coinType),
+      })
+    ).data;
     const suiTransferTxPayload = await transferFromSui(
       suiProvider,
       SUI_CORE_BRIDGE_STATE_OBJECT_ID,
       SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
       coins,
-      coinType || "",
+      coinType,
       returnAmount.toBigInt(),
       CHAIN_ID_ETH,
       tryNativeToUint8Array(ethSigner.address, CHAIN_ID_ETH)

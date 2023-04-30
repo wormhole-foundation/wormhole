@@ -1,10 +1,13 @@
+import { ChainGrpcWasmApi } from "@injectivelabs/sdk-ts";
+import { JsonRpcProvider } from "@mysten/sui.js";
 import { Commitment, Connection, PublicKeyInitData } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
-import { ChainGrpcWasmApi } from "@injectivelabs/sdk-ts";
+import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
 import { Algodv2 } from "algosdk";
 import { AptosClient } from "aptos";
 import { ethers } from "ethers";
 import { fromUint8Array } from "js-base64";
+import { Provider } from "near-api-js/lib/providers";
 import {
   calcLogicSigAccount,
   decodeLocalState,
@@ -12,20 +15,17 @@ import {
 } from "../algorand";
 import { Bridge__factory } from "../ethers-contracts";
 import { deriveWrappedMintKey, getWrappedMeta } from "../solana/tokenBridge";
+import { getTokenCoinType } from "../sui";
 import {
-  callFunctionNear,
+  CHAIN_ID_ALGORAND,
   ChainId,
   ChainName,
-  CHAIN_ID_ALGORAND,
+  callFunctionNear,
   coalesceChainId,
-  getAssetFullyQualifiedType,
   coalesceModuleAddress,
+  getAssetFullyQualifiedType,
   parseSmartContractStateResponse,
 } from "../utils";
-import { Provider } from "near-api-js/lib/providers";
-import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
-import { JsonRpcProvider } from "@mysten/sui.js";
-import { getTokenCoinType } from "../sui";
 
 /**
  * Returns a foreign asset address on Ethereum for a provided native chain and asset address, AddressZero if it does not exist
@@ -247,7 +247,7 @@ export async function getForeignAssetSui(
   originAddress: Uint8Array
 ): Promise<string | null> {
   const originChainId = coalesceChainId(originChain);
-  return await getTokenCoinType(
+  return getTokenCoinType(
     provider,
     tokenBridgeStateObjectId,
     originAddress,
