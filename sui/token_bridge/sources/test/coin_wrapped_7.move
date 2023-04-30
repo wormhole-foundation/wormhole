@@ -62,7 +62,7 @@ module token_bridge::coin_wrapped_7 {
     }
 
     public fun token_meta(): AssetMeta {
-        asset_meta::deserialize(
+        asset_meta::deserialize_test_only(
             wormhole::vaa::peel_payload_from_vaa(&VAA)
         )
     }

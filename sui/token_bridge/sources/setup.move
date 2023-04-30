@@ -11,11 +11,6 @@ module token_bridge::setup {
 
     use token_bridge::state::{Self};
 
-    /// `UpgradeCap` is not as expected when initializing `State`.
-    const E_INVALID_UPGRADE_CAP: u64 = 0;
-    /// Build version for setup must only be `1`.
-    const E_INVALID_BUILD_VERSION: u64 = 1;
-
     /// Capability created at `init`, which will be destroyed once
     /// `init_and_share_state` is called. This ensures only the deployer can
     /// create the shared `State`.

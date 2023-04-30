@@ -38,10 +38,8 @@ module wormhole::state {
 
     /// Cannot initialize state with zero guardians.
     const E_ZERO_GUARDIANS: u64 = 0;
-    /// Build does not agree with expected upgrade.
-    const E_BUILD_VERSION_MISMATCH: u64 = 1;
     /// Build digest does not agree with current implementation.
-    const E_INVALID_BUILD_DIGEST: u64 = 2;
+    const E_INVALID_BUILD_DIGEST: u64 = 1;
 
     /// Sui's chain ID is hard-coded to one value.
     const CHAIN_ID: u16 = 21;
@@ -113,10 +111,13 @@ module wormhole::state {
             upgrade_cap
         };
 
-        // Set first version for this package.
-        package_utils::init_version(
+        // Set first version and initialize package info. This will be used for
+        // emitting information of successful migrations.
+        let upgrade_cap = &state.upgrade_cap;
+        package_utils::init_package_info(
             &mut state.id,
-            version_control::current_version()
+            version_control::current_version(),
+            upgrade_cap
         );
 
         // Store the initial guardian set.
@@ -125,16 +126,6 @@ module wormhole::state {
             &mut state,
             guardian_set::new(guardian_set_index, initial_guardians)
         );
-
-        // Initialize package info. This will be used for emitting information
-        // of successful migrations.
-        let upgrade_cap = &state.upgrade_cap;
-        package_utils::init_package_info(
-            &mut state.id,
-            upgrade_cap,
-            bytes32::default(),
-            bytes32::default()
-            );
 
         state
     }
@@ -221,7 +212,7 @@ module wormhole::state {
         old_version: Old,
         new_version: New
     ) {
-        package_utils::update_version_type(
+        package_utils::update_version_type_test_only(
             &mut self.id,
             old_version,
             new_version
@@ -238,7 +229,7 @@ module wormhole::state {
 
     #[test_only]
     public fun reverse_migrate_version(self: &mut State) {
-        package_utils::update_version_type(
+        package_utils::update_version_type_test_only(
             &mut self.id,
             version_control::current_version(),
             version_control::previous_version()
@@ -467,6 +458,4 @@ module wormhole::state {
     //  be used in future builds.
     //
     ////////////////////////////////////////////////////////////////////////////
-
-    struct CurrentDigest has store, drop, copy {}
 }

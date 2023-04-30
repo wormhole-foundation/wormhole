@@ -8,7 +8,6 @@
 /// 3.  Upgrade.
 /// 4.  Commit upgrade.
 module token_bridge::upgrade_contract {
-    use sui::event::{Self};
     use sui::object::{ID};
     use sui::package::{UpgradeReceipt, UpgradeTicket};
     use wormhole::bytes32::{Self, Bytes32};
@@ -81,7 +80,7 @@ module token_bridge::upgrade_contract {
         let (old_contract, new_contract) = state::commit_upgrade(self, receipt);
 
         // Emit an event reflecting package ID change.
-        event::emit(ContractUpgraded { old_contract, new_contract });
+        sui::event::emit(ContractUpgraded { old_contract, new_contract });
     }
 
     /// Privileged method only to be used by this module and `migrate` module.

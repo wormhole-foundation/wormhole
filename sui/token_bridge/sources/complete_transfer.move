@@ -30,7 +30,6 @@
 module token_bridge::complete_transfer {
     use sui::balance::{Self, Balance};
     use sui::coin::{Self, Coin};
-    use sui::event::{Self};
     use sui::tx_context::{Self, TxContext};
     use wormhole::external_address::{Self, ExternalAddress};
 
@@ -45,9 +44,13 @@ module token_bridge::complete_transfer {
     // Requires `handle_complete_transfer`.
     friend token_bridge::complete_transfer_with_payload;
 
+    /// Transfer not intended to be received on Sui.
     const E_TARGET_NOT_SUI: u64 = 0;
-    const E_UNREGISTERED_TOKEN: u64 = 1;
+    /// Input token info does not match registered info.
+    const E_CANONICAL_TOKEN_INFO_MISMATCH: u64 = 1;
 
+    /// Event reflecting when a transfer via `complete_transfer` or
+    /// `complete_transfer_with_payload` is successfully executed.
     struct TransferRedeemed has drop, copy {
         emitter_chain: u16,
         emitter_address: ExternalAddress,
@@ -148,12 +151,14 @@ module token_bridge::complete_transfer {
             E_TARGET_NOT_SUI
         );
 
-        let asset_info =
-            token_registry::verify_token_info(
-                state::borrow_token_registry(token_bridge_state),
-                token_chain,
-                token_address
-            );
+        let asset_info = state::verified_asset<CoinType>(token_bridge_state);
+        assert!(
+            (
+                token_chain == token_registry::token_chain(&asset_info) &&
+                token_address == token_registry::token_address(&asset_info)
+            ),
+            E_CANONICAL_TOKEN_INFO_MISMATCH
+        );
 
         // De-normalize amount in preparation to take `Balance`.
         let raw_amount =
@@ -192,7 +197,7 @@ module token_bridge::complete_transfer {
         let emitter_chain = vaa::emitter_chain(msg);
 
         // Emit Sui event with `TransferRedeemed`.
-        event::emit(
+        sui::event::emit(
             TransferRedeemed {
                 emitter_chain,
                 emitter_address: vaa::emitter_address(msg),
@@ -348,7 +353,7 @@ module token_bridge::complete_transfer_tests {
 
             // Verify transfer parameters.
             let parsed =
-                transfer::deserialize(
+                transfer::deserialize_test_only(
                     wormhole::vaa::take_payload(
                         parse_and_verify_vaa(scenario, transfer_vaa)
                     )
@@ -481,7 +486,7 @@ module token_bridge::complete_transfer_tests {
 
             // Verify transfer parameters.
             let parsed =
-                transfer::deserialize(
+                transfer::deserialize_test_only(
                     wormhole::vaa::take_payload(
                         parse_and_verify_vaa(scenario, transfer_vaa)
                     )
@@ -608,7 +613,7 @@ module token_bridge::complete_transfer_tests {
 
             // Verify transfer parameters.
             let parsed =
-                transfer::deserialize(
+                transfer::deserialize_test_only(
                     wormhole::vaa::take_payload(
                         parse_and_verify_vaa(scenario, transfer_vaa)
                     )
@@ -738,7 +743,7 @@ module token_bridge::complete_transfer_tests {
 
             // Verify transfer parameters.
             let parsed =
-                transfer::deserialize(
+                transfer::deserialize_test_only(
                     wormhole::vaa::take_payload(
                         parse_and_verify_vaa(scenario, transfer_vaa)
                     )
@@ -869,7 +874,7 @@ module token_bridge::complete_transfer_tests {
 
             // Verify transfer parameters.
             let parsed =
-                transfer::deserialize(
+                transfer::deserialize_test_only(
                     wormhole::vaa::take_payload(
                         parse_and_verify_vaa(scenario, transfer_vaa)
                     )
@@ -949,7 +954,7 @@ module token_bridge::complete_transfer_tests {
 
     #[test]
     #[expected_failure(
-        abort_code = token_registry::E_CANONICAL_TOKEN_INFO_MISMATCH
+        abort_code = complete_transfer::E_CANONICAL_TOKEN_INFO_MISMATCH
     )]
     /// This test verifies that `authorize_transfer` reverts when called with
     /// a native COIN_TYPE that's not encoded in the VAA.
@@ -1033,7 +1038,7 @@ module token_bridge::complete_transfer_tests {
 
     #[test]
     #[expected_failure(
-        abort_code = token_registry::E_CANONICAL_TOKEN_INFO_MISMATCH
+        abort_code = complete_transfer::E_CANONICAL_TOKEN_INFO_MISMATCH
     )]
     /// This test verifies that `authorize_transfer` reverts when called with
     /// a wrapped COIN_TYPE that's not encoded in the VAA.
@@ -1158,7 +1163,7 @@ module token_bridge::complete_transfer_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
+    #[expected_failure(abort_code = wormhole::package_utils::E_NOT_CURRENT_VERSION)]
     fun test_cannot_complete_transfer_outdated_version() {
         use token_bridge::complete_transfer::{authorize_transfer};
 

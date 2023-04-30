@@ -10,7 +10,6 @@
 /// See `asset_meta` module for serialization and deserialization of Wormhole
 /// message payload.
 module token_bridge::attest_token {
-    use std::option::{Self};
     use sui::coin::{CoinMetadata};
     use wormhole::publish_message::{MessageTicket};
 
@@ -57,8 +56,7 @@ module token_bridge::attest_token {
         token_bridge_state: &mut State,
         coin_meta: &CoinMetadata<CoinType>,
     ): vector<u8> {
-        let verified =
-            state::maybe_verified_asset<CoinType>(token_bridge_state);
+        let registry = state::borrow_token_registry(token_bridge_state);
 
         // Register if it is a new asset.
         //
@@ -66,11 +64,12 @@ module token_bridge::attest_token {
         // because we may want to send asset metadata again after registration
         // (the owner of a particular `CoinType` can change `CoinMetadata` any
         // time after we register the asset).
-        if (option::is_some(&verified)) {
+        if (token_registry::has<CoinType>(registry)) {
+            let asset_info = token_registry::verified_asset<CoinType>(registry);
             // If this asset is already registered, there should already
             // be canonical info associated with this coin type.
             assert!(
-                !token_registry::is_wrapped(option::borrow(&verified)),
+                !token_registry::is_wrapped(&asset_info),
                 E_WRAPPED_ASSET
             );
         } else {
@@ -252,10 +251,11 @@ module token_bridge::attest_token_tests {
         // Emit `AssetMeta` payload.
         let serialized =
             serialize_asset_meta_test_only(&mut token_bridge_state, &coin_meta);
-        assert!(
-            serialized == asset_meta::serialize(asset_meta::from_metadata(&coin_meta)),
-            0
-        );
+        let expected_serialized =
+            asset_meta::serialize_test_only(
+                asset_meta::from_metadata_test_only(&coin_meta)
+            );
+        assert!(serialized == expected_serialized, 0);
 
         // Update metadata.
         let new_symbol = {
@@ -276,16 +276,14 @@ module token_bridge::attest_token_tests {
         coin::update_name(&treasury_cap, &mut coin_meta, new_name);
 
         // Check that the new serialization reflects updated metadata.
-        assert!(
-            serialized != asset_meta::serialize(asset_meta::from_metadata(&coin_meta)),
-            0
-        );
+        let expected_serialized =
+            asset_meta::serialize_test_only(
+                asset_meta::from_metadata_test_only(&coin_meta)
+            );
+        assert!(serialized != expected_serialized, 0);
         let updated_serialized =
             serialize_asset_meta_test_only(&mut token_bridge_state, &coin_meta);
-        assert!(
-            updated_serialized == asset_meta::serialize(asset_meta::from_metadata(&coin_meta)),
-            0
-        );
+        assert!(updated_serialized == expected_serialized, 0);
 
         // Clean up.
         return_state(token_bridge_state);
@@ -335,7 +333,7 @@ module token_bridge::attest_token_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
+    #[expected_failure(abort_code = wormhole::package_utils::E_NOT_CURRENT_VERSION)]
     fun test_cannot_attest_token_outdated_version() {
         use token_bridge::attest_token::{attest_token};
 

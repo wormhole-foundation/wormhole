@@ -13,18 +13,13 @@ module wormhole::package_utils {
     /// `UpgradeCap` is not from the same package as `T`.
     const E_INVALID_UPGRADE_CAP: u64 = 0;
     /// Build is not current.
-    const E_OUTDATED_VERSION: u64 = 1;
+    const E_NOT_CURRENT_VERSION: u64 = 1;
     /// Old version to update from is wrong.
     const E_INCORRECT_OLD_VERSION: u64 = 2;
     /// Old and new are the same version.
     const E_SAME_VERSION: u64 = 3;
-    /// Current version is misconfigured.
-    const E_INVALID_VERSION: u64 = 4;
     /// Version types must come from this module.
-    const E_TYPE_NOT_ALLOWED: u64 = 5;
-
-    const PENDING_INFO: vector<u8> = b"pending_package_info";
-    const PENDING_DIGEST_KEY: vector<u8> = b"pending_digest";
+    const E_TYPE_NOT_ALLOWED: u64 = 4;
 
     /// Key for version dynamic fields.
     struct CurrentVersion has store, drop, copy {}
@@ -39,21 +34,28 @@ module wormhole::package_utils {
         digest: Bytes32
     }
 
+    /// Retrieve current package ID, which should be the only one that anyone is
+    /// allowed to interact with.
     public fun current_package(id: &UID): ID {
         let info: &PackageInfo = field::borrow(id, CurrentPackage {});
         info.package
     }
 
+    /// Retrieve the build digest reflecting the current build.
     public fun current_digest(id: &UID): Bytes32 {
         let info: &PackageInfo = field::borrow(id, CurrentPackage {});
         info.digest
     }
 
+    /// Retrieve the upgraded package ID, which was taken from `UpgradeCap`
+    /// during `commit_upgrade`.
     public fun committed_package(id: &UID): ID {
         let info: &PackageInfo = field::borrow(id, PendingPackage {});
         info.package
     }
 
+    /// Retrieve the build digest of the latest upgrade, which was the same
+    /// digest used when `authorize_upgrade` is called.
     public fun authorized_digest(id: &UID): Bytes32 {
         let info: &PackageInfo = field::borrow(id, PendingPackage {});
         info.digest
@@ -89,6 +91,8 @@ module wormhole::package_utils {
         );
     }
 
+    /// Assert that the version type passed into this method is what exists
+    /// as the current version.
     public fun assert_version<Version: store + drop>(
         id: &UID,
         _version: Version
@@ -98,75 +102,47 @@ module wormhole::package_utils {
                 id,
                 CurrentVersion {}
             ),
-            E_OUTDATED_VERSION
+            E_NOT_CURRENT_VERSION
         )
     }
 
-    public fun init_version<Version: store>(id: &mut UID, version: Version) {
-        field::add(id, CurrentVersion {}, version);
-    }
-
-    /// Update from version n to n+1. We enforce that the versions be kept in
-    /// a module called "version_control".
-    public fun update_version_type<
-        Old: store + drop,
-        New: store + drop
-    >(
-        id: &mut UID,
-        _old_version: Old,
-        new_version: New
-    ) {
-        use std::ascii::{into_bytes};
-
-        assert!(
-            field::exists_with_type<CurrentVersion, Old>(id, CurrentVersion {}),
-            E_INCORRECT_OLD_VERSION
-        );
-        let _: Old = field::remove(id, CurrentVersion {});
-
-        let new_type = type_name::get<New>();
-        // Make sure the new type does not equal the old type, which means there
-        // is no protection against either build.
-        assert!(new_type != type_name::get<Old>(), E_SAME_VERSION);
-
-        // Also make sure `New` originates from this module.
-        let module_name = into_bytes(type_name::get_module(&new_type));
-        assert!(module_name == b"version_control", E_TYPE_NOT_ALLOWED);
-
-        // Finally add the new version.
-        field::add(id, CurrentVersion {}, new_version);
-    }
-
+    // Retrieve the `TypeName` of a given version.
     public fun type_of_version<Version: drop>(_version: Version): TypeName {
         type_name::get<Version>()
     }
 
-    public fun init_package_info(
+    /// Initialize package info and set the initial version. This should be done
+    /// when a contract's state/storage shared object is created.
+    public fun init_package_info<InitialVersion: store>(
         id: &mut UID,
-        upgrade_cap: &UpgradeCap,
-        current_digest: Bytes32,
-        pending_digest: Bytes32
+        version: InitialVersion,
+        upgrade_cap: &UpgradeCap
     ) {
         let package = package::upgrade_package(upgrade_cap);
-        let info =
-            PackageInfo {
-                package,
-                digest: current_digest
-            };
-        field::add(id, CurrentPackage {}, info);
+        field::add(
+            id,
+            CurrentPackage {},
+            PackageInfo { package, digest: bytes32::default() }
+        );
 
         // Set placeholders for pending package. We don't ever plan on removing
         // this field.
         field::add(
             id,
             PendingPackage {},
-            PackageInfo {
-                package,
-                digest: pending_digest
-            }
+            PackageInfo { package, digest: bytes32::default() }
         );
+
+        // Set the initial version.
+        field::add(id, CurrentVersion {}, version);
     }
 
+    /// Perform the version switchover and copy package info from pending to
+    /// current. This method should be executed after an upgrade (via a migrate
+    /// method) from the upgraded package.
+    ///
+    /// NOTE: This method can only be called once with the same version type
+    /// arguments.
     public fun migrate_version<
         Old: store + drop,
         New: store + drop
@@ -180,6 +156,10 @@ module wormhole::package_utils {
         update_package_info_from_pending(id);
     }
 
+    /// Helper for `sui::package::authorize_upgrade` to modify pending package
+    /// info by updating its digest.
+    ///
+    /// NOTE: This digest will be copied over when `migrate_version` is called.
     public fun authorize_upgrade(
         id: &mut UID,
         upgrade_cap: &mut UpgradeCap,
@@ -198,6 +178,12 @@ module wormhole::package_utils {
         )
     }
 
+    /// Helper for `sui::package::commit_upgrade` to modify pending package info
+    /// by updating its package ID with from what exists in the `UpgradeCap`.
+    /// This method returns the last package and the upgraded package IDs.
+    ///
+    /// NOTE: This package ID (second return value) will be copied over when
+    /// `migrate_version` is called.
     public fun commit_upgrade(
         id: &mut UID,
         upgrade_cap: &mut UpgradeCap,
@@ -230,12 +216,62 @@ module wormhole::package_utils {
         *field::borrow_mut(id, CurrentPackage {}) = pending;
     }
 
+    /// Update from version n to n+1. We enforce that the versions be kept in
+    /// a module called "version_control".
+    fun update_version_type<
+        Old: store + drop,
+        New: store + drop
+    >(
+        id: &mut UID,
+        _old_version: Old,
+        new_version: New
+    ) {
+        use std::ascii::{into_bytes};
+
+        assert!(
+            field::exists_with_type<CurrentVersion, Old>(id, CurrentVersion {}),
+            E_INCORRECT_OLD_VERSION
+        );
+        let _: Old = field::remove(id, CurrentVersion {});
+
+        let new_type = type_name::get<New>();
+        // Make sure the new type does not equal the old type, which means there
+        // is no protection against either build.
+        assert!(new_type != type_name::get<Old>(), E_SAME_VERSION);
+
+        // Also make sure `New` originates from this module.
+        let module_name = into_bytes(type_name::get_module(&new_type));
+        assert!(module_name == b"version_control", E_TYPE_NOT_ALLOWED);
+
+        // Finally add the new version.
+        field::add(id, CurrentVersion {}, new_version);
+    }
+
     #[test_only]
     public fun remove_package_info(id: &mut UID) {
         let _: PackageInfo = field::remove(id, CurrentPackage {});
         let _: PackageInfo = field::remove(id, PendingPackage {});
     }
 
+    #[test_only]
+    public fun init_version<Version: store>(
+        id: &mut UID,
+        version: Version
+    ) {
+        field::add(id, CurrentVersion {}, version);
+    }
+
+    #[test_only]
+    public fun update_version_type_test_only<
+        Old: store + drop,
+        New: store + drop
+    >(
+        id: &mut UID,
+        old_version: Old,
+        new_version: New
+    ) {
+        update_version_type(id, old_version, new_version)
+    }
 }
 
 #[test_only]
@@ -287,7 +323,7 @@ module wormhole::package_utils_tests {
         );
 
         // You shall not pass!
-        package_utils::update_version_type(
+        package_utils::update_version_type_test_only(
             &mut state.id,
             version_control::next_version(),
             version_control::next_version()
@@ -312,7 +348,7 @@ module wormhole::package_utils_tests {
         );
 
         // You shall not pass!
-        package_utils::update_version_type(
+        package_utils::update_version_type_test_only(
             &mut state.id,
             version_control::current_version(),
             version_control::current_version()
@@ -322,7 +358,7 @@ module wormhole::package_utils_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = package_utils::E_OUTDATED_VERSION)]
+    #[expected_failure(abort_code = package_utils::E_NOT_CURRENT_VERSION)]
     fun test_cannot_assert_current_outdated_version() {
         // Create dummy state.
         let state = State { id: object::new(&mut tx_context::dummy()) };
@@ -337,7 +373,7 @@ module wormhole::package_utils_tests {
         );
 
         // Valid update.
-        package_utils::update_version_type(
+        package_utils::update_version_type_test_only(
             &mut state.id,
             version_control::current_version(),
             version_control::next_version()
@@ -368,7 +404,7 @@ module wormhole::package_utils_tests {
         );
 
         // You shall not pass!
-        package_utils::update_version_type(
+        package_utils::update_version_type_test_only(
             &mut state.id,
             version_control::current_version(),
             V_DUMMY {}

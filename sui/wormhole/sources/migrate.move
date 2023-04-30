@@ -16,6 +16,7 @@ module wormhole::migrate {
     use wormhole::upgrade_contract::{Self};
     use wormhole::vaa::{Self};
 
+    /// Event reflecting when `migrate` is successfully executed.
     struct MigrateComplete has drop, copy {
         package: ID
     }
@@ -27,7 +28,6 @@ module wormhole::migrate {
         upgrade_vaa_buf: vector<u8>,
         the_clock: &Clock
     ) {
-        // This should be removed in an upgrade from 0.1.2.
         state::migrate__v__0_1_2(wormhole_state);
 
         // Perform standard migrate.
@@ -52,7 +52,7 @@ module wormhole::migrate {
         ////////////////////////////////////////////////////////////////////////
     }
 
-    public fun handle_migrate(
+    fun handle_migrate(
         wormhole_state: &mut State,
         upgrade_vaa_buf: vector<u8>,
         the_clock: &Clock

@@ -7,7 +7,6 @@
 module wormhole::update_guardian_set {
     use std::vector::{Self};
     use sui::clock::{Clock};
-    use sui::event::{Self};
 
     use wormhole::bytes::{Self};
     use wormhole::cursor::{Self};
@@ -105,7 +104,7 @@ module wormhole::update_guardian_set {
             guardian_set::new(new_index, guardians)
         );
 
-        event::emit(GuardianSetAdded { new_index });
+        sui::event::emit(GuardianSetAdded { new_index });
 
         new_index
     }
@@ -424,7 +423,7 @@ module wormhole::update_guardian_set_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
+    #[expected_failure(abort_code = wormhole::package_utils::E_NOT_CURRENT_VERSION)]
     fun test_cannot_set_fee_outdated_version() {
         // Testing this method.
         use wormhole::update_guardian_set::{update_guardian_set};

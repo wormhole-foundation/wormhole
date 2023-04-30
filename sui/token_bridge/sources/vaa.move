@@ -12,7 +12,6 @@
 /// it will abort.
 module token_bridge::vaa {
     use sui::table::{Self};
-    use wormhole::consumed_vaas::{Self};
     use wormhole::external_address::{ExternalAddress};
     use wormhole::vaa::{Self, VAA};
 
@@ -65,9 +64,9 @@ module token_bridge::vaa {
 
         // First parse and verify VAA using Wormhole. This also consumes the VAA
         // hash to prevent replay.
-        consumed_vaas::consume(
+        vaa::consume(
             state::borrow_mut_consumed_vaas(&latest_only, token_bridge_state),
-            vaa::digest(&verified_vaa)
+            &verified_vaa
         );
 
         // Does the emitter agree with a registered Token Bridge?
@@ -121,7 +120,7 @@ module token_bridge::vaa {
 
     /// Assert that a given emitter equals one that is registered as a foreign
     /// Token Bridge.
-    public fun assert_registered_emitter(
+    fun assert_registered_emitter(
         token_bridge_state: &State,
         verified_vaa: &VAA
     ) {
@@ -306,7 +305,7 @@ module token_bridge::vaa_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
+    #[expected_failure(abort_code = wormhole::package_utils::E_NOT_CURRENT_VERSION)]
     fun test_cannot_verify_only_once_outdated_version() {
         let caller = person();
         let my_scenario = test_scenario::begin(caller);

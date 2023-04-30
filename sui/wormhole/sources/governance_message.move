@@ -15,10 +15,9 @@ module wormhole::governance_message {
 
     /// Guardian set used to sign VAA did not use current Guardian set.
     const E_OLD_GUARDIAN_SET_GOVERNANCE: u64 = 0;
-    /// Governance chain disagrees with what is stored in Wormhole `State`.
+    /// Governance chain disagrees does not match.
     const E_INVALID_GOVERNANCE_CHAIN: u64 = 1;
-    /// Governance emitter address disagrees with what is stored in Wormhole
-    /// `State`.
+    /// Governance emitter address does not match.
     const E_INVALID_GOVERNANCE_EMITTER: u64 = 2;
     /// Governance module name does not match.
     const E_INVALID_GOVERNANCE_MODULE: u64 = 4;
@@ -644,7 +643,7 @@ module wormhole::governance_message_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
+    #[expected_failure(abort_code = wormhole::package_utils::E_NOT_CURRENT_VERSION)]
     fun test_cannot_verify_vaa_outdated_version() {
         // Set up.
         let caller = person();

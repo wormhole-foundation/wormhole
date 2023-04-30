@@ -363,7 +363,7 @@ module wormhole::publish_message_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
+    #[expected_failure(abort_code = wormhole::package_utils::E_NOT_CURRENT_VERSION)]
     /// This test verifies that `publish_message` will fail if the minimum
     /// required version is greater than the current build's.
     fun test_cannot_publish_message_outdated_version() {

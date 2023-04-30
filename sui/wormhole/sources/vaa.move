@@ -739,7 +739,7 @@ module wormhole::vaa_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
+    #[expected_failure(abort_code = wormhole::package_utils::E_NOT_CURRENT_VERSION)]
     fun test_cannot_parse_and_verify_outdated_version() {
         // Testing this method.
         use wormhole::vaa::{parse_and_verify};

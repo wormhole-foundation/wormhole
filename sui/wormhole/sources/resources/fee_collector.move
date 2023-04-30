@@ -11,8 +11,6 @@ module wormhole::fee_collector {
 
     /// Amount deposited is not exactly the amount configured.
     const E_INCORRECT_FEE: u64 = 0;
-    /// Cannot withdraw more than the balance collected.
-    const E_WITHDRAW_EXCEEDS_BALANCE: u64 = 1;
 
     /// Container for configured `fee_amount` and `balance` of SUI collected.
     struct FeeCollector has store {

@@ -6,7 +6,6 @@
 /// accessing registered assets and verifying `VAA` intended for Token Bridge by
 /// checking the emitter against its own registered emitters.
 module token_bridge::state {
-    use std::option::{Self, Option};
     use sui::object::{Self, ID, UID};
     use sui::package::{UpgradeCap, UpgradeReceipt, UpgradeTicket};
     use sui::table::{Self, Table};
@@ -91,20 +90,13 @@ module token_bridge::state {
             upgrade_cap
         };
 
-        // Set first version for this package.
-        package_utils::init_version(
-            &mut state.id,
-            version_control::current_version()
-        );
-
-        // Initialize package info. This will be used for emitting information
-        // of successful migrations.
+        // Set first version and initialize package info. This will be used for
+        // emitting information of successful migrations.
         let upgrade_cap = &state.upgrade_cap;
         package_utils::init_package_info(
             &mut state.id,
-            upgrade_cap,
-            bytes32::default(),
-            bytes32::default()
+            version_control::current_version(),
+            upgrade_cap
         );
 
         state
@@ -150,27 +142,11 @@ module token_bridge::state {
         &self.emitter_registry
     }
 
-    public fun maybe_verified_asset<CoinType>(
-        self: &State
-    ): Option<VerifiedAsset<CoinType>> {
-        let registry = &self.token_registry;
-        if (token_registry::has<CoinType>(registry)) {
-            option::some(token_registry::verified_asset<CoinType>(registry))
-        } else {
-            option::none()
-        }
-    }
-
     public fun verified_asset<CoinType>(
         self: &State
     ): VerifiedAsset<CoinType> {
         token_registry::assert_has<CoinType>(&self.token_registry);
         token_registry::verified_asset(&self.token_registry)
-    }
-
-    /// Retrieve decimals from for a given coin type in `TokenRegistry`.
-    public fun coin_decimals<CoinType>(self: &State): u8 {
-        token_registry::coin_decimals(&verified_asset<CoinType>(self))
     }
 
     #[test_only]
@@ -186,7 +162,7 @@ module token_bridge::state {
         old_version: Old,
         new_version: New
     ) {
-        wormhole::package_utils::update_version_type(
+        wormhole::package_utils::update_version_type_test_only(
             &mut self.id,
             old_version,
             new_version
@@ -203,7 +179,7 @@ module token_bridge::state {
 
     #[test_only]
     public fun reverse_migrate_version(self: &mut State) {
-        package_utils::update_version_type(
+        package_utils::update_version_type_test_only(
             &mut self.id,
             version_control::current_version(),
             version_control::previous_version()
@@ -389,37 +365,14 @@ module token_bridge::state {
     //
     ////////////////////////////////////////////////////////////////////////////
 
-    public(friend) fun migrate__v__0_1_1(self: &mut State) {
-        // We need to add dynamic fields via the new package utils method. These
-        // fields do not exist in the previous build (0.1.0).
-        // See `state::new` above.
-
-        // Need to remove old dynamic field. This was set when performing the
-        // upgrade on previous version. We need to take this digest and then
-        // initialize package info with this as the pending digest.
-        let pending_digest =
-            sui::dynamic_field::remove(&mut self.id, CurrentDigest {});
-
-        // Initialize package info. This will be used for emitting information
-        // of successful migrations.
-        let upgrade_cap = &self.upgrade_cap;
-        package_utils::init_package_info(
-            &mut self.id,
-            upgrade_cap,
-            bytes32::default(),
-            pending_digest
-        );
+    public(friend) fun migrate__v__0_1_1(_self: &mut State) {
+        // Intentionally do nothing.
     }
 
     #[test_only]
     /// Bloody hack.
-    public fun reverse_migrate__v__0_1_0(self: &mut State) {
-        package_utils::remove_package_info(&mut self.id);
-
-        // Add back in old dynamic field(s)...
-
-        // Add dummy hash since this is the first time the package is published.
-        sui::dynamic_field::add(&mut self.id, CurrentDigest {}, bytes32::from_bytes(b"new build"));
+    public fun reverse_migrate__v__0_1_0(_self: &mut State) {
+        // Intentionally do nothing.
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -430,6 +383,4 @@ module token_bridge::state {
     //  be used in future builds.
     //
     ////////////////////////////////////////////////////////////////////////////
-
-    struct CurrentDigest has store, drop, copy {}
 }

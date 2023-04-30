@@ -11,10 +11,12 @@ module wormhole::emitter {
 
     friend wormhole::publish_message;
 
+    /// Event reflecting when `new` is called.
     struct EmitterCreated has drop, copy {
         emitter_cap: ID
     }
 
+    /// Event reflecting when `destroy` is called.
     struct EmitterDestroyed has drop, copy {
         emitter_cap: ID
     }
@@ -143,7 +145,7 @@ module wormhole::emitter_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
+    #[expected_failure(abort_code = wormhole::package_utils::E_NOT_CURRENT_VERSION)]
     fun test_cannot_new_emitter_outdated_version() {
         // Set up.
         let caller = person();

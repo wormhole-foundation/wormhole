@@ -536,7 +536,7 @@ module token_bridge::complete_transfer_with_payload_tests {
 
     #[test]
     #[expected_failure(
-        abort_code = token_registry::E_CANONICAL_TOKEN_INFO_MISMATCH
+        abort_code = complete_transfer::E_CANONICAL_TOKEN_INFO_MISMATCH
     )]
     /// This test demonstrates that the `CoinType` specified for the token
     /// redemption must agree with the canonical token info encoded in the VAA_ATTESTED_DECIMALS_12,
@@ -695,7 +695,7 @@ module token_bridge::complete_transfer_with_payload_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
+    #[expected_failure(abort_code = wormhole::package_utils::E_NOT_CURRENT_VERSION)]
     fun test_cannot_complete_transfer_with_payload_outdated_version() {
         use token_bridge::complete_transfer_with_payload::{authorize_transfer};
 

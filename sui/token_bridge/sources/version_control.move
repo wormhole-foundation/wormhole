@@ -24,6 +24,11 @@ module token_bridge::version_control {
         V__0_1_0 {}
     }
 
+    #[test_only]
+    public fun previous_version_test_only(): V__0_1_0 {
+        previous_version()
+    }
+
     ////////////////////////////////////////////////////////////////////////////
     //
     //  Change Log
@@ -73,10 +78,5 @@ module token_bridge::version_control {
     #[test_only]
     public fun next_version(): V__MIGRATED {
         V__MIGRATED {}
-    }
-
-    #[test_only]
-    public fun previous_version_test_only(): V__0_1_0 {
-        previous_version()
     }
 }

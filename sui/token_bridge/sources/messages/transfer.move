@@ -17,6 +17,9 @@ module token_bridge::transfer {
 
     use token_bridge::normalized_amount::{Self, NormalizedAmount};
 
+    friend token_bridge::complete_transfer;
+    friend token_bridge::transfer_tokens;
+
     /// Message payload is not `Transfer`.
     const E_INVALID_PAYLOAD: u64 = 0;
 
@@ -42,7 +45,7 @@ module token_bridge::transfer {
     }
 
     /// Create new `Transfer`.
-    public fun new(
+    public(friend) fun new(
         amount: NormalizedAmount,
         token_address: ExternalAddress,
         token_chain: u16,
@@ -60,8 +63,27 @@ module token_bridge::transfer {
         }
     }
 
+    #[test_only]
+    public fun new_test_only(
+        amount: NormalizedAmount,
+        token_address: ExternalAddress,
+        token_chain: u16,
+        recipient: ExternalAddress,
+        recipient_chain: u16,
+        relayer_fee: NormalizedAmount,
+    ): Transfer {
+        new(
+            amount,
+            token_address,
+            token_chain,
+            recipient,
+            recipient_chain,
+            relayer_fee
+        )
+    }
+
     /// Decompose `Transfer` into its members.
-    public fun unpack(
+    public(friend) fun unpack(
         transfer: Transfer
     ): (
         NormalizedAmount,
@@ -90,8 +112,22 @@ module token_bridge::transfer {
         )
     }
 
+    #[test_only]
+    public fun unpack_test_only(
+        transfer: Transfer
+    ): (
+        NormalizedAmount,
+        ExternalAddress,
+        u16,
+        ExternalAddress,
+        u16,
+        NormalizedAmount
+    ) {
+        unpack(transfer)
+    }
+
     /// Decode Wormhole message payload as `Transfer`.
-    public fun deserialize(buf: vector<u8>): Transfer {
+    public(friend) fun deserialize(buf: vector<u8>): Transfer {
         let cur = cursor::new(buf);
         assert!(bytes::take_u8(&mut cur) == PAYLOAD_ID, E_INVALID_PAYLOAD);
 
@@ -113,8 +149,13 @@ module token_bridge::transfer {
         }
     }
 
+    #[test_only]
+    public fun deserialize_test_only(buf: vector<u8>): Transfer {
+        deserialize(buf)
+    }
+
     /// Encode `Transfer` for Wormhole message payload.
-    public fun serialize(transfer: Transfer): vector<u8> {
+    public(friend) fun serialize(transfer: Transfer): vector<u8> {
         let (
             amount,
             token_address,
@@ -134,6 +175,11 @@ module token_bridge::transfer {
         vector::append(&mut buf, normalized_amount::to_bytes(relayer_fee));
 
         buf
+    }
+
+    #[test_only]
+    public fun serialize_test_only(transfer: Transfer): vector<u8> {
+        serialize(transfer)
     }
 
     #[test_only]
@@ -213,8 +259,8 @@ module token_bridge::transfer_tests {
             normalized_amount::from_raw(123456789, decimals);
 
         let serialized =
-            transfer::serialize(
-                transfer::new(
+            transfer::serialize_test_only(
+                transfer::new_test_only(
                     expected_amount,
                     expected_token_address,
                     expected_token_chain,
@@ -232,7 +278,9 @@ module token_bridge::transfer_tests {
             recipient,
             recipient_chain,
             relayer_fee
-        ) = transfer::unpack(transfer::deserialize(serialized));
+        ) = transfer::unpack_test_only(
+            transfer::deserialize_test_only(serialized)
+        );
         assert!(amount == expected_amount, 0);
         assert!(token_address == expected_token_address, 0);
         assert!(token_chain == expected_token_chain, 0);
@@ -253,7 +301,7 @@ module token_bridge::transfer_tests {
         );
 
         // You shall not pass!
-        let parsed = transfer::deserialize(invalid_payload);
+        let parsed = transfer::deserialize_test_only(invalid_payload);
 
         // Clean up.
         transfer::destroy(parsed);

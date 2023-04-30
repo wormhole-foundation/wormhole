@@ -54,13 +54,13 @@ module token_bridge::coin_wrapped_12 {
     }
 
     public fun token_meta(): AssetMeta {
-        asset_meta::deserialize(
+        asset_meta::deserialize_test_only(
             wormhole::vaa::peel_payload_from_vaa(&VAA)
         )
     }
 
     public fun updated_token_meta(): AssetMeta {
-        asset_meta::deserialize(
+        asset_meta::deserialize_test_only(
             wormhole::vaa::peel_payload_from_vaa(&UPDATED_VAA)
         )
     }

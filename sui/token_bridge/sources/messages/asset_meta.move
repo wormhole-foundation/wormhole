@@ -14,6 +14,10 @@ module token_bridge::asset_meta {
 
     use token_bridge::native_asset::{Self};
 
+    friend token_bridge::attest_token;
+    friend token_bridge::create_wrapped;
+    friend token_bridge::wrapped_asset;
+
     /// Message payload is not `AssetMeta`.
     const E_INVALID_PAYLOAD: u64 = 0;
 
@@ -37,7 +41,7 @@ module token_bridge::asset_meta {
     }
 
 
-    public fun from_metadata<C>(metadata: &CoinMetadata<C>): AssetMeta {
+    public(friend) fun from_metadata<C>(metadata: &CoinMetadata<C>): AssetMeta {
         AssetMeta {
             token_address: native_asset::canonical_address(metadata),
             token_chain: chain_id(),
@@ -47,7 +51,12 @@ module token_bridge::asset_meta {
         }
     }
 
-    public fun unpack(
+    #[test_only]
+    public fun from_metadata_test_only<C>(metadata: &CoinMetadata<C>): AssetMeta {
+        from_metadata(metadata)
+    }
+
+    public(friend) fun unpack(
         meta: AssetMeta
     ): (
         ExternalAddress,
@@ -73,6 +82,20 @@ module token_bridge::asset_meta {
         )
     }
 
+
+    #[test_only]
+    public fun unpack_test_only(
+        meta: AssetMeta
+    ): (
+        ExternalAddress,
+        u16,
+        u8,
+        String,
+        String
+    ) {
+        unpack(meta)
+    }
+
     public fun token_chain(self: &AssetMeta): u16 {
         self.token_chain
     }
@@ -81,7 +104,7 @@ module token_bridge::asset_meta {
         self.token_address
     }
 
-    public fun serialize(meta: AssetMeta): vector<u8> {
+    public(friend) fun serialize(meta: AssetMeta): vector<u8> {
         let (
             token_address,
             token_chain,
@@ -107,7 +130,12 @@ module token_bridge::asset_meta {
         buf
     }
 
-    public fun deserialize(buf: vector<u8>): AssetMeta {
+    #[test_only]
+    public fun serialize_test_only(meta: AssetMeta): vector<u8> {
+        serialize(meta)
+    }
+
+    public(friend) fun deserialize(buf: vector<u8>): AssetMeta {
         let cur = cursor::new(buf);
         assert!(bytes::take_u8(&mut cur) == PAYLOAD_ID, E_INVALID_PAYLOAD);
         let token_address = external_address::take_bytes(&mut cur);
@@ -124,6 +152,11 @@ module token_bridge::asset_meta {
             symbol,
             name
         }
+    }
+
+    #[test_only]
+    public fun deserialize_test_only(buf: vector<u8>): AssetMeta {
+        deserialize(buf)
     }
 
     #[test_only]
@@ -167,7 +200,6 @@ module token_bridge::asset_meta {
     public fun payload_id(): u8 {
         PAYLOAD_ID
     }
-
 }
 
 #[test_only]
@@ -191,8 +223,8 @@ module token_bridge::asset_meta_tests {
             name, // name
         );
         // Serialize and deserialize TransferWithPayload object.
-        let se = asset_meta::serialize(asset_meta);
-        let de = asset_meta::deserialize(se);
+        let se = asset_meta::serialize_test_only(asset_meta);
+        let de = asset_meta::deserialize_test_only(se);
 
         // Test that the object fields are unchanged.
         assert!(asset_meta::token_chain(&de) == 3, 0);
@@ -212,8 +244,8 @@ module token_bridge::asset_meta_tests {
         let payload =
             vaa::peel_payload_from_vaa(&encoded_asset_meta_vaa_foreign_12());
 
-        let token_meta = asset_meta::deserialize(payload);
-        let serialized = asset_meta::serialize(token_meta);
+        let token_meta = asset_meta::deserialize_test_only(payload);
+        let serialized = asset_meta::serialize_test_only(token_meta);
         assert!(payload == serialized, 0);
     }
 }

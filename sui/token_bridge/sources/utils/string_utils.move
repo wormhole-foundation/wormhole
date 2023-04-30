@@ -3,8 +3,6 @@ module token_bridge::string_utils {
     use std::string::{Self, String};
     use std::vector::{Self};
 
-    const E_STRING_TOO_LONG: u64 = 0;
-
     const QUESTION_MARK: u8 = 63;
     // Recall that UTF-8 characters have variable-length encoding and can have
     // 1, 2, 3, or 4 bytes.

@@ -8,7 +8,6 @@
 /// 3.  Upgrade.
 /// 4.  Commit upgrade.
 module wormhole::upgrade_contract {
-    use sui::event::{Self};
     use sui::object::{ID};
     use sui::package::{UpgradeReceipt, UpgradeTicket};
 
@@ -21,6 +20,7 @@ module wormhole::upgrade_contract {
 
     /// Digest is all zeros.
     const E_DIGEST_ZERO_BYTES: u64 = 0;
+
     /// Specific governance payload ID (action) to complete upgrading the
     /// contract.
     const ACTION_UPGRADE_CONTRACT: u8 = 1;
@@ -81,7 +81,7 @@ module wormhole::upgrade_contract {
         let (old_contract, new_contract) = state::commit_upgrade(self, receipt);
 
         // Emit an event reflecting package ID change.
-        event::emit(ContractUpgraded { old_contract, new_contract });
+        sui::event::emit(ContractUpgraded { old_contract, new_contract });
     }
 
     /// Privileged method only to be used by this module and `migrate` module.

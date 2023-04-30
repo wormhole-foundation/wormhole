@@ -28,12 +28,8 @@ module token_bridge::token_registry {
 
     /// Asset is not registered yet.
     const E_UNREGISTERED: u64 = 0;
-    /// Asset is already registered. This only applies to native assets.
-    const E_ALREADY_REGISTERED: u64 = 1;
-    /// Input token info does not match registered info.
-    const E_CANONICAL_TOKEN_INFO_MISMATCH: u64 = 2;
     /// Cannot register wrapped asset with same canonical token info.
-    const E_ALREADY_WRAPPED: u64 = 3;
+    const E_ALREADY_WRAPPED: u64 = 1;
 
     /// This container is used to store native and wrapped assets of coin type
     /// as dynamic fields under its `UID`. It also uses a mechanism to generate
@@ -93,26 +89,6 @@ module token_bridge::token_registry {
 
     public fun assert_has<CoinType>(self: &TokenRegistry) {
         assert!(has<CoinType>(self), E_UNREGISTERED);
-    }
-
-    /// Create an `VerifiedAsset` by verifying input token info. If the combination
-    /// of token chain ID and address do not match with what exists in the
-    /// registry, this method aborts.
-    public fun verify_token_info<CoinType>(
-        self: &TokenRegistry,
-        chain: u16,
-        addr: ExternalAddress
-    ): VerifiedAsset<CoinType> {
-        let verified = verified_asset<CoinType>(self);
-        assert!(
-            (
-                chain == token_chain(&verified) &&
-                addr == token_address(&verified)
-            ),
-            E_CANONICAL_TOKEN_INFO_MISMATCH
-        );
-
-        verified
     }
 
     public fun verified_asset<CoinType>(

@@ -384,7 +384,7 @@ module token_bridge::create_wrapped_tests {
             native_decimals,
             symbol,
             name
-        ) = asset_meta::unpack(coin_wrapped_12::token_meta());
+        ) = asset_meta::unpack_test_only(coin_wrapped_12::token_meta());
 
         // Check registry.
         {
@@ -433,7 +433,7 @@ module token_bridge::create_wrapped_tests {
             _,
             new_symbol,
             new_name
-        ) = asset_meta::unpack(coin_wrapped_12::updated_token_meta());
+        ) = asset_meta::unpack_test_only(coin_wrapped_12::updated_token_meta());
 
         assert!(symbol != new_symbol, 0);
 
@@ -569,7 +569,7 @@ module token_bridge::create_wrapped_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
+    #[expected_failure(abort_code = wormhole::package_utils::E_NOT_CURRENT_VERSION)]
     fun test_cannot_complete_registration_outdated_version() {
         let (caller, coin_deployer) = two_people();
         let my_scenario = test_scenario::begin(caller);

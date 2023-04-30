@@ -14,6 +14,7 @@ module token_bridge::migrate {
     use token_bridge::state::{Self, State};
     use token_bridge::upgrade_contract::{Self};
 
+    /// Event reflecting when `migrate` is successfully executed.
     struct MigrateComplete has drop, copy {
         package: ID
     }
@@ -24,7 +25,6 @@ module token_bridge::migrate {
         token_bridge_state: &mut State,
         receipt: DecreeReceipt<upgrade_contract::GovernanceWitness>
     ) {
-        // This should be removed in an upgrade from 0.1.1.
         state::migrate__v__0_1_1(token_bridge_state);
 
         // Perform standard migrate.
@@ -157,7 +157,7 @@ module token_bridge::migrate_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = sui::dynamic_field::EFieldDoesNotExist)]
+    #[expected_failure(abort_code = wormhole::package_utils::E_INCORRECT_OLD_VERSION)]
     /// ^ This expected error may change depending on the migration. In most
     /// cases, this will abort with `wormhole::package_utils::E_INCORRECT_OLD_VERSION`.
     fun test_cannot_migrate_again() {

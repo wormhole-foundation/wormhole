@@ -731,7 +731,7 @@ module token_bridge::transfer_tokens_with_payload_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
+    #[expected_failure(abort_code = wormhole::package_utils::E_NOT_CURRENT_VERSION)]
     fun test_cannot_transfer_tokens_with_payload_outdated_version() {
         use token_bridge::transfer_tokens_with_payload::{
             prepare_transfer,

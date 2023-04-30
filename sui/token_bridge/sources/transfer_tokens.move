@@ -585,7 +585,7 @@ module token_bridge::transfer_token_tests {
             );
 
         let expected_payload =
-            transfer::new(
+            transfer::new_test_only(
                 expected_amount,
                 expected_token_address,
                 chain_id(),
@@ -595,7 +595,7 @@ module token_bridge::transfer_token_tests {
                 TEST_TARGET_CHAIN,
                 expected_relayer_fee
             );
-        assert!(transfer::serialize(expected_payload) == payload, 0);
+        assert!(transfer::serialize_test_only(expected_payload) == payload, 0);
 
         // Clean up.
         return_state(token_bridge_state);
@@ -767,7 +767,7 @@ module token_bridge::transfer_token_tests {
             );
 
         let expected_payload =
-            transfer::new(
+            transfer::new_test_only(
                 expected_amount,
                 expected_token_address,
                 expected_token_chain,
@@ -777,7 +777,7 @@ module token_bridge::transfer_token_tests {
                 TEST_TARGET_CHAIN,
                 expected_relayer_fee
             );
-        assert!(transfer::serialize(expected_payload) == payload, 0);
+        assert!(transfer::serialize_test_only(expected_payload) == payload, 0);
 
         // Clean up.
         return_state(token_bridge_state);
@@ -979,7 +979,7 @@ module token_bridge::transfer_token_tests {
     }
 
     #[test]
-    #[expected_failure(abort_code = wormhole::package_utils::E_OUTDATED_VERSION)]
+    #[expected_failure(abort_code = wormhole::package_utils::E_NOT_CURRENT_VERSION)]
     fun test_cannot_transfer_tokens_outdated_version() {
         use token_bridge::transfer_tokens::{prepare_transfer, transfer_tokens};
 

@@ -13,12 +13,10 @@ module wormhole::bytes32 {
 
     /// Invalid vector<u8> length to create `Bytes32`.
     const E_INVALID_BYTES32: u64 = 0;
-    /// Underlying data is more than 8 bytes.
-    const E_INVALID_U64_BE: u64 = 1;
     /// Found non-zero bytes when attempting to trim `vector<u8>`.
-    const E_CANNOT_TRIM_NONZERO: u64 = 2;
+    const E_CANNOT_TRIM_NONZERO: u64 = 1;
     /// Value of deserialized 32-byte array data overflows u64 max.
-    const E_U64_OVERFLOW: u64 = 4;
+    const E_U64_OVERFLOW: u64 = 2;
 
     /// 32.
     const LEN: u64 = 32;
