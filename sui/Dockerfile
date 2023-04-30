@@ -1,4 +1,4 @@
-FROM ghcr.io/wormhole-foundation/sui:0.33.1-testnet@sha256:410de1cea7a8438e8c5d16b4c141bd197be7eef32605a2b1df792e70b47bc0fb as sui
+FROM ghcr.io/wormhole-foundation/sui:1.0.0-testnet@sha256:63a8094590ddb90320aa1c86414f17cc73c759ecbdfaf2fe78f135b7c08ec536 as sui
 
 RUN dnf -y install make git npm
 
