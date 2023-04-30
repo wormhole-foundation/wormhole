@@ -5,8 +5,11 @@ import {
 } from "@mysten/sui.js";
 import { getCreatedObjects, getPublishedPackageId } from "./utils";
 
-export const logTransactionDigest = (res: SuiTransactionBlockResponse) => {
-  console.log("Transaction digest", getTransactionDigest(res));
+export const logTransactionDigest = (
+  res: SuiTransactionBlockResponse,
+  ...args: string[]
+) => {
+  console.log("Transaction digest", getTransactionDigest(res), ...args);
 };
 
 export const logTransactionSender = (res: SuiTransactionBlockResponse) => {

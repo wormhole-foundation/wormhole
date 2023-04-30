@@ -83,15 +83,6 @@ export const execute_sui = async (
         throw Error("Token bridge object ID is undefined");
       }
 
-      const coreBridgePackageId = await getPackageId(
-        provider,
-        coreBridgeStateObjectId
-      );
-      const tokenBridgePackageId = await getPackageId(
-        provider,
-        tokenBridgeStateObjectId
-      );
-
       switch (payload.type) {
         case "ContractUpgrade":
           throw new Error("ContractUpgrade not supported on Sui");
@@ -99,54 +90,20 @@ export const execute_sui = async (
           throw new Error("RecoverChainId not supported on Sui");
         case "RegisterChain": {
           console.log("Registering chain");
-          if (network === "DEVNET") {
-            // Modify the VAA to only have 1 guardian signature
-            // TODO: remove this when we can deploy the devnet core contract
-            // deterministically with multiple guardians in the initial guardian set
-            // Currently the core contract is setup with only 1 guardian in the set
-            const parsedVaa = parse(vaa);
-            parsedVaa.signatures = [parsedVaa.signatures[0]];
-            vaa = Buffer.from(serialiseVAA(parsedVaa as VAA<Payload>), "hex");
+          if (payload.module !== "TokenBridge") {
+            throw new Error("NFT bridge not supported on Sui");
           }
 
-          // Get VAA
-          const tx = new TransactionBlock();
-          tx.setGasBudget(1000000);
-          const [verifiedVaa] = tx.moveCall({
-            target: `${coreBridgePackageId}::vaa::parse_and_verify`,
-            arguments: [
-              tx.object(coreBridgeStateObjectId),
-              tx.pure([...vaa]),
-              tx.object(SUI_CLOCK_OBJECT_ID),
-            ],
-          });
-
-          // Get decree ticket
-          const [decreeTicket] = tx.moveCall({
-            target: `${tokenBridgePackageId}::register_chain::authorize_governance`,
-            arguments: [tx.object(tokenBridgeStateObjectId)],
-          });
-
-          // Get decree receipt
-          const [decreeReceipt] = tx.moveCall({
-            target: `${coreBridgePackageId}::governance_message::verify_vaa`,
-            arguments: [
-              tx.object(coreBridgeStateObjectId),
-              verifiedVaa,
-              decreeTicket,
-            ],
-            typeArguments: [
-              `${tokenBridgePackageId}::register_chain::GovernanceWitness`,
-            ],
-          });
-
-          // Register chain
-          tx.moveCall({
-            target: `${tokenBridgePackageId}::register_chain::register_chain`,
-            arguments: [tx.object(tokenBridgeStateObjectId), decreeReceipt],
-          });
-
-          await executeTransactionBlock(signer, tx);
+          const signer = getSigner(provider, network, privateKey);
+          const tx = await registerChain(
+            provider,
+            network,
+            vaa,
+            coreBridgeStateObjectId,
+            tokenBridgeStateObjectId
+          );
+          const res = await executeTransactionBlock(signer, tx);
+          console.log(JSON.stringify(res));
           break;
         }
         case "AttestMeta":
@@ -426,4 +383,73 @@ export const normalizeSuiType = (type: string): string => {
   }
 
   return [normalizeSuiAddress(tokens[0]), tokens[1], tokens[2]].join("::");
+};
+
+export const registerChain = async (
+  provider: JsonRpcProvider,
+  network: Network,
+  vaa: Buffer,
+  coreBridgeStateObjectId: string,
+  tokenBridgeStateObjectId: string,
+  transactionBlock?: TransactionBlock
+): Promise<TransactionBlock> => {
+  if (network === "DEVNET") {
+    // Modify the VAA to only have 1 guardian signature
+    // TODO: remove this when we can deploy the devnet core contract
+    // deterministically with multiple guardians in the initial guardian set
+    // Currently the core contract is setup with only 1 guardian in the set
+    const parsedVaa = parse(vaa);
+    parsedVaa.signatures = [parsedVaa.signatures[0]];
+    vaa = Buffer.from(serialiseVAA(parsedVaa as VAA<Payload>), "hex");
+  }
+
+  // Get package IDs
+  const coreBridgePackageId = await getPackageId(
+    provider,
+    coreBridgeStateObjectId
+  );
+  const tokenBridgePackageId = await getPackageId(
+    provider,
+    tokenBridgeStateObjectId
+  );
+
+  // Register chain
+  let tx = transactionBlock;
+  if (!tx) {
+    tx = new TransactionBlock();
+    tx.setGasBudget(1000000);
+  }
+
+  // Get VAA
+  const [verifiedVaa] = tx.moveCall({
+    target: `${coreBridgePackageId}::vaa::parse_and_verify`,
+    arguments: [
+      tx.object(coreBridgeStateObjectId),
+      tx.pure([...vaa]),
+      tx.object(SUI_CLOCK_OBJECT_ID),
+    ],
+  });
+
+  // Get decree ticket
+  const [decreeTicket] = tx.moveCall({
+    target: `${tokenBridgePackageId}::register_chain::authorize_governance`,
+    arguments: [tx.object(tokenBridgeStateObjectId)],
+  });
+
+  // Get decree receipt
+  const [decreeReceipt] = tx.moveCall({
+    target: `${coreBridgePackageId}::governance_message::verify_vaa`,
+    arguments: [tx.object(coreBridgeStateObjectId), verifiedVaa, decreeTicket],
+    typeArguments: [
+      `${tokenBridgePackageId}::register_chain::GovernanceWitness`,
+    ],
+  });
+
+  // Register chain
+  tx.moveCall({
+    target: `${tokenBridgePackageId}::register_chain::register_chain`,
+    arguments: [tx.object(tokenBridgeStateObjectId), decreeReceipt],
+  });
+
+  return tx;
 };
