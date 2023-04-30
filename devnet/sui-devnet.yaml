@@ -66,7 +66,7 @@ spec:
               "cd /tmp && worm sui setup-devnet && touch success && sleep infinity",
             ]
           readinessProbe:
-            periodSeconds: 1
+            periodSeconds: 5
             failureThreshold: 300
             exec:
               command:
