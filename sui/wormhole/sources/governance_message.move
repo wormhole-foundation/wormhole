@@ -44,7 +44,8 @@ module wormhole::governance_message {
 
     struct DecreeReceipt<phantom T> {
         payload: vector<u8>,
-        digest: Bytes32
+        digest: Bytes32,
+        sequence: u64
     }
 
     /// This method prepares `DecreeTicket` for global governance action. This
@@ -83,13 +84,17 @@ module wormhole::governance_message {
         }
     }
 
+    public fun sequence<T>(receipt: &DecreeReceipt<T>): u64 {
+        receipt.sequence
+    }
+
     /// This method unpacks `DecreeReceipt` and puts the VAA digest into a
     /// `ConsumedVAAs` container. Then it returns the governance payload.
     public fun take_payload<T>(
         consumed: &mut ConsumedVAAs,
         receipt: DecreeReceipt<T>
     ): vector<u8> {
-        let DecreeReceipt { payload, digest } = receipt;
+        let DecreeReceipt { payload, digest, sequence: _ } = receipt;
 
         consumed_vaas::consume(consumed, digest);
 
@@ -103,7 +108,7 @@ module wormhole::governance_message {
 
     /// Destroy the receipt.
     public fun destroy<T>(receipt: DecreeReceipt<T>) {
-        let DecreeReceipt { payload: _, digest: _ } = receipt;
+        let DecreeReceipt { payload: _, digest: _, sequence: _ } = receipt;
     }
 
     /// This method unpacks a `DecreeTicket` to validate its members to make
@@ -143,6 +148,9 @@ module wormhole::governance_message {
         // Cache VAA digest.
         let digest = vaa::digest(&verified_vaa);
 
+        // Get the VAA sequence number.
+        let sequence = vaa::sequence(&verified_vaa);
+
         // Finally deserialize Wormhole payload as governance message.
         let (
             parsed_module_name,
@@ -162,7 +170,7 @@ module wormhole::governance_message {
             assert!(chain == chain_id(), E_GOVERNANCE_TARGET_CHAIN_NOT_SUI);
         };
 
-        DecreeReceipt { payload, digest }
+        DecreeReceipt { payload, digest, sequence }
     }
 
     fun deserialize(buf: vector<u8>): (Bytes32, u8, u16, vector<u8>) {
