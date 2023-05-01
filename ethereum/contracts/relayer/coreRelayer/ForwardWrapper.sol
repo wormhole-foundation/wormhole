@@ -31,18 +31,21 @@ contract ForwardWrapper is CoreRelayerLibrary {
         // Calls the 'receiveWormholeMessages' endpoint on the contract 'instruction.targetAddress'
         // (with the gas limit and value specified in instruction, and 'encodedVMs' as the input)
         bytes memory returnData;
-        (callToTargetContractSucceeded, returnData) = forwardInstructionViewer.fromWormholeFormat(instruction.targetAddress).call{
-            gas: instruction.executionParameters.gasLimit,
-            value: instruction.receiverValueTarget
-        }(abi.encodeWithSelector(IWormholeReceiver.receiveWormholeMessages.selector, data, signedVaas));
+        (callToTargetContractSucceeded, returnData) = forwardInstructionViewer.fromWormholeFormat(
+            instruction.targetAddress
+        ).call{gas: instruction.executionParameters.gasLimit, value: instruction.receiverValueTarget}(
+            abi.encodeWithSelector(IWormholeReceiver.receiveWormholeMessages.selector, data, signedVaas)
+        );
 
         uint256 postGas = gasleft();
 
         returnDataTruncated = callToTargetContractSucceeded ? bytes("") : truncateReturnData(returnData);
         // Calculate the amount of gas used in the call (upperbounding at the gas limit, which shouldn't have been exceeded)
-        gasUsed = uint32((preGas - postGas) > instruction.executionParameters.gasLimit
-            ? instruction.executionParameters.gasLimit
-            : (preGas - postGas));
+        gasUsed = uint32(
+            (preGas - postGas) > instruction.executionParameters.gasLimit
+                ? instruction.executionParameters.gasLimit
+                : (preGas - postGas)
+        );
 
         // Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the fraction of gas unused)
         uint256 transactionFeeRefundAmount = (instruction.executionParameters.gasLimit - gasUsed)

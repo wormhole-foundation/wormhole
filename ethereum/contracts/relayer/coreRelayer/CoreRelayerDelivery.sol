@@ -25,7 +25,6 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
         CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED,
         CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH
     }
-    
 
     /**
      * @custom:member recipientContract The target contract address
@@ -33,10 +32,10 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
      * @custom:member sequence The wormhole sequence number of the delivery VAA on the source chain corresponding to this delivery request
      * @custom:member deliveryVaaHash The hash of the delivery VAA corresponding to this delivery request
      * @custom:member gasUsed The amount of gas that was used to call your target contract (and, if there was a forward, to ensure that there were enough funds to complete the forward)
-     * @custom:member status either RECEIVER_FAILURE (if target contract reverts), SUCCESS (target contract doesn't revert, and no forwards requested), 
-     * FORWARD_REQUEST_FAILURE (target contract doesn't revert, at least one forward requested, not enough funds to cover all forwards), or FORWARD_REQUEST_SUCCESS (target contract doesn't revert, enough funds for all forwards). 
-     * @custom:member additionalStatusInfo empty if status is SUCCESS. 
-     * If status is FORWARD_REQUEST_SUCCESS, this is the amount of the leftover transaction fee used to fund the request(s) (not including any additional msg.value sent in the call(s) to forward). 
+     * @custom:member status either RECEIVER_FAILURE (if target contract reverts), SUCCESS (target contract doesn't revert, and no forwards requested),
+     * FORWARD_REQUEST_FAILURE (target contract doesn't revert, at least one forward requested, not enough funds to cover all forwards), or FORWARD_REQUEST_SUCCESS (target contract doesn't revert, enough funds for all forwards).
+     * @custom:member additionalStatusInfo empty if status is SUCCESS.
+     * If status is FORWARD_REQUEST_SUCCESS, this is the amount of the leftover transaction fee used to fund the request(s) (not including any additional msg.value sent in the call(s) to forward).
      * If status is RECEIVER_FAILURE, this is 132 bytes of the return data (with revert reason information).
      * If status is FORWARD_REQUEST_FAILURE, this is also the return data,
      * which is specifically an error ForwardNotSufficientlyFunded(uint256 amountOfFunds, uint256 amountOfFundsNeeded)
@@ -52,8 +51,8 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
         DeliveryStatus status,
         uint32 gasUsed,
         RefundStatus refundStatus,
-        bytes additionalStatusInfo, 
-        bytes overridesInfo 
+        bytes additionalStatusInfo,
+        bytes overridesInfo
     );
 
     /**
@@ -173,9 +172,8 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
 
         stack.preGas = gasleft();
 
-        (stack.callToInstructionExecutorSucceeded, stack.callToInstructionExecutorData) = getWormholeRelayerCallerAddress().call{
-            value: vaaInfo.internalInstruction.receiverValueTarget
-        }(
+        (stack.callToInstructionExecutorSucceeded, stack.callToInstructionExecutorData) =
+        getWormholeRelayerCallerAddress().call{value: vaaInfo.internalInstruction.receiverValueTarget}(
             abi.encodeWithSelector(
                 IForwardWrapper.executeInstruction.selector,
                 vaaInfo.internalInstruction,
@@ -193,14 +191,17 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
         stack.postGas = gasleft();
         stack.callToTargetContractSucceeded = true;
         if (stack.callToInstructionExecutorSucceeded) {
-            (stack.callToTargetContractSucceeded, stack.gasUsed, stack.returnDataTruncated) = abi.decode(stack.callToInstructionExecutorData, (bool, uint32, bytes));
+            (stack.callToTargetContractSucceeded, stack.gasUsed, stack.returnDataTruncated) =
+                abi.decode(stack.callToInstructionExecutorData, (bool, uint32, bytes));
         } else {
             // Calculate the amount of gas used in the call (upperbounding at the gas limit, which shouldn't have been exceeded)
-            stack.gasUsed = uint32((stack.preGas - stack.postGas) > vaaInfo.internalInstruction.executionParameters.gasLimit
-                ? vaaInfo.internalInstruction.executionParameters.gasLimit
-                : (stack.preGas - stack.postGas));
+            stack.gasUsed = uint32(
+                (stack.preGas - stack.postGas) > vaaInfo.internalInstruction.executionParameters.gasLimit
+                    ? vaaInfo.internalInstruction.executionParameters.gasLimit
+                    : (stack.preGas - stack.postGas)
+            );
         }
-         // Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the fraction of gas unused)
+        // Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the fraction of gas unused)
         stack.transactionFeeRefundAmount = (vaaInfo.internalInstruction.executionParameters.gasLimit - stack.gasUsed)
             * vaaInfo.internalInstruction.maximumRefundTarget / vaaInfo.internalInstruction.executionParameters.gasLimit;
 
@@ -217,18 +218,26 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
         stack.transactionFeeRefundAmountPostForward = stack.transactionFeeRefundAmount;
         if (forwardInstructions.length > 0) {
             // If the user made a forward/multichainForward request, then try to execute it
-            stack.transactionFeeRefundAmountPostForward = emitForward(stack.transactionFeeRefundAmount, forwardInstructions);
+            stack.transactionFeeRefundAmountPostForward =
+                emitForward(stack.transactionFeeRefundAmount, forwardInstructions);
             status = DeliveryStatus.FORWARD_REQUEST_SUCCESS;
         } else {
             status = stack.callToTargetContractSucceeded
-                ? (stack.callToInstructionExecutorSucceeded ? DeliveryStatus.SUCCESS : DeliveryStatus.FORWARD_REQUEST_FAILURE)
+                ? (
+                    stack.callToInstructionExecutorSucceeded
+                        ? DeliveryStatus.SUCCESS
+                        : DeliveryStatus.FORWARD_REQUEST_FAILURE
+                )
                 : DeliveryStatus.RECEIVER_FAILURE;
         }
 
-        stack.additionalStatusInfo = status == DeliveryStatus.SUCCESS ? bytes("") : 
-        status == DeliveryStatus.FORWARD_REQUEST_SUCCESS ? abi.encodePacked((stack.transactionFeeRefundAmount - stack.transactionFeeRefundAmountPostForward)) :
-        status == DeliveryStatus.RECEIVER_FAILURE ? stack.returnDataTruncated : 
-        status == DeliveryStatus.FORWARD_REQUEST_FAILURE ? stack.callToInstructionExecutorData : bytes("");
+        stack.additionalStatusInfo = status == DeliveryStatus.SUCCESS
+            ? bytes("")
+            : status == DeliveryStatus.FORWARD_REQUEST_SUCCESS
+                ? abi.encodePacked((stack.transactionFeeRefundAmount - stack.transactionFeeRefundAmountPostForward))
+                : status == DeliveryStatus.RECEIVER_FAILURE
+                    ? stack.returnDataTruncated
+                    : status == DeliveryStatus.FORWARD_REQUEST_FAILURE ? stack.callToInstructionExecutorData : bytes("");
 
         RefundStatus refundStatus = payRefunds(
             vaaInfo.internalInstruction,
@@ -239,21 +248,27 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
             vaaInfo.internalInstruction.targetRelayProvider
         );
 
-        stack.overridesInfo = vaaInfo.redeliveryHash == 0x0 ? bytes("") : abi.encodePacked(vaaInfo.redeliveryHash, vaaInfo.internalInstruction.maximumRefundTarget, vaaInfo.internalInstruction.receiverValueTarget, vaaInfo.internalInstruction.executionParameters.gasLimit);
+        stack.overridesInfo = vaaInfo.redeliveryHash == 0x0
+            ? bytes("")
+            : abi.encodePacked(
+                vaaInfo.redeliveryHash,
+                vaaInfo.internalInstruction.maximumRefundTarget,
+                vaaInfo.internalInstruction.receiverValueTarget,
+                vaaInfo.internalInstruction.executionParameters.gasLimit
+            );
 
-         // Emit a status update that can be read by a SDK
+        // Emit a status update that can be read by a SDK
         emit Delivery({
             recipientContract: fromWormholeFormat(vaaInfo.internalInstruction.targetAddress),
             sourceChain: vaaInfo.sourceChain,
             sequence: vaaInfo.sourceSequence,
             deliveryVaaHash: vaaInfo.deliveryVaaHash,
-            gasUsed: stack.gasUsed, 
+            gasUsed: stack.gasUsed,
             status: status,
             additionalStatusInfo: stack.additionalStatusInfo,
             refundStatus: refundStatus,
             overridesInfo: stack.overridesInfo
         });
-
     }
 
     function payRefunds(
@@ -272,7 +287,8 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
 
         // Whether or not the refund succeeded
         bool refundPaidToRefundAddress;
-        (refundPaidToRefundAddress, refundStatus) = payRefundToRefundAddress(internalInstruction, refundToRefundAddress, providerAddress);
+        (refundPaidToRefundAddress, refundStatus) =
+            payRefundToRefundAddress(internalInstruction, refundToRefundAddress, providerAddress);
 
         // Refund the relayer (their extra funds) + (the amount that the relayer spent on gas)
         // + (the users refund if that refund didn't succeed)
@@ -293,51 +309,120 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
             refundPaidToRefundAddress = pay(payable(fromWormholeFormat(instruction.refundAddress)), refundAmount);
             refundStatus = refundPaidToRefundAddress ? RefundStatus.REFUND_SENT : RefundStatus.REFUND_FAIL;
         } else {
-            IRelayProvider provider = IRelayProvider(fromWormholeFormat(relayerAddress));
+            address providerAddress = fromWormholeFormat(relayerAddress);
 
-            (bool success, bytes memory data) = getWormholeRelayerCallerAddress().call(
-                abi.encodeWithSelector(
-                    IForwardWrapper.safeRelayProviderSupportsChain.selector, provider, instruction.refundChain
-                )
+            (bool success, bytes memory data) = providerAddress.staticcall(
+                abi.encodeWithSelector(IRelayProvider.isChainSupported.selector, instruction.refundChain)
             );
 
-            if(!success){
+            if (!success) {
                 return (false, RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED);
             }
 
             success = abi.decode(data, (bool));
 
-            if(!success){
+            if (!success) {
                 return (false, RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED);
             }
-            (refundPaidToRefundAddress, refundStatus) = payRefundRemote(instruction, refundAmount, provider);   
+            (refundPaidToRefundAddress, refundStatus) = payRefundRemote(instruction, refundAmount, providerAddress);
         }
+    }
+
+    function getValuesFromRelayProvider(address providerAddress, uint16 targetChain, uint256 receiverValue)
+        internal
+        view
+        returns (bool didNotRevert, address rewardAddress, uint256 maximumBudget, uint256 receiverValueTarget)
+    {
+        (bool success, bytes memory data) =
+            providerAddress.staticcall(abi.encodeWithSelector(IRelayProvider.quoteMaximumBudget.selector, targetChain));
+        if (!success) {
+            return (false, address(0x0), 0, 0);
+        }
+        maximumBudget = abi.decode(data, (uint256));
+
+        (success, data) = providerAddress.staticcall(abi.encodeWithSelector(IRelayProvider.getRewardAddress.selector));
+        if (!success) {
+            return (false, address(0x0), 0, 0);
+        }
+        rewardAddress = abi.decode(data, (address));
+
+        (success, data) = providerAddress.staticcall(
+            abi.encodeWithSelector(IRelayProvider.getAssetConversionBuffer.selector, targetChain)
+        );
+        if (!success) {
+            return (false, address(0x0), 0, 0);
+        }
+        (uint16 buffer, uint16 denominator) = abi.decode(data, (uint16, uint16));
+
+        (success, data) =
+            providerAddress.staticcall(abi.encodeWithSelector(IRelayProvider.quoteAssetPrice.selector, chainId()));
+        if (!success) {
+            return (false, address(0x0), 0, 0);
+        }
+        uint256 srcNativeCurrencyPrice = abi.decode(data, (uint256));
+
+        (success, data) =
+            providerAddress.staticcall(abi.encodeWithSelector(IRelayProvider.quoteAssetPrice.selector, targetChain));
+        if (!success) {
+            return (false, address(0x0), 0, 0);
+        }
+        uint256 dstNativeCurrencyPrice = abi.decode(data, (uint256));
+
+        receiverValueTarget = receiverValue * srcNativeCurrencyPrice * denominator
+            / (dstNativeCurrencyPrice * (uint256(0) + denominator + buffer));
+
+        didNotRevert = true;
     }
 
     function payRefundRemote(
         IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction,
         uint256 refundAmount,
-        IRelayProvider provider
-    ) internal returns(bool, RefundStatus){
-        IWormhole wormhole = wormhole();
-        uint256 wormholeMessageFee = wormhole.messageFee();
-        uint256 overhead = wormholeMessageFee + provider.quoteDeliveryOverhead(instruction.refundChain);
+        address providerAddress
+    ) internal returns (bool, RefundStatus) {
+        uint256 wormholeMessageFee = wormhole().messageFee();
+
+        (bool success, bytes memory data) = providerAddress.staticcall(
+            abi.encodeWithSelector(IRelayProvider.quoteDeliveryOverhead.selector, instruction.refundChain)
+        );
+
+        if (!success) {
+            return (false, RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED);
+        }
+
+        uint256 overhead = wormholeMessageFee + abi.decode(data, (uint256));
 
         if (refundAmount > overhead) {
-            (IWormholeRelayerInternalStructs.DeliveryInstruction memory refundInstruction, bool isMaximumBudget) = getInstructionForEmptyMessageWithReceiverValue(
-                        instruction.refundChain, instruction.refundAddress, refundAmount - overhead, provider
-            );
-            if(refundInstruction.receiverValueTarget == 0) {
+            uint256 receiverValueTarget;
+            uint256 maximumBudget;
+            address rewardAddress;
+            (success, rewardAddress, receiverValueTarget, maximumBudget) =
+                getValuesFromRelayProvider(providerAddress, instruction.refundChain, refundAmount - overhead);
+
+            if (!success) {
+                return (false, RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED);
+            }
+
+            if (receiverValueTarget == 0) {
                 return (false, RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH);
             }
-            wormhole.publishMessage{value: wormholeMessageFee}(
+
+            (IWormholeRelayerInternalStructs.DeliveryInstruction memory refundInstruction, bool isMaximumBudget) =
+            getInstructionForEmptyMessageWithReceiverValue(
+                instruction.refundChain, instruction.refundAddress, providerAddress, receiverValueTarget, maximumBudget
+            );
+
+            wormhole().publishMessage{value: wormholeMessageFee}(
                 0, encodeDeliveryInstruction(refundInstruction), refundInstruction.consistencyLevel
             );
 
-            pay(provider.getRewardAddress(), refundAmount - wormholeMessageFee);
+            pay(payable(rewardAddress), refundAmount - wormholeMessageFee);
 
-            return (true, isMaximumBudget ? RefundStatus.CROSS_CHAIN_REFUND_SENT_MAXIMUM_BUDGET : RefundStatus.CROSS_CHAIN_REFUND_SENT);
-            
+            return (
+                true,
+                isMaximumBudget
+                    ? RefundStatus.CROSS_CHAIN_REFUND_SENT_MAXIMUM_BUDGET
+                    : RefundStatus.CROSS_CHAIN_REFUND_SENT
+            );
         } else {
             return (false, RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH);
         }
@@ -346,26 +431,30 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
     function getInstructionForEmptyMessageWithReceiverValue(
         uint16 targetChain,
         bytes32 targetAddress,
-        uint256 receiverValue,
-        IRelayProvider provider
-    ) internal view returns (IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction, bool isMaximumBudget) {
-        instruction = convertSendToDeliveryInstruction(
-            IWormholeRelayer.Send({
-                targetChain: targetChain,
-                targetAddress: bytes32(0x0),
-                refundAddress: targetAddress,
-                refundChain: targetChain,
-                maxTransactionFee: 0,
-                receiverValue: receiverValue,
-                relayProviderAddress: address(provider),
-                vaaKeys: new IWormholeRelayer.VaaKey[](0),
-                consistencyLevel: 200, //send message instantly
-                payload: bytes(""),
-                relayParameters: bytes("")
-            })
-        );
+        address providerAddress,
+        uint256 receiverValueTarget,
+        uint256 maximumBudget
+    )
+        internal
+        view
+        returns (IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction, bool isMaximumBudget)
+    {
+        instruction = IWormholeRelayerInternalStructs.DeliveryInstruction({
+            targetChain: targetChain,
+            targetAddress: bytes32(0x0),
+            refundAddress: targetAddress,
+            refundChain: targetChain,
+            maximumRefundTarget: 0,
+            receiverValueTarget: receiverValueTarget,
+            sourceRelayProvider: toWormholeFormat(providerAddress),
+            targetRelayProvider: bytes32(0x0),
+            senderAddress: toWormholeFormat(msg.sender),
+            vaaKeys: new IWormholeRelayer.VaaKey[](0),
+            consistencyLevel: 200, //send message instantly
+            executionParameters: IWormholeRelayerInternalStructs.ExecutionParameters({version: 1, gasLimit: 0}),
+            payload: bytes("")
+        });
 
-        uint256 maximumBudget = provider.quoteMaximumBudget(targetChain);
         isMaximumBudget = false;
         if (instruction.receiverValueTarget > maximumBudget) {
             instruction.receiverValueTarget = maximumBudget;
