@@ -39,12 +39,16 @@ import {
   redeemOnSui,
   transferFromEth,
   transferFromSui,
+  updateWrappedOnSui,
 } from "../..";
+import { MockTokenBridge } from "../../mock/tokenBridge";
+import { MockGuardians } from "../../mock/wormhole";
 import {
   executeTransactionBlock,
   getEmitterAddressAndSequenceFromResponseSui,
   getInnerType,
   getPackageId,
+  getWrappedCoinType,
 } from "../../sui";
 import {
   CHAIN_ID_ETH,
@@ -169,6 +173,7 @@ describe("Sui SDK tests", () => {
         5
       );
     const slicedAttestVAA = sliceVAASignatures(attestVAA);
+    console.log(Buffer.from(slicedAttestVAA).toString("hex"));
     expect(slicedAttestVAA).toBeTruthy();
 
     // Start create wrapped on Sui
@@ -221,6 +226,54 @@ describe("Sui SDK tests", () => {
         JSON.stringify(suiCompleteRegistrationTxRes.effects, null, 2)
       );
     expect(suiCompleteRegistrationTxRes.effects?.status.status).toBe("success");
+
+    // Generate new VAA
+    const {
+      emitterAddress: ethEmitter,
+      emitterChain,
+      tokenAddress,
+      decimals,
+      symbol,
+    } = parseAttestMetaVaa(slicedAttestVAA);
+    const mockTokenBridge = new MockTokenBridge(
+      ethEmitter.toString("hex"),
+      emitterChain,
+      1
+    );
+    const updatedAttestPayload = mockTokenBridge.publishAttestMeta(
+      tokenAddress.toString("hex"),
+      decimals,
+      symbol,
+      "HELLO"
+    );
+    const mockGuardians = new MockGuardians(0, [
+      "cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0",
+    ]);
+    const updatedAttestVAA = new Uint8Array(
+      mockGuardians.addSignatures(updatedAttestPayload, [0])
+    );
+
+    // Update wrapped
+    const updateWrappedTxPayload = await updateWrappedOnSui(
+      suiProvider,
+      SUI_CORE_BRIDGE_STATE_OBJECT_ID,
+      SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
+      coinPackageId,
+      updatedAttestVAA
+    );
+    const updateWrappedTxRes = await executeTransactionBlock(
+      suiSigner,
+      updateWrappedTxPayload
+    );
+    updateWrappedTxRes.effects?.status.status === "failure" &&
+      console.log(JSON.stringify(updateWrappedTxRes.effects, null, 2));
+    expect(updateWrappedTxRes.effects?.status.status).toBe("success");
+
+    // Check if update was propogated to coin metadata
+    const newCoinMetadata = await suiProvider.getCoinMetadata({
+      coinType: getWrappedCoinType(coinPackageId),
+    });
+    expect(newCoinMetadata?.name).toContain("HELLO");
 
     // Get foreign asset
     const originAssetHex = tryNativeToHexString(TEST_ERC20, CHAIN_ID_ETH);
