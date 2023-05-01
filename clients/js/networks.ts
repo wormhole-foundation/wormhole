@@ -148,6 +148,14 @@ const MAINNET = {
     rpc: undefined,
     key: get_env_var("ETH_KEY"),
   },
+  sei: {
+    rpc: undefined,
+    key: undefined,
+  },
+  sepolia: {
+    rpc: undefined,
+    key: undefined,
+  },
 };
 
 const TESTNET = {
@@ -282,6 +290,14 @@ const TESTNET = {
     rpc: "https://goerli.base.org",
     key: get_env_var("ETH_KEY_TESTNET"),
   },
+  sei: {
+    rpc: undefined,
+    key: undefined,
+  },
+  sepolia: {
+    rpc: undefined,
+    key: undefined,
+  },
 };
 
 const DEVNET = {
@@ -412,6 +428,14 @@ const DEVNET = {
     key: undefined,
   },
   base: {
+    rpc: undefined,
+    key: undefined,
+  },
+  sei: {
+    rpc: undefined,
+    key: undefined,
+  },
+  sepolia: {
     rpc: undefined,
     key: undefined,
   },
