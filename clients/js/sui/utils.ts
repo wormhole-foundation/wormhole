@@ -18,6 +18,15 @@ import { SuiRpcValidationError } from "./error";
 
 const UPGRADE_CAP_TYPE = "0x2::package::UpgradeCap";
 
+export const assertSuccess = (
+  res: SuiTransactionBlockResponse,
+  error: string
+): void => {
+  if (res?.effects?.status?.status !== "success") {
+    throw new Error(`${error} Response: ${JSON.stringify(res)}`);
+  }
+};
+
 export const executeTransactionBlock = async (
   signer: RawSigner,
   transactionBlock: TransactionBlock
@@ -265,11 +274,21 @@ export const isSameType = (a: string, b: string) => {
   }
 };
 
-export const isSuiCreateEvent = (event: any): event is SuiCreateEvent => {
+export const isSuiCreateEvent = <
+  T extends SuiTransactionBlockResponse["objectChanges"][number],
+  K extends Extract<T, { type: "created" }>
+>(
+  event: T
+): event is K => {
   return event.type === "created";
 };
 
-export const isSuiPublishEvent = (event: any): event is SuiPublishEvent => {
+export const isSuiPublishEvent = <
+  T extends SuiTransactionBlockResponse["objectChanges"][number],
+  K extends Extract<T, { type: "published" }>
+>(
+  event: T
+): event is K => {
   return event.type === "published";
 };
 

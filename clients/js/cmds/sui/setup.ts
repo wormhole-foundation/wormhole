@@ -20,6 +20,7 @@ import {
 } from "../../consts";
 import { NETWORKS } from "../../networks";
 import {
+  assertSuccess,
   executeTransactionBlock,
   getCreatedObjects,
   getProvider,
@@ -50,7 +51,6 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
     },
     async (argv) => {
       const network = "DEVNET";
-      const overwriteIds = argv["overwrite-ids"];
       const privateKey = argv["private-key"];
       const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
 
@@ -62,13 +62,7 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         rpc,
         privateKey
       );
-      if (coreBridgeDeployRes?.effects?.status.status !== "success") {
-        const coreBridgeDeployResStr = JSON.stringify(coreBridgeDeployRes);
-        throw new Error(
-          `Core bridge deployment failed. Response: ${coreBridgeDeployResStr}`
-        );
-      }
-
+      assertSuccess(coreBridgeDeployRes, "Core bridge deployment failed.");
       logTransactionDigest(coreBridgeDeployRes);
       logPublishedPackageId(coreBridgeDeployRes);
 
@@ -87,13 +81,7 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
       const coreBridgeStateObjectId = getCreatedObjects(coreBridgeInitRes).find(
         (e) => isSameType(e.type, `${coreBridgePackageId}::state::State`)
       ).objectId;
-      if (coreBridgeInitRes?.effects?.status.status !== "success") {
-        const coreBridgeInitResStr = JSON.stringify(coreBridgeInitRes);
-        throw new Error(
-          `Core bridge initialization failed. Response: ${coreBridgeInitResStr}`
-        );
-      }
-
+      assertSuccess(coreBridgeInitRes, "Core bridge initialization failed.");
       logTransactionDigest(coreBridgeInitRes);
       console.log("Core bridge state object ID", coreBridgeStateObjectId);
 
@@ -105,13 +93,7 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         rpc,
         privateKey
       );
-      if (tokenBridgeDeployRes?.effects?.status.status !== "success") {
-        const tokenBridgeDeployResStr = JSON.stringify(tokenBridgeDeployRes);
-        throw new Error(
-          `Token bridge deployment failed. Response: ${tokenBridgeDeployResStr}`
-        );
-      }
-
+      assertSuccess(tokenBridgeDeployRes, "Token bridge deployment failed.");
       logTransactionDigest(tokenBridgeDeployRes);
       logPublishedPackageId(tokenBridgeDeployRes);
 
@@ -132,13 +114,7 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
       ).find((e) =>
         isSameType(e.type, `${tokenBridgePackageId}::state::State`)
       ).objectId;
-      if (tokenBridgeInitRes?.effects?.status.status !== "success") {
-        const tokenBridgeInitResStr = JSON.stringify(tokenBridgeInitRes);
-        throw new Error(
-          `Token bridge initialization failed. Response: ${tokenBridgeInitResStr}`
-        );
-      }
-
+      assertSuccess(tokenBridgeInitRes, "Token bridge initialization failed.");
       logTransactionDigest(tokenBridgeInitRes);
       console.log("Token bridge state object ID", tokenBridgeStateObjectId);
 
@@ -234,14 +210,7 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
       }
 
       const registerRes = await executeTransactionBlock(signer, tx);
-
-      // Throw if registration failed, otherwise it fails silently
-      if (registerRes?.effects?.status.status !== "success") {
-        const registerResStr = JSON.stringify(registerRes);
-        throw new Error(
-          `Chain registrations failed. Response: ${registerResStr}`
-        );
-      }
+      assertSuccess(registerRes, "Chain registrations failed.");
 
       // Log registered bridges
       for (const registration of registrations) {
