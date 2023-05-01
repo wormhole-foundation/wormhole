@@ -87,6 +87,7 @@ module wormhole::state {
         upgrade_cap: UpgradeCap,
         governance_chain: u16,
         governance_contract: ExternalAddress,
+        guardian_set_index: u32,
         initial_guardians: vector<Guardian>,
         guardian_set_seconds_to_live: u32,
         message_fee: u64,
@@ -94,10 +95,6 @@ module wormhole::state {
     ): State {
         // We need at least one guardian.
         assert!(vector::length(&initial_guardians) > 0, E_ZERO_GUARDIANS);
-
-        // First guardian set index is zero. New guardian sets must increment
-        // from the last recorded index.
-        let guardian_set_index = 0;
 
         let state = State {
             id: object::new(ctx),

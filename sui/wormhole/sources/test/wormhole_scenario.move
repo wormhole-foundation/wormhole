@@ -61,6 +61,7 @@ module wormhole::wormhole_scenario {
             let governance_chain = 1;
             let governance_contract =
                 x"0000000000000000000000000000000000000000000000000000000000000004";
+            let guardian_set_index = 0;
             let guardian_set_seconds_to_live = 420;
 
             // Share `State`.
@@ -71,6 +72,7 @@ module wormhole::wormhole_scenario {
                 upgrade_cap,
                 governance_chain,
                 governance_contract,
+                guardian_set_index,
                 initial_guardians,
                 guardian_set_seconds_to_live,
                 message_fee,

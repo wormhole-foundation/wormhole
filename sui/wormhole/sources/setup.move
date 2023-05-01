@@ -47,6 +47,7 @@ module wormhole::setup {
         upgrade_cap: UpgradeCap,
         governance_chain: u16,
         governance_contract: vector<u8>,
+        guardian_set_index: u32,
         initial_guardians: vector<vector<u8>>,
         guardian_set_seconds_to_live: u32,
         message_fee: u64,
@@ -83,6 +84,7 @@ module wormhole::setup {
                 wormhole::external_address::new_nonzero(
                     wormhole::bytes32::from_bytes(governance_contract)
                 ),
+                guardian_set_index,
                 guardians,
                 guardian_set_seconds_to_live,
                 message_fee,
@@ -154,6 +156,7 @@ module wormhole::setup_tests {
         let governance_chain = 1234;
         let governance_contract =
             x"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+        let guardian_set_index = 0;
         let initial_guardians =
             vector[
                 x"1337133713371337133713371337133713371337",
@@ -185,6 +188,7 @@ module wormhole::setup_tests {
             upgrade_cap,
             governance_chain,
             governance_contract,
+            guardian_set_index,
             initial_guardians,
             guardian_set_seconds_to_live,
             message_fee,
@@ -283,6 +287,7 @@ module wormhole::setup_tests {
         let governance_chain = 1234;
         let governance_contract =
             x"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+        let guardian_set_index = 0;
         let initial_guardians =
             vector[x"1337133713371337133713371337133713371337"];
         let guardian_set_seconds_to_live = 5678;
@@ -309,6 +314,7 @@ module wormhole::setup_tests {
             upgrade_cap,
             governance_chain,
             governance_contract,
+            guardian_set_index,
             initial_guardians,
             guardian_set_seconds_to_live,
             message_fee,
