@@ -446,8 +446,6 @@ export async function resend(
   const originalReceiverValue = originalVAAparsed.receiverValueTarget;
   const originalTargetChain = originalVAAparsed.targetChain;
 
-  console.log("originalVaaParsed", JSON.stringify(originalVAAparsed));
-
   if (originalTargetChain != targetChain) {
     throw Error(
       `Target chain of original VAA (${originalTargetChain}) does not match target chain of resend (${targetChain})`
