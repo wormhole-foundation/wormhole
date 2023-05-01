@@ -11,10 +11,13 @@ module wormhole::guardian_set {
     use std::vector::{Self};
     use sui::clock::{Self, Clock};
 
-    use wormhole::guardian::{Guardian};
+    use wormhole::guardian::{Self, Guardian};
 
     // Needs `set_expiration`.
     friend wormhole::state;
+
+    /// Found duplicate public key.
+    const E_DUPLICATE_GUARDIAN: u64 = 0;
 
     /// Container for the list of Guardian public keys, its index value and at
     /// what point in time the Guardian set is configured to expire.
@@ -31,7 +34,20 @@ module wormhole::guardian_set {
 
     /// Create new `GuardianSet`.
     public fun new(index: u32, guardians: vector<Guardian>): GuardianSet {
-       GuardianSet { index, guardians, expiration_timestamp_ms: 0 }
+        // Ensure that there are no duplicate guardians.
+        let (i, n) = (0, vector::length(&guardians));
+        while (i < n - 1) {
+            let left = guardian::pubkey(vector::borrow(&guardians, i));
+            let j = i + 1;
+            while (j < n) {
+                let right = guardian::pubkey(vector::borrow(&guardians, j));
+                assert!(left != right, E_DUPLICATE_GUARDIAN);
+                j = j + 1;
+            };
+            i = i + 1;
+        };
+
+        GuardianSet { index, guardians, expiration_timestamp_ms: 0 }
     }
 
     /// Retrieve the Guardian set index.
@@ -107,5 +123,71 @@ module wormhole::guardian_set {
         };
 
         vector::destroy_empty(guardians);
+    }
+}
+
+#[test_only]
+module wormhole::guardian_set_tests {
+    use std::vector::{Self};
+
+    use wormhole::guardian::{Self};
+    use wormhole::guardian_set::{Self};
+
+    #[test]
+    fun test_new() {
+        let guardians = vector::empty();
+
+        let pubkeys = vector[
+            x"8888888888888888888888888888888888888888",
+            x"9999999999999999999999999999999999999999",
+            x"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            x"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            x"cccccccccccccccccccccccccccccccccccccccc",
+            x"dddddddddddddddddddddddddddddddddddddddd",
+            x"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            x"ffffffffffffffffffffffffffffffffffffffff"
+        ];
+        while (!vector::is_empty(&pubkeys)) {
+            vector::push_back(
+                &mut guardians,
+                guardian::new(vector::pop_back(&mut pubkeys))
+            );
+        };
+
+        let set = guardian_set::new(69, guardians);
+
+        // Clean up.
+        guardian_set::destroy(set);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = guardian_set::E_DUPLICATE_GUARDIAN)]
+    fun test_cannot_new_duplicate_guardian() {
+        let guardians = vector::empty();
+
+        let pubkeys = vector[
+            x"8888888888888888888888888888888888888888",
+            x"9999999999999999999999999999999999999999",
+            x"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            x"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            x"cccccccccccccccccccccccccccccccccccccccc",
+            x"dddddddddddddddddddddddddddddddddddddddd",
+            x"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            x"ffffffffffffffffffffffffffffffffffffffff",
+            x"cccccccccccccccccccccccccccccccccccccccc",
+        ];
+        while (!vector::is_empty(&pubkeys)) {
+            vector::push_back(
+                &mut guardians,
+                guardian::new(vector::pop_back(&mut pubkeys))
+            );
+        };
+
+        let set = guardian_set::new(69, guardians);
+
+        // Clean up.
+        guardian_set::destroy(set);
+
+        abort 42
     }
 }
