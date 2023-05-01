@@ -261,6 +261,14 @@ contract CoreRelayerLibrary is CoreRelayerState, ERC1967Upgrade {
         return (vm, true, "");
     }
 
+    function truncateReturnData(bytes memory returnData) internal pure returns (bytes memory returnDataTruncated) {
+        if(returnData.length <= 124) {
+            returnDataTruncated = returnData;
+        } else {
+            returnDataTruncated = returnData.slice(0, 124);
+        }
+    }
+
     //setters
     function setConsumedGovernanceAction(bytes32 hash) internal {
         _state.consumedGovernanceActions[hash] = true;

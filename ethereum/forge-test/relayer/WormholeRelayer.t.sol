@@ -2431,7 +2431,7 @@ contract WormholeRelayerTests is Test {
             assertTrue(keccak256(setup.target.integration.getMessage()) != keccak256(message));
 
             Vm.Log[] memory logs = vm.getRecordedLogs();
-            assertTrue(getDeliveryStatus(logs[logs.length - 2]) == DeliveryStatus.RECEIVER_FAILURE);
+            assertTrue(getDeliveryStatus(logs[logs.length - 1]) == DeliveryStatus.RECEIVER_FAILURE);
         }
 
         uint256 newPayment = setup.source.coreRelayer.quoteGas(
