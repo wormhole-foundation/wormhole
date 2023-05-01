@@ -177,10 +177,7 @@ interface IWormholeRelayer {
      *  @return sequence The sequence number for the emitted wormhole message, which contains encoded delivery instructions meant for your specified relay provider.
      *  The relay provider will listen for these messages, and then execute the delivery as described.
      */
-    function send(Send memory sendParams)
-        external
-        payable
-        returns (uint64 sequence);
+    function send(Send memory sendParams) external payable returns (uint64 sequence);
 
     /**
      * @notice This 'forward' function can only be called in a IWormholeReceiver within the 'receiveWormholeMessages' function
@@ -216,7 +213,7 @@ interface IWormholeRelayer {
      *  The relay provider will call receiveWormholeMessages with an array of signed VAAs specified by this vaaKeys array.
      *  Specifically, the 'signedVaas' array will have the same length as 'vaaKeys', and additionally for each 0 <= i < vaaKeys.length, signedVaas[i] will match the description in vaaKeys[i]
      *  @param consistencyLevel The level of finality to reach before emitting the Wormhole VAA corresponding to this 'forward' request. See https://book.wormhole.com/wormhole/3_coreLayerContracts.html#consistency-levels
-     * 
+     *
      *  This forward will succeed if (leftover funds from the current delivery that would have been refunded) + (any extra msg.value passed into forward) is at least maxTransactionFee + receiverValue + one wormhole message fee.
      */
     function forward(
@@ -231,11 +228,10 @@ interface IWormholeRelayer {
         uint8 consistencyLevel
     ) external payable;
 
-
     /**
      * @notice This 'resend' function allows a caller to request a second delivery of a specified VAA, with an updated provider, maxTransactionFee, and receiveValue.
      * This function is intended to help integrators more eaily resolve Receiver Failure cases, or other scenarios where an delivery was not able to be correctly performed.
-     * 
+     *
      * No checks about the original delivery VAA are performed prior to the emission of the redelivery instruction. Therefore, caller should be careful not to request
      * redeliveries in the following cases, as they will result in an undeliverable, invalid redelivery instruction that the provider will not be able to perform:
      *
@@ -254,7 +250,13 @@ interface IWormholeRelayer {
      *  @param targetChain - the chain which the original delivery targetted.
      *  @param relayProviderAddress - the address of the relayProvider (on this chain) which should be used for this redelivery.
      */
-    function resend(VaaKey memory key, uint256 newMaxTransactionFee, uint256 newReceiverValue, uint16 targetChain, address relayProviderAddress) external payable returns (uint64 sequence);
+    function resend(
+        VaaKey memory key,
+        uint256 newMaxTransactionFee,
+        uint256 newReceiverValue,
+        uint16 targetChain,
+        address relayProviderAddress
+    ) external payable returns (uint64 sequence);
 
     /**
      * @notice This 'forward' function can only be called in a IWormholeReceiver within the 'receiveWormholeMessages' function
@@ -291,7 +293,6 @@ interface IWormholeRelayer {
      */
     function forward(Send memory sendParams) external payable;
 
-  
     /**
      * @notice quoteGas tells you how much maxTransactionFee (denominated in current (source) chain currency) must be in order to fund a call to
      * receiveWormholeMessages on a contract on chain 'targetChain' that uses 'gasLimit' units of gas
@@ -330,7 +331,6 @@ interface IWormholeRelayer {
         pure
         returns (uint256 receiverValue);
 
-
     /**
      * @notice Helper function that converts an EVM address to wormhole format
      * @param addr (EVM 20-byte address)
@@ -358,9 +358,9 @@ interface IWormholeRelayer {
     function getDefaultRelayParams() external pure returns (bytes memory relayParams);
 
     /**
-    * @notice returns the address of the contract which delivers messages on this chain.
-    * I.E this is the address which will call receiveWormholeMessages.
-    */
+     * @notice returns the address of the contract which delivers messages on this chain.
+     * I.E this is the address which will call receiveWormholeMessages.
+     */
     function getDeliveryAddress() external view returns (address deliveryAddress);
 
     error FundsTooMuch(); // (maxTransactionFee, converted to target chain currency) + (receiverValue, converted to target chain currency) is greater than what your chosen relay provider allows

@@ -66,30 +66,26 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
      * - the total amount of target chain currency needed for execution of the instruction is within the maximum budget,
      *   i.e. (maximumRefundTarget + receiverValueTarget) <= (the relayProvider's maximum budget for the target chain)
      * - the gasLimit is greater than 0
-     * @param instruction A DeliveryInstruction 
+     * @param instruction A DeliveryInstruction
      * @param relayProvider The relayProvider whos maximum budget we are checking against
      */
     function checkInstruction(
         IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction,
         IRelayProvider relayProvider
     ) internal view {
-            if (instruction.executionParameters.gasLimit == 0) {
-                revert IWormholeRelayer.MaxTransactionFeeNotEnough();
-            }
-            if (
-                instruction.maximumRefundTarget + instruction.receiverValueTarget
-                    > relayProvider.quoteMaximumBudget(instruction.targetChain)
-            ) {
-                revert IWormholeRelayer.FundsTooMuch();
-            }
+        if (instruction.executionParameters.gasLimit == 0) {
+            revert IWormholeRelayer.MaxTransactionFeeNotEnough();
+        }
+        if (
+            instruction.maximumRefundTarget + instruction.receiverValueTarget
+                > relayProvider.quoteMaximumBudget(instruction.targetChain)
+        ) {
+            revert IWormholeRelayer.FundsTooMuch();
+        }
     }
 
     // encode a 'VaaKey' into bytes
-    function encodeVaaKey(IWormholeRelayer.VaaKey memory vaaKey)
-        internal
-        pure
-        returns (bytes memory encoded)
-    {
+    function encodeVaaKey(IWormholeRelayer.VaaKey memory vaaKey) internal pure returns (bytes memory encoded) {
         encoded = abi.encodePacked(uint8(1), uint8(vaaKey.infoType));
         if (vaaKey.infoType == IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE) {
             encoded = abi.encodePacked(encoded, vaaKey.chainId, vaaKey.emitterAddress, vaaKey.sequence);
@@ -106,7 +102,7 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
     {
         uint8 length = uint8(instruction.vaaKeys.length);
         bytes memory encodedVaaKeys = abi.encodePacked(length);
-        for(uint8 i=0; i<length; i++) {
+        for (uint8 i = 0; i < length; i++) {
             encodedVaaKeys = abi.encodePacked(encodedVaaKeys, encodeVaaKey(instruction.vaaKeys[i]));
         }
         encoded = abi.encodePacked(
@@ -116,14 +112,18 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
             instruction.refundChain,
             instruction.refundAddress,
             instruction.maximumRefundTarget,
-            instruction.receiverValueTarget);
-        encoded = abi.encodePacked(encoded, 
+            instruction.receiverValueTarget
+        );
+        encoded = abi.encodePacked(
+            encoded,
             instruction.sourceRelayProvider,
             instruction.targetRelayProvider,
             instruction.senderAddress,
             encodedVaaKeys,
-            instruction.consistencyLevel);
-        encoded = abi.encodePacked(encoded, 
+            instruction.consistencyLevel
+        );
+        encoded = abi.encodePacked(
+            encoded,
             instruction.executionParameters.version,
             instruction.executionParameters.gasLimit,
             uint32(instruction.payload.length),
@@ -132,28 +132,24 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
     }
 
     // encode a 'Send' into bytes
-    function encodeSend(IWormholeRelayer.Send memory sendParams)
-        public
-        pure
-        returns (bytes memory encoded)
-    {
+    function encodeSend(IWormholeRelayer.Send memory sendParams) public pure returns (bytes memory encoded) {
         uint8 length = uint8(sendParams.vaaKeys.length);
         bytes memory encodedVaaKeys = abi.encodePacked(length);
-        for(uint8 i=0; i<length; i++) {
+        for (uint8 i = 0; i < length; i++) {
             encodedVaaKeys = abi.encodePacked(encodedVaaKeys, encodeVaaKey(sendParams.vaaKeys[i]));
         }
         encoded = abi.encodePacked(
-           sendParams.targetChain,
+            sendParams.targetChain,
             sendParams.targetAddress,
-           sendParams.refundChain,
+            sendParams.refundChain,
             sendParams.refundAddress,
             sendParams.maxTransactionFee,
-            sendParams.receiverValue);
-        encoded = abi.encodePacked(encoded, 
-            sendParams.relayProviderAddress,
-            encodedVaaKeys,
-            sendParams.consistencyLevel);
-        encoded = abi.encodePacked(encoded, 
+            sendParams.receiverValue
+        );
+        encoded =
+            abi.encodePacked(encoded, sendParams.relayProviderAddress, encodedVaaKeys, sendParams.consistencyLevel);
+        encoded = abi.encodePacked(
+            encoded,
             uint32(sendParams.payload.length),
             sendParams.payload,
             uint32(sendParams.relayParameters.length),
@@ -162,14 +158,10 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
     }
 
     // decode a 'Send' from bytes
-    function decodeSend(bytes memory encoded)
-        public
-        pure
-        returns (IWormholeRelayer.Send memory sendParams)
-    {
+    function decodeSend(bytes memory encoded) public pure returns (IWormholeRelayer.Send memory sendParams) {
         uint256 index = 0;
 
-        // target chain 
+        // target chain
         sendParams.targetChain = encoded.toUint16(index);
         index += 2;
 
@@ -196,13 +188,11 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
         index += 1;
 
         sendParams.vaaKeys = new IWormholeRelayer.VaaKey[](length);
-        for(uint8 i=0; i<length; i++) {
-            ( sendParams.vaaKeys[i], index) = decodeVaaKey(encoded, index);
+        for (uint8 i = 0; i < length; i++) {
+            (sendParams.vaaKeys[i], index) = decodeVaaKey(encoded, index);
         }
 
-       
-
-         sendParams.consistencyLevel = encoded.toUint8(index);
+        sendParams.consistencyLevel = encoded.toUint8(index);
         index += 1;
 
         uint32 payloadLength = encoded.toUint32(index);
@@ -216,7 +206,6 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
 
         sendParams.payload = encoded.slice(index, relayParametersLength);
         index += relayParametersLength;
-
     }
 
     /**
@@ -396,7 +385,7 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
 
         uint8 payloadId = encoded.toUint8(index);
         index += 1;
-        if(payloadId != 1) {
+        if (payloadId != 1) {
             revert InvalidPayloadId(payloadId);
         }
         // target chain of the delivery instruction
@@ -432,7 +421,7 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
         index += 1;
 
         instruction.vaaKeys = new IWormholeRelayer.VaaKey[](length);
-        for(uint8 i=0; i<length; i++) {
+        for (uint8 i = 0; i < length; i++) {
             (instruction.vaaKeys[i], index) = decodeVaaKey(encoded, index);
         }
 
@@ -484,16 +473,21 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
         newIndex = index;
     }
 
-    function encodeDeliveryOverride(IDelivery.DeliveryOverride memory request) public pure returns (bytes memory encoded) {
+    function encodeDeliveryOverride(IDelivery.DeliveryOverride memory request)
+        public
+        pure
+        returns (bytes memory encoded)
+    {
         encoded = abi.encodePacked(
-            uint8(1),
-            request.gasLimit,
-            request.maximumRefund,
-            request.receiverValue,
-            request.redeliveryHash);
+            uint8(1), request.gasLimit, request.maximumRefund, request.receiverValue, request.redeliveryHash
+        );
     }
 
-    function decodeDeliveryOverride(bytes memory encoded) public pure returns (IDelivery.DeliveryOverride memory output) {
+    function decodeDeliveryOverride(bytes memory encoded)
+        public
+        pure
+        returns (IDelivery.DeliveryOverride memory output)
+    {
         uint256 index = 0;
 
         uint8 payloadId = encoded.toUint8(index);
@@ -504,18 +498,22 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
         index += 1;
 
         output.gasLimit = encoded.toUint32(index);
-        index +=4;
+        index += 4;
 
         output.maximumRefund = encoded.toUint256(index);
-        index+=32;
+        index += 32;
 
         output.receiverValue = encoded.toUint256(index);
-        index+=32;
+        index += 32;
 
         output.redeliveryHash = encoded.toBytes32(index);
     }
 
-    function encodeRedeliveryInstruction(IWormholeRelayerInternalStructs.RedeliveryInstruction memory ins) public pure returns(bytes memory encoded) {
+    function encodeRedeliveryInstruction(IWormholeRelayerInternalStructs.RedeliveryInstruction memory ins)
+        public
+        pure
+        returns (bytes memory encoded)
+    {
         bytes memory vaaKey = encodeVaaKey(ins.key);
         encoded = abi.encodePacked(
             uint8(2),
@@ -525,13 +523,18 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
             ins.sourceRelayProvider,
             ins.targetChain,
             ins.executionParameters.version,
-            ins.executionParameters.gasLimit);
+            ins.executionParameters.gasLimit
+        );
     }
 
-    function decodeRedeliveryInstruction(bytes memory encoded) public pure returns (IWormholeRelayerInternalStructs.RedeliveryInstruction memory output) {
+    function decodeRedeliveryInstruction(bytes memory encoded)
+        public
+        pure
+        returns (IWormholeRelayerInternalStructs.RedeliveryInstruction memory output)
+    {
         uint256 index = 0;
-        
-        uint8 payloadId = encoded.toUint8(index); 
+
+        uint8 payloadId = encoded.toUint8(index);
         if (payloadId != 2) {
             revert InvalidPayloadId(payloadId);
         }
@@ -540,26 +543,23 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
         (output.key, index) = decodeVaaKey(encoded, index);
 
         output.newMaximumRefundTarget = encoded.toUint256(index);
-        index+=32;
+        index += 32;
 
         output.newReceiverValueTarget = encoded.toUint256(index);
-        index+=32;
+        index += 32;
 
         output.sourceRelayProvider = encoded.toBytes32(index);
-        index+=32;
+        index += 32;
 
         output.targetChain = encoded.toUint16(index);
         index+=2;
 
         output.executionParameters.version = 1;
-        index+=1;
+        index += 1;
 
         output.executionParameters.gasLimit = encoded.toUint32(index);
-        index+=4;
+        index += 4;
     }
-
-
-
 
     /**
      * @notice Helper function that converts an EVM address to wormhole format
@@ -578,5 +578,4 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
     function fromWormholeFormat(bytes32 whFormatAddress) public pure returns (address addr) {
         return address(uint160(uint256(whFormatAddress)));
     }
-
 }

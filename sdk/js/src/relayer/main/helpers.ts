@@ -8,11 +8,14 @@ import { BigNumber, ContractReceipt, ethers } from "ethers";
 import { getWormholeRelayer, RPCS_BY_CHAIN } from "../consts";
 import {
   parseWormholeRelayerPayloadType,
+  parseOverrideInfoFromDeliveryEvent,
   RelayerPayloadId,
   parseWormholeRelayerSend,
   DeliveryInstruction,
   DeliveryStatus,
+  RefundStatus,
   VaaKey,
+  DeliveryOverrideArgs
 } from "../structs";
 import { RelayProvider } from "../../ethers-contracts/RelayProvider";
 import { RelayProvider__factory } from "../../ethers-contracts/factories/RelayProvider__factory";
@@ -28,6 +31,11 @@ type DeliveryTargetInfo = {
   vaaHash: string | null;
   sourceChain: number | null;
   sourceVaaSequence: BigNumber | null;
+  gasUsed: number;
+  refundStatus: RefundStatus;
+  leftoverTransactionFee?: number; // Only defined if status is FORWARD_REQUEST_SUCCESS
+  revertData?: string; // Only defined if status is RECEIVER_FAILURE or FORWARD_REQUEST_FAILURE
+  overrides?: DeliveryOverrideArgs;
 };
 
 export function parseWormholeLog(log: ethers.providers.Log): {
@@ -71,6 +79,60 @@ export function getBlockRange(
   timestamp?: number
 ): [ethers.providers.BlockTag, ethers.providers.BlockTag] {
   return [-2040, "latest"];
+}
+
+export async function getWormholeRelayerInfoBySourceSequence(
+  environment: Network,
+  targetChain: ChainId,
+  targetChainProvider: ethers.providers.Provider,
+  sourceChain: number,
+  sourceVaaSequence: BigNumber,
+  blockStartNumber: ethers.providers.BlockTag,
+  blockEndNumber: ethers.providers.BlockTag
+): Promise<{chainId: ChainId, events: {status: string, transactionHash: string | null}[]}> {
+  const deliveryEvents = await getWormholeRelayerDeliveryEventsBySourceSequence(
+    environment,
+    targetChain,
+    targetChainProvider,
+    sourceChain,
+    sourceVaaSequence,
+    blockStartNumber,
+    blockEndNumber
+  );
+  if (deliveryEvents.length == 0) {
+    let status = `Delivery didn't happen on ${printChain(
+      targetChain
+    )} within blocks ${blockStartNumber} to ${blockEndNumber}.`;
+    try {
+      const blockStart = await targetChainProvider.getBlock(blockStartNumber);
+      const blockEnd = await targetChainProvider.getBlock(blockEndNumber);
+      status = `Delivery didn't happen on ${printChain(
+        targetChain
+      )} within blocks ${blockStart.number} to ${
+        blockEnd.number
+      } (within times ${new Date(
+        blockStart.timestamp * 1000
+      ).toString()} to ${new Date(blockEnd.timestamp * 1000).toString()})`;
+    } catch (e) {}
+    deliveryEvents.push({
+      status,
+      deliveryTxHash: null,
+      vaaHash: null,
+      sourceChain: sourceChain,
+      sourceVaaSequence,
+      gasUsed: 0,
+      refundStatus: RefundStatus.RefundFail
+    });
+  }
+  const targetChainStatus = {
+    chainId: targetChain,
+    events: deliveryEvents.map((e) => ({
+      status: e.status,
+      transactionHash: e.deliveryTxHash,
+    })),
+  };
+
+  return targetChainStatus;
 }
 
 export async function getWormholeRelayerDeliveryEventsBySourceSequence(
@@ -126,12 +188,16 @@ async function transformDeliveryEvents(
 ): Promise<DeliveryTargetInfo[]> {
   return Promise.all(
     events.map(async (x) => {
+      console.log(x.args[8]);
       return {
         status: deliveryStatus(x.args[4]),
         deliveryTxHash: x.transactionHash,
         vaaHash: x.args[3],
         sourceVaaSequence: x.args[2],
         sourceChain: x.args[1],
+        gasUsed: x.args[5],
+        refundStatus: x.args[6],
+        overridesInfo: (Buffer.from(x.args[8], "hex").length > 0) && parseOverrideInfoFromDeliveryEvent(Buffer.from(x.args[8], "hex"))
       };
     })
   );

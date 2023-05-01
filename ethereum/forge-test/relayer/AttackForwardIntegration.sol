@@ -66,9 +66,7 @@ contract AttackForwardIntegration is IWormholeReceiver {
             relayParameters: core_relayer.getDefaultRelayParams()
         });
 
-        core_relayer.forward{value: maxTransactionFee}(
-            request
-        );
+        core_relayer.forward{value: maxTransactionFee}(request);
     }
 
     function toWormholeFormat(address addr) public pure returns (bytes32 whFormat) {
