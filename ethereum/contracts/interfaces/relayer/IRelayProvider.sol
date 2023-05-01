@@ -3,7 +3,6 @@
 pragma solidity ^0.8.0;
 
 interface IRelayProvider {
-
     /**
      * @notice This function should provide a fixed overhead fee that will be applied to any delivery on targetChain.
      * NOTE: The fee should be quoted in the native wei of this chain.
@@ -14,7 +13,7 @@ interface IRelayProvider {
 
     /**
      * @notice This function should provide a fixed fee for 1 unit of gas on targetChain.
-     * 
+     *
      * NOTE: The fee should be quoted in the native wei of this chain.
      *
      * @param targetChain - the chain that should be quoted for.
@@ -23,7 +22,7 @@ interface IRelayProvider {
 
     /**
      * @notice This function should provide a quote in USD of the native asset price for all supported chains.
-     * 
+     *
      * NOTE: The fee should be quoted in 10^-6 dollars. I.E, a quote of 1 dollar should be quoted as 1000000.
      *
      * @param chainId - the chain that should be quoted for.
@@ -31,9 +30,9 @@ interface IRelayProvider {
     function quoteAssetPrice(uint16 chainId) external view returns (uint256 usdPrice);
 
     /**
-     * @notice When calculating the receiverValue of a delivery or performing a refund, a portion of the value is 
+     * @notice When calculating the receiverValue of a delivery or performing a refund, a portion of the value is
      * awarded to the RelayProvider. This function defines the portion, which can differ based on the target chain.
-     * 
+     *
      * toleranceDenominator denotes how many 'parts' the fee should be broken into, whereas tolerance defines how many
      * parts should be awarded to the relayer.
      * I.E, if toleranceDenominator is 100 and tolerance is 2, 2% of the value will be awarded to the relayer.
@@ -47,7 +46,7 @@ interface IRelayProvider {
 
     /**
      * @notice This function should return the maximumBudget (receiverValue + maxTransactionFee) that the relay provider is
-     * willing to support in a single delivery. 
+     * willing to support in a single delivery.
      *
      * Note: Unlike the other quote functions, this function should return a quote in the wei (or other base currency) of the
      * targetChain, not sourceChain.

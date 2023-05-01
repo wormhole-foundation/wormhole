@@ -5,7 +5,6 @@ pragma solidity ^0.8.0;
 import "./IWormholeRelayer.sol";
 
 interface IWormholeRelayerInternalStructs {
-
     struct DeliveryInstruction {
         uint16 targetChain;
         bytes32 targetAddress;
@@ -50,5 +49,4 @@ interface IWormholeRelayerInternalStructs {
         bytes32 sourceRelayProvider;
         ExecutionParameters executionParameters;
     }
-
 }

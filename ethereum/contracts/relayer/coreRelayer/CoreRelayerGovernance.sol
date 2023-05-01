@@ -23,18 +23,22 @@ abstract contract CoreRelayerGovernance is
     using BytesLib for bytes;
 
     function submitContractUpgrade(bytes memory vaa) public {
-        (bool success, bytes memory reason) = getWormholeRelayerCallerAddress().delegatecall(abi.encodeWithSignature("submitContractUpgrade(bytes)", vaa));
+        (bool success, bytes memory reason) =
+            getWormholeRelayerCallerAddress().delegatecall(abi.encodeWithSignature("submitContractUpgrade(bytes)", vaa));
         require(success, string(reason));
     }
 
     function registerCoreRelayerContract(bytes memory vaa) public {
-        (bool success, bytes memory reason) = getWormholeRelayerCallerAddress().delegatecall(abi.encodeWithSignature("registerCoreRelayerContract(bytes)", vaa));
+        (bool success, bytes memory reason) = getWormholeRelayerCallerAddress().delegatecall(
+            abi.encodeWithSignature("registerCoreRelayerContract(bytes)", vaa)
+        );
         require(success, string(reason));
     }
 
     function setDefaultRelayProvider(bytes memory vaa) public {
-        (bool success, bytes memory reason) = getWormholeRelayerCallerAddress().delegatecall(abi.encodeWithSignature("setDefaultRelayProvider(bytes)", vaa));
+        (bool success, bytes memory reason) = getWormholeRelayerCallerAddress().delegatecall(
+            abi.encodeWithSignature("setDefaultRelayProvider(bytes)", vaa)
+        );
         require(success, string(reason));
     }
-
 }

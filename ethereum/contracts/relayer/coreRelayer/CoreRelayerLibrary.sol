@@ -9,9 +9,7 @@ import "../../interfaces/IWormhole.sol";
 import "./CoreRelayerState.sol";
 import "../../interfaces/relayer/IForwardInstructionViewer.sol";
 
-contract CoreRelayerLibrary is 
-    CoreRelayerState,
-    ERC1967Upgrade {
+contract CoreRelayerLibrary is CoreRelayerState, ERC1967Upgrade {
     using BytesLib for bytes;
 
     //structs, consts, errors, events
@@ -41,7 +39,7 @@ contract CoreRelayerLibrary is
     bytes32 constant module = 0x000000000000000000000000000000000000000000436f726552656c61796572;
     IForwardInstructionViewer public immutable forwardInstructionViewer;
     IWormhole immutable wormhole;
-    
+
     error InvalidFork();
     error InvalidGovernanceVM(string reason);
     error WrongChainId(uint16 chainId);
@@ -71,7 +69,6 @@ contract CoreRelayerLibrary is
         wormhole = IWormhole(_wormhole);
     }
 
-    
     //external functions
     function submitContractUpgrade(bytes memory _vm) external onlyWormholeRelayer {
         if (isFork()) {
@@ -127,16 +124,8 @@ contract CoreRelayerLibrary is
         setRelayProvider(provider.newProvider);
     }
 
-
-
-
-
     //parser functions
-    function parseUpgrade(bytes memory encodedUpgrade)
-        internal
-        pure
-        returns (ContractUpgrade memory cu)
-    {
+    function parseUpgrade(bytes memory encodedUpgrade) internal pure returns (ContractUpgrade memory cu) {
         uint256 index = 0;
 
         cu.module = encodedUpgrade.toBytes32(index);
@@ -231,16 +220,6 @@ contract CoreRelayerLibrary is
         }
     }
 
-
-
-
-
-
-
-
-
-
-
     //helper functions
     function upgradeImplementation(address newImplementation) internal {
         address currentImplementation = _getImplementation();
@@ -282,10 +261,6 @@ contract CoreRelayerLibrary is
         return (vm, true, "");
     }
 
-
-
-
-
     //setters
     function setConsumedGovernanceAction(bytes32 hash) internal {
         _state.consumedGovernanceActions[hash] = true;
@@ -298,10 +273,6 @@ contract CoreRelayerLibrary is
     function setRegisteredCoreRelayerContract(uint16 targetChain, bytes32 relayerAddress) internal {
         _state.registeredCoreRelayerContract[targetChain] = relayerAddress;
     }
-
-
-
-
 
     //getters
     function getWormholeState() internal view returns (IWormhole) {
@@ -331,5 +302,4 @@ contract CoreRelayerLibrary is
     function governanceContract() internal view returns (bytes32) {
         return _state.provider.governanceContract;
     }
-
 }
