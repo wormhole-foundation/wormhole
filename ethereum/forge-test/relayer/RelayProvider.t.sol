@@ -240,5 +240,4 @@ contract TestRelayProvider is Test {
 
         assertTrue(newAddress == updated);
     }
-
 }
