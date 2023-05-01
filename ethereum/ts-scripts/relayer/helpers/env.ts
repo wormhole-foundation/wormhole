@@ -326,6 +326,17 @@ export function getRelayProviderAddress(chain: ChainInfo): string {
   return thisChainsProvider;
 }
 
+export function loadGuardianRpc(): string {
+  const chainFile = fs.readFileSync(
+    `./ts-scripts/relayer/config/${env}/chains.json`
+  );
+  if (!chainFile) {
+    throw Error("Failed to find contracts file for this process!");
+  }
+  const chain = JSON.parse(chainFile.toString());
+  return chain.guardianRPC;
+}
+
 export function getRelayProvider(
   chain: ChainInfo,
   provider?: ethers.providers.StaticJsonRpcProvider
