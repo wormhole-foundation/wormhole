@@ -440,13 +440,23 @@ module wormhole::state {
     //
     ////////////////////////////////////////////////////////////////////////////
 
-    public(friend) fun migrate__v__0_1_2(_self: &mut State) {
+    /// This method is used to make modifications to `State` when `migrate` is
+    /// called. This method name should change reflecting which version this
+    /// contract is migrating to.
+    ///
+    /// NOTE: Please keep this method as public(friend) because we never want
+    /// to expose this method as a public method.
+    public(friend) fun migrate__v__0_2_0(_self: &mut State) {
         // Intentionally do nothing.
     }
 
     #[test_only]
     /// Bloody hack.
-    public fun reverse_migrate__v__0_1_1(_self: &mut State) {
+    ///
+    /// This method is used to set up tests where we migrate to a new version,
+    /// which is meant to test that modules protected by version control will
+    /// break.
+    public fun reverse_migrate__v__dummy(_self: &mut State) {
         // Intentionally do nothing.
     }
 

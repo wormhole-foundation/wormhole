@@ -12,10 +12,10 @@ module coins::coin {
     struct COIN has drop {}
 
     fun init(witness: COIN, ctx: &mut TxContext) {
-        use token_bridge::version_control::{V__0_1_1};
+        use token_bridge::version_control::{V__0_2_0 as V__CURRENT};
 
         transfer::public_transfer(
-            create_wrapped::prepare_registration<COIN, V__0_1_1>(
+            create_wrapped::prepare_registration<COIN, V__CURRENT>(
                 witness,
                 // TODO: create a version of this for each decimal to be used
                 8,
@@ -57,11 +57,12 @@ module coins::coin_tests {
     };
     use token_bridge::token_registry::{Self};
     use token_bridge::vaa::{Self};
-    use token_bridge::version_control::{V__0_1_1};
     use token_bridge::wrapped_asset::{Self};
     use wormhole::bytes32::{Self};
     use wormhole::external_address::{Self};
     use wormhole::wormhole_scenario::{parse_and_verify_vaa};
+
+    use token_bridge::version_control::{V__0_2_0 as V__CURRENT};
 
     use coins::coin::{COIN};
 
@@ -127,7 +128,7 @@ module coins::coin_tests {
         test_scenario::next_tx(scenario, coin_deployer);
 
         let wrapped_asset_setup =
-            test_scenario::take_from_address<WrappedAssetSetup<COIN, V__0_1_1>>(
+            test_scenario::take_from_address<WrappedAssetSetup<COIN, V__CURRENT>>(
                 scenario,
                 coin_deployer
             );

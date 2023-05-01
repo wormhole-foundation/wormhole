@@ -16,16 +16,21 @@ module token_bridge::version_control {
     //
     ////////////////////////////////////////////////////////////////////////////
 
-    public(friend) fun current_version(): V__0_1_1 {
-       V__0_1_1 {}
-    }
-
-    public(friend) fun previous_version(): V__0_1_0 {
-        V__0_1_0 {}
+    public(friend) fun current_version(): V__0_2_0 {
+       V__0_2_0 {}
     }
 
     #[test_only]
-    public fun previous_version_test_only(): V__0_1_0 {
+    public fun current_version_test_only(): V__0_2_0 {
+        current_version()
+    }
+
+    public(friend) fun previous_version(): V__DUMMY {
+        V__DUMMY {}
+    }
+
+    #[test_only]
+    public fun previous_version_test_only(): V__DUMMY {
         previous_version()
     }
 
@@ -38,23 +43,8 @@ module token_bridge::version_control {
     //
     ////////////////////////////////////////////////////////////////////////////
 
-    /// RELEASE NOTES
-    ///
-    /// - Refactor state to use package management via
-    ///   `wormhole::package_utils`.
-    /// - Add `MigrateComplete` event in `migrate`.
-    /// - Fix upgrade contract governance action.
-    ///
-    /// Also added `migrate__v__0_1_1` in `wormhole::state`, which is
-    /// meant to perform a one-time `State` modification via `migrate`.
-    struct V__0_1_1 has store, drop, copy {}
-
-    /// First published package.
-    ///
-    /// NOTE: This version is published on Sui testnet.
-    ///
-    /// https://github.com/wormhole-foundation/wormhole/commit/03ff1b24cf913ed04ce59fe26b5d3abd53015f28
-    struct V__0_1_0 has store, drop, copy {}
+    /// First published package on Sui mainnet.
+    struct V__0_2_0 has store, drop, copy {}
 
     // Dummy.
     struct V__DUMMY has store, drop, copy {}

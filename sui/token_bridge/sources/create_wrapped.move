@@ -45,6 +45,9 @@ module token_bridge::create_wrapped {
     use token_bridge::vaa::{Self, TokenBridgeMessage};
     use token_bridge::wrapped_asset::{Self};
 
+    #[test_only]
+    use token_bridge::version_control::{Self, V__0_2_0 as V__CURRENT};
+
     /// Failed one-time witness verification.
     const E_BAD_WITNESS: u64 = 0;
     /// Coin witness does not equal "COIN".
@@ -224,7 +227,8 @@ module token_bridge::create_wrapped {
     }
 
     #[test_only]
-    public fun new_setup_test_only<CoinType: drop, Version>(
+    public fun new_setup_test_only<CoinType: drop, Version: drop>(
+        _version: Version,
         witness: CoinType,
         decimals: u8,
         ctx: &mut TxContext
@@ -246,8 +250,22 @@ module token_bridge::create_wrapped {
     }
 
     #[test_only]
-    public fun take_treasury_cap<CoinType, Version>(
-        setup: WrappedAssetSetup<CoinType, Version>
+    public fun new_setup_current<CoinType: drop>(
+        witness: CoinType,
+        decimals: u8,
+        ctx: &mut TxContext
+    ): (WrappedAssetSetup<CoinType, V__CURRENT>, UpgradeCap) {
+        new_setup_test_only(
+            version_control::current_version_test_only(),
+            witness,
+            decimals,
+            ctx
+        )
+    }
+
+    #[test_only]
+    public fun take_treasury_cap<CoinType>(
+        setup: WrappedAssetSetup<CoinType, V__CURRENT>
     ): TreasuryCap<CoinType> {
         let WrappedAssetSetup {
             id,
@@ -282,7 +300,7 @@ module token_bridge::create_wrapped_tests {
     };
     use token_bridge::token_registry::{Self};
     use token_bridge::vaa::{Self};
-    use token_bridge::version_control::{V__0_1_1, V__DUMMY};
+    use token_bridge::version_control::{V__0_2_0 as V__CURRENT};
     use token_bridge::wrapped_asset::{Self};
 
     struct NOT_A_WITNESS has drop {}
@@ -296,7 +314,7 @@ module token_bridge::create_wrapped_tests {
 
         // You shall not pass!
         let wrapped_asset_setup =
-            create_wrapped::prepare_registration<NOT_A_WITNESS, V__0_1_1>(
+            create_wrapped::prepare_registration<NOT_A_WITNESS, V__CURRENT>(
                 NOT_A_WITNESS {},
                 3,
                 ctx
@@ -317,7 +335,7 @@ module token_bridge::create_wrapped_tests {
         let wrapped_asset_setup =
             create_wrapped::prepare_registration<
                 CREATE_WRAPPED_TESTS,
-                V__0_1_1
+                V__CURRENT
             >(
                 CREATE_WRAPPED_TESTS {},
                 3,
@@ -353,10 +371,7 @@ module token_bridge::create_wrapped_tests {
             wrapped_asset_setup,
             upgrade_cap
         ) =
-            create_wrapped::new_setup_test_only<
-                CREATE_WRAPPED_TESTS,
-                V__0_1_1
-            >(
+            create_wrapped::new_setup_current(
                 CREATE_WRAPPED_TESTS {},
                 8,
                 test_scenario::ctx(scenario)
@@ -475,10 +490,7 @@ module token_bridge::create_wrapped_tests {
             wrapped_asset_setup,
             upgrade_cap
         ) =
-            create_wrapped::new_setup_test_only<
-                CREATE_WRAPPED_TESTS,
-                V__0_1_1
-            >(
+            create_wrapped::new_setup_current(
                 CREATE_WRAPPED_TESTS {},
                 8,
                 test_scenario::ctx(scenario)
@@ -540,10 +552,8 @@ module token_bridge::create_wrapped_tests {
             wrapped_asset_setup,
             upgrade_cap
         ) =
-            create_wrapped::new_setup_test_only<
-                CREATE_WRAPPED_TESTS,
-                V__DUMMY
-            >(
+            create_wrapped::new_setup_test_only(
+                token_bridge::version_control::dummy(),
                 CREATE_WRAPPED_TESTS {},
                 8,
                 test_scenario::ctx(scenario)
@@ -592,10 +602,7 @@ module token_bridge::create_wrapped_tests {
             wrapped_asset_setup,
             upgrade_cap
         ) =
-            create_wrapped::new_setup_test_only<
-                CREATE_WRAPPED_TESTS,
-                V__0_1_1
-            >(
+            create_wrapped::new_setup_current(
                 CREATE_WRAPPED_TESTS {},
                 8,
                 test_scenario::ctx(scenario)

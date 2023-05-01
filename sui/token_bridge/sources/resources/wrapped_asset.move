@@ -288,7 +288,6 @@ module token_bridge::wrapped_asset_tests {
     use token_bridge::coin_wrapped_12::{COIN_WRAPPED_12, Self};
     use token_bridge::coin_wrapped_7::{COIN_WRAPPED_7, Self};
     use token_bridge::token_bridge_scenario::{person};
-    use token_bridge::version_control::{V__0_1_1};
     use token_bridge::wrapped_asset::{Self};
 
     #[test]
@@ -307,7 +306,7 @@ module token_bridge::wrapped_asset_tests {
 
         // Publish coin.
         let treasury_cap =
-            coin_wrapped_7::init_and_take_treasury_cap<V__0_1_1>(
+            coin_wrapped_7::init_and_take_treasury_cap(
                 scenario,
                 caller
             );
@@ -443,7 +442,7 @@ module token_bridge::wrapped_asset_tests {
 
         // Publish coin.
         let treasury_cap =
-            coin_wrapped_12::init_and_take_treasury_cap<V__0_1_1>(
+            coin_wrapped_12::init_and_take_treasury_cap(
                 scenario,
                 caller
             );
@@ -633,7 +632,7 @@ module token_bridge::wrapped_asset_tests {
 
         // Publish coin.
         let treasury_cap =
-            coin_wrapped_12::init_and_take_treasury_cap<V__0_1_1>(
+            coin_wrapped_12::init_and_take_treasury_cap(
                 scenario,
                 caller
             );
@@ -706,7 +705,7 @@ module token_bridge::wrapped_asset_tests {
 
         // Publish coin.
         let treasury_cap =
-            coin_wrapped_12::init_and_take_treasury_cap<V__0_1_1>(
+            coin_wrapped_12::init_and_take_treasury_cap(
                 scenario,
                 caller
             );
@@ -773,7 +772,7 @@ module token_bridge::wrapped_asset_tests {
 
         // Publish coin.
         let treasury_cap =
-            coin_wrapped_12::init_and_take_treasury_cap<V__0_1_1>(
+            coin_wrapped_12::init_and_take_treasury_cap(
                 scenario,
                 caller
             );

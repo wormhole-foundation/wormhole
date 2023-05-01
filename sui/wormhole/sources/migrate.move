@@ -28,7 +28,7 @@ module wormhole::migrate {
         upgrade_vaa_buf: vector<u8>,
         the_clock: &Clock
     ) {
-        state::migrate__v__0_1_2(wormhole_state);
+        state::migrate__v__0_2_0(wormhole_state);
 
         // Perform standard migrate.
         handle_migrate(wormhole_state, upgrade_vaa_buf, the_clock);
@@ -99,7 +99,7 @@ module wormhole::migrate {
 
     #[test_only]
     public fun set_up_migrate(wormhole_state: &mut State) {
-        state::reverse_migrate__v__0_1_1(wormhole_state);
+        state::reverse_migrate__v__dummy(wormhole_state);
     }
 }
 

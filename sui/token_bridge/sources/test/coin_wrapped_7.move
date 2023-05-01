@@ -15,6 +15,8 @@ module token_bridge::coin_wrapped_7 {
     use token_bridge::token_registry::{Self};
     use token_bridge::wrapped_asset::{Self};
 
+    use token_bridge::version_control::{V__0_2_0 as V__CURRENT};
+
     struct COIN_WRAPPED_7 has drop {}
 
     // TODO: need to fix the emitter address
@@ -37,13 +39,11 @@ module token_bridge::coin_wrapped_7 {
         x"010000000001003d8fd671611d84801dc9d14a07835e8729d217b1aac77b054175d0f91294040742a1ed6f3e732b2fbf208e64422816accf89dd0cd3ead20d2e0fb3d372ce221c010000000000000045000200000000000000000000000000000000000000000000000000000000deadbeef00000000000000010f0200000000000000000000000000000000000000000000000000000000deafface000207000000000000000000000000000000000000000000000000000000004445433700000000000000000000000000000000000000000000444543494d414c532037";
 
     fun init(witness: COIN_WRAPPED_7, ctx: &mut TxContext) {
-        use token_bridge::version_control::{V__0_1_1};
-
         let (
             setup,
             upgrade_cap
         ) =
-            create_wrapped::new_setup_test_only<COIN_WRAPPED_7, V__0_1_1>(
+            create_wrapped::new_setup_current(
                 witness,
                 7,
                 ctx
@@ -69,7 +69,7 @@ module token_bridge::coin_wrapped_7 {
 
     #[test_only]
     /// for a test scenario, simply deploy the coin and expose `TreasuryCap`.
-    public fun init_and_take_treasury_cap<Version>(
+    public fun init_and_take_treasury_cap(
         scenario: &mut Scenario,
         caller: address
     ): TreasuryCap<COIN_WRAPPED_7> {
@@ -84,7 +84,7 @@ module token_bridge::coin_wrapped_7 {
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
 
-        create_wrapped::take_treasury_cap<COIN_WRAPPED_7, Version>(
+        create_wrapped::take_treasury_cap(
             test_scenario::take_from_sender(scenario)
         )
     }
@@ -95,7 +95,7 @@ module token_bridge::coin_wrapped_7 {
     /// NOTE: Even though this module is `#[test_only]`, this method is tagged
     /// with the same macro as a trick to allow another method within this
     /// module to call `init` using OTW.
-    public fun init_and_register<Version>(
+    public fun init_and_register(
         scenario: &mut Scenario,
         caller: address
     ) {
@@ -131,7 +131,7 @@ module token_bridge::coin_wrapped_7 {
             &mut token_bridge_state,
             &mut coin_meta,
             test_scenario::take_from_sender<
-                WrappedAssetSetup<COIN_WRAPPED_7, Version>
+                WrappedAssetSetup<COIN_WRAPPED_7, V__CURRENT>
             >(
                 scenario
             ),
@@ -149,7 +149,7 @@ module token_bridge::coin_wrapped_7 {
     /// NOTE: Even though this module is `#[test_only]`, this method is tagged
     /// with the same macro as a trick to allow another method within this
     /// module to call `init` using OTW.
-    public fun init_register_and_mint<Version>(
+    public fun init_register_and_mint(
         scenario: &mut Scenario,
         caller: address,
         amount: u64
@@ -157,7 +157,7 @@ module token_bridge::coin_wrapped_7 {
         use token_bridge::token_bridge_scenario::{return_state, take_state};
 
         // First publish and register.
-        init_and_register<Version>(scenario, caller);
+        init_and_register(scenario, caller);
 
         // Ignore effects.
         test_scenario::next_tx(scenario, caller);
