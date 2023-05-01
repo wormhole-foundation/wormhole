@@ -4,12 +4,9 @@ pragma solidity ^0.8.0;
 
 import "../../interfaces/relayer/IWormholeReceiver.sol";
 import "../../interfaces/IWormhole.sol";
-import "../../interfaces/relayer/IRelayProvider.sol";
 import "../../interfaces/relayer/IForwardInstructionViewer.sol";
 import "../../interfaces/relayer/IWormholeRelayerInternalStructs.sol";
 import "../../interfaces/relayer/IForwardWrapper.sol";
-import "../../interfaces/relayer/IWormholeReceiver.sol";
-import "../../interfaces/relayer/IRelayProvider.sol";
 import {CoreRelayerLibrary} from "../coreRelayer/CoreRelayerLibrary.sol";
 
 contract ForwardWrapper is CoreRelayerLibrary {
@@ -69,13 +66,5 @@ contract ForwardWrapper is CoreRelayerLibrary {
         if (!callToTargetContractSucceeded) {
             msg.sender.call{value: msg.value}("");
         }
-    }
-
-    function safeRelayProviderSupportsChain(IRelayProvider relayProvider, uint16 chainId)
-        external
-        view
-        returns (bool isSupported)
-    {
-        return relayProvider.isChainSupported(chainId);
     }
 }
