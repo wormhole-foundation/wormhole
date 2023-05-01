@@ -178,6 +178,7 @@ async function transformDeliveryEvents(
 ): Promise<DeliveryTargetInfo[]> {
   return Promise.all(
     events.map(async (x) => {
+      console.log(x.args[8]);
       return {
         status: deliveryStatus(x.args[4]),
         deliveryTxHash: x.transactionHash,
@@ -186,7 +187,7 @@ async function transformDeliveryEvents(
         sourceChain: x.args[1],
         gasUsed: x.args[5],
         refundStatus: x.args[6],
-        overridesInfo: (x.args[8].length > 0) && parseOverrideInfoFromDeliveryEvent(Buffer.from(x.args[8]))
+        overridesInfo: (Buffer.from(x.args[8], "hex").length > 0) && parseOverrideInfoFromDeliveryEvent(Buffer.from(x.args[8], "hex"))
       };
     })
   );

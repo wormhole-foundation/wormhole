@@ -376,8 +376,8 @@ export function parseOverrideInfoFromDeliveryEvent(
 ): DeliveryOverrideArgs {
   let idx = 0;
 
-  const gasLimit = bytes.readUInt32BE(idx);
-  idx += 4;
+  const redeliveryHash = bytes.slice(idx, idx + 32);
+  idx += 32;
 
   const newMaximumRefundTarget = ethers.BigNumber.from(
     Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
@@ -389,8 +389,8 @@ export function parseOverrideInfoFromDeliveryEvent(
   );
   idx += 32;
 
-  const redeliveryHash = bytes.slice(idx, idx + 32);
-  idx += 32;
+  const gasLimit = bytes.readUInt32BE(idx);
+  idx += 4;
 
   return {
     gasLimit,
