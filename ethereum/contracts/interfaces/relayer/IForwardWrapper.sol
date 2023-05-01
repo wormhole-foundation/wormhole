@@ -17,5 +17,4 @@ interface IForwardWrapper {
         external
         view
         returns (bool isSupported);
-
 }

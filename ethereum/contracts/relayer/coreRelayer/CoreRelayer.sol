@@ -57,11 +57,10 @@ abstract contract CoreRelayer is CoreRelayerDelivery {
                 receiverValue,
                 getDefaultRelayProvider(),
                 new IWormholeRelayer.VaaKey[](0),
-                 15, //finality on all EVM chains
+                15, //finality on all EVM chains
                 payload,
                 getDefaultRelayParams()
             )
-           
         );
     }
 
@@ -119,16 +118,16 @@ abstract contract CoreRelayer is CoreRelayerDelivery {
                 refundAddress,
                 maxTransactionFee,
                 receiverValue,
-                 getDefaultRelayProvider(),
-                 vaaKeys,
-                 consistencyLevel,
+                getDefaultRelayProvider(),
+                vaaKeys,
+                consistencyLevel,
                 payload,
                 getDefaultRelayParams()
             )
         );
     }
 
-     /**
+    /**
      *  @notice This 'send' function emits a wormhole message (VAA) that alerts the relay provider specified by sendParams.relayProviderAddress to
      *  call the receiveWormholeMessage(DeliveryData memory deliveryData, bytes[] memory signedVaas) endpoint of the contract on chain 'sendParams.targetChain' and address 'sendParams.targetAddress'
      *  with the first argument being a DeliveryData struct with fields:
@@ -148,13 +147,11 @@ abstract contract CoreRelayer is CoreRelayerDelivery {
      *  @return sequence The sequence number for the emitted wormhole message, which contains encoded delivery instructions meant for your specified relay provider.
      *  The relay provider will listen for these messages, and then execute the delivery as described.
      */
-    function send(
-        IWormholeRelayer.Send memory sendParams
-    ) public payable returns (uint64 sequence) {
+    function send(IWormholeRelayer.Send memory sendParams) public payable returns (uint64 sequence) {
         // call multichainSend with one 'Send' in the requests array
         IWormhole wormhole = wormhole();
         uint256 wormholeMessageFee = wormhole.messageFee();
-        uint256 totalFee = sendParams.maxTransactionFee +  sendParams.receiverValue + wormholeMessageFee;
+        uint256 totalFee = sendParams.maxTransactionFee + sendParams.receiverValue + wormholeMessageFee;
 
         if (totalFee > msg.value) {
             revert IWormholeRelayer.MsgValueTooLow();
@@ -162,7 +159,7 @@ abstract contract CoreRelayer is CoreRelayerDelivery {
 
         IRelayProvider relayProvider = IRelayProvider(sendParams.relayProviderAddress);
 
-        if(!relayProvider.isChainSupported(sendParams.targetChain)) {
+        if (!relayProvider.isChainSupported(sendParams.targetChain)) {
             revert IWormholeRelayer.RelayProviderDoesNotSupportTargetChain();
         }
 
@@ -221,7 +218,7 @@ abstract contract CoreRelayer is CoreRelayerDelivery {
      *  The relay provider will call receiveWormholeMessages with an array of signed VAAs specified by this vaaKeys array.
      *  Specifically, the 'signedVaas' array will have the same length as 'vaaKeys', and additionally for each 0 <= i < vaaKeys.length, signedVaas[i] will match the description in vaaKeys[i]
      *  @param consistencyLevel The level of finality to reach before emitting the Wormhole VAA corresponding to this 'forward' request. See https://book.wormhole.com/wormhole/3_coreLayerContracts.html#consistency-levels
-     * 
+     *
      *  This forward will succeed if (leftover funds from the current delivery that would have been refunded) + (any extra msg.value passed into forward) is at least maxTransactionFee + receiverValue + one wormhole message fee.
      */
     function forward(
@@ -248,7 +245,7 @@ abstract contract CoreRelayer is CoreRelayerDelivery {
                 consistencyLevel,
                 payload,
                 getDefaultRelayParams()
-            )   
+            )
         );
     }
 
@@ -285,9 +282,7 @@ abstract contract CoreRelayer is CoreRelayerDelivery {
      *
      *  This function must be called with a payment of at least sendParams.maxTransactionFee + sendParams.receiverValue + one wormhole message fee.
      */
-    function forward(
-        IWormholeRelayer.Send memory sendParams
-    ) public payable {
+    function forward(IWormholeRelayer.Send memory sendParams) public payable {
         if (!isContractLocked()) {
             revert IWormholeRelayer.NoDeliveryInProgress();
         }
@@ -296,11 +291,11 @@ abstract contract CoreRelayer is CoreRelayerDelivery {
         }
 
         uint256 wormholeMessageFee = wormhole().messageFee();
-        uint256 totalFee = sendParams.maxTransactionFee +  sendParams.receiverValue + wormholeMessageFee;
+        uint256 totalFee = sendParams.maxTransactionFee + sendParams.receiverValue + wormholeMessageFee;
 
         IRelayProvider relayProvider = IRelayProvider(sendParams.relayProviderAddress);
 
-        if(!relayProvider.isChainSupported(sendParams.targetChain)) {
+        if (!relayProvider.isChainSupported(sendParams.targetChain)) {
             revert IWormholeRelayer.RelayProviderDoesNotSupportTargetChain();
         }
 
@@ -320,7 +315,7 @@ abstract contract CoreRelayer is CoreRelayerDelivery {
     /**
      * @notice This 'resend' function allows a caller to request a second delivery of a specified VAA, with an updated provider, maxTransactionFee, and receiveValue.
      * This function is intended to help integrators more eaily resolve Receiver Failure cases, or other scenarios where an delivery was not able to be correctly performed.
-     * 
+     *
      * No checks about the original delivery VAA are performed prior to the emission of the redelivery instruction. Therefore, caller should be careful not to request
      * redeliveries in the following cases, as they will result in an undeliverable, invalid redelivery instruction that the provider will not be able to perform:
      *
@@ -339,21 +334,28 @@ abstract contract CoreRelayer is CoreRelayerDelivery {
      *  @param targetChain - the chain which the original delivery targetted.
      *  @param relayProviderAddress - the address of the relayProvider (on this chain) which should be used for this redelivery.
      */
-    function resend(IWormholeRelayer.VaaKey memory key, uint256 newMaxTransactionFee, uint256 newReceiverValue, uint16 targetChain, address relayProviderAddress) external payable returns (uint64 sequence) {
+    function resend(
+        IWormholeRelayer.VaaKey memory key,
+        uint256 newMaxTransactionFee,
+        uint256 newReceiverValue,
+        uint16 targetChain,
+        address relayProviderAddress
+    ) external payable returns (uint64 sequence) {
         IWormhole wormhole = wormhole();
         uint256 wormholeMessageFee = wormhole.messageFee();
         IRelayProvider relayProvider = IRelayProvider(relayProviderAddress);
 
         uint256 totalFee = newMaxTransactionFee + newReceiverValue + wormholeMessageFee;
-        if(msg.value < totalFee) {
+        if (msg.value < totalFee) {
             revert IWormholeRelayer.MsgValueTooLow();
         }
 
-        if(!relayProvider.isChainSupported(targetChain)) {
+        if (!relayProvider.isChainSupported(targetChain)) {
             revert IWormholeRelayer.RelayProviderDoesNotSupportTargetChain();
         }
 
-        IWormholeRelayerInternalStructs.RedeliveryInstruction memory instruction = IWormholeRelayerInternalStructs.RedeliveryInstruction({
+        IWormholeRelayerInternalStructs.RedeliveryInstruction memory instruction = IWormholeRelayerInternalStructs
+            .RedeliveryInstruction({
             key: key,
             newMaximumRefundTarget: calculateTargetDeliveryMaximumRefund(targetChain, newMaxTransactionFee, relayProvider),
             newReceiverValueTarget: convertReceiverValueAmount(newReceiverValue, targetChain, relayProvider),
@@ -361,25 +363,29 @@ abstract contract CoreRelayer is CoreRelayerDelivery {
             executionParameters: IWormholeRelayerInternalStructs.ExecutionParameters({
                 version: 1,
                 gasLimit: calculateTargetGasDeliveryAmount(targetChain, newMaxTransactionFee, relayProvider)
-        })});
+            })
+        });
 
-        if(instruction.executionParameters.gasLimit == 0) {
+        if (instruction.executionParameters.gasLimit == 0) {
             revert IWormholeRelayer.MaxTransactionFeeNotEnough();
         }
 
-        if(instruction.newMaximumRefundTarget + instruction.newReceiverValueTarget > relayProvider.quoteMaximumBudget(targetChain)) {
+        if (
+            instruction.newMaximumRefundTarget + instruction.newReceiverValueTarget
+                > relayProvider.quoteMaximumBudget(targetChain)
+        ) {
             revert IWormholeRelayer.FundsTooMuch();
         }
 
         sequence = wormhole.publishMessage{value: wormholeMessageFee}(
-            0, encodeRedeliveryInstruction(instruction), 200 //emit immediately
+            0,
+            encodeRedeliveryInstruction(instruction),
+            200 //emit immediately
         );
 
         // Pay the relay provider
         pay(relayProvider.getRewardAddress(), totalFee - wormholeMessageFee);
     }
-
-
 
     /**
      * @notice quoteGas tells you how much maxTransactionFee (denominated in current (source) chain currency) must be in order to fund a call to
@@ -453,9 +459,9 @@ abstract contract CoreRelayer is CoreRelayerDelivery {
     }
 
     /**
-    * @notice returns the address of the contract which delivers messages on this chain.
-    * I.E this is the address which will call receiveWormholeMessages.
-    */
+     * @notice returns the address of the contract which delivers messages on this chain.
+     * I.E this is the address which will call receiveWormholeMessages.
+     */
     function getDeliveryAddress() external view returns (address deliveryAddress) {
         return getWormholeRelayerCallerAddress();
     }
