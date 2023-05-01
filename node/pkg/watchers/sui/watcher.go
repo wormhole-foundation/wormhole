@@ -87,6 +87,15 @@ type (
 		} `json:"params"`
 	}
 
+	SuiTxnQueryError struct {
+		Jsonrpc string `json:"jsonrpc"`
+		Error   struct {
+			Code    int     `json:"code"`
+			Message *string `json:"message"`
+		} `json:"error"`
+		ID int `json:"id"`
+	}
+
 	SuiTxnQuery struct {
 		Jsonrpc string      `json:"jsonrpc"`
 		Result  []SuiResult `json:"result"`
@@ -415,7 +424,6 @@ func (e *Watcher) Run(ctx context.Context) error {
 				tx58 := base58.Encode(r.TxHash)
 
 				buf := fmt.Sprintf(`{"jsonrpc":"2.0", "id": 1, "method": "sui_getEvents", "params": ["%s"]}`, tx58)
-				logger.Error(buf)
 
 				resp, err := http.Post(e.suiRPC, "application/json", strings.NewReader(buf))
 				if err != nil {
@@ -433,10 +441,21 @@ func (e *Watcher) Run(ctx context.Context) error {
 				}
 				resp.Body.Close()
 
-				logger.Info("receive", zap.String("body", string(body)))
+				logger.Debug("receive", zap.String("body", string(body)))
 
-				if strings.Contains(string(body), "error") {
-					logger.Error("Failed to get events for re-observation request", zap.String("Result", string(body)))
+				// Do we have an error?
+				var err_res SuiTxnQueryError
+				err = json.Unmarshal(body, &err_res)
+				if err != nil {
+					logger.Error("Failed to unmarshal event error message", zap.String("Result", string(body)))
+					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
+					return err
+				}
+
+				if err_res.Error.Message != nil {
+					logger.Error("Failed to get events for re-observation request, detected error", zap.String("Result", string(body)))
+					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
+					// Don't need to kill the watcher on this error. So, just continue.
 					continue
 				}
 				var res SuiTxnQuery
