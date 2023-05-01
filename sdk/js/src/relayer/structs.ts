@@ -46,6 +46,7 @@ export interface RedeliveryInstruction {
   newMaximumRefundTarget: BigNumber;
   newReceiverValueTarget: BigNumber;
   sourceRelayProvider: Buffer;
+  targetChain: number;
   executionParameters: ExecutionParameters;
 }
 
@@ -268,6 +269,9 @@ export function parseWormholeRelayerResend(
   const sourceRelayProvider = bytes.slice(idx, idx + 32);
   idx += 32;
 
+  const targetChain: number = bytes.readUInt16BE(idx);
+  idx += 2;
+
   let parsedExecutionParams = parseWormholeRelayerExecutionParameters(
     bytes,
     idx
@@ -280,6 +284,7 @@ export function parseWormholeRelayerResend(
     newMaximumRefundTarget,
     newReceiverValueTarget,
     sourceRelayProvider,
+    targetChain,
     executionParameters,
   };
 }
@@ -332,6 +337,7 @@ export function redeliveryInstructionPrintable(
     newMaximumRefundTarget: ix.newMaximumRefundTarget.toString(),
     newReceiverValueTarget: ix.newReceiverValueTarget.toString(),
     sourceRelayProvider: ix.sourceRelayProvider.toString("hex"),
+    targetChain: ix.targetChain.toString(),
     executionParameters: {
       gasLimit: ix.executionParameters.gasLimit.toString(),
       version: ix.executionParameters.version.toString(),
