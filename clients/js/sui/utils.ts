@@ -15,7 +15,6 @@ import { NETWORKS } from "../networks";
 import { Network } from "../utils";
 import { Payload, VAA, parse, serialiseVAA } from "../vaa";
 import { SuiRpcValidationError } from "./error";
-import { SuiCreateEvent, SuiPublishEvent } from "./types";
 
 const UPGRADE_CAP_TYPE = "0x2::package::UpgradeCap";
 
@@ -23,8 +22,14 @@ export const executeTransactionBlock = async (
   signer: RawSigner,
   transactionBlock: TransactionBlock
 ): Promise<SuiTransactionBlockResponse> => {
+  // As of version 0.32.2, Sui SDK outputs a RPC validation warning when the
+  // SDK falls behind the Sui version used by the RPC. We silence these
+  // warnings since the SDK is often out of sync with the RPC.
+  const consoleWarnTemp = console.warn;
+  console.warn = () => {};
+
   // Let caller handle parsing and logging info
-  return signer.signAndExecuteTransactionBlock({
+  const res = await signer.signAndExecuteTransactionBlock({
     transactionBlock,
     options: {
       showInput: true,
@@ -33,6 +38,9 @@ export const executeTransactionBlock = async (
       showObjectChanges: true,
     },
   });
+
+  console.warn = consoleWarnTemp;
+  return res;
 };
 
 export const findOwnedObjectByType = async (
