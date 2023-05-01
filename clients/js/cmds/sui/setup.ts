@@ -74,6 +74,7 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         coreBridgePackageId,
         INITIAL_GUARDIAN_DEVNET,
         GOVERNANCE_CHAIN,
+        0,
         GOVERNANCE_EMITTER,
         rpc,
         privateKey

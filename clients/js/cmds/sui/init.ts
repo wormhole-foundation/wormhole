@@ -164,6 +164,13 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
             type: "number",
             required: false,
           })
+          .option("guardian-set-index", {
+            alias: "s",
+            describe: "Governance set index",
+            default: 0,
+            type: "number",
+            required: false,
+          })
           .option("governance-address", {
             alias: "a",
             describe: "Governance contract address",
@@ -181,6 +188,7 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         const initialGuardian = argv["initial-guardian"];
         const debug = argv.debug ?? false;
         const governanceChainId = argv["governance-chain-id"];
+        const guardianSetIndex = argv["guardian-set-index"];
         const governanceContract = argv["governance-address"];
         const privateKey = argv["private-key"];
         const rpc = argv.rpc;
@@ -190,6 +198,7 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           packageId,
           initialGuardian,
           governanceChainId,
+          guardianSetIndex,
           governanceContract,
           rpc,
           privateKey
@@ -301,6 +310,7 @@ export const initWormhole = async (
   coreBridgePackageId: string,
   initialGuardian: string,
   governanceChainId: number,
+  guardianSetIndex: number,
   governanceContract: string,
   rpc?: string,
   privateKey?: string
@@ -346,6 +356,7 @@ export const initWormhole = async (
       transactionBlock.object(upgradeCapObjectId),
       transactionBlock.pure(governanceChainId),
       transactionBlock.pure([...Buffer.from(governanceContract, "hex")]),
+      transactionBlock.pure(guardianSetIndex),
       transactionBlock.pure([[...Buffer.from(initialGuardian, "hex")]]),
       transactionBlock.pure(365 * 24 * 60 * 60), // Guardian set TTL in seconds
       transactionBlock.pure("0"), // Message fee
