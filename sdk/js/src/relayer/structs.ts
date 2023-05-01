@@ -17,6 +17,15 @@ export enum DeliveryStatus {
   DeliveryDidntHappenWithinRange = "Delivery didn't happen within given block range",
 }
 
+export enum RefundStatus {
+  RefundSent,
+  RefundFail,
+  CrossChainRefundSent,
+  CrossChainRefundSentMaximumBudget,
+  CrossChainRefundFailProviderNotSupported,
+  CrossChainRefundFailNotEnough
+}
+
 export interface VaaKey {
   payloadType: VaaKeyType;
   chainId?: number;
@@ -360,6 +369,35 @@ export function packOverrides(overrides: DeliveryOverrideArgs): string {
   ].join("");
 
   return "0x" + packed;
+}
+
+export function parseOverrideInfoFromDeliveryEvent(
+  bytes: Buffer
+): DeliveryOverrideArgs {
+  let idx = 0;
+
+  const redeliveryHash = bytes.slice(idx, idx + 32);
+  idx += 32;
+
+  const newMaximumRefundTarget = ethers.BigNumber.from(
+    Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
+  );
+  idx += 32;
+
+  const newReceiverValueTarget = ethers.BigNumber.from(
+    Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
+  );
+  idx += 32;
+
+  const gasLimit = bytes.readUInt32BE(idx);
+  idx += 4;
+
+  return {
+    gasLimit,
+    newMaximumRefundTarget,
+    newReceiverValueTarget,
+    redeliveryHash
+  };
 }
 
 /*

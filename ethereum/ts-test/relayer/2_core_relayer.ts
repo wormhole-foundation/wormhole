@@ -404,20 +404,20 @@ describe("Core Relayer Integration Test - Two Chains", () => {
 
   });
 
-  /*
+  
   it("Test Stringify in Typescript SDK", async () => {
-    const info = (await relayer.getWormholeRelayerInfo(sourceChain.chainId, "0xf222ba282f88a0377510cc3fb1154033602925681d241cc32a00976362b3c7ae", {environment: environment})) as DeliveryInfo;
+    const info = (await relayer.getWormholeRelayerInfo(2, "0xf3b6d47694db4a4e8a28eae14be205c430a00d9b62ab60612e24728d1eeb4a88", {environment: "DEVNET"})) as DeliveryInfo;
     console.log(relayer.stringifyWormholeRelayerInfo(info));
-  })*/
+  })
 
   it("Test getPrice in Typescript SDK", async () => {
-    const price = (await relayer.getPrice(sourceChain.chainId, targetChain.chainId, 200000, {environment: "TESTNET"}));
+    const price = (await relayer.getPrice(sourceChain.chainId, targetChain.chainId, 200000, {environment: environment}));
     console.log(price.toString());
     expect(price).to.not.equal(undefined);
   })
 
   it("Test getPriceMultipleHops in Typescript SDK", async () => {
-    const price = (await relayer.getPriceMultipleHops(sourceChain.chainId, [{targetChain: targetChain.chainId, gasAmount: 200000}, {targetChain: sourceChain.chainId, gasAmount: 200000}], "TESTNET"));
+    const price = (await relayer.getPriceMultipleHops(sourceChain.chainId, [{targetChain: targetChain.chainId, gasAmount: 200000}, {targetChain: sourceChain.chainId, gasAmount: 200000}], environment));
     console.log(price.toString());
     expect(price).to.not.equal(undefined);
   })
