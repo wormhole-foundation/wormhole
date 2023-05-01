@@ -49,4 +49,19 @@ interface IWormholeRelayerInternalStructs {
         bytes32 sourceRelayProvider;
         ExecutionParameters executionParameters;
     }
+
+    struct DeliveryInternalVariables {
+        uint256 preGas;
+        uint256 postGas; 
+        bool callToInstructionExecutorSucceeded;
+        bytes callToInstructionExecutorData;
+        uint256 transactionFeeRefundAmount;
+        uint32 gasUsed;
+        bool callToTargetContractSucceeded;
+        bytes returnDataTruncated;
+        uint256 transactionFeeRefundAmountPostForward;
+        bytes additionalStatusInfo;
+        bytes overridesInfo;
+    }
+
 }
