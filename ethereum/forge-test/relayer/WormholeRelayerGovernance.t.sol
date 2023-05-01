@@ -180,18 +180,16 @@ contract WormholeRelayerGovernanceTests is Test {
             CoreRelayer(payable(address(myCoreRelayer))).getDefaultRelayProvider();
         }
 
-           bytes memory brickedMessage = abi.encodePacked(
-                relayerModule,
-                uint8(1),
-                uint16(1),
-                wormholeRelayer.toWormholeFormat(address(new RelayProviderImplementation()))
-            );
-             CoreRelayerGovernance(address(myCoreRelayer)).submitContractUpgrade(signMessage(brickedMessage));
-            
-            vm.expectRevert();
-            CoreRelayer(payable(address(myCoreRelayer))).getDefaultRelayProvider();
+        bytes memory brickedMessage = abi.encodePacked(
+            relayerModule,
+            uint8(1),
+            uint16(1),
+            wormholeRelayer.toWormholeFormat(address(new RelayProviderImplementation()))
+        );
+        CoreRelayerGovernance(address(myCoreRelayer)).submitContractUpgrade(signMessage(brickedMessage));
 
-
+        vm.expectRevert();
+        CoreRelayer(payable(address(myCoreRelayer))).getDefaultRelayProvider();
     }
 
     /*
