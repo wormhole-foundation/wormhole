@@ -6,8 +6,13 @@ import {
 import yargs from "yargs";
 import { NETWORK_OPTIONS, RPC_OPTIONS } from "../../consts";
 import { NETWORKS } from "../../networks";
-import { executeTransactionBlock, getProvider, getSigner } from "../../sui";
-import { logTransactionDigest, logTransactionSender } from "../../sui/log";
+import {
+  executeTransactionBlock,
+  getProvider,
+  getSigner,
+  logTransactionDigest,
+  logTransactionSender,
+} from "../../sui";
 import { assertNetwork } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
 

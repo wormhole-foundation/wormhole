@@ -28,9 +28,10 @@ import {
   getPublishedPackageId,
   getSigner,
   isSameType,
+  logPublishedPackageId,
+  logTransactionDigest,
   registerChain,
 } from "../../sui";
-import { logPublishedPackageId, logTransactionDigest } from "../../sui/log";
 import { YargsAddCommandsFn } from "../Yargs";
 import { deploy } from "./deploy";
 import { initExampleApp, initTokenBridge, initWormhole } from "./init";
