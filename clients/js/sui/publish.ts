@@ -11,6 +11,7 @@ import { resolve } from "path";
 import { Network } from "../utils";
 import { MoveToml } from "./MoveToml";
 import { SuiBuildOutput } from "./types";
+import { executeTransactionBlock } from "./utils";
 
 export const buildPackage = (packagePath: string): SuiBuildOutput => {
   if (!fs.existsSync(packagePath)) {
@@ -74,30 +75,21 @@ export const publishPackage = async (
     const build = buildPackage(packagePath);
 
     // Publish contracts
-    const transactionBlock = new TransactionBlock();
+    const tx = new TransactionBlock();
     if (network === "DEVNET") {
       // Avoid Error checking transaction input objects: GasBudgetTooHigh { gas_budget: 50000000000, max_budget: 10000000000 }
-      transactionBlock.setGasBudget(10000000000);
+      tx.setGasBudget(10000000000);
     }
-    const [upgradeCap] = transactionBlock.publish({
+    const [upgradeCap] = tx.publish({
       modules: build.modules.map((m) => Array.from(fromB64(m))),
       dependencies: build.dependencies.map((d) => normalizeSuiObjectId(d)),
     });
 
     // Transfer upgrade capability to deployer
-    transactionBlock.transferObjects(
-      [upgradeCap],
-      transactionBlock.pure(await signer.getAddress())
-    );
+    tx.transferObjects([upgradeCap], tx.pure(await signer.getAddress()));
 
     // Execute transactions
-    const res = await signer.signAndExecuteTransactionBlock({
-      transactionBlock,
-      options: {
-        showInput: true,
-        showObjectChanges: true,
-      },
-    });
+    const res = await executeTransactionBlock(signer, tx);
 
     // Update network-specific Move.toml with package ID
     const publishEvents = getPublishedObjectChanges(res);

@@ -11,10 +11,8 @@ import {
 } from "@mysten/sui.js";
 import dotenv from "dotenv";
 import fs from "fs";
-import path from "path";
 import yargs from "yargs";
 import {
-  CONTRACTS,
   GOVERNANCE_CHAIN,
   GOVERNANCE_EMITTER,
   INITIAL_GUARDIAN_DEVNET,
@@ -42,13 +40,6 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
     "Setup devnet by deploying and initializing core and token bridges and submitting chain registrations.",
     (yargs) => {
       return yargs
-        .option("overwrite-ids", {
-          alias: "o",
-          describe: "Overwrite object IDs in the case that they've changed",
-          required: false,
-          default: false,
-          type: "boolean",
-        })
         .option("private-key", {
           alias: "k",
           describe: "Custom private key to sign txs",
@@ -63,7 +54,7 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
       const privateKey = argv["private-key"];
       const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
 
-      // Deploy & init core bridge
+      // Deploy core bridge
       console.log("[1/4] Deploying core bridge...");
       const coreBridgeDeployRes = await deploy(
         network,
@@ -71,9 +62,17 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         rpc,
         privateKey
       );
+      if (coreBridgeDeployRes?.effects?.status.status !== "success") {
+        const coreBridgeDeployResStr = JSON.stringify(coreBridgeDeployRes);
+        throw new Error(
+          `Core bridge deployment failed. Response: ${coreBridgeDeployResStr}`
+        );
+      }
+
       logTransactionDigest(coreBridgeDeployRes);
       logPublishedPackageId(coreBridgeDeployRes);
 
+      // Init core bridge
       console.log("\n[2/4] Initializing core bridge...");
       const coreBridgePackageId = getPublishedPackageId(coreBridgeDeployRes);
       const coreBridgeInitRes = await initWormhole(
@@ -88,10 +87,17 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
       const coreBridgeStateObjectId = getCreatedObjects(coreBridgeInitRes).find(
         (e) => isSameType(e.type, `${coreBridgePackageId}::state::State`)
       ).objectId;
+      if (coreBridgeInitRes?.effects?.status.status !== "success") {
+        const coreBridgeInitResStr = JSON.stringify(coreBridgeInitRes);
+        throw new Error(
+          `Core bridge initialization failed. Response: ${coreBridgeInitResStr}`
+        );
+      }
+
       logTransactionDigest(coreBridgeInitRes);
       console.log("Core bridge state object ID", coreBridgeStateObjectId);
 
-      // Deploy & init token bridge
+      // Deploy token bridge
       console.log("\n[3/4] Deploying token bridge...");
       const tokenBridgeDeployRes = await deploy(
         network,
@@ -99,9 +105,17 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         rpc,
         privateKey
       );
+      if (tokenBridgeDeployRes?.effects?.status.status !== "success") {
+        const tokenBridgeDeployResStr = JSON.stringify(tokenBridgeDeployRes);
+        throw new Error(
+          `Token bridge deployment failed. Response: ${tokenBridgeDeployResStr}`
+        );
+      }
+
       logTransactionDigest(tokenBridgeDeployRes);
       logPublishedPackageId(tokenBridgeDeployRes);
 
+      // Init token bridge
       console.log("\n[4/4] Initializing token bridge...");
       const tokenBridgePackageId = getPublishedPackageId(tokenBridgeDeployRes);
       const tokenBridgeInitRes = await initTokenBridge(
@@ -118,42 +132,17 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
       ).find((e) =>
         isSameType(e.type, `${tokenBridgePackageId}::state::State`)
       ).objectId;
+      if (tokenBridgeInitRes?.effects?.status.status !== "success") {
+        const tokenBridgeInitResStr = JSON.stringify(tokenBridgeInitRes);
+        throw new Error(
+          `Token bridge initialization failed. Response: ${tokenBridgeInitResStr}`
+        );
+      }
+
       logTransactionDigest(tokenBridgeInitRes);
       console.log("Token bridge state object ID", tokenBridgeStateObjectId);
 
-      // Overwrite object IDs if they've changed
-      if (
-        overwriteIds &&
-        (coreBridgeStateObjectId !== CONTRACTS[network].sui.core ||
-          tokenBridgeStateObjectId !== CONTRACTS[network].sui.token_bridge)
-      ) {
-        console.log("\nOverwriting object IDs...");
-        const filepaths = [
-          path.resolve(__dirname, `../../consts.ts`),
-          path.resolve(__dirname, `../../../../sdk/js/sui/src/consts.ts`),
-        ];
-        for (const filepath of filepaths) {
-          const text = fs.readFileSync(filepath, "utf8").toString();
-          fs.writeFileSync(
-            filepath,
-            text
-              .replace(CONTRACTS[network].sui.core, coreBridgeStateObjectId)
-              .replace(
-                CONTRACTS[network].sui.token_bridge,
-                tokenBridgeStateObjectId
-              )
-          );
-        }
-      }
-
-      console.log({
-        coreBridgePackageId,
-        coreBridgeStateObjectId,
-        tokenBridgePackageId,
-        tokenBridgeStateObjectId,
-      });
-
-      // Deploy & init example app
+      // Deploy example app
       console.log("\n[+1/3] Deploying example app...");
       const exampleAppDeployRes = await deploy(
         network,
@@ -164,6 +153,7 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
       logTransactionDigest(tokenBridgeDeployRes);
       logPublishedPackageId(tokenBridgeDeployRes);
 
+      // Init example app
       console.log("\n[+2/3] Initializing example app...");
       const exampleAppPackageId = getPublishedPackageId(exampleAppDeployRes);
       const exampleAppInitRes = await initExampleApp(
