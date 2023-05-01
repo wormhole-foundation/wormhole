@@ -1,4 +1,12 @@
 import {
+  assertChain,
+  createWrappedOnSui,
+  createWrappedOnSuiPrepare,
+  getForeignAssetSui,
+  parseAttestMetaVaa,
+} from "@certusone/wormhole-sdk";
+import { getWrappedCoinType } from "@certusone/wormhole-sdk/lib/cjs/sui";
+import {
   CHAIN_ID_SUI,
   CHAIN_ID_TO_NAME,
   CONTRACTS,
@@ -7,10 +15,13 @@ import { SUI_CLOCK_OBJECT_ID, TransactionBlock } from "@mysten/sui.js";
 import { Network } from "../utils";
 import { Payload, impossible } from "../vaa";
 import {
+  assertSuccess,
   executeTransactionBlock,
   getPackageId,
   getProvider,
   getSigner,
+  isSuiCreateEvent,
+  isSuiPublishEvent,
   registerChain,
 } from "./utils";
 
@@ -21,6 +32,9 @@ export const submit = async (
   rpc?: string,
   privateKey?: string
 ) => {
+  const consoleWarnTemp = console.warn;
+  console.warn = () => {};
+
   const chain = CHAIN_ID_TO_NAME[CHAIN_ID_SUI];
   const provider = getProvider(network, rpc);
   const signer = getSigner(provider, network, privateKey);
@@ -74,8 +88,73 @@ export const submit = async (
       }
 
       switch (payload.type) {
-        case "AttestMeta":
-          throw new Error("AttestMeta not supported on Sui");
+        case "AttestMeta": {
+          // Test attest VAA: 01000000000100d87023087588d8a482d6082c57f3c93649c9a61a98848fc3a0b271f4041394ff7b28abefc8e5e19b83f45243d073d677e122e41425c2dbae3eb5ae1c7c0ac0ee01000000c056a8000000020000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16000000000000000001020000000000000000000000002d8be6bf0baa74e0a907016679cae9190e80dd0a000212544b4e0000000000000000000000000000000000000000000000000000000000457468657265756d205465737420546f6b656e00000000000000000000000000
+          const { tokenChain, tokenAddress } = parseAttestMetaVaa(vaa);
+          assertChain(tokenChain);
+          const coinType = await getForeignAssetSui(
+            provider,
+            tokenBridgeStateObjectId,
+            tokenChain,
+            tokenAddress
+          );
+          if (coinType) {
+            // Coin already exists, so we update it
+            console.log("Updating wrapped asset...");
+            throw new Error("Updating wrapped asset not supported on Sui");
+          } else {
+            // Coin doesn't exist, so create wrapped asset
+            console.log("[1/2] Creating wrapped asset...");
+            const prepareTx = await createWrappedOnSuiPrepare(
+              provider,
+              coreBridgeStateObjectId,
+              tokenBridgeStateObjectId,
+              parseAttestMetaVaa(vaa).decimals,
+              await signer.getAddress()
+            );
+            setMaxGasBudgetDevnet(network, prepareTx);
+            const prepareRes = await executeTransactionBlock(signer, prepareTx);
+            assertSuccess(prepareRes, "Prepare registration failed.");
+            const coinPackageId =
+              prepareRes.objectChanges.find(isSuiPublishEvent).packageId;
+            console.log(`  Digest ${prepareRes.digest}`);
+            console.log(`  Published to ${coinPackageId}`);
+            console.log(`  Type ${getWrappedCoinType(coinPackageId)}`);
+
+            if (!rpc && network !== "DEVNET") {
+              // Wait for wrapped asset creation to be propogated to other
+              // nodes in case this complete registration call is load balanced
+              // to another node.
+              await sleep(5000);
+            }
+
+            console.log("\n[2/2] Registering asset...");
+            const wrappedAssetSetup = prepareRes.objectChanges
+              .filter(isSuiCreateEvent)
+              .find((e) =>
+                /create_wrapped::WrappedAssetSetup/.test(e.objectType)
+              );
+            const completeTx = await createWrappedOnSui(
+              provider,
+              coreBridgeStateObjectId,
+              tokenBridgeStateObjectId,
+              await signer.getAddress(),
+              coinPackageId,
+              wrappedAssetSetup.objectType,
+              vaa
+            );
+            setMaxGasBudgetDevnet(network, completeTx);
+            const completeRes = await executeTransactionBlock(
+              signer,
+              completeTx
+            );
+            assertSuccess(completeRes, "Complete registration failed.");
+            console.log(`  Digest ${completeRes.digest}`);
+            console.log("\nDone!");
+          }
+
+          break;
+        }
         case "ContractUpgrade":
           throw new Error("ContractUpgrade not supported on Sui");
         case "RecoverChainId":
@@ -108,6 +187,8 @@ export const submit = async (
     default:
       impossible(payload);
   }
+
+  console.warn = consoleWarnTemp;
 };
 
 /**
@@ -123,4 +204,8 @@ const setMaxGasBudgetDevnet = (network: Network, tx: TransactionBlock) => {
     // Avoid Error checking transaction input objects: GasBudgetTooHigh { gas_budget: 50000000000, max_budget: 10000000000 }
     tx.setGasBudget(10000000000);
   }
+};
+
+const sleep = (ms: number): Promise<void> => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 };
