@@ -18,8 +18,9 @@ import {
   getSigner,
   getUpgradeCapObjectId,
   isSameType,
+  logTransactionDigest,
+  logTransactionSender,
 } from "../../sui";
-import { logTransactionDigest, logTransactionSender } from "../../sui/log";
 import { Network, assertNetwork } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
 

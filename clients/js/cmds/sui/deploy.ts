@@ -8,13 +8,15 @@ import {
   RPC_OPTIONS,
 } from "../../consts";
 import { NETWORKS } from "../../networks";
-import { getProvider, getSigner, publishPackage } from "../../sui";
 import {
+  getProvider,
+  getSigner,
   logCreatedObjects,
   logPublishedPackageId,
   logTransactionDigest,
   logTransactionSender,
-} from "../../sui/log";
+  publishPackage,
+} from "../../sui";
 import { Network, assertNetwork, checkBinary } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
 
