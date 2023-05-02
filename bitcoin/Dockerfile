@@ -1,4 +1,4 @@
-FROM docker.io/golang:1.19.3@sha256:dc76ef03e54c34a00dcdca81e55c242d24b34d231637776c4bb5c1a8e8514253 AS bitcoin-build
+FROM docker.io/golang:1.19.8@sha256:9f2dd04486e84eec72d945b077d568976981d9afed8b4e2aeb08f7ab739292b3 AS bitcoin-build
 
 ARG ARCH=amd64
 
