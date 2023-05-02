@@ -56,7 +56,7 @@ import {
   ETH_PRIVATE_KEY7,
   TEST_ERC20,
   WORMHOLE_RPC_HOSTS,
-} from "./consts";
+} from "./utils/consts";
 
 const CORE_ID = BigInt(4);
 const TOKEN_BRIDGE_ID = BigInt(6);

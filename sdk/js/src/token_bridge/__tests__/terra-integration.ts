@@ -45,13 +45,13 @@ import {
   TERRA_PUBLIC_KEY,
   TEST_ERC20,
   WORMHOLE_RPC_HOSTS,
-} from "./consts";
+} from "./utils/consts";
 import {
   getSignedVAABySequence,
   getTerraGasPrices,
   queryBalanceOnTerra,
   waitForTerraExecution,
-} from "./helpers";
+} from "./utils/helpers";
 
 jest.setTimeout(60000);
 

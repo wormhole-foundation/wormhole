@@ -15,7 +15,7 @@ module wormhole::governance_message {
 
     /// Guardian set used to sign VAA did not use current Guardian set.
     const E_OLD_GUARDIAN_SET_GOVERNANCE: u64 = 0;
-    /// Governance chain disagrees does not match.
+    /// Governance chain does not match.
     const E_INVALID_GOVERNANCE_CHAIN: u64 = 1;
     /// Governance emitter address does not match.
     const E_INVALID_GOVERNANCE_EMITTER: u64 = 2;

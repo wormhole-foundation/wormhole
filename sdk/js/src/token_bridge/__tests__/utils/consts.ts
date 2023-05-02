@@ -22,6 +22,8 @@ export const ETH_PRIVATE_KEY7 =
   "0xa453611d9419d0e56f499079478fd72c37b251a94bfde4d19872c44cf65386e3"; // account 7 - algorand tests
 export const ETH_PRIVATE_KEY9 =
   "0xb0057716d5917badaf911b193b12b910811c1497b5bada8d7711f758981c3773"; // account 9 - accountant tests
+export const ETH_PRIVATE_KEY10 =
+  "0x77c5495fbb039eed474fc940f29955ed0531693cc9212911efd35dff0373153f"; // account 10 - sui tests
 export const SOLANA_HOST = ci
   ? "http://solana-devnet:8899"
   : "http://localhost:8899";
@@ -95,12 +97,7 @@ export const APTOS_FAUCET_URL = ci
 export const APTOS_PRIVATE_KEY =
   "537c1f91e56891445b491068f519b705f8c0f1a1e66111816dd5d4aa85b8113d";
 
-describe("consts should exist", () => {
-  it("has Solana test token", () => {
-    expect.assertions(1);
-    const connection = new Connection(SOLANA_HOST, "confirmed");
-    return expect(
-      connection.getAccountInfo(new PublicKey(TEST_SOLANA_TOKEN))
-    ).resolves.toBeTruthy();
-  });
-});
+export const SUI_NODE_URL = ci ? "http://sui:9000" : "http://localhost:9000";
+export const SUI_FAUCET_URL = ci
+  ? "http://sui:5003/gas"
+  : "http://localhost:5003/gas";

@@ -53,7 +53,7 @@ import {
   ETH_PRIVATE_KEY6,
   TEST_ERC20,
   WORMHOLE_RPC_HOSTS,
-} from "./consts";
+} from "./utils/consts";
 
 const JEST_TEST_TIMEOUT = 60000;
 jest.setTimeout(JEST_TEST_TIMEOUT);

@@ -181,8 +181,9 @@ const MAINNET = {
       "0x1bdffae984043833ed7fe223f7af7a3f8902d04129b14f801823e64827da7130",
   },
   sui: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "0xaeab97f96cf9877fee2883315d459552b2b921edc16d7ceac6eab944dd88919c",
+    token_bridge:
+      "0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9",
     nft_bridge: undefined,
   },
   moonbeam: {
@@ -247,7 +248,8 @@ const MAINNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
-  sepolia: { // This is testnet only.
+  sepolia: {
+    // This is testnet only.
     core: undefined,
     token_bridge: undefined,
     nft_bridge: undefined,
@@ -352,8 +354,9 @@ const TESTNET = {
     nft_bridge: undefined,
   },
   sui: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "0x69ae41bdef4770895eb4e7aaefee5e4673acc08f6917b4856cf55549c4573ca8",
+    token_bridge:
+      "0x32422cb2f929b6a4e3f81b4791ea11ac2af896b310f3d9442aa1fe924ce0bab4",
     nft_bridge: undefined,
   },
   moonbeam: {
@@ -524,8 +527,9 @@ const DEVNET = {
       "0x46da3d4c569388af61f951bdd1153f4c875f90c2991f6b2d0a38e2161a40852c",
   },
   sui: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "0x04ca9f568b19c80b4fb429c26f7cc57b1ca97e7519ccd68af436dd2706808e01", // wormhole module State object ID
+    token_bridge:
+      "0x844b3ce3f9b2cd82cb8ad1a1962593f6a340c7bad0b4867b82a49463554883dd", // token_bridge module State object ID
     nft_bridge: undefined,
   },
   moonbeam: {

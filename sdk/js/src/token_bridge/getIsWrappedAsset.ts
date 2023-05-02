@@ -1,3 +1,4 @@
+import { JsonRpcProvider } from "@mysten/sui.js";
 import { Commitment, Connection, PublicKeyInitData } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { Algodv2, getApplicationAddress } from "algosdk";
@@ -5,6 +6,7 @@ import { AptosClient } from "aptos";
 import { ethers } from "ethers";
 import { Bridge__factory } from "../ethers-contracts";
 import { getWrappedMeta } from "../solana/tokenBridge";
+import { getTokenFromTokenRegistry } from "../sui";
 import { coalesceModuleAddress, ensureHexPrefix } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
 
@@ -111,4 +113,30 @@ export async function getIsWrappedAssetAptos(
   } catch {
     return false;
   }
+}
+
+export async function getIsWrappedAssetSui(
+  provider: JsonRpcProvider,
+  tokenBridgeStateObjectId: string,
+  type: string
+): Promise<boolean> {
+  // // An easy way to determine if given asset isn't a wrapped asset is to ensure
+  // // module name and struct name are coin and COIN respectively.
+  // if (!type.endsWith("::coin::COIN")) {
+  //   return false;
+  // }
+  const response = await getTokenFromTokenRegistry(
+    provider,
+    tokenBridgeStateObjectId,
+    type
+  );
+  if (!response.error) {
+    return response.data?.type?.includes("WrappedAsset") || false;
+  }
+  if (response.error.code === "dynamicFieldNotFound") {
+    return false;
+  }
+  throw new Error(
+    `Unexpected getDynamicFieldObject response ${response.error}`
+  );
 }
