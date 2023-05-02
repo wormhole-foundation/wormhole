@@ -17,7 +17,9 @@ import {
   VaaKey,
   DeliveryOverrideArgs
 } from "../structs";
-import { Implementation__factory } from "../../ethers-contracts";
+import { RelayProvider } from "../../ethers-contracts/RelayProvider";
+import { RelayProvider__factory } from "../../ethers-contracts/factories/RelayProvider__factory";
+import { Implementation__factory } from "../../ethers-contracts/factories/Implementation__factory";
 import {
   DeliveryEvent,
   IWormholeRelayer,
@@ -62,6 +64,14 @@ export function getDefaultProvider(network: Network, chainId: ChainId) {
   return new ethers.providers.StaticJsonRpcProvider(
     RPCS_BY_CHAIN[network][CHAIN_ID_TO_NAME[chainId]]
   );
+}
+
+export function getRelayProvider(
+  address: string,
+  provider: ethers.providers.Provider
+): RelayProvider {
+  const contract = RelayProvider__factory.connect(address, provider);
+  return contract;
 }
 
 export function getBlockRange(

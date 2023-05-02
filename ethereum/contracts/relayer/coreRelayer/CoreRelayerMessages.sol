@@ -521,6 +521,7 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
             ins.newMaximumRefundTarget,
             ins.newReceiverValueTarget,
             ins.sourceRelayProvider,
+            ins.targetChain,
             ins.executionParameters.version,
             ins.executionParameters.gasLimit
         );
@@ -549,6 +550,9 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
 
         output.sourceRelayProvider = encoded.toBytes32(index);
         index += 32;
+
+        output.targetChain = encoded.toUint16(index);
+        index+=2;
 
         output.executionParameters.version = 1;
         index += 1;
