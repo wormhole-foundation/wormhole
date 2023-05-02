@@ -267,12 +267,10 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	logger := supervisor.Logger(ctx)
 
-	u := url.URL{Scheme: "ws", Host: e.suiWS}
-
-	logger.Info("Sui watcher connecting to WS node ", zap.String("url", u.String()))
+	logger.Info("Sui watcher connecting to WS node ", zap.String("url", e.suiWS))
 	logger.Debug("SUI watcher:", zap.String("suiRPC", e.suiRPC), zap.String("suiWS", e.suiWS), zap.String("suiMoveEventType", e.suiMoveEventType))
 
-	ws, _, err := websocket.Dial(ctx, u.String(), nil)
+	ws, _, err := websocket.Dial(ctx, e.suiWS, nil)
 	if err != nil {
 		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
 		suiConnectionErrors.WithLabelValues("websocket_dial_error").Inc()
