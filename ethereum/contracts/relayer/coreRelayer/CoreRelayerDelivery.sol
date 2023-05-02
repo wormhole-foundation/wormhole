@@ -310,36 +310,29 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
             refundStatus = refundPaidToRefundAddress ? RefundStatus.REFUND_SENT : RefundStatus.REFUND_FAIL;
         } else {
             address providerAddress = fromWormholeFormat(relayerAddress);
-
-            (bool success, bytes memory data) = providerAddress.staticcall(
-                abi.encodeWithSelector(IRelayProvider.isChainSupported.selector, instruction.refundChain)
-            );
-
-            if (!success) {
-                return (false, RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED);
-            }
-
-            success = abi.decode(data, (bool));
-
-            if (!success) {
-                return (false, RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED);
-            }
             (refundPaidToRefundAddress, refundStatus) = payRefundRemote(instruction, refundAmount, providerAddress);
         }
     }
 
-    function getValuesFromRelayProvider(address providerAddress, uint16 targetChain, uint256 receiverValue)
+    function getValuesFromRelayProvider(address providerAddress, uint16 targetChain, uint256 receiverValuePlusOverhead)
         internal
         view
-        returns (bool didNotRevert, address rewardAddress, uint256 maximumBudget, uint256 receiverValueTarget)
+        returns (
+            bool isChainSupported,
+            address rewardAddress,
+            uint256 maximumBudget,
+            uint256 receiverValueTarget
+        )
     {
-        (bool success, bytes memory data) =
-            getWormholeRelayerCallerAddress().staticcall(abi.encodeWithSelector(IForwardWrapper.getValuesFromRelayProvider.selector, providerAddress, targetChain, receiverValue));
-        
-
-        didNotRevert = success;
-        if(success) {
-            (rewardAddress, maximumBudget, receiverValueTarget) = abi.decode(data, (address, uint256, uint256));
+        (bool success, bytes memory data) = getWormholeRelayerCallerAddress().staticcall(
+            abi.encodeWithSelector(
+                IForwardWrapper.getValuesFromRelayProvider.selector, providerAddress, chainId(), targetChain, receiverValuePlusOverhead
+            )
+        );
+        isChainSupported = success;
+        if (success) {
+            (rewardAddress, maximumBudget, receiverValueTarget) =
+                abi.decode(data, (address, uint256, uint256));
         }
     }
 
@@ -348,53 +341,42 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
         uint256 refundAmount,
         address providerAddress
     ) internal returns (bool, RefundStatus) {
+        bool isChainSupported;
         uint256 wormholeMessageFee = wormhole().messageFee();
+        uint256 receiverValueTarget;
+        uint256 maximumBudget;
+        address rewardAddress;
+        
+        if (refundAmount <= wormholeMessageFee) {
+            return (false, RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH);
+        }
 
-        (bool success, bytes memory data) = providerAddress.staticcall(
-            abi.encodeWithSelector(IRelayProvider.quoteDeliveryOverhead.selector, instruction.refundChain)
-        );
+        (isChainSupported, rewardAddress, maximumBudget, receiverValueTarget) =
+            getValuesFromRelayProvider(providerAddress, instruction.refundChain, refundAmount - wormholeMessageFee);
 
-        if (!success) {
+        if (!isChainSupported) {
             return (false, RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED);
         }
 
-        uint256 overhead = wormholeMessageFee + abi.decode(data, (uint256));
-
-        if (refundAmount > overhead) {
-            uint256 receiverValueTarget;
-            uint256 maximumBudget;
-            address rewardAddress;
-            (success, rewardAddress, receiverValueTarget, maximumBudget) =
-                getValuesFromRelayProvider(providerAddress, instruction.refundChain, refundAmount - overhead);
-
-            if (!success) {
-                return (false, RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED);
-            }
-
-            if (receiverValueTarget == 0) {
-                return (false, RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH);
-            }
-
-            (IWormholeRelayerInternalStructs.DeliveryInstruction memory refundInstruction, bool isMaximumBudget) =
-            getInstructionForEmptyMessageWithReceiverValue(
-                instruction.refundChain, instruction.refundAddress, providerAddress, receiverValueTarget, maximumBudget
-            );
-
-            wormhole().publishMessage{value: wormholeMessageFee}(
-                0, encodeDeliveryInstruction(refundInstruction), refundInstruction.consistencyLevel
-            );
-
-            pay(payable(rewardAddress), refundAmount - wormholeMessageFee);
-
-            return (
-                true,
-                isMaximumBudget
-                    ? RefundStatus.CROSS_CHAIN_REFUND_SENT_MAXIMUM_BUDGET
-                    : RefundStatus.CROSS_CHAIN_REFUND_SENT
-            );
-        } else {
+        if (receiverValueTarget == 0) {
             return (false, RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH);
         }
+
+        (IWormholeRelayerInternalStructs.DeliveryInstruction memory refundInstruction, bool isMaximumBudget) =
+        getInstructionForEmptyMessageWithReceiverValue(
+            instruction.refundChain, instruction.refundAddress, providerAddress, receiverValueTarget, maximumBudget
+        );
+
+        wormhole().publishMessage{value: wormholeMessageFee}(
+            0, encodeDeliveryInstruction(refundInstruction), refundInstruction.consistencyLevel
+        );
+
+        pay(payable(rewardAddress), refundAmount - wormholeMessageFee);
+
+        return (
+            true,
+            isMaximumBudget ? RefundStatus.CROSS_CHAIN_REFUND_SENT_MAXIMUM_BUDGET : RefundStatus.CROSS_CHAIN_REFUND_SENT
+        );
     }
 
     function getInstructionForEmptyMessageWithReceiverValue(
@@ -411,8 +393,8 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
         instruction = IWormholeRelayerInternalStructs.DeliveryInstruction({
             targetChain: targetChain,
             targetAddress: bytes32(0x0),
-            refundAddress: targetAddress,
             refundChain: targetChain,
+            refundAddress: targetAddress,
             maximumRefundTarget: 0,
             receiverValueTarget: receiverValueTarget,
             sourceRelayProvider: toWormholeFormat(providerAddress),
@@ -425,6 +407,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
         });
 
         isMaximumBudget = false;
+
         if (instruction.receiverValueTarget > maximumBudget) {
             instruction.receiverValueTarget = maximumBudget;
             isMaximumBudget = true;

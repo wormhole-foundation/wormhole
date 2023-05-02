@@ -68,18 +68,22 @@ contract ForwardWrapper is CoreRelayerLibrary {
         }
     }
 
-     function getValuesFromRelayProvider(address providerAddress, uint16 targetChain, uint256 receiverValue)
+    function getValuesFromRelayProvider(address providerAddress, uint16 sourceChain, uint16 targetChain, uint256 receiverValuePlusOverhead)
         public
         view
-        returns (address rewardAddress, uint256 maximumBudget, uint256 receiverValueTarget) {
-            IRelayProvider relayProvider = IRelayProvider(providerAddress);
-            rewardAddress = relayProvider.getRewardAddress();
-            maximumBudget = relayProvider.quoteMaximumBudget(targetChain);
-            uint256 srcNativeCurrencyPrice = relayProvider.quoteAssetPrice(chainId());
-            uint256 dstNativeCurrencyPrice = relayProvider.quoteAssetPrice(targetChain);
-            (uint16 buffer, uint16 denominator) = relayProvider.getAssetConversionBuffer(targetChain);
-
-            receiverValueTarget = receiverValue * srcNativeCurrencyPrice * denominator
-            / (dstNativeCurrencyPrice * (uint256(0) + denominator + buffer));
-        }
+        returns (address rewardAddress, uint256 maximumBudget, uint256 receiverValueTarget)
+    {
+        IRelayProvider relayProvider = IRelayProvider(providerAddress);
+        require(relayProvider.isChainSupported(targetChain));
+        uint256 deliveryOverhead = relayProvider.quoteDeliveryOverhead(targetChain);
+        rewardAddress = relayProvider.getRewardAddress();
+        maximumBudget = relayProvider.quoteMaximumBudget(targetChain);
+        uint256 srcNativeCurrencyPrice = relayProvider.quoteAssetPrice(sourceChain);
+        uint256 dstNativeCurrencyPrice = relayProvider.quoteAssetPrice(targetChain);
+        (uint16 buffer, uint16 denominator) = relayProvider.getAssetConversionBuffer(targetChain);
+        receiverValueTarget = receiverValuePlusOverhead > deliveryOverhead
+            ? ((receiverValuePlusOverhead - deliveryOverhead) * srcNativeCurrencyPrice * denominator
+                / (dstNativeCurrencyPrice * (uint256(0) + denominator + buffer)))
+            : 0;
+    }
 }

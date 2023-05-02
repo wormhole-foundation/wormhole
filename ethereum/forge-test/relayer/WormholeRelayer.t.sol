@@ -980,6 +980,7 @@ contract WormholeRelayerTests is Test {
             refundSource = (amountToGetInRefundTarget - target.relayProvider.quoteDeliveryOverhead(1))
                 * feeParams.targetNativePrice * 100 / (uint256(1) * feeParams.sourceNativePrice * 105);
         }
+
         assertTrue(
             refundSource == source.refundAddress.balance - refundAddressBalance, "Refund wasn't the correct amount"
         );
@@ -1054,12 +1055,12 @@ contract WormholeRelayerTests is Test {
                 - ((amountToGetInRefundTarget + feeParams.wormholeFeeOnTarget - receiverValueTargetActual)) * actualGasLimit
                     / maximumRefund
         );
-
         uint256 refundSource = 0;
         if (amountToGetInRefundTarget > target.relayProvider.quoteDeliveryOverhead(1)) {
             refundSource = (amountToGetInRefundTarget - target.relayProvider.quoteDeliveryOverhead(1))
                 * feeParams.targetNativePrice * 100 / (uint256(1) * feeParams.sourceNativePrice * 105);
         }
+
         assertTrue(
             refundSource == source.refundAddress.balance - refundAddressBalance, "Refund wasn't the correct amount"
         );
