@@ -150,27 +150,37 @@ export const getOwnedObjectId = async (
 // TODO(kp): remove this once it's in the sdk
 export async function getPackageId(
   provider: JsonRpcProvider,
-  stateObjectId: string
+  objectId: string
 ): Promise<string> {
-  const fields = await provider
-    .getObject({
-      id: stateObjectId,
-      options: {
-        showContent: true,
-      },
-    })
-    .then((result) => {
-      if (result.data?.content?.dataType === "moveObject") {
-        return result.data.content.fields;
-      }
-
-      throw new Error("Not a moveObject");
+  let currentPackage;
+  let nextCursor;
+  do {
+    const dynamicFields = await provider.getDynamicFields({
+      parentId: objectId,
+      cursor: nextCursor,
     });
-  if ("upgrade_cap" in fields) {
-    return fields.upgrade_cap.fields.package;
+    currentPackage = dynamicFields.data.find((field) =>
+      field.name.type.endsWith("CurrentPackage")
+    );
+    nextCursor = dynamicFields.hasNextPage ? dynamicFields.nextCursor : null;
+  } while (nextCursor && !currentPackage);
+  if (!currentPackage) {
+    throw new Error("CurrentPackage not found");
   }
-
-  throw new Error("upgrade_cap not found");
+  const obj = await provider.getObject({
+    id: currentPackage.objectId,
+    options: {
+      showContent: true,
+    },
+  });
+  const packageId =
+    obj.data?.content && "fields" in obj.data.content
+      ? obj.data.content.fields.value?.fields?.package
+      : null;
+  if (!packageId) {
+    throw new Error("Unable to get current package");
+  }
+  return packageId;
 }
 
 export const getProvider = (
