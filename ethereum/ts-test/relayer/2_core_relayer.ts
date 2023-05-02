@@ -370,6 +370,7 @@ describe("Core Relayer Integration Test - Two Chains", () => {
     )) as DeliveryInfo;
     let status = info.targetChainStatus.events[0].status;
     expect(status).to.equal("Forward Request Failure");
+    console.log(relayer.stringifyWormholeRelayerInfo(info));
   });
 
   it("Tests the Typescript SDK with a Delivery Success", async () => {
@@ -529,6 +530,7 @@ describe("Core Relayer Integration Test - Two Chains", () => {
     )) as relayer.DeliveryInfo;
     const status = info.targetChainStatus.events[0].status;
     expect(status).to.equal("Receiver Failure");
+    console.log(relayer.stringifyWormholeRelayerInfo(info));
   });
 
   it("Tests a receiver failure and then redelivery", async () => {
