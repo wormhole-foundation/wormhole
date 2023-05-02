@@ -364,6 +364,8 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
             return (false, RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED);
         }
 
+        // If refundAmount is not enough to pay for one wei of receiver value, then do not perform the cross-chain refund
+        // (i.e. if (delivery overhead) + (wormhole message fee) + (cost of one wei of receiver value) is larger than the remaining refund)
         if (receiverValueTarget == 0) {
             return (false, RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH);
         }

@@ -390,7 +390,7 @@ abstract contract CoreRelayer is CoreRelayerDelivery {
         // and applies a multiplier of '1 + (buffer / denominator)'
         (uint16 buffer, uint16 denominator) = provider.getAssetConversionBuffer(targetChain);
         receiverValue = assetConversionHelper(
-            targetChain, targetAmount, chainId(), uint256(0) + denominator + buffer, denominator, true, provider
+            targetChain, targetAmount, chainId(), uint256(denominator) + buffer, denominator, true, provider
         );
     }
 
