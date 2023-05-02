@@ -67,4 +67,19 @@ contract ForwardWrapper is CoreRelayerLibrary {
             msg.sender.call{value: msg.value}("");
         }
     }
+
+     function getValuesFromRelayProvider(address providerAddress, uint16 targetChain, uint256 receiverValue)
+        public
+        view
+        returns (address rewardAddress, uint256 maximumBudget, uint256 receiverValueTarget) {
+            IRelayProvider relayProvider = IRelayProvider(providerAddress);
+            rewardAddress = relayProvider.getRewardAddress();
+            maximumBudget = relayProvider.quoteMaximumBudget(targetChain);
+            uint256 srcNativeCurrencyPrice = relayProvider.quoteAssetPrice(chainId());
+            uint256 dstNativeCurrencyPrice = relayProvider.quoteAssetPrice(targetChain);
+            (uint16 buffer, uint16 denominator) = relayProvider.getAssetConversionBuffer(targetChain);
+
+            receiverValueTarget = receiverValue * srcNativeCurrencyPrice * denominator
+            / (dstNativeCurrencyPrice * (uint256(0) + denominator + buffer));
+        }
 }

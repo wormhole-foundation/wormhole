@@ -334,44 +334,13 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
         returns (bool didNotRevert, address rewardAddress, uint256 maximumBudget, uint256 receiverValueTarget)
     {
         (bool success, bytes memory data) =
-            providerAddress.staticcall(abi.encodeWithSelector(IRelayProvider.quoteMaximumBudget.selector, targetChain));
-        if (!success) {
-            return (false, address(0x0), 0, 0);
+            getWormholeRelayerCallerAddress().staticcall(abi.encodeWithSelector(IForwardWrapper.getValuesFromRelayProvider.selector, providerAddress, targetChain, receiverValue));
+        
+
+        didNotRevert = success;
+        if(success) {
+            (rewardAddress, maximumBudget, receiverValueTarget) = abi.decode(data, (address, uint256, uint256));
         }
-        maximumBudget = abi.decode(data, (uint256));
-
-        (success, data) = providerAddress.staticcall(abi.encodeWithSelector(IRelayProvider.getRewardAddress.selector));
-        if (!success) {
-            return (false, address(0x0), 0, 0);
-        }
-        rewardAddress = abi.decode(data, (address));
-
-        (success, data) = providerAddress.staticcall(
-            abi.encodeWithSelector(IRelayProvider.getAssetConversionBuffer.selector, targetChain)
-        );
-        if (!success) {
-            return (false, address(0x0), 0, 0);
-        }
-        (uint16 buffer, uint16 denominator) = abi.decode(data, (uint16, uint16));
-
-        (success, data) =
-            providerAddress.staticcall(abi.encodeWithSelector(IRelayProvider.quoteAssetPrice.selector, chainId()));
-        if (!success) {
-            return (false, address(0x0), 0, 0);
-        }
-        uint256 srcNativeCurrencyPrice = abi.decode(data, (uint256));
-
-        (success, data) =
-            providerAddress.staticcall(abi.encodeWithSelector(IRelayProvider.quoteAssetPrice.selector, targetChain));
-        if (!success) {
-            return (false, address(0x0), 0, 0);
-        }
-        uint256 dstNativeCurrencyPrice = abi.decode(data, (uint256));
-
-        receiverValueTarget = receiverValue * srcNativeCurrencyPrice * denominator
-            / (dstNativeCurrencyPrice * (uint256(0) + denominator + buffer));
-
-        didNotRevert = true;
     }
 
     function payRefundRemote(
