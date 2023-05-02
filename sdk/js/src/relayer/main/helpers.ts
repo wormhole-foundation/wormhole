@@ -15,7 +15,8 @@ import {
   DeliveryStatus,
   RefundStatus,
   VaaKey,
-  DeliveryOverrideArgs
+  DeliveryOverrideArgs,
+  parseForwardFailureError
 } from "../structs";
 import { RelayProvider } from "../../ethers-contracts/RelayProvider";
 import { RelayProvider__factory } from "../../ethers-contracts/factories/RelayProvider__factory";
@@ -25,16 +26,16 @@ import {
   IWormholeRelayer,
 } from "../../ethers-contracts/CoreRelayer";
 
-type DeliveryTargetInfo = {
+export type DeliveryTargetInfo = {
   status: DeliveryStatus | string;
-  deliveryTxHash: string | null;
+  transactionHash: string | null;
   vaaHash: string | null;
   sourceChain: number | null;
   sourceVaaSequence: BigNumber | null;
   gasUsed: number;
   refundStatus: RefundStatus;
-  leftoverTransactionFee?: number; // Only defined if status is FORWARD_REQUEST_SUCCESS
-  revertData?: string; // Only defined if status is RECEIVER_FAILURE or FORWARD_REQUEST_FAILURE
+  leftoverFeeUsedForForward?: BigNumber; // Only defined if status is FORWARD_REQUEST_SUCCESS
+  revertString?: string; // Only defined if status is RECEIVER_FAILURE or FORWARD_REQUEST_FAILURE
   overrides?: DeliveryOverrideArgs;
 };
 
@@ -89,7 +90,7 @@ export async function getWormholeRelayerInfoBySourceSequence(
   sourceVaaSequence: BigNumber,
   blockStartNumber: ethers.providers.BlockTag,
   blockEndNumber: ethers.providers.BlockTag
-): Promise<{chainId: ChainId, events: {status: string, transactionHash: string | null}[]}> {
+): Promise<{chainId: ChainId, events: DeliveryTargetInfo[]}> {
   const deliveryEvents = await getWormholeRelayerDeliveryEventsBySourceSequence(
     environment,
     targetChain,
@@ -116,7 +117,7 @@ export async function getWormholeRelayerInfoBySourceSequence(
     } catch (e) {}
     deliveryEvents.push({
       status,
-      deliveryTxHash: null,
+      transactionHash: null,
       vaaHash: null,
       sourceChain: sourceChain,
       sourceVaaSequence,
@@ -126,10 +127,7 @@ export async function getWormholeRelayerInfoBySourceSequence(
   }
   const targetChainStatus = {
     chainId: targetChain,
-    events: deliveryEvents.map((e) => ({
-      status: e.status,
-      transactionHash: e.deliveryTxHash,
-    })),
+    events: deliveryEvents
   };
 
   return targetChainStatus;
@@ -186,18 +184,22 @@ async function transformDeliveryEvents(
   events: DeliveryEvent[],
   targetProvider: ethers.providers.Provider
 ): Promise<DeliveryTargetInfo[]> {
+
+
   return Promise.all(
     events.map(async (x) => {
-      console.log(x.args[8]);
+      const status = deliveryStatus(x.args[4]);
       return {
-        status: deliveryStatus(x.args[4]),
-        deliveryTxHash: x.transactionHash,
+        status,
+        transactionHash: x.transactionHash,
         vaaHash: x.args[3],
         sourceVaaSequence: x.args[2],
         sourceChain: x.args[1],
         gasUsed: x.args[5],
         refundStatus: x.args[6],
-        overridesInfo: (Buffer.from(x.args[8], "hex").length > 0) && parseOverrideInfoFromDeliveryEvent(Buffer.from(x.args[8], "hex"))
+        leftoverFeeUsedForForward: (status == DeliveryStatus.ForwardRequestSuccess) ? ethers.BigNumber.from(x.args[7]) : undefined,
+        revertString: (status == DeliveryStatus.ReceiverFailure) ? x.args[7] : (status == DeliveryStatus.ForwardRequestFailure ? parseForwardFailureError(Buffer.from(x.args[7].substring(2), "hex")): undefined),
+        overridesInfo: (Buffer.from(x.args[8].substring(2), "hex").length > 0) && parseOverrideInfoFromDeliveryEvent(Buffer.from(x.args[8].substring(2), "hex"))
       };
     })
   );
