@@ -1,0 +1,53 @@
+---
+protocol-key-pair:
+  value: W+hPTVWhdFgzHs3YuRHV6gLfgFhHA1WG0pisIXiN8E8=
+worker-key-pair:
+  value: AApEvpZE1O+2GMqZ1AbRE3+Kmgr1O5mdsMZ6I/gLpVSy
+account-key-pair:
+  value: AN7ZHgjN8G7Nw7Q8NtY9TisPBjmEYpdUzbczjqR98XLh
+network-key-pair:
+  value: AAnB6/zZooq4xDtB7oM/GeTSCh5tBxKAyJwWOMPlEJ4R
+db-path: sui_config/authorities_db/full_node_db
+network-address: /ip4/127.0.0.1/tcp/36683/http
+json-rpc-address: "0.0.0.0:9000"
+metrics-address: "127.0.0.1:35915"
+admin-interface-port: 44319
+enable-event-processing: true
+enable-index-processing: true
+grpc-load-shed: ~
+grpc-concurrency-limit: ~
+p2p-config:
+  listen-address: "127.0.0.1:38187"
+  external-address: /ip4/127.0.0.1/udp/38187
+  seed-peers:
+    - peer-id: ce60e3077e02a3683436af450f3a4511b4c40b158956637caf9ccf11391e7e10
+      address: /ip4/127.0.0.1/udp/44061
+    - peer-id: 5f0f42cb3fb20dd577703388320964f9351d997313c04a032247060d214b2e71
+      address: /ip4/127.0.0.1/udp/46335
+    - peer-id: 6d9095130b1536c0c9218ea9feb0f36685a6fa0b3b1e67d256cc4fb340a48d69
+      address: /ip4/127.0.0.1/udp/32965
+    - peer-id: b2915bf787845a55c24e18fdc162a575eb02d23bae3f9e566d7c51ebcfeb4a42
+      address: /ip4/127.0.0.1/udp/39889
+genesis:
+  genesis-file-location: sui_config/genesis.blob
+authority-store-pruning-config:
+  num-latest-epoch-dbs-to-retain: 3
+  epoch-db-pruning-period-secs: 3600
+  num-epochs-to-retain: 2
+  max-checkpoints-in-batch: 200
+  max-transactions-in-batch: 1000
+  use-range-deletion: true
+end-of-epoch-broadcast-channel-capacity: 128
+checkpoint-executor-config:
+  checkpoint-execution-max-concurrency: 200
+  local-execution-timeout-sec: 30
+db-checkpoint-config:
+  perform-db-checkpoints-at-epoch-end: false
+indirect-objects-threshold: 18446744073709551615
+expensive-safety-check-config:
+  enable-epoch-sui-conservation-check: false
+  enable-deep-per-tx-sui-conservation-check: false
+  force-disable-epoch-sui-conservation-check: false
+  enable-state-consistency-check: false
+  force-disable-state-consistency-check: false
+  enable-move-vm-paranoid-checks: false
