@@ -8,8 +8,9 @@ src = "contracts"
 # truffle doesn't try to build them
 test = "forge-test"
 
-[fmt]
-line_length = 80
+# uncomment this in later pr to keep diff small, but keeping here as a reminder
+# [fmt]
+# line_length = 80
 
 out = 'out'
 libs = ['lib', 'node_modules']

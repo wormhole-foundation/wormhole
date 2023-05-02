@@ -109,10 +109,7 @@ contract TestHelpers {
         returns (IWormholeRelayer coreRelayer)
     {
         Create2Factory create2Factory = new Create2Factory();
-
         CoreRelayerSetup coreRelayerSetup = new CoreRelayerSetup();
-
-        // CoreRelayerSetup(create2Factory.create2("0xSetup", type(CoreRelayerSetup).creationCode));
 
         address proxyAddressComputed = create2Factory.computeProxyAddress(address(this), "0xGenericRelayer");
         ForwardWrapper forwardWrapper = new ForwardWrapper(proxyAddressComputed, address(wormhole));
