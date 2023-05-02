@@ -515,7 +515,7 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
         index += 32;
 
         output.targetChain = encoded.toUint16(index);
-        index+=2;
+        index += 2;
 
         output.executionParameters.version = 1;
         index += 1;
