@@ -17,6 +17,7 @@ private keys, based on `.env.sample` in this folder.
 worm [command]
 
 Commands:
+  worm edit-vaa                                   Allows editing / creating / signing VAAs
   worm generate                                   generate VAAs (devnet and testnet
                                                   only)
   worm parse <vaa>                                Parse a VAA (can be in either hex or
@@ -31,6 +32,7 @@ Commands:
   worm near                                       NEAR utilities
   worm submit <vaa>                               Execute a VAA
   worm update                                     Update this tool by rebuilding it
+  worm verify-vaa --vaa <vaa> --network <network> Verifies a VAA by querying the core contract on Ethereum
 
 Options:
   --help     Show help                                                 [boolean]
