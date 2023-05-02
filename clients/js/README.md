@@ -32,7 +32,7 @@ Commands:
   worm near                                       NEAR utilities
   worm submit <vaa>                               Execute a VAA
   worm update                                     Update this tool by rebuilding it
-  worm verify-vaa --vaa <vaa> --network <network> Verifies a VAA by querying the core contract on Ethereum
+  worm verify-vaa --vaa <vaa> --network <network> Verifies a VAA by calling into the core contract
 
 Options:
   --help     Show help                                                 [boolean]
