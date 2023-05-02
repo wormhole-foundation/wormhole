@@ -358,7 +358,7 @@ export const initWormhole = async (
       transactionBlock.pure([...Buffer.from(governanceContract, "hex")]),
       transactionBlock.pure(guardianSetIndex),
       transactionBlock.pure([[...Buffer.from(initialGuardian, "hex")]]),
-      transactionBlock.pure(365 * 24 * 60 * 60), // Guardian set TTL in seconds
+      transactionBlock.pure(24 * 60 * 60), // Guardian set TTL in seconds
       transactionBlock.pure("0"), // Message fee
     ],
   });
