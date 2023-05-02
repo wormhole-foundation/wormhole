@@ -1,6 +1,6 @@
 import { ChainId, Network, ChainName } from "@certusone/wormhole-sdk";
 import { ethers } from "ethers";
-import { CoreRelayer__factory } from "../../../../../../ethereum/ethers-contracts/factories/CoreRelayer__factory";
+import { CoreRelayer__factory } from "../../../../../../ethereum/ethers-contracts";
 import { CoreRelayer } from "../src";
 
 const TESTNET = [
@@ -29,11 +29,11 @@ const TESTNET = [
 const DEVNET = [
   {
     chainId: 2,
-    coreRelayerAddress: "0x42D4BA5e542d9FeD87EA657f0295F1968A61c00A",
+    coreRelayerAddress: "0x34dc8837Fb909b83CDe5479015A9925acFb63165",
   },
   {
     chainId: 4,
-    coreRelayerAddress: "0xFF5181e2210AB92a5c9db93729Bc47332555B9E9",
+    coreRelayerAddress: "0x34dc8837Fb909b83CDe5479015A9925acFb63165",
   },
 ];
 
