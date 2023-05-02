@@ -277,11 +277,12 @@ func (acct *Accountant) publishTransferAlreadyLocked(pe *pendingEntry) {
 
 // addPendingTransferAlreadyLocked adds a pending transfer to both the map and the database. It assumes the caller holds the lock.
 func (acct *Accountant) addPendingTransferAlreadyLocked(pe *pendingEntry) error {
-	acct.logger.Debug("addPendingTransferAlreadyLocked", zap.String("msgId", pe.msgId))
+	acct.logger.Info("writing transfer to database", zap.String("msgId", pe.msgId))
 	pe.setUpdTime()
 	if err := acct.db.AcctStorePendingTransfer(pe.msg); err != nil {
 		return err
 	}
+	acct.logger.Info("wrote message to database", zap.String("msgId", pe.msgId))
 
 	acct.pendingTransfers[pe.msgId] = pe
 	transfersOutstanding.Set(float64(len(acct.pendingTransfers)))

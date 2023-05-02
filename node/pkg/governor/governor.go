@@ -398,6 +398,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 
 	if enqueueIt {
 		dbData := db.PendingTransfer{ReleaseTime: releaseTime, Msg: *msg}
+		gov.logger.Info("writing pending transfer to database", zap.String("msgId", msg.MessageIDString()))
 		err = gov.db.StorePendingMsg(&dbData)
 		if err != nil {
 			gov.logger.Error("failed to store pending vaa",
@@ -408,6 +409,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 			)
 			return false, err
 		}
+		gov.logger.Info("wrote pending transfer to database", zap.String("msgId", msg.MessageIDString()))
 
 		ce.pending = append(ce.pending, &pendingEntry{token: token, amount: payload.Amount, hash: hash, dbData: dbData})
 		gov.msgsSeen[hash] = transferEnqueued
