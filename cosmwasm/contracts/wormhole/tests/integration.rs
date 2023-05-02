@@ -5,7 +5,7 @@ use cosmwasm_std::{
 };
 use cosmwasm_storage::to_length_prefixed;
 
-use wormhole::{
+use cw_wormhole::{
     contract::instantiate,
     msg::InstantiateMsg,
     state::{ConfigInfo, GuardianAddress, GuardianSetInfo, CONFIG_KEY},

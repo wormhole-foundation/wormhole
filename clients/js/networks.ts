@@ -144,6 +144,18 @@ const MAINNET = {
     rpc: "https://rpc.gnosischain.com/",
     key: get_env_var("ETH_KEY"),
   },
+  base: {
+    rpc: undefined,
+    key: get_env_var("ETH_KEY"),
+  },
+  sei: {
+    rpc: undefined,
+    key: undefined,
+  },
+  sepolia: {
+    rpc: undefined,
+    key: undefined,
+  },
 };
 
 const TESTNET = {
@@ -193,11 +205,11 @@ const TESTNET = {
     key: get_env_var("ETH_KEY_TESTNET"),
   },
   karura: {
-    rpc: "https://karura-dev.aca-dev.network/eth/http",
+    rpc: "https://eth-rpc-karura-testnet.aca-staging.network",
     key: get_env_var("ETH_KEY_TESTNET"),
   },
   acala: {
-    rpc: "https://acala-dev.aca-dev.network/eth/http",
+    rpc: "https://eth-rpc-acala-testnet.aca-staging.network",
     key: get_env_var("ETH_KEY_TESTNET"),
   },
   klaytn: {
@@ -229,8 +241,8 @@ const TESTNET = {
     key: get_env_var("APTOS_TESTNET"),
   },
   sui: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://fullnode.devnet.sui.io:443",
+    key: get_env_var("SUI_KEY_TESTNET"),
   },
   pythnet: {
     rpc: "https://api.pythtest.pyth.network/",
@@ -240,6 +252,14 @@ const TESTNET = {
     rpc: "https://cube-lcd.xpla.dev:443",
     chain_id: "cube_47-5",
     key: get_env_var("XPLA_KEY_TESTNET"),
+  },
+  sei: {
+    rpc: "https://rpc.atlantic-2.seinetwork.io",
+    key: get_env_var("SEI_KEY_TESTNET"),
+  },
+  sepolia: {
+    rpc: "https://rpc.ankr.com/eth_sepolia",
+    key: get_env_var("ETH_KEY_TESTNET"),
   },
   btc: {
     rpc: undefined,
@@ -272,6 +292,10 @@ const TESTNET = {
   },
   gnosis: {
     rpc: "https://sokol.poa.network/",
+    key: get_env_var("ETH_KEY_TESTNET"),
+  },
+  base: {
+    rpc: "https://goerli.base.org",
     key: get_env_var("ETH_KEY_TESTNET"),
   },
 };
@@ -365,6 +389,14 @@ const DEVNET = {
     chain_id: undefined,
     key: undefined,
   },
+  sei: {
+    rpc: undefined,
+    key: undefined,
+  },
+  sepolia: {
+    rpc: undefined,
+    key: undefined,
+  },
   wormchain: {
     rpc: "http://localhost:1319",
     chain_id: "wormchain",
@@ -375,8 +407,8 @@ const DEVNET = {
     key: "537c1f91e56891445b491068f519b705f8c0f1a1e66111816dd5d4aa85b8113d",
   },
   sui: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "http://0.0.0.0:9000",
+    key: "AGA20wtGcwbcNAG4nwapbQ5wIuXwkYQEWFUoSVAxctHb",
   },
   moonbeam: {
     rpc: undefined,
@@ -400,6 +432,10 @@ const DEVNET = {
     key: undefined,
   },
   gnosis: {
+    rpc: undefined,
+    key: undefined,
+  },
+  base: {
     rpc: undefined,
     key: undefined,
   },

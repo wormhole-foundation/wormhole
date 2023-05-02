@@ -17,18 +17,35 @@ func NewCustomQueryHandler(keeper Keeper) *wasmkeeper.QueryPlugins {
 }
 
 type WormholeQuery struct {
-	VerifyQuorum    *verifyQuorumParams    `json:"verify_quorum,omitempty"`
-	VerifySignature *verifySignatureParams `json:"verify_signature,omitempty"`
+	// This is deprecated and will be removed in a subsequent release
+	// because it uses an error-prone verification interface.
+	VerifyQuorum *verifyQuorumParams `json:"verify_quorum,omitempty"`
+
+	// Verify the signatures on a VAA.
+	// Successor to `VerifyQuorum` as the verification uses a safe interface.
+	VerifyVaa *verifyVaaParams `json:"verify_vaa,omitempty"`
+
+	// Verify the signatures on a message with a given message prefix.
+	// The caller should take care not to allow outside sources to choose the prefix.
+	VerifyMessageSignature *verifyMessageSignatureParams `json:"verify_message_signature,omitempty"`
+
+	// Calculate the minimum number of participants required in quorum for the latest guardian set.
 	CalculateQuorum *calculateQuorumParams `json:"calculate_quorum,omitempty"`
 }
 
+// deprecated
 type verifyQuorumParams struct {
 	Data             []byte           `json:"data"`
 	GuardianSetIndex uint32           `json:"guardian_set_index"`
 	Signatures       []*vaa.Signature `json:"signatures"`
 }
 
-type verifySignatureParams struct {
+type verifyVaaParams struct {
+	Vaa []byte
+}
+
+type verifyMessageSignatureParams struct {
+	Prefix           []byte         `json:"prefix"`
 	Data             []byte         `json:"data"`
 	GuardianSetIndex uint32         `json:"guardian_set_index"`
 	Signature        *vaa.Signature `json:"signature"`
@@ -47,18 +64,34 @@ func WormholeQuerier(keeper Keeper) func(ctx sdk.Context, data json.RawMessage) 
 		}
 
 		if wormholeQuery.VerifyQuorum != nil {
-			// handle the verify quorum query
-			digest := vaa.SigningMsg(wormholeQuery.VerifyQuorum.Data).Bytes()
-			err := keeper.VerifyQuorum(ctx, digest, wormholeQuery.VerifyQuorum.GuardianSetIndex, wormholeQuery.VerifyQuorum.Signatures)
+			// verify vaa using deprecated method
+			err := keeper.DeprecatedVerifyVaa(ctx, wormholeQuery.VerifyQuorum.Data, wormholeQuery.VerifyQuorum.GuardianSetIndex, wormholeQuery.VerifyQuorum.Signatures)
 			if err != nil {
 				return nil, err
 			}
 			return []byte("{}"), nil
 		}
-		if wormholeQuery.VerifySignature != nil {
-			// handle the verify signature query
-			digest := vaa.SigningMsg(wormholeQuery.VerifySignature.Data).Bytes()
-			err := keeper.VerifySignature(ctx, digest, wormholeQuery.VerifySignature.GuardianSetIndex, wormholeQuery.VerifySignature.Signature)
+		if wormholeQuery.VerifyVaa != nil {
+			// verify vaa using recommended method
+			v, err := vaa.Unmarshal(wormholeQuery.VerifyVaa.Vaa)
+			if err != nil {
+				return nil, err
+			}
+			err = keeper.VerifyVAA(ctx, v)
+			if err != nil {
+				return nil, err
+			}
+			return []byte("{}"), nil
+		}
+		if wormholeQuery.VerifyMessageSignature != nil {
+			// handle the verify message signature query
+			err := keeper.VerifyMessageSignature(
+				ctx,
+				wormholeQuery.VerifyMessageSignature.Prefix,
+				wormholeQuery.VerifyMessageSignature.Data,
+				wormholeQuery.VerifyMessageSignature.GuardianSetIndex,
+				wormholeQuery.VerifyMessageSignature.Signature,
+			)
 			if err != nil {
 				return nil, err
 			}

@@ -40,8 +40,8 @@ import {
   TERRA_NODE_URL,
   TERRA_PRIVATE_KEY2,
   TEST_ERC20,
-} from "./consts";
-import { getSignedVAABySequence, waitForTerraExecution } from "./helpers";
+} from "./utils/consts";
+import { getSignedVAABySequence, waitForTerraExecution } from "./utils/helpers";
 
 const lcd = new LCDClient({
   URL: TERRA2_NODE_URL,

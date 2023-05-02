@@ -1,10 +1,10 @@
 [package]
-name    = "wormhole-core"
+name    = "wormhole-sdk"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "wormhole"
+name = "wormhole_sdk"
 
 [features]
 schemars = ["dep:schemars"]

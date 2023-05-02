@@ -2,14 +2,18 @@ package keeper_test
 
 import (
 	"bytes"
+	"context"
+	"crypto/ecdsa"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -61,6 +65,70 @@ func createWasmMigratePayload(code_id uint64, contract string, json_msg string) 
 	// custom payload
 	payload.Write(expected_hash[:])
 	return payload.Bytes()
+}
+
+type Testbench struct {
+	guardians       []types.GuardianValidator
+	set             types.GuardianSet
+	privateKeys     []*ecdsa.PrivateKey
+	signer          sdk.AccAddress
+	context         context.Context
+	msgServer       types.MsgServer
+	codeId          uint64
+	contractAddress string
+}
+
+func setupAccountantAndGuardianSet(t *testing.T, ctx sdk.Context, k *keeper.Keeper) *Testbench {
+	signer_bz := [20]byte{}
+	signer := sdk.AccAddress(signer_bz[:])
+
+	guardians, privateKeys := createNGuardianValidator(k, ctx, 10)
+	k.SetConfig(ctx, types.Config{
+		GovernanceEmitter:     vaa.GovernanceEmitter[:],
+		GovernanceChain:       uint32(vaa.GovernanceChain),
+		ChainId:               uint32(vaa.ChainIDWormchain),
+		GuardianSetExpiration: 86400,
+	})
+	set := createNewGuardianSet(k, ctx, guardians)
+	context := sdk.WrapSDKContext(ctx)
+	msgServer := keeper.NewMsgServerImpl(*k)
+
+	// First we need to (1) upload some codes and (2) instantiate.
+	// (1) upload
+	payload := createWasmStoreCodePayload(keepertest.ACCOUNTANT_WASM_B64_GZIP)
+	v := generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
+	vBz, err := v.Marshal()
+	assert.NoError(t, err)
+	res, err := msgServer.StoreCode(context, &types.MsgStoreCode{
+		Signer:       signer.String(),
+		WASMByteCode: keepertest.ACCOUNTANT_WASM_B64_GZIP,
+		Vaa:          vBz,
+	})
+	assert.NoError(t, err)
+	code_id := res.CodeID
+
+	// (2) instantiate
+	payload = createWasmInstantiatePayload(code_id, "accountant", "{}")
+	v = generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
+	vBz, _ = v.Marshal()
+	instantiate, err := msgServer.InstantiateContract(context, &types.MsgInstantiateContract{
+		Signer: signer.String(),
+		CodeID: code_id,
+		Label:  "accountant",
+		Msg:    []byte("{}"),
+		Vaa:    vBz,
+	})
+	require.NoError(t, err)
+	return &Testbench{
+		guardians:       guardians,
+		set:             *set,
+		privateKeys:     privateKeys,
+		signer:          signer,
+		context:         context,
+		msgServer:       msgServer,
+		codeId:          code_id,
+		contractAddress: instantiate.Address,
+	}
 }
 
 func TestWasmdStoreCode(t *testing.T) {
@@ -259,32 +327,18 @@ func TestWasmdInstantiateContract(t *testing.T) {
 
 func TestWasmdMigrateContract(t *testing.T) {
 	k, ctx := keepertest.WormholeKeeper(t)
-	guardians, privateKeys := createNGuardianValidator(k, ctx, 10)
-	_ = privateKeys
-	k.SetConfig(ctx, types.Config{
-		GovernanceEmitter:     vaa.GovernanceEmitter[:],
-		GovernanceChain:       uint32(vaa.GovernanceChain),
-		ChainId:               uint32(vaa.ChainIDWormchain),
-		GuardianSetExpiration: 86400,
-	})
-	signer_bz := [20]byte{}
-	signer := sdk.AccAddress(signer_bz[:])
-
-	set := createNewGuardianSet(k, ctx, guardians)
-
-	context := sdk.WrapSDKContext(ctx)
-	msgServer := keeper.NewMsgServerImpl(*k)
+	tb := setupAccountantAndGuardianSet(t, ctx, k)
 
 	// First we need to (1) upload some codes and (2) instantiate.
 	// (1) upload
 	payload := createWasmStoreCodePayload(keepertest.ACCOUNTANT_WASM_B64_GZIP)
 	code_ids := []uint64{}
 	for i := 0; i < 5; i++ {
-		v := generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
+		v := generateVaa(tb.set.Index, tb.privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
 		vBz, err := v.Marshal()
 		assert.NoError(t, err)
-		res, err := msgServer.StoreCode(context, &types.MsgStoreCode{
-			Signer:       signer.String(),
+		res, err := tb.msgServer.StoreCode(tb.context, &types.MsgStoreCode{
+			Signer:       tb.signer.String(),
 			WASMByteCode: keepertest.ACCOUNTANT_WASM_B64_GZIP,
 			Vaa:          vBz,
 		})
@@ -295,10 +349,10 @@ func TestWasmdMigrateContract(t *testing.T) {
 
 	// (2) instantiate
 	payload = createWasmInstantiatePayload(code_ids[0], "btc", "{}")
-	v := generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
+	v := generateVaa(tb.set.Index, tb.privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
 	vBz, _ := v.Marshal()
-	instantiate, err := msgServer.InstantiateContract(context, &types.MsgInstantiateContract{
-		Signer: signer.String(),
+	instantiate, err := tb.msgServer.InstantiateContract(tb.context, &types.MsgInstantiateContract{
+		Signer: tb.signer.String(),
 		CodeID: code_ids[0],
 		Label:  "btc",
 		Msg:    []byte("{}"),
@@ -311,10 +365,10 @@ func TestWasmdMigrateContract(t *testing.T) {
 	// Confirm migrate works
 	for _, code_id := range code_ids {
 		payload = createWasmMigratePayload(code_id, instantiate.Address, "{}")
-		v = generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
+		v = generateVaa(tb.set.Index, tb.privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
 		vBz, _ = v.Marshal()
-		_, err = msgServer.MigrateContract(context, &types.MsgMigrateContract{
-			Signer:   signer.String(),
+		_, err = tb.msgServer.MigrateContract(tb.context, &types.MsgMigrateContract{
+			Signer:   tb.signer.String(),
 			CodeID:   code_id,
 			Contract: instantiate.Address,
 			Msg:      []byte("{}"),
@@ -323,8 +377,8 @@ func TestWasmdMigrateContract(t *testing.T) {
 		require.NoError(t, err)
 
 		// replaying the same message should return ErrVAAAlreadyExecuted
-		_, err = msgServer.MigrateContract(context, &types.MsgMigrateContract{
-			Signer:   signer.String(),
+		_, err = tb.msgServer.MigrateContract(tb.context, &types.MsgMigrateContract{
+			Signer:   tb.signer.String(),
 			CodeID:   code_id,
 			Contract: instantiate.Address,
 			Msg:      []byte("{}"),
@@ -335,10 +389,10 @@ func TestWasmdMigrateContract(t *testing.T) {
 
 	// Test failure using the wrong codeid
 	payload = createWasmMigratePayload(code_ids[0], instantiate.Address, "{}")
-	v = generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
+	v = generateVaa(tb.set.Index, tb.privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
 	vBz, _ = v.Marshal()
-	_, err = msgServer.MigrateContract(context, &types.MsgMigrateContract{
-		Signer: signer.String(),
+	_, err = tb.msgServer.MigrateContract(tb.context, &types.MsgMigrateContract{
+		Signer: tb.signer.String(),
 		// Switch codeid
 		CodeID:   code_ids[1],
 		Contract: instantiate.Address,
@@ -349,13 +403,13 @@ func TestWasmdMigrateContract(t *testing.T) {
 
 	// Test failure using the wrong contract
 	payload = createWasmMigratePayload(code_ids[0], instantiate.Address, "{}")
-	v = generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
+	v = generateVaa(tb.set.Index, tb.privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
 	vBz, _ = v.Marshal()
-	_, err = msgServer.MigrateContract(context, &types.MsgMigrateContract{
-		Signer: signer.String(),
+	_, err = tb.msgServer.MigrateContract(tb.context, &types.MsgMigrateContract{
+		Signer: tb.signer.String(),
 		CodeID: code_ids[0],
 		// swap contract address for the signer address
-		Contract: signer.String(),
+		Contract: tb.signer.String(),
 		Msg:      []byte("{}"),
 		Vaa:      vBz,
 	})
@@ -363,10 +417,10 @@ func TestWasmdMigrateContract(t *testing.T) {
 
 	// Test failure using the wrong msg
 	payload = createWasmMigratePayload(code_ids[0], instantiate.Address, `{"hello": "world"}`)
-	v = generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
+	v = generateVaa(tb.set.Index, tb.privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
 	vBz, _ = v.Marshal()
-	_, err = msgServer.MigrateContract(context, &types.MsgMigrateContract{
-		Signer:   signer.String(),
+	_, err = tb.msgServer.MigrateContract(tb.context, &types.MsgMigrateContract{
+		Signer:   tb.signer.String(),
 		CodeID:   code_ids[0],
 		Contract: instantiate.Address,
 		// modify msg
@@ -377,10 +431,10 @@ func TestWasmdMigrateContract(t *testing.T) {
 
 	// Test migrating with invalid json fails
 	payload = createWasmMigratePayload(code_ids[0], instantiate.Address, `{"hello": }`)
-	v = generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
+	v = generateVaa(tb.set.Index, tb.privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
 	vBz, _ = v.Marshal()
-	_, err = msgServer.MigrateContract(context, &types.MsgMigrateContract{
-		Signer:   signer.String(),
+	_, err = tb.msgServer.MigrateContract(tb.context, &types.MsgMigrateContract{
+		Signer:   tb.signer.String(),
 		CodeID:   code_ids[0],
 		Contract: instantiate.Address,
 		Msg:      []byte(`{"hello": }`),
@@ -393,10 +447,10 @@ func TestWasmdMigrateContract(t *testing.T) {
 	payload_wrong_module := createWasmMigratePayload(code_ids[0], instantiate.Address, `{}`)
 	// tamper with the module id
 	payload_wrong_module[16] = 0xff
-	v = generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload_wrong_module)
+	v = generateVaa(tb.set.Index, tb.privateKeys, vaa.ChainID(vaa.GovernanceChain), payload_wrong_module)
 	vBz, _ = v.Marshal()
-	_, err = msgServer.MigrateContract(context, &types.MsgMigrateContract{
-		Signer:   signer.String(),
+	_, err = tb.msgServer.MigrateContract(tb.context, &types.MsgMigrateContract{
+		Signer:   tb.signer.String(),
 		CodeID:   code_ids[0],
 		Contract: instantiate.Address,
 		Msg:      []byte(`{}`),
@@ -406,10 +460,10 @@ func TestWasmdMigrateContract(t *testing.T) {
 
 	// test action byte is checked by sending a valid instantiate vaa
 	payload = createWasmInstantiatePayload(code_ids[0], "btc", "{}")
-	v = generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
+	v = generateVaa(tb.set.Index, tb.privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
 	vBz, _ = v.Marshal()
-	_, err = msgServer.MigrateContract(context, &types.MsgMigrateContract{
-		Signer:   signer.String(),
+	_, err = tb.msgServer.MigrateContract(tb.context, &types.MsgMigrateContract{
+		Signer:   tb.signer.String(),
 		CodeID:   code_ids[0],
 		Contract: "btc",
 		Msg:      []byte("{}"),
@@ -419,53 +473,14 @@ func TestWasmdMigrateContract(t *testing.T) {
 }
 
 // This specifically tests the modify vaa in accountant
+// This also tests that the path to verify VAAs through the accountant contract to the wormhole querier interface is working.
 func TestWasmdAccountantContractModify(t *testing.T) {
 	k, wasmd, permissionedWasmd, ctx := keepertest.WormholeKeeperAndWasmd(t)
 	_ = permissionedWasmd
-	guardians, privateKeys := createNGuardianValidator(k, ctx, 10)
-	_ = privateKeys
-	k.SetConfig(ctx, types.Config{
-		GovernanceEmitter:     vaa.GovernanceEmitter[:],
-		GovernanceChain:       uint32(vaa.GovernanceChain),
-		ChainId:               uint32(vaa.ChainIDWormchain),
-		GuardianSetExpiration: 86400,
-	})
-	signer_bz := [20]byte{}
-	signer := sdk.AccAddress(signer_bz[:])
 
-	set := createNewGuardianSet(k, ctx, guardians)
+	tb := setupAccountantAndGuardianSet(t, ctx, k)
 
-	context := sdk.WrapSDKContext(ctx)
-	msgServer := keeper.NewMsgServerImpl(*k)
-
-	// First we need to (1) upload some codes and (2) instantiate.
-	// (1) upload
-	payload := createWasmStoreCodePayload(keepertest.ACCOUNTANT_WASM_B64_GZIP)
-	v := generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
-	vBz, err := v.Marshal()
-	assert.NoError(t, err)
-	res, err := msgServer.StoreCode(context, &types.MsgStoreCode{
-		Signer:       signer.String(),
-		WASMByteCode: keepertest.ACCOUNTANT_WASM_B64_GZIP,
-		Vaa:          vBz,
-	})
-	assert.NoError(t, err)
-	code_id := res.CodeID
-
-	// (2) instantiate
-	payload = createWasmInstantiatePayload(code_id, "accountant", "{}")
-	v = generateVaa(set.Index, privateKeys, vaa.ChainID(vaa.GovernanceChain), payload)
-	vBz, _ = v.Marshal()
-	instantiate, err := msgServer.InstantiateContract(context, &types.MsgInstantiateContract{
-		Signer: signer.String(),
-		CodeID: code_id,
-		Label:  "accountant",
-		Msg:    []byte("{}"),
-		Vaa:    vBz,
-	})
-	require.NoError(t, err)
-
-	contract_addr, err := sdk.AccAddressFromBech32(instantiate.Address)
+	contract_addr, err := sdk.AccAddressFromBech32(tb.contractAddress)
 	require.NoError(t, err)
 
 	token_address := [32]byte{}
@@ -474,8 +489,8 @@ func TestWasmdAccountantContractModify(t *testing.T) {
 	}
 
 	// construct the modify balance vaa
-	modify_msg := vaa.BodyTokenBridgeModifyBalance{
-		Module:        "TokenBridge",
+	modify_msg := vaa.BodyAccountantModifyBalance{
+		Module:        "GlobalAccountant",
 		TargetChainID: vaa.ChainIDWormchain,
 		Sequence:      uint64(lastestSequence),
 		ChainId:       vaa.ChainIDSolana,
@@ -486,9 +501,9 @@ func TestWasmdAccountantContractModify(t *testing.T) {
 		Reason:        "test modify",
 	}
 	ts := time.Date(2012, 12, 12, 12, 12, 12, 12, time.UTC)
-	modify_vaa := vaa.CreateGovernanceVAA(ts, 1, 1, set.Index, modify_msg.Serialize())
-	*modify_vaa = signVaa(*modify_vaa, privateKeys)
-	vBz, err = modify_vaa.Marshal()
+	modify_vaa := vaa.CreateGovernanceVAA(ts, 1, 1, tb.set.Index, modify_msg.Serialize())
+	*modify_vaa = signVaa(*modify_vaa, tb.privateKeys)
+	vBz, err := modify_vaa.Marshal()
 	require.NoError(t, err)
 
 	// construct the `SubmitVAAs` payload
@@ -503,11 +518,92 @@ func TestWasmdAccountantContractModify(t *testing.T) {
 	require.Error(t, err)
 
 	// Now we can test sending Modify VAA to accountant
-	wasmResponse, err := permissionedWasmd.Execute(ctx, contract_addr, signer, []byte(execute_msg), []sdk.Coin{})
+	wasmResponse, err := permissionedWasmd.Execute(ctx, contract_addr, tb.signer, []byte(execute_msg), []sdk.Coin{})
 	_ = wasmResponse
 	require.NoError(t, err)
 
 	// Query the balance and expect no error
 	_, err = wasmd.QuerySmart(ctx, contract_addr, []byte(query_msg))
 	require.NoError(t, err)
+}
+
+// This specifically tests the modify vaa in accountant
+// This also tests that the path to verify VAAs through the accountant contract to the wormhole querier interface is working.
+func TestWasmdAccountantContractSubmitObservation(t *testing.T) {
+	k, _, permissionedWasmd, ctx := keepertest.WormholeKeeperAndWasmd(t)
+	_ = permissionedWasmd
+
+	tb := setupAccountantAndGuardianSet(t, ctx, k)
+
+	contract_addr, err := sdk.AccAddressFromBech32(tb.contractAddress)
+	require.NoError(t, err)
+
+	token_address := [32]byte{}
+	for i := 0; i < len(token_address); i++ {
+		token_address[i] = 0x7c
+	}
+
+	// 1. Artisanally craft a serialized, signed observation message
+	// See node/package/accountant/submit_obs.go
+	var submitObservationPrefix = []byte("acct_sub_obsfig_000000000000000000|")
+	observation := `[{
+		"tx_hash": "1234",
+		"timestamp": 1234,
+		"nonce": 1,
+		"sequence": 1,
+		"consistency_level": 1,
+		"emitter_chain": 1,
+		"emitter_address": "2F80361EC4EC8DD9452F80A1CF5189442EEB09EC9F3B7C2FA0BCFCD350380AC6",
+		"payload": ""
+	}]`
+	require.NoError(t, err)
+	// the serialized observation
+	observations_serialized := base64.RawStdEncoding.EncodeToString([]byte(observation))
+
+	// the signature of observation
+	digest, err := vaa.MessageSigningDigest(submitObservationPrefix, []byte(observation))
+	require.NoError(t, err)
+	sig, err := crypto.Sign(digest[:], tb.privateKeys[0])
+	require.NoError(t, err)
+	signature_serialized := strings.Join(strings.Fields(fmt.Sprintf("%d", sig)), ",")
+
+	execute_msg := fmt.Sprintf(`{
+		"submit_observations": {
+			"guardian_set_index": %d,
+			"observations": "%s",
+			"signature": {
+			  "index": %d,
+			  "signature": %s
+			}
+		  }
+		}`, tb.set.Index, observations_serialized, 0, signature_serialized)
+
+	fmt.Println("submit_observations: ", execute_msg)
+
+	// 2. Now we can test sending Modify VAA to accountant
+	_, err = permissionedWasmd.Execute(ctx, contract_addr, tb.signer, []byte(execute_msg), []sdk.Coin{})
+	require.NoError(t, err)
+
+	// sending again is okay
+	_, err = permissionedWasmd.Execute(ctx, contract_addr, tb.signer, []byte(execute_msg), []sdk.Coin{})
+	require.NoError(t, err)
+
+	// 3. Let's change one byte of the signature and verify it fails
+	sig[5]++
+	signature_serialized = strings.Join(strings.Fields(fmt.Sprintf("%d", sig)), ",")
+	execute_msg = fmt.Sprintf(`{
+		"submit_observations": {
+			"guardian_set_index": %d,
+			"observations": "%s",
+			"signature": {
+			  "index": %d,
+			  "signature": %s
+			}
+		  }
+		}`, tb.set.Index, observations_serialized, 0, signature_serialized)
+
+	fmt.Println("submit_observations: ", execute_msg)
+
+	_, err = permissionedWasmd.Execute(ctx, contract_addr, tb.signer, []byte(execute_msg), []sdk.Coin{})
+	require.Error(t, err)
 }

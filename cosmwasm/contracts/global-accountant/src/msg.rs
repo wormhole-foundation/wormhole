@@ -2,7 +2,7 @@ use accountant::state::{account, transfer, Account, Modification, Transfer};
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Binary;
 use serde_wormhole::RawMessage;
-use wormhole::{
+use wormhole_sdk::{
     vaa::{Body, Signature},
     Address,
 };

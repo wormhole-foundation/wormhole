@@ -26,8 +26,8 @@ import {
   ETH_PRIVATE_KEY5,
   NEAR_NODE_URL,
   TEST_ERC20,
-} from "./consts";
-import { getSignedVAABySequence } from "./helpers";
+} from "./utils/consts";
+import { getSignedVAABySequence } from "./utils/helpers";
 import { Account, connect, KeyPair, keyStores, Near } from "near-api-js";
 import {
   FinalExecutionOutcome,

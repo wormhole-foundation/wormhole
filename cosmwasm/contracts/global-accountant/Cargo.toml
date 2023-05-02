@@ -18,7 +18,6 @@ anyhow = "1"
 base64 = "0.13"
 cosmwasm-schema = "1"
 cosmwasm-std = "1"
-cosmwasm-storage = "1"
 cw-storage-plus = "0.13.2"
 cw_transcode = "0.1.0"
 cw2 = "0.13.2"
@@ -28,9 +27,8 @@ serde = { version = "1.0.137", default-features = false, features = ["derive"] }
 serde_wormhole = "0.1.0"
 thiserror = { version = "1.0.31" }
 tinyvec = { version = "1.6", default-features = false, features = ["alloc", "serde"]}
-tokenbridge = { package = "token-bridge-terra-2", version = "0.1.0", features = ["library"] }
 wormhole-bindings = "0.1.0"
-wormhole-core = { version = "0.1.0", features = ["schemars"] }
+wormhole-sdk = { version = "0.1.0", features = ["schemars"] }
 
 [dev-dependencies]
 anyhow = { version = "1", features = ["backtrace"] }

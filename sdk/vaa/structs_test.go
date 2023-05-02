@@ -55,6 +55,10 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "optimism", output: ChainIDOptimism},
 		{input: "xpla", output: ChainIDXpla},
 		{input: "btc", output: ChainIDBtc},
+		{input: "base", output: ChainIDBase},
+		{input: "sei", output: ChainIDSei},
+		{input: "wormchain", output: ChainIDWormchain},
+		{input: "sepolia", output: ChainIDSepolia},
 
 		{input: "Solana", output: ChainIDSolana},
 		{input: "Ethereum", output: ChainIDEthereum},
@@ -82,8 +86,10 @@ func TestChainIDFromString(t *testing.T) {
 		{input: "Pythnet", output: ChainIDPythNet},
 		{input: "XPLA", output: ChainIDXpla},
 		{input: "BTC", output: ChainIDBtc},
+		{input: "Base", output: ChainIDBase},
+		{input: "Sei", output: ChainIDSei},
 		{input: "Wormchain", output: ChainIDWormchain},
-		{input: "wormchain", output: ChainIDWormchain},
+		{input: "Sepolia", output: ChainIDSepolia},
 	}
 
 	// Negative Test Cases
@@ -251,7 +257,10 @@ func TestChainId_String(t *testing.T) {
 		{input: 26, output: "pythnet"},
 		{input: 28, output: "xpla"},
 		{input: 29, output: "btc"},
+		{input: 30, output: "base"},
+		{input: 32, output: "sei"},
 		{input: 3104, output: "wormchain"},
+		{input: 10002, output: "sepolia"},
 		{input: 10000, output: "unknown chain ID: 10000"},
 	}
 
@@ -325,7 +334,7 @@ func TestSigningBody(t *testing.T) {
 func TestSigningMsg(t *testing.T) {
 	vaa := getVaa()
 	expected := common.HexToHash("4fae136bb1fd782fe1b5180ba735cdc83bcece3f9b7fd0e5e35300a61c8acd8f")
-	assert.Equal(t, vaa.SigningMsg(), expected)
+	assert.Equal(t, vaa.SigningDigest(), expected)
 }
 
 func TestMessageID(t *testing.T) {
@@ -364,30 +373,24 @@ func TestUnmarshalNoPayload(t *testing.T) {
 	assert.Equal(t, &vaa1, vaa2)
 }
 
-func TestUnmarshalTooBig(t *testing.T) {
+func TestUnmarshalBigPayload(t *testing.T) {
 	vaa := getVaa()
 
-	// Overwrite an oversized payload for the VAA that we cannot unmarshal
+	// Create a payload of more than 1000 bytes.
 	var payload []byte
 	for i := 0; i < 2000; i++ {
-		payload = append(payload, 'a')
+		ch := i % 255
+		payload = append(payload, byte(ch))
 	}
 	vaa.Payload = payload
 
-	// Let's marshal the VAA to bytes to unmarshaled
 	marshalBytes, err := vaa.Marshal()
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
-	// Let's now unmarshal the oversized VAA and cause it to panic
-	vaa2, err2 := Unmarshal(marshalBytes)
-	assert.Nil(t, err2)
+	vaa2, err := Unmarshal(marshalBytes)
+	require.NoError(t, err)
 
-	// Marshal the VAA
-	marshalBytes2, err3 := vaa2.Marshal()
-	assert.Nil(t, err3)
-
-	// Verify that it's truncated at to 1057 (57 byte header + 1000 byte payload)
-	assert.Equal(t, marshalBytes[:1057], marshalBytes2)
+	assert.Equal(t, vaa, *vaa2)
 }
 
 func TestVerifySignatures(t *testing.T) {

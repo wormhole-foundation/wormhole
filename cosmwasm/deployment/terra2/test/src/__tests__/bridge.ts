@@ -54,11 +54,11 @@ const CONSISTENCY_LEVEL = 0;
 
 const CHAIN_ID = 18;
 
-const WASM_WORMHOLE = "../artifacts/wormhole.wasm";
+const WASM_WORMHOLE = "../artifacts/cw_wormhole.wasm";
 const WASM_SHUTDOWN_WORMHOLE =
   "../artifacts/shutdown_core_bridge_cosmwasm.wasm";
 const WASM_WRAPPED_ASSET = "../artifacts/cw20_wrapped_2.wasm";
-const WASM_TOKEN_BRIDGE = "../artifacts/token_bridge_terra_2.wasm";
+const WASM_TOKEN_BRIDGE = "../artifacts/cw_token_bridge.wasm";
 const WASM_SHUTDOWN_TOKEN_BRIDGE =
   "../artifacts/shutdown_token_bridge_cosmwasm.wasm";
 const WASM_MOCK_BRIDGE_INTEGRATION =

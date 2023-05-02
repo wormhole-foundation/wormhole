@@ -15,22 +15,42 @@ var CoreModule = []byte{00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 
 var WasmdModule = [32]byte{00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 0x57, 0x61, 0x73, 0x6D, 0x64, 0x4D, 0x6F, 0x64, 0x75, 0x6C, 0x65}
 var WasmdModuleStr = string(WasmdModule[:])
 
+// CircleIntegrationModule is the identifier of the Circle Integration module (which is used for governance messages).
+// It is the hex representation of "CircleIntegration" left padded with zeroes.
+var CircleIntegrationModule = [32]byte{
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x43,
+	0x69, 0x72, 0x63, 0x6c, 0x65, 0x49, 0x6e, 0x74, 0x65, 0x67, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e,
+}
+var CircleIntegrationModuleStr = string(CircleIntegrationModule[:])
+
 type GovernanceAction uint8
 
 var (
-	// Wormhole governance actions
-	ActionContractUpgrade   GovernanceAction = 1
-	ActionGuardianSetUpdate GovernanceAction = 2
+	// Wormhole core governance actions
+	// See e.g. GovernanceStructs.sol for semantic meaning of these
+	ActionContractUpgrade    GovernanceAction = 1
+	ActionGuardianSetUpdate  GovernanceAction = 2
+	ActionCoreSetMessageFee  GovernanceAction = 3
+	ActionCoreTransferFees   GovernanceAction = 4
+	ActionCoreRecoverChainId GovernanceAction = 5
 
 	// Wormchain cosmwasm governance actions
 	ActionStoreCode           GovernanceAction = 1
 	ActionInstantiateContract GovernanceAction = 2
 	ActionMigrateContract     GovernanceAction = 3
 
+	// Accountant goverance actions
+	ActionModifyBalance GovernanceAction = 1
+
 	// Wormhole tokenbridge governance actions
-	ActionRegisterChain      GovernanceAction = 1
-	ActionUpgradeTokenBridge GovernanceAction = 2
-	ActionModifyBalance      GovernanceAction = 3
+	ActionRegisterChain             GovernanceAction = 1
+	ActionUpgradeTokenBridge        GovernanceAction = 2
+	ActionTokenBridgeRecoverChainId GovernanceAction = 3
+
+	// Circle Integration governance actions
+	CircleIntegrationActionUpdateWormholeFinality        GovernanceAction = 1
+	CircleIntegrationActionRegisterEmitterAndDomain      GovernanceAction = 2
+	CircleIntegrationActionUpgradeContractImplementation GovernanceAction = 3
 )
 
 type (
@@ -61,7 +81,7 @@ type (
 	}
 
 	// BodyTokenBridgeModifyBalance is a governance message to modify accountant balances for the tokenbridge.
-	BodyTokenBridgeModifyBalance struct {
+	BodyAccountantModifyBalance struct {
 		Module        string
 		TargetChainID ChainID
 		Sequence      uint64
@@ -86,6 +106,26 @@ type (
 	// BodyWormchainInstantiateContract is a governance message to migrate a cosmwasm contract on wormchain
 	BodyWormchainMigrateContract struct {
 		MigrationParamsHash [32]byte
+	}
+
+	// BodyCircleIntegrationUpdateWormholeFinality is a governance message to update the wormhole finality for Circle Integration.
+	BodyCircleIntegrationUpdateWormholeFinality struct {
+		TargetChainID ChainID
+		Finality      uint8
+	}
+
+	// BodyCircleIntegrationRegisterEmitterAndDomain is a governance message to register an emitter and domain for Circle Integration.
+	BodyCircleIntegrationRegisterEmitterAndDomain struct {
+		TargetChainID         ChainID
+		ForeignEmitterChainId ChainID
+		ForeignEmitterAddress [32]byte
+		CircleDomain          uint32
+	}
+
+	// BodyCircleIntegrationUpgradeContractImplementation is a governance message to upgrade the contract implementation for Circle Integration.
+	BodyCircleIntegrationUpgradeContractImplementation struct {
+		TargetChainID            ChainID
+		NewImplementationAddress [32]byte
 	}
 )
 
@@ -135,7 +175,7 @@ func (r BodyTokenBridgeUpgradeContract) Serialize() []byte {
 	return serializeBridgeGovernanceVaa(r.Module, ActionUpgradeTokenBridge, r.TargetChainID, r.NewContract[:])
 }
 
-func (r BodyTokenBridgeModifyBalance) Serialize() []byte {
+func (r BodyAccountantModifyBalance) Serialize() []byte {
 	payload := &bytes.Buffer{}
 	MustWrite(payload, binary.BigEndian, r.Sequence)
 	MustWrite(payload, binary.BigEndian, r.ChainId)
@@ -168,6 +208,24 @@ func (r BodyWormchainInstantiateContract) Serialize() []byte {
 
 func (r BodyWormchainMigrateContract) Serialize() []byte {
 	return serializeBridgeGovernanceVaa(WasmdModuleStr, ActionMigrateContract, ChainIDWormchain, r.MigrationParamsHash[:])
+}
+
+func (r BodyCircleIntegrationUpdateWormholeFinality) Serialize() []byte {
+	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionUpdateWormholeFinality, r.TargetChainID, []byte{r.Finality})
+}
+
+func (r BodyCircleIntegrationRegisterEmitterAndDomain) Serialize() []byte {
+	payload := &bytes.Buffer{}
+	MustWrite(payload, binary.BigEndian, r.ForeignEmitterChainId)
+	payload.Write(r.ForeignEmitterAddress[:])
+	MustWrite(payload, binary.BigEndian, r.CircleDomain)
+	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionRegisterEmitterAndDomain, r.TargetChainID, payload.Bytes())
+}
+
+func (r BodyCircleIntegrationUpgradeContractImplementation) Serialize() []byte {
+	payload := &bytes.Buffer{}
+	payload.Write(r.NewImplementationAddress[:])
+	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionUpgradeContractImplementation, r.TargetChainID, payload.Bytes())
 }
 
 func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chainId ChainID, payload []byte) []byte {

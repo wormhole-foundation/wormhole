@@ -4,7 +4,7 @@ use accountant::state::transfer;
 use cosmwasm_std::{to_binary, Uint256};
 use global_accountant::msg::Observation;
 use helpers::*;
-use wormhole::{token::Message, Address, Amount, Chain};
+use wormhole_sdk::{token::Message, Address, Amount, Chain};
 
 fn create_observation() -> Observation {
     let msg: Message = Message::Transfer {

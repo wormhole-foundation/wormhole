@@ -34,7 +34,7 @@ const artifacts = [
   "token_bridge_terra.wasm",
   "cw20_wrapped.wasm",
   "cw20_base.wasm",
-  "nft_bridge.wasm",
+  "nft_bridge_terra.wasm",
   "cw721_wrapped.wasm",
   "cw721_base.wasm",
   "mock_bridge_integration.wasm",
@@ -208,7 +208,7 @@ addresses["mock.wasm"] = await instantiate("cw20_base.wasm", {
   mint: null,
 });
 
-addresses["nft_bridge.wasm"] = await instantiate("nft_bridge.wasm", {
+addresses["nft_bridge_terra.wasm"] = await instantiate("nft_bridge_terra.wasm", {
   gov_chain: govChain,
   gov_address: Buffer.from(govAddress, "hex").toString("base64"),
   wormhole_contract: addresses["wormhole.wasm"],
@@ -279,7 +279,7 @@ const contract_registrations = {
     // APTOS
     process.env.REGISTER_APTOS_TOKEN_BRIDGE_VAA,
   ],
-  "nft_bridge.wasm": [
+  "nft_bridge_terra.wasm": [
     // Solana
     process.env.REGISTER_SOL_NFT_BRIDGE_VAA,
     // Ethereum

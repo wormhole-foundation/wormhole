@@ -42,7 +42,7 @@ type (
 		pumpData    chan []byte
 		rpcClient   *rpc.Client
 		// Readiness component
-		readiness readiness.Component
+		readinessSync readiness.Component
 		// VAA ChainID of the network we're connecting to.
 		chainID vaa.ChainID
 		// Human readable name of network
@@ -181,20 +181,19 @@ func NewSolanaWatcher(
 	msgC chan<- *common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
 	commitment rpc.CommitmentType,
-	readiness readiness.Component,
 	chainID vaa.ChainID) *SolanaWatcher {
 	return &SolanaWatcher{
-		rpcUrl:      rpcUrl,
-		wsUrl:       wsUrl,
-		contract:    contractAddress,
-		rawContract: rawContract,
-		msgC:        msgC,
-		obsvReqC:    obsvReqC,
-		commitment:  commitment,
-		rpcClient:   rpc.New(rpcUrl),
-		readiness:   readiness,
-		chainID:     chainID,
-		networkName: vaa.ChainID(chainID).String(),
+		rpcUrl:        rpcUrl,
+		wsUrl:         wsUrl,
+		contract:      contractAddress,
+		rawContract:   rawContract,
+		msgC:          msgC,
+		obsvReqC:      obsvReqC,
+		commitment:    commitment,
+		rpcClient:     rpc.New(rpcUrl),
+		readinessSync: common.MustConvertChainIdToReadinessSyncing(chainID),
+		chainID:       chainID,
+		networkName:   vaa.ChainID(chainID).String(),
 	}
 }
 
@@ -334,7 +333,7 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					lastSlot = slot - 1
 				}
 				currentSolanaHeight.WithLabelValues(s.networkName, string(s.commitment)).Set(float64(slot))
-				readiness.SetReady(s.readiness)
+				readiness.SetReady(s.readinessSync)
 				p2p.DefaultRegistry.SetNetworkStats(s.chainID, &gossipv1.Heartbeat_Network{
 					Height:          int64(slot),
 					ContractAddress: contractAddr,
