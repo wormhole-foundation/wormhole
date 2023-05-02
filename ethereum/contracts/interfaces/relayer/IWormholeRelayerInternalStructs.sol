@@ -38,7 +38,7 @@ interface IWormholeRelayerInternalStructs {
         bytes32 deliveryVaaHash;
         bytes[] encodedVMs;
         address payable relayerRefundAddress;
-        DeliveryInstruction internalInstruction;
+        DeliveryInstruction deliveryInstruction;
         bytes32 redeliveryHash;
     }
 
