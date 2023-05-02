@@ -377,6 +377,21 @@ export function packOverrides(overrides: DeliveryOverrideArgs): string {
   return "0x" + packed;
 }
 
+export function parseForwardFailureError(
+  bytes: Buffer
+): string {
+  let idx = 4;
+  console.log(bytes.length);
+  const amountOfFunds = ethers.BigNumber.from(
+    Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
+  );
+  idx += 32;
+  const amountOfFundsNeeded = ethers.BigNumber.from(
+    Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
+  );
+  return `Not enough funds leftover for forward: Had ${amountOfFunds.toString()} wei and needed ${amountOfFundsNeeded.toString()} wei.`
+}
+
 export function parseOverrideInfoFromDeliveryEvent(
   bytes: Buffer
 ): DeliveryOverrideArgs {

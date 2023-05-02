@@ -30,6 +30,7 @@ import {
   getWormholeRelayerInfoBySourceSequence,
   vaaKeyToVaaKeyStruct,
   getRelayProvider,
+  DeliveryTargetInfo
 } from "./helpers";
 import { IWormholeRelayer } from "../../ethers-contracts";
 
@@ -52,10 +53,7 @@ export type DeliveryInfo = {
   deliveryInstruction: DeliveryInstruction;
   targetChainStatus: {
     chainId: ChainId;
-    events: {
-      status: DeliveryStatus | string;
-      transactionHash: string | null;
-    }[];
+    events: DeliveryTargetInfo[];
   };
 };
 
@@ -101,23 +99,23 @@ export function stringifyWormholeRelayerInfo(info: DeliveryInfo): string {
     const length = 1;
     const instruction = info.deliveryInstruction;
     const targetChainName = CHAIN_ID_TO_NAME[instruction.targetChain as ChainId];
-    stringifiedInfo += `${numMsgs == 0 ? (payload.length == 0 ? '' : '\n\nPayload was requested to be relayed') : 'These were requested to be sent'} to 0x${instruction.targetAddress.toString(
+    stringifiedInfo += `${numMsgs == 0 ? (payload.length == 0 ? '' : '\n\nPayload was requested to be relayed') : '\n\nThese were requested to be sent'} to 0x${instruction.targetAddress.toString(
 
       "hex"
     )} on ${printChain(instruction.targetChain)}\n`;
     stringifiedInfo += instruction.receiverValueTarget.gt(0)
       ? `Amount to pass into target address: ${instruction.receiverValueTarget} wei of ${targetChainName} currency\n`
       : ``;
-    stringifiedInfo += `Gas limit: ${instruction.executionParameters.gasLimit} ${targetChainName} gas\n`;
+    stringifiedInfo += `Gas limit: ${instruction.executionParameters.gasLimit} ${targetChainName} gas\n\n`;
     stringifiedInfo += info.targetChainStatus.events
 
             .map(
               (e, i) =>
-                `Delivery attempt ${i + 1}: ${e.status}${
+                `Delivery attempt ${i + 1}: ${
                   e.transactionHash
-                    ? ` (${targetChainName} transaction hash: ${e.transactionHash})`
+                    ? ` ${targetChainName} transaction hash: ${e.transactionHash}`
                     : ""
-                }`
+                }\nStatus: ${e.status}\n${e.revertString ? `Failure reason: ${e.gasUsed == instruction.executionParameters.gasLimit ? "Gas limit hit" : e.revertString}\n`: ""}Gas used: ${e.gasUsed}\nTransaction fee used: ${instruction.maximumRefundTarget.mul(e.gasUsed).div(instruction.executionParameters.gasLimit).toString()} wei of ${targetChainName} currency\n}`
             )
             .join("\n");
    }
