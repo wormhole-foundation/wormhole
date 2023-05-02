@@ -308,7 +308,7 @@ export const initTokenBridge = async (
 export const initWormhole = async (
   network: Network,
   coreBridgePackageId: string,
-  initialGuardian: string,
+  initialGuardians: string,
   governanceChainId: number,
   guardianSetIndex: number,
   governanceContract: string,
@@ -357,7 +357,9 @@ export const initWormhole = async (
       transactionBlock.pure(governanceChainId),
       transactionBlock.pure([...Buffer.from(governanceContract, "hex")]),
       transactionBlock.pure(guardianSetIndex),
-      transactionBlock.pure([[...Buffer.from(initialGuardian, "hex")]]),
+      transactionBlock.pure(
+        initialGuardians.split(",").map((g) => [...Buffer.from(g, "hex")])
+      ),
       transactionBlock.pure(24 * 60 * 60), // Guardian set TTL in seconds
       transactionBlock.pure("0"), // Message fee
     ],
