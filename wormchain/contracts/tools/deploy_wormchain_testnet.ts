@@ -120,6 +120,8 @@ async function main() {
         consistencyLevel: 0,
         payload: {
           type: "Other",
+          // 32-byte id `WasmdModule`, action = 1 (ActionStoreCode), chain = Wormchain, payload = wasm hash
+          // https://github.com/wormhole-foundation/wormhole/blob/main/sdk/vaa/payloads.go#L55
           hex: `0000000000000000000000000000000000000000005761736D644D6F64756C65010${CHAIN_ID_WORMCHAIN.toString(
             16
           )}${payload}`,
