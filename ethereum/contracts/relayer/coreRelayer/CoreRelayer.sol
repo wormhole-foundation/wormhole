@@ -311,6 +311,7 @@ abstract contract CoreRelayer is CoreRelayerDelivery {
             newMaximumRefundTarget: calculateTargetDeliveryMaximumRefund(targetChain, newMaxTransactionFee, relayProvider),
             newReceiverValueTarget: convertReceiverValueAmountToTarget(newReceiverValue, targetChain, relayProvider),
             sourceRelayProvider: toWormholeFormat(relayProviderAddress),
+            targetChain: targetChain,
             executionParameters: IWormholeRelayerInternalStructs.ExecutionParameters({
                 version: 1,
                 gasLimit: calculateTargetGasDeliveryAmount(targetChain, newMaxTransactionFee, relayProvider)

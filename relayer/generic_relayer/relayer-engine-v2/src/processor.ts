@@ -84,7 +84,17 @@ function isValidRedelivery(
   redelivery: RedeliveryInstruction
 ): boolean {
   //TODO check that the delivery & redelivery chains agree!
-  if (!delivery.targetChain) {
+  if (delivery.targetChain != redelivery.targetChain) {
+    ctx.logger.info(
+      "Redelivery targetChain does not match original delivery targetChain"
+    );
+    ctx.logger.info(
+      "Original targetChain: " +
+        delivery.targetChain +
+        " Redelivery targetChain: " +
+        redelivery.targetChain
+    );
+    return false;
   }
 
   //TODO check that the sourceRelayerAddress is one of this relayer's addresses

@@ -47,6 +47,7 @@ interface IWormholeRelayerInternalStructs {
         uint256 newMaximumRefundTarget;
         uint256 newReceiverValueTarget;
         bytes32 sourceRelayProvider;
+        uint16 targetChain;
         ExecutionParameters executionParameters;
     }
 
