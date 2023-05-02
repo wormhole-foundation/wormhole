@@ -1,5 +1,5 @@
 [package]
-name = "nft-bridge"
+name = "nft-bridge-terra"
 version = "0.1.0"
 edition = "2018"
 description = "Wormhole NFT bridge"

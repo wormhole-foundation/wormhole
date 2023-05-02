@@ -4,6 +4,7 @@ export * from "./getForeignAsset";
 export * from "./getIsTransferCompleted";
 export * from "./getIsWrappedAsset";
 export * from "./getOriginalAsset";
+export * from "./injective";
 export * from "./redeem";
 export * from "./transfer";
 export * from "./updateWrapped";

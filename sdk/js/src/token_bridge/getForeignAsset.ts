@@ -1,10 +1,12 @@
+import { JsonRpcProvider } from "@mysten/sui.js";
 import { Commitment, Connection, PublicKeyInitData } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
-import { ChainGrpcWasmApi } from "@injectivelabs/sdk-ts";
+import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
 import { Algodv2 } from "algosdk";
 import { AptosClient } from "aptos";
 import { ethers } from "ethers";
 import { fromUint8Array } from "js-base64";
+import { Provider } from "near-api-js/lib/providers";
 import {
   calcLogicSigAccount,
   decodeLocalState,
@@ -12,18 +14,16 @@ import {
 } from "../algorand";
 import { Bridge__factory } from "../ethers-contracts";
 import { deriveWrappedMintKey, getWrappedMeta } from "../solana/tokenBridge";
+import { getTokenCoinType } from "../sui";
 import {
   callFunctionNear,
   ChainId,
   ChainName,
   CHAIN_ID_ALGORAND,
   coalesceChainId,
-  getAssetFullyQualifiedType,
   coalesceModuleAddress,
-  parseSmartContractStateResponse,
+  getAssetFullyQualifiedType,
 } from "../utils";
-import { Provider } from "near-api-js/lib/providers";
-import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
 
 /**
  * Returns a foreign asset address on Ethereum for a provided native chain and asset address, AddressZero if it does not exist
@@ -67,39 +67,6 @@ export async function getForeignAssetTerra(
       }
     );
     return result.address;
-  } catch (e) {
-    return null;
-  }
-}
-
-/**
- * Returns the address of the foreign asset
- * @param tokenBridgeAddress Address of token bridge contact
- * @param client Holds the wallet and signing information
- * @param originChain The chainId of the origin of the asset
- * @param originAsset The address of the origin asset
- * @returns The foreign asset address or null
- */
-export async function getForeignAssetInjective(
-  tokenBridgeAddress: string,
-  client: ChainGrpcWasmApi,
-  originChain: ChainId | ChainName,
-  originAsset: Uint8Array
-): Promise<string | null> {
-  try {
-    const queryResult = await client.fetchSmartContractState(
-      tokenBridgeAddress,
-      Buffer.from(
-        JSON.stringify({
-          wrapped_registry: {
-            chain: coalesceChainId(originChain),
-            address: fromUint8Array(originAsset),
-          },
-        })
-      ).toString("base64")
-    );
-    const parsed = parseSmartContractStateResponse(queryResult);
-    return parsed.address;
   } catch (e) {
     return null;
   }
@@ -236,4 +203,19 @@ export async function getForeignAssetAptos(
   } catch (e) {
     return null;
   }
+}
+
+export async function getForeignAssetSui(
+  provider: JsonRpcProvider,
+  tokenBridgeStateObjectId: string,
+  originChain: ChainId | ChainName,
+  originAddress: Uint8Array
+): Promise<string | null> {
+  const originChainId = coalesceChainId(originChain);
+  return getTokenCoinType(
+    provider,
+    tokenBridgeStateObjectId,
+    originAddress,
+    originChainId
+  );
 }

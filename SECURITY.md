@@ -44,7 +44,8 @@ As these 3rd party audits are completed and issues are sufficiently addressed, w
 - **Q4 2022 - Certik (DRAFT)**: _Solitaire_
 - **Q4 2022 - Coinspect (DRAFT)**: _Algorand Contracts_
 - **Q4 2022 - Hacken (DRAFT)**: _NEAR Contracts_
-- **Q1 2023 - Trail of Bits (SCHEDULED)**: _Guardian_
+- **Q1 2023 - Trail of Bits (FINAL EDITING)**: _Guardian_
+- **Q2 2023 - Runtime Verification (IN PROGRESS)**: _Guardian_
 
 
 ## Bug Bounty Program

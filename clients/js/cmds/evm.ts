@@ -1,6 +1,3 @@
-import yargs from "yargs";
-import { ethers } from "ethers";
-import { NETWORKS } from "../networks";
 import {
   assertChain,
   assertEVMChain,
@@ -9,7 +6,12 @@ import {
   isEVMChain,
   toChainName,
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
-import { evm_address } from "../consts";
+import { ethers } from "ethers";
+import yargs from "yargs";
+import { NETWORKS } from "../networks";
+import { evm_address } from "../utils";
+import { config } from '../config';
+import { runCommand, validator_args } from '../start-validator';
 
 exports.command = "evm";
 exports.desc = "EVM utilities";
@@ -193,6 +195,14 @@ exports.builder = function (y: typeof yargs) {
         );
       }
     )
+    .command("start-validator", "Start a local EVM validator", (yargs) => {
+      return yargs
+      .option("validator-args", validator_args)
+    }, (argv) => {
+        const dir = `${config.wormholeDir}/ethereum`;
+        const cmd = `cd ${dir} && npx ganache-cli -e 10000 --deterministic --time="1970-01-01T00:00:00+00:00"`;
+        runCommand(cmd, argv['validator-args'])
+    })
     .strict()
     .demandCommand();
 };

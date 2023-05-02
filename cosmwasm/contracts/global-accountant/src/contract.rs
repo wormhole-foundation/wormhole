@@ -16,12 +16,12 @@ use cw2::set_contract_version;
 use cw_storage_plus::Bound;
 use serde_wormhole::RawMessage;
 use tinyvec::{Array, TinyVec};
-use wormhole::{
-    token::{Action, GovernancePacket, Message, ModificationKind},
+use wormhole_bindings::WormholeQuery;
+use wormhole_sdk::{
+    accountant as accountant_module, token,
     vaa::{self, Body, Header, Signature},
     Chain,
 };
-use wormhole_bindings::WormholeQuery;
 
 use crate::{
     bail,
@@ -89,15 +89,12 @@ fn submit_observations(
     // We need to prepend an observation prefix to `observations`, which is the
     // same prefix used by the guardians to sign these observations. This
     // prefix specifies this type as global accountant observations.
-    let mut prepended =
-        Vec::with_capacity(SUBMITTED_OBSERVATIONS_PREFIX.len() + observations.len());
-    prepended.extend_from_slice(SUBMITTED_OBSERVATIONS_PREFIX);
-    prepended.extend_from_slice(observations.as_slice());
 
     deps.querier
         .query::<Empty>(
-            &WormholeQuery::VerifySignature {
-                data: prepended.into(),
+            &WormholeQuery::VerifyMessageSignature {
+                prefix: SUBMITTED_OBSERVATIONS_PREFIX.into(),
+                data: observations.clone(),
                 guardian_set_index,
                 signature,
             }
@@ -156,6 +153,16 @@ fn handle_observation(
     quorum: u32,
     sig: Signature,
 ) -> anyhow::Result<(ObservationStatus, Option<Event>)> {
+    let registered_emitter = CHAIN_REGISTRATIONS
+        .may_load(deps.storage, o.emitter_chain)
+        .context("failed to load chain registration")?
+        .ok_or_else(|| ContractError::MissingChainRegistration(o.emitter_chain.into()))?;
+
+    ensure!(
+        *registered_emitter == o.emitter_address,
+        "unknown emitter address"
+    );
+
     let digest = o.digest().context(ContractError::ObservationDigest)?;
 
     let digest_key = DIGESTS.key((o.emitter_chain, o.emitter_address.to_vec(), o.sequence));
@@ -205,17 +212,17 @@ fn handle_observation(
         return Ok((ObservationStatus::Pending, None));
     }
 
-    let msg = serde_wormhole::from_slice::<Message<&RawMessage>>(&o.payload)
+    let msg = serde_wormhole::from_slice::<token::Message<&RawMessage>>(&o.payload)
         .context("failed to parse observation payload")?;
     let tx_data = match msg {
-        Message::Transfer {
+        token::Message::Transfer {
             amount,
             token_address,
             token_chain,
             recipient_chain,
             ..
         }
-        | Message::TransferWithPayload {
+        | token::Message::TransferWithPayload {
             amount,
             token_address,
             token_chain,
@@ -229,16 +236,6 @@ fn handle_observation(
         },
         _ => bail!("Unknown tokenbridge payload"),
     };
-
-    let registered_emitter = CHAIN_REGISTRATIONS
-        .may_load(deps.storage, o.emitter_chain)
-        .context("failed to load chain registration")?
-        .ok_or_else(|| ContractError::MissingChainRegistration(o.emitter_chain.into()))?;
-
-    ensure!(
-        *registered_emitter == o.emitter_address,
-        "unknown emitter address"
-    );
 
     accountant::commit_transfer(
         deps.branch(),
@@ -306,14 +303,7 @@ fn handle_vaa(
     ensure!(header.version == 1, "unsupported VAA version");
 
     deps.querier
-        .query::<Empty>(
-            &WormholeQuery::VerifyQuorum {
-                data: data.to_vec().into(),
-                guardian_set_index: header.guardian_set_index,
-                signatures: header.signatures,
-            }
-            .into(),
-        )
+        .query::<Empty>(&WormholeQuery::VerifyVaa { vaa: vaa.clone() }.into())
         .context(ContractError::VerifyQuorum)?;
 
     let digest = vaa::digest(data)
@@ -342,11 +332,24 @@ fn handle_vaa(
 
     // We may also accept governance messages from wormchain in the future
     let mut evt = if body.emitter_chain == Chain::Solana
-        && body.emitter_address == wormhole::GOVERNANCE_EMITTER
+        && body.emitter_address == wormhole_sdk::GOVERNANCE_EMITTER
     {
-        let govpacket = serde_wormhole::from_slice(body.payload)
-            .context("failed to parse governance packet")?;
-        handle_governance_vaa(deps.branch(), info, body.with_payload(govpacket))?
+        if body.payload.len() < 32 {
+            bail!("governance module missing");
+        }
+        let module = &body.payload[..32];
+
+        if module == token::MODULE {
+            let govpacket = serde_wormhole::from_slice(body.payload)
+                .context("failed to parse tokenbridge governance packet")?;
+            handle_token_governance_vaa(deps.branch(), body.with_payload(govpacket))?
+        } else if module == accountant_module::MODULE {
+            let govpacket = serde_wormhole::from_slice(body.payload)
+                .context("failed to parse accountant governance packet")?;
+            handle_accountant_governance_vaa(deps.branch(), info, body.with_payload(govpacket))?
+        } else {
+            bail!("unknown governance module")
+        }
     } else {
         let msg = serde_wormhole::from_slice(body.payload)
             .context("failed to parse tokenbridge message")?;
@@ -362,18 +365,17 @@ fn handle_vaa(
     Ok(evt)
 }
 
-fn handle_governance_vaa(
+fn handle_token_governance_vaa(
     deps: DepsMut<WormholeQuery>,
-    info: &MessageInfo,
-    body: Body<GovernancePacket>,
+    body: Body<token::GovernancePacket>,
 ) -> anyhow::Result<Event> {
     ensure!(
         body.payload.chain == Chain::Any || body.payload.chain == Chain::Wormchain,
-        "this governance VAA is for another chain"
+        "this token governance VAA is for another chain"
     );
 
     match body.payload.action {
-        Action::RegisterChain {
+        token::Action::RegisterChain {
             chain,
             emitter_address,
         } => {
@@ -388,7 +390,22 @@ fn handle_governance_vaa(
                 .add_attribute("chain", chain.to_string())
                 .add_attribute("emitter_address", emitter_address.to_string()))
         }
-        Action::ModifyBalance {
+        _ => bail!("unsupported governance action"),
+    }
+}
+
+fn handle_accountant_governance_vaa(
+    deps: DepsMut<WormholeQuery>,
+    info: &MessageInfo,
+    body: Body<accountant_module::GovernancePacket>,
+) -> anyhow::Result<Event> {
+    ensure!(
+        body.payload.chain == Chain::Wormchain,
+        "this accountant governance VAA is for another chain"
+    );
+
+    match body.payload.action {
+        accountant_module::Action::ModifyBalance {
             sequence,
             chain_id,
             token_chain,
@@ -399,9 +416,11 @@ fn handle_governance_vaa(
         } => {
             let token_address = TokenAddress::new(token_address.0);
             let kind = match kind {
-                ModificationKind::Add => Kind::Add,
-                ModificationKind::Subtract => Kind::Sub,
-                ModificationKind::Unknown => bail!("unsupported governance action"),
+                accountant_module::ModificationKind::Add => Kind::Add,
+                accountant_module::ModificationKind::Subtract => Kind::Sub,
+                accountant_module::ModificationKind::Unknown => {
+                    bail!("unsupported governance action")
+                }
             };
             let amount = Uint256::from_be_bytes(amount.0);
             let modification = Modification {
@@ -415,23 +434,32 @@ fn handle_governance_vaa(
             };
             modify_balance(deps, info, modification).map_err(|e| e.into())
         }
-        _ => bail!("unsupported governance action"),
     }
 }
 
 fn handle_tokenbridge_vaa(
     mut deps: DepsMut<WormholeQuery>,
-    body: Body<Message<&RawMessage>>,
+    body: Body<token::Message<&RawMessage>>,
 ) -> anyhow::Result<Event> {
+    let registered_emitter = CHAIN_REGISTRATIONS
+        .may_load(deps.storage, body.emitter_chain.into())
+        .context("failed to load chain registration")?
+        .ok_or(ContractError::MissingChainRegistration(body.emitter_chain))?;
+
+    ensure!(
+        *registered_emitter == body.emitter_address.0,
+        "unknown emitter address"
+    );
+
     let data = match body.payload {
-        Message::Transfer {
+        token::Message::Transfer {
             amount,
             token_address,
             token_chain,
             recipient_chain,
             ..
         }
-        | Message::TransferWithPayload {
+        | token::Message::TransferWithPayload {
             amount,
             token_address,
             token_chain,

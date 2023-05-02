@@ -8,7 +8,7 @@ use crate::{
     state::{config, config_read, Config},
 };
 
-use token_bridge_terra_2::{
+use cw_token_bridge::{
     msg::TransferInfoResponse,
     msg::{ExecuteMsg as TokenBridgeExecuteMsg, QueryMsg as TokenBridgeQueryMessage},
 };

@@ -39,6 +39,8 @@ type (
 		// Incoming re-observation requests from the network. Pre-filtered to only
 		// include requests for our chainID.
 		obsvReqC <-chan *gossipv1.ObservationRequest
+
+		readinessSync readiness.Component
 	}
 )
 
@@ -77,7 +79,13 @@ func NewWatcher(
 	urlLCD string,
 	msgC chan<- *common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest) *Watcher {
-	return &Watcher{urlWS: urlWS, urlLCD: urlLCD, msgC: msgC, obsvReqC: obsvReqC}
+	return &Watcher{
+		urlWS:         urlWS,
+		urlLCD:        urlLCD,
+		msgC:          msgC,
+		obsvReqC:      obsvReqC,
+		readinessSync: common.MustConvertChainIdToReadinessSyncing(vaa.ChainIDWormchain),
+	}
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
@@ -121,7 +129,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	}
 	logger.Info("subscribed to new transaction events")
 
-	readiness.SetReady(common.ReadinessWormchainSyncing)
+	readiness.SetReady(e.readinessSync)
 
 	go func() {
 		t := time.NewTicker(5 * time.Second)
@@ -154,6 +162,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 			p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDWormchain, &gossipv1.Heartbeat_Network{
 				Height: latestBlock.Int(),
 			})
+
+			readiness.SetReady(e.readinessSync)
 		}
 	}()
 

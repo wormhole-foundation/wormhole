@@ -9,4 +9,4 @@ description = "Shutdown Wormhole core bridge on cosmwasm"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-wormhole-bridge-terra-2 = { version = "0.1.0", default-features = false }
+wormhole-cosmwasm = { version = "0.1.0", default-features = false }

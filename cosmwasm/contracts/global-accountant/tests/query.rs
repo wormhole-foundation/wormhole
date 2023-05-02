@@ -9,8 +9,8 @@ use accountant::state::{
 use cosmwasm_std::Uint256;
 use global_accountant::msg::TransferStatus;
 use helpers::*;
-use wormhole::{token::Message, vaa::Body, Address, Amount};
 use wormhole_bindings::fake;
+use wormhole_sdk::{token::Message, vaa::Body, Address, Amount};
 
 fn create_accounts(wh: &fake::WormholeKeeper, contract: &mut Contract, count: usize) {
     let mut s = 0;
@@ -135,9 +135,10 @@ fn missing_account() {
         [(count + 3) as u8; 32].into(),
     );
 
-    contract
+    let err = contract
         .query_balance(missing)
         .expect_err("successfully queried missing account key");
+    assert!(err.to_string().to_lowercase().contains("balance not found"));
 }
 
 #[test]
@@ -212,6 +213,7 @@ fn all_balances_sub_range() {
 fn transfer_data() {
     let count = 2;
     let (wh, mut contract) = proper_instantiate();
+    register_emitters(&wh, &mut contract, count);
     create_transfers(&wh, &mut contract, count);
 
     for i in 0..count {
@@ -233,6 +235,7 @@ fn transfer_data() {
 fn missing_transfer() {
     let count = 2;
     let (wh, mut contract) = proper_instantiate();
+    register_emitters(&wh, &mut contract, count);
     create_transfers(&wh, &mut contract, count);
 
     let missing = transfer::Key::new(
@@ -241,15 +244,17 @@ fn missing_transfer() {
         (count + 3) as u64,
     );
 
-    contract
+    let err = contract
         .query_transfer(missing)
         .expect_err("successfully queried missing transfer key");
+    assert!(err.to_string().to_lowercase().contains("not found"));
 }
 
 #[test]
 fn all_transfer_data() {
     let count = 3;
     let (wh, mut contract) = proper_instantiate();
+    register_emitters(&wh, &mut contract, count);
     let transfers = create_transfers(&wh, &mut contract, count);
 
     let resp = contract.query_all_transfers(None, None).unwrap();
@@ -269,6 +274,7 @@ fn all_transfer_data() {
 fn batch_transfer_status() {
     let count = 3;
     let (wh, mut contract) = proper_instantiate();
+    register_emitters(&wh, &mut contract, count);
     let transfers = create_transfers(&wh, &mut contract, count);
 
     let keys = transfers.iter().map(|t| &t.key).cloned().collect();
@@ -287,6 +293,7 @@ fn batch_transfer_status() {
 fn all_transfer_data_sub_range() {
     let count = 5;
     let (wh, mut contract) = proper_instantiate();
+    register_emitters(&wh, &mut contract, count);
     create_transfers(&wh, &mut contract, count);
 
     for i in 0..count {
@@ -330,9 +337,10 @@ fn missing_modification() {
 
     let missing = (count + 1) as u64;
 
-    contract
+    let err = contract
         .query_modification(missing)
         .expect_err("successfully queried missing modification key");
+    assert!(err.to_string().to_lowercase().contains("not found"));
 }
 
 #[test]

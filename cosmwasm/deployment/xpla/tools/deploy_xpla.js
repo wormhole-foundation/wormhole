@@ -39,8 +39,8 @@ console.log("Deploying to " + NETWORK + " at URL " + LCD_URL + ", chainId " + CH
   deterministic.
 */
 const artifacts = [
-  "wormhole.wasm",
-  "token_bridge_terra_2.wasm",
+  "cw_wormhole.wasm",
+  "cw_token_bridge.wasm",
   "cw20_wrapped_2.wasm",
   // Decided not to deploy these as of 10/10/2022:
   // "shutdown_core_bridge_cosmwasm.wasm",
@@ -170,8 +170,8 @@ async function instantiate(contract, inst_msg, label) {
 
 const addresses = {};
 
-addresses["wormhole.wasm"] = await instantiate(
-  "wormhole.wasm",
+addresses["cw_wormhole.wasm"] = await instantiate(
+  "cw_wormhole.wasm",
   {
     gov_chain: govChain,
     gov_address: Buffer.from(govAddress, "hex").toString("base64"),
@@ -190,12 +190,12 @@ addresses["wormhole.wasm"] = await instantiate(
   "wormhole"
 );
 
-addresses["token_bridge_terra_2.wasm"] = await instantiate(
-  "token_bridge_terra_2.wasm",
+addresses["cw_token_bridge.wasm"] = await instantiate(
+  "cw_token_bridge.wasm",
   {
     gov_chain: govChain,
     gov_address: Buffer.from(govAddress, "hex").toString("base64"),
-    wormhole_contract: addresses["wormhole.wasm"],
+    wormhole_contract: addresses["cw_wormhole.wasm"],
     wrapped_asset_code_id: codeIds["cw20_wrapped_2.wasm"],
     chain_id: 28,
     native_denom: "axpla",
@@ -270,7 +270,7 @@ function sleep(ms) {
 }
 
 const contract_registrations = {
-  "token_bridge_terra_2.wasm": [
+  "cw_token_bridge.wasm": [
     // Solana
     "01000000020d0005d041155878a79b0c8b48aaf3a6266d85a808df5658de5c77715802ba2e38b54374a5a244b43c1a4129d31b47192cb80a565484e55f171c00df69be3107e32e0001fc342ba5227e2319c36fe7771d4626753960b5f6082770e57120b5057eb56c5066bab012670d532c259f6162f311458e187d7137298fa984a41d469df817f88f010349b730282809e94fdeb125dd30490e116ee6ebffa73296eb10a36848351a12c77e846daa5f6eeb83103a2d7325d7981fa4cae43fb84a91851c400c2573abaad30005ac798fcaddd7090a41b718f5786f02436f30d631e64ac46ccd058e87dabcf20f03dd4c7ca0e71d2bbd9c0cee90809a5cdd0bc72519abb9313a4d81763b48c79c01061cdc7c59590231f6f580c3b002ddfa5f41bd0118c67fcb4cb295ae239b74d0e322775d1e78c252eb605230e040c5af176e9ec5ab5f34dd36fcb202c894b6e4fa00087621ef01365e4d1f2e81ef9ce46f0d620cbf003ded06956df3e87a137640310037e8d605f9208a5e17719001fa662d2dcee1c500f0db1ec99119dd326140cf240109a406c0fffda03ffc741ac06743bc507d2a5bdb95eb1c6e3d24a41d99281ce9af20881add8926faec5ac33d3bf85c61a220dd0f699d713f4a453f18b2ad735b6b010a42fb4729a41b99029d06fc6395e1f676654002a28e08c073fe905e87883726b444aa70742c6c53ee8efdb004e756fae63bfe9a91d20971853cc0a8677ec1b0da000bf472a82642b1a3c7872a6594786fc803c8ed8948719f85d1ecfbf903deaba8505b02ffaa488b09e066a0d7210d8ee0871dd10d23b4249c942c64bd79a08d5f6f010c308bc162680851b2a94a888e068394bf4dcb5d5afab1faa350bb086884c20a535366302c37220db24cf6bf2de5abb904f1ffbb13afa624f0d413049b1cb034bb010df076e04e691e924bc9b4e855cc87ef67c237455e1cc3c96d5325c45f5c6002eb68740692e35a49a9e5147d30e796b184df6e7fc0633aa8286fabce5a1f99f0a00011d9cc70d9239887c638aa5f28f268e1c9993d34b0d33550ec373acd921d461eab31cdf77fb7c08f999d4ea7f32f48396dc1d0c3cb77beffb58e3ab5f57333a4b00012d64e7e0459fad8067a73e7fd0cc5b97e6794b5761db7b3b7d15858843ac044d112d2fa713d9c29d1c79f73434e2af1cd965c93aac3502b0f368652266d09d34200000000003681da22000100000000000000000000000000000000000000000000000000000000000000040d9c82f1591753eb20000000000000000000000000000000000000000000546f6b656e4272696467650100000001ec7372995d5cc8732397fb0ad35c0121e0eaa90d26f828a534cab54391b3a4f5",
     // Ethereum

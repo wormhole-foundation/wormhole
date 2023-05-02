@@ -18,12 +18,13 @@ use global_accountant::{
     state,
 };
 use serde::Serialize;
-use wormhole::{
-    token::{Action, GovernancePacket, ModificationKind},
+use wormhole_bindings::{fake, WormholeQuery};
+use wormhole_sdk::{
+    accountant::{self as accountant_module, ModificationKind},
+    token,
     vaa::{Body, Header, Signature},
     Address, Amount, Chain, Vaa,
 };
-use wormhole_bindings::{fake, WormholeQuery};
 
 #[cw_serde]
 pub struct TransferResponse {
@@ -72,7 +73,7 @@ impl Contract {
         &mut self,
         modification: Modification,
         wh: &fake::WormholeKeeper,
-        tamperer: impl Fn(Vaa<GovernancePacket>) -> Binary,
+        tamperer: impl Fn(Vaa<accountant_module::GovernancePacket>) -> Binary,
     ) -> anyhow::Result<AppResponse> {
         let Modification {
             sequence,
@@ -93,12 +94,12 @@ impl Contract {
             timestamp: self.sequence as u32,
             nonce: self.sequence as u32,
             emitter_chain: Chain::Solana,
-            emitter_address: wormhole::GOVERNANCE_EMITTER,
+            emitter_address: wormhole_sdk::GOVERNANCE_EMITTER,
             sequence: self.sequence,
             consistency_level: 0,
-            payload: GovernancePacket {
-                chain: Chain::Any,
-                action: Action::ModifyBalance {
+            payload: accountant_module::GovernancePacket {
+                chain: Chain::Wormchain,
+                action: accountant_module::Action::ModifyBalance {
                     sequence,
                     chain_id,
                     token_chain,
@@ -351,7 +352,7 @@ pub fn sign_observations(wh: &fake::WormholeKeeper, observations: &[u8]) -> Vec<
     prepended.extend_from_slice(SUBMITTED_OBSERVATIONS_PREFIX);
     prepended.extend_from_slice(observations);
 
-    let mut signatures = wh.sign(&prepended);
+    let mut signatures = wh.sign_message(&prepended);
     signatures.sort_by_key(|s| s.index);
 
     signatures
@@ -363,12 +364,12 @@ pub fn register_emitters(wh: &fake::WormholeKeeper, contract: &mut Contract, cou
             timestamp: i as u32,
             nonce: i as u32,
             emitter_chain: Chain::Solana,
-            emitter_address: wormhole::GOVERNANCE_EMITTER,
+            emitter_address: wormhole_sdk::GOVERNANCE_EMITTER,
             sequence: i as u64,
             consistency_level: 0,
-            payload: GovernancePacket {
+            payload: token::GovernancePacket {
                 chain: Chain::Any,
-                action: Action::RegisterChain {
+                action: token::Action::RegisterChain {
                     chain: (i as u16).into(),
                     emitter_address: Address([i as u8; 32]),
                 },

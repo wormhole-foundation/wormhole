@@ -29,6 +29,11 @@ import (
 	"nhooyr.io/websocket/wsjson"
 )
 
+// ReadLimitSize can be used to increase the read limit size on the listening connection. The default read limit size is not large enough,
+// causing "failed to read: read limited at 32769 bytes" errors during testing. Increasing this limit effects an internal buffer that
+// is used to as part of the zero alloc/copy design.
+const ReadLimitSize = 524288
+
 type (
 	// Watcher is responsible for looking over a cosmwasm blockchain and reporting new transactions to the contract
 	Watcher struct {
@@ -43,7 +48,7 @@ type (
 		obsvReqC <-chan *gossipv1.ObservationRequest
 
 		// Readiness component
-		readiness readiness.Component
+		readinessSync readiness.Component
 		// VAA ChainID of the network we're connecting to.
 		chainID vaa.ChainID
 		// Key for contract address in the wasm logs
@@ -97,7 +102,6 @@ func NewWatcher(
 	contract string,
 	msgC chan<- *common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
-	readiness readiness.Component,
 	chainID vaa.ChainID) *Watcher {
 
 	// CosmWasm 1.0.0
@@ -112,8 +116,8 @@ func NewWatcher(
 	// Do not add a leading slash
 	latestBlockURL := "blocks/latest"
 
-	// Injective does things slightly differently than terra
-	if chainID == vaa.ChainIDInjective {
+	// Terra2 and Injective do things slightly differently than terra classic
+	if chainID == vaa.ChainIDInjective || chainID == vaa.ChainIDTerra2 {
 		latestBlockURL = "cosmos/base/tendermint/v1beta1/blocks/latest"
 	}
 
@@ -123,7 +127,7 @@ func NewWatcher(
 		contract:                 contract,
 		msgC:                     msgC,
 		obsvReqC:                 obsvReqC,
-		readiness:                readiness,
+		readinessSync:            common.MustConvertChainIdToReadinessSyncing(chainID),
 		chainID:                  chainID,
 		contractAddressFilterKey: contractAddressFilterKey,
 		contractAddressLogKey:    contractAddressLogKey,
@@ -151,10 +155,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	}
 	defer c.Close(websocket.StatusNormalClosure, "")
 
-	// During testing, I got a message larger then the default
-	// 32768.  Increasing this limit effects an internal buffer that is used
-	// to as part of the zero alloc/copy design.
-	c.SetReadLimit(524288)
+	c.SetReadLimit(ReadLimitSize)
 
 	// Subscribe to smart contract transactions
 	params := [...]string{fmt.Sprintf("tm.event='Tx' AND %s='%s'", e.contractAddressFilterKey, e.contract)}
@@ -180,7 +181,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	}
 	logger.Info("subscribed to new transaction events", zap.String("network", networkName))
 
-	readiness.SetReady(e.readiness)
+	readiness.SetReady(e.readinessSync)
 
 	common.RunWithScissors(ctx, errC, "cosmwasm_block_height", func(ctx context.Context) error {
 		t := time.NewTicker(5 * time.Second)
@@ -220,6 +221,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 					Height:          latestBlock.Int(),
 					ContractAddress: e.contract,
 				})
+
+				readiness.SetReady(e.readinessSync)
 			}
 		}
 	})

@@ -43,7 +43,7 @@ if (fs.existsSync(IncludeFileName)) {
 */
 
 axios
-  .get('https://europe-west3-wormhole-315720.cloudfunctions.net/mainnet-notionaltvl')
+  .get('https://europe-west3-wormhole-message-db-mainnet.cloudfunctions.net/tvl')
   .then(async res => {
     if (res.status != 200) {
         console.error("failed to read symbols, statusCode: %o", res.status)
@@ -63,9 +63,9 @@ axios
         for (let addr in res.data.AllTime[chain]) {
             if (addr !== "*") {
                 let data = res.data.AllTime[chain][addr]
-                let notional = parseInt(data.Notional)
+                let notional = parseFloat(data.Notional)
                 let key = chain + ":" + data.Address.toLowerCase()
-                let includeIt = true;
+                let includeIt = false;
                 if (notional > MinNotional) {
                   includeIt = true
                 } else {
@@ -86,7 +86,7 @@ axios
                     if (chainId != CHAIN_ID_APTOS) {
                      if (chainId == CHAIN_ID_ALGORAND) {
                         wormholeAddr = ""
-                        if ((data.Address === "algo") || (data.Address === "0")) {
+                        if ((data.Symbol.toLowerCase() === "algo") || (data.Address === "0")) {
                           wormholeAddr = "0000000000000000000000000000000000000000000000000000000000000000"
                         } else if (data.Address === "31566704") {
                           wormholeAddr = "0000000000000000000000000000000000000000000000000000000001e1ab70"

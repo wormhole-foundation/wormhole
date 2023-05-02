@@ -40,7 +40,7 @@ func (k Keeper) CalculateQuorum(ctx sdk.Context, guardianSetIndex uint32) (int, 
 	return CalculateQuorum(len(guardianSet.Keys)), &guardianSet, nil
 }
 
-func (k Keeper) VerifySignature(ctx sdk.Context, data []byte, guardianSetIndex uint32, signature *vaa.Signature) error {
+func (k Keeper) VerifyMessageSignature(ctx sdk.Context, prefix []byte, data []byte, guardianSetIndex uint32, signature *vaa.Signature) error {
 	// Calculate quorum and retrieve guardian set
 	_, guardianSet, err := k.CalculateQuorum(ctx, guardianSetIndex)
 	if err != nil {
@@ -53,7 +53,7 @@ func (k Keeper) VerifySignature(ctx sdk.Context, data []byte, guardianSetIndex u
 		return types.ErrGuardianIndexOutOfBounds
 	}
 
-	ok := vaa.VerifySignature(data, signature, addresses[signature.Index])
+	ok := vaa.VerifyMessageSignature(prefix, data, signature, addresses[signature.Index])
 	if !ok {
 		return types.ErrSignaturesInvalid
 	}
@@ -61,7 +61,7 @@ func (k Keeper) VerifySignature(ctx sdk.Context, data []byte, guardianSetIndex u
 	return nil
 }
 
-func (k Keeper) VerifyQuorum(ctx sdk.Context, data []byte, guardianSetIndex uint32, signatures []*vaa.Signature) error {
+func (k Keeper) DeprecatedVerifyVaa(ctx sdk.Context, vaaBody []byte, guardianSetIndex uint32, signatures []*vaa.Signature) error {
 	// Calculate quorum and retrieve guardian set
 	quorum, guardianSet, err := k.CalculateQuorum(ctx, guardianSetIndex)
 	if err != nil {
@@ -72,7 +72,7 @@ func (k Keeper) VerifyQuorum(ctx sdk.Context, data []byte, guardianSetIndex uint
 	}
 
 	// Verify signatures
-	ok := vaa.VerifySignatures(data, signatures, guardianSet.KeysAsAddresses())
+	ok := vaa.DeprecatedVerifySignatures(vaaBody, signatures, guardianSet.KeysAsAddresses())
 	if !ok {
 		return types.ErrSignaturesInvalid
 	}
@@ -80,8 +80,23 @@ func (k Keeper) VerifyQuorum(ctx sdk.Context, data []byte, guardianSetIndex uint
 	return nil
 }
 
-func (k Keeper) VerifyVAA(ctx sdk.Context, vaa *vaa.VAA) error {
-	return k.VerifyQuorum(ctx, vaa.SigningMsg().Bytes(), vaa.GuardianSetIndex, vaa.Signatures)
+func (k Keeper) VerifyVAA(ctx sdk.Context, v *vaa.VAA) error {
+	// Calculate quorum and retrieve guardian set
+	quorum, guardianSet, err := k.CalculateQuorum(ctx, v.GuardianSetIndex)
+	if err != nil {
+		return err
+	}
+	if len(v.Signatures) < quorum {
+		return types.ErrNoQuorum
+	}
+
+	// Verify signatures
+	ok := v.VerifySignatures(guardianSet.KeysAsAddresses())
+	if !ok {
+		return types.ErrSignaturesInvalid
+	}
+
+	return nil
 }
 
 // Verify a governance VAA:
