@@ -176,10 +176,8 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
 
         stack.preGas = gasleft();
 
-
-        (stack.callToInstructionExecutorSucceeded, stack.callToInstructionExecutorData) = getWormholeRelayerCallerAddress().call{
-            value: vaaInfo.deliveryInstruction.receiverValueTarget
-        }(
+        (stack.callToInstructionExecutorSucceeded, stack.callToInstructionExecutorData) =
+        getWormholeRelayerCallerAddress().call{value: vaaInfo.deliveryInstruction.receiverValueTarget}(
             abi.encodeWithSelector(
                 IForwardWrapper.executeInstruction.selector,
                 vaaInfo.deliveryInstruction,
@@ -201,11 +199,13 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
                 abi.decode(stack.callToInstructionExecutorData, (bool, uint32, bytes));
         } else {
             // Calculate the amount of gas used in the call (upperbounding at the gas limit, which shouldn't have been exceeded)
-            stack.gasUsed = uint32((stack.preGas - stack.postGas) > vaaInfo.deliveryInstruction.executionParameters.gasLimit
-                ? vaaInfo.deliveryInstruction.executionParameters.gasLimit
-                : (stack.preGas - stack.postGas));
+            stack.gasUsed = uint32(
+                (stack.preGas - stack.postGas) > vaaInfo.deliveryInstruction.executionParameters.gasLimit
+                    ? vaaInfo.deliveryInstruction.executionParameters.gasLimit
+                    : (stack.preGas - stack.postGas)
+            );
         }
-         // Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the fraction of gas unused)
+        // Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the fraction of gas unused)
         stack.transactionFeeRefundAmount = (vaaInfo.deliveryInstruction.executionParameters.gasLimit - stack.gasUsed)
             * vaaInfo.deliveryInstruction.maximumRefundTarget / vaaInfo.deliveryInstruction.executionParameters.gasLimit;
 
@@ -253,7 +253,14 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
             vaaInfo.deliveryInstruction.targetRelayProvider
         );
 
-        stack.overridesInfo = vaaInfo.redeliveryHash == 0x0 ? bytes("") : abi.encodePacked(vaaInfo.redeliveryHash, vaaInfo.deliveryInstruction.maximumRefundTarget, vaaInfo.deliveryInstruction.receiverValueTarget, vaaInfo.deliveryInstruction.executionParameters.gasLimit);
+        stack.overridesInfo = vaaInfo.redeliveryHash == 0x0
+            ? bytes("")
+            : abi.encodePacked(
+                vaaInfo.redeliveryHash,
+                vaaInfo.deliveryInstruction.maximumRefundTarget,
+                vaaInfo.deliveryInstruction.receiverValueTarget,
+                vaaInfo.deliveryInstruction.executionParameters.gasLimit
+            );
 
         // Emit a status update that can be read by a SDK
         emit Delivery({
@@ -285,7 +292,8 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
 
         // Whether or not the refund succeeded
         bool refundPaidToRefundAddress;
-        (refundPaidToRefundAddress, refundStatus) = payRefundToRefundAddress(deliveryInstruction, refundToRefundAddress, providerAddress);
+        (refundPaidToRefundAddress, refundStatus) =
+            payRefundToRefundAddress(deliveryInstruction, refundToRefundAddress, providerAddress);
 
         // Refund the relayer (their extra funds) + (the amount that the relayer spent on gas)
         // + (the users refund if that refund didn't succeed)
@@ -314,22 +322,20 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
     function getValuesFromRelayProvider(address providerAddress, uint16 targetChain, uint256 receiverValuePlusOverhead)
         internal
         view
-        returns (
-            bool isChainSupported,
-            address rewardAddress,
-            uint256 maximumBudget,
-            uint256 receiverValueTarget
-        )
+        returns (bool isChainSupported, address rewardAddress, uint256 maximumBudget, uint256 receiverValueTarget)
     {
         (bool success, bytes memory data) = getWormholeRelayerCallerAddress().staticcall(
             abi.encodeWithSelector(
-                IForwardWrapper.getValuesFromRelayProvider.selector, providerAddress, chainId(), targetChain, receiverValuePlusOverhead
+                IForwardWrapper.getValuesFromRelayProvider.selector,
+                providerAddress,
+                chainId(),
+                targetChain,
+                receiverValuePlusOverhead
             )
         );
         isChainSupported = success;
         if (success) {
-            (rewardAddress, maximumBudget, receiverValueTarget) =
-                abi.decode(data, (address, uint256, uint256));
+            (rewardAddress, maximumBudget, receiverValueTarget) = abi.decode(data, (address, uint256, uint256));
         }
     }
 
@@ -346,7 +352,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
         uint256 receiverValueTarget;
         uint256 maximumBudget;
         address rewardAddress;
-        
+
         if (refundAmount <= wormholeMessageFee) {
             return (false, RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH);
         }
