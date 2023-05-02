@@ -9,7 +9,10 @@ import { fromUint8Array } from "js-base64";
 import { impossible, Payload } from "./vaa";
 import { NETWORKS } from "./networks";
 import axios from "axios";
-import { CONTRACTS, TerraChainName } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+import {
+  CONTRACTS,
+  TerraChainName,
+} from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 
 export async function execute_terra(
   payload: Payload,
@@ -52,7 +55,7 @@ export async function execute_terra(
           console.log("Upgrading core contract");
           break;
         case "RecoverChainId":
-          throw new Error("RecoverChainId not supported on terra")
+          throw new Error("RecoverChainId not supported on terra");
         default:
           impossible(payload);
       }
@@ -75,7 +78,7 @@ export async function execute_terra(
           console.log("Upgrading contract");
           break;
         case "RecoverChainId":
-          throw new Error("RecoverChainId not supported on terra")
+          throw new Error("RecoverChainId not supported on terra");
         case "RegisterChain":
           console.log("Registering chain");
           break;
@@ -98,7 +101,7 @@ export async function execute_terra(
           console.log("Upgrading contract");
           break;
         case "RecoverChainId":
-          throw new Error("RecoverChainId not supported on terra")
+          throw new Error("RecoverChainId not supported on terra");
         case "RegisterChain":
           console.log("Registering chain");
           break;
@@ -130,7 +133,7 @@ export async function execute_terra(
   const feeDenoms = ["uluna"];
 
   const gasPrices = await axios
-    .get("https://fcd.terra.dev/v1/txs/gas_prices")
+    .get("https://terra-classic-fcd.publicnode.com/v1/txs/gas_prices")
     .then((result) => result.data);
 
   const feeEstimate = await terra.tx.estimateFee(
