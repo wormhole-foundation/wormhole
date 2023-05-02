@@ -884,6 +884,7 @@ func (s *nodePrivilegedService) DumpRPCs(ctx context.Context, req *nodev1.DumpRP
 		rpcMap["sepoliaRPC"] = *sepoliaRPC
 	}
 	rpcMap["solanaRPC"] = *solanaRPC
+	rpcMap["suiRPC"] = *suiRPC
 	rpcMap["terraWS"] = *terraWS
 	rpcMap["terraLCD"] = *terraLCD
 	rpcMap["terra2WS"] = *terra2WS
