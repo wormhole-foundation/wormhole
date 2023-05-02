@@ -1363,16 +1363,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		if shouldStart(suiRPC) {
-			if !*unsafeDevMode && !*testnetMode {
-				logger.Fatal("Can only start Sui watcher in devnet or testnet")
-			} else {
-				logger.Info("Starting Sui watcher")
-				common.MustRegisterReadinessSyncing(vaa.ChainIDSui)
-				chainObsvReqC[vaa.ChainIDSui] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-				if err := supervisor.Run(ctx, "suiwatch",
-					sui.NewWatcher(*suiRPC, *suiWS, *suiMoveEventType, *unsafeDevMode, chainMsgC[vaa.ChainIDSui], chainObsvReqC[vaa.ChainIDSui]).Run); err != nil {
-					return err
-				}
+			logger.Info("Starting Sui watcher")
+			common.MustRegisterReadinessSyncing(vaa.ChainIDSui)
+			chainObsvReqC[vaa.ChainIDSui] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
+			if err := supervisor.Run(ctx, "suiwatch",
+				sui.NewWatcher(*suiRPC, *suiWS, *suiMoveEventType, *unsafeDevMode, chainMsgC[vaa.ChainIDSui], chainObsvReqC[vaa.ChainIDSui]).Run); err != nil {
+				return err
 			}
 		}
 
