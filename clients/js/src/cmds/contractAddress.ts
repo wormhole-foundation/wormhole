@@ -2,10 +2,10 @@ import yargs from "yargs";
 import {
   CHAINS,
   assertChain,
-  isCosmWasmChain,
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 import { impossible } from "../vaa";
 import { CONTRACTS } from "../consts";
+import { getEmitterAddress } from "../emitter";
 
 exports.command = "contract <network> <chain> <module>";
 exports.desc = "Print contract address";
@@ -57,19 +57,7 @@ exports.handler = async (argv) => {
       impossible(module);
   }
   if (argv["emitter"]) {
-    const emitter = require("@certusone/wormhole-sdk/lib/cjs/bridge/getEmitterAddress");
-    if (chain === "solana" || chain === "pythnet") {
-      // TODO: Create an isSolanaChain()
-      addr = await emitter.getEmitterAddressSolana(addr);
-    } else if (isCosmWasmChain(chain)) {
-      addr = await emitter.getEmitterAddressTerra(addr);
-    } else if (chain === "algorand") {
-      addr = emitter.getEmitterAddressAlgorand(BigInt(addr));
-    } else if (chain === "near") {
-      addr = emitter.getEmitterAddressNear(addr);
-    } else {
-      addr = emitter.getEmitterAddressEth(addr);
-    }
+    addr = await getEmitterAddress(chain, addr);
   }
   console.log(addr);
 };
