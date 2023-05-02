@@ -363,10 +363,10 @@ interface IWormholeRelayer {
      */
     function getDeliveryAddress() external view returns (address deliveryAddress);
 
-    error FundsTooMuch(); // (maxTransactionFee, converted to target chain currency) + (receiverValue, converted to target chain currency) is greater than what your chosen relay provider allows
-    error MaxTransactionFeeNotEnough(); // maxTransactionFee is less than the minimum needed by your chosen relay provider
+    error MsgValueTooMuch(); // (maxTransactionFee, converted to target chain currency) + (receiverValue, converted to target chain currency) is greater than what your chosen relay provider allows
     error MsgValueTooLow(); // msg.value is too low
     // Specifically, (msg.value) + (any leftover funds if this is a forward) is less than (maxTransactionFee + receiverValue), summed over all of your requests if this is a multichainSend/multichainForward
+    error MaxTransactionFeeNotEnough(); // maxTransactionFee is less than the minimum needed by your chosen relay provider
     error NoDeliveryInProgress(); // Forwards can only be requested within execution of 'receiveWormholeMessages', or when a delivery is in progress
     error ForwardRequestFromWrongAddress(); // A forward was requested from an address that is not the 'targetAddress' of the original delivery
     error RelayProviderDoesNotSupportTargetChain(); // Your relay provider does not support the target chain you specified

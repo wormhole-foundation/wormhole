@@ -1835,7 +1835,7 @@ contract WormholeRelayerTests is Test {
         );
     }
 
-    function testRevertSendFundsTooMuch(
+    function testRevertSendMsgValueTooMuch(
         GasParameters memory gasParams,
         FeeParameters memory feeParams,
         bytes memory message
@@ -1854,7 +1854,7 @@ contract WormholeRelayerTests is Test {
 
         uint256 wormholeFee = setup.source.wormhole.messageFee();
 
-        vm.expectRevert(abi.encodeWithSignature("FundsTooMuch()"));
+        vm.expectRevert(abi.encodeWithSignature("MsgValueTooMuch()"));
         setup.source.integration.sendMessageWithRefundAddress{
             value: maxTransactionFee * 105 / 100 + 1 + 3 * wormholeFee
         }(
@@ -1964,7 +1964,7 @@ contract WormholeRelayerTests is Test {
         );
     }
 
-    function testRevertForwardFundsTooMuch(GasParameters memory gasParams, FeeParameters memory feeParams) public {
+    function testRevertForwardMsgValueTooMuch(GasParameters memory gasParams, FeeParameters memory feeParams) public {
         StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
 
         setup.target.relayProvider.updateMaximumBudget(
@@ -1972,7 +1972,7 @@ contract WormholeRelayerTests is Test {
         );
 
         executeForwardTest(
-            ForwardTester.Action.FundsTooMuch, DeliveryStatus.RECEIVER_FAILURE, setup, gasParams, feeParams
+            ForwardTester.Action.MsgValueTooMuch, DeliveryStatus.RECEIVER_FAILURE, setup, gasParams, feeParams
         );
     }
 
