@@ -1,6 +1,7 @@
 {
   "guardianSetIndex": 0,
   "description": "This file contains the chains against which all the scripts should run.",
+  "guardianRPC": "http://guardian:7071",
   "chains": [
     {
       "description": "Ganache is supposed to be 1337, but the on-chain block.chainid returns 1",

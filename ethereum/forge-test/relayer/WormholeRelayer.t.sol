@@ -2158,13 +2158,9 @@ contract WormholeRelayerTests is Test {
 
         assertTrue(ins.key.chainId == setup.sourceChainId, "VAA key has correct chainID");
         assertTrue(ins.key.infoType == IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE, "VAA key type matches");
-        assertTrue(
-            ins.newReceiverValueTarget >= feeParams.receiverValueTarget, "new receiver value greater than the old value"
-        );
-        assertTrue(
-            ins.sourceRelayProvider == setup.source.coreRelayer.toWormholeFormat(address(setup.source.relayProvider)),
-            "specified relay provider is listed"
-        );
+        assertTrue(ins.newReceiverValueTarget >= feeParams.receiverValueTarget, "new receiver value greater than the old value");
+        assertTrue(ins.targetChain == setup.targetChainId, "target chain matches");
+        assertTrue(ins.sourceRelayProvider == setup.source.coreRelayer.toWormholeFormat(address(setup.source.relayProvider)), "specified relay provider is listed");
         assertTrue(ins.executionParameters.gasLimit >= gasParams.targetGasLimit, "new gaslimit was recorded");
     }
 
