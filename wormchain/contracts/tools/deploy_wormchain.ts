@@ -232,6 +232,7 @@ async function main() {
         near: String(process.env.REGISTER_NEAR_TOKEN_BRIDGE_VAA),
         terra2: String(process.env.REGISTER_TERRA2_TOKEN_BRIDGE_VAA),
         aptos: String(process.env.REGISTER_APTOS_TOKEN_BRIDGE_VAA),
+        sui: String(process.env.REGISTER_SUI_TOKEN_BRIDGE_VAA),
     };
 
     const instantiateMsg = {};

@@ -40,7 +40,7 @@ import {
   tryNativeToUint8Array,
   uint8ArrayToHex,
 } from "..";
-import { CLUSTER } from "../token_bridge/__tests__/consts";
+import { CLUSTER } from "../token_bridge/__tests__/utils/consts";
 import algosdk, {
   Account,
   Algodv2,

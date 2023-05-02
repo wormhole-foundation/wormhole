@@ -73,7 +73,7 @@ ci = cfg.get("ci", False)
 algorand = cfg.get("algorand", ci)
 near = cfg.get("near", ci)
 aptos = cfg.get("aptos", ci)
-sui = cfg.get("sui", False)
+sui = cfg.get("sui", ci)
 evm2 = cfg.get("evm2", ci)
 solana = cfg.get("solana", ci)
 pythnet = cfg.get("pythnet", False)
@@ -187,15 +187,11 @@ def build_node_yaml():
             if sui:
                 container["command"] += [
                     "--suiRPC",
-                    "http://sui:9002",
-# In testnet and mainnet, you will need to also specify the suiPackage argument.  In Devnet, we subscribe to
-# event traffic purely based on the account since that is the only thing that is deterministic.
-#                    "--suiPackage",
-#                    "0x.....",
-                    "--suiAccount",
-                    "0x2acab6bb0e4722e528291bc6ca4f097e18ce9331",
+                    "http://sui:9000",
+                    "--suiMoveEventType",
+                    "0x9c967677bdc22d2b7217f3e4c62cf74f0ae272cdea5743bb8f28c06d10cdde9f::publish_message::WormholeMessage",
                     "--suiWS",
-                    "sui:9001",
+                    "sui:9000",
                 ]
 
             if evm2:
@@ -428,7 +424,6 @@ if solana or pythnet:
         port_forwards = [
             port_forward(8899, name = "Solana RPC [:8899]", host = webHost),
             port_forward(8900, name = "Solana WS [:8900]", host = webHost),
-            port_forward(9000, name = "Solana PubSub [:9000]", host = webHost),
         ],
         resource_deps = ["const-gen"],
         labels = ["solana"],
@@ -716,21 +711,21 @@ if sui:
 
     docker_build(
         ref = "sui-node",
-        context = "sui",
+        target = "sui",
+        context = ".",
         dockerfile = "sui/Dockerfile",
         ignore = ["./sui/sui.log*", "sui/sui.log*", "sui.log.*"],
-        only = ["Dockerfile", "scripts"],
+        only = ["./sui", "./clients/js"],
     )
 
     k8s_resource(
         "sui",
         port_forwards = [
-            port_forward(9001, name = "WS [:9001]", host = webHost),
-            port_forward(9002, name = "RPC [:9002]", host = webHost),
+            port_forward(9000, 9000, name = "RPC [:9000]", host = webHost),
             port_forward(5003, name = "Faucet [:5003]", host = webHost),
             port_forward(9184, name = "Prometheus [:9184]", host = webHost),
         ],
-#        resource_deps = ["const-gen"],
+        resource_deps = ["const-gen"],
         labels = ["sui"],
         trigger_mode = trigger_mode,
     )

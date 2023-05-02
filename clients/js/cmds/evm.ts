@@ -1,6 +1,3 @@
-import yargs from "yargs";
-import { ethers } from "ethers";
-import { NETWORKS } from "../networks";
 import {
   assertChain,
   assertEVMChain,
@@ -9,7 +6,10 @@ import {
   isEVMChain,
   toChainName,
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
-import { evm_address } from "../consts";
+import { ethers } from "ethers";
+import yargs from "yargs";
+import { NETWORKS } from "../networks";
+import { evm_address } from "../utils";
 import { config } from '../config';
 import { runCommand, validator_args } from '../start-validator';
 

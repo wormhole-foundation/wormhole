@@ -1,3 +1,4 @@
+import { JsonRpcProvider } from "@mysten/sui.js";
 import { Commitment, Connection, PublicKeyInitData } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
@@ -13,11 +14,12 @@ import {
 } from "../algorand";
 import { Bridge__factory } from "../ethers-contracts";
 import { deriveWrappedMintKey, getWrappedMeta } from "../solana/tokenBridge";
+import { getTokenCoinType } from "../sui";
 import {
-  CHAIN_ID_ALGORAND,
+  callFunctionNear,
   ChainId,
   ChainName,
-  callFunctionNear,
+  CHAIN_ID_ALGORAND,
   coalesceChainId,
   coalesceModuleAddress,
   getAssetFullyQualifiedType,
@@ -201,4 +203,19 @@ export async function getForeignAssetAptos(
   } catch (e) {
     return null;
   }
+}
+
+export async function getForeignAssetSui(
+  provider: JsonRpcProvider,
+  tokenBridgeStateObjectId: string,
+  originChain: ChainId | ChainName,
+  originAddress: Uint8Array
+): Promise<string | null> {
+  const originChainId = coalesceChainId(originChain);
+  return getTokenCoinType(
+    provider,
+    tokenBridgeStateObjectId,
+    originAddress,
+    originChainId
+  );
 }

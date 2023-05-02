@@ -1,3 +1,4 @@
+import { JsonRpcProvider } from "@mysten/sui.js";
 import { Commitment, Connection, PublicKeyInitData } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { LCDClient as XplaLCDClient } from "@xpla/xpla.js";
@@ -8,20 +9,21 @@ import { ethers } from "ethers";
 import { fromUint8Array } from "js-base64";
 import { Provider } from "near-api-js/lib/providers";
 import { redeemOnTerra } from ".";
-import { TERRA_REDEEMED_CHECK_WALLET_ADDRESS, ensureHexPrefix } from "..";
+import { ensureHexPrefix, TERRA_REDEEMED_CHECK_WALLET_ADDRESS } from "..";
 import {
   BITS_PER_KEY,
+  calcLogicSigAccount,
   MAX_BITS,
   _parseVAAAlgorand,
-  calcLogicSigAccount,
 } from "../algorand";
 import { TokenBridgeState } from "../aptos/types";
 import { getSignedVAAHash } from "../bridge";
 import { Bridge__factory } from "../ethers-contracts";
 import { getClaim } from "../solana/wormhole";
+import { getObjectFields, getTableKeyType } from "../sui/utils";
 import { safeBigIntToNumber } from "../utils/bigint";
 import { callFunctionNear } from "../utils/near";
-import { SignedVaa, parseVaa } from "../vaa/wormhole";
+import { parseVaa, SignedVaa } from "../vaa/wormhole";
 
 export async function getIsTransferCompletedEth(
   tokenBridgeAddress: string,
@@ -264,4 +266,46 @@ export async function getIsTransferCompletedAptos(
   } catch {
     return false;
   }
+}
+
+export async function getIsTransferCompletedSui(
+  provider: JsonRpcProvider,
+  tokenBridgeStateObjectId: string,
+  transferVAA: Uint8Array
+): Promise<boolean> {
+  const tokenBridgeStateFields = await getObjectFields(
+    provider,
+    tokenBridgeStateObjectId
+  );
+  if (!tokenBridgeStateFields) {
+    throw new Error("Unable to fetch object fields from token bridge state");
+  }
+  const hashes = tokenBridgeStateFields.consumed_vaas?.fields?.hashes;
+  const tableObjectId = hashes?.fields?.items?.fields?.id?.id;
+  if (!tableObjectId) {
+    throw new Error("Unable to fetch consumed VAAs table");
+  }
+  const keyType = getTableKeyType(hashes?.fields?.items?.type);
+  if (!keyType) {
+    throw new Error("Unable to get key type");
+  }
+  const hash = getSignedVAAHash(transferVAA);
+  const response = await provider.getDynamicFieldObject({
+    parentId: tableObjectId,
+    name: {
+      type: keyType,
+      value: {
+        data: [...Buffer.from(hash.slice(2), "hex")],
+      },
+    },
+  });
+  if (!response.error) {
+    return true;
+  }
+  if (response.error.code === "dynamicFieldNotFound") {
+    return false;
+  }
+  throw new Error(
+    `Unexpected getDynamicFieldObject response ${response.error}`
+  );
 }

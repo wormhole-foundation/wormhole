@@ -1,16 +1,16 @@
+import { CONTRACTS } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 import { getNetworkInfo, Network } from "@injectivelabs/networks";
-import { getStdFee, DEFAULT_STD_FEE } from "@injectivelabs/utils";
 import {
-  PrivateKey,
-  TxGrpcApi,
   ChainRestAuthApi,
   createTransaction,
   MsgExecuteContractCompat,
+  PrivateKey,
+  TxGrpcApi,
 } from "@injectivelabs/sdk-ts";
+import { DEFAULT_STD_FEE, getStdFee } from "@injectivelabs/utils";
 import { fromUint8Array } from "js-base64";
-import { impossible, Payload } from "./vaa";
 import { NETWORKS } from "./networks";
-import { CONTRACTS } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+import { impossible, Payload } from "./vaa";
 
 export async function execute_injective(
   payload: Payload,
@@ -56,7 +56,7 @@ export async function execute_injective(
           console.log("Upgrading core contract");
           break;
         case "RecoverChainId":
-          throw new Error("RecoverChainId not supported on injective")
+          throw new Error("RecoverChainId not supported on injective");
         default:
           impossible(payload);
       }
@@ -80,7 +80,7 @@ export async function execute_injective(
           console.log("Upgrading contract");
           break;
         case "RecoverChainId":
-          throw new Error("RecoverChainId not supported on injective")
+          throw new Error("RecoverChainId not supported on injective");
         case "RegisterChain":
           console.log("Registering chain");
           break;
@@ -108,7 +108,7 @@ export async function execute_injective(
           console.log("Upgrading contract");
           break;
         case "RecoverChainId":
-          throw new Error("RecoverChainId not supported on injective")
+          throw new Error("RecoverChainId not supported on injective");
         case "RegisterChain":
           console.log("Registering chain");
           break;

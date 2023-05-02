@@ -1,13 +1,13 @@
-import yargs from "yargs";
 import {
-  CHAINS,
   assertChain,
-  toChainName,
   ChainName,
+  CHAINS,
+  coalesceChainName,
   isEVMChain,
   isTerraChain,
-  coalesceChainName,
+  toChainName,
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+import yargs from "yargs";
 import * as vaa from "../vaa";
 
 exports.command = "submit <vaa>";
@@ -136,7 +136,8 @@ exports.handler = async (argv) => {
   } else if (chain === "osmosis") {
     throw Error("OSMOSIS is not supported yet");
   } else if (chain === "sui") {
-    throw Error("SUI is not supported yet");
+    const sui = require("../sui");
+    await sui.submit(parsed_vaa.payload, buf, network, argv["rpc"]);
   } else if (chain === "aptos") {
     const aptos = require("../aptos");
     await aptos.execute_aptos(
@@ -150,6 +151,8 @@ exports.handler = async (argv) => {
     throw Error("Wormchain is not supported yet");
   } else if (chain === "btc") {
     throw Error("btc is not supported yet");
+  } else if (chain === "sei") {
+    throw Error("sei is not supported yet");
   } else {
     // If you get a type error here, hover over `chain`'s type and it tells you
     // which cases are not handled

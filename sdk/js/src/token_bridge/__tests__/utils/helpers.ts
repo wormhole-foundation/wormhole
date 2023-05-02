@@ -1,7 +1,9 @@
 import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
+import { expect } from "@jest/globals";
+import { TransactionBlock } from "@mysten/sui.js";
 import { LCDClient, MnemonicKey, TxInfo } from "@terra-money/terra.js";
 import axios from "axios";
-import { ChainId, getSignedVAAWithRetry } from "../..";
+import { ChainId, getSignedVAAWithRetry } from "../../..";
 import {
   TERRA_CHAIN_ID,
   TERRA_GAS_PRICES_URL,
@@ -97,4 +99,31 @@ export async function queryBalanceOnTerra(asset: string): Promise<number> {
 
 export async function getTerraGasPrices() {
   return axios.get(TERRA_GAS_PRICES_URL).then((result) => result.data);
+}
+
+// https://github.com/microsoft/TypeScript/issues/34523
+export const assertIsNotNull: <T>(x: T | null) => asserts x is T = (x) => {
+  expect(x).not.toBeNull();
+};
+
+export const assertIsNotNullOrUndefined: <T>(
+  x: T | null | undefined
+) => asserts x is T = (x) => {
+  expect(x).not.toBeNull();
+  expect(x).not.toBeUndefined();
+};
+
+export function mintAndTransferCoinSui(
+  treasuryCap: string,
+  coinType: string,
+  amount: bigint,
+  recipient: string
+) {
+  const tx = new TransactionBlock();
+  tx.moveCall({
+    target: "0x2::coin::mint_and_transfer",
+    arguments: [tx.object(treasuryCap), tx.pure(amount), tx.pure(recipient)],
+    typeArguments: [coinType],
+  });
+  return tx;
 }
