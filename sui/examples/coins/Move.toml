@@ -23,6 +23,4 @@ local = "../../wormhole"
 local = "../../token_bridge"
 
 [dev-addresses]
-wormhole = "0x100"
-token_bridge = "0x200"
 coins = "0x20c"

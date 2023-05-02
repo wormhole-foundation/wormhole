@@ -17,5 +17,4 @@ core_messages = "_"
 local = "../../wormhole"
 
 [dev-addresses]
-wormhole = "0x100"
 core_messages = "0x169"

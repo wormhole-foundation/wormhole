@@ -32,9 +32,6 @@ source = { local = "../../token_bridge" }
 
 dependencies = [
   { name = "Sui" },
-]
-
-dev-dependencies = [
   { name = "Wormhole" },
 ]
 
