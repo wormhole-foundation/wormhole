@@ -12,6 +12,7 @@ import {
 import { ensureHexPrefix } from "../utils";
 import { SuiRpcValidationError } from "./error";
 import { SuiError } from "./types";
+import { DynamicFieldPage } from "@mysten/sui.js/dist/types/dynamic_fields";
 
 const UPGRADE_CAP_TYPE = "0x2::package::UpgradeCap";
 
@@ -178,17 +179,37 @@ export const getOwnedObjectIdPaginated = async (
   }
 };
 
-export const getPackageId = async (
+/**
+ * @param provider
+ * @param objectId Core or token bridge state object ID
+ * @returns The latest package ID for the provided state object
+ */
+export async function getPackageId(
   provider: JsonRpcProvider,
   objectId: string
-): Promise<string> => {
-  const fields = await getObjectFields(provider, objectId);
-  if (fields && "upgrade_cap" in fields) {
-    return fields.upgrade_cap.fields.package;
+): Promise<string> {
+  let currentPackage;
+  let nextCursor;
+  do {
+    const dynamicFields: DynamicFieldPage = await provider.getDynamicFields({
+      parentId: objectId,
+      cursor: nextCursor,
+    });
+    currentPackage = dynamicFields.data.find((field) =>
+      field.name.type.endsWith("CurrentPackage")
+    );
+    nextCursor = dynamicFields.hasNextPage ? dynamicFields.nextCursor : null;
+  } while (nextCursor && !currentPackage);
+  if (!currentPackage) {
+    throw new Error("CurrentPackage not found");
   }
-
-  throw new Error("upgrade_cap not found");
-};
+  const fields = await getObjectFields(provider, currentPackage.objectId);
+  const packageId = fields?.value?.fields?.package;
+  if (!packageId) {
+    throw new Error("Unable to get current package");
+  }
+  return packageId;
+}
 
 export const getPackageIdFromType = (type: string): string | null => {
   if (!isValidSuiType(type)) return null;
