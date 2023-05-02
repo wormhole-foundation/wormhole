@@ -37,7 +37,7 @@ require (
 	github.com/tidwall/gjson v1.14.3
 	go.uber.org/zap v1.23.0
 	golang.org/x/crypto v0.2.0
-	golang.org/x/sys v0.2.0
+	golang.org/x/sys v0.7.0
 	golang.org/x/time v0.0.0-20220609170525-579cf78fd858
 	google.golang.org/api v0.102.0
 	google.golang.org/genproto v0.0.0-20221114212237-e4508ebdbee1
@@ -61,7 +61,7 @@ require (
 	github.com/wormhole-foundation/wormchain v0.0.0-00010101000000-000000000000
 	github.com/wormhole-foundation/wormhole/sdk v0.0.0-20220926172624-4b38dc650bb0
 	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e
-	golang.org/x/text v0.4.0
+	golang.org/x/text v0.9.0
 	nhooyr.io/websocket v1.8.7
 )
 
@@ -281,12 +281,12 @@ require (
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	go.uber.org/ratelimit v0.2.0 // indirect
-	golang.org/x/mod v0.6.0 // indirect
-	golang.org/x/net v0.2.0 // indirect
+	golang.org/x/mod v0.8.0 // indirect
+	golang.org/x/net v0.9.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20221014153046-6fdb5e3db783 // indirect
 	golang.org/x/sync v0.1.0 // indirect
-	golang.org/x/term v0.2.0 // indirect
-	golang.org/x/tools v0.2.0 // indirect
+	golang.org/x/term v0.7.0 // indirect
+	golang.org/x/tools v0.6.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
