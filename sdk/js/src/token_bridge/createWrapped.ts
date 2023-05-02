@@ -32,6 +32,7 @@ import {
   getUpgradeCapObjectId,
   getWrappedCoinType,
   publishCoin,
+  uint8ArrayToBCS,
 } from "../sui";
 import { callFunctionNear } from "../utils";
 import { SignedVaa } from "../vaa";
@@ -250,7 +251,7 @@ export async function createWrappedOnSui(
     target: `${coreBridgePackageId}::vaa::parse_and_verify`,
     arguments: [
       tx.object(coreBridgeStateObjectId),
-      tx.pure([...attestVAA]),
+      tx.pure(uint8ArrayToBCS(attestVAA)),
       tx.object(SUI_CLOCK_OBJECT_ID),
     ],
   });

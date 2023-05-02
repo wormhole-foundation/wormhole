@@ -54,7 +54,12 @@ import {
   SUI_CLOCK_OBJECT_ID,
   TransactionBlock,
 } from "@mysten/sui.js";
-import { getTokenCoinType, getObjectFields, getPackageId } from "../sui";
+import {
+  getTokenCoinType,
+  getObjectFields,
+  getPackageId,
+  uint8ArrayToBCS,
+} from "../sui";
 
 export async function redeemOnEth(
   tokenBridgeAddress: string,
@@ -418,7 +423,7 @@ export async function redeemOnSui(
     target: `${coreBridgePackageId}::vaa::parse_and_verify`,
     arguments: [
       tx.object(coreBridgeStateObjectId),
-      tx.pure([...transferVAA]),
+      tx.pure(uint8ArrayToBCS(transferVAA)),
       tx.object(SUI_CLOCK_OBJECT_ID),
     ],
   });

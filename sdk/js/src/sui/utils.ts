@@ -1,4 +1,5 @@
 import {
+  builder,
   getObjectType,
   isValidSuiAddress as isValidFullSuiAddress,
   JsonRpcProvider,
@@ -13,7 +14,11 @@ import { ensureHexPrefix } from "../utils";
 import { SuiRpcValidationError } from "./error";
 import { SuiError } from "./types";
 
+const MAX_PURE_ARGUMENT_SIZE = 16 * 1024;
 const UPGRADE_CAP_TYPE = "0x2::package::UpgradeCap";
+
+export const uint8ArrayToBCS = (arr: Uint8Array) =>
+  builder.ser("vector<u8>", arr, { maxSize: MAX_PURE_ARGUMENT_SIZE }).toBytes();
 
 export const executeTransactionBlock = async (
   signer: RawSigner,
