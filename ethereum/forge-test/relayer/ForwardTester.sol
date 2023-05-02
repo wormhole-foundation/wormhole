@@ -33,7 +33,7 @@ contract ForwardTester is IWormholeReceiver {
         ForwardRequestFromWrongAddress,
         MultichainSendEmpty,
         MaxTransactionFeeNotEnough,
-        FundsTooMuch,
+        MsgValueTooMuch,
         ReentrantCall,
         WorksCorrectly
     }
@@ -99,7 +99,7 @@ contract ForwardTester is IWormholeReceiver {
                 empty,
                 200
             );
-        } else if (action == Action.FundsTooMuch) {
+        } else if (action == Action.MsgValueTooMuch) {
             // set maximum budget to less than this
             uint256 maxTransactionFee =
                 wormholeRelayer.quoteGas(vaa.emitterChainId, 10000, wormholeRelayer.getDefaultRelayProvider());

@@ -45,12 +45,12 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
             calculateTargetDeliveryMaximumRefund(send.targetChain, send.maxTransactionFee, relayProvider);
 
         instruction.receiverValueTarget =
-            convertReceiverValueAmount(send.receiverValue, send.targetChain, relayProvider);
+            convertReceiverValueAmountToTarget(send.receiverValue, send.targetChain, relayProvider);
 
-        instruction.sourceRelayProvider = toWormholeFormat(address(relayProvider));
-
-        instruction.targetRelayProvider = relayProvider.getTargetChainAddress(send.targetChain);
         instruction.senderAddress = toWormholeFormat(msg.sender);
+        instruction.sourceRelayProvider = toWormholeFormat(address(relayProvider));
+        instruction.targetRelayProvider = relayProvider.getTargetChainAddress(send.targetChain);
+
         instruction.vaaKeys = send.vaaKeys;
         instruction.consistencyLevel = send.consistencyLevel;
         instruction.payload = send.payload;
@@ -63,7 +63,7 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
 
     /**
      * @notice Check if for each instruction in the DeliveryInstructionContainer,
-     * - the total amount of target chain currency needed for execution of the instruction is within the maximum budget,
+     * - the total amount of target chain currency needed is within the maximum budget,
      *   i.e. (maximumRefundTarget + receiverValueTarget) <= (the relayProvider's maximum budget for the target chain)
      * - the gasLimit is greater than 0
      * @param instruction A DeliveryInstruction
@@ -80,7 +80,7 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
             instruction.maximumRefundTarget + instruction.receiverValueTarget
                 > relayProvider.quoteMaximumBudget(instruction.targetChain)
         ) {
-            revert IWormholeRelayer.FundsTooMuch();
+            revert IWormholeRelayer.MsgValueTooMuch();
         }
     }
 
@@ -217,7 +217,7 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
      * and 'gasPrice' is the relayProvider's fee per unit of target chain gas (in units of source chain currency)
      *
      * @param targetChain target chain
-     * @param maxTransactionFee uint256
+     * @param maxTransactionFee uint256 in source chain currency
      * @param provider IRelayProvider
      * @return gasAmount
      */
@@ -226,9 +226,17 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
         view
         returns (uint32 gasAmount)
     {
-        gasAmount = calculateTargetGasDeliveryAmountHelper(
-            targetChain, maxTransactionFee, provider.quoteDeliveryOverhead(targetChain), provider
-        );
+        uint256 overhead = provider.quoteDeliveryOverhead(targetChain);
+        if (maxTransactionFee <= overhead) {
+            gasAmount = 0;
+        } else {
+            uint256 gas = (maxTransactionFee - overhead) / provider.quoteGasPrice(targetChain);
+            if (gas > type(uint32).max) {
+                gasAmount = type(uint32).max;
+            } else {
+                gasAmount = uint32(gas);
+            }
+        }
     }
 
     /**
@@ -250,53 +258,7 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
         uint256 maxTransactionFee,
         IRelayProvider provider
     ) internal view returns (uint256 maximumRefund) {
-        maximumRefund = calculateTargetDeliveryMaximumRefundHelper(
-            targetChain, maxTransactionFee, provider.quoteDeliveryOverhead(targetChain), provider
-        );
-    }
-
-    /**
-     * Performs the calculation (maxTransactionFee - overhead)/(price of 1 unit of target chain gas, in source chain currency)
-     * and bounds the result between 0 and 2^32-1, inclusive
-     *
-     * @param targetChain uint16
-     * @param maxTransactionFee uint256
-     * @param overhead uint256
-     * @param provider IRelayProvider
-     */
-    function calculateTargetGasDeliveryAmountHelper(
-        uint16 targetChain,
-        uint256 maxTransactionFee,
-        uint256 overhead,
-        IRelayProvider provider
-    ) internal view returns (uint32 gasAmount) {
-        if (maxTransactionFee <= overhead) {
-            gasAmount = 0;
-        } else {
-            uint256 gas = (maxTransactionFee - overhead) / provider.quoteGasPrice(targetChain);
-            if (gas > type(uint32).max) {
-                gasAmount = type(uint32).max;
-            } else {
-                gasAmount = uint32(gas);
-            }
-        }
-    }
-
-    /**
-     * Converts (maxTransactionFee - overhead) from source to target chain currency, using the provider's prices.
-     *
-     * It also applies the assetConversionBuffer, similar to the receiverValue calculation.
-     * @param targetChain uint16
-     * @param maxTransactionFee uint256
-     * @param overhead uint256
-     * @param provider IRelayProvider
-     */
-    function calculateTargetDeliveryMaximumRefundHelper(
-        uint16 targetChain,
-        uint256 maxTransactionFee,
-        uint256 overhead,
-        IRelayProvider provider
-    ) internal view returns (uint256 maximumRefund) {
+        uint256 overhead = provider.quoteDeliveryOverhead(targetChain);
         if (maxTransactionFee > overhead) {
             (uint16 buffer, uint16 denominator) = provider.getAssetConversionBuffer(targetChain);
             uint256 remainder = maxTransactionFee - overhead;
@@ -363,13 +325,14 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
      * @param provider relay provider
      * @return targetAmount amount of target chain currency
      */
-    function convertReceiverValueAmount(uint256 sourceAmount, uint16 targetChain, IRelayProvider provider)
+    function convertReceiverValueAmountToTarget(uint256 sourceAmount, uint16 targetChain, IRelayProvider provider)
         internal
         view
         returns (uint256 targetAmount)
     {
         (uint16 buffer, uint16 denominator) = provider.getAssetConversionBuffer(targetChain);
 
+        // todo: akshaj why is `uint256(0) + ...` present?
         targetAmount = assetConversionHelper(
             chainId(), sourceAmount, targetChain, denominator, uint256(0) + denominator + buffer, false, provider
         );
@@ -521,6 +484,7 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
             ins.newMaximumRefundTarget,
             ins.newReceiverValueTarget,
             ins.sourceRelayProvider,
+            ins.targetChain,
             ins.executionParameters.version,
             ins.executionParameters.gasLimit
         );
@@ -549,6 +513,9 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
 
         output.sourceRelayProvider = encoded.toBytes32(index);
         index += 32;
+
+        output.targetChain = encoded.toUint16(index);
+        index+=2;
 
         output.executionParameters.version = 1;
         index += 1;

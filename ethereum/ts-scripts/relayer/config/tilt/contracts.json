@@ -14,11 +14,11 @@
   "coreRelayers": [
     {
       "chainId": 2,
-      "address": "0xEde4E59B13cc311779CA467ed4048268a55CED0d"
+      "address": "0x8dC61d470822A4F96Fe1a35Ae99BD6139294074f"
     },
     {
       "chainId": 4,
-      "address": "0xEde4E59B13cc311779CA467ed4048268a55CED0d"
+      "address": "0x8dC61d470822A4F96Fe1a35Ae99BD6139294074f"
     }
   ],
   "mockIntegrations": [
