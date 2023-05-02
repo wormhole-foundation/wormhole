@@ -4,12 +4,9 @@ pragma solidity ^0.8.0;
 
 import "../../interfaces/relayer/IWormholeReceiver.sol";
 import "../../interfaces/IWormhole.sol";
-import "../../interfaces/relayer/IRelayProvider.sol";
 import "../../interfaces/relayer/IForwardInstructionViewer.sol";
 import "../../interfaces/relayer/IWormholeRelayerInternalStructs.sol";
 import "../../interfaces/relayer/IForwardWrapper.sol";
-import "../../interfaces/relayer/IWormholeReceiver.sol";
-import "../../interfaces/relayer/IRelayProvider.sol";
 import {CoreRelayerLibrary} from "../coreRelayer/CoreRelayerLibrary.sol";
 
 contract ForwardWrapper is CoreRelayerLibrary {
@@ -31,18 +28,21 @@ contract ForwardWrapper is CoreRelayerLibrary {
         // Calls the 'receiveWormholeMessages' endpoint on the contract 'instruction.targetAddress'
         // (with the gas limit and value specified in instruction, and 'encodedVMs' as the input)
         bytes memory returnData;
-        (callToTargetContractSucceeded, returnData) = forwardInstructionViewer.fromWormholeFormat(instruction.targetAddress).call{
-            gas: instruction.executionParameters.gasLimit,
-            value: instruction.receiverValueTarget
-        }(abi.encodeWithSelector(IWormholeReceiver.receiveWormholeMessages.selector, data, signedVaas));
+        (callToTargetContractSucceeded, returnData) = forwardInstructionViewer.fromWormholeFormat(
+            instruction.targetAddress
+        ).call{gas: instruction.executionParameters.gasLimit, value: instruction.receiverValueTarget}(
+            abi.encodeWithSelector(IWormholeReceiver.receiveWormholeMessages.selector, data, signedVaas)
+        );
 
         uint256 postGas = gasleft();
 
         returnDataTruncated = callToTargetContractSucceeded ? bytes("") : truncateReturnData(returnData);
         // Calculate the amount of gas used in the call (upperbounding at the gas limit, which shouldn't have been exceeded)
-        gasUsed = uint32((preGas - postGas) > instruction.executionParameters.gasLimit
-            ? instruction.executionParameters.gasLimit
-            : (preGas - postGas));
+        gasUsed = uint32(
+            (preGas - postGas) > instruction.executionParameters.gasLimit
+                ? instruction.executionParameters.gasLimit
+                : (preGas - postGas)
+        );
 
         // Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the fraction of gas unused)
         uint256 transactionFeeRefundAmount = (instruction.executionParameters.gasLimit - gasUsed)
@@ -68,11 +68,25 @@ contract ForwardWrapper is CoreRelayerLibrary {
         }
     }
 
-    function safeRelayProviderSupportsChain(IRelayProvider relayProvider, uint16 chainId)
-        external
-        view
-        returns (bool isSupported)
-    {
-        return relayProvider.isChainSupported(chainId);
+    function getValuesFromRelayProvider(
+        address providerAddress,
+        uint16 sourceChain,
+        uint16 targetChain,
+        uint256 receiverValuePlusOverhead
+    ) public view returns (address rewardAddress, uint256 maximumBudget, uint256 receiverValueTarget) {
+        IRelayProvider relayProvider = IRelayProvider(providerAddress);
+        require(relayProvider.isChainSupported(targetChain));
+        uint256 deliveryOverhead = relayProvider.quoteDeliveryOverhead(targetChain);
+        rewardAddress = relayProvider.getRewardAddress();
+        maximumBudget = relayProvider.quoteMaximumBudget(targetChain);
+        uint256 srcNativeCurrencyPrice = relayProvider.quoteAssetPrice(sourceChain);
+        uint256 dstNativeCurrencyPrice = relayProvider.quoteAssetPrice(targetChain);
+        (uint16 buffer, uint16 denominator) = relayProvider.getAssetConversionBuffer(targetChain);
+        receiverValueTarget = receiverValuePlusOverhead > deliveryOverhead
+            ? (
+                (receiverValuePlusOverhead - deliveryOverhead) * srcNativeCurrencyPrice * denominator
+                    / (dstNativeCurrencyPrice * (uint256(0) + denominator + buffer))
+            )
+            : 0;
     }
 }

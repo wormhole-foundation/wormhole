@@ -53,7 +53,7 @@ interface IWormholeRelayerInternalStructs {
 
     struct DeliveryInternalVariables {
         uint256 preGas;
-        uint256 postGas; 
+        uint256 postGas;
         bool callToInstructionExecutorSucceeded;
         bytes callToInstructionExecutorData;
         uint256 transactionFeeRefundAmount;
@@ -64,5 +64,4 @@ interface IWormholeRelayerInternalStructs {
         bytes additionalStatusInfo;
         bytes overridesInfo;
     }
-
 }
