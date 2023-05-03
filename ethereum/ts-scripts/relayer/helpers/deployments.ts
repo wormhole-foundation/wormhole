@@ -187,43 +187,47 @@ export async function deployCoreRelayerProxy(
   console.log("deployCoreRelayerProxy " + chain.chainId);
 
   const create2Factory = getCreate2Factory(chain);
-  const expectedSetupAddr = await fetchSetupAddressCreate2(
-    chain,
-    create2Factory
-  );
-  if (coreRelayerSetupAddress !== expectedSetupAddr) {
-    throw new Error(
-      `coreRelayerSetupAddress different than expected. Expected: ${expectedSetupAddr} Actual: ${coreRelayerSetupAddress}`
-    );
-  }
 
   // deploy proxy and point at setup contract
-  const data = new CoreRelayerProxy__factory().getDeployTransaction(
-    coreRelayerSetupAddress
-  ).data!;
-  const rx = await create2Factory.create2(proxyContractSalt, data).then(wait);
-
   // call setup
   const governanceChainId = 1;
   const governanceContract =
     "0x0000000000000000000000000000000000000000000000000000000000000004";
-  const proxy = CoreRelayerSetup__factory.connect(
-    await getCoreRelayerAddress(chain, true),
-    getSigner(chain)
-  );
-  await proxy
-    .setup(
+  const setupCall = CoreRelayerSetup__factory.createInterface().encodeFunctionData(
+    "setup",
+    [
       coreRelayerImplementationAddress,
       chain.chainId,
       wormholeAddress,
       relayProviderProxyAddress,
       governanceChainId,
       governanceContract,
-      chain.evmNetworkId
-    )
+      chain.evmNetworkId,
+    ]
+  );
+  const rx = await create2Factory
+    .create2Proxy(proxyContractSalt, coreRelayerSetupAddress, setupCall)
     .then(wait);
-  console.log("Successfully deployed contract at " + proxy.address);
-  return { address: proxy.address, chainId: chain.chainId };
+
+  let proxyAddress: string;
+  for (const log of rx.logs) {
+    try {
+      if (log.address == create2Factory.address) {
+        proxyAddress = create2Factory.interface.parseLog(log).args.addr;
+      }
+    } catch (e) {}
+  }
+  // const  = createEvent;
+  const computedAddr = await create2Factory.computeProxyAddress(
+    getSigner(chain).address,
+    proxyContractSalt
+  );
+  if (proxyAddress! !== computedAddr) {
+    console.error("Computed address does not match desired");
+  }
+
+  console.log("Successfully deployed contract at " + computedAddr);
+  return { address: computedAddr, chainId: chain.chainId };
 }
 
 function link(bytecode: string, libName: String, libAddress: string) {

@@ -55,7 +55,7 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "npm run migrate && npx truffle exec scripts/deploy_test_token.js && npx truffle exec scripts/register_all_chains.js && npm run build && npm run deploy-relayers-evm1 && nc -lkn 2000"
+            - "npm run migrate && npx truffle exec scripts/deploy_test_token.js && npx truffle exec scripts/register_all_chains.js && npm run deploy-relayers-evm1 && nc -lkn 2000"
           readinessProbe:
             periodSeconds: 1
             failureThreshold: 300
