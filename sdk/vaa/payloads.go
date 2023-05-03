@@ -55,10 +55,6 @@ var (
 	ActionUpgradeTokenBridge        GovernanceAction = 2
 	ActionTokenBridgeRecoverChainId GovernanceAction = 3
 
-	ActionRegisterChain      GovernanceAction = 1
-	ActionUpgradeTokenBridge GovernanceAction = 2
-	ActionModifyBalance      GovernanceAction = 3
-
 	// Circle Integration governance actions
 	CircleIntegrationActionUpdateWormholeFinality        GovernanceAction = 1
 	CircleIntegrationActionRegisterEmitterAndDomain      GovernanceAction = 2
