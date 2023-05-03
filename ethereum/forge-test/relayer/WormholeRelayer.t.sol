@@ -14,8 +14,6 @@ import {IDelivery} from "../../contracts/interfaces/relayer/IDelivery.sol";
 import {CoreRelayer} from "../../contracts/relayer/coreRelayer/CoreRelayer.sol";
 import {IWormholeRelayerInternalStructs} from "../../contracts/interfaces/relayer/IWormholeRelayerInternalStructs.sol";
 import {CoreRelayerSetup} from "../../contracts/relayer/coreRelayer/CoreRelayerSetup.sol";
-import {CoreRelayerImplementation} from "../../contracts/relayer/coreRelayer/CoreRelayerImplementation.sol";
-import {CoreRelayerProxy} from "../../contracts/relayer/coreRelayer/CoreRelayerProxy.sol";
 import {CoreRelayerMessages} from "../../contracts/relayer/coreRelayer/CoreRelayerMessages.sol";
 import {CoreRelayerGovernance} from "../../contracts/relayer/coreRelayer/CoreRelayerGovernance.sol";
 import {MockGenericRelayer} from "./MockGenericRelayer.sol";
@@ -302,8 +300,7 @@ contract WormholeRelayerTests is Test {
 
     function testSendCheckConsistencyLevel(
         GasParameters memory gasParams,
-        FeeParameters memory feeParams,
-        bytes memory message
+        FeeParameters memory feeParams
     ) public {
         StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
 
@@ -339,8 +336,7 @@ contract WormholeRelayerTests is Test {
 
     function testSendUsingVaaHashAsVaaKey(
         GasParameters memory gasParams,
-        FeeParameters memory feeParams,
-        bytes memory message
+        FeeParameters memory feeParams
     ) public {
         StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
 
@@ -805,7 +801,6 @@ contract WormholeRelayerTests is Test {
         if (actualGasLimit > type(uint32).max) {
             actualGasLimit = type(uint32).max;
         }
-        uint256 refundAddressBalanceSource = address(source.integration).balance;
         uint256 rewardAddressBalanceTarget = target.rewardAddress.balance;
 
         source.integration.sendMessageWithForwardedResponse{value: test.payment + test.receiverValueSource}(
@@ -2408,9 +2403,10 @@ contract WormholeRelayerTests is Test {
             sequence,
             bytes32(0x0)
         );
-
+        
+        uint256 newPayment;
         for (uint8 i = 2; i < 10; i++) {
-            uint256 newPayment = setup.source.coreRelayer.quoteGas(
+            newPayment = setup.source.coreRelayer.quoteGas(
                 setup.targetChainId, uint32(i) * 10000, address(setup.source.relayProvider)
             ) + setup.source.wormhole.messageFee();
 
@@ -2431,7 +2427,7 @@ contract WormholeRelayerTests is Test {
             assertTrue(getDeliveryStatus(logs[logs.length - 1]) == DeliveryStatus.RECEIVER_FAILURE);
         }
 
-        uint256 newPayment = setup.source.coreRelayer.quoteGas(
+        newPayment = setup.source.coreRelayer.quoteGas(
             setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
         ) + setup.source.wormhole.messageFee();
 

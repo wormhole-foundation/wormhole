@@ -15,7 +15,6 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 import "../../interfaces/IWormhole.sol";
 
 abstract contract CoreRelayerGovernance is
-    CoreRelayerGetters,
     CoreRelayerSetters,
     CoreRelayerMessages,
     ERC1967Upgrade

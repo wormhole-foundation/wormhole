@@ -2,22 +2,15 @@ import { RelayProviderProxy__factory } from "../../../ethers-contracts";
 import { RelayProviderSetup__factory } from "../../../ethers-contracts";
 import { RelayProviderImplementation__factory } from "../../../ethers-contracts";
 import { MockRelayerIntegration__factory } from "../../../ethers-contracts";
-import { CoreRelayerProxy__factory } from "../../../ethers-contracts";
 import { CoreRelayerSetup__factory } from "../../../ethers-contracts";
-import { CoreRelayerImplementation__factory } from "../../../ethers-contracts";
+import { CoreRelayer__factory } from "../../../ethers-contracts";
 
 import {
-  init,
-  loadChains,
-  loadPrivateKey,
-  writeOutputFiles,
   ChainInfo,
   Deployment,
   getSigner,
   getCoreRelayerAddress,
   getCreate2Factory,
-  getCoreRelayer,
-  fetchSetupAddressCreate2,
 } from "./env";
 import { ethers } from "ethers";
 import {
@@ -154,7 +147,7 @@ export async function deployCoreRelayerImplementation(
 ): Promise<Deployment> {
   console.log("deployCoreRelayerImplementation " + chain.chainId);
 
-  const result = await new CoreRelayerImplementation__factory(getSigner(chain))
+  const result = await new CoreRelayer__factory(getSigner(chain))
     .deploy(forwardWrapperAddress)
     .then(deployed);
 

@@ -48,7 +48,7 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
             convertReceiverValueAmountToTarget(send.receiverValue, send.targetChain, relayProvider);
 
         instruction.senderAddress = toWormholeFormat(msg.sender);
-        instruction.sourceRelayProvider = toWormholeFormat(address(relayProvider));
+        instruction.sourceRelayProvider = toWormholeFormat(send.relayProviderAddress);
         instruction.targetRelayProvider = relayProvider.getTargetChainAddress(send.targetChain);
 
         instruction.vaaKeys = send.vaaKeys;

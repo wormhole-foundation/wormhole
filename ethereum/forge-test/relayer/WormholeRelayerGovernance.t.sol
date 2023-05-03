@@ -14,8 +14,6 @@ import {IDelivery} from "../../contracts/interfaces/relayer/IDelivery.sol";
 import {CoreRelayer} from "../../contracts/relayer/coreRelayer/CoreRelayer.sol";
 import {IWormholeRelayerInternalStructs} from "../../contracts/interfaces/relayer/IWormholeRelayerInternalStructs.sol";
 import {CoreRelayerSetup} from "../../contracts/relayer/coreRelayer/CoreRelayerSetup.sol";
-import {CoreRelayerImplementation} from "../../contracts/relayer/coreRelayer/CoreRelayerImplementation.sol";
-import {CoreRelayerProxy} from "../../contracts/relayer/coreRelayer/CoreRelayerProxy.sol";
 import {CoreRelayerMessages} from "../../contracts/relayer/coreRelayer/CoreRelayerMessages.sol";
 import {ForwardWrapper} from "../../contracts/relayer/coreRelayer/ForwardWrapper.sol";
 import {CoreRelayerGovernance} from "../../contracts/relayer/coreRelayer/CoreRelayerGovernance.sol";
@@ -164,7 +162,7 @@ contract WormholeRelayerGovernanceTests is Test {
 
         for (uint256 i = 0; i < 10; i++) {
             address forwardWrapper = address(new ForwardWrapper(myCoreRelayer, address(wormhole)));
-            CoreRelayerImplementation coreRelayerImplementationNew = new CoreRelayerImplementation(forwardWrapper);
+            CoreRelayer coreRelayerImplementationNew = new CoreRelayer(forwardWrapper);
 
             bytes memory message = abi.encodePacked(
                 relayerModule,

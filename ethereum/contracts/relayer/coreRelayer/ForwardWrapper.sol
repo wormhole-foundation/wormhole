@@ -7,7 +7,8 @@ import "../../interfaces/IWormhole.sol";
 import "../../interfaces/relayer/IForwardInstructionViewer.sol";
 import "../../interfaces/relayer/IWormholeRelayerInternalStructs.sol";
 import "../../interfaces/relayer/IForwardWrapper.sol";
-import {CoreRelayerLibrary} from "../coreRelayer/CoreRelayerLibrary.sol";
+import "../coreRelayer/CoreRelayerLibrary.sol";
+import "./Utils.sol";
 
 contract ForwardWrapper is CoreRelayerLibrary {
     error ForwardNotSufficientlyFunded(uint256 amountOfFunds, uint256 amountOfFundsNeeded);
@@ -36,13 +37,11 @@ contract ForwardWrapper is CoreRelayerLibrary {
 
         uint256 postGas = gasleft();
 
-        returnDataTruncated = callToTargetContractSucceeded ? bytes("") : truncateReturnData(returnData);
+        if (callToTargetContractSucceeded) {
+            returnDataTruncated = truncateReturnData(returnData);
+        }
         // Calculate the amount of gas used in the call (upperbounding at the gas limit, which shouldn't have been exceeded)
-        gasUsed = uint32(
-            (preGas - postGas) > instruction.executionParameters.gasLimit
-                ? instruction.executionParameters.gasLimit
-                : (preGas - postGas)
-        );
+        gasUsed = uint32(Utils.min(preGas - postGas, instruction.executionParameters.gasLimit));
 
         // Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the fraction of gas unused)
         uint256 transactionFeeRefundAmount = (instruction.executionParameters.gasLimit - gasUsed)
@@ -82,11 +81,9 @@ contract ForwardWrapper is CoreRelayerLibrary {
         uint256 srcNativeCurrencyPrice = relayProvider.quoteAssetPrice(sourceChain);
         uint256 dstNativeCurrencyPrice = relayProvider.quoteAssetPrice(targetChain);
         (uint16 buffer, uint16 denominator) = relayProvider.getAssetConversionBuffer(targetChain);
-        receiverValueTarget = receiverValuePlusOverhead > deliveryOverhead
-            ? (
-                (receiverValuePlusOverhead - deliveryOverhead) * srcNativeCurrencyPrice * denominator
-                    / (dstNativeCurrencyPrice * (uint256(0) + denominator + buffer))
-            )
-            : 0;
+        if (receiverValuePlusOverhead > deliveryOverhead) {
+            receiverValueTarget = (receiverValuePlusOverhead - deliveryOverhead) * srcNativeCurrencyPrice * denominator
+                / (dstNativeCurrencyPrice * (uint256(0) + denominator + buffer));
+        }
     }
 }

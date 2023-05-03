@@ -6,6 +6,9 @@ import "./CoreRelayerGovernance.sol";
 
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 
+/**
+ * @notice Initial implementation used initialize CoreRelayerState, then upgrade implementation to CoreRelayer
+ */
 contract CoreRelayerSetup is CoreRelayerSetters, ERC1967Upgrade {
     error ImplementationAddressIsZero();
     error WormholeAddressIsZero();

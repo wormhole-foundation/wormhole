@@ -1,6 +1,5 @@
 import {
   init,
-  loadChains,
   writeOutputFiles,
   ChainInfo,
   Deployment,

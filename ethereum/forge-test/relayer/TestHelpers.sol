@@ -12,8 +12,6 @@ import {ForwardWrapper} from "../../contracts/relayer/coreRelayer/ForwardWrapper
 import {CoreRelayer} from "../../contracts/relayer/coreRelayer/CoreRelayer.sol";
 import {Create2Factory} from "../../contracts/relayer/create2Factory/Create2Factory.sol";
 import {CoreRelayerSetup} from "../../contracts/relayer/coreRelayer/CoreRelayerSetup.sol";
-import {CoreRelayerImplementation} from "../../contracts/relayer/coreRelayer/CoreRelayerImplementation.sol";
-import {CoreRelayerProxy} from "../../contracts/relayer/coreRelayer/CoreRelayerProxy.sol";
 import {CoreRelayerGovernance} from "../../contracts/relayer/coreRelayer/CoreRelayerGovernance.sol";
 import {MockGenericRelayer} from "./MockGenericRelayer.sol";
 import {MockWormhole} from "./MockWormhole.sol";
@@ -114,7 +112,7 @@ contract TestHelpers {
         address proxyAddressComputed = create2Factory.computeProxyAddress(address(this), "0xGenericRelayer");
         ForwardWrapper forwardWrapper = new ForwardWrapper(proxyAddressComputed, address(wormhole));
 
-        CoreRelayerImplementation coreRelayerImplementation = new CoreRelayerImplementation(address(forwardWrapper));
+        CoreRelayer coreRelayerImplementation = new CoreRelayer(address(forwardWrapper));
 
         bytes memory setupCall = abi.encodeCall(
             CoreRelayerSetup.setup,
@@ -129,9 +127,8 @@ contract TestHelpers {
             )
         );
 
-        CoreRelayerProxy myCoreRelayer =
-            CoreRelayerProxy(create2Factory.create2Proxy("0xGenericRelayer", address(coreRelayerSetup), setupCall));
-        require(address(myCoreRelayer) == proxyAddressComputed, "computed must match actual proxy addr");
-        coreRelayer = IWormholeRelayer(address(myCoreRelayer));
+        coreRelayer =
+            IWormholeRelayer(create2Factory.create2Proxy("0xGenericRelayer", address(coreRelayerSetup), setupCall));
+        require(address(coreRelayer) == proxyAddressComputed, "computed must match actual proxy addr");
     }
 }
