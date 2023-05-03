@@ -394,17 +394,10 @@ export async function getCoreRelayerAddress(
   if (!coreRelayerAddressesCache[chain.chainId]) {
     const create2Factory = getCreate2Factory(chain);
     const signer = getSigner(chain).address;
-    const setupAddr = await fetchSetupAddressCreate2(chain, create2Factory);
 
-    const data = new CoreRelayerProxy__factory().getDeployTransaction(setupAddr)
-      .data!;
     coreRelayerAddressesCache[
       chain.chainId
-    ] = await create2Factory.computeAddress(
-      signer,
-      proxyContractSalt,
-      ethers.utils.solidityKeccak256(["bytes"], [data])
-    );
+    ] = await create2Factory.computeProxyAddress(signer, proxyContractSalt);
   }
 
   return coreRelayerAddressesCache[chain.chainId]!;

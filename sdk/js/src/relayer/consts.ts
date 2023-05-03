@@ -28,11 +28,11 @@ const TESTNET = [
 const DEVNET = [
   {
     chainId: 2,
-    coreRelayerAddress: "0xf7c3C8dA39C916450543c26A6f4815F7527686dA",
+    coreRelayerAddress: "0x34dc8837Fb909b83CDe5479015A9925acFb63165",
   },
   {
     chainId: 4,
-    coreRelayerAddress: "0xf7c3C8dA39C916450543c26A6f4815F7527686dA",
+    coreRelayerAddress: "0x34dc8837Fb909b83CDe5479015A9925acFb63165",
   },
 ];
 
