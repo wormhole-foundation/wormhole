@@ -162,8 +162,14 @@ func NewEthWatcher(
 	}
 }
 
-func (w *Watcher) Run(ctx context.Context) error {
-	logger := supervisor.Logger(ctx)
+func (w *Watcher) Run(parentCtx context.Context) error {
+	logger := supervisor.Logger(parentCtx)
+
+	// later on we will spawn multiple go-routines through `RunWithScissors`, i.e. catching panics.
+	// If any of them panic, this function will return, causing this child context to be canceled
+	// such that the other go-routines can free up resources
+	ctx, watcherContextCancelFunc := context.WithCancel(parentCtx)
+	defer watcherContextCancelFunc()
 
 	useFinalizedBlocks := ((w.chainID == vaa.ChainIDEthereum || w.chainID == vaa.ChainIDSepolia) && (!w.unsafeDevMode))
 	if (w.chainID == vaa.ChainIDKarura || w.chainID == vaa.ChainIDAcala) && (!w.unsafeDevMode) {
