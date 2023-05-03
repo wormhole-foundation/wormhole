@@ -586,7 +586,7 @@ func UnmarshalBatch(data []byte) (*BatchVAA, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to read Observation index [%d]: %w", i, err)
 		}
-		obsvIndex := uint8(index)
+		var obsvIndex uint8 = index
 
 		obsvLength := uint32(0)
 		if err := binary.Read(reader, binary.BigEndian, &obsvLength); err != nil {
@@ -827,7 +827,7 @@ func (v *BatchVAA) serializeBody() []byte {
 	MustWrite(buf, binary.BigEndian, uint8(len(v.Observations)))
 	for _, obsv := range v.Observations {
 
-		MustWrite(buf, binary.BigEndian, uint8(obsv.Index))
+		MustWrite(buf, binary.BigEndian, obsv.Index)
 
 		obsvBytes := obsv.Observation.serializeBody()
 
