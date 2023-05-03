@@ -260,7 +260,7 @@ func wormchainStoreCode(req *nodev1.WormchainStoreCode, timestamp time.Time, gua
 
 // wormchainInstantiateContract converts a nodev1.WormchainInstantiateContract to its canonical VAA representation
 // Returns an error if the data is invalid
-func wormchainInstantiateContract(req *nodev1.WormchainInstantiateContract, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+func wormchainInstantiateContract(req *nodev1.WormchainInstantiateContract, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) { //nolint:unparam // error is always nil but kept to mirror function signature of other functions
 	instantiationParams_hash := vaa.CreateInstatiateCosmwasmContractHash(req.CodeId, req.Label, []byte(req.InstantiationMsg))
 
 	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
@@ -272,7 +272,7 @@ func wormchainInstantiateContract(req *nodev1.WormchainInstantiateContract, time
 }
 
 // wormchainMigrateContract converts a nodev1.WormchainMigrateContract to its canonical VAA representation
-func wormchainMigrateContract(req *nodev1.WormchainMigrateContract, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+func wormchainMigrateContract(req *nodev1.WormchainMigrateContract, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) { //nolint:unparam // error is always nil but kept to mirror function signature of other functions
 	instantiationParams_hash := vaa.CreateMigrateCosmwasmContractHash(req.CodeId, req.Contract, []byte(req.InstantiationMsg))
 
 	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
@@ -755,7 +755,11 @@ func (s *nodePrivilegedService) SignExistingVAA(ctx context.Context, req *nodev1
 
 	var gs *common.GuardianSet
 	if cachedGs, exists := s.gsCache.Load(v.GuardianSetIndex); exists {
-		gs = cachedGs.(*common.GuardianSet)
+		var ok bool
+		gs, ok = cachedGs.(*common.GuardianSet)
+		if !ok {
+			return nil, fmt.Errorf("internal error")
+		}
 	} else {
 		evmGs, err := s.evmConnector.GetGuardianSet(ctx, v.GuardianSetIndex)
 		if err != nil {
