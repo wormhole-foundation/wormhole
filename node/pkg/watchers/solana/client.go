@@ -193,7 +193,7 @@ func NewSolanaWatcher(
 		rpcClient:     rpc.New(rpcUrl),
 		readinessSync: common.MustConvertChainIdToReadinessSyncing(chainID),
 		chainID:       chainID,
-		networkName:   vaa.ChainID(chainID).String(),
+		networkName:   chainID.String(),
 	}
 }
 
@@ -225,7 +225,7 @@ func (s *SolanaWatcher) SetupSubscription(ctx context.Context) (error, *websocke
 }
 
 func (s *SolanaWatcher) SetupWebSocket(ctx context.Context) error {
-	if vaa.ChainID(s.chainID) != vaa.ChainIDPythNet {
+	if s.chainID != vaa.ChainIDPythNet {
 		panic("unsupported chain id")
 	}
 
@@ -714,7 +714,7 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, logger *zap.Log
 	return false
 }
 
-func (s *SolanaWatcher) processAccountSubscriptionData(ctx context.Context, logger *zap.Logger, data []byte) error {
+func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger *zap.Logger, data []byte) error {
 	// Do we have an error on the subscription?
 	var e EventSubscriptionError
 	err := json.Unmarshal(data, &e)
