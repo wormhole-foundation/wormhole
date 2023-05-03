@@ -1,3 +1,4 @@
+//nolint:noctx // this is a hack
 package main
 
 import (
@@ -401,7 +402,7 @@ func main() {
 						}
 					}
 				}
-				if seq <= uint64(lowest) {
+				if seq <= lowest {
 					// We are done
 					log.Println("Finished!")
 					return
