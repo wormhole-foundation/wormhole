@@ -7,11 +7,8 @@ metadata:
 spec:
   ports:
     - name: node
-      port: 9002
+      port: 9000
       targetPort: node
-    - name: ws
-      port: 9001
-      targetPort: ws
     - name: prometheus
       port: 9184
       targetPort: prometheus
@@ -41,16 +38,16 @@ spec:
       containers:
         - name: sui-node
           image: sui-node
+          resources:
+            requests:
+              memory: "2048Mi"
           command:
-            - /bin/sh 
-            - -c 
-            - /tmp/start_node.sh
+            - /bin/sh
+            - -c
+            - /tmp/scripts/start_node.sh
           ports:
-            - containerPort: 9002
+            - containerPort: 9000
               name: node
-              protocol: TCP
-            - containerPort: 9001
-              name: ws
               protocol: TCP
             - containerPort: 9184
               name: prometheus
@@ -60,6 +57,18 @@ spec:
               protocol: TCP
           readinessProbe:
             tcpSocket:
-              port: 9002
-
-      restartPolicy: Always
+              port: 9000
+        - name: sui-contracts
+          image: sui-node
+          command: ["/bin/bash", "-c"]
+          args:
+            [
+              "cd /tmp && ./scripts/wait_for_devnet.sh && worm sui setup-devnet && touch success && sleep infinity",
+            ]
+          readinessProbe:
+            periodSeconds: 5
+            failureThreshold: 300
+            exec:
+              command:
+                - cat
+                - /tmp/success

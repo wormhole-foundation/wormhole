@@ -97,7 +97,7 @@ set up with all the necessary dependencies. This is the command that runs in CI.
 Simply run
 
 ``` sh
-worm start-validator aptos
+worm aptos start-validator
 ```
 
 which will start a local aptos validator with an RPC endpoint at `0.0.0.0:8080`

@@ -413,7 +413,7 @@ func spyServerRunnable(s *spyServer, logger *zap.Logger, listenAddr string) (sup
 
 	logger.Info("spy server listening", zap.String("addr", l.Addr().String()))
 
-	grpcServer := common.NewInstrumentedGRPCServer(logger)
+	grpcServer := common.NewInstrumentedGRPCServer(logger, common.GrpcLogDetailFull)
 	spyv1.RegisterSpyRPCServiceServer(grpcServer, s)
 
 	return supervisor.GRPCServer(grpcServer, l, false), grpcServer, nil
@@ -530,7 +530,30 @@ func runSpy(cmd *cobra.Command, args []string) {
 
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
-		if err := supervisor.Run(ctx, "p2p", p2p.Run(obsvC, obsvReqC, nil, sendC, signedInC, priv, nil, gst, *p2pPort, *p2pNetworkID, *p2pBootstrap, "", false, rootCtxCancel, nil, nil, nil, nil)); err != nil {
+		components := p2p.DefaultComponents()
+		components.Port = *p2pPort
+		if err := supervisor.Run(ctx,
+			"p2p",
+			p2p.Run(obsvC,
+				obsvReqC,
+				nil,
+				sendC,
+				signedInC,
+				priv,
+				nil,
+				gst,
+				*p2pNetworkID,
+				*p2pBootstrap,
+				"",
+				false,
+				rootCtxCancel,
+				nil,
+				nil,
+				nil,
+				nil,
+				components,
+				nil, // ibc feature string
+			)); err != nil {
 			return err
 		}
 

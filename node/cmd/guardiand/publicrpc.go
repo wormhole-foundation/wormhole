@@ -15,7 +15,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func publicrpcTcpServiceRunnable(logger *zap.Logger, listenAddr string, db *db.Database, gst *common.GuardianSetState, gov *governor.ChainGovernor) (supervisor.Runnable, error) {
+func publicrpcTcpServiceRunnable(logger *zap.Logger, listenAddr string, publicRpcLogDetail common.GrpcLogDetail, db *db.Database, gst *common.GuardianSetState, gov *governor.ChainGovernor) (supervisor.Runnable, error) {
 	l, err := net.Listen("tcp", listenAddr)
 
 	if err != nil {
@@ -25,13 +25,14 @@ func publicrpcTcpServiceRunnable(logger *zap.Logger, listenAddr string, db *db.D
 	logger.Info("publicrpc server listening", zap.String("addr", l.Addr().String()))
 
 	rpcServer := publicrpc.NewPublicrpcServer(logger, db, gst, gov)
-	grpcServer := common.NewInstrumentedGRPCServer(logger)
+	grpcServer := common.NewInstrumentedGRPCServer(logger, publicRpcLogDetail)
+
 	publicrpcv1.RegisterPublicRPCServiceServer(grpcServer, rpcServer)
 
 	return supervisor.GRPCServer(grpcServer, l, false), nil
 }
 
-func publicrpcUnixServiceRunnable(logger *zap.Logger, socketPath string, db *db.Database, gst *common.GuardianSetState, gov *governor.ChainGovernor) (supervisor.Runnable, *grpc.Server, error) {
+func publicrpcUnixServiceRunnable(logger *zap.Logger, socketPath string, publicRpcLogDetail common.GrpcLogDetail, db *db.Database, gst *common.GuardianSetState, gov *governor.ChainGovernor) (supervisor.Runnable, *grpc.Server, error) {
 	// Delete existing UNIX socket, if present.
 	fi, err := os.Stat(socketPath)
 	if err == nil {
@@ -65,7 +66,7 @@ func publicrpcUnixServiceRunnable(logger *zap.Logger, socketPath string, db *db.
 
 	publicrpcService := publicrpc.NewPublicrpcServer(logger, db, gst, gov)
 
-	grpcServer := common.NewInstrumentedGRPCServer(logger)
+	grpcServer := common.NewInstrumentedGRPCServer(logger, publicRpcLogDetail)
 	publicrpcv1.RegisterPublicRPCServiceServer(grpcServer, publicrpcService)
 	return supervisor.GRPCServer(grpcServer, l, false), grpcServer, nil
 }

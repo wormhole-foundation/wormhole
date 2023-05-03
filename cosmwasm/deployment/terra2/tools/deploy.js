@@ -15,8 +15,8 @@ import { zeroPad } from "ethers/lib/utils.js";
   deterministic.
 */
 const artifacts = [
-  "wormhole.wasm",
-  "token_bridge_terra_2.wasm",
+  "cw_wormhole.wasm",
+  "cw_token_bridge.wasm",
   "cw20_wrapped_2.wasm",
   "cw20_base.wasm",
   "mock_bridge_integration_2.wasm",
@@ -154,8 +154,8 @@ if (!init_guardians || init_guardians.length === 0) {
   throw "failed to get initial guardians from .env file.";
 }
 
-addresses["wormhole.wasm"] = await instantiate(
-  "wormhole.wasm",
+addresses["cw_wormhole.wasm"] = await instantiate(
+  "cw_wormhole.wasm",
   {
     gov_chain: govChain,
     gov_address: Buffer.from(govAddress, "hex").toString("base64"),
@@ -174,12 +174,12 @@ addresses["wormhole.wasm"] = await instantiate(
   "wormhole"
 );
 
-addresses["token_bridge_terra_2.wasm"] = await instantiate(
-  "token_bridge_terra_2.wasm",
+addresses["cw_token_bridge.wasm"] = await instantiate(
+  "cw_token_bridge.wasm",
   {
     gov_chain: govChain,
     gov_address: Buffer.from(govAddress, "hex").toString("base64"),
-    wormhole_contract: addresses["wormhole.wasm"],
+    wormhole_contract: addresses["cw_wormhole.wasm"],
     wrapped_asset_code_id: codeIds["cw20_wrapped_2.wasm"],
     chain_id: 18,
     native_denom: "uluna",
@@ -209,7 +209,7 @@ addresses["mock.wasm"] = await instantiate(
 /* Registrations: tell the bridge contracts to know about each other */
 
 const contract_registrations = {
-  "token_bridge_terra_2.wasm": [
+  "cw_token_bridge.wasm": [
     // Solana
     process.env.REGISTER_SOL_TOKEN_BRIDGE_VAA,
     // Ethereum

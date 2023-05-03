@@ -1,8 +1,10 @@
 package accountant
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"testing"
 
@@ -12,6 +14,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"go.uber.org/zap"
 )
 
 func TestParseMissingObservationsResponse(t *testing.T) {
@@ -144,4 +148,87 @@ func TestParseBatchTransferStatusPendingResponse(t *testing.T) {
 
 	// Use DeepEqual() because the response contains pointers.
 	assert.True(t, reflect.DeepEqual(expectedResult, response.Details[0]))
+}
+
+// BatchTransferStatusQueryConnMock allows us to mock batch_transfer_status by implementing SubmitQuery.
+type BatchTransferStatusQueryConnMock struct {
+	resp []byte
+}
+
+func (qc *BatchTransferStatusQueryConnMock) SubmitQuery(ctx context.Context, contractAddress string, query []byte) ([]byte, error) {
+	// Force a failure if the query is much bigger than what we are allowing. This does not have to be exact, since the chunking tests will be using a lot more than that.
+	// A json encoded transfer key is about 150 characters.
+	if len(query) > 150*maxPendingsPerQuery+1000 {
+		return []byte{}, errors.New("query too large")
+	}
+
+	return qc.resp, nil
+}
+
+// validateBatchTransferStatusResults makes sure the query returned everything expected, and nothing extra.
+func validateBatchTransferStatusResults(t *testing.T, keys []TransferKey, transferDetails map[string]*TransferStatus) {
+	for _, key := range keys {
+		tKey := key.String()
+		_, exists := transferDetails[tKey]
+		require.Equal(t, true, exists)
+		delete(transferDetails, tKey)
+	}
+
+	require.Equal(t, 0, len(transferDetails))
+}
+
+func TestBatchTransferStatusForExactlyOneTransfer(t *testing.T) {
+	ctx := context.Background()
+	logger := zap.NewNop()
+
+	keys, queryResp := createTransferKeysForTestingBatchTransferStatus(t, 1)
+	require.Equal(t, 1, len(keys))
+	qc := &BatchTransferStatusQueryConnMock{resp: queryResp}
+
+	transferDetails, err := queryBatchTransferStatusWithConn(ctx, logger, qc, "wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465", keys)
+	require.NoError(t, err)
+	require.Equal(t, len(keys), len(transferDetails))
+	validateBatchTransferStatusResults(t, keys, transferDetails)
+}
+
+func TestBatchTransferStatusForExactlyOneChunk(t *testing.T) {
+	ctx := context.Background()
+	logger := zap.NewNop()
+
+	keys, queryResp := createTransferKeysForTestingBatchTransferStatus(t, maxPendingsPerQuery)
+	require.Equal(t, maxPendingsPerQuery, len(keys))
+	qc := &BatchTransferStatusQueryConnMock{resp: queryResp}
+
+	transferDetails, err := queryBatchTransferStatusWithConn(ctx, logger, qc, "wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465", keys)
+	require.NoError(t, err)
+	require.Equal(t, len(keys), len(transferDetails))
+	validateBatchTransferStatusResults(t, keys, transferDetails)
+}
+
+func TestBatchTransferStatusForExactlyOneChunkPlus1(t *testing.T) {
+	ctx := context.Background()
+	logger := zap.NewNop()
+
+	keys, queryResp := createTransferKeysForTestingBatchTransferStatus(t, maxPendingsPerQuery+1)
+	require.Equal(t, maxPendingsPerQuery+1, len(keys))
+	qc := &BatchTransferStatusQueryConnMock{resp: queryResp}
+
+	transferDetails, err := queryBatchTransferStatusWithConn(ctx, logger, qc, "wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465", keys)
+	require.NoError(t, err)
+	require.Equal(t, len(keys), len(transferDetails))
+	validateBatchTransferStatusResults(t, keys, transferDetails)
+}
+
+func TestBatchTransferStatusMultipleChunks(t *testing.T) {
+	ctx := context.Background()
+	logger := zap.NewNop()
+
+	keys, queryResp := createTransferKeysForTestingBatchTransferStatus(t, -1)
+	require.Less(t, maxPendingsPerQuery, len(keys))
+	qc := &BatchTransferStatusQueryConnMock{resp: queryResp}
+
+	transferDetails, err := queryBatchTransferStatusWithConn(ctx, logger, qc, "wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465", keys)
+	require.NoError(t, err)
+	require.Equal(t, len(keys), len(transferDetails))
+	validateBatchTransferStatusResults(t, keys, transferDetails)
 }

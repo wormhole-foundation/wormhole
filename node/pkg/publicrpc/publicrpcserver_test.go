@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/certusone/wormhole/node/pkg/governor"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -62,4 +63,20 @@ func TestGetSignedVAABadAddress(t *testing.T) {
 
 	expected_err := status.Error(codes.InvalidArgument, "address must be 32 bytes")
 	assert.Equal(t, expected_err, err)
+}
+
+func TestGovernorIsVAAEnqueuedNoMessage(t *testing.T) {
+	ctx := context.Background()
+	logger, _ := zap.NewProduction()
+	gov := governor.NewChainGovernor(logger, nil, governor.GoTestMode)
+	server := &PublicrpcServer{logger: logger, gov: gov}
+
+	// A message without the messageId set should not panic but return an error instead.
+	msg := publicrpcv1.GovernorIsVAAEnqueuedRequest{}
+	assert.NotPanics(t, func() {
+		_, err := server.GovernorIsVAAEnqueued(ctx, &msg)
+		assert.Error(t, err)
+		expected_err := status.Error(codes.InvalidArgument, "no message ID specified")
+		assert.Equal(t, expected_err, err)
+	})
 }

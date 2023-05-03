@@ -19,7 +19,7 @@ import {
   CHAIN_ID_SOLANA,
   CONTRACTS,
 } from "../../../utils";
-import { WORMHOLE_RPC_HOSTS } from "../consts";
+import { WORMHOLE_RPC_HOSTS } from "./consts";
 
 // TODO(aki): implement getEmitterAddressAptos and sub here
 export async function getSignedVaaAptos(

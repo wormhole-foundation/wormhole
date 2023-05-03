@@ -1,221 +1,351 @@
-/// Token Bridge VAA utilities
+// SPDX-License-Identifier: Apache 2
+
+/// This module builds on Wormhole's `vaa::parse_and_verify` method by adding
+/// emitter verification and replay protection.
+///
+/// Token Bridge only cares about other Token Bridge messages, so the emitter
+/// address must be a registered Token Bridge emitter according to the VAA's
+/// emitter chain ID.
+///
+/// Token Bridge does not allow replaying any of its VAAs, so its hash is stored
+/// in its `State`. If the encoded VAA passes through `parse_and_verify` again,
+/// it will abort.
 module token_bridge::vaa {
-    use std::option;
-    use sui::tx_context::{TxContext};
-
-    use wormhole::myvaa::{Self as corevaa, VAA};
-    use wormhole::state::{State as WormholeState};
+    use sui::table::{Self};
     use wormhole::external_address::{ExternalAddress};
+    use wormhole::vaa::{Self, VAA};
 
-    use token_bridge::bridge_state::{Self as bridge_state, BridgeState};
+    use token_bridge::state::{Self, State};
 
-    //friend token_bridge::contract_upgrade;
-    friend token_bridge::register_chain;
-    friend token_bridge::wrapped;
+    friend token_bridge::create_wrapped;
     friend token_bridge::complete_transfer;
+    friend token_bridge::complete_transfer_with_payload;
+
+    /// For a given chain ID, Token Bridge is non-existent.
+    const E_UNREGISTERED_EMITTER: u64 = 0;
+    /// Encoded emitter address does not match registered Token Bridge.
+    const E_EMITTER_ADDRESS_MISMATCH: u64 = 1;
+
+    /// This type represents VAA data whose emitter is a registered Token Bridge
+    /// emitter. This message is also representative of a VAA that cannot be
+    /// replayed.
+    struct TokenBridgeMessage {
+        /// Wormhole chain ID from which network the message originated from.
+        emitter_chain: u16,
+        /// Address of Token Bridge (standardized to 32 bytes) that produced
+        /// this message.
+        emitter_address: ExternalAddress,
+        /// Sequence number of Token Bridge's Wormhole message.
+        sequence: u64,
+        /// Token Bridge payload.
+        payload: vector<u8>
+    }
+
+    /// Parses and verifies encoded VAA. Because Token Bridge does not allow
+    /// VAAs to be replayed, the VAA hash is stored in a set, which is checked
+    /// against the next time the same VAA is used to make sure it cannot be
+    /// used again.
+    ///
+    /// In its verification, this method checks whether the emitter is a
+    /// registered Token Bridge contract on another network.
+    ///
+    /// NOTE: It is important for integrators to refrain from calling this
+    /// method within their contracts. This method is meant to be called within
+    /// a transaction block, passing the `TokenBridgeMessage` to one of the
+    /// Token Bridge methods that consumes this type. If in a circumstance where
+    /// this module has a breaking change in an upgrade, another method  (e.g.
+    /// `complete_transfer_with_payload`) will not be affected by this change.
+    public fun verify_only_once(
+        token_bridge_state: &mut State,
+        verified_vaa: VAA
+    ): TokenBridgeMessage {
+        // This capability ensures that the current build version is used.
+        let latest_only = state::assert_latest_only(token_bridge_state);
+
+        // First parse and verify VAA using Wormhole. This also consumes the VAA
+        // hash to prevent replay.
+        vaa::consume(
+            state::borrow_mut_consumed_vaas(&latest_only, token_bridge_state),
+            &verified_vaa
+        );
+
+        // Does the emitter agree with a registered Token Bridge?
+        assert_registered_emitter(token_bridge_state, &verified_vaa);
+
+        // Take emitter info, sequence and payload.
+        let sequence = vaa::sequence(&verified_vaa);
+        let (
+            emitter_chain,
+            emitter_address,
+            payload
+        ) = vaa::take_emitter_info_and_payload(verified_vaa);
+
+        TokenBridgeMessage {
+            emitter_chain,
+            emitter_address,
+            sequence,
+            payload
+        }
+    }
+
+    public fun emitter_chain(self: &TokenBridgeMessage): u16 {
+        self.emitter_chain
+    }
+
+    public fun emitter_address(self: &TokenBridgeMessage): ExternalAddress {
+        self.emitter_address
+    }
+
+    public fun sequence(self: &TokenBridgeMessage): u64 {
+        self.sequence
+    }
+
+    /// Destroy `TokenBridgeMessage` and extract payload, which is the same
+    /// payload in the `VAA`.
+    ///
+    /// NOTE: This is a privileged method, which only friends within the Token
+    /// Bridge package can use. This guarantees that no other package can redeem
+    /// a VAA intended for Token Bridge as a denial-of-service by calling
+    /// `verify_only_once` and then destroying it by calling it this method.
+    public(friend) fun take_payload(msg: TokenBridgeMessage): vector<u8> {
+        let TokenBridgeMessage {
+            emitter_chain: _,
+            emitter_address: _,
+            sequence: _,
+            payload
+        } = msg;
+
+        payload
+    }
+
+    /// Assert that a given emitter equals one that is registered as a foreign
+    /// Token Bridge.
+    fun assert_registered_emitter(
+        token_bridge_state: &State,
+        verified_vaa: &VAA
+    ) {
+        let chain = vaa::emitter_chain(verified_vaa);
+        let registry = state::borrow_emitter_registry(token_bridge_state);
+        assert!(table::contains(registry, chain), E_UNREGISTERED_EMITTER);
+
+        let registered = table::borrow(registry, chain);
+        let emitter_addr = vaa::emitter_address(verified_vaa);
+        assert!(*registered == emitter_addr, E_EMITTER_ADDRESS_MISMATCH);
+    }
 
     #[test_only]
-    friend token_bridge::token_bridge_vaa_test;
-
-    /// We have no registration for this chain
-    const E_UNKNOWN_CHAIN: u64 = 0;
-    /// We have a registration, but it's different from what's given
-    const E_UNKNOWN_EMITTER: u64 = 1;
-
-    /// Aborts if the VAA has already been consumed. Marks the VAA as consumed
-    /// the first time around.
-    public(friend) fun replay_protect(bridge_state: &mut BridgeState, vaa: &VAA) {
-        // this calls set::add which aborts if the element already exists
-        bridge_state::store_consumed_vaa(bridge_state, corevaa::get_hash(vaa));
-    }
-
-    /// Asserts that the VAA is from a known token bridge.
-    public fun assert_known_emitter(state: &BridgeState, vm: &VAA) {
-        let maybe_emitter = bridge_state::get_registered_emitter(state, &corevaa::get_emitter_chain(vm));
-        assert!(option::is_some<ExternalAddress>(&maybe_emitter), E_UNKNOWN_CHAIN);
-
-        let emitter = option::extract(&mut maybe_emitter);
-        assert!(emitter == corevaa::get_emitter_address(vm), E_UNKNOWN_EMITTER);
-    }
-
-    /// Parses, verifies, and replay protects a token bridge VAA.
-    /// Aborts if the VAA is not from a known token bridge emitter.
-    ///
-    /// Has a 'friend' visibility so that it's only callable by the token bridge
-    /// (otherwise the replay protection could be abused to DoS the bridge)
-    public(friend) fun parse_verify_and_replay_protect(
-        wormhole_state: &mut WormholeState,
-        bridge_state: &mut BridgeState,
-        vaa: vector<u8>,
-        ctx: &mut TxContext
-    ): VAA {
-        let vaa = parse_and_verify(wormhole_state, bridge_state, vaa, ctx);
-        replay_protect(bridge_state, &vaa);
-        vaa
-    }
-
-    /// Parses, and verifies a token bridge VAA.
-    /// Aborts if the VAA is not from a known token bridge emitter.
-    public fun parse_and_verify(wormhole_state: &mut WormholeState, bridge_state: &BridgeState, vaa: vector<u8>, ctx:&mut TxContext): VAA {
-        let vaa = corevaa::parse_and_verify(wormhole_state, vaa, ctx);
-        assert_known_emitter(bridge_state, &vaa);
-        vaa
+    public fun destroy(msg: TokenBridgeMessage) {
+        take_payload(msg);
     }
 }
 
 #[test_only]
-module token_bridge::token_bridge_vaa_test{
-    use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_shared, return_shared};
-
-    use wormhole::state::{State};
-    use wormhole::myvaa::{Self as corevaa};
-    use wormhole::myu16::{Self as u16};
+module token_bridge::vaa_tests {
+    use sui::test_scenario::{Self};
     use wormhole::external_address::{Self};
+    use wormhole::wormhole_scenario::{parse_and_verify_vaa};
 
-    use token_bridge::bridge_state::{Self, BridgeState};
+    use token_bridge::state::{Self};
+    use token_bridge::token_bridge_scenario::{
+        person,
+        register_dummy_emitter,
+        return_state,
+        set_up_wormhole_and_token_bridge,
+        take_state
+    };
     use token_bridge::vaa::{Self};
-    use token_bridge::bridge_state_test::{set_up_wormhole_core_and_token_bridges};
 
-    fun scenario(): Scenario { test_scenario::begin(@0x123233) }
-    fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
-
-    /// VAA sent from the ethereum token bridge 0xdeadbeef
-    const VAA: vector<u8> = x"01000000000100102d399190fa61daccb11c2ea4f7a3db3a9365e5936bcda4cded87c1b9eeb095173514f226256d5579af71d4089eb89496befb998075ba94cd1d4460c5c57b84000000000100000001000200000000000000000000000000000000000000000000000000000000deadbeef0000000002634973000200000000000000000000000000000000000000000000000000000000beefface00020c0000000000000000000000000000000000000000000000000000000042454546000000000000000000000000000000000042656566206661636520546f6b656e";
+    /// VAA sent from the ethereum token bridge 0xdeadbeef.
+    const VAA: vector<u8> =
+        x"01000000000100102d399190fa61daccb11c2ea4f7a3db3a9365e5936bcda4cded87c1b9eeb095173514f226256d5579af71d4089eb89496befb998075ba94cd1d4460c5c57b84000000000100000001000200000000000000000000000000000000000000000000000000000000deadbeef0000000002634973000200000000000000000000000000000000000000000000000000000000beefface00020c0000000000000000000000000000000000000000000000000000000042454546000000000000000000000000000000000042656566206661636520546f6b656e";
 
     #[test]
-    #[expected_failure(abort_code = vaa::E_UNKNOWN_CHAIN)]
-    fun test_unknown_chain() {
-        let (admin, _, _) = people();
-        let test = scenario();
-        test = set_up_wormhole_core_and_token_bridges(admin, test);
-        next_tx(&mut test, admin); {
-            let state = take_shared<BridgeState>(&test);
-            let w_state = take_shared<State>(&test);
-            let vaa = vaa::parse_verify_and_replay_protect(&mut w_state, &mut state, VAA, ctx(&mut test));
-            corevaa::destroy(vaa);
-            return_shared<BridgeState>(state);
-            return_shared<State>(w_state);
-        };
-        test_scenario::end(test);
-    }
+    #[expected_failure(abort_code = vaa::E_UNREGISTERED_EMITTER)]
+    fun test_cannot_verify_only_once_unregistered_chain() {
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
 
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
 
-    #[test]
-    #[expected_failure(abort_code = vaa::E_UNKNOWN_EMITTER)]
-    fun test_unknown_emitter() {
-        let (admin, _, _) = people();
-        let test = scenario();
-        test = set_up_wormhole_core_and_token_bridges(admin, test);
+        // Ignore effects.
+        test_scenario::next_tx(scenario, caller);
 
-        next_tx(&mut test, admin); {
-            let state = take_shared<BridgeState>(&test);
-            bridge_state::set_registered_emitter(
-                &mut state,
-                u16::from_u64(2),
-                external_address::from_bytes(x"deadbeed"), // not deadbeef
-            );
-            return_shared<BridgeState>(state);
-        };
+        let token_bridge_state = take_state(scenario);
 
-        next_tx(&mut test, admin); {
-            let state = take_shared<BridgeState>(&test);
-            let w_state = take_shared<State>(&test);
-            let vaa = vaa::parse_verify_and_replay_protect(&mut w_state, &mut state, VAA, ctx(&mut test));
-            corevaa::destroy(vaa);
-            return_shared<BridgeState>(state);
-            return_shared<State>(w_state);
-        };
-        test_scenario::end(test);
+        let verified_vaa = parse_and_verify_vaa(scenario, VAA);
+        // You shall not pass!
+        let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
+
+        // Clean up.
+        vaa::destroy(msg);
+
+        abort 42
     }
 
     #[test]
-    fun test_known_emitter() {
-        let (admin, _, _) = people();
-        let test = scenario();
-        test = set_up_wormhole_core_and_token_bridges(admin, test);
+    #[expected_failure(abort_code = vaa::E_EMITTER_ADDRESS_MISMATCH)]
+    fun test_cannot_verify_only_once_emitter_address_mismatch() {
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
 
-        next_tx(&mut test, admin); {
-            let state = take_shared<BridgeState>(&test);
-            bridge_state::set_registered_emitter(
-                &mut state,
-                u16::from_u64(2),
-                external_address::from_bytes(x"deadbeef"),
-            );
-            return_shared<BridgeState>(state);
-        };
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
 
-        next_tx(&mut test, admin); {
-            let state = take_shared<BridgeState>(&test);
-            let w_state = take_shared<State>(&test);
-            let vaa = vaa::parse_verify_and_replay_protect(&mut w_state, &mut state, VAA, ctx(&mut test));
-            corevaa::destroy(vaa);
-            return_shared<BridgeState>(state);
-            return_shared<State>(w_state);
-        };
-        test_scenario::end(test);
+        // Ignore effects.
+        test_scenario::next_tx(scenario, caller);
+
+        let token_bridge_state = take_state(scenario);
+
+        // First register emitter.
+        let emitter_chain = 2;
+        let emitter_addr = external_address::from_address(@0xdeafbeef);
+        token_bridge::register_chain::register_new_emitter_test_only(
+            &mut token_bridge_state,
+            emitter_chain,
+            emitter_addr
+        );
+
+        // Confirm that encoded emitter disagrees with registered emitter.
+        let verified_vaa = parse_and_verify_vaa(scenario, VAA);
+        assert!(
+            wormhole::vaa::emitter_address(&verified_vaa) != emitter_addr,
+            0
+        );
+
+        // You shall not pass!
+        let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
+
+        // Clean up.
+        vaa::destroy(msg);
+
+        abort 42
     }
 
     #[test]
-    #[expected_failure(abort_code = 0, location=0000000000000000000000000000000000000002::dynamic_field)]
-    fun test_replay_protection_works() {
-        let (admin, _, _) = people();
-        let test = scenario();
-        test = set_up_wormhole_core_and_token_bridges(admin, test);
+    fun test_verify_only_once() {
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
 
-        next_tx(&mut test, admin); {
-            let state = take_shared<BridgeState>(&test);
-            bridge_state::set_registered_emitter(
-                &mut state,
-                u16::from_u64(2),
-                external_address::from_bytes(x"deadbeef"),
-            );
-            return_shared<BridgeState>(state);
-        };
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
 
-        next_tx(&mut test, admin); {
-            let state = take_shared<BridgeState>(&test);
-            let w_state = take_shared<State>(&test);
+        // Register foreign emitter.
+        let expected_source_chain = 2;
+        register_dummy_emitter(scenario, expected_source_chain);
 
-            // try to use the VAA twice
-            let vaa = vaa::parse_verify_and_replay_protect(&mut w_state, &mut state, VAA, ctx(&mut test));
-            corevaa::destroy(vaa);
-            let vaa = vaa::parse_verify_and_replay_protect(&mut w_state, &mut state, VAA, ctx(&mut test));
-            corevaa::destroy(vaa);
-            return_shared<BridgeState>(state);
-            return_shared<State>(w_state);
-        };
-        test_scenario::end(test);
+        // Ignore effects.
+        test_scenario::next_tx(scenario, caller);
+
+        let token_bridge_state = take_state(scenario);
+
+        // Confirm VAA originated from where we expect.
+        let verified_vaa = parse_and_verify_vaa(scenario, VAA);
+        assert!(
+            wormhole::vaa::emitter_chain(&verified_vaa) == expected_source_chain,
+            0
+        );
+
+        // Finally verify.
+        let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
+
+        // Clean up.
+        vaa::destroy(msg);
+        return_state(token_bridge_state);
+
+        // Done.
+        test_scenario::end(my_scenario);
     }
 
     #[test]
-    fun test_can_verify_after_replay_protect() {
-        let (admin, _, _) = people();
-        let test = scenario();
-        test = set_up_wormhole_core_and_token_bridges(admin, test);
+    #[expected_failure(abort_code = wormhole::set::E_KEY_ALREADY_EXISTS)]
+    fun test_cannot_verify_only_once_again() {
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
 
-        next_tx(&mut test, admin); {
-            let state = take_shared<BridgeState>(&test);
-            bridge_state::set_registered_emitter(
-                &mut state,
-                u16::from_u64(2),
-                external_address::from_bytes(x"deadbeef"),
-            );
-            return_shared<BridgeState>(state);
-        };
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
 
-        next_tx(&mut test, admin); {
-            let state = take_shared<BridgeState>(&test);
-            let w_state = take_shared<State>(&test);
+        // Register foreign emitter.
+        let expected_source_chain = 2;
+        register_dummy_emitter(scenario, expected_source_chain);
 
-            // parse and verify and replay protect VAA the first time, don't replay protect the second time
-            let vaa = vaa::parse_verify_and_replay_protect(&mut w_state, &mut state, VAA, ctx(&mut test));
-            corevaa::destroy(vaa);
-            let vaa = vaa::parse_and_verify(&mut w_state, &mut state, VAA, ctx(&mut test));
-            corevaa::destroy(vaa);
-            return_shared<BridgeState>(state);
-            return_shared<State>(w_state);
-        };
-        test_scenario::end(test);
+        // Ignore effects.
+        test_scenario::next_tx(scenario, caller);
+
+        let token_bridge_state = take_state(scenario);
+
+        // Confirm VAA originated from where we expect.
+        let verified_vaa = parse_and_verify_vaa(scenario, VAA);
+        assert!(
+            wormhole::vaa::emitter_chain(&verified_vaa) == expected_source_chain,
+            0
+        );
+
+        // Finally verify.
+        let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
+        vaa::destroy(msg);
+
+        let verified_vaa = parse_and_verify_vaa(scenario, VAA);
+        // You shall not pass!
+        let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
+
+        // Clean up.
+        vaa::destroy(msg);
+
+        abort 42
+    }
+
+    #[test]
+    #[expected_failure(abort_code = wormhole::package_utils::E_NOT_CURRENT_VERSION)]
+    fun test_cannot_verify_only_once_outdated_version() {
+        let caller = person();
+        let my_scenario = test_scenario::begin(caller);
+        let scenario = &mut my_scenario;
+
+        // Set up contracts.
+        let wormhole_fee = 350;
+        set_up_wormhole_and_token_bridge(scenario, wormhole_fee);
+
+        // Register foreign emitter.
+        let expected_source_chain = 2;
+        register_dummy_emitter(scenario, expected_source_chain);
+
+        // Ignore effects.
+        test_scenario::next_tx(scenario, caller);
+
+        let token_bridge_state = take_state(scenario);
+
+        // Verify VAA.
+        let verified_vaa = parse_and_verify_vaa(scenario, VAA);
+
+        // Conveniently roll version back.
+        state::reverse_migrate_version(&mut token_bridge_state);
+
+        // Simulate executing with an outdated build by upticking the minimum
+        // required version for `publish_message` to something greater than
+        // this build.
+        state::migrate_version_test_only(
+            &mut token_bridge_state,
+            token_bridge::version_control::previous_version_test_only(),
+            token_bridge::version_control::next_version()
+        );
+
+        // You shall not pass!
+        let msg = vaa::verify_only_once(&mut token_bridge_state, verified_vaa);
+
+        // Clean up.
+        vaa::destroy(msg);
+
+        abort 42
     }
 
 }

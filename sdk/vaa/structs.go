@@ -208,6 +208,12 @@ func (c ChainID) String() string {
 		return "xpla"
 	case ChainIDBtc:
 		return "btc"
+	case ChainIDBase:
+		return "base"
+	case ChainIDSei:
+		return "sei"
+	case ChainIDSepolia:
+		return "sepolia"
 	default:
 		return fmt.Sprintf("unknown chain ID: %d", c)
 	}
@@ -271,6 +277,12 @@ func ChainIDFromString(s string) (ChainID, error) {
 		return ChainIDXpla, nil
 	case "btc":
 		return ChainIDBtc, nil
+	case "base":
+		return ChainIDBase, nil
+	case "sei":
+		return ChainIDSei, nil
+	case "sepolia":
+		return ChainIDSepolia, nil
 	default:
 		return ChainIDUnset, fmt.Errorf("unknown chain ID: %s", s)
 	}
@@ -304,7 +316,10 @@ func GetAllNetworkIDs() []ChainID {
 		ChainIDPythNet,
 		ChainIDXpla,
 		ChainIDBtc,
+		ChainIDBase,
+		ChainIDSei,
 		ChainIDWormchain,
+		ChainIDSepolia,
 	}
 }
 
@@ -362,8 +377,14 @@ const (
 	ChainIDXpla ChainID = 28
 	//ChainIDBtc is the ChainID of Bitcoin
 	ChainIDBtc ChainID = 29
+	// ChainIDBase is the ChainID of Base
+	ChainIDBase ChainID = 30
+	// ChainIDSei is the ChainID of Sei
+	ChainIDSei ChainID = 32
 	//ChainIDWormchain is the ChainID of Wormchain
 	ChainIDWormchain ChainID = 3104
+	// ChainIDSepolia is the ChainID of Sepolia
+	ChainIDSepolia ChainID = 10002
 
 	// Minimum VAA size is derrived from the following assumptions:
 	//  HEADER
@@ -398,15 +419,10 @@ const (
 
 	SupportedVAAVersion = 0x01
 	BatchVAAVersion     = 0x02
-
-	InternalTruncatedPayloadSafetyLimit = 1000
 )
 
 // UnmarshalBody deserializes the binary representation of a VAA's "BODY" properties
 // The BODY fields are common among multiple types of VAA - v1, v2 (BatchVAA), etc
-//
-// WARNING: UnmarshallBody will truncate payloads at 1000 bytes, this is done mainly to avoid denial of service
-//   - If you need to access the full payload, consider parsing VAA from Bytes instead of Unmarshal
 func UnmarshalBody(data []byte, reader *bytes.Reader, v *VAA) (*VAA, error) {
 	unixSeconds := uint32(0)
 	if err := binary.Read(reader, binary.BigEndian, &unixSeconds); err != nil {
@@ -438,7 +454,7 @@ func UnmarshalBody(data []byte, reader *bytes.Reader, v *VAA) (*VAA, error) {
 
 	// Make sure to only read the payload if the VAA has one; VAAs may have a 0 length payload
 	if reader.Len() != 0 {
-		payload := make([]byte, InternalTruncatedPayloadSafetyLimit)
+		payload := make([]byte, reader.Len())
 		n, err := reader.Read(payload)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read payload [%d]: %w", n, err)
@@ -610,7 +626,7 @@ func UnmarshalBatch(data []byte) (*BatchVAA, error) {
 
 		// check for malformed data - verify that the hash of the observation matches what was supplied
 		// the guardian has no interest in or use for observations after the batch has been signed, but still check
-		obsHash := headless.SigningMsg()
+		obsHash := headless.SigningDigest()
 		if obsHash != v.Hashes[obsvIndex] {
 			return nil, fmt.Errorf(
 				"BatchVAA Observation %v does not match supplied hash", obsvIndex)
@@ -645,21 +661,42 @@ func (v *BatchVAA) signingBody() []byte {
 	return buf.Bytes()
 }
 
-// SigningMsg returns the hash of the signing body.
-func SigningMsg(data []byte) common.Hash {
+func doubleKeccak(bz []byte) common.Hash {
 	// In order to save space in the solana signature verification instruction, we hash twice so we only need to pass in
 	// the first hash (32 bytes) vs the full body data.
-	return crypto.Keccak256Hash(crypto.Keccak256Hash(data).Bytes())
+	return crypto.Keccak256Hash(crypto.Keccak256Hash(bz).Bytes())
 }
 
-// SigningMsg returns the hash of the signing body. This is used for signature generation and verification
-func (v *VAA) SigningMsg() common.Hash {
-	return SigningMsg(v.signingBody())
+// This is a temporary method to produce a vaa signing digest on raw bytes.
+// It is error prone and we should use `v.SigningDigest()` instead.
+// whenever possible.
+// This will be removed in a subsequent release.
+func DeprecatedSigningDigest(bz []byte) common.Hash {
+	return doubleKeccak(bz)
 }
 
-// SigningMsg returns the hash of the signing body. This is used for signature generation and verification
-func (v *BatchVAA) SigningMsg() common.Hash {
-	return SigningMsg(v.signingBody())
+// MessageSigningDigest returns the hash of the data prepended with it's signing prefix.
+// This is intending to be used for signing messages of different types from VAA's.
+// The message prefix helps protect from message collisions.
+func MessageSigningDigest(prefix []byte, data []byte) (common.Hash, error) {
+	if len(prefix) < 32 {
+		// Prefixes must be at least 32 bytes
+		// https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0009_guardian_key.md
+		return common.Hash([32]byte{}), errors.New("prefix must be at least 32 bytes")
+	}
+	return crypto.Keccak256Hash(prefix[:], data), nil
+}
+
+// SigningDigest returns the hash of the vaa hash to be signed directly.
+// This is used for signature generation and verification
+func (v *VAA) SigningDigest() common.Hash {
+	return doubleKeccak(v.signingBody())
+}
+
+// BatchSigningDigest returns the hash of the batch vaa hash to be signed directly.
+// This is used for signature generation and verification
+func (v *BatchVAA) SigningDigest() common.Hash {
+	return doubleKeccak(v.signingBody())
 }
 
 // ObsvHashArray creates an array of hashes of Observation.
@@ -668,7 +705,7 @@ func (v *BatchVAA) ObsvHashArray() []common.Hash {
 	hashes := make([]common.Hash, len(v.Observations))
 	for _, msg := range v.Observations {
 		obsIndex := msg.Index
-		hashes[obsIndex] = msg.Observation.SigningMsg()
+		hashes[obsIndex] = msg.Observation.SigningDigest()
 	}
 
 	return hashes
@@ -676,9 +713,10 @@ func (v *BatchVAA) ObsvHashArray() []common.Hash {
 
 // Verify Signature checks that the provided address matches the address that created the signature for the provided digest
 // Digest should be the output of SigningMsg(data).Bytes()
-func VerifySignature(digest []byte, signature *Signature, address common.Address) bool {
+// Should not be public as other message types should be verified using a message prefix.
+func verifySignature(vaa_digest []byte, signature *Signature, address common.Address) bool {
 	// retrieve the address that signed the data
-	pubKey, err := crypto.Ecrecover(digest, signature.Signature[:])
+	pubKey, err := crypto.Ecrecover(vaa_digest, signature.Signature[:])
 	if err != nil {
 		return false
 	}
@@ -689,7 +727,8 @@ func VerifySignature(digest []byte, signature *Signature, address common.Address
 }
 
 // Digest should be the output of SigningMsg(data).Bytes()
-func VerifySignatures(digest []byte, signatures []*Signature, addresses []common.Address) bool {
+// Should not be public as other message types should be verified using a message prefix.
+func verifySignatures(vaa_digest []byte, signatures []*Signature, addresses []common.Address) bool {
 	if len(addresses) < len(signatures) {
 		return false
 	}
@@ -710,7 +749,7 @@ func VerifySignatures(digest []byte, signatures []*Signature, addresses []common
 
 		// verify this signature
 		addr := addresses[sig.Index]
-		ok := VerifySignature(digest, sig, addr)
+		ok := verifySignature(vaa_digest, sig, addr)
 		if !ok {
 			return false
 		}
@@ -727,16 +766,34 @@ func VerifySignatures(digest []byte, signatures []*Signature, addresses []common
 	return true
 }
 
+// Operating on bytes directly is error prone.  We should use `vaa.VerifyingSignatures()` whenever possible.
+// This function will be removed in a subsequent release.
+func DeprecatedVerifySignatures(vaaBody []byte, signatures []*Signature, addresses []common.Address) bool {
+	vaaDigest := doubleKeccak(vaaBody)
+	return verifySignatures(vaaDigest[:], signatures, addresses)
+}
+
+func VerifyMessageSignature(prefix []byte, messageBody []byte, signatures *Signature, addresses common.Address) bool {
+	if len(prefix) < 32 {
+		return false
+	}
+	msgDigest, err := MessageSigningDigest(prefix, messageBody)
+	if err != nil {
+		return false
+	}
+	return verifySignature(msgDigest[:], signatures, addresses)
+}
+
 // VerifySignatures verifies the signature of the VAA given the signer addresses.
 // Returns true if the signatures were verified successfully.
 func (v *VAA) VerifySignatures(addresses []common.Address) bool {
-	return VerifySignatures(v.SigningMsg().Bytes(), v.Signatures, addresses)
+	return verifySignatures(v.SigningDigest().Bytes(), v.Signatures, addresses)
 }
 
 // VerifySignatures verifies the signature of the BatchVAA given the signer addresses.
 // Returns true if the signatures were verified successfully.
 func (v *BatchVAA) VerifySignatures(addresses []common.Address) bool {
-	return VerifySignatures(v.SigningMsg().Bytes(), v.Signatures, addresses)
+	return verifySignatures(v.SigningDigest().Bytes(), v.Signatures, addresses)
 }
 
 // Marshal returns the binary representation of the BatchVAA
@@ -791,7 +848,7 @@ func (v *BatchVAA) serializeBody() []byte {
 // - The signatures in the VAA is verified against the guardian set keys.
 func (v *VAA) Verify(addresses []common.Address) error {
 	if addresses == nil {
-		return errors.New("No addresses were provided")
+		return errors.New("no addresses were provided")
 	}
 
 	// Check if VAA doesn't have any signatures
@@ -899,12 +956,12 @@ func (v *BatchVAA) GetTransactionID() common.Hash {
 
 // HexDigest returns the hex-encoded digest.
 func (v *VAA) HexDigest() string {
-	return hex.EncodeToString(v.SigningMsg().Bytes())
+	return hex.EncodeToString(v.SigningDigest().Bytes())
 }
 
 // HexDigest returns the hex-encoded digest.
 func (b *BatchVAA) HexDigest() string {
-	return hex.EncodeToString(b.SigningMsg().Bytes())
+	return hex.EncodeToString(b.SigningDigest().Bytes())
 }
 
 /*
@@ -925,7 +982,7 @@ func (v *VAA) serializeBody() []byte {
 }
 
 func (v *VAA) AddSignature(key *ecdsa.PrivateKey, index uint8) {
-	sig, err := crypto.Sign(v.SigningMsg().Bytes(), key)
+	sig, err := crypto.Sign(v.SigningDigest().Bytes(), key)
 	if err != nil {
 		panic(err)
 	}
@@ -941,7 +998,7 @@ func (v *VAA) AddSignature(key *ecdsa.PrivateKey, index uint8) {
 // creates signature of BatchVAA.Hashes and adds it to BatchVAA.Signatures.
 func (v *BatchVAA) AddSignature(key *ecdsa.PrivateKey, index uint8) {
 
-	sig, err := crypto.Sign(v.SigningMsg().Bytes(), key)
+	sig, err := crypto.Sign(v.SigningDigest().Bytes(), key)
 	if err != nil {
 		panic(err)
 	}

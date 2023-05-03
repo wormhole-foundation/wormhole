@@ -5,14 +5,14 @@
 # Chains
 
 /algorand/ @jumpsiegel
-/aptos/ @kcsongor
+/aptos/ @kcsongor @a5-pickle
 /bitcoin/ @conorpp @jumpsiegel
 /cosmwasm/ @jynnantonix @kcsongor @a5-pickle
 /ethereum/ @a5-pickle @calebrate @gator-boi @hendrikhofstadt @kcsongor
 /ethereum/contracts/relayer @chase-45 @derpy-duck @JoeHowarth 
 /near/ @jumpsiegel
 /solana/ @hendrikhofstadt @kcsongor @a5-pickle
-/sui/ @kcsongor
+/sui/ @kcsongor @a5-pickle @gator-boi @heyitaki
 /terra/ @kcsongor @a5-pickle
 /wormchain/ @conorpp @hendrikhofstadt
 
@@ -36,37 +36,37 @@
 # Guardiand node
 
 ## Fallback
-/node/ @bruce-riley @leoluk @hendrikhofstadt
+/node/ @bruce-riley @evan-gray @hendrikhofstadt
 
 ## Entrypoint / RPC
 /node/cmd/ @bruce-riley @panoel
 
 ## DB
-/node/pkg/db/ @bruce-riley
+/node/pkg/db/ @bruce-riley @kev1n-peters
 
 ## Accountant
-/node/pkg/accountant/ @bruce-riley @jynnantonix
+/node/pkg/accountant/ @bruce-riley @evan-gray @jynnantonix
 
 ## Governor
 /node/pkg/governor/ @bruce-riley @claudijd
 
 ## P2P
-/node/pkg/p2p/ @leoluk @hendrikhofstadt
+/node/pkg/p2p/ @bruce-riley @hendrikhofstadt
 
 ## Consensus / Processor
 /node/pkg/processor/ @bruce-riley @hendrikhofstadt
 
 ## Public RPC
-/node/pkg/publicrpc/ @bruce-riley
+/node/pkg/publicrpc/ @bruce-riley @kev1n-peters
 
 ## Supervisor Framework
-/node/pkg/supervisor/ @hendrikhofstadt @leoluk
+/node/pkg/supervisor/ @hendrikhofstadt @bruce-riley
 
 ## Watcher - Algorand
 /node/pkg/watchers/algorand/ @evan-gray @jumpsiegel
 
 ## Watcher - Aptos
-/node/pkg/watchers/aptos/ @jumpsiegel
+/node/pkg/watchers/aptos/ @evan-gray @jumpsiegel @panoel
 
 ## Watcher - Cosmwasm
 /node/pkg/watchers/cosmwasm/ @evan-gray @hendrikhofstadt
@@ -75,7 +75,7 @@
 /node/pkg/watchers/evm/ @evan-gray @bruce-riley @hendrikhofstadt
 
 ## Watcher - NEAR
-/node/pkg/watchers/near/ @jumpsiegel
+/node/pkg/watchers/near/ @evan-gray @jumpsiegel @kev1n-peters
 
 ## Watcher - Solana
 /node/pkg/watchers/solana/ @evan-gray @hendrikhofstadt @bruce-riley

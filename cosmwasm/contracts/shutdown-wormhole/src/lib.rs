@@ -1,1 +1,1 @@
-pub use wormhole::contract;
+pub use cw_wormhole::contract;

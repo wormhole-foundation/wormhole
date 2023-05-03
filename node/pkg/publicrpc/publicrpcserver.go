@@ -157,6 +157,10 @@ func (s *PublicrpcServer) GovernorGetEnqueuedVAAs(ctx context.Context, req *publ
 func (s *PublicrpcServer) GovernorIsVAAEnqueued(ctx context.Context, req *publicrpcv1.GovernorIsVAAEnqueuedRequest) (*publicrpcv1.GovernorIsVAAEnqueuedResponse, error) {
 	resp := &publicrpcv1.GovernorIsVAAEnqueuedResponse{}
 
+	if req.MessageId == nil {
+		return nil, status.Error(codes.InvalidArgument, "no message ID specified")
+	}
+
 	if s.gov != nil {
 		var err error
 		resp.IsEnqueued, err = s.gov.IsVAAEnqueued(req.MessageId)

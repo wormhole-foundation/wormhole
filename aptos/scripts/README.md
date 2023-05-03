@@ -17,7 +17,7 @@ and then.
 First start the local aptos validator by running
 
 ``` shell
-worm start-validator aptos
+worm aptos start-validator
 ```
 
 Then build & deploy the contracts

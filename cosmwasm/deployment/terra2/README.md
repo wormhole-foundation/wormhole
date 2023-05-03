@@ -88,8 +88,8 @@ For each contract you wish to verify on-chain, you will need the following eleme
 Below is how to verify all three contracts:
 
 ```console
-./verify artifacts/wormhole.wasm NEW_BRIDGE_CODE_ID
-./verify artifacts/token_bridge.wasm NEW_TOKEN_BRIDGE_CODE_ID
+./verify artifacts/cw_wormhole.wasm NEW_BRIDGE_CODE_ID
+./verify artifacts/cw_token_bridge.wasm NEW_TOKEN_BRIDGE_CODE_ID
 ./verify artifacts/nft_bridge.wasm NEW_NFT_BRIDGE_CODE_ID
 ```
 

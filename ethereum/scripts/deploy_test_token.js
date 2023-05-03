@@ -84,7 +84,7 @@ module.exports = async function(callback) {
 
     console.log("WETH token deployed at: " + wethAddress);
 
-    for (let idx = 2; idx < 10; idx++) {
+    for (let idx = 2; idx < 11; idx++) {
       await token.methods.mint(accounts[idx], "1000000000000000000000").send({
         from: accounts[0],
         gas: 1000000,

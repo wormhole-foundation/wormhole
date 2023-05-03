@@ -21,7 +21,7 @@ func (gov *ChainGovernor) loadFromDB() error {
 func (gov *ChainGovernor) loadFromDBAlreadyLocked() error {
 	xfers, pending, err := gov.db.GetChainGovernorData(gov.logger)
 	if err != nil {
-		gov.logger.Error("cgov: failed to reload transactions from db", zap.Error(err))
+		gov.logger.Error("failed to reload transactions from db", zap.Error(err))
 		return err
 	}
 
@@ -60,7 +60,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer, now
 	msg := &pending.Msg
 	ce, exists := gov.chains[msg.EmitterChain]
 	if !exists {
-		gov.logger.Error("cgov: reloaded pending transfer for unsupported chain, dropping it",
+		gov.logger.Error("reloaded pending transfer for unsupported chain, dropping it",
 			zap.String("MsgID", msg.MessageIDString()),
 			zap.Stringer("TxHash", msg.TxHash),
 			zap.Stringer("Timestamp", msg.Timestamp),
@@ -74,7 +74,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer, now
 	}
 
 	if msg.EmitterAddress != ce.emitterAddr {
-		gov.logger.Error("cgov: reloaded pending transfer for unsupported emitter address, dropping it",
+		gov.logger.Error("reloaded pending transfer for unsupported emitter address, dropping it",
 			zap.String("MsgID", msg.MessageIDString()),
 			zap.Stringer("TxHash", msg.TxHash),
 			zap.Stringer("Timestamp", msg.Timestamp),
@@ -89,7 +89,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer, now
 
 	payload, err := vaa.DecodeTransferPayloadHdr(msg.Payload)
 	if err != nil {
-		gov.logger.Error("cgov: failed to parse payload for reloaded pending transfer, dropping it",
+		gov.logger.Error("failed to parse payload for reloaded pending transfer, dropping it",
 			zap.String("MsgID", msg.MessageIDString()),
 			zap.Stringer("TxHash", msg.TxHash),
 			zap.Stringer("Timestamp", msg.Timestamp),
@@ -108,7 +108,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer, now
 	tk := tokenKey{chain: payload.OriginChain, addr: payload.OriginAddress}
 	token, exists := gov.tokens[tk]
 	if !exists {
-		gov.logger.Error("cgov: reloaded pending transfer for unsupported token, dropping it",
+		gov.logger.Error("reloaded pending transfer for unsupported token, dropping it",
 			zap.String("MsgID", msg.MessageIDString()),
 			zap.Stringer("TxHash", msg.TxHash),
 			zap.Stringer("Timestamp", msg.Timestamp),
@@ -126,7 +126,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer, now
 	hash := gov.HashFromMsg(msg)
 
 	if _, alreadyExists := gov.msgsSeen[hash]; alreadyExists {
-		gov.logger.Error("cgov: not reloading pending transfer because it is a duplicate",
+		gov.logger.Error("not reloading pending transfer because it is a duplicate",
 			zap.String("MsgID", msg.MessageIDString()),
 			zap.Stringer("TxHash", msg.TxHash),
 			zap.Stringer("Timestamp", msg.Timestamp),
@@ -141,7 +141,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer, now
 		return
 	}
 
-	gov.logger.Info("cgov: reloaded pending transfer",
+	gov.logger.Info("reloaded pending transfer",
 		zap.String("MsgID", msg.MessageIDString()),
 		zap.Stringer("TxHash", msg.TxHash),
 		zap.Stringer("Timestamp", msg.Timestamp),
@@ -161,7 +161,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer, now
 func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer, now time.Time, startTime time.Time) {
 	ce, exists := gov.chains[xfer.EmitterChain]
 	if !exists {
-		gov.logger.Error("cgov: reloaded transfer for unsupported chain, dropping it",
+		gov.logger.Error("reloaded transfer for unsupported chain, dropping it",
 			zap.Stringer("Timestamp", xfer.Timestamp),
 			zap.Uint64("Value", xfer.Value),
 			zap.Stringer("EmitterChain", xfer.EmitterChain),
@@ -172,7 +172,7 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer, now time.Time, start
 	}
 
 	if xfer.EmitterAddress != ce.emitterAddr {
-		gov.logger.Error("cgov: reloaded transfer for unsupported emitter address, dropping it",
+		gov.logger.Error("reloaded transfer for unsupported emitter address, dropping it",
 			zap.Stringer("Timestamp", xfer.Timestamp),
 			zap.Uint64("Value", xfer.Value),
 			zap.Stringer("OriginChain", xfer.OriginChain),
@@ -185,7 +185,7 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer, now time.Time, start
 	tk := tokenKey{chain: xfer.OriginChain, addr: xfer.OriginAddress}
 	_, exists = gov.tokens[tk]
 	if !exists {
-		gov.logger.Error("cgov: reloaded transfer for unsupported token, dropping it",
+		gov.logger.Error("reloaded transfer for unsupported token, dropping it",
 			zap.Stringer("Timestamp", xfer.Timestamp),
 			zap.Uint64("Value", xfer.Value),
 			zap.Stringer("OriginChain", xfer.OriginChain),
@@ -196,7 +196,7 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer, now time.Time, start
 	}
 
 	if _, alreadyExists := gov.msgsSeen[xfer.Hash]; alreadyExists {
-		gov.logger.Info("cgov: not reloading transfer because it is a duplicate",
+		gov.logger.Info("not reloading transfer because it is a duplicate",
 			zap.Stringer("Timestamp", xfer.Timestamp),
 			zap.Uint64("Value", xfer.Value),
 			zap.Stringer("OriginChain", xfer.OriginChain),
@@ -208,7 +208,7 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer, now time.Time, start
 	}
 
 	if xfer.Hash != "" {
-		gov.logger.Info("cgov: reloaded transfer",
+		gov.logger.Info("reloaded transfer",
 			zap.Stringer("Timestamp", xfer.Timestamp),
 			zap.Uint64("Value", xfer.Value),
 			zap.Stringer("OriginChain", xfer.OriginChain),
@@ -219,7 +219,7 @@ func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer, now time.Time, start
 
 		gov.msgsSeen[xfer.Hash] = transferComplete
 	} else {
-		gov.logger.Error("cgov: reloaded transfer that does not have a hash, will not be able to detect a duplicate",
+		gov.logger.Error("reloaded transfer that does not have a hash, will not be able to detect a duplicate",
 			zap.Stringer("Timestamp", xfer.Timestamp),
 			zap.Uint64("Value", xfer.Value),
 			zap.Stringer("OriginChain", xfer.OriginChain),

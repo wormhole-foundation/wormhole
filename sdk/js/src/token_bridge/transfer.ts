@@ -1,4 +1,10 @@
 import {
+  JsonRpcProvider,
+  SUI_CLOCK_OBJECT_ID,
+  SUI_TYPE_ARG,
+  TransactionBlock,
+} from "@mysten/sui.js";
+import {
   ACCOUNT_SIZE,
   createCloseAccountInstruction,
   createInitializeAccountInstruction,
@@ -16,7 +22,7 @@ import {
   Transaction as SolanaTransaction,
 } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
-import { MsgExecuteContractCompat as MsgExecuteContractInjective } from "@injectivelabs/sdk-ts";
+import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
 import {
   Algodv2,
   bigIntToBytes,
@@ -28,9 +34,11 @@ import {
   SuggestedParams,
   Transaction as AlgorandTransaction,
 } from "algosdk";
-import { ethers, Overrides, PayableOverrides } from "ethers";
+import { Types } from "aptos";
 import BN from "bn.js";
-import { isNativeDenom } from "../terra";
+import { ethers, Overrides, PayableOverrides } from "ethers";
+import { FunctionCallOptions } from "near-api-js/lib/account";
+import { Provider } from "near-api-js/lib/providers";
 import { getIsWrappedAssetNear } from "..";
 import {
   assetOptinCheck,
@@ -38,7 +46,12 @@ import {
   optin,
   TransactionSignerPair,
 } from "../algorand";
+import {
+  transferTokens as transferTokensAptos,
+  transferTokensWithPayload,
+} from "../aptos";
 import { getEmitterAddressAlgorand } from "../bridge";
+import { isNativeDenomXpla } from "../cosmwasm";
 import {
   Bridge__factory,
   TokenImplementation__factory,
@@ -50,27 +63,21 @@ import {
   createTransferWrappedInstruction,
   createTransferWrappedWithPayloadInstruction,
 } from "../solana/tokenBridge";
+import { getPackageId, isSameType } from "../sui";
+import { SuiCoinObject } from "../sui/types";
+import { isNativeDenom } from "../terra";
 import {
+  callFunctionNear,
   ChainId,
   ChainName,
+  CHAIN_ID_SOLANA,
   coalesceChainId,
   createNonce,
   hexToUint8Array,
   safeBigIntToNumber,
   textToUint8Array,
   uint8ArrayToHex,
-  CHAIN_ID_SOLANA,
-  callFunctionNear,
 } from "../utils";
-import { isNativeDenomInjective, isNativeDenomXpla } from "../cosmwasm";
-import { Types } from "aptos";
-import { FunctionCallOptions } from "near-api-js/lib/account";
-import { Provider } from "near-api-js/lib/providers";
-import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
-import {
-  transferTokens as transferTokensAptos,
-  transferTokensWithPayload,
-} from "../aptos";
 
 export async function getAllowanceEth(
   tokenBridgeAddress: string,
@@ -258,107 +265,6 @@ export async function transferFromTerra(
           }),
           {}
         ),
-      ];
-}
-
-/**
- * Creates the necessary messages to transfer an asset
- * @param walletAddress Address of the Inj wallet
- * @param tokenBridgeAddress Address of the token bridge contract
- * @param tokenAddress Address of the token being transferred
- * @param amount Amount of token to be transferred
- * @param recipientChain Destination chain
- * @param recipientAddress Destination wallet address
- * @param relayerFee Relayer fee
- * @param payload Optional payload
- * @returns Transfer messages to be sent on chain
- */
-export async function transferFromInjective(
-  walletAddress: string,
-  tokenBridgeAddress: string,
-  tokenAddress: string,
-  amount: string,
-  recipientChain: ChainId | ChainName,
-  recipientAddress: Uint8Array,
-  relayerFee: string = "0",
-  payload: Uint8Array | null = null
-) {
-  const recipientChainId = coalesceChainId(recipientChain);
-  const nonce = Math.round(Math.random() * 100000);
-  const isNativeAsset = isNativeDenomInjective(tokenAddress);
-  const mk_action: string = payload
-    ? "initiate_transfer_with_payload"
-    : "initiate_transfer";
-  const mk_initiate_transfer = (info: object) =>
-    payload
-      ? {
-          asset: {
-            amount,
-            info,
-          },
-          recipient_chain: recipientChainId,
-          recipient: Buffer.from(recipientAddress).toString("base64"),
-          fee: relayerFee,
-          nonce,
-          payload,
-        }
-      : {
-          asset: {
-            amount,
-            info,
-          },
-          recipient_chain: recipientChainId,
-          recipient: Buffer.from(recipientAddress).toString("base64"),
-          fee: relayerFee,
-          nonce,
-        };
-  return isNativeAsset
-    ? [
-        MsgExecuteContractInjective.fromJSON({
-          contractAddress: tokenBridgeAddress,
-          sender: walletAddress,
-          exec: {
-            msg: {},
-            action: "deposit_tokens",
-          },
-          funds: { denom: tokenAddress, amount },
-        }),
-        MsgExecuteContractInjective.fromJSON({
-          contractAddress: tokenBridgeAddress,
-          sender: walletAddress,
-          exec: {
-            msg: mk_initiate_transfer({
-              native_token: { denom: tokenAddress },
-            }),
-            action: mk_action,
-          },
-        }),
-      ]
-    : [
-        MsgExecuteContractInjective.fromJSON({
-          contractAddress: tokenAddress,
-          sender: walletAddress,
-          exec: {
-            msg: {
-              spender: tokenBridgeAddress,
-              amount,
-              expires: {
-                never: {},
-              },
-            },
-            action: "increase_allowance",
-          },
-        }),
-        MsgExecuteContractInjective.fromJSON({
-          contractAddress: tokenBridgeAddress,
-          sender: walletAddress,
-          exec: {
-            msg: mk_initiate_transfer({
-              token: { contract_addr: tokenAddress },
-            }),
-            action: mk_action,
-          },
-        }),
       ];
 }
 
@@ -1014,4 +920,91 @@ export function transferFromAptos(
     relayerFee,
     createNonce().readUInt32LE(0)
   );
+}
+
+export async function transferFromSui(
+  provider: JsonRpcProvider,
+  coreBridgeStateObjectId: string,
+  tokenBridgeStateObjectId: string,
+  coins: SuiCoinObject[],
+  coinType: string,
+  amount: bigint,
+  recipientChain: ChainId | ChainName,
+  recipient: Uint8Array,
+  feeAmount: bigint = BigInt(0),
+  relayerFee: bigint = BigInt(0),
+  payload: Uint8Array | null = null
+) {
+  if (payload !== null) {
+    throw new Error("Sui transfer with payload not implemented");
+  }
+  const [primaryCoin, ...mergeCoins] = coins.filter((coin) =>
+    isSameType(coin.coinType, coinType)
+  );
+  if (primaryCoin === undefined) {
+    throw new Error(
+      `Coins array doesn't contain any coins of type ${coinType}`
+    );
+  }
+  const coreBridgePackageId = await getPackageId(
+    provider,
+    coreBridgeStateObjectId
+  );
+  const tokenBridgePackageId = await getPackageId(
+    provider,
+    tokenBridgeStateObjectId
+  );
+  const tx = new TransactionBlock();
+  const [transferCoin] = (() => {
+    if (coinType === SUI_TYPE_ARG) {
+      return tx.splitCoins(tx.gas, [tx.pure(amount)]);
+    } else {
+      const primaryCoinInput = tx.object(primaryCoin.coinObjectId);
+      if (mergeCoins.length) {
+        tx.mergeCoins(
+          primaryCoinInput,
+          mergeCoins.map((coin) => tx.object(coin.coinObjectId))
+        );
+      }
+      return tx.splitCoins(primaryCoinInput, [tx.pure(amount)]);
+    }
+  })();
+  const [feeCoin] = tx.splitCoins(tx.gas, [tx.pure(feeAmount)]);
+  const [assetInfo] = tx.moveCall({
+    target: `${tokenBridgePackageId}::state::verified_asset`,
+    arguments: [tx.object(tokenBridgeStateObjectId)],
+    typeArguments: [coinType],
+  });
+  const [transferTicket, dust] = tx.moveCall({
+    target: `${tokenBridgePackageId}::transfer_tokens::prepare_transfer`,
+    arguments: [
+      assetInfo,
+      transferCoin,
+      tx.pure(coalesceChainId(recipientChain)),
+      tx.pure([...recipient]),
+      tx.pure(relayerFee),
+      tx.pure(createNonce().readUInt32LE()),
+    ],
+    typeArguments: [coinType],
+  });
+  tx.moveCall({
+    target: `${tokenBridgePackageId}::coin_utils::return_nonzero`,
+    arguments: [dust],
+    typeArguments: [coinType],
+  });
+  const [messageTicket] = tx.moveCall({
+    target: `${tokenBridgePackageId}::transfer_tokens::transfer_tokens`,
+    arguments: [tx.object(tokenBridgeStateObjectId), transferTicket],
+    typeArguments: [coinType],
+  });
+  tx.moveCall({
+    target: `${coreBridgePackageId}::publish_message::publish_message`,
+    arguments: [
+      tx.object(coreBridgeStateObjectId),
+      feeCoin,
+      messageTicket,
+      tx.object(SUI_CLOCK_OBJECT_ID),
+    ],
+  });
+  return tx;
 }

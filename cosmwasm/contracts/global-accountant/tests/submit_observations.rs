@@ -7,12 +7,12 @@ use cosmwasm_std::{from_binary, to_binary, Binary, Event, Uint256};
 use cw_multi_test::AppResponse;
 use global_accountant::msg::{Observation, ObservationStatus, SubmitObservationResponse};
 use helpers::*;
-use wormhole::{
+use wormhole_bindings::fake;
+use wormhole_sdk::{
     token::Message,
     vaa::{Body, Header},
     Address, Amount,
 };
-use wormhole_bindings::fake;
 
 fn set_up(count: usize) -> (Vec<Message>, Vec<Observation>) {
     let mut txs = Vec::with_capacity(count);
@@ -80,18 +80,20 @@ fn batch() {
 
                     // Make sure the transfer hasn't yet been committed.
                     assert!(matches!(status[&key], ObservationStatus::Pending));
-                    contract
+                    let err = contract
                         .query_transfer(key)
                         .expect_err("transfer committed without quorum");
+                    assert!(err.to_string().to_lowercase().contains("not found"));
                 }
             } else {
                 for o in &observations {
                     let key =
                         transfer::Key::new(o.emitter_chain, o.emitter_address.into(), o.sequence);
                     assert!(matches!(status[&key], ObservationStatus::Committed));
-                    contract
+                    let err = contract
                         .query_pending_transfer(key)
                         .expect_err("found pending transfer for observation with quorum");
+                    assert!(err.to_string().to_lowercase().contains("not found"));
                 }
             }
         } else {
@@ -374,8 +376,12 @@ fn missing_guardian_set() {
         fee: Amount([0u8; 32]),
     };
 
-    transfer_tokens(&wh, &mut contract, key, msg, index + 1, num_guardians)
+    let err = transfer_tokens(&wh, &mut contract, key, msg, index + 1, num_guardians)
         .expect_err("successfully submitted observations with invalid guardian set");
+    assert_eq!(
+        "generic error: querier contract error: invalid guardian set",
+        err.root_cause().to_string().to_lowercase()
+    );
 }
 
 #[test]
@@ -407,13 +413,18 @@ fn expired_guardian_set() {
     block.height += 1;
     contract.app_mut().set_block(block);
 
-    transfer_tokens(&wh, &mut contract, key, msg, index, num_guardians)
+    let err = transfer_tokens(&wh, &mut contract, key, msg, index, num_guardians)
         .expect_err("successfully submitted observations with expired guardian set");
+    assert_eq!(
+        "generic error: querier contract error: guardian set expired",
+        err.root_cause().to_string().to_lowercase()
+    );
 }
 
 #[test]
 fn no_quorum() {
     let (wh, mut contract) = proper_instantiate();
+    register_emitters(&wh, &mut contract, 3);
     let index = wh.guardian_set_index();
     let quorum = wh
         .calculate_quorum(index, contract.app().block_info().height)
@@ -445,9 +456,10 @@ fn no_quorum() {
     assert_eq!(&o.tx_hash, data[0].tx_hash());
 
     // Make sure the transfer hasn't yet been committed.
-    contract
+    let err = contract
         .query_transfer(key)
         .expect_err("transfer committed without quorum");
+    assert!(err.to_string().to_lowercase().contains("not found"));
 }
 
 #[test]
@@ -767,9 +779,10 @@ fn different_observations() {
     transfer_tokens(&wh, &mut contract, key.clone(), fake, index, quorum - 1).unwrap();
 
     // Make sure there is no committed transfer yet.
-    contract
+    let err = contract
         .query_transfer(key.clone())
         .expect_err("committed transfer without quorum");
+    assert!(err.to_string().to_lowercase().contains("not found"));
 
     // Now change the details of the transfer and resubmit with the same key.
     let real_amount = Amount(Uint256::from(200u128).to_be_bytes());
@@ -785,9 +798,10 @@ fn different_observations() {
 
     let (o, _) = transfer_tokens(&wh, &mut contract, key.clone(), real, index, quorum).unwrap();
 
-    contract
+    let err = contract
         .query_pending_transfer(key.clone())
         .expect_err("found pending transfer for observation with quorum");
+    assert!(err.to_string().to_lowercase().contains("not found"));
 
     let expected = transfer::Data {
         amount: Uint256::new(real_amount.0),

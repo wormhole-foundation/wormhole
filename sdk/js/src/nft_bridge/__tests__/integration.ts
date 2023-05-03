@@ -31,7 +31,7 @@ import {
   SOLANA_HOST,
   SOLANA_PRIVATE_KEY,
   TEST_SOLANA_TOKEN,
-} from "./consts";
+} from "./utils/consts";
 import { getSignedVaaEthereum, getSignedVaaSolana } from "./utils/getSignedVaa";
 
 jest.setTimeout(60000);

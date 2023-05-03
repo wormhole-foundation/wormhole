@@ -31,6 +31,13 @@ var module *string
 var shutdownGuardianKey *string
 var shutdownPubKey *string
 
+var circleIntegrationChainID *string
+var circleIntegrationFinality *string
+var circleIntegrationForeignEmitterChainID *string
+var circleIntegrationForeignEmitterAddress *string
+var circleIntegrationCircleDomain *string
+var circleIntegrationNewImplementationAddress *string
+
 func init() {
 	governanceFlagSet := pflag.NewFlagSet("governance", pflag.ExitOnError)
 	chainID = governanceFlagSet.String("chain-id", "", "Chain ID")
@@ -61,6 +68,29 @@ func init() {
 
 	AdminClientShutdownProofCmd.Flags().AddFlagSet(authProofFlagSet)
 	TemplateCmd.AddCommand(AdminClientShutdownProofCmd)
+
+	circleIntegrationChainIDFlagSet := pflag.NewFlagSet("circle-integ", pflag.ExitOnError)
+	circleIntegrationChainID = circleIntegrationChainIDFlagSet.String("chain-id", "", "Target chain ID")
+
+	circleIntegrationFinalityFlagSet := pflag.NewFlagSet("finality", pflag.ExitOnError)
+	circleIntegrationFinality = circleIntegrationFinalityFlagSet.String("finality", "", "Desired wormhole finality")
+	AdminClientCircleIntegrationUpdateWormholeFinalityCmd.Flags().AddFlagSet(circleIntegrationChainIDFlagSet)
+	AdminClientCircleIntegrationUpdateWormholeFinalityCmd.Flags().AddFlagSet(circleIntegrationFinalityFlagSet)
+	TemplateCmd.AddCommand(AdminClientCircleIntegrationUpdateWormholeFinalityCmd)
+
+	circleIntegrationRegisterEmitterFlagSet := pflag.NewFlagSet("register", pflag.ExitOnError)
+	circleIntegrationForeignEmitterChainID = circleIntegrationRegisterEmitterFlagSet.String("foreign-emitter-chain-id", "", "Foreign emitter chain ID")
+	circleIntegrationForeignEmitterAddress = circleIntegrationRegisterEmitterFlagSet.String("foreign-emitter-address", "", "Foreign emitter address (hex, base58 or bech32)")
+	circleIntegrationCircleDomain = circleIntegrationRegisterEmitterFlagSet.String("circle-domain", "", "Circle domain")
+	AdminClientCircleIntegrationRegisterEmitterAndDomainCmd.Flags().AddFlagSet(circleIntegrationChainIDFlagSet)
+	AdminClientCircleIntegrationRegisterEmitterAndDomainCmd.Flags().AddFlagSet(circleIntegrationRegisterEmitterFlagSet)
+	TemplateCmd.AddCommand(AdminClientCircleIntegrationRegisterEmitterAndDomainCmd)
+
+	circleIntegrationUpgradeContractImplementationFlagSet := pflag.NewFlagSet("upgrade", pflag.ExitOnError)
+	circleIntegrationNewImplementationAddress = circleIntegrationUpgradeContractImplementationFlagSet.String("new-implementation-address", "", "New implementation address (hex, base58 or bech32)")
+	AdminClientCircleIntegrationUpgradeContractImplementationCmd.Flags().AddFlagSet(circleIntegrationChainIDFlagSet)
+	AdminClientCircleIntegrationUpgradeContractImplementationCmd.Flags().AddFlagSet(circleIntegrationUpgradeContractImplementationFlagSet)
+	TemplateCmd.AddCommand(AdminClientCircleIntegrationUpgradeContractImplementationCmd)
 }
 
 var TemplateCmd = &cobra.Command{
@@ -95,6 +125,24 @@ var AdminClientShutdownProofCmd = &cobra.Command{
 	Use:   "shutdown-proof",
 	Short: "Generate an auth proof for shutdown voting on behalf of the guardian.",
 	Run:   runShutdownProofTemplate,
+}
+
+var AdminClientCircleIntegrationUpdateWormholeFinalityCmd = &cobra.Command{
+	Use:   "circle-integration-update-wormhole-finality",
+	Short: "Generate an empty circle integration update wormhole finality template at specified path",
+	Run:   runCircleIntegrationUpdateWormholeFinalityTemplate,
+}
+
+var AdminClientCircleIntegrationRegisterEmitterAndDomainCmd = &cobra.Command{
+	Use:   "circle-integration-register-emitter-and-domain",
+	Short: "Generate an empty circle integration register emitter and domain template at specified path",
+	Run:   runCircleIntegrationRegisterEmitterAndDomainTemplate,
+}
+
+var AdminClientCircleIntegrationUpgradeContractImplementationCmd = &cobra.Command{
+	Use:   "circle-integration-upgrade-contract-implementation",
+	Short: "Generate an empty circle integration upgrade contract implementation template at specified path",
+	Run:   runCircleIntegrationUpgradeContractImplementationTemplate,
 }
 
 func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
@@ -271,6 +319,139 @@ func runShutdownProofTemplate(cmd *cobra.Command, args []string) {
 
 	proofHex := hex.EncodeToString(ethProof)
 	fmt.Print(proofHex)
+}
+
+func runCircleIntegrationUpdateWormholeFinalityTemplate(cmd *cobra.Command, args []string) {
+	if *circleIntegrationChainID == "" {
+		log.Fatal("--chain-id must be specified.")
+	}
+	chainID, err := parseChainID(*circleIntegrationChainID)
+	if err != nil {
+		log.Fatal("failed to parse chain id:", err)
+	}
+	if *circleIntegrationFinality == "" {
+		log.Fatal("--finality must be specified.")
+	}
+	finality, err := strconv.ParseUint(*circleIntegrationFinality, 10, 8)
+	if err != nil {
+		log.Fatal("failed to parse finality as uint8: ", err)
+	}
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_CircleIntegrationUpdateWormholeFinality{
+					CircleIntegrationUpdateWormholeFinality: &nodev1.CircleIntegrationUpdateWormholeFinality{
+						TargetChainId: uint32(chainID),
+						Finality:      uint32(finality),
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
+}
+
+func runCircleIntegrationRegisterEmitterAndDomainTemplate(cmd *cobra.Command, args []string) {
+	if *circleIntegrationChainID == "" {
+		log.Fatal("--chain-id must be specified.")
+	}
+	chainID, err := parseChainID(*circleIntegrationChainID)
+	if err != nil {
+		log.Fatal("failed to parse chain id:", err)
+	}
+	if *circleIntegrationForeignEmitterChainID == "" {
+		log.Fatal("--foreign-emitter-chain-id must be specified.")
+	}
+	foreignEmitterChainId, err := parseChainID(*circleIntegrationForeignEmitterChainID)
+	if err != nil {
+		log.Fatal("failed to parse foreign emitter chain id as uint8:", err)
+	}
+	if *circleIntegrationForeignEmitterAddress == "" {
+		log.Fatal("--foreign-emitter-address must be specified.")
+	}
+	foreignEmitterAddress, err := parseAddress(*circleIntegrationForeignEmitterAddress)
+	if err != nil {
+		log.Fatal("failed to parse foreign emitter address: ", err)
+	}
+	if *circleIntegrationCircleDomain == "" {
+		log.Fatal("--circle-domain must be specified.")
+	}
+	circleDomain, err := strconv.ParseUint(*circleIntegrationCircleDomain, 10, 32)
+	if err != nil {
+		log.Fatal("failed to parse circle domain as uint32:", err)
+	}
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_CircleIntegrationRegisterEmitterAndDomain{
+					CircleIntegrationRegisterEmitterAndDomain: &nodev1.CircleIntegrationRegisterEmitterAndDomain{
+						TargetChainId:         uint32(chainID),
+						ForeignEmitterChainId: uint32(foreignEmitterChainId),
+						ForeignEmitterAddress: foreignEmitterAddress,
+						CircleDomain:          uint32(circleDomain),
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
+}
+
+func runCircleIntegrationUpgradeContractImplementationTemplate(cmd *cobra.Command, args []string) {
+	if *circleIntegrationChainID == "" {
+		log.Fatal("--chain-id must be specified.")
+	}
+	chainID, err := parseChainID(*circleIntegrationChainID)
+	if err != nil {
+		log.Fatal("failed to parse chain id:", err)
+	}
+	if *circleIntegrationNewImplementationAddress == "" {
+		log.Fatal("--new-implementation-address must be specified.")
+	}
+	newImplementationAddress, err := parseAddress(*circleIntegrationNewImplementationAddress)
+	if err != nil {
+		log.Fatal("failed to parse new implementation address: ", err)
+	}
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_CircleIntegrationUpgradeContractImplementation{
+					CircleIntegrationUpgradeContractImplementation: &nodev1.CircleIntegrationUpgradeContractImplementation{
+						TargetChainId:            uint32(chainID),
+						NewImplementationAddress: newImplementationAddress,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
 }
 
 // parseAddress parses either a hex-encoded address and returns

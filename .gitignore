@@ -32,3 +32,5 @@ bigtable-writer.json
 /solana/artifacts-mainnet/
 /ethereum/out/
 /ethereum/cache/
+sui.log.*
+sui/examples/wrapped_coin

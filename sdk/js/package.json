@@ -1,6 +1,6 @@
 {
   "name": "@certusone/wormhole-sdk",
-  "version": "0.9.10",
+  "version": "0.9.14",
   "description": "SDK for interacting with Wormhole",
   "homepage": "https://wormhole.com",
   "main": "./lib/cjs/index.js",
@@ -8,6 +8,7 @@
   "files": [
     "lib/"
   ],
+  "sideEffects": false,
   "repository": "https://github.com/certusone/wormhole/tree/main/sdk/js",
   "scripts": {
     "build-contracts": "cd ../../ethereum && npm run build && cd ../sdk/js && node scripts/copyContracts.js",
@@ -68,9 +69,10 @@
     "@certusone/wormhole-sdk-proto-web": "0.0.6",
     "@certusone/wormhole-sdk-wasm": "^0.0.1",
     "@coral-xyz/borsh": "0.2.6",
-    "@injectivelabs/networks": "^1.0.73",
-    "@injectivelabs/sdk-ts": "^1.0.368",
-    "@injectivelabs/utils": "^1.0.63",
+    "@injectivelabs/networks": "1.10.7",
+    "@injectivelabs/sdk-ts": "1.10.47",
+    "@injectivelabs/utils": "1.10.5",
+    "@mysten/sui.js": "0.32.2",
     "@project-serum/anchor": "^0.25.0",
     "@solana/spl-token": "^0.3.5",
     "@solana/web3.js": "^1.66.2",

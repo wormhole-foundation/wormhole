@@ -5,12 +5,12 @@ use cosmwasm_std::{from_binary, to_binary, Binary, Event, Uint256};
 use global_accountant::msg::{Observation, ObservationStatus, SubmitObservationResponse};
 use helpers::*;
 use serde_wormhole::RawMessage;
-use wormhole::{
+use wormhole_bindings::fake::WormholeKeeper;
+use wormhole_sdk::{
     token::Message,
     vaa::{Body, Header, Vaa},
     Address, Amount, Chain,
 };
-use wormhole_bindings::fake::WormholeKeeper;
 
 fn create_transfer_vaas(wh: &WormholeKeeper, count: usize) -> (Vec<Vaa<Message>>, Vec<Binary>) {
     let mut vaas = Vec::with_capacity(count);
@@ -75,6 +75,8 @@ fn basic() {
 
     let (wh, mut contract) = proper_instantiate();
 
+    register_emitters(&wh, &mut contract, COUNT);
+
     let (vaas, payloads) = create_transfer_vaas(&wh, COUNT);
 
     let resp = contract.submit_vaas(payloads).unwrap();
@@ -100,8 +102,26 @@ fn basic() {
 }
 
 #[test]
+fn invalid_emitter() {
+    const COUNT: usize = 1;
+
+    let (wh, mut contract) = proper_instantiate();
+
+    let (_vaas, payloads) = create_transfer_vaas(&wh, COUNT);
+
+    let err = contract
+        .submit_vaas(payloads)
+        .expect_err("successfully submitted VAA from invalid emitter");
+    assert_eq!(
+        "no registered emitter for chain any",
+        err.root_cause().to_string().to_lowercase()
+    );
+}
+
+#[test]
 fn invalid_transfer() {
     let (wh, mut contract) = proper_instantiate();
+    register_emitters(&wh, &mut contract, 4);
 
     let mut body = create_vaa_body(1);
     match body.payload {
@@ -119,14 +139,19 @@ fn invalid_transfer() {
     }
 
     let (_, data) = sign_vaa_body(&wh, body);
-    contract
+    let err = contract
         .submit_vaas(vec![data])
         .expect_err("successfully submitted VAA containing invalid transfer");
+    assert_eq!(
+        "cannot burn wrapped tokens without an existing wrapped account",
+        err.root_cause().to_string().to_lowercase()
+    );
 }
 
 #[test]
 fn no_quorum() {
     let (wh, mut contract) = proper_instantiate();
+    register_emitters(&wh, &mut contract, 4);
     let index = wh.guardian_set_index();
     let quorum = wh
         .calculate_quorum(index, contract.app().block_info().height)
@@ -137,9 +162,13 @@ fn no_quorum() {
 
     let data = serde_wormhole::to_vec(&v).map(From::from).unwrap();
 
-    contract
+    let err = contract
         .submit_vaas(vec![data])
         .expect_err("successfully submitted VAA without a quorum of signatures");
+    assert_eq!(
+        "generic error: querier contract error: no quorum",
+        err.root_cause().to_string().to_lowercase()
+    );
 }
 
 #[test]
@@ -151,9 +180,14 @@ fn bad_serialization() {
     // Rather than using the wormhole wire format use cosmwasm json.
     let data = to_binary(&v).unwrap();
 
-    contract
+    let err = contract
         .submit_vaas(vec![data])
         .expect_err("successfully submitted VAA with bad serialization");
+    assert!(err
+        .root_cause()
+        .to_string()
+        .to_lowercase()
+        .contains("unexpected end of input"));
 }
 
 #[test]
@@ -165,14 +199,19 @@ fn bad_signature() {
     v.signatures[0].signature[0] ^= 1;
 
     let data = serde_wormhole::to_vec(&v).map(From::from).unwrap();
-    contract
+    let err = contract
         .submit_vaas(vec![data])
         .expect_err("successfully submitted VAA with bad signature");
+    assert_eq!(
+        "generic error: querier contract error: failed to verify signature",
+        err.root_cause().to_string().to_lowercase()
+    );
 }
 
 #[test]
 fn non_transfer_message() {
     let (wh, mut contract) = proper_instantiate();
+    register_emitters(&wh, &mut contract, 4);
     let body: Body<Message> = Body {
         timestamp: 2,
         nonce: 2,
@@ -194,14 +233,19 @@ fn non_transfer_message() {
     };
 
     let (_, data) = sign_vaa_body(&wh, body);
-    contract
+    let err = contract
         .submit_vaas(vec![data])
         .expect_err("successfully submitted VAA with non-transfer message");
+    assert_eq!(
+        "unknown tokenbridge payload",
+        err.root_cause().to_string().to_lowercase()
+    );
 }
 
 #[test]
 fn transfer_with_payload() {
     let (wh, mut contract) = proper_instantiate();
+    register_emitters(&wh, &mut contract, 3);
     let payload = [0x88; 17];
     let body = Body {
         timestamp: 2,
@@ -262,14 +306,19 @@ fn unsupported_version() {
 
     let data = serde_wormhole::to_vec(&v).map(From::from).unwrap();
 
-    contract
+    let err = contract
         .submit_vaas(vec![data])
         .expect_err("successfully submitted VAA with unsupported version");
+    assert_eq!(
+        "unsupported vaa version",
+        err.root_cause().to_string().to_lowercase()
+    );
 }
 
 #[test]
 fn reobservation() {
     let (wh, mut contract) = proper_instantiate();
+    register_emitters(&wh, &mut contract, 7);
 
     let (v, data) = sign_vaa_body(&wh, create_vaa_body(6));
     contract
@@ -308,6 +357,7 @@ fn reobservation() {
 #[test]
 fn digest_mismatch() {
     let (wh, mut contract) = proper_instantiate();
+    register_emitters(&wh, &mut contract, 7);
 
     let (v, data) = sign_vaa_body(&wh, create_vaa_body(6));
     contract

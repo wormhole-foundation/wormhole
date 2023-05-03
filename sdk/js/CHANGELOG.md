@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.9.14
+
+### Added
+
+Sei testnet support
+
+## 0.9.13
+
+### Added
+
+"sideEffects": false
+
+### Changed
+
+injective dependencies updated
+
+## 0.9.12
+
+### Added
+
+Sepolia testnet support
+
+## 0.9.11
+
+### Added
+
+Base testnet support
+
 ## 0.9.10
 
 ## Added
