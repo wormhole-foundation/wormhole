@@ -148,6 +148,7 @@ func TestBodyCircleIntegrationUpgradeContractImplementationSerialize(t *testing.
 		NewImplementationAddress: addr,
 	}
 	assert.Equal(t, expected, hex.EncodeToString(bodyCircleIntegrationUpgradeContractImplementation.Serialize()))
+}
 	
 func TestBodyWormholeRelayerSetDefaultRelayProviderSerialize(t *testing.T) {
 	expected := "000000000000000000000000000000000000000000436f726552656c617965720300040000000000000000000000000000000000000000000000000000000000000004"
