@@ -1,3 +1,4 @@
+// nolint:unparam // this will be refactored in https://github.com/wormhole-foundation/wormhole/pull/1953
 package processor
 
 import (
