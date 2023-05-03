@@ -5206,3 +5206,211 @@ func createTransferKeysForTestingBatchTransferStatus(t *testing.T, num int) ([]T
 	respBytes = append(respBytes, []byte("]}")...)
 	return keys, respBytes
 }
+
+// createTxRespForCommitted creates a TxResponse as returned by the accountant contract for a transfer on ethereum that has been committed.
+func createTxRespForCommitted() []byte {
+	respJson := `
+	{
+  "tx_response": {
+    "height": 966,
+    "txhash": "673097FB69A0E78C8B542C5F9BD826BB7C55FAE9560972DE6B075612E2CCB0A5",
+    "codespace": "",
+    "code": 0,
+    "data": "0AD2010A242F636F736D7761736D2E7761736D2E76312E4D736745786563757465436F6E747261637412A9010AA6015B7B226B6579223A7B22656D69747465725F636861696E223A322C22656D69747465725F61646472657373223A2230303030303030303030303030303030303030303030303030323930666231363732303861663435356262313337373830313633623762376139613130633136222C2273657175656E6365223A313638333133363234347D2C22737461747573223A7B2274797065223A22636F6D6D6974746564227D7D5D",
+    "raw_log": "[{\"events\":[{\"type\":\"execute\",\"attributes\":[{\"key\":\"_contract_address\",\"value\":\"wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465\"}]},{\"type\":\"message\",\"attributes\":[{\"key\":\"action\",\"value\":\"/cosmwasm.wasm.v1.MsgExecuteContract\"},{\"key\":\"module\",\"value\":\"wasm\"},{\"key\":\"sender\",\"value\":\"wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq\"}]},{\"type\":\"wasm\",\"attributes\":[{\"key\":\"_contract_address\",\"value\":\"wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465\"},{\"key\":\"action\",\"value\":\"submit_observations\"},{\"key\":\"owner\",\"value\":\"wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq\"}]},{\"type\":\"wasm-Observation\",\"attributes\":[{\"key\":\"_contract_address\",\"value\":\"wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465\"},{\"key\":\"tx_hash\",\"value\":\"\\\"guolNsXRZxgwy0kSD5RHnjS1RZao3TafvCZmZnp2X0s=\\\"\"},{\"key\":\"timestamp\",\"value\":\"1683136244\"},{\"key\":\"nonce\",\"value\":\"0\"},{\"key\":\"emitter_chain\",\"value\":\"2\"},{\"key\":\"emitter_address\",\"value\":\"\\\"0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16\\\"\"},{\"key\":\"sequence\",\"value\":\"1683136244\"},{\"key\":\"consistency_level\",\"value\":\"15\"},{\"key\":\"payload\",\"value\":\"\\\"AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA3gtrOnZAAAAAAAAAAAAAAAAAAALYvmvwuqdOCpBwFmecrpGQ6A3QoAAgAAAAAAAAAAAAAAAMEIIJg/M0Vs576zoEb1qD+jTwJ9DCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\\\"\"}]}]}]",
+    "logs": [
+      {
+        "msg_index": 0,
+        "log": "",
+        "events": [
+          {
+            "type": "execute",
+            "attributes": [
+              {
+                "key": "_contract_address",
+                "value": "wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465"
+              }
+            ]
+          },
+          {
+            "type": "message",
+            "attributes": [
+              {
+                "key": "action",
+                "value": "/cosmwasm.wasm.v1.MsgExecuteContract"
+              },
+              { "key": "module", "value": "wasm" },
+              {
+                "key": "sender",
+                "value": "wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq"
+              }
+            ]
+          },
+          {
+            "type": "wasm",
+            "attributes": [
+              {
+                "key": "_contract_address",
+                "value": "wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465"
+              },
+              { "key": "action", "value": "submit_observations" },
+              {
+                "key": "owner",
+                "value": "wormhole1cyyzpxplxdzkeea7kwsydadg87357qna3zg3tq"
+              }
+            ]
+          },
+          {
+            "type": "wasm-Observation",
+            "attributes": [
+              {
+                "key": "_contract_address",
+                "value": "wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465"
+              },
+              {
+                "key": "tx_hash",
+                "value": "\"guolNsXRZxgwy0kSD5RHnjS1RZao3TafvCZmZnp2X0s=\""
+              },
+              { "key": "timestamp", "value": "1683136244" },
+              { "key": "nonce", "value": "0" },
+              { "key": "emitter_chain", "value": "2" },
+              {
+                "key": "emitter_address",
+                "value": "\"0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16\""
+              },
+              { "key": "sequence", "value": "1683136244" },
+              { "key": "consistency_level", "value": "15" },
+              {
+                "key": "payload",
+                "value": "\"AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA3gtrOnZAAAAAAAAAAAAAAAAAAALYvmvwuqdOCpBwFmecrpGQ6A3QoAAgAAAAAAAAAAAAAAAMEIIJg/M0Vs576zoEb1qD+jTwJ9DCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\""
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "info": "",
+    "gas_wanted": 2000000,
+    "gas_used": 156514,
+    "tx": null,
+    "timestamp": "",
+    "events": [
+      {
+        "type": "tx",
+        "attributes": [
+          { "key": "ZmVl", "value": null, "index": true },
+          {
+            "key": "ZmVlX3BheWVy",
+            "value": "d29ybWhvbGUxY3l5enB4cGx4ZHprZWVhN2t3c3lkYWRnODczNTdxbmEzemczdHE=",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "tx",
+        "attributes": [
+          {
+            "key": "YWNjX3NlcQ==",
+            "value": "d29ybWhvbGUxY3l5enB4cGx4ZHprZWVhN2t3c3lkYWRnODczNTdxbmEzemczdHEvMjU=",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "tx",
+        "attributes": [
+          {
+            "key": "c2lnbmF0dXJl",
+            "value": "R09qWUJ2RVVTclY0THQydWt3NURwRXU3Rlo1RURCMzRZUmdwYkhQYitmMEFKSjNFZ3RFZEJRaGV1dHdZVk90eU1VWUlpSkVpZytDeFV0WG8xemI1WEE9PQ==",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "message",
+        "attributes": [
+          {
+            "key": "YWN0aW9u",
+            "value": "L2Nvc213YXNtLndhc20udjEuTXNnRXhlY3V0ZUNvbnRyYWN0",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "message",
+        "attributes": [
+          { "key": "bW9kdWxl", "value": "d2FzbQ==", "index": true },
+          {
+            "key": "c2VuZGVy",
+            "value": "d29ybWhvbGUxY3l5enB4cGx4ZHprZWVhN2t3c3lkYWRnODczNTdxbmEzemczdHE=",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "execute",
+        "attributes": [
+          {
+            "key": "X2NvbnRyYWN0X2FkZHJlc3M=",
+            "value": "d29ybWhvbGUxNGhqMnRhdnE4ZnBlc2R3eHhjdTQ0cnR5M2hoOTB2aHVqcnZjbXN0bDR6cjN0eG1mdnc5c3JyZzQ2NQ==",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "wasm",
+        "attributes": [
+          {
+            "key": "X2NvbnRyYWN0X2FkZHJlc3M=",
+            "value": "d29ybWhvbGUxNGhqMnRhdnE4ZnBlc2R3eHhjdTQ0cnR5M2hoOTB2aHVqcnZjbXN0bDR6cjN0eG1mdnc5c3JyZzQ2NQ==",
+            "index": true
+          },
+          {
+            "key": "YWN0aW9u",
+            "value": "c3VibWl0X29ic2VydmF0aW9ucw==",
+            "index": true
+          },
+          {
+            "key": "b3duZXI=",
+            "value": "d29ybWhvbGUxY3l5enB4cGx4ZHprZWVhN2t3c3lkYWRnODczNTdxbmEzemczdHE=",
+            "index": true
+          }
+        ]
+      },
+      {
+        "type": "wasm-Observation",
+        "attributes": [
+          {
+            "key": "X2NvbnRyYWN0X2FkZHJlc3M=",
+            "value": "d29ybWhvbGUxNGhqMnRhdnE4ZnBlc2R3eHhjdTQ0cnR5M2hoOTB2aHVqcnZjbXN0bDR6cjN0eG1mdnc5c3JyZzQ2NQ==",
+            "index": true
+          },
+          {
+            "key": "dHhfaGFzaA==",
+            "value": "Imd1b2xOc1hSWnhnd3kwa1NENVJIbmpTMVJaYW8zVGFmdkNabVpucDJYMHM9Ig==",
+            "index": true
+          },
+          { "key": "dGltZXN0YW1w", "value": "MTY4MzEzNjI0NA==", "index": true },
+          { "key": "bm9uY2U=", "value": "MA==", "index": true },
+          { "key": "ZW1pdHRlcl9jaGFpbg==", "value": "Mg==", "index": true },
+          {
+            "key": "ZW1pdHRlcl9hZGRyZXNz",
+            "value": "IjAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAyOTBmYjE2NzIwOGFmNDU1YmIxMzc3ODAxNjNiN2I3YTlhMTBjMTYi",
+            "index": true
+          },
+          { "key": "c2VxdWVuY2U=", "value": "MTY4MzEzNjI0NA==", "index": true },
+          { "key": "Y29uc2lzdGVuY3lfbGV2ZWw=", "value": "MTU=", "index": true },
+          {
+            "key": "cGF5bG9hZA==",
+            "value": "IkFRQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUEzZ3RyT25aQUFBQUFBQUFBQUFBQUFBQUFBQUxZdm12d3VxZE9DcEJ3Rm1lY3JwR1E2QTNRb0FBZ0FBQUFBQUFBQUFBQUFBQU1FSUlKZy9NMFZzNTc2em9FYjFxRCtqVHdKOURDQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUE9PSI=",
+            "index": true
+          }
+        ]
+      }
+    ]
+  }
+}
+	`
+
+	return []byte(respJson)
+}

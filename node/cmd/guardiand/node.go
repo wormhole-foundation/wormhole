@@ -1049,7 +1049,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	// If accountantCheckEnabled is set to true, token bridge transfers will not be signed and published until they
 	// are approved by the accountant smart contract.
 	acctLogger := logger.With(zap.String("component", "gacct"))
-	acctReadC, acctWriteC := makeChannelPair[*common.MessagePublication](0)
+	acctReadC, acctWriteC := makeChannelPair[*common.MessagePublication](accountant.MsgChannelCapacity)
 
 	var acct *accountant.Accountant
 	if *accountantContract != "" {
