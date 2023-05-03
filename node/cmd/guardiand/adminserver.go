@@ -283,32 +283,20 @@ func wormchainMigrateContract(req *nodev1.WormchainMigrateContract, timestamp ti
 	return v, nil
 }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 // circleIntegrationUpdateWormholeFinality converts a nodev1.CircleIntegrationUpdateWormholeFinality to its canonical VAA representation
 // Returns an error if the data is invalid
 func circleIntegrationUpdateWormholeFinality(req *nodev1.CircleIntegrationUpdateWormholeFinality, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
 	if req.TargetChainId > math.MaxUint16 {
 		return nil, fmt.Errorf("invalid target chain id, must be <= %d", math.MaxUint16)
 	}
-=======
-<<<<<<< HEAD
-=======
-// circleIntegrationUpdateWormholeFinality converts a nodev1.CircleIntegrationUpdateWormholeFinality to its canonical VAA representation
-// Returns an error if the data is invalid
-func circleIntegrationUpdateWormholeFinality(req *nodev1.CircleIntegrationUpdateWormholeFinality, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
->>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
+
 	if req.Finality > math.MaxUint8 {
 		return nil, fmt.Errorf("invalid finality, must be <= %d", math.MaxUint8)
 	}
 	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
 		vaa.BodyCircleIntegrationUpdateWormholeFinality{
-<<<<<<< HEAD
 			TargetChainID: vaa.ChainID(req.TargetChainId),
 			Finality:      uint8(req.Finality),
-=======
-			Finality: uint8(req.Finality),
->>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 		}.Serialize())
 
 	return v, nil
@@ -317,12 +305,9 @@ func circleIntegrationUpdateWormholeFinality(req *nodev1.CircleIntegrationUpdate
 // circleIntegrationRegisterEmitterAndDomain converts a nodev1.CircleIntegrationRegisterEmitterAndDomain to its canonical VAA representation
 // Returns an error if the data is invalid
 func circleIntegrationRegisterEmitterAndDomain(req *nodev1.CircleIntegrationRegisterEmitterAndDomain, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
-<<<<<<< HEAD
 	if req.TargetChainId > math.MaxUint16 {
 		return nil, fmt.Errorf("invalid target chain id, must be <= %d", math.MaxUint16)
 	}
-=======
->>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	if req.ForeignEmitterChainId > math.MaxUint16 {
 		return nil, fmt.Errorf("invalid foreign emitter chain id, must be <= %d", math.MaxUint16)
 	}
@@ -340,10 +325,7 @@ func circleIntegrationRegisterEmitterAndDomain(req *nodev1.CircleIntegrationRegi
 
 	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
 		vaa.BodyCircleIntegrationRegisterEmitterAndDomain{
-<<<<<<< HEAD
 			TargetChainID:         vaa.ChainID(req.TargetChainId),
-=======
->>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 			ForeignEmitterChainId: vaa.ChainID(req.ForeignEmitterChainId),
 			ForeignEmitterAddress: foreignEmitterAddress,
 			CircleDomain:          req.CircleDomain,
@@ -355,12 +337,9 @@ func circleIntegrationRegisterEmitterAndDomain(req *nodev1.CircleIntegrationRegi
 // circleIntegrationUpgradeContractImplementation converts a nodev1.CircleIntegrationUpgradeContractImplementation to its canonical VAA representation
 // Returns an error if the data is invalid
 func circleIntegrationUpgradeContractImplementation(req *nodev1.CircleIntegrationUpgradeContractImplementation, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
-<<<<<<< HEAD
 	if req.TargetChainId > math.MaxUint16 {
 		return nil, fmt.Errorf("invalid target chain id, must be <= %d", math.MaxUint16)
 	}
-=======
->>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 	b, err := hex.DecodeString(req.NewImplementationAddress)
 	if err != nil {
 		return nil, errors.New("invalid new implementation address encoding (expected hex)")
@@ -375,20 +354,13 @@ func circleIntegrationUpgradeContractImplementation(req *nodev1.CircleIntegratio
 
 	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
 		vaa.BodyCircleIntegrationUpgradeContractImplementation{
-<<<<<<< HEAD
 			TargetChainID:            vaa.ChainID(req.TargetChainId),
-=======
->>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 			NewImplementationAddress: newImplementationAddress,
 		}.Serialize())
 
 	return v, nil
 }
 
-<<<<<<< HEAD
-=======
-=======
->>>>>>> a4732803 (Fix compile error)
 // wormholeRelayerSetDefaultRelayProvider converts a nodev1.WormholeRelayerSetDefaultRelayProvider message to its canonical VAA representation.
 // Returns an error if the data is invalid.
 func wormholeRelayerSetDefaultRelayProvider(req *nodev1.WormholeRelayerSetDefaultRelayProvider, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
@@ -417,11 +389,6 @@ func wormholeRelayerSetDefaultRelayProvider(req *nodev1.WormholeRelayerSetDefaul
 	return v, nil
 }
 
-<<<<<<< HEAD
->>>>>>> 8c709813 (Adding wormhole relayer governance VAA injection methods)
->>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
-=======
->>>>>>> a4732803 (Fix compile error)
 func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *nodev1.InjectGovernanceVAARequest) (*nodev1.InjectGovernanceVAAResponse, error) {
 	s.logger.Info("governance VAA injected via admin socket", zap.String("request", req.String()))
 
@@ -452,17 +419,14 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 			v, err = wormchainInstantiateContract(payload.WormchainInstantiateContract, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		case *nodev1.GovernanceMessage_WormchainMigrateContract:
 			v, err = wormchainMigrateContract(payload.WormchainMigrateContract, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
-<<<<<<< HEAD
 		case *nodev1.GovernanceMessage_CircleIntegrationUpdateWormholeFinality:
 			v, err = circleIntegrationUpdateWormholeFinality(payload.CircleIntegrationUpdateWormholeFinality, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		case *nodev1.GovernanceMessage_CircleIntegrationRegisterEmitterAndDomain:
 			v, err = circleIntegrationRegisterEmitterAndDomain(payload.CircleIntegrationRegisterEmitterAndDomain, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		case *nodev1.GovernanceMessage_CircleIntegrationUpgradeContractImplementation:
 			v, err = circleIntegrationUpgradeContractImplementation(payload.CircleIntegrationUpgradeContractImplementation, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
-=======
 		case *nodev1.GovernanceMessage_WormholeRelayerSetDefaultRelayProvider:
 			v, err = wormholeRelayerSetDefaultRelayProvider(payload.WormholeRelayerSetDefaultRelayProvider, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
->>>>>>> 6173890e (Adding wormhole relayer governance VAA injection methods)
 		default:
 			panic(fmt.Sprintf("unsupported VAA type: %T", payload))
 		}
