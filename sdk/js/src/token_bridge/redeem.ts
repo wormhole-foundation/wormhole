@@ -5,13 +5,13 @@ import {
 } from "@mysten/sui.js";
 import {
   ACCOUNT_SIZE,
+  NATIVE_MINT,
+  TOKEN_PROGRAM_ID,
   createCloseAccountInstruction,
   createInitializeAccountInstruction,
   createTransferInstruction,
   getMinimumBalanceForRentExemptAccount,
   getMint,
-  NATIVE_MINT,
-  TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import {
   Commitment,
@@ -27,7 +27,7 @@ import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
 import { Algodv2 } from "algosdk";
 import { AptosClient, Types } from "aptos";
 import BN from "bn.js";
-import { ethers, Overrides } from "ethers";
+import { Overrides, ethers } from "ethers";
 import { fromUint8Array } from "js-base64";
 import { FunctionCallOptions } from "near-api-js/lib/account";
 import { Provider } from "near-api-js/lib/providers";
@@ -42,17 +42,17 @@ import {
   createCompleteTransferNativeInstruction,
   createCompleteTransferWrappedInstruction,
 } from "../solana/tokenBridge";
-import { getPackageId, getTokenCoinType } from "../sui";
+import { getPackageId, getTokenCoinType, uint8ArrayToBCS } from "../sui";
 import {
-  callFunctionNear,
-  ChainId,
   CHAIN_ID_NEAR,
   CHAIN_ID_SOLANA,
-  hashLookup,
+  ChainId,
   MAX_VAA_DECIMALS,
+  callFunctionNear,
+  hashLookup,
   uint8ArrayToHex,
 } from "../utils";
-import { parseTokenTransferVaa, SignedVaa } from "../vaa";
+import { SignedVaa, parseTokenTransferVaa } from "../vaa";
 import { getForeignAssetNear } from "./getForeignAsset";
 
 export async function redeemOnEth(
@@ -392,7 +392,7 @@ export async function redeemOnSui(
     target: `${coreBridgePackageId}::vaa::parse_and_verify`,
     arguments: [
       tx.object(coreBridgeStateObjectId),
-      tx.pure([...transferVAA]),
+      tx.pure(uint8ArrayToBCS(transferVAA)),
       tx.object(SUI_CLOCK_OBJECT_ID),
     ],
   });

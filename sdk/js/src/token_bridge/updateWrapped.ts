@@ -13,7 +13,7 @@ import {
   createWrappedOnXpla,
 } from ".";
 import { Bridge__factory } from "../ethers-contracts";
-import { getPackageId, getWrappedCoinType } from "../sui";
+import { getPackageId, getWrappedCoinType, uint8ArrayToBCS } from "../sui";
 
 export async function updateWrappedOnEth(
   tokenBridgeAddress: string,
@@ -71,7 +71,7 @@ export async function updateWrappedOnSui(
     target: `${coreBridgePackageId}::vaa::parse_and_verify`,
     arguments: [
       tx.object(coreBridgeStateObjectId),
-      tx.pure([...attestVAA]),
+      tx.pure(uint8ArrayToBCS(attestVAA)),
       tx.object(SUI_CLOCK_OBJECT_ID),
     ],
   });
