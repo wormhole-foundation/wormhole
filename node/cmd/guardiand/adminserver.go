@@ -289,7 +289,6 @@ func circleIntegrationUpdateWormholeFinality(req *nodev1.CircleIntegrationUpdate
 	if req.TargetChainId > math.MaxUint16 {
 		return nil, fmt.Errorf("invalid target chain id, must be <= %d", math.MaxUint16)
 	}
-
 	if req.Finality > math.MaxUint8 {
 		return nil, fmt.Errorf("invalid finality, must be <= %d", math.MaxUint8)
 	}

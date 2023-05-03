@@ -241,7 +241,6 @@ func (r BodyCircleIntegrationRegisterEmitterAndDomain) Serialize() []byte {
 	payload.Write(r.ForeignEmitterAddress[:])
 	MustWrite(payload, binary.BigEndian, r.CircleDomain)
 	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionRegisterEmitterAndDomain, r.TargetChainID, payload.Bytes())
-	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionRegisterEmitterAndDomain, 0, payload.Bytes())
 }
 
 func (r BodyCircleIntegrationUpgradeContractImplementation) Serialize() []byte {
