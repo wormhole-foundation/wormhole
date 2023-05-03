@@ -5,6 +5,7 @@ linters:
   # Enable specific linter
   # https://golangci-lint.run/usage/linters/#enabled-by-default-linters
   enable:
+  # default linters
     - errcheck
     - gosimple
     - govet
@@ -12,5 +13,12 @@ linters:
     - staticcheck
     - typecheck
     - unused
-    - gosec
 
+  # additional linters
+    - gosec
+    - forcetypeassert
+    # - contextcheck # disabled because
+    - noctx
+    # - unconvert # disable because extra conversion typically don't hurt but can make code more clear
+    - unparam
+    - prealloc
