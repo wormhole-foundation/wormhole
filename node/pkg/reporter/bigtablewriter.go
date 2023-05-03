@@ -134,9 +134,7 @@ func BigTableWriter(events *AttestationEventReporter, connectionConfig *BigTable
 							zap.Error(err))
 						errC <- err
 					}
-					publishResult := pubsubTopic.Publish(ctx, &pubsub.Message{
-						Data: []byte(b),
-					})
+					publishResult := pubsubTopic.Publish(ctx, &pubsub.Message{Data: b})
 					if _, err = publishResult.Get(ctx); err != nil {
 						logger.Error("Failed getting GCP PubSub publish reciept",
 							zap.String("rowKey", rowKey),
