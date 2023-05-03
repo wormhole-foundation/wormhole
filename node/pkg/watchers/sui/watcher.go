@@ -239,7 +239,7 @@ func (e *Watcher) inspectBody(logger *zap.Logger, body SuiResult) error {
 		EmitterChain:     vaa.ChainIDSui,
 		EmitterAddress:   emitter,
 		Payload:          fields.Payload,
-		ConsistencyLevel: uint8(*fields.ConsistencyLevel),
+		ConsistencyLevel: *fields.ConsistencyLevel,
 	}
 
 	suiMessagesConfirmed.Inc()
@@ -373,7 +373,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				return ctx.Err()
 
 			case <-timer.C:
-				resp, err := http.Post(e.suiRPC, "application/json", strings.NewReader(`{"jsonrpc":"2.0", "id": 1, "method": "sui_getLatestCheckpointSequenceNumber", "params": []}`))
+				resp, err := http.Post(e.suiRPC, "application/json", strings.NewReader(`{"jsonrpc":"2.0", "id": 1, "method": "sui_getLatestCheckpointSequenceNumber", "params": []}`)) //nolint:noctx // TODO FIXME we should propagate context with Deadline here.
 				if err != nil {
 					logger.Error("sui_getLatestCheckpointSequenceNumber failed", zap.Error(err))
 					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
@@ -404,7 +404,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					logger.Debug("sui_getLatestCheckpointSequenceNumber", zap.String("result", res.Result))
 
 					p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDSui, &gossipv1.Heartbeat_Network{
-						Height:          int64(height),
+						Height:          height,
 						ContractAddress: e.suiMoveEventType,
 					})
 				}
@@ -429,7 +429,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				buf := fmt.Sprintf(`{"jsonrpc":"2.0", "id": 1, "method": "sui_getEvents", "params": ["%s"]}`, tx58)
 
-				resp, err := http.Post(e.suiRPC, "application/json", strings.NewReader(buf))
+				resp, err := http.Post(e.suiRPC, "application/json", strings.NewReader(buf)) //nolint:noctx // TODO FIXME we should propagate context with Deadline here.
 				if err != nil {
 					logger.Error("getEvents API failed", zap.String("suiRPC", e.suiRPC), zap.Error(err))
 					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
