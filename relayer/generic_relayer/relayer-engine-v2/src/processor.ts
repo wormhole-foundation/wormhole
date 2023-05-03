@@ -40,12 +40,29 @@ export async function processGenericRelayerVaa(ctx: GRContext, next: Next) {
 
 async function processDelivery(ctx: GRContext) {
   const deliveryVaa = parseWormholeRelayerSend(ctx.vaa!.payload);
-
+  if (
+    wh.tryUint8ArrayToNative(deliveryVaa.sourceRelayProvider, "ethereum") !==
+    ctx.relayProviders[ctx.vaa!.emitterChain as EVMChainId]
+  ) {
+    ctx.logger.info("Delivery vaa specifies different relay provider", {
+      sourceRelayProvider: deliveryVaa.sourceRelayProvider,
+    });
+    return;
+  }
   processDeliveryInstruction(ctx, deliveryVaa, ctx.vaaBytes!);
 }
 
 async function processRedelivery(ctx: GRContext) {
   const redeliveryVaa = parseWormholeRelayerResend(ctx.vaa!.payload);
+  if (
+    wh.tryUint8ArrayToNative(redeliveryVaa.sourceRelayProvider, "ethereum") !==
+    ctx.relayProviders[ctx.vaa!.emitterChain as EVMChainId]
+  ) {
+    ctx.logger.info("Delivery vaa specifies different relay provider", {
+      sourceRelayProvider: redeliveryVaa.sourceRelayProvider,
+    });
+    return;
+  }
 
   if (redeliveryVaa.vaaKey.payloadType != VaaKeyType.EMITTER_SEQUENCE) {
     throw new Error(`Only supports EmitterSequence VaaKeyType`);
