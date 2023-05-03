@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.16
+
+### Changed
+
+Sui redeem fix
+
 ## 0.9.15
 
 ### Added
