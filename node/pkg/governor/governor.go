@@ -117,14 +117,14 @@ func (ce *chainEntry) isBigTransfer(value uint64) bool {
 }
 
 type ChainGovernor struct {
-	db                    db.GovernorDB
+	db                    db.GovernorDB // protected by `mutex`
 	logger                *zap.Logger
 	mutex                 sync.Mutex
-	tokens                map[tokenKey]*tokenEntry
-	tokensByCoinGeckoId   map[string][]*tokenEntry
-	chains                map[vaa.ChainID]*chainEntry
-	msgsSeen              map[string]bool // Key is hash, payload is consts transferComplete and transferEnqueued.
-	msgsToPublish         []*common.MessagePublication
+	tokens                map[tokenKey]*tokenEntry     // protected by `mutex`
+	tokensByCoinGeckoId   map[string][]*tokenEntry     // protected by `mutex`
+	chains                map[vaa.ChainID]*chainEntry  // protected by `mutex`
+	msgsSeen              map[string]bool              // protected by `mutex` // Key is hash, payload is consts transferComplete and transferEnqueued.
+	msgsToPublish         []*common.MessagePublication // protected by `mutex`
 	dayLengthInMinutes    int
 	coinGeckoQueries      []string
 	env                   int
