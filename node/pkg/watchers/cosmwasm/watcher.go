@@ -136,7 +136,7 @@ func NewWatcher(
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
-	networkName := vaa.ChainID(e.chainID).String()
+	networkName := e.chainID.String()
 
 	p2p.DefaultRegistry.SetNetworkStats(e.chainID, &gossipv1.Heartbeat_Network{
 		ContractAddress: e.contract,
@@ -196,7 +196,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			case <-t.C:
 				msm := time.Now()
 				// Query and report height and set currentSlotHeight
-				resp, err := client.Get(fmt.Sprintf("%s/%s", e.urlLCD, e.latestBlockURL))
+				resp, err := client.Get(fmt.Sprintf("%s/%s", e.urlLCD, e.latestBlockURL)) //nolint:noctx // TODO FIXME we should propagate context with Deadline here.
 				if err != nil {
 					logger.Error("query latest block response error", zap.String("network", networkName), zap.Error(err))
 					continue
@@ -246,7 +246,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				}
 
 				// Query for tx by hash
-				resp, err := client.Get(fmt.Sprintf("%s/cosmos/tx/v1beta1/txs/%s", e.urlLCD, tx))
+				resp, err := client.Get(fmt.Sprintf("%s/cosmos/tx/v1beta1/txs/%s", e.urlLCD, tx)) //nolint:noctx // TODO FIXME we should propagate context with Deadline here.
 				if err != nil {
 					logger.Error("query tx response error", zap.String("network", networkName), zap.Error(err))
 					continue
@@ -334,7 +334,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 }
 
 func EventsToMessagePublications(contract string, txHash string, events []gjson.Result, logger *zap.Logger, chainID vaa.ChainID, contractAddressKey string) []*common.MessagePublication {
-	networkName := vaa.ChainID(chainID).String()
+	networkName := chainID.String()
 	msgs := make([]*common.MessagePublication, 0, len(events))
 	for _, event := range events {
 		if !event.IsObject() {
