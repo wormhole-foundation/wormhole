@@ -23,7 +23,7 @@ func storeVAA(db *Database, v *vaa.VAA) error {
 	return db.StoreSignedVAA(v)
 }
 
-func countVAAs(d *Database, chainId vaa.ChainID) (numThisChain int, numOtherChains int, err error) {
+func countVAAs(d *Database, chainId vaa.ChainID) (numThisChain int, numOtherChains int, err error) { //nolint:unparam
 	if err = d.db.View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
 		opts.PrefetchSize = 10

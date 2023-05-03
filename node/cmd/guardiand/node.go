@@ -1553,11 +1553,8 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 
 			if shouldStart(publicWeb) {
-				publicwebService, err := publicwebServiceRunnable(logger, *publicWeb, *publicGRPCSocketPath, publicrpcServer,
+				publicwebService := publicwebServiceRunnable(logger, *publicWeb, *publicGRPCSocketPath, publicrpcServer,
 					*tlsHostname, *tlsProdEnv, path.Join(*dataDir, "autocert"))
-				if err != nil {
-					log.Fatal("failed to create publicrpc web service", zap.Error(err))
-				}
 
 				if err := supervisor.Run(ctx, "publicweb", publicwebService); err != nil {
 					return err
