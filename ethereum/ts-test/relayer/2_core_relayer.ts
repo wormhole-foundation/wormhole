@@ -612,4 +612,18 @@ describe("Core Relayer Integration Test - Two Chains", () => {
 
     //TODO check for redelivery event
   });
+
+  it("Test governance actions", async () => {
+    console.log(`For Chain 2, registered chain 3 address: ${(await sourceCoreRelayer.registeredCoreRelayerContract(3))}`);
+    let tx = await sourceCoreRelayer.registerCoreRelayerContract(Buffer.from("010000000001006cf46ab00b7f80e3d629479f94d07f93fd845f0522f8581408bd450246923aef117d4beebd4a6a4e4d5a914b51dfab5d905632e91ffba7400c94a127a56dbbd600000000001db52662000100000000000000000000000000000000000000000000000000000000000000045773bcbab8bbd90420000000000000000000000000000000000000000000436f726552656c6179657201000000031234567890123456789012345678901234567890123456789012345678901234", "hex"), {gasLimit: 500000});
+    await tx.wait();
+    console.log(`Now for Chain 2, registered chain 3 address: ${(await sourceCoreRelayer.registeredCoreRelayerContract(3))}`);
+
+    console.log(`For Chain 2, default relay provider address: ${(await sourceCoreRelayer.getDefaultRelayProvider())}`);
+    tx = await sourceCoreRelayer.setDefaultRelayProvider(Buffer.from("01000000000100296b7c9504a82a59e4e6f4a1b00c26bb1667d5f0431fc39983bf3700062727531ad1f61d9d70da935f0298f383eab2d456d02facca2a498f5686e88c9790390f0000000000597e029300010000000000000000000000000000000000000000000000000000000000000004c74027772636e5bb20000000000000000000000000000000000000000000436f726552656c617965720300023141592631415926314159263141592631415926314159263141592631415926", "hex"), {gasLimit: 500000});
+    await tx.wait();
+    console.log(`Now for Chain 2, default relay provider address: ${(await sourceCoreRelayer.getDefaultRelayProvider())}`);
+
+
+  })
 });
