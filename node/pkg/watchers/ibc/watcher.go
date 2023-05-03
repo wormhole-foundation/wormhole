@@ -223,7 +223,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 	// Start a routine to periodically query the wormchain block height.
 	common.RunWithScissors(ctx, errC, "ibc_block_height", func(ctx context.Context) error {
-		return w.handleQueryBlockHeight(ctx, c)
+		return w.handleQueryBlockHeight(ctx)
 	})
 
 	// Start a routine for each chain to listen for observation requests.
@@ -292,7 +292,7 @@ func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn) error {
 					}
 
 					if evt != nil {
-						if err := w.processIbcReceivePublishEvent(txHash, evt, "new"); err != nil {
+						if err := w.processIbcReceivePublishEvent(evt, "new"); err != nil {
 							return fmt.Errorf("failed to process new IBC event: %w", err)
 						}
 					}
@@ -305,7 +305,7 @@ func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn) error {
 }
 
 // handleQueryBlockHeight gets the latest block height from wormchain each interval and updates the status on all the connected chains.
-func (w *Watcher) handleQueryBlockHeight(ctx context.Context, c *websocket.Conn) error {
+func (w *Watcher) handleQueryBlockHeight(ctx context.Context) error {
 	const latestBlockURL = "blocks/latest"
 
 	t := time.NewTicker(5 * time.Second)
@@ -318,7 +318,7 @@ func (w *Watcher) handleQueryBlockHeight(ctx context.Context, c *websocket.Conn)
 		case <-ctx.Done():
 			return nil
 		case <-t.C:
-			resp, err := client.Get(fmt.Sprintf("%s/%s", w.lcdUrl, latestBlockURL))
+			resp, err := client.Get(fmt.Sprintf("%s/%s", w.lcdUrl, latestBlockURL)) //nolint:noctx // TODO FIXME we should propagate context with Deadline here.
 			if err != nil {
 				return fmt.Errorf("failed to query latest block: %w", err)
 			}
@@ -369,7 +369,7 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, ce *chainEntry)
 			}
 
 			// Query for tx by hash.
-			resp, err := client.Get(fmt.Sprintf("%s/cosmos/tx/v1beta1/txs/%s", w.lcdUrl, reqTxHashStr))
+			resp, err := client.Get(fmt.Sprintf("%s/cosmos/tx/v1beta1/txs/%s", w.lcdUrl, reqTxHashStr)) //nolint:noctx // TODO FIXME we should propagate context with Deadline here.
 			if err != nil {
 				w.logger.Error("query tx response error", zap.String("chain", ce.chainName), zap.Error(err))
 				continue
@@ -416,7 +416,7 @@ func (w *Watcher) handleObservationRequests(ctx context.Context, ce *chainEntry)
 					}
 
 					if evt != nil {
-						if err := w.processIbcReceivePublishEvent(txHash, evt, "reobservation"); err != nil {
+						if err := w.processIbcReceivePublishEvent(evt, "reobservation"); err != nil {
 							return fmt.Errorf("failed to process reobserved IBC event: %w", err)
 						}
 					}
@@ -507,7 +507,7 @@ func parseIbcReceivePublishEvent(logger *zap.Logger, desiredContract string, eve
 }
 
 // processIbcReceivePublishEvent takes an IBC event, maps it to a message publication and publishes it.
-func (w *Watcher) processIbcReceivePublishEvent(txHash ethCommon.Hash, evt *ibcReceivePublishEvent, observationType string) error {
+func (w *Watcher) processIbcReceivePublishEvent(evt *ibcReceivePublishEvent, observationType string) error {
 	mappedChainID, err := w.getChainIdFromChannelID(evt.ChannelID)
 	if err != nil {
 		w.logger.Error("query for IBC channel ID failed",
@@ -657,7 +657,7 @@ func (w *Watcher) queryChannelIdToChainIdMapping() (map[string]vaa.ChainID, erro
 	}
 
 	query := fmt.Sprintf(`%s/cosmwasm/wasm/v1/contract/%s/smart/%s`, w.lcdUrl, w.contractAddress, allChannelChainsQuery)
-	resp, err := client.Get(query)
+	resp, err := client.Get(query) //nolint:noctx // TODO FIXME we should propagate context with Deadline here.
 	if err != nil {
 		return nil, fmt.Errorf("query failed: %w", err)
 	}
@@ -691,7 +691,11 @@ func (w *Watcher) queryChannelIdToChainIdMapping() (map[string]vaa.ChainID, erro
 		}
 
 		channelID := string(channelIdBytes)
-		chainID := vaa.ChainID(entry[1].(float64))
+		chainIdFloat, ok := entry[1].(float64)
+		if !ok {
+			return nil, fmt.Errorf("error converting channelId to float64")
+		}
+		chainID := vaa.ChainID(chainIdFloat)
 		ret[channelID] = chainID
 		w.logger.Info("IBC channel ID mapping", zap.String("channelID", channelID), zap.Uint16("chainID", uint16(chainID)))
 	}
