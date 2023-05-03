@@ -227,10 +227,6 @@ message CircleIntegrationUpdateWormholeFinality {
   uint32 target_chain_id = 2;
 }
 
-message CircleIntegrationUpdateWormholeFinality {
-  uint32 finality = 1;
-}
-
 message CircleIntegrationRegisterEmitterAndDomain {
   uint32 foreign_emitter_chain_id = 1;
   string foreign_emitter_address = 2;
