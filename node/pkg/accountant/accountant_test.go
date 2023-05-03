@@ -132,7 +132,7 @@ func newAccountantForTest(
 }
 
 // Converts a string into a go-ethereum Hash object used as test input.
-func hashFromString(str string) ethCommon.Hash {
+func hashFromString(str string) ethCommon.Hash { //nolint:unparam
 	if (len(str) > 2) && (str[0] == '0') && (str[1] == 'x') {
 		str = str[2:]
 	}
