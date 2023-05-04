@@ -1,17 +1,13 @@
-import { tryNativeToHexString } from "@certusone/wormhole-sdk";
 import {
   init,
   loadChains,
   ChainInfo,
   getCoreRelayer,
-  getRelayProviderAddress,
-  getCoreRelayerAddress,
   getOperatingChains,
 } from "../helpers/env";
 import { wait } from "../helpers/utils";
 import {
   createRegisterChainVAA,
-  createDefaultRelayProviderVAA,
 } from "../helpers/vaa";
 
 const processName = "registerChainsCoreRelayerSelfSign";

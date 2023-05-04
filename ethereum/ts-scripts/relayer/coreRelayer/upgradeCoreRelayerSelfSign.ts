@@ -1,21 +1,16 @@
-import { tryNativeToHexString } from "@certusone/wormhole-sdk";
 import {
   deployCoreRelayerImplementation,
   deployForwardWrapper,
 } from "../helpers/deployments";
 import {
   init,
-  loadChains,
   ChainInfo,
   getCoreRelayer,
-  getRelayProviderAddress,
   getCoreRelayerAddress,
   writeOutputFiles,
   getOperatingChains,
 } from "../helpers/env";
 import {
-  createRegisterChainVAA,
-  createDefaultRelayProviderVAA,
   createCoreRelayerUpgradeVAA,
 } from "../helpers/vaa";
 

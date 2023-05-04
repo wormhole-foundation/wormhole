@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { ethers, providers } from "ethers";
+import { ethers } from "ethers";
 import { ChainInfo, RELAYER_DEPLOYER_PRIVATE_KEY } from "./helpers/consts";
 import { generateRandomString, waitForRelay } from "./helpers/utils";
 import {
@@ -16,6 +16,7 @@ import {
   tryNativeToUint8Array,
   Network,
 } from "../../../sdk/js/src";
+import { MockRelayerIntegration } from "../../ethers-contracts";
 
 const ETHEREUM_ROOT = `${__dirname}/..`;
 

@@ -1,5 +1,5 @@
 import { ChainId } from "@certusone/wormhole-sdk";
-import { ethers, Signer } from "ethers";
+import { ethers } from "ethers";
 import fs from "fs";
 
 import { CoreRelayer } from "../../../ethers-contracts";
@@ -10,7 +10,6 @@ import { RelayProvider__factory } from "../../../ethers-contracts";
 import { CoreRelayer__factory } from "../../../ethers-contracts";
 import { MockRelayerIntegration__factory } from "../../../ethers-contracts";
 import {
-  CoreRelayerProxy__factory,
   Create2Factory,
   Create2Factory__factory,
 } from "../../../ethers-contracts";

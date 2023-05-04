@@ -6,13 +6,8 @@ import {
   getCoreRelayer,
   getMockIntegration,
   getMockIntegrationAddress,
-  getProvider,
-  getRelayProvider,
-  getSigner,
 } from "../helpers/env";
-import * as grpcWebNodeHttpTransport from "@improbable-eng/grpc-web-node-http-transport";
 import { ethers } from "ethers";
-import { RelayProvider__factory } from "../../../ethers-contracts";
 
 export async function sendMessage(
   sourceChain: ChainInfo,
