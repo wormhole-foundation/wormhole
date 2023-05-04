@@ -89,10 +89,6 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer, now
 
 	payload, err := vaa.DecodeTransferPayloadHdr(msg.Payload)
 	if err != nil {
-		if payload == nil {
-			// avoid nil ptr deref
-			payload = &vaa.TransferPayloadHdr{}
-		}
 		gov.logger.Error("failed to parse payload for reloaded pending transfer, dropping it",
 			zap.String("MsgID", msg.MessageIDString()),
 			zap.Stringer("TxHash", msg.TxHash),
@@ -102,8 +98,6 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer, now
 			zap.Uint8("ConsistencyLevel", msg.ConsistencyLevel),
 			zap.Stringer("EmitterChain", msg.EmitterChain),
 			zap.Stringer("EmitterAddress", msg.EmitterAddress),
-			zap.Stringer("tokenChain", payload.OriginChain),
-			zap.Stringer("tokenAddress", payload.OriginAddress),
 			zap.Error(err),
 		)
 		return
