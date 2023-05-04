@@ -178,7 +178,9 @@ func (acct *Accountant) Start(ctx context.Context) error {
 	// Start the watcher to listen to transfer events from the smart contract.
 	if acct.env == MockMode {
 		// We're not in a runnable context, so we can't use supervisor.
-		go acct.worker(ctx)
+		go func() {
+			_ = acct.worker(ctx)
+		}()
 	} else if acct.env != GoTestMode {
 		if err := supervisor.Run(ctx, "acctworker", common.WrapWithScissors(acct.worker, "acctworker")); err != nil {
 			return fmt.Errorf("failed to start submit observation worker: %w", err)

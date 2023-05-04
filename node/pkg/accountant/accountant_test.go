@@ -61,7 +61,6 @@ func (c *MockAccountantWormchainConn) SignAndBroadcastTx(ctx context.Context, ms
 		c.lock.Unlock()
 		time.Sleep(50 * time.Millisecond)
 	}
-	return nil, nil
 }
 
 func (c *MockAccountantWormchainConn) BroadcastTxResponseToString(txResp *sdktx.BroadcastTxResponse) string {
