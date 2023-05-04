@@ -1,3 +1,4 @@
+//nolint:unparam // we exclude the unparam linter because there are many cases here where parameters are static
 package governor
 
 import (
@@ -79,7 +80,7 @@ func (gov *ChainGovernor) setTokenForTesting(tokenChainID vaa.ChainID, tokenAddr
 	decimalsFloat := big.NewFloat(math.Pow(10.0, float64(8)))
 	decimals, _ := decimalsFloat.Int(nil)
 
-	key := tokenKey{chain: vaa.ChainID(tokenChainID), addr: tokenAddr}
+	key := tokenKey{chain: tokenChainID, addr: tokenAddr}
 	te := &tokenEntry{cfgPrice: bigPrice, price: bigPrice, decimals: decimals, symbol: symbol, coinGeckoId: symbol, token: key}
 	gov.tokens[key] = te
 	cge, cgExists := gov.tokensByCoinGeckoId[te.coinGeckoId]
@@ -1504,11 +1505,11 @@ func TestDontReloadDuplicates(t *testing.T) {
 	assert.Equal(t, 4, len(pendings))
 
 	for _, p := range xfers {
-		gov.reloadTransfer(p, now, startTime)
+		gov.reloadTransfer(p)
 	}
 
 	for _, p := range pendings {
-		gov.reloadPendingTransfer(p, now)
+		gov.reloadPendingTransfer(p)
 	}
 
 	numTrans, valueTrans, numPending, valuePending := gov.getStatsForAllChains()

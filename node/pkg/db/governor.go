@@ -14,7 +14,7 @@ import (
 )
 
 // WARNING: Change me in ./node/governor as well
-const maxEnqueuedTime = time.Duration(time.Hour * 24)
+const maxEnqueuedTime = time.Hour * 24
 
 type GovernorDB interface {
 	StoreTransfer(t *Transfer) error
