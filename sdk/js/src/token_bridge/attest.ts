@@ -318,16 +318,22 @@ export async function attestFromSui(
   coreBridgeStateObjectId: string,
   tokenBridgeStateObjectId: string,
   coinType: string,
-  feeAmount: BigInt = BigInt(0)
+  feeAmount: BigInt = BigInt(0),
+  coreBridgePackageId?: string,
+  tokenBridgePackageId?: string
 ): Promise<TransactionBlock> {
   const metadata = await provider.getCoinMetadata({ coinType });
   if (metadata === null || metadata.id === null) {
     throw new Error(`Coin metadata ID for type ${coinType} not found`);
   }
 
-  const [coreBridgePackageId, tokenBridgePackageId] = await Promise.all([
-    getPackageId(provider, coreBridgeStateObjectId),
-    getPackageId(provider, tokenBridgeStateObjectId),
+  [coreBridgePackageId, tokenBridgePackageId] = await Promise.all([
+    coreBridgePackageId
+      ? Promise.resolve(coreBridgePackageId)
+      : getPackageId(provider, coreBridgeStateObjectId),
+    tokenBridgePackageId
+      ? Promise.resolve(tokenBridgePackageId)
+      : getPackageId(provider, tokenBridgeStateObjectId),
   ]);
   const tx = new TransactionBlock();
   const [feeCoin] = tx.splitCoins(tx.gas, [tx.pure(feeAmount)]);
