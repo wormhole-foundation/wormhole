@@ -23,12 +23,18 @@ contract CoreRelayerLibrary is CoreRelayerState, ERC1967Upgrade {
     struct RegisterChain {
         bytes32 module;
         uint8 action;
-        uint16 chain; //TODO Why is this on this object?
+        uint16 chain; 
         uint16 emitterChain;
         bytes32 emitterAddress;
     }
 
-    //This could potentially be combined with ContractUpgrade
+    struct RecoverChainId {
+        bytes32 module;
+        uint8 action;
+        uint256 evmChainId;
+        uint16 newChainId;
+    }
+
     struct UpdateDefaultProvider {
         bytes32 module;
         uint8 action;
@@ -41,6 +47,7 @@ contract CoreRelayerLibrary is CoreRelayerState, ERC1967Upgrade {
     IWormhole immutable wormhole;
 
     error InvalidFork();
+    error NotAFork();
     error InvalidGovernanceVM(string reason);
     error WrongChainId(uint16 chainId);
     error InvalidChainId(uint16 chainId);
@@ -52,7 +59,10 @@ contract CoreRelayerLibrary is CoreRelayerState, ERC1967Upgrade {
     error InvalidRegisterChainLength(uint256);
     error InvalidDefaultProviderAction(uint8);
     error InvalidDefaultProviderLength(uint256);
+    error InvalidRecoverChainAction(uint8);
+    error InvalidRecoverChainLength(uint256);
     error RequesterNotCoreRelayer();
+    error InvalidEvmChainId();
 
     event ContractUpgraded(address indexed oldContract, address indexed newContract);
 
@@ -105,6 +115,23 @@ contract CoreRelayerLibrary is CoreRelayerState, ERC1967Upgrade {
         }
 
         setRegisteredCoreRelayerContract(rc.emitterChain, rc.emitterAddress);
+    }
+
+    function submitRecoverChainId(bytes memory encodedVM) public {
+        if(!isFork()) {
+            revert NotAFork();
+        }
+
+        (IWormhole.VM memory vm, bool valid, string memory reason) = verifyGovernanceVM(encodedVM);
+        require(valid, reason);
+
+        setConsumedGovernanceAction(vm.hash);
+
+        RecoverChainId memory rci = parseRecoverChainId(vm.payload);
+
+        // Update the chainIds
+        setEvmChainId(rci.evmChainId);
+        setChainId(rci.newChainId);
     }
 
     function setDefaultRelayProvider(bytes memory vaa) external onlyWormholeRelayer {
@@ -209,7 +236,7 @@ contract CoreRelayerLibrary is CoreRelayerState, ERC1967Upgrade {
         defaultProvider.action = encodedDefaultProvider.toUint8(index);
         index += 1;
 
-        if (defaultProvider.action != 3) {
+        if (defaultProvider.action != 4) {
             revert InvalidDefaultProviderAction(defaultProvider.action);
         }
 
@@ -222,6 +249,32 @@ contract CoreRelayerLibrary is CoreRelayerState, ERC1967Upgrade {
 
         if (encodedDefaultProvider.length != index) {
             revert InvalidDefaultProviderLength(encodedDefaultProvider.length);
+        }
+    }
+
+    function parseRecoverChainId(bytes memory encodedRecoverChainId) internal pure returns (RecoverChainId memory rci) {
+        uint index = 0;
+
+        rci.module = encodedRecoverChainId.toBytes32(index);
+        index += 32;
+        if(rci.module != module) {
+            revert WrongModule(rci.module);
+        }
+
+        rci.action = encodedRecoverChainId.toUint8(index);
+        index += 1;
+        if(rci.action != 3) {
+            revert InvalidRegisterChainAction(rci.action);
+        }
+
+        rci.evmChainId = encodedRecoverChainId.toUint256(index);
+        index += 32;
+
+        rci.newChainId = encodedRecoverChainId.toUint16(index);
+        index += 2;
+
+        if(encodedRecoverChainId.length != index) {
+            revert InvalidRecoverChainLength(encodedRecoverChainId.length);
         }
     }
 
@@ -294,6 +347,17 @@ contract CoreRelayerLibrary is CoreRelayerState, ERC1967Upgrade {
         bytes32 relayerAddress
     ) internal {
         _state.registeredCoreRelayerContract[targetChain] = relayerAddress;
+    }
+
+    function setChainId(uint16 _chainId) internal {
+        _state.provider.chainId = _chainId;
+    }
+
+    function setEvmChainId(uint256 _evmChainId) internal {
+        if (_evmChainId != block.chainid) {
+            revert InvalidEvmChainId();
+        }
+        _state.evmChainId = _evmChainId;
     }
 
     //getters

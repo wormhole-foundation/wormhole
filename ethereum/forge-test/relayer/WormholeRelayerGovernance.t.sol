@@ -210,24 +210,23 @@ contract WormholeRelayerGovernanceTests is Test {
         CoreRelayer(myCoreRelayer).getDefaultRelayProvider();
     }
 
-    /*
-    function testRevertUpgradeFork() {
-        CoreRelayerSetup coreRelayerSetup = new CoreRelayerSetup();
-        CoreRelayerImplementation coreRelayerImplementation = new CoreRelayerImplementation();
-        CoreRelayerProxy myCoreRelayer = new CoreRelayerProxy(
-            address(coreRelayerSetup),
-            abi.encodeCall(
-                CoreRelayerSetup.setup,
-                (
-                    address(coreRelayerImplementation),
-                    1,
-                    address(wormhole),
-                    address(relayProvider),
-                    wormhole.governanceChainId(),
-                    wormhole.governanceContract(),
-                    block.chainid
-                )
-            )
-        );
-    }*/
+    function testRecoverChainId() public {
+        address myCoreRelayer = address(helpers.setUpCoreRelayer(wormhole.chainId(), wormhole, address(relayProvider)));
+        CoreRelayer mcr = CoreRelayer(payable(myCoreRelayer));
+        assertTrue(mcr.chainId() == wormhole.chainId());
+        assertTrue(mcr.evmChainId() == block.chainid);
+
+        // fork!
+        vm.chainId(12345);
+        assertTrue(mcr.evmChainId() != block.chainid);
+
+        bytes memory message = abi.encodePacked(relayerModule, uint8(3), uint256(12345), uint16(27));
+
+        bytes memory signed = signMessage(message);
+
+        CoreRelayerGovernance(address(myCoreRelayer)).submitRecoverChainId(signed);
+
+        assertTrue(mcr.chainId() == 27);
+        assertTrue(mcr.evmChainId() == block.chainid);
+    }
 }
