@@ -9,7 +9,10 @@ interface IRelayProvider {
      *
      * @param targetChain - the chain that should be quoted for.
      */
-    function quoteDeliveryOverhead(uint16 targetChain) external view returns (uint256 deliveryOverhead);
+    function quoteDeliveryOverhead(uint16 targetChain)
+        external
+        view
+        returns (uint256 deliveryOverhead);
 
     /**
      * @notice This function should provide a fixed fee for 1 unit of gas on targetChain.
@@ -53,7 +56,10 @@ interface IRelayProvider {
      *
      * @param targetChain - The chain which is being delivered to.
      */
-    function quoteMaximumBudget(uint16 targetChain) external view returns (uint256 maximumTargetBudget);
+    function quoteMaximumBudget(uint16 targetChain)
+        external
+        view
+        returns (uint256 maximumTargetBudget);
 
     /**
      * @notice This function should return a payable address on this (source) chain where all awards should be sent
@@ -75,5 +81,8 @@ interface IRelayProvider {
      *
      * @param targetChain - The chain which is being delivered to.
      */
-    function getTargetChainAddress(uint16 targetChain) external view returns (bytes32 relayProviderAddress);
+    function getTargetChainAddress(uint16 targetChain)
+        external
+        view
+        returns (bytes32 relayProviderAddress);
 }

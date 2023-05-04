@@ -27,7 +27,10 @@ interface IWormholeReceiver {
      * Always make sure parseAndVerify is called on the Wormhole core contract before trusting the content of a raw VAA,
      * otherwise the VAA may be invalid or malicious.
      */
-    function receiveWormholeMessages(DeliveryData memory deliveryData, bytes[] memory signedVaas) external payable;
+    function receiveWormholeMessages(
+        DeliveryData memory deliveryData,
+        bytes[] memory signedVaas
+    ) external payable;
 
     /**
      * @notice TargetDeliveryParameters is the struct that the relay provider passes into 'deliver'

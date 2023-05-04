@@ -41,8 +41,9 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
 
         IRelayProvider relayProvider = IRelayProvider(send.relayProviderAddress);
 
-        instruction.maximumRefundTarget =
-            calculateTargetDeliveryMaximumRefund(send.targetChain, send.maxTransactionFee, relayProvider);
+        instruction.maximumRefundTarget = calculateTargetDeliveryMaximumRefund(
+            send.targetChain, send.maxTransactionFee, relayProvider
+        );
 
         instruction.receiverValueTarget =
             convertReceiverValueAmountToTarget(send.receiverValue, send.targetChain, relayProvider);
@@ -57,7 +58,9 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
 
         instruction.executionParameters = IWormholeRelayerInternalStructs.ExecutionParameters({
             version: 1,
-            gasLimit: calculateTargetGasDeliveryAmount(send.targetChain, send.maxTransactionFee, relayProvider)
+            gasLimit: calculateTargetGasDeliveryAmount(
+                send.targetChain, send.maxTransactionFee, relayProvider
+                )
         });
     }
 
@@ -85,21 +88,24 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
     }
 
     // encode a 'VaaKey' into bytes
-    function encodeVaaKey(IWormholeRelayer.VaaKey memory vaaKey) internal pure returns (bytes memory encoded) {
+    function encodeVaaKey(IWormholeRelayer.VaaKey memory vaaKey)
+        internal
+        pure
+        returns (bytes memory encoded)
+    {
         encoded = abi.encodePacked(uint8(1), uint8(vaaKey.infoType));
         if (vaaKey.infoType == IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE) {
-            encoded = abi.encodePacked(encoded, vaaKey.chainId, vaaKey.emitterAddress, vaaKey.sequence);
+            encoded =
+                abi.encodePacked(encoded, vaaKey.chainId, vaaKey.emitterAddress, vaaKey.sequence);
         } else if (vaaKey.infoType == IWormholeRelayer.VaaKeyType.VAAHASH) {
             encoded = abi.encodePacked(encoded, vaaKey.vaaHash);
         }
     }
 
     // encode a 'DeliveryInstruction' into bytes
-    function encodeDeliveryInstruction(IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction)
-        public
-        pure
-        returns (bytes memory encoded)
-    {
+    function encodeDeliveryInstruction(
+        IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction
+    ) public pure returns (bytes memory encoded) {
         uint8 length = uint8(instruction.vaaKeys.length);
         bytes memory encodedVaaKeys = abi.encodePacked(length);
         for (uint8 i = 0; i < length; i++) {
@@ -132,7 +138,11 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
     }
 
     // encode a 'Send' into bytes
-    function encodeSend(IWormholeRelayer.Send memory sendParams) public pure returns (bytes memory encoded) {
+    function encodeSend(IWormholeRelayer.Send memory sendParams)
+        public
+        pure
+        returns (bytes memory encoded)
+    {
         uint8 length = uint8(sendParams.vaaKeys.length);
         bytes memory encodedVaaKeys = abi.encodePacked(length);
         for (uint8 i = 0; i < length; i++) {
@@ -146,8 +156,9 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
             sendParams.maxTransactionFee,
             sendParams.receiverValue
         );
-        encoded =
-            abi.encodePacked(encoded, sendParams.relayProviderAddress, encodedVaaKeys, sendParams.consistencyLevel);
+        encoded = abi.encodePacked(
+            encoded, sendParams.relayProviderAddress, encodedVaaKeys, sendParams.consistencyLevel
+        );
         encoded = abi.encodePacked(
             encoded,
             uint32(sendParams.payload.length),
@@ -158,7 +169,11 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
     }
 
     // decode a 'Send' from bytes
-    function decodeSend(bytes memory encoded) public pure returns (IWormholeRelayer.Send memory sendParams) {
+    function decodeSend(bytes memory encoded)
+        public
+        pure
+        returns (IWormholeRelayer.Send memory sendParams)
+    {
         uint256 index = 0;
 
         // target chain
@@ -221,11 +236,11 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
      * @param provider IRelayProvider
      * @return gasAmount
      */
-    function calculateTargetGasDeliveryAmount(uint16 targetChain, uint256 maxTransactionFee, IRelayProvider provider)
-        internal
-        view
-        returns (uint32 gasAmount)
-    {
+    function calculateTargetGasDeliveryAmount(
+        uint16 targetChain,
+        uint256 maxTransactionFee,
+        IRelayProvider provider
+    ) internal view returns (uint32 gasAmount) {
         uint256 overhead = provider.quoteDeliveryOverhead(targetChain);
         if (maxTransactionFee <= overhead) {
             gasAmount = 0;
@@ -263,7 +278,13 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
             (uint16 buffer, uint16 denominator) = provider.getAssetConversionBuffer(targetChain);
             uint256 remainder = maxTransactionFee - overhead;
             maximumRefund = assetConversionHelper(
-                chainId(), remainder, targetChain, denominator, uint256(0) + denominator + buffer, false, provider
+                chainId(),
+                remainder,
+                targetChain,
+                denominator,
+                uint256(0) + denominator + buffer,
+                false,
+                provider
             );
         } else {
             maximumRefund = 0;
@@ -325,16 +346,22 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
      * @param provider relay provider
      * @return targetAmount amount of target chain currency
      */
-    function convertReceiverValueAmountToTarget(uint256 sourceAmount, uint16 targetChain, IRelayProvider provider)
-        internal
-        view
-        returns (uint256 targetAmount)
-    {
+    function convertReceiverValueAmountToTarget(
+        uint256 sourceAmount,
+        uint16 targetChain,
+        IRelayProvider provider
+    ) internal view returns (uint256 targetAmount) {
         (uint16 buffer, uint16 denominator) = provider.getAssetConversionBuffer(targetChain);
 
         // todo: akshaj why is `uint256(0) + ...` present?
         targetAmount = assetConversionHelper(
-            chainId(), sourceAmount, targetChain, denominator, uint256(0) + denominator + buffer, false, provider
+            chainId(),
+            sourceAmount,
+            targetChain,
+            denominator,
+            uint256(0) + denominator + buffer,
+            false,
+            provider
         );
     }
 
@@ -405,11 +432,10 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
     }
 
     // decode a 'VaaKey' from bytes
-    function decodeVaaKey(bytes memory encoded, uint256 index)
-        public
-        pure
-        returns (IWormholeRelayer.VaaKey memory vaaKey, uint256 newIndex)
-    {
+    function decodeVaaKey(
+        bytes memory encoded,
+        uint256 index
+    ) public pure returns (IWormholeRelayer.VaaKey memory vaaKey, uint256 newIndex) {
         uint8 payloadId = encoded.toUint8(index);
         index += 1;
 
@@ -442,7 +468,11 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
         returns (bytes memory encoded)
     {
         encoded = abi.encodePacked(
-            uint8(1), request.gasLimit, request.maximumRefund, request.receiverValue, request.redeliveryHash
+            uint8(1),
+            request.gasLimit,
+            request.maximumRefund,
+            request.receiverValue,
+            request.redeliveryHash
         );
     }
 
@@ -472,11 +502,9 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
         output.redeliveryHash = encoded.toBytes32(index);
     }
 
-    function encodeRedeliveryInstruction(IWormholeRelayerInternalStructs.RedeliveryInstruction memory ins)
-        public
-        pure
-        returns (bytes memory encoded)
-    {
+    function encodeRedeliveryInstruction(
+        IWormholeRelayerInternalStructs.RedeliveryInstruction memory ins
+    ) public pure returns (bytes memory encoded) {
         bytes memory vaaKey = encodeVaaKey(ins.key);
         encoded = abi.encodePacked(
             uint8(2),

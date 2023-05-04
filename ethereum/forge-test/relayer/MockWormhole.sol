@@ -16,9 +16,9 @@ contract MockWormhole is IWormhole {
     uint256 private constant VM_EMITTER_ADDRESS_SIZE = 32;
     uint256 private constant VM_SEQUENCE_SIZE = 8;
     uint256 private constant VM_CONSISTENCY_LEVEL_SIZE = 1;
-    uint256 private constant VM_SIZE_MINIMUM = VM_VERSION_SIZE + VM_GUARDIAN_SET_SIZE + VM_SIGNATURE_COUNT_SIZE
-        + VM_TIMESTAMP_SIZE + VM_NONCE_SIZE + VM_EMITTER_CHAIN_ID_SIZE + VM_EMITTER_ADDRESS_SIZE + VM_SEQUENCE_SIZE
-        + VM_CONSISTENCY_LEVEL_SIZE;
+    uint256 private constant VM_SIZE_MINIMUM = VM_VERSION_SIZE + VM_GUARDIAN_SET_SIZE
+        + VM_SIGNATURE_COUNT_SIZE + VM_TIMESTAMP_SIZE + VM_NONCE_SIZE + VM_EMITTER_CHAIN_ID_SIZE
+        + VM_EMITTER_ADDRESS_SIZE + VM_SEQUENCE_SIZE + VM_CONSISTENCY_LEVEL_SIZE;
 
     uint256 private constant SIGNATURE_GUARDIAN_INDEX_SIZE = 1;
     uint256 private constant SIGNATURE_R_SIZE = 32;
@@ -45,11 +45,11 @@ contract MockWormhole is IWormhole {
         invalidVMs[vm.hash] = true;
     }
 
-    function publishMessage(uint32 nonce, bytes memory payload, uint8 consistencyLevel)
-        external
-        payable
-        returns (uint64 sequence)
-    {
+    function publishMessage(
+        uint32 nonce,
+        bytes memory payload,
+        uint8 consistencyLevel
+    ) external payable returns (uint64 sequence) {
         require(msg.value == currentMsgFee, "invalid fee");
         sequence = sequences[msg.sender]++;
         emit LogMessagePublished(msg.sender, sequence, nonce, payload, consistencyLevel);
@@ -107,15 +107,16 @@ contract MockWormhole is IWormhole {
         vm.hash = keccak256(abi.encodePacked(keccak256(body)));
     }
 
-    function parseSignatures(bytes calldata encodedVm, uint256 offset)
-        internal
-        pure
-        returns (Signature[] memory signatures, uint256 offsetAfterParse)
-    {
+    function parseSignatures(
+        bytes calldata encodedVm,
+        uint256 offset
+    ) internal pure returns (Signature[] memory signatures, uint256 offsetAfterParse) {
         uint256 sigCount = uint256(encodedVm.toUint8(offset));
         offset += 1;
 
-        require(encodedVm.length >= (VM_SIZE_MINIMUM + sigCount * SIGNATURE_SIZE_TOTAL), "vm too small");
+        require(
+            encodedVm.length >= (VM_SIZE_MINIMUM + sigCount * SIGNATURE_SIZE_TOTAL), "vm too small"
+        );
 
         signatures = new Signature[](sigCount);
         for (uint256 i = 0; i < sigCount; ++i) {
@@ -147,7 +148,11 @@ contract MockWormhole is IWormhole {
 
     function initialize() external {}
 
-    function quorum(uint256 /*numGuardians*/ ) external pure returns (uint256 /*numSignaturesRequiredForQuorum*/ ) {
+    function quorum(uint256 /*numGuardians*/ )
+        external
+        pure
+        returns (uint256 /*numSignaturesRequiredForQuorum*/ )
+    {
         return 1;
     }
 
@@ -202,15 +207,19 @@ contract MockWormhole is IWormhole {
         return sequences[emitter];
     }
 
-    function verifyVM(VM memory /*vm*/ ) external pure returns (bool, /*valid*/ string memory /*reason*/ ) {
-        revert("unsupported verifyVM in wormhole mock");
-    }
-
-    function verifySignatures(bytes32, /*hash*/ Signature[] memory, /*signatures*/ GuardianSet memory /*guardianSet*/ )
+    function verifyVM(VM memory /*vm*/ )
         external
         pure
         returns (bool, /*valid*/ string memory /*reason*/ )
     {
+        revert("unsupported verifyVM in wormhole mock");
+    }
+
+    function verifySignatures(
+        bytes32, /*hash*/
+        Signature[] memory, /*signatures*/
+        GuardianSet memory /*guardianSet*/
+    ) external pure returns (bool, /*valid*/ string memory /*reason*/ ) {
         revert("unsupported verifySignatures in wormhole mock");
     }
 

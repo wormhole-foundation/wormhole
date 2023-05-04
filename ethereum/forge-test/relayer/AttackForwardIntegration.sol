@@ -22,7 +22,12 @@ contract AttackForwardIntegration is IWormholeReceiver {
     // This just needs to be enough to pay for the call to the destination address.
     uint32 SAFE_DELIVERY_GAS_CAPTURE = 30000;
 
-    constructor(IWormhole initWormhole, IWormholeRelayer initCoreRelayer, uint16 chainId, address initAttackerReward) {
+    constructor(
+        IWormhole initWormhole,
+        IWormholeRelayer initCoreRelayer,
+        uint16 chainId,
+        address initAttackerReward
+    ) {
         attackerReward = initAttackerReward;
         wormhole = initWormhole;
         core_relayer = initCoreRelayer;
@@ -30,11 +35,10 @@ contract AttackForwardIntegration is IWormholeReceiver {
     }
 
     // This is the function which receives all messages from the remote contracts.
-    function receiveWormholeMessages(IWormholeReceiver.DeliveryData memory deliveryData, bytes[] memory vaas)
-        public
-        payable
-        override
-    {
+    function receiveWormholeMessages(
+        IWormholeReceiver.DeliveryData memory deliveryData,
+        bytes[] memory vaas
+    ) public payable override {
         // Do nothing. The attacker doesn't care about this message; he sends it himself.
     }
 
@@ -47,8 +51,9 @@ contract AttackForwardIntegration is IWormholeReceiver {
     }
 
     function forward(uint16 targetChain, bytes32 attackerRewardAddress) internal {
-        uint256 maxTransactionFee =
-            core_relayer.quoteGas(targetChain, SAFE_DELIVERY_GAS_CAPTURE, core_relayer.getDefaultRelayProvider());
+        uint256 maxTransactionFee = core_relayer.quoteGas(
+            targetChain, SAFE_DELIVERY_GAS_CAPTURE, core_relayer.getDefaultRelayProvider()
+        );
 
         bytes memory emptyArray;
         IWormholeRelayer.Send memory request = IWormholeRelayer.Send({

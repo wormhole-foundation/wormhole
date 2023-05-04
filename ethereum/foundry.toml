@@ -8,9 +8,10 @@ src = "contracts"
 # truffle doesn't try to build them
 test = "forge-test"
 
-# uncomment this in later pr to keep diff small, but keeping here as a reminder
-# [fmt]
-# line_length = 80
+[fmt]
+line_length = 100
+multiline_func_header = "params_first"
+# wrap_comments = true
 
 out = 'out'
 libs = ['lib', 'node_modules']

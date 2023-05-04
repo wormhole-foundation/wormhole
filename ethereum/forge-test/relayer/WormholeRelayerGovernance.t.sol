@@ -5,14 +5,17 @@ pragma solidity ^0.8.0;
 import {IRelayProvider} from "../../contracts/interfaces/relayer/IRelayProvider.sol";
 import {RelayProvider} from "../../contracts/relayer/relayProvider/RelayProvider.sol";
 import {RelayProviderSetup} from "../../contracts/relayer/relayProvider/RelayProviderSetup.sol";
-import {RelayProviderImplementation} from "../../contracts/relayer/relayProvider/RelayProviderImplementation.sol";
+import {RelayProviderImplementation} from
+    "../../contracts/relayer/relayProvider/RelayProviderImplementation.sol";
 import {RelayProviderProxy} from "../../contracts/relayer/relayProvider/RelayProviderProxy.sol";
-import {RelayProviderMessages} from "../../contracts/relayer/relayProvider/RelayProviderMessages.sol";
+import {RelayProviderMessages} from
+    "../../contracts/relayer/relayProvider/RelayProviderMessages.sol";
 import {RelayProviderStructs} from "../../contracts/relayer/relayProvider/RelayProviderStructs.sol";
 import {IWormholeRelayer} from "../../contracts/interfaces/relayer/IWormholeRelayer.sol";
 import {IDelivery} from "../../contracts/interfaces/relayer/IDelivery.sol";
 import {CoreRelayer} from "../../contracts/relayer/coreRelayer/CoreRelayer.sol";
-import {IWormholeRelayerInternalStructs} from "../../contracts/interfaces/relayer/IWormholeRelayerInternalStructs.sol";
+import {IWormholeRelayerInternalStructs} from
+    "../../contracts/interfaces/relayer/IWormholeRelayerInternalStructs.sol";
 import {CoreRelayerSetup} from "../../contracts/relayer/coreRelayer/CoreRelayerSetup.sol";
 import {CoreRelayerMessages} from "../../contracts/relayer/coreRelayer/CoreRelayerMessages.sol";
 import {ForwardWrapper} from "../../contracts/relayer/coreRelayer/ForwardWrapper.sol";
@@ -72,7 +75,10 @@ contract WormholeRelayerGovernanceTests is Test {
         signed = wormholeSimulator.encodeAndSignMessage(preSignedMessage);
     }
 
-    function fillInGovernanceStack(bytes memory message) internal returns (GovernanceStack memory stack) {
+    function fillInGovernanceStack(bytes memory message)
+        internal
+        returns (GovernanceStack memory stack)
+    {
         stack.message = message;
         stack.preSignedMessage = IWormhole.VM({
             version: 1,
@@ -95,7 +101,12 @@ contract WormholeRelayerGovernanceTests is Test {
         IRelayProvider relayProviderC = helpers.setUpRelayProvider(1);
 
         bytes memory signed = signMessage(
-            abi.encodePacked(relayerModule, uint8(3), uint16(1), bytes32(uint256(uint160(address(relayProviderB)))))
+            abi.encodePacked(
+                relayerModule,
+                uint8(3),
+                uint16(1),
+                bytes32(uint256(uint160(address(relayProviderB))))
+            )
         );
 
         CoreRelayer(payable(address(wormholeRelayer))).setDefaultRelayProvider(signed);
@@ -103,7 +114,12 @@ contract WormholeRelayerGovernanceTests is Test {
         assertTrue(wormholeRelayer.getDefaultRelayProvider() == address(relayProviderB));
 
         signed = signMessage(
-            abi.encodePacked(relayerModule, uint8(3), uint16(1), bytes32(uint256(uint160(address(relayProviderC)))))
+            abi.encodePacked(
+                relayerModule,
+                uint8(3),
+                uint16(1),
+                bytes32(uint256(uint160(address(relayProviderC))))
+            )
         );
 
         CoreRelayer(payable(address(wormholeRelayer))).setDefaultRelayProvider(signed);
@@ -112,9 +128,12 @@ contract WormholeRelayerGovernanceTests is Test {
     }
 
     function testRegisterChain() public {
-        IWormholeRelayer wormholeRelayer1 = helpers.setUpCoreRelayer(1, wormhole, address(relayProvider));
-        IWormholeRelayer wormholeRelayer2 = helpers.setUpCoreRelayer(1, wormhole, address(relayProvider));
-        IWormholeRelayer wormholeRelayer3 = helpers.setUpCoreRelayer(1, wormhole, address(relayProvider));
+        IWormholeRelayer wormholeRelayer1 =
+            helpers.setUpCoreRelayer(1, wormhole, address(relayProvider));
+        IWormholeRelayer wormholeRelayer2 =
+            helpers.setUpCoreRelayer(1, wormhole, address(relayProvider));
+        IWormholeRelayer wormholeRelayer3 =
+            helpers.setUpCoreRelayer(1, wormhole, address(relayProvider));
 
         helpers.registerCoreRelayerContract(
             CoreRelayer(payable(address(wormholeRelayer1))),
@@ -157,7 +176,9 @@ contract WormholeRelayerGovernanceTests is Test {
     }
 
     function testUpgradeContractToItself() public {
-        address payable  myCoreRelayer = payable(address(helpers.setUpCoreRelayer(wormhole.chainId(), wormhole, address(relayProvider))));
+        address payable myCoreRelayer = payable(
+            address(helpers.setUpCoreRelayer(wormhole.chainId(), wormhole, address(relayProvider)))
+        );
 
         for (uint256 i = 0; i < 10; i++) {
             address forwardWrapper = address(new ForwardWrapper(myCoreRelayer, address(wormhole)));

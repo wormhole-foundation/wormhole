@@ -11,12 +11,18 @@ interface IForwardWrapper {
         IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction,
         IWormholeReceiver.DeliveryData memory deliveryData,
         bytes[] memory signedVaas
-    ) external payable returns (bool callToTargetContractSucceeded, uint256 transactionFeeRefundAmount);
+    )
+        external
+        payable
+        returns (bool callToTargetContractSucceeded, uint256 transactionFeeRefundAmount);
 
     function getValuesFromRelayProvider(
         address providerAddress,
         uint16 sourceChain,
         uint16 targetChain,
         uint256 receiverValuePlusOverhead
-    ) external view returns (address rewardAddress, uint256 maximumBudget, uint256 receiverValueTarget);
+    )
+        external
+        view
+        returns (address rewardAddress, uint256 maximumBudget, uint256 receiverValueTarget);
 }

@@ -39,8 +39,9 @@ contract CoreRelayer is CoreRelayerSendOverloads, CoreRelayerDelivery, ERC1967Up
     }
 
     function submitContractUpgrade(bytes memory vaa) public {
-        (bool success, bytes memory reason) =
-            getWormholeRelayerCallerAddress().delegatecall(abi.encodeWithSignature("submitContractUpgrade(bytes)", vaa));
+        (bool success, bytes memory reason) = getWormholeRelayerCallerAddress().delegatecall(
+            abi.encodeWithSignature("submitContractUpgrade(bytes)", vaa)
+        );
         require(success, string(reason));
     }
 

@@ -38,9 +38,9 @@ contract CoreRelayerSetters is CoreRelayerState, Context {
         _state.defaultRelayProvider = defaultRelayProvider;
     }
 
-    function appendForwardInstruction(IWormholeRelayerInternalStructs.ForwardInstruction memory forwardInstruction)
-        internal
-    {
+    function appendForwardInstruction(
+        IWormholeRelayerInternalStructs.ForwardInstruction memory forwardInstruction
+    ) internal {
         _state.forwardInstructions.push(forwardInstruction);
     }
 

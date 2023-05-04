@@ -8,7 +8,7 @@ import "./CoreRelayerMessages.sol";
 import "./CoreRelayerSetters.sol";
 import "../../interfaces/relayer/IWormholeRelayerInternalStructs.sol";
 
-abstract contract CoreRelayerSend is CoreRelayerMessages, CoreRelayerSetters  {
+abstract contract CoreRelayerSend is CoreRelayerMessages, CoreRelayerSetters {
     /**
      *  @notice the 'send' function emits a wormhole message (VAA) that instructs the default wormhole relay provider to
      *  call the 'IWormholeReceiver.receiveWormholeMessage' method of the contract on chain 'sendParams.targetChain' and address 'sendParams.targetAddress'
@@ -20,10 +20,15 @@ abstract contract CoreRelayerSend is CoreRelayerMessages, CoreRelayerSetters  {
      *  @return sequence The sequence number for the emitted wormhole message, which contains encoded delivery instructions meant for your specified relay provider.
      *  The relay provider will listen for these messages, and then execute the delivery as described.
      */
-    function send(IWormholeRelayer.Send memory sendParams) public payable returns (uint64 sequence) {
+    function send(IWormholeRelayer.Send memory sendParams)
+        public
+        payable
+        returns (uint64 sequence)
+    {
         IWormhole wormhole = wormhole();
         uint256 wormholeMessageFee = wormhole.messageFee();
-        uint256 totalFee = sendParams.maxTransactionFee + sendParams.receiverValue + wormholeMessageFee;
+        uint256 totalFee =
+            sendParams.maxTransactionFee + sendParams.receiverValue + wormholeMessageFee;
 
         if (totalFee > msg.value) {
             revert IWormholeRelayer.MsgValueTooLow();
@@ -82,7 +87,8 @@ abstract contract CoreRelayerSend is CoreRelayerMessages, CoreRelayerSetters  {
         }
 
         uint256 wormholeMessageFee = wormhole().messageFee();
-        uint256 totalFee = sendParams.maxTransactionFee + sendParams.receiverValue + wormholeMessageFee;
+        uint256 totalFee =
+            sendParams.maxTransactionFee + sendParams.receiverValue + wormholeMessageFee;
 
         IRelayProvider relayProvider = IRelayProvider(sendParams.relayProviderAddress);
 
@@ -145,11 +151,15 @@ abstract contract CoreRelayerSend is CoreRelayerMessages, CoreRelayerSetters  {
             revert IWormholeRelayer.RelayProviderDoesNotSupportTargetChain();
         }
 
-        IWormholeRelayerInternalStructs.RedeliveryInstruction memory instruction = IWormholeRelayerInternalStructs
-            .RedeliveryInstruction({
+        IWormholeRelayerInternalStructs.RedeliveryInstruction memory instruction =
+        IWormholeRelayerInternalStructs.RedeliveryInstruction({
             key: key,
-            newMaximumRefundTarget: calculateTargetDeliveryMaximumRefund(targetChain, newMaxTransactionFee, relayProvider),
-            newReceiverValueTarget: convertReceiverValueAmountToTarget(newReceiverValue, targetChain, relayProvider),
+            newMaximumRefundTarget: calculateTargetDeliveryMaximumRefund(
+                targetChain, newMaxTransactionFee, relayProvider
+                ),
+            newReceiverValueTarget: convertReceiverValueAmountToTarget(
+                newReceiverValue, targetChain, relayProvider
+                ),
             sourceRelayProvider: toWormholeFormat(relayProviderAddress),
             targetChain: targetChain,
             executionParameters: IWormholeRelayerInternalStructs.ExecutionParameters({
@@ -192,16 +202,16 @@ abstract contract CoreRelayerSend is CoreRelayerMessages, CoreRelayerSetters  {
      *
      * @return maxTransactionFee The 'maxTransactionFee' you pass into your request (to relay messages to 'targetChain' and use 'gasLimit' units of gas) must be at least this amount
      */
-    function quoteGas(uint16 targetChain, uint32 gasLimit, address relayProvider)
-        public
-        view
-        returns (uint256 maxTransactionFee)
-    {
+    function quoteGas(
+        uint16 targetChain,
+        uint32 gasLimit,
+        address relayProvider
+    ) public view returns (uint256 maxTransactionFee) {
         IRelayProvider provider = IRelayProvider(relayProvider);
 
         // maxTransactionFee is a linear function of the amount of gas desired
-        maxTransactionFee =
-            provider.quoteDeliveryOverhead(targetChain) + (gasLimit * provider.quoteGasPrice(targetChain));
+        maxTransactionFee = provider.quoteDeliveryOverhead(targetChain)
+            + (gasLimit * provider.quoteGasPrice(targetChain));
     }
 
     /**
@@ -218,18 +228,24 @@ abstract contract CoreRelayerSend is CoreRelayerMessages, CoreRelayerSetters  {
      *
      * @return receiverValue The 'receiverValue' you pass into your send request (to relay messages to 'targetChain' with 'targetAmount' of value) must be at least this amount
      */
-    function quoteReceiverValue(uint16 targetChain, uint256 targetAmount, address relayProvider)
-        public
-        view
-        returns (uint256 receiverValue)
-    {
+    function quoteReceiverValue(
+        uint16 targetChain,
+        uint256 targetAmount,
+        address relayProvider
+    ) public view returns (uint256 receiverValue) {
         IRelayProvider provider = IRelayProvider(relayProvider);
 
         // Converts 'targetAmount' from target chain currency to source chain currency (using relayProvider's prices)
         // and applies a multiplier of '1 + (buffer / denominator)'
         (uint16 buffer, uint16 denominator) = provider.getAssetConversionBuffer(targetChain);
         receiverValue = assetConversionHelper(
-            targetChain, targetAmount, chainId(), uint256(denominator) + buffer, denominator, true, provider
+            targetChain,
+            targetAmount,
+            chainId(),
+            uint256(denominator) + buffer,
+            denominator,
+            true,
+            provider
         );
     }
 

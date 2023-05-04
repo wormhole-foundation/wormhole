@@ -13,13 +13,24 @@ import "./Utils.sol";
 contract ForwardWrapper is CoreRelayerLibrary {
     error ForwardNotSufficientlyFunded(uint256 amountOfFunds, uint256 amountOfFundsNeeded);
 
-    constructor(address _wormholeRelayer, address _wormhole) CoreRelayerLibrary(_wormholeRelayer, _wormhole) {}
+    constructor(
+        address _wormholeRelayer,
+        address _wormhole
+    ) CoreRelayerLibrary(_wormholeRelayer, _wormhole) {}
 
     function executeInstruction(
         IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction,
         IWormholeReceiver.DeliveryData memory data,
         bytes[] memory signedVaas
-    ) public payable returns (bool callToTargetContractSucceeded, uint32 gasUsed, bytes memory returnDataTruncated) {
+    )
+        public
+        payable
+        returns (
+            bool callToTargetContractSucceeded,
+            uint32 gasUsed,
+            bytes memory returnDataTruncated
+        )
+    {
         if (msg.sender != address(forwardInstructionViewer)) {
             revert RequesterNotCoreRelayer();
         }
@@ -31,8 +42,13 @@ contract ForwardWrapper is CoreRelayerLibrary {
         bytes memory returnData;
         (callToTargetContractSucceeded, returnData) = forwardInstructionViewer.fromWormholeFormat(
             instruction.targetAddress
-        ).call{gas: instruction.executionParameters.gasLimit, value: instruction.receiverValueTarget}(
-            abi.encodeWithSelector(IWormholeReceiver.receiveWormholeMessages.selector, data, signedVaas)
+        ).call{
+            gas: instruction.executionParameters.gasLimit,
+            value: instruction.receiverValueTarget
+        }(
+            abi.encodeWithSelector(
+                IWormholeReceiver.receiveWormholeMessages.selector, data, signedVaas
+            )
         );
 
         uint256 postGas = gasleft();
@@ -72,7 +88,11 @@ contract ForwardWrapper is CoreRelayerLibrary {
         uint16 sourceChain,
         uint16 targetChain,
         uint256 receiverValuePlusOverhead
-    ) public view returns (address rewardAddress, uint256 maximumBudget, uint256 receiverValueTarget) {
+    )
+        public
+        view
+        returns (address rewardAddress, uint256 maximumBudget, uint256 receiverValueTarget)
+    {
         IRelayProvider relayProvider = IRelayProvider(providerAddress);
         require(relayProvider.isChainSupported(targetChain));
         uint256 deliveryOverhead = relayProvider.quoteDeliveryOverhead(targetChain);
@@ -82,7 +102,8 @@ contract ForwardWrapper is CoreRelayerLibrary {
         uint256 dstNativeCurrencyPrice = relayProvider.quoteAssetPrice(targetChain);
         (uint16 buffer, uint16 denominator) = relayProvider.getAssetConversionBuffer(targetChain);
         if (receiverValuePlusOverhead > deliveryOverhead) {
-            receiverValueTarget = (receiverValuePlusOverhead - deliveryOverhead) * srcNativeCurrencyPrice * denominator
+            receiverValueTarget = (receiverValuePlusOverhead - deliveryOverhead)
+                * srcNativeCurrencyPrice * denominator
                 / (dstNativeCurrencyPrice * (uint256(0) + denominator + buffer));
         }
     }

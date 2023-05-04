@@ -10,10 +10,9 @@ interface IForwardInstructionViewer {
         view
         returns (IWormholeRelayerInternalStructs.ForwardInstruction[] memory);
 
-    function encodeDeliveryInstruction(IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction)
-        external
-        pure
-        returns (bytes memory encoded);
+    function encodeDeliveryInstruction(
+        IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction
+    ) external pure returns (bytes memory encoded);
 
     /**
      * @notice Helper function that converts an Wormhole format (32-byte) address to the EVM 'address' 20-byte format
