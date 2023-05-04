@@ -37,9 +37,9 @@ type Connector interface {
 
 type PollSubscription struct {
 	errOnce   sync.Once
-	err       chan error
-	quit      chan error
-	unsubDone chan struct{}
+	err       chan error    // subscription consumer reads, subscription fulfiller writes. used to propagate errors.
+	quit      chan error    // subscription consumer writes, subscription fulfiller reads. used to signal that consumer wants to cancel the subscription.
+	unsubDone chan struct{} // subscription consumer reads, subscription fulfiller writes. used to signal that the subscription was successfully canceled
 }
 
 func NewPollSubscription() *PollSubscription {
