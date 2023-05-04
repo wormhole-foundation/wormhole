@@ -63,6 +63,6 @@ func (sub *PollSubscription) Unsubscribe() {
 			<-sub.unsubDone
 		case <-sub.unsubDone:
 		}
-		close(sub.err)
+		close(sub.err) // TODO FIXME this violates golang guidelines “Only the sender should close a channel, never the receiver. Sending on a closed channel will cause a panic.”
 	})
 }
