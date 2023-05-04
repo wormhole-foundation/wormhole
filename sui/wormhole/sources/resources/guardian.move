@@ -43,13 +43,22 @@ module wormhole::guardian {
         message_hash: vector<u8>
     ): bool {
         let sig = guardian_signature::to_rsv(signature);
+        as_bytes(self) == ecrecover(&message_hash, &sig)
+    }
+
+    public fun verify_raw(
+        self: &Guardian,
+        sig: &vector<u8>,
+        message_hash: &vector<u8>
+    ): bool {
+        //let sig = guardian_signature::to_rsv(signature);
         as_bytes(self) == ecrecover(message_hash, sig)
     }
 
     /// Same as 'ecrecover' in EVM.
-    fun ecrecover(message: vector<u8>, sig: vector<u8>): vector<u8> {
+    fun ecrecover(message: &vector<u8>, sig: &vector<u8>): vector<u8> {
         let pubkey =
-            ecdsa_k1::decompress_pubkey(&ecdsa_k1::secp256k1_ecrecover(&sig, &message, 0));
+            ecdsa_k1::decompress_pubkey(&ecdsa_k1::secp256k1_ecrecover(sig, message, 0));
 
         // `decompress_pubkey` returns 65 bytes. The last 64 bytes are what we
         // need to compute the Guardian's public key.

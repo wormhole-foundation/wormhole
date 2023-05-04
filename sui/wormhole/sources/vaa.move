@@ -28,11 +28,8 @@ module wormhole::vaa {
     use wormhole::bytes::{Self};
     use wormhole::bytes32::{Self, Bytes32};
     use wormhole::consumed_vaas::{Self, ConsumedVAAs};
-    use wormhole::cursor::{Self};
     use wormhole::external_address::{Self, ExternalAddress};
-    use wormhole::guardian::{Self};
     use wormhole::guardian_set::{Self, GuardianSet};
-    use wormhole::guardian_signature::{Self, GuardianSignature};
     use wormhole::state::{Self, State};
 
     /// Incorrect VAA version.
@@ -72,6 +69,11 @@ module wormhole::vaa {
 
         /// Double Keccak256 hash of message body.
         digest: Bytes32
+    }
+
+    struct GuardianECSignature has drop {
+        index: u8,
+        rsv: vector<u8>
     }
 
     public fun guardian_set_index(self: &VAA): u32 {
@@ -161,7 +163,7 @@ module wormhole::vaa {
         state::assert_latest_only(wormhole_state);
 
         // Deserialize VAA buffer (and return `VAA` after verifying signatures).
-        let (signatures, vaa) = parse(buf);
+        let (signatures_reversed, vaa, message_hash) = parse(buf);
 
         // Fetch the guardian set which this VAA was supposedly signed with and
         // verify signatures using guardian set.
@@ -170,8 +172,8 @@ module wormhole::vaa {
                 wormhole_state,
                 vaa.guardian_set_index
             ),
-            signatures,
-            bytes32::to_bytes(compute_message_hash(&vaa)),
+            signatures_reversed,
+            message_hash,
             the_clock
         );
 
@@ -207,44 +209,76 @@ module wormhole::vaa {
     /// invariant that if an external module receives a `VAA` object, its
     /// signatures must have been verified, because the only public function
     /// that returns a `VAA` is `parse_and_verify`.
-    fun parse(buf: vector<u8>): (vector<GuardianSignature>, VAA) {
-        let cur = cursor::new(buf);
+    fun parse(buf: vector<u8>): (vector<GuardianECSignature>, VAA, vector<u8>) {
+        let num_signatures = (*vector::borrow(&buf, 5) as u64);
 
-        // Check VAA version.
-        assert!(
-            bytes::take_u8(&mut cur) == VERSION_VAA,
-            E_WRONG_VERSION
-        );
+        // Determine parts of body.
+        let body_idx = 6 + 66 * num_signatures;
+        let num_bytes = vector::length(&buf);
 
-        let guardian_set_index = bytes::take_u32_be(&mut cur);
+        let body_buf = vector::empty();
+        let (i, n) = (0, num_bytes - body_idx);
+        while (i < n) {
+            vector::push_back(&mut body_buf, vector::pop_back(&mut buf));
+            i = i + 1;
+        };
+        vector::reverse(&mut body_buf);
+        let message_hash = keccak256(&body_buf);
 
-        // Deserialize guardian signatures.
-        let num_signatures = bytes::take_u8(&mut cur);
-        let signatures = vector::empty();
+        let payload = {
+            let out = vector::empty();
+            let (i, n) = (0, num_bytes - (body_idx + 51));
+            while (i < n) {
+                vector::push_back(&mut out, vector::pop_back(&mut body_buf));
+                i = i + 1;
+            };
+            vector::reverse(&mut out);
+            out
+        };
+        let consistency_level = vector::pop_back(&mut body_buf); //bytes::take_u8(&mut cur);
+        let sequence = pop_u64_be(&mut body_buf); //bytes::take_u64_be(&mut cur);
+        let emitter_address = {
+            let data = vector::empty();
+            let (i, n) = (0, 32);
+            while (i < n) {
+                vector::push_back(&mut data, vector::pop_back(&mut body_buf));
+                i = i + 1;
+            };
+            vector::reverse(&mut data);
+            external_address::new(bytes32::new(data))
+        }; // = external_address::take_bytes(&mut cur);
+        let emitter_chain = pop_u16_be(&mut body_buf); // = bytes::take_u16_be(&mut cur);
+        let nonce = pop_u32_be(&mut body_buf); // = bytes::take_u32_be(&mut cur);
+        let timestamp = pop_u32_be(&mut body_buf); // = bytes::take_u32_be(&mut cur);
+
+        // Clean up.
+        vector::destroy_empty(body_buf);
+
+        let signatures_reversed = vector::empty();
         let i = 0;
         while (i < num_signatures) {
-            let guardian_index = bytes::take_u8(&mut cur);
-            let r = bytes32::take_bytes(&mut cur);
-            let s = bytes32::take_bytes(&mut cur);
-            let recovery_id = bytes::take_u8(&mut cur);
+            let rsv = vector::empty();
+            let j = 0;
+            while (j < 65) {
+                vector::push_back(&mut rsv, vector::pop_back(&mut buf));
+                j = j + 1;
+            };
+            vector::reverse(&mut rsv);
+            let index = vector::pop_back(&mut buf);
+
             vector::push_back(
-                &mut signatures,
-                guardian_signature::new(r, s, recovery_id, guardian_index)
+                &mut signatures_reversed,
+                GuardianECSignature { index, rsv }
             );
             i = i + 1;
         };
+        vector::pop_back(&mut buf);
 
-        // Deserialize message body.
-        let body_buf = cursor::take_rest(cur);
+        let guardian_set_index = pop_u32_be(&mut buf);
 
-        let cur = cursor::new(body_buf);
-        let timestamp = bytes::take_u32_be(&mut cur);
-        let nonce = bytes::take_u32_be(&mut cur);
-        let emitter_chain = bytes::take_u16_be(&mut cur);
-        let emitter_address = external_address::take_bytes(&mut cur);
-        let sequence = bytes::take_u64_be(&mut cur);
-        let consistency_level = bytes::take_u8(&mut cur);
-        let payload = cursor::take_rest(cur);
+        // Check VAA version.
+        assert!(vector::pop_back(&mut buf) == VERSION_VAA, E_WRONG_VERSION);
+        vector::destroy_empty(buf);
 
         let parsed = VAA {
             guardian_set_index,
@@ -254,17 +288,11 @@ module wormhole::vaa {
             emitter_address,
             sequence,
             consistency_level,
-            digest: double_keccak256(body_buf),
+            digest: bytes32::new(keccak256(&message_hash)),
             payload,
         };
 
-        (signatures, parsed)
-    }
-
-    fun double_keccak256(buf: vector<u8>): Bytes32 {
-        use sui::hash::{keccak256};
-
-        bytes32::new(keccak256(&keccak256(&buf)))
+        (signatures_reversed, parsed, message_hash)
     }
 
     /// Using the Guardian signatures deserialized from VAA, verify that all of
@@ -278,7 +306,7 @@ module wormhole::vaa {
     /// single keccak256 hash of the VAA message body.
     fun verify_signatures(
         set: &GuardianSet,
-        signatures: vector<GuardianSignature>,
+        signatures_reversed: vector<GuardianECSignature>,
         message_hash: vector<u8>,
         the_clock: &Clock
     ) {
@@ -290,16 +318,18 @@ module wormhole::vaa {
 
         // Number of signatures must be at least quorum.
         assert!(
-            vector::length(&signatures) >= guardian_set::quorum(set),
+            vector::length(&signatures_reversed) >= guardian_set::quorum(set),
             E_NO_QUORUM
         );
 
         // Drain `Cursor` by checking each signature.
-        let cur = cursor::new(signatures);
         let last_guardian_index = option::none();
-        while (!cursor::is_empty(&cur)) {
-            let signature = cursor::poke(&mut cur);
-            let guardian_index = guardian_signature::index_as_u64(&signature);
+        while (!vector::is_empty(&signatures_reversed)) {
+            let GuardianECSignature {
+                index: guardian_index,
+                rsv
+            } = vector::pop_back(&mut signatures_reversed);
+            //let guardian_index = guardian_signature::index_as_u64(&signature);
 
             // Ensure that the provided signatures are strictly increasing.
             // This check makes sure that no duplicate signers occur. The
@@ -316,10 +346,10 @@ module wormhole::vaa {
             // If the guardian pubkey cannot be recovered using the signature
             // and message hash, revert.
             assert!(
-                guardian::verify(
-                    guardian_set::guardian_at(set, guardian_index),
-                    signature,
-                    message_hash
+                wormhole::guardian::verify_raw(
+                    guardian_set::guardian_at(set, (guardian_index as u64)),
+                    &rsv,
+                    &message_hash
                 ),
                 E_INVALID_SIGNATURE
             );
@@ -328,15 +358,61 @@ module wormhole::vaa {
             option::swap_or_fill(&mut last_guardian_index, guardian_index);
         };
 
-        // Done.
-        cursor::destroy_empty(cur);
+        // Clean up.
+        vector::destroy_empty(signatures_reversed);
+    }
+
+    fun pop_bytes32(buf: &mut vector<u8>): Bytes32 {
+        let data = vector::empty();
+        let (i, n) = (0, 32);
+        while (i < n) {
+            vector::push_back(&mut data, vector::pop_back(buf));
+            i = i + 1;
+        };
+        vector::reverse(&mut data);
+        bytes32::new(data)
+    }
+
+    fun pop_u64_be(body_buf: &mut vector<u8>): u64 {
+        let out = 0;
+        let (i, n) = (0, 8);
+        while (i < n) {
+            let b = vector::pop_back(body_buf);
+            out = out + ((b as u64) << (i * 8));
+            i = i + 1;
+        };
+        out
+    }
+
+    fun pop_u32_be(body_buf: &mut vector<u8>): u32 {
+        let out = 0;
+        let (i, n) = (0, 4);
+        while (i < n) {
+            let b = vector::pop_back(body_buf);
+            out = out + ((b as u32) << (i * 8));
+            i = i + 1;
+        };
+        out
+    }
+
+    fun pop_u16_be(body_buf: &mut vector<u8>): u16 {
+        let out = 0;
+        let (i, n) = (0, 2);
+        while (i < n) {
+            let b = vector::pop_back(body_buf);
+            out = out + ((b as u16) << (i * 8));
+            i = i + 1;
+        };
+        out
     }
 
     #[test_only]
     public fun parse_test_only(
         buf: vector<u8>
-    ): (vector<GuardianSignature>, VAA) {
-        parse(buf)
+    ): (vector<GuardianECSignature>, VAA) {
+        let (signatures_reversed, vaa, _) = parse(buf);
+
+        (signatures_reversed, vaa)
     }
 
     #[test_only]
@@ -364,6 +440,11 @@ module wormhole::vaa {
         // Return the payload.
         out
     }
+
+    #[test_only]
+    public fun new_signature(rsv: vector<u8>, index: u8): GuardianECSignature {
+        GuardianECSignature { index, rsv }
+    }
 }
 
 #[test_only]
@@ -374,7 +455,6 @@ module wormhole::vaa_tests {
     use wormhole::bytes32::{Self};
     use wormhole::cursor::{Self};
     use wormhole::external_address::{Self};
-    use wormhole::guardian_signature::{Self};
     use wormhole::state::{Self};
     use wormhole::vaa::{Self};
     use wormhole::version_control::{Self};
@@ -399,137 +479,60 @@ module wormhole::vaa_tests {
     #[test]
     fun test_parse() {
         let (signatures, parsed) = vaa::parse_test_only(VAA_1);
+        vector::reverse(&mut signatures);
 
         let expected_signatures =
             vector[
-                guardian_signature::new(
-                    bytes32::new(
-                        x"9bafff633087a9587d9afb6d29bd74a3483b7a8d5619323a416fe9ca43b482cd"
-                    ), // r
-                    bytes32::new(
-                        x"5526fabe953157cfd42eea9ffa544babc0f3a025a8a6159217b96fc9ff586d56"
-                    ), // s
-                    0, // recovery_id
+                vaa::new_signature(
+                    x"9bafff633087a9587d9afb6d29bd74a3483b7a8d5619323a416fe9ca43b482cd5526fabe953157cfd42eea9ffa544babc0f3a025a8a6159217b96fc9ff586d5600",
                     0 // index
                 ),
-                guardian_signature::new(
-                    bytes32::new(
-                        x"c9367884940a43a1a4d86531ea33ccb41e52bd7d1679c106fdff756f3da2ca74"
-                    ), // r
-                    bytes32::new(
-                        x"3f7c181fcf40d19151d0a8397335c1b71709279b6e4fa97b6e3de90824e841c8"
-                    ), // s
-                    1, // recovery_id
+                vaa::new_signature(
+                    x"c9367884940a43a1a4d86531ea33ccb41e52bd7d1679c106fdff756f3da2ca743f7c181fcf40d19151d0a8397335c1b71709279b6e4fa97b6e3de90824e841c801",
                     2 // index
                 ),
-                guardian_signature::new(
-                    bytes32::new(
-                        x"5a493b65bf12ab9b98aa4db3bfcb73df20ab854d8e5998a1552f3b3e57ea7cd3"
-                    ), // r
-                    bytes32::new(
-                        x"546187c62cd450d12d430cae0fb48124ae68034dae602fa3e2232b55257961f9"
-                    ), // s
-                    1, // recovery_id
+                vaa::new_signature(
+                    x"5a493b65bf12ab9b98aa4db3bfcb73df20ab854d8e5998a1552f3b3e57ea7cd3546187c62cd450d12d430cae0fb48124ae68034dae602fa3e2232b55257961f901",
                     3 // index
                 ),
-                guardian_signature::new(
-                    bytes32::new(
-                        x"758e265101353923661f6df67cec3c38528ed1b68825099b5bb2ce3fb2e735c5"
-                    ), // r
-                    bytes32::new(
-                        x"073d90223bebd00cc10406a60413a6089b5fb9acee0a1b04a63a8d7db24c0bbc"
-                    ), // s
-                    0, // recovery_id
+                vaa::new_signature(
+                    x"758e265101353923661f6df67cec3c38528ed1b68825099b5bb2ce3fb2e735c5073d90223bebd00cc10406a60413a6089b5fb9acee0a1b04a63a8d7db24c0bbc00",
                     4 // index
                 ),
-                guardian_signature::new(
-                    bytes32::new(
-                        x"87777306dd174e266c313f711e881086355b6ce66cf2bf1f5da58273a10be778"
-                    ), // r
-                    bytes32::new(
-                        x"13b5ffcafc1ba6b83645e326a7c1a3751496f279ba307a6cd554f2709c2f1eda"
-                    ), // s
-                    1, // recovery_id
+                vaa::new_signature(
+                    x"87777306dd174e266c313f711e881086355b6ce66cf2bf1f5da58273a10be77813b5ffcafc1ba6b83645e326a7c1a3751496f279ba307a6cd554f2709c2f1eda01",
                     5 // index
                 ),
-                guardian_signature::new(
-                    bytes32::new(
-                        x"ed23ba8264146c3e3cc0601c93260c25058bcdd25213a7834e51679afdc4b501"
-                    ), // r
-                    bytes32::new(
-                        x"04e3f3a3079ba45115e703096c7e0700354cd48348bbf686dcbc58be896c35a2"
-                    ), // s
-                    0, // recovery_id
+                vaa::new_signature(
+                    x"ed23ba8264146c3e3cc0601c93260c25058bcdd25213a7834e51679afdc4b50104e3f3a3079ba45115e703096c7e0700354cd48348bbf686dcbc58be896c35a200",
                     8 // index
                 ),
-                guardian_signature::new(
-                    bytes32::new(
-                        x"c2352cb46ef1d2ef9e185764650403aee87a1be071555b31cdcee0c346991da8"
-                    ), // r
-                    bytes32::new(
-                        x"58defb8d5e164a293ce4377b54fc74b65e3acbdedcbb53c2bcc2688a0b5bd1c9"
-                    ), // s
-                    1, // recovery_id
+                vaa::new_signature(
+                    x"c2352cb46ef1d2ef9e185764650403aee87a1be071555b31cdcee0c346991da858defb8d5e164a293ce4377b54fc74b65e3acbdedcbb53c2bcc2688a0b5bd1c901",
                     9 // index
                 ),
-                guardian_signature::new(
-                    bytes32::new(
-                        x"e470b1573989f387f7c54a86325cc05978bbcbc13267e90e2fa2efb0e18bccb7"
-                    ), // r
-                    bytes32::new(
-                        x"72252bd6d13ebf908f7f3f2caf20a45c17dec7168122a2535ea93d300fae7063"
-                    ), // s
-                    0, // recovery_id
+                vaa::new_signature(
+                    x"e470b1573989f387f7c54a86325cc05978bbcbc13267e90e2fa2efb0e18bccb772252bd6d13ebf908f7f3f2caf20a45c17dec7168122a2535ea93d300fae706300",
                     10 // index
                 ),
-                guardian_signature::new(
-                    bytes32::new(
-                        x"a0e8770298d4e3567488f455455a33f1e723e1e629ba4f87928016aeaa587556"
-                    ), // r
-                    bytes32::new(
-                        x"1ec38bde5d934389dc657d80a927cd9d06a9d9c7ce910c98d77a576e3f31735c"
-                    ), // s
-                    0, // recovery_id
+                vaa::new_signature(
+                    x"a0e8770298d4e3567488f455455a33f1e723e1e629ba4f87928016aeaa5875561ec38bde5d934389dc657d80a927cd9d06a9d9c7ce910c98d77a576e3f31735c00",
                     11 // index
                 ),
-                guardian_signature::new(
-                    bytes32::new(
-                        x"eeedc956cff4489ac55b52ca38233cdc11e88767e5cc82f664bd1d7c28dfb5a1"
-                    ), // r
-                    bytes32::new(
-                        x"2d7d17620725aae08e499b021200919f42c50c05916cf425dcd6e59f24b4b233"
-                    ), // s
-                    0, // recovery_id
+                vaa::new_signature(
+                    x"eeedc956cff4489ac55b52ca38233cdc11e88767e5cc82f664bd1d7c28dfb5a12d7d17620725aae08e499b021200919f42c50c05916cf425dcd6e59f24b4b23300",
                     14 // index
                 ),
-                guardian_signature::new(
-                    bytes32::new(
-                        x"18d447c9608a076c066b30ee770910e3c133087d33e329ad0101f08f88d88e14"
-                    ), // r
-                    bytes32::new(
-                        x"2623df87aa3842edcf34e10fd36271b49f7af73ff2a7bcf4a65a4306d59586f2"
-                    ), // s
-                    1, // recovery_id
+                vaa::new_signature(
+                    x"18d447c9608a076c066b30ee770910e3c133087d33e329ad0101f08f88d88e142623df87aa3842edcf34e10fd36271b49f7af73ff2a7bcf4a65a4306d59586f201",
                     15 // index
                 ),
-                guardian_signature::new(
-                    bytes32::new(
-                        x"905fc99dc650d9b1b33c313e9b31dfdbc85ce57e9f31abc4841d5791a239f20e"
-                    ), // r
-                    bytes32::new(
-                        x"5f28e4e612db96aee2f49ae712f724466007aaf27309d0385005fe0264d33dd1"
-                    ), // s
-                    0, // recovery_id
+                vaa::new_signature(
+                    x"905fc99dc650d9b1b33c313e9b31dfdbc85ce57e9f31abc4841d5791a239f20e5f28e4e612db96aee2f49ae712f724466007aaf27309d0385005fe0264d33dd100",
                     17 // index
                 ),
-                guardian_signature::new(
-                    bytes32::new(
-                        x"7b46f2fbbbf12efb10c2e662b4449de404f6a408ad7f38c7ea40a46300930e9a"
-                    ), // r
-                    bytes32::new(
-                        x"3b1e02ce00b97e33fa8a87221c1fd9064ce966dc4772658b98f2ec1e28d13e74"
-                    ), // s
-                    0, // recovery_id
+                vaa::new_signature(
+                    x"7b46f2fbbbf12efb10c2e662b4449de404f6a408ad7f38c7ea40a46300930e9a3b1e02ce00b97e33fa8a87221c1fd9064ce966dc4772658b98f2ec1e28d13e7400",
                     18 // index
                 )
             ];
