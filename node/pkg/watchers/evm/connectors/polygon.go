@@ -119,6 +119,8 @@ func (c *PolygonConnector) SubscribeForBlocks(ctx context.Context, errC chan err
 		for {
 			select {
 			case <-ctx.Done():
+				messageSub.Unsubscribe()
+				sub.unsubDone <- struct{}{}
 				return nil
 			case err := <-messageSub.Err():
 				sub.err <- err
@@ -126,6 +128,10 @@ func (c *PolygonConnector) SubscribeForBlocks(ctx context.Context, errC chan err
 				if err := c.processCheckpoint(ctx, sink, checkpoint); err != nil {
 					sub.err <- fmt.Errorf("failed to process checkpoint: %w", err)
 				}
+			case <-sub.quit:
+				messageSub.Unsubscribe()
+				sub.unsubDone <- struct{}{}
+				return nil
 			}
 		}
 	})
