@@ -17,7 +17,7 @@ linters:
   # additional linters
     - gosec
     - forcetypeassert
-    # - contextcheck # disabled because
+    # - contextcheck # disabled in CI for now because fixes to findings need additional work
     - noctx
     # - unconvert # disable because extra conversion typically don't hurt but can make code more clear
     - unparam
