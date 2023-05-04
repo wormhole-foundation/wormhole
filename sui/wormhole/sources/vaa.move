@@ -28,6 +28,7 @@ module wormhole::vaa {
     use wormhole::bytes::{Self};
     use wormhole::bytes32::{Self, Bytes32};
     use wormhole::consumed_vaas::{Self, ConsumedVAAs};
+    use wormhole::cursor::{Self};
     use wormhole::external_address::{Self, ExternalAddress};
     use wormhole::guardian_set::{Self, GuardianSet};
     use wormhole::state::{Self, State};
@@ -72,7 +73,7 @@ module wormhole::vaa {
     }
 
     struct GuardianECSignature has drop {
-        index: u8,
+        guardian_index: u8,
         rsv: vector<u8>
     }
 
@@ -163,7 +164,7 @@ module wormhole::vaa {
         state::assert_latest_only(wormhole_state);
 
         // Deserialize VAA buffer (and return `VAA` after verifying signatures).
-        let (signatures_reversed, vaa, message_hash) = parse(buf);
+        let (signatures, vaa, message_hash) = parse(buf);
 
         // Fetch the guardian set which this VAA was supposedly signed with and
         // verify signatures using guardian set.
@@ -172,7 +173,7 @@ module wormhole::vaa {
                 wormhole_state,
                 vaa.guardian_set_index
             ),
-            signatures_reversed,
+            signatures,
             message_hash,
             the_clock
         );
@@ -203,82 +204,44 @@ module wormhole::vaa {
         bytes32::new(keccak256(&buf))
     }
 
-    /// Parses a VAA.
-    ///
-    /// NOTE: This method does NOT perform any verification. This ensures the
-    /// invariant that if an external module receives a `VAA` object, its
-    /// signatures must have been verified, because the only public function
-    /// that returns a `VAA` is `parse_and_verify`.
     fun parse(buf: vector<u8>): (vector<GuardianECSignature>, VAA, vector<u8>) {
-        let num_signatures = (*vector::borrow(&buf, 5) as u64);
+        let cur = cursor::new(buf);
 
-        // Determine parts of body.
-        let body_idx = 6 + 66 * num_signatures;
-        let num_bytes = vector::length(&buf);
+        // Check VAA version.
+        assert!(
+            bytes::take_u8(&mut cur) == VERSION_VAA,
+            E_WRONG_VERSION
+        );
 
-        let body_buf = vector::empty();
-        let (i, n) = (0, num_bytes - body_idx);
-        while (i < n) {
-            vector::push_back(&mut body_buf, vector::pop_back(&mut buf));
-            i = i + 1;
-        };
-        vector::reverse(&mut body_buf);
-        let message_hash = keccak256(&body_buf);
+        let guardian_set_index = bytes::take_u32_be(&mut cur);
 
-        let payload = {
-            let out = vector::empty();
-            let (i, n) = (0, num_bytes - (body_idx + 51));
-            while (i < n) {
-                vector::push_back(&mut out, vector::pop_back(&mut body_buf));
-                i = i + 1;
-            };
-            vector::reverse(&mut out);
-            out
-        };
-        let consistency_level = vector::pop_back(&mut body_buf); //bytes::take_u8(&mut cur);
-        let sequence = pop_u64_be(&mut body_buf); //bytes::take_u64_be(&mut cur);
-        let emitter_address = {
-            let data = vector::empty();
-            let (i, n) = (0, 32);
-            while (i < n) {
-                vector::push_back(&mut data, vector::pop_back(&mut body_buf));
-                i = i + 1;
-            };
-            vector::reverse(&mut data);
-            external_address::new(bytes32::new(data))
-        }; // = external_address::take_bytes(&mut cur);
-        let emitter_chain = pop_u16_be(&mut body_buf); // = bytes::take_u16_be(&mut cur);
-        let nonce = pop_u32_be(&mut body_buf); // = bytes::take_u32_be(&mut cur);
-        let timestamp = pop_u32_be(&mut body_buf); // = bytes::take_u32_be(&mut cur);
-
-        // Clean up.
-        vector::destroy_empty(body_buf);
-
-        let signatures_reversed = vector::empty();
+        // Deserialize guardian signatures.
+        let num_signatures = bytes::take_u8(&mut cur);
+        let signatures = vector::empty();
         let i = 0;
         while (i < num_signatures) {
-            let rsv = vector::empty();
-            let j = 0;
-            while (j < 65) {
-                vector::push_back(&mut rsv, vector::pop_back(&mut buf));
-                j = j + 1;
-            };
-            vector::reverse(&mut rsv);
-            let index = vector::pop_back(&mut buf);
+            let guardian_index = bytes::take_u8(&mut cur);
+            let rsv = bytes::take_bytes(&mut cur, 65);
 
             vector::push_back(
-                &mut signatures_reversed,
-                GuardianECSignature { index, rsv }
+                &mut signatures,
+                GuardianECSignature { guardian_index, rsv }
             );
             i = i + 1;
         };
-        vector::pop_back(&mut buf);
 
-        let guardian_set_index = pop_u32_be(&mut buf);
+        // Deserialize message body.
+        let body_buf = cursor::take_rest(cur);
+        let message_hash = keccak256(&body_buf);
 
-        // Check VAA version.
-        assert!(vector::pop_back(&mut buf) == VERSION_VAA, E_WRONG_VERSION);
-        vector::destroy_empty(buf);
+        let cur = cursor::new(body_buf);
+        let timestamp = bytes::take_u32_be(&mut cur);
+        let nonce = bytes::take_u32_be(&mut cur);
+        let emitter_chain = bytes::take_u16_be(&mut cur);
+        let emitter_address = external_address::take_bytes(&mut cur);
+        let sequence = bytes::take_u64_be(&mut cur);
+        let consistency_level = bytes::take_u8(&mut cur);
+        let payload = cursor::take_rest(cur);
 
         let parsed = VAA {
             guardian_set_index,
@@ -292,7 +255,7 @@ module wormhole::vaa {
             payload,
         };
 
-        (signatures_reversed, parsed, message_hash)
+        (signatures, parsed, message_hash)
     }
 
     /// Using the Guardian signatures deserialized from VAA, verify that all of
@@ -306,7 +269,7 @@ module wormhole::vaa {
     /// single keccak256 hash of the VAA message body.
     fun verify_signatures(
         set: &GuardianSet,
-        signatures_reversed: vector<GuardianECSignature>,
+        signatures: vector<GuardianECSignature>,
         message_hash: vector<u8>,
         the_clock: &Clock
     ) {
@@ -318,17 +281,18 @@ module wormhole::vaa {
 
         // Number of signatures must be at least quorum.
         assert!(
-            vector::length(&signatures_reversed) >= guardian_set::quorum(set),
+            vector::length(&signatures) >= guardian_set::quorum(set),
             E_NO_QUORUM
         );
 
         // Drain `Cursor` by checking each signature.
+        let cur = cursor::new(signatures);
         let last_guardian_index = option::none();
-        while (!vector::is_empty(&signatures_reversed)) {
+        while (!cursor::is_empty(&cur)) {
             let GuardianECSignature {
-                index: guardian_index,
+                guardian_index,
                 rsv
-            } = vector::pop_back(&mut signatures_reversed);
+            } = cursor::poke(&mut cur);
             //let guardian_index = guardian_signature::index_as_u64(&signature);
 
             // Ensure that the provided signatures are strictly increasing.
@@ -358,52 +322,8 @@ module wormhole::vaa {
             option::swap_or_fill(&mut last_guardian_index, guardian_index);
         };
 
-        // Clean up.
-        vector::destroy_empty(signatures_reversed);
-    }
-
-    fun pop_bytes32(buf: &mut vector<u8>): Bytes32 {
-        let data = vector::empty();
-        let (i, n) = (0, 32);
-        while (i < n) {
-            vector::push_back(&mut data, vector::pop_back(buf));
-            i = i + 1;
-        };
-        vector::reverse(&mut data);
-        bytes32::new(data)
-    }
-
-    fun pop_u64_be(body_buf: &mut vector<u8>): u64 {
-        let out = 0;
-        let (i, n) = (0, 8);
-        while (i < n) {
-            let b = vector::pop_back(body_buf);
-            out = out + ((b as u64) << (i * 8));
-            i = i + 1;
-        };
-        out
-    }
-
-    fun pop_u32_be(body_buf: &mut vector<u8>): u32 {
-        let out = 0;
-        let (i, n) = (0, 4);
-        while (i < n) {
-            let b = vector::pop_back(body_buf);
-            out = out + ((b as u32) << (i * 8));
-            i = i + 1;
-        };
-        out
-    }
-
-    fun pop_u16_be(body_buf: &mut vector<u8>): u16 {
-        let out = 0;
-        let (i, n) = (0, 2);
-        while (i < n) {
-            let b = vector::pop_back(body_buf);
-            out = out + ((b as u16) << (i * 8));
-            i = i + 1;
-        };
-        out
+        // Done.
+        cursor::destroy_empty(cur);
     }
 
     #[test_only]
@@ -443,7 +363,7 @@ module wormhole::vaa {
 
     #[test_only]
     public fun new_signature(rsv: vector<u8>, index: u8): GuardianECSignature {
-        GuardianECSignature { index, rsv }
+        GuardianECSignature { guardian_index: index, rsv }
     }
 }
 
@@ -466,7 +386,6 @@ module wormhole::vaa_tests {
         set_up_wormhole_with_guardians,
         take_clock,
         take_state
-        //upgrade_wormhole
     };
 
     const VAA_1: vector<u8> =
@@ -479,7 +398,6 @@ module wormhole::vaa_tests {
     #[test]
     fun test_parse() {
         let (signatures, parsed) = vaa::parse_test_only(VAA_1);
-        vector::reverse(&mut signatures);
 
         let expected_signatures =
             vector[
