@@ -1,5 +1,5 @@
-import { BigNumber, ethers } from "ethers";
-import { ChainId, tryNativeToHexString } from "@certusone/wormhole-sdk";
+import { ethers } from "ethers";
+import { tryNativeToHexString } from "@certusone/wormhole-sdk";
 import {
   ChainInfo,
   getCoreRelayerAddress,

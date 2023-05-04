@@ -1,18 +1,14 @@
-import { tryNativeToHexString } from "@certusone/wormhole-sdk";
 import { BigNumber } from "ethers";
 
 import {
   init,
-  loadChains,
   ChainInfo,
-  getCoreRelayerAddress,
   getRelayProvider,
   getRelayProviderAddress,
   getProvider,
   writeOutputFiles,
   getOperatingChains,
 } from "../helpers/env";
-import { wait } from "../helpers/utils";
 
 const processName = "readRelayProviderContractState";
 init();

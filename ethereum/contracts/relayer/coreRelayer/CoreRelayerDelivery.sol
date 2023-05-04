@@ -5,11 +5,12 @@ pragma solidity ^0.8.0;
 import "../../interfaces/relayer/IWormholeReceiver.sol";
 import "../../interfaces/relayer/IDelivery.sol";
 import "../../interfaces/relayer/IForwardWrapper.sol";
-import "./CoreRelayerGovernance.sol";
-import "../../interfaces/relayer/IWormholeRelayerInternalStructs.sol";
+import "./Utils.sol";
 import "./CoreRelayerMessages.sol";
+import "./CoreRelayerSetters.sol";
+import "../../interfaces/relayer/IWormholeRelayerInternalStructs.sol";
 
-abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
+abstract contract CoreRelayerDelivery is CoreRelayerMessages, CoreRelayerSetters {
     enum DeliveryStatus {
         SUCCESS,
         RECEIVER_FAILURE,
@@ -104,7 +105,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
                 encodeDeliveryInstruction(convertSendToDeliveryInstruction(sendRequests[i])),
                 sendRequests[i].consistencyLevel
             );
-            pay(
+            Utils.pay(
                 IRelayProvider(sendRequests[i].relayProviderAddress).getRewardAddress(),
                 sendRequests[i].maxTransactionFee + sendRequests[i].receiverValue
             );
@@ -125,8 +126,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
         (uint16 buffer, uint16 denominator) = relayProvider.getAssetConversionBuffer(sendParams.targetChain);
         uint256 maxPaymentUnderMaximumBudget = relayProvider.quoteMaximumBudget(sendParams.targetChain)
             * (denominator + buffer) / denominator - sendParams.maxTransactionFee - sendParams.receiverValue;
-        // take min
-        return increaseAmount > maxPaymentUnderMaximumBudget ? maxPaymentUnderMaximumBudget : increaseAmount;
+        return Utils.min(increaseAmount, maxPaymentUnderMaximumBudget);
     }
 
     /**
@@ -200,9 +200,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
         } else {
             // Calculate the amount of gas used in the call (upperbounding at the gas limit, which shouldn't have been exceeded)
             stack.gasUsed = uint32(
-                (stack.preGas - stack.postGas) > vaaInfo.deliveryInstruction.executionParameters.gasLimit
-                    ? vaaInfo.deliveryInstruction.executionParameters.gasLimit
-                    : (stack.preGas - stack.postGas)
+                Utils.min(stack.preGas - stack.postGas, vaaInfo.deliveryInstruction.executionParameters.gasLimit)
             );
         }
         // Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the fraction of gas unused)
@@ -219,30 +217,27 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
         setContractLock(false);
         setLockedTargetAddress(address(0));
 
-        DeliveryStatus status;
+        // set delivery status and additionalStatusInfo if there was a failure
         stack.transactionFeeRefundAmountPostForward = stack.transactionFeeRefundAmount;
+        DeliveryStatus status;
         if (forwardInstructions.length > 0) {
             // If the user made a forward/multichainForward request, then try to execute it
             stack.transactionFeeRefundAmountPostForward =
                 emitForward(stack.transactionFeeRefundAmount, forwardInstructions);
             status = DeliveryStatus.FORWARD_REQUEST_SUCCESS;
         } else {
-            status = stack.callToTargetContractSucceeded
-                ? (
-                    stack.callToInstructionExecutorSucceeded
-                        ? DeliveryStatus.SUCCESS
-                        : DeliveryStatus.FORWARD_REQUEST_FAILURE
-                )
-                : DeliveryStatus.RECEIVER_FAILURE;
+            if (stack.callToTargetContractSucceeded) {
+                if (stack.callToInstructionExecutorSucceeded) {
+                    status = DeliveryStatus.SUCCESS;
+                } else {
+                    status = DeliveryStatus.FORWARD_REQUEST_FAILURE;
+                    stack.additionalStatusInfo = stack.callToInstructionExecutorData;
+                }
+            } else {
+                status = DeliveryStatus.RECEIVER_FAILURE;
+                stack.additionalStatusInfo = stack.returnDataTruncated;
+            }
         }
-
-        stack.additionalStatusInfo = status == DeliveryStatus.SUCCESS
-            ? bytes("")
-            : status == DeliveryStatus.FORWARD_REQUEST_SUCCESS
-                ? abi.encodePacked((stack.transactionFeeRefundAmount - stack.transactionFeeRefundAmountPostForward))
-                : status == DeliveryStatus.RECEIVER_FAILURE
-                    ? stack.returnDataTruncated
-                    : status == DeliveryStatus.FORWARD_REQUEST_FAILURE ? stack.callToInstructionExecutorData : bytes("");
 
         RefundStatus refundStatus = payRefunds(
             vaaInfo.deliveryInstruction,
@@ -253,14 +248,14 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
             vaaInfo.deliveryInstruction.targetRelayProvider
         );
 
-        stack.overridesInfo = vaaInfo.redeliveryHash == 0x0
-            ? bytes("")
-            : abi.encodePacked(
+        if (vaaInfo.redeliveryHash != 0x0) {
+            stack.overridesInfo = abi.encodePacked(
                 vaaInfo.redeliveryHash,
                 vaaInfo.deliveryInstruction.maximumRefundTarget,
                 vaaInfo.deliveryInstruction.receiverValueTarget,
                 vaaInfo.deliveryInstruction.executionParameters.gasLimit
             );
+        }
 
         // Emit a status update that can be read by a SDK
         emit Delivery({
@@ -302,7 +297,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
         ) + (deliveryInstruction.maximumRefundTarget - transactionFeeRefundAmount)
             + (refundPaidToRefundAddress ? 0 : refundToRefundAddress);
 
-        pay(relayerRefundAddress, relayerRefundAmount);
+        Utils.pay(relayerRefundAddress, relayerRefundAmount);
     }
 
     function payRefundToRefundAddress(
@@ -311,7 +306,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
         bytes32 relayerAddress
     ) internal returns (bool refundPaidToRefundAddress, RefundStatus refundStatus) {
         if (instruction.refundChain == chainId()) {
-            refundPaidToRefundAddress = pay(payable(fromWormholeFormat(instruction.refundAddress)), refundAmount);
+            refundPaidToRefundAddress = Utils.pay(payable(fromWormholeFormat(instruction.refundAddress)), refundAmount);
             refundStatus = refundPaidToRefundAddress ? RefundStatus.REFUND_SENT : RefundStatus.REFUND_FAIL;
         } else {
             address providerAddress = fromWormholeFormat(relayerAddress);
@@ -379,7 +374,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
             0, encodeDeliveryInstruction(refundInstruction), refundInstruction.consistencyLevel
         );
 
-        pay(payable(rewardAddress), refundAmount - wormholeMessageFee);
+        Utils.pay(payable(rewardAddress), refundAmount - wormholeMessageFee);
 
         return (
             true,
@@ -561,14 +556,6 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
             return (vaaKey.vaaHash == parsedVaa.hash);
         } else {
             return false;
-        }
-    }
-
-    function pay(address payable receiver, uint256 amount) internal returns (bool success) {
-        if (amount > 0) {
-            (success,) = receiver.call{value: amount}("");
-        } else {
-            success = true;
         }
     }
 
