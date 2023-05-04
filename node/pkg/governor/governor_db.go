@@ -32,7 +32,7 @@ func (gov *ChainGovernor) loadFromDBAlreadyLocked() error {
 		})
 
 		for _, p := range pending {
-			gov.reloadPendingTransfer(p, now)
+			gov.reloadPendingTransfer(p)
 		}
 	}
 
@@ -44,7 +44,7 @@ func (gov *ChainGovernor) loadFromDBAlreadyLocked() error {
 		startTime := now.Add(-time.Minute * time.Duration(gov.dayLengthInMinutes))
 		for _, xfer := range xfers {
 			if startTime.Before(xfer.Timestamp) {
-				gov.reloadTransfer(xfer, now, startTime)
+				gov.reloadTransfer(xfer)
 			} else {
 				if err := gov.db.DeleteTransfer(xfer); err != nil {
 					return err
@@ -56,7 +56,7 @@ func (gov *ChainGovernor) loadFromDBAlreadyLocked() error {
 	return nil
 }
 
-func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer, now time.Time) {
+func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer) {
 	msg := &pending.Msg
 	ce, exists := gov.chains[msg.EmitterChain]
 	if !exists {
@@ -156,7 +156,7 @@ func (gov *ChainGovernor) reloadPendingTransfer(pending *db.PendingTransfer, now
 	gov.msgsSeen[hash] = transferEnqueued
 }
 
-func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer, now time.Time, startTime time.Time) {
+func (gov *ChainGovernor) reloadTransfer(xfer *db.Transfer) {
 	ce, exists := gov.chains[xfer.EmitterChain]
 	if !exists {
 		gov.logger.Error("reloaded transfer for unsupported chain, dropping it",

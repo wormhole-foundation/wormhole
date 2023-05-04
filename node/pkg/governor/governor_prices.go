@@ -213,7 +213,7 @@ func (gov *ChainGovernor) queryCoinGeckoChunk(query string) (map[string]interfac
 	var result map[string]interface{}
 
 	gov.logger.Debug("executing CoinGecko query", zap.String("query", query))
-	response, err := http.Get(query) //nolint:gosec
+	response, err := http.Get(query) //nolint:gosec,noctx
 	if err != nil {
 		return result, fmt.Errorf("failed to query CoinGecko: %w", err)
 	}
