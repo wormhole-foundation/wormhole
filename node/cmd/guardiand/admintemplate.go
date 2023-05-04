@@ -149,9 +149,9 @@ var AdminClientCircleIntegrationUpgradeContractImplementationCmd = &cobra.Comman
 }
 
 var AdminClientWormholeRelayerSetDefaultRelayProviderCmd = &cobra.Command{
-	Use: "wormhole-relayer-set-default-relay-provider",
+	Use:   "wormhole-relayer-set-default-relay-provider",
 	Short: "Generate a 'set default relay provider' template for specified chain and address",
-	Run: runWormholeRelayerSetDefaultRelayProviderTemplate,
+	Run:   runWormholeRelayerSetDefaultRelayProviderTemplate,
 }
 
 func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
@@ -481,7 +481,7 @@ func runWormholeRelayerSetDefaultRelayProviderTemplate(cmd *cobra.Command, args 
 				Nonce:    rand.Uint32(),
 				Payload: &nodev1.GovernanceMessage_WormholeRelayerSetDefaultRelayProvider{
 					WormholeRelayerSetDefaultRelayProvider: &nodev1.WormholeRelayerSetDefaultRelayProvider{
-						ChainId:     uint32(chainID),
+						ChainId:                        uint32(chainID),
 						NewDefaultRelayProviderAddress: address,
 					},
 				},
