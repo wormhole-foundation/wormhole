@@ -42,13 +42,25 @@ interface IWormholeRelayerInstructionParser {
         bytes32 redeliveryHash;
     }
 
-    function decodeDeliveryInstruction(bytes memory encoded) external pure returns (DeliveryInstruction memory);
+    function decodeDeliveryInstruction(bytes memory encoded)
+        external
+        pure
+        returns (DeliveryInstruction memory);
 
-    function decodeRedeliveryInstruction(bytes memory encoded) external pure returns (RedeliveryInstruction memory);
+    function decodeRedeliveryInstruction(bytes memory encoded)
+        external
+        pure
+        returns (RedeliveryInstruction memory);
 
-    function encodeDeliveryOverride(DeliveryOverride memory request) external pure returns (bytes memory encoded);
+    function encodeDeliveryOverride(DeliveryOverride memory request)
+        external
+        pure
+        returns (bytes memory encoded);
 
-    function decodeDeliveryOverride(bytes memory encoded) external pure returns (DeliveryOverride memory output);
+    function decodeDeliveryOverride(bytes memory encoded)
+        external
+        pure
+        returns (DeliveryOverride memory output);
 
     function toWormholeFormat(address addr) external pure returns (bytes32 whFormat);
 

@@ -19,20 +19,16 @@ contract Create2Factory {
         address initAddr = address(new Init());
         init = initAddr;
         proxyBytecodeHash = keccak256(
-            abi.encodePacked(
-                type(SimpleProxy).creationCode, abi.encode(address(initAddr))
-            )
+            abi.encodePacked(type(SimpleProxy).creationCode, abi.encode(address(initAddr)))
         );
     }
 
     /// @dev create2 hashes the userSalt with msg.sender, then uses the CREATE2 opcode to deterministically create a contract
-    function create2(bytes memory userSalt, bytes memory bytecode)
-        public
-        payable
-        returns (address payable)
-    {
-        address addr =
-            Create2.deploy(msg.value, salt(msg.sender, userSalt), bytecode);
+    function create2(
+        bytes memory userSalt,
+        bytes memory bytecode
+    ) public payable returns (address payable) {
+        address addr = Create2.deploy(msg.value, salt(msg.sender, userSalt), bytecode);
         emit Created(addr);
         return payable(addr);
     }
@@ -43,23 +39,18 @@ contract Create2Factory {
         bytes memory call
     ) public payable returns (address payable) {
         address payable proxy = create2(
-            userSalt,
-            abi.encodePacked(
-                type(SimpleProxy).creationCode, abi.encode(address(init))
-            )
+            userSalt, abi.encodePacked(type(SimpleProxy).creationCode, abi.encode(address(init)))
         );
 
         Init(proxy).upgrade(impl, call);
         return proxy;
     }
 
-    function computeProxyAddress(address creator, bytes memory userSalt)
-        public
-        view
-        returns (address)
-    {
-        return
-            Create2.computeAddress(salt(creator, userSalt), proxyBytecodeHash);
+    function computeProxyAddress(
+        address creator,
+        bytes memory userSalt
+    ) public view returns (address) {
+        return Create2.computeAddress(salt(creator, userSalt), proxyBytecodeHash);
     }
 
     function computeAddress(
@@ -70,11 +61,7 @@ contract Create2Factory {
         return Create2.computeAddress(salt(creator, userSalt), bytecodeHash);
     }
 
-    function salt(address creator, bytes memory userSalt)
-        internal
-        pure
-        returns (bytes32)
-    {
+    function salt(address creator, bytes memory userSalt) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(creator, userSalt));
     }
 }

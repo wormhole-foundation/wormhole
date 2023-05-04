@@ -46,7 +46,8 @@ contract CoreRelayerSetup is CoreRelayerSetters, ERC1967Upgrade {
         _upgradeTo(implementation);
 
         // call initialize function of the new implementation
-        (bool success, bytes memory reason) = implementation.delegatecall(abi.encodeWithSignature("initialize()"));
+        (bool success, bytes memory reason) =
+            implementation.delegatecall(abi.encodeWithSignature("initialize()"));
         if (!success) {
             revert FailedToInitializeImplementation(string(reason));
         }

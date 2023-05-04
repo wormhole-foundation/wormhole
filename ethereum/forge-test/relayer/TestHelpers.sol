@@ -5,7 +5,8 @@ pragma solidity ^0.8.0;
 import {IRelayProvider} from "../../contracts/interfaces/relayer/IRelayProvider.sol";
 import {RelayProvider} from "../../contracts/relayer/relayProvider/RelayProvider.sol";
 import {RelayProviderSetup} from "../../contracts/relayer/relayProvider/RelayProviderSetup.sol";
-import {RelayProviderImplementation} from "../../contracts/relayer/relayProvider/RelayProviderImplementation.sol";
+import {RelayProviderImplementation} from
+    "../../contracts/relayer/relayProvider/RelayProviderImplementation.sol";
 import {RelayProviderProxy} from "../../contracts/relayer/relayProvider/RelayProviderProxy.sol";
 import {IWormholeRelayer} from "../../contracts/interfaces/relayer/IWormholeRelayer.sol";
 import {ForwardWrapper} from "../../contracts/relayer/coreRelayer/ForwardWrapper.sol";
@@ -25,7 +26,8 @@ import "forge-std/Vm.sol";
 contract TestHelpers {
     using BytesLib for bytes;
 
-    address private constant VM_ADDRESS = address(bytes20(uint160(uint256(keccak256("hevm cheat code")))));
+    address private constant VM_ADDRESS =
+        address(bytes20(uint160(uint256(keccak256("hevm cheat code")))));
 
     Vm public constant vm = Vm(VM_ADDRESS);
 
@@ -42,9 +44,11 @@ contract TestHelpers {
         uint16 chainId,
         bytes32 coreRelayerContractAddress
     ) public {
-        bytes32 coreRelayerModule = 0x000000000000000000000000000000000000000000436F726552656C61796572;
-        bytes memory message =
-            abi.encodePacked(coreRelayerModule, uint8(2), currentChainId, chainId, coreRelayerContractAddress);
+        bytes32 coreRelayerModule =
+            0x000000000000000000000000000000000000000000436F726552656C61796572;
+        bytes memory message = abi.encodePacked(
+            coreRelayerModule, uint8(2), currentChainId, chainId, coreRelayerContractAddress
+        );
         IWormhole.VM memory preSignedMessage = IWormhole.VM({
             version: 1,
             timestamp: uint32(block.timestamp),
@@ -101,14 +105,16 @@ contract TestHelpers {
         relayProvider = RelayProvider(address(myRelayProvider));
     }
 
-    function setUpCoreRelayer(uint16 chainId, IWormhole wormhole, address defaultRelayProvider)
-        public
-        returns (IWormholeRelayer coreRelayer)
-    {
+    function setUpCoreRelayer(
+        uint16 chainId,
+        IWormhole wormhole,
+        address defaultRelayProvider
+    ) public returns (IWormholeRelayer coreRelayer) {
         Create2Factory create2Factory = new Create2Factory();
         CoreRelayerSetup coreRelayerSetup = new CoreRelayerSetup();
 
-        address proxyAddressComputed = create2Factory.computeProxyAddress(address(this), "0xGenericRelayer");
+        address proxyAddressComputed =
+            create2Factory.computeProxyAddress(address(this), "0xGenericRelayer");
         ForwardWrapper forwardWrapper = new ForwardWrapper(proxyAddressComputed, address(wormhole));
 
         CoreRelayer coreRelayerImplementation = new CoreRelayer(address(forwardWrapper));
@@ -126,8 +132,11 @@ contract TestHelpers {
             )
         );
 
-        coreRelayer =
-            IWormholeRelayer(create2Factory.create2Proxy("0xGenericRelayer", address(coreRelayerSetup), setupCall));
-        require(address(coreRelayer) == proxyAddressComputed, "computed must match actual proxy addr");
+        coreRelayer = IWormholeRelayer(
+            create2Factory.create2Proxy("0xGenericRelayer", address(coreRelayerSetup), setupCall)
+        );
+        require(
+            address(coreRelayer) == proxyAddressComputed, "computed must match actual proxy addr"
+        );
     }
 }

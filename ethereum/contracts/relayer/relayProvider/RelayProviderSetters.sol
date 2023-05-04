@@ -48,13 +48,22 @@ contract RelayProviderSetters is Context, RelayProviderState {
         _state.maximumBudget[targetChainId] = amount;
     }
 
-    function setPriceInfo(uint16 updateChainId, uint128 updateGasPrice, uint128 updateNativeCurrencyPrice) internal {
+    function setPriceInfo(
+        uint16 updateChainId,
+        uint128 updateGasPrice,
+        uint128 updateNativeCurrencyPrice
+    ) internal {
         _state.data[updateChainId].gasPrice = updateGasPrice;
         _state.data[updateChainId].nativeCurrencyPrice = updateNativeCurrencyPrice;
     }
 
-    function setAssetConversionBuffer(uint16 targetChain, uint16 tolerance, uint16 toleranceDenominator) internal {
-        RelayProviderStorage.AssetConversion storage assetConversion = _state.assetConversion[targetChain];
+    function setAssetConversionBuffer(
+        uint16 targetChain,
+        uint16 tolerance,
+        uint16 toleranceDenominator
+    ) internal {
+        RelayProviderStorage.AssetConversion storage assetConversion =
+            _state.assetConversion[targetChain];
         assetConversion.buffer = tolerance;
         assetConversion.denominator = toleranceDenominator;
     }
