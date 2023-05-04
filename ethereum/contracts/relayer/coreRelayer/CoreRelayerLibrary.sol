@@ -23,7 +23,7 @@ contract CoreRelayerLibrary is CoreRelayerState, ERC1967Upgrade {
     struct RegisterChain {
         bytes32 module;
         uint8 action;
-        uint16 chain; 
+        uint16 chain;
         uint16 emitterChain;
         bytes32 emitterAddress;
     }
@@ -118,7 +118,7 @@ contract CoreRelayerLibrary is CoreRelayerState, ERC1967Upgrade {
     }
 
     function submitRecoverChainId(bytes memory encodedVM) public {
-        if(!isFork()) {
+        if (!isFork()) {
             revert NotAFork();
         }
 
@@ -252,18 +252,22 @@ contract CoreRelayerLibrary is CoreRelayerState, ERC1967Upgrade {
         }
     }
 
-    function parseRecoverChainId(bytes memory encodedRecoverChainId) internal pure returns (RecoverChainId memory rci) {
-        uint index = 0;
+    function parseRecoverChainId(bytes memory encodedRecoverChainId)
+        internal
+        pure
+        returns (RecoverChainId memory rci)
+    {
+        uint256 index = 0;
 
         rci.module = encodedRecoverChainId.toBytes32(index);
         index += 32;
-        if(rci.module != module) {
+        if (rci.module != module) {
             revert WrongModule(rci.module);
         }
 
         rci.action = encodedRecoverChainId.toUint8(index);
         index += 1;
-        if(rci.action != 3) {
+        if (rci.action != 3) {
             revert InvalidRegisterChainAction(rci.action);
         }
 
@@ -273,7 +277,7 @@ contract CoreRelayerLibrary is CoreRelayerState, ERC1967Upgrade {
         rci.newChainId = encodedRecoverChainId.toUint16(index);
         index += 2;
 
-        if(encodedRecoverChainId.length != index) {
+        if (encodedRecoverChainId.length != index) {
             revert InvalidRecoverChainLength(encodedRecoverChainId.length);
         }
     }
