@@ -12,7 +12,12 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
     error CallerNotApproved(address msgSender);
 
     //Returns the delivery overhead fee required to deliver a message to targetChain, denominated in this chain's wei.
-    function quoteDeliveryOverhead(uint16 targetChain) public view override returns (uint256 nativePriceQuote) {
+    function quoteDeliveryOverhead(uint16 targetChain)
+        public
+        view
+        override
+        returns (uint256 nativePriceQuote)
+    {
         uint256 targetFees = uint256(1) * deliverGasOverhead(targetChain) * gasPrice(targetChain);
         return quoteAssetConversion(targetChain, targetFees, chainId());
     }
@@ -28,7 +33,12 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
     }
 
     //Returns the maximum budget that is allowed for a delivery on target chain, denominated in the targetChain's wei.
-    function quoteMaximumBudget(uint16 targetChain) public view override returns (uint256 maximumTargetBudget) {
+    function quoteMaximumBudget(uint16 targetChain)
+        public
+        view
+        override
+        returns (uint256 maximumTargetBudget)
+    {
         return maximumBudget(targetChain);
     }
 
@@ -41,7 +51,12 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
         return _state.supportedChains[targetChainId];
     }
 
-    function getTargetChainAddress(uint16 targetChainId) public view override returns (bytes32 relayProviderAddress) {
+    function getTargetChainAddress(uint16 targetChainId)
+        public
+        view
+        override
+        returns (bytes32 relayProviderAddress)
+    {
         return targetChainAddress(targetChainId);
     }
 
@@ -63,15 +78,16 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
      */
 
     // relevant for chains that have dynamic execution pricing (e.g. Ethereum)
-    function quoteAssetConversion(uint16 sourceChain, uint256 sourceAmount, uint16 targetChain)
-        internal
-        view
-        returns (uint256 targetAmount)
-    {
+    function quoteAssetConversion(
+        uint16 sourceChain,
+        uint256 sourceAmount,
+        uint16 targetChain
+    ) internal view returns (uint256 targetAmount) {
         uint256 srcNativeCurrencyPrice = quoteAssetPrice(sourceChain);
         uint256 dstNativeCurrencyPrice = quoteAssetPrice(targetChain);
 
         // round up
-        return (sourceAmount * srcNativeCurrencyPrice + dstNativeCurrencyPrice - 1) / dstNativeCurrencyPrice;
+        return (sourceAmount * srcNativeCurrencyPrice + dstNativeCurrencyPrice - 1)
+            / dstNativeCurrencyPrice;
     }
 }

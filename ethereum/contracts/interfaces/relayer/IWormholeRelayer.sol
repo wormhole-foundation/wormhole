@@ -307,10 +307,11 @@ interface IWormholeRelayer {
      *
      * @return maxTransactionFee The 'maxTransactionFee' you pass into your request (to relay messages to 'targetChain' and use 'gasLimit' units of gas) must be at least this amount
      */
-    function quoteGas(uint16 targetChain, uint32 gasLimit, address relayProvider)
-        external
-        pure
-        returns (uint256 maxTransactionFee);
+    function quoteGas(
+        uint16 targetChain,
+        uint32 gasLimit,
+        address relayProvider
+    ) external pure returns (uint256 maxTransactionFee);
 
     /**
      * @notice quoteReceiverValue tells you how much receiverValue (denominated in current (source) chain currency) must be
@@ -326,10 +327,11 @@ interface IWormholeRelayer {
      *
      * @return receiverValue The 'receiverValue' you pass into your send request (to relay messages to 'targetChain' with 'targetAmount' of value) must be at least this amount
      */
-    function quoteReceiverValue(uint16 targetChain, uint256 targetAmount, address relayProvider)
-        external
-        pure
-        returns (uint256 receiverValue);
+    function quoteReceiverValue(
+        uint16 targetChain,
+        uint256 targetAmount,
+        address relayProvider
+    ) external pure returns (uint256 receiverValue);
 
     /**
      * @notice Helper function that converts an EVM address to wormhole format

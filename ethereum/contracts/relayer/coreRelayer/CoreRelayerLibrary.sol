@@ -125,7 +125,11 @@ contract CoreRelayerLibrary is CoreRelayerState, ERC1967Upgrade {
     }
 
     //parser functions
-    function parseUpgrade(bytes memory encodedUpgrade) internal pure returns (ContractUpgrade memory cu) {
+    function parseUpgrade(bytes memory encodedUpgrade)
+        internal
+        pure
+        returns (ContractUpgrade memory cu)
+    {
         uint256 index = 0;
 
         cu.module = encodedUpgrade.toBytes32(index);
@@ -212,7 +216,8 @@ contract CoreRelayerLibrary is CoreRelayerState, ERC1967Upgrade {
         defaultProvider.chain = encodedDefaultProvider.toUint16(index);
         index += 2;
 
-        defaultProvider.newProvider = address(uint160(uint256(encodedDefaultProvider.toBytes32(index))));
+        defaultProvider.newProvider =
+            address(uint160(uint256(encodedDefaultProvider.toBytes32(index))));
         index += 32;
 
         if (encodedDefaultProvider.length != index) {
@@ -227,7 +232,8 @@ contract CoreRelayerLibrary is CoreRelayerState, ERC1967Upgrade {
         _upgradeTo(newImplementation);
 
         // Call initialize function of the new implementation
-        (bool success, bytes memory reason) = newImplementation.delegatecall(abi.encodeWithSignature("initialize()"));
+        (bool success, bytes memory reason) =
+            newImplementation.delegatecall(abi.encodeWithSignature("initialize()"));
 
         if (!success) {
             revert FailedToInitializeImplementation(string(reason));
@@ -241,7 +247,8 @@ contract CoreRelayerLibrary is CoreRelayerState, ERC1967Upgrade {
         view
         returns (IWormhole.VM memory parsedVM, bool isValid, string memory invalidReason)
     {
-        (IWormhole.VM memory vm, bool valid, string memory reason) = getWormholeState().parseAndVerifyVM(encodedVM);
+        (IWormhole.VM memory vm, bool valid, string memory reason) =
+            getWormholeState().parseAndVerifyVM(encodedVM);
 
         if (!valid) {
             return (vm, valid, reason);
@@ -261,7 +268,11 @@ contract CoreRelayerLibrary is CoreRelayerState, ERC1967Upgrade {
         return (vm, true, "");
     }
 
-    function truncateReturnData(bytes memory returnData) internal pure returns (bytes memory returnDataTruncated) {
+    function truncateReturnData(bytes memory returnData)
+        internal
+        pure
+        returns (bytes memory returnDataTruncated)
+    {
         if (returnData.length <= 124) {
             returnDataTruncated = returnData;
         } else {
@@ -278,7 +289,10 @@ contract CoreRelayerLibrary is CoreRelayerState, ERC1967Upgrade {
         _state.defaultRelayProvider = defaultRelayProvider;
     }
 
-    function setRegisteredCoreRelayerContract(uint16 targetChain, bytes32 relayerAddress) internal {
+    function setRegisteredCoreRelayerContract(
+        uint16 targetChain,
+        bytes32 relayerAddress
+    ) internal {
         _state.registeredCoreRelayerContract[targetChain] = relayerAddress;
     }
 

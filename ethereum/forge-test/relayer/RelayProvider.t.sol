@@ -37,7 +37,10 @@ contract TestRelayProvider is Test {
         require(relayProvider.chainId() == TEST_ORACLE_CHAIN_ID, "chainId() != expected");
     }
 
-    function testCannotUpdatePriceWithChainIdZero(uint128 updateGasPrice, uint128 updateNativeCurrencyPrice) public {
+    function testCannotUpdatePriceWithChainIdZero(
+        uint128 updateGasPrice,
+        uint128 updateNativeCurrencyPrice
+    ) public {
         vm.assume(updateGasPrice > 0);
         vm.assume(updateNativeCurrencyPrice > 0);
 
@@ -52,7 +55,10 @@ contract TestRelayProvider is Test {
         );
     }
 
-    function testCannotUpdatePriceWithGasPriceZero(uint16 updateChainId, uint128 updateNativeCurrencyPrice) public {
+    function testCannotUpdatePriceWithGasPriceZero(
+        uint16 updateChainId,
+        uint128 updateNativeCurrencyPrice
+    ) public {
         vm.assume(updateChainId > 0);
         vm.assume(updateNativeCurrencyPrice > 0);
 
@@ -67,7 +73,10 @@ contract TestRelayProvider is Test {
         );
     }
 
-    function testCannotUpdatePriceWithNativeCurrencyPriceZero(uint16 updateChainId, uint128 updateGasPrice) public {
+    function testCannotUpdatePriceWithNativeCurrencyPriceZero(
+        uint16 updateChainId,
+        uint128 updateGasPrice
+    ) public {
         vm.assume(updateChainId > 0);
         vm.assume(updateGasPrice > 0);
 
@@ -172,8 +181,9 @@ contract TestRelayProvider is Test {
         relayProvider.updatePrice(TEST_ORACLE_CHAIN_ID, srcGasPrice, srcNativeCurrencyPrice);
 
         // verify price
-        uint256 expected = (uint256(dstNativeCurrencyPrice) * (uint256(dstGasPrice)) + (srcNativeCurrencyPrice - 1))
-            / srcNativeCurrencyPrice;
+        uint256 expected = (
+            uint256(dstNativeCurrencyPrice) * (uint256(dstGasPrice)) + (srcNativeCurrencyPrice - 1)
+        ) / srcNativeCurrencyPrice;
         uint256 readValues = relayProvider.quoteGasPrice(dstChainId);
         require(readValues == expected, "relayProvider.quotePrices != expected");
     }
@@ -201,7 +211,8 @@ contract TestRelayProvider is Test {
 
         initializeRelayProvider();
 
-        RelayProviderStructs.UpdatePrice[] memory updates = new RelayProviderStructs.UpdatePrice[](2);
+        RelayProviderStructs.UpdatePrice[] memory updates =
+            new RelayProviderStructs.UpdatePrice[](2);
         updates[0] = RelayProviderStructs.UpdatePrice({
             chainId: TEST_ORACLE_CHAIN_ID,
             gasPrice: srcGasPrice,
@@ -217,8 +228,9 @@ contract TestRelayProvider is Test {
         relayProvider.updatePrices(updates);
 
         // verify price
-        uint256 expected = (uint256(dstNativeCurrencyPrice) * (uint256(dstGasPrice)) + (srcNativeCurrencyPrice - 1))
-            / srcNativeCurrencyPrice;
+        uint256 expected = (
+            uint256(dstNativeCurrencyPrice) * (uint256(dstGasPrice)) + (srcNativeCurrencyPrice - 1)
+        ) / srcNativeCurrencyPrice;
         uint256 readValues = relayProvider.quoteGasPrice(dstChainId);
         require(readValues == expected, "relayProvider.quotePrices != expected");
     }
