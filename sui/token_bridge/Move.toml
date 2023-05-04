@@ -13,9 +13,6 @@ local = "../wormhole"
 [addresses]
 token_bridge = "_"
 
-[dev-dependencies.Wormhole]
-local = "../wormhole"
-
 [dev-addresses]
 wormhole = "0x100"
 token_bridge = "0x200"
