@@ -4,10 +4,11 @@ pragma solidity ^0.8.0;
 
 import "../../interfaces/relayer/IWormholeRelayer.sol";
 import "./Utils.sol";
-import "./CoreRelayerGovernance.sol";
+import "./CoreRelayerMessages.sol";
+import "./CoreRelayerSetters.sol";
 import "../../interfaces/relayer/IWormholeRelayerInternalStructs.sol";
 
-abstract contract CoreRelayerSend is CoreRelayerGovernance {
+abstract contract CoreRelayerSend is CoreRelayerMessages, CoreRelayerSetters  {
     /**
      *  @notice the 'send' function emits a wormhole message (VAA) that instructs the default wormhole relay provider to
      *  call the 'IWormholeReceiver.receiveWormholeMessage' method of the contract on chain 'sendParams.targetChain' and address 'sendParams.targetAddress'

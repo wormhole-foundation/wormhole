@@ -6,10 +6,11 @@ import "../../interfaces/relayer/IWormholeReceiver.sol";
 import "../../interfaces/relayer/IDelivery.sol";
 import "../../interfaces/relayer/IForwardWrapper.sol";
 import "./Utils.sol";
+import "./CoreRelayerMessages.sol";
+import "./CoreRelayerSetters.sol";
 import "../../interfaces/relayer/IWormholeRelayerInternalStructs.sol";
-import "./CoreRelayerGovernance.sol";
 
-abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
+abstract contract CoreRelayerDelivery is CoreRelayerMessages, CoreRelayerSetters {
     enum DeliveryStatus {
         SUCCESS,
         RECEIVER_FAILURE,
@@ -198,8 +199,9 @@ abstract contract CoreRelayerDelivery is CoreRelayerGovernance {
                 abi.decode(stack.callToInstructionExecutorData, (bool, uint32, bytes));
         } else {
             // Calculate the amount of gas used in the call (upperbounding at the gas limit, which shouldn't have been exceeded)
-            stack.gasUsed =
-                uint32(Utils.min(stack.preGas - stack.postGas, vaaInfo.deliveryInstruction.executionParameters.gasLimit));
+            stack.gasUsed = uint32(
+                Utils.min(stack.preGas - stack.postGas, vaaInfo.deliveryInstruction.executionParameters.gasLimit)
+            );
         }
         // Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the fraction of gas unused)
         stack.transactionFeeRefundAmount = (vaaInfo.deliveryInstruction.executionParameters.gasLimit - stack.gasUsed)

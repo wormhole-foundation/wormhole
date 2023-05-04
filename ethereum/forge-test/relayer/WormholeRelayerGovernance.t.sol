@@ -16,7 +16,6 @@ import {IWormholeRelayerInternalStructs} from "../../contracts/interfaces/relaye
 import {CoreRelayerSetup} from "../../contracts/relayer/coreRelayer/CoreRelayerSetup.sol";
 import {CoreRelayerMessages} from "../../contracts/relayer/coreRelayer/CoreRelayerMessages.sol";
 import {ForwardWrapper} from "../../contracts/relayer/coreRelayer/ForwardWrapper.sol";
-import {CoreRelayerGovernance} from "../../contracts/relayer/coreRelayer/CoreRelayerGovernance.sol";
 import {MockGenericRelayer} from "./MockGenericRelayer.sol";
 import {MockWormhole} from "./MockWormhole.sol";
 import {IWormhole} from "../../contracts/interfaces/IWormhole.sol";
@@ -99,7 +98,7 @@ contract WormholeRelayerGovernanceTests is Test {
             abi.encodePacked(relayerModule, uint8(3), uint16(1), bytes32(uint256(uint160(address(relayProviderB)))))
         );
 
-        CoreRelayerGovernance(address(wormholeRelayer)).setDefaultRelayProvider(signed);
+        CoreRelayer(payable(address(wormholeRelayer))).setDefaultRelayProvider(signed);
 
         assertTrue(wormholeRelayer.getDefaultRelayProvider() == address(relayProviderB));
 
@@ -107,7 +106,7 @@ contract WormholeRelayerGovernanceTests is Test {
             abi.encodePacked(relayerModule, uint8(3), uint16(1), bytes32(uint256(uint160(address(relayProviderC)))))
         );
 
-        CoreRelayerGovernance(address(wormholeRelayer)).setDefaultRelayProvider(signed);
+        CoreRelayer(payable(address(wormholeRelayer))).setDefaultRelayProvider(signed);
 
         assertTrue(wormholeRelayer.getDefaultRelayProvider() == address(relayProviderC));
     }
@@ -158,7 +157,7 @@ contract WormholeRelayerGovernanceTests is Test {
     }
 
     function testUpgradeContractToItself() public {
-        address myCoreRelayer = address(helpers.setUpCoreRelayer(wormhole.chainId(), wormhole, address(relayProvider)));
+        address payable  myCoreRelayer = payable(address(helpers.setUpCoreRelayer(wormhole.chainId(), wormhole, address(relayProvider))));
 
         for (uint256 i = 0; i < 10; i++) {
             address forwardWrapper = address(new ForwardWrapper(myCoreRelayer, address(wormhole)));
@@ -173,9 +172,9 @@ contract WormholeRelayerGovernanceTests is Test {
 
             bytes memory signed = signMessage(message);
 
-            CoreRelayerGovernance(address(myCoreRelayer)).submitContractUpgrade(signed);
+            CoreRelayer(myCoreRelayer).submitContractUpgrade(signed);
 
-            CoreRelayer(payable(address(myCoreRelayer))).getDefaultRelayProvider();
+            CoreRelayer(myCoreRelayer).getDefaultRelayProvider();
         }
 
         bytes memory brickedMessage = abi.encodePacked(
@@ -184,10 +183,10 @@ contract WormholeRelayerGovernanceTests is Test {
             uint16(1),
             wormholeRelayer.toWormholeFormat(address(new RelayProviderImplementation()))
         );
-        CoreRelayerGovernance(address(myCoreRelayer)).submitContractUpgrade(signMessage(brickedMessage));
+        CoreRelayer(myCoreRelayer).submitContractUpgrade(signMessage(brickedMessage));
 
         vm.expectRevert();
-        CoreRelayer(payable(address(myCoreRelayer))).getDefaultRelayProvider();
+        CoreRelayer(myCoreRelayer).getDefaultRelayProvider();
     }
 
     /*
