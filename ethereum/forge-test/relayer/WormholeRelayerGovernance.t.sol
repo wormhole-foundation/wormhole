@@ -186,7 +186,7 @@ contract WormholeRelayerGovernanceTests is Test {
 
             bytes memory message = abi.encodePacked(
                 relayerModule,
-                uint8(1),
+                uint8(2),
                 uint16(1),
                 wormholeRelayer.toWormholeFormat(address(coreRelayerImplementationNew))
             );
@@ -200,7 +200,7 @@ contract WormholeRelayerGovernanceTests is Test {
 
         bytes memory brickedMessage = abi.encodePacked(
             relayerModule,
-            uint8(1),
+            uint8(2),
             uint16(1),
             wormholeRelayer.toWormholeFormat(address(new RelayProviderImplementation()))
         );
