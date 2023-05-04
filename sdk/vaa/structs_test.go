@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -193,9 +195,26 @@ func TestAddress_String(t *testing.T) {
 }
 
 func TestAddress_Bytes(t *testing.T) {
-	addr := Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4}
-	expected := []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x4}
-	assert.Equal(t, addr.Bytes(), expected)
+	testCases := []struct {
+		name     string
+		address  Address
+		expected []byte
+	}{
+		{"Base case parsing", Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4},
+			[]byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x4}},
+		{"Empty struct", Address{},
+			[]byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}},
+		{"Single byte zero", Address{0},
+			[]byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}},
+		{"All zeros", Address{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			[]byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.address.Bytes(), tc.expected)
+		})
+	}
 }
 
 func TestSignatureData_MarshalJSON(t *testing.T) {
@@ -208,9 +227,26 @@ func TestSignatureData_MarshalJSON(t *testing.T) {
 }
 
 func TestSignature_DataString(t *testing.T) {
-	sigData := SignatureData{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0}
-	expected := "0000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000400"
-	assert.Equal(t, sigData.String(), expected)
+	testCases := []struct {
+		name     string
+		sigData  SignatureData
+		expected string
+	}{
+		{"Base case parsing", SignatureData{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0},
+			"0000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000400"},
+		{"Empty struct", SignatureData{},
+			"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"},
+		{"Single byte zero", SignatureData{0},
+			"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"},
+		{"All zeros", SignatureData{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.sigData.String(), tc.expected)
+		})
+	}
 }
 
 func TestMinVAALength(t *testing.T) {
@@ -714,6 +750,46 @@ func TestStringToAddress(t *testing.T) {
 	}
 }
 
+func TestStringToHash(t *testing.T) {
+
+	tests := []struct {
+		label     string
+		rawAddr   string
+		hash      common.Hash
+		errString string
+	}{
+		{label: "simple",
+			rawAddr:   "0102030405",
+			hash:      common.BytesToHash([]byte{1, 2, 3, 4, 5}),
+			errString: ""},
+		{label: "0x prefixed simple",
+			rawAddr:   "0x0102030405",
+			hash:      common.BytesToHash([]byte{1, 2, 3, 4, 5}),
+			errString: ""},
+		{label: "empty string",
+			rawAddr:   "",
+			hash:      common.BytesToHash([]byte{0, 0, 0, 0, 0}),
+			errString: "value must be at least 1 byte"},
+		{label: "0x only",
+			rawAddr:   "0x",
+			hash:      common.BytesToHash([]byte{0, 0, 0, 0, 0}),
+			errString: "value must be at least 1 byte, after trimming"},
+	}
+
+	for _, tc := range tests {
+		t.Run(string(tc.label), func(t *testing.T) {
+			hash, err := StringToHash(tc.rawAddr)
+			if len(tc.errString) == 0 {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.hash, hash)
+			} else {
+				assert.Equal(t, tc.hash, hash)
+				assert.Equal(t, tc.errString, err.Error())
+			}
+		})
+	}
+}
+
 func TestBytesToAddress(t *testing.T) {
 	addrStr := "0000000000000000000000003ee18b2214aff97000d974cf647e7c347e8fa585"
 	expectedAddr, err := StringToAddress(addrStr)
@@ -738,6 +814,54 @@ func TestBytesToAddress(t *testing.T) {
 	shortAddr, err := BytesToAddress(addrBytes[4:])
 	assert.NoError(t, err)
 	assert.Equal(t, expectedAddr, shortAddr)
+}
+
+func FuzzStringToAddress(f *testing.F) {
+	// Add this example to our fuzz corpus
+	f.Add("0000000000000000000000003ee18b2214aff97000d974cf647e7c347e8fa585")
+	f.Fuzz(func(t *testing.T, s string) {
+		// skip test cases that will be trivially excluded because they are too small
+		if len(s) < 2 {
+			t.Skip()
+		}
+
+		// skip test cases that just contain a prefix
+		if s == "0x" {
+			t.Skip()
+		}
+
+		// skip test cases that will be trivially excluded because they are known to be zero
+		var onlyZeros = regexp.MustCompile(`^(0x)?[0]+$`).MatchString
+		if onlyZeros(s) {
+			t.Skip()
+		}
+
+		// skip test cases that will be trivially excluded because they have odd bytes
+		if len(s)%2 != 0 {
+			t.Skip()
+		}
+
+		// skip test cases that will be trivially excluded because they are too long
+		if len(s) > 32 {
+			t.Skip()
+		}
+
+		address, err := StringToAddress(s)
+
+		// Check to see if fuzz resulted in an unexpected error case
+		if err != nil {
+			if strings.Contains(err.Error(), "encoding/hex: invalid byte") {
+				t.Skip()
+			}
+			t.Errorf("%v", err)
+		}
+
+		// Check to see if the fuzz resulted in a predictable zero address
+		zeroAddress, err := StringToAddress("00")
+		if zeroAddress == address {
+			t.Errorf("%v", "Input resulted in a zero address")
+		}
+	})
 }
 
 func TestDecodeTransferPayloadHdr(t *testing.T) {
@@ -850,6 +974,36 @@ func TestIsTransfer(t *testing.T) {
 			assert.Equal(t, tc.result, IsTransfer(tc.payload))
 		})
 	}
+}
+
+func FuzzIsTransfer(f *testing.F) {
+	// Add this example to our fuzz corpus
+	f.Add([]byte{0x1})
+	f.Fuzz(func(t *testing.T, b []byte) {
+		if IsTransfer(b) == true {
+			if bytes.HasPrefix(b, []byte{0x1}) {
+				t.Skip()
+			}
+
+			if bytes.HasPrefix(b, []byte{0x3}) {
+				t.Skip()
+			}
+
+			t.Errorf("%v", "unexpected transfer is true result")
+		}
+
+		if IsTransfer(b) == false {
+			if !bytes.HasPrefix(b, []byte{0x1}) {
+				t.Skip()
+			}
+
+			if !bytes.HasPrefix(b, []byte{0x3}) {
+				t.Skip()
+			}
+
+			t.Errorf("%v", "unexpected transfer is false result")
+		}
+	})
 }
 
 func TestUnmarshalBody(t *testing.T) {

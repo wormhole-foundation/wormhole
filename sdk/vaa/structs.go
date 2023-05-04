@@ -1003,6 +1003,11 @@ func StringToAddress(value string) (Address, error) {
 	// Trim any preceding "0x" to the address
 	value = strings.TrimPrefix(value, "0x")
 
+	// Make sure we have enough to decode, after trimming prefix
+	if len(value) < 2 {
+		return address, fmt.Errorf("value must be at least 1 byte, after trimming")
+	}
+
 	// Decode the string from hex to binary
 	res, err := hex.DecodeString(value)
 	if err != nil {
@@ -1039,6 +1044,11 @@ func StringToHash(value string) (common.Hash, error) {
 
 	// Trim any preceding "0x" to the address
 	value = strings.TrimPrefix(value, "0x")
+
+	// Make sure we still have enough to decode
+	if len(value) < 2 {
+		return tx, fmt.Errorf("value must be at least 1 byte, after trimming")
+	}
 
 	res, err := hex.DecodeString(value)
 	if err != nil {
