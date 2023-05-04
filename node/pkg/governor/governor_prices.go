@@ -156,8 +156,12 @@ func (gov *ChainGovernor) queryCoinGecko() error {
 		if exists {
 			// If a price is not set in CoinGecko, they return an empty entry. Treat that as a zero price.
 			var price float64
-
-			m := data.(map[string]interface{})
+			m, ok := data.(map[string]interface{})
+			if !ok {
+				gov.logger.Error("failed to parse CoinGecko response, reverting to configured price for this token", zap.String("coinGeckoId", coinGeckoId))
+				// By continuing, we leave this one in the local map so the price will get reverted below.
+				continue
+			}
 			if len(m) != 0 {
 				var ok bool
 				price_, ok := m["usd"]
