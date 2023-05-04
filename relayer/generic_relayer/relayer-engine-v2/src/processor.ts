@@ -40,8 +40,9 @@ export async function processGenericRelayerVaa(ctx: GRContext, next: Next) {
 
 async function processDelivery(ctx: GRContext) {
   const deliveryVaa = parseWormholeRelayerSend(ctx.vaa!.payload);
+  const sourceRelayProvider = ethers.utils.getAddress(wh.tryUint8ArrayToNative(deliveryVaa.sourceRelayProvider, "ethereum"));
   if (
-    wh.tryUint8ArrayToNative(deliveryVaa.sourceRelayProvider, "ethereum") !==
+    sourceRelayProvider !==
     ctx.relayProviders[ctx.vaa!.emitterChain as EVMChainId]
   ) {
     ctx.logger.info("Delivery vaa specifies different relay provider", {
@@ -54,8 +55,9 @@ async function processDelivery(ctx: GRContext) {
 
 async function processRedelivery(ctx: GRContext) {
   const redeliveryVaa = parseWormholeRelayerResend(ctx.vaa!.payload);
+  const sourceRelayProvider = ethers.utils.getAddress(wh.tryUint8ArrayToNative(redeliveryVaa.sourceRelayProvider, "ethereum"));
   if (
-    wh.tryUint8ArrayToNative(redeliveryVaa.sourceRelayProvider, "ethereum") !==
+    sourceRelayProvider !==
     ctx.relayProviders[ctx.vaa!.emitterChain as EVMChainId]
   ) {
     ctx.logger.info("Delivery vaa specifies different relay provider", {
