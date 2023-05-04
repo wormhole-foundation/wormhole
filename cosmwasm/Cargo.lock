@@ -1742,6 +1742,7 @@ dependencies = [
  "hex",
  "schemars",
  "serde",
+ "serde-json-wasm",
  "sha3 0.9.1",
  "terraswap",
  "thiserror",
