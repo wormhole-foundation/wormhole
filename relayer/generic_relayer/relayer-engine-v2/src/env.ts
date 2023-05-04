@@ -13,6 +13,7 @@ import {
 } from "@certusone/wormhole-sdk";
 import { rootLogger } from "./log";
 import { dbg } from "../pkgs/sdk/src";
+import { ethers } from "ethers";
 
 const SCRIPTS_DIR = "../../../ethereum/ts-scripts/relayer";
 
@@ -130,11 +131,11 @@ export async function loadAppConfig(): Promise<{
   const wormholeRelayers = {} as Record<EVMChainId, string>;
   contracts.relayProviders.forEach(
     ({ chainId, address }: ContractConfigEntry) =>
-      (relayProviders[chainId] = address)
+      (relayProviders[chainId] = ethers.utils.getAddress(address))
   );
   contracts.coreRelayers.forEach(
     ({ chainId, address }: ContractConfigEntry) =>
-      (wormholeRelayers[chainId] = address)
+      (wormholeRelayers[chainId] = ethers.utils.getAddress(address))
   );
 
   return {
