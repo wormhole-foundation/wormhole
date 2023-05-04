@@ -37,6 +37,9 @@ func NewBlockPollConnector(ctx context.Context, baseConnector Connector, finaliz
 	if publishSafeBlocks && !useFinalized {
 		return nil, fmt.Errorf("publishSafeBlocks may only be enabled if useFinalized is enabled")
 	}
+	if finalizer == nil {
+		return nil, fmt.Errorf("finalizer must not be nil; Use finalizers.NewDefaultFinalizer() if you want to have no finalizer.")
+	}
 	connector := &BlockPollConnector{
 		Connector:         baseConnector,
 		Delay:             delay,
@@ -143,17 +146,15 @@ func (b *BlockPollConnector) pollBlocks(ctx context.Context, logger *zap.Logger,
 			return lastPublishedBlock, fmt.Errorf("failed to fetch next block (%d): %w", nextBlockNumber.Uint64(), err)
 		}
 
-		if b.finalizer != nil {
-			finalized, err := b.isBlockFinalizedWithTimeout(ctx, block)
-			if err != nil {
-				logger.Error("failed to check block finalization",
-					zap.Uint64("block", block.Number.Uint64()), zap.Error(err))
-				return lastPublishedBlock, fmt.Errorf("failed to check block finalization (%d): %w", block.Number.Uint64(), err)
-			}
+		finalized, err := b.isBlockFinalizedWithTimeout(ctx, block)
+		if err != nil {
+			logger.Error("failed to check block finalization",
+				zap.Uint64("block", block.Number.Uint64()), zap.Error(err))
+			return lastPublishedBlock, fmt.Errorf("failed to check block finalization (%d): %w", block.Number.Uint64(), err)
+		}
 
-			if !finalized {
-				break
-			}
+		if !finalized {
+			break
 		}
 
 		b.blockFeed.Send(block)
