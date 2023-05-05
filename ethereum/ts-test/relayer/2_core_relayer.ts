@@ -15,8 +15,10 @@ import {
   ethers_contracts,
   tryNativeToUint8Array,
   Network,
+  ChainId,
 } from "../../../sdk/js/src";
 import { MockRelayerIntegration } from "../../ethers-contracts";
+import { DeliveryInfo } from "../../../sdk/js/src/relayer";
 
 const ETHEREUM_ROOT = `${__dirname}/..`;
 

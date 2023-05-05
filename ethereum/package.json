@@ -35,6 +35,7 @@
     "verify": "patch -u -f node_modules/truffle-plugin-verify/constants.js -i truffle-verify-constants.patch; truffle run verify $npm_config_module@$npm_config_contract_address --network $npm_config_network",
     "verify-token": "patch -u -f node_modules/truffle-plugin-verify/constants.js -i truffle-verify-constants.patch; truffle run verify BridgeToken@$npm_config_contract_address --forceConstructorArgs string:$npm_config_constructor_args --network $npm_config_network",
     "abigen": "truffle run abigen",
+    "typecheck": "tsc --noEmit --skipLibCheck",
     "deploy-relayers-evm1": "ENV=kubernetes CONTAINER=evm1 bash ./ts-scripts/relayer/shell/deployInContainer.sh",
     "deploy-relayers-evm2": "ENV=kubernetes CONTAINER=evm2 bash ./ts-scripts/relayer/shell/deployInContainer.sh",
     "relayer-integration-test": "ts-mocha -t 1000000 ts-test/relayer/*.ts",
