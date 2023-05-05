@@ -55,6 +55,8 @@ abstract contract CoreRelayerSend is CoreRelayerMessages, CoreRelayerSetters {
             0, encodeDeliveryInstruction(instruction), sendParams.consistencyLevel
         );
 
+        emit Send(sequence, sendParams.maxTransactionFee, sendParams.receiverValue);
+
         // Pay the relay provider
         Utils.pay(relayProvider.getRewardAddress(), totalFee - wormholeMessageFee);
     }
@@ -184,6 +186,8 @@ abstract contract CoreRelayerSend is CoreRelayerMessages, CoreRelayerSetters {
             encodeRedeliveryInstruction(instruction),
             200 //emit immediately
         );
+
+        emit Send(sequence, newMaxTransactionFee, newReceiverValue);
 
         Utils.pay(relayProvider.getRewardAddress(), totalFee - wormholeMessageFee);
     }
