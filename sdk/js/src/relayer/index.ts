@@ -1,4 +1,3 @@
-
-export * from './structs'
-export * from "./consts"
-export * from "./main/main"
+export * from "./structs";
+export * from "./consts";
+export * from "./main/main";
