@@ -16,12 +16,12 @@
 //   worm edit-vaa --vaa $VAA --gs $TESTNET_GUARDIAN_SECRET
 //
 
-import yargs from "yargs";
-import axios from "axios";
-import { ethers } from "ethers";
-import { Other } from "@certusone/wormhole-sdk";
 import { Implementation__factory } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
 import { CONTRACTS } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+import { Other } from "@certusone/wormhole-sdk/lib/cjs/vaa";
+import axios from "axios";
+import { ethers } from "ethers";
+import yargs from "yargs";
 import { NETWORKS } from "../networks";
 import { parse, Payload, serialiseVAA, sign, Signature, VAA } from "../vaa";
 

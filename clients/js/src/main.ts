@@ -19,14 +19,6 @@ console.info = function (x: string) {
 
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
-import { isOutdated } from "./cmds/update";
-
-if (isOutdated()) {
-  console.error(
-    "\x1b[33m%s\x1b[0m",
-    "WARNING: 'worm' is out of date. Run 'worm update' to update."
-  );
-}
 
 yargs(hideBin(process.argv))
   .commandDir("cmds", { recurse: true })

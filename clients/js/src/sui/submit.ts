@@ -1,10 +1,10 @@
+import { parseAttestMetaVaa } from "@certusone/wormhole-sdk/lib/cjs/vaa/tokenBridge";
+import { getForeignAssetSui } from "@certusone/wormhole-sdk/lib/cjs/token_bridge/getForeignAsset";
 import {
-  assertChain,
   createWrappedOnSui,
   createWrappedOnSuiPrepare,
-  getForeignAssetSui,
-  parseAttestMetaVaa,
-} from "@certusone/wormhole-sdk";
+} from "@certusone/wormhole-sdk/lib/cjs/token_bridge/createWrapped";
+import { assertChain } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 import { getWrappedCoinType } from "@certusone/wormhole-sdk/lib/cjs/sui";
 import {
   CHAIN_ID_SUI,

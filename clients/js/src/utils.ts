@@ -1,6 +1,5 @@
 import { spawnSync } from "child_process";
 import { ethers } from "ethers";
-import { config } from "./config";
 
 export type Network = "MAINNET" | "TESTNET" | "DEVNET";
 
@@ -10,16 +9,14 @@ export function assertNetwork(n: string): asserts n is Network {
   }
 }
 
-export const checkBinary = (binaryName: string, dirName?: string): void => {
+export const checkBinary = (binaryName: string, readmeUrl?: string): void => {
   const binary = spawnSync(binaryName, ["--version"]);
   if (binary.status !== 0) {
     console.error(
       `${binaryName} is not installed. Please install ${binaryName} and try again.`
     );
-    if (dirName) {
-      console.error(
-        `See ${config.wormholeDir}/${dirName}/README.md for instructions.`
-      );
+    if (readmeUrl) {
+      console.error(`See ${readmeUrl} for instructions.`);
     }
     process.exit(1);
   }

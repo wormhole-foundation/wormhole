@@ -1,6 +1,27 @@
 {
-  "name": "@wormhole-foundation/wormhole-client",
-  "version": "0.0.3",
+  "name": "@wormhole-foundation/wormhole-cli",
+  "version": "0.0.2",
+  "description": "CLI for Wormhole related activities",
+  "homepage": "https://wormhole.com",
+  "bin": {
+    "worm": "./build/main.js"
+  },
+  "files": [
+    "build/"
+  ],
+  "repository": "https://github.com/certusone/wormhole/tree/main/clients/js",
+  "scripts": {
+    "start": "ts-node main.ts",
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Wormhole Contributors",
+  "license": "Apache-2.0",
+  "keywords": [
+    "wormhole",
+    "bridge",
+    "cli"
+  ],
   "dependencies": {
     "@celo-tools/celo-ethers-wrapper": "^0.1.0",
     "@certusone/wormhole-sdk": "^0.9.15-beta.4",
@@ -29,15 +50,6 @@
     "near-api-js": "^0.45.1",
     "near-seed-phrase": "^0.2.0",
     "yargs": "^17.0.1"
-  },
-  "bin": {
-    "worm": "./build/main.js",
-    "worm-fetch-governance": "./worm-fetch-governance"
-  },
-  "scripts": {
-    "start": "ts-node main.ts",
-    "build": "tsc",
-    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {
     "@truffle/hdwallet-provider": "^2.0.15",

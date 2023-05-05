@@ -20,6 +20,9 @@ import {
 import { Network, assertNetwork, checkBinary } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
 
+const README_URL =
+  "https://github.com/wormhole-foundation/wormhole/blob/main/sui/README.md";
+
 export const addDeployCommands: YargsAddCommandsFn = (y: typeof yargs) =>
   y.command(
     "deploy <package-dir>",
@@ -35,7 +38,7 @@ export const addDeployCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         .option("rpc", RPC_OPTIONS);
     },
     async (argv) => {
-      checkBinary("sui", "sui");
+      checkBinary("sui", README_URL);
 
       const packageDir = argv["package-dir"];
       const network = argv.network.toUpperCase();

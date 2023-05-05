@@ -1,8 +1,8 @@
 import {
   ChainId,
   coalesceChainName,
-  parseTokenBridgeRegisterChainVaa,
-} from "@certusone/wormhole-sdk";
+} from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+import { parseTokenBridgeRegisterChainVaa } from "@certusone/wormhole-sdk/lib/cjs/vaa/tokenBridge";
 import {
   JsonRpcProvider,
   TransactionBlock,
