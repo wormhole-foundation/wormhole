@@ -15,6 +15,8 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
     error InvalidPayloadId(uint8 payloadId);
     error InvalidDeliveryInstructionsPayload(uint256 length);
 
+    event Send (uint64 indexed sequence, uint256 maxTxFee, uint256 receiverValue);
+
     /**
      * @notice This function converts a Send struct into a DeliveryInstruction struct that
      * describes to the relayer exactly how to relay for the Send.
