@@ -2166,7 +2166,7 @@ contract WormholeRelayerTests is Test {
         );
     }
 
-    function testRevertSendMsgValueMoreThanMaximum(
+    function testRevertSendMsgValueMoreThanMaxAllowed(
         GasParameters memory gasParams,
         FeeParameters memory feeParams,
         bytes memory message
@@ -2186,7 +2186,7 @@ contract WormholeRelayerTests is Test {
 
         uint256 wormholeFee = setup.source.wormhole.messageFee();
 
-        vm.expectRevert(abi.encodeWithSignature("MsgValueMoreThanMaximum()"));
+        vm.expectRevert(abi.encodeWithSignature("MsgValueMoreThanMaxAllowed()"));
         setup.source.integration.sendMessageWithRefundAddress{
             value: maxTransactionFee * 105 / 100 + 1 + 3 * wormholeFee
         }(

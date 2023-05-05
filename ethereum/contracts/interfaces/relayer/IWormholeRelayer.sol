@@ -365,7 +365,7 @@ interface IWormholeRelayer {
      */
     function getDeliveryAddress() external view returns (address deliveryAddress);
 
-    error MsgValueMoreThanMaximum(); // (maxTransactionFee, converted to target chain currency) + (receiverValue, converted to target chain currency) is greater than what your chosen relay provider allows
+    error MsgValueMoreThanMaxAllowed(); // (maxTransactionFee, converted to target chain currency) + (receiverValue, converted to target chain currency) is greater than what your chosen relay provider allows
     error MsgValueTooLow(); // msg.value is lower than the amount you specified (i.e., msg.value is less than (wormhole message fee) + (maxTransactionFee) + (receiverValue))
     error MsgValueTooHigh(); // msg.value is higher than the amount you specified (i.e., msg.value is greater than (wormhole message fee) + (maxTransactionFee) + (receiverValue))
     // Specifically, (msg.value) + (any leftover funds if this is a forward) is less than (maxTransactionFee + receiverValue), summed over all of your requests if this is a multichainSend/multichainForward

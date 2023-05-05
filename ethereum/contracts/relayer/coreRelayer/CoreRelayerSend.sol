@@ -182,7 +182,7 @@ abstract contract CoreRelayerSend is CoreRelayerMessages, CoreRelayerSetters {
             instruction.newMaximumRefundTarget + instruction.newReceiverValueTarget
                 > relayProvider.quoteMaximumBudget(targetChain)
         ) {
-            revert IWormholeRelayer.MsgValueMoreThanMaximum();
+            revert IWormholeRelayer.MsgValueMoreThanMaxAllowed();
         }
 
         sequence = wormhole.publishMessage{value: wormholeMessageFee}(
