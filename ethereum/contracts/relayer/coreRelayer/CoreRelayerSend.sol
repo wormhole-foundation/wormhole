@@ -15,7 +15,7 @@ abstract contract CoreRelayerSend is CoreRelayerMessages, CoreRelayerSetters {
      *
      *  @param sendParams The Send request containing info about the targetChain, targetAddress, refundAddress, maxTransactionFee, receiverValue, relayProviderAddress, vaaKeys, consistencyLevel, payload, and relayParameters
      *
-     *  This function must be called with a payment of at least sendParams.maxTransactionFee + sendParams.receiverValue + one wormhole message fee.
+     *  This function must be called with a payment of exactly sendParams.maxTransactionFee + sendParams.receiverValue + one wormhole message fee.
      *
      *  @return sequence The sequence number for the emitted wormhole message, which contains encoded delivery instructions meant for your specified relay provider.
      *  The relay provider will listen for these messages, and then execute the delivery as described.
@@ -32,6 +32,8 @@ abstract contract CoreRelayerSend is CoreRelayerMessages, CoreRelayerSetters {
 
         if (totalFee > msg.value) {
             revert IWormholeRelayer.MsgValueTooLow();
+        } else if (msg.value > totalFee) {
+            revert IWormholeRelayer.MsgValueTooHigh();
         }
 
         IRelayProvider relayProvider = IRelayProvider(sendParams.relayProviderAddress);
@@ -77,7 +79,7 @@ abstract contract CoreRelayerSend is CoreRelayerMessages, CoreRelayerSetters {
      * @param sendParams The Send request containing info about the targetChain, targetAddress, refundAddress, maxTransactionFee, receiverValue, and relayParameters.
      * See struct documentation
      *
-     * This function must be called with a payment of at least sendParams.maxTransactionFee + sendParams.receiverValue + one wormhole message fee OR there must be enough
+     * This function must be called with a payment of exactly sendParams.maxTransactionFee + sendParams.receiverValue + one wormhole message fee OR there must be enough
      * left over gas from the currently in-progress delivery to cover.
      */
     function forward(IWormholeRelayer.Send memory sendParams) public payable {
@@ -147,6 +149,8 @@ abstract contract CoreRelayerSend is CoreRelayerMessages, CoreRelayerSetters {
         uint256 totalFee = newMaxTransactionFee + newReceiverValue + wormholeMessageFee;
         if (msg.value < totalFee) {
             revert IWormholeRelayer.MsgValueTooLow();
+        } else if (msg.value > totalFee) {
+            revert IWormholeRelayer.MsgValueTooHigh();
         }
 
         if (!relayProvider.isChainSupported(targetChain)) {
@@ -178,7 +182,7 @@ abstract contract CoreRelayerSend is CoreRelayerMessages, CoreRelayerSetters {
             instruction.newMaximumRefundTarget + instruction.newReceiverValueTarget
                 > relayProvider.quoteMaximumBudget(targetChain)
         ) {
-            revert IWormholeRelayer.MsgValueTooMuch();
+            revert IWormholeRelayer.MsgValueMoreThanMaximum();
         }
 
         sequence = wormhole.publishMessage{value: wormholeMessageFee}(
