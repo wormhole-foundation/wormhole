@@ -17,8 +17,7 @@ import {
   Network,
 } from "../../../sdk/js/src";
 import { MockRelayerIntegration } from "../../ethers-contracts";
-
-const ETHEREUM_ROOT = `${__dirname}/..`;
+import { ChainId } from "@certusone/wormhole-sdk";
 
 const env = init();
 const chains = loadChains();
@@ -182,7 +181,7 @@ describe("Core Relayer Integration Test - Two Chains", () => {
       sourceChain.chainId,
       tx.hash,
       { environment: environment }
-    )) as DeliveryInfo;
+    )) as relayer.DeliveryInfo;
     let status = info.targetChainStatus.events[0].status;
     expect(status).to.equal("Forward Request Success");
   });
@@ -368,7 +367,7 @@ describe("Core Relayer Integration Test - Two Chains", () => {
       {
         environment: environment,
       }
-    )) as DeliveryInfo;
+    )) as relayer.DeliveryInfo;
     let status = info.targetChainStatus.events[0].status;
     expect(status).to.equal("Forward Request Failure");
     console.log(relayer.stringifyWormholeRelayerInfo(info));
@@ -404,6 +403,7 @@ describe("Core Relayer Integration Test - Two Chains", () => {
     expect(message).to.equal(arbitraryPayload);
 
     console.log("Checking status using SDK");
+    
     const info = (await relayer.getWormholeRelayerInfo(
       sourceChain.chainId,
       tx.hash,
@@ -415,7 +415,14 @@ describe("Core Relayer Integration Test - Two Chains", () => {
 
   
   it("Test Stringify in Typescript SDK", async () => {
-    const info = (await relayer.getWormholeRelayerInfo(2, "0xf3b6d47694db4a4e8a28eae14be205c430a00d9b62ab60612e24728d1eeb4a88", {environment: "DEVNET"})) as DeliveryInfo;
+    const addressMap = new Map<ChainId, string>();
+    addressMap.set(6, "0x6bBaF11913b3Ebb383fEee962B07Cd9a048F7029");
+    addressMap.set(4, "0x44C34D7e0CEAc3B9255ACafFb3dC061D2d90fe20")
+    addressMap.set(5, "0x44C34D7e0CEAc3B9255ACafFb3dC061D2d90fe20")
+    const blockRangeMap = new Map<ChainId, [ethers.providers.BlockTag, ethers.providers.BlockTag]>();
+    blockRangeMap.set(4, [29527513, 29527515])
+
+    const info = (await relayer.getWormholeRelayerInfo(6, "0xf6c47da953a7d8a6d4438ad89ba5295bb240392f3742c0b91aea0dced75d3a35", {environment: "TESTNET", coreRelayerAddresses: addressMap, targetChainBlockRanges: blockRangeMap })) as relayer.DeliveryInfo;
     console.log(relayer.stringifyWormholeRelayerInfo(info));
   })
 
@@ -468,7 +475,7 @@ describe("Core Relayer Integration Test - Two Chains", () => {
       sourceChain.chainId,
       tx.hash,
       { environment: environment }
-    )) as DeliveryInfo;
+    )) as relayer.DeliveryInfo;
     console.log(relayer.stringifyWormholeRelayerInfo(info));
     const status = info.targetChainStatus.events[0].status;
     expect(status).to.equal("Delivery Success");
@@ -572,7 +579,7 @@ describe("Core Relayer Integration Test - Two Chains", () => {
       sourceChain.chainId,
       tx.hash,
       { environment: environment }
-    )) as DeliveryInfo;
+    )) as relayer.DeliveryInfo;
     const status = info.targetChainStatus.events[0].status;
     expect(status).to.equal("Receiver Failure");
 
