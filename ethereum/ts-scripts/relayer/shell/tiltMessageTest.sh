@@ -1,1 +1,1 @@
-ENV=tilt ts-node ./ts-scripts/relayer/mockIntegration/messageTest.ts --from 2 --to 4
+ENV=tilt tsx ./ts-scripts/relayer/mockIntegration/messageTest.ts --from 2 --to 4
