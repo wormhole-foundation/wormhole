@@ -37,12 +37,13 @@ import { IWormholeRelayer } from "../../ethers-contracts";
 export type InfoRequestParams = {
   environment?: Network;
   sourceChainProvider?: ethers.providers.Provider;
-  targetChainProviders?: Map<number, ethers.providers.Provider>;
+  targetChainProviders?: Map<ChainId, ethers.providers.Provider>;
   targetChainBlockRanges?: Map<
-    number,
+    ChainId,
     [ethers.providers.BlockTag, ethers.providers.BlockTag]
   >;
   coreRelayerWhMessageIndex?: number;
+  coreRelayerAddresses?: Map<ChainId, string>
 };
 
 export type DeliveryInfo = {
@@ -299,7 +300,7 @@ export async function getWormholeRelayerInfo(
   if (!receipt) throw Error("Transaction has not been mined");
   const bridgeAddress =
     CONTRACTS[environment][CHAIN_ID_TO_NAME[sourceChain]].core;
-  const coreRelayerAddress = getWormholeRelayerAddress(
+  const coreRelayerAddress = infoRequest?.coreRelayerAddresses?.get(sourceChain) || getWormholeRelayerAddress(
     sourceChain,
     environment
   );
@@ -308,7 +309,6 @@ export async function getWormholeRelayerInfo(
       `Invalid chain ID or network: Chain ID ${sourceChain}, ${environment}`
     );
   }
-
   const deliveryLog = getWormholeRelayerLog(
     receipt,
     bridgeAddress,
@@ -344,7 +344,11 @@ export async function getWormholeRelayerInfo(
       sourceChain,
       BigNumber.from(deliveryLog.sequence),
       blockStartNumber,
-      blockEndNumber
+      blockEndNumber,
+      infoRequest?.coreRelayerAddresses?.get(targetChain) || getWormholeRelayerAddress(
+        targetChain,
+        environment
+      )
     );
 
     return {

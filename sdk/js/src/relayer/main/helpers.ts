@@ -89,7 +89,8 @@ export async function getWormholeRelayerInfoBySourceSequence(
   sourceChain: number,
   sourceVaaSequence: BigNumber,
   blockStartNumber: ethers.providers.BlockTag,
-  blockEndNumber: ethers.providers.BlockTag
+  blockEndNumber: ethers.providers.BlockTag,
+  targetCoreRelayerAddress: string
 ): Promise<{chainId: ChainId, events: DeliveryTargetInfo[]}> {
   const deliveryEvents = await getWormholeRelayerDeliveryEventsBySourceSequence(
     environment,
@@ -98,7 +99,8 @@ export async function getWormholeRelayerInfoBySourceSequence(
     sourceChain,
     sourceVaaSequence,
     blockStartNumber,
-    blockEndNumber
+    blockEndNumber,
+    targetCoreRelayerAddress
   );
   if (deliveryEvents.length == 0) {
     let status = `Delivery didn't happen on ${printChain(
@@ -140,12 +142,14 @@ export async function getWormholeRelayerDeliveryEventsBySourceSequence(
   sourceChain: number,
   sourceVaaSequence: BigNumber,
   blockStartNumber: ethers.providers.BlockTag,
-  blockEndNumber: ethers.providers.BlockTag
+  blockEndNumber: ethers.providers.BlockTag,
+  targetCoreRelayerAddress: string
 ): Promise<DeliveryTargetInfo[]> {
   const coreRelayer = getWormholeRelayer(
     targetChain,
     environment,
-    targetChainProvider
+    targetChainProvider,
+    targetCoreRelayerAddress
   );
 
   const deliveryEvents = coreRelayer.filters.Delivery(
