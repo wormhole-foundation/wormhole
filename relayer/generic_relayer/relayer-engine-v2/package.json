@@ -7,7 +7,7 @@
     "start": "tsx src/app.ts --flag=testnet",
     "testnet": "tsx src/app.ts --flag=testnet",
     "tilt": "tsx src/app.ts --flag=tilt",
-    "tiltkub": "tsxnode src/app.ts --flag=tiltkub",
+    "tiltkub": "tsx src/app.ts --flag=tiltkub",
     "prettier": "prettier --write .",
     "build": "tsc",
     "typecheck": "tsc --noEmit --skipLibCheck",
