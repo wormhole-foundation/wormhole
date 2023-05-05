@@ -1,13 +1,13 @@
-import yargs from "yargs";
 import {
   CHAINS,
   assertChain,
-} from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+import yargs from "yargs";
 import { NETWORKS } from "../networks";
 
-exports.command = "rpc <network> <chain>";
-exports.desc = "Print RPC address";
-exports.builder = (y: typeof yargs) => {
+export const command = "rpc <network> <chain>";
+export const desc = "Print RPC address";
+export const builder = (y: typeof yargs) => {
   return y
     .positional("network", {
       describe: "network",
@@ -20,7 +20,7 @@ exports.builder = (y: typeof yargs) => {
       choices: Object.keys(CHAINS),
     });
 };
-exports.handler = async (argv) => {
+export const handler = async (argv) => {
   assertChain(argv["chain"]);
   const network = argv.network.toUpperCase();
   if (network !== "MAINNET" && network !== "TESTNET" && network !== "DEVNET") {

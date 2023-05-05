@@ -1,14 +1,14 @@
 // The verify-vaa command invokes the parseAndVerifyVM method on the core contract on Ethereum to verify the specified VAA.
 
-import yargs from "yargs";
+import { Implementation__factory } from "@certusone/wormhole-sdk/lib/esm/ethers-contracts";
+import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { ethers } from "ethers";
-import { CONTRACTS } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
-import { Implementation__factory } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
+import yargs from "yargs";
 import { NETWORKS } from "../networks";
 
-exports.command = "verify-vaa";
-exports.desc = "Verifies a VAA by querying the core contract on Ethereum";
-exports.builder = (y: typeof yargs) => {
+export const command = "verify-vaa";
+export const desc = "Verifies a VAA by querying the core contract on Ethereum";
+export const builder = (y: typeof yargs) => {
   return y
     .option("vaa", {
       alias: "v",
@@ -24,7 +24,7 @@ exports.builder = (y: typeof yargs) => {
       required: true,
     });
 };
-exports.handler = async (argv) => {
+export const handler = async (argv) => {
   const network = argv.network.toUpperCase();
   if (network !== "MAINNET" && network !== "TESTNET" && network !== "DEVNET") {
     throw Error(`Unknown network: ${network}`);

@@ -8,7 +8,7 @@ import {
 import { fromUint8Array } from "js-base64";
 import { impossible, Payload } from "./vaa";
 import { NETWORKS } from "./networks";
-import { CONTRACTS } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 
 export async function execute_xpla(
   payload: Payload,
@@ -49,7 +49,7 @@ export async function execute_xpla(
           console.log("Upgrading core contract");
           break;
         case "RecoverChainId":
-          throw new Error("RecoverChainId not supported on XPLA")
+          throw new Error("RecoverChainId not supported on XPLA");
         default:
           impossible(payload);
       }
@@ -72,7 +72,7 @@ export async function execute_xpla(
           console.log("Upgrading contract");
           break;
         case "RecoverChainId":
-          throw new Error("RecoverChainId not supported on XPLA")
+          throw new Error("RecoverChainId not supported on XPLA");
         case "RegisterChain":
           console.log("Registering chain");
           break;
@@ -95,7 +95,7 @@ export async function execute_xpla(
           console.log("Upgrading contract");
           break;
         case "RecoverChainId":
-          throw new Error("RecoverChainId not supported on XPLA")
+          throw new Error("RecoverChainId not supported on XPLA");
         case "RegisterChain":
           console.log("Registering chain");
           break;

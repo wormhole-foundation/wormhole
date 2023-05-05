@@ -1,16 +1,16 @@
-import { parseAttestMetaVaa } from "@certusone/wormhole-sdk/lib/cjs/vaa/tokenBridge";
-import { getForeignAssetSui } from "@certusone/wormhole-sdk/lib/cjs/token_bridge/getForeignAsset";
+import { parseAttestMetaVaa } from "@certusone/wormhole-sdk/lib/esm/vaa/tokenBridge";
+import { getForeignAssetSui } from "@certusone/wormhole-sdk/lib/esm/token_bridge/getForeignAsset";
 import {
   createWrappedOnSui,
   createWrappedOnSuiPrepare,
-} from "@certusone/wormhole-sdk/lib/cjs/token_bridge/createWrapped";
-import { assertChain } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
-import { getWrappedCoinType } from "@certusone/wormhole-sdk/lib/cjs/sui";
+} from "@certusone/wormhole-sdk/lib/esm/token_bridge/createWrapped";
+import { assertChain } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+import { getWrappedCoinType } from "@certusone/wormhole-sdk/lib/esm/sui";
 import {
   CHAIN_ID_SUI,
   CHAIN_ID_TO_NAME,
   CONTRACTS,
-} from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { SUI_CLOCK_OBJECT_ID, TransactionBlock } from "@mysten/sui.js";
 import { Network } from "../utils";
 import { Payload, impossible } from "../vaa";

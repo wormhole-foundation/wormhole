@@ -2,9 +2,9 @@ import { ethers } from "ethers";
 import yargs from "yargs";
 import { hex } from "../utils";
 
-exports.command = "recover <digest> <signature>";
-exports.desc = "Recover an address from a signature";
-exports.builder = (y: typeof yargs) => {
+export const command = "recover <digest> <signature>";
+export const desc = "Recover an address from a signature";
+export const builder = (y: typeof yargs) => {
   return y
     .positional("digest", {
       describe: "digest",
@@ -15,7 +15,7 @@ exports.builder = (y: typeof yargs) => {
       type: "string",
     });
 };
-exports.handler = async (argv) => {
+export const handler = async (argv) => {
   console.log(
     ethers.utils.recoverAddress(hex(argv["digest"]), hex(argv["signature"]))
   );

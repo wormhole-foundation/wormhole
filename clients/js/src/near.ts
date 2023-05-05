@@ -1,11 +1,11 @@
 import { impossible, Payload } from "./vaa";
 import { NETWORKS } from "./networks";
-import { CONTRACTS } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
-const { parseSeedPhrase, generateSeedPhrase } = require("near-seed-phrase");
-const fs = require("fs");
-
-const BN = require("bn.js");
-const nearAPI = require("near-api-js");
+import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+import { parseSeedPhrase, generateSeedPhrase } from "near-seed-phrase";
+import BN from "bn.js";
+import { readFileSync } from "fs";
+import { Account, connect, KeyPair } from "near-api-js";
+import { InMemoryKeyStore } from "near-api-js/lib/key_stores";
 
 function default_near_args(argv) {
   let network = argv["n"].toUpperCase();
@@ -44,21 +44,22 @@ function default_near_args(argv) {
 export async function deploy_near(argv) {
   default_near_args(argv);
 
-  let masterKey = nearAPI.utils.KeyPair.fromString(argv["key"]);
-  let keyStore = new nearAPI.keyStores.InMemoryKeyStore();
+  let masterKey = KeyPair.fromString(argv["key"]);
+  let keyStore = new InMemoryKeyStore();
   keyStore.setKey(argv["networkId"], argv["account"], masterKey);
   keyStore.setKey(argv["networkId"], argv["target"], masterKey);
 
-  let near = await nearAPI.connect({
+  let near = await connect({
     deps: {
       keyStore,
     },
     networkId: argv["networkId"],
     nodeUrl: argv["rpc"],
+    headers: {},
   });
 
-  let masterAccount = new nearAPI.Account(near.connection, argv["account"]);
-  let targetAccount = new nearAPI.Account(near.connection, argv["target"]);
+  let masterAccount = new Account(near.connection, argv["account"]);
+  let targetAccount = new Account(near.connection, argv["target"]);
 
   console.log(argv);
 
@@ -75,34 +76,33 @@ export async function deploy_near(argv) {
   }
 
   console.log("deploying contract");
-  console.log(
-    await targetAccount.deployContract(await fs.readFileSync(argv["file"]))
-  );
+  console.log(await targetAccount.deployContract(readFileSync(argv["file"])));
 }
 
 export async function upgrade_near(argv) {
   default_near_args(argv);
 
-  let masterKey = nearAPI.utils.KeyPair.fromString(argv["key"]);
-  let keyStore = new nearAPI.keyStores.InMemoryKeyStore();
+  let masterKey = KeyPair.fromString(argv["key"]);
+  let keyStore = new InMemoryKeyStore();
   keyStore.setKey(argv["networkId"], argv["account"], masterKey);
 
-  let near = await nearAPI.connect({
+  let near = await connect({
     deps: {
       keyStore,
     },
     networkId: argv["networkId"],
     nodeUrl: argv["rpc"],
+    headers: {},
   });
 
-  let masterAccount = new nearAPI.Account(near.connection, argv["account"]);
+  let masterAccount = new Account(near.connection, argv["account"]);
 
   let result = await masterAccount.functionCall({
     contractId: argv["target"],
     methodName: "update_contract",
-    args: await fs.readFileSync(argv["file"]),
-    attachedDeposit: "22797900000000000000000000",
-    gas: 300000000000000,
+    args: readFileSync(argv["file"]),
+    attachedDeposit: new BN("22797900000000000000000000"),
+    gas: new BN("300000000000000"),
   });
   console.log(result);
 }
@@ -132,7 +132,7 @@ export async function execute_near(
           console.log("Upgrading core contract");
           break;
         case "RecoverChainId":
-          throw new Error("RecoverChainId not supported on near")
+          throw new Error("RecoverChainId not supported on near");
         default:
           impossible(payload);
       }
@@ -148,7 +148,7 @@ export async function execute_near(
           console.log("Upgrading contract");
           break;
         case "RecoverChainId":
-          throw new Error("RecoverChainId not supported on near")
+          throw new Error("RecoverChainId not supported on near");
         case "RegisterChain":
           console.log("Registering chain");
           break;
@@ -170,7 +170,7 @@ export async function execute_near(
           console.log("Upgrading contract");
           break;
         case "RecoverChainId":
-          throw new Error("RecoverChainId not supported on near")
+          throw new Error("RecoverChainId not supported on near");
         case "RegisterChain":
           console.log("Registering chain");
           break;
@@ -191,18 +191,18 @@ export async function execute_near(
       impossible(payload);
   }
 
-  let key = nearAPI.utils.KeyPair.fromString(n.key);
+  let key = KeyPair.fromString(n.key);
 
-  let keyStore = new nearAPI.keyStores.InMemoryKeyStore();
+  let keyStore = new InMemoryKeyStore();
   keyStore.setKey(n.networkId, n.deployerAccount, key);
 
-  let near = await nearAPI.connect({
+  let near = await connect({
     keyStore,
     networkId: n.networkId,
     nodeUrl: n.rpc,
+    headers: {},
   });
-
-  let nearAccount = new nearAPI.Account(near.connection, n.deployerAccount);
+  let nearAccount = new Account(near.connection, n.deployerAccount);
 
   console.log("submitting vaa the first time");
   let result1 = await nearAccount.functionCall({
