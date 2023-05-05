@@ -55,6 +55,7 @@
     "jsonfile": "^4.0.0",
     "solc": "^0.8.4",
     "truffle-hdwallet-provider-klaytn": "^1.4.2",
+    "tsx": "^3.12.7",
     "typechain": "^8.1.1"
   }
 }
