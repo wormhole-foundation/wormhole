@@ -102,11 +102,12 @@ abstract contract CoreRelayerDelivery is CoreRelayerMessages, CoreRelayerSetters
 
         // Publishes the DeliveryInstruction
         for (uint8 i = 0; i < forwardInstructions.length; i++) {
-            wormhole.publishMessage{value: wormholeMessageFee}(
+            uint64 sequence = wormhole.publishMessage{value: wormholeMessageFee}(
                 0,
                 encodeDeliveryInstruction(convertSendToDeliveryInstruction(sendRequests[i])),
                 sendRequests[i].consistencyLevel
             );
+            emit Send(sequence, sendRequests[i].maxTransactionFee, sendRequests[i].receiverValue);
             Utils.pay(
                 IRelayProvider(sendRequests[i].relayProviderAddress).getRewardAddress(),
                 sendRequests[i].maxTransactionFee + sendRequests[i].receiverValue
@@ -409,9 +410,11 @@ abstract contract CoreRelayerDelivery is CoreRelayerMessages, CoreRelayerSetters
             maximumBudget
         );
 
-        wormhole().publishMessage{value: wormholeMessageFee}(
+        uint64 sequence = wormhole().publishMessage{value: wormholeMessageFee}(
             0, encodeDeliveryInstruction(refundInstruction), refundInstruction.consistencyLevel
         );
+
+        emit Send(sequence, 0, refundAmount);
 
         Utils.pay(payable(rewardAddress), refundAmount - wormholeMessageFee);
 
