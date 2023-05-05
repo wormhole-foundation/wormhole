@@ -151,7 +151,7 @@ func TestBodyCircleIntegrationUpgradeContractImplementationSerialize(t *testing.
 }
 
 func TestBodyWormholeRelayerSetDefaultRelayProviderSerialize(t *testing.T) {
-	expected := "000000000000000000000000000000000000000000436f726552656c617965720300040000000000000000000000000000000000000000000000000000000000000004"
+	expected := "000000000000000000000000000000000000000000436f726552656c617965720400040000000000000000000000000000000000000000000000000000000000000004"
 	bodyWormholeRelayerSetDefaultRelayProvider := BodyWormholeRelayerSetDefaultRelayProvider{
 		ChainID:                        4,
 		NewDefaultRelayProviderAddress: addr,

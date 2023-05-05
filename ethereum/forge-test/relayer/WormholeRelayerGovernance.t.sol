@@ -103,7 +103,7 @@ contract WormholeRelayerGovernanceTests is Test {
         bytes memory signed = signMessage(
             abi.encodePacked(
                 relayerModule,
-                uint8(3),
+                uint8(4),
                 uint16(1),
                 bytes32(uint256(uint160(address(relayProviderB))))
             )
@@ -116,7 +116,7 @@ contract WormholeRelayerGovernanceTests is Test {
         signed = signMessage(
             abi.encodePacked(
                 relayerModule,
-                uint8(3),
+                uint8(4),
                 uint16(1),
                 bytes32(uint256(uint160(address(relayProviderC))))
             )
