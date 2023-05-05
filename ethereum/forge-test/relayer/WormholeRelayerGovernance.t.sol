@@ -211,7 +211,9 @@ contract WormholeRelayerGovernanceTests is Test {
     }
 
     function testRecoverChainId() public {
-        address myCoreRelayer = address(helpers.setUpCoreRelayer(wormhole.chainId(), wormhole, address(relayProvider)));
+        address payable myCoreRelayer = payable(
+            address(helpers.setUpCoreRelayer(wormhole.chainId(), wormhole, address(relayProvider)))
+        );
         CoreRelayer mcr = CoreRelayer(payable(myCoreRelayer));
         assertTrue(mcr.chainId() == wormhole.chainId());
         assertTrue(mcr.evmChainId() == block.chainid);
@@ -224,7 +226,7 @@ contract WormholeRelayerGovernanceTests is Test {
 
         bytes memory signed = signMessage(message);
 
-        CoreRelayerGovernance(address(myCoreRelayer)).submitRecoverChainId(signed);
+        CoreRelayer(myCoreRelayer).submitRecoverChainId(signed);
 
         assertTrue(mcr.chainId() == 27);
         assertTrue(mcr.evmChainId() == block.chainid);
