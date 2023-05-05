@@ -7,9 +7,9 @@ import { addPublishMessageCommands } from "./publish_message";
 import { addSetupCommands } from "./setup";
 import { addUtilsCommands } from "./utils";
 
-exports.command = "sui";
-exports.desc = "Sui utilities";
-exports.builder = function (y: typeof yargs) {
+export const command = "sui";
+export const desc = "Sui utilities";
+export const builder = function (y: typeof yargs) {
   return new Yargs(y)
     .addCommands(addBuildCommands)
     .addCommands(addDeployCommands)
@@ -21,3 +21,4 @@ exports.builder = function (y: typeof yargs) {
     .strict()
     .demandCommand();
 };
+export const handler = (argv) => {};

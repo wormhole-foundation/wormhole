@@ -16,18 +16,18 @@
 //   worm edit-vaa --vaa $VAA --gs $TESTNET_GUARDIAN_SECRET
 //
 
-import { Implementation__factory } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
-import { CONTRACTS } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
-import { Other } from "@certusone/wormhole-sdk/lib/cjs/vaa";
+import { Implementation__factory } from "@certusone/wormhole-sdk/lib/esm/ethers-contracts";
+import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+import { Other } from "@certusone/wormhole-sdk/lib/esm/vaa";
 import axios from "axios";
 import { ethers } from "ethers";
 import yargs from "yargs";
 import { NETWORKS } from "../networks";
 import { parse, Payload, serialiseVAA, sign, Signature, VAA } from "../vaa";
 
-exports.command = "edit-vaa";
-exports.desc = "Edits or generates a VAA";
-exports.builder = (y: typeof yargs) => {
+export const command = "edit-vaa";
+export const desc = "Edits or generates a VAA";
+export const builder = (y: typeof yargs) => {
   return y
     .option("vaa", {
       alias: "v",
@@ -103,7 +103,7 @@ exports.builder = (y: typeof yargs) => {
       type: "string",
     });
 };
-exports.handler = async (argv) => {
+export const handler = async (argv) => {
   let numSigs = 0;
   if (argv["signatures"]) {
     numSigs += 1;

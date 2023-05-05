@@ -1,13 +1,23 @@
-import { ethers } from "ethers"
-import { NETWORKS } from "./networks"
-import { encode, Encoding, impossible, Payload, typeWidth } from "./vaa"
+import { ethers } from "ethers";
+import { NETWORKS } from "./networks";
+import { encode, Encoding, impossible, Payload, typeWidth } from "./vaa";
 import axios from "axios";
 import * as celo from "@celo-tools/celo-ethers-wrapper";
-import { solidityKeccak256 } from "ethers/lib/utils"
-import { CHAINS, CONTRACTS, Contracts, EVMChainName } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
-import { BridgeImplementation__factory, Implementation__factory, NFTBridgeImplementation__factory } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
+import { solidityKeccak256 } from "ethers/lib/utils";
+import {
+  CHAINS,
+  CONTRACTS,
+  Contracts,
+  EVMChainName,
+} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+import {
+  BridgeImplementation__factory,
+  Implementation__factory,
+  NFTBridgeImplementation__factory,
+} from "@certusone/wormhole-sdk/lib/esm/ethers-contracts";
 
-const _IMPLEMENTATION_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"
+const _IMPLEMENTATION_SLOT =
+  "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
 
 export async function query_contract_evm(
   network: "MAINNET" | "TESTNET" | "DEVNET",
@@ -16,28 +26,32 @@ export async function query_contract_evm(
   contract_address: string | undefined,
   _rpc: string | undefined
 ): Promise<object> {
-  let n = NETWORKS[network][chain]
+  let n = NETWORKS[network][chain];
   let rpc: string | undefined = _rpc ?? n.rpc;
   if (rpc === undefined) {
-    throw Error(`No ${network} rpc defined for ${chain} (see networks.ts)`)
+    throw Error(`No ${network} rpc defined for ${chain} (see networks.ts)`);
   }
 
-  let contracts: Contracts = CONTRACTS[network][chain]
+  let contracts: Contracts = CONTRACTS[network][chain];
 
-  const provider = new ethers.providers.JsonRpcProvider(rpc)
+  const provider = new ethers.providers.JsonRpcProvider(rpc);
 
-  let result: any = {}
+  let result: any = {};
 
   switch (module) {
     case "Core":
       contract_address = contract_address ? contract_address : contracts.core;
       if (contract_address === undefined) {
-        throw Error(`Unknown core contract on ${network} for ${chain}`)
+        throw Error(`Unknown core contract on ${network} for ${chain}`);
       }
-      const core = Implementation__factory.connect(contract_address, provider)
-      result.address = contract_address
-      result.currentGuardianSetIndex = await core.getCurrentGuardianSetIndex()
-      let guardianSetsPromise = Promise.all([...Array(result.currentGuardianSetIndex + 1).keys()].map((i) => core.getGuardianSet(i)))
+      const core = Implementation__factory.connect(contract_address, provider);
+      result.address = contract_address;
+      result.currentGuardianSetIndex = await core.getCurrentGuardianSetIndex();
+      let guardianSetsPromise = Promise.all(
+        [...Array(result.currentGuardianSetIndex + 1).keys()].map((i) =>
+          core.getGuardianSet(i)
+        )
+      );
       let [
         guardianSetExpiry,
         chainId,
@@ -47,7 +61,7 @@ export async function query_contract_evm(
         governanceContract,
         messageFee,
         implementationSlot,
-        guardianSets
+        guardianSets,
       ] = await Promise.all([
         core.getGuardianSetExpiry(),
         core.chainId(),
@@ -57,36 +71,47 @@ export async function query_contract_evm(
         core.governanceContract(),
         core.messageFee(),
         getStorageAt(rpc, contract_address, _IMPLEMENTATION_SLOT, ["address"]),
-        guardianSetsPromise
-      ])
-      result.guardianSetExpiry = guardianSetExpiry
-      result.chainId = chainId
-      result.evmChainId = evmChainId.toString()
-      result.isFork = isFork
-      result.governanceChainId = governanceChainId
-      result.governanceContract = governanceContract
-      result.messageFee = messageFee
-      result.implementation = implementationSlot[0]
-      result.isInitialized = await core.isInitialized(result.implementation)
-      result.guardianSet = {}
+        guardianSetsPromise,
+      ]);
+      result.guardianSetExpiry = guardianSetExpiry;
+      result.chainId = chainId;
+      result.evmChainId = evmChainId.toString();
+      result.isFork = isFork;
+      result.governanceChainId = governanceChainId;
+      result.governanceContract = governanceContract;
+      result.messageFee = messageFee;
+      result.implementation = implementationSlot[0];
+      result.isInitialized = await core.isInitialized(result.implementation);
+      result.guardianSet = {};
 
       for (let [i, guardianSet] of guardianSets.entries()) {
-        result.guardianSet[i] = { keys: guardianSet[0], expiry: guardianSet[1] }
+        result.guardianSet[i] = {
+          keys: guardianSet[0],
+          expiry: guardianSet[1],
+        };
       }
 
-      break
+      break;
     case "TokenBridge":
-      contract_address = contract_address ? contract_address : contracts.token_bridge;
+      contract_address = contract_address
+        ? contract_address
+        : contracts.token_bridge;
       if (contract_address === undefined) {
-        throw Error(`Unknown token bridge contract on ${network} for ${chain}`)
+        throw Error(`Unknown token bridge contract on ${network} for ${chain}`);
       }
-      const tb = BridgeImplementation__factory.connect(contract_address, provider)
-      result.address = contract_address
+      const tb = BridgeImplementation__factory.connect(
+        contract_address,
+        provider
+      );
+      result.address = contract_address;
       const registrationsPromise = Promise.all(
         Object.entries(CHAINS)
           .filter(([c_name, _]) => c_name !== chain && c_name !== "unset")
-          .map(async ([c_name, c_id]) => [c_name, await tb.bridgeContracts(c_id)])
-      )
+          .map(async ([c_name, c_id]) => [
+            c_name,
+            await tb.bridgeContracts(c_id),
+          ])
+      );
       let [
         wormhole,
         implementationSlotTb,
@@ -98,7 +123,7 @@ export async function query_contract_evm(
         governanceChainIdTb,
         governanceContractTb,
         WETH,
-        registrations
+        registrations,
       ] = await Promise.all([
         tb.wormhole(),
         getStorageAt(rpc, contract_address, _IMPLEMENTATION_SLOT, ["address"]),
@@ -110,37 +135,45 @@ export async function query_contract_evm(
         tb.governanceChainId(),
         tb.governanceContract(),
         tb.WETH(),
-        registrationsPromise
-      ])
-      result.wormhole = wormhole
-      result.implementation = implementationSlotTb[0]
-      result.isInitialized = await tb.isInitialized(result.implementation)
-      result.tokenImplementation = tokenImplementation
-      result.chainId = chainIdTb
-      result.finality = finality
-      result.evmChainId = evmChainIdTb.toString()
-      result.isFork = isForkTb
-      result.governanceChainId = governanceChainIdTb
-      result.governanceContract = governanceContractTb
-      result.WETH = WETH
-      result.registrations = {}
+        registrationsPromise,
+      ]);
+      result.wormhole = wormhole;
+      result.implementation = implementationSlotTb[0];
+      result.isInitialized = await tb.isInitialized(result.implementation);
+      result.tokenImplementation = tokenImplementation;
+      result.chainId = chainIdTb;
+      result.finality = finality;
+      result.evmChainId = evmChainIdTb.toString();
+      result.isFork = isForkTb;
+      result.governanceChainId = governanceChainIdTb;
+      result.governanceContract = governanceContractTb;
+      result.WETH = WETH;
+      result.registrations = {};
 
       for (let [c_name, c] of registrations) {
-        result.registrations[c_name] = c
+        result.registrations[c_name] = c;
       }
-      break
+      break;
     case "NFTBridge":
-      contract_address = contract_address ? contract_address : contracts.nft_bridge;
+      contract_address = contract_address
+        ? contract_address
+        : contracts.nft_bridge;
       if (contract_address === undefined) {
-        throw Error(`Unknown nft bridge contract on ${network} for ${chain}`)
+        throw Error(`Unknown nft bridge contract on ${network} for ${chain}`);
       }
-      const nb = NFTBridgeImplementation__factory.connect(contract_address, provider)
-      result.address = contract_address
+      const nb = NFTBridgeImplementation__factory.connect(
+        contract_address,
+        provider
+      );
+      result.address = contract_address;
       const registrationsPromiseNb = Promise.all(
         Object.entries(CHAINS)
           .filter(([c_name, _]) => c_name !== chain && c_name !== "unset")
-          .map(async ([c_name, c_id]) => [c_name, await nb.bridgeContracts(c_id)])
-      )
+          .map(async ([c_name, c_id]) => [
+            c_name,
+            await nb.bridgeContracts(c_id),
+          ])
+      );
       let [
         wormholeNb,
         implementationSlotNb,
@@ -151,7 +184,7 @@ export async function query_contract_evm(
         isForkNb,
         governanceChainIdNb,
         governanceContractNb,
-        registrationsNb
+        registrationsNb,
       ] = await Promise.all([
         nb.wormhole(),
         getStorageAt(rpc, contract_address, _IMPLEMENTATION_SLOT, ["address"]),
@@ -162,29 +195,29 @@ export async function query_contract_evm(
         maybeUnsupported(nb.isFork()),
         nb.governanceChainId(),
         nb.governanceContract(),
-        registrationsPromiseNb
-      ])
-      result.wormhole = wormholeNb
-      result.implementation = implementationSlotNb[0]
-      result.isInitialized = await nb.isInitialized(result.implementation)
-      result.tokenImplementation = tokenImplementationNb
-      result.chainId = chainIdNb
-      result.finality = finalityNb
-      result.evmChainId = evmChainIdNb.toString()
-      result.isFork = isForkNb
-      result.governanceChainId = governanceChainIdNb
-      result.governanceContract = governanceContractNb
-      result.registrations = {}
+        registrationsPromiseNb,
+      ]);
+      result.wormhole = wormholeNb;
+      result.implementation = implementationSlotNb[0];
+      result.isInitialized = await nb.isInitialized(result.implementation);
+      result.tokenImplementation = tokenImplementationNb;
+      result.chainId = chainIdNb;
+      result.finality = finalityNb;
+      result.evmChainId = evmChainIdNb.toString();
+      result.isFork = isForkNb;
+      result.governanceChainId = governanceChainIdNb;
+      result.governanceContract = governanceContractNb;
+      result.registrations = {};
 
       for (let [c_name, c] of registrationsNb) {
-        result.registrations[c_name] = c
+        result.registrations[c_name] = c;
       }
-      break
+      break;
     default:
-      impossible(module)
+      impossible(module);
   }
 
-  return result
+  return result;
 }
 
 export async function getImplementation(
@@ -194,29 +227,35 @@ export async function getImplementation(
   contract_address: string | undefined,
   _rpc: string | undefined
 ): Promise<ethers.BigNumber> {
-  let n = NETWORKS[network][chain]
+  let n = NETWORKS[network][chain];
   let rpc: string | undefined = _rpc ?? n.rpc;
   if (rpc === undefined) {
-    throw Error(`No ${network} rpc defined for ${chain} (see networks.ts)`)
+    throw Error(`No ${network} rpc defined for ${chain} (see networks.ts)`);
   }
 
-  let contracts: Contracts = CONTRACTS[network][chain]
+  let contracts: Contracts = CONTRACTS[network][chain];
 
   switch (module) {
     case "Core":
       contract_address = contract_address ? contract_address : contracts.core;
-      break
+      break;
     case "TokenBridge":
-      contract_address = contract_address ? contract_address : contracts.token_bridge;
-      break
+      contract_address = contract_address
+        ? contract_address
+        : contracts.token_bridge;
+      break;
     case "NFTBridge":
-      contract_address = contract_address ? contract_address : contracts.nft_bridge;
-      break
+      contract_address = contract_address
+        ? contract_address
+        : contracts.nft_bridge;
+      break;
     default:
-      impossible(module)
+      impossible(module);
   }
 
-  return (await getStorageAt(rpc, contract_address, _IMPLEMENTATION_SLOT, ["address"]))[0]
+  return (
+    await getStorageAt(rpc, contract_address, _IMPLEMENTATION_SLOT, ["address"])
+  )[0];
 }
 
 export async function execute_evm(
@@ -227,35 +266,35 @@ export async function execute_evm(
   contract_address: string | undefined,
   _rpc: string | undefined
 ) {
-  let n = NETWORKS[network][chain]
+  let n = NETWORKS[network][chain];
   let rpc: string | undefined = _rpc ?? n.rpc;
   if (rpc === undefined) {
-    throw Error(`No ${network} rpc defined for ${chain} (see networks.ts)`)
+    throw Error(`No ${network} rpc defined for ${chain} (see networks.ts)`);
   }
   if (!n.key) {
-    throw Error(`No ${network} key defined for ${chain} (see networks.ts)`)
+    throw Error(`No ${network} key defined for ${chain} (see networks.ts)`);
   }
-  let key: string = n.key
+  let key: string = n.key;
 
-  let contracts: Contracts = CONTRACTS[network][chain]
+  let contracts: Contracts = CONTRACTS[network][chain];
 
   let provider: ethers.providers.JsonRpcProvider;
   let signer: ethers.Wallet;
   if (chain === "celo") {
-    provider = new celo.CeloProvider(rpc)
-    await provider.ready
-    signer = new celo.CeloWallet(key, provider)
+    provider = new celo.CeloProvider(rpc);
+    await provider.ready;
+    signer = new celo.CeloWallet(key, provider);
   } else {
-    provider = new ethers.providers.JsonRpcProvider(rpc)
-    signer = new ethers.Wallet(key, provider)
+    provider = new ethers.providers.JsonRpcProvider(rpc);
+    signer = new ethers.Wallet(key, provider);
   }
 
   // Here we apply a set of chain-specific overrides.
   // NOTE: some of these might have only been tested on mainnet. If it fails in
   // testnet (or devnet), they might require additional guards
-  let overrides: ethers.Overrides = {}
+  let overrides: ethers.Overrides = {};
   if (chain === "karura" || chain == "acala") {
-    overrides = await getKaruraGasParams(n.rpc)
+    overrides = await getKaruraGasParams(n.rpc);
   } else if (chain === "polygon") {
     let feeData = await provider.getFeeData();
     overrides = {
@@ -263,105 +302,128 @@ export async function execute_evm(
       maxPriorityFeePerGas: feeData.maxPriorityFeePerGas?.mul(50) || undefined,
     };
   } else if (chain === "klaytn" || chain === "fantom") {
-    overrides = { gasPrice: (await signer.getGasPrice()).toString() }
+    overrides = { gasPrice: (await signer.getGasPrice()).toString() };
   }
 
   switch (payload.module) {
     case "Core":
       contract_address = contract_address ? contract_address : contracts.core;
       if (contract_address === undefined) {
-        throw Error(`Unknown core contract on ${network} for ${chain}`)
+        throw Error(`Unknown core contract on ${network} for ${chain}`);
       }
-      let c = new Implementation__factory(signer)
-      let cb = c.attach(contract_address)
+      let c = new Implementation__factory(signer);
+      let cb = c.attach(contract_address);
       switch (payload.type) {
         case "GuardianSetUpgrade":
-          console.log("Submitting new guardian set")
-          console.log("Hash: " + (await cb.submitNewGuardianSet(vaa, overrides)).hash)
-          break
+          console.log("Submitting new guardian set");
+          console.log(
+            "Hash: " + (await cb.submitNewGuardianSet(vaa, overrides)).hash
+          );
+          break;
         case "ContractUpgrade":
-          console.log("Upgrading core contract")
-          console.log("Hash: " + (await cb.submitContractUpgrade(vaa, overrides)).hash)
-          break
+          console.log("Upgrading core contract");
+          console.log(
+            "Hash: " + (await cb.submitContractUpgrade(vaa, overrides)).hash
+          );
+          break;
         case "RecoverChainId":
-          console.log("Recovering chain ID")
-          console.log("Hash: " + (await cb.submitRecoverChainId(vaa, overrides)).hash)
-          break
+          console.log("Recovering chain ID");
+          console.log(
+            "Hash: " + (await cb.submitRecoverChainId(vaa, overrides)).hash
+          );
+          break;
         default:
-          impossible(payload)
+          impossible(payload);
       }
-      break
+      break;
     case "NFTBridge":
-      contract_address = contract_address ? contract_address : contracts.nft_bridge;
+      contract_address = contract_address
+        ? contract_address
+        : contracts.nft_bridge;
       if (contract_address === undefined) {
-        throw Error(`Unknown nft bridge contract on ${network} for ${chain}`)
+        throw Error(`Unknown nft bridge contract on ${network} for ${chain}`);
       }
-      let n = new NFTBridgeImplementation__factory(signer)
-      let nb = n.attach(contract_address)
+      let n = new NFTBridgeImplementation__factory(signer);
+      let nb = n.attach(contract_address);
       switch (payload.type) {
         case "ContractUpgrade":
-          console.log("Upgrading contract")
-          console.log("Hash: " + (await nb.upgrade(vaa, overrides)).hash)
-          console.log("Don't forget to verify the new implementation! See ethereum/VERIFY.md for instructions")
-          break
+          console.log("Upgrading contract");
+          console.log("Hash: " + (await nb.upgrade(vaa, overrides)).hash);
+          console.log(
+            "Don't forget to verify the new implementation! See ethereum/VERIFY.md for instructions"
+          );
+          break;
         case "RecoverChainId":
-          console.log("Recovering chain ID")
-          console.log("Hash: " + (await nb.submitRecoverChainId(vaa, overrides)).hash)
-          break
+          console.log("Recovering chain ID");
+          console.log(
+            "Hash: " + (await nb.submitRecoverChainId(vaa, overrides)).hash
+          );
+          break;
         case "RegisterChain":
-          console.log("Registering chain")
-          console.log("Hash: " + (await nb.registerChain(vaa, overrides)).hash)
-          break
+          console.log("Registering chain");
+          console.log("Hash: " + (await nb.registerChain(vaa, overrides)).hash);
+          break;
         case "Transfer":
-          console.log("Completing transfer")
-          console.log("Hash: " + (await nb.completeTransfer(vaa, overrides)).hash)
-          break
+          console.log("Completing transfer");
+          console.log(
+            "Hash: " + (await nb.completeTransfer(vaa, overrides)).hash
+          );
+          break;
         default:
-          impossible(payload)
-
+          impossible(payload);
       }
-      break
+      break;
     case "TokenBridge":
-      contract_address = contract_address ? contract_address : contracts.token_bridge;
+      contract_address = contract_address
+        ? contract_address
+        : contracts.token_bridge;
       if (contract_address === undefined) {
-        throw Error(`Unknown token bridge contract on ${network} for ${chain}`)
+        throw Error(`Unknown token bridge contract on ${network} for ${chain}`);
       }
-      let t = new BridgeImplementation__factory(signer)
-      let tb = t.attach(contract_address)
+      let t = new BridgeImplementation__factory(signer);
+      let tb = t.attach(contract_address);
       switch (payload.type) {
         case "ContractUpgrade":
-          console.log("Upgrading contract")
-          console.log("Hash: " + (await tb.upgrade(vaa, overrides)).hash)
-          console.log("Don't forget to verify the new implementation! See ethereum/VERIFY.md for instructions")
-          break
+          console.log("Upgrading contract");
+          console.log("Hash: " + (await tb.upgrade(vaa, overrides)).hash);
+          console.log(
+            "Don't forget to verify the new implementation! See ethereum/VERIFY.md for instructions"
+          );
+          break;
         case "RecoverChainId":
-          console.log("Recovering chain ID")
-          console.log("Hash: " + (await tb.submitRecoverChainId(vaa, overrides)).hash)
-          break
+          console.log("Recovering chain ID");
+          console.log(
+            "Hash: " + (await tb.submitRecoverChainId(vaa, overrides)).hash
+          );
+          break;
         case "RegisterChain":
-          console.log("Registering chain")
-          console.log("Hash: " + (await tb.registerChain(vaa, overrides)).hash)
-          break
+          console.log("Registering chain");
+          console.log("Hash: " + (await tb.registerChain(vaa, overrides)).hash);
+          break;
         case "Transfer":
-          console.log("Completing transfer")
-          console.log("Hash: " + (await tb.completeTransfer(vaa, overrides)).hash)
-          break
+          console.log("Completing transfer");
+          console.log(
+            "Hash: " + (await tb.completeTransfer(vaa, overrides)).hash
+          );
+          break;
         case "AttestMeta":
-          console.log("Creating wrapped token")
-          console.log("Hash: " + (await tb.createWrapped(vaa, overrides)).hash)
-          break
+          console.log("Creating wrapped token");
+          console.log("Hash: " + (await tb.createWrapped(vaa, overrides)).hash);
+          break;
         case "TransferWithPayload":
-          console.log("Completing transfer with payload")
-          console.log("Hash: " + (await tb.completeTransferWithPayload(vaa, overrides)).hash)
-          break
+          console.log("Completing transfer with payload");
+          console.log(
+            "Hash: " +
+              (await tb.completeTransferWithPayload(vaa, overrides)).hash
+          );
+          break;
         default:
-          impossible(payload)
-          break
-
+          impossible(payload);
+          break;
       }
-      break
+      break;
     default:
-      impossible(payload)
+      impossible(payload);
   }
 }
 
@@ -392,39 +454,65 @@ export async function hijack_evm(
   guardian_addresses: string[],
   new_guardian_set_index: number | undefined
 ): Promise<void> {
-  const GUARDIAN_SETS_SLOT = 0x02
-  const GUARDIAN_SET_INDEX_SLOT = 0x3
+  const GUARDIAN_SETS_SLOT = 0x02;
+  const GUARDIAN_SET_INDEX_SLOT = 0x3;
 
-  const provider = new ethers.providers.JsonRpcProvider(rpc)
-  const core = Implementation__factory.connect(contract_address, provider)
-  let guardianSetIndex: number
-  let guardianSetExpiry: number
-  [guardianSetIndex, guardianSetExpiry] = await getStorageAt(rpc, contract_address, GUARDIAN_SET_INDEX_SLOT, ["uint32", "uint32"])
-  console.log("Attempting to hijack core bridge guardian set.")
-  const current_set = await core.getGuardianSet(guardianSetIndex)
-  console.log(`Current guardian set (index ${guardianSetIndex}):`)
-  console.log(current_set[0])
+  const provider = new ethers.providers.JsonRpcProvider(rpc);
+  const core = Implementation__factory.connect(contract_address, provider);
+  let guardianSetIndex: number;
+  let guardianSetExpiry: number;
+  [guardianSetIndex, guardianSetExpiry] = await getStorageAt(
+    rpc,
+    contract_address,
+    GUARDIAN_SET_INDEX_SLOT,
+    ["uint32", "uint32"]
+  );
+  console.log("Attempting to hijack core bridge guardian set.");
+  const current_set = await core.getGuardianSet(guardianSetIndex);
+  console.log(`Current guardian set (index ${guardianSetIndex}):`);
+  console.log(current_set[0]);
 
   if (new_guardian_set_index !== undefined) {
-    await setStorageAt(rpc, contract_address, GUARDIAN_SET_INDEX_SLOT, ["uint32", "uint32"], [new_guardian_set_index, guardianSetExpiry])
-    guardianSetIndex = await core.getCurrentGuardianSetIndex()
+    await setStorageAt(
+      rpc,
+      contract_address,
+      GUARDIAN_SET_INDEX_SLOT,
+      ["uint32", "uint32"],
+      [new_guardian_set_index, guardianSetExpiry]
+    );
+    guardianSetIndex = await core.getCurrentGuardianSetIndex();
     if (new_guardian_set_index !== guardianSetIndex) {
-      throw Error("Failed to update guardian set index.")
+      throw Error("Failed to update guardian set index.");
     } else {
-      console.log(`Guardian set index updated to ${new_guardian_set_index}`)
+      console.log(`Guardian set index updated to ${new_guardian_set_index}`);
     }
   }
-  const addresses_slot = computeMappingElemSlot(GUARDIAN_SETS_SLOT, guardianSetIndex)
-  console.log(`Writing new set of guardians into set ${guardianSetIndex}...`)
+  const addresses_slot = computeMappingElemSlot(
+    GUARDIAN_SETS_SLOT,
+    guardianSetIndex
+  );
+  console.log(`Writing new set of guardians into set ${guardianSetIndex}...`);
   guardian_addresses.forEach(async (address, i) => {
-    await setStorageAt(rpc, contract_address, computeArrayElemSlot(addresses_slot, i), ["address"], [address])
-  })
-  await setStorageAt(rpc, contract_address, addresses_slot, ["uint256"], [guardian_addresses.length])
-  const after_guardian_set_index = await core.getCurrentGuardianSetIndex()
-  const new_set = await core.getGuardianSet(after_guardian_set_index)
-  console.log(`Current guardian set (index ${after_guardian_set_index}):`)
-  console.log(new_set[0])
-  console.log("Success.")
+    await setStorageAt(
+      rpc,
+      contract_address,
+      computeArrayElemSlot(addresses_slot, i),
+      ["address"],
+      [address]
+    );
+  });
+  await setStorageAt(
+    rpc,
+    contract_address,
+    addresses_slot,
+    ["uint256"],
+    [guardian_addresses.length]
+  );
+  const after_guardian_set_index = await core.getCurrentGuardianSetIndex();
+  const new_set = await core.getGuardianSet(after_guardian_set_index);
+  console.log(`Current guardian set (index ${after_guardian_set_index}):`);
+  console.log(new_set[0]);
+  console.log("Success.");
 }
 
 async function getKaruraGasParams(rpc: string): Promise<{
@@ -461,9 +549,9 @@ async function getKaruraGasParams(rpc: string): Promise<{
 //
 // [1]: https://docs.soliditylang.org/en/v0.8.14/internals/layout_in_storage.html
 
-export type StorageSlot = ethers.BigNumber
+export type StorageSlot = ethers.BigNumber;
 // we're a little more permissive in contravariant positions...
-export type StorageSlotish = ethers.BigNumberish
+export type StorageSlotish = ethers.BigNumberish;
 
 /**
  *
@@ -472,8 +560,13 @@ export type StorageSlotish = ethers.BigNumberish
  * @param array_slot the storage slot of the array variable
  * @param offset the index of the element to compute the storage slot for
  */
-export function computeArrayElemSlot(array_slot: StorageSlotish, offset: number): StorageSlot {
-  return ethers.BigNumber.from(solidityKeccak256(["bytes"], [array_slot])).add(offset)
+export function computeArrayElemSlot(
+  array_slot: StorageSlotish,
+  offset: number
+): StorageSlot {
+  return ethers.BigNumber.from(solidityKeccak256(["bytes"], [array_slot])).add(
+    offset
+  );
 }
 
 /**
@@ -483,9 +576,15 @@ export function computeArrayElemSlot(array_slot: StorageSlotish, offset: number)
  * @param map_slot the storage slot of the mapping variable
  * @param key the key to compute the storage slot for
  */
-export function computeMappingElemSlot(map_slot: StorageSlotish, key: any): StorageSlot {
-  const slot_preimage = ethers.utils.defaultAbiCoder.encode(["uint256", "uint256"], [key, map_slot])
-  return ethers.BigNumber.from(solidityKeccak256(["bytes"], [slot_preimage]))
+export function computeMappingElemSlot(
+  map_slot: StorageSlotish,
+  key: any
+): StorageSlot {
+  const slot_preimage = ethers.utils.defaultAbiCoder.encode(
+    ["uint256", "uint256"],
+    [key, map_slot]
+  );
+  return ethers.BigNumber.from(solidityKeccak256(["bytes"], [slot_preimage]));
 }
 
 /**
@@ -505,23 +604,31 @@ export function computeMappingElemSlot(map_slot: StorageSlotish, key: any): Stor
  *
  * @returns _values the values to write into the slot (packed)
  */
-async function getStorageAt(rpc: string, contract_address: string, storage_slot: StorageSlotish, types: Encoding[]): Promise<any[]> {
-  const total = types.map((typ) => typeWidth(typ)).reduce((x, y) => (x + y))
+async function getStorageAt(
+  rpc: string,
+  contract_address: string,
+  storage_slot: StorageSlotish,
+  types: Encoding[]
+): Promise<any[]> {
+  const total = types.map((typ) => typeWidth(typ)).reduce((x, y) => x + y);
   if (total > 32) {
-    throw new Error(`Storage slots can contain a maximum of 32 bytes. Total size of ${types} is ${total} bytes.`)
+    throw new Error(
+      `Storage slots can contain a maximum of 32 bytes. Total size of ${types} is ${total} bytes.`
+    );
   }
 
-  const string_val: string =
-    await (new ethers.providers.JsonRpcProvider(rpc).getStorageAt(contract_address, storage_slot))
-  let val = ethers.BigNumber.from(string_val)
-  let ret: any[] = []
+  const string_val: string = await new ethers.providers.JsonRpcProvider(
+    rpc
+  ).getStorageAt(contract_address, storage_slot);
+  let val = ethers.BigNumber.from(string_val);
+  let ret: any[] = [];
   // we decode the elements one by one, by shifting down the stuff we've parsed already
   types.forEach((typ) => {
-    const padded = ethers.utils.defaultAbiCoder.encode(["uint256"], [val])
-    ret.push(ethers.utils.defaultAbiCoder.decode([typ], padded)[0])
-    val = val.shr(typeWidth(typ) * 8)
-  })
-  return ret
+    const padded = ethers.utils.defaultAbiCoder.encode(["uint256"], [val]);
+    ret.push(ethers.utils.defaultAbiCoder.decode([typ], padded)[0]);
+    val = val.shr(typeWidth(typ) * 8);
+  });
+  return ret;
 }
 
 /**
@@ -542,7 +649,13 @@ async function getStorageAt(rpc: string, contract_address: string, storage_slot:
  *
  * @returns the `data` property of the JSON response
  */
-export async function setStorageAt(rpc: string, contract_address: string, storage_slot: StorageSlotish, types: Encoding[], values: any[]): Promise<any> {
+export async function setStorageAt(
+  rpc: string,
+  contract_address: string,
+  storage_slot: StorageSlotish,
+  types: Encoding[],
+  values: any[]
+): Promise<any> {
   // we need to reverse the values and types arrays, because the first element
   // is stored at the rightmost bytes.
   //
@@ -550,42 +663,51 @@ export async function setStorageAt(rpc: string, contract_address: string, storag
   //   uint32 a
   //   uint32 b
   // will be stored as 0x...b...a
-  const _values = values.reverse()
-  const _types = types.reverse()
-  const total = _types.map((typ) => typeWidth(typ)).reduce((x, y) => (x + y))
+  const _values = values.reverse();
+  const _types = types.reverse();
+  const total = _types.map((typ) => typeWidth(typ)).reduce((x, y) => x + y);
   // ensure that the types fit into a slot
   if (total > 32) {
-    throw new Error(`Storage slots can contain a maximum of 32 bytes. Total size of ${_types} is ${total} bytes.`)
+    throw new Error(
+      `Storage slots can contain a maximum of 32 bytes. Total size of ${_types} is ${total} bytes.`
+    );
   }
   if (_types.length !== _values.length) {
-    throw new Error(`Expected ${_types.length} value(s), but got ${_values.length}.`)
+    throw new Error(
+      `Expected ${_types.length} value(s), but got ${_values.length}.`
+    );
   }
   // as far as I could tell, `ethers` doesn't provide a way to pack multiple
   // values into a single slot (the abi coder pads everything to 32 bytes), so we do it ourselves
-  const val = "0x" + _types.map((typ, i) => encode(typ, _values[i])).reduce((x, y) => x + y).padStart(64, "0")
+  const val =
+    "0x" +
+    _types
+      .map((typ, i) => encode(typ, _values[i]))
+      .reduce((x, y) => x + y)
+      .padStart(64, "0");
   // format the storage slot
-  const slot = ethers.utils.defaultAbiCoder.encode(["uint256"], [storage_slot])
-  console.log(`slot ${slot} := ${val}`)
+  const slot = ethers.utils.defaultAbiCoder.encode(["uint256"], [storage_slot]);
+  console.log(`slot ${slot} := ${val}`);
 
-  return (await axios.post(rpc, {
-    id: 0,
-    jsonrpc: "2.0",
-    method: "hardhat_setStorageAt",
-    params: [
-      contract_address,
-      slot,
-      val,
-    ],
-  })).data
+  return (
+    await axios.post(rpc, {
+      id: 0,
+      jsonrpc: "2.0",
+      method: "hardhat_setStorageAt",
+      params: [contract_address, slot, val],
+    })
+  ).data;
 }
 
-async function maybeUnsupported<T>(query: Promise<T>): Promise<T | "unsupported"> {
+async function maybeUnsupported<T>(
+  query: Promise<T>
+): Promise<T | "unsupported"> {
   try {
-    return await query
+    return await query;
   } catch (e) {
     if (e.reason === "unsupported") {
-      return e.reason
+      return e.reason;
     }
-    throw e
+    throw e;
   }
 }

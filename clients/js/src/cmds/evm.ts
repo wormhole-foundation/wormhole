@@ -5,17 +5,23 @@ import {
   CONTRACTS,
   isEVMChain,
   toChainName,
-} from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { ethers } from "ethers";
+import { homedir } from "os";
 import yargs from "yargs";
+import {
+  getImplementation,
+  hijack_evm,
+  query_contract_evm,
+  setStorageAt,
+} from "../evm";
 import { NETWORKS } from "../networks";
 import { runCommand, validator_args } from "../start-validator";
 import { evm_address } from "../utils";
 
-exports.command = "evm";
-exports.desc = "EVM utilities";
-exports.builder = function (y: typeof yargs) {
-  const evm = require("../evm");
+export const command = "evm";
+export const desc = "EVM utilities";
+export const builder = function (y: typeof yargs) {
   return y
     .option("rpc", {
       describe: "RPC endpoint",
@@ -60,7 +66,7 @@ exports.builder = function (y: typeof yargs) {
           });
       },
       async (argv) => {
-        const result = await evm.setStorageAt(
+        const result = await setStorageAt(
           argv["rpc"],
           evm_address(argv["contract-address"]),
           argv["storage-slot"],
@@ -133,7 +139,7 @@ exports.builder = function (y: typeof yargs) {
         let rpc = argv["rpc"] ?? NETWORKS[network][argv["chain"]].rpc;
         if (argv["implementation-only"]) {
           console.log(
-            await evm.getImplementation(
+            await getImplementation(
               network,
               argv["chain"],
               module,
@@ -144,7 +150,7 @@ exports.builder = function (y: typeof yargs) {
         } else {
           console.log(
             JSON.stringify(
-              await evm.query_contract_evm(
+              await query_contract_evm(
                 network,
                 argv["chain"],
                 module,
@@ -186,7 +192,7 @@ exports.builder = function (y: typeof yargs) {
       async (argv) => {
         const guardian_addresses = argv["guardian-address"].split(",");
         let rpc = argv["rpc"] ?? NETWORKS.DEVNET.ethereum.rpc;
-        await evm.hijack_evm(
+        await hijack_evm(
           rpc,
           argv["core-contract-address"],
           guardian_addresses,
@@ -201,12 +207,12 @@ exports.builder = function (y: typeof yargs) {
         return yargs.option("validator-args", validator_args);
       },
       (argv) => {
-        const os = require("os");
-        const dir = os.homedir();
-        const cmd = `cd ${dir} && npx ganache-cli -e 10000 --deterministic --time="1970-01-01T00:00:00+00:00"`;
+        const cmd = `cd ${homedir()} && npx ganache-cli -e 10000 --deterministic --time="1970-01-01T00:00:00+00:00"`;
         runCommand(cmd, argv["validator-args"]);
       }
     )
     .strict()
     .demandCommand();
 };
+
+export const handler = (argv) => {};

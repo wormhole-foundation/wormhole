@@ -6,13 +6,23 @@ import {
   isEVMChain,
   isTerraChain,
   toChainName,
-} from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import yargs from "yargs";
+import { execute_algorand } from "../algorand";
+import { execute_evm } from "../evm";
+import { execute_injective } from "../injective";
+import { execute_near } from "../near";
+import { execute_sei } from "../sei";
+import { execute_solana } from "../solana";
+import { submit as submitSui } from "../sui";
+import { execute_terra } from "../terra";
 import * as vaa from "../vaa";
+import { execute_xpla } from "../xpla";
+import { execute_aptos } from "../aptos";
 
-exports.command = "submit <vaa>";
-exports.desc = "Execute a VAA";
-exports.builder = (y: typeof yargs) => {
+export const command = "submit <vaa>";
+export const desc = "Execute a VAA";
+export const builder = (y: typeof yargs) => {
   return y
     .positional("vaa", {
       describe: "vaa",
@@ -45,7 +55,7 @@ exports.builder = (y: typeof yargs) => {
       required: false,
     });
 };
-exports.handler = async (argv) => {
+export const handler = async (argv) => {
   const vaa_hex = String(argv.vaa);
   const buf = Buffer.from(vaa_hex, "hex");
   const parsed_vaa = vaa.parse(buf);
@@ -99,8 +109,7 @@ exports.handler = async (argv) => {
       "This VAA does not specify the target chain, please provide it by hand using the '--chain' flag."
     );
   } else if (isEVMChain(chain)) {
-    const evm = require("../evm");
-    await evm.execute_evm(
+    await execute_evm(
       parsed_vaa.payload,
       buf,
       network,
@@ -109,38 +118,29 @@ exports.handler = async (argv) => {
       argv["rpc"]
     );
   } else if (isTerraChain(chain)) {
-    const terra = require("../terra");
-    await terra.execute_terra(parsed_vaa.payload, buf, network, chain);
+    await execute_terra(parsed_vaa.payload, buf, network, chain);
   } else if (chain === "solana" || chain === "pythnet") {
-    const solana = require("../solana");
-    await solana.execute_solana(parsed_vaa, buf, network, chain);
+    await execute_solana(parsed_vaa, buf, network, chain);
   } else if (chain === "algorand") {
-    const algorand = require("../algorand");
-    await algorand.execute_algorand(
+    await execute_algorand(
       parsed_vaa.payload,
       new Uint8Array(Buffer.from(vaa_hex, "hex")),
       network
     );
   } else if (chain === "near") {
-    const near = require("../near");
-    await near.execute_near(parsed_vaa.payload, vaa_hex, network);
+    await execute_near(parsed_vaa.payload, vaa_hex, network);
   } else if (chain === "injective") {
-    const injective = require("../injective");
-    await injective.execute_injective(parsed_vaa.payload, buf, network);
+    await execute_injective(parsed_vaa.payload, buf, network);
   } else if (chain === "xpla") {
-    const xpla = require("../xpla");
-    await xpla.execute_xpla(parsed_vaa.payload, buf, network);
+    await execute_xpla(parsed_vaa.payload, buf, network);
   } else if (chain === "sei") {
-    const sei = require("../sei");    
-    await sei.execute_sei(parsed_vaa.payload, buf, network);
+    await execute_sei(parsed_vaa.payload, buf, network);
   } else if (chain === "osmosis") {
     throw Error("OSMOSIS is not supported yet");
   } else if (chain === "sui") {
-    const sui = require("../sui");
-    await sui.submit(parsed_vaa.payload, buf, network, argv["rpc"]);
+    await submitSui(parsed_vaa.payload, buf, network, argv["rpc"]);
   } else if (chain === "aptos") {
-    const aptos = require("../aptos");
-    await aptos.execute_aptos(
+    await execute_aptos(
       parsed_vaa.payload,
       buf,
       network,

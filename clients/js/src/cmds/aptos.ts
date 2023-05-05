@@ -3,11 +3,12 @@ import {
   CHAIN_ID_APTOS,
   coalesceChainId,
   CONTRACTS,
-} from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { BCS, FaucetClient } from "aptos";
 import { spawnSync } from "child_process";
 import fs from "fs";
 import sha3 from "js-sha3";
+import { homedir } from "os";
 import yargs from "yargs";
 import {
   callEntryFunc,
@@ -39,9 +40,9 @@ interface PackageBCS {
   codeHash: Uint8Array;
 }
 
-exports.command = "aptos";
-exports.desc = "Aptos utilities";
-exports.builder = function (y: typeof yargs) {
+export const command = "aptos";
+export const desc = "Aptos utilities";
+export const builder = function (y: typeof yargs) {
   return (
     y
       // NOTE: there's no init-nft-bridge, because the native module initialiser
@@ -452,9 +453,7 @@ exports.builder = function (y: typeof yargs) {
         },
         (argv) => {
           checkBinary("aptos", README_URL);
-          const os = require("os");
-          const dir = os.homedir();
-          const cmd = `cd ${dir} && aptos node run-local-testnet --with-faucet --force-restart --assume-yes`;
+          const cmd = `cd ${homedir()} && aptos node run-local-testnet --with-faucet --force-restart --assume-yes`;
           runCommand(cmd, argv["validator-args"]);
         }
       )
@@ -524,3 +523,5 @@ function serializePackage(p: Package): PackageBCS {
     codeHash,
   };
 }
+
+export const handler = (argv) => {};

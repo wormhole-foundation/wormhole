@@ -4,12 +4,12 @@ import { getSigningCosmWasmClient } from "@sei-js/core";
 
 import { impossible, Payload } from "./vaa";
 import { NETWORKS } from "./networks";
-import { CONTRACTS } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 
 export async function execute_sei(
   payload: Payload,
   vaa: Buffer,
-  network: "MAINNET" | "TESTNET" | "DEVNET",
+  network: "MAINNET" | "TESTNET" | "DEVNET"
 ) {
   let chain = "sei";
   let n = NETWORKS[network][chain];
@@ -35,7 +35,7 @@ export async function execute_sei(
           console.log("Upgrading core contract");
           break;
         case "RecoverChainId":
-          throw new Error("RecoverChainId not supported on sei")
+          throw new Error("RecoverChainId not supported on sei");
         default:
           impossible(payload);
       }
@@ -58,7 +58,7 @@ export async function execute_sei(
           console.log("Upgrading contract");
           break;
         case "RecoverChainId":
-          throw new Error("RecoverChainId not supported on sei")
+          throw new Error("RecoverChainId not supported on sei");
         case "RegisterChain":
           console.log("Registering chain");
           break;
@@ -81,7 +81,7 @@ export async function execute_sei(
           console.log("Upgrading contract");
           break;
         case "RecoverChainId":
-          throw new Error("RecoverChainId not supported on sei")
+          throw new Error("RecoverChainId not supported on sei");
         case "RegisterChain":
           console.log("Registering chain");
           break;
@@ -102,9 +102,11 @@ export async function execute_sei(
       target_contract = impossible(payload);
       execute_msg = impossible(payload);
   }
-    
-  const wallet = await DirectSecp256k1HdWallet.fromMnemonic(n.key, { prefix: "sei" });
-  const [ account ] = await wallet.getAccounts();
+
+  const wallet = await DirectSecp256k1HdWallet.fromMnemonic(n.key, {
+    prefix: "sei",
+  });
+  const [account] = await wallet.getAccounts();
   const client = await getSigningCosmWasmClient(n.rpc, wallet);
   const fee = calculateFee(300000, "0.1usei");
   const result = await client.execute(

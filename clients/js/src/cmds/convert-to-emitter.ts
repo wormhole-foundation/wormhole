@@ -5,9 +5,9 @@ import {
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 import { getEmitterAddress } from "../emitter";
 
-exports.command = "convert-to-emitter <chain> <address-to-convert>";
-exports.desc = "Print address in emitter address format";
-exports.builder = (y: typeof yargs) => {
+export const command = "convert-to-emitter <chain> <address-to-convert>";
+export const desc = "Print address in emitter address format";
+export const builder = (y: typeof yargs) => {
   return y
     .positional("chain", {
       describe: "Chain to query",
@@ -19,7 +19,7 @@ exports.builder = (y: typeof yargs) => {
       type: "string",
     });
 };
-exports.handler = async (argv) => {
+export const handler = async (argv) => {
   assertChain(argv["chain"]);
   let chain = argv["chain"];
   console.log(await getEmitterAddress(chain, argv["address-to-convert"]));

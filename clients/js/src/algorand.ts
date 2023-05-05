@@ -4,8 +4,8 @@ import { Account, Algodv2, mnemonicToSecretKey } from "algosdk";
 import {
   signSendAndConfirmAlgorand,
   _submitVAAAlgorand,
-} from "@certusone/wormhole-sdk/lib/cjs/algorand";
-import { CONTRACTS } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+} from "@certusone/wormhole-sdk/lib/esm/algorand";
+import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 
 export async function execute_algorand(
   payload: Payload,
@@ -46,7 +46,7 @@ export async function execute_algorand(
           console.log("Upgrading core contract");
           break;
         case "RecoverChainId":
-          throw new Error("RecoverChainId not supported on algorand")
+          throw new Error("RecoverChainId not supported on algorand");
         default:
           impossible(payload);
       }
@@ -64,7 +64,7 @@ export async function execute_algorand(
           console.log("Upgrading contract");
           break;
         case "RecoverChainId":
-          throw new Error("RecoverChainId not supported on algorand")
+          throw new Error("RecoverChainId not supported on algorand");
         case "RegisterChain":
           console.log("Registering chain");
           break;
@@ -85,7 +85,7 @@ export async function execute_algorand(
           console.log("Upgrading contract");
           break;
         case "RecoverChainId":
-          throw new Error("RecoverChainId not supported on algorand")
+          throw new Error("RecoverChainId not supported on algorand");
         case "RegisterChain":
           console.log("Registering chain");
           break;

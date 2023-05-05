@@ -1,10 +1,10 @@
 import yargs from "yargs";
+import { deploy_near, upgrade_near } from "../near";
 
 // Near utilities
-exports.command = "near";
-exports.desc = "NEAR utilities";
-exports.builder = function (y: typeof yargs) {
-  const near = require("../near");
+export const command = "near";
+export const desc = "NEAR utilities";
+export const builder = function (y: typeof yargs) {
   return y
     .option("module", {
       alias: "m",
@@ -55,7 +55,7 @@ exports.builder = function (y: typeof yargs) {
         });
       },
       async (argv) => {
-        await near.upgrade_near(argv);
+        await upgrade_near(argv);
       }
     )
     .command(
@@ -68,7 +68,9 @@ exports.builder = function (y: typeof yargs) {
         });
       },
       async (argv) => {
-        await near.deploy_near(argv);
+        await deploy_near(argv);
       }
     );
 };
+
+export const handler = (argv) => {};

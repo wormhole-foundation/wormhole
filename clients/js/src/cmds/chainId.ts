@@ -1,21 +1,21 @@
-import yargs from "yargs";
 import {
   CHAINS,
   assertChain,
   coalesceChainId,
-} from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+import yargs from "yargs";
 
-exports.command = "chain-id <chain>";
-exports.desc =
+export const command = "chain-id <chain>";
+export const desc =
   "Print the wormhole chain ID integer associated with the specified chain name";
-exports.builder = (y: typeof yargs) => {
+export const builder = (y: typeof yargs) => {
   return y.positional("chain", {
     describe: "Chain to query",
     type: "string",
     choices: Object.keys(CHAINS),
   });
 };
-exports.handler = (argv) => {
+export const handler = (argv) => {
   assertChain(argv["chain"]);
   console.log(coalesceChainId(argv["chain"]));
 };

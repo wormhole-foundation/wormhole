@@ -1,15 +1,15 @@
-import yargs from "yargs";
 import {
   CHAINS,
   assertChain,
 } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
-import { impossible } from "../vaa";
+import yargs from "yargs";
 import { CONTRACTS } from "../consts";
 import { getEmitterAddress } from "../emitter";
+import { impossible } from "../vaa";
 
-exports.command = "contract <network> <chain> <module>";
-exports.desc = "Print contract address";
-exports.builder = (y: typeof yargs) => {
+export const command = "contract <network> <chain> <module>";
+export const desc = "Print contract address";
+export const builder = (y: typeof yargs) => {
   return y
     .positional("network", {
       describe: "network",
@@ -34,7 +34,7 @@ exports.builder = (y: typeof yargs) => {
       required: false,
     });
 };
-exports.handler = async (argv) => {
+export const handler = async (argv) => {
   assertChain(argv["chain"]);
   const network = argv.network.toUpperCase();
   if (network !== "MAINNET" && network !== "TESTNET" && network !== "DEVNET") {

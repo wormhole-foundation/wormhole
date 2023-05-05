@@ -2,27 +2,27 @@ import * as web3s from "@solana/web3.js";
 import { NETWORKS } from "./networks";
 import { impossible, Payload, VAA } from "./vaa";
 import base58 from "bs58";
-import { postVaaSolanaWithRetry } from "@certusone/wormhole-sdk/lib/cjs/solana";
+import { postVaaSolanaWithRetry } from "@certusone/wormhole-sdk/lib/esm/solana";
 import {
   CHAINS,
   CONTRACTS,
   SolanaChainName,
-} from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import {
   createUpgradeContractInstruction as createWormholeUpgradeContractInstruction,
   createUpgradeGuardianSetInstruction,
-} from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
+} from "@certusone/wormhole-sdk/lib/esm/solana/wormhole";
 import {
   createCompleteTransferNativeInstruction,
   createCompleteTransferWrappedInstruction,
   createCreateWrappedInstruction,
   createRegisterChainInstruction as createTokenBridgeRegisterChainInstruction,
   createUpgradeContractInstruction as createTokenBridgeUpgradeContractInstruction,
-} from "@certusone/wormhole-sdk/lib/cjs/solana/tokenBridge";
+} from "@certusone/wormhole-sdk/lib/esm/solana/tokenBridge";
 import {
   createRegisterChainInstruction as createNFTBridgeRegisterChainInstruction,
   createUpgradeContractInstruction as createNFTBridgeUpgradeContractInstruction,
-} from "@certusone/wormhole-sdk/lib/cjs/solana/nftBridge";
+} from "@certusone/wormhole-sdk/lib/esm/solana/nftBridge";
 
 export async function execute_solana(
   v: VAA<Payload>,
@@ -67,7 +67,7 @@ export async function execute_solana(
           );
           break;
         case "RecoverChainId":
-          throw new Error("RecoverChainId not supported on solana")
+          throw new Error("RecoverChainId not supported on solana");
         default:
           ix = impossible(v.payload);
       }
@@ -87,7 +87,7 @@ export async function execute_solana(
           );
           break;
         case "RecoverChainId":
-          throw new Error("RecoverChainId not supported on solana")
+          throw new Error("RecoverChainId not supported on solana");
         case "RegisterChain":
           console.log("Registering chain");
           ix = createNFTBridgeRegisterChainInstruction(
@@ -120,7 +120,7 @@ export async function execute_solana(
           );
           break;
         case "RecoverChainId":
-          throw new Error("RecoverChainId not supported on solana")
+          throw new Error("RecoverChainId not supported on solana");
         case "RegisterChain":
           console.log("Registering chain");
           ix = createTokenBridgeRegisterChainInstruction(
@@ -177,7 +177,7 @@ export async function execute_solana(
     },
     bridgeId,
     from.publicKey,
-    vaa,
+    vaa
   );
 
   // Then do the actual thing

@@ -1,4 +1,4 @@
-import { CONTRACTS } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { getNetworkInfo, Network } from "@injectivelabs/networks";
 import {
   ChainRestAuthApi,

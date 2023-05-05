@@ -1,3 +1,4 @@
+import { tryNativeToHexString } from "@certusone/wormhole-sdk/lib/esm/utils/array";
 import {
   assertChain,
   ChainName,
@@ -5,7 +6,7 @@ import {
   isCosmWasmChain,
   isEVMChain,
   toChainId,
-} from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { fromBech32, toHex } from "@cosmjs/encoding";
 import base58 from "bs58";
 import { sha3_256 } from "js-sha3";
@@ -46,9 +47,9 @@ function makeVAA(
   return v;
 }
 
-exports.command = "generate";
-exports.desc = "generate VAAs (devnet and testnet only)";
-exports.builder = function (y: typeof yargs) {
+export const command = "generate";
+export const desc = "generate VAAs (devnet and testnet only)";
+export const builder = function (y: typeof yargs) {
   return (
     y
       .option("guardian-secret", {
@@ -295,8 +296,7 @@ function parseAddress(chain: ChainName, address: string): string {
 
     return sha3_256(Buffer.from(address)); // address is hash of fully qualified type
   } else if (chain === "wormchain") {
-    const sdk = require("@certusone/wormhole-sdk/lib/cjs/utils/array");
-    return "0x" + sdk.tryNativeToHexString(address, chain);
+    return "0x" + tryNativeToHexString(address, chain);
   } else if (chain === "btc") {
     throw Error("btc is not supported yet");
   } else {
@@ -311,3 +311,5 @@ function parseCodeAddress(chain: ChainName, address: string): string {
     return parseAddress(chain, address);
   }
 }
+
+export const handler = (argv) => {};

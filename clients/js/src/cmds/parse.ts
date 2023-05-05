@@ -1,15 +1,15 @@
 import yargs from "yargs";
 import { parse, vaaDigest } from "../vaa";
 
-exports.command = "parse <vaa>";
-exports.desc = "Parse a VAA (can be in either hex or base64 format)";
-exports.builder = (y: typeof yargs) => {
+export const command = "parse <vaa>";
+export const desc = "Parse a VAA (can be in either hex or base64 format)";
+export const builder = (y: typeof yargs) => {
   return y.positional("vaa", {
     describe: "vaa",
     type: "string",
   });
 };
-exports.handler = (argv) => {
+export const handler = (argv) => {
   let buf: Buffer;
   try {
     buf = Buffer.from(String(argv.vaa), "hex");

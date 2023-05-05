@@ -12,7 +12,7 @@ import axios from "axios";
 import {
   CONTRACTS,
   TerraChainName,
-} from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 
 export async function execute_terra(
   payload: Payload,
