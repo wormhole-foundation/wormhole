@@ -53,7 +53,7 @@ contract ForwardWrapper is CoreRelayerLibrary {
 
         uint256 postGas = gasleft();
 
-        if (callToTargetContractSucceeded) {
+        if (!callToTargetContractSucceeded) {
             returnDataTruncated = truncateReturnData(returnData);
         }
         // Calculate the amount of gas used in the call (upperbounding at the gas limit, which shouldn't have been exceeded)
