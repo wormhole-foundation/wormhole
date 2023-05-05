@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# TODO: move this into the client
+
 set -uo pipefail
 
 test_directory="parse_tests"

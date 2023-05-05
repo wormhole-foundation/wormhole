@@ -1,6 +1,6 @@
 {
   "name": "@wormhole-foundation/wormhole-cli",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "CLI for Wormhole related activities",
   "homepage": "https://wormhole.com",
   "bin": {

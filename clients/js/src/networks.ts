@@ -1,6 +1,8 @@
 import { ChainName } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
 
-require("dotenv").config({ path: `${process.env.HOME}/.wormhole/.env` });
+const os = require("os");
+const dir = os.homedir();
+require("dotenv").config({ path: `${dir}/.wormhole/.env` });
 
 function get_env_var(env: string): string | undefined {
   const v = process.env[env];

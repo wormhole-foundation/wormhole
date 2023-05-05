@@ -6,6 +6,9 @@ import { buildCoin, getProvider } from "../../sui";
 import { assertNetwork, checkBinary } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
 
+const README_URL =
+  "https://github.com/wormhole-foundation/wormhole/blob/main/sui/README.md";
+
 export const addBuildCommands: YargsAddCommandsFn = (y: typeof yargs) =>
   y.command(
     "build-coin",
@@ -49,7 +52,7 @@ export const addBuildCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         })
         .option("rpc", RPC_OPTIONS),
     async (argv) => {
-      checkBinary("sui", "sui");
+      checkBinary("sui", README_URL);
 
       const network = argv.network.toUpperCase();
       assertNetwork(network);
