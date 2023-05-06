@@ -2,24 +2,34 @@ import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { calculateFee } from "@cosmjs/stargate";
 import { getSigningCosmWasmClient } from "@sei-js/core";
 
-import { impossible, Payload } from "./vaa";
-import { NETWORKS } from "./networks";
 import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+import { NETWORKS } from "./networks";
+import { Network } from "./utils";
+import { impossible, Payload } from "./vaa";
 
 export async function execute_sei(
   payload: Payload,
   vaa: Buffer,
-  network: "MAINNET" | "TESTNET" | "DEVNET"
+  network: Network
 ) {
-  let chain = "sei";
-  let n = NETWORKS[network][chain];
-  let contracts = CONTRACTS[network][chain];
+  const contracts = CONTRACTS[network].sei;
+  const { rpc, key } = NETWORKS[network].sei;
+  if (!key) {
+    throw Error(`No ${network} key defined for NEAR`);
+  }
+
+  if (!rpc) {
+    throw Error(`No ${network} rpc defined for NEAR`);
+  }
 
   let target_contract: string;
   let execute_msg: object;
-
   switch (payload.module) {
-    case "Core":
+    case "Core": {
+      if (!contracts.core) {
+        throw new Error(`Core bridge address not defined for Sei ${network}`);
+      }
+
       target_contract = contracts.core;
       // sigh...
       execute_msg = {
@@ -39,14 +49,17 @@ export async function execute_sei(
         default:
           impossible(payload);
       }
+
       break;
-    case "NFTBridge":
-      if (contracts.nft_bridge === undefined) {
+    }
+    case "NFTBridge": {
+      if (!contracts.nft_bridge) {
         // NOTE: this code can safely be removed once the sei NFT bridge is
         // released, but it's fine for it to stay, as the condition will just be
         // skipped once 'contracts.nft_bridge' is defined
-        throw new Error("NFT bridge not supported yet for sei");
+        throw new Error("NFT bridge not supported yet for Sei");
       }
+
       target_contract = contracts.nft_bridge;
       execute_msg = {
         submit_vaa: {
@@ -68,8 +81,14 @@ export async function execute_sei(
         default:
           impossible(payload);
       }
+
       break;
-    case "TokenBridge":
+    }
+    case "TokenBridge": {
+      if (!contracts.token_bridge) {
+        throw new Error(`Token bridge address not defined for Sei ${network}`);
+      }
+
       target_contract = contracts.token_bridge;
       execute_msg = {
         submit_vaa: {
@@ -97,17 +116,19 @@ export async function execute_sei(
           impossible(payload);
           break;
       }
+
       break;
+    }
     default:
       target_contract = impossible(payload);
       execute_msg = impossible(payload);
   }
 
-  const wallet = await DirectSecp256k1HdWallet.fromMnemonic(n.key, {
+  const wallet = await DirectSecp256k1HdWallet.fromMnemonic(key, {
     prefix: "sei",
   });
   const [account] = await wallet.getAccounts();
-  const client = await getSigningCosmWasmClient(n.rpc, wallet);
+  const client = await getSigningCosmWasmClient(rpc, wallet);
   const fee = calculateFee(300000, "0.1usei");
   const result = await client.execute(
     account.address,

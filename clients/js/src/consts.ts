@@ -58,27 +58,26 @@ export const DEBUG_OPTIONS = {
   alias: "d",
   describe: "Log debug info",
   type: "boolean",
-  required: false,
+  demandOption: false,
 } as const;
 
 export const NAMED_ADDRESSES_OPTIONS = {
   describe: "Named addresses in the format addr1=0x0,addr2=0x1,...",
   type: "string",
-  require: false,
+  demandOption: false,
 } as const;
 
 export const NETWORK_OPTIONS = {
   alias: "n",
   describe: "Network",
-  type: "string",
   choices: ["mainnet", "testnet", "devnet"],
-  required: true,
+  demandOption: true,
 } as const;
 
 export const PRIVATE_KEY_OPTIONS = {
   alias: "k",
   describe: "Custom private key to sign transactions",
-  required: false,
+  demandOption: false,
   type: "string",
 } as const;
 
@@ -86,7 +85,7 @@ export const RPC_OPTIONS = {
   alias: "r",
   describe: "Override default rpc endpoint url",
   type: "string",
-  required: false,
+  demandOption: false,
 } as const;
 
 export const GOVERNANCE_CHAIN = CHAIN_ID_SOLANA;

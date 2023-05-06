@@ -1,17 +1,8 @@
-import * as web3s from "@solana/web3.js";
-import { NETWORKS } from "./networks";
-import { impossible, Payload, VAA } from "./vaa";
-import base58 from "bs58";
 import { postVaaSolanaWithRetry } from "@certusone/wormhole-sdk/lib/esm/solana";
 import {
-  CHAINS,
-  CONTRACTS,
-  SolanaChainName,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
-import {
-  createUpgradeContractInstruction as createWormholeUpgradeContractInstruction,
-  createUpgradeGuardianSetInstruction,
-} from "@certusone/wormhole-sdk/lib/esm/solana/wormhole";
+  createRegisterChainInstruction as createNFTBridgeRegisterChainInstruction,
+  createUpgradeContractInstruction as createNFTBridgeUpgradeContractInstruction,
+} from "@certusone/wormhole-sdk/lib/esm/solana/nftBridge";
 import {
   createCompleteTransferNativeInstruction,
   createCompleteTransferWrappedInstruction,
@@ -20,9 +11,18 @@ import {
   createUpgradeContractInstruction as createTokenBridgeUpgradeContractInstruction,
 } from "@certusone/wormhole-sdk/lib/esm/solana/tokenBridge";
 import {
-  createRegisterChainInstruction as createNFTBridgeRegisterChainInstruction,
-  createUpgradeContractInstruction as createNFTBridgeUpgradeContractInstruction,
-} from "@certusone/wormhole-sdk/lib/esm/solana/nftBridge";
+  createUpgradeGuardianSetInstruction,
+  createUpgradeContractInstruction as createWormholeUpgradeContractInstruction,
+} from "@certusone/wormhole-sdk/lib/esm/solana/wormhole";
+import {
+  CHAINS,
+  CONTRACTS,
+  SolanaChainName,
+} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+import * as web3s from "@solana/web3.js";
+import base58 from "bs58";
+import { NETWORKS } from "./networks";
+import { Payload, VAA, impossible } from "./vaa";
 
 export async function execute_solana(
   v: VAA<Payload>,
@@ -30,20 +30,36 @@ export async function execute_solana(
   network: "MAINNET" | "TESTNET" | "DEVNET",
   chain: SolanaChainName
 ) {
+  const { rpc, key } = NETWORKS[network][chain];
+  if (!key) {
+    throw Error(`No ${network} key defined for NEAR`);
+  }
+
+  if (!rpc) {
+    throw Error(`No ${network} rpc defined for NEAR`);
+  }
+
+  const connection = setupConnection(rpc);
+  const from = web3s.Keypair.fromSecretKey(base58.decode(key));
+
+  const contracts = CONTRACTS[network][chain];
+  if (!contracts.core) {
+    throw new Error(`Core bridge address not defined for ${chain} ${network}`);
+  }
+
+  if (!contracts.nft_bridge) {
+    throw new Error(`NFT bridge address not defined for ${chain} ${network}`);
+  }
+
+  if (!contracts.token_bridge) {
+    throw new Error(`Token bridge address not defined for ${chain} ${network}`);
+  }
+
+  const bridgeId = new web3s.PublicKey(contracts.core);
+  const tokenBridgeId = new web3s.PublicKey(contracts.token_bridge);
+  const nftBridgeId = new web3s.PublicKey(contracts.nft_bridge);
+
   let ix: web3s.TransactionInstruction;
-  const connection = setupConnection(NETWORKS[network][chain].rpc);
-  const bridgeId = new web3s.PublicKey(CONTRACTS[network][chain].core);
-  const tokenBridgeId =
-    CONTRACTS[network][chain].token_bridge &&
-    new web3s.PublicKey(CONTRACTS[network][chain].token_bridge);
-  const nftBridgeId =
-    CONTRACTS[network][chain].nft_bridge &&
-    new web3s.PublicKey(CONTRACTS[network][chain].nft_bridge);
-
-  const from = web3s.Keypair.fromSecretKey(
-    base58.decode(NETWORKS[network][chain].key)
-  );
-
   switch (v.payload.module) {
     case "Core":
       if (bridgeId === undefined) {
@@ -194,6 +210,5 @@ export async function execute_solana(
   console.log("SIGNATURE", signature);
 }
 
-function setupConnection(rpc: string): web3s.Connection {
-  return new web3s.Connection(rpc, "confirmed");
-}
+const setupConnection = (rpc: string): web3s.Connection =>
+  new web3s.Connection(rpc, "confirmed");

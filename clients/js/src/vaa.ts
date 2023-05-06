@@ -1,7 +1,7 @@
 import { Parser } from "binary-parser"
+import * as elliptic from "elliptic"
 import { BigNumber, ethers } from "ethers"
 import { solidityKeccak256 } from "ethers/lib/utils"
-import * as elliptic from "elliptic"
 
 export interface Signature {
     guardianSetIndex: number
@@ -103,7 +103,7 @@ export function parse(buffer: Buffer): VAA<Payload | Other> {
     if (payload === null) {
         payload = {type: "Other", hex: Buffer.from(vaa.payload).toString("hex"), ascii: Buffer.from(vaa.payload).toString('utf8')}
     } else {
-        delete payload['tokenURILength']
+        delete (payload as any)['tokenURILength']
     }
     var myVAA = { ...vaa, payload }
 
@@ -829,7 +829,7 @@ function nftBridgeTransferParser(): P<NFTBridgeTransfer> {
         .array("tokenURI", {
             type: "uint8",
             lengthInBytes: function() {
-                return this.tokenURILength
+                return (this as any).tokenURILength
             },
             formatter: (arr: Uint8Array) => Buffer.from(arr).toString("utf8")
         })
@@ -868,7 +868,7 @@ function serialiseNFTBridgeTransfer(payload: NFTBridgeTransfer): string {
 // in, this function just throws. If the enum type is extended with new cases,
 // the call to this function will then fail to compile, drawing attention to an
 // unhandled case somewhere.
-export function impossible(a: never): any {
+export function impossible(a: never): never {
     throw new Error(`Impossible: ${a}`)
 }
 

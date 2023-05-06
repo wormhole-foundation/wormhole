@@ -20,6 +20,7 @@ import {
   isSameType,
   logTransactionDigest,
   logTransactionSender,
+  setMaxGasBudgetDevnet,
 } from "../../sui";
 import { Network, assertNetwork } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
@@ -29,24 +30,23 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
     .command(
       "init-example-message-app",
       "Initialize example core message app",
-      (yargs) => {
-        return yargs
+      (yargs) =>
+        yargs
           .option("network", NETWORK_OPTIONS)
           .option("package-id", {
             alias: "p",
             describe: "Example app package ID",
-            required: true,
+            demandOption: true,
             type: "string",
           })
           .option("wormhole-state", {
             alias: "w",
             describe: "Wormhole state object ID",
-            required: true,
+            demandOption: true,
             type: "string",
           })
           .option("private-key", PRIVATE_KEY_OPTIONS)
-          .option("rpc", RPC_OPTIONS);
-      },
+          .option("rpc", RPC_OPTIONS),
       async (argv) => {
         const network = argv.network.toUpperCase();
         assertNetwork(network);
@@ -69,26 +69,26 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           "Example app state object ID",
           getCreatedObjects(res).find((e) =>
             isSameType(e.type, `${packageId}::sender::State`)
-          ).objectId
+          )?.objectId
         );
       }
     )
     .command(
       "init-token-bridge",
       "Initialize token bridge contract",
-      (yargs) => {
-        return yargs
+      (yargs) =>
+        yargs
           .option("network", NETWORK_OPTIONS)
           .option("package-id", {
             alias: "p",
             describe: "Token bridge package ID",
-            required: true,
+            demandOption: true,
             type: "string",
           })
           .option("wormhole-state", {
             alias: "w",
             describe: "Wormhole state object ID",
-            required: true,
+            demandOption: true,
             type: "string",
           })
           .option("governance-chain-id", {
@@ -96,18 +96,17 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
             describe: "Governance chain ID",
             default: GOVERNANCE_CHAIN,
             type: "number",
-            required: false,
+            demandOption: false,
           })
           .option("governance-address", {
             alias: "a",
             describe: "Governance contract address",
             type: "string",
             default: GOVERNANCE_EMITTER,
-            required: false,
+            demandOption: false,
           })
           .option("private-key", PRIVATE_KEY_OPTIONS)
-          .option("rpc", RPC_OPTIONS);
-      },
+          .option("rpc", RPC_OPTIONS),
       async (argv) => {
         const network = argv.network.toUpperCase();
         assertNetwork(network);
@@ -134,25 +133,25 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           "Token bridge state object ID",
           getCreatedObjects(res).find((e) =>
             isSameType(e.type, `${packageId}::state::State`)
-          ).objectId
+          )?.objectId
         );
       }
     )
     .command(
       "init-wormhole",
       "Initialize wormhole core contract",
-      (yargs) => {
-        return yargs
+      (yargs) =>
+        yargs
           .option("network", NETWORK_OPTIONS)
           .option("package-id", {
             alias: "p",
             describe: "Core bridge package ID",
-            required: true,
+            demandOption: true,
             type: "string",
           })
           .option("initial-guardian", {
             alias: "i",
-            required: true,
+            demandOption: true,
             describe: "Initial guardian public keys",
             type: "string",
           })
@@ -162,25 +161,24 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
             describe: "Governance chain ID",
             default: GOVERNANCE_CHAIN,
             type: "number",
-            required: false,
+            demandOption: false,
           })
           .option("guardian-set-index", {
             alias: "s",
             describe: "Governance set index",
             default: 0,
             type: "number",
-            required: false,
+            demandOption: false,
           })
           .option("governance-address", {
             alias: "a",
             describe: "Governance contract address",
             type: "string",
             default: GOVERNANCE_EMITTER,
-            required: false,
+            demandOption: false,
           })
           .option("private-key", PRIVATE_KEY_OPTIONS)
-          .option("rpc", RPC_OPTIONS);
-      },
+          .option("rpc", RPC_OPTIONS),
       async (argv) => {
         const network = argv.network.toUpperCase();
         assertNetwork(network);
@@ -209,7 +207,7 @@ export const addInitCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           "Wormhole state object ID",
           getCreatedObjects(res).find((e) =>
             isSameType(e.type, `${packageId}::state::State`)
-          ).objectId
+          )?.objectId
         );
         if (debug) {
           logTransactionSender(res);
@@ -228,16 +226,13 @@ export const initExampleApp = async (
   const provider = getProvider(network, rpc);
   const signer = getSigner(provider, network, privateKey);
 
-  const transactionBlock = new TransactionBlock();
-  if (network === "DEVNET") {
-    // Avoid Error checking transaction input objects: GasBudgetTooHigh { gas_budget: 50000000000, max_budget: 10000000000 }
-    transactionBlock.setGasBudget(10000000000);
-  }
-  transactionBlock.moveCall({
+  const tx = new TransactionBlock();
+  setMaxGasBudgetDevnet(network, tx);
+  tx.moveCall({
     target: `${packageId}::sender::init_with_params`,
-    arguments: [transactionBlock.object(wormholeStateObjectId)],
+    arguments: [tx.object(wormholeStateObjectId)],
   });
-  return executeTransactionBlock(signer, transactionBlock);
+  return executeTransactionBlock(signer, tx);
 };
 
 export const initTokenBridge = async (
@@ -283,26 +278,23 @@ export const initTokenBridge = async (
     coreBridgeStateObjectId
   );
 
-  const transactionBlock = new TransactionBlock();
-  if (network === "DEVNET") {
-    // Avoid Error checking transaction input objects: GasBudgetTooHigh { gas_budget: 50000000000, max_budget: 10000000000 }
-    transactionBlock.setGasBudget(10000000000);
-  }
-  const [emitterCap] = transactionBlock.moveCall({
+  const tx = new TransactionBlock();
+  setMaxGasBudgetDevnet(network, tx);
+  const [emitterCap] = tx.moveCall({
     target: `${wormholePackageId}::emitter::new`,
-    arguments: [transactionBlock.object(coreBridgeStateObjectId)],
+    arguments: [tx.object(coreBridgeStateObjectId)],
   });
-  transactionBlock.moveCall({
+  tx.moveCall({
     target: `${tokenBridgePackageId}::setup::complete`,
     arguments: [
-      transactionBlock.object(deployerCapObjectId),
-      transactionBlock.object(upgradeCapObjectId),
+      tx.object(deployerCapObjectId),
+      tx.object(upgradeCapObjectId),
       emitterCap,
-      transactionBlock.pure(governanceChainId),
-      transactionBlock.pure([...Buffer.from(governanceContract, "hex")]),
+      tx.pure(governanceChainId),
+      tx.pure([...Buffer.from(governanceContract, "hex")]),
     ],
   });
-  return executeTransactionBlock(signer, transactionBlock);
+  return executeTransactionBlock(signer, tx);
 };
 
 export const initWormhole = async (
@@ -344,25 +336,22 @@ export const initWormhole = async (
     );
   }
 
-  const transactionBlock = new TransactionBlock();
-  if (network === "DEVNET") {
-    // Avoid Error checking transaction input objects: GasBudgetTooHigh { gas_budget: 50000000000, max_budget: 10000000000 }
-    transactionBlock.setGasBudget(10000000000);
-  }
-  transactionBlock.moveCall({
+  const tx = new TransactionBlock();
+  setMaxGasBudgetDevnet(network, tx);
+  tx.moveCall({
     target: `${coreBridgePackageId}::setup::complete`,
     arguments: [
-      transactionBlock.object(deployerCapObjectId),
-      transactionBlock.object(upgradeCapObjectId),
-      transactionBlock.pure(governanceChainId),
-      transactionBlock.pure([...Buffer.from(governanceContract, "hex")]),
-      transactionBlock.pure(guardianSetIndex),
-      transactionBlock.pure(
+      tx.object(deployerCapObjectId),
+      tx.object(upgradeCapObjectId),
+      tx.pure(governanceChainId),
+      tx.pure([...Buffer.from(governanceContract, "hex")]),
+      tx.pure(guardianSetIndex),
+      tx.pure(
         initialGuardians.split(",").map((g) => [...Buffer.from(g, "hex")])
       ),
-      transactionBlock.pure(24 * 60 * 60), // Guardian set TTL in seconds
-      transactionBlock.pure("0"), // Message fee
+      tx.pure(24 * 60 * 60), // Guardian set TTL in seconds
+      tx.pure("0"), // Message fee
     ],
   });
-  return executeTransactionBlock(signer, transactionBlock);
+  return executeTransactionBlock(signer, tx);
 };

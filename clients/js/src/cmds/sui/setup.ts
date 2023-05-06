@@ -1,5 +1,6 @@
 import {
   ChainId,
+  ChainName,
   coalesceChainName,
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { parseTokenBridgeRegisterChainVaa } from "@certusone/wormhole-sdk/lib/esm/vaa/tokenBridge";
@@ -30,6 +31,7 @@ import {
   logPublishedPackageId,
   logTransactionDigest,
   registerChain,
+  setMaxGasBudgetDevnet,
 } from "../../sui";
 import { YargsAddCommandsFn } from "../Yargs";
 import { deploy } from "./deploy";
@@ -39,16 +41,15 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
   y.command(
     "setup-devnet",
     "Setup devnet by deploying and initializing core and token bridges and submitting chain registrations.",
-    (yargs) => {
-      return yargs
+    (yargs) =>
+      yargs
         .option("private-key", {
           alias: "k",
           describe: "Custom private key to sign txs",
-          required: false,
+          demandOption: false,
           type: "string",
         })
-        .option("rpc", RPC_OPTIONS);
-    },
+        .option("rpc", RPC_OPTIONS),
     async (argv) => {
       const network = "DEVNET";
       const privateKey = argv["private-key"];
@@ -62,8 +63,8 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         rpc,
         privateKey
       );
-      assertSuccess(coreBridgeDeployRes, "Core bridge deployment failed.");
       logTransactionDigest(coreBridgeDeployRes);
+      assertSuccess(coreBridgeDeployRes, "Core bridge deployment failed.");
       logPublishedPackageId(coreBridgeDeployRes);
 
       // Init core bridge
@@ -79,11 +80,17 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         rpc,
         privateKey
       );
+      logTransactionDigest(coreBridgeInitRes);
+      assertSuccess(coreBridgeInitRes, "Core bridge initialization failed.");
+
+      // Get core bridge state object ID
       const coreBridgeStateObjectId = getCreatedObjects(coreBridgeInitRes).find(
         (e) => isSameType(e.type, `${coreBridgePackageId}::state::State`)
-      ).objectId;
-      assertSuccess(coreBridgeInitRes, "Core bridge initialization failed.");
-      logTransactionDigest(coreBridgeInitRes);
+      )?.objectId;
+      if (!coreBridgeStateObjectId) {
+        throw new Error("Couldn't find core bridge state object ID.");
+      }
+
       console.log("Core bridge state object ID", coreBridgeStateObjectId);
 
       // Deploy token bridge
@@ -94,8 +101,8 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         rpc,
         privateKey
       );
-      assertSuccess(tokenBridgeDeployRes, "Token bridge deployment failed.");
       logTransactionDigest(tokenBridgeDeployRes);
+      assertSuccess(tokenBridgeDeployRes, "Token bridge deployment failed.");
       logPublishedPackageId(tokenBridgeDeployRes);
 
       // Init token bridge
@@ -110,13 +117,19 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         rpc,
         privateKey
       );
+      logTransactionDigest(tokenBridgeInitRes);
+      assertSuccess(tokenBridgeInitRes, "Token bridge initialization failed.");
+
+      // Get token bridge state object ID
       const tokenBridgeStateObjectId = getCreatedObjects(
         tokenBridgeInitRes
       ).find((e) =>
         isSameType(e.type, `${tokenBridgePackageId}::state::State`)
-      ).objectId;
-      assertSuccess(tokenBridgeInitRes, "Token bridge initialization failed.");
-      logTransactionDigest(tokenBridgeInitRes);
+      )?.objectId;
+      if (!tokenBridgeStateObjectId) {
+        throw new Error("Couldn't find token bridge state object ID.");
+      }
+
       console.log("Token bridge state object ID", tokenBridgeStateObjectId);
 
       // Deploy example app
@@ -142,7 +155,7 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
       );
       const exampleAppStateObjectId = getCreatedObjects(exampleAppInitRes).find(
         (e) => isSameType(e.type, `${exampleAppPackageId}::sender::State`)
-      ).objectId;
+      )?.objectId;
       logTransactionDigest(exampleAppInitRes);
       console.log("Example app state object ID", exampleAppStateObjectId);
 
@@ -185,10 +198,10 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
       }
 
       dotenv.config({ path: envPath });
-      const signer = getSigner(provider, network, privateKey);
+
       const tx = new TransactionBlock();
-      tx.setGasBudget(10000000000);
-      const registrations = [];
+      setMaxGasBudgetDevnet("DEVNET", tx);
+      const registrations: { chain: ChainName; module: string }[] = [];
       for (const key in process.env) {
         if (/^REGISTER_(.+)_TOKEN_BRIDGE_VAA$/.test(key)) {
           // Get VAA info
@@ -210,6 +223,7 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         }
       }
 
+      const signer = getSigner(provider, network, privateKey);
       const registerRes = await executeTransactionBlock(signer, tx);
       assertSuccess(registerRes, "Chain registrations failed.");
 
@@ -228,13 +242,12 @@ export const addSetupCommands: YargsAddCommandsFn = (y: typeof yargs) =>
 const getEmitterCapObjectId = async (
   provider: JsonRpcProvider,
   tokenBridgeStateObjectId: string
-): Promise<string> => {
-  return getObjectFields(
+): Promise<string> =>
+  getObjectFields(
     await provider.getObject({
       id: tokenBridgeStateObjectId,
       options: {
         showContent: true,
       },
     })
-  ).emitter_cap.fields.id.id;
-};
+  )?.emitter_cap.fields.id.id;

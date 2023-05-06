@@ -1,3 +1,4 @@
+import { PaginatedObjectsResponse } from "@mysten/sui.js";
 import yargs from "yargs";
 import { NETWORK_OPTIONS, RPC_OPTIONS } from "../../consts";
 import { NETWORKS } from "../../networks";
@@ -15,6 +16,7 @@ export const addUtilsCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           .positional("owner", {
             describe: "Owner address",
             type: "string",
+            demandOption: true,
           })
           .option("network", NETWORK_OPTIONS)
           .option("rpc", RPC_OPTIONS),
@@ -25,11 +27,15 @@ export const addUtilsCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         const owner = argv.owner;
 
         const provider = getProvider(network, rpc);
-        const objects = [];
+        const objects: PaginatedObjectsResponse["data"] = [];
 
-        let cursor = undefined;
+        let cursor: PaginatedObjectsResponse["nextCursor"] | undefined =
+          undefined;
         while (true) {
-          const res = await provider.getOwnedObjects({ owner, cursor });
+          const res: PaginatedObjectsResponse = await provider.getOwnedObjects({
+            owner,
+            cursor,
+          });
           objects.push(...res.data);
           if (res.hasNextPage) {
             cursor = res.nextCursor;
@@ -51,6 +57,7 @@ export const addUtilsCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           .positional("state-object-id", {
             describe: "Object ID of State object",
             type: "string",
+            demandOption: true,
           })
           .option("network", NETWORK_OPTIONS)
           .option("rpc", RPC_OPTIONS),
@@ -72,6 +79,7 @@ export const addUtilsCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           .positional("transaction-digest", {
             describe: "Digest of transaction to fetch",
             type: "string",
+            demandOption: true,
           })
           .option("network", {
             alias: "n",
@@ -79,7 +87,7 @@ export const addUtilsCommands: YargsAddCommandsFn = (y: typeof yargs) =>
             type: "string",
             choices: ["mainnet", "testnet", "devnet"],
             default: "devnet",
-            required: false,
+            demandOption: false,
           })
           .option("rpc", RPC_OPTIONS),
       async (argv) => {

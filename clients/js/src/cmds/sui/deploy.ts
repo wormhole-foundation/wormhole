@@ -27,16 +27,17 @@ export const addDeployCommands: YargsAddCommandsFn = (y: typeof yargs) =>
   y.command(
     "deploy <package-dir>",
     "Deploy a Sui package",
-    (yargs) => {
-      return yargs
+    (yargs) =>
+      yargs
         .positional("package-dir", {
           type: "string",
+          describe: "Path to package directory",
+          demandOption: true,
         })
         .option("network", NETWORK_OPTIONS)
         .option("debug", DEBUG_OPTIONS)
         .option("private-key", PRIVATE_KEY_OPTIONS)
-        .option("rpc", RPC_OPTIONS);
-    },
+        .option("rpc", RPC_OPTIONS),
     async (argv) => {
       checkBinary("sui", README_URL);
 

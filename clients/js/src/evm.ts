@@ -1,58 +1,57 @@
-import { ethers } from "ethers";
-import { NETWORKS } from "./networks";
-import { encode, Encoding, impossible, Payload, typeWidth } from "./vaa";
-import axios from "axios";
 import * as celo from "@celo-tools/celo-ethers-wrapper";
-import { solidityKeccak256 } from "ethers/lib/utils";
+import {
+  BridgeImplementation__factory,
+  Implementation__factory,
+  NFTBridgeImplementation__factory,
+} from "@certusone/wormhole-sdk/lib/esm/ethers-contracts";
 import {
   CHAINS,
   CONTRACTS,
   Contracts,
   EVMChainName,
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
-import {
-  BridgeImplementation__factory,
-  Implementation__factory,
-  NFTBridgeImplementation__factory,
-} from "@certusone/wormhole-sdk/lib/esm/ethers-contracts";
+import axios from "axios";
+import { ethers } from "ethers";
+import { solidityKeccak256 } from "ethers/lib/utils";
+import { NETWORKS } from "./networks";
+import { Network } from "./utils";
+import { Encoding, Payload, encode, impossible, typeWidth } from "./vaa";
 
 const _IMPLEMENTATION_SLOT =
   "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
 
 export async function query_contract_evm(
-  network: "MAINNET" | "TESTNET" | "DEVNET",
+  network: Network,
   chain: EVMChainName,
   module: "Core" | "NFTBridge" | "TokenBridge",
   contract_address: string | undefined,
   _rpc: string | undefined
 ): Promise<object> {
-  let n = NETWORKS[network][chain];
-  let rpc: string | undefined = _rpc ?? n.rpc;
-  if (rpc === undefined) {
+  const n = NETWORKS[network][chain];
+  const rpc: string | undefined = _rpc ?? n.rpc;
+  if (!rpc) {
     throw Error(`No ${network} rpc defined for ${chain} (see networks.ts)`);
   }
 
-  let contracts: Contracts = CONTRACTS[network][chain];
-
+  const contracts: Contracts = CONTRACTS[network][chain];
   const provider = new ethers.providers.JsonRpcProvider(rpc);
-
-  let result: any = {};
-
+  const result: any = {};
   switch (module) {
     case "Core":
       contract_address = contract_address ? contract_address : contracts.core;
-      if (contract_address === undefined) {
+      if (!contract_address) {
         throw Error(`Unknown core contract on ${network} for ${chain}`);
       }
+
       const core = Implementation__factory.connect(contract_address, provider);
       result.address = contract_address;
       result.currentGuardianSetIndex = await core.getCurrentGuardianSetIndex();
-      let guardianSetsPromise = Promise.all(
+      const guardianSetsPromise = Promise.all(
         [...Array(result.currentGuardianSetIndex + 1).keys()].map((i) =>
           core.getGuardianSet(i)
         )
       );
-      let [
+      const [
         guardianSetExpiry,
         chainId,
         evmChainId,
@@ -84,7 +83,7 @@ export async function query_contract_evm(
       result.isInitialized = await core.isInitialized(result.implementation);
       result.guardianSet = {};
 
-      for (let [i, guardianSet] of guardianSets.entries()) {
+      for (const [i, guardianSet] of guardianSets.entries()) {
         result.guardianSet[i] = {
           keys: guardianSet[0],
           expiry: guardianSet[1],
@@ -112,7 +111,7 @@ export async function query_contract_evm(
             await tb.bridgeContracts(c_id),
           ])
       );
-      let [
+      const [
         wormhole,
         implementationSlotTb,
         tokenImplementation,
@@ -150,7 +149,7 @@ export async function query_contract_evm(
       result.WETH = WETH;
       result.registrations = {};
 
-      for (let [c_name, c] of registrations) {
+      for (const [c_name, c] of registrations) {
         result.registrations[c_name] = c;
       }
       break;
@@ -174,7 +173,7 @@ export async function query_contract_evm(
             await nb.bridgeContracts(c_id),
           ])
       );
-      let [
+      const [
         wormholeNb,
         implementationSlotNb,
         tokenImplementationNb,
@@ -209,7 +208,7 @@ export async function query_contract_evm(
       result.governanceContract = governanceContractNb;
       result.registrations = {};
 
-      for (let [c_name, c] of registrationsNb) {
+      for (const [c_name, c] of registrationsNb) {
         result.registrations[c_name] = c;
       }
       break;
@@ -221,20 +220,19 @@ export async function query_contract_evm(
 }
 
 export async function getImplementation(
-  network: "MAINNET" | "TESTNET" | "DEVNET",
+  network: Network,
   chain: EVMChainName,
   module: "Core" | "NFTBridge" | "TokenBridge",
   contract_address: string | undefined,
   _rpc: string | undefined
 ): Promise<ethers.BigNumber> {
-  let n = NETWORKS[network][chain];
-  let rpc: string | undefined = _rpc ?? n.rpc;
-  if (rpc === undefined) {
+  const n = NETWORKS[network][chain];
+  const rpc: string | undefined = _rpc ?? n.rpc;
+  if (!rpc) {
     throw Error(`No ${network} rpc defined for ${chain} (see networks.ts)`);
   }
 
-  let contracts: Contracts = CONTRACTS[network][chain];
-
+  const contracts: Contracts = CONTRACTS[network][chain];
   switch (module) {
     case "Core":
       contract_address = contract_address ? contract_address : contracts.core;
@@ -253,6 +251,10 @@ export async function getImplementation(
       impossible(module);
   }
 
+  if (!contract_address) {
+    throw Error(`Unknown ${module} contract on ${network} for ${chain}`);
+  }
+
   return (
     await getStorageAt(rpc, contract_address, _IMPLEMENTATION_SLOT, ["address"])
   )[0];
@@ -261,23 +263,23 @@ export async function getImplementation(
 export async function execute_evm(
   payload: Payload,
   vaa: Buffer,
-  network: "MAINNET" | "TESTNET" | "DEVNET",
+  network: Network,
   chain: EVMChainName,
   contract_address: string | undefined,
   _rpc: string | undefined
 ) {
-  let n = NETWORKS[network][chain];
-  let rpc: string | undefined = _rpc ?? n.rpc;
-  if (rpc === undefined) {
+  const n = NETWORKS[network][chain];
+  const rpc: string | undefined = _rpc ?? n.rpc;
+  if (!rpc) {
     throw Error(`No ${network} rpc defined for ${chain} (see networks.ts)`);
   }
+
   if (!n.key) {
     throw Error(`No ${network} key defined for ${chain} (see networks.ts)`);
   }
-  let key: string = n.key;
 
-  let contracts: Contracts = CONTRACTS[network][chain];
-
+  const key: string = n.key;
+  const contracts: Contracts = CONTRACTS[network][chain];
   let provider: ethers.providers.JsonRpcProvider;
   let signer: ethers.Wallet;
   if (chain === "celo") {
@@ -294,9 +296,9 @@ export async function execute_evm(
   // testnet (or devnet), they might require additional guards
   let overrides: ethers.Overrides = {};
   if (chain === "karura" || chain == "acala") {
-    overrides = await getKaruraGasParams(n.rpc);
+    overrides = await getKaruraGasParams(rpc);
   } else if (chain === "polygon") {
-    let feeData = await provider.getFeeData();
+    const feeData = await provider.getFeeData();
     overrides = {
       maxFeePerGas: feeData.maxFeePerGas?.mul(50) || undefined,
       maxPriorityFeePerGas: feeData.maxPriorityFeePerGas?.mul(50) || undefined,
@@ -306,13 +308,13 @@ export async function execute_evm(
   }
 
   switch (payload.module) {
-    case "Core":
+    case "Core": {
       contract_address = contract_address ? contract_address : contracts.core;
       if (contract_address === undefined) {
         throw Error(`Unknown core contract on ${network} for ${chain}`);
       }
-      let c = new Implementation__factory(signer);
-      let cb = c.attach(contract_address);
+      const c = new Implementation__factory(signer);
+      const cb = c.attach(contract_address);
       switch (payload.type) {
         case "GuardianSetUpgrade":
           console.log("Submitting new guardian set");
@@ -335,16 +337,18 @@ export async function execute_evm(
         default:
           impossible(payload);
       }
+
       break;
-    case "NFTBridge":
+    }
+    case "NFTBridge": {
       contract_address = contract_address
         ? contract_address
         : contracts.nft_bridge;
       if (contract_address === undefined) {
         throw Error(`Unknown nft bridge contract on ${network} for ${chain}`);
       }
-      let n = new NFTBridgeImplementation__factory(signer);
-      let nb = n.attach(contract_address);
+      const n = new NFTBridgeImplementation__factory(signer);
+      const nb = n.attach(contract_address);
       switch (payload.type) {
         case "ContractUpgrade":
           console.log("Upgrading contract");
@@ -372,16 +376,18 @@ export async function execute_evm(
         default:
           impossible(payload);
       }
+
       break;
-    case "TokenBridge":
+    }
+    case "TokenBridge": {
       contract_address = contract_address
         ? contract_address
         : contracts.token_bridge;
       if (contract_address === undefined) {
         throw Error(`Unknown token bridge contract on ${network} for ${chain}`);
       }
-      let t = new BridgeImplementation__factory(signer);
-      let tb = t.attach(contract_address);
+      const t = new BridgeImplementation__factory(signer);
+      const tb = t.attach(contract_address);
       switch (payload.type) {
         case "ContractUpgrade":
           console.log("Upgrading contract");
@@ -419,9 +425,10 @@ export async function execute_evm(
           break;
         default:
           impossible(payload);
-          break;
       }
+
       break;
+    }
     default:
       impossible(payload);
   }
@@ -440,7 +447,7 @@ export async function execute_evm(
  * @param rpc the JSON RPC endpoint (needs to be hardhat of anvil)
  * @param contract_address address of the core bridge contract
  * @param guardian_addresses addresses of the desired guardian set to upgrade to
- * @param new_guardian_set_index if specified, the new guardian set will be
+ * @param newGuardianSetIndex if specified, the new guardian set will be
  * written into this guardian set index, and the guardian set index of the
  * contract changed to it.
  * If unspecified, then the current guardian set index will be overridden.
@@ -452,16 +459,14 @@ export async function hijack_evm(
   rpc: string,
   contract_address: string,
   guardian_addresses: string[],
-  new_guardian_set_index: number | undefined
+  newGuardianSetIndex: number | undefined
 ): Promise<void> {
   const GUARDIAN_SETS_SLOT = 0x02;
   const GUARDIAN_SET_INDEX_SLOT = 0x3;
 
   const provider = new ethers.providers.JsonRpcProvider(rpc);
   const core = Implementation__factory.connect(contract_address, provider);
-  let guardianSetIndex: number;
-  let guardianSetExpiry: number;
-  [guardianSetIndex, guardianSetExpiry] = await getStorageAt(
+  let [guardianSetIndex, guardianSetExpiry] = await getStorageAt(
     rpc,
     contract_address,
     GUARDIAN_SET_INDEX_SLOT,
@@ -472,21 +477,22 @@ export async function hijack_evm(
   console.log(`Current guardian set (index ${guardianSetIndex}):`);
   console.log(current_set[0]);
 
-  if (new_guardian_set_index !== undefined) {
+  if (newGuardianSetIndex !== undefined) {
     await setStorageAt(
       rpc,
       contract_address,
       GUARDIAN_SET_INDEX_SLOT,
       ["uint32", "uint32"],
-      [new_guardian_set_index, guardianSetExpiry]
+      [newGuardianSetIndex, guardianSetExpiry]
     );
     guardianSetIndex = await core.getCurrentGuardianSetIndex();
-    if (new_guardian_set_index !== guardianSetIndex) {
+    if (newGuardianSetIndex !== guardianSetIndex) {
       throw Error("Failed to update guardian set index.");
     } else {
-      console.log(`Guardian set index updated to ${new_guardian_set_index}`);
+      console.log(`Guardian set index updated to ${newGuardianSetIndex}`);
     }
   }
+
   const addresses_slot = computeMappingElemSlot(
     GUARDIAN_SETS_SLOT,
     guardianSetIndex
@@ -621,7 +627,7 @@ async function getStorageAt(
     rpc
   ).getStorageAt(contract_address, storage_slot);
   let val = ethers.BigNumber.from(string_val);
-  let ret: any[] = [];
+  const ret: any[] = [];
   // we decode the elements one by one, by shifting down the stuff we've parsed already
   types.forEach((typ) => {
     const padded = ethers.utils.defaultAbiCoder.encode(["uint256"], [val]);
@@ -699,15 +705,19 @@ export async function setStorageAt(
   ).data;
 }
 
-async function maybeUnsupported<T>(
+const maybeUnsupported = async <T>(
   query: Promise<T>
-): Promise<T | "unsupported"> {
+): Promise<T | "unsupported"> => {
   try {
-    return await query;
+    return query;
   } catch (e) {
-    if (e.reason === "unsupported") {
-      return e.reason;
+    if (isUnsupportedError(e)) {
+      return "unsupported";
     }
+
     throw e;
   }
-}
+};
+
+const isUnsupportedError = (e: any): e is { reason: string } =>
+  e && typeof e === "object" && "reason" in e && e.reason === "unsupported";

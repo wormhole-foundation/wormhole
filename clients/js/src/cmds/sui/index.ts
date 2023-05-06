@@ -9,8 +9,8 @@ import { addUtilsCommands } from "./utils";
 
 export const command = "sui";
 export const desc = "Sui utilities";
-export const builder = function (y: typeof yargs) {
-  return new Yargs(y)
+export const builder = (y: typeof yargs) =>
+  new Yargs(y)
     .addCommands(addBuildCommands)
     .addCommands(addDeployCommands)
     .addCommands(addInitCommands)
@@ -20,5 +20,4 @@ export const builder = function (y: typeof yargs) {
     .y()
     .strict()
     .demandCommand();
-};
-export const handler = (argv) => {};
+export const handler = () => {};

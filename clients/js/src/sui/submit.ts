@@ -1,16 +1,16 @@
-import { parseAttestMetaVaa } from "@certusone/wormhole-sdk/lib/esm/vaa/tokenBridge";
-import { getForeignAssetSui } from "@certusone/wormhole-sdk/lib/esm/token_bridge/getForeignAsset";
+import { getWrappedCoinType } from "@certusone/wormhole-sdk/lib/esm/sui";
 import {
   createWrappedOnSui,
   createWrappedOnSuiPrepare,
 } from "@certusone/wormhole-sdk/lib/esm/token_bridge/createWrapped";
-import { assertChain } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
-import { getWrappedCoinType } from "@certusone/wormhole-sdk/lib/esm/sui";
+import { getForeignAssetSui } from "@certusone/wormhole-sdk/lib/esm/token_bridge/getForeignAsset";
 import {
   CHAIN_ID_SUI,
   CHAIN_ID_TO_NAME,
   CONTRACTS,
+  assertChain,
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+import { parseAttestMetaVaa } from "@certusone/wormhole-sdk/lib/esm/vaa/tokenBridge";
 import { SUI_CLOCK_OBJECT_ID, TransactionBlock } from "@mysten/sui.js";
 import { Network } from "../utils";
 import { Payload, impossible } from "../vaa";
@@ -23,6 +23,7 @@ import {
   isSuiCreateEvent,
   isSuiPublishEvent,
   registerChain,
+  setMaxGasBudgetDevnet,
 } from "./utils";
 
 export const submit = async (
@@ -114,10 +115,16 @@ export const submit = async (
             );
             setMaxGasBudgetDevnet(network, prepareTx);
             const prepareRes = await executeTransactionBlock(signer, prepareTx);
-            assertSuccess(prepareRes, "Prepare registration failed.");
-            const coinPackageId =
-              prepareRes.objectChanges.find(isSuiPublishEvent).packageId;
             console.log(`  Digest ${prepareRes.digest}`);
+            assertSuccess(prepareRes, "Prepare registration failed.");
+
+            // Get the coin package ID from the publish event
+            const coinPackageId =
+              prepareRes.objectChanges?.find(isSuiPublishEvent)?.packageId;
+            if (!coinPackageId) {
+              throw new Error("Publish coin failed.");
+            }
+
             console.log(`  Published to ${coinPackageId}`);
             console.log(`  Type ${getWrappedCoinType(coinPackageId)}`);
 
@@ -130,10 +137,17 @@ export const submit = async (
 
             console.log("\n[2/2] Registering asset...");
             const wrappedAssetSetup = prepareRes.objectChanges
-              .filter(isSuiCreateEvent)
+              ?.filter(isSuiCreateEvent)
               .find((e) =>
                 /create_wrapped::WrappedAssetSetup/.test(e.objectType)
               );
+            if (!wrappedAssetSetup) {
+              throw new Error(
+                "Wrapped asset setup not found. Object changes: " +
+                  JSON.stringify(prepareRes.objectChanges)
+              );
+            }
+
             const completeTx = await createWrappedOnSui(
               provider,
               coreBridgeStateObjectId,
@@ -189,21 +203,6 @@ export const submit = async (
   }
 
   console.warn = consoleWarnTemp;
-};
-
-/**
- * Currently, (Sui SDK version 0.32.2 and Sui 1.0.0 testnet), there is a
- * mismatch in the max gas budget that causes an error when executing a
- * transaction. Because these values are hardcoded, we set the max gas budget
- * as a temporary workaround.
- * @param network
- * @param tx
- */
-const setMaxGasBudgetDevnet = (network: Network, tx: TransactionBlock) => {
-  if (network === "DEVNET") {
-    // Avoid Error checking transaction input objects: GasBudgetTooHigh { gas_budget: 50000000000, max_budget: 10000000000 }
-    tx.setGasBudget(10000000000);
-  }
 };
 
 const sleep = (ms: number): Promise<void> => {

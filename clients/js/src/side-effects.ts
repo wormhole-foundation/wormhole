@@ -14,6 +14,7 @@ console.info = function (x: string) {
     info(x);
   }
 };
+
 const warn = console.warn;
 console.warn = function (x: string) {
   if (

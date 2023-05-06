@@ -21,33 +21,33 @@ export const addBuildCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         .option("decimals", {
           alias: "d",
           describe: "Decimals of asset",
-          required: true,
+          demandOption: true,
           type: "number",
         })
         // Can't be called version because of a conflict with the native version option
         .option("version-struct", {
           alias: "v",
           describe: "Version control struct name (e.g. V__0_1_0)",
-          required: true,
+          demandOption: true,
           type: "string",
         })
         .option("network", NETWORK_OPTIONS)
         .option("package-path", {
           alias: "p",
           describe: "Path to coin module",
-          required: false,
+          demandOption: false,
           type: "string",
         })
         .option("wormhole-state", {
           alias: "w",
           describe: "Wormhole state object ID",
-          required: false,
+          demandOption: false,
           type: "string",
         })
         .option("token-bridge-state", {
           alias: "t",
           describe: "Token bridge state object ID",
-          required: false,
+          demandOption: false,
           type: "string",
         })
         .option("rpc", RPC_OPTIONS),
@@ -65,11 +65,23 @@ export const addBuildCommands: YargsAddCommandsFn = (y: typeof yargs) =>
         argv["wormhole-state"] ?? CONTRACTS[network].sui.core;
       const tokenBridgeStateObjectId =
         argv["token-bridge-state"] ?? CONTRACTS[network].sui.token_bridge;
+
+      if (!coreBridgeStateObjectId) {
+        throw new Error(
+          `Couldn't find core bridge state object ID for network ${network}`
+        );
+      }
+
+      if (!tokenBridgeStateObjectId) {
+        throw new Error(
+          `Couldn't find token bridge state object ID for network ${network}`
+        );
+      }
+
       const provider = getProvider(
         network,
         argv.rpc ?? NETWORKS[network].sui.rpc
       );
-
       const build = await buildCoin(
         provider,
         network,

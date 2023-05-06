@@ -1,128 +1,34 @@
-import { impossible, Payload } from "./vaa";
-import { NETWORKS } from "./networks";
 import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
-import { parseSeedPhrase, generateSeedPhrase } from "near-seed-phrase";
 import BN from "bn.js";
-import { readFileSync } from "fs";
 import { Account, connect, KeyPair } from "near-api-js";
 import { InMemoryKeyStore } from "near-api-js/lib/key_stores";
+import { NETWORKS } from "./networks";
+import { Network } from "./utils";
+import { impossible, Payload } from "./vaa";
 
-function default_near_args(argv) {
-  let network = argv["n"].toUpperCase();
-  let contracts = CONTRACTS[network]["near"];
-  let n = NETWORKS[network]["near"];
-
-  if (!("rpc" in argv)) {
-    argv["rpc"] = n["rpc"];
-  }
-
-  if (!("target" in argv) && "module" in argv) {
-    if (argv["module"] == "Core") {
-      argv["target"] = contracts["core"];
-      console.log("Setting target to core");
-    }
-    if (argv["module"] == "TokenBridge") {
-      argv["target"] = contracts["token_bridge"];
-      console.log("Setting target to token_bridge");
-    }
-  }
-
-  if (!("key" in argv)) {
-    if (n["key"]) {
-      argv["key"] = n["key"];
-    }
-  }
-
-  if (!("key" in argv)) {
-    if ("mnemonic" in argv) {
-      let k = parseSeedPhrase(argv["mnemonic"]);
-      argv["key"] = k["secretKey"];
-    }
-  }
-}
-
-export async function deploy_near(argv) {
-  default_near_args(argv);
-
-  let masterKey = KeyPair.fromString(argv["key"]);
-  let keyStore = new InMemoryKeyStore();
-  keyStore.setKey(argv["networkId"], argv["account"], masterKey);
-  keyStore.setKey(argv["networkId"], argv["target"], masterKey);
-
-  let near = await connect({
-    deps: {
-      keyStore,
-    },
-    networkId: argv["networkId"],
-    nodeUrl: argv["rpc"],
-    headers: {},
-  });
-
-  let masterAccount = new Account(near.connection, argv["account"]);
-  let targetAccount = new Account(near.connection, argv["target"]);
-
-  console.log(argv);
-
-  if ("attach" in argv) {
-    console.log(
-      "Sending money: " +
-        argv["target"] +
-        " from " +
-        argv["account"] +
-        " being sent " +
-        argv["attach"]
-    );
-    console.log(await masterAccount.sendMoney(argv["target"], argv["attach"]));
-  }
-
-  console.log("deploying contract");
-  console.log(await targetAccount.deployContract(readFileSync(argv["file"])));
-}
-
-export async function upgrade_near(argv) {
-  default_near_args(argv);
-
-  let masterKey = KeyPair.fromString(argv["key"]);
-  let keyStore = new InMemoryKeyStore();
-  keyStore.setKey(argv["networkId"], argv["account"], masterKey);
-
-  let near = await connect({
-    deps: {
-      keyStore,
-    },
-    networkId: argv["networkId"],
-    nodeUrl: argv["rpc"],
-    headers: {},
-  });
-
-  let masterAccount = new Account(near.connection, argv["account"]);
-
-  let result = await masterAccount.functionCall({
-    contractId: argv["target"],
-    methodName: "update_contract",
-    args: readFileSync(argv["file"]),
-    attachedDeposit: new BN("22797900000000000000000000"),
-    gas: new BN("300000000000000"),
-  });
-  console.log(result);
-}
-
-export async function execute_near(
+export const execute_near = async (
   payload: Payload,
   vaa: string,
-  network: "MAINNET" | "TESTNET" | "DEVNET"
-) {
-  let n = NETWORKS[network]["near"];
-  let contracts = CONTRACTS[network]["near"];
+  network: Network
+): Promise<void> => {
+  const { rpc, key, networkId, deployerAccount } = NETWORKS[network].near;
+  if (!key) {
+    throw Error(`No ${network} key defined for NEAR`);
+  }
 
-  let target_contract = "";
+  if (!rpc) {
+    throw Error(`No ${network} rpc defined for NEAR`);
+  }
+
+  const contracts = CONTRACTS[network].near;
+  let target_contract: string;
   let numSubmits = 1;
-
   switch (payload.module) {
-    case "Core":
-      if (contracts.core === undefined) {
-        throw new Error("Core bridge not supported yet for near");
+    case "Core": {
+      if (!contracts.core) {
+        throw new Error(`Core bridge address not defined for NEAR ${network}`);
       }
+
       target_contract = contracts.core;
       switch (payload.type) {
         case "GuardianSetUpgrade":
@@ -137,10 +43,12 @@ export async function execute_near(
           impossible(payload);
       }
       break;
-    case "NFTBridge":
-      if (contracts.nft_bridge === undefined) {
-        throw new Error("NFT bridge not supported yet for near");
+    }
+    case "NFTBridge": {
+      if (!contracts.nft_bridge) {
+        throw new Error(`NFT bridge address not defined for NEAR ${network}`);
       }
+
       numSubmits = 2;
       target_contract = contracts.nft_bridge;
       switch (payload.type) {
@@ -158,11 +66,14 @@ export async function execute_near(
         default:
           impossible(payload);
       }
+
       break;
-    case "TokenBridge":
-      if (contracts.token_bridge === undefined) {
-        throw new Error("Token bridge not supported yet for near");
+    }
+    case "TokenBridge": {
+      if (!contracts.token_bridge) {
+        throw new Error(`Token bridge address not defined for NEAR ${network}`);
       }
+
       numSubmits = 2;
       target_contract = contracts.token_bridge;
       switch (payload.type) {
@@ -184,37 +95,32 @@ export async function execute_near(
           throw Error("Can't complete payload 3 transfer from CLI");
         default:
           impossible(payload);
-          break;
       }
+
       break;
+    }
     default:
       impossible(payload);
   }
 
-  let key = KeyPair.fromString(n.key);
-
-  let keyStore = new InMemoryKeyStore();
-  keyStore.setKey(n.networkId, n.deployerAccount, key);
-
-  let near = await connect({
+  const keyStore = new InMemoryKeyStore();
+  keyStore.setKey(networkId, deployerAccount, KeyPair.fromString(key));
+  const near = await connect({
     keyStore,
-    networkId: n.networkId,
-    nodeUrl: n.rpc,
+    networkId,
+    nodeUrl: rpc,
     headers: {},
   });
-  let nearAccount = new Account(near.connection, n.deployerAccount);
+  const nearAccount = new Account(near.connection, deployerAccount);
 
   console.log("submitting vaa the first time");
-  let result1 = await nearAccount.functionCall({
+  const result1 = await nearAccount.functionCall({
     contractId: target_contract,
     methodName: "submit_vaa",
-    args: {
-      vaa: vaa,
-    },
+    args: { vaa },
     attachedDeposit: new BN("100000000000000000000000"),
     gas: new BN("300000000000000"),
   });
-
   if (numSubmits <= 1) {
     console.log("Hash: " + result1.transaction.hash);
     return;
@@ -224,16 +130,13 @@ export async function execute_near(
   // The first time, it checks if it has been seen at all.
   // The second time, it executes.
   console.log("submitting vaa the second time");
-  let result2 = await nearAccount.functionCall({
+  const result2 = await nearAccount.functionCall({
     contractId: target_contract,
     methodName: "submit_vaa",
-    args: {
-      vaa: vaa,
-    },
+    args: { vaa },
     attachedDeposit: new BN("100000000000000000000000"),
     gas: new BN("300000000000000"),
   });
-
-  let txHash = result1.transaction.hash + ":" + result2.transaction.hash;
+  const txHash = result1.transaction.hash + ":" + result2.transaction.hash;
   console.log("Hash: " + txHash);
-}
+};

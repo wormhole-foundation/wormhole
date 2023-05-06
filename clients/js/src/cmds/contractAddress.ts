@@ -5,59 +5,70 @@ import {
 import yargs from "yargs";
 import { CONTRACTS } from "../consts";
 import { getEmitterAddress } from "../emitter";
+import { assertNetwork } from "../utils";
 import { impossible } from "../vaa";
 
 export const command = "contract <network> <chain> <module>";
 export const desc = "Print contract address";
-export const builder = (y: typeof yargs) => {
-  return y
+export const builder = (y: typeof yargs) =>
+  y
     .positional("network", {
-      describe: "network",
-      type: "string",
+      describe: "Network",
       choices: ["mainnet", "testnet", "devnet"],
-    })
+      demandOption: true,
+    } as const)
     .positional("chain", {
       describe: "Chain to query",
-      type: "string",
       choices: Object.keys(CHAINS),
-    })
+      demandOption: true,
+    } as const)
     .positional("module", {
       describe: "Module to query",
-      type: "string",
       choices: ["Core", "NFTBridge", "TokenBridge"],
-    })
+      demandOption: true,
+    } as const)
     .option("emitter", {
       alias: "e",
       describe: "Print in emitter address format",
       type: "boolean",
       default: false,
-      required: false,
+      demandOption: false,
     });
-};
-export const handler = async (argv) => {
+export const handler = async (
+  argv: Awaited<ReturnType<typeof builder>["argv"]>
+) => {
   assertChain(argv["chain"]);
   const network = argv.network.toUpperCase();
-  if (network !== "MAINNET" && network !== "TESTNET" && network !== "DEVNET") {
-    throw Error(`Unknown network: ${network}`);
-  }
-  let chain = argv["chain"];
-  let module = argv["module"] as "Core" | "NFTBridge" | "TokenBridge";
-  let addr = "";
+  assertNetwork(network);
+  const chain = argv["chain"];
+  const module = argv["module"];
+  let addr: string | undefined;
   switch (module) {
     case "Core":
-      addr = CONTRACTS[network][chain]["core"];
+      addr = CONTRACTS[network][chain].core;
       break;
     case "NFTBridge":
-      addr = CONTRACTS[network][chain]["nft_bridge"];
+      const addresses = CONTRACTS[network][chain];
+      if (!("nft_bridge" in addresses)) {
+        throw new Error(`NFTBridge not deployed on ${chain}`);
+      }
+
+      addr = addresses.nft_bridge;
       break;
     case "TokenBridge":
-      addr = CONTRACTS[network][chain]["token_bridge"];
+      addr = CONTRACTS[network][chain].token_bridge;
       break;
     default:
       impossible(module);
   }
+
+  if (!addr) {
+    throw new Error(`${module} not deployed on ${chain}`);
+  }
+
   if (argv["emitter"]) {
     addr = await getEmitterAddress(chain, addr);
   }
+
   console.log(addr);
 };

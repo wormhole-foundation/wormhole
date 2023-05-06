@@ -11,6 +11,7 @@ import {
   getPublishedObjectChanges,
   normalizeSuiAddress,
 } from "@mysten/sui.js";
+import { DynamicFieldPage } from "@mysten/sui.js/dist/types/dynamic_fields";
 import { NETWORKS } from "../networks";
 import { Network } from "../utils";
 import { Payload, VAA, parse, serialiseVAA } from "../vaa";
@@ -71,7 +72,7 @@ export const findOwnedObjectByType = async (
     throw new SuiRpcValidationError(res);
   }
 
-  const object = res.data.find((d) => d.data.type === type);
+  const object = res.data.find((d) => d.data?.type === type);
 
   if (!object && res.hasNextPage) {
     return findOwnedObjectByType(
@@ -83,19 +84,31 @@ export const findOwnedObjectByType = async (
   } else if (!object && !res.hasNextPage) {
     return null;
   } else {
-    return object.data.objectId;
+    return object?.data?.objectId ?? null;
   }
 };
 
 export const getCreatedObjects = (
   res: SuiTransactionBlockResponse
-): { type: string; objectId: string; owner: string }[] => {
-  return res.objectChanges.filter(isSuiCreateEvent).map((e) => ({
-    type: e.objectType,
-    objectId: e.objectId,
-    owner: e.owner["AddressOwner"] || e.owner["ObjectOwner"] || e.owner,
-  }));
-};
+): { type: string; objectId: string; owner: string }[] =>
+  res.objectChanges?.filter(isSuiCreateEvent).map((e) => {
+    let owner: string;
+    if (typeof e.owner === "string") {
+      owner = e.owner;
+    } else if ("AddressOwner" in e.owner) {
+      owner = e.owner.AddressOwner;
+    } else if ("ObjectOwner" in e.owner) {
+      owner = e.owner.ObjectOwner;
+    } else {
+      owner = "Shared";
+    }
+
+    return {
+      owner,
+      type: e.objectType,
+      objectId: e.objectId,
+    };
+  }) ?? [];
 
 export const getOwnedObjectId = async (
   provider: JsonRpcProvider,
@@ -127,7 +140,7 @@ export const getOwnedObjectId = async (
 
     const objects = res.data.filter((o) => o.data?.objectId);
     if (objects.length === 1) {
-      return objects[0].data?.objectId;
+      return objects[0].data?.objectId ?? null;
     } else if (objects.length > 1) {
       const objectsStr = JSON.stringify(objects, null, 2);
       throw new Error(
@@ -148,25 +161,27 @@ export const getOwnedObjectId = async (
 };
 
 // TODO(kp): remove this once it's in the sdk
-export async function getPackageId(
+export const getPackageId = async (
   provider: JsonRpcProvider,
   objectId: string
-): Promise<string> {
+): Promise<string> => {
   let currentPackage;
   let nextCursor;
   do {
-    const dynamicFields = await provider.getDynamicFields({
+    const dynamicFields: DynamicFieldPage = await provider.getDynamicFields({
       parentId: objectId,
       cursor: nextCursor,
     });
-    currentPackage = dynamicFields.data.find((field) =>
-      field.name.type.endsWith("CurrentPackage")
+    currentPackage = dynamicFields.data.find(
+      (field: DynamicFieldPage["data"][number]) =>
+        field.name.type.endsWith("CurrentPackage")
     );
     nextCursor = dynamicFields.hasNextPage ? dynamicFields.nextCursor : null;
   } while (nextCursor && !currentPackage);
   if (!currentPackage) {
     throw new Error("CurrentPackage not found");
   }
+
   const obj = await provider.getObject({
     id: currentPackage.objectId,
     options: {
@@ -180,8 +195,9 @@ export async function getPackageId(
   if (!packageId) {
     throw new Error("Unable to get current package");
   }
+
   return packageId;
-}
+};
 
 export const getProvider = (
   network?: Network,
@@ -191,7 +207,7 @@ export const getProvider = (
     throw new Error("Must provide network or RPC to initialize provider");
   }
 
-  rpc = rpc || NETWORKS[network]["sui"].rpc;
+  rpc = rpc || NETWORKS[network!]["sui"].rpc;
   if (!rpc) {
     throw new Error(`No default RPC found for Sui ${network}`);
   }
@@ -265,7 +281,7 @@ export const getUpgradeCapObjectId = async (
   );
   if (objects.length === 1) {
     // We've found the object we're looking for
-    return objects[0].data?.objectId;
+    return objects[0].data?.objectId ?? null;
   } else if (objects.length > 1) {
     const objectsStr = JSON.stringify(objects, null, 2);
     throw new Error(
@@ -285,26 +301,21 @@ export const isSameType = (a: string, b: string) => {
 };
 
 export const isSuiCreateEvent = <
-  T extends SuiTransactionBlockResponse["objectChanges"][number],
+  T extends NonNullable<SuiTransactionBlockResponse["objectChanges"]>[number],
   K extends Extract<T, { type: "created" }>
 >(
   event: T
-): event is K => {
-  return event.type === "created";
-};
+): event is K => event?.type === "created";
 
 export const isSuiPublishEvent = <
-  T extends SuiTransactionBlockResponse["objectChanges"][number],
+  T extends NonNullable<SuiTransactionBlockResponse["objectChanges"]>[number],
   K extends Extract<T, { type: "published" }>
 >(
   event: T
-): event is K => {
-  return event.type === "published";
-};
+): event is K => event?.type === "published";
 
-export const isValidSuiAddress = (objectId: string): boolean => {
-  return /^(0x)?[0-9a-f]{1,64}$/.test(objectId);
-};
+export const isValidSuiAddress = (objectId: string): boolean =>
+  /^(0x)?[0-9a-f]{1,64}$/.test(objectId);
 
 // todo(aki): this needs to correctly handle types such as
 // 0x2::dynamic_field::Field<0x3c6d386861470e6f9cb35f3c91f69e6c1f1737bd5d217ca06a15f582e1dc1ce3::state::MigrationControl, bool>
@@ -384,4 +395,22 @@ export const registerChain = async (
   });
 
   return tx;
+};
+
+/**
+ * Currently, (Sui SDK version 0.32.2 and Sui 1.0.0 testnet), there is a
+ * mismatch in the max gas budget that causes an error when executing a
+ * transaction. Because these values are hardcoded, we set the max gas budget
+ * as a temporary workaround.
+ * @param network
+ * @param tx
+ */
+export const setMaxGasBudgetDevnet = (
+  network: Network,
+  tx: TransactionBlock
+) => {
+  if (network === "DEVNET") {
+    // Avoid Error checking transaction input objects: GasBudgetTooHigh { gas_budget: 50000000000, max_budget: 10000000000 }
+    tx.setGasBudget(10000000000);
+  }
 };

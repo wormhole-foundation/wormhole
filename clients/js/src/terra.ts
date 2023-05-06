@@ -1,37 +1,38 @@
 import {
+  CONTRACTS,
+  TerraChainName,
+} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+import {
   Coin,
   Fee,
   LCDClient,
   MnemonicKey,
   MsgExecuteContract,
 } from "@terra-money/terra.js";
-import { fromUint8Array } from "js-base64";
-import { impossible, Payload } from "./vaa";
-import { NETWORKS } from "./networks";
 import axios from "axios";
-import {
-  CONTRACTS,
-  TerraChainName,
-} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+import { fromUint8Array } from "js-base64";
+import { NETWORKS } from "./networks";
+import { Network } from "./utils";
+import { Payload, impossible } from "./vaa";
 
 export async function execute_terra(
   payload: Payload,
   vaa: Buffer,
-  network: "MAINNET" | "TESTNET" | "DEVNET",
+  network: Network,
   chain: TerraChainName
-) {
-  let n = NETWORKS[network][chain];
-  let contracts = CONTRACTS[network][chain];
+): Promise<void> {
+  const { rpc, key, chain_id } = NETWORKS[network][chain];
+  const contracts = CONTRACTS[network][chain];
 
   const terra = new LCDClient({
-    URL: n.rpc,
-    chainID: n.chain_id,
+    URL: rpc,
+    chainID: chain_id,
     isClassic: chain === "terra",
   });
 
   const wallet = terra.wallet(
     new MnemonicKey({
-      mnemonic: n.key,
+      mnemonic: key,
     })
   );
 
@@ -39,7 +40,13 @@ export async function execute_terra(
   let execute_msg: object;
 
   switch (payload.module) {
-    case "Core":
+    case "Core": {
+      if (!contracts.core) {
+        throw new Error(
+          `Core bridge address not defined for ${chain} ${network}`
+        );
+      }
+
       target_contract = contracts.core;
       // sigh...
       execute_msg = {
@@ -59,14 +66,17 @@ export async function execute_terra(
         default:
           impossible(payload);
       }
+
       break;
-    case "NFTBridge":
-      if (contracts.nft_bridge === undefined) {
+    }
+    case "NFTBridge": {
+      if (!contracts.nft_bridge) {
         // NOTE: this code can safely be removed once the terra NFT bridge is
         // released, but it's fine for it to stay, as the condition will just be
         // skipped once 'contracts.nft_bridge' is defined
-        throw new Error("NFT bridge not supported yet for terra");
+        throw new Error(`NFT bridge not supported yet for ${chain}`);
       }
+
       target_contract = contracts.nft_bridge;
       execute_msg = {
         submit_vaa: {
@@ -88,8 +98,16 @@ export async function execute_terra(
         default:
           impossible(payload);
       }
+
       break;
-    case "TokenBridge":
+    }
+    case "TokenBridge": {
+      if (!contracts.token_bridge) {
+        throw new Error(
+          `Token bridge address not defined for ${chain} ${network}`
+        );
+      }
+
       target_contract = contracts.token_bridge;
       execute_msg = {
         submit_vaa: {
@@ -115,9 +133,10 @@ export async function execute_terra(
           throw Error("Can't complete payload 3 transfer from CLI");
         default:
           impossible(payload);
-          break;
       }
+
       break;
+    }
     default:
       target_contract = impossible(payload);
       execute_msg = impossible(payload);
@@ -131,11 +150,9 @@ export async function execute_terra(
   );
 
   const feeDenoms = ["uluna"];
-
   const gasPrices = await axios
     .get("https://terra-classic-fcd.publicnode.com/v1/txs/gas_prices")
     .then((result) => result.data);
-
   const feeEstimate = await terra.tx.estimateFee(
     [
       {
@@ -151,7 +168,7 @@ export async function execute_terra(
     }
   );
 
-  wallet
+  return wallet
     .createAndSignTx({
       msgs: [transaction],
       memo: "",
