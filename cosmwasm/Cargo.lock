@@ -919,6 +919,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "ibc-wormhole-translator"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw-multi-test",
+ "cw-storage-plus",
+ "cw20",
+ "cw20-base",
+ "cw20-wrapped-2",
+ "hex",
+ "schemars",
+ "serde",
+ "serde-json-wasm",
+ "sha3 0.9.1",
+ "terraswap",
+ "thiserror",
+ "token-bridge-cosmwasm",
+ "wormhole-cosmwasm",
+]
+
+[[package]]
 name = "ident_case"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

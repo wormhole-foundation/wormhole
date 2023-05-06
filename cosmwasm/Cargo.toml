@@ -10,6 +10,7 @@ members = [
     "contracts/global-accountant",
     "packages/wormhole-bindings",
     "packages/cw_transcode",
+    "contracts/ibc-wormhole-translator",
 ]
 
 # Needed to prevent unwanted feature unification between normal builds and dev builds.  See
@@ -37,3 +38,4 @@ global-accountant = { path = "contracts/global-accountant" }
 wormhole-bindings = { path = "packages/wormhole-bindings" }
 wormhole-cosmwasm = { path = "contracts/wormhole" }
 wormhole-sdk = { path = "../sdk/rust/core" }
+ibc-wormhole-translator = { path = "contracts/ibc-wormhole-translator" }

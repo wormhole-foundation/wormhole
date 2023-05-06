@@ -40,229 +40,330 @@ const readFileAsync = util.promisify(fs.readFile);
   deterministic.
 */
 type ContractName = string;
-const artifacts: ContractName[] = ["global_accountant.wasm"];
+
+const artifacts: ContractName[] = [
+  "global_accountant.wasm",
+  "cw_wormhole.wasm",
+  "cw20_wrapped_2.wasm",
+  "cw_token_bridge.wasm",
+  "ibc_wormhole_translator.wasm",
+];
 
 const ARTIFACTS_PATH = "../artifacts/";
 /* Check that the artifact folder contains all the wasm files we expect and nothing else */
 
 try {
-    const actual_artifacts = readdirSync(ARTIFACTS_PATH).filter((a) =>
-        a.endsWith(".wasm")
-    );
+  const actual_artifacts = readdirSync(ARTIFACTS_PATH).filter((a) =>
+    a.endsWith(".wasm")
+  );
 
-    const missing_artifacts = artifacts.filter(
-        (a) => !actual_artifacts.includes(a)
+  const missing_artifacts = artifacts.filter(
+    (a) => !actual_artifacts.includes(a)
+  );
+  if (missing_artifacts.length) {
+    console.log(
+      "Error during wormchain deployment. The following files are expected to be in the artifacts folder:"
     );
-    if (missing_artifacts.length) {
-        console.log(
-            "Error during wormchain deployment. The following files are expected to be in the artifacts folder:"
-        );
-        missing_artifacts.forEach((file) => console.log(`  - ${file}`));
-        console.log(
-            "Hint: the deploy script needs to run after the contracts have been built."
-        );
-        console.log(
-            "External binary blobs need to be manually added in tools/Dockerfile."
-        );
-        process.exit(1);
-    }
-} catch (err) {
-    console.error(
-        `${ARTIFACTS_PATH} cannot be read. Do you need to run "make contracts-deploy-setup"?`
+    missing_artifacts.forEach((file) => console.log(`  - ${file}`));
+    console.log(
+      "Hint: the deploy script needs to run after the contracts have been built."
+    );
+    console.log(
+      "External binary blobs need to be manually added in tools/Dockerfile."
     );
     process.exit(1);
+  }
+} catch (err) {
+  console.error(
+    `${ARTIFACTS_PATH} cannot be read. Do you need to run "make contracts-deploy-setup"?`
+  );
+  process.exit(1);
 }
 
 async function main() {
-    /* Set up cosmos client & wallet */
+  /* Set up cosmos client & wallet */
 
-    let host = devnetConsts.chains[3104].tendermintUrlLocal;
-    if (os.hostname().includes("wormchain-deploy")) {
-        // running in tilt devnet
-        host = devnetConsts.chains[3104].tendermintUrlTilt;
-    }
+  let host = devnetConsts.chains[3104].tendermintUrlLocal;
+  if (os.hostname().includes("wormchain-deploy")) {
+    // running in tilt devnet
+    host = devnetConsts.chains[3104].tendermintUrlTilt;
+  }
 
-    const mnemonic =
-        devnetConsts.chains[3104].accounts.wormchainNodeOfGuardian0.mnemonic;
+  const mnemonic =
+    devnetConsts.chains[3104].accounts.wormchainNodeOfGuardian0.mnemonic;
 
-    const wallet = await getWallet(mnemonic);
-    const client = await getWormchainSigningClient(host, wallet);
+  const wallet = await getWallet(mnemonic);
+  const client = await getWormchainSigningClient(host, wallet);
 
-    // there are several Cosmos chains in devnet, so check the config is as expected
-    let id = await client.getChainId();
-    if (id !== "wormchain") {
-        throw new Error(
-            `Wormchain CosmWasmClient connection produced an unexpected chainID: ${id}`
-        );
-    }
+  // there are several Cosmos chains in devnet, so check the config is as expected
+  let id = await client.getChainId();
+  if (id !== "wormchain") {
+    throw new Error(
+      `Wormchain CosmWasmClient connection produced an unexpected chainID: ${id}`
+    );
+  }
 
-    const signers = await wallet.getAccounts();
-    const signer = signers[0].address;
-    console.log("wormchain contract deployer is: ", signer);
+  const signers = await wallet.getAccounts();
+  const signer = signers[0].address;
+  console.log("wormchain contract deployer is: ", signer);
 
-    /* Deploy artifacts */
+  /* Deploy artifacts */
 
-    const codeIds: { [name: ContractName]: number } = await artifacts.reduce(
-        async (prev, file) => {
-            // wait for the previous to finish, to avoid the race condition of wallet sequence mismatch.
-            const accum = await prev;
+  const codeIds: { [name: ContractName]: number } = await artifacts.reduce(
+    async (prev, file) => {
+      // wait for the previous to finish, to avoid the race condition of wallet sequence mismatch.
+      const accum = await prev;
 
-            const contract_bytes = await readFileAsync(`${ARTIFACTS_PATH}${file}`);
+      const contract_bytes = await readFileAsync(`${ARTIFACTS_PATH}${file}`);
 
-            const payload = keccak256(contract_bytes);
-            let vaa: VAA<Other> = {
-                version: 1,
-                guardianSetIndex: 0,
-                signatures: [],
-                timestamp: 0,
-                nonce: 0,
-                emitterChain: GOVERNANCE_CHAIN,
-                emitterAddress: GOVERNANCE_EMITTER,
-                sequence: BigInt(Math.floor(Math.random() * 100000000)),
-                consistencyLevel: 0,
-                payload: {
-                    type: "Other",
-                    hex: `0000000000000000000000000000000000000000005761736D644D6F64756C65010${CHAIN_ID_WORMCHAIN.toString(
-                        16
-                    )}${payload}`,
-                },
-            };
-            vaa.signatures = sign(VAA_SIGNERS, vaa as unknown as VAA<Payload>);
-            console.log("uploading", file);
-            const msg = client.core.msgStoreCode({
-                signer,
-                wasm_byte_code: new Uint8Array(contract_bytes),
-                vaa: hexToUint8Array(serialiseVAA(vaa as unknown as VAA<Payload>)),
-            });
-            const result = await client.signAndBroadcast(signer, [msg], {
-                ...ZERO_FEE,
-                gas: "10000000",
-            });
-            const codeId = Number(
-                JSON.parse(result.rawLog)[0]
-                    .events.find(({ type }) => type === "store_code")
-                    .attributes.find(({ key }) => key === "code_id").value
-            );
-            console.log(
-                `uploaded ${file}, codeID: ${codeId}, tx: ${result.transactionHash}`
-            );
-
-            accum[file] = codeId;
-            return accum;
+      const payload = keccak256(contract_bytes);
+      let vaa: VAA<Other> = {
+        version: 1,
+        guardianSetIndex: 0,
+        signatures: [],
+        timestamp: 0,
+        nonce: 0,
+        emitterChain: GOVERNANCE_CHAIN,
+        emitterAddress: GOVERNANCE_EMITTER,
+        sequence: BigInt(Math.floor(Math.random() * 100000000)),
+        consistencyLevel: 0,
+        payload: {
+          type: "Other",
+          hex: `0000000000000000000000000000000000000000005761736D644D6F64756C65010${CHAIN_ID_WORMCHAIN.toString(
+            16
+          )}${payload}`,
         },
-        Object()
-    );
-
-    // Instantiate contracts.
-
-    async function instantiate(code_id: number, inst_msg: any, label: string) {
-        const instMsgBinary = toBinary(inst_msg);
-        const instMsgBytes = fromBase64(instMsgBinary);
-
-        // see /sdk/vaa/governance.go
-        const codeIdBuf = Buffer.alloc(8);
-        codeIdBuf.writeBigInt64BE(BigInt(code_id));
-        const codeIdHash = keccak256(codeIdBuf);
-        const codeIdLabelHash = keccak256(
-            Buffer.concat([
-                Buffer.from(codeIdHash, "hex"),
-                Buffer.from(label, "utf8"),
-            ])
-        );
-        const fullHash = keccak256(
-            Buffer.concat([Buffer.from(codeIdLabelHash, "hex"), instMsgBytes])
-        );
-
-        console.log(fullHash);
-
-        let vaa: VAA<Other> = {
-            version: 1,
-            guardianSetIndex: 0,
-            signatures: [],
-            timestamp: 0,
-            nonce: 0,
-            emitterChain: GOVERNANCE_CHAIN,
-            emitterAddress: GOVERNANCE_EMITTER,
-            sequence: BigInt(Math.floor(Math.random() * 100000000)),
-            consistencyLevel: 0,
-            payload: {
-                type: "Other",
-                hex: `0000000000000000000000000000000000000000005761736D644D6F64756C65020${CHAIN_ID_WORMCHAIN.toString(
-                    16
-                )}${fullHash}`,
-            },
-        };
-        // TODO: check for number of guardians in set and use the corresponding keys
-        vaa.signatures = sign(VAA_SIGNERS, vaa as unknown as VAA<Payload>);
-        const msg = client.core.msgInstantiateContract({
-            signer,
-            code_id,
-            label,
-            msg: instMsgBytes,
-            vaa: hexToUint8Array(serialiseVAA(vaa as unknown as VAA<Payload>)),
-        });
-        const result = await client.signAndBroadcast(signer, [msg], {
-            ...ZERO_FEE,
-            gas: "10000000",
-        });
-        const addr = JSON.parse(result.rawLog)[0]
-            .events.find(({ type }) => type === "instantiate")
-            .attributes.find(({ key }) => key === "_contract_address").value;
-        console.log(
-            `deployed contract ${label}, codeID: ${code_id}, address: ${addr}, txHash: ${result.transactionHash}`
-        );
-
-        return addr;
-    }
-
-    // Instantiate contracts.
-    // NOTE: Only append at the end, the ordering must be deterministic.
-
-    const addresses: {
-        [contractName: string]: string;
-    } = {};
-
-    const registrations: { [chainName: string]: string } = {
-        // keys are only used for logging success/failure
-        solana: String(process.env.REGISTER_SOL_TOKEN_BRIDGE_VAA),
-        ethereum: String(process.env.REGISTER_ETH_TOKEN_BRIDGE_VAA),
-        bsc: String(process.env.REGISTER_BSC_TOKEN_BRIDGE_VAA),
-        algo: String(process.env.REGISTER_ALGO_TOKEN_BRIDGE_VAA),
-        terra: String(process.env.REGISTER_TERRA_TOKEN_BRIDGE_VAA),
-        near: String(process.env.REGISTER_NEAR_TOKEN_BRIDGE_VAA),
-        terra2: String(process.env.REGISTER_TERRA2_TOKEN_BRIDGE_VAA),
-        aptos: String(process.env.REGISTER_APTOS_TOKEN_BRIDGE_VAA),
-        sui: String(process.env.REGISTER_SUI_TOKEN_BRIDGE_VAA),
-    };
-
-    const instantiateMsg = {};
-    addresses["global_accountant.wasm"] = await instantiate(
-        codeIds["global_accountant.wasm"],
-        instantiateMsg,
-        "wormchainAccounting"
-    );
-    console.log("instantiated accounting: ", addresses["global_accountant.wasm"]);
-
-    const accountingRegistrations = Object.values(registrations).map((r) =>
-        Buffer.from(r, "hex").toString("base64")
-    );
-    const msg = client.wasm.msgExecuteContract({
-        sender: signer,
-        contract: addresses["global_accountant.wasm"],
-        msg: toUtf8(
-            JSON.stringify({
-                submit_vaas: {
-                    vaas: accountingRegistrations,
-                },
-            })
-        ),
-        funds: [],
-    });
-    const res = await client.signAndBroadcast(signer, [msg], {
+      };
+      vaa.signatures = sign(VAA_SIGNERS, vaa as unknown as VAA<Payload>);
+      console.log("uploading", file);
+      const msg = client.core.msgStoreCode({
+        signer,
+        wasm_byte_code: new Uint8Array(contract_bytes),
+        vaa: hexToUint8Array(serialiseVAA(vaa as unknown as VAA<Payload>)),
+      });
+      const result = await client.signAndBroadcast(signer, [msg], {
         ...ZERO_FEE,
         gas: "10000000",
+      });
+      const codeId = Number(
+        JSON.parse(result.rawLog)[0]
+          .events.find(({ type }) => type === "store_code")
+          .attributes.find(({ key }) => key === "code_id").value
+      );
+      console.log(
+        `uploaded ${file}, codeID: ${codeId}, tx: ${result.transactionHash}`
+      );
+
+      accum[file] = codeId;
+      return accum;
+    },
+    Object()
+  );
+
+  // Instantiate contracts.
+
+  async function instantiate(code_id: number, inst_msg: any, label: string) {
+    const instMsgBinary = toBinary(inst_msg);
+    const instMsgBytes = fromBase64(instMsgBinary);
+
+    // see /sdk/vaa/governance.go
+    const codeIdBuf = Buffer.alloc(8);
+    codeIdBuf.writeBigInt64BE(BigInt(code_id));
+    const codeIdHash = keccak256(codeIdBuf);
+    const codeIdLabelHash = keccak256(
+      Buffer.concat([
+        Buffer.from(codeIdHash, "hex"),
+        Buffer.from(label, "utf8"),
+      ])
+    );
+    const fullHash = keccak256(
+      Buffer.concat([Buffer.from(codeIdLabelHash, "hex"), instMsgBytes])
+    );
+
+    console.log(fullHash);
+
+    let vaa: VAA<Other> = {
+      version: 1,
+      guardianSetIndex: 0,
+      signatures: [],
+      timestamp: 0,
+      nonce: 0,
+      emitterChain: GOVERNANCE_CHAIN,
+      emitterAddress: GOVERNANCE_EMITTER,
+      sequence: BigInt(Math.floor(Math.random() * 100000000)),
+      consistencyLevel: 0,
+      payload: {
+        type: "Other",
+        hex: `0000000000000000000000000000000000000000005761736D644D6F64756C65020${CHAIN_ID_WORMCHAIN.toString(
+          16
+        )}${fullHash}`,
+      },
+    };
+    // TODO: check for number of guardians in set and use the corresponding keys
+    vaa.signatures = sign(VAA_SIGNERS, vaa as unknown as VAA<Payload>);
+    const msg = client.core.msgInstantiateContract({
+      signer,
+      code_id,
+      label,
+      msg: instMsgBytes,
+      vaa: hexToUint8Array(serialiseVAA(vaa as unknown as VAA<Payload>)),
     });
-    console.log(`sent accounting chain registrations, tx: `, res.transactionHash);
+    const result = await client.signAndBroadcast(signer, [msg], {
+      ...ZERO_FEE,
+      gas: "10000000",
+    });
+    const addr = JSON.parse(result.rawLog)[0]
+      .events.find(({ type }) => type === "instantiate")
+      .attributes.find(({ key }) => key === "_contract_address").value;
+    console.log(
+      `deployed contract ${label}, codeID: ${code_id}, address: ${addr}, txHash: ${result.transactionHash}`
+    );
+
+    return addr;
+  }
+
+  // Instantiate contracts.
+  // NOTE: Only append at the end, the ordering must be deterministic.
+
+  const addresses: {
+    [contractName: string]: string;
+  } = {};
+
+  const registrations: { [chainName: string]: string } = {
+    // keys are only used for logging success/failure
+    solana: String(process.env.REGISTER_SOL_TOKEN_BRIDGE_VAA),
+    ethereum: String(process.env.REGISTER_ETH_TOKEN_BRIDGE_VAA),
+    bsc: String(process.env.REGISTER_BSC_TOKEN_BRIDGE_VAA),
+    algo: String(process.env.REGISTER_ALGO_TOKEN_BRIDGE_VAA),
+    terra: String(process.env.REGISTER_TERRA_TOKEN_BRIDGE_VAA),
+    near: String(process.env.REGISTER_NEAR_TOKEN_BRIDGE_VAA),
+    terra2: String(process.env.REGISTER_TERRA2_TOKEN_BRIDGE_VAA),
+    aptos: String(process.env.REGISTER_APTOS_TOKEN_BRIDGE_VAA),
+    sui: String(process.env.REGISTER_SUI_TOKEN_BRIDGE_VAA),
+  };
+
+  const instantiateMsg = {};
+  addresses["global_accountant.wasm"] = await instantiate(
+    codeIds["global_accountant.wasm"],
+    instantiateMsg,
+    "wormchainAccounting"
+  );
+  console.log("instantiated accounting: ", addresses["global_accountant.wasm"]);
+
+  const registrationBufs = Object.values(registrations).map((r) =>
+    Buffer.from(r, "hex").toString("base64")
+  );
+  const msg = client.wasm.msgExecuteContract({
+    sender: signer,
+    contract: addresses["global_accountant.wasm"],
+    msg: toUtf8(
+      JSON.stringify({
+        submit_vaas: {
+          vaas: registrationBufs,
+        },
+      })
+    ),
+    funds: [],
+  });
+  const res = await client.signAndBroadcast(signer, [msg], {
+    ...ZERO_FEE,
+    gas: "10000000",
+  });
+  console.log(`sent accounting chain registrations, tx: `, res.transactionHash);
+
+  const init_guardians = JSON.parse(process.env.INIT_SIGNERS);
+  if (!init_guardians || init_guardians.length === 0) {
+    throw "failed to get initial guardians from .env file.";
+  }
+
+  addresses["cw_wormhole.wasm"] = await instantiate(
+    codeIds["cw_wormhole.wasm"],
+    {
+      gov_chain: GOVERNANCE_CHAIN,
+      gov_address: Buffer.from(GOVERNANCE_EMITTER, "hex").toString("base64"),
+      guardian_set_expirity: 86400,
+      initial_guardian_set: {
+        addresses: init_guardians.map((hex) => {
+          return {
+            bytes: Buffer.from(hex, "hex").toString("base64"),
+          };
+        }),
+        expiration_time: 0,
+      },
+      chain_id: 3104,
+      fee_denom: "uworm",
+    },
+    "wormhole"
+  );
+
+  console.log(
+    "instantiated wormhole contract: ",
+    addresses["cw_wormhole.wasm"]
+  );
+
+  addresses["cw_token_bridge.wasm"] = await instantiate(
+    codeIds["cw_token_bridge.wasm"],
+    {
+      gov_chain: GOVERNANCE_CHAIN,
+      gov_address: Buffer.from(GOVERNANCE_EMITTER, "hex").toString("base64"),
+      wormhole_contract: addresses["cw_wormhole.wasm"],
+      wrapped_asset_code_id: codeIds["cw20_wrapped_2.wasm"],
+      chain_id: 3104,
+      native_denom: "uworm",
+      native_symbol: "WORM",
+      native_decimals: 6,
+    },
+    "tokenBridge"
+  );
+
+  console.log(
+    "instantiated token bridge contract: ",
+    addresses["cw_token_bridge.wasm"]
+  );
+
+  for (let vaa of registrationBufs) {
+    const tbRegMsg = client.wasm.msgExecuteContract({
+      sender: signer,
+      contract: addresses["cw_token_bridge.wasm"],
+      msg: toUtf8(
+        JSON.stringify({
+          submit_vaa: {
+            data: vaa,
+          },
+        })
+      ),
+      funds: [],
+    });
+    const tbRes = await client.signAndBroadcast(signer, [tbRegMsg], {
+      ...ZERO_FEE,
+      gas: "10000000",
+    });
+    console.log(
+      `sent chain registration to token bridge, tx: `,
+      tbRes.transactionHash,
+      vaa
+    );
+  }
+
+  addresses["ibc_wormhole_translator.wasm"] = await instantiate(
+    codeIds["ibc_wormhole_translator.wasm"],
+    {
+      gov_chain: GOVERNANCE_CHAIN,
+      gov_address: Buffer.from(GOVERNANCE_EMITTER, "hex").toString("base64"),
+      wormhole_contract: addresses["cw_wormhole.wasm"],
+      token_bridge_contract: addresses["cw_token_bridge.wasm"],
+      wrapped_asset_code_id: codeIds["cw20_wrapped_2.wasm"],
+      chain_id: 3104,
+      native_denom: "uworm",
+      native_symbol: "WORM",
+      native_decimals: 6,
+    },
+    "ibcWormholeTranslator"
+  );
+  console.log(
+    "instantiated ibc wormhole translator contract: ",
+    addresses["ibc_wormhole_translator.wasm"]
+  );
 }
 
 try {
