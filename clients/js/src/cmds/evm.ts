@@ -16,8 +16,8 @@ import {
   setStorageAt,
 } from "../evm";
 import { NETWORKS } from "../networks";
-import { runCommand, validator_args } from "../start-validator";
-import { evm_address } from "../utils";
+import { runCommand, VALIDATOR_OPTIONS } from "../start-validator";
+import { assertNetwork, evm_address } from "../utils";
 
 export const command = "evm";
 export const desc = "EVM utilities";
@@ -26,17 +26,17 @@ export const builder = function (y: typeof yargs) {
     .option("rpc", {
       describe: "RPC endpoint",
       type: "string",
-      required: false,
+      demandOption: false,
     })
     .command(
       "address-from-secret <secret>",
       "Compute a 20 byte eth address from a 32 byte private key",
-      (yargs) => {
-        return yargs.positional("secret", {
+      (yargs) =>
+        yargs.positional("secret", {
           type: "string",
           describe: "Secret key (32 bytes)",
-        });
-      },
+          demandOption: true,
+        } as const),
       (argv) => {
         console.log(ethers.utils.computeAddress(argv["secret"]));
       }
@@ -44,28 +44,31 @@ export const builder = function (y: typeof yargs) {
     .command(
       "storage-update",
       "Update a storage slot on an EVM fork during testing (anvil or hardhat)",
-      (yargs) => {
-        return yargs
+      (yargs) =>
+        yargs
           .option("contract-address", {
             alias: "a",
             describe: "Contract address",
             type: "string",
-            required: true,
+            demandOption: true,
           })
           .option("storage-slot", {
             alias: "k",
             describe: "Storage slot to modify",
             type: "string",
-            required: true,
+            demandOption: true,
           })
           .option("value", {
             alias: "v",
             describe: "Value to write into the slot (32 bytes)",
             type: "string",
-            required: true,
-          });
-      },
+            demandOption: true,
+          }),
       async (argv) => {
+        if (!argv["rpc"]) {
+          throw new Error("RPC required");
+        }
+
         const result = await setStorageAt(
           argv["rpc"],
           evm_address(argv["contract-address"]),
@@ -87,56 +90,49 @@ export const builder = function (y: typeof yargs) {
     .command(
       "info",
       "Query info about the on-chain state of the contract",
-      (yargs) => {
-        return yargs
+      (yargs) =>
+        yargs
           .option("chain", {
             alias: "c",
             describe: "Chain to query",
             type: "string",
             choices: Object.keys(CHAINS),
-            required: true,
+            demandOption: true,
           })
           .option("module", {
             alias: "m",
             describe: "Module to query",
             type: "string",
             choices: ["Core", "NFTBridge", "TokenBridge"],
-            required: true,
+            demandOption: true,
           })
           .option("network", {
             alias: "n",
             describe: "network",
             type: "string",
             choices: ["mainnet", "testnet", "devnet"],
-            required: true,
+            demandOption: true,
           })
           .option("contract-address", {
             alias: "a",
             describe: "Contract to query (override config)",
             type: "string",
-            required: false,
+            demandOption: false,
           })
           .option("implementation-only", {
             alias: "i",
             describe: "Only query implementation (faster)",
             type: "boolean",
             default: false,
-            required: false,
-          });
-      },
+            demandOption: false,
+          }),
       async (argv) => {
         assertChain(argv["chain"]);
         assertEVMChain(argv["chain"]);
         const network = argv.network.toUpperCase();
-        if (
-          network !== "MAINNET" &&
-          network !== "TESTNET" &&
-          network !== "DEVNET"
-        ) {
-          throw Error(`Unknown network: ${network}`);
-        }
-        let module = argv["module"] as "Core" | "NFTBridge" | "TokenBridge";
-        let rpc = argv["rpc"] ?? NETWORKS[network][argv["chain"]].rpc;
+        assertNetwork(network);
+        const module = argv["module"] as "Core" | "NFTBridge" | "TokenBridge";
+        const rpc = argv["rpc"] ?? NETWORKS[network][argv["chain"]].rpc;
         if (argv["implementation-only"]) {
           console.log(
             await getImplementation(
@@ -167,8 +163,8 @@ export const builder = function (y: typeof yargs) {
     .command(
       "hijack",
       "Override the guardian set of the core bridge contract during testing (anvil or hardhat)",
-      (yargs) => {
-        return yargs
+      (yargs) =>
+        yargs
           .option("core-contract-address", {
             alias: "a",
             describe: "Core contract address",
@@ -177,18 +173,17 @@ export const builder = function (y: typeof yargs) {
           })
           .option("guardian-address", {
             alias: "g",
-            required: true,
+            demandOption: true,
             describe: "Guardians' public addresses (CSV)",
             type: "string",
           })
           .option("guardian-set-index", {
             alias: "i",
-            required: false,
+            demandOption: false,
             describe:
               "New guardian set index (if unspecified, default to overriding the current index)",
             type: "number",
-          });
-      },
+          }),
       async (argv) => {
         const guardian_addresses = argv["guardian-address"].split(",");
         let rpc = argv["rpc"] ?? NETWORKS.DEVNET.ethereum.rpc;
@@ -203,9 +198,7 @@ export const builder = function (y: typeof yargs) {
     .command(
       "start-validator",
       "Start a local EVM validator",
-      (yargs) => {
-        return yargs.option("validator-args", validator_args);
-      },
+      (yargs) => yargs.option("validator-args", VALIDATOR_OPTIONS),
       (argv) => {
         const cmd = `cd ${homedir()} && npx ganache-cli -e 10000 --deterministic --time="1970-01-01T00:00:00+00:00"`;
         runCommand(cmd, argv["validator-args"]);
@@ -214,5 +207,4 @@ export const builder = function (y: typeof yargs) {
     .strict()
     .demandCommand();
 };
-
-export const handler = (argv) => {};
+export const handler = () => {};

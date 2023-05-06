@@ -9,6 +9,7 @@ import {
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import yargs from "yargs";
 import { execute_algorand } from "../algorand";
+import { execute_aptos } from "../aptos";
 import { execute_evm } from "../evm";
 import { execute_injective } from "../injective";
 import { execute_near } from "../near";
@@ -16,58 +17,55 @@ import { execute_sei } from "../sei";
 import { execute_solana } from "../solana";
 import { submit as submitSui } from "../sui";
 import { execute_terra } from "../terra";
-import * as vaa from "../vaa";
+import { assertNetwork } from "../utils";
+import { assertKnownPayload, impossible, parse } from "../vaa";
 import { execute_xpla } from "../xpla";
-import { execute_aptos } from "../aptos";
 
 export const command = "submit <vaa>";
 export const desc = "Execute a VAA";
-export const builder = (y: typeof yargs) => {
-  return y
+export const builder = (y: typeof yargs) =>
+  y
     .positional("vaa", {
       describe: "vaa",
       type: "string",
-      required: true,
+      demandOption: true,
     })
     .option("chain", {
       alias: "c",
       describe: "chain name",
-      type: "string",
       choices: Object.keys(CHAINS),
-      required: false,
-    })
+      demandOption: false,
+    } as const)
     .option("network", {
       alias: "n",
       describe: "network",
-      type: "string",
       choices: ["mainnet", "testnet", "devnet"],
-      required: true,
-    })
+      demandOption: true,
+    } as const)
     .option("contract-address", {
       alias: "a",
       describe: "Contract to submit VAA to (override config)",
       type: "string",
-      required: false,
+      demandOption: false,
     })
     .option("rpc", {
       describe: "RPC endpoint",
       type: "string",
-      required: false,
+      demandOption: false,
     });
-};
-export const handler = async (argv) => {
+export const handler = async (
+  argv: Awaited<ReturnType<typeof builder>["argv"]>
+) => {
   const vaa_hex = String(argv.vaa);
   const buf = Buffer.from(vaa_hex, "hex");
-  const parsed_vaa = vaa.parse(buf);
+  const parsed_vaa = parse(buf);
 
-  vaa.assertKnownPayload(parsed_vaa);
+  assertKnownPayload(parsed_vaa);
 
   console.log(parsed_vaa.payload);
 
   const network = argv.network.toUpperCase();
-  if (network !== "MAINNET" && network !== "TESTNET" && network !== "DEVNET") {
-    throw Error(`Unknown network: ${network}`);
-  }
+  assertNetwork(network);
 
   // We figure out the target chain to submit the VAA to.
   // The VAA might specify this itself (for example a contract upgrade VAA
@@ -156,6 +154,6 @@ export const handler = async (argv) => {
   } else {
     // If you get a type error here, hover over `chain`'s type and it tells you
     // which cases are not handled
-    vaa.impossible(chain);
+    impossible(chain);
   }
 };

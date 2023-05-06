@@ -13,9 +13,10 @@ export const builder = (y: typeof yargs) => {
     describe: "Chain to query",
     type: "string",
     choices: Object.keys(CHAINS),
-  });
+    demandOption: true,
+  } as const);
 };
-export const handler = (argv) => {
+export const handler = (argv: Awaited<ReturnType<typeof builder>["argv"]>) => {
   assertChain(argv["chain"]);
   console.log(coalesceChainId(argv["chain"]));
 };

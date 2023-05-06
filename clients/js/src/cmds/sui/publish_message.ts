@@ -12,6 +12,7 @@ import {
   getSigner,
   logTransactionDigest,
   logTransactionSender,
+  setMaxGasBudgetDevnet,
 } from "../../sui";
 import { assertNetwork } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
@@ -22,41 +23,40 @@ export const addPublishMessageCommands: YargsAddCommandsFn = (
   y.command(
     "publish-example-message",
     "Publish message from example app via core bridge",
-    (yargs) => {
-      return yargs
+    (yargs) =>
+      yargs
         .option("network", NETWORK_OPTIONS)
         .option("package-id", {
           alias: "p",
           describe: "Package ID/module address",
-          required: true,
+          demandOption: true,
           type: "string",
         })
         .option("state", {
           alias: "s",
           describe: "Core messages app state object ID",
-          required: true,
+          demandOption: true,
           type: "string",
         })
         .option("wormhole-state", {
           alias: "w",
           describe: "Wormhole state object ID",
-          required: true,
+          demandOption: true,
           type: "string",
         })
         .option("message", {
           alias: "m",
           describe: "Message payload",
-          required: true,
+          demandOption: true,
           type: "string",
         })
         .option("private-key", {
           alias: "k",
           describe: "Custom private key to sign txs",
-          required: false,
+          demandOption: false,
           type: "string",
         })
-        .option("rpc", RPC_OPTIONS);
-    },
+        .option("rpc", RPC_OPTIONS),
     async (argv) => {
       const network = argv.network.toUpperCase();
       assertNetwork(network);
@@ -71,26 +71,23 @@ export const addPublishMessageCommands: YargsAddCommandsFn = (
       const signer = getSigner(provider, network, privateKey);
 
       // Publish message
-      const transactionBlock = new TransactionBlock();
-      if (network === "DEVNET") {
-        // Avoid Error checking transaction input objects: GasBudgetTooHigh { gas_budget: 50000000000, max_budget: 10000000000 }
-        transactionBlock.setGasBudget(10000000000);
-      }
-      transactionBlock.moveCall({
+      const tx = new TransactionBlock();
+      setMaxGasBudgetDevnet(network, tx);
+      tx.moveCall({
         target: `${packageId}::sender::send_message_entry`,
         arguments: [
-          transactionBlock.object(stateObjectId),
-          transactionBlock.object(wormholeStateObjectId),
-          transactionBlock.pure(message),
-          transactionBlock.object(SUI_CLOCK_OBJECT_ID),
+          tx.object(stateObjectId),
+          tx.object(wormholeStateObjectId),
+          tx.pure(message),
+          tx.object(SUI_CLOCK_OBJECT_ID),
         ],
       });
-      const res = await executeTransactionBlock(signer, transactionBlock);
+      const res = await executeTransactionBlock(signer, tx);
 
       // Hacky way to grab event since we don't require package ID of the
       // core bridge as input. Doesn't really matter since this is a test
       // command.
-      const event = res.events.find(
+      const event = res.events?.find(
         (e) =>
           normalizeSuiAddress(e.packageId) === normalizeSuiAddress(packageId) &&
           e.type.includes("publish_message::WormholeMessage")
@@ -107,10 +104,10 @@ export const addPublishMessageCommands: YargsAddCommandsFn = (
       console.log("Publish message succeeded:", {
         sender: event.sender,
         type: event.type,
-        payload: Buffer.from(event.parsedJson.payload).toString(),
-        emitter: Buffer.from(event.parsedJson.sender).toString("hex"),
-        sequence: event.parsedJson.sequence,
-        nonce: event.parsedJson.nonce,
+        payload: Buffer.from(event.parsedJson?.payload).toString(),
+        emitter: Buffer.from(event.parsedJson?.sender).toString("hex"),
+        sequence: event.parsedJson?.sequence,
+        nonce: event.parsedJson?.nonce,
       });
     }
   );

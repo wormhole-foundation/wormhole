@@ -23,23 +23,25 @@ import axios from "axios";
 import { ethers } from "ethers";
 import yargs from "yargs";
 import { NETWORKS } from "../networks";
+import { assertNetwork, Network } from "../utils";
 import { parse, Payload, serialiseVAA, sign, Signature, VAA } from "../vaa";
 
 export const command = "edit-vaa";
 export const desc = "Edits or generates a VAA";
-export const builder = (y: typeof yargs) => {
-  return y
+export const builder = (y: typeof yargs) =>
+  y
     .option("vaa", {
       alias: "v",
       describe: "vaa in hex format",
       type: "string",
+      demandOption: true,
     })
     .option("network", {
       alias: "n",
       describe: "network",
-      type: "string",
       choices: ["mainnet", "testnet", "devnet"],
-    })
+      demandOption: true,
+    } as const)
     .option("guardian-set-index", {
       alias: "gsi",
       describe: "guardian set index",
@@ -65,7 +67,7 @@ export const builder = (y: typeof yargs) => {
       alias: "ec",
       describe: "emitter chain id to be used in the vaa",
       type: "number",
-      required: false,
+      demandOption: false,
     })
     .option("emitter-address", {
       alias: "ea",
@@ -102,21 +104,29 @@ export const builder = (y: typeof yargs) => {
       describe: "Guardian's secret key",
       type: "string",
     });
-};
-export const handler = async (argv) => {
+export const handler = async (
+  argv: Awaited<ReturnType<typeof builder>["argv"]>
+) => {
+  const network = argv["network"].toUpperCase();
+  assertNetwork(network);
+
   let numSigs = 0;
   if (argv["signatures"]) {
     numSigs += 1;
   }
+
   if (argv["wormscanfile"]) {
     numSigs += 1;
   }
+
   if (argv["wormscanurl"]) {
     numSigs += 1;
   }
+
   if (argv["guardian-secret"]) {
     numSigs += 1;
   }
+
   if (numSigs > 1) {
     throw new Error(
       `may only specify one of "--signatures", "--wormscanfile", "--wormscanurl" or "--guardian-secret"`
@@ -161,20 +171,17 @@ export const handler = async (argv) => {
   }
 
   if (argv["signatures"]) {
-    vaa.signatures = argv["signatures"].split(",");
+    vaa.signatures = argv["signatures"].split(",").map((s, i) => ({
+      signature: s,
+      guardianSetIndex: i,
+    }));
   } else if (argv["wormscanfile"]) {
     const wormscanData = require(argv["wormscanfile"]);
-    const guardianSet = await getGuardianSet(
-      argv["network"],
-      vaa.guardianSetIndex
-    );
+    const guardianSet = await getGuardianSet(network, vaa.guardianSetIndex);
     vaa.signatures = await getSigsFromWormscanData(wormscanData, guardianSet);
   } else if (argv["wormscanurl"]) {
     const wormscanData = await axios.get(argv["wormscanurl"]);
-    const guardianSet = await getGuardianSet(
-      argv["network"],
-      vaa.guardianSetIndex
-    );
+    const guardianSet = await getGuardianSet(network, vaa.guardianSetIndex);
     vaa.signatures = await getSigsFromWormscanData(
       wormscanData.data,
       guardianSet
@@ -219,19 +226,10 @@ export const handler = async (argv) => {
 };
 
 // getGuardianSet queries the core contract on Ethereum for the guardian set and returns it.
-async function getGuardianSet(
-  nwork: string,
+const getGuardianSet = async (
+  network: Network,
   guardianSetIndex: number
-): Promise<string[]> {
-  if (!nwork) {
-    throw Error(`"--network" is required to read guardian set`);
-  }
-
-  const network = nwork.toUpperCase();
-  if (network !== "MAINNET" && network !== "TESTNET" && network !== "DEVNET") {
-    throw Error(`Unknown network: ${network}`);
-  }
-
+): Promise<string[]> => {
   let n = NETWORKS[network]["ethereum"];
   let contract_address = CONTRACTS[network]["ethereum"].core;
   if (contract_address === undefined) {
@@ -242,14 +240,14 @@ async function getGuardianSet(
   const contract = Implementation__factory.connect(contract_address, provider);
   const result = await contract.getGuardianSet(guardianSetIndex);
   return result[0];
-}
+};
 
 // getSigsFromWormscanData reads the guardian address / signature pairs from the wormscan data
 // and generates an array of signature objects. It then sorts them into order by address.
-function getSigsFromWormscanData(
+const getSigsFromWormscanData = (
   wormscanData: any,
   guardianSet: string[]
-): any {
+): Signature[] => {
   let sigs: Signature[] = [];
   for (let data in wormscanData) {
     let guardianAddr = wormscanData[data].guardianAddr;
@@ -272,6 +270,7 @@ function getSigsFromWormscanData(
 
     sigs.push(sig);
   }
+
   return sigs.sort((s1, s2) => {
     if (s1.guardianSetIndex > s2.guardianSetIndex) {
       return 1;
@@ -283,4 +282,4 @@ function getSigsFromWormscanData(
 
     return 0;
   });
-}
+};

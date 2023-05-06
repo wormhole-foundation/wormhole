@@ -13,5 +13,4 @@ export const builder = (y: typeof yargs) =>
     .command(contractAddress)
     .command(convertToEmitter)
     .command(rpc);
-
-export const handler = (argv) => {};
+export const handler = () => {};

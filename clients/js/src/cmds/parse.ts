@@ -7,9 +7,10 @@ export const builder = (y: typeof yargs) => {
   return y.positional("vaa", {
     describe: "vaa",
     type: "string",
+    demandOption: true,
   });
 };
-export const handler = (argv) => {
+export const handler = (argv: Awaited<ReturnType<typeof builder>["argv"]>) => {
   let buf: Buffer;
   try {
     buf = Buffer.from(String(argv.vaa), "hex");
@@ -22,8 +23,9 @@ export const handler = (argv) => {
       throw Error("Couldn't parse VAA as base64 or hex");
     }
   }
-  const parsed_vaa = parse(buf);
-  let parsed_vaa_with_digest = parsed_vaa;
-  parsed_vaa_with_digest["digest"] = vaaDigest(parsed_vaa);
-  console.log(JSON.stringify(parsed_vaa_with_digest, null, 2));
+
+  const parsedVaa = parse(buf);
+  console.log(
+    JSON.stringify({ ...parsedVaa, digest: vaaDigest(parsedVaa) }, null, 2)
+  );
 };

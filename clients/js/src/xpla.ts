@@ -1,3 +1,4 @@
+import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import {
   Coin,
   Fee,
@@ -6,35 +7,44 @@ import {
   MsgExecuteContract,
 } from "@xpla/xpla.js";
 import { fromUint8Array } from "js-base64";
-import { impossible, Payload } from "./vaa";
 import { NETWORKS } from "./networks";
-import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+import { Network } from "./utils";
+import { Payload, impossible } from "./vaa";
 
 export async function execute_xpla(
   payload: Payload,
   vaa: Buffer,
-  network: "MAINNET" | "TESTNET" | "DEVNET"
+  network: Network
 ) {
-  const chain = "xpla";
-  let n = NETWORKS[network][chain];
-  let contracts = CONTRACTS[network][chain];
+  const { rpc, key, chain_id } = NETWORKS[network].xpla;
+  const contracts = CONTRACTS[network].xpla;
+  if (!key) {
+    throw Error(`No ${network} key defined for XPLA`);
+  }
+
+  if (!rpc) {
+    throw Error(`No ${network} rpc defined for XPLA`);
+  }
 
   const client = new LCDClient({
-    URL: n.rpc,
-    chainID: n.chain_id,
+    URL: rpc,
+    chainID: chain_id,
   });
 
   const wallet = client.wallet(
     new MnemonicKey({
-      mnemonic: n.key,
+      mnemonic: key,
     })
   );
 
   let target_contract: string;
   let execute_msg: object;
-
   switch (payload.module) {
-    case "Core":
+    case "Core": {
+      if (!contracts.core) {
+        throw new Error(`Core bridge address not defined for XPLA ${network}`);
+      }
+
       target_contract = contracts.core;
       execute_msg = {
         submit_v_a_a: {
@@ -53,14 +63,17 @@ export async function execute_xpla(
         default:
           impossible(payload);
       }
+
       break;
-    case "NFTBridge":
-      if (contracts.nft_bridge === undefined) {
+    }
+    case "NFTBridge": {
+      if (!contracts.nft_bridge) {
         // NOTE: this code can safely be removed once the terra NFT bridge is
         // released, but it's fine for it to stay, as the condition will just be
         // skipped once 'contracts.nft_bridge' is defined
         throw new Error("NFT bridge not supported yet for XPLA");
       }
+
       target_contract = contracts.nft_bridge;
       execute_msg = {
         submit_vaa: {
@@ -82,8 +95,14 @@ export async function execute_xpla(
         default:
           impossible(payload);
       }
+
       break;
-    case "TokenBridge":
+    }
+    case "TokenBridge": {
+      if (!contracts.token_bridge) {
+        throw new Error(`Token bridge address not defined for XPLA ${network}`);
+      }
+
       target_contract = contracts.token_bridge;
       execute_msg = {
         submit_vaa: {
@@ -109,9 +128,10 @@ export async function execute_xpla(
           throw Error("Can't complete payload 3 transfer from CLI");
         default:
           impossible(payload);
-          break;
       }
+
       break;
+    }
     default:
       target_contract = impossible(payload);
       execute_msg = impossible(payload);
@@ -121,15 +141,13 @@ export async function execute_xpla(
     wallet.key.accAddress,
     target_contract,
     execute_msg,
-    { axpla: 1700000000000000000 }
+    { axpla: "1700000000000000000" }
   );
 
   const feeDenoms = ["axpla"];
-
   // const gasPrices = await axios
   //   .get("https://dimension-lcd.xpla.dev/v1/txs/gas_prices")
   //   .then((result) => result.data);
-
   const feeEstimate = await client.tx.estimateFee(
     [
       {

@@ -5,43 +5,41 @@ import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { ethers } from "ethers";
 import yargs from "yargs";
 import { NETWORKS } from "../networks";
+import { assertNetwork } from "../utils";
 
 export const command = "verify-vaa";
 export const desc = "Verifies a VAA by querying the core contract on Ethereum";
-export const builder = (y: typeof yargs) => {
-  return y
+export const builder = (y: typeof yargs) =>
+  y
     .option("vaa", {
       alias: "v",
       describe: "vaa in hex format",
       type: "string",
-      required: true,
+      demandOption: true,
     })
     .option("network", {
       alias: "n",
       describe: "network",
-      type: "string",
       choices: ["mainnet", "testnet", "devnet"],
-      required: true,
-    });
-};
-export const handler = async (argv) => {
+      demandOption: true,
+    } as const);
+export const handler = async (
+  argv: Awaited<ReturnType<typeof builder>["argv"]>
+) => {
   const network = argv.network.toUpperCase();
-  if (network !== "MAINNET" && network !== "TESTNET" && network !== "DEVNET") {
-    throw Error(`Unknown network: ${network}`);
-  }
+  assertNetwork(network);
 
   const buf = Buffer.from(String(argv.vaa), "hex");
-  let n = NETWORKS[network]["ethereum"];
-  let contract_address = CONTRACTS[network]["ethereum"].core;
-
-  if (contract_address === undefined) {
+  const contract_address = CONTRACTS[network].ethereum.core;
+  if (!contract_address) {
     throw Error(`Unknown core contract on ${network} for ethereum`);
   }
 
-  const provider = new ethers.providers.JsonRpcProvider(n.rpc);
+  const provider = new ethers.providers.JsonRpcProvider(
+    NETWORKS[network].ethereum.rpc
+  );
   const contract = Implementation__factory.connect(contract_address, provider);
   const result = await contract.parseAndVerifyVM(buf);
-
   if (result[1]) {
     console.log("Verification succeeded!");
   } else {

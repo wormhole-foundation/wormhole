@@ -54,7 +54,7 @@ export const builder = function (y: typeof yargs) {
     y
       .option("guardian-secret", {
         alias: "g",
-        required: true,
+        demandOption: true,
         describe: "Guardians' secret keys (CSV)",
         type: "string",
       })
@@ -62,33 +62,30 @@ export const builder = function (y: typeof yargs) {
       .command(
         "registration",
         "Generate registration VAA",
-        (yargs) => {
-          return yargs
+        (yargs) =>
+          yargs
             .option("chain", {
               alias: "c",
               describe: "Chain to register",
-              type: "string",
               choices: Object.keys(CHAINS),
-              required: true,
-            })
+              demandOption: true,
+            } as const)
             .option("contract-address", {
               alias: "a",
               describe: "Contract to register",
               type: "string",
-              required: true,
+              demandOption: true,
             })
             .option("module", {
               alias: "m",
               describe: "Module to upgrade",
-              type: "string",
               choices: ["NFTBridge", "TokenBridge"],
-              required: true,
-            });
-        },
+              demandOption: true,
+            } as const),
         (argv) => {
-          let module = argv["module"] as "NFTBridge" | "TokenBridge";
+          const module = argv["module"];
           assertChain(argv["chain"]);
-          let payload: PortalRegisterChain<typeof module> = {
+          const payload: PortalRegisterChain<typeof module> = {
             module,
             type: "RegisterChain",
             chain: 0,
@@ -98,115 +95,110 @@ export const builder = function (y: typeof yargs) {
               argv["contract-address"]
             ),
           };
-          let v = makeVAA(
+          const vaa = makeVAA(
             GOVERNANCE_CHAIN,
             GOVERNANCE_EMITTER,
             argv["guardian-secret"].split(","),
             payload
           );
-          console.log(serialiseVAA(v));
+          console.log(serialiseVAA(vaa));
         }
       )
       // Upgrade
       .command(
         "upgrade",
         "Generate contract upgrade VAA",
-        (yargs) => {
-          return yargs
+        (yargs) =>
+          yargs
             .option("chain", {
               alias: "c",
               describe: "Chain to upgrade",
-              type: "string",
               choices: Object.keys(CHAINS),
-              required: true,
-            })
+              demandOption: true,
+            } as const)
             .option("contract-address", {
               alias: "a",
               describe: "Contract to upgrade to",
               type: "string",
-              required: true,
+              demandOption: true,
             })
             .option("module", {
               alias: "m",
               describe: "Module to upgrade",
-              type: "string",
               choices: ["Core", "NFTBridge", "TokenBridge"],
-              required: true,
-            });
-        },
+              demandOption: true,
+            } as const),
         (argv) => {
           assertChain(argv["chain"]);
-          let module = argv["module"] as "Core" | "NFTBridge" | "TokenBridge";
-          let payload: ContractUpgrade = {
+          const module = argv["module"];
+          const payload: ContractUpgrade = {
             module,
             type: "ContractUpgrade",
             chain: toChainId(argv["chain"]),
             address: parseCodeAddress(argv["chain"], argv["contract-address"]),
           };
-          let v = makeVAA(
+          const vaa = makeVAA(
             GOVERNANCE_CHAIN,
             GOVERNANCE_EMITTER,
             argv["guardian-secret"].split(","),
             payload
           );
-          console.log(serialiseVAA(v));
+          console.log(serialiseVAA(vaa));
         }
       )
       .command(
         "attestation",
         "Generate a token attestation VAA",
-        (yargs) => {
-          return yargs
+        (yargs) =>
+          yargs
             .option("emitter-chain", {
               alias: "e",
               describe: "Emitter chain of the VAA",
-              type: "string",
               choices: Object.keys(CHAINS),
-              required: true,
-            })
+              demandOption: true,
+            } as const)
             .option("emitter-address", {
               alias: "f",
               describe: "Emitter address of the VAA",
               type: "string",
-              required: true,
+              demandOption: true,
             })
             .option("chain", {
               alias: "c",
               describe: "Token's chain",
               type: "string",
               choices: Object.keys(CHAINS),
-              required: true,
+              demandOption: true,
             })
             .option("token-address", {
               alias: "a",
               describe: "Token's address",
               type: "string",
-              required: true,
+              demandOption: true,
             })
             .option("decimals", {
               alias: "d",
               describe: "Token's decimals",
               type: "number",
-              required: true,
+              demandOption: true,
             })
             .option("symbol", {
               alias: "s",
               describe: "Token's symbol",
               type: "string",
-              required: true,
+              demandOption: true,
             })
             .option("name", {
               alias: "n",
               describe: "Token's name",
               type: "string",
-              required: true,
-            });
-        },
+              demandOption: true,
+            }),
         (argv) => {
-          let emitter_chain = argv["emitter-chain"] as string;
+          const emitter_chain = argv["emitter-chain"];
           assertChain(argv["chain"]);
           assertChain(emitter_chain);
-          let payload: TokenBridgeAttestMeta = {
+          const payload: TokenBridgeAttestMeta = {
             module: "TokenBridge",
             type: "AttestMeta",
             chain: 0,
@@ -216,60 +208,59 @@ export const builder = function (y: typeof yargs) {
             symbol: argv["symbol"],
             name: argv["name"],
           };
-          let v = makeVAA(
+          const vaa = makeVAA(
             toChainId(emitter_chain),
-            parseAddress(emitter_chain, argv["emitter-address"] as string),
+            parseAddress(emitter_chain, argv["emitter-address"]),
             argv["guardian-secret"].split(","),
             payload
           );
-          console.log(serialiseVAA(v));
+          console.log(serialiseVAA(vaa));
         }
       )
       // RecoverChainId
       .command(
         "recover-chain-id",
         "Generate a recover chain ID VAA",
-        (yargs) => {
-          return yargs
+        (yargs) =>
+          yargs
             .option("module", {
               alias: "m",
               describe: "Module to upgrade",
-              type: "string",
               choices: ["Core", "NFTBridge", "TokenBridge"],
-              required: true,
-            })
+              demandOption: true,
+            } as const)
             .option("evm-chain-id", {
               alias: "e",
               describe: "EVM chain ID to set",
               type: "string",
-              required: true,
+              demandOption: true,
             })
             .option("new-chain-id", {
               alias: "c",
               describe: "New chain ID to set",
               type: "number",
-              required: true,
-            });
-        },
+              demandOption: true,
+            }),
         (argv) => {
-          let module = argv["module"] as "Core" | "NFTBridge" | "TokenBridge";
-          let payload: RecoverChainId = {
+          const module = argv["module"];
+          const payload: RecoverChainId = {
             module,
             type: "RecoverChainId",
             evmChainId: BigInt(argv["evm-chain-id"]),
             newChainId: argv["new-chain-id"],
           };
-          let v = makeVAA(
+          const vaa = makeVAA(
             GOVERNANCE_CHAIN,
             GOVERNANCE_EMITTER,
             argv["guardian-secret"].split(","),
             payload
           );
-          console.log(serialiseVAA(v));
+          console.log(serialiseVAA(vaa));
         }
       )
   );
 };
+export const handler = () => {};
 
 function parseAddress(chain: ChainName, address: string): string {
   if (chain === "unset") {
@@ -311,5 +302,3 @@ function parseCodeAddress(chain: ChainName, address: string): string {
     return parseAddress(chain, address);
   }
 }
-
-export const handler = (argv) => {};
