@@ -21,6 +21,6 @@ export const handler = async (
   argv: Awaited<ReturnType<typeof builder>["argv"]>
 ) => {
   console.log(
-    ethers.utils.recoverAddress(hex(argv["digest"]), hex(argv["signature"]))
+    ethers.utils.recoverAddress(hex(argv.digest), hex(argv.signature))
   );
 };

@@ -59,7 +59,7 @@ if [[ -n $network ]]; then
     echo "worm binary could not be found. See installation instructions in clients/js/README.md"
     exit 1
   fi
-  rpc=$(worm rpc "$network" "$chain")
+  rpc=$(worm info rpc "$network" "$chain")
 fi
 
 if [[ -z $rpc ]]; then

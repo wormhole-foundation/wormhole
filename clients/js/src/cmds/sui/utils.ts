@@ -84,11 +84,10 @@ export const addUtilsCommands: YargsAddCommandsFn = (y: typeof yargs) =>
           .option("network", {
             alias: "n",
             describe: "Network",
-            type: "string",
             choices: ["mainnet", "testnet", "devnet"],
             default: "devnet",
             demandOption: false,
-          })
+          } as const)
           .option("rpc", RPC_OPTIONS),
       async (argv) => {
         const network = argv.network.toUpperCase();

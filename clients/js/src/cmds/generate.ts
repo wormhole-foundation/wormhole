@@ -67,7 +67,7 @@ export const builder = function (y: typeof yargs) {
             .option("chain", {
               alias: "c",
               describe: "Chain to register",
-              choices: Object.keys(CHAINS),
+              choices: Object.keys(CHAINS) as (keyof typeof CHAINS)[],
               demandOption: true,
             } as const)
             .option("contract-address", {
@@ -113,7 +113,7 @@ export const builder = function (y: typeof yargs) {
             .option("chain", {
               alias: "c",
               describe: "Chain to upgrade",
-              choices: Object.keys(CHAINS),
+              choices: Object.keys(CHAINS) as (keyof typeof CHAINS)[],
               demandOption: true,
             } as const)
             .option("contract-address", {
@@ -154,7 +154,7 @@ export const builder = function (y: typeof yargs) {
             .option("emitter-chain", {
               alias: "e",
               describe: "Emitter chain of the VAA",
-              choices: Object.keys(CHAINS),
+              choices: Object.keys(CHAINS) as (keyof typeof CHAINS)[],
               demandOption: true,
             } as const)
             .option("emitter-address", {
@@ -166,10 +166,9 @@ export const builder = function (y: typeof yargs) {
             .option("chain", {
               alias: "c",
               describe: "Token's chain",
-              type: "string",
-              choices: Object.keys(CHAINS),
+              choices: Object.keys(CHAINS) as (keyof typeof CHAINS)[],
               demandOption: true,
-            })
+            } as const)
             .option("token-address", {
               alias: "a",
               describe: "Token's address",
