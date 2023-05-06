@@ -3,7 +3,7 @@ use cosmwasm_std::{Binary, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::token_address::{ExternalTokenId, TokenId};
+use crate::token_address::{TokenId};
 
 type HumanAddr = String;
 
@@ -27,24 +27,6 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-    RegisterAssetHook {
-        chain: u16,
-        token_address: ExternalTokenId,
-    },
-
-    DepositTokens {},
-    WithdrawTokens {
-        asset: AssetInfo,
-    },
-
-    InitiateTransfer {
-        asset: Asset,
-        recipient_chain: u16,
-        recipient: Binary,
-        fee: Uint128,
-        nonce: u32,
-    },
-
     InitiateTransferWithPayload {
         asset: Asset,
         recipient_chain: u16,
@@ -56,11 +38,6 @@ pub enum ExecuteMsg {
 
     SubmitVaa {
         data: Binary,
-    },
-
-    CreateAssetMeta {
-        asset_info: AssetInfo,
-        nonce: u32,
     },
 
     CompleteTransferWithPayload {
@@ -76,18 +53,11 @@ pub struct MigrateMsg {}
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    WrappedRegistry { chain: u16, address: Binary },
     TransferInfo { vaa: Binary },
     ExternalId { external_id: Binary },
     IsVaaRedeemed { vaa: Binary },
     ChainRegistration { chain: u16 },
     AllChainChannels {},
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub struct WrappedRegistryResponse {
-    pub address: HumanAddr,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
