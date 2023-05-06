@@ -24,7 +24,7 @@ import {
   RPC_OPTIONS,
 } from "../consts";
 import { NETWORKS } from "../networks";
-import { runCommand, VALIDATOR_OPTIONS } from "../start-validator";
+import { runCommand, VALIDATOR_OPTIONS } from "../startValidator";
 import { assertNetwork, checkBinary, evm_address, hex } from "../utils";
 
 const APTOS_NODE_URL = "http://0.0.0.0:8080/v1";

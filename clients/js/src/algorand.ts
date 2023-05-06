@@ -38,7 +38,13 @@ export async function execute_algorand(
 
   let target_contract: string;
   switch (payload.module) {
-    case "Core":
+    case "Core": {
+      if (!contracts.core) {
+        throw new Error(
+          `Core bridge address not defined for Algorand ${network}`
+        );
+      }
+
       target_contract = contracts.core;
       switch (payload.type) {
         case "GuardianSetUpgrade":
@@ -52,14 +58,17 @@ export async function execute_algorand(
         default:
           impossible(payload);
       }
+
       break;
-    case "NFTBridge":
-      if (contracts.nft_bridge === undefined) {
+    }
+    case "NFTBridge": {
+      if (!contracts.nft_bridge) {
         // NOTE: this code can safely be removed once the algorand NFT bridge is
         // released, but it's fine for it to stay, as the condition will just be
         // skipped once 'contracts.nft_bridge' is defined
-        throw new Error("NFT bridge not supported yet for algorand");
+        throw new Error("NFT bridge not supported yet for Algorand");
       }
+
       target_contract = contracts.nft_bridge;
       switch (payload.type) {
         case "ContractUpgrade":
@@ -76,11 +85,16 @@ export async function execute_algorand(
         default:
           impossible(payload);
       }
+
       break;
-    case "TokenBridge":
-      if (contracts.token_bridge === undefined) {
-        throw new Error("contracts.token_bridge is undefined");
+    }
+    case "TokenBridge": {
+      if (!contracts.token_bridge) {
+        throw new Error(
+          `Token bridge address not defined for Algorand ${network}`
+        );
       }
+
       target_contract = contracts.token_bridge;
       switch (payload.type) {
         case "ContractUpgrade":
@@ -102,7 +116,9 @@ export async function execute_algorand(
         default:
           impossible(payload);
       }
+
       break;
+    }
     default:
       target_contract = impossible(payload);
   }

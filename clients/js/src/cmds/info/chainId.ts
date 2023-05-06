@@ -12,7 +12,7 @@ export const builder = (y: typeof yargs) => {
   return y.positional("chain", {
     describe: "Chain to query",
     type: "string",
-    choices: Object.keys(CHAINS),
+    choices: Object.keys(CHAINS) as (keyof typeof CHAINS)[],
     demandOption: true,
   } as const);
 };

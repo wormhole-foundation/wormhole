@@ -97,7 +97,7 @@ export const builder = function (y: typeof yargs) {
 
         const masterKey = KeyPair.fromString(key);
         const keyStore = new InMemoryKeyStore();
-        keyStore.setKey(networkId, argv["account"], masterKey);
+        keyStore.setKey(networkId, argv.account, masterKey);
         const near = await connect({
           deps: {
             keyStore,
@@ -107,7 +107,7 @@ export const builder = function (y: typeof yargs) {
           headers: {},
         });
 
-        const masterAccount = new Account(near.connection, argv["account"]);
+        const masterAccount = new Account(near.connection, argv.account);
         const result = await masterAccount.functionCall({
           contractId: target,
           methodName: "update_contract",
@@ -169,7 +169,7 @@ export const builder = function (y: typeof yargs) {
 
         const masterKey = KeyPair.fromString(key);
         const keyStore = new InMemoryKeyStore();
-        keyStore.setKey(networkId, argv["account"], masterKey);
+        keyStore.setKey(networkId, argv.account, masterKey);
         keyStore.setKey(networkId, target, masterKey);
 
         const near = await connect({
@@ -180,13 +180,13 @@ export const builder = function (y: typeof yargs) {
           nodeUrl: rpc,
           headers: {},
         });
-        const masterAccount = new Account(near.connection, argv["account"]);
+        const masterAccount = new Account(near.connection, argv.account);
         const targetAccount = new Account(near.connection, target);
         console.log({ ...argv, key, rpc, target });
 
         if (argv.attach) {
           console.log(
-            `Sending money: ${target} from ${argv["account"]} being sent ${argv["attach"]}`
+            `Sending money: ${target} from ${argv.account} being sent ${argv.attach}`
           );
           console.log(
             await masterAccount.sendMoney(target, new BN(argv.attach))
@@ -195,7 +195,7 @@ export const builder = function (y: typeof yargs) {
 
         console.log("deploying contract");
         console.log(
-          await targetAccount.deployContract(readFileSync(argv["file"]))
+          await targetAccount.deployContract(readFileSync(argv.file))
         );
       }
     );

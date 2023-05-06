@@ -3,7 +3,7 @@ import { Yargs } from "../Yargs";
 import { addBuildCommands } from "./build";
 import { addDeployCommands } from "./deploy";
 import { addInitCommands } from "./init";
-import { addPublishMessageCommands } from "./publish_message";
+import { addPublishMessageCommands } from "./publishMessage";
 import { addSetupCommands } from "./setup";
 import { addUtilsCommands } from "./utils";
 

@@ -28,9 +28,9 @@ else
     usage
 fi
 
-WORMHOLE_ADDR=$(worm contract "$NETWORK" aptos Core)
-TOKEN_BRIDGE_ADDR=$(worm contract "$NETWORK" aptos TokenBridge)
-NFT_BRIDGE_ADDR=$(worm contract "$NETWORK" aptos NFTBridge)
+WORMHOLE_ADDR=$(worm info contract "$NETWORK" aptos Core)
+TOKEN_BRIDGE_ADDR=$(worm info contract "$NETWORK" aptos TokenBridge)
+NFT_BRIDGE_ADDR=$(worm info contract "$NETWORK" aptos NFTBridge)
 
 NAMED_ADDRS="wormhole=$WORMHOLE_ADDR,deployer=$DEPLOYER_ADDR,token_bridge=$TOKEN_BRIDGE_ADDR,nft_bridge=$NFT_BRIDGE_ADDR"
 
@@ -55,7 +55,7 @@ VAA=$(worm generate upgrade -c aptos -a "$HASH" -m "$MODULE" -g $GUARDIAN_SECRET
 echo "Submitting VAA: $VAA"
 
 # TODO: --contract-address should not be neded after the sdk has these addresses
-CONTRACT_ADDR=$(worm contract "$NETWORK" aptos "$MODULE")
+CONTRACT_ADDR=$(worm info contract "$NETWORK" aptos "$MODULE")
 worm submit --network "$NETWORK" "$VAA" --contract-address "$CONTRACT_ADDR"
 worm aptos upgrade $DIR --network "$NETWORK" --contract-address "$CONTRACT_ADDR" --named-addresses "$NAMED_ADDRS"
 worm aptos migrate --network "$NETWORK" --contract-address "$CONTRACT_ADDR"

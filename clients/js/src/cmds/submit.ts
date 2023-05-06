@@ -10,6 +10,7 @@ import {
 import yargs from "yargs";
 import { execute_algorand } from "../algorand";
 import { execute_aptos } from "../aptos";
+import { NETWORK_OPTIONS } from "../consts";
 import { execute_evm } from "../evm";
 import { execute_injective } from "../injective";
 import { execute_near } from "../near";
@@ -33,15 +34,10 @@ export const builder = (y: typeof yargs) =>
     .option("chain", {
       alias: "c",
       describe: "chain name",
-      choices: Object.keys(CHAINS),
+      choices: Object.keys(CHAINS) as (keyof typeof CHAINS)[],
       demandOption: false,
     } as const)
-    .option("network", {
-      alias: "n",
-      describe: "network",
-      choices: ["mainnet", "testnet", "devnet"],
-      demandOption: true,
-    } as const)
+    .option("network", NETWORK_OPTIONS)
     .option("contract-address", {
       alias: "a",
       describe: "Contract to submit VAA to (override config)",
@@ -61,7 +57,6 @@ export const handler = async (
   const parsed_vaa = parse(buf);
 
   assertKnownPayload(parsed_vaa);
-
   console.log(parsed_vaa.payload);
 
   const network = argv.network.toUpperCase();
@@ -87,7 +82,7 @@ export const handler = async (
   const vaa_chain = toChainName(vaa_chain_id);
 
   // get chain from command line arg
-  const cli_chain = argv["chain"];
+  const cli_chain = argv.chain;
 
   let chain: ChainName;
   if (cli_chain !== undefined) {
@@ -113,7 +108,7 @@ export const handler = async (
       network,
       chain,
       argv["contract-address"],
-      argv["rpc"]
+      argv.rpc
     );
   } else if (isTerraChain(chain)) {
     await execute_terra(parsed_vaa.payload, buf, network, chain);
@@ -136,14 +131,14 @@ export const handler = async (
   } else if (chain === "osmosis") {
     throw Error("OSMOSIS is not supported yet");
   } else if (chain === "sui") {
-    await submitSui(parsed_vaa.payload, buf, network, argv["rpc"]);
+    await submitSui(parsed_vaa.payload, buf, network, argv.rpc);
   } else if (chain === "aptos") {
     await execute_aptos(
       parsed_vaa.payload,
       buf,
       network,
       argv["contract-address"],
-      argv["rpc"]
+      argv.rpc
     );
   } else if (chain === "wormchain") {
     throw Error("Wormchain is not supported yet");

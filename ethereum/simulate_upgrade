@@ -79,7 +79,7 @@ shift $((OPTIND - 1))
 [ -z "$module" ] && usage
 
 # Get core contract address
-CORE=$(worm contract mainnet "$chain_name" Core)
+CORE=$(worm info contract mainnet "$chain_name" Core)
 echo "core: $CORE"
 
 # Use the local devnet guardian key (this is not a production key)
@@ -142,7 +142,7 @@ case "$module" in
        ;;
 esac
 
-CONTRACT=$(worm contract mainnet "$chain_name" "$MODULE")
+CONTRACT=$(worm info contract mainnet "$chain_name" "$MODULE")
 
 # Step 1) Figure out the contract address depending on the flags -- either use
 # an address passed in as an argument, or use the most recent contract in the repo.

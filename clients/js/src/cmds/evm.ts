@@ -9,6 +9,7 @@ import {
 import { ethers } from "ethers";
 import { homedir } from "os";
 import yargs from "yargs";
+import { NETWORK_OPTIONS } from "../consts";
 import {
   getImplementation,
   hijack_evm,
@@ -16,7 +17,7 @@ import {
   setStorageAt,
 } from "../evm";
 import { NETWORKS } from "../networks";
-import { runCommand, VALIDATOR_OPTIONS } from "../start-validator";
+import { runCommand, VALIDATOR_OPTIONS } from "../startValidator";
 import { assertNetwork, evm_address } from "../utils";
 
 export const command = "evm";
@@ -95,24 +96,16 @@ export const builder = function (y: typeof yargs) {
           .option("chain", {
             alias: "c",
             describe: "Chain to query",
-            type: "string",
-            choices: Object.keys(CHAINS),
+            choices: Object.keys(CHAINS) as (keyof typeof CHAINS)[],
             demandOption: true,
-          })
+          } as const)
           .option("module", {
             alias: "m",
             describe: "Module to query",
-            type: "string",
             choices: ["Core", "NFTBridge", "TokenBridge"],
             demandOption: true,
-          })
-          .option("network", {
-            alias: "n",
-            describe: "network",
-            type: "string",
-            choices: ["mainnet", "testnet", "devnet"],
-            demandOption: true,
-          })
+          } as const)
+          .option("network", NETWORK_OPTIONS)
           .option("contract-address", {
             alias: "a",
             describe: "Contract to query (override config)",
@@ -127,17 +120,18 @@ export const builder = function (y: typeof yargs) {
             demandOption: false,
           }),
       async (argv) => {
-        assertChain(argv["chain"]);
-        assertEVMChain(argv["chain"]);
+        const chain = argv.chain;
+        assertChain(chain);
+        assertEVMChain(chain);
         const network = argv.network.toUpperCase();
         assertNetwork(network);
-        const module = argv["module"] as "Core" | "NFTBridge" | "TokenBridge";
-        const rpc = argv["rpc"] ?? NETWORKS[network][argv["chain"]].rpc;
+        const module = argv.module;
+        const rpc = argv.rpc ?? NETWORKS[network][chain].rpc;
         if (argv["implementation-only"]) {
           console.log(
             await getImplementation(
               network,
-              argv["chain"],
+              chain,
               module,
               argv["contract-address"],
               rpc
@@ -148,7 +142,7 @@ export const builder = function (y: typeof yargs) {
             JSON.stringify(
               await query_contract_evm(
                 network,
-                argv["chain"],
+                chain,
                 module,
                 argv["contract-address"],
                 rpc
@@ -186,7 +180,7 @@ export const builder = function (y: typeof yargs) {
           }),
       async (argv) => {
         const guardian_addresses = argv["guardian-address"].split(",");
-        let rpc = argv["rpc"] ?? NETWORKS.DEVNET.ethereum.rpc;
+        let rpc = argv.rpc ?? NETWORKS.DEVNET.ethereum.rpc;
         await hijack_evm(
           rpc,
           argv["core-contract-address"],

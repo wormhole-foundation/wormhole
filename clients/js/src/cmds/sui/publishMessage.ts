@@ -61,9 +61,9 @@ export const addPublishMessageCommands: YargsAddCommandsFn = (
       const network = argv.network.toUpperCase();
       assertNetwork(network);
       const packageId = argv["package-id"];
-      const stateObjectId = argv["state"];
+      const stateObjectId = argv.state;
       const wormholeStateObjectId = argv["wormhole-state"];
-      const message = argv["message"];
+      const message = argv.message;
       const privateKey = argv["private-key"];
       const rpc = argv.rpc ?? NETWORKS[network].sui.rpc;
 
