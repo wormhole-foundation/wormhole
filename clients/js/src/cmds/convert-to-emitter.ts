@@ -2,7 +2,7 @@ import yargs from "yargs";
 import {
   CHAINS,
   assertChain,
-} from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { getEmitterAddress } from "../emitter";
 
 export const command = "convert-to-emitter <chain> <address-to-convert>";
