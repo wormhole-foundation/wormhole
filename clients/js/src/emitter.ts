@@ -2,22 +2,29 @@ import {
   ChainId,
   ChainName,
   isCosmWasmChain,
-} from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+
+import {
+  getEmitterAddressAlgorand,
+  getEmitterAddressEth,
+  getEmitterAddressNear,
+  getEmitterAddressSolana,
+  getEmitterAddressTerra
+} from "@certusone/wormhole-sdk/lib/esm/bridge/getEmitterAddress";
 
 export async function getEmitterAddress(
   chain: ChainId | ChainName,
   addr: string
 ) {
-  const emitter = require("@certusone/wormhole-sdk/lib/cjs/bridge/getEmitterAddress");
   if (chain === "solana" || chain === "pythnet") {
     // TODO: Create an isSolanaChain()
-    addr = emitter.getEmitterAddressSolana(addr);
+    addr = getEmitterAddressSolana(addr);
   } else if (isCosmWasmChain(chain)) {
-    addr = await emitter.getEmitterAddressTerra(addr);
+    addr = await getEmitterAddressTerra(addr);
   } else if (chain === "algorand") {
-    addr = emitter.getEmitterAddressAlgorand(BigInt(addr));
+    addr = getEmitterAddressAlgorand(BigInt(addr));
   } else if (chain === "near") {
-    addr = emitter.getEmitterAddressNear(addr);
+    addr = getEmitterAddressNear(addr);
   } else if (chain === "aptos") {
     // TODO: There should be something in the SDK to do this.
     if (
@@ -54,7 +61,7 @@ export async function getEmitterAddress(
       throw Error(`Unsupported Sui address: ${addr}`);
     }
   } else {
-    addr = emitter.getEmitterAddressEth(addr);
+    addr = getEmitterAddressEth(addr);
   }
 
   return addr;
