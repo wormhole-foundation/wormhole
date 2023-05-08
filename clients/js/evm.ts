@@ -5,7 +5,7 @@ import axios from "axios";
 import * as celo from "@celo-tools/celo-ethers-wrapper";
 import { solidityKeccak256 } from "ethers/lib/utils"
 import { CHAINS, CONTRACTS, Contracts, EVMChainName } from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
-import { BridgeImplementation__factory, Implementation__factory, NFTBridgeImplementation__factory } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
+import { BridgeImplementation__factory, Implementation__factory, NFTBridgeImplementation__factory} from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
 
 const _IMPLEMENTATION_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"
 
@@ -360,6 +360,41 @@ export async function execute_evm(
 
       }
       break
+    case "CoreRelayer":
+        // TODO: Try to get contract address from SDK if it is undefined
+        // Needs SDK to be published with Wormhole Relayer contract addresses
+        if (contract_address === undefined) {
+          throw Error(`Unknown Wormhole Relayer contract on ${network} for ${chain}`)
+        }
+       // let rb = ethers_contracts.CoreRelayer__factory.connect(contract_address, signer)
+        switch (payload.type) {
+          case "ContractUpgrade":
+            console.log("Upgrading contract")
+            console.log("Error: The published NPM SDK doesn't have the typechain binding for CoreRelayer yet")
+            //console.log("Hash: " + (await rb.submitContractUpgrade(vaa, overrides)).hash)
+            console.log("Don't forget to verify the new implementation! See ethereum/VERIFY.md for instructions")
+            break
+          case "RecoverChainId":
+            console.log("Recovering chain ID")
+            console.log("Error: The published NPM SDK doesn't have the typechain binding for CoreRelayer yet")
+            //console.log("Hash: " + (await rb.submitRecoverChainId(vaa, overrides)).hash)
+            break
+          case "RegisterChain":
+            console.log("Registering chain")
+            console.log("Error: The published NPM SDK doesn't have the typechain binding for CoreRelayer yet")
+            //console.log("Hash: " + (await rb.registerCoreRelayerContract(vaa, overrides)).hash)
+            break
+          case "SetDefaultRelayProvider":
+            console.log("Setting default relay provider")
+            console.log("Error: The published NPM SDK doesn't have the typechain binding for CoreRelayer yet")
+            //console.log("Hash: " + (await rb.setDefaultRelayProvider(vaa, overrides)).hash)
+            break
+          default:
+            impossible(payload)
+            break
+  
+        }
+        break
     default:
       impossible(payload)
   }

@@ -115,6 +115,8 @@ export async function execute_terra(
           break;
       }
       break;
+    case "CoreRelayer":
+        throw Error("Wormhole Relayer not supported on Terra");
     default:
       target_contract = impossible(payload);
       execute_msg = impossible(payload);
