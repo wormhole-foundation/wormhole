@@ -58,4 +58,11 @@ contract CoreRelayer is CoreRelayerSendOverloads, CoreRelayerDelivery, ERC1967Up
         );
         require(success, string(reason));
     }
+
+    function submitRecoverChainId(bytes memory vaa) public {
+        (bool success, bytes memory reason) = getWormholeRelayerCallerAddress().delegatecall(
+            abi.encodeWithSignature("submitRecoverChainId(bytes)", vaa)
+        );
+        require(success, string(reason));
+    }
 }

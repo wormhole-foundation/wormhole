@@ -118,7 +118,12 @@ export async function execute_algorand(
       }
 
       break;
+<<<<<<< HEAD:clients/js/src/algorand.ts
     }
+=======
+    case "CoreRelayer":
+        throw Error("Wormhole Relayer not supported on Algorand");
+>>>>>>> 22d7d1a5 (gRelayer: guardian changes (#2788)):clients/js/algorand.ts
     default:
       target_contract = impossible(payload);
   }

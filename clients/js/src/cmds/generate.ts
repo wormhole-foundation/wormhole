@@ -23,6 +23,7 @@ import {
   sign,
   TokenBridgeAttestMeta,
   VAA,
+  WormholeRelayerSetDefaultRelayProvider,
 } from "../vaa";
 
 function makeVAA(
@@ -78,14 +79,15 @@ export const builder = function (y: typeof yargs) {
             })
             .option("module", {
               alias: "m",
-              describe: "Module to upgrade",
-              choices: ["NFTBridge", "TokenBridge"],
+              describe: "Module to register",
+              choices: ["NFTBridge", "TokenBridge", "CoreRelayer"],
               demandOption: true,
-            } as const),
+            } as const)
+        ,
         (argv) => {
-          const module = argv["module"];
-          assertChain(argv.chain);
-          const payload: PortalRegisterChain<typeof module> = {
+          let module = argv["module"];
+          assertChain(argv["chain"]);
+          let payload: PortalRegisterChain<typeof module> = {
             module,
             type: "RegisterChain",
             chain: 0,
@@ -122,13 +124,13 @@ export const builder = function (y: typeof yargs) {
             .option("module", {
               alias: "m",
               describe: "Module to upgrade",
-              choices: ["Core", "NFTBridge", "TokenBridge"],
+              choices: ["Core", "NFTBridge", "TokenBridge", "CoreRelayer"],
               demandOption: true,
             } as const),
         (argv) => {
-          assertChain(argv.chain);
-          const module = argv["module"];
-          const payload: ContractUpgrade = {
+          assertChain(argv["chain"]);
+          let module = argv["module"];
+          let payload: ContractUpgrade = {
             module,
             type: "ContractUpgrade",
             chain: toChainId(argv.chain),
@@ -222,7 +224,7 @@ export const builder = function (y: typeof yargs) {
             .option("module", {
               alias: "m",
               describe: "Module to upgrade",
-              choices: ["Core", "NFTBridge", "TokenBridge"],
+              choices: ["Core", "NFTBridge", "TokenBridge", "CoreRelayer"],
               demandOption: true,
             } as const)
             .option("evm-chain-id", {
@@ -252,6 +254,42 @@ export const builder = function (y: typeof yargs) {
             payload
           );
           console.log(serialiseVAA(vaa));
+        }
+      )
+      .command(
+        "set-default-relay-provider",
+        "Sets the default relay provider for the Wormhole Relayer contract",
+        (yargs) => {
+          return yargs
+            .option("chain", {
+              alias: "c",
+              describe: "Chain of Wormhole Relayer contract",
+              type: "string",
+              choices: Object.keys(CHAINS),
+              required: true,
+            })
+            .option("relay-provider-address", {
+              alias: "f",
+              describe: "Address of the relay provider contract",
+              type: "string",
+              required: true,
+            })
+        },
+        (argv) => {
+          assertChain(argv["chain"]);
+          let payload: WormholeRelayerSetDefaultRelayProvider = {
+            module: "CoreRelayer",
+            type: "SetDefaultRelayProvider",
+            chain: toChainId(argv["chain"]),
+            relayProviderAddress: parseAddress(argv["chain"], argv["relay-provider-address"])
+          };
+          let v = makeVAA(
+            GOVERNANCE_CHAIN,
+            GOVERNANCE_EMITTER,
+            argv["guardian-secret"].split(","),
+            payload
+          );
+          console.log(serialiseVAA(v));
         }
       )
   );

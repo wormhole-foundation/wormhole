@@ -132,6 +132,8 @@ export async function execute_injective(
 
       break;
     }
+    case "CoreRelayer":
+      throw Error("Wormhole Relayer not supported on Injective");
     default:
       action = impossible(payload);
       target_contract = impossible(payload);

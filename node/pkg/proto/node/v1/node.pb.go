@@ -163,6 +163,7 @@ type GovernanceMessage struct {
 	//	*GovernanceMessage_CircleIntegrationRegisterEmitterAndDomain
 	//	*GovernanceMessage_CircleIntegrationUpgradeContractImplementation
 	//	*GovernanceMessage_IbcReceiverUpdateChannelChain
+	//	*GovernanceMessage_WormholeRelayerSetDefaultRelayProvider
 	Payload isGovernanceMessage_Payload `protobuf_oneof:"payload"`
 }
 

@@ -619,4 +619,39 @@ describe("Core Relayer Integration Test - Two Chains", () => {
 
     //TODO check for redelivery event
   });
+
+
+  // The following tests are meant to test governance actions
+  // These may not pass if, e.g. the governance action has already been performed
+
+  /*
+  it("Test governance actions", async () => {
+    
+    //  worm generate registration -c avalanche -a 0x1357924680135792468013579246801357924680 -m "CoreRelayer" -g cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0
+    console.log(`For Chain 2, registered chain 6 address: ${(await sourceCoreRelayer.registeredCoreRelayerContract(6))}`);
+    let tx = await sourceCoreRelayer.registerCoreRelayerContract(Buffer.from("010000000001006cf46ab00b7f80e3d629479f94d07f93fd845f0522f8581408bd450246923aef117d4beebd4a6a4e4d5a914b51dfab5d905632e91ffba7400c94a127a56dbbd600000000001db52662000100000000000000000000000000000000000000000000000000000000000000045773bcbab8bbd90420000000000000000000000000000000000000000000436f726552656c6179657201000000031234567890123456789012345678901234567890123456789012345678901234", "hex"), {gasLimit: 500000});
+    await tx.wait();
+    console.log(`Now for Chain 2, registered chain 6 address: ${(await sourceCoreRelayer.registeredCoreRelayerContract(6))}`);
+
+    // worm generate set-default-relay-provider -c ethereum -f 0x9876543210987654321098765432109876543210 -g cfb12303a19cde580bb4dd771639b0d26bc68353645571a8cff516ab2ee113a0
+    console.log(`For Chain 2, default relay provider address: ${(await sourceCoreRelayer.getDefaultRelayProvider())}`);
+    tx = await sourceCoreRelayer.setDefaultRelayProvider(Buffer.from("01000000000100296b7c9504a82a59e4e6f4a1b00c26bb1667d5f0431fc39983bf3700062727531ad1f61d9d70da935f0298f383eab2d456d02facca2a498f5686e88c9790390f0000000000597e029300010000000000000000000000000000000000000000000000000000000000000004c74027772636e5bb20000000000000000000000000000000000000000000436f726552656c617965720300023141592631415926314159263141592631415926314159263141592631415926", "hex"), {gasLimit: 500000});
+    await tx.wait();
+    console.log(`Now for Chain 2, default relay provider address: ${(await sourceCoreRelayer.getDefaultRelayProvider())}`);
+  });*/
+  /*
+  it("Test governance upgrade", async () => {
+
+    // Note: This test as it is should fail because the destination address doesn't have 'initialize' implemented
+    // However, it does revert the error corresponding to the above, indicating that it got to that point in the logic
+
+    
+    console.log(`For chain 2, Let's upgrade`);
+    const tx = await sourceCoreRelayer.submitContractUpgrade(Buffer.from("010000000001009a7973a4b74a9638e1d7caaf76e7adcbed7c7e33de532cf81b65376afb798215744ab1b5a67a48d779bef004140e4481a5bc9b636ce6ae26ebec4948101ff65e00000000010000000100010000000000000000000000000000000000000000000000000000000000000004000000000217d6a200000000000000000000000000000000000000000000436f726552656c617965720200020000000000000000000000001ef9e15c3bbf0555860b5009b51722027134d53a", "hex"), {gasLimit: 500000});
+    const rx = await tx.wait();
+    console.log("Logs:");
+    console.log(rx.logs);
+    
+
+  });*/
 });
