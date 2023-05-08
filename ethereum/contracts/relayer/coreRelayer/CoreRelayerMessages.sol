@@ -85,7 +85,7 @@ abstract contract CoreRelayerMessages is CoreRelayerGetters {
             instruction.maximumRefundTarget + instruction.receiverValueTarget
                 > relayProvider.quoteMaximumBudget(instruction.targetChain)
         ) {
-            revert IWormholeRelayer.MsgValueTooMuch();
+            revert IWormholeRelayer.MsgValueMoreThanMaxAllowed();
         }
     }
 
