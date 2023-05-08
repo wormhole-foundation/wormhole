@@ -399,11 +399,6 @@ pub struct UpgradeContract {
     pub new_contract: u64,
 }
 
-pub struct RegisterChainChannel {
-    pub chain_id: u16,
-    pub channel_id: String,
-}
-
 impl UpgradeContract {
     pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
         let data = data.as_slice();
@@ -412,11 +407,16 @@ impl UpgradeContract {
     }
 }
 
+pub struct RegisterChainChannel {
+    pub chain_id: u16,
+    pub channel_id: String,
+}
+
 impl RegisterChainChannel {
     pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
         let data = data.as_slice();
         let chain_id = data.get_u16(0);
-        // let channel_id = str::from_utf8(&data[2..]).unwrap().to_string();
+        // Note that get_string_from_32 actually handles longer strings.
         let channel_id = get_string_from_32(&data[2..]);
 
         Ok(RegisterChainChannel {

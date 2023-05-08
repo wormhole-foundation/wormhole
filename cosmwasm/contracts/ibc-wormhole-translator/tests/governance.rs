@@ -248,43 +248,62 @@ fn submit_governance_already_executed() {
     );
 }
 
-// #[test]
-// fn submit_governance_set_channel_id_to_null() {
-//     // First add the channel as normal.
-//     let execute_msg = create_submit_vaa_msg("010000000001003954625825b74af01b602e401026731b5eda40b0eec103c6c80a7d33102947ca111e67baaa4dca6e2313acc03292e19c60f9130656a6bc4e9ddffb84c17cc2a30000000000a5567d7d00010000000000000000000000000000000000000000000000000000000000000004ee8c114665f9261f20000000000000000000000000000000000000004962635472616e736c61746f72010c2000120000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006368616e6e656c2d3138");
+#[test]
+fn submit_governance_set_channel_id_to_null() {
+    // First add the channel as normal.
+    let execute_msg = create_submit_vaa_msg("010000000001003954625825b74af01b602e401026731b5eda40b0eec103c6c80a7d33102947ca111e67baaa4dca6e2313acc03292e19c60f9130656a6bc4e9ddffb84c17cc2a30000000000a5567d7d00010000000000000000000000000000000000000000000000000000000000000004ee8c114665f9261f20000000000000000000000000000000000000004962635472616e736c61746f72010c2000120000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006368616e6e656c2d3138");
 
-//     let (mut router, ibc_wormhole_translator_contract_addr) = instantiate_contracts();
-//     router
-//         .execute_contract(
-//             Addr::unchecked(OWNER),
-//             ibc_wormhole_translator_contract_addr.clone(),
-//             &execute_msg,
-//             &[],
-//         )
-//         .unwrap();
+    let (mut router, ibc_wormhole_translator_contract_addr) = instantiate_contracts();
+    router
+        .execute_contract(
+            Addr::unchecked(OWNER),
+            ibc_wormhole_translator_contract_addr.clone(),
+            &execute_msg,
+            &[],
+        )
+        .unwrap();
 
-//     let actual_channels = query_chain_channels(&router, ibc_wormhole_translator_contract_addr.clone());
-//     assert_eq!(actual_channels.len(), 1);
-//     assert_eq!(actual_channels[0].0.to_string(), CHANNEL_18.to_string());
-//     assert_eq!(actual_channels[0].1, 18);
+    let actual_channels = query_chain_channels(&router, ibc_wormhole_translator_contract_addr.clone());
+    assert_eq!(actual_channels.len(), 1);
+    assert_eq!(actual_channels[0].0.to_string(), CHANNEL_18.to_string());
+    assert_eq!(actual_channels[0].1, 18);
 
-//     // Set channel_id to all zeros.
-//     let execute_msg2 = create_submit_vaa_msg("010000000001008cc95280459d52fae6a20770cae61fa02269fa7a6d513c0b7390e7e03c5a24060d77f1cca1af29da800ce4eb4f6125f1d5d5afd3bbea8c0bcdff1d9cde38d9d70000000000a5567d7d00010000000000000000000000000000000000000000000000000000000000000004ee8c114665f9261f20000000000000000000000000000000000000004962635472616e736c61746f72010c20001200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+    // Set channel_id to all zeros.
+    let execute_msg2 = create_submit_vaa_msg("010000000001008cc95280459d52fae6a20770cae61fa02269fa7a6d513c0b7390e7e03c5a24060d77f1cca1af29da800ce4eb4f6125f1d5d5afd3bbea8c0bcdff1d9cde38d9d70000000000a5567d7d00010000000000000000000000000000000000000000000000000000000000000004ee8c114665f9261f20000000000000000000000000000000000000004962635472616e736c61746f72010c20001200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
 
-//     let (mut router, ibc_wormhole_translator_contract_addr) = instantiate_contracts();
-//     router
-//         .execute_contract(
-//             Addr::unchecked(OWNER),
-//             ibc_wormhole_translator_contract_addr.clone(),
-//             &execute_msg2,
-//             &[],
-//         )
-//         .unwrap();
+    let (mut router, ibc_wormhole_translator_contract_addr) = instantiate_contracts();
+    router
+        .execute_contract(
+            Addr::unchecked(OWNER),
+            ibc_wormhole_translator_contract_addr.clone(),
+            &execute_msg2,
+            &[],
+        )
+        .unwrap();
 
-//     let actual_channels = query_chain_channels(&router, ibc_wormhole_translator_contract_addr.clone());
-//     assert_eq!(actual_channels.len(), 1);
-//     assert_eq!(actual_channels[0].0.to_string(), "".to_string());
-//     assert_eq!(actual_channels[0].1, 18);
-// }
+    let actual_channels = query_chain_channels(&router, ibc_wormhole_translator_contract_addr.clone());
+    assert_eq!(actual_channels.len(), 1);
+    assert_eq!(actual_channels[0].0.to_string(), "".to_string());
+    assert_eq!(actual_channels[0].1, 18);
+}
 
-// Add test for 64 char channel_id.
+#[test]
+fn submit_governance_channel_id_is_max_len() {
+    // Make the channel_id 64 chars long (ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789?!).
+    let execute_msg = create_submit_vaa_msg("01000000000100fb0d5ed0b2bc3fb59027f0650682c5d5f6a88a3a91f7f4f8ecfb9ff87ce97819774b1f85c6162dee79f93aac7aa13e1d43b1fa2dab71212bbdca35b60eab4d0b0100000000a5567d7d00010000000000000000000000000000000000000000000000000000000000000004ee8c114665f9261f20000000000000000000000000000000000000004962635472616e736c61746f72010c2000124142434445464748494a4b4c4d4e4f505152535455565758595a6162636465666768696a6b6c6d6e6f707172737475767778797a303132333435363738393f21");
+
+    let (mut router, ibc_wormhole_translator_contract_addr) = instantiate_contracts();
+    router
+        .execute_contract(
+            Addr::unchecked(OWNER),
+            ibc_wormhole_translator_contract_addr.clone(),
+            &execute_msg,
+            &[],
+        )
+        .unwrap();
+
+    let actual_channels = query_chain_channels(&router, ibc_wormhole_translator_contract_addr.clone());
+    assert_eq!(actual_channels.len(), 1);
+    assert_eq!(actual_channels[0].0.to_string(), "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ejAxMjM0NTY3ODk/IQ==".to_string());
+    assert_eq!(actual_channels[0].1, 18);
+}

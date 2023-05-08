@@ -15,9 +15,9 @@ use cw_wormhole::{
 use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
-    to_binary, Binary, Deps, DepsMut, Env,
+    to_binary, Binary, CosmosMsg, Deps, DepsMut, Env,
     MessageInfo, Order, QueryRequest, Reply, Response, StdError, StdResult, Uint128,
-    WasmQuery,
+    WasmMsg, WasmQuery,
 };
 
 use crate::{
@@ -29,7 +29,7 @@ use crate::{
     state::{
         bridge_contracts_read, config, config_read,
         Action, CHAIN_CHANNELS, ConfigInfo, RegisterChainChannel, TokenBridgeMessage, TransferInfo,
-        TransferWithPayloadInfo,
+        TransferWithPayloadInfo, UpgradeContract,
     },
     token_address::{ExternalTokenId},
 };
@@ -302,8 +302,7 @@ fn handle_governance_payload(
 
     match gov_packet.action {
         1u8 => handle_register_chain_channel(deps, env, &gov_packet.payload),
-        // 1u8 => handle_register_chain(deps, env, &gov_packet.payload),
-        // 2u8 => handle_upgrade_contract(deps, env, &gov_packet.payload),
+        2u8 => handle_upgrade_contract(deps, env, &gov_packet.payload),
         _ => ContractError::InvalidVAAAction.std_err(),
     }
 }
@@ -317,45 +316,30 @@ fn handle_register_chain_channel(deps: DepsMut, _env: Env, data: &Vec<u8>) -> St
     if CHAIN_CHANNELS
         .save(deps.storage, chain_id, &channel_id.to_string()).is_err() {
         return Err(StdError::generic_err("failed to add chain_channel"));
-    }   
+    }
+
+    if channel_id == "" {
+        return Ok(Response::new()
+            .add_attribute("chain_id", chain_id.to_string())
+            .add_attribute("channel_id", "disabled"))
+    }
 
     Ok(Response::new()
         .add_attribute("chain_id", chain_id.to_string())
         .add_attribute("channel_id", channel_id))
 }
 
-// fn handle_upgrade_contract(_deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResult<Response> {
-//     let UpgradeContract { new_contract } = UpgradeContract::deserialize(data)?;
+fn handle_upgrade_contract(_deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResult<Response> {
+    let UpgradeContract { new_contract } = UpgradeContract::deserialize(data)?;
 
-//     Ok(Response::new()
-//         .add_message(CosmosMsg::Wasm(WasmMsg::Migrate {
-//             contract_addr: env.contract.address.to_string(),
-//             new_code_id: new_contract,
-//             msg: to_binary(&MigrateMsg {})?,
-//         }))
-//         .add_attribute("action", "contract_upgrade"))
-// }
-
-// fn handle_register_chain(deps: DepsMut, _env: Env, data: &Vec<u8>) -> StdResult<Response> {
-//     let RegisterChain {
-//         chain_id,
-//         chain_address,
-//     } = RegisterChain::deserialize(data)?;
-
-//     let existing = bridge_contracts_read(deps.storage).load(&chain_id.to_be_bytes());
-//     if existing.is_ok() {
-//         return Err(StdError::generic_err(
-//             "bridge contract already exists for this chain",
-//         ));
-//     }
-
-//     let mut bucket = bridge_contracts(deps.storage);
-//     bucket.save(&chain_id.to_be_bytes(), &chain_address)?;
-
-//     Ok(Response::new()
-//         .add_attribute("chain_id", chain_id.to_string())
-//         .add_attribute("chain_address", hex::encode(chain_address)))
-// }
+    Ok(Response::new()
+        .add_message(CosmosMsg::Wasm(WasmMsg::Migrate {
+            contract_addr: env.contract.address.to_string(),
+            new_code_id: new_contract,
+            msg: to_binary(&MigrateMsg {})?,
+        }))
+        .add_attribute("action", "contract_upgrade"))
+}
 
 #[allow(clippy::too_many_arguments)]
 fn handle_complete_transfer(
