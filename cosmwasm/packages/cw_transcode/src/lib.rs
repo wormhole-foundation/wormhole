@@ -171,7 +171,7 @@ mod test {
             .add_attribute("payload", "\"AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA3gtrOnZAAAAAAAAAAAAAAAAAAALYvmvwuqdOCpBwFmecrpGQ6A3QoAAgAAAAAAAAAAAAAAAMEIIJg/M0Vs576zoEb1qD+jTwJ9DCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\"");
 
         let actual = to_event(&tx).unwrap();
-        assert_eq!(expected, actual);
+        assert_eq!(expected, actual); 
     }
 
     #[test]

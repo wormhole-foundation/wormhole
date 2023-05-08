@@ -13,7 +13,7 @@ use cw_token_bridge::{
 };
 
 use ibc_wormhole_translator::{
-    msg::{AllChainChannelsResponse, InstantiateMsg, QueryMsg},
+    msg::{AllChainChannelsResponse, ExecuteMsg, InstantiateMsg, QueryMsg},
 };
 
 static GOV_ADDR: &str = "0000000000000000000000000000000000000000000000000000000000000004";
@@ -71,7 +71,7 @@ fn ibc_wormhole_translator_contract() -> Box<dyn Contract<Empty>> {
     Box::new(contract)
 }
 
-pub fn instantiate_contracts() -> (App, Addr) {
+pub fn instantiate_contracts() -> (App, Addr, Addr, Addr) {
     let mut router = mock_app();
 
     let guardians = [GuardianAddress {
@@ -150,7 +150,15 @@ pub fn instantiate_contracts() -> (App, Addr) {
         )
         .unwrap();
 
-    (router, ibc_wormhole_translator_contract_addr)
+    (router, ibc_wormhole_translator_contract_addr, wormhole_contract_addr, token_bridge_contract_addr)
+}
+
+
+pub fn create_submit_vaa_msg(s: &str) -> ExecuteMsg {
+    let vaa = s;
+    let vaa = hex::decode(vaa).unwrap();
+    let vaa = Binary::from(vaa.clone());
+    ExecuteMsg::SubmitVaa {data: vaa}
 }
 
 pub fn query_chain_channels(router: &App, addr: Addr) -> Vec<(Binary, u16)> {
