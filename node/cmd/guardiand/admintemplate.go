@@ -66,6 +66,9 @@ func init() {
 	AdminClientTokenBridgeUpgradeContractCmd.Flags().AddFlagSet(moduleFlagSet)
 	TemplateCmd.AddCommand(AdminClientTokenBridgeUpgradeContractCmd)
 
+	AdminClientWormholeRelayerSetDefaultRelayProviderCmd.Flags().AddFlagSet(governanceFlagSet)
+	TemplateCmd.AddCommand(AdminClientWormholeRelayerSetDefaultRelayProviderCmd)
+
 	AdminClientShutdownProofCmd.Flags().AddFlagSet(authProofFlagSet)
 	TemplateCmd.AddCommand(AdminClientShutdownProofCmd)
 
@@ -143,6 +146,12 @@ var AdminClientCircleIntegrationUpgradeContractImplementationCmd = &cobra.Comman
 	Use:   "circle-integration-upgrade-contract-implementation",
 	Short: "Generate an empty circle integration upgrade contract implementation template at specified path",
 	Run:   runCircleIntegrationUpgradeContractImplementationTemplate,
+}
+
+var AdminClientWormholeRelayerSetDefaultRelayProviderCmd = &cobra.Command{
+	Use:   "wormhole-relayer-set-default-relay-provider",
+	Short: "Generate a 'set default relay provider' template for specified chain and address",
+	Run:   runWormholeRelayerSetDefaultRelayProviderTemplate,
 }
 
 func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
@@ -441,6 +450,39 @@ func runCircleIntegrationUpgradeContractImplementationTemplate(cmd *cobra.Comman
 					CircleIntegrationUpgradeContractImplementation: &nodev1.CircleIntegrationUpgradeContractImplementation{
 						TargetChainId:            uint32(chainID),
 						NewImplementationAddress: newImplementationAddress,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
+}
+
+func runWormholeRelayerSetDefaultRelayProviderTemplate(cmd *cobra.Command, args []string) {
+	address, err := parseAddress(*address)
+	if err != nil {
+		log.Fatal(err)
+	}
+	chainID, err := parseChainID(*chainID)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_WormholeRelayerSetDefaultRelayProvider{
+					WormholeRelayerSetDefaultRelayProvider: &nodev1.WormholeRelayerSetDefaultRelayProvider{
+						ChainId:                        uint32(chainID),
+						NewDefaultRelayProviderAddress: address,
 					},
 				},
 			},

@@ -187,6 +187,8 @@ export async function execute_near(
           break;
       }
       break;
+    case "CoreRelayer":
+      throw Error("Wormhole Relayer not supported on Near");
     default:
       impossible(payload);
   }

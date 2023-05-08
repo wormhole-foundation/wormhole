@@ -22,6 +22,7 @@ import {
   sign,
   TokenBridgeAttestMeta,
   VAA,
+  WormholeRelayerSetDefaultRelayProvider,
 } from "../vaa";
 
 function makeVAA(
@@ -78,14 +79,14 @@ exports.builder = function (y: typeof yargs) {
             })
             .option("module", {
               alias: "m",
-              describe: "Module to upgrade",
+              describe: "Module to register",
               type: "string",
-              choices: ["NFTBridge", "TokenBridge"],
+              choices: ["NFTBridge", "TokenBridge", "CoreRelayer"],
               required: true,
             });
         },
         (argv) => {
-          let module = argv["module"] as "NFTBridge" | "TokenBridge";
+          let module = argv["module"] as "NFTBridge" | "TokenBridge" | "CoreRelayer";
           assertChain(argv["chain"]);
           let payload: PortalRegisterChain<typeof module> = {
             module,
@@ -129,13 +130,13 @@ exports.builder = function (y: typeof yargs) {
               alias: "m",
               describe: "Module to upgrade",
               type: "string",
-              choices: ["Core", "NFTBridge", "TokenBridge"],
+              choices: ["Core", "NFTBridge", "TokenBridge", "CoreRelayer"],
               required: true,
             });
         },
         (argv) => {
           assertChain(argv["chain"]);
-          let module = argv["module"] as "Core" | "NFTBridge" | "TokenBridge";
+          let module = argv["module"] as "Core" | "NFTBridge" | "TokenBridge" | "CoreRelayer";
           let payload: ContractUpgrade = {
             module,
             type: "ContractUpgrade",
@@ -234,7 +235,7 @@ exports.builder = function (y: typeof yargs) {
               alias: "m",
               describe: "Module to upgrade",
               type: "string",
-              choices: ["Core", "NFTBridge", "TokenBridge"],
+              choices: ["Core", "NFTBridge", "TokenBridge", "CoreRelayer"],
               required: true,
             })
             .option("evm-chain-id", {
@@ -251,12 +252,48 @@ exports.builder = function (y: typeof yargs) {
             });
         },
         (argv) => {
-          let module = argv["module"] as "Core" | "NFTBridge" | "TokenBridge";
+          let module = argv["module"] as "Core" | "NFTBridge" | "TokenBridge" | "CoreRelayer";
           let payload: RecoverChainId = {
             module,
             type: "RecoverChainId",
             evmChainId: BigInt(argv["evm-chain-id"]),
             newChainId: argv["new-chain-id"],
+          };
+          let v = makeVAA(
+            GOVERNANCE_CHAIN,
+            GOVERNANCE_EMITTER,
+            argv["guardian-secret"].split(","),
+            payload
+          );
+          console.log(serialiseVAA(v));
+        }
+      )
+      .command(
+        "set-default-relay-provider",
+        "Sets the default relay provider for the Wormhole Relayer contract",
+        (yargs) => {
+          return yargs
+            .option("chain", {
+              alias: "c",
+              describe: "Chain of Wormhole Relayer contract",
+              type: "string",
+              choices: Object.keys(CHAINS),
+              required: true,
+            })
+            .option("relay-provider-address", {
+              alias: "f",
+              describe: "Address of the relay provider contract",
+              type: "string",
+              required: true,
+            })
+        },
+        (argv) => {
+          assertChain(argv["chain"]);
+          let payload: WormholeRelayerSetDefaultRelayProvider = {
+            module: "CoreRelayer",
+            type: "SetDefaultRelayProvider",
+            chain: toChainId(argv["chain"]),
+            relayProviderAddress: parseAddress(argv["chain"], argv["relay-provider-address"])
           };
           let v = makeVAA(
             GOVERNANCE_CHAIN,
