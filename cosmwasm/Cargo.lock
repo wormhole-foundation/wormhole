@@ -922,6 +922,8 @@ dependencies = [
 name = "ibc-wormhole-translator"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "bstr",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",

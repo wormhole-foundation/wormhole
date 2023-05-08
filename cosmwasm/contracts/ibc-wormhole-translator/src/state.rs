@@ -1,5 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::str;
 
 use cosmwasm_std::{Addr, StdError, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
@@ -9,7 +10,7 @@ use cosmwasm_storage::{
 
 use cw_storage_plus::Map;
 
-use cw_wormhole::byte_utils::ByteUtils;
+use cw_wormhole::byte_utils::{ByteUtils, get_string_from_32};
 
 use crate::token_address::{ExternalTokenId, WrappedCW20};
 
@@ -25,7 +26,7 @@ static NATIVE_COUNTER: &[u8] = b"native_counter";
 static BANK_TOKEN_HASHES_KEY: &[u8] = b"bank_token_hashes";
 static NATIVE_CW20_HASHES_KEY: &[u8] = b"native_cw20_hashes";
 
-pub const CHAIN_CHANNELS: Map<String, u16> = Map::new("chain_channels");
+pub const CHAIN_CHANNELS: Map<u16, String> = Map::new("chain_channels");
 
 /// Legacy version of [`ConfigInfo`]. Required for the migration.  In
 /// particular, the last field of [`ConfigInfo`] has been added after the
@@ -398,9 +399,9 @@ pub struct UpgradeContract {
     pub new_contract: u64,
 }
 
-pub struct RegisterChain {
+pub struct RegisterChainChannel {
     pub chain_id: u16,
-    pub chain_address: Vec<u8>,
+    pub channel_id: String,
 }
 
 impl UpgradeContract {
@@ -411,15 +412,16 @@ impl UpgradeContract {
     }
 }
 
-impl RegisterChain {
+impl RegisterChainChannel {
     pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
         let data = data.as_slice();
         let chain_id = data.get_u16(0);
-        let chain_address = data[2..].to_vec();
+        // let channel_id = str::from_utf8(&data[2..]).unwrap().to_string();
+        let channel_id = get_string_from_32(&data[2..]);
 
-        Ok(RegisterChain {
+        Ok(RegisterChainChannel {
             chain_id,
-            chain_address,
+            channel_id,
         })
     }
 }

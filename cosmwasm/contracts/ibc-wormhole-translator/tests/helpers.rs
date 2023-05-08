@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 use cosmwasm_std::{Addr, Binary, Empty};
 
@@ -11,11 +13,14 @@ use cw_token_bridge::{
 };
 
 use ibc_wormhole_translator::{
-    msg::{InstantiateMsg},
+    msg::{AllChainChannelsResponse, InstantiateMsg, QueryMsg},
 };
 
-pub static OWNER: &str = "OWNER";
 static GOV_ADDR: &str = "0000000000000000000000000000000000000000000000000000000000000004";
+
+pub static OWNER: &str = "OWNER";
+pub static CHANNEL_18: &str = "Y2hhbm5lbC0xOA==";
+pub static CHANNEL_42: &str = "Y2hhbm5lbC00Mg==";
 
 #[allow(dead_code)]
 fn mock_app() -> App {
@@ -146,4 +151,18 @@ pub fn instantiate_contracts() -> (App, Addr) {
         .unwrap();
 
     (router, ibc_wormhole_translator_contract_addr)
+}
+
+pub fn query_chain_channels(router: &App, addr: Addr) -> Vec<(Binary, u16)> {
+    let query_msg = QueryMsg::AllChainChannels {};
+    let query_response: AllChainChannelsResponse = router
+        .wrap()
+        .query_wasm_smart(
+            addr,
+            &query_msg,
+        )
+        .unwrap();
+
+    assert_eq!(query_response.chain_channels.len(), 1);
+    query_response.chain_channels
 }

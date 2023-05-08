@@ -19,6 +19,8 @@ full = ["wormhole-cosmwasm/full"]
 default = ["full"]
 
 [dependencies]
+anyhow = "1"
+bstr = { version = "1", features = ["serde"] }
 cosmwasm-schema = "1"
 cosmwasm-std = { version = "1.0.0" }
 cosmwasm-storage = { version = "1.0.0" }

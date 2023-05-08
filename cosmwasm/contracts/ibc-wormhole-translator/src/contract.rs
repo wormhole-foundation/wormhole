@@ -27,8 +27,8 @@ use crate::{
         TransferInfoResponse,
     },
     state::{
-        bridge_contracts, bridge_contracts_read, config, config_read,
-        Action, CHAIN_CHANNELS, ConfigInfo, RegisterChain, TokenBridgeMessage, TransferInfo,
+        bridge_contracts_read, config, config_read,
+        Action, CHAIN_CHANNELS, ConfigInfo, RegisterChainChannel, TokenBridgeMessage, TransferInfo,
         TransferWithPayloadInfo,
     },
     token_address::{ExternalTokenId},
@@ -119,7 +119,7 @@ pub fn instantiate(
     };
     config(deps.storage).save(&state)?;
 
-    CHAIN_CHANNELS.save(deps.storage, "channel-0".into(), &18)?;
+    // CHAIN_CHANNELS.save(deps.storage, 18, &"channel-0".into())?;
 
     Ok(Response::default())
 }
@@ -233,19 +233,11 @@ fn submit_vaa(
                     &sender,
                 )
             }
-            // Action::ATTEST_META => handle_attest_meta(
-            //     deps,
-            //     env,
-            //     vaa.emitter_chain,
-            //     vaa.emitter_address,
-            //     vaa.sequence,
-            //     &message.payload,
-            // ),
-            _ => ContractError::InvalidVAAAction.std_err(),
+        _ => ContractError::InvalidVAAAction.std_err(),
         },
 
         #[cfg(not(feature = "full"))]
-        _ => ContractError::InvalidVAAAction.std_err(),
+        _ => ContractError::InvalidVAAAction6.std_err(),
     }
 }
 
@@ -298,7 +290,7 @@ fn handle_governance_payload(
     let cfg = config_read(deps.storage).load()?;
     let module = get_string_from_32(&gov_packet.module);
 
-    if module != "TokenBridge" {
+    if module != "IbcTranslator" {
         return Err(StdError::generic_err("this is not a valid module"));
     }
 
@@ -317,24 +309,19 @@ fn handle_governance_payload(
 }
 
 fn handle_register_chain_channel(deps: DepsMut, _env: Env, data: &Vec<u8>) -> StdResult<Response> {
-    let RegisterChain {
+    let RegisterChainChannel {
         chain_id,
-        chain_address,
-    } = RegisterChain::deserialize(data)?;
+        channel_id,
+    } = RegisterChainChannel::deserialize(data)?;
 
-    // let existing = bridge_contracts_read(deps.storage).load(&chain_id.to_be_bytes());
-    // if existing.is_ok() {
-    //     return Err(StdError::generic_err(
-    //         "bridge contract already exists for this chain",
-    //     ));
-    // }
-
-    let mut bucket = bridge_contracts(deps.storage);
-    bucket.save(&chain_id.to_be_bytes(), &chain_address)?;
+    if CHAIN_CHANNELS
+        .save(deps.storage, chain_id, &channel_id.to_string()).is_err() {
+        return Err(StdError::generic_err("failed to add chain_channel"));
+    }   
 
     Ok(Response::new()
         .add_attribute("chain_id", chain_id.to_string())
-        .add_attribute("chain_address", hex::encode(chain_address)))
+        .add_attribute("channel_id", channel_id))
 }
 
 // fn handle_upgrade_contract(_deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResult<Response> {
@@ -490,7 +477,7 @@ fn query_all_chain_channels(deps: Deps) -> StdResult<AllChainChannelsResponse> {
     CHAIN_CHANNELS
         .range(deps.storage, None, None, Order::Ascending)
         .map(|res| {
-            res.map(|(channel_id, chain_id)| {
+            res.map(|(chain_id, channel_id)| {
                 (Binary::from(Vec::<u8>::from(channel_id)), chain_id)
             })
         })
