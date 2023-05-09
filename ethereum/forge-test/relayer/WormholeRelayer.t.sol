@@ -23,7 +23,8 @@ import {MockRelayerIntegration, Structs} from "../../contracts/mock/MockRelayerI
 import {ForwardTester} from "./ForwardTester.sol";
 import {TestHelpers} from "./TestHelpers.sol";
 import {CoreRelayerSerde} from "../../contracts/relayer/coreRelayer/CoreRelayerSerde.sol";
-import {BytesParsing, toWormholeFormat, fromWormholeFormat} from "../../contracts/relayer/coreRelayer/Utils.sol";
+import {toWormholeFormat, fromWormholeFormat} from "../../contracts/relayer/coreRelayer/Utils.sol";
+import {BytesParsing} from "../../contracts/relayer/coreRelayer/BytesParsing.sol";
 
 
 import "forge-std/Test.sol";
