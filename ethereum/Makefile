@@ -66,7 +66,7 @@ test: test-forge test-ganache
 .PHONY: test-ganache
 test-ganache: build .env dependencies
 	@if pgrep ganache-cli; then echo "Error: ganache-cli already running. Stop it before running tests"; exit 1; fi
-	npx ganache-cli -e 10000 --deterministic --time="1970-01-01T00:00:00+00:00" > ganache.log &
+	. ./.env && npx ganache-cli --chain.vmErrorsOnRPCResponse --chain.chainId $$INIT_EVM_CHAIN_ID -e 10000 --deterministic --time="1970-01-01T00:00:00+00:00" > ganache.log &
 	sleep 5
 	npm test || (pkill ganache-cli && exit 1)
 	pkill ganache-cli || true
