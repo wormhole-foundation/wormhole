@@ -1,7 +1,7 @@
 // contracts/Getters.sol
 // SPDX-License-Identifier: Apache 2
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.19;
 
 import "../../interfaces/IWormhole.sol";
 
@@ -52,13 +52,13 @@ contract RelayProviderGetters is RelayProviderState {
         return _state.rewardAddress;
     }
 
-    function assetConversionBuffer(uint16 targetChain)
+    function assetConversionBuffer(uint16 targetChainId)
         public
         view
         returns (uint16 tolerance, uint16 toleranceDenominator)
     {
         RelayProviderStorage.AssetConversion storage assetConversion =
-            _state.assetConversion[targetChain];
+            _state.assetConversion[targetChainId];
         return (assetConversion.buffer, assetConversion.denominator);
     }
 }
