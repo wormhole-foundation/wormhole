@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache 2
 
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.0;
 
 //TODO AMO: Decide on use regarding '' vs `` quotation of variables/function names in comments
 //            and then make it uniform.
@@ -63,9 +63,11 @@ enum VaaKeyType {
 }
 
 /**
- * @notice This 'VaaKey' struct identifies a wormhole message from the current transaction
+ * @notice This 'VaaKey' struct identifies a wormhole message
+ * VaaKeyType.EMITTER_SEQUENCE is the only infoType currently supported
  *
- * @custom:member infoType - determines which of the remaining fields are actually specified
+ * @custom:member infoType - determines which of the remaining fields are actually specified.
+ *                           Currently must be VaaKeyType.EMITTER_SEQUENCE
  * @custom:member chainId - only specified if infoType == VaaKeyType.EMITTER_SEQUENCE
  * @custom:member emitterAddress - only specified if infoType = VaaKeyType.EMITTER_SEQUENCE
  * @custom:member sequence - only specified if infoType = VaaKeyType.EMITTER_SEQUENCE

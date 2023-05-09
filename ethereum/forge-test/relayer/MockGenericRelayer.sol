@@ -3,7 +3,6 @@
 pragma solidity ^0.8.0;
 
 import "../../contracts/interfaces/relayer/IWormholeRelayer.sol";
-import "../../contracts/interfaces/relayer/IWormholeRelayer.sol";
 import {IWormhole} from "../../contracts/interfaces/IWormhole.sol";
 import {WormholeSimulator} from "./WormholeSimulator.sol";
 import {toWormholeFormat} from "../../contracts/relayer/coreRelayer/Utils.sol";
