@@ -46,11 +46,14 @@ fn attest_weth_on_token_bridge() {
     // Verify it exists.
     let token_address = hex::decode("000000000000000000000000ddb64fe46a91d46ee29420539fc25fd07c5fea3e").unwrap();
     let query_msg = TokenBridgeQueryMsg::WrappedRegistry {chain: 2, address: Binary::from(token_address)};
-    let _query_response: WrappedRegistryResponse = router
+    let query_response: WrappedRegistryResponse = router
         .wrap()
         .query_wasm_smart(
             tb,
             &query_msg,
         )
         .unwrap();
+
+    // In our test environment, the first attested token is assigned this address.
+    assert_eq!("contract3", query_response.address);
 }

@@ -1,5 +1,11 @@
 #![allow(dead_code)]
 
+// The framework assigns the following contract addresses:
+//   WH:   contract0
+//   TB:   contract1
+//   IBC:  contract2
+//   WETH: contract3 (first attested token)
+
 use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 use cosmwasm_std::{Addr, Binary, Empty};
 
@@ -99,7 +105,7 @@ pub fn instantiate_contracts() -> (App, Addr, Addr, Addr) {
                 chain_id: 3104,
                 fee_denom: "uworm".to_string(),
             },
-            &[],                // funds
+            &[],           // funds
             "Wormhole core",    // label
             None,               // code admin (for migration)
         )
@@ -122,7 +128,7 @@ pub fn instantiate_contracts() -> (App, Addr, Addr, Addr) {
                 native_symbol: "WORM".to_string(),
                 native_decimals: 6,
             },
-            &[],                        // funds
+            &[],                   // funds
             "Wormhole token bridge",    // label
             None,                       // code admin (for migration)
         )
@@ -144,7 +150,7 @@ pub fn instantiate_contracts() -> (App, Addr, Addr, Addr) {
                 native_symbol: "WORM".to_string(),
                 native_decimals: 6,
             },
-            &[],                        // funds
+            &[],                   // funds
             "Wormhole token bridge",    // label
             None,                       // code admin (for migration)
         )
