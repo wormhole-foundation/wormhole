@@ -1145,7 +1145,7 @@ contract("Bridge", function () {
 
         // set WETH contract
         const mock = new web3.eth.Contract(MockBridgeImplementation.abi, TokenBridge.address);
-        mock.methods.testUpdateWETHAddress(WETH).send({
+        await mock.methods.testUpdateWETHAddress(WETH).send({
             from: accounts[0],
             gasLimit: 2000000
         });
