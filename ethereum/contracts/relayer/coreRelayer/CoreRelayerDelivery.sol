@@ -421,12 +421,18 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       receiverValueRefundAmount + transactionFeeRefundAmountPostForward;
     
     //Refund the user
-    refundStatus = payRefundToRefundAddress(
+    try this.payRefundToRefundAddress(
       deliveryInstruction.refundChainId,
       deliveryInstruction.refundAddress,
       refundToRefundAddress,
       deliveryInstruction.targetRelayProvider
-    );
+    )
+    returns (RefundStatus _refundStatus) {
+      refundStatus = _refundStatus;
+    } 
+    catch (bytes memory) {
+      refundStatus = RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED;
+    }
 
     //Refund the relayer (their extra funds) + (the amount that the relayer spent on gas)
     //  + (the users refund if that refund didn't succeed)
@@ -449,7 +455,12 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     bytes32 refundAddress,
     uint256 refundAmount,
     bytes32 relayerAddress
-  ) private returns (RefundStatus) {
+  ) external returns (RefundStatus) {
+     //despite being external, we only allow ourselves to call this function (via CALL opcode)
+    //  used as a means to catch reverts when we external call the relay provider in this function
+    if (msg.sender != address(this))
+      revert RequesterNotCoreRelayer();
+
     //same chain refund
     if (refundChainId == getChainId())
       return pay(payable(fromWormholeFormat(refundAddress)), refundAmount)
@@ -457,33 +468,44 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
         : RefundStatus.REFUND_FAIL;
     
     //cross-chain refund
+    IRelayProvider relayProvider = IRelayProvider(fromWormholeFormat(relayerAddress));
     uint256 wormholeMessageFee = getWormhole().messageFee();
-    if (refundAmount <= wormholeMessageFee)
+    uint256 overhead = relayProvider.quoteDeliveryOverhead(refundChainId);
+    if (refundAmount <= wormholeMessageFee + overhead)
       return RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH;
 
-    IRelayProvider relayProvider = IRelayProvider(fromWormholeFormat(relayerAddress));
     if (!relayProvider.isChainSupported(refundChainId))
       return RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED;
 
     uint256 refundSubMessageFee;
     unchecked{refundSubMessageFee = refundAmount - wormholeMessageFee;}
 
-    uint256 receiverValueTarget = calculateTargetDeliveryMaximumRefund(
-      refundChainId, refundSubMessageFee, relayProvider
-    );
+    DeliveryInstruction memory crossChainRefundInstruction = convertSendToDeliveryInstruction(Send({
+      targetChainId: refundChainId,
+      targetAddress: bytes32(0x0),
+      refundChainId: refundChainId,
+      refundAddress: refundAddress,
+      maxTransactionFee: overhead,
+      receiverValue: refundSubMessageFee - overhead,
+      relayProviderAddress: fromWormholeFormat(relayerAddress),
+      vaaKeys: new VaaKey[](0),
+      consistencyLevel: CONSISTENCY_LEVEL_INSTANT,
+      payload: bytes(""),
+      relayParameters: bytes("")
+    }));
     
     //If refundAmount is not enough to pay for one wei of receiver value, then do not perform the
     //  cross-chain refund (i.e. if (delivery overhead) + (wormhole message fee) + (cost of one wei
     //  of receiver value) is larger than the remaining refund)
     //TODO AMO: but what happens to the value then?
-    if (receiverValueTarget == 0)
+    if (crossChainRefundInstruction.receiverValueTarget == 0)
       return RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH;
 
     uint256 maxBudget = relayProvider.quoteMaximumBudget(refundChainId);
     bool exceedsMaxBudget = false;
-    if (receiverValueTarget > maxBudget) {
+    if (crossChainRefundInstruction.receiverValueTarget > maxBudget) {
       //TODO AMO: What happens with the difference if the maximum budget is exceeded?
-      receiverValueTarget = maxBudget;
+      crossChainRefundInstruction.receiverValueTarget = maxBudget;
       exceedsMaxBudget = true;
     }
 
@@ -491,24 +513,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       wormholeMessageFee,
       0,
       refundSubMessageFee,
-      //TODO AMO: Why does this not use convertSendToDeliveryInstruction()?
-      //          This is literally the only place where we ever construct a DeliveryInstruction
-      //            this way instead of going through convertSendToDeliveryInstruction().
-      DeliveryInstruction({
-        targetChainId: refundChainId,
-        targetAddress: bytes32(0x0),
-        refundChainId: refundChainId,
-        refundAddress: refundAddress,
-        maximumRefundTarget: 0,
-        receiverValueTarget: receiverValueTarget,
-        sourceRelayProvider: relayerAddress,
-        targetRelayProvider: bytes32(0x0), 
-        senderAddress: toWormholeFormat(msg.sender),
-        vaaKeys: new VaaKey[](0),
-        consistencyLevel: CONSISTENCY_LEVEL_INSTANT,
-        executionParameters: ExecutionParameters({gasLimit: 0}),
-        payload: bytes("")
-      }).encode(),
+      crossChainRefundInstruction.encode(),
       CONSISTENCY_LEVEL_INSTANT,
       relayProvider
     );
