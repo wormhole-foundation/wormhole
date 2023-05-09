@@ -19,7 +19,7 @@ import {IWormhole} from "../../contracts/interfaces/IWormhole.sol";
 import {WormholeSimulator, FakeWormholeSimulator} from "./WormholeSimulator.sol";
 import {DeliveryData, IWormholeReceiver} from "../../contracts/interfaces/relayer/IWormholeReceiver.sol";
 import {AttackForwardIntegration} from "./AttackForwardIntegration.sol";
-import {MockRelayerIntegration, Structs} from "../../contracts/mock/MockRelayerIntegration.sol";
+import {MockRelayerIntegration, XAddress} from "../../contracts/mock/MockRelayerIntegration.sol";
 import {ForwardTester} from "./ForwardTester.sol";
 import {TestHelpers} from "./TestHelpers.sol";
 import {CoreRelayerSerde} from "../../contracts/relayer/coreRelayer/CoreRelayerSerde.sol";
@@ -238,9 +238,9 @@ contract WormholeRelayerTests is Test {
                 map[i].integration.registerEmitter(
                     j, bytes32(uint256(uint160(address(map[j].integration))))
                 );
-                Structs.XAddress[] memory addresses = new Structs.XAddress[](1);
+                XAddress[] memory addresses = new XAddress[](1);
                 addresses[0] =
-                    Structs.XAddress(j, bytes32(uint256(uint160(address(map[j].integration)))));
+                    XAddress(j, bytes32(uint256(uint160(address(map[j].integration)))));
                 map[i].integration.registerEmitters(addresses);
             }
         }
