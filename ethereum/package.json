@@ -23,7 +23,8 @@
     "typescript": "^4.9.5"
   },
   "scripts": {
-    "build": "truffle compile && forge build -o build && typechain --target=ethers-v5 --out-dir=./ethers-contracts \"build/!(test).sol/*.json\" && echo `TODO .. MAKE SURE THAT IT IS OKAY TO TYPECHAIN ON ONLY THE FORGE OUTPUT. DONT MERGE THIS YET`",
+    "build:core": ". ./core-contract-list.sh && truffle compile $CORE_CONTRACT_FILES $TOKEN_BRIDGE_CONTRACT_FILES $NFT_BRIDGE_CONTRACT_FILES",
+    "build": "npm run build:core && forge build -o build && typechain --target=ethers-v5 --out-dir=./ethers-contracts \"build/!(test).sol/*.json\" && echo 'TODO .. MAKE SURE THAT IT IS OKAY TO TYPECHAIN ON ONLY THE FORGE OUTPUT. DONT MERGE THIS YET'",
     "test": "mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle test --network test",
     "migrate": "mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle migrate --to 4",
     "deploy-bridge-implementation-only": "mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle migrate --f 6 --to 6",
