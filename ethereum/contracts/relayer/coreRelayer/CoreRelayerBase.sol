@@ -16,7 +16,12 @@ import {
   ExecutionParameters,
   IWormholeRelayerBase
 } from "../../interfaces/relayer/IWormholeRelayer.sol";
-import {ForwardInstruction, DeliveryTmpState, getDeliveryTmpState} from "./CoreRelayerStorage.sol";
+import {
+  ForwardInstruction,
+  DeliveryTmpState,
+  getDeliveryTmpState,
+  getRegisteredCoreRelayersState
+} from "./CoreRelayerStorage.sol";
 
 abstract contract CoreRelayerBase is IWormholeRelayerBase {
   //TODO AMO: see https://book.wormhole.com/wormhole/3_coreLayerContracts.html#consistency-levels
@@ -31,6 +36,10 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
   constructor(address _wormhole) {
     wormhole_ = IWormhole(_wormhole);
     chainId_ = uint16(wormhole_.chainId());
+  }
+
+  function getRegisteredCoreRelayerContract(uint16 chainId) public view returns (bytes32) {
+    return getRegisteredCoreRelayersState().registeredCoreRelayers[chainId];
   }
 
   //Our get functions require view instead of pure (despite not actually reading storage) because

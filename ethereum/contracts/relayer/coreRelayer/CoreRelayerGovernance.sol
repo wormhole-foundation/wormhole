@@ -74,7 +74,13 @@ abstract contract CoreRelayerGovernance is CoreRelayerBase, ERC1967Upgrade {
     _upgradeTo(newImplementation);
 
     //Now that our implementation points to the new contract, we can just call ourselves and have
-    //  executeUpgradeMigration() use a simple check that msg.sender == address(this)
+    //  executeUpgradeMigration() use a simple check that msg.sender == address(this).
+    //I.e. the new contract just has to implement:
+    //  function executeUpgradeMigration() external view {
+    //    assert(msg.sender == address(this));
+    //    //migration code goes here
+    //  }
+    //  so we don't have to mess around with any "intialized" and "reinitialized" storage vars.
     (bool success, bytes memory revertData) =
       address(this).call(abi.encodeWithSignature("executeUpgradeMigration()"));
 
@@ -102,8 +108,8 @@ abstract contract CoreRelayerGovernance is CoreRelayerBase, ERC1967Upgrade {
     bytes memory encodedVm
   ) private returns (address newImplementation) {
     bytes memory payload = verifyAndConsumeGovernanceVM(encodedVm);
-    //TODO AMO: what's action 1?
-    uint offset = parseAndCheckPayloadHeader(payload, 1, false);
+    //TODO AMO: what's action 2?
+    uint offset = parseAndCheckPayloadHeader(payload, 2, false);
     
     bytes32 newImplementationWhFmt;
     (newImplementationWhFmt, offset) = payload.asBytes32Unchecked(offset);
@@ -117,8 +123,8 @@ abstract contract CoreRelayerGovernance is CoreRelayerBase, ERC1967Upgrade {
     bytes memory encodedVm
   ) private returns (uint16 emitterChainId, bytes32 emitterAddress) {
     bytes memory payload = verifyAndConsumeGovernanceVM(encodedVm);
-    //TODO AMO: what's action 2?
-    uint offset = parseAndCheckPayloadHeader(payload, 2, true);
+    //TODO AMO: what's action 1?
+    uint offset = parseAndCheckPayloadHeader(payload, 1, true);
     
     (emitterChainId, offset) = payload.asUint16Unchecked(offset);
     (emitterAddress, offset) = payload.asBytes32Unchecked(offset);
@@ -130,8 +136,8 @@ abstract contract CoreRelayerGovernance is CoreRelayerBase, ERC1967Upgrade {
     bytes memory encodedVm
   ) private returns (address newProvider) {
     bytes memory payload = verifyAndConsumeGovernanceVM(encodedVm);
-    //TODO AMO: what's action 3?
-    uint offset = parseAndCheckPayloadHeader(payload, 2, true);
+    //TODO AMO: what's action 4?
+    uint offset = parseAndCheckPayloadHeader(payload, 4, true);
 
     bytes32 newProviderWhFmt;
     (newProviderWhFmt, offset) = payload.asBytes32Unchecked(offset);

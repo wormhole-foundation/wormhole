@@ -20,6 +20,7 @@ import {
   VaaKeyType,
   ExecutionParameters,
   Send,
+  TargetDeliveryParameters,
   DeliveryInstruction,
   DeliveryOverride,
   IWormholeRelayerDelivery
@@ -27,9 +28,9 @@ import {
 import {DeliveryData, IWormholeReceiver} from "../../interfaces/relayer/IWormholeReceiver.sol";
 import {IRelayProvider} from "../../interfaces/relayer/IRelayProvider.sol";
 
-import {pay, min, max, toWormholeFormat, fromWormholeFormat, BytesParsing} from "./Utils.sol";
+import {pay, min, toWormholeFormat, fromWormholeFormat, BytesParsing} from "./Utils.sol";
 import {CoreRelayerSerde} from "./CoreRelayerSerde.sol";
-import {ForwardInstruction, getRegisteredCoreRelayersState} from "./CoreRelayerStorage.sol";
+import {ForwardInstruction} from "./CoreRelayerStorage.sol";
 import {CoreRelayerBase} from "./CoreRelayerBase.sol";
 
 abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelivery {
@@ -46,8 +47,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     if (!valid)
       revert InvalidDeliveryVaa(reason);
 
-    bytes32 registeredCoreRelayer =
-      getRegisteredCoreRelayersState().registeredCoreRelayers[vm.emitterChainId];
+    bytes32 registeredCoreRelayer = getRegisteredCoreRelayerContract(vm.emitterChainId);
     if (vm.emitterAddress != registeredCoreRelayer)
       revert InvalidEmitter(vm.emitterAddress, registeredCoreRelayer, vm.emitterChainId);
 
@@ -201,15 +201,11 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       additionalStatusInfo = targetRevertDataTruncated; 
     }
     //TODO AMO: should never revert for any other reason (though it might for overflows atm)
-    catch (bytes memory lowLevelData) {
+    catch (bytes memory revertData) {
       //decode returned Cancelled error
-      assert(lowLevelData.length == 4 + 32 + 32 + 32); //selector + (32 bytes padded) variables
-      bytes4 selector;
       uint256 available;
       uint256 required;
-      (selector, gasUsed, available, required) =
-        abi.decode(lowLevelData, (bytes4, uint32, uint256, uint256));
-      assert(selector == Cancelled.selector);
+      (gasUsed, available, required) = decodeCancelled(revertData);
       //Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the
       //  fraction of gas unused)
       transactionFeeRefundAmount =
@@ -519,6 +515,19 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     return exceedsMaxBudget
       ? RefundStatus.CROSS_CHAIN_REFUND_SENT_MAXIMUM_BUDGET
       : RefundStatus.CROSS_CHAIN_REFUND_SENT;
+  }
+
+  function decodeCancelled(
+    bytes memory revertData
+  ) private pure returns (uint32 gasUsed, uint256 available, uint256 required) {
+    uint offset = 0;
+    bytes4 selector;
+    (selector, offset) = revertData.asBytes4Unchecked(offset);
+    offset += 28;
+    (gasUsed, offset) = revertData.asUint32Unchecked(offset);
+    (available, offset) = revertData.asUint256Unchecked(offset);
+    (required, offset) = revertData.asUint256Unchecked(offset);
+    assert(offset == revertData.length && selector == Cancelled.selector);
   }
 
   function checkVaaKeysWithVAAs(

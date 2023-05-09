@@ -35,6 +35,7 @@ contract CoreRelayer is
   //needs to be called upon construction of the EC1967 proxy
   function initialize() public {
     assert(!initialized);
+    initialized = true;
     getDefaultRelayProviderState().defaultRelayProvider = initialDefaultRelayProvider;
   }
 }
