@@ -27,14 +27,14 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-    InitiateTransferWithPayload {
-        asset: Asset,
-        recipient_chain: u16,
-        recipient: Binary,
-        fee: Uint128,
-        payload: Binary,
-        nonce: u32,
-    },
+    // InitiateTransferWithPayload {
+    //     asset: Asset,
+    //     recipient_chain: u16,
+    //     recipient: Binary,
+    //     fee: Uint128,
+    //     payload: Binary,
+    //     nonce: u32,
+    // },
 
     SubmitVaa {
         data: Binary,

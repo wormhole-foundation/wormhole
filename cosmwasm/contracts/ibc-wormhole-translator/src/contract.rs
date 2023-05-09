@@ -16,13 +16,13 @@ use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
     to_binary, Binary, CosmosMsg, Deps, DepsMut, Env,
-    MessageInfo, Order, QueryRequest, Reply, Response, StdError, StdResult, Uint128,
+    MessageInfo, Order, QueryRequest, Reply, Response, StdError, StdResult,
     WasmMsg, WasmQuery,
 };
 
 use crate::{
     msg::{
-        AllChainChannelsResponse, Asset, ChainRegistrationResponse, ExecuteMsg,
+        AllChainChannelsResponse, ChainRegistrationResponse, ExecuteMsg,
         ExternalIdResponse, InstantiateMsg, IsVaaRedeemedResponse, MigrateMsg, QueryMsg,
         TransferInfoResponse,
     },
@@ -137,72 +137,13 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
     match msg {
         ExecuteMsg::SubmitVaa { data } => submit_vaa(deps, env, info, &data),
 
-        // // The following actions are disabled in "shutdown" mode
-        // #[cfg(feature = "full")]
-        // ExecuteMsg::RegisterAssetHook {
-        //     chain,
-        //     token_address,
-        // } => handle_register_asset(deps, env, info, chain, token_address),
-
-        // #[cfg(feature = "full")]
-        // ExecuteMsg::InitiateTransfer {
-        //     asset,
-        //     recipient_chain,
-        //     recipient,
-        //     fee,
-        //     nonce,
-        // } => handle_initiate_transfer(
-        //     deps,
-        //     env,
-        //     info,
-        //     asset,
-        //     recipient_chain,
-        //     recipient.to_array()?,
-        //     fee,
-        //     TransferType::WithoutPayload,
-        //     nonce,
-        // ),
-
         #[cfg(feature = "full")]
-        ExecuteMsg::InitiateTransferWithPayload {
-            asset,
-            recipient_chain,
-            recipient,
-            fee,
-            payload,
-            nonce,
-        } => handle_initiate_transfer(
-            deps,
-            env,
-            info,
-            asset,
-            recipient_chain,
-            recipient.to_array()?,
-            fee,
-            TransferType::WithPayload {
-                payload: payload.into(),
-            },
-            nonce,
-        ),
-
-        // #[cfg(feature = "full")]
-        // ExecuteMsg::DepositTokens {} => deposit_tokens(deps, env, info),
-
-        // #[cfg(feature = "full")]
-        // ExecuteMsg::WithdrawTokens { asset } => withdraw_tokens(deps, env, info, asset),
-
-        // #[cfg(feature = "full")]
-        // ExecuteMsg::CreateAssetMeta { asset_info, nonce } => {
-        //     handle_create_asset_meta(deps, env, info, asset_info, nonce)
-        // }
-
-        // #[cfg(feature = "full")]
-        // ExecuteMsg::CompleteTransferWithPayload { data, relayer } => {
-        //     handle_complete_transfer_with_payload(deps, env, info, &data, &relayer)
-        // }
+        ExecuteMsg::CompleteTransferWithPayload { data, relayer } => {
+            handle_complete_transfer_with_payload(deps, env, info, &data, &relayer)
+        }
 
         // When in "shutdown" mode, we reject any other action
-        // #[cfg(not(feature = "full"))]
+        #[cfg(not(feature = "full"))]
         _ => Err(StdError::generic_err("Invalid during shutdown mode")),
     }
 }
@@ -210,34 +151,47 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
 fn submit_vaa(
     mut deps: DepsMut,
     env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     data: &Binary,
 ) -> StdResult<Response> {
-    let (vaa, payload) = parse_and_archive_vaa(deps.branch(), env.clone(), data)?;
+    let (_, payload) = parse_and_archive_vaa(deps.branch(), env.clone(), data)?;
     match payload {
         Either::Left(governance_packet) => handle_governance_payload(deps, env, &governance_packet),
 
-        // In "shutdown" mode, we only handle governance payloads
+        // TODO: This seems silly. Rework this to not use left/right.
         #[cfg(feature = "full")]
-        Either::Right(message) => match message.action {
-            Action::TRANSFER => {
-                let sender = info.sender.to_string();
-                handle_complete_transfer(
-                    deps,
-                    env,
-                    info,
-                    vaa.emitter_chain,
-                    vaa.emitter_address,
-                    TransferType::WithoutPayload,
-                    &message.payload,
-                    &sender,
-                )
-            }
-        _ => ContractError::InvalidVAAAction.std_err(),
-        },
+        Either::Right(_)  => ContractError::InvalidVAAAction.std_err(),
 
         #[cfg(not(feature = "full"))]
         _ => ContractError::InvalidVAAAction6.std_err(),
+    }
+}
+
+fn handle_complete_transfer_with_payload(
+    mut deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    data: &Binary,
+    relayer_address: &HumanAddr,
+) -> StdResult<Response> {
+    let (vaa, payload) = parse_and_archive_vaa(deps.branch(), env.clone(), data)?;
+
+    if let Either::Right(message) = payload {
+        match message.action {
+            Action::TRANSFER_WITH_PAYLOAD => handle_complete_transfer(
+                deps,
+                env,
+                info,
+                vaa.emitter_chain,
+                vaa.emitter_address,
+                TransferType::WithPayload { payload: () },
+                &message.payload,
+                relayer_address,
+            ),
+            _ => ContractError::InvalidVAAAction.std_err(),
+        }
+    } else {
+        ContractError::InvalidVAAAction.std_err()
     }
 }
 
@@ -353,22 +307,6 @@ fn handle_complete_transfer(
     _relayer_address: &HumanAddr,
 ) -> StdResult<Response> {
     Ok(Response::new())
-}
-
-#[allow(clippy::too_many_arguments)]
-fn handle_initiate_transfer(
-    _deps: DepsMut,
-    _env: Env,
-    _info: MessageInfo,
-    _asset: Asset,
-    _recipient_chain: u16,
-    _recipient: [u8; 32],
-    _fee: Uint128,
-    _transfer_type: TransferType<Vec<u8>>,
-    _nonce: u32,
-) -> StdResult<Response> {
-    Ok(Response::new())
-
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
