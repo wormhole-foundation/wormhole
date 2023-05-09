@@ -9,7 +9,7 @@ describe("worm contract", () => {
 
     it(`should have correct positional arguments`, async () => {
       const command = await yargs
-        .command(require("../cmds/contractAddress"))
+        .command(require("../src/cmds/contractAddress"))
         .help();
 
       // Run the command module with --help as argument
@@ -34,7 +34,9 @@ describe("worm contract", () => {
     it(`should return solana core mainnet contract correctly`, async () => {
       const consoleSpy = jest.spyOn(console, "log");
 
-      const command = yargs.command(require("../cmds/contractAddress")).help();
+      const command = yargs
+        .command(require("../src/cmds/contractAddress"))
+        .help();
       await command.parse(["contract", "mainnet", "solana", "Core"]);
 
       expect(consoleSpy).toBeCalledWith(SOLANA_CORE_CONTRACT);
@@ -43,7 +45,9 @@ describe("worm contract", () => {
     it(`should return ethereum mainnet NFTBridge contract correctly`, async () => {
       const consoleSpy = jest.spyOn(console, "log");
 
-      const command = yargs.command(require("../cmds/contractAddress")).help();
+      const command = yargs
+        .command(require("../src/cmds/contractAddress"))
+        .help();
       await command.parse(["contract", "mainnet", "ethereum", "NFTBridge"]);
 
       expect(consoleSpy).toBeCalledWith(ETHEREUM_NFT_BRIDGE_CONTRACT);

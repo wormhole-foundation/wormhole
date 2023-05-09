@@ -7,7 +7,7 @@ describe("worm rpc", () => {
     const SECOND_POSITIONAL_ARGUMENT = "<chain>";
 
     it(`should have correct positional arguments`, async () => {
-      const command = await yargs.command(require("../cmds/rpc")).help();
+      const command = await yargs.command(require("../src/cmds/rpc")).help();
 
       // Run the command module with --help as argument
       const output = await new Promise((resolve) => {
@@ -29,7 +29,7 @@ describe("worm rpc", () => {
     it(`should return solana mainnet rpc correctly`, async () => {
       const consoleSpy = jest.spyOn(console, "log");
 
-      const command = yargs.command(require("../cmds/rpc")).help();
+      const command = yargs.command(require("../src/cmds/rpc")).help();
       await command.parse(["rpc", "mainnet", "solana"]);
 
       expect(consoleSpy).toBeCalledWith(SOLANA_RPC_URL);
@@ -38,7 +38,7 @@ describe("worm rpc", () => {
     it(`should return ethereum mainnet rpc correctly`, async () => {
       const consoleSpy = jest.spyOn(console, "log");
 
-      const command = yargs.command(require("../cmds/rpc")).help();
+      const command = yargs.command(require("../src/cmds/rpc")).help();
       await command.parse(["rpc", "mainnet", "ethereum"]);
 
       expect(consoleSpy).toBeCalledWith(ETHEREUM_RPC_URL);

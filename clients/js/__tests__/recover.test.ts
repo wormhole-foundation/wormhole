@@ -7,7 +7,9 @@ describe("worm recover", () => {
     const SECOND_POSITIONAL_ARGUMENT = "<signature>";
 
     it(`should have correct positional arguments`, async () => {
-      const command = await yargs.command(require("../cmds/recover")).help();
+      const command = await yargs
+        .command(require("../src/cmds/recover"))
+        .help();
 
       // Run the command module with --help as argument
       const output = await new Promise((resolve) => {
@@ -33,7 +35,7 @@ describe("worm recover", () => {
     it(`should return correct address from mock digest and signature`, async () => {
       const consoleSpy = jest.spyOn(console, "log");
 
-      const command = yargs.command(require("../cmds/recover")).help();
+      const command = yargs.command(require("../src/cmds/recover")).help();
       await command.parse(["recover", MOCK_DIGEST, MOCK_SIGNATURE]);
 
       expect(consoleSpy).toBeCalledWith(EXPECTED_ADDRESS);

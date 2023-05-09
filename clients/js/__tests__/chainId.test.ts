@@ -6,7 +6,9 @@ describe("worm chain-id", () => {
     const FIRST_POSITIONAL_ARGUMENT = "<chain>";
 
     it(`should have correct positional arguments`, async () => {
-      const command = await yargs.command(require("../cmds/chainId")).help();
+      const command = await yargs
+        .command(require("../src/cmds/chainId"))
+        .help();
 
       // Run the command module with --help as argument
       const output = await new Promise((resolve) => {
@@ -27,7 +29,7 @@ describe("worm chain-id", () => {
     it(`should return solana chain-id correctly`, async () => {
       const consoleSpy = jest.spyOn(console, "log");
 
-      const command = yargs.command(require("../cmds/chainId")).help();
+      const command = yargs.command(require("../src/cmds/chainId")).help();
       await command.parse(["chain-id", "solana"]);
 
       expect(consoleSpy).toBeCalledWith(SOLANA_CHAIN_ID);
@@ -36,7 +38,7 @@ describe("worm chain-id", () => {
     it(`should return ethereum chain-id correctly`, async () => {
       const consoleSpy = jest.spyOn(console, "log");
 
-      const command = yargs.command(require("../cmds/chainId")).help();
+      const command = yargs.command(require("../src/cmds/chainId")).help();
       await command.parse(["chain-id", "ethereum"]);
 
       expect(consoleSpy).toBeCalledWith(ETHEREUM_CHAIN_ID);

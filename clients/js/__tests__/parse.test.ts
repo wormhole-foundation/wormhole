@@ -6,7 +6,7 @@ describe("worm parse", () => {
     const FIRST_POSITIONAL_ARGUMENT = "<vaa>";
 
     it(`should have correct commands`, async () => {
-      const command = await yargs.command(require("../cmds/parse")).help();
+      const command = await yargs.command(require("../src/cmds/parse")).help();
 
       // Run the command module with --help as argument
       const output = await new Promise((resolve) => {
@@ -136,7 +136,7 @@ describe("worm parse", () => {
     it(`should return expected parse result`, async () => {
       const consoleSpy = jest.spyOn(console, "log");
 
-      const command = yargs.command(require("../cmds/parse")).help();
+      const command = yargs.command(require("../src/cmds/parse")).help();
       await command.parse(["parse", MOCK_VAA_WORM_FETCH_GOVERNANCE]);
 
       expect(consoleSpy).toBeCalledWith(EXPECTED_PARSE_RESULT);

@@ -8,7 +8,7 @@ describe("worm submit", () => {
     const REQUIRED_SECOND_FLAG = "--chain";
 
     it(`should have correct positional arguments`, async () => {
-      const command = await yargs.command(require("../cmds/submit")).help();
+      const command = await yargs.command(require("../src/cmds/submit")).help();
 
       // Run the command module with --help as argument
       const output = await new Promise((resolve) => {

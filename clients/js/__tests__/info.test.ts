@@ -8,7 +8,7 @@ describe("worm info", () => {
     const THIRD_COMMAND = "info contract";
 
     it(`should have correct commands in namespace`, async () => {
-      const command = await yargs.command(require("../cmds/info")).help();
+      const command = await yargs.command(require("../src/cmds/info")).help();
 
       // Run the command module with --help as argument
       const output = await new Promise((resolve) => {
