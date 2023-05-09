@@ -47,7 +47,7 @@ contract TestHelpers {
         bytes32 coreRelayerModule =
             0x000000000000000000000000000000000000000000436F726552656C61796572;
         bytes memory message = abi.encodePacked(
-            coreRelayerModule, uint8(2), currentChainId, chainId, coreRelayerContractAddress
+            coreRelayerModule, uint8(1), currentChainId, chainId, coreRelayerContractAddress
         );
         IWormhole.VM memory preSignedMessage = IWormhole.VM({
             version: 1,

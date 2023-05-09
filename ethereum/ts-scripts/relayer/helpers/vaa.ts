@@ -77,7 +77,7 @@ export async function createRegisterChainVAA(
     ["bytes32", "uint8", "uint16", "uint16", "bytes32"],
     [
       coreRelayerModule,
-      2,
+      1,
       0,
       chain.chainId,
       "0x" + tryNativeToHexString(coreRelayerAddress, "ethereum"),

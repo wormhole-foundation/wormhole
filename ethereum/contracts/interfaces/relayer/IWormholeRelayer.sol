@@ -229,8 +229,8 @@ interface IWormholeRelayer {
     ) external payable;
 
     /**
-     * @notice This 'resend' function allows a caller to request a second delivery of a specified VAA, with an updated provider, maxTransactionFee, and receiveValue.
-     * This function is intended to help integrators more eaily resolve Receiver Failure cases, or other scenarios where an delivery was not able to be correctly performed.
+     * @notice This 'resend' function allows a caller to request an additional delivery of a specified `send` VAA, with an updated provider, maxTransactionFee, and receiveValue.
+     * This function is intended to help integrators more eaily resolve ReceiverFailure cases, or other scenarios where an delivery was not able to be correctly performed.
      *
      * No checks about the original delivery VAA are performed prior to the emission of the redelivery instruction. Therefore, caller should be careful not to request
      * redeliveries in the following cases, as they will result in an undeliverable, invalid redelivery instruction that the provider will not be able to perform:
@@ -244,9 +244,9 @@ interface IWormholeRelayer {
      * Similar to send, you must call this function with msg.value = nexMaxTransactionFee + newReceiverValue + wormhole.messageFee() in order to pay for the delivery.
      *
      *  @param key a VAA Key corresponding to the delivery which should be performed again. This must correspond to a valid delivery instruction VAA.
-     *  @param newMaxTransactionFee - the maxTransactionFee (in this chain's wei) that should be used on the redelivery. Must correspond to a gas amount equal to or greater than the original delivery,
-     *  as well as a maximum transaction fee refund equal to or greater than the original delivery.
-     *  @param newReceiverValue - the receiveValue (in this chain's wei) that should be used on the redelivery. Must result in receiverValue on the target chain which is equal to or greater that the original delivery.
+     *  @param newMaxTransactionFee - the maxTransactionFee (in this chain's wei) that should be used for the redelivery. Must be greater than or equal to the new relayProvider's quoted price for the original gas amount (i.e. must not result in a lower gas limit)
+     *  AND must result in a maximum transaction fee refund equal to or greater than the original delivery
+     *  @param newReceiverValue - the receiverValue (in this chain's wei) that should be used for the redelivery. Must result in receiverValue on the target chain which is equal to or greater than the original delivery.
      *  @param targetChain - the chain which the original delivery targetted.
      *  @param relayProviderAddress - the address of the relayProvider (on this chain) which should be used for this redelivery.
      */
@@ -365,8 +365,9 @@ interface IWormholeRelayer {
      */
     function getDeliveryAddress() external view returns (address deliveryAddress);
 
-    error MsgValueTooMuch(); // (maxTransactionFee, converted to target chain currency) + (receiverValue, converted to target chain currency) is greater than what your chosen relay provider allows
-    error MsgValueTooLow(); // msg.value is too low
+    error MsgValueMoreThanMaxAllowed(); // (maxTransactionFee, converted to target chain currency) + (receiverValue, converted to target chain currency) is greater than what your chosen relay provider allows
+    error MsgValueTooLow(); // msg.value is lower than the amount you specified (i.e., msg.value is less than (wormhole message fee) + (maxTransactionFee) + (receiverValue))
+    error MsgValueTooHigh(); // msg.value is higher than the amount you specified (i.e., msg.value is greater than (wormhole message fee) + (maxTransactionFee) + (receiverValue))
     // Specifically, (msg.value) + (any leftover funds if this is a forward) is less than (maxTransactionFee + receiverValue), summed over all of your requests if this is a multichainSend/multichainForward
     error MaxTransactionFeeNotEnough(); // maxTransactionFee is less than the minimum needed by your chosen relay provider
     error NoDeliveryInProgress(); // Forwards can only be requested within execution of 'receiveWormholeMessages', or when a delivery is in progress

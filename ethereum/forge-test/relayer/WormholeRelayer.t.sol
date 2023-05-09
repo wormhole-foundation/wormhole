@@ -2089,6 +2089,51 @@ contract WormholeRelayerTests is Test {
         setup.source.coreRelayer.send{value: maxTransactionFee + wormholeFee - 1}(deliveryRequest);
     }
 
+    function testRevertSendMsgValueTooMuch(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams,
+        bytes memory message
+    ) public {
+        StandardSetupTwoChains memory setup =
+            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
+
+        vm.recordLogs();
+
+        uint256 maxTransactionFee = setup.source.coreRelayer.quoteGas(
+            setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
+        );
+
+        uint64 sequence = setup.source.wormhole.publishMessage{
+            value: setup.source.wormhole.messageFee()
+        }(1, message, 200);
+
+        bytes memory emptyArray;
+
+        IWormholeRelayer.VaaKey[] memory vaaKeys =
+            vaaKeyArray(setup.sourceChainId, sequence, address(this));
+
+        IWormholeRelayer.Send memory deliveryRequest = IWormholeRelayer.Send({
+            targetChain: setup.targetChainId,
+            targetAddress: setup.source.coreRelayer.toWormholeFormat(address(setup.target.integration)),
+            refundChain: setup.targetChainId,
+            refundAddress: setup.source.coreRelayer.toWormholeFormat(
+                address(setup.target.refundAddress)
+                ),
+            maxTransactionFee: maxTransactionFee,
+            receiverValue: 0,
+            relayProviderAddress: address(setup.source.relayProvider),
+            vaaKeys: vaaKeys,
+            consistencyLevel: 200,
+            payload: emptyArray,
+            relayParameters: setup.source.coreRelayer.getDefaultRelayParams()
+        });
+
+        uint256 wormholeFee = setup.source.wormhole.messageFee();
+
+        vm.expectRevert(abi.encodeWithSignature("MsgValueTooHigh()"));
+        setup.source.coreRelayer.send{value: maxTransactionFee + wormholeFee + 1}(deliveryRequest);
+    }
+
     function testRevertSendMaxTransactionFeeNotEnough(
         GasParameters memory gasParams,
         FeeParameters memory feeParams,
@@ -2121,7 +2166,7 @@ contract WormholeRelayerTests is Test {
         );
     }
 
-    function testRevertSendMsgValueTooMuch(
+    function testRevertSendMsgValueMoreThanMaxAllowed(
         GasParameters memory gasParams,
         FeeParameters memory feeParams,
         bytes memory message
@@ -2141,7 +2186,7 @@ contract WormholeRelayerTests is Test {
 
         uint256 wormholeFee = setup.source.wormhole.messageFee();
 
-        vm.expectRevert(abi.encodeWithSignature("MsgValueTooMuch()"));
+        vm.expectRevert(abi.encodeWithSignature("MsgValueMoreThanMaxAllowed()"));
         setup.source.integration.sendMessageWithRefundAddress{
             value: maxTransactionFee * 105 / 100 + 1 + 3 * wormholeFee
         }(
