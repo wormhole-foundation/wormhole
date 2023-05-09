@@ -10,11 +10,9 @@ import "../interfaces/relayer/IWormholeReceiver.sol";
 
 import {toWormholeFormat} from "../relayer/coreRelayer/Utils.sol";
 
-interface Structs {
-    struct XAddress {
-        uint16 chainId;
-        bytes32 addr;
-    }
+struct XAddress {
+    uint16 chainId;
+    bytes32 addr;
 }
 
 contract MockRelayerIntegration is IWormholeReceiver {
@@ -344,7 +342,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
         registeredContracts[chainId] = emitterAddress_;
     }
 
-    function registerEmitters(Structs.XAddress[] calldata emitters) public {
+    function registerEmitters(XAddress[] calldata emitters) public {
         require(msg.sender == owner);
         for (uint256 i = 0; i < emitters.length; i++) {
             registeredContracts[emitters[i].chainId] = emitters[i].addr;
