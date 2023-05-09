@@ -11,30 +11,27 @@ import {RelayProviderProxy} from "../../contracts/relayer/relayProvider/RelayPro
 import {RelayProviderMessages} from
     "../../contracts/relayer/relayProvider/RelayProviderMessages.sol";
 import {RelayProviderStructs} from "../../contracts/relayer/relayProvider/RelayProviderStructs.sol";
-import {IWormholeRelayer} from "../../contracts/interfaces/relayer/IWormholeRelayer.sol";
-import {IDelivery} from "../../contracts/interfaces/relayer/IDelivery.sol";
+import "../../contracts/interfaces/relayer/IWormholeRelayer.sol";
 import {CoreRelayer} from "../../contracts/relayer/coreRelayer/CoreRelayer.sol";
-import {IWormholeRelayerInternalStructs} from
-    "../../contracts/interfaces/relayer/IWormholeRelayerInternalStructs.sol";
-import {CoreRelayerSetup} from "../../contracts/relayer/coreRelayer/CoreRelayerSetup.sol";
-import {CoreRelayerMessages} from "../../contracts/relayer/coreRelayer/CoreRelayerMessages.sol";
 import {MockGenericRelayer} from "./MockGenericRelayer.sol";
 import {MockWormhole} from "./MockWormhole.sol";
 import {IWormhole} from "../../contracts/interfaces/IWormhole.sol";
 import {WormholeSimulator, FakeWormholeSimulator} from "./WormholeSimulator.sol";
-import {IWormholeReceiver} from "../../contracts/interfaces/relayer/IWormholeReceiver.sol";
+import {DeliveryData, IWormholeReceiver} from "../../contracts/interfaces/relayer/IWormholeReceiver.sol";
 import {AttackForwardIntegration} from "./AttackForwardIntegration.sol";
 import {MockRelayerIntegration, Structs} from "../../contracts/mock/MockRelayerIntegration.sol";
 import {ForwardTester} from "./ForwardTester.sol";
 import {TestHelpers} from "./TestHelpers.sol";
-import "../../contracts/libraries/external/BytesLib.sol";
+import {CoreRelayerSerde} from "../../contracts/relayer/coreRelayer/CoreRelayerSerde.sol";
+import {BytesParsing, toWormholeFormat, fromWormholeFormat} from "../../contracts/relayer/coreRelayer/Utils.sol";
+
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import "forge-std/Vm.sol";
 
 contract WormholeRelayerTests is Test {
-    using BytesLib for bytes;
+    using BytesParsing for bytes;
 
     uint16 MAX_UINT16_VALUE = 65535;
     uint96 MAX_UINT96_VALUE = 79228162514264337593543950335;
@@ -75,7 +72,7 @@ contract WormholeRelayerTests is Test {
         helpers = new TestHelpers();
 
         genericRelayer =
-        new MockGenericRelayer(address(wormhole), address(relayerWormholeSimulator), address(helpers.setUpCoreRelayer(2, wormhole, address(0x1))));
+        new MockGenericRelayer(address(wormhole), address(relayerWormholeSimulator));
 
         setUpChains(5);
 
@@ -202,7 +199,7 @@ contract WormholeRelayerTests is Test {
             (mapEntry.wormhole, mapEntry.wormholeSimulator) = helpers.setUpWormhole(i);
             mapEntry.relayProvider = helpers.setUpRelayProvider(i);
             mapEntry.coreRelayer =
-                helpers.setUpCoreRelayer(i, mapEntry.wormhole, address(mapEntry.relayProvider));
+                helpers.setUpCoreRelayer(mapEntry.wormhole, address(mapEntry.relayProvider));
             mapEntry.coreRelayerFull = CoreRelayer(payable(address(mapEntry.coreRelayer)));
             genericRelayer.setWormholeRelayerContract(i, address(mapEntry.coreRelayer));
             mapEntry.integration =
@@ -249,14 +246,15 @@ contract WormholeRelayerTests is Test {
     }
 
     function getDeliveryVAAHash(Vm.Log[] memory logs) internal pure returns (bytes32 vaaHash) {
-        vaaHash = logs[0].data.toBytes32(0);
+        (vaaHash,) = logs[0].data.asBytes32(0);
     }
 
-    function getDeliveryStatus(Vm.Log memory log) internal pure returns (DeliveryStatus status) {
-        status = DeliveryStatus(log.data.toUint256(32));
+    function getDeliveryStatus(Vm.Log memory log) internal pure returns (IWormholeRelayerDelivery.DeliveryStatus status) {
+        (uint parsed,) = log.data.asUint256(32);
+        status = IWormholeRelayerDelivery.DeliveryStatus(parsed);
     }
 
-    function getDeliveryStatus() internal returns (DeliveryStatus status) {
+    function getDeliveryStatus() internal returns (IWormholeRelayerDelivery.DeliveryStatus status) {
         Vm.Log[] memory logs = vm.getRecordedLogs();
         status = getDeliveryStatus(logs[logs.length - 1]);
     }
@@ -265,12 +263,12 @@ contract WormholeRelayerTests is Test {
         uint16 chainId,
         uint64 sequence,
         address emitterAddress
-    ) internal view returns (IWormholeRelayer.VaaKey[] memory vaaKeys) {
-        vaaKeys = new IWormholeRelayer.VaaKey[](1);
-        vaaKeys[0] = IWormholeRelayer.VaaKey(
-            IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE,
+    ) internal pure returns (VaaKey[] memory vaaKeys) {
+        vaaKeys = new VaaKey[](1);
+        vaaKeys[0] = VaaKey(
+            VaaKeyType.EMITTER_SEQUENCE,
             chainId,
-            map[1].coreRelayer.toWormholeFormat(emitterAddress),
+            toWormholeFormat(emitterAddress),
             sequence,
             bytes32(0x0)
         );
@@ -282,19 +280,19 @@ contract WormholeRelayerTests is Test {
         address emitterAddress1,
         uint64 sequence2,
         address emitterAddress2
-    ) internal view returns (IWormholeRelayer.VaaKey[] memory vaaKeys) {
-        vaaKeys = new IWormholeRelayer.VaaKey[](2);
-        vaaKeys[0] = IWormholeRelayer.VaaKey(
-            IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE,
+    ) internal pure returns (VaaKey[] memory vaaKeys) {
+        vaaKeys = new VaaKey[](2);
+        vaaKeys[0] = VaaKey(
+            VaaKeyType.EMITTER_SEQUENCE,
             chainId,
-            map[1].coreRelayer.toWormholeFormat(emitterAddress1),
+            toWormholeFormat(emitterAddress1),
             sequence1,
             bytes32(0x0)
         );
-        vaaKeys[1] = IWormholeRelayer.VaaKey(
-            IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE,
+        vaaKeys[1] = VaaKey(
+            VaaKeyType.EMITTER_SEQUENCE,
             chainId,
-            map[1].coreRelayer.toWormholeFormat(emitterAddress2),
+            toWormholeFormat(emitterAddress2),
             sequence2,
             bytes32(0x0)
         );
@@ -350,9 +348,9 @@ contract WormholeRelayerTests is Test {
 
         setup.source.coreRelayer.send{value: maxTransactionFee + feeParams.wormholeFeeOnSource}(
             setup.targetChainId,
-            setup.source.coreRelayer.toWormholeFormat(address(setup.target.integration)),
+            toWormholeFormat(address(setup.target.integration)),
             setup.targetChainId,
-            setup.source.coreRelayer.toWormholeFormat(address(setup.target.integration)),
+            toWormholeFormat(address(setup.target.integration)),
             maxTransactionFee,
             0,
             bytes(""),
@@ -363,7 +361,7 @@ contract WormholeRelayerTests is Test {
         Vm.Log memory log = vm.getRecordedLogs()[1];
 
         // Parse the consistency level from the published VAA
-        uint8 consistencyLevel = log.data.toUint8(32 + 32 + 32 + 32 - 1);
+        (uint8 consistencyLevel,) = log.data.asUint8(32 + 32 + 32 + 32 - 1);
 
         assertTrue(consistencyLevel == 23);
     }
@@ -392,9 +390,9 @@ contract WormholeRelayerTests is Test {
         );
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
-        IWormholeRelayer.VaaKey[] memory vaaKeyArr = new IWormholeRelayer.VaaKey[](2);
-        vaaKeyArr[0] = IWormholeRelayer.VaaKey({
-            infoType: IWormholeRelayer.VaaKeyType.VAAHASH,
+        VaaKey[] memory vaaKeyArr = new VaaKey[](2);
+        vaaKeyArr[0] = VaaKey({
+            infoType: VaaKeyType.VAAHASH,
             chainId: setup.sourceChainId,
             emitterAddress: bytes32(0x0),
             sequence: 0,
@@ -404,8 +402,8 @@ contract WormholeRelayerTests is Test {
                 )
                 ).hash
         });
-        vaaKeyArr[1] = IWormholeRelayer.VaaKey({
-            infoType: IWormholeRelayer.VaaKeyType.VAAHASH,
+        vaaKeyArr[1] = VaaKey({
+            infoType: VaaKeyType.VAAHASH,
             chainId: setup.sourceChainId,
             emitterAddress: bytes32(0x0),
             sequence: 0,
@@ -418,9 +416,9 @@ contract WormholeRelayerTests is Test {
 
         setup.source.coreRelayer.send{value: maxTransactionFee + feeParams.wormholeFeeOnSource}(
             setup.targetChainId,
-            setup.source.coreRelayer.toWormholeFormat(address(setup.target.integration)),
+            toWormholeFormat(address(setup.target.integration)),
             setup.targetChainId,
-            setup.source.coreRelayer.toWormholeFormat(address(setup.target.integration)),
+            toWormholeFormat(address(setup.target.integration)),
             maxTransactionFee,
             0,
             bytes(""),
@@ -644,7 +642,7 @@ contract WormholeRelayerTests is Test {
         genericRelayer.relay(1);
 
         assertTrue(keccak256(target.integration.getMessage()) == keccak256(bytes("Hello!")));
-        IWormholeReceiver.DeliveryData memory deliveryData = target.integration.getDeliveryData();
+        DeliveryData memory deliveryData = target.integration.getDeliveryData();
 
         test.refundAddressAmount = target.refundAddress.balance - test.refundAddressBalance;
         test.rewardAddressAmount = source.rewardAddress.balance - test.rewardAddressBalance;
@@ -944,7 +942,7 @@ contract WormholeRelayerTests is Test {
         );
         genericRelayer.relay(1);
         assertTrue(keccak256(target.integration.getMessage()) == keccak256(bytes("Hello!")));
-        IWormholeReceiver.DeliveryData memory deliveryData = target.integration.getDeliveryData();
+        DeliveryData memory deliveryData = target.integration.getDeliveryData();
 
         genericRelayer.relay(2);
         assertTrue(keccak256(source.integration.getMessage()) == keccak256(bytes("received!")));
@@ -1110,7 +1108,7 @@ contract WormholeRelayerTests is Test {
         genericRelayer.relay(2);
 
         assertTrue(keccak256(target.integration.getMessage()) == keccak256(bytes("Hello!")));
-        IWormholeReceiver.DeliveryData memory deliveryData = target.integration.getDeliveryData();
+        DeliveryData memory deliveryData = target.integration.getDeliveryData();
 
         assertTrue(
             test.transactionFee + test.receiverValueSource
@@ -1532,7 +1530,7 @@ contract WormholeRelayerTests is Test {
             0, stack.encodedFurtherInstructions, 200
         );
         stack.targetAddress =
-            setup.source.coreRelayer.toWormholeFormat(address(setup.target.integration));
+            toWormholeFormat(address(setup.target.integration));
 
         sendHelper(setup, stack);
 
@@ -1540,18 +1538,18 @@ contract WormholeRelayerTests is Test {
 
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
-        DeliveryStatus status = getDeliveryStatus(logs[logs.length - 1]);
+        IWormholeRelayerDelivery.DeliveryStatus status = getDeliveryStatus(logs[logs.length - 1]);
 
         assertTrue(keccak256(setup.target.integration.getMessage()) != keccak256(bytes("hello!")));
 
-        assertTrue(status == DeliveryStatus.FORWARD_REQUEST_FAILURE);
+        assertTrue(status == IWormholeRelayerDelivery.DeliveryStatus.FORWARD_REQUEST_FAILURE);
     }
 
     function sendHelper(
         StandardSetupTwoChains memory setup,
         ForwardRequestFailStack memory stack
     ) public {
-        IWormholeRelayer.VaaKey[] memory vaaKeys = vaaKeyArray(
+        VaaKey[] memory vaaKeys = vaaKeyArray(
             setup.sourceChainId,
             stack.sequence1,
             address(setup.source.integration),
@@ -1825,21 +1823,6 @@ contract WormholeRelayerTests is Test {
         }
     }
 
-    event Delivery(
-        address indexed recipientContract,
-        uint16 indexed sourceChain,
-        uint64 indexed sequence,
-        bytes32 deliveryVaaHash,
-        DeliveryStatus status
-    );
-
-    enum DeliveryStatus {
-        SUCCESS,
-        RECEIVER_FAILURE,
-        FORWARD_REQUEST_FAILURE,
-        FORWARD_REQUEST_SUCCESS
-    }
-
     struct DeliveryStack {
         bytes32 deliveryVaaHash;
         uint256 payment;
@@ -1851,8 +1834,8 @@ contract WormholeRelayerTests is Test {
         bytes[] encodedVMs;
         IWormhole.VM parsed;
         uint256 budget;
-        IDelivery.TargetDeliveryParameters package;
-        IWormholeRelayerInternalStructs.DeliveryInstruction instruction;
+        TargetDeliveryParameters package;
+        DeliveryInstruction instruction;
     }
 
     function prepareDeliveryStack(
@@ -1877,7 +1860,7 @@ contract WormholeRelayerTests is Test {
         stack.encodedVMs[0] = stack.actualVM1;
         stack.encodedVMs[1] = stack.actualVM2;
 
-        stack.package = IDelivery.TargetDeliveryParameters({
+        stack.package = TargetDeliveryParameters({
             encodedVMs: stack.encodedVMs,
             encodedDeliveryVAA: stack.deliveryVM,
             relayerRefundAddress: payable(setup.target.relayer),
@@ -1886,7 +1869,7 @@ contract WormholeRelayerTests is Test {
 
         stack.parsed = relayerWormhole.parseVM(stack.deliveryVM);
         stack.instruction =
-            setup.target.coreRelayerFull.decodeDeliveryInstruction(stack.parsed.payload);
+            CoreRelayerSerde.decodeDeliveryInstruction(stack.parsed.payload);
 
         stack.budget = stack.instruction.maximumRefundTarget + stack.instruction.receiverValueTarget;
     }
@@ -1923,7 +1906,7 @@ contract WormholeRelayerTests is Test {
 
         stack.deliveryVM = fakeVM;
 
-        stack.package = IDelivery.TargetDeliveryParameters({
+        stack.package = TargetDeliveryParameters({
             encodedVMs: stack.encodedVMs,
             encodedDeliveryVAA: stack.deliveryVM,
             relayerRefundAddress: payable(setup.target.relayer),
@@ -1963,7 +1946,7 @@ contract WormholeRelayerTests is Test {
 
         stack.deliveryVM = stack.encodedVMs[0];
 
-        stack.package = IDelivery.TargetDeliveryParameters({
+        stack.package = TargetDeliveryParameters({
             encodedVMs: stack.encodedVMs,
             encodedDeliveryVAA: stack.deliveryVM,
             relayerRefundAddress: payable(setup.target.relayer),
@@ -1971,7 +1954,12 @@ contract WormholeRelayerTests is Test {
         });
 
         vm.prank(setup.target.relayer);
-        vm.expectRevert(abi.encodeWithSignature("InvalidEmitter()"));
+        vm.expectRevert(abi.encodeWithSelector(
+            InvalidEmitter.selector,
+            setup.source.integration,
+            setup.source.coreRelayer,
+            setup.source.chainId
+        ));
         setup.target.coreRelayerFull.deliver{value: stack.budget}(stack.package);
     }
 
@@ -2002,7 +1990,11 @@ contract WormholeRelayerTests is Test {
         prepareDeliveryStack(stack, setup);
 
         vm.prank(setup.target.relayer);
-        vm.expectRevert(abi.encodeWithSignature("InsufficientRelayerFunds()"));
+        vm.expectRevert(abi.encodeWithSelector(
+            InsufficientRelayerFunds.selector,
+            stack.budget - 1,
+            stack.budget
+        ));
         setup.target.coreRelayerFull.deliver{value: stack.budget - 1}(stack.package);
     }
 
@@ -2039,9 +2031,9 @@ contract WormholeRelayerTests is Test {
 
     struct SendStackTooDeep {
         uint256 payment;
-        IWormholeRelayer.Send deliveryRequest;
+        Send deliveryRequest;
         uint256 deliveryOverhead;
-        IWormholeRelayer.Send badSend;
+        Send badSend;
     }
 
     function testRevertSendMsgValueTooLow(
@@ -2064,14 +2056,14 @@ contract WormholeRelayerTests is Test {
 
         bytes memory emptyArray;
 
-        IWormholeRelayer.VaaKey[] memory vaaKeys =
+        VaaKey[] memory vaaKeys =
             vaaKeyArray(setup.sourceChainId, sequence, address(this));
 
-        IWormholeRelayer.Send memory deliveryRequest = IWormholeRelayer.Send({
-            targetChain: setup.targetChainId,
-            targetAddress: setup.source.coreRelayer.toWormholeFormat(address(setup.target.integration)),
-            refundChain: setup.targetChainId,
-            refundAddress: setup.source.coreRelayer.toWormholeFormat(
+        Send memory deliveryRequest = Send({
+            targetChainId: setup.targetChainId,
+            targetAddress: toWormholeFormat(address(setup.target.integration)),
+            refundChainId: setup.targetChainId,
+            refundAddress: toWormholeFormat(
                 address(setup.target.refundAddress)
                 ),
             maxTransactionFee: maxTransactionFee,
@@ -2085,7 +2077,11 @@ contract WormholeRelayerTests is Test {
 
         uint256 wormholeFee = setup.source.wormhole.messageFee();
 
-        vm.expectRevert(abi.encodeWithSignature("MsgValueTooLow()"));
+        vm.expectRevert(abi.encodeWithSelector(
+            InvalidMsgValue.selector,
+            maxTransactionFee + wormholeFee - 1,
+            maxTransactionFee + wormholeFee
+        ));
         setup.source.coreRelayer.send{value: maxTransactionFee + wormholeFee - 1}(deliveryRequest);
     }
 
@@ -2109,14 +2105,14 @@ contract WormholeRelayerTests is Test {
 
         bytes memory emptyArray;
 
-        IWormholeRelayer.VaaKey[] memory vaaKeys =
+        VaaKey[] memory vaaKeys =
             vaaKeyArray(setup.sourceChainId, sequence, address(this));
 
-        IWormholeRelayer.Send memory deliveryRequest = IWormholeRelayer.Send({
-            targetChain: setup.targetChainId,
-            targetAddress: setup.source.coreRelayer.toWormholeFormat(address(setup.target.integration)),
-            refundChain: setup.targetChainId,
-            refundAddress: setup.source.coreRelayer.toWormholeFormat(
+        Send memory deliveryRequest = Send({
+            targetChainId: setup.targetChainId,
+            targetAddress: toWormholeFormat(address(setup.target.integration)),
+            refundChainId: setup.targetChainId,
+            refundAddress: toWormholeFormat(
                 address(setup.target.refundAddress)
                 ),
             maxTransactionFee: maxTransactionFee,
@@ -2130,11 +2126,15 @@ contract WormholeRelayerTests is Test {
 
         uint256 wormholeFee = setup.source.wormhole.messageFee();
 
-        vm.expectRevert(abi.encodeWithSignature("MsgValueTooHigh()"));
+        vm.expectRevert(abi.encodeWithSelector(
+            InvalidMsgValue.selector,
+            maxTransactionFee + wormholeFee + 1,
+            maxTransactionFee + wormholeFee
+        ));
         setup.source.coreRelayer.send{value: maxTransactionFee + wormholeFee + 1}(deliveryRequest);
     }
 
-    function testRevertSendMaxTransactionFeeNotEnough(
+    function testRevertInsufficientMaxTransactionFee(
         GasParameters memory gasParams,
         FeeParameters memory feeParams,
         bytes memory message
@@ -2154,7 +2154,7 @@ contract WormholeRelayerTests is Test {
 
         uint256 wormholeFee = setup.source.wormhole.messageFee();
 
-        vm.expectRevert(abi.encodeWithSignature("MaxTransactionFeeNotEnough()"));
+        vm.expectRevert(abi.encodeWithSignature("InsufficientMaxTransactionFee()"));
         setup.source.integration.sendMessageWithRefundAddress{
             value: maxTransactionFee + 3 * wormholeFee
         }(
@@ -2166,7 +2166,7 @@ contract WormholeRelayerTests is Test {
         );
     }
 
-    function testRevertSendMsgValueMoreThanMaxAllowed(
+    function testRevertExceedsMaximumBudget(
         GasParameters memory gasParams,
         FeeParameters memory feeParams,
         bytes memory message
@@ -2186,16 +2186,46 @@ contract WormholeRelayerTests is Test {
 
         uint256 wormholeFee = setup.source.wormhole.messageFee();
 
-        vm.expectRevert(abi.encodeWithSignature("MsgValueMoreThanMaxAllowed()"));
-        setup.source.integration.sendMessageWithRefundAddress{
-            value: maxTransactionFee * 105 / 100 + 1 + 3 * wormholeFee
-        }(
-            message,
-            setup.targetChainId,
-            address(setup.target.integration),
-            address(setup.target.refundAddress),
-            bytes("")
-        );
+        //TODO not sure how to calculate two of the values of the expected revert data
+        // vm.expectRevert(abi.encodeWithSelector(
+        //     ExceedsMaximumBudget.selector,
+        //     //TODO
+        //     //TODO
+        //     address(setup.source.relayProvider),
+        //     setup.target.chainId
+        // ));
+        try
+            setup.source.integration.sendMessageWithRefundAddress{
+                value: maxTransactionFee * 105 / 100 + 1 + 3 * wormholeFee
+            }(
+                message,
+                setup.targetChainId,
+                address(setup.target.integration),
+                address(setup.target.refundAddress),
+                bytes("")
+            ) {
+            assertTrue(false);
+        }
+        catch (bytes memory revertData) {
+            //TODO try-catch workaround until the above is fixed
+            uint offset = 0;
+            bytes4 selector;
+            uint256 requested;
+            uint256 maximum;
+            address relayProvider;
+            uint16 chainId;
+            (selector, offset) = revertData.asBytes4(offset);
+            (requested, offset) = revertData.asUint256(offset);
+            (maximum, offset) = revertData.asUint256(offset);
+            offset += 12;
+            (relayProvider, offset) = revertData.asAddress(offset);
+            offset += 30;
+            (chainId, offset) = revertData.asUint16(offset);
+            assertEq(revertData.length, offset);
+            assertEq(selector, ExceedsMaximumBudget.selector);
+            assertEq(relayProvider, address(setup.source.relayProvider));
+            assertEq(chainId, setup.target.chainId);
+        }
     }
 
     ForwardTester forwardTester;
@@ -2208,7 +2238,7 @@ contract WormholeRelayerTests is Test {
 
     function executeForwardTest(
         ForwardTester.Action test,
-        DeliveryStatus desiredOutcome,
+        IWormholeRelayerDelivery.DeliveryStatus desiredOutcome,
         StandardSetupTwoChains memory setup,
         GasParameters memory gasParams,
         FeeParameters memory feeParams
@@ -2218,7 +2248,7 @@ contract WormholeRelayerTests is Test {
         forwardTester =
         new ForwardTester(address(setup.target.wormhole), address(setup.target.coreRelayer), address(setup.target.wormholeSimulator));
         vm.deal(address(forwardTester), type(uint256).max / 2);
-        stack.targetAddress = setup.source.coreRelayer.toWormholeFormat(address(forwardTester));
+        stack.targetAddress = toWormholeFormat(address(forwardTester));
         stack.payment = assumeAndGetForwardPayment(
             gasParams.targetGasLimit, 500000, setup, gasParams, feeParams
         );
@@ -2238,7 +2268,7 @@ contract WormholeRelayerTests is Test {
             200
         );
         genericRelayer.relay(setup.sourceChainId);
-        DeliveryStatus status = getDeliveryStatus();
+        IWormholeRelayerDelivery.DeliveryStatus status = getDeliveryStatus();
         assertTrue(status == desiredOutcome);
     }
 
@@ -2250,7 +2280,7 @@ contract WormholeRelayerTests is Test {
             standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
         executeForwardTest(
             ForwardTester.Action.WorksCorrectly,
-            DeliveryStatus.FORWARD_REQUEST_SUCCESS,
+            IWormholeRelayerDelivery.DeliveryStatus.FORWARD_REQUEST_SUCCESS,
             setup,
             gasParams,
             feeParams
@@ -2264,9 +2294,9 @@ contract WormholeRelayerTests is Test {
         StandardSetupTwoChains memory setup =
             standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
 
-        bytes32 targetAddress = setup.source.coreRelayer.toWormholeFormat(address(forwardTester));
+        bytes32 targetAddress = toWormholeFormat(address(forwardTester));
 
-        IWormholeRelayer.VaaKey[] memory msgInfoArray = vaaKeyArray(0, 0, address(this));
+        VaaKey[] memory msgInfoArray = vaaKeyArray(0, 0, address(this));
         vm.expectRevert(abi.encodeWithSignature("NoDeliveryInProgress()"));
         setup.source.coreRelayer.forward(
             setup.targetChainId,
@@ -2290,7 +2320,7 @@ contract WormholeRelayerTests is Test {
 
         executeForwardTest(
             ForwardTester.Action.ForwardRequestFromWrongAddress,
-            DeliveryStatus.RECEIVER_FAILURE,
+            IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE,
             setup,
             gasParams,
             feeParams
@@ -2305,7 +2335,7 @@ contract WormholeRelayerTests is Test {
             standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
         executeForwardTest(
             ForwardTester.Action.ReentrantCall,
-            DeliveryStatus.RECEIVER_FAILURE,
+            IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE,
             setup,
             gasParams,
             feeParams
@@ -2321,7 +2351,7 @@ contract WormholeRelayerTests is Test {
 
         executeForwardTest(
             ForwardTester.Action.MaxTransactionFeeNotEnough,
-            DeliveryStatus.RECEIVER_FAILURE,
+            IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE,
             setup,
             gasParams,
             feeParams
@@ -2341,7 +2371,7 @@ contract WormholeRelayerTests is Test {
 
         executeForwardTest(
             ForwardTester.Action.MsgValueTooMuch,
-            DeliveryStatus.RECEIVER_FAILURE,
+            IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE,
             setup,
             gasParams,
             feeParams
@@ -2365,7 +2395,11 @@ contract WormholeRelayerTests is Test {
 
         uint256 wormholeFee = setup.source.wormhole.messageFee();
 
-        vm.expectRevert(abi.encodeWithSignature("RelayProviderDoesNotSupportTargetChain()"));
+        vm.expectRevert(abi.encodeWithSelector(
+            RelayProviderDoesNotSupportTargetChain.selector,
+            address(setup.source.relayProvider),
+            uint16(32)
+        ));
         setup.source.integration.sendMessageWithRefundAddress{
             value: maxTransactionFee + uint256(3) * wormholeFee
         }(
@@ -2377,21 +2411,18 @@ contract WormholeRelayerTests is Test {
         );
     }
 
-    function testToAndFromWormholeFormat(bytes32 msg2, address msg1) public {
-        assertTrue(map[1].coreRelayer.fromWormholeFormat(msg2) == address(uint160(uint256(msg2))));
-        assertTrue(map[1].coreRelayer.toWormholeFormat(msg1) == bytes32(uint256(uint160(msg1))));
-        assertTrue(
-            map[1].coreRelayer.fromWormholeFormat(map[1].coreRelayer.toWormholeFormat(msg1)) == msg1
-        );
+    function testToAndFromWormholeFormat(address msg1) public {
+        assertTrue(toWormholeFormat(msg1) == bytes32(uint256(uint160(msg1))));
+        assertTrue(fromWormholeFormat(toWormholeFormat(msg1)) == msg1);
     }
 
     function testEncodeAndDecodeDeliveryInstruction(
-        IWormholeRelayerInternalStructs.ExecutionParameters memory executionParameters,
+        ExecutionParameters memory executionParameters,
         bytes memory payload
     ) public {
-        IWormholeRelayer.VaaKey[] memory vaaKeys = new IWormholeRelayer.VaaKey[](3);
-        vaaKeys[0] = IWormholeRelayer.VaaKey({
-            infoType: IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE,
+        VaaKey[] memory vaaKeys = new VaaKey[](3);
+        vaaKeys[0] = VaaKey({
+            infoType: VaaKeyType.EMITTER_SEQUENCE,
             chainId: 1,
             emitterAddress: bytes32(""),
             sequence: 23,
@@ -2400,12 +2431,12 @@ contract WormholeRelayerTests is Test {
         vaaKeys[1] = vaaKeys[0];
         vaaKeys[2] = vaaKeys[0];
 
-        IWormholeRelayerInternalStructs.DeliveryInstruction memory instruction =
-        IWormholeRelayerInternalStructs.DeliveryInstruction({
-            targetChain: 1,
+        DeliveryInstruction memory instruction =
+        DeliveryInstruction({
+            targetChainId: 1,
             targetAddress: bytes32(""),
             refundAddress: bytes32(""),
-            refundChain: 2,
+            refundChainId: 2,
             maximumRefundTarget: 123,
             receiverValueTarget: 456,
             sourceRelayProvider: bytes32(""),
@@ -2417,9 +2448,9 @@ contract WormholeRelayerTests is Test {
             payload: payload
         });
 
-        IWormholeRelayerInternalStructs.DeliveryInstruction memory newInstruction =
-        utilityCoreRelayer.decodeDeliveryInstruction(
-            utilityCoreRelayer.encodeDeliveryInstruction(instruction)
+        DeliveryInstruction memory newInstruction =
+        CoreRelayerSerde.decodeDeliveryInstruction(
+            CoreRelayerSerde.encode(instruction)
         );
 
         assertTrue(newInstruction.maximumRefundTarget == instruction.maximumRefundTarget);
@@ -2453,7 +2484,7 @@ contract WormholeRelayerTests is Test {
 
         bytes32 deliveryVaaHash = getDeliveryVAAHash(vm.getRecordedLogs());
 
-        IWormholeReceiver.DeliveryData memory deliveryData =
+        DeliveryData memory deliveryData =
             setup.target.integration.getDeliveryData();
 
         uint256 calculatedRefund = 0;
@@ -2467,10 +2498,9 @@ contract WormholeRelayerTests is Test {
             ) * feeParams.sourceNativePrice * 100 / (uint256(feeParams.targetNativePrice) * 105);
         }
         assertTrue(
-            setup.target.coreRelayer.fromWormholeFormat(deliveryData.sourceAddress)
-                == address(setup.source.integration)
+            fromWormholeFormat(deliveryData.sourceAddress) == address(setup.source.integration)
         );
-        assertTrue(deliveryData.sourceChain == setup.sourceChainId);
+        assertTrue(deliveryData.sourceChainId == setup.sourceChainId);
         assertTrue(deliveryData.maximumRefund == calculatedRefund);
         assertTrue(deliveryData.deliveryHash == deliveryVaaHash);
         assertTrue(keccak256(deliveryData.payload) == keccak256(payload));
@@ -2533,8 +2563,8 @@ contract WormholeRelayerTests is Test {
         uint256 quote =
             maxTransactionSource + receiverValueSource + 1 * setup.source.wormhole.messageFee();
 
-        IWormholeRelayer.VaaKey memory junkKey = IWormholeRelayer.VaaKey(
-            IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE, setup.sourceChainId, 0x0, 1, bytes32(0x0)
+        VaaKey memory junkKey = VaaKey(
+            VaaKeyType.EMITTER_SEQUENCE, setup.sourceChainId, 0x0, 1, bytes32(0x0)
         );
 
         setup.source.coreRelayer.resend{value: quote}(
@@ -2552,21 +2582,21 @@ contract WormholeRelayerTests is Test {
         );
 
         IWormhole.VM memory vm = setup.source.wormhole.parseVM(redeliveryVM);
-        IWormholeRelayerInternalStructs.RedeliveryInstruction memory ins =
-            setup.source.coreRelayerFull.decodeRedeliveryInstruction(vm.payload);
+        RedeliveryInstruction memory ins =
+            CoreRelayerSerde.decodeRedeliveryInstruction(vm.payload);
 
         assertTrue(ins.key.chainId == setup.sourceChainId, "VAA key has correct chainID");
         assertTrue(
-            ins.key.infoType == IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE, "VAA key type matches"
+            ins.key.infoType == VaaKeyType.EMITTER_SEQUENCE, "VAA key type matches"
         );
         assertTrue(
             ins.newReceiverValueTarget >= feeParams.receiverValueTarget,
             "new receiver value greater than the old value"
         );
-        assertTrue(ins.targetChain == setup.targetChainId, "target chain matches");
+        assertTrue(ins.targetChainId == setup.targetChainId, "target chain matches");
         assertTrue(
             ins.sourceRelayProvider
-                == setup.source.coreRelayer.toWormholeFormat(address(setup.source.relayProvider)),
+                == toWormholeFormat(address(setup.source.relayProvider)),
             "specified relay provider is listed"
         );
         assertTrue(
@@ -2601,18 +2631,18 @@ contract WormholeRelayerTests is Test {
 
         prepareDeliveryStack(stack, setup);
 
-        IDelivery.DeliveryOverride memory deliveryOverride = IDelivery.DeliveryOverride(
+        DeliveryOverride memory deliveryOverride = DeliveryOverride(
             stack.instruction.executionParameters.gasLimit,
             stack.instruction.maximumRefundTarget,
             stack.instruction.receiverValueTarget,
             stack.deliveryVaaHash //really redeliveryHash
         );
 
-        stack.package = IDelivery.TargetDeliveryParameters({
+        stack.package = TargetDeliveryParameters({
             encodedVMs: stack.encodedVMs,
             encodedDeliveryVAA: stack.deliveryVM,
             relayerRefundAddress: payable(setup.target.relayer),
-            overrides: setup.source.coreRelayerFull.encodeDeliveryOverride(deliveryOverride)
+            overrides: CoreRelayerSerde.encode(deliveryOverride)
         });
 
         setup.target.coreRelayerFull.deliver{value: stack.budget}(stack.package);
@@ -2644,18 +2674,18 @@ contract WormholeRelayerTests is Test {
 
         prepareDeliveryStack(stack, setup);
 
-        IDelivery.DeliveryOverride memory deliveryOverride = IDelivery.DeliveryOverride(
+        DeliveryOverride memory deliveryOverride = DeliveryOverride(
             stack.instruction.executionParameters.gasLimit - 1,
             stack.instruction.maximumRefundTarget,
             stack.instruction.receiverValueTarget,
             stack.deliveryVaaHash //really redeliveryHash
         );
 
-        stack.package = IDelivery.TargetDeliveryParameters({
+        stack.package = TargetDeliveryParameters({
             encodedVMs: stack.encodedVMs,
             encodedDeliveryVAA: stack.deliveryVM,
             relayerRefundAddress: payable(setup.target.relayer),
-            overrides: setup.source.coreRelayerFull.encodeDeliveryOverride(deliveryOverride)
+            overrides: CoreRelayerSerde.encode(deliveryOverride)
         });
 
         vm.expectRevert(abi.encodeWithSignature("InvalidOverrideGasLimit()"));
@@ -2695,18 +2725,18 @@ contract WormholeRelayerTests is Test {
 
         prepareDeliveryStack(stack, setup);
 
-        IDelivery.DeliveryOverride memory deliveryOverride = IDelivery.DeliveryOverride(
+        DeliveryOverride memory deliveryOverride = DeliveryOverride(
             stack.instruction.executionParameters.gasLimit,
             stack.instruction.maximumRefundTarget,
             stack.instruction.receiverValueTarget - 1,
             stack.deliveryVaaHash //really redeliveryHash
         );
 
-        stack.package = IDelivery.TargetDeliveryParameters({
+        stack.package = TargetDeliveryParameters({
             encodedVMs: stack.encodedVMs,
             encodedDeliveryVAA: stack.deliveryVM,
             relayerRefundAddress: payable(setup.target.relayer),
-            overrides: setup.source.coreRelayerFull.encodeDeliveryOverride(deliveryOverride)
+            overrides: CoreRelayerSerde.encode(deliveryOverride)
         });
 
         vm.expectRevert(abi.encodeWithSignature("InvalidOverrideReceiverValue()"));
@@ -2738,18 +2768,18 @@ contract WormholeRelayerTests is Test {
 
         prepareDeliveryStack(stack, setup);
 
-        IDelivery.DeliveryOverride memory deliveryOverride = IDelivery.DeliveryOverride(
+        DeliveryOverride memory deliveryOverride = DeliveryOverride(
             stack.instruction.executionParameters.gasLimit,
             stack.instruction.maximumRefundTarget - 1,
             stack.instruction.receiverValueTarget,
             stack.deliveryVaaHash //really redeliveryHash
         );
 
-        stack.package = IDelivery.TargetDeliveryParameters({
+        stack.package = TargetDeliveryParameters({
             encodedVMs: stack.encodedVMs,
             encodedDeliveryVAA: stack.deliveryVM,
             relayerRefundAddress: payable(setup.target.relayer),
-            overrides: setup.source.coreRelayerFull.encodeDeliveryOverride(deliveryOverride)
+            overrides: CoreRelayerSerde.encode(deliveryOverride)
         });
 
         vm.expectRevert(abi.encodeWithSignature("InvalidOverrideMaximumRefund()"));
@@ -2786,8 +2816,8 @@ contract WormholeRelayerTests is Test {
         assertTrue(keccak256(setup.target.integration.getMessage()) != keccak256(message));
 
         //create a VAA key for the original message
-        IWormholeRelayer.VaaKey memory vaaKey = IWormholeRelayer.VaaKey(
-            IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE,
+        VaaKey memory vaaKey = VaaKey(
+            VaaKeyType.EMITTER_SEQUENCE,
             setup.sourceChainId,
             bytes32(uint256(uint160(address(setup.source.integration)))),
             sequence,
@@ -2842,8 +2872,8 @@ contract WormholeRelayerTests is Test {
         assertTrue(keccak256(setup.target.integration.getMessage()) != keccak256(message));
 
         //create a VAA key for the original message
-        IWormholeRelayer.VaaKey memory vaaKey = IWormholeRelayer.VaaKey(
-            IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE,
+        VaaKey memory vaaKey = VaaKey(
+            VaaKeyType.EMITTER_SEQUENCE,
             setup.sourceChainId,
             bytes32(uint256(uint160(address(setup.source.integration)))),
             sequence,
@@ -2870,7 +2900,7 @@ contract WormholeRelayerTests is Test {
             assertTrue(keccak256(setup.target.integration.getMessage()) != keccak256(message));
 
             Vm.Log[] memory logs = vm.getRecordedLogs();
-            assertTrue(getDeliveryStatus(logs[logs.length - 1]) == DeliveryStatus.RECEIVER_FAILURE);
+            assertTrue(getDeliveryStatus(logs[logs.length - 1]) == IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE);
         }
 
         newPayment = setup.source.coreRelayer.quoteGas(
@@ -2924,10 +2954,10 @@ contract WormholeRelayerTests is Test {
 
         genericRelayer.relay(1);
         assertTrue(keccak256(target.integration.getMessage()) != keccak256(bytes("Hello!")));
-        assertTrue(getDeliveryStatus() == DeliveryStatus.RECEIVER_FAILURE);
+        assertTrue(getDeliveryStatus() == IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE);
 
-        IWormholeRelayer.VaaKey memory vaaKey = IWormholeRelayer.VaaKey(
-            IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE,
+        VaaKey memory vaaKey = VaaKey(
+            VaaKeyType.EMITTER_SEQUENCE,
             1,
             bytes32(uint256(uint160(address(source.integration)))),
             sequence,
@@ -2956,7 +2986,7 @@ contract WormholeRelayerTests is Test {
         genericRelayer.relay(1);
 
         assertTrue(keccak256(target.integration.getMessage()) == keccak256(bytes("Hello!")));
-        IWormholeReceiver.DeliveryData memory deliveryData = target.integration.getDeliveryData();
+        DeliveryData memory deliveryData = target.integration.getDeliveryData();
 
         test.refundAddressAmount = target.refundAddress.balance - test.refundAddressBalance;
         test.rewardAddressAmount = source.rewardAddress.balance - test.rewardAddressBalance;

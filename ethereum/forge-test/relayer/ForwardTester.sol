@@ -25,7 +25,7 @@ contract ForwardTester is IWormholeReceiver {
     constructor(address _wormhole, address _wormholeRelayer, address _wormholeSimulator) {
         wormhole = IWormhole(_wormhole);
         wormholeRelayer = IWormholeRelayer(_wormholeRelayer);
-        genericRelayer = new MockGenericRelayer(_wormhole, _wormholeSimulator, _wormholeRelayer);
+        genericRelayer = new MockGenericRelayer(_wormhole, _wormholeSimulator);
         genericRelayer.setWormholeRelayerContract(wormhole.chainId(), address(wormholeRelayer));
     }
 
@@ -40,7 +40,7 @@ contract ForwardTester is IWormholeReceiver {
     }
 
     function receiveWormholeMessages(
-        IWormholeReceiver.DeliveryData memory,
+        DeliveryData memory,
         bytes[] memory vaas
     ) public payable override {
         (IWormhole.VM memory vaa, bool valid, string memory reason) =
@@ -50,7 +50,7 @@ contract ForwardTester is IWormholeReceiver {
         bytes memory payload = vaa.payload;
         Action action = Action(payload.toUint8(0));
 
-        IWormholeRelayer.VaaKey[] memory empty = new IWormholeRelayer.VaaKey[](0);
+        VaaKey[] memory empty = new VaaKey[](0);
 
         if (action == Action.MultipleForwardsRequested) {
             uint256 maxTransactionFee = wormholeRelayer.quoteGas(
@@ -177,7 +177,7 @@ contract DummyContract {
         uint256 maxTransactionFee,
         uint256 receiverValue,
         bytes memory payload,
-        IWormholeRelayer.VaaKey[] memory messages
+        VaaKey[] memory messages
     ) public {
         wormholeRelayer.forward(
             chainId,
