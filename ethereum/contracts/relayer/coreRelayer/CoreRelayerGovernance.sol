@@ -5,7 +5,8 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 
 import {IWormhole} from "../../interfaces/IWormhole.sol";
 import {InvalidPayloadLength} from "../../interfaces/relayer/IWormholeRelayer.sol";
-import {BytesParsing, fromWormholeFormat} from "./Utils.sol";
+import {fromWormholeFormat} from "./Utils.sol";
+import {BytesParsing} from "./BytesParsing.sol";
 import {
   getGovernanceState,
   getRegisteredCoreRelayersState,

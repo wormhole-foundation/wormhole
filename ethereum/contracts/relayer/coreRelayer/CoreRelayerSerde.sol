@@ -14,7 +14,7 @@ import {
   RedeliveryInstruction,
   DeliveryOverride
 } from "../../interfaces/relayer/IWormholeRelayer.sol";
-import {BytesParsing} from "./Utils.sol";
+import {BytesParsing} from "./BytesParsing.sol";
 
 library CoreRelayerSerde {
   using BytesParsing for bytes;

@@ -28,7 +28,8 @@ import {
 import {DeliveryData, IWormholeReceiver} from "../../interfaces/relayer/IWormholeReceiver.sol";
 import {IRelayProvider} from "../../interfaces/relayer/IRelayProvider.sol";
 
-import {pay, min, toWormholeFormat, fromWormholeFormat, BytesParsing} from "./Utils.sol";
+import {pay, min, toWormholeFormat, fromWormholeFormat} from "./Utils.sol";
+import {BytesParsing} from "./BytesParsing.sol";
 import {CoreRelayerSerde} from "./CoreRelayerSerde.sol";
 import {ForwardInstruction} from "./CoreRelayerStorage.sol";
 import {CoreRelayerBase} from "./CoreRelayerBase.sol";
