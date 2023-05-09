@@ -8,13 +8,12 @@ pragma solidity ^0.8.0;
 //TODO AMO: 132 because presumably 4 (function selector) + 4*32 (4 32-byte words)
 uint256 constant RETURNDATA_TRUNCATION_THRESHOLD = 132;
 
+// msg.value was not equal to (one wormhole message fee) + maxTransactionFee + receiverValue
 error InvalidMsgValue(uint256 msgValue, uint256 totalFee);
-//Specifically, (msg.value) + (any leftover funds if this is a forward) is less than
-//  (maxTransactionFee + receiverValue), summed over all of your requests if this is a
-//  multichainSend/multichainForward
+// Max transaction fee is not enough to pay for 1 unit of gas
 error InsufficientMaxTransactionFee(); 
 //(maxTransactionFee, converted to target chain currency) + (receiverValue, converted to target
-//  chain currency) is greater than what your chosen relay provider allows
+//  chain currency) is greater than what your chosen relay provider allows as a maximum budget
 error ExceedsMaximumBudget(
   uint256 requested,
   uint256 maximum,
