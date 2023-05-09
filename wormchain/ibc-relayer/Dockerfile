@@ -1,4 +1,4 @@
-FROM docker.io/golang:1.19.0@sha256:4c00329e17be6fedd8bd4412df454a205348da00f9e0e5d763380a29eb096b75
+FROM docker.io/golang:1.19.9@sha256:86901bd215ca2b33bdef68f70b999140252169bb55883bb29347334fa00b5b62
 
 #used for a readiness probe
 RUN apt-get update

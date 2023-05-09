@@ -36,8 +36,8 @@ func TestChainDailyLimitRange(t *testing.T) {
 	/* Assuming that a governed chains should always be more than zero and less than 50,000,001 */
 	for _, chainConfigEntry := range chainConfigEntries {
 		t.Run(chainConfigEntry.emitterChainID.String(), func(t *testing.T) {
-			assert.Greater(t, chainConfigEntry.dailyLimit, uint64(min_daily_limit))
-			assert.Less(t, chainConfigEntry.dailyLimit, uint64(max_daily_limit))
+			assert.Greater(t, chainConfigEntry.dailyLimit, min_daily_limit)
+			assert.Less(t, chainConfigEntry.dailyLimit, max_daily_limit)
 		})
 	}
 }

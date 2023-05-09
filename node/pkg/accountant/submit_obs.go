@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
-	"github.com/certusone/wormhole/node/pkg/wormconn"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
@@ -296,7 +295,7 @@ func SubmitObservationsToContract(
 	gk *ecdsa.PrivateKey,
 	gsIndex uint32,
 	guardianIndex uint32,
-	wormchainConn *wormconn.ClientConn,
+	wormchainConn AccountantWormchainConn,
 	contract string,
 	msgs []*common.MessagePublication,
 ) (*sdktx.BroadcastTxResponse, error) {
@@ -409,7 +408,7 @@ func GetObservationResponses(txResp *sdktx.BroadcastTxResponse) (map[string]Obse
 	}
 
 	var msg sdktypes.TxMsgData
-	if err := msg.Unmarshal([]byte(data)); err != nil {
+	if err := msg.Unmarshal(data); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal data: %w", err)
 	}
 

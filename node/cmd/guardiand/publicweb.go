@@ -24,7 +24,7 @@ func allowCORSWrapper(h http.Handler) http.Handler {
 		if origin := r.Header.Get("Origin"); origin != "" {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			if r.Method == "OPTIONS" && r.Header.Get("Access-Control-Request-Method") != "" {
-				corsPreflightHandler(w, r)
+				corsPreflightHandler(w)
 				return
 			}
 		}
@@ -32,7 +32,7 @@ func allowCORSWrapper(h http.Handler) http.Handler {
 	})
 }
 
-func corsPreflightHandler(w http.ResponseWriter, r *http.Request) {
+func corsPreflightHandler(w http.ResponseWriter) {
 	headers := []string{
 		"content-type",
 		"accept",
@@ -55,7 +55,7 @@ func publicwebServiceRunnable(
 	tlsHostname string,
 	tlsProd bool,
 	tlsCacheDir string,
-) (supervisor.Runnable, error) {
+) supervisor.Runnable {
 	return func(ctx context.Context) error {
 		conn, err := grpc.DialContext(
 			ctx,
@@ -162,5 +162,5 @@ func publicwebServiceRunnable(
 		case err := <-errC:
 			return err
 		}
-	}, nil
+	}
 }

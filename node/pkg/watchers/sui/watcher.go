@@ -87,6 +87,15 @@ type (
 		} `json:"params"`
 	}
 
+	SuiTxnQueryError struct {
+		Jsonrpc string `json:"jsonrpc"`
+		Error   struct {
+			Code    int     `json:"code"`
+			Message *string `json:"message"`
+		} `json:"error"`
+		ID int `json:"id"`
+	}
+
 	SuiTxnQuery struct {
 		Jsonrpc string      `json:"jsonrpc"`
 		Result  []SuiResult `json:"result"`
@@ -230,7 +239,7 @@ func (e *Watcher) inspectBody(logger *zap.Logger, body SuiResult) error {
 		EmitterChain:     vaa.ChainIDSui,
 		EmitterAddress:   emitter,
 		Payload:          fields.Payload,
-		ConsistencyLevel: uint8(*fields.ConsistencyLevel),
+		ConsistencyLevel: *fields.ConsistencyLevel,
 	}
 
 	suiMessagesConfirmed.Inc()
@@ -364,7 +373,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				return ctx.Err()
 
 			case <-timer.C:
-				resp, err := http.Post(e.suiRPC, "application/json", strings.NewReader(`{"jsonrpc":"2.0", "id": 1, "method": "sui_getLatestCheckpointSequenceNumber", "params": []}`))
+				resp, err := http.Post(e.suiRPC, "application/json", strings.NewReader(`{"jsonrpc":"2.0", "id": 1, "method": "sui_getLatestCheckpointSequenceNumber", "params": []}`)) //nolint:noctx // TODO FIXME we should propagate context with Deadline here.
 				if err != nil {
 					logger.Error("sui_getLatestCheckpointSequenceNumber failed", zap.Error(err))
 					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
@@ -395,7 +404,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					logger.Debug("sui_getLatestCheckpointSequenceNumber", zap.String("result", res.Result))
 
 					p2p.DefaultRegistry.SetNetworkStats(vaa.ChainIDSui, &gossipv1.Heartbeat_Network{
-						Height:          int64(height),
+						Height:          height,
 						ContractAddress: e.suiMoveEventType,
 					})
 				}
@@ -419,9 +428,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 				tx58 := base58.Encode(r.TxHash)
 
 				buf := fmt.Sprintf(`{"jsonrpc":"2.0", "id": 1, "method": "sui_getEvents", "params": ["%s"]}`, tx58)
-				logger.Error(buf)
 
-				resp, err := http.Post(e.suiRPC, "application/json", strings.NewReader(buf))
+				resp, err := http.Post(e.suiRPC, "application/json", strings.NewReader(buf)) //nolint:noctx // TODO FIXME we should propagate context with Deadline here.
 				if err != nil {
 					logger.Error("getEvents API failed", zap.String("suiRPC", e.suiRPC), zap.Error(err))
 					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
@@ -439,8 +447,19 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				logger.Debug("receive", zap.String("body", string(body)))
 
-				if strings.Contains(string(body), "error") {
-					logger.Error("Failed to get events for re-observation request", zap.String("Result", string(body)))
+				// Do we have an error?
+				var err_res SuiTxnQueryError
+				err = json.Unmarshal(body, &err_res)
+				if err != nil {
+					logger.Error("Failed to unmarshal event error message", zap.String("Result", string(body)))
+					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
+					return err
+				}
+
+				if err_res.Error.Message != nil {
+					logger.Error("Failed to get events for re-observation request, detected error", zap.String("Result", string(body)))
+					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDSui, 1)
+					// Don't need to kill the watcher on this error. So, just continue.
 					continue
 				}
 				var res SuiTxnQuery

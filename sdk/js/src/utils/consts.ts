@@ -67,7 +67,12 @@ export type EVMChainName =
  */
 export type SolanaChainName = "solana" | "pythnet";
 
-export type CosmWasmChainName = "terra" | "terra2" | "injective" | "xpla" | "sei";
+export type CosmWasmChainName =
+  | "terra"
+  | "terra2"
+  | "injective"
+  | "xpla"
+  | "sei";
 export type TerraChainName = "terra" | "terra2";
 
 export type Contracts = {
@@ -181,8 +186,9 @@ const MAINNET = {
       "0x1bdffae984043833ed7fe223f7af7a3f8902d04129b14f801823e64827da7130",
   },
   sui: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "0xaeab97f96cf9877fee2883315d459552b2b921edc16d7ceac6eab944dd88919c",
+    token_bridge:
+      "0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9",
     nft_bridge: undefined,
   },
   moonbeam: {
@@ -247,7 +253,8 @@ const MAINNET = {
     token_bridge: undefined,
     nft_bridge: undefined,
   },
-  sepolia: { // This is testnet only.
+  sepolia: {
+    // This is testnet only.
     core: undefined,
     token_bridge: undefined,
     nft_bridge: undefined,
@@ -352,8 +359,9 @@ const TESTNET = {
     nft_bridge: undefined,
   },
   sui: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "0x69ae41bdef4770895eb4e7aaefee5e4673acc08f6917b4856cf55549c4573ca8",
+    token_bridge:
+      "0x32422cb2f929b6a4e3f81b4791ea11ac2af896b310f3d9442aa1fe924ce0bab4",
     nft_bridge: undefined,
   },
   moonbeam: {
@@ -410,7 +418,8 @@ const TESTNET = {
   },
   sei: {
     core: "sei1nna9mzp274djrgzhzkac2gvm3j27l402s4xzr08chq57pjsupqnqaj0d5s",
-    token_bridge: "sei1jv5xw094mclanxt5emammy875qelf3v62u4tl4lp5nhte3w3s9ts9w9az2",
+    token_bridge:
+      "sei1jv5xw094mclanxt5emammy875qelf3v62u4tl4lp5nhte3w3s9ts9w9az2",
     nft_bridge: undefined,
   },
   wormchain: {
@@ -524,8 +533,9 @@ const DEVNET = {
       "0x46da3d4c569388af61f951bdd1153f4c875f90c2991f6b2d0a38e2161a40852c",
   },
   sui: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "0x5a5160ca3c2037f4b4051344096ef7a48ebf4400b3f385e57ea90e1628a8bde0", // wormhole module State object ID
+    token_bridge:
+      "0xa6a3da85bbe05da5bfd953708d56f1a3a023e7fb58e5a824a3d4de3791e8f690", // token_bridge module State object ID
     nft_bridge: undefined,
   },
   moonbeam: {

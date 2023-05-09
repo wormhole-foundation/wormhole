@@ -155,11 +155,23 @@ func (gov *ChainGovernor) queryCoinGecko() error {
 		cge, exists := gov.tokensByCoinGeckoId[coinGeckoId]
 		if exists {
 			// If a price is not set in CoinGecko, they return an empty entry. Treat that as a zero price.
-			price := float64(0)
-			m := data.(map[string]interface{})
+			var price float64
+			m, ok := data.(map[string]interface{})
+			if !ok {
+				gov.logger.Error("failed to parse CoinGecko response, reverting to configured price for this token", zap.String("coinGeckoId", coinGeckoId))
+				// By continuing, we leave this one in the local map so the price will get reverted below.
+				continue
+			}
 			if len(m) != 0 {
 				var ok bool
-				price, ok = m["usd"].(float64)
+				price_, ok := m["usd"]
+				if !ok {
+					gov.logger.Error("failed to parse CoinGecko response, reverting to configured price for this token", zap.String("coinGeckoId", coinGeckoId))
+					// By continuing, we leave this one in the local map so the price will get reverted below.
+					continue
+				}
+
+				price, ok = price_.(float64)
 				if !ok {
 					gov.logger.Error("failed to parse CoinGecko response, reverting to configured price for this token", zap.String("coinGeckoId", coinGeckoId))
 					// By continuing, we leave this one in the local map so the price will get reverted below.
@@ -205,7 +217,7 @@ func (gov *ChainGovernor) queryCoinGeckoChunk(query string) (map[string]interfac
 	var result map[string]interface{}
 
 	gov.logger.Debug("executing CoinGecko query", zap.String("query", query))
-	response, err := http.Get(query) //nolint:gosec
+	response, err := http.Get(query) //nolint:gosec,noctx
 	if err != nil {
 		return result, fmt.Errorf("failed to query CoinGecko: %w", err)
 	}

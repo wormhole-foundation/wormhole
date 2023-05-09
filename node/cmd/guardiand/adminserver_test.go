@@ -1,3 +1,4 @@
+//nolint:unparam
 package guardiand
 
 import (

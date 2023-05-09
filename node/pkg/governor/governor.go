@@ -53,7 +53,7 @@ const (
 )
 
 // WARNING: Change me in ./node/db as well
-const maxEnqueuedTime = time.Duration(time.Hour * 24)
+const maxEnqueuedTime = time.Hour * 24
 
 type (
 	// Layout of the config data for each token
@@ -117,14 +117,14 @@ func (ce *chainEntry) isBigTransfer(value uint64) bool {
 }
 
 type ChainGovernor struct {
-	db                    db.GovernorDB
+	db                    db.GovernorDB // protected by `mutex`
 	logger                *zap.Logger
 	mutex                 sync.Mutex
-	tokens                map[tokenKey]*tokenEntry
-	tokensByCoinGeckoId   map[string][]*tokenEntry
-	chains                map[vaa.ChainID]*chainEntry
-	msgsSeen              map[string]bool // Key is hash, payload is consts transferComplete and transferEnqueued.
-	msgsToPublish         []*common.MessagePublication
+	tokens                map[tokenKey]*tokenEntry     // protected by `mutex`
+	tokensByCoinGeckoId   map[string][]*tokenEntry     // protected by `mutex`
+	chains                map[vaa.ChainID]*chainEntry  // protected by `mutex`
+	msgsSeen              map[string]bool              // protected by `mutex` // Key is hash, payload is consts transferComplete and transferEnqueued.
+	msgsToPublish         []*common.MessagePublication // protected by `mutex`
 	dayLengthInMinutes    int
 	coinGeckoQueries      []string
 	env                   int
@@ -398,6 +398,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 
 	if enqueueIt {
 		dbData := db.PendingTransfer{ReleaseTime: releaseTime, Msg: *msg}
+		gov.logger.Info("writing pending transfer to database", zap.String("msgId", msg.MessageIDString()))
 		err = gov.db.StorePendingMsg(&dbData)
 		if err != nil {
 			gov.logger.Error("failed to store pending vaa",
@@ -408,6 +409,7 @@ func (gov *ChainGovernor) ProcessMsgForTime(msg *common.MessagePublication, now 
 			)
 			return false, err
 		}
+		gov.logger.Info("wrote pending transfer to database", zap.String("msgId", msg.MessageIDString()))
 
 		ce.pending = append(ce.pending, &pendingEntry{token: token, amount: payload.Amount, hash: hash, dbData: dbData})
 		gov.msgsSeen[hash] = transferEnqueued

@@ -1,4 +1,10 @@
 import {
+  JsonRpcProvider,
+  SUI_CLOCK_OBJECT_ID,
+  SUI_TYPE_ARG,
+  TransactionBlock,
+} from "@mysten/sui.js";
+import {
   ACCOUNT_SIZE,
   createCloseAccountInstruction,
   createInitializeAccountInstruction,
@@ -12,14 +18,13 @@ import {
   Keypair,
   PublicKey,
   PublicKeyInitData,
-  Transaction as SolanaTransaction,
   SystemProgram,
+  Transaction as SolanaTransaction,
 } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
 import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
 import {
   Algodv2,
-  Transaction as AlgorandTransaction,
   bigIntToBytes,
   getApplicationAddress,
   makeApplicationCallTxnFromObject,
@@ -27,6 +32,7 @@ import {
   makePaymentTxnWithSuggestedParamsFromObject,
   OnApplicationComplete,
   SuggestedParams,
+  Transaction as AlgorandTransaction,
 } from "algosdk";
 import { Types } from "aptos";
 import BN from "bn.js";
@@ -57,12 +63,14 @@ import {
   createTransferWrappedInstruction,
   createTransferWrappedWithPayloadInstruction,
 } from "../solana/tokenBridge";
+import { getPackageId, isSameType } from "../sui";
+import { SuiCoinObject } from "../sui/types";
 import { isNativeDenom } from "../terra";
 import {
   callFunctionNear,
-  CHAIN_ID_SOLANA,
   ChainId,
   ChainName,
+  CHAIN_ID_SOLANA,
   coalesceChainId,
   createNonce,
   hexToUint8Array,
@@ -912,4 +920,91 @@ export function transferFromAptos(
     relayerFee,
     createNonce().readUInt32LE(0)
   );
+}
+
+export async function transferFromSui(
+  provider: JsonRpcProvider,
+  coreBridgeStateObjectId: string,
+  tokenBridgeStateObjectId: string,
+  coins: SuiCoinObject[],
+  coinType: string,
+  amount: bigint,
+  recipientChain: ChainId | ChainName,
+  recipient: Uint8Array,
+  feeAmount: bigint = BigInt(0),
+  relayerFee: bigint = BigInt(0),
+  payload: Uint8Array | null = null
+) {
+  if (payload !== null) {
+    throw new Error("Sui transfer with payload not implemented");
+  }
+  const [primaryCoin, ...mergeCoins] = coins.filter((coin) =>
+    isSameType(coin.coinType, coinType)
+  );
+  if (primaryCoin === undefined) {
+    throw new Error(
+      `Coins array doesn't contain any coins of type ${coinType}`
+    );
+  }
+  const coreBridgePackageId = await getPackageId(
+    provider,
+    coreBridgeStateObjectId
+  );
+  const tokenBridgePackageId = await getPackageId(
+    provider,
+    tokenBridgeStateObjectId
+  );
+  const tx = new TransactionBlock();
+  const [transferCoin] = (() => {
+    if (coinType === SUI_TYPE_ARG) {
+      return tx.splitCoins(tx.gas, [tx.pure(amount)]);
+    } else {
+      const primaryCoinInput = tx.object(primaryCoin.coinObjectId);
+      if (mergeCoins.length) {
+        tx.mergeCoins(
+          primaryCoinInput,
+          mergeCoins.map((coin) => tx.object(coin.coinObjectId))
+        );
+      }
+      return tx.splitCoins(primaryCoinInput, [tx.pure(amount)]);
+    }
+  })();
+  const [feeCoin] = tx.splitCoins(tx.gas, [tx.pure(feeAmount)]);
+  const [assetInfo] = tx.moveCall({
+    target: `${tokenBridgePackageId}::state::verified_asset`,
+    arguments: [tx.object(tokenBridgeStateObjectId)],
+    typeArguments: [coinType],
+  });
+  const [transferTicket, dust] = tx.moveCall({
+    target: `${tokenBridgePackageId}::transfer_tokens::prepare_transfer`,
+    arguments: [
+      assetInfo,
+      transferCoin,
+      tx.pure(coalesceChainId(recipientChain)),
+      tx.pure([...recipient]),
+      tx.pure(relayerFee),
+      tx.pure(createNonce().readUInt32LE()),
+    ],
+    typeArguments: [coinType],
+  });
+  tx.moveCall({
+    target: `${tokenBridgePackageId}::coin_utils::return_nonzero`,
+    arguments: [dust],
+    typeArguments: [coinType],
+  });
+  const [messageTicket] = tx.moveCall({
+    target: `${tokenBridgePackageId}::transfer_tokens::transfer_tokens`,
+    arguments: [tx.object(tokenBridgeStateObjectId), transferTicket],
+    typeArguments: [coinType],
+  });
+  tx.moveCall({
+    target: `${coreBridgePackageId}::publish_message::publish_message`,
+    arguments: [
+      tx.object(coreBridgeStateObjectId),
+      feeCoin,
+      messageTicket,
+      tx.object(SUI_CLOCK_OBJECT_ID),
+    ],
+  });
+  return tx;
 }

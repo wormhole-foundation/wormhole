@@ -1,14 +1,18 @@
 -include ../../Makefile.help
 
-.PHONY: artifacts
-artifacts: build
+VERSION = $(shell grep -Po "version = \"\K[^\"]*" Move.toml | sed "s/\./_/g")
 
-.PHONY: build
+.PHONY: clean
+clean:
+	rm -rf build
+
+.PHONY: check
 ## Build contract
-build:
-	sui move build
+check:
+	sui move build -d
 
 .PHONY: test
 ## Run tests
-test:
-	sui move test
+test: check
+	grep "public(friend) fun current_version(): V__${VERSION} {" sources/version_control.move
+	sui move test -t 1

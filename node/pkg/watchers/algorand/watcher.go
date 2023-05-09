@@ -118,7 +118,7 @@ func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.
 
 		observation := &common.MessagePublication{
 			TxHash:           txHash,
-			Timestamp:        time.Unix(int64(b.TimeStamp), 0),
+			Timestamp:        time.Unix(b.TimeStamp, 0),
 			Nonce:            uint32(binary.BigEndian.Uint64(at.ApplicationArgs[2])),
 			Sequence:         binary.BigEndian.Uint64([]byte(ed.Logs[0])),
 			EmitterChain:     vaa.ChainIDAlgorand,
@@ -171,7 +171,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 		return err
 	}
 
-	status, err := algodClient.StatusAfterBlock(0).Do(context.Background())
+	status, err := algodClient.StatusAfterBlock(0).Do(ctx)
 	if err != nil {
 		logger.Error("StatusAfterBlock", zap.Error(err))
 		p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
@@ -195,7 +195,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				zap.String("tx_hash", hex.EncodeToString(r.TxHash)),
 				zap.String("base32_tx_hash", base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(r.TxHash)))
 
-			result, err := indexerClient.SearchForTransactions().TXID(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(r.TxHash)).Do(context.Background())
+			result, err := indexerClient.SearchForTransactions().TXID(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(r.TxHash)).Do(ctx)
 			if err != nil {
 				logger.Error("SearchForTransactions", zap.Error(err))
 				p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)
@@ -204,7 +204,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			for _, t := range result.Transactions {
 				r := t.ConfirmedRound
 
-				block, err := algodClient.Block(r).Do(context.Background())
+				block, err := algodClient.Block(r).Do(ctx)
 				if err != nil {
 					logger.Error("SearchForTransactions", zap.Error(err))
 					p2p.DefaultRegistry.AddErrorCount(vaa.ChainIDAlgorand, 1)

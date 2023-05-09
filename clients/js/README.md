@@ -17,12 +17,15 @@ private keys, based on `.env.sample` in this folder.
 worm [command]
 
 Commands:
+  worm edit-vaa                                   Allows editing / creating / signing VAAs
   worm generate                                   generate VAAs (devnet and testnet
                                                   only)
   worm parse <vaa>                                Parse a VAA (can be in either hex or
                                                   base64 format)
   worm recover <digest> <signature>               Recover an address from a signature
   worm info contract <network> <chain> <module>   Print contract address
+  worm info convert-to-emitter <chain> <address>  Prints address in emitter address form based
+                                                  on chain encoding
   worm info rpc <network> <chain>                 Print RPC address
   worm info chain-id <chain>                      Print the wormhole chain ID integer
                                                   associated with the specified chain name
@@ -31,6 +34,7 @@ Commands:
   worm near                                       NEAR utilities
   worm submit <vaa>                               Execute a VAA
   worm update                                     Update this tool by rebuilding it
+  worm verify-vaa --vaa <vaa> --network <network> Verifies a VAA by calling into the core contract
 
 Options:
   --help     Show help                                                 [boolean]

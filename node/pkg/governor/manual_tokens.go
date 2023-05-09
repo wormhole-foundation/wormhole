@@ -13,5 +13,6 @@ func manualTokenList() []tokenConfigEntry {
 		tokenConfigEntry{chain: 13, addr: "0000000000000000000000005c74070fdea071359b86082bd9f9b3deaafbe32b", symbol: "KDAI", coinGeckoId: "dai", decimals: 8, price: 1.00},
 		tokenConfigEntry{chain: 15, addr: "0000000000000000000000000000000000000000000000000000000000000000", symbol: "NEAR", coinGeckoId: "near", decimals: 8, price: 3.85},
 		tokenConfigEntry{chain: 19, addr: "017038850bf3af746c36803cce35009268f00d22ae2b55ffb59ac5f2a6add40b", symbol: "INJ", coinGeckoId: "injective-protocol", decimals: 8, price: 1.64},
+		tokenConfigEntry{chain: 21, addr: "9258181f5ceac8dbffb7030890243caed69a9599d2886d957a9cb7656af3bdb3", symbol: "Sui", coinGeckoId: "sui", decimals: 9, price: 0.1},
 	}
 }

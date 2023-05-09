@@ -30,7 +30,7 @@ func TestKeyIndex(t *testing.T) {
 	}
 
 	for _, testCase := range tests {
-		t.Run(string(testCase.address), func(t *testing.T) {
+		t.Run(testCase.address, func(t *testing.T) {
 			gs := testCase.guardianSet
 			keyIndex, result := gs.KeyIndex(common.HexToAddress(testCase.address))
 			assert.Equal(t, result, testCase.result)

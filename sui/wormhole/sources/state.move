@@ -1,267 +1,468 @@
+// SPDX-License-Identifier: Apache 2
+
+/// This module implements the global state variables for Wormhole as a shared
+/// object. The `State` object is used to perform anything that requires access
+/// to data that defines the Wormhole contract. Examples of which are publishing
+/// Wormhole messages (requires depositing a message fee), verifying `VAA` by
+/// checking signatures versus an existing Guardian set, and generating new
+/// emitters for Wormhole integrators.
 module wormhole::state {
     use std::vector::{Self};
+    use sui::balance::{Balance};
+    use sui::clock::{Clock};
+    use sui::object::{Self, ID, UID};
+    use sui::package::{UpgradeCap, UpgradeReceipt, UpgradeTicket};
+    use sui::sui::{SUI};
+    use sui::table::{Self, Table};
+    use sui::tx_context::{TxContext};
 
-    use sui::object::{Self, UID};
-    use sui::tx_context::{Self, TxContext};
-    use sui::transfer::{Self};
-    use sui::vec_map::{Self, VecMap};
-    use sui::event::{Self};
+    use wormhole::bytes32::{Self, Bytes32};
+    use wormhole::consumed_vaas::{Self, ConsumedVAAs};
+    use wormhole::external_address::{ExternalAddress};
+    use wormhole::fee_collector::{Self, FeeCollector};
+    use wormhole::guardian::{Guardian};
+    use wormhole::guardian_set::{Self, GuardianSet};
+    use wormhole::package_utils::{Self};
+    use wormhole::version_control::{Self};
 
-    use wormhole::myu16::{Self as u16, U16};
-    use wormhole::myu32::{Self as u32, U32};
-    use wormhole::set::{Self, Set};
-    use wormhole::structs::{Self, create_guardian, Guardian, GuardianSet};
-    use wormhole::external_address::{Self, ExternalAddress};
-    use wormhole::emitter::{Self};
+    friend wormhole::emitter;
+    friend wormhole::governance_message;
+    friend wormhole::migrate;
+    friend wormhole::publish_message;
+    friend wormhole::set_fee;
+    friend wormhole::setup;
+    friend wormhole::transfer_fee;
+    friend wormhole::update_guardian_set;
+    friend wormhole::upgrade_contract;
+    friend wormhole::vaa;
 
-    friend wormhole::guardian_set_upgrade;
-    //friend wormhole::contract_upgrade;
-    friend wormhole::wormhole;
-    friend wormhole::myvaa;
-    #[test_only]
-    friend wormhole::vaa_test;
+    /// Cannot initialize state with zero guardians.
+    const E_ZERO_GUARDIANS: u64 = 0;
+    /// Build digest does not agree with current implementation.
+    const E_INVALID_BUILD_DIGEST: u64 = 1;
 
-    struct DeployerCapability has key, store {id: UID}
+    /// Sui's chain ID is hard-coded to one value.
+    const CHAIN_ID: u16 = 21;
 
-    struct WormholeMessage has store, copy, drop {
-        sender: u64,
-        sequence: u64,
-        nonce: u64,
-        payload: vector<u8>,
-        consistency_level: u8
-    }
+    /// Capability reflecting that the current build version is used to invoke
+    /// state methods.
+    struct LatestOnly has drop {}
 
+    /// Container for all state variables for Wormhole.
     struct State has key, store {
         id: UID,
 
-        /// chain id
-        chain_id: U16,
+        /// Governance chain ID.
+        governance_chain: u16,
 
-        /// guardian chain ID
-        governance_chain_id: U16,
-
-        /// Address of governance contract on governance chain
+        /// Governance contract address.
         governance_contract: ExternalAddress,
 
-        /// Current active guardian set index
-        guardian_set_index: U32,
+        /// Current active guardian set index.
+        guardian_set_index: u32,
 
-        /// guardian sets
-        guardian_sets: VecMap<U32, GuardianSet>,
+        /// All guardian sets (including expired ones).
+        guardian_sets: Table<u32, GuardianSet>,
 
-        /// Period for which a guardian set stays active after it has been replaced
-        guardian_set_expiry: U32,
+        /// Period for which a guardian set stays active after it has been
+        /// replaced.
+        ///
+        /// NOTE: `Clock` timestamp is in units of ms while this value is in
+        /// terms of seconds. See `guardian_set` module for more info.
+        guardian_set_seconds_to_live: u32,
 
-        /// Consumed governance actions
-        consumed_governance_actions: Set<vector<u8>>,
+        /// Consumed VAA hashes to protect against replay. VAAs relevant to
+        /// Wormhole are just governance VAAs.
+        consumed_vaas: ConsumedVAAs,
 
-        /// Capability for creating new emitters
-        emitter_registry: emitter::EmitterRegistry,
+        /// Wormhole fee collector.
+        fee_collector: FeeCollector,
 
-        /// wormhole message fee
+        /// Upgrade capability.
+        upgrade_cap: UpgradeCap
+    }
+
+    /// Create new `State`. This is only executed using the `setup` module.
+    public(friend) fun new(
+        upgrade_cap: UpgradeCap,
+        governance_chain: u16,
+        governance_contract: ExternalAddress,
+        guardian_set_index: u32,
+        initial_guardians: vector<Guardian>,
+        guardian_set_seconds_to_live: u32,
         message_fee: u64,
-    }
-
-    /// Called automatically when module is first published. Transfers a deployer cap to sender.
-    fun init(ctx: &mut TxContext) {
-        transfer::transfer(DeployerCapability{id: object::new(ctx)}, tx_context::sender(ctx));
-    }
-
-    // creates a shared state object, so that anyone can get a reference to &mut State
-    // and pass it into various functions
-    public entry fun init_and_share_state(
-        deployer: DeployerCapability,
-        chain_id: u64,
-        governance_chain_id: u64,
-        governance_contract: vector<u8>,
-        initial_guardians: vector<vector<u8>>,
         ctx: &mut TxContext
-    ) {
-        let DeployerCapability{id} = deployer;
-        object::delete(id);
+    ): State {
+        // We need at least one guardian.
+        assert!(vector::length(&initial_guardians) > 0, E_ZERO_GUARDIANS);
+
         let state = State {
             id: object::new(ctx),
-            chain_id: u16::from_u64(chain_id),
-            governance_chain_id: u16::from_u64(governance_chain_id),
-            governance_contract: external_address::from_bytes(governance_contract),
-            guardian_set_index: u32::from_u64(0),
-            guardian_sets: vec_map::empty<U32, GuardianSet>(),
-            guardian_set_expiry: u32::from_u64(2), // TODO - what is the right #epochs to set this to?
-            consumed_governance_actions: set::new(ctx),
-            emitter_registry: emitter::init_emitter_registry(),
-            message_fee: 0,
+            governance_chain,
+            governance_contract,
+            guardian_set_index,
+            guardian_sets: table::new(ctx),
+            guardian_set_seconds_to_live,
+            consumed_vaas: consumed_vaas::new(ctx),
+            fee_collector: fee_collector::new(message_fee),
+            upgrade_cap
         };
 
-        let guardians = vector::empty<Guardian>();
-        vector::reverse(&mut initial_guardians);
-        while (!vector::is_empty(&initial_guardians)) {
-            vector::push_back(&mut guardians, create_guardian(vector::pop_back(&mut initial_guardians)));
-        };
+        // Set first version and initialize package info. This will be used for
+        // emitting information of successful migrations.
+        let upgrade_cap = &state.upgrade_cap;
+        package_utils::init_package_info(
+            &mut state.id,
+            version_control::current_version(),
+            upgrade_cap
+        );
 
-        // the initial guardian set with index 0
-        let initial_index = u32::from_u64(0);
-        store_guardian_set(&mut state, initial_index, structs::create_guardian_set(initial_index, guardians));
+        // Store the initial guardian set.
+        add_new_guardian_set(
+            &assert_latest_only(&state),
+            &mut state,
+            guardian_set::new(guardian_set_index, initial_guardians)
+        );
 
-        // permanently shares state
-        transfer::share_object<State>(state);
+        state
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    //
+    //  Simple Getters
+    //
+    //  These methods do not require `LatestOnly` for access. Anyone is free to
+    //  access these values.
+    //
+    ////////////////////////////////////////////////////////////////////////////
+
+    /// Convenience method to get hard-coded Wormhole chain ID (recognized by
+    /// the Wormhole network).
+    public fun chain_id(): u16 {
+        CHAIN_ID
+    }
+
+    /// Retrieve governance module name.
+    public fun governance_module(): Bytes32 {
+        // A.K.A. "Core".
+        bytes32::new(
+            x"00000000000000000000000000000000000000000000000000000000436f7265"
+        )
+    }
+
+    /// Retrieve governance chain ID, which is governance's emitter chain ID.
+    public fun governance_chain(self: &State): u16 {
+        self.governance_chain
+    }
+
+    /// Retrieve governance emitter address.
+    public fun governance_contract(self: &State): ExternalAddress {
+        self.governance_contract
+    }
+
+    /// Retrieve current Guardian set index. This value is important for
+    /// verifying VAA signatures and especially important for governance VAAs.
+    public fun guardian_set_index(self: &State): u32 {
+        self.guardian_set_index
+    }
+
+    /// Retrieve how long after a Guardian set can live for in terms of Sui
+    /// timestamp (in seconds).
+    public fun guardian_set_seconds_to_live(self: &State): u32 {
+        self.guardian_set_seconds_to_live
+    }
+
+    /// Retrieve a particular Guardian set by its Guardian set index. This
+    /// method is used when verifying a VAA.
+    ///
+    /// See `wormhole::vaa` for more info.
+    public fun guardian_set_at(
+        self: &State,
+        index: u32
+    ): &GuardianSet {
+        table::borrow(&self.guardian_sets, index)
+    }
+
+    /// Retrieve current fee to send Wormhole message.
+    public fun message_fee(self: &State): u64 {
+        fee_collector::fee_amount(&self.fee_collector)
     }
 
     #[test_only]
-    public fun test_init(ctx: &mut TxContext) {
-        transfer::transfer(DeployerCapability{id: object::new(ctx)}, tx_context::sender(ctx));
+    public fun fees_collected(self: &State): u64 {
+        fee_collector::balance_value(&self.fee_collector)
     }
 
-    public(friend) entry fun publish_event(
-        sender: u64,
-        sequence: u64,
-        nonce: u64,
-        payload: vector<u8>
-     ) {
-        event::emit(
-            WormholeMessage {
-                sender: sender,
-                sequence: sequence,
-                nonce: nonce,
-                payload: payload,
-                // Sui is an instant finality chain, so we don't need
-                // confirmations
-                consistency_level: 0,
-            }
+    #[test_only]
+    public fun cache_latest_only_test_only(self: &State): LatestOnly {
+        assert_latest_only(self)
+    }
+
+    #[test_only]
+    public fun deposit_fee_test_only(self: &mut State, fee: Balance<SUI>) {
+        deposit_fee(&assert_latest_only(self), self, fee)
+    }
+
+    #[test_only]
+    public fun migrate_version_test_only<Old: store + drop, New: store + drop>(
+        self: &mut State,
+        old_version: Old,
+        new_version: New
+    ) {
+        package_utils::update_version_type_test_only(
+            &mut self.id,
+            old_version,
+            new_version
         );
     }
 
-    // setters
-
-    public(friend) fun set_chain_id(state: &mut State, id: u64){
-        state.chain_id = u16::from_u64(id);
+    #[test_only]
+    public fun test_upgrade(self: &mut State) {
+        let test_digest = bytes32::from_bytes(b"new build");
+        let ticket = authorize_upgrade(self, test_digest);
+        let receipt = sui::package::test_upgrade(ticket);
+        commit_upgrade(self, receipt);
     }
 
     #[test_only]
-    public fun test_set_chain_id(state: &mut State, id: u64) {
-        set_chain_id(state, id);
+    public fun reverse_migrate_version(self: &mut State) {
+        package_utils::update_version_type_test_only(
+            &mut self.id,
+            version_control::current_version(),
+            version_control::previous_version()
+        );
     }
 
-    public(friend) fun set_governance_chain_id(state: &mut State, id: u64){
-        state.governance_chain_id = u16::from_u64(id);
+    ////////////////////////////////////////////////////////////////////////////
+    //
+    //  Privileged `State` Access
+    //
+    //  This section of methods require a `LatestOnly`, which can only be created
+    //  within the Wormhole package. This capability allows special access to
+    //  the `State` object.
+    //
+    //  NOTE: A lot of these methods are still marked as `(friend)` as a safety
+    //  precaution. When a package is upgraded, friend modifiers can be
+    //  removed.
+    //
+    ////////////////////////////////////////////////////////////////////////////
+
+    /// Obtain a capability to interact with `State` methods. This method checks
+    /// that we are running the current build.
+    ///
+    /// NOTE: This method allows caching the current version check so we avoid
+    /// multiple checks to dynamic fields.
+    public(friend) fun assert_latest_only(self: &State): LatestOnly {
+        package_utils::assert_version(
+            &self.id,
+            version_control::current_version()
+        );
+
+        LatestOnly {}
+    }
+
+    /// Deposit fee when sending Wormhole message. This method does not
+    /// necessarily have to be a `friend` to `wormhole::publish_message`. But
+    /// we also do not want an integrator to mistakenly deposit fees outside
+    /// of calling `publish_message`.
+    ///
+    /// See `wormhole::publish_message` for more info.
+    public(friend) fun deposit_fee(
+        _: &LatestOnly,
+        self: &mut State,
+        fee: Balance<SUI>
+    ) {
+        fee_collector::deposit_balance(&mut self.fee_collector, fee);
+    }
+
+    /// Withdraw collected fees when governance action to transfer fees to a
+    /// particular recipient.
+    ///
+    /// See `wormhole::transfer_fee` for more info.
+    public(friend) fun withdraw_fee(
+        _: &LatestOnly,
+        self: &mut State,
+        amount: u64
+    ): Balance<SUI> {
+        fee_collector::withdraw_balance(&mut self.fee_collector, amount)
+    }
+
+    /// Store `VAA` hash as a way to claim a VAA. This method prevents a VAA
+    /// from being replayed. For Wormhole, the only VAAs that it cares about
+    /// being replayed are its governance actions.
+    public(friend) fun borrow_mut_consumed_vaas(
+        _: &LatestOnly,
+        self: &mut State
+    ): &mut ConsumedVAAs {
+        borrow_mut_consumed_vaas_unchecked(self)
+    }
+
+    /// Store `VAA` hash as a way to claim a VAA. This method prevents a VAA
+    /// from being replayed. For Wormhole, the only VAAs that it cares about
+    /// being replayed are its governance actions.
+    ///
+    /// NOTE: This method does not require `LatestOnly`. Only methods in the
+    /// `upgrade_contract` module requires this to be unprotected to prevent
+    /// a corrupted upgraded contract from bricking upgradability.
+    public(friend) fun borrow_mut_consumed_vaas_unchecked(
+        self: &mut State
+    ): &mut ConsumedVAAs {
+        &mut self.consumed_vaas
+    }
+
+    /// When a new guardian set is added to `State`, part of the process
+    /// involves setting the last known Guardian set's expiration time based
+    /// on how long a Guardian set can live for.
+    ///
+    /// See `guardian_set_epochs_to_live` for the parameter that determines how
+    /// long a Guardian set can live for.
+    ///
+    /// See `wormhole::update_guardian_set` for more info.
+    public(friend) fun expire_guardian_set(
+        _: &LatestOnly,
+        self: &mut State,
+        the_clock: &Clock
+    ) {
+        guardian_set::set_expiration(
+            table::borrow_mut(&mut self.guardian_sets, self.guardian_set_index),
+            self.guardian_set_seconds_to_live,
+            the_clock
+        );
+    }
+
+    /// Add the latest Guardian set from the governance action to update the
+    /// current guardian set.
+    ///
+    /// See `wormhole::update_guardian_set` for more info.
+    public(friend) fun add_new_guardian_set(
+        _: &LatestOnly,
+        self: &mut State,
+        new_guardian_set: GuardianSet
+    ) {
+        self.guardian_set_index = guardian_set::index(&new_guardian_set);
+        table::add(
+            &mut self.guardian_sets,
+            self.guardian_set_index,
+            new_guardian_set
+        );
+    }
+
+    /// Modify the cost to send a Wormhole message via governance.
+    ///
+    /// See `wormhole::set_fee` for more info.
+    public(friend) fun set_message_fee(
+        _: &LatestOnly,
+        self: &mut State,
+        amount: u64
+    ) {
+        fee_collector::change_fee(&mut self.fee_collector, amount);
+    }
+
+    public(friend) fun current_package(_: &LatestOnly, self: &State): ID {
+        package_utils::current_package(&self.id)
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    //
+    //  Upgradability
+    //
+    //  A special space that controls upgrade logic. These methods are invoked
+    //  via the `upgrade_contract` module.
+    //
+    //  Also in this section is managing contract migrations, which uses the
+    //  `migrate` module to officially roll state access to the latest build.
+    //  Only those methods that require `LatestOnly` will be affected by an
+    //  upgrade.
+    //
+    ////////////////////////////////////////////////////////////////////////////
+
+    /// Issue an `UpgradeTicket` for the upgrade.
+    ///
+    /// NOTE: The Sui VM performs a check that this method is executed from the
+    /// latest published package. If someone were to try to execute this using
+    /// a stale build, the transaction will revert with `PackageUpgradeError`,
+    /// specifically `PackageIDDoesNotMatch`.
+    public(friend) fun authorize_upgrade(
+        self: &mut State,
+        package_digest: Bytes32
+    ): UpgradeTicket {
+        let cap = &mut self.upgrade_cap;
+        package_utils::authorize_upgrade(&mut self.id, cap, package_digest)
+    }
+
+    /// Finalize the upgrade that ran to produce the given `receipt`.
+    ///
+    /// NOTE: The Sui VM performs a check that this method is executed from the
+    /// latest published package. If someone were to try to execute this using
+    /// a stale build, the transaction will revert with `PackageUpgradeError`,
+    /// specifically `PackageIDDoesNotMatch`.
+    public(friend) fun commit_upgrade(
+        self: &mut State,
+        receipt: UpgradeReceipt
+    ): (ID, ID) {
+        let cap = &mut self.upgrade_cap;
+        package_utils::commit_upgrade(&mut self.id, cap, receipt)
+    }
+
+    /// Method executed by the `migrate` module to roll access from one package
+    /// to another. This method will be called from the upgraded package.
+    public(friend) fun migrate_version(self: &mut State) {
+        package_utils::migrate_version(
+            &mut self.id,
+            version_control::previous_version(),
+            version_control::current_version()
+        );
+    }
+
+    /// As a part of the migration, we verify that the upgrade contract VAA's
+    /// encoded package digest used in `migrate` equals the one used to conduct
+    /// the upgrade.
+    public(friend) fun assert_authorized_digest(
+        _: &LatestOnly,
+        self: &State,
+        digest: Bytes32
+    ) {
+        let authorized = package_utils::authorized_digest(&self.id);
+        assert!(digest == authorized, E_INVALID_BUILD_DIGEST);
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    //
+    //  Special State Interaction via Migrate
+    //
+    //  A VERY special space that manipulates `State` via calling `migrate`.
+    //
+    //  PLEASE KEEP ANY METHODS HERE AS FRIENDS. We want the ability to remove
+    //  these for future builds.
+    //
+    ////////////////////////////////////////////////////////////////////////////
+
+    /// This method is used to make modifications to `State` when `migrate` is
+    /// called. This method name should change reflecting which version this
+    /// contract is migrating to.
+    ///
+    /// NOTE: Please keep this method as public(friend) because we never want
+    /// to expose this method as a public method.
+    public(friend) fun migrate__v__0_2_0(_self: &mut State) {
+        // Intentionally do nothing.
     }
 
     #[test_only]
-    public fun test_set_governance_chain_id(state: &mut State, id: u64) {
-        set_governance_chain_id(state, id);
+    /// Bloody hack.
+    ///
+    /// This method is used to set up tests where we migrate to a new version,
+    /// which is meant to test that modules protected by version control will
+    /// break.
+    public fun reverse_migrate__v__dummy(_self: &mut State) {
+        // Intentionally do nothing.
     }
 
-    public(friend) fun set_governance_action_consumed(state: &mut State, hash: vector<u8>){
-        set::add<vector<u8>>(&mut state.consumed_governance_actions, hash);
-    }
-
-    public(friend) fun set_governance_contract(state: &mut State, contract: vector<u8>) {
-        state.governance_contract = external_address::from_bytes(contract);
-    }
-
-    public(friend) fun update_guardian_set_index(state: &mut State, new_index: U32) {
-        state.guardian_set_index = new_index;
-    }
-
-    public(friend) fun expire_guardian_set(state: &mut State, index: U32, ctx: &TxContext) {
-        let expiry = state.guardian_set_expiry;
-        let guardian_set = vec_map::get_mut<U32, GuardianSet>(&mut state.guardian_sets, &index);
-        structs::expire_guardian_set(guardian_set, expiry, ctx);
-    }
-
-    public(friend) fun store_guardian_set(state: &mut State, index: U32, set: GuardianSet) {
-        vec_map::insert<U32, GuardianSet>(&mut state.guardian_sets, index, set);
-    }
-
-    // getters
-
-    public fun get_current_guardian_set_index(state: &State): U32 {
-        return state.guardian_set_index
-    }
-
-    public fun get_guardian_set(state: &State, index: U32): GuardianSet {
-        return *vec_map::get<U32, GuardianSet>(&state.guardian_sets, &index)
-    }
-
-    public fun guardian_set_is_active(state: &State, guardian_set: &GuardianSet, ctx: &TxContext): bool {
-        let cur_epoch = tx_context::epoch(ctx);
-        let index = structs::get_guardian_set_index(guardian_set);
-        let current_index = get_current_guardian_set_index(state);
-        index == current_index ||
-             u32::to_u64(structs::get_guardian_set_expiry(guardian_set)) > cur_epoch
-    }
-
-    public fun get_governance_chain(state: &State): U16 {
-        return state.governance_chain_id
-    }
-
-    public fun get_governance_contract(state: &State): ExternalAddress {
-        return state.governance_contract
-    }
-
-    public fun get_chain_id(state: &State): U16 {
-        return state.chain_id
-    }
-
-    public fun get_message_fee(state: &State): u64 {
-        return state.message_fee
-    }
-
-    public(friend) fun new_emitter(state: &mut State, ctx: &mut TxContext): emitter::EmitterCapability{
-        emitter::new_emitter(&mut state.emitter_registry, ctx)
-    }
-
-}
-
-#[test_only]
-module wormhole::test_state{
-    use sui::test_scenario::{Self, Scenario, next_tx, ctx, take_from_address, take_shared, return_shared};
-
-    use wormhole::state::{Self, test_init, State, DeployerCapability};
-    use wormhole::myu16::{Self as u16};
-
-    fun scenario(): Scenario { test_scenario::begin(@0x123233) }
-    fun people(): (address, address, address) { (@0x124323, @0xE05, @0xFACE) }
-
-    public fun init_wormhole_state(test: Scenario, admin: address): Scenario {
-        next_tx(&mut test, admin); {
-            test_init(ctx(&mut test));
-        };
-        next_tx(&mut test, admin); {
-            let deployer = take_from_address<DeployerCapability>(&test, admin);
-            state::init_and_share_state(
-                deployer,
-                21,
-                1, // governance chain
-                x"0000000000000000000000000000000000000000000000000000000000000004", // governance_contract
-                vector[x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"], // initial_guardian(s)
-                ctx(&mut test));
-        };
-        return test
-    }
-
-    #[test]
-    fun test_state_setters() {
-        test_state_setters_(scenario())
-    }
-
-    fun test_state_setters_(test: Scenario) {
-        let (admin, _, _) = people();
-        test = init_wormhole_state(test, admin);
-
-        // test setters
-        next_tx(&mut test, admin); {
-            let state = take_shared<State>(&test);
-
-            // test set chain id
-            state::test_set_chain_id(&mut state, 5);
-            assert!(state::get_chain_id(&state) == u16::from_u64(5), 0);
-
-            // test set governance chain id
-            state::test_set_governance_chain_id(&mut state, 100);
-            assert!(state::get_governance_chain(&state) == u16::from_u64(100), 0);
-
-            return_shared<State>(state);
-        };
-        test_scenario::end(test);
-    }
+    ////////////////////////////////////////////////////////////////////////////
+    //
+    //  Deprecated
+    //
+    //  Dumping grounds for old structs and methods. These things should not
+    //  be used in future builds.
+    //
+    ////////////////////////////////////////////////////////////////////////////
 }

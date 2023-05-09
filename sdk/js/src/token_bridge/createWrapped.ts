@@ -1,4 +1,9 @@
 import {
+  JsonRpcProvider,
+  SUI_CLOCK_OBJECT_ID,
+  TransactionBlock,
+} from "@mysten/sui.js";
+import {
   Commitment,
   Connection,
   PublicKey,
@@ -10,7 +15,7 @@ import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
 import { Algodv2 } from "algosdk";
 import { Types } from "aptos";
 import BN from "bn.js";
-import { Overrides, ethers } from "ethers";
+import { ethers, Overrides } from "ethers";
 import { fromUint8Array } from "js-base64";
 import { FunctionCallOptions } from "near-api-js/lib/account";
 import { Provider } from "near-api-js/lib/providers";
@@ -21,6 +26,14 @@ import {
 } from "../aptos";
 import { Bridge__factory } from "../ethers-contracts";
 import { createCreateWrappedInstruction } from "../solana/tokenBridge";
+import {
+  getOwnedObjectId,
+  getPackageId,
+  getUpgradeCapObjectId,
+  getWrappedCoinType,
+  publishCoin,
+  uint8ArrayToBCS,
+} from "../sui";
 import { callFunctionNear } from "../utils";
 import { SignedVaa } from "../vaa";
 
@@ -156,4 +169,105 @@ export function createWrappedOnAptos(
   attestVAA: Uint8Array
 ): Types.EntryFunctionPayload {
   return createWrappedCoinAptos(tokenBridgeAddress, attestVAA);
+}
+
+export async function createWrappedOnSuiPrepare(
+  provider: JsonRpcProvider,
+  coreBridgeStateObjectId: string,
+  tokenBridgeStateObjectId: string,
+  decimals: number,
+  signerAddress: string
+): Promise<TransactionBlock> {
+  return publishCoin(
+    provider,
+    coreBridgeStateObjectId,
+    tokenBridgeStateObjectId,
+    decimals,
+    signerAddress
+  );
+}
+
+export async function createWrappedOnSui(
+  provider: JsonRpcProvider,
+  coreBridgeStateObjectId: string,
+  tokenBridgeStateObjectId: string,
+  signerAddress: string,
+  coinPackageId: string,
+  wrappedAssetSetupType: string,
+  attestVAA: Uint8Array
+): Promise<TransactionBlock> {
+  // WrappedAssetSetup looks like
+  // 0x92d81f28c167d90f84638c654b412fe7fa8e55bdfac7f638bdcf70306289be86::create_wrapped::WrappedAssetSetup<0xa40e0511f7d6531dd2dfac0512c7fd4a874b76f5994985fb17ee04501a2bb050::coin::COIN, 0x4eb7c5bca3759ab3064b46044edb5668c9066be8a543b28b58375f041f876a80::version_control::V__0_1_1>
+
+  // ugh
+  const versionType = wrappedAssetSetupType.split(", ")[1].replace(">", "");
+
+  const coreBridgePackageId = await getPackageId(
+    provider,
+    coreBridgeStateObjectId
+  );
+  const tokenBridgePackageId = await getPackageId(
+    provider,
+    tokenBridgeStateObjectId
+  );
+
+  // Get coin metadata
+  const coinType = getWrappedCoinType(coinPackageId);
+  const coinMetadataObjectId = (await provider.getCoinMetadata({ coinType }))
+    ?.id;
+  if (!coinMetadataObjectId) {
+    throw new Error(
+      `Coin metadata object not found for coin type ${coinType}.`
+    );
+  }
+
+  const wrappedAssetSetupObjectId = await getOwnedObjectId(
+    provider,
+    signerAddress,
+    wrappedAssetSetupType
+  );
+  if (!wrappedAssetSetupObjectId) {
+    throw new Error(`WrappedAssetSetup not found`);
+  }
+
+  // Get coin upgrade capability
+  const coinUpgradeCapObjectId = await getUpgradeCapObjectId(
+    provider,
+    signerAddress,
+    coinPackageId
+  );
+  if (!coinUpgradeCapObjectId) {
+    throw new Error(
+      `Coin upgrade cap not found for ${coinType} under owner ${signerAddress}. You must call 'createWrappedOnSuiPrepare' first.`
+    );
+  }
+
+  // Get TokenBridgeMessage
+  const tx = new TransactionBlock();
+  const [vaa] = tx.moveCall({
+    target: `${coreBridgePackageId}::vaa::parse_and_verify`,
+    arguments: [
+      tx.object(coreBridgeStateObjectId),
+      tx.pure(uint8ArrayToBCS(attestVAA)),
+      tx.object(SUI_CLOCK_OBJECT_ID),
+    ],
+  });
+  const [message] = tx.moveCall({
+    target: `${tokenBridgePackageId}::vaa::verify_only_once`,
+    arguments: [tx.object(tokenBridgeStateObjectId), vaa],
+  });
+
+  // Construct complete registration payload
+  tx.moveCall({
+    target: `${tokenBridgePackageId}::create_wrapped::complete_registration`,
+    arguments: [
+      tx.object(tokenBridgeStateObjectId),
+      tx.object(coinMetadataObjectId),
+      tx.object(wrappedAssetSetupObjectId),
+      tx.object(coinUpgradeCapObjectId),
+      message,
+    ],
+    typeArguments: [coinType, versionType],
+  });
+  return tx;
 }

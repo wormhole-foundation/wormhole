@@ -1,4 +1,9 @@
 import {
+  JsonRpcProvider,
+  SUI_CLOCK_OBJECT_ID,
+  TransactionBlock,
+} from "@mysten/sui.js";
+import {
   Commitment,
   Connection,
   Keypair,
@@ -10,30 +15,31 @@ import { MsgExecuteContract } from "@terra-money/terra.js";
 import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
 import {
   Algodv2,
-  OnApplicationComplete,
-  SuggestedParams,
   bigIntToBytes,
   decodeAddress,
   getApplicationAddress,
   makeApplicationCallTxnFromObject,
   makePaymentTxnWithSuggestedParamsFromObject,
+  OnApplicationComplete,
+  SuggestedParams,
 } from "algosdk";
 import { Types } from "aptos";
 import BN from "bn.js";
-import { PayableOverrides, ethers } from "ethers";
+import { ethers, PayableOverrides } from "ethers";
 import { FunctionCallOptions } from "near-api-js/lib/account";
 import { Provider } from "near-api-js/lib/providers";
 import { getIsWrappedAssetNear } from ".";
-import { TransactionSignerPair, getMessageFee, optin } from "../algorand";
+import { getMessageFee, optin, TransactionSignerPair } from "../algorand";
 import { attestToken as attestTokenAptos } from "../aptos";
 import { isNativeDenomXpla } from "../cosmwasm";
 import { Bridge__factory } from "../ethers-contracts";
 import { createBridgeFeeTransferInstruction } from "../solana";
 import { createAttestTokenInstruction } from "../solana/tokenBridge";
+import { getPackageId } from "../sui/utils";
 import { isNativeDenom } from "../terra";
 import {
-  ChainId,
   callFunctionNear,
+  ChainId,
   hashAccount,
   textToHexString,
   textToUint8Array,
@@ -305,4 +311,46 @@ export function attestFromAptos(
   tokenAddress: string
 ): Types.EntryFunctionPayload {
   return attestTokenAptos(tokenBridgeAddress, tokenChain, tokenAddress);
+}
+
+export async function attestFromSui(
+  provider: JsonRpcProvider,
+  coreBridgeStateObjectId: string,
+  tokenBridgeStateObjectId: string,
+  coinType: string,
+  feeAmount: BigInt = BigInt(0)
+): Promise<TransactionBlock> {
+  const metadata = await provider.getCoinMetadata({ coinType });
+  if (metadata === null || metadata.id === null) {
+    throw new Error(`Coin metadata ID for type ${coinType} not found`);
+  }
+  const coreBridgePackageId = await getPackageId(
+    provider,
+    coreBridgeStateObjectId
+  );
+  const tokenBridgePackageId = await getPackageId(
+    provider,
+    tokenBridgeStateObjectId
+  );
+  const tx = new TransactionBlock();
+  const [feeCoin] = tx.splitCoins(tx.gas, [tx.pure(feeAmount)]);
+  const [messageTicket] = tx.moveCall({
+    target: `${tokenBridgePackageId}::attest_token::attest_token`,
+    arguments: [
+      tx.object(tokenBridgeStateObjectId),
+      tx.object(metadata.id),
+      tx.pure(createNonce().readUInt32LE()),
+    ],
+    typeArguments: [coinType],
+  });
+  tx.moveCall({
+    target: `${coreBridgePackageId}::publish_message::publish_message`,
+    arguments: [
+      tx.object(coreBridgeStateObjectId),
+      feeCoin,
+      messageTicket,
+      tx.object(SUI_CLOCK_OBJECT_ID),
+    ],
+  });
+  return tx;
 }

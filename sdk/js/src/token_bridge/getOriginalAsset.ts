@@ -1,3 +1,4 @@
+import { JsonRpcProvider } from "@mysten/sui.js";
 import {
   Commitment,
   Connection,
@@ -18,21 +19,28 @@ import { canonicalAddress } from "../cosmos";
 import { buildTokenId, isNativeCosmWasmDenom } from "../cosmwasm/address";
 import { TokenImplementation__factory } from "../ethers-contracts";
 import { getWrappedMeta } from "../solana/tokenBridge";
+import {
+  getFieldsFromObjectResponse,
+  getTokenFromTokenRegistry,
+  isValidSuiType,
+  unnormalizeSuiAddress,
+} from "../sui";
 import { buildNativeId } from "../terra";
 import {
+  assertChain,
+  callFunctionNear,
+  ChainId,
+  ChainName,
   CHAIN_ID_ALGORAND,
   CHAIN_ID_APTOS,
   CHAIN_ID_NEAR,
   CHAIN_ID_SOLANA,
+  CHAIN_ID_SUI,
   CHAIN_ID_TERRA,
-  ChainId,
-  ChainName,
-  CosmWasmChainId,
-  CosmWasmChainName,
-  assertChain,
-  callFunctionNear,
   coalesceChainId,
   coalesceCosmWasmChainId,
+  CosmWasmChainId,
+  CosmWasmChainName,
   hexToUint8Array,
   isValidAptosType,
 } from "../utils";
@@ -267,13 +275,13 @@ export async function getOriginalAssetNear(
 /**
  * Gets the origin chain ID and address of an asset on Aptos, given its fully qualified type.
  * @param client Client used to transfer data to/from Aptos node
- * @param tokenBridgeAddress Address of token bridge
+ * @param tokenBridgePackageId Address of token bridge
  * @param fullyQualifiedType Fully qualified type of asset
  * @returns Original chain ID and address of asset
  */
 export async function getOriginalAssetAptos(
   client: AptosClient,
-  tokenBridgeAddress: string,
+  tokenBridgePackageId: string,
   fullyQualifiedType: string
 ): Promise<WormholeWrappedInfo> {
   if (!isValidAptosType(fullyQualifiedType)) {
@@ -285,7 +293,7 @@ export async function getOriginalAssetAptos(
     originInfo = (
       await client.getAccountResource(
         fullyQualifiedType.split("::")[0],
-        `${tokenBridgeAddress}::state::OriginInfo`
+        `${tokenBridgePackageId}::state::OriginInfo`
       )
     ).data as OriginInfo;
   } catch {
@@ -316,4 +324,62 @@ export async function getOriginalAssetAptos(
       assetAddress: hexToUint8Array(sha3_256(fullyQualifiedType)),
     };
   }
+}
+
+export async function getOriginalAssetSui(
+  provider: JsonRpcProvider,
+  tokenBridgeStateObjectId: string,
+  coinType: string
+): Promise<WormholeWrappedInfo> {
+  if (!isValidSuiType(coinType)) {
+    throw new Error(`Invalid Sui type: ${coinType}`);
+  }
+
+  const res = await getTokenFromTokenRegistry(
+    provider,
+    tokenBridgeStateObjectId,
+    coinType
+  );
+  const fields = getFieldsFromObjectResponse(res);
+  if (!fields) {
+    throw new Error(
+      `Token of type ${coinType} has not been registered with the token bridge`
+    );
+  }
+
+  if (
+    fields.value.type.includes(`wrapped_asset::WrappedAsset<${coinType}>`) ||
+    fields.value.type.includes(
+      `wrapped_asset::WrappedAsset<${unnormalizeSuiAddress(coinType)}>`
+    )
+  ) {
+    return {
+      isWrapped: true,
+      chainId: Number(fields.value.fields.info.fields.token_chain) as ChainId,
+      assetAddress: new Uint8Array(
+        fields.value.fields.info.fields.token_address.fields.value.fields.data
+      ),
+    };
+  } else if (
+    fields.value.type.includes(`native_asset::NativeAsset<${coinType}>`) ||
+    fields.value.type.includes(
+      `native_asset::NativeAsset<${unnormalizeSuiAddress(coinType)}>`
+    )
+  ) {
+    return {
+      isWrapped: false,
+      chainId: CHAIN_ID_SUI,
+      assetAddress: new Uint8Array(
+        fields.value.fields.token_address.fields.value.fields.data
+      ),
+    };
+  }
+
+  throw new Error(
+    `Unrecognized token metadata: ${JSON.stringify(
+      fields,
+      null,
+      2
+    )}, ${coinType}`
+  );
 }

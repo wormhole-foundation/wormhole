@@ -1,3 +1,4 @@
+//nolint:forcetypeassert //this is a hack
 package main
 
 import (

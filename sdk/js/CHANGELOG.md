@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.16
+
+### Changed
+
+Sui redeem fix
+
+## 0.9.15
+
+### Added
+
+Sui mainnet support
+
 ## 0.9.14
 
 ### Added

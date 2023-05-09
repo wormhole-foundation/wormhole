@@ -1,0 +1,81 @@
+---
+protocol-key-pair:
+  value: avYcyVgYMXTyaUYh9IRwLK0gSzl7YF6ZQDAbrS1Bhvo=
+worker-key-pair:
+  value: AGsxCVxeIZ6fscvGECzV93Hi4JkqM4zMYEA8wBGfXQrz
+account-key-pair:
+  value: AF9cOMxTRAUTOws2M8W5slHf41HITA+M3nqXHT6nlH6S
+network-key-pair:
+  value: ALH/8qz2YlwAuxY/hOvuXiglYq0e4LLU1/lyf5uKgPY8
+db-path: sui_config/authorities_db/8dcff6d15504
+network-address: /ip4/127.0.0.1/tcp/33355/http
+json-rpc-address: "127.0.0.1:39573"
+metrics-address: "127.0.0.1:45851"
+admin-interface-port: 35739
+consensus-config:
+  address: /ip4/127.0.0.1/tcp/42959/http
+  db-path: sui_config/consensus_db/8dcff6d15504
+  internal-worker-address: ~
+  max-pending-transactions: ~
+  narwhal-config:
+    header_num_of_batches_threshold: 32
+    max_header_num_of_batches: 1000
+    max_header_delay: 2000ms
+    min_header_delay: 500ms
+    gc_depth: 50
+    sync_retry_delay: 5000ms
+    sync_retry_nodes: 3
+    batch_size: 500000
+    max_batch_delay: 100ms
+    block_synchronizer:
+      range_synchronize_timeout: 30000ms
+      certificates_synchronize_timeout: 30000ms
+      payload_synchronize_timeout: 30000ms
+      payload_availability_timeout: 30000ms
+      handler_certificate_deliver_timeout: 30000ms
+    consensus_api_grpc:
+      socket_addr: /ip4/127.0.0.1/tcp/37001/http
+      get_collections_timeout: 5000ms
+      remove_collections_timeout: 5000ms
+    max_concurrent_requests: 500000
+    prometheus_metrics:
+      socket_addr: /ip4/127.0.0.1/tcp/39831/http
+    network_admin_server:
+      primary_network_admin_server_port: 39853
+      worker_network_admin_server_base_port: 36429
+    anemo:
+      send_certificate_rate_limit: ~
+      get_payload_availability_rate_limit: ~
+      get_certificates_rate_limit: ~
+      report_batch_rate_limit: ~
+      request_batch_rate_limit: ~
+enable-event-processing: false
+enable-index-processing: true
+grpc-load-shed: ~
+grpc-concurrency-limit: 20000000000
+p2p-config:
+  listen-address: "127.0.0.1:46335"
+  external-address: /ip4/127.0.0.1/udp/46335
+genesis:
+  genesis-file-location: sui_config/genesis.blob
+authority-store-pruning-config:
+  num-latest-epoch-dbs-to-retain: 3
+  epoch-db-pruning-period-secs: 3600
+  num-epochs-to-retain: 2
+  max-checkpoints-in-batch: 200
+  max-transactions-in-batch: 1000
+  use-range-deletion: true
+end-of-epoch-broadcast-channel-capacity: 128
+checkpoint-executor-config:
+  checkpoint-execution-max-concurrency: 200
+  local-execution-timeout-sec: 30
+db-checkpoint-config:
+  perform-db-checkpoints-at-epoch-end: false
+indirect-objects-threshold: 18446744073709551615
+expensive-safety-check-config:
+  enable-epoch-sui-conservation-check: false
+  enable-deep-per-tx-sui-conservation-check: false
+  force-disable-epoch-sui-conservation-check: false
+  enable-state-consistency-check: false
+  force-disable-state-consistency-check: false
+  enable-move-vm-paranoid-checks: false

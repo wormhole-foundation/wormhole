@@ -10,9 +10,11 @@ func TestCalculateQuorum(t *testing.T) {
 	type Test struct {
 		numGuardians int
 		quorumResult int
+		shouldPanic  bool
 	}
 
 	tests := []Test{
+		// Positive Test Cases
 		{numGuardians: 0, quorumResult: 1},
 		{numGuardians: 1, quorumResult: 1},
 		{numGuardians: 2, quorumResult: 2},
@@ -36,12 +38,20 @@ func TestCalculateQuorum(t *testing.T) {
 		{numGuardians: 50, quorumResult: 34},
 		{numGuardians: 100, quorumResult: 67},
 		{numGuardians: 1000, quorumResult: 667},
+
+		// Negative Test Cases
+		{numGuardians: -1, quorumResult: 1, shouldPanic: true},
+		{numGuardians: -1000, quorumResult: 1, shouldPanic: true},
 	}
 
 	for _, tc := range tests {
 		t.Run("", func(t *testing.T) {
-			num := CalculateQuorum(tc.numGuardians)
-			assert.Equal(t, tc.quorumResult, num)
+			if tc.shouldPanic {
+				assert.Panics(t, func() { CalculateQuorum(tc.numGuardians) }, "The code did not panic")
+			} else {
+				num := CalculateQuorum(tc.numGuardians)
+				assert.Equal(t, tc.quorumResult, num)
+			}
 		})
 	}
 }

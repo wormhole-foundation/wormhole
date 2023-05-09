@@ -441,13 +441,13 @@ func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat, sendC chan<- []
 			chain.String(), // chain_name
 			enabled,        // enabled
 			totalNotional,  // total_notional
-		).Set(float64(available))
+		).Set(available)
 
 		metricEnqueuedVAAs.WithLabelValues(
 			chainId,        // chain_id
 			chain.String(), // chain_name
 			enabled,        // enabled
-		).Set(float64(numPending))
+		).Set(numPending)
 	}
 
 	metricTotalEnqueuedVAAs.Set(float64(totalPending))

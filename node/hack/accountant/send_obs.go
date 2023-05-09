@@ -62,16 +62,16 @@ func main() {
 	sequence := uint64(time.Now().Unix())
 	timestamp := time.Now()
 
-	if !testSubmit(ctx, logger, gk, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16", timestamp, sequence, true, false, "Submit should succeed") {
+	if !testSubmit(ctx, logger, gk, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16", timestamp, sequence, true, "Submit should succeed") {
 		return
 	}
 
-	if !testSubmit(ctx, logger, gk, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16", timestamp, sequence, true, false, "Already commited should succeed") {
+	if !testSubmit(ctx, logger, gk, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c16", timestamp, sequence, true, "Already commited should succeed") {
 		return
 	}
 
 	sequence += 10
-	if !testSubmit(ctx, logger, gk, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c17", timestamp, sequence, false, true, "Bad emitter address should fail") {
+	if !testSubmit(ctx, logger, gk, wormchainConn, contract, "0000000000000000000000000290fb167208af455bb137780163b7b7a9a10c17", timestamp, sequence, false, "Bad emitter address should fail") {
 		return
 	}
 
@@ -103,7 +103,6 @@ func testSubmit(
 	timestamp time.Time,
 	sequence uint64,
 	expectedResult bool,
-	errorExpected bool,
 	tag string,
 ) bool {
 	EmitterAddress, _ := vaa.StringToAddress(emitterAddressStr)

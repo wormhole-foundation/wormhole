@@ -14,7 +14,7 @@ func TestTokenListSize(t *testing.T) {
 
 	/* Assuming that governed tokens will need to be updated every time
 	   we regenerate it */
-	assert.Equal(t, 801, len(tokenConfigEntries))
+	assert.Equal(t, 802, len(tokenConfigEntries))
 }
 
 func TestTokenListAddressSize(t *testing.T) {
@@ -34,7 +34,7 @@ func TestTokenListChainTokensPresent(t *testing.T) {
 
 	/* Assume that all chains within a token bridge will have governed tokens */
 	for e := range sdk.KnownTokenbridgeEmitters {
-		t.Run(vaa.ChainID(e).String(), func(t *testing.T) {
+		t.Run(e.String(), func(t *testing.T) {
 			found := false
 			for _, tokenConfigEntry := range tokenConfigEntries {
 				if tokenConfigEntry.chain == uint16(e) {

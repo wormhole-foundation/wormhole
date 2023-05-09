@@ -17,7 +17,8 @@ import (
 	"github.com/certusone/wormhole/node/pkg/db"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
-	"github.com/certusone/wormhole/node/pkg/wormconn"
+	sdktypes "github.com/cosmos/cosmos-sdk/types"
+	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
@@ -32,9 +33,22 @@ const (
 	TestNetMode = 2
 	DevNetMode  = 3
 	GoTestMode  = 4
+	MockMode    = 5
 )
 
+// MsgChannelCapacity specifies the capacity of the message channel used to publish messages released from the accountant.
+// This channel should not back up, but if it does, the accountant will start dropping messages, which would require reobservations.
+const MsgChannelCapacity = 5 * batchSize
+
 type (
+	AccountantWormchainConn interface {
+		Close()
+		SenderAddress() string
+		SubmitQuery(ctx context.Context, contractAddress string, query []byte) ([]byte, error)
+		SignAndBroadcastTx(ctx context.Context, msg sdktypes.Msg) (*sdktx.BroadcastTxResponse, error)
+		BroadcastTxResponseToString(txResp *sdktx.BroadcastTxResponse) string
+	}
+
 	// tokenBridgeKey is the key to the map of token bridges being monitored
 	tokenBridgeKey struct {
 		emitterChainId vaa.ChainID
@@ -74,7 +88,7 @@ type Accountant struct {
 	obsvReqWriteC        chan<- *gossipv1.ObservationRequest
 	contract             string
 	wsUrl                string
-	wormchainConn        *wormconn.ClientConn
+	wormchainConn        AccountantWormchainConn
 	enforceFlag          bool
 	gk                   *ecdsa.PrivateKey
 	gst                  *common.GuardianSetState
@@ -98,7 +112,7 @@ func NewAccountant(
 	obsvReqWriteC chan<- *gossipv1.ObservationRequest,
 	contract string, // the address of the smart contract on wormchain
 	wsUrl string, // the URL of the wormchain websocket interface
-	wormchainConn *wormconn.ClientConn, // used for communicating with the smart contract
+	wormchainConn AccountantWormchainConn, // used for communicating with the smart contract
 	enforceFlag bool, // whether or not accountant should be enforced
 	gk *ecdsa.PrivateKey, // the guardian key used for signing observation requests
 	gst *common.GuardianSetState, // used to get the current guardian set index when sending observation requests
@@ -134,7 +148,7 @@ func (acct *Accountant) Start(ctx context.Context) error {
 	emitterMap := sdk.KnownTokenbridgeEmitters
 	if acct.env == TestNetMode {
 		emitterMap = sdk.KnownTestnetTokenbridgeEmitters
-	} else if acct.env == DevNetMode || acct.env == GoTestMode {
+	} else if acct.env == DevNetMode || acct.env == GoTestMode || acct.env == MockMode {
 		emitterMap = sdk.KnownDevnetTokenbridgeEmitters
 	}
 
@@ -162,7 +176,12 @@ func (acct *Accountant) Start(ctx context.Context) error {
 	}
 
 	// Start the watcher to listen to transfer events from the smart contract.
-	if acct.env != GoTestMode {
+	if acct.env == MockMode {
+		// We're not in a runnable context, so we can't use supervisor.
+		go func() {
+			_ = acct.worker(ctx)
+		}()
+	} else if acct.env != GoTestMode {
 		if err := supervisor.Run(ctx, "acctworker", common.WrapWithScissors(acct.worker, "acctworker")); err != nil {
 			return fmt.Errorf("failed to start submit observation worker: %w", err)
 		}
@@ -265,11 +284,15 @@ func (acct *Accountant) SubmitObservation(msg *common.MessagePublication) (bool,
 	return !acct.enforceFlag, nil
 }
 
-// publishTransferAlreadyLocked publishes a pending transfer to the accountant channel and updates the timestamp. It assumes the caller holds the lock.
+// publishTransferAlreadyLocked publishes a pending transfer to the accountant channel and deletes it from the pending map. It assumes the caller holds the lock.
 func (acct *Accountant) publishTransferAlreadyLocked(pe *pendingEntry) {
 	if acct.enforceFlag {
-		acct.logger.Debug("publishTransferAlreadyLocked: notifying the processor", zap.String("msgId", pe.msgId))
-		acct.msgChan <- pe.msg
+		select {
+		case acct.msgChan <- pe.msg:
+			acct.logger.Debug("published transfer to channel", zap.String("msgId", pe.msgId))
+		default:
+			acct.logger.Error("unable to publish transfer because the channel is full", zap.String("msgId", pe.msgId))
+		}
 	}
 
 	acct.deletePendingTransferAlreadyLocked(pe.msgId)
@@ -277,11 +300,12 @@ func (acct *Accountant) publishTransferAlreadyLocked(pe *pendingEntry) {
 
 // addPendingTransferAlreadyLocked adds a pending transfer to both the map and the database. It assumes the caller holds the lock.
 func (acct *Accountant) addPendingTransferAlreadyLocked(pe *pendingEntry) error {
-	acct.logger.Debug("addPendingTransferAlreadyLocked", zap.String("msgId", pe.msgId))
+	acct.logger.Info("writing transfer to database", zap.String("msgId", pe.msgId))
 	pe.setUpdTime()
 	if err := acct.db.AcctStorePendingTransfer(pe.msg); err != nil {
 		return err
 	}
+	acct.logger.Info("wrote message to database", zap.String("msgId", pe.msgId))
 
 	acct.pendingTransfers[pe.msgId] = pe
 	transfersOutstanding.Set(float64(len(acct.pendingTransfers)))

@@ -1,54 +1,119 @@
-#!/bin/bash -f
+#!/usr/bin/env bash
 
 set -euo pipefail
 
-cd "$(dirname "$0")"/..
+# Help message
+function usage() {
+cat <<EOF >&2
+Deploy and initialize Sui core bridge and token bridge contracts to the
+specified network. Additionally deploys an example messaging contract in
+devnet.
 
-#Transaction Kind : Publish
-#----- Transaction Effects ----
-#Status : Success
-#Created Objects:
-#  - ID: 0x069b6d8ea50a0b0756518cb08ddbbad2babf8ae0 <= STATE , Owner: Account Address ( 0xe6a09658743da40b0f48c4da1f3fa0d34797d0d3 <= OWNER )
-#  - ID: 0x73fc05ae6f172f90b12a98cf3ad0b669d6b70e5b <= PACKAGE , Owner: Immutable
+  Usage: $(basename "$0") <network> [options]
 
-cd wormhole
-sed -i -e 's/wormhole = .*/wormhole = "0x0"/' Move.toml
-make build
-sui client publish --gas-budget 10000 | tee publish.log
-grep ID: publish.log  | head -2 > ids.log
+  Positional args:
+    <network>          Network to deploy to (devnet, testnet, mainnet)
 
-WORM_PACKAGE=$(grep "Immutable" ids.log  | sed -e 's/^.*: \(.*\) ,.*/\1/')
-sed -i -e "s/wormhole = .*/wormhole = \"$WORM_PACKAGE\"/" Move.toml
-WORM_DEPLOYER_CAPABILITY=$(grep -v "Immutable" ids.log  | sed -e 's/^.*: \(.*\) ,.*/\1/')
-WORM_OWNER=$(grep -v "Immutable" ids.log | sed -e 's/^.*( \(.*\) )/\1/')
+  Options:
+    -k, --private-key  Use given key to sign transactions
+    -h, --help         Show this help message
+EOF
+exit 1
+}
 
-cd ../token_bridge
-sed -i -e 's/token_bridge = .*/token_bridge = "0x0"/' Move.toml
-make build
-sui client publish --gas-budget 10000 | tee publish.log
-grep ID: publish.log  | head -2 > ids.log
+# If positional args are missing, print help message and exit
+if [ $# -lt 1 ]; then
+  usage
+fi
 
-TOKEN_PACKAGE=$(grep "Immutable" ids.log  | sed -e 's/^.*: \(.*\) ,.*/\1/')
-sed -i -e "s/token_bridge = .*/token_bridge = \"$TOKEN_PACKAGE\"/" Move.toml
-TOKEN_DEPLOYER_CAPABILITY=$(grep -v "Immutable" ids.log  | sed -e 's/^.*: \(.*\) ,.*/\1/')
-TOKEN_OWNER=$(grep -v "Immutable" ids.log | sed -e 's/^.*( \(.*\) )/\1/')
+# Default values
+PRIVATE_KEY_ARG=
 
-sui client call --function init_and_share_state --module state --package $WORM_PACKAGE  --gas-budget 20000 --args \"$WORM_DEPLOYER_CAPABILITY\" 0 0 "[190,250,66,157,87,205,24,183,248,164,217,26,45,169,171,74,240,93,15,190]" "[[190,250,66,157,87,205,24,183,248,164,217,26,45,169,171,74,240,93,15,190]]" | tee wormhole.log
-WORM_STATE=$(grep Shared wormhole.log | head -1 | sed -e 's/^.*: \(.*\) ,.*/\1/')
+# Set network
+NETWORK=$1 || usage
+shift
 
-sui client call --function get_new_emitter --module wormhole --package $WORM_PACKAGE --gas-budget 20000 --args \"$WORM_STATE\" | tee emitter.log
-TOKEN_EMITTER_CAPABILITY=$(grep ID: emitter.log | head -1 | sed -e 's/^.*: \(.*\) ,.*/\1/')
+# Set guardian address
+if [ "$NETWORK" = mainnet ]; then
+  echo "Mainnet not supported yet"
+  exit 1
+elif [ "$NETWORK" = testnet ]; then
+  echo "Testnet not supported yet"
+  exit 1
+elif [ "$NETWORK" = devnet ]; then
+  GUARDIAN_ADDR=befa429d57cd18b7f8a4d91a2da9ab4af05d0fbe
+else
+  usage
+fi
 
-sui client call --function init_and_share_state --module bridge_state --package $TOKEN_PACKAGE  --gas-budget 20000 --args "$TOKEN_DEPLOYER_CAPABILITY" "$TOKEN_EMITTER_CAPABILITY" | tee token.log
-TOKEN_STATE=$(grep Shared token.log | head -1 | sed -e 's/^.*: \(.*\) ,.*/\1/')
+# Parse short/long flags
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -k|--private-key)
+      if [[ ! -z "$2" ]]; then
+        PRIVATE_KEY_ARG="-k $2"
+      fi
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1"
+      usage
+      exit 1
+      ;;
+  esac
+done
 
-{ echo "export WORM_PACKAGE=$WORM_PACKAGE";
-  echo "export WORM_DEPLOYER_CAPABILITY=$WORM_DEPLOYER_CAPABILITY";
-  echo "export WORM_OWNER=$WORM_OWNER";
-  echo "export TOKEN_PACKAGE=$TOKEN_PACKAGE";
-  echo "export TOKEN_DEPLOYER_CAPABILITY=$TOKEN_DEPLOYER_CAPABILITY";
-  echo "export TOKEN_OWNER=$TOKEN_OWNER";
-  echo "export WORM_STATE=$WORM_STATE";
-  echo "export TOKEN_EMITTER_CAPABILITY=$TOKEN_EMITTER_CAPABILITY";
-  echo "export TOKEN_STATE=$TOKEN_STATE";
-} > ../env.sh
+# Assumes this script is in a sibling directory to contract dirs
+DIRNAME=$(dirname "$0")
+WORMHOLE_PATH=$(realpath "$DIRNAME"/../wormhole)
+TOKEN_BRIDGE_PATH=$(realpath "$DIRNAME"/../token_bridge)
+EXAMPLE_APP_PATH=$(realpath "$DIRNAME"/../examples/core_messages)
+EXAMPLE_COIN_PATH=$(realpath "$DIRNAME"/../examples/coins)
+
+echo -e "[1/4] Publishing core bridge contracts..."
+WORMHOLE_PUBLISH_OUTPUT=$($(echo worm sui deploy "$WORMHOLE_PATH" -n "$NETWORK" "$PRIVATE_KEY_ARG"))
+echo "$WORMHOLE_PUBLISH_OUTPUT"
+
+echo -e "\n[2/4] Initializing core bridge..."
+WORMHOLE_PACKAGE_ID=$(echo "$WORMHOLE_PUBLISH_OUTPUT" | grep -oP 'Published to +\K.*')
+WORMHOLE_INIT_OUTPUT=$($(echo worm sui init-wormhole -n "$NETWORK" --initial-guardian "$GUARDIAN_ADDR" -p "$WORMHOLE_PACKAGE_ID" "$PRIVATE_KEY_ARG"))
+WORMHOLE_STATE_OBJECT_ID=$(echo "$WORMHOLE_INIT_OUTPUT" | grep -oP 'Wormhole state object ID +\K.*')
+echo "$WORMHOLE_INIT_OUTPUT"
+
+echo -e "\n[3/4] Publishing token bridge contracts..."
+TOKEN_BRIDGE_PUBLISH_OUTPUT=$($(echo worm sui deploy "$TOKEN_BRIDGE_PATH" -n "$NETWORK" "$PRIVATE_KEY_ARG"))
+echo "$TOKEN_BRIDGE_PUBLISH_OUTPUT"
+
+echo -e "\n[4/4] Initializing token bridge..."
+TOKEN_BRIDGE_PACKAGE_ID=$(echo "$TOKEN_BRIDGE_PUBLISH_OUTPUT" | grep -oP 'Published to +\K.*')
+TOKEN_BRIDGE_INIT_OUTPUT=$($(echo worm sui init-token-bridge -n "$NETWORK" -p "$TOKEN_BRIDGE_PACKAGE_ID" -w "$WORMHOLE_STATE_OBJECT_ID" "$PRIVATE_KEY_ARG"))
+TOKEN_BRIDGE_STATE_OBJECT_ID=$(echo "$TOKEN_BRIDGE_INIT_OUTPUT" | grep -oP 'Token bridge state object ID +\K.*')
+echo "$TOKEN_BRIDGE_INIT_OUTPUT"
+
+if [ "$NETWORK" = devnet ]; then
+  echo -e "\n[+1/2] Deploying and initializing example app..."
+  EXAMPLE_APP_PUBLISH_OUTPUT=$($(echo worm sui deploy "$EXAMPLE_APP_PATH" -n "$NETWORK" "$PRIVATE_KEY_ARG"))
+  EXAMPLE_APP_PACKAGE_ID=$(echo "$EXAMPLE_APP_PUBLISH_OUTPUT" | grep -oP 'Published to +\K.*')
+  echo "$EXAMPLE_APP_PUBLISH_OUTPUT"
+
+  EXAMPLE_INIT_OUTPUT=$($(echo worm sui init-example-message-app -n "$NETWORK" -p "$EXAMPLE_APP_PACKAGE_ID" -w "$WORMHOLE_STATE_OBJECT_ID" "$PRIVATE_KEY_ARG"))
+  EXAMPLE_APP_STATE_OBJECT_ID=$(echo "$EXAMPLE_INIT_OUTPUT" | grep -oP 'Example app state object ID +\K.*')
+  echo "$EXAMPLE_INIT_OUTPUT"
+
+  echo -e "\n[+2/2] Deploying example coins..."
+  EXAMPLE_COIN_PUBLISH_OUTPUT=$($(echo worm sui deploy "$EXAMPLE_COIN_PATH" -n "$NETWORK" "$PRIVATE_KEY_ARG"))
+  echo "$EXAMPLE_COIN_PUBLISH_OUTPUT"
+
+  echo -e "\nWormhole package ID: $WORMHOLE_PACKAGE_ID"
+  echo "Token bridge package ID: $TOKEN_BRIDGE_PACKAGE_ID"
+  echo "Wormhole state object ID: $WORMHOLE_STATE_OBJECT_ID"
+  echo "Token bridge state object ID: $TOKEN_BRIDGE_STATE_OBJECT_ID"
+
+  echo -e "\nPublish message command:" worm sui publish-example-message -n devnet -p "$EXAMPLE_APP_PACKAGE_ID" -s "$EXAMPLE_APP_STATE_OBJECT_ID" -w "$WORMHOLE_STATE_OBJECT_ID" -m "hello" "$PRIVATE_KEY_ARG"
+fi
+
+echo -e "\nDeployments successful!"

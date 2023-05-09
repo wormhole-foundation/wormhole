@@ -208,8 +208,8 @@ func TestParseIbcAllChannelChainsQueryResults(t *testing.T) {
 
 	require.Equal(t, 2, len(result.Data.ChannelChains))
 	require.Equal(t, 2, len(result.Data.ChannelChains[0]))
-	assert.Equal(t, expectedChannStr1, result.Data.ChannelChains[0][0].(string))
-	assert.Equal(t, uint16(18), uint16(result.Data.ChannelChains[0][1].(float64)))
-	assert.Equal(t, expectedChannStr2, result.Data.ChannelChains[1][0].(string))
-	assert.Equal(t, uint16(22), uint16(result.Data.ChannelChains[1][1].(float64)))
+	assert.Equal(t, expectedChannStr1, result.Data.ChannelChains[0][0].(string))   //nolint:forcetypeassert
+	assert.Equal(t, uint16(18), uint16(result.Data.ChannelChains[0][1].(float64))) //nolint:forcetypeassert
+	assert.Equal(t, expectedChannStr2, result.Data.ChannelChains[1][0].(string))   //nolint:forcetypeassert
+	assert.Equal(t, uint16(22), uint16(result.Data.ChannelChains[1][1].(float64))) //nolint:forcetypeassert
 }

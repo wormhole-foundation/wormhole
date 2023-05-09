@@ -1049,7 +1049,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	// If accountantCheckEnabled is set to true, token bridge transfers will not be signed and published until they
 	// are approved by the accountant smart contract.
 	acctLogger := logger.With(zap.String("component", "gacct"))
-	acctReadC, acctWriteC := makeChannelPair[*common.MessagePublication](0)
+	acctReadC, acctWriteC := makeChannelPair[*common.MessagePublication](accountant.MsgChannelCapacity)
 
 	var acct *accountant.Accountant
 	if *accountantContract != "" {
@@ -1363,16 +1363,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		if shouldStart(suiRPC) {
-			if !*unsafeDevMode && !*testnetMode {
-				logger.Fatal("Can only start Sui watcher in devnet or testnet")
-			} else {
-				logger.Info("Starting Sui watcher")
-				common.MustRegisterReadinessSyncing(vaa.ChainIDSui)
-				chainObsvReqC[vaa.ChainIDSui] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-				if err := supervisor.Run(ctx, "suiwatch",
-					sui.NewWatcher(*suiRPC, *suiWS, *suiMoveEventType, *unsafeDevMode, chainMsgC[vaa.ChainIDSui], chainObsvReqC[vaa.ChainIDSui]).Run); err != nil {
-					return err
-				}
+			logger.Info("Starting Sui watcher")
+			common.MustRegisterReadinessSyncing(vaa.ChainIDSui)
+			chainObsvReqC[vaa.ChainIDSui] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
+			if err := supervisor.Run(ctx, "suiwatch",
+				sui.NewWatcher(*suiRPC, *suiWS, *suiMoveEventType, *unsafeDevMode, chainMsgC[vaa.ChainIDSui], chainObsvReqC[vaa.ChainIDSui]).Run); err != nil {
+				return err
 			}
 		}
 
@@ -1557,11 +1553,8 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 
 			if shouldStart(publicWeb) {
-				publicwebService, err := publicwebServiceRunnable(logger, *publicWeb, *publicGRPCSocketPath, publicrpcServer,
+				publicwebService := publicwebServiceRunnable(logger, *publicWeb, *publicGRPCSocketPath, publicrpcServer,
 					*tlsHostname, *tlsProdEnv, path.Join(*dataDir, "autocert"))
-				if err != nil {
-					log.Fatal("failed to create publicrpc web service", zap.Error(err))
-				}
 
 				if err := supervisor.Run(ctx, "publicweb", publicwebService); err != nil {
 					return err
