@@ -11,14 +11,8 @@ import {RelayProviderProxy} from "../../contracts/relayer/relayProvider/RelayPro
 import {RelayProviderMessages} from
     "../../contracts/relayer/relayProvider/RelayProviderMessages.sol";
 import {RelayProviderStructs} from "../../contracts/relayer/relayProvider/RelayProviderStructs.sol";
-import {IWormholeRelayer} from "../../contracts/interfaces/relayer/IWormholeRelayer.sol";
-import {IDelivery} from "../../contracts/interfaces/relayer/IDelivery.sol";
+import "../../contracts/interfaces/relayer/IWormholeRelayer.sol";
 import {CoreRelayer} from "../../contracts/relayer/coreRelayer/CoreRelayer.sol";
-import {IWormholeRelayerInternalStructs} from
-    "../../contracts/interfaces/relayer/IWormholeRelayerInternalStructs.sol";
-import {CoreRelayerSetup} from "../../contracts/relayer/coreRelayer/CoreRelayerSetup.sol";
-import {CoreRelayerMessages} from "../../contracts/relayer/coreRelayer/CoreRelayerMessages.sol";
-import {ForwardWrapper} from "../../contracts/relayer/coreRelayer/ForwardWrapper.sol";
 import {MockGenericRelayer} from "./MockGenericRelayer.sol";
 import {MockWormhole} from "./MockWormhole.sol";
 import {IWormhole} from "../../contracts/interfaces/IWormhole.sol";
@@ -28,11 +22,16 @@ import {AttackForwardIntegration} from "./AttackForwardIntegration.sol";
 import {MockRelayerIntegration, Structs} from "../../contracts/mock/MockRelayerIntegration.sol";
 import {ForwardTester} from "./ForwardTester.sol";
 import {TestHelpers} from "./TestHelpers.sol";
+import {toWormholeFormat} from "../../contracts/relayer/coreRelayer/Utils.sol";
 import "../../contracts/libraries/external/BytesLib.sol";
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import "forge-std/Vm.sol";
+
+contract Brick {
+    function executeUpgradeMigration() external view {}
+}
 
 contract WormholeRelayerGovernanceTests is Test {
     using BytesLib for bytes;
@@ -49,7 +48,7 @@ contract WormholeRelayerGovernanceTests is Test {
         helpers = new TestHelpers();
         (wormhole, wormholeSimulator) = helpers.setUpWormhole(1);
         relayProvider = helpers.setUpRelayProvider(1);
-        wormholeRelayer = helpers.setUpCoreRelayer(1, wormhole, address(relayProvider));
+        wormholeRelayer = helpers.setUpCoreRelayer(wormhole, address(relayProvider));
     }
 
     struct GovernanceStack {
@@ -129,18 +128,18 @@ contract WormholeRelayerGovernanceTests is Test {
 
     function testRegisterChain() public {
         IWormholeRelayer wormholeRelayer1 =
-            helpers.setUpCoreRelayer(1, wormhole, address(relayProvider));
+            helpers.setUpCoreRelayer(wormhole, address(relayProvider));
         IWormholeRelayer wormholeRelayer2 =
-            helpers.setUpCoreRelayer(1, wormhole, address(relayProvider));
+            helpers.setUpCoreRelayer(wormhole, address(relayProvider));
         IWormholeRelayer wormholeRelayer3 =
-            helpers.setUpCoreRelayer(1, wormhole, address(relayProvider));
+            helpers.setUpCoreRelayer(wormhole, address(relayProvider));
 
         helpers.registerCoreRelayerContract(
             CoreRelayer(payable(address(wormholeRelayer1))),
             wormhole,
             1,
             2,
-            wormholeRelayer.toWormholeFormat(address(wormholeRelayer2))
+            toWormholeFormat(address(wormholeRelayer2))
         );
 
         helpers.registerCoreRelayerContract(
@@ -148,17 +147,17 @@ contract WormholeRelayerGovernanceTests is Test {
             wormhole,
             1,
             3,
-            wormholeRelayer.toWormholeFormat(address(wormholeRelayer3))
+            toWormholeFormat(address(wormholeRelayer3))
         );
 
         assertTrue(
-            CoreRelayer(payable(address(wormholeRelayer1))).registeredCoreRelayerContract(2)
-                == wormholeRelayer1.toWormholeFormat(address(wormholeRelayer2))
+            CoreRelayer(payable(address(wormholeRelayer1))).getRegisteredCoreRelayerContract(2)
+                == toWormholeFormat(address(wormholeRelayer2))
         );
 
         assertTrue(
-            CoreRelayer(payable(address(wormholeRelayer1))).registeredCoreRelayerContract(3)
-                == wormholeRelayer1.toWormholeFormat(address(wormholeRelayer3))
+            CoreRelayer(payable(address(wormholeRelayer1))).getRegisteredCoreRelayerContract(3)
+                == toWormholeFormat(address(wormholeRelayer3))
         );
 
         helpers.registerCoreRelayerContract(
@@ -166,69 +165,41 @@ contract WormholeRelayerGovernanceTests is Test {
             wormhole,
             1,
             3,
-            wormholeRelayer.toWormholeFormat(address(wormholeRelayer2))
+            toWormholeFormat(address(wormholeRelayer2))
         );
 
         assertTrue(
-            CoreRelayer(payable(address(wormholeRelayer1))).registeredCoreRelayerContract(3)
-                == wormholeRelayer1.toWormholeFormat(address(wormholeRelayer2))
+            CoreRelayer(payable(address(wormholeRelayer1))).getRegisteredCoreRelayerContract(3)
+                == toWormholeFormat(address(wormholeRelayer2))
         );
     }
 
     function testUpgradeContractToItself() public {
         address payable myCoreRelayer = payable(
-            address(helpers.setUpCoreRelayer(wormhole.chainId(), wormhole, address(relayProvider)))
+            address(helpers.setUpCoreRelayer(wormhole, address(relayProvider)))
         );
 
-        for (uint256 i = 0; i < 10; i++) {
-            address forwardWrapper = address(new ForwardWrapper(myCoreRelayer, address(wormhole)));
-            CoreRelayer coreRelayerImplementationNew = new CoreRelayer(forwardWrapper);
-
-            bytes memory message = abi.encodePacked(
-                relayerModule,
-                uint8(2),
-                uint16(1),
-                wormholeRelayer.toWormholeFormat(address(coreRelayerImplementationNew))
-            );
-
-            bytes memory signed = signMessage(message);
-
-            CoreRelayer(myCoreRelayer).submitContractUpgrade(signed);
-
-            CoreRelayer(myCoreRelayer).getDefaultRelayProvider();
-        }
-
-        bytes memory brickedMessage = abi.encodePacked(
+        bytes memory noMigrationFunction = signMessage(abi.encodePacked(
             relayerModule,
             uint8(2),
             uint16(1),
-            wormholeRelayer.toWormholeFormat(address(new RelayProviderImplementation()))
-        );
-        CoreRelayer(myCoreRelayer).submitContractUpgrade(signMessage(brickedMessage));
+            toWormholeFormat(address(new RelayProviderImplementation()))
+        ));
+
+        vm.expectRevert();
+        CoreRelayer(myCoreRelayer).submitContractUpgrade(noMigrationFunction);
+
+        Brick brick = new Brick();
+        bytes memory signed = signMessage(abi.encodePacked(
+            relayerModule,
+            uint8(2),
+            uint16(1),
+            toWormholeFormat(address(brick))
+        ));
+
+        CoreRelayer(myCoreRelayer).submitContractUpgrade(signed);
 
         vm.expectRevert();
         CoreRelayer(myCoreRelayer).getDefaultRelayProvider();
-    }
-
-    function testRecoverChainId() public {
-        address payable myCoreRelayer = payable(
-            address(helpers.setUpCoreRelayer(wormhole.chainId(), wormhole, address(relayProvider)))
-        );
-        CoreRelayer mcr = CoreRelayer(payable(myCoreRelayer));
-        assertTrue(mcr.chainId() == wormhole.chainId());
-        assertTrue(mcr.evmChainId() == block.chainid);
-
-        // fork!
-        vm.chainId(12345);
-        assertTrue(mcr.evmChainId() != block.chainid);
-
-        bytes memory message = abi.encodePacked(relayerModule, uint8(3), uint256(12345), uint16(27));
-
-        bytes memory signed = signMessage(message);
-
-        CoreRelayer(myCoreRelayer).submitRecoverChainId(signed);
-
-        assertTrue(mcr.chainId() == 27);
-        assertTrue(mcr.evmChainId() == block.chainid);
     }
 }

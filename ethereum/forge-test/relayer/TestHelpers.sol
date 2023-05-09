@@ -9,10 +9,8 @@ import {RelayProviderImplementation} from
     "../../contracts/relayer/relayProvider/RelayProviderImplementation.sol";
 import {RelayProviderProxy} from "../../contracts/relayer/relayProvider/RelayProviderProxy.sol";
 import {IWormholeRelayer} from "../../contracts/interfaces/relayer/IWormholeRelayer.sol";
-import {ForwardWrapper} from "../../contracts/relayer/coreRelayer/ForwardWrapper.sol";
 import {CoreRelayer} from "../../contracts/relayer/coreRelayer/CoreRelayer.sol";
 import {Create2Factory} from "../../contracts/relayer/create2Factory/Create2Factory.sol";
-import {CoreRelayerSetup} from "../../contracts/relayer/coreRelayer/CoreRelayerSetup.sol";
 import {MockGenericRelayer} from "./MockGenericRelayer.sol";
 import {MockWormhole} from "./MockWormhole.sol";
 import {IWormhole} from "../../contracts/interfaces/IWormhole.sol";
@@ -106,34 +104,23 @@ contract TestHelpers {
     }
 
     function setUpCoreRelayer(
-        uint16 chainId,
         IWormhole wormhole,
         address defaultRelayProvider
     ) public returns (IWormholeRelayer coreRelayer) {
         Create2Factory create2Factory = new Create2Factory();
-        CoreRelayerSetup coreRelayerSetup = new CoreRelayerSetup();
 
         address proxyAddressComputed =
             create2Factory.computeProxyAddress(address(this), "0xGenericRelayer");
-        ForwardWrapper forwardWrapper = new ForwardWrapper(proxyAddressComputed, address(wormhole));
 
-        CoreRelayer coreRelayerImplementation = new CoreRelayer(address(forwardWrapper));
+        CoreRelayer coreRelayerImplementation =
+            new CoreRelayer(address(wormhole), defaultRelayProvider);
 
-        bytes memory setupCall = abi.encodeCall(
-            CoreRelayerSetup.setup,
-            (
-                address(coreRelayerImplementation),
-                chainId,
-                address(wormhole),
-                defaultRelayProvider,
-                wormhole.governanceChainId(),
-                wormhole.governanceContract(),
-                block.chainid
-            )
-        );
+        bytes memory initCall = abi.encodeCall(CoreRelayer.initialize, ());
 
         coreRelayer = IWormholeRelayer(
-            create2Factory.create2Proxy("0xGenericRelayer", address(coreRelayerSetup), setupCall)
+            create2Factory.create2Proxy(
+                "0xGenericRelayer", address(coreRelayerImplementation), initCall
+            )
         );
         require(
             address(coreRelayer) == proxyAddressComputed, "computed must match actual proxy addr"
