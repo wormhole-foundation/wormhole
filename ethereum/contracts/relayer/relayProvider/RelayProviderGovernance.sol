@@ -1,7 +1,7 @@
 // contracts/Relayer.sol
 // SPDX-License-Identifier: Apache 2
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 
@@ -29,10 +29,10 @@ abstract contract RelayProviderGovernance is
     event ChainSupportUpdated(uint16 targetChainId, bool isSupported);
     event OwnershipTransfered(address indexed oldOwner, address indexed newOwner);
     event RewardAddressUpdated(address indexed newAddress);
-    event TargetChainAddressUpdated(uint16 indexed targetChain, bytes32 indexed newAddress);
+    event TargetChainAddressUpdated(uint16 indexed targetChainId, bytes32 indexed newAddress);
     event DeliverGasOverheadUpdated(uint32 indexed oldGasOverhead, uint32 indexed newGasOverhead);
     event CoreRelayerUpdated(address coreRelayer);
-    event AssetConversionBufferUpdated(uint16 targetChain, uint16 buffer, uint16 bufferDenominator);
+    event AssetConversionBufferUpdated(uint16 targetChainId, uint16 buffer, uint16 bufferDenominator);
 
     function updateCoreRelayer(address payable newAddress) external onlyOwner {
         updateCoreRelayerImpl(newAddress);
@@ -76,8 +76,8 @@ abstract contract RelayProviderGovernance is
         emit RewardAddressUpdated(newAddress);
     }
 
-    function updateTargetChainAddress(uint16 targetChain, bytes32 newAddress) public onlyOwner {
-        updateTargetChainAddressImpl(targetChain, newAddress);
+    function updateTargetChainAddress(uint16 targetChainId, bytes32 newAddress) public onlyOwner {
+        updateTargetChainAddressImpl(targetChainId, newAddress);
     }
 
     function updateTargetChainAddresses(RelayProviderStructs.TargetChainUpdate[] memory updates)
@@ -94,9 +94,9 @@ abstract contract RelayProviderGovernance is
         }
     }
 
-    function updateTargetChainAddressImpl(uint16 targetChain, bytes32 newAddress) internal {
-        setTargetChainAddress(targetChain, newAddress);
-        emit TargetChainAddressUpdated(targetChain, newAddress);
+    function updateTargetChainAddressImpl(uint16 targetChainId, bytes32 newAddress) internal {
+        setTargetChainAddress(targetChainId, newAddress);
+        emit TargetChainAddressUpdated(targetChainId, newAddress);
     }
 
     function updateDeliverGasOverhead(uint16 chainId, uint32 newGasOverhead) external onlyOwner {
@@ -185,11 +185,11 @@ abstract contract RelayProviderGovernance is
     }
 
     function updateAssetConversionBuffer(
-        uint16 targetChain,
+        uint16 targetChainId,
         uint16 buffer,
         uint16 bufferDenominator
     ) external onlyOwner {
-        updateAssetConversionBufferImpl(targetChain, buffer, bufferDenominator);
+        updateAssetConversionBufferImpl(targetChainId, buffer, bufferDenominator);
     }
 
     function updateAssetConversionBuffers(
@@ -206,12 +206,12 @@ abstract contract RelayProviderGovernance is
     }
 
     function updateAssetConversionBufferImpl(
-        uint16 targetChain,
+        uint16 targetChainId,
         uint16 buffer,
         uint16 bufferDenominator
     ) internal {
-        setAssetConversionBuffer(targetChain, buffer, bufferDenominator);
-        emit AssetConversionBufferUpdated(targetChain, buffer, bufferDenominator);
+        setAssetConversionBuffer(targetChainId, buffer, bufferDenominator);
+        emit AssetConversionBufferUpdated(targetChainId, buffer, bufferDenominator);
     }
 
     function updateConfig(
