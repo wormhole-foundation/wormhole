@@ -3,8 +3,8 @@
 pragma solidity ^0.8.19;
 
 /**
- * @notice TargetDeliveryParameters is the struct that the relay provider passes into 'deliver'
- * containing an array of the signed wormhole messages that are to be relayed
+ * @notice DeliveryData is the struct that the relay provider passes into 'deliver' containing an
+ *     array of the signed wormhole messages that are to be relayed
  *
  * @custom:member sourceAddress - the (wormhole format) address on the sending chain which requested
  *     this delivery. Any address is able to initiate a delivery to anywhere else.

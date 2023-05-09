@@ -165,6 +165,8 @@ struct DeliveryOverride {
 
 interface IWormholeRelayerBase {
   event SendEvent(uint64 indexed sequence, uint256 maxTxFee, uint256 receiverValue);
+
+  function getRegisteredCoreRelayerContract(uint16 chainId) external view returns (bytes32);
 }
 
 interface IWormholeRelayerSend is IWormholeRelayerBase {
@@ -487,6 +489,23 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
   function getDefaultRelayParams() external view returns (bytes memory relayParams);
 }
 
+/**
+ * @notice TargetDeliveryParameters is the struct that the relay provider passes into 'deliver'
+ * containing an array of the signed wormhole messages that are to be relayed
+ *
+ * @custom:member encodedVMs An array of signed wormhole messages (all from the same source chain transaction)
+ * @custom:member encodedDeliveryVAA signed wormhole message from the source chain's CoreRelayer contract with payload being the encoded delivery instruction container
+ * @custom:member relayerRefundAddress The address to which any refunds to the relay provider should be sent
+ * @custom:member overrides. Optional overrides field which must parse to executionParameters. //TODO AMO: this seems wrong
+ */
+//TODO AMO: Why does this struct exist in the first place?
+struct TargetDeliveryParameters {
+  bytes[] encodedVMs;
+  bytes encodedDeliveryVAA;
+  address payable relayerRefundAddress;
+  bytes overrides; //optional, encoded DeliveryOverride struct
+}
+
 interface IWormholeRelayerDelivery is IWormholeRelayerBase {
   enum DeliveryStatus {
     SUCCESS,
@@ -532,25 +551,6 @@ interface IWormholeRelayerDelivery is IWormholeRelayerBase {
     bytes additionalStatusInfo,
     bytes overridesInfo
   );
-
-  /**
-   * @notice TargetDeliveryParameters is the struct that the relay provider passes into 'deliver'
-   * containing an array of the signed wormhole messages that are to be relayed
-   *
-   * @custom:member encodedVMs An array of signed wormhole messages (all from the same source chain transaction)
-   * @custom:member encodedDeliveryVAA signed wormhole message from the source chain's CoreRelayer contract with payload being the encoded delivery instruction container
-   * @custom:member multisendIndex The delivery instruction container in encodedDeliveryVAA contains many delivery instructions, each specifying a different destination address
-   * This 'multisendIndex' indicates which of those delivery instructions should be executed (specifically, the instruction deliveryInstructionsContainer.instructions[multisendIndex])
-   * @custom:member relayerRefundAddress The address to which any refunds to the relay provider should be sent
-   * @custom:member overrides. Optional overrides field which must parse to executionParameters. //TODO AMO: this seems wrong
-   */
-  //TODO AMO: Why does this struct exist in the first place?
-  struct TargetDeliveryParameters {
-    bytes[] encodedVMs;
-    bytes encodedDeliveryVAA;
-    address payable relayerRefundAddress;
-    bytes overrides; //optional, encoded DeliveryOverride struct
-  }
 
   /**
    * @notice The relay provider calls 'deliver' to relay messages as described by one delivery instruction

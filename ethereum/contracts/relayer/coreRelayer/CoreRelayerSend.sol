@@ -6,7 +6,6 @@ import {
   InsufficientMaxTransactionFee,
   InvalidMsgValue,
   ExceedsMaximumBudget,
-  RelayProviderDoesNotSupportTargetChain,
   VaaKey,
   ExecutionParameters,
   Send,
