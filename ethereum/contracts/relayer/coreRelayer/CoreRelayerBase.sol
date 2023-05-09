@@ -57,12 +57,12 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
     uint256 wormholeMessageFee,
     uint256 maxTransactionFee,
     uint256 receiverValue,
-    bytes memory message,
+    bytes memory encodedInstruction,
     uint8 consistencyLevel,
     IRelayProvider relayProvider
   ) internal returns (uint64 sequence) { 
     sequence =
-      getWormhole().publishMessage{value: wormholeMessageFee}(0, message, consistencyLevel);
+      getWormhole().publishMessage{value: wormholeMessageFee}(0, encodedInstruction, consistencyLevel);
 
     emit SendEvent(sequence, maxTransactionFee, receiverValue);
 
