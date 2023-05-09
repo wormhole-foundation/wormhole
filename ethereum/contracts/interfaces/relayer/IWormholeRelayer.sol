@@ -5,7 +5,7 @@ pragma solidity ^0.8.0;
 //TODO AMO: Decide on use regarding '' vs `` quotation of variables/function names in comments
 //            and then make it uniform.
 
-//TODO AMO: 132 because presumably 4 (function selector) + 4*32 (4 32-byte words)
+//132 is chosen because 132 = 4 (function selector) + 4*32 (4 32-byte words)
 uint256 constant RETURNDATA_TRUNCATION_THRESHOLD = 132;
 
 error InvalidMsgValue(uint256 msgValue, uint256 totalFee);
@@ -182,24 +182,8 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
    * @notice This 'send' function emits a wormhole message (VAA) that alerts the default wormhole
    * relay provider to call the receiveWormholeMessage(DeliveryData memory deliveryData, bytes[]
    * memory signedVaas) endpoint of the contract on chain 'targetChainId' and address
-   //TODO AMO: another duplication of DeliveryData documentation
-   *
-   * 'targetAddress' with the first argument being a DeliveryData struct with fields:
-   *  - sourceAddress:
-   *      Address (in wormhole 32-byte format) that called 'send' on the source chain.
-   *  - sourceChainId:
-   *      The wormhole chainID of the source chain (this current chain).
-   *  - maximumRefund:
-   *      The maximum transaction fee refund that can possibly be awarded (to refundAddress) at
-   *        the end of this delivery, assuming no gas is used by receiveWormholeMessages.
-   *      This is calculated by subtracting the relayer's base fee for the targetChainId from
-   *        'maxTransactionFee' and then converting to target chain currency.
-   *  - deliveryHash:
-   *      The VAA hash of the deliveryVAA. If you do not want to potentially process this
-   *        delivery multiple times, you should store this hash in state for replay protection.
-   *  - payload:
-   *      The arbitrary payload (bytes).
-   * and with the second argument (signedVaas) empty.
+   * 'targetAddress' with the first argument being a DeliveryData struct  
+   * and with the second argument (signedVaas) empty. This endpoint can be found in IWormholeReceiver.sol
    *
    *
    * @param targetChainId The chain that the vaas are delivered to, in Wormhole Chain ID format
@@ -250,13 +234,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
   /**
    *  @notice This 'send' function emits a wormhole message (VAA) that alerts the default wormhole relay provider to
    *  call the receiveWormholeMessage(DeliveryData memory deliveryData, bytes[] memory signedVaas) endpoint of the contract on chain 'targetChainId' and address 'targetAddress'
-   *  with the first argument being a DeliveryData struct with fields:
-   *    - sourceAddress: address (in wormhole 32-byte format) that called 'send' on the source chain
-   *    - sourceChainId: The wormhole chainID of the source chain (this current chain)
-   *    - maximumRefund: The maximum transaction fee refund that can possibly be awarded (to refundAddress) at the end of this delivery, assuming no gas is used by receiveWormholeMessages
-   *             This is calculated by subtracting the relayer's base fee for the targetChainId from 'maxTransactionFee' and then converting to target chain currency
-   *    - deliveryHash: The VAA hash of the deliveryVAA. If you do not want to potentially process this delivery multiple times, you should store this hash in state for replay protection
-   *    - payload: the arbitrary payload (bytes).
+   *  with the first argument being a DeliveryData struct 
    *  and with the second argument being wormhole messages (VAAs) from the current transaction that match the descriptions in the 'vaaKeys' array (which have additionally been encoded and signed by the Guardian set to form 'signed VAAs')
    *
    *
@@ -298,14 +276,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
   /**
    *  @notice This 'send' function emits a wormhole message (VAA) that alerts the relay provider specified by sendParams.relayProviderAddress to
    *  call the receiveWormholeMessage(DeliveryData memory deliveryData, bytes[] memory signedVaas) endpoint of the contract on chain 'sendParams.targetChainId' and address 'sendParams.targetAddress'
-   //TODO AMO: Jesus H Christ, how often is this duplicated?!?
-   *  with the first argument being a DeliveryData struct with fields:
-   *    - sourceAddress: address (in wormhole 32-byte format) that called 'send' on the source chain
-   *    - sourceChainId: The wormhole chainID of the source chain (this current chain)
-   *    - maximumRefund: The maximum transaction fee refund that can possibly be awarded (to sendParams.refundAddress) at the end of this delivery, assuming no gas is used by receiveWormholeMessages
-   *             This is calculated by subtracting the relayer's base fee for the targetChainId from 'maxTransactionFee' and then converting to target chain currency
-   *    - deliveryHash: The VAA hash of the deliveryVAA. If you do not want to potentially process this delivery multiple times, you should store this hash in state for replay protection
-   *    - payload: the arbitrary payload (bytes).
+   *  with the first argument being a DeliveryData struct 
    *  and with the second argument being wormhole messages (VAAs) from the current transaction that match the descriptions in the 'sendParams.vaaKeys' array (which have additionally been encoded and signed by the Guardian set to form 'signed VAAs')
    *
    *
@@ -488,7 +459,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
    * @notice Returns default relay parameters
    * @return relayParams default relay parameters
    */
-  function getDefaultRelayParams() external view returns (bytes memory relayParams);
+  function getDefaultRelayParams() external pure returns (bytes memory relayParams);
 }
 
 /**
@@ -498,7 +469,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
  * @custom:member encodedVMs An array of signed wormhole messages (all from the same source chain transaction)
  * @custom:member encodedDeliveryVAA signed wormhole message from the source chain's CoreRelayer contract with payload being the encoded delivery instruction container
  * @custom:member relayerRefundAddress The address to which any refunds to the relay provider should be sent
- * @custom:member overrides. Optional overrides field which must parse to executionParameters. //TODO AMO: this seems wrong
+ * @custom:member overrides. Optional overrides field which must be an empty bytes or parse to a DeliveryOverride struct
  */
 //TODO AMO: Why does this struct exist in the first place?
 struct TargetDeliveryParameters {
