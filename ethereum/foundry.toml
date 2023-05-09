@@ -8,12 +8,7 @@ src = "contracts"
 # truffle doesn't try to build them
 test = "forge-test"
 
-[fmt]
-line_length = 100
-multiline_func_header = "params_first"
-# wrap_comments = true
-
-out = 'out'
+out = 'build-forge'
 libs = ['lib', 'node_modules']
 remappings = [
     '@openzeppelin/=node_modules/@openzeppelin/',
@@ -22,5 +17,11 @@ remappings = [
     'forge-std/=lib/forge-std/src/',
     'truffle/=node_modules/truffle/',
 ]
+
+[fmt]
+line_length = 100
+multiline_func_header = "params_first"
+# wrap_comments = true
+
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
