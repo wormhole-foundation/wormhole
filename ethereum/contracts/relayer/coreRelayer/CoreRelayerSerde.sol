@@ -42,10 +42,7 @@ library CoreRelayerSerde {
       strct.refundChainId,
       strct.refundAddress,
       strct.maxTransactionFee,
-      strct.receiverValue
-    );
-    encoded = abi.encodePacked(
-      encoded,
+      strct.receiverValue,
       strct.relayProviderAddress,
       encodeVaaKeyArray(strct.vaaKeys),
       strct.consistencyLevel,
@@ -82,10 +79,7 @@ library CoreRelayerSerde {
       strct.refundChainId,
       strct.refundAddress,
       strct.maximumRefundTarget,
-      strct.receiverValueTarget
-    );
-    encoded = abi.encodePacked(
-      encoded,
+      strct.receiverValueTarget,
       strct.sourceRelayProvider,
       strct.targetRelayProvider,
       strct.senderAddress,
