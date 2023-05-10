@@ -167,6 +167,13 @@ pub fn create_submit_vaa_msg(s: &str) -> ExecuteMsg {
     ExecuteMsg::SubmitVaa {data: vaa}
 }
 
+pub fn create_transfer_vaa_msg(s: &str) -> ExecuteMsg {
+    let vaa = s;
+    let vaa = hex::decode(vaa).unwrap();
+    let vaa = Binary::from(vaa.clone());
+    ExecuteMsg::CompleteTransferWithPayload { data: vaa, relayer: "000000000000000123456789".to_string() }
+}
+
 pub fn query_chain_channels(router: &App, addr: Addr) -> Vec<(Binary, u16)> {
     let query_msg = QueryMsg::AllChainChannels {};
     let query_response: AllChainChannelsResponse = router
