@@ -247,9 +247,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     relayProvider = getDefaultRelayProviderState().defaultRelayProvider;
   }
 
-  //TODO AMO: solc suggested changing view to pure - is this fine given that IWormholeRelayerSend
-  //            has declared it as view?
-  function getDefaultRelayParams() public pure returns (bytes memory relayParams) {
+  function getDefaultRelayParams() public view returns (bytes memory relayParams) {
     return new bytes(0);
   }
 

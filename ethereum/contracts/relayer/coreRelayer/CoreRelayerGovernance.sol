@@ -23,7 +23,7 @@ error InvalidPayloadChainId(uint16 parsed, uint16 expected);
 error InvalidPayloadAction(uint8 parsed, uint8 expected);
 error InvalidPayloadModule(bytes32 parsed, bytes32 expected);
 error InvalidFork();
-error ConractUpgradeFailed(bytes failure);
+error ContractUpgradeFailed(bytes failure);
 
 abstract contract CoreRelayerGovernance is CoreRelayerBase, ERC1967Upgrade {
 //TODO AMO: the bytes32 payloads here are suspect - for EVM we only need 20 bytes
@@ -86,7 +86,7 @@ abstract contract CoreRelayerGovernance is CoreRelayerBase, ERC1967Upgrade {
       address(this).call(abi.encodeWithSignature("executeUpgradeMigration()"));
 
     if (!success)
-      revert ConractUpgradeFailed(revertData);
+      revert ContractUpgradeFailed(revertData);
   }
 
   function registerCoreRelayerContract(bytes memory encodedVm) external {
