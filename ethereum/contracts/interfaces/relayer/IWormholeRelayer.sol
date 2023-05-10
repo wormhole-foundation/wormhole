@@ -459,7 +459,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
    * @notice Returns default relay parameters
    * @return relayParams default relay parameters
    */
-  function getDefaultRelayParams() external pure returns (bytes memory relayParams);
+  function getDefaultRelayParams() external view returns (bytes memory relayParams);
 }
 
 /**
