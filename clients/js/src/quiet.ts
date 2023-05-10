@@ -23,3 +23,15 @@ console.warn = function (x: string) {
     warn(x);
   }
 };
+
+// Ensure BigInt can be serialized to json
+//
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+interface BigInt {
+    /** Convert to BigInt to string form in JSON.stringify */
+    toJSON: () => string;
+}
+// Without this JSON.stringify() blows up
+(BigInt.prototype as any).toJSON = function () {
+    return this.toString();
+};
