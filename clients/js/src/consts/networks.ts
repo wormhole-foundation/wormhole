@@ -1,13 +1,10 @@
 import { ChainName } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
-import { homedir } from "os";
 import { config } from "dotenv";
+import { homedir } from "os";
 
 config({ path: `${homedir()}/.wormhole/.env` });
 
-function get_env_var(env: string): string | undefined {
-  const v = process.env[env];
-  return v;
-}
+const getEnvVar = (varName: string): string | undefined => process.env[varName];
 
 export type Connection = {
   rpc: string | undefined;
@@ -25,64 +22,75 @@ const MAINNET = {
   },
   solana: {
     rpc: "https://api.mainnet-beta.solana.com",
-    key: get_env_var("SOLANA_KEY"),
+    key: getEnvVar("SOLANA_KEY"),
   },
   terra: {
     rpc: "https://lcd.terra.dev",
     chain_id: "columbus-5",
-    key: get_env_var("TERRA_MNEMONIC"),
+    key: getEnvVar("TERRA_MNEMONIC"),
   },
   ethereum: {
     rpc: `https://rpc.ankr.com/eth`,
-    key: get_env_var("ETH_KEY"),
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 1,
   },
   bsc: {
     rpc: "https://bsc-dataseed.binance.org/",
-    key: get_env_var("ETH_KEY"),
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 56,
   },
   polygon: {
     rpc: "https://rpc.ankr.com/polygon",
-    key: get_env_var("ETH_KEY"),
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 137,
   },
   avalanche: {
     rpc: "https://rpc.ankr.com/avalanche",
-    key: get_env_var("ETH_KEY"),
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 43114,
   },
   algorand: {
     rpc: "https://mainnet-api.algonode.cloud",
-    key: get_env_var("ALGORAND_KEY"),
+    key: getEnvVar("ALGORAND_KEY"),
   },
   oasis: {
     rpc: "https://emerald.oasis.dev/",
-    key: get_env_var("ETH_KEY"),
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 42262,
   },
   fantom: {
     rpc: "https://rpc.ftm.tools/",
-    key: get_env_var("ETH_KEY"),
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 250,
   },
   aurora: {
     rpc: "https://mainnet.aurora.dev",
-    key: get_env_var("ETH_KEY"),
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 1313161554,
   },
   karura: {
     rpc: "https://eth-rpc-karura.aca-api.network/",
-    key: get_env_var("ETH_KEY"),
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 686,
   },
   acala: {
     rpc: "https://eth-rpc-acala.aca-api.network/",
-    key: get_env_var("ETH_KEY"),
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 787,
   },
   klaytn: {
     rpc: "https://public-node-api.klaytnapi.com/v1/cypress",
-    key: get_env_var("ETH_KEY"),
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 8217,
   },
   celo: {
     rpc: "https://forno.celo.org",
-    key: get_env_var("ETH_KEY"),
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 42220,
   },
   near: {
     rpc: "https://rpc.mainnet.near.org",
-    key: get_env_var("NEAR_KEY"),
+    key: getEnvVar("NEAR_KEY"),
     networkId: "mainnet",
     deployerAccount:
       "85957f38de1768d6db9eab29bee9dd2a01462aff9c8d83daefb9bcd2506c32d2",
@@ -90,7 +98,7 @@ const MAINNET = {
   injective: {
     rpc: "http://sentry0.injective.network:26657",
     chain_id: "injective-1",
-    key: get_env_var("INJECTIVE_KEY"),
+    key: getEnvVar("INJECTIVE_KEY"),
   },
   osmosis: {
     rpc: undefined,
@@ -98,20 +106,20 @@ const MAINNET = {
   },
   aptos: {
     rpc: "https://fullnode.mainnet.aptoslabs.com/v1",
-    key: get_env_var("APTOS_KEY"),
+    key: getEnvVar("APTOS_KEY"),
   },
   sui: {
     rpc: "https://fullnode.mainnet.sui.io:443",
-    key: get_env_var("SUI_KEY"),
+    key: getEnvVar("SUI_KEY"),
   },
   pythnet: {
     rpc: "http://api.pythnet.pyth.network:8899/",
-    key: get_env_var("SOLANA_KEY"),
+    key: getEnvVar("SOLANA_KEY"),
   },
   xpla: {
     rpc: "https://dimension-lcd.xpla.dev",
     chain_id: "dimension_37-1",
-    key: get_env_var("XPLA_KEY"),
+    key: getEnvVar("XPLA_KEY"),
   },
   btc: {
     rpc: undefined,
@@ -123,32 +131,38 @@ const MAINNET = {
   },
   moonbeam: {
     rpc: "https://rpc.api.moonbeam.network",
-    key: get_env_var("ETH_KEY"),
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 1284,
   },
   neon: {
     rpc: undefined,
     key: undefined,
+    chain_id: undefined,
   },
   terra2: {
     rpc: "https://phoenix-lcd.terra.dev",
     chain_id: "phoenix-1",
-    key: get_env_var("TERRA_MNEMONIC"),
+    key: getEnvVar("TERRA_MNEMONIC"),
   },
   arbitrum: {
     rpc: "https://arb1.arbitrum.io/rpc",
-    key: get_env_var("ETH_KEY"),
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 42161,
   },
   optimism: {
     rpc: "https://mainnet.optimism.io",
-    key: get_env_var("ETH_KEY"),
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 10,
   },
   gnosis: {
     rpc: "https://rpc.gnosischain.com/",
-    key: get_env_var("ETH_KEY"),
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 100,
   },
   base: {
     rpc: undefined,
-    key: get_env_var("ETH_KEY"),
+    key: getEnvVar("ETH_KEY"),
+    chain_id: 8453,
   },
   sei: {
     rpc: undefined,
@@ -157,6 +171,7 @@ const MAINNET = {
   sepolia: {
     rpc: undefined,
     key: undefined,
+    chain_id: undefined,
   },
 };
 
@@ -167,101 +182,113 @@ const TESTNET = {
   },
   solana: {
     rpc: "https://api.devnet.solana.com",
-    key: get_env_var("SOLANA_KEY_TESTNET"),
+    key: getEnvVar("SOLANA_KEY_TESTNET"),
   },
   terra: {
     rpc: "https://bombay-lcd.terra.dev",
     chain_id: "bombay-12",
-    key: get_env_var("TERRA_MNEMONIC_TESTNET"),
+    key: getEnvVar("TERRA_MNEMONIC_TESTNET"),
   },
   ethereum: {
     rpc: `https://rpc.ankr.com/eth_goerli`,
-    key: get_env_var("ETH_KEY_TESTNET"),
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 5,
   },
   bsc: {
     rpc: "https://data-seed-prebsc-1-s1.binance.org:8545",
-    key: get_env_var("ETH_KEY_TESTNET"),
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 97,
   },
   polygon: {
     rpc: `https://rpc.ankr.com/polygon_mumbai`,
-    key: get_env_var("ETH_KEY_TESTNET"),
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 80001,
   },
   avalanche: {
     rpc: "https://rpc.ankr.com/avalanche_fuji",
-    key: get_env_var("ETH_KEY_TESTNET"),
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 43113,
   },
   oasis: {
     rpc: "https://testnet.emerald.oasis.dev",
-    key: get_env_var("ETH_KEY_TESTNET"),
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 42261,
   },
   algorand: {
     rpc: "https://testnet-api.algonode.cloud",
-    key: get_env_var("ALGORAND_KEY_TESTNET"),
+    key: getEnvVar("ALGORAND_KEY_TESTNET"),
   },
   fantom: {
     rpc: "https://rpc.testnet.fantom.network",
-    key: get_env_var("ETH_KEY_TESTNET"),
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 4002,
   },
   aurora: {
     rpc: "https://testnet.aurora.dev",
-    key: get_env_var("ETH_KEY_TESTNET"),
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 1313161555,
   },
   karura: {
     rpc: "https://eth-rpc-karura-testnet.aca-staging.network",
-    key: get_env_var("ETH_KEY_TESTNET"),
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 596,
   },
   acala: {
     rpc: "https://eth-rpc-acala-testnet.aca-staging.network",
-    key: get_env_var("ETH_KEY_TESTNET"),
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 595,
   },
   klaytn: {
     rpc: "https://api.baobab.klaytn.net:8651",
-    key: get_env_var("ETH_KEY_TESTNET"),
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 1001,
   },
   celo: {
     rpc: "https://alfajores-forno.celo-testnet.org",
-    key: get_env_var("ETH_KEY_TESTNET"),
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 44787,
   },
   near: {
     rpc: "https://rpc.testnet.near.org",
-    key: get_env_var("NEAR_KEY_TESTNET"),
+    key: getEnvVar("NEAR_KEY_TESTNET"),
     networkId: "testnet",
     deployerAccount: "wormhole.testnet",
   },
   injective: {
     rpc: "https://k8s.testnet.tm.injective.network:443",
     chain_id: "injective-888",
-    key: get_env_var("INJECTIVE_KEY_TESTNET"),
+    key: getEnvVar("INJECTIVE_KEY_TESTNET"),
   },
   osmosis: {
     rpc: undefined,
     chain_id: "osmo-test-4",
-    key: get_env_var("OSMOSIS_KEY_TESTNET"),
+    key: getEnvVar("OSMOSIS_KEY_TESTNET"),
   },
   aptos: {
     rpc: "https://fullnode.testnet.aptoslabs.com/v1",
-    key: get_env_var("APTOS_TESTNET"),
+    key: getEnvVar("APTOS_TESTNET"),
   },
   sui: {
-    rpc: "https://fullnode.devnet.sui.io:443",
-    key: get_env_var("SUI_KEY_TESTNET"),
+    rpc: "https://fullnode.testnet.sui.io:443",
+    key: getEnvVar("SUI_KEY_TESTNET"),
   },
   pythnet: {
     rpc: "https://api.pythtest.pyth.network/",
-    key: get_env_var("SOLANA_KEY_TESTNET"),
+    key: getEnvVar("SOLANA_KEY_TESTNET"),
   },
   xpla: {
     rpc: "https://cube-lcd.xpla.dev:443",
     chain_id: "cube_47-5",
-    key: get_env_var("XPLA_KEY_TESTNET"),
+    key: getEnvVar("XPLA_KEY_TESTNET"),
   },
   sei: {
     rpc: "https://rpc.atlantic-2.seinetwork.io",
-    key: get_env_var("SEI_KEY_TESTNET"),
+    key: getEnvVar("SEI_KEY_TESTNET"),
   },
   sepolia: {
     rpc: "https://rpc.ankr.com/eth_sepolia",
-    key: get_env_var("ETH_KEY_TESTNET"),
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 11155111,
   },
   btc: {
     rpc: undefined,
@@ -273,32 +300,38 @@ const TESTNET = {
   },
   moonbeam: {
     rpc: "https://rpc.api.moonbase.moonbeam.network",
-    key: get_env_var("ETH_KEY_TESTNET"),
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 1287,
   },
   neon: {
     rpc: "https://proxy.devnet.neonlabs.org/solana",
-    key: get_env_var("ETH_KEY_TESTNET"),
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: undefined,
   },
   terra2: {
     rpc: "https://pisco-lcd.terra.dev",
     chain_id: "pisco-1",
-    key: get_env_var("TERRA_MNEMONIC_TESTNET"),
+    key: getEnvVar("TERRA_MNEMONIC_TESTNET"),
   },
   arbitrum: {
     rpc: "https://goerli-rollup.arbitrum.io/rpc",
-    key: get_env_var("ETH_KEY_TESTNET"),
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 421613,
   },
   optimism: {
     rpc: "https://goerli.optimism.io",
-    key: get_env_var("ETH_KEY_TESTNET"),
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 420,
   },
   gnosis: {
     rpc: "https://sokol.poa.network/",
-    key: get_env_var("ETH_KEY_TESTNET"),
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 77,
   },
   base: {
     rpc: "https://goerli.base.org",
-    key: get_env_var("ETH_KEY_TESTNET"),
+    key: getEnvVar("ETH_KEY_TESTNET"),
+    chain_id: 84531,
   },
 };
 
@@ -338,7 +371,7 @@ const DEVNET = {
   },
   algorand: {
     rpc: "http://localhost",
-    key: get_env_var("ALGORAND_KEY_DEVNET"),
+    key: getEnvVar("ALGORAND_KEY_DEVNET"),
   },
   fantom: {
     rpc: undefined,

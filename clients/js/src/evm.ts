@@ -13,7 +13,7 @@ import {
 import axios from "axios";
 import { ethers } from "ethers";
 import { solidityKeccak256 } from "ethers/lib/utils";
-import { NETWORKS } from "./networks";
+import { NETWORKS } from "./consts";
 import { Network } from "./utils";
 import { Encoding, Payload, encode, impossible, typeWidth } from "./vaa";
 

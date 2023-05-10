@@ -14,13 +14,6 @@ import dotenv from "dotenv";
 import fs from "fs";
 import yargs from "yargs";
 import {
-  GOVERNANCE_CHAIN,
-  GOVERNANCE_EMITTER,
-  INITIAL_GUARDIAN_DEVNET,
-  RPC_OPTIONS,
-} from "../../consts";
-import { NETWORKS } from "../../networks";
-import {
   assertSuccess,
   executeTransactionBlock,
   getCreatedObjects,
@@ -32,7 +25,14 @@ import {
   logTransactionDigest,
   registerChain,
   setMaxGasBudgetDevnet,
-} from "../../sui";
+} from "../../chains/sui";
+import {
+  GOVERNANCE_CHAIN,
+  GOVERNANCE_EMITTER,
+  INITIAL_GUARDIAN_DEVNET,
+  NETWORKS,
+  RPC_OPTIONS,
+} from "../../consts";
 import { YargsAddCommandsFn } from "../Yargs";
 import { deploy } from "./deploy";
 import { initExampleApp, initTokenBridge, initWormhole } from "./init";

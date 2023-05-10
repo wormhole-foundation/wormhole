@@ -2,7 +2,7 @@ import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import BN from "bn.js";
 import { Account, connect, KeyPair } from "near-api-js";
 import { InMemoryKeyStore } from "near-api-js/lib/key_stores";
-import { NETWORKS } from "./networks";
+import { NETWORKS } from "./consts";
 import { Network } from "./utils";
 import { impossible, Payload } from "./vaa";
 

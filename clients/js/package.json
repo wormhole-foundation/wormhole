@@ -1,7 +1,9 @@
 {
   "name": "@wormhole-foundation/wormhole-cli",
   "version": "0.0.3",
-  "sideEffects": ["src/side-effects.ts"],
+  "sideEffects": [
+    "src/side-effects.ts"
+  ],
   "description": "CLI for Wormhole related activities",
   "homepage": "https://wormhole.com",
   "bin": {
@@ -51,7 +53,7 @@
     "esbuild": "0.17.18",
     "ethers": "^5.6.8",
     "js-base64": "^3.6.1",
-    "near-api-js": "^0.45.1",
+    "near-api-js": "^1.0.0",
     "near-seed-phrase": "^0.2.0",
     "yargs": "^17.7.2"
   },

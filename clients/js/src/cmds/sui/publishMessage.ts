@@ -4,8 +4,6 @@ import {
   TransactionBlock,
 } from "@mysten/sui.js";
 import yargs from "yargs";
-import { NETWORK_OPTIONS, RPC_OPTIONS } from "../../consts";
-import { NETWORKS } from "../../networks";
 import {
   executeTransactionBlock,
   getProvider,
@@ -13,7 +11,8 @@ import {
   logTransactionDigest,
   logTransactionSender,
   setMaxGasBudgetDevnet,
-} from "../../sui";
+} from "../../chains/sui";
+import { NETWORK_OPTIONS, NETWORKS, RPC_OPTIONS } from "../../consts";
 import { assertNetwork } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
 

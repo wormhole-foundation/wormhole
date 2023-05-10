@@ -10,13 +10,13 @@ import {
 import yargs from "yargs";
 import { execute_algorand } from "../algorand";
 import { execute_aptos } from "../aptos";
+import { submit as submitSei } from "../chains/sei";
+import { submit as submitSui } from "../chains/sui";
 import { NETWORK_OPTIONS } from "../consts";
 import { execute_evm } from "../evm";
 import { execute_injective } from "../injective";
 import { execute_near } from "../near";
-import { execute_sei } from "../sei";
 import { execute_solana } from "../solana";
-import { submit as submitSui } from "../sui";
 import { execute_terra } from "../terra";
 import { assertNetwork } from "../utils";
 import { assertKnownPayload, impossible, parse } from "../vaa";
@@ -34,7 +34,7 @@ export const builder = (y: typeof yargs) =>
     .option("chain", {
       alias: "c",
       describe: "chain name",
-      choices: Object.keys(CHAINS) as (keyof typeof CHAINS)[],
+      choices: Object.keys(CHAINS) as ChainName[],
       demandOption: false,
     } as const)
     .option("network", NETWORK_OPTIONS)
@@ -127,7 +127,7 @@ export const handler = async (
   } else if (chain === "xpla") {
     await execute_xpla(parsed_vaa.payload, buf, network);
   } else if (chain === "sei") {
-    await execute_sei(parsed_vaa.payload, buf, network);
+    await submitSei(parsed_vaa.payload, buf, network);
   } else if (chain === "osmosis") {
     throw Error("OSMOSIS is not supported yet");
   } else if (chain === "sui") {

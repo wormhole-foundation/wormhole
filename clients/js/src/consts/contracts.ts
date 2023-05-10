@@ -6,8 +6,9 @@ import {
 const OVERRIDES = {
   MAINNET: {
     sui: {
-      core: undefined,
-      token_bridge: undefined,
+      core: "0xaeab97f96cf9877fee2883315d459552b2b921edc16d7ceac6eab944dd88919c",
+      token_bridge:
+        "0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9",
     },
     aptos: {
       token_bridge:
@@ -53,40 +54,6 @@ export const CONTRACTS = {
   TESTNET: { ...SDK_CONTRACTS.TESTNET, ...OVERRIDES.TESTNET },
   DEVNET: { ...SDK_CONTRACTS.DEVNET, ...OVERRIDES.DEVNET },
 };
-
-export const DEBUG_OPTIONS = {
-  alias: "d",
-  describe: "Log debug info",
-  type: "boolean",
-  demandOption: false,
-} as const;
-
-export const NAMED_ADDRESSES_OPTIONS = {
-  describe: "Named addresses in the format addr1=0x0,addr2=0x1,...",
-  type: "string",
-  demandOption: false,
-} as const;
-
-export const NETWORK_OPTIONS = {
-  alias: "n",
-  describe: "Network",
-  choices: ["mainnet", "testnet", "devnet"],
-  demandOption: true,
-} as const;
-
-export const PRIVATE_KEY_OPTIONS = {
-  alias: "k",
-  describe: "Custom private key to sign transactions",
-  demandOption: false,
-  type: "string",
-} as const;
-
-export const RPC_OPTIONS = {
-  alias: "r",
-  describe: "Override default rpc endpoint url",
-  type: "string",
-  demandOption: false,
-} as const;
 
 export const GOVERNANCE_CHAIN = CHAIN_ID_SOLANA;
 export const GOVERNANCE_EMITTER =
