@@ -1848,6 +1848,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "mpl-token-metadata"
+version = "0.0.1"
+source = "git+https://github.com/wormhole-foundation/metaplex-program-library?rev=a7ab32ab0defd89c98f205c80ebdaf77ed60152d#a7ab32ab0defd89c98f205c80ebdaf77ed60152d"
+dependencies = [
+ "borsh",
+ "num-derive",
+ "num-traits",
+ "solana-program",
+ "spl-token",
+ "thiserror",
+]
+
+[[package]]
 name = "nft-bridge"
 version = "0.1.0"
 dependencies = [
@@ -1857,6 +1870,7 @@ dependencies = [
  "hex",
  "hex-literal",
  "libsecp256k1",
+ "mpl-token-metadata",
  "primitive-types",
  "rand 0.7.3",
  "rocksalt",
@@ -1868,7 +1882,6 @@ dependencies = [
  "solitaire",
  "spl-associated-token-account",
  "spl-token",
- "spl-token-metadata",
  "wasm-bindgen",
  "wormhole-bridge-solana",
 ]
@@ -3986,15 +3999,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "spl-token-metadata"
-version = "0.0.1"
-dependencies = [
- "borsh",
- "solana-program",
- "spl-token",
-]
-
-[[package]]
 name = "stable_deref_trait"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4269,6 +4273,7 @@ dependencies = [
  "hex",
  "hex-literal",
  "libsecp256k1",
+ "mpl-token-metadata",
  "primitive-types",
  "rand 0.7.3",
  "rocksalt",
@@ -4279,7 +4284,6 @@ dependencies = [
  "solana-sdk",
  "solitaire",
  "spl-token",
- "spl-token-metadata",
  "wasm-bindgen",
  "wormhole-bridge-solana",
 ]
@@ -4292,6 +4296,7 @@ dependencies = [
  "borsh",
  "clap",
  "hex",
+ "mpl-token-metadata",
  "rand 0.7.3",
  "shellexpand",
  "solana-clap-utils",
@@ -4300,7 +4305,6 @@ dependencies = [
  "solana-program",
  "solana-sdk",
  "solitaire",
- "spl-token-metadata",
  "token-bridge",
 ]
 

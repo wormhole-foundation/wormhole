@@ -177,7 +177,7 @@ jobs:
           export PATH="${HOME}/.local/share/solana/install/active_release/bin:${PATH}"
 
           mkdir -p "${BPF_OUT_DIR}"
-          cp modules/token_bridge/token-metadata/spl_token_metadata.so "${BPF_OUT_DIR}"
+          cp external/mpl_token_metadata.so "${BPF_OUT_DIR}"
 
           BPF_PACKAGES=(
             bridge/program/Cargo.toml

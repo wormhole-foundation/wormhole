@@ -128,7 +128,7 @@ mod helpers {
         );
 
         let mut builder = ProgramTest::new("bridge", program, processor!(bridge::solitaire));
-        builder.add_program("spl_token_metadata", spl_token_metadata::id(), None);
+        builder.add_program("mpl_token_metadata", spl_token_metadata::id(), None);
         builder.add_program(
             "nft_bridge",
             token_program,
@@ -506,21 +506,26 @@ mod helpers {
             client,
             payer,
             &[payer, mint_authority],
-            &[spl_token_metadata::instruction::create_metadata_accounts(
-                spl_token_metadata::id(),
-                metadata_account,
-                mint,
-                mint_authority.pubkey(),
-                payer.pubkey(),
-                update_authority,
-                name,
-                symbol,
-                uri,
-                None,
-                0,
-                false,
-                false,
-            )],
+            &[
+                spl_token_metadata::instruction::create_metadata_accounts_v3(
+                    spl_token_metadata::id(),
+                    metadata_account,
+                    mint,
+                    mint_authority.pubkey(),
+                    payer.pubkey(),
+                    update_authority,
+                    name,
+                    symbol,
+                    uri,
+                    None,
+                    0,
+                    false,
+                    false,
+                    None,
+                    None,
+                    None,
+                ),
+            ],
             CommitmentLevel::Processed,
         )
         .await

@@ -1,5 +1,6 @@
 use crate::{
     accounts::{
+        deserialize_and_verify_metadata,
         ConfigAccount,
         Endpoint,
         EndpointDerivationData,
@@ -14,7 +15,6 @@ use crate::{
     messages::PayloadAssetMeta,
     TokenBridgeError::{
         InvalidChain,
-        InvalidMetadata,
         InvalidVAA,
     },
     INVALID_VAAS,
@@ -40,10 +40,6 @@ use solitaire::{
     *,
 };
 
-use spl_token_metadata::state::{
-    Data as SplData,
-    Metadata,
-};
 use std::cmp::min;
 
 #[derive(FromAccounts)]
@@ -164,7 +160,7 @@ pub fn create_accounts(
     let name = truncate_utf8(&accs.vaa.name, 32 - 11) + " (Wormhole)";
     let symbol = truncate_utf8(&accs.vaa.symbol, 10);
 
-    let spl_token_metadata_ix = spl_token_metadata::instruction::create_metadata_accounts(
+    let spl_token_metadata_ix = spl_token_metadata::instruction::create_metadata_accounts_v3(
         spl_token_metadata::id(),
         *accs.spl_metadata.key,
         *accs.mint.info().key,
@@ -178,6 +174,9 @@ pub fn create_accounts(
         0,
         false,
         true,
+        None,
+        None,
+        None,
     );
     invoke_seeded(&spl_token_metadata_ix, ctx, &accs.mint_authority, None)?;
 
@@ -194,28 +193,34 @@ pub fn update_accounts(
     accs: &mut CreateWrapped,
     _data: CreateWrappedData,
 ) -> Result<()> {
-    accs.spl_metadata.verify_derivation(
-        &spl_token_metadata::id(),
-        &SplTokenMetaDerivationData {
+    // Checks in this method are redundant with what occurs in `update_metadata_accounts_v2`, but we want to make
+    // sure that the account we are deserializing is legitimate.
+    let metadata = deserialize_and_verify_metadata(
+        &accs.spl_metadata,
+        SplTokenMetaDerivationData {
             mint: *accs.mint.info().key,
         },
     )?;
 
-    let mut metadata: SplData = Metadata::from_account_info(accs.spl_metadata.info())
-        .ok_or(InvalidMetadata)?
-        .data;
-
-    // Normalize token metadata.
-    metadata.name = truncate_utf8(&accs.vaa.name, 32 - 11) + " (Wormhole)";
-    metadata.symbol = truncate_utf8(&accs.vaa.symbol, 10);
+    // Normalize token metadata's name and symbol.
+    let new_data_v2 = spl_token_metadata::state::DataV2 {
+        name: truncate_utf8(&accs.vaa.name, 32 - 11) + " (Wormhole)",
+        symbol: truncate_utf8(&accs.vaa.symbol, 10),
+        uri: metadata.data.uri,
+        seller_fee_basis_points: metadata.data.seller_fee_basis_points,
+        creators: metadata.data.creators,
+        collection: metadata.collection,
+        uses: metadata.uses,
+    };
 
     // Update SPL Metadata
-    let spl_token_metadata_ix = spl_token_metadata::instruction::update_metadata_accounts(
+    let spl_token_metadata_ix = spl_token_metadata::instruction::update_metadata_accounts_v2(
         spl_token_metadata::id(),
         *accs.spl_metadata.key,
         *accs.mint_authority.info().key,
         None,
-        Some(metadata),
+        Some(new_data_v2),
+        None,
         None,
     );
     invoke_seeded(&spl_token_metadata_ix, ctx, &accs.mint_authority, None)?;
