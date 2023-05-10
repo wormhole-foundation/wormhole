@@ -1,8 +1,9 @@
+use anyhow::{bail, ensure};
 use cosmwasm_std::{
-    entry_point, from_slice, to_binary, Binary, ContractResult, DepsMut, Env,
+    entry_point, from_slice, to_binary, Attribute, Binary, ContractResult, DepsMut, Env,
     Ibc3ChannelOpenResponse, IbcBasicResponse, IbcChannelCloseMsg, IbcChannelConnectMsg,
     IbcChannelOpenMsg, IbcChannelOpenResponse, IbcPacketAckMsg, IbcPacketReceiveMsg,
-    IbcPacketTimeoutMsg, IbcReceiveResponse, Response, StdError, StdResult,
+    IbcPacketTimeoutMsg, IbcReceiveResponse, StdError, StdResult,
 };
 
 use crate::msg::WormholeIbcPacketMsg;
@@ -73,24 +74,11 @@ pub fn ibc_channel_close(
 /// 4. Receiving a packet.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn ibc_packet_receive(
-    deps: DepsMut,
+    _deps: DepsMut,
     _env: Env,
     msg: IbcPacketReceiveMsg,
 ) -> StdResult<IbcReceiveResponse> {
-    // decode the packet as WormholeIbcPacketMsg::Publish and add the response attributes to the IbcReceiveResponse
-    // put this in a closure so we can convert all error responses into acknowledgements
-    (|| {
-        let packet = msg.packet;
-        // which local channel did this packet come on
-        let channel_id = packet.dest.channel_id;
-        let wormhole_msg: WormholeIbcPacketMsg = from_slice(&packet.data)?;
-        match wormhole_msg {
-            WormholeIbcPacketMsg::Publish { msg: publish_msg } => {
-                receive_publish(deps, channel_id, publish_msg)
-            }
-        }
-    })()
-    .or_else(|e| {
+    handle_packet_receive(msg).or_else(|e| {
         // we try to capture all app-level errors and convert them into
         // acknowledgement packets that contain an error code.
         let acknowledgement = encode_ibc_error(format!("invalid packet: {}", e));
@@ -100,18 +88,63 @@ pub fn ibc_packet_receive(
     })
 }
 
+/// Decode the IBC packet as WormholeIbcPacketMsg::Publish and take appropriate action
+fn handle_packet_receive(msg: IbcPacketReceiveMsg) -> Result<IbcReceiveResponse, anyhow::Error> {
+    let packet = msg.packet;
+    // which local channel did this packet come on
+    let channel_id = packet.dest.channel_id;
+    let wormhole_msg: WormholeIbcPacketMsg = from_slice(&packet.data)?;
+    match wormhole_msg {
+        WormholeIbcPacketMsg::Publish { msg: publish_attrs } => {
+            receive_publish(channel_id, publish_attrs)
+        }
+    }
+}
+
+const EXPECTED_WORMHOLE_IBC_EVENT_ATTRS: [&str; 8] = [
+    "message.message",
+    "message.sender",
+    "message.chain_id",
+    "message.nonce",
+    "message.sequence",
+    "message.block_time",
+    "message.tx_index",
+    "message.block_height",
+];
+
 fn receive_publish(
-    _deps: DepsMut,
     channel_id: String,
-    publish_msg: Response,
-) -> StdResult<IbcReceiveResponse> {
-    // send the ack and emit the message
+    publish_attrs: Vec<Attribute>,
+) -> Result<IbcReceiveResponse, anyhow::Error> {
+    // check the attributes are what we expect from wormhole
+    ensure!(
+        publish_attrs.len() == EXPECTED_WORMHOLE_IBC_EVENT_ATTRS.len(),
+        "number of received attributes does not match number of expected"
+    );
+
+    for key in EXPECTED_WORMHOLE_IBC_EVENT_ATTRS {
+        let mut matched = false;
+        for attr in &publish_attrs {
+            if key == attr.key {
+                matched = true;
+                break;
+            }
+        }
+        if !matched {
+            bail!(
+                "expected attribute unmmatched in received attributes: {}",
+                key
+            );
+        }
+    }
+
+    // send the ack and emit the message with the attributes from the wormhole message
     let acknowledgement = to_binary(&ContractResult::<()>::Ok(()))?;
     Ok(IbcReceiveResponse::new()
         .set_ack(acknowledgement)
         .add_attribute("action", "receive_publish")
         .add_attribute("channel_id", channel_id)
-        .add_attributes(publish_msg.attributes))
+        .add_attributes(publish_attrs))
 }
 
 // this encode an error or error message into a proper acknowledgement to the recevier
@@ -144,26 +177,4 @@ pub fn ibc_packet_timeout(
     Err(StdError::generic_err(
         "timeout should never be called as this contract never sends packets",
     ))
-}
-
-#[cfg(test)]
-mod tests {
-    // test opening channel
-    // 1. succeed - happy path
-    // 2. fail - channel version is not correct
-    // 3. fail - counterparty channel version is not correct
-
-    // test connecting
-    // 1. success - it logs the right attributes and values
-
-    // test closing
-    // 1. success - it logs the right attributes and values
-
-    // test packet receive
-    // 1. failure - deserializing packet failure
-    // 2. failure - receive_publish failure (use a mock for this?)
-    // 3. success - happy path
-
-    // test receive_publish
-    // 1. success - it logs the right attributes and values
 }

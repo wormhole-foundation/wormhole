@@ -145,7 +145,7 @@ fn post_message_ibc(
         .load(deps.storage)
         .context("failed to load whitelisted wormchain channel id")?;
 
-    // compute the packet timeout (infinite timeout)
+    // compute the packet timeout
     let packet_timeout = env.block.time.plus_seconds(PACKET_LIFETIME).into();
 
     // compute the block height
@@ -166,7 +166,9 @@ fn post_message_ibc(
     res = res.add_attribute("message.block_height", block_height);
 
     // Send the result attributes over IBC on this channel
-    let packet = WormholeIbcPacketMsg::Publish { msg: res.clone() };
+    let packet = WormholeIbcPacketMsg::Publish {
+        msg: res.attributes.clone(),
+    };
     let ibc_msg = IbcMsg::SendPacket {
         channel_id,
         data: to_binary(&packet)?,

@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Binary, Response};
+use cosmwasm_std::{Attribute, Binary};
 
 #[cw_serde]
 pub enum ExecuteMsg {
@@ -15,7 +15,7 @@ pub enum ExecuteMsg {
 /// This is the message we send over the IBC channel
 #[cw_serde]
 pub enum WormholeIbcPacketMsg {
-    Publish { msg: Response },
+    Publish { msg: Vec<Attribute> },
 }
 
 /// Contract queries
