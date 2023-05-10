@@ -7,7 +7,7 @@ import {
   MsgExecuteContract,
 } from "@xpla/xpla.js";
 import { fromUint8Array } from "js-base64";
-import { NETWORKS } from "./networks";
+import { NETWORKS } from "./consts";
 import { Network } from "./utils";
 import { Payload, impossible } from "./vaa";
 

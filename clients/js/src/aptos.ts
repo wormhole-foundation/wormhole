@@ -6,7 +6,7 @@ import {
 import { AptosAccount, AptosClient, BCS, TxnBuilderTypes } from "aptos";
 import { ethers } from "ethers";
 import { sha3_256 } from "js-sha3";
-import { NETWORKS } from "./networks";
+import { NETWORKS } from "./consts";
 import { Network } from "./utils";
 import { Payload, impossible } from "./vaa";
 

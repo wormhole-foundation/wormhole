@@ -21,9 +21,9 @@ import {
   GOVERNANCE_EMITTER,
   NAMED_ADDRESSES_OPTIONS,
   NETWORK_OPTIONS,
+  NETWORKS,
   RPC_OPTIONS,
 } from "../consts";
-import { NETWORKS } from "../networks";
 import { runCommand, VALIDATOR_OPTIONS } from "../startValidator";
 import { assertNetwork, checkBinary, evm_address, hex } from "../utils";
 
@@ -61,7 +61,7 @@ export const builder = (y: typeof yargs) =>
         const contract_address = evm_address(
           CONTRACTS[network].aptos.token_bridge
         );
-        const rpc = argv.rpc ?? NETWORKS[network]["aptos"].rpc;
+        const rpc = argv.rpc ?? NETWORKS[network].aptos.rpc;
         await callEntryFunc(
           network,
           rpc,
@@ -127,7 +127,7 @@ export const builder = (y: typeof yargs) =>
           BCS.bcsSerializeBytes(Buffer.from(governance_address, "hex")),
           guardians_serializer.getBytes(),
         ];
-        const rpc = argv.rpc ?? NETWORKS[network]["aptos"].rpc;
+        const rpc = argv.rpc ?? NETWORKS[network].aptos.rpc;
         await callEntryFunc(
           network,
           rpc,
@@ -157,7 +157,7 @@ export const builder = (y: typeof yargs) =>
         checkBinary("aptos", README_URL);
         const p = buildPackage(argv["package-dir"], argv["named-addresses"]);
         const b = serializePackage(p);
-        const rpc = argv.rpc ?? NETWORKS[network]["aptos"].rpc;
+        const rpc = argv.rpc ?? NETWORKS[network].aptos.rpc;
         await callEntryFunc(
           network,
           rpc,
@@ -202,7 +202,7 @@ export const builder = (y: typeof yargs) =>
           module_name =
             "0x0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b::deployer";
         }
-        const rpc = argv.rpc ?? NETWORKS[network]["aptos"].rpc;
+        const rpc = argv.rpc ?? NETWORKS[network].aptos.rpc;
         await callEntryFunc(
           network,
           rpc,
@@ -228,7 +228,7 @@ export const builder = (y: typeof yargs) =>
       async (argv) => {
         const network = argv.network.toUpperCase();
         assertNetwork(network);
-        const rpc = NETWORKS[network]["aptos"].rpc;
+        const rpc = NETWORKS[network].aptos.rpc;
         // TODO(csongor): use sdk address
         let module_name =
           "0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::sender";
@@ -242,7 +242,7 @@ export const builder = (y: typeof yargs) =>
           module_name,
           "send_message",
           [],
-          [BCS.bcsSerializeBytes(Buffer.from(argv["message"], "ascii"))]
+          [BCS.bcsSerializeBytes(Buffer.from(argv.message, "ascii"))]
         );
       }
     )
@@ -292,8 +292,8 @@ export const builder = (y: typeof yargs) =>
         let address = CONTRACTS[network].aptos.token_bridge;
         if (address.startsWith("0x")) address = address.substring(2);
         const token_bridge_address = Buffer.from(address, "hex");
-        assertChain(argv["chain"]);
-        const chain = coalesceChainId(argv["chain"]);
+        assertChain(argv.chain);
+        const chain = coalesceChainId(argv.chain);
         const origin_address = Buffer.from(
           evm_address(argv["origin-address"]),
           "hex"
@@ -348,7 +348,7 @@ export const builder = (y: typeof yargs) =>
         checkBinary("aptos", README_URL);
         const p = buildPackage(argv["package-dir"], argv["named-addresses"]);
         const b = serializePackage(p);
-        const rpc = argv.rpc ?? NETWORKS[network]["aptos"].rpc;
+        const rpc = argv.rpc ?? NETWORKS[network].aptos.rpc;
         // TODO(csongor): use deployer address from sdk (when it's there)
         const hash = await callEntryFunc(
           network,
@@ -381,7 +381,7 @@ export const builder = (y: typeof yargs) =>
         const network = argv.network.toUpperCase();
         assertNetwork(network);
         checkBinary("aptos", README_URL);
-        const rpc = argv.rpc ?? NETWORKS[network]["aptos"].rpc;
+        const rpc = argv.rpc ?? NETWORKS[network].aptos.rpc;
         // TODO(csongor): use deployer address from sdk (when it's there)
         const hash = await callEntryFunc(
           network,

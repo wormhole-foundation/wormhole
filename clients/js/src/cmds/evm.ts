@@ -1,6 +1,7 @@
 import {
   assertChain,
   assertEVMChain,
+  ChainName,
   CHAINS,
   CONTRACTS,
   isEVMChain,
@@ -9,14 +10,13 @@ import {
 import { ethers } from "ethers";
 import { homedir } from "os";
 import yargs from "yargs";
-import { NETWORK_OPTIONS } from "../consts";
+import { NETWORK_OPTIONS, NETWORKS } from "../consts";
 import {
   getImplementation,
   hijack_evm,
   query_contract_evm,
   setStorageAt,
 } from "../evm";
-import { NETWORKS } from "../networks";
 import { runCommand, VALIDATOR_OPTIONS } from "../startValidator";
 import { assertNetwork, evm_address } from "../utils";
 
@@ -66,16 +66,16 @@ export const builder = function (y: typeof yargs) {
             demandOption: true,
           }),
       async (argv) => {
-        if (!argv["rpc"]) {
+        if (!argv.rpc) {
           throw new Error("RPC required");
         }
 
         const result = await setStorageAt(
-          argv["rpc"],
+          argv.rpc,
           evm_address(argv["contract-address"]),
           argv["storage-slot"],
           ["uint256"],
-          [argv["value"]]
+          [argv.value]
         );
         console.log(result);
       }
@@ -96,7 +96,7 @@ export const builder = function (y: typeof yargs) {
           .option("chain", {
             alias: "c",
             describe: "Chain to query",
-            choices: Object.keys(CHAINS) as (keyof typeof CHAINS)[],
+            choices: Object.keys(CHAINS) as ChainName[],
             demandOption: true,
           } as const)
           .option("module", {

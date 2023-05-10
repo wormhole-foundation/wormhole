@@ -2,13 +2,6 @@ import { SuiTransactionBlockResponse } from "@mysten/sui.js";
 import fs from "fs";
 import yargs from "yargs";
 import {
-  DEBUG_OPTIONS,
-  NETWORK_OPTIONS,
-  PRIVATE_KEY_OPTIONS,
-  RPC_OPTIONS,
-} from "../../consts";
-import { NETWORKS } from "../../networks";
-import {
   getProvider,
   getSigner,
   logCreatedObjects,
@@ -16,7 +9,14 @@ import {
   logTransactionDigest,
   logTransactionSender,
   publishPackage,
-} from "../../sui";
+} from "../../chains/sui";
+import {
+  DEBUG_OPTIONS,
+  NETWORKS,
+  NETWORK_OPTIONS,
+  PRIVATE_KEY_OPTIONS,
+  RPC_OPTIONS,
+} from "../../consts";
 import { Network, assertNetwork, checkBinary } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
 
