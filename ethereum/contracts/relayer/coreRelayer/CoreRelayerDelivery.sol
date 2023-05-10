@@ -262,6 +262,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
           value: instruction.receiverValueTarget
         } (data, signedVaas) {
       targetRevertDataTruncated = new bytes(0);
+      status = uint8(DeliveryStatus.SUCCESS);
     }
     catch (bytes memory revertData) {
       if (revertData.length > RETURNDATA_TRUNCATION_THRESHOLD)
@@ -299,8 +300,6 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
         revert Cancelled(gasUsed, feeForForward, totalFee);
       emitForward(transactionFeeRefundAmount, forwardInstructions);
       status = uint8(DeliveryStatus.FORWARD_REQUEST_SUCCESS);
-    } else {
-      status = uint8(DeliveryStatus.SUCCESS);
     }
   }
 
