@@ -14,7 +14,6 @@ import {
   VaaKeysDoNotMatchVaas,
   InvalidOverrideGasLimit,
   InvalidOverrideReceiverValue,
-  InvalidOverrideMaximumRefund,
   RequesterNotCoreRelayer,
   VaaKey,
   VaaKeyType,
@@ -69,9 +68,6 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       
       if (overrides.receiverValue < instruction.receiverValueTarget)
         revert InvalidOverrideReceiverValue();
-      
-      if (overrides.maximumRefund < instruction.maximumRefundTarget)
-        revert InvalidOverrideMaximumRefund();
 
       instruction.executionParameters.gasLimit = overrides.gasLimit;
       instruction.receiverValueTarget = overrides.receiverValue;

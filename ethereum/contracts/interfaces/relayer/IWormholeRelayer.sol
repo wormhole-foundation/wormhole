@@ -48,7 +48,6 @@ error TargetChainIsNotThisChain(uint16 targetChainId); // The specified target c
 error ForwardNotSufficientlyFunded(uint256 amountOfFunds, uint256 amountOfFundsNeeded); // Should never happen as this should have already been checked for
 error InvalidOverrideGasLimit(); // Invalid gas limit override was passed in to the delivery
 error InvalidOverrideReceiverValue(); // Invalid receiver value override was passed in to the delivery
-error InvalidOverrideMaximumRefund(); // Invalid maximum refund override was passed in to the delivery
 
 error InsufficientRelayerFunds(uint256 msgValue, uint256 minimum); // The relay provider didn't pass in sufficient funds (msg.value does not cover the necessary budget fees)
 
