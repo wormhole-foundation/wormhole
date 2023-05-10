@@ -4,25 +4,27 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "ts-node src/app.ts --flag=testnet",
-    "testnet": "ts-node src/app.ts --flag=testnet",
-    "tilt": "ts-node src/app.ts --flag=tilt",
-    "tiltkub": "ts-node src/app.ts --flag=tiltkub",
+    "start": "tsx src/app.ts --flag=testnet",
+    "testnet": "tsx src/app.ts --flag=testnet",
+    "tilt": "tsx src/app.ts --flag=tilt",
+    "tiltkub": "tsx src/app.ts --flag=tiltkub",
     "prettier": "prettier --write .",
     "build": "tsc",
+    "typecheck": "tsc --noEmit --skipLibCheck",
     "watch": "tsc --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Joe Howarth",
   "license": "ISC",
   "dependencies": {
-    "@certusone/wormhole-sdk": "^0.9.11",
+    "@certusone/wormhole-sdk": "file:../../../sdk/js",
+    "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
     "@types/clone": "^2.1.1",
     "@types/koa": "^2.13.5",
     "clone": "^2.1.2",
     "koa": "^2.14.1",
     "koa-router": "^12.0.0",
-    "relayer-engine": "github:wormhole-foundation/relayer-engine#35fb8c1",
+    "relayer-engine": "github:wormhole-foundation/relayer-engine#7698ed6",
     "yargs": "^17.7.1"
   },
   "peerDependencies": {
@@ -34,7 +36,7 @@
     "@types/yargs": "^17.0.23",
     "nodemon": "^2.0.20",
     "prettier": "^2.8.7",
-    "ts-node": "^10.9.1",
+    "tsx": "^3.12.7",
     "typescript": "^4.8.4",
     "winston": "3.8.2"
   }
