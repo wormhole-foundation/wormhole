@@ -147,7 +147,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
         vaaInfo.deliveryInstruction,
         vaaInfo.relayerRefundAddress,
         vaaInfo.deliveryInstruction.maximumRefundTarget,
-        DeliveryStatus.SUCCESS
+        DeliveryStatus.RECEIVER_FAILURE
       );
       return;
     }
@@ -159,9 +159,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     uint32 gasUsed;
     DeliveryStatus status;
     bytes memory additionalStatusInfo;
-    //Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the
-    //  fraction of gas unused)
-    uint256 transactionFeeRefundAmount;
+    
     try //force external call!
       this.executeInstruction(
         vaaInfo.deliveryInstruction,
@@ -174,25 +172,9 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
         }),
         vaaInfo.encodedVMs
       )
-    returns (bool targetCallSucceeded, uint32 _gasUsed, bytes memory targetRevertDataTruncated) {
+    returns (uint8 _status, uint32 _gasUsed, bytes memory targetRevertDataTruncated) {
       gasUsed = _gasUsed;
-      transactionFeeRefundAmount =
-        calculateTransactionFeeRefundAmount(vaaInfo.deliveryInstruction, gasUsed);
-      if (targetCallSucceeded) {
-        //Retrieve the forward instruction created during execution of 'receiveWormholeMessages'
-        ForwardInstruction[] storage forwardInstructions = getForwardInstructions();
-        if (forwardInstructions.length > 0) {
-          status = DeliveryStatus.FORWARD_REQUEST_SUCCESS;
-          //If the user made a forward/multichainForward request, then try to execute it
-          emitForward(transactionFeeRefundAmount, forwardInstructions);
-        }
-        else {
-          status = DeliveryStatus.SUCCESS;
-        }
-      }
-      else {
-        status = DeliveryStatus.RECEIVER_FAILURE;
-      }
+      status = DeliveryStatus(_status);
       //will carry the correct value regardless of outcome (empty if successful, error otherwise)
       additionalStatusInfo = targetRevertDataTruncated; 
     }
@@ -204,12 +186,14 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       (gasUsed, available, required) = decodeCancelled(revertData);
       //Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the
       //  fraction of gas unused)
-      transactionFeeRefundAmount =
-        calculateTransactionFeeRefundAmount(vaaInfo.deliveryInstruction, gasUsed);
       status = DeliveryStatus.FORWARD_REQUEST_FAILURE;
       additionalStatusInfo =
         abi.encodeWithSelector(ForwardNotSufficientlyFunded.selector, available, required);
     }
+
+    //Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the
+    //  fraction of gas unused)
+    uint256 transactionFeeRefundAmount = calculateTransactionFeeRefundAmount(vaaInfo.deliveryInstruction, gasUsed);
 
     //TODO AMO: At this point forwards (which are payable!) might have increased contract balance
     //            so msg.value does not account for all the funds that flowed into the contract
@@ -257,7 +241,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     DeliveryData calldata data,
     bytes[] memory signedVaas
   ) external returns (
-    bool targetCallSucceeded,
+    uint8 status,
     uint32 gasUsed,
     bytes memory targetRevertDataTruncated
   ) {
@@ -277,7 +261,6 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
           gas:   instruction.executionParameters.gasLimit,
           value: instruction.receiverValueTarget
         } (data, signedVaas) {
-      targetCallSucceeded = true;
       targetRevertDataTruncated = new bytes(0);
     }
     catch (bytes memory revertData) {
@@ -286,6 +269,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
           revertData.sliceUnchecked(0, RETURNDATA_TRUNCATION_THRESHOLD);
       else
         targetRevertDataTruncated = revertData;
+      status = uint8(DeliveryStatus.RECEIVER_FAILURE);
     }
 
     uint256 postGas = gasleft();
@@ -313,6 +297,10 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       uint256 feeForForward = transactionFeeRefundAmount + totalMsgValue;
       if (feeForForward < totalFee)
         revert Cancelled(gasUsed, feeForForward, totalFee);
+      emitForward(transactionFeeRefundAmount, forwardInstructions);
+      status = uint8(DeliveryStatus.FORWARD_REQUEST_SUCCESS);
+    } else {
+      status = uint8(DeliveryStatus.SUCCESS);
     }
   }
 
@@ -381,7 +369,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     //Amount of receiverValue that is refunded to the user (0 if the call to
     //  'receiveWormholeMessages' did not revert, or the full receiverValue otherwise)
     uint256 receiverValueRefundAmount =
-      (status == DeliveryStatus.FORWARD_REQUEST_SUCCESS || status == DeliveryStatus.SUCCESS ? 0 : deliveryInstruction.receiverValueTarget);
+      (status == DeliveryStatus.FORWARD_REQUEST_SUCCESS || status == DeliveryStatus.SUCCESS) ? 0 : deliveryInstruction.receiverValueTarget;
 
     //Total refund to the user
     uint256 refundToRefundAddress =
