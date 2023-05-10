@@ -87,5 +87,10 @@
     "elliptic": "^6.5.4",
     "js-base64": "^3.6.1",
     "near-api-js": "^1.0.0"
+  },
+  "optionalDependencies": {
+    "@injectivelabs/networks": "1.10.7",
+    "@injectivelabs/sdk-ts": "1.10.47",
+    "@injectivelabs/utils": "1.10.5"
   }
 }

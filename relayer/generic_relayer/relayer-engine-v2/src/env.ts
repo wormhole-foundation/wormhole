@@ -12,7 +12,6 @@ import {
   EVMChainId,
 } from "@certusone/wormhole-sdk";
 import { rootLogger } from "./log";
-import { dbg } from "../pkgs/sdk/src";
 import { ethers } from "ethers";
 
 const SCRIPTS_DIR = "../../../ethereum/ts-scripts/relayer";

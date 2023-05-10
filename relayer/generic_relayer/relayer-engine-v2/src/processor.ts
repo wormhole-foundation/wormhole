@@ -1,10 +1,8 @@
 import * as wh from "@certusone/wormhole-sdk";
 import { Next, ParsedVaaWithBytes, sleep } from "relayer-engine";
 import {
-  IDelivery,
   VaaKeyType,
   RelayerPayloadId,
-  CoreRelayer__factory,
   parseWormholeRelayerPayloadType,
   parseWormholeRelayerSend,
   deliveryInstructionsPrintable,
@@ -14,10 +12,11 @@ import {
   DeliveryInstruction,
   packOverrides,
   DeliveryOverrideArgs,
-} from "../pkgs/sdk/src";
+} from "@certusone/wormhole-sdk/lib/cjs/relayer";
 import { EVMChainId } from "@certusone/wormhole-sdk";
 import { GRContext } from "./app";
 import { BigNumber, ethers } from "ethers";
+import { CoreRelayer__factory, IDelivery } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
 
 export async function processGenericRelayerVaa(ctx: GRContext, next: Next) {
   ctx.logger.info(`Processing generic relayer vaa`);
