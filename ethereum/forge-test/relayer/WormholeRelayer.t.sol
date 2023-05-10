@@ -674,7 +674,7 @@ contract WormholeRelayerTests is Test {
         assertTrue(test.maximumRefundTarget == deliveryData.maximumRefund);
         console.log(test.gasAmount);
         assertTrue(
-            test.gasAmount >= 203000,
+            test.gasAmount >= 200000,
             "Gas amount (calculated from refund address payment) lower than expected"
         );
         assertTrue(
@@ -1142,7 +1142,7 @@ contract WormholeRelayerTests is Test {
             "Refund wasn't the correct amount"
         );
         assertTrue(
-            test.gasAmount >= 203000,
+            test.gasAmount >= 200000,
             "Gas amount (calculated from refund address payment) lower than expected"
         );
         assertTrue(

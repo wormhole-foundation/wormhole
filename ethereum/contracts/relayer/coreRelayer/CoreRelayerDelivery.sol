@@ -191,22 +191,13 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
         abi.encodeWithSelector(ForwardNotSufficientlyFunded.selector, available, required);
     }
 
-    //Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the
-    //  fraction of gas unused)
-    uint256 transactionFeeRefundAmount = calculateTransactionFeeRefundAmount(vaaInfo.deliveryInstruction, gasUsed);
-
     //TODO AMO: At this point forwards (which are payable!) might have increased contract balance
     //            so msg.value does not account for all the funds that flowed into the contract
     //            during execution.
     //          Additionally, now some of the contract balance comes from the relay provider, while
     //            some might have come from the deliveryTarget, so accounting is unclear atm.
-    RefundStatus refundStatus = payRefunds(
-      vaaInfo.deliveryInstruction,
-      vaaInfo.relayerRefundAddress,
-      transactionFeeRefundAmount,
-      status
-    );
-
+    
+    
     emit Delivery(
       fromWormholeFormat(vaaInfo.deliveryInstruction.targetAddress),
       vaaInfo.sourceChainId,
@@ -214,7 +205,12 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       vaaInfo.deliveryVaaHash,
       status,
       gasUsed,
-      refundStatus,
+      payRefunds(
+        vaaInfo.deliveryInstruction,
+        vaaInfo.relayerRefundAddress,
+        calculateTransactionFeeRefundAmount(vaaInfo.deliveryInstruction, gasUsed),
+        status
+      ),
       additionalStatusInfo,
       (vaaInfo.redeliveryHash != 0)
         ? DeliveryOverride(
