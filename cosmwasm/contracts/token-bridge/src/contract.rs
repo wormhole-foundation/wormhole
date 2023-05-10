@@ -834,6 +834,9 @@ fn handle_complete_transfer_token(
     let target_address = (&transfer_info.recipient.as_slice()).get_address(0);
     let recipient = deps.api.addr_humanize(&target_address)?;
 
+    // SECURITY CRITICAL CHECK FOR PAYLOAD3 VAAs.
+    // This check ensures that a malicious sender cannot
+    // take advantage of a payload3 contract's functionality by directing unlocked/minted tokens to themselves.
     if let TransferType::WithPayload { payload: _ } = transfer_type {
         if recipient != info.sender {
             return Err(StdError::generic_err(
@@ -1004,6 +1007,9 @@ fn handle_complete_transfer_token_native(
     let target_address = (&transfer_info.recipient.as_slice()).get_address(0);
     let recipient = deps.api.addr_humanize(&target_address)?;
 
+    // SECURITY CRITICAL CHECK FOR PAYLOAD3 VAAs.
+    // This check ensures that a malicious sender cannot
+    // take advantage of a payload3 contract's functionality by directing unlocked/minted tokens to themselves.
     if let TransferType::WithPayload { payload: _ } = transfer_type {
         if recipient != info.sender {
             return Err(StdError::generic_err(
