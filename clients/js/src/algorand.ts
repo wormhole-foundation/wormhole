@@ -4,7 +4,7 @@ import {
 } from "@certusone/wormhole-sdk/lib/esm/algorand";
 import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { Account, Algodv2, mnemonicToSecretKey } from "algosdk";
-import { NETWORKS } from "./networks";
+import { NETWORKS } from "./consts";
 import { Network } from "./utils";
 import { Payload, impossible } from "./vaa";
 

@@ -1,8 +1,7 @@
 import { PaginatedObjectsResponse } from "@mysten/sui.js";
 import yargs from "yargs";
-import { NETWORK_OPTIONS, RPC_OPTIONS } from "../../consts";
-import { NETWORKS } from "../../networks";
-import { getPackageId, getProvider } from "../../sui";
+import { getPackageId, getProvider } from "../../chains/sui";
+import { NETWORKS, NETWORK_OPTIONS, RPC_OPTIONS } from "../../consts";
 import { assertNetwork } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
 

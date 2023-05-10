@@ -12,9 +12,9 @@ import {
   normalizeSuiAddress,
 } from "@mysten/sui.js";
 import { DynamicFieldPage } from "@mysten/sui.js/dist/types/dynamic_fields";
-import { NETWORKS } from "../networks";
-import { Network } from "../utils";
-import { Payload, VAA, parse, serialiseVAA } from "../vaa";
+import { NETWORKS } from "../../consts";
+import { Network } from "../../utils";
+import { Payload, VAA, parse, serialiseVAA } from "../../vaa";
 import { SuiRpcValidationError } from "./error";
 
 const UPGRADE_CAP_TYPE = "0x2::package::UpgradeCap";
@@ -207,7 +207,7 @@ export const getProvider = (
     throw new Error("Must provide network or RPC to initialize provider");
   }
 
-  rpc = rpc || NETWORKS[network!]["sui"].rpc;
+  rpc = rpc || NETWORKS[network!].sui.rpc;
   if (!rpc) {
     throw new Error(`No default RPC found for Sui ${network}`);
   }
@@ -235,7 +235,7 @@ export const getSigner = (
   customPrivateKey?: string
 ): RawSigner => {
   const privateKey: string | undefined =
-    customPrivateKey || NETWORKS[network]["sui"].key;
+    customPrivateKey || NETWORKS[network].sui.key;
   if (!privateKey) {
     throw new Error(`No private key found for Sui ${network}`);
   }

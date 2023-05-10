@@ -4,8 +4,7 @@ import { Account, KeyPair, connect } from "near-api-js";
 import { InMemoryKeyStore } from "near-api-js/lib/key_stores";
 import { parseSeedPhrase } from "near-seed-phrase";
 import yargs from "yargs";
-import { CONTRACTS, NETWORK_OPTIONS, RPC_OPTIONS } from "../consts";
-import { NETWORKS } from "../networks";
+import { CONTRACTS, NETWORKS, NETWORK_OPTIONS, RPC_OPTIONS } from "../consts";
 import { assertNetwork } from "../utils";
 
 // Near utilities
@@ -99,9 +98,7 @@ export const builder = function (y: typeof yargs) {
         const keyStore = new InMemoryKeyStore();
         keyStore.setKey(networkId, argv.account, masterKey);
         const near = await connect({
-          deps: {
-            keyStore,
-          },
+          keyStore,
           networkId,
           nodeUrl: rpc,
           headers: {},
@@ -173,9 +170,7 @@ export const builder = function (y: typeof yargs) {
         keyStore.setKey(networkId, target, masterKey);
 
         const near = await connect({
-          deps: {
-            keyStore,
-          },
+          keyStore,
           networkId: networkId,
           nodeUrl: rpc,
           headers: {},

@@ -1,6 +1,6 @@
 import { JsonRpcProvider } from "@mysten/sui.js";
 import fs from "fs";
-import { Network } from "../utils";
+import { Network } from "../../utils";
 import { MoveToml } from "./MoveToml";
 import {
   buildPackage,

@@ -21,7 +21,7 @@ import {
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import * as web3s from "@solana/web3.js";
 import base58 from "bs58";
-import { NETWORKS } from "./networks";
+import { NETWORKS } from "./consts";
 import { Payload, VAA, impossible } from "./vaa";
 
 export async function execute_solana(

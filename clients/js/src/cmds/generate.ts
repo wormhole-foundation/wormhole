@@ -67,7 +67,7 @@ export const builder = function (y: typeof yargs) {
             .option("chain", {
               alias: "c",
               describe: "Chain to register",
-              choices: Object.keys(CHAINS) as (keyof typeof CHAINS)[],
+              choices: Object.keys(CHAINS) as ChainName[],
               demandOption: true,
             } as const)
             .option("contract-address", {
@@ -84,16 +84,13 @@ export const builder = function (y: typeof yargs) {
             } as const),
         (argv) => {
           const module = argv["module"];
-          assertChain(argv["chain"]);
+          assertChain(argv.chain);
           const payload: PortalRegisterChain<typeof module> = {
             module,
             type: "RegisterChain",
             chain: 0,
-            emitterChain: toChainId(argv["chain"]),
-            emitterAddress: parseAddress(
-              argv["chain"],
-              argv["contract-address"]
-            ),
+            emitterChain: toChainId(argv.chain),
+            emitterAddress: parseAddress(argv.chain, argv["contract-address"]),
           };
           const vaa = makeVAA(
             GOVERNANCE_CHAIN,
@@ -113,7 +110,7 @@ export const builder = function (y: typeof yargs) {
             .option("chain", {
               alias: "c",
               describe: "Chain to upgrade",
-              choices: Object.keys(CHAINS) as (keyof typeof CHAINS)[],
+              choices: Object.keys(CHAINS) as ChainName[],
               demandOption: true,
             } as const)
             .option("contract-address", {
@@ -129,13 +126,13 @@ export const builder = function (y: typeof yargs) {
               demandOption: true,
             } as const),
         (argv) => {
-          assertChain(argv["chain"]);
+          assertChain(argv.chain);
           const module = argv["module"];
           const payload: ContractUpgrade = {
             module,
             type: "ContractUpgrade",
-            chain: toChainId(argv["chain"]),
-            address: parseCodeAddress(argv["chain"], argv["contract-address"]),
+            chain: toChainId(argv.chain),
+            address: parseCodeAddress(argv.chain, argv["contract-address"]),
           };
           const vaa = makeVAA(
             GOVERNANCE_CHAIN,
@@ -154,7 +151,7 @@ export const builder = function (y: typeof yargs) {
             .option("emitter-chain", {
               alias: "e",
               describe: "Emitter chain of the VAA",
-              choices: Object.keys(CHAINS) as (keyof typeof CHAINS)[],
+              choices: Object.keys(CHAINS) as ChainName[],
               demandOption: true,
             } as const)
             .option("emitter-address", {
@@ -166,7 +163,7 @@ export const builder = function (y: typeof yargs) {
             .option("chain", {
               alias: "c",
               describe: "Token's chain",
-              choices: Object.keys(CHAINS) as (keyof typeof CHAINS)[],
+              choices: Object.keys(CHAINS) as ChainName[],
               demandOption: true,
             } as const)
             .option("token-address", {
@@ -195,14 +192,14 @@ export const builder = function (y: typeof yargs) {
             }),
         (argv) => {
           const emitter_chain = argv["emitter-chain"];
-          assertChain(argv["chain"]);
+          assertChain(argv.chain);
           assertChain(emitter_chain);
           const payload: TokenBridgeAttestMeta = {
             module: "TokenBridge",
             type: "AttestMeta",
             chain: 0,
-            tokenAddress: parseAddress(argv["chain"], argv["token-address"]),
-            tokenChain: toChainId(argv["chain"]),
+            tokenAddress: parseAddress(argv.chain, argv["token-address"]),
+            tokenChain: toChainId(argv.chain),
             decimals: argv["decimals"],
             symbol: argv["symbol"],
             name: argv["name"],

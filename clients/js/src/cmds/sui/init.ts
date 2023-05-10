@@ -1,15 +1,6 @@
 import { SuiTransactionBlockResponse, TransactionBlock } from "@mysten/sui.js";
 import yargs from "yargs";
 import {
-  DEBUG_OPTIONS,
-  GOVERNANCE_CHAIN,
-  GOVERNANCE_EMITTER,
-  NETWORK_OPTIONS,
-  PRIVATE_KEY_OPTIONS,
-  RPC_OPTIONS,
-} from "../../consts";
-import { NETWORKS } from "../../networks";
-import {
   executeTransactionBlock,
   getCreatedObjects,
   getOwnedObjectId,
@@ -21,7 +12,16 @@ import {
   logTransactionDigest,
   logTransactionSender,
   setMaxGasBudgetDevnet,
-} from "../../sui";
+} from "../../chains/sui";
+import {
+  DEBUG_OPTIONS,
+  GOVERNANCE_CHAIN,
+  GOVERNANCE_EMITTER,
+  NETWORKS,
+  NETWORK_OPTIONS,
+  PRIVATE_KEY_OPTIONS,
+  RPC_OPTIONS,
+} from "../../consts";
 import { Network, assertNetwork } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
 
