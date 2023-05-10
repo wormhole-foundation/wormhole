@@ -1,5 +1,6 @@
 import {
   CHAINS,
+  ChainName,
   assertChain,
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import yargs from "yargs";
@@ -18,7 +19,7 @@ export const builder = (y: typeof yargs) =>
     } as const)
     .positional("chain", {
       describe: "Chain to query",
-      choices: Object.keys(CHAINS) as (keyof typeof CHAINS)[],
+      choices: Object.keys(CHAINS) as ChainName[],
       demandOption: true,
     } as const)
     .positional("module", {
@@ -31,7 +32,7 @@ export const handler = async (
 ) => {
   const network = argv.network.toUpperCase();
   assertNetwork(network);
-  const chain = argv["chain"];
+  const chain = argv.chain;
   assertChain(chain);
   const module = argv["module"];
 

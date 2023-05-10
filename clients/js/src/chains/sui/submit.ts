@@ -12,8 +12,8 @@ import {
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { parseAttestMetaVaa } from "@certusone/wormhole-sdk/lib/esm/vaa/tokenBridge";
 import { SUI_CLOCK_OBJECT_ID, TransactionBlock } from "@mysten/sui.js";
-import { Network } from "../utils";
-import { Payload, impossible } from "../vaa";
+import { Network } from "../../utils";
+import { Payload, impossible } from "../../vaa";
 import {
   assertSuccess,
   executeTransactionBlock,

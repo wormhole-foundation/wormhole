@@ -22,8 +22,7 @@ import { Other } from "@certusone/wormhole-sdk/lib/esm/vaa";
 import axios from "axios";
 import { ethers } from "ethers";
 import yargs from "yargs";
-import { NETWORK_OPTIONS } from "../consts";
-import { NETWORKS } from "../networks";
+import { NETWORK_OPTIONS, NETWORKS } from "../consts";
 import { assertNetwork, Network } from "../utils";
 import { parse, Payload, serialiseVAA, sign, Signature, VAA } from "../vaa";
 
@@ -103,19 +102,19 @@ export const builder = (y: typeof yargs) =>
 export const handler = async (
   argv: Awaited<ReturnType<typeof builder>["argv"]>
 ) => {
-  const network = argv["network"].toUpperCase();
+  const network = argv.network.toUpperCase();
   assertNetwork(network);
 
   let numSigs = 0;
-  if (argv["signatures"]) {
+  if (argv.signatures) {
     numSigs += 1;
   }
 
-  if (argv["wormscanfile"]) {
+  if (argv.wormscanfile) {
     numSigs += 1;
   }
 
-  if (argv["wormscanurl"]) {
+  if (argv.wormscanurl) {
     numSigs += 1;
   }
 
@@ -130,7 +129,7 @@ export const handler = async (
   }
 
   let vaa: VAA<Payload | Other>;
-  if (argv["vaa"]) {
+  if (argv.vaa) {
     let buf: Buffer;
     try {
       buf = Buffer.from(String(argv.vaa), "hex");
@@ -166,17 +165,17 @@ export const handler = async (
     vaa.guardianSetIndex = Number(argv["guardian-set-index"]);
   }
 
-  if (argv["signatures"]) {
-    vaa.signatures = argv["signatures"].split(",").map((s, i) => ({
+  if (argv.signatures) {
+    vaa.signatures = argv.signatures.split(",").map((s, i) => ({
       signature: s,
       guardianSetIndex: i,
     }));
-  } else if (argv["wormscanfile"]) {
-    const wormscanData = require(argv["wormscanfile"]);
+  } else if (argv.wormscanfile) {
+    const wormscanData = require(argv.wormscanfile);
     const guardianSet = await getGuardianSet(network, vaa.guardianSetIndex);
     vaa.signatures = await getSigsFromWormscanData(wormscanData, guardianSet);
-  } else if (argv["wormscanurl"]) {
-    const wormscanData = await axios.get(argv["wormscanurl"]);
+  } else if (argv.wormscanurl) {
+    const wormscanData = await axios.get(argv.wormscanurl);
     const guardianSet = await getGuardianSet(network, vaa.guardianSetIndex);
     vaa.signatures = await getSigsFromWormscanData(
       wormscanData.data,
@@ -195,20 +194,20 @@ export const handler = async (
     vaa.emitterAddress = argv["emitter-address"];
   }
 
-  if (argv["nonce"]) {
-    vaa.nonce = argv["nonce"];
+  if (argv.nonce) {
+    vaa.nonce = argv.nonce;
   }
 
-  if (argv["sequence"]) {
-    vaa.sequence = BigInt(argv["sequence"]);
+  if (argv.sequence) {
+    vaa.sequence = BigInt(argv.sequence);
   }
 
   if (argv["consistency-level"]) {
     vaa.consistencyLevel = argv["consistency-level"];
   }
 
-  if (argv["timestamp"]) {
-    vaa.timestamp = argv["timestamp"];
+  if (argv.timestamp) {
+    vaa.timestamp = argv.timestamp;
   }
 
   if (argv["payload"]) {
@@ -226,8 +225,8 @@ const getGuardianSet = async (
   network: Network,
   guardianSetIndex: number
 ): Promise<string[]> => {
-  let n = NETWORKS[network]["ethereum"];
-  let contract_address = CONTRACTS[network]["ethereum"].core;
+  let n = NETWORKS[network].ethereum;
+  let contract_address = CONTRACTS[network].ethereum.core;
   if (contract_address === undefined) {
     throw Error(`Unknown core contract on ${network} for ethereum`);
   }

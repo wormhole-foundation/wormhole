@@ -3,23 +3,23 @@ import { calculateFee } from "@cosmjs/stargate";
 import { getSigningCosmWasmClient } from "@sei-js/core";
 
 import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
-import { NETWORKS } from "./networks";
-import { Network } from "./utils";
-import { impossible, Payload } from "./vaa";
+import { NETWORKS } from "../../consts";
+import { Network } from "../../utils";
+import { impossible, Payload } from "../../vaa";
 
-export async function execute_sei(
+export const submit = async (
   payload: Payload,
   vaa: Buffer,
   network: Network
-) {
+) => {
   const contracts = CONTRACTS[network].sei;
   const { rpc, key } = NETWORKS[network].sei;
   if (!key) {
-    throw Error(`No ${network} key defined for NEAR`);
+    throw Error(`No ${network} key defined for Sei`);
   }
 
   if (!rpc) {
-    throw Error(`No ${network} rpc defined for NEAR`);
+    throw Error(`No ${network} rpc defined for Sei`);
   }
 
   let target_contract: string;
@@ -138,4 +138,4 @@ export async function execute_sei(
   );
 
   console.log(`TX hash: ${result.transactionHash}`);
-}
+};

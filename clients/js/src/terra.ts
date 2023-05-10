@@ -11,7 +11,7 @@ import {
 } from "@terra-money/terra.js";
 import axios from "axios";
 import { fromUint8Array } from "js-base64";
-import { NETWORKS } from "./networks";
+import { NETWORKS } from "./consts";
 import { Network } from "./utils";
 import { Payload, impossible } from "./vaa";
 

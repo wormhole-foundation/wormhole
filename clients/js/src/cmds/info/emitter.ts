@@ -1,5 +1,6 @@
 import {
   CHAINS,
+  ChainName,
   assertChain,
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import yargs from "yargs";
@@ -12,7 +13,7 @@ export const builder = (y: typeof yargs) =>
     .positional("chain", {
       describe: "Chain to query",
       type: "string",
-      choices: Object.keys(CHAINS) as (keyof typeof CHAINS)[],
+      choices: Object.keys(CHAINS) as ChainName[],
       demandOption: true,
     } as const)
     .positional("address", {

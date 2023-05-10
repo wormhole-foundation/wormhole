@@ -4,8 +4,7 @@ import { Implementation__factory } from "@certusone/wormhole-sdk/lib/esm/ethers-
 import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { ethers } from "ethers";
 import yargs from "yargs";
-import { NETWORK_OPTIONS } from "../consts";
-import { NETWORKS } from "../networks";
+import { NETWORKS, NETWORK_OPTIONS } from "../consts";
 import { assertNetwork } from "../utils";
 
 export const command = "verify-vaa";
