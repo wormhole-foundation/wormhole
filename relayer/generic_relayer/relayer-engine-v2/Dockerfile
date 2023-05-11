@@ -37,7 +37,7 @@ RUN if [ -e /certs/cert.pem ]; then git config --global http.sslCAInfo /certs/ce
 
 
 # Add the SDK
-COPY --chown=node:node ./sdk .
+COPY --chown=node:node ./sdk ./sdk 
 
 WORKDIR /home/node/app/ethereum
 
