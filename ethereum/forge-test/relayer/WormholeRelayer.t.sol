@@ -117,17 +117,6 @@ contract WormholeRelayerTests is Test {
             ) / uint256(feeParams.sourceNativePrice) < type(uint88).max - 2
         );
 
-        uint256 maxGasInWei = (uint256(gasParams.targetGasLimit) + gasParams.evmGasOverhead)
-            * uint256(gasParams.targetGasPrice);
-        vm.assume(maxGasInWei < uint256(2) ** 126);
-        vm.assume(
-            (maxGasInWei / feeParams.sourceNativePrice) * feeParams.targetNativePrice
-                < uint256(2) ** 126
-        );
-        vm.assume(
-            uint256(feeParams.receiverValueTarget) * feeParams.targetNativePrice
-                / feeParams.sourceNativePrice < uint256(2) ** 126
-        );
         vm.assume(
             feeParams.targetNativePrice
                 < (uint256(2) ** 126)
