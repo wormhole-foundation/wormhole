@@ -16,7 +16,9 @@ import {
 import { EVMChainId } from "@certusone/wormhole-sdk";
 import { GRContext } from "./app";
 import { BigNumber, ethers } from "ethers";
-import { CoreRelayer__factory, IDelivery } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
+import { CoreRelayer__factory } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
+import { TargetDeliveryParametersStruct} from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts/IWormholeRelayer.sol/IWormholeRelayerDelivery";
+
 
 export async function processGenericRelayerVaa(ctx: GRContext, next: Next) {
   ctx.logger.info(`Processing generic relayer vaa`);
@@ -65,19 +67,19 @@ async function processRedelivery(ctx: GRContext) {
     return;
   }
 
-  if (redeliveryVaa.vaaKey.payloadType != VaaKeyType.EMITTER_SEQUENCE) {
+  if (redeliveryVaa.key.infoType != VaaKeyType.EMITTER_SEQUENCE) {
     throw new Error(`Only supports EmitterSequence VaaKeyType`);
   }
 
   ctx.logger.info(
     `Redelivery requested for the following VAA: `,
-    vaaKeyPrintable(redeliveryVaa.vaaKey)
+    vaaKeyPrintable(redeliveryVaa.key)
   );
 
   let originalVaa = await ctx.fetchVaa(
-    redeliveryVaa.vaaKey.chainId as wh.ChainId,
-    Buffer.from(redeliveryVaa.vaaKey.emitterAddress!),
-    redeliveryVaa.vaaKey.sequence!.toBigInt()
+    redeliveryVaa.key.chainId as wh.ChainId,
+    Buffer.from(redeliveryVaa.key.emitterAddress!),
+    redeliveryVaa.key.sequence!.toBigInt()
   );
 
   ctx.logger.info("Retrieved original VAA!");
@@ -102,15 +104,15 @@ function isValidRedelivery(
   redelivery: RedeliveryInstruction
 ): boolean {
   //TODO check that the delivery & redelivery chains agree!
-  if (delivery.targetChain != redelivery.targetChain) {
+  if (delivery.targetChainId != redelivery.targetChainId) {
     ctx.logger.info(
       "Redelivery targetChain does not match original delivery targetChain"
     );
     ctx.logger.info(
       "Original targetChain: " +
-        delivery.targetChain +
+        delivery.targetChainId +
         " Redelivery targetChain: " +
-        redelivery.targetChain
+        redelivery.targetChainId
     );
     return false;
   }
@@ -169,7 +171,7 @@ async function processDeliveryInstruction(
   //TODO this check is not quite correct
   if (
     delivery.vaaKeys.findIndex(
-      (m) => m.payloadType !== VaaKeyType.EMITTER_SEQUENCE
+      (m) => m.infoType !== VaaKeyType.EMITTER_SEQUENCE
     ) != -1
   ) {
     throw new Error(`Only supports EmitterSequence VaaKeyType`);
@@ -193,7 +195,7 @@ async function processDeliveryInstruction(
     deliveryVaa: deliveryInstructionsPrintable(delivery),
   });
   // const chainId = assertEvmChainId(ix.targetChain)
-  const chainId = delivery.targetChain as EVMChainId;
+  const chainId = delivery.targetChainId as EVMChainId;
   const receiverValue = overrides?.newReceiverValueTarget
     ? overrides.newReceiverValueTarget
     : delivery.receiverValueTarget;
@@ -208,7 +210,7 @@ async function processDeliveryInstruction(
       wallet
     );
 
-    const input: IDelivery.TargetDeliveryParametersStruct = {
+    const input: TargetDeliveryParametersStruct = {
       encodedVMs: results.map((v) => v.bytes),
       encodedDeliveryVAA: deliveryVaa,
       relayerRefundAddress: wallet.address,
