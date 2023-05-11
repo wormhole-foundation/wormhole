@@ -1,14 +1,13 @@
 import {
   deployCoreRelayerImplementation,
-  deployForwardWrapper,
 } from "../helpers/deployments";
 import {
   init,
   ChainInfo,
   getCoreRelayer,
-  getCoreRelayerAddress,
   writeOutputFiles,
   getOperatingChains,
+  getRelayProviderAddress,
 } from "../helpers/env";
 import {
   createCoreRelayerUpgradeVAA,
@@ -26,18 +25,13 @@ async function run() {
   };
 
   for (const chain of chains) {
-    const forwardWrapper = await deployForwardWrapper(
-      chain,
-      await getCoreRelayerAddress(chain)
-    );
     const coreRelayerImplementation = await deployCoreRelayerImplementation(
       chain,
-      forwardWrapper.address
+      getRelayProviderAddress(chain)
     );
     await upgradeCoreRelayer(chain, coreRelayerImplementation.address);
 
     output.coreRelayerImplementations.push(coreRelayerImplementation);
-    output.coreRelayerLibraries.push(forwardWrapper);
   }
 
   writeOutputFiles(output, processName);
