@@ -18,8 +18,13 @@ import {
   DeliveryOverrideArgs,
   parseForwardFailureError
 } from "../structs";
-import { RelayProvider, RelayProvider__factory, Implementation__factory, IWormholeRelayer} from "../../ethers-contracts/";
-import {DeliveryEvent} from "../../ethers-contracts/CoreRelayer"
+import { IWormholeRelayer } from "../../ethers-contracts/IWormholeRelayer"
+import { RelayProvider } from "../../ethers-contracts/RelayProvider";
+import { RelayProvider__factory } from "../../ethers-contracts/factories/RelayProvider__factory";
+import { Implementation__factory } from "../../ethers-contracts/factories/Implementation__factory";
+import {
+  DeliveryEvent,
+} from "../../ethers-contracts/CoreRelayer";
 
 export type DeliveryTargetInfo = {
   status: DeliveryStatus | string;
@@ -252,7 +257,7 @@ export function vaaKeyToVaaKeyStruct(
   vaaKey: VaaKey
 ): IWormholeRelayer.VaaKeyStruct {
   return {
-    infoType: vaaKey.payloadType,
+    infoType: vaaKey.infoType,
     chainId: vaaKey.chainId || 0,
     emitterAddress:
       vaaKey.emitterAddress ||
