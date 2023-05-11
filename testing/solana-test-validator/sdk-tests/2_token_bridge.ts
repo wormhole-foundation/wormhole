@@ -517,7 +517,7 @@ describe("Token Bridge", () => {
         "4CgrjMnDneBjBBEyXtcikLTbAWpHAD1cwn8W1sSSCLru"
       );
       expect(accounts.vaa.toString()).to.equal(
-        "AaZqjqvg8QirKetuR799Smfw5gyAWobUooGsvxzr1aoX"
+        "4NDyWDtRvfEdi48a9JgYG28m919hrcdW8gNgRg3jwU99"
       );
       expect(accounts.claim.toString()).to.equal(
         "4dyk94hhqektDX9wUBCL1ZkyQC1Xn3QaTSAdJeZzbTcJ"
