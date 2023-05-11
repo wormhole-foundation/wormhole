@@ -43,6 +43,9 @@ COPY --chown=node:node ./ethereum/package.json .
 COPY --chown=node:node ./ethereum/package-lock.json .
 COPY --chown=node:node ./ethereum/.env.test .env
 
+# Add the SDK
+COPY --chown=node:node ./sdk .
+
 
 # We want to cache node_modules *and* incorporate it into the final image.
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
