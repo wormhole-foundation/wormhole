@@ -14,7 +14,64 @@ func TestTokenListSize(t *testing.T) {
 
 	/* Assuming that governed tokens will need to be updated every time
 	   we regenerate it */
-	assert.Equal(t, 802, len(tokenConfigEntries))
+	assert.Equal(t, 809, len(tokenConfigEntries))
+}
+
+// Helper method to provide per chain token counts, to detect regressions in token tracking
+func getTokenCount(chainId vaa.ChainID) int {
+	var count = 0
+	for _, tce := range tokenList() {
+		if vaa.ChainID(tce.chain) == chainId {
+			count = count + 1
+		}
+	}
+	return count
+}
+
+func TestTokenListSizePerChain(t *testing.T) {
+
+	tests := []struct {
+		chainId vaa.ChainID
+		num     int
+	}{
+		/**
+		 * SECURITY: If you are seeing a drop in tracked tokens for a given chain,
+		 * make sure to understand why to prevent having a regression in the tokens
+		 * we are tracking to be governed.
+		 */
+		{vaa.ChainIDSolana, 122},
+		{vaa.ChainIDEthereum, 244},
+		{vaa.ChainIDTerra, 8},
+		{vaa.ChainIDBSC, 204},
+		{vaa.ChainIDPolygon, 84},
+		{vaa.ChainIDAvalanche, 35},
+		{vaa.ChainIDAurora, 11},
+		{vaa.ChainIDFantom, 28},
+		{vaa.ChainIDKarura, 4},
+		{vaa.ChainIDAcala, 3},
+		{vaa.ChainIDKlaytn, 6},
+		{vaa.ChainIDCelo, 5},
+		{vaa.ChainIDNear, 3},
+		{vaa.ChainIDMoonbeam, 13},
+		{vaa.ChainIDTerra2, 2},
+		{vaa.ChainIDInjective, 1},
+		{vaa.ChainIDAptos, 6},
+		{vaa.ChainIDArbitrum, 18},
+		{vaa.ChainIDOptimism, 5},
+		{vaa.ChainIDPythNet, 0},
+		{vaa.ChainIDXpla, 1},
+		{vaa.ChainIDBtc, 0},
+		{vaa.ChainIDBase, 0},
+		{vaa.ChainIDSei, 0},
+		{vaa.ChainIDWormchain, 0},
+		{vaa.ChainIDSepolia, 0},
+		{vaa.ChainIDOasis, 2},
+	}
+	for _, tc := range tests {
+		t.Run(tc.chainId.String(), func(t *testing.T) {
+			assert.Equal(t, tc.num, getTokenCount(tc.chainId))
+		})
+	}
 }
 
 func TestTokenListAddressSize(t *testing.T) {
