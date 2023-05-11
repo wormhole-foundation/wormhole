@@ -36,15 +36,15 @@ RUN if [ -e /certs/cert.pem ]; then npm config set cafile /certs/cert.pem; fi
 RUN if [ -e /certs/cert.pem ]; then git config --global http.sslCAInfo /certs/cert.pem; fi
 
 
+# Add the SDK
+COPY --chown=node:node ./sdk .
+
 WORKDIR /home/node/app/ethereum
 
 # Only invalidate the npm install step if package.json changed
 COPY --chown=node:node ./ethereum/package.json .
 COPY --chown=node:node ./ethereum/package-lock.json .
 COPY --chown=node:node ./ethereum/.env.test .env
-
-# Add the SDK
-COPY --chown=node:node ./sdk .
 
 
 # We want to cache node_modules *and* incorporate it into the final image.
