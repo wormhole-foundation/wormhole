@@ -98,7 +98,7 @@ abstract contract CoreRelayerGovernance is CoreRelayerBase, ERC1967Upgrade {
     _upgradeTo(newImplementation);
 
     (bool success, bytes memory revertData) =
-      address(this).call(abi.encodeWithSelector(this.checkAndExecuteUpgradeMigration.selector));
+      address(this).call(abi.encodeCall(this.checkAndExecuteUpgradeMigration, ()));
 
     if (!success)
       revert ContractUpgradeFailed(revertData);
