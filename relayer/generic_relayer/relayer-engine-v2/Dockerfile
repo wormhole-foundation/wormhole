@@ -66,7 +66,7 @@ RUN forge install --no-git --no-commit
 RUN apt-get install tree
 RUN make dependencies
 RUN tree -L 1; forge build -o build
-RUN typechain --target=ethers-v5 --out-dir=./ethers-contracts ./build/**/*.json
+RUN typechain --target=ethers-v5 --out-dir=./ethers-contracts ./build-forge/**/*.json
 
 
 
