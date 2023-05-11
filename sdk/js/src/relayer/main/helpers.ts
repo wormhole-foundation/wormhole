@@ -18,7 +18,7 @@ import {
   DeliveryOverrideArgs,
   parseForwardFailureError
 } from "../structs";
-import { IWormholeRelayer } from "../../ethers-contracts/IWormholeRelayer"
+import { VaaKeyStruct } from "../../ethers-contracts/IWormholeRelayer.sol/IWormholeRelayer";
 import { RelayProvider } from "../../ethers-contracts/RelayProvider";
 import { RelayProvider__factory } from "../../ethers-contracts/factories/RelayProvider__factory";
 import { Implementation__factory } from "../../ethers-contracts/factories/Implementation__factory";
@@ -255,7 +255,7 @@ export function getWormholeRelayerLog(
 
 export function vaaKeyToVaaKeyStruct(
   vaaKey: VaaKey
-): IWormholeRelayer.VaaKeyStruct {
+): VaaKeyStruct {
   return {
     infoType: vaaKey.infoType,
     chainId: vaaKey.chainId || 0,
