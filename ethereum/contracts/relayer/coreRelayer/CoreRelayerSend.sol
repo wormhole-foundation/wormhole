@@ -20,6 +20,14 @@ import {CoreRelayerSerde} from "./CoreRelayerSerde.sol";
 import {ForwardInstruction, getDefaultRelayProviderState} from "./CoreRelayerStorage.sol";
 import {CoreRelayerBase} from "./CoreRelayerBase.sol";
 
+//TODO:
+// Introduce basic sanity checks on sendParams (e.g. all valus below 2^128?) so we can get rid of
+//   all the silly checked math and ensure that we can't have overflow Panics either.
+// In send() and resend() we already check that maxTransactionFee + receiverValue == msg.value (via
+//   calcAndCheckFees(). We could perhaps introduce a similar check of <= this.balance in forward()
+//   and presumably a few more in our calculation/conversion functions CoreRelayerBase to ensure
+//   sensible numeric ranges everywhere.
+
 abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
   using CoreRelayerSerde for *; //somewhat yucky but unclear what's a better alternative
 
@@ -129,12 +137,6 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
   function forward(Send memory sendParams) public payable {
     checkMsgSenderInDelivery();
 
-    //TODO AMO: Introduce basic sanity checks on sendParams (e.g. all valus below 2^128?)
-    //          In send() we check that maxTransactionFee + receiverValue < msg.value so we
-    //            there we are safe already.
-    //          One very easy way to achieve this is by enforcing a max on
-    //            relayProvider.quoteMaximumBudget() since that is enforced as an upper limit.
-
     IRelayProvider relayProvider = IRelayProvider(sendParams.relayProviderAddress);
     checkRelayProviderSupportsChain(relayProvider, sendParams.targetChainId);
 
@@ -153,8 +155,8 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     );
 
     //Temporarily save information about the forward in state, so it can be processed after the
-    //  execution of 'receiveWormholeMessages', because we will then know how much of the
-    //  'maxTransactionFee' of the current delivery is still available for use in this forward.
+    //  execution of `receiveWormholeMessages`, because we will then know how much of the
+    //  `maxTransactionFee` of the current delivery is still available for use in this forward.
     appendForwardInstruction(
       ForwardInstruction({
         encodedSend: sendParams.encode(),
@@ -174,8 +176,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     uint16 targetChainId,
     address relayProviderAddress
   ) external payable returns (uint64 sequence) {
-    uint256 wormholeMessageFee =
-      calcAndCheckFees(newMaxTransactionFee, newReceiverValue);
+    uint256 wormholeMessageFee = calcAndCheckFees(newMaxTransactionFee, newReceiverValue);
 
     IRelayProvider relayProvider = IRelayProvider(relayProviderAddress);
     checkRelayProviderSupportsChain(relayProvider, targetChainId);
@@ -234,8 +235,8 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
   ) public view returns (uint256 receiverValue) {
     IRelayProvider provider = IRelayProvider(relayProvider);
 
-    //Converts 'targetAmount' from target chain currency to source chain currency (using
-    //  relayProvider's prices) and applies a multiplier of '1 + (buffer / denominator)'
+    //Converts `targetAmount` from target chain currency to source chain currency (using
+    //  relayProvider's prices) and applies a multiplier of `1 + (buffer / denominator)`
     (uint16 buffer, uint16 denominator) = provider.getAssetConversionBuffer(targetChainId);
     uint256 numerator = uint256(denominator) + buffer;
     receiverValue = assetConversionHelper(
@@ -247,7 +248,8 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     relayProvider = getDefaultRelayProviderState().defaultRelayProvider;
   }
 
-  function getDefaultRelayParams() public view returns (bytes memory relayParams) {
+  //this function is `view` in the interface but `pure` here, for now
+  function getDefaultRelayParams() public pure returns (bytes memory relayParams) {
     return new bytes(0);
   }
 
@@ -264,7 +266,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
   }
 
   //Check that the total amount of value the relay provider needs to use for this send is <= the
-  //  relayProvider's maximum budget for 'targetChainId' and check that the calculated gas is > 0
+  //  relayProvider's maximum budget for `targetChainId` and check that the calculated gas is > 0
   function checkBudgetConstraints(
     uint256 maximumRefundTarget,
     uint256 receiverValueTarget,

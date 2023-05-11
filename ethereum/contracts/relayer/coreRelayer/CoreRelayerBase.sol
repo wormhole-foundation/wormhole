@@ -24,8 +24,8 @@ import {
 } from "./CoreRelayerStorage.sol";
 
 abstract contract CoreRelayerBase is IWormholeRelayerBase {
-  //TODO AMO: see https://book.wormhole.com/wormhole/3_coreLayerContracts.html#consistency-levels
-  //  15 is valid choice perhaps, but it feels messy... (seems like it should be 201?)
+  //see https://book.wormhole.com/wormhole/3_coreLayerContracts.html#consistency-levels
+  //  15 is valid choice for now but ultimately we want something more canonical (202?)
   //  Also, these values should definitely not be defined here but should be provided by IWormhole!
   uint8 internal constant CONSISTENCY_LEVEL_FINALIZED = 15;
   uint8 internal constant CONSISTENCY_LEVEL_INSTANT = 200;
@@ -61,8 +61,8 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
     uint8 consistencyLevel,
     IRelayProvider relayProvider
   ) internal returns (uint64 sequence) { 
-    sequence =
-      getWormhole().publishMessage{value: wormholeMessageFee}(0, encodedInstruction, consistencyLevel);
+    sequence = getWormhole()
+      .publishMessage{value: wormholeMessageFee}(0, encodedInstruction, consistencyLevel);
 
     emit SendEvent(sequence, maxTransactionFee, receiverValue);
 
@@ -110,9 +110,9 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
   // ----------------------------------------- Conversion ------------------------------------------
 
   /** 
-   * Calculate how much gas the relay provider can pay for on 'sendParams.targetChain' using
-   *   'sendParams.newTransactionFee', and calculate how much value the relay provider will pass
-   *   into 'sendParams.targetAddress'.
+   * Calculate how much gas the relay provider can pay for on `sendParams.targetChain` using
+   *   `sendParams.newTransactionFee`, and calculate how much value the relay provider will pass
+   *   into `sendParams.targetAddress`.
    */
   function convertSendToDeliveryInstruction(
     Send memory send
@@ -147,10 +147,10 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
    *   maximum refund of the delivery transaction should be, in terms of target chain currency
    *
    * The maximum refund is the amount that would be refunded to refundAddress if the call to
-   *   'receiveWormholeMessages' were to counterfactually take 0 gas.
+   *   `receiveWormholeMessages` were to counterfactually take 0 gas.
    *
    * It does this by calculating (maxTransactionFee - deliveryOverhead) and converting (using the
-   *   relay provider's prices) to target chain currency (where 'deliveryOverhead' is the
+   *   relay provider's prices) to target chain currency (where `deliveryOverhead` is the
    *   relayProvider's base fee for delivering to targetChainId [in units of source chain currency])
    */
   function calculateTargetDeliveryMaximumRefund(
@@ -170,13 +170,13 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
   }}
 
   /**
-   * If the user specifies (for 'receiverValue) 'sourceAmount' of source chain currency, with relay
-   *   provider 'provider', then this function calculates how much the relayer will pass into
+   * If the user specifies (for `receiverValue`) `sourceAmount` of source chain currency, with relay
+   *   provider `provider`, then this function calculates how much the relayer will pass into
    *   receiveWormholeMessages on the target chain (in target chain currency).
    *
    * The calculation simply converts this amount to target chain's currency, but also applies a
-   *   multiplier of 'denominator/(denominator + buffer)' where these values are also specified
-   *   by the relay provider 'provider'.
+   *   multiplier of `denominator/(denominator + buffer)` where these values are also specified
+   *   by the relay provider `provider`.
    */
   function convertReceiverValueAmountToTarget(
     uint256 sourceAmount,
@@ -195,8 +195,8 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
    * Given a targetChainId, maxTransactionFee, and a relay provider, this function calculates what
    *   the gas limit of the delivery transaction should be.
    * It does this by calculating (maxTransactionFee - deliveryOverhead)/gasPrice where
-   *  'deliveryOverhead' is the relayProvider's base fee for delivering to targetChain and
-   *  'gasPrice' is the relayProvider's fee per unit of target chain gas.
+   *  `deliveryOverhead` is the relayProvider's base fee for delivering to targetChain and
+   *  `gasPrice` is the relayProvider's fee per unit of target chain gas.
    * Provider fees are quoted in units of the source chain currency.
    */
   function calculateTargetGasDeliveryAmount(
@@ -215,9 +215,9 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
   }}
 
   /**
-   * Converts 'sourceAmount' of source chain currency to units of target chain currency using the
-   *   prices of 'provider' and also multiplying by a specified fraction
-   *   'multiplierNumerator/multiplierDenominator', rounding up or down specified by 'roundUp', and
+   * Converts `sourceAmount` of source chain currency to units of target chain currency using the
+   *   prices of `provider` and also multiplying by a specified fraction
+   *   `multiplierNumerator/multiplierDenominator`, rounding up or down specified by `roundUp`, and
    *   without performing intermediate rounding, i.e. the result should be as if float arithmetic
    *   was done and the rounding performed at the end
    */
