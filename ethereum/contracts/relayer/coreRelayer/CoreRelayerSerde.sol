@@ -209,23 +209,29 @@ library CoreRelayerSerde {
 
     uint8 parsedVaaKeyType;
     (parsedVaaKeyType, offset) = encoded.asUint8Unchecked(offset);
-    vaaKey.infoType = VaaKeyType(parsedVaaKeyType);
-
-    if (vaaKey.infoType == VaaKeyType.EMITTER_SEQUENCE) {
+    //Explicitly casting int to enum panics for invalid values
+    //  (see https://docs.soliditylang.org/en/v0.8.19/types.html#enums)
+    //We want to revert with our custom error, so we explicitly check ourselves and only perform the
+    //  cast below once it is known to be safe.
+    if (parsedVaaKeyType == uint8(VaaKeyType.EMITTER_SEQUENCE)) {
       (vaaKey.chainId,        offset) = encoded.asUint16Unchecked(offset);
       (vaaKey.emitterAddress, offset) = encoded.asBytes32Unchecked(offset);
       (vaaKey.sequence,       offset) = encoded.asUint64Unchecked(offset);
     }
-    else if (vaaKey.infoType == VaaKeyType.VAAHASH) {
+    else if (parsedVaaKeyType == uint8(VaaKeyType.VAAHASH)) {
       (vaaKey.vaaHash, offset) = encoded.asBytes32Unchecked(offset);
     }
     else
       revert InvalidVaaKeyType(parsedVaaKeyType);
+
+    vaaKey.infoType = VaaKeyType(parsedVaaKeyType);
   }
 
   function encodePayload(
     bytes memory payload
   ) private pure returns (bytes memory encoded) {
+    //casting payload.length to uint32 is safe because you'll be hard-pressed to allocate 4 GB of
+    //  EVM memory in a single transaction
     encoded = abi.encodePacked(uint32(payload.length), payload);
   }
 
