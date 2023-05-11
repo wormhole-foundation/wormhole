@@ -2,13 +2,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: relayer-engine
+  name: gen-relay-pricing
   labels:
     app: redis
 spec:
   clusterIP: None
   selector:
-    app: relayer-engine
+    app: gen-relay-pricing
   ports:
     - port: 3000
       name: bullmq
@@ -17,22 +17,22 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: relayer-engine
+  name: gen-relay-pricing
 spec:
   selector:
     matchLabels:
-      app: relayer-engine
-  serviceName: relayer-engine
+      app: gen-relay-pricing
+  serviceName: gen-relay-pricing
   template:
     metadata:
       labels:
-        app: relayer-engine
+        app: gen-relay-pricing
     spec:
       restartPolicy: Always
       terminationGracePeriodSeconds: 0
       containers:
-        - name: relayer-engine
-          image: relayer-engine
+        - name: gen-relay-pricing
+          image: gen-relay-pricing
           command:
             - /bin/sh
             - -c
@@ -44,5 +44,5 @@ spec:
             failureThreshold: 300
           ports:
             - containerPort: 3000
-              name: relayer-engine
+              name: gen-relay-pricing
               protocol: TCP

@@ -1,0 +1,48 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gen-relay-delivery
+  labels:
+    app: redis
+spec:
+  clusterIP: None
+  selector:
+    app: gen-relay-delivery
+  ports:
+    - port: 3000
+      name: bullmq
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: gen-relay-delivery
+spec:
+  selector:
+    matchLabels:
+      app: gen-relay-delivery
+  serviceName: gen-relay-delivery
+  template:
+    metadata:
+      labels:
+        app: gen-relay-delivery
+    spec:
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 0
+      containers:
+        - name: gen-relay-delivery
+          image: gen-relay-delivery
+          command:
+            - /bin/sh
+            - -c
+            - "npm run tiltkub"
+          readinessProbe:
+            tcpSocket:
+              port: 3000
+            periodSeconds: 1
+            failureThreshold: 300
+          ports:
+            - containerPort: 3000
+              name: gen-relay-delivery
+              protocol: TCP
