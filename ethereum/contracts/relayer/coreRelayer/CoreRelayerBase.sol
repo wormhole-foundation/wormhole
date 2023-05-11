@@ -4,14 +4,16 @@ pragma solidity ^0.8.19;
 
 import {IWormhole} from "../../interfaces/IWormhole.sol";
 import {IRelayProvider} from "../../interfaces/relayer/IRelayProvider.sol";
-import {toWormholeFormat, min, pay} from "./Utils.sol";
+import {toWormholeFormat, min, pay, MAX_U128} from "./Utils.sol";
 import {
   NoDeliveryInProgress,
   ReentrantDelivery,
   ForwardRequestFromWrongAddress,
   RelayProviderDoesNotSupportTargetChain,
   RelayProviderQuotedBogusAssetPrice,
-  Send,
+  VaaKey,
+  MaxTransactionFeeGreaterThanUint128,
+  ReceiverValueGreaterThanUint128,
   DeliveryInstruction,
   ExecutionParameters,
   IWormholeRelayerBase
@@ -22,6 +24,9 @@ import {
   getDeliveryTmpState,
   getRegisteredCoreRelayersState
 } from "./CoreRelayerStorage.sol";
+import {Send} from "./CoreRelayerSerde.sol";
+
+import "forge-std/console.sol";
 
 abstract contract CoreRelayerBase is IWormholeRelayerBase {
   //TODO AMO: see https://book.wormhole.com/wormhole/3_coreLayerContracts.html#consistency-levels
@@ -109,6 +114,47 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
 
   // ----------------------------------------- Conversion ------------------------------------------
 
+  function constructSend(
+    uint16 targetChainId,
+    bytes32 targetAddress,
+    uint16 refundChainId,
+    bytes32 refundAddress,
+    uint256 maxTransactionFee,
+    uint256 receiverValue,
+    bytes memory payload,
+    VaaKey[] memory vaaKeys,
+    uint8 consistencyLevel,
+    address relayProviderAddress,
+    bytes memory relayParameters
+  ) internal pure returns (Send memory) {
+    (uint128 maxTransactionFee_, uint128 receiverValue_) = 
+      checkFeesLessThanU128(maxTransactionFee, receiverValue);
+    return Send(
+      targetChainId,
+      targetAddress,
+      refundChainId,
+      refundAddress,
+      maxTransactionFee_,
+      receiverValue_,
+      payload,
+      vaaKeys,
+      consistencyLevel,
+      relayProviderAddress,
+      relayParameters
+    );
+  }
+
+  function checkFeesLessThanU128(
+    uint256 maxTransactionFee,
+    uint256 receiverValue
+  ) internal pure returns (uint128 , uint128){
+    if (maxTransactionFee > type(uint128).max )
+      revert MaxTransactionFeeGreaterThanUint128();
+    if ( receiverValue > type(uint128).max)
+      revert ReceiverValueGreaterThanUint128();
+    return (uint128(maxTransactionFee), uint128(receiverValue));
+  }
+
   /** 
    * Calculate how much gas the relay provider can pay for on 'sendParams.targetChain' using
    *   'sendParams.newTransactionFee', and calculate how much value the relay provider will pass
@@ -159,6 +205,7 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
     IRelayProvider provider
   ) internal view returns (uint256 maximumRefund) { unchecked {
     uint256 overhead = provider.quoteDeliveryOverhead(targetChainId);
+    console.log("overhead", overhead, maxTransactionFee);
     if (maxTransactionFee > overhead) { 
       (uint16 buffer, uint16 denominator) = provider.getAssetConversionBuffer(targetChainId);
       uint256 remainder = maxTransactionFee - overhead;

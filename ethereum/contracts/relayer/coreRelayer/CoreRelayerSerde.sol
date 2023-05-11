@@ -59,8 +59,8 @@ library CoreRelayerSerde {
     (strct.targetAddress,        offset) = encoded.asBytes32Unchecked(offset);
     (strct.refundChainId,        offset) = encoded.asUint16Unchecked(offset);
     (strct.refundAddress,        offset) = encoded.asBytes32Unchecked(offset);
-    (strct.maxTransactionFee,    offset) = encoded.asUint256Unchecked(offset);
-    (strct.receiverValue,        offset) = encoded.asUint256Unchecked(offset);
+    (strct.maxTransactionFee,    offset) = encoded.asUint128Unchecked(offset);
+    (strct.receiverValue,        offset) = encoded.asUint128Unchecked(offset);
     (strct.relayProviderAddress, offset) = encoded.asAddressUnchecked(offset);
     (strct.vaaKeys,              offset) = decodeVaaKeyArray(encoded, offset);
     (strct.consistencyLevel,     offset) = encoded.asUint8Unchecked(offset);

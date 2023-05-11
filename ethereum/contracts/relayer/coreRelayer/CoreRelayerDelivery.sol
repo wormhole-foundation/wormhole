@@ -17,9 +17,10 @@ import {
   InvalidOverrideMaximumRefund,
   RequesterNotCoreRelayer,
   VaaKey,
-  VaaKeyType,
-  ExecutionParameters,
   Send,
+  VaaKeyType,
+  Send,
+  ExecutionParameters,
   TargetDeliveryParameters,
   DeliveryInstruction,
   DeliveryOverride,
@@ -28,7 +29,7 @@ import {
 import {DeliveryData, IWormholeReceiver} from "../../interfaces/relayer/IWormholeReceiver.sol";
 import {IRelayProvider} from "../../interfaces/relayer/IRelayProvider.sol";
 
-import {pay, min, toWormholeFormat, fromWormholeFormat} from "./Utils.sol";
+import {pay, min, toWormholeFormat, fromWormholeFormat, MAX_U128} from "./Utils.sol";
 import {BytesParsing} from "./BytesParsing.sol";
 import {CoreRelayerSerde} from "./CoreRelayerSerde.sol";
 import {ForwardInstruction} from "./CoreRelayerStorage.sol";
@@ -328,14 +329,15 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     //Combine refund amount with any additional funds which were passed in to the forward as
     //  msg.value and check that enough funds were passed into the forward (should always be true
     //  as it was already checked)
-    uint256 fundsForForward;
-    unchecked{fundsForForward = transactionFeeRefundAmount + totalMsgValue;}
+    uint128 fundsForForward;
+    require(transactionFeeRefundAmount + totalMsgValue < type(uint128).max, "overflow, emitForward");
+    unchecked{fundsForForward = uint128(transactionFeeRefundAmount + totalMsgValue);}
     if (fundsForForward < totalFee)
       revert ForwardNotSufficientlyFunded(fundsForForward, totalFee);
 
     //Increases the maxTransactionFee of the first forward in order to use all of the funds
     unchecked{
-      sendRequests[0].maxTransactionFee += fundsForForward - totalFee;
+      sendRequests[0].maxTransactionFee += uint128(fundsForForward - totalFee);
     }
 
     DeliveryInstruction memory firstDeliveryInstruction = convertSendToDeliveryInstruction(sendRequests[0]);
@@ -417,18 +419,20 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
         ? RefundStatus.REFUND_SENT
         : RefundStatus.REFUND_FAIL;
     
+    uint128 refundAmount128 = uint128(min(type(uint128).max, refundAmount));
+
     //cross-chain refund
     IRelayProvider relayProvider = IRelayProvider(fromWormholeFormat(relayerAddress));
-    uint256 wormholeMessageFee = getWormhole().messageFee();
-    uint256 overhead = relayProvider.quoteDeliveryOverhead(refundChainId);
-    if (refundAmount <= wormholeMessageFee + overhead)
+    uint128 wormholeMessageFee = uint128(getWormhole().messageFee());
+    uint128 overhead = relayProvider.quoteDeliveryOverhead(refundChainId);
+    if (refundAmount128 <= wormholeMessageFee + overhead)
       return RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH;
 
     if (!relayProvider.isChainSupported(refundChainId))
       return RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED;
 
-    uint256 refundSubMessageFee;
-    unchecked{refundSubMessageFee = refundAmount - wormholeMessageFee;}
+    uint128 refundSubMessageFee;
+    unchecked{refundSubMessageFee = refundAmount128 - wormholeMessageFee;}
 
     DeliveryInstruction memory crossChainRefundInstruction = convertSendToDeliveryInstruction(Send({
       targetChainId: refundChainId,

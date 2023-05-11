@@ -44,14 +44,14 @@ contract RelayProviderSetters is Context, RelayProviderState {
         _state.targetChainAddresses[targetChainId] = newAddress;
     }
 
-    function setMaximumBudget(uint16 targetChainId, uint256 amount) internal {
+    function setMaximumBudget(uint16 targetChainId, uint192 amount) internal {
         _state.maximumBudget[targetChainId] = amount;
     }
 
     function setPriceInfo(
         uint16 updateChainId,
-        uint128 updateGasPrice,
-        uint128 updateNativeCurrencyPrice
+        uint64 updateGasPrice,
+        uint64 updateNativeCurrencyPrice
     ) internal {
         _state.data[updateChainId].gasPrice = updateGasPrice;
         _state.data[updateChainId].nativeCurrencyPrice = updateNativeCurrencyPrice;

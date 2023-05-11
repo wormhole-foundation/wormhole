@@ -124,8 +124,8 @@ abstract contract RelayProviderGovernance is
 
     function updatePrice(
         uint16 updateChainId,
-        uint128 updateGasPrice,
-        uint128 updateNativeCurrencyPrice
+        uint64 updateGasPrice,
+        uint64 updateNativeCurrencyPrice
     ) external onlyOwner {
         updatePriceImpl(updateChainId, updateGasPrice, updateNativeCurrencyPrice);
     }
@@ -143,8 +143,8 @@ abstract contract RelayProviderGovernance is
 
     function updatePriceImpl(
         uint16 updateChainId,
-        uint128 updateGasPrice,
-        uint128 updateNativeCurrencyPrice
+        uint64 updateGasPrice,
+        uint64 updateNativeCurrencyPrice
     ) internal {
         if (updateChainId == 0) {
             revert ChainIdIsZero();
@@ -161,9 +161,9 @@ abstract contract RelayProviderGovernance is
 
     function updateMaximumBudget(
         uint16 targetChainId,
-        uint256 maximumTotalBudget
+        uint192 maximumTotalBudget
     ) external onlyOwner {
-        updateMaximumBudgetImpl(targetChainId, maximumTotalBudget);
+        setMaximumBudget(targetChainId, maximumTotalBudget);
     }
 
     function updateMaximumBudgets(RelayProviderStructs.MaximumBudgetUpdate[] memory updates)
@@ -173,15 +173,11 @@ abstract contract RelayProviderGovernance is
         uint256 updatesLength = updates.length;
         for (uint256 i = 0; i < updatesLength;) {
             RelayProviderStructs.MaximumBudgetUpdate memory update = updates[i];
-            updateMaximumBudgetImpl(update.chainId, update.maximumTotalBudget);
+            setMaximumBudget(update.chainId, update.maximumTotalBudget);
             unchecked {
                 i += 1;
             }
         }
-    }
-
-    function updateMaximumBudgetImpl(uint16 targetChainId, uint256 maximumTotalBudget) internal {
-        setMaximumBudget(targetChainId, maximumTotalBudget);
     }
 
     function updateAssetConversionBuffer(
@@ -231,7 +227,7 @@ abstract contract RelayProviderGovernance is
                 updateDeliverGasOverheadImpl(update.chainId, update.newGasOverhead);
             }
             if (update.updateMaximumBudget) {
-                updateMaximumBudgetImpl(update.chainId, update.maximumTotalBudget);
+                setMaximumBudget(update.chainId, update.maximumTotalBudget);
             }
             if (update.updateAssetConversionBuffer) {
                 updateAssetConversionBufferImpl(

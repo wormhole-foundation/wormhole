@@ -7,6 +7,8 @@ import "./RelayProviderGovernance.sol";
 import "./RelayProviderStructs.sol";
 import "../../interfaces/relayer/IRelayProvider.sol";
 
+import "forge-std/console.sol";
+
 contract RelayProvider is RelayProviderGovernance, IRelayProvider {
     error CallerNotApproved(address msgSender);
 
@@ -15,19 +17,23 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
         public
         view
         override
-        returns (uint256 nativePriceQuote)
+        returns (uint128 nativePriceQuote)
     {
-        uint256 targetFees = uint256(deliverGasOverhead(targetChainId)) * gasPrice(targetChainId);
-        return quoteAssetConversion(targetChainId, targetFees, chainId());
+        uint128 targetFees = uint128(deliverGasOverhead(targetChainId)) * gasPrice(targetChainId);
+        uint256 result = quoteAssetConversion(targetChainId, targetFees, chainId());
+        require(result <= type(uint128).max, "Overflow");
+        return uint128(result);
     }
 
     //Returns the price of purchasing 1 unit of gas on the target chain, denominated in this chain's wei.
-    function quoteGasPrice(uint16 targetChainId) public view override returns (uint256) {
-        return quoteAssetConversion(targetChainId, gasPrice(targetChainId), chainId());
+    function quoteGasPrice(uint16 targetChainId) public view override returns (uint88) {
+        uint256 gasPriceInSourceChainCurrency = quoteAssetConversion(targetChainId, gasPrice(targetChainId), chainId());
+        require(gasPriceInSourceChainCurrency <= type(uint88).max, "Overflow");
+        return uint88(gasPriceInSourceChainCurrency);
     }
 
     //Returns the price of chainId's native currency in USD 10^-6 units
-    function quoteAssetPrice(uint16 chainId) public view override returns (uint256) {
+    function quoteAssetPrice(uint16 chainId) public view override returns (uint64) {
         return nativeCurrencyPrice(chainId);
     }
 
@@ -36,7 +42,7 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
         public
         view
         override
-        returns (uint256 maximumTargetBudget)
+        returns (uint192 maximumTargetBudget)
     {
         return maximumBudget(targetChainId);
     }
@@ -79,12 +85,12 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
     // relevant for chains that have dynamic execution pricing (e.g. Ethereum)
     function quoteAssetConversion(
         uint16 sourceChainId,
-        uint256 sourceAmount,
+        uint128 sourceAmount,
         uint16 targetChainId
     ) internal view returns (uint256 targetAmount) {
         uint256 srcNativeCurrencyPrice = quoteAssetPrice(sourceChainId);
         uint256 dstNativeCurrencyPrice = quoteAssetPrice(targetChainId);
-
+        console.log(sourceAmount, srcNativeCurrencyPrice, dstNativeCurrencyPrice);
         // round up
         return (sourceAmount * srcNativeCurrencyPrice + dstNativeCurrencyPrice - 1)
             / dstNativeCurrencyPrice;

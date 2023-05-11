@@ -11,12 +11,12 @@ abstract contract RelayProviderStructs {
         /**
          * Gas price in ´chainId´ chain.
          */
-        uint128 gasPrice;
+        uint64 gasPrice;
         /**
          * Price of the native currency in ´chainId´ chain.
          * Native currency is typically used to pay for gas.
          */
-        uint128 nativeCurrencyPrice;
+        uint64 nativeCurrencyPrice;
     }
 
     struct TargetChainUpdate {
@@ -38,7 +38,7 @@ abstract contract RelayProviderStructs {
         /**
          * Maximum total budget for a delivery in ´chainId´ chain.
          */
-        uint256 maximumTotalBudget;
+        uint128 maximumTotalBudget;
     }
 
     struct DeliverGasOverheadUpdate {
@@ -100,12 +100,12 @@ abstract contract RelayProviderStructs {
         /**
          * Gas price in ´chainId´ chain.
          */
-        uint128 gasPrice;
+        uint64 gasPrice;
         /**
          * Price of the native currency in ´chainId´ chain.
          * Native currency is typically used to pay for gas.
          */
-        uint128 nativeCurrencyPrice;
+        uint64 nativeCurrencyPrice;
         // TargetChainUpdate
         /**
          * Wormhole address of the relay provider in the ´chainId´ chain.
@@ -115,7 +115,7 @@ abstract contract RelayProviderStructs {
         /**
          * Maximum total budget for a delivery in ´chainId´ chain.
          */
-        uint256 maximumTotalBudget;
+        uint128 maximumTotalBudget;
     }
 
     struct CoreConfig {

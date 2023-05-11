@@ -28,11 +28,11 @@ contract RelayProviderGetters is RelayProviderState {
         return _state.coreRelayer;
     }
 
-    function gasPrice(uint16 targetChainId) public view returns (uint128) {
+    function gasPrice(uint16 targetChainId) public view returns (uint64) {
         return _state.data[targetChainId].gasPrice;
     }
 
-    function nativeCurrencyPrice(uint16 targetChainId) public view returns (uint128) {
+    function nativeCurrencyPrice(uint16 targetChainId) public view returns (uint64) {
         return _state.data[targetChainId].nativeCurrencyPrice;
     }
 
@@ -40,7 +40,7 @@ contract RelayProviderGetters is RelayProviderState {
         return _state.deliverGasOverhead[targetChainId];
     }
 
-    function maximumBudget(uint16 targetChainId) public view returns (uint256) {
+    function maximumBudget(uint16 targetChainId) public view returns (uint192) {
         return _state.maximumBudget[targetChainId];
     }
 

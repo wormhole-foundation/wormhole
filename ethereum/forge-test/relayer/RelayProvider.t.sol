@@ -38,8 +38,8 @@ contract TestRelayProvider is Test {
     }
 
     function testCannotUpdatePriceWithChainIdZero(
-        uint128 updateGasPrice,
-        uint128 updateNativeCurrencyPrice
+        uint64 updateGasPrice,
+        uint64 updateNativeCurrencyPrice
     ) public {
         vm.assume(updateGasPrice > 0);
         vm.assume(updateNativeCurrencyPrice > 0);
@@ -57,7 +57,7 @@ contract TestRelayProvider is Test {
 
     function testCannotUpdatePriceWithGasPriceZero(
         uint16 updateChainId,
-        uint128 updateNativeCurrencyPrice
+        uint64 updateNativeCurrencyPrice
     ) public {
         vm.assume(updateChainId > 0);
         vm.assume(updateNativeCurrencyPrice > 0);
@@ -75,7 +75,7 @@ contract TestRelayProvider is Test {
 
     function testCannotUpdatePriceWithNativeCurrencyPriceZero(
         uint16 updateChainId,
-        uint128 updateGasPrice
+        uint64 updateGasPrice
     ) public {
         vm.assume(updateChainId > 0);
         vm.assume(updateGasPrice > 0);
@@ -94,8 +94,8 @@ contract TestRelayProvider is Test {
     function testCanUpdatePriceOnlyAsOwner(
         address oracleOwner,
         uint16 updateChainId,
-        uint128 updateGasPrice,
-        uint128 updateNativeCurrencyPrice
+        uint64 updateGasPrice,
+        uint64 updateNativeCurrencyPrice
     ) public {
         vm.assume(oracleOwner != address(0));
         vm.assume(oracleOwner != address(this));
@@ -161,9 +161,9 @@ contract TestRelayProvider is Test {
 
     function testUpdatePrice(
         uint16 dstChainId,
-        uint128 dstGasPrice,
+        uint64 dstGasPrice,
         uint64 dstNativeCurrencyPrice,
-        uint128 srcGasPrice,
+        uint64 srcGasPrice,
         uint64 srcNativeCurrencyPrice
     ) public {
         vm.assume(dstChainId > 0);
@@ -173,6 +173,7 @@ contract TestRelayProvider is Test {
         vm.assume(srcGasPrice > 0);
         vm.assume(srcNativeCurrencyPrice > 0);
         vm.assume(uint256(dstGasPrice) * srcNativeCurrencyPrice >= dstNativeCurrencyPrice);
+        vm.assume(dstGasPrice * uint256(dstNativeCurrencyPrice) / srcNativeCurrencyPrice < 2**72);
 
         initializeRelayProvider();
 
@@ -196,9 +197,9 @@ contract TestRelayProvider is Test {
 
     function testUpdatePrices(
         uint16 dstChainId,
-        uint128 dstGasPrice,
+        uint64 dstGasPrice,
         uint64 dstNativeCurrencyPrice,
-        uint128 srcGasPrice,
+        uint64 srcGasPrice,
         uint64 srcNativeCurrencyPrice
     ) public {
         vm.assume(dstChainId > 0);
@@ -208,6 +209,7 @@ contract TestRelayProvider is Test {
         vm.assume(srcGasPrice > 0);
         vm.assume(srcNativeCurrencyPrice > 0);
         vm.assume(dstGasPrice >= dstNativeCurrencyPrice / srcNativeCurrencyPrice);
+        vm.assume(dstGasPrice * uint256(dstNativeCurrencyPrice) / srcNativeCurrencyPrice < 2**72);
 
         initializeRelayProvider();
 

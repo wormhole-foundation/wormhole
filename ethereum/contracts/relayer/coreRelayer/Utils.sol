@@ -11,6 +11,9 @@ function pay(address payable receiver, uint256 amount) returns (bool success) {
     success = true;
 }
 
+uint256 constant MAX_U256 = 2**256 - 1;
+uint256 constant MAX_U128 = 2**128 - 1;
+
 function min(uint256 a, uint256 b) pure returns (uint256) {
   return a < b ? a : b;
 }

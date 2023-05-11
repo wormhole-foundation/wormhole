@@ -6,9 +6,9 @@ pragma solidity ^0.8.19;
 contract RelayProviderStorage {
     struct PriceData {
         // The price of purchasing 1 unit of gas on the target chain, denominated in target chain's wei.
-        uint128 gasPrice;
+        uint64 gasPrice;
         // The price of the native currency denominated in USD * 10^6
-        uint128 nativeCurrencyPrice;
+        uint64 nativeCurrencyPrice;
     }
 
     struct AssetConversion {
@@ -39,7 +39,7 @@ contract RelayProviderStorage {
         // The delivery overhead gas required to deliver a message to targetChainId, denominated in targetChain's gas.
         mapping(uint16 => uint32) deliverGasOverhead;
         // The maximum budget that is allowed for a delivery on target chain, denominated in the targetChain's wei.
-        mapping(uint16 => uint256) maximumBudget;
+        mapping(uint16 => uint192) maximumBudget;
         // Dictionary of wormhole chain id -> assetConversion
         mapping(uint16 => AssetConversion) assetConversion;
         // Reward address for the relayer. The CoreRelayer contract transfers the reward for relaying messages here.

@@ -8,7 +8,6 @@ import {
   ExceedsMaximumBudget,
   VaaKey,
   ExecutionParameters,
-  Send,
   DeliveryInstruction,
   RedeliveryInstruction,
   IWormholeRelayerSend
@@ -16,12 +15,64 @@ import {
 import {IRelayProvider} from "../../interfaces/relayer/IRelayProvider.sol";
 
 import {toWormholeFormat} from "./Utils.sol";
-import {CoreRelayerSerde} from "./CoreRelayerSerde.sol";
+import {CoreRelayerSerde, Send} from "./CoreRelayerSerde.sol";
 import {ForwardInstruction, getDefaultRelayProviderState} from "./CoreRelayerStorage.sol";
 import {CoreRelayerBase} from "./CoreRelayerBase.sol";
 
+// todo: remove me
+import "forge-std/console.sol";
+
 abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
   using CoreRelayerSerde for *; //somewhat yucky but unclear what's a better alternative
+
+  /*
+   * Public convenience overloads
+   */
+
+  function sendToEvm(
+    uint16 targetChainId,
+    address targetAddress,
+    uint16 refundChainId,
+    address refundAddress,
+    uint256 maxTransactionFee,
+    uint256 receiverValue,
+    bytes memory payload
+  ) external payable returns (uint64 sequence) {
+    return send(
+      targetChainId,
+      toWormholeFormat(targetAddress),
+      refundChainId,
+      toWormholeFormat(refundAddress),
+      maxTransactionFee,
+      receiverValue,
+      payload
+    );
+  }
+
+  function sendToEvm(
+    uint16 targetChainId,
+    address targetAddress,
+    uint16 refundChainId,
+    address refundAddress,
+    uint256 maxTransactionFee,
+    uint256 receiverValue,
+    bytes memory payload,
+    VaaKey[] memory vaaKeys,
+    uint8 consistencyLevel
+  ) external payable returns (uint64 sequence) {
+    return send(
+      targetChainId,
+      toWormholeFormat(targetAddress),
+      refundChainId,
+      toWormholeFormat(refundAddress),
+      maxTransactionFee,
+      receiverValue,
+      payload,
+      vaaKeys,
+      consistencyLevel
+    );
+  }
+
 
   function send(
     uint16 targetChainId,
@@ -30,21 +81,19 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     bytes32 refundAddress,
     uint256 maxTransactionFee,
     uint256 receiverValue,
-    bytes memory payload,
-    VaaKey[] memory vaaKeys,
-    uint8 consistencyLevel
-  ) external payable returns (uint64 sequence) {
-    sequence = send(Send(
+    bytes memory payload
+  ) public payable returns (uint64 sequence) {
+    sequence = send(constructSend(
       targetChainId,
       targetAddress,
       refundChainId,
       refundAddress,
       maxTransactionFee,
       receiverValue,
-      getDefaultRelayProvider(),
-      vaaKeys,
-      consistencyLevel,
       payload,
+      new VaaKey[](0),
+      CONSISTENCY_LEVEL_FINALIZED,
+      getDefaultRelayProvider(),
       getDefaultRelayParams()
     ));
   }
@@ -56,20 +105,105 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     bytes32 refundAddress,
     uint256 maxTransactionFee,
     uint256 receiverValue,
-    bytes memory payload
-  ) external payable returns (uint64 sequence) {
-    sequence = send(Send(
+    bytes memory payload,
+    VaaKey[] memory vaaKeys,
+    uint8 consistencyLevel
+  ) public payable returns (uint64 sequence) {
+    sequence = send(constructSend(
       targetChainId,
       targetAddress,
       refundChainId,
       refundAddress,
       maxTransactionFee,
       receiverValue,
-      getDefaultRelayProvider(),
-      new VaaKey[](0),
-      CONSISTENCY_LEVEL_FINALIZED,
       payload,
+      vaaKeys,
+      consistencyLevel,
+      getDefaultRelayProvider(),
       getDefaultRelayParams()
+    ));
+  }
+
+  function send(
+    uint16 targetChainId,
+    bytes32 targetAddress,
+    uint16 refundChainId,
+    bytes32 refundAddress,
+    uint256 maxTransactionFee,
+    uint256 receiverValue,
+    bytes memory payload,
+    VaaKey[] memory vaaKeys,
+    uint8 consistencyLevel,
+    address relayProviderAddress,
+    bytes memory relayParameters
+  ) public payable returns (uint64 sequence) {
+    sequence = send(constructSend(
+      targetChainId,
+      targetAddress,
+      refundChainId,
+      refundAddress,
+      maxTransactionFee,
+      receiverValue,
+      payload,
+      vaaKeys,
+      consistencyLevel,
+      relayProviderAddress,
+      relayParameters
+    ));
+  }
+
+
+  function forwardToEvm(
+    uint16 targetChainId,
+    address targetAddress,
+    uint16 refundChainId,
+    address refundAddress,
+    uint256 maxTransactionFee,
+    uint256 receiverValue,
+    bytes memory payload,
+    VaaKey[] memory vaaKeys,
+    uint8 consistencyLevel
+  ) external payable {
+    forward(constructSend(
+      targetChainId,
+      toWormholeFormat(targetAddress),
+      refundChainId,
+      toWormholeFormat(refundAddress),
+      maxTransactionFee,
+      receiverValue,
+      payload,
+      vaaKeys,
+      consistencyLevel,
+      getDefaultRelayProvider(),
+      getDefaultRelayParams()
+    ));
+  }
+
+  function forward(
+    uint16 targetChainId,
+    bytes32 targetAddress,
+    uint16 refundChainId,
+    bytes32 refundAddress,
+    uint256 maxTransactionFee,
+    uint256 receiverValue,
+    bytes memory payload,
+    VaaKey[] memory vaaKeys,
+    uint8 consistencyLevel,
+    address relayProviderAddress,
+    bytes memory relayParameters
+  ) public payable {
+    forward(constructSend(
+      targetChainId,
+      targetAddress,
+      refundChainId,
+      refundAddress,
+      maxTransactionFee,
+      receiverValue,
+      payload,
+      vaaKeys,
+      consistencyLevel,
+      relayProviderAddress,
+      relayParameters
     ));
   }
 
@@ -84,29 +218,35 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     VaaKey[] memory vaaKeys,
     uint8 consistencyLevel
   ) external payable {
-    forward(Send(
+    forward(constructSend(
       targetChainId,
       targetAddress,
       refundChainId,
       refundAddress,
       maxTransactionFee,
       receiverValue,
-      getDefaultRelayProvider(),
+      payload,
       vaaKeys,
       consistencyLevel,
-      payload,
+      getDefaultRelayProvider(),
       getDefaultRelayParams()
     ));
   }
 
-  function send(Send memory sendParams) public payable returns (uint64 sequence) {
+  /* 
+   * Non overload logic 
+   */ 
+
+  function send(Send memory sendParams) internal returns (uint64 sequence) {
     uint256 wormholeMessageFee =
       calcAndCheckFees(sendParams.maxTransactionFee, sendParams.receiverValue);
 
     IRelayProvider relayProvider = IRelayProvider(sendParams.relayProviderAddress);
     checkRelayProviderSupportsChain(relayProvider, sendParams.targetChainId);
 
+    console.log("send params", sendParams.maxTransactionFee, sendParams.receiverValue);
     DeliveryInstruction memory instruction = convertSendToDeliveryInstruction(sendParams);
+    console.log("converted", instruction.maximumRefundTarget, instruction.receiverValueTarget , instruction.executionParameters.gasLimit);
 
     checkBudgetConstraints(
       instruction.maximumRefundTarget,
@@ -126,7 +266,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     );
   }
 
-  function forward(Send memory sendParams) public payable {
+  function forward(Send memory sendParams) internal {
     checkMsgSenderInDelivery();
 
     //TODO AMO: Introduce basic sanity checks on sendParams (e.g. all valus below 2^128?)
@@ -174,7 +314,25 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     uint16 targetChainId,
     address relayProviderAddress
   ) external payable returns (uint64 sequence) {
-    uint256 wormholeMessageFee =
+    (uint128 newMaxTransactionFee_, uint128 newReceiverValue_) = 
+      checkFeesLessThanU128(newMaxTransactionFee, newReceiverValue);
+    return resend(
+      key, 
+      newMaxTransactionFee_,
+      newReceiverValue_,
+      targetChainId,
+      relayProviderAddress
+    );
+  }
+
+  function resend(
+    VaaKey memory key,
+    uint128 newMaxTransactionFee,
+    uint128 newReceiverValue,
+    uint16 targetChainId,
+    address relayProviderAddress
+  ) public payable returns (uint64 sequence) {
+    uint128 wormholeMessageFee =
       calcAndCheckFees(newMaxTransactionFee, newReceiverValue);
 
     IRelayProvider relayProvider = IRelayProvider(relayProviderAddress);
@@ -224,7 +382,10 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
 
     //maxTransactionFee is a linear function of the amount of gas desired
     maxTransactionFee = provider.quoteDeliveryOverhead(targetChainId)
-      + (gasLimit * provider.quoteGasPrice(targetChainId));
+      + (uint128(gasLimit) * provider.quoteGasPrice(targetChainId));
+    require(maxTransactionFee < type(uint128).max, "quoteGas < u128 Overflow");
+    console.log("deliveryOverhead, gasLim, gasPrice", provider.quoteDeliveryOverhead(targetChainId), gasLimit, provider.quoteGasPrice(targetChainId) );
+    console.log("full quote gas", maxTransactionFee);
   }
 
   function quoteReceiverValue(
@@ -252,13 +413,14 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
   }
 
   // ------------------------------------------- PRIVATE -------------------------------------------
+
   
   function calcAndCheckFees(
-    uint256 maxTransactionFee,
-    uint256 receiverValue
-  ) private view returns (uint256 wormholeMessageFee) {
-    wormholeMessageFee = getWormhole().messageFee();
-    uint256 totalFee = maxTransactionFee + receiverValue + wormholeMessageFee;
+    uint128 maxTransactionFee,
+    uint128 receiverValue
+  ) private view returns (uint128 wormholeMessageFee) {
+    wormholeMessageFee = uint128(getWormhole().messageFee());
+    uint256 totalFee = uint256(maxTransactionFee) + receiverValue + wormholeMessageFee;
     if (msg.value != totalFee)
       revert InvalidMsgValue(msg.value, totalFee);
   }
@@ -277,6 +439,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
 
     uint256 maxBudget = relayProvider.quoteMaximumBudget(targetChainId);
     uint256 requestedBudget = maximumRefundTarget + receiverValueTarget;
+    console.log(requestedBudget, maxBudget);
     if (requestedBudget > maxBudget)
       revert ExceedsMaximumBudget(
         requestedBudget, maxBudget, address(relayProvider), targetChainId
