@@ -26,74 +26,82 @@ error InvalidFork();
 error ContractUpgradeFailed(bytes failure);
 
 abstract contract CoreRelayerGovernance is CoreRelayerBase, ERC1967Upgrade {
-//TODO AMO: the bytes32 payloads here are suspect - for EVM we only need 20 bytes
-//           for other chains, might it not take more than just a single address?
-//           Wouldn't it be safer to just allow arbitrary bytes at the end of the payload?
-
-//governance payload structs (packed)
-//   struct ContractUpgrade {
-//     bytes32 module;
-//     uint8 action;
-//     uint16 chainId;
-//     bytes32 newImplementation; //TODO AMO: why is this not an address?
-//   }
-//
-//   struct RegisterChain {
-//     bytes32 module;
-//     uint8 action;
-//     uint16 chainId; //TODO Why is this on this object? //TODO AMO: why indeed?
-//     uint16 emitterChain;
-//     bytes32 emitterAddress;
-//   }
-//
-//   //This could potentially be combined with ContractUpgrade
-//   struct UpdateDefaultProvider {
-//     bytes32 module;
-//     uint8 action;
-//     uint16 chainId;
-//     bytes32 newProvider; //TODO AMO: why is this not an address?
-//   }
-
-  //TODO AMO: What's this module business about? (and also the action business for that matter)
-  bytes32 constant module = 0x000000000000000000000000000000000000000000436f726552656c61796572; 
+  //This constant should actually be defined in IWormhole. Alas, it isn't.
   uint16 private constant WORMHOLE_CHAINID_UNSET = 0;
 
-  //TODO AMO: Document that upgrading works by deploying a new contract that implements
-  //  an external function executeUpgradeMigration() which enforces that it can only be called
-  //  by address(this) (i.e. via codecall)
-  //TODO AMO: Discuss upgrade mechanism and whether it actually covers all scenarios we might
-  //  ever need.
-  //  Currently there's no way to include:
-  //  * gas tokens (i.e. the function is not payable, though one can selfdestruct value into the
-  //      contract and then use that as part of executeUpgradeMigration if really desperate)
-  //  * "dynamic migration data" - i.e. executeUpgradeMigration() takes no parameters (probably
-  //       entirely a non-issue since the new contracts need to be deployed on a per-chain basis
-  //       anyway, but better to be explicit about it anyway)
+  /**
+   * Governance VMs are encoded in a packed fashion using the general wormhole scheme:
+   *   GovernancePacket = <Common Header|Action Parameters>
+   *
+   * For a more detailed explanation see here:
+   *   - https://docs.wormhole.com/wormhole/governance
+   *   - https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0002_governance_messaging.md
+   */
+
+  //Right shifted ascii encoding of "CoreRelayer"
+  bytes32 private constant module =
+    0x000000000000000000000000000000000000000000436f726552656c61796572;
+
+  /**
+   * The choice of action enumeration and parameters follows the scheme of the core bridge:
+   *   - https://github.com/wormhole-foundation/wormhole/blob/main/ethereum/contracts/bridge/BridgeGovernance.sol#L115
+   */
+
+  /**
+   * Registers a core relayer contract that was deployed on another chain with the CoreRelayer on
+   *   this chain. The equivalent to the core bridge's registerChain action.
+   *
+   * Action Parameters:
+   *   - uint16 foreignChainId - originally emitterChainID, renamed for clarity
+   *   - bytes32 foreignContractAddress - originally emitterAddress, renamed for clarity
+   */
+  uint8 private constant GOVERNANCE_ACTION_REGISTER_CORE_RELAYER_CONTRACT = 1;
+
+  /**
+   * Upgrades the CoreRelayer contract to a new implementation. The equivalent to the core bridge's
+   *   upgrade action.
+   *
+   * Action Parameters:
+   *   - bytes32 newImplementation - bytes32 instead of address for general consistency reasons
+   */
+  uint8 private constant GOVERNANCE_ACTION_CONTRACT_UPGRADE = 2;
+
+  /**
+   * Sets the default relay provider for the CoreRelayer. Has no equivalent in the core bridge.
+   *
+   * Action Parameters:
+   *   - bytes32 newProvider - bytes32 instead of address for general consistency reasons
+   */
+  uint8 private constant GOVERNANCE_ACTION_UPDATE_DEFAULT_PROVIDER = 4;
+
+  //By checking that only the contract can call itself, we can enforce that the migration code is
+  //  executed upon program upgrade and that it can't be called externally by anyone else.
+  function checkAndExecuteUpgradeMigration() external {
+    assert(msg.sender == address(this));
+    executeUpgradeMigration();
+  }
+
+  function executeUpgradeMigration() internal virtual {
+    //override and implement in CoreRelayer upon contract upgrade (if required)
+  }
+
+  function registerCoreRelayerContract(bytes memory encodedVm) external {
+    (uint16 foreignChainId, bytes32 foreignAddress) =
+      parseAndCheckRegisterCoreRelayerContractVm(encodedVm);
+
+    getRegisteredCoreRelayersState().registeredCoreRelayers[foreignChainId] = foreignAddress;
+  }
+
   function submitContractUpgrade(bytes memory encodedVm) external {
     address newImplementation = parseAndCheckContractUpgradeVm(encodedVm);
 
     _upgradeTo(newImplementation);
 
-    //Now that our implementation points to the new contract, we can just call ourselves and have
-    //  executeUpgradeMigration() use a simple check that msg.sender == address(this).
-    //I.e. the new contract just has to implement:
-    //  function executeUpgradeMigration() external view {
-    //    assert(msg.sender == address(this));
-    //    //migration code goes here
-    //  }
-    //  so we don't have to mess around with any "intialized" and "reinitialized" storage vars.
     (bool success, bytes memory revertData) =
-      address(this).call(abi.encodeWithSignature("executeUpgradeMigration()"));
+      address(this).call(abi.encodeWithSelector(this.checkAndExecuteUpgradeMigration.selector));
 
     if (!success)
       revert ContractUpgradeFailed(revertData);
-  }
-
-  function registerCoreRelayerContract(bytes memory encodedVm) external {
-    (uint16 emitterChainId, bytes32 emitterAddress) =
-      parseAndCheckRegisterCoreRelayerContractVm(encodedVm);
-    
-    getRegisteredCoreRelayersState().registeredCoreRelayers[emitterChainId] = emitterAddress;
   }
 
   function setDefaultRelayProvider(bytes memory encodedVm) external {
@@ -105,13 +113,28 @@ abstract contract CoreRelayerGovernance is CoreRelayerBase, ERC1967Upgrade {
   // ------------------------------------------- PRIVATE -------------------------------------------
   using BytesParsing for bytes;
 
+  function parseAndCheckRegisterCoreRelayerContractVm(
+    bytes memory encodedVm
+  ) private returns (uint16 foreignChainId, bytes32 foreignAddress) {
+    bytes memory payload = verifyAndConsumeGovernanceVM(encodedVm);
+    uint offset = parseAndCheckPayloadHeader(
+      payload, GOVERNANCE_ACTION_REGISTER_CORE_RELAYER_CONTRACT, true
+    );
+
+    (foreignChainId, offset) = payload.asUint16Unchecked(offset);
+    (foreignAddress, offset) = payload.asBytes32Unchecked(offset);
+
+    checkLength(payload, offset);
+  }
+
   function parseAndCheckContractUpgradeVm(
     bytes memory encodedVm
   ) private returns (address newImplementation) {
     bytes memory payload = verifyAndConsumeGovernanceVM(encodedVm);
-    //TODO AMO: what's action 2?
-    uint offset = parseAndCheckPayloadHeader(payload, 2, false);
-    
+    uint offset = parseAndCheckPayloadHeader(
+      payload, GOVERNANCE_ACTION_CONTRACT_UPGRADE, false
+    );
+
     bytes32 newImplementationWhFmt;
     (newImplementationWhFmt, offset) = payload.asBytes32Unchecked(offset);
     //fromWormholeFormat reverts if first 12 bytes aren't zero (i.e. if it's not an EVM address)
@@ -120,25 +143,13 @@ abstract contract CoreRelayerGovernance is CoreRelayerBase, ERC1967Upgrade {
     checkLength(payload, offset);
   }
 
-  function parseAndCheckRegisterCoreRelayerContractVm(
-    bytes memory encodedVm
-  ) private returns (uint16 emitterChainId, bytes32 emitterAddress) {
-    bytes memory payload = verifyAndConsumeGovernanceVM(encodedVm);
-    //TODO AMO: what's action 1?
-    uint offset = parseAndCheckPayloadHeader(payload, 1, true);
-    
-    (emitterChainId, offset) = payload.asUint16Unchecked(offset);
-    (emitterAddress, offset) = payload.asBytes32Unchecked(offset);
-    
-    checkLength(payload, offset);
-  }
-
   function parseAndCheckRegisterDefaultRelayProviderVm(
     bytes memory encodedVm
   ) private returns (address newProvider) {
     bytes memory payload = verifyAndConsumeGovernanceVM(encodedVm);
-    //TODO AMO: what's action 4?
-    uint offset = parseAndCheckPayloadHeader(payload, 3, true);
+    uint offset = parseAndCheckPayloadHeader(
+      payload, GOVERNANCE_ACTION_UPDATE_DEFAULT_PROVIDER, true
+    );
 
     bytes32 newProviderWhFmt;
     (newProviderWhFmt, offset) = payload.asBytes32Unchecked(offset);
@@ -157,11 +168,10 @@ abstract contract CoreRelayerGovernance is CoreRelayerBase, ERC1967Upgrade {
     if (!valid)
       revert InvalidGovernanceVM(reason);
 
-    //TODO AMO: Check assumption that wormhole core bridge and core relayer share governance!
     uint16 governanceChainId = getWormhole().governanceChainId();
     if (vm.emitterChainId != governanceChainId)
       revert InvalidGovernanceChainId(vm.emitterChainId, governanceChainId);
-    
+
     bytes32 governanceContract = getWormhole().governanceContract();
     if (vm.emitterAddress != governanceContract)
       revert InvalidGovernanceContract(vm.emitterAddress, governanceContract);
@@ -184,7 +194,7 @@ abstract contract CoreRelayerGovernance is CoreRelayerBase, ERC1967Upgrade {
     (parsedModule, offset) = encodedPayload.asBytes32Unchecked(offset);
     if (parsedModule != module)
       revert InvalidPayloadModule(parsedModule, module);
-    
+
     uint8 parsedAction;
     (parsedAction, offset) = encodedPayload.asUint8Unchecked(offset);
     if (parsedAction != expectedAction)

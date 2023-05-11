@@ -30,7 +30,7 @@ import "forge-std/console.sol";
 import "forge-std/Vm.sol";
 
 contract Brick {
-    function executeUpgradeMigration() external view {}
+    function checkAndExecuteUpgradeMigration() external view {}
 }
 
 contract WormholeRelayerGovernanceTests is Test {
