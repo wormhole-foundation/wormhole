@@ -18,13 +18,10 @@ import {
   DeliveryOverrideArgs,
   parseForwardFailureError
 } from "../structs";
-import { VaaKeyStruct } from "../../ethers-contracts/IWormholeRelayer.sol/IWormholeRelayer";
+import { VaaKeyStruct, DeliveryEvent} from "../../ethers-contracts/IWormholeRelayer.sol/IWormholeRelayer";
 import { RelayProvider } from "../../ethers-contracts/RelayProvider";
 import { RelayProvider__factory } from "../../ethers-contracts/factories/RelayProvider__factory";
 import { Implementation__factory } from "../../ethers-contracts/factories/Implementation__factory";
-import {
-  DeliveryEvent,
-} from "../../ethers-contracts/CoreRelayer";
 
 export type DeliveryTargetInfo = {
   status: DeliveryStatus | string;
