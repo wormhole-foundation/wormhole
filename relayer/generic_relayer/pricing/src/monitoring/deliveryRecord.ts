@@ -8,7 +8,7 @@ import {
   parseWormholeRelayerPayloadType,
   parseWormholeRelayerResend,
   parseWormholeRelayerSend,
-} from "../../pkgs/sdk/src";
+} from "@certusone/wormhole-sdk/lib/cjs/relayer";
 import {
   SourceRecord,
   DeliveryRecord,

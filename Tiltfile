@@ -506,22 +506,40 @@ if generic_relayer:
 
 if generic_relayer:
     k8s_resource(
-        "relayer-engine",
-        resource_deps = ["guardian", "redis-relayer", "spy"],
+        "gen-relay-delivery",
+        resource_deps = ["guardian", "redis", "spy"],
         port_forwards = [
             port_forward(3003, container_port=3000, name = "Bullmq UI [:3003]", host = webHost),
         ],
-        labels = ["relayer-engine"],
+        labels = ["generic-relayer"],
         trigger_mode = trigger_mode,
     )
     docker_build(
-        ref = "relayer-engine",
+        ref = "gen-relay-delivery",
         context = ".",
-        only = ["./ethereum", "./relayer/generic_relayer", "./sdk", "./solana"],
-        dockerfile = "relayer/generic_relayer/relayer-engine-v2/Dockerfile",
-        ignore = ["./ethereum/node_modules", "./sdk/js/src/relayer/__tests__"]
+        only = ["./ethereum", "./relayer/generic_relayer"],
+        dockerfile = "relayer/generic_relayer/delivery/Dockerfile",
+        ignore = ["./ethereum/node_modules", "./ethereum/ts-test"]
     )
-    k8s_yaml_with_ns("devnet/relayer-engine.yaml")
+    k8s_yaml_with_ns("devnet/gen-relay-delivery.yaml")
+
+    k8s_resource(
+        "gen-relay-pricing",
+        resource_deps = ["guardian", "redis", "spy"],
+        port_forwards = [
+            port_forward(3004, container_port=3000, name = "Bullmq UI [:3004]", host = webHost),
+        ],
+        labels = ["generic-relayer"],
+        trigger_mode = trigger_mode,
+    )
+    docker_build(
+        ref = "gen-relay-pricing",
+        context = ".",
+        only = ["./ethereum", "./relayer/generic_relayer"],
+        dockerfile = "relayer/generic_relayer/pricing/Dockerfile",
+        ignore = ["./ethereum/node_modules", "./ethereum/ts-test"]
+    )
+    k8s_yaml_with_ns("devnet/gen-relay-pricing.yaml")
 
 if spy_relayer:
 

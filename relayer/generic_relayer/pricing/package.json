@@ -1,0 +1,44 @@
+{
+  "name": "@wormhole-foundation/offchain-generic-relayer-pricing",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "tsx src/app.ts --flag=testnet",
+    "testnet": "tsx src/app.ts --flag=testnet",
+    "tilt": "tsx src/app.ts --flag=tilt",
+    "tiltkub": "tsx src/app.ts --flag=tiltkub",
+    "prettier": "prettier --write .",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit --skipLibCheck",
+    "watch": "tsc --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Joe Howarth",
+  "license": "ISC",
+  "dependencies": {
+    "@certusone/wormhole-sdk": "file:../../../sdk/js",
+    "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
+    "@types/clone": "^2.1.1",
+    "@types/koa": "^2.13.5",
+    "@wormhole-foundation/offchain-generic-relayer": "file:../delivery",
+    "clone": "^2.1.2",
+    "koa": "^2.14.1",
+    "koa-router": "^12.0.0",
+    "relayer-engine": "github:wormhole-foundation/relayer-engine#7698ed6",
+    "yargs": "^17.7.1"
+  },
+  "peerDependencies": {
+    "ethers": "^5",
+    "winston": "3.8.2"
+  },
+  "devDependencies": {
+    "@types/koa-router": "^7.4.4",
+    "@types/yargs": "^17.0.23",
+    "nodemon": "^2.0.20",
+    "prettier": "^2.8.7",
+    "tsx": "^3.12.7",
+    "typescript": "^4.8.4",
+    "winston": "3.8.2"
+  }
+}

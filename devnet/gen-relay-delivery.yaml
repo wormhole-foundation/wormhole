@@ -2,13 +2,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: relayer-engine
+  name: gen-relay-delivery
   labels:
     app: redis
 spec:
   clusterIP: None
   selector:
-    app: relayer-engine
+    app: gen-relay-delivery
   ports:
     - port: 3000
       name: bullmq
@@ -17,31 +17,26 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: relayer-engine
+  name: gen-relay-delivery
 spec:
   selector:
     matchLabels:
-      app: relayer-engine
-  serviceName: relayer-engine
+      app: gen-relay-delivery
+  serviceName: gen-relay-delivery
   template:
     metadata:
       labels:
-        app: relayer-engine
+        app: gen-relay-delivery
     spec:
       restartPolicy: Always
       terminationGracePeriodSeconds: 0
       containers:
-        - name: relayer-engine
-          image: relayer-engine
+        - name: gen-relay-delivery
+          image: gen-relay-delivery
           command:
             - /bin/sh
             - -c
             - "npm run tiltkub"
-          env:
-            - name: REDIS_PORT
-              value: "6378"
-            - name: REDIS_HOST
-              value: "redis-relayer"
           readinessProbe:
             tcpSocket:
               port: 3000
@@ -49,5 +44,5 @@ spec:
             failureThreshold: 300
           ports:
             - containerPort: 3000
-              name: relayer-engine
+              name: gen-relay-delivery
               protocol: TCP
