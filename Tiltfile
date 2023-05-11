@@ -487,7 +487,7 @@ if generic_relayer:
     docker_build(
         ref = "relayer-engine",
         context = ".",
-        only = ["./ethereum", "./relayer/generic_relayer", "./sdk"],
+        only = ["./ethereum", "./relayer/generic_relayer", "./sdk", "./solana"],
         dockerfile = "relayer/generic_relayer/relayer-engine-v2/Dockerfile",
         ignore = ["./ethereum/node_modules", "./ethereum/ts-test"]
     )

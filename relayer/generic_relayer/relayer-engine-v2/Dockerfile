@@ -35,10 +35,6 @@ RUN if [ -e /certs/cert.pem ]; then npm config set cafile /certs/cert.pem; fi
 # git
 RUN if [ -e /certs/cert.pem ]; then git config --global http.sslCAInfo /certs/cert.pem; fi
 
-
-# Add the SDK
-COPY --chown=node:node ./sdk ./sdk 
-
 WORKDIR /home/node/app/ethereum
 
 # Only invalidate the npm install step if package.json changed
@@ -75,6 +71,14 @@ RUN typechain --target=ethers-v5 --out-dir=./ethers-contracts ./build/**/*.json
 
 
 #Ethereum setup above this line should eventually be removed once the TS SDK is set up
+
+# Add the SDK
+WORKDIR /home/node/app/
+COPY --chown=node:node ./sdk ./sdk
+COPY --chown=node:node ./solana/idl ./solana/idl
+WORKDIR /home/node/app/sdk/js/
+RUN npm ci
+RUN npm run build
 
 #Path matters so as to not break imports
 WORKDIR /home/node/app/relayer/generic_relayer/relayer-engine-v2/
