@@ -97,7 +97,7 @@ library CoreRelayerSerde {
   function decodeDeliveryInstruction(
     bytes memory encoded
   ) internal pure returns (DeliveryInstruction memory strct) {
-    uint offset = checkPayloadId(encoded, 0, PAYLOAD_ID_DELIVERY_INSTRUCTION);
+    uint offset = checkUint8(encoded, 0, PAYLOAD_ID_DELIVERY_INSTRUCTION);
     (strct.targetChainId,       offset) = encoded.asUint16Unchecked(offset);
     (strct.targetAddress,       offset) = encoded.asBytes32Unchecked(offset);
     (strct.refundChainId,       offset) = encoded.asUint16Unchecked(offset);
@@ -132,7 +132,7 @@ library CoreRelayerSerde {
   function decodeRedeliveryInstruction(
     bytes memory encoded
   ) internal pure returns (RedeliveryInstruction memory strct) {
-    uint256 offset = checkPayloadId(encoded, 0 , PAYLOAD_ID_REDELIVERY_INSTRUCTION);
+    uint256 offset = checkUint8(encoded, 0 , PAYLOAD_ID_REDELIVERY_INSTRUCTION);
     (strct.key,                    offset) = decodeVaaKey(encoded, offset);
     (strct.newMaximumRefundTarget, offset) = encoded.asUint256Unchecked(offset);
     (strct.newReceiverValueTarget, offset) = encoded.asUint256Unchecked(offset);
@@ -157,7 +157,7 @@ library CoreRelayerSerde {
   function decodeDeliveryOverride(
     bytes memory encoded
   ) internal pure returns (DeliveryOverride memory strct) {
-    uint offset = checkPayloadId(encoded, 0, VERSION_DELIVERY_OVERRIDE);
+    uint offset = checkUint8(encoded, 0, VERSION_DELIVERY_OVERRIDE);
     (strct.gasLimit,       offset) = encoded.asUint32Unchecked(offset);
     (strct.maximumRefund,  offset) = encoded.asUint256Unchecked(offset);
     (strct.receiverValue,  offset) = encoded.asUint256Unchecked(offset);
@@ -205,7 +205,7 @@ library CoreRelayerSerde {
     bytes memory encoded,
     uint startOffset
   ) private pure returns (VaaKey memory vaaKey, uint offset) {
-    offset = checkPayloadId(encoded, startOffset, VERSION_VAAKEY);
+    offset = checkUint8(encoded, startOffset, VERSION_VAAKEY);
 
     uint8 parsedVaaKeyType;
     (parsedVaaKeyType, offset) = encoded.asUint8Unchecked(offset);
@@ -254,11 +254,11 @@ library CoreRelayerSerde {
     bytes memory encoded,
     uint startOffset
   ) private pure returns (ExecutionParameters memory strct, uint offset) {
-    offset = checkPayloadId(encoded, startOffset, VERSION_EXECUTION_PARAMETERS);
+    offset = checkUint8(encoded, startOffset, VERSION_EXECUTION_PARAMETERS);
     (strct.gasLimit, offset) = encoded.asUint32Unchecked(offset);
   }
 
-  function checkPayloadId(
+  function checkUint8(
     bytes memory encoded,
     uint startOffset,
     uint8 expectedPayloadId
