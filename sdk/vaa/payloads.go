@@ -3,6 +3,7 @@ package vaa
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
@@ -22,6 +23,14 @@ var CircleIntegrationModule = [32]byte{
 	0x69, 0x72, 0x63, 0x6c, 0x65, 0x49, 0x6e, 0x74, 0x65, 0x67, 0x72, 0x61, 0x74, 0x69, 0x6f, 0x6e,
 }
 var CircleIntegrationModuleStr = string(CircleIntegrationModule[:])
+
+// WasmdModule is the identifier of the Wormchain ibc_receiver contract module (which is used for governance messages)
+// It is the hex representation of "IbcReceiver" left padded with zeroes.
+var IbcReceiverModule = [32]byte{
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x49, 0x62, 0x63, 0x52, 0x65, 0x63, 0x65, 0x69, 0x76, 0x65, 0x72,
+}
+var IbcReceiverModuleStr = string(IbcReceiverModule[:])
 
 type GovernanceAction uint8
 
@@ -51,6 +60,9 @@ var (
 	CircleIntegrationActionUpdateWormholeFinality        GovernanceAction = 1
 	CircleIntegrationActionRegisterEmitterAndDomain      GovernanceAction = 2
 	CircleIntegrationActionUpgradeContractImplementation GovernanceAction = 3
+
+	// Ibc Receiver governance actions
+	IbcReceiverActionUpdateChannelChain GovernanceAction = 1
 )
 
 type (
@@ -126,6 +138,17 @@ type (
 	BodyCircleIntegrationUpgradeContractImplementation struct {
 		TargetChainID            ChainID
 		NewImplementationAddress [32]byte
+	}
+
+	// BodyIbcReceiverUpdateChannelChain is a governance message to update the ibc channel_id -> chain_id mapping in the ibc_receiver contract
+	BodyIbcReceiverUpdateChannelChain struct {
+		// The chain that this governance VAA should be redeemed on
+		TargetChainId ChainID
+
+		// This should follow the IBC channel identifier standard: https://github.com/cosmos/ibc/tree/main/spec/core/ics-024-host-requirements#paths-identifiers-separators
+		// If the identifier string is shorter than 64 bytes, the correct number of 0x00 bytes should be prepended.
+		ChannelId [64]byte
+		ChainId   ChainID
 	}
 )
 
@@ -228,18 +251,15 @@ func (r BodyCircleIntegrationUpgradeContractImplementation) Serialize() []byte {
 	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionUpgradeContractImplementation, r.TargetChainID, payload.Bytes())
 }
 
+func (r BodyIbcReceiverUpdateChannelChain) Serialize() []byte {
+	payload := &bytes.Buffer{}
+	payload.Write(r.ChannelId[:])
+	MustWrite(payload, binary.BigEndian, r.ChainId)
+	return serializeBridgeGovernanceVaa(IbcReceiverModuleStr, IbcReceiverActionUpdateChannelChain, r.TargetChainId, payload.Bytes())
+}
+
 func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chainId ChainID, payload []byte) []byte {
-	if len(module) > 32 {
-		panic("module longer than 32 byte")
-	}
-
-	buf := &bytes.Buffer{}
-
-	// Write token bridge header
-	for i := 0; i < (32 - len(module)); i++ {
-		buf.WriteByte(0x00)
-	}
-	buf.Write([]byte(module))
+	buf := LeftPadBytes(module, 32)
 	// Write action ID
 	MustWrite(buf, binary.BigEndian, actionId)
 	// Write target chain
@@ -248,4 +268,34 @@ func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chai
 	buf.Write(payload[:])
 
 	return buf.Bytes()
+}
+
+func LeftPadIbcChannelId(channelId string) [64]byte {
+	channelIdBuf := LeftPadBytes(channelId, 64)
+	var channelIdIdLeftPadded [64]byte
+	copy(channelIdIdLeftPadded[:], channelIdBuf.Bytes())
+	return channelIdIdLeftPadded
+}
+
+// Prepends 0x00 bytes to the payload buffer, up to a size of `length`
+func LeftPadBytes(payload string, length int) *bytes.Buffer {
+	if length < 0 {
+		panic("cannot prepend bytes to a negative length buffer")
+	}
+
+	if len(payload) > length {
+		panic(fmt.Sprintf("payload longer than %d bytes", length))
+	}
+
+	buf := &bytes.Buffer{}
+
+	// Prepend correct number of 0x00 bytes to the payload slice
+	for i := 0; i < (length - len(payload)); i++ {
+		buf.WriteByte(0x00)
+	}
+
+	// add the payload slice
+	buf.Write([]byte(payload))
+
+	return buf
 }

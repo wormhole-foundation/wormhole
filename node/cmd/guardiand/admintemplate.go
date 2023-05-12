@@ -38,6 +38,10 @@ var circleIntegrationForeignEmitterAddress *string
 var circleIntegrationCircleDomain *string
 var circleIntegrationNewImplementationAddress *string
 
+var ibcReceiverUpdateChannelChainTargetChainId *string
+var ibcReceiverUpdateChannelChainChannelId *string
+var ibcReceiverUpdateChannelChainChainId *string
+
 func init() {
 	governanceFlagSet := pflag.NewFlagSet("governance", pflag.ExitOnError)
 	chainID = governanceFlagSet.String("chain-id", "", "Chain ID")
@@ -91,6 +95,14 @@ func init() {
 	AdminClientCircleIntegrationUpgradeContractImplementationCmd.Flags().AddFlagSet(circleIntegrationChainIDFlagSet)
 	AdminClientCircleIntegrationUpgradeContractImplementationCmd.Flags().AddFlagSet(circleIntegrationUpgradeContractImplementationFlagSet)
 	TemplateCmd.AddCommand(AdminClientCircleIntegrationUpgradeContractImplementationCmd)
+
+	// flags for the ibc-receiver-update-channel-chain command
+	ibcReceiverUpdateChannelChainFlagSet := pflag.NewFlagSet("ibc-mapping", pflag.ExitOnError)
+	ibcReceiverUpdateChannelChainTargetChainId = ibcReceiverUpdateChannelChainFlagSet.String("target-chain-id", "", "Target Chain ID for the governance VAA")
+	ibcReceiverUpdateChannelChainChannelId = ibcReceiverUpdateChannelChainFlagSet.String("channel-id", "", "IBC Channel ID on Wormchain")
+	ibcReceiverUpdateChannelChainChainId = ibcReceiverUpdateChannelChainFlagSet.String("chain-id", "", "IBC Chain ID that the channel ID corresponds to")
+	AdminClientIbcReceiverUpdateChannelChainCmd.Flags().AddFlagSet(ibcReceiverUpdateChannelChainFlagSet)
+	TemplateCmd.AddCommand(AdminClientIbcReceiverUpdateChannelChainCmd)
 }
 
 var TemplateCmd = &cobra.Command{
@@ -143,6 +155,12 @@ var AdminClientCircleIntegrationUpgradeContractImplementationCmd = &cobra.Comman
 	Use:   "circle-integration-upgrade-contract-implementation",
 	Short: "Generate an empty circle integration upgrade contract implementation template at specified path",
 	Run:   runCircleIntegrationUpgradeContractImplementationTemplate,
+}
+
+var AdminClientIbcReceiverUpdateChannelChainCmd = &cobra.Command{
+	Use:   "ibc-receiver-update-channel-chain",
+	Short: "Generate an empty ibc receiver channelId to chainId mapping update template at specified path",
+	Run:   runIbcReceiverUpdateChannelChainTemplate,
 }
 
 func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
@@ -441,6 +459,54 @@ func runCircleIntegrationUpgradeContractImplementationTemplate(cmd *cobra.Comman
 					CircleIntegrationUpgradeContractImplementation: &nodev1.CircleIntegrationUpgradeContractImplementation{
 						TargetChainId:            uint32(chainID),
 						NewImplementationAddress: newImplementationAddress,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
+}
+
+func runIbcReceiverUpdateChannelChainTemplate(cmd *cobra.Command, args []string) {
+	if *ibcReceiverUpdateChannelChainTargetChainId == "" {
+		log.Fatal("--target-chain-id must be specified")
+	}
+	targetChainId, err := parseChainID(*ibcReceiverUpdateChannelChainTargetChainId)
+	if err != nil {
+		log.Fatal("failed to parse chain id: ", err)
+	}
+
+	if *ibcReceiverUpdateChannelChainChannelId == "" {
+		log.Fatal("--channel-id must be specified")
+	}
+	if len(*ibcReceiverUpdateChannelChainChannelId) > 64 {
+		log.Fatal("invalid channel id length, must be <= 64")
+	}
+
+	if *ibcReceiverUpdateChannelChainChainId == "" {
+		log.Fatal("--chain-id must be specified")
+	}
+	chainId, err := parseChainID(*ibcReceiverUpdateChannelChainChainId)
+	if err != nil {
+		log.Fatal("failed to parse chain id: ", err)
+	}
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_IbcReceiverUpdateChannelChain{
+					IbcReceiverUpdateChannelChain: &nodev1.IbcReceiverUpdateChannelChain{
+						TargetChainId: uint32(targetChainId),
+						ChannelId:     *ibcReceiverUpdateChannelChainChannelId,
+						ChainId:       uint32(chainId),
 					},
 				},
 			},
