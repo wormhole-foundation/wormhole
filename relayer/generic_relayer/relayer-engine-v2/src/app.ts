@@ -11,6 +11,7 @@ import {
   providers,
   sourceTx,
 } from "relayer-engine";
+import { RedisStorage } from "relayer-engine/lib/storage/redis-storage";
 import { EVMChainId } from "@certusone/wormhole-sdk";
 import { processGenericRelayerVaa } from "./processor";
 import { Logger } from "winston";
@@ -39,14 +40,16 @@ async function main() {
     wormholeRpcs,
   } = opts;
   app.spy(spyEndpoint);
-  app.useStorage({
-    redis,
-    redisClusterEndpoints,
-    redisCluster,
-    attempts: 3,
-    namespace: name,
-    queueName: `${name}-relays`,
-  });
+    const store = new RedisStorage({
+      redis,
+      redisClusterEndpoints,
+      redisCluster,
+      attempts: opts.workflows?.retries ?? 3,
+      namespace: name,
+      queueName: `${name}-relays`,
+    });
+
+  app.useStorage(store);
   app.logger(logger);
   app.use(logging(logger));
   app.use(
@@ -66,7 +69,7 @@ async function main() {
         logger,
         namespace: name,
         privateKeys: privateKeys!,
-        metrics: { registry: app.metricsRegistry },
+        metrics: { registry: store.registry},
       })
     );
   }
@@ -86,22 +89,22 @@ async function main() {
   app.multiple(deepCopy(wormholeRelayers), processGenericRelayerVaa);
 
   app.listen();
-  runApi(app, opts, logger);
+  runApi(store, opts, logger);
 }
 
-function runApi(relayer: any, { port, redis }: any, logger: Logger) {
+function runApi(storage: RedisStorage, { port, redis }: any, logger: Logger) {
   const app = new Koa();
   const router = new Router();
 
   router.get("/metrics", async (ctx: Koa.Context) => {
-    ctx.body = await relayer.metricsRegistry?.metrics();
+    ctx.body = await storage.registry?.metrics();
   });
 
   app.use(router.routes());
   app.use(router.allowedMethods());
 
   if (redis?.host) {
-    app.use(relayer.storageKoaUI("/ui"));
+    app.use(storage.storageKoaUI("/ui"));
   }
 
   port = Number(port) || 3000;

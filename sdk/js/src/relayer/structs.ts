@@ -27,7 +27,7 @@ export enum RefundStatus {
 }
 
 export interface VaaKey {
-  payloadType: VaaKeyType;
+  infoType: VaaKeyType;
   chainId?: number;
   emitterAddress?: Buffer;
   sequence?: BigNumber;
@@ -35,10 +35,10 @@ export interface VaaKey {
 }
 
 export interface DeliveryInstruction {
-  targetChain: number;
+  targetChainId: number;
   targetAddress: Buffer;
+  refundChainId: number;
   refundAddress: Buffer;
-  refundChain: number;
   maximumRefundTarget: BigNumber;
   receiverValueTarget: BigNumber;
   sourceRelayProvider: Buffer;
@@ -51,11 +51,11 @@ export interface DeliveryInstruction {
 }
 
 export interface RedeliveryInstruction {
-  vaaKey: VaaKey;
+  key: VaaKey;
   newMaximumRefundTarget: BigNumber;
   newReceiverValueTarget: BigNumber;
   sourceRelayProvider: Buffer;
-  targetChain: number;
+  targetChainId: number;
   executionParameters: ExecutionParameters;
 }
 
@@ -106,7 +106,7 @@ export function createVaaKey(
   sequence: number | BigNumber
 ): VaaKey {
   return {
-    payloadType: VaaKeyType.EMITTER_SEQUENCE,
+    infoType: VaaKeyType.EMITTER_SEQUENCE,
     chainId,
     emitterAddress,
     sequence: ethers.BigNumber.from(sequence),
@@ -115,7 +115,7 @@ export function createVaaKey(
 
 export function createVaaKeyFromVaaHash(vaaHash: Buffer): VaaKey {
   return {
-    payloadType: VaaKeyType.VAAHASH,
+    infoType: VaaKeyType.VAAHASH,
     vaaHash,
   };
 }
@@ -130,11 +130,11 @@ export function parseWormholeRelayerSend(bytes: Buffer): DeliveryInstruction {
   }
   idx += 1;
 
-  const targetChain = bytes.readUInt16BE(idx);
+  const targetChainId = bytes.readUInt16BE(idx);
   idx += 2;
   const targetAddress = bytes.slice(idx, idx + 32);
   idx += 32;
-  const refundChain = bytes.readUInt16BE(idx);
+  const refundChainId = bytes.readUInt16BE(idx);
   idx += 2;
   const refundAddress = bytes.slice(idx, idx + 32);
   idx += 32;
@@ -172,10 +172,10 @@ export function parseWormholeRelayerSend(bytes: Buffer): DeliveryInstruction {
   [payload, idx] = parsePayload(bytes, idx);
 
   return {
-    targetChain,
+    targetChainId,
     targetAddress,
+    refundChainId,
     refundAddress,
-    refundChain,
     maximumRefundTarget,
     receiverValueTarget,
     sourceRelayProvider,
@@ -200,11 +200,11 @@ function parseVaaKey(bytes: Buffer, idx: number): [VaaKey, number] {
   const version = bytes.readUInt8(idx);
   idx += 1;
 
-  const payloadType = bytes.readUInt8(idx) as VaaKeyType;
+  const infoType = bytes.readUInt8(idx) as VaaKeyType;
   idx += 1;
 
-  dbg(payloadType, "payloadType");
-  if (payloadType == VaaKeyType.EMITTER_SEQUENCE) {
+  dbg(infoType, "infoType");
+  if (infoType == VaaKeyType.EMITTER_SEQUENCE) {
     dbg(null, "parsingEmitterSequence");
     const chainId = bytes.readUInt16BE(idx);
     idx += 2;
@@ -216,19 +216,19 @@ function parseVaaKey(bytes: Buffer, idx: number): [VaaKey, number] {
     idx += 8;
     return [
       {
-        payloadType,
+        infoType,
         chainId,
         emitterAddress,
         sequence,
       },
       idx,
     ];
-  } else if (payloadType == VaaKeyType.VAAHASH) {
+  } else if (infoType == VaaKeyType.VAAHASH) {
     const vaaHash = bytes.slice(idx, idx + 32);
     idx += 32;
     return [
       {
-        payloadType,
+        infoType,
         vaaHash,
       },
       idx,
@@ -262,7 +262,7 @@ export function parseWormholeRelayerResend(
   idx += 1;
 
   const parsedKey = parseVaaKey(bytes, idx);
-  const vaaKey = parsedKey[0];
+  const key = parsedKey[0];
   idx = parsedKey[1];
 
   const newMaximumRefundTarget = ethers.BigNumber.from(
@@ -278,7 +278,7 @@ export function parseWormholeRelayerResend(
   const sourceRelayProvider = bytes.slice(idx, idx + 32);
   idx += 32;
 
-  const targetChain: number = bytes.readUInt16BE(idx);
+  const targetChainId: number = bytes.readUInt16BE(idx);
   idx += 2;
 
   let parsedExecutionParams = parseWormholeRelayerExecutionParameters(
@@ -289,11 +289,11 @@ export function parseWormholeRelayerResend(
   idx = parsedExecutionParams[1];
 
   return {
-    vaaKey,
+    key,
     newMaximumRefundTarget,
     newReceiverValueTarget,
     sourceRelayProvider,
-    targetChain,
+    targetChainId,
     executionParameters,
   };
 }
@@ -302,9 +302,9 @@ export function deliveryInstructionsPrintable(
   ix: DeliveryInstruction
 ): DeliveryInstructionPrintable {
   return {
-    targetChain: ix.targetChain.toString(),
+    targetChainId: ix.targetChainId.toString(),
     targetAddress: ix.targetAddress.toString("hex"),
-    refundChain: ix.refundChain.toString(),
+    refundChainId: ix.refundChainId.toString(),
     refundAddress: ix.refundAddress.toString("hex"),
     maximumRefundTarget: ix.maximumRefundTarget.toString(),
     receiverValueTarget: ix.receiverValueTarget.toString(),
@@ -322,17 +322,17 @@ export function deliveryInstructionsPrintable(
 }
 
 export function vaaKeyPrintable(ix: VaaKey): StringLeaves<VaaKey> {
-  switch (ix.payloadType) {
+  switch (ix.infoType) {
     case VaaKeyType.EMITTER_SEQUENCE:
       return {
-        payloadType: "EMITTER_SEQUENCE",
+        infoType: "EMITTER_SEQUENCE",
         chainId: ix.chainId?.toString(),
         emitterAddress: ix.emitterAddress?.toString("hex"),
         sequence: ix.sequence?.toString(),
       };
     case VaaKeyType.VAAHASH:
       return {
-        payloadType: "VAAHASH",
+        infoType: "VAAHASH",
         vaaHash: ix.vaaHash?.toString("hex"),
       };
   }
@@ -342,11 +342,11 @@ export function redeliveryInstructionPrintable(
   ix: RedeliveryInstruction
 ): RedeliveryInstructionPrintable {
   return {
-    vaaKey: vaaKeyPrintable(ix.vaaKey),
+    key: vaaKeyPrintable(ix.key),
     newMaximumRefundTarget: ix.newMaximumRefundTarget.toString(),
     newReceiverValueTarget: ix.newReceiverValueTarget.toString(),
     sourceRelayProvider: ix.sourceRelayProvider.toString("hex"),
-    targetChain: ix.targetChain.toString(),
+    targetChainId: ix.targetChainId.toString(),
     executionParameters: {
       gasLimit: ix.executionParameters.gasLimit.toString(),
       version: ix.executionParameters.version.toString(),

@@ -504,7 +504,6 @@ interface IWormholeRelayerDelivery is IWormholeRelayerBase {
    * @custom:member status either RECEIVER_FAILURE (if target contract reverts), SUCCESS (target contract doesn't revert, and no forwards requested),
    * FORWARD_REQUEST_FAILURE (target contract doesn't revert, at least one forward requested, not enough funds to cover all forwards), or FORWARD_REQUEST_SUCCESS (target contract doesn't revert, enough funds for all forwards).
    * @custom:member additionalStatusInfo empty if status is SUCCESS.
-   * If status is FORWARD_REQUEST_SUCCESS, this is the amount of the leftover transaction fee used to fund the request(s) (not including any additional msg.value sent in the call(s) to forward).
    * If status is RECEIVER_FAILURE, this is 132 bytes of the return data (with revert reason information).
    * If status is FORWARD_REQUEST_FAILURE, this is also the return data,
    * which is specifically an error ForwardNotSufficientlyFunded(uint256 amountOfFunds, uint256 amountOfFundsNeeded)
