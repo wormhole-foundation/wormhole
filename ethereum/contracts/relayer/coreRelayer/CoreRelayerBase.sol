@@ -253,10 +253,12 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
     uint128 overhead = provider.quoteDeliveryOverhead(targetChainId);
     if (maxTransactionFee <= overhead) 
       return 0;
-    uint256 amt = (maxTransactionFee - overhead) / provider.quoteGasPrice(targetChainId);
-    if (amt > type(uint32).max)
-      revert TargetGasDeliveryAmountGreaterThanUint32(amt);
-    return uint32(amt);
+    gasAmount = uint32(
+      min(
+        (maxTransactionFee - overhead) / provider.quoteGasPrice(targetChainId),
+        type(uint32).max
+      )
+    );
   }}
 
   /**
