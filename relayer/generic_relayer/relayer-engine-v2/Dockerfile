@@ -65,7 +65,7 @@ RUN npm i --save-dev --global typechain
 RUN forge install --no-git --no-commit
 RUN apt-get install tree
 RUN make dependencies
-RUN tree -L 1; forge build -o build
+RUN tree -L 1; forge build -o build-forge
 RUN typechain --target=ethers-v5 --out-dir=./ethers-contracts ./build-forge/!\(test\).sol/*.json
 
 
