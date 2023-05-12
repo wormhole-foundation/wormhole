@@ -14,21 +14,21 @@
   "coreRelayers": [
     {
       "chainId": 2,
-      "address": "0x34dc8837Fb909b83CDe5479015A9925acFb63165"
+      "address": "0x53855d4b64E9A3CF59A84bc768adA716B5536BC5"
     },
     {
       "chainId": 4,
-      "address": "0x34dc8837Fb909b83CDe5479015A9925acFb63165"
+      "address": "0x53855d4b64E9A3CF59A84bc768adA716B5536BC5"
     }
   ],
   "mockIntegrations": [
     {
       "chainId": 2,
-      "address": "0x8d14789fa5c25f2002a29d9B43E7E095Ebc81509"
+      "address": "0x0eb0dD3aa41bD15C706BC09bC03C002b7B85aeAC"
     },
     {
       "chainId": 4,
-      "address": "0x8d14789fa5c25f2002a29d9B43E7E095Ebc81509"
+      "address": "0x0eb0dD3aa41bD15C706BC09bC03C002b7B85aeAC"
     }
   ],
   "create2Factories": [

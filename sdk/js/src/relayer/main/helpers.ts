@@ -18,8 +18,9 @@ import {
   DeliveryOverrideArgs,
   parseForwardFailureError
 } from "../structs";
-import { RelayProvider, RelayProvider__factory, Implementation__factory, IWormholeRelayer} from "../../ethers-contracts/";
+import { RelayProvider, RelayProvider__factory, Implementation__factory} from "../../ethers-contracts/";
 import {DeliveryEvent} from "../../ethers-contracts/CoreRelayer"
+import { VaaKeyStruct } from "../../ethers-contracts/IWormholeRelayer.sol/IWormholeRelayer";
 
 export type DeliveryTargetInfo = {
   status: DeliveryStatus | string;
@@ -29,7 +30,6 @@ export type DeliveryTargetInfo = {
   sourceVaaSequence: BigNumber | null;
   gasUsed: number;
   refundStatus: RefundStatus;
-  leftoverFeeUsedForForward?: BigNumber; // Only defined if status is FORWARD_REQUEST_SUCCESS
   revertString?: string; // Only defined if status is RECEIVER_FAILURE or FORWARD_REQUEST_FAILURE
   overrides?: DeliveryOverrideArgs;
 };
@@ -196,7 +196,6 @@ async function transformDeliveryEvents(
         sourceChain: x.args[1],
         gasUsed: x.args[5],
         refundStatus: x.args[6],
-        leftoverFeeUsedForForward: (status == DeliveryStatus.ForwardRequestSuccess) ? ethers.BigNumber.from(x.args[7]) : undefined,
         revertString: (status == DeliveryStatus.ReceiverFailure) ? x.args[7] : (status == DeliveryStatus.ForwardRequestFailure ? parseForwardFailureError(Buffer.from(x.args[7].substring(2), "hex")): undefined),
         overridesInfo: (Buffer.from(x.args[8].substring(2), "hex").length > 0) && parseOverrideInfoFromDeliveryEvent(Buffer.from(x.args[8].substring(2), "hex"))
       };
@@ -250,9 +249,9 @@ export function getWormholeRelayerLog(
 
 export function vaaKeyToVaaKeyStruct(
   vaaKey: VaaKey
-): IWormholeRelayer.VaaKeyStruct {
+): VaaKeyStruct {
   return {
-    infoType: vaaKey.payloadType,
+    infoType: vaaKey.infoType,
     chainId: vaaKey.chainId || 0,
     emitterAddress:
       vaaKey.emitterAddress ||

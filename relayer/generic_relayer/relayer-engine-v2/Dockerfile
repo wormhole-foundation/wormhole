@@ -35,7 +35,6 @@ RUN if [ -e /certs/cert.pem ]; then npm config set cafile /certs/cert.pem; fi
 # git
 RUN if [ -e /certs/cert.pem ]; then git config --global http.sslCAInfo /certs/cert.pem; fi
 
-
 WORKDIR /home/node/app/ethereum
 
 # Only invalidate the npm install step if package.json changed
@@ -67,11 +66,19 @@ RUN forge install --no-git --no-commit
 RUN apt-get install tree
 RUN make dependencies
 RUN tree -L 1; forge build -o build
-RUN typechain --target=ethers-v5 --out-dir=./ethers-contracts ./build/**/*.json
+RUN typechain --target=ethers-v5 --out-dir=./ethers-contracts ./build-forge/!\(test\).sol/*.json
 
 
 
 #Ethereum setup above this line should eventually be removed once the TS SDK is set up
+
+# Add the SDK
+WORKDIR /home/node/app/
+COPY --chown=node:node ./sdk ./sdk
+COPY --chown=node:node ./solana/idl ./solana/idl
+WORKDIR /home/node/app/sdk/js/
+RUN npm ci
+RUN npm run build
 
 #Path matters so as to not break imports
 WORKDIR /home/node/app/relayer/generic_relayer/relayer-engine-v2/
@@ -84,9 +91,12 @@ COPY --chown=node:node /relayer/generic_relayer/relayer-engine-v2/package-lock.j
 # We want to cache node_modules *and* incorporate it into the final image.
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
   --mount=type=cache,uid=1000,gid=1000,target=/relayer/generic_relayer/relayer-engine-v2/node_modules \
-  npm ci  && \                                                 
+  npm install  && \                                                 
   cp -R node_modules node_modules_cache
-  
+  ## NOTE: The above should be an 'npm ci'; but it does not work for some reason
+  ## It is my understanding that this dockerfile will be changed in the future anyways
+  ## So will leave this in here for now 
+  ## DO NOT keep this in production
 
 # Amusingly, Debian's coreutils version has a bug where mv believes that
 # the target is on a different fs and does a full recursive copy for what
