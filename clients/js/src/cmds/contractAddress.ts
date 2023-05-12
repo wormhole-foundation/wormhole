@@ -1,7 +1,7 @@
 import {
   CHAINS,
   assertChain,
-} from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import yargs from "yargs";
 import { CONTRACTS } from "../consts";
 import { getEmitterAddress } from "../emitter";
