@@ -7,8 +7,6 @@ import "./RelayProviderGovernance.sol";
 import "./RelayProviderStructs.sol";
 import "../../interfaces/relayer/IRelayProvider.sol";
 
-import "forge-std/console.sol";
-
 contract RelayProvider is RelayProviderGovernance, IRelayProvider {
     error CallerNotApproved(address msgSender);
 
@@ -90,7 +88,6 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
     ) internal view returns (uint256 targetAmount) {
         uint256 srcNativeCurrencyPrice = quoteAssetPrice(sourceChainId);
         uint256 dstNativeCurrencyPrice = quoteAssetPrice(targetChainId);
-        console.log(sourceAmount, srcNativeCurrencyPrice, dstNativeCurrencyPrice);
         // round up
         return (sourceAmount * srcNativeCurrencyPrice + dstNativeCurrencyPrice - 1)
             / dstNativeCurrencyPrice;

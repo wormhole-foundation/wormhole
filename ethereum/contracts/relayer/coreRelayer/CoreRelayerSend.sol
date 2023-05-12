@@ -10,6 +10,7 @@ import {
   ExecutionParameters,
   DeliveryInstruction,
   RedeliveryInstruction,
+  MaxTransactionFeeGreaterThanUint128,
   IWormholeRelayerSend
 } from "../../interfaces/relayer/IWormholeRelayer.sol";
 import {IRelayProvider} from "../../interfaces/relayer/IRelayProvider.sol";
@@ -18,9 +19,6 @@ import {toWormholeFormat} from "./Utils.sol";
 import {CoreRelayerSerde, Send} from "./CoreRelayerSerde.sol";
 import {ForwardInstruction, getDefaultRelayProviderState} from "./CoreRelayerStorage.sol";
 import {CoreRelayerBase} from "./CoreRelayerBase.sol";
-
-// todo: remove me
-import "forge-std/console.sol";
 
 abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
   using CoreRelayerSerde for *; //somewhat yucky but unclear what's a better alternative
@@ -244,9 +242,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     IRelayProvider relayProvider = IRelayProvider(sendParams.relayProviderAddress);
     checkRelayProviderSupportsChain(relayProvider, sendParams.targetChainId);
 
-    console.log("send params", sendParams.maxTransactionFee, sendParams.receiverValue);
     DeliveryInstruction memory instruction = convertSendToDeliveryInstruction(sendParams);
-    console.log("converted", instruction.maximumRefundTarget, instruction.receiverValueTarget , instruction.executionParameters.gasLimit);
 
     checkBudgetConstraints(
       instruction.maximumRefundTarget,
@@ -383,9 +379,8 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     //maxTransactionFee is a linear function of the amount of gas desired
     maxTransactionFee = provider.quoteDeliveryOverhead(targetChainId)
       + (uint128(gasLimit) * provider.quoteGasPrice(targetChainId));
-    require(maxTransactionFee < type(uint128).max, "quoteGas < u128 Overflow");
-    console.log("deliveryOverhead, gasLim, gasPrice", provider.quoteDeliveryOverhead(targetChainId), gasLimit, provider.quoteGasPrice(targetChainId) );
-    console.log("full quote gas", maxTransactionFee);
+    if (maxTransactionFee > type(uint128).max)
+      revert MaxTransactionFeeGreaterThanUint128();
   }
 
   function quoteReceiverValue(
@@ -439,7 +434,6 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
 
     uint256 maxBudget = relayProvider.quoteMaximumBudget(targetChainId);
     uint256 requestedBudget = maximumRefundTarget + receiverValueTarget;
-    console.log(requestedBudget, maxBudget);
     if (requestedBudget > maxBudget)
       revert ExceedsMaximumBudget(
         requestedBudget, maxBudget, address(relayProvider), targetChainId

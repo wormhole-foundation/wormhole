@@ -14,6 +14,7 @@ import {
   VaaKey,
   MaxTransactionFeeGreaterThanUint128,
   ReceiverValueGreaterThanUint128,
+  TargetGasDeliveryAmountGreaterThanUint32,
   DeliveryInstruction,
   ExecutionParameters,
   IWormholeRelayerBase
@@ -25,8 +26,6 @@ import {
   getRegisteredCoreRelayersState
 } from "./CoreRelayerStorage.sol";
 import {Send} from "./CoreRelayerSerde.sol";
-
-import "forge-std/console.sol";
 
 abstract contract CoreRelayerBase is IWormholeRelayerBase {
   //TODO AMO: see https://book.wormhole.com/wormhole/3_coreLayerContracts.html#consistency-levels
@@ -201,19 +200,19 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
    */
   function calculateTargetDeliveryMaximumRefund(
     uint16 targetChainId,
-    uint256 maxTransactionFee,
+    uint128 maxTransactionFee,
     IRelayProvider provider
   ) internal view returns (uint256 maximumRefund) { unchecked {
-    uint256 overhead = provider.quoteDeliveryOverhead(targetChainId);
-    console.log("overhead", overhead, maxTransactionFee);
-    if (maxTransactionFee > overhead) { 
-      (uint16 buffer, uint16 denominator) = provider.getAssetConversionBuffer(targetChainId);
-      uint256 remainder = maxTransactionFee - overhead;
-      uint256 numerator = uint256(denominator) + buffer;
-      maximumRefund = assetConversionHelper(
-        getChainId(), remainder, targetChainId, denominator, numerator, false, provider
-      );
-    }
+    uint128 overhead = provider.quoteDeliveryOverhead(targetChainId);
+    if (maxTransactionFee <= overhead) 
+      return 0;
+
+    (uint16 buffer, uint16 denominator) = provider.getAssetConversionBuffer(targetChainId);
+    uint256 remainder = maxTransactionFee - overhead;
+    uint256 numerator = uint256(denominator) + buffer;
+    maximumRefund = assetConversionHelper(
+      getChainId(), remainder, targetChainId, denominator, numerator, false, provider
+    );
   }}
 
   /**
@@ -248,17 +247,16 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
    */
   function calculateTargetGasDeliveryAmount(
     uint16 targetChainId,
-    uint256 maxTransactionFee,
+    uint128 maxTransactionFee,
     IRelayProvider provider
   ) internal view returns (uint32 gasAmount) { unchecked {
-    uint256 overhead = provider.quoteDeliveryOverhead(targetChainId);
-    if (maxTransactionFee > overhead)
-      gasAmount = uint32(
-        min(
-          (maxTransactionFee - overhead) / provider.quoteGasPrice(targetChainId),
-          type(uint32).max
-        )
-      );
+    uint128 overhead = provider.quoteDeliveryOverhead(targetChainId);
+    if (maxTransactionFee <= overhead) 
+      return 0;
+    uint256 amt = (maxTransactionFee - overhead) / provider.quoteGasPrice(targetChainId);
+    if (amt > type(uint32).max)
+      revert TargetGasDeliveryAmountGreaterThanUint32(amt);
+    return uint32(amt);
   }}
 
   /**

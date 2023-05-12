@@ -22,6 +22,7 @@ error ExceedsMaximumBudget(
 );
 error MaxTransactionFeeGreaterThanUint128();
 error ReceiverValueGreaterThanUint128();
+error TargetGasDeliveryAmountGreaterThanUint32(uint256 gasAmount);
 
 error RelayProviderQuotedBogusAssetPrice(address relayProvider, uint16 chainId, uint256 price);
 error RelayProviderDoesNotSupportTargetChain(address relayer, uint16 chainId);
