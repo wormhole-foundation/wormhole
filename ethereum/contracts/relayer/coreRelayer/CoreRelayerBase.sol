@@ -127,7 +127,7 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
                                         send.targetChainId, send.maxTransactionFee, relayProvider
                                       );
     instruction.receiverValueTarget = convertReceiverValueAmountToTarget(
-                                        send.receiverValue, send.targetChainId, relayProvider
+                                        send.targetChainId, send.receiverValue, relayProvider
                                       );
     instruction.senderAddress       = toWormholeFormat(msg.sender);
     instruction.sourceRelayProvider = toWormholeFormat(send.relayProviderAddress);
@@ -179,8 +179,8 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
    *   by the relay provider `provider`.
    */
   function convertReceiverValueAmountToTarget(
-    uint256 sourceAmount,
     uint16 targetChainId,
+    uint256 sourceAmount,
     IRelayProvider provider
   ) internal view returns (uint256 targetAmount) { unchecked {
     (uint16 buffer, uint16 denominator) = provider.getAssetConversionBuffer(targetChainId);

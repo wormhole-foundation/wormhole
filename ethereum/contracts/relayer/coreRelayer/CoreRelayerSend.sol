@@ -145,7 +145,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
         sendParams.targetChainId, sendParams.maxTransactionFee, relayProvider
       ),
       convertReceiverValueAmountToTarget(
-        sendParams.receiverValue, sendParams.targetChainId, relayProvider
+        sendParams.targetChainId, sendParams.receiverValue, relayProvider
       ),
       calculateTargetGasDeliveryAmount(
         sendParams.targetChainId, sendParams.maxTransactionFee, relayProvider
@@ -187,7 +187,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
         targetChainId, newMaxTransactionFee, relayProvider
       ),
       newReceiverValueTarget: convertReceiverValueAmountToTarget(
-        newReceiverValue, targetChainId, relayProvider
+        targetChainId, newReceiverValue, relayProvider
       ),
       sourceRelayProvider: toWormholeFormat(relayProviderAddress),
       targetChainId: targetChainId,
