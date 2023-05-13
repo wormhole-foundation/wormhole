@@ -43,6 +43,7 @@ spec:
             - --host=0.0.0.0
             - --accounts=11
             - --chain.chainId=1
+            - --chain.asyncRequestProcessing=false
           ports:
             - containerPort: 8545
               name: rpc
