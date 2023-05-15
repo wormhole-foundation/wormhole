@@ -57,22 +57,20 @@ contract AttackForwardIntegration is IWormholeReceiver {
         );
 
         bytes memory emptyArray;
-        Send memory request = Send({
-            targetChainId: _targetChainId,
-            targetAddress: attackerRewardAddress,
-            refundChainId: _targetChainId,
+        core_relayer.forward{value: maxTransactionFee}(
+            _targetChainId,
+            attackerRewardAddress,
+            _targetChainId,
             // All remaining funds will be returned to the attacker
-            refundAddress: attackerRewardAddress,
-            maxTransactionFee: maxTransactionFee,
-            receiverValue: 0,
-            payload: emptyArray,
-            vaaKeys: new VaaKey[](0),
-            consistencyLevel: 200,
-            relayProviderAddress: core_relayer.getDefaultRelayProvider(),
-            relayParameters: core_relayer.getDefaultRelayParams()
-        });
-
-        core_relayer.forward{value: maxTransactionFee}(request);
+            attackerRewardAddress,
+            maxTransactionFee,
+            0,
+            emptyArray,
+            new VaaKey[](0),
+            200,
+            core_relayer.getDefaultRelayProvider(),
+            core_relayer.getDefaultRelayParams()
+        );
     }
 
     function toWormholeFormat(address addr) public pure returns (bytes32 whFormat) {

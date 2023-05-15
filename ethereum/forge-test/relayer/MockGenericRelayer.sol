@@ -9,9 +9,12 @@ import {toWormholeFormat} from "../../contracts/relayer/coreRelayer/Utils.sol";
 import {CoreRelayerSerde} from "../../contracts/relayer/coreRelayer/CoreRelayerSerde.sol";
 import "../../contracts/libraries/external/BytesLib.sol";
 import "forge-std/Vm.sol";
+import "../../contracts/interfaces/relayer/TypedUnits.sol";
 
 contract MockGenericRelayer {
     using BytesLib for bytes;
+  using WeiLib for Wei;
+  using GasLib for Gas;
 
     IWormhole relayerWormhole;
     WormholeSimulator relayerWormholeSimulator;
@@ -140,7 +143,7 @@ contract MockGenericRelayer {
                 }
             }
 
-            uint256 budget = instruction.maximumRefundTarget + instruction.receiverValueTarget;
+            Wei budget = instruction.maximumRefundTarget + instruction.receiverValueTarget;
 
             uint16 targetChainId = instruction.targetChainId;
             TargetDeliveryParameters memory package = TargetDeliveryParameters({
@@ -151,7 +154,7 @@ contract MockGenericRelayer {
             });
 
             vm.prank(relayers[targetChainId]);
-            IWormholeRelayerDelivery(wormholeRelayerContracts[targetChainId]).deliver{value: budget}(package);
+            IWormholeRelayerDelivery(wormholeRelayerContracts[targetChainId]).deliver{value: budget.unwrap()}(package);
 
             setInfo(
                 parsedDeliveryVAA.emitterChainId,
@@ -171,7 +174,7 @@ contract MockGenericRelayer {
                 redeliveryHash: parsedDeliveryVAA.hash
             });
 
-            uint256 budget = instruction.newMaximumRefundTarget + instruction.newReceiverValueTarget;
+            Wei budget = instruction.newMaximumRefundTarget + instruction.newReceiverValueTarget;
 
             bytes memory oldEncodedDeliveryVAA =
                 getPastDeliveryVAA(instruction.key.chainId, instruction.key.sequence);
@@ -189,7 +192,7 @@ contract MockGenericRelayer {
             });
 
             vm.prank(relayers[targetChainId]);
-            IWormholeRelayerDelivery(wormholeRelayerContracts[targetChainId]).deliver{value: budget}(package);
+            IWormholeRelayerDelivery(wormholeRelayerContracts[targetChainId]).deliver{value: budget.unwrap()}(package);
         }
     }
 }

@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.19;
 
+import "../../interfaces/relayer/TypedUnits.sol";
+
 abstract contract RelayProviderStructs {
     struct UpdatePrice {
         /**
@@ -11,12 +13,12 @@ abstract contract RelayProviderStructs {
         /**
          * Gas price in ´chainId´ chain.
          */
-        uint128 gasPrice;
+        GasPrice gasPrice;
         /**
          * Price of the native currency in ´chainId´ chain.
          * Native currency is typically used to pay for gas.
          */
-        uint128 nativeCurrencyPrice;
+        WeiPrice nativeCurrencyPrice;
     }
 
     struct TargetChainUpdate {
@@ -38,7 +40,7 @@ abstract contract RelayProviderStructs {
         /**
          * Maximum total budget for a delivery in ´chainId´ chain.
          */
-        uint256 maximumTotalBudget;
+        Wei maximumTotalBudget;
     }
 
     struct DeliverGasOverheadUpdate {
@@ -49,7 +51,7 @@ abstract contract RelayProviderStructs {
         /**
          * The gas overhead for a delivery in ´chainId´ chain.
          */
-        uint32 newGasOverhead;
+        Gas newGasOverhead;
     }
 
     struct SupportedChainUpdate {
@@ -95,17 +97,17 @@ abstract contract RelayProviderStructs {
         /**
          * The gas overhead for a delivery in ´chainId´ chain.
          */
-        uint32 newGasOverhead;
+        Gas newGasOverhead;
         // UpdatePrice
         /**
          * Gas price in ´chainId´ chain.
          */
-        uint128 gasPrice;
+        GasPrice gasPrice;
         /**
          * Price of the native currency in ´chainId´ chain.
          * Native currency is typically used to pay for gas.
          */
-        uint128 nativeCurrencyPrice;
+        WeiPrice nativeCurrencyPrice;
         // TargetChainUpdate
         /**
          * Wormhole address of the relay provider in the ´chainId´ chain.
@@ -115,7 +117,7 @@ abstract contract RelayProviderStructs {
         /**
          * Maximum total budget for a delivery in ´chainId´ chain.
          */
-        uint256 maximumTotalBudget;
+        Wei maximumTotalBudget;
     }
 
     struct CoreConfig {

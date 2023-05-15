@@ -6,8 +6,12 @@ pragma solidity ^0.8.19;
 import "@openzeppelin/contracts/utils/Context.sol";
 
 import "./RelayProviderState.sol";
+import "../../interfaces/relayer/IRelayProvider.sol";
 
 contract RelayProviderSetters is Context, RelayProviderState {
+    using GasPriceLib for GasPrice;
+    using WeiLib for Wei;
+
     function setOwner(address owner_) internal {
         _state.owner = owner_;
     }
@@ -32,7 +36,8 @@ contract RelayProviderSetters is Context, RelayProviderState {
         _state.supportedChains[targetChainId] = isSupported;
     }
 
-    function setDeliverGasOverhead(uint16 chainId, uint32 deliverGasOverhead) internal {
+    function setDeliverGasOverhead(uint16 chainId, Gas deliverGasOverhead) internal {
+        require(Gas.unwrap(deliverGasOverhead) <= type(uint32).max, "deliverGasOverhead too large");
         _state.deliverGasOverhead[chainId] = deliverGasOverhead;
     }
 
@@ -44,15 +49,17 @@ contract RelayProviderSetters is Context, RelayProviderState {
         _state.targetChainAddresses[targetChainId] = newAddress;
     }
 
-    function setMaximumBudget(uint16 targetChainId, uint256 amount) internal {
+    function setMaximumBudget(uint16 targetChainId, Wei amount) internal {
+        require(amount.unwrap() <= type(uint192).max, "amount too large");
         _state.maximumBudget[targetChainId] = amount;
     }
 
     function setPriceInfo(
         uint16 updateChainId,
-        uint128 updateGasPrice,
-        uint128 updateNativeCurrencyPrice
+        GasPrice updateGasPrice,
+        WeiPrice updateNativeCurrencyPrice
     ) internal {
+        require(updateGasPrice.unwrap() <= type(uint64).max, "gas price must be < 2^64");
         _state.data[updateChainId].gasPrice = updateGasPrice;
         _state.data[updateChainId].nativeCurrencyPrice = updateNativeCurrencyPrice;
     }

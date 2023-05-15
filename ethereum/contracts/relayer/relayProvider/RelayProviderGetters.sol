@@ -4,6 +4,7 @@
 pragma solidity ^0.8.19;
 
 import "../../interfaces/IWormhole.sol";
+import "../../interfaces/relayer/TypedUnits.sol";
 
 import "./RelayProviderState.sol";
 
@@ -28,19 +29,19 @@ contract RelayProviderGetters is RelayProviderState {
         return _state.coreRelayer;
     }
 
-    function gasPrice(uint16 targetChainId) public view returns (uint128) {
+    function gasPrice(uint16 targetChainId) public view returns (GasPrice) {
         return _state.data[targetChainId].gasPrice;
     }
 
-    function nativeCurrencyPrice(uint16 targetChainId) public view returns (uint128) {
+    function nativeCurrencyPrice(uint16 targetChainId) public view returns (WeiPrice) {
         return _state.data[targetChainId].nativeCurrencyPrice;
     }
 
-    function deliverGasOverhead(uint16 targetChainId) public view returns (uint32) {
+    function deliverGasOverhead(uint16 targetChainId) public view returns (Gas) {
         return _state.deliverGasOverhead[targetChainId];
     }
 
-    function maximumBudget(uint16 targetChainId) public view returns (uint256) {
+    function maximumBudget(uint16 targetChainId) public view returns (Wei) {
         return _state.maximumBudget[targetChainId];
     }
 

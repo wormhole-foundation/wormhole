@@ -2,16 +2,26 @@
 
 pragma solidity ^0.8.0;
 
+import "../../interfaces/relayer/TypedUnits.sol";
+
 error NotAnEvmAddress(bytes32);
 
-function pay(address payable receiver, uint256 amount) returns (bool success) {
-  if (amount != 0)
-    (success,) = receiver.call{value: amount}("");
+function pay(address payable receiver, Wei amount) returns (bool success) {
+  uint256 amount_ = Wei.unwrap(amount);
+  if (amount_ != 0)
+    (success,) = receiver.call{value: amount_}("");
   else
     success = true;
 }
 
+uint256 constant MAX_U256 = 2**256 - 1;
+uint256 constant MAX_U128 = 2**128 - 1;
+
 function min(uint256 a, uint256 b) pure returns (uint256) {
+  return a < b ? a : b;
+}
+
+function min(uint64 a, uint64 b) pure returns (uint64) {
   return a < b ? a : b;
 }
 

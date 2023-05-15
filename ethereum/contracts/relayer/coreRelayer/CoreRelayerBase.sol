@@ -4,14 +4,18 @@ pragma solidity ^0.8.19;
 
 import {IWormhole} from "../../interfaces/IWormhole.sol";
 import {IRelayProvider} from "../../interfaces/relayer/IRelayProvider.sol";
-import {toWormholeFormat, min, pay} from "./Utils.sol";
+import {toWormholeFormat, min, pay, MAX_U128} from "./Utils.sol";
 import {
   NoDeliveryInProgress,
   ReentrantDelivery,
   ForwardRequestFromWrongAddress,
   RelayProviderDoesNotSupportTargetChain,
   RelayProviderQuotedBogusAssetPrice,
+  VaaKey,
   Send,
+  MaxTransactionFeeGreaterThanUint128,
+  ReceiverValueGreaterThanUint128,
+  TargetGasDeliveryAmountGreaterThanUint32,
   DeliveryInstruction,
   ExecutionParameters,
   IWormholeRelayerBase
@@ -22,8 +26,14 @@ import {
   getDeliveryTmpState,
   getRegisteredCoreRelayersState
 } from "./CoreRelayerStorage.sol";
+import "../../interfaces/relayer/TypedUnits.sol";
+
+import "forge-std/console.sol";
 
 abstract contract CoreRelayerBase is IWormholeRelayerBase {
+  using WeiLib for Wei;
+  using GasLib for Gas;
+
   //TODO AMO: see https://book.wormhole.com/wormhole/3_coreLayerContracts.html#consistency-levels
   //  15 is valid choice perhaps, but it feels messy... (seems like it should be 201?)
   //  Also, these values should definitely not be defined here but should be provided by IWormhole!
@@ -53,20 +63,28 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
     return chainId_;
   }
 
+  function getWormholeMessageFee() internal view returns (Wei) {
+    return Wei.wrap(getWormhole().messageFee());
+  }
+
+  function msgValue() internal view returns (Wei) {
+    return Wei.wrap(msg.value);
+  }
+
   function publishAndPay(
-    uint256 wormholeMessageFee,
-    uint256 maxTransactionFee,
-    uint256 receiverValue,
+    Wei wormholeMessageFee,
+    Wei maxTransactionFee,
+    Wei receiverValue,
     bytes memory encodedInstruction,
     uint8 consistencyLevel,
     IRelayProvider relayProvider
   ) internal returns (uint64 sequence) { 
     sequence =
-      getWormhole().publishMessage{value: wormholeMessageFee}(0, encodedInstruction, consistencyLevel);
+      getWormhole().publishMessage{value: Wei.unwrap(wormholeMessageFee)}(0, encodedInstruction, consistencyLevel);
 
-    emit SendEvent(sequence, maxTransactionFee, receiverValue);
+    emit SendEvent(sequence, Wei.unwrap(maxTransactionFee), Wei.unwrap(receiverValue));
 
-    uint256 amount;
+    Wei amount;
     unchecked {amount = maxTransactionFee + receiverValue;}
     //TODO AMO: what if pay fails? (i.e. returns false)
     pay(relayProvider.getRewardAddress(), amount);
@@ -108,6 +126,47 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
   }
 
   // ----------------------------------------- Conversion ------------------------------------------
+
+  function constructSend(
+    uint16 targetChainId,
+    bytes32 targetAddress,
+    uint16 refundChainId,
+    bytes32 refundAddress,
+    uint256 maxTransactionFee,
+    uint256 receiverValue,
+    bytes memory payload,
+    VaaKey[] memory vaaKeys,
+    uint8 consistencyLevel,
+    address relayProviderAddress,
+    bytes memory relayParameters
+  ) internal pure returns (Send memory) {
+    (uint128 maxTransactionFee_, uint128 receiverValue_) = 
+      checkFeesLessThanU128(maxTransactionFee, receiverValue);
+    return Send(
+      targetChainId,
+      targetAddress,
+      refundChainId,
+      refundAddress,
+      Wei.wrap(maxTransactionFee_), // todo: use intoWei
+      Wei.wrap(receiverValue_),
+      payload,
+      vaaKeys,
+      consistencyLevel,
+      relayProviderAddress,
+      relayParameters
+    );
+  }
+
+  function checkFeesLessThanU128(
+    uint256 maxTransactionFee,
+    uint256 receiverValue
+  ) internal pure returns (uint128 , uint128){
+    if (maxTransactionFee > type(uint128).max )
+      revert MaxTransactionFeeGreaterThanUint128();
+    if ( receiverValue > type(uint128).max)
+      revert ReceiverValueGreaterThanUint128();
+    return (uint128(maxTransactionFee), uint128(receiverValue));
+  }
 
   /** 
    * Calculate how much gas the relay provider can pay for on 'sendParams.targetChain' using
@@ -155,18 +214,24 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
    */
   function calculateTargetDeliveryMaximumRefund(
     uint16 targetChainId,
-    uint256 maxTransactionFee,
+    Wei maxTransactionFee,
     IRelayProvider provider
-  ) internal view returns (uint256 maximumRefund) { unchecked {
-    uint256 overhead = provider.quoteDeliveryOverhead(targetChainId);
-    if (maxTransactionFee > overhead) { 
-      (uint16 buffer, uint16 denominator) = provider.getAssetConversionBuffer(targetChainId);
-      uint256 remainder = maxTransactionFee - overhead;
-      uint256 numerator = uint256(denominator) + buffer;
-      maximumRefund = assetConversionHelper(
-        getChainId(), remainder, targetChainId, denominator, numerator, false, provider
-      );
-    }
+  ) internal view returns (Wei maximumRefund) { unchecked {
+    Wei overhead = provider.quoteDeliveryOverhead(targetChainId);
+    if (maxTransactionFee <= overhead) 
+      return Wei.wrap(0);
+
+    (uint16 buffer, uint16 denominator) = provider.getAssetConversionBuffer(targetChainId);
+    uint32 numerator = uint32(denominator) + buffer;
+
+    WeiPrice fromPrice = getCheckedAssetPrice(provider, getChainId());
+    WeiPrice toPrice = getCheckedAssetPrice(provider, targetChainId);
+
+    Wei remainder = maxTransactionFee - overhead;
+    console.log("before convert asset calculate delivery max refund");
+    return remainder.convertAsset(
+      fromPrice, toPrice, denominator, numerator, false
+    );
   }}
 
   /**
@@ -179,13 +244,14 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
    *   by the relay provider 'provider'.
    */
   function convertReceiverValueAmountToTarget(
-    uint256 sourceAmount,
+    Wei sourceAmount,
     uint16 targetChainId,
     IRelayProvider provider
-  ) internal view returns (uint256 targetAmount) { unchecked {
+  ) internal view returns (Wei targetAmount) { unchecked {
     (uint16 buffer, uint16 denominator) = provider.getAssetConversionBuffer(targetChainId);
-    uint256 numerator = uint256(denominator) + buffer;
+    uint32 numerator = uint32(denominator) + buffer;
     //multiplying with inverse of numerator/denominator, i.e. they are used flipped
+    console.log("conert receiver value amount to target");
     targetAmount = assetConversionHelper(
       getChainId(), sourceAmount, targetChainId, denominator, numerator, false, provider
     );
@@ -201,17 +267,16 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
    */
   function calculateTargetGasDeliveryAmount(
     uint16 targetChainId,
-    uint256 maxTransactionFee,
+    Wei maxTransactionFee,
     IRelayProvider provider
-  ) internal view returns (uint32 gasAmount) { unchecked {
-    uint256 overhead = provider.quoteDeliveryOverhead(targetChainId);
-    if (maxTransactionFee > overhead)
-      gasAmount = uint32(
-        min(
-          (maxTransactionFee - overhead) / provider.quoteGasPrice(targetChainId),
-          type(uint32).max
-        )
-      );
+  ) internal view returns (Gas gasAmount) { unchecked {
+    Wei overhead = provider.quoteDeliveryOverhead(targetChainId);
+    if (maxTransactionFee <= overhead) 
+      return Gas.wrap(0);
+    console.log("above to gas");
+    uint256 gas = (maxTransactionFee - overhead).toGasU256(provider.quoteGasPrice(targetChainId));
+    console.log("below to gas");
+    return Gas.wrap(uint32(min(gas, uint256(type(uint32).max))));
   }}
 
   /**
@@ -223,35 +288,35 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
    */
   function assetConversionHelper(
     uint16 sourceChainId,
-    uint256 sourceAmount,
+    Wei sourceAmount,
     uint16 targetChainId,
-    uint256 multiplierNumerator,
-    uint256 multiplierDenominator,
+    uint32 multiplierNumerator,
+    uint32 multiplierDenominator,
     bool roundUp,
     IRelayProvider provider
-  ) internal view returns (uint256 targetAmount) {
+  ) internal view returns (Wei targetAmount) {
     //We probably call this multiple times during a single transaction, however since the relay
     //  provider contract is already hot at this point, calling it multiple times in a row
     //  shouldn't be too gas inefficient (about 100 gas per call) and local caching in storage
     //  would be ~equally expensive (SSTORE is 20k, but resetting to 0 refunds 19.9k, i.e. overall
     //  cost would also be ~100 gas).
-    uint256 sourceNativeCurrencyPrice = getCheckedAssetPrice(provider, sourceChainId);
-    uint256 targetNativeCurrencyPrice = getCheckedAssetPrice(provider, targetChainId);
+    WeiPrice fromPrice = getCheckedAssetPrice(provider, sourceChainId);
+    WeiPrice toPrice = getCheckedAssetPrice(provider, targetChainId);
 
-    uint256 numerator = sourceAmount * sourceNativeCurrencyPrice * multiplierNumerator;
-    uint256 denominator = targetNativeCurrencyPrice * multiplierDenominator;
-    targetAmount = (roundUp ? (numerator + denominator - 1) : numerator) / denominator;
+    return sourceAmount.convertAsset(
+      fromPrice, toPrice, multiplierNumerator, multiplierDenominator, roundUp
+    );
   }
 
   function getCheckedAssetPrice(
     IRelayProvider provider,
     uint16 chainId
-  ) internal view returns (uint256 price) {
+  ) internal view returns (WeiPrice price) {
     //if (chainId != getChainId())
     //  checkRelayProviderSupportsChain();
     price = provider.quoteAssetPrice(chainId);
-    if (price == 0)
-      revert RelayProviderQuotedBogusAssetPrice(address(provider), chainId, price);
+    if (WeiPrice.unwrap(price) == 0)
+      revert RelayProviderQuotedBogusAssetPrice(address(provider), chainId, WeiPrice.unwrap(price));
   }
 
   function checkRelayProviderSupportsChain(
