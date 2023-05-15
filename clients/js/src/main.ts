@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
-// Quiet is here so that it can trigger before the afflicted libraries' on-import warnings can be emitted.
+// Side effects are here to trigger before the afflicted libraries' on-import warnings can be emitted.
 // It is also imported so that it can side-effect without being tree-shaken.
-import "./quiet";
+import "./side-effects";
 // https://github.com/yargs/yargs/blob/main/docs/advanced.md#example-command-hierarchy-using-indexmjs
 import * as aptos from "./cmds/aptos";
 import * as chainId from "./cmds/chainId";

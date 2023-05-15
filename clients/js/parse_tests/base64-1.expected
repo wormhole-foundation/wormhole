@@ -1,71 +1,71 @@
 {
-  version: 1,
-  guardianSetIndex: 1,
-  signatures: [
+  "version": 1,
+  "guardianSetIndex": 1,
+  "signatures": [
     {
-      guardianSetIndex: 2,
-      signature: '73af3c2f55989041b0068a4eaeba8f8825106021996de6143954c06fc4cfad5c3f1aba6ca951188e962f11251c25ca98628685e2fc2b65ec609450cfc4e6511200'
+      "guardianSetIndex": 2,
+      "signature": "73af3c2f55989041b0068a4eaeba8f8825106021996de6143954c06fc4cfad5c3f1aba6ca951188e962f11251c25ca98628685e2fc2b65ec609450cfc4e6511200"
     },
     {
-      guardianSetIndex: 3,
-      signature: '00c62eb0de7ab3d028920f18e10df7f2a04d00eb88b8940a27bbce8ce66c67526882c96cc50dd381bdbff30bb65b9347cadff09676729043af60d652a0b9063000'
+      "guardianSetIndex": 3,
+      "signature": "00c62eb0de7ab3d028920f18e10df7f2a04d00eb88b8940a27bbce8ce66c67526882c96cc50dd381bdbff30bb65b9347cadff09676729043af60d652a0b9063000"
     },
     {
-      guardianSetIndex: 4,
-      signature: 'f07b0fe6cab18be7ae827fe11ca8992ff0b5a2a32d65be958231bf84cf6b14fb5eeb8a51ade1c70aa5b8b8cf83afe3c22d3471481bda3896ea2a70469f9692b800'
+      "guardianSetIndex": 4,
+      "signature": "f07b0fe6cab18be7ae827fe11ca8992ff0b5a2a32d65be958231bf84cf6b14fb5eeb8a51ade1c70aa5b8b8cf83afe3c22d3471481bda3896ea2a70469f9692b800"
     },
     {
-      guardianSetIndex: 5,
-      signature: '74d496729dde6e190959a17945e87cd95e23c10047ab2eef5c7d0ec6f91208c7279d8a1b1f4a60069d25932a67d655f2d0b42059003de75fd3ca7992fdd1b0d401'
+      "guardianSetIndex": 5,
+      "signature": "74d496729dde6e190959a17945e87cd95e23c10047ab2eef5c7d0ec6f91208c7279d8a1b1f4a60069d25932a67d655f2d0b42059003de75fd3ca7992fdd1b0d401"
     },
     {
-      guardianSetIndex: 6,
-      signature: '51f06ab6fdfd42f323840a818b38cfd1c99d22366c877903b98df40bdaf2a2042eb8cd0e59c4637e6a80a199b1108cd7659ba8370f6f9476b479839854d8c1a600'
+      "guardianSetIndex": 6,
+      "signature": "51f06ab6fdfd42f323840a818b38cfd1c99d22366c877903b98df40bdaf2a2042eb8cd0e59c4637e6a80a199b1108cd7659ba8370f6f9476b479839854d8c1a600"
     },
     {
-      guardianSetIndex: 7,
-      signature: '784b37c6103c752cd97a586be8e1ceff22a6e488433284ff31cd908b5c7d87e244da7516d07a0fa692684f826e5e6c8b452004206d6fe5bae46afb1c218cf50d00'
+      "guardianSetIndex": 7,
+      "signature": "784b37c6103c752cd97a586be8e1ceff22a6e488433284ff31cd908b5c7d87e244da7516d07a0fa692684f826e5e6c8b452004206d6fe5bae46afb1c218cf50d00"
     },
     {
-      guardianSetIndex: 9,
-      signature: '0b6ccce67ed501cb20fb06de76b9083f1329ad78d384517a94ab8e9aa601be7a0f00bb603b36504a74ddc367359c8ea07f5ccd5022772cc157e00f54156371e401'
+      "guardianSetIndex": 9,
+      "signature": "0b6ccce67ed501cb20fb06de76b9083f1329ad78d384517a94ab8e9aa601be7a0f00bb603b36504a74ddc367359c8ea07f5ccd5022772cc157e00f54156371e401"
     },
     {
-      guardianSetIndex: 11,
-      signature: 'e1e6b712a2353e4907929c4057d5babef80dc09febb3dc2934f44048795eef954e99106cb29b1a8d935369daecbb8bae45192efc3cedbc57315d67ec9ea8000a00'
+      "guardianSetIndex": 11,
+      "signature": "e1e6b712a2353e4907929c4057d5babef80dc09febb3dc2934f44048795eef954e99106cb29b1a8d935369daecbb8bae45192efc3cedbc57315d67ec9ea8000a00"
     },
     {
-      guardianSetIndex: 13,
-      signature: 'dcc04cd7556a94e8b418dc3a8a00efb128d4f76f71431247a92e7a19a833fc02215d1fd69e0e596da531ea587ae2ac2f36d20f3b1933060ad6ef3e9d7d8475ba01'
+      "guardianSetIndex": 13,
+      "signature": "dcc04cd7556a94e8b418dc3a8a00efb128d4f76f71431247a92e7a19a833fc02215d1fd69e0e596da531ea587ae2ac2f36d20f3b1933060ad6ef3e9d7d8475ba01"
     },
     {
-      guardianSetIndex: 14,
-      signature: 'c76216494906aed8d8310c31a5e4a545ea2af8dbe38eeb74a3d14f0734dd2b1a21b9850ea20e6c2ca42248788bfb17439d37abda25d705b568b265b113b976c500'
+      "guardianSetIndex": 14,
+      "signature": "c76216494906aed8d8310c31a5e4a545ea2af8dbe38eeb74a3d14f0734dd2b1a21b9850ea20e6c2ca42248788bfb17439d37abda25d705b568b265b113b976c500"
     },
     {
-      guardianSetIndex: 16,
-      signature: 'c61fe6ebea61f2cae895c334965070487d39ab6bf04428340af0f7699fddd3c01e0c86daea9eb449701248a24fa4c0ff75fb600b2c0134bd721791f667116e4200'
+      "guardianSetIndex": 16,
+      "signature": "c61fe6ebea61f2cae895c334965070487d39ab6bf04428340af0f7699fddd3c01e0c86daea9eb449701248a24fa4c0ff75fb600b2c0134bd721791f667116e4200"
     },
     {
-      guardianSetIndex: 17,
-      signature: '19b79caa250e75da1482c7f412687308d13ef700f726b99417bb75ae6dd143fc619f8c9c29c73f9949affd1629cc286a61917ed7853754a46702920b76cf90eb00'
+      "guardianSetIndex": 17,
+      "signature": "19b79caa250e75da1482c7f412687308d13ef700f726b99417bb75ae6dd143fc619f8c9c29c73f9949affd1629cc286a61917ed7853754a46702920b76cf90eb00"
     },
     {
-      guardianSetIndex: 18,
-      signature: 'b0bab5e1a8b321e92f9d3df92430183e4843e57c6f8c15c22d62b2f8e4b8cdc2759f2854b8d122acdb4b4d8928b87df4199cc683011d2e9b7d41a96d8b480ccc01'
+      "guardianSetIndex": 18,
+      "signature": "b0bab5e1a8b321e92f9d3df92430183e4843e57c6f8c15c22d62b2f8e4b8cdc2759f2854b8d122acdb4b4d8928b87df4199cc683011d2e9b7d41a96d8b480ccc01"
     }
   ],
-  timestamp: 0,
-  nonce: 969194102,
-  emitterChain: 1,
-  emitterAddress: '0x0000000000000000000000000000000000000000000000000000000000000004',
-  sequence: 2694510404604284400n,
-  consistencyLevel: 32,
-  payload: {
-    module: 'TokenBridge',
-    type: 'ContractUpgrade',
-    chain: 3,
-    address: '0x0000000000000000000000000000000000000000000000000000000000000983'
+  "timestamp": 0,
+  "nonce": 969194102,
+  "emitterChain": 1,
+  "emitterAddress": "0x0000000000000000000000000000000000000000000000000000000000000004",
+  "sequence": "2694510404604284400",
+  "consistencyLevel": 32,
+  "payload": {
+    "module": "TokenBridge",
+    "type": "ContractUpgrade",
+    "chain": 3,
+    "address": "0x0000000000000000000000000000000000000000000000000000000000000983"
   },
-  digest: '0x1eb0950bc47db17fbf95bf5476a83445cf5bee90fcd14ae4d8ac851c2cbd824d'
+  "digest": "0x1eb0950bc47db17fbf95bf5476a83445cf5bee90fcd14ae4d8ac851c2cbd824d"
 }

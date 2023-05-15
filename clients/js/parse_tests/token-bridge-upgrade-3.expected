@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "guardianSetIndex": 1,
+  "signatures": [
+    {
+      "guardianSetIndex": 2,
+      "signature": "aa3ffb28f2c401f90b8b5fb7af57bf9249204970053b1ba06bca147c2dab31b21d50c2a7695e8ebed00b07f0b1cb9c1658f41ee59a56b9fb4b289d9c15ce838f01"
+    },
+    {
+      "guardianSetIndex": 3,
+      "signature": "0976bd5450631765db2c4017f33dd8fbd61dae364d1dfd43cdb866f72f8d4a4b47960026e64560a8823c422dce7c1e2a850aa5226c6b7092606c5224b69450e201"
+    },
+    {
+      "guardianSetIndex": 4,
+      "signature": "597391bda61d86dcb900d6b0062cf72b52b1ca250d625b3f62f89981041c16ec4b457038388058cdec9c5486baf6e84c1481e124c9f809ced7d73c235fcd400d00"
+    },
+    {
+      "guardianSetIndex": 5,
+      "signature": "c3356b43ed505d26fd55841925f8dcd4ae176990c4e9654742a20fe3438e0bb7367bd35019a546afe71af895f31e6e70de33ac800f75ee48a9dedac8f9817af500"
+    },
+    {
+      "guardianSetIndex": 6,
+      "signature": "09f9b2bd1c3f06bf23ed10eca5d13762b28872e1b44dbdb5d1f079c40c396f2a2ad2ac07278bd4cb140f61b86305f89a339dd0d39862f3a1f2cd8a9b7fd3eafe00"
+    },
+    {
+      "guardianSetIndex": 7,
+      "signature": "79956931cd35e5e54934cadb37d9ad530164d58d9cbf2e39dbd73826a879705350ecd93ac7e48b21f64232b24b423d2d15b897e442dc4df9be7fdb92ebbaa2c100"
+    },
+    {
+      "guardianSetIndex": 9,
+      "signature": "9af9249cfc3300edb5da61fd425371244a9a30fbfc93df455a3ac59cf3e56a4900da0566b38f8b56059f1795593b92c30c833dc6106657f4554a86f501b1f6b201"
+    },
+    {
+      "guardianSetIndex": 11,
+      "signature": "adf2b90028e98eef4aea4094c4cd0d3b411837f0469e13468b5016cc955510e808b4aafaa87aea8bc07c7506f3782d0428468df405b21fc36ed2ccfb3287764201"
+    },
+    {
+      "guardianSetIndex": 13,
+      "signature": "a3f78c15d55d8efd5646a31a81c9316de35d61abd2c8a2df419b888a62a5c80771cd045db60a49d4f87c42f18de743faf6883313dba558c7da4ad209254b9b8301"
+    },
+    {
+      "guardianSetIndex": 14,
+      "signature": "5f398f609913e6d39420d44eaeff12e3431778ede50b119f0aa7ddd926de1aa34d855013984f2ca785e610e0efae0ffdb424d9caedac7f2e89ada0dee9ac6acb01"
+    },
+    {
+      "guardianSetIndex": 16,
+      "signature": "e19223db4b8837625732237d3c0f6041c28794c58178c0466ca6d646b9fb6c0941db7854a2f48a2383ea46d047e76a81f06185378c0598ead8535c0b080aa55b01"
+    },
+    {
+      "guardianSetIndex": 17,
+      "signature": "d8647c197db25ada7d55f559c65a7196fbd7361e92c68203c1842544b61bfd837117a8ab1ff10937737768c7a5fa93f65a39de2bb15370d714f1e0b4e24b6ea801"
+    },
+    {
+      "guardianSetIndex": 18,
+      "signature": "7ec8835b907102f92a14a259054a1914a86afdf424108e83ae6b64b1dca0b69a6e55051cdce368fac7f3b4a50c8d9affae89d4253730eb4f12f38e056f1657ef01"
+    }
+  ],
+  "timestamp": 0,
+  "nonce": 742992135,
+  "emitterChain": 1,
+  "emitterAddress": "0x0000000000000000000000000000000000000000000000000000000000000004",
+  "sequence": "1281143524946038000",
+  "consistencyLevel": 32,
+  "payload": {
+    "module": "TokenBridge",
+    "type": "ContractUpgrade",
+    "chain": 4,
+    "address": "0x000000000000000000000000ee91c335eab126df5fdb3797ea9d6ad93aec9722"
+  },
+  "digest": "0x353bb7417bf9d0873091e29fc07a7b776adb780981aa217b51a6a167941c211a"
+}

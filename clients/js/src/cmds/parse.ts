@@ -25,5 +25,5 @@ export const handler = (argv) => {
   const parsed_vaa = parse(buf);
   let parsed_vaa_with_digest = parsed_vaa;
   parsed_vaa_with_digest["digest"] = vaaDigest(parsed_vaa);
-  console.log(parsed_vaa_with_digest);
+  console.log(JSON.stringify(parsed_vaa_with_digest, null, 2));
 };
