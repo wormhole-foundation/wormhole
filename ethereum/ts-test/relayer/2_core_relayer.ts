@@ -16,7 +16,7 @@ import {
   tryNativeToUint8Array,
   Network,
 } from "../../../sdk/js/src";
-import { MockRelayerIntegration } from "../../ethers-contracts";
+import { MockRelayerIntegration } from "../../ethers-contracts/MockRelayerIntegration";
 import { ChainId } from "@certusone/wormhole-sdk";
 
 const env = init();
@@ -435,7 +435,7 @@ describe("Core Relayer Integration Test - Two Chains", () => {
 
   it("Test getPriceMultipleHops in Typescript SDK", async () => {
 
-    const price = (await relayer.getPriceMultipleHops(sourceChain.chainId, [{targetChain: targetChain.chainId, gasAmount: 200000}, {targetChain: sourceChain.chainId, gasAmount: 200000}], environment));
+    const price = (await relayer.getPriceMultipleHops(sourceChain.chainId, [{targetChainId: targetChain.chainId, gasAmount: 200000}, {targetChainId: sourceChain.chainId, gasAmount: 200000}], environment));
     console.log(price.toString());
     expect(price).to.not.equal(undefined);
   });

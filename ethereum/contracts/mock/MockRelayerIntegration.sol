@@ -8,11 +8,11 @@ import "../interfaces/IWormhole.sol";
 import "../interfaces/relayer/IWormholeRelayer.sol";
 import "../interfaces/relayer/IWormholeReceiver.sol";
 
-interface Structs {
-    struct XAddress {
-        uint16 chainId;
-        bytes32 addr;
-    }
+import {toWormholeFormat} from "../relayer/coreRelayer/Utils.sol";
+
+struct XAddress {
+    uint16 chainId;
+    bytes32 addr;
 }
 
 contract MockRelayerIntegration is IWormholeReceiver {
@@ -70,7 +70,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
 
     function sendOnlyPayload(bytes memory payload, uint16 targetChainId, address destination) public payable returns (uint64 sequence) {
         sequence = relayer.send{value: msg.value}(
-            targetChainId, relayer.toWormholeFormat(destination), targetChainId, relayer.toWormholeFormat(destination), msg.value - wormhole.messageFee(), 0, payload);
+            targetChainId, toWormholeFormat(destination), targetChainId, toWormholeFormat(destination), msg.value - wormhole.messageFee(), 0, payload);
     }
 
 
@@ -86,20 +86,20 @@ contract MockRelayerIntegration is IWormholeReceiver {
 
     function vaaKeysCreator(uint64 sequence1, uint64 sequence2)
         internal view
-        returns (IWormholeRelayer.VaaKey[] memory vaaKeys)
+        returns (VaaKey[] memory vaaKeys)
     {
-        vaaKeys = new IWormholeRelayer.VaaKey[](2);
-        vaaKeys[0] = IWormholeRelayer.VaaKey(
-            IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE,
+        vaaKeys = new VaaKey[](2);
+        vaaKeys[0] = VaaKey(
+            VaaKeyType.EMITTER_SEQUENCE,
             wormhole.chainId(),
-            relayer.toWormholeFormat(address(this)),
+            toWormholeFormat(address(this)),
             sequence1,
             bytes32(0x0)
         );
-        vaaKeys[1] = IWormholeRelayer.VaaKey(
-            IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE,
+        vaaKeys[1] = VaaKey(
+            VaaKeyType.EMITTER_SEQUENCE,
             wormhole.chainId(),
-            relayer.toWormholeFormat(address(this)),
+            toWormholeFormat(address(this)),
             sequence2,
             bytes32(0x0)
         );
@@ -157,13 +157,13 @@ contract MockRelayerIntegration is IWormholeReceiver {
         uint16[] memory chains,
         uint256[] memory computeBudgets
     ) public payable returns (uint64 sequence) {
-        IWormholeRelayer.VaaKey[] memory vaaKeys = new IWormholeRelayer.VaaKey[](messages.length + 1);
+        VaaKey[] memory vaaKeys = new VaaKey[](messages.length + 1);
         for (uint16 i = 0; i < messages.length; i++) {
             sequence = wormhole.publishMessage{value: wormhole.messageFee()}(0, messages[i], 200);
-            vaaKeys[i] = IWormholeRelayer.VaaKey(
-                IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE,
+            vaaKeys[i] = VaaKey(
+                VaaKeyType.EMITTER_SEQUENCE,
                 wormhole.chainId(),
-                relayer.toWormholeFormat(address(this)),
+                toWormholeFormat(address(this)),
                 sequence,
                 bytes32(0x0)
             );
@@ -171,19 +171,19 @@ contract MockRelayerIntegration is IWormholeReceiver {
         uint64 lastSequence = wormhole.publishMessage{value: wormhole.messageFee()}(
             0, encodeFurtherInstructions(furtherInstructions), 200
         );
-        vaaKeys[messages.length] = IWormholeRelayer.VaaKey(
-            IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE,
+        vaaKeys[messages.length] = VaaKey(
+            VaaKeyType.EMITTER_SEQUENCE,
             wormhole.chainId(),
-            relayer.toWormholeFormat(address(this)),
+            toWormholeFormat(address(this)),
             lastSequence,
             bytes32(0x0)
         );
-        IWormholeRelayer.Send[] memory requests = new IWormholeRelayer.Send[](chains.length);
+        Send[] memory requests = new Send[](chains.length);
         for (uint16 i = 0; i < chains.length; i++) {
-            requests[i] = IWormholeRelayer.Send({
-                targetChain: chains[i],
+            requests[i] = Send({
+                targetChainId: chains[i],
                 targetAddress: registeredContracts[chains[i]],
-                refundChain: chains[i],
+                refundChainId: chains[i],
                 refundAddress: registeredContracts[chains[i]],
                 maxTransactionFee: computeBudgets[i],
                 receiverValue: 0,
@@ -212,14 +212,14 @@ contract MockRelayerIntegration is IWormholeReceiver {
         address refundAddress,
         uint256 receiverValue,
         bytes memory payload,
-        IWormholeRelayer.VaaKey[] memory vaaKeys
+        VaaKey[] memory vaaKeys
     ) internal returns (uint64 sequence) {
 
-        IWormholeRelayer.Send memory request = IWormholeRelayer.Send({
-            targetChain: targetChainId,
-            targetAddress: relayer.toWormholeFormat(address(destination)),
-            refundChain: refundChainId,
-            refundAddress: relayer.toWormholeFormat(address(refundAddress)), // This will be ignored on the target chain if the intent is to perform a forward
+        Send memory request = Send({
+            targetChainId: targetChainId,
+            targetAddress: toWormholeFormat(address(destination)),
+            refundChainId: refundChainId,
+            refundAddress: toWormholeFormat(address(refundAddress)), // This will be ignored on the target chain if the intent is to perform a forward
             maxTransactionFee: msg.value - 3 * wormhole.messageFee() - receiverValue,
             receiverValue: receiverValue,
             consistencyLevel: 200,
@@ -235,7 +235,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
     }
 
     function receiveWormholeMessages(
-        IWormholeReceiver.DeliveryData memory deliveryData,
+        DeliveryData memory deliveryData,
         bytes[] memory wormholeObservations
     ) public payable override {
         // loop through the array of wormhole observations from the batch and store each payload
@@ -259,27 +259,27 @@ contract MockRelayerIntegration is IWormholeReceiver {
         require(valid, reason);
         FurtherInstructions memory instructions = decodeFurtherInstructions(parsed.payload);
         if (instructions.keepSending) {
-            IWormholeRelayer.VaaKey[] memory vaaKeys =
-                new IWormholeRelayer.VaaKey[](instructions.newMessages.length);
+            VaaKey[] memory vaaKeys =
+                new VaaKey[](instructions.newMessages.length);
             for (uint16 i = 0; i < instructions.newMessages.length; i++) {
                 uint64 sequence = wormhole.publishMessage{value: wormhole.messageFee()}(
                     parsed.nonce, instructions.newMessages[i], 200
                 );
-                vaaKeys[i] = IWormholeRelayer.VaaKey(
-                    IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE,
+                vaaKeys[i] = VaaKey(
+                    VaaKeyType.EMITTER_SEQUENCE,
                     wormhole.chainId(),
-                    relayer.toWormholeFormat(address(this)),
+                    toWormholeFormat(address(this)),
                     sequence,
                     bytes32(0x0)
                 );
             }
-            IWormholeRelayer.Send[] memory sendRequests = new IWormholeRelayer.Send[](instructions.chains.length);
+            Send[] memory sendRequests = new Send[](instructions.chains.length);
             for (uint16 i = 0; i < instructions.chains.length; i++) {
                 bytes memory emptyArray;
-                sendRequests[i] = IWormholeRelayer.Send({
-                    targetChain: instructions.chains[i],
+                sendRequests[i] = Send({
+                    targetChainId: instructions.chains[i],
                     targetAddress: registeredContracts[instructions.chains[i]],
-                    refundChain: instructions.chains[i],
+                    refundChainId: instructions.chains[i],
                     refundAddress: registeredContracts[instructions.chains[i]],
                     maxTransactionFee: relayer.quoteGas(
                         instructions.chains[i], instructions.gasLimits[i], relayer.getDefaultRelayProvider()
@@ -342,7 +342,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
         registeredContracts[chainId] = emitterAddress_;
     }
 
-    function registerEmitters(Structs.XAddress[] calldata emitters) public {
+    function registerEmitters(XAddress[] calldata emitters) public {
         require(msg.sender == owner);
         for (uint256 i = 0; i < emitters.length; i++) {
             registeredContracts[emitters[i].chainId] = emitters[i].addr;

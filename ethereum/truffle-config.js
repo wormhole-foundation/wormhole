@@ -1,7 +1,6 @@
 require("dotenv").config({ path: ".env" });
 const HDWalletProvider = require("@truffle/hdwallet-provider");
 const KLAYHDWalletProvider = require("truffle-hdwallet-provider-klaytn");
-const Caver = require("caver-js");
 
 module.exports = {
   networks: {
@@ -375,6 +374,7 @@ module.exports = {
           enabled: true,
           runs: 200,
         },
+        viaIR: false,
       },
     },
   },

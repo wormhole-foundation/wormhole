@@ -1,7 +1,7 @@
 // contracts/Setters.sol
 // SPDX-License-Identifier: Apache 2
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/utils/Context.sol";
 
@@ -58,12 +58,12 @@ contract RelayProviderSetters is Context, RelayProviderState {
     }
 
     function setAssetConversionBuffer(
-        uint16 targetChain,
+        uint16 targetChainId,
         uint16 tolerance,
         uint16 toleranceDenominator
     ) internal {
         RelayProviderStorage.AssetConversion storage assetConversion =
-            _state.assetConversion[targetChain];
+            _state.assetConversion[targetChainId];
         assetConversion.buffer = tolerance;
         assetConversion.denominator = toleranceDenominator;
     }

@@ -76,8 +76,12 @@ var (
 	IbcReceiverActionUpdateChannelChain GovernanceAction = 1
 =======
 	// Wormhole relayer governance actions
+<<<<<<< HEAD
 	WormholeRelayerSetDefaultRelayProvider GovernanceAction = 4
 >>>>>>> 22d7d1a5 (gRelayer: guardian changes (#2788))
+=======
+	WormholeRelayerSetDefaultRelayProvider GovernanceAction = 3
+>>>>>>> f4a4b3df (Relayer: CoreRelayer large refactor  (#2897))
 )
 
 type (

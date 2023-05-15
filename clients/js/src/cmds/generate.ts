@@ -223,8 +223,8 @@ export const builder = function (y: typeof yargs) {
           yargs
             .option("module", {
               alias: "m",
-              describe: "Module to upgrade",
-              choices: ["Core", "NFTBridge", "TokenBridge", "CoreRelayer"],
+              describe: "Module to recover",
+              choices: ["Core", "NFTBridge", "TokenBridge"],
               demandOption: true,
             } as const)
             .option("evm-chain-id", {
