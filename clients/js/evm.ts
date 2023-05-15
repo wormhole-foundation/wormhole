@@ -374,11 +374,6 @@ export async function execute_evm(
             //console.log("Hash: " + (await rb.submitContractUpgrade(vaa, overrides)).hash)
             console.log("Don't forget to verify the new implementation! See ethereum/VERIFY.md for instructions")
             break
-          case "RecoverChainId":
-            console.log("Recovering chain ID")
-            console.log("Error: The published NPM SDK doesn't have the typechain binding for CoreRelayer yet")
-            //console.log("Hash: " + (await rb.submitRecoverChainId(vaa, overrides)).hash)
-            break
           case "RegisterChain":
             console.log("Registering chain")
             console.log("Error: The published NPM SDK doesn't have the typechain binding for CoreRelayer yet")

@@ -138,7 +138,7 @@ abstract contract CoreRelayerGovernance is CoreRelayerBase, ERC1967Upgrade {
   ) private returns (address newProvider) {
     bytes memory payload = verifyAndConsumeGovernanceVM(encodedVm);
     //TODO AMO: what's action 4?
-    uint offset = parseAndCheckPayloadHeader(payload, 4, true);
+    uint offset = parseAndCheckPayloadHeader(payload, 3, true);
 
     bytes32 newProviderWhFmt;
     (newProviderWhFmt, offset) = payload.asBytes32Unchecked(offset);

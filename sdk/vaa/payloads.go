@@ -61,7 +61,7 @@ var (
 	CircleIntegrationActionUpgradeContractImplementation GovernanceAction = 3
 
 	// Wormhole relayer governance actions
-	WormholeRelayerSetDefaultRelayProvider GovernanceAction = 4
+	WormholeRelayerSetDefaultRelayProvider GovernanceAction = 3
 )
 
 type (
