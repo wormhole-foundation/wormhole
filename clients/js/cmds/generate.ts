@@ -233,9 +233,9 @@ exports.builder = function (y: typeof yargs) {
           return yargs
             .option("module", {
               alias: "m",
-              describe: "Module to upgrade",
+              describe: "Module to recover",
               type: "string",
-              choices: ["Core", "NFTBridge", "TokenBridge", "CoreRelayer"],
+              choices: ["Core", "NFTBridge", "TokenBridge"],
               required: true,
             })
             .option("evm-chain-id", {
@@ -252,7 +252,7 @@ exports.builder = function (y: typeof yargs) {
             });
         },
         (argv) => {
-          let module = argv["module"] as "Core" | "NFTBridge" | "TokenBridge" | "CoreRelayer";
+          let module = argv["module"] as "Core" | "NFTBridge" | "TokenBridge";
           let payload: RecoverChainId = {
             module,
             type: "RecoverChainId",
