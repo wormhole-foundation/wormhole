@@ -205,7 +205,7 @@ export const builder = function (y: typeof yargs) {
       .option("validator-args", validator_args)
     }, (argv) => {
         const dir = `${config.wormholeDir}/ethereum`;
-        const cmd = `cd ${dir} && npx ganache-cli -e 10000 -d -t="1970-01-01T00:00:00+00:00"`;
+        const cmd = `cd ${dir} && npx ganache-cli --wallet.defaultBalance 10000 --wallet.deterministic --chain.time="1970-01-01T00:00:00+00:00"`;
         runCommand(cmd, argv['validator-args'])
     })
 >>>>>>> f4a4b3df (Relayer: CoreRelayer large refactor  (#2897)):clients/js/cmds/evm.ts
