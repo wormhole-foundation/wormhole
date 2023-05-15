@@ -1,68 +1,41 @@
 // SPDX-License-Identifier: Apache 2
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.19;
 
-import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
+import {IWormholeRelayer} from "../../interfaces/relayer/IWormholeRelayer.sol";
 
-import "./CoreRelayerSendOverloads.sol";
-import "./CoreRelayerDelivery.sol";
+import {getDefaultRelayProviderState} from "./CoreRelayerStorage.sol";
+import {CoreRelayerGovernance} from "./CoreRelayerGovernance.sol";
+import {CoreRelayerSend} from "./CoreRelayerSend.sol";
+import {CoreRelayerDelivery} from "./CoreRelayerDelivery.sol";
+import {CoreRelayerBase} from "./CoreRelayerBase.sol";
 
-/*
- * Inheritance Graph:
- * Note: CoreRelayer prefix omitted
- *
- *          SendOverloads -> Send -v 
- *        /                        |--> Messages -> Getters -v
- * CoreRelayer                     |                         |-> State
- *        \                        |--> Setters -------------^
- *         Delivery ---------------^
- */
+//CoreRelayerGovernance inherits from ERC1967Upgrade, i.e. this is a proxy contract!
+contract CoreRelayer is
+  CoreRelayerGovernance,
+  CoreRelayerSend,
+  CoreRelayerDelivery,
+  IWormholeRelayer
+{
+  address private immutable initialDefaultRelayProvider;
 
-contract CoreRelayer is CoreRelayerSendOverloads, CoreRelayerDelivery, ERC1967Upgrade {
-    error ImplementationAlreadyInitialized();
+  //the only normal storage variable - everything else uses slot pattern
+  //no point doing it for this one since it is entirely one-off and of no interest to the rest
+  //  of the contract and it also can't accidentally be moved because we are at the bottom of
+  //  the inheritance hierarchy here
+  bool private initialized;
 
-    constructor(address _forwardWrapper) CoreRelayerGetters(_forwardWrapper) {}
+  constructor(
+    address wormhole,
+    address _initialDefaultRelayProvider
+  ) CoreRelayerBase(wormhole) {
+    initialDefaultRelayProvider = _initialDefaultRelayProvider;
+  }
 
-    // this function needs to be exposed for an upgrade to pass
-    function initialize() public virtual initializer {}
-
-    modifier initializer() {
-        address impl = ERC1967Upgrade._getImplementation();
-
-        if (isInitialized(impl)) {
-            revert ImplementationAlreadyInitialized();
-        }
-
-        setInitialized(impl);
-
-        _;
-    }
-
-    function submitContractUpgrade(bytes memory vaa) public {
-        (bool success, bytes memory reason) = getWormholeRelayerCallerAddress().delegatecall(
-            abi.encodeWithSignature("submitContractUpgrade(bytes)", vaa)
-        );
-        require(success, string(reason));
-    }
-
-    function registerCoreRelayerContract(bytes memory vaa) public {
-        (bool success, bytes memory reason) = getWormholeRelayerCallerAddress().delegatecall(
-            abi.encodeWithSignature("registerCoreRelayerContract(bytes)", vaa)
-        );
-        require(success, string(reason));
-    }
-
-    function setDefaultRelayProvider(bytes memory vaa) public {
-        (bool success, bytes memory reason) = getWormholeRelayerCallerAddress().delegatecall(
-            abi.encodeWithSignature("setDefaultRelayProvider(bytes)", vaa)
-        );
-        require(success, string(reason));
-    }
-
-    function submitRecoverChainId(bytes memory vaa) public {
-        (bool success, bytes memory reason) = getWormholeRelayerCallerAddress().delegatecall(
-            abi.encodeWithSignature("submitRecoverChainId(bytes)", vaa)
-        );
-        require(success, string(reason));
-    }
+  //needs to be called upon construction of the EC1967 proxy
+  function initialize() public {
+    assert(!initialized);
+    initialized = true;
+    getDefaultRelayProviderState().defaultRelayProvider = initialDefaultRelayProvider;
+  }
 }

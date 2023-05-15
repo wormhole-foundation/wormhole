@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "../../contracts/interfaces/IWormhole.sol";
 import "../../contracts/interfaces/relayer/IWormholeReceiver.sol";
 import "../../contracts/interfaces/relayer/IWormholeRelayer.sol";
+import "../../contracts/interfaces/relayer/IRelayProvider.sol";
 
 /**
  * This contract is a malicious "integration" that attempts to attack the forward mechanism.
@@ -36,7 +37,7 @@ contract AttackForwardIntegration is IWormholeReceiver {
 
     // This is the function which receives all messages from the remote contracts.
     function receiveWormholeMessages(
-        IWormholeReceiver.DeliveryData memory deliveryData,
+        DeliveryData memory deliveryData,
         bytes[] memory vaas
     ) public payable override {
         // Do nothing. The attacker doesn't care about this message; he sends it himself.
@@ -50,22 +51,22 @@ contract AttackForwardIntegration is IWormholeReceiver {
         forward(targetChainId, toWormholeFormat(attackerReward));
     }
 
-    function forward(uint16 targetChain, bytes32 attackerRewardAddress) internal {
+    function forward(uint16 _targetChainId, bytes32 attackerRewardAddress) internal {
         uint256 maxTransactionFee = core_relayer.quoteGas(
-            targetChain, SAFE_DELIVERY_GAS_CAPTURE, core_relayer.getDefaultRelayProvider()
+            _targetChainId, SAFE_DELIVERY_GAS_CAPTURE, core_relayer.getDefaultRelayProvider()
         );
 
         bytes memory emptyArray;
-        IWormholeRelayer.Send memory request = IWormholeRelayer.Send({
-            targetChain: targetChain,
+        Send memory request = Send({
+            targetChainId: _targetChainId,
             targetAddress: attackerRewardAddress,
-            refundChain: targetChain,
+            refundChainId: _targetChainId,
             // All remaining funds will be returned to the attacker
             refundAddress: attackerRewardAddress,
             maxTransactionFee: maxTransactionFee,
             receiverValue: 0,
             payload: emptyArray,
-            vaaKeys: new IWormholeRelayer.VaaKey[](0),
+            vaaKeys: new VaaKey[](0),
             consistencyLevel: 200,
             relayProviderAddress: core_relayer.getDefaultRelayProvider(),
             relayParameters: core_relayer.getDefaultRelayParams()

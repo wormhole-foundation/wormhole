@@ -2,13 +2,11 @@
 
 pragma solidity ^0.8.0;
 
-import {IWormholeRelayer} from "../../contracts/interfaces/relayer/IWormholeRelayer.sol";
-import {IDelivery} from "../../contracts/interfaces/relayer/IDelivery.sol";
-import {IWormholeRelayerInstructionParser} from
-    "../../contracts/interfaces/relayer/IWormholeRelayerInstructionParser.sol";
+import "../../contracts/interfaces/relayer/IWormholeRelayer.sol";
 import {IWormhole} from "../../contracts/interfaces/IWormhole.sol";
 import {WormholeSimulator} from "./WormholeSimulator.sol";
-
+import {toWormholeFormat} from "../../contracts/relayer/coreRelayer/Utils.sol";
+import {CoreRelayerSerde} from "../../contracts/relayer/coreRelayer/CoreRelayerSerde.sol";
 import "../../contracts/libraries/external/BytesLib.sol";
 import "forge-std/Vm.sol";
 
@@ -17,7 +15,6 @@ contract MockGenericRelayer {
 
     IWormhole relayerWormhole;
     WormholeSimulator relayerWormholeSimulator;
-    IWormholeRelayerInstructionParser parser;
     uint256 transactionIndex;
 
     address private constant VM_ADDRESS =
@@ -33,12 +30,11 @@ contract MockGenericRelayer {
 
     mapping(bytes32 => bytes) pastEncodedDeliveryVAA;
 
-    constructor(address _wormhole, address _wormholeSimulator, address wormholeRelayer) {
+    constructor(address _wormhole, address _wormholeSimulator) {
         // deploy Wormhole
 
         relayerWormhole = IWormhole(_wormhole);
         relayerWormholeSimulator = WormholeSimulator(_wormholeSimulator);
-        parser = IWormholeRelayerInstructionParser(wormholeRelayer);
         transactionIndex = 0;
     }
 
@@ -80,15 +76,15 @@ contract MockGenericRelayer {
     }
 
     function vaaKeyMatchesVAA(
-        IWormholeRelayer.VaaKey memory vaaKey,
+        VaaKey memory vaaKey,
         bytes memory signedVaa
     ) internal view returns (bool) {
         IWormhole.VM memory parsedVaa = relayerWormhole.parseVM(signedVaa);
-        if (vaaKey.infoType == IWormholeRelayer.VaaKeyType.EMITTER_SEQUENCE) {
+        if (vaaKey.infoType == VaaKeyType.EMITTER_SEQUENCE) {
             return (vaaKey.chainId == parsedVaa.emitterChainId)
                 && (vaaKey.emitterAddress == parsedVaa.emitterAddress)
                 && (vaaKey.sequence == parsedVaa.sequence);
-        } else if (vaaKey.infoType == IWormholeRelayer.VaaKeyType.VAAHASH) {
+        } else if (vaaKey.infoType == VaaKeyType.VAAHASH) {
             return (vaaKey.vaaHash == parsedVaa.hash);
         } else {
             return false;
@@ -110,7 +106,7 @@ contract MockGenericRelayer {
         for (uint16 i = 0; i < encodedVMs.length; i++) {
             if (
                 parsed[i].emitterAddress
-                    == parser.toWormholeFormat(wormholeRelayerContracts[chainId])
+                    == toWormholeFormat(wormholeRelayerContracts[chainId])
                     && (parsed[i].emitterChainId == chainId)
             ) {
                 genericRelay(encodedVMs[i], encodedVMs, parsed[i], deliveryOverrides);
@@ -130,8 +126,8 @@ contract MockGenericRelayer {
     ) internal {
         uint8 payloadId = parsedDeliveryVAA.payload.toUint8(0);
         if (payloadId == 1) {
-            IWormholeRelayerInstructionParser.DeliveryInstruction memory instruction =
-                parser.decodeDeliveryInstruction(parsedDeliveryVAA.payload);
+            DeliveryInstruction memory instruction =
+                CoreRelayerSerde.decodeDeliveryInstruction(parsedDeliveryVAA.payload);
 
             bytes[] memory encodedVMsToBeDelivered = new bytes[](instruction.vaaKeys.length);
 
@@ -146,16 +142,16 @@ contract MockGenericRelayer {
 
             uint256 budget = instruction.maximumRefundTarget + instruction.receiverValueTarget;
 
-            uint16 targetChain = instruction.targetChain;
-            IDelivery.TargetDeliveryParameters memory package = IDelivery.TargetDeliveryParameters({
+            uint16 targetChainId = instruction.targetChainId;
+            TargetDeliveryParameters memory package = TargetDeliveryParameters({
                 encodedVMs: encodedVMsToBeDelivered,
                 encodedDeliveryVAA: encodedDeliveryVAA,
-                relayerRefundAddress: payable(relayers[targetChain]),
+                relayerRefundAddress: payable(relayers[targetChainId]),
                 overrides: deliveryOverrides
             });
 
-            vm.prank(relayers[targetChain]);
-            IDelivery(wormholeRelayerContracts[targetChain]).deliver{value: budget}(package);
+            vm.prank(relayers[targetChainId]);
+            IWormholeRelayerDelivery(wormholeRelayerContracts[targetChainId]).deliver{value: budget}(package);
 
             setInfo(
                 parsedDeliveryVAA.emitterChainId,
@@ -164,11 +160,11 @@ contract MockGenericRelayer {
                 encodedDeliveryVAA
             );
         } else if (payloadId == 2) {
-            IWormholeRelayerInstructionParser.RedeliveryInstruction memory instruction =
-                parser.decodeRedeliveryInstruction(parsedDeliveryVAA.payload);
+            RedeliveryInstruction memory instruction =
+                CoreRelayerSerde.decodeRedeliveryInstruction(parsedDeliveryVAA.payload);
 
-            IWormholeRelayerInstructionParser.DeliveryOverride memory deliveryOverride =
-            IWormholeRelayerInstructionParser.DeliveryOverride({
+            DeliveryOverride memory deliveryOverride =
+            DeliveryOverride({
                 gasLimit: instruction.executionParameters.gasLimit,
                 maximumRefund: instruction.newMaximumRefundTarget,
                 receiverValue: instruction.newReceiverValueTarget,
@@ -182,18 +178,18 @@ contract MockGenericRelayer {
             bytes[] memory oldEncodedVMs =
                 getPastEncodedVMs(instruction.key.chainId, instruction.key.sequence);
 
-            uint16 targetChain = parser.decodeDeliveryInstruction(
+            uint16 targetChainId = CoreRelayerSerde.decodeDeliveryInstruction(
                 relayerWormhole.parseVM(oldEncodedDeliveryVAA).payload
-            ).targetChain;
-            IDelivery.TargetDeliveryParameters memory package = IDelivery.TargetDeliveryParameters({
+            ).targetChainId;
+            TargetDeliveryParameters memory package = TargetDeliveryParameters({
                 encodedVMs: oldEncodedVMs,
                 encodedDeliveryVAA: oldEncodedDeliveryVAA,
-                relayerRefundAddress: payable(relayers[targetChain]),
-                overrides: parser.encodeDeliveryOverride(deliveryOverride)
+                relayerRefundAddress: payable(relayers[targetChainId]),
+                overrides: CoreRelayerSerde.encode(deliveryOverride)
             });
 
-            vm.prank(relayers[targetChain]);
-            IDelivery(wormholeRelayerContracts[targetChain]).deliver{value: budget}(package);
+            vm.prank(relayers[targetChainId]);
+            IWormholeRelayerDelivery(wormholeRelayerContracts[targetChainId]).deliver{value: budget}(package);
         }
     }
 }

@@ -2,15 +2,36 @@
 
 pragma solidity ^0.8.0;
 
+/**
+ * @notice DeliveryData is the struct that the relay provider passes into 'deliver' containing an
+ *     array of the signed wormhole messages that are to be relayed
+ *
+ * @custom:member sourceAddress - the (wormhole format) address on the sending chain which requested
+ *     this delivery.
+ * @custom:member sourceChainId - the wormhole chain ID where this delivery was requested.
+ * @custom:member maximumRefund - the maximum refund that can possibly be awarded at the end of this
+ *     delivery, assuming no gas is used by receiveWormholeMessages.
+ * @custom:member deliveryHash - the VAA hash of the deliveryVAA. 
+ * @custom:member payload - an arbitrary message which was included in the delivery by the
+ *     requester.
+ */
+struct DeliveryData {
+  bytes32 sourceAddress;
+  uint16 sourceChainId;
+  uint256 maximumRefund;
+  bytes32 deliveryHash;
+  bytes payload;
+}
+
 interface IWormholeReceiver {
-    /**
+   /**
      * @notice When a 'send' is performed with this contract as the target, this function will be invoked.
      * To get the address that will invoke this contract, call the 'getDeliveryAddress()' function on this chain (the target chain)'s WormholeRelayer contract
      *
      * NOTE: This function should be restricted such that only getDeliveryAddress() can call it.
      *
      * We also recommend that this function:
-     *      - Stores all received 'deliveryData.deliveryHash's in a mapping (bytes32 => bool), and on every call, checks that deliveryData.deliveryHash has not already been stored in the mpa
+     *      - Stores all received 'deliveryData.deliveryHash's in a mapping (bytes32 => bool), and on every call, checks that deliveryData.deliveryHash has not already been stored in the map
      *        (This is to prevent other users maliciously trying to relay the same message)
      *      - Checks that 'deliveryData.sourceChain' and 'deliveryData.sourceAddress' are indeed who you expect to have requested the calling of 'send' or 'forward' on the source chain
      *
@@ -24,25 +45,8 @@ interface IWormholeReceiver {
      * Always make sure parseAndVerify is called on the Wormhole core contract before trusting the content of a raw VAA,
      * otherwise the VAA may be invalid or malicious.
      */
-    function receiveWormholeMessages(
-        DeliveryData memory deliveryData,
-        bytes[] memory signedVaas
-    ) external payable;
-
-    /**
-     * @notice DeliveryData - This struct contains information about the delivery which is being performed.
-     *
-     * @custom:member sourceAddress - the (wormhole format) address on the sending chain which requested this delivery. Any address is able to initiate a delivery to anywhere else.
-     * @custom:member sourceChain - the wormhole chain ID where this delivery was requested.
-     * @custom:member maximumRefund - the maximum refund that can possibly be awarded at the end of this delivery, assuming no gas is used by receiveWormholeMessages.
-     * @custom:member deliveryHash - the VAA hash of the deliveryVAA.
-     * @custom:member payload - an arbitrary message which was included in the delivery by the requester.
-     */
-    struct DeliveryData {
-        bytes32 sourceAddress;
-        uint16 sourceChain;
-        uint256 maximumRefund;
-        bytes32 deliveryHash;
-        bytes payload;
-    }
+  function receiveWormholeMessages(
+    DeliveryData memory deliveryData,
+    bytes[] memory signedVaas
+  ) external payable;
 }

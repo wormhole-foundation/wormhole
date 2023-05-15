@@ -75,7 +75,6 @@ export type Payload =
     | CoreContractRecoverChainId
     | PortalContractRecoverChainId<"TokenBridge">
     | PortalContractRecoverChainId<"NFTBridge">
-    | PortalContractRecoverChainId<"CoreRelayer">
     | WormholeRelayerSetDefaultRelayProvider
 
 export type ContractUpgrade =
@@ -88,7 +87,6 @@ export type RecoverChainId =
     CoreContractRecoverChainId
     | PortalContractRecoverChainId<"TokenBridge">
     | PortalContractRecoverChainId<"NFTBridge">
-    | PortalContractRecoverChainId<"CoreRelayer">
 
 export function parse(buffer: Buffer): VAA<Payload | Other> {
     const vaa = parseEnvelope(buffer)
@@ -107,7 +105,6 @@ export function parse(buffer: Buffer): VAA<Payload | Other> {
         .or(coreContractRecoverChainId())
         .or(portalContractRecoverChainId("TokenBridge"))
         .or(portalContractRecoverChainId("NFTBridge"))
-        .or(portalContractRecoverChainId("CoreRelayer"))
         .or(wormholeRelayerSetDefaultRelayProvider())
     let payload : Payload | Other | null = parser.parse(vaa.payload)
     if (payload === null) {
@@ -269,9 +266,6 @@ function vaaBody(vaa: VAA<Payload | Other>) {
                 switch (payload.type) {
                     case "ContractUpgrade":
                         payload_str = serialisePortalContractUpgrade(payload)
-                        break
-                    case "RecoverChainId":
-                        payload_str = serialisePortalContractRecoverChainId(payload)
                         break
                     case "RegisterChain":
                         payload_str = serialisePortalRegisterChain(payload)
@@ -910,7 +904,7 @@ function wormholeRelayerSetDefaultRelayProvider(): P<WormholeRelayerSetDefaultRe
             formatter: (_str: string) => "CoreRelayer"
         })
         .uint8("type", {
-            assert: 4,
+            assert: 3,
             formatter: (_action) => "SetDefaultRelayProvider"
         })
         .uint16("chain")
@@ -929,7 +923,7 @@ function wormholeRelayerSetDefaultRelayProvider(): P<WormholeRelayerSetDefaultRe
 function serialiseWormholeRelayerSetDefaultRelayProvider(payload: WormholeRelayerSetDefaultRelayProvider): string {
     const body = [
         encode("bytes32", encodeString(payload.module)),
-        encode("uint8", 4),
+        encode("uint8", 3),
         encode("uint16", payload.chain),
         encode("bytes32", hex(payload.relayProviderAddress)),
     ]
