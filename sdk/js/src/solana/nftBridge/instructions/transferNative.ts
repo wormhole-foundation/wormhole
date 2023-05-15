@@ -1,21 +1,18 @@
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
   PublicKey,
   PublicKeyInitData,
   TransactionInstruction,
 } from "@solana/web3.js";
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { createReadOnlyNftBridgeProgramInterface } from "../program";
+import { TOKEN_METADATA_PROGRAM_ID, deriveTokenMetadataKey } from "../../utils";
 import { getPostMessageAccounts } from "../../wormhole";
 import {
   deriveAuthoritySignerKey,
+  deriveCustodyKey,
   deriveCustodySignerKey,
   deriveNftBridgeConfigKey,
-  deriveCustodyKey,
 } from "../accounts";
-import {
-  deriveSplTokenMetadataKey,
-  SplTokenMetadataProgram,
-} from "../../utils";
+import { createReadOnlyNftBridgeProgramInterface } from "../program";
 
 export function createTransferNativeInstruction(
   nftBridgeProgramId: PublicKeyInitData,
@@ -103,7 +100,7 @@ export function getTransferNativeAccounts(
     config: deriveNftBridgeConfigKey(nftBridgeProgramId),
     from: new PublicKey(from),
     mint: new PublicKey(mint),
-    splMetadata: deriveSplTokenMetadataKey(mint),
+    splMetadata: deriveTokenMetadataKey(mint),
     custody: deriveCustodyKey(nftBridgeProgramId, mint),
     authoritySigner: deriveAuthoritySignerKey(nftBridgeProgramId),
     custodySigner: deriveCustodySignerKey(nftBridgeProgramId),
@@ -116,7 +113,7 @@ export function getTransferNativeAccounts(
     rent,
     systemProgram,
     tokenProgram: TOKEN_PROGRAM_ID,
-    splMetadataProgram: SplTokenMetadataProgram.programId,
+    splMetadataProgram: TOKEN_METADATA_PROGRAM_ID,
     wormholeProgram: new PublicKey(wormholeProgramId),
   };
 }

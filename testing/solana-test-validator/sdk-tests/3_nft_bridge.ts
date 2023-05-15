@@ -1,6 +1,11 @@
 import { expect } from "chai";
 import * as web3 from "@solana/web3.js";
 import {
+  Metadata,
+  PROGRAM_ID as TOKEN_METADATA_PROGRAM_ID,
+  createCreateMetadataAccountV3Instruction,
+} from "@metaplex-foundation/mpl-token-metadata";
+import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   createMint,
   getAccount,
@@ -19,9 +24,8 @@ import {
 import { postVaa } from "../../../sdk/js/src/solana/sendAndConfirmPostVaa";
 import {
   BpfLoaderUpgradeable,
-  getMetadata,
   NodeWallet,
-  SplTokenMetadataProgram,
+  deriveTokenMetadataKey,
 } from "../../../sdk/js/src/solana";
 import {
   deriveWormholeEmitterKey,
@@ -115,26 +119,37 @@ describe("NFT Bridge", () => {
       uri: "https://spl.solana.com/token#example-create-a-non-fungible-token",
     };
 
-    const mint = localVariables.mint;
-    const name = localVariables.nftMeta.name;
-    const symbol = localVariables.nftMeta.symbol;
-    const updateAuthorityIsSigner = false;
-    const uri = localVariables.nftMeta.uri;
-    const creators = null;
-    const sellerFeeBasisPoints = 0;
-    const isMutable = false;
-    const createMetadataIx = SplTokenMetadataProgram.createMetadataAccounts(
-      wallet.key(),
+    const mint: web3.PublicKey = localVariables.mint;
+    const name: string = localVariables.nftMeta.name;
+    const symbol: string = localVariables.nftMeta.symbol;
+    const uri: string = localVariables.nftMeta.uri;
+
+    const accounts = {
+      metadata: deriveTokenMetadataKey(mint),
       mint,
-      wallet.key(),
-      name,
-      symbol,
-      wallet.key(),
-      updateAuthorityIsSigner,
-      uri,
-      creators,
-      sellerFeeBasisPoints,
-      isMutable
+      mintAuthority: wallet.key(),
+      payer: wallet.key(),
+      updateAuthority: wallet.key(),
+    };
+    const args = {
+      createMetadataAccountArgsV3: {
+        data: {
+          name,
+          symbol,
+          uri,
+          sellerFeeBasisPoints: 0,
+          creators: null,
+          collection: null,
+          uses: null,
+        },
+        isMutable: false,
+        collectionDetails: null,
+      },
+    };
+    const createMetadataIx = createCreateMetadataAccountV3Instruction(
+      accounts,
+      args,
+      TOKEN_METADATA_PROGRAM_ID
     );
 
     const createMetadataTx = await web3.sendAndConfirmTransaction(
@@ -323,9 +338,8 @@ describe("NFT Bridge", () => {
       expect(accounts.systemProgram.equals(web3.SystemProgram.programId)).to.be
         .true;
       expect(accounts.tokenProgram.equals(TOKEN_PROGRAM_ID)).is.true;
-      expect(
-        accounts.splMetadataProgram.equals(SplTokenMetadataProgram.programId)
-      ).is.true;
+      expect(accounts.splMetadataProgram.equals(TOKEN_METADATA_PROGRAM_ID)).is
+        .true;
       expect(
         accounts.associatedTokenProgram.equals(ASSOCIATED_TOKEN_PROGRAM_ID)
       ).is.true;
@@ -401,9 +415,8 @@ describe("NFT Bridge", () => {
       expect(accounts.systemProgram.equals(web3.SystemProgram.programId)).to.be
         .true;
       expect(accounts.tokenProgram.equals(TOKEN_PROGRAM_ID)).is.true;
-      expect(
-        accounts.splMetadataProgram.equals(SplTokenMetadataProgram.programId)
-      ).is.true;
+      expect(accounts.splMetadataProgram.equals(TOKEN_METADATA_PROGRAM_ID)).is
+        .true;
       expect(accounts.wormholeProgram.equals(CORE_BRIDGE_ADDRESS)).is.true;
     });
 
@@ -467,9 +480,8 @@ describe("NFT Bridge", () => {
       expect(accounts.systemProgram.equals(web3.SystemProgram.programId)).to.be
         .true;
       expect(accounts.tokenProgram.equals(TOKEN_PROGRAM_ID)).is.true;
-      expect(
-        accounts.splMetadataProgram.equals(SplTokenMetadataProgram.programId)
-      ).is.true;
+      expect(accounts.splMetadataProgram.equals(TOKEN_METADATA_PROGRAM_ID)).is
+        .true;
       expect(accounts.wormholeProgram.equals(CORE_BRIDGE_ADDRESS)).is.true;
     });
 
@@ -524,9 +536,8 @@ describe("NFT Bridge", () => {
       expect(accounts.systemProgram.equals(web3.SystemProgram.programId)).to.be
         .true;
       expect(accounts.tokenProgram.equals(TOKEN_PROGRAM_ID)).is.true;
-      expect(
-        accounts.splMetadataProgram.equals(SplTokenMetadataProgram.programId)
-      ).is.true;
+      expect(accounts.splMetadataProgram.equals(TOKEN_METADATA_PROGRAM_ID)).is
+        .true;
       expect(accounts.wormholeProgram.equals(CORE_BRIDGE_ADDRESS)).is.true;
     });
 
@@ -792,8 +803,9 @@ describe("NFT Bridge", () => {
           custodyAccount
         ).then((account) => account.amount);
 
-        const metadata = await getMetadata(connection, mint).then(
-          (info) => info.data
+        const metadata = await Metadata.fromAccountAddress(
+          connection,
+          deriveTokenMetadataKey(mint)
         );
 
         const tokenChain = 1;
@@ -803,10 +815,10 @@ describe("NFT Bridge", () => {
         const message = ethereumNftBridge.publishTransferNft(
           NFT_TRANSFER_NATIVE_TOKEN_ADDRESS.toString("hex"),
           tokenChain,
-          metadata.name,
-          metadata.symbol,
+          metadata.data.name,
+          metadata.data.symbol,
           tokenId,
-          metadata.uri,
+          metadata.data.uri,
           recipientChain,
           mintAta.toBuffer().toString("hex"),
           nonce

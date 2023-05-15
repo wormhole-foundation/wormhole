@@ -1,6 +1,10 @@
 import { expect } from "chai";
 import * as web3 from "@solana/web3.js";
 import {
+  Metadata,
+  PROGRAM_ID as TOKEN_METADATA_PROGRAM_ID,
+} from "@metaplex-foundation/mpl-token-metadata";
+import {
   createMint,
   getAccount,
   getAssociatedTokenAddressSync,
@@ -30,6 +34,7 @@ import {
   deriveEndpointKey,
   deriveMintAuthorityKey,
   deriveRedeemerAccountKey,
+  deriveTokenMetadataKey,
   deriveWrappedMintKey,
   getAttestTokenAccounts,
   getCompleteTransferNativeAccounts,
@@ -54,7 +59,6 @@ import {
   getTransferWrappedWithPayloadCpiAccounts,
   NodeWallet,
   signSendAndConfirmTransaction,
-  SplTokenMetadataProgram,
 } from "../../../sdk/js/src/solana";
 import {
   deriveWormholeEmitterKey,
@@ -80,6 +84,9 @@ import {
   GUARDIAN_SET_INDEX,
   LOCALHOST,
   WETH_ADDRESS,
+  DEADBEEF_ADDRESS,
+  DEADBEEF_METADATA_ADDRESS,
+  DEADBEEF_MINT_ADDRESS,
 } from "./helpers/consts";
 import { ethAddressToBuffer, now } from "./helpers/utils";
 import {
@@ -517,7 +524,7 @@ describe("Token Bridge", () => {
         "4CgrjMnDneBjBBEyXtcikLTbAWpHAD1cwn8W1sSSCLru"
       );
       expect(accounts.vaa.toString()).to.equal(
-        "AaZqjqvg8QirKetuR799Smfw5gyAWobUooGsvxzr1aoX"
+        "4NDyWDtRvfEdi48a9JgYG28m919hrcdW8gNgRg3jwU99"
       );
       expect(accounts.claim.toString()).to.equal(
         "4dyk94hhqektDX9wUBCL1ZkyQC1Xn3QaTSAdJeZzbTcJ"
@@ -538,9 +545,8 @@ describe("Token Bridge", () => {
       expect(accounts.systemProgram.equals(web3.SystemProgram.programId)).to.be
         .true;
       expect(accounts.tokenProgram.equals(TOKEN_PROGRAM_ID)).is.true;
-      expect(
-        accounts.splMetadataProgram.equals(SplTokenMetadataProgram.programId)
-      ).is.true;
+      expect(accounts.splMetadataProgram.equals(TOKEN_METADATA_PROGRAM_ID)).is
+        .true;
       expect(accounts.wormholeProgram.equals(CORE_BRIDGE_ADDRESS)).is.true;
     });
 
@@ -1552,6 +1558,278 @@ describe("Token Bridge", () => {
           Buffer.compare(wrappedMeta.tokenAddress, expectedTokenAddress)
         ).to.equal(0);
         expect(wrappedMeta.originalDecimals).to.equal(decimals);
+
+        // check metadata
+        const expectedName = `${name} (Wormhole)`.padEnd(32, "\0");
+        const metadata = await Metadata.fromAccountAddress(
+          connection,
+          deriveTokenMetadataKey(mint)
+        );
+        expect(metadata.data.symbol.toString()).equals(symbol.padEnd(10, "\0"));
+        expect(metadata.data.name.toString()).equals(expectedName);
+        localVariables.oldName = expectedName;
+      });
+
+      it("Update (Create) Wrapped with New Metadata", async () => {
+        const tokenAddress = WETH_ADDRESS;
+        const oldName: string = localVariables.oldName;
+
+        const mint = deriveWrappedMintKey(
+          TOKEN_BRIDGE_ADDRESS,
+          ethereumTokenBridge.chain,
+          tokenAddress
+        );
+
+        // check existing metadata
+        {
+          const metadata = await Metadata.fromAccountAddress(
+            connection,
+            deriveTokenMetadataKey(mint)
+          );
+          expect(metadata.data.name.toString()).equals(oldName);
+        }
+
+        const decimals = 18;
+        const symbol = "WETH";
+        const name = "Wrapped Ether";
+        const nonce = 420;
+        const message = ethereumTokenBridge.publishAttestMeta(
+          tokenAddress,
+          decimals,
+          symbol,
+          name,
+          nonce
+        );
+        const signedVaa = guardians.addSignatures(
+          message,
+          [0, 1, 2, 3, 5, 7, 8, 9, 10, 12, 15, 16, 18]
+        );
+
+        const txSignatures = await postVaa(
+          connection,
+          wallet.signTransaction,
+          CORE_BRIDGE_ADDRESS,
+          wallet.key(),
+          signedVaa
+        ).then((results) => results.map((result) => result.signature));
+        const postTx = txSignatures.pop()!;
+        for (const verifyTx of txSignatures) {
+          // console.log(`verifySignatures: ${verifyTx}`);
+        }
+        // console.log(`postVaa:          ${postTx}`);
+
+        const createWrappedIx = createCreateWrappedInstruction(
+          TOKEN_BRIDGE_ADDRESS,
+          CORE_BRIDGE_ADDRESS,
+          wallet.key(),
+          signedVaa
+        );
+
+        const createWrappedTx = await web3.sendAndConfirmTransaction(
+          connection,
+          new web3.Transaction().add(createWrappedIx),
+          [wallet.signer()]
+        );
+        // console.log(`createWrappedTx: ${createWrappedTx}`);
+
+        // verify data
+        const parsed = parseAttestMetaVaa(signedVaa);
+        const messageData = await getPostedVaa(
+          connection,
+          CORE_BRIDGE_ADDRESS,
+          parsed.hash
+        ).then((posted) => posted.message);
+
+        expect(messageData.consistencyLevel).to.equal(
+          ethereumTokenBridge.consistencyLevel
+        );
+        const expectedEmitter = ethAddressToBuffer(
+          ETHEREUM_TOKEN_BRIDGE_ADDRESS
+        );
+        expect(
+          Buffer.compare(messageData.emitterAddress, expectedEmitter)
+        ).to.equal(0);
+        expect(messageData.emitterChain).to.equal(ethereumTokenBridge.chain);
+        expect(messageData.nonce).to.equal(nonce);
+        expect(messageData.sequence).to.equal(3n);
+        expect(messageData.vaaTime).to.equal(0);
+        expect(messageData.vaaVersion).to.equal(1);
+        expect(Buffer.compare(parsed.payload, messageData.payload)).to.equal(0);
+
+        const assetMeta = parseAttestMetaPayload(messageData.payload);
+        expect(assetMeta.payloadType).to.equal(2);
+        const expectedTokenAddress = ethAddressToBuffer(tokenAddress);
+        expect(
+          Buffer.compare(assetMeta.tokenAddress, expectedTokenAddress)
+        ).to.equal(0);
+        expect(assetMeta.tokenChain).to.equal(ethereumTokenBridge.chain);
+        expect(assetMeta.decimals).to.equal(decimals);
+        expect(assetMeta.symbol).to.equal(symbol);
+        expect(assetMeta.name).to.equal(name);
+
+        // check wrapped mint
+        const mintInfo = await getMint(connection, mint);
+        expect(mintInfo.decimals).to.equal(8);
+        expect(mintInfo.mintAuthority).is.not.null;
+        expect(
+          mintInfo.mintAuthority?.equals(
+            deriveMintAuthorityKey(TOKEN_BRIDGE_ADDRESS)
+          )
+        ).is.true;
+        expect(mintInfo.supply).to.equal(0n);
+
+        // check wrapped meta
+        const wrappedMeta = await getWrappedMeta(
+          connection,
+          TOKEN_BRIDGE_ADDRESS,
+          mint
+        );
+        expect(wrappedMeta.chain).to.equal(ethereumTokenBridge.chain);
+        expect(
+          Buffer.compare(wrappedMeta.tokenAddress, expectedTokenAddress)
+        ).to.equal(0);
+        expect(wrappedMeta.originalDecimals).to.equal(decimals);
+
+        // check metadata
+        const metadata = await Metadata.fromAccountAddress(
+          connection,
+          deriveTokenMetadataKey(mint)
+        );
+        expect(metadata.data.name.toString()).not.equals(oldName);
+
+        expect(metadata.data.symbol.toString()).equals(symbol.padEnd(10, "\0"));
+        expect(metadata.data.name.toString()).equals(
+          `${name} (Wormhole)`.padEnd(32, "\0")
+        );
+      });
+
+      it("Update (Create) Wrapped with New Metadata for V1 Metadata Account", async () => {
+        const tokenAddress = DEADBEEF_ADDRESS;
+        const oldExpectedName = "Dead Beef (Wormhole)".padEnd(32, "\0");
+
+        // fetch previously created metadata account
+        // check wrapped mint
+        {
+          const mint = deriveWrappedMintKey(
+            TOKEN_BRIDGE_ADDRESS,
+            ethereumTokenBridge.chain,
+            tokenAddress
+          );
+          expect(mint.toString()).equals(DEADBEEF_MINT_ADDRESS);
+
+          const metadataKey = deriveTokenMetadataKey(mint);
+          expect(metadataKey.toString()).equals(DEADBEEF_METADATA_ADDRESS);
+
+          const metadata = await Metadata.fromAccountAddress(
+            connection,
+            metadataKey
+          );
+          expect(metadata.data.name.toString()).equals(oldExpectedName);
+        }
+
+        const decimals = 18;
+        const symbol = "BEEF";
+        const name = "Dead Beef Modified";
+        const nonce = 420;
+        const message = ethereumTokenBridge.publishAttestMeta(
+          tokenAddress,
+          decimals,
+          symbol,
+          name,
+          nonce
+        );
+        const signedVaa = guardians.addSignatures(
+          message,
+          [0, 1, 2, 3, 5, 7, 8, 9, 10, 12, 15, 16, 18]
+        );
+
+        const txSignatures = await postVaa(
+          connection,
+          wallet.signTransaction,
+          CORE_BRIDGE_ADDRESS,
+          wallet.key(),
+          signedVaa
+        ).then((results) => results.map((result) => result.signature));
+        const postTx = txSignatures.pop()!;
+        for (const verifyTx of txSignatures) {
+          // console.log(`verifySignatures: ${verifyTx}`);
+        }
+        // console.log(`postVaa:          ${postTx}`);
+
+        const createWrappedIx = createCreateWrappedInstruction(
+          TOKEN_BRIDGE_ADDRESS,
+          CORE_BRIDGE_ADDRESS,
+          wallet.key(),
+          signedVaa
+        );
+
+        const createWrappedTx = await web3.sendAndConfirmTransaction(
+          connection,
+          new web3.Transaction().add(createWrappedIx),
+          [wallet.signer()]
+        );
+        // console.log(`createWrappedTx: ${createWrappedTx}`);
+
+        // verify data
+        const parsed = parseAttestMetaVaa(signedVaa);
+        const messageData = await getPostedVaa(
+          connection,
+          CORE_BRIDGE_ADDRESS,
+          parsed.hash
+        ).then((posted) => posted.message);
+
+        expect(messageData.consistencyLevel).to.equal(
+          ethereumTokenBridge.consistencyLevel
+        );
+        const expectedEmitter = ethAddressToBuffer(
+          ETHEREUM_TOKEN_BRIDGE_ADDRESS
+        );
+        expect(
+          Buffer.compare(messageData.emitterAddress, expectedEmitter)
+        ).to.equal(0);
+        expect(messageData.emitterChain).to.equal(ethereumTokenBridge.chain);
+        expect(messageData.nonce).to.equal(nonce);
+        expect(messageData.sequence).to.equal(4n);
+        expect(messageData.vaaTime).to.equal(0);
+        expect(messageData.vaaVersion).to.equal(1);
+        expect(Buffer.compare(parsed.payload, messageData.payload)).to.equal(0);
+
+        const assetMeta = parseAttestMetaPayload(messageData.payload);
+        expect(assetMeta.payloadType).to.equal(2);
+        const expectedTokenAddress = ethAddressToBuffer(tokenAddress);
+        expect(
+          Buffer.compare(assetMeta.tokenAddress, expectedTokenAddress)
+        ).to.equal(0);
+        expect(assetMeta.tokenChain).to.equal(ethereumTokenBridge.chain);
+        expect(assetMeta.decimals).to.equal(decimals);
+        expect(assetMeta.symbol).to.equal(symbol);
+        expect(assetMeta.name).to.equal(name);
+
+        // check wrapped mint
+        const mint = deriveWrappedMintKey(
+          TOKEN_BRIDGE_ADDRESS,
+          assetMeta.tokenChain,
+          assetMeta.tokenAddress
+        );
+        const mintInfo = await getMint(connection, mint);
+        expect(mintInfo.decimals).to.equal(8);
+        expect(mintInfo.mintAuthority).is.not.null;
+        expect(
+          mintInfo.mintAuthority?.equals(
+            deriveMintAuthorityKey(TOKEN_BRIDGE_ADDRESS)
+          )
+        ).is.true;
+        expect(mintInfo.supply).to.equal(0n);
+
+        // check metadata
+        const metadata = await Metadata.fromAccountAddress(
+          connection,
+          deriveTokenMetadataKey(mint)
+        );
+        expect(metadata.data.name.toString()).not.equals(oldExpectedName);
+        expect(metadata.data.name.toString()).equals(
+          `${name} (Wormhole)`.padEnd(32, "\0")
+        );
       });
 
       it("Receive Token", async () => {
@@ -1653,7 +1931,7 @@ describe("Token Bridge", () => {
         ).to.equal(0);
         expect(messageData.emitterChain).to.equal(ethereumTokenBridge.chain);
         expect(messageData.nonce).to.equal(nonce);
-        expect(messageData.sequence).to.equal(3n);
+        expect(messageData.sequence).to.equal(5n);
         expect(messageData.vaaTime).to.equal(0);
         expect(messageData.vaaVersion).to.equal(1);
         expect(
@@ -1900,7 +2178,7 @@ describe("Token Bridge", () => {
     // nft bridge on Ethereum
     const ethereumTokenBridge = new MockEthereumTokenBridge(
       ETHEREUM_TOKEN_BRIDGE_ADDRESS,
-      3 // startSequence
+      10 // startSequence
     );
 
     describe("getOriginalAssetSolana", () => {

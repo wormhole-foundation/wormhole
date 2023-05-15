@@ -89,6 +89,8 @@ pub enum TokenBridgeError {
     InvalidFee,
     InvalidRecipient,
     InvalidVAA,
+    NonexistentTokenMetadataAccount,
+    NotMetadataV1Account,
 }
 
 impl From<TokenBridgeError> for SolitaireError {

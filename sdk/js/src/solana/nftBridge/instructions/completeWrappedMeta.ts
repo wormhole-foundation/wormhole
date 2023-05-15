@@ -1,3 +1,4 @@
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
   PublicKey,
   PublicKeyInitData,
@@ -5,26 +6,22 @@ import {
   SYSVAR_RENT_PUBKEY,
   TransactionInstruction,
 } from "@solana/web3.js";
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { createReadOnlyNftBridgeProgramInterface } from "../program";
-import { derivePostedVaaKey } from "../../wormhole";
-import {
-  deriveEndpointKey,
-  deriveNftBridgeConfigKey,
-  deriveWrappedMintKey,
-  deriveWrappedMetaKey,
-  deriveMintAuthorityKey,
-} from "../accounts";
 import {
   isBytes,
   ParsedNftTransferVaa,
   parseNftTransferVaa,
   SignedVaa,
 } from "../../../vaa";
+import { deriveTokenMetadataKey, TOKEN_METADATA_PROGRAM_ID } from "../../utils";
+import { derivePostedVaaKey } from "../../wormhole";
 import {
-  deriveSplTokenMetadataKey,
-  SplTokenMetadataProgram,
-} from "../../utils";
+  deriveEndpointKey,
+  deriveMintAuthorityKey,
+  deriveNftBridgeConfigKey,
+  deriveWrappedMetaKey,
+  deriveWrappedMintKey,
+} from "../accounts";
+import { createReadOnlyNftBridgeProgramInterface } from "../program";
 
 export function createCompleteWrappedMetaInstruction(
   nftBridgeProgramId: PublicKeyInitData,
@@ -92,12 +89,12 @@ export function getCompleteWrappedMetaAccounts(
     ),
     mint,
     wrappedMeta: deriveWrappedMetaKey(nftBridgeProgramId, mint),
-    splMetadata: deriveSplTokenMetadataKey(mint),
+    splMetadata: deriveTokenMetadataKey(mint),
     mintAuthority: deriveMintAuthorityKey(nftBridgeProgramId),
     rent: SYSVAR_RENT_PUBKEY,
     systemProgram: SystemProgram.programId,
     tokenProgram: TOKEN_PROGRAM_ID,
-    splMetadataProgram: SplTokenMetadataProgram.programId,
+    splMetadataProgram: TOKEN_METADATA_PROGRAM_ID,
     wormholeProgram: new PublicKey(wormholeProgramId),
   };
 }

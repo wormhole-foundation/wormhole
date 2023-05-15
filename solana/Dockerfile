@@ -15,6 +15,7 @@ COPY migration migration
 COPY Cargo.toml Cargo.toml
 COPY Cargo.lock Cargo.lock
 COPY solitaire solitaire
+COPY external external
 
 ENV RUST_LOG="solana_runtime::system_instruction_processor=trace,solana_runtime::message_processor=trace,solana_bpf_loader=debug,solana_rbpf=debug"
 ENV RUST_BACKTRACE=1
@@ -40,7 +41,7 @@ RUN --mount=type=cache,target=target,id=build \
     cp target/deploy/wormhole_migration.so /opt/solana/deps/wormhole_migration.so && \
     cp target/deploy/token_bridge.so /opt/solana/deps/token_bridge.so && \
     cp target/deploy/nft_bridge.so /opt/solana/deps/nft_bridge.so && \
-    cp modules/token_bridge/token-metadata/spl_token_metadata.so /opt/solana/deps/spl_token_metadata.so
+    cp external/mpl_token_metadata.so /opt/solana/deps/mpl_token_metadata.so
 
 FROM scratch AS export-stage
 COPY --from=builder /opt/solana/deps /

@@ -107,7 +107,7 @@ fn command_create_meta(
     )
     .0;
     println!("Meta account: {}", meta_acc);
-    let ix = spl_token_metadata::instruction::create_metadata_accounts(
+    let ix = spl_token_metadata::instruction::create_metadata_accounts_v3(
         spl_token_metadata::id(),
         meta_acc,
         *mint,
@@ -121,6 +121,9 @@ fn command_create_meta(
         0,
         false,
         false,
+        None,
+        None,
+        None,
     );
     let mut transaction = Transaction::new_with_payer(&[ix], Some(&config.fee_payer.pubkey()));
 
@@ -334,9 +337,15 @@ fn main() {
                 &spl_token_metadata::id(),
             )
             .0;
-            let meta_info = config.rpc_client.get_account(&meta_acc).unwrap();
-            let meta_info =
-                spl_token_metadata::state::Metadata::from_bytes(&meta_info.data).unwrap();
+            let meta_info = spl_token_metadata::utils::meta_deser_unchecked(
+                &mut config
+                    .rpc_client
+                    .get_account(&meta_acc)
+                    .unwrap()
+                    .data
+                    .as_slice(),
+            )
+            .unwrap();
             println!("Key: {:?}", meta_info.key);
             println!("Mint: {}", meta_info.mint);
             println!("Metadata Key: {}", meta_acc);
