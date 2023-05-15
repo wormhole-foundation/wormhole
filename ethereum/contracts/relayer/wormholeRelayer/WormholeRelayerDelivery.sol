@@ -4,7 +4,6 @@ pragma solidity ^0.8.19;
 
 import {IWormhole} from "../../interfaces/IWormhole.sol";
 import {
-    RETURNDATA_TRUNCATION_THRESHOLD,
     InvalidDeliveryVaa,
     InvalidEmitter,
     InsufficientRelayerFunds,
@@ -23,7 +22,7 @@ import {
 import {IWormholeReceiver} from "../../interfaces/relayer/IWormholeReceiver.sol";
 import {IDeliveryProvider} from "../../interfaces/relayer/IDeliveryProviderTyped.sol";
 
-import {pay, min, toWormholeFormat, fromWormholeFormat} from "../../libraries/relayer/Utils.sol";
+import {pay, min, toWormholeFormat, fromWormholeFormat, returnLengthBoundedCall} from "../../libraries/relayer/Utils.sol";
 import {
     DeliveryInstruction,
     DeliveryOverride
@@ -269,7 +268,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
 
             bool knownError;
             uint32 gasUsed_;
-            (gasUsed_, knownError) =tryDecodeExecuteInstructionError(revertData);
+            (gasUsed_, knownError) = tryDecodeExecuteInstructionError(revertData);
             results = DeliveryResults(
                 knownError? Gas.wrap(gasUsed_) : vaaInfo.gasLimit,
                 DeliveryStatus.FORWARD_REQUEST_FAILURE,
@@ -331,35 +330,36 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             revert RequesterNotWormholeRelayer();
         }
 
-        Gas preGas = Gas.wrap(gasleft());
-
         // Calls the `receiveWormholeMessages` endpoint on the contract `instruction.targetAddress`
         // (with the gas limit and value specified in instruction, and `encodedVMs` as the input)
-        IWormholeReceiver deliveryTarget =
-            IWormholeReceiver(fromWormholeFormat(vaaInfo.deliveryInstruction.targetAddress));
-        try deliveryTarget.receiveWormholeMessages{
-            gas: vaaInfo.gasLimit.unwrap(),
-            value: vaaInfo.totalReceiverValue.unwrap()
-        }(
+        address payable deliveryTarget =
+            payable(fromWormholeFormat(vaaInfo.deliveryInstruction.targetAddress));
+
+        Gas preGas = Gas.wrap(gasleft());
+
+        bytes memory callData = abi.encodeCall(IWormholeReceiver.receiveWormholeMessages, (
             vaaInfo.deliveryInstruction.payload,
             vaaInfo.encodedVMs,
             vaaInfo.deliveryInstruction.senderAddress,
             vaaInfo.sourceChain,
             vaaInfo.deliveryVaaHash
-        ) {
-            targetRevertDataTruncated = new bytes(0);
-            status = uint8(DeliveryStatus.SUCCESS);
-        } catch (bytes memory revertData) {
-            if (revertData.length > RETURNDATA_TRUNCATION_THRESHOLD) {
-                (targetRevertDataTruncated,) =
-                    revertData.sliceUnchecked(0, RETURNDATA_TRUNCATION_THRESHOLD);
-            } else {
-                targetRevertDataTruncated = revertData;
-            }
-            status = uint8(DeliveryStatus.RECEIVER_FAILURE);
-        }
+        ));
+        (bool success, bytes memory returnedData) = returnLengthBoundedCall(
+            deliveryTarget,
+            callData,
+            vaaInfo.gasLimit.unwrap(),
+            vaaInfo.totalReceiverValue.unwrap()
+        );
 
         Gas postGas = Gas.wrap(gasleft());
+
+        if (success) {
+            targetRevertDataTruncated = new bytes(0);
+            status = uint8(DeliveryStatus.SUCCESS);
+        } else {
+            targetRevertDataTruncated = returnedData;
+            status = uint8(DeliveryStatus.RECEIVER_FAILURE);
+        }
 
         unchecked {
             gasUsed = (preGas - postGas).min(vaaInfo.gasLimit);

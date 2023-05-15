@@ -41,7 +41,7 @@ import {
     decodeEvmExecutionInfoV1,
     encodeEvmExecutionInfoV1
 } from "../../contracts/libraries/relayer/ExecutionParameters.sol";
-import {toWormholeFormat, fromWormholeFormat} from "../../contracts/libraries/relayer/Utils.sol";
+import {toWormholeFormat, fromWormholeFormat, returnLengthBound} from "../../contracts/libraries/relayer/Utils.sol";
 import {BytesParsing} from "../../contracts/libraries/relayer/BytesParsing.sol";
 import "../../contracts/interfaces/relayer/TypedUnits.sol";
 
@@ -2397,5 +2397,11 @@ contract WormholeRelayerTests is Test {
         assertTrue(deliveryData.sourceChain == setup.sourceChain, "Source chain id wrong");
         assertTrue(deliveryData.deliveryHash == deliveryVaaHash, "delivery vaa hash wrong");
         assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message), "payload wrong");
+    }
+
+    function testReturnLengthUpperBoundConstantIsConsistent() public {
+        // `returnLengthBound` is defined in Utils.sol
+        // `RETURNDATA_TRUNCATION_THRESHOLD` is defined in IWormholeRelayer.sol
+        assertEq(returnLengthBound, RETURNDATA_TRUNCATION_THRESHOLD);
     }
 }
