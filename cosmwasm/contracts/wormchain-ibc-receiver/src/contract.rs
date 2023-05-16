@@ -1,15 +1,15 @@
+use crate::error::ContractError;
+use crate::msg::{AllChannelChainsResponse, ChannelChainResponse, ExecuteMsg, QueryMsg};
+use crate::state::{CHANNEL_CHAIN, VAA_ARCHIVE};
 use anyhow::{bail, ensure, Context};
 use cosmwasm_std::{entry_point, to_binary, Binary, Deps, Empty, Event, StdResult};
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Order, Response};
 use serde_wormhole::RawMessage;
+use std::str;
 use wormhole_bindings::WormholeQuery;
 use wormhole_sdk::ibc_receiver::{Action, GovernancePacket};
 use wormhole_sdk::vaa::{Body, Header};
 use wormhole_sdk::Chain;
-
-use crate::error::ContractError;
-use crate::msg::{AllChannelChainsResponse, ChannelChainResponse, ExecuteMsg, QueryMsg};
-use crate::state::{CHANNEL_CHAIN, VAA_ARCHIVE};
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -109,8 +109,8 @@ fn handle_vaa(deps: DepsMut<WormholeQuery>, vaa: Binary) -> anyhow::Result<Event
         } => {
             ensure!(chain_id != Chain::Wormchain, "the wormchain-ibc-receiver contract should not maintain channel mappings to wormchain");
 
-            let channel_id_str = String::from_utf8(channel_id.to_vec())
-                .context("failed to parse channel-id as utf-8")?;
+            let channel_id_str =
+                str::from_utf8(&channel_id).context("failed to parse channel-id as utf-8")?;
             let channel_id_trimmed = channel_id_str.trim_start_matches(char::from(0));
 
             // update storage with the mapping

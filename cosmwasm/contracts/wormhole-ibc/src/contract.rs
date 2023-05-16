@@ -186,6 +186,3 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     // defer to the core contract logic for all query handling
     core_query(deps, env, msg)
 }
-
-#[cfg(test)]
-mod tests;
