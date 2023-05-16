@@ -7,7 +7,7 @@ use cw_wormhole::{
 };
 
 use crate::{
-    state::{RegisterChainChannel, UpgradeContract},
+    state::{RegisterChainChannel, TargetPayload, UpgradeContract},
 };
 
 #[test]
@@ -46,5 +46,17 @@ fn verify_upgrade_contract_deserialize() -> StdResult<()> {
         new_contract,
     } = UpgradeContract::deserialize(&data)?;
     assert_eq!(0x1234, new_contract);
+    Ok(())
+}
+
+#[test]
+fn verify_target_payload_deserialize() -> StdResult<()> {
+    let data = hex::decode("0012ac756341ee5661a37c010946d8d3316bf129bab061e51efaa78c116828b20391").unwrap();
+    let TargetPayload {
+        chain_id,
+        recipient,
+    } = TargetPayload::deserialize(&data)?;
+    assert_eq!(18, chain_id);
+    assert_eq!("ac756341ee5661a37c010946d8d3316bf129bab061e51efaa78c116828b20391", hex::encode(recipient));
     Ok(())
 }

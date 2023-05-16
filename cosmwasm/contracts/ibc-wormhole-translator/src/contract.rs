@@ -1,5 +1,6 @@
 use cw_wormhole::{
     byte_utils::{
+        ByteUtils,
         get_string_from_32,
     },
     error::ContractError,
@@ -7,9 +8,9 @@ use cw_wormhole::{
     state::{vaa_archive_add, vaa_archive_check, GovernancePacket, ParsedVAA},
 };
 
-// use cw_token_bridge::{
-//     msg::{ExecuteMsg as TokenBridgeExecuteMsg, QueryMsg as TokenBridgeQueryMessage},
-// };
+use cw_token_bridge::{
+    msg::{ExecuteMsg as TokenBridgeExecuteMsg, QueryMsg as TokenBridgeQueryMsg},
+};
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -17,7 +18,7 @@ use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Binary, CosmosMsg, Deps, DepsMut, Env,
     MessageInfo, Order, QueryRequest, Reply, Response, StdError, StdResult,
-    WasmMsg, WasmQuery,
+    WasmMsg, WasmQuery, SubMsg,
 };
 
 use crate::{
@@ -28,13 +29,15 @@ use crate::{
     },
     state::{
         bridge_contracts_read, config, config_read,
-        Action, CHAIN_CHANNELS, ConfigInfo, RegisterChainChannel, TokenBridgeMessage, TransferInfo,
+        Action, TransferPayload, CHAIN_CHANNELS, ConfigInfo, RegisterChainChannel, TokenBridgeMessage, TransferInfo,
         TransferWithPayloadInfo, UpgradeContract,
     },
     token_address::{ExternalTokenId},
 };
 
 type HumanAddr = String;
+
+const COMPLETE_TRANSFER_REPLY_ID: u64 = 1;
 
 pub enum TransferType<A> {
     WithoutPayload,
@@ -149,79 +152,29 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
 }
 
 fn submit_vaa(
-    mut deps: DepsMut,
+    deps: DepsMut,
     env: Env,
     _info: MessageInfo,
     data: &Binary,
 ) -> StdResult<Response> {
-    let (_, payload) = parse_and_archive_vaa(deps.branch(), env.clone(), data)?;
-    match payload {
-        Either::Left(governance_packet) => handle_governance_payload(deps, env, &governance_packet),
-
-        // TODO: This seems silly. Rework this to not use left/right.
-        #[cfg(feature = "full")]
-        Either::Right(_)  => ContractError::InvalidVAAAction.std_err(),
-
-        #[cfg(not(feature = "full"))]
-        _ => ContractError::InvalidVAAAction6.std_err(),
-    }
-}
-
-fn handle_complete_transfer_with_payload(
-    mut deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    data: &Binary,
-    relayer_address: &HumanAddr,
-) -> StdResult<Response> {
-    let (vaa, payload) = parse_and_archive_vaa(deps.branch(), env.clone(), data)?;
-
-    if let Either::Right(message) = payload {
-        match message.action {
-            Action::TRANSFER_WITH_PAYLOAD => handle_complete_transfer(
-                deps,
-                env,
-                info,
-                vaa.emitter_chain,
-                vaa.emitter_address,
-                TransferType::WithPayload { payload: () },
-                &message.payload,
-                relayer_address,
-            ),
-            _ => ContractError::InvalidVAAAction.std_err(),
-        }
-    } else {
-        ContractError::InvalidVAAAction.std_err()
-    }
-}
-
-enum Either<A, B> {
-    Left(A),
-    Right(B),
-}
-
-fn parse_and_archive_vaa(
-    deps: DepsMut,
-    env: Env,
-    data: &Binary,
-) -> StdResult<(ParsedVAA, Either<GovernancePacket, TokenBridgeMessage>)> {
     let state = config_read(deps.storage).load()?;
-
     let vaa = parse_vaa(deps.as_ref(), env.block.time.seconds(), data)?;
 
-    if vaa_archive_check(deps.storage, vaa.hash.as_slice()) {
-        return ContractError::VaaAlreadyExecuted.std_err();
-    }
-    vaa_archive_add(deps.storage, vaa.hash.as_slice())?;
-    
-    // check if vaa is from governance
-    if is_governance_emitter(&state, vaa.emitter_chain, &vaa.emitter_address) {
-        let gov_packet = GovernancePacket::deserialize(&vaa.payload)?;
-        return Ok((vaa, Either::Left(gov_packet)));
+    // The only VAAs we expect are governance VAAs.
+    if ! is_governance_emitter(&state, vaa.emitter_chain, &vaa.emitter_address) {
+        return Err(StdError::generic_err("expected a governance VAA"));
     }
 
-    let message = TokenBridgeMessage::deserialize(&vaa.payload)?;
-    Ok((vaa, Either::Right(message)))
+    // Make sure we haven't already processed this VAA, and add it to the archive.
+    if vaa_archive_check(deps.storage, vaa.hash.as_slice()) {
+        return Err(StdError::generic_err("VAA already executed"));
+    }
+
+    vaa_archive_add(deps.storage, vaa.hash.as_slice())?;
+
+    // Parse the governance payload and execute it.
+    let gov_packet = GovernancePacket::deserialize(&vaa.payload)?;
+    handle_governance_payload(deps, env, &gov_packet)
 }
 
 fn parse_vaa(deps: Deps, block_time: u64, data: &Binary) -> StdResult<ParsedVAA> {
@@ -245,14 +198,12 @@ fn handle_governance_payload(
     let module = get_string_from_32(&gov_packet.module);
 
     if module != "IbcTranslator" {
-        return Err(StdError::generic_err("this is not a valid module"));
+        return Err(StdError::generic_err("governance VAA is for an invalid module"));
     }
 
     if gov_packet.chain != 0 && gov_packet.chain != cfg.chain_id {
-        return Err(StdError::generic_err(
-            "the governance VAA is for another chain",
-        ));
-    }
+        return Err(StdError::generic_err("governance VAA is for another chain"));
+    }    
 
     match gov_packet.action {
         1u8 => handle_register_chain_channel(deps, env, &gov_packet.payload),
@@ -295,18 +246,106 @@ fn handle_upgrade_contract(_deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResul
         .add_attribute("action", "contract_upgrade"))
 }
 
-#[allow(clippy::too_many_arguments)]
-fn handle_complete_transfer(
-    _deps: DepsMut,
-    _env: Env,
-    _info: MessageInfo,
-    _emitter_chain: u16,
-    _emitter_address: Vec<u8>,
-    _transfer_type: TransferType<()>,
-    _data: &Vec<u8>,
-    _relayer_address: &HumanAddr,
+fn handle_complete_transfer_with_payload(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    vaa: &Binary,
+    relayer_address: &HumanAddr, 
 ) -> StdResult<Response> {
-    Ok(Response::new())
+    let cfg = config_read(deps.storage).load()?;
+    let parsed_vaa = parse_vaa(deps.as_ref(), env.block.time.seconds(), vaa)?;
+
+    if parsed_vaa.payload.len() < 1 {
+        return Err(StdError::generic_err("payload is missing"));
+    }
+
+    if parsed_vaa.payload[0] != 3 {
+        return Err(StdError::generic_err("unexpected payload type"));
+    }    
+
+    // Query the token bridge to parse the payload3 VAA.
+    let token_bridge_query_msg = to_binary(&TokenBridgeQueryMsg::TransferInfo { vaa: vaa.clone() })?;
+    let transfer_info: TransferInfoResponse = deps
+        .querier
+        .query(&QueryRequest::Wasm(WasmQuery::Smart {
+            contract_addr: cfg.token_bridge_contract.clone(),
+            msg: token_bridge_query_msg,
+        }))?;
+    
+    if transfer_info.recipient_chain != cfg.chain_id {
+        return Err(StdError::generic_err("invalid recipient chain"));
+    }
+
+    // DEFENSE IN-DEPTH CHECK FOR PAYLOAD3 VAAs
+    // ensure that the transfer vaa recipient is this contract.
+    // we should never process any VAAs that are not directed to this contract.
+    let target_address = (&transfer_info.recipient.as_slice()).get_address(0);
+    let recipient = deps.api.addr_humanize(&target_address)?;  
+    if recipient != env.contract.address {
+        return Err(StdError::generic_err("invalid recipient address"));
+    }
+
+    // let TargetPayload {
+    //     target_chain_id,
+    //     target_recipient,
+    // } = RegisterChainChannel::deserialize(data)?;
+
+    let payload: TransferPayload = serde_json_wasm::from_slice(&transfer_info.payload).unwrap();
+    match payload {
+        TransferPayload::BasicTransfer { target_chain_id, target_recipient } => {
+            handle_complete_transfer_with_payload2(
+                deps,
+                env,
+                info,
+                cfg.token_bridge_contract.clone(),
+                vaa.clone(),
+                relayer_address,
+                &transfer_info,
+                target_chain_id,
+                target_recipient,
+            )
+        }
+    }
+}
+
+fn handle_complete_transfer_with_payload2(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    token_bridge_contract: String,
+    vaa: Binary,
+    relayer_address: &HumanAddr,
+    transfer_info: &TransferInfoResponse,
+    target_chain_id: u16,
+    target_recipient: Binary,
+) -> StdResult<Response> {
+    return Err(StdError::generic_err("invalid recipient address"));
+    
+
+    // Parse the payload 3 data.
+    // Look up the target chain ID in our map.
+    // Save everything in our state.
+    // Call into the token bridge.
+    // Return OK.
+
+    // Build the complete transfer sub message for the token bridge.
+    let token_bridge_execute_msg = to_binary(&TokenBridgeExecuteMsg::CompleteTransferWithPayload {
+        data: vaa.clone(),
+        relayer: info.sender.to_string(),
+    })?;
+
+    let sub_msg = SubMsg::reply_on_success(
+        CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: token_bridge_contract.clone(),
+            msg: token_bridge_execute_msg,
+            funds: vec![],
+        }),
+        COMPLETE_TRANSFER_REPLY_ID,
+    );
+
+    Ok(Response::new()
+        .add_submessage(sub_msg))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

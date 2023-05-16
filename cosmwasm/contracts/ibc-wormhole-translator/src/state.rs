@@ -2,7 +2,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::str;
 
-use cosmwasm_std::{Addr, StdError, StdResult, Storage, Uint128};
+use cosmwasm_schema::cw_serde;
+use cosmwasm_std::{Addr, Binary, StdError, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -27,28 +28,6 @@ static BANK_TOKEN_HASHES_KEY: &[u8] = b"bank_token_hashes";
 static NATIVE_CW20_HASHES_KEY: &[u8] = b"native_cw20_hashes";
 
 pub const CHAIN_CHANNELS: Map<u16, String> = Map::new("chain_channels");
-
-/// Legacy version of [`ConfigInfo`]. Required for the migration.  In
-/// particular, the last field of [`ConfigInfo`] has been added after the
-/// Terra2 contract's deployment, which means that Terra2 needs to be migrated.
-/// See [`crate::contract::migrate`] for details on why this is necessary.
-/// Once the migration has been executed, this struct (and the corresponding
-/// migration logic) can be deleted.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-pub struct ConfigInfoLegacy {
-    /// Governance chain (typically Solana, i.e. chain id 1)
-    pub gov_chain: u16,
-
-    /// Address of governance contract (typically 0x0000000000000000000000000000000000000000000000000000000000000004)
-    pub gov_address: Vec<u8>,
-
-    /// Address of the core bridge contract
-    pub wormhole_contract: HumanAddr,
-
-    /// Code id of the wrapped token contract. When a new token is attested, the
-    /// token bridge instantiates a new contract from this code id.
-    pub wrapped_asset_code_id: u64,
-}
 
 /// Information about this contract's general parameters.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
@@ -84,10 +63,6 @@ pub fn config(storage: &mut dyn Storage) -> Singleton<ConfigInfo> {
 }
 
 pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<ConfigInfo> {
-    singleton_read(storage, CONFIG_KEY)
-}
-
-pub fn config_read_legacy(storage: &dyn Storage) -> ReadonlySingleton<ConfigInfoLegacy> {
     singleton_read(storage, CONFIG_KEY)
 }
 
@@ -424,4 +399,27 @@ impl RegisterChainChannel {
             channel_id,
         })
     }
+}
+
+pub struct TargetPayload {
+    pub chain_id: u16,
+    pub recipient: Vec<u8>,
+}
+
+impl TargetPayload {
+    pub fn deserialize(data: &Vec<u8>) -> StdResult<Self> {
+        let data = data.as_slice();
+        let chain_id = data.get_u16(0);
+        let recipient = data.get_bytes32(2).to_vec();
+
+        Ok(TargetPayload {
+            chain_id,
+            recipient,
+        })
+    }
+}
+
+#[cw_serde]
+pub enum TransferPayload {
+    BasicTransfer { target_chain_id: u16, target_recipient: Binary },
 }

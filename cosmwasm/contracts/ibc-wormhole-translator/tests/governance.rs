@@ -41,7 +41,7 @@ fn submit_governance_invalid_emitter_chain() {
         .expect_err("submit_vaa should have failed");
 
     assert_eq!(
-        "generic error: invalidvaaaction",
+        "generic error: expected a governance vaa",
         err.root_cause().to_string().to_lowercase()
     );
 }
@@ -62,7 +62,7 @@ fn submit_governance_invalid_emitter_address() {
         .expect_err("submit_vaa should have failed");
 
     assert_eq!(
-        "generic error: invalidvaaaction",
+        "generic error: expected a governance vaa",
         err.root_cause().to_string().to_lowercase()
     );
 }
@@ -89,6 +89,23 @@ fn submit_governance_invalid_signature() {
 }
 
 #[test]
+#[should_panic]
+fn submit_governance_short_payload_should_panic() {
+    // Payload ends after the action.
+    let execute_msg = create_submit_vaa_msg("01000000000100b19e738c7c719159672c52e29007390bc9ab1fbe6312937ec0d8d3077d65a5a9272647064a1b1d465a43d4f50e0743abe44297e113f446c138a7deab8daf15e70000000000a5567d7d00010000000000000000000000000000000000000000000000000000000000000004ee8c114665f9261f20000000000000000000000000000000000000004962635472616e736c61746f7201");
+
+    let (mut router, ibc_wormhole_translator_contract_addr, _, _) = instantiate_contracts();
+    router
+        .execute_contract(
+            Addr::unchecked(OWNER),
+            ibc_wormhole_translator_contract_addr.clone(),
+            &execute_msg,
+            &[],
+        )
+        .expect_err("submit_vaa should have panicked");
+}
+
+#[test]
 fn submit_governance_invalid_module() {
     // Module is IbcReceiver not IbcTranslator.
     let execute_msg = create_submit_vaa_msg("01000000000100251cbabeead4aa70a801e97032d929e8fa403681dc6608127353985970b248f279622101178a7075488abeb50b4b01f7278b4a603b8b3accb7a370e09243ff180000000000a5567d7d00010000000000000000000000000000000000000000000000000000000000000004ee8c114665f9261f200000000000000000000000000000000000000000004962635265636569766572010c2000120000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006368616e6e656c2d3138");
@@ -104,7 +121,7 @@ fn submit_governance_invalid_module() {
         .expect_err("submit_vaa should have failed");
 
     assert_eq!(
-        "generic error: this is not a valid module",
+        "generic error: governance vaa is for an invalid module",
         err.root_cause().to_string().to_lowercase()
     );
 }
@@ -125,7 +142,7 @@ fn submit_governance_not_for_wormchain() {
         .expect_err("submit_vaa should have failed");
 
     assert_eq!(
-        "generic error: the governance vaa is for another chain",
+        "generic error: governance vaa is for another chain",
         err.root_cause().to_string().to_lowercase()
     );
 }
@@ -232,7 +249,7 @@ fn submit_governance_already_executed() {
         .expect_err("submit_vaa should have failed");
 
     assert_eq!(
-        "generic error: vaaalreadyexecuted",
+        "generic error: vaa already executed",
         err.root_cause().to_string().to_lowercase()
     );
 }
