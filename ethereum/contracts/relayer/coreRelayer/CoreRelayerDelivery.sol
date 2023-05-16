@@ -330,28 +330,28 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       sendRequests[0].maxTransactionFee += fundsForForward - totalFee;
     }
 
-    DeliveryInstruction memory firstDeliveryInstruction =
+    (DeliveryInstruction memory firstDeliveryInstruction, IRelayProvider firstRelayProvider) =
       convertSendToDeliveryInstruction(sendRequests[0]);
 
     firstDeliveryInstruction.maximumRefundTarget = min(
       firstDeliveryInstruction.maximumRefundTarget,
-      IRelayProvider(sendRequests[0].relayProviderAddress)
-        .quoteMaximumBudget(sendRequests[0].targetChainId)
+      firstRelayProvider.quoteMaximumBudget(sendRequests[0].targetChainId)
         - firstDeliveryInstruction.receiverValueTarget
     );
 
     //Publishes the DeliveryInstruction and pays the associated relayProvider
     for (uint i = 0; i < forwardInstructions.length;) {
+      (DeliveryInstruction memory instruction, IRelayProvider relayProvider) = i == 0
+        ? (firstDeliveryInstruction, firstRelayProvider)
+        : convertSendToDeliveryInstruction(sendRequests[i]);
+
       publishAndPay(
         wormholeMessageFee,
         sendRequests[i].maxTransactionFee,
         sendRequests[i].receiverValue,
-        ( i == 0
-          ? firstDeliveryInstruction
-          : convertSendToDeliveryInstruction(sendRequests[i])
-        ).encode(),
+        instruction.encode(),
         sendRequests[i].consistencyLevel,
-        IRelayProvider(sendRequests[i].relayProviderAddress)
+        relayProvider
       );
       unchecked{++i;}
     }
@@ -373,7 +373,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     //Total refund to the user
     uint256 refundToRefundAddress = receiverValueRefundAmount
       + (status == DeliveryStatus.FORWARD_REQUEST_SUCCESS ? 0 : transactionFeeRefundAmount);
-    
+
     //Refund the user
     try this.payRefundToRefundAddress(
       deliveryInstruction.refundChainId,
@@ -420,21 +420,21 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       return pay(payable(fromWormholeFormat(refundAddress)), refundAmount)
         ? RefundStatus.REFUND_SENT
         : RefundStatus.REFUND_FAIL;
-    
+
     //cross-chain refund
     IRelayProvider relayProvider = IRelayProvider(fromWormholeFormat(relayerAddress));
+    if (!relayProvider.isChainSupported(refundChainId))
+      return RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED;
+
     uint256 wormholeMessageFee = getWormhole().messageFee();
     uint256 overhead = relayProvider.quoteDeliveryOverhead(refundChainId);
     if (refundAmount <= wormholeMessageFee + overhead)
       return RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH;
 
-    if (!relayProvider.isChainSupported(refundChainId))
-      return RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED;
-
     uint256 refundSubMessageFee;
     unchecked{refundSubMessageFee = refundAmount - wormholeMessageFee;}
 
-    DeliveryInstruction memory crossChainRefundInstruction =
+    (DeliveryInstruction memory crossChainRefundInstruction,) =
       convertSendToDeliveryInstruction(Send({
         targetChainId: refundChainId,
         targetAddress: bytes32(0x0),
@@ -511,7 +511,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
             vaaKey.vaaHash != parsedVaa.hash
           ))
         revert VaaKeysDoNotMatchVaas(uint8(i));
-      
+
       unchecked{++i;}
     }
   }

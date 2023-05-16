@@ -20,6 +20,7 @@ error ExceedsMaximumBudget(
 
 //Currently only 0 is deemed a bogus price
 error RelayProviderQuotedBogusAssetPrice(address relayProvider, uint16 chainId, uint256 price);
+error RelayProviderQuotedBogusGasPrice(address relayProvider, uint16 chainId, uint256 gasPrice);
 error RelayProviderDoesNotSupportTargetChain(address relayer, uint16 chainId);
 
 //When calling `forward()` on the CoreRelayer if no delivery is in progress

@@ -3,6 +3,7 @@
 pragma solidity ^0.8.19;
 
 import {
+  RelayProviderDoesNotSupportTargetChain,
   InsufficientMaxTransactionFee,
   InvalidMsgValue,
   ExceedsMaximumBudget,
@@ -111,17 +112,15 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     uint256 wormholeMessageFee =
       calcAndCheckFees(sendParams.maxTransactionFee, sendParams.receiverValue);
 
-    IRelayProvider relayProvider = IRelayProvider(sendParams.relayProviderAddress);
-    checkRelayProviderSupportsChain(relayProvider, sendParams.targetChainId);
-
-    DeliveryInstruction memory instruction = convertSendToDeliveryInstruction(sendParams);
+    (DeliveryInstruction memory instruction, IRelayProvider relayProvider) =
+      convertSendToDeliveryInstruction(sendParams);
 
     checkBudgetConstraints(
+      instruction.targetChainId,
       instruction.maximumRefundTarget,
       instruction.receiverValueTarget,
       instruction.executionParameters.gasLimit,
-      relayProvider,
-      instruction.targetChainId
+      relayProvider
     );
 
     sequence = publishAndPay(
@@ -137,21 +136,11 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
   function forward(Send memory sendParams) public payable {
     checkMsgSenderInDelivery();
 
-    IRelayProvider relayProvider = IRelayProvider(sendParams.relayProviderAddress);
-    checkRelayProviderSupportsChain(relayProvider, sendParams.targetChainId);
-
-    checkBudgetConstraints(
-      calculateTargetDeliveryMaximumRefund(
-        sendParams.targetChainId, sendParams.maxTransactionFee, relayProvider
-      ),
-      convertReceiverValueAmountToTarget(
-        sendParams.targetChainId, sendParams.receiverValue, relayProvider
-      ),
-      calculateTargetGasDeliveryAmount(
-        sendParams.targetChainId, sendParams.maxTransactionFee, relayProvider
-      ),
-      relayProvider,
-      sendParams.targetChainId
+    calcParamsAndCheckBudgetConstraints(
+      sendParams.targetChainId,
+      sendParams.maxTransactionFee,
+      sendParams.receiverValue,
+      IRelayProvider(sendParams.relayProviderAddress)
     );
 
     //Temporarily save information about the forward in state, so it can be processed after the
@@ -179,32 +168,20 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     uint256 wormholeMessageFee = calcAndCheckFees(newMaxTransactionFee, newReceiverValue);
 
     IRelayProvider relayProvider = IRelayProvider(relayProviderAddress);
-    checkRelayProviderSupportsChain(relayProvider, targetChainId);
+
+    (uint256 maximumRefundTarget, uint256 receiverValueTarget, uint32 gasLimit) =
+      calcParamsAndCheckBudgetConstraints(
+        targetChainId, newMaxTransactionFee, newReceiverValue, relayProvider
+      );
 
     RedeliveryInstruction memory instruction = RedeliveryInstruction({
       key: key,
-      newMaximumRefundTarget: calculateTargetDeliveryMaximumRefund(
-        targetChainId, newMaxTransactionFee, relayProvider
-      ),
-      newReceiverValueTarget: convertReceiverValueAmountToTarget(
-        targetChainId, newReceiverValue, relayProvider
-      ),
+      newMaximumRefundTarget: maximumRefundTarget,
+      newReceiverValueTarget: receiverValueTarget,
       sourceRelayProvider: toWormholeFormat(relayProviderAddress),
       targetChainId: targetChainId,
-      executionParameters: ExecutionParameters({
-        gasLimit: calculateTargetGasDeliveryAmount(
-          targetChainId, newMaxTransactionFee, relayProvider
-        )
-      })
+      executionParameters: ExecutionParameters({gasLimit: gasLimit})
     });
-
-    checkBudgetConstraints(
-      instruction.newMaximumRefundTarget,
-      instruction.newReceiverValueTarget,
-      instruction.executionParameters.gasLimit,
-      relayProvider,
-      targetChainId
-    );
 
     sequence = publishAndPay(
       wormholeMessageFee,
@@ -234,14 +211,15 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     address relayProvider
   ) public view returns (uint256 receiverValue) {
     IRelayProvider provider = IRelayProvider(relayProvider);
+    if (!provider.isChainSupported(targetChainId))
+      revert RelayProviderDoesNotSupportTargetChain(address(provider), targetChainId);
 
-    //Converts `targetAmount` from target chain currency to source chain currency (using
-    //  relayProvider's prices) and applies a multiplier of `1 + (buffer / denominator)`
-    (uint16 buffer, uint16 denominator) = provider.getAssetConversionBuffer(targetChainId);
-    uint256 numerator = uint256(denominator) + buffer;
-    receiverValue = assetConversionHelper(
-      targetChainId, targetAmount, getChainId(), numerator, denominator, true, provider
-    );
+    (uint256 sourcePrice, uint256 targetPrice) =
+      getAssetPricesWithBuffer(getChainId(), targetChainId, provider);
+
+    //we have to round up her since we are going from target to source and we are truncating (i.e.
+    // rounding down) when going the other direction
+    receiverValue = convertAmount(targetAmount, targetPrice, sourcePrice, true);
   }
 
   function getDefaultRelayProvider() public view returns (address relayProvider) {
@@ -267,12 +245,32 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
 
   //Check that the total amount of value the relay provider needs to use for this send is <= the
   //  relayProvider's maximum budget for `targetChainId` and check that the calculated gas is > 0
+  function calcParamsAndCheckBudgetConstraints(
+    uint16 targetChainId,
+    uint256 maxTransactionFee,
+    uint256 receiverValue,
+    IRelayProvider relayProvider
+  ) private view returns (
+    uint256 maximumRefundTarget,
+    uint256 receiverValueTarget,
+    uint32 gasLimit
+  ) {
+    (maximumRefundTarget, receiverValueTarget, gasLimit) =
+      calculateTargetParams(targetChainId, maxTransactionFee, receiverValue, relayProvider);
+
+    checkBudgetConstraints(
+      targetChainId, maximumRefundTarget, receiverValueTarget, gasLimit, relayProvider
+    );
+  }
+
+  //Check that the total amount of value the relay provider needs to use for this send is <= the
+  //  relayProvider's maximum budget for 'targetChainId' and check that the calculated gas is > 0
   function checkBudgetConstraints(
+    uint16 targetChainId,
     uint256 maximumRefundTarget,
     uint256 receiverValueTarget,
     uint32 gasLimit,
-    IRelayProvider relayProvider,
-    uint16 targetChainId
+    IRelayProvider relayProvider
   ) private view {
     if (gasLimit == 0)
       revert InsufficientMaxTransactionFee();
