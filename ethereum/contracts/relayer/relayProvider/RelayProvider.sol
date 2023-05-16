@@ -33,7 +33,7 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
     //Returns the price of purchasing 1 unit of gas on the target chain, denominated in this chain's wei.
     function quoteGasPrice(uint16 targetChainId) public view override returns (GasPrice) {
         Wei gasPriceInSourceChainCurrency =
-            quoteAssetConversion(targetChainId, gasPrice(targetChainId).toWei(), chainId());
+            quoteAssetConversion(targetChainId, gasPrice(targetChainId).priceAsWei(), chainId());
         require(gasPriceInSourceChainCurrency.unwrap() <= type(uint88).max, "Overflow");
         return GasPrice.wrap(uint88(gasPriceInSourceChainCurrency.unwrap()));
     }

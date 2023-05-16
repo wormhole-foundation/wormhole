@@ -243,7 +243,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     if (msg.sender != address(this))
       revert RequesterNotCoreRelayer();
 
-    Gas preGas = GasLib.gas(gasleft());
+    Gas preGas = Gas.wrap(gasleft());
 
     // Calls the `receiveWormholeMessages` endpoint on the contract `instruction.targetAddress`
     // (with the gas limit and value specified in instruction, and `encodedVMs` as the input)
@@ -265,7 +265,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       status = uint8(DeliveryStatus.RECEIVER_FAILURE);
     }
 
-    Gas postGas = GasLib.gas(gasleft());
+    Gas postGas = Gas.wrap(gasleft());
     
     unchecked{gasUsed = (preGas - postGas).min(instruction.executionParameters.gasLimit);}
 
@@ -288,8 +288,9 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       //This does not revert our entire transaction because we invoked executeInstruction via CALL
       //  rather than through a normal, internal function call.
       Wei feeForForward = transactionFeeRefundAmount + totalMsgValue;
-      if (feeForForward < totalFee)
+      if (feeForForward < totalFee) {
         revert Cancelled(uint32(Gas.unwrap(gasUsed)), Wei.unwrap(feeForForward), Wei.unwrap(totalFee));
+      }
       emitForward(transactionFeeRefundAmount, forwardInstructions);
       status = uint8(DeliveryStatus.FORWARD_REQUEST_SUCCESS);
     }
@@ -326,8 +327,6 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     //  msg.value and check that enough funds were passed into the forward (should always be true
     //  as it was already checked)
     Wei fundsForForward;
-    (transactionFeeRefundAmount + totalMsgValue).isU128();
-    // require(transactionFeeRefundAmount + totalMsgValue < type(uint128).max, "overflow, emitForward");
     unchecked{fundsForForward = transactionFeeRefundAmount + totalMsgValue;}
     if (fundsForForward < totalFee)
       revert ForwardNotSufficientlyFunded(Wei.unwrap(fundsForForward), Wei.unwrap(totalFee));
@@ -340,8 +339,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     (DeliveryInstruction memory firstDeliveryInstruction, IRelayProvider firstRelayProvider) =
       convertSendToDeliveryInstruction(sendRequests[0]);
 
-    firstDeliveryInstruction.maximumRefundTarget = min(
-      firstDeliveryInstruction.maximumRefundTarget,
+    firstDeliveryInstruction.maximumRefundTarget = firstDeliveryInstruction.maximumRefundTarget.min(
       firstRelayProvider.quoteMaximumBudget(sendRequests[0].targetChainId)
         - firstDeliveryInstruction.receiverValueTarget
     );
@@ -431,12 +429,12 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     if (!relayProvider.isChainSupported(refundChainId))
       return RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED;
 
-    uint256 wormholeMessageFee = getWormhole().messageFee();
-    uint256 overhead = relayProvider.quoteDeliveryOverhead(refundChainId);
+    Wei wormholeMessageFee = getWormholeMessageFee();
+    Wei overhead = relayProvider.quoteDeliveryOverhead(refundChainId);
     if (refundAmount <= wormholeMessageFee + overhead)
       return RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH;
 
-    uint256 refundSubMessageFee;
+    Wei refundSubMessageFee;
     unchecked{refundSubMessageFee = refundAmount - wormholeMessageFee;}
 
     (DeliveryInstruction memory crossChainRefundInstruction,) =

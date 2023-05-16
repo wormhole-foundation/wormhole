@@ -8,10 +8,11 @@ import "../../contracts/interfaces/relayer/TypedUnits.sol";
 contract UVDTTest is Test {
     using WeiLib for Wei;
     using GasLib for Gas;
+    using DollarLib for Dollar;
 
     function setUp() public {}
 
-    function testWeiBasic(uint64 x) public view {
+    function testWeiBasic(uint64 x) public pure {
         Wei w = Wei.wrap(x);
         WeiPrice p = WeiPrice.wrap(100);
         Dollar value = w.toDollars(p);
@@ -19,7 +20,7 @@ contract UVDTTest is Test {
         require(Dollar.unwrap(value) == uint256(x) * 100, "value should be 100*x");
     }
 
-    function testWeiToGas(uint64 x) public view {
+    function testWeiToGas(uint64 x) public pure {
         Wei w = Wei.wrap(x);
         GasPrice p = GasPrice.wrap(100);
         Gas value = w.toGas(p);
@@ -27,21 +28,12 @@ contract UVDTTest is Test {
         require(Gas.unwrap(value) == uint256(x) / 100, "value should be x/100");
     }
 
-    function testGasToWei(uint64 x) public view {
+    function testGasToWei(uint64 x) public pure {
         Gas w = Gas.wrap(x);
         GasPrice p = GasPrice.wrap(100);
         Wei value = w.toWei(p);
 
         require(Wei.unwrap(value) == uint256(x) * 100, "value should be 100*x");
-    }
-
-    function testGasToDollars(uint64 x) public view {
-        Gas w = Gas.wrap(x);
-        GasPrice gp = GasPrice.wrap(100);
-        WeiPrice wp = WeiPrice.wrap(100);
-        Dollar value = w.toDollars(gp, wp);
-
-        require(Dollar.unwrap(value) == uint256(x) * 100 * 100, "value should be 100*100*x");
     }
 
     function convertAsset(
@@ -51,7 +43,7 @@ contract UVDTTest is Test {
         uint32 multNum,
         uint32 multDenom,
         bool roundUp
-    ) public view {
+    ) public pure {
         Wei w = Wei.wrap(source);
         WeiPrice fp = WeiPrice.wrap(fromPrice);
         WeiPrice tp = WeiPrice.wrap(toPrice);
@@ -70,7 +62,7 @@ contract UVDTTest is Test {
         require(Wei.unwrap(value) == expected, "value should be expected");
     }
 
-    function sourceWeiToTargetGas(uint64 sourceWei) public view {
+    function sourceWeiToTargetGas(uint64 sourceWei) public pure {
         Wei w = Wei.wrap(sourceWei);
 
         // gets smaller
@@ -100,5 +92,30 @@ contract UVDTTest is Test {
                 Gas.unwrap(targetGas) == sourceWei * 2, "round up sourceWei * 1.8 => sourceWei * 2"
             );
         }
+    }
+
+    function testDollarToWei(uint128 x) public pure {
+        Dollar d = Dollar.wrap(x);
+        WeiPrice p = WeiPrice.wrap(100);
+        Wei value = d.toWei(p, false);
+
+        require(Wei.unwrap(value) == uint256(x) / 100, "value should be x/100");
+    }
+
+    function testDollarToGas(uint128 x) public pure {
+        Dollar d = Dollar.wrap(x);
+        GasPrice gp = GasPrice.wrap(1 << 32);
+        WeiPrice wp = WeiPrice.wrap(1 << 32);
+        Gas value = d.toGas(gp, wp);
+
+        require(Gas.unwrap(value) == uint256(x) / (1 << 64), "value should be x/(1<<32)");
+    }
+
+    function testGasMin(uint64 x, uint64 y) public pure {
+        Gas a = Gas.wrap(x);
+        Gas b = Gas.wrap(y);
+        Gas minVal = a.min(b);
+
+        require(Gas.unwrap(minVal) == (x < y ? x : y), "minVal should be min(x, y)");
     }
 }

@@ -29,11 +29,11 @@ import {
 } from "./CoreRelayerStorage.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 
-import "forge-std/console.sol";
-
 abstract contract CoreRelayerBase is IWormholeRelayerBase {
   using WeiLib for Wei;
   using GasLib for Gas;
+  using WeiPriceLib for WeiPrice;
+  using GasPriceLib for GasPrice;
 
   //see https://book.wormhole.com/wormhole/3_coreLayerContracts.html#consistency-levels
   //  15 is valid choice for now but ultimately we want something more canonical (202?)
@@ -141,32 +141,24 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
     address relayProviderAddress,
     bytes memory relayParameters
   ) internal pure returns (Send memory) {
-    (uint128 maxTransactionFee_, uint128 receiverValue_) = 
-      checkFeesLessThanU128(maxTransactionFee, receiverValue);
+    if (maxTransactionFee > type(uint128).max )
+      revert MaxTransactionFeeGreaterThanUint128();
+    if ( receiverValue > type(uint128).max)
+      revert ReceiverValueGreaterThanUint128();
+
     return Send(
       targetChainId,
       targetAddress,
       refundChainId,
       refundAddress,
-      Wei.wrap(maxTransactionFee_), // todo: use intoWei
-      Wei.wrap(receiverValue_),
+      Wei.wrap(maxTransactionFee), // todo: use intoWei
+      Wei.wrap(receiverValue),
       payload,
       vaaKeys,
       consistencyLevel,
       relayProviderAddress,
       relayParameters
     );
-  }
-
-  function checkFeesLessThanU128(
-    uint256 maxTransactionFee,
-    uint256 receiverValue
-  ) internal pure returns (uint128 , uint128){
-    if (maxTransactionFee > type(uint128).max )
-      revert MaxTransactionFeeGreaterThanUint128();
-    if ( receiverValue > type(uint128).max)
-      revert ReceiverValueGreaterThanUint128();
-    return (uint128(maxTransactionFee), uint128(receiverValue));
   }
 
   /** 
@@ -179,7 +171,7 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
   ) internal view returns (DeliveryInstruction memory instruction, IRelayProvider relayProvider) {
     relayProvider = IRelayProvider(send.relayProviderAddress);
 
-    (uint256 maximumRefundTarget, uint256 receiverValueTarget, uint32 gasLimit) =
+    (Wei maximumRefundTarget, Wei receiverValueTarget, Gas gasLimit) =
       calculateTargetParams(
         send.targetChainId, send.maxTransactionFee, send.receiverValue, relayProvider
       );
@@ -205,32 +197,30 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
 
   function calculateTargetParams(
     uint16 targetChainId,
-    uint256 maxTransactionFee,
-    uint256 receiverValue,
+    Wei maxTransactionFee,
+    Wei receiverValue,
     IRelayProvider provider
   ) internal view returns (
-    uint256 maximumRefundTarget,
-    uint256 receiverValueTarget,
-    uint32 gasLimit
+    Wei maximumRefundTarget,
+    Wei receiverValueTarget,
+    Gas gasLimit
   ) {
     if (!provider.isChainSupported(targetChainId))
       revert RelayProviderDoesNotSupportTargetChain(address(provider), targetChainId);
 
-    (uint256 sourcePrice, uint256 targetPrice) =
+    (WeiPrice sourcePrice, WeiPrice targetPrice) =
       getAssetPricesWithBuffer(getChainId(), targetChainId, provider);
 
     receiverValueTarget = convertAmount(receiverValue, sourcePrice, targetPrice, false);
 
-    uint256 overhead = provider.quoteDeliveryOverhead(targetChainId);
+    Wei overhead = provider.quoteDeliveryOverhead(targetChainId);
     if (maxTransactionFee > overhead) { unchecked {
-      uint256 maxFeeSubOverhead = maxTransactionFee - overhead;
+      Wei maxFeeSubOverhead = maxTransactionFee - overhead;
 
       maximumRefundTarget = convertAmount(maxFeeSubOverhead, sourcePrice, targetPrice, false);
 
-      gasLimit = uint32(min(
-        maxFeeSubOverhead / getCheckedGasPriceSource(targetChainId, provider),
-        type(uint32).max
-      ));
+      Gas gasLimitUncapped = maxFeeSubOverhead.toGas(getCheckedGasPriceSource(targetChainId, provider));
+      gasLimit = gasLimitUncapped.min(Gas.wrap(type(uint32).max));
     }}
   }
 
@@ -238,24 +228,24 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
     uint16 sourceChainId,
     uint16 targetChainId,
     IRelayProvider provider
-  ) internal view returns (uint256 sourcePrice, uint256 targetPrice)
+  ) internal view returns (WeiPrice sourcePrice, WeiPrice targetPrice)
   {
     //percentage = premium/base
     //e.g. premium = 5, base = 100 => 5 % premium, targetPrice is inflated by 5 % before conversion
     (uint16 premium, uint16 base) =
       provider.getAssetConversionBuffer(targetChainId);
 
-    uint256 factor;
-    unchecked {factor = uint256(base) + premium;}
+    uint32 factor;
+    unchecked {factor = uint32(base) + premium;}
 
-    sourcePrice = getCheckedAssetPrice(sourceChainId, provider) * base;
-    targetPrice = getCheckedAssetPrice(targetChainId, provider) * factor;
+    sourcePrice = getCheckedAssetPrice(sourceChainId, provider).mul(base);
+    targetPrice = getCheckedAssetPrice(targetChainId, provider).mul(factor);
   }
 
   function getCheckedAssetPrice(
     uint16 chainId,
     IRelayProvider provider
-  ) internal view returns (uint256 price) {
+  ) internal view returns (WeiPrice price) {
     price = provider.quoteAssetPrice(chainId);
     if (WeiPrice.unwrap(price) == 0)
       revert RelayProviderQuotedBogusAssetPrice(address(provider), chainId, WeiPrice.unwrap(price));
@@ -264,20 +254,20 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
   function getCheckedGasPriceSource(
     uint16 targetChainId,
     IRelayProvider provider
-  ) internal view returns (uint256 gasPriceSource) {
+  ) internal view returns (GasPrice gasPriceSource) {
     gasPriceSource = provider.quoteGasPrice(targetChainId);
-    if (gasPriceSource == 0)
-      revert RelayProviderQuotedBogusGasPrice(address(provider), targetChainId, gasPriceSource);
+    if (gasPriceSource.unwrap() == 0)
+      revert RelayProviderQuotedBogusGasPrice(address(provider), targetChainId, gasPriceSource.unwrap());
   }
 
   function convertAmount(
-    uint256 inputAmount,
-    uint256 inputPrice,
-    uint256 outputPrice,
+    Wei inputAmount,
+    WeiPrice inputPrice,
+    WeiPrice outputPrice,
     bool roundUp
-  ) internal pure returns (uint256 ouputAmount) {
-    uint numerator = inputAmount * inputPrice;
-    uint denominator = outputPrice;
-    ouputAmount = (roundUp ? (numerator + denominator - 1) : numerator) / denominator;
+  ) internal pure returns (Wei ouputAmount) {
+    uint numerator = inputAmount.unwrap() * inputPrice.unwrap();
+    uint denominator = outputPrice.unwrap();
+    ouputAmount = Wei.wrap((roundUp ? (numerator + denominator - 1) : numerator) / denominator);
   }
 }

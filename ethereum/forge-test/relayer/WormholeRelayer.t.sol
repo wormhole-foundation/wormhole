@@ -945,6 +945,7 @@ contract WormholeRelayerTests is Test {
         );
 
         genericRelayer.relay(1);
+        console.log("done");
 
         assertTrue(keccak256(target.integration.getMessage()) != keccak256(bytes("Hello!")));
 
