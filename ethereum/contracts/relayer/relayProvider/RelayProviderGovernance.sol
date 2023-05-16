@@ -6,6 +6,7 @@ pragma solidity ^0.8.19;
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 
 import "../../libraries/external/BytesLib.sol";
+import "../../interfaces/relayer/TypedUnits.sol";
 
 import "./RelayProviderGetters.sol";
 import "./RelayProviderSetters.sol";
@@ -16,6 +17,12 @@ abstract contract RelayProviderGovernance is
     RelayProviderSetters,
     ERC1967Upgrade
 {
+    using WeiLib for Wei;
+    using GasLib for Gas;
+    using DollarLib for Dollar;
+    using WeiPriceLib for WeiPrice;
+    using GasPriceLib for GasPrice;
+
     error ChainIdIsZero();
     error GasPriceIsZero();
     error NativeCurrencyPriceIsZero();
@@ -30,9 +37,11 @@ abstract contract RelayProviderGovernance is
     event OwnershipTransfered(address indexed oldOwner, address indexed newOwner);
     event RewardAddressUpdated(address indexed newAddress);
     event TargetChainAddressUpdated(uint16 indexed targetChainId, bytes32 indexed newAddress);
-    event DeliverGasOverheadUpdated(uint32 indexed oldGasOverhead, uint32 indexed newGasOverhead);
+    event DeliverGasOverheadUpdated(Gas indexed oldGasOverhead, Gas indexed newGasOverhead);
     event CoreRelayerUpdated(address coreRelayer);
-    event AssetConversionBufferUpdated(uint16 targetChainId, uint16 buffer, uint16 bufferDenominator);
+    event AssetConversionBufferUpdated(
+        uint16 targetChainId, uint16 buffer, uint16 bufferDenominator
+    );
 
     function updateCoreRelayer(address payable newAddress) external onlyOwner {
         updateCoreRelayerImpl(newAddress);
@@ -99,7 +108,7 @@ abstract contract RelayProviderGovernance is
         emit TargetChainAddressUpdated(targetChainId, newAddress);
     }
 
-    function updateDeliverGasOverhead(uint16 chainId, uint32 newGasOverhead) external onlyOwner {
+    function updateDeliverGasOverhead(uint16 chainId, Gas newGasOverhead) external onlyOwner {
         updateDeliverGasOverheadImpl(chainId, newGasOverhead);
     }
 
@@ -116,16 +125,16 @@ abstract contract RelayProviderGovernance is
         }
     }
 
-    function updateDeliverGasOverheadImpl(uint16 chainId, uint32 newGasOverhead) internal {
-        uint32 currentGasOverhead = deliverGasOverhead(chainId);
+    function updateDeliverGasOverheadImpl(uint16 chainId, Gas newGasOverhead) internal {
+        Gas currentGasOverhead = deliverGasOverhead(chainId);
         setDeliverGasOverhead(chainId, newGasOverhead);
         emit DeliverGasOverheadUpdated(currentGasOverhead, newGasOverhead);
     }
 
     function updatePrice(
         uint16 updateChainId,
-        uint128 updateGasPrice,
-        uint128 updateNativeCurrencyPrice
+        GasPrice updateGasPrice,
+        WeiPrice updateNativeCurrencyPrice
     ) external onlyOwner {
         updatePriceImpl(updateChainId, updateGasPrice, updateNativeCurrencyPrice);
     }
@@ -143,16 +152,16 @@ abstract contract RelayProviderGovernance is
 
     function updatePriceImpl(
         uint16 updateChainId,
-        uint128 updateGasPrice,
-        uint128 updateNativeCurrencyPrice
+        GasPrice updateGasPrice,
+        WeiPrice updateNativeCurrencyPrice
     ) internal {
         if (updateChainId == 0) {
             revert ChainIdIsZero();
         }
-        if (updateGasPrice == 0) {
+        if (updateGasPrice.unwrap() == 0) {
             revert GasPriceIsZero();
         }
-        if (updateNativeCurrencyPrice == 0) {
+        if (updateNativeCurrencyPrice.unwrap() == 0) {
             revert NativeCurrencyPriceIsZero();
         }
 
@@ -161,9 +170,9 @@ abstract contract RelayProviderGovernance is
 
     function updateMaximumBudget(
         uint16 targetChainId,
-        uint256 maximumTotalBudget
+        Wei maximumTotalBudget
     ) external onlyOwner {
-        updateMaximumBudgetImpl(targetChainId, maximumTotalBudget);
+        setMaximumBudget(targetChainId, maximumTotalBudget);
     }
 
     function updateMaximumBudgets(RelayProviderStructs.MaximumBudgetUpdate[] memory updates)
@@ -173,15 +182,11 @@ abstract contract RelayProviderGovernance is
         uint256 updatesLength = updates.length;
         for (uint256 i = 0; i < updatesLength;) {
             RelayProviderStructs.MaximumBudgetUpdate memory update = updates[i];
-            updateMaximumBudgetImpl(update.chainId, update.maximumTotalBudget);
+            setMaximumBudget(update.chainId, update.maximumTotalBudget);
             unchecked {
                 i += 1;
             }
         }
-    }
-
-    function updateMaximumBudgetImpl(uint16 targetChainId, uint256 maximumTotalBudget) internal {
-        setMaximumBudget(targetChainId, maximumTotalBudget);
     }
 
     function updateAssetConversionBuffer(
@@ -231,7 +236,7 @@ abstract contract RelayProviderGovernance is
                 updateDeliverGasOverheadImpl(update.chainId, update.newGasOverhead);
             }
             if (update.updateMaximumBudget) {
-                updateMaximumBudgetImpl(update.chainId, update.maximumTotalBudget);
+                setMaximumBudget(update.chainId, update.maximumTotalBudget);
             }
             if (update.updateAssetConversionBuffer) {
                 updateAssetConversionBufferImpl(

@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.19;
 
+import "../../interfaces/relayer/TypedUnits.sol";
+
 // -------------------------------------- Persistent Storage ---------------------------------------
 
 //We have to hardcode the keccak256 values by hand rather than having them calculated because:
@@ -55,8 +57,8 @@ function getRegisteredCoreRelayersState() pure returns (RegisteredCoreRelayersSt
 
 struct ForwardInstruction {
   bytes encodedSend;
-  uint256 msgValue;
-  uint256 totalFee;
+  Wei msgValue;
+  Wei totalFee;
 }
 
 struct DeliveryTmpState {

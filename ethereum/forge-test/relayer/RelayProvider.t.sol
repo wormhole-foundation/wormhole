@@ -9,10 +9,16 @@ import "../../contracts/relayer/relayProvider/RelayProviderImplementation.sol";
 import "../../contracts/relayer/relayProvider/RelayProviderProxy.sol";
 import "../../contracts/relayer/relayProvider/RelayProviderMessages.sol";
 import "../../contracts/relayer/relayProvider/RelayProviderStructs.sol";
+import "../../contracts/interfaces/relayer/TypedUnits.sol";
 
 import "forge-std/Test.sol";
 
 contract TestRelayProvider is Test {
+    using WeiLib for Wei;
+    using GasLib for Gas;
+    using WeiPriceLib for WeiPrice;
+    using GasPriceLib for GasPrice;
+
     uint16 constant TEST_ORACLE_CHAIN_ID = 2;
 
     RelayProvider internal relayProvider;
@@ -38,11 +44,11 @@ contract TestRelayProvider is Test {
     }
 
     function testCannotUpdatePriceWithChainIdZero(
-        uint128 updateGasPrice,
-        uint128 updateNativeCurrencyPrice
+        GasPrice updateGasPrice,
+        WeiPrice updateNativeCurrencyPrice
     ) public {
-        vm.assume(updateGasPrice > 0);
-        vm.assume(updateNativeCurrencyPrice > 0);
+        vm.assume(updateGasPrice.unwrap() > 0);
+        vm.assume(updateNativeCurrencyPrice.unwrap() > 0);
 
         initializeRelayProvider();
 
@@ -57,10 +63,10 @@ contract TestRelayProvider is Test {
 
     function testCannotUpdatePriceWithGasPriceZero(
         uint16 updateChainId,
-        uint128 updateNativeCurrencyPrice
+        WeiPrice updateNativeCurrencyPrice
     ) public {
         vm.assume(updateChainId > 0);
-        vm.assume(updateNativeCurrencyPrice > 0);
+        vm.assume(updateNativeCurrencyPrice.unwrap() > 0);
 
         initializeRelayProvider();
 
@@ -68,17 +74,17 @@ contract TestRelayProvider is Test {
         vm.expectRevert(abi.encodeWithSignature("GasPriceIsZero()"));
         relayProvider.updatePrice(
             updateChainId,
-            0, // updateGasPrice == 0
+            GasPrice.wrap(0), // updateGasPrice == 0
             updateNativeCurrencyPrice
         );
     }
 
     function testCannotUpdatePriceWithNativeCurrencyPriceZero(
         uint16 updateChainId,
-        uint128 updateGasPrice
+        GasPrice updateGasPrice
     ) public {
         vm.assume(updateChainId > 0);
-        vm.assume(updateGasPrice > 0);
+        vm.assume(updateGasPrice.unwrap() > 0);
 
         initializeRelayProvider();
 
@@ -87,21 +93,21 @@ contract TestRelayProvider is Test {
         relayProvider.updatePrice(
             updateChainId,
             updateGasPrice,
-            0 // updateNativeCurrencyPrice == 0
+            WeiPrice.wrap(0) // updateNativeCurrencyPrice == 0
         );
     }
 
     function testCanUpdatePriceOnlyAsOwner(
         address oracleOwner,
         uint16 updateChainId,
-        uint128 updateGasPrice,
-        uint128 updateNativeCurrencyPrice
+        GasPrice updateGasPrice,
+        WeiPrice updateNativeCurrencyPrice
     ) public {
         vm.assume(oracleOwner != address(0));
         vm.assume(oracleOwner != address(this));
         vm.assume(updateChainId > 0);
-        vm.assume(updateGasPrice > 0);
-        vm.assume(updateNativeCurrencyPrice > 0);
+        vm.assume(updateGasPrice.unwrap() > 0);
+        vm.assume(updateNativeCurrencyPrice.unwrap() > 0);
 
         initializeRelayProvider();
 
@@ -161,9 +167,9 @@ contract TestRelayProvider is Test {
 
     function testUpdatePrice(
         uint16 dstChainId,
-        uint128 dstGasPrice,
+        uint64 dstGasPrice,
         uint64 dstNativeCurrencyPrice,
-        uint128 srcGasPrice,
+        uint64 srcGasPrice,
         uint64 srcNativeCurrencyPrice
     ) public {
         vm.assume(dstChainId > 0);
@@ -173,19 +179,21 @@ contract TestRelayProvider is Test {
         vm.assume(srcGasPrice > 0);
         vm.assume(srcNativeCurrencyPrice > 0);
         vm.assume(uint256(dstGasPrice) * srcNativeCurrencyPrice >= dstNativeCurrencyPrice);
+        vm.assume(dstGasPrice * uint256(dstNativeCurrencyPrice) / srcNativeCurrencyPrice < 2 ** 72);
 
         initializeRelayProvider();
 
         // update the prices with reasonable values
-        relayProvider.updatePrice(dstChainId, dstGasPrice, dstNativeCurrencyPrice);
-        relayProvider.updatePrice(TEST_ORACLE_CHAIN_ID, srcGasPrice, srcNativeCurrencyPrice);
+        relayProvider.updatePrice(dstChainId, GasPrice.wrap(dstGasPrice), WeiPrice.wrap(dstNativeCurrencyPrice));
+        relayProvider.updatePrice(TEST_ORACLE_CHAIN_ID, GasPrice.wrap(srcGasPrice), WeiPrice.wrap(srcNativeCurrencyPrice));
 
         // verify price
         uint256 expected = (
             uint256(dstNativeCurrencyPrice) * (uint256(dstGasPrice)) + (srcNativeCurrencyPrice - 1)
         ) / srcNativeCurrencyPrice;
-        uint256 readValues = relayProvider.quoteGasPrice(dstChainId);
-        require(readValues == expected, "relayProvider.quotePrices != expected");
+        GasPrice readValues = relayProvider.quoteGasPrice(dstChainId);
+        console.log(readValues.unwrap(), expected);
+        require(readValues.unwrap() == expected, "relayProvider.quotePrices != expected");
     }
 
     struct UpdatePrice {
@@ -194,11 +202,11 @@ contract TestRelayProvider is Test {
         uint128 nativeCurrencyPrice;
     }
 
-    function testUpdatePrices(
+    function testBulkUpdatePrices(
         uint16 dstChainId,
-        uint128 dstGasPrice,
+        uint64 dstGasPrice,
         uint64 dstNativeCurrencyPrice,
-        uint128 srcGasPrice,
+        uint64 srcGasPrice,
         uint64 srcNativeCurrencyPrice
     ) public {
         vm.assume(dstChainId > 0);
@@ -208,6 +216,7 @@ contract TestRelayProvider is Test {
         vm.assume(srcGasPrice > 0);
         vm.assume(srcNativeCurrencyPrice > 0);
         vm.assume(dstGasPrice >= dstNativeCurrencyPrice / srcNativeCurrencyPrice);
+        vm.assume(dstGasPrice * uint256(dstNativeCurrencyPrice) / srcNativeCurrencyPrice < 2 ** 72);
 
         initializeRelayProvider();
 
@@ -215,13 +224,13 @@ contract TestRelayProvider is Test {
             new RelayProviderStructs.UpdatePrice[](2);
         updates[0] = RelayProviderStructs.UpdatePrice({
             chainId: TEST_ORACLE_CHAIN_ID,
-            gasPrice: srcGasPrice,
-            nativeCurrencyPrice: srcNativeCurrencyPrice
+            gasPrice: GasPrice.wrap(srcGasPrice),
+            nativeCurrencyPrice: WeiPrice.wrap(srcNativeCurrencyPrice)
         });
         updates[1] = RelayProviderStructs.UpdatePrice({
             chainId: dstChainId,
-            gasPrice: dstGasPrice,
-            nativeCurrencyPrice: dstNativeCurrencyPrice
+            gasPrice: GasPrice.wrap(dstGasPrice),
+            nativeCurrencyPrice: WeiPrice.wrap(dstNativeCurrencyPrice)
         });
 
         // update the prices with reasonable values
@@ -231,8 +240,8 @@ contract TestRelayProvider is Test {
         uint256 expected = (
             uint256(dstNativeCurrencyPrice) * (uint256(dstGasPrice)) + (srcNativeCurrencyPrice - 1)
         ) / srcNativeCurrencyPrice;
-        uint256 readValues = relayProvider.quoteGasPrice(dstChainId);
-        require(readValues == expected, "relayProvider.quotePrices != expected");
+        GasPrice readValues = relayProvider.quoteGasPrice(dstChainId);
+        require(readValues.unwrap() == expected, "relayProvider.quotePrices != expected");
     }
 
     function testUpdateTargetChainContracts(uint16 targetChain, bytes32 newAddress) public {

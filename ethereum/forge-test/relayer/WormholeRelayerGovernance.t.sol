@@ -19,7 +19,7 @@ import {IWormhole} from "../../contracts/interfaces/IWormhole.sol";
 import {WormholeSimulator, FakeWormholeSimulator} from "./WormholeSimulator.sol";
 import {IWormholeReceiver} from "../../contracts/interfaces/relayer/IWormholeReceiver.sol";
 import {AttackForwardIntegration} from "./AttackForwardIntegration.sol";
-import {MockRelayerIntegration} from "../../contracts/mock/MockRelayerIntegration.sol";
+import {MockRelayerIntegration} from "../../contracts/mock/relayer/MockRelayerIntegration.sol";
 import {ForwardTester} from "./ForwardTester.sol";
 import {TestHelpers} from "./TestHelpers.sol";
 import {toWormholeFormat} from "../../contracts/relayer/coreRelayer/Utils.sol";

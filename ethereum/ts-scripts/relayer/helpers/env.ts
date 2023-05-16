@@ -13,7 +13,6 @@ import {
   Create2Factory,
   Create2Factory__factory,
 } from "../../../ethers-contracts";
-import { CoreRelayerSetup__factory } from "../../../ethers-contracts";
 import { proxyContractSalt, setupContractSalt } from "./deployments";
 
 export type ChainInfo = {
@@ -346,21 +345,6 @@ export function getRelayProvider(
     provider || getSigner(chain)
   );
   return contract;
-}
-
-export function fetchSetupAddressCreate2(
-  chain: ChainInfo,
-  create2Factory = getCreate2Factory(chain)
-): Promise<string> {
-  const signer = getSigner(chain).address;
-  return create2Factory.computeAddress(
-    signer,
-    setupContractSalt,
-    ethers.utils.solidityKeccak256(
-      ["bytes"],
-      [CoreRelayerSetup__factory.bytecode]
-    )
-  );
 }
 
 const coreRelayerAddressesCache: Partial<Record<ChainId, string>> = {};

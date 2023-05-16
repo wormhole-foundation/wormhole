@@ -6,8 +6,14 @@ pragma solidity ^0.8.19;
 import "./RelayProviderGovernance.sol";
 import "./RelayProviderStructs.sol";
 import "../../interfaces/relayer/IRelayProvider.sol";
+import "../../interfaces/relayer/TypedUnits.sol";
 
 contract RelayProvider is RelayProviderGovernance, IRelayProvider {
+    using WeiLib for Wei;
+    using GasLib for Gas;
+    using GasPriceLib for GasPrice;
+    using WeiPriceLib for WeiPrice;
+
     error CallerNotApproved(address msgSender);
 
     //Returns the delivery overhead fee required to deliver a message to the target chain, denominated in this chain's wei.
@@ -15,19 +21,25 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
         public
         view
         override
-        returns (uint256 nativePriceQuote)
+        returns (Wei nativePriceQuote)
     {
-        uint256 targetFees = uint256(deliverGasOverhead(targetChainId)) * gasPrice(targetChainId);
-        return quoteAssetConversion(targetChainId, targetFees, chainId());
+        Gas overhead = deliverGasOverhead(targetChainId);
+        Wei targetFees = overhead.toWei(gasPrice(targetChainId));
+        Wei result = quoteAssetConversion(targetChainId, targetFees, chainId());
+        require(result.unwrap() <= type(uint128).max, "Overflow");
+        return result;
     }
 
     //Returns the price of purchasing 1 unit of gas on the target chain, denominated in this chain's wei.
-    function quoteGasPrice(uint16 targetChainId) public view override returns (uint256) {
-        return quoteAssetConversion(targetChainId, gasPrice(targetChainId), chainId());
+    function quoteGasPrice(uint16 targetChainId) public view override returns (GasPrice) {
+        Wei gasPriceInSourceChainCurrency =
+            quoteAssetConversion(targetChainId, gasPrice(targetChainId).priceAsWei(), chainId());
+        require(gasPriceInSourceChainCurrency.unwrap() <= type(uint88).max, "Overflow");
+        return GasPrice.wrap(uint88(gasPriceInSourceChainCurrency.unwrap()));
     }
 
     //Returns the price of chainId's native currency in USD 10^-6 units
-    function quoteAssetPrice(uint16 chainId) public view override returns (uint256) {
+    function quoteAssetPrice(uint16 chainId) public view override returns (WeiPrice) {
         return nativeCurrencyPrice(chainId);
     }
 
@@ -36,7 +48,7 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
         public
         view
         override
-        returns (uint256 maximumTargetBudget)
+        returns (Wei maximumTargetBudget)
     {
         return maximumBudget(targetChainId);
     }
@@ -79,14 +91,16 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
     // relevant for chains that have dynamic execution pricing (e.g. Ethereum)
     function quoteAssetConversion(
         uint16 sourceChainId,
-        uint256 sourceAmount,
+        Wei sourceAmount,
         uint16 targetChainId
-    ) internal view returns (uint256 targetAmount) {
-        uint256 srcNativeCurrencyPrice = quoteAssetPrice(sourceChainId);
-        uint256 dstNativeCurrencyPrice = quoteAssetPrice(targetChainId);
-
-        // round up
-        return (sourceAmount * srcNativeCurrencyPrice + dstNativeCurrencyPrice - 1)
-            / dstNativeCurrencyPrice;
+    ) internal view returns (Wei targetAmount) {
+        return sourceAmount.convertAsset(
+            quoteAssetPrice(sourceChainId),
+            quoteAssetPrice(targetChainId),
+            1,
+            1,
+            // round up
+            true
+        );
     }
 }

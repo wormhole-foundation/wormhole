@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.0;
 
+import "./TypedUnits.sol";
+
 interface IRelayProvider {
   /**
    * @notice This function should provide a fixed overhead fee that will be applied to any delivery
@@ -13,7 +15,7 @@ interface IRelayProvider {
    */
   function quoteDeliveryOverhead(
     uint16 targetChainId
-  ) external view returns (uint256 deliveryOverhead);
+  ) external view returns (Wei deliveryOverhead);
 
   /**
    * @notice This function should provide a fixed fee for 1 unit of gas on targetChainId.
@@ -22,7 +24,7 @@ interface IRelayProvider {
    *
    * @param targetChainId - the chain that should be quoted for.
    */
-  function quoteGasPrice(uint16 targetChainId) external view returns (uint256 gasPriceSource);
+  function quoteGasPrice(uint16 targetChainId) external view returns (GasPrice gasPriceSource);
 
   /**
    * @notice This function should provide a quote in USD of the native asset price for all supported
@@ -32,7 +34,7 @@ interface IRelayProvider {
    *
    * @param chainId - the chain that should be quoted for.
    */
-  function quoteAssetPrice(uint16 chainId) external view returns (uint256 usdPrice);
+  function quoteAssetPrice(uint16 chainId) external view returns (WeiPrice usdPrice);
 
   /**
    * @notice When calculating the receiverValue of a delivery or performing a refund, a portion of
@@ -60,7 +62,7 @@ interface IRelayProvider {
    */
   function quoteMaximumBudget(
     uint16 targetChainId
-  ) external view returns (uint256 maximumTargetBudget);
+  ) external view returns (Wei maximumTargetBudget);
 
   /**
    * @notice This function should return a payable address on this (source) chain where all awards

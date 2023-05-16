@@ -20,7 +20,7 @@
     "typescript": "^4.9.5"
   },
   "scripts": {
-    "build:core": ". ./core-contract-list.sh && truffle compile $CORE_CONTRACT_FILES $TOKEN_BRIDGE_CONTRACT_FILES $NFT_BRIDGE_CONTRACT_FILES",
+    "build:core": "truffle compile",
     "build": "npm run build:core && forge build && typechain --target=ethers-v5 --out-dir=./ethers-contracts \"build-forge/!(test).sol/*.json\" && echo 'TODO .. MAKE SURE THAT IT IS OKAY TO TYPECHAIN ON ONLY THE FORGE OUTPUT. DONT MERGE THIS YET'",
     "test": "npm run build:core && mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle test --network test --compile-none",
     "migrate": "npm run build:core && mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle migrate --to 4 --compile-none",
@@ -36,6 +36,7 @@
     "deploy-relayers-evm1": "ENV=kubernetes CONTAINER=evm1 bash ./ts-scripts/relayer/shell/deployInContainer.sh",
     "deploy-relayers-evm2": "ENV=kubernetes CONTAINER=evm2 bash ./ts-scripts/relayer/shell/deployInContainer.sh",
     "relayer-integration-test": "ts-mocha -t 1000000 ts-test/relayer/*.ts",
+    "typecheck": "tsc --noEmit --skipLibCheck",
     "relayer-tilt-test": "ENV=tilt WALLET_KEY=4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d ts-mocha -t 1000000 ts-test/relayer/*.ts",
     "relayer-ci-test": "ENV=ci WALLET_KEY=4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d npx ts-mocha -t 1000000 ts-test/relayer/*.ts"
   },
