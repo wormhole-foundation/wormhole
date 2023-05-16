@@ -3,16 +3,21 @@ use serde::{Deserialize, Serialize};
 use std::str;
 
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Binary, StdResult, Storage};
+use cosmwasm_std::{Binary, StdResult, Storage};
 use cosmwasm_storage::{
     bucket, Bucket, bucket_read, ReadonlyBucket, ReadonlySingleton, singleton, Singleton, singleton_read,
 };
 
 use cw_wormhole::byte_utils::{ByteUtils, get_string_from_32};
 
+use cw_token_bridge::{
+    msg::{TransferInfoResponse as TokenBridgeTransferInfoResponse},
+};
+
 type HumanAddr = String;
 static CONFIG_KEY: &[u8] = b"config";
 static CHAIN_CHANNELS: &[u8] = b"chain_channels";
+static CURRENT_TRANSFER_KEY: &[u8] = b"current_transfer_tmp";
 
 // pub const CHAIN_CHANNELS: Map<u16, String> = Map::new("chain_channels");
 
@@ -61,20 +66,6 @@ pub fn chain_channels_read(storage: &dyn Storage) -> ReadonlyBucket<String> {
     bucket_read(storage, CHAIN_CHANNELS)
 }
 
-type Serialized128 = String;
-
-/// Structure to keep track of an active CW20 transfer, required to pass state through to the reply
-/// handler for submessages during a transfer.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-pub struct TransferState {
-    pub account: String,
-    pub message: Vec<u8>,
-    pub multiplier: Serialized128,
-    pub nonce: u32,
-    pub previous_balance: Serialized128,
-    pub token_address: Addr,
-}
-
 pub struct UpgradeContract {
     pub new_contract: u64,
 }
@@ -109,4 +100,17 @@ impl RegisterChainChannel {
 #[cw_serde]
 pub enum TransferPayload {
     BasicTransfer { chain_id: u16, recipient: Binary },
+}
+
+/// Structure to keep track of the current transfer. Required to pass state through to the reply handler for submessages during a transfer.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+pub struct TransferState {
+    pub transfer_info: TokenBridgeTransferInfoResponse,
+    pub target_chain_id: u16,
+    pub target_channel_id: String,
+    pub target_recipient: Binary,
+}
+
+pub fn current_transfer(storage: &mut dyn Storage) -> Singleton<TransferState> {
+    singleton(storage, CURRENT_TRANSFER_KEY)
 }

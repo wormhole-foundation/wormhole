@@ -358,10 +358,10 @@ async function main() {
       native_symbol: "WORM",
       native_decimals: 6,
     },
-    "ibcWormholeTranslator"
+    "ibcGateway"
   );
   console.log(
-    "instantiated ibc wormhole translator contract: ",
+    "instantiated ibc gateway contract: ",
     addresses["ibc_gateway.wasm"]
   );
 }

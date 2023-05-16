@@ -1,8 +1,5 @@
 use cw_wormhole::{
-    byte_utils::{
-        ByteUtils,
-        get_string_from_32,
-    },
+    byte_utils::{ByteUtils, get_string_from_32},
     error::ContractError,
     msg::{QueryMsg as WormholeQueryMsg},
     state::{vaa_archive_add, vaa_archive_check, GovernancePacket, ParsedVAA},
@@ -28,7 +25,7 @@ use crate::{
     },
     state::{
         chain_channels, chain_channels_read, config, config_read,
-        ConfigInfo, RegisterChainChannel, TransferPayload,
+        ConfigInfo, current_transfer, RegisterChainChannel, TransferPayload, TransferState,
         UpgradeContract,
     },
 };
@@ -129,8 +126,18 @@ pub fn instantiate(
 // of the bridge. This is to handle fee tokens where the amount expected to be transferred may be
 // less due to burns, fees, etc.
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(_deps: DepsMut, _env: Env, _msg: Reply) -> StdResult<Response> {
-    Ok(Response::new())
+pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
+    let state: TransferState = current_transfer(deps.storage).load()?;
+
+    // NOTE: Reentrancy protection. See note in `post_complete_transfer_with_payload` for why this is necessary.
+    current_transfer(deps.storage).remove();
+
+    // handle submessage cases based on the reply id
+    if msg.id != COMPLETE_TRANSFER_REPLY_ID {
+        return Err(StdError::generic_err("reply called for unexpected message type"));
+    }
+
+    return handle_complete_transfer_reply(deps, env, msg, state);
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -140,7 +147,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
 
         #[cfg(feature = "full")]
         ExecuteMsg::CompleteTransferWithPayload { data, relayer } => {
-            handle_complete_transfer_with_payload(deps, env, info, &data, &relayer)
+            handle_complete_transfer_with_payload(deps, env, &data, &relayer)
         }
 
         // When in "shutdown" mode, we reject any other action
@@ -247,7 +254,6 @@ fn handle_upgrade_contract(_deps: DepsMut, env: Env, data: &Vec<u8>) -> StdResul
 fn handle_complete_transfer_with_payload(
     deps: DepsMut,
     env: Env,
-    info: MessageInfo,
     vaa: &Binary,
     relayer_address: &HumanAddr, 
 ) -> StdResult<Response> {
@@ -277,8 +283,8 @@ fn handle_complete_transfer_with_payload(
     }
 
     // The transfer must be destined for this contract.
-    let target_address = (&transfer_info.recipient.as_slice()).get_address(0);
-    let vaa_recipient = deps.api.addr_humanize(&target_address)?;  
+    let vaa_recipient = deps.api.addr_humanize(&(&transfer_info.recipient.as_slice()).get_address(0))?;
+    // let vaa_recipient = env.contract.address.clone(); ////////////////////////////////////// DO NOT COMMIT THIS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     if vaa_recipient != env.contract.address {
         return Err(StdError::generic_err("invalid recipient address"));
     }
@@ -290,11 +296,10 @@ fn handle_complete_transfer_with_payload(
             post_complete_transfer_with_payload(
                 deps,
                 env,
-                info,
                 cfg.token_bridge_contract.clone(),
                 vaa.clone(),
-                relayer_address,
-                &transfer_info,
+                relayer_address.clone(),
+                transfer_info,
                 chain_id,
                 recipient,
             )
@@ -304,28 +309,33 @@ fn handle_complete_transfer_with_payload(
 
 fn post_complete_transfer_with_payload(
     deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
+    _env: Env,
     token_bridge_contract: String,
     vaa: Binary,
-    relayer_address: &HumanAddr,
-    transfer_info: &TokenBridgeTransferInfoResponse,
+    relayer_address: HumanAddr,
+    transfer_info: TokenBridgeTransferInfoResponse,
     target_chain_id: u16,
     target_recipient: Binary,
 ) -> StdResult<Response> {
     // return Err(StdError::generic_err("invalid recipient address"));
 
     // Look up the target chain ID in our map.
-    let ibc_channel = chain_channels_read(deps.storage).load(&target_chain_id.to_be_bytes())?;
+    let target_channel_lookup = chain_channels_read(deps.storage).load(&target_chain_id.to_be_bytes());
+    if ! target_channel_lookup.is_ok() {
+        return Err(StdError::generic_err("unknown target chain"));
+    }
 
-    // Save everything in our state.
-    // Call into the token bridge.
-    // Return OK.
+    let target_channel_id = target_channel_lookup.unwrap();
+
+    // If the channel ID is null, that means transfers to that chain are not allowed.
+    if target_channel_id == "" {
+        return Err(StdError::generic_err("transfers to target chain are disabled"));
+    }
 
     // Build the complete transfer sub message for the token bridge.
     let token_bridge_execute_msg = to_binary(&TokenBridgeExecuteMsg::CompleteTransferWithPayload {
         data: vaa.clone(),
-        relayer: info.sender.to_string(),
+        relayer: relayer_address,
     })?;
 
     let sub_msg = SubMsg::reply_on_success(
@@ -336,9 +346,33 @@ fn post_complete_transfer_with_payload(
         }),
         COMPLETE_TRANSFER_REPLY_ID,
     );
+    
+    // NOTE: Reentrancy protection. It is crucial that there's no
+    // ongoing transfer in progress here, otherwise we would override
+    // its state. A simple protection mechanism is to require
+    // that there's no execution in progress. The reply handler takes
+    // care of clearing out this temporary storage when done.
+    assert!(current_transfer(deps.storage).load().is_err());
+
+    // Save our current state to be used by the submessage reply.
+    current_transfer(deps.storage).save(&TransferState {
+        transfer_info: transfer_info,
+        target_chain_id: target_chain_id,
+        target_channel_id: target_channel_id,
+        target_recipient: target_recipient,
+    })?;
 
     Ok(Response::new()
         .add_submessage(sub_msg))
+}
+
+fn handle_complete_transfer_reply(
+    _deps: DepsMut,
+    _env: Env,
+    _msg: Reply,
+    _state: TransferState,
+) -> StdResult<Response> {
+    Ok(Response::new())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
