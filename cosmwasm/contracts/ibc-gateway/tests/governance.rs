@@ -185,8 +185,8 @@ fn submit_governance_add_chain() {
 
     let actual_channels = query_chain_channels(&router, ibc_gateway_contract_addr.clone());
     assert_eq!(actual_channels.len(), 1);
-    assert_eq!(actual_channels[0].0.to_string(), CHANNEL_18.to_string());
-    assert_eq!(actual_channels[0].1, 18);
+    assert_eq!(actual_channels[0].0, 18);
+    assert_eq!(actual_channels[0].1.to_string(), CHANNEL_18.to_string());
 }
 
 #[test]
@@ -205,8 +205,8 @@ fn submit_governance_update_chain() {
     
     let actual_channels = query_chain_channels(&router, ibc_gateway_contract_addr.clone());
     assert_eq!(actual_channels.len(), 1);
-    assert_eq!(actual_channels[0].0.to_string(), CHANNEL_18.to_string());
-    assert_eq!(actual_channels[0].1, 18);
+    assert_eq!(actual_channels[0].0, 18);
+    assert_eq!(actual_channels[0].1.to_string(), CHANNEL_18.to_string());
 
     let execute_msg2 = create_submit_vaa_msg("010000000001008dec02b6fe961837a8a35b7919a72a7b75cc3902fdffaddf1572ef2a55ea57a9266a5e204db75758c38d6223652967588be975dcf719bdf9bd072ac1611ee2f10100000000a5567d7d00010000000000000000000000000000000000000000000000000000000000000004ee8c114665f9261f20000000000000000000000000000000000000004962635472616e736c61746f72010c2000120000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006368616e6e656c2d3432");
 
@@ -221,8 +221,8 @@ fn submit_governance_update_chain() {
     
     let actual_channels2 = query_chain_channels(&router, ibc_gateway_contract_addr.clone());
     assert_eq!(actual_channels2.len(), 1);
-    assert_eq!(actual_channels2[0].0.to_string(), CHANNEL_42.to_string());
-    assert_eq!(actual_channels2[0].1, 18);
+    assert_eq!(actual_channels2[0].0, 18);
+    assert_eq!(actual_channels2[0].1.to_string(), CHANNEL_42.to_string());
 }
 
 #[test]
@@ -271,8 +271,8 @@ fn submit_governance_set_channel_id_to_null() {
 
     let actual_channels = query_chain_channels(&router, ibc_gateway_contract_addr.clone());
     assert_eq!(actual_channels.len(), 1);
-    assert_eq!(actual_channels[0].0.to_string(), CHANNEL_18.to_string());
-    assert_eq!(actual_channels[0].1, 18);
+    assert_eq!(actual_channels[0].0, 18);
+    assert_eq!(actual_channels[0].1.to_string(), CHANNEL_18.to_string());
 
     // Set channel_id to all zeros.
     let execute_msg2 = create_submit_vaa_msg("010000000001008cc95280459d52fae6a20770cae61fa02269fa7a6d513c0b7390e7e03c5a24060d77f1cca1af29da800ce4eb4f6125f1d5d5afd3bbea8c0bcdff1d9cde38d9d70000000000a5567d7d00010000000000000000000000000000000000000000000000000000000000000004ee8c114665f9261f20000000000000000000000000000000000000004962635472616e736c61746f72010c20001200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
@@ -289,8 +289,8 @@ fn submit_governance_set_channel_id_to_null() {
 
     let actual_channels = query_chain_channels(&router, ibc_gateway_contract_addr.clone());
     assert_eq!(actual_channels.len(), 1);
-    assert_eq!(actual_channels[0].0.to_string(), "".to_string());
-    assert_eq!(actual_channels[0].1, 18);
+    assert_eq!(actual_channels[0].0, 18);
+    assert_eq!(actual_channels[0].1.to_string(), "".to_string());
 }
 
 #[test]
@@ -310,6 +310,6 @@ fn submit_governance_channel_id_is_max_len() {
 
     let actual_channels = query_chain_channels(&router, ibc_gateway_contract_addr.clone());
     assert_eq!(actual_channels.len(), 1);
-    assert_eq!(actual_channels[0].0.to_string(), "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ejAxMjM0NTY3ODk/IQ==".to_string());
-    assert_eq!(actual_channels[0].1, 18);
+    assert_eq!(actual_channels[0].0, 18);
+    assert_eq!(actual_channels[0].1.to_string(), "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ejAxMjM0NTY3ODk/IQ==".to_string());
 }

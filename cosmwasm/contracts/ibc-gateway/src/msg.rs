@@ -70,5 +70,5 @@ pub struct CompleteTransferResponse {
 #[cw_serde]
 pub struct AllChainChannelsResponse {
     // a tuple of (connectionId, chainId)
-    pub chain_channels: Vec<(Binary, u16)>
+    pub chain_channels: Vec<(u16, Binary)>
 }

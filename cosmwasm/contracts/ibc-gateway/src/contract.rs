@@ -27,8 +27,8 @@ use crate::{
         InstantiateMsg, IsVaaRedeemedResponse, MigrateMsg, QueryMsg,
     },
     state::{
-        config, config_read,
-        TransferPayload, CHAIN_CHANNELS, ConfigInfo, RegisterChainChannel,
+        chain_channels, chain_channels_read, config, config_read,
+        ConfigInfo, RegisterChainChannel, TransferPayload,
         UpgradeContract,
     },
 };
@@ -216,10 +216,10 @@ fn handle_register_chain_channel(deps: DepsMut, _env: Env, data: &Vec<u8>) -> St
         channel_id,
     } = RegisterChainChannel::deserialize(data)?;
 
-    if CHAIN_CHANNELS
-        .save(deps.storage, chain_id, &channel_id.to_string()).is_err() {
-        return Err(StdError::generic_err("failed to add chain_channel"));
-    }
+    // Note that we are allowing updates to change the channel for a chain.
+
+    let mut bucket = chain_channels(deps.storage);
+    bucket.save(&chain_id.to_be_bytes(), &channel_id)?;
 
     if channel_id == "" {
         return Ok(Response::new()
@@ -315,8 +315,9 @@ fn post_complete_transfer_with_payload(
 ) -> StdResult<Response> {
     // return Err(StdError::generic_err("invalid recipient address"));
 
-
     // Look up the target chain ID in our map.
+    let ibc_channel = chain_channels_read(deps.storage).load(&target_chain_id.to_be_bytes())?;
+
     // Save everything in our state.
     // Call into the token bridge.
     // Return OK.
@@ -362,11 +363,11 @@ fn is_governance_emitter(cfg: &ConfigInfo, emitter_chain: u16, emitter_address: 
 }
 
 fn query_all_chain_channels(deps: Deps) -> StdResult<AllChainChannelsResponse> {
-    CHAIN_CHANNELS
-        .range(deps.storage, None, None, Order::Ascending)
+    chain_channels_read(deps.storage)
+        .range(None, None, Order::Ascending)
         .map(|res| {
-            res.map(|(chain_id, channel_id)| {
-                (Binary::from(Vec::<u8>::from(channel_id)), chain_id)
+           res.map(|(chain_id, channel_id)| {
+                (u16::from_be_bytes([chain_id[0], chain_id[1]]), Binary::from(Vec::<u8>::from(channel_id))) // TODO: There must be a better way!
             })
         })
         .collect::<StdResult<Vec<_>>>()

@@ -5,18 +5,16 @@ use std::str;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Binary, StdResult, Storage};
 use cosmwasm_storage::{
-    singleton, singleton_read, ReadonlySingleton,
-    Singleton,
+    bucket, Bucket, bucket_read, ReadonlyBucket, ReadonlySingleton, singleton, Singleton, singleton_read,
 };
-
-use cw_storage_plus::Map;
 
 use cw_wormhole::byte_utils::{ByteUtils, get_string_from_32};
 
 type HumanAddr = String;
 static CONFIG_KEY: &[u8] = b"config";
+static CHAIN_CHANNELS: &[u8] = b"chain_channels";
 
-pub const CHAIN_CHANNELS: Map<u16, String> = Map::new("chain_channels");
+// pub const CHAIN_CHANNELS: Map<u16, String> = Map::new("chain_channels");
 
 /// Information about this contract's general parameters.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
@@ -53,6 +51,14 @@ pub fn config(storage: &mut dyn Storage) -> Singleton<ConfigInfo> {
 
 pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<ConfigInfo> {
     singleton_read(storage, CONFIG_KEY)
+}
+
+pub fn chain_channels(storage: &mut dyn Storage) -> Bucket<String> {
+    bucket(storage, CHAIN_CHANNELS)
+}
+
+pub fn chain_channels_read(storage: &dyn Storage) -> ReadonlyBucket<String> {
+    bucket_read(storage, CHAIN_CHANNELS)
 }
 
 type Serialized128 = String;

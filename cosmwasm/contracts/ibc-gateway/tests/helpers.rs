@@ -6,7 +6,7 @@
 //   IBC:  contract2
 //   WETH: contract3 (first attested token)
 
-use cw_multi_test::{App, Contract, ContractWrapper, Executor, AddressGenerator, WasmKeeper, Router};
+use cw_multi_test::{App, Contract, ContractWrapper, Executor, AddressGenerator, Router};
 use cosmwasm_std::{Addr, Binary, Empty, Storage, Api};
 
 use cw_wormhole::{
@@ -43,8 +43,7 @@ fn no_init<BankT, CustomT, WasmT, StakingT, DistrT, IbcT, GovT>(
     _: &dyn Api,
     _: &mut dyn Storage,
 ) {
-    println!("hello there!");
-    let expected_addr = Addr::unchecked("new_test_addr");
+    // let expected_addr = Addr::unchecked("new_test_addr");
     // let mut keeper =
     //     WasmKeeper::<Empty, Empty>::new_with_custom_address_generator(TestAddressGenerator {
     //         addr_to_return: expected_addr.clone(),
@@ -53,7 +52,8 @@ fn no_init<BankT, CustomT, WasmT, StakingT, DistrT, IbcT, GovT>(
 
 #[allow(dead_code)]
 fn mock_app() -> App {
-    App::new(no_init)
+    App::default()
+    // App::new(no_init)
 }
 
 #[allow(dead_code)]
@@ -197,7 +197,7 @@ pub fn create_transfer_vaa_msg(s: &str) -> ExecuteMsg {
     ExecuteMsg::CompleteTransferWithPayload { data: vaa, relayer: "000000000000000123456789".to_string() }
 }
 
-pub fn query_chain_channels(router: &App, addr: Addr) -> Vec<(Binary, u16)> {
+pub fn query_chain_channels(router: &App, addr: Addr) -> Vec<(u16, Binary)> {
     let query_msg = QueryMsg::AllChainChannels {};
     let query_response: AllChainChannelsResponse = router
         .wrap()
