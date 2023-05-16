@@ -23,6 +23,7 @@ const artifacts = [
   "shutdown_core_bridge_cosmwasm.wasm",
   "shutdown_token_bridge_cosmwasm.wasm",
   "global_accountant.wasm",
+  "ibc_gateway.wasm",
 ];
 
 /* Check that the artifact folder contains all the wasm files we expect and nothing else */
