@@ -9,7 +9,7 @@ use cw_wormhole::{
 };
 
 use cw_token_bridge::{
-    msg::{ExecuteMsg as TokenBridgeExecuteMsg, QueryMsg as TokenBridgeQueryMsg},
+    msg::{ExecuteMsg as TokenBridgeExecuteMsg, QueryMsg as TokenBridgeQueryMsg, TransferInfoResponse as TokenBridgeTransferInfoResponse},
 };
 
 #[cfg(not(feature = "library"))]
@@ -23,16 +23,14 @@ use cosmwasm_std::{
 
 use crate::{
     msg::{
-        AllChainChannelsResponse, ChainRegistrationResponse, ExecuteMsg,
-        ExternalIdResponse, InstantiateMsg, IsVaaRedeemedResponse, MigrateMsg, QueryMsg,
-        TransferInfoResponse,
+        AllChainChannelsResponse, ExecuteMsg,
+        InstantiateMsg, IsVaaRedeemedResponse, MigrateMsg, QueryMsg,
     },
     state::{
-        bridge_contracts_read, config, config_read,
-        Action, TransferPayload, CHAIN_CHANNELS, ConfigInfo, RegisterChainChannel, TokenBridgeMessage, TransferInfo,
-        TransferWithPayloadInfo, UpgradeContract,
+        config, config_read,
+        TransferPayload, CHAIN_CHANNELS, ConfigInfo, RegisterChainChannel,
+        UpgradeContract,
     },
-    token_address::{ExternalTokenId},
 };
 
 type HumanAddr = String;
@@ -266,35 +264,30 @@ fn handle_complete_transfer_with_payload(
 
     // Query the token bridge to parse the payload3 VAA.
     let token_bridge_query_msg = to_binary(&TokenBridgeQueryMsg::TransferInfo { vaa: vaa.clone() })?;
-    let transfer_info: TransferInfoResponse = deps
+    let transfer_info: TokenBridgeTransferInfoResponse = deps
         .querier
         .query(&QueryRequest::Wasm(WasmQuery::Smart {
             contract_addr: cfg.token_bridge_contract.clone(),
             msg: token_bridge_query_msg,
         }))?;
     
+    // The transfer must be destined for this chain.
     if transfer_info.recipient_chain != cfg.chain_id {
         return Err(StdError::generic_err("invalid recipient chain"));
     }
 
-    // DEFENSE IN-DEPTH CHECK FOR PAYLOAD3 VAAs
-    // ensure that the transfer vaa recipient is this contract.
-    // we should never process any VAAs that are not directed to this contract.
+    // The transfer must be destined for this contract.
     let target_address = (&transfer_info.recipient.as_slice()).get_address(0);
-    let recipient = deps.api.addr_humanize(&target_address)?;  
-    if recipient != env.contract.address {
+    let vaa_recipient = deps.api.addr_humanize(&target_address)?;  
+    if vaa_recipient != env.contract.address {
         return Err(StdError::generic_err("invalid recipient address"));
     }
 
-    // let TargetPayload {
-    //     target_chain_id,
-    //     target_recipient,
-    // } = RegisterChainChannel::deserialize(data)?;
-
+    // Parse the payload three data.
     let payload: TransferPayload = serde_json_wasm::from_slice(&transfer_info.payload).unwrap();
     match payload {
-        TransferPayload::BasicTransfer { target_chain_id, target_recipient } => {
-            handle_complete_transfer_with_payload2(
+        TransferPayload::BasicTransfer { chain_id, recipient } => {
+            post_complete_transfer_with_payload(
                 deps,
                 env,
                 info,
@@ -302,28 +295,27 @@ fn handle_complete_transfer_with_payload(
                 vaa.clone(),
                 relayer_address,
                 &transfer_info,
-                target_chain_id,
-                target_recipient,
+                chain_id,
+                recipient,
             )
         }
     }
 }
 
-fn handle_complete_transfer_with_payload2(
+fn post_complete_transfer_with_payload(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
     token_bridge_contract: String,
     vaa: Binary,
     relayer_address: &HumanAddr,
-    transfer_info: &TransferInfoResponse,
+    transfer_info: &TokenBridgeTransferInfoResponse,
     target_chain_id: u16,
     target_recipient: Binary,
 ) -> StdResult<Response> {
-    return Err(StdError::generic_err("invalid recipient address"));
-    
+    // return Err(StdError::generic_err("invalid recipient address"));
 
-    // Parse the payload 3 data.
+
     // Look up the target chain ID in our map.
     // Save everything in our state.
     // Call into the token bridge.
@@ -351,68 +343,10 @@ fn handle_complete_transfer_with_payload2(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::TransferInfo { vaa } => to_binary(&query_transfer_info(deps, env, &vaa)?),
-        QueryMsg::ExternalId { external_id } => to_binary(&query_external_id(deps, external_id)?),
         QueryMsg::IsVaaRedeemed { vaa } => to_binary(&query_is_vaa_redeemed(deps, env, &vaa)?),
-        QueryMsg::ChainRegistration { chain } => {
-            query_chain_registration(deps, chain).and_then(|r| to_binary(&r))
-        }
         QueryMsg::AllChainChannels {} => {
             query_all_chain_channels(deps).and_then(|resp| to_binary(&resp))
         }
-    }
-}
-
-fn query_external_id(deps: Deps, external_id: Binary) -> StdResult<ExternalIdResponse> {
-    let cfg = config_read(deps.storage).load()?;
-    let external_id = ExternalTokenId::deserialize(external_id.to_array()?);
-    Ok(ExternalIdResponse {
-        token_id: external_id.to_token_id(deps.storage, cfg.chain_id)?,
-    })
-}
-
-fn query_transfer_info(deps: Deps, env: Env, vaa: &Binary) -> StdResult<TransferInfoResponse> {
-    let cfg = config_read(deps.storage).load()?;
-
-    let parsed = parse_vaa(deps, env.block.time.seconds(), vaa)?;
-    let data = parsed.payload;
-
-    // check if vaa is from governance
-    if is_governance_emitter(&cfg, parsed.emitter_chain, &parsed.emitter_address) {
-        return ContractError::InvalidVAAAction.std_err();
-    }
-
-    let message = TokenBridgeMessage::deserialize(&data)?;
-    match message.action {
-        Action::ATTEST_META => ContractError::InvalidVAAAction.std_err(),
-        Action::TRANSFER => {
-            let core = TransferInfo::deserialize(&message.payload)?;
-
-            Ok(TransferInfoResponse {
-                amount: core.amount.1.into(),
-                token_address: core.token_address.serialize(),
-                token_chain: core.token_chain,
-                recipient: core.recipient,
-                recipient_chain: core.recipient_chain,
-                fee: core.fee.1.into(),
-                payload: vec![],
-            })
-        }
-        Action::TRANSFER_WITH_PAYLOAD => {
-            let info = TransferWithPayloadInfo::deserialize(&message.payload)?;
-            let core = info.as_transfer_info();
-
-            Ok(TransferInfoResponse {
-                amount: core.amount.1.into(),
-                token_address: core.token_address.serialize(),
-                token_chain: core.token_chain,
-                recipient: core.recipient,
-                recipient_chain: core.recipient_chain,
-                fee: core.fee.1.into(),
-                payload: info.payload,
-            })
-        }
-        other => Err(StdError::generic_err(format!("Invalid action: {other}"))),
     }
 }
 
@@ -421,13 +355,6 @@ fn query_is_vaa_redeemed(deps: Deps, _env: Env, vaa: &Binary) -> StdResult<IsVaa
     Ok(IsVaaRedeemedResponse {
         is_redeemed: vaa_archive_check(deps.storage, vaa.hash.as_slice()),
     })
-}
-
-fn query_chain_registration(deps: Deps, chain: u16) -> StdResult<ChainRegistrationResponse> {
-    bridge_contracts_read(deps.storage)
-        .load(&chain.to_be_bytes())
-        .map(Binary::from)
-        .map(|address| ChainRegistrationResponse { address })
 }
 
 fn is_governance_emitter(cfg: &ConfigInfo, emitter_chain: u16, emitter_address: &[u8]) -> bool {

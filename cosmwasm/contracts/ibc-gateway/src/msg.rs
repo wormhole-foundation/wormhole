@@ -3,8 +3,6 @@ use cosmwasm_std::{Binary, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::token_address::{TokenId};
-
 type HumanAddr = String;
 
 /// The instantiation parameters of the token bridge contract. See
@@ -27,15 +25,6 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-    // InitiateTransferWithPayload {
-    //     asset: Asset,
-    //     recipient_chain: u16,
-    //     recipient: Binary,
-    //     fee: Uint128,
-    //     payload: Binary,
-    //     nonce: u32,
-    // },
-
     SubmitVaa {
         data: Binary,
     },
@@ -53,41 +42,14 @@ pub struct MigrateMsg {}
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    TransferInfo { vaa: Binary },
-    ExternalId { external_id: Binary },
     IsVaaRedeemed { vaa: Binary },
-    ChainRegistration { chain: u16 },
     AllChainChannels {},
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub struct TransferInfoResponse {
-    pub amount: Uint128,
-    pub token_address: [u8; 32],
-    pub token_chain: u16,
-    pub recipient: [u8; 32],
-    pub recipient_chain: u16,
-    pub fee: Uint128,
-    pub payload: Vec<u8>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub struct ExternalIdResponse {
-    pub token_id: TokenId,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct IsVaaRedeemedResponse {
     pub is_redeemed: bool,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub struct ChainRegistrationResponse {
-    pub address: Binary,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
@@ -103,21 +65,6 @@ pub struct CompleteTransferResponse {
     pub amount: Uint128,
     pub relayer: String,
     pub fee: Uint128,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct Asset {
-    pub info: AssetInfo,
-    pub amount: Uint128,
-}
-
-/// AssetInfo contract_addr is usually passed from the cw20 hook
-/// so we can trust the contract_addr is properly validated.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum AssetInfo {
-    Token { contract_addr: String },
-    NativeToken { denom: String },
 }
 
 #[cw_serde]

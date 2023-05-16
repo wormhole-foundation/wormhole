@@ -7,7 +7,7 @@ use cw_wormhole::{
 };
 
 use crate::{
-    state::{RegisterChainChannel, TargetPayload, UpgradeContract},
+    state::{RegisterChainChannel, TransferPayload, UpgradeContract},
 };
 
 #[test]
@@ -49,14 +49,31 @@ fn verify_upgrade_contract_deserialize() -> StdResult<()> {
     Ok(())
 }
 
+
+/*
+new Uint8Array(
+  Buffer.from(
+    JSON.stringify({
+      basic_transfer: {
+        chain_id: 18,
+        recipient: "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"
+      }
+    })
+  )
+)
+
+'{"basic_transfer":{"chain_id":18,"recipient":"terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v"}}'
+ */
+
 #[test]
-fn verify_target_payload_deserialize() -> StdResult<()> {
-    let data = hex::decode("0012ac756341ee5661a37c010946d8d3316bf129bab061e51efaa78c116828b20391").unwrap();
-    let TargetPayload {
-        chain_id,
-        recipient,
-    } = TargetPayload::deserialize(&data)?;
-    assert_eq!(18, chain_id);
-    assert_eq!("ac756341ee5661a37c010946d8d3316bf129bab061e51efaa78c116828b20391", hex::encode(recipient));
-    Ok(())
+fn verify_transfer_payload_deserialize() -> StdResult<()> {
+    let json = "{\"basic_transfer\":{\"chain_id\":18,\"recipient\":\"terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v\"}}";
+    let payload: TransferPayload = serde_json_wasm::from_slice(json.as_bytes()).unwrap();
+    match payload {
+        TransferPayload::BasicTransfer { chain_id, recipient } => {
+            assert_eq!(18, chain_id);
+            assert_eq!("terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v", recipient.to_string());
+            Ok(())
+        }
+    }
 }
