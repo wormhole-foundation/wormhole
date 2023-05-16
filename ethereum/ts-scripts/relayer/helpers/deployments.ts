@@ -2,7 +2,6 @@ import { RelayProviderProxy__factory } from "../../../ethers-contracts";
 import { RelayProviderSetup__factory } from "../../../ethers-contracts";
 import { RelayProviderImplementation__factory } from "../../../ethers-contracts";
 import { MockRelayerIntegration__factory } from "../../../ethers-contracts";
-import { CoreRelayerSetup__factory } from "../../../ethers-contracts";
 import { CoreRelayer__factory } from "../../../ethers-contracts";
 
 import {
@@ -15,7 +14,6 @@ import {
 import { ethers } from "ethers";
 import {
   Create2Factory__factory,
-  ForwardWrapper__factory,
 } from "../../../ethers-contracts";
 import { wait } from "./utils";
 
