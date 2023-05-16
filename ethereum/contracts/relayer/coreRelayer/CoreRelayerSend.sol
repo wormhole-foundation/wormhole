@@ -7,6 +7,8 @@ import {
   InsufficientMaxTransactionFee,
   InvalidMsgValue,
   ExceedsMaximumBudget,
+  ReceiverValueGreaterThanUint128,
+  MaxTransactionFeeGreaterThanUint128,
   VaaKey,
   ExecutionParameters,
   DeliveryInstruction,
@@ -246,6 +248,39 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
   /* 
    * Non overload logic 
    */ 
+
+  function constructSend(
+    uint16 targetChainId,
+    bytes32 targetAddress,
+    uint16 refundChainId,
+    bytes32 refundAddress,
+    uint256 maxTransactionFee,
+    uint256 receiverValue,
+    bytes memory payload,
+    VaaKey[] memory vaaKeys,
+    uint8 consistencyLevel,
+    address relayProviderAddress,
+    bytes memory relayParameters
+  ) internal pure returns (Send memory) {
+    if (maxTransactionFee > type(uint128).max )
+      revert MaxTransactionFeeGreaterThanUint128();
+    if ( receiverValue > type(uint128).max)
+      revert ReceiverValueGreaterThanUint128();
+
+    return Send(
+      targetChainId,
+      targetAddress,
+      refundChainId,
+      refundAddress,
+      Wei.wrap(maxTransactionFee), 
+      Wei.wrap(receiverValue),
+      payload,
+      vaaKeys,
+      consistencyLevel,
+      relayProviderAddress,
+      relayParameters
+    );
+  }
 
   function send(Send memory sendParams) internal returns (uint64 sequence) {
     Wei wormholeMessageFee = getWormholeMessageFee();

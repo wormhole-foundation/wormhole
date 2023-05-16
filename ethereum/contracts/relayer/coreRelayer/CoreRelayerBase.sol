@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 
 import {IWormhole} from "../../interfaces/IWormhole.sol";
 import {IRelayProvider} from "../../interfaces/relayer/IRelayProvider.sol";
-import {toWormholeFormat, min, pay, MAX_U128} from "./Utils.sol";
+import {toWormholeFormat, min, pay} from "./Utils.sol";
 import {
   NoDeliveryInProgress,
   ReentrantDelivery,
@@ -127,39 +127,6 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
   }
 
   // ----------------------------------------- Conversion ------------------------------------------
-
-  function constructSend(
-    uint16 targetChainId,
-    bytes32 targetAddress,
-    uint16 refundChainId,
-    bytes32 refundAddress,
-    uint256 maxTransactionFee,
-    uint256 receiverValue,
-    bytes memory payload,
-    VaaKey[] memory vaaKeys,
-    uint8 consistencyLevel,
-    address relayProviderAddress,
-    bytes memory relayParameters
-  ) internal pure returns (Send memory) {
-    if (maxTransactionFee > type(uint128).max )
-      revert MaxTransactionFeeGreaterThanUint128();
-    if ( receiverValue > type(uint128).max)
-      revert ReceiverValueGreaterThanUint128();
-
-    return Send(
-      targetChainId,
-      targetAddress,
-      refundChainId,
-      refundAddress,
-      Wei.wrap(maxTransactionFee), // todo: use intoWei
-      Wei.wrap(receiverValue),
-      payload,
-      vaaKeys,
-      consistencyLevel,
-      relayProviderAddress,
-      relayParameters
-    );
-  }
 
   /** 
    * Calculate how much gas the relay provider can pay for on `sendParams.targetChain` using
