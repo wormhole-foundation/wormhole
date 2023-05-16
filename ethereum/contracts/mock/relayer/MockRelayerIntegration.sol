@@ -1,14 +1,14 @@
-// contracts/mock/MockBatchedVAASender.sol
+// contracts/mock/relayer/MockRelayerIntegration.sol
 // SPDX-License-Identifier: Apache 2
 
 pragma solidity ^0.8.0;
 
-import "../libraries/external/BytesLib.sol";
-import "../interfaces/IWormhole.sol";
-import "../interfaces/relayer/IWormholeRelayer.sol";
-import "../interfaces/relayer/IWormholeReceiver.sol";
+import "../../libraries/external/BytesLib.sol";
+import "../../interfaces/IWormhole.sol";
+import "../../interfaces/relayer/IWormholeRelayer.sol";
+import "../../interfaces/relayer/IWormholeReceiver.sol";
 
-import {toWormholeFormat} from "../relayer/coreRelayer/Utils.sol";
+import {toWormholeFormat} from "../../relayer/coreRelayer/Utils.sol";
 
 struct XAddress {
     uint16 chainId;

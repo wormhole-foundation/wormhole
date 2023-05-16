@@ -22,7 +22,7 @@ import {
     IWormholeReceiver
 } from "../../contracts/interfaces/relayer/IWormholeReceiver.sol";
 import {AttackForwardIntegration} from "./AttackForwardIntegration.sol";
-import {MockRelayerIntegration, XAddress} from "../../contracts/mock/MockRelayerIntegration.sol";
+import {MockRelayerIntegration, XAddress} from "../../contracts/mock/relayer/MockRelayerIntegration.sol";
 import {ForwardTester} from "./ForwardTester.sol";
 import {TestHelpers} from "./TestHelpers.sol";
 import {CoreRelayerSerde} from "../../contracts/relayer/coreRelayer/CoreRelayerSerde.sol";
