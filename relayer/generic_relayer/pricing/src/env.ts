@@ -10,9 +10,11 @@ import {
   CHAIN_ID_ETH,
   CHAIN_ID_BSC,
   EVMChainId,
+  ChainId,
 } from "@certusone/wormhole-sdk";
 import { rootLogger } from "@wormhole-foundation/offchain-generic-relayer/src/log";
 import { ethers } from "ethers";
+import { PricingContext } from "./app";
 
 const SCRIPTS_DIR = "../../../ethereum/ts-scripts/relayer";
 
@@ -242,4 +244,23 @@ function loadJson<T>(path: string): Promise<T> {
       encoding: "utf-8",
     })
     .then(JSON.parse) as Promise<T>;
+}
+
+//TODO there must be a better way to do this
+export function getEthersProvider(
+  ctx: PricingContext,
+  chainId: ChainId
+): ethers.providers.JsonRpcProvider {
+  const rpc = ctx.providers.evm[chainId as EVMChainId];
+  if (rpc == undefined || rpc.length == 0) {
+    throw new Error(`No rpc found for chainId ${chainId}`);
+  }
+
+  return rpc[0];
+}
+
+//TODO there must be a better way to do this
+export function getAllChains(ctx: PricingContext): ChainId[] {
+  const records = ctx.relayProviders;
+  return Object.keys(records).map((k) => parseInt(k) as ChainId); //Should be safe
 }
