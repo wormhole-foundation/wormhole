@@ -3,7 +3,7 @@ mod helpers;
 use cosmwasm_std::{Addr, Binary};
 use cw_multi_test::{Executor};
 
-use ibc_wormhole_translator::{
+use ibc_gateway::{
     msg::{ExecuteMsg},
 };
 
@@ -11,12 +11,12 @@ use helpers::{instantiate_contracts, OWNER, setup_the_token_bridge};
 
 #[test]
 fn basic_init() {
-    let (_router, _ibc_wormhole_translator_contract_addr, _, _) = instantiate_contracts();
+    let (_router, _ibc_gateway_contract_addr, _, _) = instantiate_contracts();
 }
 
 #[test]
 fn complete_transfer_with_payload_type_1() {
-    let (mut router, ibc_wormhole_translator, _, tb) = instantiate_contracts();
+    let (mut router, ibc_gateway, _, tb) = instantiate_contracts();
     setup_the_token_bridge(&mut router, tb.clone());
 
     // Payload 1 transfer of 123 WETH from Ethereum to BSC:
@@ -26,7 +26,7 @@ fn complete_transfer_with_payload_type_1() {
     let err = router
     .execute_contract(
         Addr::unchecked(OWNER),
-        ibc_wormhole_translator.clone(),
+        ibc_gateway.clone(),
         &complete_xfer,
         &[],
     )
@@ -40,7 +40,7 @@ fn complete_transfer_with_payload_type_1() {
 
 #[test]
 fn complete_transfer_with_wrong_recipient_chain() {
-    let (mut router, ibc_wormhole_translator, _, tb) = instantiate_contracts();
+    let (mut router, ibc_gateway, _, tb) = instantiate_contracts();
     setup_the_token_bridge(&mut router, tb.clone());
 
     // Payload 3 transfer of 123 WETH from Ethereum to BSC:
@@ -50,7 +50,7 @@ fn complete_transfer_with_wrong_recipient_chain() {
     let err = router
     .execute_contract(
         Addr::unchecked(OWNER),
-        ibc_wormhole_translator.clone(),
+        ibc_gateway.clone(),
         &complete_xfer,
         &[],
     )
@@ -66,7 +66,7 @@ fn complete_transfer_with_wrong_recipient_chain() {
 #[test]
 fn successful_complete_transfer() {
     // Connect to the token bridge.
-    let (mut router, ibc_wormhole_translator, _, tb) = instantiate_contracts();
+    let (mut router, ibc_gateway, _, tb) = instantiate_contracts();
 
     // Register and attest WETH on the token bridge.
     setup_the_token_bridge(&mut router, tb.clone());
@@ -88,7 +88,7 @@ fn successful_complete_transfer() {
     router
     .execute_contract(
         Addr::unchecked(OWNER),
-        ibc_wormhole_translator.clone(),
+        ibc_gateway.clone(),
         &complete_xfer,
         &[],
     )

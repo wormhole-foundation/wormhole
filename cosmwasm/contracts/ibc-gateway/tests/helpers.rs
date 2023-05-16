@@ -18,7 +18,7 @@ use cw_token_bridge::{
     msg::{InstantiateMsg as TokenBridgeInstantiateMsg, QueryMsg as TokenBridgeQueryMsg, WrappedRegistryResponse},
 };
 
-use ibc_wormhole_translator::{
+use ibc_gateway::{
     msg::{AllChainChannelsResponse, ExecuteMsg, InstantiateMsg, QueryMsg},
 };
 
@@ -90,13 +90,13 @@ fn token_bridge_contract() -> Box<dyn Contract<Empty>> {
 }
 
 #[allow(dead_code)]
-fn ibc_wormhole_translator_contract() -> Box<dyn Contract<Empty>> {
+fn ibc_gateway_contract() -> Box<dyn Contract<Empty>> {
     let contract = ContractWrapper::new_with_empty(
-        ibc_wormhole_translator::contract::execute,
-        ibc_wormhole_translator::contract::instantiate,
-        ibc_wormhole_translator::contract::query,
+        ibc_gateway::contract::execute,
+        ibc_gateway::contract::instantiate,
+        ibc_gateway::contract::query,
     )
-    .with_reply(ibc_wormhole_translator::contract::reply);
+    .with_reply(ibc_gateway::contract::reply);
     Box::new(contract)
 }
 
@@ -157,10 +157,10 @@ pub fn instantiate_contracts() -> (App, Addr, Addr, Addr) {
         )
         .unwrap();
     
-    let ibc_wormhole_translator_codeid = router.store_code(ibc_wormhole_translator_contract());
-    let ibc_wormhole_translator_contract_addr = router
+    let ibc_gateway_codeid = router.store_code(ibc_gateway_contract());
+    let ibc_gateway_contract_addr = router
         .instantiate_contract(
-            ibc_wormhole_translator_codeid,
+            ibc_gateway_codeid,
             Addr::unchecked(OWNER),
             &InstantiateMsg {
                 gov_chain: 1,
@@ -179,7 +179,7 @@ pub fn instantiate_contracts() -> (App, Addr, Addr, Addr) {
         )
         .unwrap();
 
-    (router, ibc_wormhole_translator_contract_addr, wormhole_contract_addr, token_bridge_contract_addr)
+    (router, ibc_gateway_contract_addr, wormhole_contract_addr, token_bridge_contract_addr)
 }
 
 

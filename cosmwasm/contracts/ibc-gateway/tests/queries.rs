@@ -1,6 +1,6 @@
 // mod helpers;
 
-// use ibc_wormhole_translator::{
+// use ibc_gateway::{
 //     msg::{AllChainChannelsResponse, QueryMsg},
 // };
 
@@ -8,13 +8,13 @@
 
 // #[test]
 // fn query_chain_channels() {
-//     let (router, ibc_wormhole_translator_contract_addr) = instantiate_contracts();
+//     let (router, ibc_gateway_contract_addr) = instantiate_contracts();
 
 //     let query_msg = QueryMsg::AllChainChannels {};
 //     let query_response: AllChainChannelsResponse = router
 //         .wrap()
 //         .query_wasm_smart(
-//             ibc_wormhole_translator_contract_addr,
+//             ibc_gateway_contract_addr,
 //             &query_msg,
 //         )
 //         .unwrap();

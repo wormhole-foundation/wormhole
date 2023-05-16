@@ -46,7 +46,7 @@ const artifacts: ContractName[] = [
   "cw_wormhole.wasm",
   "cw20_wrapped_2.wasm",
   "cw_token_bridge.wasm",
-  "ibc_wormhole_translator.wasm",
+  "ibc_gateway.wasm",
 ];
 
 const ARTIFACTS_PATH = "../artifacts/";
@@ -345,8 +345,8 @@ async function main() {
     );
   }
 
-  addresses["ibc_wormhole_translator.wasm"] = await instantiate(
-    codeIds["ibc_wormhole_translator.wasm"],
+  addresses["ibc_gateway.wasm"] = await instantiate(
+    codeIds["ibc_gateway.wasm"],
     {
       gov_chain: GOVERNANCE_CHAIN,
       gov_address: Buffer.from(GOVERNANCE_EMITTER, "hex").toString("base64"),
@@ -362,7 +362,7 @@ async function main() {
   );
   console.log(
     "instantiated ibc wormhole translator contract: ",
-    addresses["ibc_wormhole_translator.wasm"]
+    addresses["ibc_gateway.wasm"]
   );
 }
 

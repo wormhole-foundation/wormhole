@@ -1,12 +1,12 @@
 [package]
-name = "ibc-wormhole-translator"
+name = "ibc-gateway"
 version = "0.1.0"
 authors = ["Wormhole Project Contributors"]
 edition = "2021"
 description = "IBC to Wormhole translator"
 
 [lib]
-name = "ibc_wormhole_translator"
+name = "ibc_gateway"
 crate-type = ["cdylib", "rlib"]
 
 [features]
