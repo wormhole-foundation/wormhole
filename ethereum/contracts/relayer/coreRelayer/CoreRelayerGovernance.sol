@@ -72,7 +72,7 @@ abstract contract CoreRelayerGovernance is CoreRelayerBase, ERC1967Upgrade {
    * Action Parameters:
    *   - bytes32 newProvider - bytes32 instead of address for general consistency reasons
    */
-  uint8 private constant GOVERNANCE_ACTION_UPDATE_DEFAULT_PROVIDER = 4;
+  uint8 private constant GOVERNANCE_ACTION_UPDATE_DEFAULT_PROVIDER = 3;
 
   //By checking that only the contract can call itself, we can enforce that the migration code is
   //  executed upon program upgrade and that it can't be called externally by anyone else.
