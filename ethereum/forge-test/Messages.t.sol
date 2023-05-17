@@ -8,7 +8,13 @@ import "../contracts/Setters.sol";
 import "../contracts/Structs.sol";
 import "forge-std/Test.sol";
 
-contract TestMessages is Messages, Test, Setters {
+contract ExportedMessages is Messages, Setters {
+    function storeGuardianSetPub(Structs.GuardianSet memory set, uint32 index) public {
+        return super.storeGuardianSet(set, index);
+    }
+}
+
+contract TestMessages is Test {
   address constant testGuardianPub = 0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe;
 
   // A valid VM with one signature from the testGuardianPublic key
@@ -16,12 +22,12 @@ contract TestMessages is Messages, Test, Setters {
 
   uint256 constant testGuardian = 93941733246223705020089879371323733820373732307041878556247502674739205313440;
 
-  Messages messages;
+  ExportedMessages messages;
 
   Structs.GuardianSet guardianSet;
 
   function setUp() public {
-    messages = new Messages();
+    messages = new ExportedMessages();
 
     // initialize guardian set with one guardian
     address[] memory keys = new address[](1);
@@ -135,10 +141,10 @@ contract TestMessages is Messages, Test, Setters {
       expirationTime: 0
     });
 
-    storeGuardianSet(initialGuardianSet, uint32(0));
+    messages.storeGuardianSetPub(initialGuardianSet, uint32(0));
 
     // Confirm that the test VM is valid
-    (Structs.VM memory parsedValidVm, bool valid, string memory reason) = this.parseAndVerifyVM(validVM);
+    (Structs.VM memory parsedValidVm, bool valid, string memory reason) = messages.parseAndVerifyVM(validVM);
     require(valid, reason);
     assertEq(valid, true);
     assertEq(reason, "");
@@ -151,7 +157,7 @@ contract TestMessages is Messages, Test, Setters {
     );
 
     // Confirm that the verifyVM fails on invalid VM
-    (valid, reason) = this.verifyVM(invalidVm);
+    (valid, reason) = messages.verifyVM(invalidVm);
     assertEq(valid, false);
     assertEq(reason, "vm.hash doesn't match body");
   }
