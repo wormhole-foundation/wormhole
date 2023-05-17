@@ -624,9 +624,10 @@ func (w *Watcher) getChainIdFromChannelID(channelID string) (vaa.ChainID, error)
 
 /*
 This query:
-`"all_channel_chains"` is `ImFsbF9jaGFubmVsX2NoYWlucyI=`
+'{"all_channel_chains": {}}' is `eyJhbGxfY2hhbm5lbF9jaGFpbnMiOiB7fX0=`
+
 which becomes:
-http://localhost:1319/cosmwasm/wasm/v1/contract/wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj/smart/ImFsbF9jaGFubmVsX2NoYWlucyI%3D
+http://localhost:1319/cosmwasm/wasm/v1/contract/wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj/smart/eyJhbGxfY2hhbm5lbF9jaGFpbnMiOiB7fX0%3D
 
 Returns something like this:
 {
@@ -648,7 +649,7 @@ type ibcAllChannelChainsQueryResults struct {
 	}
 }
 
-var allChannelChainsQuery = url.QueryEscape(base64.StdEncoding.EncodeToString([]byte(`"all_channel_chains"`)))
+var allChannelChainsQuery = url.QueryEscape(base64.StdEncoding.EncodeToString([]byte(`{"all_channel_chains": {}}`)))
 
 // queryChannelIdToChainIdMapping queries the contract for the set of IBC channels and their correspond chain IDs.
 func (w *Watcher) queryChannelIdToChainIdMapping() (map[string]vaa.ChainID, error) {
