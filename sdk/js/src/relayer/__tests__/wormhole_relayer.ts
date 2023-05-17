@@ -105,6 +105,8 @@ const governance = new GovernanceEmitter(
 GOVERNANCE_EMITTER_ADDRESS.toBuffer().toString("hex")
 );
 
+const guardianIndices = env=='ci'?[0,1]:[0];
+
 const getStatus = async (txHash: string): Promise<string> => {
     console.log(env);
     console.log(sourceChainId);
@@ -610,7 +612,7 @@ describe("Wormhole Relayer Tests", () => {
     const timestamp = (await walletSource.provider.getBlock("latest")).timestamp;
     const chain = 6;
     const firstMessage = governance.publishWormholeRelayerRegisterChain(timestamp, chain, expectedNewRegisteredAddress)
-    const firstSignedVaa = guardians.addSignatures(firstMessage, [0]);
+    const firstSignedVaa = guardians.addSignatures(firstMessage, guardianIndices);
 
     let tx = await sourceCoreRelayer.registerCoreRelayerContract(firstSignedVaa, {gasLimit: 500000});
     await tx.wait();
@@ -620,7 +622,7 @@ describe("Wormhole Relayer Tests", () => {
     expect(newRegisteredAddress).toBe(expectedNewRegisteredAddress);
 
     const inverseFirstMessage = governance.publishWormholeRelayerRegisterChain(timestamp, chain, currentAddress)
-    const inverseFirstSignedVaa = guardians.addSignatures(inverseFirstMessage, [0]);
+    const inverseFirstSignedVaa = guardians.addSignatures(inverseFirstMessage, guardianIndices);
 
     tx = await sourceCoreRelayer.registerCoreRelayerContract(inverseFirstSignedVaa, {gasLimit: 500000});
     await tx.wait();
@@ -640,7 +642,7 @@ test("Governance: Test Setting Default Relay Provider", async () => {
     const timestamp = (await walletSource.provider.getBlock("latest")).timestamp;
     const chain = sourceChainId;
     const firstMessage = governance.publishWormholeRelayerSetDefaultRelayProvider(timestamp, chain, expectedNewDefaultRelayProvider);
-    const firstSignedVaa = guardians.addSignatures(firstMessage, [0]);
+    const firstSignedVaa = guardians.addSignatures(firstMessage, guardianIndices);
 
     let tx = await sourceCoreRelayer.setDefaultRelayProvider(firstSignedVaa);
     await tx.wait();
@@ -650,7 +652,7 @@ test("Governance: Test Setting Default Relay Provider", async () => {
     expect(newDefaultRelayProvider).toBe(expectedNewDefaultRelayProvider);
 
     const inverseFirstMessage = governance.publishWormholeRelayerSetDefaultRelayProvider(timestamp, chain, currentAddress)
-    const inverseFirstSignedVaa = guardians.addSignatures(inverseFirstMessage, [0]);
+    const inverseFirstSignedVaa = guardians.addSignatures(inverseFirstMessage, guardianIndices);
 
     tx = await sourceCoreRelayer.setDefaultRelayProvider(inverseFirstSignedVaa);
     await tx.wait();
@@ -679,7 +681,7 @@ test("Governance: Test Upgrading Contract", async () => {
   const timestamp = (await walletSource.provider.getBlock("latest")).timestamp;
   const chain = sourceChainId;
   const firstMessage = governance.publishWormholeRelayerUpgradeContract(timestamp, chain, newCoreRelayerImplementationAddress);
-  const firstSignedVaa = guardians.addSignatures(firstMessage, [0]);
+  const firstSignedVaa = guardians.addSignatures(firstMessage, guardianIndices);
 
   let tx = await sourceCoreRelayer.submitContractUpgrade(firstSignedVaa);
 
