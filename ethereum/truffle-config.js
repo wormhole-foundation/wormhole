@@ -4,10 +4,14 @@ const KLAYHDWalletProvider = require("truffle-hdwallet-provider-klaytn");
 
 module.exports = {
 <<<<<<< HEAD
+<<<<<<< HEAD
   contracts_directory: "contracts/{*.sol,bridge/{*.sol,interfaces/*.sol,token/*.sol,mock/*.sol,utils/*.sol},interfaces/IWormhole.sol,mock/*.sol,nft/{*.sol,interfaces/*.sol,token/*.sol,mock/*.sol}}",
 =======
   contracts_directory: "contracts/{bridge/{*.sol,interfaces/.sol,token/*.sol,mock/*.sol,utils/*.sol},interfaces/IWormhole.sol,mock/*.sol,nft/{*.sol,interfaces/*.sol,token/*.sol,mock/*.sol}}",
 >>>>>>> 220fe3bd (relayer: Update truffle compile contracts directory to exclude the relayer interfaces)
+=======
+  contracts_directory: "contracts/{*.sol,bridge/{*.sol,interfaces/.sol,token/*.sol,mock/*.sol,utils/*.sol},interfaces/IWormhole.sol,mock/*.sol,nft/{*.sol,interfaces/*.sol,token/*.sol,mock/*.sol}}",
+>>>>>>> fe4a8b43 (relayer: Add *.sol back into contracts_directory)
   networks: {
     development: {
       host: "127.0.0.1",
