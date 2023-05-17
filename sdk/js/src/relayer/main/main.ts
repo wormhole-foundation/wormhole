@@ -166,6 +166,10 @@ export async function send(
   const defaultRelayProviderAddress =
     await sourceCoreRelayer.getDefaultRelayProvider();
 
+  // Using the most general 'send' function in IWormholeRelayer
+  // Inputs:
+  // targetChainId, targetAddress, refundChainId, refundAddress, maxTransactionFee, receiverValue, payload, vaaKeys, 
+  // consistencyLevel, relayProviderAddress, relayParameters 
   const tx = sourceCoreRelayer["send(uint16,bytes32,uint16,bytes32,uint256,uint256,bytes,(uint8,uint16,bytes32,uint64,bytes32)[],uint8,address,bytes)"](
     targetChainId, // targetChainId
     "0x" + tryNativeToHexString(targetAddress, "ethereum"), // targetAddress
