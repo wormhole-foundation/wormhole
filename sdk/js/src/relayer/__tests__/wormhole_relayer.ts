@@ -1,7 +1,8 @@
 import { afterAll, beforeEach, describe, expect, jest, test} from "@jest/globals";
 import { ethers } from "ethers";
 import { generateRandomString, waitForRelay } from "./utils/utils";
-import {getAddressInfo, getRPC} from "../consts" 
+import {getAddressInfo} from "../consts" 
+import {getDefaultProvider} from "../main/helpers"
 import {
     relayer,
     ethers_contracts,
@@ -19,17 +20,17 @@ import {
 
 // Devnet Private Key
 const privateKey = "4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
-
-const guardianRPC = "http://localhost:7071"
+ 
+const guardianRPC = env == 'tilt' ? "http://localhost:7071" : env == 'ci' ? "http://guardian:7071" : env == "testnet" ? "https://wormhole-v2-testnet-api.certus.one" : env == "mainnet" ? "https://wormhole-v2-mainnet-api.certus.one" : "";
 
 const sourceAddressInfo = getAddressInfo(sourceChainId, network);
 const targetAddressInfo = getAddressInfo(targetChainId, network);
-const sourceRpc = getRPC(sourceChainId, network, env=='ci');
-const targetRpc = getRPC(targetChainId, network, env=='ci');
+const sourceProvider = getDefaultProvider(network, sourceChainId, env=='ci');
+const targetProvider = getDefaultProvider(network, targetChainId,  env=='ci');
 
 // signers
-const walletSource = new ethers.Wallet(privateKey, new ethers.providers.JsonRpcProvider(sourceRpc));
-const walletTarget = new ethers.Wallet(privateKey, new ethers.providers.JsonRpcProvider(targetRpc));
+const walletSource = new ethers.Wallet(privateKey, sourceProvider);
+const walletTarget = new ethers.Wallet(privateKey, targetProvider);
 
 const sourceCoreRelayerAddress = sourceAddressInfo.coreRelayerAddress;
 const sourceMockIntegrationAddress = sourceAddressInfo.mockIntegrationAddress;
@@ -58,6 +59,11 @@ const targetMockIntegration = ethers_contracts.MockRelayerIntegration__factory.c
   walletTarget
 );
 
+const myMap = new Map<ChainId, ethers.providers.Provider>();
+myMap.set(sourceChainId, sourceProvider);
+myMap.set(targetChainId, targetProvider);
+const infoRequestOptionalParams = {sourceChainProvider: sourceProvider, targetChainProviders: myMap};
+
 const getStatus = async (txHash: string): Promise<string> => {
     console.log(env);
     console.log(sourceChainId);
@@ -65,7 +71,7 @@ const getStatus = async (txHash: string): Promise<string> => {
   const info = (await relayer.getWormholeRelayerInfo(
       sourceChainId,
       txHash,
-      { environment: network }
+      { environment: network, ...infoRequestOptionalParams }
     )) as relayer.DeliveryInfo;
   return  info.targetChainStatus.events[0].status;
 }
@@ -382,13 +388,13 @@ describe("Wormhole Relayer Tests", () => {
   
 
   test("Test getPrice in Typescript SDK", async () => {
-    const price = (await relayer.getPrice(sourceChainId, targetChainId, 200000, {environment: network}));
+    const price = (await relayer.getPrice(sourceChainId, targetChainId, 200000, {environment: network, sourceChainProvider: sourceProvider}));
     expect(price.toString()).toBe("165000000000000000");
   });
 
   test("Test getPriceMultipleHops in Typescript SDK", async () => {
 
-    const price = (await relayer.getPriceMultipleHops(sourceChainId, [{targetChainId: targetChainId, gasAmount: 200000}, {targetChainId: sourceChainId, gasAmount: 200000}], network));
+    const price = (await relayer.getPriceMultipleHops(sourceChainId, [{targetChainId: targetChainId, gasAmount: 200000, optionalParams: {sourceChainProvider: sourceProvider}}, {targetChainId: sourceChainId, gasAmount: 200000, optionalParams: {sourceChainProvider: sourceProvider}}], network));
     expect(price.toString()).toBe("338250000000000000");
   });
 
@@ -401,7 +407,7 @@ describe("Wormhole Relayer Tests", () => {
       sourceChainId,
       targetChainId,
       500000,
-      { environment: network }
+      { environment: network, sourceChainProvider: sourceProvider }
     );
     console.log(`Quoted gas delivery fee: ${value}`);
     const startingBalance = await walletSource.getBalance();
@@ -413,7 +419,7 @@ describe("Wormhole Relayer Tests", () => {
       walletSource,
       Buffer.from("hi!"),
       value,
-      { environment: network }
+      { environment: network, ...infoRequestOptionalParams }
     );
     console.log("Sent delivery request!");
     const rx = await tx.wait();
@@ -426,7 +432,7 @@ describe("Wormhole Relayer Tests", () => {
     const info = (await relayer.getWormholeRelayerInfo(
       sourceChainId,
       tx.hash,
-      { environment: network }
+      { environment: network, ...infoRequestOptionalParams }
     )) as relayer.DeliveryInfo;
     console.log(relayer.stringifyWormholeRelayerInfo(info));
     const status = info.targetChainStatus.events[0].status;
@@ -484,7 +490,7 @@ describe("Wormhole Relayer Tests", () => {
     expect(status).toBe("Receiver Failure");
   });
 
-  test("Executes a receiver failure and then redelivery", async () => {
+  test("Executes a receiver failure and then redelivery through SDK", async () => {
     const arbitraryPayload = ethers.utils.hexlify(
       ethers.utils.toUtf8Bytes(generateRandomString(32))
     );
@@ -503,7 +509,7 @@ describe("Wormhole Relayer Tests", () => {
     const info = (await relayer.getWormholeRelayerInfo(
       sourceChainId,
       txHash,
-      { environment: network }
+      { environment: network, ...infoRequestOptionalParams }
     )) as relayer.DeliveryInfo;
     const status = info.targetChainStatus.events[0].status;
     expect(status).toBe("Receiver Failure");
@@ -519,7 +525,7 @@ describe("Wormhole Relayer Tests", () => {
       walletSource,
       sourceChainId as ChainId,
       targetChainId as ChainId,
-      "DEVNET",
+      network,
       relayer.createVaaKey(
         sourceChainId,
         Buffer.from(

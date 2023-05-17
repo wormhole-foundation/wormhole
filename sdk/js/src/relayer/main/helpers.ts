@@ -56,10 +56,19 @@ export function printChain(chainId: number) {
   return `${CHAIN_ID_TO_NAME[chainId as ChainId]} (Chain ${chainId})`;
 }
 
-export function getDefaultProvider(network: Network, chainId: ChainId) {
-  return new ethers.providers.StaticJsonRpcProvider(
-    RPCS_BY_CHAIN[network][CHAIN_ID_TO_NAME[chainId]]
-  );
+export function getDefaultProvider(network: Network, chainId: ChainId, ci?: boolean) {
+  let rpc: string | undefined = "";
+  if(ci) {
+    if(chainId == 2) rpc = "http://eth-devnet:8545";
+    else if(chainId == 4) rpc = "http://eth-devnet2:8545";
+    else throw Error(`This chainId isn't in CI for relayers: ${chainId}`)
+  } else {
+    rpc = RPCS_BY_CHAIN[network][CHAIN_ID_TO_NAME[chainId]];
+  }
+  if(!rpc) {
+    throw Error(`No default RPC for chainId ${chainId} or network ${network}`);
+  }
+  return new ethers.providers.StaticJsonRpcProvider(rpc);
 }
 
 export function getRelayProvider(

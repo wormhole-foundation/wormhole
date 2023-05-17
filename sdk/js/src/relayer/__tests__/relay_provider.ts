@@ -1,7 +1,8 @@
 import { afterAll, beforeEach, describe, expect, jest, test} from "@jest/globals";
 import { ethers } from "ethers";
 import { RelayProvider__factory } from "../../ethers-contracts"
-import {getAddressInfo, getRPC} from "../consts" 
+import {getAddressInfo} from "../consts" 
+import {getDefaultProvider} from "../main/helpers"
 
 
 const env = process.env['ENV'];
@@ -19,10 +20,10 @@ describe("Relay Provider Test", () => {
 
   
   const addressInfo = getAddressInfo(sourceChainId, network);
-  const rpc = getRPC(sourceChainId, network, env=="ci");
+  const provider = getDefaultProvider(network, sourceChainId, env=="ci");
 
   // signers
-  const oracleDeployer = new ethers.Wallet(privateKey, new ethers.providers.JsonRpcProvider(rpc));
+  const oracleDeployer = new ethers.Wallet(privateKey, provider);
   const relayProviderAddress = addressInfo.mockRelayProviderAddress;
   if(!relayProviderAddress) throw Error("No relay provider address");
   const relayProvider = RelayProvider__factory.connect(relayProviderAddress, oracleDeployer);

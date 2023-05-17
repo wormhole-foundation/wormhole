@@ -173,7 +173,7 @@ contract WormholeRelayerGovernanceTests is Test {
                 == toWormholeFormat(address(wormholeRelayer2))
         );
     }
-    /*
+    
     function testUpgradeContractToItself() public {
         address payable myCoreRelayer = payable(
             address(helpers.setUpCoreRelayer(wormhole, address(relayProvider)))
@@ -201,5 +201,5 @@ contract WormholeRelayerGovernanceTests is Test {
 
         vm.expectRevert();
         CoreRelayer(myCoreRelayer).getDefaultRelayProvider();
-    }*/
+    }
 }

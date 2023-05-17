@@ -2,7 +2,8 @@ import { afterAll, beforeEach, describe, expect, jest, test} from "@jest/globals
 import { PublicKey } from "@solana/web3.js";
 
 import { ethers } from "ethers";
-import {getAddressInfo, getRPC} from "../consts" 
+import {getAddressInfo} from "../consts" 
+import {getDefaultProvider} from "../main/helpers"
 import {
     relayer,
     ethers_contracts,
@@ -24,10 +25,10 @@ const targetChainId = network == 'DEVNET' ? 4 : 14;
 const privateKey = "4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
 
 const sourceAddressInfo = getAddressInfo(sourceChainId, network);
-const sourceRpc = getRPC(sourceChainId, network, env == 'ci');
+const sourceProvider = getDefaultProvider(network, sourceChainId, env == 'ci');
 
 // signers
-const walletSource = new ethers.Wallet(privateKey, new ethers.providers.JsonRpcProvider(sourceRpc));
+const walletSource = new ethers.Wallet(privateKey, sourceProvider);
 
 const sourceCoreRelayerAddress = sourceAddressInfo.coreRelayerAddress;
 
@@ -142,7 +143,9 @@ describe("Wormhole Relayer Governance Action Tests", () => {
 
     /*
     test("Test Upgrading Contract", async () => {
+      const defaultRelayProvider = await sourceCoreRelayer.getDefaultRelayProvider();
 
+      const newCoreRelayer = await new ethers_contracts.CoreRelayer__factory(walletSource).deploy(sourceAddressInfo., "0x2468013579246801357924680135792468013579")
       const currentAddress = await sourceCoreRelayer.getDefaultRelayProvider();
       console.log(`For Chain 2, default relay provider: ${currentAddress}`);
 

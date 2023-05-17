@@ -43,20 +43,6 @@ export const CONTRACTS = {MAINNET, TESTNET, DEVNET};
 export function getAddressInfo(chainId: ChainId, env: Network): AddressInfo {
   return CONTRACTS[env][chainId];
 }
-
-export function getRPC(chainId: ChainId, env: Network, ci?: boolean): string {
-  if(ci) {
-    if(chainId == 2) return "http://eth-devnet:8545";
-    else if(chainId == 4) return "http://eth-devnet2:8545";
-    else throw Error(`This chainId isn't in CI for relayers: ${chainId}`)
-  }
-  const result: string | undefined = RPCS_BY_CHAIN[env][CHAIN_ID_TO_NAME[chainId] || ""];
-  if(!result) {
-    throw Error(`No default RPC for chainId ${chainId} or network ${env}`);
-  }
-  return result as string;
-}
-
 export function getWormholeRelayerAddress(
   chainId: ChainId,
   env: Network
