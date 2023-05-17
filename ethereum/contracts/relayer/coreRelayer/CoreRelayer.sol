@@ -17,25 +17,18 @@ contract CoreRelayer is
   CoreRelayerDelivery,
   IWormholeRelayer
 {
-  address private immutable initialDefaultRelayProvider;
-
   //the only normal storage variable - everything else uses slot pattern
   //no point doing it for this one since it is entirely one-off and of no interest to the rest
   //  of the contract and it also can't accidentally be moved because we are at the bottom of
   //  the inheritance hierarchy here
   bool private initialized;
 
-  constructor(
-    address wormhole,
-    address _initialDefaultRelayProvider
-  ) CoreRelayerBase(wormhole) {
-    initialDefaultRelayProvider = _initialDefaultRelayProvider;
-  }
+  constructor(address wormhole) CoreRelayerBase(wormhole) {}
 
   //needs to be called upon construction of the EC1967 proxy
-  function initialize() public {
+  function initialize(address defaultRelayProvider) public {
     assert(!initialized);
     initialized = true;
-    getDefaultRelayProviderState().defaultRelayProvider = initialDefaultRelayProvider;
+    getDefaultRelayProviderState().defaultRelayProvider = defaultRelayProvider;
   }
 }
