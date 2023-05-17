@@ -10,10 +10,10 @@ import {
   SuiTransactionBlockResponse,
   TransactionBlock,
 } from "@mysten/sui.js";
+import { DynamicFieldPage } from "@mysten/sui.js/dist/types/dynamic_fields";
 import { ensureHexPrefix } from "../utils";
 import { SuiRpcValidationError } from "./error";
 import { SuiError } from "./types";
-import { DynamicFieldPage } from "@mysten/sui.js/dist/types/dynamic_fields";
 
 const MAX_PURE_ARGUMENT_SIZE = 16 * 1024;
 const UPGRADE_CAP_TYPE = "0x2::package::UpgradeCap";
@@ -46,16 +46,18 @@ export const getEmitterAddressAndSequenceFromResponseSui = (
   response: SuiTransactionBlockResponse
 ): { emitterAddress: string; sequence: string } => {
   const wormholeMessageEventType = `${originalCoreBridgePackageId}::publish_message::WormholeMessage`;
-  const event = response.events?.find(
-    (e) => e.type === wormholeMessageEventType
+  const event = response.events?.find((e) =>
+    isSameType(e.type, wormholeMessageEventType)
   );
   if (event === undefined) {
     throw new Error(`${wormholeMessageEventType} event type not found`);
   }
+
   const { sender, sequence } = event.parsedJson || {};
   if (sender === undefined || sequence === undefined) {
     throw new Error("Can't find sender or sequence");
   }
+
   return { emitterAddress: sender.substring(2), sequence };
 };
 
@@ -109,7 +111,7 @@ export const getOwnedObjectId = async (
   type: string
 ): Promise<string | null> => {
   // Upgrade caps are a special case
-  if (normalizeSuiType(type) === normalizeSuiType(UPGRADE_CAP_TYPE)) {
+  if (isSameType(type, UPGRADE_CAP_TYPE)) {
     throw new Error(
       "`getOwnedObjectId` should not be used to get the object ID of an `UpgradeCap`. Use `getUpgradeCapObjectId` instead."
     );
@@ -168,8 +170,7 @@ export const getOwnedObjectIdPaginated = async (
     throw new SuiRpcValidationError(res);
   }
 
-  const object = res.data.find((d) => d.data?.type === type);
-
+  const object = res.data.find((d) => isSameType(d.data?.type || "", type));
   if (!object && res.hasNextPage) {
     return getOwnedObjectIdPaginated(
       provider,
@@ -208,11 +209,13 @@ export async function getPackageId(
   if (!currentPackage) {
     throw new Error("CurrentPackage not found");
   }
+
   const fields = await getObjectFields(provider, currentPackage.objectId);
   const packageId = fields?.value?.fields?.package;
   if (!packageId) {
     throw new Error("Unable to get current package");
   }
+
   return packageId;
 }
 
@@ -225,7 +228,7 @@ export const getPackageIdFromType = (type: string): string | null => {
 
 export const getTableKeyType = (tableType: string): string | null => {
   if (!tableType) return null;
-  const match = tableType.match(/0x2::table::Table<(.*)>/);
+  const match = trimSuiType(tableType).match(/0x2::table::Table<(.*)>/);
   if (!match) return null;
   const [keyType] = match[1].split(",");
   if (!isValidSuiType(keyType)) return null;
@@ -276,9 +279,7 @@ export const getTokenCoinType = async (
     );
   }
   const fields = getFieldsFromObjectResponse(response);
-  return fields?.value
-    ? unnormalizeSuiAddress(ensureHexPrefix(fields.value))
-    : null;
+  return fields?.value ? trimSuiType(ensureHexPrefix(fields.value)) : null;
 };
 
 export const getTokenFromTokenRegistry = async (
@@ -343,7 +344,7 @@ export const getUpgradeCapObjectId = async (
 ): Promise<string | null> => {
   const res = await provider.getOwnedObjects({
     owner,
-    filter: { StructType: UPGRADE_CAP_TYPE },
+    filter: { StructType: padSuiType(UPGRADE_CAP_TYPE) },
     options: {
       showContent: true,
     },
@@ -356,7 +357,8 @@ export const getUpgradeCapObjectId = async (
     (o) =>
       o.data?.objectId &&
       o.data?.content?.dataType === "moveObject" &&
-      o.data?.content?.fields?.package === packageId
+      normalizeSuiAddress(o.data?.content?.fields?.package) ===
+        normalizeSuiAddress(packageId)
   );
   if (objects.length === 1) {
     // We've found the object we're looking for
@@ -392,7 +394,7 @@ export const getWrappedCoinType = (coinPackageId: string): string => {
 
 export const isSameType = (a: string, b: string) => {
   try {
-    return normalizeSuiType(a) === normalizeSuiType(b);
+    return trimSuiType(a) === trimSuiType(b);
   } catch (e) {
     return false;
   }
@@ -423,7 +425,13 @@ export const isValidSuiType = (type: string): boolean => {
   return isValidSuiAddress(tokens[0]) && !!tokens[1] && !!tokens[2];
 };
 
-export const normalizeSuiType = (type: string): string => {
+/**
+ * Unlike `trimSuiType`, this method does not modify nested types, it just pads
+ * the top-level type.
+ * @param type
+ * @returns
+ */
+export const padSuiType = (type: string): string => {
   const tokens = type.split("::");
   if (tokens.length < 3 || !isValidSuiAddress(tokens[0])) {
     throw new Error(`Invalid Sui type: ${type}`);
@@ -433,8 +441,8 @@ export const normalizeSuiType = (type: string): string => {
 };
 
 /**
- * This method removes leading zeroes for types, as we found some getDynamicFieldObject
- * value types to be stripped of leading zeroes
+ * This method removes leading zeroes for types in order to normalize them
+ * since some types returned from the RPC have leading zeroes and others don't.
  */
-export const unnormalizeSuiAddress = (type: string): string =>
-  type.replace(/^(0x)(0*)/, "0x");
+export const trimSuiType = (type: string): string =>
+  type.replace(/(0x)(0*)/g, "0x");

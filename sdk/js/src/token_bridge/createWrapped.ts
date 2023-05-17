@@ -15,7 +15,7 @@ import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
 import { Algodv2 } from "algosdk";
 import { Types } from "aptos";
 import BN from "bn.js";
-import { ethers, Overrides } from "ethers";
+import { Overrides, ethers } from "ethers";
 import { fromUint8Array } from "js-base64";
 import { FunctionCallOptions } from "near-api-js/lib/account";
 import { Provider } from "near-api-js/lib/providers";
@@ -196,20 +196,10 @@ export async function createWrappedOnSui(
   wrappedAssetSetupType: string,
   attestVAA: Uint8Array
 ): Promise<TransactionBlock> {
-  // WrappedAssetSetup looks like
-  // 0x92d81f28c167d90f84638c654b412fe7fa8e55bdfac7f638bdcf70306289be86::create_wrapped::WrappedAssetSetup<0xa40e0511f7d6531dd2dfac0512c7fd4a874b76f5994985fb17ee04501a2bb050::coin::COIN, 0x4eb7c5bca3759ab3064b46044edb5668c9066be8a543b28b58375f041f876a80::version_control::V__0_1_1>
-
-  // ugh
-  const versionType = wrappedAssetSetupType.split(", ")[1].replace(">", "");
-
-  const coreBridgePackageId = await getPackageId(
-    provider,
-    coreBridgeStateObjectId
-  );
-  const tokenBridgePackageId = await getPackageId(
-    provider,
-    tokenBridgeStateObjectId
-  );
+  const [coreBridgePackageId, tokenBridgePackageId] = await Promise.all([
+    getPackageId(provider, coreBridgeStateObjectId),
+    getPackageId(provider, tokenBridgeStateObjectId),
+  ]);
 
   // Get coin metadata
   const coinType = getWrappedCoinType(coinPackageId);
@@ -221,6 +211,8 @@ export async function createWrappedOnSui(
     );
   }
 
+  // WrappedAssetSetup looks like
+  // 0x92d81f28c167d90f84638c654b412fe7fa8e55bdfac7f638bdcf70306289be86::create_wrapped::WrappedAssetSetup<0xa40e0511f7d6531dd2dfac0512c7fd4a874b76f5994985fb17ee04501a2bb050::coin::COIN, 0x4eb7c5bca3759ab3064b46044edb5668c9066be8a543b28b58375f041f876a80::version_control::V__0_1_1>
   const wrappedAssetSetupObjectId = await getOwnedObjectId(
     provider,
     signerAddress,
@@ -258,6 +250,7 @@ export async function createWrappedOnSui(
   });
 
   // Construct complete registration payload
+  const versionType = wrappedAssetSetupType.split(", ")[1].replace(">", ""); // ugh
   tx.moveCall({
     target: `${tokenBridgePackageId}::create_wrapped::complete_registration`,
     arguments: [
