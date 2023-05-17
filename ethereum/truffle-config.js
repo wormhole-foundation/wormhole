@@ -3,7 +3,7 @@ const HDWalletProvider = require("@truffle/hdwallet-provider");
 const KLAYHDWalletProvider = require("truffle-hdwallet-provider-klaytn");
 
 module.exports = {
-  contracts_directory: "contracts/{*.sol,bridge/{*.sol,interfaces/*.sol,token/*.sol,mock/*.sol,utils/*.sol},interfaces/*.sol,mock/*.sol,nft/{*.sol,interfaces/*.sol,token/*.sol,mock/*.sol}}",
+  contracts_directory: "contracts/{bridge/{*.sol,interfaces/.sol,token/*.sol,mock/*.sol,utils/*.sol},interfaces/IWormhole.sol,mock/*.sol,nft/{*.sol,interfaces/*.sol,token/*.sol,mock/*.sol}}",
   networks: {
     development: {
       host: "127.0.0.1",
