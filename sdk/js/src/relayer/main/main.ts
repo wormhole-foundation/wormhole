@@ -32,7 +32,7 @@ import {
   getRelayProvider,
   DeliveryTargetInfo
 } from "./helpers";
-import { VaaKeyStruct, SendStruct } from "../../ethers-contracts/IWormholeRelayer.sol/IWormholeRelayer";
+import { VaaKeyStruct } from "../../ethers-contracts/IWormholeRelayer.sol/IWormholeRelayer";
 
 export type InfoRequestParams = {
   environment?: Network;
@@ -165,25 +165,23 @@ export async function send(
     sendOptionalParams?.refundAddress !== undefined;
   const defaultRelayProviderAddress =
     await sourceCoreRelayer.getDefaultRelayProvider();
-  const sendStruct: SendStruct = {
-    targetChainId: targetChainId,
-    targetAddress: "0x" + tryNativeToHexString(targetAddress, "ethereum"),
-    refundChainId:
-      (refundLocationExists && sendOptionalParams.refundChainId) || sourceChainId,
-    refundAddress:
-      "0x" +
+
+  const tx = sourceCoreRelayer["send(uint16,bytes32,uint16,bytes32,uint256,uint256,bytes,(uint8,uint16,bytes32,uint64,bytes32)[],uint8,address,bytes)"](
+    targetChainId, // targetChainId
+    "0x" + tryNativeToHexString(targetAddress, "ethereum"), // targetAddress
+    (refundLocationExists && sendOptionalParams.refundChainId) || sourceChainId, // refundChainId
+    "0x" +
       tryNativeToHexString(
         (refundLocationExists &&
           sendOptionalParams.refundAddress &&
           sendOptionalParams.refundAddress) ||
           wallet.address,
         "ethereum"
-      ),
-    maxTransactionFee: maxTransactionFee,
-    receiverValue: sendOptionalParams?.receiverValue || 0,
-    relayProviderAddress:
-      sendOptionalParams?.relayProviderAddress || defaultRelayProviderAddress,
-    vaaKeys: sendOptionalParams?.additionalVaas
+      ), // refundAddress
+    maxTransactionFee,
+    sendOptionalParams?.receiverValue || 0, // receiverValue 
+    payload,
+    sendOptionalParams?.additionalVaas
       ? sendOptionalParams.additionalVaas.map(
           (additionalVaa): VaaKeyStruct => ({
             infoType: 0,
@@ -196,15 +194,11 @@ export async function send(
             vaaHash: Buffer.from(""),
           })
         )
-      : [],
-    consistencyLevel: sendOptionalParams?.consistencyLevel || 15,
-    payload: payload,
-    relayParameters: sendOptionalParams?.relayParameters || Buffer.from(""),
-  };
-
-  const tx = sourceCoreRelayer[
-    "send((uint16,bytes32,uint16,bytes32,uint256,uint256,address,(uint8,uint16,bytes32,uint64,bytes32)[],uint8,bytes,bytes))"
-  ](sendStruct, {
+      : [], // vaaKeys
+    sendOptionalParams?.consistencyLevel || 15, // consistencyLevel
+    sendOptionalParams?.relayProviderAddress || defaultRelayProviderAddress, // relayProviderAddress
+    sendOptionalParams?.relayParameters || Buffer.from(""), // relayParameters
+  {
     value: maxTransactionFee,
     gasLimit: sendOptionalParams?.gasLimitForSendTransaction || 150000,
   });
