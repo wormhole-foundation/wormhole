@@ -29,6 +29,11 @@ contract BridgeImplementation is Bridge {
 
         setInitialized(impl);
 
+        if (evmChainId() == 42161) { // arbitrum
+            address wethAddr = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
+            setWETH(wethAddr);
+        }
+
         _;
     }
 }
