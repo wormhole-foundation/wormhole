@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.17
+
+### Changed
+
+Normalize Sui types
+
+`unnormalizeSuiType` renamed to `trimSuiType`
+
 ## 0.9.16
 
 ### Changed
