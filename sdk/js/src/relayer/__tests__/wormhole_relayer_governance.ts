@@ -8,7 +8,8 @@ import {
     relayer,
     ethers_contracts,
     tryNativeToUint8Array,
-    ChainId
+    ChainId,
+    CONTRACTS
   } from "../../../";
 
   import {GovernanceEmitter, MockGuardians} from "../../../src/mock";
@@ -83,7 +84,7 @@ describe("Wormhole Relayer Governance Action Tests", () => {
     test("Test Registering Chain", async () => {
 
         const currentAddress = await sourceCoreRelayer.getRegisteredCoreRelayerContract(6);
-        console.log(`For Chain 2, registered chain 6 address: ${currentAddress}`);
+        console.log(`For Chain ${sourceChainId}, registered chain 6 address: ${currentAddress}`);
 
         const expectedNewRegisteredAddress = "0x0000000000000000000000001234567890123456789012345678901234567892";
 
@@ -113,7 +114,7 @@ describe("Wormhole Relayer Governance Action Tests", () => {
     test("Test Setting Default Relay Provider", async () => {
 
         const currentAddress = await sourceCoreRelayer.getDefaultRelayProvider();
-        console.log(`For Chain 2, default relay provider: ${currentAddress}`);
+        console.log(`For Chain ${sourceChainId}, default relay provider: ${currentAddress}`);
 
         const expectedNewDefaultRelayProvider = "0x1234567890123456789012345678901234567892";
 
@@ -141,38 +142,40 @@ describe("Wormhole Relayer Governance Action Tests", () => {
 
     });
 
-    /*
+    
     test("Test Upgrading Contract", async () => {
       const defaultRelayProvider = await sourceCoreRelayer.getDefaultRelayProvider();
+      console.log(`For Chain ${sourceChainId}, default relay provider: ${defaultRelayProvider}`);
+      const dummyRelayProviderAddress = "0x2468013579246801357924680135792468013579";
+      const newCoreRelayerResult = await new ethers_contracts.CoreRelayer__factory(walletSource).deploy(CONTRACTS[network][sourceChainId].core, dummyRelayProviderAddress);
 
-      const newCoreRelayer = await new ethers_contracts.CoreRelayer__factory(walletSource).deploy(sourceAddressInfo., "0x2468013579246801357924680135792468013579")
-      const currentAddress = await sourceCoreRelayer.getDefaultRelayProvider();
-      console.log(`For Chain 2, default relay provider: ${currentAddress}`);
 
-      const expectedNewDefaultRelayProvider = "0x1234567890123456789012345678901234567892";
 
       const timestamp = (await walletSource.provider.getBlock("latest")).timestamp;
       const chain = 2;
-      const firstMessage = governance.publishWormholeRelayerSetDefaultRelayProvider(timestamp, chain, expectedNewDefaultRelayProvider);
+      const firstMessage = governance.publishWormholeRelayerUpgradeContract(timestamp, chain, newCoreRelayerResult.address);
       const firstSignedVaa = guardians.addSignatures(firstMessage, [0]);
 
-      let tx = await sourceCoreRelayer.setDefaultRelayProvider(firstSignedVaa, {gasLimit: 500000});
+      let tx = await sourceCoreRelayer.submitContractUpgrade(firstSignedVaa, {gasLimit: 500000});
       await tx.wait();
 
       const newDefaultRelayProvider = (await sourceCoreRelayer.getDefaultRelayProvider());
 
-      expect(newDefaultRelayProvider).toBe(expectedNewDefaultRelayProvider);
+      expect(newDefaultRelayProvider).toBe(dummyRelayProviderAddress);
 
-      const inverseFirstMessage = governance.publishWormholeRelayerSetDefaultRelayProvider(timestamp, chain, currentAddress)
+
+      const oldCoreRelayerResult = await new ethers_contracts.CoreRelayer__factory(walletSource).deploy(CONTRACTS[network][sourceChainId].core, defaultRelayProvider);
+
+
+      const inverseFirstMessage = governance.publishWormholeRelayerUpgradeContract(timestamp, chain, oldCoreRelayerResult.address)
       const inverseFirstSignedVaa = guardians.addSignatures(inverseFirstMessage, [0]);
 
-      tx = await sourceCoreRelayer.setDefaultRelayProvider(inverseFirstSignedVaa, {gasLimit: 500000});
+      tx = await sourceCoreRelayer.submitContractUpgrade(inverseFirstSignedVaa, {gasLimit: 500000});
       await tx.wait();
 
       const originalDefaultRelayProvider = (await sourceCoreRelayer.getDefaultRelayProvider());
 
-      expect(originalDefaultRelayProvider).toBe(currentAddress);
-
-  });*/
+      expect(originalDefaultRelayProvider).toBe(defaultRelayProvider);
+  });
 
 });
