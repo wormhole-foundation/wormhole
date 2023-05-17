@@ -1,6 +1,3 @@
-import { BigNumber, ethers } from "ethers";
-import { ChainId, tryNativeToHexString } from "@certusone/wormhole-sdk";
-import { WORMHOLE_MESSAGE_EVENT_ABI, GUARDIAN_PRIVATE_KEY } from "./consts";
 
 const SAFE_RELAY_DELAY = 8000;
 

@@ -454,11 +454,18 @@ const DEVNET = {
     core: "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550",
     token_bridge: "0x0290FB167208Af455bB137780163b7B7a9a10C16",
     nft_bridge: "0x26b4afb60d6c903165150c6f0aa14f8016be4aec",
+    core_relayer: "0x53855d4b64E9A3CF59A84bc768adA716B5536BC5",
+    mock_relay_provider: "0x1ef9e15c3bbf0555860b5009B51722027134d53a",
+    mock_relayer_integration: "0x0eb0dD3aa41bD15C706BC09bC03C002b7B85aeAC"
+    
   },
   bsc: {
     core: "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550",
     token_bridge: "0x0290FB167208Af455bB137780163b7B7a9a10C16",
     nft_bridge: "0x26b4afb60d6c903165150c6f0aa14f8016be4aec",
+    core_relayer: "0x53855d4b64E9A3CF59A84bc768adA716B5536BC5",
+    mock_relay_provider: "0x1ef9e15c3bbf0555860b5009B51722027134d53a",
+    mock_relayer_integration: "0x0eb0dD3aa41bD15C706BC09bC03C002b7B85aeAC"
   },
   polygon: {
     core: undefined,

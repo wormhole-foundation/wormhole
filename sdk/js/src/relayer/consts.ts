@@ -1,74 +1,64 @@
-import { ChainId, Network, ChainName } from "../";
+import { ChainId, Network, ChainName, CHAIN_ID_TO_NAME } from "../";
 import { ethers } from "ethers";
 import { CoreRelayer__factory, CoreRelayer } from "../ethers-contracts/";
+import { number } from "yargs";
 
-const TESTNET = [
-  {
-    chainId: 4,
+type AddressInfo = {coreRelayerAddress?: string, mockRelayProviderAddress?: string, mockIntegrationAddress?: string}
+
+const TESTNET: {[chainId: number]: AddressInfo} = {
+  4: {
     coreRelayerAddress: "0x6Bf598B0eb6aef9B163565763Fe50e54d230eD4E",
   },
-  {
-    chainId: 5,
+  5: {
     coreRelayerAddress: "0x0c97Ef9C224b7EB0BA5e4A9fd2740EC3AeAfc9c3",
   },
-  {
-    chainId: 6,
+  6: {
     coreRelayerAddress: "0xf4e844a9B75BB532e67E654F7F80C6232e5Ea7a0",
   },
-  {
-    chainId: 14,
+  14: {
     coreRelayerAddress: "0xF08B7c0CFf448174a7007CF5f12023C72C0e84f0",
   },
-  {
-    chainId: 16,
+  16: {
     coreRelayerAddress: "0xd20d484eC6c57448d6871F91F4527260FD4aC141",
   },
-];
+}
 
-const DEVNET = [
-  {
-    chainId: 2,
+const DEVNET: {[chainId: number]: AddressInfo} = {
+  2: {
     coreRelayerAddress: "0x53855d4b64E9A3CF59A84bc768adA716B5536BC5",
+    mockRelayProviderAddress: "0x1ef9e15c3bbf0555860b5009B51722027134d53a",
+    mockIntegrationAddress: "0x0eb0dD3aa41bD15C706BC09bC03C002b7B85aeAC",
   },
-  {
-    chainId: 4,
+  4: {
     coreRelayerAddress: "0x53855d4b64E9A3CF59A84bc768adA716B5536BC5",
+    mockRelayProviderAddress: "0x1ef9e15c3bbf0555860b5009B51722027134d53a",
+    mockIntegrationAddress: "0x0eb0dD3aa41bD15C706BC09bC03C002b7B85aeAC",
   },
-];
+};
 
-const MAINNET: any[] = [];
+const MAINNET: {[chainId: number]: AddressInfo} = {};
+
+export const CONTRACTS = {MAINNET, TESTNET, DEVNET};
+
+export function getAddressInfo(chainId: ChainId, env: Network): AddressInfo {
+  return CONTRACTS[env][chainId];
+}
+
+export function getRPC(chainId: ChainId, env: Network): string {
+  const result: string | undefined = RPCS_BY_CHAIN[env][CHAIN_ID_TO_NAME[chainId] || ""];
+  if(!result) {
+    throw Error(`No default RPC for chainId ${chainId} or network ${env}`);
+  }
+  return result as string;
+}
 
 export function getWormholeRelayerAddress(
   chainId: ChainId,
   env: Network
 ): string {
-  if (env == "TESTNET") {
-    const address = TESTNET.find(
-      (x) => x.chainId == chainId
-    )?.coreRelayerAddress;
-    if (!address) {
-      throw Error("Invalid chain ID");
-    }
-    return address;
-  } else if (env == "MAINNET") {
-    const address = MAINNET.find(
-      (x) => x.chainId == chainId
-    )?.coreRelayerAddress;
-    if (!address) {
-      throw Error("Invalid chain ID");
-    }
-    return address;
-  } else if (env == "DEVNET") {
-    const address = DEVNET.find(
-      (x) => x.chainId == chainId
-    )?.coreRelayerAddress;
-    if (!address) {
-      throw Error("Invalid chain ID");
-    }
-    return address;
-  } else {
-    throw Error("Invalid environment");
-  }
+  const result = getAddressInfo(chainId, env).coreRelayerAddress;
+  if(!result) throw Error(`No Wormhole Relayer Address for chainId ${chainId}, network ${env}`);
+  return result;
 }
 
 export function getWormholeRelayer(
