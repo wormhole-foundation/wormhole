@@ -35,7 +35,7 @@ node_modules: package-lock.json
 forge_dependencies: lib/forge-std
 
 lib/forge-std:
-	forge install foundry-rs/forge-std@2c7cbfc6fbede6d7c9e6b17afe997e3fdfe22fef --no-git --no-commit
+	forge install foundry-rs/forge-std@v1.5.5 --no-git --no-commit
 
 dependencies: node_modules forge_dependencies
 
