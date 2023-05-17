@@ -11,7 +11,7 @@
 set -eo pipefail
 
 # This is a known-to-be-working build.
-DOCKER_IMAGE="ghcr.io/foundry-rs/foundry:nightly-0d4468765c264d00ac961275fe176ce003d3e4ca@sha256:88fe2ea1005b9a3a7f8068645fef4cfb0fa7c16a5dd3b35582c70a1e36d16c25"
+DOCKER_IMAGE="ghcr.io/foundry-rs/foundry:nightly-6defdcebf7f59ee471086b1b51ff85392aafd445@sha256:cd9a68e7bd69d9d5f9025eaeb525efd7f162f11e4566792da8ec4891b080a415"
 
 args=$(printf '"%s" ' "$@")
 
