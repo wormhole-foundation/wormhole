@@ -9,19 +9,23 @@ import {
     ChainId
   } from "../../../";
 
-const env = "DEVNET";
-const sourceChainId = 2;
-const targetChainId = 4;
+  const env = process.env['ENV'];
+  if(!env) throw Error("No env specified: tilt or ci or testnet or mainnet");
+  const network = env == 'tilt' || env == 'ci' ? "DEVNET" : env == 'testnet' ? "TESTNET" : env == 'mainnet' ? "MAINNET" : undefined;
+  if(!network) throw Error(`Invalid env specified: ${env}`);
+
+  const sourceChainId = network == 'DEVNET' ? 2 : 6;
+  const targetChainId = network == 'DEVNET' ? 4 : 14;
 
 // Devnet Private Key
 const privateKey = "4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
 
 const guardianRPC = "http://localhost:7071"
 
-const sourceAddressInfo = getAddressInfo(sourceChainId, env);
-const targetAddressInfo = getAddressInfo(targetChainId, env);
-const sourceRpc = getRPC(sourceChainId, env);
-const targetRpc = getRPC(targetChainId, env);
+const sourceAddressInfo = getAddressInfo(sourceChainId, network);
+const targetAddressInfo = getAddressInfo(targetChainId, network);
+const sourceRpc = getRPC(sourceChainId, network, env=='ci');
+const targetRpc = getRPC(targetChainId, network, env=='ci');
 
 // signers
 const walletSource = new ethers.Wallet(privateKey, new ethers.providers.JsonRpcProvider(sourceRpc));
@@ -61,7 +65,7 @@ const getStatus = async (txHash: string): Promise<string> => {
   const info = (await relayer.getWormholeRelayerInfo(
       sourceChainId,
       txHash,
-      { environment: env }
+      { environment: network }
     )) as relayer.DeliveryInfo;
   return  info.targetChainStatus.events[0].status;
 }
@@ -378,13 +382,13 @@ describe("Wormhole Relayer Tests", () => {
   
 
   test("Test getPrice in Typescript SDK", async () => {
-    const price = (await relayer.getPrice(sourceChainId, targetChainId, 200000, {environment: env}));
+    const price = (await relayer.getPrice(sourceChainId, targetChainId, 200000, {environment: network}));
     expect(price.toString()).toBe("165000000000000000");
   });
 
   test("Test getPriceMultipleHops in Typescript SDK", async () => {
 
-    const price = (await relayer.getPriceMultipleHops(sourceChainId, [{targetChainId: targetChainId, gasAmount: 200000}, {targetChainId: sourceChainId, gasAmount: 200000}], env));
+    const price = (await relayer.getPriceMultipleHops(sourceChainId, [{targetChainId: targetChainId, gasAmount: 200000}, {targetChainId: sourceChainId, gasAmount: 200000}], network));
     expect(price.toString()).toBe("338250000000000000");
   });
 
@@ -397,7 +401,7 @@ describe("Wormhole Relayer Tests", () => {
       sourceChainId,
       targetChainId,
       500000,
-      { environment: env }
+      { environment: network }
     );
     console.log(`Quoted gas delivery fee: ${value}`);
     const startingBalance = await walletSource.getBalance();
@@ -409,7 +413,7 @@ describe("Wormhole Relayer Tests", () => {
       walletSource,
       Buffer.from("hi!"),
       value,
-      { environment: env }
+      { environment: network }
     );
     console.log("Sent delivery request!");
     const rx = await tx.wait();
@@ -422,7 +426,7 @@ describe("Wormhole Relayer Tests", () => {
     const info = (await relayer.getWormholeRelayerInfo(
       sourceChainId,
       tx.hash,
-      { environment: env }
+      { environment: network }
     )) as relayer.DeliveryInfo;
     console.log(relayer.stringifyWormholeRelayerInfo(info));
     const status = info.targetChainStatus.events[0].status;
@@ -499,7 +503,7 @@ describe("Wormhole Relayer Tests", () => {
     const info = (await relayer.getWormholeRelayerInfo(
       sourceChainId,
       txHash,
-      { environment: env }
+      { environment: network }
     )) as relayer.DeliveryInfo;
     const status = info.targetChainStatus.events[0].status;
     expect(status).toBe("Receiver Failure");

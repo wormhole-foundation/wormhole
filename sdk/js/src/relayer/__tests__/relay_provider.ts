@@ -4,9 +4,13 @@ import { RelayProvider__factory } from "../../ethers-contracts"
 import {getAddressInfo, getRPC} from "../consts" 
 
 
-const env = "DEVNET";
-const sourceChainId = 2;
-const targetChainId = 4;
+const env = process.env['ENV'];
+if(!env) throw Error("No env specified: tilt or ci or testnet or mainnet");
+const network = env == 'tilt' || env == 'ci' ? "DEVNET" : env == 'testnet' ? "TESTNET" : env == 'mainnet' ? "MAINNET" : undefined;
+if(!network) throw Error(`Invalid env specified: ${env}`);
+
+const sourceChainId = network == 'DEVNET' ? 2 : 6;
+const targetChainId = network == 'DEVNET' ? 4 : 14;
 
 // Devnet Private Key
 const privateKey = "4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
@@ -14,8 +18,8 @@ const privateKey = "4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b2
 describe("Relay Provider Test", () => {
 
   
-  const addressInfo = getAddressInfo(sourceChainId, env);
-  const rpc = getRPC(sourceChainId, env);
+  const addressInfo = getAddressInfo(sourceChainId, network);
+  const rpc = getRPC(sourceChainId, network, env=="ci");
 
   // signers
   const oracleDeployer = new ethers.Wallet(privateKey, new ethers.providers.JsonRpcProvider(rpc));

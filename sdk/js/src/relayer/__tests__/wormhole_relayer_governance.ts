@@ -11,16 +11,20 @@ import {
   } from "../../../";
 
   import {GovernanceEmitter, MockGuardians} from "../../../src/mock";
+import { error } from "console";
 
-const env = "DEVNET";
-const sourceChainId = 2;
-const targetChainId = 4;
+const env = process.env['ENV'];
+if(!env) throw Error("No env specified: tilt or ci or testnet or mainnet");
+const network = env == 'tilt' || env == 'ci' ? "DEVNET" : env == 'testnet' ? "TESTNET" : env == 'mainnet' ? "MAINNET" : undefined;
+if(!network) throw Error(`Invalid env specified: ${env}`);
+const sourceChainId = network == 'DEVNET' ? 2 : 6;
+const targetChainId = network == 'DEVNET' ? 4 : 14;
 
 // Devnet Private Key
 const privateKey = "4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
 
-const sourceAddressInfo = getAddressInfo(sourceChainId, env);
-const sourceRpc = getRPC(sourceChainId, env);
+const sourceAddressInfo = getAddressInfo(sourceChainId, network);
+const sourceRpc = getRPC(sourceChainId, network, env == 'ci');
 
 // signers
 const walletSource = new ethers.Wallet(privateKey, new ethers.providers.JsonRpcProvider(sourceRpc));
@@ -134,6 +138,38 @@ describe("Wormhole Relayer Governance Action Tests", () => {
 
         expect(originalDefaultRelayProvider).toBe(currentAddress);
 
-      });
+    });
+
+    /*
+    test("Test Upgrading Contract", async () => {
+
+      const currentAddress = await sourceCoreRelayer.getDefaultRelayProvider();
+      console.log(`For Chain 2, default relay provider: ${currentAddress}`);
+
+      const expectedNewDefaultRelayProvider = "0x1234567890123456789012345678901234567892";
+
+      const timestamp = (await walletSource.provider.getBlock("latest")).timestamp;
+      const chain = 2;
+      const firstMessage = governance.publishWormholeRelayerSetDefaultRelayProvider(timestamp, chain, expectedNewDefaultRelayProvider);
+      const firstSignedVaa = guardians.addSignatures(firstMessage, [0]);
+
+      let tx = await sourceCoreRelayer.setDefaultRelayProvider(firstSignedVaa, {gasLimit: 500000});
+      await tx.wait();
+
+      const newDefaultRelayProvider = (await sourceCoreRelayer.getDefaultRelayProvider());
+
+      expect(newDefaultRelayProvider).toBe(expectedNewDefaultRelayProvider);
+
+      const inverseFirstMessage = governance.publishWormholeRelayerSetDefaultRelayProvider(timestamp, chain, currentAddress)
+      const inverseFirstSignedVaa = guardians.addSignatures(inverseFirstMessage, [0]);
+
+      tx = await sourceCoreRelayer.setDefaultRelayProvider(inverseFirstSignedVaa, {gasLimit: 500000});
+      await tx.wait();
+
+      const originalDefaultRelayProvider = (await sourceCoreRelayer.getDefaultRelayProvider());
+
+      expect(originalDefaultRelayProvider).toBe(currentAddress);
+
+  });*/
 
 });
