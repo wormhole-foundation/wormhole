@@ -120,11 +120,12 @@ export async function getIsWrappedAssetSui(
   tokenBridgeStateObjectId: string,
   type: string
 ): Promise<boolean> {
-  // // An easy way to determine if given asset isn't a wrapped asset is to ensure
-  // // module name and struct name are coin and COIN respectively.
-  // if (!type.endsWith("::coin::COIN")) {
-  //   return false;
-  // }
+  // An easy way to determine if given asset isn't a wrapped asset is to ensure
+  // module name and struct name are coin and COIN respectively.
+  if (!type.endsWith("::coin::COIN")) {
+    return false;
+  }
+
   const response = await getTokenFromTokenRegistry(
     provider,
     tokenBridgeStateObjectId,
@@ -133,9 +134,11 @@ export async function getIsWrappedAssetSui(
   if (!response.error) {
     return response.data?.type?.includes("WrappedAsset") || false;
   }
+
   if (response.error.code === "dynamicFieldNotFound") {
     return false;
   }
+
   throw new Error(
     `Unexpected getDynamicFieldObject response ${response.error}`
   );

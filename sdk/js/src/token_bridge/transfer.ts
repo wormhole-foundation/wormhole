@@ -6,11 +6,11 @@ import {
 } from "@mysten/sui.js";
 import {
   ACCOUNT_SIZE,
+  NATIVE_MINT,
+  TOKEN_PROGRAM_ID,
   createCloseAccountInstruction,
   createInitializeAccountInstruction,
   getMinimumBalanceForRentExemptAccount,
-  NATIVE_MINT,
-  TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import {
   Commitment,
@@ -18,33 +18,33 @@ import {
   Keypair,
   PublicKey,
   PublicKeyInitData,
-  SystemProgram,
   Transaction as SolanaTransaction,
+  SystemProgram,
 } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
 import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
 import {
   Algodv2,
+  Transaction as AlgorandTransaction,
+  OnApplicationComplete,
+  SuggestedParams,
   bigIntToBytes,
   getApplicationAddress,
   makeApplicationCallTxnFromObject,
   makeAssetTransferTxnWithSuggestedParamsFromObject,
   makePaymentTxnWithSuggestedParamsFromObject,
-  OnApplicationComplete,
-  SuggestedParams,
-  Transaction as AlgorandTransaction,
 } from "algosdk";
 import { Types } from "aptos";
 import BN from "bn.js";
-import { ethers, Overrides, PayableOverrides } from "ethers";
+import { Overrides, PayableOverrides, ethers } from "ethers";
 import { FunctionCallOptions } from "near-api-js/lib/account";
 import { Provider } from "near-api-js/lib/providers";
 import { getIsWrappedAssetNear } from "..";
 import {
+  TransactionSignerPair,
   assetOptinCheck,
   getMessageFee,
   optin,
-  TransactionSignerPair,
 } from "../algorand";
 import {
   transferTokens as transferTokensAptos,
@@ -67,10 +67,10 @@ import { getPackageId, isSameType } from "../sui";
 import { SuiCoinObject } from "../sui/types";
 import { isNativeDenom } from "../terra";
 import {
-  callFunctionNear,
+  CHAIN_ID_SOLANA,
   ChainId,
   ChainName,
-  CHAIN_ID_SOLANA,
+  callFunctionNear,
   coalesceChainId,
   createNonce,
   hexToUint8Array,
@@ -938,6 +938,7 @@ export async function transferFromSui(
   if (payload !== null) {
     throw new Error("Sui transfer with payload not implemented");
   }
+
   const [primaryCoin, ...mergeCoins] = coins.filter((coin) =>
     isSameType(coin.coinType, coinType)
   );
@@ -946,14 +947,11 @@ export async function transferFromSui(
       `Coins array doesn't contain any coins of type ${coinType}`
     );
   }
-  const coreBridgePackageId = await getPackageId(
-    provider,
-    coreBridgeStateObjectId
-  );
-  const tokenBridgePackageId = await getPackageId(
-    provider,
-    tokenBridgeStateObjectId
-  );
+
+  const [coreBridgePackageId, tokenBridgePackageId] = await Promise.all([
+    getPackageId(provider, coreBridgeStateObjectId),
+    getPackageId(provider, tokenBridgeStateObjectId),
+  ]);
   const tx = new TransactionBlock();
   const [transferCoin] = (() => {
     if (coinType === SUI_TYPE_ARG) {
@@ -966,6 +964,7 @@ export async function transferFromSui(
           mergeCoins.map((coin) => tx.object(coin.coinObjectId))
         );
       }
+
       return tx.splitCoins(primaryCoinInput, [tx.pure(amount)]);
     }
   })();

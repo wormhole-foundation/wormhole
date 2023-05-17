@@ -23,24 +23,24 @@ import {
   getFieldsFromObjectResponse,
   getTokenFromTokenRegistry,
   isValidSuiType,
-  unnormalizeSuiAddress,
+  trimSuiType,
 } from "../sui";
 import { buildNativeId } from "../terra";
 import {
-  assertChain,
-  callFunctionNear,
-  ChainId,
-  ChainName,
   CHAIN_ID_ALGORAND,
   CHAIN_ID_APTOS,
   CHAIN_ID_NEAR,
   CHAIN_ID_SOLANA,
   CHAIN_ID_SUI,
   CHAIN_ID_TERRA,
-  coalesceChainId,
-  coalesceCosmWasmChainId,
+  ChainId,
+  ChainName,
   CosmWasmChainId,
   CosmWasmChainName,
+  assertChain,
+  callFunctionNear,
+  coalesceChainId,
+  coalesceCosmWasmChainId,
   hexToUint8Array,
   isValidAptosType,
 } from "../utils";
@@ -347,12 +347,14 @@ export async function getOriginalAssetSui(
     );
   }
 
-  if (
-    fields.value.type.includes(`wrapped_asset::WrappedAsset<${coinType}>`) ||
-    fields.value.type.includes(
-      `wrapped_asset::WrappedAsset<${unnormalizeSuiAddress(coinType)}>`
-    )
-  ) {
+  // Normalize types
+  const type = trimSuiType(fields.value.type);
+  coinType = trimSuiType(coinType);
+
+  // Check if wrapped or native asset. We check inclusion instead of equality
+  // because it saves us from making an additional RPC call to fetch the
+  // package ID.
+  if (type.includes(`wrapped_asset::WrappedAsset<${coinType}>`)) {
     return {
       isWrapped: true,
       chainId: Number(fields.value.fields.info.fields.token_chain) as ChainId,
@@ -360,12 +362,7 @@ export async function getOriginalAssetSui(
         fields.value.fields.info.fields.token_address.fields.value.fields.data
       ),
     };
-  } else if (
-    fields.value.type.includes(`native_asset::NativeAsset<${coinType}>`) ||
-    fields.value.type.includes(
-      `native_asset::NativeAsset<${unnormalizeSuiAddress(coinType)}>`
-    )
-  ) {
+  } else if (type.includes(`native_asset::NativeAsset<${coinType}>`)) {
     return {
       isWrapped: false,
       chainId: CHAIN_ID_SUI,

@@ -15,21 +15,21 @@ import { MsgExecuteContract } from "@terra-money/terra.js";
 import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
 import {
   Algodv2,
+  OnApplicationComplete,
+  SuggestedParams,
   bigIntToBytes,
   decodeAddress,
   getApplicationAddress,
   makeApplicationCallTxnFromObject,
   makePaymentTxnWithSuggestedParamsFromObject,
-  OnApplicationComplete,
-  SuggestedParams,
 } from "algosdk";
 import { Types } from "aptos";
 import BN from "bn.js";
-import { ethers, PayableOverrides } from "ethers";
+import { PayableOverrides, ethers } from "ethers";
 import { FunctionCallOptions } from "near-api-js/lib/account";
 import { Provider } from "near-api-js/lib/providers";
 import { getIsWrappedAssetNear } from ".";
-import { getMessageFee, optin, TransactionSignerPair } from "../algorand";
+import { TransactionSignerPair, getMessageFee, optin } from "../algorand";
 import { attestToken as attestTokenAptos } from "../aptos";
 import { isNativeDenomXpla } from "../cosmwasm";
 import { Bridge__factory } from "../ethers-contracts";
@@ -38,8 +38,8 @@ import { createAttestTokenInstruction } from "../solana/tokenBridge";
 import { getPackageId } from "../sui/utils";
 import { isNativeDenom } from "../terra";
 import {
-  callFunctionNear,
   ChainId,
+  callFunctionNear,
   hashAccount,
   textToHexString,
   textToUint8Array,
@@ -324,14 +324,11 @@ export async function attestFromSui(
   if (metadata === null || metadata.id === null) {
     throw new Error(`Coin metadata ID for type ${coinType} not found`);
   }
-  const coreBridgePackageId = await getPackageId(
-    provider,
-    coreBridgeStateObjectId
-  );
-  const tokenBridgePackageId = await getPackageId(
-    provider,
-    tokenBridgeStateObjectId
-  );
+
+  const [coreBridgePackageId, tokenBridgePackageId] = await Promise.all([
+    getPackageId(provider, coreBridgeStateObjectId),
+    getPackageId(provider, tokenBridgeStateObjectId),
+  ]);
   const tx = new TransactionBlock();
   const [feeCoin] = tx.splitCoins(tx.gas, [tx.pure(feeAmount)]);
   const [messageTicket] = tx.moveCall({
