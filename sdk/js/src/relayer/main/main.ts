@@ -242,7 +242,6 @@ export async function getPrice(
     coreRelayerAddress,
     sourceChainProvider
   );
-
   const relayProviderAddress =
     optionalParams?.relayProviderAddress ||
     (await sourceCoreRelayer.getDefaultRelayProvider());
