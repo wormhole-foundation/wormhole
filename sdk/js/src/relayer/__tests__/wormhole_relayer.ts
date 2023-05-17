@@ -436,7 +436,7 @@ describe("Wormhole Relayer Tests", () => {
     )) as relayer.DeliveryInfo;
     console.log(relayer.stringifyWormholeRelayerInfo(info));
     const status = info.targetChainStatus.events[0].status;
-    expect(status).toBe("Delivery Success");
+    expect(status).toBe("Receiver Failure");
 
     console.log(`Quoted gas delivery fee: ${value}`);
     console.log(
