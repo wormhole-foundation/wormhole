@@ -14,7 +14,7 @@ const sourceChainId = network == 'DEVNET' ? 2 : 6;
 const targetChainId = network == 'DEVNET' ? 4 : 14;
 
 // Devnet Private Key
-const privateKey = "4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
+const privateKey = process.env['WALLET_KEY'] || "4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
 
 describe("Relay Provider Test", () => {
 

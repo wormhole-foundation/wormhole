@@ -9,7 +9,8 @@ import {
     ethers_contracts,
     tryNativeToUint8Array,
     ChainId,
-    CONTRACTS
+    CONTRACTS,
+    CHAIN_ID_TO_NAME
   } from "../../../";
 
   import {GovernanceEmitter, MockGuardians} from "../../../src/mock";
@@ -23,7 +24,7 @@ const sourceChainId = network == 'DEVNET' ? 2 : 6;
 const targetChainId = network == 'DEVNET' ? 4 : 14;
 
 // Devnet Private Key
-const privateKey = "4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
+const privateKey = process.env['WALLET_KEY'] || "4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
 
 const sourceAddressInfo = getAddressInfo(sourceChainId, network);
 const sourceProvider = getDefaultProvider(network, sourceChainId, env == 'ci');
@@ -119,11 +120,11 @@ describe("Wormhole Relayer Governance Action Tests", () => {
         const expectedNewDefaultRelayProvider = "0x1234567890123456789012345678901234567892";
 
         const timestamp = (await walletSource.provider.getBlock("latest")).timestamp;
-        const chain = 2;
+        const chain = sourceChainId;
         const firstMessage = governance.publishWormholeRelayerSetDefaultRelayProvider(timestamp, chain, expectedNewDefaultRelayProvider);
         const firstSignedVaa = guardians.addSignatures(firstMessage, [0]);
 
-        let tx = await sourceCoreRelayer.setDefaultRelayProvider(firstSignedVaa, {gasLimit: 500000});
+        let tx = await sourceCoreRelayer.setDefaultRelayProvider(firstSignedVaa);
         await tx.wait();
 
         const newDefaultRelayProvider = (await sourceCoreRelayer.getDefaultRelayProvider());
@@ -133,7 +134,7 @@ describe("Wormhole Relayer Governance Action Tests", () => {
         const inverseFirstMessage = governance.publishWormholeRelayerSetDefaultRelayProvider(timestamp, chain, currentAddress)
         const inverseFirstSignedVaa = guardians.addSignatures(inverseFirstMessage, [0]);
 
-        tx = await sourceCoreRelayer.setDefaultRelayProvider(inverseFirstSignedVaa, {gasLimit: 500000});
+        tx = await sourceCoreRelayer.setDefaultRelayProvider(inverseFirstSignedVaa);
         await tx.wait();
 
         const originalDefaultRelayProvider = (await sourceCoreRelayer.getDefaultRelayProvider());
@@ -144,38 +145,27 @@ describe("Wormhole Relayer Governance Action Tests", () => {
 
     
     test("Test Upgrading Contract", async () => {
-      const defaultRelayProvider = await sourceCoreRelayer.getDefaultRelayProvider();
-      console.log(`For Chain ${sourceChainId}, default relay provider: ${defaultRelayProvider}`);
-      const dummyRelayProviderAddress = "0x2468013579246801357924680135792468013579";
-      const newCoreRelayerResult = await new ethers_contracts.CoreRelayer__factory(walletSource).deploy(CONTRACTS[network][sourceChainId].core, dummyRelayProviderAddress);
+      const IMPLEMENTATION_STORAGE_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
 
+      const getImplementationAddress = () => sourceProvider.getStorageAt(sourceCoreRelayer.address, IMPLEMENTATION_STORAGE_SLOT);
 
+      console.log(`Current Implementation address: ${(await getImplementationAddress())}`);
+
+      const wormholeAddress = CONTRACTS[network][CHAIN_ID_TO_NAME[sourceChainId as ChainId]].core || "";
+
+      const newCoreRelayerImplementationAddress = (await new ethers_contracts.CoreRelayer__factory(walletSource).deploy(wormholeAddress, ethers.utils.getAddress(await sourceCoreRelayer.getDefaultRelayProvider())).then((x)=>x.deployed())).address;
+
+      console.log(`Deployed!`);
+      console.log(`New core relayer implementation: ${newCoreRelayerImplementationAddress}`);
 
       const timestamp = (await walletSource.provider.getBlock("latest")).timestamp;
-      const chain = 2;
-      const firstMessage = governance.publishWormholeRelayerUpgradeContract(timestamp, chain, newCoreRelayerResult.address);
+      const chain = sourceChainId;
+      const firstMessage = governance.publishWormholeRelayerUpgradeContract(timestamp, chain, newCoreRelayerImplementationAddress);
       const firstSignedVaa = guardians.addSignatures(firstMessage, [0]);
 
-      let tx = await sourceCoreRelayer.submitContractUpgrade(firstSignedVaa, {gasLimit: 500000});
-      await tx.wait();
+      let tx = await sourceCoreRelayer.submitContractUpgrade(firstSignedVaa);
 
-      const newDefaultRelayProvider = (await sourceCoreRelayer.getDefaultRelayProvider());
-
-      expect(newDefaultRelayProvider).toBe(dummyRelayProviderAddress);
-
-
-      const oldCoreRelayerResult = await new ethers_contracts.CoreRelayer__factory(walletSource).deploy(CONTRACTS[network][sourceChainId].core, defaultRelayProvider);
-
-
-      const inverseFirstMessage = governance.publishWormholeRelayerUpgradeContract(timestamp, chain, oldCoreRelayerResult.address)
-      const inverseFirstSignedVaa = guardians.addSignatures(inverseFirstMessage, [0]);
-
-      tx = await sourceCoreRelayer.submitContractUpgrade(inverseFirstSignedVaa, {gasLimit: 500000});
-      await tx.wait();
-
-      const originalDefaultRelayProvider = (await sourceCoreRelayer.getDefaultRelayProvider());
-
-      expect(originalDefaultRelayProvider).toBe(defaultRelayProvider);
+      expect((await getImplementationAddress()).substring(26)).toBe(ethers.utils.getAddress(newCoreRelayerImplementationAddress.substring(2)));
   });
 
 });
