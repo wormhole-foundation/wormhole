@@ -158,7 +158,6 @@ func main() {
 	if err != nil {
 		logger.Panic("failed to join topic", zap.Error(err))
 	}
-
 	sub, err := th.Subscribe()
 	if err != nil {
 		logger.Panic("failed to subscribe topic", zap.Error(err))

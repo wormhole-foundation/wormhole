@@ -527,7 +527,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	})
 
 	common.RunWithScissors(ctx, errC, "evm_fetch_query_req", func(ctx context.Context) error {
-		ccqMaxBlockNumber := big.NewInt(0).SetUint64(math.MaxUint64)
+		ccqMaxBlockNumber := big.NewInt(1).SetUint64(math.MaxUint64)
 		for {
 			select {
 			case <-ctx.Done():
