@@ -101,15 +101,13 @@ fn handle_packet_receive(msg: IbcPacketReceiveMsg) -> Result<IbcReceiveResponse,
     }
 }
 
-const EXPECTED_WORMHOLE_IBC_EVENT_ATTRS: [&str; 8] = [
+const EXPECTED_WORMHOLE_IBC_EVENT_ATTRS: [&str; 6] = [
     "message.message",
     "message.sender",
     "message.chain_id",
     "message.nonce",
     "message.sequence",
     "message.block_time",
-    "message.tx_index",
-    "message.block_height",
 ];
 
 fn receive_publish(
