@@ -32,12 +32,6 @@ const VAA_SIGNERS = process.env.INIT_SIGNERS_KEYS_CSV.split(",");
 const GOVERNANCE_CHAIN = Number(devnetConsts.global.governanceChainId);
 const GOVERNANCE_EMITTER = devnetConsts.global.governanceEmitterAddress;
 
-// Generated using
-// `guardiand template ibc-receiver-update-channel-chain --channel-id channel-0 --chain-id 32 --target-chain-id 3104 > wormchain.prototxt`
-// `guardiand admin governance-vaa-verify wormchain.prototxt`
-const WORMCHAIN_IBC_RECEIVER_WHITELIST_VAA =
-  "010000000001008203772b8a66b46023546a5f9a3d884bc382b094cd9f2d3355d3cde076346696233ff3f8087c115e6336decff627106b17f7bd78fc36b066dbbc7bd1bd0de84b00000000009ef03dea000100000000000000000000000000000000000000000000000000000000000000046e6d0d9c2a02729c200000000000000000000000000000000000000000004962635265636569766572010c20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006368616e6e656c2d300020";
-
 const readFileAsync = util.promisify(fs.readFile);
 
 /*
@@ -286,12 +280,37 @@ async function main() {
     addresses["wormchain_ibc_receiver.wasm"]
   );
 
+  // Generated VAA using
+  // `guardiand template ibc-receiver-update-channel-chain --channel-id channel-0 --chain-id 32 --target-chain-id 3104 > wormchain.prototxt`
+  // `guardiand admin governance-vaa-verify wormchain.prototxt`
+  let wormchainIbcReceiverWhitelistVaa: VAA<Other> = {
+    version: 1,
+    guardianSetIndex: 0,
+    signatures: [],
+    timestamp: 0,
+    nonce: 0,
+    emitterChain: GOVERNANCE_CHAIN,
+    emitterAddress: GOVERNANCE_EMITTER,
+    sequence: BigInt(Math.floor(Math.random() * 100000000)),
+    consistencyLevel: 0,
+    payload: {
+      type: "Other",
+      hex: `0000000000000000000000000000000000000000004962635265636569766572010c20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006368616e6e656c2d300020`,
+    },
+  };
+  wormchainIbcReceiverWhitelistVaa.signatures = sign(
+    VAA_SIGNERS,
+    wormchainIbcReceiverWhitelistVaa as unknown as VAA<Payload>
+  );
   const wormchainIbcReceiverUpdateWhitelistMsg = {
     submit_update_channel_chain: {
       vaas: [
-        Buffer.from(WORMCHAIN_IBC_RECEIVER_WHITELIST_VAA, "hex").toString(
-          "base64"
-        ),
+        Buffer.from(
+          serialiseVAA(
+            wormchainIbcReceiverWhitelistVaa as unknown as VAA<Payload>
+          ),
+          "hex"
+        ).toString("base64"),
       ],
     },
   };
@@ -311,7 +330,8 @@ async function main() {
   );
   console.log(
     "updated wormchain_ibc_receiver whitelist: ",
-    updateIbcWhitelistRes.transactionHash
+    updateIbcWhitelistRes.transactionHash,
+    updateIbcWhitelistRes.code
   );
 }
 
