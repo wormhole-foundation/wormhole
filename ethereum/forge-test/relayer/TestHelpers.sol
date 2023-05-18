@@ -112,10 +112,9 @@ contract TestHelpers {
         address proxyAddressComputed =
             create2Factory.computeProxyAddress(address(this), "0xGenericRelayer");
 
-        CoreRelayer coreRelayerImplementation =
-            new CoreRelayer(address(wormhole), defaultRelayProvider);
+        CoreRelayer coreRelayerImplementation = new CoreRelayer(address(wormhole));
 
-        bytes memory initCall = abi.encodeCall(CoreRelayer.initialize, ());
+        bytes memory initCall = abi.encodeCall(CoreRelayer.initialize, (defaultRelayProvider));
 
         coreRelayer = IWormholeRelayer(
             create2Factory.create2Proxy(

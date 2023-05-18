@@ -21,7 +21,7 @@ export const setupContractSalt = Buffer.from("0xSetup");
 export const proxyContractSalt = Buffer.from("0xGenericRelayer");
 
 export async function deployRelayProviderImplementation(
-  chain: ChainInfo
+  chain: ChainInfo,
 ): Promise<Deployment> {
   console.log("deployRelayProviderImplementation " + chain.chainId);
   const signer = getSigner(chain);
@@ -42,7 +42,7 @@ export async function deployRelayProviderImplementation(
 }
 
 export async function deployRelayProviderSetup(
-  chain: ChainInfo
+  chain: ChainInfo,
 ): Promise<Deployment> {
   console.log("deployRelayProviderSetup " + chain.chainId);
   const signer = getSigner(chain);
@@ -63,7 +63,7 @@ export async function deployRelayProviderSetup(
 export async function deployRelayProviderProxy(
   chain: ChainInfo,
   relayProviderSetupAddress: string,
-  relayProviderImplementationAddress: string
+  relayProviderImplementationAddress: string,
 ): Promise<Deployment> {
   console.log("deployRelayProviderProxy " + chain.chainId);
 
@@ -92,7 +92,7 @@ export async function deployRelayProviderProxy(
 }
 
 export async function deployMockIntegration(
-  chain: ChainInfo
+  chain: ChainInfo,
 ): Promise<Deployment> {
   console.log("deployMockIntegration " + chain.chainId);
 
@@ -115,7 +115,7 @@ export async function deployMockIntegration(
 }
 
 export async function deployCreate2Factory(
-  chain: ChainInfo
+  chain: ChainInfo,
 ): Promise<Deployment> {
   console.log("deployCreate2Factory " + chain.chainId);
 
@@ -128,12 +128,11 @@ export async function deployCreate2Factory(
 
 export async function deployCoreRelayerImplementation(
   chain: ChainInfo,
-  defaultRelayProvider: string,
 ): Promise<Deployment> {
   console.log("deployCoreRelayerImplementation " + chain.chainId);
 
   const result = await new CoreRelayer__factory(getSigner(chain))
-    .deploy(chain.wormholeAddress, ethers.utils.getAddress(defaultRelayProvider))
+    .deploy(chain.wormholeAddress)
     .then(deployed);
 
   console.log("Successfully deployed contract at " + result.address);
@@ -143,12 +142,16 @@ export async function deployCoreRelayerImplementation(
 export async function deployCoreRelayerProxy(
   chain: ChainInfo,
   coreRelayerImplementationAddress: string,
+  defaultRelayProvider: string,
 ): Promise<Deployment> {
   console.log("deployCoreRelayerProxy " + chain.chainId);
 
   const create2Factory = getCreate2Factory(chain);
 
-  const initData = CoreRelayer__factory.createInterface().encodeFunctionData("initialize")
+  const initData = CoreRelayer__factory.createInterface().encodeFunctionData(
+    "initialize",
+    [ethers.utils.getAddress(defaultRelayProvider)]
+  );
   const rx = await create2Factory
     .create2Proxy(proxyContractSalt, coreRelayerImplementationAddress, initData)
     .then(wait);
