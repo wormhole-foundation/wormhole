@@ -1,0 +1,5 @@
+github.com/algorand/go-codec v1.1.8 h1:XDSreeeZY8gMst6Edz4RBkl08/DGMJOeHYkoXL2B7wI=
+github.com/cosmos/ibc-go v1.2.2 h1:bs6TZ8Es1kycIu2AHlRZ9dzJ+mveqlLN/0sjWtRH88o=
+github.com/dgraph-io/badger v1.6.2 h1:mNw0qs90GVgGGWylh0umH5iag1j6n/PeJtNvL6KY/x8=
+github.com/googleapis/gax-go v2.0.2+incompatible h1:silFMLAnr330+NRuag/VjIGF7TLp/LBrV2CJKFLWEww=
+github.com/klauspost/cpuid v1.2.0 h1:NMpwD2G9JSFOE1/TJjGSo5zG7Yb2bTe7eq1jH+irmeE=
