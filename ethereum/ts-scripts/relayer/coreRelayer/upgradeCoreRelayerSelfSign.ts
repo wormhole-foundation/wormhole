@@ -7,7 +7,6 @@ import {
   getCoreRelayer,
   writeOutputFiles,
   getOperatingChains,
-  getRelayProviderAddress,
 } from "../helpers/env";
 import {
   createCoreRelayerUpgradeVAA,
@@ -27,7 +26,6 @@ async function run() {
   for (const chain of chains) {
     const coreRelayerImplementation = await deployCoreRelayerImplementation(
       chain,
-      getRelayProviderAddress(chain)
     );
     await upgradeCoreRelayer(chain, coreRelayerImplementation.address);
 

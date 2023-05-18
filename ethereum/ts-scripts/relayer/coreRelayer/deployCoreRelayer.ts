@@ -25,11 +25,11 @@ async function run() {
     console.log(`Deploying for chain ${chain.chainId}...`);
     const coreRelayerImplementation = await deployCoreRelayerImplementation(
       chain,
-      getRelayProviderAddress(chain)
     );
     const coreRelayerProxy = await deployCoreRelayerProxy(
       chain,
       coreRelayerImplementation.address,
+      getRelayProviderAddress(chain),
     );
 
     output.coreRelayerImplementations.push(coreRelayerImplementation);
