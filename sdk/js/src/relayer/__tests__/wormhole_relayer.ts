@@ -11,7 +11,8 @@ import {
     CHAINS,
     CONTRACTS,
     CHAIN_ID_TO_NAME,
-    ChainName
+    ChainName,
+    Network
   } from "../../../";
   import {GovernanceEmitter, MockGuardians} from "../../../src/mock";
 
@@ -450,9 +451,9 @@ test("Governance: Test Upgrading Contract", async () => {
 
   console.log(`Current Implementation address: ${(await getImplementationAddress())}`);
 
-  const wormholeAddress = CONTRACTS[network][CHAIN_ID_TO_NAME[sourceChainId as ChainId]].core || "";
+  const wormholeAddress = CONTRACTS[network][sourceChain].core || "";
 
-  const newCoreRelayerImplementationAddress = (await new ethers_contracts.CoreRelayer__factory(walletSource).deploy(wormholeAddress, ethers.utils.getAddress(await sourceCoreRelayer.getDefaultRelayProvider())).then((x)=>x.deployed())).address;
+  const newCoreRelayerImplementationAddress = (await new ethers_contracts.CoreRelayer__factory(walletSource).deploy(wormholeAddress).then((x)=>x.deployed())).address;
 
   console.log(`Deployed!`);
   console.log(`New core relayer implementation: ${newCoreRelayerImplementationAddress}`);
