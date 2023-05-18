@@ -1,5 +1,6 @@
 import { Network } from "../../../utils";
 import { PublicKey } from "@solana/web3.js";
+import { ethers } from "ethers";
 import {ETH_PRIVATE_KEY, Environment} from "../../../token_bridge/__tests__/utils/consts";
 
 const SAFE_RELAY_DELAY = 8000;
@@ -16,8 +17,8 @@ export const isCI = (): boolean => {
 }
 
 export const getNetwork = (): Network => {
-  const network = process.env['NETWORK'] || "undefined";
-  if(!(network in networkOptions)) throw Error(`Invalid Network: ${network}. Options ${networkOptions.join(", ")}`);
+  const network = process.env['NETWORK'] || "DEVNET";
+  if(!(networkOptions.includes(network))) throw Error(`Invalid Network: ${network}. Options ${networkOptions.join(", ")}`);
   return network as Network; 
 }
 
@@ -30,6 +31,12 @@ export const generateRandomString = (length: number) => {
   }
   return randomString;
 };
+
+export const getArbitraryBytes32 = (): string => {
+  return ethers.utils.hexlify(
+    ethers.utils.toUtf8Bytes(generateRandomString(32))
+  );
+} 
 
 export async function waitForRelay(quantity?: number) {
   await new Promise((resolve) =>
