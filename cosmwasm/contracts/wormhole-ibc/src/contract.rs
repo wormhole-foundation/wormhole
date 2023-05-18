@@ -148,22 +148,8 @@ fn post_message_ibc(
     // compute the packet timeout
     let packet_timeout = env.block.time.plus_seconds(PACKET_LIFETIME).into();
 
-    // compute the block height
-    let block_height = env.block.height.to_string();
-
-    // compute the transaction index
-    // (this is an optional since not all messages are executed as part of txns)
-    // (they may be executed part of the pre/post block handlers)
-    let tx_index = env.transaction.as_ref().map(|tx_info| tx_info.index);
-
     // actually execute the postMessage call on the core contract
-    let mut res = core_execute(deps, env, info, msg).context("wormhole core execution failed")?;
-
-    res = match tx_index {
-        Some(index) => res.add_attribute("message.tx_index", index.to_string()),
-        None => res,
-    };
-    res = res.add_attribute("message.block_height", block_height);
+    let res = core_execute(deps, env, info, msg).context("wormhole core execution failed")?;
 
     // Send the result attributes over IBC on this channel
     let packet = WormholeIbcPacketMsg::Publish {
