@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.18
+
+### Changed
+
+Update uint8ArrayToNative
+
 ## 0.9.17
 
 ### Changed
