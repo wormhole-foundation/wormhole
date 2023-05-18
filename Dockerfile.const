@@ -1,13 +1,18 @@
 # syntax=docker.io/docker/dockerfile:1.3@sha256:42399d4635eddd7a9b8a24be879d2f9a930d0ed040a61324cfdf59ef1357b3b2
 FROM node:16-alpine@sha256:004dbac84fed48e20f9888a23e32fa7cf83c2995e174a78d41d9a9dd1e051a20 as const-build
 
-# fetch scripts/guardian-set-init.sh deps
-RUN apk update && apk add bash g++ make python3 curl jq findutils
-
 # Support additional root CAs
 COPY README.md cert.pem* /certs/
 # Alpine
 RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/cert.pem; fi
+# Node
+ENV NODE_EXTRA_CA_CERTS=/certs/cert.pem
+ENV NODE_OPTIONS=--use-openssl-ca
+# npm
+RUN if [ -e /certs/cert.pem ]; then npm config set cafile /certs/cert.pem; fi
+
+# fetch scripts/guardian-set-init.sh deps
+RUN apk update && apk add bash g++ make python3 curl jq findutils
 
 # install CLI deps & build
 WORKDIR /clients/js
