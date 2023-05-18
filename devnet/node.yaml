@@ -78,7 +78,9 @@ spec:
             # - --bscRPC
             # - ws://eth-devnet2:8545
             - --polygonRPC
-            - ws://eth-devnet:8545
+            - wss://ws-matic-mainnet.chainstacklabs.com
+            - --polygonContract
+            - "0x7A4B5a56256163F07b2C80A7cA55aBE66c4ec4d7"
             - --avalancheRPC
             - ws://eth-devnet:8545
             - --auroraRPC
@@ -163,7 +165,8 @@ spec:
             - /tmp/data
             - --publicRpcLogDetail
             - "full"
-          # - --chainGovernorEnabled=true
+            # - --chainGovernorEnabled=true
+            # - --logLevel=debug
           securityContext:
             capabilities:
               add:
