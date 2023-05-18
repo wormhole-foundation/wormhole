@@ -475,7 +475,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		// Deterministic ganache ETH devnet address.
 		*ethContract = unsafeDevModeEvmContractAddress(*ethContract)
 		*bscContract = unsafeDevModeEvmContractAddress(*bscContract)
-		*polygonContract = unsafeDevModeEvmContractAddress(*polygonContract)
+		// *polygonContract = unsafeDevModeEvmContractAddress(*polygonContract)
 		*avalancheContract = unsafeDevModeEvmContractAddress(*avalancheContract)
 		*oasisContract = unsafeDevModeEvmContractAddress(*oasisContract)
 		*auroraContract = unsafeDevModeEvmContractAddress(*auroraContract)
