@@ -73,22 +73,6 @@ contract MockRelayerIntegration is IWormholeReceiver {
         );
     }
 
-    function sendOnlyPayload(
-        bytes memory payload,
-        uint16 targetChainId,
-        address destination
-    ) public payable returns (uint64 sequence) {
-        sequence = relayer.send{value: msg.value}(
-            targetChainId,
-            toWormholeFormat(destination),
-            targetChainId,
-            toWormholeFormat(destination),
-            msg.value - wormhole.messageFee(),
-            0,
-            payload
-        );
-    }
-
     function sendMessageWithRefundAddress(
         bytes memory _message,
         uint16 targetChainId,

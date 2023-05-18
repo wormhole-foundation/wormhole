@@ -1,8 +1,10 @@
 import {
   ChainId,
   CHAIN_ID_TO_NAME,
+  ChainName,
   isChain,
   CONTRACTS,
+  CHAINS,
   tryNativeToHexString,
   tryHexToNativeString,
   Network,
@@ -20,6 +22,7 @@ import {
   DeliveryStatus,
   VaaKey,
   parseWormholeRelayerSend,
+  RefundStatus,
 } from "../structs";
 import {
   getDefaultProvider,
@@ -37,23 +40,23 @@ import { VaaKeyStruct } from "../../ethers-contracts/IWormholeRelayer.sol/IWormh
 export type InfoRequestParams = {
   environment?: Network;
   sourceChainProvider?: ethers.providers.Provider;
-  targetChainProviders?: Map<ChainId, ethers.providers.Provider>;
+  targetChainProviders?: Map<ChainName, ethers.providers.Provider>;
   targetChainBlockRanges?: Map<
-    ChainId,
+    ChainName,
     [ethers.providers.BlockTag, ethers.providers.BlockTag]
   >;
   coreRelayerWhMessageIndex?: number;
-  coreRelayerAddresses?: Map<ChainId, string>
+  coreRelayerAddresses?: Map<ChainName, string>
 };
 
 export type DeliveryInfo = {
   type: RelayerPayloadId.Delivery;
-  sourceChainId: ChainId;
+  sourceChain: ChainName;
   sourceTransactionHash: string;
   sourceDeliverySequenceNumber: number;
   deliveryInstruction: DeliveryInstruction;
   targetChainStatus: {
-    chainId: ChainId;
+    chain: ChainName;
     events: DeliveryTargetInfo[];
   };
 };
@@ -64,10 +67,10 @@ export function printWormholeRelayerInfo(info: DeliveryInfo) {
 
 export function stringifyWormholeRelayerInfo(info: DeliveryInfo): string {
   let stringifiedInfo = "";
-  if (info.type == RelayerPayloadId.Delivery) {
+  if (info.type == RelayerPayloadId.Delivery && info.deliveryInstruction.targetAddress.toString("hex") !== "0000000000000000000000000000000000000000000000000000000000000000") {
     stringifiedInfo += `Found delivery request in transaction ${
       info.sourceTransactionHash
-    } on ${printChain(info.sourceChainId)}\n`;
+    } on ${info.sourceChain}\n`;
     const numMsgs = info.deliveryInstruction.vaaKeys.length;
 
     const payload = info.deliveryInstruction.payload.toString("hex");
@@ -118,7 +121,28 @@ export function stringifyWormholeRelayerInfo(info: DeliveryInfo): string {
                 }\nStatus: ${e.status}\n${e.revertString ? `Failure reason: ${e.gasUsed == instruction.executionParameters.gasLimit ? "Gas limit hit" : e.revertString}\n`: ""}Gas used: ${e.gasUsed}\nTransaction fee used: ${instruction.maximumRefundTarget.mul(e.gasUsed).div(instruction.executionParameters.gasLimit).toString()} wei of ${targetChainName} currency\n}`
             )
             .join("\n");
-   }
+   } else if (info.type == RelayerPayloadId.Delivery && info.deliveryInstruction.targetAddress.toString("hex") === "0000000000000000000000000000000000000000000000000000000000000000") {
+    stringifiedInfo += `Found delivery request in transaction ${
+      info.sourceTransactionHash
+    } on ${info.sourceChain}\n`;
+
+    const instruction = info.deliveryInstruction;
+    const targetChainName = CHAIN_ID_TO_NAME[instruction.targetChainId as ChainId];
+    
+    stringifiedInfo += `\nA refund of ${instruction.receiverValueTarget} ${targetChainName} wei was requested to be sent to ${targetChainName}, address 0x${info.deliveryInstruction.refundAddress.toString("hex")}`
+    
+    stringifiedInfo += info.targetChainStatus.events
+
+            .map(
+              (e, i) =>
+                `Delivery attempt ${i + 1}: ${
+                  e.transactionHash
+                    ? ` ${targetChainName} transaction hash: ${e.transactionHash}`
+                    : ""
+                }\nStatus: ${e.refundStatus == RefundStatus.RefundSent ? "Refund Successful" : "Refund Failed"}`
+            )
+            .join("\n");
+   } 
    
   return stringifiedInfo;
 }
@@ -142,17 +166,20 @@ export type SendOptionalParams = {
 };
 
 export async function send(
-  sourceChainId: ChainId,
-  targetChainId: ChainId,
+  sourceChain: ChainName,
+  targetChain: ChainName,
   targetAddress: string,
   wallet: ethers.Wallet,
   payload: ethers.BytesLike,
   maxTransactionFee: ethers.BigNumberish,
   sendOptionalParams: SendOptionalParams
 ): Promise<ethers.providers.TransactionResponse> {
+  const sourceChainId = CHAINS[sourceChain];
+  const targetChainId = CHAINS[targetChain];
+
   const environment = sendOptionalParams?.environment || "MAINNET";
   const coreRelayerAddress = getWormholeRelayerAddress(
-    sourceChainId,
+    sourceChain,
     environment
   );
   const sourceCoreRelayer = ethers_contracts.IWormholeRelayer__factory.connect(
@@ -221,21 +248,21 @@ export type GetPriceOptParams = GetPriceMultiHopOptParams & {
 };
 
 export async function getPrice(
-  sourceChainId: ChainId,
-  targetChainId: ChainId,
+  sourceChain: ChainName,
+  targetChain: ChainName,
   gasAmount: ethers.BigNumberish,
   optionalParams?: GetPriceOptParams
 ): Promise<ethers.BigNumber> {
   const environment = optionalParams?.environment || "MAINNET";
   const sourceChainProvider =
     optionalParams?.sourceChainProvider ||
-    getDefaultProvider(environment, sourceChainId);
+    getDefaultProvider(environment, sourceChain);
   if (!sourceChainProvider)
     throw Error(
       "No default RPC for this chain; pass in your own provider (as sourceChainProvider)"
     );
   const coreRelayerAddress = getWormholeRelayerAddress(
-    sourceChainId,
+    sourceChain,
     environment
   );
   const sourceCoreRelayer = ethers_contracts.IWormholeRelayer__factory.connect(
@@ -245,6 +272,7 @@ export async function getPrice(
   const relayProviderAddress =
     optionalParams?.relayProviderAddress ||
     (await sourceCoreRelayer.getDefaultRelayProvider());
+  const targetChainId = CHAINS[targetChain];
   const price = (
     await sourceCoreRelayer.quoteGas(
       targetChainId,
@@ -261,32 +289,36 @@ export async function getPrice(
   return price;
 }
 
+export type TargetChainAndGasAmount = {
+  targetChain: ChainName,
+  gasAmount: ethers.BigNumberish,
+  optionalParams?: GetPriceMultiHopOptParams,
+  forwards?: TargetChainAndGasAmount[]
+}
 
-export async function getPriceMultipleHops(sourceChainId: ChainId, targets: {targetChainId: ChainId, gasAmount: ethers.BigNumberish, optionalParams?: GetPriceMultiHopOptParams}[], environment: Network = "MAINNET"): Promise<ethers.BigNumber> {
-  const chains = [sourceChainId].concat(targets.map((t)=>t.targetChainId));
+export async function getPriceMultipleHops(sourceChain: ChainName, target: TargetChainAndGasAmount, environment: Network = "MAINNET"): Promise<ethers.BigNumber> {
+  return _getPriceMultipleHops(sourceChain, [target], environment);
+}
+
+async function _getPriceMultipleHops(sourceChain: ChainName, targets: TargetChainAndGasAmount[], environment: Network = "MAINNET"): Promise<ethers.BigNumber> {
   let currentCost = BigNumber.from(0);
-  for (let i = chains.length - 2; i >= 0; i--) {
+  for(let i = 0; i < targets.length; i++) {
     const optParams = { environment, ...targets[i].optionalParams };
-    optParams.receiverValue = currentCost.add(optParams.receiverValue || 0);
-    currentCost = await getPrice(
-      chains[i],
-      chains[i + 1],
-      targets[i].gasAmount,
-      optParams
-    );
+    optParams.receiverValue = (targets[i].forwards ? await _getPriceMultipleHops(targets[i].targetChain, targets[i].forwards || [], environment) : BigNumber.from(0)).add(optParams.receiverValue || 0)
+    currentCost = currentCost.add(await getPrice(sourceChain, targets[i].targetChain, targets[i].gasAmount, optParams));
   }
   return currentCost;
 }
 
 export async function getWormholeRelayerInfo(
-  sourceChainId: ChainId,
+  sourceChain: ChainName,
   sourceTransaction: string,
   infoRequest?: InfoRequestParams
 ): Promise<DeliveryInfo> {
   const environment = infoRequest?.environment || "MAINNET";
   const sourceChainProvider =
     infoRequest?.sourceChainProvider ||
-    getDefaultProvider(environment, sourceChainId);
+    getDefaultProvider(environment, sourceChain);
   if (!sourceChainProvider)
     throw Error(
       "No default RPC for this chain; pass in your own provider (as sourceChainProvider)"
@@ -296,14 +328,14 @@ export async function getWormholeRelayerInfo(
   );
   if (!receipt) throw Error("Transaction has not been mined");
   const bridgeAddress =
-    CONTRACTS[environment][CHAIN_ID_TO_NAME[sourceChainId]].core;
-  const coreRelayerAddress = infoRequest?.coreRelayerAddresses?.get(sourceChainId) || getWormholeRelayerAddress(
-    sourceChainId,
+    CONTRACTS[environment][sourceChain].core;
+  const coreRelayerAddress = infoRequest?.coreRelayerAddresses?.get(sourceChain) || getWormholeRelayerAddress(
+    sourceChain,
     environment
   );
   if (!bridgeAddress || !coreRelayerAddress) {
     throw Error(
-      `Invalid chain ID or network: Chain ID ${sourceChainId}, ${environment}`
+      `Invalid chain ID or network: Chain ${sourceChain}, ${environment}`
     );
   }
   const deliveryLog = getWormholeRelayerLog(
@@ -321,9 +353,10 @@ export async function getWormholeRelayerInfo(
 
   const targetChainId = instruction.targetChainId as ChainId;
   if (!isChain(targetChainId)) throw Error(`Invalid Chain: ${targetChainId}`);
+  const targetChain = CHAIN_ID_TO_NAME[targetChainId];
   const targetChainProvider =
-    infoRequest?.targetChainProviders?.get(targetChainId) ||
-    getDefaultProvider(environment, targetChainId);
+    infoRequest?.targetChainProviders?.get(targetChain) ||
+    getDefaultProvider(environment, targetChain);
 
   if (!targetChainProvider) {
     throw Error(
@@ -331,26 +364,26 @@ export async function getWormholeRelayerInfo(
     );
   }
   const [blockStartNumber, blockEndNumber] =
-    infoRequest?.targetChainBlockRanges?.get(targetChainId) ||
+    infoRequest?.targetChainBlockRanges?.get(targetChain) ||
     getBlockRange(targetChainProvider);
 
     const targetChainStatus = await getWormholeRelayerInfoBySourceSequence(
       environment,
-      targetChainId,
+      targetChain,
       targetChainProvider,
-      sourceChainId,
+      sourceChain,
       BigNumber.from(deliveryLog.sequence),
       blockStartNumber,
       blockEndNumber,
-      infoRequest?.coreRelayerAddresses?.get(targetChainId) || getWormholeRelayerAddress(
-        targetChainId,
+      infoRequest?.coreRelayerAddresses?.get(targetChain) || getWormholeRelayerAddress(
+        targetChain,
         environment
       )
     );
 
     return {
       type: RelayerPayloadId.Delivery,
-      sourceChainId: sourceChainId,
+      sourceChain: sourceChain,
       sourceTransactionHash: sourceTransaction,
       sourceDeliverySequenceNumber: BigNumber.from(
         deliveryLog.sequence
@@ -364,8 +397,8 @@ export async function getWormholeRelayerInfo(
 
 export async function resendRaw(
   signer: ethers.Signer,
-  sourceChainId: ChainId,
-  targetChainId: ChainId,
+  sourceChain: ChainName,
+  targetChain: ChainName,
   environment: Network,
   vaaKey: VaaKey,
   newMaxTransactionFee: BigNumber | number,
@@ -377,13 +410,13 @@ export async function resendRaw(
 
   if (!provider) throw Error("No provider on signer");
 
-  const coreRelayer = getWormholeRelayer(sourceChainId, environment, signer);
+  const coreRelayer = getWormholeRelayer(sourceChain, environment, signer);
 
   return coreRelayer.resend(
     vaaKeyToVaaKeyStruct(vaaKey),
     newMaxTransactionFee,
     newReceiverValue,
-    targetChainId,
+    CHAINS[targetChain],
     relayProviderAddress,
     overrides
   );
@@ -391,8 +424,8 @@ export async function resendRaw(
 
 export async function resend(
   signer: ethers.Signer,
-  sourceChainId: ChainId,
-  targetChainId: ChainId,
+  sourceChain: ChainName,
+  targetChain: ChainName,
   environment: Network,
   vaaKey: VaaKey,
   newMaxTransactionFee: BigNumber | number,
@@ -402,6 +435,8 @@ export async function resend(
   isNode?: boolean,
   overrides?: ethers.PayableOverrides
 ) {
+  const sourceChainId = CHAINS[sourceChain];
+  const targetChainId = CHAINS[targetChain];
   const originalVAA = await getVAA(wormholeRPCs, vaaKey, isNode);
 
   if (!originalVAA) throw Error("orignal VAA not found");
@@ -422,7 +457,7 @@ export async function resend(
     );
   }
 
-  const coreRelayer = getWormholeRelayer(sourceChainId, environment, signer);
+  const coreRelayer = getWormholeRelayer(sourceChain, environment, signer);
   const relayProvider = getRelayProvider(
     relayProviderAddress,
     signer.provider!
@@ -466,8 +501,8 @@ export async function resend(
 
   return resendRaw(
     signer,
-    sourceChainId,
-    targetChainId,
+    sourceChain,
+    targetChain,
     environment,
     vaaKey,
     newMaxTransactionFee,
