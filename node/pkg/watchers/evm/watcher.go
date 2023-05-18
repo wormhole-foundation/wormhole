@@ -94,6 +94,10 @@ type (
 		// include requests for our chainID.
 		obsvReqC <-chan *gossipv1.ObservationRequest
 
+		// Incoming query requests from the network. Pre-filtered to only
+		// include requests for our chainID.
+		queryReqC <-chan *gossipv1.QueryRequest
+
 		pending   map[pendingKey]*pendingMessage
 		pendingMu sync.Mutex
 
@@ -143,6 +147,7 @@ func NewEthWatcher(
 	msgC chan<- *common.MessagePublication,
 	setC chan<- *common.GuardianSet,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
+	queryReqC <-chan *gossipv1.QueryRequest,
 	unsafeDevMode bool,
 ) *Watcher {
 
@@ -157,6 +162,7 @@ func NewEthWatcher(
 		msgC:                 msgC,
 		setC:                 setC,
 		obsvReqC:             obsvReqC,
+		queryReqC:            queryReqC,
 		pending:              map[pendingKey]*pendingMessage{},
 		unsafeDevMode:        unsafeDevMode,
 	}
@@ -510,6 +516,84 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.String("eth_network", w.networkName),
 						)
 					}
+				}
+			}
+		}
+	})
+
+	common.RunWithScissors(ctx, errC, "evm_fetch_query_req", func(ctx context.Context) error {
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+			case queryRequest := <-w.queryReqC:
+				// This can't happen unless there is a programming error - the caller
+				// is expected to send us only requests for our chainID.
+				if vaa.ChainID(queryRequest.ChainId) != w.chainID {
+					panic("invalid chain ID")
+				}
+
+				switch req := queryRequest.Message.(type) {
+				case *gossipv1.QueryRequest_EthCallQueryRequest:
+					to := eth_common.BytesToAddress(req.EthCallQueryRequest.To)
+					data := eth_hexutil.Encode(req.EthCallQueryRequest.Data)
+					block := req.EthCallQueryRequest.Block
+					logger.Info("received query request",
+					zap.String("eth_network", w.networkName),
+					zap.String("to", to.Hex()),
+					zap.Any("data", data),
+					zap.String("block", block))
+					
+					timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+					// like https://github.com/ethereum/go-ethereum/blob/master/ethclient/ethclient.go#L610
+					arg := map[string]interface{}{
+						"to": to,
+						"data": data,
+					}
+					var blockArg interface{}
+					// TODO: try making these error and see what happens
+					// 1. 66 chars but not 0x hex
+					// 2. 64 chars but not hex
+					// 3. bad blocks
+					// 4. bad 0x lengths
+					// 5. strings that aren't "latest", "safe", "finalized"
+					// 6. "safe" on a chain that doesn't support safe
+					// etc?
+					// I would expect this to trip within this scissor (if at all) but maybe this should get more defensive
+					if (len(block) == 66 || len(block) == 64) {
+						// looks like a hash which requires the object parameter
+						// https://docs.alchemy.com/reference/eth-call
+						hash := eth_common.HexToHash(block)
+						blockArg = rpc.BlockNumberOrHash{
+							BlockHash: &hash,
+					}
+					} else {
+						blockArg = block
+					}
+					var result string
+					err := w.ethConn.RawCallContext(timeout, &result, "eth_call", arg, blockArg)
+					cancel()
+
+					if err != nil {
+						logger.Error("failed to process query request",
+							zap.Error(err), zap.String("eth_network", w.networkName),
+							zap.String("to", to.Hex()),
+							zap.Any("data", data),
+							zap.String("block", block))
+						continue
+					}
+
+					// TODO: error on "0x" response
+
+					logger.Info("query result",
+						zap.String("eth_network", w.networkName),
+						zap.String("to", to.Hex()),
+						zap.Any("data", data),
+						zap.String("block", block),
+						zap.String("result", result))
+				default:
+					logger.Warn("received unsupported request type",
+						zap.Any("payload", queryRequest.Message))
 				}
 			}
 		}
