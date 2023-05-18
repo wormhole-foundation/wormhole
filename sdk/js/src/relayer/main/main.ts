@@ -22,6 +22,7 @@ import {
   DeliveryStatus,
   VaaKey,
   parseWormholeRelayerSend,
+  RefundStatus,
 } from "../structs";
 import {
   getDefaultProvider,
@@ -66,7 +67,7 @@ export function printWormholeRelayerInfo(info: DeliveryInfo) {
 
 export function stringifyWormholeRelayerInfo(info: DeliveryInfo): string {
   let stringifiedInfo = "";
-  if (info.type == RelayerPayloadId.Delivery) {
+  if (info.type == RelayerPayloadId.Delivery && info.deliveryInstruction.targetAddress.toString("hex") !== "0000000000000000000000000000000000000000000000000000000000000000") {
     stringifiedInfo += `Found delivery request in transaction ${
       info.sourceTransactionHash
     } on ${info.sourceChain}\n`;
@@ -120,7 +121,28 @@ export function stringifyWormholeRelayerInfo(info: DeliveryInfo): string {
                 }\nStatus: ${e.status}\n${e.revertString ? `Failure reason: ${e.gasUsed == instruction.executionParameters.gasLimit ? "Gas limit hit" : e.revertString}\n`: ""}Gas used: ${e.gasUsed}\nTransaction fee used: ${instruction.maximumRefundTarget.mul(e.gasUsed).div(instruction.executionParameters.gasLimit).toString()} wei of ${targetChainName} currency\n}`
             )
             .join("\n");
-   }
+   } else if (info.type == RelayerPayloadId.Delivery && info.deliveryInstruction.targetAddress.toString("hex") === "0000000000000000000000000000000000000000000000000000000000000000") {
+    stringifiedInfo += `Found delivery request in transaction ${
+      info.sourceTransactionHash
+    } on ${info.sourceChain}\n`;
+
+    const instruction = info.deliveryInstruction;
+    const targetChainName = CHAIN_ID_TO_NAME[instruction.targetChainId as ChainId];
+    
+    stringifiedInfo += `\nA refund of ${instruction.receiverValueTarget} ${targetChainName} wei was requested to be sent to ${targetChainName}, address 0x${info.deliveryInstruction.refundAddress.toString("hex")}`
+    
+    stringifiedInfo += info.targetChainStatus.events
+
+            .map(
+              (e, i) =>
+                `Delivery attempt ${i + 1}: ${
+                  e.transactionHash
+                    ? ` ${targetChainName} transaction hash: ${e.transactionHash}`
+                    : ""
+                }\nStatus: ${e.refundStatus == RefundStatus.RefundSent ? "Refund Successful" : "Refund Failed"}`
+            )
+            .join("\n");
+   } 
    
   return stringifiedInfo;
 }

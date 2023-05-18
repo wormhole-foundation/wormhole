@@ -88,9 +88,8 @@ const getStatus = async (txHash: string, _sourceChain?: ChainName): Promise<stri
   const info = (await relayer.getWormholeRelayerInfo(
       _sourceChain || sourceChain,
       txHash,
-      optionalParams
+      {environment: network, targetChainProviders: myMap, sourceChainProvider: myMap.get(_sourceChain || sourceChain)}
     )) as relayer.DeliveryInfo;
-  console.debug(relayer.stringifyWormholeRelayerInfo(info));
   return  info.targetChainStatus.events[0].status;
 }
 
