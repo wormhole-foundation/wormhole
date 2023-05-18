@@ -452,7 +452,7 @@ docker_build(
     dockerfile = "./ethereum/Dockerfile",
 
     # ignore local node_modules (in case they're present)
-    ignore = ["./node_modules", "./ts-test"],
+    ignore = ["./node_modules"],
     build_args = {"num_guardians": str(num_guardians)},
 
     # sync external scripts for incremental development
@@ -498,7 +498,7 @@ if generic_relayer:
         context = ".",
         only = ["./ethereum", "./relayer/generic_relayer", "./sdk", "./solana"],
         dockerfile = "relayer/generic_relayer/relayer-engine-v2/Dockerfile",
-        ignore = ["./ethereum/node_modules", "./ethereum/ts-test"]
+        ignore = ["./ethereum/node_modules", "./sdk/js/src/relayer/__tests__"]
     )
     k8s_yaml_with_ns("devnet/relayer-engine.yaml")
 

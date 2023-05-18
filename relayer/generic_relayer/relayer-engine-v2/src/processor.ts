@@ -216,9 +216,6 @@ async function processDeliveryInstruction(
       relayerRefundAddress: wallet.address,
       overrides: overrides ? packOverrides(overrides) : [],
     };
-
-    console.log(input);
-
     const gasUnitsEstimate = await coreRelayer.estimateGas.deliver(input, {
       value: budget,
       gasLimit: 3000000,

@@ -202,4 +202,69 @@ export class GovernanceEmitter extends MockEmitter {
       uptickSequence
     );
   }
+
+  publishWormholeRelayerRegisterChain(
+    timestamp: number,
+    chain: number,
+    address: string,
+    uptickSequence: boolean = true
+  ) {
+    const payload = Buffer.alloc(34);
+    payload.writeUInt16BE(chain, 0);
+    payload.write(tryNativeToHexString(address, chain as ChainId), 2, "hex");
+    return this.publishGovernanceMessage(
+      timestamp,
+      "CoreRelayer",
+      payload,
+      1,
+      0,
+      uptickSequence
+    );
+  }
+
+  publishWormholeRelayerUpgradeContract(
+    timestamp: number,
+    chain: number,
+    newContract: string,
+    uptickSequence: boolean = true
+  ) {
+    const payload = Buffer.alloc(32);
+    payload.write(
+      tryNativeToHexString(newContract, chain as ChainId),
+      0,
+      "hex"
+    );
+    return this.publishGovernanceMessage(
+      timestamp,
+      "CoreRelayer",
+      payload,
+      2,
+      chain,
+      uptickSequence
+    );
+  }
+
+  publishWormholeRelayerSetDefaultRelayProvider(
+    timestamp: number,
+    chain: number,
+    newRelayProviderAddress: string,
+    uptickSequence: boolean = true
+  ) {
+    const payload = Buffer.alloc(32);
+    payload.write(
+      tryNativeToHexString(newRelayProviderAddress, chain as ChainId),
+      0,
+      "hex"
+    );
+    return this.publishGovernanceMessage(
+      timestamp,
+      "CoreRelayer",
+      payload,
+      3,
+      chain,
+      uptickSequence
+    );
+  }
+
+
 }
