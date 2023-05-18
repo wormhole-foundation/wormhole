@@ -32,6 +32,11 @@ const VAA_SIGNERS = process.env.INIT_SIGNERS_KEYS_CSV.split(",");
 const GOVERNANCE_CHAIN = Number(devnetConsts.global.governanceChainId);
 const GOVERNANCE_EMITTER = devnetConsts.global.governanceEmitterAddress;
 
+// Generated using
+// `guardiand template ibc-receiver-update-channel-chain --channel-id channel-0 --chain-id 18 --target-chain-id 3104 > wormchain.prototxt`
+// `guardiand admin governance-vaa-verify wormchain.prototxt`
+const WORMCHAIN_IBC_RECEIVER_WHITELIST_VAA = "010000000300000000009ef03dea000100000000000000000000000000000000000000000000000000000000000000046e6d0d9c2a02729c200000000000000000000000000000000000000000004962635265636569766572010c20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006368616e6e656c2d300012"
+
 const readFileAsync = util.promisify(fs.readFile);
 
 /*
@@ -276,6 +281,23 @@ async function main() {
       "wormchainIbcReceiver"
     );
     console.log("instantiated wormchain ibc receiver contract: ", addresses["wormchain_ibc_receiver.wasm"]);
+
+    const wormchainIbcReceiverUpdateWhitelistMsg = {
+      submit_update_channel_chain: {
+        vaas: [Buffer.from(WORMCHAIN_IBC_RECEIVER_WHITELIST_VAA, "hex").toString("base64")]
+      }
+    };
+    const executeMsg = client.wasm.msgExecuteContract({
+      sender: signer,
+      contract: addresses["wormchain_ibc_receiver.wasm"],
+      msg: toUtf8(JSON.stringify(wormchainIbcReceiverUpdateWhitelistMsg)),
+      funds: [],
+    });
+    const updateIbcWhitelistRes = await client.signAndBroadcast(signer, [executeMsg], {
+      ...ZERO_FEE,
+      gas: "10000000",
+    });
+    console.log("updated wormchain_ibc_receiver whitelist: ", updateIbcWhitelistRes.transactionHash);
 }
 
 try {

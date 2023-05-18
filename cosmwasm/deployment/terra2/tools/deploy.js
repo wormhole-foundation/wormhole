@@ -9,6 +9,11 @@ import { readFileSync, readdirSync } from "fs";
 import { Bech32, toHex } from "@cosmjs/encoding";
 import { zeroPad } from "ethers/lib/utils.js";
 
+// Generated using
+// `guardiand template ibc-receiver-update-channel-chain --channel-id channel-0 --chain-id 3104 --target-chain-id 18 > terra2.prototxt`
+// `guardiand admin governance-vaa-verify terra2.prototxt`
+const WORMHOLE_IBC_WHITELIST_VAA = "010000000300000000009b9a6b2d0001000000000000000000000000000000000000000000000000000000000000000460efd4405060ac0c200000000000000000000000000000000000000000004962635265636569766572010012000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006368616e6e656c2d300c20"
+
 /*
   NOTE: Only append to this array: keeping the ordering is crucial, as the
   contracts must be imported in a deterministic order so their addresses remain
@@ -255,6 +260,20 @@ for (const [contract, registrations] of Object.entries(
       });
   }
 }
+
+// submit wormchain channel ID whitelist to the wormhole_ibc contract
+const ibc_whitelist_tx = await wallet.createAndSignTx({
+  msgs: [
+    new MsgExecuteContract(wallet.key.accAddress, addresses["wormhole_ibc.wasm"], {
+      submit_update_channel_chain: {
+        vaa: Buffer.from(WORMHOLE_IBC_WHITELIST_VAA, "hex").toString("base64")
+      }
+    }, { uluna: 1000 })
+  ],
+  memo: "",
+});
+const ibc_whitelist_res = await terra.tx.broadcast(ibc_whitelist_tx);
+console.log("updated wormhole_ibc channel whitelist", ibc_whitelist_res.txhash);
 
 // Terra addresses are "human-readable", but for cross-chain registrations, we
 // want the "canonical" version
