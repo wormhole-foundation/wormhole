@@ -204,11 +204,13 @@ addresses["wormhole_ibc.wasm"] = await instantiate(
     gov_address: Buffer.from(govAddress, "hex").toString("base64"),
     guardian_set_expirity: 86400,
     initial_guardian_set: {
-      addresses: init_guardians.map((hex) => {
-        return {
-          bytes: Buffer.from(hex, "hex").toString("base64"),
-        };
-      }),
+      // This is using one guardian so the above registration can be hard-coded
+      // TODO: instantiate with the correct guardian set and dynamically generate the registration
+      addresses: [
+        {
+          bytes: Buffer.from(init_guardians[0], "hex").toString("base64"),
+        },
+      ],
       expiration_time: 0,
     },
     chain_id: 32,
