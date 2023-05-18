@@ -2553,8 +2553,8 @@ contract WormholeRelayerTests is Test {
 
         bytes memory payload = abi.encodePacked(uint256(6));
 
-        setup.source.integration.sendOnlyPayload{value: payment}(
-            payload, setup.targetChainId, address(setup.target.integration)
+        setup.source.integration.sendMessageWithPayload{value: payment}(
+            bytes(""), setup.targetChainId, address(setup.target.integration), payload
         );
 
         genericRelayer.relay(setup.sourceChainId);

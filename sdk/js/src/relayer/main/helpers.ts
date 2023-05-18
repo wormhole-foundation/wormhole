@@ -1,8 +1,11 @@
 import {
   ChainId,
   CHAIN_ID_TO_NAME,
+  CHAINS,
+  ChainName,
   Network,
   tryNativeToHexString,
+  isChain,
 } from "../../";
 import { BigNumber, ContractReceipt, ethers } from "ethers";
 import { getWormholeRelayer, RPCS_BY_CHAIN } from "../consts";
@@ -26,7 +29,7 @@ export type DeliveryTargetInfo = {
   status: DeliveryStatus | string;
   transactionHash: string | null;
   vaaHash: string | null;
-  sourceChain: number | null;
+  sourceChain: ChainName;
   sourceVaaSequence: BigNumber | null;
   gasUsed: number;
   refundStatus: RefundStatus;
@@ -53,20 +56,21 @@ export function parseWormholeLog(log: ethers.providers.Log): {
 }
 
 export function printChain(chainId: number) {
+  if(!(chainId in CHAIN_ID_TO_NAME)) throw Error(`Invalid Chain ID: ${chainId}`);
   return `${CHAIN_ID_TO_NAME[chainId as ChainId]} (Chain ${chainId})`;
 }
 
-export function getDefaultProvider(network: Network, chainId: ChainId, ci?: boolean) {
+export function getDefaultProvider(network: Network, chain: ChainName, ci?: boolean) {
   let rpc: string | undefined = "";
   if(ci) {
-    if(chainId == 2) rpc = "http://eth-devnet:8545";
-    else if(chainId == 4) rpc = "http://eth-devnet2:8545";
-    else throw Error(`This chainId isn't in CI for relayers: ${chainId}`)
+    if(chain == "ethereum") rpc = "http://eth-devnet:8545";
+    else if(chain == "bsc") rpc = "http://eth-devnet2:8545";
+    else throw Error(`This chain isn't in CI for relayers: ${chain}`)
   } else {
-    rpc = RPCS_BY_CHAIN[network][CHAIN_ID_TO_NAME[chainId]];
+    rpc = RPCS_BY_CHAIN[network][chain];
   }
   if(!rpc) {
-    throw Error(`No default RPC for chainId ${chainId} or network ${network}`);
+    throw Error(`No default RPC for chain ${chain} or network ${network}`);
   }
   return new ethers.providers.StaticJsonRpcProvider(rpc);
 }
@@ -88,14 +92,14 @@ export function getBlockRange(
 
 export async function getWormholeRelayerInfoBySourceSequence(
   environment: Network,
-  targetChain: ChainId,
+  targetChain: ChainName,
   targetChainProvider: ethers.providers.Provider,
-  sourceChain: number,
+  sourceChain: ChainName,
   sourceVaaSequence: BigNumber,
   blockStartNumber: ethers.providers.BlockTag,
   blockEndNumber: ethers.providers.BlockTag,
   targetCoreRelayerAddress: string
-): Promise<{chainId: ChainId, events: DeliveryTargetInfo[]}> {
+): Promise<{chain: ChainName, events: DeliveryTargetInfo[]}> {
   const deliveryEvents = await getWormholeRelayerDeliveryEventsBySourceSequence(
     environment,
     targetChain,
@@ -107,15 +111,11 @@ export async function getWormholeRelayerInfoBySourceSequence(
     targetCoreRelayerAddress
   );
   if (deliveryEvents.length == 0) {
-    let status = `Delivery didn't happen on ${printChain(
-      targetChain
-    )} within blocks ${blockStartNumber} to ${blockEndNumber}.`;
+    let status = `Delivery didn't happen on ${targetChain} within blocks ${blockStartNumber} to ${blockEndNumber}.`;
     try {
       const blockStart = await targetChainProvider.getBlock(blockStartNumber);
       const blockEnd = await targetChainProvider.getBlock(blockEndNumber);
-      status = `Delivery didn't happen on ${printChain(
-        targetChain
-      )} within blocks ${blockStart.number} to ${
+      status = `Delivery didn't happen on ${targetChain} within blocks ${blockStart.number} to ${
         blockEnd.number
       } (within times ${new Date(
         blockStart.timestamp * 1000
@@ -132,7 +132,7 @@ export async function getWormholeRelayerInfoBySourceSequence(
     });
   }
   const targetChainStatus = {
-    chainId: targetChain,
+    chain: targetChain,
     events: deliveryEvents
   };
 
@@ -141,14 +141,16 @@ export async function getWormholeRelayerInfoBySourceSequence(
 
 export async function getWormholeRelayerDeliveryEventsBySourceSequence(
   environment: Network,
-  targetChain: ChainId,
+  targetChain: ChainName,
   targetChainProvider: ethers.providers.Provider,
-  sourceChain: number,
+  sourceChain: ChainName,
   sourceVaaSequence: BigNumber,
   blockStartNumber: ethers.providers.BlockTag,
   blockEndNumber: ethers.providers.BlockTag,
   targetCoreRelayerAddress: string
 ): Promise<DeliveryTargetInfo[]> {
+  const sourceChainId = CHAINS[sourceChain];
+  if(!sourceChainId) throw Error(`Invalid source chain: ${sourceChain}`)
   const coreRelayer = getWormholeRelayer(
     targetChain,
     environment,
@@ -158,7 +160,7 @@ export async function getWormholeRelayerDeliveryEventsBySourceSequence(
 
   const deliveryEvents = coreRelayer.filters.Delivery(
     null,
-    sourceChain,
+    sourceChainId,
     sourceVaaSequence
   );
 
@@ -197,12 +199,14 @@ async function transformDeliveryEvents(
   return Promise.all(
     events.map(async (x) => {
       const status = deliveryStatus(x.args[4]);
+      if(!isChain(x.args[1])) throw Error(`Invalid source chain id: ${x.args[1]}`);
+      const sourceChain = CHAIN_ID_TO_NAME[x.args[1] as ChainId];
       return {
         status,
         transactionHash: x.transactionHash,
         vaaHash: x.args[3],
         sourceVaaSequence: x.args[2],
-        sourceChain: x.args[1],
+        sourceChain,
         gasUsed: x.args[5],
         refundStatus: x.args[6],
         revertString: (status == DeliveryStatus.ReceiverFailure) ? x.args[7] : (status == DeliveryStatus.ForwardRequestFailure ? parseForwardFailureError(Buffer.from(x.args[7].substring(2), "hex")): undefined),
