@@ -155,6 +155,7 @@ func Run(
 	signedGovSt chan *gossipv1.SignedChainGovernorStatus,
 	components *Components,
 	ibcFeatures *string,
+	signedQueryReqC chan<- *gossipv1.SignedQueryRequest,
 ) func(ctx context.Context) error {
 	if components == nil {
 		components = DefaultComponents()
@@ -553,6 +554,10 @@ func Run(
 			case *gossipv1.GossipMessage_SignedChainGovernorStatus:
 				if signedGovSt != nil {
 					signedGovSt <- m.SignedChainGovernorStatus
+				}
+			case *gossipv1.GossipMessage_SignedQueryRequest:
+				if signedQueryReqC != nil {
+					signedQueryReqC <- m.SignedQueryRequest
 				}
 			default:
 				p2pMessagesReceived.WithLabelValues("unknown").Inc()
