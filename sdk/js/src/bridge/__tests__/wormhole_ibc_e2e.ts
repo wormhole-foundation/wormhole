@@ -66,7 +66,7 @@ describe("IBC Watcher Integration Tests", () => {
   test('Send a message from "Sei" (Terra2) via IBC', async () => {
     const postMsg = new MsgExecuteContract(
       terraWalletAddress,
-      "terra124tapgv8wsn5t3rv2cvywh4ckkmj6mc6fkya005qjmshnzewwm9qe9llrj",
+      "terra1436kxs0w2es6xlqpp9rd35e3d0cjnw4sv8j3a7483sgks29jqwgsnyey7t",
       {
         post_message: {
           message: Buffer.from("Hello World").toString("base64"),
