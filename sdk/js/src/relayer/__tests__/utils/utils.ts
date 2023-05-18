@@ -17,7 +17,7 @@ export const isCI = (): boolean => {
 }
 
 export const getNetwork = (): Network => {
-  const network = process.env['NETWORK'] || "DEVNET";
+  const network = process.env['NETWORK'] || "";
   if(!(networkOptions.includes(network))) throw Error(`Invalid Network: ${network}. Options ${networkOptions.join(", ")}`);
   return network as Network; 
 }

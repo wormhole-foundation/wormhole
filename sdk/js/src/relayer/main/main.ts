@@ -267,19 +267,23 @@ export async function getPrice(
   return price;
 }
 
+export type TargetChainAndGasAmount = {
+  targetChain: ChainName,
+  gasAmount: ethers.BigNumberish,
+  optionalParams?: GetPriceMultiHopOptParams,
+  forwards?: TargetChainAndGasAmount[]
+}
 
-export async function getPriceMultipleHops(sourceChain: ChainName, targets: {targetChain: ChainName, gasAmount: ethers.BigNumberish, optionalParams?: GetPriceMultiHopOptParams}[], environment: Network = "MAINNET"): Promise<ethers.BigNumber> {
-  const chains = [sourceChain].concat(targets.map((t)=>t.targetChain));
+export async function getPriceMultipleHops(sourceChain: ChainName, target: TargetChainAndGasAmount, environment: Network = "MAINNET"): Promise<ethers.BigNumber> {
+  return _getPriceMultipleHops(sourceChain, [target], environment);
+}
+
+async function _getPriceMultipleHops(sourceChain: ChainName, targets: TargetChainAndGasAmount[], environment: Network = "MAINNET"): Promise<ethers.BigNumber> {
   let currentCost = BigNumber.from(0);
-  for (let i = chains.length - 2; i >= 0; i--) {
+  for(let i = 0; i < targets.length; i++) {
     const optParams = { environment, ...targets[i].optionalParams };
-    optParams.receiverValue = currentCost.add(optParams.receiverValue || 0);
-    currentCost = await getPrice(
-      chains[i],
-      chains[i + 1],
-      targets[i].gasAmount,
-      optParams
-    );
+    optParams.receiverValue = (targets[i].forwards ? await _getPriceMultipleHops(targets[i].targetChain, targets[i].forwards || [], environment) : BigNumber.from(0)).add(optParams.receiverValue || 0)
+    currentCost = currentCost.add(await getPrice(sourceChain, targets[i].targetChain, targets[i].gasAmount, optParams));
   }
   return currentCost;
 }

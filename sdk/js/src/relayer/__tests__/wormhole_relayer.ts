@@ -111,7 +111,7 @@ const testSend = async (payload: string, sendTosourceChain?: boolean, notEnoughV
 }
 
 const testForward = async (payload1: string, payload2: string, notEnoughExtraForwardingValue?: boolean): Promise<string> => {
-    const value = await relayer.getPriceMultipleHops(sourceChain, [{targetChain: targetChain, gasAmount: REASONABLE_GAS_LIMIT_FORWARDS, optionalParams: optionalParams}, {targetChain: sourceChain, gasAmount: notEnoughExtraForwardingValue ? TOO_LOW_GAS_LIMIT : REASONABLE_GAS_LIMIT, optionalParams: optionalParams}], network);
+    const value = await relayer.getPriceMultipleHops(sourceChain, {targetChain: targetChain, gasAmount: REASONABLE_GAS_LIMIT_FORWARDS, optionalParams: optionalParams, forwards: [{targetChain: sourceChain, gasAmount: notEnoughExtraForwardingValue ? TOO_LOW_GAS_LIMIT : REASONABLE_GAS_LIMIT, optionalParams: optionalParams}]}, network);
     console.log(`Quoted gas delivery fee: ${value}`);
 
     const furtherInstructions: ethers_contracts.MockRelayerIntegration.FurtherInstructionsStruct = {
@@ -184,16 +184,7 @@ describe("Wormhole Relayer Tests", () => {
     const arbitraryPayload1 = getArbitraryBytes32()
     const arbitraryPayload2 = getArbitraryBytes32()
     console.log(`Sent message: ${arbitraryPayload1}, expecting ${arbitraryPayload2} to be forwarded`);
-    const value1 = await relayer.getPrice(sourceChain, targetChain, REASONABLE_GAS_LIMIT_FORWARDS, optionalParams);
-    const value2 = await relayer.getPrice(targetChain, sourceChain, REASONABLE_GAS_LIMIT, optionalParams)
-    const value3 = await relayer.getPrice(targetChain, targetChain, REASONABLE_GAS_LIMIT, optionalParams)
-    // Have enough value on the target chain to fund both forwards
-    const payment = value1
-      .add((value2
-      .add(value3)
-      .mul(105) // Apply asset conversion buffer in reverse
-      .div(100)
-      .add(1)));
+    const payment = await relayer.getPriceMultipleHops(sourceChain, {targetChain, gasAmount: REASONABLE_GAS_LIMIT_FORWARDS, optionalParams, forwards: [{targetChain, gasAmount: REASONABLE_GAS_LIMIT, optionalParams}, {targetChain: sourceChain, gasAmount: REASONABLE_GAS_LIMIT, optionalParams}]}, network);
     console.log(`Quoted gas delivery fee: ${payment}`);
 
     const furtherInstructions: ethers_contracts.MockRelayerIntegration.FurtherInstructionsStruct = {
@@ -256,7 +247,7 @@ describe("Wormhole Relayer Tests", () => {
   });
 
   test("Test getPriceMultipleHops in Typescript SDK", async () => {
-    const price = (await relayer.getPriceMultipleHops(sourceChain, [{targetChain: targetChain, gasAmount: 200000, optionalParams}, {targetChain: sourceChain, gasAmount: 200000, optionalParams}], network));
+    const price = (await relayer.getPriceMultipleHops(sourceChain, {targetChain, gasAmount: 200000, optionalParams, forwards: [{targetChain: sourceChain, gasAmount: 200000, optionalParams}]}, network));
     expect(price.toString()).toBe("338250000000000000");
   });
 
