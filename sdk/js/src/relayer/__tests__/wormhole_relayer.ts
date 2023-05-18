@@ -289,8 +289,9 @@ describe("Wormhole Relayer Tests", () => {
     const newEndingBalance = await source.wallet.getBalance();
 
     console.log("Checking status of refund using SDK");
+    console.log(relayer.stringifyWormholeRelayerInfo(info));
     const statusOfRefund = await getStatus(info.targetChainStatus.events[0].transactionHash || "", targetChain);
-    expect(statusOfRefund).toBe("Receiver Failure"); // This is what the status is set to in the codepath where refunds are sent
+    expect(statusOfRefund).toBe("Delivery Success"); 
 
     console.log(`Quoted gas delivery fee: ${value}`);
     console.log(

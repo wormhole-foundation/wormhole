@@ -147,11 +147,28 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
    */
   function executeDelivery(DeliveryVAAInfo memory vaaInfo) private {
     if (vaaInfo.deliveryInstruction.targetAddress == 0x0) {
-      payRefunds(
+      emit Delivery(
+        fromWormholeFormat(vaaInfo.deliveryInstruction.targetAddress),
+        vaaInfo.sourceChainId,
+        vaaInfo.sourceSequence,
+        vaaInfo.deliveryVaaHash,
+        DeliveryStatus.SUCCESS,
+        0,
+        payRefunds(
         vaaInfo.deliveryInstruction,
         vaaInfo.relayerRefundAddress,
         vaaInfo.deliveryInstruction.maximumRefundTarget,
         DeliveryStatus.RECEIVER_FAILURE
+        ),
+        bytes(""),
+        (vaaInfo.redeliveryHash != 0)
+        ? DeliveryOverride(
+            vaaInfo.deliveryInstruction.executionParameters.gasLimit,
+            vaaInfo.deliveryInstruction.maximumRefundTarget,
+            vaaInfo.deliveryInstruction.receiverValueTarget,
+            vaaInfo.redeliveryHash
+          ).encode()
+        : new bytes(0) 
       );
       return;
     }
