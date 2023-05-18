@@ -15,56 +15,59 @@ import {
     Network
   } from "../../../";
   import {GovernanceEmitter, MockGuardians} from "../../../src/mock";
+import { AddressInfo } from "net";
 
   const network: Network = getNetwork();
   const ci: boolean = isCI();
   
   const sourceChain = network == 'DEVNET' ? "ethereum" : "avalanche";
   const targetChain = network == 'DEVNET' ? "bsc" : "celo";
-  
-  const sourceChainId = CHAINS[sourceChain];
-  const targetChainId = CHAINS[targetChain];
 
-const sourceAddressInfo = getAddressInfo(sourceChain, network);
-const targetAddressInfo = getAddressInfo(targetChain, network);
-const sourceProvider = getDefaultProvider(network, sourceChain, ci);
-const targetProvider = getDefaultProvider(network, targetChain, ci);
+  type TestChain = {
+    chainId: ChainId,
+    name: ChainName,
+    provider: ethers.providers.Provider,
+    wallet: ethers.Wallet,
+    coreRelayerAddress: string,
+    mockIntegrationAddress: string,
+    coreRelayer: ethers_contracts.CoreRelayer,
+    mockIntegration: ethers_contracts.MockRelayerIntegration
+  }
 
-// signers
-const walletSource = new ethers.Wallet(PRIVATE_KEY, sourceProvider);
-const walletTarget = new ethers.Wallet(PRIVATE_KEY, targetProvider);
+  const createTestChain = (name: ChainName) => {
+    const provider = getDefaultProvider(network, name, ci);
+    const addressInfo = getAddressInfo(name, network);
+    if(!addressInfo.coreRelayerAddress) throw Error(`No core relayer address for ${name}`);
+    if(!addressInfo.mockIntegrationAddress) throw Error(`No mock relayer integration address for ${name}`);
+    const wallet = new ethers.Wallet(PRIVATE_KEY, provider);
+    const coreRelayer = ethers_contracts.CoreRelayer__factory.connect(
+      addressInfo.coreRelayerAddress,
+      wallet
+    );
+    const mockIntegration = ethers_contracts.MockRelayerIntegration__factory.connect(
+      addressInfo.mockIntegrationAddress,
+      wallet
+    );
+    const result: TestChain = {
+      chainId: CHAINS[name],
+      name,
+      provider,
+      wallet,
+      coreRelayerAddress: addressInfo.coreRelayerAddress,
+      mockIntegrationAddress: addressInfo.mockIntegrationAddress,
+      coreRelayer,
+      mockIntegration
+    }
+    return result;
+  }
 
-const sourceCoreRelayerAddress = sourceAddressInfo.coreRelayerAddress;
-const sourceMockIntegrationAddress = sourceAddressInfo.mockIntegrationAddress;
-const targetCoreRelayerAddress = targetAddressInfo.coreRelayerAddress;
-const targetMockIntegrationAddress = targetAddressInfo.mockIntegrationAddress;
-
-if(!sourceCoreRelayerAddress) throw Error("No source core relayer address");
-if(!targetCoreRelayerAddress) throw Error("No source core relayer address");
-if(!sourceMockIntegrationAddress) throw Error("No source mock integration address");
-if(!targetMockIntegrationAddress) throw Error("No source mock integration address");
-
-const sourceCoreRelayer = ethers_contracts.CoreRelayer__factory.connect(
-  sourceCoreRelayerAddress,
-  walletSource
-);
-const sourceMockIntegration = ethers_contracts.MockRelayerIntegration__factory.connect(
-  sourceMockIntegrationAddress,
-  walletSource
-);
-const targetCoreRelayer = ethers_contracts.CoreRelayer__factory.connect(
-  targetCoreRelayerAddress,
-  walletTarget
-);
-const targetMockIntegration = ethers_contracts.MockRelayerIntegration__factory.connect(
-  targetMockIntegrationAddress,
-  walletTarget
-);
+  const source = createTestChain(sourceChain);
+  const target = createTestChain(targetChain);
 
 const myMap = new Map<ChainName, ethers.providers.Provider>();
-myMap.set(sourceChain, sourceProvider);
-myMap.set(targetChain, targetProvider);
-const optionalParams = {environment: network, sourceChainProvider: sourceProvider, targetChainProviders: myMap};
+myMap.set(sourceChain, source.provider);
+myMap.set(targetChain, target.provider);
+const optionalParams = {environment: network, sourceChainProvider: source.provider, targetChainProviders: myMap};
 
 // for signing wormhole messages
 const guardians = new MockGuardians(GUARDIAN_SET_INDEX, GUARDIAN_KEYS);
@@ -90,13 +93,13 @@ const getStatus = async (txHash: string): Promise<string> => {
   return  info.targetChainStatus.events[0].status;
 }
 
-const testSend = async (payload: string, sendToSourceChain?: boolean, notEnoughValue?: boolean): Promise<string> => {
-    const value = await relayer.getPrice(sourceChain, sendToSourceChain ? sourceChain : targetChain, notEnoughValue ? TOO_LOW_GAS_LIMIT : REASONABLE_GAS_LIMIT);
+const testSend = async (payload: string, sendTosourceChain?: boolean, notEnoughValue?: boolean): Promise<string> => {
+    const value = await relayer.getPrice(sourceChain, sendTosourceChain ? sourceChain : targetChain, notEnoughValue ? TOO_LOW_GAS_LIMIT : REASONABLE_GAS_LIMIT);
     console.log(`Quoted gas delivery fee: ${value}`);
-    const tx = await sourceMockIntegration.sendMessage(
+    const tx = await source.mockIntegration.sendMessage(
       payload,
-      sendToSourceChain ? sourceChainId : targetChainId,
-     sendToSourceChain ? sourceMockIntegrationAddress : targetMockIntegrationAddress,
+      sendTosourceChain ? source.chainId : target.chainId,
+     sendTosourceChain ? source.mockIntegrationAddress : target.mockIntegrationAddress,
       { value, gasLimit: REASONABLE_GAS_LIMIT }
     );
     console.log("Sent delivery request!");
@@ -107,19 +110,19 @@ const testSend = async (payload: string, sendToSourceChain?: boolean, notEnoughV
 }
 
 const testForward = async (payload1: string, payload2: string, notEnoughExtraForwardingValue?: boolean): Promise<string> => {
-    const value = await relayer.getPriceMultipleHops(sourceChain, [{targetChain: targetChain, gasAmount: REASONABLE_GAS_LIMIT_FORWARDS, optionalParams: optionalParams}, {targetChain: sourceChain, gasAmount: REASONABLE_GAS_LIMIT, optionalParams: optionalParams}, network]);
+    const value = await relayer.getPriceMultipleHops(sourceChain, [{targetChain: targetChain, gasAmount: REASONABLE_GAS_LIMIT_FORWARDS, optionalParams: optionalParams}, {targetChain: sourceChain, gasAmount: REASONABLE_GAS_LIMIT, optionalParams: optionalParams}], network);
     console.log(`Quoted gas delivery fee: ${value}`);
 
     const furtherInstructions: ethers_contracts.MockRelayerIntegration.FurtherInstructionsStruct = {
       keepSending: true,
       newMessages: [payload2, "0x00"],
-      chains: [sourceChainId],
+      chains: [source.chainId],
       gasLimits: [REASONABLE_GAS_LIMIT],
     };
-    const tx = await sourceMockIntegration.sendMessagesWithFurtherInstructions(
+    const tx = await source.mockIntegration.sendMessagesWithFurtherInstructions(
       [payload1],
       furtherInstructions,
-      [targetChainId],
+      [target.chainId],
       [relayer.getPrice(targetChain, sourceChain, REASONABLE_GAS_LIMIT, optionalParams)],
       { value: value, gasLimit: REASONABLE_GAS_LIMIT }
     );
@@ -141,7 +144,7 @@ describe("Wormhole Relayer Tests", () => {
     await waitForRelay();
 
     console.log("Checking if message was relayed");
-    const message = await targetMockIntegration.getMessage();
+    const message = await target.mockIntegration.getMessage();
     expect(message).toBe(arbitraryPayload);
 
     console.log("Checking status using SDK");
@@ -160,11 +163,11 @@ describe("Wormhole Relayer Tests", () => {
     await waitForRelay(2);
 
     console.log("Checking if message was relayed");
-    const message1 = await targetMockIntegration.getMessage();
+    const message1 = await target.mockIntegration.getMessage();
     expect(message1).toBe(arbitraryPayload1);
 
     console.log("Checking if forward message was relayed back");
-    const message2 = await sourceMockIntegration.getMessage();
+    const message2 = await source.mockIntegration.getMessage();
     expect(message2).toBe(arbitraryPayload2);
 
     console.log("Checking status using SDK");
@@ -192,13 +195,13 @@ describe("Wormhole Relayer Tests", () => {
     const furtherInstructions: ethers_contracts.MockRelayerIntegration.FurtherInstructionsStruct = {
       keepSending: true,
       newMessages: [arbitraryPayload2, "0x00"],
-      chains: [sourceChainId, targetChainId],
+      chains: [source.chainId, target.chainId],
       gasLimits: [REASONABLE_GAS_LIMIT, REASONABLE_GAS_LIMIT],
     };
-    const tx = await sourceMockIntegration.sendMessagesWithFurtherInstructions(
+    const tx = await source.mockIntegration.sendMessagesWithFurtherInstructions(
       [arbitraryPayload1],
       furtherInstructions,
-      [targetChainId],
+      [target.chainId],
       [payment],
       { value: payment, gasLimit: REASONABLE_GAS_LIMIT_FORWARDS }
     );
@@ -209,11 +212,11 @@ describe("Wormhole Relayer Tests", () => {
     await waitForRelay(2);
 
     console.log("Checking if first forward was relayed");
-    const message1 = await sourceMockIntegration.getMessage();
+    const message1 = await source.mockIntegration.getMessage();
     expect(message1).toBe(arbitraryPayload2);
 
     console.log("Checking if second forward was relayed");
-    const message2 = await targetMockIntegration.getMessage();
+    const message2 = await target.mockIntegration.getMessage();
     expect(message2).toBe(arbitraryPayload2);
   });
 
@@ -227,13 +230,13 @@ describe("Wormhole Relayer Tests", () => {
     await waitForRelay();
 
     console.log("Checking if message was relayed (it shouldn't have been!");
-    const message1 = await targetMockIntegration.getMessage();
+    const message1 = await target.mockIntegration.getMessage();
     expect(message1).not.toBe(arbitraryPayload1);
 
     console.log(
       "Checking if forward message was relayed back (it shouldn't have been!)"
     );
-    const message2 = await sourceMockIntegration.getMessage();
+    const message2 = await source.mockIntegration.getMessage();
     expect(message2).not.toBe(arbitraryPayload2);
 
     const status = await getStatus(txHash);
@@ -259,16 +262,16 @@ describe("Wormhole Relayer Tests", () => {
       sourceChain,
       targetChain,
       REASONABLE_GAS_LIMIT,
-      { environment: network, sourceChainProvider: sourceProvider }
+      { environment: network, sourceChainProvider: source.provider }
     );
     console.log(`Quoted gas delivery fee: ${value}`);
-    const startingBalance = await walletSource.getBalance();
+    const startingBalance = await source.wallet.getBalance();
 
     const tx = await relayer.send(
       sourceChain,
       targetChain,
-      targetCoreRelayerAddress, // This is an address that exists but doesn't implement the IWormhole interface, so should result in Receiver Failure
-      walletSource,
+      target.coreRelayerAddress, // This is an address that exists but doesn't implement the IWormhole interface, so should result in Receiver Failure
+      source.wallet,
       Buffer.from("hi!"),
       value,
       optionalParams
@@ -276,7 +279,7 @@ describe("Wormhole Relayer Tests", () => {
     console.log("Sent delivery request!");
     await tx.wait();
     console.log("Message confirmed!");
-    const endingBalance = await walletSource.getBalance();
+    const endingBalance = await source.wallet.getBalance();
 
     await waitForRelay();
 
@@ -288,7 +291,7 @@ describe("Wormhole Relayer Tests", () => {
 
     await waitForRelay();
 
-    const newEndingBalance = await walletSource.getBalance();
+    const newEndingBalance = await source.wallet.getBalance();
 
     console.log("Checking status of refund using SDK");
     const statusOfRefund = await getStatus(info.targetChainStatus.events[0].transactionHash || "");
@@ -319,7 +322,7 @@ describe("Wormhole Relayer Tests", () => {
 
     await waitForRelay();
 
-    const message = await targetMockIntegration.getMessage();
+    const message = await target.mockIntegration.getMessage();
     expect(message).not.toBe(arbitraryPayload);
 
     const status = await getStatus(txHash);
@@ -334,7 +337,7 @@ describe("Wormhole Relayer Tests", () => {
 
     await waitForRelay();
 
-    const message = await targetMockIntegration.getMessage();
+    const message = await target.mockIntegration.getMessage();
     expect(message).not.toBe(arbitraryPayload);
 
     console.log("Checking status using SDK");
@@ -347,20 +350,20 @@ describe("Wormhole Relayer Tests", () => {
 
     console.log("Redelivering message");
     const redeliveryReceipt = await relayer.resend(
-      walletSource,
+      source.wallet,
       sourceChain,
       targetChain,
       network,
       relayer.createVaaKey(
-        sourceChainId,
+        source.chainId,
         Buffer.from(
-          tryNativeToUint8Array(sourceCoreRelayerAddress, "ethereum")
+          tryNativeToUint8Array(source.coreRelayerAddress, "ethereum")
         ),
         info.sourceDeliverySequenceNumber
       ),
       value,
       0,
-      await sourceCoreRelayer.getDefaultRelayProvider(),
+      await source.coreRelayer.getDefaultRelayProvider(),
       [getGuardianRPC(network, ci)],
       true,
       {
@@ -374,7 +377,7 @@ describe("Wormhole Relayer Tests", () => {
     await waitForRelay();
 
     console.log("Checking if message was relayed after redelivery");
-    const message2 = await targetMockIntegration.getMessage();
+    const message2 = await target.mockIntegration.getMessage();
     expect(message2).toBe(arbitraryPayload);
 
     //Can extend this to look for redelivery event
@@ -384,60 +387,60 @@ describe("Wormhole Relayer Tests", () => {
 
   test("Governance: Test Registering Chain", async () => {
 
-    const currentAddress = await sourceCoreRelayer.getRegisteredCoreRelayerContract(6);
-    console.log(`For Chain ${sourceChainId}, registered chain 6 address: ${currentAddress}`);
+    const currentAddress = await source.coreRelayer.getRegisteredCoreRelayerContract(6);
+    console.log(`For Chain ${source.chainId}, registered chain 6 address: ${currentAddress}`);
 
     const expectedNewRegisteredAddress = "0x0000000000000000000000001234567890123456789012345678901234567892";
 
-    const timestamp = (await walletSource.provider.getBlock("latest")).timestamp;
+    const timestamp = (await source.wallet.provider.getBlock("latest")).timestamp;
     const chain = 6;
     const firstMessage = governance.publishWormholeRelayerRegisterChain(timestamp, chain, expectedNewRegisteredAddress)
     const firstSignedVaa = guardians.addSignatures(firstMessage, guardianIndices);
 
-    let tx = await sourceCoreRelayer.registerCoreRelayerContract(firstSignedVaa, {gasLimit: REASONABLE_GAS_LIMIT});
+    let tx = await source.coreRelayer.registerCoreRelayerContract(firstSignedVaa, {gasLimit: REASONABLE_GAS_LIMIT});
     await tx.wait();
 
-    const newRegisteredAddress = (await sourceCoreRelayer.getRegisteredCoreRelayerContract(6));
+    const newRegisteredAddress = (await source.coreRelayer.getRegisteredCoreRelayerContract(6));
 
     expect(newRegisteredAddress).toBe(expectedNewRegisteredAddress);
 
     const inverseFirstMessage = governance.publishWormholeRelayerRegisterChain(timestamp, chain, currentAddress)
     const inverseFirstSignedVaa = guardians.addSignatures(inverseFirstMessage, guardianIndices);
 
-    tx = await sourceCoreRelayer.registerCoreRelayerContract(inverseFirstSignedVaa, {gasLimit: REASONABLE_GAS_LIMIT});
+    tx = await source.coreRelayer.registerCoreRelayerContract(inverseFirstSignedVaa, {gasLimit: REASONABLE_GAS_LIMIT});
     await tx.wait();
 
-    const secondRegisteredAddress = (await sourceCoreRelayer.getRegisteredCoreRelayerContract(6));
+    const secondRegisteredAddress = (await source.coreRelayer.getRegisteredCoreRelayerContract(6));
 
     expect(secondRegisteredAddress).toBe(currentAddress);
 })
 
 test("Governance: Test Setting Default Relay Provider", async () => {
 
-    const currentAddress = await sourceCoreRelayer.getDefaultRelayProvider();
-    console.log(`For Chain ${sourceChainId}, default relay provider: ${currentAddress}`);
+    const currentAddress = await source.coreRelayer.getDefaultRelayProvider();
+    console.log(`For Chain ${source.chainId}, default relay provider: ${currentAddress}`);
 
     const expectedNewDefaultRelayProvider = "0x1234567890123456789012345678901234567892";
 
-    const timestamp = (await walletSource.provider.getBlock("latest")).timestamp;
-    const chain = sourceChainId;
+    const timestamp = (await source.wallet.provider.getBlock("latest")).timestamp;
+    const chain = source.chainId;
     const firstMessage = governance.publishWormholeRelayerSetDefaultRelayProvider(timestamp, chain, expectedNewDefaultRelayProvider);
     const firstSignedVaa = guardians.addSignatures(firstMessage, guardianIndices);
 
-    let tx = await sourceCoreRelayer.setDefaultRelayProvider(firstSignedVaa);
+    let tx = await source.coreRelayer.setDefaultRelayProvider(firstSignedVaa);
     await tx.wait();
 
-    const newDefaultRelayProvider = (await sourceCoreRelayer.getDefaultRelayProvider());
+    const newDefaultRelayProvider = (await source.coreRelayer.getDefaultRelayProvider());
 
     expect(newDefaultRelayProvider).toBe(expectedNewDefaultRelayProvider);
 
     const inverseFirstMessage = governance.publishWormholeRelayerSetDefaultRelayProvider(timestamp, chain, currentAddress)
     const inverseFirstSignedVaa = guardians.addSignatures(inverseFirstMessage, guardianIndices);
 
-    tx = await sourceCoreRelayer.setDefaultRelayProvider(inverseFirstSignedVaa);
+    tx = await source.coreRelayer.setDefaultRelayProvider(inverseFirstSignedVaa);
     await tx.wait();
 
-    const originalDefaultRelayProvider = (await sourceCoreRelayer.getDefaultRelayProvider());
+    const originalDefaultRelayProvider = (await source.coreRelayer.getDefaultRelayProvider());
 
     expect(originalDefaultRelayProvider).toBe(currentAddress);
 
@@ -447,23 +450,23 @@ test("Governance: Test Setting Default Relay Provider", async () => {
 test("Governance: Test Upgrading Contract", async () => {
   const IMPLEMENTATION_STORAGE_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
 
-  const getImplementationAddress = () => sourceProvider.getStorageAt(sourceCoreRelayer.address, IMPLEMENTATION_STORAGE_SLOT);
+  const getImplementationAddress = () => source.provider.getStorageAt(source.coreRelayer.address, IMPLEMENTATION_STORAGE_SLOT);
 
   console.log(`Current Implementation address: ${(await getImplementationAddress())}`);
 
   const wormholeAddress = CONTRACTS[network][sourceChain].core || "";
 
-  const newCoreRelayerImplementationAddress = (await new ethers_contracts.CoreRelayer__factory(walletSource).deploy(wormholeAddress).then((x)=>x.deployed())).address;
+  const newCoreRelayerImplementationAddress = (await new ethers_contracts.CoreRelayer__factory(source.wallet).deploy(wormholeAddress).then((x)=>x.deployed())).address;
 
   console.log(`Deployed!`);
   console.log(`New core relayer implementation: ${newCoreRelayerImplementationAddress}`);
 
-  const timestamp = (await walletSource.provider.getBlock("latest")).timestamp;
-  const chain = sourceChainId;
+  const timestamp = (await source.wallet.provider.getBlock("latest")).timestamp;
+  const chain = source.chainId;
   const firstMessage = governance.publishWormholeRelayerUpgradeContract(timestamp, chain, newCoreRelayerImplementationAddress);
   const firstSignedVaa = guardians.addSignatures(firstMessage, guardianIndices);
 
-  let tx = await sourceCoreRelayer.submitContractUpgrade(firstSignedVaa);
+  let tx = await source.coreRelayer.submitContractUpgrade(firstSignedVaa);
 
   expect(ethers.utils.getAddress((await getImplementationAddress()).substring(26))).toBe(ethers.utils.getAddress(newCoreRelayerImplementationAddress));
 });
