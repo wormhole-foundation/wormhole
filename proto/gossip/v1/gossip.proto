@@ -14,6 +14,7 @@ message GossipMessage {
     SignedBatchVAAWithQuorum signed_batch_vaa_with_quorum = 7;
     SignedChainGovernorConfig signed_chain_governor_config = 8;
     SignedChainGovernorStatus signed_chain_governor_status = 9;
+    SignedQueryRequest signed_query_request = 10;
   }
 }
 
@@ -230,4 +231,29 @@ message ChainGovernorStatus {
   int64 counter = 2;
   int64 timestamp = 3;
   repeated Chain chains = 4;
+}
+
+message SignedQueryRequest {
+  // Serialized QueryRequest message.
+  bytes query_request = 1;
+
+  // ECDSA signature using the requestor's public key.
+  bytes signature = 2;
+
+  // Requestor address that signed this payload (truncated Eth address).
+  bytes requestor_addr = 3;
+}
+
+message QueryRequest {
+  uint32 chain_id = 1;
+  uint32 nonce = 2;
+  oneof message {
+    EthCallQueryRequest eth_call_query_request = 3;
+  }
+}
+
+message EthCallQueryRequest {
+  bytes to = 1;
+  bytes data = 2;
+  string block = 3;
 }
