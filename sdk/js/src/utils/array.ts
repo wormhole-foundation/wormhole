@@ -1,8 +1,9 @@
 import { arrayify, zeroPad } from "@ethersproject/bytes";
+import { isValidSuiAddress } from "@mysten/sui.js";
 import { PublicKey } from "@solana/web3.js";
+import { ethers } from "ethers";
 import { hexValue, hexZeroPad, sha256, stripZeros } from "ethers/lib/utils";
 import { Provider as NearProvider } from "near-api-js/lib/providers";
-import { ethers } from "ethers";
 import {
   hexToNativeAssetStringAlgorand,
   nativeStringToHexAlgorand,
@@ -10,33 +11,32 @@ import {
 } from "../algorand";
 import { canonicalAddress, humanAddress } from "../cosmos";
 import { buildTokenId } from "../cosmwasm/address";
+import { isValidSuiType } from "../sui";
 import { isNativeDenom } from "../terra";
+import { getExternalAddressFromType, isValidAptosType } from "./aptos";
 import {
-  ChainId,
-  ChainName,
   CHAIN_ID_ALGORAND,
   CHAIN_ID_APTOS,
+  CHAIN_ID_BTC,
   CHAIN_ID_INJECTIVE,
   CHAIN_ID_NEAR,
   CHAIN_ID_OSMOSIS,
   CHAIN_ID_PYTHNET,
+  CHAIN_ID_SEI,
   CHAIN_ID_SOLANA,
   CHAIN_ID_SUI,
   CHAIN_ID_TERRA,
   CHAIN_ID_TERRA2,
-  CHAIN_ID_WORMCHAIN,
   CHAIN_ID_UNSET,
+  CHAIN_ID_WORMCHAIN,
+  CHAIN_ID_XPLA,
+  ChainId,
+  ChainName,
   coalesceChainId,
   isEVMChain,
   isTerraChain,
-  CHAIN_ID_XPLA,
-  CHAIN_ID_SEI,
-  CHAIN_ID_BTC,
 } from "./consts";
 import { hashLookup } from "./near";
-import { getExternalAddressFromType, isValidAptosType } from "./aptos";
-import { isValidSuiAddress } from "@mysten/sui.js";
-import { isValidSuiType } from "../sui";
 
 /**
  *
@@ -109,15 +109,15 @@ export const tryUint8ArrayToNative = (
   } else if (chainId === CHAIN_ID_XPLA) {
     return humanAddress("xpla", a.slice(-20));
   } else if (chainId === CHAIN_ID_SEI) {
-    return humanAddress("sei", a.slice(-20));     
+    return humanAddress("sei", a.slice(-20));
   } else if (chainId === CHAIN_ID_NEAR) {
     throw Error("uint8ArrayToNative: Use tryHexToNativeStringNear instead.");
   } else if (chainId === CHAIN_ID_OSMOSIS) {
     throw Error("uint8ArrayToNative: Osmosis not supported yet.");
   } else if (chainId === CHAIN_ID_SUI) {
-    throw Error("uint8ArrayToNative: Sui not supported yet.");
+    return hexZeroPad(hexValue(a), 32);
   } else if (chainId === CHAIN_ID_APTOS) {
-    throw Error("uint8ArrayToNative: Aptos not supported yet.");
+    return hexZeroPad(hexValue(a), 32);
   } else if (chainId === CHAIN_ID_UNSET) {
     throw Error("uint8ArrayToNative: Chain id unset");
   } else if (chainId === CHAIN_ID_BTC) {
