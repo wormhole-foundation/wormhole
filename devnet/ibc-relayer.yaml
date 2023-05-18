@@ -39,7 +39,7 @@ spec:
             - --debug-addr
             - localhost:7597
             - --src-port
-            - wasm.terra14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9ssrc8au
+            - wasm.terra124tapgv8wsn5t3rv2cvywh4ckkmj6mc6fkya005qjmshnzewwm9qe9llrj
             - --dst-port
             - wasm.wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj
             - --version

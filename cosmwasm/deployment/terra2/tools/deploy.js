@@ -10,10 +10,10 @@ import { Bech32, toHex } from "@cosmjs/encoding";
 import { zeroPad } from "ethers/lib/utils.js";
 
 // Generated using
-// `guardiand template ibc-receiver-update-channel-chain --channel-id channel-0 --chain-id 3104 --target-chain-id 18 > terra2.prototxt`
+// `guardiand template ibc-receiver-update-channel-chain --channel-id channel-0 --chain-id 3104 --target-chain-id 32 > terra2.prototxt`
 // `guardiand admin governance-vaa-verify terra2.prototxt`
 const WORMHOLE_IBC_WHITELIST_VAA =
-  "01000000000100f05f565b192fdb83e9fa24934c0df684086df216555ce6d92833896a1ae67a117ea7c7d6e8608596734eff197745889f6950703e6091e4c1716fbf96a36f4bd300000000009b9a6b2d0001000000000000000000000000000000000000000000000000000000000000000460efd4405060ac0c200000000000000000000000000000000000000000004962635265636569766572010012000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006368616e6e656c2d300c20";
+  "0100000000010025e55ab23c8d0a7fddd4686f41801792cdce1ff7335a2b9436192bd552fa0f9b5c18016057b0d4b3f24c759eafe3e5fedd7fce76fe6f21cec815ffbaf4ec3ad801000000009b9a6b2d0001000000000000000000000000000000000000000000000000000000000000000460efd4405060ac0c200000000000000000000000000000000000000000004962635265636569766572010020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006368616e6e656c2d300c20";
 
 /*
   NOTE: Only append to this array: keeping the ordering is crucial, as the
@@ -21,13 +21,16 @@ const WORMHOLE_IBC_WHITELIST_VAA =
   deterministic.
 */
 const artifacts = [
-  "wormhole_ibc.wasm",
+  "cw_wormhole.wasm",
   "cw_token_bridge.wasm",
   "cw20_wrapped_2.wasm",
   "cw20_base.wasm",
   "mock_bridge_integration_2.wasm",
   "shutdown_core_bridge_cosmwasm.wasm",
   "shutdown_token_bridge_cosmwasm.wasm",
+  "global_accountant.wasm",
+  "wormchain_ibc_receiver.wasm",
+  "wormhole_ibc.wasm",
 ];
 
 /* Check that the artifact folder contains all the wasm files we expect and nothing else */
@@ -147,8 +150,8 @@ if (!init_guardians || init_guardians.length === 0) {
   throw "failed to get initial guardians from .env file.";
 }
 
-addresses["wormhole_ibc.wasm"] = await instantiate(
-  "wormhole_ibc.wasm",
+addresses["cw_wormhole.wasm"] = await instantiate(
+  "cw_wormhole.wasm",
   {
     gov_chain: govChain,
     gov_address: Buffer.from(govAddress, "hex").toString("base64"),
@@ -164,7 +167,7 @@ addresses["wormhole_ibc.wasm"] = await instantiate(
     chain_id: 18,
     fee_denom: "uluna",
   },
-  "wormholeIbc"
+  "wormhole"
 );
 
 addresses["cw_token_bridge.wasm"] = await instantiate(
@@ -172,7 +175,7 @@ addresses["cw_token_bridge.wasm"] = await instantiate(
   {
     gov_chain: govChain,
     gov_address: Buffer.from(govAddress, "hex").toString("base64"),
-    wormhole_contract: addresses["wormhole_ibc.wasm"],
+    wormhole_contract: addresses["cw_wormhole.wasm"],
     wrapped_asset_code_id: codeIds["cw20_wrapped_2.wasm"],
     chain_id: 18,
     native_denom: "uluna",
@@ -197,6 +200,26 @@ addresses["mock.wasm"] = await instantiate(
     mint: null,
   },
   "mock"
+);
+
+addresses["wormhole_ibc.wasm"] = await instantiate(
+  "wormhole_ibc.wasm",
+  {
+    gov_chain: govChain,
+    gov_address: Buffer.from(govAddress, "hex").toString("base64"),
+    guardian_set_expirity: 86400,
+    initial_guardian_set: {
+      addresses: init_guardians.map((hex) => {
+        return {
+          bytes: Buffer.from(hex, "hex").toString("base64"),
+        };
+      }),
+      expiration_time: 0,
+    },
+    chain_id: 32,
+    fee_denom: "uluna",
+  },
+  "wormholeIbc"
 );
 
 /* Registrations: tell the bridge contracts to know about each other */
@@ -248,13 +271,17 @@ for (const [contract, registrations] of Object.entries(
       .catch((error) => {
         if (error.response) {
           // Request made and server responded
-          console.error(error.response.data, error.response.status, error.response.headers);
+          console.error(
+            error.response.data,
+            error.response.status,
+            error.response.headers
+          );
         } else if (error.request) {
           // The request was made but no response was received
           console.error(error.request);
         } else {
           // Something happened in setting up the request that triggered an Error
-          console.error('Error', error.message);
+          console.error("Error", error.message);
         }
 
         throw new Error(`Registering chain failed: ${registration}`);
@@ -265,11 +292,18 @@ for (const [contract, registrations] of Object.entries(
 // submit wormchain channel ID whitelist to the wormhole_ibc contract
 const ibc_whitelist_tx = await wallet.createAndSignTx({
   msgs: [
-    new MsgExecuteContract(wallet.key.accAddress, addresses["wormhole_ibc.wasm"], {
-      submit_update_channel_chain: {
-        vaa: Buffer.from(WORMHOLE_IBC_WHITELIST_VAA, "hex").toString("base64")
-      }
-    }, { uluna: 1000 })
+    new MsgExecuteContract(
+      wallet.key.accAddress,
+      addresses["wormhole_ibc.wasm"],
+      {
+        submit_update_channel_chain: {
+          vaa: Buffer.from(WORMHOLE_IBC_WHITELIST_VAA, "hex").toString(
+            "base64"
+          ),
+        },
+      },
+      { uluna: 1000 }
+    ),
   ],
   memo: "",
 });

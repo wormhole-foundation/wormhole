@@ -85,7 +85,7 @@ ci_tests = cfg.get("ci_tests", ci)
 guardiand_debug = cfg.get("guardiand_debug", False)
 node_metrics = cfg.get("node_metrics", False)
 guardiand_governor = cfg.get("guardiand_governor", False)
-ibc_relayer = cfg.get("ibc_relayer", False)
+ibc_relayer = cfg.get("ibc_relayer", ci)
 btc = cfg.get("btc", False)
 
 if cfg.get("manual", False):
@@ -287,7 +287,13 @@ def build_node_yaml():
                     "--accountantContract",
                     "wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465",
                     "--accountantCheckEnabled",
-                    "true"
+                    "true",
+                    "--ibcWS",
+                    "ws://wormchain:26657/websocket",
+                    "--ibcLCD",
+                    "http://wormchain:1317",
+                    "--ibcContract",
+                    "wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj"
                 ]
 
     return encode_yaml_stream(node_yaml_with_replicas)
