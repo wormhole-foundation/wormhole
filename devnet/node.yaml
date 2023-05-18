@@ -167,8 +167,8 @@ spec:
             - /tmp/data
             - --publicRpcLogDetail
             - "full"
-            # - --chainGovernorEnabled=true
-            - --logLevel=debug
+          # - --chainGovernorEnabled=true
+          #            - --logLevel=debug
           securityContext:
             capabilities:
               add:

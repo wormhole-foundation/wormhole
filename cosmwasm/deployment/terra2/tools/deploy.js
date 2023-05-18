@@ -25,11 +25,6 @@ const artifacts = [
   "cw_token_bridge.wasm",
   "cw20_wrapped_2.wasm",
   "cw20_base.wasm",
-  "mock_bridge_integration_2.wasm",
-  "shutdown_core_bridge_cosmwasm.wasm",
-  "shutdown_token_bridge_cosmwasm.wasm",
-  "global_accountant.wasm",
-  "wormchain_ibc_receiver.wasm",
   "wormhole_ibc.wasm",
 ];
 
