@@ -37,7 +37,7 @@ spec:
             - link-then-start
             - terra-wormchain
             - --debug-addr
-            - localhost:7597
+            - 0.0.0.0:7597
             - --src-port
             - wasm.terra1436kxs0w2es6xlqpp9rd35e3d0cjnw4sv8j3a7483sgks29jqwgsnyey7t
             - --dst-port
