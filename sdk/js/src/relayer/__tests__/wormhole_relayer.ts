@@ -100,7 +100,7 @@ const testSend = async (payload: string, sendToSourceChain?: boolean, notEnoughV
       { value, gasLimit: REASONABLE_GAS_LIMIT }
     );
     console.log("Sent delivery request!");
-    const rx = await tx.wait();
+    await tx.wait();
     console.log("Message confirmed!");
 
     return tx.hash;
@@ -124,7 +124,7 @@ const testForward = async (payload1: string, payload2: string, notEnoughExtraFor
       { value: value, gasLimit: REASONABLE_GAS_LIMIT }
     );
     console.log("Sent delivery request!");
-    const rx = await tx.wait();
+    await tx.wait();
     console.log("Message confirmed!");
 
     return tx.hash
@@ -203,7 +203,7 @@ describe("Wormhole Relayer Tests", () => {
       { value: payment, gasLimit: REASONABLE_GAS_LIMIT_FORWARDS }
     );
     console.log("Sent delivery request!");
-    const rx = await tx.wait();
+    await tx.wait();
     console.log("Message confirmed!");
 
     await waitForRelay(2);
@@ -274,7 +274,7 @@ describe("Wormhole Relayer Tests", () => {
       optionalParams
     );
     console.log("Sent delivery request!");
-    const rx = await tx.wait();
+    await tx.wait();
     console.log("Message confirmed!");
     const endingBalance = await walletSource.getBalance();
 

@@ -2547,9 +2547,9 @@ contract WormholeRelayerTests is Test {
 
         uint256 payment = setup.source.coreRelayer.quoteGas(
             setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
-        ) + setup.source.wormhole.messageFee();
+        ) + setup.source.wormhole.messageFee()*3;
 
-        uint256 maxTransactionFee = payment - setup.source.wormhole.messageFee();
+        uint256 maxTransactionFee = payment - 3*setup.source.wormhole.messageFee();
 
         bytes memory payload = abi.encodePacked(uint256(6));
 
