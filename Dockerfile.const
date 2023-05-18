@@ -2,13 +2,18 @@
 FROM cli-gen as cli-export
 FROM node:18-alpine@sha256:44aaf1ccc80eaed6572a0f2ef7d6b5a2982d54481e4255480041ac92221e2f11 as const-build
 
-# fetch scripts/guardian-set-init.sh deps
-RUN apk update && apk add bash g++ make python3 curl jq findutils
-
 # Support additional root CAs
 COPY README.md cert.pem* /certs/
 # Alpine
 RUN if [ -e /certs/cert.pem ]; then cp /certs/cert.pem /etc/ssl/cert.pem; fi
+# Node
+ENV NODE_EXTRA_CA_CERTS=/certs/cert.pem
+ENV NODE_OPTIONS=--use-openssl-ca
+# npm
+RUN if [ -e /certs/cert.pem ]; then npm config set cafile /certs/cert.pem; fi
+
+# fetch scripts/guardian-set-init.sh deps
+RUN apk update && apk add bash g++ make python3 curl jq findutils
 
 # Copy and link CLI
 COPY --from=cli-export clients/js /cli
