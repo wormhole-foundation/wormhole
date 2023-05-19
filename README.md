@@ -19,4 +19,6 @@ See [docs/operations.md](docs/operations.md) for node operator instructions.
 implied. See the License for the specific language governing permissions and limitations under the License.** Or plainly
 spoken - this is a very complex piece of software which targets a bleeding-edge, experimental smart contract runtime.
 Mistakes happen, and no matter how hard you try and whether you pay someone to audit it, it may eat your tokens, set
-your printer on fire or startle your cat. Cryptocurrencies are a high-risk investment, no matter how fancy.
+your printer on fire or startle your cat. Remember, cryptocurrencies are like thrilling roller coasters—exciting and high-risk, no matter how fancy they may seem.
+
+
