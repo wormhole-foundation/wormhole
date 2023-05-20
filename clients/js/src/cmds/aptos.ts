@@ -398,7 +398,7 @@ export const builder = (y: typeof yargs) =>
     .command(
       "faucet",
       "Request money from the faucet for a given account",
-      (_yargs) =>
+      (yargs) =>
         yargs
           .option("rpc", {
             alias: "r",

@@ -1,3 +1,4 @@
+FROM const-gen AS const-export
 # This is a multi-stage docker file:
 #  1. The first stage builds the contracts
 #  2. The second is an empty image with only the wasm files (useful for exporting)
@@ -39,3 +40,4 @@ COPY ./tools/package.json ./tools/package-lock.json /app/tools/
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
     npm ci
 COPY ./tools /app/tools
+COPY --from=const-export .env /app/tools/.env

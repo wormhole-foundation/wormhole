@@ -1,3 +1,4 @@
+FROM const-gen AS const-export
 FROM ghcr.io/wormhole-foundation/near:0.2@sha256:c2089c5e93df2396d74f9c07e7cd3d76983fad97bddb202030ca442c2c00c3c2 AS build
 
 WORKDIR /app
@@ -11,7 +12,7 @@ FROM node:16-alpine@sha256:004dbac84fed48e20f9888a23e32fa7cf83c2995e174a78d41d9a
 WORKDIR /app
 COPY package.json .
 COPY package-lock.json .
-COPY .env .
+COPY --from=const-export .env .
 COPY devnet_deploy.sh .
 COPY devnet_deploy.ts .
 COPY --from=build /app/contracts/*/target/wasm32-unknown-unknown/release/*.wasm .
