@@ -2,11 +2,6 @@
 # This script configures the devnet for test transfers with hardcoded addresses.
 set -eu
 
-# kick off building worm in the background, and remember the process PID so we
-# can wait on it later
-make -C /usr/src/clients/js install &
-worm_build_pid=$!
-
 # Configure CLI (works the same as upstream Solana CLI)
 mkdir -p ~/.config/solana/cli
 cat <<EOF > ~/.config/solana/cli/config.yml
@@ -119,12 +114,6 @@ retry client create-bridge "$bridge_address" "$INIT_SIGNERS_CSV" 86400 100
 retry token-bridge-client create-bridge "$token_bridge_address" "$bridge_address"
 # Initialize the NFT bridge
 retry token-bridge-client create-bridge "$nft_bridge_address" "$bridge_address"
-
-echo "Waiting for worm to finish building"
-wait $worm_build_pid
-
-# Trigger wormhole config file before running in parallel
-worm --help
 
 # next we get all the registration VAAs from the environment
 # if a new VAA is added, this will automatically pick it up
