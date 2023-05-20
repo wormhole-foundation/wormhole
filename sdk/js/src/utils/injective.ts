@@ -1,15 +1,10 @@
 import { ChainGrpcWasmApi } from "@injectivelabs/sdk-ts";
-import { CosmwasmWasmV1Query } from '@injectivelabs/core-proto-ts';
+import { CosmwasmWasmV1Query } from "@injectivelabs/core-proto-ts";
 
 export const parseSmartContractStateResponse = ({
   data,
 }: CosmwasmWasmV1Query.QuerySmartContractStateResponse) =>
-  JSON.parse(
-    Buffer.from(
-      typeof data === "string" ? data : Buffer.from(data).toString(),
-      "base64"
-    ).toString()
-  );
+  JSON.parse(Buffer.from(data).toString());
 
 export const queryExternalIdInjective = async (
   client: ChainGrpcWasmApi,
