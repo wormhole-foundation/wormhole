@@ -1,6 +1,14 @@
 # Changelog
+
 ## 0.9.18
+
+### Added
+
 Add support for Sei.
+
+### Changed
+
+injective parseSmartContractStateResponse fix
 
 ## 0.9.17
 
