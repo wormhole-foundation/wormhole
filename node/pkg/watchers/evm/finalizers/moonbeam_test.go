@@ -15,6 +15,7 @@ import (
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	ethEvent "github.com/ethereum/go-ethereum/event"
+	ethRpc "github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -34,6 +35,10 @@ func (e *moonbeamMockConnector) RawCallContext(ctx context.Context, result inter
 
 	err = json.Unmarshal([]byte(e.isFinalized), &result)
 	return
+}
+
+func (e *moonbeamMockConnector) RawBatchCallContext(ctx context.Context, b []ethRpc.BatchElem) error {
+	panic("method not implemented by moonbeamMockConnector")
 }
 
 func (e *moonbeamMockConnector) NetworkName() string {
