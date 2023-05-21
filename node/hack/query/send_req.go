@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/p2p"
@@ -43,8 +44,21 @@ func queryRequestDigest(b []byte) ethCommon.Hash {
 // this script has to be run inside kubernetes since it relies on UDP
 // https://github.com/kubernetes/kubernetes/issues/47862
 // kubectl --namespace=wormhole exec -it spy-0 -- sh -c "cd node/hack/query/ && go run send_req.go"
+// one way to iterate inside the container
+// kubectl --namespace=wormhole exec -it spy-0 -- bash
+// apt update
+// apt install nano
+// cd node/hack/query
+// echo "" > send_req.go
+// nano send_req.go
+// [paste, ^x, y, enter]
+// go run send_req.go
 
 func main() {
+
+	//
+	// BEGIN SETUP
+	//
 
 	p2pNetworkID := "/wormhole/dev"
 	var p2pPort uint = 8998 // don't collide with spy so we can run from the same container in tilt
@@ -144,28 +158,37 @@ func main() {
 	if err != nil {
 		logger.Panic("failed to join topic", zap.Error(err))
 	}
-	
+
 	sub, err := th.Subscribe()
 	if err != nil {
 		logger.Panic("failed to subscribe topic", zap.Error(err))
 	}
 
 	logger.Info("Node has been started", zap.String("peer_id", h.ID().String()),
-			zap.String("addrs", fmt.Sprintf("%v", h.Addrs())))
+		zap.String("addrs", fmt.Sprintf("%v", h.Addrs())))
+
+	// Wait for peers
+	for len(th.ListPeers()) < 1 {
+		time.Sleep(time.Millisecond * 100)
+	}
+
+	//
+	// END SETUP
+	//
 
 	to, _ := hex.DecodeString("0d500b1d8e8ef31e21c99d1db9a6444d3adf1270")
 	data, _ := hex.DecodeString("18160ddd")
 	// block := "0x28d9630"
-	// block := "latest"
-	block := "0x2e0d2bc116d77308db4e76eb906f6c168767ed00ad62cd2e2a31c61744c506e6"
+	block := "latest"
+	// block := "0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"
 	callRequest := &gossipv1.EthCallQueryRequest{
-			To: to,
-			Data: data,
-			Block: block,
+		To:    to,
+		Data:  data,
+		Block: block,
 	}
 	queryRequest := &gossipv1.QueryRequest{
 		ChainId: 5,
-		Nonce: 0,
+		Nonce:   0,
 		Message: &gossipv1.QueryRequest_EthCallQueryRequest{
 			EthCallQueryRequest: callRequest}}
 
@@ -183,8 +206,7 @@ func main() {
 
 	signedQueryRequest := &gossipv1.SignedQueryRequest{
 		QueryRequest: queryRequestBytes,
-		Signature: sig,
-		RequestorAddr: ethCrypto.PubkeyToAddress(sk.PublicKey).Bytes(),
+		Signature:    sig,
 	}
 
 	msg := gossipv1.GossipMessage{
@@ -196,25 +218,6 @@ func main() {
 	b, err := proto.Marshal(&msg)
 	if err != nil {
 		panic(err)
-	}
-
-	// do something to wait for peers, this waits to receive a message
-	logger.Info("Waiting for a message...")
-	for {
-		envelope, err := sub.Next(ctx)
-		if err != nil {
-			logger.Panic("failed to receive pubsub message", zap.Error(err))
-		}
-		var msg gossipv1.GossipMessage
-		err = proto.Unmarshal(envelope.Data, &msg)
-		if err != nil {
-			logger.Info("received invalid message",
-				zap.Binary("data", envelope.Data),
-				zap.String("from", envelope.GetFrom().String()))
-			continue
-		}
-		logger.Info("Received a message!")
-		break
 	}
 
 	err = th.Publish(ctx, b)
@@ -240,6 +243,24 @@ func main() {
 		logger.Info("received message")
 		break
 	}
+
+	//
+	// BEGIN SHUTDOWN
+	//
+
+	// Cleanly shutdown
+	// Without this the same host won't properly discover peers until some timeout
+	sub.Cancel()
+	if err := th.Close(); err != nil {
+		logger.Fatal("Error closing the topic", zap.Error(err))
+	}
+	if err := h.Close(); err != nil {
+		logger.Fatal("Error closing the host", zap.Error(err))
+	}
+
+	//
+	// END SHUTDOWN
+	//
 
 	logger.Info("Success! All tests passed!")
 }
