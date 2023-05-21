@@ -182,5 +182,6 @@ func startGuardian(t *testing.T, ctx context.Context, g *G) {
 			g.signedGovSt,
 			g.components,
 			nil, // ibc feature string
+			nil, // signed query request channel
 		))
 }
