@@ -10,9 +10,21 @@ import (
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/rpc"
 )
+
+type BlockMarshaller struct {
+	Number *hexutil.Big
+	Hash   common.Hash    `json:"hash"`
+	Time   hexutil.Uint64 `json:"timestamp"`
+
+	// L1BlockNumber is the L1 block number in which an Arbitrum batch containing this block was submitted.
+	// This field is only populated when connecting to Arbitrum.
+	L1BlockNumber *hexutil.Big
+}
 
 type NewBlock struct {
 	Number        *big.Int
@@ -33,6 +45,7 @@ type Connector interface {
 	ParseLogMessagePublished(log types.Log) (*ethabi.AbiLogMessagePublished, error)
 	SubscribeForBlocks(ctx context.Context, errC chan error, sink chan<- *NewBlock) (ethereum.Subscription, error)
 	RawCallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error
+	RawBatchCallContext(ctx context.Context, b []rpc.BatchElem) error
 }
 
 type PollSubscription struct {

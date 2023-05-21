@@ -133,7 +133,10 @@ func (e *EthereumConnector) SubscribeForBlocks(ctx context.Context, errC chan er
 
 func (e *EthereumConnector) RawCallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error {
 	return e.rawClient.CallContext(ctx, result, method, args...)
+}
 
+func (e *EthereumConnector) RawBatchCallContext(ctx context.Context, b []ethRpc.BatchElem) error {
+	return e.rawClient.BatchCallContext(ctx, b)
 }
 
 func (e *EthereumConnector) Client() *ethClient.Client {
