@@ -412,6 +412,7 @@ var Build = "prod"
 
 // observationRequestBufferSize is the buffer size of the per-network reobservation channel
 const observationRequestBufferSize = 25
+
 // queryRequestBufferSize is the buffer size of the per-network reobservation channel
 const queryRequestBufferSize = 25
 
@@ -1549,7 +1550,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		go handleReobservationRequests(rootCtx, clock.New(), logger, obsvReqReadC, chainObsvReqC)
-		go handleQueryRequests(rootCtx, clock.New(), logger, signedQueryReqReadC, chainQueryReqC)
+		go handleQueryRequests(rootCtx, logger, signedQueryReqReadC, chainQueryReqC)
 
 		if acct != nil {
 			if err := acct.Start(ctx); err != nil {
