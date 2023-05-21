@@ -1513,7 +1513,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		go handleReobservationRequests(rootCtx, clock.New(), logger, obsvReqReadC, chainObsvReqC)
-		go handleQueryRequests(rootCtx, clock.New(), logger, signedQueryReqReadC, chainQueryReqC)
+		go handleQueryRequests(rootCtx, logger, signedQueryReqReadC, chainQueryReqC)
 
 		if acct != nil {
 			if err := acct.Start(ctx); err != nil {
