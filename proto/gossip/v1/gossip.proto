@@ -239,9 +239,6 @@ message SignedQueryRequest {
 
   // ECDSA signature using the requestor's public key.
   bytes signature = 2;
-
-  // Requestor address that signed this payload (truncated Eth address).
-  bytes requestor_addr = 3;
 }
 
 message QueryRequest {
