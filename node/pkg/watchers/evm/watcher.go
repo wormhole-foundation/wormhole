@@ -551,18 +551,19 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					data := eth_hexutil.Encode(req.EthCallQueryRequest.Data)
 					block := req.EthCallQueryRequest.Block
 					logger.Info("received query request",
-					zap.String("eth_network", w.networkName),
-					zap.String("to", to.Hex()),
-					zap.Any("data", data),
-					zap.String("block", block))
-					
+						zap.String("eth_network", w.networkName),
+						zap.String("to", to.Hex()),
+						zap.Any("data", data),
+						zap.String("block", block))
+
 					timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 					// like https://github.com/ethereum/go-ethereum/blob/master/ethclient/ethclient.go#L610
-					arg := map[string]interface{}{
-						"to": to,
+					callTransactionArg := map[string]interface{}{
+						"to":   to,
 						"data": data,
 					}
-					var blockArg interface{}
+					var blockMethod string
+					var callBlockArg interface{}
 					// TODO: try making these error and see what happens
 					// 1. 66 chars but not 0x hex
 					// 2. 64 chars but not hex
@@ -572,18 +573,44 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					// 6. "safe" on a chain that doesn't support safe
 					// etc?
 					// I would expect this to trip within this scissor (if at all) but maybe this should get more defensive
-					if (len(block) == 66 || len(block) == 64) {
+					if len(block) == 66 || len(block) == 64 {
+						blockMethod = "eth_getBlockByHash"
 						// looks like a hash which requires the object parameter
+						// https://eips.ethereum.org/EIPS/eip-1898
 						// https://docs.alchemy.com/reference/eth-call
 						hash := eth_common.HexToHash(block)
-						blockArg = rpc.BlockNumberOrHash{
-							BlockHash: &hash,
-					}
+						callBlockArg = rpc.BlockNumberOrHash{
+							BlockHash:        &hash,
+							RequireCanonical: true,
+						}
 					} else {
-						blockArg = block
+						blockMethod = "eth_getBlockByNumber"
+						callBlockArg = block
 					}
-					var result string
-					err := w.ethConn.RawCallContext(timeout, &result, "eth_call", arg, blockArg)
+					var blockResult connectors.BlockMarshaller
+					var blockError error
+					var callResult string
+					var callErr error
+					err := w.ethConn.RawBatchCallContext(timeout, []rpc.BatchElem{
+						{
+							Method: blockMethod,
+							Args: []interface{}{
+								block,
+								false, // no full transaction details
+							},
+							Result: &blockResult,
+							Error:  blockError,
+						},
+						{
+							Method: "eth_call",
+							Args: []interface{}{
+								callTransactionArg,
+								callBlockArg,
+							},
+							Result: &callResult,
+							Error:  callErr,
+						},
+					})
 					cancel()
 
 					if err != nil {
@@ -595,14 +622,55 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						continue
 					}
 
-					// TODO: error on "0x" response
+					if blockError != nil {
+						logger.Error("failed to process query block request",
+							zap.Error(blockError), zap.String("eth_network", w.networkName),
+							zap.String("to", to.Hex()),
+							zap.Any("data", data),
+							zap.String("block", block))
+						continue
+					}
+
+					if blockResult.Number == nil {
+						logger.Error("invalid query block result",
+							zap.String("eth_network", w.networkName),
+							zap.String("to", to.Hex()),
+							zap.Any("data", data),
+							zap.String("block", block))
+						continue
+					}
+
+					if callErr != nil {
+						logger.Error("failed to process query call request",
+							zap.Error(callErr), zap.String("eth_network", w.networkName),
+							zap.String("to", to.Hex()),
+							zap.Any("data", data),
+							zap.String("block", block))
+						continue
+					}
+
+					// Empty results are not valid
+					// Yes, I mean "0x", we saw this as empty when testing endpoints in JS
+					// Empty results can occur when the queried block state is no longer available
+					if callResult == "" || callResult == "0x" {
+						logger.Error("invalid call result",
+							zap.String("eth_network", w.networkName),
+							zap.String("to", to.Hex()),
+							zap.Any("data", data),
+							zap.String("block", block),
+							zap.String("result", callResult))
+						continue
+					}
 
 					logger.Info("query result",
 						zap.String("eth_network", w.networkName),
 						zap.String("to", to.Hex()),
 						zap.Any("data", data),
 						zap.String("block", block),
-						zap.String("result", result))
+						zap.String("blockNumber", blockResult.Number.String()),
+						zap.String("blockHash", blockResult.Hash.Hex()),
+						zap.String("blockTime", blockResult.Time.String()),
+						zap.String("result", callResult))
 				default:
 					logger.Warn("received unsupported request type",
 						zap.Any("payload", queryRequest.Message))

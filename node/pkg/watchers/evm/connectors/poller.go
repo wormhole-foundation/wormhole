@@ -11,7 +11,6 @@ import (
 	ethEvent "github.com/ethereum/go-ethereum/event"
 
 	ethereum "github.com/ethereum/go-ethereum"
-	ethCommon "github.com/ethereum/go-ethereum/common"
 	ethHexUtils "github.com/ethereum/go-ethereum/common/hexutil"
 
 	"go.uber.org/zap"
@@ -224,16 +223,7 @@ func getBlock(ctx context.Context, logger *zap.Logger, conn Connector, number *b
 		numStr = "latest"
 	}
 
-	type Marshaller struct {
-		Number *ethHexUtils.Big
-		Hash   ethCommon.Hash `json:"hash"`
-
-		// L1BlockNumber is the L1 block number in which an Arbitrum batch containing this block was submitted.
-		// This field is only populated when connecting to Arbitrum.
-		L1BlockNumber *ethHexUtils.Big
-	}
-
-	var m Marshaller
+	var m BlockMarshaller
 	err := conn.RawCallContext(ctx, &m, "eth_getBlockByNumber", numStr, false)
 	if err != nil {
 		logger.Error("failed to get block",

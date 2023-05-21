@@ -20,6 +20,7 @@ import (
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	ethClient "github.com/ethereum/go-ethereum/ethclient"
 	ethEvent "github.com/ethereum/go-ethereum/event"
+	ethRpc "github.com/ethereum/go-ethereum/rpc"
 )
 
 // mockConnectorForPoller implements the connector interface for testing purposes.
@@ -105,6 +106,10 @@ func (e *mockConnectorForPoller) RawCallContext(ctx context.Context, result inte
 	e.mutex.Unlock()
 
 	return
+}
+
+func (e *mockConnectorForPoller) RawBatchCallContext(ctx context.Context, b []ethRpc.BatchElem) error {
+	panic("method not implemented by mockConnectorForPoller")
 }
 
 func (e *mockConnectorForPoller) setBlockNumber(blockNumber uint64) {
