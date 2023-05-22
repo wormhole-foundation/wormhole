@@ -139,18 +139,18 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
   }
 
   function send(
-    Wei deliveryPrice,
     uint16 targetChainId,
     bytes32 targetAddress,
     bytes memory payload,
-    Wei receiverValue,
-    Wei paymentForExtraReceiverValue,
-    uint8 executionEnvironment,
+    uint128 receiverValue,
+    uint128 paymentForExtraReceiverValue,
     bytes memory encodedExecutionParameters,
-    IRelayProvider provider,
+    uint16 refundChainId,
+    address refundAddress,
+    address relayProviderAddress,
     VaaKey[] memory vaaKeys,
     uint8 consistencyLevel
-  ) internal returns (uint64 sequence) {
+  ) public payable returns (uint64 sequence) {
     Wei wormholeMessageFee = wormholeMessageFee();
     if(msgValue() != deliveryPrice + paymentForExtraReceiverValue + wormholeMessageFee) {
       revert InvalidMsgValue(msg.value, deliveryPrice + paymentForExtraReceiverValue + wormholeMessageFee);
@@ -168,6 +168,32 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
       vaaKeys: vaaKeys
     });
     sequence = publishAndPay(wormholeMessageFee, deliveryPrice, newPaymentForExtraReceiverValue, instruction.encode(), consistencyLevel, provider);
+  }
+
+  enum Action {Send, Forward, Resend}
+
+  function sendForwardResend(
+    Action action,
+    uint16 targetChainId,
+    bytes targetAddress,
+    bytes memory payload,
+    uint128 receiverValue,
+    uint128 paymentForExtraReceiverValue,
+    bytes memory encodedExecutionParameters,
+    uint16 refundChainId,
+    address refundAddress,
+    address relayProviderAddress,
+    VaaKey[] memory vaaKeys,
+    VaaKey deliveryVaa, // for resends
+    uint8 consistencyLevel
+  ) internal returns (uint64 sequence) {
+    IRelayProvider provider = IRelayProvider(relayProviderAddress);
+     if(!provider.isChainSupported(targetChainId)) {
+      revert RelayProviderDoesNotSupportTargetChain(address(provider), targetChainId);
+    }
+    (Wei deliveryPrice, Wei targetChainRefundPerUnitGasUnused)  = provider.quoteDeliveryPrice(targetChainId, receiverValue, encodedExecutionParameters);
+    
+
   }
 
    function forwardToEvm(

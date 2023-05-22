@@ -9,7 +9,7 @@ interface IRelayProvider {
         uint16 targetChainId,
         Wei receiverValue,
         bytes memory encodedExecutionParameters
-    ) external view returns (Wei nativePriceQuote, Wei targetChainRefundPerGasUnused);
+    ) external view returns (Wei nativePriceQuote, bytes memory encodedQuoteParams);
 
     function quoteAssetConversion(
         uint16 targetChainId,

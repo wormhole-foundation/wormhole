@@ -64,13 +64,7 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
   function msgValue() internal view returns (Wei) {
     return Wei.wrap(msg.value);
   }
-
-  function checkTargetChainSupported(uint16 targetChainId, IRelayProvider provider) internal view {
-    if(!provider.isChainSupported(targetChainId)) {
-      revert RelayProviderDoesNotSupportTargetChain(address(provider), targetChainId);
-    }
-  }
-
+  
   function publishAndPay(
     Wei wormholeMessageFee,
     Wei deliveryQuote,

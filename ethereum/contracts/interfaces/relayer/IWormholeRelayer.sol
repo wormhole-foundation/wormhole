@@ -348,7 +348,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
 
   function quoteEVMDeliveryPrice(uint16 targetChainId, Wei receiverValue, Gas gasLimit, address relayProviderAddress) external view returns (Wei nativePriceQuote, Wei refundAmountPerUnitGasUnused);
 
-  function quoteDeliveryPrice(uint16 targetChainId, Wei receiverValue, bytes memory encodedExecutionParameters, address relayProviderAddress) external view returns (Wei nativePriceQuote, Wei targetChainRefundPerGasUnused);
+  function quoteDeliveryPrice(uint16 targetChainId, Wei receiverValue, bytes memory encodedExecutionParameters, address relayProviderAddress) external view returns (Wei nativePriceQuote, bytes memory encodedQuoteParams);
 
   function quoteAssetConversion(
     uint16 targetChainId,

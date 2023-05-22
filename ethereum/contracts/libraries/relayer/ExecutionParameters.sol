@@ -5,40 +5,72 @@ pragma solidity ^0.8.19;
 // todo: move under libraries folder
 import "../../interfaces/relayer/TypedUnits.sol";
 
-error UnexpectedExecutionParametersVersion(uint8 version, uint8 expectedVersion);
-error UnsupportedExecutionParametersVersion(uint8 version);
-error TargetChainAndExecutionParametersVersionMismatch(uint16 targetChainId, uint8 version);
+error UnexpectedExecutionParamsVersion(uint8 version, uint8 expectedVersion);
+error UnsupportedExecutionParamsVersion(uint8 version);
+error TargetChainAndExecutionParamsVersionMismatch(uint16 targetChainId, uint8 version);
+error UnexpectedQuoteParamsVersion(uint8 version, uint8 expectedVersion);
+error UnsupportedQuoteParamsVersion(uint8 version);
+error TargetChainAndQuoteParamsVersionMismatch(uint16 targetChainId, uint8 version);
 
-enum ExecutionParameterVersion {
+enum ExecutionParamsVersion {
     EVM_V1
 }
 
-struct EvmExecutionParametersV1 {
+struct EvmExecutionParamsV1 {
     Gas gasLimit;
+}
+
+enum QuoteParamsVersion {
+    EVM_V1
+}
+
+struct EvmQuoteParamsV1 {
     Wei targetChainRefundPerGasUsed;
 }
 
-function decodeExecutionParameterVersion(bytes memory data) pure returns (uint8 version) {
+function decodeExecutionParamsVersion(bytes memory data) pure returns (uint8 version) {
     (version) = abi.decode(data, (uint8));
 }
 
-function encodeEvmExecutionParametersV1(EvmExecutionParametersV1 memory executionParameters)
+function encodeEvmExecutionParamsV1(EvmExecutionParamsV1 memory executionParams)
     pure
     returns (bytes memory)
 {
     return abi.encode(
-        ExecutionParameterVersion.EVM_V1, executionParameters.gasLimit, executionParameters.targetChainRefundPerGasUsed
+        ExecutionParamsVersion.EVM_V1, executionParams.gasLimit
     );
 }
 
-function decodeEvmExecutionParametersV1(bytes memory data)
+function decodeEvmExecutionParamsV1(bytes memory data)
     pure
-    returns (EvmExecutionParametersV1 memory executionParameters)
+    returns (EvmExecutionParamsV1 memory executionParams)
 {
     uint8 version;
-    (version, executionParameters.gasLimit, executionParameters.targetChainRefundPerGasUsed) =
-        abi.decode(data, (uint8, Gas, Wei));
+    (version, executionParams.gasLimit) =
+        abi.decode(data, (uint8, Gas));
 
-    if (version != uint8(ExecutionParameterVersion.EVM_V1)) 
-        revert UnexpectedExecutionParametersVersion(version, uint8(ExecutionParameterVersion.EVM_V1));
+    if (version != uint8(ExecutionParamsVersion.EVM_V1)) 
+        revert UnexpectedExecutionParamsVersion(version, uint8(ExecutionParamsVersion.EVM_V1));
 }
+
+function encodeEvmQuoteParamsV1(EvmQuoteParamsV1 memory quoteParams)
+    pure
+    returns (bytes memory)
+{
+    return abi.encode(
+        ExecutionParamsVersion.EVM_V1, quoteParams.targetChainRefundPerGasUsed
+    );
+}
+
+function decodeEvmQuoteParamsV1(bytes memory data)
+    pure
+    returns (EvmQuoteParamsV1 memory quoteParams)
+{
+    uint8 version;
+    (version, quoteParams.targetChainRefundPerGasUsed) =
+        abi.decode(data, (uint8, Wei));
+
+    if (version != uint8(QuoteParamsVersion.EVM_V1)) 
+        revert UnexpectedQuoteParamsVersion(version, uint8(QuoteParamsVersion.EVM_V1));
+}
+
