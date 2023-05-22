@@ -83,7 +83,7 @@ enum ExecutionEnvironment {
 }
 
 struct EVMExecutionParameters {
-  Gas gasLimit;
+  uint32 gasLimit;
   uint16 refundChainId;
   bytes32 refundAddress;
   Wei targetChainRefundPerUnitGasUnused;
@@ -93,25 +93,25 @@ struct EVMExecutionParameters {
 struct DeliveryInstruction {
   uint16 targetChainId;
   bytes32 targetAddress;
-  bytes32 sourceRelayProvider;
-  bytes32 senderAddress;
+  bytes payload;
   Wei sourcePayment;
-  Wei paymentForExtraReceiverValue;
-  VaaKey[] vaaKeys;
   Wei receiverValue;
+  Wei paymentForExtraReceiverValue;
   ExecutionEnvironment executionEnvironment;
   bytes encodedExecutionParameters;
-  bytes payload;
+  bytes32 sourceRelayProvider;
+  bytes32 senderAddress;
+  VaaKey[] vaaKeys;
 }
 
 struct RedeliveryInstruction {
   VaaKey deliveryVaaKey;
   uint16 targetChainId;
-  bytes32 newSourceRelayProvider;
-  bytes32 newSenderAddress;
   Wei newReceiverValue;
   Wei newPaymentForExtraReceiverValue;
   bytes newEncodedExecutionParameters;
+  bytes32 newSourceRelayProvider;
+  bytes32 newSenderAddress;
 }
 
 /**
@@ -174,8 +174,8 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     uint16 targetChainId,
     address targetAddress,
     bytes memory payload,
-    uint32 gasLimit,
-    uint128 receiverValue
+    uint128 receiverValue,
+    uint32 gasLimit
   ) external payable returns (uint64 sequence);
 
   /**
@@ -185,10 +185,10 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     uint16 targetChainId,
     address targetAddress,
     bytes memory payload,
-    uint16 refundChainId,
-    address refundAddress,
+    uint128 receiverValue,
     uint32 gasLimit,
-    uint128 receiverValue
+    uint16 refundChainId,
+    address refundAddress
   ) external payable returns (uint64 sequence);
 
    /**
@@ -220,11 +220,11 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     uint16 targetChainId,
     address targetAddress,
     bytes memory payload,
-    uint16 refundChainId,
-    address refundAddress,
-    uint32 gasLimit,
     uint128 receiverValue,
     uint128 paymentForExtraReceiverValue,
+    uint32 gasLimit,
+    uint16 refundChainId,
+    address refundAddress,
     address relayProviderAddress,
     VaaKey[] memory vaaKeys,
     uint8 consistencyLevel
@@ -258,21 +258,22 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     uint16 targetChainId,
     address targetAddress,
     bytes memory payload,
-    uint16 refundChainId,
-    address refundAddress,
+    uint128 receiverValue,
     uint32 gasLimit,
-    uint128 receiverValue
+    uint16 refundChainId,
+    address refundAddress
   ) external payable;
 
   function forwardToEvm(
     uint16 targetChainId,
     address targetAddress,
     bytes memory payload,
-    uint16 refundChainId,
-    address refundAddress,
-    uint32 gasLimit,
     uint128 receiverValue,
     uint128 paymentForExtraReceiverValue,
+    uint32 gasLimit,
+    uint16 refundChainId,
+    address refundAddress,
+    address relayProviderAddress,
     VaaKey[] memory vaaKeys,
     uint8 consistencyLevel
   ) external payable;
@@ -309,19 +310,19 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
    */
   function resendToEvm(
     VaaKey memory deliveryVaaKey,
+    uint16 targetChainId,
+    uint128 newReceiverValue,
+    uint32 newGasLimit,
     uint16 newRefundChainId,
     address newRefundAddress,
-    uint32 newGasLimit,
-    uint128 newReceiverValue,
-    uint16 targetChainId,
     address newRelayProviderAddress,
     uint8 consistencyLevel
   ) external payable returns (uint64 sequence);
 
 
-  function quoteEVMDeliveryPrice(uint16 targetChainId, Gas gasLimit, Wei receiverValue, uint16 refundChainId) external view returns (Wei nativePriceQuote, Wei refundAmountPerUnitGasUnused);
+  function quoteEVMDeliveryPrice(uint16 targetChainId, Wei receiverValue, Gas gasLimit) external view returns (Wei nativePriceQuote, Wei refundAmountPerUnitGasUnused);
 
-  function quoteEVMDeliveryPrice(uint16 targetChainId, Gas gasLimit, Wei receiverValue, uint16 refundChainId, address relayProviderAddress) external view returns (Wei nativePriceQuote, Wei refundAmountPerUnitGasUnused);
+  function quoteEVMDeliveryPrice(uint16 targetChainId, Wei receiverValue, Gas gasLimit, address relayProviderAddress) external view returns (Wei nativePriceQuote, Wei refundAmountPerUnitGasUnused);
 
   function quoteAssetConversion(
     uint16 targetChainId,

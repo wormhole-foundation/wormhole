@@ -45,19 +45,18 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     uint16 targetChainId,
     address targetAddress,
     bytes memory payload,
-    uint32 gasLimit,
-    uint128 receiverValue
+    uint128 receiverValue,
+    uint32 gasLimit
   ) external payable returns (uint64 sequence) {
     return sendToEvm(
       targetChainId,
       targetAddress,
       payload,
+      receiverValue,
+      0,
+      gasLimit,
       chainId(),
       msg.sender,
-      gasLimit,
-      receiverValue,
-      0, 
-      0, 
       getDefaultRelayProvider(),
       new VaaKey[](0),
       CONSISTENCY_LEVEL_FINALIZED
@@ -68,21 +67,20 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     uint16 targetChainId,
     address targetAddress,
     bytes memory payload,
-    uint16 refundChainId,
-    address refundAddress,
+    uint128 receiverValue,
     uint32 gasLimit,
-    uint128 receiverValue
+    uint16 refundChainId,
+    address refundAddress
   ) external payable returns (uint64 sequence) {
     return sendToEvm(
       targetChainId,
       targetAddress,
       payload,
-      refundChainId,
-      refundAddress,
-      gasLimit,
       receiverValue,
       0, 
-      0, 
+      gasLimit,
+      refundChainId,
+      refundAddress,
       getDefaultRelayProvider(),
       new VaaKey[](0),
       CONSISTENCY_LEVEL_FINALIZED
@@ -94,22 +92,20 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     uint16 targetChainId,
     address targetAddress,
     bytes memory payload,
+    uint128 receiverValue,
+    uint128 paymentForExtraReceiverValue,
+    uint32 gasLimit,
     uint16 refundChainId,
     address refundAddress,
-    uint32 gasLimit,
-    uint128 receiverValue,
-    uint128 targetChainRefundPerUnitGasUnused,
-    uint128 amountToSpendOnForwardPerUnitGasUnused,
-    uint128 paymentForExtraReceiverValue,
     address relayProviderAddress,
     VaaKey[] memory vaaKeys,
     uint8 consistencyLevel
   ) public payable returns (uint64 sequence) {
     IRelayProvider provider = IRelayProvider(relayProviderAddress);
     checkTargetChainSupported(provider, targetChainId);
-    Wei deliveryPrice = provider.quoteEVMDeliveryPrice(targetChainId, gasLimit, receiverValue, amountToSpendOnForwardPerUnitGasUnused);
-    bytes memory encodedExecutionParameters = encodeEVMExecutionParameters(EVMExecutionParameters(gasLimit, refundChainId, refundAddress, targetChainRefundPerUnitGasUnused, amountToSpendOnForwardPerUnitGasUnused, refundRelayProvider));
-    sequence = send(deliveryPrice, targetChainId, toWormholeFormat(targetAddress), payload, receiverValue, paymentForExtraReceiverValue, provider, vaaKeys, consistencyLevel, ExecutionEnvironment.EVM, encodedExecutionParameters);
+    (Wei deliveryPrice, Wei targetChainRefundPerUnitGasUnused)  = provider.quoteEVMDeliveryPrice(targetChainId, gasLimit, receiverValue);
+    bytes memory encodedExecutionParameters = encodeEVMExecutionParameters(EVMExecutionParameters(gasLimit, refundChainId, refundAddress, targetChainRefundPerUnitGasUnused, refundRelayProvider));
+    sequence = send(deliveryPrice, targetChainId, toWormholeFormat(targetAddress), payload, receiverValue, paymentForExtraReceiverValue, ExecutionEnvironment.EVM, encodedExecutionParameters, provider, vaaKeys, consistencyLevel);
   }
 
   function send(
@@ -119,11 +115,11 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     bytes memory payload,
     Wei receiverValue,
     Wei paymentForExtraReceiverValue,
+    uint8 executionEnvironment,
+    bytes memory encodedExecutionParameters,
     IRelayProvider provider,
     VaaKey[] memory vaaKeys,
     uint8 consistencyLevel,
-    uint8 executionEnvironment,
-    bytes memory encodedExecutionParameters
   ) internal returns (uint64 sequence) {
     Wei wormholeMessageFee = wormholeMessageFee();
     if(msgValue() != deliveryPrice + paymentForExtraReceiverValue + wormholeMessageFee) {
@@ -150,10 +146,10 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     uint16 targetChainId,
     address targetAddress,
     bytes memory payload,
-    uint16 refundChainId,
-    address refundAddress,
+    uint128 receiverValue,
     uint32 gasLimit,
-    uint128 receiverValue
+    uint16 refundChainId,
+    address refundAddress
   ) external payable {
     forwardToEvm(
       targetChainId,
@@ -175,29 +171,21 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     uint16 targetChainId,
     address targetAddress,
     bytes memory payload,
+    uint128 receiverValue,
+    uint128 paymentForExtraReceiverValue,
+    uint32 gasLimit,
     uint16 refundChainId,
     address refundAddress,
-    uint32 gasLimit,
-    uint128 receiverValue,
-    uint128 targetChainRefundPerUnitGasUnused,
-    uint128 amountToSpendOnForwardPerUnitGasUnused,
-    uint128 paymentForExtraReceiverValue,
+    address relayProviderAddress,
     VaaKey[] memory vaaKeys,
     uint8 consistencyLevel
   ) public payable {
-    forward(constructSend(
-      targetChainId,
-      targetAddress,
-      refundChainId,
-      refundAddress,
-      maxTransactionFee,
-      receiverValue,
-      payload,
-      vaaKeys,
-      consistencyLevel,
-      relayProviderAddress,
-      relayParameters
-    ));
+    IRelayProvider provider = IRelayProvider(relayProviderAddress);
+    checkTargetChainSupported(provider, targetChainId);
+    Wei deliveryPrice = provider.quoteEVMDeliveryPrice(targetChainId, gasLimit, receiverValue, amountToSpendOnForwardPerUnitGasUnused);
+    bytes memory encodedExecutionParameters = encodeEVMExecutionParameters(EVMExecutionParameters(gasLimit, refundChainId, refundAddress, targetChainRefundPerUnitGasUnused, amountToSpendOnForwardPerUnitGasUnused, refundRelayProvider));
+    sequence = send(deliveryPrice, targetChainId, toWormholeFormat(targetAddress), payload, receiverValue, paymentForExtraReceiverValue, provider, vaaKeys, consistencyLevel, ExecutionEnvironment.EVM, encodedExecutionParameters);
+  
   }
 
   function forward(
@@ -207,11 +195,11 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     bytes memory payload,
     Wei receiverValue,
     Wei paymentForExtraReceiverValue,
+    uint8 executionEnvironment,
+    bytes memory encodedExecutionParameters,
     IRelayProvider provider,
     VaaKey[] memory vaaKeys,
-    uint8 consistencyLevel,
-    uint8 executionEnvironment,
-    bytes memory encodedExecutionParameters
+    uint8 consistencyLevel
   ) internal returns (uint64 sequence) {
     checkMsgSenderInDelivery();
 
@@ -229,42 +217,20 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
       payload: payload
     });
 
+     //Temporarily save information about the forward in state, so it can be processed after the
+    //  execution of `receiveWormholeMessages`, because we will then know how much of the
+    //  refund of the current delivery is still available for use in this forward
     appendForwardInstruction({
       encodedInstruction: instruction.encode(),
       msgValue: Wei.wrap(msg.value),
       totalFee: instruction.sourcePayment + getWormholeMessageFee()
     });
-    
+
+    //after this function, this.balance is increased by msg.value
   }
   /* 
    * Non overload logic 
    */ 
-
-
-  function forward(Send memory sendParams) internal {
-    checkMsgSenderInDelivery();
-
-    calcParamsAndCheckBudgetConstraints(
-      sendParams.targetChainId,
-      sendParams.maxTransactionFee,
-      sendParams.receiverValue,
-      IRelayProvider(sendParams.relayProviderAddress)
-    );
-
-    //Temporarily save information about the forward in state, so it can be processed after the
-    //  execution of `receiveWormholeMessages`, because we will then know how much of the
-    //  `maxTransactionFee` of the current delivery is still available for use in this forward.
-    appendForwardInstruction(
-      ForwardInstruction({
-        encodedSend: sendParams.encode(),
-        msgValue: Wei.wrap(msg.value),
-        totalFee:
-          sendParams.maxTransactionFee + sendParams.receiverValue + getWormholeMessageFee()
-      })
-    );
-
-    //after this function, this.balance is increased by msg.value
-  }
 
   function resend(
     VaaKey memory key,
