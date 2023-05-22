@@ -78,25 +78,12 @@ struct VaaKey {
   bytes32 vaaHash;
 }
 
-enum ExecutionEnvironment {
-  EVM
-}
-
-struct EVMExecutionParameters {
-  uint32 gasLimit;
-  uint16 refundChainId;
-  bytes32 refundAddress;
-  Wei targetChainRefundPerUnitGasUnused;
-  address refundRelayProvider;
-}
-
 struct DeliveryInstruction {
   uint16 targetChainId;
   bytes32 targetAddress;
   bytes payload;
   Wei requestedReceiverValue;
   Wei extraReceiverValue;
-  ExecutionEnvironment executionEnvironment;
   bytes encodedExecutionParameters;
   bytes32 sourceRelayProvider;
   bytes32 senderAddress;
@@ -129,7 +116,7 @@ struct RedeliveryInstruction {
  */
 struct DeliveryOverride {
   uint128 newReceiverValue;
-  EVMExecutionParameters newExecutionParameters;
+  bytes newExecutionParameters;
   bytes32 redeliveryHash;
 }
 
