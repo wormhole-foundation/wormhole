@@ -16,42 +16,28 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
 
     error CallerNotApproved(address msgSender);
 
-    //Returns the delivery overhead fee required to deliver a message to the target chain, denominated in this chain's wei.
-    function quoteDeliveryOverhead(uint16 targetChainId)
-        public
-        view
-        override
-        returns (Wei nativePriceQuote)
-    {
-        Gas overhead = deliverGasOverhead(targetChainId);
-        Wei targetFees = overhead.toWei(gasPrice(targetChainId));
-        Wei result = quoteAssetConversion(targetChainId, targetFees, chainId());
-        require(result.unwrap() <= type(uint128).max, "Overflow");
-        return result;
+    function quoteEVMDeliveryPrice(uint16 targetChainId, Gas gasLimit, Wei receiverValue) external view override returns (Wei nativePriceQuote, Wei targetChainRefundPerUnitGasUnused) {
+        targetChainRefundPerUnitGasUnused = quoteAssetConversion(targetChainId, Gas.wrap(1).toWei(gasPrice(targetChainId)));
+        Wei costOfProvidingMaximumTargetChainAmount = targetChainRefundPerUnitGasUnused.scale(gasLimit, Gas.wrap(1));
+        Wei transactionFee =  quoteDeliveryOverhead(targetChainId) + gasLimit.toWei(quoteGasPrice(targetChainId));
+        Wei receiverValueCost = quoteAssetCost(targetChainId, receiverValue);
+        nativePriceQuote = transactionFee.max(costOfProvidingMaximumTargetChainAmount) + receiverValueCost;
+        require(receiverValue + costOfProvidingMaximumTargetChainAmount <= maximumBudget(targetChainId), "Exceeds maximum budget");
+        require(nativePriceQuote.unwrap() <= type(uint128).max, "Overflow");
     }
 
-    //Returns the price of purchasing 1 unit of gas on the target chain, denominated in this chain's wei.
-    function quoteGasPrice(uint16 targetChainId) public view override returns (GasPrice) {
-        Wei gasPriceInSourceChainCurrency =
-            quoteAssetConversion(targetChainId, gasPrice(targetChainId).priceAsWei(), chainId());
-        require(gasPriceInSourceChainCurrency.unwrap() <= type(uint88).max, "Overflow");
-        return GasPrice.wrap(uint88(gasPriceInSourceChainCurrency.unwrap()));
+    function quoteAssetConversion(uint16 targetChainId, Wei currentChainAmount) public view returns (Wei targetChainAmount) {
+        (uint16 buffer, uint16 bufferDenominator) = assetConversionBuffer(targetChainId);
+        return currentChainAmount.convertAsset(
+            nativeCurrencyPrice(chainId()),
+            nativeCurrencyPrice(targetChainId),
+            (buffer),
+            (uint32(buffer) + bufferDenominator),
+            // round down
+            false
+        );
     }
 
-    //Returns the price of chainId's native currency in USD 10^-6 units
-    function quoteAssetPrice(uint16 chainId) public view override returns (WeiPrice) {
-        return nativeCurrencyPrice(chainId);
-    }
-
-    //Returns the maximum budget that is allowed for a delivery on target chain, denominated in the target chain's wei.
-    function quoteMaximumBudget(uint16 targetChainId)
-        public
-        view
-        override
-        returns (Wei maximumTargetBudget)
-    {
-        return maximumBudget(targetChainId);
-    }
 
     //Returns the address on this chain that rewards should be sent to
     function getRewardAddress() public view override returns (address payable) {
@@ -71,16 +57,7 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
         return targetChainAddress(targetChainId);
     }
 
-    //Returns a buffer amount, and a buffer denominator, whereby the bufferAmount / bufferDenominator will be reduced from
-    //receiverValue conversions, giving an overhead to the provider on each conversion
-    function getAssetConversionBuffer(uint16 targetChainId)
-        public
-        view
-        override
-        returns (uint16 tolerance, uint16 toleranceDenominator)
-    {
-        return assetConversionBuffer(targetChainId);
-    }
+    
 
     /**
      *
@@ -88,17 +65,49 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
      *
      */
 
+    //Returns the delivery overhead fee required to deliver a message to the target chain, denominated in this chain's wei.
+    function quoteDeliveryOverhead(uint16 targetChainId)
+        internal view
+        returns (Wei nativePriceQuote)
+    {
+        Gas overhead = deliverGasOverhead(targetChainId);
+        Wei targetFees = overhead.toWei(gasPrice(targetChainId));
+        Wei result = assetConversion(targetChainId, targetFees, chainId());
+        require(result.unwrap() <= type(uint128).max, "Overflow");
+        return result;
+    }
+
+    //Returns the price of purchasing 1 unit of gas on the target chain, denominated in this chain's wei.
+    function quoteGasPrice(uint16 targetChainId) internal view returns (GasPrice) {
+        Wei gasPriceInSourceChainCurrency =
+            assetConversion(targetChainId, gasPrice(targetChainId).priceAsWei(), chainId());
+        require(gasPriceInSourceChainCurrency.unwrap() <= type(uint88).max, "Overflow");
+        return GasPrice.wrap(uint88(gasPriceInSourceChainCurrency.unwrap()));
+    }
+
     // relevant for chains that have dynamic execution pricing (e.g. Ethereum)
-    function quoteAssetConversion(
+    function assetConversion(
         uint16 sourceChainId,
         Wei sourceAmount,
         uint16 targetChainId
     ) internal view returns (Wei targetAmount) {
         return sourceAmount.convertAsset(
-            quoteAssetPrice(sourceChainId),
-            quoteAssetPrice(targetChainId),
+            nativeCurrencyPrice(sourceChainId),
+            nativeCurrencyPrice(targetChainId),
             1,
             1,
+            // round up
+            true
+        );
+    }
+
+    function quoteAssetCost(uint16 targetChainId, Wei targetChainAmount) internal view returns (Wei currentChainAmount) {
+        (uint16 buffer, uint16 bufferDenominator) = assetConversionBuffer(targetChainId);
+        return currentChainAmount.convertAsset(
+            nativeCurrencyPrice(chainId()),
+            nativeCurrencyPrice(targetChainId),
+            (uint32(buffer) + bufferDenominator),
+            (buffer),
             // round up
             true
         );

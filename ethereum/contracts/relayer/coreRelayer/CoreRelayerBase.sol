@@ -72,10 +72,15 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
     return Wei.wrap(msg.value);
   }
 
+  function checkTargetChainSupported(uint16 targetChainId, IRelayProvider provider) internal view {
+    if(!provider.isChainSupported(targetChainId)) {
+      revert RelayProviderDoesNotSupportTargetChain(address(provider), targetChainId);
+    }
+  }
+
   function publishAndPay(
     Wei wormholeMessageFee,
-    Wei maxTransactionFee,
-    Wei receiverValue,
+    Wei relayerPayment,
     bytes memory encodedInstruction,
     uint8 consistencyLevel,
     IRelayProvider relayProvider
@@ -83,12 +88,8 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
     sequence =
       getWormhole().publishMessage{value: Wei.unwrap(wormholeMessageFee)}(0, encodedInstruction, consistencyLevel);
 
-    emit SendEvent(sequence, Wei.unwrap(maxTransactionFee), Wei.unwrap(receiverValue));
-
-    Wei amount;
-    unchecked {amount = maxTransactionFee + receiverValue;}
     //TODO AMO: what if pay fails? (i.e. returns false)
-    pay(relayProvider.getRewardAddress(), amount);
+    pay(relayProvider.getRewardAddress(), relayerPayment);
   }
 
   // ----------------------- delivery transaction temorary storage functions -----------------------
