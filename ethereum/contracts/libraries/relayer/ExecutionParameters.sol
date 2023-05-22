@@ -6,6 +6,8 @@ pragma solidity ^0.8.19;
 import "../../interfaces/relayer/TypedUnits.sol";
 
 error UnexpectedExecutionParametersVersion(uint8 version, uint8 expectedVersion);
+error UnsupportedExecutionParametersVersion(uint8 version);
+error TargetChainAndExecutionParametersVersionMismatch(uint16 targetChainId, uint8 version);
 
 enum ExecutionParameterVersion {
     EVM_V1
