@@ -1,4 +1,3 @@
-// contracts/Bridge.sol
 // SPDX-License-Identifier: Apache 2
 
 pragma solidity ^0.8.19;
@@ -16,17 +15,47 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
 
     error CallerNotApproved(address msgSender);
 
-    function quoteEVMDeliveryPrice(uint16 targetChainId, Gas gasLimit, Wei receiverValue) external view override returns (Wei nativePriceQuote, Wei targetChainRefundPerUnitGasUnused) {
-        targetChainRefundPerUnitGasUnused = quoteAssetConversion(targetChainId, Gas.wrap(1).toWei(gasPrice(targetChainId)));
-        Wei costOfProvidingMaximumTargetChainAmount = targetChainRefundPerUnitGasUnused.scale(gasLimit, Gas.wrap(1));
-        Wei transactionFee =  quoteDeliveryOverhead(targetChainId) + gasLimit.toWei(quoteGasPrice(targetChainId));
+    function quoteDeliveryPrice(
+        uint16 targetChainId,
+        Wei receiverValue,
+        uint16 refundChainId,
+        bytes32 refundAddress,
+        bytes32 refundRelayProvider,
+        bytes memory encodedExecutionParamters
+    ) external view returns (Wei nativePriceQuote, Wei targetChainRefundPerGasUnused) {
+
+    }
+
+    function quoteEVMDeliveryPrice(
+        uint16 targetChainId,
+        Gas gasLimit,
+        Wei receiverValue
+    )
+        external
+        view
+        override
+        returns (Wei nativePriceQuote, Wei targetChainRefundPerUnitGasUnused)
+    {
+        targetChainRefundPerUnitGasUnused =
+            quoteAssetConversion(targetChainId, Gas.wrap(1).toWei(gasPrice(targetChainId)));
+        Wei costOfProvidingMaximumTargetChainAmount =
+            targetChainRefundPerUnitGasUnused.scale(gasLimit, Gas.wrap(1));
+        Wei transactionFee =
+            quoteDeliveryOverhead(targetChainId) + gasLimit.toWei(quoteGasPrice(targetChainId));
         Wei receiverValueCost = quoteAssetCost(targetChainId, receiverValue);
-        nativePriceQuote = transactionFee.max(costOfProvidingMaximumTargetChainAmount) + receiverValueCost;
-        require(receiverValue + costOfProvidingMaximumTargetChainAmount <= maximumBudget(targetChainId), "Exceeds maximum budget");
+        nativePriceQuote =
+            transactionFee.max(costOfProvidingMaximumTargetChainAmount) + receiverValueCost;
+        require(
+            receiverValue + costOfProvidingMaximumTargetChainAmount <= maximumBudget(targetChainId),
+            "Exceeds maximum budget"
+        );
         require(nativePriceQuote.unwrap() <= type(uint128).max, "Overflow");
     }
 
-    function quoteAssetConversion(uint16 targetChainId, Wei currentChainAmount) public view returns (Wei targetChainAmount) {
+    function quoteAssetConversion(
+        uint16 targetChainId,
+        Wei currentChainAmount
+    ) public view returns (Wei targetChainAmount) {
         (uint16 buffer, uint16 bufferDenominator) = assetConversionBuffer(targetChainId);
         return currentChainAmount.convertAsset(
             nativeCurrencyPrice(chainId()),
@@ -37,7 +66,6 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
             false
         );
     }
-
 
     //Returns the address on this chain that rewards should be sent to
     function getRewardAddress() public view override returns (address payable) {
@@ -57,8 +85,6 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
         return targetChainAddress(targetChainId);
     }
 
-    
-
     /**
      *
      * HELPER METHODS
@@ -67,7 +93,8 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
 
     //Returns the delivery overhead fee required to deliver a message to the target chain, denominated in this chain's wei.
     function quoteDeliveryOverhead(uint16 targetChainId)
-        internal view
+        internal
+        view
         returns (Wei nativePriceQuote)
     {
         Gas overhead = deliverGasOverhead(targetChainId);
@@ -101,7 +128,10 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
         );
     }
 
-    function quoteAssetCost(uint16 targetChainId, Wei targetChainAmount) internal view returns (Wei currentChainAmount) {
+    function quoteAssetCost(
+        uint16 targetChainId,
+        Wei targetChainAmount
+    ) internal view returns (Wei currentChainAmount) {
         (uint16 buffer, uint16 bufferDenominator) = assetConversionBuffer(targetChainId);
         return currentChainAmount.convertAsset(
             nativeCurrencyPrice(chainId()),
