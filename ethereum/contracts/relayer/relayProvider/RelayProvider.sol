@@ -6,6 +6,7 @@ import "./RelayProviderGovernance.sol";
 import "./RelayProviderStructs.sol";
 import "../../interfaces/relayer/IRelayProvider.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
+import "../../libraries/relayer/ExecutionParameters.sol";
 
 contract RelayProvider is RelayProviderGovernance, IRelayProvider {
     using WeiLib for Wei;
@@ -23,7 +24,11 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
         bytes32 refundRelayProvider,
         bytes memory encodedExecutionParamters
     ) external view returns (Wei nativePriceQuote, Wei targetChainRefundPerGasUnused) {
-
+        uint8 version = decodeExecutionParamterVersion(encodedExecutionParamters);
+        if (version == ExecutionParameterVersion.EVM_V1) {
+            EvmExecutionParamtersV1 memory parsed = decodeEvmExecutionParametersV1(encodedExecutionParamters);
+            return quoteEVMDeliveryPrice(targetChainId, gasLimit, receiverValue);
+        }
     }
 
     function quoteEVMDeliveryPrice(
@@ -33,7 +38,6 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
     )
         external
         view
-        override
         returns (Wei nativePriceQuote, Wei targetChainRefundPerUnitGasUnused)
     {
         targetChainRefundPerUnitGasUnused =

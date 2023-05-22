@@ -7,7 +7,7 @@ import "../../interfaces/relayer/TypedUnits.sol";
 
 error UnexpectedExecutionParametersVersion(uint8 version, uint8 expectedVersion);
 
-enum ExecutionParamterVersion {
+enum ExecutionParameterVersion {
     EVM_V1
 }
 
@@ -25,7 +25,7 @@ function encodeEvmExecutionParamtersV1(EvmExecutionParamtersV1 memory executionP
     returns (bytes memory)
 {
     return abi.encode(
-        ExecutionParamterVersion.EVM_V1, executionParameters.gasLimit, executionParameters.targetChainRefundPerGasUsed
+        ExecutionParameterVersion.EVM_V1, executionParameters.gasLimit, executionParameters.targetChainRefundPerGasUsed
     );
 }
 
@@ -37,6 +37,6 @@ function decodeEvmExecutionParametersV1(bytes memory data)
     (version, executionParameters.gasLimit, executionParameters.targetChainRefundPerGasUsed) =
         abi.decode(data, (uint8, Gas, Wei));
 
-    if (version != uint8(ExecutionParamterVersion.EVM_V1)) 
-        revert UnexpectedExecutionParametersVersion(version, uint8(ExecutionParamterVersion.EVM_V1));
+    if (version != uint8(ExecutionParameterVersion.EVM_V1)) 
+        revert UnexpectedExecutionParametersVersion(version, uint8(ExecutionParameterVersion.EVM_V1));
 }
