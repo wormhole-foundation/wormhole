@@ -87,16 +87,15 @@ struct EVMExecutionParameters {
   uint16 refundChainId;
   bytes32 refundAddress;
   Wei targetChainRefundPerUnitGasUnused;
-  bytes32 refundRelayProvider;
+  address refundRelayProvider;
 }
 
 struct DeliveryInstruction {
   uint16 targetChainId;
   bytes32 targetAddress;
   bytes payload;
-  Wei sourcePayment;
-  Wei receiverValue;
-  Wei paymentForExtraReceiverValue;
+  Wei requestedReceiverValue;
+  Wei extraReceiverValue;
   ExecutionEnvironment executionEnvironment;
   bytes encodedExecutionParameters;
   bytes32 sourceRelayProvider;
@@ -107,8 +106,8 @@ struct DeliveryInstruction {
 struct RedeliveryInstruction {
   VaaKey deliveryVaaKey;
   uint16 targetChainId;
-  Wei newReceiverValue;
-  Wei newPaymentForExtraReceiverValue;
+  Wei newRequestedReceiverValue;
+  Wei newExtraReceiverValue;
   bytes newEncodedExecutionParameters;
   bytes32 newSourceRelayProvider;
   bytes32 newSenderAddress;
@@ -159,6 +158,8 @@ struct DeliveryOverride {
  */
 
 interface IWormholeRelayerBase {
+
+  event SendEvent(uint64 indexed sequence, uint256 deliveryQuote, uint256 paymentForExtraReceiverValue);
 
   function getRegisteredCoreRelayerContract(uint16 chainId) external view returns (bytes32);
 }

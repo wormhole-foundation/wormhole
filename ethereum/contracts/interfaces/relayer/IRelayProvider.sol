@@ -8,7 +8,7 @@ interface IRelayProvider {
 
   function quoteEVMDeliveryPrice(uint16 targetChainId, Gas gasLimit, Wei receiverValue) external view returns (Wei nativePriceQuote, Wei targetChainRefundPerUnitGasUnused);
 
-  function quoteAssetConversion(uint16 targetChainId, uint128 currentChainAmount) external view returns (uint128 targetChainAmount);
+  function quoteAssetConversion(uint16 targetChainId, Wei currentChainAmount) external view returns (Wei targetChainAmount);
 
   /**
    * @notice This function should return a payable address on this (source) chain where all awards

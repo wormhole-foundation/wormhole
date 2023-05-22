@@ -10,15 +10,8 @@ import {
   ReentrantDelivery,
   ForwardRequestFromWrongAddress,
   RelayProviderDoesNotSupportTargetChain,
-  RelayProviderQuotedBogusAssetPrice,
   VaaKey,
-  RelayProviderQuotedBogusGasPrice,
-  Send,
-  MaxTransactionFeeGreaterThanUint128,
-  ReceiverValueGreaterThanUint128,
-  TargetGasDeliveryAmountGreaterThanUint32,
   DeliveryInstruction,
-  ExecutionParameters,
   IWormholeRelayerBase
 } from "../../interfaces/relayer/IWormholeRelayer.sol";
 import {
@@ -80,7 +73,8 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
 
   function publishAndPay(
     Wei wormholeMessageFee,
-    Wei relayerPayment,
+    Wei deliveryQuote,
+    Wei paymentForExtraReceiverValue,
     bytes memory encodedInstruction,
     uint8 consistencyLevel,
     IRelayProvider relayProvider
@@ -89,7 +83,9 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
       getWormhole().publishMessage{value: Wei.unwrap(wormholeMessageFee)}(0, encodedInstruction, consistencyLevel);
 
     //TODO AMO: what if pay fails? (i.e. returns false)
-    pay(relayProvider.getRewardAddress(), relayerPayment);
+    pay(relayProvider.getRewardAddress(), deliveryQuote + paymentForExtraReceiverValue);
+
+    emit SendEvent(sequence, deliveryQuote.unwrap(), paymentForExtraReceiverValue.unwrap());
   }
 
   // ----------------------- delivery transaction temorary storage functions -----------------------
@@ -127,115 +123,4 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
       revert ForwardRequestFromWrongAddress(msg.sender, state.deliveryTarget);
   }
 
-  // ----------------------------------------- Conversion ------------------------------------------
-
-  /** 
-   * Calculate how much gas the relay provider can pay for on `sendParams.targetChain` using
-   *   `sendParams.newTransactionFee`, and calculate how much value the relay provider will pass
-   *   into `sendParams.targetAddress`.
-   */
-  function convertSendToDeliveryInstruction(
-    Send memory send
-  ) internal view returns (DeliveryInstruction memory instruction, IRelayProvider relayProvider) {
-    relayProvider = IRelayProvider(send.relayProviderAddress);
-
-    (Wei maximumRefundTarget, Wei receiverValueTarget, Gas gasLimit) =
-      calculateTargetParams(
-        send.targetChainId, send.maxTransactionFee, send.receiverValue, relayProvider
-      );
-
-    instruction = DeliveryInstruction({
-      targetChainId: send.targetChainId,
-      targetAddress: send.targetAddress,
-      refundChainId: send.refundChainId,
-      refundAddress: send.refundAddress,
-      maximumRefundTarget: maximumRefundTarget,
-      receiverValueTarget: receiverValueTarget,
-      senderAddress: toWormholeFormat(msg.sender),
-      sourceRelayProvider: toWormholeFormat(send.relayProviderAddress),
-      targetRelayProvider: relayProvider.getTargetChainAddress(send.targetChainId),
-      vaaKeys: send.vaaKeys,
-      consistencyLevel: send.consistencyLevel,
-      payload: send.payload,
-      executionParameters: ExecutionParameters({
-        gasLimit: gasLimit
-      })
-    });
-  }
-
-  function calculateTargetParams(
-    uint16 targetChainId,
-    Wei maxTransactionFee,
-    Wei receiverValue,
-    IRelayProvider provider
-  ) internal view returns (
-    Wei maximumRefundTarget,
-    Wei receiverValueTarget,
-    Gas gasLimit
-  ) {
-    if (!provider.isChainSupported(targetChainId))
-      revert RelayProviderDoesNotSupportTargetChain(address(provider), targetChainId);
-
-    (WeiPrice sourcePrice, WeiPrice targetPrice) =
-      getAssetPricesWithBuffer(getChainId(), targetChainId, provider);
-
-    receiverValueTarget = convertAmount(receiverValue, sourcePrice, targetPrice, false);
-
-    Wei overhead = provider.quoteDeliveryOverhead(targetChainId);
-    if (maxTransactionFee > overhead) { unchecked {
-      Wei maxFeeSubOverhead = maxTransactionFee - overhead;
-
-      maximumRefundTarget = convertAmount(maxFeeSubOverhead, sourcePrice, targetPrice, false);
-
-      Gas gasLimitUncapped = maxFeeSubOverhead.toGas(getCheckedGasPriceSource(targetChainId, provider));
-      gasLimit = gasLimitUncapped.min(Gas.wrap(type(uint32).max));
-    }}
-  }
-
-  function getAssetPricesWithBuffer(
-    uint16 sourceChainId,
-    uint16 targetChainId,
-    IRelayProvider provider
-  ) internal view returns (WeiPrice sourcePrice, WeiPrice targetPrice)
-  {
-    //percentage = premium/base
-    //e.g. premium = 5, base = 100 => 5 % premium, targetPrice is inflated by 5 % before conversion
-    (uint16 premium, uint16 base) =
-      provider.getAssetConversionBuffer(targetChainId);
-
-    uint32 factor;
-    unchecked {factor = uint32(base) + premium;}
-
-    sourcePrice = getCheckedAssetPrice(sourceChainId, provider).mul(base);
-    targetPrice = getCheckedAssetPrice(targetChainId, provider).mul(factor);
-  }
-
-  function getCheckedAssetPrice(
-    uint16 chainId,
-    IRelayProvider provider
-  ) internal view returns (WeiPrice price) {
-    price = provider.quoteAssetPrice(chainId);
-    if (WeiPrice.unwrap(price) == 0)
-      revert RelayProviderQuotedBogusAssetPrice(address(provider), chainId, WeiPrice.unwrap(price));
-  }
-
-  function getCheckedGasPriceSource(
-    uint16 targetChainId,
-    IRelayProvider provider
-  ) internal view returns (GasPrice gasPriceSource) {
-    gasPriceSource = provider.quoteGasPrice(targetChainId);
-    if (gasPriceSource.unwrap() == 0)
-      revert RelayProviderQuotedBogusGasPrice(address(provider), targetChainId, gasPriceSource.unwrap());
-  }
-
-  function convertAmount(
-    Wei inputAmount,
-    WeiPrice inputPrice,
-    WeiPrice outputPrice,
-    bool roundUp
-  ) internal pure returns (Wei ouputAmount) {
-    uint numerator = inputAmount.unwrap() * inputPrice.unwrap();
-    uint denominator = outputPrice.unwrap();
-    ouputAmount = Wei.wrap((roundUp ? (numerator + denominator - 1) : numerator) / denominator);
-  }
 }

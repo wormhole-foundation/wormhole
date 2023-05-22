@@ -88,6 +88,36 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
   }
 
 
+  function forwardToEvm(
+    uint16 targetChainId,
+    address targetAddress,
+    bytes memory payload,
+    uint128 receiverValue,
+    uint32 gasLimit,
+    uint16 refundChainId,
+    address refundAddress
+  ) external payable {
+    forwardToEvm(
+      targetChainId,
+      targetAddress,
+      payload,
+      receiverValue,
+      0,
+      gasLimit,
+      refundChainId,
+      refundAddress,
+      getDefaultRelayProvider(),
+      new VaaKey[](0),
+      CONSISTENCY_LEVEL_FINALIZED
+    );
+  }
+
+
+  
+  /* 
+   * Non overload logic 
+   */ 
+
   function sendToEvm(
     uint16 targetChainId,
     address targetAddress,
@@ -104,7 +134,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     IRelayProvider provider = IRelayProvider(relayProviderAddress);
     checkTargetChainSupported(provider, targetChainId);
     (Wei deliveryPrice, Wei targetChainRefundPerUnitGasUnused)  = provider.quoteEVMDeliveryPrice(targetChainId, gasLimit, receiverValue);
-    bytes memory encodedExecutionParameters = encodeEVMExecutionParameters(EVMExecutionParameters(gasLimit, refundChainId, refundAddress, targetChainRefundPerUnitGasUnused, refundRelayProvider));
+    bytes memory encodedExecutionParameters = encodeEVMExecutionParameters(EVMExecutionParameters(gasLimit, refundChainId, refundAddress, targetChainRefundPerUnitGasUnused, provider.getTargetChainAddress(targetChainId)));
     sequence = send(deliveryPrice, targetChainId, toWormholeFormat(targetAddress), payload, receiverValue, paymentForExtraReceiverValue, ExecutionEnvironment.EVM, encodedExecutionParameters, provider, vaaKeys, consistencyLevel);
   }
 
@@ -119,55 +149,28 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     bytes memory encodedExecutionParameters,
     IRelayProvider provider,
     VaaKey[] memory vaaKeys,
-    uint8 consistencyLevel,
+    uint8 consistencyLevel
   ) internal returns (uint64 sequence) {
     Wei wormholeMessageFee = wormholeMessageFee();
     if(msgValue() != deliveryPrice + paymentForExtraReceiverValue + wormholeMessageFee) {
-      revert InvalidMsgValue(msg.value, deliveryPrice);
+      revert InvalidMsgValue(msg.value, deliveryPrice + paymentForExtraReceiverValue + wormholeMessageFee);
     }
     DeliveryInstruction memory instruction = DeliveryInstruction({
       targetChainId: targetChainId,
       targetAddress: targetAddress,
-      sourceRelayProvider: toWormholeFormat(address(provider)),
-      senderAddress: toWormholeFormat(msg.sender),
-      sourcePayment: deliveryPrice + paymentForExtraReceiverValue,
-      paymentForExtraReceiverValue: paymentForExtraReceiverValue,
-      vaaKeys: vaaKeys,
-      receiverValue: receiverValue,
+      payload: payload,
+      requestedReceiverValue: receiverValue,
+      extraReceiverValue: provider.quoteAssetConversion(targetChainId, paymentForExtraReceiverValue),
       executionEnvironment: executionEnvironment,
       encodedExecutionParameters: encodedExecutionParameters,
-      payload: payload
+      sourceRelayProvider: toWormholeFormat(address(provider)),
+      senderAddress: toWormholeFormat(msg.sender),
+      vaaKeys: vaaKeys
     });
-    sequence = publishAndPay(wormholeMessageFee, paymentForExtraReceiverValue + deliveryPrice, instruction.encode(), consistencyLevel, provider);
+    sequence = publishAndPay(wormholeMessageFee, deliveryPrice, newPaymentForExtraReceiverValue, instruction.encode(), consistencyLevel, provider);
   }
 
-
-  function forwardToEvm(
-    uint16 targetChainId,
-    address targetAddress,
-    bytes memory payload,
-    uint128 receiverValue,
-    uint32 gasLimit,
-    uint16 refundChainId,
-    address refundAddress
-  ) external payable {
-    forwardToEvm(
-      targetChainId,
-      targetAddress,
-      payload,
-      refundChainId,
-      refundAddress,
-      gasLimit,
-      receiverValue,
-      0,
-      0,
-      0,
-      new VaaKey[](0),
-      CONSISTENCY_LEVEL_FINALIZED
-    );
-  }
-
-  function forwardToEvm(
+   function forwardToEvm(
     uint16 targetChainId,
     address targetAddress,
     bytes memory payload,
@@ -182,10 +185,9 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
   ) public payable {
     IRelayProvider provider = IRelayProvider(relayProviderAddress);
     checkTargetChainSupported(provider, targetChainId);
-    Wei deliveryPrice = provider.quoteEVMDeliveryPrice(targetChainId, gasLimit, receiverValue, amountToSpendOnForwardPerUnitGasUnused);
-    bytes memory encodedExecutionParameters = encodeEVMExecutionParameters(EVMExecutionParameters(gasLimit, refundChainId, refundAddress, targetChainRefundPerUnitGasUnused, amountToSpendOnForwardPerUnitGasUnused, refundRelayProvider));
-    sequence = send(deliveryPrice, targetChainId, toWormholeFormat(targetAddress), payload, receiverValue, paymentForExtraReceiverValue, provider, vaaKeys, consistencyLevel, ExecutionEnvironment.EVM, encodedExecutionParameters);
-  
+    (Wei deliveryPrice, Wei targetChainRefundPerUnitGasUnused) = provider.quoteEVMDeliveryPrice(targetChainId, newGasLimit, newReceiverValue);
+    bytes memory encodedExecutionParameters = encodeEVMExecutionParameters(EVMExecutionParameters(gasLimit, refundChainId, refundAddress, targetChainRefundPerUnitGasUnused, provider.getTargetChainAddress(targetChainId)));
+    sequence = forward(deliveryPrice, targetChainId, toWormholeFormat(targetAddress), payload, receiverValue, paymentForExtraReceiverValue,  ExecutionEnvironment.EVM, encodedExecutionParameters, provider, vaaKeys, consistencyLevel);
   }
 
   function forward(
@@ -202,19 +204,17 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     uint8 consistencyLevel
   ) internal returns (uint64 sequence) {
     checkMsgSenderInDelivery();
-
     DeliveryInstruction memory instruction = DeliveryInstruction({
       targetChainId: targetChainId,
       targetAddress: targetAddress,
-      sourceRelayProvider: toWormholeFormat(address(provider)),
-      senderAddress: toWormholeFormat(msg.sender),
-      sourcePayment: deliveryPrice + paymentForExtraReceiverValue,
-      paymentForExtraReceiverValue: paymentForExtraReceiverValue,
-      vaaKeys: vaaKeys,
-      receiverValue: receiverValue,
+      payload: payload,
+      requestedReceiverValue: receiverValue,
+      extraReceiverValue: provider.quoteAssetConversion(targetChainId, paymentForExtraReceiverValue),
       executionEnvironment: executionEnvironment,
       encodedExecutionParameters: encodedExecutionParameters,
-      payload: payload
+      sourceRelayProvider: toWormholeFormat(address(provider)),
+      senderAddress: toWormholeFormat(msg.sender),
+      vaaKeys: vaaKeys
     });
 
      //Temporarily save information about the forward in state, so it can be processed after the
@@ -228,68 +228,60 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
 
     //after this function, this.balance is increased by msg.value
   }
-  /* 
-   * Non overload logic 
-   */ 
+
+  function resendToEvm(
+    VaaKey memory deliveryVaaKey,
+    uint16 targetChainId,
+    uint128 newReceiverValue,
+    uint128 newPaymentForExtraReceiverValue,
+    uint32 newGasLimit,
+    uint16 newRefundChainId,
+    address newRefundAddress,
+    address newRelayProviderAddress,
+    uint8 consistencyLevel
+  ) public payable returns (uint64 sequence) {
+    IRelayProvider provider = IRelayProvider(newRelayProviderAddress);
+    checkTargetChainSupported(provider, targetChainId);
+    (Wei deliveryPrice, Wei targetChainRefundPerUnitGasUnused) = provider.quoteEVMDeliveryPrice(targetChainId, newGasLimit, newReceiverValue);
+    bytes memory encodedExecutionParameters = encodeEVMExecutionParameters(EVMExecutionParameters(gasLimit, newRefundChainId, newRefundAddress, targetChainRefundPerUnitGasUnused, provider.getTargetChainAddress(targetChainId)));
+    sequence = resend(deliveryPrice, deliveryVaaKey, targetChainId, newReceiverValue, newPaymentForExtraReceiverValue,  ExecutionEnvironment.EVM, encodedExecutionParameters, provider, consistencyLevel);
+  }
 
   function resend(
-    VaaKey memory key,
-    uint256 newMaxTransactionFee,
-    uint256 newReceiverValue,
+    Wei deliveryPrice,
+    VaaKey memory deliveryVaaKey,
     uint16 targetChainId,
-    address relayProviderAddress
+    uint128 newReceiverValue,
+    uint128 newPaymentForExtraReceiverValue,
+    uint8 executionEnvironment,
+    bytes memory newEncodedExecutionParameters,
+    IRelayProvider provider,
+    uint8 consistencyLevel
   ) external payable returns (uint64 sequence) {
-    return resendInternal(
-      key,
-      Wei.wrap(newMaxTransactionFee),
-      Wei.wrap(newReceiverValue),
-      targetChainId,
-      relayProviderAddress
-    );
-  }
-
-  function resendInternal(
-    VaaKey memory key,
-    Wei newMaxTransactionFee,
-    Wei newReceiverValue,
-    uint16 targetChainId,
-    address relayProviderAddress
-  ) internal returns (uint64 sequence) {
-    Wei wormholeMessageFee = getWormholeMessageFee();
-    calcAndCheckFees(newMaxTransactionFee, newReceiverValue, wormholeMessageFee);
-
-    IRelayProvider relayProvider = IRelayProvider(relayProviderAddress);
-
-    (Wei maximumRefundTarget, Wei receiverValueTarget, Gas gasLimit) =
-      calcParamsAndCheckBudgetConstraints(
-        targetChainId, newMaxTransactionFee, newReceiverValue, relayProvider
-      );
-
+    Wei wormholeMessageFee = wormholeMessageFee();
+    if(msgValue() != deliveryPrice + newPaymentForExtraReceiverValue + wormholeMessageFee) {
+      revert InvalidMsgValue(msg.value, deliveryPrice + newPaymentForExtraReceiverValue + wormholeMessageFee);
+    }
     RedeliveryInstruction memory instruction = RedeliveryInstruction({
-      key: key,
-      newMaximumRefundTarget: maximumRefundTarget,
-      newReceiverValueTarget: receiverValueTarget,
-      sourceRelayProvider: toWormholeFormat(relayProviderAddress),
+      deliveryVaaKey: deliveryVaaKey,
       targetChainId: targetChainId,
-      executionParameters: ExecutionParameters({gasLimit: gasLimit})
+      newRequestedReceiverValue: newReceiverValue,
+      newExtraReceiverValue: provider.quoteAssetConversion(targetChainId, newPaymentForExtraReceiverValue),
+      executionEnvironment: executionEnvironment,
+      newEncodedExecutionParameters: newEncodedExecutionParameters,
+      newSourceRelayProvider: toWormholeFormat(address(provider)),
+      newSenderAddress: toWormholeFormat(msg.sender),
+      vaaKeys: vaaKeys
     });
-
-    sequence = publishAndPay(
-      wormholeMessageFee,
-      newMaxTransactionFee,
-      newReceiverValue,
-      instruction.encode(),
-      CONSISTENCY_LEVEL_INSTANT,
-      relayProvider
-    );
+    sequence = publishAndPay(wormholeMessageFee, deliveryPrice, newPaymentForExtraReceiverValue, instruction.encode(), consistencyLevel, provider);
   }
-
-
 
  
   function getDefaultRelayProvider() public view returns (address relayProvider) {
     relayProvider = getDefaultRelayProviderState().defaultRelayProvider;
   }
+
+}
 
 
   // ------------------------------------------- PRIVATE -------------------------------------------
