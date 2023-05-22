@@ -11,16 +11,16 @@ enum ExecutionParameterVersion {
     EVM_V1
 }
 
-struct EvmExecutionParamtersV1 {
+struct EvmExecutionParametersV1 {
     Gas gasLimit;
     Wei targetChainRefundPerGasUsed;
 }
 
-function decodeExecutionParamterVersion(bytes memory data) pure returns (uint8 version) {
+function decodeExecutionParameterVersion(bytes memory data) pure returns (uint8 version) {
     (version) = abi.decode(data, (uint8));
 }
 
-function encodeEvmExecutionParamtersV1(EvmExecutionParamtersV1 memory executionParameters)
+function encodeEvmExecutionParametersV1(EvmExecutionParametersV1 memory executionParameters)
     pure
     returns (bytes memory)
 {
@@ -31,7 +31,7 @@ function encodeEvmExecutionParamtersV1(EvmExecutionParamtersV1 memory executionP
 
 function decodeEvmExecutionParametersV1(bytes memory data)
     pure
-    returns (EvmExecutionParamtersV1 memory executionParameters)
+    returns (EvmExecutionParametersV1 memory executionParameters)
 {
     uint8 version;
     (version, executionParameters.gasLimit, executionParameters.targetChainRefundPerGasUsed) =

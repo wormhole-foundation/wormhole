@@ -22,11 +22,11 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
         uint16 refundChainId,
         bytes32 refundAddress,
         bytes32 refundRelayProvider,
-        bytes memory encodedExecutionParamters
+        bytes memory encodedExecutionParameters
     ) external view returns (Wei nativePriceQuote, Wei targetChainRefundPerGasUnused) {
-        uint8 version = decodeExecutionParamterVersion(encodedExecutionParamters);
+        uint8 version = decodeExecutionParamterVersion(encodedExecutionParameters);
         if (version == ExecutionParameterVersion.EVM_V1) {
-            EvmExecutionParamtersV1 memory parsed = decodeEvmExecutionParametersV1(encodedExecutionParamters);
+            EvmExecutionParamtersV1 memory parsed = decodeEvmExecutionParametersV1(encodedExecutionParameters);
             return quoteEVMDeliveryPrice(targetChainId, gasLimit, receiverValue);
         }
     }

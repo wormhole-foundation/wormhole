@@ -84,6 +84,9 @@ struct DeliveryInstruction {
   bytes payload;
   Wei requestedReceiverValue;
   Wei extraReceiverValue;
+  uint16 refundChainId;
+  bytes32 refundAddress;
+  bytes32 refundRelayProvider;
   bytes encodedExecutionParameters;
   bytes32 sourceRelayProvider;
   bytes32 senderAddress;
@@ -218,6 +221,20 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     uint8 consistencyLevel
   ) external payable returns (uint64 sequence);
 
+  function send(
+    uint16 targetChainId,
+    bytes32 targetAddress,
+    bytes memory payload,
+    uint128 receiverValue,
+    uint128 paymentForExtraReceiverValue,
+    bytes memory encodedExecutionParameters,
+    uint16 refundChainId,
+    address refundAddress,
+    address relayProviderAddress,
+    VaaKey[] memory vaaKeys,
+    uint8 consistencyLevel
+  ) external payable returns (uint64 sequence);
+
 
   /**
    * @notice This `forward` function can only be called in a IWormholeReceiver within the `receiveWormholeMessages` function
@@ -266,6 +283,20 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     uint8 consistencyLevel
   ) external payable;
 
+  function forward(
+    uint16 targetChainId,
+    bytes32 targetAddress,
+    bytes memory payload,
+    uint128 receiverValue,
+    uint128 paymentForExtraReceiverValue,
+    bytes memory encodedExecutionParameters,
+    uint16 refundChainId,
+    address refundAddress,
+    address relayProviderAddress,
+    VaaKey[] memory vaaKeys,
+    uint8 consistencyLevel
+  ) external payable;
+
 
   /**
    * @notice This `resend` function allows a caller to request an additional delivery of a specified
@@ -301,16 +332,23 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     uint16 targetChainId,
     uint128 newReceiverValue,
     uint32 newGasLimit,
-    uint16 newRefundChainId,
-    address newRefundAddress,
-    address newRelayProviderAddress,
-    uint8 consistencyLevel
+    address newRelayProviderAddress
+  ) external payable returns (uint64 sequence);
+
+  function resend(
+    VaaKey memory deliveryVaaKey,
+    uint16 targetChainId,
+    uint128 newReceiverValue,
+    bytes memory newEncodedExecutionParameters,
+    address newRelayProviderAddress
   ) external payable returns (uint64 sequence);
 
 
   function quoteEVMDeliveryPrice(uint16 targetChainId, Wei receiverValue, Gas gasLimit) external view returns (Wei nativePriceQuote, Wei refundAmountPerUnitGasUnused);
 
   function quoteEVMDeliveryPrice(uint16 targetChainId, Wei receiverValue, Gas gasLimit, address relayProviderAddress) external view returns (Wei nativePriceQuote, Wei refundAmountPerUnitGasUnused);
+
+  function quoteDeliveryPrice(uint16 targetChainId, Wei receiverValue, bytes memory encodedExecutionParameters, address relayProviderAddress) external view returns (Wei nativePriceQuote, Wei targetChainRefundPerGasUnused);
 
   function quoteAssetConversion(
     uint16 targetChainId,

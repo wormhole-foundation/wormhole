@@ -8,10 +8,7 @@ interface IRelayProvider {
     function quoteDeliveryPrice(
         uint16 targetChainId,
         Wei receiverValue,
-        uint16 refundChainId,
-        bytes32 refundAddress,
-        bytes32 refundRelayProvider,
-        bytes memory encodedExecutionParamters
+        bytes memory encodedExecutionParameters
     ) external view returns (Wei nativePriceQuote, Wei targetChainRefundPerGasUnused);
 
     function quoteAssetConversion(
