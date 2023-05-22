@@ -84,10 +84,11 @@ struct DeliveryInstruction {
   bytes payload;
   Wei requestedReceiverValue;
   Wei extraReceiverValue;
+  bytes encodedQuoteParameters;
+  bytes encodedExecutionParameters;
   uint16 refundChainId;
   bytes32 refundAddress;
   bytes32 refundRelayProvider;
-  bytes encodedExecutionParameters;
   bytes32 sourceRelayProvider;
   bytes32 senderAddress;
   VaaKey[] vaaKeys;
@@ -97,7 +98,7 @@ struct RedeliveryInstruction {
   VaaKey deliveryVaaKey;
   uint16 targetChainId;
   Wei newRequestedReceiverValue;
-  Wei newExtraReceiverValue;
+  bytes newEncodedQuoteParameters;
   bytes newEncodedExecutionParameters;
   bytes32 newSourceRelayProvider;
   bytes32 newSenderAddress;
@@ -119,6 +120,7 @@ struct RedeliveryInstruction {
  */
 struct DeliveryOverride {
   uint128 newReceiverValue;
+  bytes newQuoteParameters;
   bytes newExecutionParameters;
   bytes32 redeliveryHash;
 }
@@ -229,7 +231,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     uint128 paymentForExtraReceiverValue,
     bytes memory encodedExecutionParameters,
     uint16 refundChainId,
-    address refundAddress,
+    bytes32 refundAddress,
     address relayProviderAddress,
     VaaKey[] memory vaaKeys,
     uint8 consistencyLevel
@@ -291,7 +293,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     uint128 paymentForExtraReceiverValue,
     bytes memory encodedExecutionParameters,
     uint16 refundChainId,
-    address refundAddress,
+    bytes32 refundAddress,
     address relayProviderAddress,
     VaaKey[] memory vaaKeys,
     uint8 consistencyLevel
