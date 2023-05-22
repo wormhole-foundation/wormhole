@@ -16,27 +16,12 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
 
     error CallerNotApproved(address msgSender);
 
-    function quoteDeliveryPrice(
-        uint16 targetChainId,
-        Wei receiverValue,
-        uint16 refundChainId,
-        bytes32 refundAddress,
-        bytes32 refundRelayProvider,
-        bytes memory encodedExecutionParameters
-    ) external view returns (Wei nativePriceQuote, Wei targetChainRefundPerGasUnused) {
-        uint8 version = decodeExecutionParameterVersion(encodedExecutionParameters);
-        if (version == ExecutionParameterVersion.EVM_V1) {
-            EvmExecutionParametersV1 memory parsed = decodeEvmExecutionParametersV1(encodedExecutionParameters);
-            return quoteEVMDeliveryPrice(targetChainId, gasLimit, receiverValue);
-        }
-    }
-
-    function quoteEVMDeliveryPrice(
+    function quoteEvmDeliveryPrice(
         uint16 targetChainId,
         Gas gasLimit,
         Wei receiverValue
     )
-        external
+        public
         view
         returns (Wei nativePriceQuote, Wei targetChainRefundPerUnitGasUnused)
     {
@@ -54,6 +39,25 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
             "Exceeds maximum budget"
         );
         require(nativePriceQuote.unwrap() <= type(uint128).max, "Overflow");
+    }
+
+    function quoteDeliveryPrice(
+        uint16 targetChainId,
+        Wei receiverValue,
+        bytes memory encodedExecutionParameters
+    ) external view returns (Wei nativePriceQuote, bytes memory encodedQuoteParams) {
+        ExecutionParamsVersion version = decodeExecutionParamsVersion(encodedExecutionParameters);
+        if (version == ExecutionParamsVersion.EVM_V1) {
+            EvmExecutionParamsV1 memory parsed = decodeEvmExecutionParamsV1(encodedExecutionParameters);
+            Wei targetChainRefundPerUnitGasUnused;
+            (nativePriceQuote, targetChainRefundPerUnitGasUnused) = quoteEvmDeliveryPrice(targetChainId, parsed.gasLimit, receiverValue);
+            return (
+                nativePriceQuote,
+                encodeEvmQuoteParamsV1(EvmQuoteParamsV1(targetChainRefundPerUnitGasUnused))
+            );
+        } else {
+            revert UnsupportedExecutionParamsVersion(uint8(version));
+        }
     }
 
     function quoteAssetConversion(
@@ -137,7 +141,7 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
         Wei targetChainAmount
     ) internal view returns (Wei currentChainAmount) {
         (uint16 buffer, uint16 bufferDenominator) = assetConversionBuffer(targetChainId);
-        return currentChainAmount.convertAsset(
+        return targetChainAmount.convertAsset(
             nativeCurrencyPrice(chainId()),
             nativeCurrencyPrice(targetChainId),
             (uint32(buffer) + bufferDenominator),

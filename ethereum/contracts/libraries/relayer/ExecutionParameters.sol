@@ -28,8 +28,8 @@ struct EvmQuoteParamsV1 {
     Wei targetChainRefundPerGasUsed;
 }
 
-function decodeExecutionParamsVersion(bytes memory data) pure returns (uint8 version) {
-    (version) = abi.decode(data, (uint8));
+function decodeExecutionParamsVersion(bytes memory data) pure returns (ExecutionParamsVersion version) {
+    (version) = abi.decode(data, (ExecutionParamsVersion));
 }
 
 function encodeEvmExecutionParamsV1(EvmExecutionParamsV1 memory executionParams)
