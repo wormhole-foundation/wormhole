@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"runtime"
 	"strings"
 	"syscall"
 
@@ -1029,6 +1030,9 @@ func runNode(cmd *cobra.Command, args []string) {
 	} else {
 		logger.Info("Telemetry disabled")
 	}
+
+	// log golang version
+	logger.Info("golang version", zap.String("golang_version", runtime.Version()))
 
 	// Redirect ipfs logs to plain zap
 	ipfslog.SetPrimaryCore(logger.Core())
