@@ -11,9 +11,9 @@ package guardiand
 // By using a separate key, we can keep the configuration decoupled from the telemetry backend,
 // allowing the key to be replaced or even a different provider to be used without changing the config.
 
-const telemetryProject = "projects/wormhole-logging"
+const defaultTelemetryProject = "projects/wormhole-logging"
 
-const telemetryServiceAccount = `
+const defaultTelemetryServiceAccountEnc = `
 RcLwG218oFn9tVWlsl6ZbYQdiny2w13G49Be5UucgwFAdxYP5DilBQhhd0lN900VM25k3joR2VHwtZ90
 GCQQjjbjqQ7Pm9aAkH0Yp3ngHO111IhFm6yCQMYXl+t7hjEN/0rvju19sm+vdLJx1ECzogAnBRFAlf8I
 k1jTzxA+elAWIT6/C6wfFpE69eJbFCKt6g4LnpajOu1OI812gR+3k8r6gyoVUlhUY36RjTjsE/2Fxxz9

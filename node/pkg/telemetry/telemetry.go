@@ -33,12 +33,14 @@ type ExternalLoggerGoogleCloud struct {
 }
 
 func (logger *ExternalLoggerGoogleCloud) log(time time.Time, message json.RawMessage, level zapcore.Level) {
-	logger.Log(google_cloud_logging.Entry{
+	entry := google_cloud_logging.Entry{
 		Timestamp: time,
 		Payload:   message,
 		Severity:  logLevelSeverity[level],
 		Labels:    logger.labels,
-	})
+	}
+	// call google cloud logger
+	logger.Log(entry)
 }
 
 func (logger *ExternalLoggerGoogleCloud) flush() error {
@@ -111,8 +113,8 @@ func NewExternalLogger(skipPrivateLogs bool, externalLogger ExternalLogger) (*Te
 
 // New creates a new Telemetry logger with Google Cloud Logging
 // skipPrivateLogs: if set to `true`, logs with the field zap.Bool("_privateLogEntry", true) will not be logged by telemetry.
-func New(ctx context.Context, project string, serviceAccountJSON []byte, skipPrivateLogs bool, labels map[string]string) (*Telemetry, error) {
-	gc, err := google_cloud_logging.NewClient(ctx, project, option.WithCredentialsJSON(serviceAccountJSON))
+func New(ctx context.Context, project string, skipPrivateLogs bool, labels map[string]string, opts ...option.ClientOption) (*Telemetry, error) {
+	gc, err := google_cloud_logging.NewClient(ctx, project, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create logging client: %v", err)
 	}
