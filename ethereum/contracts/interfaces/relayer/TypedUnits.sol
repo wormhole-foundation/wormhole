@@ -66,7 +66,7 @@ function subGas(Gas a, Gas b) pure returns (Gas) {
 }
 
 library WeiLib {
-    using {toDollars, toGas, convertAsset, min, max, scale, unwrap} for Wei;
+    using {toDollars, toGas, convertAsset, min, max, scale, unwrap, asGasPrice} for Wei;
 
     Wei constant ZERO = Wei.wrap(0);
 
@@ -92,6 +92,10 @@ library WeiLib {
 
     function unwrap(Wei w) internal pure returns (uint256) {
         return Wei.unwrap(w);
+    }
+
+    function asGasPrice(Wei w) internal pure returns (GasPrice) {
+        return GasPrice.wrap(Wei.unwrap(w));
     }
 
     function convertAsset(

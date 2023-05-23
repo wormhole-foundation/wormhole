@@ -26,7 +26,7 @@ enum QuoteParamsVersion {
 }
 
 struct EvmQuoteParamsV1 {
-    Wei targetChainRefundPerGasUnused;
+    GasPrice targetChainRefundPerGasUnused;
 }
 
 function decodeExecutionParamsVersion(bytes memory data) pure returns (ExecutionParamsVersion version) {
@@ -73,7 +73,7 @@ function decodeEvmQuoteParamsV1(bytes memory data)
 {
     uint8 version;
     (version, quoteParams.targetChainRefundPerGasUnused) =
-        abi.decode(data, (uint8, Wei));
+        abi.decode(data, (uint8, GasPrice));
 
     if (version != uint8(QuoteParamsVersion.EVM_V1)) 
         revert UnexpectedQuoteParamsVersion(version, uint8(QuoteParamsVersion.EVM_V1));

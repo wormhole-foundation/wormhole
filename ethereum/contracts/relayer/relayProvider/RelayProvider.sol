@@ -23,12 +23,11 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
     )
         public
         view
-        returns (Wei nativePriceQuote, Wei targetChainRefundPerUnitGasUnused)
+        returns (Wei nativePriceQuote, GasPrice targetChainRefundPerUnitGasUnused)
     {
         targetChainRefundPerUnitGasUnused =
-            quoteAssetConversion(targetChainId, Gas.wrap(1).toWei(gasPrice(targetChainId)));
-        Wei costOfProvidingMaximumTargetChainAmount =
-            targetChainRefundPerUnitGasUnused.scale(gasLimit, Gas.wrap(1));
+            quoteAssetConversion(targetChainId, gasPrice(targetChainId).priceAsWei()).asGasPrice();
+        Wei costOfProvidingMaximumTargetChainAmount = gasLimit.toWei(targetChainRefundPerUnitGasUnused);
         Wei transactionFee =
             quoteDeliveryOverhead(targetChainId) + gasLimit.toWei(quoteGasPrice(targetChainId));
         Wei receiverValueCost = quoteAssetCost(targetChainId, receiverValue);
@@ -49,7 +48,7 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
         ExecutionParamsVersion version = decodeExecutionParamsVersion(encodedExecutionParameters);
         if (version == ExecutionParamsVersion.EVM_V1) {
             EvmExecutionParamsV1 memory parsed = decodeEvmExecutionParamsV1(encodedExecutionParameters);
-            Wei targetChainRefundPerUnitGasUnused;
+            GasPrice targetChainRefundPerUnitGasUnused;
             (nativePriceQuote, targetChainRefundPerUnitGasUnused) = quoteEvmDeliveryPrice(targetChainId, parsed.gasLimit, receiverValue);
             return (
                 nativePriceQuote,

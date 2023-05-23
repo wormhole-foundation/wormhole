@@ -40,6 +40,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
   using BytesParsing for bytes;
   using WeiLib for Wei;
   using GasLib for Gas;
+  using GasPriceLib for GasPrice;
 
   function deliver(TargetDeliveryParameters memory targetParams) public payable {
     (IWormhole.VM memory vm, bool valid, string memory reason) =
@@ -88,7 +89,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       redeliveryHash = overrides.redeliveryHash;
     }
 
-    Wei requiredFunds = Wei.wrap(quoteParams.targetChainRefundPerGasUnused.unwrap() * executionParams.gasLimit.unwrap() + instruction.requestedReceiverValue.unwrap() + instruction.extraReceiverValue.unwrap());
+    Wei requiredFunds = executionParams.gasLimit.toWei(quoteParams.targetChainRefundPerGasUnused) + instruction.requestedReceiverValue + instruction.extraReceiverValue;
     if (msgValue() < requiredFunds)
       revert InsufficientRelayerFunds(msg.value, Wei.unwrap(requiredFunds));
 
@@ -106,8 +107,8 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
         targetParams.encodedVMs,
         instruction,
         executionParams.gasLimit,
-        quoteParams.targetChainRefundPerGasUnused.unwrap(),
-        (instruction.requestedReceiverValue + instruction.extraReceiverValue).unwrap(),
+        quoteParams.targetChainRefundPerGasUnused,
+        instruction.requestedReceiverValue + instruction.extraReceiverValue,
         targetParams.overrides,
         redeliveryHash
       )
@@ -128,8 +129,8 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     bytes[] encodedVMs;
     DeliveryInstruction deliveryInstruction;
     Gas gasLimit;
-    uint256 targetChainRefundPerGasUnused;
-    uint256 totalReceiverValue;
+    GasPrice targetChainRefundPerGasUnused;
+    Wei totalReceiverValue;
     bytes encodedOverrides;
     bytes32 redeliveryHash; //optional (0 if not present)
   }
@@ -153,7 +154,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     overridesQuoteParams = decodeEvmQuoteParamsV1(overrides.newQuoteParameters);
     overridesReceiverValue = receiverValue;
 
-    if(overridesQuoteParams.targetChainRefundPerGasUnused < quoteParams.targetChainRefundPerGasUnused) {
+    if(overridesQuoteParams.targetChainRefundPerGasUnused.unwrap() < quoteParams.targetChainRefundPerGasUnused.unwrap()) {
       revert InvalidOverrideRefundPerGasUnused();
     }
     if(overridesExecutionParams.gasLimit < executionParams.gasLimit) {
@@ -220,7 +221,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
         DeliveryData({
           sourceAddress: vaaInfo.deliveryInstruction.senderAddress,
           sourceChainId: vaaInfo.sourceChainId,
-          targetChainRefundPerGasUnused: vaaInfo.targetChainRefundPerGasUnused,
+          targetChainRefundPerGasUnused: vaaInfo.targetChainRefundPerGasUnused.unwrap(),
           deliveryHash:  vaaInfo.deliveryVaaHash,
           payload:       vaaInfo.deliveryInstruction.payload
         }),
@@ -262,7 +263,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       payRefunds(
         vaaInfo.deliveryInstruction,
         vaaInfo.relayerRefundAddress,
-        Wei.wrap(uint256(vaaInfo.targetChainRefundPerGasUnused) * (vaaInfo.gasLimit - gasUsed).unwrap()),
+        (vaaInfo.gasLimit - gasUsed).toWei(vaaInfo.targetChainRefundPerGasUnused),
         status
       ),
       additionalStatusInfo,
@@ -276,8 +277,8 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     bytes32 targetAddress,
     DeliveryData calldata data,
     Gas gasLimit,
-    uint256 totalReceiverValue,
-    uint256 targetChainRefundPerGasUnused,
+    Wei totalReceiverValue,
+    GasPrice targetChainRefundPerGasUnused,
     bytes[] memory signedVaas
   ) external returns (
     uint8 status,
@@ -298,7 +299,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       IWormholeReceiver(fromWormholeFormat(targetAddress));
     try deliveryTarget.receiveWormholeMessages{
           gas:   Gas.unwrap(gasLimit),
-          value: totalReceiverValue
+          value: totalReceiverValue.unwrap()
         } (data, signedVaas) {
       targetRevertDataTruncated = new bytes(0);
       status = uint8(DeliveryStatus.SUCCESS);
@@ -320,7 +321,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     if (forwardInstructions.length > 0) {
       //Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the
       //  fraction of gas unused)
-      Wei transactionFeeRefundAmount = Wei.wrap(targetChainRefundPerGasUnused * (gasLimit - gasUsed).unwrap());
+      Wei transactionFeeRefundAmount = (gasLimit - gasUsed).toWei(targetChainRefundPerGasUnused);
       emitForward(gasUsed, transactionFeeRefundAmount, forwardInstructions);
       status = uint8(DeliveryStatus.FORWARD_REQUEST_SUCCESS);
     }
