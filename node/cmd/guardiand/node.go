@@ -1015,7 +1015,8 @@ func runNode(cmd *cobra.Command, args []string) {
 			"version":       version.Version(),
 		}
 
-		tm, err := telemetry.New(context.Background(), *telemetryProject, *publicRpcLogToTelemetry, labels, options...)
+		skipPrivateLogs := !*publicRpcLogToTelemetry
+		tm, err := telemetry.New(context.Background(), *telemetryProject, skipPrivateLogs, labels, options...)
 		if err != nil {
 			logger.Fatal("Failed to initialize telemetry", zap.Error(err))
 		}
