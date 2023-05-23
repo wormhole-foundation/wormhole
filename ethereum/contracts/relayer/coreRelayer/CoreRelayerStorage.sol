@@ -58,7 +58,9 @@ function getRegisteredCoreRelayersState() pure returns (RegisteredCoreRelayersSt
 struct ForwardInstruction {
   bytes encodedInstruction;
   Wei msgValue;
-  Wei totalFee;
+  Wei deliveryPrice;
+  Wei paymentForExtraReceiverValue;
+  uint8 consistencyLevel;
 }
 
 struct DeliveryTmpState {

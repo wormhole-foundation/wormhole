@@ -44,7 +44,7 @@ error InvalidOverrideGasLimit();
 //When a `DeliveryOverride` contains a receiver value that's less than the original
 error InvalidOverrideReceiverValue();
 //When a `DeliveryOverride` contains a maximum refund that's less than the original
-error InvalidOverrideAmountToSpendOnForwardPerUnitGasUnused();
+error InvalidOverrideRefundPerGasUnused();
 
 //When the relay provider doesn't pass in sufficient funds (i.e. msg.value does not cover the
 //  necessary budget fees)
@@ -346,17 +346,17 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
   ) external payable returns (uint64 sequence);
 
 
-  function quoteEVMDeliveryPrice(uint16 targetChainId, Wei receiverValue, Gas gasLimit) external view returns (Wei nativePriceQuote, Wei refundAmountPerUnitGasUnused);
+  function quoteEVMDeliveryPrice(uint16 targetChainId, Wei receiverValue, Gas gasLimit) external view returns (Wei nativePriceQuote, Wei targetChainRefundPerGasUnused);
 
-  function quoteEVMDeliveryPrice(uint16 targetChainId, Wei receiverValue, Gas gasLimit, address relayProviderAddress) external view returns (Wei nativePriceQuote, Wei refundAmountPerUnitGasUnused);
+  function quoteEVMDeliveryPrice(uint16 targetChainId, Wei receiverValue, Gas gasLimit, address relayProviderAddress) external view returns (Wei nativePriceQuote, Wei targetChainRefundPerGasUnused);
 
   function quoteDeliveryPrice(uint16 targetChainId, Wei receiverValue, bytes memory encodedExecutionParameters, address relayProviderAddress) external view returns (Wei nativePriceQuote, bytes memory encodedQuoteParams);
 
   function quoteAssetConversion(
     uint16 targetChainId,
-    uint256 currentChainAmount,
+    Wei currentChainAmount,
     address relayProviderAddress
-  ) external view returns (uint256 targetChainAmount);
+  ) external view returns (Wei targetChainAmount);
 
   /**
    * @notice Returns the address of the current default relay provider

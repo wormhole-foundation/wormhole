@@ -329,7 +329,9 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
       appendForwardInstruction(ForwardInstruction({
         encodedInstruction: encodedInstruction,
         msgValue: Wei.wrap(msg.value),
-        totalFee: deliveryPrice + paymentForExtraReceiverValue + wormholeMessageFee
+        deliveryPrice: deliveryPrice,
+        paymentForExtraReceiverValue: paymentForExtraReceiverValue,
+        consistencyLevel: consistencyLevel
       }));
     }
 
@@ -341,6 +343,31 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
   function getDefaultRelayProvider() public view returns (address relayProvider) {
     relayProvider = getDefaultRelayProviderState().defaultRelayProvider;
   }
+
+  function quoteEVMDeliveryPrice(uint16 targetChainId, Wei receiverValue, Gas gasLimit, address relayProviderAddress) public view returns (Wei nativePriceQuote, Wei targetChainRefundPerGasUnused) {
+    (Wei quote, bytes memory encodedQuoteParams) = quoteDeliveryPrice(targetChainId, receiverValue, encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit)), relayProviderAddress);
+    nativePriceQuote = quote;
+    targetChainRefundPerGasUnused = decodeEvmQuoteParamsV1(encodedQuoteParams).targetChainRefundPerGasUnused;
+  }
+
+  function quoteEVMDeliveryPrice(uint16 targetChainId, Wei receiverValue, Gas gasLimit) public view returns (Wei nativePriceQuote, Wei refundAmountPerUnitGasUnused) {
+    return quoteEVMDeliveryPrice(targetChainId, receiverValue, gasLimit, getDefaultRelayProvider());
+  }
+
+  function quoteDeliveryPrice(uint16 targetChainId, Wei receiverValue, bytes memory encodedExecutionParameters, address relayProviderAddress) public view returns (Wei nativePriceQuote, bytes memory encodedQuoteParams) {
+    IRelayProvider provider = IRelayProvider(relayProviderAddress);
+    return provider.quoteDeliveryPrice(targetChainId, receiverValue, encodedExecutionParameters);
+  }
+
+  function quoteAssetConversion(
+    uint16 targetChainId,
+    Wei currentChainAmount,
+    address relayProviderAddress
+  ) public view returns (Wei targetChainAmount) {
+    IRelayProvider provider = IRelayProvider(relayProviderAddress);
+    return provider.quoteAssetConversion(targetChainId, currentChainAmount);
+  }
+
 
 }
 

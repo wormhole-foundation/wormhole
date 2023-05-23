@@ -14,18 +14,15 @@ import {
   VaaKeysDoNotMatchVaas,
   InvalidOverrideGasLimit,
   InvalidOverrideReceiverValue,
-  InvalidOverrideMaximumRefund,
+  InvalidOverrideRefundPerGasUnused,
   RequesterNotCoreRelayer,
   VaaKey,
   VaaKeyType,
-  Send,
-  VaaKeyType,
-  Send,
-  ExecutionParameters,
   TargetDeliveryParameters,
   DeliveryInstruction,
   DeliveryOverride,
-  IWormholeRelayerDelivery
+  IWormholeRelayerDelivery,
+  IWormholeRelayerSend
 } from "../../interfaces/relayer/IWormholeRelayer.sol";
 import {DeliveryData, IWormholeReceiver} from "../../interfaces/relayer/IWormholeReceiver.sol";
 import {IRelayProvider} from "../../interfaces/relayer/IRelayProvider.sol";
@@ -36,6 +33,7 @@ import {CoreRelayerSerde} from "./CoreRelayerSerde.sol";
 import {ForwardInstruction} from "./CoreRelayerStorage.sol";
 import {CoreRelayerBase} from "./CoreRelayerBase.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
+import "../../libraries/relayer/ExecutionParameters.sol";
 
 abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelivery {
   using CoreRelayerSerde for *; //somewhat yucky but unclear what's a better alternative
@@ -61,28 +59,36 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     //  cost of the happy path.
     startDelivery(fromWormholeFormat(instruction.targetAddress));
 
+  
+
+    ExecutionParamsVersion instructionExecutionParamsVersion = decodeExecutionParamsVersion(instruction.encodedExecutionParameters);
+    if(instructionExecutionParamsVersion != ExecutionParamsVersion.EVM_V1) {
+      revert UnexpectedExecutionParamsVersion(uint8(instructionExecutionParamsVersion), uint8(QuoteParamsVersion.EVM_V1));
+    }
+
+    QuoteParamsVersion instructionQuoteParamsVersion = decodeQuoteParamsVersion(instruction.encodedQuoteParameters);
+    if(instructionQuoteParamsVersion != QuoteParamsVersion.EVM_V1) {
+      revert UnexpectedQuoteParamsVersion(uint8(instructionQuoteParamsVersion), uint8(QuoteParamsVersion.EVM_V1));
+    }
+
+    EvmExecutionParamsV1 memory executionParams = decodeEvmExecutionParamsV1(instruction.encodedExecutionParameters);
+    EvmQuoteParamsV1 memory quoteParams = decodeEvmQuoteParamsV1(instruction.encodedQuoteParameters);
+
     // If present, apply redelivery overrides to current instruction
     bytes32 redeliveryHash = 0;
     if (targetParams.overrides.length != 0) {
       DeliveryOverride memory overrides = targetParams.overrides.decodeDeliveryOverride();
-
-      if (overrides.gasLimit < instruction.executionParameters.gasLimit)
-        revert InvalidOverrideGasLimit();
       
-      if (overrides.receiverValue < instruction.receiverValueTarget)
-        revert InvalidOverrideReceiverValue();
-      
-      if (overrides.maximumRefund < instruction.maximumRefundTarget)
-        revert InvalidOverrideMaximumRefund();
+      (instruction.requestedReceiverValue, executionParams, quoteParams) = decodeAndCheckOverridesEvmV1(instruction.requestedReceiverValue, executionParams, quoteParams, overrides);
 
-      instruction.executionParameters.gasLimit = overrides.gasLimit;
-      instruction.receiverValueTarget = overrides.receiverValue;
-      instruction.maximumRefundTarget = overrides.maximumRefund;
+      instruction.encodedExecutionParameters = overrides.newExecutionParameters;
+      instruction.requestedReceiverValue = Wei.wrap(overrides.newReceiverValue);
+      instruction.encodedQuoteParameters = overrides.newQuoteParameters;
 
       redeliveryHash = overrides.redeliveryHash;
     }
 
-    Wei requiredFunds = instruction.maximumRefundTarget + instruction.receiverValueTarget;
+    Wei requiredFunds = Wei.wrap(quoteParams.targetChainRefundPerGasUnused.unwrap() * executionParams.gasLimit.unwrap() + instruction.requestedReceiverValue.unwrap() + instruction.extraReceiverValue.unwrap());
     if (msgValue() < requiredFunds)
       revert InsufficientRelayerFunds(msg.value, Wei.unwrap(requiredFunds));
 
@@ -99,6 +105,10 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
         targetParams.relayerRefundAddress,
         targetParams.encodedVMs,
         instruction,
+        executionParams.gasLimit,
+        quoteParams.targetChainRefundPerGasUnused.unwrap(),
+        (instruction.requestedReceiverValue + instruction.extraReceiverValue).unwrap(),
+        targetParams.overrides,
         redeliveryHash
       )
     );
@@ -117,7 +127,39 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     address payable relayerRefundAddress;
     bytes[] encodedVMs;
     DeliveryInstruction deliveryInstruction;
+    Gas gasLimit;
+    uint256 targetChainRefundPerGasUnused;
+    uint256 totalReceiverValue;
+    bytes encodedOverrides;
     bytes32 redeliveryHash; //optional (0 if not present)
+  }
+
+  function decodeAndCheckOverridesEvmV1(Wei receiverValue, EvmExecutionParamsV1 memory executionParams, EvmQuoteParamsV1 memory quoteParams, DeliveryOverride memory overrides) internal returns (Wei overridesReceiverValue, EvmExecutionParamsV1 memory overridesExecutionParams, EvmQuoteParamsV1 memory overridesQuoteParams) {
+    
+    if (Wei.wrap(overrides.newReceiverValue) < receiverValue) {
+        revert InvalidOverrideReceiverValue();
+    } 
+    ExecutionParamsVersion overridesExecutionParamsVersion = decodeExecutionParamsVersion(overrides.newExecutionParameters);
+    if(ExecutionParamsVersion.EVM_V1 != overridesExecutionParamsVersion) {
+      revert VersionMismatchOverride(uint8(ExecutionParamsVersion.EVM_V1), uint8(overridesExecutionParamsVersion));
+    }
+
+    QuoteParamsVersion overridesQuoteParamsVersion = decodeQuoteParamsVersion(overrides.newQuoteParameters);
+    if(QuoteParamsVersion.EVM_V1 != overridesQuoteParamsVersion) {
+      revert VersionMismatchOverride(uint8(QuoteParamsVersion.EVM_V1), uint8(overridesQuoteParamsVersion));
+    }
+
+    overridesExecutionParams = decodeEvmExecutionParamsV1(overrides.newExecutionParameters);
+    overridesQuoteParams = decodeEvmQuoteParamsV1(overrides.newQuoteParameters);
+    overridesReceiverValue = receiverValue;
+
+    if(overridesQuoteParams.targetChainRefundPerGasUnused < quoteParams.targetChainRefundPerGasUnused) {
+      revert InvalidOverrideRefundPerGasUnused();
+    }
+    if(overridesExecutionParams.gasLimit < executionParams.gasLimit) {
+      revert InvalidOverrideGasLimit();
+    }
+
   }
 
   /**
@@ -157,17 +199,12 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
         payRefunds(
         vaaInfo.deliveryInstruction,
         vaaInfo.relayerRefundAddress,
-        vaaInfo.deliveryInstruction.maximumRefundTarget,
+        Wei.wrap(0),
         DeliveryStatus.RECEIVER_FAILURE
         ),
         bytes(""),
         (vaaInfo.redeliveryHash != 0)
-        ? DeliveryOverride(
-            vaaInfo.deliveryInstruction.executionParameters.gasLimit,
-            vaaInfo.deliveryInstruction.maximumRefundTarget,
-            vaaInfo.deliveryInstruction.receiverValueTarget,
-            vaaInfo.redeliveryHash
-          ).encode()
+        ? vaaInfo.encodedOverrides
         : new bytes(0) 
       );
       return;
@@ -179,14 +216,17 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     
     try //force external call!
       this.executeInstruction(
-        vaaInfo.deliveryInstruction,
+        vaaInfo.deliveryInstruction.targetAddress,
         DeliveryData({
           sourceAddress: vaaInfo.deliveryInstruction.senderAddress,
           sourceChainId: vaaInfo.sourceChainId,
-          maximumRefund: Wei.unwrap(vaaInfo.deliveryInstruction.maximumRefundTarget),
+          targetChainRefundPerGasUnused: vaaInfo.targetChainRefundPerGasUnused,
           deliveryHash:  vaaInfo.deliveryVaaHash,
           payload:       vaaInfo.deliveryInstruction.payload
         }),
+        vaaInfo.gasLimit,
+        vaaInfo.totalReceiverValue,
+        vaaInfo.targetChainRefundPerGasUnused,
         vaaInfo.encodedVMs
       )
     returns (uint8 _status, Gas _gasUsed, bytes memory targetRevertDataTruncated) {
@@ -222,32 +262,22 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       payRefunds(
         vaaInfo.deliveryInstruction,
         vaaInfo.relayerRefundAddress,
-        calculateTransactionFeeRefundAmount(vaaInfo.deliveryInstruction, gasUsed),
+        Wei.wrap(uint256(vaaInfo.targetChainRefundPerGasUnused) * (vaaInfo.gasLimit - gasUsed).unwrap()),
         status
       ),
       additionalStatusInfo,
       (vaaInfo.redeliveryHash != 0)
-        ? DeliveryOverride(
-            vaaInfo.deliveryInstruction.executionParameters.gasLimit,
-            vaaInfo.deliveryInstruction.maximumRefundTarget,
-            vaaInfo.deliveryInstruction.receiverValueTarget,
-            vaaInfo.redeliveryHash
-          ).encode()
+        ? vaaInfo.encodedOverrides
         : new bytes(0)
     );
   }
 
-  function calculateTransactionFeeRefundAmount(
-    DeliveryInstruction memory instruction,
-    Gas gasUsed
-  ) private pure returns (Wei transactionFeeRefundAmount) {
-    Gas unusedGas = instruction.executionParameters.gasLimit - gasUsed;
-    return instruction.maximumRefundTarget.scale(unusedGas, instruction.executionParameters.gasLimit);
-  }
-
   function executeInstruction(
-    DeliveryInstruction calldata instruction,
+    bytes32 targetAddress,
     DeliveryData calldata data,
+    Gas gasLimit,
+    uint256 totalReceiverValue,
+    uint256 targetChainRefundPerGasUnused,
     bytes[] memory signedVaas
   ) external returns (
     uint8 status,
@@ -265,10 +295,10 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     // Calls the `receiveWormholeMessages` endpoint on the contract `instruction.targetAddress`
     // (with the gas limit and value specified in instruction, and `encodedVMs` as the input)
     IWormholeReceiver deliveryTarget =
-      IWormholeReceiver(fromWormholeFormat(instruction.targetAddress));
+      IWormholeReceiver(fromWormholeFormat(targetAddress));
     try deliveryTarget.receiveWormholeMessages{
-          gas:   Gas.unwrap(instruction.executionParameters.gasLimit),
-          value: Wei.unwrap(instruction.receiverValueTarget)
+          gas:   Gas.unwrap(gasLimit),
+          value: totalReceiverValue
         } (data, signedVaas) {
       targetRevertDataTruncated = new bytes(0);
       status = uint8(DeliveryStatus.SUCCESS);
@@ -284,31 +314,14 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
 
     Gas postGas = Gas.wrap(gasleft());
     
-    unchecked{gasUsed = (preGas - postGas).min(instruction.executionParameters.gasLimit);}
+    unchecked{gasUsed = (preGas - postGas).min(gasLimit);}
 
     ForwardInstruction[] storage forwardInstructions = getForwardInstructions();
     if (forwardInstructions.length > 0) {
       //Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the
       //  fraction of gas unused)
-      Wei transactionFeeRefundAmount = calculateTransactionFeeRefundAmount(instruction, gasUsed);
-
-      Wei totalMsgValue;
-      Wei totalFee;
-      for (uint i = 0; i < forwardInstructions.length;) {
-        unchecked{totalMsgValue = totalMsgValue + forwardInstructions[i].msgValue;}
-        totalFee = totalFee + forwardInstructions[i].totalFee;
-        unchecked{++i;}
-      }
-
-      //If we don't have enough funds to pay for the forward, then we retroactively revert the call
-      //  to the delivery target too.
-      //This does not revert our entire transaction because we invoked executeInstruction via CALL
-      //  rather than through a normal, internal function call.
-      Wei feeForForward = transactionFeeRefundAmount + totalMsgValue;
-      if (feeForForward < totalFee) {
-        revert Cancelled(uint32(Gas.unwrap(gasUsed)), Wei.unwrap(feeForForward), Wei.unwrap(totalFee));
-      }
-      emitForward(transactionFeeRefundAmount, forwardInstructions);
+      Wei transactionFeeRefundAmount = Wei.wrap(targetChainRefundPerGasUnused * (gasLimit - gasUsed).unwrap());
+      emitForward(gasUsed, transactionFeeRefundAmount, forwardInstructions);
       status = uint8(DeliveryStatus.FORWARD_REQUEST_SUCCESS);
     }
   }
@@ -324,19 +337,21 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
    *     request(s)
    */
   function emitForward(
+    Gas gasUsed,
     Wei transactionFeeRefundAmount,
     ForwardInstruction[] storage forwardInstructions
   ) private {
     Wei wormholeMessageFee = getWormholeMessageFee();
 
     //Decode send requests and aggregate fee and payment
-    Send[] memory sendRequests = new Send[](forwardInstructions.length);
+    DeliveryInstruction[] memory instructions = new DeliveryInstruction[](forwardInstructions.length); 
+
     Wei totalMsgValue = Wei.wrap(0);
     Wei totalFee = Wei.wrap(0);
     for (uint i = 0; i < forwardInstructions.length;) {
       unchecked{totalMsgValue = totalMsgValue + forwardInstructions[i].msgValue;}
-      totalFee = totalFee + forwardInstructions[i].totalFee;
-      sendRequests[i] = forwardInstructions[i].encodedSend.decodeSend();
+      instructions[i] = (forwardInstructions[i].encodedInstruction).decodeDeliveryInstruction();
+      totalFee = totalFee + forwardInstructions[i].deliveryPrice + forwardInstructions[i].paymentForExtraReceiverValue + wormholeMessageFee;
       unchecked{++i;}
     }
 
@@ -345,35 +360,25 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     //  as it was already checked)
     Wei fundsForForward;
     unchecked{fundsForForward = transactionFeeRefundAmount + totalMsgValue;}
-    if (fundsForForward < totalFee)
-      revert ForwardNotSufficientlyFunded(Wei.unwrap(fundsForForward), Wei.unwrap(totalFee));
-
-    //Increases the maxTransactionFee of the first forward in order to use all of the funds
-    unchecked{
-      sendRequests[0].maxTransactionFee = sendRequests[0].maxTransactionFee + fundsForForward - totalFee;
+    if (fundsForForward < totalFee) {
+        revert Cancelled(uint32(Gas.unwrap(gasUsed)), Wei.unwrap(fundsForForward), Wei.unwrap(totalFee));
     }
 
-    (DeliveryInstruction memory firstDeliveryInstruction, IRelayProvider firstRelayProvider) =
-      convertSendToDeliveryInstruction(sendRequests[0]);
-
-    firstDeliveryInstruction.maximumRefundTarget = firstDeliveryInstruction.maximumRefundTarget.min(
-      firstRelayProvider.quoteMaximumBudget(sendRequests[0].targetChainId)
-        - firstDeliveryInstruction.receiverValueTarget
-    );
+    Wei extraReceiverValue = IRelayProvider(fromWormholeFormat(instructions[0].sourceRelayProvider)).quoteAssetConversion(instructions[0].targetChainId, fundsForForward - totalFee);
+    //Increases the maxTransactionFee of the first forward in order to use all of the funds
+    unchecked{
+      instructions[0].extraReceiverValue = instructions[0].extraReceiverValue + extraReceiverValue;
+    }
 
     //Publishes the DeliveryInstruction and pays the associated relayProvider
     for (uint i = 0; i < forwardInstructions.length;) {
-      (DeliveryInstruction memory instruction, IRelayProvider relayProvider) = i == 0
-        ? (firstDeliveryInstruction, firstRelayProvider)
-        : convertSendToDeliveryInstruction(sendRequests[i]);
-
       publishAndPay(
         wormholeMessageFee,
-        sendRequests[i].maxTransactionFee,
-        sendRequests[i].receiverValue,
-        instruction.encode(),
-        sendRequests[i].consistencyLevel,
-        relayProvider
+        forwardInstructions[i].deliveryPrice,
+        forwardInstructions[i].paymentForExtraReceiverValue,
+        i == 0 ? instructions[0].encode() : forwardInstructions[i].encodedInstruction,
+        forwardInstructions[i].consistencyLevel,
+        IRelayProvider(fromWormholeFormat(instructions[i].sourceRelayProvider))
       );
       unchecked{++i;}
     }
@@ -388,7 +393,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     //Amount of receiverValue that is refunded to the user (0 if the call to
     //  'receiveWormholeMessages' did not revert, or the full receiverValue otherwise)
     Wei receiverValueRefundAmount =
-      (status == DeliveryStatus.FORWARD_REQUEST_SUCCESS || status == DeliveryStatus.SUCCESS) ? Wei.wrap(0) : deliveryInstruction.receiverValueTarget;
+      (status == DeliveryStatus.FORWARD_REQUEST_SUCCESS || status == DeliveryStatus.SUCCESS) ? Wei.wrap(0) : (deliveryInstruction.requestedReceiverValue + deliveryInstruction.extraReceiverValue);
 
     //Total refund to the user
     Wei refundToRefundAddress =
@@ -399,7 +404,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       deliveryInstruction.refundChainId,
       deliveryInstruction.refundAddress,
       refundToRefundAddress,
-      deliveryInstruction.targetRelayProvider
+      deliveryInstruction.refundRelayProvider
     )
     returns (RefundStatus _refundStatus) {
       refundStatus = _refundStatus;
@@ -410,13 +415,11 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
 
     //Refund the relayer (their extra funds) + (the amount that the relayer spent on gas)
     //  + (the users refund if that refund didn't succeed)
-    Wei relayerRefundAmount = (
-      msgValue() - deliveryInstruction.receiverValueTarget - deliveryInstruction.maximumRefundTarget
-    ) + (deliveryInstruction.maximumRefundTarget - transactionFeeRefundAmount)
+    Wei relayerRefundAmount = 
+      msgValue() - (deliveryInstruction.requestedReceiverValue + deliveryInstruction.extraReceiverValue) - transactionFeeRefundAmount
     //TODO AMO: Isn't this a bug? We add the same amount regardless of whether we hit the max or not
       + ((refundStatus == RefundStatus.REFUND_SENT ||
-          refundStatus == RefundStatus.CROSS_CHAIN_REFUND_SENT ||
-          refundStatus == RefundStatus.CROSS_CHAIN_REFUND_SENT_MAXIMUM_BUDGET
+          refundStatus == RefundStatus.CROSS_CHAIN_REFUND_SENT 
          ) ? Wei.wrap(0) : refundToRefundAddress);
 
     //TODO AMO: what if pay fails? (i.e. returns false)
@@ -446,54 +449,32 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     if (!relayProvider.isChainSupported(refundChainId))
       return RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED;
 
+    // assuming refund chain is an EVM chain
+    // must modify this when we extend system to non-EVM
+    (Wei quote,) = relayProvider.quoteDeliveryPrice(refundChainId, Wei.wrap(0), encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1()));
     Wei wormholeMessageFee = getWormholeMessageFee();
-    Wei overhead = relayProvider.quoteDeliveryOverhead(refundChainId);
-    if (refundAmount <= wormholeMessageFee + overhead)
+    if (refundAmount <= wormholeMessageFee + quote)
       return RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH;
-
-    Wei refundSubMessageFee;
-    unchecked{refundSubMessageFee = refundAmount - wormholeMessageFee;}
-
-    (DeliveryInstruction memory crossChainRefundInstruction,) =
-      convertSendToDeliveryInstruction(Send({
-        targetChainId: refundChainId,
-        targetAddress: bytes32(0x0),
-        refundChainId: refundChainId,
-        refundAddress: refundAddress,
-        maxTransactionFee: overhead,
-        receiverValue: refundSubMessageFee - overhead,
-        relayProviderAddress: fromWormholeFormat(relayerAddress),
-        vaaKeys: new VaaKey[](0),
-        consistencyLevel: CONSISTENCY_LEVEL_INSTANT,
-        payload: new bytes(0),
-        relayParameters: new bytes(0)
-      }));
-    
-    //If refundAmount is not enough to pay for one wei of receiver value, then do not perform the
-    //  cross-chain refund (i.e. if (delivery overhead) + (wormhole message fee) + (cost of one wei
-    //  of receiver value) is larger than the remaining refund)
-    if (crossChainRefundInstruction.receiverValueTarget == Wei.wrap(0))
-      return RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH;
-
-    Wei maxBudget = relayProvider.quoteMaximumBudget(refundChainId);
-    bool exceedsMaxBudget = false;
-    if (crossChainRefundInstruction.receiverValueTarget > maxBudget) {
-      crossChainRefundInstruction.receiverValueTarget = maxBudget;
-      exceedsMaxBudget = true;
+    try IWormholeRelayerSend(address(this)).send{
+      value: refundAmount.unwrap()
+    }(
+      refundChainId,
+      bytes32(0),
+      bytes(""),
+      0,
+      uint128((refundAmount - wormholeMessageFee - quote).unwrap()),
+      encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1()),
+      refundChainId,
+      refundAddress,
+      fromWormholeFormat(relayerAddress),
+      new VaaKey[](0),
+      CONSISTENCY_LEVEL_INSTANT) 
+    returns (uint64) {
+      return RefundStatus.CROSS_CHAIN_REFUND_SENT;
     }
-
-    publishAndPay(
-      wormholeMessageFee,
-      Wei.wrap(0),
-      refundSubMessageFee,
-      crossChainRefundInstruction.encode(),
-      CONSISTENCY_LEVEL_INSTANT,
-      relayProvider
-    );
-
-    return exceedsMaxBudget
-      ? RefundStatus.CROSS_CHAIN_REFUND_SENT_MAXIMUM_BUDGET
-      : RefundStatus.CROSS_CHAIN_REFUND_SENT;
+    catch (bytes memory) {
+      return RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED;
+    }
   }
 
   function decodeCancelled(
