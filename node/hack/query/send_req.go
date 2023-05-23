@@ -226,6 +226,7 @@ func main() {
 	}
 
 	logger.Info("Waiting for message...")
+	// TODO: max wait time
 	for {
 		envelope, err := sub.Next(ctx)
 		if err != nil {
@@ -239,9 +240,18 @@ func main() {
 				zap.String("from", envelope.GetFrom().String()))
 			continue
 		}
-		// TODO: actually wait for the corresponding response
-		logger.Info("received message")
-		break
+		var isMatchingResponse bool
+		switch m := msg.Message.(type) {
+		case *gossipv1.GossipMessage_SignedQueryResponse:
+			// TODO: check if it's matching
+			logger.Info("response received", zap.Any("response", m.SignedQueryResponse))
+			isMatchingResponse = true
+		default:
+			continue
+		}
+		if isMatchingResponse {
+			break
+		}
 	}
 
 	//
