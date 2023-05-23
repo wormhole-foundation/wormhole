@@ -1,0 +1,21 @@
+[package]
+name = "NftBridge"
+version = "0.2.0"
+
+[dependencies.Sui]
+git = "https://github.com/MystenLabs/sui.git"
+subdir = "crates/sui-framework/packages/sui-framework"
+rev = "09b2081498366df936abae26eea4b2d5cafb2788"
+
+[dependencies.Wormhole]
+local = "../wormhole"
+
+[addresses]
+nft_bridge = "_"
+
+[dev-dependencies.Wormhole]
+local = "../wormhole"
+
+[dev-addresses]
+wormhole = "0x100"
+nft_bridge = "0x200"
