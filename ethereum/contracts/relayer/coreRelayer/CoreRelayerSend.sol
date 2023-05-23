@@ -50,7 +50,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
       receiverValue,
       0,
       gasLimit,
-      chainId(),
+      getWormhole().chainId(),
       msg.sender,
       getDefaultRelayProvider(),
       new VaaKey[](0),
@@ -101,10 +101,10 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
       payload,
       receiverValue,
       paymentForExtraReceiverValue,
-      encodeEvmExecutionParamsV1(gasLimit),
+      encodeEvmExecutionParamsV1(EvmExecutionParamsV1(Gas.wrap(gasLimit))),
       refundChainId,
       toWormholeFormat(refundAddress),
-      toWormholeFormat(relayProviderAddress),
+      relayProviderAddress,
       vaaKeys,
       consistencyLevel
     );
@@ -154,10 +154,10 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
       payload,
       receiverValue,
       paymentForExtraReceiverValue,
-      encodeEvmExecutionParamsV1(gasLimit),
+      encodeEvmExecutionParamsV1(EvmExecutionParamsV1(Gas.wrap(gasLimit))),
       refundChainId,
       toWormholeFormat(refundAddress),
-      toWormholeFormat(relayProviderAddress),
+      relayProviderAddress,
       vaaKeys,
       consistencyLevel
     );  
@@ -174,7 +174,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
       deliveryVaaKey,
       targetChainId,
       newReceiverValue,
-      encodeEvmExecutionParamsV1(newGasLimit),
+      encodeEvmExecutionParamsV1(EvmExecutionParamsV1(Gas.wrap(newGasLimit))),
       newRelayProviderAddress
     );
   }
@@ -191,14 +191,14 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     address relayProviderAddress,
     VaaKey[] memory vaaKeys,
     uint8 consistencyLevel
-  ) external payable returns (uint64 sequence) {
+  ) public payable returns (uint64 sequence) {
     sequence = sendForwardResend(
       Action.Send,
       targetChainId,
       targetAddress,
       payload,
-      receiverValue,
-      paymentForExtraReceiverValue,
+      Wei.wrap(receiverValue),
+      Wei.wrap(paymentForExtraReceiverValue),
       refundChainId,
       refundAddress, 
       encodedExecutionParameters,
@@ -220,14 +220,14 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     address relayProviderAddress,
     VaaKey[] memory vaaKeys,
     uint8 consistencyLevel
-  ) external payable {
+  ) public payable {
     sendForwardResend(
       Action.Forward,
       targetChainId,
       targetAddress,
       payload,
-      receiverValue,
-      paymentForExtraReceiverValue,
+      Wei.wrap(receiverValue),
+      Wei.wrap(paymentForExtraReceiverValue),
       refundChainId,
       refundAddress, 
       encodedExecutionParameters,
@@ -243,7 +243,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     uint128 newReceiverValue,
     bytes memory newEncodedExecutionParameters,
     address newRelayProviderAddress
-  ) external payable returns (uint64 sequence) {
+  ) public payable returns (uint64 sequence) {
     VaaKey[] memory deliveryVaaKeyArray = new VaaKey[](1);
     deliveryVaaKeyArray[0] = deliveryVaaKey;
     sequence = sendForwardResend(
@@ -251,8 +251,8 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
       targetChainId,
       bytes32(0),
       bytes(""),
-      newReceiverValue,
-      0,
+      Wei.wrap(newReceiverValue),
+      Wei.wrap(0),
       0,
       bytes32(0), 
       newEncodedExecutionParameters,
@@ -274,8 +274,8 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     uint16 targetChainId,
     bytes32 targetAddress,
     bytes memory payload,
-    uint128 receiverValue,
-    uint128 paymentForExtraReceiverValue,
+    Wei receiverValue,
+    Wei paymentForExtraReceiverValue,
     uint16 refundChainId,
     bytes32 refundAddress,
     bytes memory encodedExecutionParameters,
@@ -288,9 +288,9 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
       revert RelayProviderDoesNotSupportTargetChain(address(provider), targetChainId);
     }
     (Wei deliveryPrice, bytes memory encodedQuoteParameters) = provider.quoteDeliveryPrice(targetChainId, receiverValue, encodedExecutionParameters);
-    Wei wormholeMessageFee = wormholeMessageFee();
+    Wei wormholeMessageFee = getWormholeMessageFee();
     if(msgValue() != deliveryPrice + paymentForExtraReceiverValue + wormholeMessageFee) {
-      revert InvalidMsgValue(msg.value, deliveryPrice + paymentForExtraReceiverValue + wormholeMessageFee);
+      revert InvalidMsgValue(msg.value, (deliveryPrice + paymentForExtraReceiverValue + wormholeMessageFee).unwrap());
     }
     bytes memory encodedInstruction;
     if(action == Action.Send || action == Action.Forward) {
@@ -304,6 +304,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
         encodedExecutionParameters: encodedExecutionParameters,
         refundChainId: refundChainId,
         refundAddress: refundAddress,
+        refundRelayProvider: provider.getTargetChainAddress(targetChainId),
         sourceRelayProvider: toWormholeFormat(relayProviderAddress),
         senderAddress: toWormholeFormat(msg.sender),
         vaaKeys: vaaKeys
@@ -322,14 +323,14 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
       encodedInstruction = instruction.encode();
     }
 
-    if(action == Action.Send || Action.Resend) {
+    if(action == Action.Send || action == Action.Resend) {
       sequence = publishAndPay(wormholeMessageFee, deliveryPrice, paymentForExtraReceiverValue, encodedInstruction, consistencyLevel, provider);
     } else if(action == Action.Forward) {
-      appendForwardInstruction({
+      appendForwardInstruction(ForwardInstruction({
         encodedInstruction: encodedInstruction,
         msgValue: Wei.wrap(msg.value),
         totalFee: deliveryPrice + paymentForExtraReceiverValue + wormholeMessageFee
-      });
+      }));
     }
 
   }
