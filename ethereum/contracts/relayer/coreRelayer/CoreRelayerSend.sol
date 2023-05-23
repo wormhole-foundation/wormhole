@@ -351,19 +351,21 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     relayProvider = getDefaultRelayProviderState().defaultRelayProvider;
   }
 
-  function quoteEVMDeliveryPrice(uint16 targetChainId, Wei receiverValue, Gas gasLimit, address relayProviderAddress) public view returns (Wei nativePriceQuote, GasPrice targetChainRefundPerGasUnused) {
-    (Wei quote, bytes memory encodedQuoteParams) = quoteDeliveryPrice(targetChainId, receiverValue, encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit)), relayProviderAddress);
+  function quoteEVMDeliveryPrice(uint16 targetChainId, uint128 receiverValue, uint32 gasLimit, address relayProviderAddress) public view returns (uint256 nativePriceQuote, uint256 targetChainRefundPerGasUnused) {
+    (uint256 quote, bytes memory encodedQuoteParams) = quoteDeliveryPrice(targetChainId, receiverValue, encodeEvmExecutionParamsV1(EvmExecutionParamsV1(Gas.wrap(gasLimit))), relayProviderAddress);
     nativePriceQuote = quote;
-    targetChainRefundPerGasUnused = decodeEvmQuoteParamsV1(encodedQuoteParams).targetChainRefundPerGasUnused;
+    targetChainRefundPerGasUnused = GasPrice.unwrap(decodeEvmQuoteParamsV1(encodedQuoteParams).targetChainRefundPerGasUnused);
   }
 
-  function quoteEVMDeliveryPrice(uint16 targetChainId, Wei receiverValue, Gas gasLimit) public view returns (Wei nativePriceQuote, GasPrice refundAmountPerUnitGasUnused) {
+  function quoteEVMDeliveryPrice(uint16 targetChainId, uint128 receiverValue, uint32 gasLimit) public view returns (uint256 nativePriceQuote, uint256 targetChainRefundPerGasUnused) {
     return quoteEVMDeliveryPrice(targetChainId, receiverValue, gasLimit, getDefaultRelayProvider());
   }
 
-  function quoteDeliveryPrice(uint16 targetChainId, Wei receiverValue, bytes memory encodedExecutionParameters, address relayProviderAddress) public view returns (Wei nativePriceQuote, bytes memory encodedQuoteParams) {
+  function quoteDeliveryPrice(uint16 targetChainId, uint128 receiverValue, bytes memory encodedExecutionParameters, address relayProviderAddress) public view returns (uint256 nativePriceQuote, bytes memory encodedQuoteParams) {
     IRelayProvider provider = IRelayProvider(relayProviderAddress);
-    return provider.quoteDeliveryPrice(targetChainId, receiverValue, encodedExecutionParameters);
+    (Wei deliveryPrice, bytes memory _encodedQuoteParams) = provider.quoteDeliveryPrice(targetChainId, Wei.wrap(receiverValue), encodedExecutionParameters);
+    encodedQuoteParams = _encodedQuoteParams;
+    nativePriceQuote = deliveryPrice.unwrap();
   }
 
   function quoteAssetConversion(

@@ -360,11 +360,11 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
   ) external payable returns (uint64 sequence);
 
 
-  function quoteEVMDeliveryPrice(uint16 targetChainId, Wei receiverValue, Gas gasLimit) external view returns (Wei nativePriceQuote, GasPrice targetChainRefundPerGasUnused);
+  function quoteEVMDeliveryPrice(uint16 targetChainId, uint128 receiverValue, uint32 gasLimit) external view returns (uint256 nativePriceQuote, uint256 targetChainRefundPerGasUnused);
 
-  function quoteEVMDeliveryPrice(uint16 targetChainId, Wei receiverValue, Gas gasLimit, address relayProviderAddress) external view returns (Wei nativePriceQuote, GasPrice targetChainRefundPerGasUnused);
+  function quoteEVMDeliveryPrice(uint16 targetChainId, uint128 receiverValue, uint32 gasLimit, address relayProviderAddress) external view returns (uint256 nativePriceQuote, uint256 targetChainRefundPerGasUnused);
 
-  function quoteDeliveryPrice(uint16 targetChainId, Wei receiverValue, bytes memory encodedExecutionParameters, address relayProviderAddress) external view returns (Wei nativePriceQuote, bytes memory encodedQuoteParams);
+  function quoteDeliveryPrice(uint16 targetChainId, uint128 receiverValue, bytes memory encodedExecutionParameters, address relayProviderAddress) external view returns (uint256 nativePriceQuote, bytes memory encodedQuoteParams);
 
   function quoteAssetConversion(
     uint16 targetChainId,

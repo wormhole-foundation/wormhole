@@ -55,10 +55,11 @@ contract MockRelayerIntegration is IWormholeReceiver {
     function sendMessage(
         bytes memory _message,
         uint16 targetChainId,
-        address destination
+        address destination,
+        uint32 gasLimit
     ) public payable returns (uint64 sequence) {
         sequence = sendMessageGeneral(
-            _message, targetChainId, destination, targetChainId, destination, 0, bytes("")
+            _message, targetChainId, destination, gasLimit, targetChainId, destination, 0, bytes("")
         );
     }
 
@@ -66,10 +67,11 @@ contract MockRelayerIntegration is IWormholeReceiver {
         bytes memory _message,
         uint16 targetChainId,
         address destination,
+        uint32 gasLimit,
         bytes memory payload
     ) public payable returns (uint64 sequence) {
         sequence = sendMessageGeneral(
-            _message, targetChainId, destination, targetChainId, destination, 0, payload
+            _message, targetChainId, destination, gasLimit, targetChainId, destination, 0, payload
         );
     }
 
@@ -77,11 +79,12 @@ contract MockRelayerIntegration is IWormholeReceiver {
         bytes memory _message,
         uint16 targetChainId,
         address destination,
+        uint32 gasLimit,
         address refundAddress,
         bytes memory payload
     ) public payable returns (uint64 sequence) {
         sequence = sendMessageGeneral(
-            _message, targetChainId, destination, targetChainId, refundAddress, 0, payload
+            _message, targetChainId, destination, gasLimit, targetChainId, refundAddress, 0, payload
         );
     }
 
@@ -110,6 +113,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
         bytes memory _message,
         uint16 targetChainId,
         address destination,
+        uint32 gasLimit,
         address refundAddress,
         uint256 receiverValue
     ) public payable returns (uint64 sequence) {
@@ -133,6 +137,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
         sequence = executeSend(
             targetChainId,
             destination,
+            gasLimit,
             targetChainId,
             refundAddress,
             receiverValue,
@@ -145,6 +150,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
         bytes memory fullMessage,
         uint16 targetChainId,
         address destination,
+        uint32 gasLimit,
         uint16 refundChain,
         address refundAddress,
         uint256 receiverValue,
@@ -158,6 +164,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
         sequence = executeSend(
             targetChainId,
             destination,
+            gasLimit,
             refundChain,
             refundAddress,
             receiverValue,
@@ -169,11 +176,12 @@ contract MockRelayerIntegration is IWormholeReceiver {
     function sendMessagesWithFurtherInstructions(
         bytes[] memory messages,
         FurtherInstructions memory furtherInstructions,
-        uint16[] memory chains,
-        uint256[] memory computeBudgets
+        uint16 chainId,
+        uint32 gasLimit
     ) public payable returns (uint64 sequence) {
         VaaKey[] memory vaaKeys = new VaaKey[](messages.length + 1);
-        for (uint16 i = 0; i < messages.length; i++) {
+        uint16 i = 0;
+        for (i = 0; i < messages.length; i++) {
             sequence = wormhole.publishMessage{value: wormhole.messageFee()}(0, messages[i], 200);
             vaaKeys[i] = VaaKey(
                 VaaKeyType.EMITTER_SEQUENCE,
@@ -193,27 +201,33 @@ contract MockRelayerIntegration is IWormholeReceiver {
             lastSequence,
             bytes32(0x0)
         );
-        for (uint16 i = 0; i < chains.length; i++) {
-            uint64 thisSequence = relayer.send{value: wormhole.messageFee() + computeBudgets[i]}(
-                chains[i],
-                registeredContracts[chains[i]],
-                chains[i],
-                registeredContracts[chains[i]],
-                computeBudgets[i],
-                0,
+        
+       sequence = performActionUglily(chainId, gasLimit, vaaKeys);
+
+    }
+
+    function performActionUglily(uint16 chainId, uint32 gasLimit, VaaKey[] memory vaaKeys) internal returns (uint64 sequence) {
+         (uint256 quote,) = relayer.quoteEVMDeliveryPrice(chainId, 0, gasLimit);
+         address targetAddress = address(uint160(uint256(registeredContracts[chainId])));
+            return relayer.sendToEvm{value: wormhole.messageFee() + quote}(
+                chainId,
+                targetAddress,
                 bytes(""),
+                0,
+                0,
+                gasLimit,
+                chainId,
+                targetAddress,
+                relayer.getDefaultRelayProvider(),
                 vaaKeys,
                 200
             );
-            if (i == 0) {
-                sequence = thisSequence;
-            }
-        }
     }
 
     function executeSend(
         uint16 targetChainId,
         address destination,
+        uint32 gasLimit,
         uint16 refundChainId,
         address refundAddress,
         uint256 receiverValue,
@@ -223,11 +237,13 @@ contract MockRelayerIntegration is IWormholeReceiver {
         sequence = relayer.sendToEvm{value: msg.value - 2 * wormhole.messageFee()}(
             targetChainId,
             destination,
+            payload,
+            uint128(receiverValue),
+            0,
+            gasLimit,
             refundChainId,
             refundAddress,
-            msg.value - 3 * wormhole.messageFee() - receiverValue,
-            receiverValue,
-            payload,
+            relayer.getDefaultRelayProvider(),
             vaaKeys,
             200
         );
@@ -276,22 +292,18 @@ contract MockRelayerIntegration is IWormholeReceiver {
             }
             for (uint16 i = 0; i < instructions.chains.length; i++) {
                 bytes memory emptyPayload;
-                relayer.forward{value: i == 0 ? msg.value : 0}(
+                relayer.forwardToEvm{value: i == 0 ? msg.value : 0}(
                     instructions.chains[i],
-                    registeredContracts[instructions.chains[i]],
-                    instructions.chains[i],
-                    registeredContracts[instructions.chains[i]],
-                    relayer.quoteGas(
-                        instructions.chains[i],
-                        instructions.gasLimits[i],
-                        relayer.getDefaultRelayProvider()
-                    ),
-                    0,
+                    address(uint160(uint256(registeredContracts[instructions.chains[i]]))),
                     emptyPayload,
-                    vaaKeys,
-                    200,
+                    0,
+                    0,
+                    instructions.gasLimits[i],
+                    instructions.chains[i],
+                    address(uint160(uint256(registeredContracts[instructions.chains[i]]))),
                     relayer.getDefaultRelayProvider(),
-                    relayer.getDefaultRelayParams()
+                    vaaKeys,
+                    200
                 );
             }
         }
