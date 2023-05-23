@@ -248,6 +248,48 @@ func TestWatcherSimple(t *testing.T) {
 	tc.setupAndRun(logger)
 }
 
+// TestWatcherSimple2() tests the case where the "final" API returns a sequence of real blocks which contain a single Wormhole transaction. No re-observation requests.
+func TestWatcherSimple2(t *testing.T) {
+	logger, _ := zap.NewDevelopment()
+
+	pl, _ := hex.DecodeString("0100000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000000000000f0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b00160000000000000000000000000000000000000000000000000000000000000000")
+	txHashBytes, _ := hex.DecodeString("88029cf0e7432cec04c266a3e72903ee6650b4624c7f9c8e22b04d78e18e87f8")
+
+	tc := testCase{
+		name:             "TestWatcherSimple2",
+		timeout:          time.Second * 2,
+		t:                t,
+		wormholeContract: WORMHOLE_CONTRACT,
+		upstreamHost:     "",
+		cacheDir:         "nearapi/mock/success/",
+		latestFinalBlocks: []string{
+			BLOCKCHAIN_1[0],
+			BLOCKCHAIN_1[1],
+			BLOCKCHAIN_1[2],
+			BLOCKCHAIN_1[3],
+			BLOCKCHAIN_1[4],
+			BLOCKCHAIN_1[5],
+			BLOCKCHAIN_1[6],
+			BLOCKCHAIN_1[7],
+		},
+		expectedMsgObserved: []*common.MessagePublication{
+			{
+				TxHash:           eth_common.BytesToHash(txHashBytes),
+				EmitterAddress:   portalEmitterAddress(),
+				ConsistencyLevel: 0,
+				EmitterChain:     vaa.ChainIDNear,
+				Nonce:            76538233,
+				Payload:          pl,
+				Sequence:         261,
+				Timestamp:        time.Unix(int64(1666142886047190991)/1_000_000_000, 0),
+				Unreliable:       false,
+			},
+		},
+	}
+
+	tc.setupAndRun(logger)
+}
+
 // TestWatcherReobservation() tests the simple re-observation case: The "final" endpoint returns
 // the same unrelated block and there is a re-observation request for past data.
 func TestWatcherReobservation(t *testing.T) {
@@ -283,49 +325,6 @@ func TestWatcherReobservation(t *testing.T) {
 			{
 				ChainId: uint32(vaa.ChainIDNear),
 				TxHash:  txHashBytes,
-			},
-		},
-	}
-
-	tc.setupAndRun(logger)
-}
-
-// TestWatcherDelayedFinal() tests the case where a block cannot be finalized by a parent having it as
-// last_final_block and instead needs to be finalized by having it observed as finalized during polling
-func TestWatcherSimple2(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
-
-	pl, _ := hex.DecodeString("0100000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000000000000f0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b00160000000000000000000000000000000000000000000000000000000000000000")
-	txHashBytes, _ := hex.DecodeString("88029cf0e7432cec04c266a3e72903ee6650b4624c7f9c8e22b04d78e18e87f8")
-
-	tc := testCase{
-		name:             "TestWatcherSimple2",
-		timeout:          time.Second * 2,
-		t:                t,
-		wormholeContract: WORMHOLE_CONTRACT,
-		upstreamHost:     "",
-		cacheDir:         "nearapi/mock/success/",
-		latestFinalBlocks: []string{
-			BLOCKCHAIN_1[0],
-			BLOCKCHAIN_1[1],
-			BLOCKCHAIN_1[2],
-			BLOCKCHAIN_1[3],
-			BLOCKCHAIN_1[4],
-			BLOCKCHAIN_1[5],
-			BLOCKCHAIN_1[6],
-			BLOCKCHAIN_1[7],
-		},
-		expectedMsgObserved: []*common.MessagePublication{
-			{
-				TxHash:           eth_common.BytesToHash(txHashBytes),
-				EmitterAddress:   portalEmitterAddress(),
-				ConsistencyLevel: 0,
-				EmitterChain:     vaa.ChainIDNear,
-				Nonce:            76538233,
-				Payload:          pl,
-				Sequence:         261,
-				Timestamp:        time.Unix(int64(1666142886047190991)/1_000_000_000, 0),
-				Unreliable:       false,
 			},
 		},
 	}
