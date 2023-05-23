@@ -46,7 +46,7 @@
 /node/pkg/accountant/ @bruce-riley @evan-gray @jynnantonix
 
 ## Governor
-/node/pkg/governor/ @bruce-riley @claudijd
+/node/pkg/governor/ @bruce-riley @claudijd @tbjump
 
 ## P2P
 /node/pkg/p2p/ @bruce-riley @hendrikhofstadt
