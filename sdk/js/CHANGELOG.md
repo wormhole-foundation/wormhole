@@ -1,4 +1,6 @@
 # Changelog
+## 0.9.18
+Add support for Sei.
 
 ## 0.9.17
 
