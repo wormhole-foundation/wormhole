@@ -146,7 +146,7 @@ library CoreRelayerSerde {
     (strct.newExecutionParameters,  offset) = decodeBytes(encoded, offset);
     (strct.redeliveryHash, offset) = encoded.asBytes32Unchecked(offset);
 
-    strct.newReceiverValue = uint128(receiverValue);
+    strct.newReceiverValue = Wei.wrap(receiverValue);
 
     checkLength(encoded, offset);
   }

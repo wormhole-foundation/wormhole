@@ -127,7 +127,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       DeliveryOverride memory overrides = encodedOverrides.decodeDeliveryOverride();
       
       (instruction.requestedReceiverValue, executionParams, quoteParams) = decodeAndCheckOverridesEvmV1(instruction.requestedReceiverValue, executionParams, quoteParams, overrides);
-
+      instruction.extraReceiverValue = Wei.wrap(0);
       redeliveryHash = overrides.redeliveryHash;
     } 
 
@@ -139,7 +139,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
 
   function decodeAndCheckOverridesEvmV1(Wei receiverValue, EvmExecutionParamsV1 memory executionParams, EvmQuoteParamsV1 memory quoteParams, DeliveryOverride memory overrides) internal pure returns (Wei overridesReceiverValue, EvmExecutionParamsV1 memory overridesExecutionParams, EvmQuoteParamsV1 memory overridesQuoteParams) {
     
-    if (Wei.wrap(overrides.newReceiverValue) < receiverValue) {
+    if (overrides.newReceiverValue < receiverValue) {
         revert InvalidOverrideReceiverValue();
     } 
     ExecutionParamsVersion overridesExecutionParamsVersion = decodeExecutionParamsVersion(overrides.newExecutionParameters);

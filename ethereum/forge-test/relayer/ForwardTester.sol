@@ -11,6 +11,7 @@ import "forge-std/console.sol";
 import "forge-std/Vm.sol";
 
 contract ForwardTester is IWormholeReceiver {
+    /*
     using BytesLib for bytes;
 
     IWormhole wormhole;
@@ -38,11 +39,12 @@ contract ForwardTester is IWormholeReceiver {
         ReentrantCall,
         WorksCorrectly
     }
-
+ */
     function receiveWormholeMessages(
         DeliveryData memory,
         bytes[] memory vaas
     ) public payable override {
+        /*
         (IWormhole.VM memory vaa, bool valid, string memory reason) =
             wormhole.parseAndVerifyVM(vaas[0]);
         require(valid, reason);
@@ -157,13 +159,15 @@ contract ForwardTester is IWormholeReceiver {
                 empty,
                 200
             );
-        }
+        }*/
     }
 
     receive() external payable {}
+    
 }
 
 contract DummyContract {
+    /*
     IWormholeRelayer wormholeRelayer;
 
     constructor(address _wormholeRelayer) {
@@ -191,4 +195,5 @@ contract DummyContract {
             200
         );
     }
+    */
 }

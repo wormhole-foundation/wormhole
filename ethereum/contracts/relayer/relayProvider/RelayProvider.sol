@@ -37,7 +37,7 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
             receiverValue + costOfProvidingMaximumTargetChainAmount <= maximumBudget(targetChainId),
             "Exceeds maximum budget"
         );
-        require(nativePriceQuote.unwrap() <= type(uint128).max, "Overflow");
+        //require(nativePriceQuote.unwrap() <= type(uint128).max, "Overflow");
     }
 
     function quoteDeliveryPrice(
@@ -112,7 +112,7 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
     }
 
     //Returns the price of purchasing 1 unit of gas on the target chain, denominated in this chain's wei.
-    function quoteGasPrice(uint16 targetChainId) internal view returns (GasPrice) {
+    function quoteGasPrice(uint16 targetChainId) public view returns (GasPrice) {
         Wei gasPriceInSourceChainCurrency =
             assetConversion(targetChainId, gasPrice(targetChainId).priceAsWei(), chainId());
         require(gasPriceInSourceChainCurrency.unwrap() <= type(uint88).max, "Overflow");

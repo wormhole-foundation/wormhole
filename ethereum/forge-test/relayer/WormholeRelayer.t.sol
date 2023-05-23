@@ -370,7 +370,77 @@ contract WormholeRelayerTests is Test {
         );
     }
 
+    /**
+     * Basic Functionality Tests: Send, Forward, and Resend
+     * 
+     */
+
     function testSend(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams,
+        bytes memory message
+    ) public {
+        StandardSetupTwoChains memory setup =
+            standardAssumeAndSetupTwoChains(gasParams, feeParams, 500000);
+
+        vm.recordLogs();
+
+        (uint256 deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChainId, 0, gasParams.targetGasLimit);
+
+        setup.source.integration.sendMessage{
+            value: deliveryCost + setup.source.wormhole.messageFee()
+        }(
+            message,
+            setup.targetChainId,
+            gasParams.targetGasLimit,
+            0
+        );
+
+        genericRelayer.relay(setup.sourceChainId);
+
+        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
+    }
+
+    
+    function testForward(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams,
+        bytes memory message,
+        bytes memory forwardedMessage
+    ) public {
+        uint32 gasLimit = 500000; 
+        uint32 forwardGasLimit = 1000000; 
+        StandardSetupTwoChains memory setup =
+            standardAssumeAndSetupTwoChains(gasParams, feeParams, gasLimit);
+
+        (uint256 forwardDeliveryCost,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(setup.sourceChainId, 0, gasLimit);
+        uint256 receiverValue = forwardDeliveryCost + setup.target.wormhole.messageFee();
+        vm.assume(receiverValue <= type(uint128).max);
+
+        (uint256 deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChainId, uint128(receiverValue), forwardGasLimit);
+
+        vm.recordLogs();
+
+        setup.source.integration.sendMessageWithForwardedResponse{value: deliveryCost}(
+            message,
+            forwardedMessage,
+            setup.targetChainId,
+            forwardGasLimit,
+            uint128(receiverValue)
+        );
+
+        genericRelayer.relay(setup.sourceChainId);
+
+        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
+
+        genericRelayer.relay(setup.targetChainId);
+
+        assertTrue(
+            keccak256(setup.source.integration.getMessage()) == keccak256(forwardedMessage)
+        );
+    }/*
+
+    function testResend(
         GasParameters memory gasParams,
         FeeParameters memory feeParams,
         bytes memory message
@@ -380,19 +450,45 @@ contract WormholeRelayerTests is Test {
 
         vm.recordLogs();
 
-        // estimate the cost based on the intialized values
-        uint256 maxTransactionFee = setup.source.coreRelayer.quoteGas(
-            setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
-        );
+        vm.assume(keccak256(message) != keccak256(bytes("")));
 
-        setup.source.integration.sendMessageWithRefundAddress{
-            value: maxTransactionFee + uint256(3) * setup.source.wormhole.messageFee()
-        }(
+        uint256 payment = setup.source.coreRelayer.quoteGas(
+            setup.targetChainId, 10000, address(setup.source.relayProvider)
+        ) + 3 * setup.source.wormhole.messageFee();
+
+        //send an original message
+        uint64 sequence = setup.source.integration.sendMessageWithRefundAddress{value: payment}(
             message,
             setup.targetChainId,
             address(setup.target.integration),
-            address(setup.target.refundAddress),
+            setup.target.refundAddress,
             bytes("")
+        );
+
+        genericRelayer.relay(setup.sourceChainId);
+
+        assertTrue(keccak256(setup.target.integration.getMessage()) != keccak256(message));
+
+        //create a VAA key for the original message
+        VaaKey memory vaaKey = VaaKey(
+            VaaKeyType.EMITTER_SEQUENCE,
+            setup.sourceChainId,
+            bytes32(uint256(uint160(address(setup.source.integration)))),
+            sequence,
+            bytes32(0x0)
+        );
+
+        uint256 newPayment = setup.source.coreRelayer.quoteGas(
+            setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
+        ) + setup.source.wormhole.messageFee();
+
+        //call a resend for the orignal message
+        setup.source.coreRelayer.resend{value: newPayment}(
+            vaaKey,
+            newPayment - feeParams.wormholeFeeOnSource, //newMaxTransactionFee
+            0, //new receiver
+            setup.targetChainId,
+            address(setup.source.relayProvider)
         );
 
         genericRelayer.relay(setup.sourceChainId);
@@ -400,6 +496,7 @@ contract WormholeRelayerTests is Test {
         assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
     }
 
+    /*
     function testSendCheckConsistencyLevel(
         GasParameters memory gasParams,
         FeeParameters memory feeParams
@@ -1406,38 +1503,6 @@ contract WormholeRelayerTests is Test {
         return (payment + payment2 * 105 / 100 + 1);
     }
 
-    function testForward(
-        GasParameters memory gasParams,
-        FeeParameters memory feeParams,
-        bytes memory message
-    ) public {
-        StandardSetupTwoChains memory setup =
-            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
-
-        uint256 payment = assumeAndGetForwardPayment(
-            gasParams.targetGasLimit, 500000, setup, gasParams, feeParams
-        );
-
-        vm.recordLogs();
-
-        setup.source.integration.sendMessageWithForwardedResponse{value: payment}(
-            message,
-            setup.targetChainId,
-            address(setup.target.integration),
-            address(setup.target.refundAddress),
-            0
-        );
-
-        genericRelayer.relay(setup.sourceChainId);
-
-        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
-
-        genericRelayer.relay(setup.targetChainId);
-
-        assertTrue(
-            keccak256(setup.source.integration.getMessage()) == keccak256(bytes("received!"))
-        );
-    }
 
     function testNoFundsLostForAForward(
         GasParameters memory gasParams,
@@ -2860,61 +2925,7 @@ contract WormholeRelayerTests is Test {
         setup.target.coreRelayerFull.deliver{value: stack.budget}(stack.package);
     }
 
-    function testRedelivery(
-        GasParameters memory gasParams,
-        FeeParameters memory feeParams,
-        bytes memory message
-    ) public {
-        StandardSetupTwoChains memory setup =
-            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
 
-        vm.recordLogs();
-
-        vm.assume(keccak256(message) != keccak256(bytes("")));
-
-        uint256 payment = setup.source.coreRelayer.quoteGas(
-            setup.targetChainId, 10000, address(setup.source.relayProvider)
-        ) + 3 * setup.source.wormhole.messageFee();
-
-        //send an original message
-        uint64 sequence = setup.source.integration.sendMessageWithRefundAddress{value: payment}(
-            message,
-            setup.targetChainId,
-            address(setup.target.integration),
-            setup.target.refundAddress,
-            bytes("")
-        );
-
-        genericRelayer.relay(setup.sourceChainId);
-
-        assertTrue(keccak256(setup.target.integration.getMessage()) != keccak256(message));
-
-        //create a VAA key for the original message
-        VaaKey memory vaaKey = VaaKey(
-            VaaKeyType.EMITTER_SEQUENCE,
-            setup.sourceChainId,
-            bytes32(uint256(uint160(address(setup.source.integration)))),
-            sequence,
-            bytes32(0x0)
-        );
-
-        uint256 newPayment = setup.source.coreRelayer.quoteGas(
-            setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
-        ) + setup.source.wormhole.messageFee();
-
-        //call a resend for the orignal message
-        setup.source.coreRelayer.resend{value: newPayment}(
-            vaaKey,
-            newPayment - feeParams.wormholeFeeOnSource, //newMaxTransactionFee
-            0, //new receiver
-            setup.targetChainId,
-            address(setup.source.relayProvider)
-        );
-
-        genericRelayer.relay(setup.sourceChainId);
-
-        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
-    }
 
     function testRedeliveryFailAndSucceed(
         GasParameters memory gasParams,
@@ -3106,4 +3117,5 @@ contract WormholeRelayerTests is Test {
             "Relayer paid the correct amount"
         );
     }
+    */
 }

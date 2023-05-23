@@ -10,6 +10,7 @@ import {CoreRelayerSerde} from "../../contracts/relayer/coreRelayer/CoreRelayerS
 import "../../contracts/libraries/external/BytesLib.sol";
 import "forge-std/Vm.sol";
 import "../../contracts/interfaces/relayer/TypedUnits.sol";
+import "../../contracts/libraries/relayer/ExecutionParameters.sol";
 
 contract MockGenericRelayer {
     using BytesLib for bytes;
@@ -143,7 +144,8 @@ contract MockGenericRelayer {
                 }
             }
 
-            Wei budget = instruction.maximumRefundTarget + instruction.receiverValueTarget;
+
+            Wei budget = decodeEvmExecutionParamsV1(instruction.encodedExecutionParameters).gasLimit.toWei(decodeEvmQuoteParamsV1(instruction.encodedQuoteParameters).targetChainRefundPerGasUnused) + instruction.requestedReceiverValue + instruction.extraReceiverValue;
 
             uint16 targetChainId = instruction.targetChainId;
             TargetDeliveryParameters memory package = TargetDeliveryParameters({
@@ -166,20 +168,22 @@ contract MockGenericRelayer {
             RedeliveryInstruction memory instruction =
                 CoreRelayerSerde.decodeRedeliveryInstruction(parsedDeliveryVAA.payload);
 
+            
+
             DeliveryOverride memory deliveryOverride =
             DeliveryOverride({
-                gasLimit: instruction.executionParameters.gasLimit,
-                maximumRefund: instruction.newMaximumRefundTarget,
-                receiverValue: instruction.newReceiverValueTarget,
+                newQuoteParameters: instruction.newEncodedQuoteParameters,
+                newExecutionParameters: instruction.newEncodedExecutionParameters,
+                newReceiverValue: instruction.newRequestedReceiverValue,
                 redeliveryHash: parsedDeliveryVAA.hash
             });
 
-            Wei budget = instruction.newMaximumRefundTarget + instruction.newReceiverValueTarget;
+            Wei budget = decodeEvmExecutionParamsV1(instruction.newEncodedExecutionParameters).gasLimit.toWei(decodeEvmQuoteParamsV1(instruction.newEncodedQuoteParameters).targetChainRefundPerGasUnused) + instruction.newRequestedReceiverValue;
 
             bytes memory oldEncodedDeliveryVAA =
-                getPastDeliveryVAA(instruction.key.chainId, instruction.key.sequence);
+                getPastDeliveryVAA(instruction.deliveryVaaKey.chainId, instruction.deliveryVaaKey.sequence);
             bytes[] memory oldEncodedVMs =
-                getPastEncodedVMs(instruction.key.chainId, instruction.key.sequence);
+                getPastEncodedVMs(instruction.deliveryVaaKey.chainId, instruction.deliveryVaaKey.sequence);
 
             uint16 targetChainId = CoreRelayerSerde.decodeDeliveryInstruction(
                 relayerWormhole.parseVM(oldEncodedDeliveryVAA).payload
