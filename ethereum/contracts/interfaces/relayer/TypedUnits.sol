@@ -33,7 +33,11 @@ using {
     addLocalNative as +,
     subLocalNative as -
 } for LocalNative global;
-using {ltGas as <, subGas as -} for Gas global;
+using {
+    ltGas as <,
+    lteGas as <=,
+    subGas as -
+} for Gas global;
 
 using WeiLib for Wei;
 using GasLib for Gas;
@@ -71,6 +75,10 @@ function neqWei(Wei a, Wei b) pure returns (bool) {
 
 function ltGas(Gas a, Gas b) pure returns (bool) {
     return Gas.unwrap(a) < Gas.unwrap(b);
+}
+
+function lteGas(Gas a, Gas b) pure returns (bool) {
+    return Gas.unwrap(a) <= Gas.unwrap(b);
 }
 
 function subGas(Gas a, Gas b) pure returns (Gas) {
