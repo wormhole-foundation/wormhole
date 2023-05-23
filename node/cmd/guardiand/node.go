@@ -57,6 +57,7 @@ import (
 	"go.uber.org/zap"
 
 	ipfslog "github.com/ipfs/go-log/v2"
+	googleapi_option "google.golang.org/api/option"
 )
 
 var (
@@ -199,9 +200,11 @@ var (
 	tlsProdEnv  *bool
 
 	disableHeartbeatVerify *bool
-	disableTelemetry       *bool
 
-	telemetryKey *string
+	disableTelemetry            *bool
+	telemetryKey                *string
+	telemetryServiceAccountFile *string
+	telemetryProject            *string
 
 	bigTablePersistenceEnabled *bool
 	bigTableGCPProject         *string
@@ -360,6 +363,10 @@ func init() {
 
 	telemetryKey = NodeCmd.Flags().String("telemetryKey", "",
 		"Telemetry write key")
+	telemetryServiceAccountFile = NodeCmd.Flags().String("telemetryServiceAccountFile", "",
+		"Google Cloud credentials json for accessing Cloud Logging")
+	telemetryProject = NodeCmd.Flags().String("telemetryProject", defaultTelemetryProject,
+		"Google Cloud Project to use for Telemetry logging")
 
 	bigTablePersistenceEnabled = NodeCmd.Flags().Bool("bigTablePersistenceEnabled", false, "Turn on forwarding events to BigTable")
 	bigTableGCPProject = NodeCmd.Flags().String("bigTableGCPProject", "", "Google Cloud project ID for storing events")
@@ -785,6 +792,10 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	if *telemetryKey != "" && *telemetryServiceAccountFile != "" {
+		logger.Fatal("Please do not specify both --telemetryKey and --telemetryServiceAccountFile")
+	}
+
 	// Complain about Infura on mainnet.
 	//
 	// As it turns out, Infura has a bug where it would sometimes incorrectly round
@@ -966,17 +977,27 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	// Enable unless it is disabled. For devnet, only when --telemetryKey is set.
-	if !*disableTelemetry && (!*unsafeDevMode || *unsafeDevMode && *telemetryKey != "") {
-		logger.Info("Telemetry enabled")
+	var hasTelemetryCredential bool = *telemetryKey != "" || *telemetryServiceAccountFile != ""
 
-		if *telemetryKey == "" {
-			logger.Fatal("Please specify --telemetryKey")
+	// Enable unless it is disabled. For devnet, only when --telemetryKey is set.
+	if !*disableTelemetry && (!*unsafeDevMode || *unsafeDevMode && hasTelemetryCredential) {
+		if !hasTelemetryCredential {
+			logger.Fatal("Please either specify --telemetryKey or --telemetryServiceAccountFile or set --disableTelemetry=false")
 		}
 
-		creds, err := decryptTelemetryServiceAccount()
-		if err != nil {
-			logger.Fatal("Failed to decrypt telemetry service account", zap.Error(err))
+		var options []googleapi_option.ClientOption
+
+		if *telemetryKey != "" {
+			creds, err := decryptTelemetryServiceAccount()
+			if err != nil {
+				logger.Fatal("Failed to decrypt telemetry service account", zap.Error(err))
+			}
+
+			options = append(options, googleapi_option.WithCredentialsJSON(creds))
+		}
+
+		if *telemetryServiceAccountFile != "" {
+			options = append(options, googleapi_option.WithCredentialsFile(*telemetryServiceAccountFile))
 		}
 
 		// Get libp2p peer ID from private key
@@ -986,18 +1007,24 @@ func runNode(cmd *cobra.Command, args []string) {
 			logger.Fatal("Failed to get peer ID from private key", zap.Error(err))
 		}
 
-		tm, err := telemetry.New(context.Background(), telemetryProject, creds, *publicRpcLogToTelemetry, map[string]string{
+		labels := map[string]string{
 			"node_name":     *nodeName,
 			"node_key":      peerID.Pretty(),
 			"guardian_addr": guardianAddr,
 			"network":       *p2pNetworkID,
 			"version":       version.Version(),
-		})
+		}
+
+		tm, err := telemetry.New(context.Background(), *telemetryProject, *publicRpcLogToTelemetry, labels, options...)
 		if err != nil {
 			logger.Fatal("Failed to initialize telemetry", zap.Error(err))
 		}
 		defer tm.Close()
 		logger = tm.WrapLogger(logger)
+
+		logger.Info("Telemetry enabled",
+			zap.String("publicRpcLogDetail", *publicRpcLogDetailStr),
+			zap.Bool("logPublicRpcToTelemetry", *publicRpcLogToTelemetry))
 	} else {
 		logger.Info("Telemetry disabled")
 	}
@@ -1596,7 +1623,7 @@ func decryptTelemetryServiceAccount() ([]byte, error) {
 		return nil, fmt.Errorf("failed to decode: %w", err)
 	}
 
-	ciphertext, err := base64.StdEncoding.DecodeString(telemetryServiceAccount)
+	ciphertext, err := base64.StdEncoding.DecodeString(defaultTelemetryServiceAccountEnc)
 	if err != nil {
 		panic(err)
 	}
