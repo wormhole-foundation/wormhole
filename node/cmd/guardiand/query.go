@@ -5,8 +5,8 @@ import (
 
 	"github.com/benbjohnson/clock"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
-	"github.com/ethereum/go-ethereum/common"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
+	ethCommon "github.com/ethereum/go-ethereum/common"
+	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
@@ -15,11 +15,11 @@ import (
 // TODO: should this use a different standard of signing messages, like https://eips.ethereum.org/EIPS/eip-712
 var queryRequestPrefix = []byte("query_request_00000000000000000000|")
 
-func queryRequestDigest(b []byte) common.Hash {
-	return ethcrypto.Keccak256Hash(append(queryRequestPrefix, b...))
+func queryRequestDigest(b []byte) ethCommon.Hash {
+	return ethCrypto.Keccak256Hash(append(queryRequestPrefix, b...))
 }
 
-var allowedRequestor = common.BytesToAddress(common.Hex2Bytes("beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"))
+var allowedRequestor = ethCommon.BytesToAddress(ethCommon.Hex2Bytes("beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"))
 
 // Multiplex observation requests to the appropriate chain
 func handleQueryRequests(
@@ -27,7 +27,7 @@ func handleQueryRequests(
 	clock clock.Clock,
 	logger *zap.Logger,
 	signedQueryReqC <-chan *gossipv1.SignedQueryRequest,
-	chainQueryReqC map[vaa.ChainID]chan *gossipv1.QueryRequest,
+	chainQueryReqC map[vaa.ChainID]chan *gossipv1.SignedQueryRequest,
 ) {
 	qLogger := logger.With(zap.String("component", "queryHandler"))
 	for {
@@ -37,7 +37,7 @@ func handleQueryRequests(
 		case signedQueryRequest := <-signedQueryReqC:
 			// requestor validation happens here
 			// request type validation is currently handled by the watcher
-			// in the future, it may be worthwhile to catch certain types of 
+			// in the future, it may be worthwhile to catch certain types of
 			// invalid requests here for tracking purposes
 			requestorAddr := common.BytesToAddress(signedQueryRequest.RequestorAddr)
 			if requestorAddr != allowedRequestor {
@@ -47,7 +47,7 @@ func handleQueryRequests(
 
 			digest := queryRequestDigest(signedQueryRequest.QueryRequest)
 
-			signerBytes, err := ethcrypto.Ecrecover(digest.Bytes(), signedQueryRequest.Signature)
+			signerBytes, err := ethCrypto.Ecrecover(digest.Bytes(), signedQueryRequest.Signature)
 			if err != nil {
 				qLogger.Error("failed to recover public key", zap.String("requestor", requestorAddr.Hex()))
 				continue
@@ -69,8 +69,8 @@ func handleQueryRequests(
 
 			if channel, ok := chainQueryReqC[vaa.ChainID(queryRequest.ChainId)]; ok {
 				select {
-				// TODO: is pointer fine here?
-				case channel <- &queryRequest:
+				// TODO: only send the query request itself and reassemble in this module
+				case channel <- signedQueryRequest:
 				default:
 					qLogger.Warn("failed to send query request to watcher",
 						zap.Uint16("chain_id", uint16(queryRequest.ChainId)))
