@@ -104,6 +104,20 @@ struct RedeliveryInstruction {
   bytes32 newSenderAddress;
 }
 
+struct Send {
+    uint16 targetChainId;
+    bytes32 targetAddress;
+    bytes payload;
+    Wei receiverValue;
+    Wei paymentForExtraReceiverValue;
+    bytes encodedExecutionParameters;
+    uint16 refundChainId;
+    bytes32 refundAddress;
+    address relayProviderAddress;
+    VaaKey[] vaaKeys;
+    uint8 consistencyLevel;
+}
+
 /**
  * @notice When a user requests a `resend()`, a `RedeliveryInstruction` is emitted by the
  *     CoreRelayer and in turn converted by the relay provider into an encoded (=serialized)
@@ -346,9 +360,9 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
   ) external payable returns (uint64 sequence);
 
 
-  function quoteEVMDeliveryPrice(uint16 targetChainId, Wei receiverValue, Gas gasLimit) external view returns (Wei nativePriceQuote, Wei targetChainRefundPerGasUnused);
+  function quoteEVMDeliveryPrice(uint16 targetChainId, Wei receiverValue, Gas gasLimit) external view returns (Wei nativePriceQuote, GasPrice targetChainRefundPerGasUnused);
 
-  function quoteEVMDeliveryPrice(uint16 targetChainId, Wei receiverValue, Gas gasLimit, address relayProviderAddress) external view returns (Wei nativePriceQuote, Wei targetChainRefundPerGasUnused);
+  function quoteEVMDeliveryPrice(uint16 targetChainId, Wei receiverValue, Gas gasLimit, address relayProviderAddress) external view returns (Wei nativePriceQuote, GasPrice targetChainRefundPerGasUnused);
 
   function quoteDeliveryPrice(uint16 targetChainId, Wei receiverValue, bytes memory encodedExecutionParameters, address relayProviderAddress) external view returns (Wei nativePriceQuote, bytes memory encodedQuoteParams);
 

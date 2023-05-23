@@ -45,7 +45,9 @@ library CoreRelayerSerde {
       strct.targetAddress,
       encodeBytes(strct.payload),
       strct.requestedReceiverValue,
-      strct.extraReceiverValue,
+      strct.extraReceiverValue);
+    encoded = abi.encodePacked(
+      encoded,
       encodeBytes(strct.encodedQuoteParameters),
       encodeBytes(strct.encodedExecutionParameters),
       strct.refundChainId,

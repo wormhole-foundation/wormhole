@@ -59,37 +59,24 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     //  early seems more defensive when it comes to additional code changes and does not change the
     //  cost of the happy path.
     startDelivery(fromWormholeFormat(instruction.targetAddress));
+    
+    DeliveryVAAInfo memory deliveryVaaInfo = DeliveryVAAInfo({
+      sourceChainId: vm.emitterChainId,
+      sourceSequence: vm.sequence,
+      deliveryVaaHash: vm.hash,
+      relayerRefundAddress: targetParams.relayerRefundAddress,
+      encodedVMs: targetParams.encodedVMs,
+      deliveryInstruction: instruction,
+      gasLimit: Gas.wrap(0),
+      targetChainRefundPerGasUnused: GasPrice.wrap(0),
+      totalReceiverValue: Wei.wrap(0),
+      encodedOverrides: targetParams.overrides,
+      redeliveryHash: bytes32(0)
+    });
+    
+    (deliveryVaaInfo.gasLimit, deliveryVaaInfo.targetChainRefundPerGasUnused, deliveryVaaInfo.totalReceiverValue, deliveryVaaInfo.redeliveryHash) = getDeliveryParametersEvmV1(instruction, targetParams.overrides);
 
-  
-
-    ExecutionParamsVersion instructionExecutionParamsVersion = decodeExecutionParamsVersion(instruction.encodedExecutionParameters);
-    if(instructionExecutionParamsVersion != ExecutionParamsVersion.EVM_V1) {
-      revert UnexpectedExecutionParamsVersion(uint8(instructionExecutionParamsVersion), uint8(QuoteParamsVersion.EVM_V1));
-    }
-
-    QuoteParamsVersion instructionQuoteParamsVersion = decodeQuoteParamsVersion(instruction.encodedQuoteParameters);
-    if(instructionQuoteParamsVersion != QuoteParamsVersion.EVM_V1) {
-      revert UnexpectedQuoteParamsVersion(uint8(instructionQuoteParamsVersion), uint8(QuoteParamsVersion.EVM_V1));
-    }
-
-    EvmExecutionParamsV1 memory executionParams = decodeEvmExecutionParamsV1(instruction.encodedExecutionParameters);
-    EvmQuoteParamsV1 memory quoteParams = decodeEvmQuoteParamsV1(instruction.encodedQuoteParameters);
-
-    // If present, apply redelivery overrides to current instruction
-    bytes32 redeliveryHash = 0;
-    if (targetParams.overrides.length != 0) {
-      DeliveryOverride memory overrides = targetParams.overrides.decodeDeliveryOverride();
-      
-      (instruction.requestedReceiverValue, executionParams, quoteParams) = decodeAndCheckOverridesEvmV1(instruction.requestedReceiverValue, executionParams, quoteParams, overrides);
-
-      instruction.encodedExecutionParameters = overrides.newExecutionParameters;
-      instruction.requestedReceiverValue = Wei.wrap(overrides.newReceiverValue);
-      instruction.encodedQuoteParameters = overrides.newQuoteParameters;
-
-      redeliveryHash = overrides.redeliveryHash;
-    }
-
-    Wei requiredFunds = executionParams.gasLimit.toWei(quoteParams.targetChainRefundPerGasUnused) + instruction.requestedReceiverValue + instruction.extraReceiverValue;
+    Wei requiredFunds = deliveryVaaInfo.gasLimit.toWei(deliveryVaaInfo.targetChainRefundPerGasUnused) + deliveryVaaInfo.totalReceiverValue;
     if (msgValue() < requiredFunds)
       revert InsufficientRelayerFunds(msg.value, Wei.unwrap(requiredFunds));
 
@@ -98,21 +85,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
 
     checkVaaKeysWithVAAs(instruction.vaaKeys, targetParams.encodedVMs);
 
-    executeDelivery(
-      DeliveryVAAInfo(
-        vm.emitterChainId,
-        vm.sequence,
-        vm.hash,
-        targetParams.relayerRefundAddress,
-        targetParams.encodedVMs,
-        instruction,
-        executionParams.gasLimit,
-        quoteParams.targetChainRefundPerGasUnused,
-        instruction.requestedReceiverValue + instruction.extraReceiverValue,
-        targetParams.overrides,
-        redeliveryHash
-      )
-    );
+    executeDelivery(deliveryVaaInfo);
 
     finishDelivery();
   }
@@ -135,7 +108,36 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     bytes32 redeliveryHash; //optional (0 if not present)
   }
 
-  function decodeAndCheckOverridesEvmV1(Wei receiverValue, EvmExecutionParamsV1 memory executionParams, EvmQuoteParamsV1 memory quoteParams, DeliveryOverride memory overrides) internal returns (Wei overridesReceiverValue, EvmExecutionParamsV1 memory overridesExecutionParams, EvmQuoteParamsV1 memory overridesQuoteParams) {
+  function getDeliveryParametersEvmV1(DeliveryInstruction memory instruction, bytes memory encodedOverrides) internal pure returns (Gas gasLimit, GasPrice targetChainRefundPerGasUnused, Wei totalReceiverValue, bytes32 redeliveryHash) {
+    ExecutionParamsVersion instructionExecutionParamsVersion = decodeExecutionParamsVersion(instruction.encodedExecutionParameters);
+    if(instructionExecutionParamsVersion != ExecutionParamsVersion.EVM_V1) {
+      revert UnexpectedExecutionParamsVersion(uint8(instructionExecutionParamsVersion), uint8(QuoteParamsVersion.EVM_V1));
+    }
+    
+    QuoteParamsVersion instructionQuoteParamsVersion = decodeQuoteParamsVersion(instruction.encodedQuoteParameters);
+    if(instructionQuoteParamsVersion != QuoteParamsVersion.EVM_V1) {
+      revert UnexpectedQuoteParamsVersion(uint8(instructionQuoteParamsVersion), uint8(QuoteParamsVersion.EVM_V1));
+    }
+
+    EvmExecutionParamsV1 memory executionParams = decodeEvmExecutionParamsV1(instruction.encodedExecutionParameters);
+    EvmQuoteParamsV1 memory quoteParams = decodeEvmQuoteParamsV1(instruction.encodedQuoteParameters);
+
+    // If present, apply redelivery overrides to current instruction
+    if (encodedOverrides.length != 0) {
+      DeliveryOverride memory overrides = encodedOverrides.decodeDeliveryOverride();
+      
+      (instruction.requestedReceiverValue, executionParams, quoteParams) = decodeAndCheckOverridesEvmV1(instruction.requestedReceiverValue, executionParams, quoteParams, overrides);
+
+      redeliveryHash = overrides.redeliveryHash;
+    } 
+
+    gasLimit = executionParams.gasLimit;
+    targetChainRefundPerGasUnused = quoteParams.targetChainRefundPerGasUnused;
+    totalReceiverValue = (instruction.requestedReceiverValue + instruction.extraReceiverValue);
+    
+  }
+
+  function decodeAndCheckOverridesEvmV1(Wei receiverValue, EvmExecutionParamsV1 memory executionParams, EvmQuoteParamsV1 memory quoteParams, DeliveryOverride memory overrides) internal pure returns (Wei overridesReceiverValue, EvmExecutionParamsV1 memory overridesExecutionParams, EvmQuoteParamsV1 memory overridesQuoteParams) {
     
     if (Wei.wrap(overrides.newReceiverValue) < receiverValue) {
         revert InvalidOverrideReceiverValue();
@@ -161,6 +163,12 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       revert InvalidOverrideGasLimit();
     }
 
+  }
+
+  struct DeliveryResults {
+    Gas gasUsed;
+    DeliveryStatus status;
+    bytes additionalStatusInfo;
   }
 
   /**
@@ -189,6 +197,73 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
    *    - (optional) redeliveryHash hash of redelivery Vaa
    */
   function executeDelivery(DeliveryVAAInfo memory vaaInfo) private {
+    
+    checkIfCrossChainRefund(vaaInfo);
+  
+    DeliveryResults memory results;
+    
+    try //force external call!
+      this.executeInstruction(
+        vaaInfo.deliveryInstruction.targetAddress,
+        DeliveryData({
+          sourceAddress: vaaInfo.deliveryInstruction.senderAddress,
+          sourceChainId: vaaInfo.sourceChainId,
+          targetChainRefundPerGasUnused: vaaInfo.targetChainRefundPerGasUnused.unwrap(),
+          deliveryHash:  vaaInfo.deliveryVaaHash,
+          payload:       vaaInfo.deliveryInstruction.payload
+        }),
+        vaaInfo.gasLimit,
+        vaaInfo.totalReceiverValue,
+        vaaInfo.targetChainRefundPerGasUnused,
+        vaaInfo.encodedVMs
+      )
+    returns (uint8 _status, Gas _gasUsed, bytes memory targetRevertDataTruncated) {
+      results = DeliveryResults(
+        _gasUsed,
+        DeliveryStatus(_status),
+        //will carry the correct value regardless of outcome (empty if successful, error otherwise)
+        targetRevertDataTruncated
+      );
+    }
+    //executeInstruction should only revert with a Cancelled error though for now it can
+    //  theoretically also revert with a Panic
+    //  revert for any other reason (though it might for overflows atm)
+    catch (bytes memory revertData) {
+      //decode returned Cancelled error
+      
+      uint256 available;
+      uint256 required;
+      uint32 gasUsed_;
+      (gasUsed_, available, required) = decodeCancelled(revertData);
+      results = DeliveryResults(
+        Gas.wrap(gasUsed_),
+        DeliveryStatus.FORWARD_REQUEST_FAILURE,
+        abi.encodeWithSelector(ForwardNotSufficientlyFunded.selector, available, required)
+      );
+
+    }
+    
+    emit Delivery(
+      fromWormholeFormat(vaaInfo.deliveryInstruction.targetAddress),
+      vaaInfo.sourceChainId,
+      vaaInfo.sourceSequence,
+      vaaInfo.deliveryVaaHash,
+      results.status,
+      uint32(Gas.unwrap(results.gasUsed)),
+      payRefunds(
+        vaaInfo.deliveryInstruction,
+        vaaInfo.relayerRefundAddress,
+        (vaaInfo.gasLimit - results.gasUsed).toWei(vaaInfo.targetChainRefundPerGasUnused),
+        results.status
+      ),
+      results.additionalStatusInfo,
+      (vaaInfo.redeliveryHash != 0)
+        ? vaaInfo.encodedOverrides
+        : new bytes(0)
+    );
+  }
+
+  function checkIfCrossChainRefund(DeliveryVAAInfo memory vaaInfo) internal {
     if (vaaInfo.deliveryInstruction.targetAddress == 0x0) {
       emit Delivery(
         fromWormholeFormat(vaaInfo.deliveryInstruction.targetAddress),
@@ -210,68 +285,9 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       );
       return;
     }
-
-    Gas gasUsed;
-    DeliveryStatus status;
-    bytes memory additionalStatusInfo;
-    
-    try //force external call!
-      this.executeInstruction(
-        vaaInfo.deliveryInstruction.targetAddress,
-        DeliveryData({
-          sourceAddress: vaaInfo.deliveryInstruction.senderAddress,
-          sourceChainId: vaaInfo.sourceChainId,
-          targetChainRefundPerGasUnused: vaaInfo.targetChainRefundPerGasUnused.unwrap(),
-          deliveryHash:  vaaInfo.deliveryVaaHash,
-          payload:       vaaInfo.deliveryInstruction.payload
-        }),
-        vaaInfo.gasLimit,
-        vaaInfo.totalReceiverValue,
-        vaaInfo.targetChainRefundPerGasUnused,
-        vaaInfo.encodedVMs
-      )
-    returns (uint8 _status, Gas _gasUsed, bytes memory targetRevertDataTruncated) {
-      gasUsed = _gasUsed;
-      status = DeliveryStatus(_status);
-      //will carry the correct value regardless of outcome (empty if successful, error otherwise)
-      additionalStatusInfo = targetRevertDataTruncated; 
-    }
-    //executeInstruction should only revert with a Cancelled error though for now it can
-    //  theoretically also revert with a Panic
-    //  revert for any other reason (though it might for overflows atm)
-    catch (bytes memory revertData) {
-      //decode returned Cancelled error
-      uint256 available;
-      uint256 required;
-      uint32 gasUsed_;
-      (gasUsed_, available, required) = decodeCancelled(revertData);
-      gasUsed = Gas.wrap(gasUsed_);
-      //Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the
-      //  fraction of gas unused)
-      status = DeliveryStatus.FORWARD_REQUEST_FAILURE;
-      additionalStatusInfo =
-        abi.encodeWithSelector(ForwardNotSufficientlyFunded.selector, available, required);
-    }
-    
-    emit Delivery(
-      fromWormholeFormat(vaaInfo.deliveryInstruction.targetAddress),
-      vaaInfo.sourceChainId,
-      vaaInfo.sourceSequence,
-      vaaInfo.deliveryVaaHash,
-      status,
-      uint32(Gas.unwrap(gasUsed)),
-      payRefunds(
-        vaaInfo.deliveryInstruction,
-        vaaInfo.relayerRefundAddress,
-        (vaaInfo.gasLimit - gasUsed).toWei(vaaInfo.targetChainRefundPerGasUnused),
-        status
-      ),
-      additionalStatusInfo,
-      (vaaInfo.redeliveryHash != 0)
-        ? vaaInfo.encodedOverrides
-        : new bytes(0)
-    );
   }
+
+
 
   function executeInstruction(
     bytes32 targetAddress,
@@ -285,6 +301,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     Gas gasUsed,
     bytes memory targetRevertDataTruncated
   ) {
+   
     //despite being external, we only allow ourselves to call this function (via CALL opcode)
     //  used as a means to retroactively revert the call to the delivery target if the forwards
     //  can't be funded
@@ -316,8 +333,9 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     Gas postGas = Gas.wrap(gasleft());
     
     unchecked{gasUsed = (preGas - postGas).min(gasLimit);}
-
+    
     ForwardInstruction[] storage forwardInstructions = getForwardInstructions();
+    
     if (forwardInstructions.length > 0) {
       //Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the
       //  fraction of gas unused)
@@ -453,8 +471,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     // assuming refund chain is an EVM chain
     // must modify this when we extend system to non-EVM
     (Wei quote,) = relayProvider.quoteDeliveryPrice(refundChainId, Wei.wrap(0), encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1()));
-    Wei wormholeMessageFee = getWormholeMessageFee();
-    if (refundAmount <= wormholeMessageFee + quote)
+    if (refundAmount <= getWormholeMessageFee() + quote)
       return RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH;
     try IWormholeRelayerSend(address(this)).send{
       value: refundAmount.unwrap()
@@ -463,7 +480,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       bytes32(0),
       bytes(""),
       0,
-      uint128((refundAmount - wormholeMessageFee - quote).unwrap()),
+      uint128((refundAmount - getWormholeMessageFee() - quote).unwrap()),
       encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1()),
       refundChainId,
       refundAddress,

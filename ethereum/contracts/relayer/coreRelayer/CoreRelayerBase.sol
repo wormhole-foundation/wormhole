@@ -12,7 +12,9 @@ import {
   RelayProviderDoesNotSupportTargetChain,
   VaaKey,
   DeliveryInstruction,
-  IWormholeRelayerBase
+  IWormholeRelayerBase,
+  InvalidMsgValue,
+  Send
 } from "../../interfaces/relayer/IWormholeRelayer.sol";
 import {
   ForwardInstruction,
@@ -64,6 +66,12 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
   function msgValue() internal view returns (Wei) {
     return Wei.wrap(msg.value);
   }
+
+  function checkMsgValue(Wei wormholeMessageFee, Wei deliveryPrice, Wei paymentForExtraReceiverValue) internal {
+    if(msgValue() != deliveryPrice + paymentForExtraReceiverValue + wormholeMessageFee) {
+      revert InvalidMsgValue(msg.value, (deliveryPrice + paymentForExtraReceiverValue + wormholeMessageFee).unwrap());
+    }
+  }
   
   function publishAndPay(
     Wei wormholeMessageFee,
@@ -73,8 +81,9 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
     uint8 consistencyLevel,
     IRelayProvider relayProvider
   ) internal returns (uint64 sequence) { 
+
     sequence =
-      getWormhole().publishMessage{value: Wei.unwrap(wormholeMessageFee)}(0, encodedInstruction, consistencyLevel);
+      getWormhole().publishMessage{value: wormholeMessageFee.unwrap()}(0, encodedInstruction, consistencyLevel);
 
     //TODO AMO: what if pay fails? (i.e. returns false)
     pay(relayProvider.getRewardAddress(), deliveryQuote + paymentForExtraReceiverValue);
