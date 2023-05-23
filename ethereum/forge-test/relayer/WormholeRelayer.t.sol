@@ -2411,49 +2411,49 @@ contract WormholeRelayerTests is Test {
         uint32 minTargetGasLimit
     ) public {
         StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, minTargetGasLimit);
+        DeliveryInstruction memory instruction;
+        Gas gasLimit = Gas.wrap(100_000);
 
         // TODO: create target integration contract that uses up lots of gas on revert buffers
-        bytes32 targetIntegration = toWormholeFormat(address(0x80));
-        bytes32 sourceIntegration = toWormholeFormat(address(0x81));
-        bytes32 userAddress = toWormholeFormat(address(0x8080));
+        {
+            bytes memory payload = new bytes(512);
+            bytes32 targetIntegration = toWormholeFormat(address(0x80));
+            bytes32 userAddress = toWormholeFormat(address(0x8080));
 
-        bytes memory payload = new bytes(0);
-        vm.deal(address(setup.target.coreRelayerFull), 1 ether);
-        Wei maximumRefund = Wei.wrap(1 ether);
-        Gas gasLimit = Gas.wrap(100_000);
-        uint8 consistencyLevel = 15;
-        Wei receiverValueTarget = Wei.wrap(0);
+            vm.deal(address(setup.target.coreRelayerFull), 1 ether);
+            Wei maximumRefund = Wei.wrap(1 ether);
+            uint8 consistencyLevel = 15;
+            Wei receiverValueTarget = Wei.wrap(0);
 
-        DeliveryInstruction memory instruction = DeliveryInstruction({
-            targetChainId: setup.targetChainId,
-            targetAddress: targetIntegration,
-            refundChainId: setup.targetChainId,
-            refundAddress: userAddress,
-            maximumRefundTarget: maximumRefund,
-            receiverValueTarget: receiverValueTarget,
-            sourceRelayProvider: toWormholeFormat(address(setup.source.relayProvider)),
-            targetRelayProvider: toWormholeFormat(address(setup.target.relayProvider)),
-            senderAddress: userAddress,
-            vaaKeys: new VaaKey[](0),
-            consistencyLevel: consistencyLevel,
-            executionParameters: ExecutionParameters({
-                gasLimit: gasLimit
-            }),
-            payload: payload
-        });
+            instruction = DeliveryInstruction({
+                targetChainId: setup.targetChainId,
+                targetAddress: targetIntegration,
+                refundChainId: setup.targetChainId,
+                refundAddress: userAddress,
+                maximumRefundTarget: maximumRefund,
+                receiverValueTarget: receiverValueTarget,
+                sourceRelayProvider: toWormholeFormat(address(setup.source.relayProvider)),
+                targetRelayProvider: toWormholeFormat(address(setup.target.relayProvider)),
+                senderAddress: userAddress,
+                vaaKeys: new VaaKey[](0),
+                consistencyLevel: consistencyLevel,
+                executionParameters: ExecutionParameters({
+                    gasLimit: gasLimit
+                }),
+                payload: payload
+            });
+        }
 
-
-        DeliveryData memory data = DeliveryData({
-            sourceAddress: sourceIntegration,
-            sourceChainId: setup.sourceChainId,
-            maximumRefund: maximumRefund.unwrap(),
-            deliveryHash: bytes32(0),
-            payload: payload
-        });
+        bytes32 deliveryVaaHash = bytes32(0);
 
         bytes[] memory signedVaas = new bytes[](0);
         vm.prank(address(setup.target.coreRelayerFull));
-        (uint8 status, Gas gasUsed, bytes memory revertData) = setup.target.coreRelayerFull.executeInstruction(instruction, data, signedVaas);
+        (uint8 status, Gas gasUsed, bytes memory revertData) = setup.target.coreRelayerFull.executeInstruction(
+            instruction,
+            setup.sourceChainId,
+            deliveryVaaHash,
+            signedVaas
+        );
         // enum DeliveryStatus {
         //   SUCCESS,
         //   RECEIVER_FAILURE,
@@ -2462,6 +2462,6 @@ contract WormholeRelayerTests is Test {
         // }
         assertTrue(status == uint8(IWormholeRelayerDelivery.DeliveryStatus.SUCCESS));
         assertTrue(gasUsed <= gasLimit);
-        assertEq(revertData, payload);
+        assertEq(revertData, new bytes(0));
     }
 }
