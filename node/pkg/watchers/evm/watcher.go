@@ -22,6 +22,7 @@ import (
 	eth_common "github.com/ethereum/go-ethereum/common"
 	eth_hexutil "github.com/ethereum/go-ethereum/common/hexutil"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/readiness"
@@ -96,7 +97,10 @@ type (
 
 		// Incoming query requests from the network. Pre-filtered to only
 		// include requests for our chainID.
-		queryReqC <-chan *gossipv1.QueryRequest
+		queryReqC <-chan *gossipv1.SignedQueryRequest
+
+		// Outbound query responses to query requests
+		queryResponseC chan<- *common.QueryResponsePublication
 
 		pending   map[pendingKey]*pendingMessage
 		pendingMu sync.Mutex
@@ -147,7 +151,8 @@ func NewEthWatcher(
 	msgC chan<- *common.MessagePublication,
 	setC chan<- *common.GuardianSet,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
-	queryReqC <-chan *gossipv1.QueryRequest,
+	queryReqC <-chan *gossipv1.SignedQueryRequest,
+	queryResponseC chan<- *common.QueryResponsePublication,
 	unsafeDevMode bool,
 ) *Watcher {
 
@@ -163,6 +168,7 @@ func NewEthWatcher(
 		setC:                 setC,
 		obsvReqC:             obsvReqC,
 		queryReqC:            queryReqC,
+		queryResponseC:       queryResponseC,
 		pending:              map[pendingKey]*pendingMessage{},
 		unsafeDevMode:        unsafeDevMode,
 	}
@@ -526,7 +532,15 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			select {
 			case <-ctx.Done():
 				return nil
-			case queryRequest := <-w.queryReqC:
+			case signedQueryRequest := <-w.queryReqC:
+				// TODO: only receive the unmarshalled query request (see note in query.go)
+				var queryRequest gossipv1.QueryRequest
+				err := proto.Unmarshal(signedQueryRequest.QueryRequest, &queryRequest)
+				if err != nil {
+					logger.Error("received invalid message from query module")
+					continue
+				}
+
 				// This can't happen unless there is a programming error - the caller
 				// is expected to send us only requests for our chainID.
 				if vaa.ChainID(queryRequest.ChainId) != w.chainID {
@@ -577,7 +591,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					}
 					var blockResult connectors.BlockMarshaller
 					var blockError error
-					var callResult string
+					var callResult eth_hexutil.Bytes
 					var callErr error
 					err := w.ethConn.RawBatchCallContext(timeout, []rpc.BatchElem{
 						{
@@ -637,17 +651,25 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						continue
 					}
 
-					// Empty results are not valid
-					// Yes, I mean "0x", we saw this as empty when testing endpoints in JS
-					// Empty results can occur when the queried block state is no longer available
-					if callResult == "" || callResult == "0x" {
+					// Nil or Empty results are not valid
+					// eth_call will return empty when the state doesn't exist for a block
+					if len(callResult) == 0 {
 						logger.Error("invalid call result",
 							zap.String("eth_network", w.networkName),
 							zap.String("to", to.Hex()),
 							zap.Any("data", data),
-							zap.String("block", block),
-							zap.String("result", callResult))
+							zap.String("block", block))
 						continue
+					}
+
+					queryResponse := common.QueryResponsePublication{
+						Request: signedQueryRequest,
+						Response: common.EthCallQueryResponse{
+							Number: blockResult.Number,
+							Hash:   blockResult.Hash,
+							Time:   blockResult.Time,
+							Result: callResult,
+						},
 					}
 
 					logger.Info("query result",
@@ -658,7 +680,9 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						zap.String("blockNumber", blockResult.Number.String()),
 						zap.String("blockHash", blockResult.Hash.Hex()),
 						zap.String("blockTime", blockResult.Time.String()),
-						zap.String("result", callResult))
+						zap.String("result", callResult.String()))
+
+					w.queryResponseC <- &queryResponse
 				default:
 					logger.Warn("received unsupported request type",
 						zap.Any("payload", queryRequest.Message))
