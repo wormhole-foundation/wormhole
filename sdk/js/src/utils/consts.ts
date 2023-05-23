@@ -244,8 +244,9 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   sei: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "sei1gjrrme22cyha4ht2xapn3f08zzw6z3d4uxx6fyy9zd5dyr3yxgzqqncdqn",
+    token_bridge:
+      "sei1smzlm9t79kur392nu9egl8p8je9j92q4gzguewj56a05kyxxra0qy0nuf3",
     nft_bridge: undefined,
   },
   wormchain: {
