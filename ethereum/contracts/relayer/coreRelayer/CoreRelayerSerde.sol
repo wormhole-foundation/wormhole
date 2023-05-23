@@ -6,21 +6,19 @@ import {
   InvalidPayloadId,
   InvalidPayloadLength,
   InvalidVaaKeyType,
-  VaaKey,
-  VaaKeyType,
-  DeliveryInstruction,
-  RedeliveryInstruction,
-  DeliveryOverride
+  VaaKey
 } from "../../interfaces/relayer/IWormholeRelayer.sol";
-import {BytesParsing} from "./BytesParsing.sol";
+import {
+  DeliveryInstruction,
+  RedeliveryInstruction
+} from "../../libraries/relayer/RelayerInternalStructs.sol";
+import {BytesParsing} from "../../libraries/relayer/BytesParsing.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 
 library CoreRelayerSerde {
   using BytesParsing for bytes;
   using WeiLib for Wei;
   using GasLib for Gas;
-
-  // ---------------------- "public" (i.e implicitly internal) encode/decode -----------------------
 
   //The slightly subtle difference between `PAYLOAD_ID`s and `VERSION`s is that payload ids carry
   //  both type information _and_ version information, while `VERSION`s only carry the latter.
@@ -31,6 +29,8 @@ library CoreRelayerSerde {
   uint8 private constant VERSION_DELIVERY_OVERRIDE = 1;
   uint8 private constant PAYLOAD_ID_DELIVERY_INSTRUCTION = 1;
   uint8 private constant PAYLOAD_ID_REDELIVERY_INSTRUCTION = 2;
+
+  // ---------------------- "public" (i.e implicitly internal) encode/decode -----------------------
 
   //TODO GAS OPTIMIZATION: All the recursive abi.encodePacked calls in here are _insanely_ gas
   //    inefficient (unless the optimizer is smart enough to just concatenate them tail-recursion
@@ -123,35 +123,6 @@ library CoreRelayerSerde {
     checkLength(encoded, offset);
   }
 
-  function encode(
-    DeliveryOverride memory strct
-  ) internal pure returns (bytes memory encoded) {
-    encoded = abi.encodePacked(
-      VERSION_DELIVERY_OVERRIDE,
-      strct.newReceiverValue,
-      encodeBytes(strct.newQuoteParameters),
-      encodeBytes(strct.newExecutionParameters),
-      strct.redeliveryHash
-    );
-  }
-
-  function decodeDeliveryOverride(
-    bytes memory encoded
-  ) internal pure returns (DeliveryOverride memory strct) {
-    uint offset = checkUint8(encoded, 0, VERSION_DELIVERY_OVERRIDE);
-
-    uint256 receiverValue;
-    
-    (receiverValue,                 offset) = encoded.asUint256Unchecked(offset);
-    (strct.newQuoteParameters,      offset) = decodeBytes(encoded, offset);
-    (strct.newExecutionParameters,  offset) = decodeBytes(encoded, offset);
-    (strct.redeliveryHash, offset) = encoded.asBytes32Unchecked(offset);
-
-    strct.newReceiverValue = Wei.wrap(receiverValue);
-
-    checkLength(encoded, offset);
-  }
-
   // ------------------------------------------ private --------------------------------------------
 
   function encodeVaaKeyArray(
@@ -181,11 +152,7 @@ library CoreRelayerSerde {
   function encodeVaaKey(
     VaaKey memory vaaKey
   ) private pure returns (bytes memory encoded) {
-    encoded = abi.encodePacked(VERSION_VAAKEY, uint8(vaaKey.infoType));
-    if (vaaKey.infoType == VaaKeyType.EMITTER_SEQUENCE)
-      encoded = abi.encodePacked(encoded, vaaKey.chainId, vaaKey.emitterAddress, vaaKey.sequence);
-    else //vaaKey.infoType == VaaKeyType.VAAHASH)
-      encoded = abi.encodePacked(encoded, vaaKey.vaaHash);
+    encoded = abi.encodePacked(encoded, VERSION_VAAKEY, vaaKey.chainId, vaaKey.emitterAddress, vaaKey.sequence);
   }
 
   function decodeVaaKey(
@@ -193,25 +160,9 @@ library CoreRelayerSerde {
     uint startOffset
   ) private pure returns (VaaKey memory vaaKey, uint offset) {
     offset = checkUint8(encoded, startOffset, VERSION_VAAKEY);
-
-    uint8 parsedVaaKeyType;
-    (parsedVaaKeyType, offset) = encoded.asUint8Unchecked(offset);
-    //Explicitly casting int to enum panics for invalid values
-    //  (see https://docs.soliditylang.org/en/v0.8.19/types.html#enums)
-    //We want to revert with our custom error, so we explicitly check ourselves and only perform the
-    //  cast below once it is known to be safe.
-    if (parsedVaaKeyType == uint8(VaaKeyType.EMITTER_SEQUENCE)) {
-      (vaaKey.chainId,        offset) = encoded.asUint16Unchecked(offset);
-      (vaaKey.emitterAddress, offset) = encoded.asBytes32Unchecked(offset);
-      (vaaKey.sequence,       offset) = encoded.asUint64Unchecked(offset);
-    }
-    else if (parsedVaaKeyType == uint8(VaaKeyType.VAAHASH)) {
-      (vaaKey.vaaHash, offset) = encoded.asBytes32Unchecked(offset);
-    }
-    else
-      revert InvalidVaaKeyType(parsedVaaKeyType);
-
-    vaaKey.infoType = VaaKeyType(parsedVaaKeyType);
+    (vaaKey.chainId,        offset) = encoded.asUint16Unchecked(offset);
+    (vaaKey.emitterAddress, offset) = encoded.asBytes32Unchecked(offset);
+    (vaaKey.sequence,       offset) = encoded.asUint64Unchecked(offset);
   }
 
   function encodeBytes(

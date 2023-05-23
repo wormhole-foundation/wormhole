@@ -2,7 +2,6 @@
 
 pragma solidity ^0.8.19;
 
-// todo: move under libraries folder
 import "../../interfaces/relayer/TypedUnits.sol";
 
 error UnexpectedExecutionParamsVersion(uint8 version, uint8 expectedVersion);

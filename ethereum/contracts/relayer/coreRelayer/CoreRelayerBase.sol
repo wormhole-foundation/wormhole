@@ -4,18 +4,16 @@ pragma solidity ^0.8.19;
 
 import {IWormhole} from "../../interfaces/IWormhole.sol";
 import {IRelayProvider} from "../../interfaces/relayer/IRelayProvider.sol";
-import {toWormholeFormat, min, pay} from "./Utils.sol";
+import {toWormholeFormat, min, pay} from "../../libraries/relayer/Utils.sol";
 import {
   NoDeliveryInProgress,
   ReentrantDelivery,
   ForwardRequestFromWrongAddress,
   RelayProviderDoesNotSupportTargetChain,
   VaaKey,
-  DeliveryInstruction,
-  IWormholeRelayerBase,
-  InvalidMsgValue,
-  Send
+  IWormholeRelayerBase
 } from "../../interfaces/relayer/IWormholeRelayer.sol";
+import {DeliveryInstruction} from "../../libraries/relayer/RelayerInternalStructs.sol";
 import {
   ForwardInstruction,
   DeliveryTmpState,
@@ -88,7 +86,7 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
     //TODO AMO: what if pay fails? (i.e. returns false)
     pay(relayProvider.getRewardAddress(), deliveryQuote + paymentForExtraReceiverValue);
 
-    emit SendEvent(sequence, deliveryQuote.unwrap(), paymentForExtraReceiverValue.unwrap());
+    emit SendEvent(sequence, deliveryQuote, paymentForExtraReceiverValue);
   }
 
   // ----------------------- delivery transaction temorary storage functions -----------------------

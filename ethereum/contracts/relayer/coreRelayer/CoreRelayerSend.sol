@@ -12,7 +12,7 @@ import {
 } from "../../interfaces/relayer/IWormholeRelayer.sol";
 import {IRelayProvider} from "../../interfaces/relayer/IRelayProvider.sol";
 
-import {toWormholeFormat} from "./Utils.sol";
+import {toWormholeFormat} from "../../libraries/relayer/Utils.sol";
 import {CoreRelayerSerde} from "./CoreRelayerSerde.sol";
 import {ForwardInstruction, getDefaultRelayProviderState} from "./CoreRelayerStorage.sol";
 import {CoreRelayerBase} from "./CoreRelayerBase.sol";
