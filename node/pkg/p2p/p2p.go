@@ -205,6 +205,7 @@ func Run(
 	ibcFeaturesFunc func() string,
 	gatewayRelayerEnabled bool,
 	signedQueryReqC chan<- *gossipv1.SignedQueryRequest,
+	queryResponseReadC <-chan *node_common.QueryResponsePublication,
 ) func(ctx context.Context) error {
 	if components == nil {
 		components = DefaultComponents()
@@ -482,6 +483,36 @@ func Run(
 					} else {
 						logger.Info("published signed observation request", zap.Any("signed_observation_request", sReq))
 					}
+				case msg := <-queryResponseReadC:
+					msgBytes, err := msg.Marshal()
+					if err != nil {
+						logger.Error("failed to marshal query response", zap.Error(err))
+						continue
+					}
+					digest := node_common.GetQueryResponseDigestFromBytes(msgBytes)
+					sig, err := ethcrypto.Sign(digest.Bytes(), gk)
+					if err != nil {
+						panic(err)
+					}
+					envelope := &gossipv1.GossipMessage{
+						Message: &gossipv1.GossipMessage_SignedQueryResponse{
+							SignedQueryResponse: &gossipv1.SignedQueryResponse{
+								QueryResponse: msgBytes,
+								Signature:     sig,
+							},
+						},
+					}
+					b, err := proto.Marshal(envelope)
+					if err != nil {
+						panic(err)
+					}
+					err = th.Publish(ctx, b)
+					p2pMessagesSent.Inc()
+					if err != nil {
+						logger.Error("failed to publish query response", zap.Error(err))
+					} else {
+						logger.Info("published signed query response", zap.Any("query_response", msg), zap.Any("signature", sig))
+					}
 				}
 			}
 		}()
@@ -640,7 +671,9 @@ func Run(
 				}
 			case *gossipv1.GossipMessage_SignedQueryRequest:
 				if signedQueryReqC != nil {
-					signedQueryReqC <- m.SignedQueryRequest
+					if err := node_common.PostSignedQueryRequest(signedQueryReqC, m.SignedQueryRequest); err != nil {
+						logger.Warn("failed to handle query request", zap.Error(err))
+					}
 				}
 			default:
 				p2pMessagesReceived.WithLabelValues("unknown").Inc()
