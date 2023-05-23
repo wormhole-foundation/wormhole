@@ -466,9 +466,6 @@ func runSpy(cmd *cobra.Command, args []string) {
 	// Inbound observation requests
 	obsvReqC := make(chan *gossipv1.ObservationRequest, 50)
 
-	// Inbound observation requests
-	queryReqC := make(chan *gossipv1.SignedQueryRequest, 50)
-
 	// Inbound signed VAAs
 	signedInC := make(chan *gossipv1.SignedVAAWithQuorum, 50)
 
@@ -501,18 +498,6 @@ func runSpy(cmd *cobra.Command, args []string) {
 			case <-rootCtx.Done():
 				return
 			case <-obsvReqC:
-			}
-		}
-	}()
-
-	// Ignore query requests
-	// Note: without this, the whole program hangs on query requests
-	go func() {
-		for {
-			select {
-			case <-rootCtx.Done():
-				return
-			case <-queryReqC:
 			}
 		}
 	}()
@@ -568,7 +553,9 @@ func runSpy(cmd *cobra.Command, args []string) {
 				nil,
 				components,
 				nil, // ibc feature string
-				queryReqC,
+				nil, // query requests
+				nil, // query responses
+
 			)); err != nil {
 			return err
 		}

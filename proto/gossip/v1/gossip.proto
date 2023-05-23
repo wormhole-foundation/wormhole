@@ -15,6 +15,7 @@ message GossipMessage {
     SignedChainGovernorConfig signed_chain_governor_config = 8;
     SignedChainGovernorStatus signed_chain_governor_status = 9;
     SignedQueryRequest signed_query_request = 10;
+    SignedQueryResponse signed_query_response = 11;
   }
 }
 
@@ -253,4 +254,12 @@ message EthCallQueryRequest {
   bytes to = 1;
   bytes data = 2;
   string block = 3;
+}
+
+message SignedQueryResponse {
+  // Serialized QueryResponse message.
+  bytes query_response = 1;
+
+  // ECDSA signature using the node's guardian public key.
+  bytes signature = 2;
 }
