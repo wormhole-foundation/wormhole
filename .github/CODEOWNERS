@@ -37,7 +37,7 @@
 /node/ @bruce-riley @evan-gray @hendrikhofstadt
 
 ## Entrypoint / RPC
-/node/cmd/ @bruce-riley @panoel
+/node/cmd/ @bruce-riley @panoel @kev1n-peters @evan-gray
 
 ## DB
 /node/pkg/db/ @bruce-riley @kev1n-peters
