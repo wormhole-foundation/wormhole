@@ -9,7 +9,8 @@ error NotAnEvmAddress(bytes32);
 function pay(address payable receiver, LocalNative amount) returns (bool success) {
   uint256 amount_ = LocalNative.unwrap(amount);
   if (amount_ != 0)
-    (success,) = receiver.call{value: amount_}("");
+    // Specifying a higher limit than 63/64 of the remaining gas caps it at that amount without throwing an exception.
+    (success,) = returnLengthBoundedCall(receiver, new bytes(0), gasleft(), amount_);
   else
     success = true;
 }
