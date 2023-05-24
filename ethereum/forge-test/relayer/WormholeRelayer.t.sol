@@ -32,6 +32,7 @@ import {
     XAddress,
     DeliveryData
 } from "../../contracts/mock/relayer/MockRelayerIntegration.sol";
+import {BigRevertBufferIntegration} from "./BigRevertBufferIntegration.sol";
 import {ForwardTester} from "./ForwardTester.sol";
 import {TestHelpers} from "./TestHelpers.sol";
 import {WormholeRelayerSerde} from "../../contracts/relayer/wormholeRelayer/WormholeRelayerSerde.sol";
@@ -2412,12 +2413,13 @@ contract WormholeRelayerTests is Test {
     ) public {
         StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, minTargetGasLimit);
         DeliveryInstruction memory instruction;
-        Gas gasLimit = Gas.wrap(100_000);
+        Gas gasLimit = Gas.wrap(500_000);
+        uint256 sizeRequested = 512;
 
-        // TODO: create target integration contract that uses up lots of gas on revert buffers
         {
-            bytes memory payload = new bytes(512);
-            bytes32 targetIntegration = toWormholeFormat(address(0x80));
+            // We encode 512 as the requested revert buffer length to our test integration contract
+            bytes memory payload = abi.encode(sizeRequested);
+            bytes32 targetIntegration = toWormholeFormat(address(new BigRevertBufferIntegration()));
             bytes32 userAddress = toWormholeFormat(address(0x8080));
 
             vm.deal(address(setup.target.coreRelayerFull), 1 ether);
@@ -2454,14 +2456,20 @@ contract WormholeRelayerTests is Test {
             deliveryVaaHash,
             signedVaas
         );
-        // enum DeliveryStatus {
-        //   SUCCESS,
-        //   RECEIVER_FAILURE,
-        //   FORWARD_REQUEST_FAILURE,
-        //   FORWARD_REQUEST_SUCCESS
-        // }
-        assertTrue(status == uint8(IWormholeRelayerDelivery.DeliveryStatus.SUCCESS));
+
+        assertTrue(status == uint8(IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE));
         assertTrue(gasUsed <= gasLimit);
-        assertEq(revertData, new bytes(0));
+        assertEq(revertData, abi.encodePacked(
+            // First word
+            bytes32(0x000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f),
+            // Second word
+            bytes32(0x202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f),
+            // Third word
+            bytes32(0x404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f),
+            // Fourth word
+            bytes32(0x606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f),
+            // Four extra bytes
+            bytes4(0x80818283)
+        ));
     }
 }
