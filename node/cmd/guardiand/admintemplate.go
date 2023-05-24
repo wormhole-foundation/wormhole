@@ -523,9 +523,16 @@ func runWormchainStoreCodeTemplate(cmd *cobra.Command, args []string) {
 	if *wormchainStoreCodeWasmHash == "" {
 		log.Fatal("--wasm-hash must be specified.")
 	}
-	wasmHash, err := parseAddress(*wormchainStoreCodeWasmHash)
+
+	// Validate the string is valid hex.
+	buf, err := hex.DecodeString(*wormchainStoreCodeWasmHash)
 	if err != nil {
-		log.Fatal("failed to parse new implementation address: ", err)
+		log.Fatal("invalid wasm-hash (expected hex): %w", err)
+	}
+
+	// Validate the string is the correct length.
+	if len(buf) != 32 {
+		log.Fatal("wasm-hash (expected 32 bytes but received %d bytes)", len(buf))
 	}
 
 	m := &nodev1.InjectGovernanceVAARequest{
@@ -536,7 +543,7 @@ func runWormchainStoreCodeTemplate(cmd *cobra.Command, args []string) {
 				Nonce:    rand.Uint32(),
 				Payload: &nodev1.GovernanceMessage_WormchainStoreCode{
 					WormchainStoreCode: &nodev1.WormchainStoreCode{
-						WasmHash: wasmHash,
+						WasmHash: string(*wormchainStoreCodeWasmHash),
 					},
 				},
 			},
