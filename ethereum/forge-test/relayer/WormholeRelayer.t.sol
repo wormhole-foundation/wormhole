@@ -26,8 +26,8 @@ import {MockRelayerIntegration, XAddress} from "../../contracts/mock/relayer/Moc
 import {ForwardTester} from "./ForwardTester.sol";
 import {TestHelpers} from "./TestHelpers.sol";
 import {CoreRelayerSerde} from "../../contracts/relayer/coreRelayer/CoreRelayerSerde.sol";
-import {toWormholeFormat, fromWormholeFormat} from "../../contracts/relayer/coreRelayer/Utils.sol";
-import {BytesParsing} from "../../contracts/relayer/coreRelayer/BytesParsing.sol";
+import {toWormholeFormat, fromWormholeFormat} from "../../contracts/libraries/relayer/Utils.sol";
+import {BytesParsing} from "../../contracts/libraries/relayer/BytesParsing.sol";
 import "../../contracts/interfaces/relayer/TypedUnits.sol";
 
 import "forge-std/Test.sol";
@@ -322,11 +322,9 @@ contract WormholeRelayerTests is Test {
     ) internal pure returns (VaaKey[] memory vaaKeys) {
         vaaKeys = new VaaKey[](1);
         vaaKeys[0] = VaaKey(
-            VaaKeyType.EMITTER_SEQUENCE,
             chainId,
             toWormholeFormat(emitterAddress),
-            sequence,
-            bytes32(0x0)
+            sequence
         );
     }
 
@@ -339,18 +337,14 @@ contract WormholeRelayerTests is Test {
     ) internal pure returns (VaaKey[] memory vaaKeys) {
         vaaKeys = new VaaKey[](2);
         vaaKeys[0] = VaaKey(
-            VaaKeyType.EMITTER_SEQUENCE,
             chainId,
             toWormholeFormat(emitterAddress1),
-            sequence1,
-            bytes32(0x0)
+            sequence1
         );
         vaaKeys[1] = VaaKey(
-            VaaKeyType.EMITTER_SEQUENCE,
             chainId,
             toWormholeFormat(emitterAddress2),
-            sequence2,
-            bytes32(0x0)
+            sequence2
         );
     }
 

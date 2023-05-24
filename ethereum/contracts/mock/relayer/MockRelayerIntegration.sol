@@ -5,10 +5,10 @@ pragma solidity ^0.8.0;
 
 import "../../libraries/external/BytesLib.sol";
 import "../../interfaces/IWormhole.sol";
-import "../../interfaces/relayer/IWormholeRelayer.sol";
+import "../../interfaces/relayer/IWormholeRelayerUntyped.sol";
 import "../../interfaces/relayer/IWormholeReceiver.sol";
 
-import {toWormholeFormat} from "../../relayer/coreRelayer/Utils.sol";
+import {toWormholeFormat} from "../../libraries/relayer/Utils.sol";
 
 struct XAddress {
     uint16 chainId;
@@ -206,8 +206,8 @@ contract MockRelayerIntegration is IWormholeReceiver {
             targetChainId,
             destination,
             payload,
-            uint128(receiverValue),
-            uint128(paymentForExtraReceiverValue),
+            receiverValue,
+            paymentForExtraReceiverValue,
             gasLimit,
             refundChainId,
             refundAddress,
@@ -220,11 +220,9 @@ contract MockRelayerIntegration is IWormholeReceiver {
     function resend(uint16 chainId, uint64 sequence, uint16 targetChainId, uint32 newGasLimit, uint128 newReceiverValue) public payable returns (uint64 resendSequence) {
         (uint256 quote,) = relayer.quoteEVMDeliveryPrice(targetChainId, newReceiverValue, newGasLimit);
         VaaKey memory deliveryVaaKey = VaaKey(
-            VaaKeyType.EMITTER_SEQUENCE,
             chainId,
             getRegisteredContract(chainId),
-            sequence,
-            bytes32(0x0)
+            sequence
         );
         resendSequence = relayer.resendToEvm{value: quote + wormhole.messageFee()}(
             deliveryVaaKey,

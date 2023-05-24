@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import "../../contracts/interfaces/IWormhole.sol";
 import "../../contracts/interfaces/relayer/IWormholeReceiver.sol";
-import "../../contracts/interfaces/relayer/IWormholeRelayer.sol";
+import "../../contracts/interfaces/relayer/IWormholeRelayerUntyped.sol";
 import "../../contracts/interfaces/relayer/IRelayProvider.sol";
 
 /**

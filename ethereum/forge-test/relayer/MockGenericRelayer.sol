@@ -5,7 +5,12 @@ pragma solidity ^0.8.0;
 import "../../contracts/interfaces/relayer/IWormholeRelayer.sol";
 import {IWormhole} from "../../contracts/interfaces/IWormhole.sol";
 import {WormholeSimulator} from "./WormholeSimulator.sol";
-import {toWormholeFormat} from "../../contracts/relayer/coreRelayer/Utils.sol";
+import {toWormholeFormat} from "../../contracts/libraries/relayer/Utils.sol";
+import {
+    DeliveryInstruction,
+    DeliveryOverride,
+    RedeliveryInstruction
+} from "../../contracts/libraries/relayer/RelayerInternalStructs.sol";
 import {CoreRelayerSerde} from "../../contracts/relayer/coreRelayer/CoreRelayerSerde.sol";
 import "../../contracts/libraries/external/BytesLib.sol";
 import "forge-std/Vm.sol";
@@ -14,8 +19,8 @@ import "../../contracts/libraries/relayer/ExecutionParameters.sol";
 
 contract MockGenericRelayer {
     using BytesLib for bytes;
-  using WeiLib for Wei;
-  using GasLib for Gas;
+    using WeiLib for Wei;
+    using GasLib for Gas;
 
     IWormhole relayerWormhole;
     WormholeSimulator relayerWormholeSimulator;
@@ -84,15 +89,9 @@ contract MockGenericRelayer {
         bytes memory signedVaa
     ) internal view returns (bool) {
         IWormhole.VM memory parsedVaa = relayerWormhole.parseVM(signedVaa);
-        if (vaaKey.infoType == VaaKeyType.EMITTER_SEQUENCE) {
-            return (vaaKey.chainId == parsedVaa.emitterChainId)
-                && (vaaKey.emitterAddress == parsedVaa.emitterAddress)
-                && (vaaKey.sequence == parsedVaa.sequence);
-        } else if (vaaKey.infoType == VaaKeyType.VAAHASH) {
-            return (vaaKey.vaaHash == parsedVaa.hash);
-        } else {
-            return false;
-        }
+        return (vaaKey.chainId == parsedVaa.emitterChainId)
+            && (vaaKey.emitterAddress == parsedVaa.emitterAddress)
+            && (vaaKey.sequence == parsedVaa.sequence);
     }
 
     function relay(Vm.Log[] memory logs, uint16 chainId, bytes memory deliveryOverrides) public {
@@ -109,8 +108,7 @@ contract MockGenericRelayer {
         }
         for (uint16 i = 0; i < encodedVMs.length; i++) {
             if (
-                parsed[i].emitterAddress
-                    == toWormholeFormat(wormholeRelayerContracts[chainId])
+                parsed[i].emitterAddress == toWormholeFormat(wormholeRelayerContracts[chainId])
                     && (parsed[i].emitterChainId == chainId)
             ) {
                 genericRelay(encodedVMs[i], encodedVMs, parsed[i], deliveryOverrides);
@@ -148,15 +146,16 @@ contract MockGenericRelayer {
             Wei budget = executionInfo.gasLimit.toWei(executionInfo.targetChainRefundPerGasUnused) + instruction.requestedReceiverValue + instruction.extraReceiverValue;
 
             uint16 targetChainId = instruction.targetChainId;
-            TargetDeliveryParameters memory package = TargetDeliveryParameters({
-                encodedVMs: encodedVMsToBeDelivered,
-                encodedDeliveryVAA: encodedDeliveryVAA,
-                relayerRefundAddress: payable(relayers[targetChainId]),
-                overrides: deliveryOverrides
-            });
 
             vm.prank(relayers[targetChainId]);
-            IWormholeRelayerDelivery(wormholeRelayerContracts[targetChainId]).deliver{value: budget.unwrap()}(package);
+            IWormholeRelayerDelivery(wormholeRelayerContracts[targetChainId]).deliver{
+                value: budget.unwrap()
+            }(
+                encodedVMsToBeDelivered,
+                encodedDeliveryVAA,
+                payable(relayers[targetChainId]),
+                deliveryOverrides
+            );
 
             setInfo(
                 parsedDeliveryVAA.emitterChainId,
@@ -170,8 +169,7 @@ contract MockGenericRelayer {
 
             
 
-            DeliveryOverride memory deliveryOverride =
-            DeliveryOverride({
+            DeliveryOverride memory deliveryOverride = DeliveryOverride({
                 newExecutionInfo: instruction.newEncodedExecutionInfo,
                 newReceiverValue: instruction.newRequestedReceiverValue,
                 redeliveryHash: parsedDeliveryVAA.hash
@@ -180,23 +178,26 @@ contract MockGenericRelayer {
             EvmExecutionInfoV1 memory executionInfo = decodeEvmExecutionInfoV1(instruction.newEncodedExecutionInfo);
             Wei budget = executionInfo.gasLimit.toWei(executionInfo.targetChainRefundPerGasUnused) + instruction.newRequestedReceiverValue;
 
-            bytes memory oldEncodedDeliveryVAA =
-                getPastDeliveryVAA(instruction.deliveryVaaKey.chainId, instruction.deliveryVaaKey.sequence);
-            bytes[] memory oldEncodedVMs =
-                getPastEncodedVMs(instruction.deliveryVaaKey.chainId, instruction.deliveryVaaKey.sequence);
+            bytes memory oldEncodedDeliveryVAA = getPastDeliveryVAA(
+                instruction.deliveryVaaKey.chainId, instruction.deliveryVaaKey.sequence
+            );
+            bytes[] memory oldEncodedVMs = getPastEncodedVMs(
+                instruction.deliveryVaaKey.chainId, instruction.deliveryVaaKey.sequence
+            );
 
             uint16 targetChainId = CoreRelayerSerde.decodeDeliveryInstruction(
                 relayerWormhole.parseVM(oldEncodedDeliveryVAA).payload
             ).targetChainId;
-            TargetDeliveryParameters memory package = TargetDeliveryParameters({
-                encodedVMs: oldEncodedVMs,
-                encodedDeliveryVAA: oldEncodedDeliveryVAA,
-                relayerRefundAddress: payable(relayers[targetChainId]),
-                overrides: CoreRelayerSerde.encode(deliveryOverride)
-            });
 
             vm.prank(relayers[targetChainId]);
-            IWormholeRelayerDelivery(wormholeRelayerContracts[targetChainId]).deliver{value: budget.unwrap()}(package);
+            IWormholeRelayerDelivery(wormholeRelayerContracts[targetChainId]).deliver{
+                value: budget.unwrap()
+            }(
+                oldEncodedVMs,
+                oldEncodedDeliveryVAA,
+                payable(relayers[targetChainId]),
+                CoreRelayerSerde.encode(deliveryOverride)
+            );
         }
     }
 }
