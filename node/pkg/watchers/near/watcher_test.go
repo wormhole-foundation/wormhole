@@ -104,6 +104,7 @@ func (testCase *testCase) run(ctx context.Context) error {
 
 	// Run the watcher
 	if err := supervisor.Run(ctx, "nearwatch", w.Run); err != nil {
+		testCase.doneC <- err
 		return err
 	}
 
@@ -184,7 +185,7 @@ func (testCase *testCase) setupAndRun(logger *zap.Logger) {
 	rootCtx, rootCtxCancel := context.WithTimeout(context.Background(), testCase.timeout)
 	defer rootCtxCancel()
 
-	testCase.doneC = make(chan error, 1)
+	testCase.doneC = make(chan error)
 
 	// run the test
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
@@ -199,18 +200,11 @@ func (testCase *testCase) setupAndRun(logger *zap.Logger) {
 		return nil
 	}, supervisor.WithPropagatePanic)
 
-	// wait for result or timeout
-	for {
-		select {
-		case <-rootCtx.Done():
-			testCase.doneC <- rootCtx.Err()
-		case err := <-testCase.doneC:
-			rootCtxCancel()
-			assert.NotEqual(testCase.t, err, context.DeadlineExceeded) // throw an error if timeout
-			assert.NoError(testCase.t, err)
-			return
-		}
-	}
+	// wait for result or timeout. Note that if ctx.Done(), then the test runner will send to testCase.doneC as well, so we don't need to check for it here.
+	err := <-testCase.doneC
+	rootCtxCancel()
+	assert.NotEqual(testCase.t, err, context.DeadlineExceeded) // throw an error if timeout
+	assert.NoError(testCase.t, err)
 }
 
 // TestWatcherSimple() tests the most simple case: "final" API only retruns one block which contains a Wormhole transaction. No re-observation requests.
