@@ -66,6 +66,7 @@ config.define_bool("node_metrics", False, "Enable Prometheus & Grafana for Guard
 config.define_bool("guardiand_governor", False, "Enable chain governor in guardiand")
 config.define_bool("wormchain", False, "Enable a wormchain node")
 config.define_bool("ibc_relayer", False, "Enable IBC relayer between cosmos chains")
+config.define_bool("ccq", False, "Enable cross chain queries in guardiand")
 
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "1"))
@@ -91,6 +92,7 @@ node_metrics = cfg.get("node_metrics", False)
 guardiand_governor = cfg.get("guardiand_governor", False)
 ibc_relayer = cfg.get("ibc_relayer", ci)
 btc = cfg.get("btc", False)
+ccq = cfg.get("ccq", False)
 
 if ci:
     guardiand_loglevel = cfg.get("guardiand_loglevel", "warn")
@@ -303,6 +305,11 @@ def build_node_yaml():
                     "http://wormchain:1317",
                     "--ibcContract",
                     "wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj"
+                ]
+            
+            if ccq:
+                container["command"] += [
+                    "--ccqEnabled=true"
                 ]
 
     return encode_yaml_stream(node_yaml_with_replicas)
