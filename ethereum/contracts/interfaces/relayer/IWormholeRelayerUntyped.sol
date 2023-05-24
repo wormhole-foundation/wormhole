@@ -109,7 +109,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
    * It's purpose is to use any leftover fee from the `maxTransactionFee` of the current delivery to fund another delivery
    *
    * Specifically, suppose an integrator requested a Send (with parameters oldTargetChain, oldTargetAddress, etc)
-   * and sets quoteuint256(oldTargetChain, gasLimit, oldRelayProvider) as `maxTransactionFee` in a Send,
+   * and sets quoteGas(oldTargetChain, gasLimit, oldRelayProvider) as `maxTransactionFee` in a Send,
    * but during the delivery on oldTargetChain, the call to oldTargetAddress's receiveWormholeMessages endpoint uses only x units of gas (where x < gasLimit).
    *
    * Normally, (gasLimit - x)/gasLimit * oldMaxTransactionFee, converted to target chain currency, would be refunded to `oldRefundAddress`.
@@ -199,7 +199,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     VaaKey memory deliveryVaaKey,
     uint16 targetChainId,
     uint256 newReceiverValue,
-    uint256 newuint256Limit,
+    uint256 newGasLimit,
     address newRelayProviderAddress
   ) external payable returns (uint64 sequence);
 
@@ -212,11 +212,11 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
   ) external payable returns (uint64 sequence);
 
 
-  function quoteEVMDeliveryPrice(uint16 targetChainId, uint128 receiverValue, uint32 gasLimit) external view returns (uint256 nativePriceQuote, uint256 targetChainRefundPeruint256Unused);
+  function quoteEVMDeliveryPrice(uint16 targetChainId, uint128 receiverValue, uint32 gasLimit) external view returns (uint256 nativePriceQuote, uint256 targetChainRefundPerGasUnused);
 
-  function quoteEVMDeliveryPrice(uint16 targetChainId, uint128 receiverValue, uint32 gasLimit, address relayProviderAddress) external view returns (uint256 nativePriceQuote, uint256 targetChainRefundPeruint256Unused);
+  function quoteEVMDeliveryPrice(uint16 targetChainId, uint128 receiverValue, uint32 gasLimit, address relayProviderAddress) external view returns (uint256 nativePriceQuote, uint256 targetChainRefundPerGasUnused);
 
-  function quoteDeliveryPrice(uint16 targetChainId, uint128 receiverValue, bytes memory encodedExecutionParameters, address relayProviderAddress) external view returns (uint256 nativePriceQuote, bytes memory encodedQuoteParams);
+  function quoteDeliveryPrice(uint16 targetChainId, uint128 receiverValue, bytes memory encodedExecutionParameters, address relayProviderAddress) external view returns (uint256 nativePriceQuote, bytes memory encodedExecutionInfo);
 
   function quoteAssetConversion(
     uint16 targetChainId,
@@ -337,7 +337,7 @@ uint256 constant RETURNDATA_TRUNCATION_THRESHOLD = 132;
 //When msg.value was not equal to (one wormhole message fee) + `maxTransactionFee` + `receiverValue`
 error InvalidMsgValue(uint256 msgValue, uint256 totalFee);
 
-error Requesteduint256LimitTooLow(); 
+error RequestedGasLimitTooLow(); 
 
 error RelayProviderDoesNotSupportTargetChain(address relayer, uint16 chainId);
 
@@ -367,11 +367,11 @@ error RequesterNotCoreRelayer();
 error TargetChainIsNotThisChain(uint16 targetChainId);
 error ForwardNotSufficientlyFunded(uint256 amountOfFunds, uint256 amountOfFundsNeeded);
 //When a `DeliveryOverride` contains a gas limit that's less than the original
-error InvalidOverrideuint256Limit();
+error InvalidOverrideGasLimit();
 //When a `DeliveryOverride` contains a receiver value that's less than the original
 error InvalidOverrideReceiverValue();
 //When a `DeliveryOverride` contains a maximum refund that's less than the original
-error InvalidOverrideRefundPeruint256Unused();
+error InvalidOverrideRefundPerGasUnused();
 
 //When the relay provider doesn't pass in sufficient funds (i.e. msg.value does not cover the
 //  necessary budget fees)

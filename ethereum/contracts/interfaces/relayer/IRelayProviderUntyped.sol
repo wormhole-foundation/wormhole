@@ -6,8 +6,8 @@ interface IRelayProvider {
     function quoteDeliveryPrice(
         uint16 targetChainId,
         uint256 receiverValue,
-        bytes memory encodedExecutionParameters
-    ) external view returns (uint256 nativePriceQuote, bytes memory encodedQuoteParams);
+        bytes memory encodedExecutionParams
+    ) external view returns (uint256 nativePriceQuote, bytes memory encodedExecutionInfo);
 
     function quoteAssetConversion(
         uint16 targetChainId,
