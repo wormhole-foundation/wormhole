@@ -141,6 +141,31 @@ contract MockRelayerIntegration is IWormholeReceiver {
         );
     }
 
+    function sendMessageWithForwardedResponse(
+        bytes memory _message,
+        bytes memory _forwardedMessage,
+        uint16 targetChainId,
+        uint32 gasLimit,
+        uint128 receiverValue,
+        uint16 refundChainId,
+        address refundAddress
+    ) public payable returns (uint64 sequence) {
+        (uint256 quote,) = relayer.quoteEVMDeliveryPrice(targetChainId, receiverValue, gasLimit);
+        bytes memory fullMessage = encodeMessage(Message(Version.FORWARD, _message, _forwardedMessage));
+        return sendToEvm(
+            quote,
+            targetChainId,
+            getRegisteredContractAddress(targetChainId),
+            gasLimit,
+            refundChainId,
+            refundAddress,
+            receiverValue,
+            0,
+            fullMessage,
+            new VaaKey[](0)
+        );
+    }
+
     function sendMessageWithMultipleForwardedResponse(
         bytes memory _message,
         bytes memory _forwardedMessage,
@@ -215,6 +240,8 @@ contract MockRelayerIntegration is IWormholeReceiver {
         bytes[] memory wormholeObservations
     ) public payable override {
         // loop through the array of wormhole observations from the batch and store each payload
+        require(msg.sender == address(relayer), "Wrong msg.sender");
+
         latestDeliveryData = deliveryData;
 
         Message memory message = decodeMessage(deliveryData.payload);

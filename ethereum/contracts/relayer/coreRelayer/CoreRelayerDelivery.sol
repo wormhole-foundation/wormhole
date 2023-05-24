@@ -394,7 +394,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       publishAndPay(
         wormholeMessageFee,
         forwardInstructions[i].deliveryPrice,
-        forwardInstructions[i].paymentForExtraReceiverValue,
+        forwardInstructions[i].paymentForExtraReceiverValue + ((i == 0) ? (fundsForForward - totalFee) : Wei.wrap(0)),
         i == 0 ? instructions[0].encode() : forwardInstructions[i].encodedInstruction,
         forwardInstructions[i].consistencyLevel,
         IRelayProvider(fromWormholeFormat(instructions[i].sourceRelayProvider))
