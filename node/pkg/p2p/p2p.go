@@ -155,6 +155,7 @@ func Run(
 	signedGovSt chan *gossipv1.SignedChainGovernorStatus,
 	components *Components,
 	ibcFeatures *string,
+	ccqFeatures *string,
 	signedQueryReqC chan<- *gossipv1.SignedQueryRequest,
 	queryResponseReadC <-chan *node_common.QueryResponsePublication,
 ) func(ctx context.Context) error {
@@ -311,6 +312,9 @@ func Run(
 						}
 						if ibcFeatures != nil && *ibcFeatures != "" {
 							features = append(features, *ibcFeatures)
+						}
+						if ccqFeatures != nil && *ccqFeatures != "" {
+							features = append(features, *ccqFeatures)
 						}
 
 						heartbeat := &gossipv1.Heartbeat{
