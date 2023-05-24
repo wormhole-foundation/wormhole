@@ -1,50 +1,47 @@
+// This script can be used to do a contract migration in testnet. The normal process of submitting a contract upgrade VAA
+// does not work because admin of the contracts in testnet still belongs to the deployer wallet.
 import { LCDClient, MnemonicKey } from "@terra-money/terra.js";
-import {
-  MsgMigrateContract,
-} from "@terra-money/terra.js";
-import axios from "axios";
+import { MsgMigrateContract } from "@terra-money/terra.js";
+// import axios from "axios";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 
-export const TERRA_GAS_PRICES_URL = "https://fcd.terra.dev/v1/txs/gas_prices";
+// export const TERRA_GAS_PRICES_URL = "https://fcd.terra.dev/v1/txs/gas_prices";
 
 const argv = yargs(hideBin(process.argv))
-  .option('code_id', {
-    description: 'Which code id to upgrade to',
-    type: 'number',
+  .option("code_id", {
+    description: "Which code id to upgrade to",
+    type: "number",
   })
-  .option('mnemonic', {
-    description: 'Mnemonic (private key)',
-    type: 'string',
-    required: true
+  .option("mnemonic", {
+    description: "Mnemonic (private key)",
+    type: "string",
+    required: true,
   })
-  .option('contract', {
-    description: 'Contract to upgrade',
-    type: 'string',
-    required: true
+  .option("contract", {
+    description: "Contract address to upgrade",
+    type: "string",
+    required: true,
   })
   .help()
-  .alias('help', 'h').argv;
+  .alias("help", "h").argv;
 
-/* Set up terra client & wallet */
-
-const terra_host = {
-  URL: "https://bombay-lcd.terra.dev",
-  chainID: "bombay-12",
+const host = {
+  URL: "https://pisco-lcd.terra.dev",
+  chainID: "pisco-1",
   name: "testnet",
 };
 
-const lcd = new LCDClient(terra_host);
+const lcd = new LCDClient(host);
 
-const feeDenoms = ["uluna"];
-
-const gasPrices = await axios
-  .get(TERRA_GAS_PRICES_URL)
-  .then((result) => result.data);
+// const feeDenoms = ["uluna"];
+// const gasPrices = await axios
+//   .get(TERRA_GAS_PRICES_URL)
+//   .then((result) => result.data);
 
 const wallet = lcd.wallet(
   new MnemonicKey({
-    mnemonic: argv.mnemonic
+    mnemonic: argv.mnemonic,
   })
 );
 
@@ -59,14 +56,14 @@ const tx = await wallet.createAndSignTx({
       argv.contract,
       argv.code_id,
       {
-        "action": ""
+        action: "",
       },
       { uluna: 1000 }
     ),
   ],
   memo: "",
-  feeDenoms,
-  gasPrices,
+  // feeDenoms,
+  // gasPrices,
 });
 
 const rs = await lcd.tx.broadcast(tx);
