@@ -41,8 +41,8 @@ type (
 
 		unsafeDevMode bool
 
-		msgChan       chan *common.MessagePublication
-		obsvReqC      chan *gossipv1.ObservationRequest
+		msgChan       chan<- *common.MessagePublication
+		obsvReqC      <-chan *gossipv1.ObservationRequest
 		readinessSync readiness.Component
 
 		subId int64
@@ -158,8 +158,8 @@ func NewWatcher(
 	suiWS string,
 	suiMoveEventType string,
 	unsafeDevMode bool,
-	messageEvents chan *common.MessagePublication,
-	obsvReqC chan *gossipv1.ObservationRequest,
+	messageEvents chan<- *common.MessagePublication,
+	obsvReqC <-chan *gossipv1.ObservationRequest,
 ) *Watcher {
 	return &Watcher{
 		suiRPC:           suiRPC,

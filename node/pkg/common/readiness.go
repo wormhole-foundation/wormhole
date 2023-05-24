@@ -13,7 +13,7 @@ const (
 )
 
 // MustRegisterReadinessSyncing registers the specified chain for readiness syncing. It panics if the chain ID is invalid so it should only be used during initialization.
-// This function will
+// TODO: Using vaa.ChainID is bad here because there can be multiple watchers for the same chainId, e.g. solana-finalized and solana-confirmed. This is currently handled as a special case for solana in node/node.go, but should really be fixed here.
 func MustRegisterReadinessSyncing(chainID vaa.ChainID) {
 	readiness.RegisterComponent(MustConvertChainIdToReadinessSyncing(chainID))
 }
