@@ -26,14 +26,14 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
         returns (Wei nativePriceQuote, GasPrice targetChainRefundPerUnitGasUnused)
     {
         targetChainRefundPerUnitGasUnused = gasPrice(targetChainId);
-        Wei costOfProvidingMaximumTargetChainAmount = gasLimit.toWei(targetChainRefundPerUnitGasUnused);
+        Wei costOfProvidingFullGasLimit = gasLimit.toWei(targetChainRefundPerUnitGasUnused);
         Wei transactionFee =
             quoteDeliveryOverhead(targetChainId) + gasLimit.toWei(quoteGasPrice(targetChainId));
         Wei receiverValueCost = quoteAssetCost(targetChainId, receiverValue);
         nativePriceQuote =
-            transactionFee.max(costOfProvidingMaximumTargetChainAmount) + receiverValueCost;
+            transactionFee.max(costOfProvidingFullGasLimit) + receiverValueCost;
         require(
-            receiverValue + costOfProvidingMaximumTargetChainAmount <= maximumBudget(targetChainId),
+            receiverValue + costOfProvidingFullGasLimit <= maximumBudget(targetChainId),
             "Exceeds maximum budget"
         );
         //require(nativePriceQuote.unwrap() <= type(uint128).max, "Overflow");
@@ -107,7 +107,7 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
 
     //Returns the delivery overhead fee required to deliver a message to the target chain, denominated in this chain's wei.
     function quoteDeliveryOverhead(uint16 targetChainId)
-        internal
+        public
         view
         returns (Wei nativePriceQuote)
     {
