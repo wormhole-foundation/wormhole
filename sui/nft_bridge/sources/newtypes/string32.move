@@ -1,3 +1,5 @@
+/// SPDX-License-Identifier: Apache 2
+///
 /// This code is adapted from the Wormhole Aptos token bridge:
 /// https://github.com/wormhole-foundation/wormhole/blob/main/aptos/token_bridge/sources/newtypes/string32.move
 ///
@@ -116,7 +118,6 @@ module nft_bridge::string32 {
             bytes::push_u8(buf, vector::pop_back(&mut v));
         }
     }
-
 }
 
 #[test_only]
