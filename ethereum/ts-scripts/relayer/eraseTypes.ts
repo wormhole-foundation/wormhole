@@ -15,7 +15,7 @@ async function main() {
 function eraseTypes(file: string) {
   const typeMap: Record<string, string> = {
     Wei: "uint256",
-    Gas: "uint256",
+    "Gas ": "uint256 ",
     GasPrice: "uint256",
     WeiPrice: "uint256",
     Dollar: "uint256",
