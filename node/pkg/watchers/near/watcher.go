@@ -78,7 +78,7 @@ type (
 
 		// events channels
 		eventChanTxProcessedDuration chan time.Duration
-		eventChan                    chan eventType // whenever a messages is confirmed, post true in here
+		eventChan                    chan eventType
 
 		// Error channel
 		errC chan error
