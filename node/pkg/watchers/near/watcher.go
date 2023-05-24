@@ -176,7 +176,8 @@ func (e *Watcher) runChunkFetcher(ctx context.Context) error {
 			for _, job := range newJobs {
 				err := e.schedule(ctx, job, job.delay)
 				if err != nil {
-					logger.Info("error scheduling transaction processing job", zap.Error(err))
+					// Debug-level logging here because it could be very noisy (one log entry for *any* transaction on the NEAR blockchain)
+					logger.Debug("error scheduling transaction processing job", zap.Error(err))
 				}
 			}
 		}
@@ -206,7 +207,8 @@ func (e *Watcher) runObsvReqProcessor(ctx context.Context) error {
 			job := newTransactionProcessingJob(txHash, e.wormholeAccount)
 			err := e.schedule(ctx, job, time.Nanosecond)
 			if err != nil {
-				logger.Info("error scheduling transaction processing job", zap.Error(err))
+				// Error-level logging here because this is after an re-observation request already, which should be infrequent
+				logger.Error("error scheduling transaction processing job", zap.Error(err))
 			}
 		}
 	}
@@ -226,7 +228,7 @@ func (e *Watcher) runTxProcessor(ctx context.Context) error {
 				// transaction processing unsuccessful. Retry if retry_counter not exceeded.
 				if job.retryCounter < txProcRetry {
 					// Log and retry with exponential backoff
-					logger.Info(
+					logger.Debug(
 						"near.processTx",
 						zap.String("log_msg_type", "tx_processing_retry"),
 						zap.String("tx_hash", job.txHash),
@@ -236,7 +238,8 @@ func (e *Watcher) runTxProcessor(ctx context.Context) error {
 					job.delay *= 2
 					err := e.schedule(ctx, job, job.delay)
 					if err != nil {
-						logger.Info("error scheduling transaction processing job", zap.Error(err))
+						// Debug-level logging here because it could be very noisy (one log entry for *any* transaction on the NEAR blockchain)
+						logger.Debug("error scheduling transaction processing job", zap.Error(err))
 					}
 				} else {
 					// Warn and do not retry
