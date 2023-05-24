@@ -42,6 +42,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/devnet"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	"github.com/certusone/wormhole/node/pkg/node"
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	"github.com/certusone/wormhole/node/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -1556,7 +1557,47 @@ func runNode(cmd *cobra.Command, args []string) {
 			return err
 		}
 
-		adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectWriteC, signedInWriteC, obsvReqSendWriteC, db, gst, gov, gk, ethRPC, ethContract, *testnetMode)
+		rpcMap := make(map[string]string)
+		rpcMap["acalaRPC"] = *acalaRPC
+		rpcMap["algorandIndexerRPC"] = *algorandIndexerRPC
+		rpcMap["algorandAlgodRPC"] = *algorandAlgodRPC
+		rpcMap["aptosRPC"] = *aptosRPC
+		rpcMap["arbitrumRPC"] = *arbitrumRPC
+		rpcMap["auroraRPC"] = *auroraRPC
+		rpcMap["avalancheRPC"] = *avalancheRPC
+		rpcMap["baseRPC"] = *baseRPC
+		rpcMap["bscRPC"] = *bscRPC
+		rpcMap["celoRPC"] = *celoRPC
+		rpcMap["ethRPC"] = *ethRPC
+		rpcMap["fantomRPC"] = *fantomRPC
+		rpcMap["ibcLCD"] = *ibcLCD
+		rpcMap["ibcWS"] = *ibcWS
+		rpcMap["karuraRPC"] = *karuraRPC
+		rpcMap["klaytnRPC"] = *klaytnRPC
+		rpcMap["moonbeamRPC"] = *moonbeamRPC
+		rpcMap["nearRPC"] = *nearRPC
+		rpcMap["neonRPC"] = *neonRPC
+		rpcMap["oasisRPC"] = *oasisRPC
+		rpcMap["optimismRPC"] = *optimismRPC
+		rpcMap["polygonRPC"] = *polygonRPC
+		rpcMap["pythnetRPC"] = *pythnetRPC
+		rpcMap["pythnetWS"] = *pythnetWS
+		rpcMap["sei"] = "IBC"
+		if env == common.TestNet {
+			rpcMap["sepoliaRPC"] = *sepoliaRPC
+		}
+		rpcMap["solanaRPC"] = *solanaRPC
+		rpcMap["suiRPC"] = *suiRPC
+		rpcMap["terraWS"] = *terraWS
+		rpcMap["terraLCD"] = *terraLCD
+		rpcMap["terra2WS"] = *terra2WS
+		rpcMap["terra2LCD"] = *terra2LCD
+		rpcMap["wormchainWS"] = *wormchainWS
+		rpcMap["wormchainLCD"] = *wormchainLCD
+		rpcMap["xplaWS"] = *xplaWS
+		rpcMap["xplaLCD"] = *xplaLCD
+
+		adminService, err := node.AdminServiceRunnable(logger, *adminSocketPath, injectWriteC, signedInWriteC, obsvReqSendWriteC, db, gst, gov, gk, ethRPC, ethContract, rpcMap)
 		if err != nil {
 			logger.Fatal("failed to create admin service socket", zap.Error(err))
 		}
