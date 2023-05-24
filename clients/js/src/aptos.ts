@@ -6,8 +6,11 @@ import { ethers } from "ethers";
 import {
   assertChain,
   ChainId,
+  CHAINS,
   CONTRACTS,
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+import { ensureHexPrefix } from "@certusone/wormhole-sdk/lib/esm/utils";
+import { TokenBridgeState } from "@certusone/wormhole-sdk/lib/esm/aptos/types";
 
 export async function execute_aptos(
   payload: Payload,
@@ -324,4 +327,72 @@ function hex(x: string): Buffer {
     ethers.utils.hexlify(x, { allowMissingPrefix: true }).substring(2),
     "hex"
   );
+}
+
+export async function query_registrations_aptos(
+  network: "MAINNET" | "TESTNET" | "DEVNET",
+  module: "Core" | "NFTBridge" | "TokenBridge"
+): Promise<Object> {
+  const n = NETWORKS[network]["aptos"];
+  const client = new AptosClient(n.rpc);
+  const contracts = CONTRACTS[network]["aptos"];
+  let state_object_id: string;
+
+  switch (module) {
+    case "TokenBridge":
+      state_object_id = contracts.token_bridge;
+      if (state_object_id === undefined) {
+        throw Error(`Unknown token bridge contract on ${network} for Aptos`);
+      }
+      break;
+    default:
+      throw new Error(`Invalid module: ${module}`);
+  }
+
+  console.log(
+    `Querying the ${module} on ${network} Aptos for registered chains.`
+  );
+
+  state_object_id = ensureHexPrefix(state_object_id);
+  const state = (
+    await client.getAccountResource(
+      state_object_id,
+      `${state_object_id}::state::State`
+    )
+  ).data as TokenBridgeState;
+
+  const handle = state.registered_emitters.handle;
+
+  // Query the bridge registration for all the chains in parallel.
+  const registrationsPromise = Promise.all(
+    Object.entries(CHAINS)
+      .filter(([c_name, _]) => c_name !== "aptos" && c_name !== "unset")
+      .map(async ([c_name, c_id]) => [
+        c_name,
+        await (async () => {
+          let result = null;
+          try {
+            result = await client.getTableItem(handle, {
+              key_type: "u64",
+              value_type: "vector<u8>",
+              key: c_id.toString(),
+            });
+          } catch {
+            // Not logging anything because a chain not registered returns an error.
+          }
+
+          return result;
+        })(),
+      ])
+  );
+
+  const registrations = await registrationsPromise;
+
+  let results = {};
+  for (let [c_name, queryResponse] of registrations) {
+    if (queryResponse) {
+      results[c_name] = queryResponse;
+    }
+  }
+  return results;
 }

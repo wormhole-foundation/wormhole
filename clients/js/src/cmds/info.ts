@@ -2,6 +2,7 @@ import yargs from "yargs";
 import * as chainId from "./chainId";
 import * as contractAddress from "./contractAddress";
 import * as convertToEmitter from "./convert-to-emitter";
+import * as registrations from "./registrations";
 import * as rpc from "./rpc";
 
 export const command = "info";
@@ -12,6 +13,7 @@ export const builder = (y: typeof yargs) =>
     .command(chainId)
     .command(contractAddress)
     .command(convertToEmitter)
+    .command(registrations)
     .command(rpc);
 
 export const handler = (argv) => {};

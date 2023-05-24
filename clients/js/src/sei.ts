@@ -1,10 +1,13 @@
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { calculateFee } from "@cosmjs/stargate";
-import { getSigningCosmWasmClient } from "@sei-js/core";
+import { getSigningCosmWasmClient, getCosmWasmClient } from "@sei-js/core";
 
 import { impossible, Payload } from "./vaa";
 import { NETWORKS } from "./networks";
-import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+import {
+  CHAINS,
+  CONTRACTS,
+} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 
 export async function execute_sei(
   payload: Payload,
@@ -117,4 +120,76 @@ export async function execute_sei(
   );
 
   console.log(`TX hash: ${result.transactionHash}`);
+}
+
+export async function query_registrations_sei(
+  network: "MAINNET" | "TESTNET" | "DEVNET",
+  module: "Core" | "NFTBridge" | "TokenBridge"
+): Promise<Object> {
+  let chain = "sei";
+  let n = NETWORKS[network][chain];
+  let contracts = CONTRACTS[network][chain];
+
+  let target_contract: string;
+
+  switch (module) {
+    case "TokenBridge":
+      target_contract = contracts.token_bridge;
+      break;
+    case "NFTBridge":
+      target_contract = contracts.nft_bridge;
+      break;
+    default:
+      throw new Error(`Invalid module: ${module}`);
+  }
+
+  if (!target_contract) {
+    throw new Error(`Contract for ${module} on ${network} does not exist`);
+  }
+
+  console.log(
+    `Querying the ${module} on ${network} ${chain} for registered chains.`
+  );
+
+  // Create a CosmWasmClient
+  const client = await getCosmWasmClient(n.rpc);
+
+  // Query the bridge registration for all the chains in parallel.
+  const registrationsPromise = Promise.all(
+    Object.entries(CHAINS)
+      .filter(([c_name, _]) => c_name !== chain && c_name !== "unset")
+      .map(async ([c_name, c_id]) => [
+        c_name,
+        await (async () => {
+          let query_msg = {
+            chain_registration: {
+              chain: c_id,
+            },
+          };
+
+          let result = null;
+          try {
+            result = await client.queryContractSmart(
+              target_contract,
+              query_msg
+            );
+          } catch {
+            // Not logging anything because a chain not registered returns an error.
+          }
+
+          return result;
+        })(),
+      ])
+  );
+
+  const registrations = await registrationsPromise;
+
+  let results = {};
+  for (let [c_name, queryResponse] of registrations) {
+    if (queryResponse) {
+      results[c_name] =
+        `0x` + Buffer.from(queryResponse.address, "base64").toString("hex");
+    }
+  }
+  return results;
 }

@@ -18,11 +18,16 @@ import {
   createCreateWrappedInstruction,
   createRegisterChainInstruction as createTokenBridgeRegisterChainInstruction,
   createUpgradeContractInstruction as createTokenBridgeUpgradeContractInstruction,
+  deriveEndpointKey,
+  getEndpointRegistration,
 } from "@certusone/wormhole-sdk/lib/esm/solana/tokenBridge";
 import {
   createRegisterChainInstruction as createNFTBridgeRegisterChainInstruction,
   createUpgradeContractInstruction as createNFTBridgeUpgradeContractInstruction,
 } from "@certusone/wormhole-sdk/lib/esm/solana/nftBridge";
+
+import { getEmitterAddress } from "./emitter";
+import { ChainName, hexToUint8Array } from "@certusone/wormhole-sdk";
 
 export async function execute_solana(
   v: VAA<Payload>,
@@ -196,4 +201,91 @@ export async function execute_solana(
 
 function setupConnection(rpc: string): web3s.Connection {
   return new web3s.Connection(rpc, "confirmed");
+}
+
+// query_registrations_solana queries the bridge contract for chain registrations.
+// Solana does not support querying to see "What address is chain X registered for?" Instead
+// we have to ask "Is chain X registered with address Y?" Therefore, we loop through all of the
+// chains and query to see if the latest address defined in the const file is registered.
+export async function query_registrations_solana(
+  network: "MAINNET" | "TESTNET" | "DEVNET",
+  module: "Core" | "NFTBridge" | "TokenBridge"
+): Promise<Object> {
+  let chain = "solana";
+  let n = NETWORKS[network][chain];
+  let contracts = CONTRACTS[network][chain];
+
+  let target_contract: string;
+
+  switch (module) {
+    case "TokenBridge":
+      target_contract = contracts.token_bridge;
+      break;
+    case "NFTBridge":
+      target_contract = contracts.nft_bridge;
+      break;
+    default:
+      throw new Error(`Invalid module: ${module}`);
+  }
+
+  if (!target_contract) {
+    throw new Error(`Contract for ${module} on ${network} does not exist`);
+  }
+
+  console.log(
+    `Querying the ${module} on ${network} ${chain} for registered chains.`
+  );
+
+  const connection = setupConnection(NETWORKS[network][chain].rpc);
+  const programId = new web3s.PublicKey(target_contract);
+
+  // Query the bridge registration for all the chains in parallel.
+  const registrationsPromise = Promise.all(
+    Object.entries(CHAINS)
+      .filter(([c_name, _]) => c_name !== chain && c_name !== "unset")
+      .map(async ([c_name, c_id]) => [
+        c_name,
+        await (async () => {
+          let addr: string;
+          if (module === "TokenBridge") {
+            if (CONTRACTS[network][c_name].token_bridge === undefined) {
+              return null;
+            }
+            addr = CONTRACTS[network][c_name].token_bridge;
+          } else {
+            if (CONTRACTS[network][c_name].nft_bridge === undefined) {
+              return null;
+            }
+            addr = CONTRACTS[network][c_name].nft_bridge;
+          }
+          let emitter_addr = await getEmitterAddress(c_name as ChainName, addr);
+
+          const endpoint = deriveEndpointKey(
+            programId,
+            c_id,
+            hexToUint8Array(emitter_addr)
+          );
+
+          let result = null;
+          try {
+            await getEndpointRegistration(connection, endpoint);
+            result = `0x` + emitter_addr;
+          } catch {
+            // Not logging anything because a chain not registered returns an error.
+          }
+
+          return result;
+        })(),
+      ])
+  );
+
+  const registrations = await registrationsPromise;
+
+  let results = {};
+  for (let [c_name, queryResponse] of registrations) {
+    if (queryResponse) {
+      results[c_name] = queryResponse;
+    }
+  }
+  return results;
 }
