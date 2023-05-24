@@ -198,7 +198,9 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
    */
   function executeDelivery(DeliveryVAAInfo memory vaaInfo) private {
     
-    checkIfCrossChainRefund(vaaInfo);
+    if (checkIfCrossChainRefund(vaaInfo)) {
+      return;
+    }
   
     DeliveryResults memory results;
     
@@ -263,7 +265,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     );
   }
 
-  function checkIfCrossChainRefund(DeliveryVAAInfo memory vaaInfo) internal {
+  function checkIfCrossChainRefund(DeliveryVAAInfo memory vaaInfo) internal returns (bool isCrossChainRefund) {
     if (vaaInfo.deliveryInstruction.targetAddress == 0x0) {
       emit Delivery(
         fromWormholeFormat(vaaInfo.deliveryInstruction.targetAddress),
@@ -283,7 +285,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
         ? vaaInfo.encodedOverrides
         : new bytes(0) 
       );
-      return;
+      isCrossChainRefund = true;
     }
   }
 
@@ -458,10 +460,11 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       revert RequesterNotCoreRelayer();
 
     //same chain refund
-    if (refundChainId == getChainId())
+    if (refundChainId == getChainId()) {
       return pay(payable(fromWormholeFormat(refundAddress)), refundAmount)
         ? RefundStatus.REFUND_SENT
         : RefundStatus.REFUND_FAIL;
+    }
 
     //cross-chain refund
     IRelayProvider relayProvider = IRelayProvider(fromWormholeFormat(relayerAddress));
@@ -497,7 +500,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
 
   function decodeCancelled(
     bytes memory revertData
-  ) private pure returns (uint32 gasUsed, uint256 available, uint256 required) {
+  ) private view returns (uint32 gasUsed, uint256 available, uint256 required) {
     uint offset = 0;
     bytes4 selector;
     (selector, offset) = revertData.asBytes4Unchecked(offset);

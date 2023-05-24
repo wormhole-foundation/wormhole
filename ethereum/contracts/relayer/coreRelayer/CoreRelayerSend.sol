@@ -370,11 +370,11 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
 
   function quoteAssetConversion(
     uint16 targetChainId,
-    Wei currentChainAmount,
+    uint128 currentChainAmount,
     address relayProviderAddress
-  ) public view returns (Wei targetChainAmount) {
+  ) public view returns (uint256 targetChainAmount) {
     IRelayProvider provider = IRelayProvider(relayProviderAddress);
-    return provider.quoteAssetConversion(targetChainId, currentChainAmount);
+    return provider.quoteAssetConversion(targetChainId, Wei.wrap(currentChainAmount)).unwrap();
   }
 
 
