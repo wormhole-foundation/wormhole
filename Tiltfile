@@ -79,6 +79,7 @@ config.define_bool("ibc_relayer", False, "Enable IBC relayer between cosmos chai
 config.define_bool("redis", False, "Enable a redis instance")
 config.define_bool("generic_relayer", False, "Enable the generic relayer off-chain component")
 
+config.define_bool("ccq", False, "Enable cross chain queries in guardiand")
 
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "1"))
@@ -106,6 +107,7 @@ ibc_relayer = cfg.get("ibc_relayer", ci)
 btc = cfg.get("btc", False)
 redis = cfg.get('redis', ci)
 generic_relayer = cfg.get("generic_relayer", ci)
+ccq = cfg.get("ccq", False)
 
 if ci:
     guardiand_loglevel = cfg.get("guardiand_loglevel", "warn")
@@ -318,6 +320,11 @@ def build_node_yaml():
                     "http://wormchain:1317",
                     "--ibcContract",
                     "wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj"
+                ]
+            
+            if ccq:
+                container["command"] += [
+                    "--ccqEnabled=true"
                 ]
 
     return encode_yaml_stream(node_yaml_with_replicas)
