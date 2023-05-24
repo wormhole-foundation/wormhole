@@ -5,11 +5,11 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"math/big"
 	"time"
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/ethereum/go-ethereum/common"
-	eth_hexutil "github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"google.golang.org/protobuf/proto"
@@ -18,9 +18,9 @@ import (
 var queryResponsePrefix = []byte("query_response_0000000000000000000|")
 
 type EthCallQueryResponse struct {
-	Number *eth_hexutil.Big
+	Number *big.Int
 	Hash   common.Hash
-	Time   eth_hexutil.Uint64
+	Time   time.Time
 	Result []byte
 }
 
@@ -29,6 +29,7 @@ type QueryResponsePublication struct {
 	Response EthCallQueryResponse
 }
 
+// Marshal serializes the binary representation of a query response
 func (msg *QueryResponsePublication) Marshal() ([]byte, error) {
 	// TODO: copy request write checks to query module request handling
 	// TODO: only receive the unmarshalled query request (see note in query.go)
@@ -51,8 +52,11 @@ func (msg *QueryResponsePublication) Marshal() ([]byte, error) {
 	switch req := queryRequest.Message.(type) {
 	case *gossipv1.QueryRequest_EthCallQueryRequest:
 		vaa.MustWrite(buf, binary.BigEndian, uint8(1))
-		vaa.MustWrite(buf, binary.BigEndian, queryRequest.ChainId) // uint32
-		vaa.MustWrite(buf, binary.BigEndian, queryRequest.Nonce)   // uint32
+		if queryRequest.ChainId > math.MaxUint16 {
+			return nil, fmt.Errorf("invalid chain id: %d is out of bounds", queryRequest.ChainId)
+		}
+		vaa.MustWrite(buf, binary.BigEndian, uint16(queryRequest.ChainId))
+		vaa.MustWrite(buf, binary.BigEndian, queryRequest.Nonce) // uint32
 		if len(req.EthCallQueryRequest.To) != 20 {
 			return nil, fmt.Errorf("invalid length for To contract")
 		}
@@ -71,12 +75,13 @@ func (msg *QueryResponsePublication) Marshal() ([]byte, error) {
 
 		// Response
 		// TODO: probably some kind of request/response pair validation
-		vaa.MustWrite(buf, binary.BigEndian, msg.Response.Number.ToInt().Uint64())
+		// TODO: is uint64 safe?
+		vaa.MustWrite(buf, binary.BigEndian, msg.Response.Number.Uint64())
 		if len(msg.Response.Hash) != 32 {
 			return nil, fmt.Errorf("invalid length for block hash")
 		}
 		buf.Write(msg.Response.Hash[:])
-		vaa.MustWrite(buf, binary.BigEndian, uint32(time.Unix(int64(msg.Response.Time), 0).Unix()))
+		vaa.MustWrite(buf, binary.BigEndian, uint32(msg.Response.Time.Unix()))
 		if len(msg.Response.Result) > math.MaxUint32 {
 			return nil, fmt.Errorf("response data too long")
 		}
@@ -88,60 +93,130 @@ func (msg *QueryResponsePublication) Marshal() ([]byte, error) {
 	}
 }
 
-// TODO
-// Unmarshal deserializes the binary representation of a VAA
-// func UnmarshalMessagePublication(data []byte) (*MessagePublication, error) {
-// 	if len(data) < minMsgLength {
-// 		return nil, fmt.Errorf("message is too short")
-// 	}
+// Unmarshal deserializes the binary representation of a query response
+func UnmarshalQueryResponsePublication(data []byte) (*QueryResponsePublication, error) {
+	// if len(data) < minMsgLength {
+	// 	return nil, fmt.Errorf("message is too short")
+	// }
 
-// 	msg := &MessagePublication{}
+	msg := &QueryResponsePublication{}
 
-// 	reader := bytes.NewReader(data[:])
+	reader := bytes.NewReader(data[:])
 
-// 	txHash := common.Hash{}
-// 	if n, err := reader.Read(txHash[:]); err != nil || n != 32 {
-// 		return nil, fmt.Errorf("failed to read TxHash [%d]: %w", n, err)
-// 	}
-// 	msg.TxHash = txHash
+	// Request
+	requestChain := vaa.ChainID(0)
+	if err := binary.Read(reader, binary.BigEndian, &requestChain); err != nil {
+		return nil, fmt.Errorf("failed to read request chain: %w", err)
+	}
+	if requestChain != vaa.ChainIDUnset {
+		// TODO: support reading off-chain and on-chain requests
+		return nil, fmt.Errorf("unsupported request chain: %d", requestChain)
+	}
 
-// 	unixSeconds := uint32(0)
-// 	if err := binary.Read(reader, binary.BigEndian, &unixSeconds); err != nil {
-// 		return nil, fmt.Errorf("failed to read timestamp: %w", err)
-// 	}
-// 	msg.Timestamp = time.Unix(int64(unixSeconds), 0)
+	signedQueryRequest := &gossipv1.SignedQueryRequest{}
+	signature := [65]byte{}
+	if n, err := reader.Read(signature[:]); err != nil || n != 65 {
+		return nil, fmt.Errorf("failed to read signature [%d]: %w", n, err)
+	}
+	signedQueryRequest.Signature = signature[:]
 
-// 	if err := binary.Read(reader, binary.BigEndian, &msg.Nonce); err != nil {
-// 		return nil, fmt.Errorf("failed to read nonce: %w", err)
-// 	}
+	requestType := uint8(0)
+	if err := binary.Read(reader, binary.BigEndian, &requestType); err != nil {
+		return nil, fmt.Errorf("failed to read request chain: %w", err)
+	}
+	if requestType != 1 {
+		// TODO: support reading different types of request/response pairs
+		return nil, fmt.Errorf("unsupported request type: %d", requestType)
+	}
 
-// 	if err := binary.Read(reader, binary.BigEndian, &msg.Sequence); err != nil {
-// 		return nil, fmt.Errorf("failed to read sequence: %w", err)
-// 	}
+	queryRequest := &gossipv1.QueryRequest{}
+	queryChain := vaa.ChainID(0)
+	if err := binary.Read(reader, binary.BigEndian, &queryChain); err != nil {
+		return nil, fmt.Errorf("failed to read request chain: %w", err)
+	}
+	queryRequest.ChainId = uint32(queryChain)
 
-// 	if err := binary.Read(reader, binary.BigEndian, &msg.ConsistencyLevel); err != nil {
-// 		return nil, fmt.Errorf("failed to read consistency level: %w", err)
-// 	}
+	queryNonce := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &queryNonce); err != nil {
+		return nil, fmt.Errorf("failed to read request nonce: %w", err)
+	}
+	queryRequest.Nonce = queryNonce
 
-// 	if err := binary.Read(reader, binary.BigEndian, &msg.EmitterChain); err != nil {
-// 		return nil, fmt.Errorf("failed to read emitter chain: %w", err)
-// 	}
+	ethCallQueryRequest := &gossipv1.EthCallQueryRequest{}
 
-// 	emitterAddress := vaa.Address{}
-// 	if n, err := reader.Read(emitterAddress[:]); err != nil || n != 32 {
-// 		return nil, fmt.Errorf("failed to read emitter address [%d]: %w", n, err)
-// 	}
-// 	msg.EmitterAddress = emitterAddress
+	queryEthCallTo := [20]byte{}
+	if n, err := reader.Read(queryEthCallTo[:]); err != nil || n != 20 {
+		return nil, fmt.Errorf("failed to read call To [%d]: %w", n, err)
+	}
+	ethCallQueryRequest.To = queryEthCallTo[:]
 
-// 	payload := make([]byte, reader.Len())
-// 	n, err := reader.Read(payload)
-// 	if err != nil || n == 0 {
-// 		return nil, fmt.Errorf("failed to read payload [%d]: %w", n, err)
-// 	}
-// 	msg.Payload = payload[:n]
+	queryEthCallDataLen := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &queryEthCallDataLen); err != nil {
+		return nil, fmt.Errorf("failed to read call Data len: %w", err)
+	}
+	queryEthCallData := make([]byte, queryEthCallDataLen)
+	if n, err := reader.Read(queryEthCallData[:]); err != nil || n != int(queryEthCallDataLen) {
+		return nil, fmt.Errorf("failed to read call To [%d]: %w", n, err)
+	}
+	ethCallQueryRequest.Data = queryEthCallData[:]
 
-// 	return msg, nil
-// }
+	queryEthCallBlockLen := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &queryEthCallBlockLen); err != nil {
+		return nil, fmt.Errorf("failed to read call Data len: %w", err)
+	}
+	queryEthCallBlockBytes := make([]byte, queryEthCallBlockLen)
+	if n, err := reader.Read(queryEthCallBlockBytes[:]); err != nil || n != int(queryEthCallBlockLen) {
+		return nil, fmt.Errorf("failed to read call To [%d]: %w", n, err)
+	}
+	ethCallQueryRequest.Block = string(queryEthCallBlockBytes[:])
+
+	queryRequest.Message = &gossipv1.QueryRequest_EthCallQueryRequest{
+		EthCallQueryRequest: ethCallQueryRequest,
+	}
+	queryRequestBytes, err := proto.Marshal(queryRequest)
+	if err != nil {
+		return nil, err
+	}
+	signedQueryRequest.QueryRequest = queryRequestBytes
+
+	msg.Request = signedQueryRequest
+
+	// Response
+	queryResponse := EthCallQueryResponse{}
+
+	responseNumber := uint64(0)
+	if err := binary.Read(reader, binary.BigEndian, &responseNumber); err != nil {
+		return nil, fmt.Errorf("failed to read response number: %w", err)
+	}
+	responseNumberBig := big.NewInt(0).SetUint64(responseNumber)
+	queryResponse.Number = responseNumberBig
+
+	responseHash := common.Hash{}
+	if n, err := reader.Read(responseHash[:]); err != nil || n != 32 {
+		return nil, fmt.Errorf("failed to read response hash [%d]: %w", n, err)
+	}
+	queryResponse.Hash = responseHash
+
+	unixSeconds := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &unixSeconds); err != nil {
+		return nil, fmt.Errorf("failed to read response timestamp: %w", err)
+	}
+	queryResponse.Time = time.Unix(int64(unixSeconds), 0)
+
+	responseResultLen := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &responseResultLen); err != nil {
+		return nil, fmt.Errorf("failed to read response len: %w", err)
+	}
+	responseResult := make([]byte, responseResultLen)
+	if n, err := reader.Read(responseResult[:]); err != nil || n != int(responseResultLen) {
+		return nil, fmt.Errorf("failed to read result [%d]: %w", n, err)
+	}
+	queryResponse.Result = responseResult[:]
+
+	msg.Response = queryResponse
+
+	return msg, nil
+}
 
 // Similar to sdk/vaa/structs.go,
 // In order to save space in the solana signature verification instruction, we hash twice so we only need to pass in
