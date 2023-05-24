@@ -11,6 +11,8 @@ import (
 )
 
 func TestObsvReqSendLimitEnforced(t *testing.T) {
+	const ObsvReqChannelSize = 50
+
 	obsvReqSendC := make(chan *gossipv1.ObservationRequest, ObsvReqChannelSize)
 
 	// If the channel overflows, the write hangs, so use a go routine with a timeout.
