@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
@@ -17,6 +18,10 @@ import (
 )
 
 type GrpcLogDetail string
+
+// initMutex is used during initialization to prevent concurrent writes to the prometheus registry.
+// This is only relevant during testing of node/node.go where multiple guardians are created in the same process.
+var initMutex sync.Mutex
 
 const (
 	GrpcLogDetailNone    GrpcLogDetail = "none"
@@ -86,6 +91,9 @@ func requestPayloadServerInterceptor(ctx context.Context, req interface{}, info 
 }
 
 func NewInstrumentedGRPCServer(logger *zap.Logger, rpcLogDetail GrpcLogDetail) *grpc.Server {
+	initMutex.Lock()
+	defer initMutex.Unlock()
+
 	streamInterceptors := []grpc.StreamServerInterceptor{
 		grpc_ctxtags.StreamServerInterceptor(),
 		grpc_prometheus.StreamServerInterceptor,
