@@ -154,7 +154,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
 
     overridesExecutionParams = decodeEvmExecutionParamsV1(overrides.newExecutionParameters);
     overridesQuoteParams = decodeEvmQuoteParamsV1(overrides.newQuoteParameters);
-    overridesReceiverValue = receiverValue;
+    overridesReceiverValue = overrides.newReceiverValue;
 
     if(overridesQuoteParams.targetChainRefundPerGasUnused.unwrap() < quoteParams.targetChainRefundPerGasUnused.unwrap()) {
       revert InvalidOverrideRefundPerGasUnused();
