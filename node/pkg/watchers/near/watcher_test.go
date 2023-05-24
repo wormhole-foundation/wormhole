@@ -334,23 +334,24 @@ func TestWatcherDelayedFinal(t *testing.T) {
 	pl, _ := hex.DecodeString("0100000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000000000000f0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b00160000000000000000000000000000000000000000000000000000000000000000")
 	txHashBytes, _ := hex.DecodeString("88029cf0e7432cec04c266a3e72903ee6650b4624c7f9c8e22b04d78e18e87f8")
 
+	lfb := make([]string, 100)
+	for i := 0; i < 100; i++ {
+		lfb[i] = BLOCKCHAIN_1[3]
+	}
+	lfb[0] = BLOCKCHAIN_1[0]
+	lfb[1] = BLOCKCHAIN_1[1]
+	lfb[2] = BLOCKCHAIN_1[2]
+	lfb[3] = BLOCKCHAIN_1[3]
+	lfb[99] = BLOCKCHAIN_1[7]
+
 	tc := testCase{
-		name:             "TestWatcherDelayedFinal",
-		timeout:          time.Second * 2,
-		t:                t,
-		wormholeContract: WORMHOLE_CONTRACT,
-		upstreamHost:     "",
-		cacheDir:         "nearapi/mock/success_mod1/",
-		latestFinalBlocks: []string{
-			BLOCKCHAIN_1[0],
-			BLOCKCHAIN_1[1],
-			BLOCKCHAIN_1[2],
-			BLOCKCHAIN_1[3],
-			BLOCKCHAIN_1[4],
-			BLOCKCHAIN_1[5],
-			BLOCKCHAIN_1[6],
-			BLOCKCHAIN_1[7],
-		},
+		name:              "TestWatcherDelayedFinal",
+		timeout:           time.Second * 3,
+		t:                 t,
+		wormholeContract:  WORMHOLE_CONTRACT,
+		upstreamHost:      "",
+		cacheDir:          "nearapi/mock/success_mod1/",
+		latestFinalBlocks: lfb,
 		expectedMsgObserved: []*common.MessagePublication{
 			{
 				TxHash:           eth_common.BytesToHash(txHashBytes),
