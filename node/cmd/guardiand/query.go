@@ -26,13 +26,22 @@ func handleQueryRequests(
 	logger *zap.Logger,
 	signedQueryReqC <-chan *gossipv1.SignedQueryRequest,
 	chainQueryReqC map[vaa.ChainID]chan *gossipv1.SignedQueryRequest,
+	enableFlag bool,
 ) {
 	qLogger := logger.With(zap.String("component", "queryHandler"))
+	if enableFlag {
+		qLogger.Info("cross chain queries are enabled")
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case signedQueryRequest := <-signedQueryReqC:
+			if !enableFlag {
+				qLogger.Debug("dropping query request, feature is not enabled")
+				continue
+			}
 			// requestor validation happens here
 			// request type validation is currently handled by the watcher
 			// in the future, it may be worthwhile to catch certain types of
