@@ -355,6 +355,7 @@ func runSpy(cmd *cobra.Command, args []string) {
 				nil,
 				components,
 				nil, // ibc feature string
+				nil, // cross chain query feature string
 				nil, // query requests
 				nil, // query responses
 
