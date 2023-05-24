@@ -47,12 +47,12 @@ uint256 constant memoryWord = 32;
 uint256 constant maskModulo32 = 0x1f;
 // Bound chosen by the following formula: `memoryWord * 4 + selectorSize`.
 // This means that an error identifier plus four fixed size arguments should be available to developers.
-// In the case of a `require` revert with error message, this should provide 3 memory word's worth of data.
+// In the case of a `require` revert with error message, this should provide 2 memory word's worth of data.
 uint256 constant returnLengthBound = 132;
 
 /**
  * Implements call that truncates return data to a constant size to avoid excessive gas consumption for relayers
- * when a revert or .
+ * when a revert or unexpectedly large return value is produced by the call.
  */
 function returnLengthBoundedCall(address payable callee, bytes memory callData, uint256 gasLimit, uint256 value) returns (bool success, bytes memory returnedData) {
   uint256 callDataLength = callData.length;
@@ -61,10 +61,10 @@ function returnLengthBoundedCall(address payable callee, bytes memory callData, 
     // Note that `returnedDataEndIndex` and `callDataEndIndex` are past the end indexes for their respective buffers.
     let returnedDataBuffer := add(returnedData, memoryWord)
     let returnedDataEndIndex := add(returnedDataBuffer, returnLengthBound)
-    let callDataStartIndex := add(callData, memoryWord)
-    let callDataEndIndex := add(callDataStartIndex, callDataLength)
+    let callDataBuffer := add(callData, memoryWord)
+    let callDataEndIndex := add(callDataBuffer, callDataLength)
 
-    success := call(gasLimit, callee, value, callDataStartIndex, callDataEndIndex, returnedDataBuffer, returnedDataEndIndex)
+    success := call(gasLimit, callee, value, callDataBuffer, callDataEndIndex, returnedDataBuffer, returnedDataEndIndex)
     let returnedDataSize := returndatasize()
     switch lt(returnedDataSize, add(returnLengthBound, 1))
     case 0 {
