@@ -23,6 +23,8 @@ import (
 	"go.uber.org/zap"
 )
 
+const LOCAL_P2P_PORTRANGE_START = 11000
+
 type G struct {
 	// arguments passed to p2p.New
 	obsvC                  chan *gossipv1.SignedObservation
@@ -105,7 +107,7 @@ func TestWatermark(t *testing.T) {
 	var gs [4]*G
 	for i := range gs {
 		gs[i] = NewG(t, fmt.Sprintf("n%d", i))
-		gs[i].components.Port = uint(11000 + i)
+		gs[i].components.Port = uint(LOCAL_P2P_PORTRANGE_START + i)
 		gs[i].networkID = "/wormhole/localdev"
 
 		guardianset.Keys = append(guardianset.Keys, crypto.PubkeyToAddress(gs[i].gk.PublicKey))
@@ -113,7 +115,7 @@ func TestWatermark(t *testing.T) {
 		id, err := p2ppeer.IDFromPublicKey(gs[0].priv.GetPublic())
 		require.NoError(t, err)
 
-		gs[i].bootstrapPeers = fmt.Sprintf("/ip4/127.0.0.1/udp/11000/quic/p2p/%s", id.String())
+		gs[i].bootstrapPeers = fmt.Sprintf("/ip4/127.0.0.1/udp/%d/quic/p2p/%s", LOCAL_P2P_PORTRANGE_START, id.String())
 		gs[i].gst.Set(guardianset)
 
 		gs[i].components.ConnMgr, _ = connmgr.NewConnManager(2, 3, connmgr.WithGracePeriod(2*time.Second))
