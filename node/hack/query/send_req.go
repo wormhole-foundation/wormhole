@@ -4,6 +4,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"encoding/hex"
@@ -17,7 +18,9 @@ import (
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/libp2p/go-libp2p"
 	dht "github.com/libp2p/go-libp2p-kad-dht"
@@ -176,8 +179,19 @@ func main() {
 	// END SETUP
 	//
 
+	wethAbi, err := abi.JSON(strings.NewReader("[{\"constant\":true,\"inputs\":[],\"name\":\"name\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"totalSupply\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]"))
+	if err != nil {
+		panic(err)
+	}
+
+	// methodName := "totalSupply"
+	methodName := "name"
+	data, err := wethAbi.Pack(methodName)
+	if err != nil {
+		panic(err)
+	}
+
 	to, _ := hex.DecodeString("0d500b1d8e8ef31e21c99d1db9a6444d3adf1270")
-	data, _ := hex.DecodeString("18160ddd")
 	// block := "0x28d9630"
 	block := "latest"
 	// block := "0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"
@@ -227,6 +241,7 @@ func main() {
 
 	logger.Info("Waiting for message...")
 	// TODO: max wait time
+	// TODO: accumulate signatures to reach quorum
 	for {
 		envelope, err := sub.Next(ctx)
 		if err != nil {
@@ -243,9 +258,25 @@ func main() {
 		var isMatchingResponse bool
 		switch m := msg.Message.(type) {
 		case *gossipv1.GossipMessage_SignedQueryResponse:
-			// TODO: check if it's matching
-			logger.Info("response received", zap.Any("response", m.SignedQueryResponse))
-			isMatchingResponse = true
+			logger.Info("query response received", zap.Any("response", m.SignedQueryResponse))
+			response, err := common.UnmarshalQueryResponsePublication(m.SignedQueryResponse.QueryResponse)
+			if err != nil {
+				logger.Warn("failed to unmarshal response", zap.Error(err))
+				break
+			}
+			if bytes.Equal(response.Request.QueryRequest, queryRequestBytes) && bytes.Equal(response.Request.Signature, sig) {
+				// TODO: verify response signature
+				isMatchingResponse = true
+
+				result, err := wethAbi.Methods[methodName].Outputs.Unpack(response.Response.Result)
+				if err != nil {
+					logger.Warn("failed to unpack result", zap.Error(err))
+					break
+				}
+
+				resultStr := hexutil.Encode(response.Response.Result)
+				logger.Info("found matching response", zap.String("number", response.Response.Number.String()), zap.String("hash", response.Response.Hash.String()), zap.String("time", response.Response.Time.String()), zap.Any("resultDecoded", result), zap.String("resultStr", resultStr))
+			}
 		default:
 			continue
 		}
