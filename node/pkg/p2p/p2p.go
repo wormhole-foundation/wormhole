@@ -210,6 +210,7 @@ func Run(
 	components *Components,
 	ibcFeaturesFunc func() string,
 	gatewayRelayerEnabled bool,
+	ccqFeatures *string,
 	signedQueryReqC chan<- *gossipv1.SignedQueryRequest,
 	queryResponseReadC <-chan *node_common.QueryResponsePublication,
 ) func(ctx context.Context) error {
@@ -399,6 +400,9 @@ func Run(
 						}
 						if gatewayRelayerEnabled {
 							features = append(features, "gwrelayer")
+						}
+						if ccqFeatures != nil && *ccqFeatures != "" {
+							features = append(features, *ccqFeatures)
 						}
 
 						heartbeat := &gossipv1.Heartbeat{
