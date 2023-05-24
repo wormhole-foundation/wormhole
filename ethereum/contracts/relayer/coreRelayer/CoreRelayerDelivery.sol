@@ -35,8 +35,6 @@ import {CoreRelayerBase} from "./CoreRelayerBase.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 import "../../libraries/relayer/ExecutionParameters.sol";
 
-import "forge-std/console.sol";
-
 abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelivery {
   using CoreRelayerSerde for *; //somewhat yucky but unclear what's a better alternative
   using BytesParsing for bytes;
@@ -342,8 +340,6 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       //Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the
       //  fraction of gas unused)
       Wei transactionFeeRefundAmount = (gasLimit - gasUsed).toWei(targetChainRefundPerGasUnused);
-      console.log("Scaled!");
-      console.log(transactionFeeRefundAmount.unwrap());
       emitForward(gasUsed, transactionFeeRefundAmount, forwardInstructions);
       status = uint8(DeliveryStatus.FORWARD_REQUEST_SUCCESS);
     }

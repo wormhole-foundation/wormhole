@@ -166,7 +166,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
         );
     }
 
-    function sendMessageWithMultipleForwardedResponse(
+    function sendMessageWithMultiForwardedResponse(
         bytes memory _message,
         bytes memory _forwardedMessage,
         uint16 targetChainId,
@@ -251,23 +251,23 @@ contract MockRelayerIntegration is IWormholeReceiver {
         if (message.version == Version.FORWARD || message.version == Version.MULTIFORWARD) {
             relayer.forwardToEvm{value: msg.value} (
                     deliveryData.sourceChainId,
-                    address(uint160(uint256(registeredContracts[deliveryData.sourceChainId]))),
+                    getRegisteredContractAddress(deliveryData.sourceChainId),
                     encodeMessage(Message(Version.SEND, message.forwardMessage, bytes(""))),
                     0,
                     500000,
                     deliveryData.sourceChainId,
-                    address(uint160(uint256(registeredContracts[deliveryData.sourceChainId])))
+                    getRegisteredContractAddress(deliveryData.sourceChainId)
             );
         }
         if (message.version == Version.MULTIFORWARD) {
-            relayer.forwardToEvm{value: msg.value} (
+            relayer.forwardToEvm{value: 0} (
                     wormhole.chainId(),
-                    address(uint160(uint256(registeredContracts[wormhole.chainId()]))),
+                    getRegisteredContractAddress(wormhole.chainId()),
                     encodeMessage(Message(Version.SEND, message.forwardMessage, bytes(""))),
                     0,
                     500000,
-                    deliveryData.sourceChainId,
-                    address(uint160(uint256(registeredContracts[deliveryData.sourceChainId])))
+                    wormhole.chainId(),
+                    getRegisteredContractAddress(wormhole.chainId())
             );
         }
     }

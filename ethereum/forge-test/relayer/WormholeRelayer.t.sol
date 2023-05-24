@@ -423,6 +423,8 @@ contract WormholeRelayerTests is Test {
         );
     }
 
+    
+
     function testResend(
         GasParameters memory gasParams,
         FeeParameters memory feeParams,
@@ -467,6 +469,52 @@ contract WormholeRelayerTests is Test {
 
         assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
     }
+
+    /**
+     * More functionality tests
+     */
+
+    function testMultipleForwards(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams,
+        bytes memory message,
+        bytes memory forwardedMessage
+    ) public {
+        StandardSetupTwoChains memory setup =
+            standardAssumeAndSetupTwoChains(gasParams, feeParams, REASONABLE_GAS_LIMIT);
+
+        (uint256 firstForwardDeliveryCost,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(setup.sourceChainId, 0, REASONABLE_GAS_LIMIT);
+        (uint256 secondForwardDeliveryCost,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(setup.targetChainId, 0, REASONABLE_GAS_LIMIT);
+
+        uint256 receiverValue = firstForwardDeliveryCost + secondForwardDeliveryCost + 2 * setup.target.wormhole.messageFee();
+        vm.assume(receiverValue <= type(uint128).max);
+
+        (uint256 deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChainId, uint128(receiverValue), REASONABLE_GAS_LIMIT_FORWARDS*2);
+
+        vm.recordLogs();
+
+        setup.source.integration.sendMessageWithMultiForwardedResponse{value: deliveryCost}(
+            message,
+            forwardedMessage,
+            setup.targetChainId,
+            REASONABLE_GAS_LIMIT_FORWARDS*2,
+            uint128(receiverValue)
+        );
+
+        genericRelayer.relay(setup.sourceChainId);
+
+        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
+
+        genericRelayer.relay(setup.targetChainId);
+
+        assertTrue(keccak256(setup.source.integration.getMessage()) == keccak256(forwardedMessage));
+
+        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(forwardedMessage));
+    }
+
+    /**
+     * Funds correct test (testing each address receives the correct payment)
+     */
 
     struct FundsCorrectTest {
         uint256 refundAddressBalance;
