@@ -217,6 +217,7 @@ var (
 	bigTableKeyPath            *string
 
 	chainGovernorEnabled *bool
+	ccqEnabled           *bool
 )
 
 func init() {
@@ -379,6 +380,7 @@ func init() {
 	bigTableKeyPath = NodeCmd.Flags().String("bigTableKeyPath", "", "Path to json Service Account key")
 
 	chainGovernorEnabled = NodeCmd.Flags().Bool("chainGovernorEnabled", false, "Run the chain governor")
+	ccqEnabled = NodeCmd.Flags().Bool("ccqEnabled", false, "Enable cross chain query support")
 }
 
 var (
@@ -1186,6 +1188,11 @@ func runNode(cmd *cobra.Command, args []string) {
 	components := p2p.DefaultComponents()
 	components.Port = *p2pPort
 
+	ccqFeatures := ""
+	if *ccqEnabled {
+		ccqFeatures = "ccq"
+	}
+
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
 		if err := supervisor.Run(ctx, "p2p", p2p.Run(
@@ -1208,6 +1215,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			nil,
 			components,
 			&ibc.Features,
+			&ccqFeatures,
 			signedQueryReqWriteC,
 			queryResponseReadC)); err != nil {
 			return err
@@ -1588,7 +1596,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		go handleReobservationRequests(rootCtx, clock.New(), logger, obsvReqReadC, chainObsvReqC)
-		go handleQueryRequests(rootCtx, logger, signedQueryReqReadC, chainQueryReqC)
+		go handleQueryRequests(rootCtx, logger, signedQueryReqReadC, chainQueryReqC, *ccqEnabled)
 
 		if acct != nil {
 			if err := acct.Start(ctx); err != nil {
