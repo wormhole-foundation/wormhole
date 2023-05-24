@@ -43,11 +43,6 @@ import (
 )
 
 const (
-	MainNetMode = 1
-	TestNetMode = 2
-	DevNetMode  = 3
-	GoTestMode  = 4
-
 	transferComplete = true
 	transferEnqueued = false
 )
@@ -127,7 +122,7 @@ type ChainGovernor struct {
 	msgsToPublish         []*common.MessagePublication // protected by `mutex`
 	dayLengthInMinutes    int
 	coinGeckoQueries      []string
-	env                   int
+	env                   common.Environment
 	nextStatusPublishTime time.Time
 	nextConfigPublishTime time.Time
 	statusPublishCounter  int64
@@ -137,7 +132,7 @@ type ChainGovernor struct {
 func NewChainGovernor(
 	logger *zap.Logger,
 	db db.GovernorDB,
-	env int,
+	env common.Environment,
 ) *ChainGovernor {
 	return &ChainGovernor{
 		db:                  db,
@@ -157,7 +152,7 @@ func (gov *ChainGovernor) Run(ctx context.Context) error {
 		return err
 	}
 
-	if gov.env != GoTestMode {
+	if gov.env != common.GoTest {
 		if err := gov.loadFromDB(); err != nil {
 			return err
 		}
@@ -178,9 +173,9 @@ func (gov *ChainGovernor) initConfig() error {
 	configTokens := tokenList()
 	configChains := chainList()
 
-	if gov.env == DevNetMode {
+	if gov.env == common.UnsafeDevNet {
 		configTokens, configChains = gov.initDevnetConfig()
-	} else if gov.env == TestNetMode {
+	} else if gov.env == common.TestNet {
 		configTokens, configChains = gov.initTestnetConfig()
 	}
 
@@ -239,9 +234,9 @@ func (gov *ChainGovernor) initConfig() error {
 	}
 
 	emitterMap := &sdk.KnownTokenbridgeEmitters
-	if gov.env == TestNetMode {
+	if gov.env == common.TestNet {
 		emitterMap = &sdk.KnownTestnetTokenbridgeEmitters
-	} else if gov.env == DevNetMode {
+	} else if gov.env == common.UnsafeDevNet {
 		emitterMap = &sdk.KnownDevnetTokenbridgeEmitters
 	}
 

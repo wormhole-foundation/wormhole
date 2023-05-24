@@ -19,6 +19,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 )
@@ -279,7 +280,7 @@ func CheckQuery(logger *zap.Logger) error {
 	logger.Info("Instantiating governor.")
 	ctx := context.Background()
 	var db db.MockGovernorDB
-	gov := NewChainGovernor(logger, &db, MainNetMode)
+	gov := NewChainGovernor(logger, &db, common.MainNet)
 
 	if err := gov.initConfig(); err != nil {
 		return err

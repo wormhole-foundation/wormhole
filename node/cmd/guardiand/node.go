@@ -797,6 +797,21 @@ func runNode(cmd *cobra.Command, args []string) {
 		logger.Fatal("Please do not specify both --telemetryKey and --telemetryServiceAccountFile")
 	}
 
+	// Determine execution mode
+	// TODO: refactor usage of these variables elsewhere. *unsafeDevMode and *testnetMode should not be accessed directly.
+	var env common.Environment
+	if *unsafeDevMode {
+		env = common.UnsafeDevNet
+	} else if *testnetMode {
+		env = common.TestNet
+	} else {
+		env = common.MainNet
+	}
+
+	if *unsafeDevMode && *testnetMode {
+		logger.Fatal("Cannot be in unsafeDevMode and testnetMode at the same time.")
+	}
+
 	// Complain about Infura on mainnet.
 	//
 	// As it turns out, Infura has a bug where it would sometimes incorrectly round
@@ -1096,12 +1111,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		} else {
 			acctLogger.Info("accountant is enabled but will not be enforced")
 		}
-		env := accountant.MainNetMode
-		if *testnetMode {
-			env = accountant.TestNetMode
-		} else if *unsafeDevMode {
-			env = accountant.DevNetMode
-		}
 		acct = accountant.NewAccountant(
 			rootCtx,
 			logger,
@@ -1123,12 +1132,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	var gov *governor.ChainGovernor
 	if *chainGovernorEnabled {
 		logger.Info("chain governor is enabled")
-		env := governor.MainNetMode
-		if *testnetMode {
-			env = governor.TestNetMode
-		} else if *unsafeDevMode {
-			env = governor.DevNetMode
-		}
 		gov = governor.NewChainGovernor(logger, db, env)
 	} else {
 		logger.Info("chain governor is disabled")

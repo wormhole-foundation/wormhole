@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/governor"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/stretchr/testify/assert"
@@ -68,7 +69,7 @@ func TestGetSignedVAABadAddress(t *testing.T) {
 func TestGovernorIsVAAEnqueuedNoMessage(t *testing.T) {
 	ctx := context.Background()
 	logger, _ := zap.NewProduction()
-	gov := governor.NewChainGovernor(logger, nil, governor.GoTestMode)
+	gov := governor.NewChainGovernor(logger, nil, common.GoTest)
 	server := &PublicrpcServer{logger: logger, gov: gov}
 
 	// A message without the messageId set should not panic but return an error instead.
