@@ -34,15 +34,24 @@ func (e *Watcher) recursivelyReadFinalizedBlocks(logger *zap.Logger, ctx context
 
 	// SECURITY: Sanity checks for the block header
 	if startBlock.Header.Hash == "" || startBlock.Header.Height == 0 || startBlock.Header.PrevBlockHash == "" {
+		logger.Debug("recursivelyReadFinalizedBlocks: json parse error")
 		return errors.New("json parse error")
 	}
 
 	// SECURITY: We know that this block is finalized because it is a parent of a finalized block.
 	e.finalizer.setFinalized(startBlock.Header)
 
+	logger.Debug(
+		"block_polled",
+		zap.String("log_msg_type", "block_poll"),
+		zap.Uint64("height", startBlock.Header.Height),
+		zap.String("block_hash", startBlock.Header.Hash),
+	)
+
 	// we want to avoid going too far back because that would increase the likelihood of error somewhere in the recursion stack.
 	// If we go back too far, we just report the error and terminate early.
 	if recursionDepth > maxFallBehindBlocks {
+		logger.Debug("recursivelyReadFinalizedBlocks: maxFallBehindBlocks")
 		e.eventChan <- EVENT_NEAR_WATCHER_TOO_FAR_BEHIND
 		return nil
 	}
@@ -52,18 +61,10 @@ func (e *Watcher) recursivelyReadFinalizedBlocks(logger *zap.Logger, ctx context
 
 		prevBlock, err := e.nearAPI.GetBlock(ctx, startBlock.Header.PrevBlockHash)
 		if err != nil {
+			logger.Debug("recursivelyReadFinalizedBlocks: nearAPI.GetBlock error", zap.Error(err))
 			return err
 		}
-		err = e.recursivelyReadFinalizedBlocks(logger, ctx, prevBlock, stopHeight, chunkSink, recursionDepth+1)
-		if err != nil {
-			return err
-		}
-
-		logger.Debug(
-			"block_polled",
-			zap.String("log_msg_type", "block_poll"),
-			zap.Uint64("height", startBlock.Header.Height),
-		)
+		_ = e.recursivelyReadFinalizedBlocks(logger, ctx, prevBlock, stopHeight, chunkSink, recursionDepth+1) // ignore error
 	}
 
 	chunks := startBlock.ChunkHashes()
