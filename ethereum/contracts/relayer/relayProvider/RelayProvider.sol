@@ -25,8 +25,7 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
         view
         returns (Wei nativePriceQuote, GasPrice targetChainRefundPerUnitGasUnused)
     {
-        targetChainRefundPerUnitGasUnused =
-            quoteAssetConversion(targetChainId, gasPrice(targetChainId).priceAsWei()).asGasPrice();
+        targetChainRefundPerUnitGasUnused = gasPrice(targetChainId);
         Wei costOfProvidingMaximumTargetChainAmount = gasLimit.toWei(targetChainRefundPerUnitGasUnused);
         Wei transactionFee =
             quoteDeliveryOverhead(targetChainId) + gasLimit.toWei(quoteGasPrice(targetChainId));
@@ -63,9 +62,17 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
         uint16 targetChainId,
         Wei currentChainAmount
     ) public view returns (Wei targetChainAmount) {
+        return quoteAssetConversion(chainId(), targetChainId, currentChainAmount);
+    }
+
+    function quoteAssetConversion(
+        uint16 sourceChainId,
+        uint16 targetChainId,
+        Wei sourceChainAmount
+    ) internal view returns (Wei targetChainAmount) {
         (uint16 buffer, uint16 bufferDenominator) = assetConversionBuffer(targetChainId);
-        return currentChainAmount.convertAsset(
-            nativeCurrencyPrice(chainId()),
+        return sourceChainAmount.convertAsset(
+            nativeCurrencyPrice(sourceChainId),
             nativeCurrencyPrice(targetChainId),
             (buffer),
             (uint32(buffer) + bufferDenominator),
