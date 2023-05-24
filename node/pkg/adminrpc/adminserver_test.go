@@ -1,5 +1,5 @@
 //nolint:unparam
-package guardiand
+package adminrpc
 
 import (
 	"context"
