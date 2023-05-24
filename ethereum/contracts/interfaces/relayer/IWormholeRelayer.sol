@@ -222,9 +222,9 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
 
   function quoteAssetConversion(
     uint16 targetChainId,
-    Wei currentChainAmount,
+    uint128 currentChainAmount,
     address relayProviderAddress
-  ) external view returns (Wei targetChainAmount);
+  ) external view returns (uint256 targetChainAmount);
 
   /**
    * @notice Returns the address of the current default relay provider
