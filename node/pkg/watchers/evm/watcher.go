@@ -677,9 +677,9 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					queryResponse := common.QueryResponsePublication{
 						Request: signedQueryRequest,
 						Response: common.EthCallQueryResponse{
-							Number: blockResult.Number,
+							Number: blockResult.Number.ToInt(),
 							Hash:   blockResult.Hash,
-							Time:   blockResult.Time,
+							Time:   time.Unix(int64(blockResult.Time), 0),
 							Result: callResult,
 						},
 					}
