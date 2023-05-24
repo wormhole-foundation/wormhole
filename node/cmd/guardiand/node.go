@@ -62,6 +62,15 @@ import (
 	googleapi_option "google.golang.org/api/option"
 )
 
+const (
+	inboundObservationBufferSize         = 50
+	inboundSignedVaaBufferSize           = 50
+	observationRequestOutboundBufferSize = 50
+	observationRequestInboundBufferSize  = 50
+	// observationRequestBufferSize is the buffer size of the per-network reobservation channel
+	observationRequestBufferSize = 25
+)
+
 var (
 	p2pNetworkID *string
 	p2pPort      *uint
@@ -402,9 +411,6 @@ var NodeCmd = &cobra.Command{
 // are distributed. Production binaries are required to be built from source by
 // guardians to reduce risk from a compromised builder.
 var Build = "prod"
-
-// observationRequestBufferSize is the buffer size of the per-network reobservation channel
-const observationRequestBufferSize = 25
 
 func runNode(cmd *cobra.Command, args []string) {
 	if Build == "dev" && !*unsafeDevMode {
@@ -907,13 +913,13 @@ func runNode(cmd *cobra.Command, args []string) {
 	setReadC, setWriteC := makeChannelPair[*common.GuardianSet](0)
 
 	// Inbound signed VAAs
-	signedInReadC, signedInWriteC := makeChannelPair[*gossipv1.SignedVAAWithQuorum](50)
+	signedInReadC, signedInWriteC := makeChannelPair[*gossipv1.SignedVAAWithQuorum](inboundSignedVaaBufferSize)
 
 	// Inbound observation requests from the p2p service (for all chains)
-	obsvReqReadC, obsvReqWriteC := makeChannelPair[*gossipv1.ObservationRequest](common.ObsvReqChannelSize)
+	obsvReqReadC, obsvReqWriteC := makeChannelPair[*gossipv1.ObservationRequest](observationRequestInboundBufferSize)
 
 	// Outbound observation requests
-	obsvReqSendReadC, obsvReqSendWriteC := makeChannelPair[*gossipv1.ObservationRequest](common.ObsvReqChannelSize)
+	obsvReqSendReadC, obsvReqSendWriteC := makeChannelPair[*gossipv1.ObservationRequest](observationRequestOutboundBufferSize)
 
 	// Injected VAAs (manually generated rather than created via observation)
 	injectReadC, injectWriteC := makeChannelPair[*vaa.VAA](0)
