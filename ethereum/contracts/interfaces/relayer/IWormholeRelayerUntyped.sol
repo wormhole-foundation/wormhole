@@ -216,7 +216,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
 
   function quoteEVMDeliveryPrice(uint16 targetChainId, uint128 receiverValue, uint32 gasLimit, address relayProviderAddress) external view returns (uint256 nativePriceQuote, uint256 targetChainRefundPeruint256Unused);
 
-  function quoteDeliveryPrice(uint16 targetChainId, uint128 receiverValue, bytes memory encodedExecutionParameters, address relayProviderAddress) external view returns (uint256 nativePriceQuote, bytes memory encodedQuoteParams);
+  function quoteDeliveryPrice(uint16 targetChainId, uint128 receiverValue, bytes memory encodedExecutionParameters, address relayProviderAddress) external view returns (uint256 nativePriceQuote, bytes memory encodedExecutionInfo);
 
   function quoteAssetConversion(
     uint16 targetChainId,
@@ -314,14 +314,14 @@ interface IWormholeRelayerDelivery is IWormholeRelayerBase {
    *     contract with payload being the encoded delivery instruction container
    * @param relayerRefundAddress - The address to which any refunds to the relay provider
    *     should be sent
-   * @param overrides - Optional overrides field which must be either an empty bytes array or
+   * @param deliveryOverrides - Optional overrides field which must be either an empty bytes array or
    *     it must be an encoded DeliveryOverride struct
    */
   function deliver(
     bytes[] memory encodedVMs,
     bytes memory encodedDeliveryVAA,
     address payable relayerRefundAddress,
-    bytes memory overrides
+    bytes memory deliveryOverrides
   ) external payable;
 }
 

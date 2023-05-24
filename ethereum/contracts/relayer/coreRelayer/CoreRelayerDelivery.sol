@@ -43,7 +43,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     bytes[] memory encodedVMs,
     bytes memory encodedDeliveryVAA,
     address payable relayerRefundAddress,
-    bytes memory overrides
+    bytes memory deliveryOverrides
   ) public payable {
     (IWormhole.VM memory vm, bool valid, string memory reason) =
       getWormhole().parseAndVerifyVM(encodedDeliveryVAA);
@@ -72,11 +72,11 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       gasLimit: Gas.wrap(0),
       targetChainRefundPerGasUnused: GasPrice.wrap(0),
       totalReceiverValue: Wei.wrap(0),
-      encodedOverrides: overrides,
+      encodedOverrides: deliveryOverrides,
       redeliveryHash: bytes32(0)
     });
     
-    (deliveryVaaInfo.gasLimit, deliveryVaaInfo.targetChainRefundPerGasUnused, deliveryVaaInfo.totalReceiverValue, deliveryVaaInfo.redeliveryHash) = getDeliveryParametersEvmV1(instruction, overrides);
+    (deliveryVaaInfo.gasLimit, deliveryVaaInfo.targetChainRefundPerGasUnused, deliveryVaaInfo.totalReceiverValue, deliveryVaaInfo.redeliveryHash) = getDeliveryParametersEvmV1(instruction, deliveryOverrides);
 
     Wei requiredFunds = deliveryVaaInfo.gasLimit.toWei(deliveryVaaInfo.targetChainRefundPerGasUnused) + deliveryVaaInfo.totalReceiverValue;
     if (msgValue() < requiredFunds)
@@ -119,13 +119,13 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
 
     EvmExecutionInfoV1 memory executionInfo = decodeEvmExecutionInfoV1(instruction.encodedExecutionInfo);
 
-    // If present, apply redelivery overrides to current instruction
+    // If present, apply redelivery deliveryOverrides to current instruction
     if (encodedOverrides.length != 0) {
-      DeliveryOverride memory overrides = encodedOverrides.decodeDeliveryOverride();
+      DeliveryOverride memory deliveryOverrides = encodedOverrides.decodeDeliveryOverride();
       
-      (instruction.requestedReceiverValue, executionInfo) = decodeAndCheckOverridesEvmV1(instruction.requestedReceiverValue, executionInfo, overrides);
+      (instruction.requestedReceiverValue, executionInfo) = decodeAndCheckOverridesEvmV1(instruction.requestedReceiverValue, executionInfo, deliveryOverrides);
       instruction.extraReceiverValue = Wei.wrap(0);
-      redeliveryHash = overrides.redeliveryHash;
+      redeliveryHash = deliveryOverrides.redeliveryHash;
     } 
 
     gasLimit = executionInfo.gasLimit;
@@ -134,24 +134,24 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     
   }
 
-  function decodeAndCheckOverridesEvmV1(Wei receiverValue, EvmExecutionInfoV1 memory executionInfo, DeliveryOverride memory overrides) internal pure returns (Wei overridesReceiverValue, EvmExecutionInfoV1 memory overridesExecutionInfo) {
+  function decodeAndCheckOverridesEvmV1(Wei receiverValue, EvmExecutionInfoV1 memory executionInfo, DeliveryOverride memory deliveryOverrides) internal pure returns (Wei deliveryOverridesReceiverValue, EvmExecutionInfoV1 memory deliveryOverridesExecutionInfo) {
     
-    if (overrides.newReceiverValue < receiverValue) {
+    if (deliveryOverrides.newReceiverValue < receiverValue) {
         revert InvalidOverrideReceiverValue();
     } 
  
-    ExecutionInfoVersion overridesExecutionInfoVersion = decodeExecutionInfoVersion(overrides.newExecutionInfo);
-    if(ExecutionInfoVersion.EVM_V1 != overridesExecutionInfoVersion) {
-      revert VersionMismatchOverride(uint8(ExecutionInfoVersion.EVM_V1), uint8(overridesExecutionInfoVersion));
+    ExecutionInfoVersion deliveryOverridesExecutionInfoVersion = decodeExecutionInfoVersion(deliveryOverrides.newExecutionInfo);
+    if(ExecutionInfoVersion.EVM_V1 != deliveryOverridesExecutionInfoVersion) {
+      revert VersionMismatchOverride(uint8(ExecutionInfoVersion.EVM_V1), uint8(deliveryOverridesExecutionInfoVersion));
     }
 
-    overridesExecutionInfo = decodeEvmExecutionInfoV1(overrides.newExecutionInfo);
-    overridesReceiverValue = overrides.newReceiverValue;
+    deliveryOverridesExecutionInfo = decodeEvmExecutionInfoV1(deliveryOverrides.newExecutionInfo);
+    deliveryOverridesReceiverValue = deliveryOverrides.newReceiverValue;
 
-    if(overridesExecutionInfo.targetChainRefundPerGasUnused.unwrap() < executionInfo.targetChainRefundPerGasUnused.unwrap()) {
+    if(deliveryOverridesExecutionInfo.targetChainRefundPerGasUnused.unwrap() < executionInfo.targetChainRefundPerGasUnused.unwrap()) {
       revert InvalidOverrideRefundPerGasUnused();
     }
-    if(overridesExecutionInfo.gasLimit < executionInfo.gasLimit) {
+    if(deliveryOverridesExecutionInfo.gasLimit < executionInfo.gasLimit) {
       revert InvalidOverrideGasLimit();
     }
 
