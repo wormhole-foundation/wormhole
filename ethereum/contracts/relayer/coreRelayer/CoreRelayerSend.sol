@@ -260,7 +260,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     if(!provider.isChainSupported(sendParams.targetChainId)) {
       revert RelayProviderDoesNotSupportTargetChain(sendParams.relayProviderAddress, sendParams.targetChainId);
     }
-    (Wei deliveryPrice, bytes memory encodedQuoteParameters) = provider.quoteDeliveryPrice(sendParams.targetChainId, sendParams.receiverValue, sendParams.encodedExecutionParameters);
+    (Wei deliveryPrice, bytes memory encodedExecutionInfo) = provider.quoteDeliveryPrice(sendParams.targetChainId, sendParams.receiverValue, sendParams.encodedExecutionParameters);
 
     Wei wormholeMessageFee = getWormholeMessageFee();
     checkMsgValue(wormholeMessageFee, deliveryPrice, sendParams.paymentForExtraReceiverValue);
@@ -271,8 +271,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
         payload: sendParams.payload,
         requestedReceiverValue: sendParams.receiverValue,
         extraReceiverValue: provider.quoteAssetConversion(sendParams.targetChainId, sendParams.paymentForExtraReceiverValue),
-        encodedQuoteParameters: encodedQuoteParameters,
-        encodedExecutionParameters: sendParams.encodedExecutionParameters,
+        encodedExecutionInfo: encodedExecutionInfo,
         refundChainId: sendParams.refundChainId,
         refundAddress: sendParams.refundAddress,
         refundRelayProvider: provider.getTargetChainAddress(sendParams.targetChainId),
@@ -289,7 +288,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     if(!provider.isChainSupported(sendParams.targetChainId)) {
       revert RelayProviderDoesNotSupportTargetChain(sendParams.relayProviderAddress, sendParams.targetChainId);
     }
-    (Wei deliveryPrice, bytes memory encodedQuoteParameters) = provider.quoteDeliveryPrice(sendParams.targetChainId, sendParams.receiverValue, sendParams.encodedExecutionParameters);
+    (Wei deliveryPrice, bytes memory encodedExecutionInfo) = provider.quoteDeliveryPrice(sendParams.targetChainId, sendParams.receiverValue, sendParams.encodedExecutionParameters);
 
     bytes memory encodedInstruction = DeliveryInstruction({
         targetChainId: sendParams.targetChainId,
@@ -297,8 +296,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
         payload: sendParams.payload,
         requestedReceiverValue: sendParams.receiverValue,
         extraReceiverValue: provider.quoteAssetConversion(sendParams.targetChainId, sendParams.paymentForExtraReceiverValue),
-        encodedQuoteParameters: encodedQuoteParameters,
-        encodedExecutionParameters: sendParams.encodedExecutionParameters,
+        encodedExecutionInfo: encodedExecutionInfo,
         refundChainId: sendParams.refundChainId,
         refundAddress: sendParams.refundAddress,
         refundRelayProvider: provider.getTargetChainAddress(sendParams.targetChainId),
@@ -327,7 +325,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     if(!provider.isChainSupported(targetChainId)) {
       revert RelayProviderDoesNotSupportTargetChain(newRelayProviderAddress, targetChainId);
     }
-    (Wei deliveryPrice, bytes memory encodedQuoteParameters) = provider.quoteDeliveryPrice(targetChainId, Wei.wrap(newReceiverValue), newEncodedExecutionParameters);
+    (Wei deliveryPrice, bytes memory encodedExecutionInfo) = provider.quoteDeliveryPrice(targetChainId, Wei.wrap(newReceiverValue), newEncodedExecutionParameters);
 
     Wei wormholeMessageFee = getWormholeMessageFee();
     checkMsgValue(wormholeMessageFee, deliveryPrice, Wei.wrap(0));
@@ -336,8 +334,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
         deliveryVaaKey: deliveryVaaKey,
         targetChainId: targetChainId,
         newRequestedReceiverValue: Wei.wrap(newReceiverValue),
-        newEncodedQuoteParameters: encodedQuoteParameters,
-        newEncodedExecutionParameters: newEncodedExecutionParameters,
+        newEncodedExecutionInfo: encodedExecutionInfo,
         newSourceRelayProvider: toWormholeFormat(newRelayProviderAddress),
         newSenderAddress: toWormholeFormat(msg.sender)
     }).encode();
@@ -352,19 +349,19 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
   }
 
   function quoteEVMDeliveryPrice(uint16 targetChainId, uint128 receiverValue, uint32 gasLimit, address relayProviderAddress) public view returns (uint256 nativePriceQuote, uint256 targetChainRefundPerGasUnused) {
-    (uint256 quote, bytes memory encodedQuoteParams) = quoteDeliveryPrice(targetChainId, receiverValue, encodeEvmExecutionParamsV1(EvmExecutionParamsV1(Gas.wrap(gasLimit))), relayProviderAddress);
+    (uint256 quote, bytes memory encodedExecutionInfo) = quoteDeliveryPrice(targetChainId, receiverValue, encodeEvmExecutionParamsV1(EvmExecutionParamsV1(Gas.wrap(gasLimit))), relayProviderAddress);
     nativePriceQuote = quote;
-    targetChainRefundPerGasUnused = GasPrice.unwrap(decodeEvmQuoteParamsV1(encodedQuoteParams).targetChainRefundPerGasUnused);
+    targetChainRefundPerGasUnused = GasPrice.unwrap(decodeEvmExecutionInfoV1(encodedExecutionInfo).targetChainRefundPerGasUnused);
   }
 
   function quoteEVMDeliveryPrice(uint16 targetChainId, uint128 receiverValue, uint32 gasLimit) public view returns (uint256 nativePriceQuote, uint256 targetChainRefundPerGasUnused) {
     return quoteEVMDeliveryPrice(targetChainId, receiverValue, gasLimit, getDefaultRelayProvider());
   }
 
-  function quoteDeliveryPrice(uint16 targetChainId, uint128 receiverValue, bytes memory encodedExecutionParameters, address relayProviderAddress) public view returns (uint256 nativePriceQuote, bytes memory encodedQuoteParams) {
+  function quoteDeliveryPrice(uint16 targetChainId, uint128 receiverValue, bytes memory encodedExecutionParameters, address relayProviderAddress) public view returns (uint256 nativePriceQuote, bytes memory encodedExecutionInfo) {
     IRelayProvider provider = IRelayProvider(relayProviderAddress);
-    (Wei deliveryPrice, bytes memory _encodedQuoteParams) = provider.quoteDeliveryPrice(targetChainId, Wei.wrap(receiverValue), encodedExecutionParameters);
-    encodedQuoteParams = _encodedQuoteParams;
+    (Wei deliveryPrice, bytes memory _encodedExecutionInfo) = provider.quoteDeliveryPrice(targetChainId, Wei.wrap(receiverValue), encodedExecutionParameters);
+    encodedExecutionInfo = _encodedExecutionInfo;
     nativePriceQuote = deliveryPrice.unwrap();
   }
 

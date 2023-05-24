@@ -42,16 +42,16 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
     function quoteDeliveryPrice(
         uint16 targetChainId,
         Wei receiverValue,
-        bytes memory encodedExecutionParameters
-    ) external view returns (Wei nativePriceQuote, bytes memory encodedQuoteParams) {
-        ExecutionParamsVersion version = decodeExecutionParamsVersion(encodedExecutionParameters);
+        bytes memory encodedExecutionParams
+    ) external view returns (Wei nativePriceQuote, bytes memory encodedExecutionInfo) {
+        ExecutionParamsVersion version = decodeExecutionParamsVersion(encodedExecutionParams);
         if (version == ExecutionParamsVersion.EVM_V1) {
-            EvmExecutionParamsV1 memory parsed = decodeEvmExecutionParamsV1(encodedExecutionParameters);
+            EvmExecutionParamsV1 memory parsed = decodeEvmExecutionParamsV1(encodedExecutionParams);
             GasPrice targetChainRefundPerUnitGasUnused;
             (nativePriceQuote, targetChainRefundPerUnitGasUnused) = quoteEvmDeliveryPrice(targetChainId, parsed.gasLimit, receiverValue);
             return (
                 nativePriceQuote,
-                encodeEvmQuoteParamsV1(EvmQuoteParamsV1(targetChainRefundPerUnitGasUnused))
+                encodeEvmExecutionInfoV1(EvmExecutionInfoV1(parsed.gasLimit, targetChainRefundPerUnitGasUnused))
             );
         } else {
             revert UnsupportedExecutionParamsVersion(uint8(version));

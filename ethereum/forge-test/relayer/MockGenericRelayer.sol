@@ -144,8 +144,8 @@ contract MockGenericRelayer {
                 }
             }
 
-
-            Wei budget = decodeEvmExecutionParamsV1(instruction.encodedExecutionParameters).gasLimit.toWei(decodeEvmQuoteParamsV1(instruction.encodedQuoteParameters).targetChainRefundPerGasUnused) + instruction.requestedReceiverValue + instruction.extraReceiverValue;
+            EvmExecutionInfoV1 memory executionInfo = decodeEvmExecutionInfoV1(instruction.encodedExecutionInfo);
+            Wei budget = executionInfo.gasLimit.toWei(executionInfo.targetChainRefundPerGasUnused) + instruction.requestedReceiverValue + instruction.extraReceiverValue;
 
             uint16 targetChainId = instruction.targetChainId;
             TargetDeliveryParameters memory package = TargetDeliveryParameters({
@@ -172,13 +172,13 @@ contract MockGenericRelayer {
 
             DeliveryOverride memory deliveryOverride =
             DeliveryOverride({
-                newQuoteParameters: instruction.newEncodedQuoteParameters,
-                newExecutionParameters: instruction.newEncodedExecutionParameters,
+                newExecutionInfo: instruction.newEncodedExecutionInfo,
                 newReceiverValue: instruction.newRequestedReceiverValue,
                 redeliveryHash: parsedDeliveryVAA.hash
             });
 
-            Wei budget = decodeEvmExecutionParamsV1(instruction.newEncodedExecutionParameters).gasLimit.toWei(decodeEvmQuoteParamsV1(instruction.newEncodedQuoteParameters).targetChainRefundPerGasUnused) + instruction.newRequestedReceiverValue;
+            EvmExecutionInfoV1 memory executionInfo = decodeEvmExecutionInfoV1(instruction.newEncodedExecutionInfo);
+            Wei budget = executionInfo.gasLimit.toWei(executionInfo.targetChainRefundPerGasUnused) + instruction.newRequestedReceiverValue;
 
             bytes memory oldEncodedDeliveryVAA =
                 getPastDeliveryVAA(instruction.deliveryVaaKey.chainId, instruction.deliveryVaaKey.sequence);

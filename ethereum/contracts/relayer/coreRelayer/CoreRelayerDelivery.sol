@@ -109,57 +109,47 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
   }
 
   function getDeliveryParametersEvmV1(DeliveryInstruction memory instruction, bytes memory encodedOverrides) internal pure returns (Gas gasLimit, GasPrice targetChainRefundPerGasUnused, Wei totalReceiverValue, bytes32 redeliveryHash) {
-    ExecutionParamsVersion instructionExecutionParamsVersion = decodeExecutionParamsVersion(instruction.encodedExecutionParameters);
-    if(instructionExecutionParamsVersion != ExecutionParamsVersion.EVM_V1) {
-      revert UnexpectedExecutionParamsVersion(uint8(instructionExecutionParamsVersion), uint8(QuoteParamsVersion.EVM_V1));
-    }
     
-    QuoteParamsVersion instructionQuoteParamsVersion = decodeQuoteParamsVersion(instruction.encodedQuoteParameters);
-    if(instructionQuoteParamsVersion != QuoteParamsVersion.EVM_V1) {
-      revert UnexpectedQuoteParamsVersion(uint8(instructionQuoteParamsVersion), uint8(QuoteParamsVersion.EVM_V1));
+    ExecutionInfoVersion instructionExecutionInfoVersion = decodeExecutionInfoVersion(instruction.encodedExecutionInfo);
+    if(instructionExecutionInfoVersion != ExecutionInfoVersion.EVM_V1) {
+      revert UnexpectedExecutionInfoVersion(uint8(instructionExecutionInfoVersion), uint8(ExecutionInfoVersion.EVM_V1));
     }
 
-    EvmExecutionParamsV1 memory executionParams = decodeEvmExecutionParamsV1(instruction.encodedExecutionParameters);
-    EvmQuoteParamsV1 memory quoteParams = decodeEvmQuoteParamsV1(instruction.encodedQuoteParameters);
+    EvmExecutionInfoV1 memory executionInfo = decodeEvmExecutionInfoV1(instruction.encodedExecutionInfo);
 
     // If present, apply redelivery overrides to current instruction
     if (encodedOverrides.length != 0) {
       DeliveryOverride memory overrides = encodedOverrides.decodeDeliveryOverride();
       
-      (instruction.requestedReceiverValue, executionParams, quoteParams) = decodeAndCheckOverridesEvmV1(instruction.requestedReceiverValue, executionParams, quoteParams, overrides);
+      (instruction.requestedReceiverValue, executionInfo) = decodeAndCheckOverridesEvmV1(instruction.requestedReceiverValue, executionInfo, overrides);
       instruction.extraReceiverValue = Wei.wrap(0);
       redeliveryHash = overrides.redeliveryHash;
     } 
 
-    gasLimit = executionParams.gasLimit;
-    targetChainRefundPerGasUnused = quoteParams.targetChainRefundPerGasUnused;
+    gasLimit = executionInfo.gasLimit;
+    targetChainRefundPerGasUnused = executionInfo.targetChainRefundPerGasUnused;
     totalReceiverValue = (instruction.requestedReceiverValue + instruction.extraReceiverValue);
     
   }
 
-  function decodeAndCheckOverridesEvmV1(Wei receiverValue, EvmExecutionParamsV1 memory executionParams, EvmQuoteParamsV1 memory quoteParams, DeliveryOverride memory overrides) internal pure returns (Wei overridesReceiverValue, EvmExecutionParamsV1 memory overridesExecutionParams, EvmQuoteParamsV1 memory overridesQuoteParams) {
+  function decodeAndCheckOverridesEvmV1(Wei receiverValue, EvmExecutionInfoV1 memory executionInfo, DeliveryOverride memory overrides) internal pure returns (Wei overridesReceiverValue, EvmExecutionInfoV1 memory overridesExecutionInfo) {
     
     if (overrides.newReceiverValue < receiverValue) {
         revert InvalidOverrideReceiverValue();
     } 
-    ExecutionParamsVersion overridesExecutionParamsVersion = decodeExecutionParamsVersion(overrides.newExecutionParameters);
-    if(ExecutionParamsVersion.EVM_V1 != overridesExecutionParamsVersion) {
-      revert VersionMismatchOverride(uint8(ExecutionParamsVersion.EVM_V1), uint8(overridesExecutionParamsVersion));
+ 
+    ExecutionInfoVersion overridesExecutionInfoVersion = decodeExecutionInfoVersion(overrides.newExecutionInfo);
+    if(ExecutionInfoVersion.EVM_V1 != overridesExecutionInfoVersion) {
+      revert VersionMismatchOverride(uint8(ExecutionInfoVersion.EVM_V1), uint8(overridesExecutionInfoVersion));
     }
 
-    QuoteParamsVersion overridesQuoteParamsVersion = decodeQuoteParamsVersion(overrides.newQuoteParameters);
-    if(QuoteParamsVersion.EVM_V1 != overridesQuoteParamsVersion) {
-      revert VersionMismatchOverride(uint8(QuoteParamsVersion.EVM_V1), uint8(overridesQuoteParamsVersion));
-    }
-
-    overridesExecutionParams = decodeEvmExecutionParamsV1(overrides.newExecutionParameters);
-    overridesQuoteParams = decodeEvmQuoteParamsV1(overrides.newQuoteParameters);
+    overridesExecutionInfo = decodeEvmExecutionInfoV1(overrides.newExecutionInfo);
     overridesReceiverValue = overrides.newReceiverValue;
 
-    if(overridesQuoteParams.targetChainRefundPerGasUnused.unwrap() < quoteParams.targetChainRefundPerGasUnused.unwrap()) {
+    if(overridesExecutionInfo.targetChainRefundPerGasUnused.unwrap() < executionInfo.targetChainRefundPerGasUnused.unwrap()) {
       revert InvalidOverrideRefundPerGasUnused();
     }
-    if(overridesExecutionParams.gasLimit < executionParams.gasLimit) {
+    if(overridesExecutionInfo.gasLimit < executionInfo.gasLimit) {
       revert InvalidOverrideGasLimit();
     }
 

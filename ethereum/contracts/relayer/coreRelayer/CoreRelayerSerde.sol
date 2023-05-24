@@ -48,8 +48,7 @@ library CoreRelayerSerde {
       strct.extraReceiverValue);
     encoded = abi.encodePacked(
       encoded,
-      encodeBytes(strct.encodedQuoteParameters),
-      encodeBytes(strct.encodedExecutionParameters),
+      encodeBytes(strct.encodedExecutionInfo),
       strct.refundChainId,
       strct.refundAddress,
       strct.refundRelayProvider,
@@ -72,8 +71,7 @@ library CoreRelayerSerde {
     (strct.payload,             offset) = decodeBytes(encoded, offset);
     (requestedReceiverValue,    offset) = encoded.asUint256Unchecked(offset);
     (extraReceiverValue,        offset) = encoded.asUint256Unchecked(offset);
-    (strct.encodedQuoteParameters,     offset) = decodeBytes(encoded, offset);
-    (strct.encodedExecutionParameters, offset) = decodeBytes(encoded, offset);
+    (strct.encodedExecutionInfo,     offset) = decodeBytes(encoded, offset);
     (strct.refundChainId,       offset) = encoded.asUint16Unchecked(offset);
     (strct.refundAddress,       offset) = encoded.asBytes32Unchecked(offset);
     (strct.refundRelayProvider, offset) = encoded.asBytes32Unchecked(offset);
@@ -96,8 +94,7 @@ library CoreRelayerSerde {
       vaaKey,
       strct.targetChainId,
       strct.newRequestedReceiverValue,
-      encodeBytes(strct.newEncodedQuoteParameters),
-      encodeBytes(strct.newEncodedExecutionParameters),
+      encodeBytes(strct.newEncodedExecutionInfo),
       strct.newSourceRelayProvider,
       strct.newSenderAddress
     );
@@ -113,8 +110,7 @@ library CoreRelayerSerde {
     (strct.deliveryVaaKey,         offset) = decodeVaaKey(encoded, offset);
     (strct.targetChainId,          offset) = encoded.asUint16Unchecked(offset);
     (newRequestedReceiverValue,    offset) = encoded.asUint256Unchecked(offset);
-    (strct.newEncodedQuoteParameters, offset)    = decodeBytes(encoded, offset);
-    (strct.newEncodedExecutionParameters, offset)    = decodeBytes(encoded, offset);
+    (strct.newEncodedExecutionInfo, offset)    = decodeBytes(encoded, offset);
     (strct.newSourceRelayProvider, offset) = encoded.asBytes32Unchecked(offset);
     (strct.newSenderAddress,    offset)    = encoded.asBytes32Unchecked(offset);
 
@@ -129,8 +125,7 @@ library CoreRelayerSerde {
     encoded = abi.encodePacked(
       VERSION_DELIVERY_OVERRIDE,
       strct.newReceiverValue,
-      encodeBytes(strct.newQuoteParameters),
-      encodeBytes(strct.newExecutionParameters),
+      encodeBytes(strct.newExecutionInfo),
       strct.redeliveryHash
     );
   }
@@ -143,8 +138,7 @@ library CoreRelayerSerde {
     uint256 receiverValue;
     
     (receiverValue,                 offset) = encoded.asUint256Unchecked(offset);
-    (strct.newQuoteParameters,      offset) = decodeBytes(encoded, offset);
-    (strct.newExecutionParameters,  offset) = decodeBytes(encoded, offset);
+    (strct.newExecutionInfo,      offset) = decodeBytes(encoded, offset);
     (strct.redeliveryHash, offset) = encoded.asBytes32Unchecked(offset);
 
     strct.newReceiverValue = Wei.wrap(receiverValue);

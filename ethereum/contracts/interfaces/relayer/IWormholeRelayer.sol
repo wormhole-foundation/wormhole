@@ -84,8 +84,7 @@ struct DeliveryInstruction {
   bytes payload;
   Wei requestedReceiverValue;
   Wei extraReceiverValue;
-  bytes encodedQuoteParameters;
-  bytes encodedExecutionParameters;
+  bytes encodedExecutionInfo;
   uint16 refundChainId;
   bytes32 refundAddress;
   bytes32 refundRelayProvider;
@@ -98,8 +97,7 @@ struct RedeliveryInstruction {
   VaaKey deliveryVaaKey;
   uint16 targetChainId;
   Wei newRequestedReceiverValue;
-  bytes newEncodedQuoteParameters;
-  bytes newEncodedExecutionParameters;
+  bytes newEncodedExecutionInfo;
   bytes32 newSourceRelayProvider;
   bytes32 newSenderAddress;
 }
@@ -134,8 +132,7 @@ struct Send {
  */
 struct DeliveryOverride {
   Wei newReceiverValue;
-  bytes newQuoteParameters;
-  bytes newExecutionParameters;
+  bytes newExecutionInfo;
   bytes32 redeliveryHash;
 }
 
@@ -364,7 +361,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
 
   function quoteEVMDeliveryPrice(uint16 targetChainId, uint128 receiverValue, uint32 gasLimit, address relayProviderAddress) external view returns (uint256 nativePriceQuote, uint256 targetChainRefundPerGasUnused);
 
-  function quoteDeliveryPrice(uint16 targetChainId, uint128 receiverValue, bytes memory encodedExecutionParameters, address relayProviderAddress) external view returns (uint256 nativePriceQuote, bytes memory encodedQuoteParams);
+  function quoteDeliveryPrice(uint16 targetChainId, uint128 receiverValue, bytes memory encodedExecutionParameters, address relayProviderAddress) external view returns (uint256 nativePriceQuote, bytes memory encodedExecutionInfo);
 
   function quoteAssetConversion(
     uint16 targetChainId,
