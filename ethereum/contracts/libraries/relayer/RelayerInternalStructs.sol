@@ -46,7 +46,7 @@ struct RedeliveryInstruction {
  * @custom:member redeliveryHash - the hash of the redelivery which is being performed
  */
 struct DeliveryOverride {
-  uint128 newReceiverValue;
+  Wei newReceiverValue;
   bytes newQuoteParameters;
   bytes newExecutionParameters;
   bytes32 redeliveryHash;

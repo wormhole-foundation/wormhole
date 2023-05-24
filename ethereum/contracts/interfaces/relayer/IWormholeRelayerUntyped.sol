@@ -2,28 +2,17 @@
 
 pragma solidity ^0.8.0;
 
-enum VaaKeyType {
-  EMITTER_SEQUENCE,
-  VAAHASH
-}
-
 /**
- * @notice This `VaaKey` struct identifies a wormhole message
- *   `VaaKeyType.EMITTER_SEQUENCE` is the only `infoType` that's currently supported
+ * @notice VaaKey identifies a wormhole message
  *
- * @custom:member infoType - determines which of the remaining fields are actually specified.
- *                           Currently must be `VaaKeyType.EMITTER_SEQUENCE`
  * @custom:member chainId - only specified if `infoType == VaaKeyType.EMITTER_SEQUENCE`
  * @custom:member emitterAddress - only specified if `infoType = VaaKeyType.EMITTER_SEQUENCE`
  * @custom:member sequence - only specified if `infoType = VaaKeyType.EMITTER_SEQUENCE`
- * @custom:member vaaHash - only specified if `infoType = VaaKeyType.VAAHASH`
  */
 struct VaaKey {
-  VaaKeyType infoType;
   uint16 chainId;
   bytes32 emitterAddress;
   uint64 sequence;
-  bytes32 vaaHash;
 }
 
 interface IWormholeRelayerBase {
@@ -33,12 +22,12 @@ interface IWormholeRelayerBase {
   function getRegisteredCoreRelayerContract(uint16 chainId) external view returns (bytes32);
 }
 
+/**
+  * IWormholeRelayer
+  * @notice Users may use this interface to have wormhole messages (VAAs) in their transaction
+  *   relayed to destination contract(s) of their choice.
+  */
 interface IWormholeRelayerSend is IWormholeRelayerBase {
-  /**
-   * IWormholeRelayer
-   * @notice Users may use this interface to have wormhole messages (VAAs) in their transaction
-   *   relayed to destination contract(s) of their choice.
-   */
 
   function sendToEvm(
     uint16 targetChainId,
@@ -223,11 +212,11 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
   ) external payable returns (uint64 sequence);
 
 
-  function quoteEVMDeliveryPrice(uint16 targetChainId, uint256 receiverValue, uint256 gasLimit) external view returns (uint256 nativePriceQuote, uint256 targetChainRefundPeruint256Unused);
+  function quoteEVMDeliveryPrice(uint16 targetChainId, uint128 receiverValue, uint32 gasLimit) external view returns (uint256 nativePriceQuote, uint256 targetChainRefundPeruint256Unused);
 
-  function quoteEVMDeliveryPrice(uint16 targetChainId, uint256 receiverValue, uint256 gasLimit, address relayProviderAddress) external view returns (uint256 nativePriceQuote, uint256 targetChainRefundPeruint256Unused);
+  function quoteEVMDeliveryPrice(uint16 targetChainId, uint128 receiverValue, uint32 gasLimit, address relayProviderAddress) external view returns (uint256 nativePriceQuote, uint256 targetChainRefundPeruint256Unused);
 
-  function quoteDeliveryPrice(uint16 targetChainId, uint256 receiverValue, bytes memory encodedExecutionParameters, address relayProviderAddress) external view returns (uint256 nativePriceQuote, bytes memory encodedQuoteParams);
+  function quoteDeliveryPrice(uint16 targetChainId, uint128 receiverValue, bytes memory encodedExecutionParameters, address relayProviderAddress) external view returns (uint256 nativePriceQuote, bytes memory encodedQuoteParams);
 
   function quoteAssetConversion(
     uint16 targetChainId,

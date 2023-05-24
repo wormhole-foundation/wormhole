@@ -9,6 +9,7 @@ import {
   VaaKey
 } from "../../interfaces/relayer/IWormholeRelayer.sol";
 import {
+  DeliveryOverride,
   DeliveryInstruction,
   RedeliveryInstruction
 } from "../../libraries/relayer/RelayerInternalStructs.sol";
@@ -119,6 +120,35 @@ library CoreRelayerSerde {
     (strct.newSenderAddress,    offset)    = encoded.asBytes32Unchecked(offset);
 
     strct.newRequestedReceiverValue = Wei.wrap(newRequestedReceiverValue);
+
+    checkLength(encoded, offset);
+  }
+
+  function encode(
+    DeliveryOverride memory strct
+  ) internal pure returns (bytes memory encoded) {
+    encoded = abi.encodePacked(
+      VERSION_DELIVERY_OVERRIDE,
+      strct.newReceiverValue,
+      encodeBytes(strct.newQuoteParameters),
+      encodeBytes(strct.newExecutionParameters),
+      strct.redeliveryHash
+    );
+  }
+
+  function decodeDeliveryOverride(
+    bytes memory encoded
+  ) internal pure returns (DeliveryOverride memory strct) {
+    uint offset = checkUint8(encoded, 0, VERSION_DELIVERY_OVERRIDE);
+
+    uint256 receiverValue;
+    
+    (receiverValue,                 offset) = encoded.asUint256Unchecked(offset);
+    (strct.newQuoteParameters,      offset) = decodeBytes(encoded, offset);
+    (strct.newExecutionParameters,  offset) = decodeBytes(encoded, offset);
+    (strct.redeliveryHash, offset) = encoded.asBytes32Unchecked(offset);
+
+    strct.newReceiverValue = Wei.wrap(receiverValue);
 
     checkLength(encoded, offset);
   }

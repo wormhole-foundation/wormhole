@@ -6,13 +6,12 @@ import {
   RelayProviderDoesNotSupportTargetChain,
   InvalidMsgValue,
   VaaKey,
-  DeliveryInstruction,
-  RedeliveryInstruction,
   IWormholeRelayerSend
 } from "../../interfaces/relayer/IWormholeRelayer.sol";
 import {IRelayProvider} from "../../interfaces/relayer/IRelayProvider.sol";
 
 import {toWormholeFormat} from "../../libraries/relayer/Utils.sol";
+import {DeliveryInstruction, RedeliveryInstruction} from "../../libraries/relayer/RelayerInternalStructs.sol";
 import {CoreRelayerSerde} from "./CoreRelayerSerde.sol";
 import {ForwardInstruction, getDefaultRelayProviderState} from "./CoreRelayerStorage.sol";
 import {CoreRelayerBase} from "./CoreRelayerBase.sol";
@@ -40,15 +39,15 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     uint16 targetChainId,
     address targetAddress,
     bytes memory payload,
-    uint128 receiverValue,
-    uint32 gasLimit
+    Wei receiverValue,
+    Gas gasLimit
   ) external payable returns (uint64 sequence) {
     return sendToEvm(
       targetChainId,
       targetAddress,
       payload,
       receiverValue,
-      0,
+      Wei.wrap(0),
       gasLimit,
       getWormhole().chainId(),
       msg.sender,
@@ -62,8 +61,8 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     uint16 targetChainId,
     address targetAddress,
     bytes memory payload,
-    uint128 receiverValue,
-    uint32 gasLimit,
+    Wei receiverValue,
+    Gas gasLimit,
     uint16 refundChainId,
     address refundAddress
   ) external payable returns (uint64 sequence) {
@@ -72,7 +71,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
       targetAddress,
       payload,
       receiverValue,
-      0, 
+      Wei.wrap(0), 
       gasLimit,
       refundChainId,
       refundAddress,
@@ -86,9 +85,9 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     uint16 targetChainId,
     address targetAddress,
     bytes memory payload,
-    uint128 receiverValue,
-    uint128 paymentForExtraReceiverValue,
-    uint32 gasLimit,
+    Wei receiverValue,
+    Wei paymentForExtraReceiverValue,
+    Gas gasLimit,
     uint16 refundChainId,
     address refundAddress,
     address relayProviderAddress,
@@ -101,7 +100,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
       payload,
       receiverValue,
       paymentForExtraReceiverValue,
-      encodeEvmExecutionParamsV1(EvmExecutionParamsV1(Gas.wrap(gasLimit))),
+      encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit)),
       refundChainId,
       toWormholeFormat(refundAddress),
       relayProviderAddress,
@@ -115,8 +114,8 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     uint16 targetChainId,
     address targetAddress,
     bytes memory payload,
-    uint128 receiverValue,
-    uint32 gasLimit,
+    Wei receiverValue,
+    Gas gasLimit,
     uint16 refundChainId,
     address refundAddress
   ) external payable {
@@ -125,7 +124,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
       targetAddress,
       payload,
       receiverValue,
-      0,
+      Wei.wrap(0),
       gasLimit,
       refundChainId,
       refundAddress,
@@ -139,9 +138,9 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     uint16 targetChainId,
     address targetAddress,
     bytes memory payload,
-    uint128 receiverValue,
-    uint128 paymentForExtraReceiverValue,
-    uint32 gasLimit,
+    Wei receiverValue,
+    Wei paymentForExtraReceiverValue,
+    Gas gasLimit,
     uint16 refundChainId,
     address refundAddress,
     address relayProviderAddress,
@@ -154,7 +153,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
       payload,
       receiverValue,
       paymentForExtraReceiverValue,
-      encodeEvmExecutionParamsV1(EvmExecutionParamsV1(Gas.wrap(gasLimit))),
+      encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit)),
       refundChainId,
       toWormholeFormat(refundAddress),
       relayProviderAddress,
@@ -166,15 +165,15 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
   function resendToEvm(
     VaaKey memory deliveryVaaKey,
     uint16 targetChainId,
-    uint128 newReceiverValue,
-    uint32 newGasLimit,
+    Wei newReceiverValue,
+    Gas newGasLimit,
     address newRelayProviderAddress
   ) public payable returns (uint64 sequence) {
     sequence = resend(
       deliveryVaaKey,
       targetChainId,
       newReceiverValue,
-      encodeEvmExecutionParamsV1(EvmExecutionParamsV1(Gas.wrap(newGasLimit))),
+      encodeEvmExecutionParamsV1(EvmExecutionParamsV1(newGasLimit)),
       newRelayProviderAddress
     );
   }
@@ -183,8 +182,8 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     uint16 targetChainId,
     bytes32 targetAddress,
     bytes memory payload,
-    uint128 receiverValue,
-    uint128 paymentForExtraReceiverValue,
+    Wei receiverValue,
+    Wei paymentForExtraReceiverValue,
     bytes memory encodedExecutionParameters,
     uint16 refundChainId,
     bytes32 refundAddress,
@@ -196,8 +195,8 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
       targetChainId,
       targetAddress,
       payload,
-      Wei.wrap(receiverValue),
-      Wei.wrap(paymentForExtraReceiverValue),
+      receiverValue,
+      paymentForExtraReceiverValue,
       encodedExecutionParameters,
       refundChainId,
       refundAddress, 
@@ -211,8 +210,8 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     uint16 targetChainId,
     bytes32 targetAddress,
     bytes memory payload,
-    uint128 receiverValue,
-    uint128 paymentForExtraReceiverValue,
+    Wei receiverValue,
+    Wei paymentForExtraReceiverValue,
     bytes memory encodedExecutionParameters,
     uint16 refundChainId,
     bytes32 refundAddress,
@@ -224,8 +223,8 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
       targetChainId,
       targetAddress,
       payload,
-      Wei.wrap(receiverValue),
-      Wei.wrap(paymentForExtraReceiverValue),
+      receiverValue,
+      paymentForExtraReceiverValue,
       encodedExecutionParameters,
       refundChainId,
       refundAddress, 
@@ -319,7 +318,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
   function resend(
     VaaKey memory deliveryVaaKey,
     uint16 targetChainId,
-    uint128 newReceiverValue,
+    Wei newReceiverValue,
     bytes memory newEncodedExecutionParameters,
     address newRelayProviderAddress
   ) public payable returns (uint64 sequence) {
@@ -327,7 +326,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     if(!provider.isChainSupported(targetChainId)) {
       revert RelayProviderDoesNotSupportTargetChain(newRelayProviderAddress, targetChainId);
     }
-    (Wei deliveryPrice, bytes memory encodedQuoteParameters) = provider.quoteDeliveryPrice(targetChainId, Wei.wrap(newReceiverValue), newEncodedExecutionParameters);
+    (Wei deliveryPrice, bytes memory encodedQuoteParameters) = provider.quoteDeliveryPrice(targetChainId, newReceiverValue, newEncodedExecutionParameters);
 
     Wei wormholeMessageFee = getWormholeMessageFee();
     checkMsgValue(wormholeMessageFee, deliveryPrice, Wei.wrap(0));
@@ -335,7 +334,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     bytes memory encodedInstruction = RedeliveryInstruction({
         deliveryVaaKey: deliveryVaaKey,
         targetChainId: targetChainId,
-        newRequestedReceiverValue: Wei.wrap(newReceiverValue),
+        newRequestedReceiverValue: newReceiverValue,
         newEncodedQuoteParameters: encodedQuoteParameters,
         newEncodedExecutionParameters: newEncodedExecutionParameters,
         newSourceRelayProvider: toWormholeFormat(newRelayProviderAddress),
@@ -345,8 +344,6 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     sequence = publishAndPay(wormholeMessageFee, deliveryPrice, Wei.wrap(0), encodedInstruction, CONSISTENCY_LEVEL_INSTANT, provider);
   }
   
-
- 
   function getDefaultRelayProvider() public view returns (address relayProvider) {
     relayProvider = getDefaultRelayProviderState().defaultRelayProvider;
   }
@@ -376,10 +373,4 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     IRelayProvider provider = IRelayProvider(relayProviderAddress);
     return provider.quoteAssetConversion(targetChainId, currentChainAmount);
   }
-
-
 }
-
-
-  // ------------------------------------------- PRIVATE -------------------------------------------
-

@@ -11,6 +11,7 @@ import {
   ForwardRequestFromWrongAddress,
   RelayProviderDoesNotSupportTargetChain,
   VaaKey,
+  InvalidMsgValue,
   IWormholeRelayerBase
 } from "../../interfaces/relayer/IWormholeRelayer.sol";
 import {DeliveryInstruction} from "../../libraries/relayer/RelayerInternalStructs.sol";
@@ -65,10 +66,9 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
     return Wei.wrap(msg.value);
   }
 
-  function checkMsgValue(Wei wormholeMessageFee, Wei deliveryPrice, Wei paymentForExtraReceiverValue) internal {
-    if(msgValue() != deliveryPrice + paymentForExtraReceiverValue + wormholeMessageFee) {
-      revert InvalidMsgValue(msg.value, (deliveryPrice + paymentForExtraReceiverValue + wormholeMessageFee).unwrap());
-    }
+  function checkMsgValue(Wei wormholeMessageFee, Wei deliveryPrice, Wei paymentForExtraReceiverValue) internal view {
+    if(msgValue() != deliveryPrice + paymentForExtraReceiverValue + wormholeMessageFee) 
+      revert InvalidMsgValue(msgValue(), deliveryPrice + paymentForExtraReceiverValue + wormholeMessageFee);
   }
   
   function publishAndPay(
