@@ -17,18 +17,15 @@ import {
   InvalidOverrideRefundPerGasUnused,
   RequesterNotCoreRelayer,
   VaaKey,
-  VaaKeyType,
-  TargetDeliveryParameters,
-  DeliveryInstruction,
-  DeliveryOverride,
   IWormholeRelayerDelivery,
   IWormholeRelayerSend
 } from "../../interfaces/relayer/IWormholeRelayer.sol";
 import {DeliveryData, IWormholeReceiver} from "../../interfaces/relayer/IWormholeReceiver.sol";
 import {IRelayProvider} from "../../interfaces/relayer/IRelayProvider.sol";
 
-import {pay, min, toWormholeFormat, fromWormholeFormat} from "./Utils.sol";
-import {BytesParsing} from "./BytesParsing.sol";
+import {pay, min, toWormholeFormat, fromWormholeFormat} from "../../libraries/relayer/Utils.sol";
+import {DeliveryInstruction, DeliveryOverride} from "../../libraries/relayer/RelayerInternalStructs.sol";
+import {BytesParsing} from "../../libraries/relayer/BytesParsing.sol";
 import {CoreRelayerSerde} from "./CoreRelayerSerde.sol";
 import {ForwardInstruction} from "./CoreRelayerStorage.sol";
 import {CoreRelayerBase} from "./CoreRelayerBase.sol";
@@ -42,9 +39,14 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
   using GasLib for Gas;
   using GasPriceLib for GasPrice;
 
-  function deliver(TargetDeliveryParameters memory targetParams) public payable {
+  function deliver(
+    bytes[] memory encodedVMs,
+    bytes memory encodedDeliveryVAA,
+    address payable relayerRefundAddress,
+    bytes memory overrides
+  ) public payable {
     (IWormhole.VM memory vm, bool valid, string memory reason) =
-      getWormhole().parseAndVerifyVM(targetParams.encodedDeliveryVAA);
+      getWormhole().parseAndVerifyVM(encodedDeliveryVAA);
 
     if (!valid)
       revert InvalidDeliveryVaa(reason);
@@ -64,26 +66,26 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       sourceChainId: vm.emitterChainId,
       sourceSequence: vm.sequence,
       deliveryVaaHash: vm.hash,
-      relayerRefundAddress: targetParams.relayerRefundAddress,
-      encodedVMs: targetParams.encodedVMs,
+      relayerRefundAddress: relayerRefundAddress,
+      encodedVMs: encodedVMs,
       deliveryInstruction: instruction,
       gasLimit: Gas.wrap(0),
       targetChainRefundPerGasUnused: GasPrice.wrap(0),
       totalReceiverValue: Wei.wrap(0),
-      encodedOverrides: targetParams.overrides,
+      encodedOverrides: overrides,
       redeliveryHash: bytes32(0)
     });
     
-    (deliveryVaaInfo.gasLimit, deliveryVaaInfo.targetChainRefundPerGasUnused, deliveryVaaInfo.totalReceiverValue, deliveryVaaInfo.redeliveryHash) = getDeliveryParametersEvmV1(instruction, targetParams.overrides);
+    (deliveryVaaInfo.gasLimit, deliveryVaaInfo.targetChainRefundPerGasUnused, deliveryVaaInfo.totalReceiverValue, deliveryVaaInfo.redeliveryHash) = getDeliveryParametersEvmV1(instruction, overrides);
 
     Wei requiredFunds = deliveryVaaInfo.gasLimit.toWei(deliveryVaaInfo.targetChainRefundPerGasUnused) + deliveryVaaInfo.totalReceiverValue;
     if (msgValue() < requiredFunds)
-      revert InsufficientRelayerFunds(msg.value, Wei.unwrap(requiredFunds));
+      revert InsufficientRelayerFunds(msgValue(), requiredFunds);
 
     if (getChainId() != instruction.targetChainId)
       revert TargetChainIsNotThisChain(instruction.targetChainId);
 
-    checkVaaKeysWithVAAs(instruction.vaaKeys, targetParams.encodedVMs);
+    checkVaaKeysWithVAAs(instruction.vaaKeys, encodedVMs);
 
     executeDelivery(deliveryVaaInfo);
 
@@ -482,8 +484,8 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       refundChainId,
       bytes32(0),
       bytes(""),
-      0,
-      uint128((refundAmount - getWormholeMessageFee() - quote).unwrap()),
+      Wei.wrap(0),
+      refundAmount - getWormholeMessageFee() - quote,
       encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1()),
       refundChainId,
       refundAddress,
@@ -523,15 +525,9 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       VaaKey memory vaaKey = vaaKeys[i];
 
       //this if is exhaustive, i.e vaaKey.infoType only has the two variants
-      if (( vaaKey.infoType == VaaKeyType.EMITTER_SEQUENCE &&
-            ( vaaKey.chainId != parsedVaa.emitterChainId ||
-              vaaKey.emitterAddress != parsedVaa.emitterAddress ||
-              vaaKey.sequence != parsedVaa.sequence
-            )
-          ) ||
-          ( vaaKey.infoType == VaaKeyType.VAAHASH &&
-            vaaKey.vaaHash != parsedVaa.hash
-          ))
+      if (vaaKey.chainId != parsedVaa.emitterChainId 
+          || vaaKey.emitterAddress != parsedVaa.emitterAddress 
+          || vaaKey.sequence != parsedVaa.sequence)
         revert VaaKeysDoNotMatchVaas(uint8(i));
 
       unchecked{++i;}
