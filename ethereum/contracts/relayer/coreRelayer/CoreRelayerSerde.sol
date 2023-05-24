@@ -113,6 +113,7 @@ library CoreRelayerSerde {
     (strct.deliveryVaaKey,         offset) = decodeVaaKey(encoded, offset);
     (strct.targetChainId,          offset) = encoded.asUint16Unchecked(offset);
     (newRequestedReceiverValue,    offset) = encoded.asUint256Unchecked(offset);
+    (strct.newEncodedQuoteParameters, offset)    = decodeBytes(encoded, offset);
     (strct.newEncodedExecutionParameters, offset)    = decodeBytes(encoded, offset);
     (strct.newSourceRelayProvider, offset) = encoded.asBytes32Unchecked(offset);
     (strct.newSenderAddress,    offset)    = encoded.asBytes32Unchecked(offset);
