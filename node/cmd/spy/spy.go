@@ -552,10 +552,10 @@ func runSpy(cmd *cobra.Command, args []string) {
 				nil,
 				nil,
 				components,
-				nil, // ibc feature string
-				nil, // cross chain query feature string
-				nil, // query requests
-				nil, // query responses
+				nil,   // ibc feature string
+				false, // ccqEnabled
+				nil,   // query requests
+				nil,   // query responses
 
 			)); err != nil {
 			return err
