@@ -2,6 +2,8 @@ package guardiand
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	ethCommon "github.com/ethereum/go-ethereum/common"
@@ -18,30 +20,22 @@ func queryRequestDigest(b []byte) ethCommon.Hash {
 	return ethCrypto.Keccak256Hash(append(queryRequestPrefix, b...))
 }
 
-var allowedRequestor = ethCommon.BytesToAddress(ethCommon.Hex2Bytes("beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"))
-
 // Multiplex observation requests to the appropriate chain
 func handleQueryRequests(
 	ctx context.Context,
 	logger *zap.Logger,
 	signedQueryReqC <-chan *gossipv1.SignedQueryRequest,
 	chainQueryReqC map[vaa.ChainID]chan *gossipv1.SignedQueryRequest,
-	enableFlag bool,
+	allowedRequestors map[ethCommon.Address]struct{},
 ) {
 	qLogger := logger.With(zap.String("component", "ccqhandler"))
-	if enableFlag {
-		qLogger.Info("cross chain queries are enabled")
-	}
+	qLogger.Info("cross chain queries are enabled", zap.Any("allowedRequestors", allowedRequestors))
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case signedQueryRequest := <-signedQueryReqC:
-			if !enableFlag {
-				qLogger.Error("received a query request when the feature is disabled, dropping it")
-				continue
-			}
 			// requestor validation happens here
 			// request type validation is currently handled by the watcher
 			// in the future, it may be worthwhile to catch certain types of
@@ -61,7 +55,7 @@ func handleQueryRequests(
 
 			signerAddress := ethCommon.BytesToAddress(ethCrypto.Keccak256(signerBytes[1:])[12:])
 
-			if signerAddress != allowedRequestor {
+			if _, exists := allowedRequestors[signerAddress]; !exists {
 				qLogger.Error("invalid requestor", zap.String("requestor", signerAddress.Hex()))
 				continue
 			}
@@ -88,4 +82,26 @@ func handleQueryRequests(
 			}
 		}
 	}
+}
+
+func ccqParseAllowedRequesters(ccqAllowedRequesters string) (map[ethCommon.Address]struct{}, error) {
+	if ccqAllowedRequesters == "" {
+		return nil, fmt.Errorf("if cross chain query is enabled `--ccqAllowedRequesters` must be specified")
+	}
+
+	var nullAddr ethCommon.Address
+	result := make(map[ethCommon.Address]struct{})
+	for _, str := range strings.Split(ccqAllowedRequesters, ",") {
+		addr := ethCommon.BytesToAddress(ethCommon.Hex2Bytes(str))
+		if addr == nullAddr {
+			return nil, fmt.Errorf("invalid value in `--ccqAllowedRequesters`: `%s`", str)
+		}
+		result[addr] = struct{}{}
+	}
+
+	if len(result) == 0 {
+		return nil, fmt.Errorf("no allowed requestors specified, ccqAllowedRequesters: `%s`", ccqAllowedRequesters)
+	}
+
+	return result, nil
 }
