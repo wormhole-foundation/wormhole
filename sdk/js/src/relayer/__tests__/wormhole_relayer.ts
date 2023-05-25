@@ -12,7 +12,7 @@ import {
     CONTRACTS,
     CHAIN_ID_TO_NAME,
     ChainName,
-    Network
+    Network,
   } from "../../../";
   import {GovernanceEmitter, MockGuardians} from "../../../src/mock";
 import { AddressInfo } from "net";
@@ -106,7 +106,7 @@ const testSend = async (payload: string, sendToSourceChain?: boolean, notEnoughV
     console.log("Sent delivery request!");
     await tx.wait();
     console.log("Message confirmed!");
-
+  
     return tx.hash;
 }
 

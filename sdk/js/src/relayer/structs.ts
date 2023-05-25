@@ -142,9 +142,6 @@ export function parseWormholeRelayerSend(bytes: Buffer): DeliveryInstruction {
 
   let encodedExecutionInfo;
   [encodedExecutionInfo, idx] = parsePayload(bytes, idx);
-  console.debug("DEBUG");
-  console.debug(encodedExecutionInfo);
-  console.debug(parseEVMExecutionInfoV1(encodedExecutionInfo, 0));
 
   const refundChainId = bytes.readUInt16BE(idx);
   idx += 2;
