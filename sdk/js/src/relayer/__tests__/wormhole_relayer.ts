@@ -183,7 +183,7 @@ describe("Wormhole Relayer Tests", () => {
     const valueNeededOnTargetChain1 = await relayer.getPrice(targetChain, sourceChain, REASONABLE_GAS_LIMIT, optionalParams);
     const valueNeededOnTargetChain2 = await relayer.getPrice(targetChain, targetChain, REASONABLE_GAS_LIMIT, optionalParams);
 
-    const value = await relayer.getPrice(sourceChain, targetChain, REASONABLE_GAS_LIMIT * 2, {receiverValue: valueNeededOnTargetChain1.add(valueNeededOnTargetChain2), ...optionalParams});
+    const value = await relayer.getPrice(sourceChain, targetChain, REASONABLE_GAS_LIMIT_FORWARDS, {receiverValue: valueNeededOnTargetChain1.add(valueNeededOnTargetChain2), ...optionalParams});
     console.log(`Quoted gas delivery fee: ${value}`);
 
 
@@ -191,7 +191,7 @@ describe("Wormhole Relayer Tests", () => {
       arbitraryPayload1,
       arbitraryPayload2,
       target.chainId,
-      REASONABLE_GAS_LIMIT * 2,
+      REASONABLE_GAS_LIMIT_FORWARDS,
       valueNeededOnTargetChain1.add(valueNeededOnTargetChain2),
       { value: value, gasLimit: REASONABLE_GAS_LIMIT }
     );
