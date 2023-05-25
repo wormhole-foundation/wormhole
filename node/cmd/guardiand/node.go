@@ -1188,11 +1188,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	components := p2p.DefaultComponents()
 	components.Port = *p2pPort
 
-	ccqFeatures := ""
-	if *ccqEnabled {
-		ccqFeatures = "ccq"
-	}
-
 	// Run supervisor.
 	supervisor.New(rootCtx, logger, func(ctx context.Context) error {
 		if err := supervisor.Run(ctx, "p2p", p2p.Run(
@@ -1215,7 +1210,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			nil,
 			components,
 			&ibc.Features,
-			&ccqFeatures,
+			*ccqEnabled,
 			signedQueryReqWriteC,
 			queryResponseReadC)); err != nil {
 			return err
