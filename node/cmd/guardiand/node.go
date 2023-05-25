@@ -202,7 +202,9 @@ var (
 	bigTableKeyPath            *string
 
 	chainGovernorEnabled *bool
+
 	ccqEnabled           *bool
+	ccqAllowedRequesters *string
 )
 
 func init() {
@@ -361,7 +363,9 @@ func init() {
 	bigTableKeyPath = NodeCmd.Flags().String("bigTableKeyPath", "", "Path to json Service Account key")
 
 	chainGovernorEnabled = NodeCmd.Flags().Bool("chainGovernorEnabled", false, "Run the chain governor")
+
 	ccqEnabled = NodeCmd.Flags().Bool("ccqEnabled", false, "Enable cross chain query support")
+	ccqAllowedRequesters = NodeCmd.Flags().String("ccqAllowedRequesters", "", "Comma separated list of signers allowed to submit cross chain queries")
 }
 
 var (
