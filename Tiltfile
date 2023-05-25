@@ -340,7 +340,9 @@ def build_node_yaml():
             
             if ccq:
                 container["command"] += [
-                    "--ccqEnabled=true"
+                    "--ccqEnabled=true",
+                    "--ccqAllowedRequesters",
+                    "beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"
                 ]
 
     return encode_yaml_stream(node_yaml_with_replicas)
