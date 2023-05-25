@@ -183,7 +183,7 @@ describe("Wormhole Relayer Tests", () => {
     const valueNeededOnTargetChain1 = await relayer.getPrice(targetChain, sourceChain, REASONABLE_GAS_LIMIT, optionalParams);
     const valueNeededOnTargetChain2 = await relayer.getPrice(targetChain, targetChain, REASONABLE_GAS_LIMIT, optionalParams);
 
-    const value = await relayer.getPrice(sourceChain, targetChain, REASONABLE_GAS_LIMIT_FORWARDS, {receiverValue: valueNeededOnTargetChain1.add(valueNeededOnTargetChain2), ...optionalParams});
+    const value = await relayer.getPrice(sourceChain, targetChain, 1000000, {receiverValue: valueNeededOnTargetChain1.add(valueNeededOnTargetChain2), ...optionalParams});
     console.log(`Quoted gas delivery fee: ${value}`);
 
 
@@ -191,7 +191,7 @@ describe("Wormhole Relayer Tests", () => {
       arbitraryPayload1,
       arbitraryPayload2,
       target.chainId,
-      REASONABLE_GAS_LIMIT_FORWARDS,
+      1000000,
       valueNeededOnTargetChain1.add(valueNeededOnTargetChain2),
       { value: value, gasLimit: REASONABLE_GAS_LIMIT }
     );
@@ -200,6 +200,9 @@ describe("Wormhole Relayer Tests", () => {
     console.log("Message confirmed!");
 
     await waitForRelay(2);
+
+    const status = await getStatus(tx.hash);
+    console.log(`Status of forward: ${status}`)
 
     console.log("Checking if first forward was relayed");
     const message1 = await source.mockIntegration.getMessage();

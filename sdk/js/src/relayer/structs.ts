@@ -329,8 +329,12 @@ export type DeliveryOverrideArgs = {
 
 export function packOverrides(overrides: DeliveryOverrideArgs): string {
   const packed = [
+    ethers.utils.solidityPack(["uint8"], [1]).substring(2), //version
     ethers.utils
       .solidityPack(["uint256"], [overrides.newReceiverValue])
+      .substring(2),
+    ethers.utils
+      .solidityPack(["uint32"], [overrides.newExecutionInfo.length])
       .substring(2),
     overrides.newExecutionInfo.toString("hex"),
     overrides.redeliveryHash.toString("hex"), //toString('hex') doesn't add the 0x prefix
@@ -358,7 +362,8 @@ export function parseOverrideInfoFromDeliveryEvent(
   bytes: Buffer
 ): DeliveryOverrideArgs {
   let idx = 0;
-
+  const version = bytes.readUInt8(idx);
+  idx += 1;
   const newReceiverValue = ethers.BigNumber.from(
     Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
   );
