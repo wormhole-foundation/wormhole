@@ -59,7 +59,7 @@ async function readState(
       registeredContracts.push({
         chainId: chainInfo.chainId,
         contract: (
-          await coreRelayer.registeredCoreRelayerContract(chainInfo.chainId)
+          await coreRelayer.getRegisteredCoreRelayerContract(chainInfo.chainId)
         ).toString(),
       });
     }

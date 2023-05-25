@@ -56,9 +56,11 @@ function getRegisteredCoreRelayersState() pure returns (RegisteredCoreRelayersSt
 //  transaction and is (i.e. must be) reset at the end.
 
 struct ForwardInstruction {
-  bytes encodedSend;
+  bytes encodedInstruction;
   Wei msgValue;
-  Wei totalFee;
+  Wei deliveryPrice;
+  Wei paymentForExtraReceiverValue;
+  uint8 consistencyLevel;
 }
 
 struct DeliveryTmpState {

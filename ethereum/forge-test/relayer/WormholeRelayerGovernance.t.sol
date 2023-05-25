@@ -22,7 +22,7 @@ import {AttackForwardIntegration} from "./AttackForwardIntegration.sol";
 import {MockRelayerIntegration} from "../../contracts/mock/relayer/MockRelayerIntegration.sol";
 import {ForwardTester} from "./ForwardTester.sol";
 import {TestHelpers} from "./TestHelpers.sol";
-import {toWormholeFormat} from "../../contracts/relayer/coreRelayer/Utils.sol";
+import {toWormholeFormat} from "../../contracts/libraries/relayer/Utils.sol";
 import "../../contracts/libraries/external/BytesLib.sol";
 
 import "forge-std/Test.sol";

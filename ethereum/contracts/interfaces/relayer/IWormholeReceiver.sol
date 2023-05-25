@@ -18,7 +18,7 @@ pragma solidity ^0.8.0;
 struct DeliveryData {
   bytes32 sourceAddress;
   uint16 sourceChainId;
-  uint256 maximumRefund;
+  uint256 targetChainRefundPerGasUnused;
   bytes32 deliveryHash;
   bytes payload;
 }

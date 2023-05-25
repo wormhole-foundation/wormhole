@@ -1,4 +1,4 @@
-import { BigNumber } from "ethers";
+import { BigNumber, ethers } from "ethers";
 
 import {
   init,
@@ -37,14 +37,8 @@ type RelayProviderContractState = {
   deliveryOverheads: { chainId: number; deliveryOverhead: BigNumber }[];
   supportedChains: { chainId: number; isSupported: boolean }[];
   targetChainAddresses: { chainId: number; whAddress: string }[];
-  maximumBudgets: { chainId: number; maximumBudget: BigNumber }[];
   gasPrices: { chainId: number; gasPrice: BigNumber }[];
-  usdPrices: { chainId: number; usdPrice: BigNumber }[];
-  assetConversionBuffers: {
-    chainId: number;
-    tolerance: number;
-    toleranceDenominator: number;
-  }[];
+  weiPrices: { chainId: number; weiPrice: BigNumber }[];
   owner: string;
 };
 
@@ -75,14 +69,8 @@ async function readState(
       chainId: number;
       deliveryOverhead: BigNumber;
     }[] = [];
-    const maximumBudgets: { chainId: number; maximumBudget: BigNumber }[] = [];
     const gasPrices: { chainId: number; gasPrice: BigNumber }[] = [];
-    const usdPrices: { chainId: number; usdPrice: BigNumber }[] = [];
-    const assetConversionBuffers: {
-      chainId: number;
-      tolerance: number;
-      toleranceDenominator: number;
-    }[] = [];
+    const weiPrices: { chainId: number; weiPrice: BigNumber }[] = [];
     const owner: string = await relayProvider.owner();
 
     for (const chainInfo of chains) {
@@ -102,27 +90,13 @@ async function readState(
           chainInfo.chainId
         ),
       });
-      maximumBudgets.push({
-        chainId: chainInfo.chainId,
-        maximumBudget: await relayProvider.quoteMaximumBudget(
-          chainInfo.chainId
-        ),
-      });
       gasPrices.push({
         chainId: chainInfo.chainId,
         gasPrice: await relayProvider.quoteGasPrice(chainInfo.chainId),
       });
-      usdPrices.push({
+      weiPrices.push({
         chainId: chainInfo.chainId,
-        usdPrice: await relayProvider.quoteAssetPrice(chainInfo.chainId),
-      });
-      const buffer = await relayProvider.getAssetConversionBuffer(
-        chainInfo.chainId
-      );
-      assetConversionBuffers.push({
-        chainId: chainInfo.chainId,
-        tolerance: buffer.tolerance,
-        toleranceDenominator: buffer.toleranceDenominator,
+        weiPrice: await relayProvider.quoteAssetConversion(chainInfo.chainId, ethers.utils.parseEther("1")),
       });
     }
 
@@ -133,10 +107,8 @@ async function readState(
       deliveryOverheads,
       supportedChains,
       targetChainAddresses,
-      maximumBudgets,
       gasPrices,
-      usdPrices,
-      assetConversionBuffers,
+      weiPrices,
       owner,
     };
   } catch (e) {
@@ -182,24 +154,11 @@ function printState(state: RelayProviderContractState) {
   console.log("");
 
   printFixed("USD Prices", "");
-  state.usdPrices.forEach((x) => {
-    printFixed("  Chain: " + x.chainId, x.usdPrice.toString());
+  state.weiPrices.forEach((x) => {
+    printFixed("  Chain: " + x.chainId, x.weiPrice.toString());
   });
   console.log("");
 
-  printFixed("Maximum Budgets", "");
-  state.maximumBudgets.forEach((x) => {
-    printFixed("  Chain: " + x.chainId, x.maximumBudget.toString());
-  });
-  console.log("");
-
-  printFixed("Asset Conversion Buffers", "");
-  state.assetConversionBuffers.forEach((x) => {
-    printFixed("  Chain: " + x.chainId, "");
-    printFixed("    Tolerance: ", x.tolerance.toString());
-    printFixed("    Denominator: ", x.toleranceDenominator.toString());
-  });
-  console.log("");
 }
 
 function printFixed(title: string, content: string) {
