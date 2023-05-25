@@ -216,7 +216,9 @@ var (
 	bigTableKeyPath            *string
 
 	chainGovernorEnabled *bool
+
 	ccqEnabled           *bool
+	ccqAllowedRequesters *string
 )
 
 func init() {
@@ -379,7 +381,9 @@ func init() {
 	bigTableKeyPath = NodeCmd.Flags().String("bigTableKeyPath", "", "Path to json Service Account key")
 
 	chainGovernorEnabled = NodeCmd.Flags().Bool("chainGovernorEnabled", false, "Run the chain governor")
+
 	ccqEnabled = NodeCmd.Flags().Bool("ccqEnabled", false, "Enable cross chain query support")
+	ccqAllowedRequesters = NodeCmd.Flags().String("ccqAllowedRequesters", "", "Comma separated list of signers allowed to submit cross chain queries")
 }
 
 var (
@@ -1587,7 +1591,14 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		go handleReobservationRequests(rootCtx, clock.New(), logger, obsvReqReadC, chainObsvReqC)
-		go handleQueryRequests(rootCtx, logger, signedQueryReqReadC, chainQueryReqC, *ccqEnabled)
+
+		if *ccqEnabled {
+			ccqAllowedRequestersList, err := ccqParseAllowedRequesters(*ccqAllowedRequesters)
+			if err != nil {
+				logger.Fatal("failed to parse allowed requesters list", zap.String("ccqAllowedRequesters", *ccqAllowedRequesters), zap.Error(err), zap.String("component", "ccqconfig"))
+			}
+			go handleQueryRequests(rootCtx, logger, signedQueryReqReadC, chainQueryReqC, ccqAllowedRequestersList)
+		}
 
 		if acct != nil {
 			if err := acct.Start(ctx); err != nil {
