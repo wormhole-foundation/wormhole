@@ -5,6 +5,7 @@ import {
   MnemonicKey,
   Msg,
   Wallet,
+  isTxError,
 } from "@terra-money/terra.js";
 
 export const GAS_PRICE = 0.15; // uluna
@@ -43,9 +44,14 @@ export async function transact(
   const tx = await wallet.createAndSignTx({
     msgs: msgs,
     memo: memo,
+    gas: "10000000",
   });
 
-  return client.tx.broadcastBlock(tx);
+  const result = await client.tx.broadcastBlock(tx);
+  if (isTxError(result)) {
+    throw new Error(`tx error: ${JSON.stringify(result)}`);
+  }
+  return result;
 }
 
 export async function transactWithoutMemo(
