@@ -99,7 +99,7 @@ const testSend = async (payload: string, sendToSourceChain?: boolean, notEnoughV
     const tx = await source.mockIntegration.sendMessage(
       payload,
       sendToSourceChain ? source.chainId : target.chainId,
-      REASONABLE_GAS_LIMIT,
+      notEnoughValue ? TOO_LOW_GAS_LIMIT : REASONABLE_GAS_LIMIT,
       0,
       { value, gasLimit: REASONABLE_GAS_LIMIT }
     );
@@ -183,7 +183,7 @@ describe("Wormhole Relayer Tests", () => {
     const valueNeededOnTargetChain1 = await relayer.getPrice(targetChain, sourceChain, REASONABLE_GAS_LIMIT, optionalParams);
     const valueNeededOnTargetChain2 = await relayer.getPrice(targetChain, targetChain, REASONABLE_GAS_LIMIT, optionalParams);
 
-    const value = await relayer.getPrice(sourceChain, targetChain, REASONABLE_GAS_LIMIT_FORWARDS, {receiverValue: valueNeededOnTargetChain1.add(valueNeededOnTargetChain2), ...optionalParams});
+    const value = await relayer.getPrice(sourceChain, targetChain, REASONABLE_GAS_LIMIT * 2, {receiverValue: valueNeededOnTargetChain1.add(valueNeededOnTargetChain2), ...optionalParams});
     console.log(`Quoted gas delivery fee: ${value}`);
 
 
@@ -191,7 +191,7 @@ describe("Wormhole Relayer Tests", () => {
       arbitraryPayload1,
       arbitraryPayload2,
       target.chainId,
-      REASONABLE_GAS_LIMIT_FORWARDS,
+      REASONABLE_GAS_LIMIT * 2,
       valueNeededOnTargetChain1.add(valueNeededOnTargetChain2),
       { value: value, gasLimit: REASONABLE_GAS_LIMIT }
     );
