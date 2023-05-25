@@ -93,13 +93,14 @@ const getStatus = async (txHash: string, _sourceChain?: ChainName): Promise<stri
   return  info.targetChainStatus.events[0].status;
 }
 
-const testSend = async (payload: string, sendTosourceChain?: boolean, notEnoughValue?: boolean): Promise<string> => {
-    const value = await relayer.getPrice(sourceChain, sendTosourceChain ? sourceChain : targetChain, notEnoughValue ? TOO_LOW_GAS_LIMIT : REASONABLE_GAS_LIMIT, optionalParams);
+const testSend = async (payload: string, sendToSourceChain?: boolean, notEnoughValue?: boolean): Promise<string> => {
+    const value = await relayer.getPrice(sourceChain, sendToSourceChain ? sourceChain : targetChain, notEnoughValue ? TOO_LOW_GAS_LIMIT : REASONABLE_GAS_LIMIT, optionalParams);
     console.log(`Quoted gas delivery fee: ${value}`);
     const tx = await source.mockIntegration.sendMessage(
       payload,
-      sendTosourceChain ? source.chainId : target.chainId,
-     sendTosourceChain ? source.mockIntegrationAddress : target.mockIntegrationAddress,
+      sendToSourceChain ? source.chainId : target.chainId,
+      REASONABLE_GAS_LIMIT,
+      0,
       { value, gasLimit: REASONABLE_GAS_LIMIT }
     );
     console.log("Sent delivery request!");
@@ -110,20 +111,16 @@ const testSend = async (payload: string, sendTosourceChain?: boolean, notEnoughV
 }
 
 const testForward = async (payload1: string, payload2: string, notEnoughExtraForwardingValue?: boolean): Promise<string> => {
-    const value = await relayer.getPriceMultipleHops(sourceChain, {targetChain: targetChain, gasAmount: REASONABLE_GAS_LIMIT_FORWARDS, optionalParams: optionalParams, forwards: [{targetChain: sourceChain, gasAmount: notEnoughExtraForwardingValue ? TOO_LOW_GAS_LIMIT : REASONABLE_GAS_LIMIT, optionalParams: optionalParams}]}, network);
+    const valueNeededOnTargetChain = await relayer.getPrice(targetChain, sourceChain, notEnoughExtraForwardingValue ? TOO_LOW_GAS_LIMIT : REASONABLE_GAS_LIMIT, optionalParams);
+    const value = await relayer.getPrice(sourceChain, targetChain, REASONABLE_GAS_LIMIT_FORWARDS, {receiverValue: valueNeededOnTargetChain, ...optionalParams});
     console.log(`Quoted gas delivery fee: ${value}`);
 
-    const furtherInstructions: ethers_contracts.MockRelayerIntegration.FurtherInstructionsStruct = {
-      keepSending: true,
-      newMessages: [payload2, "0x00"],
-      chains: [source.chainId],
-      gasLimits: [REASONABLE_GAS_LIMIT],
-    };
-    const tx = await source.mockIntegration.sendMessagesWithFurtherInstructions(
-      [payload1],
-      furtherInstructions,
-      [target.chainId],
-      [value],
+    const tx = await source.mockIntegration["sendMessageWithForwardedResponse(bytes,bytes,uint16,uint32,uint128)"](
+      payload1,
+      payload2,
+      target.chainId,
+      REASONABLE_GAS_LIMIT_FORWARDS,
+      valueNeededOnTargetChain,
       { value: value, gasLimit: REASONABLE_GAS_LIMIT }
     );
     console.log("Sent delivery request!");
@@ -183,21 +180,20 @@ describe("Wormhole Relayer Tests", () => {
     const arbitraryPayload1 = getArbitraryBytes32()
     const arbitraryPayload2 = getArbitraryBytes32()
     console.log(`Sent message: ${arbitraryPayload1}, expecting ${arbitraryPayload2} to be forwarded`);
-    const payment = await relayer.getPriceMultipleHops(sourceChain, {targetChain, gasAmount: REASONABLE_GAS_LIMIT_FORWARDS, optionalParams, forwards: [{targetChain, gasAmount: REASONABLE_GAS_LIMIT, optionalParams}, {targetChain: sourceChain, gasAmount: REASONABLE_GAS_LIMIT, optionalParams}]}, network);
-    console.log(`Quoted gas delivery fee: ${payment}`);
+    const valueNeededOnTargetChain1 = await relayer.getPrice(targetChain, sourceChain, REASONABLE_GAS_LIMIT, optionalParams);
+    const valueNeededOnTargetChain2 = await relayer.getPrice(targetChain, targetChain, REASONABLE_GAS_LIMIT, optionalParams);
 
-    const furtherInstructions: ethers_contracts.MockRelayerIntegration.FurtherInstructionsStruct = {
-      keepSending: true,
-      newMessages: [arbitraryPayload2, "0x00"],
-      chains: [source.chainId, target.chainId],
-      gasLimits: [REASONABLE_GAS_LIMIT, REASONABLE_GAS_LIMIT],
-    };
-    const tx = await source.mockIntegration.sendMessagesWithFurtherInstructions(
-      [arbitraryPayload1],
-      furtherInstructions,
-      [target.chainId],
-      [payment],
-      { value: payment, gasLimit: REASONABLE_GAS_LIMIT }
+    const value = await relayer.getPrice(sourceChain, targetChain, REASONABLE_GAS_LIMIT_FORWARDS, {receiverValue: valueNeededOnTargetChain1.add(valueNeededOnTargetChain2), ...optionalParams});
+    console.log(`Quoted gas delivery fee: ${value}`);
+
+
+    const tx = await source.mockIntegration.sendMessageWithMultiForwardedResponse(
+      arbitraryPayload1,
+      arbitraryPayload2,
+      target.chainId,
+      REASONABLE_GAS_LIMIT_FORWARDS,
+      valueNeededOnTargetChain1.add(valueNeededOnTargetChain2),
+      { value: value, gasLimit: REASONABLE_GAS_LIMIT }
     );
     console.log("Sent delivery request!");
     await tx.wait();
@@ -245,11 +241,6 @@ describe("Wormhole Relayer Tests", () => {
     expect(price.toString()).toBe("165000000000000000");
   });
 
-  test("Test getPriceMultipleHops in Typescript SDK", async () => {
-    const price = (await relayer.getPriceMultipleHops(sourceChain, {targetChain, gasAmount: 200000, optionalParams, forwards: [{targetChain: sourceChain, gasAmount: 200000, optionalParams}]}, network));
-    expect(price.toString()).toBe("338250000000000000");
-  });
-
   test("Executes a delivery with a Cross Chain Refund", async () => {
     const arbitraryPayload = getArbitraryBytes32()
     console.log(`Sent message: ${arbitraryPayload}`);
@@ -262,14 +253,15 @@ describe("Wormhole Relayer Tests", () => {
     console.log(`Quoted gas delivery fee: ${value}`);
     const startingBalance = await source.wallet.getBalance();
 
-    const tx = await relayer.send(
+    const tx = await relayer.sendToEvm(
+      source.wallet,
       sourceChain,
       targetChain,
       target.coreRelayerAddress, // This is an address that exists but doesn't implement the IWormhole interface, so should result in Receiver Failure
-      source.wallet,
       Buffer.from("hi!"),
-      value,
-      optionalParams
+      REASONABLE_GAS_LIMIT,
+      {value, gasLimit: REASONABLE_GAS_LIMIT},
+      optionalParams,
     );
     console.log("Sent delivery request!");
     await tx.wait();
@@ -357,15 +349,15 @@ describe("Wormhole Relayer Tests", () => {
         ),
         info.sourceDeliverySequenceNumber
       ),
-      value,
+      REASONABLE_GAS_LIMIT,
       0,
       await source.coreRelayer.getDefaultRelayProvider(),
       [getGuardianRPC(network, ci)],
-      true,
       {
         value: value,
         gasLimit: REASONABLE_GAS_LIMIT,
-      }
+      },
+      true
     );
 
     console.log("redelivery tx:", redeliveryReceipt.hash);

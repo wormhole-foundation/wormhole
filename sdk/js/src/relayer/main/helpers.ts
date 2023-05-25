@@ -264,14 +264,10 @@ export function vaaKeyToVaaKeyStruct(
   vaaKey: VaaKey
 ): VaaKeyStruct {
   return {
-    infoType: vaaKey.infoType,
     chainId: vaaKey.chainId || 0,
     emitterAddress:
       vaaKey.emitterAddress ||
       "0x0000000000000000000000000000000000000000000000000000000000000000",
     sequence: vaaKey.sequence || 0,
-    vaaHash:
-      vaaKey.vaaHash ||
-      "0x0000000000000000000000000000000000000000000000000000000000000000",
   };
 }

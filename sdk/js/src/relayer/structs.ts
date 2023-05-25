@@ -6,6 +6,10 @@ export enum RelayerPayloadId {
   Redelivery = 2,
 }
 
+export enum ExecutionInfoVersion {
+  EVM_V1 = 0
+}
+
 export enum DeliveryStatus {
   WaitingForVAA = "Waiting for VAA",
   PendingDelivery = "Pending Delivery",
@@ -21,42 +25,38 @@ export enum RefundStatus {
   RefundSent,
   RefundFail,
   CrossChainRefundSent,
-  CrossChainRefundSentMaximumBudget,
   CrossChainRefundFailProviderNotSupported,
   CrossChainRefundFailNotEnough
 }
 
 export interface VaaKey {
-  infoType: VaaKeyType;
-  chainId?: number;
-  emitterAddress?: Buffer;
-  sequence?: BigNumber;
-  vaaHash?: Buffer;
+  chainId: number;
+  emitterAddress: Buffer;
+  sequence: BigNumber;
 }
 
 export interface DeliveryInstruction {
   targetChainId: number;
   targetAddress: Buffer;
+  payload: Buffer;
+  requestedReceiverValue: BigNumber;
+  extraReceiverValue: BigNumber;
+  encodedExecutionInfo: Buffer;
   refundChainId: number;
   refundAddress: Buffer;
-  maximumRefundTarget: BigNumber;
-  receiverValueTarget: BigNumber;
+  refundRelayProvider: Buffer;
   sourceRelayProvider: Buffer;
-  targetRelayProvider: Buffer;
   senderAddress: Buffer;
   vaaKeys: VaaKey[];
-  consistencyLevel: number;
-  executionParameters: ExecutionParameters;
-  payload: Buffer;
 }
 
 export interface RedeliveryInstruction {
-  key: VaaKey;
-  newMaximumRefundTarget: BigNumber;
-  newReceiverValueTarget: BigNumber;
-  sourceRelayProvider: Buffer;
+  deliveryVaaKey: VaaKey;
   targetChainId: number;
-  executionParameters: ExecutionParameters;
+  newRequestedReceiverValue: BigNumber;
+  newEncodedExecutionInfo: Buffer;
+  newSourceRelayProvider: Buffer;
+  newSenderAddress: Buffer;
 }
 
 type StringLeaves<Type> =
@@ -76,9 +76,9 @@ export type RedeliveryInstructionPrintable = {
   >;
 };
 
-export interface ExecutionParameters {
-  version: number;
+export interface EVMExecutionInfoV1 {
   gasLimit: number;
+  targetChainRefundPerGasUnused: BigNumber;
 }
 
 export enum VaaKeyType {
@@ -106,17 +106,9 @@ export function createVaaKey(
   sequence: number | BigNumber
 ): VaaKey {
   return {
-    infoType: VaaKeyType.EMITTER_SEQUENCE,
     chainId,
     emitterAddress,
     sequence: ethers.BigNumber.from(sequence),
-  };
-}
-
-export function createVaaKeyFromVaaHash(vaaHash: Buffer): VaaKey {
-  return {
-    infoType: VaaKeyType.VAAHASH,
-    vaaHash,
   };
 }
 
@@ -134,21 +126,33 @@ export function parseWormholeRelayerSend(bytes: Buffer): DeliveryInstruction {
   idx += 2;
   const targetAddress = bytes.slice(idx, idx + 32);
   idx += 32;
+
+  let payload: Buffer;
+  [payload, idx] = parsePayload(bytes, idx);
+
+  const requestedReceiverValue = ethers.BigNumber.from(
+    Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
+  );
+  idx += 32;
+
+  const extraReceiverValue = ethers.BigNumber.from(
+    Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
+  );
+  idx += 32;
+
+  let encodedExecutionInfo;
+  [encodedExecutionInfo, idx] = parsePayload(bytes, idx);
+  console.debug("DEBUG");
+  console.debug(encodedExecutionInfo);
+  console.debug(parseEVMExecutionInfoV1(encodedExecutionInfo, 0));
+
   const refundChainId = bytes.readUInt16BE(idx);
   idx += 2;
   const refundAddress = bytes.slice(idx, idx + 32);
   idx += 32;
-  const maximumRefundTarget = ethers.BigNumber.from(
-    Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
-  );
-  idx += 32;
-  const receiverValueTarget = ethers.BigNumber.from(
-    Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
-  );
+  const refundRelayProvider = bytes.slice(idx, idx + 32);
   idx += 32;
   const sourceRelayProvider = bytes.slice(idx, idx + 32);
-  idx += 32;
-  const targetRelayProvider = bytes.slice(idx, idx + 32);
   idx += 32;
   const senderAddress = bytes.slice(idx, idx + 32);
   idx += 32;
@@ -162,29 +166,19 @@ export function parseWormholeRelayerSend(bytes: Buffer): DeliveryInstruction {
     messages.push(res[0]);
   }
 
-  const consistencyLevel = bytes.readUInt8(idx);
-  idx += 1;
-
-  let res = parseWormholeRelayerExecutionParameters(bytes, idx);
-  const executionParameters = res[0];
-  idx = res[1];
-  let payload: Buffer;
-  [payload, idx] = parsePayload(bytes, idx);
-
   return {
     targetChainId,
     targetAddress,
+    payload,
+    requestedReceiverValue,
+    extraReceiverValue,
+    encodedExecutionInfo,
     refundChainId,
     refundAddress,
-    maximumRefundTarget,
-    receiverValueTarget,
+    refundRelayProvider,
     sourceRelayProvider,
-    targetRelayProvider,
     senderAddress,
-    vaaKeys: messages,
-    executionParameters,
-    consistencyLevel,
-    payload,
+    vaaKeys: messages
   };
 }
 
@@ -200,12 +194,6 @@ function parseVaaKey(bytes: Buffer, idx: number): [VaaKey, number] {
   const version = bytes.readUInt8(idx);
   idx += 1;
 
-  const infoType = bytes.readUInt8(idx) as VaaKeyType;
-  idx += 1;
-
-  dbg(infoType, "infoType");
-  if (infoType == VaaKeyType.EMITTER_SEQUENCE) {
-    dbg(null, "parsingEmitterSequence");
     const chainId = bytes.readUInt16BE(idx);
     idx += 2;
     const emitterAddress = bytes.slice(idx, idx + 32);
@@ -216,37 +204,31 @@ function parseVaaKey(bytes: Buffer, idx: number): [VaaKey, number] {
     idx += 8;
     return [
       {
-        infoType,
         chainId,
         emitterAddress,
         sequence,
       },
       idx,
     ];
-  } else if (infoType == VaaKeyType.VAAHASH) {
-    const vaaHash = bytes.slice(idx, idx + 32);
-    idx += 32;
-    return [
-      {
-        infoType,
-        vaaHash,
-      },
-      idx,
-    ];
-  } else {
-    throw new Error("Unexpected VaaKey payload type");
-  }
+  
 }
 
-function parseWormholeRelayerExecutionParameters(
+export function parseEVMExecutionInfoV1(
   bytes: Buffer,
   idx: number
-): [ExecutionParameters, number] {
+): [EVMExecutionInfoV1, number] {
   const version = bytes.readUInt8(idx);
   idx += 1;
+  if(version !== ExecutionInfoVersion.EVM_V1) {
+    throw new Error("Unexpected Execution Info version");
+  }
   const gasLimit = bytes.readUInt32BE(idx);
   idx += 4;
-  return [{ version, gasLimit }, idx];
+  const targetChainRefundPerGasUnused = ethers.BigNumber.from(
+    Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
+  );
+  idx += 32;
+  return [{ gasLimit, targetChainRefundPerGasUnused }, idx];
 }
 
 export function parseWormholeRelayerResend(
@@ -265,37 +247,39 @@ export function parseWormholeRelayerResend(
   const key = parsedKey[0];
   idx = parsedKey[1];
 
-  const newMaximumRefundTarget = ethers.BigNumber.from(
-    Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
-  );
-  idx += 32;
-
-  const newReceiverValueTarget = ethers.BigNumber.from(
-    Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
-  );
-  idx += 32;
-
-  const sourceRelayProvider = bytes.slice(idx, idx + 32);
-  idx += 32;
-
   const targetChainId: number = bytes.readUInt16BE(idx);
   idx += 2;
 
-  let parsedExecutionParams = parseWormholeRelayerExecutionParameters(
-    bytes,
-    idx
+  const newRequestedReceiverValue = ethers.BigNumber.from(
+    Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
   );
-  const executionParameters = parsedExecutionParams[0];
-  idx = parsedExecutionParams[1];
+  idx += 32;
 
+  let newEncodedExecutionInfo;
+  [newEncodedExecutionInfo, idx] = parsePayload(bytes, idx);
+
+
+  const newSourceRelayProvider = bytes.slice(idx, idx + 32);
+  idx += 32;
+
+
+  const newSenderAddress = bytes.slice(idx, idx + 32);
+  idx += 32;
   return {
-    key,
-    newMaximumRefundTarget,
-    newReceiverValueTarget,
-    sourceRelayProvider,
+    deliveryVaaKey: key,
     targetChainId,
-    executionParameters,
+    newRequestedReceiverValue,
+    newEncodedExecutionInfo,
+    newSourceRelayProvider,
+    newSenderAddress
   };
+}
+
+export function executionInfoToString(
+  encodedExecutionInfo: Buffer
+): string {
+  const [parsed,] = parseEVMExecutionInfoV1(encodedExecutionInfo, 0)
+  return `Gas limit: ${parsed.gasLimit}, Target chain refund per unit gas unused: ${parsed.targetChainRefundPerGasUnused}`;
 }
 
 export function deliveryInstructionsPrintable(
@@ -304,73 +288,52 @@ export function deliveryInstructionsPrintable(
   return {
     targetChainId: ix.targetChainId.toString(),
     targetAddress: ix.targetAddress.toString("hex"),
+    payload: ix.payload.toString("base64"),
+    requestedReceiverValue: ix.requestedReceiverValue.toString(),
+    extraReceiverValue: ix.requestedReceiverValue.toString(),
+    encodedExecutionInfo: executionInfoToString(ix.encodedExecutionInfo),
     refundChainId: ix.refundChainId.toString(),
     refundAddress: ix.refundAddress.toString("hex"),
-    maximumRefundTarget: ix.maximumRefundTarget.toString(),
-    receiverValueTarget: ix.receiverValueTarget.toString(),
+    refundRelayProvider: ix.refundRelayProvider.toString("hex"),
     sourceRelayProvider: ix.sourceRelayProvider.toString("hex"),
-    targetRelayProvider: ix.targetRelayProvider.toString("hex"),
     senderAddress: ix.senderAddress.toString("hex"),
     vaaKeys: ix.vaaKeys.map(vaaKeyPrintable),
-    consistencyLevel: ix.consistencyLevel.toString(),
-    executionParameters: {
-      gasLimit: ix.executionParameters.gasLimit.toString(),
-      version: ix.executionParameters.version.toString(),
-    },
-    payload: ix.payload.toString("base64"),
   };
 }
 
 export function vaaKeyPrintable(ix: VaaKey): StringLeaves<VaaKey> {
-  switch (ix.infoType) {
-    case VaaKeyType.EMITTER_SEQUENCE:
       return {
-        infoType: "EMITTER_SEQUENCE",
         chainId: ix.chainId?.toString(),
         emitterAddress: ix.emitterAddress?.toString("hex"),
         sequence: ix.sequence?.toString(),
       };
-    case VaaKeyType.VAAHASH:
-      return {
-        infoType: "VAAHASH",
-        vaaHash: ix.vaaHash?.toString("hex"),
-      };
-  }
 }
 
 export function redeliveryInstructionPrintable(
   ix: RedeliveryInstruction
 ): RedeliveryInstructionPrintable {
   return {
-    key: vaaKeyPrintable(ix.key),
-    newMaximumRefundTarget: ix.newMaximumRefundTarget.toString(),
-    newReceiverValueTarget: ix.newReceiverValueTarget.toString(),
-    sourceRelayProvider: ix.sourceRelayProvider.toString("hex"),
+    deliveryVaaKey: vaaKeyPrintable(ix.deliveryVaaKey),
     targetChainId: ix.targetChainId.toString(),
-    executionParameters: {
-      gasLimit: ix.executionParameters.gasLimit.toString(),
-      version: ix.executionParameters.version.toString(),
-    },
+    newRequestedReceiverValue: ix.newRequestedReceiverValue.toString(),
+    newEncodedExecutionInfo: executionInfoToString(ix.newEncodedExecutionInfo),
+    newSourceRelayProvider: ix.newSourceRelayProvider.toString("hex"),
+    newSenderAddress: ix.newSenderAddress.toString("hex")
   };
 }
 
 export type DeliveryOverrideArgs = {
-  gasLimit: number;
-  newMaximumRefundTarget: BigNumber;
-  newReceiverValueTarget: BigNumber;
+  newReceiverValue: BigNumber;
+  newExecutionInfo: Buffer;
   redeliveryHash: Buffer;
 };
 
 export function packOverrides(overrides: DeliveryOverrideArgs): string {
   const packed = [
-    ethers.utils.solidityPack(["uint8"], [1]).substring(2), //version
-    ethers.utils.solidityPack(["uint32"], [overrides.gasLimit]).substring(2),
     ethers.utils
-      .solidityPack(["uint256"], [overrides.newMaximumRefundTarget])
+      .solidityPack(["uint256"], [overrides.newReceiverValue])
       .substring(2),
-    ethers.utils
-      .solidityPack(["uint256"], [overrides.newReceiverValueTarget])
-      .substring(2),
+    overrides.newExecutionInfo.toString("hex"),
     overrides.redeliveryHash.toString("hex"), //toString('hex') doesn't add the 0x prefix
   ].join("");
 
@@ -397,26 +360,20 @@ export function parseOverrideInfoFromDeliveryEvent(
 ): DeliveryOverrideArgs {
   let idx = 0;
 
+  const newReceiverValue = ethers.BigNumber.from(
+    Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
+  );
+  idx += 32;
+
+  let newExecutionInfo: Buffer;
+  [newExecutionInfo, idx] = parsePayload(bytes, idx);
+
   const redeliveryHash = bytes.slice(idx, idx + 32);
   idx += 32;
 
-  const newMaximumRefundTarget = ethers.BigNumber.from(
-    Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
-  );
-  idx += 32;
-
-  const newReceiverValueTarget = ethers.BigNumber.from(
-    Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
-  );
-  idx += 32;
-
-  const gasLimit = bytes.readUInt32BE(idx);
-  idx += 4;
-
   return {
-    gasLimit,
-    newMaximumRefundTarget,
-    newReceiverValueTarget,
+    newReceiverValue,
+    newExecutionInfo,
     redeliveryHash
   };
 }

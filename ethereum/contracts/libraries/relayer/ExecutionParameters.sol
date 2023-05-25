@@ -42,7 +42,7 @@ function encodeEvmExecutionParamsV1(EvmExecutionParamsV1 memory executionParams)
     returns (bytes memory)
 {
     return abi.encode(
-        ExecutionParamsVersion.EVM_V1, executionParams.gasLimit
+        uint8(ExecutionParamsVersion.EVM_V1), executionParams.gasLimit
     );
 }
 
@@ -63,7 +63,7 @@ function encodeEvmExecutionInfoV1(EvmExecutionInfoV1 memory executionInfo)
     returns (bytes memory)
 {
     return abi.encode(
-        ExecutionParamsVersion.EVM_V1, executionInfo.gasLimit, executionInfo.targetChainRefundPerGasUnused
+        uint8(ExecutionInfoVersion.EVM_V1), executionInfo.gasLimit, executionInfo.targetChainRefundPerGasUnused
     );
 }
 
