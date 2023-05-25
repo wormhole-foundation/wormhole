@@ -1159,8 +1159,7 @@ function failInShutdownModeTests(shutdownMode: boolean, pass: number) {
               submitVaa,
             ]);
           } catch (e) {
-            const errorMsg: string = e.response.data.message;
-            expectedErrorFound = errorMsg.includes(
+            expectedErrorFound = e.message.includes(
               "transfers with payload can only be redeemed by the recipient"
             );
           }
@@ -1387,7 +1386,9 @@ function alwaysPassTests(shutdownMode: boolean, pass: number) {
             },
           });
           expect(result).toStrictEqual({
-            address: Buffer.from(FOREIGN_TOKEN_BRIDGE, "hex").toString("base64")
+            address: Buffer.from(FOREIGN_TOKEN_BRIDGE, "hex").toString(
+              "base64"
+            ),
           });
           done();
         } catch (e) {
