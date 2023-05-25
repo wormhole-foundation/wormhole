@@ -28,7 +28,7 @@ func handleQueryRequests(
 	chainQueryReqC map[vaa.ChainID]chan *gossipv1.SignedQueryRequest,
 	enableFlag bool,
 ) {
-	qLogger := logger.With(zap.String("component", "queryHandler"))
+	qLogger := logger.With(zap.String("component", "ccqhandler"))
 	if enableFlag {
 		qLogger.Info("cross chain queries are enabled")
 	}
@@ -39,7 +39,7 @@ func handleQueryRequests(
 			return
 		case signedQueryRequest := <-signedQueryReqC:
 			if !enableFlag {
-				qLogger.Debug("dropping query request, feature is not enabled")
+				qLogger.Error("received a query request when the feature is disabled, dropping it")
 				continue
 			}
 			// requestor validation happens here
