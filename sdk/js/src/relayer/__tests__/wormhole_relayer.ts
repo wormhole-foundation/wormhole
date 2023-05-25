@@ -82,7 +82,7 @@ const guardianIndices = ci?[0,1]:[0];
 
 const REASONABLE_GAS_LIMIT = 500000;
 const TOO_LOW_GAS_LIMIT = 10000;
-const REASONABLE_GAS_LIMIT_FORWARDS = 800000;
+const REASONABLE_GAS_LIMIT_FORWARDS = 900000;
 
 const getStatus = async (txHash: string, _sourceChain?: ChainName): Promise<string> => {
   const info = (await relayer.getWormholeRelayerInfo(
@@ -183,7 +183,7 @@ describe("Wormhole Relayer Tests", () => {
     const valueNeededOnTargetChain1 = await relayer.getPrice(targetChain, sourceChain, REASONABLE_GAS_LIMIT, optionalParams);
     const valueNeededOnTargetChain2 = await relayer.getPrice(targetChain, targetChain, REASONABLE_GAS_LIMIT, optionalParams);
 
-    const value = await relayer.getPrice(sourceChain, targetChain, 1000000, {receiverValue: valueNeededOnTargetChain1.add(valueNeededOnTargetChain2), ...optionalParams});
+    const value = await relayer.getPrice(sourceChain, targetChain, REASONABLE_GAS_LIMIT_FORWARDS, {receiverValue: valueNeededOnTargetChain1.add(valueNeededOnTargetChain2), ...optionalParams});
     console.log(`Quoted gas delivery fee: ${value}`);
 
 
@@ -191,7 +191,7 @@ describe("Wormhole Relayer Tests", () => {
       arbitraryPayload1,
       arbitraryPayload2,
       target.chainId,
-      1000000,
+      REASONABLE_GAS_LIMIT_FORWARDS,
       valueNeededOnTargetChain1.add(valueNeededOnTargetChain2),
       { value: value, gasLimit: REASONABLE_GAS_LIMIT }
     );
