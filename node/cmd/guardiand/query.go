@@ -2,6 +2,7 @@ package guardiand
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -21,6 +22,8 @@ func handleQueryRequests(
 	signedQueryReqC <-chan *gossipv1.SignedQueryRequest,
 	chainQueryReqC map[vaa.ChainID]chan *gossipv1.SignedQueryRequest,
 	allowedRequestors map[ethCommon.Address]struct{},
+	queryResponseReadC <-chan *common.QueryResponse,
+	queryResponseWriteC chan<- *common.QueryResponsePublication,
 	env common.Environment,
 ) {
 	qLogger := logger.With(zap.String("component", "ccqhandler"))
@@ -67,6 +70,7 @@ func handleQueryRequests(
 				select {
 				// TODO: only send the query request itself and reassemble in this module
 				case channel <- signedQueryRequest:
+					qLogger.Debug("forwarded query request to watcher", zap.Uint32("chainID", queryRequest.ChainId), zap.String("requestID", hex.EncodeToString(signedQueryRequest.Signature)))
 				default:
 					qLogger.Warn("failed to send query request to watcher",
 						zap.Uint16("chain_id", uint16(queryRequest.ChainId)))
@@ -74,6 +78,19 @@ func handleQueryRequests(
 			} else {
 				qLogger.Error("unknown chain ID for query request",
 					zap.Uint16("chain_id", uint16(queryRequest.ChainId)))
+			}
+
+		case resp := <-queryResponseReadC:
+			if resp.Success {
+				select {
+				case queryResponseWriteC <- resp.Msg:
+					qLogger.Debug("forwarded query response to p2p", zap.String("requestID", resp.RequestID()))
+					// TODO: Remove from cache.
+				default:
+					qLogger.Warn("failed to send query response to p2p, dropping it", zap.String("requestID", resp.RequestID()))
+				}
+			} else {
+				// TODO: Retry logic
 			}
 		}
 	}

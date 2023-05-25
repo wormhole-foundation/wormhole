@@ -100,7 +100,7 @@ type (
 		queryReqC <-chan *gossipv1.SignedQueryRequest
 
 		// Outbound query responses to query requests
-		queryResponseC chan<- *common.QueryResponsePublication
+		queryResponseC chan<- *common.QueryResponse
 
 		pending   map[pendingKey]*pendingMessage
 		pendingMu sync.Mutex
@@ -152,7 +152,7 @@ func NewEthWatcher(
 	setC chan<- *common.GuardianSet,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
 	queryReqC <-chan *gossipv1.SignedQueryRequest,
-	queryResponseC chan<- *common.QueryResponsePublication,
+	queryResponseC chan<- *common.QueryResponse,
 	unsafeDevMode bool,
 ) *Watcher {
 
@@ -674,13 +674,16 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						continue
 					}
 
-					queryResponse := common.QueryResponsePublication{
-						Request: signedQueryRequest,
-						Response: common.EthCallQueryResponse{
-							Number: blockResult.Number.ToInt(),
-							Hash:   blockResult.Hash,
-							Time:   time.Unix(int64(blockResult.Time), 0),
-							Result: callResult,
+					queryResponse := common.QueryResponse{
+						Success: true,
+						Msg: &common.QueryResponsePublication{
+							Request: signedQueryRequest,
+							Response: common.EthCallQueryResponse{
+								Number: blockResult.Number.ToInt(),
+								Hash:   blockResult.Hash,
+								Time:   time.Unix(int64(blockResult.Time), 0),
+								Result: callResult,
+							},
 						},
 					}
 
