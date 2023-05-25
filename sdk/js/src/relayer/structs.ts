@@ -214,11 +214,13 @@ export function parseEVMExecutionInfoV1(
   bytes: Buffer,
   idx: number
 ): [EVMExecutionInfoV1, number] {
+  idx += 31;
   const version = bytes.readUInt8(idx);
   idx += 1;
   if(version !== ExecutionInfoVersion.EVM_V1) {
     throw new Error("Unexpected Execution Info version");
   }
+  idx += 28;
   const gasLimit = bytes.readUInt32BE(idx);
   idx += 4;
   const targetChainRefundPerGasUnused = ethers.BigNumber.from(
