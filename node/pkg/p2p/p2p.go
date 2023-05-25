@@ -204,7 +204,7 @@ func Run(
 	components *Components,
 	ibcFeaturesFunc func() string,
 	gatewayRelayerEnabled bool,
-	ccqFeatures *string,
+	ccqEnabled bool,
 	signedQueryReqC chan<- *gossipv1.SignedQueryRequest,
 	queryResponseReadC <-chan *node_common.QueryResponsePublication,
 ) func(ctx context.Context) error {
@@ -386,8 +386,8 @@ func Run(
 						if gatewayRelayerEnabled {
 							features = append(features, "gwrelayer")
 						}
-						if ccqFeatures != nil && *ccqFeatures != "" {
-							features = append(features, *ccqFeatures)
+						if ccqEnabled {
+							features = append(features, "ccq")
 						}
 
 						heartbeat := &gossipv1.Heartbeat{
@@ -488,9 +488,13 @@ func Run(
 						logger.Info("published signed observation request", zap.Any("signed_observation_request", sReq))
 					}
 				case msg := <-queryResponseReadC:
+					if !ccqEnabled {
+						logger.Error("received a cross chain query response when the feature is disabled, dropping it", zap.String("component", "ccqp2p"))
+						continue
+					}
 					msgBytes, err := msg.Marshal()
 					if err != nil {
-						logger.Error("failed to marshal query response", zap.Error(err))
+						logger.Error("failed to marshal query response", zap.Error(err), zap.String("component", "ccqp2p"))
 						continue
 					}
 					digest := node_common.GetQueryResponseDigestFromBytes(msgBytes)
@@ -513,9 +517,9 @@ func Run(
 					err = th.Publish(ctx, b)
 					p2pMessagesSent.Inc()
 					if err != nil {
-						logger.Error("failed to publish query response", zap.Error(err))
+						logger.Error("failed to publish query response", zap.Error(err), zap.String("component", "ccqp2p"))
 					} else {
-						logger.Info("published signed query response", zap.Any("query_response", msg), zap.Any("signature", sig))
+						logger.Info("published signed query response", zap.Any("query_response", msg), zap.Any("signature", sig), zap.String("component", "ccqp2p"))
 					}
 				}
 			}
@@ -675,8 +679,12 @@ func Run(
 				}
 			case *gossipv1.GossipMessage_SignedQueryRequest:
 				if signedQueryReqC != nil {
-					if err := node_common.PostSignedQueryRequest(signedQueryReqC, m.SignedQueryRequest); err != nil {
-						logger.Warn("failed to handle query request", zap.Error(err))
+					if ccqEnabled {
+						if err := node_common.PostSignedQueryRequest(signedQueryReqC, m.SignedQueryRequest); err != nil {
+							logger.Warn("failed to handle query request", zap.Error(err), zap.String("component", "ccqp2p"))
+						}
+					} else {
+						logger.Debug("dropping cross chain query request because the feature is not enabled", zap.String("component", "ccqp2p"))
 					}
 				}
 			default:
