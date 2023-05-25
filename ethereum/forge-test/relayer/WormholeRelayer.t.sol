@@ -26,8 +26,8 @@ import {MockRelayerIntegration, XAddress} from "../../contracts/mock/relayer/Moc
 import {ForwardTester} from "./ForwardTester.sol";
 import {TestHelpers} from "./TestHelpers.sol";
 import {CoreRelayerSerde} from "../../contracts/relayer/coreRelayer/CoreRelayerSerde.sol";
-import {toWormholeFormat, fromWormholeFormat} from "../../contracts/relayer/coreRelayer/Utils.sol";
-import {BytesParsing} from "../../contracts/relayer/coreRelayer/BytesParsing.sol";
+import {toWormholeFormat, fromWormholeFormat} from "../../contracts/libraries/relayer/Utils.sol";
+import {BytesParsing} from "../../contracts/libraries/relayer/BytesParsing.sol";
 import "../../contracts/interfaces/relayer/TypedUnits.sol";
 
 import "forge-std/Test.sol";
@@ -43,6 +43,10 @@ contract WormholeRelayerTests is Test {
 
     uint16 MAX_UINT16_VALUE = 65535;
     uint96 MAX_UINT96_VALUE = 79228162514264337593543950335;
+
+    uint32 REASONABLE_GAS_LIMIT = 500000; 
+    uint32 REASONABLE_GAS_LIMIT_FORWARDS = 1000000; 
+    uint32 TOO_LOW_GAS_LIMIT = 10000;
 
     struct GasParameters {
         uint32 evmGasOverhead;
@@ -105,7 +109,6 @@ contract WormholeRelayerTests is Test {
     WormholeSimulator relayerWormholeSimulator;
     MockGenericRelayer genericRelayer;
     TestHelpers helpers;
-    CoreRelayer utilityCoreRelayer;
 
     function setUp() public {
         // deploy Wormhole
@@ -126,9 +129,6 @@ contract WormholeRelayerTests is Test {
 
         setUpChains(5);
 
-        utilityCoreRelayer = map[1].coreRelayerFull;
-
-        //
     }
 
     struct StandardSetupTwoChains {
@@ -182,24 +182,8 @@ contract WormholeRelayerTests is Test {
                             + feeParams.wormholeFeeOnSource
                     )
         );
-        vm.assume(gasParams.sourceGasPrice < (uint256(2) ** 238) / feeParams.sourceNativePrice);
+
         vm.assume(gasParams.targetGasLimit >= minTargetGasLimit);
-        vm.assume(
-            1
-                < (uint256(2) ** 238) / gasParams.targetGasLimit / gasParams.targetGasPrice
-                    / (uint256(feeParams.sourceNativePrice) / feeParams.targetNativePrice + 2)
-                    / gasParams.targetGasLimit
-        );
-        vm.assume(
-            1
-                < (uint256(2) ** 238) / gasParams.targetGasLimit / gasParams.sourceGasPrice
-                    / (uint256(0) + feeParams.targetNativePrice / feeParams.sourceNativePrice + 2)
-                    / gasParams.targetGasLimit
-        );
-        vm.assume(
-            feeParams.receiverValueTarget
-                < uint256(1) * (type(uint128).max) / feeParams.targetNativePrice
-        );
     }
 
     function standardAssumeAndSetupTwoChains(
@@ -338,11 +322,9 @@ contract WormholeRelayerTests is Test {
     ) internal pure returns (VaaKey[] memory vaaKeys) {
         vaaKeys = new VaaKey[](1);
         vaaKeys[0] = VaaKey(
-            VaaKeyType.EMITTER_SEQUENCE,
             chainId,
             toWormholeFormat(emitterAddress),
-            sequence,
-            bytes32(0x0)
+            sequence
         );
     }
 
@@ -355,20 +337,21 @@ contract WormholeRelayerTests is Test {
     ) internal pure returns (VaaKey[] memory vaaKeys) {
         vaaKeys = new VaaKey[](2);
         vaaKeys[0] = VaaKey(
-            VaaKeyType.EMITTER_SEQUENCE,
             chainId,
             toWormholeFormat(emitterAddress1),
-            sequence1,
-            bytes32(0x0)
+            sequence1
         );
         vaaKeys[1] = VaaKey(
-            VaaKeyType.EMITTER_SEQUENCE,
             chainId,
             toWormholeFormat(emitterAddress2),
-            sequence2,
-            bytes32(0x0)
+            sequence2
         );
     }
+
+    /**
+     * Basic Functionality Tests: Send, Forward, and Resend
+     * 
+     */
 
     function testSend(
         GasParameters memory gasParams,
@@ -376,30 +359,685 @@ contract WormholeRelayerTests is Test {
         bytes memory message
     ) public {
         StandardSetupTwoChains memory setup =
-            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
+            standardAssumeAndSetupTwoChains(gasParams, feeParams, REASONABLE_GAS_LIMIT);
 
         vm.recordLogs();
 
-        // estimate the cost based on the intialized values
-        uint256 maxTransactionFee = setup.source.coreRelayer.quoteGas(
-            setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
-        );
+        (uint256 deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChainId, 0, gasParams.targetGasLimit);
 
-        setup.source.integration.sendMessageWithRefundAddress{
-            value: maxTransactionFee + uint256(3) * setup.source.wormhole.messageFee()
+        setup.source.integration.sendMessage{
+            value: deliveryCost + setup.source.wormhole.messageFee()
         }(
             message,
             setup.targetChainId,
-            address(setup.target.integration),
-            address(setup.target.refundAddress),
-            bytes("")
+            gasParams.targetGasLimit,
+            0
         );
 
         genericRelayer.relay(setup.sourceChainId);
 
         assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
+        assertTrue(getDeliveryStatus() == IWormholeRelayerDelivery.DeliveryStatus.SUCCESS);
     }
 
+    
+    function testForward(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams,
+        bytes memory message,
+        bytes memory forwardedMessage
+    ) public {
+
+        StandardSetupTwoChains memory setup =
+            standardAssumeAndSetupTwoChains(gasParams, feeParams, REASONABLE_GAS_LIMIT);
+
+        (uint256 forwardDeliveryCost,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(setup.sourceChainId, 0, REASONABLE_GAS_LIMIT);
+        uint256 receiverValue = forwardDeliveryCost + setup.target.wormhole.messageFee();
+        vm.assume(receiverValue <= type(uint128).max);
+
+        (uint256 deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChainId, uint128(receiverValue), REASONABLE_GAS_LIMIT_FORWARDS);
+
+        vm.recordLogs();
+
+        setup.source.integration.sendMessageWithForwardedResponse{value: deliveryCost}(
+            message,
+            forwardedMessage,
+            setup.targetChainId,
+            REASONABLE_GAS_LIMIT_FORWARDS,
+            uint128(receiverValue)
+        );
+
+        genericRelayer.relay(setup.sourceChainId);
+
+        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
+
+        genericRelayer.relay(setup.targetChainId);
+
+        assertTrue(
+            keccak256(setup.source.integration.getMessage()) == keccak256(forwardedMessage)
+        );
+    }
+
+    
+
+    function testResend(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams,
+        bytes memory message
+    ) public {
+        StandardSetupTwoChains memory setup =
+            standardAssumeAndSetupTwoChains(gasParams, feeParams, REASONABLE_GAS_LIMIT);
+
+        vm.recordLogs();
+
+        vm.assume(keccak256(message) != keccak256(bytes("")));
+
+        (uint256 deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChainId, 0, TOO_LOW_GAS_LIMIT);
+
+        uint64 sequence = setup.source.integration.sendMessage{
+            value: deliveryCost + setup.source.wormhole.messageFee()
+        }(
+            message,
+            setup.targetChainId,
+            TOO_LOW_GAS_LIMIT,
+            0
+        );
+
+        genericRelayer.relay(setup.sourceChainId);
+
+        assertTrue(keccak256(setup.target.integration.getMessage()) != keccak256(message));
+        assertTrue(getDeliveryStatus() == IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE);
+
+        
+        (uint256 newDeliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChainId, 0, REASONABLE_GAS_LIMIT);
+
+        setup.source.integration.resend{
+            value: newDeliveryCost + setup.source.wormhole.messageFee()
+        }(
+            setup.sourceChainId,
+            sequence,
+            setup.targetChainId,
+            REASONABLE_GAS_LIMIT,
+            0
+        );
+
+        genericRelayer.relay(setup.sourceChainId);
+
+        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
+        assertTrue(getDeliveryStatus() == IWormholeRelayerDelivery.DeliveryStatus.SUCCESS);
+    }
+
+    /**
+     * More functionality tests
+     */
+
+    function testMultipleForwards(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams,
+        bytes memory message,
+        bytes memory forwardedMessage
+    ) public {
+        StandardSetupTwoChains memory setup =
+            standardAssumeAndSetupTwoChains(gasParams, feeParams, REASONABLE_GAS_LIMIT);
+
+        (uint256 firstForwardDeliveryCost,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(setup.sourceChainId, 0, REASONABLE_GAS_LIMIT);
+        (uint256 secondForwardDeliveryCost,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(setup.targetChainId, 0, REASONABLE_GAS_LIMIT);
+
+        uint256 receiverValue = firstForwardDeliveryCost + secondForwardDeliveryCost + 2 * setup.target.wormhole.messageFee();
+        vm.assume(receiverValue <= type(uint128).max);
+
+        (uint256 deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChainId, uint128(receiverValue), REASONABLE_GAS_LIMIT_FORWARDS*2);
+
+        vm.recordLogs();
+
+        setup.source.integration.sendMessageWithMultiForwardedResponse{value: deliveryCost}(
+            message,
+            forwardedMessage,
+            setup.targetChainId,
+            REASONABLE_GAS_LIMIT_FORWARDS*2,
+            uint128(receiverValue)
+        );
+
+        genericRelayer.relay(setup.sourceChainId);
+
+        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
+
+        genericRelayer.relay(setup.targetChainId);
+
+        assertTrue(keccak256(setup.source.integration.getMessage()) == keccak256(forwardedMessage));
+
+        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(forwardedMessage));
+    }
+
+    /**
+     * Funds correct test (testing each address receives the correct payment)
+     */
+
+    struct FundsCorrectTest {
+        uint256 refundAddressBalance;
+        uint256 relayerBalance;
+        uint256 rewardAddressBalance;
+        uint256 destinationBalance;
+        uint256 sourceContractBalance;
+        uint256 targetContractBalance;
+        uint128 receiverValue;
+        uint256 deliveryPrice;
+        uint256 targetChainRefundPerGasUnused;
+        uint32 gasAmount;
+        uint256 refundAddressAmount;
+        uint256 relayerPayment;
+        uint256 rewardAddressAmount;
+        uint256 destinationAmount;
+    }
+
+    function setupFundsCorrectTest(
+        GasParameters memory gasParams_,
+        FeeParameters memory feeParams_,
+        uint32 minGasLimit
+    )
+        public
+        returns (StandardSetupTwoChains memory s, FundsCorrectTest memory test)
+    {
+        s = standardAssumeAndSetupTwoChains(gasParams_, feeParams_, minGasLimit);
+
+        test.refundAddressBalance = s.target.refundAddress.balance;
+        test.relayerBalance = s.target.relayer.balance;
+        test.rewardAddressBalance = s.source.rewardAddress.balance;
+        test.destinationBalance = address(s.target.integration).balance;
+        test.sourceContractBalance = address(s.source.coreRelayer).balance;
+        test.targetContractBalance = address(s.target.coreRelayer).balance;
+        test.receiverValue = feeParams_.receiverValueTarget;
+        (test.deliveryPrice, test.targetChainRefundPerGasUnused) = s.source.coreRelayer.quoteEVMDeliveryPrice(s.targetChainId, test.receiverValue, gasParams_.targetGasLimit);
+        vm.assume(test.targetChainRefundPerGasUnused > 0);
+    }
+
+
+    function testFundsCorrectForASend(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams
+    ) public {
+        vm.recordLogs();
+        (StandardSetupTwoChains memory setup, FundsCorrectTest memory test) =
+            setupFundsCorrectTest(gasParams, feeParams, 170000);
+
+        setup.source.integration.sendMessageWithRefund{value: test.deliveryPrice + feeParams.wormholeFeeOnSource}(
+            bytes("Hello!"),
+            setup.targetChainId,
+            gasParams.targetGasLimit,
+            test.receiverValue,
+            setup.targetChainId,
+            setup.target.refundAddress
+        );
+
+        genericRelayer.relay(setup.sourceChainId);
+
+        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256("Hello!"));
+        assertTrue(getDeliveryStatus() == IWormholeRelayerDelivery.DeliveryStatus.SUCCESS);
+        DeliveryData memory deliveryData = setup.target.integration.getDeliveryData();
+
+        test.refundAddressAmount = setup.target.refundAddress.balance - test.refundAddressBalance;
+        test.rewardAddressAmount = setup.source.rewardAddress.balance - test.rewardAddressBalance;
+        test.relayerPayment = test.relayerBalance - setup.target.relayer.balance;
+        test.destinationAmount = address(setup.target.integration).balance - test.destinationBalance;
+
+        assertTrue(test.sourceContractBalance == address(setup.source.coreRelayer).balance);
+        assertTrue(test.targetContractBalance == address(setup.target.coreRelayer).balance);
+        assertTrue(
+            test.destinationAmount == test.receiverValue,
+            "Receiver value was sent to the contract"
+        );
+        assertTrue(
+            test.rewardAddressAmount == test.deliveryPrice,
+            "Reward address was paid correctly"
+        );
+        assertTrue(test.targetChainRefundPerGasUnused == deliveryData.targetChainRefundPerGasUnused, "Correct value of targetChainRefundPerGasUnused is reported to receiver in deliveryData");
+        
+        test.gasAmount = uint32(
+            gasParams.targetGasLimit - test.refundAddressAmount / test.targetChainRefundPerGasUnused
+        );
+        console.log(test.gasAmount);
+        assertTrue(
+            test.gasAmount >= 160000,
+            "Gas amount (calculated from refund address payment) lower than expected"
+        );
+        assertTrue(
+            test.gasAmount <= 170000,
+            "Gas amount (calculated from refund address payment) higher than expected"
+        );
+        assertTrue(
+            test.relayerPayment == test.destinationAmount + test.refundAddressAmount,
+            "Relayer paid the correct amount"
+        );
+    }
+
+    function testFundsCorrectForASendFailureDueToGasExceeded(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams
+    ) public {
+        vm.recordLogs();
+        gasParams.targetGasLimit = TOO_LOW_GAS_LIMIT;
+        (StandardSetupTwoChains memory setup, FundsCorrectTest memory test) =
+            setupFundsCorrectTest(gasParams, feeParams, 0);
+
+        setup.source.integration.sendMessageWithRefund{value: test.deliveryPrice + feeParams.wormholeFeeOnSource}(
+            bytes("Hello!"),
+            setup.targetChainId,
+            gasParams.targetGasLimit,
+            test.receiverValue,
+            setup.targetChainId,
+            setup.target.refundAddress
+        );
+
+        genericRelayer.relay(setup.sourceChainId);
+
+        assertTrue(keccak256(setup.target.integration.getMessage()) != keccak256(bytes("Hello!")));
+        assertTrue(getDeliveryStatus() == IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE);
+
+        test.refundAddressAmount = setup.target.refundAddress.balance - test.refundAddressBalance;
+        test.rewardAddressAmount = setup.source.rewardAddress.balance - test.rewardAddressBalance;
+        test.relayerPayment = test.relayerBalance - setup.target.relayer.balance;
+        test.destinationAmount = address(setup.target.integration).balance - test.destinationBalance;
+
+        assertTrue(test.sourceContractBalance == address(setup.source.coreRelayer).balance);
+        assertTrue(test.targetContractBalance == address(setup.target.coreRelayer).balance);
+        assertTrue(test.destinationAmount == 0, "No receiver value was sent to the contract");
+        assertTrue(
+            test.rewardAddressAmount == test.deliveryPrice,
+            "Reward address was paid correctly"
+        );
+        assertTrue(
+            test.refundAddressAmount
+                == test.receiverValue,
+            "Receiver value was refunded"
+        );
+        assertTrue(
+            test.relayerPayment == test.destinationAmount + test.refundAddressAmount,
+            "Relayer paid the correct amount"
+        );
+    }
+
+    function testFundsCorrectForASendFailureDueToRevert(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams
+    ) public {
+        vm.recordLogs();
+        (StandardSetupTwoChains memory setup, FundsCorrectTest memory test) =
+            setupFundsCorrectTest(gasParams, feeParams, REASONABLE_GAS_LIMIT_FORWARDS);
+
+        setup.target.relayProvider.updateSupportedChain(1, false);
+
+        setup.source.integration.sendMessageWithForwardedResponse{value: test.deliveryPrice + feeParams.wormholeFeeOnSource}(
+            bytes("Hello!"),
+            bytes("Forwarded Message"),
+            setup.targetChainId,
+            gasParams.targetGasLimit,
+            test.receiverValue,
+            setup.targetChainId,
+            setup.target.refundAddress
+        );
+
+        genericRelayer.relay(setup.sourceChainId);
+
+        assertTrue(keccak256(setup.target.integration.getMessage()) != keccak256(bytes("Hello!")));
+        assertTrue(getDeliveryStatus() == IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE);
+
+        test.refundAddressAmount = setup.target.refundAddress.balance - test.refundAddressBalance;
+        test.rewardAddressAmount = setup.source.rewardAddress.balance - test.rewardAddressBalance;
+        test.relayerPayment = test.relayerBalance - setup.target.relayer.balance;
+        test.destinationAmount = address(setup.target.integration).balance - test.destinationBalance;
+
+        assertTrue(test.sourceContractBalance == address(setup.source.coreRelayer).balance);
+        assertTrue(test.targetContractBalance == address(setup.target.coreRelayer).balance);
+        assertTrue(test.destinationAmount == 0, "No receiver value was sent to the contract");
+        assertTrue(
+            test.rewardAddressAmount == test.deliveryPrice,
+            "Reward address was paid correctly"
+        );
+        test.gasAmount = uint32(
+            gasParams.targetGasLimit - (test.refundAddressAmount - test.receiverValue) / test.targetChainRefundPerGasUnused
+        );
+        console.log(test.gasAmount);
+        assertTrue(
+            test.gasAmount >= 190000,
+            "Gas amount (calculated from refund address payment) lower than expected"
+        );
+        assertTrue(
+            test.gasAmount <= 210000,
+            "Gas amount (calculated from refund address payment) higher than expected"
+        );
+        assertTrue(
+            test.relayerPayment == test.destinationAmount + test.refundAddressAmount,
+            "Relayer paid the correct amount"
+        );
+    }
+
+    function testFundsCorrectForAForward(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams
+    ) public {
+        vm.recordLogs();
+        (StandardSetupTwoChains memory setup, FundsCorrectTest memory test) =
+            setupFundsCorrectTest(gasParams, feeParams, REASONABLE_GAS_LIMIT_FORWARDS);
+
+        (uint256 forwardDeliveryCost,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(setup.sourceChainId, 0, REASONABLE_GAS_LIMIT);
+        uint256 receiverValue = forwardDeliveryCost + setup.target.wormhole.messageFee();
+        vm.assume(receiverValue <= type(uint128).max);
+        vm.assume(feeParams.receiverValueTarget >= receiverValue);
+
+        uint256 rewardAddressBalanceTarget = setup.target.rewardAddress.balance;
+
+        setup.source.integration.sendMessageWithForwardedResponse{
+            value: test.deliveryPrice + feeParams.wormholeFeeOnSource
+        }(
+            bytes("Hello!"),
+            bytes("Forwarded Message!"),
+            setup.targetChainId,
+            gasParams.targetGasLimit,
+            test.receiverValue,
+            setup.targetChainId,
+            setup.target.refundAddress
+        );
+
+        genericRelayer.relay(setup.sourceChainId);
+
+        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(bytes("Hello!")));
+        DeliveryData memory deliveryData = setup.target.integration.getDeliveryData();
+
+        genericRelayer.relay(setup.targetChainId);
+
+        assertTrue(keccak256(setup.source.integration.getMessage()) == keccak256(bytes("Forwarded Message!")));
+
+        test.refundAddressAmount = setup.target.refundAddress.balance - test.refundAddressBalance;
+
+        test.rewardAddressAmount = setup.source.rewardAddress.balance - test.rewardAddressBalance;
+
+        test.relayerPayment = test.relayerBalance - setup.target.relayer.balance;
+
+        test.destinationAmount = test.destinationBalance - address(setup.target.integration).balance;
+
+        assertTrue(test.sourceContractBalance == address(setup.source.coreRelayer).balance, "Source contract has extra balance");
+        assertTrue(test.targetContractBalance == address(setup.target.coreRelayer).balance, "Target contract has extra balance");
+        assertTrue(test.refundAddressAmount == 0, "All refund amount was forwarded");
+        assertTrue(
+            test.destinationAmount == 0,
+            "All receiver amount was sent to forward"
+        );
+        assertTrue(
+            test.rewardAddressAmount == test.deliveryPrice,
+            "Source reward address was paid correctly"
+        );
+
+        uint256 refundIntermediate = (setup.target.rewardAddress.balance - rewardAddressBalanceTarget)
+           + feeParams.wormholeFeeOnTarget - test.receiverValue;
+
+        assertTrue(
+            test.targetChainRefundPerGasUnused == deliveryData.targetChainRefundPerGasUnused,
+            "Correct value of targetChainRefundPerGasUnused is reported to receiver in deliveryData"
+        );
+        test.gasAmount =
+            uint32(gasParams.targetGasLimit - refundIntermediate / test.targetChainRefundPerGasUnused);
+
+        console.log(test.gasAmount);
+
+        assertTrue(
+            test.relayerPayment == test.receiverValue + refundIntermediate,
+            "Relayer paid the correct amount"
+        );
+        assertTrue(
+            test.gasAmount >= 500000,
+            "Gas amount (calculated from refund address payment) lower than expected"
+        );
+        assertTrue(
+            test.gasAmount <= 600000,
+            "Gas amount (calculated from refund address payment) higher than expected"
+        );
+    }
+
+    function testFundsCorrectForAForwardFailure(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams
+    ) public {
+
+
+        feeParams.receiverValueTarget = 0;
+        vm.assume(
+            uint256(20) * feeParams.targetNativePrice * gasParams.targetGasPrice
+                < uint256(1) * feeParams.sourceNativePrice * gasParams.sourceGasPrice
+        );
+
+         vm.recordLogs();
+         gasParams.targetGasLimit = 600000;
+        (StandardSetupTwoChains memory setup, FundsCorrectTest memory test) =
+            setupFundsCorrectTest(gasParams, feeParams, 600000);
+
+        (uint256 forwardDeliveryCost,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(setup.sourceChainId, 0, TOO_LOW_GAS_LIMIT);
+        uint256 receiverValue = forwardDeliveryCost + setup.target.wormhole.messageFee();
+        vm.assume(receiverValue <= type(uint128).max);
+        vm.assume(feeParams.receiverValueTarget < receiverValue);
+
+        setup.source.integration.sendMessageWithForwardedResponse{
+            value: test.deliveryPrice + feeParams.wormholeFeeOnSource
+        }(
+            bytes("Hello!"),
+            bytes("Forwarded Message!"),
+            setup.targetChainId,
+            gasParams.targetGasLimit,
+            test.receiverValue,
+            setup.targetChainId,
+            setup.target.refundAddress
+        );
+
+        genericRelayer.relay(setup.sourceChainId);
+
+        assertTrue(keccak256(setup.target.integration.getMessage()) != keccak256(bytes("Hello!")));
+        assertTrue(getDeliveryStatus() == IWormholeRelayerDelivery.DeliveryStatus.FORWARD_REQUEST_FAILURE);
+
+        test.refundAddressAmount = setup.target.refundAddress.balance - test.refundAddressBalance;
+
+        test.rewardAddressAmount = setup.source.rewardAddress.balance - test.rewardAddressBalance;
+
+        test.relayerPayment = test.relayerBalance - setup.target.relayer.balance;
+
+        test.destinationAmount = test.destinationBalance - address(setup.target.integration).balance;
+
+        assertTrue(test.sourceContractBalance == address(setup.source.coreRelayer).balance, "Source contract has extra balance");
+        assertTrue(test.targetContractBalance == address(setup.target.coreRelayer).balance, "Target contract has extra balance");
+        assertTrue(
+            test.destinationAmount == 0,
+            "No receiver value was sent to contract"
+        );
+        assertTrue(
+            test.rewardAddressAmount == test.deliveryPrice,
+            "Source reward address was paid correctly"
+        );
+
+        test.gasAmount =
+            uint32(gasParams.targetGasLimit - (test.refundAddressAmount - test.receiverValue) / test.targetChainRefundPerGasUnused);
+
+        console.log(test.gasAmount);
+
+        assertTrue(
+            test.relayerPayment == test.refundAddressAmount,
+            "Relayer paid the correct amount"
+        );
+        assertTrue(
+            test.gasAmount >= 500000,
+            "Gas amount (calculated from refund address payment) lower than expected"
+        );
+        assertTrue(
+            test.gasAmount <= 600000,
+            "Gas amount (calculated from refund address payment) higher than expected"
+        );
+    }
+
+    function testFundsCorrectForAResend(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams
+    ) public {
+        vm.recordLogs();
+        (StandardSetupTwoChains memory setup, FundsCorrectTest memory test) =
+            setupFundsCorrectTest(gasParams, feeParams, 170000);
+
+        (uint256 notEnoughDeliveryPrice,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChainId, 0, TOO_LOW_GAS_LIMIT);
+
+        uint64 sequence = setup.source.integration.sendMessageWithRefund{value: notEnoughDeliveryPrice + feeParams.wormholeFeeOnSource}(
+            bytes("Hello!"),
+            setup.targetChainId,
+            TOO_LOW_GAS_LIMIT,
+            0,
+            setup.targetChainId,
+            setup.target.refundAddress
+        );
+
+        genericRelayer.relay(setup.sourceChainId);
+        assertTrue(keccak256(setup.target.integration.getMessage()) != keccak256(bytes("Hello!")));
+        assertTrue(getDeliveryStatus() == IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE);
+
+        (, test) =
+            setupFundsCorrectTest(gasParams, feeParams, 170000);
+
+
+        //call a resend for the orignal message
+        setup.source.integration.resend{
+            value: test.deliveryPrice + setup.source.wormhole.messageFee()
+        }(
+            setup.sourceChainId,
+            sequence,
+            setup.targetChainId,
+            gasParams.targetGasLimit,
+            test.receiverValue
+        );
+
+
+        genericRelayer.relay(setup.sourceChainId);
+
+
+        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(bytes("Hello!")));
+        assertTrue(getDeliveryStatus() == IWormholeRelayerDelivery.DeliveryStatus.SUCCESS);
+        DeliveryData memory deliveryData = setup.target.integration.getDeliveryData();
+
+        test.refundAddressAmount =  setup.target.refundAddress.balance - test.refundAddressBalance;
+        test.rewardAddressAmount =  setup.source.rewardAddress.balance - test.rewardAddressBalance;
+        test.relayerPayment = test.relayerBalance - setup.target.relayer.balance;
+        test.destinationAmount = address(setup.target.integration).balance - test.destinationBalance;
+
+        assertTrue(test.sourceContractBalance == address(setup.source.coreRelayer).balance);
+        assertTrue(test.targetContractBalance == address(setup.target.coreRelayer).balance);
+        console.log(test.destinationAmount);
+        console.log(feeParams.receiverValueTarget);
+        assertTrue(
+            test.destinationAmount == feeParams.receiverValueTarget,
+            "Receiver value was sent to the contract"
+        );
+        assertTrue(
+            test.rewardAddressAmount == test.deliveryPrice,
+            "Reward address was paid correctly"
+        );
+        test.gasAmount = uint32(
+            gasParams.targetGasLimit - test.refundAddressAmount / test.targetChainRefundPerGasUnused
+        );
+        assertTrue(test.targetChainRefundPerGasUnused == deliveryData.targetChainRefundPerGasUnused);
+        console.log(test.gasAmount);
+        assertTrue(
+            test.gasAmount >= 155000,
+            "Gas amount (calculated from refund address payment) lower than expected"
+        );
+        assertTrue(
+            test.gasAmount <= 170000,
+            "Gas amount (calculated from refund address payment) higher than expected"
+        );
+        assertTrue(
+            test.relayerPayment == test.destinationAmount + test.refundAddressAmount,
+            "Relayer paid the correct amount"
+        );
+    }
+
+    function testFundsCorrectForASendCrossChainRefund(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams
+    ) public {
+         vm.recordLogs();
+        (StandardSetupTwoChains memory setup, FundsCorrectTest memory test) =
+            setupFundsCorrectTest(gasParams, feeParams, 170000);
+
+
+        uint256 refundRewardAddressBalance = setup.target.rewardAddress.balance;
+        uint256 refundAddressBalance = setup.source.refundAddress.balance;
+
+        setup.source.integration.sendMessageWithRefund{value: test.deliveryPrice + feeParams.wormholeFeeOnSource}(
+            bytes("Hello!"),
+            setup.targetChainId,
+            gasParams.targetGasLimit,
+            test.receiverValue,
+            setup.sourceChainId,
+            setup.source.refundAddress
+        );
+
+        genericRelayer.relay(setup.sourceChainId);
+
+        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(bytes("Hello!")));
+        DeliveryData memory deliveryData = setup.target.integration.getDeliveryData();
+
+        genericRelayer.relay(setup.targetChainId);
+
+
+
+        assertTrue(
+            test.deliveryPrice
+                == setup.source.rewardAddress.balance - test.rewardAddressBalance,
+            "The source to target relayer's reward address was paid appropriately"
+        );
+        // Calculate maximum refund for source->target delivery, and check against Delivery Data
+        assertTrue(
+            test.targetChainRefundPerGasUnused == deliveryData.targetChainRefundPerGasUnused,
+            "Correct value of targetChainRefundPerGasUnused is reported to receiver in deliveryData"
+        );
+        uint256 amountToGetInRefundTarget =
+            (setup.target.rewardAddress.balance - refundRewardAddressBalance);
+        
+        
+        uint256 refundSource = 0;
+        (uint256 baseFee,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(setup.sourceChainId, 0, 0);
+        
+        vm.assume(amountToGetInRefundTarget > baseFee );
+        if (amountToGetInRefundTarget > baseFee ) {
+            refundSource = setup.target.coreRelayer.quoteAssetConversion(setup.sourceChainId, 
+                uint128(amountToGetInRefundTarget - baseFee), setup.target.coreRelayer.getDefaultRelayProvider()
+            );
+        }
+
+        // Calculate amount that must have been spent on gas, by reverse engineering from the amount that was paid to the provider's reward address on the target chain
+        test.gasAmount = uint32(
+            gasParams.targetGasLimit
+                - (amountToGetInRefundTarget + feeParams.wormholeFeeOnTarget)
+                    / deliveryData.targetChainRefundPerGasUnused
+        );
+        test.relayerPayment = test.relayerBalance - setup.target.relayer.balance;
+        test.destinationAmount = address(setup.target.integration).balance - test.destinationBalance;
+
+        assertTrue(
+            test.destinationAmount == feeParams.receiverValueTarget,
+            "Receiver value was sent to the contract"
+        );
+        assertTrue(
+            test.relayerPayment == amountToGetInRefundTarget + feeParams.wormholeFeeOnTarget + feeParams.receiverValueTarget,
+            "Relayer paid the correct amount"
+        );
+        assertTrue(
+            refundSource == setup.source.refundAddress.balance - refundAddressBalance,
+            "Refund wasn't the correct amount"
+        );
+        assertTrue(
+            test.gasAmount >= 160000,
+            "Gas amount (calculated from refund address payment) lower than expected"
+        );
+        assertTrue(
+            test.gasAmount <= 170000,
+            "Gas amount (calculated from refund address payment) higher than expected"
+        );
+    }
+
+    /*
     function testSendCheckConsistencyLevel(
         GasParameters memory gasParams,
         FeeParameters memory feeParams
@@ -558,533 +1196,9 @@ contract WormholeRelayerTests is Test {
         assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
     }
 
-    function testNoFundsLostForASend(
-        GasParameters memory gasParams,
-        FeeParameters memory feeParams,
-        bytes memory message
-    ) public {
-        StandardSetupTwoChains memory setup =
-            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
+    
 
-        vm.recordLogs();
-
-        uint256 refundAddressBalance = setup.target.refundAddress.balance;
-        uint256 relayerBalance = setup.target.relayer.balance;
-        uint256 rewardAddressBalance = setup.source.rewardAddress.balance;
-        uint256 receiverValueSource = setup.source.coreRelayer.quoteReceiverValue(
-            setup.targetChainId, feeParams.receiverValueTarget, address(setup.source.relayProvider)
-        );
-        uint256 receiverValueTargetActual = (
-            receiverValueSource * feeParams.sourceNativePrice * 100
-                / (uint256(1) * feeParams.targetNativePrice * 105)
-        );
-
-        uint256 payment = setup.source.coreRelayer.quoteGas(
-            setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
-        ) + uint256(3) * setup.source.wormhole.messageFee() + receiverValueSource;
-
-        setup.source.integration.sendMessageGeneral{value: payment}(
-            message,
-            setup.targetChainId,
-            address(setup.target.integration),
-            setup.targetChainId,
-            address(setup.target.refundAddress),
-            receiverValueSource,
-            bytes("")
-        );
-
-        genericRelayer.relay(setup.sourceChainId);
-
-        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
-
-        console.log("refund addr diff", (setup.target.refundAddress.balance - refundAddressBalance));
-        console.log("relayer bal diff", (relayerBalance - setup.target.relayer.balance));
-        console.log("reward bal diff", (setup.source.rewardAddress.balance - rewardAddressBalance));
-        uint256 USDcost = (
-            uint256(payment) - uint256(3) * map[setup.sourceChainId].wormhole.messageFee()
-        ) * feeParams.sourceNativePrice
-            - (setup.target.refundAddress.balance - refundAddressBalance) * feeParams.targetNativePrice;
-        uint256 relayerProfit = uint256(feeParams.sourceNativePrice)
-            * (setup.source.rewardAddress.balance - rewardAddressBalance)
-            - feeParams.targetNativePrice * (relayerBalance - setup.target.relayer.balance);
-
-        console.log("relayerProfit", relayerProfit);
-        uint256 howMuchGasRelayerCouldHavePaidForAndStillProfited =
-            relayerProfit / gasParams.targetGasPrice / feeParams.targetNativePrice;
-        console.log(
-            "howMuchGasRelayerCouldHavePaidForAndStillProfited",
-            howMuchGasRelayerCouldHavePaidForAndStillProfited
-        );
-        assertTrue(howMuchGasRelayerCouldHavePaidForAndStillProfited >= 200_000); // takes around this much gas (seems to go from 36k-200k?!?)
-        console.log("how much Gas ");
-        assertTrue(
-            USDcost - (relayerProfit + (receiverValueTargetActual * feeParams.targetNativePrice))
-                == 0,
-            "We did not lose any funds"
-        );
-        console.log("we did not lose any funds revert");
-    }
-
-    struct FundsCorrectTest {
-        uint256 refundAddressBalance;
-        uint256 relayerBalance;
-        uint256 rewardAddressBalance;
-        uint256 destinationBalance;
-        uint256 sourceContractBalance;
-        uint256 targetContractBalance;
-        uint256 overhead;
-        uint256 receiverValueSource;
-        uint256 transactionFee;
-        uint256 payment;
-        uint256 maximumRefundTarget;
-        uint32 gasAmount;
-        uint256 refundAddressAmount;
-        uint256 relayerPayment;
-        uint256 rewardAddressAmount;
-        uint256 destinationAmount;
-    }
-
-    function setupFundsCorrectTest(
-        GasParameters memory gasParams_,
-        FeeParameters memory feeParams_,
-        uint32 minGasLimit
-    )
-        public
-        returns (Contracts memory source, Contracts memory target, FundsCorrectTest memory test)
-    {
-        standardAssume(gasParams_, feeParams_, minGasLimit);
-        GasParametersTyped memory gasParams = toGasParametersTyped(gasParams_);
-        FeeParametersTyped memory feeParams = toFeeParamtersTyped(feeParams_);
-
-        source = map[1];
-        target = map[2];
-
-        vm.deal(source.relayer, type(uint256).max / 2);
-        vm.deal(target.relayer, type(uint256).max / 2);
-        vm.deal(address(this), type(uint256).max / 2);
-        vm.deal(address(source.integration), type(uint256).max / 2);
-        vm.deal(address(target.integration), type(uint256).max / 2);
-
-        source.relayProvider.updatePrice(1, gasParams.sourceGasPrice, feeParams.sourceNativePrice);
-        source.relayProvider.updatePrice(2, gasParams.targetGasPrice, feeParams.targetNativePrice);
-        target.relayProvider.updatePrice(1, gasParams.sourceGasPrice, feeParams.sourceNativePrice);
-        target.relayProvider.updatePrice(2, gasParams.targetGasPrice, feeParams.targetNativePrice);
-
-        source.relayProvider.updateDeliverGasOverhead(2, gasParams.evmGasOverhead);
-        target.relayProvider.updateDeliverGasOverhead(1, gasParams.evmGasOverhead);
-
-        source.wormholeSimulator.setMessageFee(feeParams_.wormholeFeeOnSource);
-        target.wormholeSimulator.setMessageFee(feeParams_.wormholeFeeOnTarget);
-
-        test.refundAddressBalance = target.refundAddress.balance;
-        test.relayerBalance = target.relayer.balance;
-        test.rewardAddressBalance = source.rewardAddress.balance;
-        test.destinationBalance = address(target.integration).balance;
-        test.sourceContractBalance = address(source.coreRelayer).balance;
-        test.targetContractBalance = address(target.coreRelayer).balance;
-
-        test.receiverValueSource = source.coreRelayer.quoteReceiverValue(
-            2, feeParams_.receiverValueTarget, address(source.relayProvider)
-        );
-        test.transactionFee =
-            source.coreRelayer.quoteGas(2, gasParams_.targetGasLimit, address(source.relayProvider));
-        test.overhead = Wei.unwrap(
-            IRelayProvider(source.coreRelayer.getDefaultRelayProvider()).quoteDeliveryOverhead(2)
-        );
-    }
-
-    function testFundsCorrectForASend(
-        GasParameters memory gasParams,
-        FeeParameters memory feeParams
-    ) public {
-        vm.recordLogs();
-        (Contracts memory source, Contracts memory target, FundsCorrectTest memory test) =
-            setupFundsCorrectTest(gasParams, feeParams, 215000);
-
-        test.payment = test.transactionFee + uint256(3) * source.wormhole.messageFee()
-            + test.receiverValueSource;
-
-        uint256 actualGasLimit = (
-            test.transactionFee - source.relayProvider.quoteDeliveryOverhead(2).unwrap()
-        ) / source.relayProvider.quoteGasPrice(2).unwrap();
-        if (actualGasLimit > type(uint32).max) {
-            actualGasLimit = type(uint32).max;
-        }
-
-        source.integration.sendMessageGeneral{value: test.payment}(
-            bytes("Hello!"),
-            2,
-            address(target.integration),
-            2,
-            address(target.refundAddress),
-            test.receiverValueSource,
-            bytes("")
-        );
-
-        genericRelayer.relay(1);
-
-        assertTrue(keccak256(target.integration.getMessage()) == keccak256(bytes("Hello!")));
-        DeliveryData memory deliveryData = target.integration.getDeliveryData();
-
-        test.refundAddressAmount = target.refundAddress.balance - test.refundAddressBalance;
-        test.rewardAddressAmount = source.rewardAddress.balance - test.rewardAddressBalance;
-        test.relayerPayment = test.relayerBalance - target.relayer.balance;
-        test.destinationAmount = address(target.integration).balance - test.destinationBalance;
-
-        assertTrue(test.sourceContractBalance == address(source.coreRelayer).balance);
-        assertTrue(test.targetContractBalance == address(target.coreRelayer).balance);
-        assertTrue(
-            test.destinationAmount >= feeParams.receiverValueTarget,
-            "Receiver value was sent to the contract"
-        );
-        assertTrue(
-            test.destinationAmount
-                == test.receiverValueSource * feeParams.sourceNativePrice * 100
-                    / (uint256(1) * feeParams.targetNativePrice * 105),
-            "Receiver value was the right amount"
-        );
-        assertTrue(
-            test.rewardAddressAmount == test.transactionFee + test.receiverValueSource,
-            "Reward address was paid correctly"
-        );
-        test.maximumRefundTarget = (test.transactionFee - test.overhead)
-            * feeParams.sourceNativePrice * 100 / (uint256(1) * feeParams.targetNativePrice * 105);
-        test.gasAmount = uint32(
-            actualGasLimit - test.refundAddressAmount * actualGasLimit / test.maximumRefundTarget
-        );
-        assertTrue(test.maximumRefundTarget == deliveryData.maximumRefund);
-        console.log(test.gasAmount);
-        assertTrue(
-            test.gasAmount >= 200000,
-            "Gas amount (calculated from refund address payment) lower than expected"
-        );
-        assertTrue(
-            test.gasAmount <= 215000,
-            "Gas amount (calculated from refund address payment) higher than expected"
-        );
-        assertTrue(
-            test.relayerPayment == test.destinationAmount + test.refundAddressAmount,
-            "Relayer paid the correct amount"
-        );
-    }
-
-    function testFundsCorrectForASendFailureDueToGasExceeded(
-        GasParameters memory gasParams,
-        FeeParameters memory feeParams
-    ) public {
-        vm.recordLogs();
-        gasParams.targetGasLimit = 123000;
-        (Contracts memory source, Contracts memory target, FundsCorrectTest memory test) =
-            setupFundsCorrectTest(gasParams, feeParams, 10000);
-
-        test.payment = test.transactionFee + uint256(3) * source.wormhole.messageFee()
-            + test.receiverValueSource;
-
-        uint256 actualGasLimit = (
-            test.transactionFee - source.relayProvider.quoteDeliveryOverhead(2).unwrap()
-        ) / source.relayProvider.quoteGasPrice(2).unwrap();
-        if (actualGasLimit > type(uint32).max) {
-            actualGasLimit = type(uint32).max;
-        }
-
-        source.integration.sendMessageGeneral{value: test.payment}(
-            bytes("Hello!"),
-            2,
-            address(target.integration),
-            2,
-            address(target.refundAddress),
-            test.receiverValueSource,
-            bytes("")
-        );
-
-        genericRelayer.relay(1);
-
-        assertTrue(keccak256(target.integration.getMessage()) != keccak256(bytes("Hello!")));
-
-        test.refundAddressAmount = target.refundAddress.balance - test.refundAddressBalance;
-        test.rewardAddressAmount = source.rewardAddress.balance - test.rewardAddressBalance;
-        test.relayerPayment = test.relayerBalance - target.relayer.balance;
-        test.destinationAmount = address(target.integration).balance - test.destinationBalance;
-
-        assertTrue(test.sourceContractBalance == address(source.coreRelayer).balance);
-        assertTrue(test.targetContractBalance == address(target.coreRelayer).balance);
-        assertTrue(test.destinationAmount == 0, "No receiver value was sent to the contract");
-        assertTrue(
-            test.rewardAddressAmount == test.transactionFee + test.receiverValueSource,
-            "Reward address was paid correctly"
-        );
-        assertTrue(
-            test.refundAddressAmount
-                == test.receiverValueSource * feeParams.sourceNativePrice * 100
-                    / (uint256(1) * feeParams.targetNativePrice * 105),
-            "Receiver value was refunded"
-        );
-        assertTrue(
-            test.relayerPayment == test.destinationAmount + test.refundAddressAmount,
-            "Relayer paid the correct amount"
-        );
-    }
-
-    function testFundsCorrectForASendFailureDueToRevert(
-        GasParameters memory gasParams,
-        FeeParameters memory feeParams
-    ) public {
-        vm.recordLogs();
-        (Contracts memory source, Contracts memory target, FundsCorrectTest memory test) =
-            setupFundsCorrectTest(gasParams, feeParams, 210000);
-
-        target.relayProvider.updateSupportedChain(1, false);
-        test.payment = source.coreRelayer.quoteGas(2, 1000000, address(source.relayProvider))
-            + uint256(3) * feeParams.wormholeFeeOnSource;
-        test.transactionFee = test.payment - uint256(3) * feeParams.wormholeFeeOnSource;
-
-        vm.assume(test.payment + test.receiverValueSource < uint256(2) ** 222);
-        vm.assume(
-            uint256(2) ** 255 / feeParams.sourceNativePrice
-                > test.receiverValueSource * uint256(100)
-        );
-
-        uint256 actualGasLimit = (
-            test.transactionFee - source.relayProvider.quoteDeliveryOverhead(2).unwrap()
-        ) / source.relayProvider.quoteGasPrice(2).unwrap();
-        if (actualGasLimit > type(uint32).max) {
-            actualGasLimit = type(uint32).max;
-        }
-
-        source.integration.sendMessageWithForwardedResponse{
-            value: test.payment + test.receiverValueSource
-        }(
-            bytes("Hello!"),
-            2,
-            address(target.integration),
-            address(target.refundAddress),
-            test.receiverValueSource
-        );
-
-        genericRelayer.relay(1);
-
-        assertTrue(keccak256(target.integration.getMessage()) != keccak256(bytes("Hello!")));
-
-        test.refundAddressAmount = target.refundAddress.balance - test.refundAddressBalance;
-        test.rewardAddressAmount = source.rewardAddress.balance - test.rewardAddressBalance;
-        test.relayerPayment = test.relayerBalance - target.relayer.balance;
-        test.destinationAmount = address(target.integration).balance - test.destinationBalance;
-
-        assertTrue(test.sourceContractBalance == address(source.coreRelayer).balance);
-        assertTrue(test.targetContractBalance == address(target.coreRelayer).balance);
-        assertTrue(test.destinationAmount == 0, "No receiver value was sent to the contract");
-        assertTrue(
-            test.rewardAddressAmount == test.transactionFee + test.receiverValueSource,
-            "Reward address was paid correctly"
-        );
-        uint256 transactionFeeRefundAmount = test.refundAddressAmount
-            - test.receiverValueSource * feeParams.sourceNativePrice * 100
-                / (uint256(1) * feeParams.targetNativePrice * 105);
-        test.maximumRefundTarget = (test.transactionFee - test.overhead)
-            * feeParams.sourceNativePrice * 100 / (uint256(1) * feeParams.targetNativePrice * 105);
-        test.gasAmount = uint32(
-            actualGasLimit - transactionFeeRefundAmount * actualGasLimit / test.maximumRefundTarget
-        );
-        assertTrue(
-            test.gasAmount >= 250000,
-            "Gas amount (calculated from refund address payment) lower than expected"
-        );
-        assertTrue(
-            test.gasAmount <= 350000,
-            "Gas amount (calculated from refund address payment) higher than expected"
-        );
-        assertTrue(
-            test.relayerPayment == test.destinationAmount + test.refundAddressAmount,
-            "Relayer paid the correct amount"
-        );
-    }
-
-    function testFundsCorrectForAForwardFailure(
-        GasParameters memory gasParams,
-        FeeParameters memory feeParams
-    ) public {
-        vm.recordLogs();
-
-        (Contracts memory source, Contracts memory target, FundsCorrectTest memory test) =
-            setupFundsCorrectTest(gasParams, feeParams, 1000000);
-
-        vm.assume(
-            feeParams.receiverValueTarget
-                < target.coreRelayer.quoteGas(1, 500000, address(target.relayProvider))
-        );
-        vm.assume(
-            uint256(10) * feeParams.targetNativePrice * gasParams.targetGasPrice
-                < uint256(1) * feeParams.sourceNativePrice * gasParams.sourceGasPrice
-        );
-
-        test.payment = source.coreRelayer.quoteGas(2, 1000000, address(source.relayProvider))
-            + uint256(3) * feeParams.wormholeFeeOnSource;
-        test.transactionFee = test.payment - uint256(3) * feeParams.wormholeFeeOnSource;
-
-        vm.assume(test.payment + test.receiverValueSource < uint256(2) ** 222);
-        vm.assume(
-            uint256(2) ** 255 / feeParams.sourceNativePrice
-                > test.receiverValueSource * uint256(100)
-        );
-
-        uint256 actualGasLimit = (
-            test.transactionFee - source.relayProvider.quoteDeliveryOverhead(2).unwrap()
-        ) / source.relayProvider.quoteGasPrice(2).unwrap();
-        if (actualGasLimit > type(uint32).max) {
-            actualGasLimit = type(uint32).max;
-        }
-
-        source.integration.sendMessageWithForwardedResponse{
-            value: test.payment + test.receiverValueSource
-        }(
-            bytes("Hello!"),
-            2,
-            address(target.integration),
-            address(target.refundAddress),
-            test.receiverValueSource
-        );
-
-        genericRelayer.relay(1);
-        console.log("done");
-
-        assertTrue(keccak256(target.integration.getMessage()) != keccak256(bytes("Hello!")));
-
-        test.refundAddressAmount = target.refundAddress.balance - test.refundAddressBalance;
-        test.rewardAddressAmount = source.rewardAddress.balance - test.rewardAddressBalance;
-        test.relayerPayment = test.relayerBalance - target.relayer.balance;
-        test.destinationAmount = address(target.integration).balance - test.destinationBalance;
-
-        assertTrue(test.sourceContractBalance == address(source.coreRelayer).balance);
-        assertTrue(test.targetContractBalance == address(target.coreRelayer).balance);
-        assertTrue(test.destinationAmount == 0, "No receiver value was sent to the contract");
-        assertTrue(
-            test.rewardAddressAmount == test.transactionFee + test.receiverValueSource,
-            "Reward address was paid correctly"
-        );
-        uint256 refundIntermediate = test.refundAddressAmount
-            - test.receiverValueSource * feeParams.sourceNativePrice * 100
-                / (uint256(1) * feeParams.targetNativePrice * 105);
-        test.maximumRefundTarget = (test.transactionFee - test.overhead)
-            * feeParams.sourceNativePrice * 100 / (uint256(1) * feeParams.targetNativePrice * 105);
-        test.gasAmount =
-            uint32(actualGasLimit - refundIntermediate * actualGasLimit / test.maximumRefundTarget);
-        assertTrue(
-            test.gasAmount >= 500000,
-            "Gas amount (calculated from refund address payment) lower than expected"
-        );
-        assertTrue(
-            test.gasAmount <= 650000,
-            "Gas amount (calculated from refund address payment) higher than expected"
-        );
-
-        assertTrue(
-            test.relayerPayment == test.destinationAmount + test.refundAddressAmount,
-            "Relayer paid the correct amount"
-        );
-    }
-
-    function testFundsCorrectForAForward(
-        GasParameters memory gasParams,
-        FeeParameters memory feeParams
-    ) public {
-        vm.recordLogs();
-        (Contracts memory source, Contracts memory target, FundsCorrectTest memory test) =
-            setupFundsCorrectTest(gasParams, feeParams, 1000000);
-
-        test.payment = assumeAndGetForwardPayment(
-            gasParams.targetGasLimit,
-            500000,
-            StandardSetupTwoChains({
-                source: source,
-                target: target,
-                sourceChainId: 1,
-                targetChainId: 2,
-                differentChainId: 3
-            }),
-            gasParams,
-            feeParams
-        );
-        vm.assume(test.payment + test.receiverValueSource < uint256(2) ** 222);
-        test.transactionFee = test.payment - uint256(3) * feeParams.wormholeFeeOnSource;
-        uint256 actualGasLimit = (
-            test.transactionFee - source.relayProvider.quoteDeliveryOverhead(2).unwrap()
-        ) / source.relayProvider.quoteGasPrice(2).unwrap();
-        if (actualGasLimit > type(uint32).max) {
-            actualGasLimit = type(uint32).max;
-        }
-        uint256 rewardAddressBalanceTarget = target.rewardAddress.balance;
-
-        source.integration.sendMessageWithForwardedResponse{
-            value: test.payment + test.receiverValueSource
-        }(
-            bytes("Hello!"),
-            2,
-            address(target.integration),
-            address(target.refundAddress),
-            test.receiverValueSource
-        );
-        genericRelayer.relay(1);
-        assertTrue(keccak256(target.integration.getMessage()) == keccak256(bytes("Hello!")));
-        DeliveryData memory deliveryData = target.integration.getDeliveryData();
-
-        genericRelayer.relay(2);
-        assertTrue(keccak256(source.integration.getMessage()) == keccak256(bytes("received!")));
-
-        test.refundAddressAmount = target.refundAddress.balance - test.refundAddressBalance;
-
-        test.rewardAddressAmount = source.rewardAddress.balance - test.rewardAddressBalance;
-
-        test.relayerPayment = test.relayerBalance - target.relayer.balance;
-
-        test.destinationAmount = test.destinationBalance - address(target.integration).balance;
-
-        assertTrue(test.sourceContractBalance == address(source.coreRelayer).balance);
-        assertTrue(test.targetContractBalance == address(target.coreRelayer).balance);
-        assertTrue(test.refundAddressAmount == 0, "All refund amount was forwarded");
-        assertTrue(
-            test.destinationAmount == uint256(2) * feeParams.wormholeFeeOnTarget,
-            "All receiver amount was sent to forward"
-        );
-        //assertTrue(test.destinationAmount >= feeParams.receiverValueTarget, "Receiver value was sent to the contract");
-        //assertTrue(test.destinationAmount == test.receiverValueSource * feeParams.sourceNativePrice * 100 / (uint256(1) * feeParams.targetNativePrice * 105), "Receiver value was the right amount");
-        assertTrue(
-            test.rewardAddressAmount == test.transactionFee + test.receiverValueSource,
-            "Reward address was paid correctly"
-        );
-
-        uint256 receiverValueTargetActual = (
-            test.receiverValueSource * feeParams.sourceNativePrice * 100
-                / (uint256(1) * feeParams.targetNativePrice * 105)
-        );
-
-        uint256 refundIntermediate = (target.rewardAddress.balance - rewardAddressBalanceTarget)
-            - receiverValueTargetActual + feeParams.wormholeFeeOnTarget;
-
-        test.maximumRefundTarget = (test.transactionFee - test.overhead)
-            * feeParams.sourceNativePrice * 100 / (uint256(1) * feeParams.targetNativePrice * 105);
-
-        assertTrue(
-            test.maximumRefundTarget == deliveryData.maximumRefund,
-            "Maximum refund calculated incorrectly"
-        );
-        test.gasAmount =
-            uint32(actualGasLimit - refundIntermediate * actualGasLimit / test.maximumRefundTarget);
-
-        assertTrue(
-            test.relayerPayment == receiverValueTargetActual + refundIntermediate,
-            "Relayer paid the correct amount"
-        );
-        assertTrue(
-            test.gasAmount >= 500000,
-            "Gas amount (calculated from refund address payment) lower than expected"
-        );
-        assertTrue(
-            test.gasAmount <= 650000,
-            "Gas amount (calculated from refund address payment) higher than expected"
-        );
-    }
-
-    function testXNoFundsLostForASendCrossChainRefund(
+    function testNoFundsLostForASendCrossChainRefund(
         GasParameters memory gasParams,
         FeeParameters memory feeParams,
         bytes memory message
@@ -1146,92 +1260,7 @@ contract WormholeRelayerTests is Test {
         );
     }
 
-    function testFundsCorrectForASendCrossChainRefund(
-        GasParameters memory gasParams,
-        FeeParameters memory feeParams
-    ) public {
-        (Contracts memory source, Contracts memory target, FundsCorrectTest memory test) =
-            setupFundsCorrectTest(gasParams, feeParams, 215000);
-
-        vm.recordLogs();
-
-        // Transaction fee enough to pay for source->target (215000 gas), wormhole fee on target, and target->source (1 gas)
-        test.transactionFee = test.transactionFee
-            + (
-                (
-                    target.coreRelayer.quoteGas(1, 1, address(target.relayProvider))
-                        + target.wormhole.messageFee()
-                ) * 105 / 100 + 1
-            ) * feeParams.targetNativePrice / feeParams.sourceNativePrice + 1;
-
-        // Calculate how much gas was provided using transaction fee
-        uint256 actualGasLimit = (
-            test.transactionFee - source.relayProvider.quoteDeliveryOverhead(2).unwrap()
-        ) / source.relayProvider.quoteGasPrice(2).unwrap();
-        vm.assume(actualGasLimit <= type(uint32).max);
-
-        test.payment = test.transactionFee + uint256(3) * source.wormhole.messageFee()
-            + test.receiverValueSource;
-
-        uint256 refundRewardAddressBalance = target.rewardAddress.balance;
-        uint256 refundAddressBalance = source.refundAddress.balance;
-
-        source.integration.sendMessageGeneral{value: test.payment}(
-            bytes("Hello!"),
-            2,
-            address(target.integration),
-            1,
-            address(source.refundAddress),
-            test.receiverValueSource,
-            bytes("")
-        );
-
-        genericRelayer.relay(1);
-
-        genericRelayer.relay(2);
-
-        assertTrue(keccak256(target.integration.getMessage()) == keccak256(bytes("Hello!")));
-        DeliveryData memory deliveryData = target.integration.getDeliveryData();
-
-        assertTrue(
-            test.transactionFee + test.receiverValueSource
-                == source.rewardAddress.balance - test.rewardAddressBalance,
-            "The source to target relayer's reward address was paid appropriately"
-        );
-        // Calculate maximum refund for source->target delivery, and check against Delivery Data
-        assertTrue(
-            (test.transactionFee - test.overhead) * feeParams.sourceNativePrice * 100
-                / (uint256(1) * feeParams.targetNativePrice * 105) == deliveryData.maximumRefund,
-            "The maximum refund wasnt correct"
-        );
-        uint256 amountToGetInRefundTarget =
-            (target.rewardAddress.balance - refundRewardAddressBalance);
-        // Calculate amount that must have been spent on gas, by reverse engineering from the amount that was paid to the provider's reward address on the target chain
-        test.gasAmount = uint32(
-            actualGasLimit
-                - ((amountToGetInRefundTarget + feeParams.wormholeFeeOnTarget)) * actualGasLimit
-                    / deliveryData.maximumRefund
-        );
-        uint256 refundSource = 0;
-        if (amountToGetInRefundTarget > target.relayProvider.quoteDeliveryOverhead(1).unwrap()) {
-            refundSource = (
-                amountToGetInRefundTarget - target.relayProvider.quoteDeliveryOverhead(1).unwrap()
-            ) * feeParams.targetNativePrice * 100 / (uint256(1) * feeParams.sourceNativePrice * 105);
-        }
-
-        assertTrue(
-            refundSource == source.refundAddress.balance - refundAddressBalance,
-            "Refund wasn't the correct amount"
-        );
-        assertTrue(
-            test.gasAmount >= 200000,
-            "Gas amount (calculated from refund address payment) lower than expected"
-        );
-        assertTrue(
-            test.gasAmount <= 215000,
-            "Gas amount (calculated from refund address payment) higher than expected"
-        );
-    }
+    
 
     function testFundsCorrectForASendRevertsCrossChainRefund(
         GasParameters memory gasParams,
@@ -1406,38 +1435,6 @@ contract WormholeRelayerTests is Test {
         return (payment + payment2 * 105 / 100 + 1);
     }
 
-    function testForward(
-        GasParameters memory gasParams,
-        FeeParameters memory feeParams,
-        bytes memory message
-    ) public {
-        StandardSetupTwoChains memory setup =
-            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
-
-        uint256 payment = assumeAndGetForwardPayment(
-            gasParams.targetGasLimit, 500000, setup, gasParams, feeParams
-        );
-
-        vm.recordLogs();
-
-        setup.source.integration.sendMessageWithForwardedResponse{value: payment}(
-            message,
-            setup.targetChainId,
-            address(setup.target.integration),
-            address(setup.target.refundAddress),
-            0
-        );
-
-        genericRelayer.relay(setup.sourceChainId);
-
-        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
-
-        genericRelayer.relay(setup.targetChainId);
-
-        assertTrue(
-            keccak256(setup.source.integration.getMessage()) == keccak256(bytes("received!"))
-        );
-    }
 
     function testNoFundsLostForAForward(
         GasParameters memory gasParams,
@@ -1801,97 +1798,6 @@ contract WormholeRelayerTests is Test {
         );
     }
 
-    function testQuoteReceiverValueIsNotMoreThanNecessary(
-        GasParameters memory gasParams,
-        FeeParameters memory feeParams,
-        bytes memory message
-    ) public {
-        StandardSetupTwoChains memory setup =
-            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
-        vm.assume(feeParams.receiverValueTarget > 0);
-        vm.recordLogs();
-
-        // estimate the cost based on the intialized values
-        uint256 payment = setup.source.coreRelayer.quoteGas(
-            setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
-        ) + 3 * setup.source.wormhole.messageFee();
-
-        uint256 oldBalance = address(setup.target.integration).balance;
-
-        uint256 newReceiverValueSource = setup.source.coreRelayer.quoteReceiverValue(
-            setup.targetChainId, feeParams.receiverValueTarget, address(setup.source.relayProvider)
-        );
-
-        vm.deal(address(this), payment + newReceiverValueSource - 1);
-
-        setup.source.integration.sendMessageGeneral{value: payment + newReceiverValueSource - 1}(
-            message,
-            setup.targetChainId,
-            address(setup.target.integration),
-            setup.targetChainId,
-            address(0x0),
-            newReceiverValueSource - 1,
-            bytes("")
-        );
-
-        genericRelayer.relay(setup.sourceChainId);
-
-        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
-
-        assertTrue(
-            address(setup.target.integration).balance < oldBalance + feeParams.receiverValueTarget
-        );
-    }
-
-    function testTwoSends(
-        GasParameters memory gasParams,
-        FeeParameters memory feeParams,
-        bytes memory message,
-        bytes memory secondMessage
-    ) public {
-        StandardSetupTwoChains memory setup =
-            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
-
-        // estimate the cost based on the intialized values
-        uint256 payment = setup.source.coreRelayer.quoteGas(
-            setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
-        ) + uint256(3) * setup.source.wormhole.messageFee();
-
-        // This avoids payment overflow in the target.
-        vm.assume(payment <= type(uint256).max >> 1);
-
-        // start listening to events
-        vm.recordLogs();
-
-        setup.source.integration.sendMessageWithRefundAddress{value: payment}(
-            message,
-            setup.targetChainId,
-            address(setup.target.integration),
-            address(setup.target.refundAddress),
-            bytes("")
-        );
-
-        genericRelayer.relay(setup.sourceChainId);
-
-        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
-
-        vm.getRecordedLogs();
-
-        vm.deal(address(this), payment);
-
-        setup.source.integration.sendMessageWithRefundAddress{value: payment}(
-            secondMessage,
-            setup.targetChainId,
-            address(setup.target.integration),
-            address(setup.target.refundAddress),
-            bytes("")
-        );
-
-        genericRelayer.relay(setup.sourceChainId);
-
-        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(secondMessage));
-    }
-
     function invalidateVM(bytes memory message, WormholeSimulator simulator) internal {
         change(message, message.length - 1);
         simulator.invalidateVM(message);
@@ -2209,103 +2115,6 @@ contract WormholeRelayerTests is Test {
         );
     }
 
-    function testRevertInsufficientMaxTransactionFee(
-        GasParameters memory gasParams,
-        FeeParameters memory feeParams,
-        bytes memory message
-    ) public {
-        StandardSetupTwoChains memory setup =
-            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
-
-        vm.recordLogs();
-
-        setup.source.relayProvider.updateDeliverGasOverhead(
-            setup.targetChainId, Gas.wrap(gasParams.evmGasOverhead)
-        );
-
-        uint256 maxTransactionFee = setup.source.coreRelayer.quoteGas(
-            setup.targetChainId, 1, setup.source.coreRelayer.getDefaultRelayProvider()
-        ) - 1;
-
-        uint256 wormholeFee = setup.source.wormhole.messageFee();
-
-        vm.expectRevert(abi.encodeWithSignature("InsufficientMaxTransactionFee()"));
-        setup.source.integration.sendMessageWithRefundAddress{
-            value: maxTransactionFee + 3 * wormholeFee
-        }(
-            message,
-            setup.targetChainId,
-            address(setup.target.integration),
-            address(setup.target.refundAddress),
-            bytes("")
-        );
-    }
-
-    function testRevertExceedsMaximumBudget(
-        GasParameters memory gasParams,
-        FeeParameters memory feeParams,
-        bytes memory message
-    ) public {
-        StandardSetupTwoChains memory setup =
-            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
-        vm.assume(
-            (
-                uint256(gasParams.targetGasPrice) * feeParams.targetNativePrice
-                    + feeParams.sourceNativePrice - 1
-            ) / uint256(feeParams.sourceNativePrice) < type(uint72).max
-        );
-        vm.recordLogs();
-
-        uint256 maxTransactionFee = setup.source.coreRelayer.quoteGas(
-            setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
-        );
-
-        setup.source.relayProvider.updateMaximumBudget(
-            setup.targetChainId, Wei.wrap(uint192(gasParams.targetGasLimit - 1) * gasParams.targetGasPrice)
-        );
-
-        uint256 wormholeFee = setup.source.wormhole.messageFee();
-
-        //TODO not sure how to calculate two of the values of the expected revert data
-        // vm.expectRevert(abi.encodeWithSelector(
-        //     ExceedsMaximumBudget.selector,
-        //     //TODO
-        //     //TODO
-        //     address(setup.source.relayProvider),
-        //     setup.target.chainId
-        // ));
-        try setup.source.integration.sendMessageWithRefundAddress{
-            value: maxTransactionFee * 105 / 100 + 1 + 3 * wormholeFee
-        }(
-            message,
-            setup.targetChainId,
-            address(setup.target.integration),
-            address(setup.target.refundAddress),
-            bytes("")
-        ) {
-            assertTrue(false);
-        } catch (bytes memory revertData) {
-            //TODO try-catch workaround until the above is fixed
-            uint256 offset = 0;
-            bytes4 selector;
-            uint256 requested;
-            uint256 maximum;
-            address relayProvider;
-            uint16 chainId;
-            (selector, offset) = revertData.asBytes4(offset);
-            (requested, offset) = revertData.asUint256(offset);
-            (maximum, offset) = revertData.asUint256(offset);
-            offset += 12;
-            (relayProvider, offset) = revertData.asAddress(offset);
-            offset += 30;
-            (chainId, offset) = revertData.asUint16(offset);
-            assertEq(revertData.length, offset);
-            assertEq(selector, ExceedsMaximumBudget.selector);
-            assertEq(relayProvider, address(setup.source.relayProvider));
-            assertEq(chainId, setup.target.chainId);
-        }
-    }
-
     ForwardTester forwardTester;
 
     struct ForwardStack {
@@ -2413,22 +2222,6 @@ contract WormholeRelayerTests is Test {
             standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
         executeForwardTest(
             ForwardTester.Action.ReentrantCall,
-            IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE,
-            setup,
-            gasParams,
-            feeParams
-        );
-    }
-
-    function testRevertForwardMaxTransactionFeeNotEnough(
-        GasParameters memory gasParams,
-        FeeParameters memory feeParams
-    ) public {
-        StandardSetupTwoChains memory setup =
-            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
-
-        executeForwardTest(
-            ForwardTester.Action.MaxTransactionFeeNotEnough,
             IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE,
             setup,
             gasParams,
@@ -2619,66 +2412,6 @@ contract WormholeRelayerTests is Test {
         assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
     }
 
-    function testEmitRedelivery(
-        GasParameters memory gasParams,
-        FeeParameters memory feeParams
-    ) public {
-        StandardSetupTwoChains memory setup =
-            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
-        vm.recordLogs();
-        DeliveryStack memory stack;
-
-        uint256 maxTransactionSource = setup.source.coreRelayer.quoteGas(
-            setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
-        );
-
-        uint256 receiverValueSource = setup.source.coreRelayer.quoteReceiverValue(
-            setup.targetChainId, feeParams.receiverValueTarget, address(setup.source.relayProvider)
-        );
-
-        uint256 quote =
-            maxTransactionSource + receiverValueSource + 1 * setup.source.wormhole.messageFee();
-
-        VaaKey memory junkKey =
-            VaaKey(VaaKeyType.EMITTER_SEQUENCE, setup.sourceChainId, 0x0, 1, bytes32(0x0));
-
-        setup.source.coreRelayer.resend{value: quote}(
-            junkKey,
-            maxTransactionSource, //newMaxTransactionFee
-            receiverValueSource, //new receiver
-            setup.targetChainId,
-            address(setup.source.relayProvider)
-        );
-
-        stack.entries = vm.getRecordedLogs();
-
-        bytes memory redeliveryVM = relayerWormholeSimulator.fetchSignedMessageFromLogs(
-            stack.entries[0], setup.sourceChainId, address(setup.source.coreRelayer)
-        );
-
-        IWormhole.VM memory vm = setup.source.wormhole.parseVM(redeliveryVM);
-        RedeliveryInstruction memory ins = CoreRelayerSerde.decodeRedeliveryInstruction(vm.payload);
-
-        assertTrue(ins.key.chainId == setup.sourceChainId, "VAA key has correct chainID");
-        assertTrue(ins.key.infoType == VaaKeyType.EMITTER_SEQUENCE, "VAA key type matches");
-        assertTrue(
-            ins.key.infoType == VaaKeyType.EMITTER_SEQUENCE, "VAA key type matches"
-        );
-        assertTrue(
-            ins.newReceiverValueTarget.unwrap() >= feeParams.receiverValueTarget,
-            "new receiver value greater than the old value"
-        );
-        assertTrue(ins.targetChainId == setup.targetChainId, "target chain matches");
-        assertTrue(
-            ins.sourceRelayProvider == toWormholeFormat(address(setup.source.relayProvider)),
-            "specified relay provider is listed"
-        );
-        assertTrue(
-            Gas.unwrap(ins.executionParameters.gasLimit) >= gasParams.targetGasLimit,
-            "new gaslimit was recorded"
-        );
-    }
-
     function testDeliverWithOverrides(
         GasParameters memory gasParams,
         FeeParameters memory feeParams,
@@ -2860,61 +2593,7 @@ contract WormholeRelayerTests is Test {
         setup.target.coreRelayerFull.deliver{value: stack.budget}(stack.package);
     }
 
-    function testRedelivery(
-        GasParameters memory gasParams,
-        FeeParameters memory feeParams,
-        bytes memory message
-    ) public {
-        StandardSetupTwoChains memory setup =
-            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
 
-        vm.recordLogs();
-
-        vm.assume(keccak256(message) != keccak256(bytes("")));
-
-        uint256 payment = setup.source.coreRelayer.quoteGas(
-            setup.targetChainId, 10000, address(setup.source.relayProvider)
-        ) + 3 * setup.source.wormhole.messageFee();
-
-        //send an original message
-        uint64 sequence = setup.source.integration.sendMessageWithRefundAddress{value: payment}(
-            message,
-            setup.targetChainId,
-            address(setup.target.integration),
-            setup.target.refundAddress,
-            bytes("")
-        );
-
-        genericRelayer.relay(setup.sourceChainId);
-
-        assertTrue(keccak256(setup.target.integration.getMessage()) != keccak256(message));
-
-        //create a VAA key for the original message
-        VaaKey memory vaaKey = VaaKey(
-            VaaKeyType.EMITTER_SEQUENCE,
-            setup.sourceChainId,
-            bytes32(uint256(uint160(address(setup.source.integration)))),
-            sequence,
-            bytes32(0x0)
-        );
-
-        uint256 newPayment = setup.source.coreRelayer.quoteGas(
-            setup.targetChainId, gasParams.targetGasLimit, address(setup.source.relayProvider)
-        ) + setup.source.wormhole.messageFee();
-
-        //call a resend for the orignal message
-        setup.source.coreRelayer.resend{value: newPayment}(
-            vaaKey,
-            newPayment - feeParams.wormholeFeeOnSource, //newMaxTransactionFee
-            0, //new receiver
-            setup.targetChainId,
-            address(setup.source.relayProvider)
-        );
-
-        genericRelayer.relay(setup.sourceChainId);
-
-        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
-    }
 
     function testRedeliveryFailAndSucceed(
         GasParameters memory gasParams,
@@ -2998,112 +2677,6 @@ contract WormholeRelayerTests is Test {
         assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
     }
 
-    function testFundsCorrectForARedelivery(
-        GasParameters memory gasParams,
-        FeeParameters memory feeParams
-    ) public {
-        vm.recordLogs();
-        (Contracts memory source, Contracts memory target, FundsCorrectTest memory test) =
-            setupFundsCorrectTest(gasParams, feeParams, 215000);
-
-        test.payment = test.transactionFee + uint256(3) * source.wormhole.messageFee()
-            + test.receiverValueSource;
-
-        uint256 actualGasLimit = (
-            test.transactionFee - source.relayProvider.quoteDeliveryOverhead(2).unwrap()
-        ) / source.relayProvider.quoteGasPrice(2).unwrap();
-        if (actualGasLimit > type(uint32).max) {
-            actualGasLimit = type(uint32).max;
-        }
-
-        uint64 sequence = source.integration.sendMessageGeneral{
-            value: uint256(3) * source.wormhole.messageFee()
-                + source.coreRelayer.quoteGas(2, 10000, address(source.relayProvider))
-        }(
-            bytes("Hello!"),
-            2,
-            address(target.integration),
-            2,
-            address(target.refundAddress),
-            0,
-            bytes("")
-        );
-
-        genericRelayer.relay(1);
-        assertTrue(keccak256(target.integration.getMessage()) != keccak256(bytes("Hello!")));
-        assertTrue(getDeliveryStatus() == IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE);
-
-        VaaKey memory vaaKey = VaaKey(
-            VaaKeyType.EMITTER_SEQUENCE,
-            1,
-            bytes32(uint256(uint160(address(source.integration)))),
-            sequence,
-            bytes32(0x0)
-        );
-
-        uint256 newPayment =
-            test.transactionFee + source.wormhole.messageFee() + test.receiverValueSource;
-
-        test.refundAddressBalance = target.refundAddress.balance;
-        test.relayerBalance = target.relayer.balance;
-        test.rewardAddressBalance = source.rewardAddress.balance;
-        test.destinationBalance = address(target.integration).balance;
-        test.sourceContractBalance = address(source.coreRelayer).balance;
-        test.targetContractBalance = address(target.coreRelayer).balance;
-
-        //call a resend for the orignal message
-        source.coreRelayer.resend{value: newPayment}(
-            vaaKey,
-            test.transactionFee, //newMaxTransactionFee
-            test.receiverValueSource, //new receiver
-            2,
-            address(source.relayProvider)
-        );
-
-        genericRelayer.relay(1);
-
-        assertTrue(keccak256(target.integration.getMessage()) == keccak256(bytes("Hello!")));
-        DeliveryData memory deliveryData = target.integration.getDeliveryData();
-
-        test.refundAddressAmount = target.refundAddress.balance - test.refundAddressBalance;
-        test.rewardAddressAmount = source.rewardAddress.balance - test.rewardAddressBalance;
-        test.relayerPayment = test.relayerBalance - target.relayer.balance;
-        test.destinationAmount = address(target.integration).balance - test.destinationBalance;
-
-        assertTrue(test.sourceContractBalance == address(source.coreRelayer).balance);
-        assertTrue(test.targetContractBalance == address(target.coreRelayer).balance);
-        assertTrue(
-            test.destinationAmount >= feeParams.receiverValueTarget,
-            "Receiver value was sent to the contract"
-        );
-        assertTrue(
-            test.destinationAmount
-                == test.receiverValueSource * feeParams.sourceNativePrice * 100
-                    / (uint256(1) * feeParams.targetNativePrice * 105),
-            "Receiver value was the right amount"
-        );
-        assertTrue(
-            test.rewardAddressAmount == test.transactionFee + test.receiverValueSource,
-            "Reward address was paid correctly"
-        );
-        test.maximumRefundTarget = (test.transactionFee - test.overhead)
-            * feeParams.sourceNativePrice * 100 / (uint256(1) * feeParams.targetNativePrice * 105);
-        test.gasAmount = uint32(
-            actualGasLimit - test.refundAddressAmount * actualGasLimit / test.maximumRefundTarget
-        );
-        assertTrue(test.maximumRefundTarget == deliveryData.maximumRefund);
-        console.log(test.gasAmount);
-        assertTrue(
-            test.gasAmount >= 200000,
-            "Gas amount (calculated from refund address payment) lower than expected"
-        );
-        assertTrue(
-            test.gasAmount <= 215000,
-            "Gas amount (calculated from refund address payment) higher than expected"
-        );
-        assertTrue(
-            test.relayerPayment == test.destinationAmount + test.refundAddressAmount,
-            "Relayer paid the correct amount"
-        );
-    }
+    
+    */
 }

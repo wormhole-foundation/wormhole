@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import "../../contracts/interfaces/IWormhole.sol";
 import "../../contracts/interfaces/relayer/IWormholeReceiver.sol";
-import "../../contracts/interfaces/relayer/IWormholeRelayer.sol";
+import "../../contracts/interfaces/relayer/IWormholeRelayerUntyped.sol";
 import "../../contracts/interfaces/relayer/IRelayProvider.sol";
 
 /**
@@ -48,28 +48,24 @@ contract AttackForwardIntegration is IWormholeReceiver {
         // The core relayer could in principle accept the request due to this being the target of the message at the same time as being the refund address.
         // Note that, if succesful, this forward request would be processed after the time for processing forwards is past.
         // Thus, the request would "linger" in the forward request cache and be attended to in the next delivery.
-        forward(targetChainId, toWormholeFormat(attackerReward));
+        forward(targetChainId, attackerReward);
     }
 
-    function forward(uint16 _targetChainId, bytes32 attackerRewardAddress) internal {
-        uint256 maxTransactionFee = core_relayer.quoteGas(
-            _targetChainId, SAFE_DELIVERY_GAS_CAPTURE, core_relayer.getDefaultRelayProvider()
+    function forward(uint16 _targetChainId, address attackerRewardAddress) internal {
+        (uint256 deliveryPayment,) = core_relayer.quoteEVMDeliveryPrice(
+            _targetChainId, 0, SAFE_DELIVERY_GAS_CAPTURE
         );
 
         bytes memory emptyArray;
-        core_relayer.forward{value: maxTransactionFee}(
+        core_relayer.forwardToEvm{value: deliveryPayment + wormhole.messageFee()}(
             _targetChainId,
             attackerRewardAddress,
+            emptyArray,
+            0,
+            SAFE_DELIVERY_GAS_CAPTURE,
             _targetChainId,
             // All remaining funds will be returned to the attacker
-            attackerRewardAddress,
-            maxTransactionFee,
-            0,
-            emptyArray,
-            new VaaKey[](0),
-            200,
-            core_relayer.getDefaultRelayProvider(),
-            core_relayer.getDefaultRelayParams()
+            attackerRewardAddress
         );
     }
 

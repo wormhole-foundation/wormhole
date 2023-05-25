@@ -6,15 +6,14 @@ import {
   InvalidPayloadId,
   InvalidPayloadLength,
   InvalidVaaKeyType,
-  VaaKey,
-  VaaKeyType,
-  Send,
-  ExecutionParameters,
-  DeliveryInstruction,
-  RedeliveryInstruction,
-  DeliveryOverride
+  VaaKey
 } from "../../interfaces/relayer/IWormholeRelayer.sol";
-import {BytesParsing} from "./BytesParsing.sol";
+import {
+  DeliveryOverride,
+  DeliveryInstruction,
+  RedeliveryInstruction
+} from "../../libraries/relayer/RelayerInternalStructs.sol";
+import {BytesParsing} from "../../libraries/relayer/BytesParsing.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 
 library CoreRelayerSerde {
@@ -22,66 +21,21 @@ library CoreRelayerSerde {
   using WeiLib for Wei;
   using GasLib for Gas;
 
-  // ---------------------- "public" (i.e implicitly internal) encode/decode -----------------------
-
   //The slightly subtle difference between `PAYLOAD_ID`s and `VERSION`s is that payload ids carry
   //  both type information _and_ version information, while `VERSION`s only carry the latter.
   //That is, when deserialing a "version struct" we already know the expected type, but since we
   //  publish both Delivery _and_ Redelivery instructions as serialized messages, we need a robust
   //  way to distinguish both their type and their version during deserialization.
   uint8 private constant VERSION_VAAKEY = 1;
-  uint8 private constant VERSION_EXECUTION_PARAMETERS = 1;
   uint8 private constant VERSION_DELIVERY_OVERRIDE = 1;
   uint8 private constant PAYLOAD_ID_DELIVERY_INSTRUCTION = 1;
   uint8 private constant PAYLOAD_ID_REDELIVERY_INSTRUCTION = 2;
 
+  // ---------------------- "public" (i.e implicitly internal) encode/decode -----------------------
+
   //TODO GAS OPTIMIZATION: All the recursive abi.encodePacked calls in here are _insanely_ gas
   //    inefficient (unless the optimizer is smart enough to just concatenate them tail-recursion
   //    style which seems highly unlikely)
-
-  function encode(
-    Send memory strct
-  ) internal pure returns (bytes memory encoded) {
-    //Send has no payload id/versioning because it is only used internally and never emitted
-    encoded = abi.encodePacked(
-      strct.targetChainId,
-      strct.targetAddress,
-      strct.refundChainId,
-      strct.refundAddress,
-      uint128(strct.maxTransactionFee.unwrap()),
-      uint128(strct.receiverValue.unwrap()),
-      strct.relayProviderAddress,
-      encodeVaaKeyArray(strct.vaaKeys),
-      strct.consistencyLevel,
-      encodePayload(strct.payload),
-      encodePayload(strct.relayParameters)
-    );
-  }
-
-  function decodeSend(
-    bytes memory encoded
-  ) internal pure returns (Send memory strct) {
-    uint256 offset = 0;
-    uint128 maxTransactionFee;
-    uint128 receiverValue;
-
-    (strct.targetChainId,        offset) = encoded.asUint16Unchecked(offset);
-    (strct.targetAddress,        offset) = encoded.asBytes32Unchecked(offset);
-    (strct.refundChainId,        offset) = encoded.asUint16Unchecked(offset);
-    (strct.refundAddress,        offset) = encoded.asBytes32Unchecked(offset);
-    (maxTransactionFee,          offset) = encoded.asUint128Unchecked(offset);
-    (receiverValue,              offset) = encoded.asUint128Unchecked(offset);
-    (strct.relayProviderAddress, offset) = encoded.asAddressUnchecked(offset);
-    (strct.vaaKeys,              offset) = decodeVaaKeyArray(encoded, offset);
-    (strct.consistencyLevel,     offset) = encoded.asUint8Unchecked(offset);
-    (strct.payload,              offset) = decodePayload(encoded, offset);
-    (strct.relayParameters,      offset) = decodePayload(encoded, offset);
-
-    strct.maxTransactionFee = Wei.wrap(maxTransactionFee);
-    strct.receiverValue     = Wei.wrap(receiverValue);
-
-    checkLength(encoded, offset);
-  }
 
   function encode(
     DeliveryInstruction memory strct
@@ -90,17 +44,18 @@ library CoreRelayerSerde {
       PAYLOAD_ID_DELIVERY_INSTRUCTION,
       strct.targetChainId,
       strct.targetAddress,
+      encodeBytes(strct.payload),
+      strct.requestedReceiverValue,
+      strct.extraReceiverValue);
+    encoded = abi.encodePacked(
+      encoded,
+      encodeBytes(strct.encodedExecutionInfo),
       strct.refundChainId,
       strct.refundAddress,
-      strct.maximumRefundTarget,
-      strct.receiverValueTarget,
+      strct.refundRelayProvider,
       strct.sourceRelayProvider,
-      strct.targetRelayProvider,
       strct.senderAddress,
-      encodeVaaKeyArray(strct.vaaKeys),
-      strct.consistencyLevel,
-      encodeExecutionParameters(strct.executionParameters),
-      encodePayload(strct.payload)
+      encodeVaaKeyArray(strct.vaaKeys)
     );
   }
 
@@ -109,25 +64,24 @@ library CoreRelayerSerde {
   ) internal pure returns (DeliveryInstruction memory strct) {
     uint offset = checkUint8(encoded, 0, PAYLOAD_ID_DELIVERY_INSTRUCTION);
 
-    uint256 maximumRefundTarget;
-    uint256 receiverValueTarget;
+    uint256 requestedReceiverValue;
+    uint256 extraReceiverValue;
 
     (strct.targetChainId,       offset) = encoded.asUint16Unchecked(offset);
     (strct.targetAddress,       offset) = encoded.asBytes32Unchecked(offset);
+    (strct.payload,             offset) = decodeBytes(encoded, offset);
+    (requestedReceiverValue,    offset) = encoded.asUint256Unchecked(offset);
+    (extraReceiverValue,        offset) = encoded.asUint256Unchecked(offset);
+    (strct.encodedExecutionInfo,     offset) = decodeBytes(encoded, offset);
     (strct.refundChainId,       offset) = encoded.asUint16Unchecked(offset);
     (strct.refundAddress,       offset) = encoded.asBytes32Unchecked(offset);
-    (maximumRefundTarget,       offset) = encoded.asUint256Unchecked(offset);
-    (receiverValueTarget,       offset) = encoded.asUint256Unchecked(offset);
+    (strct.refundRelayProvider, offset) = encoded.asBytes32Unchecked(offset);
     (strct.sourceRelayProvider, offset) = encoded.asBytes32Unchecked(offset);
-    (strct.targetRelayProvider, offset) = encoded.asBytes32Unchecked(offset);
     (strct.senderAddress,       offset) = encoded.asBytes32Unchecked(offset);
     (strct.vaaKeys,             offset) = decodeVaaKeyArray(encoded, offset);
-    (strct.consistencyLevel,    offset) = encoded.asUint8Unchecked(offset);
-    (strct.executionParameters, offset) = decodeExecutionParameters(encoded, offset);
-    (strct.payload,             offset) = decodePayload(encoded, offset);
 
-    strct.maximumRefundTarget = Wei.wrap(maximumRefundTarget);
-    strct.receiverValueTarget     = Wei.wrap(receiverValueTarget);
+    strct.requestedReceiverValue = Wei.wrap(requestedReceiverValue);
+    strct.extraReceiverValue     = Wei.wrap(extraReceiverValue);
 
     checkLength(encoded, offset);
   }
@@ -135,15 +89,15 @@ library CoreRelayerSerde {
   function encode(
     RedeliveryInstruction memory strct
   ) internal pure returns (bytes memory encoded) {
-    bytes memory vaaKey = encodeVaaKey(strct.key);
+    bytes memory vaaKey = encodeVaaKey(strct.deliveryVaaKey);
     encoded = abi.encodePacked(
       PAYLOAD_ID_REDELIVERY_INSTRUCTION,
       vaaKey,
-      strct.newMaximumRefundTarget,
-      strct.newReceiverValueTarget,
-      strct.sourceRelayProvider,
       strct.targetChainId,
-      encodeExecutionParameters(strct.executionParameters)
+      strct.newRequestedReceiverValue,
+      encodeBytes(strct.newEncodedExecutionInfo),
+      strct.newSourceRelayProvider,
+      strct.newSenderAddress
     );
   }
 
@@ -152,18 +106,16 @@ library CoreRelayerSerde {
   ) internal pure returns (RedeliveryInstruction memory strct) {
     uint256 offset = checkUint8(encoded, 0 , PAYLOAD_ID_REDELIVERY_INSTRUCTION);
 
-    uint256 newMaximumRefundTarget;
-    uint256 newReceiverValueTarget;
+    uint256 newRequestedReceiverValue;
 
-    (strct.key,                    offset) = decodeVaaKey(encoded, offset);
-    (newMaximumRefundTarget,       offset) = encoded.asUint256Unchecked(offset);
-    (newReceiverValueTarget,       offset) = encoded.asUint256Unchecked(offset);
-    (strct.sourceRelayProvider,    offset) = encoded.asBytes32Unchecked(offset);
+    (strct.deliveryVaaKey,         offset) = decodeVaaKey(encoded, offset);
     (strct.targetChainId,          offset) = encoded.asUint16Unchecked(offset);
-    (strct.executionParameters,    offset) = decodeExecutionParameters(encoded, offset);
+    (newRequestedReceiverValue,    offset) = encoded.asUint256Unchecked(offset);
+    (strct.newEncodedExecutionInfo, offset)    = decodeBytes(encoded, offset);
+    (strct.newSourceRelayProvider, offset) = encoded.asBytes32Unchecked(offset);
+    (strct.newSenderAddress,    offset)    = encoded.asBytes32Unchecked(offset);
 
-    strct.newMaximumRefundTarget = Wei.wrap(newMaximumRefundTarget);
-    strct.newReceiverValueTarget = Wei.wrap(newReceiverValueTarget);
+    strct.newRequestedReceiverValue = Wei.wrap(newRequestedReceiverValue);
 
     checkLength(encoded, offset);
   }
@@ -173,9 +125,8 @@ library CoreRelayerSerde {
   ) internal pure returns (bytes memory encoded) {
     encoded = abi.encodePacked(
       VERSION_DELIVERY_OVERRIDE,
-      uint32(strct.gasLimit.unwrap()),
-      strct.maximumRefund,
-      strct.receiverValue,
+      strct.newReceiverValue,
+      encodeBytes(strct.newExecutionInfo),
       strct.redeliveryHash
     );
   }
@@ -184,18 +135,14 @@ library CoreRelayerSerde {
     bytes memory encoded
   ) internal pure returns (DeliveryOverride memory strct) {
     uint offset = checkUint8(encoded, 0, VERSION_DELIVERY_OVERRIDE);
-    uint32 gasLimit;
-    uint256 maximumRefund;
-    uint256 receiverValue;
 
-    (gasLimit,             offset) = encoded.asUint32Unchecked(offset);
-    (maximumRefund,        offset) = encoded.asUint256Unchecked(offset);
-    (receiverValue,        offset) = encoded.asUint256Unchecked(offset);
+    uint256 receiverValue;
+    
+    (receiverValue,                 offset) = encoded.asUint256Unchecked(offset);
+    (strct.newExecutionInfo,      offset) = decodeBytes(encoded, offset);
     (strct.redeliveryHash, offset) = encoded.asBytes32Unchecked(offset);
 
-    strct.gasLimit      = Gas.wrap(gasLimit);
-    strct.maximumRefund = Wei.wrap(maximumRefund);
-    strct.receiverValue = Wei.wrap(receiverValue);
+    strct.newReceiverValue = Wei.wrap(receiverValue);
 
     checkLength(encoded, offset);
   }
@@ -229,11 +176,7 @@ library CoreRelayerSerde {
   function encodeVaaKey(
     VaaKey memory vaaKey
   ) private pure returns (bytes memory encoded) {
-    encoded = abi.encodePacked(VERSION_VAAKEY, uint8(vaaKey.infoType));
-    if (vaaKey.infoType == VaaKeyType.EMITTER_SEQUENCE)
-      encoded = abi.encodePacked(encoded, vaaKey.chainId, vaaKey.emitterAddress, vaaKey.sequence);
-    else //vaaKey.infoType == VaaKeyType.VAAHASH)
-      encoded = abi.encodePacked(encoded, vaaKey.vaaHash);
+    encoded = abi.encodePacked(encoded, VERSION_VAAKEY, vaaKey.chainId, vaaKey.emitterAddress, vaaKey.sequence);
   }
 
   function decodeVaaKey(
@@ -241,28 +184,12 @@ library CoreRelayerSerde {
     uint startOffset
   ) private pure returns (VaaKey memory vaaKey, uint offset) {
     offset = checkUint8(encoded, startOffset, VERSION_VAAKEY);
-
-    uint8 parsedVaaKeyType;
-    (parsedVaaKeyType, offset) = encoded.asUint8Unchecked(offset);
-    //Explicitly casting int to enum panics for invalid values
-    //  (see https://docs.soliditylang.org/en/v0.8.19/types.html#enums)
-    //We want to revert with our custom error, so we explicitly check ourselves and only perform the
-    //  cast below once it is known to be safe.
-    if (parsedVaaKeyType == uint8(VaaKeyType.EMITTER_SEQUENCE)) {
-      (vaaKey.chainId,        offset) = encoded.asUint16Unchecked(offset);
-      (vaaKey.emitterAddress, offset) = encoded.asBytes32Unchecked(offset);
-      (vaaKey.sequence,       offset) = encoded.asUint64Unchecked(offset);
-    }
-    else if (parsedVaaKeyType == uint8(VaaKeyType.VAAHASH)) {
-      (vaaKey.vaaHash, offset) = encoded.asBytes32Unchecked(offset);
-    }
-    else
-      revert InvalidVaaKeyType(parsedVaaKeyType);
-
-    vaaKey.infoType = VaaKeyType(parsedVaaKeyType);
+    (vaaKey.chainId,        offset) = encoded.asUint16Unchecked(offset);
+    (vaaKey.emitterAddress, offset) = encoded.asBytes32Unchecked(offset);
+    (vaaKey.sequence,       offset) = encoded.asUint64Unchecked(offset);
   }
 
-  function encodePayload(
+  function encodeBytes(
     bytes memory payload
   ) private pure returns (bytes memory encoded) {
     //casting payload.length to uint32 is safe because you'll be hard-pressed to allocate 4 GB of
@@ -270,29 +197,13 @@ library CoreRelayerSerde {
     encoded = abi.encodePacked(uint32(payload.length), payload);
   }
 
-  function decodePayload(
+  function decodeBytes(
     bytes memory encoded,
     uint startOffset
   ) private pure returns (bytes memory payload, uint offset) {
     uint32 payloadLength;
     (payloadLength, offset) = encoded.asUint32Unchecked(startOffset);
     (payload,       offset) = encoded.sliceUnchecked(offset, payloadLength);
-  }
-
-  function encodeExecutionParameters(
-    ExecutionParameters memory strct
-  ) private pure returns (bytes memory encoded) {
-    encoded = abi.encodePacked(VERSION_EXECUTION_PARAMETERS, uint32(strct.gasLimit.unwrap()));
-  }
-
-  function decodeExecutionParameters(
-    bytes memory encoded,
-    uint startOffset
-  ) private pure returns (ExecutionParameters memory strct, uint offset) {
-    offset = checkUint8(encoded, startOffset, VERSION_EXECUTION_PARAMETERS);
-    uint32 gasLimit;
-    (gasLimit, offset) = encoded.asUint32Unchecked(offset);
-    strct.gasLimit = Gas.wrap(gasLimit);
   }
 
   function checkUint8(

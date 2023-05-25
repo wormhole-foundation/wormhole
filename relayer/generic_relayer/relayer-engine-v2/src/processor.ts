@@ -12,12 +12,12 @@ import {
   DeliveryInstruction,
   packOverrides,
   DeliveryOverrideArgs,
+  parseEVMExecutionInfoV1
 } from "@certusone/wormhole-sdk/lib/cjs/relayer";
 import { EVMChainId } from "@certusone/wormhole-sdk";
 import { GRContext } from "./app";
 import { BigNumber, ethers } from "ethers";
 import { CoreRelayer__factory } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
-import { TargetDeliveryParametersStruct} from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts/IWormholeRelayer.sol/IWormholeRelayerDelivery";
 
 
 export async function processGenericRelayerVaa(ctx: GRContext, next: Next) {
@@ -56,30 +56,26 @@ async function processDelivery(ctx: GRContext) {
 
 async function processRedelivery(ctx: GRContext) {
   const redeliveryVaa = parseWormholeRelayerResend(ctx.vaa!.payload);
-  const sourceRelayProvider = ethers.utils.getAddress(wh.tryUint8ArrayToNative(redeliveryVaa.sourceRelayProvider, "ethereum"));
+  const sourceRelayProvider = ethers.utils.getAddress(wh.tryUint8ArrayToNative(redeliveryVaa.newSourceRelayProvider, "ethereum"));
   if (
     sourceRelayProvider !==
     ctx.relayProviders[ctx.vaa!.emitterChain as EVMChainId]
   ) {
     ctx.logger.info("Delivery vaa specifies different relay provider", {
-      sourceRelayProvider: redeliveryVaa.sourceRelayProvider,
+      sourceRelayProvider: redeliveryVaa.newSourceRelayProvider,
     });
     return;
   }
 
-  if (redeliveryVaa.key.infoType != VaaKeyType.EMITTER_SEQUENCE) {
-    throw new Error(`Only supports EmitterSequence VaaKeyType`);
-  }
-
   ctx.logger.info(
     `Redelivery requested for the following VAA: `,
-    vaaKeyPrintable(redeliveryVaa.key)
+    vaaKeyPrintable(redeliveryVaa.deliveryVaaKey)
   );
 
   let originalVaa = await ctx.fetchVaa(
-    redeliveryVaa.key.chainId as wh.ChainId,
-    Buffer.from(redeliveryVaa.key.emitterAddress!),
-    redeliveryVaa.key.sequence!.toBigInt()
+    redeliveryVaa.deliveryVaaKey.chainId as wh.ChainId,
+    Buffer.from(redeliveryVaa.deliveryVaaKey.emitterAddress!),
+    redeliveryVaa.deliveryVaaKey.sequence!.toBigInt()
   );
 
   ctx.logger.info("Retrieved original VAA!");
@@ -90,9 +86,8 @@ async function processRedelivery(ctx: GRContext) {
   } else {
     ctx.logger.info("Redelivery is valid, proceeding with redelivery");
     processDeliveryInstruction(ctx, delivery, originalVaa.bytes, {
-      newReceiverValueTarget: redeliveryVaa.newReceiverValueTarget,
-      newMaximumRefundTarget: redeliveryVaa.newMaximumRefundTarget,
-      gasLimit: redeliveryVaa.executionParameters.gasLimit,
+      newReceiverValue: redeliveryVaa.newRequestedReceiverValue,
+      newExecutionInfo: redeliveryVaa.newEncodedExecutionInfo,
       redeliveryHash: ctx.vaa!.hash,
     });
   }
@@ -118,43 +113,46 @@ function isValidRedelivery(
   }
 
   //TODO check that the sourceRelayerAddress is one of this relayer's addresses
-  if (!redelivery.sourceRelayProvider) {
+  if (!redelivery.newSourceRelayProvider) {
   }
 
-  if (delivery.maximumRefundTarget.gt(redelivery.newMaximumRefundTarget)) {
+  const [deliveryExecutionInfo,] = parseEVMExecutionInfoV1(delivery.encodedExecutionInfo, 0);
+  const [redeliveryExecutionInfo,] = parseEVMExecutionInfoV1(redelivery.newEncodedExecutionInfo, 0);
+
+  if (deliveryExecutionInfo.targetChainRefundPerGasUnused.gt(redeliveryExecutionInfo.targetChainRefundPerGasUnused)) {
     ctx.logger.info(
-      "Redelivery maximumRefundTarget is less than original delivery maximumRefundTarget"
+      "Redelivery target chain refund per gas unused is less than original delivery target chain refund per gas unused"
     );
     ctx.logger.info(
       "Original refund: " +
-        delivery.maximumRefundTarget.toBigInt().toLocaleString() +
+        deliveryExecutionInfo.targetChainRefundPerGasUnused.toBigInt().toLocaleString() +
         " Redelivery: " +
-        redelivery.newMaximumRefundTarget.toBigInt().toLocaleString()
+        redeliveryExecutionInfo.targetChainRefundPerGasUnused.toBigInt().toLocaleString()
     );
     return false;
   }
-  if (delivery.receiverValueTarget.gt(redelivery.newReceiverValueTarget)) {
+  if (delivery.requestedReceiverValue.gt(redelivery.newRequestedReceiverValue)) {
     ctx.logger.info(
-      "Redelivery receiverValueTarget is less than original delivery receiverValueTarget"
+      "Redelivery requested receiverValue is less than original delivery requested receiverValue"
     );
     ctx.logger.info(
       "Original refund: " +
-        delivery.receiverValueTarget.toBigInt().toLocaleString(),
+        delivery.requestedReceiverValue.toBigInt().toLocaleString(),
       +" Redelivery: " +
-        redelivery.newReceiverValueTarget.toBigInt().toLocaleString()
+        redelivery.newRequestedReceiverValue.toBigInt().toLocaleString()
     );
     return false;
   }
   if (
-    delivery.executionParameters.gasLimit >
-    redelivery.executionParameters.gasLimit
+    deliveryExecutionInfo.gasLimit >
+    redeliveryExecutionInfo.gasLimit
   ) {
     ctx.logger.info(
       "Redelivery gasLimit is less than original delivery gasLimit"
     );
     ctx.logger.info(
-      "Original refund: " + delivery.executionParameters.gasLimit,
-      " Redelivery: " + redelivery.executionParameters.gasLimit
+      "Original refund: " + deliveryExecutionInfo.gasLimit,
+      " Redelivery: " + redeliveryExecutionInfo.gasLimit
     );
     return false;
   }
@@ -168,14 +166,7 @@ async function processDeliveryInstruction(
   deliveryVaa: Buffer | Uint8Array,
   overrides?: DeliveryOverrideArgs
 ) {
-  //TODO this check is not quite correct
-  if (
-    delivery.vaaKeys.findIndex(
-      (m) => m.infoType !== VaaKeyType.EMITTER_SEQUENCE
-    ) != -1
-  ) {
-    throw new Error(`Only supports EmitterSequence VaaKeyType`);
-  }
+
   ctx.logger.info(`Fetching vaas from parsed delivery vaa manifest...`, {
     vaaKeys: delivery.vaaKeys.map(vaaKeyPrintable),
   });
@@ -196,12 +187,16 @@ async function processDeliveryInstruction(
   });
   // const chainId = assertEvmChainId(ix.targetChain)
   const chainId = delivery.targetChainId as EVMChainId;
-  const receiverValue = overrides?.newReceiverValueTarget
-    ? overrides.newReceiverValueTarget
-    : delivery.receiverValueTarget;
-  const maxRefund = overrides?.newMaximumRefundTarget
-    ? overrides.newMaximumRefundTarget
-    : delivery.maximumRefundTarget;
+  const receiverValue = overrides?.newReceiverValue
+    ? overrides.newReceiverValue
+    : (delivery.requestedReceiverValue.add(delivery.extraReceiverValue));
+  const getMaxRefund = (encodedDeliveryInfo: Buffer) => {
+    const [deliveryInfo,] = parseEVMExecutionInfoV1(encodedDeliveryInfo, 0);
+    return deliveryInfo.targetChainRefundPerGasUnused.mul(deliveryInfo.gasLimit);
+  }
+  const maxRefund = getMaxRefund(overrides?.newExecutionInfo
+    ? overrides.newExecutionInfo
+    : delivery.encodedExecutionInfo);
   const budget = receiverValue.add(maxRefund);
 
   await ctx.wallets.onEVM(chainId, async ({ wallet }) => {
@@ -210,13 +205,9 @@ async function processDeliveryInstruction(
       wallet
     );
 
-    const input: TargetDeliveryParametersStruct = {
-      encodedVMs: results.map((v) => v.bytes),
-      encodedDeliveryVAA: deliveryVaa,
-      relayerRefundAddress: wallet.address,
-      overrides: overrides ? packOverrides(overrides) : [],
-    };
-    const gasUnitsEstimate = await coreRelayer.estimateGas.deliver(input, {
+    const encodedVMs = results.map((v) => v.bytes);
+    const packedOverrides = overrides ? packOverrides(overrides) : [];
+    const gasUnitsEstimate = await coreRelayer.estimateGas.deliver(encodedVMs, deliveryVaa, wallet.address, packedOverrides, {
       value: budget,
       gasLimit: 3000000,
     });
@@ -239,7 +230,7 @@ async function processDeliveryInstruction(
     await sleep(200);
     ctx.logger.debug("Sending 'deliver' tx...");
     const receipt = await coreRelayer
-      .deliver(input, { value: budget, gasLimit: 3000000 })
+      .deliver(encodedVMs, deliveryVaa, wallet.address, packedOverrides, { value: budget, gasLimit: 3000000 })
       .then((x: any) => x.wait());
 
     logResults(ctx, receipt, chainId);
