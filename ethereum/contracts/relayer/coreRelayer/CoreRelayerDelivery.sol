@@ -123,6 +123,8 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     if (encodedOverrides.length != 0) {
       DeliveryOverride memory deliveryOverrides = encodedOverrides.decodeDeliveryOverride();
       
+      // Check to see if gasLimit >= original gas limit, receiver value >= original receiver value, and refund >= original refund
+      // If so, replace the corresponding variables with the overriden variables
       (instruction.requestedReceiverValue, executionInfo) = decodeAndCheckOverridesEvmV1(instruction.requestedReceiverValue, executionInfo, deliveryOverrides);
       instruction.extraReceiverValue = Wei.wrap(0);
       redeliveryHash = deliveryOverrides.redeliveryHash;
@@ -243,7 +245,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       vaaInfo.sourceSequence,
       vaaInfo.deliveryVaaHash,
       results.status,
-      uint32(Gas.unwrap(results.gasUsed)),
+      uint32(results.gasUsed.unwrap()),
       payRefunds(
         vaaInfo.deliveryInstruction,
         vaaInfo.relayerRefundAddress,
@@ -309,7 +311,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     IWormholeReceiver deliveryTarget =
       IWormholeReceiver(fromWormholeFormat(targetAddress));
     try deliveryTarget.receiveWormholeMessages{
-          gas:   Gas.unwrap(gasLimit),
+          gas:   gasLimit.unwrap(),
           value: totalReceiverValue.unwrap()
         } (data, signedVaas) {
       targetRevertDataTruncated = new bytes(0);
@@ -374,7 +376,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     Wei fundsForForward;
     unchecked{fundsForForward = transactionFeeRefundAmount + totalMsgValue;}
     if (fundsForForward < totalFee) {
-        revert Cancelled(uint32(Gas.unwrap(gasUsed)), Wei.unwrap(fundsForForward), Wei.unwrap(totalFee));
+        revert Cancelled(uint32(gasUsed.unwrap()), fundsForForward.unwrap(), totalFee.unwrap());
     }
 
     Wei extraReceiverValue = IRelayProvider(fromWormholeFormat(instructions[0].sourceRelayProvider)).quoteAssetConversion(instructions[0].targetChainId, fundsForForward - totalFee);
@@ -405,8 +407,11 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
   ) private returns (RefundStatus refundStatus) {
     //Amount of receiverValue that is refunded to the user (0 if the call to
     //  'receiveWormholeMessages' did not revert, or the full receiverValue otherwise)
-    Wei receiverValueRefundAmount =
-      (status == DeliveryStatus.FORWARD_REQUEST_SUCCESS || status == DeliveryStatus.SUCCESS) ? Wei.wrap(0) : (deliveryInstruction.requestedReceiverValue + deliveryInstruction.extraReceiverValue);
+    Wei receiverValueRefundAmount = Wei.wrap(0);
+
+    if(status == DeliveryStatus.FORWARD_REQUEST_FAILURE || status == DeliveryStatus.RECEIVER_FAILURE) {
+      receiverValueRefundAmount = (deliveryInstruction.requestedReceiverValue + deliveryInstruction.extraReceiverValue);
+    }
 
     //Total refund to the user
     Wei refundToRefundAddress =
@@ -428,12 +433,13 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
 
     //Refund the relayer (their extra funds) + (the amount that the relayer spent on gas)
     //  + (the users refund if that refund didn't succeed)
+    Wei leftoverUserRefund = refundToRefundAddress;
+    if(refundStatus == RefundStatus.REFUND_SENT || refundStatus == RefundStatus.CROSS_CHAIN_REFUND_SENT) {
+      leftoverUserRefund = Wei.wrap(0);
+    }
+
     Wei relayerRefundAmount = 
-      msgValue() - (deliveryInstruction.requestedReceiverValue + deliveryInstruction.extraReceiverValue) - transactionFeeRefundAmount
-    //TODO AMO: Isn't this a bug? We add the same amount regardless of whether we hit the max or not
-      + ((refundStatus == RefundStatus.REFUND_SENT ||
-          refundStatus == RefundStatus.CROSS_CHAIN_REFUND_SENT 
-         ) ? Wei.wrap(0) : refundToRefundAddress);
+      msgValue() - (deliveryInstruction.requestedReceiverValue + deliveryInstruction.extraReceiverValue) - transactionFeeRefundAmount + leftoverUserRefund;
 
     //TODO AMO: what if pay fails? (i.e. returns false)
     //Refund the relay provider
