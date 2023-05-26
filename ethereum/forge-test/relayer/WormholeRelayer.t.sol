@@ -18,7 +18,8 @@ import "../../contracts/interfaces/relayer/IWormholeRelayerTyped.sol";
 import {
     DeliveryInstruction,
     RedeliveryInstruction,
-    DeliveryOverride
+    DeliveryOverride,
+    EvmDeliveryInstruction
 } from "../../contracts/libraries/relayer/RelayerInternalStructs.sol";
 import {WormholeRelayer} from "../../contracts/relayer/wormholeRelayer/WormholeRelayer.sol";
 import {MockGenericRelayer} from "./MockGenericRelayer.sol";
@@ -2406,49 +2407,26 @@ contract WormholeRelayerTests is Test {
         uint32 minTargetGasLimit
     ) public {
         StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, minTargetGasLimit);
-        DeliveryInstruction memory instruction;
         Gas gasLimit = Gas.wrap(500_000);
         uint256 sizeRequested = 512;
+        bytes32 targetIntegration = toWormholeFormat(address(new BigRevertBufferIntegration()));
+        // We encode 512 as the requested revert buffer length to our test integration contract
+        bytes memory payload = abi.encode(sizeRequested);
+        bytes32 userAddress = toWormholeFormat(address(0x8080));
 
-        {
-            // We encode 512 as the requested revert buffer length to our test integration contract
-            bytes memory payload = abi.encode(sizeRequested);
-            bytes32 targetIntegration = toWormholeFormat(address(new BigRevertBufferIntegration()));
-            bytes32 userAddress = toWormholeFormat(address(0x8080));
-
-            vm.deal(address(setup.target.coreRelayerFull), 1 ether);
-            Wei maximumRefund = Wei.wrap(1 ether);
-            uint8 consistencyLevel = 15;
-            Wei receiverValueTarget = Wei.wrap(0);
-
-            instruction = DeliveryInstruction({
-                targetChainId: setup.targetChainId,
-                targetAddress: targetIntegration,
-                refundChainId: setup.targetChainId,
-                refundAddress: userAddress,
-                maximumRefundTarget: maximumRefund,
-                receiverValueTarget: receiverValueTarget,
-                sourceRelayProvider: toWormholeFormat(address(setup.source.relayProvider)),
-                targetRelayProvider: toWormholeFormat(address(setup.target.relayProvider)),
-                senderAddress: userAddress,
-                vaaKeys: new VaaKey[](0),
-                consistencyLevel: consistencyLevel,
-                executionParameters: ExecutionParameters({
-                    gasLimit: gasLimit
-                }),
-                payload: payload
-            });
-        }
-
-        bytes32 deliveryVaaHash = bytes32(0);
-
-        bytes[] memory signedVaas = new bytes[](0);
         vm.prank(address(setup.target.coreRelayerFull));
         (uint8 status, Gas gasUsed, bytes memory revertData) = setup.target.coreRelayerFull.executeInstruction(
-            instruction,
-            setup.sourceChainId,
-            deliveryVaaHash,
-            signedVaas
+            EvmDeliveryInstruction({
+              sourceChain: setup.sourceChain,
+              targetAddress: targetIntegration,
+              payload: payload,
+              gasLimit: gasLimit,
+              totalReceiverValue: TargetNative.wrap(0),
+              targetChainRefundPerGasUnused: GasPrice.wrap(0),
+              senderAddress: userAddress,
+              deliveryHash: bytes32(0),
+              signedVaas: new bytes[](0)
+            })
         );
 
         assertTrue(status == uint8(IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE));

@@ -26,7 +26,8 @@ import {IDeliveryProvider} from "../../interfaces/relayer/IDeliveryProviderTyped
 import {pay, min, toWormholeFormat, fromWormholeFormat, returnLengthBoundedCall} from "../../libraries/relayer/Utils.sol";
 import {
     DeliveryInstruction,
-    DeliveryOverride
+    DeliveryOverride,
+    EvmDeliveryInstruction
 } from "../../libraries/relayer/RelayerInternalStructs.sol";
 import {BytesParsing} from "../../libraries/relayer/BytesParsing.sol";
 import {WormholeRelayerSerde} from "./WormholeRelayerSerde.sol";
@@ -252,7 +253,19 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         DeliveryResults memory results;
 
         try //force external call
-        this.executeInstruction(vaaInfo) returns (
+        this.executeInstruction(
+            EvmDeliveryInstruction({
+                sourceChain: vaaInfo.sourceChain,
+                targetAddress: vaaInfo.deliveryInstruction.targetAddress,
+                payload: vaaInfo.deliveryInstruction.payload,
+                gasLimit: vaaInfo.gasLimit,
+                totalReceiverValue: vaaInfo.totalReceiverValue,
+                targetChainRefundPerGasUnused: vaaInfo.targetChainRefundPerGasUnused,
+                senderAddress: vaaInfo.deliveryInstruction.senderAddress,
+                deliveryHash: vaaInfo.deliveryVaaHash,
+                signedVaas: vaaInfo.encodedVMs
+            }
+        )) returns (
             uint8 _status, Gas _gasUsed, bytes memory targetRevertDataTruncated
         ) {
             results = DeliveryResults(
@@ -320,7 +333,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         }
     }
 
-    function executeInstruction(DeliveryVAAInfo memory vaaInfo)
+    function executeInstruction(EvmDeliveryInstruction memory evmInstruction)
         external
         returns (uint8 status, Gas gasUsed, bytes memory targetRevertDataTruncated)
     {
@@ -331,52 +344,55 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             revert RequesterNotWormholeRelayer();
         }
 
-        // Calls the `receiveWormholeMessages` endpoint on the contract `instruction.targetAddress`
-        // (with the gas limit and value specified in instruction, and `encodedVMs` as the input)
-        address payable deliveryTarget =
-            payable(fromWormholeFormat(vaaInfo.deliveryInstruction.targetAddress));
+        Gas gasLimit = evmInstruction.gasLimit;
+        bool success;
+        {
+            address payable deliveryTarget = payable(fromWormholeFormat(evmInstruction.targetAddress));
+            bytes memory callData = abi.encodeCall(IWormholeReceiver.receiveWormholeMessages, (
+                evmInstruction.payload,
+                evmInstruction.signedVaas,
+                evmInstruction.senderAddress,
+                evmInstruction.sourceChain,
+                evmInstruction.deliveryHash
+            ));
 
-        Gas preGas = Gas.wrap(gasleft());
+            Gas preGas = Gas.wrap(gasleft());
 
-        bytes memory callData = abi.encodeCall(IWormholeReceiver.receiveWormholeMessages, (
-            vaaInfo.deliveryInstruction.payload,
-            vaaInfo.encodedVMs,
-            vaaInfo.deliveryInstruction.senderAddress,
-            vaaInfo.sourceChain,
-            vaaInfo.deliveryVaaHash
-        ));
-        (bool success, bytes memory returnedData) = returnLengthBoundedCall(
-            deliveryTarget,
-            callData,
-            vaaInfo.gasLimit.unwrap(),
-            vaaInfo.totalReceiverValue.unwrap(),
-            RETURNDATA_TRUNCATION_THRESHOLD
-        );
+            // Calls the `receiveWormholeMessages` endpoint on the contract `evmInstruction.targetAddress`
+            // (with the gas limit and value specified in instruction, and `encodedVMs` as the input)
+            (success, targetRevertDataTruncated) = returnLengthBoundedCall(
+                deliveryTarget,
+                callData,
+                gasLimit.unwrap(),
+                evmInstruction.totalReceiverValue.unwrap(),
+                RETURNDATA_TRUNCATION_THRESHOLD
+            );
 
-        Gas postGas = Gas.wrap(gasleft());
+            Gas postGas = Gas.wrap(gasleft());
+
+            unchecked {
+                gasUsed = (preGas - postGas).min(gasLimit);
+            }
+        }
 
         if (success) {
             targetRevertDataTruncated = new bytes(0);
             status = uint8(DeliveryStatus.SUCCESS);
+
+            ForwardInstruction[] storage forwardInstructions = getForwardInstructions();
+
+            if (forwardInstructions.length > 0) {
+                //Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the
+                //  fraction of gas unused)
+                LocalNative transactionFeeRefundAmount = (gasLimit - gasUsed).toWei(
+                    evmInstruction.targetChainRefundPerGasUnused
+                ).asLocalNative();
+                emitForward(gasUsed, transactionFeeRefundAmount, forwardInstructions);
+                status = uint8(DeliveryStatus.FORWARD_REQUEST_SUCCESS);
+            }
         } else {
-            targetRevertDataTruncated = returnedData;
+            // Note that forward instructions should always be empty in this case.
             status = uint8(DeliveryStatus.RECEIVER_FAILURE);
-        }
-
-        unchecked {
-            gasUsed = (preGas - postGas).min(vaaInfo.gasLimit);
-        }
-
-        ForwardInstruction[] storage forwardInstructions = getForwardInstructions();
-
-        if (forwardInstructions.length > 0) {
-            //Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the
-            //  fraction of gas unused)
-            LocalNative transactionFeeRefundAmount = (vaaInfo.gasLimit - gasUsed).toWei(
-                vaaInfo.targetChainRefundPerGasUnused
-            ).asLocalNative();
-            emitForward(gasUsed, transactionFeeRefundAmount, forwardInstructions);
-            status = uint8(DeliveryStatus.FORWARD_REQUEST_SUCCESS);
         }
     }
 

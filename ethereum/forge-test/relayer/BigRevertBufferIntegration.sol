@@ -2,7 +2,7 @@
 pragma solidity ^0.8.17;
 
 import "../../contracts/interfaces/relayer/IWormholeReceiver.sol";
-import "../../contracts/relayer/coreRelayer/BytesParsing.sol";
+import "../../contracts/libraries/relayer/BytesParsing.sol";
 
 uint256 constant uint256Length = 32;
 
