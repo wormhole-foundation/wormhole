@@ -1,8 +1,11 @@
 import {
   assertChain,
+  ChainId,
   ChainName,
   CHAINS,
   coalesceChainName,
+  Contracts,
+  CONTRACTS,
   isEVMChain,
   isTerraChain,
   toChainName,
@@ -19,8 +22,10 @@ import { execute_near } from "../near";
 import { execute_solana } from "../solana";
 import { execute_terra } from "../terra";
 import { assertNetwork } from "../utils";
-import { assertKnownPayload, impossible, parse } from "../vaa";
+import { assertKnownPayload, impossible, parse, Payload, VAA } from "../vaa";
 import { execute_xpla } from "../xpla";
+import { NETWORKS } from "../networks";
+import { Network } from "../utils";
 
 export const command = "submit <vaa>";
 export const desc = "Execute a VAA";
@@ -48,10 +53,16 @@ export const builder = (y: typeof yargs) =>
       describe: "RPC endpoint",
       type: "string",
       demandOption: false,
+    })
+    .option("all-chains", {
+      alias: "ac",
+      describe:
+        "Submit the VAA to all chains except for the origin chain specified in the payload",
+      type: "boolean",
+      default: false,
+      required: false,
     });
-export const handler = async (
-  argv: Awaited<ReturnType<typeof builder>["argv"]>
-) => {
+export const handler = async (argv: Awaited<ReturnType<typeof builder>["argv"]>) => {
   const vaa_hex = String(argv.vaa);
   const buf = Buffer.from(vaa_hex, "hex");
   const parsed_vaa = parse(buf);
@@ -61,6 +72,19 @@ export const handler = async (
 
   const network = argv.network.toUpperCase();
   assertNetwork(network);
+
+  if (argv["all-chains"]) {
+    if (argv["rpc"]) {
+      throw Error(`--rpc may not be specified with --all-chains`);
+    }
+
+    if (argv["contract-address"]) {
+      throw Error(`--contract_address may not be specified with --all-chains`);
+    }
+
+    await submit_to_all(vaa_hex, parsed_vaa, buf, network);
+    return;
+  }
 
   // We figure out the target chain to submit the VAA to.
   // The VAA might specify this itself (for example a contract upgrade VAA
@@ -83,6 +107,14 @@ export const handler = async (
 
   // get chain from command line arg
   const cli_chain = argv.chain;
+  // get VAA chain
+  const vaa_chain_id =
+    "chain" in parsed_vaa.payload ? parsed_vaa.payload.chain : 0;
+  assertChain(vaa_chain_id);
+  const vaa_chain = toChainName(vaa_chain_id);
+
+  // get chain from command line arg
+  const cli_chain = argv["chain"];
 
   let chain: ChainName;
   if (cli_chain !== undefined) {
