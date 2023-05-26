@@ -515,7 +515,12 @@ func Run(
 					if err != nil {
 						logger.Error("failed to publish query response", zap.Error(err), zap.String("component", "ccqp2p"))
 					} else {
-						logger.Info("published signed query response", zap.Any("query_response", msg), zap.Any("signature", sig), zap.String("component", "ccqp2p"))
+						logger.Info("published signed query response",
+							zap.String("requestID", msg.RequestID()),
+							zap.Any("query_response", msg),
+							zap.Any("signature", sig),
+							zap.String("component", "ccqp2p"),
+						)
 					}
 				}
 			}
