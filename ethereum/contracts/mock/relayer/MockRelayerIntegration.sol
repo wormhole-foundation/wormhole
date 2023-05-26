@@ -5,7 +5,7 @@ pragma solidity ^0.8.0;
 
 import "../../libraries/external/BytesLib.sol";
 import "../../interfaces/IWormhole.sol";
-import "../../interfaces/relayer/IWormholeRelayerUntyped.sol";
+import "../../interfaces/relayer/IWormholeRelayer.sol";
 import "../../interfaces/relayer/IWormholeReceiver.sol";
 
 import {toWormholeFormat} from "../../libraries/relayer/Utils.sol";
@@ -54,10 +54,8 @@ contract MockRelayerIntegration is IWormholeReceiver {
         uint32 gasLimit,
         uint128 receiverValue
     ) public payable returns (uint64 sequence) {
-        (uint256 quote, uint256 refundAmountPerUnitGas) = relayer.quoteEVMDeliveryPrice(targetChainId, receiverValue, gasLimit);
         bytes memory fullMessage = encodeMessage(Message(Version.SEND, _message, bytes("")));
         return sendToEvm(
-            quote,
             targetChainId,
             getRegisteredContractAddress(targetChainId),
             gasLimit,
@@ -77,10 +75,8 @@ contract MockRelayerIntegration is IWormholeReceiver {
         uint128 receiverValue,
         VaaKey[] memory vaaKeys
     ) public payable returns (uint64 sequence) {
-        (uint256 quote, uint256 refundAmountPerUnitGas) = relayer.quoteEVMDeliveryPrice(targetChainId, receiverValue, gasLimit);
         bytes memory fullMessage = encodeMessage(Message(Version.SEND, _message, bytes("")));
         return sendToEvm(
-            quote,
             targetChainId,
             getRegisteredContractAddress(targetChainId),
             gasLimit,
@@ -101,10 +97,8 @@ contract MockRelayerIntegration is IWormholeReceiver {
         uint16 refundChainId,
         address refundAddress
     ) public payable returns (uint64 sequence) {
-        (uint256 quote,) = relayer.quoteEVMDeliveryPrice(targetChainId, receiverValue, gasLimit);
         bytes memory fullMessage = encodeMessage(Message(Version.SEND, _message, bytes("")));
         return sendToEvm(
-            quote,
             targetChainId,
             getRegisteredContractAddress(targetChainId),
             gasLimit,
@@ -125,10 +119,8 @@ contract MockRelayerIntegration is IWormholeReceiver {
         uint32 gasLimit,
         uint128 receiverValue
     ) public payable returns (uint64 sequence) {
-        (uint256 quote,) = relayer.quoteEVMDeliveryPrice(targetChainId, receiverValue, gasLimit);
         bytes memory fullMessage = encodeMessage(Message(Version.FORWARD, _message, _forwardedMessage));
         return sendToEvm(
-            quote,
             targetChainId,
             getRegisteredContractAddress(targetChainId),
             gasLimit,
@@ -150,10 +142,8 @@ contract MockRelayerIntegration is IWormholeReceiver {
         uint16 refundChainId,
         address refundAddress
     ) public payable returns (uint64 sequence) {
-        (uint256 quote,) = relayer.quoteEVMDeliveryPrice(targetChainId, receiverValue, gasLimit);
         bytes memory fullMessage = encodeMessage(Message(Version.FORWARD, _message, _forwardedMessage));
         return sendToEvm(
-            quote,
             targetChainId,
             getRegisteredContractAddress(targetChainId),
             gasLimit,
@@ -173,10 +163,8 @@ contract MockRelayerIntegration is IWormholeReceiver {
         uint32 gasLimit,
         uint128 receiverValue
     ) public payable returns (uint64 sequence) {
-        (uint256 quote,) = relayer.quoteEVMDeliveryPrice(targetChainId, receiverValue, gasLimit);
         bytes memory fullMessage = encodeMessage(Message(Version.MULTIFORWARD, _message, _forwardedMessage));
         return sendToEvm(
-            quote,
             targetChainId,
             getRegisteredContractAddress(targetChainId),
             gasLimit,
@@ -191,7 +179,6 @@ contract MockRelayerIntegration is IWormholeReceiver {
 
     
     function sendToEvm(
-        uint256 deliveryPrice,
         uint16 targetChainId,
         address destination,
         uint32 gasLimit,
@@ -201,14 +188,14 @@ contract MockRelayerIntegration is IWormholeReceiver {
         uint256 paymentForExtraReceiverValue,
         bytes memory payload,
         VaaKey[] memory vaaKeys
-    ) public returns (uint64 sequence) {
-        sequence = relayer.sendToEvm{value: deliveryPrice + wormhole.messageFee()}(
+    ) public payable returns (uint64 sequence) {
+        sequence = relayer.sendToEvm{value: msg.value}(
             targetChainId,
             destination,
             payload,
-            receiverValue,
-            paymentForExtraReceiverValue,
-            gasLimit,
+            Wei.wrap(receiverValue),
+            Wei.wrap(paymentForExtraReceiverValue),
+            Gas.wrap(gasLimit),
             refundChainId,
             refundAddress,
             relayer.getDefaultRelayProvider(),
@@ -218,17 +205,16 @@ contract MockRelayerIntegration is IWormholeReceiver {
     }
 
     function resend(uint16 chainId, uint64 sequence, uint16 targetChainId, uint32 newGasLimit, uint128 newReceiverValue) public payable returns (uint64 resendSequence) {
-        (uint256 quote,) = relayer.quoteEVMDeliveryPrice(targetChainId, newReceiverValue, newGasLimit);
         VaaKey memory deliveryVaaKey = VaaKey(
             chainId,
             getRegisteredContract(chainId),
             sequence
         );
-        resendSequence = relayer.resendToEvm{value: quote + wormhole.messageFee()}(
+        resendSequence = relayer.resendToEvm{value: msg.value}(
             deliveryVaaKey,
             targetChainId,
-            newReceiverValue,
-            newGasLimit,
+            Wei.wrap(newReceiverValue),
+            Gas.wrap(newGasLimit),
             relayer.getDefaultRelayProvider()
         );
     }
@@ -251,8 +237,8 @@ contract MockRelayerIntegration is IWormholeReceiver {
                     deliveryData.sourceChainId,
                     getRegisteredContractAddress(deliveryData.sourceChainId),
                     encodeMessage(Message(Version.SEND, message.forwardMessage, bytes(""))),
-                    0,
-                    500000,
+                    Wei.wrap(0),
+                    Gas.wrap(500000),
                     deliveryData.sourceChainId,
                     getRegisteredContractAddress(deliveryData.sourceChainId)
             );
@@ -262,8 +248,8 @@ contract MockRelayerIntegration is IWormholeReceiver {
                     wormhole.chainId(),
                     getRegisteredContractAddress(wormhole.chainId()),
                     encodeMessage(Message(Version.SEND, message.forwardMessage, bytes(""))),
-                    0,
-                    500000,
+                    Wei.wrap(0),
+                    Gas.wrap(500000),
                     wormhole.chainId(),
                     getRegisteredContractAddress(wormhole.chainId())
             );
