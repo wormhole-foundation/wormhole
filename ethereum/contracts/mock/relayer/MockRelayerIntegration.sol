@@ -205,13 +205,12 @@ contract MockRelayerIntegration is IWormholeReceiver {
     }
 
     function resend(uint16 chainId, uint64 sequence, uint16 targetChainId, uint32 newGasLimit, uint128 newReceiverValue) public payable returns (uint64 resendSequence) {
-        (uint256 quote,) = relayer.quoteEVMDeliveryPrice(targetChainId, newReceiverValue, newGasLimit);
         VaaKey memory deliveryVaaKey = VaaKey(
             chainId,
             getRegisteredContract(chainId),
             sequence
         );
-        resendSequence = relayer.resendToEvm{value: quote + wormhole.messageFee()}(
+        resendSequence = relayer.resendToEvm{value: msg.value}(
             deliveryVaaKey,
             targetChainId,
             Wei.wrap(newReceiverValue),
