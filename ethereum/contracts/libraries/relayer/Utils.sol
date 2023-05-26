@@ -9,8 +9,9 @@ error NotAnEvmAddress(bytes32);
 function pay(address payable receiver, LocalNative amount) returns (bool success) {
   uint256 amount_ = LocalNative.unwrap(amount);
   if (amount_ != 0)
+    // TODO: we currently ignore the return data. Some users of this function might want to bubble up the return value though.
     // Specifying a higher limit than 63/64 of the remaining gas caps it at that amount without throwing an exception.
-    (success,) = returnLengthBoundedCall(receiver, new bytes(0), gasleft(), amount_);
+    (success,) = returnLengthBoundedCall(receiver, new bytes(0), gasleft(), amount_, 0);
   else
     success = true;
 }
@@ -45,30 +46,31 @@ function fromWormholeFormatUnchecked(bytes32 whFormatAddress) pure returns (addr
 uint256 constant freeMemoryPtr = 0x40;
 uint256 constant memoryWord = 32;
 uint256 constant maskModulo32 = 0x1f;
-// Bound chosen by the following formula: `memoryWord * 4 + selectorSize`.
-// This means that an error identifier plus four fixed size arguments should be available to developers.
-// In the case of a `require` revert with error message, this should provide 2 memory word's worth of data.
-uint256 constant returnLengthBound = 132;
 
 /**
- * Implements call that truncates return data to a constant size to avoid excessive gas consumption for relayers
+ * Implements call that truncates return data to a specific size to avoid excessive gas consumption for relayers
  * when a revert or unexpectedly large return value is produced by the call.
+ *
+ * @param returnedData Buffer of returned data truncated to the first `dataLengthBound` bytes.
  */
-function returnLengthBoundedCall(address payable callee, bytes memory callData, uint256 gasLimit, uint256 value) returns (bool success, bytes memory returnedData) {
+function returnLengthBoundedCall(
+  address payable callee,
+  bytes memory callData,
+  uint256 gasLimit,
+  uint256 value,
+  uint256 dataLengthBound
+) returns (bool success, bytes memory returnedData) {
   uint256 callDataLength = callData.length;
   assembly ("memory-safe") {
     returnedData := mload(freeMemoryPtr)
-    // Note that `returnedDataEndIndex` and `callDataEndIndex` are past the end indexes for their respective buffers.
     let returnedDataBuffer := add(returnedData, memoryWord)
-    let returnedDataEndIndex := add(returnedDataBuffer, returnLengthBound)
     let callDataBuffer := add(callData, memoryWord)
-    let callDataEndIndex := add(callDataBuffer, callDataLength)
 
-    success := call(gasLimit, callee, value, callDataBuffer, callDataEndIndex, returnedDataBuffer, returnedDataEndIndex)
+    success := call(gasLimit, callee, value, callDataBuffer, callDataLength, returnedDataBuffer, dataLengthBound)
     let returnedDataSize := returndatasize()
-    switch lt(returnLengthBound, returnedDataSize)
+    switch lt(dataLengthBound, returnedDataSize)
     case 1 {
-      returnedDataSize := returnLengthBound
+      returnedDataSize := dataLengthBound
     } default {}
     mstore(returnedData, returnedDataSize)
 

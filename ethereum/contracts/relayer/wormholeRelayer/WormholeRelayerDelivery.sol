@@ -17,7 +17,8 @@ import {
     RequesterNotWormholeRelayer,
     VaaKey,
     IWormholeRelayerDelivery,
-    IWormholeRelayerSend
+    IWormholeRelayerSend,
+    RETURNDATA_TRUNCATION_THRESHOLD
 } from "../../interfaces/relayer/IWormholeRelayerTyped.sol";
 import {IWormholeReceiver} from "../../interfaces/relayer/IWormholeReceiver.sol";
 import {IDeliveryProvider} from "../../interfaces/relayer/IDeliveryProviderTyped.sol";
@@ -348,7 +349,8 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             deliveryTarget,
             callData,
             vaaInfo.gasLimit.unwrap(),
-            vaaInfo.totalReceiverValue.unwrap()
+            vaaInfo.totalReceiverValue.unwrap(),
+            RETURNDATA_TRUNCATION_THRESHOLD
         );
 
         Gas postGas = Gas.wrap(gasleft());
