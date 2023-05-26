@@ -66,8 +66,8 @@ function returnLengthBoundedCall(address payable callee, bytes memory callData, 
 
     success := call(gasLimit, callee, value, callDataBuffer, callDataEndIndex, returnedDataBuffer, returnedDataEndIndex)
     let returnedDataSize := returndatasize()
-    switch lt(returnedDataSize, add(returnLengthBound, 1))
-    case 0 {
+    switch lt(returnLengthBound, returnedDataSize)
+    case 1 {
       returnedDataSize := returnLengthBound
     } default {}
     mstore(returnedData, returnedDataSize)
