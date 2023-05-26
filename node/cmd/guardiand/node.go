@@ -1601,7 +1601,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			if err != nil {
 				logger.Fatal("failed to parse allowed requesters list", zap.String("ccqAllowedRequesters", *ccqAllowedRequesters), zap.Error(err), zap.String("component", "ccqconfig"))
 			}
-			go handleQueryRequests(rootCtx, logger, signedQueryReqReadC, chainQueryReqC, ccqAllowedRequestersList)
+			go handleQueryRequests(rootCtx, logger, signedQueryReqReadC, chainQueryReqC, ccqAllowedRequestersList, env)
 		}
 
 		if acct != nil {
