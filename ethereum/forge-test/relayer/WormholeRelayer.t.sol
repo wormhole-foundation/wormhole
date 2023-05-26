@@ -109,6 +109,12 @@ contract WormholeRelayerTests is Test {
     MockGenericRelayer genericRelayer;
     TestHelpers helpers;
 
+     /**
+     * 
+     *  SETUP
+     * 
+     */
+
     function setUp() public {
         // deploy Wormhole
         MockWormhole wormhole = new MockWormhole({
@@ -327,29 +333,64 @@ contract WormholeRelayerTests is Test {
         );
     }
 
-    function vaaKeyArray(
-        uint16 chainId,
-        uint64 sequence1,
-        address emitterAddress1,
-        uint64 sequence2,
-        address emitterAddress2
-    ) internal pure returns (VaaKey[] memory vaaKeys) {
-        vaaKeys = new VaaKey[](2);
-        vaaKeys[0] = VaaKey(
-            chainId,
-            toWormholeFormat(emitterAddress1),
-            sequence1
+    function sendMessageToTargetChain(StandardSetupTwoChains memory setup, uint32 gasLimit, uint128 receiverValue, bytes memory message) internal returns (uint64 sequence) {
+        (uint256 deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChainId, receiverValue, gasLimit);
+        sequence = setup.source.integration.sendMessage{
+            value: deliveryCost + setup.source.wormhole.messageFee()
+        }(
+            message,
+            setup.targetChainId,
+            gasLimit,
+            receiverValue
         );
-        vaaKeys[1] = VaaKey(
-            chainId,
-            toWormholeFormat(emitterAddress2),
-            sequence2
+    } 
+
+    function sendMessageToTargetChainExpectingForwardedResponse(StandardSetupTwoChains memory setup, uint32 gasLimit, uint128 receiverValue, bytes memory message, bytes memory forwardedMessage, bool forwardShouldSucceed) internal returns (uint64 sequence) {
+        (uint256 forwardDeliveryCost,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(setup.sourceChainId, 0, REASONABLE_GAS_LIMIT);
+        uint256 neededReceiverValue = forwardDeliveryCost + setup.target.wormhole.messageFee();
+        vm.assume(neededReceiverValue <= type(uint128).max);
+        if(forwardShouldSucceed) {
+            vm.assume(receiverValue >= neededReceiverValue);
+        } else {
+            vm.assume(receiverValue < neededReceiverValue);
+        }
+
+        (uint256 deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChainId, uint128(receiverValue), gasLimit);
+
+        sequence = setup.source.integration.sendMessageWithForwardedResponse{
+            value: deliveryCost + setup.source.wormhole.messageFee()
+        }(
+            message,
+            forwardedMessage,
+            setup.targetChainId,
+            gasLimit,
+            receiverValue
+        );
+    } 
+
+    function resendMessageToTargetChain(StandardSetupTwoChains memory setup, uint64 sequence, uint32 gasLimit, uint128 receiverValue, bytes memory message) internal {
+        (uint256 newDeliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChainId, receiverValue, gasLimit);
+
+        setup.source.integration.resend{
+            value: newDeliveryCost + setup.source.wormhole.messageFee()
+        }(
+            setup.sourceChainId,
+            sequence,
+            setup.targetChainId,
+            gasLimit,
+            receiverValue
         );
     }
 
+
     /**
-     * Basic Functionality Tests: Send, Forward, and Resend
      * 
+     * TEST SUITE!
+     * 
+     */
+
+    /** 
+     * Basic Functionality Tests: Send, Forward, and Resend
      */
 
     function testSend(
@@ -362,16 +403,7 @@ contract WormholeRelayerTests is Test {
 
         vm.recordLogs();
 
-        (uint256 deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChainId, 0, gasParams.targetGasLimit);
-
-        setup.source.integration.sendMessage{
-            value: deliveryCost + setup.source.wormhole.messageFee()
-        }(
-            message,
-            setup.targetChainId,
-            gasParams.targetGasLimit,
-            0
-        );
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, 0, message);
 
         genericRelayer.relay(setup.sourceChainId);
 
@@ -388,23 +420,11 @@ contract WormholeRelayerTests is Test {
     ) public {
 
         StandardSetupTwoChains memory setup =
-            standardAssumeAndSetupTwoChains(gasParams, feeParams, REASONABLE_GAS_LIMIT);
-
-        (uint256 forwardDeliveryCost,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(setup.sourceChainId, 0, REASONABLE_GAS_LIMIT);
-        uint256 receiverValue = forwardDeliveryCost + setup.target.wormhole.messageFee();
-        vm.assume(receiverValue <= type(uint128).max);
-
-        (uint256 deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChainId, uint128(receiverValue), REASONABLE_GAS_LIMIT_FORWARDS);
+            standardAssumeAndSetupTwoChains(gasParams, feeParams, REASONABLE_GAS_LIMIT_FORWARDS);
 
         vm.recordLogs();
 
-        setup.source.integration.sendMessageWithForwardedResponse{value: deliveryCost + feeParams.wormholeFeeOnSource}(
-            message,
-            forwardedMessage,
-            setup.targetChainId,
-            REASONABLE_GAS_LIMIT_FORWARDS,
-            uint128(receiverValue)
-        );
+        sendMessageToTargetChainExpectingForwardedResponse(setup, gasParams.targetGasLimit, feeParams.receiverValueTarget, message, forwardedMessage, true);
 
         genericRelayer.relay(setup.sourceChainId);
 
@@ -431,16 +451,7 @@ contract WormholeRelayerTests is Test {
 
         vm.assume(keccak256(message) != keccak256(bytes("")));
 
-        (uint256 deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChainId, 0, TOO_LOW_GAS_LIMIT);
-
-        uint64 sequence = setup.source.integration.sendMessage{
-            value: deliveryCost + setup.source.wormhole.messageFee()
-        }(
-            message,
-            setup.targetChainId,
-            TOO_LOW_GAS_LIMIT,
-            0
-        );
+        uint64 sequence = sendMessageToTargetChain(setup, TOO_LOW_GAS_LIMIT, 0, message);
 
         genericRelayer.relay(setup.sourceChainId);
 
@@ -448,17 +459,7 @@ contract WormholeRelayerTests is Test {
         assertTrue(getDeliveryStatus() == IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE);
 
         
-        (uint256 newDeliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChainId, 0, REASONABLE_GAS_LIMIT);
-
-        setup.source.integration.resend{
-            value: newDeliveryCost + setup.source.wormhole.messageFee()
-        }(
-            setup.sourceChainId,
-            sequence,
-            setup.targetChainId,
-            REASONABLE_GAS_LIMIT,
-            0
-        );
+        resendMessageToTargetChain(setup, sequence, REASONABLE_GAS_LIMIT, 0, message);
 
         genericRelayer.relay(setup.sourceChainId);
 
@@ -486,24 +487,7 @@ contract WormholeRelayerTests is Test {
          gasParams.targetGasLimit = 600000;
         StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, gasParams.targetGasLimit);
 
-        (uint256 forwardDeliveryCost,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(setup.sourceChainId, 0, TOO_LOW_GAS_LIMIT);
-        uint256 receiverValue = forwardDeliveryCost + setup.target.wormhole.messageFee();
-        vm.assume(receiverValue <= type(uint128).max);
-        vm.assume(feeParams.receiverValueTarget < receiverValue);
-
-        (uint256 deliveryPrice,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChainId, feeParams.receiverValueTarget, gasParams.targetGasLimit);
-
-        setup.source.integration.sendMessageWithForwardedResponse{
-            value: deliveryPrice + feeParams.wormholeFeeOnSource
-        }(
-            bytes("Hello!"),
-            bytes("Forwarded Message!"),
-            setup.targetChainId,
-            gasParams.targetGasLimit,
-            feeParams.receiverValueTarget,
-            setup.targetChainId,
-            setup.target.refundAddress
-        );
+        sendMessageToTargetChainExpectingForwardedResponse(setup, gasParams.targetGasLimit, feeParams.receiverValueTarget, bytes("Hello!"), bytes("Forwarded Message!"), false);
 
         genericRelayer.relay(setup.sourceChainId);
 
@@ -561,16 +545,7 @@ contract WormholeRelayerTests is Test {
 
         vm.assume(keccak256(message) != keccak256(bytes("")));
 
-        (uint256 deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChainId, 0, TOO_LOW_GAS_LIMIT);
-
-        uint64 sequence = setup.source.integration.sendMessage{
-            value: deliveryCost + setup.source.wormhole.messageFee()
-        }(
-            message,
-            setup.targetChainId,
-            TOO_LOW_GAS_LIMIT,
-            0
-        );
+        uint64 sequence = sendMessageToTargetChain(setup, TOO_LOW_GAS_LIMIT, 0, message);
 
         genericRelayer.relay(setup.sourceChainId);
 
@@ -578,31 +553,13 @@ contract WormholeRelayerTests is Test {
         assertTrue(getDeliveryStatus() == IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE);
 
         for(uint32 i=2; i<10; i++) {
-            (uint256 newDeliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChainId, 0, TOO_LOW_GAS_LIMIT*i);
-             setup.source.integration.resend{
-                    value: newDeliveryCost + setup.source.wormhole.messageFee()
-            }(
-               setup.sourceChainId,
-                sequence,
-                setup.targetChainId,
-                TOO_LOW_GAS_LIMIT*i,
-                0
-            );
+            resendMessageToTargetChain(setup, sequence, TOO_LOW_GAS_LIMIT*i, 0, message);
             genericRelayer.relay(setup.sourceChainId);
             assertTrue(keccak256(setup.target.integration.getMessage()) != keccak256(message));
             assertTrue(getDeliveryStatus() == IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE);
         }
-        (uint256 newDeliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChainId, 0, REASONABLE_GAS_LIMIT);
 
-        setup.source.integration.resend{
-            value: newDeliveryCost + setup.source.wormhole.messageFee()
-        }(
-            setup.sourceChainId,
-            sequence,
-            setup.targetChainId,
-            REASONABLE_GAS_LIMIT,
-            0
-        );
+        resendMessageToTargetChain(setup, sequence, REASONABLE_GAS_LIMIT, 0, message);
 
         genericRelayer.relay(setup.sourceChainId);
 
@@ -1385,17 +1342,7 @@ contract WormholeRelayerTests is Test {
 
         DeliveryStack memory stack;
 
-        (stack.payment,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
-            setup.targetChainId, 0, gasParams.targetGasLimit
-        );
-        stack.payment += setup.source.wormhole.messageFee();
-
-        setup.source.integration.sendMessage{value: stack.payment}(
-            message,
-            setup.targetChainId,
-            gasParams.targetGasLimit,
-            0
-        );
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, 0, message);
 
         prepareDeliveryStack(stack, setup, 0);
 
@@ -1422,17 +1369,7 @@ contract WormholeRelayerTests is Test {
 
         DeliveryStack memory stack;
 
-        (stack.payment,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
-            setup.targetChainId, 0, gasParams.targetGasLimit
-        );
-        stack.payment += setup.source.wormhole.messageFee();
-
-        setup.source.integration.sendMessage{value: stack.payment}(
-            message,
-            setup.targetChainId,
-            gasParams.targetGasLimit,
-            0
-        );
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, 0, message);
 
         prepareDeliveryStack(stack, setup, 0);
 
@@ -1468,17 +1405,7 @@ contract WormholeRelayerTests is Test {
 
         DeliveryStack memory stack;
 
-        (stack.payment,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
-            setup.targetChainId, 0, gasParams.targetGasLimit
-        );
-        stack.payment += setup.source.wormhole.messageFee();
-
-        setup.source.integration.sendMessage{value: stack.payment}(
-            message,
-            setup.targetChainId,
-            gasParams.targetGasLimit,
-            0
-        );
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, 0, message);
 
         prepareDeliveryStack(stack, setup, 0);
 
@@ -1503,17 +1430,7 @@ contract WormholeRelayerTests is Test {
 
         DeliveryStack memory stack;
 
-        (stack.payment,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
-            setup.targetChainId, 0, gasParams.targetGasLimit
-        );
-        stack.payment += setup.source.wormhole.messageFee();
-
-        setup.source.integration.sendMessage{value: stack.payment}(
-            message,
-            setup.targetChainId,
-            gasParams.targetGasLimit,
-            0
-        );
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, 0, message);
 
         prepareDeliveryStack(stack, setup, 0);
 
@@ -1534,17 +1451,7 @@ contract WormholeRelayerTests is Test {
 
         DeliveryStack memory stack;
 
-        (stack.payment,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
-            setup.targetChainId, 0, gasParams.targetGasLimit
-        );
-        stack.payment += setup.source.wormhole.messageFee();
-
-        setup.source.integration.sendMessage{value: stack.payment}(
-            message,
-            setup.targetChainId,
-            gasParams.targetGasLimit,
-            0
-        );
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, 0, message);
 
         prepareDeliveryStack(stack, setup, 0);
 
@@ -1612,17 +1519,7 @@ contract WormholeRelayerTests is Test {
 
         DeliveryStack memory stack;
 
-        (stack.payment,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
-            setup.targetChainId, 0, gasParams.targetGasLimit
-        );
-        stack.payment += setup.source.wormhole.messageFee();
-
-        setup.source.integration.sendMessage{value: stack.payment}(
-            message,
-            setup.targetChainId,
-            gasParams.targetGasLimit,
-            0
-        );
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, 0, message);
 
         prepareDeliveryStack(stack, setup, 0);
 
@@ -1648,17 +1545,7 @@ contract WormholeRelayerTests is Test {
 
         DeliveryStack memory stack;
 
-        (stack.payment,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
-            setup.targetChainId, 0, gasParams.targetGasLimit
-        );
-        stack.payment += setup.source.wormhole.messageFee();
-
-        setup.source.integration.sendMessage{value: stack.payment}(
-            message,
-            setup.targetChainId,
-            gasParams.targetGasLimit,
-            0
-        );
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, 0, message);
 
         prepareDeliveryStack(stack, setup, 0);
 
@@ -1691,17 +1578,7 @@ contract WormholeRelayerTests is Test {
 
         DeliveryStack memory stack;
 
-        (stack.payment,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
-            setup.targetChainId, feeParams.receiverValueTarget, gasParams.targetGasLimit
-        );
-        stack.payment += setup.source.wormhole.messageFee();
-
-        setup.source.integration.sendMessage{value: stack.payment}(
-            message,
-            setup.targetChainId,
-            gasParams.targetGasLimit,
-            feeParams.receiverValueTarget
-        );
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, feeParams.receiverValueTarget, message);
 
         prepareDeliveryStack(stack, setup, 0);
         
@@ -1728,17 +1605,8 @@ contract WormholeRelayerTests is Test {
 
         DeliveryStack memory stack;
 
-        (stack.payment,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
-            setup.targetChainId, 0, gasParams.targetGasLimit
-        );
-        stack.payment += setup.source.wormhole.messageFee();
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, 0, message);
 
-        setup.source.integration.sendMessage{value: stack.payment}(
-            message,
-            setup.targetChainId,
-            gasParams.targetGasLimit,
-            0
-        );
         prepareDeliveryStack(stack, setup, 0);
 
         EvmExecutionInfoV1 memory executionInfo = decodeEvmExecutionInfoV1(stack.instruction.encodedExecutionInfo);
@@ -1770,17 +1638,7 @@ contract WormholeRelayerTests is Test {
 
         DeliveryStack memory stack;
 
-        (stack.payment,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
-            setup.targetChainId, feeParams.receiverValueTarget, gasParams.targetGasLimit
-        );
-        stack.payment += setup.source.wormhole.messageFee();
-
-        setup.source.integration.sendMessage{value: stack.payment}(
-            message,
-            setup.targetChainId,
-            gasParams.targetGasLimit,
-            feeParams.receiverValueTarget
-        );
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, feeParams.receiverValueTarget, message);
 
         prepareDeliveryStack(stack, setup, 0);
         
