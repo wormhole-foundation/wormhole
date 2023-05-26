@@ -19,7 +19,7 @@ abstract contract WormholeSimulator {
         return keccak256(abi.encodePacked(keccak256(body)));
     }
 
-    function parseVMFromLogs(Vm.Log memory log) internal pure returns (IWormhole.VM memory vm_) {
+    function parseVMFromLogs(Vm.Log memory log) public pure returns (IWormhole.VM memory vm_) {
         uint256 index = 0;
 
         // emitterAddress
