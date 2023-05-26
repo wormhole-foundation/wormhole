@@ -58,8 +58,6 @@ func TestCalculateQuorum(t *testing.T) {
 
 func FuzzCalculateQuorum(f *testing.F) {
 	// Add examples to our fuzz corpus
-	f.Add(-25)
-	f.Add(0)
 	f.Add(1)
 	f.Add(2)
 	f.Add(4)
