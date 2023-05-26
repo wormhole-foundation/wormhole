@@ -1,6 +1,7 @@
 package vaa
 
 import (
+	"bytes"
 	"encoding/hex"
 	"testing"
 
@@ -161,4 +162,41 @@ func TestBodyIbcReceiverUpdateChannelChain(t *testing.T) {
 		ChainId:       ChainIDInjective,
 	}
 	assert.Equal(t, expected, hex.EncodeToString(bodyIbcReceiverUpdateChannelChain.Serialize()))
+}
+
+func TestLeftPadBytes(t *testing.T) {
+	payload := "AAAA"
+	paddedPayload := LeftPadBytes(payload, int(8))
+
+	buf := &bytes.Buffer{}
+	buf.WriteByte(0x00)
+	buf.WriteByte(0x00)
+	buf.WriteByte(0x00)
+	buf.WriteByte(0x00)
+	buf.Write([]byte(payload))
+
+	assert.Equal(t, paddedPayload, buf)
+}
+
+func FuzzLeftPadBytes(f *testing.F) {
+	// Add examples to our fuzz corpus
+	f.Add("FOO", 8)
+	f.Add("123", 8)
+
+	f.Fuzz(func(t *testing.T, payload string, length int) {
+		// We know length could be negative, but we panic if it is in the implementation
+		if length < 0 {
+			t.Skip()
+		}
+
+		// We know we cannot left pad something shorter than the payload being provided, but we panic if it is
+		if len(payload) > length {
+			t.Skip()
+		}
+
+		paddedPayload := LeftPadBytes(payload, length)
+
+		// paddedPayload must always be equal to length
+		assert.Equal(t, paddedPayload.Len(), length)
+	})
 }
