@@ -3,6 +3,7 @@ package common
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"math"
 	"math/big"
@@ -14,6 +15,18 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"google.golang.org/protobuf/proto"
 )
+
+type QueryResponse struct {
+	Success bool
+	Msg     *QueryResponsePublication
+}
+
+func (resp *QueryResponse) RequestID() string {
+	if resp == nil || resp.Msg == nil {
+		return "nil"
+	}
+	return resp.Msg.RequestID()
+}
 
 var queryResponsePrefix = []byte("query_response_0000000000000000000|")
 
@@ -27,6 +40,13 @@ type EthCallQueryResponse struct {
 type QueryResponsePublication struct {
 	Request  *gossipv1.SignedQueryRequest
 	Response EthCallQueryResponse
+}
+
+func (resp *QueryResponsePublication) RequestID() string {
+	if resp == nil || resp.Request == nil {
+		return "nil"
+	}
+	return hex.EncodeToString(resp.Request.Signature)
 }
 
 // Marshal serializes the binary representation of a query response
