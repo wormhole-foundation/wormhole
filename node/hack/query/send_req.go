@@ -19,7 +19,6 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
 	"github.com/ethereum/go-ethereum/accounts/abi"
-	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/libp2p/go-libp2p"
@@ -37,12 +36,6 @@ import (
 	"golang.org/x/crypto/openpgp/armor" //nolint
 	"google.golang.org/protobuf/proto"
 )
-
-var queryRequestPrefix = []byte("query_request_00000000000000000000|")
-
-func queryRequestDigest(b []byte) ethCommon.Hash {
-	return ethCrypto.Keccak256Hash(append(queryRequestPrefix, b...))
-}
 
 // this script has to be run inside kubernetes since it relies on UDP
 // https://github.com/kubernetes/kubernetes/issues/47862
@@ -212,7 +205,7 @@ func main() {
 	}
 
 	// Sign the query request using our private key.
-	digest := queryRequestDigest(queryRequestBytes)
+	digest := common.QueryRequestDigest(common.UnsafeDevNet, queryRequestBytes)
 	sig, err := ethCrypto.Sign(digest.Bytes(), sk)
 	if err != nil {
 		panic(err)
