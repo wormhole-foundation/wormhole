@@ -532,7 +532,7 @@ func runWormchainStoreCodeTemplate(cmd *cobra.Command, args []string) {
 
 	// Validate the string is the correct length.
 	if len(buf) != 32 {
-		log.Fatal("wasm-hash (expected 32 bytes but received %d bytes)", len(buf))
+		log.Fatalf("wasm-hash (expected 32 bytes but received %d bytes)", len(buf))
 	}
 
 	m := &nodev1.InjectGovernanceVAARequest{
