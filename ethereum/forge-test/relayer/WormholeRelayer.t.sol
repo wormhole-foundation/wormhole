@@ -1342,7 +1342,7 @@ contract WormholeRelayerTests is Test {
 
         DeliveryStack memory stack;
 
-        sendMessageToTargetChain(setup, sequence, gasParams.targetGasLimit, 0, message);
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, 0, message);
 
         prepareDeliveryStack(stack, setup, 0);
 
@@ -1369,7 +1369,7 @@ contract WormholeRelayerTests is Test {
 
         DeliveryStack memory stack;
 
-        sendMessageToTargetChain(setup, sequence, gasParams.targetGasLimit, 0, message);
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, 0, message);
 
         prepareDeliveryStack(stack, setup, 0);
 
@@ -1405,7 +1405,7 @@ contract WormholeRelayerTests is Test {
 
         DeliveryStack memory stack;
 
-        sendMessageToTargetChain(setup, sequence, gasParams.targetGasLimit, 0, message);
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, 0, message);
 
         prepareDeliveryStack(stack, setup, 0);
 
@@ -1430,7 +1430,7 @@ contract WormholeRelayerTests is Test {
 
         DeliveryStack memory stack;
 
-        sendMessageToTargetChain(setup, sequence, gasParams.targetGasLimit, 0, message);
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, 0, message);
 
         prepareDeliveryStack(stack, setup, 0);
 
@@ -1451,7 +1451,7 @@ contract WormholeRelayerTests is Test {
 
         DeliveryStack memory stack;
 
-        sendMessageToTargetChain(setup, sequence, gasParams.targetGasLimit, 0, message);
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, 0, message);
 
         prepareDeliveryStack(stack, setup, 0);
 
@@ -1519,7 +1519,7 @@ contract WormholeRelayerTests is Test {
 
         DeliveryStack memory stack;
 
-        sendMessageToTargetChain(setup, sequence, gasParams.targetGasLimit, 0, message);
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, 0, message);
 
         prepareDeliveryStack(stack, setup, 0);
 
@@ -1545,7 +1545,7 @@ contract WormholeRelayerTests is Test {
 
         DeliveryStack memory stack;
 
-        sendMessageToTargetChain(setup, sequence, gasParams.targetGasLimit, 0, message);
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, 0, message);
 
         prepareDeliveryStack(stack, setup, 0);
 
@@ -1578,7 +1578,7 @@ contract WormholeRelayerTests is Test {
 
         DeliveryStack memory stack;
 
-        sendMessageToTargetChain(setup, sequence, gasParams.targetGasLimit, 0, message);
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, feeParams.receiverValueTarget, message);
 
         prepareDeliveryStack(stack, setup, 0);
         
@@ -1605,7 +1605,7 @@ contract WormholeRelayerTests is Test {
 
         DeliveryStack memory stack;
 
-        sendMessageToTargetChain(setup, sequence, gasParams.targetGasLimit, 0, message);
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, 0, message);
 
         prepareDeliveryStack(stack, setup, 0);
 
@@ -1638,7 +1638,7 @@ contract WormholeRelayerTests is Test {
 
         DeliveryStack memory stack;
 
-        sendMessageToTargetChain(setup, sequence, gasParams.targetGasLimit, feeParams.receiverValueTarget, message);
+        sendMessageToTargetChain(setup, gasParams.targetGasLimit, feeParams.receiverValueTarget, message);
 
         prepareDeliveryStack(stack, setup, 0);
         
