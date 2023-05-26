@@ -5,6 +5,7 @@ pragma solidity ^0.8.19;
 import {
   RelayProviderDoesNotSupportTargetChain,
   InvalidMsgValue,
+  RelayProviderCannotReceivePayment,
   VaaKey,
   IWormholeRelayerSend
 } from "../../interfaces/relayer/IWormholeRelayer.sol";
@@ -279,7 +280,11 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
         vaaKeys: sendParams.vaaKeys
     }).encode();
 
-    sequence = publishAndPay(wormholeMessageFee, deliveryPrice, sendParams.paymentForExtraReceiverValue, encodedInstruction, sendParams.consistencyLevel, provider);
+    bool paymentSucceeded;
+    (sequence, paymentSucceeded) = publishAndPay(wormholeMessageFee, deliveryPrice, sendParams.paymentForExtraReceiverValue, encodedInstruction, sendParams.consistencyLevel, provider.getRewardAddress());
+    if(!paymentSucceeded) {
+      revert RelayProviderCannotReceivePayment();
+    }
   }
 
   function forward(Send memory sendParams) internal {
@@ -310,7 +315,8 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
         msgValue: Wei.wrap(msg.value),
         deliveryPrice: deliveryPrice,
         paymentForExtraReceiverValue: sendParams.paymentForExtraReceiverValue,
-        consistencyLevel: sendParams.consistencyLevel
+        consistencyLevel: sendParams.consistencyLevel,
+        rewardAddress: provider.getRewardAddress()
     }));
   }
 
@@ -339,7 +345,11 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
         newSenderAddress: toWormholeFormat(msg.sender)
     }).encode();
 
-    sequence = publishAndPay(wormholeMessageFee, deliveryPrice, Wei.wrap(0), encodedInstruction, CONSISTENCY_LEVEL_INSTANT, provider);
+    bool paymentSucceeded;
+    (sequence, paymentSucceeded) = publishAndPay(wormholeMessageFee, deliveryPrice, Wei.wrap(0), encodedInstruction, CONSISTENCY_LEVEL_INSTANT, provider.getRewardAddress());
+    if(!paymentSucceeded) {
+      revert RelayProviderCannotReceivePayment();
+    }
   }
   
   function getDefaultRelayProvider() public view returns (address relayProvider) {

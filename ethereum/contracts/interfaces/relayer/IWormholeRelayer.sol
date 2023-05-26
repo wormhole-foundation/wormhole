@@ -339,9 +339,9 @@ uint256 constant RETURNDATA_TRUNCATION_THRESHOLD = 132;
 //When msg.value was not equal to (one wormhole message fee) + `maxTransactionFee` + `receiverValue`
 error InvalidMsgValue(Wei msgValue, Wei totalFee);
 
-error RequestedGasLimitTooLow(); 
-
 error RelayProviderDoesNotSupportTargetChain(address relayer, uint16 chainId);
+
+error RelayProviderCannotReceivePayment();
 
 //When calling `forward()` on the CoreRelayer if no delivery is in progress
 error NoDeliveryInProgress(); 

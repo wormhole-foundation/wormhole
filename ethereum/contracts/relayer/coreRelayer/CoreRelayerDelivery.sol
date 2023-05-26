@@ -95,6 +95,9 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
   // ------------------------------------------- PRIVATE -------------------------------------------
 
   error Cancelled(uint32 gasUsed, uint256 available, uint256 required);
+  error RelayProviderReverted(uint32 gasUsed);
+  error RelayProviderPaymentFailed(uint32 gasUsed);
+
 
   struct DeliveryVAAInfo {
     uint16 sourceChainId;
@@ -227,14 +230,13 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     catch (bytes memory revertData) {
       //decode returned Cancelled error
       
-      uint256 available;
-      uint256 required;
+      bool knownError;
       uint32 gasUsed_;
-      (gasUsed_, available, required) = decodeCancelled(revertData);
+      (gasUsed_, knownError) = decodeExecuteInstructionError(revertData);
       results = DeliveryResults(
-        Gas.wrap(gasUsed_),
+        knownError ? Gas.wrap(gasUsed_) : vaaInfo.gasLimit,
         DeliveryStatus.FORWARD_REQUEST_FAILURE,
-        abi.encodeWithSelector(ForwardNotSufficientlyFunded.selector, available, required)
+        revertData
       );
 
     }
@@ -356,6 +358,10 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     Wei transactionFeeRefundAmount,
     ForwardInstruction[] storage forwardInstructions
   ) private {
+     //despite being external, we only allow ourselves to call this function (via CALL opcode)
+    //  used as a means to retroactively revert the call if the calls to the relay provider here revert
+    if (msg.sender != address(this))
+      revert RequesterNotCoreRelayer();
     Wei wormholeMessageFee = getWormholeMessageFee();
 
     //Decode send requests and aggregate fee and payment
@@ -376,10 +382,15 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     Wei fundsForForward;
     unchecked{fundsForForward = transactionFeeRefundAmount + totalMsgValue;}
     if (fundsForForward < totalFee) {
-        revert Cancelled(uint32(gasUsed.unwrap()), fundsForForward.unwrap(), totalFee.unwrap());
+      revert Cancelled(uint32(gasUsed.unwrap()), fundsForForward.unwrap(), totalFee.unwrap());
     }
 
-    Wei extraReceiverValue = IRelayProvider(fromWormholeFormat(instructions[0].sourceRelayProvider)).quoteAssetConversion(instructions[0].targetChainId, fundsForForward - totalFee);
+    Wei extraReceiverValue;
+    try IRelayProvider(fromWormholeFormat(instructions[0].sourceRelayProvider)).quoteAssetConversion(instructions[0].targetChainId, fundsForForward - totalFee) returns (Wei _extraReceiverValue) {
+      extraReceiverValue = _extraReceiverValue;
+    } catch (bytes memory) {
+      revert RelayProviderReverted(uint32(gasUsed.unwrap()));
+    }
     //Increases the maxTransactionFee of the first forward in order to use all of the funds
     unchecked{
       instructions[0].extraReceiverValue = instructions[0].extraReceiverValue + extraReceiverValue;
@@ -387,14 +398,17 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
 
     //Publishes the DeliveryInstruction and pays the associated relayProvider
     for (uint i = 0; i < forwardInstructions.length;) {
-      publishAndPay(
+      (,bool paymentSucceeded) = publishAndPay(
         wormholeMessageFee,
         forwardInstructions[i].deliveryPrice,
         forwardInstructions[i].paymentForExtraReceiverValue + ((i == 0) ? (fundsForForward - totalFee) : Wei.wrap(0)),
         i == 0 ? instructions[0].encode() : forwardInstructions[i].encodedInstruction,
         forwardInstructions[i].consistencyLevel,
-        IRelayProvider(fromWormholeFormat(instructions[i].sourceRelayProvider))
+        forwardInstructions[i].rewardAddress
       );
+      if(!paymentSucceeded) {
+        revert RelayProviderPaymentFailed(uint32(gasUsed.unwrap()));
+      }
       unchecked{++i;}
     }
   }
@@ -488,17 +502,17 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     }
   }
 
-  function decodeCancelled(
+  function decodeExecuteInstructionError(
     bytes memory revertData
-  ) private pure returns (uint32 gasUsed, uint256 available, uint256 required) {
+  ) private pure returns (uint32 gasUsed, bool knownError) {
     uint offset = 0;
     bytes4 selector;
     (selector, offset) = revertData.asBytes4Unchecked(offset);
-    offset += 28;
-    (gasUsed, offset) = revertData.asUint32Unchecked(offset);
-    (available, offset) = revertData.asUint256Unchecked(offset);
-    (required, offset) = revertData.asUint256Unchecked(offset);
-    assert(offset == revertData.length && selector == Cancelled.selector);
+    if((selector == Cancelled.selector) || (selector == RelayProviderReverted.selector) || (selector == RelayProviderPaymentFailed.selector)) {
+      knownError = true;
+      offset += 28;
+      (gasUsed, offset) = revertData.asUint32Unchecked(offset);
+    }
   }
 
   function checkVaaKeysWithVAAs(

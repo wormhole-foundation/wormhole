@@ -77,14 +77,15 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
     Wei paymentForExtraReceiverValue,
     bytes memory encodedInstruction,
     uint8 consistencyLevel,
-    IRelayProvider relayProvider
-  ) internal returns (uint64 sequence) { 
+    address payable rewardAddress
+  ) internal returns (uint64 sequence, bool paymentSucceeded) { 
 
     sequence =
       getWormhole().publishMessage{value: wormholeMessageFee.unwrap()}(0, encodedInstruction, consistencyLevel);
 
     //TODO AMO: what if pay fails? (i.e. returns false)
-    pay(relayProvider.getRewardAddress(), deliveryQuote + paymentForExtraReceiverValue);
+    paymentSucceeded = pay(rewardAddress, deliveryQuote + paymentForExtraReceiverValue);
+
 
     emit SendEvent(sequence, deliveryQuote, paymentForExtraReceiverValue);
   }
