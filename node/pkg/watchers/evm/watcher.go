@@ -549,14 +549,14 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				var queryRequest gossipv1.QueryRequest
 				err := proto.Unmarshal(signedQueryRequest.QueryRequest, &queryRequest)
 				if err != nil {
-					logger.Error("received invalid message from query module")
+					logger.Error("received invalid message from query module", zap.String("component", "ccqevm"))
 					continue
 				}
 
 				// This can't happen unless there is a programming error - the caller
 				// is expected to send us only requests for our chainID.
 				if vaa.ChainID(queryRequest.ChainId) != w.chainID {
-					panic("invalid chain ID")
+					panic("ccqevm: invalid chain ID")
 				}
 
 				switch req := queryRequest.Message.(type) {
@@ -568,7 +568,9 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						zap.String("eth_network", w.networkName),
 						zap.String("to", to.Hex()),
 						zap.Any("data", data),
-						zap.String("block", block))
+						zap.String("block", block),
+						zap.String("component", "ccqevm"),
+					)
 
 					timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 					// like https://github.com/ethereum/go-ethereum/blob/master/ethclient/ethclient.go#L610
@@ -632,7 +634,9 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.Error(err), zap.String("eth_network", w.networkName),
 							zap.String("to", to.Hex()),
 							zap.Any("data", data),
-							zap.String("block", block))
+							zap.String("block", block),
+							zap.String("component", "ccqevm"),
+						)
 						continue
 					}
 
@@ -641,7 +645,9 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.Error(blockError), zap.String("eth_network", w.networkName),
 							zap.String("to", to.Hex()),
 							zap.Any("data", data),
-							zap.String("block", block))
+							zap.String("block", block),
+							zap.String("component", "ccqevm"),
+						)
 						continue
 					}
 
@@ -650,7 +656,9 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.String("eth_network", w.networkName),
 							zap.String("to", to.Hex()),
 							zap.Any("data", data),
-							zap.String("block", block))
+							zap.String("block", block),
+							zap.String("component", "ccqevm"),
+						)
 						continue
 					}
 
@@ -659,7 +667,9 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.Error(callErr), zap.String("eth_network", w.networkName),
 							zap.String("to", to.Hex()),
 							zap.Any("data", data),
-							zap.String("block", block))
+							zap.String("block", block),
+							zap.String("component", "ccqevm"),
+						)
 						continue
 					}
 
@@ -670,7 +680,9 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.String("eth_network", w.networkName),
 							zap.String("to", to.Hex()),
 							zap.Any("data", data),
-							zap.String("block", block))
+							zap.String("block", block),
+							zap.String("component", "ccqevm"),
+						)
 						continue
 					}
 
@@ -695,12 +707,16 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						zap.String("blockNumber", blockResult.Number.String()),
 						zap.String("blockHash", blockResult.Hash.Hex()),
 						zap.String("blockTime", blockResult.Time.String()),
-						zap.String("result", callResult.String()))
+						zap.String("result", callResult.String()),
+						zap.String("component", "ccqevm"),
+					)
 
 					w.queryResponseC <- &queryResponse
 				default:
 					logger.Warn("received unsupported request type",
-						zap.Any("payload", queryRequest.Message))
+						zap.Any("payload", queryRequest.Message),
+						zap.String("component", "ccqevm"),
+					)
 				}
 			}
 		}

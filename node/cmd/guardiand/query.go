@@ -39,13 +39,6 @@ type (
 	}
 )
 
-// TODO: should this use a different standard of signing messages, like https://eips.ethereum.org/EIPS/eip-712
-var queryRequestPrefix = []byte("mainnet_query_request_000000000000|")
-
-func queryRequestDigest(b []byte) ethCommon.Hash {
-	return ethCrypto.Keccak256Hash(append(queryRequestPrefix, b...))
-}
-
 // handleQueryRequests multiplexes observation requests to the appropriate chain
 func handleQueryRequests(
 	ctx context.Context,
