@@ -35,6 +35,7 @@ type (
 		receiveTime    time.Time
 		lastUpdateTime time.Time
 		inProgress     bool
+		resp           *common.QueryResponse
 	}
 )
 
@@ -68,6 +69,7 @@ func handleQueryRequests(
 		select {
 		case <-ctx.Done():
 			return
+
 		case signedQueryRequest := <-signedQueryReqC:
 			// requestor validation happens here
 			// request type validation is currently handled by the watcher
@@ -117,7 +119,7 @@ func handleQueryRequests(
 				continue
 			}
 
-			// Add the query to our cache, setting the timeout.
+			// Add the query to our cache.
 			pq := &pendingQuery{
 				req:         signedQueryRequest,
 				reqId:       reqId,
@@ -133,15 +135,21 @@ func handleQueryRequests(
 		case resp := <-queryResponseReadC:
 			reqId := resp.RequestID()
 			if resp.Success {
+				// Send the response to be published.
 				select {
 				case queryResponseWriteC <- resp.Msg:
 					qLogger.Debug("forwarded query response to p2p", zap.String("requestID", reqId))
+					delete(pendingQueries, reqId)
 				default:
-					qLogger.Warn("failed to send query response to p2p, will retry next interval", zap.String("requestID", reqId))
+					if pq, exists := pendingQueries[reqId]; exists {
+						qLogger.Warn("failed to publish query response to p2p, will retry publishing next interval", zap.String("requestID", reqId))
+						pq.inProgress = false
+						pq.resp = resp
+					} else {
+						qLogger.Warn("failed to publish query response to p2p, request is no longer in cache, dropping it", zap.String("requestID", reqId))
+						delete(pendingQueries, reqId)
+					}
 				}
-
-				// Don't bother to check if it is still in the map (better late than never). TODO: Does this make sense?
-				delete(pendingQueries, reqId)
 			} else {
 				if pq, exists := pendingQueries[reqId]; exists {
 					qLogger.Warn("query failed, will retry next interval", zap.String("requestID", reqId))
@@ -155,9 +163,20 @@ func handleQueryRequests(
 				if now.Before(pq.receiveTime.Add(requestTimeout)) {
 					qLogger.Warn("query request timed out, dropping it", zap.String("requestId", reqId))
 					delete(pendingQueries, reqId)
-				} else if !pq.inProgress && now.Before(pq.lastUpdateTime.Add(retryInterval)) {
-					qLogger.Info("retrying query request", zap.String("requestId", pq.reqId), zap.Stringer("receiveTime", pq.receiveTime))
-					ccqForwardToWatcher(qLogger, pq)
+				} else if !pq.inProgress {
+					if pq.resp != nil {
+						// Resend the response to be published.
+						select {
+						case queryResponseWriteC <- pq.resp.Msg:
+							qLogger.Debug("resend of query response to p2p succeeded", zap.String("requestID", reqId))
+							delete(pendingQueries, reqId)
+						default:
+							qLogger.Warn("resend of query response to p2p failed again, will keep retrying", zap.String("requestID", reqId))
+						}
+					} else if now.Before(pq.lastUpdateTime.Add(retryInterval)) {
+						qLogger.Info("retrying query request", zap.String("requestId", pq.reqId), zap.Stringer("receiveTime", pq.receiveTime))
+						ccqForwardToWatcher(qLogger, pq)
+					}
 				}
 			}
 		}
@@ -187,8 +206,8 @@ func ccqParseAllowedRequesters(ccqAllowedRequesters string) (map[ethCommon.Addre
 	return result, nil
 }
 
-// ccqForwardToWatcher submit a query request to the appropriate watcher. It updates the request object of the write succeeds.
-// If the write fails, it does not update the request object, which will cause a retry next interval (until it times out)
+// ccqForwardToWatcher submits a query request to the appropriate watcher. It updates the request object if the write succeeds.
+// If the write fails, it does not update the last update time, which will cause a retry next interval (until it times out)
 func ccqForwardToWatcher(qLogger *zap.Logger, pq *pendingQuery) {
 	select {
 	// TODO: only send the query request itself and reassemble in this module
@@ -197,8 +216,9 @@ func ccqForwardToWatcher(qLogger *zap.Logger, pq *pendingQuery) {
 		pq.lastUpdateTime = pq.receiveTime
 		pq.inProgress = true
 	default:
-		// By leaving lastUpdateTime and inProgress unset, we will retry next interval.
+		// By setting inProgress to false and leaving lastUpdateTime unset, we will retry next interval.
 		qLogger.Warn("failed to send query request to watcher, will retry next interval", zap.String("requestID", pq.reqId), zap.Uint16("chain_id", uint16(pq.chainId)))
+		pq.inProgress = false
 	}
 }
 
