@@ -1,0 +1,79 @@
+Compiling 124 files with 0.8.19
+Solc 0.8.19 finished in 11.25s
+Compiler run successful (with warnings)
+[33mwarning[5667]: [0m[33mWarning: Unused function parameter. Remove or comment out the variable name to silence this warning.
+   --> contracts/mock/relayer/MockRelayerIntegration.sol:225:9:
+    |
+225 |         bytes[] memory wormholeObservations
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+[0m
+
+[33mwarning[2018]: [0m[33mWarning: Function state mutability can be restricted to pure
+   --> contracts/relayer/coreRelayer/CoreRelayerDelivery.sol:499:3:
+    |
+499 |   function decodeCancelled(
+    |   ^ (Relevant source part starts here and spans across multiple lines).
+
+[0m
+
+Analysing contracts...
+Running tests...
+| File                                                            | % Lines           | % Statements      | % Branches      | % Funcs          |
+|-----------------------------------------------------------------|-------------------|-------------------|-----------------|------------------|
+| contracts/Getters.sol                                           | 0.00% (0/12)      | 0.00% (0/12)      | 100.00% (0/0)   | 0.00% (0/12)     |
+| contracts/Governance.sol                                        | 0.00% (0/65)      | 0.00% (0/84)      | 0.00% (0/50)    | 0.00% (0/7)      |
+| contracts/GovernanceStructs.sol                                 | 0.00% (0/63)      | 0.00% (0/66)      | 0.00% (0/20)    | 0.00% (0/5)      |
+| contracts/Implementation.sol                                    | 0.00% (0/27)      | 0.00% (0/44)      | 0.00% (0/36)    | 0.00% (0/4)      |
+| contracts/Messages.sol                                          | 19.70% (13/66)    | 21.05% (16/76)    | 33.33% (8/24)   | 33.33% (2/6)     |
+| contracts/Migrations.sol                                        | 0.00% (0/1)       | 0.00% (0/1)       | 100.00% (0/0)   | 0.00% (0/1)      |
+| contracts/Setters.sol                                           | 0.00% (0/15)      | 0.00% (0/17)      | 0.00% (0/4)     | 0.00% (0/11)     |
+| contracts/Setup.sol                                             | 0.00% (0/9)       | 0.00% (0/10)      | 0.00% (0/2)     | 0.00% (0/1)      |
+| contracts/Shutdown.sol                                          | 0.00% (0/2)       | 0.00% (0/3)       | 100.00% (0/0)   | 0.00% (0/1)      |
+| contracts/bridge/Bridge.sol                                     | 0.00% (0/217)     | 0.00% (0/263)     | 0.00% (0/83)    | 0.00% (0/33)     |
+| contracts/bridge/BridgeGetters.sol                              | 0.00% (0/16)      | 0.00% (0/16)      | 100.00% (0/0)   | 0.00% (0/16)     |
+| contracts/bridge/BridgeGovernance.sol                           | 0.00% (0/75)      | 0.00% (0/84)      | 0.00% (0/46)    | 0.00% (0/8)      |
+| contracts/bridge/BridgeImplementation.sol                       | 0.00% (0/1)       | 0.00% (0/1)       | 100.00% (0/0)   | 0.00% (0/2)      |
+| contracts/bridge/BridgeSetters.sol                              | 0.00% (0/17)      | 0.00% (0/17)      | 0.00% (0/4)     | 0.00% (0/14)     |
+| contracts/bridge/BridgeSetup.sol                                | 0.00% (0/10)      | 0.00% (0/10)      | 100.00% (0/0)   | 0.00% (0/1)      |
+| contracts/bridge/BridgeShutdown.sol                             | 0.00% (0/2)       | 0.00% (0/3)       | 100.00% (0/0)   | 0.00% (0/1)      |
+| contracts/bridge/mock/MockFeeToken.sol                          | 0.00% (0/58)      | 0.00% (0/58)      | 0.00% (0/22)    | 0.00% (0/22)     |
+| contracts/bridge/mock/MockTokenBridgeIntegration.sol            | 0.00% (0/19)      | 0.00% (0/32)      | 0.00% (0/6)     | 0.00% (0/3)      |
+| contracts/bridge/mock/MockWETH9.sol                             | 0.00% (0/20)      | 0.00% (0/20)      | 0.00% (0/8)     | 0.00% (0/7)      |
+| contracts/bridge/token/TokenImplementation.sol                  | 0.00% (0/86)      | 0.00% (0/91)      | 0.00% (0/30)    | 0.00% (0/33)     |
+| contracts/bridge/token/TokenState.sol                           | 0.00% (0/4)       | 0.00% (0/4)       | 100.00% (0/0)   | 0.00% (0/2)      |
+| contracts/bridge/utils/Migrator.sol                             | 0.00% (0/13)      | 0.00% (0/13)      | 0.00% (0/4)     | 0.00% (0/5)      |
+| contracts/interfaces/relayer/TypedUnits.sol                     | 0.00% (0/22)      | 0.00% (0/25)      | 100.00% (0/0)   | 0.00% (0/19)     |
+| contracts/libraries/external/BytesLib.sol                       | 0.00% (0/50)      | 0.00% (0/50)      | 0.00% (0/22)    | 0.00% (0/14)     |
+| contracts/libraries/relayer/BytesParsing.sol                    | 0.00% (0/306)     | 0.00% (0/371)     | 0.00% (0/5)     | 0.00% (0/135)    |
+| contracts/mock/MockBatchedVAASender.sol                         | 0.00% (0/5)       | 0.00% (0/5)       | 100.00% (0/0)   | 0.00% (0/3)      |
+| contracts/mock/relayer/MockRelayerIntegration.sol               | 82.00% (41/50)    | 80.65% (50/62)    | 42.86% (6/14)   | 63.16% (12/19)   |
+| contracts/nft/NFTBridge.sol                                     | 0.00% (0/103)     | 0.00% (0/119)     | 0.00% (0/45)    | 0.00% (0/10)     |
+| contracts/nft/NFTBridgeGetters.sol                              | 0.00% (0/15)      | 0.00% (0/15)      | 100.00% (0/0)   | 0.00% (0/15)     |
+| contracts/nft/NFTBridgeGovernance.sol                           | 0.00% (0/74)      | 0.00% (0/83)      | 0.00% (0/44)    | 0.00% (0/8)      |
+| contracts/nft/NFTBridgeImplementation.sol                       | 0.00% (0/22)      | 0.00% (0/39)      | 0.00% (0/34)    | 0.00% (0/2)      |
+| contracts/nft/NFTBridgeSetters.sol                              | 0.00% (0/17)      | 0.00% (0/17)      | 0.00% (0/4)     | 0.00% (0/14)     |
+| contracts/nft/NFTBridgeSetup.sol                                | 0.00% (0/9)       | 0.00% (0/9)       | 100.00% (0/0)   | 0.00% (0/1)      |
+| contracts/nft/NFTBridgeShutdown.sol                             | 0.00% (0/2)       | 0.00% (0/3)       | 100.00% (0/0)   | 0.00% (0/1)      |
+| contracts/nft/token/NFTImplementation.sol                       | 0.00% (0/64)      | 0.00% (0/67)      | 0.00% (0/32)    | 0.00% (0/27)     |
+| contracts/relayer/coreRelayer/CoreRelayer.sol                   | 100.00% (3/3)     | 100.00% (3/3)     | 50.00% (1/2)    | 100.00% (1/1)    |
+| contracts/relayer/coreRelayer/CoreRelayerBase.sol               | 73.08% (19/26)    | 71.43% (20/28)    | 25.00% (2/8)    | 91.67% (11/12)   |
+| contracts/relayer/coreRelayer/CoreRelayerDelivery.sol           | 78.33% (94/120)   | 78.47% (113/144)  | 47.92% (23/48)  | 100.00% (11/11)  |
+| contracts/relayer/coreRelayer/CoreRelayerGovernance.sol         | 82.26% (51/62)    | 84.51% (60/71)    | 50.00% (12/24)  | 81.82% (9/11)    |
+| contracts/relayer/coreRelayer/CoreRelayerSend.sol               | 90.24% (37/41)    | 92.86% (52/56)    | 66.67% (4/6)    | 50.00% (8/16)    |
+| contracts/relayer/coreRelayer/CoreRelayerSerde.sol              | 68.18% (45/66)    | 66.67% (48/72)    | 33.33% (2/6)    | 64.29% (9/14)    |
+| contracts/relayer/create2Factory/Create2Factory.sol             | 90.00% (9/10)     | 91.67% (11/12)    | 100.00% (0/0)   | 66.67% (4/6)     |
+| contracts/relayer/relayProvider/RelayProvider.sol               | 96.88% (31/32)    | 97.56% (40/41)    | 50.00% (4/8)    | 81.82% (9/11)    |
+| contracts/relayer/relayProvider/RelayProviderGetters.sol        | 84.62% (11/13)    | 84.62% (11/13)    | 100.00% (0/0)   | 16.67% (2/12)    |
+| contracts/relayer/relayProvider/RelayProviderGovernance.sol     | 25.00% (25/100)   | 26.21% (27/103)   | 18.75% (6/32)   | 40.00% (10/25)   |
+| contracts/relayer/relayProvider/RelayProviderImplementation.sol | 100.00% (0/0)     | 100.00% (0/0)     | 100.00% (0/0)   | 100.00% (1/1)    |
+| contracts/relayer/relayProvider/RelayProviderSetters.sol        | 61.11% (11/18)    | 61.11% (11/18)    | 33.33% (2/6)    | 66.67% (8/12)    |
+| contracts/relayer/relayProvider/RelayProviderSetup.sol          | 77.78% (7/9)      | 77.78% (7/9)      | 50.00% (2/4)    | 100.00% (1/1)    |
+| forge-test/relayer/AttackForwardIntegration.sol                 | 0.00% (0/4)       | 0.00% (0/5)       | 100.00% (0/0)   | 0.00% (0/3)      |
+| forge-test/relayer/ForwardTester.sol                            | 100.00% (0/0)     | 100.00% (0/0)     | 100.00% (0/0)   | 0.00% (0/1)      |
+| forge-test/relayer/MockGenericRelayer.sol                       | 80.85% (38/47)    | 81.43% (57/70)    | 37.50% (3/8)    | 30.00% (3/10)    |
+| forge-test/relayer/MockWormhole.sol                             | 68.49% (50/73)    | 70.37% (57/81)    | 50.00% (3/6)    | 36.36% (12/33)   |
+| forge-test/relayer/TestHelpers.sol                              | 86.36% (19/22)    | 87.50% (28/32)    | 50.00% (1/2)    | 75.00% (3/4)     |
+| forge-test/relayer/WormholeRelayerGovernance.t.sol              | 100.00% (0/0)     | 100.00% (0/0)     | 100.00% (0/0)   | 100.00% (1/1)    |
+| forge-test/relayer/WormholeSimulator.sol                        | 36.19% (38/105)   | 33.82% (46/136)   | 22.22% (4/18)   | 42.86% (6/14)    |
+| Total                                                           | 23.69% (542/2288) | 24.48% (657/2684) | 11.58% (83/717) | 18.58% (123/662) |

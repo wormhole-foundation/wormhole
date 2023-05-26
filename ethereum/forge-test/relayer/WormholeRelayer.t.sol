@@ -1949,8 +1949,118 @@ contract WormholeRelayerTests is Test {
         assertTrue(fromWormholeFormat(toWormholeFormat(msg1)) == msg1);
     }
 
+    /**
+     * Forward Revert Tests using Forward Tester
+     */
+
+    ForwardTester forwardTester;
+
+    function executeForwardTest(
+        ForwardTester.Action test,
+        IWormholeRelayerDelivery.DeliveryStatus desiredOutcome,
+        StandardSetupTwoChains memory setup,
+        FeeParameters memory feeParams
+    ) internal {
+        vm.recordLogs();
+        forwardTester =
+        new ForwardTester(address(setup.target.wormhole), address(setup.target.coreRelayer), address(setup.target.wormholeSimulator));
+        vm.deal(address(forwardTester), type(uint256).max / 2);
+        
+        (uint256 forwardDeliveryCost,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(setup.sourceChainId, 0, REASONABLE_GAS_LIMIT);
+        uint256 receiverValue = forwardDeliveryCost + setup.target.wormhole.messageFee();
+        vm.assume(receiverValue <= type(uint128).max);
+
+        (uint256 deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChainId, uint128(receiverValue), REASONABLE_GAS_LIMIT_FORWARDS);
 
 
+        setup.source.coreRelayer.sendToEvm{value: deliveryCost + feeParams.wormholeFeeOnSource}(
+            setup.targetChainId,
+            address(forwardTester),
+            abi.encodePacked(uint8(test)),
+            Wei.wrap(receiverValue),
+            Gas.wrap(REASONABLE_GAS_LIMIT_FORWARDS)
+        );
+        genericRelayer.relay(setup.sourceChainId);
+        IWormholeRelayerDelivery.DeliveryStatus status = getDeliveryStatus();
+        assertTrue(status == desiredOutcome);
+    }
+
+    function testForwardTester(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams
+    ) public {
+        StandardSetupTwoChains memory setup =
+            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
+        executeForwardTest(
+            ForwardTester.Action.WorksCorrectly,
+            IWormholeRelayerDelivery.DeliveryStatus.FORWARD_REQUEST_SUCCESS,
+            setup,
+            feeParams
+        );
+    }
+
+    function testRevertForwardNoDeliveryInProgress(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams
+    ) public {
+        StandardSetupTwoChains memory setup =
+            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
+
+        vm.expectRevert(abi.encodeWithSignature("NoDeliveryInProgress()"));
+        setup.source.coreRelayer.forwardToEvm(
+            setup.targetChainId,
+            address(forwardTester),
+            bytes(""),
+            Wei.wrap(0),
+            Gas.wrap(TOO_LOW_GAS_LIMIT),
+            setup.targetChainId,
+            address(forwardTester)
+        );
+    }
+
+    function testRevertForwardForwardRequestFromWrongAddress(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams
+    ) public {
+        StandardSetupTwoChains memory setup =
+            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
+
+        executeForwardTest(
+            ForwardTester.Action.ForwardRequestFromWrongAddress,
+            IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE,
+            setup,
+            feeParams
+        );
+    }
+
+    function testRevertDeliveryReentrantCall(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams
+    ) public {
+        StandardSetupTwoChains memory setup =
+            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
+        executeForwardTest(
+            ForwardTester.Action.ReentrantCall,
+            IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE,
+            setup,
+            feeParams
+        );
+    }
+
+    function testRevertForwardProviderNotSupported(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams
+    ) public {
+        StandardSetupTwoChains memory setup =
+            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
+
+        executeForwardTest(
+            ForwardTester.Action.ProviderNotSupported,
+            IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE,
+            setup,
+            feeParams
+        );
+    }
     
     /*
     
@@ -2383,139 +2493,7 @@ contract WormholeRelayerTests is Test {
 
     
 
-    ForwardTester forwardTester;
-
-    struct ForwardStack {
-        bytes32 targetAddress;
-        uint256 payment;
-        uint256 wormholeFee;
-    }
-
-    function executeForwardTest(
-        ForwardTester.Action test,
-        IWormholeRelayerDelivery.DeliveryStatus desiredOutcome,
-        StandardSetupTwoChains memory setup,
-        GasParameters memory gasParams,
-        FeeParameters memory feeParams
-    ) internal {
-        ForwardStack memory stack;
-        vm.recordLogs();
-        forwardTester =
-        new ForwardTester(address(setup.target.wormhole), address(setup.target.coreRelayer), address(setup.target.wormholeSimulator));
-        vm.deal(address(forwardTester), type(uint256).max / 2);
-        stack.targetAddress = toWormholeFormat(address(forwardTester));
-        stack.payment = assumeAndGetForwardPayment(
-            gasParams.targetGasLimit, 500000, setup, gasParams, feeParams
-        );
-        stack.wormholeFee = setup.source.wormhole.messageFee();
-        uint64 sequence = setup.source.wormhole.publishMessage{value: stack.wormholeFee}(
-            1, abi.encodePacked(uint8(test)), 200
-        );
-        setup.source.coreRelayer.send{value: stack.payment}(
-            setup.targetChainId,
-            stack.targetAddress,
-            setup.targetChainId,
-            stack.targetAddress,
-            stack.payment - stack.wormholeFee,
-            0,
-            bytes(""),
-            vaaKeyArray(setup.sourceChainId, sequence, address(this)),
-            200
-        );
-        genericRelayer.relay(setup.sourceChainId);
-        IWormholeRelayerDelivery.DeliveryStatus status = getDeliveryStatus();
-        assertTrue(status == desiredOutcome);
-    }
-
-    function testForwardTester(
-        GasParameters memory gasParams,
-        FeeParameters memory feeParams
-    ) public {
-        StandardSetupTwoChains memory setup =
-            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
-        executeForwardTest(
-            ForwardTester.Action.WorksCorrectly,
-            IWormholeRelayerDelivery.DeliveryStatus.FORWARD_REQUEST_SUCCESS,
-            setup,
-            gasParams,
-            feeParams
-        );
-    }
-
-    function testRevertForwardNoDeliveryInProgress(
-        GasParameters memory gasParams,
-        FeeParameters memory feeParams
-    ) public {
-        StandardSetupTwoChains memory setup =
-            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
-
-        bytes32 targetAddress = toWormholeFormat(address(forwardTester));
-
-        VaaKey[] memory msgInfoArray = vaaKeyArray(0, 0, address(this));
-        vm.expectRevert(abi.encodeWithSignature("NoDeliveryInProgress()"));
-        setup.source.coreRelayer.forward(
-            setup.targetChainId,
-            targetAddress,
-            setup.targetChainId,
-            targetAddress,
-            0,
-            0,
-            bytes(""),
-            msgInfoArray,
-            200
-        );
-    }
-
-    function testRevertForwardForwardRequestFromWrongAddress(
-        GasParameters memory gasParams,
-        FeeParameters memory feeParams
-    ) public {
-        StandardSetupTwoChains memory setup =
-            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
-
-        executeForwardTest(
-            ForwardTester.Action.ForwardRequestFromWrongAddress,
-            IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE,
-            setup,
-            gasParams,
-            feeParams
-        );
-    }
-
-    function testRevertDeliveryReentrantCall(
-        GasParameters memory gasParams,
-        FeeParameters memory feeParams
-    ) public {
-        StandardSetupTwoChains memory setup =
-            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
-        executeForwardTest(
-            ForwardTester.Action.ReentrantCall,
-            IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE,
-            setup,
-            gasParams,
-            feeParams
-        );
-    }
-
-    function testRevertForwardMsgValueTooMuch(
-        GasParameters memory gasParams,
-        FeeParameters memory feeParams
-    ) public {
-        StandardSetupTwoChains memory setup =
-            standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
-
-        setup.target.relayProvider.updateMaximumBudget(
-            setup.sourceChainId, Wei.wrap(uint192(10000 - 1) * gasParams.sourceGasPrice)
-        );
-
-        executeForwardTest(
-            ForwardTester.Action.MsgValueTooMuch,
-            IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE,
-            setup,
-            gasParams,
-            feeParams
-        );
-    }
+    
 
     function testEncodeAndDecodeDeliveryInstruction(
         ExecutionParameters memory executionParameters,
