@@ -79,24 +79,17 @@ func FuzzCalculateQuorum(f *testing.F) {
 		num := CalculateQuorum(numGuardians)
 
 		// Let's always be sure that there are enough guardians to maintain quorum
-		if num > numGuardians {
-			t.Errorf("%v", "fuzz violation: quorum cannot be acheived because we require more guardians than we have")
-		}
+		assert.LessOrEqualf(t, num, numGuardians, "fuzz violation: quorum cannot be acheived because we require more guardians than we have")
 
 		// Let's always be sure that num is never zero
-		if num == 0 {
-			t.Errorf("%v", "fuzz violation: no guardians are required to acheive quorum")
-		}
+		assert.NotEqualf(t, num, 0, "fuzz violation: no guardians are required to acheive quorum")
 
-		// Let's always make sure that the int division does not violate the floor of our float division
 		var floorFloat float64 = 0.66666666666666666
 		numGuardiansFloat := float64(numGuardians)
 		numFloat := float64(num)
-
 		actualFloat := numFloat / numGuardiansFloat
 
-		if actualFloat < floorFloat {
-			t.Errorf("%v", "fuzz violation: quorum has dropped below 2/3rds threshold")
-		}
+		// Let's always make sure that the int division does not violate the floor of our float division
+		assert.Greaterf(t, actualFloat, floorFloat, "fuzz violation: quorum has dropped below 2/3rds threshold")
 	})
 }
