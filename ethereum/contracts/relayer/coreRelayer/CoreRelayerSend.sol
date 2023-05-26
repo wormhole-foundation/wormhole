@@ -283,6 +283,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
   }
 
   function forward(Send memory sendParams) internal {
+    checkMsgSenderInDelivery();
     IRelayProvider provider = IRelayProvider(sendParams.relayProviderAddress);
     if(!provider.isChainSupported(sendParams.targetChainId)) {
       revert RelayProviderDoesNotSupportTargetChain(sendParams.relayProviderAddress, sendParams.targetChainId);

@@ -418,18 +418,12 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       receiverValueRefundAmount + (status == DeliveryStatus.FORWARD_REQUEST_SUCCESS ? Wei.wrap(0) : transactionFeeRefundAmount);
     
     //Refund the user
-    try this.payRefundToRefundAddress(
+    refundStatus = payRefundToRefundAddress(
       deliveryInstruction.refundChainId,
       deliveryInstruction.refundAddress,
       refundToRefundAddress,
       deliveryInstruction.refundRelayProvider
-    )
-    returns (RefundStatus _refundStatus) {
-      refundStatus = _refundStatus;
-    } 
-    catch (bytes memory) {
-      refundStatus = RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED;
-    }
+    );
 
     //Refund the relayer (their extra funds) + (the amount that the relayer spent on gas)
     //  + (the users refund if that refund didn't succeed)
@@ -451,11 +445,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     bytes32 refundAddress,
     Wei refundAmount,
     bytes32 relayerAddress
-  ) external returns (RefundStatus) {
-    //despite being external, we only allow ourselves to call this function (via CALL opcode)
-    //  used as a means to catch reverts when we external call the relay provider in this function
-    if (msg.sender != address(this))
-      revert RequesterNotCoreRelayer();
+  ) private returns (RefundStatus) {
 
     //same chain refund
     if (refundChainId == getChainId()) {
@@ -466,13 +456,15 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
 
     //cross-chain refund
     IRelayProvider relayProvider = IRelayProvider(fromWormholeFormat(relayerAddress));
-    if (!relayProvider.isChainSupported(refundChainId))
+    Wei baseDeliveryPrice;
+    try relayProvider.quoteDeliveryPrice(refundChainId, Wei.wrap(0), encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1())) returns (Wei quote, bytes memory) {
+      baseDeliveryPrice = quote;
+    } catch (bytes memory) {
       return RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED;
+    }
 
     // assuming refund chain is an EVM chain
-    // must modify this when we extend system to non-EVM
-    (Wei quote,) = relayProvider.quoteDeliveryPrice(refundChainId, Wei.wrap(0), encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1()));
-    if (refundAmount <= getWormholeMessageFee() + quote)
+    if (refundAmount <= getWormholeMessageFee() + baseDeliveryPrice)
       return RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH;
     try IWormholeRelayerSend(address(this)).send{
       value: refundAmount.unwrap()
@@ -481,7 +473,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       bytes32(0),
       bytes(""),
       Wei.wrap(0),
-      refundAmount - getWormholeMessageFee() - quote,
+      refundAmount - getWormholeMessageFee() - baseDeliveryPrice,
       encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1()),
       refundChainId,
       refundAddress,
@@ -498,7 +490,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
 
   function decodeCancelled(
     bytes memory revertData
-  ) private view returns (uint32 gasUsed, uint256 available, uint256 required) {
+  ) private pure returns (uint32 gasUsed, uint256 available, uint256 required) {
     uint offset = 0;
     bytes4 selector;
     (selector, offset) = revertData.asBytes4Unchecked(offset);
