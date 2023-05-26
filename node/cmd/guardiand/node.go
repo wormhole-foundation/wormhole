@@ -977,23 +977,26 @@ func runNode(cmd *cobra.Command, args []string) {
 	// Per-chain query requests
 	chainQueryReqC := make(map[vaa.ChainID]chan *gossipv1.SignedQueryRequest)
 
-	// Query responses from watchers aggregated across all chains
-	queryResponseReadC, queryResponseWriteC := makeChannelPair[*common.QueryResponsePublication](0)
+	// Query responses from watchers to query handler aggregated across all chains
+	queryResponseReadC, queryResponseWriteC := makeChannelPair[*common.QueryResponse](0)
+
+	// Query responses from query handler to p2p
+	queryResponsePublicationReadC, queryResponsePublicationWriteC := makeChannelPair[*common.QueryResponsePublication](0)
 
 	// Per-chain query response channel
-	chainQueryResponseC := make(map[vaa.ChainID]chan *common.QueryResponsePublication)
+	chainQueryResponseC := make(map[vaa.ChainID]chan *common.QueryResponse)
 	// aggregate per-chain msgC into msgC.
 	// SECURITY defense-in-depth: This way we enforce that a watcher must set the msg.EmitterChain to its chainId, which makes the code easier to audit
 	for _, chainId := range vaa.GetAllNetworkIDs() {
-		chainQueryResponseC[chainId] = make(chan *common.QueryResponsePublication)
-		go func(c <-chan *common.QueryResponsePublication, chainId vaa.ChainID) {
+		chainQueryResponseC[chainId] = make(chan *common.QueryResponse)
+		go func(c <-chan *common.QueryResponse, chainId vaa.ChainID) {
 			for {
 				select {
 				case <-rootCtx.Done():
 					return
 				case response := <-c:
 					var queryRequest gossipv1.QueryRequest
-					err = proto.Unmarshal(response.Request.QueryRequest, &queryRequest)
+					err = proto.Unmarshal(response.Msg.Request.QueryRequest, &queryRequest)
 					if err != nil {
 						logger.Error("received invalid response from watcher", zap.Stringer("watcherChainId", chainId))
 						continue
@@ -1198,7 +1201,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			ibc.GetFeatures,
 			*ccqEnabled,
 			signedQueryReqWriteC,
-			queryResponseReadC)); err != nil {
+			queryResponsePublicationReadC)); err != nil {
 			return err
 		}
 
@@ -1563,7 +1566,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			if err != nil {
 				logger.Fatal("failed to parse allowed requesters list", zap.String("ccqAllowedRequesters", *ccqAllowedRequesters), zap.Error(err), zap.String("component", "ccqconfig"))
 			}
-			go handleQueryRequests(rootCtx, logger, signedQueryReqReadC, chainQueryReqC, ccqAllowedRequestersList, env)
+			go handleQueryRequests(rootCtx, logger, signedQueryReqReadC, chainQueryReqC, ccqAllowedRequestersList, queryResponseReadC, queryResponsePublicationWriteC, env)
 		}
 
 		if acct != nil {
