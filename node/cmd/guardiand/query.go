@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
@@ -13,13 +14,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// TODO: should this use a different standard of signing messages, like https://eips.ethereum.org/EIPS/eip-712
-var queryRequestPrefix = []byte("query_request_00000000000000000000|")
-
-func queryRequestDigest(b []byte) ethCommon.Hash {
-	return ethCrypto.Keccak256Hash(append(queryRequestPrefix, b...))
-}
-
 // Multiplex observation requests to the appropriate chain
 func handleQueryRequests(
 	ctx context.Context,
@@ -27,6 +21,7 @@ func handleQueryRequests(
 	signedQueryReqC <-chan *gossipv1.SignedQueryRequest,
 	chainQueryReqC map[vaa.ChainID]chan *gossipv1.SignedQueryRequest,
 	allowedRequestors map[ethCommon.Address]struct{},
+	env common.Environment,
 ) {
 	qLogger := logger.With(zap.String("component", "ccqhandler"))
 	qLogger.Info("cross chain queries are enabled", zap.Any("allowedRequestors", allowedRequestors))
@@ -45,7 +40,7 @@ func handleQueryRequests(
 			// - length check on "to" address 20 bytes
 			// - valid "block" strings
 
-			digest := queryRequestDigest(signedQueryRequest.QueryRequest)
+			digest := common.QueryRequestDigest(env, signedQueryRequest.QueryRequest)
 
 			signerBytes, err := ethCrypto.Ecrecover(digest.Bytes(), signedQueryRequest.Signature)
 			if err != nil {
