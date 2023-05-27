@@ -507,6 +507,10 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
   ) private pure returns (uint32 gasUsed, bool knownError) {
     uint offset = 0;
     bytes4 selector;
+
+    if(revertData.length < 4) {
+     return (0, false);
+    }
     (selector, offset) = revertData.asBytes4Unchecked(offset);
     if((selector == Cancelled.selector) || (selector == RelayProviderReverted.selector) || (selector == RelayProviderPaymentFailed.selector)) {
       knownError = true;
