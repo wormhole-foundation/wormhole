@@ -320,6 +320,23 @@ contract WormholeRelayerTests is Test {
         status = getDeliveryStatus(logs[logs.length - 1]);
     }
 
+    function getRefundStatus(Vm.Log memory log)
+        internal
+        pure
+        returns (IWormholeRelayerDelivery.RefundStatus status)
+    {
+        (uint256 parsed,) = log.data.asUint256(32 + 32 + 32);
+        status = IWormholeRelayerDelivery.RefundStatus(parsed);
+    }
+
+    function getRefundStatus()
+        internal
+        returns (IWormholeRelayerDelivery.RefundStatus status)
+    {
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        status = getRefundStatus(logs[logs.length - 1]);
+    }
+
     function vaaKeyArray(
         uint16 chainId,
         uint64 sequence,
@@ -1010,7 +1027,7 @@ contract WormholeRelayerTests is Test {
         );
     }
 
-    function testFundsCorrectForASendCrossChainRefund(
+    function testFundsCorrectForASendCrossChainRefundSuccess(
         GasParameters memory gasParams,
         FeeParameters memory feeParams
     ) public {
@@ -1093,6 +1110,114 @@ contract WormholeRelayerTests is Test {
             test.gasAmount <= 170000,
             "Gas amount (calculated from refund address payment) higher than expected"
         );
+    }
+
+    function testFundsCorrectForASendCrossChainRefundFailProviderNotSupported(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams
+    ) public {
+         vm.recordLogs();
+        (StandardSetupTwoChains memory setup, FundsCorrectTest memory test) =
+            setupFundsCorrectTest(gasParams, feeParams, 170000 + REASONABLE_GAS_LIMIT);
+
+        setup.target.relayProvider.updateSupportedChain(setup.sourceChainId, false);
+        vm.assume(test.targetChainRefundPerGasUnused * REASONABLE_GAS_LIMIT >= feeParams.wormholeFeeOnTarget + uint256(1) * gasParams.evmGasOverhead * gasParams.sourceGasPrice * (uint256(feeParams.sourceNativePrice) / feeParams.targetNativePrice + 1));
+
+        uint256 refundRewardAddressBalance = setup.target.rewardAddress.balance;
+        uint256 refundAddressBalance = setup.source.refundAddress.balance;
+
+        setup.source.integration.sendMessageWithRefund{value: test.deliveryPrice + feeParams.wormholeFeeOnSource}(
+            bytes("Hello!"),
+            setup.targetChainId,
+            gasParams.targetGasLimit,
+            test.receiverValue,
+            setup.sourceChainId,
+            setup.source.refundAddress
+        );
+
+        genericRelayer.relay(setup.sourceChainId);
+
+        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(bytes("Hello!")));
+        DeliveryData memory deliveryData = setup.target.integration.getDeliveryData();
+
+        assertTrue(
+            test.deliveryPrice
+                == setup.source.rewardAddress.balance - test.rewardAddressBalance,
+            "The source to target relayer's reward address was paid appropriately"
+        );
+        // Calculate maximum refund for source->target delivery, and check against Delivery Data
+        assertTrue(
+            test.targetChainRefundPerGasUnused == deliveryData.targetChainRefundPerGasUnused,
+            "Correct value of targetChainRefundPerGasUnused is reported to receiver in deliveryData"
+        );
+       
+        test.relayerPayment = test.relayerBalance - setup.target.relayer.balance;
+        test.destinationAmount = address(setup.target.integration).balance - test.destinationBalance;
+
+        assertTrue(
+            test.destinationAmount == feeParams.receiverValueTarget,
+            "Receiver value was sent to the contract"
+        );
+        assertTrue(
+            test.relayerPayment == feeParams.receiverValueTarget,
+            "Relayer only paid the receiver value, and received the full transaction fee refund"
+        );
+        uint8 refundStatus = uint8(getRefundStatus());
+        assertTrue(refundStatus == uint8(IWormholeRelayerDelivery.RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED));
+    }
+
+    function testFundsCorrectForASendCrossChainRefundNotEnough(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams
+    ) public {
+         vm.recordLogs();
+        (StandardSetupTwoChains memory setup, FundsCorrectTest memory test) =
+            setupFundsCorrectTest(gasParams, feeParams, 170000);
+        vm.assume(uint256(1) * gasParams.evmGasOverhead * gasParams.sourceGasPrice * feeParams.sourceNativePrice > uint256(1) * feeParams.targetNativePrice * test.targetChainRefundPerGasUnused * gasParams.targetGasLimit);
+        uint256 refundRewardAddressBalance = setup.target.rewardAddress.balance;
+        uint256 refundAddressBalance = setup.source.refundAddress.balance;
+
+        setup.source.integration.sendMessageWithRefund{value: test.deliveryPrice + feeParams.wormholeFeeOnSource}(
+            bytes("Hello!"),
+            setup.targetChainId,
+            gasParams.targetGasLimit,
+            test.receiverValue,
+            setup.sourceChainId,
+            setup.source.refundAddress
+        );
+
+        genericRelayer.relay(setup.sourceChainId);
+
+        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(bytes("Hello!")));
+        DeliveryData memory deliveryData = setup.target.integration.getDeliveryData();
+
+        assertTrue(
+            test.deliveryPrice
+                == setup.source.rewardAddress.balance - test.rewardAddressBalance,
+            "The source to target relayer's reward address was paid appropriately"
+        );
+        // Calculate maximum refund for source->target delivery, and check against Delivery Data
+        assertTrue(
+            test.targetChainRefundPerGasUnused == deliveryData.targetChainRefundPerGasUnused,
+            "Correct value of targetChainRefundPerGasUnused is reported to receiver in deliveryData"
+        );
+        
+
+        test.relayerPayment = test.relayerBalance - setup.target.relayer.balance;
+        test.destinationAmount = address(setup.target.integration).balance - test.destinationBalance;
+
+        assertTrue(
+            test.destinationAmount == feeParams.receiverValueTarget,
+            "Receiver value was sent to the contract"
+        );
+        assertTrue(
+            test.relayerPayment == feeParams.receiverValueTarget,
+            "Relayer only paid the receiver value, and received the full transaction fee refund"
+        );
+
+
+        assertTrue(uint8(getRefundStatus()) == uint8(IWormholeRelayerDelivery.RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH));
+
     }
 
     /**
