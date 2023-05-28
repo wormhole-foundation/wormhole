@@ -82,7 +82,7 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
 
     sequence =
       getWormhole().publishMessage{value: wormholeMessageFee.unwrap()}(0, encodedInstruction, consistencyLevel);
-    paymentSucceeded = pay(relayProvider.getRewardAddress(), deliveryQuote + paymentForExtraReceiverValue);
+    paymentSucceeded = pay(rewardAddress, deliveryQuote + paymentForExtraReceiverValue);
     emit SendEvent(sequence, deliveryQuote, paymentForExtraReceiverValue);
   }
 
