@@ -228,7 +228,10 @@ contract MockRelayerIntegration is IWormholeReceiver {
 
         latestDeliveryData = deliveryData;
 
-        Message memory message = decodeMessage(deliveryData.payload);
+        Message memory message;
+        if(deliveryData.payload.length > 0) {
+            message = decodeMessage(deliveryData.payload);
+        }
 
         messageHistory.push(message.message);
 
@@ -295,7 +298,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
         return address(uint160(uint256(registeredContracts[chainId])));
     }
 
-    function encodeMessage(Message memory message) internal pure returns (bytes memory encoded) {
+    function encodeMessage(Message memory message) public pure returns (bytes memory encoded) {
         return abi.encodePacked(uint8(message.version), uint32(message.message.length), message.message, uint32(message.forwardMessage.length), message.forwardMessage);
     }
 

@@ -5,23 +5,22 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import "../../contracts/interfaces/IWormhole.sol";
 import "../../contracts/interfaces/relayer/IWormholeReceiver.sol";
-import "../../contracts/interfaces/relayer/IWormholeRelayerUntyped.sol";
-import "../../contracts/interfaces/relayer/IRelayProvider.sol";
+import "../../contracts/interfaces/relayer/IWormholeRelayer.sol";
+
+import {toWormholeFormat} from "../../contracts/libraries/relayer/Utils.sol";
 
 /**
  * This contract is a malicious "integration" that attempts to attack the forward mechanism.
  */
 contract AttackForwardIntegration is IWormholeReceiver {
-    mapping(bytes32 => bool) consumedMessages;
     address attackerReward;
-    IWormhole wormhole;
-    IWormholeRelayer core_relayer;
-    uint32 nonce = 1;
+    IWormhole immutable wormhole;
+    IWormholeRelayer immutable coreRelayer;
     uint16 targetChainId;
 
     // Capture 30k gas for fees
     // This just needs to be enough to pay for the call to the destination address.
-    uint32 SAFE_DELIVERY_GAS_CAPTURE = 30000;
+    uint32 SAFE_DELIVERY_GAS_CAPTURE = 30_000;
 
     constructor(
         IWormhole initWormhole,
@@ -29,9 +28,9 @@ contract AttackForwardIntegration is IWormholeReceiver {
         uint16 chainId,
         address initAttackerReward
     ) {
-        attackerReward = initAttackerReward;
         wormhole = initWormhole;
-        core_relayer = initCoreRelayer;
+        attackerReward = initAttackerReward;
+        coreRelayer = initCoreRelayer;
         targetChainId = chainId;
     }
 
@@ -52,24 +51,21 @@ contract AttackForwardIntegration is IWormholeReceiver {
     }
 
     function forward(uint16 _targetChainId, address attackerRewardAddress) internal {
-        (uint256 deliveryPayment,) = core_relayer.quoteEVMDeliveryPrice(
+        (uint256 deliveryPayment,) = coreRelayer.quoteEVMDeliveryPrice(
             _targetChainId, 0, SAFE_DELIVERY_GAS_CAPTURE
         );
 
-        bytes memory emptyArray;
-        core_relayer.forwardToEvm{value: deliveryPayment + wormhole.messageFee()}(
+        bytes memory payload = new bytes(0);
+        coreRelayer.forwardToEvm{value: deliveryPayment + wormhole.messageFee()}(
             _targetChainId,
             attackerRewardAddress,
-            emptyArray,
-            0,
-            SAFE_DELIVERY_GAS_CAPTURE,
+            payload,
+            // receiver value
+            Wei.wrap(0),
+            Gas.wrap(SAFE_DELIVERY_GAS_CAPTURE),
             _targetChainId,
-            // All remaining funds will be returned to the attacker
+            // All remaining funds will be returned to the attacker through a refund
             attackerRewardAddress
         );
-    }
-
-    function toWormholeFormat(address addr) public pure returns (bytes32 whFormat) {
-        return bytes32(uint256(uint160(addr)));
     }
 }
