@@ -232,7 +232,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
       
       bool knownError;
       uint32 gasUsed_;
-      (gasUsed_, knownError) = decodeExecuteInstructionError(revertData);
+      (gasUsed_, knownError) = tryDecodeExecuteInstructionError(revertData);
       results = DeliveryResults(
         knownError ? Gas.wrap(gasUsed_) : vaaInfo.gasLimit,
         DeliveryStatus.FORWARD_REQUEST_FAILURE,
@@ -502,7 +502,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     }
   }
 
-  function decodeExecuteInstructionError(
+  function tryDecodeExecuteInstructionError(
     bytes memory revertData
   ) private pure returns (uint32 gasUsed, bool knownError) {
     uint offset = 0;
