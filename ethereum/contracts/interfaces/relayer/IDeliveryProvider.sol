@@ -5,14 +5,14 @@ pragma solidity ^0.8.0;
 interface IDeliveryProvider {
     function quoteDeliveryPrice(
         uint16 targetChain,
-        TargetNative receiverValue,
+        uint256 receiverValue,
         bytes memory encodedExecutionParams
-    ) external view returns (LocalNative nativePriceQuote, bytes memory encodedExecutionInfo);
+    ) external view returns (uint256 nativePriceQuote, bytes memory encodedExecutionInfo);
 
     function quoteAssetConversion(
         uint16 targetChain,
-        LocalNative currentChainAmount
-    ) external view returns (TargetNative targetChainAmount);
+        uint256 currentChainAmount
+    ) external view returns (uint256 targetChainAmount);
 
     /**
      * @notice This function should return a payable address on this (source) chain where all awards

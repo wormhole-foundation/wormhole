@@ -240,29 +240,29 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
 
     function quoteEVMDeliveryPrice(
         uint16 targetChain,
-        uint128 receiverValue,
-        uint32 gasLimit
-    ) external view returns (uint256 nativePriceQuote, uint256 targetChainRefundPerGasUnused);
+        TargetNative receiverValue,
+        Gas gasLimit
+    ) external view returns (LocalNative nativePriceQuote, GasPrice targetChainRefundPerGasUnused);
 
     function quoteEVMDeliveryPrice(
         uint16 targetChain,
-        uint128 receiverValue,
-        uint32 gasLimit,
+        TargetNative receiverValue,
+        Gas gasLimit,
         address deliveryProviderAddress
-    ) external view returns (uint256 nativePriceQuote, uint256 targetChainRefundPerGasUnused);
+    ) external view returns (LocalNative nativePriceQuote, GasPrice targetChainRefundPerGasUnused);
 
     function quoteDeliveryPrice(
         uint16 targetChain,
-        uint128 receiverValue,
+        TargetNative receiverValue,
         bytes memory encodedExecutionParameters,
         address deliveryProviderAddress
-    ) external view returns (uint256 nativePriceQuote, bytes memory encodedExecutionInfo);
+    ) external view returns (LocalNative nativePriceQuote, bytes memory encodedExecutionInfo);
 
     function quoteNativeForChain(
         uint16 targetChain,
-        uint128 currentChainAmount,
+        LocalNative currentChainAmount,
         address deliveryProviderAddress
-    ) external view returns (uint256 targetChainAmount);
+    ) external view returns (TargetNative targetChainAmount);
 
     /**
      * @notice Returns the address of the current default relay provider
@@ -405,7 +405,7 @@ error RequesterNotWormholeRelayer();
 
 //When trying to relay a `DeliveryInstruction` to any other chain but the one it was specified for
 error TargetChainIsNotThisChain(uint16 targetChain);
-error ForwardNotSufficientlyFunded(Wei amountOfFunds, Wei amountOfFundsNeeded);
+error ForwardNotSufficientlyFunded(LocalNative amountOfFunds, LocalNative amountOfFundsNeeded);
 //When a `DeliveryOverride` contains a gas limit that's less than the original
 error InvalidOverrideGasLimit();
 //When a `DeliveryOverride` contains a receiver value that's less than the original

@@ -55,11 +55,11 @@ contract AttackForwardIntegration is IWormholeReceiver {
     }
 
     function forward(uint16 _targetChain, address attackerRewardAddress) internal {
-        (uint256 deliveryPayment,) =
-            core_relayer.quoteEVMDeliveryPrice(_targetChain, 0, SAFE_DELIVERY_GAS_CAPTURE);
+        (LocalNative deliveryPayment,) =
+            core_relayer.quoteEVMDeliveryPrice(_targetChain, TargetNative.wrap(0), Gas.wrap(SAFE_DELIVERY_GAS_CAPTURE));
 
         bytes memory emptyArray;
-        core_relayer.forwardToEvm{value: deliveryPayment + wormhole.messageFee()}(
+        core_relayer.forwardToEvm{value: LocalNative.unwrap(deliveryPayment) + wormhole.messageFee()}(
             _targetChain,
             attackerRewardAddress,
             emptyArray,

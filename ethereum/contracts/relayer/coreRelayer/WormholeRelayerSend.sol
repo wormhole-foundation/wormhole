@@ -492,27 +492,25 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
 
     function quoteEVMDeliveryPrice(
         uint16 targetChain,
-        uint128 receiverValue,
-        uint32 gasLimit,
+        TargetNative receiverValue,
+        Gas gasLimit,
         address deliveryProviderAddress
-    ) public view returns (uint256 nativePriceQuote, uint256 targetChainRefundPerGasUnused) {
-        (uint256 quote, bytes memory encodedExecutionInfo) = quoteDeliveryPrice(
+    ) public view returns (LocalNative nativePriceQuote, GasPrice targetChainRefundPerGasUnused) {
+        (LocalNative quote, bytes memory encodedExecutionInfo) = quoteDeliveryPrice(
             targetChain,
             receiverValue,
-            encodeEvmExecutionParamsV1(EvmExecutionParamsV1(Gas.wrap(gasLimit))),
+            encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit)),
             deliveryProviderAddress
         );
         nativePriceQuote = quote;
-        targetChainRefundPerGasUnused = GasPrice.unwrap(
-            decodeEvmExecutionInfoV1(encodedExecutionInfo).targetChainRefundPerGasUnused
-        );
+        targetChainRefundPerGasUnused = decodeEvmExecutionInfoV1(encodedExecutionInfo).targetChainRefundPerGasUnused;
     }
 
     function quoteEVMDeliveryPrice(
         uint16 targetChain,
-        uint128 receiverValue,
-        uint32 gasLimit
-    ) public view returns (uint256 nativePriceQuote, uint256 targetChainRefundPerGasUnused) {
+        TargetNative receiverValue,
+        Gas gasLimit
+    ) public view returns (LocalNative nativePriceQuote, GasPrice targetChainRefundPerGasUnused) {
         return quoteEVMDeliveryPrice(
             targetChain, receiverValue, gasLimit, getDefaultDeliveryProvider()
         );
@@ -520,26 +518,24 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
 
     function quoteDeliveryPrice(
         uint16 targetChain,
-        uint128 receiverValue,
+        TargetNative receiverValue,
         bytes memory encodedExecutionParameters,
         address deliveryProviderAddress
-    ) public view returns (uint256 nativePriceQuote, bytes memory encodedExecutionInfo) {
+    ) public view returns (LocalNative nativePriceQuote, bytes memory encodedExecutionInfo) {
         IDeliveryProvider provider = IDeliveryProvider(deliveryProviderAddress);
         (LocalNative deliveryPrice, bytes memory _encodedExecutionInfo) = provider
             .quoteDeliveryPrice(
-            targetChain, TargetNative.wrap(receiverValue), encodedExecutionParameters
+            targetChain, receiverValue, encodedExecutionParameters
         );
         encodedExecutionInfo = _encodedExecutionInfo;
-        nativePriceQuote = deliveryPrice.unwrap();
+        nativePriceQuote = deliveryPrice;
     }
 
     function quoteNativeForChain(
         uint16 targetChain,
-        uint128 currentChainAmount,
+        LocalNative currentChainAmount,
         address deliveryProviderAddress
-    ) public view returns (uint256 targetChainAmount) {
-        IDeliveryProvider provider = IDeliveryProvider(deliveryProviderAddress);
-        return provider.quoteAssetConversion(targetChain, LocalNative.wrap(currentChainAmount))
-            .unwrap();
+    ) public view returns (TargetNative targetChainAmount) {
+        return IDeliveryProvider(deliveryProviderAddress).quoteAssetConversion(targetChain, currentChainAmount);
     }
 }

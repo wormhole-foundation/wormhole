@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {IDeliveryProvider} from "../../contracts/interfaces/relayer/IDeliveryProviderTyped.sol";
+import {IDeliveryProvider} from "../../contracts/interfaces/relayer/IDeliveryProvider.sol";
 import {DeliveryProvider} from "../../contracts/relayer/deliveryProvider/DeliveryProvider.sol";
 import {DeliveryProviderSetup} from
     "../../contracts/relayer/deliveryProvider/DeliveryProviderSetup.sol";
@@ -56,10 +56,11 @@ contract WormholeRelayerTests is Test {
     using WeiPriceLib for WeiPrice;
     using GasPriceLib for GasPrice;
     using TargetNativeLib for TargetNative;
+    using LocalNativeLib for LocalNative;
 
-    uint32 REASONABLE_GAS_LIMIT = 500000;
-    uint32 REASONABLE_GAS_LIMIT_FORWARDS = 1000000;
-    uint32 TOO_LOW_GAS_LIMIT = 10000;
+    Gas REASONABLE_GAS_LIMIT = Gas.wrap(500000);
+    Gas REASONABLE_GAS_LIMIT_FORWARDS = Gas.wrap(1000000);
+    Gas TOO_LOW_GAS_LIMIT = Gas.wrap(10000);
 
     struct GasParameters {
         uint32 evmGasOverhead;
@@ -209,7 +210,19 @@ contract WormholeRelayerTests is Test {
         FeeParameters memory feeParams_,
         uint32 minTargetGasLimit
     ) public returns (StandardSetupTwoChains memory s) {
-        standardAssume(gasParams_, feeParams_, minTargetGasLimit);
+        return standardAssumeAndSetupTwoChains(
+            gasParams_,
+            feeParams_,
+            Gas.wrap(minTargetGasLimit)
+        );
+    }
+
+    function standardAssumeAndSetupTwoChains(
+        GasParameters memory gasParams_,
+        FeeParameters memory feeParams_,
+        Gas minTargetGasLimit
+    ) public returns (StandardSetupTwoChains memory s) {
+        standardAssume(gasParams_, feeParams_, uint32(minTargetGasLimit.unwrap()));
         GasParametersTyped memory gasParams = toGasParametersTyped(gasParams_);
         FeeParametersTyped memory feeParams = toFeeParametersTyped(feeParams_);
 
@@ -344,15 +357,29 @@ contract WormholeRelayerTests is Test {
 
     function sendMessageToTargetChain(
         StandardSetupTwoChains memory setup,
+        Gas gasLimit,
+        uint128 receiverValue,
+        bytes memory message
+    ) internal returns (uint64 sequence) {
+        return sendMessageToTargetChain(
+            setup,
+            uint32(gasLimit.unwrap()),
+            receiverValue,
+            message
+        );
+    }
+
+    function sendMessageToTargetChain(
+        StandardSetupTwoChains memory setup,
         uint32 gasLimit,
         uint128 receiverValue,
         bytes memory message
     ) internal returns (uint64 sequence) {
-        (uint256 deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
-            setup.targetChain, receiverValue, gasLimit
+        (LocalNative deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
+            setup.targetChain, TargetNative.wrap(receiverValue), Gas.wrap(gasLimit)
         );
         sequence = setup.source.integration.sendMessage{
-            value: deliveryCost + setup.source.wormhole.messageFee()
+            value: LocalNative.unwrap(deliveryCost) + setup.source.wormhole.messageFee()
         }(message, setup.targetChain, gasLimit, receiverValue);
     }
 
@@ -364,10 +391,10 @@ contract WormholeRelayerTests is Test {
         bytes memory forwardedMessage,
         bool forwardShouldSucceed
     ) internal returns (uint64 sequence) {
-        (uint256 forwardDeliveryCost,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(
-            setup.sourceChain, 0, REASONABLE_GAS_LIMIT
+        (LocalNative forwardDeliveryCost,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(
+            setup.sourceChain, TargetNative.wrap(0), REASONABLE_GAS_LIMIT
         );
-        uint256 neededReceiverValue = forwardDeliveryCost + setup.target.wormhole.messageFee();
+        uint256 neededReceiverValue = forwardDeliveryCost.unwrap() + setup.target.wormhole.messageFee();
         vm.assume(neededReceiverValue <= type(uint128).max);
         if (forwardShouldSucceed) {
             vm.assume(receiverValue >= neededReceiverValue);
@@ -375,12 +402,12 @@ contract WormholeRelayerTests is Test {
             vm.assume(receiverValue < neededReceiverValue);
         }
 
-        (uint256 deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
-            setup.targetChain, uint128(receiverValue), gasLimit
+        (LocalNative deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
+            setup.targetChain, TargetNative.wrap(receiverValue), Gas.wrap(gasLimit)
         );
 
         sequence = setup.source.integration.sendMessageWithForwardedResponse{
-            value: deliveryCost + setup.source.wormhole.messageFee()
+            value: deliveryCost.unwrap() + setup.source.wormhole.messageFee()
         }(message, forwardedMessage, setup.targetChain, gasLimit, receiverValue);
     }
 
@@ -389,13 +416,13 @@ contract WormholeRelayerTests is Test {
         uint64 sequence,
         uint32 gasLimit,
         uint128 receiverValue,
-        bytes memory message
+        bytes memory 
     ) internal {
-        (uint256 newDeliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
-            setup.targetChain, receiverValue, gasLimit
+        (LocalNative newDeliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
+            setup.targetChain, TargetNative.wrap(receiverValue), Gas.wrap(gasLimit)
         );
 
-        setup.source.integration.resend{value: newDeliveryCost + setup.source.wormhole.messageFee()}(
+        setup.source.integration.resend{value: newDeliveryCost.unwrap() + setup.source.wormhole.messageFee()}(
             setup.sourceChain, sequence, setup.targetChain, gasLimit, receiverValue
         );
     }
@@ -476,7 +503,7 @@ contract WormholeRelayerTests is Test {
         assertTrue(keccak256(setup.target.integration.getMessage()) != keccak256(message));
         assertTrue(getDeliveryStatus() == IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE);
 
-        resendMessageToTargetChain(setup, sequence, REASONABLE_GAS_LIMIT, 0, message);
+        resendMessageToTargetChain(setup, sequence, uint32(REASONABLE_GAS_LIMIT.unwrap()), 0, message);
 
         genericRelayer.relay(setup.sourceChain);
 
@@ -501,7 +528,7 @@ contract WormholeRelayerTests is Test {
         vm.recordLogs();
         gasParams.targetGasLimit = 600000;
         StandardSetupTwoChains memory setup =
-            standardAssumeAndSetupTwoChains(gasParams, feeParams, gasParams.targetGasLimit);
+            standardAssumeAndSetupTwoChains(gasParams, feeParams, Gas.wrap(gasParams.targetGasLimit));
 
         sendMessageToTargetChainExpectingForwardedResponse(
             setup,
@@ -529,30 +556,30 @@ contract WormholeRelayerTests is Test {
         StandardSetupTwoChains memory setup =
             standardAssumeAndSetupTwoChains(gasParams, feeParams, REASONABLE_GAS_LIMIT);
 
-        (uint256 firstForwardDeliveryCost,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(
-            setup.sourceChain, 0, REASONABLE_GAS_LIMIT
+        (LocalNative firstForwardDeliveryCost,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(
+            setup.sourceChain, TargetNative.wrap(0), REASONABLE_GAS_LIMIT
         );
-        (uint256 secondForwardDeliveryCost,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(
-            setup.targetChain, 0, REASONABLE_GAS_LIMIT
+        (LocalNative secondForwardDeliveryCost,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(
+            setup.targetChain, TargetNative.wrap(0), REASONABLE_GAS_LIMIT
         );
 
-        uint256 receiverValue = firstForwardDeliveryCost + secondForwardDeliveryCost
+        uint256 receiverValue = firstForwardDeliveryCost.unwrap() + secondForwardDeliveryCost.unwrap()
             + 2 * setup.target.wormhole.messageFee();
         vm.assume(receiverValue <= type(uint128).max);
 
-        (uint256 deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
-            setup.targetChain, uint128(receiverValue), REASONABLE_GAS_LIMIT_FORWARDS * 2
+        (LocalNative deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
+            setup.targetChain, TargetNative.wrap(receiverValue), Gas.wrap(REASONABLE_GAS_LIMIT_FORWARDS.unwrap() * 2)
         );
 
         vm.recordLogs();
 
         setup.source.integration.sendMessageWithMultiForwardedResponse{
-            value: deliveryCost + feeParams.wormholeFeeOnSource
+            value: deliveryCost.unwrap() + feeParams.wormholeFeeOnSource
         }(
             message,
             forwardedMessage,
             setup.targetChain,
-            REASONABLE_GAS_LIMIT_FORWARDS * 2,
+            uint32(REASONABLE_GAS_LIMIT_FORWARDS.unwrap() * 2),
             uint128(receiverValue)
         );
 
@@ -587,7 +614,7 @@ contract WormholeRelayerTests is Test {
         assertTrue(getDeliveryStatus() == IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE);
 
         for (uint32 i = 2; i < 10; i++) {
-            resendMessageToTargetChain(setup, sequence, TOO_LOW_GAS_LIMIT * i, 0, message);
+            resendMessageToTargetChain(setup, sequence, uint32(TOO_LOW_GAS_LIMIT.unwrap() * i), 0, message);
             genericRelayer.relay(setup.sourceChain);
             assertTrue(keccak256(setup.target.integration.getMessage()) != keccak256(message));
             assertTrue(
@@ -595,7 +622,7 @@ contract WormholeRelayerTests is Test {
             );
         }
 
-        resendMessageToTargetChain(setup, sequence, REASONABLE_GAS_LIMIT, 0, message);
+        resendMessageToTargetChain(setup, sequence, uint32(REASONABLE_GAS_LIMIT.unwrap()), 0, message);
 
         genericRelayer.relay(setup.sourceChain);
 
@@ -627,9 +654,17 @@ contract WormholeRelayerTests is Test {
     function setupFundsCorrectTest(
         GasParameters memory gasParams_,
         FeeParameters memory feeParams_,
+        Gas minGasLimit
+    ) public returns (StandardSetupTwoChains memory s, FundsCorrectTest memory test) {
+        return setupFundsCorrectTest(gasParams_, feeParams_, uint32(minGasLimit.unwrap()));
+    }
+
+    function setupFundsCorrectTest(
+        GasParameters memory gasParams_,
+        FeeParameters memory feeParams_,
         uint32 minGasLimit
     ) public returns (StandardSetupTwoChains memory s, FundsCorrectTest memory test) {
-        s = standardAssumeAndSetupTwoChains(gasParams_, feeParams_, minGasLimit);
+        s = standardAssumeAndSetupTwoChains(gasParams_, feeParams_, Gas.wrap(minGasLimit));
 
         test.refundAddressBalance = s.target.refundAddress.balance;
         test.relayerBalance = s.target.relayer.balance;
@@ -638,10 +673,12 @@ contract WormholeRelayerTests is Test {
         test.sourceContractBalance = address(s.source.coreRelayer).balance;
         test.targetContractBalance = address(s.target.coreRelayer).balance;
         test.receiverValue = feeParams_.receiverValueTarget;
-        (test.deliveryPrice, test.targetChainRefundPerGasUnused) = s
+        (LocalNative deliveryPrice, GasPrice targetChainRefundPerGasUnused) = s
             .source
             .coreRelayer
-            .quoteEVMDeliveryPrice(s.targetChain, test.receiverValue, gasParams_.targetGasLimit);
+            .quoteEVMDeliveryPrice(s.targetChain, TargetNative.wrap(test.receiverValue), Gas.wrap(gasParams_.targetGasLimit));
+        test.deliveryPrice = deliveryPrice.unwrap();
+        test.targetChainRefundPerGasUnused = targetChainRefundPerGasUnused.unwrap();
         vm.assume(test.targetChainRefundPerGasUnused > 0);
     }
 
@@ -708,7 +745,7 @@ contract WormholeRelayerTests is Test {
         FeeParameters memory feeParams
     ) public {
         vm.recordLogs();
-        gasParams.targetGasLimit = TOO_LOW_GAS_LIMIT;
+        gasParams.targetGasLimit = uint32(TOO_LOW_GAS_LIMIT.unwrap());
         (StandardSetupTwoChains memory setup, FundsCorrectTest memory test) =
             setupFundsCorrectTest(gasParams, feeParams, 0);
 
@@ -811,10 +848,10 @@ contract WormholeRelayerTests is Test {
         (StandardSetupTwoChains memory setup, FundsCorrectTest memory test) =
             setupFundsCorrectTest(gasParams, feeParams, REASONABLE_GAS_LIMIT_FORWARDS);
 
-        (uint256 forwardDeliveryCost,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(
-            setup.sourceChain, 0, REASONABLE_GAS_LIMIT
+        (LocalNative forwardDeliveryCost,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(
+            setup.sourceChain, TargetNative.wrap(0), REASONABLE_GAS_LIMIT
         );
-        uint256 receiverValue = forwardDeliveryCost + setup.target.wormhole.messageFee();
+        uint256 receiverValue = forwardDeliveryCost.unwrap() + setup.target.wormhole.messageFee();
         vm.assume(receiverValue <= type(uint128).max);
         vm.assume(feeParams.receiverValueTarget >= receiverValue);
 
@@ -910,9 +947,9 @@ contract WormholeRelayerTests is Test {
         (StandardSetupTwoChains memory setup, FundsCorrectTest memory test) =
             setupFundsCorrectTest(gasParams, feeParams, 600000);
 
-        (uint256 forwardDeliveryCost,) =
-            setup.target.coreRelayer.quoteEVMDeliveryPrice(setup.sourceChain, 0, TOO_LOW_GAS_LIMIT);
-        uint256 receiverValue = forwardDeliveryCost + setup.target.wormhole.messageFee();
+        (LocalNative forwardDeliveryCost,) =
+            setup.target.coreRelayer.quoteEVMDeliveryPrice(setup.sourceChain, TargetNative.wrap(0), REASONABLE_GAS_LIMIT);
+        uint256 receiverValue = forwardDeliveryCost.unwrap() + setup.target.wormhole.messageFee();
         vm.assume(receiverValue <= type(uint128).max);
         vm.assume(feeParams.receiverValueTarget < receiverValue);
 
@@ -985,15 +1022,15 @@ contract WormholeRelayerTests is Test {
         (StandardSetupTwoChains memory setup, FundsCorrectTest memory test) =
             setupFundsCorrectTest(gasParams, feeParams, 170000);
 
-        (uint256 notEnoughDeliveryPrice,) =
-            setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChain, 0, TOO_LOW_GAS_LIMIT);
+        (LocalNative notEnoughDeliveryPrice,) =
+            setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChain, TargetNative.wrap(0), REASONABLE_GAS_LIMIT);
 
         uint64 sequence = setup.source.integration.sendMessageWithRefund{
-            value: notEnoughDeliveryPrice + feeParams.wormholeFeeOnSource
+            value: notEnoughDeliveryPrice.unwrap() + feeParams.wormholeFeeOnSource
         }(
             bytes("Hello!"),
             setup.targetChain,
-            TOO_LOW_GAS_LIMIT,
+            uint32(TOO_LOW_GAS_LIMIT.unwrap()),
             0,
             setup.targetChain,
             setup.target.refundAddress
@@ -1098,16 +1135,17 @@ contract WormholeRelayerTests is Test {
         uint256 amountToGetInRefundTarget =
             (setup.target.rewardAddress.balance - refundRewardAddressBalance);
 
-        uint256 refundSource = 0;
-        (uint256 baseFee,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(setup.sourceChain, 0, 0);
+        uint256 refundSource; 
+        (LocalNative baseFee,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(setup.sourceChain, TargetNative.wrap(0), Gas.wrap(0));
 
-        vm.assume(amountToGetInRefundTarget > baseFee);
-        if (amountToGetInRefundTarget > baseFee) {
-            refundSource = setup.target.coreRelayer.quoteNativeForChain(
+        vm.assume(amountToGetInRefundTarget > baseFee.unwrap());
+        if (amountToGetInRefundTarget > baseFee.unwrap()) {
+            TargetNative tmp = setup.target.coreRelayer.quoteNativeForChain(
                 setup.sourceChain,
-                uint128(amountToGetInRefundTarget - baseFee),
+                LocalNative.wrap(amountToGetInRefundTarget - baseFee.unwrap()),
                 setup.target.coreRelayer.getDefaultDeliveryProvider()
             );
+            refundSource = tmp.unwrap();
         }
 
         // Calculate amount that must have been spent on gas, by reverse engineering from the amount that was paid to the provider's reward address on the target chain
@@ -1172,12 +1210,12 @@ contract WormholeRelayerTests is Test {
         }
         vm.recordLogs();
 
-        (uint256 deliveryCost, uint256 targetChainRefundPerGasUnused) = setup
+        (LocalNative deliveryCost, GasPrice targetChainRefundPerGasUnused) = setup
             .source
             .coreRelayer
-            .quoteEVMDeliveryPrice(setup.targetChain, params.receiverValue, params.gasLimit);
+            .quoteEVMDeliveryPrice(setup.targetChain, TargetNative.wrap(params.receiverValue), Gas.wrap(params.gasLimit));
         uint256 value =
-            deliveryCost + feeParams.wormholeFeeOnSource + params.paymentForExtraReceiverValue;
+            deliveryCost.unwrap() + feeParams.wormholeFeeOnSource + params.paymentForExtraReceiverValue;
         setup.source.integration.sendToEvm{value: value}(
             setup.targetChain,
             params.targetAddress,
@@ -1193,11 +1231,11 @@ contract WormholeRelayerTests is Test {
         bytes memory encodedExecutionInfo = abi.encode(
             uint8(ExecutionInfoVersion.EVM_V1), params.gasLimit, targetChainRefundPerGasUnused
         );
-        TargetNative extraReceiverValue = TargetNative.wrap(setup.source.coreRelayer.quoteNativeForChain(
+        TargetNative extraReceiverValue = setup.source.coreRelayer.quoteNativeForChain(
             setup.targetChain,
-            params.paymentForExtraReceiverValue,
+            LocalNative.wrap(params.paymentForExtraReceiverValue),
             address(setup.source.deliveryProvider)
-        ));
+        );
 
         DeliveryInstruction memory expectedInstruction = DeliveryInstruction({
             targetChain: setup.targetChain,
@@ -1240,11 +1278,11 @@ contract WormholeRelayerTests is Test {
 
         vm.recordLogs();
 
-        (uint256 deliveryCost, uint256 targetChainRefundPerGasUnused) = setup
+        (LocalNative deliveryCost, GasPrice targetChainRefundPerGasUnused) = setup
             .source
             .coreRelayer
-            .quoteEVMDeliveryPrice(setup.targetChain, params.newReceiverValue, params.newGasLimit);
-        uint256 value = deliveryCost + feeParams.wormholeFeeOnSource;
+            .quoteEVMDeliveryPrice(setup.targetChain, TargetNative.wrap(params.newReceiverValue), Gas.wrap(params.newGasLimit));
+        uint256 value = deliveryCost.unwrap() + feeParams.wormholeFeeOnSource;
         vm.deal(params.senderAddress, value);
         vm.prank(params.senderAddress);
         setup.source.coreRelayer.resendToEvm{value: value}(
@@ -1625,9 +1663,10 @@ contract WormholeRelayerTests is Test {
 
         DeliveryStack memory stack;
 
-        (stack.payment,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
-            setup.targetChain, 0, gasParams.targetGasLimit
+        (LocalNative payment_,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
+            setup.targetChain, TargetNative.wrap(0), Gas.wrap(gasParams.targetGasLimit)
         );
+        stack.payment = payment_.unwrap();
         stack.payment += setup.source.wormhole.messageFee();
 
         uint64 sequence = setup.source.wormhole.publishMessage{value: feeParams.wormholeFeeOnSource}(
@@ -1853,19 +1892,19 @@ contract WormholeRelayerTests is Test {
 
         vm.recordLogs();
 
-        (uint256 deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
-            setup.targetChain, 0, gasParams.targetGasLimit
+        (LocalNative deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
+            setup.targetChain, TargetNative.wrap(0), Gas.wrap(gasParams.targetGasLimit)
         );
 
         vm.expectRevert(
             abi.encodeWithSelector(
                 InvalidMsgValue.selector,
-                deliveryCost + feeParams.wormholeFeeOnSource - 1,
-                deliveryCost + feeParams.wormholeFeeOnSource
+                deliveryCost.unwrap() + feeParams.wormholeFeeOnSource - 1,
+                deliveryCost.unwrap() + feeParams.wormholeFeeOnSource
             )
         );
         setup.source.integration.sendMessage{
-            value: deliveryCost + feeParams.wormholeFeeOnSource - 1
+            value: deliveryCost.unwrap() + feeParams.wormholeFeeOnSource - 1
         }(message, setup.targetChain, gasParams.targetGasLimit, 0);
     }
 
@@ -1879,19 +1918,19 @@ contract WormholeRelayerTests is Test {
 
         vm.recordLogs();
 
-        (uint256 deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
-            setup.targetChain, 0, gasParams.targetGasLimit
+        (LocalNative deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
+            setup.targetChain, TargetNative.wrap(0), Gas.wrap(gasParams.targetGasLimit)
         );
 
         vm.expectRevert(
             abi.encodeWithSelector(
                 InvalidMsgValue.selector,
-                deliveryCost + feeParams.wormholeFeeOnSource + 1,
-                deliveryCost + feeParams.wormholeFeeOnSource
+                deliveryCost.unwrap() + feeParams.wormholeFeeOnSource + 1,
+                deliveryCost.unwrap() + feeParams.wormholeFeeOnSource
             )
         );
         setup.source.integration.sendMessage{
-            value: deliveryCost + feeParams.wormholeFeeOnSource + 1
+            value: deliveryCost.unwrap() + feeParams.wormholeFeeOnSource + 1
         }(message, setup.targetChain, gasParams.targetGasLimit, 0);
     }
 
@@ -1905,8 +1944,8 @@ contract WormholeRelayerTests is Test {
 
         vm.recordLogs();
 
-        (uint256 deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
-            setup.targetChain, 0, gasParams.targetGasLimit
+        (LocalNative deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
+            setup.targetChain, TargetNative.wrap(0), Gas.wrap(gasParams.targetGasLimit)
         );
 
         vm.expectRevert(
@@ -1917,7 +1956,7 @@ contract WormholeRelayerTests is Test {
             )
         );
         setup.source.integration.sendMessage{
-            value: deliveryCost + feeParams.wormholeFeeOnSource - 1
+            value: deliveryCost.unwrap() + feeParams.wormholeFeeOnSource - 1
         }(message, 32, gasParams.targetGasLimit, 0);
     }
 
@@ -1937,7 +1976,7 @@ contract WormholeRelayerTests is Test {
                 uint16(32)
             )
         );
-        setup.source.integration.resend{value: 0}(setup.sourceChain, 1, 32, REASONABLE_GAS_LIMIT, 0);
+        setup.source.integration.resend{value: 0}(setup.sourceChain, 1, 32, uint32(REASONABLE_GAS_LIMIT.unwrap()), 0);
     }
 
     function testSendCheckConsistencyLevel(
@@ -1950,10 +1989,10 @@ contract WormholeRelayerTests is Test {
 
         vm.recordLogs();
 
-        (uint256 deliveryCost,) =
-            setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChain, 0, 0);
+        (LocalNative deliveryCost,) =
+            setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChain, TargetNative.wrap(0), Gas.wrap(0));
 
-        setup.source.coreRelayer.sendToEvm{value: deliveryCost + feeParams.wormholeFeeOnSource}(
+        setup.source.coreRelayer.sendToEvm{value: deliveryCost.unwrap() + feeParams.wormholeFeeOnSource}(
             setup.targetChain,
             address(0x0),
             bytes(""),
@@ -1997,24 +2036,24 @@ contract WormholeRelayerTests is Test {
         new ForwardTester(address(setup.target.wormhole), address(setup.target.coreRelayer), address(setup.target.wormholeSimulator));
         vm.deal(address(forwardTester), type(uint256).max / 2);
 
-        (uint256 forwardDeliveryCost,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(
-            setup.sourceChain, 0, REASONABLE_GAS_LIMIT
+        (LocalNative forwardDeliveryCost,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(
+            setup.sourceChain, TargetNative.wrap(0), REASONABLE_GAS_LIMIT
         );
-        uint256 receiverValue = forwardDeliveryCost + setup.target.wormhole.messageFee();
+        uint256 receiverValue = forwardDeliveryCost.unwrap() + setup.target.wormhole.messageFee();
         vm.assume(receiverValue <= type(uint128).max);
 
-        (uint256 deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
-            setup.targetChain, uint128(receiverValue), REASONABLE_GAS_LIMIT_FORWARDS
+        (LocalNative deliveryCost,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(
+            setup.targetChain, TargetNative.wrap(receiverValue), REASONABLE_GAS_LIMIT_FORWARDS
         );
 
         setup.source.coreRelayer.sendPayloadToEvm{
-            value: deliveryCost + feeParams.wormholeFeeOnSource
+            value: deliveryCost.unwrap() + feeParams.wormholeFeeOnSource
         }(
             setup.targetChain,
             address(forwardTester),
             abi.encodePacked(uint8(test)),
             TargetNative.wrap(receiverValue),
-            Gas.wrap(REASONABLE_GAS_LIMIT_FORWARDS)
+            REASONABLE_GAS_LIMIT_FORWARDS
         );
         genericRelayer.relay(setup.sourceChain);
         IWormholeRelayerDelivery.DeliveryStatus status = getDeliveryStatus();
@@ -2048,7 +2087,7 @@ contract WormholeRelayerTests is Test {
             address(forwardTester),
             bytes(""),
             TargetNative.wrap(0),
-            Gas.wrap(TOO_LOW_GAS_LIMIT)
+            TOO_LOW_GAS_LIMIT
         );
     }
 

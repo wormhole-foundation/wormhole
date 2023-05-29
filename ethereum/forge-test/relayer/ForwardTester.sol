@@ -12,13 +12,15 @@ import "forge-std/Vm.sol";
 
 contract ForwardTester is IWormholeReceiver {
     using BytesLib for bytes;
+    using GasLib for Gas;
+    using LocalNativeLib for LocalNative;
 
     IWormhole wormhole;
     IWormholeRelayer wormholeRelayer;
     MockGenericRelayer genericRelayer;
 
-    uint32 TOO_LOW_GAS_LIMIT = 10000;
-    uint32 REASONABLE_GAS_LIMIT = 500000;
+    Gas TOO_LOW_GAS_LIMIT = Gas.wrap(10000);
+    Gas REASONABLE_GAS_LIMIT = Gas.wrap(500000);
 
     address private constant VM_ADDRESS =
         address(bytes20(uint160(uint256(keccak256("hevm cheat code")))));
@@ -52,7 +54,7 @@ contract ForwardTester is IWormholeReceiver {
             // Emitter must be a wormhole relayer
             DummyContract dc = new DummyContract(address(wormholeRelayer));
             dc.forward{value: msg.value}(
-                sourceChain, fromWormholeFormat(sourceAddress), REASONABLE_GAS_LIMIT, 0, bytes("")
+                sourceChain, fromWormholeFormat(sourceAddress), REASONABLE_GAS_LIMIT, TargetNative.wrap(0), bytes("")
             );
         } else if (action == Action.ProviderNotSupported) {
             wormholeRelayer.forwardPayloadToEvm{value: msg.value}(
@@ -60,20 +62,20 @@ contract ForwardTester is IWormholeReceiver {
                 fromWormholeFormat(sourceAddress),
                 bytes(""),
                 TargetNative.wrap(0),
-                Gas.wrap(REASONABLE_GAS_LIMIT)
+                REASONABLE_GAS_LIMIT
             );
         } else if (action == Action.ReentrantCall) {
-            (uint256 deliveryPrice,) =
-                wormholeRelayer.quoteEVMDeliveryPrice(sourceChain, 0, REASONABLE_GAS_LIMIT);
+            (LocalNative deliveryPrice,) =
+                wormholeRelayer.quoteEVMDeliveryPrice(sourceChain, TargetNative.wrap(0), REASONABLE_GAS_LIMIT);
             vm.recordLogs();
             wormholeRelayer.sendPayloadToEvm{
-                value: deliveryPrice + wormhole.messageFee() + msg.value
+                value: deliveryPrice.unwrap() + wormhole.messageFee() + msg.value
             }(
                 sourceChain,
                 fromWormholeFormat(sourceAddress),
                 bytes(""),
                 TargetNative.wrap(0),
-                Gas.wrap(REASONABLE_GAS_LIMIT)
+                REASONABLE_GAS_LIMIT
             );
             genericRelayer.relay(wormhole.chainId());
         } else {
@@ -82,7 +84,7 @@ contract ForwardTester is IWormholeReceiver {
                 fromWormholeFormat(sourceAddress),
                 bytes(""),
                 TargetNative.wrap(0),
-                Gas.wrap(REASONABLE_GAS_LIMIT)
+                REASONABLE_GAS_LIMIT
             );
         }
     }
@@ -104,12 +106,12 @@ contract DummyContract {
     function forward(
         uint16 chainId,
         address targetAddress,
-        uint32 gasLimit,
-        uint256 receiverValue,
+        Gas gasLimit,
+        TargetNative receiverValue,
         bytes memory payload
     ) public payable {
         wormholeRelayer.forwardPayloadToEvm{value: msg.value}(
-            chainId, targetAddress, payload, TargetNative.wrap(receiverValue), Gas.wrap(gasLimit)
+            chainId, targetAddress, payload, receiverValue, gasLimit
         );
     }
 }
