@@ -60,6 +60,7 @@ struct ForwardInstruction {
   Wei msgValue;
   Wei deliveryPrice;
   Wei paymentForExtraReceiverValue;
+  address payable rewardAddress;
   uint8 consistencyLevel;
 }
 
