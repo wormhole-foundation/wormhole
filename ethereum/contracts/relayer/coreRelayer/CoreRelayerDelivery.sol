@@ -358,8 +358,6 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     Wei transactionFeeRefundAmount,
     ForwardInstruction[] storage forwardInstructions
   ) private {
-    if (msg.sender != address(this))
-      revert RequesterNotCoreRelayer();
     Wei wormholeMessageFee = getWormholeMessageFee();
 
     //Decode send requests and aggregate fee and payment
