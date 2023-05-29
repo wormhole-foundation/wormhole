@@ -7,8 +7,8 @@ import {
     InvalidMsgValue,
     VaaKey,
     IWormholeRelayerSend
-} from "../../interfaces/relayer/IWormholeRelayer.sol";
-import {IRelayProvider} from "../../interfaces/relayer/IRelayProvider.sol";
+} from "../../interfaces/relayer/IWormholeRelayerTyped.sol";
+import {IRelayProvider} from "../../interfaces/relayer/IRelayProviderTyped.sol";
 
 import {toWormholeFormat, fromWormholeFormat} from "../../libraries/relayer/Utils.sol";
 import {

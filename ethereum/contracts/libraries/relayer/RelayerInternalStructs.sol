@@ -3,7 +3,7 @@
 pragma solidity ^0.8.19;
 
 import "../../interfaces/relayer/TypedUnits.sol";
-import "../../interfaces/relayer/IWormholeRelayer.sol";
+import "../../interfaces/relayer/IWormholeRelayerTyped.sol";
 
 struct DeliveryInstruction {
     uint16 targetChain;

@@ -2,13 +2,13 @@
 
 pragma solidity ^0.8.0;
 
-import {IRelayProvider} from "../../contracts/interfaces/relayer/IRelayProvider.sol";
+import {IRelayProvider} from "../../contracts/interfaces/relayer/IRelayProviderTyped.sol";
 import {RelayProvider} from "../../contracts/relayer/relayProvider/RelayProvider.sol";
 import {RelayProviderSetup} from "../../contracts/relayer/relayProvider/RelayProviderSetup.sol";
 import {RelayProviderImplementation} from
     "../../contracts/relayer/relayProvider/RelayProviderImplementation.sol";
 import {RelayProviderProxy} from "../../contracts/relayer/relayProvider/RelayProviderProxy.sol";
-import {IWormholeRelayer} from "../../contracts/interfaces/relayer/IWormholeRelayer.sol";
+import {IWormholeRelayer} from "../../contracts/interfaces/relayer/IWormholeRelayerTyped.sol";
 import {WormholeRelayer} from "../../contracts/relayer/coreRelayer/WormholeRelayer.sol";
 import {Create2Factory} from "../../contracts/relayer/create2Factory/Create2Factory.sol";
 import {MockGenericRelayer} from "./MockGenericRelayer.sol";

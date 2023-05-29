@@ -6,7 +6,7 @@ pragma solidity ^0.8.19;
 import "@openzeppelin/contracts/utils/Context.sol";
 
 import "./RelayProviderState.sol";
-import "../../interfaces/relayer/IRelayProvider.sol";
+import "../../interfaces/relayer/IRelayProviderTyped.sol";
 
 contract RelayProviderSetters is Context, RelayProviderState {
     using GasPriceLib for GasPrice;

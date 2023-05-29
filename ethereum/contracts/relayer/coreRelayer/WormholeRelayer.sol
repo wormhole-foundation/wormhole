@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.19;
 
-import {IWormholeRelayer} from "../../interfaces/relayer/IWormholeRelayer.sol";
+import {IWormholeRelayer} from "../../interfaces/relayer/IWormholeRelayerTyped.sol";
 
 import {getDefaultRelayProviderState} from "./WormholeRelayerStorage.sol";
 import {WormholeRelayerGovernance} from "./WormholeRelayerGovernance.sol";

@@ -5,7 +5,7 @@ pragma solidity ^0.8.0;
 
 import "../../libraries/external/BytesLib.sol";
 import "../../interfaces/IWormhole.sol";
-import "../../interfaces/relayer/IWormholeRelayer.sol";
+import "../../interfaces/relayer/IWormholeRelayerTyped.sol";
 import "../../interfaces/relayer/IWormholeReceiver.sol";
 
 import {toWormholeFormat} from "../../libraries/relayer/Utils.sol";

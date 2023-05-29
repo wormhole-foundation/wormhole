@@ -2,17 +2,19 @@
 
 pragma solidity ^0.8.0;
 
+import "./TypedUnits.sol";
+
 interface IRelayProvider {
     function quoteDeliveryPrice(
         uint16 targetChain,
-        uint256 receiverValue,
+        Wei receiverValue,
         bytes memory encodedExecutionParams
-    ) external view returns (uint256 nativePriceQuote, bytes memory encodedExecutionInfo);
+    ) external view returns (Wei nativePriceQuote, bytes memory encodedExecutionInfo);
 
     function quoteAssetConversion(
         uint16 targetChain,
-        uint256 currentChainAmount
-    ) external view returns (uint256 targetChainAmount);
+        Wei currentChainAmount
+    ) external view returns (Wei targetChainAmount);
 
     /**
      * @notice This function should return a payable address on this (source) chain where all awards

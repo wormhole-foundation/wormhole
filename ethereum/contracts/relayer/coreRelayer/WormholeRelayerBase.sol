@@ -3,7 +3,7 @@
 pragma solidity ^0.8.19;
 
 import {IWormhole} from "../../interfaces/IWormhole.sol";
-import {IRelayProvider} from "../../interfaces/relayer/IRelayProvider.sol";
+import {IRelayProvider} from "../../interfaces/relayer/IRelayProviderTyped.sol";
 import {toWormholeFormat, min, pay} from "../../libraries/relayer/Utils.sol";
 import {
     NoDeliveryInProgress,
@@ -13,7 +13,7 @@ import {
     VaaKey,
     InvalidMsgValue,
     IWormholeRelayerBase
-} from "../../interfaces/relayer/IWormholeRelayer.sol";
+} from "../../interfaces/relayer/IWormholeRelayerTyped.sol";
 import {DeliveryInstruction} from "../../libraries/relayer/RelayerInternalStructs.sol";
 import {
     ForwardInstruction,

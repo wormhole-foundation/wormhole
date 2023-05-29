@@ -5,8 +5,8 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import "../../contracts/interfaces/IWormhole.sol";
 import "../../contracts/interfaces/relayer/IWormholeReceiver.sol";
-import "../../contracts/interfaces/relayer/IWormholeRelayerUntyped.sol";
-import "../../contracts/interfaces/relayer/IRelayProvider.sol";
+import "../../contracts/interfaces/relayer/IWormholeRelayerTyped.sol";
+import "../../contracts/interfaces/relayer/IRelayProviderTyped.sol";
 
 /**
  * This contract is a malicious "integration" that attempts to attack the forward mechanism.
@@ -63,9 +63,9 @@ contract AttackForwardIntegration is IWormholeReceiver {
             _targetChain,
             attackerRewardAddress,
             emptyArray,
-            0,
-            0, 
-            SAFE_DELIVERY_GAS_CAPTURE,
+            Wei.wrap(0),
+            Wei.wrap(0), 
+            Gas.wrap(SAFE_DELIVERY_GAS_CAPTURE),
             _targetChain,
             // All remaining funds will be returned to the attacker
             attackerRewardAddress,

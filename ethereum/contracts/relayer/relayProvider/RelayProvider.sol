@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 
 import "./RelayProviderGovernance.sol";
 import "./RelayProviderStructs.sol";
-import "../../interfaces/relayer/IRelayProvider.sol";
+import "../../interfaces/relayer/IRelayProviderTyped.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 import "../../libraries/relayer/ExecutionParameters.sol";
 import {IWormhole} from "../../interfaces/IWormhole.sol";

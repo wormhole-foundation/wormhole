@@ -3,8 +3,8 @@ pragma solidity ^0.8.0;
 
 import "../../contracts/interfaces/IWormhole.sol";
 import "../../contracts/interfaces/relayer/IWormholeReceiver.sol";
-import "../../contracts/interfaces/relayer/IWormholeRelayer.sol";
-import "../../contracts/interfaces/relayer/IRelayProvider.sol";
+import "../../contracts/interfaces/relayer/IWormholeRelayerTyped.sol";
+import "../../contracts/interfaces/relayer/IRelayProviderTyped.sol";
 import "../../contracts/libraries/external/BytesLib.sol";
 import "./MockGenericRelayer.sol";
 import "forge-std/console.sol";

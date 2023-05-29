@@ -7,7 +7,7 @@ import {
     InvalidPayloadLength,
     InvalidVaaKeyType,
     VaaKey
-} from "../../interfaces/relayer/IWormholeRelayer.sol";
+} from "../../interfaces/relayer/IWormholeRelayerTyped.sol";
 import {
     DeliveryOverride,
     DeliveryInstruction,

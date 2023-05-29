@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 
 import {IWormhole} from "../../interfaces/IWormhole.sol";
-import {InvalidPayloadLength} from "../../interfaces/relayer/IWormholeRelayer.sol";
+import {InvalidPayloadLength} from "../../interfaces/relayer/IWormholeRelayerTyped.sol";
 import {fromWormholeFormat} from "../../libraries/relayer/Utils.sol";
 import {BytesParsing} from "../../libraries/relayer/BytesParsing.sol";
 import {

@@ -19,9 +19,9 @@ import {
     VaaKey,
     IWormholeRelayerDelivery,
     IWormholeRelayerSend
-} from "../../interfaces/relayer/IWormholeRelayer.sol";
+} from "../../interfaces/relayer/IWormholeRelayerTyped.sol";
 import {IWormholeReceiver} from "../../interfaces/relayer/IWormholeReceiver.sol";
-import {IRelayProvider} from "../../interfaces/relayer/IRelayProvider.sol";
+import {IRelayProvider} from "../../interfaces/relayer/IRelayProviderTyped.sol";
 
 import {pay, min, toWormholeFormat, fromWormholeFormat} from "../../libraries/relayer/Utils.sol";
 import {

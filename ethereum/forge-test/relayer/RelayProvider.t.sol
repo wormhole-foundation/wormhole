@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import "../../contracts/interfaces/relayer/IRelayProvider.sol";
+import "../../contracts/interfaces/relayer/IRelayProviderTyped.sol";
 import "../../contracts/relayer/relayProvider/RelayProvider.sol";
 import "../../contracts/relayer/relayProvider/RelayProviderSetup.sol";
 import "../../contracts/relayer/relayProvider/RelayProviderImplementation.sol";

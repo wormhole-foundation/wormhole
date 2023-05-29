@@ -7,7 +7,7 @@ async function main() {
     console.log(`Erasing types from ${fname}...`);
     const iface = await fs.readFile(fname);
     const erased = eraseTypes(iface.toString());
-    await fs.writeFile(fname.replace(".sol", "Untyped.sol"), erased);
+    await fs.writeFile(fname.replace("Typed.sol", ".sol"), erased);
   }))
   console.log("Done.")
 }
