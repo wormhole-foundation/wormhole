@@ -505,7 +505,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
   ) private pure returns (uint32 gasUsed, bool knownError) {
     uint offset = 0;
     bytes4 selector;
-
+    // Check to see if the following decode can be performed
     if(revertData.length < 36) {
      return (0, false);
     }
