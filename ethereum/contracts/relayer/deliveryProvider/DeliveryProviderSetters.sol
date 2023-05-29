@@ -5,10 +5,10 @@ pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/utils/Context.sol";
 
-import "./RelayProviderState.sol";
-import "../../interfaces/relayer/IRelayProviderTyped.sol";
+import "./DeliveryProviderState.sol";
+import "../../interfaces/relayer/IDeliveryProviderTyped.sol";
 
-contract RelayProviderSetters is Context, RelayProviderState {
+contract DeliveryProviderSetters is Context, DeliveryProviderState {
     using GasPriceLib for GasPrice;
     using WeiLib for Wei;
 
@@ -69,7 +69,7 @@ contract RelayProviderSetters is Context, RelayProviderState {
         uint16 tolerance,
         uint16 toleranceDenominator
     ) internal {
-        RelayProviderStorage.AssetConversion storage assetConversion =
+        DeliveryProviderStorage.AssetConversion storage assetConversion =
             _state.assetConversion[targetChain];
         assetConversion.buffer = tolerance;
         assetConversion.denominator = toleranceDenominator;

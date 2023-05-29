@@ -2,15 +2,18 @@
 
 pragma solidity ^0.8.0;
 
-import {IRelayProvider} from "../../contracts/interfaces/relayer/IRelayProviderTyped.sol";
-import {RelayProvider} from "../../contracts/relayer/relayProvider/RelayProvider.sol";
-import {RelayProviderSetup} from "../../contracts/relayer/relayProvider/RelayProviderSetup.sol";
-import {RelayProviderImplementation} from
-    "../../contracts/relayer/relayProvider/RelayProviderImplementation.sol";
-import {RelayProviderProxy} from "../../contracts/relayer/relayProvider/RelayProviderProxy.sol";
-import {RelayProviderMessages} from
-    "../../contracts/relayer/relayProvider/RelayProviderMessages.sol";
-import {RelayProviderStructs} from "../../contracts/relayer/relayProvider/RelayProviderStructs.sol";
+import {IDeliveryProvider} from "../../contracts/interfaces/relayer/IDeliveryProviderTyped.sol";
+import {DeliveryProvider} from "../../contracts/relayer/deliveryProvider/DeliveryProvider.sol";
+import {DeliveryProviderSetup} from
+    "../../contracts/relayer/deliveryProvider/DeliveryProviderSetup.sol";
+import {DeliveryProviderImplementation} from
+    "../../contracts/relayer/deliveryProvider/DeliveryProviderImplementation.sol";
+import {DeliveryProviderProxy} from
+    "../../contracts/relayer/deliveryProvider/DeliveryProviderProxy.sol";
+import {DeliveryProviderMessages} from
+    "../../contracts/relayer/deliveryProvider/DeliveryProviderMessages.sol";
+import {DeliveryProviderStructs} from
+    "../../contracts/relayer/deliveryProvider/DeliveryProviderStructs.sol";
 import "../../contracts/interfaces/relayer/IWormholeRelayerTyped.sol";
 import {
     DeliveryInstruction,
@@ -221,22 +224,22 @@ contract WormholeRelayerTests is Test {
         vm.deal(address(s.target.integration), type(uint256).max / 2);
         vm.deal(address(s.source.integration), type(uint256).max / 2);
 
-        // set relayProvider prices
-        s.source.relayProvider.updatePrice(
+        // set deliveryProvider prices
+        s.source.deliveryProvider.updatePrice(
             s.targetChain, gasParams.targetGasPrice, feeParams.targetNativePrice
         );
-        s.source.relayProvider.updatePrice(
+        s.source.deliveryProvider.updatePrice(
             s.sourceChain, gasParams.sourceGasPrice, feeParams.sourceNativePrice
         );
-        s.target.relayProvider.updatePrice(
+        s.target.deliveryProvider.updatePrice(
             s.targetChain, gasParams.targetGasPrice, feeParams.targetNativePrice
         );
-        s.target.relayProvider.updatePrice(
+        s.target.deliveryProvider.updatePrice(
             s.sourceChain, gasParams.sourceGasPrice, feeParams.sourceNativePrice
         );
 
-        s.source.relayProvider.updateDeliverGasOverhead(s.targetChain, gasParams.evmGasOverhead);
-        s.target.relayProvider.updateDeliverGasOverhead(s.sourceChain, gasParams.evmGasOverhead);
+        s.source.deliveryProvider.updateDeliverGasOverhead(s.targetChain, gasParams.evmGasOverhead);
+        s.target.deliveryProvider.updateDeliverGasOverhead(s.sourceChain, gasParams.evmGasOverhead);
 
         s.source.wormholeSimulator.setMessageFee(feeParams.wormholeFeeOnSource.unwrap());
         s.target.wormholeSimulator.setMessageFee(feeParams.wormholeFeeOnTarget.unwrap());
@@ -245,7 +248,7 @@ contract WormholeRelayerTests is Test {
     struct Contracts {
         IWormhole wormhole;
         WormholeSimulator wormholeSimulator;
-        RelayProvider relayProvider;
+        DeliveryProvider deliveryProvider;
         IWormholeRelayer coreRelayer;
         WormholeRelayer coreRelayerFull;
         MockRelayerIntegration integration;
@@ -261,9 +264,9 @@ contract WormholeRelayerTests is Test {
         for (uint16 i = 1; i <= numChains; i++) {
             Contracts memory mapEntry;
             (mapEntry.wormhole, mapEntry.wormholeSimulator) = helpers.setUpWormhole(i);
-            mapEntry.relayProvider = helpers.setUpRelayProvider(i, address(mapEntry.wormhole));
+            mapEntry.deliveryProvider = helpers.setUpDeliveryProvider(i, address(mapEntry.wormhole));
             mapEntry.coreRelayer =
-                helpers.setUpWormholeRelayer(mapEntry.wormhole, address(mapEntry.relayProvider));
+                helpers.setUpWormholeRelayer(mapEntry.wormhole, address(mapEntry.deliveryProvider));
             mapEntry.coreRelayerFull = WormholeRelayer(payable(address(mapEntry.coreRelayer)));
             genericRelayer.setWormholeRelayerContract(i, address(mapEntry.coreRelayer));
             mapEntry.integration =
@@ -284,12 +287,12 @@ contract WormholeRelayerTests is Test {
         uint192 maxBudget = uint192(2 ** 192 - 1);
         for (uint16 i = 1; i <= numChains; i++) {
             for (uint16 j = 1; j <= numChains; j++) {
-                map[i].relayProvider.updateSupportedChain(j, true);
-                map[i].relayProvider.updateAssetConversionBuffer(j, 500, 10000);
-                map[i].relayProvider.updateTargetChainAddress(
-                    j, bytes32(uint256(uint160(address(map[j].relayProvider))))
+                map[i].deliveryProvider.updateSupportedChain(j, true);
+                map[i].deliveryProvider.updateAssetConversionBuffer(j, 500, 10000);
+                map[i].deliveryProvider.updateTargetChainAddress(
+                    j, bytes32(uint256(uint160(address(map[j].deliveryProvider))))
                 );
-                map[i].relayProvider.updateRewardAddress(map[i].rewardAddress);
+                map[i].deliveryProvider.updateRewardAddress(map[i].rewardAddress);
                 helpers.registerWormholeRelayerContract(
                     map[i].coreRelayerFull,
                     map[i].wormhole,
@@ -297,7 +300,7 @@ contract WormholeRelayerTests is Test {
                     j,
                     bytes32(uint256(uint160(address(map[j].coreRelayer))))
                 );
-                map[i].relayProvider.updateMaximumBudget(j, Wei.wrap(maxBudget));
+                map[i].deliveryProvider.updateMaximumBudget(j, Wei.wrap(maxBudget));
                 map[i].integration.registerEmitter(
                     j, bytes32(uint256(uint160(address(map[j].integration))))
                 );
@@ -750,7 +753,7 @@ contract WormholeRelayerTests is Test {
         (StandardSetupTwoChains memory setup, FundsCorrectTest memory test) =
             setupFundsCorrectTest(gasParams, feeParams, REASONABLE_GAS_LIMIT_FORWARDS);
 
-        setup.target.relayProvider.updateSupportedChain(1, false);
+        setup.target.deliveryProvider.updateSupportedChain(1, false);
 
         setup.source.integration.sendMessageWithForwardedResponse{
             value: test.deliveryPrice + feeParams.wormholeFeeOnSource
@@ -1102,7 +1105,7 @@ contract WormholeRelayerTests is Test {
             refundSource = setup.target.coreRelayer.quoteNativeForChain(
                 setup.sourceChain,
                 uint128(amountToGetInRefundTarget - baseFee),
-                setup.target.coreRelayer.getDefaultRelayProvider()
+                setup.target.coreRelayer.getDefaultDeliveryProvider()
             );
         }
 
@@ -1193,7 +1196,7 @@ contract WormholeRelayerTests is Test {
             setup.source.coreRelayer.quoteNativeForChain(
                 setup.targetChain,
                 params.paymentForExtraReceiverValue,
-                address(setup.source.relayProvider)
+                address(setup.source.deliveryProvider)
             )
         );
 
@@ -1206,8 +1209,10 @@ contract WormholeRelayerTests is Test {
             encodedExecutionInfo: encodedExecutionInfo,
             refundChain: params.refundChain,
             refundAddress: toWormholeFormat(params.refundAddress),
-            refundRelayProvider: setup.source.relayProvider.getTargetChainAddress(setup.targetChain),
-            sourceRelayProvider: toWormholeFormat(address(setup.source.relayProvider)),
+            refundDeliveryProvider: setup.source.deliveryProvider.getTargetChainAddress(
+                setup.targetChain
+                ),
+            sourceDeliveryProvider: toWormholeFormat(address(setup.source.deliveryProvider)),
             senderAddress: toWormholeFormat(address(setup.source.integration)),
             vaaKeys: vaaKeys
         });
@@ -1248,7 +1253,7 @@ contract WormholeRelayerTests is Test {
             setup.targetChain,
             Wei.wrap(params.newReceiverValue),
             Gas.wrap(params.newGasLimit),
-            address(setup.source.relayProvider)
+            address(setup.source.deliveryProvider)
         );
 
         bytes memory encodedExecutionInfo = abi.encode(
@@ -1260,7 +1265,7 @@ contract WormholeRelayerTests is Test {
             targetChain: setup.targetChain,
             newRequestedReceiverValue: Wei.wrap(params.newReceiverValue),
             newEncodedExecutionInfo: encodedExecutionInfo,
-            newSourceRelayProvider: toWormholeFormat(address(setup.source.relayProvider)),
+            newSourceDeliveryProvider: toWormholeFormat(address(setup.source.deliveryProvider)),
             newSenderAddress: toWormholeFormat(params.senderAddress)
         });
 
@@ -1343,14 +1348,14 @@ contract WormholeRelayerTests is Test {
             decodedInstruction.refundAddress == expectedInstruction.refundAddress,
             "Wrong refund address"
         );
-        (decodedInstruction.refundRelayProvider, index) = data.asBytes32(index);
+        (decodedInstruction.refundDeliveryProvider, index) = data.asBytes32(index);
         assertTrue(
-            decodedInstruction.refundRelayProvider == expectedInstruction.refundRelayProvider,
+            decodedInstruction.refundDeliveryProvider == expectedInstruction.refundDeliveryProvider,
             "Wrong refund relay provider"
         );
-        (decodedInstruction.sourceRelayProvider, index) = data.asBytes32(index);
+        (decodedInstruction.sourceDeliveryProvider, index) = data.asBytes32(index);
         assertTrue(
-            decodedInstruction.sourceRelayProvider == expectedInstruction.sourceRelayProvider,
+            decodedInstruction.sourceDeliveryProvider == expectedInstruction.sourceDeliveryProvider,
             "Wrong source relay provider"
         );
         (decodedInstruction.senderAddress, index) = data.asBytes32(index);
@@ -1396,9 +1401,10 @@ contract WormholeRelayerTests is Test {
                 == keccak256(expectedInstruction.newEncodedExecutionInfo),
             "Wrong encoded execution info"
         );
-        (decodedInstruction.newSourceRelayProvider, index) = data.asBytes32(index);
+        (decodedInstruction.newSourceDeliveryProvider, index) = data.asBytes32(index);
         assertTrue(
-            decodedInstruction.newSourceRelayProvider == expectedInstruction.newSourceRelayProvider,
+            decodedInstruction.newSourceDeliveryProvider
+                == expectedInstruction.newSourceDeliveryProvider,
             "Wrong source relay provider"
         );
         (decodedInstruction.newSenderAddress, index) = data.asBytes32(index);
@@ -1906,8 +1912,8 @@ contract WormholeRelayerTests is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                RelayProviderDoesNotSupportTargetChain.selector,
-                address(setup.source.relayProvider),
+                DeliveryProviderDoesNotSupportTargetChain.selector,
+                address(setup.source.deliveryProvider),
                 uint16(32)
             )
         );
@@ -1927,8 +1933,8 @@ contract WormholeRelayerTests is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                RelayProviderDoesNotSupportTargetChain.selector,
-                address(setup.source.relayProvider),
+                DeliveryProviderDoesNotSupportTargetChain.selector,
+                address(setup.source.deliveryProvider),
                 uint16(32)
             )
         );
@@ -1957,7 +1963,7 @@ contract WormholeRelayerTests is Test {
             Gas.wrap(0),
             setup.sourceChain,
             address(0x0),
-            address(setup.source.relayProvider),
+            address(setup.source.deliveryProvider),
             vaaKeyArray(setup.sourceChain, 22345, address(this)),
             consistencyLevel
         );
@@ -2110,12 +2116,12 @@ contract WormholeRelayerTests is Test {
         vm.recordLogs();
 
         // Transaction fee not enough
-        test.transactionFee = source.coreRelayer.quoteGas(2, 150000, address(source.relayProvider));
+        test.transactionFee = source.coreRelayer.quoteGas(2, 150000, address(source.deliveryProvider));
 
         // Receiver value (which will be refunded -> used to pay for cross chain refund) enough to pay for  wormhole fee on target, and target->source (1 gas)
         test.receiverValueSource += (
             (
-                target.coreRelayer.quoteGas(1, 1, address(target.relayProvider))
+                target.coreRelayer.quoteGas(1, 1, address(target.deliveryProvider))
                     + target.wormhole.messageFee()
             ) * 105 / 100 + 1
         ) * feeParams.targetNativePrice / feeParams.sourceNativePrice + 1;
@@ -2127,8 +2133,8 @@ contract WormholeRelayerTests is Test {
         );
 
         uint256 actualGasLimit = (
-            test.transactionFee - source.relayProvider.quoteDeliveryOverhead(2).unwrap()
-        ) / source.relayProvider.quoteGasPrice(2).unwrap();
+            test.transactionFee - source.deliveryProvider.quoteDeliveryOverhead(2).unwrap()
+        ) / source.deliveryProvider.quoteGasPrice(2).unwrap();
         vm.assume(actualGasLimit <= type(uint32).max);
         if (actualGasLimit > type(uint32).max) {
             actualGasLimit = type(uint32).max;
@@ -2178,9 +2184,9 @@ contract WormholeRelayerTests is Test {
                 ) * actualGasLimit / maximumRefund
         );
         uint256 refundSource = 0;
-        if (amountToGetInRefundTarget > target.relayProvider.quoteDeliveryOverhead(1).unwrap()) {
+        if (amountToGetInRefundTarget > target.deliveryProvider.quoteDeliveryOverhead(1).unwrap()) {
             refundSource = (
-                amountToGetInRefundTarget - target.relayProvider.quoteDeliveryOverhead(1).unwrap()
+                amountToGetInRefundTarget - target.deliveryProvider.quoteDeliveryOverhead(1).unwrap()
             ) * feeParams.targetNativePrice * 100 / (uint256(1) * feeParams.sourceNativePrice * 105);
         }
 
@@ -2205,11 +2211,11 @@ contract WormholeRelayerTests is Test {
         uint256 relayerBalance = setup.target.relayer.balance;
         uint256 rewardAddressBalance = setup.source.rewardAddress.balance;
         uint256 receiverValueSource = setup.source.coreRelayer.quoteReceiverValue(
-            setup.targetChain, feeParams.receiverValueTarget, address(setup.source.relayProvider)
+            setup.targetChain, feeParams.receiverValueTarget, address(setup.source.deliveryProvider)
         );
 
         uint256 payment = setup.source.coreRelayer.quoteGas(
-            setup.targetChain, 21000, address(setup.source.relayProvider)
+            setup.targetChain, 21000, address(setup.source.deliveryProvider)
         ) + uint256(3) * setup.source.wormhole.messageFee() + receiverValueSource;
 
         setup.source.integration.sendMessageGeneral{value: payment}(
@@ -2249,22 +2255,22 @@ contract WormholeRelayerTests is Test {
 
         vm.assume(
             setup.source.coreRelayer.quoteGas(
-                setup.targetChain, gasFirst, address(setup.source.relayProvider)
+                setup.targetChain, gasFirst, address(setup.source.deliveryProvider)
             ) < uint256(2) ** 221
         );
         vm.assume(
             setup.target.coreRelayer.quoteGas(
-                setup.sourceChain, gasSecond, address(setup.target.relayProvider)
+                setup.sourceChain, gasSecond, address(setup.target.deliveryProvider)
             ) < uint256(2) ** 221 / feeParams.targetNativePrice
         );
 
         uint256 payment = setup.source.coreRelayer.quoteGas(
-            setup.targetChain, gasFirst, address(setup.source.relayProvider)
+            setup.targetChain, gasFirst, address(setup.source.deliveryProvider)
         ) + 3 * setup.source.wormhole.messageFee();
 
         uint256 payment2 = (
             setup.target.coreRelayer.quoteGas(
-                setup.sourceChain, gasSecond, address(setup.target.relayProvider)
+                setup.sourceChain, gasSecond, address(setup.target.deliveryProvider)
             ) + uint256(2) * setup.target.wormhole.messageFee()
         ) * feeParams.targetNativePrice / feeParams.sourceNativePrice + 1;
 
@@ -2298,7 +2304,7 @@ contract WormholeRelayerTests is Test {
                 < uint256(1) * feeParams.sourceNativePrice * gasParams.sourceGasPrice
         );
         stack.payment = setup.source.coreRelayer.quoteGas(
-            setup.targetChain, 1000000, address(setup.source.relayProvider)
+            setup.targetChain, 1000000, address(setup.source.deliveryProvider)
         );
 
         vm.recordLogs();
@@ -2380,7 +2386,7 @@ contract WormholeRelayerTests is Test {
         // 4. During the refund, the integration contract activates the forwarding mechanism.
         //   This is allowed due to the integration contract also being the target of the delivery.
         // 5. The forward request is left as is in the `WormholeRelayer` state.
-        // 6. The next message (i.e. the victim's message) delivery on `target` chain, from any relayer, using any `RelayProvider` and any integration contract,
+        // 6. The next message (i.e. the victim's message) delivery on `target` chain, from any relayer, using any `DeliveryProvider` and any integration contract,
         //   will see the forward request placed by the malicious integration contract and act on it.
         // Caveat: the delivery of the victim's message must not invoke the forwarding mechanism for the attack test to be meaningful.
         //
@@ -2406,18 +2412,18 @@ contract WormholeRelayerTests is Test {
 
         vm.assume(
             setup.source.coreRelayer.quoteGas(
-                setup.targetChain, gasParams.targetGasLimit, address(setup.source.relayProvider)
+                setup.targetChain, gasParams.targetGasLimit, address(setup.source.deliveryProvider)
             ) < uint256(2) ** 222
         );
         vm.assume(
             setup.target.coreRelayer.quoteGas(
-                setup.sourceChain, 500000, address(setup.target.relayProvider)
+                setup.sourceChain, 500000, address(setup.target.deliveryProvider)
             ) < uint256(2) ** 222 / feeParams.targetNativePrice
         );
 
         // Estimate the cost based on the initialized values
         uint256 computeBudget = setup.source.coreRelayer.quoteGas(
-            setup.targetChain, gasParams.targetGasLimit, address(setup.source.relayProvider)
+            setup.targetChain, gasParams.targetGasLimit, address(setup.source.deliveryProvider)
         );
 
         {
@@ -2488,13 +2494,13 @@ contract WormholeRelayerTests is Test {
 
         // estimate the cost based on the intialized values
         uint256 payment = setup.source.coreRelayer.quoteGas(
-            setup.targetChain, gasParams.targetGasLimit, address(setup.source.relayProvider)
+            setup.targetChain, gasParams.targetGasLimit, address(setup.source.deliveryProvider)
         ) + 3 * setup.source.wormhole.messageFee();
 
         uint256 oldBalance = address(setup.target.integration).balance;
 
         uint256 newReceiverValueSource = setup.source.coreRelayer.quoteReceiverValue(
-            setup.targetChain, feeParams.receiverValueTarget, address(setup.source.relayProvider)
+            setup.targetChain, feeParams.receiverValueTarget, address(setup.source.deliveryProvider)
         );
 
         vm.deal(address(this), payment + newReceiverValueSource);
@@ -2546,8 +2552,8 @@ contract WormholeRelayerTests is Test {
             refundChain: 2,
             maximumRefundTarget: Wei.wrap(123),
             receiverValueTarget: Wei.wrap(456),
-            sourceRelayProvider: bytes32(""),
-            targetRelayProvider: bytes32(""),
+            sourceDeliveryProvider: bytes32(""),
+            targetDeliveryProvider: bytes32(""),
             senderAddress: bytes32(""),
             vaaKeys: vaaKeys,
             consistencyLevel: 200,
@@ -2574,7 +2580,7 @@ contract WormholeRelayerTests is Test {
         vm.recordLogs();
 
         uint256 payment = setup.source.coreRelayer.quoteGas(
-            setup.targetChain, gasParams.targetGasLimit, address(setup.source.relayProvider)
+            setup.targetChain, gasParams.targetGasLimit, address(setup.source.deliveryProvider)
         ) + setup.source.wormhole.messageFee()*3;
 
         uint256 maxTransactionFee = payment - 3*setup.source.wormhole.messageFee();
@@ -2594,11 +2600,11 @@ contract WormholeRelayerTests is Test {
         uint256 calculatedRefund = 0;
         if (
             maxTransactionFee
-                > setup.source.relayProvider.quoteDeliveryOverhead(setup.targetChain).unwrap()
+                > setup.source.deliveryProvider.quoteDeliveryOverhead(setup.targetChain).unwrap()
         ) {
             calculatedRefund = (
                 maxTransactionFee
-                    - setup.source.relayProvider.quoteDeliveryOverhead(setup.targetChain).unwrap()
+                    - setup.source.deliveryProvider.quoteDeliveryOverhead(setup.targetChain).unwrap()
             ) * feeParams.sourceNativePrice * 100 / (uint256(feeParams.targetNativePrice) * 105);
         }
         assertTrue(
@@ -2618,14 +2624,14 @@ contract WormholeRelayerTests is Test {
         StandardSetupTwoChains memory setup =
             standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
 
-        setup.target.relayProvider.updateSupportedChain(setup.sourceChain, false);
+        setup.target.deliveryProvider.updateSupportedChain(setup.sourceChain, false);
 
         vm.recordLogs();
 
         DeliveryStack memory stack;
 
         stack.payment = setup.source.coreRelayer.quoteGas(
-            setup.targetChain, gasParams.targetGasLimit, address(setup.source.relayProvider)
+            setup.targetChain, gasParams.targetGasLimit, address(setup.source.deliveryProvider)
         ) + 3 * setup.source.wormhole.messageFee();
 
         bytes memory payload = abi.encodePacked(uint256(6));

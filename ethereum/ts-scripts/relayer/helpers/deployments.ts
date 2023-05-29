@@ -1,6 +1,6 @@
-import { RelayProviderProxy__factory } from "../../../ethers-contracts";
-import { RelayProviderSetup__factory } from "../../../ethers-contracts";
-import { RelayProviderImplementation__factory } from "../../../ethers-contracts";
+import { DeliveryProviderProxy__factory } from "../../../ethers-contracts";
+import { DeliveryProviderSetup__factory } from "../../../ethers-contracts";
+import { DeliveryProviderImplementation__factory } from "../../../ethers-contracts";
 import { MockRelayerIntegration__factory } from "../../../ethers-contracts";
 import { WormholeRelayer__factory } from "../../../ethers-contracts";
 
@@ -18,14 +18,14 @@ import { wait } from "./utils";
 export const setupContractSalt = Buffer.from("0xSetup");
 export const proxyContractSalt = Buffer.from("0xGenericRelayer");
 
-export async function deployRelayProviderImplementation(
+export async function deployDeliveryProviderImplementation(
   chain: ChainInfo
 ): Promise<Deployment> {
-  console.log("deployRelayProviderImplementation " + chain.chainId);
+  console.log("deployDeliveryProviderImplementation " + chain.chainId);
   const signer = getSigner(chain);
 
-  const contractInterface = RelayProviderImplementation__factory.createInterface();
-  const bytecode = RelayProviderImplementation__factory.bytecode;
+  const contractInterface = DeliveryProviderImplementation__factory.createInterface();
+  const bytecode = DeliveryProviderImplementation__factory.bytecode;
   //@ts-ignore
   const factory = new ethers.ContractFactory(
     contractInterface,
@@ -39,13 +39,13 @@ export async function deployRelayProviderImplementation(
   });
 }
 
-export async function deployRelayProviderSetup(
+export async function deployDeliveryProviderSetup(
   chain: ChainInfo
 ): Promise<Deployment> {
-  console.log("deployRelayProviderSetup " + chain.chainId);
+  console.log("deployDeliveryProviderSetup " + chain.chainId);
   const signer = getSigner(chain);
-  const contractInterface = RelayProviderSetup__factory.createInterface();
-  const bytecode = RelayProviderSetup__factory.bytecode;
+  const contractInterface = DeliveryProviderSetup__factory.createInterface();
+  const bytecode = DeliveryProviderSetup__factory.bytecode;
   //@ts-ignore
   const factory = new ethers.ContractFactory(
     contractInterface,
@@ -58,16 +58,16 @@ export async function deployRelayProviderSetup(
     return { address: result.address, chainId: chain.chainId };
   });
 }
-export async function deployRelayProviderProxy(
+export async function deployDeliveryProviderProxy(
   chain: ChainInfo,
-  relayProviderSetupAddress: string,
-  relayProviderImplementationAddress: string
+  deliveryProviderSetupAddress: string,
+  deliveryProviderImplementationAddress: string
 ): Promise<Deployment> {
-  console.log("deployRelayProviderProxy " + chain.chainId);
+  console.log("deployDeliveryProviderProxy " + chain.chainId);
 
   const signer = getSigner(chain);
-  const contractInterface = RelayProviderProxy__factory.createInterface();
-  const bytecode = RelayProviderProxy__factory.bytecode;
+  const contractInterface = DeliveryProviderProxy__factory.createInterface();
+  const bytecode = DeliveryProviderProxy__factory.bytecode;
   //@ts-ignore
   const factory = new ethers.ContractFactory(
     contractInterface,
@@ -78,11 +78,14 @@ export async function deployRelayProviderProxy(
   let ABI = ["function setup(address,uint16)"];
   let iface = new ethers.utils.Interface(ABI);
   let encodedData = iface.encodeFunctionData("setup", [
-    relayProviderImplementationAddress,
+    deliveryProviderImplementationAddress,
     chain.chainId,
   ]);
 
-  const contract = await factory.deploy(relayProviderSetupAddress, encodedData);
+  const contract = await factory.deploy(
+    deliveryProviderSetupAddress,
+    encodedData
+  );
   return await contract.deployed().then((result) => {
     console.log("Successfully deployed contract at " + result.address);
     return { address: result.address, chainId: chain.chainId };
@@ -140,7 +143,7 @@ export async function deployWormholeRelayerImplementation(
 export async function deployWormholeRelayerProxy(
   chain: ChainInfo,
   coreRelayerImplementationAddress: string,
-  defaultRelayProvider: string
+  defaultDeliveryProvider: string
 ): Promise<Deployment> {
   console.log("deployWormholeRelayerProxy " + chain.chainId);
 
@@ -148,7 +151,7 @@ export async function deployWormholeRelayerProxy(
 
   const initData = WormholeRelayer__factory.createInterface().encodeFunctionData(
     "initialize",
-    [ethers.utils.getAddress(defaultRelayProvider)]
+    [ethers.utils.getAddress(defaultDeliveryProvider)]
   );
   const rx = await create2Factory
     .create2Proxy(proxyContractSalt, coreRelayerImplementationAddress, initData)

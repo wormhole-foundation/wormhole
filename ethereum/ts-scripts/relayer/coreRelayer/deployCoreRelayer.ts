@@ -5,7 +5,7 @@ import {
 import {
   init,
   writeOutputFiles,
-  getRelayProviderAddress,
+  getDeliveryProviderAddress,
   getOperatingChains,
 } from "../helpers/env";
 
@@ -29,7 +29,7 @@ async function run() {
     const coreRelayerProxy = await deployWormholeRelayerProxy(
       chain,
       coreRelayerImplementation.address,
-      getRelayProviderAddress(chain)
+      getDeliveryProviderAddress(chain)
     );
 
     output.coreRelayerImplementations.push(coreRelayerImplementation);

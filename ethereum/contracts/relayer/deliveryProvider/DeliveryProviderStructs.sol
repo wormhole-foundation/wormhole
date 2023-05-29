@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 
 import "../../interfaces/relayer/TypedUnits.sol";
 
-abstract contract RelayProviderStructs {
+abstract contract DeliveryProviderStructs {
     struct UpdatePrice {
         /**
          * Wormhole chain id
@@ -70,7 +70,7 @@ abstract contract RelayProviderStructs {
          * Wormhole chain id
          */
         uint16 chainId;
-        // See RelayProviderState.AssetConversion
+        // See DeliveryProviderState.AssetConversion
         uint16 buffer;
         uint16 bufferDenominator;
     }
@@ -90,7 +90,7 @@ abstract contract RelayProviderStructs {
          */
         uint16 chainId;
         // AssetConversionBufferUpdate
-        // See RelayProviderState.AssetConversion
+        // See DeliveryProviderState.AssetConversion
         uint16 buffer;
         uint16 bufferDenominator;
         // DeliverGasOverheadUpdate

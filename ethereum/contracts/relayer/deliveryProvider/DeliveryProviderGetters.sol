@@ -6,9 +6,9 @@ pragma solidity ^0.8.19;
 import "../../interfaces/IWormhole.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 
-import "./RelayProviderState.sol";
+import "./DeliveryProviderState.sol";
 
-contract RelayProviderGetters is RelayProviderState {
+contract DeliveryProviderGetters is DeliveryProviderState {
     function owner() public view returns (address) {
         return _state.owner;
     }
@@ -58,7 +58,7 @@ contract RelayProviderGetters is RelayProviderState {
         view
         returns (uint16 tolerance, uint16 toleranceDenominator)
     {
-        RelayProviderStorage.AssetConversion storage assetConversion =
+        DeliveryProviderStorage.AssetConversion storage assetConversion =
             _state.assetConversion[targetChain];
         return (assetConversion.buffer, assetConversion.denominator);
     }

@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 
 import {IWormholeRelayer} from "../../interfaces/relayer/IWormholeRelayerTyped.sol";
 
-import {getDefaultRelayProviderState} from "./WormholeRelayerStorage.sol";
+import {getDefaultDeliveryProviderState} from "./WormholeRelayerStorage.sol";
 import {WormholeRelayerGovernance} from "./WormholeRelayerGovernance.sol";
 import {WormholeRelayerSend} from "./WormholeRelayerSend.sol";
 import {WormholeRelayerDelivery} from "./WormholeRelayerDelivery.sol";
@@ -26,9 +26,9 @@ contract WormholeRelayer is
     constructor(address wormhole) WormholeRelayerBase(wormhole) {}
 
     //needs to be called upon construction of the EC1967 proxy
-    function initialize(address defaultRelayProvider) public {
+    function initialize(address defaultDeliveryProvider) public {
         assert(!initialized);
         initialized = true;
-        getDefaultRelayProviderState().defaultRelayProvider = defaultRelayProvider;
+        getDefaultDeliveryProviderState().defaultDeliveryProvider = defaultDeliveryProvider;
     }
 }

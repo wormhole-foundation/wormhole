@@ -14,8 +14,8 @@ struct DeliveryInstruction {
     bytes encodedExecutionInfo;
     uint16 refundChain;
     bytes32 refundAddress;
-    bytes32 refundRelayProvider;
-    bytes32 sourceRelayProvider;
+    bytes32 refundDeliveryProvider;
+    bytes32 sourceDeliveryProvider;
     bytes32 senderAddress;
     VaaKey[] vaaKeys;
 }
@@ -25,7 +25,7 @@ struct RedeliveryInstruction {
     uint16 targetChain;
     Wei newRequestedReceiverValue;
     bytes newEncodedExecutionInfo;
-    bytes32 newSourceRelayProvider;
+    bytes32 newSourceDeliveryProvider;
     bytes32 newSenderAddress;
 }
 

@@ -3,7 +3,7 @@ import {
   getWormholeRelayer,
   getCreate2Factory,
   getMockIntegration,
-  getRelayProvider,
+  getDeliveryProvider,
   init,
   loadChains,
 } from "../helpers/env";
@@ -16,7 +16,7 @@ interface Address {
   address: string;
 }
 interface ContractsJson {
-  relayProviders: Address[];
+  deliveryProviders: Address[];
   coreRelayers: Address[];
   mockIntegrations: Address[];
   create2Factories: Address[];
@@ -28,14 +28,14 @@ async function main() {
   const contracts: ContractsJson = JSON.parse(String(blob));
   console.log("Old:");
   console.log(`${String(blob)}`);
-  contracts.relayProviders = [] as any;
+  contracts.deliveryProviders = [] as any;
   contracts.coreRelayers = [] as any;
   contracts.mockIntegrations = [] as any;
   contracts.create2Factories = [] as any;
   for (const chain of chains) {
-    update(contracts.relayProviders, {
+    update(contracts.deliveryProviders, {
       chainId: chain.chainId,
-      address: getRelayProvider(chain).address,
+      address: getDeliveryProvider(chain).address,
     });
     update(contracts.coreRelayers, {
       chainId: chain.chainId,

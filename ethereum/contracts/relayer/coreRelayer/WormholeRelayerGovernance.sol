@@ -10,7 +10,7 @@ import {BytesParsing} from "../../libraries/relayer/BytesParsing.sol";
 import {
     getGovernanceState,
     getRegisteredWormholeRelayersState,
-    getDefaultRelayProviderState
+    getDefaultDeliveryProviderState
 } from "./WormholeRelayerStorage.sol";
 import {WormholeRelayerBase} from "./WormholeRelayerBase.sol";
 
@@ -106,10 +106,10 @@ abstract contract WormholeRelayerGovernance is WormholeRelayerBase, ERC1967Upgra
         }
     }
 
-    function setDefaultRelayProvider(bytes memory encodedVm) external {
-        address newProvider = parseAndCheckRegisterDefaultRelayProviderVm(encodedVm);
+    function setDefaultDeliveryProvider(bytes memory encodedVm) external {
+        address newProvider = parseAndCheckRegisterDefaultDeliveryProviderVm(encodedVm);
 
-        getDefaultRelayProviderState().defaultRelayProvider = newProvider;
+        getDefaultDeliveryProviderState().defaultDeliveryProvider = newProvider;
     }
 
     // ------------------------------------------- PRIVATE -------------------------------------------
@@ -146,7 +146,7 @@ abstract contract WormholeRelayerGovernance is WormholeRelayerBase, ERC1967Upgra
         checkLength(payload, offset);
     }
 
-    function parseAndCheckRegisterDefaultRelayProviderVm(bytes memory encodedVm)
+    function parseAndCheckRegisterDefaultDeliveryProviderVm(bytes memory encodedVm)
         private
         returns (address newProvider)
     {

@@ -3,10 +3,10 @@ import { ethers } from "ethers";
 import fs from "fs";
 
 import { WormholeRelayer } from "../../../ethers-contracts";
-import { RelayProvider } from "../../../ethers-contracts";
+import { DeliveryProvider } from "../../../ethers-contracts";
 import { MockRelayerIntegration } from "../../../ethers-contracts";
 
-import { RelayProvider__factory } from "../../../ethers-contracts";
+import { DeliveryProvider__factory } from "../../../ethers-contracts";
 import { WormholeRelayer__factory } from "../../../ethers-contracts";
 import { MockRelayerIntegration__factory } from "../../../ethers-contracts";
 import {
@@ -149,7 +149,7 @@ export function loadGuardianSetIndex(): number {
   return chains.guardianSetIndex;
 }
 
-export function loadRelayProviders(): Deployment[] {
+export function loadDeliveryProviders(): Deployment[] {
   const contractsFile = fs.readFileSync(
     `./ts-scripts/relayer/config/${env}/contracts.json`
   );
@@ -159,17 +159,17 @@ export function loadRelayProviders(): Deployment[] {
   const contracts = JSON.parse(contractsFile.toString());
   if (contracts.useLastRun || lastRunOverride) {
     const lastRunFile = fs.readFileSync(
-      `./ts-scripts/relayer/output/${env}/deployRelayProvider/lastrun.json`
+      `./ts-scripts/relayer/output/${env}/deployDeliveryProvider/lastrun.json`
     );
     if (!lastRunFile) {
       throw Error(
-        "Failed to find last run file for the deployRelayProvider process!"
+        "Failed to find last run file for the deployDeliveryProvider process!"
       );
     }
     const lastRun = JSON.parse(lastRunFile.toString());
-    return lastRun.relayProviderProxies;
+    return lastRun.deliveryProviderProxies;
   } else if (contracts.useLastRun == false) {
-    return contracts.relayProviders;
+    return contracts.deliveryProviders;
   } else {
     throw Error("useLastRun was an invalid value from the contracts config");
   }
@@ -311,13 +311,13 @@ export function getProvider(
   return provider;
 }
 
-export function getRelayProviderAddress(chain: ChainInfo): string {
-  const thisChainsProvider = loadRelayProviders().find(
+export function getDeliveryProviderAddress(chain: ChainInfo): string {
+  const thisChainsProvider = loadDeliveryProviders().find(
     (x: any) => x.chainId == chain.chainId
   )?.address;
   if (!thisChainsProvider) {
     throw new Error(
-      "Failed to find a RelayProvider contract address on chain " +
+      "Failed to find a DeliveryProvider contract address on chain " +
         chain.chainId
     );
   }
@@ -335,12 +335,12 @@ export function loadGuardianRpc(): string {
   return chain.guardianRPC;
 }
 
-export function getRelayProvider(
+export function getDeliveryProvider(
   chain: ChainInfo,
   provider?: ethers.providers.StaticJsonRpcProvider
-): RelayProvider {
-  const thisChainsProvider = getRelayProviderAddress(chain);
-  const contract = RelayProvider__factory.connect(
+): DeliveryProvider {
+  const thisChainsProvider = getDeliveryProviderAddress(chain);
+  const contract = DeliveryProvider__factory.connect(
     thisChainsProvider,
     provider || getSigner(chain)
   );

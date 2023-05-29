@@ -1,7 +1,7 @@
 import {
-  deployRelayProviderImplementation,
-  deployRelayProviderProxy,
-  deployRelayProviderSetup,
+  deployDeliveryProviderImplementation,
+  deployDeliveryProviderProxy,
+  deployDeliveryProviderSetup,
 } from "../helpers/deployments";
 import {
   getOperatingChains,
@@ -12,7 +12,7 @@ import {
   writeOutputFiles,
 } from "../helpers/env";
 
-const processName = "deployRelayProvider";
+const processName = "deployDeliveryProvider";
 init();
 const chains = getOperatingChains();
 const privateKey = loadPrivateKey();
@@ -20,26 +20,26 @@ const privateKey = loadPrivateKey();
 async function run() {
   console.log(`Start ${processName}!`);
   const output: any = {
-    relayProviderImplementations: [],
-    relayProviderSetups: [],
-    relayProviderProxies: [],
+    deliveryProviderImplementations: [],
+    deliveryProviderSetups: [],
+    deliveryProviderProxies: [],
   };
 
   for (const chain of chains) {
     console.log(`Deploying for chain ${chain.chainId}...`);
-    const relayProviderImplementation = await deployRelayProviderImplementation(
+    const deliveryProviderImplementation = await deployDeliveryProviderImplementation(
       chain
     );
-    const relayProviderSetup = await deployRelayProviderSetup(chain);
-    const relayProviderProxy = await deployRelayProviderProxy(
+    const deliveryProviderSetup = await deployDeliveryProviderSetup(chain);
+    const deliveryProviderProxy = await deployDeliveryProviderProxy(
       chain,
-      relayProviderSetup.address,
-      relayProviderImplementation.address
+      deliveryProviderSetup.address,
+      deliveryProviderImplementation.address
     );
 
-    output.relayProviderImplementations.push(relayProviderImplementation);
-    output.relayProviderSetups.push(relayProviderSetup);
-    output.relayProviderProxies.push(relayProviderProxy);
+    output.deliveryProviderImplementations.push(deliveryProviderImplementation);
+    output.deliveryProviderSetups.push(deliveryProviderSetup);
+    output.deliveryProviderProxies.push(deliveryProviderProxy);
     console.log("");
   }
 

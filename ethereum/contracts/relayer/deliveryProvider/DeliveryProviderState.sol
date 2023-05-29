@@ -5,7 +5,7 @@ pragma solidity ^0.8.19;
 
 import "../../interfaces/relayer/TypedUnits.sol";
 
-contract RelayProviderStorage {
+contract DeliveryProviderStorage {
     struct PriceData {
         // The price of purchasing 1 unit of gas on the target chain, denominated in target chain's wei.
         GasPrice gasPrice;
@@ -49,6 +49,6 @@ contract RelayProviderStorage {
     }
 }
 
-contract RelayProviderState {
-    RelayProviderStorage.State _state;
+contract DeliveryProviderState {
+    DeliveryProviderStorage.State _state;
 }

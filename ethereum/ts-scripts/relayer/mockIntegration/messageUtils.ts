@@ -20,7 +20,7 @@ export async function sendMessage(
   );
 
   const sourceRelayer = await getWormholeRelayer(sourceChain);
-  const sourceProvider = await sourceRelayer.getDefaultRelayProvider();
+  const sourceProvider = await sourceRelayer.getDefaultDeliveryProvider();
 
   const relayQuote = await (
     await sourceRelayer.quoteGas(targetChain.chainId, 2000000, sourceProvider)

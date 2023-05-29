@@ -21,7 +21,7 @@ import {
     IWormholeRelayerSend
 } from "../../interfaces/relayer/IWormholeRelayerTyped.sol";
 import {IWormholeReceiver} from "../../interfaces/relayer/IWormholeReceiver.sol";
-import {IRelayProvider} from "../../interfaces/relayer/IRelayProviderTyped.sol";
+import {IDeliveryProvider} from "../../interfaces/relayer/IDeliveryProviderTyped.sol";
 
 import {pay, min, toWormholeFormat, fromWormholeFormat} from "../../libraries/relayer/Utils.sol";
 import {
@@ -67,7 +67,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         //  cost of the happy path.
         startDelivery(
             fromWormholeFormat(instruction.targetAddress),
-            fromWormholeFormat(instruction.refundRelayProvider)
+            fromWormholeFormat(instruction.refundDeliveryProvider)
         );
 
         DeliveryVAAInfo memory deliveryVaaInfo = DeliveryVAAInfo({
@@ -420,8 +420,8 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             revert Cancelled(uint32(gasUsed.unwrap()), fundsForForward.unwrap(), totalFee.unwrap());
         }
 
-        Wei extraReceiverValue = IRelayProvider(
-            fromWormholeFormat(instructions[0].sourceRelayProvider)
+        Wei extraReceiverValue = IDeliveryProvider(
+            fromWormholeFormat(instructions[0].sourceDeliveryProvider)
         ).quoteAssetConversion(instructions[0].targetChain, fundsForForward - totalFee);
         //Increases the maxTransactionFee of the first forward in order to use all of the funds
         unchecked {
@@ -429,7 +429,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
                 instructions[0].extraReceiverValue + extraReceiverValue;
         }
 
-        //Publishes the DeliveryInstruction and pays the associated relayProvider
+        //Publishes the DeliveryInstruction and pays the associated deliveryProvider
         for (uint256 i = 0; i < forwardInstructions.length;) {
             publishAndPay(
                 wormholeMessageFee,
@@ -438,7 +438,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
                     + ((i == 0) ? (fundsForForward - totalFee) : Wei.wrap(0)),
                 i == 0 ? instructions[0].encode() : forwardInstructions[i].encodedInstruction,
                 forwardInstructions[i].consistencyLevel,
-                IRelayProvider(fromWormholeFormat(instructions[i].sourceRelayProvider))
+                IDeliveryProvider(fromWormholeFormat(instructions[i].sourceDeliveryProvider))
             );
             unchecked {
                 ++i;
@@ -478,7 +478,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             deliveryInstruction.refundChain,
             deliveryInstruction.refundAddress,
             refundToRefundAddress,
-            deliveryInstruction.refundRelayProvider
+            deliveryInstruction.refundDeliveryProvider
         );
 
         //Refund the relayer (their extra funds) + (the amount that the relayer spent on gas)
@@ -514,9 +514,9 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         }
 
         //cross-chain refund
-        IRelayProvider relayProvider = IRelayProvider(fromWormholeFormat(relayerAddress));
+        IDeliveryProvider deliveryProvider = IDeliveryProvider(fromWormholeFormat(relayerAddress));
         Wei baseDeliveryPrice;
-        try relayProvider.quoteDeliveryPrice(
+        try deliveryProvider.quoteDeliveryPrice(
             refundChain, Wei.wrap(0), encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1())
         ) returns (Wei quote, bytes memory) {
             baseDeliveryPrice = quote;

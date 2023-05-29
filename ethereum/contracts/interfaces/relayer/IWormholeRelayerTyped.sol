@@ -104,7 +104,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         Gas gasLimit,
         uint16 refundChain,
         address refundAddress,
-        address relayProviderAddress,
+        address deliveryProviderAddress,
         VaaKey[] memory vaaKeys,
         uint8 consistencyLevel
     ) external payable returns (uint64 sequence);
@@ -118,7 +118,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         bytes memory encodedExecutionParameters,
         uint16 refundChain,
         bytes32 refundAddress,
-        address relayProviderAddress,
+        address deliveryProviderAddress,
         VaaKey[] memory vaaKeys,
         uint8 consistencyLevel
     ) external payable returns (uint64 sequence);
@@ -128,7 +128,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * It's purpose is to use any leftover fee from the `maxTransactionFee` of the current delivery to fund another delivery
      *
      * Specifically, suppose an integrator requested a Send (with parameters oldTargetChain, oldTargetAddress, etc)
-     * and sets quoteGas(oldTargetChain, gasLimit, oldRelayProvider) as `maxTransactionFee` in a Send,
+     * and sets quoteGas(oldTargetChain, gasLimit, oldDeliveryProvider) as `maxTransactionFee` in a Send,
      * but during the delivery on oldTargetChain, the call to oldTargetAddress's receiveWormholeMessages endpoint uses only x units of gas (where x < gasLimit).
      *
      * Normally, (gasLimit - x)/gasLimit * oldMaxTransactionFee, converted to target chain currency, would be refunded to `oldRefundAddress`.
@@ -172,7 +172,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         Gas gasLimit,
         uint16 refundChain,
         address refundAddress,
-        address relayProviderAddress,
+        address deliveryProviderAddress,
         VaaKey[] memory vaaKeys,
         uint8 consistencyLevel
     ) external payable;
@@ -186,7 +186,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         bytes memory encodedExecutionParameters,
         uint16 refundChain,
         bytes32 refundAddress,
-        address relayProviderAddress,
+        address deliveryProviderAddress,
         VaaKey[] memory vaaKeys,
         uint8 consistencyLevel
     ) external payable;
@@ -217,7 +217,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * @param deliveryVaaKey a VAA Key corresponding to the delivery which should be performed again. This must
      *     correspond to a valid delivery instruction VAA.
      * @param targetChain - the chain which the original delivery targetted.
-     * @param newRelayProviderAddress - the address of the relayProvider (on this chain) which should be
+     * @param newDeliveryProviderAddress - the address of the deliveryProvider (on this chain) which should be
      *     used for this redelivery.
      */
     function resendToEvm(
@@ -225,7 +225,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         uint16 targetChain,
         Wei newReceiverValue,
         Gas newGasLimit,
-        address newRelayProviderAddress
+        address newDeliveryProviderAddress
     ) external payable returns (uint64 sequence);
 
     function resend(
@@ -233,7 +233,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         uint16 targetChain,
         Wei newReceiverValue,
         bytes memory newEncodedExecutionParameters,
-        address newRelayProviderAddress
+        address newDeliveryProviderAddress
     ) external payable returns (uint64 sequence);
 
     function quoteEVMDeliveryPrice(
@@ -246,28 +246,28 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         uint16 targetChain,
         uint128 receiverValue,
         uint32 gasLimit,
-        address relayProviderAddress
+        address deliveryProviderAddress
     ) external view returns (uint256 nativePriceQuote, uint256 targetChainRefundPerGasUnused);
 
     function quoteDeliveryPrice(
         uint16 targetChain,
         uint128 receiverValue,
         bytes memory encodedExecutionParameters,
-        address relayProviderAddress
+        address deliveryProviderAddress
     ) external view returns (uint256 nativePriceQuote, bytes memory encodedExecutionInfo);
 
     function quoteNativeForChain(
         uint16 targetChain,
         uint128 currentChainAmount,
-        address relayProviderAddress
+        address deliveryProviderAddress
     ) external view returns (uint256 targetChainAmount);
 
     /**
      * @notice Returns the address of the current default relay provider
-     * @return relayProvider The address of (the default relay provider)'s contract on this source
-     *   chain. This must be a contract that implements IRelayProvider.
+     * @return deliveryProvider The address of (the default relay provider)'s contract on this source
+     *   chain. This must be a contract that implements IDeliveryProvider.
      */
-    function getDefaultRelayProvider() external view returns (address relayProvider);
+    function getDefaultDeliveryProvider() external view returns (address deliveryProvider);
 }
 
 interface IWormholeRelayerDelivery is IWormholeRelayerBase {
@@ -377,7 +377,7 @@ error InvalidMsgValue(Wei msgValue, Wei totalFee);
 
 error RequestedGasLimitTooLow();
 
-error RelayProviderDoesNotSupportTargetChain(address relayer, uint16 chainId);
+error DeliveryProviderDoesNotSupportTargetChain(address relayer, uint16 chainId);
 
 //When calling `forward()` on the WormholeRelayer if no delivery is in progress
 error NoDeliveryInProgress();

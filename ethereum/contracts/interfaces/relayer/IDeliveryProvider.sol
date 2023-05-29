@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-interface IRelayProvider {
+interface IDeliveryProvider {
     function quoteDeliveryPrice(
         uint16 targetChain,
         uint256 receiverValue,
@@ -30,7 +30,7 @@ interface IRelayProvider {
     function isChainSupported(uint16 targetChain) external view returns (bool supported);
 
     /**
-     * @notice If a RelayProvider supports a given chain, this function should provide the contract
+     * @notice If a DeliveryProvider supports a given chain, this function should provide the contract
      *      address (in wormhole format) of the relay provider on that chain.
      *
      * @param targetChain - The chain which is being delivered to.
@@ -38,5 +38,5 @@ interface IRelayProvider {
     function getTargetChainAddress(uint16 targetChain)
         external
         view
-        returns (bytes32 relayProviderAddress);
+        returns (bytes32 deliveryProviderAddress);
 }

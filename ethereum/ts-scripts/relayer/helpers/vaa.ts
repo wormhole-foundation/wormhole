@@ -3,7 +3,7 @@ import { tryNativeToHexString } from "@certusone/wormhole-sdk";
 import {
   ChainInfo,
   getWormholeRelayerAddress,
-  getRelayProviderAddress,
+  getDeliveryProviderAddress,
   loadGuardianKeys,
   loadGuardianSetIndex,
 } from "./env";
@@ -40,7 +40,7 @@ export function createWormholeRelayerUpgradeVAA(
   return encodeAndSignGovernancePayload(payload);
 }
 
-export function createDefaultRelayProviderVAA(chain: ChainInfo) {
+export function createDefaultDeliveryProviderVAA(chain: ChainInfo) {
   /*
     bytes32 module;
     uint8 action;
@@ -54,7 +54,8 @@ export function createDefaultRelayProviderVAA(chain: ChainInfo) {
       coreRelayerModule,
       3,
       chain.chainId,
-      "0x" + tryNativeToHexString(getRelayProviderAddress(chain), "ethereum"),
+      "0x" +
+        tryNativeToHexString(getDeliveryProviderAddress(chain), "ethereum"),
     ]
   );
 

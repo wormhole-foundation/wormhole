@@ -55,8 +55,8 @@ library WormholeRelayerSerde {
             encodeBytes(strct.encodedExecutionInfo),
             strct.refundChain,
             strct.refundAddress,
-            strct.refundRelayProvider,
-            strct.sourceRelayProvider,
+            strct.refundDeliveryProvider,
+            strct.sourceDeliveryProvider,
             strct.senderAddress,
             encodeVaaKeyArray(strct.vaaKeys)
         );
@@ -80,8 +80,8 @@ library WormholeRelayerSerde {
         (strct.encodedExecutionInfo, offset) = decodeBytes(encoded, offset);
         (strct.refundChain, offset) = encoded.asUint16Unchecked(offset);
         (strct.refundAddress, offset) = encoded.asBytes32Unchecked(offset);
-        (strct.refundRelayProvider, offset) = encoded.asBytes32Unchecked(offset);
-        (strct.sourceRelayProvider, offset) = encoded.asBytes32Unchecked(offset);
+        (strct.refundDeliveryProvider, offset) = encoded.asBytes32Unchecked(offset);
+        (strct.sourceDeliveryProvider, offset) = encoded.asBytes32Unchecked(offset);
         (strct.senderAddress, offset) = encoded.asBytes32Unchecked(offset);
         (strct.vaaKeys, offset) = decodeVaaKeyArray(encoded, offset);
 
@@ -103,7 +103,7 @@ library WormholeRelayerSerde {
             strct.targetChain,
             strct.newRequestedReceiverValue,
             encodeBytes(strct.newEncodedExecutionInfo),
-            strct.newSourceRelayProvider,
+            strct.newSourceDeliveryProvider,
             strct.newSenderAddress
         );
     }
@@ -121,7 +121,7 @@ library WormholeRelayerSerde {
         (strct.targetChain, offset) = encoded.asUint16Unchecked(offset);
         (newRequestedReceiverValue, offset) = encoded.asUint256Unchecked(offset);
         (strct.newEncodedExecutionInfo, offset) = decodeBytes(encoded, offset);
-        (strct.newSourceRelayProvider, offset) = encoded.asBytes32Unchecked(offset);
+        (strct.newSourceDeliveryProvider, offset) = encoded.asBytes32Unchecked(offset);
         (strct.newSenderAddress, offset) = encoded.asBytes32Unchecked(offset);
 
         strct.newRequestedReceiverValue = Wei.wrap(newRequestedReceiverValue);

@@ -2,14 +2,14 @@
 
 pragma solidity ^0.8.19;
 
-import "./RelayProviderGovernance.sol";
-import "./RelayProviderStructs.sol";
-import "../../interfaces/relayer/IRelayProviderTyped.sol";
+import "./DeliveryProviderGovernance.sol";
+import "./DeliveryProviderStructs.sol";
+import "../../interfaces/relayer/IDeliveryProviderTyped.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 import "../../libraries/relayer/ExecutionParameters.sol";
 import {IWormhole} from "../../interfaces/IWormhole.sol";
 
-contract RelayProvider is RelayProviderGovernance, IRelayProvider {
+contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
     using WeiLib for Wei;
     using GasLib for Gas;
     using GasPriceLib for GasPrice;
@@ -100,7 +100,7 @@ contract RelayProvider is RelayProviderGovernance, IRelayProvider {
         public
         view
         override
-        returns (bytes32 relayProviderAddress)
+        returns (bytes32 deliveryProviderAddress)
     {
         return targetChainAddress(targetChain);
     }

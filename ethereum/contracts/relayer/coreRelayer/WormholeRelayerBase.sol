@@ -3,13 +3,13 @@
 pragma solidity ^0.8.19;
 
 import {IWormhole} from "../../interfaces/IWormhole.sol";
-import {IRelayProvider} from "../../interfaces/relayer/IRelayProviderTyped.sol";
+import {IDeliveryProvider} from "../../interfaces/relayer/IDeliveryProviderTyped.sol";
 import {toWormholeFormat, min, pay} from "../../libraries/relayer/Utils.sol";
 import {
     NoDeliveryInProgress,
     ReentrantDelivery,
     ForwardRequestFromWrongAddress,
-    RelayProviderDoesNotSupportTargetChain,
+    DeliveryProviderDoesNotSupportTargetChain,
     VaaKey,
     InvalidMsgValue,
     IWormholeRelayerBase
@@ -84,21 +84,21 @@ abstract contract WormholeRelayerBase is IWormholeRelayerBase {
         Wei paymentForExtraReceiverValue,
         bytes memory encodedInstruction,
         uint8 consistencyLevel,
-        IRelayProvider relayProvider
+        IDeliveryProvider deliveryProvider
     ) internal returns (uint64 sequence) {
         sequence = getWormhole().publishMessage{value: wormholeMessageFee.unwrap()}(
             0, encodedInstruction, consistencyLevel
         );
 
         //TODO AMO: what if pay fails? (i.e. returns false)
-        pay(relayProvider.getRewardAddress(), deliveryQuote + paymentForExtraReceiverValue);
+        pay(deliveryProvider.getRewardAddress(), deliveryQuote + paymentForExtraReceiverValue);
 
         emit SendEvent(sequence, deliveryQuote, paymentForExtraReceiverValue);
     }
 
     // ----------------------- delivery transaction temorary storage functions -----------------------
 
-    function startDelivery(address targetAddress, address relayProvider) internal {
+    function startDelivery(address targetAddress, address deliveryProvider) internal {
         DeliveryTmpState storage state = getDeliveryTmpState();
         if (state.deliveryInProgress) {
             revert ReentrantDelivery(msg.sender, state.deliveryTarget);
@@ -106,14 +106,14 @@ abstract contract WormholeRelayerBase is IWormholeRelayerBase {
 
         state.deliveryInProgress = true;
         state.deliveryTarget = targetAddress;
-        state.relayProvider = relayProvider;
+        state.deliveryProvider = deliveryProvider;
     }
 
     function finishDelivery() internal {
         DeliveryTmpState storage state = getDeliveryTmpState();
         state.deliveryInProgress = false;
         state.deliveryTarget = address(0);
-        state.relayProvider = address(0);
+        state.deliveryProvider = address(0);
         delete state.forwardInstructions;
     }
 
@@ -125,8 +125,8 @@ abstract contract WormholeRelayerBase is IWormholeRelayerBase {
         return getDeliveryTmpState().forwardInstructions;
     }
 
-    function getOriginalRelayProvider() internal view returns (address) {
-        return getDeliveryTmpState().relayProvider;
+    function getOriginalDeliveryProvider() internal view returns (address) {
+        return getDeliveryTmpState().deliveryProvider;
     }
 
     function checkMsgSenderInDelivery() internal view {

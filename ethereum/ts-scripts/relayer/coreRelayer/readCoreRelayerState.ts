@@ -66,7 +66,7 @@ async function readState(
       });
     }
 
-    const defaultProvider = await coreRelayer.getDefaultRelayProvider();
+    const defaultProvider = await coreRelayer.getDefaultDeliveryProvider();
     return {
       chainId: chain.chainId,
       contractAddress,

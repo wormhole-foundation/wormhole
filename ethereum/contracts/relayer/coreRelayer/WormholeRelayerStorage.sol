@@ -26,16 +26,19 @@ function getGovernanceState() pure returns (GovernanceState storage state) {
     }
 }
 
-struct DefaultRelayProviderState {
+struct DefaultDeliveryProviderState {
     // address of the default relay provider on this chain
-    address defaultRelayProvider;
+    address defaultDeliveryProvider;
 }
 
-//keccak256("DefaultRelayProviderState") - 1
+//keccak256("DefaultDeliveryProviderState") - 1
 bytes32 constant DEFAULT_RELAY_PROVIDER_STORAGE_SLOT =
     0xebc28a1927f62765bfb7ada566eeab2d31a98c65dbd1e8cad64acae2a3ae45d4;
 
-function getDefaultRelayProviderState() pure returns (DefaultRelayProviderState storage state) {
+function getDefaultDeliveryProviderState()
+    pure
+    returns (DefaultDeliveryProviderState storage state)
+{
     assembly ("memory-safe") {
         state.slot := DEFAULT_RELAY_PROVIDER_STORAGE_SLOT
     }
@@ -77,7 +80,7 @@ struct DeliveryTmpState {
     // the target address that is currently being delivered to (0 for a simple refund)
     address deliveryTarget;
     // the target relay provider address for the in-progress delivery
-    address relayProvider;
+    address deliveryProvider;
     // Requests which will be forwarded from the current delivery.
     ForwardInstruction[] forwardInstructions;
 }
