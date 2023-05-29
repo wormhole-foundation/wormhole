@@ -10,6 +10,8 @@ import "./RelayProvider.sol";
 contract RelayProviderImplementation is RelayProvider {
     error ImplementationAlreadyInitialized();
 
+    constructor(address wormhole) RelayProvider(wormhole) {}
+
     function initialize() public virtual initializer {
         // this function needs to be exposed for an upgrade to pass
     }

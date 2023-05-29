@@ -47,7 +47,7 @@ contract WormholeRelayerGovernanceTests is Test {
     function setUp() public {
         helpers = new TestHelpers();
         (wormhole, wormholeSimulator) = helpers.setUpWormhole(1);
-        relayProvider = helpers.setUpRelayProvider(1);
+        relayProvider = helpers.setUpRelayProvider(1, address(wormhole));
         wormholeRelayer = helpers.setUpCoreRelayer(wormhole, address(relayProvider));
     }
 
@@ -96,8 +96,8 @@ contract WormholeRelayerGovernanceTests is Test {
     }
 
     function testSetDefaultRelayProvider() public {
-        IRelayProvider relayProviderB = helpers.setUpRelayProvider(1);
-        IRelayProvider relayProviderC = helpers.setUpRelayProvider(1);
+        IRelayProvider relayProviderB = helpers.setUpRelayProvider(1, address(wormhole));
+        IRelayProvider relayProviderC = helpers.setUpRelayProvider(1, address(wormhole));
 
         bytes memory signed = signMessage(
             abi.encodePacked(
@@ -182,7 +182,7 @@ contract WormholeRelayerGovernanceTests is Test {
             relayerModule,
             uint8(2),
             uint16(1),
-            toWormholeFormat(address(new RelayProviderImplementation()))
+            toWormholeFormat(address(new RelayProviderImplementation(address(wormhole))))
         ));
 
         vm.expectRevert();

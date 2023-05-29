@@ -43,7 +43,7 @@ contract ForwardTester is IWormholeReceiver {
         bytes memory payload,
         bytes[] memory,
         bytes32 sourceAddress,
-        uint16 sourceChainId,
+        uint16 sourceChain,
         bytes32
     ) public payable override {
         Action action = Action(payload.toUint8(0));
@@ -52,7 +52,7 @@ contract ForwardTester is IWormholeReceiver {
             // Emitter must be a wormhole relayer
             DummyContract dc = new DummyContract(address(wormholeRelayer));
             dc.forward{value: msg.value}(
-                sourceChainId, fromWormholeFormat(sourceAddress), REASONABLE_GAS_LIMIT, 0, bytes("")
+                sourceChain, fromWormholeFormat(sourceAddress), REASONABLE_GAS_LIMIT, 0, bytes("")
             );
         } else if (action == Action.ProviderNotSupported) {
             wormholeRelayer.forwardPayloadToEvm{value: msg.value}(
@@ -64,12 +64,12 @@ contract ForwardTester is IWormholeReceiver {
             );
         } else if (action == Action.ReentrantCall) {
             (uint256 deliveryPrice,) =
-                wormholeRelayer.quoteEVMDeliveryPrice(sourceChainId, 0, REASONABLE_GAS_LIMIT);
+                wormholeRelayer.quoteEVMDeliveryPrice(sourceChain, 0, REASONABLE_GAS_LIMIT);
             vm.recordLogs();
             wormholeRelayer.sendPayloadToEvm{
                 value: deliveryPrice + wormhole.messageFee() + msg.value
             }(
-                sourceChainId,
+                sourceChain,
                 fromWormholeFormat(sourceAddress),
                 bytes(""),
                 Wei.wrap(0),
@@ -78,7 +78,7 @@ contract ForwardTester is IWormholeReceiver {
             genericRelayer.relay(wormhole.chainId());
         } else {
             wormholeRelayer.forwardPayloadToEvm{value: msg.value}(
-                sourceChainId,
+                sourceChain,
                 fromWormholeFormat(sourceAddress),
                 bytes(""),
                 Wei.wrap(0),

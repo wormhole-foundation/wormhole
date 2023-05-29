@@ -17,7 +17,7 @@ contract AttackForwardIntegration is IWormholeReceiver {
     IWormhole wormhole;
     IWormholeRelayer core_relayer;
     uint32 nonce = 1;
-    uint16 targetChainId;
+    uint16 targetChain;
 
     // Capture 30k gas for fees
     // This just needs to be enough to pay for the call to the destination address.
@@ -32,7 +32,7 @@ contract AttackForwardIntegration is IWormholeReceiver {
         attackerReward = initAttackerReward;
         wormhole = initWormhole;
         core_relayer = initCoreRelayer;
-        targetChainId = chainId;
+        targetChain = chainId;
     }
 
     // This is the function which receives all messages from the remote contracts.
@@ -40,7 +40,7 @@ contract AttackForwardIntegration is IWormholeReceiver {
         bytes memory payload,
         bytes[] memory additionalVaas,
         bytes32 sourceAddress,
-        uint16 sourceChainId,
+        uint16 sourceChain,
         bytes32 deliveryHash
     ) public payable override {
         // Do nothing. The attacker doesn't care about this message; he sends it himself.
@@ -51,22 +51,21 @@ contract AttackForwardIntegration is IWormholeReceiver {
         // The core relayer could in principle accept the request due to this being the target of the message at the same time as being the refund address.
         // Note that, if succesful, this forward request would be processed after the time for processing forwards is past.
         // Thus, the request would "linger" in the forward request cache and be attended to in the next delivery.
-        forward(targetChainId, attackerReward);
+        forward(targetChain, attackerReward);
     }
 
-    function forward(uint16 _targetChainId, address attackerRewardAddress) internal {
-        (uint256 deliveryPayment,) = core_relayer.quoteEVMDeliveryPrice(
-            _targetChainId, 0, SAFE_DELIVERY_GAS_CAPTURE
-        );
+    function forward(uint16 _targetChain, address attackerRewardAddress) internal {
+        (uint256 deliveryPayment,) =
+            core_relayer.quoteEVMDeliveryPrice(_targetChain, 0, SAFE_DELIVERY_GAS_CAPTURE);
 
         bytes memory emptyArray;
         core_relayer.forwardToEvm{value: deliveryPayment + wormhole.messageFee()}(
-            _targetChainId,
+            _targetChain,
             attackerRewardAddress,
             emptyArray,
             0,
             SAFE_DELIVERY_GAS_CAPTURE,
-            _targetChainId,
+            _targetChain,
             // All remaining funds will be returned to the attacker
             attackerRewardAddress
         );

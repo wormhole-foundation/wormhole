@@ -10,6 +10,9 @@ import "../../contracts/relayer/relayProvider/RelayProviderProxy.sol";
 import "../../contracts/relayer/relayProvider/RelayProviderMessages.sol";
 import "../../contracts/relayer/relayProvider/RelayProviderStructs.sol";
 import "../../contracts/interfaces/relayer/TypedUnits.sol";
+import {MockWormhole} from "./MockWormhole.sol";
+import {IWormhole} from "../../contracts/interfaces/IWormhole.sol";
+import {WormholeSimulator, FakeWormholeSimulator} from "./WormholeSimulator.sol";
 
 import "forge-std/Test.sol";
 
@@ -24,8 +27,9 @@ contract TestRelayProvider is Test {
     RelayProvider internal relayProvider;
 
     function initializeRelayProvider() internal {
+        (IWormhole wormhole, ) = setUpWormhole(TEST_ORACLE_CHAIN_ID);
         RelayProviderSetup relayProviderSetup = new RelayProviderSetup();
-        RelayProviderImplementation relayProviderImplementation = new RelayProviderImplementation();
+        RelayProviderImplementation relayProviderImplementation = new RelayProviderImplementation(address(wormhole));
         RelayProviderProxy myRelayProvider = new RelayProviderProxy(
             address(relayProviderSetup),
             abi.encodeCall(
@@ -41,6 +45,24 @@ contract TestRelayProvider is Test {
 
         require(relayProvider.owner() == address(this), "owner() != expected");
         require(relayProvider.chainId() == TEST_ORACLE_CHAIN_ID, "chainId() != expected");
+    }
+
+    function setUpWormhole(uint16 chainId)
+        public
+        returns (IWormhole wormholeContract, WormholeSimulator wormholeSimulator)
+    {
+        // deploy Wormhole
+        MockWormhole wormhole = new MockWormhole({
+            initChainId: chainId,
+            initEvmChainId: block.chainid
+        });
+
+        // replace Wormhole with the Wormhole Simulator contract (giving access to some nice helper methods for signing)
+        wormholeSimulator = new FakeWormholeSimulator(
+            wormhole
+        );
+
+        wormholeContract = wormhole;
     }
 
     function testCannotUpdatePriceWithChainIdZero(

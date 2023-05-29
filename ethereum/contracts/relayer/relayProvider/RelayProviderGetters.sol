@@ -29,37 +29,37 @@ contract RelayProviderGetters is RelayProviderState {
         return _state.coreRelayer;
     }
 
-    function gasPrice(uint16 targetChainId) public view returns (GasPrice) {
-        return _state.data[targetChainId].gasPrice;
+    function gasPrice(uint16 targetChain) public view returns (GasPrice) {
+        return _state.data[targetChain].gasPrice;
     }
 
-    function nativeCurrencyPrice(uint16 targetChainId) public view returns (WeiPrice) {
-        return _state.data[targetChainId].nativeCurrencyPrice;
+    function nativeCurrencyPrice(uint16 targetChain) public view returns (WeiPrice) {
+        return _state.data[targetChain].nativeCurrencyPrice;
     }
 
-    function deliverGasOverhead(uint16 targetChainId) public view returns (Gas) {
-        return _state.deliverGasOverhead[targetChainId];
+    function deliverGasOverhead(uint16 targetChain) public view returns (Gas) {
+        return _state.deliverGasOverhead[targetChain];
     }
 
-    function maximumBudget(uint16 targetChainId) public view returns (Wei) {
-        return _state.maximumBudget[targetChainId];
+    function maximumBudget(uint16 targetChain) public view returns (Wei) {
+        return _state.maximumBudget[targetChain];
     }
 
-    function targetChainAddress(uint16 targetChainId) public view returns (bytes32) {
-        return _state.targetChainAddresses[targetChainId];
+    function targetChainAddress(uint16 targetChain) public view returns (bytes32) {
+        return _state.targetChainAddresses[targetChain];
     }
 
     function rewardAddress() public view returns (address payable) {
         return _state.rewardAddress;
     }
 
-    function assetConversionBuffer(uint16 targetChainId)
+    function assetConversionBuffer(uint16 targetChain)
         public
         view
         returns (uint16 tolerance, uint16 toleranceDenominator)
     {
         RelayProviderStorage.AssetConversion storage assetConversion =
-            _state.assetConversion[targetChainId];
+            _state.assetConversion[targetChain];
         return (assetConversion.buffer, assetConversion.denominator);
     }
 }

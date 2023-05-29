@@ -38,7 +38,7 @@ contract RelayProviderStorage {
         mapping(uint16 => bytes32) targetChainAddresses;
         // Dictionary of wormhole chain id -> price data
         mapping(uint16 => PriceData) data;
-        // The delivery overhead gas required to deliver a message to targetChainId, denominated in targetChain's gas.
+        // The delivery overhead gas required to deliver a message to targetChain, denominated in targetChain's gas.
         mapping(uint16 => Gas) deliverGasOverhead;
         // The maximum budget that is allowed for a delivery on target chain, denominated in the targetChain's wei.
         mapping(uint16 => Wei) maximumBudget;

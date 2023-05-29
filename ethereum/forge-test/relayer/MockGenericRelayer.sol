@@ -142,18 +142,20 @@ contract MockGenericRelayer {
                 }
             }
 
-            EvmExecutionInfoV1 memory executionInfo = decodeEvmExecutionInfoV1(instruction.encodedExecutionInfo);
-            Wei budget = executionInfo.gasLimit.toWei(executionInfo.targetChainRefundPerGasUnused) + instruction.requestedReceiverValue + instruction.extraReceiverValue;
+            EvmExecutionInfoV1 memory executionInfo =
+                decodeEvmExecutionInfoV1(instruction.encodedExecutionInfo);
+            Wei budget = executionInfo.gasLimit.toWei(executionInfo.targetChainRefundPerGasUnused)
+                + instruction.requestedReceiverValue + instruction.extraReceiverValue;
 
-            uint16 targetChainId = instruction.targetChainId;
+            uint16 targetChain = instruction.targetChain;
 
-            vm.prank(relayers[targetChainId]);
-            IWormholeRelayerDelivery(wormholeRelayerContracts[targetChainId]).deliver{
+            vm.prank(relayers[targetChain]);
+            IWormholeRelayerDelivery(wormholeRelayerContracts[targetChain]).deliver{
                 value: budget.unwrap()
             }(
                 encodedVMsToBeDelivered,
                 encodedDeliveryVAA,
-                payable(relayers[targetChainId]),
+                payable(relayers[targetChain]),
                 deliveryOverrides
             );
 
@@ -167,16 +169,16 @@ contract MockGenericRelayer {
             RedeliveryInstruction memory instruction =
                 CoreRelayerSerde.decodeRedeliveryInstruction(parsedDeliveryVAA.payload);
 
-            
-
             DeliveryOverride memory deliveryOverride = DeliveryOverride({
                 newExecutionInfo: instruction.newEncodedExecutionInfo,
                 newReceiverValue: instruction.newRequestedReceiverValue,
                 redeliveryHash: parsedDeliveryVAA.hash
             });
 
-            EvmExecutionInfoV1 memory executionInfo = decodeEvmExecutionInfoV1(instruction.newEncodedExecutionInfo);
-            Wei budget = executionInfo.gasLimit.toWei(executionInfo.targetChainRefundPerGasUnused) + instruction.newRequestedReceiverValue;
+            EvmExecutionInfoV1 memory executionInfo =
+                decodeEvmExecutionInfoV1(instruction.newEncodedExecutionInfo);
+            Wei budget = executionInfo.gasLimit.toWei(executionInfo.targetChainRefundPerGasUnused)
+                + instruction.newRequestedReceiverValue;
 
             bytes memory oldEncodedDeliveryVAA = getPastDeliveryVAA(
                 instruction.deliveryVaaKey.chainId, instruction.deliveryVaaKey.sequence
@@ -185,17 +187,17 @@ contract MockGenericRelayer {
                 instruction.deliveryVaaKey.chainId, instruction.deliveryVaaKey.sequence
             );
 
-            uint16 targetChainId = CoreRelayerSerde.decodeDeliveryInstruction(
+            uint16 targetChain = CoreRelayerSerde.decodeDeliveryInstruction(
                 relayerWormhole.parseVM(oldEncodedDeliveryVAA).payload
-            ).targetChainId;
+            ).targetChain;
 
-            vm.prank(relayers[targetChainId]);
-            IWormholeRelayerDelivery(wormholeRelayerContracts[targetChainId]).deliver{
+            vm.prank(relayers[targetChain]);
+            IWormholeRelayerDelivery(wormholeRelayerContracts[targetChain]).deliver{
                 value: budget.unwrap()
             }(
                 oldEncodedVMs,
                 oldEncodedDeliveryVAA,
-                payable(relayers[targetChainId]),
+                payable(relayers[targetChain]),
                 CoreRelayerSerde.encode(deliveryOverride)
             );
         }

@@ -83,11 +83,11 @@ contract TestHelpers {
         wormholeContract = wormhole;
     }
 
-    function setUpRelayProvider(uint16 chainId) public returns (RelayProvider relayProvider) {
+    function setUpRelayProvider(uint16 chainId, address wormhole) public returns (RelayProvider relayProvider) {
         vm.prank(msg.sender);
         RelayProviderSetup relayProviderSetup = new RelayProviderSetup();
         vm.prank(msg.sender);
-        RelayProviderImplementation relayProviderImplementation = new RelayProviderImplementation();
+        RelayProviderImplementation relayProviderImplementation = new RelayProviderImplementation(wormhole);
         vm.prank(msg.sender);
         RelayProviderProxy myRelayProvider = new RelayProviderProxy(
             address(relayProviderSetup),

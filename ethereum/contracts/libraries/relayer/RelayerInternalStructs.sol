@@ -6,27 +6,27 @@ import "../../interfaces/relayer/TypedUnits.sol";
 import "../../interfaces/relayer/IWormholeRelayer.sol";
 
 struct DeliveryInstruction {
-  uint16 targetChainId;
-  bytes32 targetAddress;
-  bytes payload;
-  Wei requestedReceiverValue;
-  Wei extraReceiverValue;
-  bytes encodedExecutionInfo;
-  uint16 refundChainId;
-  bytes32 refundAddress;
-  bytes32 refundRelayProvider;
-  bytes32 sourceRelayProvider;
-  bytes32 senderAddress;
-  VaaKey[] vaaKeys;
+    uint16 targetChain;
+    bytes32 targetAddress;
+    bytes payload;
+    Wei requestedReceiverValue;
+    Wei extraReceiverValue;
+    bytes encodedExecutionInfo;
+    uint16 refundChainId;
+    bytes32 refundAddress;
+    bytes32 refundRelayProvider;
+    bytes32 sourceRelayProvider;
+    bytes32 senderAddress;
+    VaaKey[] vaaKeys;
 }
 
 struct RedeliveryInstruction {
-  VaaKey deliveryVaaKey;
-  uint16 targetChainId;
-  Wei newRequestedReceiverValue;
-  bytes newEncodedExecutionInfo;
-  bytes32 newSourceRelayProvider;
-  bytes32 newSenderAddress;
+    VaaKey deliveryVaaKey;
+    uint16 targetChain;
+    Wei newRequestedReceiverValue;
+    bytes newEncodedExecutionInfo;
+    bytes32 newSourceRelayProvider;
+    bytes32 newSenderAddress;
 }
 
 /**
@@ -44,7 +44,7 @@ struct RedeliveryInstruction {
  * @custom:member redeliveryHash - the hash of the redelivery which is being performed
  */
 struct DeliveryOverride {
-  Wei newReceiverValue;
-  bytes newExecutionInfo;
-  bytes32 redeliveryHash;
+    Wei newReceiverValue;
+    bytes newExecutionInfo;
+    bytes32 redeliveryHash;
 }
