@@ -1149,7 +1149,7 @@ contract WormholeRelayerTests is Test {
         uint128 receiverValue;
         uint128 paymentForExtraReceiverValue;
         uint32 gasLimit;
-        uint16 refundChainId;
+        uint16 refundChain;
         address refundAddress;
         VaaKey[3] vaaKeysFixed;
     }
@@ -1178,7 +1178,7 @@ contract WormholeRelayerTests is Test {
             setup.targetChain,
             params.targetAddress,
             params.gasLimit,
-            params.refundChainId,
+            params.refundChain,
             params.refundAddress,
             params.receiverValue,
             params.paymentForExtraReceiverValue,
@@ -1204,7 +1204,7 @@ contract WormholeRelayerTests is Test {
             requestedReceiverValue: Wei.wrap(params.receiverValue),
             extraReceiverValue: extraReceiverValue,
             encodedExecutionInfo: encodedExecutionInfo,
-            refundChainId: params.refundChainId,
+            refundChain: params.refundChain,
             refundAddress: toWormholeFormat(params.refundAddress),
             refundRelayProvider: setup.source.relayProvider.getTargetChainAddress(setup.targetChain),
             sourceRelayProvider: toWormholeFormat(address(setup.source.relayProvider)),
@@ -1333,9 +1333,9 @@ contract WormholeRelayerTests is Test {
                 == keccak256(expectedInstruction.encodedExecutionInfo),
             "Wrong encoded execution info"
         );
-        (decodedInstruction.refundChainId, index) = data.asUint16(index);
+        (decodedInstruction.refundChain, index) = data.asUint16(index);
         assertTrue(
-            decodedInstruction.refundChainId == expectedInstruction.refundChainId,
+            decodedInstruction.refundChain == expectedInstruction.refundChain,
             "Wrong refund chain id"
         );
         (decodedInstruction.refundAddress, index) = data.asBytes32(index);
@@ -2543,7 +2543,7 @@ contract WormholeRelayerTests is Test {
             targetChain: 1,
             targetAddress: bytes32(""),
             refundAddress: bytes32(""),
-            refundChainId: 2,
+            refundChain: 2,
             maximumRefundTarget: Wei.wrap(123),
             receiverValueTarget: Wei.wrap(456),
             sourceRelayProvider: bytes32(""),

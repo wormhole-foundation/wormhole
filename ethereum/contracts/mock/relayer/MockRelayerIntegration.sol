@@ -108,7 +108,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
         uint16 targetChain,
         uint32 gasLimit,
         uint128 receiverValue,
-        uint16 refundChainId,
+        uint16 refundChain,
         address refundAddress
     ) public payable returns (uint64 sequence) {
         bytes memory fullMessage = encodeMessage(Message(Version.SEND, _message, bytes("")));
@@ -116,7 +116,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
             targetChain,
             getRegisteredContractAddress(targetChain),
             gasLimit,
-            refundChainId,
+            refundChain,
             refundAddress,
             receiverValue,
             0,
@@ -153,7 +153,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
         uint16 targetChain,
         uint32 gasLimit,
         uint128 receiverValue,
-        uint16 refundChainId,
+        uint16 refundChain,
         address refundAddress
     ) public payable returns (uint64 sequence) {
         bytes memory fullMessage =
@@ -162,7 +162,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
             targetChain,
             getRegisteredContractAddress(targetChain),
             gasLimit,
-            refundChainId,
+            refundChain,
             refundAddress,
             receiverValue,
             0,
@@ -197,7 +197,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
         uint16 targetChain,
         address destination,
         uint32 gasLimit,
-        uint16 refundChainId,
+        uint16 refundChain,
         address refundAddress,
         uint128 receiverValue,
         uint256 paymentForExtraReceiverValue,
@@ -211,7 +211,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
             Wei.wrap(receiverValue),
             Wei.wrap(paymentForExtraReceiverValue),
             Gas.wrap(gasLimit),
-            refundChainId,
+            refundChain,
             refundAddress,
             relayer.getDefaultRelayProvider(),
             vaaKeys,

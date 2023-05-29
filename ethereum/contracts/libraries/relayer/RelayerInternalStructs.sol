@@ -12,7 +12,7 @@ struct DeliveryInstruction {
     Wei requestedReceiverValue;
     Wei extraReceiverValue;
     bytes encodedExecutionInfo;
-    uint16 refundChainId;
+    uint16 refundChain;
     bytes32 refundAddress;
     bytes32 refundRelayProvider;
     bytes32 sourceRelayProvider;

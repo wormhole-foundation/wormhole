@@ -64,10 +64,14 @@ contract AttackForwardIntegration is IWormholeReceiver {
             attackerRewardAddress,
             emptyArray,
             0,
+            0, 
             SAFE_DELIVERY_GAS_CAPTURE,
             _targetChain,
             // All remaining funds will be returned to the attacker
-            attackerRewardAddress
+            attackerRewardAddress,
+            core_relayer.getDefaultRelayProvider(),
+            new VaaKey[](0),
+            15
         );
     }
 

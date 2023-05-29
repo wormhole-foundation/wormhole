@@ -66,7 +66,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         bytes memory payload,
         Wei receiverValue,
         Gas gasLimit,
-        uint16 refundChainId,
+        uint16 refundChain,
         address refundAddress
     ) external payable returns (uint64 sequence) {
         return sendToEvm(
@@ -76,7 +76,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             receiverValue,
             Wei.wrap(0),
             gasLimit,
-            refundChainId,
+            refundChain,
             refundAddress,
             getDefaultRelayProvider(),
             new VaaKey[](0),
@@ -114,7 +114,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         Wei receiverValue,
         Gas gasLimit,
         VaaKey[] memory vaaKeys,
-        uint16 refundChainId,
+        uint16 refundChain,
         address refundAddress
     ) external payable returns (uint64 sequence) {
         return sendToEvm(
@@ -124,7 +124,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             receiverValue,
             Wei.wrap(0),
             gasLimit,
-            refundChainId,
+            refundChain,
             refundAddress,
             getDefaultRelayProvider(),
             vaaKeys,
@@ -139,7 +139,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         Wei receiverValue,
         Wei paymentForExtraReceiverValue,
         Gas gasLimit,
-        uint16 refundChainId,
+        uint16 refundChain,
         address refundAddress,
         address relayProviderAddress,
         VaaKey[] memory vaaKeys,
@@ -152,7 +152,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             receiverValue,
             paymentForExtraReceiverValue,
             encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit)),
-            refundChainId,
+            refundChain,
             toWormholeFormat(refundAddress),
             relayProviderAddress,
             vaaKeys,
@@ -216,7 +216,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         Wei receiverValue,
         Wei paymentForExtraReceiverValue,
         Gas gasLimit,
-        uint16 refundChainId,
+        uint16 refundChain,
         address refundAddress,
         address relayProviderAddress,
         VaaKey[] memory vaaKeys,
@@ -234,7 +234,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             receiverValue,
             paymentForExtraReceiverValue,
             encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit)),
-            refundChainId,
+            refundChain,
             toWormholeFormat(refundAddress),
             relayProviderAddress,
             vaaKeys,
@@ -265,7 +265,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         Wei receiverValue,
         Wei paymentForExtraReceiverValue,
         bytes memory encodedExecutionParameters,
-        uint16 refundChainId,
+        uint16 refundChain,
         bytes32 refundAddress,
         address relayProviderAddress,
         VaaKey[] memory vaaKeys,
@@ -279,7 +279,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
                 receiverValue,
                 paymentForExtraReceiverValue,
                 encodedExecutionParameters,
-                refundChainId,
+                refundChain,
                 refundAddress,
                 relayProviderAddress,
                 vaaKeys,
@@ -295,7 +295,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         Wei receiverValue,
         Wei paymentForExtraReceiverValue,
         bytes memory encodedExecutionParameters,
-        uint16 refundChainId,
+        uint16 refundChain,
         bytes32 refundAddress,
         address relayProviderAddress,
         VaaKey[] memory vaaKeys,
@@ -309,7 +309,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
                 receiverValue,
                 paymentForExtraReceiverValue,
                 encodedExecutionParameters,
-                refundChainId,
+                refundChain,
                 refundAddress,
                 relayProviderAddress,
                 vaaKeys,
@@ -329,7 +329,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         Wei receiverValue;
         Wei paymentForExtraReceiverValue;
         bytes encodedExecutionParameters;
-        uint16 refundChainId;
+        uint16 refundChain;
         bytes32 refundAddress;
         address relayProviderAddress;
         VaaKey[] vaaKeys;
@@ -359,7 +359,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
                 sendParams.targetChain, sendParams.paymentForExtraReceiverValue
                 ),
             encodedExecutionInfo: encodedExecutionInfo,
-            refundChainId: sendParams.refundChainId,
+            refundChain: sendParams.refundChain,
             refundAddress: sendParams.refundAddress,
             refundRelayProvider: provider.getTargetChainAddress(sendParams.targetChain),
             sourceRelayProvider: toWormholeFormat(sendParams.relayProviderAddress),
@@ -398,7 +398,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
                 sendParams.targetChain, sendParams.paymentForExtraReceiverValue
                 ),
             encodedExecutionInfo: encodedExecutionInfo,
-            refundChainId: sendParams.refundChainId,
+            refundChain: sendParams.refundChain,
             refundAddress: sendParams.refundAddress,
             refundRelayProvider: provider.getTargetChainAddress(sendParams.targetChain),
             sourceRelayProvider: toWormholeFormat(sendParams.relayProviderAddress),

@@ -46,7 +46,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         bytes memory payload,
         Wei receiverValue,
         Gas gasLimit,
-        uint16 refundChainId,
+        uint16 refundChain,
         address refundAddress
     ) external payable returns (uint64 sequence);
 
@@ -66,7 +66,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         Wei receiverValue,
         Gas gasLimit,
         VaaKey[] memory vaaKeys,
-        uint16 refundChainId,
+        uint16 refundChain,
         address refundAddress
     ) external payable returns (uint64 sequence);
 
@@ -102,7 +102,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         Wei receiverValue,
         Wei paymentForExtraReceiverValue,
         Gas gasLimit,
-        uint16 refundChainId,
+        uint16 refundChain,
         address refundAddress,
         address relayProviderAddress,
         VaaKey[] memory vaaKeys,
@@ -116,7 +116,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         Wei receiverValue,
         Wei paymentForExtraReceiverValue,
         bytes memory encodedExecutionParameters,
-        uint16 refundChainId,
+        uint16 refundChain,
         bytes32 refundAddress,
         address relayProviderAddress,
         VaaKey[] memory vaaKeys,
@@ -170,7 +170,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         Wei receiverValue,
         Wei paymentForExtraReceiverValue,
         Gas gasLimit,
-        uint16 refundChainId,
+        uint16 refundChain,
         address refundAddress,
         address relayProviderAddress,
         VaaKey[] memory vaaKeys,
@@ -184,7 +184,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         Wei receiverValue,
         Wei paymentForExtraReceiverValue,
         bytes memory encodedExecutionParameters,
-        uint16 refundChainId,
+        uint16 refundChain,
         bytes32 refundAddress,
         address relayProviderAddress,
         VaaKey[] memory vaaKeys,
@@ -309,7 +309,7 @@ interface IWormholeRelayerDelivery is IWormholeRelayerBase {
      *   - If status is FORWARD_REQUEST_FAILURE, this is also the return data, which is specifically
      *       an error ForwardNotSufficientlyFunded(uint256 amountOfFunds, uint256 amountOfFundsNeeded)
      * @custom:member refundStatus - Result of the refund. REFUND_SUCCESS or REFUND_FAIL are for
-     *     refunds where targetChain=refundChainId; the others are for targetChain!=refundChainId,
+     *     refunds where targetChain=refundChain; the others are for targetChain!=refundChain,
      *     where a cross chain refund is necessary
      * @custom:member overridesInfo:
      *   - If not an override: empty bytes array

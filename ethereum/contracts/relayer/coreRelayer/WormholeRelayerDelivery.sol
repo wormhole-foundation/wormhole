@@ -475,7 +475,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
 
         //Refund the user
         refundStatus = payRefundToRefundAddress(
-            deliveryInstruction.refundChainId,
+            deliveryInstruction.refundChain,
             deliveryInstruction.refundAddress,
             refundToRefundAddress,
             deliveryInstruction.refundRelayProvider
@@ -501,13 +501,13 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
     }
 
     function payRefundToRefundAddress(
-        uint16 refundChainId,
+        uint16 refundChain,
         bytes32 refundAddress,
         Wei refundAmount,
         bytes32 relayerAddress
     ) private returns (RefundStatus) {
         //same chain refund
-        if (refundChainId == getChainId()) {
+        if (refundChain == getChainId()) {
             return pay(payable(fromWormholeFormat(refundAddress)), refundAmount)
                 ? RefundStatus.REFUND_SENT
                 : RefundStatus.REFUND_FAIL;
@@ -517,7 +517,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         IRelayProvider relayProvider = IRelayProvider(fromWormholeFormat(relayerAddress));
         Wei baseDeliveryPrice;
         try relayProvider.quoteDeliveryPrice(
-            refundChainId, Wei.wrap(0), encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1())
+            refundChain, Wei.wrap(0), encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1())
         ) returns (Wei quote, bytes memory) {
             baseDeliveryPrice = quote;
         } catch (bytes memory) {
@@ -529,13 +529,13 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             return RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH;
         }
         try IWormholeRelayerSend(address(this)).send{value: refundAmount.unwrap()}(
-            refundChainId,
+            refundChain,
             bytes32(0),
             bytes(""),
             Wei.wrap(0),
             refundAmount - getWormholeMessageFee() - baseDeliveryPrice,
             encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1()),
-            refundChainId,
+            refundChain,
             refundAddress,
             fromWormholeFormat(relayerAddress),
             new VaaKey[](0),

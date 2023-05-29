@@ -53,7 +53,7 @@ library WormholeRelayerSerde {
         encoded = abi.encodePacked(
             encoded,
             encodeBytes(strct.encodedExecutionInfo),
-            strct.refundChainId,
+            strct.refundChain,
             strct.refundAddress,
             strct.refundRelayProvider,
             strct.sourceRelayProvider,
@@ -78,7 +78,7 @@ library WormholeRelayerSerde {
         (requestedReceiverValue, offset) = encoded.asUint256Unchecked(offset);
         (extraReceiverValue, offset) = encoded.asUint256Unchecked(offset);
         (strct.encodedExecutionInfo, offset) = decodeBytes(encoded, offset);
-        (strct.refundChainId, offset) = encoded.asUint16Unchecked(offset);
+        (strct.refundChain, offset) = encoded.asUint16Unchecked(offset);
         (strct.refundAddress, offset) = encoded.asBytes32Unchecked(offset);
         (strct.refundRelayProvider, offset) = encoded.asBytes32Unchecked(offset);
         (strct.sourceRelayProvider, offset) = encoded.asBytes32Unchecked(offset);
