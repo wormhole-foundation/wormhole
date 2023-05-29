@@ -9,11 +9,11 @@ interface IDeliveryProvider {
         uint16 targetChain,
         TargetNative receiverValue,
         bytes memory encodedExecutionParams
-    ) external view returns (Wei nativePriceQuote, bytes memory encodedExecutionInfo);
+    ) external view returns (LocalNative nativePriceQuote, bytes memory encodedExecutionInfo);
 
     function quoteAssetConversion(
         uint16 targetChain,
-        Wei currentChainAmount
+        LocalNative currentChainAmount
     ) external view returns (TargetNative targetChainAmount);
 
     /**

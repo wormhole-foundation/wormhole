@@ -12,7 +12,7 @@ type Dollar is uint256;
 
 type Wei is uint256;
 
-type SourceNative is uint256;
+type LocalNative is uint256;
 
 type TargetNative is uint256;
 
@@ -25,10 +25,14 @@ using {
     eqWei as ==,
     neqWei as !=
 } for Wei global;
+using {addTargetNative as +, subTargetNative as -} for TargetNative global;
 using {
-    addTargetNative as +,
-    subTargetNative as -
-} for TargetNative global;
+    leLocalNative as <,
+    leqLocalNative as <=,
+    neqLocalNative as !=,
+    addLocalNative as +,
+    subLocalNative as -
+} for LocalNative global;
 using {ltGas as <, subGas as -} for Gas global;
 
 using WeiLib for Wei;
@@ -81,8 +85,39 @@ function subTargetNative(TargetNative a, TargetNative b) pure returns (TargetNat
     return TargetNative.wrap(TargetNative.unwrap(a) - TargetNative.unwrap(b));
 }
 
+function addLocalNative(LocalNative a, LocalNative b) pure returns (LocalNative) {
+    return LocalNative.wrap(LocalNative.unwrap(a) + LocalNative.unwrap(b));
+}
+
+function subLocalNative(LocalNative a, LocalNative b) pure returns (LocalNative) {
+    return LocalNative.wrap(LocalNative.unwrap(a) - LocalNative.unwrap(b));
+}
+
+function neqLocalNative(LocalNative a, LocalNative b) pure returns (bool) {
+    return LocalNative.unwrap(a) != LocalNative.unwrap(b);
+}
+
+function leLocalNative(LocalNative a, LocalNative b) pure returns (bool) {
+    return LocalNative.unwrap(a) < LocalNative.unwrap(b);
+}
+
+function leqLocalNative(LocalNative a, LocalNative b) pure returns (bool) {
+    return LocalNative.unwrap(a) <= LocalNative.unwrap(b);
+}
+
 library WeiLib {
-    using {toDollars, toGas, convertAsset, min, max, scale, unwrap, asGasPrice, asTargetNative} for Wei;
+    using {
+        toDollars,
+        toGas,
+        convertAsset,
+        min,
+        max,
+        scale,
+        unwrap,
+        asGasPrice,
+        asTargetNative,
+        asLocalNative
+    } for Wei;
 
     function min(Wei x, Wei maxVal) internal pure returns (Wei) {
         return x > maxVal ? maxVal : x;
@@ -94,6 +129,10 @@ library WeiLib {
 
     function asTargetNative(Wei w) internal pure returns (TargetNative) {
         return TargetNative.wrap(Wei.unwrap(w));
+    }
+
+    function asLocalNative(Wei w) internal pure returns (LocalNative) {
+        return LocalNative.wrap(Wei.unwrap(w));
     }
 
     function toDollars(Wei w, WeiPrice price) internal pure returns (Dollar) {
@@ -115,6 +154,7 @@ library WeiLib {
     function asGasPrice(Wei w) internal pure returns (GasPrice) {
         return GasPrice.wrap(Wei.unwrap(w));
     }
+
     function convertAsset(
         Wei w,
         WeiPrice fromPrice,
@@ -205,5 +245,17 @@ library TargetNativeLib {
 
     function asNative(TargetNative w) internal pure returns (Wei) {
         return Wei.wrap(TargetNative.unwrap(w));
+    }
+}
+
+library LocalNativeLib {
+    using {unwrap, asNative} for LocalNative;
+
+    function unwrap(LocalNative w) internal pure returns (uint256) {
+        return LocalNative.unwrap(w);
+    }
+
+    function asNative(LocalNative w) internal pure returns (Wei) {
+        return Wei.wrap(LocalNative.unwrap(w));
     }
 }

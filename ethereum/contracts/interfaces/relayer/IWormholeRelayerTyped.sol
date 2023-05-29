@@ -18,7 +18,9 @@ struct VaaKey {
 }
 
 interface IWormholeRelayerBase {
-    event SendEvent(uint64 indexed sequence, Wei deliveryQuote, Wei paymentForExtraReceiverValue);
+    event SendEvent(
+        uint64 indexed sequence, LocalNative deliveryQuote, LocalNative paymentForExtraReceiverValue
+    );
 
     function getRegisteredWormholeRelayerContract(uint16 chainId) external view returns (bytes32);
 }
@@ -100,7 +102,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         address targetAddress,
         bytes memory payload,
         TargetNative receiverValue,
-        Wei paymentForExtraReceiverValue,
+        LocalNative paymentForExtraReceiverValue,
         Gas gasLimit,
         uint16 refundChain,
         address refundAddress,
@@ -114,7 +116,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         bytes32 targetAddress,
         bytes memory payload,
         TargetNative receiverValue,
-        Wei paymentForExtraReceiverValue,
+        LocalNative paymentForExtraReceiverValue,
         bytes memory encodedExecutionParameters,
         uint16 refundChain,
         bytes32 refundAddress,
@@ -168,7 +170,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         address targetAddress,
         bytes memory payload,
         TargetNative receiverValue,
-        Wei paymentForExtraReceiverValue,
+        LocalNative paymentForExtraReceiverValue,
         Gas gasLimit,
         uint16 refundChain,
         address refundAddress,
@@ -182,7 +184,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         bytes32 targetAddress,
         bytes memory payload,
         TargetNative receiverValue,
-        Wei paymentForExtraReceiverValue,
+        LocalNative paymentForExtraReceiverValue,
         bytes memory encodedExecutionParameters,
         uint16 refundChain,
         bytes32 refundAddress,
@@ -373,7 +375,7 @@ interface IWormholeRelayer is IWormholeRelayerDelivery, IWormholeRelayerSend {}
 uint256 constant RETURNDATA_TRUNCATION_THRESHOLD = 132;
 
 //When msg.value was not equal to (one wormhole message fee) + `maxTransactionFee` + `receiverValue`
-error InvalidMsgValue(Wei msgValue, Wei totalFee);
+error InvalidMsgValue(LocalNative msgValue, LocalNative totalFee);
 
 error RequestedGasLimitTooLow();
 
@@ -413,7 +415,7 @@ error InvalidOverrideRefundPerGasUnused();
 
 //When the relay provider doesn't pass in sufficient funds (i.e. msg.value does not cover the
 //  necessary budget fees)
-error InsufficientRelayerFunds(Wei msgValue, Wei minimum);
+error InsufficientRelayerFunds(LocalNative msgValue, LocalNative minimum);
 
 //When a bytes32 field can't be converted into a 20 byte EVM address, because the 12 padding bytes
 //  are non-zero (duplicated from Utils.sol)

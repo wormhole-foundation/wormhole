@@ -42,6 +42,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
     using GasLib for Gas;
     using GasPriceLib for GasPrice;
     using TargetNativeLib for TargetNative;
+    using LocalNativeLib for LocalNative;
 
     function deliver(
         bytes[] memory encodedVMs,
@@ -92,9 +93,10 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             deliveryVaaInfo.redeliveryHash
         ) = getDeliveryParametersEvmV1(instruction, deliveryOverrides);
 
-        Wei requiredFunds = deliveryVaaInfo.gasLimit.toWei(
+        // Note: instruction's TargetNative is delivery's LocalNative
+        LocalNative requiredFunds = (deliveryVaaInfo.gasLimit.toWei(
             deliveryVaaInfo.targetChainRefundPerGasUnused
-        ) + deliveryVaaInfo.totalReceiverValue.asNative();
+        ) + deliveryVaaInfo.totalReceiverValue.asNative()).asLocalNative();
         if (msgValue() < requiredFunds) {
             revert InsufficientRelayerFunds(msgValue(), requiredFunds);
         }
@@ -284,7 +286,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             payRefunds(
                 vaaInfo.deliveryInstruction,
                 vaaInfo.relayerRefundAddress,
-                (vaaInfo.gasLimit - results.gasUsed).toWei(vaaInfo.targetChainRefundPerGasUnused),
+                (vaaInfo.gasLimit - results.gasUsed).toWei(vaaInfo.targetChainRefundPerGasUnused).asLocalNative(),
                 results.status
             ),
             results.additionalStatusInfo,
@@ -307,7 +309,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
                 payRefunds(
                     vaaInfo.deliveryInstruction,
                     vaaInfo.relayerRefundAddress,
-                    Wei.wrap(0),
+                    LocalNative.wrap(0),
                     DeliveryStatus.RECEIVER_FAILURE
                 ),
                 bytes(""),
@@ -367,8 +369,9 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         if (forwardInstructions.length > 0) {
             //Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the
             //  fraction of gas unused)
-            Wei transactionFeeRefundAmount =
-                (vaaInfo.gasLimit - gasUsed).toWei(vaaInfo.targetChainRefundPerGasUnused);
+            LocalNative transactionFeeRefundAmount = (vaaInfo.gasLimit - gasUsed).toWei(
+                vaaInfo.targetChainRefundPerGasUnused
+            ).asLocalNative();
             emitForward(gasUsed, transactionFeeRefundAmount, forwardInstructions);
             status = uint8(DeliveryStatus.FORWARD_REQUEST_SUCCESS);
         }
@@ -386,17 +389,17 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
      */
     function emitForward(
         Gas gasUsed,
-        Wei transactionFeeRefundAmount,
+        LocalNative transactionFeeRefundAmount,
         ForwardInstruction[] storage forwardInstructions
     ) private {
-        Wei wormholeMessageFee = getWormholeMessageFee();
+        LocalNative wormholeMessageFee = getWormholeMessageFee();
 
         //Decode send requests and aggregate fee and payment
         DeliveryInstruction[] memory instructions =
             new DeliveryInstruction[](forwardInstructions.length);
 
-        Wei totalMsgValue = Wei.wrap(0);
-        Wei totalFee = Wei.wrap(0);
+        LocalNative totalMsgValue;
+        LocalNative totalFee;
         for (uint256 i = 0; i < forwardInstructions.length;) {
             unchecked {
                 totalMsgValue = totalMsgValue + forwardInstructions[i].msgValue;
@@ -413,11 +416,11 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         //Combine refund amount with any additional funds which were passed in to the forward as
         //  msg.value and check that enough funds were passed into the forward (should always be true
         //  as it was already checked)
-        Wei fundsForForward;
+        LocalNative fundsForForward;
         unchecked {
             fundsForForward = transactionFeeRefundAmount + totalMsgValue;
         }
-        if (fundsForForward < totalFee) {
+        if (fundsForForward.unwrap() < totalFee.unwrap()) {
             revert Cancelled(uint32(gasUsed.unwrap()), fundsForForward.unwrap(), totalFee.unwrap());
         }
 
@@ -436,7 +439,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
                 wormholeMessageFee,
                 forwardInstructions[i].deliveryPrice,
                 forwardInstructions[i].paymentForExtraReceiverValue
-                    + ((i == 0) ? (fundsForForward - totalFee) : Wei.wrap(0)),
+                    + ((i == 0) ? (fundsForForward - totalFee) : LocalNative.wrap(0)),
                 i == 0 ? instructions[0].encode() : forwardInstructions[i].encodedInstruction,
                 forwardInstructions[i].consistencyLevel,
                 IDeliveryProvider(fromWormholeFormat(instructions[i].sourceDeliveryProvider))
@@ -450,12 +453,12 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
     function payRefunds(
         DeliveryInstruction memory deliveryInstruction,
         address payable relayerRefundAddress,
-        Wei transactionFeeRefundAmount,
+        LocalNative transactionFeeRefundAmount,
         DeliveryStatus status
     ) private returns (RefundStatus refundStatus) {
         //Amount of receiverValue that is refunded to the user (0 if the call to
         //  'receiveWormholeMessages' did not revert, or the full receiverValue otherwise)
-        Wei receiverValueRefundAmount = Wei.wrap(0);
+        LocalNative receiverValueRefundAmount = LocalNative.wrap(0);
 
         if (
             status == DeliveryStatus.FORWARD_REQUEST_FAILURE
@@ -463,14 +466,14 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         ) {
             receiverValueRefundAmount = (
                 deliveryInstruction.requestedReceiverValue + deliveryInstruction.extraReceiverValue
-            ).asNative();
+            ).asNative().asLocalNative(); // NOTE: instruction's target is delivery's local
         }
 
         //Total refund to the user
-        Wei refundToRefundAddress = receiverValueRefundAmount
+        LocalNative refundToRefundAddress = receiverValueRefundAmount
             + (
                 status == DeliveryStatus.FORWARD_REQUEST_SUCCESS
-                    ? Wei.wrap(0)
+                    ? LocalNative.wrap(0)
                     : transactionFeeRefundAmount
             );
 
@@ -484,27 +487,36 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
 
         //Refund the relayer (their extra funds) + (the amount that the relayer spent on gas)
         //  + (the users refund if that refund didn't succeed)
-        Wei leftoverUserRefund = refundToRefundAddress;
+        LocalNative leftoverUserRefund = refundToRefundAddress;
         if (
             refundStatus == RefundStatus.REFUND_SENT
                 || refundStatus == RefundStatus.CROSS_CHAIN_REFUND_SENT
         ) {
-            leftoverUserRefund = Wei.wrap(0);
+            leftoverUserRefund = LocalNative.wrap(0);
         }
 
-        Wei relayerRefundAmount = msgValue()
-            - (deliveryInstruction.requestedReceiverValue.asNative() + deliveryInstruction.extraReceiverValue.asNative())
-            - transactionFeeRefundAmount + leftoverUserRefund;
+        LocalNative relayerRefundAmount = calcRelayerRefundAmount(deliveryInstruction, transactionFeeRefundAmount, leftoverUserRefund);
 
         //TODO AMO: what if pay fails? (i.e. returns false)
         //Refund the relay provider
         pay(relayerRefundAddress, relayerRefundAmount);
     }
 
+    function calcRelayerRefundAmount(
+        DeliveryInstruction memory deliveryInstruction,
+        LocalNative transactionFeeRefundAmount,
+        LocalNative leftoverUserRefund
+    ) private view returns (LocalNative) {
+        return msgValue()
+            // Note: instruction's target is delivery's local
+            - (deliveryInstruction.requestedReceiverValue + deliveryInstruction.extraReceiverValue).asNative().asLocalNative() 
+            - transactionFeeRefundAmount + leftoverUserRefund;
+    }
+
     function payRefundToRefundAddress(
         uint16 refundChain,
         bytes32 refundAddress,
-        Wei refundAmount,
+        LocalNative refundAmount,
         bytes32 relayerAddress
     ) private returns (RefundStatus) {
         //same chain refund
@@ -516,10 +528,12 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
 
         //cross-chain refund
         IDeliveryProvider deliveryProvider = IDeliveryProvider(fromWormholeFormat(relayerAddress));
-        Wei baseDeliveryPrice;
+        LocalNative baseDeliveryPrice;
         try deliveryProvider.quoteDeliveryPrice(
-            refundChain, TargetNative.wrap(0), encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1())
-        ) returns (Wei quote, bytes memory) {
+            refundChain,
+            TargetNative.wrap(0),
+            encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1())
+        ) returns (LocalNative quote, bytes memory) {
             baseDeliveryPrice = quote;
         } catch (bytes memory) {
             return RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED;

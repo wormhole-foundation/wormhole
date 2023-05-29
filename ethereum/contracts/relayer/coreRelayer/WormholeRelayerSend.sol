@@ -34,6 +34,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
     using WeiLib for Wei;
     using GasLib for Gas;
     using TargetNativeLib for TargetNative;
+    using LocalNativeLib for LocalNative;
 
     /*
     * Public convenience overloads
@@ -51,7 +52,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             targetAddress,
             payload,
             receiverValue,
-            Wei.wrap(0),
+            LocalNative.wrap(0),
             gasLimit,
             targetChain,
             getDefaultDeliveryProviderOnChain(targetChain),
@@ -75,7 +76,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             targetAddress,
             payload,
             receiverValue,
-            Wei.wrap(0),
+            LocalNative.wrap(0),
             gasLimit,
             refundChain,
             refundAddress,
@@ -98,7 +99,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             targetAddress,
             payload,
             receiverValue,
-            Wei.wrap(0),
+            LocalNative.wrap(0),
             gasLimit,
             targetChain,
             getDefaultDeliveryProviderOnChain(targetChain),
@@ -123,7 +124,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             targetAddress,
             payload,
             receiverValue,
-            Wei.wrap(0),
+            LocalNative.wrap(0),
             gasLimit,
             refundChain,
             refundAddress,
@@ -138,7 +139,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         address targetAddress,
         bytes memory payload,
         TargetNative receiverValue,
-        Wei paymentForExtraReceiverValue,
+        LocalNative paymentForExtraReceiverValue,
         Gas gasLimit,
         uint16 refundChain,
         address refundAddress,
@@ -175,7 +176,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             targetAddress,
             payload,
             receiverValue,
-            Wei.wrap(0),
+            LocalNative.wrap(0),
             gasLimit,
             targetChain,
             deliveryProviderOnTarget,
@@ -200,7 +201,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             targetAddress,
             payload,
             receiverValue,
-            Wei.wrap(0),
+            LocalNative.wrap(0),
             gasLimit,
             targetChain,
             deliveryProviderOnTarget,
@@ -215,7 +216,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         address targetAddress,
         bytes memory payload,
         TargetNative receiverValue,
-        Wei paymentForExtraReceiverValue,
+        LocalNative paymentForExtraReceiverValue,
         Gas gasLimit,
         uint16 refundChain,
         address refundAddress,
@@ -264,7 +265,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         bytes32 targetAddress,
         bytes memory payload,
         TargetNative receiverValue,
-        Wei paymentForExtraReceiverValue,
+        LocalNative paymentForExtraReceiverValue,
         bytes memory encodedExecutionParameters,
         uint16 refundChain,
         bytes32 refundAddress,
@@ -294,7 +295,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         bytes32 targetAddress,
         bytes memory payload,
         TargetNative receiverValue,
-        Wei paymentForExtraReceiverValue,
+        LocalNative paymentForExtraReceiverValue,
         bytes memory encodedExecutionParameters,
         uint16 refundChain,
         bytes32 refundAddress,
@@ -328,7 +329,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         bytes32 targetAddress;
         bytes payload;
         TargetNative receiverValue;
-        Wei paymentForExtraReceiverValue;
+        LocalNative paymentForExtraReceiverValue;
         bytes encodedExecutionParameters;
         uint16 refundChain;
         bytes32 refundAddress;
@@ -344,11 +345,11 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
                 sendParams.deliveryProviderAddress, sendParams.targetChain
             );
         }
-        (Wei deliveryPrice, bytes memory encodedExecutionInfo) = provider.quoteDeliveryPrice(
+        (LocalNative deliveryPrice, bytes memory encodedExecutionInfo) = provider.quoteDeliveryPrice(
             sendParams.targetChain, sendParams.receiverValue, sendParams.encodedExecutionParameters
         );
 
-        Wei wormholeMessageFee = getWormholeMessageFee();
+        LocalNative wormholeMessageFee = getWormholeMessageFee();
         checkMsgValue(wormholeMessageFee, deliveryPrice, sendParams.paymentForExtraReceiverValue);
 
         bytes memory encodedInstruction = DeliveryInstruction({
@@ -386,7 +387,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
                 sendParams.deliveryProviderAddress, sendParams.targetChain
             );
         }
-        (Wei deliveryPrice, bytes memory encodedExecutionInfo) = provider.quoteDeliveryPrice(
+        (LocalNative deliveryPrice, bytes memory encodedExecutionInfo) = provider.quoteDeliveryPrice(
             sendParams.targetChain, sendParams.receiverValue, sendParams.encodedExecutionParameters
         );
 
@@ -410,7 +411,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         appendForwardInstruction(
             ForwardInstruction({
                 encodedInstruction: encodedInstruction,
-                msgValue: Wei.wrap(msg.value),
+                msgValue: LocalNative.wrap(msg.value),
                 deliveryPrice: deliveryPrice,
                 paymentForExtraReceiverValue: sendParams.paymentForExtraReceiverValue,
                 consistencyLevel: sendParams.consistencyLevel
@@ -431,12 +432,12 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
                 newDeliveryProviderAddress, targetChain
             );
         }
-        (Wei deliveryPrice, bytes memory encodedExecutionInfo) = provider.quoteDeliveryPrice(
+        (LocalNative deliveryPrice, bytes memory encodedExecutionInfo) = provider.quoteDeliveryPrice(
             targetChain, newReceiverValue, newEncodedExecutionParameters
         );
 
-        Wei wormholeMessageFee = getWormholeMessageFee();
-        checkMsgValue(wormholeMessageFee, deliveryPrice, Wei.wrap(0));
+        LocalNative wormholeMessageFee = getWormholeMessageFee();
+        checkMsgValue(wormholeMessageFee, deliveryPrice, LocalNative.wrap(0));
 
         bytes memory encodedInstruction = RedeliveryInstruction({
             deliveryVaaKey: deliveryVaaKey,
@@ -450,7 +451,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         sequence = publishAndPay(
             wormholeMessageFee,
             deliveryPrice,
-            Wei.wrap(0),
+            LocalNative.wrap(0),
             encodedInstruction,
             CONSISTENCY_LEVEL_INSTANT,
             provider
@@ -524,7 +525,8 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         address deliveryProviderAddress
     ) public view returns (uint256 nativePriceQuote, bytes memory encodedExecutionInfo) {
         IDeliveryProvider provider = IDeliveryProvider(deliveryProviderAddress);
-        (Wei deliveryPrice, bytes memory _encodedExecutionInfo) = provider.quoteDeliveryPrice(
+        (LocalNative deliveryPrice, bytes memory _encodedExecutionInfo) = provider
+            .quoteDeliveryPrice(
             targetChain, TargetNative.wrap(receiverValue), encodedExecutionParameters
         );
         encodedExecutionInfo = _encodedExecutionInfo;
@@ -537,6 +539,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         address deliveryProviderAddress
     ) public view returns (uint256 targetChainAmount) {
         IDeliveryProvider provider = IDeliveryProvider(deliveryProviderAddress);
-        return provider.quoteAssetConversion(targetChain, Wei.wrap(currentChainAmount)).unwrap();
+        return provider.quoteAssetConversion(targetChain, LocalNative.wrap(currentChainAmount))
+            .unwrap();
     }
 }

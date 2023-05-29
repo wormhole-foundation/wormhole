@@ -69,9 +69,9 @@ function getRegisteredWormholeRelayersState()
 
 struct ForwardInstruction {
     bytes encodedInstruction;
-    Wei msgValue;
-    Wei deliveryPrice;
-    Wei paymentForExtraReceiverValue;
+    LocalNative msgValue;
+    LocalNative deliveryPrice;
+    LocalNative paymentForExtraReceiverValue;
     uint8 consistencyLevel;
 }
 

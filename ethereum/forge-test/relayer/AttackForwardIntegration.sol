@@ -64,7 +64,7 @@ contract AttackForwardIntegration is IWormholeReceiver {
             attackerRewardAddress,
             emptyArray,
             TargetNative.wrap(0),
-            Wei.wrap(0),
+            LocalNative.wrap(0),
             Gas.wrap(SAFE_DELIVERY_GAS_CAPTURE),
             _targetChain,
             // All remaining funds will be returned to the attacker

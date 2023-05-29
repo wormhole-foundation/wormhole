@@ -15,6 +15,7 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
     using GasPriceLib for GasPrice;
     using WeiPriceLib for WeiPrice;
     using TargetNativeLib for TargetNative;
+    using LocalNativeLib for LocalNative;
 
     error CallerNotApproved(address msgSender);
 
@@ -28,14 +29,20 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
         uint16 targetChain,
         Gas gasLimit,
         TargetNative receiverValue
-    ) public view returns (Wei nativePriceQuote, GasPrice targetChainRefundPerUnitGasUnused) {
+    )
+        public
+        view
+        returns (LocalNative nativePriceQuote, GasPrice targetChainRefundPerUnitGasUnused)
+    {
         targetChainRefundPerUnitGasUnused = gasPrice(targetChain);
         Wei costOfProvidingFullGasLimit = gasLimit.toWei(targetChainRefundPerUnitGasUnused);
         Wei transactionFee =
             quoteDeliveryOverhead(targetChain) + gasLimit.toWei(quoteGasPrice(targetChain));
         Wei receiverValueCost = quoteAssetCost(targetChain, receiverValue);
-        nativePriceQuote = transactionFee.max(costOfProvidingFullGasLimit) + receiverValueCost
-            + wormholeMessageFee();
+        nativePriceQuote = (
+            transactionFee.max(costOfProvidingFullGasLimit) + receiverValueCost
+                + wormholeMessageFee()
+        ).asLocalNative();
         require(
             receiverValue.asNative() + costOfProvidingFullGasLimit <= maximumBudget(targetChain),
             "Exceeds maximum budget"
@@ -47,7 +54,7 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
         uint16 targetChain,
         TargetNative receiverValue,
         bytes memory encodedExecutionParams
-    ) external view returns (Wei nativePriceQuote, bytes memory encodedExecutionInfo) {
+    ) external view returns (LocalNative nativePriceQuote, bytes memory encodedExecutionInfo) {
         ExecutionParamsVersion version = decodeExecutionParamsVersion(encodedExecutionParams);
         if (version == ExecutionParamsVersion.EVM_V1) {
             EvmExecutionParamsV1 memory parsed = decodeEvmExecutionParamsV1(encodedExecutionParams);
@@ -67,7 +74,7 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
 
     function quoteAssetConversion(
         uint16 targetChain,
-        Wei currentChainAmount
+        LocalNative currentChainAmount
     ) public view returns (TargetNative targetChainAmount) {
         return quoteAssetConversion(chainId(), targetChain, currentChainAmount);
     }
@@ -75,17 +82,18 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
     function quoteAssetConversion(
         uint16 sourceChain,
         uint16 targetChain,
-        Wei sourceChainAmount
+        LocalNative sourceChainAmount
     ) internal view returns (TargetNative targetChainAmount) {
         (uint16 buffer, uint16 bufferDenominator) = assetConversionBuffer(targetChain);
-        return sourceChainAmount.convertAsset(
+        return sourceChainAmount.asNative().convertAsset(
             nativeCurrencyPrice(sourceChain),
             nativeCurrencyPrice(targetChain),
             (buffer),
             (uint32(buffer) + bufferDenominator),
-            // round down
             false
-        ).asTargetNative();
+        )
+            // round down
+            .asTargetNative();
     }
 
     //Returns the address on this chain that rewards should be sent to

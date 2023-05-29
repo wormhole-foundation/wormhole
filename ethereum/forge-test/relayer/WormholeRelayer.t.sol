@@ -1958,7 +1958,7 @@ contract WormholeRelayerTests is Test {
             address(0x0),
             bytes(""),
             TargetNative.wrap(0),
-            Wei.wrap(0),
+            LocalNative.wrap(0),
             Gas.wrap(0),
             setup.sourceChain,
             address(0x0),

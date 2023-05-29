@@ -28,6 +28,7 @@ abstract contract WormholeRelayerBase is IWormholeRelayerBase {
     using GasLib for Gas;
     using WeiPriceLib for WeiPrice;
     using GasPriceLib for GasPrice;
+    using LocalNativeLib for LocalNative;
 
     //see https://book.wormhole.com/wormhole/3_coreLayerContracts.html#consistency-levels
     //  15 is valid choice for now but ultimately we want something more canonical (202?)
@@ -58,18 +59,18 @@ abstract contract WormholeRelayerBase is IWormholeRelayerBase {
         return chainId_;
     }
 
-    function getWormholeMessageFee() internal view returns (Wei) {
-        return Wei.wrap(getWormhole().messageFee());
+    function getWormholeMessageFee() internal view returns (LocalNative) {
+        return LocalNative.wrap(getWormhole().messageFee());
     }
 
-    function msgValue() internal view returns (Wei) {
-        return Wei.wrap(msg.value);
+    function msgValue() internal view returns (LocalNative) {
+        return LocalNative.wrap(msg.value);
     }
 
     function checkMsgValue(
-        Wei wormholeMessageFee,
-        Wei deliveryPrice,
-        Wei paymentForExtraReceiverValue
+        LocalNative wormholeMessageFee,
+        LocalNative deliveryPrice,
+        LocalNative paymentForExtraReceiverValue
     ) internal view {
         if (msgValue() != deliveryPrice + paymentForExtraReceiverValue + wormholeMessageFee) {
             revert InvalidMsgValue(
@@ -79,9 +80,9 @@ abstract contract WormholeRelayerBase is IWormholeRelayerBase {
     }
 
     function publishAndPay(
-        Wei wormholeMessageFee,
-        Wei deliveryQuote,
-        Wei paymentForExtraReceiverValue,
+        LocalNative wormholeMessageFee,
+        LocalNative deliveryQuote,
+        LocalNative paymentForExtraReceiverValue,
         bytes memory encodedInstruction,
         uint8 consistencyLevel,
         IDeliveryProvider deliveryProvider
@@ -91,7 +92,10 @@ abstract contract WormholeRelayerBase is IWormholeRelayerBase {
         );
 
         //TODO AMO: what if pay fails? (i.e. returns false)
-        pay(deliveryProvider.getRewardAddress(), deliveryQuote + paymentForExtraReceiverValue);
+        pay(
+            deliveryProvider.getRewardAddress(),
+            deliveryQuote + paymentForExtraReceiverValue
+        );
 
         emit SendEvent(sequence, deliveryQuote, paymentForExtraReceiverValue);
     }
