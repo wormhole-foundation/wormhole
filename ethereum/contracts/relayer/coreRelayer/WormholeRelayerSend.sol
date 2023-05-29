@@ -33,6 +33,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
     using WormholeRelayerSerde for *; //somewhat yucky but unclear what's a better alternative
     using WeiLib for Wei;
     using GasLib for Gas;
+    using TargetNativeLib for TargetNative;
 
     /*
     * Public convenience overloads
@@ -42,7 +43,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
-        Wei receiverValue,
+        TargetNative receiverValue,
         Gas gasLimit
     ) external payable returns (uint64 sequence) {
         return sendToEvm(
@@ -64,7 +65,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
-        Wei receiverValue,
+        TargetNative receiverValue,
         Gas gasLimit,
         uint16 refundChain,
         address refundAddress
@@ -88,7 +89,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
-        Wei receiverValue,
+        TargetNative receiverValue,
         Gas gasLimit,
         VaaKey[] memory vaaKeys
     ) external payable returns (uint64 sequence) {
@@ -111,7 +112,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
-        Wei receiverValue,
+        TargetNative receiverValue,
         Gas gasLimit,
         VaaKey[] memory vaaKeys,
         uint16 refundChain,
@@ -136,7 +137,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
-        Wei receiverValue,
+        TargetNative receiverValue,
         Wei paymentForExtraReceiverValue,
         Gas gasLimit,
         uint16 refundChain,
@@ -164,7 +165,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
-        Wei receiverValue,
+        TargetNative receiverValue,
         Gas gasLimit
     ) external payable {
         (address deliveryProvider, address deliveryProviderOnTarget) =
@@ -188,7 +189,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
-        Wei receiverValue,
+        TargetNative receiverValue,
         Gas gasLimit,
         VaaKey[] memory vaaKeys
     ) external payable {
@@ -213,7 +214,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
-        Wei receiverValue,
+        TargetNative receiverValue,
         Wei paymentForExtraReceiverValue,
         Gas gasLimit,
         uint16 refundChain,
@@ -245,7 +246,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
     function resendToEvm(
         VaaKey memory deliveryVaaKey,
         uint16 targetChain,
-        Wei newReceiverValue,
+        TargetNative newReceiverValue,
         Gas newGasLimit,
         address newDeliveryProviderAddress
     ) public payable returns (uint64 sequence) {
@@ -262,7 +263,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         uint16 targetChain,
         bytes32 targetAddress,
         bytes memory payload,
-        Wei receiverValue,
+        TargetNative receiverValue,
         Wei paymentForExtraReceiverValue,
         bytes memory encodedExecutionParameters,
         uint16 refundChain,
@@ -292,7 +293,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         uint16 targetChain,
         bytes32 targetAddress,
         bytes memory payload,
-        Wei receiverValue,
+        TargetNative receiverValue,
         Wei paymentForExtraReceiverValue,
         bytes memory encodedExecutionParameters,
         uint16 refundChain,
@@ -326,7 +327,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         uint16 targetChain;
         bytes32 targetAddress;
         bytes payload;
-        Wei receiverValue;
+        TargetNative receiverValue;
         Wei paymentForExtraReceiverValue;
         bytes encodedExecutionParameters;
         uint16 refundChain;
@@ -420,7 +421,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
     function resend(
         VaaKey memory deliveryVaaKey,
         uint16 targetChain,
-        Wei newReceiverValue,
+        TargetNative newReceiverValue,
         bytes memory newEncodedExecutionParameters,
         address newDeliveryProviderAddress
     ) public payable returns (uint64 sequence) {
@@ -524,7 +525,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
     ) public view returns (uint256 nativePriceQuote, bytes memory encodedExecutionInfo) {
         IDeliveryProvider provider = IDeliveryProvider(deliveryProviderAddress);
         (Wei deliveryPrice, bytes memory _encodedExecutionInfo) = provider.quoteDeliveryPrice(
-            targetChain, Wei.wrap(receiverValue), encodedExecutionParameters
+            targetChain, TargetNative.wrap(receiverValue), encodedExecutionParameters
         );
         encodedExecutionInfo = _encodedExecutionInfo;
         nativePriceQuote = deliveryPrice.unwrap();

@@ -14,6 +14,7 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
     using GasLib for Gas;
     using GasPriceLib for GasPrice;
     using WeiPriceLib for WeiPrice;
+    using TargetNativeLib for TargetNative;
 
     error CallerNotApproved(address msgSender);
 
@@ -26,7 +27,7 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
     function quoteEvmDeliveryPrice(
         uint16 targetChain,
         Gas gasLimit,
-        Wei receiverValue
+        TargetNative receiverValue
     ) public view returns (Wei nativePriceQuote, GasPrice targetChainRefundPerUnitGasUnused) {
         targetChainRefundPerUnitGasUnused = gasPrice(targetChain);
         Wei costOfProvidingFullGasLimit = gasLimit.toWei(targetChainRefundPerUnitGasUnused);
@@ -36,7 +37,7 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
         nativePriceQuote = transactionFee.max(costOfProvidingFullGasLimit) + receiverValueCost
             + wormholeMessageFee();
         require(
-            receiverValue + costOfProvidingFullGasLimit <= maximumBudget(targetChain),
+            receiverValue.asNative() + costOfProvidingFullGasLimit <= maximumBudget(targetChain),
             "Exceeds maximum budget"
         );
         //require(nativePriceQuote.unwrap() <= type(uint128).max, "Overflow");
@@ -44,7 +45,7 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
 
     function quoteDeliveryPrice(
         uint16 targetChain,
-        Wei receiverValue,
+        TargetNative receiverValue,
         bytes memory encodedExecutionParams
     ) external view returns (Wei nativePriceQuote, bytes memory encodedExecutionInfo) {
         ExecutionParamsVersion version = decodeExecutionParamsVersion(encodedExecutionParams);
@@ -67,7 +68,7 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
     function quoteAssetConversion(
         uint16 targetChain,
         Wei currentChainAmount
-    ) public view returns (Wei targetChainAmount) {
+    ) public view returns (TargetNative targetChainAmount) {
         return quoteAssetConversion(chainId(), targetChain, currentChainAmount);
     }
 
@@ -75,7 +76,7 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
         uint16 sourceChain,
         uint16 targetChain,
         Wei sourceChainAmount
-    ) internal view returns (Wei targetChainAmount) {
+    ) internal view returns (TargetNative targetChainAmount) {
         (uint16 buffer, uint16 bufferDenominator) = assetConversionBuffer(targetChain);
         return sourceChainAmount.convertAsset(
             nativeCurrencyPrice(sourceChain),
@@ -84,7 +85,7 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
             (uint32(buffer) + bufferDenominator),
             // round down
             false
-        );
+        ).asTargetNative();
     }
 
     //Returns the address on this chain that rewards should be sent to
@@ -150,10 +151,10 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
 
     function quoteAssetCost(
         uint16 targetChain,
-        Wei targetChainAmount
+        TargetNative targetChainAmount
     ) internal view returns (Wei currentChainAmount) {
         (uint16 buffer, uint16 bufferDenominator) = assetConversionBuffer(targetChain);
-        return targetChainAmount.convertAsset(
+        return targetChainAmount.asNative().convertAsset(
             nativeCurrencyPrice(chainId()),
             nativeCurrencyPrice(targetChain),
             (uint32(buffer) + bufferDenominator),

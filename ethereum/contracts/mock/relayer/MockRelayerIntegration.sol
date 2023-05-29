@@ -208,7 +208,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
             targetChain,
             destination,
             payload,
-            Wei.wrap(receiverValue),
+            TargetNative.wrap(receiverValue),
             Wei.wrap(paymentForExtraReceiverValue),
             Gas.wrap(gasLimit),
             refundChain,
@@ -230,7 +230,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
         resendSequence = relayer.resendToEvm{value: msg.value}(
             deliveryVaaKey,
             targetChain,
-            Wei.wrap(newReceiverValue),
+            TargetNative.wrap(newReceiverValue),
             Gas.wrap(newGasLimit),
             relayer.getDefaultDeliveryProvider()
         );
@@ -258,7 +258,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
                 sourceChain,
                 getRegisteredContractAddress(sourceChain),
                 encodeMessage(Message(Version.SEND, message.forwardMessage, bytes(""))),
-                Wei.wrap(0),
+                TargetNative.wrap(0),
                 Wei.wrap(0),
                 Gas.wrap(500000),
                 sourceChain,
@@ -273,7 +273,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
                 wormhole.chainId(),
                 getRegisteredContractAddress(wormhole.chainId()),
                 encodeMessage(Message(Version.SEND, message.forwardMessage, bytes(""))),
-                Wei.wrap(0),
+                TargetNative.wrap(0),
                 Wei.wrap(0),
                 Gas.wrap(500000),
                 wormhole.chainId(),

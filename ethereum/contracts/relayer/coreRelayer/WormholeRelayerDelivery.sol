@@ -41,6 +41,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
     using WeiLib for Wei;
     using GasLib for Gas;
     using GasPriceLib for GasPrice;
+    using TargetNativeLib for TargetNative;
 
     function deliver(
         bytes[] memory encodedVMs,
@@ -79,7 +80,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             deliveryInstruction: instruction,
             gasLimit: Gas.wrap(0),
             targetChainRefundPerGasUnused: GasPrice.wrap(0),
-            totalReceiverValue: Wei.wrap(0),
+            totalReceiverValue: TargetNative.wrap(0),
             encodedOverrides: deliveryOverrides,
             redeliveryHash: bytes32(0)
         });
@@ -93,7 +94,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
 
         Wei requiredFunds = deliveryVaaInfo.gasLimit.toWei(
             deliveryVaaInfo.targetChainRefundPerGasUnused
-        ) + deliveryVaaInfo.totalReceiverValue;
+        ) + deliveryVaaInfo.totalReceiverValue.asNative();
         if (msgValue() < requiredFunds) {
             revert InsufficientRelayerFunds(msgValue(), requiredFunds);
         }
@@ -122,7 +123,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         DeliveryInstruction deliveryInstruction;
         Gas gasLimit;
         GasPrice targetChainRefundPerGasUnused;
-        Wei totalReceiverValue;
+        TargetNative totalReceiverValue;
         bytes encodedOverrides;
         bytes32 redeliveryHash; //optional (0 if not present)
     }
@@ -136,7 +137,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         returns (
             Gas gasLimit,
             GasPrice targetChainRefundPerGasUnused,
-            Wei totalReceiverValue,
+            TargetNative totalReceiverValue,
             bytes32 redeliveryHash
         )
     {
@@ -160,28 +161,28 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             (instruction.requestedReceiverValue, executionInfo) = decodeAndCheckOverridesEvmV1(
                 instruction.requestedReceiverValue, executionInfo, deliveryOverrides
             );
-            instruction.extraReceiverValue = Wei.wrap(0);
+            instruction.extraReceiverValue = TargetNative.wrap(0);
             redeliveryHash = deliveryOverrides.redeliveryHash;
         }
 
         gasLimit = executionInfo.gasLimit;
         targetChainRefundPerGasUnused = executionInfo.targetChainRefundPerGasUnused;
-        totalReceiverValue = (instruction.requestedReceiverValue + instruction.extraReceiverValue);
+        totalReceiverValue = instruction.requestedReceiverValue + instruction.extraReceiverValue;
     }
 
     function decodeAndCheckOverridesEvmV1(
-        Wei receiverValue,
+        TargetNative receiverValue,
         EvmExecutionInfoV1 memory executionInfo,
         DeliveryOverride memory deliveryOverrides
     )
         internal
         pure
         returns (
-            Wei deliveryOverridesReceiverValue,
+            TargetNative deliveryOverridesReceiverValue,
             EvmExecutionInfoV1 memory deliveryOverridesExecutionInfo
         )
     {
-        if (deliveryOverrides.newReceiverValue < receiverValue) {
+        if (deliveryOverrides.newReceiverValue.unwrap() < receiverValue.unwrap()) {
             revert InvalidOverrideReceiverValue();
         }
 
@@ -420,7 +421,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             revert Cancelled(uint32(gasUsed.unwrap()), fundsForForward.unwrap(), totalFee.unwrap());
         }
 
-        Wei extraReceiverValue = IDeliveryProvider(
+        TargetNative extraReceiverValue = IDeliveryProvider(
             fromWormholeFormat(instructions[0].sourceDeliveryProvider)
         ).quoteAssetConversion(instructions[0].targetChain, fundsForForward - totalFee);
         //Increases the maxTransactionFee of the first forward in order to use all of the funds
@@ -462,7 +463,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         ) {
             receiverValueRefundAmount = (
                 deliveryInstruction.requestedReceiverValue + deliveryInstruction.extraReceiverValue
-            );
+            ).asNative();
         }
 
         //Total refund to the user
@@ -492,7 +493,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         }
 
         Wei relayerRefundAmount = msgValue()
-            - (deliveryInstruction.requestedReceiverValue + deliveryInstruction.extraReceiverValue)
+            - (deliveryInstruction.requestedReceiverValue.asNative() + deliveryInstruction.extraReceiverValue.asNative())
             - transactionFeeRefundAmount + leftoverUserRefund;
 
         //TODO AMO: what if pay fails? (i.e. returns false)
@@ -517,7 +518,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         IDeliveryProvider deliveryProvider = IDeliveryProvider(fromWormholeFormat(relayerAddress));
         Wei baseDeliveryPrice;
         try deliveryProvider.quoteDeliveryPrice(
-            refundChain, Wei.wrap(0), encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1())
+            refundChain, TargetNative.wrap(0), encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1())
         ) returns (Wei quote, bytes memory) {
             baseDeliveryPrice = quote;
         } catch (bytes memory) {
@@ -532,7 +533,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             refundChain,
             bytes32(0),
             bytes(""),
-            Wei.wrap(0),
+            TargetNative.wrap(0),
             refundAmount - getWormholeMessageFee() - baseDeliveryPrice,
             encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1()),
             refundChain,

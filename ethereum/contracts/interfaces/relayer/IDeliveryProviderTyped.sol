@@ -7,14 +7,14 @@ import "./TypedUnits.sol";
 interface IDeliveryProvider {
     function quoteDeliveryPrice(
         uint16 targetChain,
-        Wei receiverValue,
+        TargetNative receiverValue,
         bytes memory encodedExecutionParams
     ) external view returns (Wei nativePriceQuote, bytes memory encodedExecutionInfo);
 
     function quoteAssetConversion(
         uint16 targetChain,
         Wei currentChainAmount
-    ) external view returns (Wei targetChainAmount);
+    ) external view returns (TargetNative targetChainAmount);
 
     /**
      * @notice This function should return a payable address on this (source) chain where all awards

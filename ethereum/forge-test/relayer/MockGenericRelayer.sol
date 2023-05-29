@@ -21,6 +21,7 @@ contract MockGenericRelayer {
     using BytesLib for bytes;
     using WeiLib for Wei;
     using GasLib for Gas;
+    using TargetNativeLib for TargetNative;
 
     IWormhole relayerWormhole;
     WormholeSimulator relayerWormholeSimulator;
@@ -145,7 +146,7 @@ contract MockGenericRelayer {
             EvmExecutionInfoV1 memory executionInfo =
                 decodeEvmExecutionInfoV1(instruction.encodedExecutionInfo);
             Wei budget = executionInfo.gasLimit.toWei(executionInfo.targetChainRefundPerGasUnused)
-                + instruction.requestedReceiverValue + instruction.extraReceiverValue;
+                + instruction.requestedReceiverValue.asNative() + instruction.extraReceiverValue.asNative();
 
             uint16 targetChain = instruction.targetChain;
 
@@ -178,7 +179,7 @@ contract MockGenericRelayer {
             EvmExecutionInfoV1 memory executionInfo =
                 decodeEvmExecutionInfoV1(instruction.newEncodedExecutionInfo);
             Wei budget = executionInfo.gasLimit.toWei(executionInfo.targetChainRefundPerGasUnused)
-                + instruction.newRequestedReceiverValue;
+                + instruction.newRequestedReceiverValue.asNative();
 
             bytes memory oldEncodedDeliveryVAA = getPastDeliveryVAA(
                 instruction.deliveryVaaKey.chainId, instruction.deliveryVaaKey.sequence

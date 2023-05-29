@@ -9,8 +9,8 @@ struct DeliveryInstruction {
     uint16 targetChain;
     bytes32 targetAddress;
     bytes payload;
-    Wei requestedReceiverValue;
-    Wei extraReceiverValue;
+    TargetNative requestedReceiverValue;
+    TargetNative extraReceiverValue;
     bytes encodedExecutionInfo;
     uint16 refundChain;
     bytes32 refundAddress;
@@ -23,7 +23,7 @@ struct DeliveryInstruction {
 struct RedeliveryInstruction {
     VaaKey deliveryVaaKey;
     uint16 targetChain;
-    Wei newRequestedReceiverValue;
+    TargetNative newRequestedReceiverValue;
     bytes newEncodedExecutionInfo;
     bytes32 newSourceDeliveryProvider;
     bytes32 newSenderAddress;
@@ -44,7 +44,7 @@ struct RedeliveryInstruction {
  * @custom:member redeliveryHash - the hash of the redelivery which is being performed
  */
 struct DeliveryOverride {
-    Wei newReceiverValue;
+    TargetNative newReceiverValue;
     bytes newExecutionInfo;
     bytes32 redeliveryHash;
 }

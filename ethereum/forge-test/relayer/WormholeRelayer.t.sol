@@ -55,6 +55,7 @@ contract WormholeRelayerTests is Test {
     using GasLib for Gas;
     using WeiPriceLib for WeiPrice;
     using GasPriceLib for GasPrice;
+    using TargetNativeLib for TargetNative;
 
     uint32 REASONABLE_GAS_LIMIT = 500000;
     uint32 REASONABLE_GAS_LIMIT_FORWARDS = 1000000;
@@ -1192,19 +1193,17 @@ contract WormholeRelayerTests is Test {
         bytes memory encodedExecutionInfo = abi.encode(
             uint8(ExecutionInfoVersion.EVM_V1), params.gasLimit, targetChainRefundPerGasUnused
         );
-        Wei extraReceiverValue = Wei.wrap(
-            setup.source.coreRelayer.quoteNativeForChain(
-                setup.targetChain,
-                params.paymentForExtraReceiverValue,
-                address(setup.source.deliveryProvider)
-            )
-        );
+        TargetNative extraReceiverValue = TargetNative.wrap(setup.source.coreRelayer.quoteNativeForChain(
+            setup.targetChain,
+            params.paymentForExtraReceiverValue,
+            address(setup.source.deliveryProvider)
+        ));
 
         DeliveryInstruction memory expectedInstruction = DeliveryInstruction({
             targetChain: setup.targetChain,
             targetAddress: toWormholeFormat(params.targetAddress),
             payload: params.payload,
-            requestedReceiverValue: Wei.wrap(params.receiverValue),
+            requestedReceiverValue: TargetNative.wrap(params.receiverValue),
             extraReceiverValue: extraReceiverValue,
             encodedExecutionInfo: encodedExecutionInfo,
             refundChain: params.refundChain,
@@ -1251,7 +1250,7 @@ contract WormholeRelayerTests is Test {
         setup.source.coreRelayer.resendToEvm{value: value}(
             params.deliveryVaaKey,
             setup.targetChain,
-            Wei.wrap(params.newReceiverValue),
+            TargetNative.wrap(params.newReceiverValue),
             Gas.wrap(params.newGasLimit),
             address(setup.source.deliveryProvider)
         );
@@ -1263,7 +1262,7 @@ contract WormholeRelayerTests is Test {
         RedeliveryInstruction memory expectedInstruction = RedeliveryInstruction({
             deliveryVaaKey: params.deliveryVaaKey,
             targetChain: setup.targetChain,
-            newRequestedReceiverValue: Wei.wrap(params.newReceiverValue),
+            newRequestedReceiverValue: TargetNative.wrap(params.newReceiverValue),
             newEncodedExecutionInfo: encodedExecutionInfo,
             newSourceDeliveryProvider: toWormholeFormat(address(setup.source.deliveryProvider)),
             newSenderAddress: toWormholeFormat(params.senderAddress)
@@ -1464,7 +1463,7 @@ contract WormholeRelayerTests is Test {
             decodeEvmExecutionInfoV1(stack.instruction.encodedExecutionInfo);
         stack.budget = Wei.unwrap(
             executionInfo.gasLimit.toWei(executionInfo.targetChainRefundPerGasUnused)
-                + stack.instruction.extraReceiverValue
+                + stack.instruction.extraReceiverValue.asNative()
         );
     }
 
@@ -1753,7 +1752,7 @@ contract WormholeRelayerTests is Test {
         prepareDeliveryStack(stack, setup, 0);
 
         DeliveryOverride memory deliveryOverride = DeliveryOverride(
-            stack.instruction.requestedReceiverValue - Wei.wrap(1),
+            stack.instruction.requestedReceiverValue - TargetNative.wrap(1),
             stack.instruction.encodedExecutionInfo,
             stack.deliveryVaaHash //really redeliveryHash
         );
@@ -1958,7 +1957,7 @@ contract WormholeRelayerTests is Test {
             setup.targetChain,
             address(0x0),
             bytes(""),
-            Wei.wrap(0),
+            TargetNative.wrap(0),
             Wei.wrap(0),
             Gas.wrap(0),
             setup.sourceChain,
@@ -2014,7 +2013,7 @@ contract WormholeRelayerTests is Test {
             setup.targetChain,
             address(forwardTester),
             abi.encodePacked(uint8(test)),
-            Wei.wrap(receiverValue),
+            TargetNative.wrap(receiverValue),
             Gas.wrap(REASONABLE_GAS_LIMIT_FORWARDS)
         );
         genericRelayer.relay(setup.sourceChain);
@@ -2048,7 +2047,7 @@ contract WormholeRelayerTests is Test {
             setup.targetChain,
             address(forwardTester),
             bytes(""),
-            Wei.wrap(0),
+            TargetNative.wrap(0),
             Gas.wrap(TOO_LOW_GAS_LIMIT)
         );
     }

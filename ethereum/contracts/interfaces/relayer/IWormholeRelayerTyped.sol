@@ -33,7 +33,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
-        Wei receiverValue,
+        TargetNative receiverValue,
         Gas gasLimit
     ) external payable returns (uint64 sequence);
 
@@ -44,7 +44,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
-        Wei receiverValue,
+        TargetNative receiverValue,
         Gas gasLimit,
         uint16 refundChain,
         address refundAddress
@@ -54,7 +54,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
-        Wei receiverValue,
+        TargetNative receiverValue,
         Gas gasLimit,
         VaaKey[] memory vaaKeys
     ) external payable returns (uint64 sequence);
@@ -63,7 +63,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
-        Wei receiverValue,
+        TargetNative receiverValue,
         Gas gasLimit,
         VaaKey[] memory vaaKeys,
         uint16 refundChain,
@@ -99,7 +99,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
-        Wei receiverValue,
+        TargetNative receiverValue,
         Wei paymentForExtraReceiverValue,
         Gas gasLimit,
         uint16 refundChain,
@@ -113,7 +113,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         uint16 targetChain,
         bytes32 targetAddress,
         bytes memory payload,
-        Wei receiverValue,
+        TargetNative receiverValue,
         Wei paymentForExtraReceiverValue,
         bytes memory encodedExecutionParameters,
         uint16 refundChain,
@@ -150,7 +150,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
-        Wei receiverValue,
+        TargetNative receiverValue,
         Gas gasLimit
     ) external payable;
 
@@ -158,7 +158,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
-        Wei receiverValue,
+        TargetNative receiverValue,
         Gas gasLimit,
         VaaKey[] memory vaaKeys
     ) external payable;
@@ -167,7 +167,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
-        Wei receiverValue,
+        TargetNative receiverValue,
         Wei paymentForExtraReceiverValue,
         Gas gasLimit,
         uint16 refundChain,
@@ -181,7 +181,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         uint16 targetChain,
         bytes32 targetAddress,
         bytes memory payload,
-        Wei receiverValue,
+        TargetNative receiverValue,
         Wei paymentForExtraReceiverValue,
         bytes memory encodedExecutionParameters,
         uint16 refundChain,
@@ -223,7 +223,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     function resendToEvm(
         VaaKey memory deliveryVaaKey,
         uint16 targetChain,
-        Wei newReceiverValue,
+        TargetNative newReceiverValue,
         Gas newGasLimit,
         address newDeliveryProviderAddress
     ) external payable returns (uint64 sequence);
@@ -231,7 +231,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     function resend(
         VaaKey memory deliveryVaaKey,
         uint16 targetChain,
-        Wei newReceiverValue,
+        TargetNative newReceiverValue,
         bytes memory newEncodedExecutionParameters,
         address newDeliveryProviderAddress
     ) external payable returns (uint64 sequence);

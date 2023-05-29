@@ -12,6 +12,10 @@ type Dollar is uint256;
 
 type Wei is uint256;
 
+type SourceNative is uint256;
+
+type TargetNative is uint256;
+
 using {
     addWei as +,
     subWei as -,
@@ -21,6 +25,10 @@ using {
     eqWei as ==,
     neqWei as !=
 } for Wei global;
+using {
+    addTargetNative as +,
+    subTargetNative as -
+} for TargetNative global;
 using {ltGas as <, subGas as -} for Gas global;
 
 using WeiLib for Wei;
@@ -65,10 +73,16 @@ function subGas(Gas a, Gas b) pure returns (Gas) {
     return Gas.wrap(Gas.unwrap(a) - Gas.unwrap(b));
 }
 
-library WeiLib {
-    using {toDollars, toGas, convertAsset, min, max, scale, unwrap, asGasPrice} for Wei;
+function addTargetNative(TargetNative a, TargetNative b) pure returns (TargetNative) {
+    return TargetNative.wrap(TargetNative.unwrap(a) + TargetNative.unwrap(b));
+}
 
-    Wei constant ZERO = Wei.wrap(0);
+function subTargetNative(TargetNative a, TargetNative b) pure returns (TargetNative) {
+    return TargetNative.wrap(TargetNative.unwrap(a) - TargetNative.unwrap(b));
+}
+
+library WeiLib {
+    using {toDollars, toGas, convertAsset, min, max, scale, unwrap, asGasPrice, asTargetNative} for Wei;
 
     function min(Wei x, Wei maxVal) internal pure returns (Wei) {
         return x > maxVal ? maxVal : x;
@@ -76,6 +90,10 @@ library WeiLib {
 
     function max(Wei x, Wei maxVal) internal pure returns (Wei) {
         return x < maxVal ? maxVal : x;
+    }
+
+    function asTargetNative(Wei w) internal pure returns (TargetNative) {
+        return TargetNative.wrap(Wei.unwrap(w));
     }
 
     function toDollars(Wei w, WeiPrice price) internal pure returns (Dollar) {
@@ -97,7 +115,6 @@ library WeiLib {
     function asGasPrice(Wei w) internal pure returns (GasPrice) {
         return GasPrice.wrap(Wei.unwrap(w));
     }
-
     function convertAsset(
         Wei w,
         WeiPrice fromPrice,
@@ -121,8 +138,6 @@ library WeiLib {
 
 library GasLib {
     using {toWei, unwrap} for Gas;
-
-    Gas constant ZERO = Gas.wrap(0);
 
     function min(Gas x, Gas maxVal) internal pure returns (Gas) {
         return x < maxVal ? x : maxVal;
@@ -160,8 +175,6 @@ library DollarLib {
 library WeiPriceLib {
     using {mul, unwrap} for WeiPrice;
 
-    WeiPrice constant ZERO = WeiPrice.wrap(0);
-
     function mul(WeiPrice a, uint256 b) internal pure returns (WeiPrice) {
         return WeiPrice.wrap(a.unwrap() * b);
     }
@@ -174,13 +187,23 @@ library WeiPriceLib {
 library GasPriceLib {
     using {unwrap, priceAsWei} for GasPrice;
 
-    GasPrice constant ZERO = GasPrice.wrap(0);
-
     function priceAsWei(GasPrice w) internal pure returns (Wei) {
         return Wei.wrap(w.unwrap());
     }
 
     function unwrap(GasPrice w) internal pure returns (uint256) {
         return GasPrice.unwrap(w);
+    }
+}
+
+library TargetNativeLib {
+    using {unwrap, asNative} for TargetNative;
+
+    function unwrap(TargetNative w) internal pure returns (uint256) {
+        return TargetNative.unwrap(w);
+    }
+
+    function asNative(TargetNative w) internal pure returns (Wei) {
+        return Wei.wrap(TargetNative.unwrap(w));
     }
 }

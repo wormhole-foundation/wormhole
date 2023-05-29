@@ -85,8 +85,8 @@ library WormholeRelayerSerde {
         (strct.senderAddress, offset) = encoded.asBytes32Unchecked(offset);
         (strct.vaaKeys, offset) = decodeVaaKeyArray(encoded, offset);
 
-        strct.requestedReceiverValue = Wei.wrap(requestedReceiverValue);
-        strct.extraReceiverValue = Wei.wrap(extraReceiverValue);
+        strct.requestedReceiverValue = TargetNative.wrap(requestedReceiverValue);
+        strct.extraReceiverValue = TargetNative.wrap(extraReceiverValue);
 
         checkLength(encoded, offset);
     }
@@ -124,7 +124,7 @@ library WormholeRelayerSerde {
         (strct.newSourceDeliveryProvider, offset) = encoded.asBytes32Unchecked(offset);
         (strct.newSenderAddress, offset) = encoded.asBytes32Unchecked(offset);
 
-        strct.newRequestedReceiverValue = Wei.wrap(newRequestedReceiverValue);
+        strct.newRequestedReceiverValue = TargetNative.wrap(newRequestedReceiverValue);
 
         checkLength(encoded, offset);
     }
@@ -151,7 +151,7 @@ library WormholeRelayerSerde {
         (strct.newExecutionInfo, offset) = decodeBytes(encoded, offset);
         (strct.redeliveryHash, offset) = encoded.asBytes32Unchecked(offset);
 
-        strct.newReceiverValue = Wei.wrap(receiverValue);
+        strct.newReceiverValue = TargetNative.wrap(receiverValue);
 
         checkLength(encoded, offset);
     }

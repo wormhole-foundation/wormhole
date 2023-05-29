@@ -59,7 +59,7 @@ contract ForwardTester is IWormholeReceiver {
                 32,
                 fromWormholeFormat(sourceAddress),
                 bytes(""),
-                Wei.wrap(0),
+                TargetNative.wrap(0),
                 Gas.wrap(REASONABLE_GAS_LIMIT)
             );
         } else if (action == Action.ReentrantCall) {
@@ -72,7 +72,7 @@ contract ForwardTester is IWormholeReceiver {
                 sourceChain,
                 fromWormholeFormat(sourceAddress),
                 bytes(""),
-                Wei.wrap(0),
+                TargetNative.wrap(0),
                 Gas.wrap(REASONABLE_GAS_LIMIT)
             );
             genericRelayer.relay(wormhole.chainId());
@@ -81,7 +81,7 @@ contract ForwardTester is IWormholeReceiver {
                 sourceChain,
                 fromWormholeFormat(sourceAddress),
                 bytes(""),
-                Wei.wrap(0),
+                TargetNative.wrap(0),
                 Gas.wrap(REASONABLE_GAS_LIMIT)
             );
         }
@@ -109,7 +109,7 @@ contract DummyContract {
         bytes memory payload
     ) public payable {
         wormholeRelayer.forwardPayloadToEvm{value: msg.value}(
-            chainId, targetAddress, payload, Wei.wrap(receiverValue), Gas.wrap(gasLimit)
+            chainId, targetAddress, payload, TargetNative.wrap(receiverValue), Gas.wrap(gasLimit)
         );
     }
 }
