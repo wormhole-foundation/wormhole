@@ -15,6 +15,14 @@ struct XAddress {
     bytes32 addr;
 }
 
+struct DeliveryData {
+  bytes32 sourceAddress;
+  uint16 sourceChainId;
+  bytes32 deliveryHash;
+  bytes payload;
+  bytes[] additionalVaas;
+}
+
 contract MockRelayerIntegration is IWormholeReceiver {
     using BytesLib for bytes;
 
@@ -220,27 +228,40 @@ contract MockRelayerIntegration is IWormholeReceiver {
     }
 
     function receiveWormholeMessages(
-        DeliveryData memory deliveryData,
-        bytes[] memory wormholeObservations
+        bytes memory payload,
+        bytes[] memory additionalVaas,
+        bytes32 sourceAddress,
+        uint16 sourceChainId,
+        bytes32 deliveryHash
     ) public payable override {
         // loop through the array of wormhole observations from the batch and store each payload
         require(msg.sender == address(relayer), "Wrong msg.sender");
 
-        latestDeliveryData = deliveryData;
+        latestDeliveryData = DeliveryData(
+            sourceAddress,
+            sourceChainId,
+            deliveryHash,
+            payload,
+            additionalVaas
+        );
 
-        Message memory message = decodeMessage(deliveryData.payload);
+        Message memory message = decodeMessage(payload);
 
         messageHistory.push(message.message);
 
         if (message.version == Version.FORWARD || message.version == Version.MULTIFORWARD) {
             relayer.forwardToEvm{value: msg.value} (
-                    deliveryData.sourceChainId,
-                    getRegisteredContractAddress(deliveryData.sourceChainId),
+                    sourceChainId,
+                    getRegisteredContractAddress(sourceChainId),
                     encodeMessage(Message(Version.SEND, message.forwardMessage, bytes(""))),
                     Wei.wrap(0),
+                    Wei.wrap(0),
                     Gas.wrap(500000),
-                    deliveryData.sourceChainId,
-                    getRegisteredContractAddress(deliveryData.sourceChainId)
+                    sourceChainId,
+                    getRegisteredContractAddress(sourceChainId),
+                    relayer.getDefaultRelayProvider(),
+                    new VaaKey[](0),
+                    15
             );
         }
         if (message.version == Version.MULTIFORWARD) {
@@ -249,9 +270,13 @@ contract MockRelayerIntegration is IWormholeReceiver {
                     getRegisteredContractAddress(wormhole.chainId()),
                     encodeMessage(Message(Version.SEND, message.forwardMessage, bytes(""))),
                     Wei.wrap(0),
+                    Wei.wrap(0),
                     Gas.wrap(500000),
                     wormhole.chainId(),
-                    getRegisteredContractAddress(wormhole.chainId())
+                    getRegisteredContractAddress(wormhole.chainId()),
+                    relayer.getDefaultRelayProvider(),
+                    new VaaKey[](0),
+                    15
             );
         }
     }

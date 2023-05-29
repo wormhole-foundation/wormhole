@@ -91,19 +91,21 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
 
   // ----------------------- delivery transaction temorary storage functions -----------------------
 
-  function startDelivery(address targetAddress) internal {
+  function startDelivery(address targetAddress, address relayProvider) internal {
     DeliveryTmpState storage state = getDeliveryTmpState();
     if (state.deliveryInProgress)
       revert ReentrantDelivery(msg.sender, state.deliveryTarget);
 
     state.deliveryInProgress = true;
     state.deliveryTarget = targetAddress;
+    state.relayProvider = relayProvider;
   }
 
   function finishDelivery() internal {
     DeliveryTmpState storage state = getDeliveryTmpState();
     state.deliveryInProgress = false;
     state.deliveryTarget = address(0);
+    state.relayProvider = address(0);
     delete state.forwardInstructions;
   }
 
@@ -113,6 +115,10 @@ abstract contract CoreRelayerBase is IWormholeRelayerBase {
 
   function getForwardInstructions() internal view returns (ForwardInstruction[] storage) {
     return getDeliveryTmpState().forwardInstructions;
+  }
+
+  function getOriginalRelayProvider() internal view returns (address) {
+    return getDeliveryTmpState().relayProvider;
   }
 
   function checkMsgSenderInDelivery() internal view {

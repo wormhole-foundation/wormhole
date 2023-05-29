@@ -20,7 +20,7 @@ import {
   IWormholeRelayerDelivery,
   IWormholeRelayerSend
 } from "../../interfaces/relayer/IWormholeRelayer.sol";
-import {DeliveryData, IWormholeReceiver} from "../../interfaces/relayer/IWormholeReceiver.sol";
+import {IWormholeReceiver} from "../../interfaces/relayer/IWormholeReceiver.sol";
 import {IRelayProvider} from "../../interfaces/relayer/IRelayProvider.sol";
 
 import {pay, min, toWormholeFormat, fromWormholeFormat} from "../../libraries/relayer/Utils.sol";
@@ -60,7 +60,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     //"lock" as soon as possible (we could also lock after all checks have completed), but locking
     //  early seems more defensive when it comes to additional code changes and does not change the
     //  cost of the happy path.
-    startDelivery(fromWormholeFormat(instruction.targetAddress));
+    startDelivery(fromWormholeFormat(instruction.targetAddress), fromWormholeFormat(instruction.refundRelayProvider));
     
     DeliveryVAAInfo memory deliveryVaaInfo = DeliveryVAAInfo({
       sourceChainId: vm.emitterChainId,
@@ -198,21 +198,8 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
   
     DeliveryResults memory results;
     
-    try //force external call!
-      this.executeInstruction(
-        vaaInfo.deliveryInstruction.targetAddress,
-        DeliveryData({
-          sourceAddress: vaaInfo.deliveryInstruction.senderAddress,
-          sourceChainId: vaaInfo.sourceChainId,
-          targetChainRefundPerGasUnused: vaaInfo.targetChainRefundPerGasUnused.unwrap(),
-          deliveryHash:  vaaInfo.deliveryVaaHash,
-          payload:       vaaInfo.deliveryInstruction.payload
-        }),
-        vaaInfo.gasLimit,
-        vaaInfo.totalReceiverValue,
-        vaaInfo.targetChainRefundPerGasUnused,
-        vaaInfo.encodedVMs
-      )
+    try //force external call
+      this.executeInstruction(vaaInfo)
     returns (uint8 _status, Gas _gasUsed, bytes memory targetRevertDataTruncated) {
       results = DeliveryResults(
         _gasUsed,
@@ -286,12 +273,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
 
 
   function executeInstruction(
-    bytes32 targetAddress,
-    DeliveryData calldata data,
-    Gas gasLimit,
-    Wei totalReceiverValue,
-    GasPrice targetChainRefundPerGasUnused,
-    bytes[] memory signedVaas
+    DeliveryVAAInfo memory vaaInfo
   ) external returns (
     uint8 status,
     Gas gasUsed,
@@ -309,11 +291,17 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     // Calls the `receiveWormholeMessages` endpoint on the contract `instruction.targetAddress`
     // (with the gas limit and value specified in instruction, and `encodedVMs` as the input)
     IWormholeReceiver deliveryTarget =
-      IWormholeReceiver(fromWormholeFormat(targetAddress));
+      IWormholeReceiver(fromWormholeFormat(vaaInfo.deliveryInstruction.targetAddress));
     try deliveryTarget.receiveWormholeMessages{
-          gas:   gasLimit.unwrap(),
-          value: totalReceiverValue.unwrap()
-        } (data, signedVaas) {
+          gas:   vaaInfo.gasLimit.unwrap(),
+          value: vaaInfo.totalReceiverValue.unwrap()
+        } (
+          vaaInfo.deliveryInstruction.payload, 
+          vaaInfo.encodedVMs, 
+          vaaInfo.deliveryInstruction.senderAddress,
+          vaaInfo.sourceChainId, 
+          vaaInfo.deliveryVaaHash
+        ) {
       targetRevertDataTruncated = new bytes(0);
       status = uint8(DeliveryStatus.SUCCESS);
     }
@@ -328,14 +316,14 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
 
     Gas postGas = Gas.wrap(gasleft());
     
-    unchecked{gasUsed = (preGas - postGas).min(gasLimit);}
+    unchecked{gasUsed = (preGas - postGas).min(vaaInfo.gasLimit);}
     
     ForwardInstruction[] storage forwardInstructions = getForwardInstructions();
     
     if (forwardInstructions.length > 0) {
       //Calculate the amount of maxTransactionFee to refund (multiply the maximum refund by the
       //  fraction of gas unused)
-      Wei transactionFeeRefundAmount = (gasLimit - gasUsed).toWei(targetChainRefundPerGasUnused);
+      Wei transactionFeeRefundAmount = (vaaInfo.gasLimit - gasUsed).toWei(vaaInfo.targetChainRefundPerGasUnused);
       emitForward(gasUsed, transactionFeeRefundAmount, forwardInstructions);
       status = uint8(DeliveryStatus.FORWARD_REQUEST_SUCCESS);
     }

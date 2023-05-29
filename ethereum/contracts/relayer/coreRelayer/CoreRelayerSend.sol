@@ -10,7 +10,7 @@ import {
 } from "../../interfaces/relayer/IWormholeRelayer.sol";
 import {IRelayProvider} from "../../interfaces/relayer/IRelayProvider.sol";
 
-import {toWormholeFormat} from "../../libraries/relayer/Utils.sol";
+import {toWormholeFormat, fromWormholeFormat} from "../../libraries/relayer/Utils.sol";
 import {DeliveryInstruction, RedeliveryInstruction} from "../../libraries/relayer/RelayerInternalStructs.sol";
 import {CoreRelayerSerde} from "./CoreRelayerSerde.sol";
 import {ForwardInstruction, getDefaultRelayProviderState} from "./CoreRelayerStorage.sol";
@@ -35,7 +35,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
    * Public convenience overloads
    */
   
-  function sendToEvm(
+  function sendPayloadToEvm(
     uint16 targetChainId,
     address targetAddress,
     bytes memory payload,
@@ -49,15 +49,15 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
       receiverValue,
       Wei.wrap(0),
       gasLimit,
-      getWormhole().chainId(),
-      msg.sender,
+      targetChainId,
+      getDefaultRelayProviderOnChain(targetChainId),
       getDefaultRelayProvider(),
       new VaaKey[](0),
       CONSISTENCY_LEVEL_FINALIZED
     );
   }
 
-  function sendToEvm(
+  function sendPayloadToEvm(
     uint16 targetChainId,
     address targetAddress,
     bytes memory payload,
@@ -77,6 +77,54 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
       refundAddress,
       getDefaultRelayProvider(),
       new VaaKey[](0),
+      CONSISTENCY_LEVEL_FINALIZED
+    );
+  }
+
+  function sendVaasToEvm(
+    uint16 targetChainId,
+    address targetAddress,
+    bytes memory payload,
+    Wei receiverValue,
+    Gas gasLimit,
+    VaaKey[] memory vaaKeys
+  ) external payable returns (uint64 sequence) {
+    return sendToEvm(
+      targetChainId,
+      targetAddress,
+      payload,
+      receiverValue,
+      Wei.wrap(0),
+      gasLimit,
+      targetChainId,
+      getDefaultRelayProviderOnChain(targetChainId),
+      getDefaultRelayProvider(),
+      vaaKeys,
+      CONSISTENCY_LEVEL_FINALIZED
+    );
+  }
+
+  function sendVaasToEvm(
+    uint16 targetChainId,
+    address targetAddress,
+    bytes memory payload,
+    Wei receiverValue,
+    Gas gasLimit,
+    VaaKey[] memory vaaKeys,
+    uint16 refundChainId,
+    address refundAddress
+  ) external payable returns (uint64 sequence) {
+    return sendToEvm(
+      targetChainId,
+      targetAddress,
+      payload,
+      receiverValue,
+      Wei.wrap(0),
+      gasLimit,
+      refundChainId,
+      refundAddress,
+      getDefaultRelayProvider(),
+      vaaKeys,
       CONSISTENCY_LEVEL_FINALIZED
     );
   }
@@ -109,16 +157,14 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     );
   }
 
-
-  function forwardToEvm(
+  function forwardPayloadToEvm(
     uint16 targetChainId,
     address targetAddress,
     bytes memory payload,
     Wei receiverValue,
-    Gas gasLimit,
-    uint16 refundChainId,
-    address refundAddress
+    Gas gasLimit
   ) external payable {
+    (address relayProvider, address relayProviderOnTarget) = getOriginalOrDefaultRelayProvider(targetChainId);    
     forwardToEvm(
       targetChainId,
       targetAddress,
@@ -126,10 +172,34 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
       receiverValue,
       Wei.wrap(0),
       gasLimit,
-      refundChainId,
-      refundAddress,
-      getDefaultRelayProvider(),
+      targetChainId,
+      relayProviderOnTarget,
+      relayProvider,
       new VaaKey[](0),
+      CONSISTENCY_LEVEL_FINALIZED
+    );
+  }
+
+  function forwardVaasToEvm(
+    uint16 targetChainId,
+    address targetAddress,
+    bytes memory payload,
+    Wei receiverValue,
+    Gas gasLimit,
+    VaaKey[] memory vaaKeys
+  ) external payable {
+    (address relayProvider, address relayProviderOnTarget) = getOriginalOrDefaultRelayProvider(targetChainId);
+    forwardToEvm(
+      targetChainId,
+      targetAddress,
+      payload,
+      receiverValue,
+      Wei.wrap(0),
+      gasLimit,
+      targetChainId,
+      relayProviderOnTarget,
+      relayProvider,
+      vaaKeys,
       CONSISTENCY_LEVEL_FINALIZED
     );
   }
@@ -147,6 +217,10 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     VaaKey[] memory vaaKeys,
     uint8 consistencyLevel
   ) public payable {
+    // provide ability to use original relay provider
+    if (relayProviderAddress == address(0)) 
+      relayProviderAddress = getOriginalRelayProvider();
+
     forward(
       targetChainId,
       toWormholeFormat(targetAddress),
@@ -234,7 +308,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     ));
   }
 
-  
+ 
   /* 
    * Non overload logic 
    */ 
@@ -346,6 +420,17 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     relayProvider = getDefaultRelayProviderState().defaultRelayProvider;
   }
 
+  function getDefaultRelayProviderOnChain(uint16 targetChainId) public view returns (address relayProvider) {
+    relayProvider = fromWormholeFormat(IRelayProvider(getDefaultRelayProviderState().defaultRelayProvider).getTargetChainAddress(targetChainId));
+  }
+
+  function getOriginalOrDefaultRelayProvider(uint16 targetChainId) public view returns (address relayProvider, address relayProviderOnTarget) {
+    relayProvider = getOriginalRelayProvider();
+    if (relayProvider == address(0) || !IRelayProvider(relayProvider).isChainSupported(targetChainId)) 
+      relayProvider = getDefaultRelayProvider();
+    relayProviderOnTarget = fromWormholeFormat(IRelayProvider(relayProvider).getTargetChainAddress(targetChainId));
+  }
+
   function quoteEVMDeliveryPrice(uint16 targetChainId, uint128 receiverValue, uint32 gasLimit, address relayProviderAddress) public view returns (uint256 nativePriceQuote, uint256 targetChainRefundPerGasUnused) {
     (uint256 quote, bytes memory encodedExecutionInfo) = quoteDeliveryPrice(targetChainId, receiverValue, encodeEvmExecutionParamsV1(EvmExecutionParamsV1(Gas.wrap(gasLimit))), relayProviderAddress);
     nativePriceQuote = quote;
@@ -363,7 +448,7 @@ abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
     nativePriceQuote = deliveryPrice.unwrap();
   }
 
-  function quoteAssetConversion(
+  function quoteNativeForChain(
     uint16 targetChainId,
     uint128 currentChainAmount,
     address relayProviderAddress

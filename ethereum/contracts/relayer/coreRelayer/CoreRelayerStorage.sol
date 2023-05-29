@@ -65,9 +65,11 @@ struct ForwardInstruction {
 
 struct DeliveryTmpState {
   bool deliveryInProgress;
-  //the target address that is currently being delivered to (0 for a simple refund)
+  // the target address that is currently being delivered to (0 for a simple refund)
   address deliveryTarget;
-  //Requests which will be forwarded from the current delivery.
+  // the target relay provider address for the in-progress delivery
+  address relayProvider;
+  // Requests which will be forwarded from the current delivery.
   ForwardInstruction[] forwardInstructions;
 }
 

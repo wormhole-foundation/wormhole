@@ -31,7 +31,7 @@ interface IWormholeRelayerBase {
   */
 interface IWormholeRelayerSend is IWormholeRelayerBase {
 
-  function sendToEvm(
+  function sendPayloadToEvm(
     uint16 targetChainId,
     address targetAddress,
     bytes memory payload,
@@ -42,12 +42,32 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
   /**
     * TODO
     */
-  function sendToEvm(
+  function sendPayloadToEvm(
     uint16 targetChainId,
     address targetAddress,
     bytes memory payload,
     Wei receiverValue,
     Gas gasLimit,
+    uint16 refundChainId,
+    address refundAddress
+  ) external payable returns (uint64 sequence);
+
+  function sendVaasToEvm(
+    uint16 targetChainId,
+    address targetAddress,
+    bytes memory payload,
+    Wei receiverValue,
+    Gas gasLimit,
+    VaaKey[] memory vaaKeys
+  ) external payable returns (uint64 sequence);
+
+  function sendVaasToEvm(
+    uint16 targetChainId,
+    address targetAddress,
+    bytes memory payload,
+    Wei receiverValue,
+    Gas gasLimit,
+    VaaKey[] memory vaaKeys,
     uint16 refundChainId,
     address refundAddress
   ) external payable returns (uint64 sequence);
@@ -129,14 +149,21 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
    * @param targetAddress The address (in Wormhole 32-byte format) on chain `targetChainId` of the contract to which the vaas are delivered.
    * This contract must implement the IWormholeReceiver interface, which simply requires a `receiveWormholeMessage(DeliveryData memory deliveryData, bytes[] memory signedVaas)` endpoint
    */
-  function forwardToEvm(
+  function forwardPayloadToEvm(
+    uint16 targetChainId,
+    address targetAddress,
+    bytes memory payload,
+    Wei receiverValue,
+    Gas gasLimit
+  ) external payable;
+
+  function forwardVaasToEvm(
     uint16 targetChainId,
     address targetAddress,
     bytes memory payload,
     Wei receiverValue,
     Gas gasLimit,
-    uint16 refundChainId,
-    address refundAddress
+    VaaKey[] memory vaaKeys
   ) external payable;
 
   function forwardToEvm(
@@ -220,7 +247,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
 
   function quoteDeliveryPrice(uint16 targetChainId, uint128 receiverValue, bytes memory encodedExecutionParameters, address relayProviderAddress) external view returns (uint256 nativePriceQuote, bytes memory encodedExecutionInfo);
 
-  function quoteAssetConversion(
+  function quoteNativeForChain(
     uint16 targetChainId,
     uint128 currentChainAmount,
     address relayProviderAddress
