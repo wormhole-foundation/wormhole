@@ -17,7 +17,7 @@ import {
     RedeliveryInstruction,
     DeliveryOverride
 } from "../../contracts/libraries/relayer/RelayerInternalStructs.sol";
-import {CoreRelayer} from "../../contracts/relayer/coreRelayer/CoreRelayer.sol";
+import {WormholeRelayer} from "../../contracts/relayer/coreRelayer/WormholeRelayer.sol";
 import {MockGenericRelayer} from "./MockGenericRelayer.sol";
 import {MockWormhole} from "./MockWormhole.sol";
 import {IWormhole} from "../../contracts/interfaces/IWormhole.sol";
@@ -31,7 +31,7 @@ import {
 } from "../../contracts/mock/relayer/MockRelayerIntegration.sol";
 import {ForwardTester} from "./ForwardTester.sol";
 import {TestHelpers} from "./TestHelpers.sol";
-import {CoreRelayerSerde} from "../../contracts/relayer/coreRelayer/CoreRelayerSerde.sol";
+import {WormholeRelayerSerde} from "../../contracts/relayer/coreRelayer/WormholeRelayerSerde.sol";
 import {
     EvmExecutionInfoV1,
     ExecutionInfoVersion,
@@ -247,7 +247,7 @@ contract WormholeRelayerTests is Test {
         WormholeSimulator wormholeSimulator;
         RelayProvider relayProvider;
         IWormholeRelayer coreRelayer;
-        CoreRelayer coreRelayerFull;
+        WormholeRelayer coreRelayerFull;
         MockRelayerIntegration integration;
         address relayer;
         address payable rewardAddress;
@@ -263,8 +263,8 @@ contract WormholeRelayerTests is Test {
             (mapEntry.wormhole, mapEntry.wormholeSimulator) = helpers.setUpWormhole(i);
             mapEntry.relayProvider = helpers.setUpRelayProvider(i, address(mapEntry.wormhole));
             mapEntry.coreRelayer =
-                helpers.setUpCoreRelayer(mapEntry.wormhole, address(mapEntry.relayProvider));
-            mapEntry.coreRelayerFull = CoreRelayer(payable(address(mapEntry.coreRelayer)));
+                helpers.setUpWormholeRelayer(mapEntry.wormhole, address(mapEntry.relayProvider));
+            mapEntry.coreRelayerFull = WormholeRelayer(payable(address(mapEntry.coreRelayer)));
             genericRelayer.setWormholeRelayerContract(i, address(mapEntry.coreRelayer));
             mapEntry.integration =
             new MockRelayerIntegration(address(mapEntry.wormhole), address(mapEntry.coreRelayer));
@@ -290,7 +290,7 @@ contract WormholeRelayerTests is Test {
                     j, bytes32(uint256(uint160(address(map[j].relayProvider))))
                 );
                 map[i].relayProvider.updateRewardAddress(map[i].rewardAddress);
-                helpers.registerCoreRelayerContract(
+                helpers.registerWormholeRelayerContract(
                     map[i].coreRelayerFull,
                     map[i].wormhole,
                     i,
@@ -1453,7 +1453,7 @@ contract WormholeRelayerTests is Test {
 
         stack.relayerRefundAddress = payable(setup.target.relayer);
         stack.parsed = relayerWormhole.parseVM(stack.encodedDeliveryVAA);
-        stack.instruction = CoreRelayerSerde.decodeDeliveryInstruction(stack.parsed.payload);
+        stack.instruction = WormholeRelayerSerde.decodeDeliveryInstruction(stack.parsed.payload);
         EvmExecutionInfoV1 memory executionInfo =
             decodeEvmExecutionInfoV1(stack.instruction.encodedExecutionInfo);
         stack.budget = Wei.unwrap(
@@ -1682,7 +1682,7 @@ contract WormholeRelayerTests is Test {
             stack.encodedVMs,
             stack.encodedDeliveryVAA,
             stack.relayerRefundAddress,
-            CoreRelayerSerde.encode(deliveryOverride)
+            WormholeRelayerSerde.encode(deliveryOverride)
         );
         assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
     }
@@ -1722,7 +1722,7 @@ contract WormholeRelayerTests is Test {
             stack.encodedVMs,
             stack.encodedDeliveryVAA,
             stack.relayerRefundAddress,
-            CoreRelayerSerde.encode(deliveryOverride)
+            WormholeRelayerSerde.encode(deliveryOverride)
         );
     }
 
@@ -1757,7 +1757,7 @@ contract WormholeRelayerTests is Test {
             stack.encodedVMs,
             stack.encodedDeliveryVAA,
             stack.relayerRefundAddress,
-            CoreRelayerSerde.encode(deliveryOverride)
+            WormholeRelayerSerde.encode(deliveryOverride)
         );
     }
 
@@ -1798,7 +1798,7 @@ contract WormholeRelayerTests is Test {
             stack.encodedVMs,
             stack.encodedDeliveryVAA,
             stack.relayerRefundAddress,
-            CoreRelayerSerde.encode(deliveryOverride)
+            WormholeRelayerSerde.encode(deliveryOverride)
         );
     }
 
@@ -1834,7 +1834,7 @@ contract WormholeRelayerTests is Test {
             stack.encodedVMs,
             stack.encodedDeliveryVAA,
             stack.relayerRefundAddress,
-            CoreRelayerSerde.encode(deliveryOverride)
+            WormholeRelayerSerde.encode(deliveryOverride)
         );
     }
 
@@ -2379,7 +2379,7 @@ contract WormholeRelayerTests is Test {
         // 3. The delivery of the message triggers a refund to the malicious integration contract.
         // 4. During the refund, the integration contract activates the forwarding mechanism.
         //   This is allowed due to the integration contract also being the target of the delivery.
-        // 5. The forward request is left as is in the `CoreRelayer` state.
+        // 5. The forward request is left as is in the `WormholeRelayer` state.
         // 6. The next message (i.e. the victim's message) delivery on `target` chain, from any relayer, using any `RelayProvider` and any integration contract,
         //   will see the forward request placed by the malicious integration contract and act on it.
         // Caveat: the delivery of the victim's message must not invoke the forwarding mechanism for the attack test to be meaningful.
@@ -2556,7 +2556,7 @@ contract WormholeRelayerTests is Test {
         });
 
         DeliveryInstruction memory newInstruction =
-            CoreRelayerSerde.decodeDeliveryInstruction(CoreRelayerSerde.encode(instruction));
+            WormholeRelayerSerde.decodeDeliveryInstruction(WormholeRelayerSerde.encode(instruction));
 
         assertTrue(newInstruction.maximumRefundTarget == instruction.maximumRefundTarget);
         assertTrue(newInstruction.receiverValueTarget == instruction.receiverValueTarget);

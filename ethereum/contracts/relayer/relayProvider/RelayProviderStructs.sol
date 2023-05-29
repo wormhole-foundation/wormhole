@@ -121,10 +121,10 @@ abstract contract RelayProviderStructs {
     }
 
     struct CoreConfig {
-        bool updateCoreRelayer;
+        bool updateWormholeRelayer;
         bool updateRewardAddress;
         /**
-         * Address of the CoreRelayer contract
+         * Address of the WormholeRelayer contract
          */
         address payable coreRelayer;
         /**

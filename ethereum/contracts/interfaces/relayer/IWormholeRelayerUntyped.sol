@@ -16,11 +16,9 @@ struct VaaKey {
 }
 
 interface IWormholeRelayerBase {
-    event SendEvent(
-        uint64 indexed sequence, uint256 deliveryQuote, uint256 paymentForExtraReceiverValue
-    );
+    event SendEvent(uint64 indexed sequence, uint256 deliveryQuote, uint256 paymentForExtraReceiverValue);
 
-    function getRegisteredCoreRelayerContract(uint16 chainId) external view returns (bytes32);
+    function getRegisteredWormholeRelayerContract(uint16 chainId) external view returns (bytes32);
 }
 
 /**
@@ -29,7 +27,7 @@ interface IWormholeRelayerBase {
  *   relayed to destination contract(s) of their choice.
  */
 interface IWormholeRelayerSend is IWormholeRelayerBase {
-    function sendToEvm(
+    function sendPayloadToEvm(
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
@@ -40,12 +38,32 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     /**
      * TODO
      */
-    function sendToEvm(
+    function sendPayloadToEvm(
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
         uint256 receiverValue,
         uint256 gasLimit,
+        uint16 refundChainId,
+        address refundAddress
+    ) external payable returns (uint64 sequence);
+
+    function sendVaasToEvm(
+        uint16 targetChain,
+        address targetAddress,
+        bytes memory payload,
+        uint256 receiverValue,
+        uint256 gasLimit,
+        VaaKey[] memory vaaKeys
+    ) external payable returns (uint64 sequence);
+
+    function sendVaasToEvm(
+        uint16 targetChain,
+        address targetAddress,
+        bytes memory payload,
+        uint256 receiverValue,
+        uint256 gasLimit,
+        VaaKey[] memory vaaKeys,
         uint16 refundChainId,
         address refundAddress
     ) external payable returns (uint64 sequence);
@@ -126,14 +144,21 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * @param targetAddress The address (in Wormhole 32-byte format) on chain `targetChain` of the contract to which the vaas are delivered.
      * This contract must implement the IWormholeReceiver interface, which simply requires a `receiveWormholeMessage(DeliveryData memory deliveryData, bytes[] memory signedVaas)` endpoint
      */
-    function forwardToEvm(
+    function forwardPayloadToEvm(
+        uint16 targetChain,
+        address targetAddress,
+        bytes memory payload,
+        uint256 receiverValue,
+        uint256 gasLimit
+    ) external payable;
+
+    function forwardVaasToEvm(
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
         uint256 receiverValue,
         uint256 gasLimit,
-        uint16 refundChainId,
-        address refundAddress
+        VaaKey[] memory vaaKeys
     ) external payable;
 
     function forwardToEvm(
@@ -229,7 +254,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         address relayProviderAddress
     ) external view returns (uint256 nativePriceQuote, bytes memory encodedExecutionInfo);
 
-    function quoteAssetConversion(
+    function quoteNativeForChain(
         uint16 targetChain,
         uint128 currentChainAmount,
         address relayProviderAddress
@@ -312,7 +337,7 @@ interface IWormholeRelayerDelivery is IWormholeRelayerBase {
      *
      * The messages will be relayed to the target address (with the specified gas limit and receiver value) iff the following checks are met:
      * - the delivery VAA has a valid signature
-     * - the delivery VAA's emitter is one of these CoreRelayer contracts
+     * - the delivery VAA's emitter is one of these WormholeRelayer contracts
      * - the delivery instruction container in the delivery VAA was fully funded
      * - msg.sender is the permissioned address allowed to execute this instruction
      * - the relay provider passed in at least [(one wormhole message fee) + instruction.maximumRefundTarget + instruction.receiverValueTarget] of this chain's currency as msg.value
@@ -321,7 +346,7 @@ interface IWormholeRelayerDelivery is IWormholeRelayerBase {
      *
      * @param encodedVMs - An array of signed wormhole messages (all from the same source chain
      *     transaction)
-     * @param encodedDeliveryVAA - Signed wormhole message from the source chain's CoreRelayer
+     * @param encodedDeliveryVAA - Signed wormhole message from the source chain's WormholeRelayer
      *     contract with payload being the encoded delivery instruction container
      * @param relayerRefundAddress - The address to which any refunds to the relay provider
      *     should be sent
@@ -352,11 +377,11 @@ error RequestedGasLimitTooLow();
 
 error RelayProviderDoesNotSupportTargetChain(address relayer, uint16 chainId);
 
-//When calling `forward()` on the CoreRelayer if no delivery is in progress
+//When calling `forward()` on the WormholeRelayer if no delivery is in progress
 error NoDeliveryInProgress();
 //When calling `delivery()` a second time even though a delivery is already in progress
 error ReentrantDelivery(address msgSender, address lockedBy);
-//When any other contract but the delivery target calls `forward()` on the CoreRelayer while a
+//When any other contract but the delivery target calls `forward()` on the WormholeRelayer while a
 //  delivery is in progress
 error ForwardRequestFromWrongAddress(address msgSender, address deliveryTarget);
 
@@ -366,13 +391,13 @@ error InvalidVaaKeyType(uint8 parsed);
 
 error InvalidDeliveryVaa(string reason);
 //When the delivery VAA (signed wormhole message with delivery instructions) was not emitted by the
-//  registered CoreRelayer contract
+//  registered WormholeRelayer contract
 error InvalidEmitter(bytes32 emitter, bytes32 registered, uint16 chainId);
 error VaaKeysLengthDoesNotMatchVaasLength(uint256 keys, uint256 vaas);
 error VaaKeysDoNotMatchVaas(uint8 index);
-//When someone tries to call an external function of the CoreRelayer that is only intended to be
-//  called by the CoreRelayer itself (to allow retroactive reverts for atomicity)
-error RequesterNotCoreRelayer();
+//When someone tries to call an external function of the WormholeRelayer that is only intended to be
+//  called by the WormholeRelayer itself (to allow retroactive reverts for atomicity)
+error RequesterNotWormholeRelayer();
 
 //When trying to relay a `DeliveryInstruction` to any other chain but the one it was specified for
 error TargetChainIsNotThisChain(uint16 targetChain);

@@ -25,13 +25,13 @@ contract AttackForwardIntegration is IWormholeReceiver {
 
     constructor(
         IWormhole initWormhole,
-        IWormholeRelayer initCoreRelayer,
+        IWormholeRelayer initWormholeRelayer,
         uint16 chainId,
         address initAttackerReward
     ) {
         attackerReward = initAttackerReward;
         wormhole = initWormhole;
-        core_relayer = initCoreRelayer;
+        core_relayer = initWormholeRelayer;
         targetChain = chainId;
     }
 

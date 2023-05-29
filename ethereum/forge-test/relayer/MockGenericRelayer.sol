@@ -11,7 +11,7 @@ import {
     DeliveryOverride,
     RedeliveryInstruction
 } from "../../contracts/libraries/relayer/RelayerInternalStructs.sol";
-import {CoreRelayerSerde} from "../../contracts/relayer/coreRelayer/CoreRelayerSerde.sol";
+import {WormholeRelayerSerde} from "../../contracts/relayer/coreRelayer/WormholeRelayerSerde.sol";
 import "../../contracts/libraries/external/BytesLib.sol";
 import "forge-std/Vm.sol";
 import "../../contracts/interfaces/relayer/TypedUnits.sol";
@@ -129,7 +129,7 @@ contract MockGenericRelayer {
         uint8 payloadId = parsedDeliveryVAA.payload.toUint8(0);
         if (payloadId == 1) {
             DeliveryInstruction memory instruction =
-                CoreRelayerSerde.decodeDeliveryInstruction(parsedDeliveryVAA.payload);
+                WormholeRelayerSerde.decodeDeliveryInstruction(parsedDeliveryVAA.payload);
 
             bytes[] memory encodedVMsToBeDelivered = new bytes[](instruction.vaaKeys.length);
 
@@ -167,7 +167,7 @@ contract MockGenericRelayer {
             );
         } else if (payloadId == 2) {
             RedeliveryInstruction memory instruction =
-                CoreRelayerSerde.decodeRedeliveryInstruction(parsedDeliveryVAA.payload);
+                WormholeRelayerSerde.decodeRedeliveryInstruction(parsedDeliveryVAA.payload);
 
             DeliveryOverride memory deliveryOverride = DeliveryOverride({
                 newExecutionInfo: instruction.newEncodedExecutionInfo,
@@ -187,7 +187,7 @@ contract MockGenericRelayer {
                 instruction.deliveryVaaKey.chainId, instruction.deliveryVaaKey.sequence
             );
 
-            uint16 targetChain = CoreRelayerSerde.decodeDeliveryInstruction(
+            uint16 targetChain = WormholeRelayerSerde.decodeDeliveryInstruction(
                 relayerWormhole.parseVM(oldEncodedDeliveryVAA).payload
             ).targetChain;
 
@@ -198,7 +198,7 @@ contract MockGenericRelayer {
                 oldEncodedVMs,
                 oldEncodedDeliveryVAA,
                 payable(relayers[targetChain]),
-                CoreRelayerSerde.encode(deliveryOverride)
+                WormholeRelayerSerde.encode(deliveryOverride)
             );
         }
     }

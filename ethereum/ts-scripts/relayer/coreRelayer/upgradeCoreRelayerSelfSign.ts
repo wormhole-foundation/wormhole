@@ -1,18 +1,14 @@
-import {
-  deployCoreRelayerImplementation,
-} from "../helpers/deployments";
+import { deployWormholeRelayerImplementation } from "../helpers/deployments";
 import {
   init,
   ChainInfo,
-  getCoreRelayer,
+  getWormholeRelayer,
   writeOutputFiles,
   getOperatingChains,
 } from "../helpers/env";
-import {
-  createCoreRelayerUpgradeVAA,
-} from "../helpers/vaa";
+import { createWormholeRelayerUpgradeVAA } from "../helpers/vaa";
 
-const processName = "upgradeCoreRelayerSelfSign";
+const processName = "upgradeWormholeRelayerSelfSign";
 init();
 const chains = getOperatingChains();
 
@@ -24,10 +20,10 @@ async function run() {
   };
 
   for (const chain of chains) {
-    const coreRelayerImplementation = await deployCoreRelayerImplementation(
-      chain,
+    const coreRelayerImplementation = await deployWormholeRelayerImplementation(
+      chain
     );
-    await upgradeCoreRelayer(chain, coreRelayerImplementation.address);
+    await upgradeWormholeRelayer(chain, coreRelayerImplementation.address);
 
     output.coreRelayerImplementations.push(coreRelayerImplementation);
   }
@@ -35,16 +31,16 @@ async function run() {
   writeOutputFiles(output, processName);
 }
 
-async function upgradeCoreRelayer(
+async function upgradeWormholeRelayer(
   chain: ChainInfo,
   newImplementationAddress: string
 ) {
-  console.log("upgradeCoreRelayer " + chain.chainId);
+  console.log("upgradeWormholeRelayer " + chain.chainId);
 
-  const coreRelayer = await getCoreRelayer(chain);
+  const coreRelayer = await getWormholeRelayer(chain);
 
   await coreRelayer.submitContractUpgrade(
-    createCoreRelayerUpgradeVAA(chain, newImplementationAddress)
+    createWormholeRelayerUpgradeVAA(chain, newImplementationAddress)
   );
 
   console.log(

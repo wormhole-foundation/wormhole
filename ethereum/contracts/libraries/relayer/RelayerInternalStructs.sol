@@ -31,7 +31,7 @@ struct RedeliveryInstruction {
 
 /**
  * @notice When a user requests a `resend()`, a `RedeliveryInstruction` is emitted by the
- *     CoreRelayer and in turn converted by the relay provider into an encoded (=serialized)
+ *     WormholeRelayer and in turn converted by the relay provider into an encoded (=serialized)
  *     `DeliveryOverride` struct which is then passed to `delivery()` to override the parameters of
  *     a previously failed delivery attempt.
  *

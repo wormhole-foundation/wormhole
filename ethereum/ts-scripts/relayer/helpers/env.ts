@@ -2,12 +2,12 @@ import { ChainId } from "@certusone/wormhole-sdk";
 import { ethers } from "ethers";
 import fs from "fs";
 
-import { CoreRelayer } from "../../../ethers-contracts";
+import { WormholeRelayer } from "../../../ethers-contracts";
 import { RelayProvider } from "../../../ethers-contracts";
 import { MockRelayerIntegration } from "../../../ethers-contracts";
 
 import { RelayProvider__factory } from "../../../ethers-contracts";
-import { CoreRelayer__factory } from "../../../ethers-contracts";
+import { WormholeRelayer__factory } from "../../../ethers-contracts";
 import { MockRelayerIntegration__factory } from "../../../ethers-contracts";
 import {
   Create2Factory,
@@ -175,7 +175,7 @@ export function loadRelayProviders(): Deployment[] {
   }
 }
 
-export function loadCoreRelayers(): Deployment[] {
+export function loadWormholeRelayers(): Deployment[] {
   const contractsFile = fs.readFileSync(
     `./ts-scripts/relayer/config/${env}/contracts.json`
   );
@@ -185,7 +185,7 @@ export function loadCoreRelayers(): Deployment[] {
   const contracts = JSON.parse(contractsFile.toString());
   if (contracts.useLastRun || lastRunOverride) {
     const lastRunFile = fs.readFileSync(
-      `./ts-scripts/relayer/output/${env}/deployCoreRelayer/lastrun.json`
+      `./ts-scripts/relayer/output/${env}/deployWormholeRelayer/lastrun.json`
     );
     if (!lastRunFile) {
       throw Error("Failed to find last run file for the Core Relayer process!");
@@ -348,7 +348,7 @@ export function getRelayProvider(
 }
 
 const coreRelayerAddressesCache: Partial<Record<ChainId, string>> = {};
-export async function getCoreRelayerAddress(
+export async function getWormholeRelayerAddress(
   chain: ChainInfo,
   forceCalculate?: boolean
 ): Promise<string> {
@@ -361,14 +361,14 @@ export async function getCoreRelayerAddress(
   const contracts = JSON.parse(contractsFile.toString());
   //If useLastRun is false, then we want to bypass the calculations and just use what the contracts file says.
   if (!contracts.useLastRun && !lastRunOverride && !forceCalculate) {
-    const thisChainsRelayer = loadCoreRelayers().find(
+    const thisChainsRelayer = loadWormholeRelayers().find(
       (x: any) => x.chainId == chain.chainId
     )?.address;
     if (thisChainsRelayer) {
       return thisChainsRelayer;
     } else {
       throw Error(
-        "Failed to find a CoreRelayer contract address on chain " +
+        "Failed to find a WormholeRelayer contract address on chain " +
           chain.chainId
       );
     }
@@ -386,12 +386,12 @@ export async function getCoreRelayerAddress(
   return coreRelayerAddressesCache[chain.chainId]!;
 }
 
-export async function getCoreRelayer(
+export async function getWormholeRelayer(
   chain: ChainInfo,
   provider?: ethers.providers.StaticJsonRpcProvider
-): Promise<CoreRelayer> {
-  const thisChainsRelayer = await getCoreRelayerAddress(chain);
-  return CoreRelayer__factory.connect(
+): Promise<WormholeRelayer> {
+  const thisChainsRelayer = await getWormholeRelayerAddress(chain);
+  return WormholeRelayer__factory.connect(
     thisChainsRelayer,
     provider || getSigner(chain)
   );

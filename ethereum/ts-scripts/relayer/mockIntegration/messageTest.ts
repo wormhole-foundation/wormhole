@@ -1,6 +1,6 @@
 import {
   ChainInfo,
-  getCoreRelayer,
+  getWormholeRelayer,
   getOperatingChains,
   init,
   loadChains,

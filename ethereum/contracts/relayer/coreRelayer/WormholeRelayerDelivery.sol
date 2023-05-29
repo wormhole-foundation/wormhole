@@ -15,7 +15,7 @@ import {
     InvalidOverrideGasLimit,
     InvalidOverrideReceiverValue,
     InvalidOverrideRefundPerGasUnused,
-    RequesterNotCoreRelayer,
+    RequesterNotWormholeRelayer,
     VaaKey,
     IWormholeRelayerDelivery,
     IWormholeRelayerSend
@@ -29,14 +29,14 @@ import {
     DeliveryOverride
 } from "../../libraries/relayer/RelayerInternalStructs.sol";
 import {BytesParsing} from "../../libraries/relayer/BytesParsing.sol";
-import {CoreRelayerSerde} from "./CoreRelayerSerde.sol";
-import {ForwardInstruction} from "./CoreRelayerStorage.sol";
-import {CoreRelayerBase} from "./CoreRelayerBase.sol";
+import {WormholeRelayerSerde} from "./WormholeRelayerSerde.sol";
+import {ForwardInstruction} from "./WormholeRelayerStorage.sol";
+import {WormholeRelayerBase} from "./WormholeRelayerBase.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 import "../../libraries/relayer/ExecutionParameters.sol";
 
-abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelivery {
-    using CoreRelayerSerde for *; //somewhat yucky but unclear what's a better alternative
+abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelayerDelivery {
+    using WormholeRelayerSerde for *; //somewhat yucky but unclear what's a better alternative
     using BytesParsing for bytes;
     using WeiLib for Wei;
     using GasLib for Gas;
@@ -55,9 +55,9 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
             revert InvalidDeliveryVaa(reason);
         }
 
-        bytes32 registeredCoreRelayer = getRegisteredCoreRelayerContract(vm.emitterChainId);
-        if (vm.emitterAddress != registeredCoreRelayer) {
-            revert InvalidEmitter(vm.emitterAddress, registeredCoreRelayer, vm.emitterChainId);
+        bytes32 registeredWormholeRelayer = getRegisteredWormholeRelayerContract(vm.emitterChainId);
+        if (vm.emitterAddress != registeredWormholeRelayer) {
+            revert InvalidEmitter(vm.emitterAddress, registeredWormholeRelayer, vm.emitterChainId);
         }
 
         DeliveryInstruction memory instruction = vm.payload.decodeDeliveryInstruction();
@@ -324,7 +324,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
         //  used as a means to retroactively revert the call to the delivery target if the forwards
         //  can't be funded
         if (msg.sender != address(this)) {
-            revert RequesterNotCoreRelayer();
+            revert RequesterNotWormholeRelayer();
         }
 
         Gas preGas = Gas.wrap(gasleft());

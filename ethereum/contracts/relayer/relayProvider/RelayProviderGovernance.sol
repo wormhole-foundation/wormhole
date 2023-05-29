@@ -38,16 +38,16 @@ abstract contract RelayProviderGovernance is
     event RewardAddressUpdated(address indexed newAddress);
     event TargetChainAddressUpdated(uint16 indexed targetChain, bytes32 indexed newAddress);
     event DeliverGasOverheadUpdated(Gas indexed oldGasOverhead, Gas indexed newGasOverhead);
-    event CoreRelayerUpdated(address coreRelayer);
+    event WormholeRelayerUpdated(address coreRelayer);
     event AssetConversionBufferUpdated(uint16 targetChain, uint16 buffer, uint16 bufferDenominator);
 
-    function updateCoreRelayer(address payable newAddress) external onlyOwner {
-        updateCoreRelayerImpl(newAddress);
+    function updateWormholeRelayer(address payable newAddress) external onlyOwner {
+        updateWormholeRelayerImpl(newAddress);
     }
 
-    function updateCoreRelayerImpl(address payable newAddress) internal {
-        setCoreRelayer(newAddress);
-        emit CoreRelayerUpdated(newAddress);
+    function updateWormholeRelayerImpl(address payable newAddress) internal {
+        setWormholeRelayer(newAddress);
+        emit WormholeRelayerUpdated(newAddress);
     }
 
     function updateSupportedChain(uint16 targetChain, bool isSupported) public onlyOwner {
@@ -246,8 +246,8 @@ abstract contract RelayProviderGovernance is
             }
         }
 
-        if (coreConfig.updateCoreRelayer) {
-            updateCoreRelayerImpl(coreConfig.coreRelayer);
+        if (coreConfig.updateWormholeRelayer) {
+            updateWormholeRelayerImpl(coreConfig.coreRelayer);
         }
 
         if (coreConfig.updateRewardAddress) {

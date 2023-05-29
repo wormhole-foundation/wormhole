@@ -15,9 +15,9 @@ import {
     DeliveryInstruction,
     RedeliveryInstruction
 } from "../../libraries/relayer/RelayerInternalStructs.sol";
-import {CoreRelayerSerde} from "./CoreRelayerSerde.sol";
-import {ForwardInstruction, getDefaultRelayProviderState} from "./CoreRelayerStorage.sol";
-import {CoreRelayerBase} from "./CoreRelayerBase.sol";
+import {WormholeRelayerSerde} from "./WormholeRelayerSerde.sol";
+import {ForwardInstruction, getDefaultRelayProviderState} from "./WormholeRelayerStorage.sol";
+import {WormholeRelayerBase} from "./WormholeRelayerBase.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 import "../../libraries/relayer/ExecutionParameters.sol";
 
@@ -26,11 +26,11 @@ import "../../libraries/relayer/ExecutionParameters.sol";
 //   all the silly checked math and ensure that we can't have overflow Panics either.
 // In send() and resend() we already check that maxTransactionFee + receiverValue == msg.value (via
 //   calcAndCheckFees(). We could perhaps introduce a similar check of <= this.balance in forward()
-//   and presumably a few more in our calculation/conversion functions CoreRelayerBase to ensure
+//   and presumably a few more in our calculation/conversion functions WormholeRelayerBase to ensure
 //   sensible numeric ranges everywhere.
 
-abstract contract CoreRelayerSend is CoreRelayerBase, IWormholeRelayerSend {
-    using CoreRelayerSerde for *; //somewhat yucky but unclear what's a better alternative
+abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSend {
+    using WormholeRelayerSerde for *; //somewhat yucky but unclear what's a better alternative
     using WeiLib for Wei;
     using GasLib for Gas;
 

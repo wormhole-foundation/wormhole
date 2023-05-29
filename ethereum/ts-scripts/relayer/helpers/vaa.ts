@@ -2,7 +2,7 @@ import { ethers } from "ethers";
 import { tryNativeToHexString } from "@certusone/wormhole-sdk";
 import {
   ChainInfo,
-  getCoreRelayerAddress,
+  getWormholeRelayerAddress,
   getRelayProviderAddress,
   loadGuardianKeys,
   loadGuardianSetIndex,
@@ -16,7 +16,7 @@ const governanceContract =
 const coreRelayerModule =
   "0x000000000000000000000000000000000000000000436f726552656c61796572";
 
-export function createCoreRelayerUpgradeVAA(
+export function createWormholeRelayerUpgradeVAA(
   chain: ChainInfo,
   newAddress: string
 ) {
@@ -64,7 +64,7 @@ export function createDefaultRelayProviderVAA(chain: ChainInfo) {
 export async function createRegisterChainVAA(
   chain: ChainInfo
 ): Promise<string> {
-  const coreRelayerAddress = await getCoreRelayerAddress(chain);
+  const coreRelayerAddress = await getWormholeRelayerAddress(chain);
   console.log(`Registering ${coreRelayerAddress} on chain ${chain.chainId}`);
 
   // bytes32 module;

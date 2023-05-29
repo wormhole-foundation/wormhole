@@ -16,7 +16,7 @@ import {
 import {BytesParsing} from "../../libraries/relayer/BytesParsing.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 
-library CoreRelayerSerde {
+library WormholeRelayerSerde {
     using BytesParsing for bytes;
     using WeiLib for Wei;
     using GasLib for Gas;

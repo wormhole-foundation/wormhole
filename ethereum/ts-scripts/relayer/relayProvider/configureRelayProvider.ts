@@ -5,7 +5,7 @@ import {
   loadChains,
   ChainInfo,
   loadScriptConfig,
-  getCoreRelayerAddress,
+  getWormholeRelayerAddress,
   getRelayProvider,
   getRelayProviderAddress,
   getOperatingChains,
@@ -42,7 +42,7 @@ async function run() {
 async function configureChainsRelayProvider(chain: ChainInfo) {
   console.log("about to perform RelayProvider configuration for chain " + chain.chainId);
   const relayProvider = getRelayProvider(chain);
-  const coreRelayer = await getCoreRelayerAddress(chain);
+  const coreRelayer = await getWormholeRelayerAddress(chain);
 
   const thisChainsConfigInfo = config.addresses.find(
     (x: any) => x.chainId == chain.chainId
@@ -60,7 +60,7 @@ async function configureChainsRelayProvider(chain: ChainInfo) {
   }
 
   const coreConfig: RelayProviderStructs.CoreConfigStruct = {
-    updateCoreRelayer: true,
+    updateWormholeRelayer: true,
     updateRewardAddress: true,
     coreRelayer,
     rewardAddress: thisChainsConfigInfo.rewardAddress,
