@@ -358,8 +358,6 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     Wei transactionFeeRefundAmount,
     ForwardInstruction[] storage forwardInstructions
   ) private {
-     //despite being external, we only allow ourselves to call this function (via CALL opcode)
-    //  used as a means to retroactively revert the call if the calls to the relay provider here revert
     if (msg.sender != address(this))
       revert RequesterNotCoreRelayer();
     Wei wormholeMessageFee = getWormholeMessageFee();
@@ -508,7 +506,7 @@ abstract contract CoreRelayerDelivery is CoreRelayerBase, IWormholeRelayerDelive
     uint offset = 0;
     bytes4 selector;
 
-    if(revertData.length < 4) {
+    if(revertData.length < 36) {
      return (0, false);
     }
     (selector, offset) = revertData.asBytes4Unchecked(offset);
