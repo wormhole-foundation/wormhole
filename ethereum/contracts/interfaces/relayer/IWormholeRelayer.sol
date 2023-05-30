@@ -24,11 +24,12 @@ interface IWormholeRelayerBase {
 }
 
 /**
- * IWormholeRelayer
- * @notice Users may use this interface to have wormhole messages (VAAs) in their transaction
+ * IWormholeRelayerSend
+ * @notice Users may use this interface to have payloads and/or wormhole VAAs
  *   relayed to destination contract(s) of their choice.
  */
 interface IWormholeRelayerSend is IWormholeRelayerBase {
+
     function sendPayloadToEvm(
         uint16 targetChain,
         address targetAddress,
