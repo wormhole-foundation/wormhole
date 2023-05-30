@@ -2,14 +2,16 @@
 
 pragma solidity ^0.8.0;
 
-import {IRelayProvider} from "../../contracts/interfaces/relayer/IRelayProvider.sol";
-import {RelayProvider} from "../../contracts/relayer/relayProvider/RelayProvider.sol";
-import {RelayProviderSetup} from "../../contracts/relayer/relayProvider/RelayProviderSetup.sol";
-import {RelayProviderImplementation} from
-    "../../contracts/relayer/relayProvider/RelayProviderImplementation.sol";
-import {RelayProviderProxy} from "../../contracts/relayer/relayProvider/RelayProviderProxy.sol";
-import {IWormholeRelayer} from "../../contracts/interfaces/relayer/IWormholeRelayer.sol";
-import {CoreRelayer} from "../../contracts/relayer/coreRelayer/CoreRelayer.sol";
+import {IDeliveryProvider} from "../../contracts/interfaces/relayer/IDeliveryProviderTyped.sol";
+import {DeliveryProvider} from "../../contracts/relayer/deliveryProvider/DeliveryProvider.sol";
+import {DeliveryProviderSetup} from
+    "../../contracts/relayer/deliveryProvider/DeliveryProviderSetup.sol";
+import {DeliveryProviderImplementation} from
+    "../../contracts/relayer/deliveryProvider/DeliveryProviderImplementation.sol";
+import {DeliveryProviderProxy} from
+    "../../contracts/relayer/deliveryProvider/DeliveryProviderProxy.sol";
+import {IWormholeRelayer} from "../../contracts/interfaces/relayer/IWormholeRelayerTyped.sol";
+import {WormholeRelayer} from "../../contracts/relayer/wormholeRelayer/WormholeRelayer.sol";
 import {Create2Factory} from "../../contracts/relayer/create2Factory/Create2Factory.sol";
 import {MockGenericRelayer} from "./MockGenericRelayer.sol";
 import {MockWormhole} from "./MockWormhole.sol";
@@ -35,8 +37,8 @@ contract TestHelpers {
         (, helperWormholeSimulator) = setUpWormhole(1);
     }
 
-    function registerCoreRelayerContract(
-        CoreRelayer governance,
+    function registerWormholeRelayerContract(
+        WormholeRelayer governance,
         IWormhole wormhole,
         uint16 currentChainId,
         uint16 chainId,
@@ -62,7 +64,7 @@ contract TestHelpers {
         });
 
         bytes memory signed = helperWormholeSimulator.encodeAndSignMessage(preSignedMessage);
-        governance.registerCoreRelayerContract(signed);
+        governance.registerWormholeRelayerContract(signed);
     }
 
     function setUpWormhole(uint16 chainId)
@@ -83,38 +85,43 @@ contract TestHelpers {
         wormholeContract = wormhole;
     }
 
-    function setUpRelayProvider(uint16 chainId) public returns (RelayProvider relayProvider) {
+    function setUpDeliveryProvider(
+        uint16 chainId,
+        address wormhole
+    ) public returns (DeliveryProvider deliveryProvider) {
         vm.prank(msg.sender);
-        RelayProviderSetup relayProviderSetup = new RelayProviderSetup();
+        DeliveryProviderSetup deliveryProviderSetup = new DeliveryProviderSetup();
         vm.prank(msg.sender);
-        RelayProviderImplementation relayProviderImplementation = new RelayProviderImplementation();
+        DeliveryProviderImplementation deliveryProviderImplementation =
+            new DeliveryProviderImplementation(wormhole);
         vm.prank(msg.sender);
-        RelayProviderProxy myRelayProvider = new RelayProviderProxy(
-            address(relayProviderSetup),
+        DeliveryProviderProxy myDeliveryProvider = new DeliveryProviderProxy(
+            address(deliveryProviderSetup),
             abi.encodeCall(
-                RelayProviderSetup.setup,
+                DeliveryProviderSetup.setup,
                 (
-                    address(relayProviderImplementation),
+                    address(deliveryProviderImplementation),
                     chainId
                 )
             )
         );
 
-        relayProvider = RelayProvider(address(myRelayProvider));
+        deliveryProvider = DeliveryProvider(address(myDeliveryProvider));
     }
 
-    function setUpCoreRelayer(
+    function setUpWormholeRelayer(
         IWormhole wormhole,
-        address defaultRelayProvider
+        address defaultDeliveryProvider
     ) public returns (IWormholeRelayer coreRelayer) {
         Create2Factory create2Factory = new Create2Factory();
 
         address proxyAddressComputed =
             create2Factory.computeProxyAddress(address(this), "0xGenericRelayer");
 
-        CoreRelayer coreRelayerImplementation = new CoreRelayer(address(wormhole));
+        WormholeRelayer coreRelayerImplementation = new WormholeRelayer(address(wormhole));
 
-        bytes memory initCall = abi.encodeCall(CoreRelayer.initialize, (defaultRelayProvider));
+        bytes memory initCall =
+            abi.encodeCall(WormholeRelayer.initialize, (defaultDeliveryProvider));
 
         coreRelayer = IWormholeRelayer(
             create2Factory.create2Proxy(

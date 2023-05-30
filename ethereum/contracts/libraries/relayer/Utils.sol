@@ -6,8 +6,8 @@ import "../../interfaces/relayer/TypedUnits.sol";
 
 error NotAnEvmAddress(bytes32);
 
-function pay(address payable receiver, Wei amount) returns (bool success) {
-  uint256 amount_ = Wei.unwrap(amount);
+function pay(address payable receiver, LocalNative amount) returns (bool success) {
+  uint256 amount_ = LocalNative.unwrap(amount);
   if (amount_ != 0)
     (success,) = receiver.call{value: amount_}("");
   else
