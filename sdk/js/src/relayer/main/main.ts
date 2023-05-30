@@ -170,7 +170,7 @@ export async function sendToEvm(
   targetChain: ChainName,
   targetAddress: string,
   payload: ethers.BytesLike,
-  gasLimit: number,
+  gasLimit: BigNumber | number,
   overrides?: ethers.PayableOverrides,
   sendOptionalParams?: SendOptionalParams,
 ): Promise<ethers.providers.TransactionResponse> {
@@ -379,7 +379,7 @@ export async function resendRaw(
   targetChain: ChainName,
   environment: Network,
   vaaKey: VaaKey,
-  newGasLimit: number,
+  newGasLimit: BigNumber | number,
   newReceiverValue: BigNumber | number,
   deliveryProviderAddress: string,
   overrides?: ethers.PayableOverrides
@@ -406,7 +406,7 @@ export async function resend(
   targetChain: ChainName,
   environment: Network,
   vaaKey: VaaKey,
-  newGasLimit: number,
+  newGasLimit: BigNumber | number,
   newReceiverValue: BigNumber | number,
   deliveryProviderAddress: string,
   wormholeRPCs: string[],
