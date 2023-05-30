@@ -117,7 +117,7 @@ export function stringifyWormholeRelayerInfo(info: DeliveryInfo): string {
                   e.transactionHash
                     ? ` ${targetChainName} transaction hash: ${e.transactionHash}`
                     : ""
-                }\nStatus: ${e.status}\n${e.revertString ? `Failure reason: ${e.gasUsed == executionInfo.gasLimit ? "Gas limit hit" : e.revertString}\n`: ""}Gas used: ${e.gasUsed}\nTransaction fee used: ${executionInfo.targetChainRefundPerGasUnused.mul(e.gasUsed).toString()} wei of ${targetChainName} currency\n}`
+                }\nStatus: ${e.status}\n${e.revertString ? `Failure reason: ${e.gasUsed.eq(executionInfo.gasLimit) ? "Gas limit hit" : e.revertString}\n`: ""}Gas used: ${e.gasUsed.toString()}\nTransaction fee used: ${executionInfo.targetChainRefundPerGasUnused.mul(e.gasUsed).toString()} wei of ${targetChainName} currency\n}`
             )
             .join("\n");
    } else if (info.type == RelayerPayloadId.Delivery && info.deliveryInstruction.targetAddress.toString("hex") === "0000000000000000000000000000000000000000000000000000000000000000") {

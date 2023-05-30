@@ -31,7 +31,7 @@ export type DeliveryTargetInfo = {
   vaaHash: string | null;
   sourceChain: ChainName;
   sourceVaaSequence: BigNumber | null;
-  gasUsed: number;
+  gasUsed: BigNumber;
   refundStatus: RefundStatus;
   revertString?: string; // Only defined if status is RECEIVER_FAILURE or FORWARD_REQUEST_FAILURE
   overrides?: DeliveryOverrideArgs;
@@ -127,7 +127,7 @@ export async function getWormholeRelayerInfoBySourceSequence(
       vaaHash: null,
       sourceChain: sourceChain,
       sourceVaaSequence,
-      gasUsed: 0,
+      gasUsed: BigNumber.from(0),
       refundStatus: RefundStatus.RefundFail
     });
   }
@@ -207,7 +207,7 @@ async function transformDeliveryEvents(
         vaaHash: x.args[3],
         sourceVaaSequence: x.args[2],
         sourceChain,
-        gasUsed: x.args[5],
+        gasUsed: BigNumber.from(x.args[5]),
         refundStatus: x.args[6],
         revertString: (status == DeliveryStatus.ReceiverFailure) ? x.args[7] : (status == DeliveryStatus.ForwardRequestFailure ? parseForwardFailureError(Buffer.from(x.args[7].substring(2), "hex")): undefined),
         overridesInfo: (Buffer.from(x.args[8].substring(2), "hex").length > 0) && parseOverrideInfoFromDeliveryEvent(Buffer.from(x.args[8].substring(2), "hex"))
