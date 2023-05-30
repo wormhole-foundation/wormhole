@@ -121,7 +121,7 @@ abstract contract WormholeRelayerGovernance is WormholeRelayerBase, ERC1967Upgra
     {
         bytes memory payload = verifyAndConsumeGovernanceVM(encodedVm);
         uint256 offset = parseAndCheckPayloadHeader(
-            payload, GOVERNANCE_ACTION_REGISTER_CORE_RELAYER_CONTRACT, true
+            payload, GOVERNANCE_ACTION_REGISTER_WORMHOLE_RELAYER_CONTRACT, true
         );
 
         (foreignChainId, offset) = payload.asUint16Unchecked(offset);
