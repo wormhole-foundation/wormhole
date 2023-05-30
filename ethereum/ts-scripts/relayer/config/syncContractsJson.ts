@@ -17,7 +17,7 @@ interface Address {
 }
 interface ContractsJson {
   deliveryProviders: Address[];
-  coreRelayers: Address[];
+  wormholeRelayers: Address[];
   mockIntegrations: Address[];
   create2Factories: Address[];
 }
@@ -29,7 +29,7 @@ async function main() {
   console.log("Old:");
   console.log(`${String(blob)}`);
   contracts.deliveryProviders = [] as any;
-  contracts.coreRelayers = [] as any;
+  contracts.wormholeRelayers = [] as any;
   contracts.mockIntegrations = [] as any;
   contracts.create2Factories = [] as any;
   for (const chain of chains) {
@@ -37,7 +37,7 @@ async function main() {
       chainId: chain.chainId,
       address: getDeliveryProvider(chain).address,
     });
-    update(contracts.coreRelayers, {
+    update(contracts.wormholeRelayers, {
       chainId: chain.chainId,
       address: (await getWormholeRelayer(chain)).address,
     });
