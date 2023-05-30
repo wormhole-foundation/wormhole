@@ -32,7 +32,7 @@ export async function deployDeliveryProviderImplementation(
     bytecode,
     signer
   );
-  const contract = await factory.deploy();
+  const contract = await factory.deploy(chain.wormholeAddress);
   return await contract.deployed().then((result) => {
     console.log("Successfully deployed contract at " + result.address);
     return { address: result.address, chainId: chain.chainId };
