@@ -141,7 +141,7 @@ type (
 
 	// BodyWormholeRelayerSetDefaultDeliveryProvider is a governance message to set the default relay provider for the Wormhole Relayer.
 	BodyWormholeRelayerSetDefaultDeliveryProvider struct {
-		ChainID                        ChainID
+		ChainID                           ChainID
 		NewDefaultDeliveryProviderAddress Address
 	}
 )

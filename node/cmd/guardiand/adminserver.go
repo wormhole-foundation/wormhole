@@ -381,7 +381,7 @@ func wormholeRelayerSetDefaultDeliveryProvider(req *nodev1.WormholeRelayerSetDef
 
 	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
 		vaa.BodyWormholeRelayerSetDefaultDeliveryProvider{
-			ChainID:                        vaa.ChainID(req.ChainId),
+			ChainID:                           vaa.ChainID(req.ChainId),
 			NewDefaultDeliveryProviderAddress: NewDefaultDeliveryProviderAddress,
 		}.Serialize())
 
