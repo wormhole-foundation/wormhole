@@ -18,7 +18,8 @@ import "../../contracts/interfaces/relayer/IWormholeRelayerTyped.sol";
 import {
     DeliveryInstruction,
     RedeliveryInstruction,
-    DeliveryOverride
+    DeliveryOverride,
+    EvmDeliveryInstruction
 } from "../../contracts/libraries/relayer/RelayerInternalStructs.sol";
 import {WormholeRelayer} from "../../contracts/relayer/wormholeRelayer/WormholeRelayer.sol";
 import {MockGenericRelayer} from "./MockGenericRelayer.sol";
@@ -32,6 +33,7 @@ import {
     XAddress,
     DeliveryData
 } from "../../contracts/mock/relayer/MockRelayerIntegration.sol";
+import {BigRevertBufferIntegration} from "./BigRevertBufferIntegration.sol";
 import {ForwardTester} from "./ForwardTester.sol";
 import {TestHelpers} from "./TestHelpers.sol";
 import {WormholeRelayerSerde} from "../../contracts/relayer/wormholeRelayer/WormholeRelayerSerde.sol";
@@ -2397,5 +2399,49 @@ contract WormholeRelayerTests is Test {
         assertTrue(deliveryData.sourceChain == setup.sourceChain, "Source chain id wrong");
         assertTrue(deliveryData.deliveryHash == deliveryVaaHash, "delivery vaa hash wrong");
         assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message), "payload wrong");
+    }
+
+    function testExecuteInstructionTruncatesLongRevertBuffers(
+        GasParameters memory gasParams,
+        FeeParameters memory feeParams,
+        uint32 minTargetGasLimit
+    ) public {
+        StandardSetupTwoChains memory setup = standardAssumeAndSetupTwoChains(gasParams, feeParams, minTargetGasLimit);
+        Gas gasLimit = Gas.wrap(500_000);
+        uint256 sizeRequested = 512;
+        bytes32 targetIntegration = toWormholeFormat(address(new BigRevertBufferIntegration()));
+        // We encode 512 as the requested revert buffer length to our test integration contract
+        bytes memory payload = abi.encode(sizeRequested);
+        bytes32 userAddress = toWormholeFormat(address(0x8080));
+
+        vm.prank(address(setup.target.coreRelayerFull));
+        (uint8 status, Gas gasUsed, bytes memory revertData) = setup.target.coreRelayerFull.executeInstruction(
+            EvmDeliveryInstruction({
+              sourceChain: setup.sourceChain,
+              targetAddress: targetIntegration,
+              payload: payload,
+              gasLimit: gasLimit,
+              totalReceiverValue: TargetNative.wrap(0),
+              targetChainRefundPerGasUnused: GasPrice.wrap(0),
+              senderAddress: userAddress,
+              deliveryHash: bytes32(0),
+              signedVaas: new bytes[](0)
+            })
+        );
+
+        assertTrue(status == uint8(IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE));
+        assertTrue(gasUsed <= gasLimit);
+        assertEq(revertData, abi.encodePacked(
+            // First word
+            bytes32(0x000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f),
+            // Second word
+            bytes32(0x202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f),
+            // Third word
+            bytes32(0x404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f),
+            // Fourth word
+            bytes32(0x606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f),
+            // Four extra bytes
+            bytes4(0x80818283)
+        ));
     }
 }

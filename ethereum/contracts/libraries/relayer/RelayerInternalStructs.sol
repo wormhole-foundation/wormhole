@@ -20,6 +20,20 @@ struct DeliveryInstruction {
     VaaKey[] vaaKeys;
 }
 
+// Meant to hold all necessary values for `CoreRelayerDelivery::executeInstruction`
+// Nothing more and nothing less.
+struct EvmDeliveryInstruction {
+  uint16 sourceChain;
+  bytes32 targetAddress;
+  bytes payload;
+  Gas gasLimit;
+  TargetNative totalReceiverValue;
+  GasPrice targetChainRefundPerGasUnused;
+  bytes32 senderAddress;
+  bytes32 deliveryHash;
+  bytes[] signedVaas;
+}
+
 struct RedeliveryInstruction {
     VaaKey deliveryVaaKey;
     uint16 targetChain;
