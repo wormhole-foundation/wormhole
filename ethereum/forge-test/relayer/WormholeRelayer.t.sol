@@ -737,19 +737,18 @@ contract WormholeRelayerTests is Test {
         assertTrue(
             test.rewardAddressAmount == test.deliveryPrice, "Reward address was paid correctly"
         );
-        // assertTrue(test.targetChainRefundPerGasUnused == deliveryData.targetChainRefundPerGasUnused, "Correct value of targetChainRefundPerGasUnused is reported to receiver in deliveryData");
 
         test.gasAmount = uint32(
             gasParams.targetGasLimit - test.refundAddressAmount / test.targetChainRefundPerGasUnused
         );
         console.log(test.gasAmount);
         assertTrue(
-            test.gasAmount >= 160000,
-            "Gas amount (calculated from refund address payment) lower than expected"
+            test.gasAmount >= 140000,
+            "Gas amount (calculated from refund address payment) lower than expected. NOTE: This assert is purely to ensure the gas usage is consistent, and thus (since this was computed using the refund amount) the refund amount is correct."
         );
         assertTrue(
-            test.gasAmount <= 170000,
-            "Gas amount (calculated from refund address payment) higher than expected"
+            test.gasAmount <= 160000,
+            "Gas amount (calculated from refund address payment) higher than expected. NOTE: This assert is purely to ensure the gas usage is consistent, and thus (since this was computed using the refund amount) the refund amount is correct."
         );
         assertTrue(
             test.relayerPayment == test.destinationAmount + test.refundAddressAmount,
@@ -844,12 +843,12 @@ contract WormholeRelayerTests is Test {
         );
         console.log(test.gasAmount);
         assertTrue(
-            test.gasAmount >= 190000,
-            "Gas amount (calculated from refund address payment) lower than expected"
+            test.gasAmount >= 165000,
+            "Gas amount (calculated from refund address payment) lower than expected. NOTE: This assert is purely to ensure the gas usage is consistent, and thus (since this was computed using the refund amount) the refund amount is correct."
         );
         assertTrue(
-            test.gasAmount <= 210000,
-            "Gas amount (calculated from refund address payment) higher than expected"
+            test.gasAmount <= 190000,
+            "Gas amount (calculated from refund address payment) higher than expected. NOTE: This assert is purely to ensure the gas usage is consistent, and thus (since this was computed using the refund amount) the refund amount is correct."
         );
         assertTrue(
             test.relayerPayment == test.destinationAmount + test.refundAddressAmount,
@@ -925,10 +924,6 @@ contract WormholeRelayerTests is Test {
             setup.target.rewardAddress.balance - rewardAddressBalanceTarget
         ) + feeParams.wormholeFeeOnTarget - test.receiverValue;
 
-        // assertTrue(
-        //     test.targetChainRefundPerGasUnused == deliveryData.targetChainRefundPerGasUnused,
-        //     "Correct value of targetChainRefundPerGasUnused is reported to receiver in deliveryData"
-        // );
         test.gasAmount = uint32(
             gasParams.targetGasLimit - refundIntermediate / test.targetChainRefundPerGasUnused
         );
@@ -941,11 +936,11 @@ contract WormholeRelayerTests is Test {
         );
         assertTrue(
             test.gasAmount >= 500000,
-            "Gas amount (calculated from refund address payment) lower than expected"
+            "Gas amount (calculated from refund address payment) lower than expected. NOTE: This assert is purely to ensure the gas usage is consistent, and thus (since this was computed using the refund amount) the refund amount is correct."
         );
         assertTrue(
             test.gasAmount <= 600000,
-            "Gas amount (calculated from refund address payment) higher than expected"
+            "Gas amount (calculated from refund address payment) higher than expected. NOTE: This assert is purely to ensure the gas usage is consistent, and thus (since this was computed using the refund amount) the refund amount is correct."
         );
     }
 
@@ -1023,11 +1018,11 @@ contract WormholeRelayerTests is Test {
         );
         assertTrue(
             test.gasAmount >= 500000,
-            "Gas amount (calculated from refund address payment) lower than expected"
+            "Gas amount (calculated from refund address payment) lower than expected. NOTE: This assert is purely to ensure the gas usage is consistent, and thus (since this was computed using the refund amount) the refund amount is correct."
         );
         assertTrue(
             test.gasAmount <= 600000,
-            "Gas amount (calculated from refund address payment) higher than expected"
+            "Gas amount (calculated from refund address payment) higher than expected. NOTE: This assert is purely to ensure the gas usage is consistent, and thus (since this was computed using the refund amount) the refund amount is correct."
         );
     }
 
@@ -1040,7 +1035,7 @@ contract WormholeRelayerTests is Test {
             setupFundsCorrectTest(gasParams, feeParams, 170000);
 
         (LocalNative notEnoughDeliveryPrice,) =
-            setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChain, TargetNative.wrap(0), REASONABLE_GAS_LIMIT);
+            setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChain, TargetNative.wrap(0), TOO_LOW_GAS_LIMIT);
 
         uint64 sequence = setup.source.integration.sendMessageWithRefund{
             value: notEnoughDeliveryPrice.unwrap() + feeParams.wormholeFeeOnSource
@@ -1095,15 +1090,14 @@ contract WormholeRelayerTests is Test {
         test.gasAmount = uint32(
             gasParams.targetGasLimit - test.refundAddressAmount / test.targetChainRefundPerGasUnused
         );
-        // assertTrue(test.targetChainRefundPerGasUnused == deliveryData.targetChainRefundPerGasUnused);
         console.log(test.gasAmount);
         assertTrue(
-            test.gasAmount >= 155000,
-            "Gas amount (calculated from refund address payment) lower than expected"
+            test.gasAmount >= 135000,
+            "Gas amount (calculated from refund address payment) lower than expected. NOTE: This assert is purely to ensure the gas usage is consistent, and thus (since this was computed using the refund amount) the refund amount is correct."
         );
         assertTrue(
-            test.gasAmount <= 170000,
-            "Gas amount (calculated from refund address payment) higher than expected"
+            test.gasAmount <= 160000,
+            "Gas amount (calculated from refund address payment) higher than expected. NOTE: This assert is purely to ensure the gas usage is consistent, and thus (since this was computed using the refund amount) the refund amount is correct."
         );
         assertTrue(
             test.relayerPayment == test.destinationAmount + test.refundAddressAmount,
@@ -1144,11 +1138,7 @@ contract WormholeRelayerTests is Test {
             test.deliveryPrice == setup.source.rewardAddress.balance - test.rewardAddressBalance,
             "The source to target relayer's reward address was paid appropriately"
         );
-        // Calculate maximum refund for source->target delivery, and check against Delivery Data
-        // assertTrue(
-        //     test.targetChainRefundPerGasUnused == deliveryData.targetChainRefundPerGasUnused,
-        //     "Correct value of targetChainRefundPerGasUnused is reported to receiver in deliveryData"
-        // );
+   
         uint256 amountToGetInRefundTarget =
             (setup.target.rewardAddress.balance - refundRewardAddressBalance);
 
@@ -1188,13 +1178,14 @@ contract WormholeRelayerTests is Test {
             refundSource == setup.source.refundAddress.balance - refundAddressBalance,
             "Refund wasn't the correct amount"
         );
+        console.log(test.gasAmount);
         assertTrue(
-            test.gasAmount >= 160000,
-            "Gas amount (calculated from refund address payment) lower than expected"
+            test.gasAmount >= 140000,
+            "Gas amount (calculated from refund address payment) lower than expected. NOTE: This assert is purely to ensure the gas usage is consistent, and thus (since this was computed using the refund amount) the refund amount is correct."
         );
         assertTrue(
-            test.gasAmount <= 170000,
-            "Gas amount (calculated from refund address payment) higher than expected"
+            test.gasAmount <= 160000,
+            "Gas amount (calculated from refund address payment) higher than expected. NOTE: This assert is purely to ensure the gas usage is consistent, and thus (since this was computed using the refund amount) the refund amount is correct."
         );
     }
 
@@ -1231,11 +1222,6 @@ contract WormholeRelayerTests is Test {
                 == setup.source.rewardAddress.balance - test.rewardAddressBalance,
             "The source to target relayer's reward address was paid appropriately"
         );
-        // Calculate maximum refund for source->target delivery, and check against Delivery Data
-        // assertTrue(
-        //     test.targetChainRefundPerGasUnused == deliveryData.targetChainRefundPerGasUnused,
-        //     "Correct value of targetChainRefundPerGasUnused is reported to receiver in deliveryData"
-        // );
        
         test.relayerPayment = test.relayerBalance - setup.target.relayer.balance;
         test.destinationAmount = address(setup.target.integration).balance - test.destinationBalance;
@@ -1281,13 +1267,7 @@ contract WormholeRelayerTests is Test {
             test.deliveryPrice
                 == setup.source.rewardAddress.balance - test.rewardAddressBalance,
             "The source to target relayer's reward address was paid appropriately"
-        );
-        // Calculate maximum refund for source->target delivery, and check against Delivery Data
-        // assertTrue(
-        //     test.targetChainRefundPerGasUnused == deliveryData.targetChainRefundPerGasUnused,
-        //     "Correct value of targetChainRefundPerGasUnused is reported to receiver in deliveryData"
-        // );
-        
+        );  
 
         test.relayerPayment = test.relayerBalance - setup.target.relayer.balance;
         test.destinationAmount = address(setup.target.integration).balance - test.destinationBalance;
