@@ -197,13 +197,13 @@ export async function sendToEvm(
   // Inputs:
   // targetChainId, targetAddress, refundChainId, refundAddress, maxTransactionFee, receiverValue, payload, vaaKeys, 
   // consistencyLevel, deliveryProviderAddress, relayParameters 
-  const [deliveryPrice,]: [BigNumber, BigNumber] = await sourceWormholeRelayer["quoteEVMDeliveryPrice(uint16,uint128,uint32,address)"](targetChainId, sendOptionalParams?.receiverValue || 0, gasLimit, sendOptionalParams?.deliveryProviderAddress || defaultDeliveryProviderAddress);
+  const [deliveryPrice,]: [BigNumber, BigNumber] = await sourceWormholeRelayer["quoteEVMDeliveryPrice(uint16,uint256,uint256,address)"](targetChainId, sendOptionalParams?.receiverValue || 0, gasLimit, sendOptionalParams?.deliveryProviderAddress || defaultDeliveryProviderAddress);
   const value = await (overrides?.value || 0);
   const totalPrice = deliveryPrice.add(sendOptionalParams?.paymentForExtraReceiverValue || 0);
   if(!totalPrice.eq(value)) {
     throw new Error(`Expected a payment of ${totalPrice.toString()} wei; received ${value.toString()} wei`);
   }
-  const tx = sourceWormholeRelayer["sendToEvm(uint16,address,bytes,uint256,uint256,uint256,uint16,address,address,(uint16,bytes32,uint64)[],uint8)"](
+  const tx = sourceWormholeRelayer.sendToEvm(
     targetChainId, // targetChainId
     targetAddress, // targetAddress
     payload,
@@ -267,7 +267,7 @@ export async function getPriceAndRefundInfo(
     (await sourceWormholeRelayer.getDefaultDeliveryProvider());
   const targetChainId = CHAINS[targetChain];
   const priceAndRefundInfo = (
-    await sourceWormholeRelayer["quoteEVMDeliveryPrice(uint16,uint128,uint32,address)"](
+    await sourceWormholeRelayer["quoteEVMDeliveryPrice(uint16,uint256,uint256,address)"](
       targetChainId,
       optionalParams?.receiverValue || 0,
       gasAmount,
@@ -458,7 +458,7 @@ export async function resend(
     signer.provider!
   );
 
-  const [deliveryPrice, refundPerUnitGas]: [BigNumber, BigNumber] = await wormholeRelayer["quoteEVMDeliveryPrice(uint16,uint128,uint32,address)"](targetChainId, newReceiverValue || 0, newGasLimit, deliveryProviderAddress);
+  const [deliveryPrice, refundPerUnitGas]: [BigNumber, BigNumber] = await wormholeRelayer["quoteEVMDeliveryPrice(uint16,uint256,uint256,address)"](targetChainId, newReceiverValue || 0, newGasLimit, deliveryProviderAddress);
   const value = await (overrides?.value || 0);
   if(!deliveryPrice.eq(value)) {
     throw new Error(`Expected a payment of ${deliveryPrice.toString()} wei; received ${value.toString()} wei`);

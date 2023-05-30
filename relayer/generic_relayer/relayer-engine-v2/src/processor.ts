@@ -17,7 +17,7 @@ import {
 import { EVMChainId } from "@certusone/wormhole-sdk";
 import { GRContext } from "./app";
 import { BigNumber, ethers } from "ethers";
-import { WormholeRelayer__factory } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
+import { IWormholeRelayerDelivery__factory } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
 
 
 export async function processGenericRelayerVaa(ctx: GRContext, next: Next) {
@@ -200,7 +200,7 @@ async function processDeliveryInstruction(
   const budget = receiverValue.add(maxRefund);
 
   await ctx.wallets.onEVM(chainId, async ({ wallet }) => {
-    const wormholeRelayer = WormholeRelayer__factory.connect(
+    const wormholeRelayer = IWormholeRelayerDelivery__factory.connect(
       ctx.wormholeRelayers[chainId],
       wallet
     );
@@ -246,7 +246,7 @@ function logResults(
     return x.address === ctx.wormholeRelayers[chainId];
   });
   if (relayerContractLog) {
-    const parsedLog = WormholeRelayer__factory.createInterface().parseLog(
+    const parsedLog = IWormholeRelayerDelivery__factory.createInterface().parseLog(
       relayerContractLog!
     );
     const logArgs = {
