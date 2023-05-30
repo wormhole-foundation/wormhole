@@ -115,6 +115,8 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
     // ------------------------------------------- PRIVATE -------------------------------------------
 
     error Cancelled(uint32 gasUsed, uint256 available, uint256 required);
+    error DeliveryProviderReverted(uint32 gasUsed);
+    error DeliveryProviderPaymentFailed(uint32 gasUsed);
 
     struct DeliveryVAAInfo {
         uint16 sourceChain;
@@ -265,14 +267,13 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         catch (bytes memory revertData) {
             //decode returned Cancelled error
 
-            uint256 available;
-            uint256 required;
+            bool knownError;
             uint32 gasUsed_;
-            (gasUsed_, available, required) = decodeCancelled(revertData);
+            (gasUsed_, knownError) =tryDecodeExecuteInstructionError(revertData);
             results = DeliveryResults(
-                Gas.wrap(gasUsed_),
+                knownError? Gas.wrap(gasUsed_) : vaaInfo.gasLimit,
                 DeliveryStatus.FORWARD_REQUEST_FAILURE,
-                abi.encodeWithSelector(ForwardNotSufficientlyFunded.selector, available, required)
+                revertData
             );
         }
 
@@ -392,6 +393,9 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         LocalNative transactionFeeRefundAmount,
         ForwardInstruction[] storage forwardInstructions
     ) private {
+        if (msg.sender != address(this))
+            revert RequesterNotWormholeRelayer();
+
         LocalNative wormholeMessageFee = getWormholeMessageFee();
 
         //Decode send requests and aggregate fee and payment
@@ -424,9 +428,15 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             revert Cancelled(uint32(gasUsed.unwrap()), fundsForForward.unwrap(), totalFee.unwrap());
         }
 
-        TargetNative extraReceiverValue = IDeliveryProvider(
+        TargetNative extraReceiverValue;
+        try IDeliveryProvider(
             fromWormholeFormat(instructions[0].sourceDeliveryProvider)
-        ).quoteAssetConversion(instructions[0].targetChain, fundsForForward - totalFee);
+        ).quoteAssetConversion(instructions[0].targetChain, fundsForForward - totalFee)
+        returns (TargetNative _extraReceiverValue) {
+            extraReceiverValue = _extraReceiverValue;
+        } catch {
+            revert DeliveryProviderReverted(uint32(gasUsed.unwrap()));
+        }
         //Increases the maxTransactionFee of the first forward in order to use all of the funds
         unchecked {
             instructions[0].extraReceiverValue =
@@ -435,15 +445,18 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
 
         //Publishes the DeliveryInstruction and pays the associated deliveryProvider
         for (uint256 i = 0; i < forwardInstructions.length;) {
-            publishAndPay(
+            (, bool paymentSucceeded) = publishAndPay(
                 wormholeMessageFee,
                 forwardInstructions[i].deliveryPrice,
                 forwardInstructions[i].paymentForExtraReceiverValue
                     + ((i == 0) ? (fundsForForward - totalFee) : LocalNative.wrap(0)),
                 i == 0 ? instructions[0].encode() : forwardInstructions[i].encodedInstruction,
                 forwardInstructions[i].consistencyLevel,
-                IDeliveryProvider(fromWormholeFormat(instructions[i].sourceDeliveryProvider))
+                forwardInstructions[i].rewardAddress
             );
+            if (!paymentSucceeded) {
+                revert DeliveryProviderPaymentFailed(uint32(gasUsed.unwrap()));
+            }
             unchecked {
                 ++i;
             }
@@ -562,19 +575,21 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         }
     }
 
-    function decodeCancelled(bytes memory revertData)
-        private
-        pure
-        returns (uint32 gasUsed, uint256 available, uint256 required)
-    {
-        uint256 offset = 0;
+    function tryDecodeExecuteInstructionError(
+        bytes memory revertData
+    ) private pure returns (uint32 gasUsed, bool knownError) {
+        uint offset = 0;
         bytes4 selector;
+        // Check to see if the following decode can be performed
+        if(revertData.length < 36) {
+            return (0, false);
+        }
         (selector, offset) = revertData.asBytes4Unchecked(offset);
-        offset += 28;
-        (gasUsed, offset) = revertData.asUint32Unchecked(offset);
-        (available, offset) = revertData.asUint256Unchecked(offset);
-        (required, offset) = revertData.asUint256Unchecked(offset);
-        assert(offset == revertData.length && selector == Cancelled.selector);
+        if((selector == Cancelled.selector) || (selector == DeliveryProviderReverted.selector) || (selector == DeliveryProviderPaymentFailed.selector)) {
+            knownError = true;
+            offset += 28;
+            (gasUsed, offset) = revertData.asUint32Unchecked(offset);
+        }
     }
 
     function checkVaaKeysWithVAAs(

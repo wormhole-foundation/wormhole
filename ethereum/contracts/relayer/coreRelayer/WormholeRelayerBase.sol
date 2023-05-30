@@ -85,15 +85,15 @@ abstract contract WormholeRelayerBase is IWormholeRelayerBase {
         LocalNative paymentForExtraReceiverValue,
         bytes memory encodedInstruction,
         uint8 consistencyLevel,
-        IDeliveryProvider deliveryProvider
-    ) internal returns (uint64 sequence) {
+        address payable rewardAddress
+    ) internal returns (uint64 sequence, bool paymentSucceeded) {
         sequence = getWormhole().publishMessage{value: wormholeMessageFee.unwrap()}(
             0, encodedInstruction, consistencyLevel
         );
 
         //TODO AMO: what if pay fails? (i.e. returns false)
-        pay(
-            deliveryProvider.getRewardAddress(),
+        paymentSucceeded = pay(
+            rewardAddress,
             deliveryQuote + paymentForExtraReceiverValue
         );
 

@@ -380,6 +380,7 @@ error InvalidMsgValue(LocalNative msgValue, LocalNative totalFee);
 error RequestedGasLimitTooLow();
 
 error DeliveryProviderDoesNotSupportTargetChain(address relayer, uint16 chainId);
+error DeliveryProviderCannotReceivePayment();
 
 //When calling `forward()` on the WormholeRelayer if no delivery is in progress
 error NoDeliveryInProgress();

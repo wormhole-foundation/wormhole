@@ -5,6 +5,7 @@ pragma solidity ^0.8.19;
 import {
     DeliveryProviderDoesNotSupportTargetChain,
     InvalidMsgValue,
+    DeliveryProviderCannotReceivePayment,
     VaaKey,
     IWormholeRelayerSend
 } from "../../interfaces/relayer/IWormholeRelayerTyped.sol";
@@ -30,7 +31,7 @@ import "../../libraries/relayer/ExecutionParameters.sol";
 //   sensible numeric ranges everywhere.
 
 abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSend {
-    using WormholeRelayerSerde for *; //somewhat yucky but unclear what's a better alternative
+    using WormholeRelayerSerde for *; 
     using WeiLib for Wei;
     using GasLib for Gas;
     using TargetNativeLib for TargetNative;
@@ -369,14 +370,17 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             vaaKeys: sendParams.vaaKeys
         }).encode();
 
-        sequence = publishAndPay(
+        bool paymentSucceeded;
+        (sequence, paymentSucceeded) = publishAndPay(
             wormholeMessageFee,
             deliveryPrice,
             sendParams.paymentForExtraReceiverValue,
             encodedInstruction,
             sendParams.consistencyLevel,
-            provider
+            provider.getRewardAddress()
         );
+        if(!paymentSucceeded) 
+            revert DeliveryProviderCannotReceivePayment();
     }
 
     function forward(Send memory sendParams) internal {
@@ -414,7 +418,8 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
                 msgValue: LocalNative.wrap(msg.value),
                 deliveryPrice: deliveryPrice,
                 paymentForExtraReceiverValue: sendParams.paymentForExtraReceiverValue,
-                consistencyLevel: sendParams.consistencyLevel
+                consistencyLevel: sendParams.consistencyLevel,
+                rewardAddress: provider.getRewardAddress()
             })
         );
     }
@@ -448,14 +453,17 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             newSenderAddress: toWormholeFormat(msg.sender)
         }).encode();
 
-        sequence = publishAndPay(
+        bool paymentSucceeded;
+        (sequence, paymentSucceeded) = publishAndPay(
             wormholeMessageFee,
             deliveryPrice,
             LocalNative.wrap(0),
             encodedInstruction,
             CONSISTENCY_LEVEL_INSTANT,
-            provider
+            provider.getRewardAddress()
         );
+        if (!paymentSucceeded)
+            revert DeliveryProviderCannotReceivePayment();
     }
 
     function getDefaultDeliveryProvider() public view returns (address deliveryProvider) {

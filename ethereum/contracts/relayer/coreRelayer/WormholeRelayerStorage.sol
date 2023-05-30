@@ -72,6 +72,7 @@ struct ForwardInstruction {
     LocalNative msgValue;
     LocalNative deliveryPrice;
     LocalNative paymentForExtraReceiverValue;
+    address payable rewardAddress;
     uint8 consistencyLevel;
 }
 
