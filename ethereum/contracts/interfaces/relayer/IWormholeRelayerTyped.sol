@@ -5,6 +5,16 @@ pragma solidity ^0.8.19;
 import "./TypedUnits.sol";
 
 /**
+ * @title WormholeRelayer
+ * @author 
+ * @notice This project allows developers to build cross-chain applications powered by Wormhole without needing to 
+ * write and run their own relaying infrastructure
+ * 
+ * We implement the IWormholeRelayer interface that allows users to request a delivery provider to relay a payload (and/or additional VAAs) 
+ * to target chain and address of their choice.
+ */
+
+/**
  * @notice VaaKey identifies a wormhole message
  *
  * @custom:member chainId - only specified if `infoType == VaaKeyType.EMITTER_SEQUENCE`
@@ -26,11 +36,25 @@ interface IWormholeRelayerBase {
 }
 
 /**
- * IWormholeRelayer
- * @notice Users may use this interface to have payloads and/or wormhole VAAs
- *   relayed to destination contract(s) of their choice.
+ * @title IWormholeRelayerSend
+ * @notice The interface to request deliveries
  */
 interface IWormholeRelayerSend is IWormholeRelayerBase {
+
+    /**
+     * @notice Publishes an instruction for the default delivery provider
+     * to relay a payload to the address 'targetAddress' on chain 'targetChain' 
+     * with gas limit 'gasLimit' and msg.value equal to receiverValue
+     * 
+     * targetAddress must implement the IWormholeReceiver interface
+     * 
+     * @param targetChain destination chain, in Wormhole Chain ID format
+     * @param targetAddress destination address 
+     * @param payload arbitrary bytes to pass in as parameter in call to 'targetAddress'
+     * @param receiverValue msg.value that delivery provider should pass in for call to 'targetAddress' (in targetChain currency units)
+     * @param gasLimit gas limit with which to call 'targetAddress'. Any units of gas unused will be refunded according to a rate 
+     * quoted by the delivery provider
+     */
     function sendPayloadToEvm(
         uint16 targetChain,
         address targetAddress,
@@ -39,6 +63,23 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         Gas gasLimit
     ) external payable returns (uint64 sequence);
 
+    /**
+     * @notice Publishes an instruction for the default delivery provider
+     * to relay a payload to the address 'targetAddress' on chain 'targetChain' 
+     * with gas limit 'gasLimit' and msg.value equal to receiverValue
+     * 
+     * Any refunds will be sent to 'refundAddress' on chain 'refundChain'
+     * targetAddress must implement the IWormholeReceiver interface
+     * 
+     * @param targetChain destination chain, in Wormhole Chain ID format
+     * @param targetAddress destination address 
+     * @param payload arbitrary bytes to pass in as parameter in call to 'targetAddress'
+     * @param receiverValue msg.value that delivery provider should pass in for call to 'targetAddress' (in targetChain currency units)
+     * @param gasLimit gas limit with which to call 'targetAddress'. Any units of gas unused will be refunded according to a rate 
+     * quoted by the delivery provider
+     * @param refundChain The chain to deliver any refund to, in Wormhole Chain ID format
+     * @param refundAddress The address on 'refundChain' to deliver any refund to
+     */
     function sendPayloadToEvm(
         uint16 targetChain,
         address targetAddress,
@@ -49,6 +90,21 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         address refundAddress
     ) external payable returns (uint64 sequence);
 
+    /**
+     * @notice Publishes an instruction for the default delivery provider
+     * to relay a payload and VAAs specified by 'vaaKeys' to the address 'targetAddress' on chain 'targetChain' 
+     * with gas limit 'gasLimit' and msg.value equal to receiverValue
+     * 
+     * targetAddress must implement the IWormholeReceiver interface
+     * 
+     * @param targetChain destination chain, in Wormhole Chain ID format
+     * @param targetAddress destination address 
+     * @param payload arbitrary bytes to pass in as parameter in call to 'targetAddress'
+     * @param receiverValue msg.value that delivery provider should pass in for call to 'targetAddress' (in targetChain currency units)
+     * @param gasLimit gas limit with which to call 'targetAddress'. Any units of gas unused will be refunded according to a rate 
+     * quoted by the delivery provider
+     * @param vaaKeys Additional VAAs to pass in as parameter in call to 'targetAddress'
+     */
     function sendVaasToEvm(
         uint16 targetChain,
         address targetAddress,
@@ -58,6 +114,24 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         VaaKey[] memory vaaKeys
     ) external payable returns (uint64 sequence);
 
+    /**
+     * @notice Publishes an instruction for the default delivery provider
+     * to relay a payload and VAAs specified by 'vaaKeys' to the address 'targetAddress' on chain 'targetChain' 
+     * with gas limit 'gasLimit' and msg.value equal to receiverValue
+     * 
+     * Any refunds will be sent to 'refundAddress' on chain 'refundChain'
+     * targetAddress must implement the IWormholeReceiver interface
+     * 
+     * @param targetChain destination chain, in Wormhole Chain ID format
+     * @param targetAddress destination address 
+     * @param payload arbitrary bytes to pass in as parameter in call to 'targetAddress'
+     * @param receiverValue msg.value that delivery provider should pass in for call to 'targetAddress' (in targetChain currency units)
+     * @param gasLimit gas limit with which to call 'targetAddress'. Any units of gas unused will be refunded according to a rate 
+     * quoted by the delivery provider
+     * @param vaaKeys Additional VAAs to pass in as parameter in call to 'targetAddress'
+     * @param refundChain The chain to deliver any refund to, in Wormhole Chain ID format
+     * @param refundAddress The address on 'refundChain' to deliver any refund to
+     */
     function sendVaasToEvm(
         uint16 targetChain,
         address targetAddress,
@@ -69,6 +143,30 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         address refundAddress
     ) external payable returns (uint64 sequence);
 
+    /**
+     * @notice Publishes an instruction for the delivery provider at 'deliveryProviderAddress' 
+     * to relay a payload and VAAs specified by 'vaaKeys' to the address 'targetAddress' on chain 'targetChain' 
+     * with gas limit 'gasLimit' and msg.value equal to 
+     * receiverValue + (arbitrary amount that is paid for by paymentForExtraReceiverValue of this chain's wei) in targetChain wei.
+     * 
+     * Any refunds will be sent to 'refundAddress' on chain 'refundChain'
+     * targetAddress must implement the IWormholeReceiver interface
+     * 
+     * @param targetChain destination chain, in Wormhole Chain ID format
+     * @param targetAddress destination address 
+     * @param payload arbitrary bytes to pass in as parameter in call to 'targetAddress'
+     * @param receiverValue msg.value that delivery provider should pass in for call to 'targetAddress' (in targetChain currency units)
+     * @param paymentForExtraReceiverValue amount (in current chain currency units) to spend on extra receiverValue 
+     *        (in addition to the 'receiverValue' specified)
+     * @param gasLimit gas limit with which to call 'targetAddress'. Any units of gas unused will be refunded according to a rate 
+     * quoted by the delivery provider
+     * @param refundChain The chain to deliver any refund to, in Wormhole Chain ID format
+     * @param refundAddress The address on 'refundChain' to deliver any refund to
+     * @param deliveryProviderAddress The address of the desired delivery provider's implementation of IDeliveryProvider
+     * @param vaaKeys Additional VAAs to pass in as parameter in call to 'targetAddress'
+     * @param consistencyLevel Consistency level with which to publish the delivery instructions - see 
+     *        https://book.wormhole.com/wormhole/3_coreLayerContracts.html?highlight=consistency#consistency-levels
+     */
     function sendToEvm(
         uint16 targetChain,
         address targetAddress,
@@ -82,7 +180,31 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         VaaKey[] memory vaaKeys,
         uint8 consistencyLevel
     ) external payable returns (uint64 sequence);
-
+    
+    /**
+     * @notice Publishes an instruction for the delivery provider at 'deliveryProviderAddress' 
+     * to relay a payload and VAAs specified by 'vaaKeys' to the address 'targetAddress' on chain 'targetChain' 
+     * with msg.value equal to 
+     * receiverValue + (arbitrary amount that is paid for by paymentForExtraReceiverValue of this chain's wei) in targetChain wei.
+     * 
+     * Any refunds will be sent to 'refundAddress' on chain 'refundChain'
+     * targetAddress must implement the IWormholeReceiver interface
+     * 
+     * @param targetChain destination chain, in Wormhole Chain ID format
+     * @param targetAddress destination address, in Wormhole bytes32 format
+     * @param payload arbitrary bytes to pass in as parameter in call to 'targetAddress'
+     * @param receiverValue msg.value that delivery provider should pass in for call to 'targetAddress' (in targetChain currency units)
+     * @param paymentForExtraReceiverValue amount (in current chain currency units) to spend on extra receiverValue 
+     *        (in addition to the 'receiverValue' specified)
+     * @param encodedExecutionParameters encoded information on how to execute delivery that may impact pricing
+     *        e.g. for version EVM_V1, this is a struct that encodes the 'gasLimit' with which to call 'targetAddress'
+     * @param refundChain The chain to deliver any refund to, in Wormhole Chain ID format
+     * @param refundAddress The address on 'refundChain' to deliver any refund to, in Wormhole bytes32 format
+     * @param deliveryProviderAddress The address of the desired delivery provider's implementation of IDeliveryProvider
+     * @param vaaKeys Additional VAAs to pass in as parameter in call to 'targetAddress'
+     * @param consistencyLevel Consistency level with which to publish the delivery instructions - see 
+     *        https://book.wormhole.com/wormhole/3_coreLayerContracts.html?highlight=consistency#consistency-levels
+     */
     function send(
         uint16 targetChain,
         bytes32 targetAddress,
