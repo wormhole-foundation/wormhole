@@ -371,7 +371,9 @@ interface IWormholeRelayer is IWormholeRelayerDelivery, IWormholeRelayerSend {}
  *  Errors thrown by IWormholeRelayer contract
  */
 
-//132 is chosen because 132 = 4 (function selector) + 4*32 (4 32-byte words)
+// Bound chosen by the following formula: `memoryWord * 4 + selectorSize`.
+// This means that an error identifier plus four fixed size arguments should be available to developers.
+// In the case of a `require` revert with error message, this should provide 2 memory word's worth of data.
 uint256 constant RETURNDATA_TRUNCATION_THRESHOLD = 132;
 
 //When msg.value was not equal to (one wormhole message fee) + `maxTransactionFee` + `receiverValue`
