@@ -2,18 +2,21 @@
 
 pragma solidity ^0.8.0;
 
-import "../../contracts/interfaces/relayer/IRelayProvider.sol";
-import "../../contracts/relayer/relayProvider/RelayProvider.sol";
-import "../../contracts/relayer/relayProvider/RelayProviderSetup.sol";
-import "../../contracts/relayer/relayProvider/RelayProviderImplementation.sol";
-import "../../contracts/relayer/relayProvider/RelayProviderProxy.sol";
-import "../../contracts/relayer/relayProvider/RelayProviderMessages.sol";
-import "../../contracts/relayer/relayProvider/RelayProviderStructs.sol";
+import "../../contracts/interfaces/relayer/IDeliveryProviderTyped.sol";
+import "../../contracts/relayer/deliveryProvider/DeliveryProvider.sol";
+import "../../contracts/relayer/deliveryProvider/DeliveryProviderSetup.sol";
+import "../../contracts/relayer/deliveryProvider/DeliveryProviderImplementation.sol";
+import "../../contracts/relayer/deliveryProvider/DeliveryProviderProxy.sol";
+import "../../contracts/relayer/deliveryProvider/DeliveryProviderMessages.sol";
+import "../../contracts/relayer/deliveryProvider/DeliveryProviderStructs.sol";
 import "../../contracts/interfaces/relayer/TypedUnits.sol";
+import {MockWormhole} from "./MockWormhole.sol";
+import {IWormhole} from "../../contracts/interfaces/IWormhole.sol";
+import {WormholeSimulator, FakeWormholeSimulator} from "./WormholeSimulator.sol";
 
 import "forge-std/Test.sol";
 
-contract TestRelayProvider is Test {
+contract TestDeliveryProvider is Test {
     using WeiLib for Wei;
     using GasLib for Gas;
     using WeiPriceLib for WeiPrice;
@@ -21,26 +24,46 @@ contract TestRelayProvider is Test {
 
     uint16 constant TEST_ORACLE_CHAIN_ID = 2;
 
-    RelayProvider internal relayProvider;
+    DeliveryProvider internal deliveryProvider;
 
-    function initializeRelayProvider() internal {
-        RelayProviderSetup relayProviderSetup = new RelayProviderSetup();
-        RelayProviderImplementation relayProviderImplementation = new RelayProviderImplementation();
-        RelayProviderProxy myRelayProvider = new RelayProviderProxy(
-            address(relayProviderSetup),
+    function initializeDeliveryProvider() internal {
+        (IWormhole wormhole,) = setUpWormhole(TEST_ORACLE_CHAIN_ID);
+        DeliveryProviderSetup deliveryProviderSetup = new DeliveryProviderSetup();
+        DeliveryProviderImplementation deliveryProviderImplementation =
+            new DeliveryProviderImplementation(address(wormhole));
+        DeliveryProviderProxy myDeliveryProvider = new DeliveryProviderProxy(
+            address(deliveryProviderSetup),
             abi.encodeCall(
-                RelayProviderSetup.setup,
+                DeliveryProviderSetup.setup,
                 (
-                    address(relayProviderImplementation),
+                    address(deliveryProviderImplementation),
                     TEST_ORACLE_CHAIN_ID
                 )
             )
         );
 
-        relayProvider = RelayProvider(address(myRelayProvider));
+        deliveryProvider = DeliveryProvider(address(myDeliveryProvider));
 
-        require(relayProvider.owner() == address(this), "owner() != expected");
-        require(relayProvider.chainId() == TEST_ORACLE_CHAIN_ID, "chainId() != expected");
+        require(deliveryProvider.owner() == address(this), "owner() != expected");
+        require(deliveryProvider.chainId() == TEST_ORACLE_CHAIN_ID, "chainId() != expected");
+    }
+
+    function setUpWormhole(uint16 chainId)
+        public
+        returns (IWormhole wormholeContract, WormholeSimulator wormholeSimulator)
+    {
+        // deploy Wormhole
+        MockWormhole wormhole = new MockWormhole({
+            initChainId: chainId,
+            initEvmChainId: block.chainid
+        });
+
+        // replace Wormhole with the Wormhole Simulator contract (giving access to some nice helper methods for signing)
+        wormholeSimulator = new FakeWormholeSimulator(
+            wormhole
+        );
+
+        wormholeContract = wormhole;
     }
 
     function testCannotUpdatePriceWithChainIdZero(
@@ -50,11 +73,11 @@ contract TestRelayProvider is Test {
         vm.assume(updateGasPrice.unwrap() > 0);
         vm.assume(updateNativeCurrencyPrice.unwrap() > 0);
 
-        initializeRelayProvider();
+        initializeDeliveryProvider();
 
         // you shall not pass
         vm.expectRevert(abi.encodeWithSignature("ChainIdIsZero()"));
-        relayProvider.updatePrice(
+        deliveryProvider.updatePrice(
             0, // updateChainId
             updateGasPrice,
             updateNativeCurrencyPrice
@@ -68,11 +91,11 @@ contract TestRelayProvider is Test {
         vm.assume(updateChainId > 0);
         vm.assume(updateNativeCurrencyPrice.unwrap() > 0);
 
-        initializeRelayProvider();
+        initializeDeliveryProvider();
 
         // you shall not pass
         vm.expectRevert(abi.encodeWithSignature("GasPriceIsZero()"));
-        relayProvider.updatePrice(
+        deliveryProvider.updatePrice(
             updateChainId,
             GasPrice.wrap(0), // updateGasPrice == 0
             updateNativeCurrencyPrice
@@ -86,11 +109,11 @@ contract TestRelayProvider is Test {
         vm.assume(updateChainId > 0);
         vm.assume(updateGasPrice.unwrap() > 0);
 
-        initializeRelayProvider();
+        initializeDeliveryProvider();
 
         // you shall not pass
         vm.expectRevert(abi.encodeWithSignature("NativeCurrencyPriceIsZero()"));
-        relayProvider.updatePrice(
+        deliveryProvider.updatePrice(
             updateChainId,
             updateGasPrice,
             WeiPrice.wrap(0) // updateNativeCurrencyPrice == 0
@@ -109,12 +132,12 @@ contract TestRelayProvider is Test {
         vm.assume(updateGasPrice.unwrap() > 0);
         vm.assume(updateNativeCurrencyPrice.unwrap() > 0);
 
-        initializeRelayProvider();
+        initializeDeliveryProvider();
 
         // you shall not pass
         vm.prank(oracleOwner);
         vm.expectRevert(abi.encodeWithSignature("CallerMustBeOwner()"));
-        relayProvider.updatePrice(updateChainId, updateGasPrice, updateNativeCurrencyPrice);
+        deliveryProvider.updatePrice(updateChainId, updateGasPrice, updateNativeCurrencyPrice);
     }
 
     /*
@@ -131,14 +154,14 @@ contract TestRelayProvider is Test {
         vm.assume(dstGasPrice > 0);
         vm.assume(dstNativeCurrencyPrice > 0);
 
-        initializeRelayProvider();
+        initializeDeliveryProvider();
 
         // update the price with reasonable values
-        relayProvider.updatePrice(dstChainId, dstGasPrice, dstNativeCurrencyPrice);
+        deliveryProvider.updatePrice(dstChainId, dstGasPrice, dstNativeCurrencyPrice);
 
         // you shall not pass
         vm.expectRevert("srcNativeCurrencyPrice == 0");
-        relayProvider.quoteDeliveryOverhead(dstChainId);
+        deliveryProvider.quoteDeliveryOverhead(dstChainId);
     }
 
     function testCannotGetPriceBeforeUpdateDstPrice(
@@ -153,15 +176,15 @@ contract TestRelayProvider is Test {
         vm.assume(srcGasPrice > 0);
         vm.assume(srcNativeCurrencyPrice > 0);
 
-        initializeRelayProvider();
+        initializeDeliveryProvider();
 
         // update the price with reasonable values
-        //vm.prank(relayProvider.owner());
-        relayProvider.updatePrice(TEST_ORACLE_CHAIN_ID, srcGasPrice, srcNativeCurrencyPrice);
+        //vm.prank(deliveryProvider.owner());
+        deliveryProvider.updatePrice(TEST_ORACLE_CHAIN_ID, srcGasPrice, srcNativeCurrencyPrice);
 
         // you shall not pass
         vm.expectRevert("dstNativeCurrencyPrice == 0");
-        relayProvider.quoteDeliveryOverhead(dstChainId);
+        deliveryProvider.quoteDeliveryOverhead(dstChainId);
     }
     */
 
@@ -181,19 +204,23 @@ contract TestRelayProvider is Test {
         vm.assume(uint256(dstGasPrice) * srcNativeCurrencyPrice >= dstNativeCurrencyPrice);
         vm.assume(dstGasPrice * uint256(dstNativeCurrencyPrice) / srcNativeCurrencyPrice < 2 ** 72);
 
-        initializeRelayProvider();
+        initializeDeliveryProvider();
 
         // update the prices with reasonable values
-        relayProvider.updatePrice(dstChainId, GasPrice.wrap(dstGasPrice), WeiPrice.wrap(dstNativeCurrencyPrice));
-        relayProvider.updatePrice(TEST_ORACLE_CHAIN_ID, GasPrice.wrap(srcGasPrice), WeiPrice.wrap(srcNativeCurrencyPrice));
+        deliveryProvider.updatePrice(
+            dstChainId, GasPrice.wrap(dstGasPrice), WeiPrice.wrap(dstNativeCurrencyPrice)
+        );
+        deliveryProvider.updatePrice(
+            TEST_ORACLE_CHAIN_ID, GasPrice.wrap(srcGasPrice), WeiPrice.wrap(srcNativeCurrencyPrice)
+        );
 
         // verify price
         uint256 expected = (
             uint256(dstNativeCurrencyPrice) * (uint256(dstGasPrice)) + (srcNativeCurrencyPrice - 1)
         ) / srcNativeCurrencyPrice;
-        GasPrice readValues = relayProvider.quoteGasPrice(dstChainId);
+        GasPrice readValues = deliveryProvider.quoteGasPrice(dstChainId);
         console.log(readValues.unwrap(), expected);
-        require(readValues.unwrap() == expected, "relayProvider.quotePrices != expected");
+        require(readValues.unwrap() == expected, "deliveryProvider.quotePrices != expected");
     }
 
     struct UpdatePrice {
@@ -218,46 +245,46 @@ contract TestRelayProvider is Test {
         vm.assume(dstGasPrice >= dstNativeCurrencyPrice / srcNativeCurrencyPrice);
         vm.assume(dstGasPrice * uint256(dstNativeCurrencyPrice) / srcNativeCurrencyPrice < 2 ** 72);
 
-        initializeRelayProvider();
+        initializeDeliveryProvider();
 
-        RelayProviderStructs.UpdatePrice[] memory updates =
-            new RelayProviderStructs.UpdatePrice[](2);
-        updates[0] = RelayProviderStructs.UpdatePrice({
+        DeliveryProviderStructs.UpdatePrice[] memory updates =
+            new DeliveryProviderStructs.UpdatePrice[](2);
+        updates[0] = DeliveryProviderStructs.UpdatePrice({
             chainId: TEST_ORACLE_CHAIN_ID,
             gasPrice: GasPrice.wrap(srcGasPrice),
             nativeCurrencyPrice: WeiPrice.wrap(srcNativeCurrencyPrice)
         });
-        updates[1] = RelayProviderStructs.UpdatePrice({
+        updates[1] = DeliveryProviderStructs.UpdatePrice({
             chainId: dstChainId,
             gasPrice: GasPrice.wrap(dstGasPrice),
             nativeCurrencyPrice: WeiPrice.wrap(dstNativeCurrencyPrice)
         });
 
         // update the prices with reasonable values
-        relayProvider.updatePrices(updates);
+        deliveryProvider.updatePrices(updates);
 
         // verify price
         uint256 expected = (
             uint256(dstNativeCurrencyPrice) * (uint256(dstGasPrice)) + (srcNativeCurrencyPrice - 1)
         ) / srcNativeCurrencyPrice;
-        GasPrice readValues = relayProvider.quoteGasPrice(dstChainId);
-        require(readValues.unwrap() == expected, "relayProvider.quotePrices != expected");
+        GasPrice readValues = deliveryProvider.quoteGasPrice(dstChainId);
+        require(readValues.unwrap() == expected, "deliveryProvider.quotePrices != expected");
     }
 
     function testUpdateTargetChainContracts(uint16 targetChain, bytes32 newAddress) public {
-        initializeRelayProvider();
+        initializeDeliveryProvider();
 
-        relayProvider.updateTargetChainAddress(targetChain, newAddress);
-        bytes32 updated = relayProvider.getTargetChainAddress(targetChain);
+        deliveryProvider.updateTargetChainAddress(targetChain, newAddress);
+        bytes32 updated = deliveryProvider.getTargetChainAddress(targetChain);
 
         assertTrue(newAddress == updated);
     }
 
     function testUpdateRewardAddress(address payable newAddress) public {
-        initializeRelayProvider();
+        initializeDeliveryProvider();
 
-        relayProvider.updateRewardAddress(newAddress);
-        address payable updated = relayProvider.getRewardAddress();
+        deliveryProvider.updateRewardAddress(newAddress);
+        address payable updated = deliveryProvider.getRewardAddress();
 
         assertTrue(newAddress == updated);
     }

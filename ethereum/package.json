@@ -22,7 +22,7 @@
   "scripts": {
     "build:core": "truffle compile",
     "build": "npm run build:core && forge build && typechain --target=ethers-v5 --out-dir=./ethers-contracts \"build-forge/!(test).sol/*.json\"&& npm run erase-types && echo 'TODO .. MAKE SURE THAT IT IS OKAY TO TYPECHAIN ON ONLY THE FORGE OUTPUT. DONT MERGE THIS YET'",
-    "erase-types": "ts-node ./ts-scripts/relayer/eraseTypes.ts ./contracts/interfaces/relayer/IRelayProvider.sol ./contracts/interfaces/relayer/IWormholeRelayer.sol",
+    "erase-types": "ts-node ./ts-scripts/relayer/eraseTypes.ts ./contracts/interfaces/relayer/IDeliveryProviderTyped.sol ./contracts/interfaces/relayer/IWormholeRelayerTyped.sol",
     "test": "npm run build:core && mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle test --network test --compile-none",
     "migrate": "npm run build:core && mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle migrate --to 4 --compile-none",
     "deploy-bridge-implementation-only": "npm run build:core && mkdir -p build/contracts && cp node_modules/@openzeppelin/contracts/build/contracts/* build/contracts/ && truffle migrate --f 6 --to 6 --compile-none",

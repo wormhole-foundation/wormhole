@@ -44,8 +44,8 @@ export interface DeliveryInstruction {
   encodedExecutionInfo: Buffer;
   refundChainId: number;
   refundAddress: Buffer;
-  refundRelayProvider: Buffer;
-  sourceRelayProvider: Buffer;
+  refundDeliveryProvider: Buffer;
+  sourceDeliveryProvider: Buffer;
   senderAddress: Buffer;
   vaaKeys: VaaKey[];
 }
@@ -55,7 +55,7 @@ export interface RedeliveryInstruction {
   targetChainId: number;
   newRequestedReceiverValue: BigNumber;
   newEncodedExecutionInfo: Buffer;
-  newSourceRelayProvider: Buffer;
+  newSourceDeliveryProvider: Buffer;
   newSenderAddress: Buffer;
 }
 
@@ -147,9 +147,9 @@ export function parseWormholeRelayerSend(bytes: Buffer): DeliveryInstruction {
   idx += 2;
   const refundAddress = bytes.slice(idx, idx + 32);
   idx += 32;
-  const refundRelayProvider = bytes.slice(idx, idx + 32);
+  const refundDeliveryProvider = bytes.slice(idx, idx + 32);
   idx += 32;
-  const sourceRelayProvider = bytes.slice(idx, idx + 32);
+  const sourceDeliveryProvider = bytes.slice(idx, idx + 32);
   idx += 32;
   const senderAddress = bytes.slice(idx, idx + 32);
   idx += 32;
@@ -172,8 +172,8 @@ export function parseWormholeRelayerSend(bytes: Buffer): DeliveryInstruction {
     encodedExecutionInfo,
     refundChainId,
     refundAddress,
-    refundRelayProvider,
-    sourceRelayProvider,
+    refundDeliveryProvider,
+    sourceDeliveryProvider,
     senderAddress,
     vaaKeys: messages
   };
@@ -258,7 +258,7 @@ export function parseWormholeRelayerResend(
   [newEncodedExecutionInfo, idx] = parsePayload(bytes, idx);
 
 
-  const newSourceRelayProvider = bytes.slice(idx, idx + 32);
+  const newSourceDeliveryProvider = bytes.slice(idx, idx + 32);
   idx += 32;
 
 
@@ -269,7 +269,7 @@ export function parseWormholeRelayerResend(
     targetChainId,
     newRequestedReceiverValue,
     newEncodedExecutionInfo,
-    newSourceRelayProvider,
+    newSourceDeliveryProvider,
     newSenderAddress
   };
 }
@@ -293,8 +293,8 @@ export function deliveryInstructionsPrintable(
     encodedExecutionInfo: executionInfoToString(ix.encodedExecutionInfo),
     refundChainId: ix.refundChainId.toString(),
     refundAddress: ix.refundAddress.toString("hex"),
-    refundRelayProvider: ix.refundRelayProvider.toString("hex"),
-    sourceRelayProvider: ix.sourceRelayProvider.toString("hex"),
+    refundDeliveryProvider: ix.refundDeliveryProvider.toString("hex"),
+    sourceDeliveryProvider: ix.sourceDeliveryProvider.toString("hex"),
     senderAddress: ix.senderAddress.toString("hex"),
     vaaKeys: ix.vaaKeys.map(vaaKeyPrintable),
   };
@@ -316,7 +316,7 @@ export function redeliveryInstructionPrintable(
     targetChainId: ix.targetChainId.toString(),
     newRequestedReceiverValue: ix.newRequestedReceiverValue.toString(),
     newEncodedExecutionInfo: executionInfoToString(ix.newEncodedExecutionInfo),
-    newSourceRelayProvider: ix.newSourceRelayProvider.toString("hex"),
+    newSourceDeliveryProvider: ix.newSourceDeliveryProvider.toString("hex"),
     newSenderAddress: ix.newSenderAddress.toString("hex")
   };
 }

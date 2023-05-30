@@ -16,12 +16,12 @@ All other configuration is done through files in the ./config/\${env} directory.
 
 ## Running the scripts
 
-All files in the coreRelayer, relayProvider, and MockIntegration directories are runnable. These are intended to run from the /ethereum directory.
+All files in the coreRelayer, deliveryProvider, and MockIntegration directories are runnable. These are intended to run from the /ethereum directory.
 
-The target environment must be passed in as an environment variable. So, for example, you can run the RelayProvider deployment script by running:
+The target environment must be passed in as an environment variable. So, for example, you can run the DeliveryProvider deployment script by running:
 
 ```
-ENV=tilt ts-node ./ts-scripts/relayer/relayProvider/deployRelayProvider.ts
+ENV=tilt ts-node ./ts-scripts/relayer/deliveryProvider/deployDeliveryProvider.ts
 ```
 
 ## Chaining multiple scripts
@@ -31,9 +31,9 @@ Scripts are meant to be run individually or successively. Scripts which deploy c
 If "useLastRun" is set to true in the contracts.json configuration file, the lastrun files from the deployment scripts will be used, rather than the deployed addresses of the contracts.json file. This allows you to easily run things like
 
 ```
-ENV=tilt ts-node ./ts-scripts/relayer/relayProvider/upgradeRelayProvider.ts && ts-node ./ts-scripts/relayer/mockIntegration/messageTest.ts
+ENV=tilt ts-node ./ts-scripts/relayer/deliveryProvider/upgradeDeliveryProvider.ts && ts-node ./ts-scripts/relayer/mockIntegration/messageTest.ts
 ```
 
 The ./shell directory contains shell scripts which combine commonly chained actions together.
 
-For example, ./shell/deployConfigureTest.sh will deploy the RelayProvider, CoreRelayer, and MockIntegration contracts. Configure them all to point at eachother, and then run messageTest to test that everything worked. Note: useLastRun in contracts.json needs to be set to "true" in order for this script to work.
+For example, ./shell/deployConfigureTest.sh will deploy the DeliveryProvider, WormholeRelayer, and MockIntegration contracts. Configure them all to point at eachother, and then run messageTest to test that everything worked. Note: useLastRun in contracts.json needs to be set to "true" in order for this script to work.

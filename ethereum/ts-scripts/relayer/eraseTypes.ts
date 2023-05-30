@@ -7,14 +7,16 @@ async function main() {
     console.log(`Erasing types from ${fname}...`);
     const iface = await fs.readFile(fname);
     const erased = eraseTypes(iface.toString());
-    await fs.writeFile(fname.replace(".sol", "Untyped.sol"), erased);
+    await fs.writeFile(fname.replace("Typed.sol", ".sol"), erased);
   }))
   console.log("Done.")
 }
 
 function eraseTypes(file: string) {
   const typeMap: Record<string, string> = {
-    Wei: "uint256",
+    "Wei ": "uint256 ",
+    LocalNative: "uint256",
+    TargetNative: "uint256",
     "Gas ": "uint256 ",
     GasPrice: "uint256",
     WeiPrice: "uint256",

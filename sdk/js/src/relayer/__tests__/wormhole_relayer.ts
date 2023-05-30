@@ -28,20 +28,20 @@ import { AddressInfo } from "net";
     name: ChainName,
     provider: ethers.providers.Provider,
     wallet: ethers.Wallet,
-    coreRelayerAddress: string,
+    wormholeRelayerAddress: string,
     mockIntegrationAddress: string,
-    coreRelayer: ethers_contracts.CoreRelayer,
+    wormholeRelayer: ethers_contracts.WormholeRelayer,
     mockIntegration: ethers_contracts.MockRelayerIntegration
   }
 
   const createTestChain = (name: ChainName) => {
     const provider = getDefaultProvider(network, name, ci);
     const addressInfo = getAddressInfo(name, network);
-    if(!addressInfo.coreRelayerAddress) throw Error(`No core relayer address for ${name}`);
+    if(!addressInfo.wormholeRelayerAddress) throw Error(`No core relayer address for ${name}`);
     if(!addressInfo.mockIntegrationAddress) throw Error(`No mock relayer integration address for ${name}`);
     const wallet = new ethers.Wallet(PRIVATE_KEY, provider);
-    const coreRelayer = ethers_contracts.CoreRelayer__factory.connect(
-      addressInfo.coreRelayerAddress,
+    const wormholeRelayer = ethers_contracts.WormholeRelayer__factory.connect(
+      addressInfo.wormholeRelayerAddress,
       wallet
     );
     const mockIntegration = ethers_contracts.MockRelayerIntegration__factory.connect(
@@ -53,9 +53,9 @@ import { AddressInfo } from "net";
       name,
       provider,
       wallet,
-      coreRelayerAddress: addressInfo.coreRelayerAddress,
+      wormholeRelayerAddress: addressInfo.wormholeRelayerAddress,
       mockIntegrationAddress: addressInfo.mockIntegrationAddress,
-      coreRelayer,
+      wormholeRelayer,
       mockIntegration
     }
     return result;
@@ -260,7 +260,7 @@ describe("Wormhole Relayer Tests", () => {
       source.wallet,
       sourceChain,
       targetChain,
-      target.coreRelayerAddress, // This is an address that exists but doesn't implement the IWormhole interface, so should result in Receiver Failure
+      target.wormholeRelayerAddress, // This is an address that exists but doesn't implement the IWormhole interface, so should result in Receiver Failure
       Buffer.from("hi!"),
       REASONABLE_GAS_LIMIT,
       {value, gasLimit: REASONABLE_GAS_LIMIT},
@@ -348,13 +348,13 @@ describe("Wormhole Relayer Tests", () => {
       relayer.createVaaKey(
         source.chainId,
         Buffer.from(
-          tryNativeToUint8Array(source.coreRelayerAddress, "ethereum")
+          tryNativeToUint8Array(source.wormholeRelayerAddress, "ethereum")
         ),
         info.sourceDeliverySequenceNumber
       ),
       REASONABLE_GAS_LIMIT,
       0,
-      await source.coreRelayer.getDefaultRelayProvider(),
+      await source.wormholeRelayer.getDefaultDeliveryProvider(),
       [getGuardianRPC(network, ci)],
       {
         value: value,
@@ -378,7 +378,7 @@ describe("Wormhole Relayer Tests", () => {
 
   test("Governance: Test Registering Chain", async () => {
 
-    const currentAddress = await source.coreRelayer.getRegisteredCoreRelayerContract(6);
+    const currentAddress = await source.wormholeRelayer.getRegisteredWormholeRelayerContract(6);
     console.log(`For Chain ${source.chainId}, registered chain 6 address: ${currentAddress}`);
 
     const expectedNewRegisteredAddress = "0x0000000000000000000000001234567890123456789012345678901234567892";
@@ -388,52 +388,52 @@ describe("Wormhole Relayer Tests", () => {
     const firstMessage = governance.publishWormholeRelayerRegisterChain(timestamp, chain, expectedNewRegisteredAddress)
     const firstSignedVaa = guardians.addSignatures(firstMessage, guardianIndices);
 
-    let tx = await source.coreRelayer.registerCoreRelayerContract(firstSignedVaa, {gasLimit: REASONABLE_GAS_LIMIT});
+    let tx = await source.wormholeRelayer.registerWormholeRelayerContract(firstSignedVaa, {gasLimit: REASONABLE_GAS_LIMIT});
     await tx.wait();
 
-    const newRegisteredAddress = (await source.coreRelayer.getRegisteredCoreRelayerContract(6));
+    const newRegisteredAddress = (await source.wormholeRelayer.getRegisteredWormholeRelayerContract(6));
 
     expect(newRegisteredAddress).toBe(expectedNewRegisteredAddress);
 
     const inverseFirstMessage = governance.publishWormholeRelayerRegisterChain(timestamp, chain, currentAddress)
     const inverseFirstSignedVaa = guardians.addSignatures(inverseFirstMessage, guardianIndices);
 
-    tx = await source.coreRelayer.registerCoreRelayerContract(inverseFirstSignedVaa, {gasLimit: REASONABLE_GAS_LIMIT});
+    tx = await source.wormholeRelayer.registerWormholeRelayerContract(inverseFirstSignedVaa, {gasLimit: REASONABLE_GAS_LIMIT});
     await tx.wait();
 
-    const secondRegisteredAddress = (await source.coreRelayer.getRegisteredCoreRelayerContract(6));
+    const secondRegisteredAddress = (await source.wormholeRelayer.getRegisteredWormholeRelayerContract(6));
 
     expect(secondRegisteredAddress).toBe(currentAddress);
 })
 
 test("Governance: Test Setting Default Relay Provider", async () => {
 
-    const currentAddress = await source.coreRelayer.getDefaultRelayProvider();
+    const currentAddress = await source.wormholeRelayer.getDefaultDeliveryProvider();
     console.log(`For Chain ${source.chainId}, default relay provider: ${currentAddress}`);
 
-    const expectedNewDefaultRelayProvider = "0x1234567890123456789012345678901234567892";
+    const expectedNewDefaultDeliveryProvider = "0x1234567890123456789012345678901234567892";
 
     const timestamp = (await source.wallet.provider.getBlock("latest")).timestamp;
     const chain = source.chainId;
-    const firstMessage = governance.publishWormholeRelayerSetDefaultRelayProvider(timestamp, chain, expectedNewDefaultRelayProvider);
+    const firstMessage = governance.publishWormholeRelayerSetDefaultRelayProvider(timestamp, chain, expectedNewDefaultDeliveryProvider);
     const firstSignedVaa = guardians.addSignatures(firstMessage, guardianIndices);
 
-    let tx = await source.coreRelayer.setDefaultRelayProvider(firstSignedVaa);
+    let tx = await source.wormholeRelayer.setDefaultDeliveryProvider(firstSignedVaa);
     await tx.wait();
 
-    const newDefaultRelayProvider = (await source.coreRelayer.getDefaultRelayProvider());
+    const newDefaultDeliveryProvider = (await source.wormholeRelayer.getDefaultDeliveryProvider());
 
-    expect(newDefaultRelayProvider).toBe(expectedNewDefaultRelayProvider);
+    expect(newDefaultDeliveryProvider).toBe(expectedNewDefaultDeliveryProvider);
 
     const inverseFirstMessage = governance.publishWormholeRelayerSetDefaultRelayProvider(timestamp, chain, currentAddress)
     const inverseFirstSignedVaa = guardians.addSignatures(inverseFirstMessage, guardianIndices);
 
-    tx = await source.coreRelayer.setDefaultRelayProvider(inverseFirstSignedVaa);
+    tx = await source.wormholeRelayer.setDefaultDeliveryProvider(inverseFirstSignedVaa);
     await tx.wait();
 
-    const originalDefaultRelayProvider = (await source.coreRelayer.getDefaultRelayProvider());
+    const originalDefaultDeliveryProvider = (await source.wormholeRelayer.getDefaultDeliveryProvider());
 
-    expect(originalDefaultRelayProvider).toBe(currentAddress);
+    expect(originalDefaultDeliveryProvider).toBe(currentAddress);
 
 });
 
@@ -441,24 +441,24 @@ test("Governance: Test Setting Default Relay Provider", async () => {
 test("Governance: Test Upgrading Contract", async () => {
   const IMPLEMENTATION_STORAGE_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
 
-  const getImplementationAddress = () => source.provider.getStorageAt(source.coreRelayer.address, IMPLEMENTATION_STORAGE_SLOT);
+  const getImplementationAddress = () => source.provider.getStorageAt(source.wormholeRelayer.address, IMPLEMENTATION_STORAGE_SLOT);
 
   console.log(`Current Implementation address: ${(await getImplementationAddress())}`);
 
   const wormholeAddress = CONTRACTS[network][sourceChain].core || "";
 
-  const newCoreRelayerImplementationAddress = (await new ethers_contracts.CoreRelayer__factory(source.wallet).deploy(wormholeAddress).then((x)=>x.deployed())).address;
+  const newWormholeRelayerImplementationAddress = (await new ethers_contracts.WormholeRelayer__factory(source.wallet).deploy(wormholeAddress).then((x)=>x.deployed())).address;
 
   console.log(`Deployed!`);
-  console.log(`New core relayer implementation: ${newCoreRelayerImplementationAddress}`);
+  console.log(`New core relayer implementation: ${newWormholeRelayerImplementationAddress}`);
 
   const timestamp = (await source.wallet.provider.getBlock("latest")).timestamp;
   const chain = source.chainId;
-  const firstMessage = governance.publishWormholeRelayerUpgradeContract(timestamp, chain, newCoreRelayerImplementationAddress);
+  const firstMessage = governance.publishWormholeRelayerUpgradeContract(timestamp, chain, newWormholeRelayerImplementationAddress);
   const firstSignedVaa = guardians.addSignatures(firstMessage, guardianIndices);
 
-  let tx = await source.coreRelayer.submitContractUpgrade(firstSignedVaa);
+  let tx = await source.wormholeRelayer.submitContractUpgrade(firstSignedVaa);
 
-  expect(ethers.utils.getAddress((await getImplementationAddress()).substring(26))).toBe(ethers.utils.getAddress(newCoreRelayerImplementationAddress));
+  expect(ethers.utils.getAddress((await getImplementationAddress()).substring(26))).toBe(ethers.utils.getAddress(newWormholeRelayerImplementationAddress));
 });
 });
