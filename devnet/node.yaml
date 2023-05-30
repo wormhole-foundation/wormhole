@@ -163,7 +163,8 @@ spec:
             - --publicRpcLogDetail
             - "full"
             # - --chainGovernorEnabled=true
-            # - --ccqEnabled=true
+            - --ccqEnabled=true
+            - --ccqAllowedRequesters=beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe
             # - --logLevel=debug
           securityContext:
             capabilities:
