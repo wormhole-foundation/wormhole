@@ -117,7 +117,7 @@ export function stringifyWormholeRelayerInfo(info: DeliveryInfo): string {
                   e.transactionHash
                     ? ` ${targetChainName} transaction hash: ${e.transactionHash}`
                     : ""
-                }\nStatus: ${e.status}\n${e.revertString ? `Failure reason: ${e.gasUsed == executionInfo.gasLimit ? "Gas limit hit" : e.revertString}\n`: ""}Gas used: ${e.gasUsed}\nTransaction fee used: ${executionInfo.targetChainRefundPerGasUnused.mul(e.gasUsed).toString()} wei of ${targetChainName} currency\n}`
+                }\nStatus: ${e.status}\n${e.revertString ? `Failure reason: ${e.gasUsed.eq(executionInfo.gasLimit) ? "Gas limit hit" : e.revertString}\n`: ""}Gas used: ${e.gasUsed.toString()}\nTransaction fee used: ${executionInfo.targetChainRefundPerGasUnused.mul(e.gasUsed).toString()} wei of ${targetChainName} currency\n}`
             )
             .join("\n");
    } else if (info.type == RelayerPayloadId.Delivery && info.deliveryInstruction.targetAddress.toString("hex") === "0000000000000000000000000000000000000000000000000000000000000000") {
@@ -170,7 +170,7 @@ export async function sendToEvm(
   targetChain: ChainName,
   targetAddress: string,
   payload: ethers.BytesLike,
-  gasLimit: number,
+  gasLimit: BigNumber | number,
   overrides?: ethers.PayableOverrides,
   sendOptionalParams?: SendOptionalParams,
 ): Promise<ethers.providers.TransactionResponse> {
@@ -379,7 +379,7 @@ export async function resendRaw(
   targetChain: ChainName,
   environment: Network,
   vaaKey: VaaKey,
-  newGasLimit: number,
+  newGasLimit: BigNumber | number,
   newReceiverValue: BigNumber | number,
   deliveryProviderAddress: string,
   overrides?: ethers.PayableOverrides
@@ -406,7 +406,7 @@ export async function resend(
   targetChain: ChainName,
   environment: Network,
   vaaKey: VaaKey,
-  newGasLimit: number,
+  newGasLimit: BigNumber | number,
   newReceiverValue: BigNumber | number,
   deliveryProviderAddress: string,
   wormholeRPCs: string[],

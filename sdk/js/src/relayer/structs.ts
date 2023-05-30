@@ -77,7 +77,7 @@ export type RedeliveryInstructionPrintable = {
 };
 
 export interface EVMExecutionInfoV1 {
-  gasLimit: number;
+  gasLimit: BigNumber;
   targetChainRefundPerGasUnused: BigNumber;
 }
 
@@ -220,9 +220,10 @@ export function parseEVMExecutionInfoV1(
   if(version !== ExecutionInfoVersion.EVM_V1) {
     throw new Error("Unexpected Execution Info version");
   }
-  idx += 28;
-  const gasLimit = bytes.readUInt32BE(idx);
-  idx += 4;
+  const gasLimit = ethers.BigNumber.from(
+    Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
+  );
+  idx += 32;
   const targetChainRefundPerGasUnused = ethers.BigNumber.from(
     Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
   );

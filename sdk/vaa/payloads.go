@@ -61,7 +61,7 @@ var (
 	CircleIntegrationActionUpgradeContractImplementation GovernanceAction = 3
 
 	// Wormhole relayer governance actions
-	WormholeRelayerSetDefaultRelayProvider GovernanceAction = 3
+	WormholeRelayerSetDefaultDeliveryProvider GovernanceAction = 3
 )
 
 type (
@@ -139,10 +139,10 @@ type (
 		NewImplementationAddress [32]byte
 	}
 
-	// BodyWormholeRelayerSetDefaultRelayProvider is a governance message to set the default relay provider for the Wormhole Relayer.
-	BodyWormholeRelayerSetDefaultRelayProvider struct {
-		ChainID                        ChainID
-		NewDefaultRelayProviderAddress Address
+	// BodyWormholeRelayerSetDefaultDeliveryProvider is a governance message to set the default relay provider for the Wormhole Relayer.
+	BodyWormholeRelayerSetDefaultDeliveryProvider struct {
+		ChainID                           ChainID
+		NewDefaultDeliveryProviderAddress Address
 	}
 )
 
@@ -245,10 +245,10 @@ func (r BodyCircleIntegrationUpgradeContractImplementation) Serialize() []byte {
 	return serializeBridgeGovernanceVaa(CircleIntegrationModuleStr, CircleIntegrationActionUpgradeContractImplementation, r.TargetChainID, payload.Bytes())
 }
 
-func (r BodyWormholeRelayerSetDefaultRelayProvider) Serialize() []byte {
+func (r BodyWormholeRelayerSetDefaultDeliveryProvider) Serialize() []byte {
 	payload := &bytes.Buffer{}
-	payload.Write(r.NewDefaultRelayProviderAddress[:])
-	return serializeBridgeGovernanceVaa(CoreRelayerModuleStr, WormholeRelayerSetDefaultRelayProvider, r.ChainID, payload.Bytes())
+	payload.Write(r.NewDefaultDeliveryProviderAddress[:])
+	return serializeBridgeGovernanceVaa(CoreRelayerModuleStr, WormholeRelayerSetDefaultDeliveryProvider, r.ChainID, payload.Bytes())
 }
 
 func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chainId ChainID, payload []byte) []byte {

@@ -91,7 +91,6 @@ abstract contract WormholeRelayerBase is IWormholeRelayerBase {
             0, encodedInstruction, consistencyLevel
         );
 
-        //TODO AMO: what if pay fails? (i.e. returns false)
         paymentSucceeded = pay(
             rewardAddress,
             deliveryQuote + paymentForExtraReceiverValue

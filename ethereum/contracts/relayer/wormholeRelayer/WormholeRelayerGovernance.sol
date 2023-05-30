@@ -38,7 +38,7 @@ abstract contract WormholeRelayerGovernance is WormholeRelayerBase, ERC1967Upgra
      *   - https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0002_governance_messaging.md
      */
 
-    //Right shifted ascii encoding of "WormholeRelayer"
+    //Right shifted ascii encoding of "CoreRelayer"
     bytes32 private constant module =
         0x000000000000000000000000000000000000000000436f726552656c61796572;
 
@@ -48,21 +48,21 @@ abstract contract WormholeRelayerGovernance is WormholeRelayerBase, ERC1967Upgra
      */
 
     /**
-     * Registers a core relayer contract that was deployed on another chain with the WormholeRelayer on
+     * Registers a wormhole relayer contract that was deployed on another chain with the WormholeRelayer on
      *   this chain. The equivalent to the core bridge's registerChain action.
      *
      * Action Parameters:
-     *   - uint16 foreignChainId - originally emitterChainID, renamed for clarity
-     *   - bytes32 foreignContractAddress - originally emitterAddress, renamed for clarity
+     *   - uint16 foreignChainId 
+     *   - bytes32 foreignContractAddress 
      */
-    uint8 private constant GOVERNANCE_ACTION_REGISTER_CORE_RELAYER_CONTRACT = 1;
+    uint8 private constant GOVERNANCE_ACTION_REGISTER_WORMHOLE_RELAYER_CONTRACT = 1;
 
     /**
      * Upgrades the WormholeRelayer contract to a new implementation. The equivalent to the core bridge's
      *   upgrade action.
      *
      * Action Parameters:
-     *   - bytes32 newImplementation - bytes32 instead of address for general consistency reasons
+     *   - bytes32 newImplementation
      */
     uint8 private constant GOVERNANCE_ACTION_CONTRACT_UPGRADE = 2;
 
@@ -70,7 +70,7 @@ abstract contract WormholeRelayerGovernance is WormholeRelayerBase, ERC1967Upgra
      * Sets the default relay provider for the WormholeRelayer. Has no equivalent in the core bridge.
      *
      * Action Parameters:
-     *   - bytes32 newProvider - bytes32 instead of address for general consistency reasons
+     *   - bytes32 newProvider 
      */
     uint8 private constant GOVERNANCE_ACTION_UPDATE_DEFAULT_PROVIDER = 3;
 
@@ -121,7 +121,7 @@ abstract contract WormholeRelayerGovernance is WormholeRelayerBase, ERC1967Upgra
     {
         bytes memory payload = verifyAndConsumeGovernanceVM(encodedVm);
         uint256 offset = parseAndCheckPayloadHeader(
-            payload, GOVERNANCE_ACTION_REGISTER_CORE_RELAYER_CONTRACT, true
+            payload, GOVERNANCE_ACTION_REGISTER_WORMHOLE_RELAYER_CONTRACT, true
         );
 
         (foreignChainId, offset) = payload.asUint16Unchecked(offset);

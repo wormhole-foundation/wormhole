@@ -47,7 +47,6 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
             receiverValue.asNative() + costOfProvidingFullGasLimit <= maximumBudget(targetChain),
             "Exceeds maximum budget"
         );
-        //require(nativePriceQuote.unwrap() <= type(uint128).max, "Overflow");
     }
 
     function quoteDeliveryPrice(

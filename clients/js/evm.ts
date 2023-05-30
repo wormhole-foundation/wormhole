@@ -379,10 +379,10 @@ export async function execute_evm(
             console.log("Error: The published NPM SDK doesn't have the typechain binding for CoreRelayer yet")
             //console.log("Hash: " + (await rb.registerCoreRelayerContract(vaa, overrides)).hash)
             break
-          case "SetDefaultRelayProvider":
+          case "SetDefaultDeliveryProvider":
             console.log("Setting default relay provider")
             console.log("Error: The published NPM SDK doesn't have the typechain binding for CoreRelayer yet")
-            //console.log("Hash: " + (await rb.setDefaultRelayProvider(vaa, overrides)).hash)
+            //console.log("Hash: " + (await rb.setDefaultDeliveryProvider(vaa, overrides)).hash)
             break
           default:
             impossible(payload)
