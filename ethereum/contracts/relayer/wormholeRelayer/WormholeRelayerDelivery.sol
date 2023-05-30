@@ -626,8 +626,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         for (uint256 i = 0; i < vaaKeys.length;) {
             IWormhole.VM memory parsedVaa = getWormhole().parseVM(signedVaas[i]);
             VaaKey memory vaaKey = vaaKeys[i];
-
-            //this if is exhaustive, i.e vaaKey.infoType only has the two variants
+            
             if (
                 vaaKey.chainId != parsedVaa.emitterChainId
                     || vaaKey.emitterAddress != parsedVaa.emitterAddress
