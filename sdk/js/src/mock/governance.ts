@@ -244,7 +244,7 @@ export class GovernanceEmitter extends MockEmitter {
     );
   }
 
-  publishWormholeRelayerSetDefaultRelayProvider(
+  publishWormholeRelayerSetDefaultDeliveryProvider(
     timestamp: number,
     chain: number,
     newRelayProviderAddress: string,

@@ -104,7 +104,11 @@ message GovernanceMessage {
     // IBC Receiver Integration
     IbcReceiverUpdateChannelChain ibc_receiver_update_channel_chain = 21;
     // Wormhole Relayer module
+<<<<<<< HEAD
     WormholeRelayerSetDefaultRelayProvider wormhole_relayer_set_default_relay_provider = 22;
+=======
+    WormholeRelayerSetDefaultDeliveryProvider wormhole_relayer_set_default_delivery_provider = 21;
+>>>>>>> 1a50de38 (Relayer: Remove incorrect comments, change uint32->Gas, SetDefaultRelayProvider->SetDefaultDeliveryProvider (#3005))
   }
 }
 
@@ -250,12 +254,12 @@ message IbcReceiverUpdateChannelChain {
   uint32 chain_id = 3;
 }
 
-message WormholeRelayerSetDefaultRelayProvider {
-  // ID of the chain of the Wormhole Relayer contract where the default relay provider should be updated (uint16).
+message WormholeRelayerSetDefaultDeliveryProvider {
+  // ID of the chain of the Wormhole Relayer contract where the default delivery provider should be updated (uint16).
   uint32 chain_id = 1;
 
-  // Hex-encoded address (without leading 0x) of the new default relay provider contract address.
-  string new_default_relay_provider_address = 2;
+  // Hex-encoded address (without leading 0x) of the new default delivery provider contract address.
+  string new_default_delivery_provider_address = 2;
 }
 
 message FindMissingMessagesRequest {

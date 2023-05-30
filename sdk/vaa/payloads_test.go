@@ -199,11 +199,13 @@ func FuzzLeftPadBytes(f *testing.F) {
 		// paddedPayload must always be equal to length
 		assert.Equal(t, paddedPayload.Len(), length)
 	})
-func TestBodyWormholeRelayerSetDefaultRelayProviderSerialize(t *testing.T) {
+}
+
+func TestBodyWormholeRelayerSetDefaultDeliveryProviderSerialize(t *testing.T) {
 	expected := "000000000000000000000000000000000000000000436f726552656c617965720300040000000000000000000000000000000000000000000000000000000000000004"
-	bodyWormholeRelayerSetDefaultRelayProvider := BodyWormholeRelayerSetDefaultRelayProvider{
-		ChainID:                        4,
-		NewDefaultRelayProviderAddress: addr,
+	bodyWormholeRelayerSetDefaultDeliveryProvider := BodyWormholeRelayerSetDefaultDeliveryProvider{
+		ChainID:                           4,
+		NewDefaultDeliveryProviderAddress: addr,
 	}
-	assert.Equal(t, expected, hex.EncodeToString(bodyWormholeRelayerSetDefaultRelayProvider.Serialize()))
+	assert.Equal(t, expected, hex.EncodeToString(bodyWormholeRelayerSetDefaultDeliveryProvider.Serialize()))
 }

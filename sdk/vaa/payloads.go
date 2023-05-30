@@ -24,7 +24,6 @@ var CircleIntegrationModule = [32]byte{
 }
 var CircleIntegrationModuleStr = string(CircleIntegrationModule[:])
 
-<<<<<<< HEAD
 // WasmdModule is the identifier of the Wormchain ibc_receiver contract module (which is used for governance messages)
 // It is the hex representation of "IbcReceiver" left padded with zeroes.
 var IbcReceiverModule = [32]byte{
@@ -32,7 +31,7 @@ var IbcReceiverModule = [32]byte{
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x49, 0x62, 0x63, 0x52, 0x65, 0x63, 0x65, 0x69, 0x76, 0x65, 0x72,
 }
 var IbcReceiverModuleStr = string(IbcReceiverModule[:])
-=======
+
 // CoreRelayerModule is the identifier of the Wormhole Relayer module (which is used for governance messages).
 // It is the hex representation of "CoreRelayer" left padded with zeroes.
 var CoreRelayerModule = [32]byte{
@@ -40,7 +39,6 @@ var CoreRelayerModule = [32]byte{
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x43, 0x6f, 0x72, 0x65, 0x52, 0x65, 0x6c, 0x61, 0x79, 0x65, 0x72,
 }
 var CoreRelayerModuleStr = string(CoreRelayerModule[:])
->>>>>>> 22d7d1a5 (gRelayer: guardian changes (#2788))
 
 type GovernanceAction uint8
 
@@ -71,17 +69,11 @@ var (
 	CircleIntegrationActionRegisterEmitterAndDomain      GovernanceAction = 2
 	CircleIntegrationActionUpgradeContractImplementation GovernanceAction = 3
 
-<<<<<<< HEAD
 	// Ibc Receiver governance actions
 	IbcReceiverActionUpdateChannelChain GovernanceAction = 1
-=======
+
 	// Wormhole relayer governance actions
-<<<<<<< HEAD
-	WormholeRelayerSetDefaultRelayProvider GovernanceAction = 4
->>>>>>> 22d7d1a5 (gRelayer: guardian changes (#2788))
-=======
-	WormholeRelayerSetDefaultRelayProvider GovernanceAction = 3
->>>>>>> f4a4b3df (Relayer: CoreRelayer large refactor  (#2897))
+	WormholeRelayerSetDefaultDeliveryProvider GovernanceAction = 3
 )
 
 type (
@@ -159,7 +151,6 @@ type (
 		NewImplementationAddress [32]byte
 	}
 
-<<<<<<< HEAD
 	// BodyIbcReceiverUpdateChannelChain is a governance message to update the ibc channel_id -> chain_id mapping in the ibc_receiver contract
 	BodyIbcReceiverUpdateChannelChain struct {
 		// The chain that this governance VAA should be redeemed on
@@ -169,12 +160,12 @@ type (
 		// If the identifier string is shorter than 64 bytes, the correct number of 0x00 bytes should be prepended.
 		ChannelId [64]byte
 		ChainId   ChainID
-=======
-	// BodyWormholeRelayerSetDefaultRelayProvider is a governance message to set the default relay provider for the Wormhole Relayer.
-	BodyWormholeRelayerSetDefaultRelayProvider struct {
-		ChainID                        ChainID
-		NewDefaultRelayProviderAddress Address
->>>>>>> 22d7d1a5 (gRelayer: guardian changes (#2788))
+	}
+
+	// BodyWormholeRelayerSetDefaultDeliveryProvider is a governance message to set the default relay provider for the Wormhole Relayer.
+	BodyWormholeRelayerSetDefaultDeliveryProvider struct {
+		ChainID                           ChainID
+		NewDefaultDeliveryProviderAddress Address
 	}
 )
 
@@ -283,10 +274,11 @@ func (r BodyIbcReceiverUpdateChannelChain) Serialize() []byte {
 	MustWrite(payload, binary.BigEndian, r.ChainId)
 	return serializeBridgeGovernanceVaa(IbcReceiverModuleStr, IbcReceiverActionUpdateChannelChain, r.TargetChainId, payload.Bytes())
 }
-func (r BodyWormholeRelayerSetDefaultRelayProvider) Serialize() []byte {
+
+func (r BodyWormholeRelayerSetDefaultDeliveryProvider) Serialize() []byte {
 	payload := &bytes.Buffer{}
-	payload.Write(r.NewDefaultRelayProviderAddress[:])
-	return serializeBridgeGovernanceVaa(CoreRelayerModuleStr, WormholeRelayerSetDefaultRelayProvider, r.ChainID, payload.Bytes())
+	payload.Write(r.NewDefaultDeliveryProviderAddress[:])
+	return serializeBridgeGovernanceVaa(CoreRelayerModuleStr, WormholeRelayerSetDefaultDeliveryProvider, r.ChainID, payload.Bytes())
 }
 
 func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chainId ChainID, payload []byte) []byte {

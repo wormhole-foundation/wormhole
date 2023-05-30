@@ -75,7 +75,7 @@ export type Payload =
     | CoreContractRecoverChainId
     | PortalContractRecoverChainId<"TokenBridge">
     | PortalContractRecoverChainId<"NFTBridge">
-    | WormholeRelayerSetDefaultRelayProvider
+    | WormholeRelayerSetDefaultDeliveryProvider
 
 export type ContractUpgrade =
     CoreContractUpgrade
@@ -105,7 +105,7 @@ export function parse(buffer: Buffer): VAA<Payload | Other> {
         .or(coreContractRecoverChainId())
         .or(portalContractRecoverChainId("TokenBridge"))
         .or(portalContractRecoverChainId("NFTBridge"))
-        .or(wormholeRelayerSetDefaultRelayProvider())
+        .or(wormholeRelayerSetDefaultDeliveryProvider())
     let payload : Payload | Other | null = parser.parse(vaa.payload)
     if (payload === null) {
         payload = {type: "Other", hex: Buffer.from(vaa.payload).toString("hex"), ascii: Buffer.from(vaa.payload).toString('utf8')}
@@ -270,8 +270,8 @@ function vaaBody(vaa: VAA<Payload | Other>) {
                     case "RegisterChain":
                         payload_str = serialisePortalRegisterChain(payload)
                         break
-                    case "SetDefaultRelayProvider":
-                        payload_str = serialiseWormholeRelayerSetDefaultRelayProvider(payload)
+                    case "SetDefaultDeliveryProvider":
+                        payload_str = serialiseWormholeRelayerSetDefaultDeliveryProvider(payload)
                         break
                     default:
                         impossible(payload)
@@ -887,14 +887,14 @@ function serialiseNFTBridgeTransfer(payload: NFTBridgeTransfer): string {
 
 ////////////////////////////////////////////////////////////////////////////////
 // CoreRelayer
-export interface WormholeRelayerSetDefaultRelayProvider {
+export interface WormholeRelayerSetDefaultDeliveryProvider {
     module: "CoreRelayer"
-    type: "SetDefaultRelayProvider"
+    type: "SetDefaultDeliveryProvider"
     relayProviderAddress: string
     chain: number
 }
 
-function wormholeRelayerSetDefaultRelayProvider(): P<WormholeRelayerSetDefaultRelayProvider> {
+function wormholeRelayerSetDefaultDeliveryProvider(): P<WormholeRelayerSetDefaultDeliveryProvider> {
     return new P(new Parser()
         .endianess("big")
         .string("module", {
@@ -905,7 +905,7 @@ function wormholeRelayerSetDefaultRelayProvider(): P<WormholeRelayerSetDefaultRe
         })
         .uint8("type", {
             assert: 3,
-            formatter: (_action) => "SetDefaultRelayProvider"
+            formatter: (_action) => "SetDefaultDeliveryProvider"
         })
         .uint16("chain")
         .array("relayProviderAddress", {
@@ -920,7 +920,7 @@ function wormholeRelayerSetDefaultRelayProvider(): P<WormholeRelayerSetDefaultRe
     )
 }
 
-function serialiseWormholeRelayerSetDefaultRelayProvider(payload: WormholeRelayerSetDefaultRelayProvider): string {
+function serialiseWormholeRelayerSetDefaultDeliveryProvider(payload: WormholeRelayerSetDefaultDeliveryProvider): string {
     const body = [
         encode("bytes32", encodeString(payload.module)),
         encode("uint8", 3),
