@@ -102,7 +102,7 @@ message GovernanceMessage {
     CircleIntegrationUpgradeContractImplementation circle_integration_upgrade_contract_implementation = 20;
 
     // Wormhole Relayer module
-    WormholeRelayerSetDefaultRelayProvider wormhole_relayer_set_default_relay_provider = 21;
+    WormholeRelayerSetDefaultDeliveryProvider wormhole_relayer_set_default_relay_provider = 21;
   }
 }
 
@@ -239,7 +239,7 @@ message CircleIntegrationUpgradeContractImplementation {
   uint32 target_chain_id = 2;
 }
 
-message WormholeRelayerSetDefaultRelayProvider {
+message WormholeRelayerSetDefaultDeliveryProvider {
   // ID of the chain of the Wormhole Relayer contract where the default relay provider should be updated (uint16).
   uint32 chain_id = 1;
 

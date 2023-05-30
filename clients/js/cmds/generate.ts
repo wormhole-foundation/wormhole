@@ -22,7 +22,7 @@ import {
   sign,
   TokenBridgeAttestMeta,
   VAA,
-  WormholeRelayerSetDefaultRelayProvider,
+  WormholeRelayerSetDefaultDeliveryProvider,
 } from "../vaa";
 
 function makeVAA(
@@ -289,9 +289,9 @@ exports.builder = function (y: typeof yargs) {
         },
         (argv) => {
           assertChain(argv["chain"]);
-          let payload: WormholeRelayerSetDefaultRelayProvider = {
+          let payload: WormholeRelayerSetDefaultDeliveryProvider = {
             module: "CoreRelayer",
-            type: "SetDefaultRelayProvider",
+            type: "SetDefaultDeliveryProvider",
             chain: toChainId(argv["chain"]),
             relayProviderAddress: parseAddress(argv["chain"], argv["relay-provider-address"])
           };

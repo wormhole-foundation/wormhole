@@ -360,9 +360,9 @@ func circleIntegrationUpgradeContractImplementation(req *nodev1.CircleIntegratio
 	return v, nil
 }
 
-// wormholeRelayerSetDefaultRelayProvider converts a nodev1.WormholeRelayerSetDefaultRelayProvider message to its canonical VAA representation.
+// wormholeRelayerSetDefaultDeliveryProvider converts a nodev1.WormholeRelayerSetDefaultDeliveryProvider message to its canonical VAA representation.
 // Returns an error if the data is invalid.
-func wormholeRelayerSetDefaultRelayProvider(req *nodev1.WormholeRelayerSetDefaultRelayProvider, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
+func wormholeRelayerSetDefaultDeliveryProvider(req *nodev1.WormholeRelayerSetDefaultDeliveryProvider, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
 	if req.ChainId > math.MaxUint16 {
 		return nil, errors.New("invalid target_chain_id")
 	}
@@ -380,7 +380,7 @@ func wormholeRelayerSetDefaultRelayProvider(req *nodev1.WormholeRelayerSetDefaul
 	copy(newDefaultRelayProviderAddress[:], b)
 
 	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
-		vaa.BodyWormholeRelayerSetDefaultRelayProvider{
+		vaa.BodyWormholeRelayerSetDefaultDeliveryProvider{
 			ChainID:                        vaa.ChainID(req.ChainId),
 			NewDefaultRelayProviderAddress: newDefaultRelayProviderAddress,
 		}.Serialize())
@@ -424,8 +424,8 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 			v, err = circleIntegrationRegisterEmitterAndDomain(payload.CircleIntegrationRegisterEmitterAndDomain, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		case *nodev1.GovernanceMessage_CircleIntegrationUpgradeContractImplementation:
 			v, err = circleIntegrationUpgradeContractImplementation(payload.CircleIntegrationUpgradeContractImplementation, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
-		case *nodev1.GovernanceMessage_WormholeRelayerSetDefaultRelayProvider:
-			v, err = wormholeRelayerSetDefaultRelayProvider(payload.WormholeRelayerSetDefaultRelayProvider, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
+		case *nodev1.GovernanceMessage_WormholeRelayerSetDefaultDeliveryProvider:
+			v, err = wormholeRelayerSetDefaultDeliveryProvider(payload.WormholeRelayerSetDefaultDeliveryProvider, timestamp, req.CurrentSetIndex, message.Nonce, message.Sequence)
 		default:
 			panic(fmt.Sprintf("unsupported VAA type: %T", payload))
 		}

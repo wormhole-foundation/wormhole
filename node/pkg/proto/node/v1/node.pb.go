@@ -162,7 +162,7 @@ type GovernanceMessage struct {
 	//	*GovernanceMessage_CircleIntegrationUpdateWormholeFinality
 	//	*GovernanceMessage_CircleIntegrationRegisterEmitterAndDomain
 	//	*GovernanceMessage_CircleIntegrationUpgradeContractImplementation
-	//	*GovernanceMessage_WormholeRelayerSetDefaultRelayProvider
+	//	*GovernanceMessage_WormholeRelayerSetDefaultDeliveryProvider
 	Payload isGovernanceMessage_Payload `protobuf_oneof:"payload"`
 }
 
@@ -296,9 +296,9 @@ func (x *GovernanceMessage) GetCircleIntegrationUpgradeContractImplementation() 
 	return nil
 }
 
-func (x *GovernanceMessage) GetWormholeRelayerSetDefaultRelayProvider() *WormholeRelayerSetDefaultRelayProvider {
-	if x, ok := x.GetPayload().(*GovernanceMessage_WormholeRelayerSetDefaultRelayProvider); ok {
-		return x.WormholeRelayerSetDefaultRelayProvider
+func (x *GovernanceMessage) GetWormholeRelayerSetDefaultDeliveryProvider() *WormholeRelayerSetDefaultDeliveryProvider {
+	if x, ok := x.GetPayload().(*GovernanceMessage_WormholeRelayerSetDefaultDeliveryProvider); ok {
+		return x.WormholeRelayerSetDefaultDeliveryProvider
 	}
 	return nil
 }
@@ -353,9 +353,9 @@ type GovernanceMessage_CircleIntegrationUpgradeContractImplementation struct {
 	CircleIntegrationUpgradeContractImplementation *CircleIntegrationUpgradeContractImplementation `protobuf:"bytes,20,opt,name=circle_integration_upgrade_contract_implementation,json=circleIntegrationUpgradeContractImplementation,proto3,oneof"`
 }
 
-type GovernanceMessage_WormholeRelayerSetDefaultRelayProvider struct {
+type GovernanceMessage_WormholeRelayerSetDefaultDeliveryProvider struct {
 	// Wormhole Relayer module
-	WormholeRelayerSetDefaultRelayProvider *WormholeRelayerSetDefaultRelayProvider `protobuf:"bytes,21,opt,name=wormhole_relayer_set_default_relay_provider,json=wormholeRelayerSetDefaultRelayProvider,proto3,oneof"`
+	WormholeRelayerSetDefaultDeliveryProvider *WormholeRelayerSetDefaultDeliveryProvider `protobuf:"bytes,21,opt,name=wormhole_relayer_set_default_relay_provider,json=wormholeRelayerSetDefaultDeliveryProvider,proto3,oneof"`
 }
 
 func (*GovernanceMessage_GuardianSet) isGovernanceMessage_Payload() {}
@@ -381,7 +381,7 @@ func (*GovernanceMessage_CircleIntegrationRegisterEmitterAndDomain) isGovernance
 func (*GovernanceMessage_CircleIntegrationUpgradeContractImplementation) isGovernanceMessage_Payload() {
 }
 
-func (*GovernanceMessage_WormholeRelayerSetDefaultRelayProvider) isGovernanceMessage_Payload() {}
+func (*GovernanceMessage_WormholeRelayerSetDefaultDeliveryProvider) isGovernanceMessage_Payload() {}
 
 type InjectGovernanceVAAResponse struct {
 	state         protoimpl.MessageState
@@ -1212,7 +1212,7 @@ func (x *CircleIntegrationUpgradeContractImplementation) GetTargetChainId() uint
 	return 0
 }
 
-type WormholeRelayerSetDefaultRelayProvider struct {
+type WormholeRelayerSetDefaultDeliveryProvider struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
@@ -1223,8 +1223,8 @@ type WormholeRelayerSetDefaultRelayProvider struct {
 	NewDefaultRelayProviderAddress string `protobuf:"bytes,2,opt,name=new_default_relay_provider_address,json=newDefaultRelayProviderAddress,proto3" json:"new_default_relay_provider_address,omitempty"`
 }
 
-func (x *WormholeRelayerSetDefaultRelayProvider) Reset() {
-	*x = WormholeRelayerSetDefaultRelayProvider{}
+func (x *WormholeRelayerSetDefaultDeliveryProvider) Reset() {
+	*x = WormholeRelayerSetDefaultDeliveryProvider{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_node_v1_node_proto_msgTypes[15]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1232,13 +1232,13 @@ func (x *WormholeRelayerSetDefaultRelayProvider) Reset() {
 	}
 }
 
-func (x *WormholeRelayerSetDefaultRelayProvider) String() string {
+func (x *WormholeRelayerSetDefaultDeliveryProvider) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WormholeRelayerSetDefaultRelayProvider) ProtoMessage() {}
+func (*WormholeRelayerSetDefaultDeliveryProvider) ProtoMessage() {}
 
-func (x *WormholeRelayerSetDefaultRelayProvider) ProtoReflect() protoreflect.Message {
+func (x *WormholeRelayerSetDefaultDeliveryProvider) ProtoReflect() protoreflect.Message {
 	mi := &file_node_v1_node_proto_msgTypes[15]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1250,19 +1250,19 @@ func (x *WormholeRelayerSetDefaultRelayProvider) ProtoReflect() protoreflect.Mes
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WormholeRelayerSetDefaultRelayProvider.ProtoReflect.Descriptor instead.
-func (*WormholeRelayerSetDefaultRelayProvider) Descriptor() ([]byte, []int) {
+// Deprecated: Use WormholeRelayerSetDefaultDeliveryProvider.ProtoReflect.Descriptor instead.
+func (*WormholeRelayerSetDefaultDeliveryProvider) Descriptor() ([]byte, []int) {
 	return file_node_v1_node_proto_rawDescGZIP(), []int{15}
 }
 
-func (x *WormholeRelayerSetDefaultRelayProvider) GetChainId() uint32 {
+func (x *WormholeRelayerSetDefaultDeliveryProvider) GetChainId() uint32 {
 	if x != nil {
 		return x.ChainId
 	}
 	return 0
 }
 
-func (x *WormholeRelayerSetDefaultRelayProvider) GetNewDefaultRelayProviderAddress() string {
+func (x *WormholeRelayerSetDefaultDeliveryProvider) GetNewDefaultRelayProviderAddress() string {
 	if x != nil {
 		return x.NewDefaultRelayProviderAddress
 	}
@@ -2737,7 +2737,7 @@ var file_node_v1_node_proto_goTypes = []interface{}{
 	(*CircleIntegrationUpdateWormholeFinality)(nil),        // 13: node.v1.CircleIntegrationUpdateWormholeFinality
 	(*CircleIntegrationRegisterEmitterAndDomain)(nil),      // 14: node.v1.CircleIntegrationRegisterEmitterAndDomain
 	(*CircleIntegrationUpgradeContractImplementation)(nil), // 15: node.v1.CircleIntegrationUpgradeContractImplementation
-	(*WormholeRelayerSetDefaultRelayProvider)(nil),         // 16: node.v1.WormholeRelayerSetDefaultRelayProvider
+	(*WormholeRelayerSetDefaultDeliveryProvider)(nil),         // 16: node.v1.WormholeRelayerSetDefaultDeliveryProvider
 	(*FindMissingMessagesRequest)(nil),                     // 17: node.v1.FindMissingMessagesRequest
 	(*FindMissingMessagesResponse)(nil),                    // 18: node.v1.FindMissingMessagesResponse
 	(*SendObservationRequestRequest)(nil),                  // 19: node.v1.SendObservationRequestRequest
@@ -2775,7 +2775,7 @@ var file_node_v1_node_proto_depIdxs = []int32{
 	13, // 9: node.v1.GovernanceMessage.circle_integration_update_wormhole_finality:type_name -> node.v1.CircleIntegrationUpdateWormholeFinality
 	14, // 10: node.v1.GovernanceMessage.circle_integration_register_emitter_and_domain:type_name -> node.v1.CircleIntegrationRegisterEmitterAndDomain
 	15, // 11: node.v1.GovernanceMessage.circle_integration_upgrade_contract_implementation:type_name -> node.v1.CircleIntegrationUpgradeContractImplementation
-	16, // 12: node.v1.GovernanceMessage.wormhole_relayer_set_default_relay_provider:type_name -> node.v1.WormholeRelayerSetDefaultRelayProvider
+	16, // 12: node.v1.GovernanceMessage.wormhole_relayer_set_default_relay_provider:type_name -> node.v1.WormholeRelayerSetDefaultDeliveryProvider
 	37, // 13: node.v1.GuardianSetUpdate.guardians:type_name -> node.v1.GuardianSetUpdate.Guardian
 	0,  // 14: node.v1.AccountantModifyBalance.kind:type_name -> node.v1.ModificationKind
 	39, // 15: node.v1.SendObservationRequestRequest.observation_request:type_name -> gossip.v1.ObservationRequest
@@ -2996,7 +2996,7 @@ func file_node_v1_node_proto_init() {
 			}
 		}
 		file_node_v1_node_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*WormholeRelayerSetDefaultRelayProvider); i {
+			switch v := v.(*WormholeRelayerSetDefaultDeliveryProvider); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -3272,7 +3272,7 @@ func file_node_v1_node_proto_init() {
 		(*GovernanceMessage_CircleIntegrationUpdateWormholeFinality)(nil),
 		(*GovernanceMessage_CircleIntegrationRegisterEmitterAndDomain)(nil),
 		(*GovernanceMessage_CircleIntegrationUpgradeContractImplementation)(nil),
-		(*GovernanceMessage_WormholeRelayerSetDefaultRelayProvider)(nil),
+		(*GovernanceMessage_WormholeRelayerSetDefaultDeliveryProvider)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

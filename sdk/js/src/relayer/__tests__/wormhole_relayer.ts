@@ -415,7 +415,7 @@ test("Governance: Test Setting Default Relay Provider", async () => {
 
     const timestamp = (await source.wallet.provider.getBlock("latest")).timestamp;
     const chain = source.chainId;
-    const firstMessage = governance.publishWormholeRelayerSetDefaultRelayProvider(timestamp, chain, expectedNewDefaultDeliveryProvider);
+    const firstMessage = governance.publishWormholeRelayerSetDefaultDeliveryProvider(timestamp, chain, expectedNewDefaultDeliveryProvider);
     const firstSignedVaa = guardians.addSignatures(firstMessage, guardianIndices);
 
     let tx = await source.wormholeRelayer.setDefaultDeliveryProvider(firstSignedVaa);
@@ -425,7 +425,7 @@ test("Governance: Test Setting Default Relay Provider", async () => {
 
     expect(newDefaultDeliveryProvider).toBe(expectedNewDefaultDeliveryProvider);
 
-    const inverseFirstMessage = governance.publishWormholeRelayerSetDefaultRelayProvider(timestamp, chain, currentAddress)
+    const inverseFirstMessage = governance.publishWormholeRelayerSetDefaultDeliveryProvider(timestamp, chain, currentAddress)
     const inverseFirstSignedVaa = guardians.addSignatures(inverseFirstMessage, guardianIndices);
 
     tx = await source.wormholeRelayer.setDefaultDeliveryProvider(inverseFirstSignedVaa);

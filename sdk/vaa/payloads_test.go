@@ -150,11 +150,11 @@ func TestBodyCircleIntegrationUpgradeContractImplementationSerialize(t *testing.
 	assert.Equal(t, expected, hex.EncodeToString(bodyCircleIntegrationUpgradeContractImplementation.Serialize()))
 }
 
-func TestBodyWormholeRelayerSetDefaultRelayProviderSerialize(t *testing.T) {
+func TestBodyWormholeRelayerSetDefaultDeliveryProviderSerialize(t *testing.T) {
 	expected := "000000000000000000000000000000000000000000436f726552656c617965720300040000000000000000000000000000000000000000000000000000000000000004"
-	bodyWormholeRelayerSetDefaultRelayProvider := BodyWormholeRelayerSetDefaultRelayProvider{
+	bodyWormholeRelayerSetDefaultDeliveryProvider := BodyWormholeRelayerSetDefaultDeliveryProvider{
 		ChainID:                        4,
 		NewDefaultRelayProviderAddress: addr,
 	}
-	assert.Equal(t, expected, hex.EncodeToString(bodyWormholeRelayerSetDefaultRelayProvider.Serialize()))
+	assert.Equal(t, expected, hex.EncodeToString(bodyWormholeRelayerSetDefaultDeliveryProvider.Serialize()))
 }

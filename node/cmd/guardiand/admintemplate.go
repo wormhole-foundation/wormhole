@@ -66,8 +66,8 @@ func init() {
 	AdminClientTokenBridgeUpgradeContractCmd.Flags().AddFlagSet(moduleFlagSet)
 	TemplateCmd.AddCommand(AdminClientTokenBridgeUpgradeContractCmd)
 
-	AdminClientWormholeRelayerSetDefaultRelayProviderCmd.Flags().AddFlagSet(governanceFlagSet)
-	TemplateCmd.AddCommand(AdminClientWormholeRelayerSetDefaultRelayProviderCmd)
+	AdminClientWormholeRelayerSetDefaultDeliveryProviderCmd.Flags().AddFlagSet(governanceFlagSet)
+	TemplateCmd.AddCommand(AdminClientWormholeRelayerSetDefaultDeliveryProviderCmd)
 
 	AdminClientShutdownProofCmd.Flags().AddFlagSet(authProofFlagSet)
 	TemplateCmd.AddCommand(AdminClientShutdownProofCmd)
@@ -148,10 +148,10 @@ var AdminClientCircleIntegrationUpgradeContractImplementationCmd = &cobra.Comman
 	Run:   runCircleIntegrationUpgradeContractImplementationTemplate,
 }
 
-var AdminClientWormholeRelayerSetDefaultRelayProviderCmd = &cobra.Command{
+var AdminClientWormholeRelayerSetDefaultDeliveryProviderCmd = &cobra.Command{
 	Use:   "wormhole-relayer-set-default-relay-provider",
 	Short: "Generate a 'set default relay provider' template for specified chain and address",
-	Run:   runWormholeRelayerSetDefaultRelayProviderTemplate,
+	Run:   runWormholeRelayerSetDefaultDeliveryProviderTemplate,
 }
 
 func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
@@ -463,7 +463,7 @@ func runCircleIntegrationUpgradeContractImplementationTemplate(cmd *cobra.Comman
 	fmt.Print(string(b))
 }
 
-func runWormholeRelayerSetDefaultRelayProviderTemplate(cmd *cobra.Command, args []string) {
+func runWormholeRelayerSetDefaultDeliveryProviderTemplate(cmd *cobra.Command, args []string) {
 	address, err := parseAddress(*address)
 	if err != nil {
 		log.Fatal(err)
@@ -479,8 +479,8 @@ func runWormholeRelayerSetDefaultRelayProviderTemplate(cmd *cobra.Command, args 
 			{
 				Sequence: rand.Uint64(),
 				Nonce:    rand.Uint32(),
-				Payload: &nodev1.GovernanceMessage_WormholeRelayerSetDefaultRelayProvider{
-					WormholeRelayerSetDefaultRelayProvider: &nodev1.WormholeRelayerSetDefaultRelayProvider{
+				Payload: &nodev1.GovernanceMessage_WormholeRelayerSetDefaultDeliveryProvider{
+					WormholeRelayerSetDefaultDeliveryProvider: &nodev1.WormholeRelayerSetDefaultDeliveryProvider{
 						ChainId:                        uint32(chainID),
 						NewDefaultRelayProviderAddress: address,
 					},
