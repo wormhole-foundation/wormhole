@@ -5,7 +5,7 @@ pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-contract RelayProviderProxy is ERC1967Proxy {
+contract DeliveryProviderProxy is ERC1967Proxy {
     constructor(
         address implementation,
         bytes memory initData

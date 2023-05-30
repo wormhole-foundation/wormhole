@@ -5,10 +5,10 @@ pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/utils/Context.sol";
 
-import "./RelayProviderState.sol";
-import "../../interfaces/relayer/IRelayProvider.sol";
+import "./DeliveryProviderState.sol";
+import "../../interfaces/relayer/IDeliveryProviderTyped.sol";
 
-contract RelayProviderSetters is Context, RelayProviderState {
+contract DeliveryProviderSetters is Context, DeliveryProviderState {
     using GasPriceLib for GasPrice;
     using WeiLib for Wei;
 
@@ -28,12 +28,12 @@ contract RelayProviderSetters is Context, RelayProviderState {
         _state.chainId = thisChain;
     }
 
-    function setCoreRelayer(address payable coreRelayer) internal {
+    function setWormholeRelayer(address payable coreRelayer) internal {
         _state.coreRelayer = coreRelayer;
     }
 
-    function setChainSupported(uint16 targetChainId, bool isSupported) internal {
-        _state.supportedChains[targetChainId] = isSupported;
+    function setChainSupported(uint16 targetChain, bool isSupported) internal {
+        _state.supportedChains[targetChain] = isSupported;
     }
 
     function setDeliverGasOverhead(uint16 chainId, Gas deliverGasOverhead) internal {
@@ -45,13 +45,13 @@ contract RelayProviderSetters is Context, RelayProviderState {
         _state.rewardAddress = rewardAddress;
     }
 
-    function setTargetChainAddress(uint16 targetChainId, bytes32 newAddress) internal {
-        _state.targetChainAddresses[targetChainId] = newAddress;
+    function setTargetChainAddress(uint16 targetChain, bytes32 newAddress) internal {
+        _state.targetChainAddresses[targetChain] = newAddress;
     }
 
-    function setMaximumBudget(uint16 targetChainId, Wei amount) internal {
+    function setMaximumBudget(uint16 targetChain, Wei amount) internal {
         require(amount.unwrap() <= type(uint192).max, "amount too large");
-        _state.maximumBudget[targetChainId] = amount;
+        _state.maximumBudget[targetChain] = amount;
     }
 
     function setPriceInfo(
@@ -65,12 +65,12 @@ contract RelayProviderSetters is Context, RelayProviderState {
     }
 
     function setAssetConversionBuffer(
-        uint16 targetChainId,
+        uint16 targetChain,
         uint16 tolerance,
         uint16 toleranceDenominator
     ) internal {
-        RelayProviderStorage.AssetConversion storage assetConversion =
-            _state.assetConversion[targetChainId];
+        DeliveryProviderStorage.AssetConversion storage assetConversion =
+            _state.assetConversion[targetChain];
         assetConversion.buffer = tolerance;
         assetConversion.denominator = toleranceDenominator;
     }

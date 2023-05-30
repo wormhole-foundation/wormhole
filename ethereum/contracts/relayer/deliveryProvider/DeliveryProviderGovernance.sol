@@ -8,13 +8,13 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 import "../../libraries/external/BytesLib.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 
-import "./RelayProviderGetters.sol";
-import "./RelayProviderSetters.sol";
-import "./RelayProviderStructs.sol";
+import "./DeliveryProviderGetters.sol";
+import "./DeliveryProviderSetters.sol";
+import "./DeliveryProviderStructs.sol";
 
-abstract contract RelayProviderGovernance is
-    RelayProviderGetters,
-    RelayProviderSetters,
+abstract contract DeliveryProviderGovernance is
+    DeliveryProviderGetters,
+    DeliveryProviderSetters,
     ERC1967Upgrade
 {
     using WeiLib for Wei;
@@ -33,37 +33,35 @@ abstract contract RelayProviderGovernance is
     error CallerMustBeOwner();
 
     event ContractUpgraded(address indexed oldContract, address indexed newContract);
-    event ChainSupportUpdated(uint16 targetChainId, bool isSupported);
+    event ChainSupportUpdated(uint16 targetChain, bool isSupported);
     event OwnershipTransfered(address indexed oldOwner, address indexed newOwner);
     event RewardAddressUpdated(address indexed newAddress);
-    event TargetChainAddressUpdated(uint16 indexed targetChainId, bytes32 indexed newAddress);
+    event TargetChainAddressUpdated(uint16 indexed targetChain, bytes32 indexed newAddress);
     event DeliverGasOverheadUpdated(Gas indexed oldGasOverhead, Gas indexed newGasOverhead);
-    event CoreRelayerUpdated(address coreRelayer);
-    event AssetConversionBufferUpdated(
-        uint16 targetChainId, uint16 buffer, uint16 bufferDenominator
-    );
+    event WormholeRelayerUpdated(address coreRelayer);
+    event AssetConversionBufferUpdated(uint16 targetChain, uint16 buffer, uint16 bufferDenominator);
 
-    function updateCoreRelayer(address payable newAddress) external onlyOwner {
-        updateCoreRelayerImpl(newAddress);
+    function updateWormholeRelayer(address payable newAddress) external onlyOwner {
+        updateWormholeRelayerImpl(newAddress);
     }
 
-    function updateCoreRelayerImpl(address payable newAddress) internal {
-        setCoreRelayer(newAddress);
-        emit CoreRelayerUpdated(newAddress);
+    function updateWormholeRelayerImpl(address payable newAddress) internal {
+        setWormholeRelayer(newAddress);
+        emit WormholeRelayerUpdated(newAddress);
     }
 
-    function updateSupportedChain(uint16 targetChainId, bool isSupported) public onlyOwner {
-        setChainSupported(targetChainId, isSupported);
-        emit ChainSupportUpdated(targetChainId, isSupported);
+    function updateSupportedChain(uint16 targetChain, bool isSupported) public onlyOwner {
+        setChainSupported(targetChain, isSupported);
+        emit ChainSupportUpdated(targetChain, isSupported);
     }
 
-    function updateSupportedChains(RelayProviderStructs.SupportedChainUpdate[] memory updates)
+    function updateSupportedChains(DeliveryProviderStructs.SupportedChainUpdate[] memory updates)
         public
         onlyOwner
     {
         uint256 updatesLength = updates.length;
         for (uint256 i = 0; i < updatesLength;) {
-            RelayProviderStructs.SupportedChainUpdate memory update = updates[i];
+            DeliveryProviderStructs.SupportedChainUpdate memory update = updates[i];
             updateSupportedChainImpl(update.chainId, update.isSupported);
             unchecked {
                 i += 1;
@@ -71,9 +69,9 @@ abstract contract RelayProviderGovernance is
         }
     }
 
-    function updateSupportedChainImpl(uint16 targetChainId, bool isSupported) internal {
-        setChainSupported(targetChainId, isSupported);
-        emit ChainSupportUpdated(targetChainId, isSupported);
+    function updateSupportedChainImpl(uint16 targetChain, bool isSupported) internal {
+        setChainSupported(targetChain, isSupported);
+        emit ChainSupportUpdated(targetChain, isSupported);
     }
 
     function updateRewardAddress(address payable newAddress) external onlyOwner {
@@ -85,17 +83,17 @@ abstract contract RelayProviderGovernance is
         emit RewardAddressUpdated(newAddress);
     }
 
-    function updateTargetChainAddress(uint16 targetChainId, bytes32 newAddress) public onlyOwner {
-        updateTargetChainAddressImpl(targetChainId, newAddress);
+    function updateTargetChainAddress(uint16 targetChain, bytes32 newAddress) public onlyOwner {
+        updateTargetChainAddressImpl(targetChain, newAddress);
     }
 
-    function updateTargetChainAddresses(RelayProviderStructs.TargetChainUpdate[] memory updates)
+    function updateTargetChainAddresses(DeliveryProviderStructs.TargetChainUpdate[] memory updates)
         external
         onlyOwner
     {
         uint256 updatesLength = updates.length;
         for (uint256 i = 0; i < updatesLength;) {
-            RelayProviderStructs.TargetChainUpdate memory update = updates[i];
+            DeliveryProviderStructs.TargetChainUpdate memory update = updates[i];
             updateTargetChainAddressImpl(update.chainId, update.targetChainAddress);
             unchecked {
                 i += 1;
@@ -103,9 +101,9 @@ abstract contract RelayProviderGovernance is
         }
     }
 
-    function updateTargetChainAddressImpl(uint16 targetChainId, bytes32 newAddress) internal {
-        setTargetChainAddress(targetChainId, newAddress);
-        emit TargetChainAddressUpdated(targetChainId, newAddress);
+    function updateTargetChainAddressImpl(uint16 targetChain, bytes32 newAddress) internal {
+        setTargetChainAddress(targetChain, newAddress);
+        emit TargetChainAddressUpdated(targetChain, newAddress);
     }
 
     function updateDeliverGasOverhead(uint16 chainId, Gas newGasOverhead) external onlyOwner {
@@ -113,11 +111,11 @@ abstract contract RelayProviderGovernance is
     }
 
     function updateDeliverGasOverheads(
-        RelayProviderStructs.DeliverGasOverheadUpdate[] memory overheadUpdates
+        DeliveryProviderStructs.DeliverGasOverheadUpdate[] memory overheadUpdates
     ) external onlyOwner {
         uint256 updatesLength = overheadUpdates.length;
         for (uint256 i = 0; i < updatesLength;) {
-            RelayProviderStructs.DeliverGasOverheadUpdate memory update = overheadUpdates[i];
+            DeliveryProviderStructs.DeliverGasOverheadUpdate memory update = overheadUpdates[i];
             updateDeliverGasOverheadImpl(update.chainId, update.newGasOverhead);
             unchecked {
                 i += 1;
@@ -139,10 +137,13 @@ abstract contract RelayProviderGovernance is
         updatePriceImpl(updateChainId, updateGasPrice, updateNativeCurrencyPrice);
     }
 
-    function updatePrices(RelayProviderStructs.UpdatePrice[] memory updates) external onlyOwner {
+    function updatePrices(DeliveryProviderStructs.UpdatePrice[] memory updates)
+        external
+        onlyOwner
+    {
         uint256 pricesLength = updates.length;
         for (uint256 i = 0; i < pricesLength;) {
-            RelayProviderStructs.UpdatePrice memory update = updates[i];
+            DeliveryProviderStructs.UpdatePrice memory update = updates[i];
             updatePriceImpl(update.chainId, update.gasPrice, update.nativeCurrencyPrice);
             unchecked {
                 i += 1;
@@ -168,20 +169,17 @@ abstract contract RelayProviderGovernance is
         setPriceInfo(updateChainId, updateGasPrice, updateNativeCurrencyPrice);
     }
 
-    function updateMaximumBudget(
-        uint16 targetChainId,
-        Wei maximumTotalBudget
-    ) external onlyOwner {
-        setMaximumBudget(targetChainId, maximumTotalBudget);
+    function updateMaximumBudget(uint16 targetChain, Wei maximumTotalBudget) external onlyOwner {
+        setMaximumBudget(targetChain, maximumTotalBudget);
     }
 
-    function updateMaximumBudgets(RelayProviderStructs.MaximumBudgetUpdate[] memory updates)
+    function updateMaximumBudgets(DeliveryProviderStructs.MaximumBudgetUpdate[] memory updates)
         external
         onlyOwner
     {
         uint256 updatesLength = updates.length;
         for (uint256 i = 0; i < updatesLength;) {
-            RelayProviderStructs.MaximumBudgetUpdate memory update = updates[i];
+            DeliveryProviderStructs.MaximumBudgetUpdate memory update = updates[i];
             setMaximumBudget(update.chainId, update.maximumTotalBudget);
             unchecked {
                 i += 1;
@@ -190,19 +188,19 @@ abstract contract RelayProviderGovernance is
     }
 
     function updateAssetConversionBuffer(
-        uint16 targetChainId,
+        uint16 targetChain,
         uint16 buffer,
         uint16 bufferDenominator
     ) external onlyOwner {
-        updateAssetConversionBufferImpl(targetChainId, buffer, bufferDenominator);
+        updateAssetConversionBufferImpl(targetChain, buffer, bufferDenominator);
     }
 
     function updateAssetConversionBuffers(
-        RelayProviderStructs.AssetConversionBufferUpdate[] memory updates
+        DeliveryProviderStructs.AssetConversionBufferUpdate[] memory updates
     ) external onlyOwner {
         uint256 updatesLength = updates.length;
         for (uint256 i = 0; i < updatesLength;) {
-            RelayProviderStructs.AssetConversionBufferUpdate memory update = updates[i];
+            DeliveryProviderStructs.AssetConversionBufferUpdate memory update = updates[i];
             updateAssetConversionBufferImpl(update.chainId, update.buffer, update.bufferDenominator);
             unchecked {
                 i += 1;
@@ -211,21 +209,21 @@ abstract contract RelayProviderGovernance is
     }
 
     function updateAssetConversionBufferImpl(
-        uint16 targetChainId,
+        uint16 targetChain,
         uint16 buffer,
         uint16 bufferDenominator
     ) internal {
-        setAssetConversionBuffer(targetChainId, buffer, bufferDenominator);
-        emit AssetConversionBufferUpdated(targetChainId, buffer, bufferDenominator);
+        setAssetConversionBuffer(targetChain, buffer, bufferDenominator);
+        emit AssetConversionBufferUpdated(targetChain, buffer, bufferDenominator);
     }
 
     function updateConfig(
-        RelayProviderStructs.Update[] memory updates,
-        RelayProviderStructs.CoreConfig memory coreConfig
+        DeliveryProviderStructs.Update[] memory updates,
+        DeliveryProviderStructs.CoreConfig memory coreConfig
     ) external onlyOwner {
         uint256 updatesLength = updates.length;
         for (uint256 i = 0; i < updatesLength;) {
-            RelayProviderStructs.Update memory update = updates[i];
+            DeliveryProviderStructs.Update memory update = updates[i];
             if (update.updatePrice) {
                 updatePriceImpl(update.chainId, update.gasPrice, update.nativeCurrencyPrice);
             }
@@ -251,8 +249,8 @@ abstract contract RelayProviderGovernance is
             }
         }
 
-        if (coreConfig.updateCoreRelayer) {
-            updateCoreRelayerImpl(coreConfig.coreRelayer);
+        if (coreConfig.updateWormholeRelayer) {
+            updateWormholeRelayerImpl(coreConfig.coreRelayer);
         }
 
         if (coreConfig.updateRewardAddress) {
@@ -261,8 +259,8 @@ abstract contract RelayProviderGovernance is
     }
 
     /// @dev upgrade serves to upgrade contract implementations
-    function upgrade(uint16 relayProviderChainId, address newImplementation) public onlyOwner {
-        if (relayProviderChainId != chainId()) {
+    function upgrade(uint16 deliveryProviderChainId, address newImplementation) public onlyOwner {
+        if (deliveryProviderChainId != chainId()) {
             revert WrongChainId();
         }
 

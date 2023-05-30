@@ -2,15 +2,13 @@ import {
   init,
   loadChains,
   ChainInfo,
-  getCoreRelayer,
+  getWormholeRelayer,
   getOperatingChains,
 } from "../helpers/env";
 import { wait } from "../helpers/utils";
-import {
-  createRegisterChainVAA,
-} from "../helpers/vaa";
+import { createRegisterChainVAA } from "../helpers/vaa";
 
-const processName = "registerChainsCoreRelayerSelfSign";
+const processName = "registerChainsWormholeRelayerSelfSign";
 init();
 const operatingChains = getOperatingChains();
 const chains = loadChains();
@@ -19,17 +17,17 @@ async function run() {
   console.log("Start! " + processName);
 
   for (const operatingChain of operatingChains) {
-    await registerChainsCoreRelayer(operatingChain);
+    await registerChainsWormholeRelayer(operatingChain);
   }
 }
 
-async function registerChainsCoreRelayer(chain: ChainInfo) {
-  console.log("registerChainsCoreRelayer " + chain.chainId);
+async function registerChainsWormholeRelayer(chain: ChainInfo) {
+  console.log("registerChainsWormholeRelayer " + chain.chainId);
 
-  const coreRelayer = await getCoreRelayer(chain);
+  const coreRelayer = await getWormholeRelayer(chain);
   for (const targetChain of chains) {
     await coreRelayer
-      .registerCoreRelayerContract(createRegisterChainVAA(targetChain))
+      .registerWormholeRelayerContract(createRegisterChainVAA(targetChain))
       .then(wait);
   }
 

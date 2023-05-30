@@ -3,14 +3,14 @@ import { BigNumber, ethers } from "ethers";
 import {
   init,
   ChainInfo,
-  getRelayProvider,
-  getRelayProviderAddress,
+  getDeliveryProvider,
+  getDeliveryProviderAddress,
   getProvider,
   writeOutputFiles,
   getOperatingChains,
 } from "../helpers/env";
 
-const processName = "readRelayProviderContractState";
+const processName = "readDeliveryProviderContractState";
 init();
 const chains = getOperatingChains();
 
@@ -30,7 +30,7 @@ async function run() {
   writeOutputFiles(states, processName);
 }
 
-type RelayProviderContractState = {
+type DeliveryProviderContractState = {
   chainId: number;
   contractAddress: string;
   rewardAddress: string;
@@ -44,19 +44,19 @@ type RelayProviderContractState = {
 
 async function readState(
   chain: ChainInfo
-): Promise<RelayProviderContractState | null> {
+): Promise<DeliveryProviderContractState | null> {
   console.log(
     "Gathering relay provider contract status for chain " + chain.chainId
   );
 
   try {
-    const relayProvider = getRelayProvider(chain, getProvider(chain));
-    const contractAddress = getRelayProviderAddress(chain);
+    const deliveryProvider = getDeliveryProvider(chain, getProvider(chain));
+    const contractAddress = getDeliveryProviderAddress(chain);
     console.log("Querying Relay Provider for code");
     const provider = getProvider(chain);
     const codeReceipt = await provider.getCode(contractAddress);
     console.log("Code: " + codeReceipt);
-    const rewardAddress = await relayProvider.getRewardAddress();
+    const rewardAddress = await deliveryProvider.getRewardAddress();
     const supportedChains: {
       chainId: number;
       isSupported: boolean;
@@ -71,32 +71,37 @@ async function readState(
     }[] = [];
     const gasPrices: { chainId: number; gasPrice: BigNumber }[] = [];
     const weiPrices: { chainId: number; weiPrice: BigNumber }[] = [];
-    const owner: string = await relayProvider.owner();
+    const owner: string = await deliveryProvider.owner();
 
     for (const chainInfo of chains) {
       supportedChains.push({
         chainId: chainInfo.chainId,
-        isSupported: await relayProvider.isChainSupported(chainInfo.chainId),
+        isSupported: await deliveryProvider.isChainSupported(chainInfo.chainId),
       });
 
       targetChainAddresses.push({
         chainId: chainInfo.chainId,
-        whAddress: await relayProvider.getTargetChainAddress(chainInfo.chainId),
+        whAddress: await deliveryProvider.getTargetChainAddress(
+          chainInfo.chainId
+        ),
       });
 
       deliveryOverheads.push({
         chainId: chainInfo.chainId,
-        deliveryOverhead: await relayProvider.quoteDeliveryOverhead(
+        deliveryOverhead: await deliveryProvider.quoteDeliveryOverhead(
           chainInfo.chainId
         ),
       });
       gasPrices.push({
         chainId: chainInfo.chainId,
-        gasPrice: await relayProvider.quoteGasPrice(chainInfo.chainId),
+        gasPrice: await deliveryProvider.quoteGasPrice(chainInfo.chainId),
       });
       weiPrices.push({
         chainId: chainInfo.chainId,
-        weiPrice: await relayProvider.quoteAssetConversion(chainInfo.chainId, ethers.utils.parseEther("1")),
+        weiPrice: await deliveryProvider.quoteAssetConversion(
+          chainInfo.chainId,
+          ethers.utils.parseEther("1")
+        ),
       });
     }
 
@@ -119,9 +124,9 @@ async function readState(
   return null;
 }
 
-function printState(state: RelayProviderContractState) {
+function printState(state: DeliveryProviderContractState) {
   console.log("");
-  console.log("RelayProvider: ");
+  console.log("DeliveryProvider: ");
   printFixed("Chain ID: ", state.chainId.toString());
   printFixed("Contract Address:", state.contractAddress);
   printFixed("Owner Address:", state.owner);
@@ -158,7 +163,6 @@ function printState(state: RelayProviderContractState) {
     printFixed("  Chain: " + x.chainId, x.weiPrice.toString());
   });
   console.log("");
-
 }
 
 function printFixed(title: string, content: string) {

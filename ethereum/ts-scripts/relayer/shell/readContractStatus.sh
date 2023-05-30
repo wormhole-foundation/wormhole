@@ -1,1 +1,1 @@
-tsx ./ts-scripts/relayer/relayProvider/readRelayProviderContractState.ts
+tsx ./ts-scripts/relayer/deliveryProvider/readDeliveryProviderContractState.ts

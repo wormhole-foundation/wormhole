@@ -5,7 +5,7 @@ pragma solidity ^0.8.19;
 
 import "../../interfaces/relayer/TypedUnits.sol";
 
-contract RelayProviderStorage {
+contract DeliveryProviderStorage {
     struct PriceData {
         // The price of purchasing 1 unit of gas on the target chain, denominated in target chain's wei.
         GasPrice gasPrice;
@@ -38,17 +38,17 @@ contract RelayProviderStorage {
         mapping(uint16 => bytes32) targetChainAddresses;
         // Dictionary of wormhole chain id -> price data
         mapping(uint16 => PriceData) data;
-        // The delivery overhead gas required to deliver a message to targetChainId, denominated in targetChain's gas.
+        // The delivery overhead gas required to deliver a message to targetChain, denominated in targetChain's gas.
         mapping(uint16 => Gas) deliverGasOverhead;
         // The maximum budget that is allowed for a delivery on target chain, denominated in the targetChain's wei.
         mapping(uint16 => Wei) maximumBudget;
         // Dictionary of wormhole chain id -> assetConversion
         mapping(uint16 => AssetConversion) assetConversion;
-        // Reward address for the relayer. The CoreRelayer contract transfers the reward for relaying messages here.
+        // Reward address for the relayer. The WormholeRelayer contract transfers the reward for relaying messages here.
         address payable rewardAddress;
     }
 }
 
-contract RelayProviderState {
-    RelayProviderStorage.State _state;
+contract DeliveryProviderState {
+    DeliveryProviderStorage.State _state;
 }

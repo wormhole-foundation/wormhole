@@ -3,11 +3,11 @@
 
 pragma solidity ^0.8.19;
 
-import "./RelayProviderGovernance.sol";
+import "./DeliveryProviderGovernance.sol";
 
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 
-contract RelayProviderSetup is RelayProviderSetters, ERC1967Upgrade {
+contract DeliveryProviderSetup is DeliveryProviderSetters, ERC1967Upgrade {
     error ImplementationAddressIsZero();
     error FailedToInitializeImplementation(string reason);
 

@@ -5,9 +5,9 @@ pragma solidity ^0.8.19;
 
 import "../../libraries/external/BytesLib.sol";
 
-import "./RelayProviderGetters.sol";
-import "./RelayProviderStructs.sol";
+import "./DeliveryProviderGetters.sol";
+import "./DeliveryProviderStructs.sol";
 
-contract RelayProviderMessages is RelayProviderStructs, RelayProviderGetters {
+contract DeliveryProviderMessages is DeliveryProviderStructs, DeliveryProviderGetters {
     using BytesLib for bytes;
 }

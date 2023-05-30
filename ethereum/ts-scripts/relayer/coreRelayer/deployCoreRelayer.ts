@@ -1,15 +1,15 @@
 import {
-  deployCoreRelayerImplementation,
-  deployCoreRelayerProxy,
+  deployWormholeRelayerImplementation,
+  deployWormholeRelayerProxy,
 } from "../helpers/deployments";
 import {
   init,
   writeOutputFiles,
-  getRelayProviderAddress,
+  getDeliveryProviderAddress,
   getOperatingChains,
 } from "../helpers/env";
 
-const processName = "deployCoreRelayer";
+const processName = "deployWormholeRelayer";
 init();
 const chains = getOperatingChains();
 
@@ -23,13 +23,13 @@ async function run() {
 
   for (const chain of chains) {
     console.log(`Deploying for chain ${chain.chainId}...`);
-    const coreRelayerImplementation = await deployCoreRelayerImplementation(
-      chain,
+    const coreRelayerImplementation = await deployWormholeRelayerImplementation(
+      chain
     );
-    const coreRelayerProxy = await deployCoreRelayerProxy(
+    const coreRelayerProxy = await deployWormholeRelayerProxy(
       chain,
       coreRelayerImplementation.address,
-      getRelayProviderAddress(chain),
+      getDeliveryProviderAddress(chain)
     );
 
     output.coreRelayerImplementations.push(coreRelayerImplementation);

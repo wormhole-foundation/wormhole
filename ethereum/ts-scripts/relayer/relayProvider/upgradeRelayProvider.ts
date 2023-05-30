@@ -3,36 +3,36 @@ import {
   writeOutputFiles,
   ChainInfo,
   Deployment,
-  getRelayProvider,
+  getDeliveryProvider,
   getOperatingChains,
 } from "../helpers/env";
-import { deployRelayProviderImplementation } from "../helpers/deployments";
+import { deployDeliveryProviderImplementation } from "../helpers/deployments";
 
-const processName = "upgradeRelayProvider";
+const processName = "upgradeDeliveryProvider";
 init();
 const chains = getOperatingChains();
 
 async function run() {
   console.log("Start!");
   const output: any = {
-    relayProviderImplementations: [],
+    deliveryProviderImplementations: [],
   };
 
   for (let i = 0; i < chains.length; i++) {
-    const relayProviderImplementation = await deployRelayProviderImplementation(
+    const deliveryProviderImplementation = await deployDeliveryProviderImplementation(
       chains[i]
     );
-    await upgradeRelayProvider(chains[i], relayProviderImplementation);
+    await upgradeDeliveryProvider(chains[i], deliveryProviderImplementation);
 
-    output.relayProviderImplementations.push(relayProviderImplementation);
+    output.deliveryProviderImplementations.push(deliveryProviderImplementation);
   }
 
   writeOutputFiles(output, processName);
 }
 
-async function upgradeRelayProvider(chain: ChainInfo, newImpl: Deployment) {
+async function upgradeDeliveryProvider(chain: ChainInfo, newImpl: Deployment) {
   console.log("About to upgrade relay provider for chain " + chain.chainId);
-  const provider = getRelayProvider(chain);
+  const provider = getDeliveryProvider(chain);
   await provider.upgrade(chain.chainId, newImpl.address);
   console.log("Successfully upgraded relay provider " + chain.chainId);
 }

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache 2
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.19;
+
+import "./TypedUnits.sol";
 
 /**
  * @notice VaaKey identifies a wormhole message
@@ -17,7 +19,7 @@ struct VaaKey {
 
 interface IWormholeRelayerBase {
     event SendEvent(
-        uint64 indexed sequence, uint256 deliveryQuote, uint256 paymentForExtraReceiverValue
+        uint64 indexed sequence, LocalNative deliveryQuote, LocalNative paymentForExtraReceiverValue
     );
 
     function getRegisteredWormholeRelayerContract(uint16 chainId) external view returns (bytes32);
@@ -33,8 +35,8 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
-        uint256 receiverValue,
-        uint256 gasLimit
+        TargetNative receiverValue,
+        Gas gasLimit
     ) external payable returns (uint64 sequence);
 
     /**
@@ -44,8 +46,8 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
-        uint256 receiverValue,
-        uint256 gasLimit,
+        TargetNative receiverValue,
+        Gas gasLimit,
         uint16 refundChain,
         address refundAddress
     ) external payable returns (uint64 sequence);
@@ -54,8 +56,8 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
-        uint256 receiverValue,
-        uint256 gasLimit,
+        TargetNative receiverValue,
+        Gas gasLimit,
         VaaKey[] memory vaaKeys
     ) external payable returns (uint64 sequence);
 
@@ -63,8 +65,8 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
-        uint256 receiverValue,
-        uint256 gasLimit,
+        TargetNative receiverValue,
+        Gas gasLimit,
         VaaKey[] memory vaaKeys,
         uint16 refundChain,
         address refundAddress
@@ -99,9 +101,9 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
-        uint256 receiverValue,
-        uint256 paymentForExtraReceiverValue,
-        uint256 gasLimit,
+        TargetNative receiverValue,
+        LocalNative paymentForExtraReceiverValue,
+        Gas gasLimit,
         uint16 refundChain,
         address refundAddress,
         address deliveryProviderAddress,
@@ -113,8 +115,8 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         uint16 targetChain,
         bytes32 targetAddress,
         bytes memory payload,
-        uint256 receiverValue,
-        uint256 paymentForExtraReceiverValue,
+        TargetNative receiverValue,
+        LocalNative paymentForExtraReceiverValue,
         bytes memory encodedExecutionParameters,
         uint16 refundChain,
         bytes32 refundAddress,
@@ -150,16 +152,16 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
-        uint256 receiverValue,
-        uint256 gasLimit
+        TargetNative receiverValue,
+        Gas gasLimit
     ) external payable;
 
     function forwardVaasToEvm(
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
-        uint256 receiverValue,
-        uint256 gasLimit,
+        TargetNative receiverValue,
+        Gas gasLimit,
         VaaKey[] memory vaaKeys
     ) external payable;
 
@@ -167,9 +169,9 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
-        uint256 receiverValue,
-        uint256 paymentForExtraReceiverValue,
-        uint256 gasLimit,
+        TargetNative receiverValue,
+        LocalNative paymentForExtraReceiverValue,
+        Gas gasLimit,
         uint16 refundChain,
         address refundAddress,
         address deliveryProviderAddress,
@@ -181,8 +183,8 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         uint16 targetChain,
         bytes32 targetAddress,
         bytes memory payload,
-        uint256 receiverValue,
-        uint256 paymentForExtraReceiverValue,
+        TargetNative receiverValue,
+        LocalNative paymentForExtraReceiverValue,
         bytes memory encodedExecutionParameters,
         uint16 refundChain,
         bytes32 refundAddress,
@@ -223,44 +225,44 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     function resendToEvm(
         VaaKey memory deliveryVaaKey,
         uint16 targetChain,
-        uint256 newReceiverValue,
-        uint256 newGasLimit,
+        TargetNative newReceiverValue,
+        Gas newGasLimit,
         address newDeliveryProviderAddress
     ) external payable returns (uint64 sequence);
 
     function resend(
         VaaKey memory deliveryVaaKey,
         uint16 targetChain,
-        uint256 newReceiverValue,
+        TargetNative newReceiverValue,
         bytes memory newEncodedExecutionParameters,
         address newDeliveryProviderAddress
     ) external payable returns (uint64 sequence);
 
     function quoteEVMDeliveryPrice(
         uint16 targetChain,
-        uint256 receiverValue,
-        uint256 gasLimit
-    ) external view returns (uint256 nativePriceQuote, uint256 targetChainRefundPerGasUnused);
+        TargetNative receiverValue,
+        Gas gasLimit
+    ) external view returns (LocalNative nativePriceQuote, GasPrice targetChainRefundPerGasUnused);
 
     function quoteEVMDeliveryPrice(
         uint16 targetChain,
-        uint256 receiverValue,
-        uint256 gasLimit,
+        TargetNative receiverValue,
+        Gas gasLimit,
         address deliveryProviderAddress
-    ) external view returns (uint256 nativePriceQuote, uint256 targetChainRefundPerGasUnused);
+    ) external view returns (LocalNative nativePriceQuote, GasPrice targetChainRefundPerGasUnused);
 
     function quoteDeliveryPrice(
         uint16 targetChain,
-        uint256 receiverValue,
+        TargetNative receiverValue,
         bytes memory encodedExecutionParameters,
         address deliveryProviderAddress
-    ) external view returns (uint256 nativePriceQuote, bytes memory encodedExecutionInfo);
+    ) external view returns (LocalNative nativePriceQuote, bytes memory encodedExecutionInfo);
 
     function quoteNativeForChain(
         uint16 targetChain,
-        uint256 currentChainAmount,
+        LocalNative currentChainAmount,
         address deliveryProviderAddress
-    ) external view returns (uint256 targetChainAmount);
+    ) external view returns (TargetNative targetChainAmount);
 
     /**
      * @notice Returns the address of the current default relay provider
@@ -373,7 +375,7 @@ interface IWormholeRelayer is IWormholeRelayerDelivery, IWormholeRelayerSend {}
 uint256 constant RETURNDATA_TRUNCATION_THRESHOLD = 132;
 
 //When msg.value was not equal to (one wormhole message fee) + `maxTransactionFee` + `receiverValue`
-error InvalidMsgValue(uint256 msgValue, uint256 totalFee);
+error InvalidMsgValue(LocalNative msgValue, LocalNative totalFee);
 
 error RequestedGasLimitTooLow();
 
@@ -404,7 +406,7 @@ error RequesterNotWormholeRelayer();
 
 //When trying to relay a `DeliveryInstruction` to any other chain but the one it was specified for
 error TargetChainIsNotThisChain(uint16 targetChain);
-error ForwardNotSufficientlyFunded(uint256 amountOfFunds, uint256 amountOfFundsNeeded);
+error ForwardNotSufficientlyFunded(LocalNative amountOfFunds, LocalNative amountOfFundsNeeded);
 //When a `DeliveryOverride` contains a gas limit that's less than the original
 error InvalidOverrideGasLimit();
 //When a `DeliveryOverride` contains a receiver value that's less than the original
@@ -414,7 +416,7 @@ error InvalidOverrideRefundPerGasUnused();
 
 //When the relay provider doesn't pass in sufficient funds (i.e. msg.value does not cover the
 //  necessary budget fees)
-error InsufficientRelayerFunds(uint256 msgValue, uint256 minimum);
+error InsufficientRelayerFunds(LocalNative msgValue, LocalNative minimum);
 
 //When a bytes32 field can't be converted into a 20 byte EVM address, because the 12 padding bytes
 //  are non-zero (duplicated from Utils.sol)
