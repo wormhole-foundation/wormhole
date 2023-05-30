@@ -21,8 +21,8 @@ import {
   DeliveryOverrideArgs,
   parseForwardFailureError
 } from "../structs";
-import { RelayProvider, RelayProvider__factory, Implementation__factory} from "../../ethers-contracts/";
-import {DeliveryEvent} from "../../ethers-contracts/CoreRelayer"
+import { DeliveryProvider, DeliveryProvider__factory, Implementation__factory} from "../../ethers-contracts/";
+import {DeliveryEvent} from "../../ethers-contracts/WormholeRelayer"
 import { VaaKeyStruct } from "../../ethers-contracts/IWormholeRelayer.sol/IWormholeRelayer";
 
 export type DeliveryTargetInfo = {
@@ -75,11 +75,11 @@ export function getDefaultProvider(network: Network, chain: ChainName, ci?: bool
   return new ethers.providers.StaticJsonRpcProvider(rpc);
 }
 
-export function getRelayProvider(
+export function getDeliveryProvider(
   address: string,
   provider: ethers.providers.Provider
-): RelayProvider {
-  const contract = RelayProvider__factory.connect(address, provider);
+): DeliveryProvider {
+  const contract = DeliveryProvider__factory.connect(address, provider);
   return contract;
 }
 
@@ -98,7 +98,7 @@ export async function getWormholeRelayerInfoBySourceSequence(
   sourceVaaSequence: BigNumber,
   blockStartNumber: ethers.providers.BlockTag,
   blockEndNumber: ethers.providers.BlockTag,
-  targetCoreRelayerAddress: string
+  targetWormholeRelayerAddress: string
 ): Promise<{chain: ChainName, events: DeliveryTargetInfo[]}> {
   const deliveryEvents = await getWormholeRelayerDeliveryEventsBySourceSequence(
     environment,
@@ -108,7 +108,7 @@ export async function getWormholeRelayerInfoBySourceSequence(
     sourceVaaSequence,
     blockStartNumber,
     blockEndNumber,
-    targetCoreRelayerAddress
+    targetWormholeRelayerAddress
   );
   if (deliveryEvents.length == 0) {
     let status = `Delivery didn't happen on ${targetChain} within blocks ${blockStartNumber} to ${blockEndNumber}.`;
@@ -147,18 +147,18 @@ export async function getWormholeRelayerDeliveryEventsBySourceSequence(
   sourceVaaSequence: BigNumber,
   blockStartNumber: ethers.providers.BlockTag,
   blockEndNumber: ethers.providers.BlockTag,
-  targetCoreRelayerAddress: string
+  targetWormholeRelayerAddress: string
 ): Promise<DeliveryTargetInfo[]> {
   const sourceChainId = CHAINS[sourceChain];
   if(!sourceChainId) throw Error(`Invalid source chain: ${sourceChain}`)
-  const coreRelayer = getWormholeRelayer(
+  const wormholeRelayer = getWormholeRelayer(
     targetChain,
     environment,
     targetChainProvider,
-    targetCoreRelayerAddress
+    targetWormholeRelayerAddress
   );
 
-  const deliveryEvents = coreRelayer.filters.Delivery(
+  const deliveryEvents = wormholeRelayer.filters.Delivery(
     null,
     sourceChainId,
     sourceVaaSequence
@@ -166,7 +166,7 @@ export async function getWormholeRelayerDeliveryEventsBySourceSequence(
 
   // There is a max limit on RPCs sometimes for how many blocks to query
   return await transformDeliveryEvents(
-    await coreRelayer.queryFilter(
+    await wormholeRelayer.queryFilter(
       deliveryEvents,
       blockStartNumber,
       blockEndNumber
@@ -246,7 +246,7 @@ export function getWormholeRelayerLog(
 
   if (filtered.length == 0) {
     throw Error(
-      "No CoreRelayer contract interactions found for this transaction."
+      "No WormholeRelayer contract interactions found for this transaction."
     );
   }
 
