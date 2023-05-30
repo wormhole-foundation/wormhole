@@ -11,7 +11,7 @@ import {DeliveryProviderImplementation} from
 import {DeliveryProviderProxy} from
     "../../contracts/relayer/deliveryProvider/DeliveryProviderProxy.sol";
 import {IWormholeRelayer} from "../../contracts/interfaces/relayer/IWormholeRelayerTyped.sol";
-import {WormholeRelayer} from "../../contracts/relayer/coreRelayer/WormholeRelayer.sol";
+import {WormholeRelayer} from "../../contracts/relayer/wormholeRelayer/WormholeRelayer.sol";
 import {Create2Factory} from "../../contracts/relayer/create2Factory/Create2Factory.sol";
 import {MockGenericRelayer} from "./MockGenericRelayer.sol";
 import {MockWormhole} from "./MockWormhole.sol";

@@ -15,7 +15,7 @@ import {DeliveryProviderMessages} from
 import {DeliveryProviderStructs} from
     "../../contracts/relayer/deliveryProvider/DeliveryProviderStructs.sol";
 import "../../contracts/interfaces/relayer/IWormholeRelayerTyped.sol";
-import {WormholeRelayer} from "../../contracts/relayer/coreRelayer/WormholeRelayer.sol";
+import {WormholeRelayer} from "../../contracts/relayer/wormholeRelayer/WormholeRelayer.sol";
 import {MockGenericRelayer} from "./MockGenericRelayer.sol";
 import {MockWormhole} from "./MockWormhole.sol";
 import {IWormhole} from "../../contracts/interfaces/IWormhole.sol";
