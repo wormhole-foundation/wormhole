@@ -15,7 +15,7 @@ const chains = getOperatingChains();
 async function run() {
   console.log("Start!");
   const output: any = {
-    coreRelayerImplementations: [],
+    wormholeRelayerImplementations: [],
     coreRelayerLibraries: [],
   };
 
@@ -25,7 +25,7 @@ async function run() {
     );
     await upgradeWormholeRelayer(chain, coreRelayerImplementation.address);
 
-    output.coreRelayerImplementations.push(coreRelayerImplementation);
+    output.wormholeRelayerImplementations.push(coreRelayerImplementation);
   }
 
   writeOutputFiles(output, processName);
