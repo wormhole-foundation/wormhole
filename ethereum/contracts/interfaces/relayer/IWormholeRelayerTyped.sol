@@ -323,7 +323,7 @@ interface IWormholeRelayerDelivery is IWormholeRelayerBase {
         uint64 indexed sequence,
         bytes32 deliveryVaaHash,
         DeliveryStatus status,
-        uint32 gasUsed,
+        Gas gasUsed,
         RefundStatus refundStatus,
         bytes additionalStatusInfo,
         bytes overridesInfo
@@ -352,7 +352,7 @@ interface IWormholeRelayerDelivery is IWormholeRelayerBase {
      *     transaction)
      * @param encodedDeliveryVAA - Signed wormhole message from the source chain's WormholeRelayer
      *     contract with payload being the encoded delivery instruction container
-     * @param relayerRefundAddress - The address to which any refunds to the relay provider
+     * @param relayerRefundAddress - The address to which any refunds to the delivery provider
      *     should be sent
      * @param deliveryOverrides - Optional overrides field which must be either an empty bytes array or
      *     it must be an encoded DeliveryOverride struct

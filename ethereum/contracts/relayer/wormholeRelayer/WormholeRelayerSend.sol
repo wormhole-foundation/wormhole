@@ -22,14 +22,6 @@ import {WormholeRelayerBase} from "./WormholeRelayerBase.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 import "../../libraries/relayer/ExecutionParameters.sol";
 
-//TODO:
-// Introduce basic sanity checks on sendParams (e.g. all valus below 2^128?) so we can get rid of
-//   all the silly checked math and ensure that we can't have overflow Panics either.
-// In send() and resend() we already check that maxTransactionFee + receiverValue == msg.value (via
-//   calcAndCheckFees(). We could perhaps introduce a similar check of <= this.balance in forward()
-//   and presumably a few more in our calculation/conversion functions WormholeRelayerBase to ensure
-//   sensible numeric ranges everywhere.
-
 abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSend {
     using WormholeRelayerSerde for *; 
     using WeiLib for Wei;
