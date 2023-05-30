@@ -367,7 +367,7 @@ func wormholeRelayerSetDefaultDeliveryProvider(req *nodev1.WormholeRelayerSetDef
 		return nil, errors.New("invalid target_chain_id")
 	}
 
-	b, err := hex.DecodeString(req.NewDefaultRelayProviderAddress)
+	b, err := hex.DecodeString(req.NewDefaultDeliveryProviderAddress)
 	if err != nil {
 		return nil, errors.New("invalid new default relay provider address (expected hex)")
 	}
@@ -376,13 +376,13 @@ func wormholeRelayerSetDefaultDeliveryProvider(req *nodev1.WormholeRelayerSetDef
 		return nil, errors.New("invalid new default relay provider address (expected 32 bytes)")
 	}
 
-	newDefaultRelayProviderAddress := vaa.Address{}
-	copy(newDefaultRelayProviderAddress[:], b)
+	NewDefaultDeliveryProviderAddress := vaa.Address{}
+	copy(NewDefaultDeliveryProviderAddress[:], b)
 
 	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex,
 		vaa.BodyWormholeRelayerSetDefaultDeliveryProvider{
 			ChainID:                        vaa.ChainID(req.ChainId),
-			NewDefaultRelayProviderAddress: newDefaultRelayProviderAddress,
+			NewDefaultDeliveryProviderAddress: NewDefaultDeliveryProviderAddress,
 		}.Serialize())
 
 	return v, nil

@@ -482,7 +482,7 @@ func runWormholeRelayerSetDefaultDeliveryProviderTemplate(cmd *cobra.Command, ar
 				Payload: &nodev1.GovernanceMessage_WormholeRelayerSetDefaultDeliveryProvider{
 					WormholeRelayerSetDefaultDeliveryProvider: &nodev1.WormholeRelayerSetDefaultDeliveryProvider{
 						ChainId:                        uint32(chainID),
-						NewDefaultRelayProviderAddress: address,
+						NewDefaultDeliveryProviderAddress: address,
 					},
 				},
 			},

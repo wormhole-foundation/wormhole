@@ -142,7 +142,7 @@ type (
 	// BodyWormholeRelayerSetDefaultDeliveryProvider is a governance message to set the default relay provider for the Wormhole Relayer.
 	BodyWormholeRelayerSetDefaultDeliveryProvider struct {
 		ChainID                        ChainID
-		NewDefaultRelayProviderAddress Address
+		NewDefaultDeliveryProviderAddress Address
 	}
 )
 
@@ -247,7 +247,7 @@ func (r BodyCircleIntegrationUpgradeContractImplementation) Serialize() []byte {
 
 func (r BodyWormholeRelayerSetDefaultDeliveryProvider) Serialize() []byte {
 	payload := &bytes.Buffer{}
-	payload.Write(r.NewDefaultRelayProviderAddress[:])
+	payload.Write(r.NewDefaultDeliveryProviderAddress[:])
 	return serializeBridgeGovernanceVaa(CoreRelayerModuleStr, WormholeRelayerSetDefaultDeliveryProvider, r.ChainID, payload.Bytes())
 }
 

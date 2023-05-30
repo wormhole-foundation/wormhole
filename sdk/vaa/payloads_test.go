@@ -154,7 +154,7 @@ func TestBodyWormholeRelayerSetDefaultDeliveryProviderSerialize(t *testing.T) {
 	expected := "000000000000000000000000000000000000000000436f726552656c617965720300040000000000000000000000000000000000000000000000000000000000000004"
 	bodyWormholeRelayerSetDefaultDeliveryProvider := BodyWormholeRelayerSetDefaultDeliveryProvider{
 		ChainID:                        4,
-		NewDefaultRelayProviderAddress: addr,
+		NewDefaultDeliveryProviderAddress: addr,
 	}
 	assert.Equal(t, expected, hex.EncodeToString(bodyWormholeRelayerSetDefaultDeliveryProvider.Serialize()))
 }
