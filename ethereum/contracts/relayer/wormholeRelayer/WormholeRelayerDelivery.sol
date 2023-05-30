@@ -393,9 +393,6 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         LocalNative transactionFeeRefundAmount,
         ForwardInstruction[] storage forwardInstructions
     ) private {
-        if (msg.sender != address(this))
-            revert RequesterNotWormholeRelayer();
-
         LocalNative wormholeMessageFee = getWormholeMessageFee();
 
         //Decode send requests and aggregate fee and payment

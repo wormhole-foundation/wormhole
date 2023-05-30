@@ -30,8 +30,8 @@ enum Flag {
 
 type ContractConfigEntry = { chainId: EVMChainId; address: "string" };
 type ContractsJson = {
-  relayProviders: ContractConfigEntry[];
-  coreRelayers: ContractConfigEntry[];
+  deliveryProviders: ContractConfigEntry[];
+  wormholeRelayers: ContractConfigEntry[];
   mockIntegrations: ContractConfigEntry[];
 };
 
@@ -119,26 +119,26 @@ const defaults: { [key in Flag]: GRRelayerAppConfig } = {
 export async function loadAppConfig(): Promise<{
   env: Environment;
   opts: GRRelayerAppConfig & StandardRelayerAppOpts;
-  relayProviders: Record<EVMChainId, string>;
+  deliveryProviders: Record<EVMChainId, string>;
   wormholeRelayers: Record<EVMChainId, string>;
 }> {
   const { flag } = getEnvironmentOptions();
   const config = await loadAndMergeConfig(flag);
   const contracts = await loadJson<ContractsJson>(config.contractsJsonPath);
 
-  const relayProviders = {} as Record<EVMChainId, string>;
+  const deliveryProviders = {} as Record<EVMChainId, string>;
   const wormholeRelayers = {} as Record<EVMChainId, string>;
-  contracts.relayProviders.forEach(
+  contracts.deliveryProviders.forEach(
     ({ chainId, address }: ContractConfigEntry) =>
-      (relayProviders[chainId] = ethers.utils.getAddress(address))
+      (deliveryProviders[chainId] = ethers.utils.getAddress(address))
   );
-  contracts.coreRelayers.forEach(
+  contracts.wormholeRelayers.forEach(
     ({ chainId, address }: ContractConfigEntry) =>
       (wormholeRelayers[chainId] = ethers.utils.getAddress(address))
   );
 
   return {
-    relayProviders,
+    deliveryProviders,
     wormholeRelayers,
     env: flagToEnvironment(flag),
     opts: {
@@ -216,7 +216,7 @@ function loadAndMergeConfig(flag: Flag): GRRelayerAppConfig {
 function privateKeys(contracts: ContractsJson): {
   [k in Partial<EVMChainId>]: string[];
 } {
-  const chainIds = new Set(contracts.coreRelayers.map((r) => r.chainId));
+  const chainIds = new Set(contracts.wormholeRelayers.map((r) => r.chainId));
   let privateKeysArray = [] as string[];
   if (process.env.EVM_PRIVATE_KEYS) {
     privateKeysArray = JSON.parse(process.env.EVM_PRIVATE_KEYS);

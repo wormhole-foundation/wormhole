@@ -191,9 +191,9 @@ export function loadWormholeRelayers(): Deployment[] {
       throw Error("Failed to find last run file for the Core Relayer process!");
     }
     const lastRun = JSON.parse(lastRunFile.toString());
-    return lastRun.coreRelayerProxies;
+    return lastRun.wormholeRelayerProxies;
   } else {
-    return contracts.coreRelayers;
+    return contracts.wormholeRelayers;
   }
 }
 
@@ -347,7 +347,7 @@ export function getDeliveryProvider(
   return contract;
 }
 
-const coreRelayerAddressesCache: Partial<Record<ChainId, string>> = {};
+const wormholeRelayerAddressesCache: Partial<Record<ChainId, string>> = {};
 export async function getWormholeRelayerAddress(
   chain: ChainInfo,
   forceCalculate?: boolean
@@ -374,16 +374,16 @@ export async function getWormholeRelayerAddress(
     }
   }
 
-  if (!coreRelayerAddressesCache[chain.chainId]) {
+  if (!wormholeRelayerAddressesCache[chain.chainId]) {
     const create2Factory = getCreate2Factory(chain);
     const signer = getSigner(chain).address;
 
-    coreRelayerAddressesCache[
+    wormholeRelayerAddressesCache[
       chain.chainId
     ] = await create2Factory.computeProxyAddress(signer, proxyContractSalt);
   }
 
-  return coreRelayerAddressesCache[chain.chainId]!;
+  return wormholeRelayerAddressesCache[chain.chainId]!;
 }
 
 export async function getWormholeRelayer(

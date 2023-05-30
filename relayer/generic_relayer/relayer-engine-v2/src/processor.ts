@@ -17,7 +17,7 @@ import {
 import { EVMChainId } from "@certusone/wormhole-sdk";
 import { GRContext } from "./app";
 import { BigNumber, ethers } from "ethers";
-import { CoreRelayer__factory } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
+import { IWormholeRelayerDelivery__factory } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
 
 
 export async function processGenericRelayerVaa(ctx: GRContext, next: Next) {
@@ -41,13 +41,13 @@ export async function processGenericRelayerVaa(ctx: GRContext, next: Next) {
 
 async function processDelivery(ctx: GRContext) {
   const deliveryVaa = parseWormholeRelayerSend(ctx.vaa!.payload);
-  const sourceRelayProvider = ethers.utils.getAddress(wh.tryUint8ArrayToNative(deliveryVaa.sourceRelayProvider, "ethereum"));
+  const sourceDeliveryProvider = ethers.utils.getAddress(wh.tryUint8ArrayToNative(deliveryVaa.sourceDeliveryProvider, "ethereum"));
   if (
-    sourceRelayProvider !==
-    ctx.relayProviders[ctx.vaa!.emitterChain as EVMChainId]
+    sourceDeliveryProvider !==
+    ctx.deliveryProviders[ctx.vaa!.emitterChain as EVMChainId]
   ) {
     ctx.logger.info("Delivery vaa specifies different relay provider", {
-      sourceRelayProvider: deliveryVaa.sourceRelayProvider,
+      sourceDeliveryProvider: deliveryVaa.sourceDeliveryProvider,
     });
     return;
   }
@@ -56,13 +56,13 @@ async function processDelivery(ctx: GRContext) {
 
 async function processRedelivery(ctx: GRContext) {
   const redeliveryVaa = parseWormholeRelayerResend(ctx.vaa!.payload);
-  const sourceRelayProvider = ethers.utils.getAddress(wh.tryUint8ArrayToNative(redeliveryVaa.newSourceRelayProvider, "ethereum"));
+  const sourceDeliveryProvider = ethers.utils.getAddress(wh.tryUint8ArrayToNative(redeliveryVaa.newSourceDeliveryProvider, "ethereum"));
   if (
-    sourceRelayProvider !==
-    ctx.relayProviders[ctx.vaa!.emitterChain as EVMChainId]
+    sourceDeliveryProvider !==
+    ctx.deliveryProviders[ctx.vaa!.emitterChain as EVMChainId]
   ) {
     ctx.logger.info("Delivery vaa specifies different relay provider", {
-      sourceRelayProvider: redeliveryVaa.newSourceRelayProvider,
+      sourceDeliveryProvider: redeliveryVaa.newSourceDeliveryProvider,
     });
     return;
   }
@@ -113,7 +113,7 @@ function isValidRedelivery(
   }
 
   //TODO check that the sourceRelayerAddress is one of this relayer's addresses
-  if (!redelivery.newSourceRelayProvider) {
+  if (!redelivery.newSourceDeliveryProvider) {
   }
 
   const [deliveryExecutionInfo,] = parseEVMExecutionInfoV1(delivery.encodedExecutionInfo, 0);
@@ -200,18 +200,18 @@ async function processDeliveryInstruction(
   const budget = receiverValue.add(maxRefund);
 
   await ctx.wallets.onEVM(chainId, async ({ wallet }) => {
-    const coreRelayer = CoreRelayer__factory.connect(
+    const wormholeRelayer = IWormholeRelayerDelivery__factory.connect(
       ctx.wormholeRelayers[chainId],
       wallet
     );
 
     const encodedVMs = results.map((v) => v.bytes);
     const packedOverrides = overrides ? packOverrides(overrides) : [];
-    const gasUnitsEstimate = await coreRelayer.estimateGas.deliver(encodedVMs, deliveryVaa, wallet.address, packedOverrides, {
+    const gasUnitsEstimate = await wormholeRelayer.estimateGas.deliver(encodedVMs, deliveryVaa, wallet.address, packedOverrides, {
       value: budget,
       gasLimit: 3000000,
     });
-    const gasPrice = await coreRelayer.provider.getGasPrice();
+    const gasPrice = await wormholeRelayer.provider.getGasPrice();
     const estimatedTransactionFee = gasPrice.mul(gasUnitsEstimate);
     const estimatedTransactionFeeEther = ethers.utils.formatEther(
       estimatedTransactionFee
@@ -229,7 +229,7 @@ async function processDeliveryInstruction(
     process.stdout.write("");
     await sleep(200);
     ctx.logger.debug("Sending 'deliver' tx...");
-    const receipt = await coreRelayer
+    const receipt = await wormholeRelayer
       .deliver(encodedVMs, deliveryVaa, wallet.address, packedOverrides, { value: budget, gasLimit: 3000000 })
       .then((x: any) => x.wait());
 
@@ -246,7 +246,7 @@ function logResults(
     return x.address === ctx.wormholeRelayers[chainId];
   });
   if (relayerContractLog) {
-    const parsedLog = CoreRelayer__factory.createInterface().parseLog(
+    const parsedLog = IWormholeRelayerDelivery__factory.createInterface().parseLog(
       relayerContractLog!
     );
     const logArgs = {

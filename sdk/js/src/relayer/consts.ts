@@ -1,36 +1,36 @@
 import { ChainId, Network, ChainName, CHAIN_ID_TO_NAME,} from "../";
 import { ethers } from "ethers";
-import { CoreRelayer__factory, CoreRelayer } from "../ethers-contracts/";
+import { WormholeRelayer__factory, WormholeRelayer } from "../ethers-contracts/";
 
-type AddressInfo = {coreRelayerAddress?: string, mockRelayProviderAddress?: string, mockIntegrationAddress?: string}
+type AddressInfo = {wormholeRelayerAddress?: string, mockDeliveryProviderAddress?: string, mockIntegrationAddress?: string}
 
 const TESTNET: {[K in ChainName]?: AddressInfo} = {
   bsc: {
-    coreRelayerAddress: "0x6Bf598B0eb6aef9B163565763Fe50e54d230eD4E",
+    wormholeRelayerAddress: "0x6Bf598B0eb6aef9B163565763Fe50e54d230eD4E",
   },
   polygon: {
-    coreRelayerAddress: "0x0c97Ef9C224b7EB0BA5e4A9fd2740EC3AeAfc9c3",
+    wormholeRelayerAddress: "0x0c97Ef9C224b7EB0BA5e4A9fd2740EC3AeAfc9c3",
   },
   avalanche: {
-    coreRelayerAddress: "0xf4e844a9B75BB532e67E654F7F80C6232e5Ea7a0",
+    wormholeRelayerAddress: "0xf4e844a9B75BB532e67E654F7F80C6232e5Ea7a0",
   },
   celo: {
-    coreRelayerAddress: "0xF08B7c0CFf448174a7007CF5f12023C72C0e84f0",
+    wormholeRelayerAddress: "0xF08B7c0CFf448174a7007CF5f12023C72C0e84f0",
   },
   moonbeam: {
-    coreRelayerAddress: "0xd20d484eC6c57448d6871F91F4527260FD4aC141",
+    wormholeRelayerAddress: "0xd20d484eC6c57448d6871F91F4527260FD4aC141",
   },
 }
 
 const DEVNET: {[K in ChainName]?: AddressInfo} = {
   ethereum: {
-    coreRelayerAddress: "0x53855d4b64E9A3CF59A84bc768adA716B5536BC5",
-    mockRelayProviderAddress: "0x1ef9e15c3bbf0555860b5009B51722027134d53a",
+    wormholeRelayerAddress: "0x53855d4b64E9A3CF59A84bc768adA716B5536BC5",
+    mockDeliveryProviderAddress: "0x1ef9e15c3bbf0555860b5009B51722027134d53a",
     mockIntegrationAddress: "0x0eb0dD3aa41bD15C706BC09bC03C002b7B85aeAC",
   },
   bsc: {
-    coreRelayerAddress: "0x53855d4b64E9A3CF59A84bc768adA716B5536BC5",
-    mockRelayProviderAddress: "0x1ef9e15c3bbf0555860b5009B51722027134d53a",
+    wormholeRelayerAddress: "0x53855d4b64E9A3CF59A84bc768adA716B5536BC5",
+    mockDeliveryProviderAddress: "0x1ef9e15c3bbf0555860b5009B51722027134d53a",
     mockIntegrationAddress: "0x0eb0dD3aa41bD15C706BC09bC03C002b7B85aeAC",
   },
 };
@@ -49,7 +49,7 @@ export function getWormholeRelayerAddress(
   chainName: ChainName,
   env: Network
 ): string {
-  const result = getAddressInfo(chainName, env).coreRelayerAddress;
+  const result = getAddressInfo(chainName, env).wormholeRelayerAddress;
   if(!result) throw Error(`No Wormhole Relayer Address for chain ${chainName}, network ${env}`);
   return result;
 }
@@ -59,9 +59,9 @@ export function getWormholeRelayer(
   env: Network,
   provider: ethers.providers.Provider | ethers.Signer,
   wormholeRelayerAddress?: string
-): CoreRelayer {
+): WormholeRelayer {
   const thisChainsRelayer = wormholeRelayerAddress || getWormholeRelayerAddress(chainName, env);
-  const contract = CoreRelayer__factory.connect(thisChainsRelayer, provider);
+  const contract = WormholeRelayer__factory.connect(thisChainsRelayer, provider);
   return contract;
 }
 

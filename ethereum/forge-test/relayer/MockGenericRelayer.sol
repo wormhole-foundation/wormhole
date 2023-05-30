@@ -11,7 +11,7 @@ import {
     DeliveryOverride,
     RedeliveryInstruction
 } from "../../contracts/libraries/relayer/RelayerInternalStructs.sol";
-import {WormholeRelayerSerde} from "../../contracts/relayer/coreRelayer/WormholeRelayerSerde.sol";
+import {WormholeRelayerSerde} from "../../contracts/relayer/wormholeRelayer/WormholeRelayerSerde.sol";
 import "../../contracts/libraries/external/BytesLib.sol";
 import "forge-std/Vm.sol";
 import "../../contracts/interfaces/relayer/TypedUnits.sol";
