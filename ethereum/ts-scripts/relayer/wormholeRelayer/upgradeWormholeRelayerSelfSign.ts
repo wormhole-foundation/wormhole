@@ -15,8 +15,7 @@ const chains = getOperatingChains();
 async function run() {
   console.log("Start!");
   const output: any = {
-    wormholeRelayerImplementations: [],
-    coreRelayerLibraries: [],
+    wormholeRelayerImplementations: []
   };
 
   for (const chain of chains) {
