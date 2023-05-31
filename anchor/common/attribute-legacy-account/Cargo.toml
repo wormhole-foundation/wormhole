@@ -1,0 +1,15 @@
+[package]
+name = "attribute-legacy-account"
+version = "0.0.1"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anchor-syn = "=0.28.0"
+proc-macro2 = "1"
+quote = "1"
+syn = "1"
+
+[lib]
+proc-macro = true
