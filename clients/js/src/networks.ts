@@ -101,8 +101,8 @@ const MAINNET = {
     key: get_env_var("APTOS_KEY"),
   },
   sui: {
-    rpc: undefined,
-    key: undefined,
+    rpc: "https://fullnode.mainnet.sui.io:443",
+    key: get_env_var("SUI_KEY"),
   },
   pythnet: {
     rpc: "http://api.pythnet.pyth.network:8899/",
