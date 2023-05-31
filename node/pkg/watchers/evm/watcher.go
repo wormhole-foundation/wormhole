@@ -538,6 +538,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				err := proto.Unmarshal(signedQueryRequest.QueryRequest, &queryRequest)
 				if err != nil {
 					logger.Error("received invalid message from query module", zap.String("component", "ccqevm"))
+					w.ccqSendQueryResponse(logger, common.QueryFatalError, signedQueryRequest, nil)
 					continue
 				}
 
@@ -625,6 +626,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.String("block", block),
 							zap.String("component", "ccqevm"),
 						)
+						w.ccqSendQueryResponse(logger, common.QueryRetryNeeded, signedQueryRequest, nil)
 						continue
 					}
 
@@ -636,6 +638,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.String("block", block),
 							zap.String("component", "ccqevm"),
 						)
+						w.ccqSendQueryResponse(logger, common.QueryRetryNeeded, signedQueryRequest, nil)
 						continue
 					}
 
@@ -647,6 +650,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.String("block", block),
 							zap.String("component", "ccqevm"),
 						)
+						w.ccqSendQueryResponse(logger, common.QueryRetryNeeded, signedQueryRequest, nil)
 						continue
 					}
 
@@ -658,6 +662,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.String("block", block),
 							zap.String("component", "ccqevm"),
 						)
+						w.ccqSendQueryResponse(logger, common.QueryRetryNeeded, signedQueryRequest, nil)
 						continue
 					}
 
@@ -671,20 +676,8 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.String("block", block),
 							zap.String("component", "ccqevm"),
 						)
+						w.ccqSendQueryResponse(logger, common.QueryRetryNeeded, signedQueryRequest, nil)
 						continue
-					}
-
-					queryResponse := common.QueryResponse{
-						Success: true,
-						Msg: &common.QueryResponsePublication{
-							Request: signedQueryRequest,
-							Response: common.EthCallQueryResponse{
-								Number: blockResult.Number.ToInt(),
-								Hash:   blockResult.Hash,
-								Time:   time.Unix(int64(blockResult.Time), 0),
-								Result: callResult,
-							},
-						},
 					}
 
 					logger.Info("query result",
@@ -699,12 +692,21 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						zap.String("component", "ccqevm"),
 					)
 
-					w.queryResponseC <- &queryResponse
+					resp := &common.EthCallQueryResponse{
+						Number: blockResult.Number.ToInt(),
+						Hash:   blockResult.Hash,
+						Time:   time.Unix(int64(blockResult.Time), 0),
+						Result: callResult,
+					}
+
+					w.ccqSendQueryResponse(logger, common.QuerySuccess, signedQueryRequest, resp)
+
 				default:
 					logger.Warn("received unsupported request type",
 						zap.Any("payload", queryRequest.Message),
 						zap.String("component", "ccqevm"),
 					)
+					w.ccqSendQueryResponse(logger, common.QueryFatalError, signedQueryRequest, nil)
 				}
 			}
 		}
@@ -1124,4 +1126,24 @@ func (w *Watcher) SetWaitForConfirmations(waitForConfirmations bool) {
 // SetMaxWaitConfirmations is used to override the maximum number of confirmations to wait before declaring a transaction abandoned.
 func (w *Watcher) SetMaxWaitConfirmations(maxWaitConfirmations uint64) {
 	w.maxWaitConfirmations = maxWaitConfirmations
+}
+
+// ccqSendQueryResponse sends an error response back to the query handler.
+func (w *Watcher) ccqSendQueryResponse(logger *zap.Logger, status common.QueryStatus, req *gossipv1.SignedQueryRequest, resp *common.EthCallQueryResponse) {
+	queryResponse := common.QueryResponse{
+		Status: status,
+		Msg: &common.QueryResponsePublication{
+			Request: req,
+		},
+	}
+
+	if resp != nil {
+		queryResponse.Msg.Response = *resp
+	}
+	select {
+	case w.queryResponseC <- &queryResponse:
+		logger.Debug("published query response error to handler", zap.String("component", "ccqevm"))
+	default:
+		logger.Error("failed to published query response error to handler", zap.String("component", "ccqevm"))
+	}
 }
