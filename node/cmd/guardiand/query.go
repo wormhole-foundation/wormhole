@@ -35,6 +35,7 @@ type (
 		channel        chan *gossipv1.SignedQueryRequest
 		receiveTime    time.Time
 		lastUpdateTime time.Time
+		inProgress     bool
 
 		// resp is only populated when we need to retry sending the response to p2p.
 		resp *common.QueryResponse
@@ -53,7 +54,7 @@ func handleQueryRequests(
 	env common.Environment,
 ) {
 	qLogger := logger.With(zap.String("component", "ccqhandler"))
-	qLogger.Info("cross chain queries are enabled", zap.Any("allowedRequestors", allowedRequestors))
+	qLogger.Info("cross chain queries are enabled", zap.Any("allowedRequestors", allowedRequestors), zap.String("env", string(env)))
 
 	pendingQueries := make(map[string]*pendingQuery) // Key is requestID.
 
@@ -121,6 +122,7 @@ func handleQueryRequests(
 				chainId:     chainId,
 				channel:     channel,
 				receiveTime: time.Now(),
+				inProgress:  true,
 			}
 			pendingQueries[reqId] = pq
 
@@ -129,7 +131,7 @@ func handleQueryRequests(
 
 		case resp := <-queryResponseReadC:
 			reqId := resp.RequestID()
-			if resp.Success {
+			if resp.Status == common.QuerySuccess {
 				// Send the response to be published.
 				select {
 				case queryResponseWriteC <- resp.Msg:
@@ -139,17 +141,25 @@ func handleQueryRequests(
 					if pq, exists := pendingQueries[reqId]; exists {
 						qLogger.Warn("failed to publish query response to p2p, will retry publishing next interval", zap.String("requestID", reqId))
 						pq.resp = resp
+						pq.inProgress = false
 					} else {
 						qLogger.Warn("failed to publish query response to p2p, request is no longer in cache, dropping it", zap.String("requestID", reqId))
 						delete(pendingQueries, reqId)
 					}
 				}
-			} else {
-				if _, exists := pendingQueries[reqId]; exists {
+			} else if resp.Status == common.QueryRetryNeeded {
+				if pq, exists := pendingQueries[reqId]; exists {
 					qLogger.Warn("query failed, will retry next interval", zap.String("requestID", reqId))
+					pq.inProgress = false
 				} else {
 					qLogger.Warn("query failed, request is no longer in cache, dropping it", zap.String("requestID", reqId))
 				}
+			} else if resp.Status == common.QueryFatalError {
+				qLogger.Error("query encountered a fatal error, dropping it", zap.String("requestID", reqId))
+				delete(pendingQueries, reqId)
+			} else {
+				qLogger.Error("received an unexpected query status, dropping it", zap.String("requestID", reqId), zap.Int("status", int(resp.Status)))
+				delete(pendingQueries, reqId)
 			}
 
 		case <-ticker.C:
@@ -170,8 +180,9 @@ func handleQueryRequests(
 						default:
 							qLogger.Warn("resend of query response to p2p failed again, will keep retrying", zap.String("requestID", reqId))
 						}
-					} else if pq.lastUpdateTime.Add(retryInterval).Before(now) {
+					} else if !pq.inProgress && pq.lastUpdateTime.Add(retryInterval).Before(now) {
 						qLogger.Info("retrying query request", zap.String("requestId", pq.reqId), zap.Stringer("receiveTime", pq.receiveTime))
+						pq.inProgress = true
 						ccqForwardToWatcher(qLogger, pq)
 					}
 				}
@@ -212,8 +223,9 @@ func ccqForwardToWatcher(qLogger *zap.Logger, pq *pendingQuery) {
 		qLogger.Debug("forwarded query request to watcher", zap.String("requestID", pq.reqId), zap.Stringer("chainID", pq.chainId))
 		pq.lastUpdateTime = pq.receiveTime
 	default:
-		// By leaving lastUpdateTime unset, we will retry next interval.
+		// By leaving lastUpdateTime unset and setting inProgress to false, we will retry next interval.
 		qLogger.Warn("failed to send query request to watcher, will retry next interval", zap.String("requestID", pq.reqId), zap.Uint16("chain_id", uint16(pq.chainId)))
+		pq.inProgress = false
 	}
 }
 
