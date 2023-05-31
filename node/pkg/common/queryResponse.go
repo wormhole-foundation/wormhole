@@ -31,15 +31,21 @@ const (
 )
 
 type QueryResponse struct {
-	Status QueryStatus
-	Msg    *QueryResponsePublication
+	RequestID     string
+	ChainID       vaa.ChainID
+	Status        QueryStatus
+	SignedRequest *gossipv1.SignedQueryRequest
+	Result        *EthCallQueryResponse
 }
 
-func (resp *QueryResponse) RequestID() string {
-	if resp == nil || resp.Msg == nil {
-		return "nil"
+func CreateQueryResponse(req *QueryRequest, status QueryStatus, result *EthCallQueryResponse) *QueryResponse {
+	return &QueryResponse{
+		RequestID:     req.RequestID,
+		ChainID:       vaa.ChainID(req.Request.ChainId),
+		SignedRequest: req.SignedRequest,
+		Status:        status,
+		Result:        result,
 	}
-	return resp.Msg.RequestID()
 }
 
 var queryResponsePrefix = []byte("query_response_0000000000000000000|")
@@ -73,6 +79,17 @@ func (msg *QueryResponsePublication) Marshal() ([]byte, error) {
 		return nil, fmt.Errorf("received invalid message from query module")
 	}
 
+	if err := ValidateQueryRequest(&queryRequest); err != nil {
+		return nil, fmt.Errorf("queryRequest is invalid: %w", err)
+	}
+
+	if len(msg.Response.Hash) != 32 {
+		return nil, fmt.Errorf("invalid length for block hash")
+	}
+	if len(msg.Response.Result) > math.MaxUint32 {
+		return nil, fmt.Errorf("response data too long")
+	}
+
 	buf := new(bytes.Buffer)
 
 	// Source
@@ -86,23 +103,11 @@ func (msg *QueryResponsePublication) Marshal() ([]byte, error) {
 	switch req := queryRequest.Message.(type) {
 	case *gossipv1.QueryRequest_EthCallQueryRequest:
 		vaa.MustWrite(buf, binary.BigEndian, uint8(1))
-		if queryRequest.ChainId > math.MaxUint16 {
-			return nil, fmt.Errorf("invalid chain id: %d is out of bounds", queryRequest.ChainId)
-		}
 		vaa.MustWrite(buf, binary.BigEndian, uint16(queryRequest.ChainId))
 		vaa.MustWrite(buf, binary.BigEndian, queryRequest.Nonce) // uint32
-		if len(req.EthCallQueryRequest.To) != 20 {
-			return nil, fmt.Errorf("invalid length for To contract")
-		}
 		buf.Write(req.EthCallQueryRequest.To)
-		if len(req.EthCallQueryRequest.Data) > math.MaxUint32 {
-			return nil, fmt.Errorf("request data too long")
-		}
 		vaa.MustWrite(buf, binary.BigEndian, uint32(len(req.EthCallQueryRequest.Data)))
 		buf.Write(req.EthCallQueryRequest.Data)
-		if len(req.EthCallQueryRequest.Block) > math.MaxUint32 {
-			return nil, fmt.Errorf("request block too long")
-		}
 		vaa.MustWrite(buf, binary.BigEndian, uint32(len(req.EthCallQueryRequest.Block)))
 		// TODO: should this be an enum or the literal string?
 		buf.Write([]byte(req.EthCallQueryRequest.Block))
@@ -111,14 +116,8 @@ func (msg *QueryResponsePublication) Marshal() ([]byte, error) {
 		// TODO: probably some kind of request/response pair validation
 		// TODO: is uint64 safe?
 		vaa.MustWrite(buf, binary.BigEndian, msg.Response.Number.Uint64())
-		if len(msg.Response.Hash) != 32 {
-			return nil, fmt.Errorf("invalid length for block hash")
-		}
 		buf.Write(msg.Response.Hash[:])
 		vaa.MustWrite(buf, binary.BigEndian, uint32(msg.Response.Time.Unix()))
-		if len(msg.Response.Result) > math.MaxUint32 {
-			return nil, fmt.Errorf("response data too long")
-		}
 		vaa.MustWrite(buf, binary.BigEndian, uint32(len(msg.Response.Result)))
 		buf.Write(msg.Response.Result)
 		return buf.Bytes(), nil
