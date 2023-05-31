@@ -2,7 +2,6 @@ package guardiand
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -29,16 +28,14 @@ const (
 type (
 	// pendingQuery is the cache entry for a given query.
 	pendingQuery struct {
-		req            *gossipv1.SignedQueryRequest
-		reqId          string
-		chainId        vaa.ChainID
-		channel        chan *gossipv1.SignedQueryRequest
+		req            *common.QueryRequest
+		channel        chan *common.QueryRequest
 		receiveTime    time.Time
 		lastUpdateTime time.Time
 		inProgress     bool
 
-		// resp is only populated when we need to retry sending the response to p2p.
-		resp *common.QueryResponse
+		// respPub is only populated when we need to retry sending the response to p2p.
+		respPub *common.QueryResponsePublication
 	}
 )
 
@@ -47,7 +44,7 @@ func handleQueryRequests(
 	ctx context.Context,
 	logger *zap.Logger,
 	signedQueryReqC <-chan *gossipv1.SignedQueryRequest,
-	chainQueryReqC map[vaa.ChainID]chan *gossipv1.SignedQueryRequest,
+	chainQueryReqC map[vaa.ChainID]chan *common.QueryRequest,
 	allowedRequestors map[ethCommon.Address]struct{},
 	queryResponseReadC <-chan *common.QueryResponse,
 	queryResponseWriteC chan<- *common.QueryResponsePublication,
@@ -91,75 +88,85 @@ func handleQueryRequests(
 				continue
 			}
 
-			var queryRequest gossipv1.QueryRequest
-			err = proto.Unmarshal(signedQueryRequest.QueryRequest, &queryRequest)
+			var qr gossipv1.QueryRequest
+			err = proto.Unmarshal(signedQueryRequest.QueryRequest, &qr)
 			if err != nil {
-				qLogger.Error("received invalid message",
-					zap.String("requestor", signerAddress.Hex()))
+				qLogger.Error("failed to unmarshal query request", zap.String("requestor", signerAddress.Hex()), zap.Error(err))
 				continue
 			}
 
-			reqId := requestID(signedQueryRequest)
-			chainId := vaa.ChainID(queryRequest.ChainId)
+			if err := common.ValidateQueryRequest(&qr); err != nil {
+				qLogger.Error("received invalid message", zap.String("requestor", signerAddress.Hex()), zap.Error(err))
+				continue
+			}
+
+			queryRequest := common.CreateQueryRequest(signedQueryRequest, &qr)
 
 			// Look up the channel for this chain.
-			channel, channelExists := chainQueryReqC[chainId]
+			channel, channelExists := chainQueryReqC[queryRequest.ChainID]
 			if !channelExists {
-				qLogger.Error("unknown chain ID for query request, dropping it", zap.String("requestID", reqId), zap.Uint32("chain_id", queryRequest.ChainId))
+				qLogger.Error("unknown chain ID for query request, dropping it", zap.String("requestID", queryRequest.RequestID), zap.Stringer("chain_id", queryRequest.ChainID))
 				continue
 			}
 
 			// Make sure this is not a duplicate request. TODO: Should we do something smarter here than just dropping the duplicate?
-			if oldReq, exists := pendingQueries[reqId]; exists {
-				qLogger.Warn("dropping duplicate query request", zap.String("requestID", reqId), zap.Stringer("origRecvTime", oldReq.receiveTime))
+			if oldReq, exists := pendingQueries[queryRequest.RequestID]; exists {
+				qLogger.Warn("dropping duplicate query request", zap.String("requestID", queryRequest.RequestID), zap.Stringer("origRecvTime", oldReq.receiveTime))
 				continue
 			}
 
 			// Add the query to our cache.
 			pq := &pendingQuery{
-				req:         signedQueryRequest,
-				reqId:       reqId,
-				chainId:     chainId,
+				req:         queryRequest,
 				channel:     channel,
 				receiveTime: time.Now(),
 				inProgress:  true,
 			}
-			pendingQueries[reqId] = pq
+			pendingQueries[queryRequest.RequestID] = pq
 
 			// Forward the request to the watcher.
 			ccqForwardToWatcher(qLogger, pq)
 
 		case resp := <-queryResponseReadC:
-			reqId := resp.RequestID()
 			if resp.Status == common.QuerySuccess {
+				if resp.Result == nil {
+					qLogger.Error("received a successful query response with a nil result, dropping it!", zap.String("requestID", resp.RequestID))
+					continue
+				}
+
+				respPub := &common.QueryResponsePublication{
+					Request:  resp.SignedRequest,
+					Response: *resp.Result,
+				}
+
 				// Send the response to be published.
 				select {
-				case queryResponseWriteC <- resp.Msg:
-					qLogger.Debug("forwarded query response to p2p", zap.String("requestID", reqId))
-					delete(pendingQueries, reqId)
+				case queryResponseWriteC <- respPub:
+					qLogger.Debug("forwarded query response to p2p", zap.String("requestID", resp.RequestID))
+					delete(pendingQueries, resp.RequestID)
 				default:
-					if pq, exists := pendingQueries[reqId]; exists {
-						qLogger.Warn("failed to publish query response to p2p, will retry publishing next interval", zap.String("requestID", reqId))
-						pq.resp = resp
+					if pq, exists := pendingQueries[resp.RequestID]; exists {
+						qLogger.Warn("failed to publish query response to p2p, will retry publishing next interval", zap.String("requestID", resp.RequestID))
+						pq.respPub = respPub
 						pq.inProgress = false
 					} else {
-						qLogger.Warn("failed to publish query response to p2p, request is no longer in cache, dropping it", zap.String("requestID", reqId))
-						delete(pendingQueries, reqId)
+						qLogger.Warn("failed to publish query response to p2p, request is no longer in cache, dropping it", zap.String("requestID", resp.RequestID))
+						delete(pendingQueries, resp.RequestID)
 					}
 				}
 			} else if resp.Status == common.QueryRetryNeeded {
-				if pq, exists := pendingQueries[reqId]; exists {
-					qLogger.Warn("query failed, will retry next interval", zap.String("requestID", reqId))
+				if pq, exists := pendingQueries[resp.RequestID]; exists {
+					qLogger.Warn("query failed, will retry next interval", zap.String("requestID", resp.RequestID))
 					pq.inProgress = false
 				} else {
-					qLogger.Warn("query failed, request is no longer in cache, dropping it", zap.String("requestID", reqId))
+					qLogger.Warn("query failed, request is no longer in cache, dropping it", zap.String("requestID", resp.RequestID))
 				}
 			} else if resp.Status == common.QueryFatalError {
-				qLogger.Error("query encountered a fatal error, dropping it", zap.String("requestID", reqId))
-				delete(pendingQueries, reqId)
+				qLogger.Error("query encountered a fatal error, dropping it", zap.String("requestID", resp.RequestID))
+				delete(pendingQueries, resp.RequestID)
 			} else {
-				qLogger.Error("received an unexpected query status, dropping it", zap.String("requestID", reqId), zap.Int("status", int(resp.Status)))
-				delete(pendingQueries, reqId)
+				qLogger.Error("received an unexpected query status, dropping it", zap.String("requestID", resp.RequestID), zap.Int("status", int(resp.Status)))
+				delete(pendingQueries, resp.RequestID)
 			}
 
 		case <-ticker.C:
@@ -171,17 +178,17 @@ func handleQueryRequests(
 					qLogger.Warn("query request timed out, dropping it", zap.String("requestId", reqId), zap.Stringer("receiveTime", pq.receiveTime))
 					delete(pendingQueries, reqId)
 				} else {
-					if pq.resp != nil {
+					if pq.respPub != nil {
 						// Resend the response to be published.
 						select {
-						case queryResponseWriteC <- pq.resp.Msg:
+						case queryResponseWriteC <- pq.respPub:
 							qLogger.Debug("resend of query response to p2p succeeded", zap.String("requestID", reqId))
 							delete(pendingQueries, reqId)
 						default:
 							qLogger.Warn("resend of query response to p2p failed again, will keep retrying", zap.String("requestID", reqId))
 						}
 					} else if !pq.inProgress && pq.lastUpdateTime.Add(retryInterval).Before(now) {
-						qLogger.Info("retrying query request", zap.String("requestId", pq.reqId), zap.Stringer("receiveTime", pq.receiveTime))
+						qLogger.Info("retrying query request", zap.String("requestId", reqId), zap.Stringer("receiveTime", pq.receiveTime))
 						pq.inProgress = true
 						ccqForwardToWatcher(qLogger, pq)
 					}
@@ -220,19 +227,11 @@ func ccqForwardToWatcher(qLogger *zap.Logger, pq *pendingQuery) {
 	select {
 	// TODO: only send the query request itself and reassemble in this module
 	case pq.channel <- pq.req:
-		qLogger.Debug("forwarded query request to watcher", zap.String("requestID", pq.reqId), zap.Stringer("chainID", pq.chainId))
+		qLogger.Debug("forwarded query request to watcher", zap.String("requestID", pq.req.RequestID), zap.Stringer("chainID", pq.req.ChainID))
 		pq.lastUpdateTime = pq.receiveTime
 	default:
 		// By leaving lastUpdateTime unset and setting inProgress to false, we will retry next interval.
-		qLogger.Warn("failed to send query request to watcher, will retry next interval", zap.String("requestID", pq.reqId), zap.Uint16("chain_id", uint16(pq.chainId)))
+		qLogger.Warn("failed to send query request to watcher, will retry next interval", zap.String("requestID", pq.req.RequestID), zap.Stringer("chain_id", pq.req.ChainID))
 		pq.inProgress = false
 	}
-}
-
-// requestID returns the request signature as a hex string.
-func requestID(req *gossipv1.SignedQueryRequest) string {
-	if req == nil {
-		return "nil"
-	}
-	return hex.EncodeToString(req.Signature)
 }
