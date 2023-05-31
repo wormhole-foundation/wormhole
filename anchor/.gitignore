@@ -1,0 +1,12 @@
+.vscode
+.anchor
+.DS_Store
+target
+**/*.rs.bk
+node_modules
+test-ledger
+artifacts-*
+js/lib
+js/src/idl
+js/src/types
+tests/*.so

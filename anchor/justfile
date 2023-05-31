@@ -1,0 +1,21 @@
+# Clean up file directories
+clean:
+    cd js && npm run clean
+    anchor clean
+    rm -rf artifacts-* node_modules
+
+build NETWORK:
+    anchor build --arch sbf -- --features "{{NETWORK}}" -- --no-default-features
+    mkdir -p artifacts-{{NETWORK}}
+    cp target/deploy/*.so artifacts-{{NETWORK}}/
+
+lint:
+    cargo fmt --all --check
+    cargo clippy --all-targets
+    npx run lint
+
+integration-test:
+    just build localnet
+    cd js && npm ci && npm run build
+    npm i js/
+    bash tests/run_mocha_tests.sh

@@ -1,0 +1,19 @@
+[package]
+name = "wormhole-attribute-legacy-account"
+description = "Attribute macro for defining a legacy account"
+version = "0.1.0"
+edition = "2021"
+authors = ["W7"]
+license = "Apache-2.0"
+homepage = "https://wormhole.com"
+repository = "https://github.com/wormhole-foundation/wormhole"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+proc-macro2 = "1"
+quote = "1"
+syn = "1"
+
+[lib]
+proc-macro = true
