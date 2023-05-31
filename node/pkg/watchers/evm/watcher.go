@@ -22,7 +22,6 @@ import (
 	eth_common "github.com/ethereum/go-ethereum/common"
 	eth_hexutil "github.com/ethereum/go-ethereum/common/hexutil"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/readiness"
@@ -97,7 +96,7 @@ type (
 
 		// Incoming query requests from the network. Pre-filtered to only
 		// include requests for our chainID.
-		queryReqC <-chan *gossipv1.SignedQueryRequest
+		queryReqC <-chan *common.QueryRequest
 
 		// Outbound query responses to query requests
 		queryResponseC chan<- *common.QueryResponse
@@ -151,7 +150,7 @@ func NewEthWatcher(
 	msgC chan<- *common.MessagePublication,
 	setC chan<- *common.GuardianSet,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
-	queryReqC <-chan *gossipv1.SignedQueryRequest,
+	queryReqC <-chan *common.QueryRequest,
 	queryResponseC chan<- *common.QueryResponse,
 	unsafeDevMode bool,
 ) *Watcher {
@@ -544,23 +543,14 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			select {
 			case <-ctx.Done():
 				return nil
-			case signedQueryRequest := <-w.queryReqC:
-				// TODO: only receive the unmarshalled query request (see note in query.go)
-				var queryRequest gossipv1.QueryRequest
-				err := proto.Unmarshal(signedQueryRequest.QueryRequest, &queryRequest)
-				if err != nil {
-					logger.Error("received invalid message from query module", zap.String("component", "ccqevm"))
-					w.ccqSendQueryResponse(logger, common.QueryFatalError, signedQueryRequest, nil)
-					continue
-				}
-
+			case queryRequest := <-w.queryReqC:
 				// This can't happen unless there is a programming error - the caller
 				// is expected to send us only requests for our chainID.
-				if vaa.ChainID(queryRequest.ChainId) != w.chainID {
+				if queryRequest.ChainID != w.chainID {
 					panic("ccqevm: invalid chain ID")
 				}
 
-				switch req := queryRequest.Message.(type) {
+				switch req := queryRequest.Request.Message.(type) {
 				case *gossipv1.QueryRequest_EthCallQueryRequest:
 					to := eth_common.BytesToAddress(req.EthCallQueryRequest.To)
 					data := eth_hexutil.Encode(req.EthCallQueryRequest.Data)
@@ -638,7 +628,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.String("block", block),
 							zap.String("component", "ccqevm"),
 						)
-						w.ccqSendQueryResponse(logger, common.QueryRetryNeeded, signedQueryRequest, nil)
+						w.ccqSendQueryResponse(logger, queryRequest, common.QueryRetryNeeded, nil)
 						continue
 					}
 
@@ -650,7 +640,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.String("block", block),
 							zap.String("component", "ccqevm"),
 						)
-						w.ccqSendQueryResponse(logger, common.QueryRetryNeeded, signedQueryRequest, nil)
+						w.ccqSendQueryResponse(logger, queryRequest, common.QueryRetryNeeded, nil)
 						continue
 					}
 
@@ -662,7 +652,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.String("block", block),
 							zap.String("component", "ccqevm"),
 						)
-						w.ccqSendQueryResponse(logger, common.QueryRetryNeeded, signedQueryRequest, nil)
+						w.ccqSendQueryResponse(logger, queryRequest, common.QueryRetryNeeded, nil)
 						continue
 					}
 
@@ -674,7 +664,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.String("block", block),
 							zap.String("component", "ccqevm"),
 						)
-						w.ccqSendQueryResponse(logger, common.QueryRetryNeeded, signedQueryRequest, nil)
+						w.ccqSendQueryResponse(logger, queryRequest, common.QueryRetryNeeded, nil)
 						continue
 					}
 
@@ -688,7 +678,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.String("block", block),
 							zap.String("component", "ccqevm"),
 						)
-						w.ccqSendQueryResponse(logger, common.QueryRetryNeeded, signedQueryRequest, nil)
+						w.ccqSendQueryResponse(logger, queryRequest, common.QueryRetryNeeded, nil)
 						continue
 					}
 
@@ -711,14 +701,14 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						Result: callResult,
 					}
 
-					w.ccqSendQueryResponse(logger, common.QuerySuccess, signedQueryRequest, resp)
+					w.ccqSendQueryResponse(logger, queryRequest, common.QuerySuccess, resp)
 
 				default:
 					logger.Warn("received unsupported request type",
-						zap.Any("payload", queryRequest.Message),
+						zap.Any("payload", queryRequest.Request.Message),
 						zap.String("component", "ccqevm"),
 					)
-					w.ccqSendQueryResponse(logger, common.QueryFatalError, signedQueryRequest, nil)
+					w.ccqSendQueryResponse(logger, queryRequest, common.QueryFatalError, nil)
 				}
 			}
 		}
@@ -1141,19 +1131,10 @@ func (w *Watcher) SetMaxWaitConfirmations(maxWaitConfirmations uint64) {
 }
 
 // ccqSendQueryResponse sends an error response back to the query handler.
-func (w *Watcher) ccqSendQueryResponse(logger *zap.Logger, status common.QueryStatus, req *gossipv1.SignedQueryRequest, resp *common.EthCallQueryResponse) {
-	queryResponse := common.QueryResponse{
-		Status: status,
-		Msg: &common.QueryResponsePublication{
-			Request: req,
-		},
-	}
-
-	if resp != nil {
-		queryResponse.Msg.Response = *resp
-	}
+func (w *Watcher) ccqSendQueryResponse(logger *zap.Logger, req *common.QueryRequest, status common.QueryStatus, result *common.EthCallQueryResponse) {
+	queryResponse := common.CreateQueryResponse(req, status, result)
 	select {
-	case w.queryResponseC <- &queryResponse:
+	case w.queryResponseC <- queryResponse:
 		logger.Debug("published query response error to handler", zap.String("component", "ccqevm"))
 	default:
 		logger.Error("failed to published query response error to handler", zap.String("component", "ccqevm"))
