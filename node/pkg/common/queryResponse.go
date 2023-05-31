@@ -16,9 +16,23 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// QueryStatus is the status returned from the watcher to the query handler.
+type QueryStatus int
+
+const (
+	// QuerySuccess means the query was successful and the response should be returned to the requester.
+	QuerySuccess QueryStatus = 1
+
+	// QueryRetryNeeded means the query failed, but a retry may be helpful.
+	QueryRetryNeeded QueryStatus = 0
+
+	// QueryFatalError means the query failed, and there is no point in retrying it.
+	QueryFatalError QueryStatus = -1
+)
+
 type QueryResponse struct {
-	Success bool
-	Msg     *QueryResponsePublication
+	Status QueryStatus
+	Msg    *QueryResponsePublication
 }
 
 func (resp *QueryResponse) RequestID() string {
