@@ -1,6 +1,6 @@
 FROM cli-gen AS cli-export
 FROM const-gen AS const-export
-FROM ghcr.io/wormhole-foundation/aptos:1.0.4_1@sha256:8d61205efab33e03375a146cdcf4838e2de4797ff2618b08a22cf74ec0843779 as aptos
+FROM ghcr.io/wormhole-foundation/aptos:1.0.4_2@sha256:020ff492894ad93fd5ad94f75c93e791b191983d0f40fe7dae793758fd0f96f9 as aptos
 
 # Support additional root CAs
 COPY cert.pem* /certs/
