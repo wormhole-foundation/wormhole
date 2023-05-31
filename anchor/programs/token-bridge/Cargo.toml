@@ -1,0 +1,50 @@
+[package]
+name = "solana-wormhole-token-bridge"
+version = "0.1.0"
+description = "Wormhole Token Bridge Program for Solana"
+authors = ["W7"]
+repository = "https://github.com/wormhole-foundation/wormhole"
+license = "Apache-2.0"
+homepage = "https://wormhole.com"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+#name = "core_bridge_program"
+
+[features]
+default = ["localnet"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+### A.K.A. Local Validator (via JS Integration Test)
+localnet = ["core-bridge-program/localnet"]
+### A.K.A. Solana Mainnet
+mainnet = ["core-bridge-program/mainnet"]
+### A.K.A. Solana Devnet
+testnet = ["core-bridge-program/testnet"]
+### A.K.A. Tilt
+devnet = ["core-bridge-program/devnet"]
+
+[dependencies]
+anchor-lang = { version = "=0.28.0", features = ["derive", "init-if-needed"] }
+anchor-spl = { version = "=0.28.0", features = ["metadata"] }
+bstr = "1.5.0"
+core-bridge-program = { path = "../core-bridge", package = "solana-wormhole-core-bridge", features = ["cpi"], default-features = false }
+mpl-token-metadata = "1.12.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+solana-program = "=1.14.19"
+wormhole-common = { path = "../../common/wormhole-common" }
+### There is currently an issue using anchor-spl if this dependency is not explicitly defined. These
+### dependencies are used by spl-token-2022.
+toml_datetime = "=0.6.1"
+winnow = "=0.4.1"
+
+[dev-dependencies]
+arrayref = "0.3.7"
+itertools = "0.10.5"
+libsecp256k1 = "0.7.1"
+solana-program-test = "*"
+solana-sdk = "*"

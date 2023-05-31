@@ -1,0 +1,41 @@
+[package]
+name = "solana-wormhole-core-bridge"
+version = "0.1.0"
+description = "Wormhole Core Bridge Program for Solana"
+authors = ["W7"]
+repository = "https://github.com/wormhole-foundation/wormhole"
+license = "Apache-2.0"
+homepage = "https://wormhole.com"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+#name = "core_bridge_program"
+
+[features]
+default = ["localnet"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+### A.K.A. Local Validator (via JS Integration Test)
+localnet = []
+### A.K.A. Solana Mainnet
+mainnet = []
+### A.K.A. Solana Devnet
+testnet = []
+### A.K.A. Tilt
+devnet = []
+
+[dependencies]
+anchor-lang = { version = "=0.28.0", features = ["derive", "init-if-needed"] }
+hex = "0.4"
+solana-program = "=1.14.19"
+wormhole-common = { path = "../../common/wormhole-common" }
+
+[dev-dependencies]
+arrayref = "0.3.7"
+itertools = "0.10.5"
+libsecp256k1 = "0.7.1"
+solana-program-test = "*"
+solana-sdk = "*"
