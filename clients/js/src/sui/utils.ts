@@ -240,8 +240,17 @@ export const getSigner = (
     throw new Error(`No private key found for Sui ${network}`);
   }
 
-  const bytes = fromB64(privateKey);
-  const keypair = Ed25519Keypair.fromSecretKey(bytes.slice(1));
+  let bytes = privateKey.startsWith("0x")
+    ? Buffer.from(privateKey.slice(2), "hex")
+    : fromB64(privateKey);
+  if (bytes.length === 33) {
+    // remove the first flag byte after checking it is indeed the Ed25519 scheme flag 0x00
+    if (bytes[0] !== 0) {
+      throw new Error("Only the Ed25519 scheme flag is supported");
+    }
+    bytes = bytes.subarray(1);
+  }
+  const keypair = Ed25519Keypair.fromSecretKey(bytes);
   return new RawSigner(keypair, provider);
 };
 
