@@ -41,5 +41,5 @@ spec:
             failureThreshold: 300
           ports:
             - containerPort: 6378
-              name: redis-wormhole-relayer
+              name: redisrelayer
               protocol: TCP
