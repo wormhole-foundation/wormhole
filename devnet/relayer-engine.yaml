@@ -37,6 +37,9 @@ spec:
             - /bin/sh
             - -c
             - "npm run tiltkub"
+          env:
+            - name: REDIS_PORT
+              value: 6378
           readinessProbe:
             tcpSocket:
               port: 3000
