@@ -55,12 +55,18 @@ type EthCallQueryResponse struct {
 	Hash   common.Hash
 	Time   time.Time
 	Result []byte
+	// NOTE: If you modify this struct, please update the Equal() method for QueryResponsePublication.
 }
 
 type QueryResponsePublication struct {
 	Request  *gossipv1.SignedQueryRequest
 	Response EthCallQueryResponse
+	// NOTE: If you modify this struct, please update the Equal() method for QueryResponsePublication.
 }
+
+const (
+	QUERY_REQUEST_TYPE_ETH_CALL = uint8(1)
+)
 
 func (resp *QueryResponsePublication) RequestID() string {
 	if resp == nil || resp.Request == nil {
@@ -102,7 +108,7 @@ func (msg *QueryResponsePublication) Marshal() ([]byte, error) {
 	// TODO: support writing different types of request/response pairs
 	switch req := queryRequest.Message.(type) {
 	case *gossipv1.QueryRequest_EthCallQueryRequest:
-		vaa.MustWrite(buf, binary.BigEndian, uint8(1))
+		vaa.MustWrite(buf, binary.BigEndian, QUERY_REQUEST_TYPE_ETH_CALL)
 		vaa.MustWrite(buf, binary.BigEndian, uint16(queryRequest.ChainId))
 		vaa.MustWrite(buf, binary.BigEndian, queryRequest.Nonce) // uint32
 		buf.Write(req.EthCallQueryRequest.To)
@@ -117,7 +123,7 @@ func (msg *QueryResponsePublication) Marshal() ([]byte, error) {
 		// TODO: is uint64 safe?
 		vaa.MustWrite(buf, binary.BigEndian, msg.Response.Number.Uint64())
 		buf.Write(msg.Response.Hash[:])
-		vaa.MustWrite(buf, binary.BigEndian, uint32(msg.Response.Time.Unix()))
+		vaa.MustWrite(buf, binary.BigEndian, msg.Response.Time.UnixMicro())
 		vaa.MustWrite(buf, binary.BigEndian, uint32(len(msg.Response.Result)))
 		buf.Write(msg.Response.Result)
 		return buf.Bytes(), nil
@@ -157,7 +163,7 @@ func UnmarshalQueryResponsePublication(data []byte) (*QueryResponsePublication, 
 	if err := binary.Read(reader, binary.BigEndian, &requestType); err != nil {
 		return nil, fmt.Errorf("failed to read request chain: %w", err)
 	}
-	if requestType != 1 {
+	if requestType != QUERY_REQUEST_TYPE_ETH_CALL {
 		// TODO: support reading different types of request/response pairs
 		return nil, fmt.Errorf("unsupported request type: %d", requestType)
 	}
@@ -230,11 +236,11 @@ func UnmarshalQueryResponsePublication(data []byte) (*QueryResponsePublication, 
 	}
 	queryResponse.Hash = responseHash
 
-	unixSeconds := uint32(0)
-	if err := binary.Read(reader, binary.BigEndian, &unixSeconds); err != nil {
+	unixMicros := int64(0)
+	if err := binary.Read(reader, binary.BigEndian, &unixMicros); err != nil {
 		return nil, fmt.Errorf("failed to read response timestamp: %w", err)
 	}
-	queryResponse.Time = time.Unix(int64(unixSeconds), 0)
+	queryResponse.Time = time.UnixMicro(unixMicros)
 
 	responseResultLen := uint32(0)
 	if err := binary.Read(reader, binary.BigEndian, &responseResultLen); err != nil {
@@ -265,4 +271,23 @@ func (msg *QueryResponsePublication) SigningDigest() (common.Hash, error) {
 
 func GetQueryResponseDigestFromBytes(b []byte) common.Hash {
 	return crypto.Keccak256Hash(append(queryResponsePrefix, crypto.Keccak256Hash(b).Bytes()...))
+}
+
+func (left *QueryResponsePublication) Equal(right *QueryResponsePublication) bool {
+	if !bytes.Equal(left.Request.QueryRequest, right.Request.QueryRequest) || !bytes.Equal(left.Request.Signature, right.Request.Signature) {
+		return false
+	}
+	if left.Response.Number.Cmp(right.Response.Number) != 0 {
+		return false
+	}
+	if !bytes.Equal(left.Response.Hash.Bytes(), right.Response.Hash.Bytes()) {
+		return false
+	}
+	if left.Response.Time != right.Response.Time {
+		return false
+	}
+	if !bytes.Equal(left.Response.Result, right.Response.Result) {
+		return false
+	}
+	return true
 }

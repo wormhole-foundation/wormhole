@@ -1,6 +1,7 @@
 package common
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"math"
@@ -82,4 +83,45 @@ func ValidateQueryRequest(queryRequest *gossipv1.QueryRequest) error {
 	}
 
 	return nil
+}
+
+func SignedQueryRequestEqual(left *gossipv1.SignedQueryRequest, right *gossipv1.SignedQueryRequest) bool {
+	if !bytes.Equal(left.QueryRequest, right.QueryRequest) {
+		return false
+	}
+	if !bytes.Equal(left.Signature, right.Signature) {
+		return false
+	}
+	return true
+}
+
+func QueryRequestEqual(left *gossipv1.QueryRequest, right *gossipv1.QueryRequest) bool {
+	if left.ChainId != right.ChainId {
+		return false
+	}
+	if left.Nonce != right.Nonce {
+		return false
+	}
+
+	switch reqLeft := left.Message.(type) {
+	case *gossipv1.QueryRequest_EthCallQueryRequest:
+		switch reqRight := right.Message.(type) {
+		case *gossipv1.QueryRequest_EthCallQueryRequest:
+			if reqLeft.EthCallQueryRequest.Block != reqRight.EthCallQueryRequest.Block {
+				return false
+			}
+			if !bytes.Equal(reqLeft.EthCallQueryRequest.To, reqRight.EthCallQueryRequest.To) {
+				return false
+			}
+			if !bytes.Equal(reqLeft.EthCallQueryRequest.Data, reqRight.EthCallQueryRequest.Data) {
+				return false
+			}
+		default:
+			return false
+		}
+	default:
+		return false
+	}
+
+	return true
 }
