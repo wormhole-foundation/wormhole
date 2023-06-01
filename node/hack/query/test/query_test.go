@@ -184,10 +184,17 @@ func TestCrossChainQuery(t *testing.T) {
 		panic(err)
 	}
 	to, _ := hex.DecodeString("DDb64fE46a91D46ee29420539FC25FD07c5FEa3E") // WETH
+
+	callData := []*gossipv1.EthCallQueryRequest_EthCallData{
+		{
+			To:   to,
+			Data: data,
+		},
+	}
+
 	callRequest := &gossipv1.EthCallQueryRequest{
-		To:    to,
-		Data:  data,
-		Block: hexutil.EncodeBig(blockNum),
+		Block:    hexutil.EncodeBig(blockNum),
+		CallData: callData,
 	}
 	queryRequest := &gossipv1.QueryRequest{
 		ChainId: 2,

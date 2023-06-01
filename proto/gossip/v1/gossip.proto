@@ -251,9 +251,14 @@ message QueryRequest {
 }
 
 message EthCallQueryRequest {
-  bytes to = 1;
-  bytes data = 2;
-  string block = 3;
+  string block = 1;
+  repeated EthCallData call_data = 2;
+    
+  message EthCallData {
+    bytes to = 1;
+    bytes data = 2;
+  }
+
 }
 
 message SignedQueryResponse {

@@ -25,19 +25,32 @@ func createQueryRequestForTesting() *gossipv1.QueryRequest {
 		panic(err)
 	}
 
-	methodName := "name"
-	data, err := wethAbi.Pack(methodName)
+	data1, err := wethAbi.Pack("name")
+	if err != nil {
+		panic(err)
+	}
+	data2, err := wethAbi.Pack("totalSupply")
 	if err != nil {
 		panic(err)
 	}
 
 	to, _ := hex.DecodeString("0d500b1d8e8ef31e21c99d1db9a6444d3adf1270")
 	block := "0x28d9630"
-	callRequest := &gossipv1.EthCallQueryRequest{
-		To:    to,
-		Data:  data,
-		Block: block,
+	callData := []*gossipv1.EthCallQueryRequest_EthCallData{
+		{
+			To:   to,
+			Data: data1,
+		},
+		{
+			To:   to,
+			Data: data2,
+		},
 	}
+	callRequest := &gossipv1.EthCallQueryRequest{
+		Block:    block,
+		CallData: callData,
+	}
+
 	queryRequest := &gossipv1.QueryRequest{
 		ChainId: 5,
 		Nonce:   0,

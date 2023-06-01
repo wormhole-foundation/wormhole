@@ -185,13 +185,20 @@ func main() {
 	}
 
 	to, _ := hex.DecodeString("0d500b1d8e8ef31e21c99d1db9a6444d3adf1270")
+
+	callData := []*gossipv1.EthCallQueryRequest_EthCallData{
+		{
+			To:   to,
+			Data: data,
+		},
+	}
+
 	// block := "0x28d9630"
 	block := "latest"
 	// block := "0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"
 	callRequest := &gossipv1.EthCallQueryRequest{
-		To:    to,
-		Data:  data,
-		Block: block,
+		Block:    block,
+		CallData: callData,
 	}
 	queryRequest := &gossipv1.QueryRequest{
 		ChainId: 5,

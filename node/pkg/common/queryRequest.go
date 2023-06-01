@@ -69,9 +69,12 @@ func MarshalQueryRequest(queryRequest *gossipv1.QueryRequest) ([]byte, error) {
 		vaa.MustWrite(buf, binary.BigEndian, QUERY_REQUEST_TYPE_ETH_CALL)
 		vaa.MustWrite(buf, binary.BigEndian, uint16(queryRequest.ChainId))
 		vaa.MustWrite(buf, binary.BigEndian, queryRequest.Nonce) // uint32
-		buf.Write(req.EthCallQueryRequest.To)
-		vaa.MustWrite(buf, binary.BigEndian, uint32(len(req.EthCallQueryRequest.Data)))
-		buf.Write(req.EthCallQueryRequest.Data)
+		vaa.MustWrite(buf, binary.BigEndian, uint8(len(req.EthCallQueryRequest.CallData)))
+		for _, callData := range req.EthCallQueryRequest.CallData {
+			buf.Write(callData.To)
+			vaa.MustWrite(buf, binary.BigEndian, uint32(len(callData.Data)))
+			buf.Write(callData.Data)
+		}
 		vaa.MustWrite(buf, binary.BigEndian, uint32(len(req.EthCallQueryRequest.Block)))
 		// TODO: should this be an enum or the literal string?
 		buf.Write([]byte(req.EthCallQueryRequest.Block))
@@ -113,21 +116,33 @@ func UnmarshalQueryRequestFromReader(reader *bytes.Reader) (*gossipv1.QueryReque
 
 	ethCallQueryRequest := &gossipv1.EthCallQueryRequest{}
 
-	queryEthCallTo := [20]byte{}
-	if n, err := reader.Read(queryEthCallTo[:]); err != nil || n != 20 {
-		return nil, fmt.Errorf("failed to read call To [%d]: %w", n, err)
+	numCallData := uint8(0)
+	if err := binary.Read(reader, binary.BigEndian, &numCallData); err != nil {
+		return nil, fmt.Errorf("failed to read number of call data entries: %w", err)
 	}
-	ethCallQueryRequest.To = queryEthCallTo[:]
 
-	queryEthCallDataLen := uint32(0)
-	if err := binary.Read(reader, binary.BigEndian, &queryEthCallDataLen); err != nil {
-		return nil, fmt.Errorf("failed to read call Data len: %w", err)
+	for count := 0; count < int(numCallData); count++ {
+		queryEthCallTo := [20]byte{}
+		if n, err := reader.Read(queryEthCallTo[:]); err != nil || n != 20 {
+			return nil, fmt.Errorf("failed to read call To [%d]: %w", n, err)
+		}
+
+		queryEthCallDataLen := uint32(0)
+		if err := binary.Read(reader, binary.BigEndian, &queryEthCallDataLen); err != nil {
+			return nil, fmt.Errorf("failed to read call Data len: %w", err)
+		}
+		queryEthCallData := make([]byte, queryEthCallDataLen)
+		if n, err := reader.Read(queryEthCallData[:]); err != nil || n != int(queryEthCallDataLen) {
+			return nil, fmt.Errorf("failed to read call To [%d]: %w", n, err)
+		}
+
+		callData := &gossipv1.EthCallQueryRequest_EthCallData{
+			To:   queryEthCallTo[:],
+			Data: queryEthCallData[:],
+		}
+
+		ethCallQueryRequest.CallData = append(ethCallQueryRequest.CallData, callData)
 	}
-	queryEthCallData := make([]byte, queryEthCallDataLen)
-	if n, err := reader.Read(queryEthCallData[:]); err != nil || n != int(queryEthCallDataLen) {
-		return nil, fmt.Errorf("failed to read call To [%d]: %w", n, err)
-	}
-	ethCallQueryRequest.Data = queryEthCallData[:]
 
 	queryEthCallBlockLen := uint32(0)
 	if err := binary.Read(reader, binary.BigEndian, &queryEthCallBlockLen); err != nil {
@@ -153,17 +168,19 @@ func ValidateQueryRequest(queryRequest *gossipv1.QueryRequest) error {
 	}
 	switch req := queryRequest.Message.(type) {
 	case *gossipv1.QueryRequest_EthCallQueryRequest:
-		if len(req.EthCallQueryRequest.To) != 20 {
-			return fmt.Errorf("invalid length for To contract")
-		}
-		if len(req.EthCallQueryRequest.Data) > math.MaxUint32 {
-			return fmt.Errorf("request data too long")
-		}
 		if len(req.EthCallQueryRequest.Block) > math.MaxUint32 {
 			return fmt.Errorf("request block too long")
 		}
 		if !strings.HasPrefix(req.EthCallQueryRequest.Block, "0x") {
 			return fmt.Errorf("request block must be a hex number or hash starting with 0x")
+		}
+		for _, callData := range req.EthCallQueryRequest.CallData {
+			if len(callData.To) != 20 {
+				return fmt.Errorf("invalid length for To contract")
+			}
+			if len(callData.Data) > math.MaxUint32 {
+				return fmt.Errorf("request data too long")
+			}
 		}
 	default:
 		return fmt.Errorf("received invalid message from query module")
@@ -197,11 +214,16 @@ func QueryRequestEqual(left *gossipv1.QueryRequest, right *gossipv1.QueryRequest
 			if reqLeft.EthCallQueryRequest.Block != reqRight.EthCallQueryRequest.Block {
 				return false
 			}
-			if !bytes.Equal(reqLeft.EthCallQueryRequest.To, reqRight.EthCallQueryRequest.To) {
+			if len(reqLeft.EthCallQueryRequest.CallData) != len(reqRight.EthCallQueryRequest.CallData) {
 				return false
 			}
-			if !bytes.Equal(reqLeft.EthCallQueryRequest.Data, reqRight.EthCallQueryRequest.Data) {
-				return false
+			for idx := range reqLeft.EthCallQueryRequest.CallData {
+				if !bytes.Equal(reqLeft.EthCallQueryRequest.CallData[idx].To, reqRight.EthCallQueryRequest.CallData[idx].To) {
+					return false
+				}
+				if !bytes.Equal(reqLeft.EthCallQueryRequest.CallData[idx].Data, reqRight.EthCallQueryRequest.CallData[idx].Data) {
+					return false
+				}
 			}
 		default:
 			return false

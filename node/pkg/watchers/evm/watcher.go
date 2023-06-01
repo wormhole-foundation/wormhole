@@ -552,8 +552,9 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 
 				switch req := queryRequest.Request.Message.(type) {
 				case *gossipv1.QueryRequest_EthCallQueryRequest:
-					to := eth_common.BytesToAddress(req.EthCallQueryRequest.To)
-					data := eth_hexutil.Encode(req.EthCallQueryRequest.Data)
+					// TODO: Need to handle more than one!
+					to := eth_common.BytesToAddress(req.EthCallQueryRequest.CallData[0].To)
+					data := eth_hexutil.Encode(req.EthCallQueryRequest.CallData[0].Data)
 					block := req.EthCallQueryRequest.Block
 					logger.Info("received query request",
 						zap.String("eth_network", w.networkName),
