@@ -419,7 +419,7 @@ func Run(
 						logger.Error("received a cross chain query response when the feature is disabled, dropping it", zap.String("component", "ccqp2p"))
 						continue
 					}
-					msgBytes, err := msg.Marshal()
+					msgBytes, err := node_common.MarshalQueryResponsePublication(msg)
 					if err != nil {
 						logger.Error("failed to marshal query response", zap.Error(err), zap.String("component", "ccqp2p"))
 						continue

@@ -2,6 +2,7 @@ package common
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"math"
@@ -57,6 +58,92 @@ func PostSignedQueryRequest(signedQueryReqSendC chan<- *gossipv1.SignedQueryRequ
 	default:
 		return ErrChanFull
 	}
+}
+
+// Marshal serializes the binary representation of a query response
+func MarshalQueryRequest(queryRequest *gossipv1.QueryRequest) ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	switch req := queryRequest.Message.(type) {
+	case *gossipv1.QueryRequest_EthCallQueryRequest:
+		vaa.MustWrite(buf, binary.BigEndian, QUERY_REQUEST_TYPE_ETH_CALL)
+		vaa.MustWrite(buf, binary.BigEndian, uint16(queryRequest.ChainId))
+		vaa.MustWrite(buf, binary.BigEndian, queryRequest.Nonce) // uint32
+		buf.Write(req.EthCallQueryRequest.To)
+		vaa.MustWrite(buf, binary.BigEndian, uint32(len(req.EthCallQueryRequest.Data)))
+		buf.Write(req.EthCallQueryRequest.Data)
+		vaa.MustWrite(buf, binary.BigEndian, uint32(len(req.EthCallQueryRequest.Block)))
+		// TODO: should this be an enum or the literal string?
+		buf.Write([]byte(req.EthCallQueryRequest.Block))
+	default:
+		return nil, fmt.Errorf("invalid request type")
+	}
+	return buf.Bytes(), nil
+}
+
+// Unmarshal deserializes the binary representation of a query response
+func UnmarshalQueryRequest(data []byte) (*gossipv1.QueryRequest, error) {
+	reader := bytes.NewReader(data[:])
+	return UnmarshalQueryRequestFromReader(reader)
+}
+
+func UnmarshalQueryRequestFromReader(reader *bytes.Reader) (*gossipv1.QueryRequest, error) {
+	queryRequest := &gossipv1.QueryRequest{}
+
+	requestType := uint8(0)
+	if err := binary.Read(reader, binary.BigEndian, &requestType); err != nil {
+		return nil, fmt.Errorf("failed to read request chain: %w", err)
+	}
+	if requestType != QUERY_REQUEST_TYPE_ETH_CALL {
+		// TODO: support reading different types of request/response pairs
+		return nil, fmt.Errorf("unsupported request type: %d", requestType)
+	}
+
+	queryChain := vaa.ChainID(0)
+	if err := binary.Read(reader, binary.BigEndian, &queryChain); err != nil {
+		return nil, fmt.Errorf("failed to read request chain: %w", err)
+	}
+	queryRequest.ChainId = uint32(queryChain)
+
+	queryNonce := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &queryNonce); err != nil {
+		return nil, fmt.Errorf("failed to read request nonce: %w", err)
+	}
+	queryRequest.Nonce = queryNonce
+
+	ethCallQueryRequest := &gossipv1.EthCallQueryRequest{}
+
+	queryEthCallTo := [20]byte{}
+	if n, err := reader.Read(queryEthCallTo[:]); err != nil || n != 20 {
+		return nil, fmt.Errorf("failed to read call To [%d]: %w", n, err)
+	}
+	ethCallQueryRequest.To = queryEthCallTo[:]
+
+	queryEthCallDataLen := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &queryEthCallDataLen); err != nil {
+		return nil, fmt.Errorf("failed to read call Data len: %w", err)
+	}
+	queryEthCallData := make([]byte, queryEthCallDataLen)
+	if n, err := reader.Read(queryEthCallData[:]); err != nil || n != int(queryEthCallDataLen) {
+		return nil, fmt.Errorf("failed to read call To [%d]: %w", n, err)
+	}
+	ethCallQueryRequest.Data = queryEthCallData[:]
+
+	queryEthCallBlockLen := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &queryEthCallBlockLen); err != nil {
+		return nil, fmt.Errorf("failed to read call Data len: %w", err)
+	}
+	queryEthCallBlockBytes := make([]byte, queryEthCallBlockLen)
+	if n, err := reader.Read(queryEthCallBlockBytes[:]); err != nil || n != int(queryEthCallBlockLen) {
+		return nil, fmt.Errorf("failed to read call To [%d]: %w", n, err)
+	}
+	ethCallQueryRequest.Block = string(queryEthCallBlockBytes[:])
+
+	queryRequest.Message = &gossipv1.QueryRequest_EthCallQueryRequest{
+		EthCallQueryRequest: ethCallQueryRequest,
+	}
+
+	return queryRequest, nil
 }
 
 // ValidateQueryRequest does basic validation on a received query request.

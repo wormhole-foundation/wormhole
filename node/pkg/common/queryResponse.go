@@ -75,8 +75,8 @@ func (resp *QueryResponsePublication) RequestID() string {
 	return hex.EncodeToString(resp.Request.Signature)
 }
 
-// Marshal serializes the binary representation of a query response
-func (msg *QueryResponsePublication) Marshal() ([]byte, error) {
+// MarshalQueryResponsePublication serializes the binary representation of a query response
+func MarshalQueryResponsePublication(msg *QueryResponsePublication) ([]byte, error) {
 	// TODO: copy request write checks to query module request handling
 	// TODO: only receive the unmarshalled query request (see note in query.go)
 	var queryRequest gossipv1.QueryRequest
@@ -105,19 +105,16 @@ func (msg *QueryResponsePublication) Marshal() ([]byte, error) {
 	buf.Write(msg.Request.Signature[:])
 
 	// Request
-	// TODO: support writing different types of request/response pairs
-	switch req := queryRequest.Message.(type) {
-	case *gossipv1.QueryRequest_EthCallQueryRequest:
-		vaa.MustWrite(buf, binary.BigEndian, QUERY_REQUEST_TYPE_ETH_CALL)
-		vaa.MustWrite(buf, binary.BigEndian, uint16(queryRequest.ChainId))
-		vaa.MustWrite(buf, binary.BigEndian, queryRequest.Nonce) // uint32
-		buf.Write(req.EthCallQueryRequest.To)
-		vaa.MustWrite(buf, binary.BigEndian, uint32(len(req.EthCallQueryRequest.Data)))
-		buf.Write(req.EthCallQueryRequest.Data)
-		vaa.MustWrite(buf, binary.BigEndian, uint32(len(req.EthCallQueryRequest.Block)))
-		// TODO: should this be an enum or the literal string?
-		buf.Write([]byte(req.EthCallQueryRequest.Block))
+	qrBuf, err := MarshalQueryRequest(&queryRequest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal query request")
+	}
 
+	buf.Write(qrBuf)
+
+	// TODO: support writing different types of request/response pairs
+	switch queryRequest.Message.(type) {
+	case *gossipv1.QueryRequest_EthCallQueryRequest:
 		// Response
 		// TODO: probably some kind of request/response pair validation
 		// TODO: is uint64 safe?
@@ -159,59 +156,11 @@ func UnmarshalQueryResponsePublication(data []byte) (*QueryResponsePublication, 
 	}
 	signedQueryRequest.Signature = signature[:]
 
-	requestType := uint8(0)
-	if err := binary.Read(reader, binary.BigEndian, &requestType); err != nil {
-		return nil, fmt.Errorf("failed to read request chain: %w", err)
-	}
-	if requestType != QUERY_REQUEST_TYPE_ETH_CALL {
-		// TODO: support reading different types of request/response pairs
-		return nil, fmt.Errorf("unsupported request type: %d", requestType)
+	queryRequest, err := UnmarshalQueryRequestFromReader(reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal query request: %w", err)
 	}
 
-	queryRequest := &gossipv1.QueryRequest{}
-	queryChain := vaa.ChainID(0)
-	if err := binary.Read(reader, binary.BigEndian, &queryChain); err != nil {
-		return nil, fmt.Errorf("failed to read request chain: %w", err)
-	}
-	queryRequest.ChainId = uint32(queryChain)
-
-	queryNonce := uint32(0)
-	if err := binary.Read(reader, binary.BigEndian, &queryNonce); err != nil {
-		return nil, fmt.Errorf("failed to read request nonce: %w", err)
-	}
-	queryRequest.Nonce = queryNonce
-
-	ethCallQueryRequest := &gossipv1.EthCallQueryRequest{}
-
-	queryEthCallTo := [20]byte{}
-	if n, err := reader.Read(queryEthCallTo[:]); err != nil || n != 20 {
-		return nil, fmt.Errorf("failed to read call To [%d]: %w", n, err)
-	}
-	ethCallQueryRequest.To = queryEthCallTo[:]
-
-	queryEthCallDataLen := uint32(0)
-	if err := binary.Read(reader, binary.BigEndian, &queryEthCallDataLen); err != nil {
-		return nil, fmt.Errorf("failed to read call Data len: %w", err)
-	}
-	queryEthCallData := make([]byte, queryEthCallDataLen)
-	if n, err := reader.Read(queryEthCallData[:]); err != nil || n != int(queryEthCallDataLen) {
-		return nil, fmt.Errorf("failed to read call To [%d]: %w", n, err)
-	}
-	ethCallQueryRequest.Data = queryEthCallData[:]
-
-	queryEthCallBlockLen := uint32(0)
-	if err := binary.Read(reader, binary.BigEndian, &queryEthCallBlockLen); err != nil {
-		return nil, fmt.Errorf("failed to read call Data len: %w", err)
-	}
-	queryEthCallBlockBytes := make([]byte, queryEthCallBlockLen)
-	if n, err := reader.Read(queryEthCallBlockBytes[:]); err != nil || n != int(queryEthCallBlockLen) {
-		return nil, fmt.Errorf("failed to read call To [%d]: %w", n, err)
-	}
-	ethCallQueryRequest.Block = string(queryEthCallBlockBytes[:])
-
-	queryRequest.Message = &gossipv1.QueryRequest_EthCallQueryRequest{
-		EthCallQueryRequest: ethCallQueryRequest,
-	}
 	queryRequestBytes, err := proto.Marshal(queryRequest)
 	if err != nil {
 		return nil, err
@@ -262,7 +211,7 @@ func UnmarshalQueryResponsePublication(data []byte) (*QueryResponsePublication, 
 // the first hash (32 bytes) vs the full body data.
 // TODO: confirm if this works / is worthwhile.
 func (msg *QueryResponsePublication) SigningDigest() (common.Hash, error) {
-	msgBytes, err := msg.Marshal()
+	msgBytes, err := MarshalQueryResponsePublication(msg)
 	if err != nil {
 		return common.Hash{}, err
 	}

@@ -54,7 +54,7 @@ func timeForTest(t time.Time) time.Time {
 	return time.UnixMicro(t.UnixMicro())
 }
 
-func TestQueryRequestMarshalUnMarshal(t *testing.T) {
+func TestQueryRequestProtoMarshalUnMarshal(t *testing.T) {
 	queryRequest := createQueryRequestForTesting()
 	queryRequestBytes, err := proto.Marshal(queryRequest)
 	require.NoError(t, err)
@@ -64,6 +64,17 @@ func TestQueryRequestMarshalUnMarshal(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.True(t, QueryRequestEqual(queryRequest, &queryRequest2))
+}
+
+func TestQueryRequestMarshalUnMarshal(t *testing.T) {
+	queryRequest := createQueryRequestForTesting()
+	queryRequestBytes, err := MarshalQueryRequest(queryRequest)
+	require.NoError(t, err)
+
+	queryRequest2, err := UnmarshalQueryRequest(queryRequestBytes)
+	require.NoError(t, err)
+
+	assert.True(t, QueryRequestEqual(queryRequest, queryRequest2))
 }
 
 func TestQueryResponseMarshalUnMarshal(t *testing.T) {
@@ -90,7 +101,7 @@ func TestQueryResponseMarshalUnMarshal(t *testing.T) {
 		},
 	}
 
-	respPubBytes, err := respPub.Marshal()
+	respPubBytes, err := MarshalQueryResponsePublication(respPub)
 	require.NoError(t, err)
 
 	respPub2, err := UnmarshalQueryResponsePublication(respPubBytes)
