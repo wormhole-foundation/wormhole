@@ -12,7 +12,7 @@ spec:
   ports:
     - port: 6378
       targetPort: 6379
-      name: redis-wormhole-relayer
+      name: redisrelayer
       protocol: TCP
 ---
 apiVersion: apps/v1
