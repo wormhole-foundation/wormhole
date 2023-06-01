@@ -2,37 +2,37 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: redis-wormhole-relayer
+  name: redis-relayer
   labels:
-    app: redis-wormhole-relayer
+    app: redis-relayer
 spec:
   clusterIP: None
   selector:
-    app: redis-wormhole-relayer
+    app: redis-relayer
   ports:
     - port: 6378
       targetPort: 6379
-      name: redisrelayer
+      name: redis-relayer
       protocol: TCP
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: redis-wormhole-relayer
+  name: redis-relayer
 spec:
   selector:
     matchLabels:
-      app: redis-wormhole-relayer
-  serviceName: redis-wormhole-relayer
+      app: redis-relayer
+  serviceName: redis-relayer
   template:
     metadata:
       labels:
-        app: redis-wormhole-relayer
+        app: redis-relayer
     spec:
       restartPolicy: Always
       terminationGracePeriodSeconds: 0
       containers:
-        - name: redis-wormhole-relayer
+        - name: redis-relayer
           image: redis
           readinessProbe:
             tcpSocket:
@@ -41,5 +41,5 @@ spec:
             failureThreshold: 300
           ports:
             - containerPort: 6378
-              name: redisrelayer
+              name: redis-relayer
               protocol: TCP
