@@ -490,7 +490,7 @@ if generic_relayer or ci_tests:
         dockerfile = "third_party/redis/Dockerfile",
     )
 
-    k8s_yaml_with_ns("devnet/redis.yaml")
+    k8s_yaml_with_ns("devnet/redis-wormhole-relayer.yaml")
 
 if generic_relayer:
     k8s_resource(
