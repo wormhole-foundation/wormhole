@@ -360,7 +360,6 @@ func circleIntegrationUpgradeContractImplementation(req *nodev1.CircleIntegratio
 	return v, nil
 }
 
-<<<<<<< HEAD
 func ibcReceiverUpdateChannelChain(
 	req *nodev1.IbcReceiverUpdateChannelChain,
 	timestamp time.Time,
@@ -393,10 +392,7 @@ func ibcReceiverUpdateChannelChain(
 	return v, nil
 }
 
-// wormholeRelayerSetDefaultRelayProvider converts a nodev1.WormholeRelayerSetDefaultRelayProvider message to its canonical VAA representation.
-=======
 // wormholeRelayerSetDefaultDeliveryProvider converts a nodev1.WormholeRelayerSetDefaultDeliveryProvider message to its canonical VAA representation.
->>>>>>> 1a50de38 (Relayer: Remove incorrect comments, change uint32->Gas, SetDefaultRelayProvider->SetDefaultDeliveryProvider (#3005))
 // Returns an error if the data is invalid.
 func wormholeRelayerSetDefaultDeliveryProvider(req *nodev1.WormholeRelayerSetDefaultDeliveryProvider, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
 	if req.ChainId > math.MaxUint16 {
