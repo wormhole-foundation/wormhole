@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/certusone/wormhole/node/hack/query/utils"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -177,27 +178,37 @@ func main() {
 		panic(err)
 	}
 
-	// methodName := "totalSupply"
-	methodName := "name"
-	data, err := wethAbi.Pack(methodName)
-	if err != nil {
-		panic(err)
-	}
-
+	methods := []string{"name", "totalSupply"}
+	callData := []*gossipv1.EthCallQueryRequest_EthCallData{}
 	to, _ := hex.DecodeString("0d500b1d8e8ef31e21c99d1db9a6444d3adf1270")
 
-	callData := []*gossipv1.EthCallQueryRequest_EthCallData{
-		{
+	for _, method := range methods {
+		data, err := wethAbi.Pack(method)
+		if err != nil {
+			panic(err)
+		}
+
+		callData = append(callData, &gossipv1.EthCallQueryRequest_EthCallData{
 			To:   to,
 			Data: data,
-		},
+		})
 	}
 
+	// Fetch the latest block number
+	url := "https://rpc.ankr.com/polygon"
+	logger.Info("Querying for latest block height", zap.String("url", url))
+	blockNum, err := utils.FetchLatestBlockNumberFromUrl(ctx, url)
+	if err != nil {
+		logger.Fatal("Failed to fetch latest block number", zap.Error(err))
+	}
+
+	logger.Info("latest block", zap.String("num", blockNum.String()), zap.String("encoded", hexutil.EncodeBig(blockNum)))
+
 	// block := "0x28d9630"
-	block := "latest"
+	// block := "latest"
 	// block := "0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"
 	callRequest := &gossipv1.EthCallQueryRequest{
-		Block:    block,
+		Block:    hexutil.EncodeBig(blockNum),
 		CallData: callData,
 	}
 	queryRequest := &gossipv1.QueryRequest{
@@ -268,20 +279,20 @@ func main() {
 				// TODO: verify response signature
 				isMatchingResponse = true
 
-				if len(response.Responses) == 0 {
-					logger.Warn("response did not contain any results", zap.Error(err))
+				if len(response.Responses) != len(callData) {
+					logger.Warn("unexpected number of results", zap.Int("expectedNum", len(callData)), zap.Int("expectedNum", len(response.Responses)))
 					break
 				}
 
 				for idx, resp := range response.Responses {
-					result, err := wethAbi.Methods[methodName].Outputs.Unpack(resp.Result)
+					result, err := wethAbi.Methods[methods[idx]].Outputs.Unpack(resp.Result)
 					if err != nil {
 						logger.Warn("failed to unpack result", zap.Error(err))
 						break
 					}
 
 					resultStr := hexutil.Encode(resp.Result)
-					logger.Info("found matching response", zap.Int("idx", idx), zap.String("number", resp.Number.String()), zap.String("hash", resp.Hash.String()), zap.String("time", resp.Time.String()), zap.Any("resultDecoded", result), zap.String("resultStr", resultStr))
+					logger.Info("found matching response", zap.Int("idx", idx), zap.String("number", resp.Number.String()), zap.String("hash", resp.Hash.String()), zap.String("time", resp.Time.String()), zap.String("method", methods[idx]), zap.Any("resultDecoded", result), zap.String("resultStr", resultStr))
 				}
 			}
 		default:
