@@ -1,21 +1,21 @@
 import { PricingContext } from "../app";
-import { RelayProviderContractState } from "./currentPricing";
+import { DeliveryProviderContractState } from "./currentPricing";
 import { InvariantViolation } from "./stateInvariants";
 
 export async function createStateProposal(
   ctx: PricingContext,
-  currentState: RelayProviderContractState[],
+  currentState: DeliveryProviderContractState[],
   currentInvariantViolations: InvariantViolation[]
-): Promise<RelayProviderContractState[]> {
+): Promise<DeliveryProviderContractState[]> {
   return loadUpdatedProposalFromFileSystem();
 }
 
-function loadUpdatedProposalFromFileSystem(): RelayProviderContractState[] {
+function loadUpdatedProposalFromFileSystem(): DeliveryProviderContractState[] {
   //TODO load from file system
   return [];
 }
 
-function createDynamicProposal(): RelayProviderContractState[] {
+function createDynamicProposal(): DeliveryProviderContractState[] {
   //TODO Do this however it should be done according to monitoring logic
   return [];
 }

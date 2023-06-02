@@ -32,7 +32,7 @@ enum Flag {
 
 type ContractConfigEntry = { chainId: EVMChainId; address: "string" };
 type ContractsJson = {
-  relayProviders: ContractConfigEntry[];
+  deliveryProviders: ContractConfigEntry[];
   coreRelayers: ContractConfigEntry[];
   mockIntegrations: ContractConfigEntry[];
 };
@@ -111,18 +111,18 @@ const defaults: { [key in Flag]: PricingMonitorAppConfig } = {
 export async function loadAppConfig(): Promise<{
   env: Environment;
   opts: PricingMonitorAppConfig & StandardRelayerAppOpts;
-  relayProviders: Record<EVMChainId, string>;
+  deliveryProviders: Record<EVMChainId, string>;
   wormholeRelayers: Record<EVMChainId, string>;
 }> {
   const { flag } = getEnvironmentOptions();
   const config = await loadAndMergeConfig(flag);
   const contracts = await loadJson<ContractsJson>(config.contractsJsonPath);
 
-  const relayProviders = {} as Record<EVMChainId, string>;
+  const deliveryProviders = {} as Record<EVMChainId, string>;
   const wormholeRelayers = {} as Record<EVMChainId, string>;
-  contracts.relayProviders.forEach(
+  contracts.deliveryProviders.forEach(
     ({ chainId, address }: ContractConfigEntry) =>
-      (relayProviders[chainId] = ethers.utils.getAddress(address))
+      (deliveryProviders[chainId] = ethers.utils.getAddress(address))
   );
   contracts.coreRelayers.forEach(
     ({ chainId, address }: ContractConfigEntry) =>
@@ -130,7 +130,7 @@ export async function loadAppConfig(): Promise<{
   );
 
   return {
-    relayProviders,
+    deliveryProviders,
     wormholeRelayers,
     env: flagToEnvironment(flag),
     opts: {
@@ -261,6 +261,6 @@ export function getEthersProvider(
 
 //TODO there must be a better way to do this
 export function getAllChains(ctx: PricingContext): ChainId[] {
-  const records = ctx.relayProviders;
+  const records = ctx.deliveryProviders;
   return Object.keys(records).map((k) => parseInt(k) as ChainId); //Should be safe
 }

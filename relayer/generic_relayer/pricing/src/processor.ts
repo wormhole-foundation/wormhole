@@ -1,6 +1,6 @@
 import { Next } from "relayer-engine";
 import {
-  RelayProviderContractState,
+  DeliveryProviderContractState,
   printableState,
   pullAllCurrentPricingStates,
 } from "./utils/currentPricing";
@@ -19,18 +19,14 @@ export async function processProviderPriceUpdate(
 ) {
   ctx.logger.info("Starting price update process!");
 
-  let currentState: RelayProviderContractState[] = await retrieveCurrentState(
-    ctx
-  );
+  let currentState: DeliveryProviderContractState[] =
+    await retrieveCurrentState(ctx);
 
   let currentInvariantViolations: InvariantViolation[] =
     calcInvariantViolations(ctx, currentState);
 
-  let proposedState: RelayProviderContractState[] = await createStateProposal(
-    ctx,
-    currentState,
-    currentInvariantViolations
-  );
+  let proposedState: DeliveryProviderContractState[] =
+    await createStateProposal(ctx, currentState, currentInvariantViolations);
 
   let proposedInvariantViolations: InvariantViolation[] =
     calcInvariantViolations(ctx, proposedState);
@@ -47,7 +43,11 @@ export async function processProviderPriceUpdate(
     return;
   }
 
-  const safeguardFlag = await checkProposedStateUpdate(ctx, currentState, çv);
+  const safeguardFlag = await checkProposedStateUpdate(
+    ctx,
+    currentState,
+    proposedState
+  );
 
   if (!safeguardFlag) {
     ctx.logger.error("Proposed state update failed safeguards!");
@@ -70,7 +70,7 @@ export async function processProviderPriceUpdate(
 
 async function retrieveCurrentState(
   ctx: PricingContext
-): Promise<RelayProviderContractState[]> {
+): Promise<DeliveryProviderContractState[]> {
   try {
     ctx.logger.info("Entering current state reading process...");
     const currentState = await pullAllCurrentPricingStates(ctx);
@@ -89,7 +89,7 @@ async function retrieveCurrentState(
 
 function calcInvariantViolations(
   ctx: PricingContext,
-  currentState: RelayProviderContractState[]
+  currentState: DeliveryProviderContractState[]
 ): InvariantViolation[] {
   //degenerate case
   if (currentState.length <= 1) {
@@ -112,8 +112,8 @@ function calcInvariantViolations(
 
 async function executeStateUpdate(
   ctx: PricingContext,
-  currentState: RelayProviderContractState[],
-  proposedState: RelayProviderContractState[]
+  currentState: DeliveryProviderContractState[],
+  proposedState: DeliveryProviderContractState[]
 ) {
   return true; //TODO complicated diffing & many transactions
 }

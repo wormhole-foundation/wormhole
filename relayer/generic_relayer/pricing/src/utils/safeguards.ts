@@ -1,10 +1,10 @@
 import { PricingContext } from "../app";
-import { RelayProviderContractState } from "./currentPricing";
+import { DeliveryProviderContractState } from "./currentPricing";
 
 export async function checkProposedStateUpdate(
   ctx: PricingContext,
-  currentState: RelayProviderContractState[],
-  proposedState: RelayProviderContractState[]
+  currentState: DeliveryProviderContractState[],
+  proposedState: DeliveryProviderContractState[]
 ): Promise<boolean> {
   //TODO
   return true;

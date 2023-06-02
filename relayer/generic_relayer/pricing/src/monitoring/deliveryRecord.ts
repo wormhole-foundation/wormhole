@@ -8,6 +8,7 @@ import {
   parseWormholeRelayerPayloadType,
   parseWormholeRelayerResend,
   parseWormholeRelayerSend,
+  parseEVMExecutionInfoV1,
 } from "@certusone/wormhole-sdk/lib/cjs/relayer";
 import {
   SourceRecord,
@@ -64,19 +65,21 @@ async function getRelayerRefundAmount(
   //parse the VAA for the maximum refund amount
   const deliveryFields = await parseDeliveryFields(vaa);
 
-  const gasUtilization = BigNumber.from(
-    BigInt(deliveryEvent.gasUsed) / BigInt(deliveryFields.gasLimit)
-  );
-  const maxFeeUtilization: BigNumber = gasUtilization.mul(
-    deliveryFields.maximumRefund
-  );
+  // const gasUtilization = BigNumber.from(
+  //   BigInt(deliveryEvent.gasUsed) / deliveryFields.gasLimit.toBigInt()
+  // );
+  const maxFeeUtilization: BigNumber = BigNumber.from(
+    deliveryEvent.gasUsed
+  ).mul(deliveryFields.refundPerUnitGas);
 
   const receiverValueRefundAmount = receiverValueWasPaid
     ? deliveryFields.receiverValue
     : BigNumber.from(0);
 
   const refundToRefundAddress = receiverValueRefundAmount.add(
-    deliveryFields.maximumRefund.sub(maxFeeUtilization)
+    deliveryFields.gasLimit.sub(
+      BigNumber.from(deliveryEvent.gasUsed).mul(deliveryFields.refundPerUnitGas)
+    )
   );
 
   const relayerRefundAmount = BigNumber.from(0) //assume the relayer did not put in additional funds
@@ -139,7 +142,7 @@ async function createDeliveryRecord(
   const deliveryFields = await parseDeliveryFields(vaa);
   const time = await getTime(deliveryFields.targetChain, deliveryTx);
   const valueTarget = deliveryFields.receiverValue.add(
-    deliveryFields.maximumRefund
+    deliveryFields.refundPerUnitGas.mul(deliveryFields.gasLimit)
   );
   const relayerRefundTarget = await getRelayerRefundAmount(vaa, deliveryTx);
 
@@ -168,9 +171,9 @@ async function createDeliveryRecord(
 
 export type DeliveryFields = {
   targetChain: ChainId;
-  maximumRefund: BigNumber;
   receiverValue: BigNumber;
-  gasLimit: number;
+  gasLimit: BigNumber;
+  refundPerUnitGas: BigNumber;
 };
 
 function parseDeliveryFields(vaa: ParsedVaaWithBytes): DeliveryFields {
@@ -184,18 +187,20 @@ function parseDeliveryFields(vaa: ParsedVaaWithBytes): DeliveryFields {
   } else {
     throw new Error("Specified VAA is not a delivery or redelivery VAA");
   }
+
+  const executionInfo = delivery
+    ? delivery.encodedExecutionInfo
+    : redelivery!.newEncodedExecutionInfo;
+  const parsedExecutionInfo = parseEVMExecutionInfoV1(executionInfo, 0)[0];
+
   return {
     targetChain: (delivery
-      ? delivery.targetChain
-      : redelivery!.targetChain) as ChainId,
-    maximumRefund: delivery
-      ? delivery.maximumRefundTarget
-      : redelivery!.newMaximumRefundTarget,
+      ? delivery.targetChainId
+      : redelivery!.targetChainId) as ChainId,
+    gasLimit: parsedExecutionInfo.gasLimit,
+    refundPerUnitGas: parsedExecutionInfo.targetChainRefundPerGasUnused,
     receiverValue: delivery
-      ? delivery.receiverValueTarget
-      : redelivery!.newReceiverValueTarget,
-    gasLimit: delivery
-      ? delivery.executionParameters.gasLimit
-      : redelivery!.executionParameters.gasLimit,
+      ? delivery.requestedReceiverValue
+      : redelivery!.newRequestedReceiverValue,
   };
 }
