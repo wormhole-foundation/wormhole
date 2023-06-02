@@ -695,11 +695,13 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						zap.String("component", "ccqevm"),
 					)
 
-					resp := &common.EthCallQueryResponse{
-						Number: blockResult.Number.ToInt(),
-						Hash:   blockResult.Hash,
-						Time:   time.Unix(int64(blockResult.Time), 0),
-						Result: callResult,
+					resp := []common.EthCallQueryResponse{
+						{
+							Number: blockResult.Number.ToInt(),
+							Hash:   blockResult.Hash,
+							Time:   time.Unix(int64(blockResult.Time), 0),
+							Result: callResult,
+						},
 					}
 
 					w.ccqSendQueryResponse(logger, queryRequest, common.QuerySuccess, resp)
@@ -1132,8 +1134,8 @@ func (w *Watcher) SetMaxWaitConfirmations(maxWaitConfirmations uint64) {
 }
 
 // ccqSendQueryResponse sends an error response back to the query handler.
-func (w *Watcher) ccqSendQueryResponse(logger *zap.Logger, req *common.QueryRequest, status common.QueryStatus, result *common.EthCallQueryResponse) {
-	queryResponse := common.CreateQueryResponse(req, status, result)
+func (w *Watcher) ccqSendQueryResponse(logger *zap.Logger, req *common.QueryRequest, status common.QueryStatus, results []common.EthCallQueryResponse) {
+	queryResponse := common.CreateQueryResponse(req, status, results)
 	select {
 	case w.queryResponseC <- queryResponse:
 		logger.Debug("published query response error to handler", zap.String("component", "ccqevm"))

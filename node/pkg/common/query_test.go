@@ -106,12 +106,46 @@ func TestQueryResponseMarshalUnMarshal(t *testing.T) {
 
 	respPub := &QueryResponsePublication{
 		Request: signedQueryRequest,
-		Response: EthCallQueryResponse{
-			Number: big.NewInt(42),
-			Hash:   ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"),
-			Time:   timeForTest(time.Now()),
-			Result: results,
+		Responses: []EthCallQueryResponse{
+			{
+				Number: big.NewInt(42),
+				Hash:   ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"),
+				Time:   timeForTest(time.Now()),
+				Result: results,
+			},
+			{
+				Number: big.NewInt(43),
+				Hash:   ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef9deadbeef"),
+				Time:   timeForTest(time.Now()),
+				Result: results,
+			},
 		},
+	}
+
+	respPubBytes, err := MarshalQueryResponsePublication(respPub)
+	require.NoError(t, err)
+
+	respPub2, err := UnmarshalQueryResponsePublication(respPubBytes)
+	require.NoError(t, err)
+	require.NotNil(t, respPub2)
+
+	assert.True(t, respPub.Equal(respPub2))
+}
+
+func TesMarshalUnMarshalQueryResponseWithNoResults(t *testing.T) {
+	queryRequest := createQueryRequestForTesting()
+	queryRequestBytes, err := proto.Marshal(queryRequest)
+	require.NoError(t, err)
+
+	sig := [65]byte{}
+	signedQueryRequest := &gossipv1.SignedQueryRequest{
+		QueryRequest: queryRequestBytes,
+		Signature:    sig[:],
+	}
+
+	respPub := &QueryResponsePublication{
+		Request:   signedQueryRequest,
+		Responses: nil,
 	}
 
 	respPubBytes, err := MarshalQueryResponsePublication(respPub)

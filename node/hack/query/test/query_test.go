@@ -285,13 +285,21 @@ func TestCrossChainQuery(t *testing.T) {
 					continue
 				}
 
-				result, err := wethAbi.Methods[methodName].Outputs.Unpack(response.Response.Result)
-				if err != nil {
-					logger.Fatal("failed to unpack result", zap.Error(err))
+				if len(response.Responses) == 0 {
+					logger.Warn("response did not contain any results", zap.Error(err))
+					break
 				}
 
-				resultStr := hexutil.Encode(response.Response.Result)
-				logger.Info("found matching response", zap.String("number", response.Response.Number.String()), zap.String("hash", response.Response.Hash.String()), zap.String("time", response.Response.Time.String()), zap.Any("resultDecoded", result), zap.String("resultStr", resultStr))
+				for idx, resp := range response.Responses {
+					result, err := wethAbi.Methods[methodName].Outputs.Unpack(resp.Result)
+					if err != nil {
+						logger.Warn("failed to unpack result", zap.Error(err))
+						break
+					}
+
+					resultStr := hexutil.Encode(resp.Result)
+					logger.Info("found matching response", zap.Int("idx", idx), zap.String("number", resp.Number.String()), zap.String("hash", resp.Hash.String()), zap.String("time", resp.Time.String()), zap.Any("resultDecoded", result), zap.String("resultStr", resultStr))
+				}
 
 				success = true
 			}

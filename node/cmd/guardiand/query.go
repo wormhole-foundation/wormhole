@@ -129,14 +129,14 @@ func handleQueryRequests(
 
 		case resp := <-queryResponseReadC:
 			if resp.Status == common.QuerySuccess {
-				if resp.Result == nil {
-					qLogger.Error("received a successful query response with a nil result, dropping it!", zap.String("requestID", resp.RequestID))
+				if len(resp.Results) == 0 {
+					qLogger.Error("received a successful query response with no results, dropping it!", zap.String("requestID", resp.RequestID))
 					continue
 				}
 
 				respPub := &common.QueryResponsePublication{
-					Request:  resp.SignedRequest,
-					Response: *resp.Result,
+					Request:   resp.SignedRequest,
+					Responses: resp.Results,
 				}
 
 				// Send the response to be published.

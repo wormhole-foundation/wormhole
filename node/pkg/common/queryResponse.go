@@ -35,16 +35,16 @@ type QueryResponse struct {
 	ChainID       vaa.ChainID
 	Status        QueryStatus
 	SignedRequest *gossipv1.SignedQueryRequest
-	Result        *EthCallQueryResponse
+	Results       []EthCallQueryResponse
 }
 
-func CreateQueryResponse(req *QueryRequest, status QueryStatus, result *EthCallQueryResponse) *QueryResponse {
+func CreateQueryResponse(req *QueryRequest, status QueryStatus, results []EthCallQueryResponse) *QueryResponse {
 	return &QueryResponse{
 		RequestID:     req.RequestID,
 		ChainID:       vaa.ChainID(req.Request.ChainId),
 		SignedRequest: req.SignedRequest,
 		Status:        status,
-		Result:        result,
+		Results:       results,
 	}
 }
 
@@ -59,8 +59,8 @@ type EthCallQueryResponse struct {
 }
 
 type QueryResponsePublication struct {
-	Request  *gossipv1.SignedQueryRequest
-	Response EthCallQueryResponse
+	Request   *gossipv1.SignedQueryRequest
+	Responses []EthCallQueryResponse
 	// NOTE: If you modify this struct, please update the Equal() method for QueryResponsePublication.
 }
 
@@ -89,11 +89,13 @@ func MarshalQueryResponsePublication(msg *QueryResponsePublication) ([]byte, err
 		return nil, fmt.Errorf("queryRequest is invalid: %w", err)
 	}
 
-	if len(msg.Response.Hash) != 32 {
-		return nil, fmt.Errorf("invalid length for block hash")
-	}
-	if len(msg.Response.Result) > math.MaxUint32 {
-		return nil, fmt.Errorf("response data too long")
+	for _, resp := range msg.Responses {
+		if len(resp.Hash) != 32 {
+			return nil, fmt.Errorf("invalid length for block hash")
+		}
+		if len(resp.Result) > math.MaxUint32 {
+			return nil, fmt.Errorf("response data too long")
+		}
 	}
 
 	buf := new(bytes.Buffer)
@@ -109,7 +111,6 @@ func MarshalQueryResponsePublication(msg *QueryResponsePublication) ([]byte, err
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal query request")
 	}
-
 	buf.Write(qrBuf)
 
 	// TODO: support writing different types of request/response pairs
@@ -118,11 +119,14 @@ func MarshalQueryResponsePublication(msg *QueryResponsePublication) ([]byte, err
 		// Response
 		// TODO: probably some kind of request/response pair validation
 		// TODO: is uint64 safe?
-		vaa.MustWrite(buf, binary.BigEndian, msg.Response.Number.Uint64())
-		buf.Write(msg.Response.Hash[:])
-		vaa.MustWrite(buf, binary.BigEndian, msg.Response.Time.UnixMicro())
-		vaa.MustWrite(buf, binary.BigEndian, uint32(len(msg.Response.Result)))
-		buf.Write(msg.Response.Result)
+		vaa.MustWrite(buf, binary.BigEndian, uint8(len(msg.Responses)))
+		for _, resp := range msg.Responses {
+			vaa.MustWrite(buf, binary.BigEndian, resp.Number.Uint64())
+			buf.Write(resp.Hash[:])
+			vaa.MustWrite(buf, binary.BigEndian, resp.Time.UnixMicro())
+			vaa.MustWrite(buf, binary.BigEndian, uint32(len(resp.Result)))
+			buf.Write(resp.Result)
+		}
 		return buf.Bytes(), nil
 	default:
 		return nil, fmt.Errorf("received invalid message from query module")
@@ -169,39 +173,46 @@ func UnmarshalQueryResponsePublication(data []byte) (*QueryResponsePublication, 
 
 	msg.Request = signedQueryRequest
 
-	// Response
-	queryResponse := EthCallQueryResponse{}
-
-	responseNumber := uint64(0)
-	if err := binary.Read(reader, binary.BigEndian, &responseNumber); err != nil {
-		return nil, fmt.Errorf("failed to read response number: %w", err)
+	// Responses
+	numResponses := uint8(0)
+	if err := binary.Read(reader, binary.BigEndian, &numResponses); err != nil {
+		return nil, fmt.Errorf("failed to read number of responses: %w", err)
 	}
-	responseNumberBig := big.NewInt(0).SetUint64(responseNumber)
-	queryResponse.Number = responseNumberBig
 
-	responseHash := common.Hash{}
-	if n, err := reader.Read(responseHash[:]); err != nil || n != 32 {
-		return nil, fmt.Errorf("failed to read response hash [%d]: %w", n, err)
-	}
-	queryResponse.Hash = responseHash
+	for count := 0; count < int(numResponses); count++ {
+		queryResponse := EthCallQueryResponse{}
 
-	unixMicros := int64(0)
-	if err := binary.Read(reader, binary.BigEndian, &unixMicros); err != nil {
-		return nil, fmt.Errorf("failed to read response timestamp: %w", err)
-	}
-	queryResponse.Time = time.UnixMicro(unixMicros)
+		responseNumber := uint64(0)
+		if err := binary.Read(reader, binary.BigEndian, &responseNumber); err != nil {
+			return nil, fmt.Errorf("failed to read response number: %w", err)
+		}
+		responseNumberBig := big.NewInt(0).SetUint64(responseNumber)
+		queryResponse.Number = responseNumberBig
 
-	responseResultLen := uint32(0)
-	if err := binary.Read(reader, binary.BigEndian, &responseResultLen); err != nil {
-		return nil, fmt.Errorf("failed to read response len: %w", err)
-	}
-	responseResult := make([]byte, responseResultLen)
-	if n, err := reader.Read(responseResult[:]); err != nil || n != int(responseResultLen) {
-		return nil, fmt.Errorf("failed to read result [%d]: %w", n, err)
-	}
-	queryResponse.Result = responseResult[:]
+		responseHash := common.Hash{}
+		if n, err := reader.Read(responseHash[:]); err != nil || n != 32 {
+			return nil, fmt.Errorf("failed to read response hash [%d]: %w", n, err)
+		}
+		queryResponse.Hash = responseHash
 
-	msg.Response = queryResponse
+		unixMicros := int64(0)
+		if err := binary.Read(reader, binary.BigEndian, &unixMicros); err != nil {
+			return nil, fmt.Errorf("failed to read response timestamp: %w", err)
+		}
+		queryResponse.Time = time.UnixMicro(unixMicros)
+
+		responseResultLen := uint32(0)
+		if err := binary.Read(reader, binary.BigEndian, &responseResultLen); err != nil {
+			return nil, fmt.Errorf("failed to read response len: %w", err)
+		}
+		responseResult := make([]byte, responseResultLen)
+		if n, err := reader.Read(responseResult[:]); err != nil || n != int(responseResultLen) {
+			return nil, fmt.Errorf("failed to read result [%d]: %w", n, err)
+		}
+		queryResponse.Result = responseResult[:]
+
+		msg.Responses = append(msg.Responses, queryResponse)
+	}
 
 	return msg, nil
 }
@@ -226,17 +237,22 @@ func (left *QueryResponsePublication) Equal(right *QueryResponsePublication) boo
 	if !bytes.Equal(left.Request.QueryRequest, right.Request.QueryRequest) || !bytes.Equal(left.Request.Signature, right.Request.Signature) {
 		return false
 	}
-	if left.Response.Number.Cmp(right.Response.Number) != 0 {
+	if len(left.Responses) != len(right.Responses) {
 		return false
 	}
-	if !bytes.Equal(left.Response.Hash.Bytes(), right.Response.Hash.Bytes()) {
-		return false
-	}
-	if left.Response.Time != right.Response.Time {
-		return false
-	}
-	if !bytes.Equal(left.Response.Result, right.Response.Result) {
-		return false
+	for idx := range left.Responses {
+		if left.Responses[idx].Number.Cmp(right.Responses[idx].Number) != 0 {
+			return false
+		}
+		if !bytes.Equal(left.Responses[idx].Hash.Bytes(), right.Responses[idx].Hash.Bytes()) {
+			return false
+		}
+		if left.Responses[idx].Time != right.Responses[idx].Time {
+			return false
+		}
+		if !bytes.Equal(left.Responses[idx].Result, right.Responses[idx].Result) {
+			return false
+		}
 	}
 	return true
 }
