@@ -189,26 +189,15 @@ export const builder = function (y: typeof yargs) {
         );
       }
     )
-<<<<<<< HEAD:clients/js/src/cmds/evm.ts
     .command(
       "start-validator",
       "Start a local EVM validator",
       (yargs) => yargs.option("validator-args", VALIDATOR_OPTIONS),
       (argv) => {
-        const cmd = `cd ${homedir()} && npx ganache-cli -e 10000 --deterministic --time="1970-01-01T00:00:00+00:00"`;
+        const cmd = `cd ${homedir()} && npx ganache-cli --wallet.defaultBalance 10000 --wallet.deterministic --chain.time="1970-01-01T00:00:00+00:00"`;
         runCommand(cmd, argv["validator-args"]);
       }
     )
-=======
-    .command("start-validator", "Start a local EVM validator", (yargs) => {
-      return yargs
-      .option("validator-args", validator_args)
-    }, (argv) => {
-        const dir = `${config.wormholeDir}/ethereum`;
-        const cmd = `cd ${dir} && npx ganache-cli --wallet.defaultBalance 10000 --wallet.deterministic --chain.time="1970-01-01T00:00:00+00:00"`;
-        runCommand(cmd, argv['validator-args'])
-    })
->>>>>>> f4a4b3df (Relayer: CoreRelayer large refactor  (#2897)):clients/js/cmds/evm.ts
     .strict()
     .demandCommand();
 };
