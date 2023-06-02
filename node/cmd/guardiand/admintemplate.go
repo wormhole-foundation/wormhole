@@ -38,6 +38,16 @@ var circleIntegrationForeignEmitterAddress *string
 var circleIntegrationCircleDomain *string
 var circleIntegrationNewImplementationAddress *string
 
+var wormchainStoreCodeWasmHash *string
+
+var wormchainInstantiateContractCodeId *string
+var wormchainInstantiateContractInstantiationMsg *string
+var wormchainInstantiateContractLabel *string
+
+var wormchainMigrateContractCodeId *string
+var wormchainMigrateContractContractAddress *string
+var wormchainMigrateContractInstantiationMsg *string
+
 var ibcReceiverUpdateChannelChainTargetChainId *string
 var ibcReceiverUpdateChannelChainChannelId *string
 var ibcReceiverUpdateChannelChainChainId *string
@@ -95,6 +105,25 @@ func init() {
 	AdminClientCircleIntegrationUpgradeContractImplementationCmd.Flags().AddFlagSet(circleIntegrationChainIDFlagSet)
 	AdminClientCircleIntegrationUpgradeContractImplementationCmd.Flags().AddFlagSet(circleIntegrationUpgradeContractImplementationFlagSet)
 	TemplateCmd.AddCommand(AdminClientCircleIntegrationUpgradeContractImplementationCmd)
+
+	wormchainStoreCodeFlagSet := pflag.NewFlagSet("wormchain-store-code", pflag.ExitOnError)
+	wormchainStoreCodeWasmHash = wormchainStoreCodeFlagSet.String("wasm-hash", "", "WASM Hash of the stored code")
+	AdminClientWormchainStoreCodeCmd.Flags().AddFlagSet(wormchainStoreCodeFlagSet)
+	TemplateCmd.AddCommand(AdminClientWormchainStoreCodeCmd)
+
+	wormchainInstantiateContractFlagSet := pflag.NewFlagSet("wormchain-instantiate-contract", pflag.ExitOnError)
+	wormchainInstantiateContractCodeId = wormchainInstantiateContractFlagSet.String("code-id", "", "code ID of the stored code")
+	wormchainInstantiateContractLabel = wormchainInstantiateContractFlagSet.String("label", "", "label")
+	wormchainInstantiateContractInstantiationMsg = wormchainInstantiateContractFlagSet.String("instantiation-msg", "", "instantiate message")
+	AdminClientWormchainInstantiateContractCmd.Flags().AddFlagSet(wormchainInstantiateContractFlagSet)
+	TemplateCmd.AddCommand(AdminClientWormchainInstantiateContractCmd)
+
+	wormchainMigrateContractFlagSet := pflag.NewFlagSet("wormchain-migrate-contract", pflag.ExitOnError)
+	wormchainMigrateContractCodeId = wormchainMigrateContractFlagSet.String("code-id", "", "code ID of the stored code")
+	wormchainMigrateContractContractAddress = wormchainMigrateContractFlagSet.String("contract-address", "", "contract address")
+	wormchainMigrateContractInstantiationMsg = wormchainMigrateContractFlagSet.String("instantiation-msg", "", "instantiate message")
+	AdminClientWormchainMigrateContractCmd.Flags().AddFlagSet(wormchainMigrateContractFlagSet)
+	TemplateCmd.AddCommand(AdminClientWormchainMigrateContractCmd)
 
 	// flags for the ibc-receiver-update-channel-chain command
 	ibcReceiverUpdateChannelChainFlagSet := pflag.NewFlagSet("ibc-mapping", pflag.ExitOnError)
@@ -155,6 +184,24 @@ var AdminClientCircleIntegrationUpgradeContractImplementationCmd = &cobra.Comman
 	Use:   "circle-integration-upgrade-contract-implementation",
 	Short: "Generate an empty circle integration upgrade contract implementation template at specified path",
 	Run:   runCircleIntegrationUpgradeContractImplementationTemplate,
+}
+
+var AdminClientWormchainStoreCodeCmd = &cobra.Command{
+	Use:   "wormchain-store-code",
+	Short: "Generate an empty wormchain store code template at specified path",
+	Run:   runWormchainStoreCodeTemplate,
+}
+
+var AdminClientWormchainInstantiateContractCmd = &cobra.Command{
+	Use:   "wormchain-instantiate-contract",
+	Short: "Generate an empty wormchain instantiate contract template at specified path",
+	Run:   runWormchainInstantiateContractTemplate,
+}
+
+var AdminClientWormchainMigrateContractCmd = &cobra.Command{
+	Use:   "wormchain-migrate-contract",
+	Short: "Generate an empty wormchain migrate contract template at specified path",
+	Run:   runWormchainMigrateContractTemplate,
 }
 
 var AdminClientIbcReceiverUpdateChannelChainCmd = &cobra.Command{
@@ -459,6 +506,122 @@ func runCircleIntegrationUpgradeContractImplementationTemplate(cmd *cobra.Comman
 					CircleIntegrationUpgradeContractImplementation: &nodev1.CircleIntegrationUpgradeContractImplementation{
 						TargetChainId:            uint32(chainID),
 						NewImplementationAddress: newImplementationAddress,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
+}
+
+func runWormchainStoreCodeTemplate(cmd *cobra.Command, args []string) {
+	if *wormchainStoreCodeWasmHash == "" {
+		log.Fatal("--wasm-hash must be specified.")
+	}
+
+	// Validate the string is valid hex.
+	buf, err := hex.DecodeString(*wormchainStoreCodeWasmHash)
+	if err != nil {
+		log.Fatal("invalid wasm-hash (expected hex): %w", err)
+	}
+
+	// Validate the string is the correct length.
+	if len(buf) != 32 {
+		log.Fatalf("wasm-hash (expected 32 bytes but received %d bytes)", len(buf))
+	}
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_WormchainStoreCode{
+					WormchainStoreCode: &nodev1.WormchainStoreCode{
+						WasmHash: string(*wormchainStoreCodeWasmHash),
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
+}
+
+func runWormchainInstantiateContractTemplate(cmd *cobra.Command, args []string) {
+	if *wormchainInstantiateContractCodeId == "" {
+		log.Fatal("--code-id must be specified.")
+	}
+	codeId, err := strconv.ParseUint(*wormchainInstantiateContractCodeId, 10, 64)
+	if err != nil {
+		log.Fatal("failed to parse code-id as uint64: ", err)
+	}
+	if *wormchainInstantiateContractLabel == "" {
+		log.Fatal("--label must be specified.")
+	}
+	if *wormchainInstantiateContractInstantiationMsg == "" {
+		log.Fatal("--instantiate-msg must be specified.")
+	}
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_WormchainInstantiateContract{
+					WormchainInstantiateContract: &nodev1.WormchainInstantiateContract{
+						CodeId:           codeId,
+						Label:            *wormchainInstantiateContractLabel,
+						InstantiationMsg: *wormchainInstantiateContractInstantiationMsg,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
+}
+
+func runWormchainMigrateContractTemplate(cmd *cobra.Command, args []string) {
+	if *wormchainMigrateContractCodeId == "" {
+		log.Fatal("--code-id must be specified.")
+	}
+	codeId, err := strconv.ParseUint(*wormchainMigrateContractCodeId, 10, 64)
+	if err != nil {
+		log.Fatal("failed to parse code-id as uint64: ", err)
+	}
+	if *wormchainMigrateContractContractAddress == "" {
+		log.Fatal("--contract-address must be specified.")
+	}
+	if *wormchainMigrateContractInstantiationMsg == "" {
+		log.Fatal("--instantiate-msg must be specified.")
+	}
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_WormchainMigrateContract{
+					WormchainMigrateContract: &nodev1.WormchainMigrateContract{
+						CodeId:           codeId,
+						Contract:         *wormchainMigrateContractContractAddress,
+						InstantiationMsg: *wormchainMigrateContractInstantiationMsg,
 					},
 				},
 			},
