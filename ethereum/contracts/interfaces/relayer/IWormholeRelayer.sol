@@ -24,12 +24,11 @@ interface IWormholeRelayerBase {
 }
 
 /**
- * IWormholeRelayerSend
+ * IWormholeRelayer
  * @notice Users may use this interface to have payloads and/or wormhole VAAs
  *   relayed to destination contract(s) of their choice.
  */
 interface IWormholeRelayerSend is IWormholeRelayerBase {
-
     function sendPayloadToEvm(
         uint16 targetChain,
         address targetAddress,
@@ -67,7 +66,6 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         uint16 refundChain,
         address refundAddress
     ) external payable returns (uint64 sequence);
-
 
     function sendToEvm(
         uint16 targetChain,
@@ -228,8 +226,8 @@ interface IWormholeRelayerDelivery is IWormholeRelayerBase {
      *   - If status is SUCCESS or FORWARD_REQUEST_SUCCESS, then this is empty.
      *   - If status is RECEIVER_FAILURE, this is `RETURNDATA_TRUNCATION_THRESHOLD` bytes of the
      *       return data (i.e. potentially truncated revert reason information).
-     *   - If status is FORWARD_REQUEST_FAILURE, this is also the revert data - the reason the forward failed
-     *     will be either an encoded Cancelled, DeliveryProviderReverted, or DeliveryProviderPaymentFailed error
+     *   - If status is FORWARD_REQUEST_FAILURE, this is also the revert data - the reason the forward failed.
+     *     This will be either an encoded Cancelled, DeliveryProviderReverted, or DeliveryProviderPaymentFailed error
      * @custom:member refundStatus - Result of the refund. REFUND_SUCCESS or REFUND_FAIL are for
      *     refunds where targetChain=refundChain; the others are for targetChain!=refundChain,
      *     where a cross chain refund is necessary
@@ -251,7 +249,7 @@ interface IWormholeRelayerDelivery is IWormholeRelayerBase {
 
     /**
      * @notice The relay provider calls `deliver` to relay messages as described by one delivery instruction
-     *
+     * 
      * The relay provider must pass in the specified (by VaaKeys[]) signed wormhole messages (VAAs) from the source chain
      * as well as the signed wormhole message with the delivery instructions (the delivery VAA)
      *
@@ -260,15 +258,14 @@ interface IWormholeRelayerDelivery is IWormholeRelayerBase {
      * - the delivery VAA's emitter is one of these WormholeRelayer contracts
      * - the delivery instruction container in the delivery VAA was fully funded
      * - msg.sender is the permissioned address allowed to execute this instruction
-     * - the relay provider passed in at least enough of this chain's currency as msg.value (enough meaning the maximum possible refund)
-     * - the instruction's target chain is this chain
+     * - the relay provider passed in at least enough of this chain's currency as msg.value (enough meaning the maximum possible refund)     * - the instruction's target chain is this chain
      * - the relayed signed VAAs match the descriptions in container.messages (the VAA hashes match, or the emitter address, sequence number pair matches, depending on the description given)
      *
      * @param encodedVMs - An array of signed wormhole messages (all from the same source chain
      *     transaction)
      * @param encodedDeliveryVAA - Signed wormhole message from the source chain's WormholeRelayer
      *     contract with payload being the encoded delivery instruction container
-     * @param relayerRefundAddress - The address to which any refunds to the relay provider
+     * @param relayerRefundAddress - The address to which any refunds to the delivery provider
      *     should be sent
      * @param deliveryOverrides - Optional overrides field which must be either an empty bytes array or
      *     an encoded DeliveryOverride struct
@@ -333,7 +330,7 @@ error InvalidOverrideReceiverValue();
 error InvalidOverrideRefundPerGasUnused();
 
 //When the relay provider doesn't pass in sufficient funds (i.e. msg.value does not cover the
-//  maximum possible refund to the user)
+// maximum possible refund to the user)
 error InsufficientRelayerFunds(uint256 msgValue, uint256 minimum);
 
 //When a bytes32 field can't be converted into a 20 byte EVM address, because the 12 padding bytes
