@@ -104,7 +104,7 @@ message GovernanceMessage {
     // IBC Receiver Integration
     IbcReceiverUpdateChannelChain ibc_receiver_update_channel_chain = 21;
     // Wormhole Relayer module
-    WormholeRelayerSetDefaultRelayProvider wormhole_relayer_set_default_relay_provider = 22;
+    WormholeRelayerSetDefaultDeliveryProvider wormhole_relayer_set_default_delivery_provider = 22;
   }
 }
 
