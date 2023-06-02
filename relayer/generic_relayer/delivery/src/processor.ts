@@ -12,12 +12,12 @@ import {
   DeliveryInstruction,
   packOverrides,
   DeliveryOverrideArgs,
-  parseEVMExecutionInfoV1
+  parseEVMExecutionInfoV1,
 } from "@certusone/wormhole-sdk/lib/cjs/relayer";
 import { EVMChainId } from "@certusone/wormhole-sdk";
 import { GRContext } from "./app";
 import { BigNumber, ethers } from "ethers";
-import { CoreRelayer__factory } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
+import { WormholeRelayer__factory } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
 import {
   DeliveryExecutionRecord,
   addFatalError,
@@ -70,8 +70,8 @@ async function processDelivery(
 ) {
   const deliveryVaa = parseWormholeRelayerSend(ctx.vaa!.payload);
   executionRecord.didParse = true;
-  const sourceRelayProvider = ethers.utils.getAddress(
-    wh.tryUint8ArrayToNative(deliveryVaa.sourceRelayProvider, "ethereum")
+  const sourceDeliveryProvider = ethers.utils.getAddress(
+    wh.tryUint8ArrayToNative(deliveryVaa.sourceDeliveryProvider, "ethereum")
   );
   if (
     sourceDeliveryProvider !==
@@ -80,8 +80,8 @@ async function processDelivery(
     ctx.logger.info("Delivery vaa specifies different relay provider", {
       sourceDeliveryProvider: deliveryVaa.sourceDeliveryProvider,
     });
-    executionRecord.didMatchRelayProvider = false;
-    executionRecord.specifiedRelayProvider = sourceRelayProvider;
+    executionRecord.didMatchDeliveryProvider = false;
+    executionRecord.specifiedDeliveryProvider = sourceDeliveryProvider;
     return;
   }
   processDeliveryInstruction(ctx, deliveryVaa, ctx.vaaBytes!, executionRecord);
@@ -93,8 +93,11 @@ async function processRedelivery(
 ) {
   executionRecord.redeliveryRecord = {};
   const redeliveryVaa = parseWormholeRelayerResend(ctx.vaa!.payload);
-  const sourceRelayProvider = ethers.utils.getAddress(
-    wh.tryUint8ArrayToNative(redeliveryVaa.sourceRelayProvider, "ethereum")
+  const sourceDeliveryProvider = ethers.utils.getAddress(
+    wh.tryUint8ArrayToNative(
+      redeliveryVaa.newSourceDeliveryProvider,
+      "ethereum"
+    )
   );
   if (
     sourceDeliveryProvider !==
@@ -103,12 +106,17 @@ async function processRedelivery(
     ctx.logger.info("Delivery vaa specifies different relay provider", {
       sourceDeliveryProvider: redeliveryVaa.newSourceDeliveryProvider,
     });
-    executionRecord.didMatchRelayProvider = false;
-    executionRecord.specifiedRelayProvider = sourceRelayProvider;
+    executionRecord.didMatchDeliveryProvider = false;
+    executionRecord.specifiedDeliveryProvider = sourceDeliveryProvider;
     return;
   }
 
-  if (redeliveryVaa.key.infoType != VaaKeyType.EMITTER_SEQUENCE) {
+  //The SDK doesn't expose that there are two different types of VAA keys, but this check should be sufficient
+  if (
+    !redeliveryVaa.deliveryVaaKey.emitterAddress ||
+    !redeliveryVaa.deliveryVaaKey.sequence ||
+    !redeliveryVaa.deliveryVaaKey.chainId
+  ) {
     executionRecord.redeliveryRecord.validVaaKeyFormat = false;
     throw new Error(`Only supports EmitterSequence VaaKeyType`);
   }
@@ -118,7 +126,7 @@ async function processRedelivery(
     vaaKeyPrintable(redeliveryVaa.deliveryVaaKey)
   );
   executionRecord.redeliveryRecord.vaaKeyPrintable = vaaKeyPrintable(
-    redeliveryVaa.key
+    redeliveryVaa.deliveryVaaKey
   ).toString();
 
   executionRecord.redeliveryRecord.originalVaaFetchTimeStart = Date.now();
@@ -126,9 +134,9 @@ async function processRedelivery(
   let originalVaa: ParsedVaaWithBytes;
   try {
     originalVaa = await ctx.fetchVaa(
-      redeliveryVaa.key.chainId as wh.ChainId,
-      Buffer.from(redeliveryVaa.key.emitterAddress!),
-      redeliveryVaa.key.sequence!.toBigInt()
+      redeliveryVaa.deliveryVaaKey.chainId as wh.ChainId,
+      Buffer.from(redeliveryVaa.deliveryVaaKey.emitterAddress!),
+      redeliveryVaa.deliveryVaaKey.sequence!.toBigInt()
     );
     executionRecord.redeliveryRecord.originalVaaDidFetch = true;
     executionRecord.redeliveryRecord.originalVaaHex =
@@ -164,9 +172,8 @@ async function processRedelivery(
       originalVaa.bytes,
       executionRecord,
       {
-        newReceiverValueTarget: redeliveryVaa.newReceiverValueTarget,
-        newMaximumRefundTarget: redeliveryVaa.newMaximumRefundTarget,
-        gasLimit: redeliveryVaa.executionParameters.gasLimit,
+        newReceiverValue: redeliveryVaa.newRequestedReceiverValue,
+        newExecutionInfo: redeliveryVaa.newEncodedExecutionInfo,
         redeliveryHash: ctx.vaa!.hash,
       }
     );
@@ -193,42 +200,43 @@ function isValidRedelivery(
     return output;
   }
 
-  if (delivery.maximumRefundTarget.gt(redelivery.newMaximumRefundTarget)) {
-    output.isValid = false;
-    output.reason =
-      "Redelivery maximumRefundTarget is less than original delivery maximumRefundTarget, " +
-      "Original refund: " +
-      delivery.maximumRefundTarget.toBigInt().toLocaleString() +
-      " Redelivery: " +
-      redelivery.newMaximumRefundTarget.toBigInt().toLocaleString();
-    ctx.logger.info(output.reason);
-    return output;
-  }
-  if (delivery.receiverValueTarget.gt(redelivery.newReceiverValueTarget)) {
+  if (
+    delivery.requestedReceiverValue.gt(redelivery.newRequestedReceiverValue)
+  ) {
     output.isValid = false;
     (output.reason =
       "Redelivery receiverValueTarget is less than original delivery receiverValueTarget, " +
       "Original receiverValue: " +
-      delivery.receiverValueTarget.toBigInt().toLocaleString()),
+      delivery.requestedReceiverValue.toBigInt().toLocaleString()),
       +" Redelivery: " +
-        redelivery.newReceiverValueTarget.toBigInt().toLocaleString();
+        redelivery.newRequestedReceiverValue.toBigInt().toLocaleString();
     ctx.logger.info(output.reason);
     return output;
   }
 
-  if (
-    deliveryExecutionInfo.gasLimit >
-    redeliveryExecutionInfo.gasLimit
-  ) {
-    output.isValid = false;
-    (output.reason =
-      "Redelivery gasLimit is less than original delivery gasLimit, " +
-      "Original gasLimit: " +
-      delivery.executionParameters.gasLimit),
-      " Redelivery: " + redelivery.executionParameters.gasLimit;
-    ctx.logger.info(output.reason);
-    return output;
-  }
+  //TODO check that infomrmation inside the execution params is valid
+  // if (delivery..gt(redelivery.newMaximumRefundTarget)) {
+  //   output.isValid = false;
+  //   output.reason =
+  //     "Redelivery maximumRefundTarget is less than original delivery maximumRefundTarget, " +
+  //     "Original refund: " +
+  //     delivery.maximumRefundTarget.toBigInt().toLocaleString() +
+  //     " Redelivery: " +
+  //     redelivery.newMaximumRefundTarget.toBigInt().toLocaleString();
+  //   ctx.logger.info(output.reason);
+  //   return output;
+  // }
+
+  // if (deliveryExecutionInfo.gasLimit > redeliveryExecutionInfo.gasLimit) {
+  //   output.isValid = false;
+  //   (output.reason =
+  //     "Redelivery gasLimit is less than original delivery gasLimit, " +
+  //     "Original gasLimit: " +
+  //     delivery.executionParameters.gasLimit),
+  //     " Redelivery: " + redelivery.executionParameters.gasLimit;
+  //   ctx.logger.info(output.reason);
+  //   return output;
+  // }
 
   return output;
 }
@@ -249,7 +257,7 @@ async function processDeliveryInstruction(
   //TODO this check is not quite correct
   if (
     delivery.vaaKeys.findIndex(
-      (m) => m.infoType !== VaaKeyType.EMITTER_SEQUENCE
+      (m) => !m.emitterAddress || !m.sequence || !m.chainId
     ) != -1
   ) {
     executionRecord.deliveryRecord.additionalVaaKeysFormatValid = false;
@@ -295,14 +303,18 @@ async function processDeliveryInstruction(
   const chainId = delivery.targetChainId as EVMChainId;
   const receiverValue = overrides?.newReceiverValue
     ? overrides.newReceiverValue
-    : (delivery.requestedReceiverValue.add(delivery.extraReceiverValue));
+    : delivery.requestedReceiverValue.add(delivery.extraReceiverValue);
   const getMaxRefund = (encodedDeliveryInfo: Buffer) => {
-    const [deliveryInfo,] = parseEVMExecutionInfoV1(encodedDeliveryInfo, 0);
-    return deliveryInfo.targetChainRefundPerGasUnused.mul(deliveryInfo.gasLimit);
-  }
-  const maxRefund = getMaxRefund(overrides?.newExecutionInfo
-    ? overrides.newExecutionInfo
-    : delivery.encodedExecutionInfo);
+    const [deliveryInfo] = parseEVMExecutionInfoV1(encodedDeliveryInfo, 0);
+    return deliveryInfo.targetChainRefundPerGasUnused.mul(
+      deliveryInfo.gasLimit
+    );
+  };
+  const maxRefund = getMaxRefund(
+    overrides?.newExecutionInfo
+      ? overrides.newExecutionInfo
+      : delivery.encodedExecutionInfo
+  );
   const budget = receiverValue.add(maxRefund);
 
   executionRecord.deliveryRecord.chainId = chainId;
@@ -312,6 +324,8 @@ async function processDeliveryInstruction(
 
   executionRecord.deliveryRecord.walletAcquisitionStartTime = Date.now();
 
+  //TODO errors which happen inside this function are hard to catch, in part due to ethers.
+  //As a result they get logged here rather than by the top level catch
   const closedFunction = async (executionRecord: DeliveryExecutionRecord) => {
     await ctx.wallets.onEVM(chainId, async ({ wallet }) => {
       executionRecord.deliveryRecord!.walletAcquisitionEndTime = Date.now();
@@ -323,7 +337,7 @@ async function processDeliveryInstruction(
       executionRecord.deliveryRecord!.walletNonce =
         await wallet.getTransactionCount();
 
-      const coreRelayer = CoreRelayer__factory.connect(
+      const wormholeRelayer = WormholeRelayer__factory.connect(
         ctx.wormholeRelayers[chainId],
         wallet
       );
@@ -336,11 +350,18 @@ async function processDeliveryInstruction(
         overrides: overrides ? packOverrides(overrides) : [],
       };
 
-      const gasUnitsEstimate = await coreRelayer.estimateGas.deliver(input, {
-        value: budget,
-        gasLimit: 3000000,
-      });
-      const gasPrice = await coreRelayer.provider.getGasPrice();
+      const gasUnitsEstimate = await wormholeRelayer.estimateGas.deliver(
+        results.map((v) => v.bytes),
+        deliveryVaa,
+        wallet.address,
+        overrides ? packOverrides(overrides) : [],
+        {
+          value: budget,
+          gasLimit: 3000000,
+        }
+      );
+
+      const gasPrice = await wormholeRelayer.provider.getGasPrice();
       const estimatedTransactionFee = gasPrice.mul(gasUnitsEstimate);
       const estimatedTransactionFeeEther = ethers.utils.formatEther(
         estimatedTransactionFee
@@ -369,8 +390,17 @@ async function processDeliveryInstruction(
       ctx.logger.debug("Sending 'deliver' tx...");
 
       executionRecord.deliveryRecord!.transactionSubmitTimeStart = Date.now();
-      const receipt = await coreRelayer
-        .deliver(input, { value: budget, gasLimit: 3000000 }) //TODO more intelligent gas limit
+      const receipt = await wormholeRelayer
+        .deliver(
+          results.map((v) => v.bytes),
+          deliveryVaa,
+          wallet.address,
+          overrides ? packOverrides(overrides) : [],
+          {
+            value: budget,
+            gasLimit: 3000000,
+          }
+        ) //TODO more intelligent gas limit
         .then((x: any) => x.wait());
       executionRecord.deliveryRecord!.transactionSubmitTimeEnd = Date.now();
       executionRecord.deliveryRecord!.transactionDidSubmit = true;
@@ -378,11 +408,18 @@ async function processDeliveryInstruction(
         receipt.transactionHash,
       ];
 
+      throw new Error("This is a test error");
+
       logResults(ctx, receipt, chainId, executionRecord);
     });
   };
 
-  await closedFunction(executionRecord);
+  await closedFunction(executionRecord).catch((e: any) => {
+    ctx.logger.error(`Fatal error in processGenericRelayerVaa: ${e}`);
+    addFatalError(executionRecord, e);
+    ctx.logger.error("Dumping execution context for fatal error");
+    ctx.logger.error(deliveryExecutionRecordPrintable(executionRecord));
+  });
 }
 
 function logResults(
@@ -395,7 +432,7 @@ function logResults(
     return x.address === ctx.wormholeRelayers[chainId];
   });
   if (relayerContractLog) {
-    const parsedLog = IWormholeRelayerDelivery__factory.createInterface().parseLog(
+    const parsedLog = WormholeRelayer__factory.createInterface().parseLog(
       relayerContractLog!
     );
     const logArgs = {
