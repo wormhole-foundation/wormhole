@@ -214,7 +214,7 @@ export class GovernanceEmitter extends MockEmitter {
     payload.write(tryNativeToHexString(address, chain as ChainId), 2, "hex");
     return this.publishGovernanceMessage(
       timestamp,
-      "CoreRelayer",
+      "WormholeRelayer",
       payload,
       1,
       0,
@@ -236,7 +236,7 @@ export class GovernanceEmitter extends MockEmitter {
     );
     return this.publishGovernanceMessage(
       timestamp,
-      "CoreRelayer",
+      "WormholeRelayer",
       payload,
       2,
       chain,
@@ -258,7 +258,7 @@ export class GovernanceEmitter extends MockEmitter {
     );
     return this.publishGovernanceMessage(
       timestamp,
-      "CoreRelayer",
+      "WormholeRelayer",
       payload,
       3,
       chain,
