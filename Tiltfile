@@ -483,10 +483,28 @@ if spy_relayer or redis or generic_relayer or ci_tests:
 
     k8s_yaml_with_ns("devnet/redis.yaml")
 
+if generic_relayer or ci_tests:
+    k8s_resource(
+        "redis-relayer",
+        port_forwards = [
+            port_forward(6378, name = "Generic Relayer Redis [:6378]", host = webHost),
+        ],
+        labels = ["redis-relayer"],
+        trigger_mode = trigger_mode,
+    )
+    docker_build(
+        ref = "redis-relayer",
+        context = ".",
+        only = ["./third_party"],
+        dockerfile = "third_party/redis/Dockerfile",
+    )
+
+    k8s_yaml_with_ns("devnet/redis-relayer.yaml")
+
 if generic_relayer:
     k8s_resource(
         "relayer-engine",
-        resource_deps = ["guardian", "redis", "spy"],
+        resource_deps = ["guardian", "redis-relayer", "spy"],
         port_forwards = [
             port_forward(3003, container_port=3000, name = "Bullmq UI [:3003]", host = webHost),
         ],
