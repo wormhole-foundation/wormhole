@@ -60,7 +60,7 @@ export const builder = (y: typeof yargs) =>
         "Submit the VAA to all chains except for the origin chain specified in the payload",
       type: "boolean",
       default: false,
-      required: false,
+      demandOption: false,
     });
 export const handler = async (
   argv: Awaited<ReturnType<typeof builder>["argv"]>
@@ -76,7 +76,7 @@ export const handler = async (
   assertNetwork(network);
 
   if (argv["all-chains"]) {
-    if (argv["rpc"]) {
+    if (argv.rpc) {
       throw Error(`--rpc may not be specified with --all-chains`);
     }
 
@@ -84,7 +84,7 @@ export const handler = async (
       throw Error(`--contract_address may not be specified with --all-chains`);
     }
 
-    await submit_to_all(vaa_hex, parsed_vaa, buf, network);
+    await submitToAll(vaa_hex, parsed_vaa, buf, network);
     return;
   }
 
@@ -123,18 +123,18 @@ export const handler = async (
     chain = vaa_chain;
   }
 
-  await execute_submit(
+  await executeSubmit(
     vaa_hex,
     parsed_vaa,
     buf,
     network,
     chain,
-    argv["rpc"],
+    argv.rpc,
     argv["contract-address"]
   );
 };
 
-async function execute_submit(
+async function executeSubmit(
   vaa_hex: string,
   parsed_vaa: VAA<Payload>,
   buf: Buffer,
@@ -197,7 +197,7 @@ async function execute_submit(
   }
 }
 
-async function submit_to_all(
+async function submitToAll(
   vaa_hex: string,
   parsed_vaa: VAA<Payload>,
   buf: Buffer,
@@ -246,7 +246,7 @@ async function submit_to_all(
 
     console.log(`Submitting VAA to ${chain} ${network}`);
     try {
-      await execute_submit(
+      await executeSubmit(
         vaa_hex,
         parsed_vaa,
         buf,
@@ -256,7 +256,7 @@ async function submit_to_all(
         undefined
       );
     } catch (e) {
-      console.log(`Failed to submit to ${chain}: `, e);
+      console.error(`Failed to submit to ${chain}: `, e);
     }
   }
 }
