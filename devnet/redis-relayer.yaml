@@ -6,7 +6,6 @@ metadata:
   labels:
     app: redis-relayer
 spec:
-  clusterIP: None
   selector:
     app: redis-relayer
   ports:
@@ -14,6 +13,7 @@ spec:
       targetPort: 6379
       name: redis-relayer
       protocol: TCP
+  type: LoadBalancer
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -36,10 +36,10 @@ spec:
           image: redis
           readinessProbe:
             tcpSocket:
-              port: 6378
+              port: 6379
             periodSeconds: 1
             failureThreshold: 300
           ports:
-            - containerPort: 6378
+            - containerPort: 6379
               name: redis-relayer
               protocol: TCP
