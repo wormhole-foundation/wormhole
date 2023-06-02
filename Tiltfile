@@ -492,14 +492,10 @@ if generic_relayer or ci_tests:
         labels = ["redis-relayer"],
         trigger_mode = trigger_mode,
     )
-    docker_build(
-        ref = "redis-relayer",
-        context = ".",
-        only = ["./third_party"],
-        dockerfile = "third_party/redis/Dockerfile",
-    )
 
     k8s_yaml_with_ns("devnet/redis-relayer.yaml")
+
+
 
 if generic_relayer:
     k8s_resource(
