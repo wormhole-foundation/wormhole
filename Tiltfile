@@ -466,6 +466,14 @@ docker_build(
 )
 
 if spy_relayer or redis or generic_relayer or ci_tests:
+    docker_build(
+        ref = "redis",
+        context = ".",
+        only = ["./third_party"],
+        dockerfile = "third_party/redis/Dockerfile",
+    )
+
+if spy_relayer or redis or ci_tests:
     k8s_resource(
         "redis",
         port_forwards = [
@@ -473,12 +481,6 @@ if spy_relayer or redis or generic_relayer or ci_tests:
         ],
         labels = ["redis"],
         trigger_mode = trigger_mode,
-    )
-    docker_build(
-        ref = "redis",
-        context = ".",
-        only = ["./third_party"],
-        dockerfile = "third_party/redis/Dockerfile",
     )
 
     k8s_yaml_with_ns("devnet/redis.yaml")
