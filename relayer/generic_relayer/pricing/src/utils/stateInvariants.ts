@@ -1,5 +1,5 @@
 import { ChainId } from "@certusone/wormhole-sdk";
-import { RelayProviderContractState, printFixed } from "./currentPricing";
+import { DeliveryProviderContractState, printFixed } from "./currentPricing";
 
 export type InvariantViolation = {
   invariant: HardInvariant | SoftInvariant;
@@ -14,7 +14,7 @@ export enum HardInvariant {}
 export enum SoftInvariant {}
 
 export function checkAllInvariants(
-  contractStates: RelayProviderContractState[]
+  contractStates: DeliveryProviderContractState[]
 ): InvariantViolation[] {
   return [].concat(
     checkHardInvariants(contractStates),
@@ -25,7 +25,7 @@ export function checkAllInvariants(
 //Hard invariants are defined as invariants which are disallowed by the Wormhole relayer protocol,
 //and thus should never ever be violated.
 export function checkHardInvariants(
-  contractStates: RelayProviderContractState[]
+  contractStates: DeliveryProviderContractState[]
 ) {
   return [];
 }
@@ -33,7 +33,7 @@ export function checkHardInvariants(
 //Soft invariants are defined as invariants which are not disallowed by the Wormhole relayer protocol,
 //and can be modified by the relay provider. This included things like minimums, maximums, and bi-directional relationships.
 export function checkSoftInvariants(
-  contractStates: RelayProviderContractState[]
+  contractStates: DeliveryProviderContractState[]
 ) {
   return [];
 }

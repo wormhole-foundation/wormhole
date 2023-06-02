@@ -18,13 +18,14 @@ import deepCopy from "clone";
 import { loadAppConfig } from "@wormhole-foundation/offchain-generic-relayer/src/env";
 
 export type PricingContext = StandardRelayerContext & {
-  relayProviders: Record<EVMChainId, string>;
+  deliveryProviders: Record<EVMChainId, string>;
   wormholeRelayers: Record<EVMChainId, string>;
   opts: StandardRelayerAppOpts;
 };
 
 async function main() {
-  const { env, opts, relayProviders, wormholeRelayers } = await loadAppConfig();
+  const { env, opts, deliveryProviders, wormholeRelayers } =
+    await loadAppConfig();
   const logger = opts.logger!;
   logger.debug("Redis config: ", opts.redis);
 
@@ -50,7 +51,7 @@ async function main() {
 
   // Set up middleware
   app.use(async (ctx: PricingContext, next: Next) => {
-    ctx.relayProviders = deepCopy(relayProviders);
+    ctx.deliveryProviders = deepCopy(deliveryProviders);
     ctx.wormholeRelayers = deepCopy(wormholeRelayers);
     ctx.opts = { ...opts };
     next();

@@ -1,15 +1,15 @@
 import { ChainId, EVMChainId } from "@certusone/wormhole-sdk";
 import { PricingContext } from "../app";
 import {
-  CoreRelayer__factory,
-  RelayProvider,
-  RelayProvider__factory,
+  WormholeRelayer__factory,
+  DeliveryProvider,
+  DeliveryProvider__factory,
 } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
 import { getAllChains, getEthersProvider } from "../env";
 import { BigNumber } from "ethers";
 import { createContext } from "vm";
 
-export type RelayProviderContractState = {
+export type DeliveryProviderContractState = {
   chainId: number;
   contractAddress: string;
   rewardAddress: string;
@@ -29,9 +29,9 @@ export type RelayProviderContractState = {
 
 export async function pullAllCurrentPricingStates(
   ctx: PricingContext
-): Promise<RelayProviderContractState[]> {
+): Promise<DeliveryProviderContractState[]> {
   const allChains = getAllChains(ctx);
-  const states: RelayProviderContractState[] = [];
+  const states: DeliveryProviderContractState[] = [];
   for (const chain of allChains) {
     const state = await pullCurrentPricingState(ctx, chain);
     states.push(state);
@@ -43,14 +43,14 @@ export async function pullAllCurrentPricingStates(
 export async function pullCurrentPricingState(
   ctx: PricingContext,
   chain: ChainId
-): Promise<RelayProviderContractState> {
-  const relayProviderAddress = ctx.relayProviders[chain as EVMChainId]; //Cast to EVM chain ID type should be safe
-  const RelayProvider = RelayProvider__factory.connect(
-    relayProviderAddress,
+): Promise<DeliveryProviderContractState> {
+  const deliveryProviderAddress = ctx.deliveryProviders[chain as EVMChainId]; //Cast to EVM chain ID type should be safe
+  const DeliveryProvider = DeliveryProvider__factory.connect(
+    deliveryProviderAddress,
     getEthersProvider(ctx, chain)
   );
 
-  const state = readState(ctx, chain, RelayProvider, getAllChains(ctx));
+  const state = readState(ctx, chain, DeliveryProvider, getAllChains(ctx));
   if (state == null) {
     throw new Error("Could not read state for chain " + chain);
   } else {
@@ -66,15 +66,15 @@ export async function pullCurrentPricingState(
 async function readState(
   ctx: PricingContext,
   currentChain: ChainId,
-  relayProvider: RelayProvider,
+  deliveryProvider: DeliveryProvider,
   allChains: ChainId[]
-): Promise<RelayProviderContractState | null> {
+): Promise<DeliveryProviderContractState | null> {
   ctx.logger.info(
     "Gathering relay provider contract status for chain " + currentChain
   );
 
   try {
-    const rewardAddress = await relayProvider.getRewardAddress();
+    const rewardAddress = await deliveryProvider.getRewardAddress();
     const supportedChains: {
       chainId: number;
       isSupported: boolean;
@@ -95,36 +95,36 @@ async function readState(
       tolerance: number;
       toleranceDenominator: number;
     }[] = [];
-    const owner: string = await relayProvider.owner();
+    const owner: string = await deliveryProvider.owner();
 
     for (const chain of allChains) {
       supportedChains.push({
         chainId: chain,
-        isSupported: await relayProvider.isChainSupported(chain),
+        isSupported: await deliveryProvider.isChainSupported(chain),
       });
 
       targetChainAddresses.push({
         chainId: chain,
-        whAddress: await relayProvider.getTargetChainAddress(chain),
+        whAddress: await deliveryProvider.getTargetChainAddress(chain),
       });
 
       deliveryOverheads.push({
         chainId: chain,
-        deliveryOverhead: await relayProvider.quoteDeliveryOverhead(chain),
+        deliveryOverhead: await deliveryProvider.quoteDeliveryOverhead(chain),
       });
       maximumBudgets.push({
         chainId: chain,
-        maximumBudget: await relayProvider.quoteMaximumBudget(chain),
+        maximumBudget: await deliveryProvider.maximumBudget(chain),
       });
       gasPrices.push({
         chainId: chain,
-        gasPrice: await relayProvider.quoteGasPrice(chain),
+        gasPrice: await deliveryProvider.quoteGasPrice(chain),
       });
       usdPrices.push({
         chainId: chain,
-        usdPrice: await relayProvider.quoteAssetPrice(chain),
+        usdPrice: await deliveryProvider.nativeCurrencyPrice(chain),
       });
-      const buffer = await relayProvider.getAssetConversionBuffer(chain);
+      const buffer = await deliveryProvider.assetConversionBuffer(chain);
       assetConversionBuffers.push({
         chainId: chain,
         tolerance: buffer.tolerance,
@@ -134,7 +134,7 @@ async function readState(
 
     return {
       chainId: currentChain,
-      contractAddress: relayProvider.address,
+      contractAddress: deliveryProvider.address,
       rewardAddress,
       deliveryOverheads,
       supportedChains,
@@ -153,9 +153,9 @@ async function readState(
   return null;
 }
 
-export function printableState(state: RelayProviderContractState): string {
+export function printableState(state: DeliveryProviderContractState): string {
   let output = "";
-  output += "RelayProvider: \n";
+  output += "DeliveryProvider: \n";
   output += printFixed("Chain ID: ", state.chainId.toString());
   output += printFixed("Contract Address:", state.contractAddress);
   output += printFixed("Owner Address:", state.owner);
