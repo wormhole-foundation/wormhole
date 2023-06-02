@@ -24,7 +24,7 @@ import { execute_terra } from "../terra";
 import { assertNetwork } from "../utils";
 import { assertKnownPayload, impossible, parse, Payload, VAA } from "../vaa";
 import { execute_xpla } from "../xpla";
-import { NETWORKS } from "../networks";
+import { NETWORKS } from "../consts";
 import { Network } from "../utils";
 
 export const command = "submit <vaa>";
@@ -62,7 +62,9 @@ export const builder = (y: typeof yargs) =>
       default: false,
       required: false,
     });
-export const handler = async (argv: Awaited<ReturnType<typeof builder>["argv"]>) => {
+export const handler = async (
+  argv: Awaited<ReturnType<typeof builder>["argv"]>
+) => {
   const vaa_hex = String(argv.vaa);
   const buf = Buffer.from(vaa_hex, "hex");
   const parsed_vaa = parse(buf);
@@ -107,14 +109,6 @@ export const handler = async (argv: Awaited<ReturnType<typeof builder>["argv"]>)
 
   // get chain from command line arg
   const cli_chain = argv.chain;
-  // get VAA chain
-  const vaa_chain_id =
-    "chain" in parsed_vaa.payload ? parsed_vaa.payload.chain : 0;
-  assertChain(vaa_chain_id);
-  const vaa_chain = toChainName(vaa_chain_id);
-
-  // get chain from command line arg
-  const cli_chain = argv["chain"];
 
   let chain: ChainName;
   if (cli_chain !== undefined) {
@@ -129,6 +123,26 @@ export const handler = async (argv: Awaited<ReturnType<typeof builder>["argv"]>)
     chain = vaa_chain;
   }
 
+  await execute_submit(
+    vaa_hex,
+    parsed_vaa,
+    buf,
+    network,
+    chain,
+    argv["rpc"],
+    argv["contract-address"]
+  );
+};
+
+async function execute_submit(
+  vaa_hex: string,
+  parsed_vaa: VAA<Payload>,
+  buf: Buffer,
+  network: Network,
+  chain: ChainName,
+  rpc: string | undefined,
+  contract_address: string | undefined
+) {
   if (chain === "unset") {
     throw Error(
       "This VAA does not specify the target chain, please provide it by hand using the '--chain' flag."
@@ -139,8 +153,8 @@ export const handler = async (argv: Awaited<ReturnType<typeof builder>["argv"]>)
       buf,
       network,
       chain,
-      argv["contract-address"],
-      argv.rpc
+      contract_address,
+      rpc
     );
   } else if (isTerraChain(chain)) {
     await execute_terra(parsed_vaa.payload, buf, network, chain);
@@ -169,18 +183,80 @@ export const handler = async (argv: Awaited<ReturnType<typeof builder>["argv"]>)
       parsed_vaa.payload,
       buf,
       network,
-      argv["contract-address"],
-      argv.rpc
+      contract_address,
+      rpc
     );
   } else if (chain === "wormchain") {
     throw Error("Wormchain is not supported yet");
   } else if (chain === "btc") {
     throw Error("btc is not supported yet");
-  } else if (chain === "sei") {
-    throw Error("sei is not supported yet");
   } else {
     // If you get a type error here, hover over `chain`'s type and it tells you
     // which cases are not handled
     impossible(chain);
   }
-};
+}
+
+async function submit_to_all(
+  vaa_hex: string,
+  parsed_vaa: VAA<Payload>,
+  buf: Buffer,
+  network: Network
+) {
+  let skip_chain: ChainName = "unset";
+  if (parsed_vaa.payload.type === "RegisterChain") {
+    skip_chain = toChainName(parsed_vaa.payload.emitterChain as ChainId);
+  } else if (parsed_vaa.payload.type === "AttestMeta") {
+    skip_chain = toChainName(parsed_vaa.payload.tokenChain as ChainId);
+  } else {
+    throw Error(
+      `Invalid VAA payload type (${parsed_vaa.payload.type}), only "RegisterChain" and "AttestMeta" are supported with --all-chains`
+    );
+  }
+
+  for (const chainStr in CHAINS) {
+    let chain = chainStr as ChainName;
+    if (chain === "unset") {
+      continue;
+    }
+    const n = NETWORKS[network][chain];
+    const contracts: Contracts = CONTRACTS[network][chain];
+    if (chain == skip_chain) {
+      console.log(`Skipping ${chain} because it's the origin chain`);
+      continue;
+    }
+    if (!n || !n.rpc) {
+      console.log(`Skipping ${chain} because the rpc is not defined`);
+      continue;
+    }
+    if (!contracts) {
+      console.log(
+        `Skipping ${chain} because the contract entry is not defined`
+      );
+      return true;
+    }
+    if (
+      (parsed_vaa.payload.module === "TokenBridge" &&
+        !contracts.token_bridge) ||
+      (parsed_vaa.payload.module === "NFTBridge" && !contracts.nft_bridge)
+    ) {
+      console.log(`Skipping ${chain} because the contract is not defined`);
+      continue;
+    }
+
+    console.log(`Submitting VAA to ${chain} ${network}`);
+    try {
+      await execute_submit(
+        vaa_hex,
+        parsed_vaa,
+        buf,
+        network,
+        chain,
+        undefined,
+        undefined
+      );
+    } catch (e) {
+      console.log(`Failed to submit to ${chain}: `, e);
+    }
+  }
+}
