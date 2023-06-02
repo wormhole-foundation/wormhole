@@ -177,7 +177,7 @@ async function execute_submit(
   } else if (chain === "osmosis") {
     throw Error("OSMOSIS is not supported yet");
   } else if (chain === "sui") {
-    await submitSui(parsed_vaa.payload, buf, network, argv.rpc);
+    await submitSui(parsed_vaa.payload, buf, network, rpc);
   } else if (chain === "aptos") {
     await execute_aptos(
       parsed_vaa.payload,
