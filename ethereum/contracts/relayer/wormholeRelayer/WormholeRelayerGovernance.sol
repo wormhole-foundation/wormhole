@@ -38,9 +38,9 @@ abstract contract WormholeRelayerGovernance is WormholeRelayerBase, ERC1967Upgra
      *   - https://github.com/wormhole-foundation/wormhole/blob/main/whitepapers/0002_governance_messaging.md
      */
 
-    //Right shifted ascii encoding of "CoreRelayer"
+    //Right shifted ascii encoding of "WormholeRelayer"
     bytes32 private constant module =
-        0x000000000000000000000000000000000000000000436f726552656c61796572;
+        0x0000000000000000000000000000000000576f726d686f6c6552656c61796572;
 
     /**
      * The choice of action enumeration and parameters follows the scheme of the core bridge:

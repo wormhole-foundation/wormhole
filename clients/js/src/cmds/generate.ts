@@ -80,7 +80,7 @@ export const builder = function (y: typeof yargs) {
             .option("module", {
               alias: "m",
               describe: "Module to register",
-              choices: ["NFTBridge", "TokenBridge", "CoreRelayer"],
+              choices: ["NFTBridge", "TokenBridge", "WormholeRelayer"],
               demandOption: true,
             } as const)
         ,
@@ -124,7 +124,7 @@ export const builder = function (y: typeof yargs) {
             .option("module", {
               alias: "m",
               describe: "Module to upgrade",
-              choices: ["Core", "NFTBridge", "TokenBridge", "CoreRelayer"],
+              choices: ["Core", "NFTBridge", "TokenBridge", "WormholeRelayer"],
               demandOption: true,
             } as const),
         (argv) => {
@@ -278,7 +278,7 @@ export const builder = function (y: typeof yargs) {
         (argv) => {
           assertChain(argv["chain"]);
           let payload: WormholeRelayerSetDefaultDeliveryProvider = {
-            module: "CoreRelayer",
+            module: "WormholeRelayer",
             type: "SetDefaultDeliveryProvider",
             chain: toChainId(argv["chain"]),
             relayProviderAddress: parseAddress(argv["chain"], argv["relay-provider-address"])

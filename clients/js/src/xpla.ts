@@ -132,7 +132,7 @@ export async function execute_xpla(
 
       break;
     }
-    case "CoreRelayer":
+    case "WormholeRelayer":
         throw Error("Wormhole Relayer not supported on Xpla");
     default:
       target_contract = impossible(payload);

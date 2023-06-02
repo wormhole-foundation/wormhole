@@ -119,7 +119,7 @@ export async function execute_algorand(
 
       break;
     }
-    case "CoreRelayer":
+    case "WormholeRelayer":
         throw Error("Wormhole Relayer not supported on Algorand");
     default:
       target_contract = impossible(payload);
