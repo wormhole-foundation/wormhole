@@ -10,8 +10,8 @@ export type DeliveryExecutionRecord = {
   rawVaaPayloadHex?: string; // hex string of the raw VAA payload
   payloadType?: string; // the payload type of the VAA
   didParse?: boolean; // if true, the VAA was successfully parsed
-  specifiedRelayProvider?: string; // the relay provider specified in the VAA
-  didMatchRelayProvider?: boolean; // if true, the relay provider specified in the VAA matched the relay provider for the chain
+  specifiedDeliveryProvider?: string; // the relay provider specified in the VAA
+  didMatchDeliveryProvider?: boolean; // if true, the relay provider specified in the VAA matched the relay provider for the chain
 
   redeliveryRecord?: RedeliveryRecord; // if the VAA is a redelivery, the redeliveryRecord
   deliveryRecord?: DeliveryRecord; // information about the delivery process of the VAA
