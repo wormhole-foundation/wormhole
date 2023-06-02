@@ -278,7 +278,7 @@ func (r BodyIbcReceiverUpdateChannelChain) Serialize() []byte {
 func (r BodyWormholeRelayerSetDefaultDeliveryProvider) Serialize() []byte {
 	payload := &bytes.Buffer{}
 	payload.Write(r.NewDefaultDeliveryProviderAddress[:])
-	return serializeBridgeGovernanceVaa(CoreRelayerModuleStr, WormholeRelayerSetDefaultDeliveryProvider, r.ChainID, payload.Bytes())
+	return serializeBridgeGovernanceVaa(WormholeRelayerModuleStr, WormholeRelayerSetDefaultDeliveryProvider, r.ChainID, payload.Bytes())
 }
 
 func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chainId ChainID, payload []byte) []byte {
