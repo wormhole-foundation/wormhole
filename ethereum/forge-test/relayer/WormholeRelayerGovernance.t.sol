@@ -41,7 +41,7 @@ contract WormholeRelayerGovernanceTests is Test {
 
     TestHelpers helpers;
 
-    bytes32 relayerModule = 0x000000000000000000000000000000000000000000436F726552656C61796572;
+    bytes32 relayerModule = 0x0000000000000000000000000000000000576f726d686f6c6552656c61796572;
     IWormhole wormhole;
     IDeliveryProvider deliveryProvider;
     WormholeSimulator wormholeSimulator;

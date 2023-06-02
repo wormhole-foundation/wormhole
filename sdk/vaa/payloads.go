@@ -32,13 +32,13 @@ var IbcReceiverModule = [32]byte{
 }
 var IbcReceiverModuleStr = string(IbcReceiverModule[:])
 
-// CoreRelayerModule is the identifier of the Wormhole Relayer module (which is used for governance messages).
-// It is the hex representation of "CoreRelayer" left padded with zeroes.
-var CoreRelayerModule = [32]byte{
+// WormholeRelayerModule is the identifier of the Wormhole Relayer module (which is used for governance messages).
+// It is the hex representation of "WormholeRelayer" left padded with zeroes.
+var WormholeRelayerModule = [32]byte{
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x43, 0x6f, 0x72, 0x65, 0x52, 0x65, 0x6c, 0x61, 0x79, 0x65, 0x72,
+	0x00, 0x57, 0x6f, 0x72, 0x6d, 0x68, 0x6f, 0x6c, 0x65, 0x52, 0x65, 0x6c, 0x61, 0x79, 0x65, 0x72,
 }
-var CoreRelayerModuleStr = string(CoreRelayerModule[:])
+var WormholeRelayerModuleStr = string(WormholeRelayerModule[:])
 
 type GovernanceAction uint8
 
@@ -278,7 +278,7 @@ func (r BodyIbcReceiverUpdateChannelChain) Serialize() []byte {
 func (r BodyWormholeRelayerSetDefaultDeliveryProvider) Serialize() []byte {
 	payload := &bytes.Buffer{}
 	payload.Write(r.NewDefaultDeliveryProviderAddress[:])
-	return serializeBridgeGovernanceVaa(CoreRelayerModuleStr, WormholeRelayerSetDefaultDeliveryProvider, r.ChainID, payload.Bytes())
+	return serializeBridgeGovernanceVaa(WormholeRelayerModuleStr, WormholeRelayerSetDefaultDeliveryProvider, r.ChainID, payload.Bytes())
 }
 
 func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chainId ChainID, payload []byte) []byte {

@@ -202,7 +202,7 @@ func FuzzLeftPadBytes(f *testing.F) {
 }
 
 func TestBodyWormholeRelayerSetDefaultDeliveryProviderSerialize(t *testing.T) {
-	expected := "000000000000000000000000000000000000000000436f726552656c617965720300040000000000000000000000000000000000000000000000000000000000000004"
+	expected := "0000000000000000000000000000000000576f726d686f6c6552656c617965720300040000000000000000000000000000000000000000000000000000000000000004"
 	bodyWormholeRelayerSetDefaultDeliveryProvider := BodyWormholeRelayerSetDefaultDeliveryProvider{
 		ChainID:                           4,
 		NewDefaultDeliveryProviderAddress: addr,

@@ -13,8 +13,8 @@ const governanceChainId = 1;
 const governanceContract =
   "0x0000000000000000000000000000000000000000000000000000000000000004";
 //don't use the variable module in global scope in node
-const coreRelayerModule =
-  "0x000000000000000000000000000000000000000000436f726552656c61796572";
+const wormholeRelayerModule =
+  "0x0000000000000000000000000000000000576f726d686f6c6552656c61796572";
 
 export function createWormholeRelayerUpgradeVAA(
   chain: ChainInfo,
@@ -30,7 +30,7 @@ export function createWormholeRelayerUpgradeVAA(
   const payload = ethers.utils.solidityPack(
     ["bytes32", "uint8", "uint16", "bytes32"],
     [
-      coreRelayerModule,
+      wormholeRelayerModule,
       1,
       chain.chainId,
       "0x" + tryNativeToHexString(newAddress, "ethereum"),
@@ -51,7 +51,7 @@ export function createDefaultDeliveryProviderVAA(chain: ChainInfo) {
   const payload = ethers.utils.solidityPack(
     ["bytes32", "uint8", "uint16", "bytes32"],
     [
-      coreRelayerModule,
+      wormholeRelayerModule,
       3,
       chain.chainId,
       "0x" +
@@ -77,7 +77,7 @@ export async function createRegisterChainVAA(
   const payload = ethers.utils.solidityPack(
     ["bytes32", "uint8", "uint16", "uint16", "bytes32"],
     [
-      coreRelayerModule,
+      wormholeRelayerModule,
       1,
       0,
       chain.chainId,

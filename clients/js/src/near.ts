@@ -99,7 +99,7 @@ export const execute_near = async (
 
       break;
     }
-    case "CoreRelayer":
+    case "WormholeRelayer":
       throw Error("Wormhole Relayer not supported on Near");
     default:
       impossible(payload);

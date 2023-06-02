@@ -180,7 +180,7 @@ export async function execute_solana(
           break;
       }
       break;
-    case "CoreRelayer":
+    case "WormholeRelayer":
       throw Error("Wormhole Relayer not supported on Solana");
     default:
       ix = impossible(v.payload);
