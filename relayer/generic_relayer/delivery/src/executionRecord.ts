@@ -74,5 +74,7 @@ export function addFatalError(
 ) {
   executionRecord.didError = true;
   executionRecord.errorName = e.name;
-  executionRecord.fatalStackTrace = e.stack;
+  executionRecord.fatalStackTrace = e.stack
+    ? e.stack.replace(/\n/g, "\\n")
+    : "";
 }
