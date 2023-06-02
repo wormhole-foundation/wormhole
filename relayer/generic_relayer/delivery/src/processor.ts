@@ -17,10 +17,7 @@ import {
 import { EVMChainId } from "@certusone/wormhole-sdk";
 import { GRContext } from "./app";
 import { BigNumber, ethers } from "ethers";
-import {
-  CoreRelayer__factory,
-  IDelivery,
-} from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
+import { CoreRelayer__factory } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
 import {
   DeliveryExecutionRecord,
   addFatalError,
@@ -111,7 +108,7 @@ async function processRedelivery(
     return;
   }
 
-  if (redeliveryVaa.vaaKey.payloadType != VaaKeyType.EMITTER_SEQUENCE) {
+  if (redeliveryVaa.key.infoType != VaaKeyType.EMITTER_SEQUENCE) {
     executionRecord.redeliveryRecord.validVaaKeyFormat = false;
     throw new Error(`Only supports EmitterSequence VaaKeyType`);
   }
@@ -121,7 +118,7 @@ async function processRedelivery(
     vaaKeyPrintable(redeliveryVaa.deliveryVaaKey)
   );
   executionRecord.redeliveryRecord.vaaKeyPrintable = vaaKeyPrintable(
-    redeliveryVaa.vaaKey
+    redeliveryVaa.key
   ).toString();
 
   executionRecord.redeliveryRecord.originalVaaFetchTimeStart = Date.now();
@@ -129,9 +126,9 @@ async function processRedelivery(
   let originalVaa: ParsedVaaWithBytes;
   try {
     originalVaa = await ctx.fetchVaa(
-      redeliveryVaa.vaaKey.chainId as wh.ChainId,
-      Buffer.from(redeliveryVaa.vaaKey.emitterAddress!),
-      redeliveryVaa.vaaKey.sequence!.toBigInt()
+      redeliveryVaa.key.chainId as wh.ChainId,
+      Buffer.from(redeliveryVaa.key.emitterAddress!),
+      redeliveryVaa.key.sequence!.toBigInt()
     );
     executionRecord.redeliveryRecord.originalVaaDidFetch = true;
     executionRecord.redeliveryRecord.originalVaaHex =
@@ -184,30 +181,14 @@ function isValidRedelivery(
   const output: any = { isValid: true };
 
   //TODO check that the delivery & redelivery chains agree!
-  if (delivery.targetChain != redelivery.targetChain) {
+  if (delivery.targetChainId != redelivery.targetChainId) {
     output.isValid = false;
     output.reason =
       "Redelivery targetChain does not match original delivery targetChain, " +
       "Original targetChain: " +
-      delivery.targetChain +
+      delivery.targetChainId +
       " Redelivery targetChain: " +
-      redelivery.targetChain;
-    ctx.logger.info(output.reason);
-    return output;
-  }
-
-  //TODO verify that this check is correct, and eventually move all of these style checks to be
-  //uniformly done with wormhole address formats
-  if (
-    redelivery.sourceRelayProvider.toString("hex") !==
-    ctx.relayProviders[ctx.vaa!.emitterChain as EVMChainId]
-  ) {
-    output.isValid = false;
-    output.reason =
-      "Redelivery vaa specifies different relay provider, " +
-      redelivery.sourceRelayProvider.toString("hex") +
-      " vs " +
-      ctx.relayProviders[ctx.vaa!.emitterChain as EVMChainId];
+      redelivery.targetChainId;
     ctx.logger.info(output.reason);
     return output;
   }
@@ -347,7 +328,8 @@ async function processDeliveryInstruction(
         wallet
       );
 
-      const input: IDelivery.TargetDeliveryParametersStruct = {
+      //TODO properly import this type from the SDK for safety
+      const input: any = {
         encodedVMs: results.map((v) => v.bytes),
         encodedDeliveryVAA: deliveryVaa,
         relayerRefundAddress: wallet.address,
