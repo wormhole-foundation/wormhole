@@ -85,9 +85,9 @@ export const builder = function (y: typeof yargs) {
             } as const)
         ,
         (argv) => {
-          let module = argv["module"];
-          assertChain(argv["chain"]);
-          let payload: PortalRegisterChain<typeof module> = {
+          const module = argv["module"];
+          assertChain(argv.chain);
+          const payload: PortalRegisterChain<typeof module> = {
             module,
             type: "RegisterChain",
             chain: 0,
@@ -128,9 +128,9 @@ export const builder = function (y: typeof yargs) {
               demandOption: true,
             } as const),
         (argv) => {
-          assertChain(argv["chain"]);
-          let module = argv["module"];
-          let payload: ContractUpgrade = {
+          assertChain(argv.chain);
+          const module = argv["module"];
+          const payload: ContractUpgrade = {
             module,
             type: "ContractUpgrade",
             chain: toChainId(argv.chain),
@@ -276,8 +276,8 @@ export const builder = function (y: typeof yargs) {
             })
         },
         (argv) => {
-          assertChain(argv["chain"]);
-          let payload: WormholeRelayerSetDefaultDeliveryProvider = {
+          assertChain(argv.chain);
+          const payload: WormholeRelayerSetDefaultDeliveryProvider = {
             module: "WormholeRelayer",
             type: "SetDefaultDeliveryProvider",
             chain: toChainId(argv["chain"]),

@@ -36,7 +36,7 @@ Usage:
 
   where:
     -h  show this help text
-    -m  module (TokenBridge, NFTBridge, CoreRelayer)
+    -m  module (TokenBridge, NFTBridge, WormholeRelayer)
     -c  chain name
     -a  emitter address (optional, derived by worm CLI by default)
     -o  multi-mode output directory
@@ -124,10 +124,10 @@ guardiand template token-bridge-register-chain \\
   --chain-id $chain --module \"NFTBridge\" \\
   --new-address $address"
     ;;
-  CoreRelayer)
+  WormholeRelayer)
     echo "\
 guardiand template token-bridge-register-chain \\
-  --chain-id $chain --module \"CoreRelayer\" \\
+  --chain-id $chain --module \"WormholeRelayer\" \\
   --new-address $address"
     ;;
   *) echo "unknown module $module" >&2

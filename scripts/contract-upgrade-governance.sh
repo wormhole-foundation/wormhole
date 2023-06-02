@@ -237,7 +237,7 @@ guardiand template token-bridge-upgrade-contract \\
   wormhole_relayer)
     echo "\
 guardiand template token-bridge-upgrade-contract \\
-  --chain-id $chain --module \"CoreRelayer\" \\
+  --chain-id $chain --module \"WormholeRelayer\" \\
   --new-address $address"
     ;;
   *) echo "unknown module $module" >&2
