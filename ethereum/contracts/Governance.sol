@@ -9,23 +9,36 @@ import "./Messages.sol";
 import "./Setters.sol";
 
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
+error InvalidFork();
 
 /**
  * @dev `Governance` defines a means to enacting changes to the core bridge contract,
  * guardianSets, message fees, and transfer fees
  */
-abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upgrade {
-    event ContractUpgraded(address indexed oldContract, address indexed newContract);
+abstract contract Governance is
+    GovernanceStructs,
+    Messages,
+    Setters,
+    ERC1967Upgrade
+{
+    event ContractUpgraded(
+        address indexed oldContract,
+        address indexed newContract
+    );
     event GuardianSetAdded(uint32 indexed index);
 
     // "Core" (left padded)
-    bytes32 constant module = 0x00000000000000000000000000000000000000000000000000000000436f7265;
+    bytes32 constant module =
+        0x00000000000000000000000000000000000000000000000000000000436f7265;
 
     /**
      * @dev Upgrades a contract via Governance VAA/VM
      */
     function submitContractUpgrade(bytes memory _vm) public {
-        require(!isFork(), "invalid fork");
+        // Check if the current state is a fork and revert with custom error if it is
+        if (isFork()) {
+            revert InvalidFork();
+        }
 
         Structs.VM memory vm = parseVM(_vm);
 
@@ -33,7 +46,9 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
         (bool isValid, string memory reason) = verifyGovernanceVM(vm);
         require(isValid, reason);
 
-        GovernanceStructs.ContractUpgrade memory upgrade = parseContractUpgrade(vm.payload);
+        GovernanceStructs.ContractUpgrade memory upgrade = parseContractUpgrade(
+            vm.payload
+        );
 
         // Verify the VAA is for this module
         require(upgrade.module == module, "Invalid Module");
@@ -58,7 +73,9 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
         (bool isValid, string memory reason) = verifyGovernanceVM(vm);
         require(isValid, reason);
 
-        GovernanceStructs.SetMessageFee memory upgrade = parseSetMessageFee(vm.payload);
+        GovernanceStructs.SetMessageFee memory upgrade = parseSetMessageFee(
+            vm.payload
+        );
 
         // Verify the VAA is for this module
         require(upgrade.module == module, "Invalid Module");
@@ -83,20 +100,30 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
         (bool isValid, string memory reason) = verifyGovernanceVM(vm);
         require(isValid, reason);
 
-        GovernanceStructs.GuardianSetUpgrade memory upgrade = parseGuardianSetUpgrade(vm.payload);
+        GovernanceStructs.GuardianSetUpgrade
+            memory upgrade = parseGuardianSetUpgrade(vm.payload);
 
         // Verify the VAA is for this module
         require(upgrade.module == module, "invalid Module");
 
         // Verify the VAA is for this chain
-        require((upgrade.chain == chainId() && !isFork()) || upgrade.chain == 0, "invalid Chain");
+        require(
+            (upgrade.chain == chainId() && !isFork()) || upgrade.chain == 0,
+            "invalid Chain"
+        );
 
         // Verify the Guardian Set keys are not empty, this guards
         // against the accidential upgrade to an empty GuardianSet
-        require(upgrade.newGuardianSet.keys.length > 0, "new guardian set is empty");
+        require(
+            upgrade.newGuardianSet.keys.length > 0,
+            "new guardian set is empty"
+        );
 
         // Verify that the index is incrementing via a predictable +1 pattern
-        require(upgrade.newGuardianSetIndex == getCurrentGuardianSetIndex() + 1, "index must increase in steps of 1");
+        require(
+            upgrade.newGuardianSetIndex == getCurrentGuardianSetIndex() + 1,
+            "index must increase in steps of 1"
+        );
 
         // Record the governance action as consumed to prevent reentry
         setGovernanceActionConsumed(vm.hash);
@@ -122,27 +149,34 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
         require(isValid, reason);
 
         // Obtains the transfer from the VAA payload
-        GovernanceStructs.TransferFees memory transfer = parseTransferFees(vm.payload);
+        GovernanceStructs.TransferFees memory transfer = parseTransferFees(
+            vm.payload
+        );
 
         // Verify the VAA is for this module
         require(transfer.module == module, "invalid Module");
 
         // Verify the VAA is for this chain
-        require((transfer.chain == chainId() && !isFork()) || transfer.chain == 0, "invalid Chain");
+        require(
+            (transfer.chain == chainId() && !isFork()) || transfer.chain == 0,
+            "invalid Chain"
+        );
 
         // Record the governance action as consumed to prevent reentry
         setGovernanceActionConsumed(vm.hash);
 
         // Obtains the recipient address to be paid transfer fees
-        address payable recipient = payable(address(uint160(uint256(transfer.recipient))));
+        address payable recipient = payable(
+            address(uint160(uint256(transfer.recipient)))
+        );
 
         // Transfers transfer fees to the recipient
         recipient.transfer(transfer.amount);
     }
 
     /**
-    * @dev Updates the `chainId` and `evmChainId` on a forked chain via Governance VAA/VM
-    */
+     * @dev Updates the `chainId` and `evmChainId` on a forked chain via Governance VAA/VM
+     */
     function submitRecoverChainId(bytes memory _vm) public {
         require(isFork(), "not a fork");
 
@@ -152,7 +186,9 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
         (bool isValid, string memory reason) = verifyGovernanceVM(vm);
         require(isValid, reason);
 
-        GovernanceStructs.RecoverChainId memory rci = parseRecoverChainId(vm.payload);
+        GovernanceStructs.RecoverChainId memory rci = parseRecoverChainId(
+            vm.payload
+        );
 
         // Verify the VAA is for this module
         require(rci.module == module, "invalid Module");
@@ -177,7 +213,9 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
         _upgradeTo(newImplementation);
 
         // Call initialize function of the new implementation
-        (bool success, bytes memory reason) = newImplementation.delegatecall(abi.encodeWithSignature("initialize()"));
+        (bool success, bytes memory reason) = newImplementation.delegatecall(
+            abi.encodeWithSignature("initialize()")
+        );
 
         require(success, string(reason));
 
@@ -187,10 +225,12 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
     /**
      * @dev Verifies a Governance VAA/VM is valid
      */
-    function verifyGovernanceVM(Structs.VM memory vm) internal view returns (bool, string memory){
+    function verifyGovernanceVM(
+        Structs.VM memory vm
+    ) internal view returns (bool, string memory) {
         // Verify the VAA is valid
         (bool isValid, string memory reason) = verifyVM(vm);
-        if (!isValid){
+        if (!isValid) {
             return (false, reason);
         }
 
@@ -211,7 +251,7 @@ abstract contract Governance is GovernanceStructs, Messages, Setters, ERC1967Upg
 
         // Verify this governance action hasn't already been
         // consumed to prevent reentry and replay
-        if (governanceActionIsConsumed(vm.hash)){
+        if (governanceActionIsConsumed(vm.hash)) {
             return (false, "governance action already consumed");
         }
 
