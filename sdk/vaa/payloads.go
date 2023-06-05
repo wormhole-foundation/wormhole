@@ -32,6 +32,14 @@ var IbcReceiverModule = [32]byte{
 }
 var IbcReceiverModuleStr = string(IbcReceiverModule[:])
 
+// WormholeRelayerModule is the identifier of the Wormhole Relayer module (which is used for governance messages).
+// It is the hex representation of "WormholeRelayer" left padded with zeroes.
+var WormholeRelayerModule = [32]byte{
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x57, 0x6f, 0x72, 0x6d, 0x68, 0x6f, 0x6c, 0x65, 0x52, 0x65, 0x6c, 0x61, 0x79, 0x65, 0x72,
+}
+var WormholeRelayerModuleStr = string(WormholeRelayerModule[:])
+
 type GovernanceAction uint8
 
 var (
@@ -63,6 +71,9 @@ var (
 
 	// Ibc Receiver governance actions
 	IbcReceiverActionUpdateChannelChain GovernanceAction = 1
+
+	// Wormhole relayer governance actions
+	WormholeRelayerSetDefaultDeliveryProvider GovernanceAction = 3
 )
 
 type (
@@ -149,6 +160,12 @@ type (
 		// If the identifier string is shorter than 64 bytes, the correct number of 0x00 bytes should be prepended.
 		ChannelId [64]byte
 		ChainId   ChainID
+	}
+
+	// BodyWormholeRelayerSetDefaultDeliveryProvider is a governance message to set the default relay provider for the Wormhole Relayer.
+	BodyWormholeRelayerSetDefaultDeliveryProvider struct {
+		ChainID                           ChainID
+		NewDefaultDeliveryProviderAddress Address
 	}
 )
 
@@ -256,6 +273,12 @@ func (r BodyIbcReceiverUpdateChannelChain) Serialize() []byte {
 	payload.Write(r.ChannelId[:])
 	MustWrite(payload, binary.BigEndian, r.ChainId)
 	return serializeBridgeGovernanceVaa(IbcReceiverModuleStr, IbcReceiverActionUpdateChannelChain, r.TargetChainId, payload.Bytes())
+}
+
+func (r BodyWormholeRelayerSetDefaultDeliveryProvider) Serialize() []byte {
+	payload := &bytes.Buffer{}
+	payload.Write(r.NewDefaultDeliveryProviderAddress[:])
+	return serializeBridgeGovernanceVaa(WormholeRelayerModuleStr, WormholeRelayerSetDefaultDeliveryProvider, r.ChainID, payload.Bytes())
 }
 
 func serializeBridgeGovernanceVaa(module string, actionId GovernanceAction, chainId ChainID, payload []byte) []byte {

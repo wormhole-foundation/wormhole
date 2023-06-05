@@ -80,6 +80,9 @@ func init() {
 	AdminClientTokenBridgeUpgradeContractCmd.Flags().AddFlagSet(moduleFlagSet)
 	TemplateCmd.AddCommand(AdminClientTokenBridgeUpgradeContractCmd)
 
+	AdminClientWormholeRelayerSetDefaultDeliveryProviderCmd.Flags().AddFlagSet(governanceFlagSet)
+	TemplateCmd.AddCommand(AdminClientWormholeRelayerSetDefaultDeliveryProviderCmd)
+
 	AdminClientShutdownProofCmd.Flags().AddFlagSet(authProofFlagSet)
 	TemplateCmd.AddCommand(AdminClientShutdownProofCmd)
 
@@ -208,6 +211,12 @@ var AdminClientIbcReceiverUpdateChannelChainCmd = &cobra.Command{
 	Use:   "ibc-receiver-update-channel-chain",
 	Short: "Generate an empty ibc receiver channelId to chainId mapping update template at specified path",
 	Run:   runIbcReceiverUpdateChannelChainTemplate,
+}
+
+var AdminClientWormholeRelayerSetDefaultDeliveryProviderCmd = &cobra.Command{
+	Use:   "wormhole-relayer-set-default-relay-provider",
+	Short: "Generate a 'set default relay provider' template for specified chain and address",
+	Run:   runWormholeRelayerSetDefaultDeliveryProviderTemplate,
 }
 
 func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
@@ -670,6 +679,40 @@ func runIbcReceiverUpdateChannelChainTemplate(cmd *cobra.Command, args []string)
 						TargetChainId: uint32(targetChainId),
 						ChannelId:     *ibcReceiverUpdateChannelChainChannelId,
 						ChainId:       uint32(chainId),
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
+
+}
+
+func runWormholeRelayerSetDefaultDeliveryProviderTemplate(cmd *cobra.Command, args []string) {
+	address, err := parseAddress(*address)
+	if err != nil {
+		log.Fatal(err)
+	}
+	chainID, err := parseChainID(*chainID)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_WormholeRelayerSetDefaultDeliveryProvider{
+					WormholeRelayerSetDefaultDeliveryProvider: &nodev1.WormholeRelayerSetDefaultDeliveryProvider{
+						ChainId:                           uint32(chainID),
+						NewDefaultDeliveryProviderAddress: address,
 					},
 				},
 			},

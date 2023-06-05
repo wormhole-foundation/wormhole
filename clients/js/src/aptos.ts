@@ -227,6 +227,8 @@ export async function execute_aptos(
 
       break;
     }
+    case "WormholeRelayer":
+      throw Error("Wormhole Relayer not supported on Aptos");
     default:
       impossible(payload);
   }
