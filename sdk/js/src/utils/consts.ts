@@ -35,45 +35,56 @@ export const CHAINS = {
 } as const;
 
 export type ChainName = keyof typeof CHAINS;
-export type ChainId = typeof CHAINS[ChainName];
+export type ChainId = (typeof CHAINS)[ChainName];
 
 /**
  *
  * All the EVM-based chain names that Wormhole supports
  */
-export type EVMChainName =
-  | "ethereum"
-  | "bsc"
-  | "polygon"
-  | "avalanche"
-  | "oasis"
-  | "aurora"
-  | "fantom"
-  | "karura"
-  | "acala"
-  | "klaytn"
-  | "celo"
-  | "moonbeam"
-  | "neon"
-  | "arbitrum"
-  | "optimism"
-  | "gnosis"
-  | "base"
-  | "sepolia";
+export const EVMChainNames = [
+  "ethereum",
+  "bsc",
+  "polygon",
+  "avalanche",
+  "oasis",
+  "aurora",
+  "fantom",
+  "karura",
+  "acala",
+  "klaytn",
+  "celo",
+  "moonbeam",
+  "neon",
+  "arbitrum",
+  "optimism",
+  "gnosis",
+  "base",
+  "sepolia",
+] as const;
+export type EVMChainName = (typeof EVMChainNames)[number];
 
-/**
+
+export type NonEVMChainName = Exclude<ChainName, EVMChainName>
+
+/*
  *
  * All the Solana-based chain names that Wormhole supports
  */
-export type SolanaChainName = "solana" | "pythnet";
+export const SolanaChainNames = ["solana", "pythnet"] as const;
+export type SolanaChainName = (typeof SolanaChainNames)[number];
 
-export type CosmWasmChainName =
-  | "terra"
-  | "terra2"
-  | "injective"
-  | "xpla"
-  | "sei";
-export type TerraChainName = "terra" | "terra2";
+export const CosmWasmChainNames = [
+  "terra",
+  "terra2",
+  "injective",
+  "xpla",
+  "sei",
+] as const;
+export type CosmWasmChainName = (typeof CosmWasmChainNames)[number];
+
+// TODO: why? these are dupe of entries in CosmWasm
+export const TerraChainNames = ["terra", "terra2"] as const;
+export type TerraChainName = (typeof TerraChainNames)[number];
 
 export type Contracts = {
   core: string | undefined;
@@ -681,7 +692,7 @@ export const CHAIN_ID_SEPOLIA = CHAINS["sepolia"];
 
 // This inverts the [[CHAINS]] object so that we can look up a chain by id
 export type ChainIdToName = {
-  -readonly [key in keyof typeof CHAINS as typeof CHAINS[key]]: key;
+  -readonly [key in keyof typeof CHAINS as (typeof CHAINS)[key]]: key;
 };
 export const CHAIN_ID_TO_NAME: ChainIdToName = Object.entries(CHAINS).reduce(
   (obj, [name, id]) => {
@@ -695,11 +706,21 @@ export const CHAIN_ID_TO_NAME: ChainIdToName = Object.entries(CHAINS).reduce(
  *
  * All the EVM-based chain ids that Wormhole supports
  */
-export type EVMChainId = typeof CHAINS[EVMChainName];
+export type EVMChainId = (typeof CHAINS)[EVMChainName];
 
-export type CosmWasmChainId = typeof CHAINS[CosmWasmChainName];
+/**
+ *
+ * All the Solana-based chain ids that Wormhole supports
+ */
+export type SolanaChainId = (typeof CHAINS)[SolanaChainName];
 
-export type TerraChainId = typeof CHAINS[TerraChainName];
+/**
+ *
+ * All the CosmWasm-based chain ids that Wormhole supports
+ */
+export type CosmWasmChainId = (typeof CHAINS)[CosmWasmChainName];
+
+export type TerraChainId = (typeof CHAINS)[TerraChainName];
 /**
  *
  * Returns true when called with a valid chain, and narrows the type in the
@@ -790,51 +811,33 @@ export function coalesceChainName(chain: ChainId | ChainName): ChainName {
 export function isEVMChain(
   chain: ChainId | ChainName
 ): chain is EVMChainId | EVMChainName {
-  let chainId = coalesceChainId(chain);
-  if (
-    chainId === CHAIN_ID_ETH ||
-    chainId === CHAIN_ID_BSC ||
-    chainId === CHAIN_ID_AVAX ||
-    chainId === CHAIN_ID_POLYGON ||
-    chainId === CHAIN_ID_OASIS ||
-    chainId === CHAIN_ID_AURORA ||
-    chainId === CHAIN_ID_FANTOM ||
-    chainId === CHAIN_ID_KARURA ||
-    chainId === CHAIN_ID_ACALA ||
-    chainId === CHAIN_ID_KLAYTN ||
-    chainId === CHAIN_ID_CELO ||
-    chainId === CHAIN_ID_MOONBEAM ||
-    chainId === CHAIN_ID_NEON ||
-    chainId === CHAIN_ID_ARBITRUM ||
-    chainId === CHAIN_ID_OPTIMISM ||
-    chainId === CHAIN_ID_GNOSIS ||
-    chainId === CHAIN_ID_BASE ||
-    chainId === CHAIN_ID_SEPOLIA
-  ) {
-    return isEVM(chainId);
+  let chainName = coalesceChainName(chain);
+  if (chainName in EVMChainNames){
+    return isEVM(chainName as EVMChainName);
   } else {
-    return notEVM(chainId);
+    return notEVM(chainName as NonEVMChainName);
   }
 }
 
 export function isCosmWasmChain(
   chain: ChainId | ChainName
 ): chain is CosmWasmChainId | CosmWasmChainName {
-  const chainId = coalesceChainId(chain);
-  return (
-    chainId === CHAIN_ID_TERRA ||
-    chainId === CHAIN_ID_TERRA2 ||
-    chainId === CHAIN_ID_INJECTIVE ||
-    chainId === CHAIN_ID_XPLA ||
-    chainId === CHAIN_ID_SEI
-  );
+  const chainName = coalesceChainName(chain);
+  return chainName in CosmWasmChainNames;
 }
 
 export function isTerraChain(
   chain: ChainId | ChainName
 ): chain is TerraChainId | TerraChainName {
-  const chainId = coalesceChainId(chain);
-  return chainId === CHAIN_ID_TERRA || chainId === CHAIN_ID_TERRA2;
+  const chainName = coalesceChainName(chain);
+  return chainName in TerraChainNames;
+}
+
+export function isSolanaChain(
+  chain: ChainId | ChainName
+): chain is SolanaChainId | SolanaChainName {
+  const chainName = coalesceChainName(chain);
+  return chainName in SolanaChainNames;
 }
 
 /**
