@@ -1,9 +1,13 @@
-import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+import {
+  CHAINS,
+  CONTRACTS,
+} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import {
   getNetworkInfo,
   Network as InjectiveNetwork,
 } from "@injectivelabs/networks";
 import {
+  ChainGrpcWasmApi,
   ChainRestAuthApi,
   createTransaction,
   MsgExecuteContractCompat,
@@ -202,4 +206,72 @@ export async function execute_injective(
       `Broadcasted transaction hash: ${JSON.stringify(txResponse.txHash)}`
     );
   }
+}
+
+export async function queryRegistrationsInjective(
+  network: Network,
+  module: "Core" | "NFTBridge" | "TokenBridge"
+) {
+  let chain = "injective";
+  let n = NETWORKS[network][chain];
+  let contracts = CONTRACTS[network][chain];
+
+  let targetContract: string;
+
+  switch (module) {
+    case "TokenBridge":
+      targetContract = contracts.token_bridge;
+      break;
+    case "NFTBridge":
+      targetContract = contracts.nft_bridge;
+      break;
+    default:
+      throw new Error(`Invalid module: ${module}`);
+  }
+
+  if (!targetContract) {
+    throw new Error(`Contract for ${module} on ${network} does not exist`);
+  }
+
+  const client = new ChainGrpcWasmApi(n.rpc);
+
+  // Query the bridge registration for all the chains in parallel.
+  const registrationsPromise = Promise.all(
+    Object.entries(CHAINS)
+      .filter(([c_name, _]) => c_name !== chain && c_name !== "unset")
+      .map(async ([c_name, c_id]) => [
+        c_name,
+        await (async () => {
+          let query_msg = {
+            chain_registration: {
+              chain: c_id,
+            },
+          };
+
+          let result = null;
+          try {
+            result = await client.fetchSmartContractState(
+              targetContract,
+              Buffer.from(JSON.stringify(query_msg)).toString("base64")
+            );
+          } catch {
+            // Not logging anything because a chain not registered returns an error.
+          }
+
+          return result;
+        })(),
+      ])
+  );
+
+  const registrations = await registrationsPromise;
+
+  let results = {};
+  for (let [c_name, queryResponse] of registrations) {
+    if (queryResponse) {
+      results[c_name] = Buffer.from(queryResponse.address, "base64").toString(
+        "hex"
+      );
+    }
+  }
+  console.log(results);
 }
