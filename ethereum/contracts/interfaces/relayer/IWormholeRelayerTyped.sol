@@ -53,8 +53,8 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * Any refunds (from leftover gas) will be paid to the delivery provider. In order to receive the refunds, use the 'sendPayloadToEvm' function 
      * with 'refundChain' and 'refundAddress' as parameters
      * 
-     * @param targetChain destination chain, in Wormhole Chain ID format
-     * @param targetAddress destination address 
+     * @param targetChain in Wormhole Chain ID format
+     * @param targetAddress address to call on targetChain (that implements IWormholeReceiver) 
      * @param payload arbitrary bytes to pass in as parameter in call to 'targetAddress'
      * @param receiverValue msg.value that delivery provider should pass in for call to 'targetAddress' (in targetChain currency units)
      * @param gasLimit gas limit with which to call 'targetAddress'.
@@ -78,8 +78,8 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * 
      * This function must be called with msg.value equal to quoteEVMDeliveryPrice(targetChain, receiverValue, gasLimit)
      * 
-     * @param targetChain destination chain, in Wormhole Chain ID format
-     * @param targetAddress destination address 
+     * @param targetChain in Wormhole Chain ID format
+     * @param targetAddress address to call on targetChain (that implements IWormholeReceiver) 
      * @param payload arbitrary bytes to pass in as parameter in call to 'targetAddress'
      * @param receiverValue msg.value that delivery provider should pass in for call to 'targetAddress' (in targetChain currency units)
      * @param gasLimit gas limit with which to call 'targetAddress'. Any units of gas unused will be refunded according to a rate 
@@ -110,8 +110,8 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * Any refunds (from leftover gas) will be paid to the delivery provider. In order to receive the refunds, use the 'sendVaasToEvm' function 
      * with 'refundChain' and 'refundAddress' as parameters
      * 
-     * @param targetChain destination chain, in Wormhole Chain ID format
-     * @param targetAddress destination address 
+     * @param targetChain in Wormhole Chain ID format
+     * @param targetAddress address to call on targetChain (that implements IWormholeReceiver) 
      * @param payload arbitrary bytes to pass in as parameter in call to 'targetAddress'
      * @param receiverValue msg.value that delivery provider should pass in for call to 'targetAddress' (in targetChain currency units)
      * @param gasLimit gas limit with which to call 'targetAddress'. 
@@ -137,8 +137,8 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * 
      * This function must be called with msg.value equal to quoteEVMDeliveryPrice(targetChain, receiverValue, gasLimit)
      * 
-     * @param targetChain destination chain, in Wormhole Chain ID format
-     * @param targetAddress destination address 
+     * @param targetChain in Wormhole Chain ID format
+     * @param targetAddress address to call on targetChain (that implements IWormholeReceiver) 
      * @param payload arbitrary bytes to pass in as parameter in call to 'targetAddress'
      * @param receiverValue msg.value that delivery provider should pass in for call to 'targetAddress' (in targetChain currency units)
      * @param gasLimit gas limit with which to call 'targetAddress'. Any units of gas unused will be refunded according to a rate 
@@ -171,8 +171,8 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * This function must be called with msg.value equal to 
      * quoteEVMDeliveryPrice(targetChain, receiverValue, gasLimit, deliveryProviderAddress) + paymentForExtraReceiverValue
      * 
-     * @param targetChain destination chain, in Wormhole Chain ID format
-     * @param targetAddress destination address 
+     * @param targetChain in Wormhole Chain ID format
+     * @param targetAddress address to call on targetChain (that implements IWormholeReceiver) 
      * @param payload arbitrary bytes to pass in as parameter in call to 'targetAddress'
      * @param receiverValue msg.value that delivery provider should pass in for call to 'targetAddress' (in targetChain currency units)
      * @param paymentForExtraReceiverValue amount (in current chain currency units) to spend on extra receiverValue 
@@ -213,8 +213,8 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * This function must be called with msg.value equal to 
      * quoteDeliveryPrice(targetChain, receiverValue, encodedExecutionParameters, deliveryProviderAddress) + paymentForExtraReceiverValue  
      * 
-     * @param targetChain destination chain, in Wormhole Chain ID format
-     * @param targetAddress destination address, in Wormhole bytes32 format
+     * @param targetChain in Wormhole Chain ID format
+     * @param targetAddress address to call on targetChain (that implements IWormholeReceiver), in Wormhole bytes32 format
      * @param payload arbitrary bytes to pass in as parameter in call to 'targetAddress'
      * @param receiverValue msg.value that delivery provider should pass in for call to 'targetAddress' (in targetChain currency units)
      * @param paymentForExtraReceiverValue amount (in current chain currency units) to spend on extra receiverValue 
@@ -244,9 +244,11 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     ) external payable returns (uint64 sequence);
 
     /**
-     * @notice Performs a send, and uses the current refund to fund the 'send'
+     * @notice Performs the same function as a 'send', except:
+     * 1)  Can only be used during a delivery (i.e. in execution of 'receiveWormholeMessages')
+     * 2)  Is paid for (along with any other calls to forward) by (any msg.value passed in) + (refund leftover from current delivery)
+     * 3)  Only executes after 'receiveWormholeMessages' is completed (and thus does not return a sequence number)
      * 
-     * Can only be called within execution of 'receiveWormholeMessages', i.e. during a delivery
      * The refund from the delivery currently in progress will not be sent to the user; it will instead
      * be paid to the delivery provider to perform the instruction specified here
      * 
@@ -260,10 +262,11 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * 
      * The difference between the two sides of the above inequality will be added to 'paymentForExtraReceiverValue' of the first forward requested
      * 
-     * TODO REFUND COMMENT
+     * Any refunds (from leftover gas) will be paid to the delivery provider. In order to receive the refunds, use the 'forwardToEvm' function 
+     * with 'refundChain' and 'refundAddress' as parameters
      * 
-     * @param targetChain destination chain, in Wormhole Chain ID format
-     * @param targetAddress destination address, in Wormhole bytes32 format
+     * @param targetChain in Wormhole Chain ID format
+     * @param targetAddress address to call on targetChain (that implements IWormholeReceiver), in Wormhole bytes32 format
      * @param payload arbitrary bytes to pass in as parameter in call to 'targetAddress'
      * @param receiverValue msg.value that delivery provider should pass in for call to 'targetAddress' (in targetChain currency units)
      * @param gasLimit gas limit with which to call 'targetAddress'.
@@ -277,9 +280,11 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     ) external payable;
 
     /**
-     * @notice Performs a send, and uses the current refund to fund the 'send'
+     * @notice Performs the same function as a 'send', except:
+     * 1)  Can only be used during a delivery (i.e. in execution of 'receiveWormholeMessages')
+     * 2)  Is paid for (along with any other calls to forward) by (any msg.value passed in) + (refund leftover from current delivery)
+     * 3)  Only executes after 'receiveWormholeMessages' is completed (and thus does not return a sequence number)
      * 
-     * Can only be called within execution of 'receiveWormholeMessages', i.e. during a delivery
      * The refund from the delivery currently in progress will not be sent to the user; it will instead
      * be paid to the delivery provider to perform the instruction specified here
      * 
@@ -293,10 +298,11 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * 
      * The difference between the two sides of the above inequality will be added to 'paymentForExtraReceiverValue' of the first forward requested
      * 
-     * TODO REFUND COMMENT
+     * Any refunds (from leftover gas) will be paid to the delivery provider. In order to receive the refunds, use the 'forwardToEvm' function 
+     * with 'refundChain' and 'refundAddress' as parameters
      * 
-     * @param targetChain destination chain, in Wormhole Chain ID format
-     * @param targetAddress destination address, in Wormhole bytes32 format
+     * @param targetChain in Wormhole Chain ID format
+     * @param targetAddress address to call on targetChain (that implements IWormholeReceiver), in Wormhole bytes32 format
      * @param payload arbitrary bytes to pass in as parameter in call to 'targetAddress'
      * @param receiverValue msg.value that delivery provider should pass in for call to 'targetAddress' (in targetChain currency units)
      * @param gasLimit gas limit with which to call 'targetAddress'. 
@@ -312,9 +318,11 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     ) external payable;
 
     /**
-     * @notice Performs a send, and uses the current refund to fund the 'send'
+     * @notice Performs the same function as a 'send', except:
+     * 1)  Can only be used during a delivery (i.e. in execution of 'receiveWormholeMessages')
+     * 2)  Is paid for (along with any other calls to forward) by (any msg.value passed in) + (refund leftover from current delivery)
+     * 3)  Only executes after 'receiveWormholeMessages' is completed (and thus does not return a sequence number)
      * 
-     * Can only be called within execution of 'receiveWormholeMessages', i.e. during a delivery
      * The refund from the delivery currently in progress will not be sent to the user; it will instead
      * be paid to the delivery provider to perform the instruction specified here
      * 
@@ -332,8 +340,8 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * 
      * The difference between the two sides of the above inequality will be added to 'paymentForExtraReceiverValue' of the first forward requested
      * 
-     * @param targetChain destination chain, in Wormhole Chain ID format
-     * @param targetAddress destination address, in Wormhole bytes32 format
+     * @param targetChain in Wormhole Chain ID format
+     * @param targetAddress address to call on targetChain (that implements IWormholeReceiver), in Wormhole bytes32 format
      * @param payload arbitrary bytes to pass in as parameter in call to 'targetAddress'
      * @param receiverValue msg.value that delivery provider should pass in for call to 'targetAddress' (in targetChain currency units)
      * @param paymentForExtraReceiverValue amount (in current chain currency units) to spend on extra receiverValue 
@@ -362,9 +370,11 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     ) external payable;
 
     /**
-     * @notice Performs a send, and uses the current refund to fund the 'send'
+     * @notice Performs the same function as a 'send', except:
+     * 1)  Can only be used during a delivery (i.e. in execution of 'receiveWormholeMessages')
+     * 2)  Is paid for (along with any other calls to forward) by (any msg.value passed in) + (refund leftover from current delivery)
+     * 3)  Only executes after 'receiveWormholeMessages' is completed (and thus does not return a sequence number)
      * 
-     * Can only be called within execution of 'receiveWormholeMessages', i.e. during a delivery
      * The refund from the delivery currently in progress will not be sent to the user; it will instead
      * be paid to the delivery provider to perform the instruction specified here
      * 
@@ -382,8 +392,8 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * 
      * The difference between the two sides of the above inequality will be added to 'paymentForExtraReceiverValue' of the first forward requested
      * 
-     * @param targetChain destination chain, in Wormhole Chain ID format
-     * @param targetAddress destination address, in Wormhole bytes32 format
+     * @param targetChain in Wormhole Chain ID format
+     * @param targetAddress address to call on targetChain (that implements IWormholeReceiver), in Wormhole bytes32 format
      * @param payload arbitrary bytes to pass in as parameter in call to 'targetAddress'
      * @param receiverValue msg.value that delivery provider should pass in for call to 'targetAddress' (in targetChain currency units)
      * @param paymentForExtraReceiverValue amount (in current chain currency units) to spend on extra receiverValue 
@@ -413,6 +423,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
 
     /**
      * @notice Requests a previously published delivery instruction to be redelivered 
+     * (e.g. with a different delivery provider)
      *
      * This function must be called with msg.value equal to 
      * quoteEVMDeliveryPrice(targetChain, newReceiverValue, newGasLimit, newDeliveryProviderAddress)
@@ -436,6 +447,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
 
     /**
      * @notice Requests a previously published delivery instruction to be redelivered 
+     * 
      *
      * This function must be called with msg.value equal to 
      * quoteDeliveryPrice(targetChain, newReceiverValue, newEncodedExecutionParameters, newDeliveryProviderAddress)
@@ -460,7 +472,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     /**
      * @notice Returns the price to request a relay to chain 'targetChain', using the default delivery provider
      * 
-     * @param targetChain destination chain, in Wormhole Chain ID format
+     * @param targetChain in Wormhole Chain ID format
      * @param receiverValue msg.value that delivery provider should pass in for call to 'targetAddress' (in targetChain currency units)
      * @param gasLimit gas limit with which to call 'targetAddress'. 
      * @return nativePriceQuote Price, in units of current chain currency, that the delivery provider charges to perform the relay
@@ -476,7 +488,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     /**
      * @notice Returns the price to request a relay to chain 'targetChain', using delivery provider 'deliveryProviderAddress'
      * 
-     * @param targetChain destination chain, in Wormhole Chain ID format
+     * @param targetChain in Wormhole Chain ID format
      * @param receiverValue msg.value that delivery provider should pass in for call to 'targetAddress' (in targetChain currency units)
      * @param gasLimit gas limit with which to call 'targetAddress'. 
      * @param deliveryProviderAddress The address of the desired delivery provider's implementation of IDeliveryProvider
@@ -494,7 +506,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     /**
      * @notice Returns the price to request a relay to chain 'targetChain', using delivery provider 'deliveryProviderAddress'
      * 
-     * @param targetChain destination chain, in Wormhole Chain ID format
+     * @param targetChain in Wormhole Chain ID format
      * @param receiverValue msg.value that delivery provider should pass in for call to 'targetAddress' (in targetChain currency units)
      * @param encodedExecutionParameters encoded information on how to execute delivery that may impact pricing
      *        e.g. for version EVM_V1, this is a struct that encodes the 'gasLimit' with which to call 'targetAddress'
@@ -516,7 +528,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * @notice Returns the (extra) amount of target chain currency that 'targetAddress'
      * will be called with, if the 'paymentForExtraReceiverValue' field is set to 'currentChainAmount'
      * 
-     * @param targetChain destination chain, in Wormhole Chain ID format
+     * @param targetChain in Wormhole Chain ID format
      * @param currentChainAmount The value that 'paymentForExtraReceiverValue' will be set to
      * @param deliveryProviderAddress The address of the desired delivery provider's implementation of IDeliveryProvider
      * @return targetChainAmount The amount such that if 'targetAddress' will be called with msg.value equal to
