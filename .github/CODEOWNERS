@@ -9,6 +9,7 @@
 /bitcoin/ @conorpp @jumpsiegel
 /cosmwasm/ @jynnantonix @kcsongor @a5-pickle
 /ethereum/ @a5-pickle @calebrate @gator-boi @hendrikhofstadt @kcsongor
+/ethereum/contracts/relayer @chase-45 @derpy-duck @JoeHowarth 
 /near/ @jumpsiegel
 /solana/ @hendrikhofstadt @kcsongor @a5-pickle
 /sui/ @kcsongor @a5-pickle @gator-boi @heyitaki
@@ -19,7 +20,8 @@
 
 /clients/ @kcsongor @kev1n-peters @evan-gray
 /lp_ui/ @evan-gray @kev1n-peters
-/relayer/ @evan-gray @kev1n-peters
+/relayer/spy_relayer @evan-gray @kev1n-peters
+/relayer/generic_relayer @chase-45 @derpy-duck @JoeHowarth 
 /scripts/ @evan-gray @kcsongor
 /sdk/ @bruce-riley @evan-gray
 /sdk/js-proto-node/ @evan-gray @kev1n-peters
