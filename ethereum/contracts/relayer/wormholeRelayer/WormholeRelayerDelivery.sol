@@ -71,7 +71,9 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         //  cost of the happy path.
         startDelivery(
             fromWormholeFormat(instruction.targetAddress),
-            fromWormholeFormat(instruction.refundDeliveryProvider)
+            fromWormholeFormat(instruction.refundDeliveryProvider),
+            instruction.refundChain,
+            instruction.refundAddress
         );
 
         DeliveryVAAInfo memory deliveryVaaInfo = DeliveryVAAInfo({

@@ -162,17 +162,17 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         TargetNative receiverValue,
         Gas gasLimit
     ) external payable {
-        (address deliveryProvider, address deliveryProviderOnTarget) =
+        (address deliveryProvider,) =
             getOriginalOrDefaultDeliveryProvider(targetChain);
-        forwardToEvm(
+        forward(
             targetChain,
-            targetAddress,
+            toWormholeFormat(targetAddress),
             payload,
             receiverValue,
             LocalNative.wrap(0),
-            gasLimit,
-            targetChain,
-            deliveryProviderOnTarget,
+            encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit)),
+            getCurrentRefundChain(),
+            getCurrentRefundAddress(),
             deliveryProvider,
             new VaaKey[](0),
             CONSISTENCY_LEVEL_FINALIZED
@@ -187,17 +187,17 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         Gas gasLimit,
         VaaKey[] memory vaaKeys
     ) external payable {
-        (address deliveryProvider, address deliveryProviderOnTarget) =
+        (address deliveryProvider,) =
             getOriginalOrDefaultDeliveryProvider(targetChain);
-        forwardToEvm(
+        forward(
             targetChain,
-            targetAddress,
+            toWormholeFormat(targetAddress),
             payload,
             receiverValue,
             LocalNative.wrap(0),
-            gasLimit,
-            targetChain,
-            deliveryProviderOnTarget,
+            encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit)),
+            getCurrentRefundChain(),
+            getCurrentRefundAddress(),
             deliveryProvider,
             vaaKeys,
             CONSISTENCY_LEVEL_FINALIZED
