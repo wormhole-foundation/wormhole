@@ -39,8 +39,6 @@
   "dependencies": {
     "@certusone/wormhole-sdk": "^0.9.11",
     "@typechain/ethers-v5": "^10.2.0",
-    "@types/chai": "^4.3.4",
-    "@types/mocha": "^10.0.1",
     "dotenv": "^10.0.0",
     "elliptic": "^6.5.2",
     "jsonfile": "^4.0.0",
