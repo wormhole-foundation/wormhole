@@ -4,7 +4,9 @@
   "description": "",
   "main": "networks.js",
   "devDependencies": {
+    "@certusone/wormhole-sdk-proto-web": "^0.0.6",
     "@chainsafe/truffle-plugin-abigen": "0.0.1",
+    "@improbable-eng/grpc-web-node-http-transport": "^0.15.0",
     "@openzeppelin/cli": "^2.8.2",
     "@openzeppelin/contracts": "^4.3.1",
     "@truffle/hdwallet-provider": "^1.7.0",
