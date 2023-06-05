@@ -11,9 +11,9 @@ export async function queryRegistrationsSei(
   network: Network,
   module: "Core" | "NFTBridge" | "TokenBridge"
 ): Promise<Object> {
-  let chain = "sei" as ChainName;
-  let n = NETWORKS[network][chain];
-  let contracts = CONTRACTS[network][chain];
+  const chain = "sei" as ChainName;
+  const n = NETWORKS[network][chain];
+  const contracts = CONTRACTS[network][chain];
 
   let target_contract: string | undefined;
 
@@ -32,11 +32,15 @@ export async function queryRegistrationsSei(
     throw new Error(`Contract for ${module} on ${network} does not exist`);
   }
 
+  if (n.rpc === undefined) {
+    throw new Error(`RPC for ${module} on ${network} does not exist`);
+  }
+
   // Create a CosmWasmClient
   const client = await getCosmWasmClient(n.rpc);
 
   // Query the bridge registration for all the chains in parallel.
-  const registrationsPromise = Promise.all(
+  const registrations = await Promise.all(
     Object.entries(CHAINS)
       .filter(([c_name, _]) => c_name !== chain && c_name !== "unset")
       .map(async ([c_name, c_id]) => [
@@ -63,9 +67,7 @@ export async function queryRegistrationsSei(
       ])
   );
 
-  const registrations = await registrationsPromise;
-
-  let results = {};
+  const results: { [key: string]: string } = {};
   for (let [c_name, queryResponse] of registrations) {
     if (queryResponse) {
       results[c_name] = Buffer.from(queryResponse.address, "base64").toString(

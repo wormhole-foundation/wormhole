@@ -27,6 +27,7 @@ import { NETWORKS } from "./consts";
 import { Payload, VAA, impossible } from "./vaa";
 import { ChainName, hexToUint8Array } from "@certusone/wormhole-sdk";
 import { getEmitterAddress } from "./emitter";
+import { Network } from "./utils";
 
 export async function execute_solana(
   v: VAA<Payload>,
@@ -225,11 +226,11 @@ export async function queryRegistrationsSolana(
   network: Network,
   module: "Core" | "NFTBridge" | "TokenBridge"
 ): Promise<Object> {
-  let chain = "solana";
-  let n = NETWORKS[network][chain];
-  let contracts = CONTRACTS[network][chain];
+  const chain = "solana" as ChainName;
+  const n = NETWORKS[network][chain];
+  const contracts = CONTRACTS[network][chain];
 
-  let targetAddress: string;
+  let targetAddress: string | undefined;
 
   switch (module) {
     case "TokenBridge":
@@ -246,37 +247,39 @@ export async function queryRegistrationsSolana(
     throw new Error(`Contract for ${module} on ${network} does not exist`);
   }
 
+  if (n === undefined || n.rpc === undefined) {
+    throw new Error(`RPC for ${module} on ${network} does not exist`);
+  }
+
   const connection = setupConnection(n.rpc);
   const programId = new web3s.PublicKey(targetAddress);
 
   // Query the bridge registration for all the chains in parallel.
-  const registrationsPromise = Promise.all(
+  const registrations: (string | null)[][] = await Promise.all(
     Object.entries(CHAINS)
-      .filter(([c_name, _]) => c_name !== chain && c_name !== "unset")
-      .map(async ([c_name, c_id]) => [
-        c_name,
+      .filter(([cname, _]) => cname !== chain && cname !== "unset")
+      .map(async ([cstr, cid]) => [
+        cstr,
         await (async () => {
-          let addr: string;
+          let cname = cstr as ChainName;
+          let addr: string | undefined;
           if (module === "TokenBridge") {
-            if (CONTRACTS[network][c_name].token_bridge === undefined) {
-              return null;
-            }
-            addr = CONTRACTS[network][c_name].token_bridge;
+            addr = CONTRACTS[network][cname].token_bridge;
           } else {
-            if (CONTRACTS[network][c_name].nft_bridge === undefined) {
-              return null;
-            }
-            addr = CONTRACTS[network][c_name].nft_bridge;
+            addr = CONTRACTS[network][cname].nft_bridge;
           }
-          let emitter_addr = await getEmitterAddress(c_name as ChainName, addr);
+          if (addr === undefined) {
+            return null;
+          }
+          let emitter_addr = await getEmitterAddress(cname as ChainName, addr);
 
           const endpoint = deriveEndpointKey(
             programId,
-            c_id,
+            cid,
             hexToUint8Array(emitter_addr)
           );
 
-          let result = null;
+          let result: string | null = null;
           try {
             await getEndpointRegistration(connection, endpoint);
             result = emitter_addr;
@@ -284,17 +287,15 @@ export async function queryRegistrationsSolana(
             // Not logging anything because a chain not registered returns an error.
           }
 
-          return result;
+          return result as string;
         })(),
       ])
   );
 
-  const registrations = await registrationsPromise;
-
-  let results = {};
-  for (let [c_name, queryResponse] of registrations) {
-    if (queryResponse) {
-      results[c_name] = queryResponse;
+  const results: { [key: string]: string } = {};
+  for (let [cname, queryResponse] of registrations) {
+    if (cname && queryResponse) {
+      results[cname] = queryResponse;
     }
   }
   return results;

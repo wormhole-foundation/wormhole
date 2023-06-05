@@ -4,14 +4,15 @@
 
 import yargs from "yargs";
 import {
+  assertChain,
   ChainName,
   CHAINS,
-  assertChain,
+  Contracts,
+  CONTRACTS,
   isEVMChain,
   isTerraChain,
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { getEmitterAddress } from "../../emitter";
-import { CONTRACTS } from "../../consts/contracts";
 
 export const command = "registrations <network> <chain> <module>";
 export const desc = "Print chain registrations";
@@ -19,14 +20,14 @@ export const builder = (y: typeof yargs) => {
   return y
     .positional("network", {
       describe: "network",
-      type: "string",
       choices: ["mainnet", "testnet", "devnet"],
-    })
+      demandOption: true,
+    } as const)
     .positional("chain", {
       describe: "Chain to query",
-      type: "string",
-      choices: Object.keys(CHAINS),
-    })
+      choices: Object.keys(CHAINS) as ChainName[],
+      demandOption: true,
+    } as const)
     .positional("module", {
       describe: "Module to query (TokenBridge or NFTBridge)",
       type: "string",
@@ -41,8 +42,10 @@ export const builder = (y: typeof yargs) => {
       demandOption: false,
     });
 };
-export const handler = async (argv) => {
-  assertChain(argv["chain"]);
+export const handler = async (
+  argv: Awaited<ReturnType<typeof builder>["argv"]>
+) => {
+  assertChain(argv.chain);
   const chain = argv.chain;
   const network = argv.network.toUpperCase();
   if (network !== "MAINNET" && network !== "TESTNET" && network !== "DEVNET") {
@@ -88,38 +91,44 @@ export const handler = async (argv) => {
 async function verifyRegistrations(
   network: "MAINNET" | "TESTNET" | "DEVNET",
   chain: string,
-  module: "Core" | "NFTBridge" | "TokenBridge",
+  module: "NFTBridge" | "TokenBridge",
   input: Object
 ) {
   let mismatchFound = false;
 
   // Put the input in a map so we can do lookups.
   let inputMap = new Map<string, string>();
-  for (const [c_name, reg] of Object.entries(input)) {
-    inputMap.set(c_name as string, reg as string);
+  for (const [cname, reg] of Object.entries(input)) {
+    inputMap.set(cname as string, reg as string);
   }
 
-  // Loop over the consts and make sure everything is in our input, and the values match.
-  let results = {};
-  for (const c of Object.entries(CONTRACTS[network])) {
-    if (c[0] === "unset" || c[0] === chain) {
+  // Loop over the chains and make sure everything is in our input, and the values match.
+  const results: { [key: string]: string } = {};
+  for (const chainStr in CHAINS) {
+    const thisChain = chainStr as ChainName;
+    if (thisChain === "unset" || thisChain === chain) {
       continue;
     }
+    const contracts: Contracts = CONTRACTS[network][thisChain];
+
     let expectedAddr: string | undefined;
     if (module === "TokenBridge") {
-      expectedAddr = c[1].token_bridge;
+      expectedAddr = contracts.token_bridge;
     } else {
-      expectedAddr = c[1].nft_bridge;
+      expectedAddr = contracts.nft_bridge;
     }
 
     if (expectedAddr !== undefined) {
-      expectedAddr = await getEmitterAddress(c[0] as ChainName, expectedAddr);
+      expectedAddr = await getEmitterAddress(
+        thisChain as ChainName,
+        expectedAddr
+      );
       if (!expectedAddr.startsWith("0x")) {
         expectedAddr = "0x" + expectedAddr;
       }
     }
 
-    let actualAddr = inputMap.get(c[0] as string);
+    let actualAddr = inputMap.get(thisChain as string);
     if (actualAddr !== undefined && !actualAddr.startsWith("0x")) {
       actualAddr = "0x" + actualAddr;
     }
@@ -129,10 +138,11 @@ async function verifyRegistrations(
         actualAddr ===
           "0x0000000000000000000000000000000000000000000000000000000000000000"
       ) {
-        results[c[0]] = "Missing " + expectedAddr;
+        results[thisChain] = "Missing " + expectedAddr;
         mismatchFound = true;
       } else if (actualAddr !== expectedAddr) {
-        results[c[0]] = "Expected " + expectedAddr + ", found " + actualAddr;
+        results[thisChain] =
+          "Expected " + expectedAddr + ", found " + actualAddr;
         mismatchFound = true;
       }
     } else if (
@@ -140,7 +150,7 @@ async function verifyRegistrations(
       actualAddr !==
         "0x0000000000000000000000000000000000000000000000000000000000000000"
     ) {
-      results[c[0]] = "Expected null , found " + actualAddr;
+      results[thisChain] = "Expected null , found " + actualAddr;
       mismatchFound = true;
     }
   }

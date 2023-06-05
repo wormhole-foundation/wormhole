@@ -187,27 +187,35 @@ export async function execute_terra(
 
 export async function queryRegistrationsTerra(
   network: Network,
-  chain: string,
+  chain: TerraChainName,
   module: "Core" | "NFTBridge" | "TokenBridge"
 ): Promise<Object> {
-  let n = NETWORKS[network][chain];
-  let contracts = CONTRACTS[network][chain];
+  const n = NETWORKS[network][chain];
+  const contracts = CONTRACTS[network][chain];
 
-  let target_contract: string;
+  let targetContract: string | undefined;
 
   switch (module) {
     case "TokenBridge":
-      target_contract = contracts.token_bridge;
+      targetContract = contracts.token_bridge;
       break;
     case "NFTBridge":
-      target_contract = contracts.nft_bridge;
+      targetContract = contracts.nft_bridge;
       break;
     default:
       throw new Error(`Invalid module: ${module}`);
   }
 
-  if (!target_contract) {
+  if (targetContract === undefined) {
     throw new Error(`Contract for ${module} on ${network} does not exist`);
+  }
+
+  if (n === undefined || n.rpc === undefined) {
+    throw new Error(`RPC for ${module} on ${network} does not exist`);
+  }
+
+  if (n === undefined || n.chain_id === undefined) {
+    throw new Error(`Chain id for ${module} on ${network} does not exist`);
   }
 
   const client = new LCDClient({
@@ -217,24 +225,27 @@ export async function queryRegistrationsTerra(
   });
 
   // Query the bridge registration for all the chains in parallel.
-  const registrationsPromise = Promise.all(
+  const registrations: (string | null)[][] = await Promise.all(
     Object.entries(CHAINS)
-      .filter(([c_name, _]) => c_name !== chain && c_name !== "unset")
-      .map(async ([c_name, c_id]) => [
-        c_name,
+      .filter(([cname, _]) => cname !== chain && cname !== "unset")
+      .map(async ([cname, cid]) => [
+        cname,
         await (async () => {
           let query_msg = {
             chain_registration: {
-              chain: c_id,
+              chain: cid,
             },
           };
 
           let result = null;
           try {
-            result = await client.wasm.contractQuery(
-              target_contract,
+            const resp: { address: string } = await client.wasm.contractQuery(
+              targetContract as string,
               query_msg
             );
+            if (resp) {
+              result = resp.address;
+            }
           } catch {
             // Not logging anything because a chain not registered returns an error.
           }
@@ -244,14 +255,10 @@ export async function queryRegistrationsTerra(
       ])
   );
 
-  const registrations = await registrationsPromise;
-
-  let results = {};
-  for (let [c_name, queryResponse] of registrations) {
-    if (queryResponse) {
-      results[c_name] = Buffer.from(queryResponse.address, "base64").toString(
-        "hex"
-      );
+  const results: { [key: string]: string } = {};
+  for (let [cname, queryResponse] of registrations) {
+    if (cname && queryResponse) {
+      results[cname] = Buffer.from(queryResponse, "base64").toString("hex");
     }
   }
   return results;

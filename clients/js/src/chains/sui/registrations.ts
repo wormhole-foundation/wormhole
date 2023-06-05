@@ -4,6 +4,7 @@ import {
   CONTRACTS,
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { NETWORKS } from "../../consts/networks";
+import { Network } from "../../utils";
 import { getProvider } from "./utils";
 import { ChainId } from "@certusone/wormhole-sdk";
 
@@ -37,7 +38,7 @@ export async function queryRegistrationsSui(
     parentId: emitterRegistryId,
   });
 
-  let results = {};
+  const results: { [key: string]: string } = {};
   for (let idx = 0; idx < emitterRegistry.data.length; idx++) {
     const chainId = emitterRegistry.data[idx].name.value as ChainId;
     for (const { objectId } of emitterRegistry.data.slice(idx, idx + 1)) {

@@ -727,8 +727,8 @@ export async function queryRegistrationsEvm(
   chain: EVMChainName,
   module: "Core" | "NFTBridge" | "TokenBridge"
 ): Promise<Object> {
-  let n = NETWORKS[network][chain];
-  let contracts = CONTRACTS[network][chain];
+  const n = NETWORKS[network][chain];
+  const contracts = CONTRACTS[network][chain];
 
   let targetContract: string | undefined;
   let contract: any;
@@ -760,20 +760,15 @@ export async function queryRegistrationsEvm(
       throw new Error(`Invalid module: ${module}`);
   }
 
-  const registrationsPromise = Promise.all(
+  const registrations: string[][] = await Promise.all(
     Object.entries(CHAINS)
-      .filter(([c_name, _]) => c_name !== chain && c_name !== "unset")
-      .map(async ([c_name, c_id]) => [
-        c_name,
-        await contract.bridgeContracts(c_id),
-      ])
+      .filter(([cname, _]) => cname !== chain && cname !== "unset")
+      .map(async ([cname, cid]) => [cname, await contract.bridgeContracts(cid)])
   );
 
-  const registrations = await registrationsPromise;
-
-  let results = {};
-  for (let [c_name, c] of registrations) {
-    results[c_name] = c;
+  const results: { [key: string]: string } = {};
+  for (let [cname, c] of registrations) {
+    results[cname] = c;
   }
   return results;
 }

@@ -369,18 +369,18 @@ export async function queryRegistrationsAptos(
   const handle = state.registered_emitters.handle;
 
   // Query the bridge registration for all the chains in parallel.
-  const registrationsPromise = Promise.all(
+  const registrations: string[][] = await Promise.all(
     Object.entries(CHAINS)
-      .filter(([c_name, _]) => c_name !== "aptos" && c_name !== "unset")
-      .map(async ([c_name, c_id]) => [
-        c_name,
+      .filter(([cname, _]) => cname !== "aptos" && cname !== "unset")
+      .map(async ([cname, cid]) => [
+        cname,
         await (async () => {
           let result = null;
           try {
             result = await client.getTableItem(handle, {
               key_type: "u64",
               value_type: "vector<u8>",
-              key: c_id.toString(),
+              key: cid.toString(),
             });
           } catch {
             // Not logging anything because a chain not registered returns an error.
@@ -391,12 +391,10 @@ export async function queryRegistrationsAptos(
       ])
   );
 
-  const registrations = await registrationsPromise;
-
-  let results = {};
-  for (let [c_name, queryResponse] of registrations) {
+  const results: { [key: string]: string } = {};
+  for (let [cname, queryResponse] of registrations) {
     if (queryResponse) {
-      results[c_name] = queryResponse;
+      results[cname] = queryResponse;
     }
   }
   return results;
