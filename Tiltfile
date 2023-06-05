@@ -62,6 +62,9 @@ config.define_bool("node_metrics", False, "Enable Prometheus & Grafana for Guard
 config.define_bool("guardiand_governor", False, "Enable chain governor in guardiand")
 config.define_bool("wormchain", False, "Enable a wormchain node")
 config.define_bool("ibc_relayer", False, "Enable IBC relayer between cosmos chains")
+config.define_bool("redis", False, "Enable a redis instance")
+config.define_bool("generic_relayer", False, "Enable the generic relayer off-chain component")
+
 
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "1"))
@@ -87,6 +90,8 @@ node_metrics = cfg.get("node_metrics", False)
 guardiand_governor = cfg.get("guardiand_governor", False)
 ibc_relayer = cfg.get("ibc_relayer", ci)
 btc = cfg.get("btc", False)
+redis = cfg.get('redis', ci)
+generic_relayer = cfg.get("generic_relayer", ci)
 
 if cfg.get("manual", False):
     trigger_mode = TRIGGER_MODE_MANUAL
@@ -129,7 +134,7 @@ docker_build(
     context = ".",
     dockerfile = "node/Dockerfile",
     target = "build",
-    ignore=["./sdk/js"]
+    ignore=["./sdk/js", "./relayer"]
 )
 
 def command_with_dlv(argv):
@@ -447,8 +452,9 @@ docker_build(
     dockerfile = "./ethereum/Dockerfile",
 
     # ignore local node_modules (in case they're present)
-    ignore = ["./ethereum/node_modules"],
+    ignore = ["./node_modules"],
     build_args = {"num_guardians": str(num_guardians)},
+
     # sync external scripts for incremental development
     # (everything else needs to be restarted from scratch for determinism)
     #
@@ -459,7 +465,7 @@ docker_build(
     ],
 )
 
-if spy_relayer:
+if spy_relayer or redis or generic_relayer or ci_tests:
     docker_build(
         ref = "redis",
         context = ".",
@@ -467,16 +473,52 @@ if spy_relayer:
         dockerfile = "third_party/redis/Dockerfile",
     )
 
-    k8s_yaml_with_ns("devnet/redis.yaml")
-
+if spy_relayer or redis or ci_tests:
     k8s_resource(
         "redis",
         port_forwards = [
             port_forward(6379, name = "Redis Default [:6379]", host = webHost),
         ],
-        labels = ["spy-relayer"],
+        labels = ["redis"],
         trigger_mode = trigger_mode,
     )
+
+    k8s_yaml_with_ns("devnet/redis.yaml")
+
+if generic_relayer or ci_tests:
+    k8s_resource(
+        "redis-relayer",
+        port_forwards = [
+            port_forward(6378, name = "Generic Relayer Redis [:6378]", host = webHost),
+        ],
+        labels = ["redis-relayer"],
+        trigger_mode = trigger_mode,
+    )
+
+    k8s_yaml_with_ns("devnet/redis-relayer.yaml")
+
+
+
+if generic_relayer:
+    k8s_resource(
+        "relayer-engine",
+        resource_deps = ["guardian", "redis-relayer", "spy"],
+        port_forwards = [
+            port_forward(3003, container_port=3000, name = "Bullmq UI [:3003]", host = webHost),
+        ],
+        labels = ["relayer-engine"],
+        trigger_mode = trigger_mode,
+    )
+    docker_build(
+        ref = "relayer-engine",
+        context = ".",
+        only = ["./ethereum", "./relayer/generic_relayer", "./sdk", "./solana"],
+        dockerfile = "relayer/generic_relayer/relayer-engine-v2/Dockerfile",
+        ignore = ["./ethereum/node_modules", "./sdk/js/src/relayer/__tests__"]
+    )
+    k8s_yaml_with_ns("devnet/relayer-engine.yaml")
+
+if spy_relayer:
 
     docker_build(
         ref = "spy-relay-image",
