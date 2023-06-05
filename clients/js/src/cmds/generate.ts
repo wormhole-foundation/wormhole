@@ -264,14 +264,25 @@ export const builder = function (y: typeof yargs) {
             .option("chain", {
               alias: "c",
               describe: "Chain of Wormhole Relayer contract",
+<<<<<<< HEAD
               choices: Object.keys(CHAINS),
               demandOption: true,
             } as const)
+=======
+              type: "string",
+              choices: Object.keys(CHAINS),
+              required: true,
+            })
+>>>>>>> 7d92fe3c (Add three governance VAA actions for generic relayers)
             .option("relay-provider-address", {
               alias: "f",
               describe: "Address of the relay provider contract",
               type: "string",
+<<<<<<< HEAD
               demandOption: true,
+=======
+              required: true,
+>>>>>>> 7d92fe3c (Add three governance VAA actions for generic relayers)
             })
         },
         (argv) => {
