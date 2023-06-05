@@ -41,7 +41,7 @@ export type ChainId = (typeof CHAINS)[ChainName];
  *
  * All the EVM-based chain names that Wormhole supports
  */
-export const EVMChainNames = [
+export const EVMChainNames: ReadonlyArray<ChainName> = [
   "ethereum",
   "bsc",
   "polygon",
@@ -70,10 +70,10 @@ export type NonEVMChainName = Exclude<ChainName, EVMChainName>
  *
  * All the Solana-based chain names that Wormhole supports
  */
-export const SolanaChainNames = ["solana", "pythnet"] as const;
+export const SolanaChainNames: ReadonlyArray<ChainName> = ["solana", "pythnet"] as const;
 export type SolanaChainName = (typeof SolanaChainNames)[number];
 
-export const CosmWasmChainNames = [
+export const CosmWasmChainNames: ReadonlyArray<ChainName> = [
   "terra",
   "terra2",
   "injective",
@@ -83,7 +83,7 @@ export const CosmWasmChainNames = [
 export type CosmWasmChainName = (typeof CosmWasmChainNames)[number];
 
 // TODO: why? these are dupe of entries in CosmWasm
-export const TerraChainNames = ["terra", "terra2"] as const;
+export const TerraChainNames: ReadonlyArray<ChainName> = ["terra", "terra2"] as const;
 export type TerraChainName = (typeof TerraChainNames)[number];
 
 export type Contracts = {
@@ -811,8 +811,8 @@ export function coalesceChainName(chain: ChainId | ChainName): ChainName {
 export function isEVMChain(
   chain: ChainId | ChainName
 ): chain is EVMChainId | EVMChainName {
-  let chainName = coalesceChainName(chain);
-  if (chainName in EVMChainNames){
+  const chainName = coalesceChainName(chain);
+  if (EVMChainNames.includes(chainName)){
     return isEVM(chainName as EVMChainName);
   } else {
     return notEVM(chainName as NonEVMChainName);
@@ -823,21 +823,21 @@ export function isCosmWasmChain(
   chain: ChainId | ChainName
 ): chain is CosmWasmChainId | CosmWasmChainName {
   const chainName = coalesceChainName(chain);
-  return chainName in CosmWasmChainNames;
+  return CosmWasmChainNames.includes(chainName);
 }
 
 export function isTerraChain(
   chain: ChainId | ChainName
 ): chain is TerraChainId | TerraChainName {
   const chainName = coalesceChainName(chain);
-  return chainName in TerraChainNames;
+  return TerraChainNames.includes(chainName);
 }
 
 export function isSolanaChain(
   chain: ChainId | ChainName
 ): chain is SolanaChainId | SolanaChainName {
   const chainName = coalesceChainName(chain);
-  return chainName in SolanaChainNames;
+  return SolanaChainNames.includes(chainName);
 }
 
 /**
