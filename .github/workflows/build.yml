@@ -35,7 +35,7 @@ jobs:
           kubectl config use-context ci
 
       - run: tilt ci -- --ci --namespace=$DEPLOY_NS --num=2
-        timeout-minutes: 20
+        timeout-minutes: 40
 
       # Clean up k8s resources
       - run: kubectl delete --namespace=$DEPLOY_NS service,statefulset,configmap,pod,job --all
@@ -68,8 +68,9 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: "16"
-      - run: cd ethereum && ../scripts/install-foundry
-      - run: cd ethereum && PATH=$PATH:$HOME/.foundry/bin/ make test
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+      - run: cd ethereum && make test
 
   ethereum-upgrade:
     runs-on: ubuntu-20.04
@@ -78,6 +79,8 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: "16"
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
       - run: cd clients/js && make install
       - run: cd ethereum && make test-upgrade
 

@@ -1,0 +1,44 @@
+{
+  "description": "This file contains the addresses for the contracts on each chain. If useLastRun is true, this file will be ignored, and the addresses will be taken from the lastrun.json of the deployment scripts.",
+  "useLastRun": false,
+  "deliveryProviders": [
+    {
+      "chainId": 2,
+      "address": "0x1ef9e15c3bbf0555860b5009B51722027134d53a"
+    },
+    {
+      "chainId": 4,
+      "address": "0x1ef9e15c3bbf0555860b5009B51722027134d53a"
+    }
+  ],
+  "wormholeRelayers": [
+    {
+      "chainId": 2,
+      "address": "0x53855d4b64E9A3CF59A84bc768adA716B5536BC5"
+    },
+    {
+      "chainId": 4,
+      "address": "0x53855d4b64E9A3CF59A84bc768adA716B5536BC5"
+    }
+  ],
+  "mockIntegrations": [
+    {
+      "chainId": 2,
+      "address": "0x0eb0dD3aa41bD15C706BC09bC03C002b7B85aeAC"
+    },
+    {
+      "chainId": 4,
+      "address": "0x0eb0dD3aa41bD15C706BC09bC03C002b7B85aeAC"
+    }
+  ],
+  "create2Factories": [
+    {
+      "chainId": 2,
+      "address": "0x17e91224c30c5b0B13ba2ef1E84FE880Cb902352"
+    },
+    {
+      "chainId": 4,
+      "address": "0x17e91224c30c5b0B13ba2ef1E84FE880Cb902352"
+    }
+  ]
+}

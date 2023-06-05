@@ -198,6 +198,8 @@ export const submit = async (
 
       break;
     }
+    case "WormholeRelayer":
+        throw Error("Wormhole Relayer not supported on Sui");
     default:
       impossible(payload);
   }

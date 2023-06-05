@@ -194,7 +194,7 @@ export const builder = function (y: typeof yargs) {
       "Start a local EVM validator",
       (yargs) => yargs.option("validator-args", VALIDATOR_OPTIONS),
       (argv) => {
-        const cmd = `cd ${homedir()} && npx ganache-cli -e 10000 --deterministic --time="1970-01-01T00:00:00+00:00"`;
+        const cmd = `cd ${homedir()} && npx ganache-cli --wallet.defaultBalance 10000 --wallet.deterministic --chain.time="1970-01-01T00:00:00+00:00"`;
         runCommand(cmd, argv["validator-args"]);
       }
     )

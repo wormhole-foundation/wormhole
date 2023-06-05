@@ -1,6 +1,15 @@
-FROM node:18-alpine@sha256:44aaf1ccc80eaed6572a0f2ef7d6b5a2982d54481e4255480041ac92221e2f11
+FROM node:19.6.1-slim@sha256:a1ba21bf0c92931d02a8416f0a54daad66cb36a85d2b73af9d73b044f5f57cfc
 
-RUN apk update && apk add g++ make python3 curl
+##RUN apk update && apk add g++ make python3 curl
+
+RUN apt-get update && apt-get -y install \
+  git python3 make curl netcat
+
+RUN npm i typescript -g
+RUN curl -L https://foundry.paradigm.xyz | bash 
+RUN $HOME/.foundry/bin/foundryup
+RUN ls $HOME/.foundry/bin
+RUN mv /root/.foundry/bin/forge /bin/forge
 
 RUN mkdir -p /app
 WORKDIR /app
@@ -9,6 +18,10 @@ COPY ethereum/package.json ethereum/package-lock.json ./ethereum/
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
   npm ci --prefix ethereum
 COPY ethereum ./ethereum
+
+WORKDIR /app/ethereum
+RUN make forge_dependencies
+WORKDIR /app
 
 COPY solana/idl ./solana/idl/
 
