@@ -1,0 +1,1400 @@
+<!doctype html>
+<html class="default no-js">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>solana | @certusone/wormhole-sdk</title>
+	<meta name="description" content="Documentation for @certusone/wormhole-sdk">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="../assets/css/main.css">
+	<script async src="../assets/js/search.js" id="search-script"></script>
+</head>
+<body>
+<header>
+	<div class="tsd-page-toolbar">
+		<div class="container">
+			<div class="table-wrap">
+				<div class="table-cell" id="tsd-search" data-index="../assets/js/search.json" data-base="..">
+					<div class="field">
+						<label for="tsd-search-field" class="tsd-widget search no-caption">Search</label>
+						<input id="tsd-search-field" type="text" />
+					</div>
+					<ul class="results">
+						<li class="state loading">Preparing search index...</li>
+						<li class="state failure">The search index is not available</li>
+					</ul>
+					<a href="../index.html" class="title">@certusone/wormhole-sdk</a>
+				</div>
+				<div class="table-cell" id="tsd-widgets">
+					<div id="tsd-filter">
+						<a href="#" class="tsd-widget options no-caption" data-toggle="options">Options</a>
+						<div class="tsd-filter-group">
+							<div class="tsd-select" id="tsd-filter-visibility">
+								<span class="tsd-select-label">All</span>
+								<ul class="tsd-select-list">
+									<li data-value="public">Public</li>
+									<li data-value="protected">Public/Protected</li>
+									<li data-value="private" class="selected">All</li>
+								</ul>
+							</div>
+							<input type="checkbox" id="tsd-filter-inherited" checked />
+							<label class="tsd-widget" for="tsd-filter-inherited">Inherited</label>
+							<input type="checkbox" id="tsd-filter-externals" checked />
+							<label class="tsd-widget" for="tsd-filter-externals">Externals</label>
+						</div>
+					</div>
+					<a href="#" class="tsd-widget menu no-caption" data-toggle="menu">Menu</a>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="tsd-page-title">
+		<div class="container">
+			<ul class="tsd-breadcrumb">
+				<li>
+					<a href="../modules.html">@certusone/wormhole-sdk</a>
+				</li>
+				<li>
+					<a href="solana.html">solana</a>
+				</li>
+			</ul>
+			<h1>Namespace solana</h1>
+		</div>
+	</div>
+</header>
+<div class="container container-main">
+	<div class="row">
+		<div class="col-8 col-content">
+			<section class="tsd-panel-group tsd-index-group">
+				<h2>Index</h2>
+				<section class="tsd-panel tsd-index-panel">
+					<div class="tsd-index-content">
+						<section class="tsd-index-section ">
+							<h3>Classes</h3>
+							<ul class="tsd-index-list">
+								<li class="tsd-kind-class tsd-parent-kind-namespace"><a href="../classes/solana.BpfLoaderUpgradeable.html" class="tsd-kind-icon">Bpf<wbr>Loader<wbr>Upgradeable</a></li>
+								<li class="tsd-kind-class tsd-parent-kind-namespace"><a href="../classes/solana.NodeWallet.html" class="tsd-kind-icon">Node<wbr>Wallet</a></li>
+								<li class="tsd-kind-class tsd-parent-kind-namespace"><a href="../classes/solana.Secp256k1SignatureOffsets.html" class="tsd-kind-icon">Secp256k1<wbr>Signature<wbr>Offsets</a></li>
+							</ul>
+						</section>
+						<section class="tsd-index-section ">
+							<h3>Interfaces</h3>
+							<ul class="tsd-index-list">
+								<li class="tsd-kind-interface tsd-parent-kind-namespace"><a href="../interfaces/solana.CompleteTransferNativeWithPayloadCpiAccounts.html" class="tsd-kind-icon">Complete<wbr>Transfer<wbr>Native<wbr>With<wbr>Payload<wbr>Cpi<wbr>Accounts</a></li>
+								<li class="tsd-kind-interface tsd-parent-kind-namespace"><a href="../interfaces/solana.CompleteTransferWrappedWithPayloadCpiAccounts.html" class="tsd-kind-icon">Complete<wbr>Transfer<wbr>Wrapped<wbr>With<wbr>Payload<wbr>Cpi<wbr>Accounts</a></li>
+								<li class="tsd-kind-interface tsd-parent-kind-namespace"><a href="../interfaces/solana.PostMessageCpiAccounts.html" class="tsd-kind-icon">Post<wbr>Message<wbr>Cpi<wbr>Accounts</a></li>
+								<li class="tsd-kind-interface tsd-parent-kind-namespace"><a href="../interfaces/solana.PreparedTransactions.html" class="tsd-kind-icon">Prepared<wbr>Transactions</a></li>
+								<li class="tsd-kind-interface tsd-parent-kind-namespace"><a href="../interfaces/solana.TokenBridgeBaseDerivedAccounts.html" class="tsd-kind-icon">Token<wbr>Bridge<wbr>Base<wbr>Derived<wbr>Accounts</a></li>
+								<li class="tsd-kind-interface tsd-parent-kind-namespace"><a href="../interfaces/solana.TokenBridgeBaseNativeDerivedAccounts.html" class="tsd-kind-icon">Token<wbr>Bridge<wbr>Base<wbr>Native<wbr>Derived<wbr>Accounts</a></li>
+								<li class="tsd-kind-interface tsd-parent-kind-namespace"><a href="../interfaces/solana.TokenBridgeBaseRedeemerDerivedAccounts.html" class="tsd-kind-icon">Token<wbr>Bridge<wbr>Base<wbr>Redeemer<wbr>Derived<wbr>Accounts</a></li>
+								<li class="tsd-kind-interface tsd-parent-kind-namespace"><a href="../interfaces/solana.TokenBridgeBaseSenderDerivedAccounts.html" class="tsd-kind-icon">Token<wbr>Bridge<wbr>Base<wbr>Sender<wbr>Derived<wbr>Accounts</a></li>
+								<li class="tsd-kind-interface tsd-parent-kind-namespace"><a href="../interfaces/solana.TokenBridgeDerivedAccounts.html" class="tsd-kind-icon">Token<wbr>Bridge<wbr>Derived<wbr>Accounts</a></li>
+								<li class="tsd-kind-interface tsd-parent-kind-namespace"><a href="../interfaces/solana.TokenBridgeNativeRedeemerDerivedAccounts.html" class="tsd-kind-icon">Token<wbr>Bridge<wbr>Native<wbr>Redeemer<wbr>Derived<wbr>Accounts</a></li>
+								<li class="tsd-kind-interface tsd-parent-kind-namespace"><a href="../interfaces/solana.TokenBridgeNativeSenderDerivedAccounts.html" class="tsd-kind-icon">Token<wbr>Bridge<wbr>Native<wbr>Sender<wbr>Derived<wbr>Accounts</a></li>
+								<li class="tsd-kind-interface tsd-parent-kind-namespace"><a href="../interfaces/solana.TokenBridgeWrappedRedeemerDerivedAccounts.html" class="tsd-kind-icon">Token<wbr>Bridge<wbr>Wrapped<wbr>Redeemer<wbr>Derived<wbr>Accounts</a></li>
+								<li class="tsd-kind-interface tsd-parent-kind-namespace"><a href="../interfaces/solana.TokenBridgeWrappedSenderDerivedAccounts.html" class="tsd-kind-icon">Token<wbr>Bridge<wbr>Wrapped<wbr>Sender<wbr>Derived<wbr>Accounts</a></li>
+								<li class="tsd-kind-interface tsd-parent-kind-namespace"><a href="../interfaces/solana.TransactionSignatureAndResponse.html" class="tsd-kind-icon">Transaction<wbr>Signature<wbr>And<wbr>Response</a></li>
+								<li class="tsd-kind-interface tsd-parent-kind-namespace"><a href="../interfaces/solana.TransferNativeWithPayloadCpiAccounts.html" class="tsd-kind-icon">Transfer<wbr>Native<wbr>With<wbr>Payload<wbr>Cpi<wbr>Accounts</a></li>
+								<li class="tsd-kind-interface tsd-parent-kind-namespace"><a href="../interfaces/solana.TransferWrappedWithPayloadCpiAccounts.html" class="tsd-kind-icon">Transfer<wbr>Wrapped<wbr>With<wbr>Payload<wbr>Cpi<wbr>Accounts</a></li>
+								<li class="tsd-kind-interface tsd-parent-kind-namespace"><a href="../interfaces/solana.WormholeDerivedAccounts.html" class="tsd-kind-icon">Wormhole<wbr>Derived<wbr>Accounts</a></li>
+							</ul>
+						</section>
+						<section class="tsd-index-section ">
+							<h3>Type aliases</h3>
+							<ul class="tsd-index-list">
+								<li class="tsd-kind-type-alias tsd-parent-kind-namespace"><a href="solana.html#SignTransaction" class="tsd-kind-icon">Sign<wbr>Transaction</a></li>
+							</ul>
+						</section>
+						<section class="tsd-index-section ">
+							<h3>Variables</h3>
+							<ul class="tsd-index-list">
+								<li class="tsd-kind-variable tsd-parent-kind-namespace"><a href="solana.html#ETHEREUM_KEY_LENGTH" class="tsd-kind-icon">ETHEREUM_<wbr>KEY_<wbr>LENGTH</a></li>
+								<li class="tsd-kind-variable tsd-parent-kind-namespace"><a href="solana.html#SIGNATURE_LENGTH" class="tsd-kind-icon">SIGNATURE_<wbr>LENGTH</a></li>
+								<li class="tsd-kind-variable tsd-parent-kind-namespace"><a href="solana.html#TOKEN_METADATA_PROGRAM_ID" class="tsd-kind-icon">TOKEN_<wbr>METADATA_<wbr>PROGRAM_<wbr>ID</a></li>
+							</ul>
+						</section>
+						<section class="tsd-index-section ">
+							<h3>Functions</h3>
+							<ul class="tsd-index-list">
+								<li class="tsd-kind-function tsd-parent-kind-namespace"><a href="solana.html#createBridgeFeeTransferInstruction" class="tsd-kind-icon">create<wbr>Bridge<wbr>Fee<wbr>Transfer<wbr>Instruction</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-namespace"><a href="solana.html#createPostVaaInstructionSolana" class="tsd-kind-icon">create<wbr>Post<wbr>Vaa<wbr>Instruction<wbr>Solana</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-namespace"><a href="solana.html#createReadOnlyProvider" class="tsd-kind-icon">create<wbr>Read<wbr>Only<wbr>Provider</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-namespace"><a href="solana.html#createSecp256k1Instruction" class="tsd-kind-icon">create<wbr>Secp256k1<wbr>Instruction</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-namespace"><a href="solana.html#createVerifySignaturesInstructionsSolana" class="tsd-kind-icon">create<wbr>Verify<wbr>Signatures<wbr>Instructions<wbr>Solana</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-namespace"><a href="solana.html#deriveAddress" class="tsd-kind-icon">derive<wbr>Address</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-namespace"><a href="solana.html#deriveTokenMetadataKey" class="tsd-kind-icon">derive<wbr>Token<wbr>Metadata<wbr>Key</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-namespace"><a href="solana.html#deriveUpgradeableProgramKey" class="tsd-kind-icon">derive<wbr>Upgradeable<wbr>Program<wbr>Key</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-namespace"><a href="solana.html#getAccountData" class="tsd-kind-icon">get<wbr>Account<wbr>Data</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-namespace"><a href="solana.html#getCompleteTransferNativeWithPayloadCpiAccounts" class="tsd-kind-icon">get<wbr>Complete<wbr>Transfer<wbr>Native<wbr>With<wbr>Payload<wbr>Cpi<wbr>Accounts</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-namespace"><a href="solana.html#getCompleteTransferWrappedWithPayloadCpiAccounts" class="tsd-kind-icon">get<wbr>Complete<wbr>Transfer<wbr>Wrapped<wbr>With<wbr>Payload<wbr>Cpi<wbr>Accounts</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-namespace"><a href="solana.html#getPostMessageCpiAccounts" class="tsd-kind-icon">get<wbr>Post<wbr>Message<wbr>Cpi<wbr>Accounts</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-namespace"><a href="solana.html#getTokenBridgeDerivedAccounts" class="tsd-kind-icon">get<wbr>Token<wbr>Bridge<wbr>Derived<wbr>Accounts</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-namespace"><a href="solana.html#getTransferNativeWithPayloadCpiAccounts" class="tsd-kind-icon">get<wbr>Transfer<wbr>Native<wbr>With<wbr>Payload<wbr>Cpi<wbr>Accounts</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-namespace"><a href="solana.html#getTransferWrappedWithPayloadCpiAccounts" class="tsd-kind-icon">get<wbr>Transfer<wbr>Wrapped<wbr>With<wbr>Payload<wbr>Cpi<wbr>Accounts</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-namespace"><a href="solana.html#getWormholeCpiAccounts" class="tsd-kind-icon">get<wbr>Wormhole<wbr>Cpi<wbr>Accounts</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-namespace"><a href="solana.html#getWormholeDerivedAccounts" class="tsd-kind-icon">get<wbr>Wormhole<wbr>Derived<wbr>Accounts</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-namespace"><a href="solana.html#modifySignTransaction" class="tsd-kind-icon">modify<wbr>Sign<wbr>Transaction</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-namespace"><a href="solana.html#newAccountMeta" class="tsd-kind-icon">new<wbr>Account<wbr>Meta</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-namespace"><a href="solana.html#newReadOnlyAccountMeta" class="tsd-kind-icon">new<wbr>Read<wbr>Only<wbr>Account<wbr>Meta</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-namespace"><a href="solana.html#postVaaSolana" class="tsd-kind-icon">post<wbr>Vaa<wbr>Solana</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-namespace"><a href="solana.html#postVaaSolanaWithRetry" class="tsd-kind-icon">post<wbr>Vaa<wbr>Solana<wbr>With<wbr>Retry</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-namespace"><a href="solana.html#sendAndConfirmTransactionsWithRetry" class="tsd-kind-icon">send<wbr>And<wbr>Confirm<wbr>Transactions<wbr>With<wbr>Retry</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-namespace"><a href="solana.html#signSendAndConfirmTransaction" class="tsd-kind-icon">sign<wbr>Send<wbr>And<wbr>Confirm<wbr>Transaction</a></li>
+								<li class="tsd-kind-function tsd-parent-kind-namespace"><a href="solana.html#signTransactionFactory" class="tsd-kind-icon">sign<wbr>Transaction<wbr>Factory</a></li>
+							</ul>
+						</section>
+					</div>
+				</section>
+			</section>
+			<section class="tsd-panel-group tsd-member-group ">
+				<h2>Type aliases</h2>
+				<section class="tsd-panel tsd-member tsd-kind-type-alias tsd-parent-kind-namespace">
+					<a name="SignTransaction" class="tsd-anchor"></a>
+					<h3>Sign<wbr>Transaction</h3>
+					<div class="tsd-signature tsd-kind-icon">Sign<wbr>Transaction<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">(</span>transaction<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Transaction</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">Transaction</span><span class="tsd-signature-symbol">&gt;</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/utils/transaction.ts#L31">src/solana/utils/transaction.ts:31</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-type-declaration">
+						<h4>Type declaration</h4>
+						<ul class="tsd-parameters">
+							<li class="tsd-parameter-signature">
+								<ul class="tsd-signatures tsd-kind-type-literal tsd-parent-kind-type-alias">
+									<li class="tsd-signature tsd-kind-icon"><span class="tsd-signature-symbol">(</span>transaction<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Transaction</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">Transaction</span><span class="tsd-signature-symbol">&gt;</span></li>
+								</ul>
+								<ul class="tsd-descriptions">
+									<li class="tsd-description">
+										<div class="tsd-comment tsd-typography">
+											<div class="lead">
+												<p>Resembles WalletContextState and Anchor&#39;s NodeWallet&#39;s signTransaction function signature</p>
+											</div>
+										</div>
+										<h4 class="tsd-parameters-title">Parameters</h4>
+										<ul class="tsd-parameters">
+											<li>
+												<h5>transaction: <span class="tsd-signature-type">Transaction</span></h5>
+											</li>
+										</ul>
+										<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">Transaction</span><span class="tsd-signature-symbol">&gt;</span></h4>
+									</li>
+								</ul>
+							</li>
+						</ul>
+					</div>
+				</section>
+			</section>
+			<section class="tsd-panel-group tsd-member-group ">
+				<h2>Variables</h2>
+				<section class="tsd-panel tsd-member tsd-kind-variable tsd-parent-kind-namespace">
+					<a name="ETHEREUM_KEY_LENGTH" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagConst">Const</span> ETHEREUM_<wbr>KEY_<wbr>LENGTH</h3>
+					<div class="tsd-signature tsd-kind-icon">ETHEREUM_<wbr>KEY_<wbr>LENGTH<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">20</span><span class="tsd-signature-symbol"> = 20</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/utils/secp256k1.ts#L4">src/solana/utils/secp256k1.ts:4</a></li>
+						</ul>
+					</aside>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-variable tsd-parent-kind-namespace">
+					<a name="SIGNATURE_LENGTH" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagConst">Const</span> SIGNATURE_<wbr>LENGTH</h3>
+					<div class="tsd-signature tsd-kind-icon">SIGNATURE_<wbr>LENGTH<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">65</span><span class="tsd-signature-symbol"> = 65</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/utils/secp256k1.ts#L3">src/solana/utils/secp256k1.ts:3</a></li>
+						</ul>
+					</aside>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-variable tsd-parent-kind-namespace">
+					<a name="TOKEN_METADATA_PROGRAM_ID" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagConst">Const</span> TOKEN_<wbr>METADATA_<wbr>PROGRAM_<wbr>ID</h3>
+					<div class="tsd-signature tsd-kind-icon">TOKEN_<wbr>METADATA_<wbr>PROGRAM_<wbr>ID<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">PublicKey</span><span class="tsd-signature-symbol"> = ...</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/utils/tokenMetadata.ts#L4">src/solana/utils/tokenMetadata.ts:4</a></li>
+						</ul>
+					</aside>
+				</section>
+			</section>
+			<section class="tsd-panel-group tsd-member-group ">
+				<h2>Functions</h2>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-namespace">
+					<a name="createBridgeFeeTransferInstruction" class="tsd-anchor"></a>
+					<h3>create<wbr>Bridge<wbr>Fee<wbr>Transfer<wbr>Instruction</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-namespace">
+						<li class="tsd-signature tsd-kind-icon">create<wbr>Bridge<wbr>Fee<wbr>Transfer<wbr>Instruction<span class="tsd-signature-symbol">(</span>connection<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Connection</span>, wormholeProgramId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, payer<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, commitment<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">Commitment</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">TransactionInstruction</span><span class="tsd-signature-symbol">&gt;</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/wormhole/instructions/feeTransfer.ts#L11">src/solana/wormhole/instructions/feeTransfer.ts:11</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>connection: <span class="tsd-signature-type">Connection</span></h5>
+								</li>
+								<li>
+									<h5>wormholeProgramId: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>payer: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> commitment: <span class="tsd-signature-type">Commitment</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">TransactionInstruction</span><span class="tsd-signature-symbol">&gt;</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-namespace">
+					<a name="createPostVaaInstructionSolana" class="tsd-anchor"></a>
+					<h3>create<wbr>Post<wbr>Vaa<wbr>Instruction<wbr>Solana</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-namespace">
+						<li class="tsd-signature tsd-kind-icon">create<wbr>Post<wbr>Vaa<wbr>Instruction<wbr>Solana<span class="tsd-signature-symbol">(</span>wormholeProgramId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, payer<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, vaa<span class="tsd-signature-symbol">: </span><a href="../modules.html#SignedVaa" class="tsd-signature-type" data-tsd-kind="Type alias">SignedVaa</a><span class="tsd-signature-symbol"> | </span><a href="../interfaces/ParsedVaa.html" class="tsd-signature-type" data-tsd-kind="Interface">ParsedVaa</a>, signatureSet<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">TransactionInstruction</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/wormhole/instructions/postVaa.ts#L32">src/solana/wormhole/instructions/postVaa.ts:32</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Make {@link TransactionInstruction} for <code>post_vaa</code> instruction.</p>
+								</div>
+								<p>This is used in {@link createPostSignedVaaTransactions}&#39;s last transaction.
+									<code>signatureSet</code> is a {@link web3.Keypair} generated outside of this method, which was used
+								to write signatures and the message hash to.</p>
+								<p><a href="https://github.com/certusone/wormhole/blob/main/solana/bridge/program/src/api/post_vaa.rs">https://github.com/certusone/wormhole/blob/main/solana/bridge/program/src/api/post_vaa.rs</a></p>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>wormholeProgramId: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>wormhole program address</p>
+									</div>
+								</li>
+								<li>
+									<h5>payer: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>transaction signer address</p>
+									</div>
+								</li>
+								<li>
+									<h5>vaa: <a href="../modules.html#SignedVaa" class="tsd-signature-type" data-tsd-kind="Type alias">SignedVaa</a><span class="tsd-signature-symbol"> | </span><a href="../interfaces/ParsedVaa.html" class="tsd-signature-type" data-tsd-kind="Interface">ParsedVaa</a></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>either signed VAA bytes or parsed VAA (use <a href="../modules.html#parseVaa">parseVaa</a> on signed VAA)</p>
+									</div>
+								</li>
+								<li>
+									<h5>signatureSet: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>key for signature set account</p>
+									</div>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">TransactionInstruction</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-namespace">
+					<a name="createReadOnlyProvider" class="tsd-anchor"></a>
+					<h3>create<wbr>Read<wbr>Only<wbr>Provider</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-namespace">
+						<li class="tsd-signature tsd-kind-icon">create<wbr>Read<wbr>Only<wbr>Provider<span class="tsd-signature-symbol">(</span>connection<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">Connection</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Provider</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">undefined</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/utils/connection.ts#L4">src/solana/utils/connection.ts:4</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> connection: <span class="tsd-signature-type">Connection</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Provider</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">undefined</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-namespace">
+					<a name="createSecp256k1Instruction" class="tsd-anchor"></a>
+					<h3>create<wbr>Secp256k1<wbr>Instruction</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-namespace">
+						<li class="tsd-signature tsd-kind-icon">create<wbr>Secp256k1<wbr>Instruction<span class="tsd-signature-symbol">(</span>signatures<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Buffer</span><span class="tsd-signature-symbol">[]</span>, keys<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Buffer</span><span class="tsd-signature-symbol">[]</span>, message<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Buffer</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">TransactionInstruction</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/utils/secp256k1.ts#L14">src/solana/utils/secp256k1.ts:14</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Create {@link TransactionInstruction} for {@link Secp256k1Program}.</p>
+								</div>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>signatures: <span class="tsd-signature-type">Buffer</span><span class="tsd-signature-symbol">[]</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>65-byte signatures (64 bytes + 1 byte recovery id)</p>
+									</div>
+								</li>
+								<li>
+									<h5>keys: <span class="tsd-signature-type">Buffer</span><span class="tsd-signature-symbol">[]</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>20-byte ethereum public keys</p>
+									</div>
+								</li>
+								<li>
+									<h5>message: <span class="tsd-signature-type">Buffer</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>32-byte hash</p>
+									</div>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">TransactionInstruction</span></h4>
+							<p>Solana instruction for Secp256k1 program</p>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-namespace">
+					<a name="createVerifySignaturesInstructionsSolana" class="tsd-anchor"></a>
+					<h3>create<wbr>Verify<wbr>Signatures<wbr>Instructions<wbr>Solana</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-namespace">
+						<li class="tsd-signature tsd-kind-icon">create<wbr>Verify<wbr>Signatures<wbr>Instructions<wbr>Solana<span class="tsd-signature-symbol">(</span>connection<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Connection</span>, wormholeProgramId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, payer<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, vaa<span class="tsd-signature-symbol">: </span><a href="../modules.html#SignedVaa" class="tsd-signature-type" data-tsd-kind="Type alias">SignedVaa</a><span class="tsd-signature-symbol"> | </span><a href="../interfaces/ParsedVaa.html" class="tsd-signature-type" data-tsd-kind="Interface">ParsedVaa</a>, signatureSet<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, commitment<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">Commitment</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">TransactionInstruction</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/wormhole/instructions/verifySignature.ts#L43">src/solana/wormhole/instructions/verifySignature.ts:43</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>This is used in {@link createPostSignedVaaTransactions}&#39;s initial transactions.</p>
+								</div>
+								<p>Signatures are batched in groups of 7 due to instruction
+									data limits. These signatures are passed through to the Secp256k1
+									program to verify that the guardian public keys can be recovered.
+									This instruction is paired with <code>verify_signatures</code> to validate the
+								pubkey recovery.</p>
+								<p>There are at most three pairs of instructions created.</p>
+								<p><a href="https://github.com/certusone/wormhole/blob/main/solana/bridge/program/src/api/verify_signature.rs">https://github.com/certusone/wormhole/blob/main/solana/bridge/program/src/api/verify_signature.rs</a></p>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>connection: <span class="tsd-signature-type">Connection</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>Solana web3 connection</p>
+									</div>
+								</li>
+								<li>
+									<h5>wormholeProgramId: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>wormhole program address</p>
+									</div>
+								</li>
+								<li>
+									<h5>payer: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>transaction signer address</p>
+									</div>
+								</li>
+								<li>
+									<h5>vaa: <a href="../modules.html#SignedVaa" class="tsd-signature-type" data-tsd-kind="Type alias">SignedVaa</a><span class="tsd-signature-symbol"> | </span><a href="../interfaces/ParsedVaa.html" class="tsd-signature-type" data-tsd-kind="Interface">ParsedVaa</a></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>either signed VAA bytes or parsed VAA (use <a href="../modules.html#parseVaa">parseVaa</a> on signed VAA)</p>
+									</div>
+								</li>
+								<li>
+									<h5>signatureSet: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>address to account of verified signatures</p>
+									</div>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> commitment: <span class="tsd-signature-type">Commitment</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">TransactionInstruction</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-namespace">
+					<a name="deriveAddress" class="tsd-anchor"></a>
+					<h3>derive<wbr>Address</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-namespace">
+						<li class="tsd-signature tsd-kind-icon">derive<wbr>Address<span class="tsd-signature-symbol">(</span>seeds<span class="tsd-signature-symbol">: </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-type">Buffer</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">Uint8Array</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">[]</span>, programId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKey</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/utils/account.ts#L15">src/solana/utils/account.ts:15</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Find valid program address. See {@link PublicKey.findProgramAddressSync} for details.</p>
+								</div>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>seeds: <span class="tsd-signature-symbol">(</span><span class="tsd-signature-type">Buffer</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">Uint8Array</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">[]</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>seeds for PDA</p>
+									</div>
+								</li>
+								<li>
+									<h5>programId: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>program address</p>
+									</div>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">PublicKey</span></h4>
+							<p>PDA</p>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-namespace">
+					<a name="deriveTokenMetadataKey" class="tsd-anchor"></a>
+					<h3>derive<wbr>Token<wbr>Metadata<wbr>Key</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-namespace">
+						<li class="tsd-signature tsd-kind-icon">derive<wbr>Token<wbr>Metadata<wbr>Key<span class="tsd-signature-symbol">(</span>mint<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKey</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/utils/tokenMetadata.ts#L8">src/solana/utils/tokenMetadata.ts:8</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>mint: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">PublicKey</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-namespace">
+					<a name="deriveUpgradeableProgramKey" class="tsd-anchor"></a>
+					<h3>derive<wbr>Upgradeable<wbr>Program<wbr>Key</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-namespace">
+						<li class="tsd-signature tsd-kind-icon">derive<wbr>Upgradeable<wbr>Program<wbr>Key<span class="tsd-signature-symbol">(</span>programId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKey</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/utils/bpfLoaderUpgradeable.ts#L18">src/solana/utils/bpfLoaderUpgradeable.ts:18</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>programId: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">PublicKey</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-namespace">
+					<a name="getAccountData" class="tsd-anchor"></a>
+					<h3>get<wbr>Account<wbr>Data</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-namespace">
+						<li class="tsd-signature tsd-kind-icon">get<wbr>Account<wbr>Data<span class="tsd-signature-symbol">(</span>info<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">AccountInfo</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">Buffer</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">null</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Buffer</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/utils/account.ts#L64">src/solana/utils/account.ts:64</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Get serialized data from account</p>
+								</div>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>info: <span class="tsd-signature-type">AccountInfo</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">Buffer</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">null</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>Solana AccountInfo</p>
+									</div>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Buffer</span></h4>
+							<p>serialized data as Buffer</p>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-namespace">
+					<a name="getCompleteTransferNativeWithPayloadCpiAccounts" class="tsd-anchor"></a>
+					<h3>get<wbr>Complete<wbr>Transfer<wbr>Native<wbr>With<wbr>Payload<wbr>Cpi<wbr>Accounts</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-namespace">
+						<li class="tsd-signature tsd-kind-icon">get<wbr>Complete<wbr>Transfer<wbr>Native<wbr>With<wbr>Payload<wbr>Cpi<wbr>Accounts<span class="tsd-signature-symbol">(</span>tokenBridgeProgramId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, wormholeProgramId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, payer<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, vaa<span class="tsd-signature-symbol">: </span><a href="../modules.html#SignedVaa" class="tsd-signature-type" data-tsd-kind="Type alias">SignedVaa</a><span class="tsd-signature-symbol"> | </span><a href="../interfaces/ParsedTokenTransferVaa.html" class="tsd-signature-type" data-tsd-kind="Interface">ParsedTokenTransferVaa</a>, toTokenAccount<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="../interfaces/solana.CompleteTransferNativeWithPayloadCpiAccounts.html" class="tsd-signature-type" data-tsd-kind="Interface">CompleteTransferNativeWithPayloadCpiAccounts</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/tokenBridge/cpi.ts#L350">src/solana/tokenBridge/cpi.ts:350</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Generate accounts needed to perform <code>complete_native_with_payload</code> instruction
+									as cross-program invocation.</p>
+								</div>
+								<p>Note: <code>toFeesTokenAccount</code> is the same as <code>toTokenAccount</code>. For your program,
+									you only need to pass your <code>toTokenAccount</code> into the complete transfer
+								instruction for the <code>toFeesTokenAccount</code>.</p>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>tokenBridgeProgramId: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>wormholeProgramId: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>payer: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>vaa: <a href="../modules.html#SignedVaa" class="tsd-signature-type" data-tsd-kind="Type alias">SignedVaa</a><span class="tsd-signature-symbol"> | </span><a href="../interfaces/ParsedTokenTransferVaa.html" class="tsd-signature-type" data-tsd-kind="Interface">ParsedTokenTransferVaa</a></h5>
+								</li>
+								<li>
+									<h5>toTokenAccount: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <a href="../interfaces/solana.CompleteTransferNativeWithPayloadCpiAccounts.html" class="tsd-signature-type" data-tsd-kind="Interface">CompleteTransferNativeWithPayloadCpiAccounts</a></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-namespace">
+					<a name="getCompleteTransferWrappedWithPayloadCpiAccounts" class="tsd-anchor"></a>
+					<h3>get<wbr>Complete<wbr>Transfer<wbr>Wrapped<wbr>With<wbr>Payload<wbr>Cpi<wbr>Accounts</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-namespace">
+						<li class="tsd-signature tsd-kind-icon">get<wbr>Complete<wbr>Transfer<wbr>Wrapped<wbr>With<wbr>Payload<wbr>Cpi<wbr>Accounts<span class="tsd-signature-symbol">(</span>tokenBridgeProgramId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, wormholeProgramId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, payer<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, vaa<span class="tsd-signature-symbol">: </span><a href="../modules.html#SignedVaa" class="tsd-signature-type" data-tsd-kind="Type alias">SignedVaa</a><span class="tsd-signature-symbol"> | </span><a href="../interfaces/ParsedTokenTransferVaa.html" class="tsd-signature-type" data-tsd-kind="Interface">ParsedTokenTransferVaa</a>, toTokenAccount<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="../interfaces/solana.CompleteTransferWrappedWithPayloadCpiAccounts.html" class="tsd-signature-type" data-tsd-kind="Interface">CompleteTransferWrappedWithPayloadCpiAccounts</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/tokenBridge/cpi.ts#L438">src/solana/tokenBridge/cpi.ts:438</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Generate accounts needed to perform <code>complete_wrapped_with_payload</code> instruction
+									as cross-program invocation.</p>
+								</div>
+								<p>Note: <code>toFeesTokenAccount</code> is the same as <code>toTokenAccount</code>. For your program,
+									you only need to pass your <code>toTokenAccount</code> into the complete transfer
+								instruction for the <code>toFeesTokenAccount</code>.</p>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>tokenBridgeProgramId: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>wormholeProgramId: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>payer: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>vaa: <a href="../modules.html#SignedVaa" class="tsd-signature-type" data-tsd-kind="Type alias">SignedVaa</a><span class="tsd-signature-symbol"> | </span><a href="../interfaces/ParsedTokenTransferVaa.html" class="tsd-signature-type" data-tsd-kind="Interface">ParsedTokenTransferVaa</a></h5>
+								</li>
+								<li>
+									<h5>toTokenAccount: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <a href="../interfaces/solana.CompleteTransferWrappedWithPayloadCpiAccounts.html" class="tsd-signature-type" data-tsd-kind="Interface">CompleteTransferWrappedWithPayloadCpiAccounts</a></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-namespace">
+					<a name="getPostMessageCpiAccounts" class="tsd-anchor"></a>
+					<h3>get<wbr>Post<wbr>Message<wbr>Cpi<wbr>Accounts</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-namespace">
+						<li class="tsd-signature tsd-kind-icon">get<wbr>Post<wbr>Message<wbr>Cpi<wbr>Accounts<span class="tsd-signature-symbol">(</span>cpiProgramId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, wormholeProgramId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, payer<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, message<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="../interfaces/solana.PostMessageCpiAccounts.html" class="tsd-signature-type" data-tsd-kind="Interface">PostMessageCpiAccounts</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/wormhole/cpi.ts#L69">src/solana/wormhole/cpi.ts:69</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Generate accounts needed to perform <code>post_message</code> instruction
+									as cross-program invocation.</p>
+								</div>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>cpiProgramId: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>wormholeProgramId: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>payer: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>message: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <a href="../interfaces/solana.PostMessageCpiAccounts.html" class="tsd-signature-type" data-tsd-kind="Interface">PostMessageCpiAccounts</a></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-namespace">
+					<a name="getTokenBridgeDerivedAccounts" class="tsd-anchor"></a>
+					<h3>get<wbr>Token<wbr>Bridge<wbr>Derived<wbr>Accounts</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-namespace">
+						<li class="tsd-signature tsd-kind-icon">get<wbr>Token<wbr>Bridge<wbr>Derived<wbr>Accounts<span class="tsd-signature-symbol">(</span>cpiProgramId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, tokenBridgeProgramId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, wormholeProgramId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="../interfaces/solana.TokenBridgeDerivedAccounts.html" class="tsd-signature-type" data-tsd-kind="Interface">TokenBridgeDerivedAccounts</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/tokenBridge/cpi.ts#L120">src/solana/tokenBridge/cpi.ts:120</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Generate Token Bridge PDAs.</p>
+								</div>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>cpiProgramId: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>tokenBridgeProgramId: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>wormholeProgramId: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <a href="../interfaces/solana.TokenBridgeDerivedAccounts.html" class="tsd-signature-type" data-tsd-kind="Interface">TokenBridgeDerivedAccounts</a></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-namespace">
+					<a name="getTransferNativeWithPayloadCpiAccounts" class="tsd-anchor"></a>
+					<h3>get<wbr>Transfer<wbr>Native<wbr>With<wbr>Payload<wbr>Cpi<wbr>Accounts</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-namespace">
+						<li class="tsd-signature tsd-kind-icon">get<wbr>Transfer<wbr>Native<wbr>With<wbr>Payload<wbr>Cpi<wbr>Accounts<span class="tsd-signature-symbol">(</span>cpiProgramId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, tokenBridgeProgramId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, wormholeProgramId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, payer<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, message<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, fromTokenAccount<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, mint<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="../interfaces/solana.TransferNativeWithPayloadCpiAccounts.html" class="tsd-signature-type" data-tsd-kind="Interface">TransferNativeWithPayloadCpiAccounts</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/tokenBridge/cpi.ts#L178">src/solana/tokenBridge/cpi.ts:178</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Generate accounts needed to perform <code>transfer_wrapped_with_payload</code> instruction
+									as cross-program invocation.</p>
+								</div>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>cpiProgramId: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>tokenBridgeProgramId: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>wormholeProgramId: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>payer: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>message: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>fromTokenAccount: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>mint: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <a href="../interfaces/solana.TransferNativeWithPayloadCpiAccounts.html" class="tsd-signature-type" data-tsd-kind="Interface">TransferNativeWithPayloadCpiAccounts</a></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-namespace">
+					<a name="getTransferWrappedWithPayloadCpiAccounts" class="tsd-anchor"></a>
+					<h3>get<wbr>Transfer<wbr>Wrapped<wbr>With<wbr>Payload<wbr>Cpi<wbr>Accounts</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-namespace">
+						<li class="tsd-signature tsd-kind-icon">get<wbr>Transfer<wbr>Wrapped<wbr>With<wbr>Payload<wbr>Cpi<wbr>Accounts<span class="tsd-signature-symbol">(</span>cpiProgramId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, tokenBridgeProgramId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, wormholeProgramId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, payer<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, message<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, fromTokenAccount<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, tokenChain<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span>, tokenAddress<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Buffer</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">Uint8Array</span>, fromTokenAccountOwner<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">PublicKeyInitData</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="../interfaces/solana.TransferWrappedWithPayloadCpiAccounts.html" class="tsd-signature-type" data-tsd-kind="Interface">TransferWrappedWithPayloadCpiAccounts</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/tokenBridge/cpi.ts#L260">src/solana/tokenBridge/cpi.ts:260</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Generate accounts needed to perform <code>transfer_wrapped_with_payload</code> instruction
+									as cross-program invocation.</p>
+								</div>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>cpiProgramId: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>tokenBridgeProgramId: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>wormholeProgramId: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>payer: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>message: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>fromTokenAccount: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>tokenChain: <span class="tsd-signature-type">number</span></h5>
+								</li>
+								<li>
+									<h5>tokenAddress: <span class="tsd-signature-type">Buffer</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">Uint8Array</span></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> fromTokenAccountOwner: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <a href="../interfaces/solana.TransferWrappedWithPayloadCpiAccounts.html" class="tsd-signature-type" data-tsd-kind="Interface">TransferWrappedWithPayloadCpiAccounts</a></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-namespace">
+					<a name="getWormholeCpiAccounts" class="tsd-anchor"></a>
+					<h3>get<wbr>Wormhole<wbr>Cpi<wbr>Accounts</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-namespace">
+						<li class="tsd-signature tsd-kind-icon">get<wbr>Wormhole<wbr>Cpi<wbr>Accounts<span class="tsd-signature-symbol">(</span>wormholeProgramId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, payer<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, emitterProgramId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, message<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PostMessageAccounts</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/wormhole/instructions/postMessage.ts#L27">src/solana/wormhole/instructions/postMessage.ts:27</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>wormholeProgramId: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>payer: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>emitterProgramId: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>message: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">PostMessageAccounts</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-namespace">
+					<a name="getWormholeDerivedAccounts" class="tsd-anchor"></a>
+					<h3>get<wbr>Wormhole<wbr>Derived<wbr>Accounts</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-namespace">
+						<li class="tsd-signature tsd-kind-icon">get<wbr>Wormhole<wbr>Derived<wbr>Accounts<span class="tsd-signature-symbol">(</span>cpiProgramId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, wormholeProgramId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="../interfaces/solana.WormholeDerivedAccounts.html" class="tsd-signature-type" data-tsd-kind="Interface">WormholeDerivedAccounts</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/wormhole/cpi.ts#L37">src/solana/wormhole/cpi.ts:37</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Generate Wormhole PDAs.</p>
+								</div>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>cpiProgramId: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>wormholeProgramId: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <a href="../interfaces/solana.WormholeDerivedAccounts.html" class="tsd-signature-type" data-tsd-kind="Interface">WormholeDerivedAccounts</a></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-namespace">
+					<a name="modifySignTransaction" class="tsd-anchor"></a>
+					<h3>modify<wbr>Sign<wbr>Transaction</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-namespace">
+						<li class="tsd-signature tsd-kind-icon">modify<wbr>Sign<wbr>Transaction<span class="tsd-signature-symbol">(</span>signTransaction<span class="tsd-signature-symbol">: </span><a href="solana.html#SignTransaction" class="tsd-signature-type" data-tsd-kind="Type alias">SignTransaction</a>, <span class="tsd-signature-symbol">...</span>payers<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Signer</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="solana.html#SignTransaction" class="tsd-signature-type" data-tsd-kind="Type alias">SignTransaction</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/utils/transaction.ts#L47">src/solana/utils/transaction.ts:47</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>signTransaction: <a href="solana.html#SignTransaction" class="tsd-signature-type" data-tsd-kind="Type alias">SignTransaction</a></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagRest">Rest</span> <span class="tsd-signature-symbol">...</span>payers: <span class="tsd-signature-type">Signer</span><span class="tsd-signature-symbol">[]</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <a href="solana.html#SignTransaction" class="tsd-signature-type" data-tsd-kind="Type alias">SignTransaction</a></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-namespace">
+					<a name="newAccountMeta" class="tsd-anchor"></a>
+					<h3>new<wbr>Account<wbr>Meta</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-namespace">
+						<li class="tsd-signature tsd-kind-icon">new<wbr>Account<wbr>Meta<span class="tsd-signature-symbol">(</span>pubkey<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, isSigner<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">AccountMeta</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/utils/account.ts#L29">src/solana/utils/account.ts:29</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Factory to create AccountMeta with <code>isWritable</code> set to <code>true</code></p>
+								</div>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>pubkey: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>account address</p>
+									</div>
+								</li>
+								<li>
+									<h5>isSigner: <span class="tsd-signature-type">boolean</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>whether account authorized transaction</p>
+									</div>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">AccountMeta</span></h4>
+							<p>metadata for writable account</p>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-namespace">
+					<a name="newReadOnlyAccountMeta" class="tsd-anchor"></a>
+					<h3>new<wbr>Read<wbr>Only<wbr>Account<wbr>Meta</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-namespace">
+						<li class="tsd-signature tsd-kind-icon">new<wbr>Read<wbr>Only<wbr>Account<wbr>Meta<span class="tsd-signature-symbol">(</span>pubkey<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, isSigner<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">AccountMeta</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/utils/account.ts#L47">src/solana/utils/account.ts:47</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>Factory to create AccountMeta with <code>isWritable</code> set to <code>false</code></p>
+								</div>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>pubkey: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>account address</p>
+									</div>
+								</li>
+								<li>
+									<h5>isSigner: <span class="tsd-signature-type">boolean</span></h5>
+									<div class="tsd-comment tsd-typography">
+										<p>whether account authorized transaction</p>
+									</div>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">AccountMeta</span></h4>
+							<p>metadata for read-only account</p>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-namespace">
+					<a name="postVaaSolana" class="tsd-anchor"></a>
+					<h3>post<wbr>Vaa<wbr>Solana</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-namespace">
+						<li class="tsd-signature tsd-kind-icon">post<wbr>Vaa<wbr>Solana<span class="tsd-signature-symbol">(</span>connection<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Connection</span>, signTransaction<span class="tsd-signature-symbol">: </span><a href="solana.html#SignTransaction" class="tsd-signature-type" data-tsd-kind="Type alias">SignTransaction</a>, wormholeProgramId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, payer<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, vaa<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Buffer</span>, options<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">ConfirmOptions</span>, asyncVerifySignatures<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/solana.TransactionSignatureAndResponse.html" class="tsd-signature-type" data-tsd-kind="Interface">TransactionSignatureAndResponse</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/sendAndConfirmPostVaa.ts#L63">src/solana/sendAndConfirmPostVaa.ts:63</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>connection: <span class="tsd-signature-type">Connection</span></h5>
+								</li>
+								<li>
+									<h5>signTransaction: <a href="solana.html#SignTransaction" class="tsd-signature-type" data-tsd-kind="Type alias">SignTransaction</a></h5>
+								</li>
+								<li>
+									<h5>wormholeProgramId: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>payer: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>vaa: <span class="tsd-signature-type">Buffer</span></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> options: <span class="tsd-signature-type">ConfirmOptions</span></h5>
+								</li>
+								<li>
+									<h5>asyncVerifySignatures: <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol"> = true</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/solana.TransactionSignatureAndResponse.html" class="tsd-signature-type" data-tsd-kind="Interface">TransactionSignatureAndResponse</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-namespace">
+					<a name="postVaaSolanaWithRetry" class="tsd-anchor"></a>
+					<h3>post<wbr>Vaa<wbr>Solana<wbr>With<wbr>Retry</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-namespace">
+						<li class="tsd-signature tsd-kind-icon">post<wbr>Vaa<wbr>Solana<wbr>With<wbr>Retry<span class="tsd-signature-symbol">(</span>connection<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Connection</span>, signTransaction<span class="tsd-signature-symbol">: </span><a href="solana.html#SignTransaction" class="tsd-signature-type" data-tsd-kind="Type alias">SignTransaction</a>, wormholeProgramId<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, payer<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, vaa<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Buffer</span>, maxRetries<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">number</span>, commitment<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">Commitment</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/solana.TransactionSignatureAndResponse.html" class="tsd-signature-type" data-tsd-kind="Interface">TransactionSignatureAndResponse</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/sendAndConfirmPostVaa.ts#L23">src/solana/sendAndConfirmPostVaa.ts:23</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>connection: <span class="tsd-signature-type">Connection</span></h5>
+								</li>
+								<li>
+									<h5>signTransaction: <a href="solana.html#SignTransaction" class="tsd-signature-type" data-tsd-kind="Type alias">SignTransaction</a></h5>
+								</li>
+								<li>
+									<h5>wormholeProgramId: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>payer: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>vaa: <span class="tsd-signature-type">Buffer</span></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> maxRetries: <span class="tsd-signature-type">number</span></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> commitment: <span class="tsd-signature-type">Commitment</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/solana.TransactionSignatureAndResponse.html" class="tsd-signature-type" data-tsd-kind="Interface">TransactionSignatureAndResponse</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-namespace">
+					<a name="sendAndConfirmTransactionsWithRetry" class="tsd-anchor"></a>
+					<h3>send<wbr>And<wbr>Confirm<wbr>Transactions<wbr>With<wbr>Retry</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-namespace">
+						<li class="tsd-signature tsd-kind-icon">send<wbr>And<wbr>Confirm<wbr>Transactions<wbr>With<wbr>Retry<span class="tsd-signature-symbol">(</span>connection<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Connection</span>, signTransaction<span class="tsd-signature-symbol">: </span><a href="solana.html#SignTransaction" class="tsd-signature-type" data-tsd-kind="Type alias">SignTransaction</a>, payer<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span>, unsignedTransactions<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Transaction</span><span class="tsd-signature-symbol">[]</span>, maxRetries<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">number</span>, options<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">ConfirmOptions</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/solana.TransactionSignatureAndResponse.html" class="tsd-signature-type" data-tsd-kind="Interface">TransactionSignatureAndResponse</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/utils/transaction.ts#L156">src/solana/utils/transaction.ts:156</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<dl class="tsd-comment-tags">
+									<dt>deprecated</dt>
+									<dd><p>Please use <a href="solana.html#signSendAndConfirmTransaction">signSendAndConfirmTransaction</a> instead, which allows
+										retries to be configured in {@link ConfirmOptions}.</p>
+										<p>The transactions provided to this function should be ready to send.
+										This function will do the following:</p>
+										<ol>
+											<li>Add the {@param payer} as the feePayer and latest blockhash to the {@link Transaction}.</li>
+											<li>Sign using {@param signTransaction}.</li>
+											<li>Send raw transaction.</li>
+											<li>Confirm transaction.</li>
+										</ol>
+									</dd>
+								</dl>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>connection: <span class="tsd-signature-type">Connection</span></h5>
+								</li>
+								<li>
+									<h5>signTransaction: <a href="solana.html#SignTransaction" class="tsd-signature-type" data-tsd-kind="Type alias">SignTransaction</a></h5>
+								</li>
+								<li>
+									<h5>payer: <span class="tsd-signature-type">string</span></h5>
+								</li>
+								<li>
+									<h5>unsignedTransactions: <span class="tsd-signature-type">Transaction</span><span class="tsd-signature-symbol">[]</span></h5>
+								</li>
+								<li>
+									<h5>maxRetries: <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> = 0</span></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> options: <span class="tsd-signature-type">ConfirmOptions</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/solana.TransactionSignatureAndResponse.html" class="tsd-signature-type" data-tsd-kind="Interface">TransactionSignatureAndResponse</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">&gt;</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-namespace">
+					<a name="signSendAndConfirmTransaction" class="tsd-anchor"></a>
+					<h3>sign<wbr>Send<wbr>And<wbr>Confirm<wbr>Transaction</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-namespace">
+						<li class="tsd-signature tsd-kind-icon">sign<wbr>Send<wbr>And<wbr>Confirm<wbr>Transaction<span class="tsd-signature-symbol">(</span>connection<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Connection</span>, payer<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">PublicKeyInitData</span>, signTransaction<span class="tsd-signature-symbol">: </span><a href="solana.html#SignTransaction" class="tsd-signature-type" data-tsd-kind="Type alias">SignTransaction</a>, unsignedTransaction<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Transaction</span>, options<span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">ConfirmOptions</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/solana.TransactionSignatureAndResponse.html" class="tsd-signature-type" data-tsd-kind="Interface">TransactionSignatureAndResponse</a><span class="tsd-signature-symbol">&gt;</span></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/utils/transaction.ts#L115">src/solana/utils/transaction.ts:115</a></li>
+								</ul>
+							</aside>
+							<div class="tsd-comment tsd-typography">
+								<div class="lead">
+									<p>The transactions provided to this function should be ready to send.
+									This function will do the following:</p>
+									<ol>
+										<li>Add the {@param payer} as the feePayer and latest blockhash to the {@link Transaction}.</li>
+										<li>Sign using {@param signTransaction}.</li>
+										<li>Send raw transaction.</li>
+										<li>Confirm transaction.</li>
+									</ol>
+								</div>
+							</div>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5>connection: <span class="tsd-signature-type">Connection</span></h5>
+								</li>
+								<li>
+									<h5>payer: <span class="tsd-signature-type">PublicKeyInitData</span></h5>
+								</li>
+								<li>
+									<h5>signTransaction: <a href="solana.html#SignTransaction" class="tsd-signature-type" data-tsd-kind="Type alias">SignTransaction</a></h5>
+								</li>
+								<li>
+									<h5>unsignedTransaction: <span class="tsd-signature-type">Transaction</span></h5>
+								</li>
+								<li>
+									<h5><span class="tsd-flag ts-flagOptional">Optional</span> options: <span class="tsd-signature-type">ConfirmOptions</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/solana.TransactionSignatureAndResponse.html" class="tsd-signature-type" data-tsd-kind="Interface">TransactionSignatureAndResponse</a><span class="tsd-signature-symbol">&gt;</span></h4>
+						</li>
+					</ul>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-function tsd-parent-kind-namespace">
+					<a name="signTransactionFactory" class="tsd-anchor"></a>
+					<h3>sign<wbr>Transaction<wbr>Factory</h3>
+					<ul class="tsd-signatures tsd-kind-function tsd-parent-kind-namespace">
+						<li class="tsd-signature tsd-kind-icon">sign<wbr>Transaction<wbr>Factory<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">...</span>payers<span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">Signer</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><a href="solana.html#SignTransaction" class="tsd-signature-type" data-tsd-kind="Type alias">SignTransaction</a></li>
+					</ul>
+					<ul class="tsd-descriptions">
+						<li class="tsd-description">
+							<aside class="tsd-sources">
+								<ul>
+									<li>Defined in <a href="https://github.com/barnjamin/wormhole/blob/d1896f22/sdk/js/src/solana/utils/transaction.ts#L40">src/solana/utils/transaction.ts:40</a></li>
+								</ul>
+							</aside>
+							<h4 class="tsd-parameters-title">Parameters</h4>
+							<ul class="tsd-parameters">
+								<li>
+									<h5><span class="tsd-flag ts-flagRest">Rest</span> <span class="tsd-signature-symbol">...</span>payers: <span class="tsd-signature-type">Signer</span><span class="tsd-signature-symbol">[]</span></h5>
+								</li>
+							</ul>
+							<h4 class="tsd-returns-title">Returns <a href="solana.html#SignTransaction" class="tsd-signature-type" data-tsd-kind="Type alias">SignTransaction</a></h4>
+						</li>
+					</ul>
+				</section>
+			</section>
+		</div>
+		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
+			<nav class="tsd-navigation primary">
+				<ul>
+					<li class=" ">
+						<a href="../modules.html">Exports</a>
+					</li>
+					<li class=" tsd-kind-namespace">
+						<a href="algorand.html">algorand</a>
+					</li>
+					<li class=" tsd-kind-namespace">
+						<a href="bridge.html">bridge</a>
+					</li>
+					<li class=" tsd-kind-namespace">
+						<a href="cosmos.html">cosmos</a>
+					</li>
+					<li class=" tsd-kind-namespace">
+						<a href="ethers_contracts.html">ethers_<wbr>contracts</a>
+					</li>
+					<li class=" tsd-kind-namespace">
+						<a href="nft_bridge.html">nft_<wbr>bridge</a>
+					</li>
+					<li class=" tsd-kind-namespace">
+						<a href="rpc.html">rpc</a>
+					</li>
+					<li class="current tsd-kind-namespace">
+						<a href="solana.html">solana</a>
+					</li>
+					<li class=" tsd-kind-namespace">
+						<a href="sui.html">sui</a>
+					</li>
+					<li class=" tsd-kind-namespace">
+						<a href="terra.html">terra</a>
+					</li>
+					<li class=" tsd-kind-namespace">
+						<a href="token_bridge.html">token_<wbr>bridge</a>
+					</li>
+					<li class=" tsd-kind-namespace">
+						<a href="utils.html">utils</a>
+					</li>
+				</ul>
+			</nav>
+			<nav class="tsd-navigation secondary menu-sticky">
+				<ul class="before-current">
+					<li class=" tsd-kind-class tsd-parent-kind-namespace">
+						<a href="../classes/solana.BpfLoaderUpgradeable.html" class="tsd-kind-icon">Bpf<wbr>Loader<wbr>Upgradeable</a>
+					</li>
+					<li class=" tsd-kind-class tsd-parent-kind-namespace">
+						<a href="../classes/solana.NodeWallet.html" class="tsd-kind-icon">Node<wbr>Wallet</a>
+					</li>
+					<li class=" tsd-kind-class tsd-parent-kind-namespace">
+						<a href="../classes/solana.Secp256k1SignatureOffsets.html" class="tsd-kind-icon">Secp256k1<wbr>Signature<wbr>Offsets</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-parent-kind-namespace">
+						<a href="../interfaces/solana.CompleteTransferNativeWithPayloadCpiAccounts.html" class="tsd-kind-icon">Complete<wbr>Transfer<wbr>Native<wbr>With<wbr>Payload<wbr>Cpi<wbr>Accounts</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-parent-kind-namespace">
+						<a href="../interfaces/solana.CompleteTransferWrappedWithPayloadCpiAccounts.html" class="tsd-kind-icon">Complete<wbr>Transfer<wbr>Wrapped<wbr>With<wbr>Payload<wbr>Cpi<wbr>Accounts</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-parent-kind-namespace">
+						<a href="../interfaces/solana.PostMessageCpiAccounts.html" class="tsd-kind-icon">Post<wbr>Message<wbr>Cpi<wbr>Accounts</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-parent-kind-namespace">
+						<a href="../interfaces/solana.PreparedTransactions.html" class="tsd-kind-icon">Prepared<wbr>Transactions</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-parent-kind-namespace">
+						<a href="../interfaces/solana.TokenBridgeBaseDerivedAccounts.html" class="tsd-kind-icon">Token<wbr>Bridge<wbr>Base<wbr>Derived<wbr>Accounts</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-parent-kind-namespace">
+						<a href="../interfaces/solana.TokenBridgeBaseNativeDerivedAccounts.html" class="tsd-kind-icon">Token<wbr>Bridge<wbr>Base<wbr>Native<wbr>Derived<wbr>Accounts</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-parent-kind-namespace">
+						<a href="../interfaces/solana.TokenBridgeBaseRedeemerDerivedAccounts.html" class="tsd-kind-icon">Token<wbr>Bridge<wbr>Base<wbr>Redeemer<wbr>Derived<wbr>Accounts</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-parent-kind-namespace">
+						<a href="../interfaces/solana.TokenBridgeBaseSenderDerivedAccounts.html" class="tsd-kind-icon">Token<wbr>Bridge<wbr>Base<wbr>Sender<wbr>Derived<wbr>Accounts</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-parent-kind-namespace">
+						<a href="../interfaces/solana.TokenBridgeDerivedAccounts.html" class="tsd-kind-icon">Token<wbr>Bridge<wbr>Derived<wbr>Accounts</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-parent-kind-namespace">
+						<a href="../interfaces/solana.TokenBridgeNativeRedeemerDerivedAccounts.html" class="tsd-kind-icon">Token<wbr>Bridge<wbr>Native<wbr>Redeemer<wbr>Derived<wbr>Accounts</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-parent-kind-namespace">
+						<a href="../interfaces/solana.TokenBridgeNativeSenderDerivedAccounts.html" class="tsd-kind-icon">Token<wbr>Bridge<wbr>Native<wbr>Sender<wbr>Derived<wbr>Accounts</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-parent-kind-namespace">
+						<a href="../interfaces/solana.TokenBridgeWrappedRedeemerDerivedAccounts.html" class="tsd-kind-icon">Token<wbr>Bridge<wbr>Wrapped<wbr>Redeemer<wbr>Derived<wbr>Accounts</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-parent-kind-namespace">
+						<a href="../interfaces/solana.TokenBridgeWrappedSenderDerivedAccounts.html" class="tsd-kind-icon">Token<wbr>Bridge<wbr>Wrapped<wbr>Sender<wbr>Derived<wbr>Accounts</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-parent-kind-namespace">
+						<a href="../interfaces/solana.TransactionSignatureAndResponse.html" class="tsd-kind-icon">Transaction<wbr>Signature<wbr>And<wbr>Response</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-parent-kind-namespace">
+						<a href="../interfaces/solana.TransferNativeWithPayloadCpiAccounts.html" class="tsd-kind-icon">Transfer<wbr>Native<wbr>With<wbr>Payload<wbr>Cpi<wbr>Accounts</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-parent-kind-namespace">
+						<a href="../interfaces/solana.TransferWrappedWithPayloadCpiAccounts.html" class="tsd-kind-icon">Transfer<wbr>Wrapped<wbr>With<wbr>Payload<wbr>Cpi<wbr>Accounts</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-parent-kind-namespace">
+						<a href="../interfaces/solana.WormholeDerivedAccounts.html" class="tsd-kind-icon">Wormhole<wbr>Derived<wbr>Accounts</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-parent-kind-namespace">
+						<a href="solana.html#SignTransaction" class="tsd-kind-icon">Sign<wbr>Transaction</a>
+					</li>
+					<li class=" tsd-kind-variable tsd-parent-kind-namespace">
+						<a href="solana.html#ETHEREUM_KEY_LENGTH" class="tsd-kind-icon">ETHEREUM_<wbr>KEY_<wbr>LENGTH</a>
+					</li>
+					<li class=" tsd-kind-variable tsd-parent-kind-namespace">
+						<a href="solana.html#SIGNATURE_LENGTH" class="tsd-kind-icon">SIGNATURE_<wbr>LENGTH</a>
+					</li>
+					<li class=" tsd-kind-variable tsd-parent-kind-namespace">
+						<a href="solana.html#TOKEN_METADATA_PROGRAM_ID" class="tsd-kind-icon">TOKEN_<wbr>METADATA_<wbr>PROGRAM_<wbr>ID</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-namespace">
+						<a href="solana.html#createBridgeFeeTransferInstruction" class="tsd-kind-icon">create<wbr>Bridge<wbr>Fee<wbr>Transfer<wbr>Instruction</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-namespace">
+						<a href="solana.html#createPostVaaInstructionSolana" class="tsd-kind-icon">create<wbr>Post<wbr>Vaa<wbr>Instruction<wbr>Solana</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-namespace">
+						<a href="solana.html#createReadOnlyProvider" class="tsd-kind-icon">create<wbr>Read<wbr>Only<wbr>Provider</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-namespace">
+						<a href="solana.html#createSecp256k1Instruction" class="tsd-kind-icon">create<wbr>Secp256k1<wbr>Instruction</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-namespace">
+						<a href="solana.html#createVerifySignaturesInstructionsSolana" class="tsd-kind-icon">create<wbr>Verify<wbr>Signatures<wbr>Instructions<wbr>Solana</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-namespace">
+						<a href="solana.html#deriveAddress" class="tsd-kind-icon">derive<wbr>Address</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-namespace">
+						<a href="solana.html#deriveTokenMetadataKey" class="tsd-kind-icon">derive<wbr>Token<wbr>Metadata<wbr>Key</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-namespace">
+						<a href="solana.html#deriveUpgradeableProgramKey" class="tsd-kind-icon">derive<wbr>Upgradeable<wbr>Program<wbr>Key</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-namespace">
+						<a href="solana.html#getAccountData" class="tsd-kind-icon">get<wbr>Account<wbr>Data</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-namespace">
+						<a href="solana.html#getCompleteTransferNativeWithPayloadCpiAccounts" class="tsd-kind-icon">get<wbr>Complete<wbr>Transfer<wbr>Native<wbr>With<wbr>Payload<wbr>Cpi<wbr>Accounts</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-namespace">
+						<a href="solana.html#getCompleteTransferWrappedWithPayloadCpiAccounts" class="tsd-kind-icon">get<wbr>Complete<wbr>Transfer<wbr>Wrapped<wbr>With<wbr>Payload<wbr>Cpi<wbr>Accounts</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-namespace">
+						<a href="solana.html#getPostMessageCpiAccounts" class="tsd-kind-icon">get<wbr>Post<wbr>Message<wbr>Cpi<wbr>Accounts</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-namespace">
+						<a href="solana.html#getTokenBridgeDerivedAccounts" class="tsd-kind-icon">get<wbr>Token<wbr>Bridge<wbr>Derived<wbr>Accounts</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-namespace">
+						<a href="solana.html#getTransferNativeWithPayloadCpiAccounts" class="tsd-kind-icon">get<wbr>Transfer<wbr>Native<wbr>With<wbr>Payload<wbr>Cpi<wbr>Accounts</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-namespace">
+						<a href="solana.html#getTransferWrappedWithPayloadCpiAccounts" class="tsd-kind-icon">get<wbr>Transfer<wbr>Wrapped<wbr>With<wbr>Payload<wbr>Cpi<wbr>Accounts</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-namespace">
+						<a href="solana.html#getWormholeCpiAccounts" class="tsd-kind-icon">get<wbr>Wormhole<wbr>Cpi<wbr>Accounts</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-namespace">
+						<a href="solana.html#getWormholeDerivedAccounts" class="tsd-kind-icon">get<wbr>Wormhole<wbr>Derived<wbr>Accounts</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-namespace">
+						<a href="solana.html#modifySignTransaction" class="tsd-kind-icon">modify<wbr>Sign<wbr>Transaction</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-namespace">
+						<a href="solana.html#newAccountMeta" class="tsd-kind-icon">new<wbr>Account<wbr>Meta</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-namespace">
+						<a href="solana.html#newReadOnlyAccountMeta" class="tsd-kind-icon">new<wbr>Read<wbr>Only<wbr>Account<wbr>Meta</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-namespace">
+						<a href="solana.html#postVaaSolana" class="tsd-kind-icon">post<wbr>Vaa<wbr>Solana</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-namespace">
+						<a href="solana.html#postVaaSolanaWithRetry" class="tsd-kind-icon">post<wbr>Vaa<wbr>Solana<wbr>With<wbr>Retry</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-namespace">
+						<a href="solana.html#sendAndConfirmTransactionsWithRetry" class="tsd-kind-icon">send<wbr>And<wbr>Confirm<wbr>Transactions<wbr>With<wbr>Retry</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-namespace">
+						<a href="solana.html#signSendAndConfirmTransaction" class="tsd-kind-icon">sign<wbr>Send<wbr>And<wbr>Confirm<wbr>Transaction</a>
+					</li>
+					<li class=" tsd-kind-function tsd-parent-kind-namespace">
+						<a href="solana.html#signTransactionFactory" class="tsd-kind-icon">sign<wbr>Transaction<wbr>Factory</a>
+					</li>
+				</ul>
+			</nav>
+		</div>
+	</div>
+</div>
+<footer class="with-border-bottom">
+	<div class="container">
+		<h2>Legend</h2>
+		<div class="tsd-legend-group">
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-interface"><span class="tsd-kind-icon">Property</span></li>
+			</ul>
+		</div>
+	</div>
+</footer>
+<div class="container tsd-generator">
+	<p>Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p>
+</div>
+<div class="overlay"></div>
+<script src="../assets/js/main.js"></script>
+</body>
+</html>

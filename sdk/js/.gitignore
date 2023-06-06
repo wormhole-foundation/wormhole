@@ -36,5 +36,3 @@ yarn-error.log*
 /src/anchor-idl
 /src/solana/types
 
-# docs
-/docs
