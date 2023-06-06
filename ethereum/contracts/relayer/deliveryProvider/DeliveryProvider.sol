@@ -28,7 +28,8 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
     function quoteEvmDeliveryPrice(
         uint16 targetChain,
         Gas gasLimit,
-        TargetNative receiverValue
+        TargetNative receiverValue,
+        bool verifyDeliveryVaa
     )
         public
         view
@@ -59,11 +60,11 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
             EvmExecutionParamsV1 memory parsed = decodeEvmExecutionParamsV1(encodedExecutionParams);
             GasPrice targetChainRefundPerUnitGasUnused;
             (nativePriceQuote, targetChainRefundPerUnitGasUnused) =
-                quoteEvmDeliveryPrice(targetChain, parsed.gasLimit, receiverValue);
+                quoteEvmDeliveryPrice(targetChain, parsed.gasLimit, receiverValue, parsed.verifyDeliveryVaa);
             return (
                 nativePriceQuote,
                 encodeEvmExecutionInfoV1(
-                    EvmExecutionInfoV1(parsed.gasLimit, targetChainRefundPerUnitGasUnused)
+                    EvmExecutionInfoV1(parsed.gasLimit, parsed.verifyDeliveryVaa, targetChainRefundPerUnitGasUnused)
                     )
             );
         } else {

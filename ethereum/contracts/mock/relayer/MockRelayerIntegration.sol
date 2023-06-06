@@ -232,6 +232,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
             targetChain,
             TargetNative.wrap(newReceiverValue),
             Gas.wrap(newGasLimit),
+            true,
             relayer.getDefaultDeliveryProvider()
         );
     }
@@ -268,6 +269,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
                 getRegisteredContractAddress(sourceChain),
                 relayer.getDefaultDeliveryProvider(),
                 new VaaKey[](0),
+                true,
                 15
             );
         }
@@ -283,6 +285,7 @@ contract MockRelayerIntegration is IWormholeReceiver {
                 getRegisteredContractAddress(wormhole.chainId()),
                 relayer.getDefaultDeliveryProvider(),
                 new VaaKey[](0),
+                true,
                 15
             );
         }

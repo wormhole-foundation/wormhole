@@ -14,6 +14,7 @@ import {
     InvalidOverrideGasLimit,
     InvalidOverrideReceiverValue,
     InvalidOverrideRefundPerGasUnused,
+    InvalidOverrideVerifyDeliveryVaa,
     RequesterNotWormholeRelayer,
     DeliveryProviderCannotReceivePayment,
     VaaKey,
@@ -52,12 +53,8 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         address payable relayerRefundAddress,
         bytes memory deliveryOverrides
     ) public payable {
-        (IWormhole.VM memory vm, bool valid, string memory reason) =
-            getWormhole().parseAndVerifyVM(encodedDeliveryVAA);
-
-        if (!valid) {
-            revert InvalidDeliveryVaa(reason);
-        }
+        IWormhole.VM memory vm =
+            getWormhole().parseVM(encodedDeliveryVAA);
 
         bytes32 registeredWormholeRelayer = getRegisteredWormholeRelayerContract(vm.emitterChainId);
         if (vm.emitterAddress != registeredWormholeRelayer) {
@@ -85,6 +82,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             deliveryInstruction: instruction,
             gasLimit: Gas.wrap(0),
             targetChainRefundPerGasUnused: GasPrice.wrap(0),
+            verifyDeliveryVaa: false,
             totalReceiverValue: TargetNative.wrap(0),
             encodedOverrides: deliveryOverrides,
             redeliveryHash: bytes32(0)
@@ -94,6 +92,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             deliveryVaaInfo.gasLimit,
             deliveryVaaInfo.targetChainRefundPerGasUnused,
             deliveryVaaInfo.totalReceiverValue,
+            deliveryVaaInfo.verifyDeliveryVaa,
             deliveryVaaInfo.redeliveryHash
         ) = getDeliveryParametersEvmV1(instruction, deliveryOverrides);
 
@@ -107,6 +106,13 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
 
         if (getChainId() != instruction.targetChain) {
             revert TargetChainIsNotThisChain(instruction.targetChain);
+        }
+
+        if(deliveryVaaInfo.verifyDeliveryVaa) {
+            (bool valid, string memory reason) = getWormhole().verifyVM(vm);
+            if (!valid) {
+                revert InvalidDeliveryVaa(reason);
+            }
         }
 
         checkVaaKeysWithVAAs(instruction.vaaKeys, encodedVMs);
@@ -131,6 +137,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         DeliveryInstruction deliveryInstruction;
         Gas gasLimit;
         GasPrice targetChainRefundPerGasUnused;
+        bool verifyDeliveryVaa;
         TargetNative totalReceiverValue;
         bytes encodedOverrides;
         bytes32 redeliveryHash; //optional (0 if not present)
@@ -146,6 +153,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             Gas gasLimit,
             GasPrice targetChainRefundPerGasUnused,
             TargetNative totalReceiverValue,
+            bool verifyDeliveryVaa,
             bytes32 redeliveryHash
         )
     {
@@ -176,6 +184,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         gasLimit = executionInfo.gasLimit;
         targetChainRefundPerGasUnused = executionInfo.targetChainRefundPerGasUnused;
         totalReceiverValue = instruction.requestedReceiverValue + instruction.extraReceiverValue;
+        verifyDeliveryVaa = executionInfo.verifyDeliveryVaa;
     }
 
     function decodeAndCheckOverridesEvmV1(
@@ -214,6 +223,9 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         }
         if (deliveryOverridesExecutionInfo.gasLimit < executionInfo.gasLimit) {
             revert InvalidOverrideGasLimit();
+        }
+        if (!deliveryOverridesExecutionInfo.verifyDeliveryVaa && executionInfo.verifyDeliveryVaa) {
+            revert InvalidOverrideVerifyDeliveryVaa();
         }
     }
 

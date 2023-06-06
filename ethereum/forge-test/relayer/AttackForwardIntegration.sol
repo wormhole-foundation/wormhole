@@ -70,6 +70,7 @@ contract AttackForwardIntegration is IWormholeReceiver {
             attackerRewardAddress,
             coreRelayer.getDefaultDeliveryProvider(),
             new VaaKey[](0),
+            true,
             15
         );
     }

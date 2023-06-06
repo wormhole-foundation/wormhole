@@ -146,7 +146,34 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             payload,
             receiverValue,
             paymentForExtraReceiverValue,
-            encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit)),
+            encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit, true)),
+            refundChain,
+            toWormholeFormat(refundAddress),
+            deliveryProviderAddress,
+            vaaKeys,
+            consistencyLevel
+        );
+    }
+
+    function sendVaasToEvmWithoutVerification(
+        uint16 targetChain,
+        address targetAddress,
+        TargetNative receiverValue,
+        LocalNative paymentForExtraReceiverValue,
+        Gas gasLimit,
+        uint16 refundChain,
+        address refundAddress,
+        address deliveryProviderAddress,
+        VaaKey[] memory vaaKeys,
+        uint8 consistencyLevel
+    ) public payable returns (uint64 sequence) {
+        sequence = send(
+            targetChain,
+            toWormholeFormat(targetAddress),
+            bytes(""),
+            receiverValue,
+            paymentForExtraReceiverValue,
+            encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit, false)),
             refundChain,
             toWormholeFormat(refundAddress),
             deliveryProviderAddress,
@@ -170,7 +197,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             payload,
             receiverValue,
             LocalNative.wrap(0),
-            encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit)),
+            encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit, true)),
             getCurrentRefundChain(),
             getCurrentRefundAddress(),
             deliveryProvider,
@@ -195,7 +222,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             payload,
             receiverValue,
             LocalNative.wrap(0),
-            encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit)),
+            encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit, true)),
             getCurrentRefundChain(),
             getCurrentRefundAddress(),
             deliveryProvider,
@@ -215,6 +242,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         address refundAddress,
         address deliveryProviderAddress,
         VaaKey[] memory vaaKeys,
+        bool verifyDeliveryVaa,
         uint8 consistencyLevel
     ) public payable {
         // provide ability to use original relay provider
@@ -228,7 +256,39 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             payload,
             receiverValue,
             paymentForExtraReceiverValue,
-            encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit)),
+            encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit, verifyDeliveryVaa)),
+            refundChain,
+            toWormholeFormat(refundAddress),
+            deliveryProviderAddress,
+            vaaKeys,
+            consistencyLevel
+        );
+    }
+
+    function forwardVaasToEvmWithoutVerification(
+        uint16 targetChain,
+        address targetAddress,
+        TargetNative receiverValue,
+        LocalNative paymentForExtraReceiverValue,
+        Gas gasLimit,
+        uint16 refundChain,
+        address refundAddress,
+        address deliveryProviderAddress,
+        VaaKey[] memory vaaKeys,
+        uint8 consistencyLevel
+    ) public payable {
+        // provide ability to use original relay provider
+        if (deliveryProviderAddress == address(0)) {
+            deliveryProviderAddress = getOriginalDeliveryProvider();
+        }
+
+        forward(
+            targetChain,
+            toWormholeFormat(targetAddress),
+            bytes(""),
+            receiverValue,
+            paymentForExtraReceiverValue,
+            encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit, false)),
             refundChain,
             toWormholeFormat(refundAddress),
             deliveryProviderAddress,
@@ -242,13 +302,14 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         uint16 targetChain,
         TargetNative newReceiverValue,
         Gas newGasLimit,
+        bool verifyDeliveryVaa,
         address newDeliveryProviderAddress
     ) public payable returns (uint64 sequence) {
         sequence = resend(
             deliveryVaaKey,
             targetChain,
             newReceiverValue,
-            encodeEvmExecutionParamsV1(EvmExecutionParamsV1(newGasLimit)),
+            encodeEvmExecutionParamsV1(EvmExecutionParamsV1(newGasLimit, verifyDeliveryVaa)),
             newDeliveryProviderAddress
         );
     }
@@ -494,16 +555,26 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         uint16 targetChain,
         TargetNative receiverValue,
         Gas gasLimit,
-        address deliveryProviderAddress
+        address deliveryProviderAddress,
+        bool verifyDeliveryVaa
     ) public view returns (LocalNative nativePriceQuote, GasPrice targetChainRefundPerGasUnused) {
         (LocalNative quote, bytes memory encodedExecutionInfo) = quoteDeliveryPrice(
             targetChain,
             receiverValue,
-            encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit)),
+            encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit, verifyDeliveryVaa)),
             deliveryProviderAddress
         );
         nativePriceQuote = quote;
         targetChainRefundPerGasUnused = decodeEvmExecutionInfoV1(encodedExecutionInfo).targetChainRefundPerGasUnused;
+    }
+
+    function quoteEVMDeliveryPrice(
+        uint16 targetChain,
+        TargetNative receiverValue,
+        Gas gasLimit,
+        address deliveryProviderAddress
+    ) public view returns (LocalNative nativePriceQuote, GasPrice targetChainRefundPerGasUnused) {
+        return quoteEVMDeliveryPrice(targetChain, receiverValue, gasLimit, deliveryProviderAddress, true);
     }
 
     function quoteEVMDeliveryPrice(

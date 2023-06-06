@@ -200,6 +200,25 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         VaaKey[] memory vaaKeys,
         uint8 consistencyLevel
     ) external payable returns (uint64 sequence);
+
+    /**
+     * @notice Same as 'sendToEvm' above, except the delivery VAA will not be verified on the target chain, 
+     * 
+     * This function must be called with `msg.value` equal to 
+     * quoteEVMDeliveryPrice(targetChain, receiverValue, gasLimit, deliveryProviderAddress, false) + paymentForExtraReceiverValue
+     */
+    function sendVaasToEvmWithoutVerification(
+        uint16 targetChain,
+        address targetAddress,
+        TargetNative receiverValue,
+        LocalNative paymentForExtraReceiverValue,
+        Gas gasLimit,
+        uint16 refundChain,
+        address refundAddress,
+        address deliveryProviderAddress,
+        VaaKey[] memory vaaKeys,
+        uint8 consistencyLevel
+    ) external payable returns (uint64 sequence);
     
     /**
      * @notice Publishes an instruction for the delivery provider at `deliveryProviderAddress` 
@@ -221,6 +240,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      *        (in addition to the `receiverValue` specified)
      * @param encodedExecutionParameters encoded information on how to execute delivery that may impact pricing
      *        e.g. for version EVM_V1, this is a struct that encodes the `gasLimit` with which to call `targetAddress`
+     *             and whether or not to verify the delivery VAA
      * @param refundChain The chain to deliver any refund to, in Wormhole Chain ID format
      * @param refundAddress The address on `refundChain` to deliver any refund to, in Wormhole bytes32 format
      * @param deliveryProviderAddress The address of the desired delivery provider's implementation of IDeliveryProvider
@@ -350,6 +370,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * @param refundAddress The address on `refundChain` to deliver any refund to, in Wormhole bytes32 format
      * @param deliveryProviderAddress The address of the desired delivery provider's implementation of IDeliveryProvider
      * @param vaaKeys Additional VAAs to pass in as parameter in call to `targetAddress`
+     * @param verifyDeliveryVaa If true, the delivery VAA will be verified on the target chain prior to calling targetAddress
      * @param consistencyLevel Consistency level with which to publish the delivery instructions - see 
      *        https://book.wormhole.com/wormhole/3_coreLayerContracts.html?highlight=consistency#consistency-levels
      */
@@ -357,6 +378,23 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         uint16 targetChain,
         address targetAddress,
         bytes memory payload,
+        TargetNative receiverValue,
+        LocalNative paymentForExtraReceiverValue,
+        Gas gasLimit,
+        uint16 refundChain,
+        address refundAddress,
+        address deliveryProviderAddress,
+        VaaKey[] memory vaaKeys,
+        bool verifyDeliveryVaa,
+        uint8 consistencyLevel
+    ) external payable;
+
+    /**
+     * @notice Same as 'forwardToEvm' above, except the delivery VAA will not be verified on the target chain, 
+     */
+    function forwardVaasToEvmWithoutVerification(
+        uint16 targetChain,
+        address targetAddress,
         TargetNative receiverValue,
         LocalNative paymentForExtraReceiverValue,
         Gas gasLimit,
@@ -398,6 +436,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      *        (in addition to the `receiverValue` specified)
      * @param encodedExecutionParameters encoded information on how to execute delivery that may impact pricing
      *        e.g. for version EVM_V1, this is a struct that encodes the `gasLimit` with which to call `targetAddress`
+     *        and whether or not to verify the delivery VAA
      * @param refundChain The chain to deliver any refund to, in Wormhole Chain ID format
      * @param refundAddress The address on `refundChain` to deliver any refund to, in Wormhole bytes32 format
      * @param deliveryProviderAddress The address of the desired delivery provider's implementation of IDeliveryProvider
@@ -432,14 +471,22 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * @param newReceiverValue new msg.value that delivery provider should pass in for call to `targetAddress` (in targetChain currency units)
      * @param newGasLimit gas limit with which to call `targetAddress`. Any units of gas unused will be refunded according to the  
      *        `targetChainRefundPerGasUnused` rate quoted by the delivery provider, to the refund chain and address specified in the original request
+     * @param verifyDeliveryVaa If true, the delivery VAA will be verified on the target chain prior to calling targetAddress
      * @param newDeliveryProviderAddress The address of the desired delivery provider's implementation of IDeliveryProvider
      * @return sequence sequence number of published VAA containing redelivery instructions
+     * 
+     * @notice *** This will only be able to succeed if the following is true **
+     *         - newGasLimit >= gas limit of the old instruction
+     *         - newReceiverValue >= receiver value of the old instruction
+     *         - newDeliveryProvider's `targetChainRefundPerGasUnused` >= old relay provider's `targetChainRefundPerGasUnused`
+     *         - (verifyDeliveryVaa, oldVerifyDeliveryVaa) is not (false, true)
      */
     function resendToEvm(
         VaaKey memory deliveryVaaKey,
         uint16 targetChain,
         TargetNative newReceiverValue,
         Gas newGasLimit,
+        bool verifyDeliveryVaa,
         address newDeliveryProviderAddress
     ) external payable returns (uint64 sequence);
 
@@ -499,6 +546,26 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
         TargetNative receiverValue,
         Gas gasLimit,
         address deliveryProviderAddress
+    ) external view returns (LocalNative nativePriceQuote, GasPrice targetChainRefundPerGasUnused);
+
+     /**
+     * @notice Returns the price to request a relay to chain `targetChain`, using delivery provider `deliveryProviderAddress`
+     * 
+     * @param targetChain in Wormhole Chain ID format
+     * @param receiverValue msg.value that delivery provider should pass in for call to `targetAddress` (in targetChain currency units)
+     * @param gasLimit gas limit with which to call `targetAddress`. 
+     * @param deliveryProviderAddress The address of the desired delivery provider's implementation of IDeliveryProvider
+     * @param verifyDeliveryVaa If true, the delivery VAA will be verified on the target chain prior to calling targetAddress
+     * @return nativePriceQuote Price, in units of current chain currency, that the delivery provider charges to perform the relay
+     * @return targetChainRefundPerGasUnused amount of target chain currency that will be refunded per unit of gas unused, 
+     *         if a refundAddress is specified
+     */
+    function quoteEVMDeliveryPrice(
+        uint16 targetChain,
+        TargetNative receiverValue,
+        Gas gasLimit,
+        address deliveryProviderAddress,
+        bool verifyDeliveryVaa
     ) external view returns (LocalNative nativePriceQuote, GasPrice targetChainRefundPerGasUnused);
 
     /**
@@ -686,6 +753,8 @@ error InvalidOverrideGasLimit();
 error InvalidOverrideReceiverValue();
 //When a `DeliveryOverride` contains a 'refund per unit of gas unused' that's less than the original
 error InvalidOverrideRefundPerGasUnused();
+//When a `DeliveryOverride` has `verifyDeliveryVaa` = false, when the old value was true
+error InvalidOverrideVerifyDeliveryVaa();
 
 //When the delivery provider doesn't pass in sufficient funds (i.e. msg.value does not cover the
 // maximum possible refund to the user)

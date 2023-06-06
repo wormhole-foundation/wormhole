@@ -59,6 +59,11 @@ contract MockWormhole is IWormhole {
         vm = _parseVM(encodedVm);
     }
 
+    function verifyVM(VM memory vm) external view returns (bool valid, string memory reason) {
+        valid = !invalidVMs[vm.hash];
+        reason = "";
+    }
+
     function parseAndVerifyVM(bytes calldata encodedVm)
         external
         view
@@ -66,8 +71,7 @@ contract MockWormhole is IWormhole {
     {
         vm = _parseVM(encodedVm);
         //behold the rigorous checking!
-        valid = !invalidVMs[vm.hash];
-        reason = "";
+        (valid, reason) = this.verifyVM(vm);
     }
 
     function _parseVM(bytes calldata encodedVm) internal pure returns (VM memory vm) {
@@ -205,14 +209,6 @@ contract MockWormhole is IWormhole {
 
     function nextSequence(address emitter) external view returns (uint64) {
         return sequences[emitter];
-    }
-
-    function verifyVM(VM memory /*vm*/ )
-        external
-        pure
-        returns (bool, /*valid*/ string memory /*reason*/ )
-    {
-        revert("unsupported verifyVM in wormhole mock");
     }
 
     function verifySignatures(

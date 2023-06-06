@@ -19,12 +19,14 @@ enum ExecutionParamsVersion {EVM_V1}
 
 struct EvmExecutionParamsV1 {
     Gas gasLimit;
+    bool verifyDeliveryVaa;
 }
 
 enum ExecutionInfoVersion {EVM_V1}
 
 struct EvmExecutionInfoV1 {
     Gas gasLimit;
+    bool verifyDeliveryVaa;
     GasPrice targetChainRefundPerGasUnused;
 }
 
@@ -46,7 +48,7 @@ function encodeEvmExecutionParamsV1(EvmExecutionParamsV1 memory executionParams)
     pure
     returns (bytes memory)
 {
-    return abi.encode(uint8(ExecutionParamsVersion.EVM_V1), executionParams.gasLimit);
+    return abi.encode(uint8(ExecutionParamsVersion.EVM_V1), executionParams.gasLimit, executionParams.verifyDeliveryVaa);
 }
 
 function decodeEvmExecutionParamsV1(bytes memory data)
@@ -54,7 +56,7 @@ function decodeEvmExecutionParamsV1(bytes memory data)
     returns (EvmExecutionParamsV1 memory executionParams)
 {
     uint8 version;
-    (version, executionParams.gasLimit) = abi.decode(data, (uint8, Gas));
+    (version, executionParams.gasLimit, executionParams.verifyDeliveryVaa) = abi.decode(data, (uint8, Gas, bool));
 
     if (version != uint8(ExecutionParamsVersion.EVM_V1)) {
         revert UnexpectedExecutionParamsVersion(version, uint8(ExecutionParamsVersion.EVM_V1));
@@ -68,6 +70,7 @@ function encodeEvmExecutionInfoV1(EvmExecutionInfoV1 memory executionInfo)
     return abi.encode(
         uint8(ExecutionInfoVersion.EVM_V1),
         executionInfo.gasLimit,
+        executionInfo.verifyDeliveryVaa,
         executionInfo.targetChainRefundPerGasUnused
     );
 }
@@ -77,8 +80,8 @@ function decodeEvmExecutionInfoV1(bytes memory data)
     returns (EvmExecutionInfoV1 memory executionInfo)
 {
     uint8 version;
-    (version, executionInfo.gasLimit, executionInfo.targetChainRefundPerGasUnused) =
-        abi.decode(data, (uint8, Gas, GasPrice));
+    (version, executionInfo.gasLimit, executionInfo.verifyDeliveryVaa, executionInfo.targetChainRefundPerGasUnused) =
+        abi.decode(data, (uint8, Gas, bool, GasPrice));
 
     if (version != uint8(ExecutionInfoVersion.EVM_V1)) {
         revert UnexpectedExecutionInfoVersion(version, uint8(ExecutionInfoVersion.EVM_V1));

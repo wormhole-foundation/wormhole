@@ -1336,7 +1336,7 @@ contract WormholeRelayerTests is Test {
         );
 
         bytes memory encodedExecutionInfo = abi.encode(
-            uint8(ExecutionInfoVersion.EVM_V1), params.gasLimit, targetChainRefundPerGasUnused
+            uint8(ExecutionInfoVersion.EVM_V1), params.gasLimit, true, targetChainRefundPerGasUnused
         );
         TargetNative extraReceiverValue = setup.source.coreRelayer.quoteNativeForChain(
             setup.targetChain,
@@ -1397,11 +1397,12 @@ contract WormholeRelayerTests is Test {
             setup.targetChain,
             TargetNative.wrap(params.newReceiverValue),
             Gas.wrap(params.newGasLimit),
+            true,
             address(setup.source.deliveryProvider)
         );
 
         bytes memory encodedExecutionInfo = abi.encode(
-            uint8(ExecutionInfoVersion.EVM_V1), params.newGasLimit, targetChainRefundPerGasUnused
+            uint8(ExecutionInfoVersion.EVM_V1), params.newGasLimit, true, targetChainRefundPerGasUnused
         );
 
         RedeliveryInstruction memory expectedInstruction = RedeliveryInstruction({
@@ -1565,16 +1566,7 @@ contract WormholeRelayerTests is Test {
      */
 
     function invalidateVM(bytes memory message, WormholeSimulator simulator) internal {
-        change(message, message.length - 1);
         simulator.invalidateVM(message);
-    }
-
-    function change(bytes memory message, uint256 index) internal pure {
-        if (message[index] == 0x02) {
-            message[index] = 0x04;
-        } else {
-            message[index] = 0x02;
-        }
     }
 
     struct DeliveryStack {
@@ -1862,6 +1854,7 @@ contract WormholeRelayerTests is Test {
             encodeEvmExecutionInfoV1(
                 EvmExecutionInfoV1({
                     gasLimit: executionInfo.gasLimit - Gas.wrap(1),
+                    verifyDeliveryVaa: true,
                     targetChainRefundPerGasUnused: executionInfo.targetChainRefundPerGasUnused
                 })
             ),
@@ -1936,6 +1929,7 @@ contract WormholeRelayerTests is Test {
             encodeEvmExecutionInfoV1(
                 EvmExecutionInfoV1({
                     gasLimit: executionInfo.gasLimit,
+                    verifyDeliveryVaa: true,
                     targetChainRefundPerGasUnused: GasPrice.wrap(
                         executionInfo.targetChainRefundPerGasUnused.unwrap() - 1
                         )
