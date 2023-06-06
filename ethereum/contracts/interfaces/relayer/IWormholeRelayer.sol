@@ -238,7 +238,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      *        (in addition to the `receiverValue` specified)
      * @param encodedExecutionParameters encoded information on how to execute delivery that may impact pricing
      *        e.g. for version EVM_V1, this is a struct that encodes the `gasLimit` with which to call `targetAddress`
-     *             and whether or not to verify the delivery VAA
+     *        and whether or not to verify the delivery VAA
      * @param refundChain The chain to deliver any refund to, in Wormhole Chain ID format
      * @param refundAddress The address on `refundChain` to deliver any refund to, in Wormhole bytes32 format
      * @param deliveryProviderAddress The address of the desired delivery provider's implementation of IDeliveryProvider
@@ -485,6 +485,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * @param newReceiverValue new msg.value that delivery provider should pass in for call to `targetAddress` (in targetChain currency units)
      * @param newEncodedExecutionParameters new encoded information on how to execute delivery that may impact pricing
      *        e.g. for version EVM_V1, this is a struct that encodes the `gasLimit` with which to call `targetAddress`
+     *        and whether or not to verify the delivery VAA
      * @param newDeliveryProviderAddress The address of the desired delivery provider's implementation of IDeliveryProvider
      * @return sequence sequence number of published VAA containing redelivery instructions
      */
@@ -557,10 +558,11 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * @param receiverValue msg.value that delivery provider should pass in for call to `targetAddress` (in targetChain currency units)
      * @param encodedExecutionParameters encoded information on how to execute delivery that may impact pricing
      *        e.g. for version EVM_V1, this is a struct that encodes the `gasLimit` with which to call `targetAddress`
+     *        and whether or not to verify the delivery VAA
      * @param deliveryProviderAddress The address of the desired delivery provider's implementation of IDeliveryProvider
      * @return nativePriceQuote Price, in units of current chain currency, that the delivery provider charges to perform the relay
      * @return encodedExecutionInfo encoded information on how the delivery will be executed
-     *        e.g. for version EVM_V1, this is a struct that encodes the `gasLimit` and `targetChainRefundPerGasUnused`
+     *        e.g. for version EVM_V1, this is a struct that encodes the `gasLimit`, `verifyDeliveryVaa`, and `targetChainRefundPerGasUnused`
      *             (which is the amount of target chain currency that will be refunded per unit of gas unused, 
      *              if a refundAddress is specified)
      */
