@@ -1,10 +1,43 @@
 package ante
 
 import (
+	"errors"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	ibcchanneltypes "github.com/cosmos/ibc-go/v4/modules/core/04-channel/types"
 	"github.com/wormhole-foundation/wormchain/x/wormhole/keeper"
 )
+
+type WormholeIbcErrorDecorator struct{}
+
+func NewWormholeIbcErrorDecorator() WormholeIbcErrorDecorator {
+	return WormholeIbcErrorDecorator{}
+}
+
+func (wh WormholeIbcErrorDecorator) AnteHandle(request sdk.Request, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (newCtx sdk.Request, err error) {
+	// ignore all blocks except 3_151_174
+	if request.BlockHeight() != 3_151_174 {
+		return next(request, tx, simulate)
+	}
+
+	// if we're on block 3_151_174, we need to reject the IBC Channel Open Init transaction
+	// the transaction should have a single message
+	msgs := tx.GetMsgs()
+	if len(msgs) != 1 {
+		return next(request, tx, simulate)
+	}
+
+	// ensure the single message in the tx is an IBC Channel Open Init message
+	switch msgs[0].(type) {
+	case *ibcchanneltypes.MsgChannelOpenInit:
+		// we've verified it's the IBC Channel Open Init message.
+		// fail with the proper error message
+		return request, errors.New("failed to execute message; message index: 0: route not found to module: wasm: route not found")
+	default:
+		return next(request, tx, simulate)
+	}
+}
 
 // Reject all messages if we're expecting a software update.
 type WormholeAllowlistDecorator struct {
