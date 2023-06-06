@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, jest, test} from "@jest/globals
 import { ethers } from "ethers";
 import { getNetwork, isCI, generateRandomString, waitForRelay, PRIVATE_KEY, getGuardianRPC, GUARDIAN_KEYS, GUARDIAN_SET_INDEX, GOVERNANCE_EMITTER_ADDRESS, getArbitraryBytes32} from "./utils/utils";
 import {getAddressInfo} from "../consts" 
-import {getDefaultProvider} from "../main/helpers"
+import {getDefaultProvider} from "../relayer/helpers"
 import {
     relayer,
     ethers_contracts,

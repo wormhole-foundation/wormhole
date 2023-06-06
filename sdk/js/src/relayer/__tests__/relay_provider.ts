@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, jest, test} from "@jest/globals
 import { ethers } from "ethers";
 import { DeliveryProvider__factory } from "../../ethers-contracts"
 import {getAddressInfo} from "../consts" 
-import {getDefaultProvider} from "../main/helpers"
+import {getDefaultProvider} from "../relayer/helpers"
 import {CHAINS, ChainId, ChainName, Network} from "../../../"
 import {getNetwork, PRIVATE_KEY, isCI} from "./utils/utils";
 
