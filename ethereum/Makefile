@@ -83,4 +83,4 @@ test-forge: dependencies
 	forge test
 
 clean:
-	rm -rf ganache.log .env node_modules build flattened build-forge ethers-contracts
+	rm -rf ganache.log .env node_modules build flattened build-forge ethers-contracts lib/forge-std lib/openzeppelin-contracts
