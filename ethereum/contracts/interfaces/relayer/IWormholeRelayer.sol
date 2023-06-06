@@ -388,22 +388,6 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     ) external payable;
 
     /**
-     * @notice Same as 'forwardToEvm' above, except the delivery VAA will not be verified on the target chain, 
-     */
-    function forwardVaasToEvmWithoutVerification(
-        uint16 targetChain,
-        address targetAddress,
-        uint256 receiverValue,
-        uint256 paymentForExtraReceiverValue,
-        uint256 gasLimit,
-        uint16 refundChain,
-        address refundAddress,
-        address deliveryProviderAddress,
-        VaaKey[] memory vaaKeys,
-        uint8 consistencyLevel
-    ) external payable;
-
-    /**
      * @notice Performs the same function as a `send`, except:
      * 1)  Can only be used during a delivery (i.e. in execution of `receiveWormholeMessages`)
      * 2)  Is paid for (along with any other calls to forward) by (any msg.value passed in) + (refund leftover from current delivery)

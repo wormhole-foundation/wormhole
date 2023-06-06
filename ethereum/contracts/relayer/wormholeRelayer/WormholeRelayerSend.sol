@@ -265,38 +265,6 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         );
     }
 
-    function forwardVaasToEvmWithoutVerification(
-        uint16 targetChain,
-        address targetAddress,
-        TargetNative receiverValue,
-        LocalNative paymentForExtraReceiverValue,
-        Gas gasLimit,
-        uint16 refundChain,
-        address refundAddress,
-        address deliveryProviderAddress,
-        VaaKey[] memory vaaKeys,
-        uint8 consistencyLevel
-    ) public payable {
-        // provide ability to use original relay provider
-        if (deliveryProviderAddress == address(0)) {
-            deliveryProviderAddress = getOriginalDeliveryProvider();
-        }
-
-        forward(
-            targetChain,
-            toWormholeFormat(targetAddress),
-            bytes(""),
-            receiverValue,
-            paymentForExtraReceiverValue,
-            encodeEvmExecutionParamsV1(EvmExecutionParamsV1(gasLimit, false)),
-            refundChain,
-            toWormholeFormat(refundAddress),
-            deliveryProviderAddress,
-            vaaKeys,
-            consistencyLevel
-        );
-    }
-
     function resendToEvm(
         VaaKey memory deliveryVaaKey,
         uint16 targetChain,

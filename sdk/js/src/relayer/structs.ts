@@ -78,6 +78,7 @@ export type RedeliveryInstructionPrintable = {
 
 export interface EVMExecutionInfoV1 {
   gasLimit: BigNumber;
+  verifyDeliveryVaa: boolean;
   targetChainRefundPerGasUnused: BigNumber;
 }
 
@@ -223,12 +224,15 @@ export function parseEVMExecutionInfoV1(
   const gasLimit = ethers.BigNumber.from(
     Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
   );
+  idx += 31;
+  const verifyDeliveryVaa = bytes.readUInt8(idx) == 1;
+  idx += 1;
   idx += 32;
   const targetChainRefundPerGasUnused = ethers.BigNumber.from(
     Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
   );
   idx += 32;
-  return [{ gasLimit, targetChainRefundPerGasUnused }, idx];
+  return [{ gasLimit, verifyDeliveryVaa, targetChainRefundPerGasUnused }, idx];
 }
 
 export function parseWormholeRelayerResend(
