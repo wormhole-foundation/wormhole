@@ -13,7 +13,7 @@ spec:
           command:
             - /bin/sh
             - -c
-            - "bash /app/testing/sdk.sh && touch /app/testing/success"
+            - "sh /app/testing/sdk.sh && touch /app/testing/success"
           readinessProbe:
             exec:
               command:
