@@ -264,15 +264,14 @@ export const builder = function (y: typeof yargs) {
             .option("chain", {
               alias: "c",
               describe: "Chain of Wormhole Relayer contract",
-              type: "string",
               choices: Object.keys(CHAINS),
-              required: true,
-            })
+              demandOption: true,
+            } as const)
             .option("relay-provider-address", {
               alias: "f",
               describe: "Address of the relay provider contract",
               type: "string",
-              required: true,
+              demandOption: true,
             })
         },
         (argv) => {
