@@ -22,9 +22,9 @@ export async function sendMessage(
   const sourceRelayer = await getWormholeRelayer(sourceChain);
   const sourceProvider = await sourceRelayer.getDefaultDeliveryProvider();
 
-  const relayQuote = await (
-    await sourceRelayer.quoteGas(targetChain.chainId, 2000000, sourceProvider)
-  ).add(10000000000);
+  const relayQuote = await await sourceRelayer[
+    "quoteEVMDeliveryPrice(uint16,uint256,uint256,address)"
+  ](targetChain.chainId, 0, 2000000, sourceProvider);
   console.log("relay quote: " + relayQuote);
 
   const mockIntegration = getMockIntegration(sourceChain);
@@ -38,10 +38,11 @@ export async function sendMessage(
   const tx = await mockIntegration.sendMessage(
     Buffer.from(sentMessage),
     targetChain.chainId,
-    targetAddress,
+    2000000,
+    0,
     {
       gasLimit: 1000000,
-      value: relayQuote,
+      value: relayQuote[0],
     }
   );
   const rx = await tx.wait();
@@ -79,19 +80,19 @@ async function queryMessageOnTarget(
   sentMessage: string,
   targetChain: ChainInfo
 ): Promise<boolean> {
-  let messageHistory: string[][] = [];
+  let messageHistory: string[] = [];
   const targetIntegration = getMockIntegration(targetChain);
 
   let notFound = true;
   for (let i = 0; i < 20 && notFound; i++) {
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 2000));
     const messageHistoryResp = await targetIntegration.getMessageHistory();
-    messageHistory = messageHistoryResp.map((messages) =>
-      messages.map((message) => ethers.utils.toUtf8String(message))
+    messageHistory = messageHistoryResp.map((message) =>
+      ethers.utils.toUtf8String(message)
     );
     notFound = !messageHistory
       .slice(messageHistory.length - 20)
-      .find((msgs) => msgs.find((m) => m === sentMessage));
+      .find((msg) => msg === sentMessage);
     process.stdout.write("..");
   }
   console.log("");
