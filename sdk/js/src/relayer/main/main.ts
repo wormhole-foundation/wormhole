@@ -381,6 +381,7 @@ export async function resendRaw(
   vaaKey: VaaKey,
   newGasLimit: BigNumber | number,
   newReceiverValue: BigNumber | number,
+  verifyDeliveryVaa: boolean,
   deliveryProviderAddress: string,
   overrides?: ethers.PayableOverrides
 ) {
@@ -395,6 +396,7 @@ export async function resendRaw(
     CHAINS[targetChain],
     newReceiverValue,
     newGasLimit,
+    verifyDeliveryVaa,
     deliveryProviderAddress,
     overrides
   );
@@ -408,6 +410,7 @@ export async function resend(
   vaaKey: VaaKey,
   newGasLimit: BigNumber | number,
   newReceiverValue: BigNumber | number,
+  verifyDeliveryVaa: boolean,
   deliveryProviderAddress: string,
   wormholeRPCs: string[],
   overrides: ethers.PayableOverrides,
@@ -429,6 +432,7 @@ export async function resend(
   const originalRefund = originalExecutionInfo.targetChainRefundPerGasUnused;
   const originalReceiverValue = originalVAAparsed.requestedReceiverValue;
   const originalTargetChain = originalVAAparsed.targetChainId;
+  const originalVerifyDeliveryVaa = originalExecutionInfo.verifyDeliveryVaa;
 
   
 
@@ -447,6 +451,12 @@ export async function resend(
   if (newGasLimit < originalGasLimit) {
     throw Error(
       `New gas limit too low. Minimum is ${originalReceiverValue.toString()}`
+    );
+  }
+
+  if (originalVerifyDeliveryVaa && !verifyDeliveryVaa) {
+    throw Error(
+      `Cannot request unverified delivery VAA if originally the request was to verify the delivery VAA.`
     );
   }
 
@@ -479,6 +489,7 @@ export async function resend(
     vaaKey,
     newGasLimit,
     newReceiverValue,
+    verifyDeliveryVaa,
     deliveryProviderAddress,
     overrides
   );
