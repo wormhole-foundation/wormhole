@@ -368,8 +368,15 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         bool success;
         {
             address payable deliveryTarget = payable(fromWormholeFormat(evmInstruction.targetAddress));
-            bytes memory callData = abi.encodeCall(evmInstruction.verifyDeliveryVaa ? IWormholeReceiver.receiveWormholeMessages : IWormholeReceiverUnsafe.receiveWormholeMessagesUnsafe, (
+            bytes memory callData = evmInstruction.verifyDeliveryVaa ? abi.encodeCall(IWormholeReceiver.receiveWormholeMessages, (
                 evmInstruction.payload,
+                evmInstruction.signedVaas,
+                evmInstruction.senderAddress,
+                evmInstruction.sourceChain,
+                evmInstruction.deliveryHash
+            )) 
+            : 
+            abi.encodeCall(IWormholeReceiverUnsafe.receiveWormholeMessagesUnsafe, (
                 evmInstruction.signedVaas,
                 evmInstruction.senderAddress,
                 evmInstruction.sourceChain,
