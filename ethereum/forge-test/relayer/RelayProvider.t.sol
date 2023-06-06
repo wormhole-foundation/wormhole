@@ -27,10 +27,9 @@ contract TestDeliveryProvider is Test {
     DeliveryProvider internal deliveryProvider;
 
     function initializeDeliveryProvider() internal {
-        (IWormhole wormhole,) = setUpWormhole(TEST_ORACLE_CHAIN_ID);
         DeliveryProviderSetup deliveryProviderSetup = new DeliveryProviderSetup();
         DeliveryProviderImplementation deliveryProviderImplementation =
-            new DeliveryProviderImplementation(address(wormhole));
+            new DeliveryProviderImplementation();
         DeliveryProviderProxy myDeliveryProvider = new DeliveryProviderProxy(
             address(deliveryProviderSetup),
             abi.encodeCall(
@@ -46,24 +45,6 @@ contract TestDeliveryProvider is Test {
 
         require(deliveryProvider.owner() == address(this), "owner() != expected");
         require(deliveryProvider.chainId() == TEST_ORACLE_CHAIN_ID, "chainId() != expected");
-    }
-
-    function setUpWormhole(uint16 chainId)
-        public
-        returns (IWormhole wormholeContract, WormholeSimulator wormholeSimulator)
-    {
-        // deploy Wormhole
-        MockWormhole wormhole = new MockWormhole({
-            initChainId: chainId,
-            initEvmChainId: block.chainid
-        });
-
-        // replace Wormhole with the Wormhole Simulator contract (giving access to some nice helper methods for signing)
-        wormholeSimulator = new FakeWormholeSimulator(
-            wormhole
-        );
-
-        wormholeContract = wormhole;
     }
 
     function testCannotUpdatePriceWithChainIdZero(
