@@ -260,8 +260,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * 
      * The difference between the two sides of the above inequality will be added to `paymentForExtraReceiverValue` of the first forward requested
      * 
-     * Any refunds (from leftover gas) will be paid to the delivery provider. In order to receive the refunds, use the 'forwardToEvm' function 
-     * with `refundChain` and `refundAddress` as parameters
+     * Any refunds (from leftover gas) from this forward will be paid to the same refundChain and refundAddress specified for the current delivery.
      * 
      * @param targetChain in Wormhole Chain ID format
      * @param targetAddress address to call on targetChain (that implements IWormholeReceiver), in Wormhole bytes32 format
@@ -296,8 +295,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * 
      * The difference between the two sides of the above inequality will be added to `paymentForExtraReceiverValue` of the first forward requested
      * 
-     * Any refunds (from leftover gas) will be paid to the delivery provider. In order to receive the refunds, use the 'forwardToEvm' function 
-     * with `refundChain` and `refundAddress` as parameters
+     * Any refunds (from leftover gas) from this forward will be paid to the same refundChain and refundAddress specified for the current delivery.
      * 
      * @param targetChain in Wormhole Chain ID format
      * @param targetAddress address to call on targetChain (that implements IWormholeReceiver), in Wormhole bytes32 format
