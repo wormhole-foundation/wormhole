@@ -33,7 +33,7 @@ Luckily, we can leverage standards such as IBC to scale Wormhole's support for t
 
 ### External Chain -> Cosmos Chain
 
-This will work exactly the same way it works today. We will deploy our Wormhole cosmwasm contract stack to every cosmos chain we want to support. Wormhole relayers will be able to post VAAs produced for any source chain directly to the cosmos destination chain.
+This will work exactly the same way it works today. We will deploy the Wormhole cosmwasm contract stack to the cosmos chains we want to support. Wormhole relayers will post VAAs produced for any source chain directly to the cosmos destination chain.
 
 ### Cosmos Chain -> External Chain
 
@@ -44,23 +44,23 @@ For cosmos chains, we update the core bridge contract to instead send this messa
 Specifically, we implement two new cosmwasm smart contracts: `wormhole-ibc` and `wormchain-ibc-receiver`.
 
 The `wormhole-ibc` contract is meant to replace the `wormhole` core bridge contract on cosmos chains. It imports the `wormhole` contract as a library and delegates core functionality to it before and after running custom logic:
-- During execution, it delegates all logic to the core bridge library. After the core bridge library has finished execution, it will send the response as an IBC message to the `wormchain-ibc-receiver` contract **if and only if** the execution message is of type `wormhole::msg::ExecuteMsg::PostMessage`.
+- The `wormhole-ibc` execute handler is backwards-compatible with the `wormhole` core bridge contract execute handler and it delegates all logic to the core bridge library. For messages of type `ExecuteMsg::PostMessage`, the `wormhole-ibc` contract will send the core bridge response attributes as part of an IBC message to the `wormchain-ibc-receiver` contract.
 
-Sending an IBC packet requires choosing an IBC channel to send over. IBC `(channel_id, port_id)` pairs are unique. All IBC-enabled cosmwasm contracts follow a standard `port_id` format: `wasm.<contract_address>`. Therefore, to choose a correct channel the `wormhole-ibc` contract will need to know the address of the `wormchain-ibc-receiver` contract - it will select any channel that is paired with the expected port. 
+Sending an IBC packet requires choosing an IBC channel to send over. Since IBC `(channel_id, port_id)` pairs are unique, we maintain a state variable on the `wormhole-ibc` contract that whitelists the IBC channel to send messages to the `wormchain-ibc-receiver` contract. This variable can be updated through a new governance VAA type `IbcReceiverUpdateChannelChain`.
 
-The `wormchain-ibc-receiver` contract will be deployed on Wormchain and is meant to receive the IBC messages the `wormhole-ibc` contract sends from various IBC enabled chains. Its only responsibility is to receive the IBC message, send an IBC acknowledgement to the source chain, and emit the message for the guardian node to observe.
+The `wormchain-ibc-receiver` contract will be deployed on Wormchain and is meant to receive the IBC messages the `wormhole-ibc` contract sends from various IBC enabled chains. Its responsibility is to receive the IBC message, perform validation, emit the message for the guardian node to observe, and then send an IBC acknowledgement to the source chain. This contract also maintains a whitelist mapping IBC channel IDs to Wormhole Chain IDs. The whitelist can be updated through the `IbcReceiverUpdateChannelChain` governance VAA type as well.
 
 ### IBC Relayers
 
-All IBC communication is facilitated by [IBC relayers](https://ibcprotocol.org/relayers/). Since these are lightweight processes that need to only listen to blockchain RPC nodes, each (only several is also acceptable) Wormhole guardian can run a relayer.
+All IBC communication is facilitated by [IBC relayers](https://ibcprotocol.org/relayers/). Since these are lightweight processes that need to only listen to blockchain RPC nodes, each Wormhole guardian can run a relayer (only some guardians running IBC relayers is also acceptable).
 
 The guardian IBC relayers are configured to connect the `wormchain-ibc-receiver` contract on Wormchain to the various `wormhole-ibc` contracts on the cosmos chains that Wormhole supports.
 
 ### Guardian Node Watcher
 
-We will add a new IBC guardian watcher to watch the `wormchain-ibc-receiver` contract on Wormchain for the messages from the designated `wormhole-ibc` contracts on supported IBC enabled chains. This is nearly identical to the current cosmwasm watcher and can be a drop in replacement.
+We will add a new IBC guardian watcher to watch the `wormchain-ibc-receiver` contract on Wormchain for the messages from the designated `wormhole-ibc` contracts on supported IBC enabled chains. This is nearly identical to the current cosmwasm watcher. The `wormchain-ibc-receiver` contract logs the Wormhole messages with the event attribute `action: receive_publish`, so the IBC watcher listens for events with this attribute.
 
-The new guardian watcher verifies that messages originate from the chain they claim to originate from by checking the IBC connection ID. The `wormchain-ibc-receiver` contract logs the channel ID the message was received from. The watcher can lookup the corresponding connection ID for the channel ID by querying the IBC module on Wormchain. Since IBC connections are unique and can never be updated or closed ([docs](https://github.com/cosmos/ibc/tree/main/spec/core/ics-003-connection-semantics#sub-protocols)), we will maintain a mapping of connection IDs to chain IDs in the `wormchain-ibc-receiver` contract. This is a trusted location for the mapping which can only be updated using the new `IbcReceiverUpdateChainConnection` governance VAA type. 
+The new guardian watcher verifies that messages originate from the chain they claim to originate from by checking the IBC channel ID. Since the `wormchain-ibc-receiver` contract logs the channel ID the message was received over, the watcher can lookup the Wormhole chain ID that is associated with that channel ID in the `channelId -> chainId` mapping that the `wormchain-ibc-receiver` contract maintains. Once the watcher verifies that the channel ID is associated with a valid Wormhole chain ID, it will process the Wormhole message contained in the IBC packet.
 
 ### API / database schema
 
@@ -68,7 +68,7 @@ The new guardian watcher verifies that messages originate from the chain they cl
 /// This is the message we send over the IBC channel
 #[cw_serde]
 pub enum WormholeIbcPacketMsg {
-    Publish { msg: Response }
+    Publish { msg: Vec<Attribute> },
 }
 ```
 
@@ -83,10 +83,8 @@ There are several steps required to deploy this feature. Listed in order:
 
 First, we need to deploy the `wormhole-ibc-receiver` contract on Wormchain. This will require 2 governance VAAs to deploy and instantiate the bytecode.
 
-Once we know the `wormhole-ibc-receiver` contract address, we can hardcode this (or, using an environment variable during compilation) into the `wormhole-ibc` contracts. Recall that these need to know the address of the `wormhole-ibc-receiver` contract to look up the correct IBC channel over which to send messages.
+Next, we should deploy the `wormhole-ibc` contract to the IBC-enabled chain we want to support. If that chain already has a `wormhole` core bridge contract, we can migrate the existing contract to the new `wormhole-ibc` bytecode so that we don't need to redeploy and re-instantiate the token bridge contracts with new core bridge contract addresses.
 
-Next, we should deploy the compiled `wormhole-ibc` contracts to IBC-enabled chains we already support (Terra Classic, Terra2, XPLA, and Injective). We can migrate the existing `wormhole` contract to the new `wormhole-ibc` bytecode so that we don't need to redeploy and re-instantiate the token bridge contracts with new core bridge contract addresses.
+Next, we should perform a trusted setup process with a trusted relayer to establish a connection between the `wormhole-ibc` and `wormchain-ibc-receiver` contracts. After we establish the IBC connection and upgrade the guardians to support the new `IbcReceiverUpdateChainConnection` governance VAA type, we can perform governance to add the `channelId -> chainId` mapping on the `wormchain-ibc-receiver` contract and populate the `channelId` corresponding to the `wormchain-ibc-receiver` on the `wormhole-ibc` contract.
 
-Next, we should use relayers to establish connections between the `wormhole-ibc` contracts and the `wormchain-ibc-receiver` contract on Wormchain. After we establish these IBC connections and upgrade the guardians to support the new `IbcReceiverUpdateChainConnection` governance VAA type, we can perform governance to build mappings of `connectionId -> chainId` on the `wormchain-ibc-receiver` contract.
-
-Finally, we'll be ready to upgrade the guardians to a new software version.
+Finally, the guradians can upgrade their node software to use the new IBC watcher.
