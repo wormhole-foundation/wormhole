@@ -196,11 +196,18 @@ func TestCrossChainQuery(t *testing.T) {
 		Block:    hexutil.EncodeBig(blockNum),
 		CallData: callData,
 	}
+
 	queryRequest := &gossipv1.QueryRequest{
-		ChainId: 2,
-		Nonce:   0,
-		Message: &gossipv1.QueryRequest_EthCallQueryRequest{
-			EthCallQueryRequest: callRequest}}
+		Nonce: 1,
+		PerChainQueries: []*gossipv1.PerChainQueryRequest{
+			{
+				ChainId: 2,
+				Message: &gossipv1.PerChainQueryRequest_EthCallQueryRequest{
+					EthCallQueryRequest: callRequest,
+				},
+			},
+		},
+	}
 
 	queryRequestBytes, err := proto.Marshal(queryRequest)
 	if err != nil {
@@ -285,12 +292,19 @@ func TestCrossChainQuery(t *testing.T) {
 					continue
 				}
 
-				if len(response.Responses) == 0 {
+				if len(response.PerChainResponses) != 1 {
+					logger.Warn("unexpected number of per chain query responses", zap.Int("expectedNum", 1), zap.Int("actualNum", len(response.PerChainResponses)))
+					break
+				}
+
+				pcq := response.PerChainResponses[0]
+
+				if len(pcq.Responses) == 0 {
 					logger.Warn("response did not contain any results", zap.Error(err))
 					break
 				}
 
-				for idx, resp := range response.Responses {
+				for idx, resp := range pcq.Responses {
 					result, err := wethAbi.Methods[methodName].Outputs.Unpack(resp.Result)
 					if err != nil {
 						logger.Warn("failed to unpack result", zap.Error(err))

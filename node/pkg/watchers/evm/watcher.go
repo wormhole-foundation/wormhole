@@ -96,10 +96,10 @@ type (
 
 		// Incoming query requests from the network. Pre-filtered to only
 		// include requests for our chainID.
-		queryReqC <-chan *common.QueryRequest
+		queryReqC <-chan *common.PerChainQueryInternal
 
 		// Outbound query responses to query requests
-		queryResponseC chan<- *common.QueryResponse
+		queryResponseC chan<- *common.PerChainQueryResponseInternal
 
 		pending   map[pendingKey]*pendingMessage
 		pendingMu sync.Mutex
@@ -150,8 +150,8 @@ func NewEthWatcher(
 	msgC chan<- *common.MessagePublication,
 	setC chan<- *common.GuardianSet,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
-	queryReqC <-chan *common.QueryRequest,
-	queryResponseC chan<- *common.QueryResponse,
+	queryReqC <-chan *common.PerChainQueryInternal,
+	queryResponseC chan<- *common.PerChainQueryResponseInternal,
 	unsafeDevMode bool,
 ) *Watcher {
 
@@ -551,7 +551,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				}
 
 				switch req := queryRequest.Request.Message.(type) {
-				case *gossipv1.QueryRequest_EthCallQueryRequest:
+				case *gossipv1.PerChainQueryRequest_EthCallQueryRequest:
 					block := req.EthCallQueryRequest.Block
 					logger.Info("received query request",
 						zap.String("eth_network", w.networkName),
@@ -1165,8 +1165,8 @@ func (w *Watcher) SetMaxWaitConfirmations(maxWaitConfirmations uint64) {
 }
 
 // ccqSendQueryResponse sends an error response back to the query handler.
-func (w *Watcher) ccqSendQueryResponse(logger *zap.Logger, req *common.QueryRequest, status common.QueryStatus, results []common.EthCallQueryResponse) {
-	queryResponse := common.CreateQueryResponse(req, status, results)
+func (w *Watcher) ccqSendQueryResponse(logger *zap.Logger, req *common.PerChainQueryInternal, status common.QueryStatus, results []common.EthCallQueryResponse) {
+	queryResponse := common.CreatePerChainQueryResponseInternal(req.RequestID, req.RequestIdx, req.ChainID, status, results)
 	select {
 	case w.queryResponseC <- queryResponse:
 		logger.Debug("published query response error to handler", zap.String("component", "ccqevm"))

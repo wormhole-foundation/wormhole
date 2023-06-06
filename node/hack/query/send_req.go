@@ -211,11 +211,18 @@ func main() {
 		Block:    hexutil.EncodeBig(blockNum),
 		CallData: callData,
 	}
+
 	queryRequest := &gossipv1.QueryRequest{
-		ChainId: 5,
-		Nonce:   0,
-		Message: &gossipv1.QueryRequest_EthCallQueryRequest{
-			EthCallQueryRequest: callRequest}}
+		Nonce: 1,
+		PerChainQueries: []*gossipv1.PerChainQueryRequest{
+			{
+				ChainId: 5,
+				Message: &gossipv1.PerChainQueryRequest_EthCallQueryRequest{
+					EthCallQueryRequest: callRequest,
+				},
+			},
+		},
+	}
 
 	queryRequestBytes, err := proto.Marshal(queryRequest)
 	if err != nil {
@@ -279,12 +286,18 @@ func main() {
 				// TODO: verify response signature
 				isMatchingResponse = true
 
-				if len(response.Responses) != len(callData) {
-					logger.Warn("unexpected number of results", zap.Int("expectedNum", len(callData)), zap.Int("expectedNum", len(response.Responses)))
+				if len(response.PerChainResponses) != 1 {
+					logger.Warn("unexpected number of per chain query responses", zap.Int("expectedNum", 1), zap.Int("actualNum", len(response.PerChainResponses)))
 					break
 				}
 
-				for idx, resp := range response.Responses {
+				pcq := response.PerChainResponses[0]
+				if len(pcq.Responses) != len(callData) {
+					logger.Warn("unexpected number of results", zap.Int("expectedNum", len(callData)), zap.Int("expectedNum", len(pcq.Responses)))
+					break
+				}
+
+				for idx, resp := range pcq.Responses {
 					result, err := wethAbi.Methods[methods[idx]].Outputs.Unpack(resp.Result)
 					if err != nil {
 						logger.Warn("failed to unpack result", zap.Error(err))

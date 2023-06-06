@@ -2,6 +2,7 @@ package guardiand
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -28,14 +29,24 @@ const (
 type (
 	// pendingQuery is the cache entry for a given query.
 	pendingQuery struct {
-		req            *common.QueryRequest
-		channel        chan *common.QueryRequest
+		signedRequest  *gossipv1.SignedQueryRequest
+		request        *gossipv1.QueryRequest
+		requestID      string
 		receiveTime    time.Time
 		lastUpdateTime time.Time
-		inProgress     bool
+		queries        []*perChainQuery
+		responses      []*common.PerChainQueryResponseInternal
 
 		// respPub is only populated when we need to retry sending the response to p2p.
 		respPub *common.QueryResponsePublication
+	}
+
+	// perChainQuery is the data associated with a single per chain query in a query request.
+	perChainQuery struct {
+		req            *common.PerChainQueryInternal
+		channel        chan *common.PerChainQueryInternal
+		lastUpdateTime time.Time
+		inProgress     bool
 	}
 )
 
@@ -44,9 +55,9 @@ func handleQueryRequests(
 	ctx context.Context,
 	logger *zap.Logger,
 	signedQueryReqC <-chan *gossipv1.SignedQueryRequest,
-	chainQueryReqC map[vaa.ChainID]chan *common.QueryRequest,
+	chainQueryReqC map[vaa.ChainID]chan *common.PerChainQueryInternal,
 	allowedRequestors map[ethCommon.Address]struct{},
-	queryResponseReadC <-chan *common.QueryResponse,
+	queryResponseReadC <-chan *common.PerChainQueryResponseInternal,
 	queryResponseWriteC chan<- *common.QueryResponsePublication,
 	env common.Environment,
 ) {
@@ -54,6 +65,27 @@ func handleQueryRequests(
 	qLogger.Info("cross chain queries are enabled", zap.Any("allowedRequestors", allowedRequestors), zap.String("env", string(env)))
 
 	pendingQueries := make(map[string]*pendingQuery) // Key is requestID.
+
+	// TODO: This should only include watchers that are actually running. Also need to test all these chains.
+	supportedChains := map[vaa.ChainID]struct{}{
+		vaa.ChainIDEthereum:  {},
+		vaa.ChainIDBSC:       {},
+		vaa.ChainIDPolygon:   {},
+		vaa.ChainIDAvalanche: {},
+		vaa.ChainIDOasis:     {},
+		vaa.ChainIDAurora:    {},
+		vaa.ChainIDFantom:    {},
+		vaa.ChainIDKarura:    {},
+		vaa.ChainIDAcala:     {},
+		vaa.ChainIDKlaytn:    {},
+		vaa.ChainIDCelo:      {},
+		vaa.ChainIDMoonbeam:  {},
+		vaa.ChainIDNeon:      {},
+		vaa.ChainIDArbitrum:  {},
+		vaa.ChainIDOptimism:  {},
+		vaa.ChainIDBase:      {},
+		vaa.ChainIDSepolia:   {},
+	}
 
 	ticker := time.NewTicker(retryInterval)
 	defer ticker.Stop()
@@ -63,7 +95,7 @@ func handleQueryRequests(
 		case <-ctx.Done():
 			return
 
-		case signedQueryRequest := <-signedQueryReqC:
+		case signedRequest := <-signedQueryReqC: // Inbound query request.
 			// requestor validation happens here
 			// request type validation is currently handled by the watcher
 			// in the future, it may be worthwhile to catch certain types of
@@ -73,103 +105,165 @@ func handleQueryRequests(
 			// - length check on "to" address 20 bytes
 			// - valid "block" strings
 
-			digest := common.QueryRequestDigest(env, signedQueryRequest.QueryRequest)
+			requestID := hex.EncodeToString(signedRequest.Signature)
+			digest := common.QueryRequestDigest(env, signedRequest.QueryRequest)
 
-			signerBytes, err := ethCrypto.Ecrecover(digest.Bytes(), signedQueryRequest.Signature)
+			signerBytes, err := ethCrypto.Ecrecover(digest.Bytes(), signedRequest.Signature)
 			if err != nil {
-				qLogger.Error("failed to recover public key")
+				qLogger.Error("failed to recover public key", zap.String("requestID", requestID))
 				continue
 			}
 
 			signerAddress := ethCommon.BytesToAddress(ethCrypto.Keccak256(signerBytes[1:])[12:])
 
 			if _, exists := allowedRequestors[signerAddress]; !exists {
-				qLogger.Error("invalid requestor", zap.String("requestor", signerAddress.Hex()))
-				continue
-			}
-
-			var qr gossipv1.QueryRequest
-			err = proto.Unmarshal(signedQueryRequest.QueryRequest, &qr)
-			if err != nil {
-				qLogger.Error("failed to unmarshal query request", zap.String("requestor", signerAddress.Hex()), zap.Error(err))
-				continue
-			}
-
-			if err := common.ValidateQueryRequest(&qr); err != nil {
-				qLogger.Error("received invalid message", zap.String("requestor", signerAddress.Hex()), zap.Error(err))
-				continue
-			}
-
-			queryRequest := common.CreateQueryRequest(signedQueryRequest, &qr)
-
-			// Look up the channel for this chain.
-			channel, channelExists := chainQueryReqC[queryRequest.ChainID]
-			if !channelExists {
-				qLogger.Error("unknown chain ID for query request, dropping it", zap.String("requestID", queryRequest.RequestID), zap.Stringer("chain_id", queryRequest.ChainID))
+				qLogger.Error("invalid requestor", zap.String("requestor", signerAddress.Hex()), zap.String("requestID", requestID))
 				continue
 			}
 
 			// Make sure this is not a duplicate request. TODO: Should we do something smarter here than just dropping the duplicate?
-			if oldReq, exists := pendingQueries[queryRequest.RequestID]; exists {
-				qLogger.Warn("dropping duplicate query request", zap.String("requestID", queryRequest.RequestID), zap.Stringer("origRecvTime", oldReq.receiveTime))
+			if oldReq, exists := pendingQueries[requestID]; exists {
+				qLogger.Warn("dropping duplicate query request", zap.String("requestID", requestID), zap.Stringer("origRecvTime", oldReq.receiveTime))
 				continue
 			}
 
-			// Add the query to our cache.
-			pq := &pendingQuery{
-				req:         queryRequest,
-				channel:     channel,
-				receiveTime: time.Now(),
-				inProgress:  true,
+			var queryRequest gossipv1.QueryRequest
+			err = proto.Unmarshal(signedRequest.QueryRequest, &queryRequest)
+			if err != nil {
+				qLogger.Error("failed to unmarshal query request", zap.String("requestor", signerAddress.Hex()), zap.String("requestID", requestID), zap.Error(err))
+				continue
 			}
-			pendingQueries[queryRequest.RequestID] = pq
 
-			// Forward the request to the watcher.
-			ccqForwardToWatcher(qLogger, pq)
+			if err := common.ValidateQueryRequest(&queryRequest); err != nil {
+				qLogger.Error("received invalid message", zap.String("requestor", signerAddress.Hex()), zap.String("requestID", requestID), zap.Error(err))
+				continue
+			}
 
-		case resp := <-queryResponseReadC:
+			// Build the set of per chain queries and placeholders for the per chain responses.
+			errorFound := false
+			queries := []*perChainQuery{}
+			responses := make([]*common.PerChainQueryResponseInternal, len(queryRequest.PerChainQueries))
+			receiveTime := time.Now()
+
+			for requestIdx, pcq := range queryRequest.PerChainQueries {
+				chainID := vaa.ChainID(pcq.ChainId)
+				if _, exists := supportedChains[chainID]; !exists {
+					qLogger.Error("chain does not support cross chain queries", zap.String("requestID", requestID), zap.Stringer("chainID", chainID))
+					errorFound = true
+					break
+				}
+
+				channel, channelExists := chainQueryReqC[chainID]
+				if !channelExists {
+					qLogger.Error("unknown chain ID for query request, dropping it", zap.String("requestID", requestID), zap.Stringer("chain_id", chainID))
+					errorFound = true
+					break
+				}
+
+				queries = append(queries, &perChainQuery{
+					req: &common.PerChainQueryInternal{
+						RequestID:  requestID,
+						RequestIdx: requestIdx,
+						ChainID:    chainID,
+						Request:    pcq,
+					},
+					channel: channel,
+				})
+			}
+
+			if errorFound {
+				continue
+			}
+
+			// Create the pending query and add it to the cache.
+			pq := &pendingQuery{
+				signedRequest: signedRequest,
+				request:       &queryRequest,
+				requestID:     requestID,
+				receiveTime:   receiveTime,
+				queries:       queries,
+				responses:     responses,
+			}
+			pendingQueries[requestID] = pq
+
+			// Forward the requests to the watchers.
+			for _, pcq := range pq.queries {
+				pcq.ccqForwardToWatcher(qLogger, pq.receiveTime)
+			}
+
+		case resp := <-queryResponseReadC: // Response from a watcher.
 			if resp.Status == common.QuerySuccess {
 				if len(resp.Results) == 0 {
 					qLogger.Error("received a successful query response with no results, dropping it!", zap.String("requestID", resp.RequestID))
 					continue
 				}
 
+				pq, exists := pendingQueries[resp.RequestID]
+				if !exists {
+					qLogger.Warn("received a success response with no outstanding query, dropping it", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx))
+					continue
+				}
+
+				if resp.RequestIdx >= len(pq.responses) {
+					qLogger.Error("received a response with an invalid index", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx))
+					continue
+				}
+
+				// Mark this per chain request as completed.
+				pq.queries[resp.RequestIdx].inProgress = false
+				pq.responses[resp.RequestIdx] = resp
+
+				// If we still have other outstanding per chain queries for this request, keep waiting.
+				numStillPending := pq.numPendingRequests()
+				if numStillPending > 0 {
+					qLogger.Info("received a per chain query response, still waiting for more", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx), zap.Int("numStillPending", numStillPending))
+					continue
+				}
+
+				// Build the list of per chain response publications and the overall query response publication.
+				responses := []common.PerChainQueryResponse{}
+				for _, resp := range pq.responses {
+					if resp == nil {
+						qLogger.Error("unexpected null response in pending query!", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx))
+						continue
+					}
+
+					responses = append(responses, common.PerChainQueryResponse{
+						ChainID:   uint32(resp.ChainID),
+						Responses: resp.Results,
+					})
+				}
+
 				respPub := &common.QueryResponsePublication{
-					Request:   resp.SignedRequest,
-					Responses: resp.Results,
+					Request:           pq.signedRequest,
+					PerChainResponses: responses,
 				}
 
 				// Send the response to be published.
 				select {
 				case queryResponseWriteC <- respPub:
-					qLogger.Debug("forwarded query response to p2p", zap.String("requestID", resp.RequestID))
+					qLogger.Info("forwarded query response to p2p", zap.String("requestID", resp.RequestID))
 					delete(pendingQueries, resp.RequestID)
 				default:
-					if pq, exists := pendingQueries[resp.RequestID]; exists {
-						qLogger.Warn("failed to publish query response to p2p, will retry publishing next interval", zap.String("requestID", resp.RequestID))
-						pq.respPub = respPub
-						pq.inProgress = false
-					} else {
-						qLogger.Warn("failed to publish query response to p2p, request is no longer in cache, dropping it", zap.String("requestID", resp.RequestID))
-						delete(pendingQueries, resp.RequestID)
-					}
+					qLogger.Warn("failed to publish query response to p2p, will retry publishing next interval", zap.String("requestID", resp.RequestID))
+					pq.respPub = respPub
 				}
 			} else if resp.Status == common.QueryRetryNeeded {
 				if pq, exists := pendingQueries[resp.RequestID]; exists {
-					qLogger.Warn("query failed, will retry next interval", zap.String("requestID", resp.RequestID))
-					pq.inProgress = false
+					qLogger.Warn("query failed, will retry next interval", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx))
+					pq.queries[resp.RequestIdx].inProgress = false
 				} else {
-					qLogger.Warn("query failed, request is no longer in cache, dropping it", zap.String("requestID", resp.RequestID))
+					qLogger.Warn("received a retry needed response with no outstanding query, dropping it", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx))
 				}
 			} else if resp.Status == common.QueryFatalError {
-				qLogger.Error("query encountered a fatal error, dropping it", zap.String("requestID", resp.RequestID))
+				qLogger.Warn("received a fatal error response, dropping the whole request", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx))
 				delete(pendingQueries, resp.RequestID)
 			} else {
-				qLogger.Error("received an unexpected query status, dropping it", zap.String("requestID", resp.RequestID), zap.Int("status", int(resp.Status)))
+				qLogger.Warn("received an unexpected query status, dropping the whole request", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx), zap.Int("status", int(resp.Status)))
 				delete(pendingQueries, resp.RequestID)
 			}
 
-		case <-ticker.C:
+		case <-ticker.C: // Retry audit timer.
 			now := time.Now()
 			for reqId, pq := range pendingQueries {
 				timeout := pq.receiveTime.Add(requestTimeout)
@@ -187,10 +281,13 @@ func handleQueryRequests(
 						default:
 							qLogger.Warn("resend of query response to p2p failed again, will keep retrying", zap.String("requestID", reqId))
 						}
-					} else if !pq.inProgress && pq.lastUpdateTime.Add(retryInterval).Before(now) {
-						qLogger.Info("retrying query request", zap.String("requestId", reqId), zap.Stringer("receiveTime", pq.receiveTime))
-						pq.inProgress = true
-						ccqForwardToWatcher(qLogger, pq)
+					} else {
+						for requestIdx, pcq := range pq.queries {
+							if pq.responses[requestIdx] == nil && !pcq.inProgress && pq.lastUpdateTime.Add(retryInterval).Before(now) {
+								qLogger.Info("retrying query request", zap.String("requestId", reqId), zap.Stringer("receiveTime", pq.receiveTime), zap.Int("requestIdx", requestIdx))
+								pcq.ccqForwardToWatcher(qLogger, pq.receiveTime)
+							}
+						}
 					}
 				}
 			}
@@ -223,15 +320,28 @@ func ccqParseAllowedRequesters(ccqAllowedRequesters string) (map[ethCommon.Addre
 
 // ccqForwardToWatcher submits a query request to the appropriate watcher. It updates the request object if the write succeeds.
 // If the write fails, it does not update the last update time, which will cause a retry next interval (until it times out)
-func ccqForwardToWatcher(qLogger *zap.Logger, pq *pendingQuery) {
+func (pcq *perChainQuery) ccqForwardToWatcher(qLogger *zap.Logger, receiveTime time.Time) {
 	select {
 	// TODO: only send the query request itself and reassemble in this module
-	case pq.channel <- pq.req:
-		qLogger.Debug("forwarded query request to watcher", zap.String("requestID", pq.req.RequestID), zap.Stringer("chainID", pq.req.ChainID))
-		pq.lastUpdateTime = pq.receiveTime
+	case pcq.channel <- pcq.req:
+		qLogger.Debug("forwarded query request to watcher", zap.String("requestID", pcq.req.RequestID), zap.Stringer("chainID", pcq.req.ChainID))
+		pcq.inProgress = true
+		pcq.lastUpdateTime = receiveTime
 	default:
 		// By leaving lastUpdateTime unset and setting inProgress to false, we will retry next interval.
-		qLogger.Warn("failed to send query request to watcher, will retry next interval", zap.String("requestID", pq.req.RequestID), zap.Stringer("chain_id", pq.req.ChainID))
-		pq.inProgress = false
+		qLogger.Warn("failed to send query request to watcher, will retry next interval", zap.String("requestID", pcq.req.RequestID), zap.Stringer("chain_id", pcq.req.ChainID))
+		pcq.inProgress = false
 	}
+}
+
+// numPendingRequests returns the number of per chain queries in a request that are still awaiting responses. Zero means the request can now be published.
+func (pq *pendingQuery) numPendingRequests() int {
+	numPending := 0
+	for _, resp := range pq.responses {
+		if resp == nil {
+			numPending += 1
+		}
+	}
+
+	return numPending
 }

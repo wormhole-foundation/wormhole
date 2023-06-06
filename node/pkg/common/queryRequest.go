@@ -3,7 +3,6 @@ package common
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"math"
 	"strings"
@@ -17,22 +16,12 @@ import (
 
 const SignedQueryRequestChannelSize = 50
 
-// QueryRequest is an internal representation of a query request.
-type QueryRequest struct {
-	SignedRequest *gossipv1.SignedQueryRequest
-	Request       *gossipv1.QueryRequest
-	RequestID     string
-	ChainID       vaa.ChainID
-}
-
-// CreateQueryRequest creates a QueryRequest object from the signed query request.
-func CreateQueryRequest(signedRequest *gossipv1.SignedQueryRequest, request *gossipv1.QueryRequest) *QueryRequest {
-	return &QueryRequest{
-		SignedRequest: signedRequest,
-		Request:       request,
-		RequestID:     hex.EncodeToString(signedRequest.Signature),
-		ChainID:       vaa.ChainID(request.ChainId),
-	}
+// PerChainQueryInternal is an internal representation of a query request that is passed to the watcher.
+type PerChainQueryInternal struct {
+	RequestID  string
+	RequestIdx int
+	ChainID    vaa.ChainID
+	Request    *gossipv1.PerChainQueryRequest
 }
 
 // QueryRequestDigest returns the query signing prefix based on the environment.
@@ -60,15 +49,31 @@ func PostSignedQueryRequest(signedQueryReqSendC chan<- *gossipv1.SignedQueryRequ
 	}
 }
 
-// Marshal serializes the binary representation of a query response
+// MarshalQueryRequest serializes the binary representation of a query request
 func MarshalQueryRequest(queryRequest *gossipv1.QueryRequest) ([]byte, error) {
 	buf := new(bytes.Buffer)
 
-	switch req := queryRequest.Message.(type) {
-	case *gossipv1.QueryRequest_EthCallQueryRequest:
+	vaa.MustWrite(buf, binary.BigEndian, queryRequest.Nonce) // uint32
+
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(queryRequest.PerChainQueries)))
+	for _, perChainQuery := range queryRequest.PerChainQueries {
+		pcqBuf, err := MarshalPerChainQueryRequest(perChainQuery)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal per chain query")
+		}
+		buf.Write(pcqBuf)
+	}
+
+	return buf.Bytes(), nil
+}
+
+// MarshalQueryRequest serializes the binary representation of a per chain query request
+func MarshalPerChainQueryRequest(perChainQuery *gossipv1.PerChainQueryRequest) ([]byte, error) {
+	buf := new(bytes.Buffer)
+	switch req := perChainQuery.Message.(type) {
+	case *gossipv1.PerChainQueryRequest_EthCallQueryRequest:
 		vaa.MustWrite(buf, binary.BigEndian, QUERY_REQUEST_TYPE_ETH_CALL)
-		vaa.MustWrite(buf, binary.BigEndian, uint16(queryRequest.ChainId))
-		vaa.MustWrite(buf, binary.BigEndian, queryRequest.Nonce) // uint32
+		vaa.MustWrite(buf, binary.BigEndian, uint16(perChainQuery.ChainId))
 		vaa.MustWrite(buf, binary.BigEndian, uint8(len(req.EthCallQueryRequest.CallData)))
 		for _, callData := range req.EthCallQueryRequest.CallData {
 			buf.Write(callData.To)
@@ -84,14 +89,47 @@ func MarshalQueryRequest(queryRequest *gossipv1.QueryRequest) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// Unmarshal deserializes the binary representation of a query response
+// UnmarshalQueryRequest deserializes the binary representation of a query request from a byte array
 func UnmarshalQueryRequest(data []byte) (*gossipv1.QueryRequest, error) {
 	reader := bytes.NewReader(data[:])
 	return UnmarshalQueryRequestFromReader(reader)
 }
 
+// UnmarshalQueryRequestFromReader deserializes the binary representation of a query request from an existing reader
 func UnmarshalQueryRequestFromReader(reader *bytes.Reader) (*gossipv1.QueryRequest, error) {
 	queryRequest := &gossipv1.QueryRequest{}
+
+	queryNonce := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &queryNonce); err != nil {
+		return nil, fmt.Errorf("failed to read request nonce: %w", err)
+	}
+	queryRequest.Nonce = queryNonce
+
+	numPerChainQueries := uint8(0)
+	if err := binary.Read(reader, binary.BigEndian, &numPerChainQueries); err != nil {
+		return nil, fmt.Errorf("failed to read number of per chain queries: %w", err)
+	}
+
+	for count := 0; count < int(numPerChainQueries); count++ {
+		perChainQuery, err := UnmarshalPerChainQueryRequestFromReader(reader)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal per chain query: %w", err)
+		}
+		queryRequest.PerChainQueries = append(queryRequest.PerChainQueries, perChainQuery)
+	}
+
+	return queryRequest, nil
+}
+
+// UnmarshalPerChainQueryRequest deserializes the binary representation of a per chain query request from a byte array
+func UnmarshalPerChainQueryRequest(data []byte) (*gossipv1.PerChainQueryRequest, error) {
+	reader := bytes.NewReader(data[:])
+	return UnmarshalPerChainQueryRequestFromReader(reader)
+}
+
+// UnmarshalPerChainQueryRequestFromReader deserializes the binary representation of a per chain query request from an existing reader
+func UnmarshalPerChainQueryRequestFromReader(reader *bytes.Reader) (*gossipv1.PerChainQueryRequest, error) {
+	perChainQuery := &gossipv1.PerChainQueryRequest{}
 
 	requestType := uint8(0)
 	if err := binary.Read(reader, binary.BigEndian, &requestType); err != nil {
@@ -106,13 +144,7 @@ func UnmarshalQueryRequestFromReader(reader *bytes.Reader) (*gossipv1.QueryReque
 	if err := binary.Read(reader, binary.BigEndian, &queryChain); err != nil {
 		return nil, fmt.Errorf("failed to read request chain: %w", err)
 	}
-	queryRequest.ChainId = uint32(queryChain)
-
-	queryNonce := uint32(0)
-	if err := binary.Read(reader, binary.BigEndian, &queryNonce); err != nil {
-		return nil, fmt.Errorf("failed to read request nonce: %w", err)
-	}
-	queryRequest.Nonce = queryNonce
+	perChainQuery.ChainId = uint32(queryChain)
 
 	ethCallQueryRequest := &gossipv1.EthCallQueryRequest{}
 
@@ -154,36 +186,44 @@ func UnmarshalQueryRequestFromReader(reader *bytes.Reader) (*gossipv1.QueryReque
 	}
 	ethCallQueryRequest.Block = string(queryEthCallBlockBytes[:])
 
-	queryRequest.Message = &gossipv1.QueryRequest_EthCallQueryRequest{
+	perChainQuery.Message = &gossipv1.PerChainQueryRequest_EthCallQueryRequest{
 		EthCallQueryRequest: ethCallQueryRequest,
 	}
 
-	return queryRequest, nil
+	return perChainQuery, nil
 }
 
 // ValidateQueryRequest does basic validation on a received query request.
 func ValidateQueryRequest(queryRequest *gossipv1.QueryRequest) error {
-	if queryRequest.ChainId > math.MaxUint16 {
-		return fmt.Errorf("invalid chain id: %d is out of bounds", queryRequest.ChainId)
+	if len(queryRequest.PerChainQueries) == 0 {
+		return fmt.Errorf("request does not contain any queries")
 	}
-	switch req := queryRequest.Message.(type) {
-	case *gossipv1.QueryRequest_EthCallQueryRequest:
-		if len(req.EthCallQueryRequest.Block) > math.MaxUint32 {
-			return fmt.Errorf("request block too long")
+	for _, perChainQuery := range queryRequest.PerChainQueries {
+		if perChainQuery.ChainId > math.MaxUint16 {
+			return fmt.Errorf("invalid chain id: %d is out of bounds", perChainQuery.ChainId)
 		}
-		if !strings.HasPrefix(req.EthCallQueryRequest.Block, "0x") {
-			return fmt.Errorf("request block must be a hex number or hash starting with 0x")
-		}
-		for _, callData := range req.EthCallQueryRequest.CallData {
-			if len(callData.To) != 20 {
-				return fmt.Errorf("invalid length for To contract")
+		switch req := perChainQuery.Message.(type) {
+		case *gossipv1.PerChainQueryRequest_EthCallQueryRequest:
+			if len(req.EthCallQueryRequest.Block) > math.MaxUint32 {
+				return fmt.Errorf("request block too long")
 			}
-			if len(callData.Data) > math.MaxUint32 {
-				return fmt.Errorf("request data too long")
+			if !strings.HasPrefix(req.EthCallQueryRequest.Block, "0x") {
+				return fmt.Errorf("request block must be a hex number or hash starting with 0x")
 			}
+			if len(req.EthCallQueryRequest.CallData) == 0 {
+				return fmt.Errorf("per chain query does not contain any requests")
+			}
+			for _, callData := range req.EthCallQueryRequest.CallData {
+				if len(callData.To) != 20 {
+					return fmt.Errorf("invalid length for To contract")
+				}
+				if len(callData.Data) > math.MaxUint32 {
+					return fmt.Errorf("request data too long")
+				}
+			}
+		default:
+			return fmt.Errorf("received invalid message from query module")
 		}
-	default:
-		return fmt.Errorf("received invalid message from query module")
 	}
 
 	return nil
@@ -200,36 +240,42 @@ func SignedQueryRequestEqual(left *gossipv1.SignedQueryRequest, right *gossipv1.
 }
 
 func QueryRequestEqual(left *gossipv1.QueryRequest, right *gossipv1.QueryRequest) bool {
-	if left.ChainId != right.ChainId {
-		return false
-	}
 	if left.Nonce != right.Nonce {
 		return false
 	}
+	if len(left.PerChainQueries) != len(right.PerChainQueries) {
+		return false
+	}
 
-	switch reqLeft := left.Message.(type) {
-	case *gossipv1.QueryRequest_EthCallQueryRequest:
-		switch reqRight := right.Message.(type) {
-		case *gossipv1.QueryRequest_EthCallQueryRequest:
-			if reqLeft.EthCallQueryRequest.Block != reqRight.EthCallQueryRequest.Block {
-				return false
-			}
-			if len(reqLeft.EthCallQueryRequest.CallData) != len(reqRight.EthCallQueryRequest.CallData) {
-				return false
-			}
-			for idx := range reqLeft.EthCallQueryRequest.CallData {
-				if !bytes.Equal(reqLeft.EthCallQueryRequest.CallData[idx].To, reqRight.EthCallQueryRequest.CallData[idx].To) {
+	for idx := range left.PerChainQueries {
+		if left.PerChainQueries[idx].ChainId != right.PerChainQueries[idx].ChainId {
+			return false
+		}
+
+		switch reqLeft := left.PerChainQueries[idx].Message.(type) {
+		case *gossipv1.PerChainQueryRequest_EthCallQueryRequest:
+			switch reqRight := right.PerChainQueries[idx].Message.(type) {
+			case *gossipv1.PerChainQueryRequest_EthCallQueryRequest:
+				if reqLeft.EthCallQueryRequest.Block != reqRight.EthCallQueryRequest.Block {
 					return false
 				}
-				if !bytes.Equal(reqLeft.EthCallQueryRequest.CallData[idx].Data, reqRight.EthCallQueryRequest.CallData[idx].Data) {
+				if len(reqLeft.EthCallQueryRequest.CallData) != len(reqRight.EthCallQueryRequest.CallData) {
 					return false
 				}
+				for idx := range reqLeft.EthCallQueryRequest.CallData {
+					if !bytes.Equal(reqLeft.EthCallQueryRequest.CallData[idx].To, reqRight.EthCallQueryRequest.CallData[idx].To) {
+						return false
+					}
+					if !bytes.Equal(reqLeft.EthCallQueryRequest.CallData[idx].Data, reqRight.EthCallQueryRequest.CallData[idx].Data) {
+						return false
+					}
+				}
+			default:
+				return false
 			}
 		default:
 			return false
 		}
-	default:
-		return false
 	}
 
 	return true
