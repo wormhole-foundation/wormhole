@@ -200,7 +200,10 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     ) external payable returns (uint64 sequence);
 
     /**
-     * @notice Same as 'sendToEvm' above, except the delivery VAA will not be verified on the target chain, 
+     * @notice Same as 'sendToEvm' above, except:
+     * - The delivery VAA will not be verified on the target chain, 
+     * - targetAddress must implement IWormholeReceiverUnsafe instead of IWormholeReceiver
+     * - the IWormholeReceiverUnsafe.receiveWormholeMessagesUnsafe endpoint will be called instead!
      * 
      * This function must be called with `msg.value` equal to 
      * quoteEVMDeliveryPrice(targetChain, receiverValue, gasLimit, deliveryProviderAddress, false) + paymentForExtraReceiverValue
@@ -369,6 +372,8 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * @param deliveryProviderAddress The address of the desired delivery provider's implementation of IDeliveryProvider
      * @param vaaKeys Additional VAAs to pass in as parameter in call to `targetAddress`
      * @param verifyDeliveryVaa If true, the delivery VAA will be verified on the target chain prior to calling targetAddress
+     *        Note: If this is false, then targetAddress must implement IWormholeReceiverUnsafe instead of IWormholeReceiver,
+     *        and the IWormholeReceiverUnsafe.receiveWormholeMessagesUnsafe endpoint will be called instead!
      * @param consistencyLevel Consistency level with which to publish the delivery instructions - see 
      *        https://book.wormhole.com/wormhole/3_coreLayerContracts.html?highlight=consistency#consistency-levels
      */
@@ -454,6 +459,8 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * @param newGasLimit gas limit with which to call `targetAddress`. Any units of gas unused will be refunded according to the  
      *        `targetChainRefundPerGasUnused` rate quoted by the delivery provider, to the refund chain and address specified in the original request
      * @param verifyDeliveryVaa If true, the delivery VAA will be verified on the target chain prior to calling targetAddress
+     *        Note: If this is false, targetAddress must implement IWormholeReceiverUnsafe instead of IWormholeReceiver,
+     *        and the IWormholeReceiverUnsafe.receiveWormholeMessagesUnsafe endpoint will be called instead!
      * @param newDeliveryProviderAddress The address of the desired delivery provider's implementation of IDeliveryProvider
      * @return sequence sequence number of published VAA containing redelivery instructions
      * 

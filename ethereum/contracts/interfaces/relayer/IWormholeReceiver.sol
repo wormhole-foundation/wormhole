@@ -49,3 +49,21 @@ interface IWormholeReceiver {
         bytes32 deliveryHash
     ) external payable;
 }
+
+interface IWormholeReceiverUnsafe {
+    /**
+     * @param additionalVaas - Additional VAAs which were requested to be included in this delivery.
+     * @param sourceAddress - the (wormhole format) address on the sending chain which requested
+     *     this delivery.
+     * @param sourceChain - the wormhole chain ID where this delivery was requested.
+     * @param deliveryHash - the VAA hash of the deliveryVAA.
+     * 
+     * 
+     */
+    function receiveWormholeMessagesUnsafe(
+        bytes[] memory additionalVaas,
+        bytes32 sourceAddress,
+        uint16 sourceChain,
+        bytes32 deliveryHash
+    ) external payable;
+}

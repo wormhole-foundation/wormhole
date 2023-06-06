@@ -22,7 +22,7 @@ import {
     IWormholeRelayerSend,
     RETURNDATA_TRUNCATION_THRESHOLD
 } from "../../interfaces/relayer/IWormholeRelayerTyped.sol";
-import {IWormholeReceiver} from "../../interfaces/relayer/IWormholeReceiver.sol";
+import {IWormholeReceiver, IWormholeReceiverUnsafe} from "../../interfaces/relayer/IWormholeReceiver.sol";
 import {IDeliveryProvider} from "../../interfaces/relayer/IDeliveryProviderTyped.sol";
 
 import {pay, min, toWormholeFormat, fromWormholeFormat, returnLengthBoundedCall} from "../../libraries/relayer/Utils.sol";
@@ -283,6 +283,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
                 gasLimit: vaaInfo.gasLimit,
                 totalReceiverValue: vaaInfo.totalReceiverValue,
                 targetChainRefundPerGasUnused: vaaInfo.targetChainRefundPerGasUnused,
+                verifyDeliveryVaa: vaaInfo.verifyDeliveryVaa,
                 senderAddress: vaaInfo.deliveryInstruction.senderAddress,
                 deliveryHash: vaaInfo.deliveryVaaHash,
                 signedVaas: vaaInfo.encodedVMs
@@ -367,7 +368,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         bool success;
         {
             address payable deliveryTarget = payable(fromWormholeFormat(evmInstruction.targetAddress));
-            bytes memory callData = abi.encodeCall(IWormholeReceiver.receiveWormholeMessages, (
+            bytes memory callData = abi.encodeCall(evmInstruction.verifyDeliveryVaa ? IWormholeReceiver.receiveWormholeMessages : IWormholeReceiverUnsafe.receiveWormholeMessagesUnsafe, (
                 evmInstruction.payload,
                 evmInstruction.signedVaas,
                 evmInstruction.senderAddress,
