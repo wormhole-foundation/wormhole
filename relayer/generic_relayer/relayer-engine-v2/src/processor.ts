@@ -408,8 +408,6 @@ async function processDeliveryInstruction(
         receipt.transactionHash,
       ];
 
-      throw new Error("This is a test error");
-
       logResults(ctx, receipt, chainId, executionRecord);
     });
   };

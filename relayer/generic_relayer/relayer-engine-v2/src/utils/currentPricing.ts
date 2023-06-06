@@ -1,14 +1,31 @@
 import { ChainId, EVMChainId } from "@certusone/wormhole-sdk";
-import { PricingContext } from "../app";
+import { GRContext } from "../app";
 import {
   WormholeRelayer__factory,
   DeliveryProvider,
   DeliveryProvider__factory,
 } from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
-import { getAllChains, getEthersProvider } from "../env";
 import { BigNumber } from "ethers";
+import { ethers } from "ethers";
 import { createContext } from "vm";
 
+export function getAllChains(ctx: GRContext): EVMChainId[] {
+  return Object.keys(ctx.deliveryProviders).map((x) =>
+    Number(x)
+  ) as EVMChainId[];
+}
+
+export function getEthersProvider(
+  ctx: GRContext,
+  chainId: ChainId
+): ethers.providers.JsonRpcProvider {
+  const rpc = ctx.providers.evm[chainId as EVMChainId];
+  if (rpc == undefined || rpc.length == 0) {
+    throw new Error(`No rpc found for chainId ${chainId}`);
+  }
+
+  return rpc[0];
+}
 export type DeliveryProviderContractState = {
   chainId: number;
   contractAddress: string;
@@ -28,7 +45,7 @@ export type DeliveryProviderContractState = {
 };
 
 export async function pullAllCurrentPricingStates(
-  ctx: PricingContext
+  ctx: GRContext
 ): Promise<DeliveryProviderContractState[]> {
   const allChains = getAllChains(ctx);
   const states: DeliveryProviderContractState[] = [];
@@ -41,7 +58,7 @@ export async function pullAllCurrentPricingStates(
 
 //Retrieves the current prices from a given chain
 export async function pullCurrentPricingState(
-  ctx: PricingContext,
+  ctx: GRContext,
   chain: ChainId
 ): Promise<DeliveryProviderContractState> {
   const deliveryProviderAddress = ctx.deliveryProviders[chain as EVMChainId]; //Cast to EVM chain ID type should be safe
@@ -64,7 +81,7 @@ export async function pullCurrentPricingState(
 //It should be considered for a furture refactor
 
 async function readState(
-  ctx: PricingContext,
+  ctx: GRContext,
   currentChain: ChainId,
   deliveryProvider: DeliveryProvider,
   allChains: ChainId[]

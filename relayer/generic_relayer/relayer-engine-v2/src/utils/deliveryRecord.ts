@@ -16,7 +16,7 @@ import {
   DeliveryTargetInfo,
   RefundStatus,
   DeliveryStatus,
-} from "./consts";
+} from "./types";
 
 async function getOriginatingTransaction(
   vaa: ParsedVaaWithBytes
