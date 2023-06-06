@@ -82,6 +82,10 @@ struct DeliveryTmpState {
     address deliveryTarget;
     // the target relay provider address for the in-progress delivery
     address deliveryProvider;
+    // the refund chain for the in-progress delivery
+    uint16 refundChain;
+    // the refund address for the in-progress delivery
+    bytes32 refundAddress;
     // Requests which will be forwarded from the current delivery.
     ForwardInstruction[] forwardInstructions;
 }

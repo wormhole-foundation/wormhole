@@ -101,7 +101,7 @@ abstract contract WormholeRelayerBase is IWormholeRelayerBase {
 
     // ----------------------- delivery transaction temorary storage functions -----------------------
 
-    function startDelivery(address targetAddress, address deliveryProvider) internal {
+    function startDelivery(address targetAddress, address deliveryProvider, uint16 refundChain, bytes32 refundAddress) internal {
         DeliveryTmpState storage state = getDeliveryTmpState();
         if (state.deliveryInProgress) {
             revert ReentrantDelivery(msg.sender, state.deliveryTarget);
@@ -110,6 +110,8 @@ abstract contract WormholeRelayerBase is IWormholeRelayerBase {
         state.deliveryInProgress = true;
         state.deliveryTarget = targetAddress;
         state.deliveryProvider = deliveryProvider;
+        state.refundChain = refundChain;
+        state.refundAddress = refundAddress;
     }
 
     function finishDelivery() internal {
@@ -117,6 +119,8 @@ abstract contract WormholeRelayerBase is IWormholeRelayerBase {
         state.deliveryInProgress = false;
         state.deliveryTarget = address(0);
         state.deliveryProvider = address(0);
+        state.refundChain = 0;
+        state.refundAddress = bytes32(0);
         delete state.forwardInstructions;
     }
 
@@ -130,6 +134,14 @@ abstract contract WormholeRelayerBase is IWormholeRelayerBase {
 
     function getOriginalDeliveryProvider() internal view returns (address) {
         return getDeliveryTmpState().deliveryProvider;
+    }
+
+    function getCurrentRefundChain() internal view returns (uint16) {
+        return getDeliveryTmpState().refundChain;
+    }
+
+    function getCurrentRefundAddress() internal view returns (bytes32) {
+        return getDeliveryTmpState().refundAddress;
     }
 
     function checkMsgSenderInDelivery() internal view {
