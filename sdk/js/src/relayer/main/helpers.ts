@@ -6,6 +6,8 @@ import {
   Network,
   tryNativeToHexString,
   isChain,
+  CONTRACTS,
+  ethers_contracts
 } from "../../";
 import { BigNumber, ContractReceipt, ethers } from "ethers";
 import { getWormholeRelayer, RPCS_BY_CHAIN } from "../consts";
@@ -24,6 +26,7 @@ import {
 import { DeliveryProvider, DeliveryProvider__factory, Implementation__factory} from "../../ethers-contracts/";
 import {DeliveryEvent} from "../../ethers-contracts/WormholeRelayer"
 import { VaaKeyStruct } from "../../ethers-contracts/IWormholeRelayer.sol/IWormholeRelayer";
+import { isValid } from "js-base64";
 
 export type DeliveryTargetInfo = {
   status: DeliveryStatus | string;
@@ -162,17 +165,38 @@ export async function getWormholeRelayerDeliveryEventsBySourceSequence(
     null,
     sourceChainId,
     sourceVaaSequence
-  );
+  )
+
+
 
   // There is a max limit on RPCs sometimes for how many blocks to query
   return await transformDeliveryEvents(
-    await wormholeRelayer.queryFilter(
+    (await wormholeRelayer.queryFilter(
       deliveryEvents,
       blockStartNumber,
       blockEndNumber
-    ),
+    )).filter(async (deliveryEvent) => areSignaturesValid(await deliveryEvent.getTransaction(), targetChain, targetChainProvider, environment)),
     targetChainProvider
   );
+}
+
+async function areSignaturesValid(transaction: ethers.Transaction, targetChain: ChainName, targetChainProvider: ethers.providers.Provider, environment: Network) {
+  const coreAddress = CONTRACTS[environment][targetChain].core;
+  if(!coreAddress) throw Error(`No Wormhole Address for chain ${targetChain}, network ${environment}`);
+
+  const wormhole = ethers_contracts.IWormhole__factory.connect(coreAddress, targetChainProvider);
+  const decodedData = ethers_contracts.IWormholeRelayerDelivery__factory.createInterface().parseTransaction(transaction);
+  if(!(await wormhole.parseAndVerifyVM(decodedData.args[1]))) {
+    return false;
+  }
+  const vaas = decodedData.args[0];
+  for(let i=0; i<vaas.length; i++) {
+    if(!(await wormhole.parseAndVerifyVM(vaas[i]))) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 export function deliveryStatus(status: number) {
