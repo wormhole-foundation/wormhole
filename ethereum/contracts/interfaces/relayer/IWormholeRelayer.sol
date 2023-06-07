@@ -424,6 +424,11 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * This function must be called with `msg.value` equal to 
      * quoteEVMDeliveryPrice(targetChain, newReceiverValue, newGasLimit, newDeliveryProviderAddress)
      * 
+     *  @notice *** This will only be able to succeed if the following is true **
+     *         - newGasLimit >= gas limit of the old instruction
+     *         - newReceiverValue >= receiver value of the old instruction
+     *         - newDeliveryProvider's `targetChainRefundPerGasUnused` >= old relay provider's `targetChainRefundPerGasUnused`
+     * 
      * @param deliveryVaaKey VaaKey identifying the wormhole message containing the 
      *        previously published delivery instructions
      * @param targetChain The target chain that the original delivery targeted. Must match targetChain from original delivery instructions
@@ -432,6 +437,11 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      *        `targetChainRefundPerGasUnused` rate quoted by the delivery provider, to the refund chain and address specified in the original request
      * @param newDeliveryProviderAddress The address of the desired delivery provider's implementation of IDeliveryProvider
      * @return sequence sequence number of published VAA containing redelivery instructions
+     *
+     * @notice *** This will only be able to succeed if the following is true **
+     *         - newGasLimit >= gas limit of the old instruction
+     *         - newReceiverValue >= receiver value of the old instruction
+     *         - newDeliveryProvider's `targetChainRefundPerGasUnused` >= old relay provider's `targetChainRefundPerGasUnused`
      */
     function resendToEvm(
         VaaKey memory deliveryVaaKey,
@@ -456,6 +466,11 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      *        e.g. for version EVM_V1, this is a struct that encodes the `gasLimit` with which to call `targetAddress`
      * @param newDeliveryProviderAddress The address of the desired delivery provider's implementation of IDeliveryProvider
      * @return sequence sequence number of published VAA containing redelivery instructions
+     * 
+     *  @notice *** This will only be able to succeed if the following is true **
+     *         - (For EVM_V1) newGasLimit >= gas limit of the old instruction
+     *         - newReceiverValue >= receiver value of the old instruction
+     *         - (For EVM_V1) newDeliveryProvider's `targetChainRefundPerGasUnused` >= old relay provider's `targetChainRefundPerGasUnused`
      */
     function resend(
         VaaKey memory deliveryVaaKey,
