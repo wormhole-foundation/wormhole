@@ -164,7 +164,7 @@ contract WormholeRelayerTests is Test {
         GasParameters memory gasParams,
         FeeParameters memory feeParams,
         uint32 minTargetGasLimit
-    ) public {
+    ) public pure {
         vm.assume(gasParams.evmGasOverhead > 0);
         vm.assume(gasParams.targetGasLimit > 0);
         vm.assume(feeParams.targetNativePrice > 0);
@@ -724,7 +724,6 @@ contract WormholeRelayerTests is Test {
 
         assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256("Hello!"));
         assertTrue(getDeliveryStatus() == IWormholeRelayerDelivery.DeliveryStatus.SUCCESS);
-        DeliveryData memory deliveryData = setup.target.integration.getDeliveryData();
 
         test.refundAddressAmount = setup.target.refundAddress.balance - test.refundAddressBalance;
         test.rewardAddressAmount = setup.source.rewardAddress.balance - test.rewardAddressBalance;
@@ -890,7 +889,6 @@ contract WormholeRelayerTests is Test {
         genericRelayer.relay(setup.sourceChain);
 
         assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(bytes("Hello!")));
-        DeliveryData memory deliveryData = setup.target.integration.getDeliveryData();
 
         genericRelayer.relay(setup.targetChain);
 
@@ -1071,7 +1069,6 @@ contract WormholeRelayerTests is Test {
 
         assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(bytes("Hello!")));
         assertTrue(getDeliveryStatus() == IWormholeRelayerDelivery.DeliveryStatus.SUCCESS);
-        DeliveryData memory deliveryData = setup.target.integration.getDeliveryData();
 
         test.refundAddressAmount = setup.target.refundAddress.balance - test.refundAddressBalance;
         test.rewardAddressAmount = setup.source.rewardAddress.balance - test.rewardAddressBalance;
@@ -1132,7 +1129,6 @@ contract WormholeRelayerTests is Test {
         genericRelayer.relay(setup.sourceChain);
 
         assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(bytes("Hello!")));
-        DeliveryData memory deliveryData = setup.target.integration.getDeliveryData();
 
         genericRelayer.relay(setup.targetChain);
 
@@ -1202,9 +1198,6 @@ contract WormholeRelayerTests is Test {
         setup.target.deliveryProvider.updateSupportedChain(setup.sourceChain, false);
         vm.assume(test.targetChainRefundPerGasUnused * REASONABLE_GAS_LIMIT.unwrap() >= feeParams.wormholeFeeOnTarget + uint256(1) * gasParams.evmGasOverhead * gasParams.sourceGasPrice * (uint256(feeParams.sourceNativePrice) / feeParams.targetNativePrice + 1));
 
-        uint256 refundRewardAddressBalance = setup.target.rewardAddress.balance;
-        uint256 refundAddressBalance = setup.source.refundAddress.balance;
-
         setup.source.integration.sendMessageWithRefund{value: test.deliveryPrice + feeParams.wormholeFeeOnSource}(
             bytes("Hello!"),
             setup.targetChain,
@@ -1217,7 +1210,6 @@ contract WormholeRelayerTests is Test {
         genericRelayer.relay(setup.sourceChain);
 
         assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(bytes("Hello!")));
-        DeliveryData memory deliveryData = setup.target.integration.getDeliveryData();
 
         assertTrue(
             test.deliveryPrice
@@ -1248,8 +1240,6 @@ contract WormholeRelayerTests is Test {
         (StandardSetupTwoChains memory setup, FundsCorrectTest memory test) =
             setupFundsCorrectTest(gasParams, feeParams, 170000);
         vm.assume(uint256(1) * gasParams.evmGasOverhead * gasParams.sourceGasPrice * feeParams.sourceNativePrice > uint256(1) * feeParams.targetNativePrice * test.targetChainRefundPerGasUnused * gasParams.targetGasLimit);
-        uint256 refundRewardAddressBalance = setup.target.rewardAddress.balance;
-        uint256 refundAddressBalance = setup.source.refundAddress.balance;
 
         setup.source.integration.sendMessageWithRefund{value: test.deliveryPrice + feeParams.wormholeFeeOnSource}(
             bytes("Hello!"),
@@ -1263,7 +1253,6 @@ contract WormholeRelayerTests is Test {
         genericRelayer.relay(setup.sourceChain);
 
         assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(bytes("Hello!")));
-        DeliveryData memory deliveryData = setup.target.integration.getDeliveryData();
 
         assertTrue(
             test.deliveryPrice
