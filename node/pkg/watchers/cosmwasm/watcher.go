@@ -334,6 +334,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 }
 
 func EventsToMessagePublications(contract string, txHash string, events []gjson.Result, logger *zap.Logger, chainID vaa.ChainID, contractAddressKey string) []*common.MessagePublication {
+	// Injective does not base64 encode parameters (as of release v1.11.2).
 	b64Encoded := chainID != vaa.ChainIDInjective
 	networkName := chainID.String()
 	msgs := make([]*common.MessagePublication, 0, len(events))
@@ -375,8 +376,8 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 			}
 
 			var key, value []byte
-			var err error
 			if b64Encoded {
+				var err error
 				key, err = base64.StdEncoding.DecodeString(keyBase.String())
 				if err != nil {
 					logger.Warn("event key attribute is invalid", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("key", keyBase.String()))
