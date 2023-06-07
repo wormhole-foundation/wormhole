@@ -920,7 +920,7 @@ func runNode(cmd *cobra.Command, args []string) {
 	msgReadC, msgWriteC := makeChannelPair[*common.MessagePublication](0)
 
 	// Ethereum incoming guardian set updates
-	setReadC, setWriteC := makeChannelPair[*common.GuardianSet](0)
+	setReadC, setWriteC := makeChannelPair[*common.GuardianSet](1)
 
 	// Inbound signed VAAs
 	signedInReadC, signedInWriteC := makeChannelPair[*gossipv1.SignedVAAWithQuorum](50)

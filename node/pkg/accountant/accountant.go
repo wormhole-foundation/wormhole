@@ -134,6 +134,13 @@ func NewAccountant(
 // Run initializes the accountant and starts the watcher runnable.
 func (acct *Accountant) Start(ctx context.Context) error {
 	acct.logger.Debug("entering Start", zap.Bool("enforceFlag", acct.enforceFlag))
+
+	// wait for GuardianSet TODO this could probably be refactored to cleanly define the dependencies first
+	for acct.gst.Get() == nil || len(acct.gst.Get().Keys) == 0 {
+		time.Sleep(time.Millisecond * 100)
+	}
+	acct.logger.Debug("guardianset found")
+
 	acct.pendingTransfersLock.Lock()
 	defer acct.pendingTransfersLock.Unlock()
 
