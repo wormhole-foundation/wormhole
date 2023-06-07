@@ -40,6 +40,8 @@ contract DeliveryProviderStorage {
         mapping(uint16 => PriceData) data;
         // The delivery overhead gas required to deliver a message to targetChain, denominated in targetChain's gas.
         mapping(uint16 => Gas) deliverGasOverhead;
+        // overhead gas required to verify a VAA on targetChain, denominated in targetChain's gas.
+        mapping(uint16 => Gas) vaaVerificationGasOverhead;
         // The maximum budget that is allowed for a delivery on target chain, denominated in the targetChain's wei.
         mapping(uint16 => Wei) maximumBudget;
         // Dictionary of wormhole chain id -> assetConversion

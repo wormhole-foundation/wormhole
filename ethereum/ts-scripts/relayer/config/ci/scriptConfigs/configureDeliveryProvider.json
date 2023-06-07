@@ -26,6 +26,7 @@
     {
       "chainId": 2,
       "deliverGasOverhead": "350000",
+      "vaaVerificationGasOverhead": "160000",
       "updatePriceGas": "300000000000",
       "updatePriceNative": "100000",
       "maximumBudget": "1000000000000000000"
@@ -33,6 +34,7 @@
     {
       "chainId": 4,
       "deliverGasOverhead": "350000",
+      "vaaVerificationGasOverhead": "160000",
       "updatePriceGas": "300000000000",
       "updatePriceNative": "100000",
       "maximumBudget": "1000000000000000000"

@@ -355,7 +355,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * 
      * The following equation must be satisfied (sum_f indicates summing over all forwards requested in `receiveWormholeMessages`):
      * (refund amount from current execution of receiveWormholeMessages) + sum_f [msg.value_f]
-     * >= sum_f [quoteEVMDeliveryPrice(targetChain_f, receiverValue_f, gasLimit_f, deliveryProviderAddress_f) + paymentForExtraReceiverValue_f]
+     * >= sum_f [quoteEVMDeliveryPrice(targetChain_f, receiverValue_f, gasLimit_f, deliveryProviderAddress_f, verifyDeliveryVaa_f) + paymentForExtraReceiverValue_f]
      * 
      * The difference between the two sides of the above inequality will be added to `paymentForExtraReceiverValue` of the first forward requested
      * 
@@ -450,7 +450,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      * (e.g. with a different delivery provider)
      *
      * This function must be called with `msg.value` equal to 
-     * quoteEVMDeliveryPrice(targetChain, newReceiverValue, newGasLimit, newDeliveryProviderAddress)
+     * quoteEVMDeliveryPrice(targetChain, newReceiverValue, newGasLimit, newDeliveryProviderAddress, verifyDeliveryVaa)
      * 
      * @param deliveryVaaKey VaaKey identifying the wormhole message containing the 
      *        previously published delivery instructions

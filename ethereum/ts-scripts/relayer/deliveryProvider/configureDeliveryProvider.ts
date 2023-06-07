@@ -20,6 +20,7 @@ import type { DeliveryProviderStructs } from "../../../ethers-contracts/Delivery
 interface PricingInfo {
   chainId: ChainId
   deliverGasOverhead: BigNumberish
+  vaaVerificationGasOverhead: BigNumberish
   updatePriceGas: BigNumberish
   updatePriceNative: BigNumberish
   maximumBudget: BigNumberish
@@ -93,6 +94,7 @@ async function configureChainsDeliveryProvider(chain: ChainInfo) {
       bufferDenominator: 100,
       newWormholeFee: 0,
       newGasOverhead: targetChainPriceUpdate.deliverGasOverhead,
+      newVaaVerificationGasOverhead: targetChainPriceUpdate.vaaVerificationGasOverhead,
       gasPrice: targetChainPriceUpdate.updatePriceGas,
       nativeCurrencyPrice: targetChainPriceUpdate.updatePriceNative,
       targetChainAddress: remoteDeliveryProvider,

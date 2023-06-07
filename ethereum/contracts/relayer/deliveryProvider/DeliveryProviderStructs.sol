@@ -43,6 +43,18 @@ abstract contract DeliveryProviderStructs {
         Wei maximumTotalBudget;
     }
 
+    struct VaaVerificationGasOverheadUpdate {
+        /**
+         * Wormhole chain id
+         */
+        uint16 chainId;
+        /**
+         * The overhead for verifying a delivery VAA on ´chainId´ chain.
+         * Should be less than 'deliverGasOverhead'
+         */
+        Gas newVaaVerificationGasOverhead;
+    }
+
     struct DeliverGasOverheadUpdate {
         /**
          * Wormhole chain id

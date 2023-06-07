@@ -93,5 +93,6 @@ function getEmptyEvmExecutionParamsV1()
     returns (EvmExecutionParamsV1 memory executionParams)
 {
     executionParams.gasLimit = Gas.wrap(uint256(0));
+    executionParams.verifyDeliveryVaa = false;
 }
 

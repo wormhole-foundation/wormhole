@@ -38,7 +38,7 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
         targetChainRefundPerUnitGasUnused = gasPrice(targetChain);
         Wei costOfProvidingFullGasLimit = gasLimit.toWei(targetChainRefundPerUnitGasUnused);
         Wei transactionFee =
-            quoteDeliveryOverhead(targetChain) + gasLimit.toWei(quoteGasPrice(targetChain));
+            quoteDeliveryOverhead(targetChain, verifyDeliveryVaa) + gasLimit.toWei(quoteGasPrice(targetChain));
         Wei receiverValueCost = quoteAssetCost(targetChain, receiverValue);
         nativePriceQuote = (
             transactionFee.max(costOfProvidingFullGasLimit) + receiverValueCost
@@ -125,8 +125,8 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
     }
 
     //Returns the delivery overhead fee required to deliver a message to the target chain, denominated in this chain's wei.
-    function quoteDeliveryOverhead(uint16 targetChain) public view returns (Wei nativePriceQuote) {
-        Gas overhead = deliverGasOverhead(targetChain);
+    function quoteDeliveryOverhead(uint16 targetChain, bool verifyDeliveryVaa) public view returns (Wei nativePriceQuote) {
+        Gas overhead = deliverGasOverhead(targetChain) - (verifyDeliveryVaa ? Gas.wrap(0) : vaaVerificationGasOverhead(targetChain));
         Wei targetFees = overhead.toWei(gasPrice(targetChain));
         Wei result = assetConversion(targetChain, targetFees, chainId());
         require(result.unwrap() <= type(uint128).max, "Overflow");

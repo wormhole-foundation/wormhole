@@ -29,6 +29,7 @@ struct EvmDeliveryInstruction {
   Gas gasLimit;
   TargetNative totalReceiverValue;
   GasPrice targetChainRefundPerGasUnused;
+  bool verifyDeliveryVaa;
   bytes32 senderAddress;
   bytes32 deliveryHash;
   bytes[] signedVaas;

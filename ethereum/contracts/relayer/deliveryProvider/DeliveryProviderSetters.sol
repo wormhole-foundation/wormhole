@@ -41,6 +41,11 @@ contract DeliveryProviderSetters is Context, DeliveryProviderState {
         _state.deliverGasOverhead[chainId] = deliverGasOverhead;
     }
 
+    function setVaaVerificationGasOverhead(uint16 chainId, Gas vaaVerificationGasOverhead) internal {
+        require(Gas.unwrap(vaaVerificationGasOverhead) <= type(uint32).max, "vaaVerificationGasOverhead too large");
+        _state.vaaVerificationGasOverhead[chainId] = vaaVerificationGasOverhead;
+    }
+
     function setRewardAddress(address payable rewardAddress) internal {
         _state.rewardAddress = rewardAddress;
     }

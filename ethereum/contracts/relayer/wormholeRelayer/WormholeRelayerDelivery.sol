@@ -377,10 +377,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             )) 
             : 
             abi.encodeCall(IWormholeReceiverUnsafe.receiveWormholeMessagesUnsafe, (
-                evmInstruction.signedVaas,
-                evmInstruction.senderAddress,
-                evmInstruction.sourceChain,
-                evmInstruction.deliveryHash
+                evmInstruction.signedVaas
             ));
 
             Gas preGas = Gas.wrap(gasleft());

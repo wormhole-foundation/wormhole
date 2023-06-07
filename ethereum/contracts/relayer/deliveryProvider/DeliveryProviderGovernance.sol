@@ -38,6 +38,7 @@ abstract contract DeliveryProviderGovernance is
     event RewardAddressUpdated(address indexed newAddress);
     event TargetChainAddressUpdated(uint16 indexed targetChain, bytes32 indexed newAddress);
     event DeliverGasOverheadUpdated(Gas indexed oldGasOverhead, Gas indexed newGasOverhead);
+    event VaaVerificationGasOverheadUpdated(Gas indexed oldVaaVerificationGasOverhead, Gas indexed newVaaVerificationGasOverhead);
     event WormholeRelayerUpdated(address coreRelayer);
     event AssetConversionBufferUpdated(uint16 targetChain, uint16 buffer, uint16 bufferDenominator);
 
@@ -128,6 +129,30 @@ abstract contract DeliveryProviderGovernance is
         setDeliverGasOverhead(chainId, newGasOverhead);
         emit DeliverGasOverheadUpdated(currentGasOverhead, newGasOverhead);
     }
+
+    function updateVaaVerificationGasOverhead(uint16 chainId, Gas newVaaVerificationGasOverhead) external onlyOwner {
+        updateVaaVerificationGasOverheadImpl(chainId, newVaaVerificationGasOverhead);
+    }
+
+    function updateVaaVerificationGasOverheads(
+        DeliveryProviderStructs.VaaVerificationGasOverheadUpdate[] memory vaaVerificationGasOverheadUpdates
+    ) external onlyOwner {
+        uint256 updatesLength = vaaVerificationGasOverheadUpdates.length;
+        for (uint256 i = 0; i < updatesLength;) {
+            DeliveryProviderStructs.VaaVerificationGasOverheadUpdate memory update = vaaVerificationGasOverheadUpdates[i];
+            updateVaaVerificationGasOverheadImpl(update.chainId, update.newVaaVerificationGasOverhead);
+            unchecked {
+                i += 1;
+            }
+        }
+    }
+
+    function updateVaaVerificationGasOverheadImpl(uint16 chainId, Gas newVaaVerificationGasOverhead) internal {
+        Gas currentVaaVerificationGasOverhead = vaaVerificationGasOverhead(chainId);
+        setVaaVerificationGasOverhead(chainId, newVaaVerificationGasOverhead);
+        emit VaaVerificationGasOverheadUpdated(currentVaaVerificationGasOverhead, newVaaVerificationGasOverhead);
+    }
+
 
     function updatePrice(
         uint16 updateChainId,

@@ -66,6 +66,7 @@ contract WormholeRelayerTests is Test {
 
     struct GasParameters {
         uint32 evmGasOverhead;
+        uint32 vaaVerificationGasOverhead;
         uint32 targetGasLimit;
         uint56 targetGasPrice;
         uint56 sourceGasPrice;
@@ -81,6 +82,7 @@ contract WormholeRelayerTests is Test {
 
     struct GasParametersTyped {
         Gas evmGasOverhead;
+        Gas vaaVerificationGasOverhead;
         Gas targetGasLimit;
         GasPrice targetGasPrice;
         GasPrice sourceGasPrice;
@@ -101,6 +103,7 @@ contract WormholeRelayerTests is Test {
     {
         return GasParametersTyped({
             evmGasOverhead: Gas.wrap(gasParams.evmGasOverhead),
+            vaaVerificationGasOverhead: Gas.wrap(gasParams.vaaVerificationGasOverhead),
             targetGasLimit: Gas.wrap(gasParams.targetGasLimit),
             targetGasPrice: GasPrice.wrap(gasParams.targetGasPrice),
             sourceGasPrice: GasPrice.wrap(gasParams.sourceGasPrice)
@@ -166,6 +169,7 @@ contract WormholeRelayerTests is Test {
         uint32 minTargetGasLimit
     ) public {
         vm.assume(gasParams.evmGasOverhead > 0);
+        vm.assume(gasParams.vaaVerificationGasOverhead < gasParams.evmGasOverhead);
         vm.assume(gasParams.targetGasLimit > 0);
         vm.assume(feeParams.targetNativePrice > 0);
         vm.assume(gasParams.targetGasPrice > 0);
@@ -256,6 +260,8 @@ contract WormholeRelayerTests is Test {
 
         s.source.deliveryProvider.updateDeliverGasOverhead(s.targetChain, gasParams.evmGasOverhead);
         s.target.deliveryProvider.updateDeliverGasOverhead(s.sourceChain, gasParams.evmGasOverhead);
+        s.target.deliveryProvider.updateVaaVerificationGasOverhead(s.sourceChain, gasParams.vaaVerificationGasOverhead);
+        s.target.deliveryProvider.updateVaaVerificationGasOverhead(s.sourceChain, gasParams.vaaVerificationGasOverhead);
 
         s.source.wormholeSimulator.setMessageFee(feeParams.wormholeFeeOnSource.unwrap());
         s.target.wormholeSimulator.setMessageFee(feeParams.wormholeFeeOnTarget.unwrap());
@@ -1145,7 +1151,7 @@ contract WormholeRelayerTests is Test {
             (setup.target.rewardAddress.balance - refundRewardAddressBalance);
 
         uint256 refundSource; 
-        (LocalNative baseFee,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(setup.sourceChain, TargetNative.wrap(0), Gas.wrap(0));
+        (LocalNative baseFee,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(setup.sourceChain, TargetNative.wrap(0), Gas.wrap(0), address(setup.target.deliveryProvider), false);
 
         vm.assume(amountToGetInRefundTarget > baseFee.unwrap());
         if (amountToGetInRefundTarget > baseFee.unwrap()) {
@@ -1247,7 +1253,7 @@ contract WormholeRelayerTests is Test {
          vm.recordLogs();
         (StandardSetupTwoChains memory setup, FundsCorrectTest memory test) =
             setupFundsCorrectTest(gasParams, feeParams, 170000);
-        vm.assume(uint256(1) * gasParams.evmGasOverhead * gasParams.sourceGasPrice * feeParams.sourceNativePrice > uint256(1) * feeParams.targetNativePrice * test.targetChainRefundPerGasUnused * gasParams.targetGasLimit);
+        vm.assume(uint256(1) * (gasParams.evmGasOverhead - gasParams.vaaVerificationGasOverhead) * gasParams.sourceGasPrice * feeParams.sourceNativePrice > uint256(1) * feeParams.targetNativePrice * test.targetChainRefundPerGasUnused * gasParams.targetGasLimit);
         uint256 refundRewardAddressBalance = setup.target.rewardAddress.balance;
         uint256 refundAddressBalance = setup.source.refundAddress.balance;
 
@@ -2417,6 +2423,7 @@ contract WormholeRelayerTests is Test {
               gasLimit: gasLimit,
               totalReceiverValue: TargetNative.wrap(0),
               targetChainRefundPerGasUnused: GasPrice.wrap(0),
+              verifyDeliveryVaa: true,
               senderAddress: userAddress,
               deliveryHash: bytes32(0),
               signedVaas: new bytes[](0)
@@ -2437,5 +2444,35 @@ contract WormholeRelayerTests is Test {
             // Four extra bytes
             bytes4(0x80818283)
         ));
+    }
+
+    function testSendUnsafe(GasParameters memory gasParams, FeeParameters memory feeParams, bytes memory message) public {
+        StandardSetupTwoChains memory setup =
+            standardAssumeAndSetupTwoChains(gasParams, feeParams, REASONABLE_GAS_LIMIT);
+
+        vm.recordLogs();
+
+        uint64 sequence = setup.source.wormhole.publishMessage{value: feeParams.wormholeFeeOnSource}(0, message, 200);
+
+        (LocalNative deliveryPrice,) = setup.source.coreRelayer.quoteEVMDeliveryPrice(setup.targetChain, TargetNative.wrap(0), REASONABLE_GAS_LIMIT, address(setup.source.deliveryProvider), false);
+
+        vm.prank(address(setup.source.integration));
+        setup.source.coreRelayer.sendVaasToEvmWithoutVerification{value: deliveryPrice.unwrap() + feeParams.wormholeFeeOnSource}(
+            setup.targetChain,
+            address(setup.target.integration),
+            TargetNative.wrap(0),
+            LocalNative.wrap(0),
+            REASONABLE_GAS_LIMIT,
+            setup.targetChain,
+            address(setup.target.integration),
+            address(setup.source.deliveryProvider),
+            vaaKeyArray(setup.sourceChain, sequence, address(this)),
+            200
+        );
+
+        genericRelayer.relay(setup.sourceChain);
+
+        assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(message));
+        assertTrue(getDeliveryStatus() == IWormholeRelayerDelivery.DeliveryStatus.SUCCESS);
     }
 }

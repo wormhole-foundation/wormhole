@@ -23,7 +23,7 @@ struct DeliveryData {
     bytes[] additionalVaas;
 }
 
-contract MockRelayerIntegration is IWormholeReceiver {
+contract MockRelayerIntegration is IWormholeReceiver, IWormholeReceiverUnsafe {
     using BytesLib for bytes;
 
     // wormhole instance on this chain
@@ -289,6 +289,14 @@ contract MockRelayerIntegration is IWormholeReceiver {
                 15
             );
         }
+    }
+
+    function receiveWormholeMessagesUnsafe(
+        bytes[] memory vaas
+    ) public payable {
+        (IWormhole.VM memory vm,,) = wormhole.parseAndVerifyVM(vaas[0]);
+        messageHistory.push(vm.payload);
+
     }
 
     function getMessage() public view returns (bytes memory) {

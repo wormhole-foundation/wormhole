@@ -41,6 +41,10 @@ contract DeliveryProviderGetters is DeliveryProviderState {
         return _state.deliverGasOverhead[targetChain];
     }
 
+    function vaaVerificationGasOverhead(uint16 targetChain) public view returns (Gas) {
+        return _state.vaaVerificationGasOverhead[targetChain];
+    }
+
     function maximumBudget(uint16 targetChain) public view returns (Wei) {
         return _state.maximumBudget[targetChain];
     }
