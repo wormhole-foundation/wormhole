@@ -167,31 +167,39 @@ export async function getWormholeRelayerDeliveryEventsBySourceSequence(
     sourceVaaSequence
   )
 
+  const deliveryEventsPreFilter: DeliveryEvent[] = await wormholeRelayer.queryFilter(
+    deliveryEvents,
+    blockStartNumber,
+    blockEndNumber
+  );
 
+  const isValid: boolean[] = await Promise.all(deliveryEventsPreFilter.map((deliveryEvent) => areSignaturesValid(deliveryEvent.getTransaction(), targetChain, targetChainProvider, environment)));
 
   // There is a max limit on RPCs sometimes for how many blocks to query
   return await transformDeliveryEvents(
-    (await wormholeRelayer.queryFilter(
-      deliveryEvents,
-      blockStartNumber,
-      blockEndNumber
-    )).filter(async (deliveryEvent) => areSignaturesValid(await deliveryEvent.getTransaction(), targetChain, targetChainProvider, environment)),
+    deliveryEventsPreFilter.filter((deliveryEvent, i) => isValid[i]),
     targetChainProvider
   );
 }
 
-async function areSignaturesValid(transaction: ethers.Transaction, targetChain: ChainName, targetChainProvider: ethers.providers.Provider, environment: Network) {
+async function areSignaturesValid(transaction: Promise<ethers.Transaction>, targetChain: ChainName, targetChainProvider: ethers.providers.Provider, environment: Network) {
   const coreAddress = CONTRACTS[environment][targetChain].core;
   if(!coreAddress) throw Error(`No Wormhole Address for chain ${targetChain}, network ${environment}`);
 
   const wormhole = ethers_contracts.IWormhole__factory.connect(coreAddress, targetChainProvider);
-  const decodedData = ethers_contracts.IWormholeRelayerDelivery__factory.createInterface().parseTransaction(transaction);
-  if(!(await wormhole.parseAndVerifyVM(decodedData.args[1]))) {
+  const decodedData = ethers_contracts.IWormholeRelayerDelivery__factory.createInterface().parseTransaction(await transaction);
+
+  const vaaIsValid = async (vaa: ethers.utils.BytesLike): Promise<boolean> => {
+    const [,result,reason] = await wormhole.parseAndVerifyVM(vaa);
+    if(!result) console.log(`Invalid vaa! Reason: ${reason}`);
+    return result;
+  }
+  if(!(await vaaIsValid(decodedData.args[1]))) {
     return false;
   }
   const vaas = decodedData.args[0];
   for(let i=0; i<vaas.length; i++) {
-    if(!(await wormhole.parseAndVerifyVM(vaas[i]))) {
+    if(!(await vaaIsValid(vaas[i]))) {
       return false;
     }
   }

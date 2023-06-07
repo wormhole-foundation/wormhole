@@ -388,12 +388,12 @@ describe("Wormhole Relayer Tests", () => {
     const value = await relayer.getPrice(sourceChain, targetChain, REASONABLE_GAS_LIMIT, optionalParams);
     console.log(`Quoted gas delivery fee: ${value}`);
     const tx = await source.wormholeRelayer.sendVaasToEvmWithoutVerification(
-      targetChain,
+      target.chainId,
       target.mockIntegrationAddress,
       0,
       0,
       REASONABLE_GAS_LIMIT,
-      sourceChain,
+      source.chainId,
       source.wallet.address,
       await source.wormholeRelayer.getDefaultDeliveryProvider(),
       [relayer.createVaaKey(
