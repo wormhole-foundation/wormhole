@@ -334,6 +334,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 }
 
 func EventsToMessagePublications(contract string, txHash string, events []gjson.Result, logger *zap.Logger, chainID vaa.ChainID, contractAddressKey string) []*common.MessagePublication {
+	b64Encoded := chainID != vaa.ChainIDInjective
 	networkName := chainID.String()
 	msgs := make([]*common.MessagePublication, 0, len(events))
 	for _, event := range events {
@@ -373,15 +374,22 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 				continue
 			}
 
-			key, err := base64.StdEncoding.DecodeString(keyBase.String())
-			if err != nil {
-				logger.Warn("event key attribute is invalid", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("key", keyBase.String()))
-				continue
-			}
-			value, err := base64.StdEncoding.DecodeString(valueBase.String())
-			if err != nil {
-				logger.Warn("event value attribute is invalid", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("key", keyBase.String()), zap.String("value", valueBase.String()))
-				continue
+			var key, value []byte
+			var err error
+			if b64Encoded {
+				key, err = base64.StdEncoding.DecodeString(keyBase.String())
+				if err != nil {
+					logger.Warn("event key attribute is invalid", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("key", keyBase.String()))
+					continue
+				}
+				value, err = base64.StdEncoding.DecodeString(valueBase.String())
+				if err != nil {
+					logger.Warn("event value attribute is invalid", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("key", keyBase.String()), zap.String("value", valueBase.String()))
+					continue
+				}
+			} else {
+				key = []byte(keyBase.String())
+				value = []byte(valueBase.String())
 			}
 
 			if _, ok := mappedAttributes[string(key)]; ok {
