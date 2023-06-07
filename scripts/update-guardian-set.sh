@@ -16,11 +16,12 @@ namespace=$3
 echo "namespace ${namespace}"
 
 # file & path to save governance VAA
-fileName=new-guardianset.prototxt
-localPath=./scripts/$fileName
-containerPath=/tmp/$fileName
-echo "localPath: ${localPath}"
-echo "containerPath: ${containerPath}"
+tmpFile=$(mktemp -q)
+if [ $? -ne 0 ]; then
+    echo "$0: Can't create temp file, bye.."
+    exit 1
+fi
+trap 'rm -f -- "$tmpFile"' EXIT
 
 # the admin socket of the devnet guardians. used for executing commands in guardian pods.
 sock=/tmp/admin.sock
@@ -43,7 +44,7 @@ if [ ${currentNumGuardians} == ${newNumGuardians} ]; then
 fi
 
 echo "creating guardian set update governance message template prototext"
-minikube kubectl -- exec -n ${namespace} guardian-0 -c guardiand -- /guardiand template guardian-set-update --num=${newNumGuardians} --idx=${currentIndex} > ${localPath}
+minikube kubectl -- exec -n ${namespace} guardian-0 -c guardiand -- /guardiand template guardian-set-update --num=${newNumGuardians} --idx=${currentIndex} > ${tmpFile}
 
 # for i in $(seq ${newNumGuardians})
 for i in $(seq ${currentNumGuardians})
@@ -53,10 +54,10 @@ do
 
   # create the governance guardian set update prototxt file in the container
   echo "created governance file for guardian-${guardianIndex}"
-  minikube kubectl -- cp ${localPath} ${namespace}/guardian-${guardianIndex}:${containerPath} -c guardiand
+  minikube kubectl -- cp ${tmpFile} ${namespace}/guardian-${guardianIndex}:${tmpFile} -c guardiand
 
   # inject the guardian set update
-  minikube kubectl -- exec -n ${namespace} guardian-${guardianIndex} -c guardiand -- /guardiand admin governance-vaa-inject --socket $sock $containerPath
+  minikube kubectl -- exec -n ${namespace} guardian-${guardianIndex} -c guardiand -- /guardiand admin governance-vaa-inject --socket $sock $tmpFile
   echo "injected governance VAA for guardian-${guardianIndex}"
 done
 
@@ -73,8 +74,8 @@ function get_sequence_from_prototext {
         fi
     done < "$path"
 }
-sequence=$(get_sequence_from_prototext ${localPath})
-echo "got sequence: ${sequence} from ${localPath}"
+sequence=$(get_sequence_from_prototext ${tmpFile})
+echo "got sequence: ${sequence} from ${tmpFile}"
 
 # get vaa
 governanceChain="1"
@@ -118,3 +119,8 @@ else
 fi
 
 echo "update-guardian-set.sh succeeded."
+
+# clean up logic
+rm -f -- "$tmpFile"
+trap - EXIT
+exit
