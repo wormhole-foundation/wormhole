@@ -323,9 +323,7 @@ async function processDeliveryInstruction(
 
   executionRecord.deliveryRecord.walletAcquisitionStartTime = Date.now();
 
-  const submitTransaction = async (
-    executionRecord: DeliveryExecutionRecord
-  ) => {
+  try {
     await ctx.wallets.onEVM(chainId, async ({ wallet }) => {
       executionRecord.deliveryRecord!.walletAcquisitionEndTime = Date.now();
       executionRecord.deliveryRecord!.walletAcquisitionDidSucceed = true;
@@ -409,14 +407,12 @@ async function processDeliveryInstruction(
 
       logResults(ctx, receipt, chainId, executionRecord);
     });
-  };
-
-  await submitTransaction(executionRecord).catch((e: any) => {
+  } catch (e: any) {
     ctx.logger.error(`Fatal error in processGenericRelayerVaa: ${e}`);
     addFatalError(executionRecord, e);
     ctx.logger.error("Dumping execution context for fatal error");
     ctx.logger.error(deliveryExecutionRecordPrintable(executionRecord));
-  });
+  }
 }
 
 function logResults(
