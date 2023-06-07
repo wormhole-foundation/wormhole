@@ -24,7 +24,7 @@ done
 VAAS=$(set | grep "REGISTER_.*_NFT_BRIDGE_VAA" | grep -v APTOS | cut -d '=' -f1)
 
 # TODO: this will not be needed when the sdk is published
-NFT_BRIDGE_ADDR=$(worm contract devnet aptos NFTBridge)
+NFT_BRIDGE_ADDR=$(worm info contract devnet aptos NFTBridge)
 
 # 5. use 'worm' to submit each registration VAA
 for VAA in $VAAS

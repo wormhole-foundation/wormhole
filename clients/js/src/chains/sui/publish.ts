@@ -8,7 +8,7 @@ import {
 import { execSync } from "child_process";
 import fs from "fs";
 import { resolve } from "path";
-import { Network } from "../utils";
+import { Network } from "../../utils";
 import { MoveToml } from "./MoveToml";
 import { SuiBuildOutput } from "./types";
 import { executeTransactionBlock } from "./utils";

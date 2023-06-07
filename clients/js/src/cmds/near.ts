@@ -4,8 +4,7 @@ import { Account, KeyPair, connect } from "near-api-js";
 import { InMemoryKeyStore } from "near-api-js/lib/key_stores";
 import { parseSeedPhrase } from "near-seed-phrase";
 import yargs from "yargs";
-import { CONTRACTS, NETWORK_OPTIONS, RPC_OPTIONS } from "../consts";
-import { NETWORKS } from "../networks";
+import { CONTRACTS, NETWORKS, NETWORK_OPTIONS, RPC_OPTIONS } from "../consts";
 import { assertNetwork } from "../utils";
 
 // Near utilities
@@ -97,17 +96,15 @@ export const builder = function (y: typeof yargs) {
 
         const masterKey = KeyPair.fromString(key);
         const keyStore = new InMemoryKeyStore();
-        keyStore.setKey(networkId, argv["account"], masterKey);
+        keyStore.setKey(networkId, argv.account, masterKey);
         const near = await connect({
-          deps: {
-            keyStore,
-          },
+          keyStore,
           networkId,
           nodeUrl: rpc,
           headers: {},
         });
 
-        const masterAccount = new Account(near.connection, argv["account"]);
+        const masterAccount = new Account(near.connection, argv.account);
         const result = await masterAccount.functionCall({
           contractId: target,
           methodName: "update_contract",
@@ -169,24 +166,22 @@ export const builder = function (y: typeof yargs) {
 
         const masterKey = KeyPair.fromString(key);
         const keyStore = new InMemoryKeyStore();
-        keyStore.setKey(networkId, argv["account"], masterKey);
+        keyStore.setKey(networkId, argv.account, masterKey);
         keyStore.setKey(networkId, target, masterKey);
 
         const near = await connect({
-          deps: {
-            keyStore,
-          },
+          keyStore,
           networkId: networkId,
           nodeUrl: rpc,
           headers: {},
         });
-        const masterAccount = new Account(near.connection, argv["account"]);
+        const masterAccount = new Account(near.connection, argv.account);
         const targetAccount = new Account(near.connection, target);
         console.log({ ...argv, key, rpc, target });
 
         if (argv.attach) {
           console.log(
-            `Sending money: ${target} from ${argv["account"]} being sent ${argv["attach"]}`
+            `Sending money: ${target} from ${argv.account} being sent ${argv.attach}`
           );
           console.log(
             await masterAccount.sendMoney(target, new BN(argv.attach))
@@ -195,7 +190,7 @@ export const builder = function (y: typeof yargs) {
 
         console.log("deploying contract");
         console.log(
-          await targetAccount.deployContract(readFileSync(argv["file"]))
+          await targetAccount.deployContract(readFileSync(argv.file))
         );
       }
     );

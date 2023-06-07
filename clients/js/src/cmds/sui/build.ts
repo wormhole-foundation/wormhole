@@ -1,8 +1,12 @@
 import path from "path";
 import yargs from "yargs";
-import { CONTRACTS, NETWORK_OPTIONS, RPC_OPTIONS } from "../../consts";
-import { NETWORKS } from "../../networks";
-import { buildCoin, getProvider } from "../../sui";
+import { buildCoin, getProvider } from "../../chains/sui";
+import {
+  CONTRACTS,
+  NETWORKS,
+  NETWORK_OPTIONS,
+  RPC_OPTIONS,
+} from "../../consts";
 import { assertNetwork, checkBinary } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
 

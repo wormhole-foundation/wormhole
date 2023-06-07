@@ -4,7 +4,7 @@ import { Implementation__factory } from "@certusone/wormhole-sdk/lib/esm/ethers-
 import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { ethers } from "ethers";
 import yargs from "yargs";
-import { NETWORKS } from "../networks";
+import { NETWORKS, NETWORK_OPTIONS } from "../consts";
 import { assertNetwork } from "../utils";
 
 export const command = "verify-vaa";
@@ -17,12 +17,7 @@ export const builder = (y: typeof yargs) =>
       type: "string",
       demandOption: true,
     })
-    .option("network", {
-      alias: "n",
-      describe: "network",
-      choices: ["mainnet", "testnet", "devnet"],
-      demandOption: true,
-    } as const);
+    .option("network", NETWORK_OPTIONS);
 export const handler = async (
   argv: Awaited<ReturnType<typeof builder>["argv"]>
 ) => {

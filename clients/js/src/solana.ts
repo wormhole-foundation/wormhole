@@ -21,7 +21,7 @@ import {
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import * as web3s from "@solana/web3.js";
 import base58 from "bs58";
-import { NETWORKS } from "./networks";
+import { NETWORKS } from "./consts";
 import { Payload, VAA, impossible } from "./vaa";
 
 export async function execute_solana(
@@ -32,11 +32,11 @@ export async function execute_solana(
 ) {
   const { rpc, key } = NETWORKS[network][chain];
   if (!key) {
-    throw Error(`No ${network} key defined for NEAR`);
+    throw Error(`No ${network} key defined for ${chain}`);
   }
 
   if (!rpc) {
-    throw Error(`No ${network} rpc defined for NEAR`);
+    throw Error(`No ${network} rpc defined for ${chain}`);
   }
 
   const connection = setupConnection(rpc);
