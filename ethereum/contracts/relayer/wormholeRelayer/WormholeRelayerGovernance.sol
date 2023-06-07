@@ -93,7 +93,11 @@ abstract contract WormholeRelayerGovernance is WormholeRelayerBase, ERC1967Upgra
             foreignAddress;
     }
 
+    event ContractUpgraded(address indexed oldContract, address indexed newContract);
+
     function submitContractUpgrade(bytes memory encodedVm) external {
+
+        address currentImplementation = _getImplementation();
         address newImplementation = parseAndCheckContractUpgradeVm(encodedVm);
 
         _upgradeTo(newImplementation);
@@ -104,6 +108,8 @@ abstract contract WormholeRelayerGovernance is WormholeRelayerBase, ERC1967Upgra
         if (!success) {
             revert ContractUpgradeFailed(revertData);
         }
+
+         emit ContractUpgraded(currentImplementation, newImplementation);
     }
 
     function setDefaultDeliveryProvider(bytes memory encodedVm) external {
