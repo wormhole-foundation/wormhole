@@ -111,7 +111,6 @@ async function processRedelivery(
     return;
   }
 
-  //The SDK doesn't expose that there are two different types of VAA keys, but this check should be sufficient
   if (
     !redeliveryVaa.deliveryVaaKey.emitterAddress ||
     !redeliveryVaa.deliveryVaaKey.sequence ||
@@ -324,9 +323,9 @@ async function processDeliveryInstruction(
 
   executionRecord.deliveryRecord.walletAcquisitionStartTime = Date.now();
 
-  //TODO errors which happen inside this function are hard to catch, in part due to ethers.
-  //As a result they get logged here rather than by the top level catch
-  const closedFunction = async (executionRecord: DeliveryExecutionRecord) => {
+  const submitTransaction = async (
+    executionRecord: DeliveryExecutionRecord
+  ) => {
     await ctx.wallets.onEVM(chainId, async ({ wallet }) => {
       executionRecord.deliveryRecord!.walletAcquisitionEndTime = Date.now();
       executionRecord.deliveryRecord!.walletAcquisitionDidSucceed = true;
@@ -412,7 +411,7 @@ async function processDeliveryInstruction(
     });
   };
 
-  await closedFunction(executionRecord).catch((e: any) => {
+  await submitTransaction(executionRecord).catch((e: any) => {
     ctx.logger.error(`Fatal error in processGenericRelayerVaa: ${e}`);
     addFatalError(executionRecord, e);
     ctx.logger.error("Dumping execution context for fatal error");
