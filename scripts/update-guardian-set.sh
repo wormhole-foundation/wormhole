@@ -18,7 +18,7 @@ echo "namespace ${namespace}"
 # file & path to save governance VAA
 tmpFile=$(mktemp -q)
 if [ $? -ne 0 ]; then
-    echo "$0: Can't create temp file, bye.."
+    echo "$0: Can't create temp file, bye.." 1>&2;
     exit 1
 fi
 trap 'rm -f -- "$tmpFile"' EXIT
@@ -119,8 +119,3 @@ else
 fi
 
 echo "update-guardian-set.sh succeeded."
-
-# clean up logic
-rm -f -- "$tmpFile"
-trap - EXIT
-exit
