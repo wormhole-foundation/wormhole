@@ -24,6 +24,7 @@ error InvalidPayloadAction(uint8 parsed, uint8 expected);
 error InvalidPayloadModule(bytes32 parsed, bytes32 expected);
 error InvalidFork();
 error ContractUpgradeFailed(bytes failure);
+error ChainAlreadyRegistered(uint16 chainId, bytes32 registeredWormholeRelayerContract);
 
 abstract contract WormholeRelayerGovernance is WormholeRelayerBase, ERC1967Upgrade {
     //This constant should actually be defined in IWormhole. Alas, it isn't.
@@ -134,6 +135,11 @@ abstract contract WormholeRelayerGovernance is WormholeRelayerBase, ERC1967Upgra
         (foreignAddress, offset) = payload.asBytes32Unchecked(offset);
 
         checkLength(payload, offset);
+
+        if(getRegisteredWormholeRelayerContract(foreignChainId) != bytes32(0)) {
+            revert ChainAlreadyRegistered(foreignChainId, getRegisteredWormholeRelayerContract(foreignChainId));
+        }
+
     }
 
     function parseAndCheckContractUpgradeVm(bytes memory encodedVm)
