@@ -4,6 +4,13 @@ This tool is a command line interface to Wormhole.
 
 ## Installation
 
+Pull down the repo if you dont already have it and cd to the appropriate directory:
+
+    git clone https://github.com/wormhole-foundation/wormhole
+    cd wormhole/clients/js
+
+Build and install the cli tool:
+
     make install
 
 This installs two binaries, `worm-fetch-governance` and `worm` on your `$PATH`.
@@ -14,27 +21,23 @@ private keys, based on `.env.sample` in this folder.
 ## Usage
 
 ```sh
-worm [command]
+worm <command>
 
 Commands:
-  worm edit-vaa                                   Allows editing / creating / signing VAAs
-  worm generate                                   generate VAAs (devnet and testnet
-                                                  only)
-  worm parse <vaa>                                Parse a VAA (can be in either hex or
-                                                  base64 format)
-  worm recover <digest> <signature>               Recover an address from a signature
-  worm info contract <network> <chain> <module>   Print contract address
-  worm info convert-to-emitter <chain> <address>  Prints address in emitter address form based
-                                                  on chain encoding
-  worm info rpc <network> <chain>                 Print RPC address
-  worm info chain-id <chain>                      Print the wormhole chain ID integer
-                                                  associated with the specified chain name
-  worm evm                                        EVM utilites
-  worm aptos                                      Aptos utilities
-  worm near                                       NEAR utilities
-  worm submit <vaa>                               Execute a VAA
-  worm update                                     Update this tool by rebuilding it
-  worm verify-vaa --vaa <vaa> --network <network> Verifies a VAA by calling into the core contract
+  worm aptos                         Aptos utilities
+  worm edit-vaa                      Edits or generates a VAA
+  worm evm                           EVM utilities
+  worm generate                      generate VAAs (devnet and testnet only)
+  worm info                          Contract, chain, rpc and address informatio
+                                     n utilities
+  worm near                          NEAR utilities
+  worm parse <vaa>                   Parse a VAA (can be in either hex or base64
+                                      format)
+  worm recover <digest> <signature>  Recover an address from a signature
+  worm submit <vaa>                  Execute a VAA
+  worm sui                           Sui utilities
+  worm verify-vaa                    Verifies a VAA by querying the core contrac
+                                     t on Ethereum
 
 Options:
   --help     Show help                                                 [boolean]
