@@ -82,7 +82,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
     function sendVaasToEvm(
         uint16 targetChain,
         address targetAddress,
-        bytes calldata payload,
+        bytes memory payload,
         TargetNative receiverValue,
         Gas gasLimit,
         VaaKey[] memory vaaKeys
@@ -105,10 +105,10 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
     function sendVaasToEvm(
         uint16 targetChain,
         address targetAddress,
-        bytes calldata payload,
+        bytes memory payload,
         TargetNative receiverValue,
         Gas gasLimit,
-        VaaKey[] calldata vaaKeys,
+        VaaKey[] memory vaaKeys,
         uint16 refundChain,
         address refundAddress
     ) external payable returns (uint64 sequence) {
@@ -238,12 +238,12 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
     }
 
     function resendToEvm(
-        VaaKey memory deliveryVaaKey,
+        VaaKey calldata deliveryVaaKey,
         uint16 targetChain,
         TargetNative newReceiverValue,
         Gas newGasLimit,
         address newDeliveryProviderAddress
-    ) public payable returns (uint64 sequence) {
+    ) external payable returns (uint64 sequence) {
         sequence = resend(
             deliveryVaaKey,
             targetChain,
