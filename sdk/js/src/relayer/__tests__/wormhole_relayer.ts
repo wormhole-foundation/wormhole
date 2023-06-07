@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, jest, test} from "@jest/globals
 import { ethers } from "ethers";
 import { getNetwork, isCI, generateRandomString, waitForRelay, PRIVATE_KEY, getGuardianRPC, GUARDIAN_KEYS, GUARDIAN_SET_INDEX, GOVERNANCE_EMITTER_ADDRESS, getArbitraryBytes32} from "./utils/utils";
 import {getAddressInfo} from "../consts" 
-import {getDefaultProvider} from "../main/helpers"
+import {getDefaultProvider, vaaKeyToVaaKeyStruct} from "../main/helpers"
 import {
     relayer,
     ethers_contracts,
@@ -354,6 +354,7 @@ describe("Wormhole Relayer Tests", () => {
       ),
       REASONABLE_GAS_LIMIT,
       0,
+      true,
       await source.wormholeRelayer.getDefaultDeliveryProvider(),
       [getGuardianRPC(network, ci)],
       {
@@ -372,6 +373,54 @@ describe("Wormhole Relayer Tests", () => {
     expect(message2).toBe(arbitraryPayload);
 
     //Can extend this to look for redelivery event
+  });
+
+  test("Executes a Delivery Success without verifying Delivery VAA", async () => {
+    const arbitraryPayload = getArbitraryBytes32()
+    console.log(`Sent message: ${arbitraryPayload}`);
+    
+    const wormholeAddress = CONTRACTS[network][sourceChain].core || "";
+
+    const whTx = await ethers_contracts.IWormhole__factory.connect(wormholeAddress, source.wallet).publishMessage(0, arbitraryPayload, 200);
+    const whRx = await whTx.wait();
+    const event = (whRx?.events || [])[0];
+    const sequence = (event?.args || [])[1];
+    const value = await relayer.getPrice(sourceChain, targetChain, REASONABLE_GAS_LIMIT, optionalParams);
+    console.log(`Quoted gas delivery fee: ${value}`);
+    const tx = await source.wormholeRelayer.sendVaasToEvmWithoutVerification(
+      targetChain,
+      target.mockIntegrationAddress,
+      0,
+      0,
+      REASONABLE_GAS_LIMIT,
+      sourceChain,
+      source.wallet.address,
+      await source.wormholeRelayer.getDefaultDeliveryProvider(),
+      [relayer.createVaaKey(
+        source.chainId,
+        Buffer.from(
+          tryNativeToUint8Array(source.wallet.address, "ethereum")
+        ),
+        sequence
+      )],
+      200,
+      { value, gasLimit: REASONABLE_GAS_LIMIT }
+    );
+    console.log("Sent delivery request!");
+    await tx.wait();
+    console.log("Message confirmed!");
+
+    await waitForRelay();
+
+    console.log("Checking status using SDK");
+    const status = await getStatus(tx.hash);
+    expect(status).toBe("Delivery Success");
+
+    console.log("Checking if message was relayed");
+    const message = await target.mockIntegration.getMessage();
+    expect(message).toBe(arbitraryPayload);
+
+
   });
 
   // GOVERNANCE TESTS
