@@ -1,0 +1,1270 @@
+<!doctype html>
+<html class="default no-js">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>@certusone/wormhole-sdk</title>
+	<meta name="description" content="Documentation for @certusone/wormhole-sdk">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="assets/css/main.css">
+	<script async src="assets/js/search.js" id="search-script"></script>
+</head>
+<body>
+<header>
+	<div class="tsd-page-toolbar">
+		<div class="container">
+			<div class="table-wrap">
+				<div class="table-cell" id="tsd-search" data-index="assets/js/search.json" data-base=".">
+					<div class="field">
+						<label for="tsd-search-field" class="tsd-widget search no-caption">Search</label>
+						<input id="tsd-search-field" type="text" />
+					</div>
+					<ul class="results">
+						<li class="state loading">Preparing search index...</li>
+						<li class="state failure">The search index is not available</li>
+					</ul>
+					<a href="index.html" class="title">@certusone/wormhole-sdk</a>
+				</div>
+				<div class="table-cell" id="tsd-widgets">
+					<div id="tsd-filter">
+						<a href="#" class="tsd-widget options no-caption" data-toggle="options">Options</a>
+						<div class="tsd-filter-group">
+							<div class="tsd-select" id="tsd-filter-visibility">
+								<span class="tsd-select-label">All</span>
+								<ul class="tsd-select-list">
+									<li data-value="public">Public</li>
+									<li data-value="protected">Public/Protected</li>
+									<li data-value="private" class="selected">All</li>
+								</ul>
+							</div>
+							<input type="checkbox" id="tsd-filter-inherited" checked />
+							<label class="tsd-widget" for="tsd-filter-inherited">Inherited</label>
+							<input type="checkbox" id="tsd-filter-externals" checked />
+							<label class="tsd-widget" for="tsd-filter-externals">Externals</label>
+						</div>
+					</div>
+					<a href="#" class="tsd-widget menu no-caption" data-toggle="menu">Menu</a>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="tsd-page-title">
+		<div class="container">
+			<h1>@certusone/wormhole-sdk</h1>
+		</div>
+	</div>
+</header>
+<div class="container container-main">
+	<div class="row">
+		<div class="col-8 col-content">
+			<div class="tsd-panel tsd-typography">
+				<a href="#wormhole-sdk" id="wormhole-sdk" style="color: inherit; text-decoration: none;">
+					<h1>Wormhole SDK</h1>
+				</a>
+				<blockquote>
+					<p>Note: This is a pre-alpha release and in active development. Function names and signatures are subject to change.</p>
+				</blockquote>
+				<a href="#what-is-wormhole" id="what-is-wormhole" style="color: inherit; text-decoration: none;">
+					<h2>What is Wormhole?</h2>
+				</a>
+				<p><a href="https://wormholenetwork.com/">Wormhole</a> allows for the transmission of arbitrary data across multiple blockchains. For the currently supported chains and contracts visit <a href="https://docs.wormholenetwork.com/wormhole/contracts">the docs</a></p>
+				<p>Wormhole is, at its base layer, a very simple protocol. A Wormhole smart contract has been deployed on each of the supported blockchains, and users can emit messages in the Wormhole Network by submitting data to the smart contracts. These messages are quite simple and only have the following six fields.</p>
+				<ul>
+					<li><em>emitterChain</em> - The blockchain from which this message originates.</li>
+					<li><em>emitterAddress</em> - The public address which submitted the message.</li>
+					<li><em>consistencyLevel</em> - The number of blocks / slots which should pass before this message is considered confirmed.</li>
+					<li><em>timestamp</em> - The timestamp when the Wormhole Network confirmed the message.</li>
+					<li><em>sequence</em> - An incrementing sequence which denotes how many messages this <em>emitterAddress</em> has emitted.</li>
+					<li><em>payload</em> - The arbitrary contents of this message.</li>
+				</ul>
+				<p>Whenever a wormhole contract processes one of these messages, participants in the Wormhole Network ( individually known as <strong>Guardians</strong> ), will observe the transaction and create a <strong>SignedVAA</strong> (Signed Verifiable Action Approval) once the transaction has reached the specified confirmation time on the emitter chain.</p>
+				<p>The SignedVAA is essentially an affirmation from the Wormhole Network that a transaction has been finalized on the emitter chain, and that any dependent actions on other chains may proceed.</p>
+				<p>While simple, the Wormhole Protocol provides a powerful base layer upon which many &#39;bridge&#39; applications can be built. Because Wormhole is capable of verifying arbitrary data, bridges utilizing it are able to transfer native currencies, tokens, NFTs, oracle data, governance votes, and a whole host of other forms of decentralized data.</p>
+				<a href="#how-the-core-wormhole-bridge-works" id="how-the-core-wormhole-bridge-works" style="color: inherit; text-decoration: none;">
+					<h2>How the Core Wormhole Bridge Works</h2>
+				</a>
+				<p>The core Wormhole bridge operates by running smart contracts on both the <em>Source Chain</em> (where the data currently resides) and the <em>Target Chain</em> (where the data will be moved), and generally follows this workflow:</p>
+				<pre><code><span style="color: #098658">1</span><span style="color: #000000">) </span><span style="color: #001080">An</span><span style="color: #000000"> </span><span style="color: #001080">end</span><span style="color: #000000"> </span><span style="color: #001080">user</span><span style="color: #000000"> </span><span style="color: #001080">or</span><span style="color: #000000"> </span><span style="color: #001080">another</span><span style="color: #000000"> </span><span style="color: #001080">smart</span><span style="color: #000000"> </span><span style="color: #001080">contract</span><span style="color: #000000"> </span><span style="color: #001080">publishes</span><span style="color: #000000"> </span><span style="color: #001080">a</span><span style="color: #000000"> </span><span style="color: #001080">message</span><span style="color: #000000"> </span><span style="color: #001080">using</span><span style="color: #000000"> </span><span style="color: #001080">the</span><span style="color: #000000"> </span><span style="color: #001080">Bridge</span><span style="color: #000000"> </span><span style="color: #001080">Contract</span><span style="color: #000000"> </span><span style="color: #001080">on</span><span style="color: #000000"> </span><span style="color: #001080">the</span><span style="color: #000000"> </span><span style="color: #001080">Source</span><span style="color: #000000"> </span><span style="color: #001080">Chain</span><span style="color: #000000">.</span>
+
+<span style="color: #098658">2</span><span style="color: #000000">) </span><span style="color: #001080">The</span><span style="color: #000000"> </span><span style="color: #001080">Wormhole</span><span style="color: #000000"> </span><span style="color: #001080">Network</span><span style="color: #000000"> </span><span style="color: #001080">observes</span><span style="color: #000000"> </span><span style="color: #0000FF">this</span><span style="color: #000000"> </span><span style="color: #001080">transaction</span><span style="color: #000000"> </span><span style="color: #001080">and</span><span style="color: #000000"> </span><span style="color: #001080">issues</span><span style="color: #000000"> </span><span style="color: #001080">a</span><span style="color: #000000"> </span><span style="color: #001080">SignedVAA</span><span style="color: #000000"> </span><span style="color: #001080">once</span><span style="color: #000000"> </span><span style="color: #001080">it</span><span style="color: #000000"> </span><span style="color: #001080">crosses</span><span style="color: #000000"> </span><span style="color: #001080">its</span><span style="color: #000000"> </span><span style="color: #001080">confirmation</span><span style="color: #000000"> </span><span style="color: #001080">threshold</span><span style="color: #000000">.</span>
+
+<span style="color: #098658">3</span><span style="color: #000000">) </span><span style="color: #001080">An</span><span style="color: #000000"> </span><span style="color: #001080">off</span><span style="color: #000000">-</span><span style="color: #001080">chain</span><span style="color: #000000"> </span><span style="color: #001080">process</span><span style="color: #000000"> </span><span style="color: #001080">collects</span><span style="color: #000000"> </span><span style="color: #001080">the</span><span style="color: #000000"> </span><span style="color: #001080">SignedVAA</span><span style="color: #000000"> </span><span style="color: #001080">and</span><span style="color: #000000"> </span><span style="color: #001080">submits</span><span style="color: #000000"> </span><span style="color: #001080">it</span><span style="color: #000000"> </span><span style="color: #0000FF">in</span><span style="color: #000000"> </span><span style="color: #001080">a</span><span style="color: #000000"> </span><span style="color: #001080">transaction</span><span style="color: #000000"> </span><span style="color: #001080">to</span><span style="color: #000000"> </span><span style="color: #001080">the</span><span style="color: #000000"> </span><span style="color: #001080">Bridge</span><span style="color: #000000"> </span><span style="color: #001080">Contract</span><span style="color: #000000"> </span><span style="color: #001080">on</span><span style="color: #000000"> </span><span style="color: #001080">the</span><span style="color: #000000"> </span><span style="color: #001080">Target</span><span style="color: #000000"> </span><span style="color: #001080">Chain</span><span style="color: #000000">, </span><span style="color: #001080">which</span><span style="color: #000000"> </span><span style="color: #001080">can</span><span style="color: #000000"> </span><span style="color: #001080">parse</span><span style="color: #000000"> </span><span style="color: #001080">and</span><span style="color: #000000"> </span><span style="color: #001080">verify</span><span style="color: #000000"> </span><span style="color: #001080">the</span><span style="color: #000000"> </span><span style="color: #001080">message</span><span style="color: #000000">.</span>
+</code></pre>
+				<a href="#how-the-wormhole-token-bridge-works" id="how-the-wormhole-token-bridge-works" style="color: inherit; text-decoration: none;">
+					<h2>How the Wormhole Token Bridge Works</h2>
+				</a>
+				<p>It is important to note that the Wormhole Token Bridge is not, strictly speaking, part of the Wormhole protocol, but rather a bridge on top of it. However, as token transfers are such an important use-case of the bridge, it is built and packaged as part of the Wormhole SDK.</p>
+				<p>The Token Bridge works in the same fashion as above, leveraging the Core Bridge to publish messages. However, there are actually two different functions in the token bridge: Attest and Transfer.</p>
+				<a href="#attest" id="attest" style="color: inherit; text-decoration: none;">
+					<h3>Attest</h3>
+				</a>
+				<p>Attestation is the process by which a token is &#39;registered&#39; with the token bridge. Before being transferred, tokens must first be attested on their <strong>Origin Chain</strong> and have corresponding wrapped tokens created on the <strong>Foreign Chain</strong> to which they will be transferred. Attesting on the Origin Chain will create requisite addresses and metadata that will allow the wrapped asset to exist on Foreign Chains.</p>
+				<a href="#transfer" id="transfer" style="color: inherit; text-decoration: none;">
+					<h3>Transfer</h3>
+				</a>
+				<p>Once attested, tokens are mapped from their Native Chain to &#39;wrapped&#39; assets on the Foreign Chains. Transferring an Ethereum-native token to Solana will result in a &#39;wrapped asset&#39; on Solana, and transferring that same asset back to Ethereum will restore the native token.</p>
+				<p>It is important to note that Wormhole wrapped tokens are distinct from and incompatible with tokens wrapped by other bridges. Transferring a token which was wrapped by a different bridge will not redeem the native token, but rather will result in a &#39;double-wrapped&#39; token.</p>
+				<a href="#examples" id="examples" style="color: inherit; text-decoration: none;">
+					<h2>Examples</h2>
+				</a>
+				<p>The integration tests in the <a href="https://github.com/wormhole-foundation/wormhole/blob/main/sdk/js/src/token_bridge/__tests__/integration.ts">source code</a> have many full-path examples, while the <a href="https://github.com/wormhole-foundation/wormhole/tree/main/bridge_ui">example Token Bridge UI</a> demonstrates how to integrate it.</p>
+				<a href="#attest-1" id="attest-1" style="color: inherit; text-decoration: none;">
+					<h3>Attest</h3>
+				</a>
+				<a href="#solana-to-ethereum" id="solana-to-ethereum" style="color: inherit; text-decoration: none;">
+					<h4>Solana to Ethereum</h4>
+				</a>
+				<pre><code class="language-js"><span style="color: #008000">// Submit transaction - results in a Wormhole message being published</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">transaction</span><span style="color: #000000"> = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #795E26">attestFromSolana</span><span style="color: #000000">(</span>
+<span style="color: #000000">  </span><span style="color: #001080">connection</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #0070C1">SOL_BRIDGE_ADDRESS</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #0070C1">SOL_TOKEN_BRIDGE_ADDRESS</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">payerAddress</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">mintAddress</span>
+<span style="color: #000000">);</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">signed</span><span style="color: #000000"> = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #001080">wallet</span><span style="color: #000000">.</span><span style="color: #795E26">signTransaction</span><span style="color: #000000">(</span><span style="color: #001080">transaction</span><span style="color: #000000">);</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">txid</span><span style="color: #000000"> = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #001080">connection</span><span style="color: #000000">.</span><span style="color: #795E26">sendRawTransaction</span><span style="color: #000000">(</span><span style="color: #001080">signed</span><span style="color: #000000">.</span><span style="color: #795E26">serialize</span><span style="color: #000000">());</span>
+<span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #001080">connection</span><span style="color: #000000">.</span><span style="color: #795E26">confirmTransaction</span><span style="color: #000000">(</span><span style="color: #001080">txid</span><span style="color: #000000">);</span>
+<span style="color: #008000">// Get the sequence number and emitter address required to fetch the signedVAA of our message</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">info</span><span style="color: #000000"> = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #001080">connection</span><span style="color: #000000">.</span><span style="color: #795E26">getTransaction</span><span style="color: #000000">(</span><span style="color: #001080">txid</span><span style="color: #000000">);</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">sequence</span><span style="color: #000000"> = </span><span style="color: #795E26">parseSequenceFromLogSolana</span><span style="color: #000000">(</span><span style="color: #001080">info</span><span style="color: #000000">);</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">emitterAddress</span><span style="color: #000000"> = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #795E26">getEmitterAddressSolana</span><span style="color: #000000">(</span><span style="color: #0070C1">SOL_TOKEN_BRIDGE_ADDRESS</span><span style="color: #000000">);</span>
+<span style="color: #008000">// Fetch the signedVAA from the Wormhole Network (this may require retries while you wait for confirmation)</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> { </span><span style="color: #0070C1">signedVAA</span><span style="color: #000000"> } = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #795E26">getSignedVAA</span><span style="color: #000000">(</span>
+<span style="color: #000000">  </span><span style="color: #0070C1">WORMHOLE_RPC_HOST</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #0070C1">CHAIN_ID_SOLANA</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">emitterAddress</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">sequence</span>
+<span style="color: #000000">);</span>
+<span style="color: #008000">// Create the wrapped token on Ethereum</span>
+<span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #795E26">createWrappedOnEth</span><span style="color: #000000">(</span><span style="color: #0070C1">ETH_TOKEN_BRIDGE_ADDRESS</span><span style="color: #000000">, </span><span style="color: #001080">signer</span><span style="color: #000000">, </span><span style="color: #001080">signedVAA</span><span style="color: #000000">);</span>
+</code></pre>
+				<a href="#ethereum-to-solana" id="ethereum-to-solana" style="color: inherit; text-decoration: none;">
+					<h4>Ethereum to Solana</h4>
+				</a>
+				<pre><code class="language-js"><span style="color: #008000">// Submit transaction - results in a Wormhole message being published</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">receipt</span><span style="color: #000000"> = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #795E26">attestFromEth</span><span style="color: #000000">(</span>
+<span style="color: #000000">  </span><span style="color: #0070C1">ETH_TOKEN_BRIDGE_ADDRESS</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">signer</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">tokenAddress</span>
+<span style="color: #000000">);</span>
+<span style="color: #008000">// Get the sequence number and emitter address required to fetch the signedVAA of our message</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">sequence</span><span style="color: #000000"> = </span><span style="color: #795E26">parseSequenceFromLogEth</span><span style="color: #000000">(</span><span style="color: #001080">receipt</span><span style="color: #000000">, </span><span style="color: #0070C1">ETH_BRIDGE_ADDRESS</span><span style="color: #000000">);</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">emitterAddress</span><span style="color: #000000"> = </span><span style="color: #795E26">getEmitterAddressEth</span><span style="color: #000000">(</span><span style="color: #0070C1">ETH_TOKEN_BRIDGE_ADDRESS</span><span style="color: #000000">);</span>
+<span style="color: #008000">// Fetch the signedVAA from the Wormhole Network (this may require retries while you wait for confirmation)</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> { </span><span style="color: #0070C1">signedVAA</span><span style="color: #000000"> } = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #795E26">getSignedVAA</span><span style="color: #000000">(</span>
+<span style="color: #000000">  </span><span style="color: #0070C1">WORMHOLE_RPC_HOST</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #0070C1">CHAIN_ID_ETH</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">emitterAddress</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">sequence</span>
+<span style="color: #000000">);</span>
+<span style="color: #008000">// On Solana, we have to post the signedVAA ourselves</span>
+<span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #795E26">postVaaSolana</span><span style="color: #000000">(</span>
+<span style="color: #000000">  </span><span style="color: #001080">connection</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">wallet</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #0070C1">SOL_BRIDGE_ADDRESS</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">payerAddress</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">signedVAA</span>
+<span style="color: #000000">);</span>
+<span style="color: #008000">// Finally, create the wrapped token</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">transaction</span><span style="color: #000000"> = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #795E26">createWrappedOnSolana</span><span style="color: #000000">(</span>
+<span style="color: #000000">  </span><span style="color: #001080">connection</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #0070C1">SOL_BRIDGE_ADDRESS</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #0070C1">SOL_TOKEN_BRIDGE_ADDRESS</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">payerAddress</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">signedVAA</span>
+<span style="color: #000000">);</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">signed</span><span style="color: #000000"> = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #001080">wallet</span><span style="color: #000000">.</span><span style="color: #795E26">signTransaction</span><span style="color: #000000">(</span><span style="color: #001080">transaction</span><span style="color: #000000">);</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">txid</span><span style="color: #000000"> = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #001080">connection</span><span style="color: #000000">.</span><span style="color: #795E26">sendRawTransaction</span><span style="color: #000000">(</span><span style="color: #001080">signed</span><span style="color: #000000">.</span><span style="color: #795E26">serialize</span><span style="color: #000000">());</span>
+<span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #001080">connection</span><span style="color: #000000">.</span><span style="color: #795E26">confirmTransaction</span><span style="color: #000000">(</span><span style="color: #001080">txid</span><span style="color: #000000">);</span>
+</code></pre>
+				<a href="#transfer-1" id="transfer-1" style="color: inherit; text-decoration: none;">
+					<h3>Transfer</h3>
+				</a>
+				<a href="#solana-to-ethereum-1" id="solana-to-ethereum-1" style="color: inherit; text-decoration: none;">
+					<h4>Solana to Ethereum</h4>
+				</a>
+				<pre><code class="language-js"><span style="color: #008000">// Submit transaction - results in a Wormhole message being published</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">transaction</span><span style="color: #000000"> = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #795E26">transferFromSolana</span><span style="color: #000000">(</span>
+<span style="color: #000000">  </span><span style="color: #001080">connection</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #0070C1">SOL_BRIDGE_ADDRESS</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #0070C1">SOL_TOKEN_BRIDGE_ADDRESS</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">payerAddress</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">fromAddress</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">mintAddress</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">amount</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">targetAddress</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #0070C1">CHAIN_ID_ETH</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">originAddress</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">originChain</span>
+<span style="color: #000000">);</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">signed</span><span style="color: #000000"> = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #001080">wallet</span><span style="color: #000000">.</span><span style="color: #795E26">signTransaction</span><span style="color: #000000">(</span><span style="color: #001080">transaction</span><span style="color: #000000">);</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">txid</span><span style="color: #000000"> = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #001080">connection</span><span style="color: #000000">.</span><span style="color: #795E26">sendRawTransaction</span><span style="color: #000000">(</span><span style="color: #001080">signed</span><span style="color: #000000">.</span><span style="color: #795E26">serialize</span><span style="color: #000000">());</span>
+<span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #001080">connection</span><span style="color: #000000">.</span><span style="color: #795E26">confirmTransaction</span><span style="color: #000000">(</span><span style="color: #001080">txid</span><span style="color: #000000">);</span>
+<span style="color: #008000">// Get the sequence number and emitter address required to fetch the signedVAA of our message</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">info</span><span style="color: #000000"> = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #001080">connection</span><span style="color: #000000">.</span><span style="color: #795E26">getTransaction</span><span style="color: #000000">(</span><span style="color: #001080">txid</span><span style="color: #000000">);</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">sequence</span><span style="color: #000000"> = </span><span style="color: #795E26">parseSequenceFromLogSolana</span><span style="color: #000000">(</span><span style="color: #001080">info</span><span style="color: #000000">);</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">emitterAddress</span><span style="color: #000000"> = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #795E26">getEmitterAddressSolana</span><span style="color: #000000">(</span><span style="color: #0070C1">SOL_TOKEN_BRIDGE_ADDRESS</span><span style="color: #000000">);</span>
+<span style="color: #008000">// Fetch the signedVAA from the Wormhole Network (this may require retries while you wait for confirmation)</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> { </span><span style="color: #0070C1">signedVAA</span><span style="color: #000000"> } = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #795E26">getSignedVAA</span><span style="color: #000000">(</span>
+<span style="color: #000000">  </span><span style="color: #0070C1">WORMHOLE_RPC_HOST</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #0070C1">CHAIN_ID_SOLANA</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">emitterAddress</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">sequence</span>
+<span style="color: #000000">);</span>
+<span style="color: #008000">// Redeem on Ethereum</span>
+<span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #795E26">redeemOnEth</span><span style="color: #000000">(</span><span style="color: #0070C1">ETH_TOKEN_BRIDGE_ADDRESS</span><span style="color: #000000">, </span><span style="color: #001080">signer</span><span style="color: #000000">, </span><span style="color: #001080">signedVAA</span><span style="color: #000000">);</span>
+</code></pre>
+				<a href="#ethereum-to-solana-1" id="ethereum-to-solana-1" style="color: inherit; text-decoration: none;">
+					<h4>Ethereum to Solana</h4>
+				</a>
+				<pre><code class="language-js"><span style="color: #008000">// determine destination address - an associated token account</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">solanaMintKey</span><span style="color: #000000"> = </span><span style="color: #0000FF">new</span><span style="color: #000000"> </span><span style="color: #795E26">PublicKey</span><span style="color: #000000">(</span>
+<span style="color: #000000">  (</span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #795E26">getForeignAssetSolana</span><span style="color: #000000">(</span>
+<span style="color: #000000">    </span><span style="color: #001080">connection</span><span style="color: #000000">,</span>
+<span style="color: #000000">    </span><span style="color: #0070C1">SOLANA_TOKEN_BRIDGE_ADDRESS</span><span style="color: #000000">,</span>
+<span style="color: #000000">    </span><span style="color: #0070C1">CHAIN_ID_ETH</span><span style="color: #000000">,</span>
+<span style="color: #000000">    </span><span style="color: #795E26">hexToUint8Array</span><span style="color: #000000">(</span><span style="color: #795E26">nativeToHexString</span><span style="color: #000000">(</span><span style="color: #001080">tokenAddress</span><span style="color: #000000">, </span><span style="color: #0070C1">CHAIN_ID_ETH</span><span style="color: #000000">) || </span><span style="color: #A31515">&quot;&quot;</span><span style="color: #000000">)</span>
+<span style="color: #000000">  )) || </span><span style="color: #A31515">&quot;&quot;</span>
+<span style="color: #000000">);</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">recipientAddress</span><span style="color: #000000"> = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #001080">Token</span><span style="color: #000000">.</span><span style="color: #795E26">getAssociatedTokenAddress</span><span style="color: #000000">(</span>
+<span style="color: #000000">  </span><span style="color: #0070C1">ASSOCIATED_TOKEN_PROGRAM_ID</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #0070C1">TOKEN_PROGRAM_ID</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">solanaMintKey</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">walletAddress</span>
+<span style="color: #000000">);</span>
+<span style="color: #008000">// Submit transaction - results in a Wormhole message being published</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">receipt</span><span style="color: #000000"> = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #795E26">transferFromEth</span><span style="color: #000000">(</span>
+<span style="color: #000000">  </span><span style="color: #0070C1">ETH_TOKEN_BRIDGE_ADDRESS</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">signer</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">tokenAddress</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">amount</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #0070C1">CHAIN_ID_SOLANA</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">recipientAddress</span>
+<span style="color: #000000">);</span>
+<span style="color: #008000">// Get the sequence number and emitter address required to fetch the signedVAA of our message</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">sequence</span><span style="color: #000000"> = </span><span style="color: #795E26">parseSequenceFromLogEth</span><span style="color: #000000">(</span><span style="color: #001080">receipt</span><span style="color: #000000">, </span><span style="color: #0070C1">ETH_BRIDGE_ADDRESS</span><span style="color: #000000">);</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">emitterAddress</span><span style="color: #000000"> = </span><span style="color: #795E26">getEmitterAddressEth</span><span style="color: #000000">(</span><span style="color: #0070C1">ETH_TOKEN_BRIDGE_ADDRESS</span><span style="color: #000000">);</span>
+<span style="color: #008000">// Fetch the signedVAA from the Wormhole Network (this may require retries while you wait for confirmation)</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> { </span><span style="color: #0070C1">signedVAA</span><span style="color: #000000"> } = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #795E26">getSignedVAA</span><span style="color: #000000">(</span>
+<span style="color: #000000">  </span><span style="color: #0070C1">WORMHOLE_RPC_HOST</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #0070C1">CHAIN_ID_ETH</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">emitterAddress</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">sequence</span>
+<span style="color: #000000">);</span>
+<span style="color: #008000">// On Solana, we have to post the signedVAA ourselves</span>
+<span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #795E26">postVaaSolana</span><span style="color: #000000">(</span>
+<span style="color: #000000">  </span><span style="color: #001080">connection</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">wallet</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #0070C1">SOL_BRIDGE_ADDRESS</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">payerAddress</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">signedVAA</span>
+<span style="color: #000000">);</span>
+<span style="color: #008000">// Finally, redeem on Solana</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">transaction</span><span style="color: #000000"> = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #795E26">redeemOnSolana</span><span style="color: #000000">(</span>
+<span style="color: #000000">  </span><span style="color: #001080">connection</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #0070C1">SOL_BRIDGE_ADDRESS</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #0070C1">SOL_TOKEN_BRIDGE_ADDRESS</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">payerAddress</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">signedVAA</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">isSolanaNative</span><span style="color: #000000">,</span>
+<span style="color: #000000">  </span><span style="color: #001080">mintAddress</span>
+<span style="color: #000000">);</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">signed</span><span style="color: #000000"> = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #001080">wallet</span><span style="color: #000000">.</span><span style="color: #795E26">signTransaction</span><span style="color: #000000">(</span><span style="color: #001080">transaction</span><span style="color: #000000">);</span>
+<span style="color: #0000FF">const</span><span style="color: #000000"> </span><span style="color: #0070C1">txid</span><span style="color: #000000"> = </span><span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #001080">connection</span><span style="color: #000000">.</span><span style="color: #795E26">sendRawTransaction</span><span style="color: #000000">(</span><span style="color: #001080">signed</span><span style="color: #000000">.</span><span style="color: #795E26">serialize</span><span style="color: #000000">());</span>
+<span style="color: #AF00DB">await</span><span style="color: #000000"> </span><span style="color: #001080">connection</span><span style="color: #000000">.</span><span style="color: #795E26">confirmTransaction</span><span style="color: #000000">(</span><span style="color: #001080">txid</span><span style="color: #000000">);</span>
+</code></pre>
+			</div>
+		</div>
+		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
+			<nav class="tsd-navigation primary">
+				<ul>
+					<li class=" ">
+						<a href="modules.html">Exports</a>
+					</li>
+					<li class=" tsd-kind-namespace">
+						<a href="modules/algorand.html">algorand</a>
+					</li>
+					<li class=" tsd-kind-namespace">
+						<a href="modules/bridge.html">bridge</a>
+					</li>
+					<li class=" tsd-kind-namespace">
+						<a href="modules/cosmos.html">cosmos</a>
+					</li>
+					<li class=" tsd-kind-namespace">
+						<a href="modules/ethers_contracts.html">ethers_<wbr>contracts</a>
+					</li>
+					<li class=" tsd-kind-namespace">
+						<a href="modules/nft_bridge.html">nft_<wbr>bridge</a>
+					</li>
+					<li class=" tsd-kind-namespace">
+						<a href="modules/rpc.html">rpc</a>
+					</li>
+					<li class=" tsd-kind-namespace">
+						<a href="modules/solana.html">solana</a>
+					</li>
+					<li class=" tsd-kind-namespace">
+						<a href="modules/sui.html">sui</a>
+					</li>
+					<li class=" tsd-kind-namespace">
+						<a href="modules/terra.html">terra</a>
+					</li>
+					<li class=" tsd-kind-namespace">
+						<a href="modules/token_bridge.html">token_<wbr>bridge</a>
+					</li>
+					<li class=" tsd-kind-namespace">
+						<a href="modules/utils.html">utils</a>
+					</li>
+				</ul>
+			</nav>
+			<nav class="tsd-navigation secondary menu-sticky">
+				<ul class="before-current">
+					<li class=" tsd-kind-reference">
+						<a href="modules.html#getSignedBatchVAAWithRetry" class="tsd-kind-icon">get<wbr>Signed<wbr>BatchVAAWith<wbr>Retry</a>
+					</li>
+					<li class=" tsd-kind-reference">
+						<a href="modules.html#getSignedVAAWithRetry" class="tsd-kind-icon">get<wbr>SignedVAAWith<wbr>Retry</a>
+					</li>
+					<li class=" tsd-kind-reference">
+						<a href="modules.html#postVaaSolana" class="tsd-kind-icon">post<wbr>Vaa<wbr>Solana</a>
+					</li>
+					<li class=" tsd-kind-reference">
+						<a href="modules.html#postVaaSolanaWithRetry" class="tsd-kind-icon">post<wbr>Vaa<wbr>Solana<wbr>With<wbr>Retry</a>
+					</li>
+					<li class=" tsd-kind-enum">
+						<a href="enums/NftBridgeGovernanceAction.html" class="tsd-kind-icon">Nft<wbr>Bridge<wbr>Governance<wbr>Action</a>
+					</li>
+					<li class=" tsd-kind-enum">
+						<a href="enums/NftBridgePayload.html" class="tsd-kind-icon">Nft<wbr>Bridge<wbr>Payload</a>
+					</li>
+					<li class=" tsd-kind-enum">
+						<a href="enums/TokenBridgeGovernanceAction.html" class="tsd-kind-icon">Token<wbr>Bridge<wbr>Governance<wbr>Action</a>
+					</li>
+					<li class=" tsd-kind-enum">
+						<a href="enums/TokenBridgePayload.html" class="tsd-kind-icon">Token<wbr>Bridge<wbr>Payload</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/AssetMeta.html" class="tsd-kind-icon">Asset<wbr>Meta</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/CoreContractUpgrade.html" class="tsd-kind-icon">Core<wbr>Contract<wbr>Upgrade</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/ExternalIdResponse.html" class="tsd-kind-icon">External<wbr>IdResponse</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/Governance.html" class="tsd-kind-icon">Governance</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/GuardianSetUpgrade.html" class="tsd-kind-icon">Guardian<wbr>Set<wbr>Upgrade</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/GuardianSignature.html" class="tsd-kind-icon">Guardian<wbr>Signature</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/NFTBridgeTransfer.html" class="tsd-kind-icon">NFTBridge<wbr>Transfer</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/NftBridgeUpgradeContract.html" class="tsd-kind-icon">Nft<wbr>Bridge<wbr>Upgrade<wbr>Contract</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/NftRegisterChain.html" class="tsd-kind-icon">Nft<wbr>Register<wbr>Chain</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/NftTransfer.html" class="tsd-kind-icon">Nft<wbr>Transfer</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/Other.html" class="tsd-kind-icon">Other</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/ParsedAssetMetaVaa.html" class="tsd-kind-icon">Parsed<wbr>Asset<wbr>Meta<wbr>Vaa</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/ParsedGovernanceVaa.html" class="tsd-kind-icon">Parsed<wbr>Governance<wbr>Vaa</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/ParsedNftBridgeRegisterChainVaa.html" class="tsd-kind-icon">Parsed<wbr>Nft<wbr>Bridge<wbr>Register<wbr>Chain<wbr>Vaa</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/ParsedNftBridgeUpgradeContractVaa.html" class="tsd-kind-icon">Parsed<wbr>Nft<wbr>Bridge<wbr>Upgrade<wbr>Contract<wbr>Vaa</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/ParsedNftTransferVaa.html" class="tsd-kind-icon">Parsed<wbr>Nft<wbr>Transfer<wbr>Vaa</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/ParsedTokenBridgeRegisterChainVaa.html" class="tsd-kind-icon">Parsed<wbr>Token<wbr>Bridge<wbr>Register<wbr>Chain<wbr>Vaa</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/ParsedTokenBridgeUpgradeContractVaa.html" class="tsd-kind-icon">Parsed<wbr>Token<wbr>Bridge<wbr>Upgrade<wbr>Contract<wbr>Vaa</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/ParsedTokenTransferVaa.html" class="tsd-kind-icon">Parsed<wbr>Token<wbr>Transfer<wbr>Vaa</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/ParsedVaa.html" class="tsd-kind-icon">Parsed<wbr>Vaa</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-has-type-parameter">
+						<a href="interfaces/PortalContractUpgrade.html" class="tsd-kind-icon">Portal<wbr>Contract<wbr>Upgrade</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-has-type-parameter">
+						<a href="interfaces/PortalRegisterChain.html" class="tsd-kind-icon">Portal<wbr>Register<wbr>Chain</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/Signature.html" class="tsd-kind-icon">Signature</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/TokenBridgeAttestMeta.html" class="tsd-kind-icon">Token<wbr>Bridge<wbr>Attest<wbr>Meta</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/TokenBridgeRegisterChain.html" class="tsd-kind-icon">Token<wbr>Bridge<wbr>Register<wbr>Chain</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/TokenBridgeTransfer.html" class="tsd-kind-icon">Token<wbr>Bridge<wbr>Transfer</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/TokenBridgeTransferWithPayload.html" class="tsd-kind-icon">Token<wbr>Bridge<wbr>Transfer<wbr>With<wbr>Payload</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/TokenBridgeUpgradeContract.html" class="tsd-kind-icon">Token<wbr>Bridge<wbr>Upgrade<wbr>Contract</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/TokenTransfer.html" class="tsd-kind-icon">Token<wbr>Transfer</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-has-type-parameter">
+						<a href="interfaces/VAA.html" class="tsd-kind-icon">VAA</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/WormholeWrappedInfo.html" class="tsd-kind-icon">Wormhole<wbr>Wrapped<wbr>Info</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="modules.html#ChainContracts" class="tsd-kind-icon">Chain<wbr>Contracts</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="modules.html#ChainId" class="tsd-kind-icon">Chain<wbr>Id</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="modules.html#ChainIdToName" class="tsd-kind-icon">Chain<wbr>IdTo<wbr>Name</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="modules.html#ChainName" class="tsd-kind-icon">Chain<wbr>Name</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="modules.html#ContractUpgrade" class="tsd-kind-icon">Contract<wbr>Upgrade</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="modules.html#Contracts" class="tsd-kind-icon">Contracts</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="modules.html#CosmWasmChainId" class="tsd-kind-icon">Cosm<wbr>Wasm<wbr>Chain<wbr>Id</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="modules.html#CosmWasmChainName" class="tsd-kind-icon">Cosm<wbr>Wasm<wbr>Chain<wbr>Name</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="modules.html#EVMChainId" class="tsd-kind-icon">EVMChain<wbr>Id</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="modules.html#EVMChainName" class="tsd-kind-icon">EVMChain<wbr>Name</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="modules.html#Encoding" class="tsd-kind-icon">Encoding</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="modules.html#Network" class="tsd-kind-icon">Network</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="modules.html#ParsedAttestMetaVaa" class="tsd-kind-icon">Parsed<wbr>Attest<wbr>Meta<wbr>Vaa</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="modules.html#Payload" class="tsd-kind-icon">Payload</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="modules.html#SignedVaa" class="tsd-kind-icon">Signed<wbr>Vaa</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="modules.html#SolanaChainName" class="tsd-kind-icon">Solana<wbr>Chain<wbr>Name</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="modules.html#TerraChainId" class="tsd-kind-icon">Terra<wbr>Chain<wbr>Id</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="modules.html#TerraChainName" class="tsd-kind-icon">Terra<wbr>Chain<wbr>Name</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#APTOS_DEPLOYER_ADDRESS" class="tsd-kind-icon">APTOS_<wbr>DEPLOYER_<wbr>ADDRESS</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#APTOS_DEPLOYER_ADDRESS_DEVNET" class="tsd-kind-icon">APTOS_<wbr>DEPLOYER_<wbr>ADDRESS_<wbr>DEVNET</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#APTOS_TOKEN_BRIDGE_EMITTER_ADDRESS" class="tsd-kind-icon">APTOS_<wbr>TOKEN_<wbr>BRIDGE_<wbr>EMITTER_<wbr>ADDRESS</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAINS" class="tsd-kind-icon">CHAINS</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_ACALA" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>ACALA</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_ALGORAND" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>ALGORAND</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_APTOS" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>APTOS</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_ARBITRUM" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>ARBITRUM</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_AURORA" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>AURORA</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_AVAX" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>AVAX</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_BASE" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>BASE</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_BSC" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>BSC</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_BTC" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>BTC</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_CELO" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>CELO</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_ETH" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>ETH</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_FANTOM" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>FANTOM</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_GNOSIS" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>GNOSIS</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_INJECTIVE" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>INJECTIVE</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_KARURA" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>KARURA</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_KLAYTN" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>KLAYTN</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_MOONBEAM" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>MOONBEAM</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_NEAR" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>NEAR</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_NEON" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>NEON</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_OASIS" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>OASIS</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_OPTIMISM" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>OPTIMISM</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_OSMOSIS" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>OSMOSIS</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_POLYGON" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>POLYGON</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_PYTHNET" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>PYTHNET</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_SEI" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>SEI</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_SEPOLIA" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>SEPOLIA</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_SOLANA" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>SOLANA</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_SUI" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>SUI</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_TERRA" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>TERRA</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_TERRA2" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>TERRA2</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_TO_NAME" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>TO_<wbr>NAME</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_UNSET" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>UNSET</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_WORMCHAIN" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>WORMCHAIN</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CHAIN_ID_XPLA" class="tsd-kind-icon">CHAIN_<wbr>ID_<wbr>XPLA</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#CONTRACTS" class="tsd-kind-icon">CONTRACTS</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#MAX_VAA_DECIMALS" class="tsd-kind-icon">MAX_<wbr>VAA_<wbr>DECIMALS</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#METADATA_REPLACE" class="tsd-kind-icon">METADATA_<wbr>REPLACE</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#TERRA_REDEEMED_CHECK_WALLET_ADDRESS" class="tsd-kind-icon">TERRA_<wbr>REDEEMED_<wbr>CHECK_<wbr>WALLET_<wbr>ADDRESS</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#WSOL_ADDRESS" class="tsd-kind-icon">WSOL_<wbr>ADDRESS</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="modules.html#WSOL_DECIMALS" class="tsd-kind-icon">WSOL_<wbr>DECIMALS</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#approveEth" class="tsd-kind-icon">approve<wbr>Eth</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#assertChain" class="tsd-kind-icon">assert<wbr>Chain</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#assertEVMChain" class="tsd-kind-icon">assertEVMChain</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#assertKnownPayload" class="tsd-kind-icon">assert<wbr>Known<wbr>Payload</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#attestFromAlgorand" class="tsd-kind-icon">attest<wbr>From<wbr>Algorand</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#attestFromAptos" class="tsd-kind-icon">attest<wbr>From<wbr>Aptos</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#attestFromEth" class="tsd-kind-icon">attest<wbr>From<wbr>Eth</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#attestFromInjective" class="tsd-kind-icon">attest<wbr>From<wbr>Injective</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#attestFromSolana" class="tsd-kind-icon">attest<wbr>From<wbr>Solana</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#attestFromSui" class="tsd-kind-icon">attest<wbr>From<wbr>Sui</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#attestFromTerra" class="tsd-kind-icon">attest<wbr>From<wbr>Terra</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#attestFromXpla" class="tsd-kind-icon">attest<wbr>From<wbr>Xpla</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#attestNearFromNear" class="tsd-kind-icon">attest<wbr>Near<wbr>From<wbr>Near</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#attestTokenFromNear" class="tsd-kind-icon">attest<wbr>Token<wbr>From<wbr>Near</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#buildTokenId" class="tsd-kind-icon">build<wbr>Token<wbr>Id</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#callFunctionNear" class="tsd-kind-icon">call<wbr>Function<wbr>Near</a>
+					</li>
+					<li class=" tsd-kind-function tsd-has-type-parameter">
+						<a href="modules.html#chunks" class="tsd-kind-icon">chunks</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#coalesceChainId" class="tsd-kind-icon">coalesce<wbr>Chain<wbr>Id</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#coalesceChainName" class="tsd-kind-icon">coalesce<wbr>Chain<wbr>Name</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#coalesceCosmWasmChainId" class="tsd-kind-icon">coalesce<wbr>Cosm<wbr>Wasm<wbr>Chain<wbr>Id</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#coalesceModuleAddress" class="tsd-kind-icon">coalesce<wbr>Module<wbr>Address</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#createNonce" class="tsd-kind-icon">create<wbr>Nonce</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#createWrappedOnAlgorand" class="tsd-kind-icon">create<wbr>Wrapped<wbr>OnAlgorand</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#createWrappedOnAptos" class="tsd-kind-icon">create<wbr>Wrapped<wbr>OnAptos</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#createWrappedOnEth" class="tsd-kind-icon">create<wbr>Wrapped<wbr>OnEth</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#createWrappedOnInjective" class="tsd-kind-icon">create<wbr>Wrapped<wbr>OnInjective</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#createWrappedOnNear" class="tsd-kind-icon">create<wbr>Wrapped<wbr>OnNear</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#createWrappedOnSolana" class="tsd-kind-icon">create<wbr>Wrapped<wbr>OnSolana</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#createWrappedOnSui" class="tsd-kind-icon">create<wbr>Wrapped<wbr>OnSui</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#createWrappedOnSuiPrepare" class="tsd-kind-icon">create<wbr>Wrapped<wbr>OnSui<wbr>Prepare</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#createWrappedOnTerra" class="tsd-kind-icon">create<wbr>Wrapped<wbr>OnTerra</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#createWrappedOnXpla" class="tsd-kind-icon">create<wbr>Wrapped<wbr>OnXpla</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#createWrappedTypeOnAptos" class="tsd-kind-icon">create<wbr>Wrapped<wbr>Type<wbr>OnAptos</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#deriveCollectionHashFromTokenId" class="tsd-kind-icon">derive<wbr>Collection<wbr>Hash<wbr>From<wbr>Token<wbr>Id</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#deriveResourceAccountAddress" class="tsd-kind-icon">derive<wbr>Resource<wbr>Account<wbr>Address</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#deriveTokenHashFromTokenId" class="tsd-kind-icon">derive<wbr>Token<wbr>Hash<wbr>From<wbr>Token<wbr>Id</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#encode" class="tsd-kind-icon">encode</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#encodeString" class="tsd-kind-icon">encode<wbr>String</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#ensureHexPrefix" class="tsd-kind-icon">ensure<wbr>Hex<wbr>Prefix</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#generateSignAndSubmitEntryFunction" class="tsd-kind-icon">generate<wbr>Sign<wbr>And<wbr>Submit<wbr>Entry<wbr>Function</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#generateSignAndSubmitScript" class="tsd-kind-icon">generate<wbr>Sign<wbr>And<wbr>Submit<wbr>Script</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getAllowanceEth" class="tsd-kind-icon">get<wbr>Allowance<wbr>Eth</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getAssetFullyQualifiedType" class="tsd-kind-icon">get<wbr>Asset<wbr>Fully<wbr>Qualified<wbr>Type</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getClaimAddressSolana" class="tsd-kind-icon">get<wbr>Claim<wbr>Address<wbr>Solana</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getEmitterAddressAlgorand" class="tsd-kind-icon">get<wbr>Emitter<wbr>Address<wbr>Algorand</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getEmitterAddressEth" class="tsd-kind-icon">get<wbr>Emitter<wbr>Address<wbr>Eth</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getEmitterAddressInjective" class="tsd-kind-icon">get<wbr>Emitter<wbr>Address<wbr>Injective</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getEmitterAddressNear" class="tsd-kind-icon">get<wbr>Emitter<wbr>Address<wbr>Near</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getEmitterAddressSolana" class="tsd-kind-icon">get<wbr>Emitter<wbr>Address<wbr>Solana</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getEmitterAddressTerra" class="tsd-kind-icon">get<wbr>Emitter<wbr>Address<wbr>Terra</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getEmitterAddressXpla" class="tsd-kind-icon">get<wbr>Emitter<wbr>Address<wbr>Xpla</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getExternalAddressFromType" class="tsd-kind-icon">get<wbr>External<wbr>Address<wbr>From<wbr>Type</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getForeignAssetAddress" class="tsd-kind-icon">get<wbr>Foreign<wbr>Asset<wbr>Address</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getForeignAssetAlgorand" class="tsd-kind-icon">get<wbr>Foreign<wbr>Asset<wbr>Algorand</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getForeignAssetAptos" class="tsd-kind-icon">get<wbr>Foreign<wbr>Asset<wbr>Aptos</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getForeignAssetEth" class="tsd-kind-icon">get<wbr>Foreign<wbr>Asset<wbr>Eth</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getForeignAssetInjective" class="tsd-kind-icon">get<wbr>Foreign<wbr>Asset<wbr>Injective</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getForeignAssetNear" class="tsd-kind-icon">get<wbr>Foreign<wbr>Asset<wbr>Near</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getForeignAssetSolana" class="tsd-kind-icon">get<wbr>Foreign<wbr>Asset<wbr>Solana</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getForeignAssetSui" class="tsd-kind-icon">get<wbr>Foreign<wbr>Asset<wbr>Sui</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getForeignAssetTerra" class="tsd-kind-icon">get<wbr>Foreign<wbr>Asset<wbr>Terra</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getForeignAssetXpla" class="tsd-kind-icon">get<wbr>Foreign<wbr>Asset<wbr>Xpla</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getGovernorIsVAAEnqueued" class="tsd-kind-icon">get<wbr>Governor<wbr>IsVAAEnqueued</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getGovernorIsVAAEnqueuedWithRetry" class="tsd-kind-icon">get<wbr>Governor<wbr>IsVAAEnqueued<wbr>With<wbr>Retry</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getIsTransferCompletedAlgorand" class="tsd-kind-icon">get<wbr>IsTransfer<wbr>Completed<wbr>Algorand</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getIsTransferCompletedAptos" class="tsd-kind-icon">get<wbr>IsTransfer<wbr>Completed<wbr>Aptos</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getIsTransferCompletedEth" class="tsd-kind-icon">get<wbr>IsTransfer<wbr>Completed<wbr>Eth</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getIsTransferCompletedInjective" class="tsd-kind-icon">get<wbr>IsTransfer<wbr>Completed<wbr>Injective</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getIsTransferCompletedNear" class="tsd-kind-icon">get<wbr>IsTransfer<wbr>Completed<wbr>Near</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getIsTransferCompletedSolana" class="tsd-kind-icon">get<wbr>IsTransfer<wbr>Completed<wbr>Solana</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getIsTransferCompletedSui" class="tsd-kind-icon">get<wbr>IsTransfer<wbr>Completed<wbr>Sui</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getIsTransferCompletedTerra" class="tsd-kind-icon">get<wbr>IsTransfer<wbr>Completed<wbr>Terra</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getIsTransferCompletedTerra2" class="tsd-kind-icon">get<wbr>IsTransfer<wbr>Completed<wbr>Terra2</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getIsTransferCompletedXpla" class="tsd-kind-icon">get<wbr>IsTransfer<wbr>Completed<wbr>Xpla</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getIsWrappedAssetAlgorand" class="tsd-kind-icon">get<wbr>IsWrapped<wbr>Asset<wbr>Algorand</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getIsWrappedAssetAptos" class="tsd-kind-icon">get<wbr>IsWrapped<wbr>Asset<wbr>Aptos</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getIsWrappedAssetEth" class="tsd-kind-icon">get<wbr>IsWrapped<wbr>Asset<wbr>Eth</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getIsWrappedAssetInjective" class="tsd-kind-icon">get<wbr>IsWrapped<wbr>Asset<wbr>Injective</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getIsWrappedAssetNear" class="tsd-kind-icon">get<wbr>IsWrapped<wbr>Asset<wbr>Near</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getIsWrappedAssetSol" class="tsd-kind-icon">get<wbr>IsWrapped<wbr>Asset<wbr>Sol</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getIsWrappedAssetSolana" class="tsd-kind-icon">get<wbr>IsWrapped<wbr>Asset<wbr>Solana</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getIsWrappedAssetSui" class="tsd-kind-icon">get<wbr>IsWrapped<wbr>Asset<wbr>Sui</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getIsWrappedAssetTerra" class="tsd-kind-icon">get<wbr>IsWrapped<wbr>Asset<wbr>Terra</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getOriginalAssetAlgorand" class="tsd-kind-icon">get<wbr>Original<wbr>Asset<wbr>Algorand</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getOriginalAssetAptos" class="tsd-kind-icon">get<wbr>Original<wbr>Asset<wbr>Aptos</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getOriginalAssetCosmWasm" class="tsd-kind-icon">get<wbr>Original<wbr>Asset<wbr>Cosm<wbr>Wasm</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getOriginalAssetEth" class="tsd-kind-icon">get<wbr>Original<wbr>Asset<wbr>Eth</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getOriginalAssetInjective" class="tsd-kind-icon">get<wbr>Original<wbr>Asset<wbr>Injective</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getOriginalAssetNear" class="tsd-kind-icon">get<wbr>Original<wbr>Asset<wbr>Near</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getOriginalAssetSol" class="tsd-kind-icon">get<wbr>Original<wbr>Asset<wbr>Sol</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getOriginalAssetSolana" class="tsd-kind-icon">get<wbr>Original<wbr>Asset<wbr>Solana</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getOriginalAssetSui" class="tsd-kind-icon">get<wbr>Original<wbr>Asset<wbr>Sui</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getOriginalAssetTerra" class="tsd-kind-icon">get<wbr>Original<wbr>Asset<wbr>Terra</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getOriginalAssetXpla" class="tsd-kind-icon">get<wbr>Original<wbr>Asset<wbr>Xpla</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getSignedBatchVAA" class="tsd-kind-icon">get<wbr>Signed<wbr>BatchVAA</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getSignedVAA" class="tsd-kind-icon">get<wbr>SignedVAA</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getSignedVAAHash" class="tsd-kind-icon">get<wbr>SignedVAAHash</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getTokenIdFromTokenHash" class="tsd-kind-icon">get<wbr>Token<wbr>IdFrom<wbr>Token<wbr>Hash</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#getTypeFromExternalAddress" class="tsd-kind-icon">get<wbr>Type<wbr>From<wbr>External<wbr>Address</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#hashAccount" class="tsd-kind-icon">hash<wbr>Account</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#hashLookup" class="tsd-kind-icon">hash<wbr>Lookup</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#hex" class="tsd-kind-icon">hex</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#hexToNativeAssetString" class="tsd-kind-icon">hex<wbr>ToNative<wbr>Asset<wbr>String</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#hexToNativeString" class="tsd-kind-icon">hex<wbr>ToNative<wbr>String</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#hexToUint8Array" class="tsd-kind-icon">hex<wbr>ToUint8<wbr>Array</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#impossible" class="tsd-kind-icon">impossible</a>
+					</li>
+					<li class=" tsd-kind-function tsd-is-external">
+						<a href="modules.html#isBytes" class="tsd-kind-icon">is<wbr>Bytes</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#isChain" class="tsd-kind-icon">is<wbr>Chain</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#isCosmWasmChain" class="tsd-kind-icon">is<wbr>Cosm<wbr>Wasm<wbr>Chain</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#isEVMChain" class="tsd-kind-icon">isEVMChain</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#isHexNativeTerra" class="tsd-kind-icon">is<wbr>Hex<wbr>Native<wbr>Terra</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#isNativeCosmWasmDenom" class="tsd-kind-icon">is<wbr>Native<wbr>Cosm<wbr>Wasm<wbr>Denom</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#isNativeDenomInjective" class="tsd-kind-icon">is<wbr>Native<wbr>Denom<wbr>Injective</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#isNativeDenomXpla" class="tsd-kind-icon">is<wbr>Native<wbr>Denom<wbr>Xpla</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#isTerraChain" class="tsd-kind-icon">is<wbr>Terra<wbr>Chain</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#isValidAptosType" class="tsd-kind-icon">is<wbr>Valid<wbr>Aptos<wbr>Type</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#keccak256" class="tsd-kind-icon">keccak256</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#logNearGas" class="tsd-kind-icon">log<wbr>Near<wbr>Gas</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#nativeTerraHexToDenom" class="tsd-kind-icon">native<wbr>Terra<wbr>Hex<wbr>ToDenom</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#nativeToHexString" class="tsd-kind-icon">native<wbr>ToHex<wbr>String</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parse" class="tsd-kind-icon">parse</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseAttestMetaPayload" class="tsd-kind-icon">parse<wbr>Attest<wbr>Meta<wbr>Payload</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseAttestMetaVaa" class="tsd-kind-icon">parse<wbr>Attest<wbr>Meta<wbr>Vaa</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseEnvelope" class="tsd-kind-icon">parse<wbr>Envelope</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseGovernancePayload" class="tsd-kind-icon">parse<wbr>Governance<wbr>Payload</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseGovernanceVaa" class="tsd-kind-icon">parse<wbr>Governance<wbr>Vaa</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseNFTPayload" class="tsd-kind-icon">parseNFTPayload</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseNftBridgeRegisterChainGovernancePayload" class="tsd-kind-icon">parse<wbr>Nft<wbr>Bridge<wbr>Register<wbr>Chain<wbr>Governance<wbr>Payload</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseNftBridgeRegisterChainVaa" class="tsd-kind-icon">parse<wbr>Nft<wbr>Bridge<wbr>Register<wbr>Chain<wbr>Vaa</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseNftBridgeUpgradeContractGovernancePayload" class="tsd-kind-icon">parse<wbr>Nft<wbr>Bridge<wbr>Upgrade<wbr>Contract<wbr>Governance<wbr>Payload</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseNftBridgeUpgradeContractVaa" class="tsd-kind-icon">parse<wbr>Nft<wbr>Bridge<wbr>Upgrade<wbr>Contract<wbr>Vaa</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseNftTransferPayload" class="tsd-kind-icon">parse<wbr>Nft<wbr>Transfer<wbr>Payload</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseNftTransferVaa" class="tsd-kind-icon">parse<wbr>Nft<wbr>Transfer<wbr>Vaa</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseSequenceFromLogAlgorand" class="tsd-kind-icon">parse<wbr>Sequence<wbr>From<wbr>Log<wbr>Algorand</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseSequenceFromLogAptos" class="tsd-kind-icon">parse<wbr>Sequence<wbr>From<wbr>Log<wbr>Aptos</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseSequenceFromLogEth" class="tsd-kind-icon">parse<wbr>Sequence<wbr>From<wbr>Log<wbr>Eth</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseSequenceFromLogInjective" class="tsd-kind-icon">parse<wbr>Sequence<wbr>From<wbr>Log<wbr>Injective</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseSequenceFromLogNear" class="tsd-kind-icon">parse<wbr>Sequence<wbr>From<wbr>Log<wbr>Near</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseSequenceFromLogSolana" class="tsd-kind-icon">parse<wbr>Sequence<wbr>From<wbr>Log<wbr>Solana</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseSequenceFromLogSui" class="tsd-kind-icon">parse<wbr>Sequence<wbr>From<wbr>Log<wbr>Sui</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseSequenceFromLogTerra" class="tsd-kind-icon">parse<wbr>Sequence<wbr>From<wbr>Log<wbr>Terra</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseSequenceFromLogXpla" class="tsd-kind-icon">parse<wbr>Sequence<wbr>From<wbr>Log<wbr>Xpla</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseSequencesFromLogEth" class="tsd-kind-icon">parse<wbr>Sequences<wbr>From<wbr>Log<wbr>Eth</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseSequencesFromLogSolana" class="tsd-kind-icon">parse<wbr>Sequences<wbr>From<wbr>Log<wbr>Solana</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseSequencesFromLogTerra" class="tsd-kind-icon">parse<wbr>Sequences<wbr>From<wbr>Log<wbr>Terra</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseSmartContractStateResponse" class="tsd-kind-icon">parse<wbr>Smart<wbr>Contract<wbr>State<wbr>Response</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseTokenBridgeRegisterChainGovernancePayload" class="tsd-kind-icon">parse<wbr>Token<wbr>Bridge<wbr>Register<wbr>Chain<wbr>Governance<wbr>Payload</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseTokenBridgeRegisterChainVaa" class="tsd-kind-icon">parse<wbr>Token<wbr>Bridge<wbr>Register<wbr>Chain<wbr>Vaa</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseTokenBridgeUpgradeContractGovernancePayload" class="tsd-kind-icon">parse<wbr>Token<wbr>Bridge<wbr>Upgrade<wbr>Contract<wbr>Governance<wbr>Payload</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseTokenBridgeUpgradeContractVaa" class="tsd-kind-icon">parse<wbr>Token<wbr>Bridge<wbr>Upgrade<wbr>Contract<wbr>Vaa</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseTokenTransferPayload" class="tsd-kind-icon">parse<wbr>Token<wbr>Transfer<wbr>Payload</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseTokenTransferVaa" class="tsd-kind-icon">parse<wbr>Token<wbr>Transfer<wbr>Vaa</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseTransferPayload" class="tsd-kind-icon">parse<wbr>Transfer<wbr>Payload</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#parseVaa" class="tsd-kind-icon">parse<wbr>Vaa</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#queryExternalId" class="tsd-kind-icon">query<wbr>External<wbr>Id</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#queryExternalIdInjective" class="tsd-kind-icon">query<wbr>External<wbr>IdInjective</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#redeemAndUnwrapOnSolana" class="tsd-kind-icon">redeem<wbr>And<wbr>Unwrap<wbr>OnSolana</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#redeemOnAlgorand" class="tsd-kind-icon">redeem<wbr>OnAlgorand</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#redeemOnAptos" class="tsd-kind-icon">redeem<wbr>OnAptos</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#redeemOnEth" class="tsd-kind-icon">redeem<wbr>OnEth</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#redeemOnEthNative" class="tsd-kind-icon">redeem<wbr>OnEth<wbr>Native</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#redeemOnInjective" class="tsd-kind-icon">redeem<wbr>OnInjective</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#redeemOnNear" class="tsd-kind-icon">redeem<wbr>OnNear</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#redeemOnSolana" class="tsd-kind-icon">redeem<wbr>OnSolana</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#redeemOnSui" class="tsd-kind-icon">redeem<wbr>OnSui</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#redeemOnTerra" class="tsd-kind-icon">redeem<wbr>OnTerra</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#redeemOnXpla" class="tsd-kind-icon">redeem<wbr>OnXpla</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#registerAccount" class="tsd-kind-icon">register<wbr>Account</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#safeBigIntToNumber" class="tsd-kind-icon">safe<wbr>Big<wbr>Int<wbr>ToNumber</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#serialiseVAA" class="tsd-kind-icon">serialiseVAA</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#sign" class="tsd-kind-icon">sign</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#submitVAAOnInjective" class="tsd-kind-icon">submitVAAOn<wbr>Injective</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#textToHexString" class="tsd-kind-icon">text<wbr>ToHex<wbr>String</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#textToUint8Array" class="tsd-kind-icon">text<wbr>ToUint8<wbr>Array</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#toChainId" class="tsd-kind-icon">to<wbr>Chain<wbr>Id</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#toChainName" class="tsd-kind-icon">to<wbr>Chain<wbr>Name</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#toCosmWasmChainId" class="tsd-kind-icon">to<wbr>Cosm<wbr>Wasm<wbr>Chain<wbr>Id</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#transferFromAlgorand" class="tsd-kind-icon">transfer<wbr>From<wbr>Algorand</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#transferFromAptos" class="tsd-kind-icon">transfer<wbr>From<wbr>Aptos</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#transferFromEth" class="tsd-kind-icon">transfer<wbr>From<wbr>Eth</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#transferFromEthNative" class="tsd-kind-icon">transfer<wbr>From<wbr>Eth<wbr>Native</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#transferFromInjective" class="tsd-kind-icon">transfer<wbr>From<wbr>Injective</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#transferFromSolana" class="tsd-kind-icon">transfer<wbr>From<wbr>Solana</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#transferFromSui" class="tsd-kind-icon">transfer<wbr>From<wbr>Sui</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#transferFromTerra" class="tsd-kind-icon">transfer<wbr>From<wbr>Terra</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#transferFromXpla" class="tsd-kind-icon">transfer<wbr>From<wbr>Xpla</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#transferNativeSol" class="tsd-kind-icon">transfer<wbr>Native<wbr>Sol</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#transferNearFromNear" class="tsd-kind-icon">transfer<wbr>Near<wbr>From<wbr>Near</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#transferTokenFromNear" class="tsd-kind-icon">transfer<wbr>Token<wbr>From<wbr>Near</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#tryHexToNativeAssetString" class="tsd-kind-icon">try<wbr>Hex<wbr>ToNative<wbr>Asset<wbr>String</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#tryHexToNativeString" class="tsd-kind-icon">try<wbr>Hex<wbr>ToNative<wbr>String</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#tryHexToNativeStringNear" class="tsd-kind-icon">try<wbr>Hex<wbr>ToNative<wbr>String<wbr>Near</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#tryNativeToHexString" class="tsd-kind-icon">try<wbr>Native<wbr>ToHex<wbr>String</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#tryNativeToUint8Array" class="tsd-kind-icon">try<wbr>Native<wbr>ToUint8<wbr>Array</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#tryUint8ArrayToNative" class="tsd-kind-icon">try<wbr>Uint8<wbr>Array<wbr>ToNative</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#typeWidth" class="tsd-kind-icon">type<wbr>Width</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#uint8ArrayToHex" class="tsd-kind-icon">uint8<wbr>Array<wbr>ToHex</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#uint8ArrayToNative" class="tsd-kind-icon">uint8<wbr>Array<wbr>ToNative</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#updateWrappedOnAlgorand" class="tsd-kind-icon">update<wbr>Wrapped<wbr>OnAlgorand</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#updateWrappedOnAptos" class="tsd-kind-icon">update<wbr>Wrapped<wbr>OnAptos</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#updateWrappedOnEth" class="tsd-kind-icon">update<wbr>Wrapped<wbr>OnEth</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#updateWrappedOnInjective" class="tsd-kind-icon">update<wbr>Wrapped<wbr>OnInjective</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#updateWrappedOnNear" class="tsd-kind-icon">update<wbr>Wrapped<wbr>OnNear</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#updateWrappedOnSolana" class="tsd-kind-icon">update<wbr>Wrapped<wbr>OnSolana</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#updateWrappedOnSui" class="tsd-kind-icon">update<wbr>Wrapped<wbr>OnSui</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#updateWrappedOnTerra" class="tsd-kind-icon">update<wbr>Wrapped<wbr>OnTerra</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#updateWrappedOnXpla" class="tsd-kind-icon">update<wbr>Wrapped<wbr>OnXpla</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="modules.html#vaaDigest" class="tsd-kind-icon">vaa<wbr>Digest</a>
+					</li>
+				</ul>
+			</nav>
+		</div>
+	</div>
+</div>
+<footer class="with-border-bottom">
+	<div class="container">
+		<h2>Legend</h2>
+		<div class="tsd-legend-group">
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-interface"><span class="tsd-kind-icon">Property</span></li>
+			</ul>
+		</div>
+	</div>
+</footer>
+<div class="container tsd-generator">
+	<p>Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p>
+</div>
+<div class="overlay"></div>
+<script src="assets/js/main.js"></script>
+</body>
+</html>
