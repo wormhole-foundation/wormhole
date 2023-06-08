@@ -6,6 +6,7 @@ import {
   Network,
   tryNativeToHexString,
   isChain,
+  CONTRACTS
 } from "../../";
 import { BigNumber, ContractReceipt, ethers } from "ethers";
 import { getWormholeRelayer, RPCS_BY_CHAIN } from "../consts";
@@ -21,7 +22,7 @@ import {
   DeliveryOverrideArgs,
   parseForwardFailureError
 } from "../structs";
-import { DeliveryProvider, DeliveryProvider__factory, Implementation__factory} from "../../ethers-contracts/";
+import { DeliveryProvider, DeliveryProvider__factory, Implementation__factory, IWormholeRelayerDelivery__factory } from "../../ethers-contracts/";
 import {DeliveryEvent} from "../../ethers-contracts/WormholeRelayer"
 import { VaaKeyStruct } from "../../ethers-contracts/IWormholeRelayer.sol/IWormholeRelayer";
 
@@ -164,15 +165,42 @@ export async function getWormholeRelayerDeliveryEventsBySourceSequence(
     sourceVaaSequence
   );
 
+  const deliveryEventsPreFilter: DeliveryEvent[] = await wormholeRelayer.queryFilter(
+    deliveryEvents,
+    blockStartNumber,
+    blockEndNumber
+  );
+
+  const isValid: boolean[] = await Promise.all(deliveryEventsPreFilter.map((deliveryEvent) => areSignaturesValid(deliveryEvent.getTransaction(), targetChain, targetChainProvider, environment)));
+
   // There is a max limit on RPCs sometimes for how many blocks to query
   return await transformDeliveryEvents(
-    await wormholeRelayer.queryFilter(
-      deliveryEvents,
-      blockStartNumber,
-      blockEndNumber
-    ),
+    deliveryEventsPreFilter.filter((deliveryEvent, i) => isValid[i]),
     targetChainProvider
   );
+}
+
+async function areSignaturesValid(transaction: Promise<ethers.Transaction>, targetChain: ChainName, targetChainProvider: ethers.providers.Provider, environment: Network) {
+  const coreAddress = CONTRACTS[environment][targetChain].core;
+  if(!coreAddress) throw Error(`No Wormhole Address for chain ${targetChain}, network ${environment}`);
+
+  const wormhole = Implementation__factory.connect(coreAddress, targetChainProvider);
+  const decodedData = IWormholeRelayerDelivery__factory.createInterface().parseTransaction(await transaction);
+
+  const vaaIsValid = async (vaa: ethers.utils.BytesLike): Promise<boolean> => {
+    const [,result,reason] = await wormhole.parseAndVerifyVM(vaa);
+    if(!result) console.log(`Invalid vaa! Reason: ${reason}`);
+    return result;
+  }
+
+  const vaas = decodedData.args[0];
+  for(let i=0; i<vaas.length; i++) {
+    if(!(await vaaIsValid(vaas[i]))) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 export function deliveryStatus(status: number) {

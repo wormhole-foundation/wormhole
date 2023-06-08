@@ -97,7 +97,7 @@ export function parse(buffer: Buffer): VAA<Payload | Other> {
         .or(portalContractUpgradeParser("WormholeRelayer"))
         .or(portalRegisterChainParser("TokenBridge"))
         .or(portalRegisterChainParser("NFTBridge"))
-        .or(portalContractUpgradeParser("WormholeRelayer"))
+        .or(portalRegisterChainParser("WormholeRelayer"))
         .or(tokenBridgeTransferParser())
         .or(tokenBridgeTransferWithPayloadParser())
         .or(tokenBridgeAttestMetaParser())

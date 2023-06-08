@@ -69,7 +69,7 @@ contract ForwardTester is IWormholeReceiver {
                 wormholeRelayer.quoteEVMDeliveryPrice(sourceChain, TargetNative.wrap(0), REASONABLE_GAS_LIMIT);
             vm.recordLogs();
             wormholeRelayer.sendPayloadToEvm{
-                value: deliveryPrice.unwrap() + wormhole.messageFee() + msg.value
+                value: deliveryPrice.unwrap() + msg.value
             }(
                 sourceChain,
                 fromWormholeFormat(sourceAddress),
