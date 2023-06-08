@@ -1139,18 +1139,18 @@ contract WormholeRelayerTests is Test {
         uint256 amountToGetInRefundTarget =
             (setup.target.rewardAddress.balance - refundRewardAddressBalance);
 
+        vm.assume(amountToGetInRefundTarget > 0);
+
         uint256 refundSource; 
         (LocalNative baseFee,) = setup.target.coreRelayer.quoteEVMDeliveryPrice(setup.sourceChain, TargetNative.wrap(0), Gas.wrap(0));
 
-        vm.assume(amountToGetInRefundTarget > baseFee.unwrap());
-        if (amountToGetInRefundTarget > baseFee.unwrap()) {
             TargetNative tmp = setup.target.coreRelayer.quoteNativeForChain(
                 setup.sourceChain,
-                LocalNative.wrap(amountToGetInRefundTarget - baseFee.unwrap()),
+                LocalNative.wrap(amountToGetInRefundTarget + feeParams.wormholeFeeOnTarget - baseFee.unwrap()),
                 setup.target.coreRelayer.getDefaultDeliveryProvider()
             );
             refundSource = tmp.unwrap();
-        }
+
 
         // Calculate amount that must have been spent on gas, by reverse engineering from the amount that was paid to the provider's reward address on the target chain
         test.gasAmount = uint32(
