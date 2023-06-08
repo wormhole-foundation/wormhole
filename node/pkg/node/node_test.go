@@ -155,8 +155,8 @@ func mockGuardianRunnable(gs []*mockGuardian, mockGuardianIndex uint, obsDb mock
 		guardianOptions := []*GuardianOption{
 			GuardianOptionDatabase(db),
 			GuardianOptionWatchers(watcherConfigs, nil),
-			GuardianOptionAccountant("", "", false, nil), // effectively disable accountant
-			GuardianOptionGovernor(false),                // disable governor
+			GuardianOptionNoAccountant(),  // disable accountant
+			GuardianOptionGovernor(false), // disable governor
 			GuardianOptionP2P(gs[mockGuardianIndex].p2pKey, networkID, bootstrapPeers, nodeName, false, p2pPort, func() string { return "" }),
 			GuardianOptionPublicRpcSocket(publicSocketPath, common.GrpcLogDetailFull),
 			GuardianOptionPublicrpcTcpService(publicRpc, common.GrpcLogDetailFull),
