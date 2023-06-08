@@ -15,6 +15,7 @@ import (
 )
 
 const SignedQueryRequestChannelSize = 50
+const EvmContractAddressLength = 20
 
 // PerChainQueryInternal is an internal representation of a query request that is passed to the watcher.
 type PerChainQueryInternal struct {
@@ -154,8 +155,8 @@ func UnmarshalPerChainQueryRequestFromReader(reader *bytes.Reader) (*gossipv1.Pe
 	}
 
 	for count := 0; count < int(numCallData); count++ {
-		queryEthCallTo := [20]byte{}
-		if n, err := reader.Read(queryEthCallTo[:]); err != nil || n != 20 {
+		queryEthCallTo := [EvmContractAddressLength]byte{}
+		if n, err := reader.Read(queryEthCallTo[:]); err != nil || n != EvmContractAddressLength {
 			return nil, fmt.Errorf("failed to read call To [%d]: %w", n, err)
 		}
 
@@ -214,7 +215,7 @@ func ValidateQueryRequest(queryRequest *gossipv1.QueryRequest) error {
 				return fmt.Errorf("per chain query does not contain any requests")
 			}
 			for _, callData := range req.EthCallQueryRequest.CallData {
-				if len(callData.To) != 20 {
+				if len(callData.To) != EvmContractAddressLength {
 					return fmt.Errorf("invalid length for To contract")
 				}
 				if len(callData.Data) > math.MaxUint32 {

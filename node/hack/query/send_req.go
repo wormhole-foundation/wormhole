@@ -10,6 +10,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math/big"
+	"math/rand"
 	"os"
 	"strings"
 	"time"
@@ -207,13 +209,64 @@ func main() {
 	// block := "0x28d9630"
 	// block := "latest"
 	// block := "0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"
+
+	// Start of query creation...
 	callRequest := &gossipv1.EthCallQueryRequest{
 		Block:    hexutil.EncodeBig(blockNum),
 		CallData: callData,
 	}
 
+	// Send 2 individual requests for the same thing but 5 blocks apart
+	// First request...
+	logger.Info("calling sendQueryAndGetRsp for ", zap.String("blockNum", blockNum.String()))
+	queryRequest := createQueryRequest(callRequest)
+	sendQueryAndGetRsp(queryRequest, sk, th, ctx, logger, sub, wethAbi, methods)
+
+	// This is just so that when I look at the output, it is easier for me. (Paul)
+	logger.Info("sleeping for 5 seconds")
+	time.Sleep(time.Second * 5)
+
+	// Second request...
+	blockNum = blockNum.Sub(blockNum, big.NewInt(5))
+	callRequest2 := &gossipv1.EthCallQueryRequest{
+		Block:    hexutil.EncodeBig(blockNum),
+		CallData: callData,
+	}
+	queryRequest2 := createQueryRequest(callRequest2)
+	logger.Info("calling sendQueryAndGetRsp for ", zap.String("blockNum", blockNum.String()))
+	sendQueryAndGetRsp(queryRequest2, sk, th, ctx, logger, sub, wethAbi, methods)
+
+	// Now, want to send a single query with multiple requests...
+	logger.Info("Starting multiquery test in 5...")
+	time.Sleep(time.Second * 5)
+	multiCallRequest := []*gossipv1.EthCallQueryRequest{callRequest, callRequest2}
+	multQueryRequest := createQueryRequestWithMultipleRequests(multiCallRequest)
+	sendQueryAndGetRsp(multQueryRequest, sk, th, ctx, logger, sub, wethAbi, methods)
+
+	// Cleanly shutdown
+	// Without this the same host won't properly discover peers until some timeout
+	sub.Cancel()
+	if err := th.Close(); err != nil {
+		logger.Fatal("Error closing the topic", zap.Error(err))
+	}
+	if err := h.Close(); err != nil {
+		logger.Fatal("Error closing the host", zap.Error(err))
+	}
+
+	//
+	// END SHUTDOWN
+	//
+
+	logger.Info("Success! All tests passed!")
+}
+
+const (
+	GuardianKeyArmoredBlock = "WORMHOLE GUARDIAN PRIVATE KEY"
+)
+
+func createQueryRequest(callRequest *gossipv1.EthCallQueryRequest) *gossipv1.QueryRequest {
 	queryRequest := &gossipv1.QueryRequest{
-		Nonce: 1,
+		Nonce: rand.Uint32(),
 		PerChainQueries: []*gossipv1.PerChainQueryRequest{
 			{
 				ChainId: 5,
@@ -223,11 +276,33 @@ func main() {
 			},
 		},
 	}
+	return queryRequest
+}
 
+func createQueryRequestWithMultipleRequests(callRequests []*gossipv1.EthCallQueryRequest) *gossipv1.QueryRequest {
+	perChainQueries := []*gossipv1.PerChainQueryRequest{}
+	for _, req := range callRequests {
+		perChainQueries = append(perChainQueries, &gossipv1.PerChainQueryRequest{
+			ChainId: 5,
+			Message: &gossipv1.PerChainQueryRequest_EthCallQueryRequest{
+				EthCallQueryRequest: req,
+			},
+		})
+	}
+
+	queryRequest := &gossipv1.QueryRequest{
+		Nonce:           rand.Uint32(),
+		PerChainQueries: perChainQueries,
+	}
+	return queryRequest
+}
+
+func sendQueryAndGetRsp(queryRequest *gossipv1.QueryRequest, sk *ecdsa.PrivateKey, th *pubsub.Topic, ctx context.Context, logger *zap.Logger, sub *pubsub.Subscription, wethAbi abi.ABI, methods []string) {
 	queryRequestBytes, err := proto.Marshal(queryRequest)
 	if err != nil {
 		panic(err)
 	}
+	numQueries := len(queryRequest.PerChainQueries)
 
 	// Sign the query request using our private key.
 	digest := common.QueryRequestDigest(common.UnsafeDevNet, queryRequestBytes)
@@ -286,26 +361,31 @@ func main() {
 				// TODO: verify response signature
 				isMatchingResponse = true
 
-				if len(response.PerChainResponses) != 1 {
-					logger.Warn("unexpected number of per chain query responses", zap.Int("expectedNum", 1), zap.Int("actualNum", len(response.PerChainResponses)))
+				if len(response.PerChainResponses) != numQueries {
+					logger.Warn("unexpected number of per chain query responses", zap.Int("expectedNum", numQueries), zap.Int("actualNum", len(response.PerChainResponses)))
 					break
 				}
+				// Do double loop over responses
+				for index, pcq := range response.PerChainResponses {
+					logger.Info("per chain query response index", zap.Int("index", index))
 
-				pcq := response.PerChainResponses[0]
-				if len(pcq.Responses) != len(callData) {
-					logger.Warn("unexpected number of results", zap.Int("expectedNum", len(callData)), zap.Int("expectedNum", len(pcq.Responses)))
-					break
-				}
+					localCallData := queryRequest.PerChainQueries[index].GetEthCallQueryRequest().GetCallData()
 
-				for idx, resp := range pcq.Responses {
-					result, err := wethAbi.Methods[methods[idx]].Outputs.Unpack(resp.Result)
-					if err != nil {
-						logger.Warn("failed to unpack result", zap.Error(err))
+					if len(pcq.Responses) != len(localCallData) {
+						logger.Warn("unexpected number of results", zap.Int("expectedNum", len(localCallData)), zap.Int("expectedNum", len(pcq.Responses)))
 						break
 					}
 
-					resultStr := hexutil.Encode(resp.Result)
-					logger.Info("found matching response", zap.Int("idx", idx), zap.String("number", resp.Number.String()), zap.String("hash", resp.Hash.String()), zap.String("time", resp.Time.String()), zap.String("method", methods[idx]), zap.Any("resultDecoded", result), zap.String("resultStr", resultStr))
+					for idx, resp := range pcq.Responses {
+						result, err := wethAbi.Methods[methods[idx]].Outputs.Unpack(resp.Result)
+						if err != nil {
+							logger.Warn("failed to unpack result", zap.Error(err))
+							break
+						}
+
+						resultStr := hexutil.Encode(resp.Result)
+						logger.Info("found matching response", zap.Int("idx", idx), zap.String("number", resp.Number.String()), zap.String("hash", resp.Hash.String()), zap.String("time", resp.Time.String()), zap.String("method", methods[idx]), zap.Any("resultDecoded", result), zap.String("resultStr", resultStr))
+					}
 				}
 			}
 		default:
@@ -315,31 +395,7 @@ func main() {
 			break
 		}
 	}
-
-	//
-	// BEGIN SHUTDOWN
-	//
-
-	// Cleanly shutdown
-	// Without this the same host won't properly discover peers until some timeout
-	sub.Cancel()
-	if err := th.Close(); err != nil {
-		logger.Fatal("Error closing the topic", zap.Error(err))
-	}
-	if err := h.Close(); err != nil {
-		logger.Fatal("Error closing the host", zap.Error(err))
-	}
-
-	//
-	// END SHUTDOWN
-	//
-
-	logger.Info("Success! All tests passed!")
 }
-
-const (
-	GuardianKeyArmoredBlock = "WORMHOLE GUARDIAN PRIVATE KEY"
-)
 
 // loadGuardianKey loads a serialized guardian key from disk.
 func loadGuardianKey(filename string) (*ecdsa.PrivateKey, error) {
