@@ -85,6 +85,15 @@ func GuardianOptionP2P(p2pKey libp2p_crypto.PrivKey, networkId string, bootstrap
 		}}
 }
 
+func GuardianOptionNoAccountant() *GuardianOption {
+	return &GuardianOption{
+		name: "accountant",
+		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
+			logger.Info("acct: accountant is disabled", zap.String("component", "gacct"))
+			return nil
+		}}
+}
+
 // GuardianOptionAccountant configures the Accountant module.
 // Requires: wormchainConn
 func GuardianOptionAccountant(contract string, websocket string, enforcing bool, wormchainConn *wormconn.ClientConn) *GuardianOption {
