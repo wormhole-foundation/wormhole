@@ -185,7 +185,7 @@ func GuardianOptionStatusServer(statusAddr string) *GuardianOption {
 				// pprof server. NOT necessarily safe to expose publicly - only enable it in dev mode to avoid exposing it by
 				// accident. There's benefit to having pprof enabled on production nodes, but we would likely want to expose it
 				// via a dedicated port listening on localhost, or via the admin UNIX socket.
-				if g.env == common.UnsafeDevNet {
+				if g.env == common.UnsafeDevNet || g.env == common.GoTest {
 					// Pass requests to http.DefaultServeMux, which pprof automatically registers with as an import side-effect.
 					router.PathPrefix("/debug/pprof/").Handler(http.DefaultServeMux)
 				}

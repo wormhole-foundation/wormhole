@@ -297,12 +297,18 @@ func testStatusServer(ctx context.Context, logger *zap.Logger, statusAddr string
 	return nil
 }
 
-func TestNodes(t *testing.T) {
-	const testTimeout = time.Second * 60
-	const numGuardians = 4               // Quorum will be 3 out of 4 guardians.
-	const guardianSetIndex = 5           // index of the active guardian set (can be anything, just needs to be set to something)
-	const vaaCheckGuardianIndex uint = 0 // we will query this guardian's publicrpc for VAAs
-	const adminRpcGuardianIndex uint = 0 // we will query this guardian's adminRpc
+func TestMain(m *testing.M) {
+	readiness.NoPanic = true // otherwise we'd panic when running multiple guardians
+}
+
+// TestInvalidWatcherConfig tries to instantiate a guardian with various invlid []watchers.WatcherConfig and asserts that it errors
+func TestInvalidWatcherConfig(t *testing.T) {
+	// TODO
+}
+
+// TestBasicConsensus tests that a set of guardians can form consensus on certain messages and reject certain other messages
+func TestBasicConsensus(t *testing.T) {
+	const numGuardians = 4 // Quorum will be 3 out of 4 guardians.
 
 	msgZeroEmitter := someMessage()
 	msgZeroEmitter.EmitterAddress = vaa.Address{}
@@ -350,11 +356,19 @@ func TestNodes(t *testing.T) {
 		// TODO add a testcase to test the automatic re-observation requests.
 		// Need to refactor various usage of wall time to a mockable time first. E.g. using https://github.com/benbjohnson/clock
 	}
+	testConsensus(t, testCases, numGuardians)
+}
+
+// testConsensus spins up `numGuardians` guardians and runs & verifies the testCases
+func testConsensus(t *testing.T, testCases []testCase, numGuardians int) {
+	const testTimeout = time.Second * 60
+	const guardianSetIndex = 5           // index of the active guardian set (can be anything, just needs to be set to something)
+	const vaaCheckGuardianIndex uint = 0 // we will query this guardian's publicrpc for VAAs
+	const adminRpcGuardianIndex uint = 0 // we will query this guardian's adminRpc
 
 	// Test's main lifecycle context.
 	rootCtx, rootCtxCancel := context.WithTimeout(context.Background(), testTimeout)
 	defer rootCtxCancel()
-	readiness.NoPanic = true // otherwise we'd panic when running multiple guardians
 
 	zapLogger, zapObserver := setupLogsCapture()
 
