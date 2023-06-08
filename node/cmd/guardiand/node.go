@@ -1346,6 +1346,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		node.GuardianOptionAdminService(*adminSocketPath, ethRPC, ethContract, rpcMap),
 		node.GuardianOptionP2P(p2pKey, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, *p2pPort, ibc.GetFeatures),
 		node.GuardianOptionStatusServer(*statusAddr),
+		node.GuardianOptionProcessor(),
 	}
 
 	if shouldStart(publicGRPCSocketPath) {
