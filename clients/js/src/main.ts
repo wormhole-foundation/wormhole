@@ -15,6 +15,7 @@ import * as parse from "./cmds/parse";
 import * as recover from "./cmds/recover";
 import * as submit from "./cmds/submit";
 import * as sui from "./cmds/sui";
+import * as transfer from "./cmds/transfer";
 import * as verifyVaa from "./cmds/verifyVaa";
 
 yargs(hideBin(process.argv))
@@ -30,6 +31,7 @@ yargs(hideBin(process.argv))
   .command(recover)
   .command(submit)
   .command(sui)
+  .command(transfer)
   .command(verifyVaa)
   .strict()
   .demandCommand().argv;
