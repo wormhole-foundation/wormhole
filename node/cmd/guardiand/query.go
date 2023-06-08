@@ -61,6 +61,22 @@ func handleQueryRequests(
 	queryResponseWriteC chan<- *common.QueryResponsePublication,
 	env common.Environment,
 ) {
+	handleQueryRequestsImpl(ctx, logger, signedQueryReqC, chainQueryReqC, allowedRequestors, queryResponseReadC, queryResponseWriteC, env, requestTimeout, retryInterval)
+}
+
+// handleQueryRequestsImpl allows instantiating the handler in the test environment with shorter timeout and retry parameters.
+func handleQueryRequestsImpl(
+	ctx context.Context,
+	logger *zap.Logger,
+	signedQueryReqC <-chan *gossipv1.SignedQueryRequest,
+	chainQueryReqC map[vaa.ChainID]chan *common.PerChainQueryInternal,
+	allowedRequestors map[ethCommon.Address]struct{},
+	queryResponseReadC <-chan *common.PerChainQueryResponseInternal,
+	queryResponseWriteC chan<- *common.QueryResponsePublication,
+	env common.Environment,
+	requestTimeoutImpl time.Duration,
+	retryIntervalImpl time.Duration,
+) {
 	qLogger := logger.With(zap.String("component", "ccqhandler"))
 	qLogger.Info("cross chain queries are enabled", zap.Any("allowedRequestors", allowedRequestors), zap.String("env", string(env)))
 
@@ -87,7 +103,7 @@ func handleQueryRequests(
 		vaa.ChainIDSepolia:   {},
 	}
 
-	ticker := time.NewTicker(retryInterval)
+	ticker := time.NewTicker(retryIntervalImpl)
 	defer ticker.Stop()
 
 	for {
@@ -268,8 +284,8 @@ func handleQueryRequests(
 		case <-ticker.C: // Retry audit timer.
 			now := time.Now()
 			for reqId, pq := range pendingQueries {
-				timeout := pq.receiveTime.Add(requestTimeout)
-				qLogger.Debug("audit", zap.String("requestId", reqId), zap.Stringer("receiveTime", pq.receiveTime), zap.Stringer("retryTime", pq.lastUpdateTime.Add(retryInterval)), zap.Stringer("timeout", timeout))
+				timeout := pq.receiveTime.Add(requestTimeoutImpl)
+				qLogger.Debug("audit", zap.String("requestId", reqId), zap.Stringer("receiveTime", pq.receiveTime), zap.Stringer("retryTime", pq.lastUpdateTime.Add(retryIntervalImpl)), zap.Stringer("timeout", timeout))
 				if timeout.Before(now) {
 					qLogger.Warn("query request timed out, dropping it", zap.String("requestId", reqId), zap.Stringer("receiveTime", pq.receiveTime))
 					delete(pendingQueries, reqId)
@@ -285,7 +301,7 @@ func handleQueryRequests(
 						}
 					} else {
 						for requestIdx, pcq := range pq.queries {
-							if pq.responses[requestIdx] == nil && !pcq.inProgress && pq.lastUpdateTime.Add(retryInterval).Before(now) {
+							if pq.responses[requestIdx] == nil && !pcq.inProgress && pq.lastUpdateTime.Add(retryIntervalImpl).Before(now) {
 								qLogger.Info("retrying query request", zap.String("requestId", reqId), zap.Stringer("receiveTime", pq.receiveTime), zap.Int("requestIdx", requestIdx))
 								pcq.ccqForwardToWatcher(qLogger, pq.receiveTime)
 							}
