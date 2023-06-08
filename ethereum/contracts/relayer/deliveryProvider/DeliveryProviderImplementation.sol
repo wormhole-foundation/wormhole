@@ -10,8 +10,6 @@ import "./DeliveryProvider.sol";
 contract DeliveryProviderImplementation is DeliveryProvider {
     error ImplementationAlreadyInitialized();
 
-    constructor(address wormhole) DeliveryProvider(wormhole) {}
-
     function initialize() public virtual initializer {
         // this function needs to be exposed for an upgrade to pass
     }

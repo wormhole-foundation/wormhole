@@ -86,14 +86,13 @@ contract TestHelpers {
     }
 
     function setUpDeliveryProvider(
-        uint16 chainId,
-        address wormhole
+        uint16 chainId
     ) public returns (DeliveryProvider deliveryProvider) {
         vm.prank(msg.sender);
         DeliveryProviderSetup deliveryProviderSetup = new DeliveryProviderSetup();
         vm.prank(msg.sender);
         DeliveryProviderImplementation deliveryProviderImplementation =
-            new DeliveryProviderImplementation(wormhole);
+            new DeliveryProviderImplementation();
         vm.prank(msg.sender);
         DeliveryProviderProxy myDeliveryProvider = new DeliveryProviderProxy(
             address(deliveryProviderSetup),
