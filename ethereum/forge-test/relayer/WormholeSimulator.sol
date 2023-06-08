@@ -408,7 +408,7 @@ contract SigningWormholeSimulator is WormholeSimulator {
         uint32 nonce,
         uint16 emitterChainId,
         address emitterAddress
-    ) public override returns (bytes memory signedMessage) {
+    ) public view override returns (bytes memory signedMessage) {
         uint8 numObservations = 0;
         IWormhole.VM[] memory vm_ = new IWormhole.VM[](logs.length);
 
@@ -475,6 +475,7 @@ contract SigningWormholeSimulator is WormholeSimulator {
      */
     function encodeAndSignMessage(IWormhole.VM memory vm_)
         public
+        view
         override
         returns (bytes memory signedMessage)
     {

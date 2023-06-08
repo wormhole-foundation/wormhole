@@ -32,11 +32,11 @@ export async function execute_solana(
 ) {
   const { rpc, key } = NETWORKS[network][chain];
   if (!key) {
-    throw Error(`No ${network} key defined for NEAR`);
+    throw Error(`No ${network} key defined for ${chain}`);
   }
 
   if (!rpc) {
-    throw Error(`No ${network} rpc defined for NEAR`);
+    throw Error(`No ${network} rpc defined for ${chain}`);
   }
 
   const connection = setupConnection(rpc);
