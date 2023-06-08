@@ -50,7 +50,7 @@ contract WormholeRelayerGovernanceTests is Test {
     function setUp() public {
         helpers = new TestHelpers();
         (wormhole, wormholeSimulator) = helpers.setUpWormhole(1);
-        deliveryProvider = helpers.setUpDeliveryProvider(1, address(wormhole));
+        deliveryProvider = helpers.setUpDeliveryProvider(1);
         wormholeRelayer = helpers.setUpWormholeRelayer(wormhole, address(deliveryProvider));
     }
 
@@ -99,8 +99,8 @@ contract WormholeRelayerGovernanceTests is Test {
     }
 
     function testSetDefaultDeliveryProvider() public {
-        IDeliveryProvider deliveryProviderB = helpers.setUpDeliveryProvider(1, address(wormhole));
-        IDeliveryProvider deliveryProviderC = helpers.setUpDeliveryProvider(1, address(wormhole));
+        IDeliveryProvider deliveryProviderB = helpers.setUpDeliveryProvider(1);
+        IDeliveryProvider deliveryProviderC = helpers.setUpDeliveryProvider(1);
 
         bytes memory signed = signMessage(
             abi.encodePacked(
@@ -189,7 +189,7 @@ contract WormholeRelayerGovernanceTests is Test {
                 relayerModule,
                 uint8(2),
                 uint16(1),
-                toWormholeFormat(address(new DeliveryProviderImplementation(address(wormhole))))
+                toWormholeFormat(address(new DeliveryProviderImplementation()))
             )
         );
 
