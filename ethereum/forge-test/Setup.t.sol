@@ -103,7 +103,7 @@ contract TestSetup is TestUtils {
         public
     {
         kevm.infiniteGas();
-        testSetup_after_setup_revert_KEVM(
+        testSetup_after_setup_revert(
             storageSlot,
             alice,
             implementation,
