@@ -262,7 +262,6 @@ message EthCallQueryRequest {
     bytes to = 1;
     bytes data = 2;
   }
-
 }
 
 message SignedQueryResponse {
