@@ -42,9 +42,10 @@ const (
 var (
 	nonce = uint32(0)
 
-	watcherChains = []vaa.ChainID{vaa.ChainIDPolygon, vaa.ChainIDBSC}
+	watcherChainsForTest = []vaa.ChainID{vaa.ChainIDPolygon, vaa.ChainIDBSC}
 )
 
+// createPerChainQueryForTesting creates a per chain query for use in tests. The To and Data fields are meaningless gibberish, not ABI.
 func createPerChainQueryForTesting(
 	chainId vaa.ChainID,
 	block string,
@@ -71,6 +72,7 @@ func createPerChainQueryForTesting(
 	}
 }
 
+// createSignedQueryRequestForTesting creates a query request object and signs it using the specified key.
 func createSignedQueryRequestForTesting(
 	sk *ecdsa.PrivateKey,
 	perChainQueries []*gossipv1.PerChainQueryRequest,
@@ -100,6 +102,7 @@ func createSignedQueryRequestForTesting(
 	return signedQueryRequest, queryRequest
 }
 
+// createExpectedResultsForTest generates an array of the results expected for a request. These results are returned by the watcher, and used to validate the response.
 func createExpectedResultsForTest(perChainQueries []*gossipv1.PerChainQueryRequest) []common.PerChainQueryResponse {
 	expectedResults := []common.PerChainQueryResponse{}
 	for _, pcq := range perChainQueries {
@@ -195,6 +198,7 @@ func TestCcqParseAllowedRequestersFailsIfInvalidParameter(t *testing.T) {
 	require.Nil(t, ccqAllowedRequestersList)
 }
 
+// mockData is the data structure used to mock up the query handler environment.
 type mockData struct {
 	sk *ecdsa.PrivateKey
 
@@ -226,18 +230,22 @@ func (md *mockData) resetState() {
 	md.retriesPerChain = make(map[vaa.ChainID]int)
 }
 
+// setExpectedResults sets the results to be returned by the watchers.
 func (md *mockData) setExpectedResults(expectedResults []common.PerChainQueryResponse) {
 	md.mutex.Lock()
 	defer md.mutex.Unlock()
 	md.expectedResults = expectedResults
 }
 
-func (md *mockData) getQueryResponsePublication() *common.QueryResponsePublication {
+// setRetries allows a test to specify how many times a given watcher should retry before returning success.
+// If the count is the special value `fatalError`, the watcher will return common.QueryFatalError.
+func (md *mockData) setRetries(chainId vaa.ChainID, count int) {
 	md.mutex.Lock()
 	defer md.mutex.Unlock()
-	return md.queryResponsePublication
+	md.retriesPerChain[chainId] = count
 }
 
+// incrementRequestsPerChainAlreadyLocked is used by the watchers to keep track of how many times they were invoked in a given test.
 func (md *mockData) incrementRequestsPerChainAlreadyLocked(chainId vaa.ChainID) {
 	if val, exists := md.requestsPerChain[chainId]; exists {
 		md.requestsPerChain[chainId] = val + 1
@@ -246,6 +254,14 @@ func (md *mockData) incrementRequestsPerChainAlreadyLocked(chainId vaa.ChainID) 
 	}
 }
 
+// getQueryResponsePublication returns the latest query response publication received by the mock.
+func (md *mockData) getQueryResponsePublication() *common.QueryResponsePublication {
+	md.mutex.Lock()
+	defer md.mutex.Unlock()
+	return md.queryResponsePublication
+}
+
+// getRequestsPerChain returns the count of the number of times the given watcher was invoked in a given test.
 func (md *mockData) getRequestsPerChain(chainId vaa.ChainID) int {
 	md.mutex.Lock()
 	defer md.mutex.Unlock()
@@ -255,12 +271,7 @@ func (md *mockData) getRequestsPerChain(chainId vaa.ChainID) int {
 	return 0
 }
 
-func (md *mockData) setRetries(chainId vaa.ChainID, count int) {
-	md.mutex.Lock()
-	defer md.mutex.Unlock()
-	md.retriesPerChain[chainId] = count
-}
-
+// getStatusAlreadyLocked is used by the watchers to determine what query status they should return, based on the `retriesPerChain`.
 func (md *mockData) getStatusAlreadyLocked(chainId vaa.ChainID) common.QueryStatus {
 	if val, exists := md.retriesPerChain[chainId]; exists {
 		if val == fatalError {
@@ -277,15 +288,16 @@ func (md *mockData) getStatusAlreadyLocked(chainId vaa.ChainID) common.QueryStat
 	return common.QuerySuccess
 }
 
+// createQueryHandlerForTest creates the query handler mock environment, including the set of watchers and the response listener.
+// Most tests will use this function to set up the mock.
 func createQueryHandlerForTest(t *testing.T, ctx context.Context, logger *zap.Logger, chains []vaa.ChainID) *mockData {
 	md := createQueryHandlerForTestWithoutPublisher(t, ctx, logger, chains)
-
-	// Create a routine that listens for the response and puts it in the mock.
 	md.startResponseListener(ctx)
-
 	return md
 }
 
+// createQueryHandlerForTestWithoutPublisher creates the query handler mock environment, including the set of watchers but not the response listener.
+// This function can be invoked directly to test retries of response publication (by delaying the start of the response listener).
 func createQueryHandlerForTestWithoutPublisher(t *testing.T, ctx context.Context, logger *zap.Logger, chains []vaa.ChainID) *mockData {
 	md := mockData{}
 	var err error
@@ -344,6 +356,8 @@ func createQueryHandlerForTestWithoutPublisher(t *testing.T, ctx context.Context
 	return &md
 }
 
+// startResponseListener starts the response listener routine. It is called as part of the standard mock environment set up. Or, it can be used
+// along with `createQueryHandlerForTestWithoutPublisher“ to test retries of response publication (by delaying the start of the response listener).
 func (md *mockData) startResponseListener(ctx context.Context) {
 	go func() {
 		for {
@@ -359,6 +373,7 @@ func (md *mockData) startResponseListener(ctx context.Context) {
 	}()
 }
 
+// waitForResponse is used by the tests to wait for a response publication. It will eventually timeout if the query fails.
 func (md *mockData) waitForResponse() *common.QueryResponsePublication {
 	for count := 0; count < 50; count++ {
 		time.Sleep(pollIntervalForTest)
@@ -370,12 +385,13 @@ func (md *mockData) waitForResponse() *common.QueryResponsePublication {
 	return nil
 }
 
+// TestInvalidQueries tests all the obvious reasons why a query may fail (aside from watcher failures).
 func TestInvalidQueries(t *testing.T) {
 	ctx := context.Background()
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err)
 
-	md := createQueryHandlerForTest(t, ctx, logger, watcherChains)
+	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
 
 	var perChainQueries []*gossipv1.PerChainQueryRequest
 	var signedQueryRequest *gossipv1.SignedQueryRequest
@@ -458,7 +474,7 @@ func TestSingleQueryShouldSucceed(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err)
 
-	md := createQueryHandlerForTest(t, ctx, logger, watcherChains)
+	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
 	perChainQueries := []*gossipv1.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
@@ -482,7 +498,7 @@ func TestBatchOfTwoQueriesShouldSucceed(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err)
 
-	md := createQueryHandlerForTest(t, ctx, logger, watcherChains)
+	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
 	perChainQueries := []*gossipv1.PerChainQueryRequest{
@@ -510,7 +526,7 @@ func TestQueryWithLimitedRetriesShouldSucceed(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err)
 
-	md := createQueryHandlerForTest(t, ctx, logger, watcherChains)
+	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
 	perChainQueries := []*gossipv1.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
@@ -538,7 +554,7 @@ func TestQueryWithTooManyRetriesShouldFail(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err)
 
-	md := createQueryHandlerForTest(t, ctx, logger, watcherChains)
+	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
 	perChainQueries := []*gossipv1.PerChainQueryRequest{
@@ -571,7 +587,7 @@ func TestQueryWithLimitedRetriesOnMultipleChainsShouldSucceed(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err)
 
-	md := createQueryHandlerForTest(t, ctx, logger, watcherChains)
+	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
 	perChainQueries := []*gossipv1.PerChainQueryRequest{
@@ -606,7 +622,7 @@ func TestFatalErrorOnPerChainQueryShouldCauseRequestToFail(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err)
 
-	md := createQueryHandlerForTest(t, ctx, logger, watcherChains)
+	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
 	perChainQueries := []*gossipv1.PerChainQueryRequest{
@@ -636,7 +652,7 @@ func TestPublishRetrySucceeds(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err)
 
-	md := createQueryHandlerForTestWithoutPublisher(t, ctx, logger, watcherChains)
+	md := createQueryHandlerForTestWithoutPublisher(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
 	perChainQueries := []*gossipv1.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
