@@ -89,7 +89,8 @@ func GuardianOptionP2P(p2pKey libp2p_crypto.PrivKey, networkId string, bootstrap
 // Requires: wormchainConn
 func GuardianOptionAccountant(contract string, websocket string, enforcing bool) *GuardianOption {
 	return &GuardianOption{
-		name: "accountant",
+		name:         "accountant",
+		dependencies: []string{"db"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			// Set up the accountant. If the accountant smart contract is configured, we will instantiate the accountant and VAAs
 			// will be passed to it for processing. It will forward all token bridge transfers to the accountant contract.
@@ -133,7 +134,8 @@ func GuardianOptionAccountant(contract string, websocket string, enforcing bool)
 
 func GuardianOptionGovernor(governorEnabled bool) *GuardianOption {
 	return &GuardianOption{
-		name: "governor",
+		name:         "governor",
+		dependencies: []string{"db"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			if governorEnabled {
 				logger.Info("chain governor is enabled")
@@ -318,7 +320,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 func GuardianOptionAdminService(socketPath string, ethRpc *string, ethContract *string, rpcMap map[string]string) *GuardianOption {
 	return &GuardianOption{
 		name:         "admin-service",
-		dependencies: []string{"governor"},
+		dependencies: []string{"governor", "db"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			adminService, err := adminServiceRunnable(
 				logger,
@@ -346,7 +348,7 @@ func GuardianOptionAdminService(socketPath string, ethRpc *string, ethContract *
 func GuardianOptionPublicRpcSocket(publicGRPCSocketPath string, publicRpcLogDetail common.GrpcLogDetail) *GuardianOption {
 	return &GuardianOption{
 		name:         "publicrpcsocket",
-		dependencies: []string{"governor"},
+		dependencies: []string{"governor", "db"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			// local public grpc service socket
 			publicrpcUnixService, publicrpcServer, err := publicrpcUnixServiceRunnable(logger, publicGRPCSocketPath, publicRpcLogDetail, g.db, g.gst, g.gov)
@@ -363,7 +365,7 @@ func GuardianOptionPublicRpcSocket(publicGRPCSocketPath string, publicRpcLogDeta
 func GuardianOptionPublicrpcTcpService(publicRpc string, publicRpcLogDetail common.GrpcLogDetail) *GuardianOption {
 	return &GuardianOption{
 		name:         "publicrpc",
-		dependencies: []string{"governor", "publicrpcsocket"},
+		dependencies: []string{"governor", "publicrpcsocket", "db"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			publicrpcService, err := publicrpcTcpServiceRunnable(logger, publicRpc, publicRpcLogDetail, g.db, g.gst, g.gov)
 			if err != nil {
@@ -391,6 +393,15 @@ func GuardianOptionBigTablePersistence(config *reporter.BigTableConnectionConfig
 		name: "bigtable",
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
 			g.runnables["bigtable"] = reporter.BigTableWriter(g.attestationEvents, config)
+			return nil
+		}}
+}
+
+func GuardianOptionDatabase(db *db.Database) *GuardianOption {
+	return &GuardianOption{
+		name: "db",
+		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
+			g.db = db
 			return nil
 		}}
 }
@@ -440,13 +451,11 @@ type G struct {
 
 func NewGuardianNode(
 	env common.Environment,
-	db *db.Database,
 	gk *ecdsa.PrivateKey,
 	wormchainConn *wormconn.ClientConn, // TODO does this need to be here?
 ) *G {
 	g := G{
 		env:           env,
-		db:            db,
 		gk:            gk,
 		wormchainConn: wormchainConn,
 	}
@@ -540,6 +549,10 @@ func (g *G) Run(rootCtxCancel context.CancelFunc, options ...*GuardianOption) su
 			if err := g.gov.Run(ctx); err != nil {
 				logger.Fatal("failed to create chain governor", zap.Error(err))
 			}
+		}
+
+		if g.db == nil {
+			logger.Fatal("no database configured, cannot start guardian.")
 		}
 
 		logger.Info("Starting processor")
