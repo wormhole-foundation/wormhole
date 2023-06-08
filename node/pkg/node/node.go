@@ -13,7 +13,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/reporter"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
-	"github.com/certusone/wormhole/node/pkg/wormconn"
 
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
@@ -47,7 +46,6 @@ type G struct {
 	gov               *governor.ChainGovernor
 	queryHandler      *query.QueryHandler
 	attestationEvents *reporter.AttestationEventReporter
-	wormchainConn     *wormconn.ClientConn
 	publicrpcServer   *grpc.Server
 
 	// runnables
@@ -84,7 +82,6 @@ type G struct {
 func NewGuardianNode(
 	env common.Environment,
 	gk *ecdsa.PrivateKey,
-	wormchainConn *wormconn.ClientConn, // TODO does this need to be here?
 ) *G {
 	g := G{
 		env:           env,
