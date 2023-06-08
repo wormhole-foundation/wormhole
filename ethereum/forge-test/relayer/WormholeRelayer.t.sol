@@ -2122,8 +2122,7 @@ contract WormholeRelayerTests is Test {
     function executeForwardTest(
         ForwardTester.Action test,
         IWormholeRelayerDelivery.DeliveryStatus desiredOutcome,
-        StandardSetupTwoChains memory setup,
-        FeeParameters memory feeParams
+        StandardSetupTwoChains memory setup
     ) internal {
         vm.recordLogs();
         forwardTester =
@@ -2163,8 +2162,7 @@ contract WormholeRelayerTests is Test {
         executeForwardTest(
             ForwardTester.Action.WorksCorrectly,
             IWormholeRelayerDelivery.DeliveryStatus.FORWARD_REQUEST_SUCCESS,
-            setup,
-            feeParams
+            setup
         );
     }
 
@@ -2195,8 +2193,7 @@ contract WormholeRelayerTests is Test {
         executeForwardTest(
             ForwardTester.Action.ForwardRequestFromWrongAddress,
             IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE,
-            setup,
-            feeParams
+            setup
         );
     }
 
@@ -2209,8 +2206,7 @@ contract WormholeRelayerTests is Test {
         executeForwardTest(
             ForwardTester.Action.ReentrantCall,
             IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE,
-            setup,
-            feeParams
+            setup
         );
     }
 
@@ -2224,8 +2220,7 @@ contract WormholeRelayerTests is Test {
         executeForwardTest(
             ForwardTester.Action.ProviderNotSupported,
             IWormholeRelayerDelivery.DeliveryStatus.RECEIVER_FAILURE,
-            setup,
-            feeParams
+            setup
         );
     }
 
