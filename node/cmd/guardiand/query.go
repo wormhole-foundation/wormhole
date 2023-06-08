@@ -218,6 +218,8 @@ func handleQueryRequests(
 				if numStillPending > 0 {
 					qLogger.Info("received a per chain query response, still waiting for more", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx), zap.Int("numStillPending", numStillPending))
 					continue
+				} else {
+					qLogger.Info("received final per chain query response, ready to publish", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx))
 				}
 
 				// Build the list of per chain response publications and the overall query response publication.
