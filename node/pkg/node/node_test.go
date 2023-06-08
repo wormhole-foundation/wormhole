@@ -153,6 +153,7 @@ func mockGuardianRunnable(gs []*mockGuardian, mockGuardianIndex uint, obsDb mock
 
 		// assemble all the options
 		guardianOptions := []*GuardianOption{
+			GuardianOptionDatabase(db),
 			GuardianOptionWatchers(watcherConfigs, nil),
 			GuardianOptionAccountant("", "", false), // effectively disable accountant
 			GuardianOptionGovernor(false),           // disable governor
@@ -165,7 +166,6 @@ func mockGuardianRunnable(gs []*mockGuardian, mockGuardianIndex uint, obsDb mock
 
 		guardianNode := NewGuardianNode(
 			env,
-			db,
 			gs[mockGuardianIndex].gk,
 			nil,
 		)
@@ -351,6 +351,7 @@ func testStatusServer(ctx context.Context, logger *zap.Logger, statusAddr string
 
 func TestMain(m *testing.M) {
 	readiness.NoPanic = true // otherwise we'd panic when running multiple guardians
+	os.Exit(m.Run())
 }
 
 // TestInvalidWatcherConfig tries to instantiate a guardian with various invlid []watchers.WatcherConfig and asserts that it errors
