@@ -145,7 +145,7 @@ export async function transferFromEthNative(
   tokenBridgeAddress: string,
   signer: ethers.Signer,
   amount: ethers.BigNumberish,
-  recipientChain: ChainId | ChainId,
+  recipientChain: ChainId | ChainName,
   recipientAddress: Uint8Array,
   relayerFee: ethers.BigNumberish = 0,
   overrides: PayableOverrides & { from?: string | Promise<string> } = {},

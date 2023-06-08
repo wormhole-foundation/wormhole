@@ -1,6 +1,7 @@
 import {
   CHAINS,
   CONTRACTS,
+  ChainName,
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import {
   getNetworkInfo,
@@ -11,6 +12,7 @@ import {
   ChainRestAuthApi,
   createTransaction,
   MsgExecuteContractCompat,
+  Msgs,
   PrivateKey,
   TxGrpcApi,
 } from "@injectivelabs/sdk-ts";
@@ -19,6 +21,8 @@ import { fromUint8Array } from "js-base64";
 import { NETWORKS } from "./consts";
 import { Network } from "./utils";
 import { impossible, Payload } from "./vaa";
+import { transferFromInjective } from "@certusone/wormhole-sdk/lib/esm/token_bridge/injective";
+import { tryNativeToUint8Array } from "@certusone/wormhole-sdk/lib/esm/utils";
 
 export async function execute_injective(
   payload: Payload,
@@ -157,11 +161,61 @@ export async function execute_injective(
   });
   console.log("transaction:", transaction);
 
+  await signAndSendTx(walletPK, network, transaction);
+}
+
+export async function transferInjective(
+  dstChain: ChainName,
+  dstAddress: string,
+  tokenAddress: string,
+  amount: string,
+  network: Network,
+  rpc: string
+) {
+  if (network === "DEVNET") {
+    throw new Error("Injective is not supported in DEVNET");
+  }
+  const chain = "injective";
+  const { key } = NETWORKS[network][chain];
+  if (!key) {
+    throw Error(`No ${network} key defined for Injective`);
+  }
+  const { token_bridge } = CONTRACTS[network][chain];
+  if (token_bridge == undefined) {
+    throw Error(`Unknown token bridge contract on ${network} for ${chain}`);
+  }
+
+  const walletPK = PrivateKey.fromMnemonic(key);
+  const walletInjAddr = walletPK.toBech32();
+
+  const msgs = await transferFromInjective(
+    walletInjAddr,
+    token_bridge,
+    tokenAddress,
+    amount,
+    dstChain,
+    tryNativeToUint8Array(dstAddress, dstChain)
+  );
+
+  await signAndSendTx(walletPK, network, msgs);
+}
+
+async function signAndSendTx(
+  walletPK: PrivateKey,
+  network: string,
+  msgs: Msgs | Msgs[]
+) {
+  const endPoint =
+    network === "MAINNET"
+      ? InjectiveNetwork.MainnetK8s
+      : InjectiveNetwork.TestnetK8s;
+  const networkInfo = getNetworkInfo(endPoint);
+  const walletPublicKey = walletPK.toPublicKey().toBase64();
   const accountDetails = await new ChainRestAuthApi(
     networkInfo.rest
-  ).fetchAccount(walletInjAddr);
+  ).fetchAccount(walletPK.toBech32());
   const { signBytes, txRaw } = createTransaction({
-    message: transaction,
+    message: msgs,
     memo: "",
     fee: getStdFee((parseInt(DEFAULT_STD_FEE.gas, 10) * 2.5).toString()),
     pubKey: walletPublicKey,

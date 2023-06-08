@@ -1,9 +1,11 @@
 import {
   CONTRACTS,
   ChainId,
+  ChainName,
   assertChain,
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
-import { AptosAccount, AptosClient, BCS, TxnBuilderTypes } from "aptos";
+import { transferFromAptos } from "@certusone/wormhole-sdk/lib/esm/token_bridge/transfer";
+import { AptosAccount, AptosClient, BCS, TxnBuilderTypes, Types } from "aptos";
 import { ethers } from "ethers";
 import { sha3_256 } from "js-sha3";
 import { NETWORKS } from "./consts";
@@ -11,6 +13,10 @@ import { Network } from "./utils";
 import { Payload, impossible } from "./vaa";
 import { CHAINS, ensureHexPrefix } from "@certusone/wormhole-sdk";
 import { TokenBridgeState } from "@certusone/wormhole-sdk/lib/esm/aptos/types";
+import {
+  generateSignAndSubmitEntryFunction,
+  tryNativeToUint8Array,
+} from "@certusone/wormhole-sdk/lib/esm/utils";
 
 export async function execute_aptos(
   payload: Payload,
@@ -234,6 +240,44 @@ export async function execute_aptos(
     default:
       impossible(payload);
   }
+}
+
+export async function transferAptos(
+  dstChain: ChainName,
+  dstAddress: string,
+  tokenAddress: string,
+  amount: string,
+  network: Network,
+  rpc: string
+) {
+  const { key } = NETWORKS[network].aptos;
+  if (!key) {
+    throw new Error("No key for aptos");
+  }
+  rpc = rpc ?? NETWORKS[network].aptos.rpc;
+  if (!rpc) {
+    throw new Error("No rpc for aptos");
+  }
+  const { token_bridge } = CONTRACTS[network].aptos;
+  if (!token_bridge) {
+    throw new Error("token bridge contract is undefined");
+  }
+  const account = new AptosAccount(new Uint8Array(Buffer.from(key, "hex")));
+  const client = new AptosClient(rpc);
+  const transferPayload = transferFromAptos(
+    token_bridge,
+    tokenAddress === "native" ? "0x1::aptos_coin::AptosCoin" : tokenAddress,
+    amount,
+    dstChain,
+    tryNativeToUint8Array(dstAddress, dstChain)
+  );
+  const tx = (await generateSignAndSubmitEntryFunction(
+    client,
+    account,
+    transferPayload
+  )) as Types.UserTransaction;
+  await client.waitForTransaction(tx.hash);
+  console.log(`hash: ${tx.hash}`);
 }
 
 export function deriveWrappedAssetAddress(

@@ -129,7 +129,7 @@ export const submit = async (
             console.log(`  Type ${getWrappedCoinType(coinPackageId)}`);
 
             if (!rpc && network !== "DEVNET") {
-              // Wait for wrapped asset creation to be propogated to other
+              // Wait for wrapped asset creation to be propagated to other
               // nodes in case this complete registration call is load balanced
               // to another node.
               await sleep(5000);

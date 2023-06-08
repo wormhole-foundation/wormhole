@@ -19,15 +19,25 @@ import {
 import {
   CHAINS,
   CONTRACTS,
+  ChainName,
+  Network,
   SolanaChainName,
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import * as web3s from "@solana/web3.js";
 import base58 from "bs58";
 import { NETWORKS } from "./consts";
 import { Payload, VAA, impossible } from "./vaa";
-import { ChainName, hexToUint8Array } from "@certusone/wormhole-sdk";
 import { getEmitterAddress } from "./emitter";
-import { Network } from "./utils";
+import {
+  transferFromSolana,
+  transferNativeSol,
+} from "@certusone/wormhole-sdk/lib/esm/token_bridge/transfer";
+import {
+  hexToUint8Array,
+  tryNativeToUint8Array,
+} from "@certusone/wormhole-sdk/lib/esm/utils";
+import { PublicKey } from "@solana/web3.js";
+import { getAssociatedTokenAddress } from "@solana/spl-token";
 
 export async function execute_solana(
   v: VAA<Payload>,
@@ -214,6 +224,84 @@ export async function execute_solana(
       skipPreflight: true,
     }
   );
+  console.log("SIGNATURE", signature);
+}
+
+export async function transferSolana(
+  srcChain: SolanaChainName,
+  dstChain: ChainName,
+  dstAddress: string,
+  tokenAddress: string,
+  amount: string,
+  network: Network,
+  rpc: string
+) {
+  const { key } = NETWORKS[network][srcChain];
+  if (!key) {
+    throw Error(`No ${network} key defined for ${srcChain}`);
+  }
+
+  const connection = setupConnection(rpc);
+  const keypair = web3s.Keypair.fromSecretKey(base58.decode(key));
+
+  const { core, token_bridge } = CONTRACTS[network][srcChain];
+  if (!core) {
+    throw new Error(
+      `Core bridge address not defined for ${srcChain} ${network}`
+    );
+  }
+  if (!token_bridge) {
+    throw new Error(
+      `Token bridge address not defined for ${srcChain} ${network}`
+    );
+  }
+
+  const bridgeId = new web3s.PublicKey(core);
+  const tokenBridgeId = new web3s.PublicKey(token_bridge);
+  const payerAddress = keypair.publicKey.toString();
+
+  let transaction;
+  if (tokenAddress === "native") {
+    transaction = await transferNativeSol(
+      connection,
+      bridgeId,
+      tokenBridgeId,
+      payerAddress,
+      BigInt(amount),
+      tryNativeToUint8Array(dstAddress, dstChain),
+      dstChain
+    );
+  } else {
+    // find the associated token account
+    const fromAddress = (
+      await getAssociatedTokenAddress(
+        new PublicKey(tokenAddress),
+        keypair.publicKey
+      )
+    ).toString();
+    transaction = await transferFromSolana(
+      connection,
+      bridgeId,
+      tokenBridgeId,
+      payerAddress,
+      fromAddress,
+      tokenAddress, // mintAddress
+      BigInt(amount),
+      tryNativeToUint8Array(dstAddress, dstChain),
+      dstChain
+    );
+  }
+
+  // sign, send, and confirm transaction
+  transaction.partialSign(keypair);
+  const signature = await connection.sendRawTransaction(
+    transaction.serialize()
+  );
+  await connection.confirmTransaction(signature);
+  const info = await connection.getTransaction(signature);
+  if (!info) {
+    throw new Error("An error occurred while fetching the transaction info");
+  }
   console.log("SIGNATURE", signature);
 }
 
