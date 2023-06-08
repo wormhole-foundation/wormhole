@@ -58,7 +58,7 @@ contract AttackForwardIntegration is IWormholeReceiver {
             coreRelayer.quoteEVMDeliveryPrice(_targetChain, TargetNative.wrap(0), Gas.wrap(SAFE_DELIVERY_GAS_CAPTURE));
 
         bytes memory emptyArray;
-        coreRelayer.forwardToEvm{value: LocalNative.unwrap(deliveryPayment) + wormhole.messageFee()}(
+        coreRelayer.forwardToEvm{value: LocalNative.unwrap(deliveryPayment)}(
             _targetChain,
             attackerRewardAddress,
             emptyArray,
