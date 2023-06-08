@@ -87,7 +87,7 @@ func GuardianOptionP2P(p2pKey libp2p_crypto.PrivKey, networkId string, bootstrap
 
 // GuardianOptionAccountant configures the Accountant module.
 // Requires: wormchainConn
-func GuardianOptionAccountant(contract string, websocket string, enforcing bool) *GuardianOption {
+func GuardianOptionAccountant(contract string, websocket string, enforcing bool, wormchainConn *wormconn.ClientConn) *GuardianOption {
 	return &GuardianOption{
 		name:         "accountant",
 		dependencies: []string{"db"},
@@ -104,7 +104,7 @@ func GuardianOptionAccountant(contract string, websocket string, enforcing bool)
 			if websocket == "" {
 				return errors.New("acct: if accountantContract is specified, accountantWS is required")
 			}
-			if g.wormchainConn == nil {
+			if wormchainConn == nil {
 				return errors.New("acct: if accountantContract is specified, the wormchain sending connection must be enabled before.")
 			}
 			if enforcing {
@@ -120,7 +120,7 @@ func GuardianOptionAccountant(contract string, websocket string, enforcing bool)
 				g.obsvReqC.writeC,
 				contract,
 				websocket,
-				g.wormchainConn,
+				wormchainConn,
 				enforcing,
 				g.gk,
 				g.gst,
@@ -450,7 +450,6 @@ type G struct {
 	acct              *accountant.Accountant
 	gov               *governor.ChainGovernor
 	attestationEvents *reporter.AttestationEventReporter
-	wormchainConn     *wormconn.ClientConn
 	publicrpcServer   *grpc.Server
 
 	// runnables
@@ -481,12 +480,10 @@ type G struct {
 func NewGuardianNode(
 	env common.Environment,
 	gk *ecdsa.PrivateKey,
-	wormchainConn *wormconn.ClientConn, // TODO does this need to be here?
 ) *G {
 	g := G{
-		env:           env,
-		gk:            gk,
-		wormchainConn: wormchainConn,
+		env: env,
+		gk:  gk,
 	}
 	return &g
 }

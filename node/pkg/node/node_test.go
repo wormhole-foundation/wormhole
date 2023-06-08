@@ -155,8 +155,8 @@ func mockGuardianRunnable(gs []*mockGuardian, mockGuardianIndex uint, obsDb mock
 		guardianOptions := []*GuardianOption{
 			GuardianOptionDatabase(db),
 			GuardianOptionWatchers(watcherConfigs, nil),
-			GuardianOptionAccountant("", "", false), // effectively disable accountant
-			GuardianOptionGovernor(false),           // disable governor
+			GuardianOptionAccountant("", "", false, nil), // effectively disable accountant
+			GuardianOptionGovernor(false),                // disable governor
 			GuardianOptionP2P(gs[mockGuardianIndex].p2pKey, networkID, bootstrapPeers, nodeName, false, p2pPort, func() string { return "" }),
 			GuardianOptionPublicRpcSocket(publicSocketPath, common.GrpcLogDetailFull),
 			GuardianOptionPublicrpcTcpService(publicRpc, common.GrpcLogDetailFull),
@@ -168,7 +168,6 @@ func mockGuardianRunnable(gs []*mockGuardian, mockGuardianIndex uint, obsDb mock
 		guardianNode := NewGuardianNode(
 			env,
 			gs[mockGuardianIndex].gk,
-			nil,
 		)
 
 		if err = supervisor.Run(ctx, "g", guardianNode.Run(ctxCancel, guardianOptions...)); err != nil {
