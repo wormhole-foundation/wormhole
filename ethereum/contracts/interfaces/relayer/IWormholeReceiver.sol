@@ -8,23 +8,21 @@ pragma solidity ^0.8.0;
 interface IWormholeReceiver {
     /**
      * @notice When a `send` is performed with this contract as the target, this function will be
-     *     invoked.
-     *   To get the address that will invoke this contract, call the `getDeliveryAddress()` function
-     *     on this chain (the target chain)'s WormholeRelayer contract
+     *     invoked by the WormholeRelayer contract
      *
-     * NOTE: This function should be restricted such that only `getDeliveryAddress()` can call it.
+     * NOTE: This function should be restricted such that only the Wormhole Relayer contract can call it.
      *
      * We also recommend that this function:
-     *   - Stores all received `deliveryData.deliveryHash`s in a mapping `(bytes32 => bool)`, and
-     *       on every call, checks that deliveryData.deliveryHash has not already been stored in the
+     *   - Stores all received `deliveryHash`s in a mapping `(bytes32 => bool)`, and
+     *       on every call, checks that deliveryHash has not already been stored in the
      *       map (This is to prevent other users maliciously trying to relay the same message)
-     *   - Checks that `deliveryData.sourceChain` and `deliveryData.sourceAddress` are indeed who
+     *   - Checks that `sourceChain` and `sourceAddress` are indeed who
      *       you expect to have requested the calling of `send` or `forward` on the source chain
      *
      * The invocation of this function corresponding to the `send` request will have msg.value equal
      *   to the receiverValue specified in the send request.
      *
-     * If the invocation of this function reverts or exceeds the gas limit (`maxTransactionFee`)
+     * If the invocation of this function reverts or exceeds the gas limit 
      *   specified by the send requester, this delivery will result in a `ReceiverFailure`.
      *
      * @param payload - an arbitrary message which was included in the delivery by the
