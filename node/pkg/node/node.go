@@ -175,6 +175,8 @@ func (g *G) Run(rootCtxCancel context.CancelFunc, options ...*GuardianOption) su
 			}
 		}
 
+		// TODO there is an opportunity to refactor the startup of the accountant and governor:
+		// Ideally they should just register a g.runnables["governor"] and g.runnables["accountant"] instead of being treated as special cases.
 		if g.acct != nil {
 			logger.Info("Starting accountant")
 			if err := g.acct.Start(ctx); err != nil {

@@ -162,6 +162,7 @@ func mockGuardianRunnable(gs []*mockGuardian, mockGuardianIndex uint, obsDb mock
 			GuardianOptionPublicrpcTcpService(publicRpc, common.GrpcLogDetailFull),
 			GuardianOptionAdminService(adminSocketPath, nil, nil, rpcMap),
 			GuardianOptionStatusServer(fmt.Sprintf("[::]:%d", mockStatusPort(mockGuardianIndex))),
+			GuardianOptionProcessor(),
 		}
 
 		guardianNode := NewGuardianNode(
