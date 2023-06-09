@@ -8,7 +8,6 @@ import "../../interfaces/relayer/IDeliveryProviderTyped.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 import "../../libraries/relayer/ExecutionParameters.sol";
 import {IWormhole} from "../../interfaces/IWormhole.sol";
-import "forge-std/console.sol";
 
 contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
     using WeiLib for Wei;
