@@ -25,6 +25,7 @@ error InvalidPayloadModule(bytes32 parsed, bytes32 expected);
 error InvalidFork();
 error ContractUpgradeFailed(bytes failure);
 error ChainAlreadyRegistered(uint16 chainId, bytes32 registeredWormholeRelayerContract);
+error InvalidDefaultDeliveryProvider(bytes32 defaultDeliveryProvider);
 
 abstract contract WormholeRelayerGovernance is WormholeRelayerBase, ERC1967Upgrade {
     //This constant should actually be defined in IWormhole. Alas, it isn't.
@@ -172,6 +173,10 @@ abstract contract WormholeRelayerGovernance is WormholeRelayerBase, ERC1967Upgra
         newProvider = fromWormholeFormat(newProviderWhFmt);
 
         checkLength(payload, offset);
+
+        if(newProvider == address(0)) {
+            revert InvalidDefaultDeliveryProvider(newProviderWhFmt);
+        }
     }
 
     function verifyAndConsumeGovernanceVM(bytes memory encodedVm)
