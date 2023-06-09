@@ -308,8 +308,6 @@ contract TestDeliveryProvider is Test {
             uint256(dstNativeCurrencyPrice) * (uint256(dstGasPrice) * gasOverhead) + (srcNativeCurrencyPrice - 1)
         ) / srcNativeCurrencyPrice;
 
-        console.log(expectedOverhead);
-
         LocalNative deliveryOverhead = deliveryProvider.quoteDeliveryOverhead(dstChainId);
 
         require(expectedOverhead == LocalNative.unwrap(deliveryOverhead), "deliveryProvider overhead quote is not what is expected");

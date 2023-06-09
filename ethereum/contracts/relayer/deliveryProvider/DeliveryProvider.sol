@@ -8,7 +8,6 @@ import "../../interfaces/relayer/IDeliveryProviderTyped.sol";
 import "../../interfaces/relayer/TypedUnits.sol";
 import "../../libraries/relayer/ExecutionParameters.sol";
 import {IWormhole} from "../../interfaces/IWormhole.sol";
-import "forge-std/console.sol";
 
 contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
     using WeiLib for Wei;
@@ -38,8 +37,6 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
         LocalNative costIfFullGasLimitUsed = quoteGasCost(targetChain, gasLimit);
         LocalNative receiverValueCost = quoteAssetCost(targetChain, receiverValue);
         nativePriceQuote = quoteDeliveryOverhead(targetChain) + costIfFullGasLimitUsed + receiverValueCost;
-        console.log(costIfNoGasLimitUsed.unwrap());
-        console.log(costIfFullGasLimitUsed.unwrap());
         require(costIfNoGasLimitUsed.unwrap() <= costIfFullGasLimitUsed.unwrap(), "target chain refund per gas unused is too high");
         require(targetCostIfNoGasLimitUsed.unwrap() <= targetCostIfFullGasLimitUsed.unwrap(), "target chain refund per gas unused is too high");
         require(
