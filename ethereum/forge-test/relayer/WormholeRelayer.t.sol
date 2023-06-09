@@ -10,8 +10,6 @@ import {DeliveryProviderImplementation} from
     "../../contracts/relayer/deliveryProvider/DeliveryProviderImplementation.sol";
 import {DeliveryProviderProxy} from
     "../../contracts/relayer/deliveryProvider/DeliveryProviderProxy.sol";
-import {DeliveryProviderMessages} from
-    "../../contracts/relayer/deliveryProvider/DeliveryProviderMessages.sol";
 import {DeliveryProviderStructs} from
     "../../contracts/relayer/deliveryProvider/DeliveryProviderStructs.sol";
 import "../../contracts/interfaces/relayer/IWormholeRelayerTyped.sol";

@@ -7,7 +7,6 @@ import "../../contracts/relayer/deliveryProvider/DeliveryProvider.sol";
 import "../../contracts/relayer/deliveryProvider/DeliveryProviderSetup.sol";
 import "../../contracts/relayer/deliveryProvider/DeliveryProviderImplementation.sol";
 import "../../contracts/relayer/deliveryProvider/DeliveryProviderProxy.sol";
-import "../../contracts/relayer/deliveryProvider/DeliveryProviderMessages.sol";
 import "../../contracts/relayer/deliveryProvider/DeliveryProviderStructs.sol";
 import "../../contracts/interfaces/relayer/TypedUnits.sol";
 import {MockWormhole} from "./MockWormhole.sol";
