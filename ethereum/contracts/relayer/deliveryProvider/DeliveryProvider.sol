@@ -19,12 +19,6 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
 
     error CallerNotApproved(address msgSender);
 
-    address immutable wormhole;
-
-    constructor(address _wormhole) {
-        wormhole = _wormhole;
-    }
-
     function quoteEvmDeliveryPrice(
         uint16 targetChain,
         Gas gasLimit,
@@ -119,10 +113,6 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
      * HELPER METHODS
      *
      */
-
-    function wormholeMessageFee() public view returns (Wei) {
-        return Wei.wrap(IWormhole(wormhole).messageFee());
-    }
 
     //Returns the delivery overhead fee required to deliver a message to the target chain, denominated in this chain's wei.
     function quoteDeliveryOverhead(uint16 targetChain) public view returns (LocalNative nativePriceQuote) {

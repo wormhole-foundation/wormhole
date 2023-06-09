@@ -528,7 +528,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             targetChain, receiverValue, encodedExecutionParameters
         );
         encodedExecutionInfo = _encodedExecutionInfo;
-        nativePriceQuote = deliveryPrice;
+        nativePriceQuote = deliveryPrice + getWormholeMessageFee();
     }
 
     function quoteNativeForChain(
