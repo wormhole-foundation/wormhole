@@ -63,7 +63,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     function sendPayloadToEvm(
         uint16 targetChain,
         address targetAddress,
-        bytes memory payload,
+        bytes calldata payload,
         TargetNative receiverValue,
         Gas gasLimit
     ) external payable returns (uint64 sequence);
@@ -91,7 +91,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     function sendPayloadToEvm(
         uint16 targetChain,
         address targetAddress,
-        bytes memory payload,
+        bytes calldata payload,
         TargetNative receiverValue,
         Gas gasLimit,
         uint16 refundChain,
@@ -273,7 +273,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     function forwardPayloadToEvm(
         uint16 targetChain,
         address targetAddress,
-        bytes memory payload,
+        bytes calldata payload,
         TargetNative receiverValue,
         Gas gasLimit
     ) external payable;
@@ -309,10 +309,10 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
     function forwardVaasToEvm(
         uint16 targetChain,
         address targetAddress,
-        bytes memory payload,
+        bytes calldata payload,
         TargetNative receiverValue,
         Gas gasLimit,
-        VaaKey[] memory vaaKeys
+        VaaKey[] calldata vaaKeys
     ) external payable;
 
     /**
@@ -446,7 +446,7 @@ interface IWormholeRelayerSend is IWormholeRelayerBase {
      *         - newDeliveryProvider's `targetChainRefundPerGasUnused` >= old relay provider's `targetChainRefundPerGasUnused`
      */
     function resendToEvm(
-        VaaKey memory deliveryVaaKey,
+        VaaKey calldata deliveryVaaKey,
         uint16 targetChain,
         TargetNative newReceiverValue,
         Gas newGasLimit,
@@ -644,10 +644,10 @@ interface IWormholeRelayerDelivery is IWormholeRelayerBase {
      *     an encoded DeliveryOverride struct
      */
     function deliver(
-        bytes[] memory encodedVMs,
-        bytes memory encodedDeliveryVAA,
+        bytes[] calldata encodedVMs,
+        bytes calldata encodedDeliveryVAA,
         address payable relayerRefundAddress,
-        bytes memory deliveryOverrides
+        bytes calldata deliveryOverrides
     ) external payable;
 }
 

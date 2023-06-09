@@ -47,10 +47,10 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
     using LocalNativeLib for LocalNative;
 
     function deliver(
-        bytes[] memory encodedVMs,
-        bytes memory encodedDeliveryVAA,
+        bytes[] calldata encodedVMs,
+        bytes calldata encodedDeliveryVAA,
         address payable relayerRefundAddress,
-        bytes memory deliveryOverrides
+        bytes calldata deliveryOverrides
     ) public payable {
         (IWormhole.VM memory vm, bool valid, string memory reason) =
             getWormhole().parseAndVerifyVM(encodedDeliveryVAA);
@@ -340,7 +340,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         }
     }
 
-    function executeInstruction(EvmDeliveryInstruction memory evmInstruction)
+    function executeInstruction(EvmDeliveryInstruction calldata evmInstruction)
         external
         returns (uint8 status, Gas gasUsed, bytes memory targetRevertDataTruncated)
     {
