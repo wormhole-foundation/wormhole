@@ -38,9 +38,11 @@ async function upgradeWormholeRelayer(
 
   const coreRelayer = await getWormholeRelayer(chain);
 
-  await coreRelayer.submitContractUpgrade(
+  const tx = await coreRelayer.submitContractUpgrade(
     createWormholeRelayerUpgradeVAA(chain, newImplementationAddress)
   );
+
+  await tx.wait();
 
   console.log(
     "Successfully upgraded the core relayer contract on " + chain.chainId
