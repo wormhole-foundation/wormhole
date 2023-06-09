@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"math/big"
-	"math/rand"
 	"os"
 	"strings"
 	"time"
@@ -35,6 +34,7 @@ import (
 	libp2ptls "github.com/libp2p/go-libp2p/p2p/security/tls"
 	libp2pquic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	"github.com/multiformats/go-multiaddr"
+	"github.com/tendermint/tendermint/libs/rand"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/openpgp/armor" //nolint
 	"google.golang.org/protobuf/proto"
