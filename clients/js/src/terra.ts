@@ -1,4 +1,5 @@
 import {
+  CHAINS,
   CONTRACTS,
   TerraChainName,
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
@@ -182,4 +183,83 @@ export async function execute_terra(
       console.log(result);
       console.log(`TX hash: ${result.txhash}`);
     });
+}
+
+export async function queryRegistrationsTerra(
+  network: Network,
+  chain: TerraChainName,
+  module: "Core" | "NFTBridge" | "TokenBridge"
+): Promise<Object> {
+  const n = NETWORKS[network][chain];
+  const contracts = CONTRACTS[network][chain];
+
+  let targetContract: string | undefined;
+
+  switch (module) {
+    case "TokenBridge":
+      targetContract = contracts.token_bridge;
+      break;
+    case "NFTBridge":
+      targetContract = contracts.nft_bridge;
+      break;
+    default:
+      throw new Error(`Invalid module: ${module}`);
+  }
+
+  if (targetContract === undefined) {
+    throw new Error(`Contract for ${module} on ${network} does not exist`);
+  }
+
+  if (n === undefined || n.rpc === undefined) {
+    throw new Error(`RPC for ${module} on ${network} does not exist`);
+  }
+
+  if (n === undefined || n.chain_id === undefined) {
+    throw new Error(`Chain id for ${module} on ${network} does not exist`);
+  }
+
+  const client = new LCDClient({
+    URL: n.rpc,
+    chainID: n.chain_id,
+    isClassic: chain === "terra",
+  });
+
+  // Query the bridge registration for all the chains in parallel.
+  const registrations: (string | null)[][] = await Promise.all(
+    Object.entries(CHAINS)
+      .filter(([cname, _]) => cname !== chain && cname !== "unset")
+      .map(async ([cname, cid]) => [
+        cname,
+        await (async () => {
+          let query_msg = {
+            chain_registration: {
+              chain: cid,
+            },
+          };
+
+          let result = null;
+          try {
+            const resp: { address: string } = await client.wasm.contractQuery(
+              targetContract as string,
+              query_msg
+            );
+            if (resp) {
+              result = resp.address;
+            }
+          } catch {
+            // Not logging anything because a chain not registered returns an error.
+          }
+
+          return result;
+        })(),
+      ])
+  );
+
+  const results: { [key: string]: string } = {};
+  for (let [cname, queryResponse] of registrations) {
+    if (cname && queryResponse) {
+      results[cname] = Buffer.from(queryResponse, "base64").toString("hex");
+    }
+  }
+  return results;
 }

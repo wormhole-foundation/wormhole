@@ -135,13 +135,13 @@ export const handler = async (
 };
 
 async function executeSubmit(
-  vaa_hex: string,
-  parsed_vaa: VAA<Payload>,
+  vaaHex: string,
+  parsedVaa: VAA<Payload>,
   buf: Buffer,
   network: Network,
   chain: ChainName,
   rpc: string | undefined,
-  contract_address: string | undefined
+  contractAddress: string | undefined
 ) {
   if (chain === "unset") {
     throw Error(
@@ -149,43 +149,37 @@ async function executeSubmit(
     );
   } else if (isEVMChain(chain)) {
     await execute_evm(
-      parsed_vaa.payload,
+      parsedVaa.payload,
       buf,
       network,
       chain,
-      contract_address,
+      contractAddress,
       rpc
     );
   } else if (isTerraChain(chain)) {
-    await execute_terra(parsed_vaa.payload, buf, network, chain);
+    await execute_terra(parsedVaa.payload, buf, network, chain);
   } else if (chain === "solana" || chain === "pythnet") {
-    await execute_solana(parsed_vaa, buf, network, chain);
+    await execute_solana(parsedVaa, buf, network, chain);
   } else if (chain === "algorand") {
     await execute_algorand(
-      parsed_vaa.payload,
-      new Uint8Array(Buffer.from(vaa_hex, "hex")),
+      parsedVaa.payload,
+      new Uint8Array(Buffer.from(vaaHex, "hex")),
       network
     );
   } else if (chain === "near") {
-    await execute_near(parsed_vaa.payload, vaa_hex, network);
+    await execute_near(parsedVaa.payload, vaaHex, network);
   } else if (chain === "injective") {
-    await execute_injective(parsed_vaa.payload, buf, network);
+    await execute_injective(parsedVaa.payload, buf, network);
   } else if (chain === "xpla") {
-    await execute_xpla(parsed_vaa.payload, buf, network);
+    await execute_xpla(parsedVaa.payload, buf, network);
   } else if (chain === "sei") {
-    await submitSei(parsed_vaa.payload, buf, network);
+    await submitSei(parsedVaa.payload, buf, network);
   } else if (chain === "osmosis") {
     throw Error("OSMOSIS is not supported yet");
   } else if (chain === "sui") {
-    await submitSui(parsed_vaa.payload, buf, network, rpc);
+    await submitSui(parsedVaa.payload, buf, network, rpc);
   } else if (chain === "aptos") {
-    await execute_aptos(
-      parsed_vaa.payload,
-      buf,
-      network,
-      contract_address,
-      rpc
-    );
+    await execute_aptos(parsedVaa.payload, buf, network, contractAddress, rpc);
   } else if (chain === "wormchain") {
     throw Error("Wormchain is not supported yet");
   } else if (chain === "btc") {
@@ -198,19 +192,19 @@ async function executeSubmit(
 }
 
 async function submitToAll(
-  vaa_hex: string,
-  parsed_vaa: VAA<Payload>,
+  vaaHex: string,
+  parsedVaa: VAA<Payload>,
   buf: Buffer,
   network: Network
 ) {
   let skip_chain: ChainName = "unset";
-  if (parsed_vaa.payload.type === "RegisterChain") {
-    skip_chain = toChainName(parsed_vaa.payload.emitterChain as ChainId);
-  } else if (parsed_vaa.payload.type === "AttestMeta") {
-    skip_chain = toChainName(parsed_vaa.payload.tokenChain as ChainId);
+  if (parsedVaa.payload.type === "RegisterChain") {
+    skip_chain = toChainName(parsedVaa.payload.emitterChain as ChainId);
+  } else if (parsedVaa.payload.type === "AttestMeta") {
+    skip_chain = toChainName(parsedVaa.payload.tokenChain as ChainId);
   } else {
     throw Error(
-      `Invalid VAA payload type (${parsed_vaa.payload.type}), only "RegisterChain" and "AttestMeta" are supported with --all-chains`
+      `Invalid VAA payload type (${parsedVaa.payload.type}), only "RegisterChain" and "AttestMeta" are supported with --all-chains`
     );
   }
 
@@ -236,9 +230,8 @@ async function submitToAll(
       return true;
     }
     if (
-      (parsed_vaa.payload.module === "TokenBridge" &&
-        !contracts.token_bridge) ||
-      (parsed_vaa.payload.module === "NFTBridge" && !contracts.nft_bridge)
+      (parsedVaa.payload.module === "TokenBridge" && !contracts.token_bridge) ||
+      (parsedVaa.payload.module === "NFTBridge" && !contracts.nft_bridge)
     ) {
       console.log(`Skipping ${chain} because the contract is not defined`);
       continue;
@@ -247,8 +240,8 @@ async function submitToAll(
     console.log(`Submitting VAA to ${chain} ${network}`);
     try {
       await executeSubmit(
-        vaa_hex,
-        parsed_vaa,
+        vaaHex,
+        parsedVaa,
         buf,
         network,
         chain,
