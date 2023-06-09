@@ -29,13 +29,12 @@ const (
 type (
 	// pendingQuery is the cache entry for a given query.
 	pendingQuery struct {
-		signedRequest  *gossipv1.SignedQueryRequest
-		request        *gossipv1.QueryRequest
-		requestID      string
-		receiveTime    time.Time
-		lastUpdateTime time.Time
-		queries        []*perChainQuery
-		responses      []*common.PerChainQueryResponseInternal
+		signedRequest *gossipv1.SignedQueryRequest
+		request       *gossipv1.QueryRequest
+		requestID     string
+		receiveTime   time.Time
+		queries       []*perChainQuery
+		responses     []*common.PerChainQueryResponseInternal
 
 		// respPub is only populated when we need to retry sending the response to p2p.
 		respPub *common.QueryResponsePublication
@@ -46,7 +45,6 @@ type (
 		req            *common.PerChainQueryInternal
 		channel        chan *common.PerChainQueryInternal
 		lastUpdateTime time.Time
-		inProgress     bool
 	}
 )
 
@@ -225,8 +223,7 @@ func handleQueryRequestsImpl(
 					continue
 				}
 
-				// Mark this per chain request as completed.
-				pq.queries[resp.RequestIdx].inProgress = false
+				// Store the result, which will mark this per-chain query as completed.
 				pq.responses[resp.RequestIdx] = resp
 
 				// If we still have other outstanding per chain queries for this request, keep waiting.
@@ -267,9 +264,8 @@ func handleQueryRequestsImpl(
 					pq.respPub = respPub
 				}
 			} else if resp.Status == common.QueryRetryNeeded {
-				if pq, exists := pendingQueries[resp.RequestID]; exists {
+				if _, exists := pendingQueries[resp.RequestID]; exists {
 					qLogger.Warn("query failed, will retry next interval", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx))
-					pq.queries[resp.RequestIdx].inProgress = false
 				} else {
 					qLogger.Warn("received a retry needed response with no outstanding query, dropping it", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx))
 				}
@@ -285,7 +281,7 @@ func handleQueryRequestsImpl(
 			now := time.Now()
 			for reqId, pq := range pendingQueries {
 				timeout := pq.receiveTime.Add(requestTimeoutImpl)
-				qLogger.Debug("audit", zap.String("requestId", reqId), zap.Stringer("receiveTime", pq.receiveTime), zap.Stringer("retryTime", pq.lastUpdateTime.Add(retryIntervalImpl)), zap.Stringer("timeout", timeout))
+				qLogger.Debug("audit", zap.String("requestId", reqId), zap.Stringer("receiveTime", pq.receiveTime), zap.Stringer("timeout", timeout))
 				if timeout.Before(now) {
 					qLogger.Warn("query request timed out, dropping it", zap.String("requestId", reqId), zap.Stringer("receiveTime", pq.receiveTime))
 					delete(pendingQueries, reqId)
@@ -301,8 +297,8 @@ func handleQueryRequestsImpl(
 						}
 					} else {
 						for requestIdx, pcq := range pq.queries {
-							if pq.responses[requestIdx] == nil && !pcq.inProgress && pq.lastUpdateTime.Add(retryIntervalImpl).Before(now) {
-								qLogger.Info("retrying query request", zap.String("requestId", reqId), zap.Stringer("receiveTime", pq.receiveTime), zap.Int("requestIdx", requestIdx))
+							if pq.responses[requestIdx] == nil && pcq.lastUpdateTime.Add(retryIntervalImpl).Before(now) {
+								qLogger.Info("retrying query request", zap.String("requestId", reqId), zap.Int("requestIdx", requestIdx), zap.Stringer("receiveTime", pq.receiveTime), zap.Stringer("lastUpdateTime", pcq.lastUpdateTime))
 								pcq.ccqForwardToWatcher(qLogger, pq.receiveTime)
 							}
 						}
@@ -343,12 +339,10 @@ func (pcq *perChainQuery) ccqForwardToWatcher(qLogger *zap.Logger, receiveTime t
 	// TODO: only send the query request itself and reassemble in this module
 	case pcq.channel <- pcq.req:
 		qLogger.Debug("forwarded query request to watcher", zap.String("requestID", pcq.req.RequestID), zap.Stringer("chainID", pcq.req.ChainID))
-		pcq.inProgress = true
 		pcq.lastUpdateTime = receiveTime
 	default:
-		// By leaving lastUpdateTime unset and setting inProgress to false, we will retry next interval.
+		// By leaving lastUpdateTime unset, we will retry next interval.
 		qLogger.Warn("failed to send query request to watcher, will retry next interval", zap.String("requestID", pcq.req.RequestID), zap.Stringer("chain_id", pcq.req.ChainID))
-		pcq.inProgress = false
 	}
 }
 

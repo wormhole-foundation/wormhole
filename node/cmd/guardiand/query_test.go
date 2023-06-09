@@ -31,7 +31,9 @@ import (
 const (
 	testSigner = "beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"
 
-	fatalError = math.MaxInt
+	// Magic retry values used to cause special behavior in the watchers.
+	fatalError  = math.MaxInt
+	ignoreQuery = math.MaxInt - 1
 
 	// Speed things up for testing purposes.
 	requestTimeoutForTest = 100 * time.Millisecond
@@ -271,6 +273,17 @@ func (md *mockData) getRequestsPerChain(chainId vaa.ChainID) int {
 	return 0
 }
 
+// shouldIgnoreAlreadyLocked is used by the watchers to see if they should ignore a query (causing a retry).
+func (md *mockData) shouldIgnoreAlreadyLocked(chainId vaa.ChainID) bool {
+	if val, exists := md.retriesPerChain[chainId]; exists {
+		if val == ignoreQuery {
+			delete(md.retriesPerChain, chainId)
+			return true
+		}
+	}
+	return false
+}
+
 // getStatusAlreadyLocked is used by the watchers to determine what query status they should return, based on the `retriesPerChain`.
 func (md *mockData) getStatusAlreadyLocked(chainId vaa.ChainID) common.QueryStatus {
 	if val, exists := md.retriesPerChain[chainId]; exists {
@@ -342,11 +355,15 @@ func createQueryHandlerForTestWithoutPublisher(t *testing.T, ctx context.Context
 					require.Equal(t, chainId, pcqr.ChainID)
 					md.mutex.Lock()
 					md.incrementRequestsPerChainAlreadyLocked(chainId)
-					results := md.expectedResults[pcqr.RequestIdx].Responses
-					result := md.getStatusAlreadyLocked(chainId)
-					logger.Info("watcher returning", zap.String("chainId", chainId.String()), zap.Int("requestIdx", pcqr.RequestIdx), zap.Int("result", int(result)))
-					queryResponse := common.CreatePerChainQueryResponseInternal(pcqr.RequestID, pcqr.RequestIdx, pcqr.ChainID, result, results)
-					md.queryResponseWriteC <- queryResponse
+					if md.shouldIgnoreAlreadyLocked(chainId) {
+						logger.Info("watcher ignoring query", zap.String("chainId", chainId.String()), zap.Int("requestIdx", pcqr.RequestIdx))
+					} else {
+						results := md.expectedResults[pcqr.RequestIdx].Responses
+						result := md.getStatusAlreadyLocked(chainId)
+						logger.Info("watcher returning", zap.String("chainId", chainId.String()), zap.Int("requestIdx", pcqr.RequestIdx), zap.Int("result", int(result)))
+						queryResponse := common.CreatePerChainQueryResponseInternal(pcqr.RequestID, pcqr.RequestIdx, pcqr.ChainID, result, results)
+						md.queryResponseWriteC <- queryResponse
+					}
 					md.mutex.Unlock()
 				}
 			}
@@ -546,6 +563,33 @@ func TestQueryWithLimitedRetriesShouldSucceed(t *testing.T) {
 	require.NotNil(t, queryResponsePublication)
 
 	assert.Equal(t, retries+1, md.getRequestsPerChain(vaa.ChainIDPolygon))
+	assert.True(t, validateResponseForTest(t, queryResponsePublication, signedQueryRequest, queryRequest, expectedResults))
+}
+
+func TestQueryWithRetryDueToTimeoutShouldSucceed(t *testing.T) {
+	ctx := context.Background()
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err)
+
+	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
+
+	// Create the request and the expected results. Give the expected results to the mock.
+	perChainQueries := []*gossipv1.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
+	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(md.sk, perChainQueries)
+	expectedResults := createExpectedResultsForTest(queryRequest.PerChainQueries)
+	md.setExpectedResults(expectedResults)
+
+	// Make the first per chain query timeout, but the retry should succeed.
+	md.setRetries(vaa.ChainIDPolygon, ignoreQuery)
+
+	// Submit the query request to the handler.
+	md.signedQueryReqWriteC <- signedQueryRequest
+
+	// The request should eventually succeed.
+	queryResponsePublication := md.waitForResponse()
+	require.NotNil(t, queryResponsePublication)
+
+	assert.Equal(t, 2, md.getRequestsPerChain(vaa.ChainIDPolygon))
 	assert.True(t, validateResponseForTest(t, queryResponsePublication, signedQueryRequest, queryRequest, expectedResults))
 }
 
