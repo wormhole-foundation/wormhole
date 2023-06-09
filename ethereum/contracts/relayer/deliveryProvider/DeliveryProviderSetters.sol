@@ -51,7 +51,7 @@ contract DeliveryProviderSetters is Context, DeliveryProviderState {
 
     function setMaximumBudget(uint16 targetChain, Wei amount) internal {
         require(amount.unwrap() <= type(uint192).max, "amount too large");
-        _state.maximumBudget[targetChain] = amount;
+        _state.maximumBudget[targetChain] = amount.asTargetNative();
     }
 
     function setPriceInfo(

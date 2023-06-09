@@ -165,18 +165,13 @@ contract WormholeRelayerGovernanceTests is Test {
             ) == toWormholeFormat(address(wormholeRelayer3))
         );
 
+        vm.expectRevert(abi.encodeWithSignature("ChainAlreadyRegistered(uint16,bytes32)", 3, toWormholeFormat(address(wormholeRelayer3))));
         helpers.registerWormholeRelayerContract(
             WormholeRelayer(payable(address(wormholeRelayer1))),
             wormhole,
             1,
             3,
             toWormholeFormat(address(wormholeRelayer2))
-        );
-
-        assertTrue(
-            WormholeRelayer(payable(address(wormholeRelayer1))).getRegisteredWormholeRelayerContract(
-                3
-            ) == toWormholeFormat(address(wormholeRelayer2))
         );
     }
 

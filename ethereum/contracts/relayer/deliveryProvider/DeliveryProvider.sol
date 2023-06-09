@@ -34,17 +34,18 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
         view
         returns (LocalNative nativePriceQuote, GasPrice targetChainRefundPerUnitGasUnused)
     {
-        targetChainRefundPerUnitGasUnused = gasPrice(targetChain);
-        Wei costOfProvidingFullGasLimit = gasLimit.toWei(targetChainRefundPerUnitGasUnused);
-        Wei transactionFee =
-            quoteDeliveryOverhead(targetChain) + gasLimit.toWei(quoteGasPrice(targetChain));
-        Wei receiverValueCost = quoteAssetCost(targetChain, receiverValue);
-        nativePriceQuote = (
-            transactionFee.max(costOfProvidingFullGasLimit) + receiverValueCost
-                + wormholeMessageFee()
-        ).asLocalNative();
+        (uint16 buffer, uint16 denominator) = assetConversionBuffer(targetChain);
+        targetChainRefundPerUnitGasUnused = GasPrice.wrap(gasPrice(targetChain).unwrap() * (denominator - buffer) / denominator);
+        
+        TargetNative targetCostIfNoGasLimitUsed = gasLimit.toWei(targetChainRefundPerUnitGasUnused).asTargetNative();
+        TargetNative targetCostIfFullGasLimitUsed = gasLimit.toWei(gasPrice(targetChain)).asTargetNative();
+        LocalNative costIfNoGasLimitUsed = quoteAssetCost(targetChain, targetCostIfNoGasLimitUsed);
+        LocalNative costIfFullGasLimitUsed = gasLimit.toWei(quoteGasPrice(targetChain)).asLocalNative();
+        LocalNative receiverValueCost = quoteAssetCost(targetChain, receiverValue);
+        nativePriceQuote = quoteDeliveryOverhead(targetChain) + 
+            costIfFullGasLimitUsed.asNative().max(costIfNoGasLimitUsed.asNative()).asLocalNative() + receiverValueCost;
         require(
-            receiverValue.asNative() + costOfProvidingFullGasLimit <= maximumBudget(targetChain),
+            receiverValue.asNative() + targetCostIfNoGasLimitUsed.asNative().max(targetCostIfFullGasLimitUsed.asNative()) <= maximumBudget(targetChain).asNative(),
             "Exceeds maximum budget"
         );
     }
@@ -124,12 +125,12 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
     }
 
     //Returns the delivery overhead fee required to deliver a message to the target chain, denominated in this chain's wei.
-    function quoteDeliveryOverhead(uint16 targetChain) public view returns (Wei nativePriceQuote) {
+    function quoteDeliveryOverhead(uint16 targetChain) public view returns (LocalNative nativePriceQuote) {
         Gas overhead = deliverGasOverhead(targetChain);
         Wei targetFees = overhead.toWei(gasPrice(targetChain));
         Wei result = assetConversion(targetChain, targetFees, chainId());
         require(result.unwrap() <= type(uint128).max, "Overflow");
-        return result;
+        return result.asLocalNative();
     }
 
     //Returns the price of purchasing 1 unit of gas on the target chain, denominated in this chain's wei.
@@ -159,7 +160,7 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
     function quoteAssetCost(
         uint16 targetChain,
         TargetNative targetChainAmount
-    ) internal view returns (Wei currentChainAmount) {
+    ) internal view returns (LocalNative currentChainAmount) {
         (uint16 buffer, uint16 bufferDenominator) = assetConversionBuffer(targetChain);
         return targetChainAmount.asNative().convertAsset(
             nativeCurrencyPrice(chainId()),
@@ -168,6 +169,6 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
             (buffer),
             // round up
             true
-        );
+        ).asLocalNative();
     }
 }
