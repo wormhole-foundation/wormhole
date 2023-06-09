@@ -96,10 +96,9 @@ library WormholeRelayerSerde {
         pure
         returns (bytes memory encoded)
     {
-        bytes memory vaaKey = encodeVaaKey(strct.deliveryVaaKey);
         encoded = abi.encodePacked(
             PAYLOAD_ID_REDELIVERY_INSTRUCTION,
-            vaaKey,
+            encodeVaaKey(strct.deliveryVaaKey),
             strct.targetChain,
             strct.newRequestedReceiverValue,
             encodeBytes(strct.newEncodedExecutionInfo),
