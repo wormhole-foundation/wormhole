@@ -577,7 +577,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         }
 
         // assuming refund chain is an EVM chain
-        if (refundAmount <= baseDeliveryPrice) {
+        if (refundAmount <= getWormholeMessageFee() + baseDeliveryPrice) {
             return RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH;
         }
         try IWormholeRelayerSend(address(this)).send{value: refundAmount.unwrap()}(
@@ -585,7 +585,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             bytes32(0),
             bytes(""),
             TargetNative.wrap(0),
-            refundAmount - baseDeliveryPrice,
+            refundAmount - getWormholeMessageFee() - baseDeliveryPrice,
             encodeEvmExecutionParamsV1(getEmptyEvmExecutionParamsV1()),
             refundChain,
             refundAddress,
