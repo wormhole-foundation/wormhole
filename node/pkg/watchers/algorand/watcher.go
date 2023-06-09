@@ -39,6 +39,13 @@ type (
 
 		next_round uint64
 	}
+
+	algorandObservation struct {
+		emitterAddress vaa.Address
+		nonce          uint32
+		sequence       uint64
+		payload        []byte
+	}
 )
 
 var (
@@ -77,31 +84,53 @@ func NewWatcher(
 	}
 }
 
+// gatherObservations recurses through a given transactions inner-transactions
+// to find any messages emitted from the core wormhole contract.
+// Algorand allows up to 8 levels of inner transactions.
+func gatherObservations(e *Watcher, t types.SignedTxnWithAD, logger *zap.Logger) (obs []algorandObservation) {
+	// recurse through nested inner transactions
+	for _, itxn := range t.EvalDelta.InnerTxns {
+		obs = append(obs, gatherObservations(e, itxn, logger)...)
+	}
+
+	var at = t.Txn
+	var ed = t.EvalDelta
+
+	// check if the current transaction meets what we expect
+	// for an emitted message
+	if (len(at.ApplicationArgs) != 3) || (uint64(at.ApplicationID) != e.appid) || string(at.ApplicationArgs[0]) != "publishMessage" || len(ed.Logs) == 0 {
+		return
+	}
+
+	logger.Info("emitter: " + hex.EncodeToString(at.Sender[:]))
+
+	var a vaa.Address
+	copy(a[:], at.Sender[:]) // 32 bytes = 8edf5b0e108c3a1a0a4b704cc89591f2ad8d50df24e991567e640ed720a94be2
+
+	obs = append(obs, algorandObservation{
+		nonce:          uint32(binary.BigEndian.Uint64(at.ApplicationArgs[2])),
+		sequence:       binary.BigEndian.Uint64([]byte(ed.Logs[0])),
+		emitterAddress: a,
+		payload:        at.ApplicationArgs[1],
+	})
+
+	return
+}
+
+// lookAtTxn takes an outer transaction from the block.payset and gathers
+// observations from messages emitted in nested inner transactions
+// then passes them on the relevant channels
 func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.Logger) {
-	for q := 0; q < len(t.EvalDelta.InnerTxns); q++ {
-		var it = t.EvalDelta.InnerTxns[q]
-		var at = it.Txn
 
-		if (len(at.ApplicationArgs) != 3) || (uint64(at.ApplicationID) != e.appid) {
-			continue
-		}
+	observations := gatherObservations(e, t.SignedTxnWithAD, logger)
 
-		if string(at.ApplicationArgs[0]) != "publishMessage" {
-			continue
-		}
-
-		var ed = it.EvalDelta
-		if len(ed.Logs) == 0 {
-			continue
-		}
-
-		emitter := at.Sender
-
-		var a vaa.Address
-		copy(a[:], emitter[:]) // 32 bytes = 8edf5b0e108c3a1a0a4b704cc89591f2ad8d50df24e991567e640ed720a94be2
-
-		logger.Info("emitter: " + hex.EncodeToString(emitter[:]))
-
+	// We use the outermost transaction id in the observation message
+	// so we can apply the same logic to gather any messages emitted
+	// by inner transactions
+	var txHash eth_common.Hash
+	if len(observations) > 0 {
+		// Repopulate the genesis id/hash for the transaction
+		// since in the block encoding, it's omitted to save space
 		t.Txn.GenesisID = b.GenesisID
 		t.Txn.GenesisHash = b.GenesisHash
 		Id := crypto.GetTxID(t.Txn)
@@ -109,21 +138,22 @@ func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.
 		id, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(Id)
 		if err != nil {
 			logger.Error("Base32 DecodeString", zap.Error(err))
-			continue
+			return
 		}
-
 		logger.Info("id: " + hex.EncodeToString(id) + " " + Id)
 
-		var txHash = eth_common.BytesToHash(id) // 32 bytes = d3b136a6a182a40554b2fafbc8d12a7a22737c10c81e33b33d1dcb74c532708b
+		txHash = eth_common.BytesToHash(id) // 32 bytes = d3b136a6a182a40554b2fafbc8d12a7a22737c10c81e33b33d1dcb74c532708b
+	}
 
+	for _, obs := range observations {
 		observation := &common.MessagePublication{
 			TxHash:           txHash,
 			Timestamp:        time.Unix(b.TimeStamp, 0),
-			Nonce:            uint32(binary.BigEndian.Uint64(at.ApplicationArgs[2])),
-			Sequence:         binary.BigEndian.Uint64([]byte(ed.Logs[0])),
+			Nonce:            obs.nonce,
+			Sequence:         obs.sequence,
 			EmitterChain:     vaa.ChainIDAlgorand,
-			EmitterAddress:   a,
-			Payload:          at.ApplicationArgs[1],
+			EmitterAddress:   obs.emitterAddress,
+			Payload:          obs.payload,
 			ConsistencyLevel: 0,
 		}
 
