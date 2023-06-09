@@ -171,15 +171,9 @@ library WeiLib {
         uint32 multiplierDenom,
         bool roundUp
     ) internal pure returns (Wei) {
-        // console.log("heyo");
         Dollar numerator = w.toDollars(fromPrice).mul(multiplierNum);
-        // console.log("numerator", numerator.unwrap());
-        // console.log("multiplierDenom", multiplierDenom);
-        // console.log("toPrice", toPrice.unwrap());
         WeiPrice denom = toPrice.mul(multiplierDenom);
-        // console.log("denom", denom.unwrap());
         Wei res = numerator.toWei(denom, roundUp);
-        // console.log("res", res.unwrap());
         return res;
     }
 }
