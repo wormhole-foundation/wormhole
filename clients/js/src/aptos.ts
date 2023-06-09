@@ -9,6 +9,8 @@ import { sha3_256 } from "js-sha3";
 import { NETWORKS } from "./consts";
 import { Network } from "./utils";
 import { Payload, impossible } from "./vaa";
+import { CHAINS, ensureHexPrefix } from "@certusone/wormhole-sdk";
+import { TokenBridgeState } from "@certusone/wormhole-sdk/lib/esm/aptos/types";
 
 export async function execute_aptos(
   payload: Payload,
@@ -334,4 +336,66 @@ function hex(x: string): Buffer {
     ethers.utils.hexlify(x, { allowMissingPrefix: true }).substring(2),
     "hex"
   );
+}
+
+export async function queryRegistrationsAptos(
+  network: Network,
+  module: "Core" | "NFTBridge" | "TokenBridge"
+): Promise<Object> {
+  const n = NETWORKS[network]["aptos"];
+  const client = new AptosClient(n.rpc);
+  const contracts = CONTRACTS[network]["aptos"];
+  let stateObjectId: string | undefined;
+
+  switch (module) {
+    case "TokenBridge":
+      stateObjectId = contracts.token_bridge;
+      if (stateObjectId === undefined) {
+        throw Error(`Unknown token bridge contract on ${network} for Aptos`);
+      }
+      break;
+    default:
+      throw new Error(`Invalid module: ${module}`);
+  }
+
+  stateObjectId = ensureHexPrefix(stateObjectId);
+  const state = (
+    await client.getAccountResource(
+      stateObjectId,
+      `${stateObjectId}::state::State`
+    )
+  ).data as TokenBridgeState;
+
+  const handle = state.registered_emitters.handle;
+
+  // Query the bridge registration for all the chains in parallel.
+  const registrations: string[][] = await Promise.all(
+    Object.entries(CHAINS)
+      .filter(([cname, _]) => cname !== "aptos" && cname !== "unset")
+      .map(async ([cname, cid]) => [
+        cname,
+        await (async () => {
+          let result = null;
+          try {
+            result = await client.getTableItem(handle, {
+              key_type: "u64",
+              value_type: "vector<u8>",
+              key: cid.toString(),
+            });
+          } catch {
+            // Not logging anything because a chain not registered returns an error.
+          }
+
+          return result;
+        })(),
+      ])
+  );
+
+  const results: { [key: string]: string } = {};
+  for (let [cname, queryResponse] of registrations) {
+    if (queryResponse) {
+      results[cname] = queryResponse;
+    }
+  }
+  return results;
 }
