@@ -24,6 +24,9 @@ import (
 	"go.uber.org/zap"
 )
 
+// Algorand allows max depth of 8 inner transactions
+const MAX_DEPTH = 8
+
 type (
 	// Watcher is responsible for looking over Algorand blockchain and reporting new transactions to the appid
 	Watcher struct {
@@ -87,10 +90,17 @@ func NewWatcher(
 // gatherObservations recurses through a given transactions inner-transactions
 // to find any messages emitted from the core wormhole contract.
 // Algorand allows up to 8 levels of inner transactions.
-func gatherObservations(e *Watcher, t types.SignedTxnWithAD, logger *zap.Logger) (obs []algorandObservation) {
+func gatherObservations(e *Watcher, t types.SignedTxnWithAD, depth int, logger *zap.Logger) (obs []algorandObservation) {
+
+	// SECURITY defense-in-depth: don't recurse > max depth allowed by Algorand
+	if depth >= MAX_DEPTH {
+		logger.Error("algod client", zap.Error(fmt.Errorf("exceeded max depth of %d", MAX_DEPTH)))
+		return
+	}
+
 	// recurse through nested inner transactions
 	for _, itxn := range t.EvalDelta.InnerTxns {
-		obs = append(obs, gatherObservations(e, itxn, logger)...)
+		obs = append(obs, gatherObservations(e, itxn, depth+1, logger)...)
 	}
 
 	var at = t.Txn
@@ -122,7 +132,7 @@ func gatherObservations(e *Watcher, t types.SignedTxnWithAD, logger *zap.Logger)
 // then passes them on the relevant channels
 func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.Logger) {
 
-	observations := gatherObservations(e, t.SignedTxnWithAD, logger)
+	observations := gatherObservations(e, t.SignedTxnWithAD, 0, logger)
 
 	// We use the outermost transaction id in the observation message
 	// so we can apply the same logic to gather any messages emitted
