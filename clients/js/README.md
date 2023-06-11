@@ -319,6 +319,8 @@ Commands:
   worm info origin <chain> <address>        Print the origin chain and address
                                             of the asset that corresponds to the
                                             given chain and address.
+  worm info registrations <network>         Print chain registrations
+  <chain> <module>
   worm info rpc <network> <chain>           Print RPC address
   worm info wrapped <origin-chain>          Print the wrapped address on the
   <origin-address> <target-chain>           target chain that corresponds with
@@ -403,6 +405,8 @@ Commands:
   worm near origin <chain> <address>        Print the origin chain and address
                                             of the asset that corresponds to the
                                             given chain and address.
+  worm near registrations <network>         Print chain registrations
+  <chain> <module>
   worm near rpc <network> <chain>           Print RPC address
   worm near wrapped <origin-chain>          Print the wrapped address on the
   <origin-address> <target-chain>           target chain that corresponds with
@@ -501,6 +505,8 @@ Commands:
   worm parse <vaa> origin <chain>           Print the origin chain and address
   <address>                                 of the asset that corresponds to the
                                             given chain and address.
+  worm parse <vaa> registrations <network>  Print chain registrations
+  <chain> <module>
   worm parse <vaa> rpc <network> <chain>    Print RPC address
   worm parse <vaa> wrapped <origin-chain>   Print the wrapped address on the
   <origin-address> <target-chain>           target chain that corresponds with
@@ -611,6 +617,8 @@ Commands:
   worm recover <digest> <signature> origin  Print the origin chain and address
   <chain> <address>                         of the asset that corresponds to the
                                             given chain and address.
+  worm recover <digest> <signature>         Print chain registrations
+  registrations <network> <chain> <module>
   worm recover <digest> <signature> rpc     Print RPC address
   <network> <chain>
   worm recover <digest> <signature>         Print the wrapped address on the
@@ -714,6 +722,8 @@ Commands:
   worm submit <vaa> origin <chain>          Print the origin chain and address
   <address>                                 of the asset that corresponds to the
                                             given chain and address.
+  worm submit <vaa> registrations           Print chain registrations
+  <network> <chain> <module>
   worm submit <vaa> rpc <network> <chain>   Print RPC address
   worm submit <vaa> wrapped <origin-chain>  Print the wrapped address on the
   <origin-address> <target-chain>           target chain that corresponds with
@@ -825,6 +835,8 @@ Commands:
   worm sui origin <chain> <address>         Print the origin chain and address
                                             of the asset that corresponds to the
                                             given chain and address.
+  worm sui registrations <network> <chain>  Print chain registrations
+  <module>
   worm sui rpc <network> <chain>            Print RPC address
   worm sui wrapped <origin-chain>           Print the wrapped address on the
   <origin-address> <target-chain>           target chain that corresponds with
@@ -957,6 +969,8 @@ Commands:
   worm verify-vaa origin <chain> <address>  Print the origin chain and address
                                             of the asset that corresponds to the
                                             given chain and address.
+  worm verify-vaa registrations <network>   Print chain registrations
+  <chain> <module>
   worm verify-vaa rpc <network> <chain>     Print RPC address
   worm verify-vaa wrapped <origin-chain>    Print the wrapped address on the
   <origin-address> <target-chain>           target chain that corresponds with
