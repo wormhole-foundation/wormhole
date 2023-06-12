@@ -24,6 +24,8 @@ error InvalidPayloadAction(uint8 parsed, uint8 expected);
 error InvalidPayloadModule(bytes32 parsed, bytes32 expected);
 error InvalidFork();
 error ContractUpgradeFailed(bytes failure);
+error ChainAlreadyRegistered(uint16 chainId, bytes32 registeredWormholeRelayerContract);
+error InvalidDefaultDeliveryProvider(bytes32 defaultDeliveryProvider);
 
 abstract contract WormholeRelayerGovernance is WormholeRelayerBase, ERC1967Upgrade {
     //This constant should actually be defined in IWormhole. Alas, it isn't.
@@ -93,7 +95,11 @@ abstract contract WormholeRelayerGovernance is WormholeRelayerBase, ERC1967Upgra
             foreignAddress;
     }
 
+    event ContractUpgraded(address indexed oldContract, address indexed newContract);
+
     function submitContractUpgrade(bytes memory encodedVm) external {
+
+        address currentImplementation = _getImplementation();
         address newImplementation = parseAndCheckContractUpgradeVm(encodedVm);
 
         _upgradeTo(newImplementation);
@@ -104,6 +110,8 @@ abstract contract WormholeRelayerGovernance is WormholeRelayerBase, ERC1967Upgra
         if (!success) {
             revert ContractUpgradeFailed(revertData);
         }
+
+         emit ContractUpgraded(currentImplementation, newImplementation);
     }
 
     function setDefaultDeliveryProvider(bytes memory encodedVm) external {
@@ -128,6 +136,11 @@ abstract contract WormholeRelayerGovernance is WormholeRelayerBase, ERC1967Upgra
         (foreignAddress, offset) = payload.asBytes32Unchecked(offset);
 
         checkLength(payload, offset);
+
+        if(getRegisteredWormholeRelayerContract(foreignChainId) != bytes32(0)) {
+            revert ChainAlreadyRegistered(foreignChainId, getRegisteredWormholeRelayerContract(foreignChainId));
+        }
+
     }
 
     function parseAndCheckContractUpgradeVm(bytes memory encodedVm)
@@ -152,7 +165,7 @@ abstract contract WormholeRelayerGovernance is WormholeRelayerBase, ERC1967Upgra
     {
         bytes memory payload = verifyAndConsumeGovernanceVM(encodedVm);
         uint256 offset =
-            parseAndCheckPayloadHeader(payload, GOVERNANCE_ACTION_UPDATE_DEFAULT_PROVIDER, true);
+            parseAndCheckPayloadHeader(payload, GOVERNANCE_ACTION_UPDATE_DEFAULT_PROVIDER, false);
 
         bytes32 newProviderWhFmt;
         (newProviderWhFmt, offset) = payload.asBytes32Unchecked(offset);
@@ -160,6 +173,10 @@ abstract contract WormholeRelayerGovernance is WormholeRelayerBase, ERC1967Upgra
         newProvider = fromWormholeFormat(newProviderWhFmt);
 
         checkLength(payload, offset);
+
+        if(newProvider == address(0)) {
+            revert InvalidDefaultDeliveryProvider(newProviderWhFmt);
+        }
     }
 
     function verifyAndConsumeGovernanceVM(bytes memory encodedVm)
