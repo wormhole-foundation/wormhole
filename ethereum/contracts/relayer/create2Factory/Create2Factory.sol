@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
 
 /**
- * Contract factory that facilitates predfictable deployment addresses
+ * Contract factory that facilitates predictable deployment addresses
  */
 contract Create2Factory {
     event Created(address addr);

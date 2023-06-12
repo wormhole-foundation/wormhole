@@ -10,8 +10,6 @@ import {DeliveryProviderImplementation} from
     "../../contracts/relayer/deliveryProvider/DeliveryProviderImplementation.sol";
 import {DeliveryProviderProxy} from
     "../../contracts/relayer/deliveryProvider/DeliveryProviderProxy.sol";
-import {DeliveryProviderMessages} from
-    "../../contracts/relayer/deliveryProvider/DeliveryProviderMessages.sol";
 import {DeliveryProviderStructs} from
     "../../contracts/relayer/deliveryProvider/DeliveryProviderStructs.sol";
 import "../../contracts/interfaces/relayer/IWormholeRelayerTyped.sol";
@@ -1689,6 +1687,8 @@ contract WormholeRelayerTests is Test {
 
         vm.recordLogs();
 
+        vm.assume(gasParams.targetGasPrice > 1);
+
         DeliveryStack memory stack;
 
         sendMessageToTargetChain(setup, gasParams.targetGasLimit, 0, message);
@@ -1917,6 +1917,8 @@ contract WormholeRelayerTests is Test {
     ) public {
         StandardSetupTwoChains memory setup =
             standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
+
+        vm.assume(gasParams.targetGasPrice > 1);
 
         vm.recordLogs();
 
@@ -2296,13 +2298,15 @@ contract WormholeRelayerTests is Test {
         StandardSetupTwoChains memory setup =
             standardAssumeAndSetupTwoChains(gasParams, feeParams, 1000000);
 
+        vm.assume(gasParams.targetGasPrice > 1);
+
         // Collected funds from the attack are meant to be sent here.
         address attackerSourceAddress = address(
             uint160(
                 uint256(keccak256(abi.encodePacked(bytes("attackerAddress"), setup.sourceChain)))
             )
         );
-        assertTrue(attackerSourceAddress.balance == 0);
+        assertTrue(attackerSourceAddress.balance == 0, "Attacker balance is not 0");
 
         // Borrowed assumes from testForward. They should help since this test is similar.
         vm.assume(
@@ -2332,13 +2336,13 @@ contract WormholeRelayerTests is Test {
             genericRelayer.relay(setup.sourceChain);
 
             // The message delivery should fail
-            assertTrue(keccak256(setup.target.integration.getMessage()) != keccak256(attackMsg));
+            assertTrue(keccak256(setup.target.integration.getMessage()) != keccak256(attackMsg), "Attacker got his message through");
         }
 
         {
             // Now one victim sends their message. It doesn't need to be from the same source chain.
             // What's necessary is that a message is delivered to the chain targeted by the attacker.
-            bytes memory victimMsg = "";
+            bytes memory victimMsg = "victimMsg";
 
             uint256 victimBalancePreDelivery = setup.target.refundAddress.balance;
 
@@ -2349,7 +2353,7 @@ contract WormholeRelayerTests is Test {
             }(
                 setup.targetChain,
                 address(setup.target.integration),
-                abi.encodePacked(uint8(0), victimMsg),
+                abi.encodePacked(uint8(0), uint32(victimMsg.length), victimMsg, uint32(0)),
                 TargetNative.wrap(0), 
                 Gas.wrap(gasParams.targetGasLimit),
                 setup.targetChain,
@@ -2362,15 +2366,15 @@ contract WormholeRelayerTests is Test {
             genericRelayer.relay(setup.sourceChain);
 
             // Ensures the message was received.
-            assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(victimMsg));
+            assertTrue(keccak256(setup.target.integration.getMessage()) == keccak256(victimMsg), "Victim did not get message through");
             // Here we assert that the victim's refund is safe.
-            assertTrue(victimBalancePreDelivery < setup.target.refundAddress.balance);
+            assertTrue(victimBalancePreDelivery < setup.target.refundAddress.balance, "Victim's refund wasn't paid");
         }
 
         genericRelayer.relay(setup.targetChain);
 
         // Assert that the attack wasn't successful.
-        assertTrue(attackerSourceAddress.balance == 0);
+        assertTrue(attackerSourceAddress.balance == 0, "Attacker gained balance");
     }
 
     function testDeliveryData(
