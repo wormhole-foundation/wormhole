@@ -42,3 +42,9 @@ func NewWatcherRunnable(
 		}
 	}
 }
+
+type MockL1Finalizer struct{}
+
+func (f MockL1Finalizer) GetLatestFinalizedBlockNumber() uint64 {
+	return 0
+}
