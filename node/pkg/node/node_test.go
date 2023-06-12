@@ -12,6 +12,7 @@ import (
 	math_rand "math/rand"
 	"net/http"
 	"os"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -48,6 +49,7 @@ import (
 const LOCAL_RPC_PORTRANGE_START = 10000
 const LOCAL_P2P_PORTRANGE_START = 10100
 const LOCAL_STATUS_PORTRANGE_START = 10200
+const LOCAL_PUBLICWEB_PORTRANGE_START = 10300
 
 var PROMETHEUS_METRIC_VALID_HEARTBEAT_RECEIVED = []byte("wormhole_p2p_broadcast_messages_received_total{type=\"valid_heartbeat\"}")
 
@@ -103,6 +105,10 @@ func mockAdminStocket(mockGuardianIndex uint) string {
 
 func mockPublicRpc(mockGuardianIndex uint) string {
 	return fmt.Sprintf("127.0.0.1:%d", mockGuardianIndex+LOCAL_RPC_PORTRANGE_START)
+}
+
+func mockPublicWeb(mockGuardianIndex uint) string {
+	return fmt.Sprintf("127.0.0.1:%d", mockGuardianIndex+LOCAL_PUBLICWEB_PORTRANGE_START)
 }
 
 func mockStatusPort(mockGuardianIndex uint) uint {
@@ -164,6 +170,7 @@ func mockGuardianRunnable(gs []*mockGuardian, mockGuardianIndex uint, obsDb mock
 			GuardianOptionP2P(gs[mockGuardianIndex].p2pKey, networkID, bootstrapPeers, nodeName, false, p2pPort, func() string { return "" }),
 			GuardianOptionPublicRpcSocket(publicSocketPath, common.GrpcLogDetailFull),
 			GuardianOptionPublicrpcTcpService(publicRpc, common.GrpcLogDetailFull),
+			GuardianOptionPublicWeb(mockPublicWeb(mockGuardianIndex), publicSocketPath, "", false, path.Join(dataDir, "autocert")),
 			GuardianOptionAdminService(adminSocketPath, nil, nil, rpcMap),
 			GuardianOptionStatusServer(fmt.Sprintf("[::]:%d", mockStatusPort(mockGuardianIndex))),
 			GuardianOptionProcessor(),
@@ -701,8 +708,13 @@ func TestWatcherConfigs(t *testing.T) {
 			opts: []*GuardianOption{
 				GuardianOptionWatchers([]watchers.WatcherConfig{
 					&mock.WatcherConfig{
-						NetworkID: "mock",
+						NetworkID: "mock1",
 						ChainID:   vaa.ChainIDSolana,
+					},
+					&mock.WatcherConfig{
+						NetworkID:           "mock2",
+						ChainID:             vaa.ChainIDEthereum,
+						L1FinalizerRequired: "mock1",
 					},
 				}, nil),
 			},
@@ -723,6 +735,19 @@ func TestWatcherConfigs(t *testing.T) {
 				}, nil),
 			},
 			err: "NetworkID already configured: mock",
+		},
+		{
+			name: "watcher-noL1",
+			opts: []*GuardianOption{
+				GuardianOptionWatchers([]watchers.WatcherConfig{
+					&mock.WatcherConfig{
+						NetworkID:           "mock",
+						ChainID:             vaa.ChainIDSolana,
+						L1FinalizerRequired: "something-that-does-not-exist",
+					},
+				}, nil),
+			},
+			err: "L1finalizer does not exist. Please check the order of the watcher configurations in watcherConfigs.",
 		},
 	}
 	testGuardianConfigurations(t, tc)
