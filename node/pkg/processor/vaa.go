@@ -12,6 +12,7 @@ type VAA struct {
 	Unreliable bool
 }
 
+// HandleQuorum assumes that the caller holds `p.stateLock`
 func (v *VAA) HandleQuorum(sigs []*vaa.Signature, hash string, p *Processor) {
 	// Deep copy the observation and add signatures
 	signed := &vaa.VAA{
