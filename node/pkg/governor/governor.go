@@ -219,14 +219,16 @@ func (gov *ChainGovernor) initConfig() error {
 			gov.tokensByCoinGeckoId[te.coinGeckoId] = cge
 		}
 
-		gov.logger.Info("will monitor token:", zap.Stringer("chain", key.chain),
-			zap.Stringer("addr", key.addr),
-			zap.String("symbol", te.symbol),
-			zap.String("coinGeckoId", te.coinGeckoId),
-			zap.String("price", te.price.String()),
-			zap.Int64("decimals", dec),
-			zap.Int64("origDecimals", ct.decimals),
-		)
+		if gov.env != common.GoTest {
+			gov.logger.Info("will monitor token:", zap.Stringer("chain", key.chain),
+				zap.Stringer("addr", key.addr),
+				zap.String("symbol", te.symbol),
+				zap.String("coinGeckoId", te.coinGeckoId),
+				zap.String("price", te.price.String()),
+				zap.Int64("decimals", dec),
+				zap.Int64("origDecimals", ct.decimals),
+			)
+		}
 	}
 
 	if len(gov.tokens) == 0 {
@@ -262,12 +264,14 @@ func (gov *ChainGovernor) initConfig() error {
 			checkForBigTransactions: cc.bigTransactionSize != 0,
 		}
 
-		gov.logger.Info("will monitor chain:", zap.Stringer("emitterChainId", cc.emitterChainID),
-			zap.Stringer("emitterAddr", ce.emitterAddr),
-			zap.String("dailyLimit", fmt.Sprint(ce.dailyLimit)),
-			zap.Uint64("bigTransactionSize", ce.bigTransactionSize),
-			zap.Bool("checkForBigTransactions", ce.checkForBigTransactions),
-		)
+		if gov.env != common.GoTest {
+			gov.logger.Info("will monitor chain:", zap.Stringer("emitterChainId", cc.emitterChainID),
+				zap.Stringer("emitterAddr", ce.emitterAddr),
+				zap.String("dailyLimit", fmt.Sprint(ce.dailyLimit)),
+				zap.Uint64("bigTransactionSize", ce.bigTransactionSize),
+				zap.Bool("checkForBigTransactions", ce.checkForBigTransactions),
+			)
+		}
 
 		gov.chains[cc.emitterChainID] = ce
 	}
