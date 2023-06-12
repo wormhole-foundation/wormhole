@@ -33,7 +33,8 @@ async function run() {
 async function upgradeDeliveryProvider(chain: ChainInfo, newImpl: Deployment) {
   console.log("About to upgrade relay provider for chain " + chain.chainId);
   const provider = getDeliveryProvider(chain);
-  await provider.upgrade(chain.chainId, newImpl.address);
+  const tx = await provider.upgrade(chain.chainId, newImpl.address);
+  await tx.wait();
   console.log("Successfully upgraded relay provider " + chain.chainId);
 }
 

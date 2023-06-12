@@ -252,6 +252,8 @@ contract MockRelayerIntegration is IWormholeReceiver {
         Message memory message;
         if (payload.length > 0) {
             message = decodeMessage(payload);
+        } else {
+            return;
         }
 
         messageHistory.push(message.message);

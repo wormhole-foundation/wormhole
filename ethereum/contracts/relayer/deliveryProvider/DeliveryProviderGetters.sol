@@ -41,7 +41,7 @@ contract DeliveryProviderGetters is DeliveryProviderState {
         return _state.deliverGasOverhead[targetChain];
     }
 
-    function maximumBudget(uint16 targetChain) public view returns (Wei) {
+    function maximumBudget(uint16 targetChain) public view returns (TargetNative) {
         return _state.maximumBudget[targetChain];
     }
 
