@@ -62,6 +62,9 @@ const (
 
 // handleCleanup handles periodic retransmissions and cleanup of observations
 func (p *Processor) handleCleanup(ctx context.Context) {
+	p.stateLock.Lock()
+	defer p.stateLock.Unlock()
+
 	p.logger.Info("aggregation state summary", zap.Int("cached", len(p.state.signatures)))
 	aggregationStateEntries.Set(float64(len(p.state.signatures)))
 
@@ -172,7 +175,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 				if err := common.PostObservationRequest(p.obsvReqSendC, req); err != nil {
 					p.logger.Warn("failed to broadcast re-observation request", zap.Error(err))
 				}
-				p.gossipSendC <- s.ourMsg
+				go func() { p.gossipSendC <- s.ourMsg }() // do this async because we don't want to wait for a long time while holding `p.stateLock`
 				s.lastRetry = time.Now()
 				aggregationStateRetries.Inc()
 			} else {

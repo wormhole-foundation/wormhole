@@ -49,6 +49,9 @@ func (p *Processor) broadcastSignature(
 	// Store our VAA in case we're going to submit it to Solana
 	hash := hex.EncodeToString(digest.Bytes())
 
+	p.stateLock.Lock()
+	defer p.stateLock.Unlock()
+
 	if p.state.signatures[hash] == nil {
 		p.state.signatures[hash] = &state{
 			firstObserved: time.Now(),
