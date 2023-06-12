@@ -117,7 +117,7 @@ async function processRedelivery(
     !redeliveryVaa.deliveryVaaKey.chainId
   ) {
     executionRecord.redeliveryRecord.validVaaKeyFormat = false;
-    throw new Error(`Only supports EmitterSequence VaaKeyType`);
+    throw new Error(`Received an invalid redelivery VAA key`);
   }
 
   ctx.logger.info(
@@ -186,7 +186,6 @@ function isValidRedelivery(
 ): { isValid: boolean; reason?: string } {
   const output: any = { isValid: true };
 
-  //TODO check that the delivery & redelivery chains agree!
   if (delivery.targetChainId != redelivery.targetChainId) {
     output.isValid = false;
     output.reason =
@@ -213,29 +212,7 @@ function isValidRedelivery(
     return output;
   }
 
-  //TODO check that infomrmation inside the execution params is valid
-  // if (delivery..gt(redelivery.newMaximumRefundTarget)) {
-  //   output.isValid = false;
-  //   output.reason =
-  //     "Redelivery maximumRefundTarget is less than original delivery maximumRefundTarget, " +
-  //     "Original refund: " +
-  //     delivery.maximumRefundTarget.toBigInt().toLocaleString() +
-  //     " Redelivery: " +
-  //     redelivery.newMaximumRefundTarget.toBigInt().toLocaleString();
-  //   ctx.logger.info(output.reason);
-  //   return output;
-  // }
-
-  // if (deliveryExecutionInfo.gasLimit > redeliveryExecutionInfo.gasLimit) {
-  //   output.isValid = false;
-  //   (output.reason =
-  //     "Redelivery gasLimit is less than original delivery gasLimit, " +
-  //     "Original gasLimit: " +
-  //     delivery.executionParameters.gasLimit),
-  //     " Redelivery: " + redelivery.executionParameters.gasLimit;
-  //   ctx.logger.info(output.reason);
-  //   return output;
-  // }
+  //TODO check that information inside the execution params is valid
 
   return output;
 }
@@ -260,7 +237,7 @@ async function processDeliveryInstruction(
     ) != -1
   ) {
     executionRecord.deliveryRecord.additionalVaaKeysFormatValid = false;
-    throw new Error(`Only supports EmitterSequence VaaKeyType`);
+    throw new Error(`Received an invalid additional VAA key`);
   }
   const vaaKeysString = delivery.vaaKeys.map((m) => vaaKeyPrintable(m));
   ctx.logger.info(`Fetching vaas from parsed delivery vaa manifest...`, {
