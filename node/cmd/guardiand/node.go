@@ -14,8 +14,6 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/certusone/wormhole/node/pkg/watchers/wormchain"
-
 	"github.com/certusone/wormhole/node/pkg/watchers/cosmwasm"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/algorand"
@@ -145,8 +143,6 @@ var (
 	nearRPC      *string
 	nearContract *string
 
-	wormchainWS            *string
-	wormchainLCD           *string
 	wormchainURL           *string
 	wormchainKeyPath       *string
 	wormchainKeyPassPhrase *string
@@ -301,8 +297,6 @@ func init() {
 	nearRPC = NodeCmd.Flags().String("nearRPC", "", "near RPC URL")
 	nearContract = NodeCmd.Flags().String("nearContract", "", "near contract")
 
-	wormchainWS = NodeCmd.Flags().String("wormchainWS", "", "Path to wormchaind root for websocket connection")
-	wormchainLCD = NodeCmd.Flags().String("wormchainLCD", "", "Path to LCD service root for http calls")
 	wormchainURL = NodeCmd.Flags().String("wormchainURL", "", "wormhole-chain gRPC URL")
 	wormchainKeyPath = NodeCmd.Flags().String("wormchainKeyPath", "", "path to wormhole-chain private key for signing transactions")
 	wormchainKeyPassPhrase = NodeCmd.Flags().String("wormchainKeyPassPhrase", "", "pass phrase used to unarmor the wormchain key file")
@@ -630,14 +624,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	} else if *xplaLCD != "" || *xplaContract != "" {
 		logger.Fatal("If --xplaWS is not specified, then --xplaLCD and --xplaContract must not be specified")
 	}
-	if *wormchainWS != "" {
-		if *wormchainLCD == "" {
-			logger.Fatal("If --wormchainWS is specified, then --wormchainLCD must be specified")
-		}
-	} else if *wormchainLCD != "" {
-		logger.Fatal("If --wormchainWS is not specified, then --wormchainLCD must not be specified")
-	}
-
 	if *aptosRPC != "" {
 		if *aptosAccount == "" {
 			logger.Fatal("If --aptosRPC is specified, then --aptosAccount must be specified")
@@ -1378,16 +1364,6 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 
-		// Start Wormchain watcher only if configured
-		if shouldStart(wormchainWS) {
-			logger.Info("Starting Wormchain watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDWormchain)
-			chainObsvReqC[vaa.ChainIDWormchain] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			if err := supervisor.Run(ctx, "wormchainwatch",
-				wormchain.NewWatcher(*wormchainWS, *wormchainLCD, chainMsgC[vaa.ChainIDWormchain], chainObsvReqC[vaa.ChainIDWormchain]).Run); err != nil {
-				return err
-			}
-		}
 		if shouldStart(aptosRPC) {
 			logger.Info("Starting Aptos watcher")
 			common.MustRegisterReadinessSyncing(vaa.ChainIDAptos)
@@ -1592,8 +1568,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		rpcMap["terraLCD"] = *terraLCD
 		rpcMap["terra2WS"] = *terra2WS
 		rpcMap["terra2LCD"] = *terra2LCD
-		rpcMap["wormchainWS"] = *wormchainWS
-		rpcMap["wormchainLCD"] = *wormchainLCD
 		rpcMap["xplaWS"] = *xplaWS
 		rpcMap["xplaLCD"] = *xplaLCD
 

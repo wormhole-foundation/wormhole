@@ -103,10 +103,6 @@ spec:
             - ws://eth-devnet:8545
             - --neonRPC
             - ws://eth-devnet:8545
-            # - --wormchainWS
-            # - ws://wormchain:26657/websocket
-            # - --wormchainLCD
-            # - http://wormchain:1317
             # - --wormchainURL
             # - wormchain:9090
             # - --wormchainKeyPath
