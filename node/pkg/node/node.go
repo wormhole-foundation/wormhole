@@ -163,6 +163,7 @@ func (g *G) Run(rootCtxCancel context.CancelFunc, options ...*GuardianOption) su
 		if err := g.applyOptions(ctx, logger, options); err != nil {
 			logger.Fatal("failed to initialize GuardianNode", zap.Error(err))
 		}
+		logger.Info("GuardianNode initialization done.") // Do not modify this message, node_test.go relies on it.
 
 		// Start the watchers
 		for runnableName, runnable := range g.runnablesWithScissors {
