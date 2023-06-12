@@ -175,7 +175,7 @@ export function loadDeliveryProviders(): Deployment[] {
   }
 }
 
-export function loadWormholeRelayers(): Deployment[] {
+export function loadWormholeRelayers(dev: boolean): Deployment[] {
   const contractsFile = fs.readFileSync(
     `./ts-scripts/relayer/config/${env}/contracts.json`
   );
@@ -193,7 +193,7 @@ export function loadWormholeRelayers(): Deployment[] {
     const lastRun = JSON.parse(lastRunFile.toString());
     return lastRun.wormholeRelayerProxies;
   } else {
-    return contracts.wormholeRelayers;
+    return dev ? contracts.wormholeRelayersDev : contracts.wormholeRelayers;
   }
 }
 
@@ -352,6 +352,9 @@ export async function getWormholeRelayerAddress(
   chain: ChainInfo,
   forceCalculate?: boolean
 ): Promise<string> {
+  // See if we are in dev mode (i.e. forge contracts compiled without via-ir)
+  const dev = get_env_var("DEV") == "True" ? true : false;
+
   const contractsFile = fs.readFileSync(
     `./ts-scripts/relayer/config/${env}/contracts.json`
   );
@@ -361,7 +364,7 @@ export async function getWormholeRelayerAddress(
   const contracts = JSON.parse(contractsFile.toString());
   //If useLastRun is false, then we want to bypass the calculations and just use what the contracts file says.
   if (!contracts.useLastRun && !lastRunOverride && !forceCalculate) {
-    const thisChainsRelayer = loadWormholeRelayers().find(
+    const thisChainsRelayer = loadWormholeRelayers(dev).find(
       (x: any) => x.chainId == chain.chainId
     )?.address;
     if (thisChainsRelayer) {
