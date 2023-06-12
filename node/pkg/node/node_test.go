@@ -762,6 +762,14 @@ func TestGuardianConfigs(t *testing.T) {
 			},
 			err: "Check the order of your options.",
 		},
+		{
+			name: "double-configuration",
+			opts: []*GuardianOption{
+				GuardianOptionBigTablePersistence(nil),
+				GuardianOptionBigTablePersistence(nil),
+			},
+			err: "Component bigtable is already configured and cannot be configured a second time",
+		},
 	}
 	testGuardianConfigurations(t, tc)
 }
