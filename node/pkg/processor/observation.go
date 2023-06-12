@@ -92,6 +92,9 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 		return
 	}
 
+	p.stateLock.Lock()
+	defer p.stateLock.Unlock()
+
 	// Determine which guardian set to use. The following cases are possible:
 	//
 	//  - We have already seen the message and generated ourObservation. In this case, use the guardian set valid at the time,

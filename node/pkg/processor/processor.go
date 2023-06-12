@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/db"
@@ -115,7 +116,8 @@ type Processor struct {
 	gst *common.GuardianSetState
 
 	// state is the current runtime VAA view
-	state *aggregationState
+	state     *aggregationState
+	stateLock sync.Mutex
 	// gk pk as eth address
 	ourAddr ethcommon.Address
 	// cleanup triggers periodic state cleanup
