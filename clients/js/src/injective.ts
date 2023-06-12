@@ -1,9 +1,13 @@
-import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+import {
+  CHAINS,
+  CONTRACTS,
+} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import {
   getNetworkInfo,
   Network as InjectiveNetwork,
 } from "@injectivelabs/networks";
 import {
+  ChainGrpcWasmApi,
   ChainRestAuthApi,
   createTransaction,
   MsgExecuteContractCompat,
@@ -202,4 +206,74 @@ export async function execute_injective(
       `Broadcasted transaction hash: ${JSON.stringify(txResponse.txHash)}`
     );
   }
+}
+
+export async function queryRegistrationsInjective(
+  network: Network,
+  module: "Core" | "NFTBridge" | "TokenBridge"
+) {
+  const chain = "injective";
+  const n = NETWORKS[network][chain];
+  const contracts = CONTRACTS[network][chain];
+
+  let targetContract: string | undefined;
+
+  switch (module) {
+    case "TokenBridge":
+      targetContract = contracts.token_bridge;
+      break;
+    case "NFTBridge":
+      targetContract = contracts.nft_bridge;
+      break;
+    default:
+      throw new Error(`Invalid module: ${module}`);
+  }
+
+  if (targetContract === undefined) {
+    throw new Error(`Contract for ${module} on ${network} does not exist`);
+  }
+
+  if (n === undefined || n.rpc === undefined) {
+    throw new Error(`RPC for ${module} on ${network} does not exist`);
+  }
+
+  const client = new ChainGrpcWasmApi(n.rpc);
+
+  // Query the bridge registration for all the chains in parallel.
+  const registrations: (any | null)[][] = await Promise.all(
+    Object.entries(CHAINS)
+      .filter(([cname, _]) => cname !== chain && cname !== "unset")
+      .map(async ([cname, cid]) => [
+        cname,
+        await (async () => {
+          let query_msg = {
+            chain_registration: {
+              chain: cid,
+            },
+          };
+
+          let result = null;
+          try {
+            result = await client.fetchSmartContractState(
+              targetContract as string,
+              Buffer.from(JSON.stringify(query_msg)).toString("base64")
+            );
+          } catch {
+            // Not logging anything because a chain not registered returns an error.
+          }
+
+          return result;
+        })(),
+      ])
+  );
+
+  const results: { [key: string]: string } = {};
+  for (let [cname, queryResponse] of registrations) {
+    if (queryResponse) {
+      results[cname] = Buffer.from(queryResponse.address, "base64").toString(
+        "hex"
+      );
+    }
+  }
+  console.log(results);
 }

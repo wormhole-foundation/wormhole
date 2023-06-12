@@ -721,3 +721,54 @@ const maybeUnsupported = async <T>(
 
 const isUnsupportedError = (e: any): e is { reason: string } =>
   e && typeof e === "object" && "reason" in e && e.reason === "unsupported";
+
+export async function queryRegistrationsEvm(
+  network: Network,
+  chain: EVMChainName,
+  module: "Core" | "NFTBridge" | "TokenBridge"
+): Promise<Object> {
+  const n = NETWORKS[network][chain];
+  const contracts = CONTRACTS[network][chain];
+
+  let targetContract: string | undefined;
+  let contract: any;
+
+  const provider = new ethers.providers.JsonRpcProvider(n.rpc);
+
+  switch (module) {
+    case "TokenBridge":
+      targetContract = contracts.token_bridge;
+      if (targetContract === undefined) {
+        throw Error(`Unknown token bridge contract on ${network} for ${chain}`);
+      }
+      contract = BridgeImplementation__factory.connect(
+        targetContract,
+        provider
+      );
+      break;
+    case "NFTBridge":
+      targetContract = contracts.nft_bridge;
+      if (targetContract === undefined) {
+        throw Error(`Unknown NFT bridge contract on ${network} for ${chain}`);
+      }
+      contract = NFTBridgeImplementation__factory.connect(
+        targetContract,
+        provider
+      );
+      break;
+    default:
+      throw new Error(`Invalid module: ${module}`);
+  }
+
+  const registrations: string[][] = await Promise.all(
+    Object.entries(CHAINS)
+      .filter(([cname, _]) => cname !== chain && cname !== "unset")
+      .map(async ([cname, cid]) => [cname, await contract.bridgeContracts(cid)])
+  );
+
+  const results: { [key: string]: string } = {};
+  for (let [cname, c] of registrations) {
+    results[cname] = c;
+  }
+  return results;
+}
