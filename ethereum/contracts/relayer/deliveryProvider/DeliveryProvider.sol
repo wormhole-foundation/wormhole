@@ -18,6 +18,7 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
     using LocalNativeLib for LocalNative;
 
     error CallerNotApproved(address msgSender);
+    error PriceIsZero(uint16 chain);
 
     function quoteEvmDeliveryPrice(
         uint16 targetChain,
@@ -31,16 +32,16 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
         (uint16 buffer, uint16 denominator) = assetConversionBuffer(targetChain);
         targetChainRefundPerUnitGasUnused = GasPrice.wrap(gasPrice(targetChain).unwrap() * (denominator) / (uint256(denominator) + buffer));
         
-        TargetNative targetCostIfNoGasLimitUsed = gasLimit.toWei(targetChainRefundPerUnitGasUnused).asTargetNative();
-        TargetNative targetCostIfFullGasLimitUsed = gasLimit.toWei(gasPrice(targetChain)).asTargetNative();
-        LocalNative costIfNoGasLimitUsed = quoteAssetCost(targetChain, targetCostIfNoGasLimitUsed);
-        LocalNative costIfFullGasLimitUsed = quoteGasCost(targetChain, gasLimit);
+        TargetNative maxRefund = gasLimit.toWei(targetChainRefundPerUnitGasUnused).asTargetNative();
+        TargetNative gasLimitCost = gasLimit.toWei(gasPrice(targetChain)).asTargetNative();
+        LocalNative maxRefundInSourceCurrency = quoteAssetCost(targetChain, maxRefund);
+        LocalNative gasLimitCostInSourceCurrency = quoteGasCost(targetChain, gasLimit);
         LocalNative receiverValueCost = quoteAssetCost(targetChain, receiverValue);
-        nativePriceQuote = quoteDeliveryOverhead(targetChain) + costIfFullGasLimitUsed + receiverValueCost;
-        require(costIfNoGasLimitUsed.unwrap() <= costIfFullGasLimitUsed.unwrap(), "target chain refund per gas unused is too high");
-        require(targetCostIfNoGasLimitUsed.unwrap() <= targetCostIfFullGasLimitUsed.unwrap(), "target chain refund per gas unused is too high");
+        nativePriceQuote = quoteDeliveryOverhead(targetChain) + gasLimitCostInSourceCurrency + receiverValueCost;
+        require(maxRefundInSourceCurrency.unwrap() <= gasLimitCostInSourceCurrency.unwrap(), "target chain refund per gas unused is too high");
+        require(maxRefund.unwrap() <= gasLimitCost.unwrap(), "target chain refund per gas unused is too high");
         require(
-            receiverValue.asNative() + targetCostIfFullGasLimitUsed.asNative() <= maximumBudget(targetChain).asNative(),
+            receiverValue.asNative() + gasLimitCost.asNative() <= maximumBudget(targetChain).asNative(),
             "Exceeds maximum budget"
         );
     }
@@ -130,8 +131,6 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
         price = GasPrice.wrap(quoteGasCost(targetChain, Gas.wrap(1)).unwrap());
         require(price.unwrap() <= type(uint88).max, "Overflow");
     }
-
-    error PriceIsZero(uint16 chain);
 
     // relevant for chains that have dynamic execution pricing (e.g. Ethereum)
     function assetConversion(
