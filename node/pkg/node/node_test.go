@@ -51,10 +51,13 @@ const LOCAL_P2P_PORTRANGE_START = 10100
 const LOCAL_STATUS_PORTRANGE_START = 10200
 const LOCAL_PUBLICWEB_PORTRANGE_START = 10300
 
-var PROMETHEUS_METRIC_VALID_HEARTBEAT_RECEIVED = []byte("wormhole_p2p_broadcast_messages_received_total{type=\"valid_heartbeat\"}")
+var PROMETHEUS_METRIC_VALID_HEARTBEAT_RECEIVED = "wormhole_p2p_broadcast_messages_received_total{type=\"valid_heartbeat\"}"
 
 const WAIT_FOR_LOGS = true
 const WAIT_FOR_METRICS = false
+
+// The level at which logs will be written to console; During testing, logs are produced and buffered at Debug level, because some tests need to look for certain entries.
+const CONSOLE_LOG_LEVEL = zap.InfoLevel
 
 type mockGuardian struct {
 	p2pKey           libp2p_crypto.PrivKey
@@ -196,17 +199,15 @@ func mockGuardianRunnable(gs []*mockGuardian, mockGuardianIndex uint, obsDb mock
 
 // setupLogsCapture is a helper function for making a zap logger/observer combination for testing that certain logs have been made
 func setupLogsCapture(options ...zap.Option) (*zap.Logger, *observer.ObservedLogs) {
-	observedCore, logs := observer.New(zap.DebugLevel)
-	wcOpt := zap.WrapCore(func(c zapcore.Core) zapcore.Core { return zapcore.NewTee(c, observedCore) })
-	options = append(options, wcOpt)
-	logger, _ := zap.NewDevelopment(options...)
-	return logger, logs
+	observedCore, observedLogs := observer.New(zap.DebugLevel)
+	consoleLogger, _ := zap.NewDevelopment(zap.IncreaseLevel(CONSOLE_LOG_LEVEL))
+	parentLogger := zap.New(zapcore.NewTee(observedCore, consoleLogger.Core()), options...)
+	return parentLogger, observedLogs
 }
 
-func waitForHeartbeatsInLogs(t *testing.T, zapObserver *observer.ObservedLogs, gs []*mockGuardian) {
+func waitForHeartbeatsInLogs(t testing.TB, zapObserver *observer.ObservedLogs, gs []*mockGuardian) {
 	// example log entry that we're looking for:
 	// 		DEBUG	root.g-2.g.p2p	p2p/p2p.go:465	valid signed heartbeat received	{"value": "node_name:\"g-0\"  timestamp:1685677055425243683  version:\"development\"  guardian_addr:\"0xeF2a03eAec928DD0EEAf35aD31e34d2b53152c07\"  boot_timestamp:1685677040424855922  p2p_node_id:\"\\x00$\\x08\\x01\\x12 \\x97\\xf3\\xbd\\x87\\x13\\x15(\\x1e\\x8b\\x83\\xedǩ\\xfd\\x05A\\x06aTD\\x90p\\xcc\\xdb<\\xddB\\xcfi\\xccވ\"", "from": "12D3KooWL3XJ9EMCyZvmmGXL2LMiVBtrVa2BuESsJiXkSj7333Jw"}
-	// TODO maybe instead of looking at log entries, we could determine this status through prometheus metrics, which might be more stable
 	re := regexp.MustCompile("g-[0-9]+")
 
 	for readyCounter := 0; readyCounter < len(gs); {
@@ -233,7 +234,12 @@ func waitForHeartbeatsInLogs(t *testing.T, zapObserver *observer.ObservedLogs, g
 	}
 }
 
-func waitForHeartbeatsInMetrics(t *testing.T, ctx context.Context, gs []*mockGuardian) {
+// waitForPromMetricExceed waits until prometheus metric `metric` >= `min` on all guardians in `gs`.
+// WARNING: Currently, there is only a global registry for all prometheus metrics, leading to all guardian nodes writing to the same one.
+//
+//	As long as this is the case, you probably don't want to use this function.
+func waitForPromMetricGte(t testing.TB, ctx context.Context, gs []*mockGuardian, metric string, min int) {
+	metricBytes := []byte(metric)
 	requests := make([]*http.Request, len(gs))
 	//logger := supervisor.Logger(ctx)
 
@@ -261,10 +267,10 @@ func waitForHeartbeatsInMetrics(t *testing.T, ctx context.Context, gs []*mockGua
 			scanner := bufio.NewScanner(resp.Body)
 			for scanner.Scan() {
 				line := scanner.Bytes()
-				if bytes.HasPrefix(line, PROMETHEUS_METRIC_VALID_HEARTBEAT_RECEIVED) {
+				if bytes.HasPrefix(line, metricBytes) {
 					res, err := strconv.Atoi(string(bytes.Split(line, []byte(" "))[1])) // split at the space and convert to integer
 					assert.NoError(t, err)
-					if res > 0 {
+					if res >= min {
 						g.ready = true
 						readyCounter++
 						break
@@ -540,8 +546,9 @@ func testConsensus(t *testing.T, testCases []testCase, numGuardians int) {
 		// Wait for them to connect each other and receive at least one heartbeat.
 		// This is necessary because if they have not joined the p2p network yet, gossip messages may get dropped silently.
 		assert.True(t, WAIT_FOR_LOGS || WAIT_FOR_METRICS)
+		assert.False(t, WAIT_FOR_LOGS && WAIT_FOR_METRICS) // can't do both, because they both write to gs[].ready
 		if WAIT_FOR_METRICS {
-			waitForHeartbeatsInMetrics(t, ctx, gs)
+			waitForPromMetricGte(t, ctx, gs, PROMETHEUS_METRIC_VALID_HEARTBEAT_RECEIVED, 1)
 		}
 		if WAIT_FOR_LOGS {
 			waitForHeartbeatsInLogs(t, zapObserver, gs)
