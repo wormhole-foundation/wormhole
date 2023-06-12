@@ -168,7 +168,6 @@ spec:
             - --publicRpcLogDetail
             - "full"
           # - --chainGovernorEnabled=true
-          #            - --logLevel=debug
           securityContext:
             capabilities:
               add:
