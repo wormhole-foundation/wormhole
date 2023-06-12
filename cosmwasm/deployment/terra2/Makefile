@@ -46,7 +46,7 @@ test/node_modules: test/package-lock.json
 ## Run unit and integration tests
 test: artifacts test/node_modules LocalTerra
 	@if pgrep terrad; then echo "Error: terrad already running. Stop it before running tests"; exit 1; fi
-	cd LocalTerra && docker-compose up --detach
+	cd LocalTerra && DOCKER_BUILDKIT=1 docker-compose up --detach
 	sleep 5
 	cd test && npm run test || (cd ../LocalTerra && docker-compose down && exit 1)
 	cd LocalTerra && docker-compose down
