@@ -10,8 +10,6 @@ import {DeliveryProviderImplementation} from
     "../../contracts/relayer/deliveryProvider/DeliveryProviderImplementation.sol";
 import {DeliveryProviderProxy} from
     "../../contracts/relayer/deliveryProvider/DeliveryProviderProxy.sol";
-import {DeliveryProviderMessages} from
-    "../../contracts/relayer/deliveryProvider/DeliveryProviderMessages.sol";
 import {DeliveryProviderStructs} from
     "../../contracts/relayer/deliveryProvider/DeliveryProviderStructs.sol";
 import "../../contracts/interfaces/relayer/IWormholeRelayerTyped.sol";
@@ -165,18 +163,13 @@ contract WormholeRelayerGovernanceTests is Test {
             ) == toWormholeFormat(address(wormholeRelayer3))
         );
 
+        vm.expectRevert(abi.encodeWithSignature("ChainAlreadyRegistered(uint16,bytes32)", 3, toWormholeFormat(address(wormholeRelayer3))));
         helpers.registerWormholeRelayerContract(
             WormholeRelayer(payable(address(wormholeRelayer1))),
             wormhole,
             1,
             3,
             toWormholeFormat(address(wormholeRelayer2))
-        );
-
-        assertTrue(
-            WormholeRelayer(payable(address(wormholeRelayer1))).getRegisteredWormholeRelayerContract(
-                3
-            ) == toWormholeFormat(address(wormholeRelayer2))
         );
     }
 
