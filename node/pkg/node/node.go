@@ -255,7 +255,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 
 			for _, wc := range watcherConfigs {
 				if _, ok := watchers[wc.GetNetworkID()]; ok {
-					logger.Fatal("NetworkID already configured", zap.String("network_id", string(wc.GetNetworkID())))
+					return fmt.Errorf("NetworkID already configured: %s", string(wc.GetNetworkID()))
 				}
 
 				watcherName := string(wc.GetNetworkID()) + "watch"
@@ -280,7 +280,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 				l1finalizer, runnable, err := wc.Create(chainMsgC[wc.GetChainID()], chainObsvReqC[wc.GetChainID()], g.setC.writeC, g.env)
 
 				if err != nil {
-					logger.Fatal("error creating watcher", zap.Error(err))
+					return fmt.Errorf("error creating watcher: %w", err)
 				}
 
 				g.runnablesWithScissors[watcherName] = runnable
@@ -316,7 +316,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 					readiness.RegisterComponent(common.ReadinessIBCSyncing)
 					g.runnablesWithScissors["ibcwatch"] = ibc.NewWatcher(ibcWatcherConfig.Websocket, ibcWatcherConfig.Lcd, ibcWatcherConfig.Contract, chainConfig).Run
 				} else {
-					logger.Error("Although IBC is enabled, there are no chains for it to monitor")
+					return errors.New("Although IBC is enabled, there are no chains for it to monitor")
 				}
 			}
 
@@ -563,6 +563,7 @@ func (g *G) Run(rootCtxCancel context.CancelFunc, options ...*GuardianOption) su
 		if err := g.applyOptions(ctx, logger, options); err != nil {
 			logger.Fatal("failed to initialize GuardianNode", zap.Error(err))
 		}
+		logger.Info("GuardianNode initialization done.") // Do not modify this message, node_test.go relies on it.
 
 		// Start the watchers
 		for runnableName, runnable := range g.runnablesWithScissors {
