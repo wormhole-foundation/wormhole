@@ -6,7 +6,9 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
+	"encoding/binary"
 	"fmt"
+	"math/big"
 	math_rand "math/rand"
 	"net/http"
 	"os"
@@ -31,6 +33,7 @@ import (
 	libp2p_peer "github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wormhole-foundation/wormhole/sdk"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -156,8 +159,8 @@ func mockGuardianRunnable(gs []*mockGuardian, mockGuardianIndex uint, obsDb mock
 		guardianOptions := []*GuardianOption{
 			GuardianOptionDatabase(db),
 			GuardianOptionWatchers(watcherConfigs, nil),
-			GuardianOptionNoAccountant(),  // disable accountant
-			GuardianOptionGovernor(false), // disable governor
+			GuardianOptionNoAccountant(), // disable accountant
+			GuardianOptionGovernor(true),
 			GuardianOptionP2P(gs[mockGuardianIndex].p2pKey, networkID, bootstrapPeers, nodeName, false, p2pPort, func() string { return "" }),
 			GuardianOptionPublicRpcSocket(publicSocketPath, common.GrpcLogDetailFull),
 			GuardianOptionPublicrpcTcpService(publicRpc, common.GrpcLogDetailFull),
@@ -288,19 +291,79 @@ func randomTime() time.Time {
 	return time.Unix(int64(math_rand.Uint32()%1700000000), 0) // nolint // convert time to unix and back to match what is done during serialization/de-serialization
 }
 
-var messageSequenceCounter uint64 = 0
+var someMsgSequenceCounter uint64 = 0
 
 func someMessage() *common.MessagePublication {
-	messageSequenceCounter++
+	someMsgSequenceCounter++
 	return &common.MessagePublication{
-		TxHash:           [32]byte{byte(messageSequenceCounter % 8), byte(messageSequenceCounter / 8), 3},
+		TxHash:           [32]byte{byte(someMsgSequenceCounter % 8), byte(someMsgSequenceCounter / 8), 3},
 		Timestamp:        randomTime(),
 		Nonce:            math_rand.Uint32(), //nolint
-		Sequence:         messageSequenceCounter,
+		Sequence:         someMsgSequenceCounter,
 		ConsistencyLevel: 1,
 		EmitterChain:     vaa.ChainIDSolana,
 		EmitterAddress:   [32]byte{1, 2, 3},
 		Payload:          []byte{},
+		Unreliable:       false,
+	}
+}
+
+var tokenBridgeSequenceCounter uint64 = 0
+
+func governedMsg(shouldBeDelayed bool) *common.MessagePublication {
+	buildMockTransferPayloadBytes := func(
+		tokenChainID vaa.ChainID,
+		tokenAddrStr string,
+		toChainID vaa.ChainID,
+		toAddrStr string,
+		amtFloat float64,
+	) []byte {
+		bytes := make([]byte, 101)
+		bytes[0] = 1 // tb payload type
+
+		amtBigFloat := big.NewFloat(amtFloat)
+		amtBigFloat = amtBigFloat.Mul(amtBigFloat, big.NewFloat(100000000))
+		amount, _ := amtBigFloat.Int(nil)
+		amtBytes := amount.Bytes()
+		if len(amtBytes) > 32 {
+			panic("amount will not fit in 32 bytes!")
+		}
+		copy(bytes[33-len(amtBytes):33], amtBytes)
+
+		tokenAddr, _ := vaa.StringToAddress(tokenAddrStr)
+		copy(bytes[33:65], tokenAddr.Bytes())
+		binary.BigEndian.PutUint16(bytes[65:67], uint16(tokenChainID))
+		toAddr, _ := vaa.StringToAddress(toAddrStr)
+		copy(bytes[67:99], toAddr.Bytes())
+		binary.BigEndian.PutUint16(bytes[99:101], uint16(toChainID))
+		return bytes
+	}
+
+	var amount float64 = 0.0001
+	if shouldBeDelayed {
+		amount = 1_000_000_000_000
+	}
+
+	tokenAddrStr := "069b8857feab8184fb687f634618c035dac439dc1aeb3b5598a0f00000000001" // nolint:gosec // wrapped-SOL
+	toAddrStr := "0x707f9118e33a9b8998bea41dd0d46f38bb963fc8"                          // whatever
+	payloadBytes := buildMockTransferPayloadBytes(
+		vaa.ChainIDSolana,
+		tokenAddrStr,
+		vaa.ChainIDEthereum,
+		toAddrStr,
+		amount, // very large number to exceed governor limit
+	)
+
+	tokenBridgeSequenceCounter++
+	return &common.MessagePublication{
+		TxHash:           [32]byte{byte(tokenBridgeSequenceCounter % 8), byte(tokenBridgeSequenceCounter / 8), 3, 1, 10, 76},
+		Timestamp:        randomTime(),
+		Nonce:            math_rand.Uint32(), //nolint
+		Sequence:         tokenBridgeSequenceCounter,
+		ConsistencyLevel: 1,
+		EmitterChain:     vaa.ChainIDSolana,
+		EmitterAddress:   vaa.Address(sdk.KnownTokenbridgeEmitters[vaa.ChainIDSolana]),
+		Payload:          payloadBytes,
 		Unreliable:       false,
 	}
 }
@@ -355,6 +418,273 @@ func testStatusServer(ctx context.Context, logger *zap.Logger, statusAddr string
 func TestMain(m *testing.M) {
 	readiness.NoPanic = true // otherwise we'd panic when running multiple guardians
 	os.Exit(m.Run())
+}
+
+// TestBasicConsensus tests that a set of guardians can form consensus on certain messages and reject certain other messages
+func TestConsensus(t *testing.T) {
+	const numGuardians = 4 // Quorum will be 3 out of 4 guardians.
+
+	msgZeroEmitter := someMessage()
+	msgZeroEmitter.EmitterAddress = vaa.Address{}
+
+	msgGovEmitter := someMessage()
+	msgGovEmitter.EmitterAddress = vaa.GovernanceEmitter
+
+	msgWrongEmitterChain := someMessage()
+	msgWrongEmitterChain.EmitterChain = vaa.ChainIDEthereum
+
+	// define the test cases to be executed
+	// The ones with mustNotReachQuorum=true should be defined first to give them more time to execute.
+	testCases := []testCase{
+		{ // one malicious Guardian makes an observation + sends a re-observation request; this should not reach quorum
+			msg:                        someMessage(),
+			numGuardiansObserve:        1,
+			mustNotReachQuorum:         true,
+			unavailableInReobservation: true,
+		},
+		{ // message with EmitterAddress == 0 should not reach quorum
+			msg:                 msgZeroEmitter,
+			numGuardiansObserve: numGuardians,
+			mustNotReachQuorum:  true,
+		},
+		{ // message with Governance emitter should not reach quorum
+			msg:                 msgGovEmitter,
+			numGuardiansObserve: numGuardians,
+			mustNotReachQuorum:  true,
+		},
+		{ // message with wrong EmitterChain should not reach quorum
+			msg:                 msgWrongEmitterChain,
+			numGuardiansObserve: numGuardians,
+			mustNotReachQuorum:  true,
+		},
+		{ // Message covered by Governor that should be delayed 24h and hence not reach quorum within this test
+			msg:                 governedMsg(true),
+			numGuardiansObserve: numGuardians,
+			mustNotReachQuorum:  true,
+		},
+		{ // vanilla case, where only a quorum of guardians gets the message
+			msg:                 someMessage(),
+			numGuardiansObserve: numGuardians*2/3 + 1,
+			mustReachQuorum:     true,
+		},
+		{ // No Guardian makes the observation while watching, but we do a manual reobservation request.
+			msg:                               someMessage(),
+			numGuardiansObserve:               0,
+			mustReachQuorum:                   true,
+			performManualReobservationRequest: true,
+		},
+		{ // Message covered by Governor that should pass immediately
+			msg:                 governedMsg(false),
+			numGuardiansObserve: numGuardians,
+			mustReachQuorum:     true,
+		},
+		// TODO add a testcase to test the automatic re-observation requests.
+		// Need to refactor various usage of wall time to a mockable time first. E.g. using https://github.com/benbjohnson/clock
+	}
+	testConsensus(t, testCases, numGuardians)
+}
+
+// testConsensus spins up `numGuardians` guardians and runs & verifies the testCases
+func testConsensus(t *testing.T, testCases []testCase, numGuardians int) {
+	const testTimeout = time.Second * 30
+	const guardianSetIndex = 5           // index of the active guardian set (can be anything, just needs to be set to something)
+	const vaaCheckGuardianIndex uint = 0 // we will query this guardian's publicrpc for VAAs
+	const adminRpcGuardianIndex uint = 0 // we will query this guardian's adminRpc
+
+	// Test's main lifecycle context.
+	rootCtx, rootCtxCancel := context.WithTimeout(context.Background(), testTimeout)
+	defer rootCtxCancel()
+
+	zapLogger, zapObserver := setupLogsCapture()
+
+	supervisor.New(rootCtx, zapLogger, func(ctx context.Context) error {
+		logger := supervisor.Logger(ctx)
+
+		// create the Guardian Set
+		gs := newMockGuardianSet(numGuardians)
+
+		obsDb := makeObsDb(testCases)
+
+		// run the guardians
+		for i := 0; i < numGuardians; i++ {
+			gRun := mockGuardianRunnable(gs, uint(i), obsDb)
+			err := supervisor.Run(ctx, fmt.Sprintf("g-%d", i), gRun)
+			assert.NoError(t, err)
+		}
+		logger.Info("All Guardians initiated.")
+		supervisor.Signal(ctx, supervisor.SignalHealthy)
+
+		// Inform them of the Guardian Set
+		commonGuardianSet := common.GuardianSet{
+			Keys:  mockGuardianSetToGuardianAddrList(gs),
+			Index: guardianSetIndex,
+		}
+		for i, g := range gs {
+			logger.Info("Sending guardian set update", zap.Int("guardian_index", i))
+			g.MockSetC <- &commonGuardianSet
+		}
+
+		// wait for the status server to come online and check that it works
+		for i := range gs {
+			err := testStatusServer(ctx, logger, fmt.Sprintf("http://127.0.0.1:%d/metrics", mockStatusPort(uint(i))))
+			assert.NoError(t, err)
+		}
+
+		// Wait for them to connect each other and receive at least one heartbeat.
+		// This is necessary because if they have not joined the p2p network yet, gossip messages may get dropped silently.
+		assert.True(t, WAIT_FOR_LOGS || WAIT_FOR_METRICS)
+		if WAIT_FOR_METRICS {
+			waitForHeartbeatsInMetrics(t, ctx, gs)
+		}
+		if WAIT_FOR_LOGS {
+			waitForHeartbeatsInLogs(t, zapObserver, gs)
+		}
+		logger.Info("All Guardians have received at least one heartbeat.")
+
+		// have them make observations
+		for _, testCase := range testCases {
+			select {
+			case <-ctx.Done():
+				return nil
+			default:
+				// make the first testCase.numGuardiansObserve guardians observe it
+				for guardianIndex, g := range gs {
+					if guardianIndex >= testCase.numGuardiansObserve {
+						break
+					}
+					msgCopy := *testCase.msg
+					logger.Info("requesting mock observation for guardian", msgCopy.ZapFields(zap.Int("guardian_index", guardianIndex))...)
+					g.MockObservationC <- &msgCopy
+				}
+			}
+		}
+
+		// Wait for adminrpc to come online
+		for zapObserver.FilterMessage("admin server listening on").FilterField(zap.String("path", mockAdminStocket(adminRpcGuardianIndex))).Len() == 0 {
+			logger.Info("admin server seems to be offline (according to logs). Waiting 100ms...")
+			time.Sleep(time.Microsecond * 100)
+		}
+
+		// Send manual re-observation requests
+		func() { // put this in own function to use defer
+			s := fmt.Sprintf("unix:///%s", mockAdminStocket(vaaCheckGuardianIndex))
+			conn, err := grpc.DialContext(ctx, s, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			require.NoError(t, err)
+			defer conn.Close()
+
+			c := nodev1.NewNodePrivilegedServiceClient(conn)
+
+			for i, testCase := range testCases {
+				if testCase.performManualReobservationRequest {
+					// timeout for grpc query
+					logger.Info("injecting observation request through admin rpc", zap.Int("test_case", i))
+					queryCtx, queryCancel := context.WithTimeout(ctx, time.Second)
+					_, err = c.SendObservationRequest(queryCtx, &nodev1.SendObservationRequestRequest{
+						ObservationRequest: &gossipv1.ObservationRequest{
+							ChainId: uint32(testCase.msg.EmitterChain),
+							TxHash:  testCase.msg.TxHash[:],
+						},
+					})
+					queryCancel()
+					assert.NoError(t, err)
+				}
+			}
+		}()
+
+		// Wait for publicrpc to come online
+		for zapObserver.FilterMessage("publicrpc server listening").FilterField(zap.String("addr", mockPublicRpc(vaaCheckGuardianIndex))).Len() == 0 {
+			logger.Info("publicrpc seems to be offline (according to logs). Waiting 100ms...")
+			time.Sleep(time.Microsecond * 100)
+		}
+
+		// check that the VAAs were generated
+		logger.Info("Connecting to publicrpc...")
+		conn, err := grpc.DialContext(ctx, mockPublicRpc(vaaCheckGuardianIndex), grpc.WithTransportCredentials(insecure.NewCredentials()))
+		require.NoError(t, err)
+
+		defer conn.Close()
+		c := publicrpcv1.NewPublicRPCServiceClient(conn)
+
+		gsAddrList := mockGuardianSetToGuardianAddrList(gs)
+
+		// ensure that all test cases have passed
+		for i, testCase := range testCases {
+			msg := testCase.msg
+
+			logger.Info("Checking result of testcase", zap.Int("test_case", i))
+
+			// poll the API until we get a response without error
+			var r *publicrpcv1.GetSignedVAAResponse
+			var err error
+			for {
+				select {
+				case <-ctx.Done():
+					break
+				default:
+					// timeout for grpc query
+					logger.Info("attempting to query for VAA", zap.Int("test_case", i))
+					queryCtx, queryCancel := context.WithTimeout(ctx, time.Second)
+					r, err = c.GetSignedVAA(queryCtx, &publicrpcv1.GetSignedVAARequest{
+						MessageId: &publicrpcv1.MessageID{
+							EmitterChain:   publicrpcv1.ChainID(msg.EmitterChain),
+							EmitterAddress: msg.EmitterAddress.String(),
+							Sequence:       msg.Sequence,
+						},
+					})
+					queryCancel()
+					if err != nil {
+						logger.Info("error querying for VAA. Trying agin in 100ms.", zap.Int("test_case", i), zap.Error(err))
+					}
+				}
+				if err == nil && r != nil {
+					logger.Info("Received VAA from publicrpc", zap.Int("test_case", i), zap.Binary("vaa_bytes", r.VaaBytes))
+					break
+				}
+				if testCase.mustNotReachQuorum {
+					// no need to re-try because we're expecting an error. (and later we'll assert that's indeed an error)
+					break
+				}
+				time.Sleep(time.Millisecond * 100)
+			}
+
+			assert.NotEqual(t, testCase.mustNotReachQuorum, testCase.mustReachQuorum) // either or
+			if testCase.mustNotReachQuorum {
+				assert.EqualError(t, err, "rpc error: code = NotFound desc = requested VAA not found in store")
+			} else if testCase.mustReachQuorum {
+				assert.NotNil(t, r)
+				returnedVaa, err := vaa.Unmarshal(r.VaaBytes)
+				assert.NoError(t, err)
+
+				// Check signatures
+				err = returnedVaa.Verify(gsAddrList)
+				assert.NoError(t, err)
+
+				// Match all the fields
+				assert.Equal(t, returnedVaa.Version, uint8(1))
+				assert.Equal(t, returnedVaa.GuardianSetIndex, uint32(guardianSetIndex))
+				assert.Equal(t, returnedVaa.Timestamp, msg.Timestamp)
+				assert.Equal(t, returnedVaa.Nonce, msg.Nonce)
+				assert.Equal(t, returnedVaa.Sequence, msg.Sequence)
+				assert.Equal(t, returnedVaa.ConsistencyLevel, msg.ConsistencyLevel)
+				assert.Equal(t, returnedVaa.EmitterChain, msg.EmitterChain)
+				assert.Equal(t, returnedVaa.EmitterAddress, msg.EmitterAddress)
+				assert.Equal(t, returnedVaa.Payload, msg.Payload)
+			}
+		}
+
+		// We're done!
+		logger.Info("Tests completed.")
+
+		supervisor.Signal(ctx, supervisor.SignalDone)
+
+		rootCtxCancel()
+		return nil
+	},
+		supervisor.WithPropagatePanic)
+
+	<-rootCtx.Done()
+	assert.NotEqual(t, rootCtx.Err(), context.DeadlineExceeded)
+	zapLogger.Info("Test root context cancelled, exiting...")
 }
 
 type testCaseGuardianConfig struct {
@@ -488,260 +818,4 @@ func (c fatalHook) OnWrite(ce *zapcore.CheckedEntry, fields []zapcore.Field) {
 
 	c <- sb.String()
 	panic(ce.Message)
-}
-
-// TestBasicConsensus tests that a set of guardians can form consensus on certain messages and reject certain other messages
-func TestBasicConsensus(t *testing.T) {
-	const numGuardians = 4 // Quorum will be 3 out of 4 guardians.
-
-	msgZeroEmitter := someMessage()
-	msgZeroEmitter.EmitterAddress = vaa.Address{}
-
-	msgGovEmitter := someMessage()
-	msgGovEmitter.EmitterAddress = vaa.GovernanceEmitter
-
-	msgWrongEmitterChain := someMessage()
-	msgWrongEmitterChain.EmitterChain = vaa.ChainIDEthereum
-
-	// define the test cases to be executed
-	testCases := []testCase{
-		{ // one malicious Guardian makes an observation + sends a re-observation request; this should not reach quorum
-			msg:                        someMessage(),
-			numGuardiansObserve:        1,
-			mustNotReachQuorum:         true,
-			unavailableInReobservation: true,
-		},
-		{ // message with EmitterAddress == 0 should not reach quorum
-			msg:                 msgZeroEmitter,
-			numGuardiansObserve: numGuardians,
-			mustNotReachQuorum:  true,
-		},
-		{ // message with Governance emitter should not reach quorum
-			msg:                 msgGovEmitter,
-			numGuardiansObserve: numGuardians,
-			mustNotReachQuorum:  true,
-		},
-		{ // message with wrong EmitterChain should not reach quorum
-			msg:                 msgWrongEmitterChain,
-			numGuardiansObserve: numGuardians,
-			mustNotReachQuorum:  true,
-		},
-		{ // vanilla case, where only a quorum of guardians gets the message
-			msg:                 someMessage(),
-			numGuardiansObserve: numGuardians*2/3 + 1,
-			mustReachQuorum:     true,
-		},
-		{ // No Guardian makes the observation while watching, but we do a manual reobservation request.
-			msg:                               someMessage(),
-			numGuardiansObserve:               0,
-			mustReachQuorum:                   true,
-			performManualReobservationRequest: true,
-		},
-		// TODO add a testcase to test the automatic re-observation requests.
-		// Need to refactor various usage of wall time to a mockable time first. E.g. using https://github.com/benbjohnson/clock
-	}
-	testConsensus(t, testCases, numGuardians)
-}
-
-// testConsensus spins up `numGuardians` guardians and runs & verifies the testCases
-func testConsensus(t *testing.T, testCases []testCase, numGuardians int) {
-	const testTimeout = time.Second * 60
-	const guardianSetIndex = 5           // index of the active guardian set (can be anything, just needs to be set to something)
-	const vaaCheckGuardianIndex uint = 0 // we will query this guardian's publicrpc for VAAs
-	const adminRpcGuardianIndex uint = 0 // we will query this guardian's adminRpc
-
-	// Test's main lifecycle context.
-	rootCtx, rootCtxCancel := context.WithTimeout(context.Background(), testTimeout)
-	defer rootCtxCancel()
-
-	zapLogger, zapObserver := setupLogsCapture()
-
-	supervisor.New(rootCtx, zapLogger, func(ctx context.Context) error {
-		logger := supervisor.Logger(ctx)
-
-		// create the Guardian Set
-		gs := newMockGuardianSet(numGuardians)
-
-		obsDb := makeObsDb(testCases)
-
-		// run the guardians
-		for i := 0; i < numGuardians; i++ {
-			gRun := mockGuardianRunnable(gs, uint(i), obsDb)
-			err := supervisor.Run(ctx, fmt.Sprintf("g-%d", i), gRun)
-			assert.NoError(t, err)
-		}
-		logger.Info("All Guardians initiated.")
-		supervisor.Signal(ctx, supervisor.SignalHealthy)
-
-		// Inform them of the Guardian Set
-		commonGuardianSet := common.GuardianSet{
-			Keys:  mockGuardianSetToGuardianAddrList(gs),
-			Index: guardianSetIndex,
-		}
-		for i, g := range gs {
-			logger.Info("Sending guardian set update", zap.Int("guardian_index", i))
-			g.MockSetC <- &commonGuardianSet
-		}
-
-		// wait for the status server to come online and check that it works
-		for i := range gs {
-			err := testStatusServer(ctx, logger, fmt.Sprintf("http://127.0.0.1:%d/metrics", mockStatusPort(uint(i))))
-			assert.NoError(t, err)
-		}
-
-		// Wait for them to connect each other and receive at least one heartbeat.
-		// This is necessary because if they have not joined the p2p network yet, gossip messages may get dropped silently.
-		assert.True(t, WAIT_FOR_LOGS || WAIT_FOR_METRICS)
-		if WAIT_FOR_METRICS {
-			waitForHeartbeatsInMetrics(t, ctx, gs)
-		}
-		if WAIT_FOR_LOGS {
-			waitForHeartbeatsInLogs(t, zapObserver, gs)
-		}
-		logger.Info("All Guardians have received at least one heartbeat.")
-
-		// have them make observations
-		for _, testCase := range testCases {
-			select {
-			case <-ctx.Done():
-				return nil
-			default:
-				// make the first testCase.numGuardiansObserve guardians observe it
-				for guardianIndex, g := range gs {
-					if guardianIndex >= testCase.numGuardiansObserve {
-						break
-					}
-					msgCopy := *testCase.msg
-					logger.Info("requesting mock observation for guardian", msgCopy.ZapFields(zap.Int("guardian_index", guardianIndex))...)
-					g.MockObservationC <- &msgCopy
-				}
-			}
-		}
-
-		// Wait for adminrpc to come online
-		for zapObserver.FilterMessage("admin server listening on").FilterField(zap.String("path", mockAdminStocket(adminRpcGuardianIndex))).Len() == 0 {
-			logger.Info("admin server seems to be offline (according to logs). Waiting 100ms...")
-			time.Sleep(time.Microsecond * 100)
-		}
-
-		// Send manual re-observation requests
-		func() { // put this in own function to use defer
-			s := fmt.Sprintf("unix:///%s", mockAdminStocket(vaaCheckGuardianIndex))
-			conn, err := grpc.DialContext(ctx, s, grpc.WithTransportCredentials(insecure.NewCredentials()))
-			require.NoError(t, err)
-			defer conn.Close()
-
-			c := nodev1.NewNodePrivilegedServiceClient(conn)
-
-			for i, testCase := range testCases {
-				if testCase.performManualReobservationRequest {
-					// timeout for grpc query
-					logger.Info("injecting observation request through admin rpc", zap.Int("test_case", i))
-					queryCtx, queryCancel := context.WithTimeout(ctx, time.Second)
-					_, err = c.SendObservationRequest(queryCtx, &nodev1.SendObservationRequestRequest{
-						ObservationRequest: &gossipv1.ObservationRequest{
-							ChainId: uint32(testCase.msg.EmitterChain),
-							TxHash:  testCase.msg.TxHash[:],
-						},
-					})
-					queryCancel()
-					assert.NoError(t, err)
-				}
-			}
-		}()
-
-		// Wait for publicrpc to come online
-		for zapObserver.FilterMessage("publicrpc server listening").FilterField(zap.String("addr", mockPublicRpc(vaaCheckGuardianIndex))).Len() == 0 {
-			logger.Info("publicrpc seems to be offline (according to logs). Waiting 100ms...")
-			time.Sleep(time.Microsecond * 100)
-		}
-
-		// check that the VAAs were generated
-		logger.Info("Connecting to publicrpc...")
-		conn, err := grpc.DialContext(ctx, mockPublicRpc(vaaCheckGuardianIndex), grpc.WithTransportCredentials(insecure.NewCredentials()))
-		require.NoError(t, err)
-
-		defer conn.Close()
-		c := publicrpcv1.NewPublicRPCServiceClient(conn)
-
-		gsAddrList := mockGuardianSetToGuardianAddrList(gs)
-
-		// ensure that all test cases have passed
-		for i, testCase := range testCases {
-			msg := testCase.msg
-
-			logger.Info("Checking result of testcase", zap.Int("test_case", i))
-
-			// poll the API until we get a response without error
-			var r *publicrpcv1.GetSignedVAAResponse
-			var err error
-			for {
-				select {
-				case <-ctx.Done():
-					assert.Fail(t, "timed out")
-				default:
-					// timeout for grpc query
-					logger.Info("attempting to query for VAA", zap.Int("test_case", i))
-					queryCtx, queryCancel := context.WithTimeout(ctx, time.Second)
-					r, err = c.GetSignedVAA(queryCtx, &publicrpcv1.GetSignedVAARequest{
-						MessageId: &publicrpcv1.MessageID{
-							EmitterChain:   publicrpcv1.ChainID(msg.EmitterChain),
-							EmitterAddress: msg.EmitterAddress.String(),
-							Sequence:       msg.Sequence,
-						},
-					})
-					queryCancel()
-					if err != nil {
-						logger.Info("error querying for VAA. Trying agin in 100ms.", zap.Int("test_case", i), zap.Error(err))
-					}
-				}
-				if err == nil && r != nil {
-					logger.Info("Received VAA from publicrpc", zap.Int("test_case", i), zap.Binary("vaa_bytes", r.VaaBytes))
-					break
-				}
-				if testCase.mustNotReachQuorum {
-					// no need to re-try because we're expecting an error. (and later we'll assert that's indeed an error)
-					break
-				}
-				time.Sleep(time.Millisecond * 100)
-			}
-
-			assert.NotEqual(t, testCase.mustNotReachQuorum, testCase.mustReachQuorum) // either or
-			if testCase.mustNotReachQuorum {
-				assert.EqualError(t, err, "rpc error: code = NotFound desc = requested VAA not found in store")
-			} else if testCase.mustReachQuorum {
-				assert.NotNil(t, r)
-				returnedVaa, err := vaa.Unmarshal(r.VaaBytes)
-				assert.NoError(t, err)
-
-				// Check signatures
-				err = returnedVaa.Verify(gsAddrList)
-				assert.NoError(t, err)
-
-				// Match all the fields
-				assert.Equal(t, returnedVaa.Version, uint8(1))
-				assert.Equal(t, returnedVaa.GuardianSetIndex, uint32(guardianSetIndex))
-				assert.Equal(t, returnedVaa.Timestamp, msg.Timestamp)
-				assert.Equal(t, returnedVaa.Nonce, msg.Nonce)
-				assert.Equal(t, returnedVaa.Sequence, msg.Sequence)
-				assert.Equal(t, returnedVaa.ConsistencyLevel, msg.ConsistencyLevel)
-				assert.Equal(t, returnedVaa.EmitterChain, msg.EmitterChain)
-				assert.Equal(t, returnedVaa.EmitterAddress, msg.EmitterAddress)
-				assert.Equal(t, returnedVaa.Payload, msg.Payload)
-			}
-		}
-
-		// We're done!
-		logger.Info("Tests completed.")
-
-		supervisor.Signal(ctx, supervisor.SignalDone)
-
-		rootCtxCancel()
-		return nil
-	},
-		supervisor.WithPropagatePanic)
-
-	<-rootCtx.Done()
-	assert.NotEqual(t, rootCtx.Err(), context.DeadlineExceeded)
-	zapLogger.Info("Test root context cancelled, exiting...")
 }
