@@ -3,6 +3,7 @@ import * as chainId from "./chainId";
 import * as contract from "./contract";
 import * as emitter from "./emitter";
 import * as origin from "./origin";
+import * as registrations from "./registrations";
 import * as rpc from "./rpc";
 import * as wrapped from "./wrapped";
 
@@ -15,6 +16,7 @@ export const builder = (y: typeof yargs) =>
     .command(contract)
     .command(emitter)
     .command(origin)
+    .command(registrations)
     .command(rpc)
     .command(wrapped);
 export const handler = () => {};
