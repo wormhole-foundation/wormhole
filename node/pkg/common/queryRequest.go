@@ -75,15 +75,14 @@ func MarshalPerChainQueryRequest(perChainQuery *gossipv1.PerChainQueryRequest) (
 	case *gossipv1.PerChainQueryRequest_EthCallQueryRequest:
 		vaa.MustWrite(buf, binary.BigEndian, QUERY_REQUEST_TYPE_ETH_CALL)
 		vaa.MustWrite(buf, binary.BigEndian, uint16(perChainQuery.ChainId))
+		vaa.MustWrite(buf, binary.BigEndian, uint32(len(req.EthCallQueryRequest.Block)))
+		buf.Write([]byte(req.EthCallQueryRequest.Block))
 		vaa.MustWrite(buf, binary.BigEndian, uint8(len(req.EthCallQueryRequest.CallData)))
 		for _, callData := range req.EthCallQueryRequest.CallData {
 			buf.Write(callData.To)
 			vaa.MustWrite(buf, binary.BigEndian, uint32(len(callData.Data)))
 			buf.Write(callData.Data)
 		}
-		vaa.MustWrite(buf, binary.BigEndian, uint32(len(req.EthCallQueryRequest.Block)))
-		// TODO: should this be an enum or the literal string?
-		buf.Write([]byte(req.EthCallQueryRequest.Block))
 	default:
 		return nil, fmt.Errorf("invalid request type")
 	}
@@ -149,6 +148,16 @@ func UnmarshalPerChainQueryRequestFromReader(reader *bytes.Reader) (*gossipv1.Pe
 
 	ethCallQueryRequest := &gossipv1.EthCallQueryRequest{}
 
+	queryEthCallBlockLen := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &queryEthCallBlockLen); err != nil {
+		return nil, fmt.Errorf("failed to read call Data len: %w", err)
+	}
+	queryEthCallBlockBytes := make([]byte, queryEthCallBlockLen)
+	if n, err := reader.Read(queryEthCallBlockBytes[:]); err != nil || n != int(queryEthCallBlockLen) {
+		return nil, fmt.Errorf("failed to read call To [%d]: %w", n, err)
+	}
+	ethCallQueryRequest.Block = string(queryEthCallBlockBytes[:])
+
 	numCallData := uint8(0)
 	if err := binary.Read(reader, binary.BigEndian, &numCallData); err != nil {
 		return nil, fmt.Errorf("failed to read number of call data entries: %w", err)
@@ -176,16 +185,6 @@ func UnmarshalPerChainQueryRequestFromReader(reader *bytes.Reader) (*gossipv1.Pe
 
 		ethCallQueryRequest.CallData = append(ethCallQueryRequest.CallData, callData)
 	}
-
-	queryEthCallBlockLen := uint32(0)
-	if err := binary.Read(reader, binary.BigEndian, &queryEthCallBlockLen); err != nil {
-		return nil, fmt.Errorf("failed to read call Data len: %w", err)
-	}
-	queryEthCallBlockBytes := make([]byte, queryEthCallBlockLen)
-	if n, err := reader.Read(queryEthCallBlockBytes[:]); err != nil || n != int(queryEthCallBlockLen) {
-		return nil, fmt.Errorf("failed to read call To [%d]: %w", n, err)
-	}
-	ethCallQueryRequest.Block = string(queryEthCallBlockBytes[:])
 
 	perChainQuery.Message = &gossipv1.PerChainQueryRequest_EthCallQueryRequest{
 		EthCallQueryRequest: ethCallQueryRequest,
