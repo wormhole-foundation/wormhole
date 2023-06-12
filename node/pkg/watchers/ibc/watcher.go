@@ -168,6 +168,14 @@ type ibcReceivePublishEvent struct {
 // Run is the runnable for monitoring the IBC contract on wormchain.
 func (w *Watcher) Run(ctx context.Context) error {
 	w.logger = supervisor.Logger(ctx)
+
+	w.logger.Info("Starting watcher",
+		zap.String("watcher_name", "ibc"),
+		zap.String("wsUrl", w.wsUrl),
+		zap.String("lcdUrl", w.lcdUrl),
+		zap.String("contractAddress", w.contractAddress),
+	)
+
 	errC := make(chan error)
 
 	w.logger.Info("creating watcher",
