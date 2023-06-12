@@ -37,6 +37,10 @@ import { AddressInfo } from "net";
   const createTestChain = (name: ChainName) => {
     const provider = getDefaultProvider(network, name, ci);
     const addressInfo = getAddressInfo(name, network);
+    if(process.env.DEV) {
+      // Via ir is off -> different wormhole relayer address
+      addressInfo.wormholeRelayerAddress = "0x53855d4b64E9A3CF59A84bc768adA716B5536BC5"
+    }
     if(!addressInfo.wormholeRelayerAddress) throw Error(`No core relayer address for ${name}`);
     if(!addressInfo.mockIntegrationAddress) throw Error(`No mock relayer integration address for ${name}`);
     const wallet = new ethers.Wallet(PRIVATE_KEY, provider);
