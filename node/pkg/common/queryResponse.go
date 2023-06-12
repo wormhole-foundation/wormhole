@@ -30,37 +30,49 @@ const (
 	QueryFatalError QueryStatus = -1
 )
 
-type QueryResponse struct {
-	RequestID     string
-	ChainID       vaa.ChainID
-	Status        QueryStatus
-	SignedRequest *gossipv1.SignedQueryRequest
-	Result        *EthCallQueryResponse
+// This is the query response returned from the watcher to the query handler.
+type PerChainQueryResponseInternal struct {
+	RequestID  string
+	RequestIdx int
+	ChainID    vaa.ChainID
+	Status     QueryStatus
+	Results    []EthCallQueryResponse
 }
 
-func CreateQueryResponse(req *QueryRequest, status QueryStatus, result *EthCallQueryResponse) *QueryResponse {
-	return &QueryResponse{
-		RequestID:     req.RequestID,
-		ChainID:       vaa.ChainID(req.Request.ChainId),
-		SignedRequest: req.SignedRequest,
-		Status:        status,
-		Result:        result,
+// CreatePerChainQueryResponseInternal creates a PerChainQueryResponseInternal and returns a pointer to it.
+func CreatePerChainQueryResponseInternal(reqId string, reqIdx int, chainID vaa.ChainID, status QueryStatus, results []EthCallQueryResponse) *PerChainQueryResponseInternal {
+	return &PerChainQueryResponseInternal{
+		RequestID:  reqId,
+		RequestIdx: reqIdx,
+		ChainID:    chainID,
+		Status:     status,
+		Results:    results,
 	}
 }
 
 var queryResponsePrefix = []byte("query_response_0000000000000000000|")
+
+type QueryResponsePublication struct {
+	Request           *gossipv1.SignedQueryRequest
+	PerChainResponses []PerChainQueryResponse
+}
+
+type PerChainQueryResponse struct {
+	ChainID   uint32
+	Responses []EthCallQueryResponse
+}
 
 type EthCallQueryResponse struct {
 	Number *big.Int
 	Hash   common.Hash
 	Time   time.Time
 	Result []byte
+	// NOTE: If you modify this struct, please update the Equal() method for QueryResponsePublication.
 }
 
-type QueryResponsePublication struct {
-	Request  *gossipv1.SignedQueryRequest
-	Response EthCallQueryResponse
-}
+const (
+	QUERY_REQUEST_TYPE_ETH_CALL = uint8(1)
+)
 
 func (resp *QueryResponsePublication) RequestID() string {
 	if resp == nil || resp.Request == nil {
@@ -69,8 +81,8 @@ func (resp *QueryResponsePublication) RequestID() string {
 	return hex.EncodeToString(resp.Request.Signature)
 }
 
-// Marshal serializes the binary representation of a query response
-func (msg *QueryResponsePublication) Marshal() ([]byte, error) {
+// MarshalQueryResponsePublication serializes the binary representation of a query response
+func MarshalQueryResponsePublication(msg *QueryResponsePublication) ([]byte, error) {
 	// TODO: copy request write checks to query module request handling
 	// TODO: only receive the unmarshalled query request (see note in query.go)
 	var queryRequest gossipv1.QueryRequest
@@ -79,15 +91,15 @@ func (msg *QueryResponsePublication) Marshal() ([]byte, error) {
 		return nil, fmt.Errorf("received invalid message from query module")
 	}
 
+	// Validate things before we start marshalling.
 	if err := ValidateQueryRequest(&queryRequest); err != nil {
 		return nil, fmt.Errorf("queryRequest is invalid: %w", err)
 	}
 
-	if len(msg.Response.Hash) != 32 {
-		return nil, fmt.Errorf("invalid length for block hash")
-	}
-	if len(msg.Response.Result) > math.MaxUint32 {
-		return nil, fmt.Errorf("response data too long")
+	for idx := range msg.PerChainResponses {
+		if err := ValidatePerChainResponse(&msg.PerChainResponses[idx]); err != nil {
+			return nil, fmt.Errorf("invalid per chain response: %w", err)
+		}
 	}
 
 	buf := new(bytes.Buffer)
@@ -99,31 +111,56 @@ func (msg *QueryResponsePublication) Marshal() ([]byte, error) {
 	buf.Write(msg.Request.Signature[:])
 
 	// Request
-	// TODO: support writing different types of request/response pairs
-	switch req := queryRequest.Message.(type) {
-	case *gossipv1.QueryRequest_EthCallQueryRequest:
-		vaa.MustWrite(buf, binary.BigEndian, uint8(1))
-		vaa.MustWrite(buf, binary.BigEndian, uint16(queryRequest.ChainId))
-		vaa.MustWrite(buf, binary.BigEndian, queryRequest.Nonce) // uint32
-		buf.Write(req.EthCallQueryRequest.To)
-		vaa.MustWrite(buf, binary.BigEndian, uint32(len(req.EthCallQueryRequest.Data)))
-		buf.Write(req.EthCallQueryRequest.Data)
-		vaa.MustWrite(buf, binary.BigEndian, uint32(len(req.EthCallQueryRequest.Block)))
-		// TODO: should this be an enum or the literal string?
-		buf.Write([]byte(req.EthCallQueryRequest.Block))
-
-		// Response
-		// TODO: probably some kind of request/response pair validation
-		// TODO: is uint64 safe?
-		vaa.MustWrite(buf, binary.BigEndian, msg.Response.Number.Uint64())
-		buf.Write(msg.Response.Hash[:])
-		vaa.MustWrite(buf, binary.BigEndian, uint32(msg.Response.Time.Unix()))
-		vaa.MustWrite(buf, binary.BigEndian, uint32(len(msg.Response.Result)))
-		buf.Write(msg.Response.Result)
-		return buf.Bytes(), nil
-	default:
-		return nil, fmt.Errorf("received invalid message from query module")
+	qrBuf, err := MarshalQueryRequest(&queryRequest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal query request")
 	}
+	buf.Write(qrBuf)
+
+	// Per chain responses
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(msg.PerChainResponses)))
+	for idx := range msg.PerChainResponses {
+		pcrBuf, err := MarshalPerChainResponse(&msg.PerChainResponses[idx])
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal per chain response: %w", err)
+		}
+		buf.Write(pcrBuf)
+	}
+
+	return buf.Bytes(), nil
+}
+
+// MarshalPerChainResponse marshalls a per chain query response.
+func MarshalPerChainResponse(pcr *PerChainQueryResponse) ([]byte, error) {
+	buf := new(bytes.Buffer)
+	vaa.MustWrite(buf, binary.BigEndian, pcr.ChainID)
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(pcr.Responses)))
+	for _, resp := range pcr.Responses {
+		vaa.MustWrite(buf, binary.BigEndian, resp.Number.Uint64())
+		buf.Write(resp.Hash[:])
+		vaa.MustWrite(buf, binary.BigEndian, resp.Time.UnixMicro())
+		vaa.MustWrite(buf, binary.BigEndian, uint32(len(resp.Result)))
+		buf.Write(resp.Result)
+	}
+	return buf.Bytes(), nil
+}
+
+// ValidatePerChainResponse performs basic validation on a per chain query response.
+func ValidatePerChainResponse(pcr *PerChainQueryResponse) error {
+	if pcr.ChainID > math.MaxUint16 {
+		return fmt.Errorf("invalid chain ID")
+	}
+
+	for _, resp := range pcr.Responses {
+		if len(resp.Hash) != 32 {
+			return fmt.Errorf("invalid length for block hash")
+		}
+		if len(resp.Result) > math.MaxUint32 {
+			return fmt.Errorf("response data too long")
+		}
+	}
+
+	return nil
 }
 
 // Unmarshal deserializes the binary representation of a query response
@@ -153,59 +190,11 @@ func UnmarshalQueryResponsePublication(data []byte) (*QueryResponsePublication, 
 	}
 	signedQueryRequest.Signature = signature[:]
 
-	requestType := uint8(0)
-	if err := binary.Read(reader, binary.BigEndian, &requestType); err != nil {
-		return nil, fmt.Errorf("failed to read request chain: %w", err)
-	}
-	if requestType != 1 {
-		// TODO: support reading different types of request/response pairs
-		return nil, fmt.Errorf("unsupported request type: %d", requestType)
+	queryRequest, err := UnmarshalQueryRequestFromReader(reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal query request: %w", err)
 	}
 
-	queryRequest := &gossipv1.QueryRequest{}
-	queryChain := vaa.ChainID(0)
-	if err := binary.Read(reader, binary.BigEndian, &queryChain); err != nil {
-		return nil, fmt.Errorf("failed to read request chain: %w", err)
-	}
-	queryRequest.ChainId = uint32(queryChain)
-
-	queryNonce := uint32(0)
-	if err := binary.Read(reader, binary.BigEndian, &queryNonce); err != nil {
-		return nil, fmt.Errorf("failed to read request nonce: %w", err)
-	}
-	queryRequest.Nonce = queryNonce
-
-	ethCallQueryRequest := &gossipv1.EthCallQueryRequest{}
-
-	queryEthCallTo := [20]byte{}
-	if n, err := reader.Read(queryEthCallTo[:]); err != nil || n != 20 {
-		return nil, fmt.Errorf("failed to read call To [%d]: %w", n, err)
-	}
-	ethCallQueryRequest.To = queryEthCallTo[:]
-
-	queryEthCallDataLen := uint32(0)
-	if err := binary.Read(reader, binary.BigEndian, &queryEthCallDataLen); err != nil {
-		return nil, fmt.Errorf("failed to read call Data len: %w", err)
-	}
-	queryEthCallData := make([]byte, queryEthCallDataLen)
-	if n, err := reader.Read(queryEthCallData[:]); err != nil || n != int(queryEthCallDataLen) {
-		return nil, fmt.Errorf("failed to read call To [%d]: %w", n, err)
-	}
-	ethCallQueryRequest.Data = queryEthCallData[:]
-
-	queryEthCallBlockLen := uint32(0)
-	if err := binary.Read(reader, binary.BigEndian, &queryEthCallBlockLen); err != nil {
-		return nil, fmt.Errorf("failed to read call Data len: %w", err)
-	}
-	queryEthCallBlockBytes := make([]byte, queryEthCallBlockLen)
-	if n, err := reader.Read(queryEthCallBlockBytes[:]); err != nil || n != int(queryEthCallBlockLen) {
-		return nil, fmt.Errorf("failed to read call To [%d]: %w", n, err)
-	}
-	ethCallQueryRequest.Block = string(queryEthCallBlockBytes[:])
-
-	queryRequest.Message = &gossipv1.QueryRequest_EthCallQueryRequest{
-		EthCallQueryRequest: ethCallQueryRequest,
-	}
 	queryRequestBytes, err := proto.Marshal(queryRequest)
 	if err != nil {
 		return nil, err
@@ -214,41 +203,73 @@ func UnmarshalQueryResponsePublication(data []byte) (*QueryResponsePublication, 
 
 	msg.Request = signedQueryRequest
 
-	// Response
-	queryResponse := EthCallQueryResponse{}
-
-	responseNumber := uint64(0)
-	if err := binary.Read(reader, binary.BigEndian, &responseNumber); err != nil {
-		return nil, fmt.Errorf("failed to read response number: %w", err)
+	// Responses
+	numPerChainResponses := uint8(0)
+	if err := binary.Read(reader, binary.BigEndian, &numPerChainResponses); err != nil {
+		return nil, fmt.Errorf("failed to read number of per chain responses: %w", err)
 	}
-	responseNumberBig := big.NewInt(0).SetUint64(responseNumber)
-	queryResponse.Number = responseNumberBig
 
-	responseHash := common.Hash{}
-	if n, err := reader.Read(responseHash[:]); err != nil || n != 32 {
-		return nil, fmt.Errorf("failed to read response hash [%d]: %w", n, err)
+	for count := 0; count < int(numPerChainResponses); count++ {
+		pcr, err := UnmarshalQueryPerChainResponseFromReader(reader)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal per chain response: %w", err)
+		}
+		msg.PerChainResponses = append(msg.PerChainResponses, *pcr)
 	}
-	queryResponse.Hash = responseHash
-
-	unixSeconds := uint32(0)
-	if err := binary.Read(reader, binary.BigEndian, &unixSeconds); err != nil {
-		return nil, fmt.Errorf("failed to read response timestamp: %w", err)
-	}
-	queryResponse.Time = time.Unix(int64(unixSeconds), 0)
-
-	responseResultLen := uint32(0)
-	if err := binary.Read(reader, binary.BigEndian, &responseResultLen); err != nil {
-		return nil, fmt.Errorf("failed to read response len: %w", err)
-	}
-	responseResult := make([]byte, responseResultLen)
-	if n, err := reader.Read(responseResult[:]); err != nil || n != int(responseResultLen) {
-		return nil, fmt.Errorf("failed to read result [%d]: %w", n, err)
-	}
-	queryResponse.Result = responseResult[:]
-
-	msg.Response = queryResponse
 
 	return msg, nil
+}
+
+func UnmarshalQueryPerChainResponseFromReader(reader *bytes.Reader) (*PerChainQueryResponse, error) {
+	pcr := PerChainQueryResponse{}
+
+	chainID := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &chainID); err != nil {
+		return nil, fmt.Errorf("failed to read chain ID: %w", err)
+	}
+	pcr.ChainID = chainID
+
+	numResponses := uint8(0)
+	if err := binary.Read(reader, binary.BigEndian, &numResponses); err != nil {
+		return nil, fmt.Errorf("failed to read number of responses: %w", err)
+	}
+
+	for count := 0; count < int(numResponses); count++ {
+		queryResponse := EthCallQueryResponse{}
+
+		responseNumber := uint64(0)
+		if err := binary.Read(reader, binary.BigEndian, &responseNumber); err != nil {
+			return nil, fmt.Errorf("failed to read response number: %w", err)
+		}
+		responseNumberBig := big.NewInt(0).SetUint64(responseNumber)
+		queryResponse.Number = responseNumberBig
+
+		responseHash := common.Hash{}
+		if n, err := reader.Read(responseHash[:]); err != nil || n != 32 {
+			return nil, fmt.Errorf("failed to read response hash [%d]: %w", n, err)
+		}
+		queryResponse.Hash = responseHash
+
+		unixMicros := int64(0)
+		if err := binary.Read(reader, binary.BigEndian, &unixMicros); err != nil {
+			return nil, fmt.Errorf("failed to read response timestamp: %w", err)
+		}
+		queryResponse.Time = time.UnixMicro(unixMicros)
+
+		responseResultLen := uint32(0)
+		if err := binary.Read(reader, binary.BigEndian, &responseResultLen); err != nil {
+			return nil, fmt.Errorf("failed to read response len: %w", err)
+		}
+		responseResult := make([]byte, responseResultLen)
+		if n, err := reader.Read(responseResult[:]); err != nil || n != int(responseResultLen) {
+			return nil, fmt.Errorf("failed to read result [%d]: %w", n, err)
+		}
+		queryResponse.Result = responseResult[:]
+
+		pcr.Responses = append(pcr.Responses, queryResponse)
+	}
+
+	return &pcr, nil
 }
 
 // Similar to sdk/vaa/structs.go,
@@ -256,13 +277,55 @@ func UnmarshalQueryResponsePublication(data []byte) (*QueryResponsePublication, 
 // the first hash (32 bytes) vs the full body data.
 // TODO: confirm if this works / is worthwhile.
 func (msg *QueryResponsePublication) SigningDigest() (common.Hash, error) {
-	msgBytes, err := msg.Marshal()
+	msgBytes, err := MarshalQueryResponsePublication(msg)
 	if err != nil {
 		return common.Hash{}, err
 	}
 	return GetQueryResponseDigestFromBytes(msgBytes), nil
 }
 
+// GetQueryResponseDigestFromBytes computes the digest bytes for a query response byte array.
 func GetQueryResponseDigestFromBytes(b []byte) common.Hash {
 	return crypto.Keccak256Hash(append(queryResponsePrefix, crypto.Keccak256Hash(b).Bytes()...))
+}
+
+// Equal checks for equality on two query response publications.
+func (left *QueryResponsePublication) Equal(right *QueryResponsePublication) bool {
+	if !bytes.Equal(left.Request.QueryRequest, right.Request.QueryRequest) || !bytes.Equal(left.Request.Signature, right.Request.Signature) {
+		return false
+	}
+	if len(left.PerChainResponses) != len(right.PerChainResponses) {
+		return false
+	}
+	for idx := range left.PerChainResponses {
+		if !left.PerChainResponses[idx].Equal(&right.PerChainResponses[idx]) {
+			return false
+		}
+	}
+	return true
+}
+
+// Equal checks for equality on two per chain query responses.
+func (left *PerChainQueryResponse) Equal(right *PerChainQueryResponse) bool {
+	if left.ChainID != right.ChainID {
+		return false
+	}
+	if len(left.Responses) != len(right.Responses) {
+		return false
+	}
+	for idx := range left.Responses {
+		if left.Responses[idx].Number.Cmp(right.Responses[idx].Number) != 0 {
+			return false
+		}
+		if !bytes.Equal(left.Responses[idx].Hash.Bytes(), right.Responses[idx].Hash.Bytes()) {
+			return false
+		}
+		if left.Responses[idx].Time != right.Responses[idx].Time {
+			return false
+		}
+		if !bytes.Equal(left.Responses[idx].Result, right.Responses[idx].Result) {
+			return false
+		}
+	}
+	return true
 }
