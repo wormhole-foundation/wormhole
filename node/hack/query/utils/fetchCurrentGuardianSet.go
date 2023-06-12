@@ -35,6 +35,10 @@ func FetchLatestBlockNumber(ctx context.Context, network common.Environment) (*b
 	if rawUrl == "" {
 		return nil, fmt.Errorf("unable to get rpc url")
 	}
+	return FetchLatestBlockNumberFromUrl(ctx, rawUrl)
+}
+
+func FetchLatestBlockNumberFromUrl(ctx context.Context, rawUrl string) (*big.Int, error) {
 	rawClient, err := ethRpc.DialContext(ctx, rawUrl)
 	if err != nil {
 		return nil, fmt.Errorf("unable to dial eth context: %w", err)
