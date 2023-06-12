@@ -243,17 +243,25 @@ message SignedQueryRequest {
 }
 
 message QueryRequest {
+  uint32 nonce = 1;
+  repeated PerChainQueryRequest per_chain_queries = 2;
+}
+
+message PerChainQueryRequest {
   uint32 chain_id = 1;
-  uint32 nonce = 2;
   oneof message {
     EthCallQueryRequest eth_call_query_request = 3;
   }
 }
 
 message EthCallQueryRequest {
-  bytes to = 1;
-  bytes data = 2;
-  string block = 3;
+  string block = 1;
+  repeated EthCallData call_data = 2;
+    
+  message EthCallData {
+    bytes to = 1;
+    bytes data = 2;
+  }
 }
 
 message SignedQueryResponse {
