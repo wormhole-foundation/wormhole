@@ -18,7 +18,7 @@
     "build-lib": "tsc -p tsconfig.json && tsc -p tsconfig-cjs.json && node scripts/copyEthersTypes.js",
     "build-all": "npm run build-deps && npm run build-lib",
     "docs": "typedoc src/index.ts",
-    "test": "NETWORK=DEVNET jest --config jestconfig.json --verbose",
+    "test": "DEV=true NETWORK=DEVNET jest --config jestconfig.json --verbose",
     "test-ci": "NETWORK=DEVNET NEAR_NO_LOGS=true jest --config jestconfig.json --verbose --setupFiles ./ci-config.js --forceExit",
     "build": "npm run build-all",
     "format": "echo \"disabled: prettier --write \"src/**/*.ts\"\"",
