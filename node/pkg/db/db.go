@@ -7,8 +7,16 @@ import (
 	"strings"
 
 	"github.com/dgraph-io/badger/v3"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
+
+var storedVaaTotal = promauto.NewCounter(
+	prometheus.CounterOpts{
+		Name: "wormhole_db_vaa_ctr",
+		Help: "Total number of VAAs stored in database",
+	})
 
 type Database struct {
 	db *badger.DB
@@ -113,6 +121,8 @@ func (d *Database) StoreSignedVAA(v *vaa.VAA) error {
 	if err != nil {
 		return fmt.Errorf("failed to commit tx: %w", err)
 	}
+
+	storedVaaTotal.Inc()
 
 	return nil
 }
