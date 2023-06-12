@@ -378,20 +378,22 @@ describe("Wormhole Relayer Tests", () => {
 
   test("Governance: Test Registering Chain", async () => {
 
-    const currentAddress = await source.wormholeRelayer.getRegisteredWormholeRelayerContract(6);
-    console.log(`For Chain ${source.chainId}, registered chain 65535 address: ${currentAddress}`);
+    const chain = 65535;
+
+    const currentAddress = await source.wormholeRelayer.getRegisteredWormholeRelayerContract(chain);
+    console.log(`For Chain ${source.chainId}, registered chain ${chain} address: ${currentAddress}`);
 
     const expectedNewRegisteredAddress = "0x0000000000000000000000001234567890123456789012345678901234567892";
 
     const timestamp = (await source.wallet.provider.getBlock("latest")).timestamp;
-    const chain = 65535;
+    
     const firstMessage = governance.publishWormholeRelayerRegisterChain(timestamp, chain, expectedNewRegisteredAddress)
     const firstSignedVaa = guardians.addSignatures(firstMessage, guardianIndices);
 
     let tx = await source.wormholeRelayer.registerWormholeRelayerContract(firstSignedVaa, {gasLimit: REASONABLE_GAS_LIMIT});
     await tx.wait();
 
-    const newRegisteredAddress = (await source.wormholeRelayer.getRegisteredWormholeRelayerContract(6));
+    const newRegisteredAddress = (await source.wormholeRelayer.getRegisteredWormholeRelayerContract(chain));
 
     expect(newRegisteredAddress).toBe(expectedNewRegisteredAddress);
 })
