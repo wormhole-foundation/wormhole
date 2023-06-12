@@ -5,7 +5,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/stretchr/testify/assert"
-	"github.com/test-go/testify/require"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
