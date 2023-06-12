@@ -4,13 +4,13 @@
 
 # Chains
 
-/algorand/ @jumpsiegel
+/algorand/ @jumpsiegel @evan-gray @hendrikhofstadt @kcsongor
 /aptos/ @kcsongor @a5-pickle
-/bitcoin/ @conorpp @jumpsiegel
+/bitcoin/ @conorpp @jumpsiegel @evan-gray @hendrikhofstadt
 /cosmwasm/ @jynnantonix @kcsongor @a5-pickle
 /ethereum/ @a5-pickle @calebrate @gator-boi @hendrikhofstadt @kcsongor
 /ethereum/contracts/relayer @chase-45 @derpy-duck @JoeHowarth 
-/near/ @jumpsiegel
+/near/ @jumpsiegel @evan-gray @hendrikhofstadt @kcsongor
 /solana/ @hendrikhofstadt @kcsongor @a5-pickle
 /sui/ @kcsongor @a5-pickle @gator-boi @heyitaki
 /terra/ @kcsongor @a5-pickle
