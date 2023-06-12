@@ -267,6 +267,14 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	logger := supervisor.Logger(ctx)
 
+	logger.Info("Starting watcher",
+		zap.String("watcher_name", "sui"),
+		zap.String("suiRPC", e.suiRPC),
+		zap.String("suiWS", e.suiWS),
+		zap.String("suiMoveEventType", e.suiMoveEventType),
+		zap.Bool("unsafeDevMode", e.unsafeDevMode),
+	)
+
 	u := url.URL{Scheme: "ws", Host: e.suiWS}
 
 	logger.Info("Sui watcher connecting to WS node ", zap.String("url", u.String()))

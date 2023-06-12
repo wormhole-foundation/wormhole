@@ -165,6 +165,15 @@ func NewEthWatcher(
 func (w *Watcher) Run(parentCtx context.Context) error {
 	logger := supervisor.Logger(parentCtx)
 
+	logger.Info("Starting watcher",
+		zap.String("watcher_name", "evm"),
+		zap.String("url", w.url),
+		zap.String("contract", w.contract.String()),
+		zap.String("networkName", w.networkName),
+		zap.String("chainID", w.chainID.String()),
+		zap.Bool("unsafeDevMode", w.unsafeDevMode),
+	)
+
 	// later on we will spawn multiple go-routines through `RunWithScissors`, i.e. catching panics.
 	// If any of them panic, this function will return, causing this child context to be canceled
 	// such that the other go-routines can free up resources
