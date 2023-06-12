@@ -382,7 +382,7 @@ describe("Wormhole Relayer Tests", () => {
 
   test("Governance: Test Registering Chain", async () => {
 
-    const chain = 65535;
+    const chain = 26;
 
     const currentAddress = await source.wormholeRelayer.getRegisteredWormholeRelayerContract(chain);
     console.log(`For Chain ${source.chainId}, registered chain ${chain} address: ${currentAddress}`);
