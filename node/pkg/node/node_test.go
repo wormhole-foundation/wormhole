@@ -12,6 +12,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -184,9 +185,11 @@ func mockGuardianRunnable(gs []*mockGuardian, mockGuardianIndex uint, obsDb mock
 }
 
 // setupLogsCapture is a helper function for making a zap logger/observer combination for testing that certain logs have been made
-func setupLogsCapture() (*zap.Logger, *observer.ObservedLogs) {
+func setupLogsCapture(options ...zap.Option) (*zap.Logger, *observer.ObservedLogs) {
 	observedCore, logs := observer.New(zap.DebugLevel)
-	logger, _ := zap.NewDevelopment(zap.WrapCore(func(c zapcore.Core) zapcore.Core { return zapcore.NewTee(c, observedCore) }))
+	wcOpt := zap.WrapCore(func(c zapcore.Core) zapcore.Core { return zapcore.NewTee(c, observedCore) })
+	options = append(options, wcOpt)
+	logger, _ := zap.NewDevelopment(options...)
 	return logger, logs
 }
 
@@ -354,9 +357,137 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// TestInvalidWatcherConfig tries to instantiate a guardian with various invlid []watchers.WatcherConfig and asserts that it errors
-func TestInvalidWatcherConfig(t *testing.T) {
-	// TODO
+type testCaseGuardianConfig struct {
+	name string
+	opts []*GuardianOption
+	err  string
+}
+
+// TestWatcherConfigs tries to instantiate a guardian with various invlid []watchers.WatcherConfig and asserts that it errors
+func TestWatcherConfigs(t *testing.T) {
+	tc := []testCaseGuardianConfig{
+		{
+			name: "no error",
+			opts: []*GuardianOption{
+				GuardianOptionWatchers([]watchers.WatcherConfig{
+					&mock.WatcherConfig{
+						NetworkID: "mock",
+						ChainID:   vaa.ChainIDSolana,
+					},
+				}, nil),
+			},
+			err: "",
+		},
+		{
+			name: "watcher-NetworkID-collision",
+			opts: []*GuardianOption{
+				GuardianOptionWatchers([]watchers.WatcherConfig{
+					&mock.WatcherConfig{
+						NetworkID: "mock",
+						ChainID:   vaa.ChainIDSolana,
+					},
+					&mock.WatcherConfig{
+						NetworkID: "mock",
+						ChainID:   vaa.ChainIDSolana,
+					},
+				}, nil),
+			},
+			err: "NetworkID already configured: mock",
+		},
+	}
+	testGuardianConfigurations(t, tc)
+}
+
+func TestGuardianConfigs(t *testing.T) {
+	tc := []testCaseGuardianConfig{
+		{
+			name: "unfulfilled-dependency",
+			opts: []*GuardianOption{
+				GuardianOptionAccountant("", "", false, nil),
+			},
+			err: "Check the order of your options.",
+		},
+	}
+	testGuardianConfigurations(t, tc)
+}
+
+func testGuardianConfigurations(t *testing.T, testCases []testCaseGuardianConfig) {
+	for _, tc := range testCases {
+		// because we're only instantiating the guardians and kill them right after they started running, 2s should be plenty of time
+		const testTimeout = time.Second * 2
+
+		// Test's main lifecycle context.
+		rootCtx, rootCtxCancel := context.WithTimeout(context.Background(), testTimeout)
+		defer rootCtxCancel()
+
+		// we need to catch a zap.Logger.Fatal() here.
+		// By default zap.Logger.Fatal() will os.Exit(1), which we can't catch.
+		// We modify zap's behavior to instead assert that the error is the one we're looking for and then panic
+		// The panic will be subsequently caught by the supervisor
+		fatalHook := make(fatalHook)
+		defer close(fatalHook)
+		zapLogger, zapObserver := setupLogsCapture(zap.WithFatalHook(fatalHook))
+
+		supervisor.New(rootCtx, zapLogger, func(ctx context.Context) error {
+			// Create a sub-context with cancel function that we can pass to G.run.
+			ctx, ctxCancel := context.WithCancel(ctx)
+			defer ctxCancel()
+			logger := supervisor.Logger(ctx)
+
+			if err := supervisor.Run(ctx, tc.name, NewGuardianNode(common.GoTest, nil).Run(ctxCancel, tc.opts...)); err != nil {
+				panic(err)
+			}
+
+			supervisor.Signal(ctx, supervisor.SignalHealthy)
+
+			// wait for all options to get applied
+			// If we were expecting an error, we should never get past this point.
+			for len(zapObserver.FilterMessage("GuardianNode initialization done.").All()) == 0 {
+				//logger.Info("Guardian not yet initialized. Waiting 10ms...")
+				time.Sleep(time.Millisecond * 10)
+			}
+
+			// Test done.
+			logger.Info("Test done.")
+			supervisor.Signal(ctx, supervisor.SignalDone)
+			rootCtxCancel()
+
+			return nil
+		})
+
+		select {
+		case r := <-fatalHook:
+			if tc.err == "" {
+				assert.Equal(t, tc.err, r)
+			}
+			assert.Contains(t, r, tc.err)
+			rootCtxCancel()
+		case <-rootCtx.Done():
+			assert.NotEqual(t, rootCtx.Err(), context.DeadlineExceeded)
+			assert.Equal(t, tc.err, "") // we only want to end up here if we did not expect an error.
+		}
+	}
+}
+
+// fatalHook catches zap.Logger.Fatal(), sends them to triggerC, and then panics.
+type fatalHook chan string
+
+func (c fatalHook) OnWrite(ce *zapcore.CheckedEntry, fields []zapcore.Field) {
+	// construct message, which will be the main log message, followed by all errors
+	var sb strings.Builder
+
+	sb.WriteString(ce.Message)
+
+	for _, f := range fields {
+		err, ok := f.Interface.(error)
+		if ok {
+			sb.WriteString(", error:")
+			sb.WriteString(err.Error())
+		}
+	}
+
+	c <- sb.String()
+	panic(ce.Message)
 }
 
 // TestBasicConsensus tests that a set of guardians can form consensus on certain messages and reject certain other messages
