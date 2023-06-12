@@ -10,10 +10,12 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math/big"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/certusone/wormhole/node/hack/query/utils"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -32,6 +34,7 @@ import (
 	libp2ptls "github.com/libp2p/go-libp2p/p2p/security/tls"
 	libp2pquic "github.com/libp2p/go-libp2p/p2p/transport/quic"
 	"github.com/multiformats/go-multiaddr"
+	"github.com/tendermint/tendermint/libs/rand"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/openpgp/armor" //nolint
 	"google.golang.org/protobuf/proto"
@@ -177,32 +180,129 @@ func main() {
 		panic(err)
 	}
 
-	// methodName := "totalSupply"
-	methodName := "name"
-	data, err := wethAbi.Pack(methodName)
-	if err != nil {
-		panic(err)
-	}
-
+	methods := []string{"name", "totalSupply"}
+	callData := []*gossipv1.EthCallQueryRequest_EthCallData{}
 	to, _ := hex.DecodeString("0d500b1d8e8ef31e21c99d1db9a6444d3adf1270")
-	// block := "0x28d9630"
-	block := "latest"
-	// block := "0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"
-	callRequest := &gossipv1.EthCallQueryRequest{
-		To:    to,
-		Data:  data,
-		Block: block,
-	}
-	queryRequest := &gossipv1.QueryRequest{
-		ChainId: 5,
-		Nonce:   0,
-		Message: &gossipv1.QueryRequest_EthCallQueryRequest{
-			EthCallQueryRequest: callRequest}}
 
+	for _, method := range methods {
+		data, err := wethAbi.Pack(method)
+		if err != nil {
+			panic(err)
+		}
+
+		callData = append(callData, &gossipv1.EthCallQueryRequest_EthCallData{
+			To:   to,
+			Data: data,
+		})
+	}
+
+	// Fetch the latest block number
+	url := "https://rpc.ankr.com/polygon"
+	logger.Info("Querying for latest block height", zap.String("url", url))
+	blockNum, err := utils.FetchLatestBlockNumberFromUrl(ctx, url)
+	if err != nil {
+		logger.Fatal("Failed to fetch latest block number", zap.Error(err))
+	}
+
+	logger.Info("latest block", zap.String("num", blockNum.String()), zap.String("encoded", hexutil.EncodeBig(blockNum)))
+
+	// block := "0x28d9630"
+	// block := "latest"
+	// block := "0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"
+
+	// Start of query creation...
+	callRequest := &gossipv1.EthCallQueryRequest{
+		Block:    hexutil.EncodeBig(blockNum),
+		CallData: callData,
+	}
+
+	// Send 2 individual requests for the same thing but 5 blocks apart
+	// First request...
+	logger.Info("calling sendQueryAndGetRsp for ", zap.String("blockNum", blockNum.String()))
+	queryRequest := createQueryRequest(callRequest)
+	sendQueryAndGetRsp(queryRequest, sk, th, ctx, logger, sub, wethAbi, methods)
+
+	// This is just so that when I look at the output, it is easier for me. (Paul)
+	logger.Info("sleeping for 5 seconds")
+	time.Sleep(time.Second * 5)
+
+	// Second request...
+	blockNum = blockNum.Sub(blockNum, big.NewInt(5))
+	callRequest2 := &gossipv1.EthCallQueryRequest{
+		Block:    hexutil.EncodeBig(blockNum),
+		CallData: callData,
+	}
+	queryRequest2 := createQueryRequest(callRequest2)
+	logger.Info("calling sendQueryAndGetRsp for ", zap.String("blockNum", blockNum.String()))
+	sendQueryAndGetRsp(queryRequest2, sk, th, ctx, logger, sub, wethAbi, methods)
+
+	// Now, want to send a single query with multiple requests...
+	logger.Info("Starting multiquery test in 5...")
+	time.Sleep(time.Second * 5)
+	multiCallRequest := []*gossipv1.EthCallQueryRequest{callRequest, callRequest2}
+	multQueryRequest := createQueryRequestWithMultipleRequests(multiCallRequest)
+	sendQueryAndGetRsp(multQueryRequest, sk, th, ctx, logger, sub, wethAbi, methods)
+
+	// Cleanly shutdown
+	// Without this the same host won't properly discover peers until some timeout
+	sub.Cancel()
+	if err := th.Close(); err != nil {
+		logger.Fatal("Error closing the topic", zap.Error(err))
+	}
+	if err := h.Close(); err != nil {
+		logger.Fatal("Error closing the host", zap.Error(err))
+	}
+
+	//
+	// END SHUTDOWN
+	//
+
+	logger.Info("Success! All tests passed!")
+}
+
+const (
+	GuardianKeyArmoredBlock = "WORMHOLE GUARDIAN PRIVATE KEY"
+)
+
+func createQueryRequest(callRequest *gossipv1.EthCallQueryRequest) *gossipv1.QueryRequest {
+	queryRequest := &gossipv1.QueryRequest{
+		Nonce: rand.Uint32(),
+		PerChainQueries: []*gossipv1.PerChainQueryRequest{
+			{
+				ChainId: 5,
+				Message: &gossipv1.PerChainQueryRequest_EthCallQueryRequest{
+					EthCallQueryRequest: callRequest,
+				},
+			},
+		},
+	}
+	return queryRequest
+}
+
+func createQueryRequestWithMultipleRequests(callRequests []*gossipv1.EthCallQueryRequest) *gossipv1.QueryRequest {
+	perChainQueries := []*gossipv1.PerChainQueryRequest{}
+	for _, req := range callRequests {
+		perChainQueries = append(perChainQueries, &gossipv1.PerChainQueryRequest{
+			ChainId: 5,
+			Message: &gossipv1.PerChainQueryRequest_EthCallQueryRequest{
+				EthCallQueryRequest: req,
+			},
+		})
+	}
+
+	queryRequest := &gossipv1.QueryRequest{
+		Nonce:           rand.Uint32(),
+		PerChainQueries: perChainQueries,
+	}
+	return queryRequest
+}
+
+func sendQueryAndGetRsp(queryRequest *gossipv1.QueryRequest, sk *ecdsa.PrivateKey, th *pubsub.Topic, ctx context.Context, logger *zap.Logger, sub *pubsub.Subscription, wethAbi abi.ABI, methods []string) {
 	queryRequestBytes, err := proto.Marshal(queryRequest)
 	if err != nil {
 		panic(err)
 	}
+	numQueries := len(queryRequest.PerChainQueries)
 
 	// Sign the query request using our private key.
 	digest := common.QueryRequestDigest(common.UnsafeDevNet, queryRequestBytes)
@@ -261,14 +361,32 @@ func main() {
 				// TODO: verify response signature
 				isMatchingResponse = true
 
-				result, err := wethAbi.Methods[methodName].Outputs.Unpack(response.Response.Result)
-				if err != nil {
-					logger.Warn("failed to unpack result", zap.Error(err))
+				if len(response.PerChainResponses) != numQueries {
+					logger.Warn("unexpected number of per chain query responses", zap.Int("expectedNum", numQueries), zap.Int("actualNum", len(response.PerChainResponses)))
 					break
 				}
+				// Do double loop over responses
+				for index, pcq := range response.PerChainResponses {
+					logger.Info("per chain query response index", zap.Int("index", index))
 
-				resultStr := hexutil.Encode(response.Response.Result)
-				logger.Info("found matching response", zap.String("number", response.Response.Number.String()), zap.String("hash", response.Response.Hash.String()), zap.String("time", response.Response.Time.String()), zap.Any("resultDecoded", result), zap.String("resultStr", resultStr))
+					localCallData := queryRequest.PerChainQueries[index].GetEthCallQueryRequest().GetCallData()
+
+					if len(pcq.Responses) != len(localCallData) {
+						logger.Warn("unexpected number of results", zap.Int("expectedNum", len(localCallData)), zap.Int("expectedNum", len(pcq.Responses)))
+						break
+					}
+
+					for idx, resp := range pcq.Responses {
+						result, err := wethAbi.Methods[methods[idx]].Outputs.Unpack(resp.Result)
+						if err != nil {
+							logger.Warn("failed to unpack result", zap.Error(err))
+							break
+						}
+
+						resultStr := hexutil.Encode(resp.Result)
+						logger.Info("found matching response", zap.Int("idx", idx), zap.String("number", resp.Number.String()), zap.String("hash", resp.Hash.String()), zap.String("time", resp.Time.String()), zap.String("method", methods[idx]), zap.Any("resultDecoded", result), zap.String("resultStr", resultStr))
+					}
+				}
 			}
 		default:
 			continue
@@ -277,31 +395,7 @@ func main() {
 			break
 		}
 	}
-
-	//
-	// BEGIN SHUTDOWN
-	//
-
-	// Cleanly shutdown
-	// Without this the same host won't properly discover peers until some timeout
-	sub.Cancel()
-	if err := th.Close(); err != nil {
-		logger.Fatal("Error closing the topic", zap.Error(err))
-	}
-	if err := h.Close(); err != nil {
-		logger.Fatal("Error closing the host", zap.Error(err))
-	}
-
-	//
-	// END SHUTDOWN
-	//
-
-	logger.Info("Success! All tests passed!")
 }
-
-const (
-	GuardianKeyArmoredBlock = "WORMHOLE GUARDIAN PRIVATE KEY"
-)
 
 // loadGuardianKey loads a serialized guardian key from disk.
 func loadGuardianKey(filename string) (*ecdsa.PrivateKey, error) {
