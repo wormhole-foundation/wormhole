@@ -184,16 +184,30 @@ func TestCrossChainQuery(t *testing.T) {
 		panic(err)
 	}
 	to, _ := hex.DecodeString("DDb64fE46a91D46ee29420539FC25FD07c5FEa3E") // WETH
-	callRequest := &gossipv1.EthCallQueryRequest{
-		To:    to,
-		Data:  data,
-		Block: hexutil.EncodeBig(blockNum),
+
+	callData := []*gossipv1.EthCallQueryRequest_EthCallData{
+		{
+			To:   to,
+			Data: data,
+		},
 	}
+
+	callRequest := &gossipv1.EthCallQueryRequest{
+		Block:    hexutil.EncodeBig(blockNum),
+		CallData: callData,
+	}
+
 	queryRequest := &gossipv1.QueryRequest{
-		ChainId: 2,
-		Nonce:   0,
-		Message: &gossipv1.QueryRequest_EthCallQueryRequest{
-			EthCallQueryRequest: callRequest}}
+		Nonce: 1,
+		PerChainQueries: []*gossipv1.PerChainQueryRequest{
+			{
+				ChainId: 2,
+				Message: &gossipv1.PerChainQueryRequest_EthCallQueryRequest{
+					EthCallQueryRequest: callRequest,
+				},
+			},
+		},
+	}
 
 	queryRequestBytes, err := proto.Marshal(queryRequest)
 	if err != nil {
@@ -278,13 +292,28 @@ func TestCrossChainQuery(t *testing.T) {
 					continue
 				}
 
-				result, err := wethAbi.Methods[methodName].Outputs.Unpack(response.Response.Result)
-				if err != nil {
-					logger.Fatal("failed to unpack result", zap.Error(err))
+				if len(response.PerChainResponses) != 1 {
+					logger.Warn("unexpected number of per chain query responses", zap.Int("expectedNum", 1), zap.Int("actualNum", len(response.PerChainResponses)))
+					break
 				}
 
-				resultStr := hexutil.Encode(response.Response.Result)
-				logger.Info("found matching response", zap.String("number", response.Response.Number.String()), zap.String("hash", response.Response.Hash.String()), zap.String("time", response.Response.Time.String()), zap.Any("resultDecoded", result), zap.String("resultStr", resultStr))
+				pcq := response.PerChainResponses[0]
+
+				if len(pcq.Responses) == 0 {
+					logger.Warn("response did not contain any results", zap.Error(err))
+					break
+				}
+
+				for idx, resp := range pcq.Responses {
+					result, err := wethAbi.Methods[methodName].Outputs.Unpack(resp.Result)
+					if err != nil {
+						logger.Warn("failed to unpack result", zap.Error(err))
+						break
+					}
+
+					resultStr := hexutil.Encode(resp.Result)
+					logger.Info("found matching response", zap.Int("idx", idx), zap.String("number", resp.Number.String()), zap.String("hash", resp.Hash.String()), zap.String("time", resp.Time.String()), zap.Any("resultDecoded", result), zap.String("resultStr", resultStr))
+				}
 
 				success = true
 			}
