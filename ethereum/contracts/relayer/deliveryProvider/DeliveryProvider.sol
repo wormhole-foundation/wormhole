@@ -18,6 +18,11 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
     using LocalNativeLib for LocalNative;
 
     error CallerNotApproved(address msgSender);
+    error PriceIsZero(uint16 chain);
+    error Overflow(uint256 value, uint256 max);
+    error MaxRefundGreaterThanGasLimitCost(uint256 maxRefund, uint256 gasLimitCost);
+    error MaxRefundGreaterThanGasLimitCostOnSourceChain(uint256 maxRefund, uint256 gasLimitCost);
+    error ExceedsMaximumBudget(uint16 targetChain, uint256 exceedingValue, uint256 maximumBudget);
 
     function quoteEvmDeliveryPrice(
         uint16 targetChain,
@@ -31,18 +36,21 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
         (uint16 buffer, uint16 denominator) = assetConversionBuffer(targetChain);
         targetChainRefundPerUnitGasUnused = GasPrice.wrap(gasPrice(targetChain).unwrap() * (denominator) / (uint256(denominator) + buffer));
         
-        TargetNative targetCostIfNoGasLimitUsed = gasLimit.toWei(targetChainRefundPerUnitGasUnused).asTargetNative();
-        TargetNative targetCostIfFullGasLimitUsed = gasLimit.toWei(gasPrice(targetChain)).asTargetNative();
-        LocalNative costIfNoGasLimitUsed = quoteAssetCost(targetChain, targetCostIfNoGasLimitUsed);
-        LocalNative costIfFullGasLimitUsed = quoteGasCost(targetChain, gasLimit);
+        TargetNative maxRefund = gasLimit.toWei(targetChainRefundPerUnitGasUnused).asTargetNative();
+        TargetNative gasLimitCost = gasLimit.toWei(gasPrice(targetChain)).asTargetNative();
+        LocalNative maxRefundInSourceCurrency = quoteAssetCost(targetChain, maxRefund);
+        LocalNative gasLimitCostInSourceCurrency = quoteGasCost(targetChain, gasLimit);
         LocalNative receiverValueCost = quoteAssetCost(targetChain, receiverValue);
-        nativePriceQuote = quoteDeliveryOverhead(targetChain) + costIfFullGasLimitUsed + receiverValueCost;
-        require(costIfNoGasLimitUsed.unwrap() <= costIfFullGasLimitUsed.unwrap(), "target chain refund per gas unused is too high");
-        require(targetCostIfNoGasLimitUsed.unwrap() <= targetCostIfFullGasLimitUsed.unwrap(), "target chain refund per gas unused is too high");
-        require(
-            receiverValue.asNative() + targetCostIfFullGasLimitUsed.asNative() <= maximumBudget(targetChain).asNative(),
-            "Exceeds maximum budget"
-        );
+        nativePriceQuote = quoteDeliveryOverhead(targetChain) + gasLimitCostInSourceCurrency + receiverValueCost;
+        if(maxRefundInSourceCurrency.unwrap() > gasLimitCostInSourceCurrency.unwrap()) {
+            revert MaxRefundGreaterThanGasLimitCostOnSourceChain(maxRefundInSourceCurrency.unwrap(), gasLimitCostInSourceCurrency.unwrap());
+        } 
+        if(maxRefund.unwrap() > gasLimitCost.unwrap()) {
+            revert MaxRefundGreaterThanGasLimitCost(maxRefund.unwrap(), gasLimitCost.unwrap());
+        }
+        if(receiverValue.asNative() + gasLimitCost.asNative() > maximumBudget(targetChain).asNative()) {
+            revert ExceedsMaximumBudget(targetChain, receiverValue.unwrap() + gasLimitCost.unwrap(), maximumBudget(targetChain).unwrap());
+        }
     }
 
     function quoteDeliveryPrice(
@@ -116,7 +124,9 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
     //Returns the delivery overhead fee required to deliver a message to the target chain, denominated in this chain's wei.
     function quoteDeliveryOverhead(uint16 targetChain) public view returns (LocalNative nativePriceQuote) {
         nativePriceQuote = quoteGasCost(targetChain, deliverGasOverhead(targetChain));
-        require(nativePriceQuote.unwrap() <= type(uint128).max, "Overflow");
+        if(nativePriceQuote.unwrap() > type(uint128).max) {
+            revert Overflow(nativePriceQuote.unwrap(), type(uint128).max);
+        }
     }
 
     //Returns the price of purchasing gasAmount units of gas on the target chain, denominated in this chain's wei.
@@ -128,10 +138,10 @@ contract DeliveryProvider is DeliveryProviderGovernance, IDeliveryProvider {
 
     function quoteGasPrice(uint16 targetChain) public view returns (GasPrice price) {
         price = GasPrice.wrap(quoteGasCost(targetChain, Gas.wrap(1)).unwrap());
-        require(price.unwrap() <= type(uint88).max, "Overflow");
+        if(price.unwrap() > type(uint88).max) {
+            revert Overflow(price.unwrap(), type(uint88).max);
+        }
     }
-
-    error PriceIsZero(uint16 chain);
 
     // relevant for chains that have dynamic execution pricing (e.g. Ethereum)
     function assetConversion(
