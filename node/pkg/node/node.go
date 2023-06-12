@@ -346,7 +346,7 @@ func GuardianOptionAdminService(socketPath string, ethRpc *string, ethContract *
 				rpcMap,
 			)
 			if err != nil {
-				logger.Fatal("failed to create admin service socket", zap.Error(err))
+				return err
 			}
 			g.runnables["admin"] = adminService
 
@@ -362,7 +362,7 @@ func GuardianOptionPublicRpcSocket(publicGRPCSocketPath string, publicRpcLogDeta
 			// local public grpc service socket
 			publicrpcUnixService, publicrpcServer, err := publicrpcUnixServiceRunnable(logger, publicGRPCSocketPath, publicRpcLogDetail, g.db, g.gst, g.gov)
 			if err != nil {
-				logger.Fatal("failed to create publicrpc service socket", zap.Error(err))
+				return err
 			}
 
 			g.runnables["publicrpcsocket"] = publicrpcUnixService
