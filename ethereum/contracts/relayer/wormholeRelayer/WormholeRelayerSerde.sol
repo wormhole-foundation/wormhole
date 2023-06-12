@@ -164,9 +164,8 @@ library WormholeRelayerSerde {
         returns (bytes memory encoded)
     {
         assert(vaaKeys.length < type(uint8).max);
-        uint8 length = uint8(vaaKeys.length);
-        encoded = abi.encodePacked(length);
-        for (uint256 i = 0; i < length;) {
+        encoded = abi.encodePacked(uint8(vaaKeys.length));
+        for (uint256 i = 0; i < vaaKeys.length;) {
             encoded = abi.encodePacked(encoded, encodeVaaKey(vaaKeys[i]));
             unchecked {
                 ++i;
@@ -181,7 +180,7 @@ library WormholeRelayerSerde {
         uint8 vaaKeysLength;
         (vaaKeysLength, offset) = encoded.asUint8Unchecked(startOffset);
         vaaKeys = new VaaKey[](vaaKeysLength);
-        for (uint256 i = 0; i < vaaKeysLength;) {
+        for (uint256 i = 0; i < vaaKeys.length;) {
             (vaaKeys[i], offset) = decodeVaaKey(encoded, offset);
             unchecked {
                 ++i;
