@@ -42,10 +42,10 @@ const readFileAsync = util.promisify(fs.readFile);
 type ContractName = string;
 const artifacts: ContractName[] = [
   "global_accountant.wasm",
+  "wormchain_ibc_receiver.wasm",
   "cw_wormhole.wasm",
   "cw20_wrapped_2.wasm",
   "cw_token_bridge.wasm",
-  "wormchain_ibc_receiver.wasm",
 ];
 
 const ARTIFACTS_PATH = "../artifacts/";
