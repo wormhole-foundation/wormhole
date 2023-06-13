@@ -15,7 +15,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	mockserver "github.com/certusone/wormhole/node/pkg/watchers/near/nearapi/mock"
 	eth_common "github.com/ethereum/go-ethereum/common"
-	"github.com/test-go/testify/assert"
+	"github.com/stretchr/testify/assert"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 )
