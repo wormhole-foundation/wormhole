@@ -44,6 +44,10 @@ config.define_string("bigTableKeyPath", False, "Path to BigTable json key file")
 # for service links in the UI to work.
 config.define_string("webHost", False, "Public hostname for port forwards")
 
+# When running Tilt on a server, this can be used to set the public hostname Tilt runs on
+# for service links in the UI to work.
+config.define_string("guardiand_loglevel", False, "Log level for guardiand (debug, info, warn, error, dpanic, panic, fatal)")
+
 # Components
 config.define_bool("near", False, "Enable Near component")
 config.define_bool("sui", False, "Enable Sui component")
@@ -87,6 +91,12 @@ node_metrics = cfg.get("node_metrics", False)
 guardiand_governor = cfg.get("guardiand_governor", False)
 ibc_relayer = cfg.get("ibc_relayer", ci)
 btc = cfg.get("btc", False)
+
+if ci:
+    guardiand_loglevel = cfg.get("guardiand_loglevel", "warn")
+else:
+    guardiand_loglevel = cfg.get("guardiand_loglevel", "info")
+
 
 if cfg.get("manual", False):
     trigger_mode = TRIGGER_MODE_MANUAL
@@ -156,12 +166,11 @@ def build_node_yaml():
             if container["name"] != "guardiand":
                 fail("container 0 is not guardiand")
 
+            container["command"] += ["--logLevel="+guardiand_loglevel]
+
             if guardiand_debug:
                 container["command"] = command_with_dlv(container["command"])
-                container["command"] += ["--logLevel=debug"]
                 print(container["command"])
-            elif ci:
-                container["command"] += ["--logLevel=warn"]
 
             if gcpProject != "":
                 container["command"] += [
@@ -276,10 +285,6 @@ def build_node_yaml():
 
             if wormchain:
                 container["command"] += [
-                    "--wormchainWS",
-                    "ws://wormchain:26657/websocket",
-                    "--wormchainLCD",
-                    "http://wormchain:1317",
                     "--wormchainURL",
                     "wormchain:9090",
                     "--wormchainKeyPath",
@@ -733,7 +738,7 @@ if sui:
         trigger_mode = trigger_mode,
     )
 
-if near: 
+if near:
     k8s_yaml_with_ns("devnet/near-devnet.yaml")
 
     docker_build(
