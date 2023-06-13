@@ -32,7 +32,7 @@ func NewWatcherRunnable(
 				logger.Info("Mock Watcher shutting down.")
 				return nil
 			case observation := <-c.MockObservationC:
-				logger.Info("message observed", observation.ZapFields()...)
+				logger.Info("message observed", observation.ZapFields(zap.String("digest", observation.CreateDigest()))...)
 				msgC <- observation
 			case gs := <-c.MockSetC:
 				setC <- gs
