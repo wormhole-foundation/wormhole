@@ -1144,7 +1144,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			nil,
 			nil,
 			components,
-			&ibc.Features)); err != nil {
+			ibc.GetFeatures)); err != nil {
 			return err
 		}
 

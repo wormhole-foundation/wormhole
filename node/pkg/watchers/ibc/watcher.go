@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -46,12 +47,29 @@ type (
 	}
 )
 
+// Returns the IBC feature string that can be published in heartbeat messages.
+func GetFeatures() string {
+	featuresMutex.Lock()
+	defer featuresMutex.Unlock()
+	return features
+}
+
+// setFeatures is used internally to set the IBC feature flag.
+func setFeatures(f string) {
+	featuresMutex.Lock()
+	defer featuresMutex.Unlock()
+	features = f
+}
+
 var (
 	// Chains defines the list of chains to be monitored by IBC. Add new chains here as necessary.
 	Chains = []vaa.ChainID{vaa.ChainIDSei}
 
-	// Features is the feature string to be published in the gossip heartbeat messages. It will include all chains that are actually enabled on IBC.
-	Features = ""
+	// features is the feature string to be published in the gossip heartbeat messages. It will include all chains that are actually enabled on IBC.
+	features = ""
+
+	// featuresMutex is used to protect the features flag.
+	featuresMutex sync.Mutex
 
 	ibcErrors = promauto.NewCounterVec(
 		prometheus.CounterOpts{
@@ -91,6 +109,9 @@ type (
 
 		// channelIdToChainIdLock protects channelIdToChainIdMap.
 		channelIdToChainIdLock sync.Mutex
+
+		// baseFeatures is used to create the feature string. It is the list of chains enabled, without the wormhole version.
+		baseFeatures string
 	}
 
 	// chainEntry defines the data associated with a chain.
@@ -110,7 +131,7 @@ func NewWatcher(
 	contractAddress string,
 	chainConfig ChainConfig,
 ) *Watcher {
-	features := ""
+	feats := ""
 	chainMap := make(map[vaa.ChainID]*chainEntry)
 	for _, chainToMonitor := range chainConfig {
 		_, exists := chainMap[chainToMonitor.ChainID]
@@ -128,15 +149,15 @@ func NewWatcher(
 
 		chainMap[ce.chainID] = ce
 
-		if features == "" {
-			features = "ibc:"
+		if feats == "" {
+			feats = "ibc:"
 		} else {
-			features += "|"
+			feats += "|"
 		}
-		features += ce.chainID.String()
+		feats += ce.chainID.String()
 	}
 
-	Features = features
+	setFeatures(feats)
 
 	return &Watcher{
 		wsUrl:                 wsUrl,
@@ -144,6 +165,7 @@ func NewWatcher(
 		contractAddress:       contractAddress,
 		chainMap:              chainMap,
 		channelIdToChainIdMap: make(map[string]vaa.ChainID),
+		baseFeatures:          feats,
 	}
 }
 
@@ -165,16 +187,29 @@ type ibcReceivePublishEvent struct {
 	Msg       *common.MessagePublication
 }
 
+// abciInfoResults is used to parse the abci_info query response to get the wormhole version and block height.
+type abciInfoResults struct {
+	Result struct {
+		Response struct {
+			Version         string `json:"version"`
+			LastBlockHeight string `json:"last_block_height"`
+		}
+	}
+}
+
 // Run is the runnable for monitoring the IBC contract on wormchain.
 func (w *Watcher) Run(ctx context.Context) error {
 	w.logger = supervisor.Logger(ctx)
 	errC := make(chan error)
 
+	blockHeightUrl := convertWsUrlToHttpUrl(w.wsUrl) + "/abci_info"
+
 	w.logger.Info("creating watcher",
 		zap.String("wsUrl", w.wsUrl),
 		zap.String("lcdUrl", w.lcdUrl),
+		zap.String("blockHeightUrl", blockHeightUrl),
 		zap.String("contract", w.contractAddress),
-		zap.String("features", Features),
+		zap.String("features", GetFeatures()),
 	)
 
 	for _, ce := range w.chainMap {
@@ -223,7 +258,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 	// Start a routine to periodically query the wormchain block height.
 	common.RunWithScissors(ctx, errC, "ibc_block_height", func(ctx context.Context) error {
-		return w.handleQueryBlockHeight(ctx)
+		return w.handleQueryBlockHeight(ctx, blockHeightUrl)
 	})
 
 	// Start a routine for each chain to listen for observation requests.
@@ -304,10 +339,17 @@ func (w *Watcher) handleEvents(ctx context.Context, c *websocket.Conn) error {
 	}
 }
 
-// handleQueryBlockHeight gets the latest block height from wormchain each interval and updates the status on all the connected chains.
-func (w *Watcher) handleQueryBlockHeight(ctx context.Context) error {
-	const latestBlockURL = "blocks/latest"
+// convertWsUrlToHttpUrl takes a string like "ws://wormchain:26657/websocket" and converts it to "http://wormchain:26657". This is
+// used to query for the abci_info. That query doesn't work on the LCD. We have to do it on the websocket port, using an http URL.
+func convertWsUrlToHttpUrl(url string) string {
+	//
+	url = strings.TrimPrefix(url, "ws://")
+	url = strings.TrimSuffix(url, "/websocket")
+	return "http://" + url
+}
 
+// handleQueryBlockHeight gets the latest block height from wormchain each interval and updates the status on all the connected chains.
+func (w *Watcher) handleQueryBlockHeight(ctx context.Context, queryUrl string) error {
 	t := time.NewTicker(5 * time.Second)
 	client := &http.Client{
 		Timeout: time.Second * 5,
@@ -318,26 +360,35 @@ func (w *Watcher) handleQueryBlockHeight(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case <-t.C:
-			resp, err := client.Get(fmt.Sprintf("%s/%s", w.lcdUrl, latestBlockURL)) //nolint:noctx // TODO FIXME we should propagate context with Deadline here.
+			resp, err := client.Get(queryUrl) //nolint:noctx // TODO FIXME we should propagate context with Deadline here.
 			if err != nil {
 				return fmt.Errorf("failed to query latest block: %w", err)
 			}
-			blocksBody, err := io.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
+			resp.Body.Close()
 			if err != nil {
-				resp.Body.Close()
 				return fmt.Errorf("failed to read latest block body: %w", err)
 			}
-			resp.Body.Close()
 
-			blockJSON := string(blocksBody)
-			latestBlockAsInt := gjson.Get(blockJSON, "block.header.height").Int()
-			latestBlockAsFloat := float64(latestBlockAsInt)
-			w.logger.Debug("current block height", zap.Int64("height", latestBlockAsInt))
+			var abciInfo abciInfoResults
+			err = json.Unmarshal(body, &abciInfo)
+			if err != nil {
+				w.logger.Error("failed to unmarshal abci info", zap.String("json", string(body)), zap.Error(err))
+				continue
+			}
+
+			blockHeight, err := strconv.ParseInt(abciInfo.Result.Response.LastBlockHeight, 10, 64)
+			if err != nil {
+				w.logger.Error("failed to parse block height", zap.String("blockHeight", abciInfo.Result.Response.LastBlockHeight), zap.Error(err))
+				continue
+			}
+
+			w.logger.Debug("current block height", zap.Int64("height", blockHeight), zap.String("wormchainVersion", abciInfo.Result.Response.Version))
 
 			for _, ce := range w.chainMap {
-				currentSlotHeight.WithLabelValues(ce.chainName).Set(latestBlockAsFloat)
+				currentSlotHeight.WithLabelValues(ce.chainName).Set(float64(blockHeight))
 				p2p.DefaultRegistry.SetNetworkStats(ce.chainID, &gossipv1.Heartbeat_Network{
-					Height:          latestBlockAsInt,
+					Height:          blockHeight,
 					ContractAddress: w.contractAddress,
 				})
 
@@ -345,6 +396,7 @@ func (w *Watcher) handleQueryBlockHeight(ctx context.Context) error {
 			}
 
 			readiness.SetReady(common.ReadinessIBCSyncing)
+			setFeatures(w.baseFeatures + "|" + abciInfo.Result.Response.Version)
 		}
 	}
 }
