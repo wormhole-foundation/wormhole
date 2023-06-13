@@ -47,7 +47,7 @@ type (
 	}
 )
 
-// Returns the IBC feature string that can be published in heartbeat messages.
+// GetFeatures returns the IBC feature string that can be published in heartbeat messages.
 func GetFeatures() string {
 	featuresMutex.Lock()
 	defer featuresMutex.Unlock()
