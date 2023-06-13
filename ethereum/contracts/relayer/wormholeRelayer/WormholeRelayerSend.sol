@@ -332,19 +332,26 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
     }
 
     function send(Send memory sendParams) internal returns (uint64 sequence) {
+
         IDeliveryProvider provider = IDeliveryProvider(sendParams.deliveryProviderAddress);
+
+        // Revert if delivery provider does not support the target chain
         if (!provider.isChainSupported(sendParams.targetChain)) {
             revert DeliveryProviderDoesNotSupportTargetChain(
                 sendParams.deliveryProviderAddress, sendParams.targetChain
             );
         }
+
+        // Obtain the delivery provider's fee for this delivery, as well as some encoded info (e.g. refund per unit of gas unused)
         (LocalNative deliveryPrice, bytes memory encodedExecutionInfo) = provider.quoteDeliveryPrice(
             sendParams.targetChain, sendParams.receiverValue, sendParams.encodedExecutionParameters
         );
 
+        // Check if user passed in 'one wormhole message fee' + 'delivery provider's fee'
         LocalNative wormholeMessageFee = getWormholeMessageFee();
         checkMsgValue(wormholeMessageFee, deliveryPrice, sendParams.paymentForExtraReceiverValue);
 
+        // Encode all relevant info the delivery provider needs to perform the delivery as requested
         bytes memory encodedInstruction = DeliveryInstruction({
             targetChain: sendParams.targetChain,
             targetAddress: sendParams.targetAddress,
@@ -362,6 +369,8 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             vaaKeys: sendParams.vaaKeys
         }).encode();
 
+        // Publish the encoded delivery instruction as a wormhole message
+        // and pay the delivery provider their fee
         bool paymentSucceeded;
         (sequence, paymentSucceeded) = publishAndPay(
             wormholeMessageFee,
@@ -376,17 +385,25 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
     }
 
     function forward(Send memory sendParams) internal {
+
+        // Revert if a delivery with targetAddress == msg.sender is not currently in progress
         checkMsgSenderInDelivery();
+
         IDeliveryProvider provider = IDeliveryProvider(sendParams.deliveryProviderAddress);
+
+        // Revert if delivery provider does not support the target chain
         if (!provider.isChainSupported(sendParams.targetChain)) {
             revert DeliveryProviderDoesNotSupportTargetChain(
                 sendParams.deliveryProviderAddress, sendParams.targetChain
             );
         }
+
+        // Obtain the delivery provider's fee for this delivery, as well as some encoded info (e.g. refund per unit of gas unused)
         (LocalNative deliveryPrice, bytes memory encodedExecutionInfo) = provider.quoteDeliveryPrice(
             sendParams.targetChain, sendParams.receiverValue, sendParams.encodedExecutionParameters
         );
 
+        // Encode all relevant info the delivery provider needs to perform this delivery as requested
         bytes memory encodedInstruction = DeliveryInstruction({
             targetChain: sendParams.targetChain,
             targetAddress: sendParams.targetAddress,
@@ -404,6 +421,9 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             vaaKeys: sendParams.vaaKeys
         }).encode();
 
+        // Store information about this delivery in state
+        // so that it can be performed after the execution of the current delivery,
+        // when the 'refund' available to use for this delivery is known
         appendForwardInstruction(
             ForwardInstruction({
                 encodedInstruction: encodedInstruction,
@@ -424,18 +444,24 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         address newDeliveryProviderAddress
     ) public payable returns (uint64 sequence) {
         IDeliveryProvider provider = IDeliveryProvider(newDeliveryProviderAddress);
+
+        // Revert if delivery provider does not support the target chain
         if (!provider.isChainSupported(targetChain)) {
             revert DeliveryProviderDoesNotSupportTargetChain(
                 newDeliveryProviderAddress, targetChain
             );
         }
+        
+        // Obtain the delivery provider's fee for this delivery, as well as some encoded info (e.g. refund per unit of gas unused)
         (LocalNative deliveryPrice, bytes memory encodedExecutionInfo) = provider.quoteDeliveryPrice(
             targetChain, newReceiverValue, newEncodedExecutionParameters
         );
 
+        // Check if user passed in 'one wormhole message fee' + 'delivery provider's fee'
         LocalNative wormholeMessageFee = getWormholeMessageFee();
         checkMsgValue(wormholeMessageFee, deliveryPrice, LocalNative.wrap(0));
 
+        // Encode all relevant info the delivery provider needs to perform this redelivery as requested
         bytes memory encodedInstruction = RedeliveryInstruction({
             deliveryVaaKey: deliveryVaaKey,
             targetChain: targetChain,
@@ -445,6 +471,8 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             newSenderAddress: toWormholeFormat(msg.sender)
         }).encode();
 
+        // Publish the encoded redelivery instruction as a wormhole message
+        // and pay the delivery provider their fee
         bool paymentSucceeded;
         (sequence, paymentSucceeded) = publishAndPay(
             wormholeMessageFee,
@@ -462,6 +490,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
         deliveryProvider = getDefaultDeliveryProviderState().defaultDeliveryProvider;
     }
 
+    // Get the delivery provider's contract address on chain 'targetChain'
     function getDefaultDeliveryProviderOnChain(uint16 targetChain)
         public
         view
