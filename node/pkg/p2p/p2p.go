@@ -160,7 +160,7 @@ func Run(
 		components = DefaultComponents()
 	}
 
-	return func(ctx context.Context) (re error) {
+	return func(ctx context.Context) error {
 		p2pReceiveChannelOverflow.WithLabelValues("observation").Add(0)
 		p2pReceiveChannelOverflow.WithLabelValues("signed_vaa_with_quorum").Add(0)
 		p2pReceiveChannelOverflow.WithLabelValues("signed_observation_request").Add(0)
@@ -224,9 +224,35 @@ func Run(
 			panic(err)
 		}
 
+		var sub *pubsub.Subscription
+		var th *pubsub.Topic
+
+		go func() {
+			// gracefully shutdown p2p once context is canceled.
+			<-ctx.Done()
+			logger.Info("context canceled, shutting down p2p...")
+
+			if sub != nil {
+				sub.Cancel()
+			}
+
+			if th != nil {
+				if err := th.Close(); err != nil {
+					logger.Error("Error closing the topic", zap.Error(err))
+				}
+			}
+
+			if err := h.Close(); err != nil {
+				logger.Error("Error closing the host", zap.Error(err))
+			}
+
+			logger.Info("p2p shut down.")
+		}()
+
 		defer func() {
-			// TODO: libp2p cannot be cleanly restarted (https://github.com/libp2p/go-libp2p/issues/992)
-			logger.Error("p2p routine has exited, cancelling root context...", zap.Error(re))
+			// TODO: Right now we're canceling the root context because it used to be the case that libp2p cannot be cleanly restarted.
+			// But that seems to no longer be the case. We may want to revisit this. See (https://github.com/libp2p/go-libp2p/issues/992) for background.
+			logger.Error("p2p routine has exited, cancelling root context...")
 			rootCtxCancel()
 		}()
 
@@ -243,14 +269,14 @@ func Run(
 			panic(err)
 		}
 
-		th, err := ps.Join(topic)
+		th, err = ps.Join(topic)
 		if err != nil {
 			return fmt.Errorf("failed to join topic: %w", err)
 		}
 
 		// Increase the buffer size to prevent failed delivery
 		// to slower subscribers
-		sub, err := th.Subscribe(pubsub.WithBufferSize(1024))
+		sub, err = th.Subscribe(pubsub.WithBufferSize(1024))
 		if err != nil {
 			return fmt.Errorf("failed to subscribe topic: %w", err)
 		}
