@@ -273,6 +273,19 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 
 	logger := supervisor.Logger(ctx)
 
+	wsUrl := ""
+	if s.wsUrl != nil {
+		wsUrl = *s.wsUrl
+	}
+
+	logger.Info("Starting watcher",
+		zap.String("watcher_name", "solana"),
+		zap.String("rpcUrl", s.rpcUrl),
+		zap.String("wsUrl", wsUrl),
+		zap.String("contract", contractAddr),
+		zap.String("rawContract", s.rawContract),
+	)
+
 	logger.Info("Solana watcher connecting to RPC node ", zap.String("url", s.rpcUrl))
 
 	s.errC = make(chan error)

@@ -73,6 +73,13 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	logger := supervisor.Logger(ctx)
 
+	logger.Info("Starting watcher",
+		zap.String("watcher_name", "aptos"),
+		zap.String("aptosRPC", e.aptosRPC),
+		zap.String("aptosAccount", e.aptosAccount),
+		zap.String("aptosHandle", e.aptosHandle),
+	)
+
 	logger.Info("Aptos watcher connecting to RPC node ", zap.String("url", e.aptosRPC))
 
 	// SECURITY: the API guarantees that we only get the events from the right

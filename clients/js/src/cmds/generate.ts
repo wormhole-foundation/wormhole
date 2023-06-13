@@ -257,8 +257,8 @@ export const builder = function (y: typeof yargs) {
         }
       )
       .command(
-        "set-default-relay-provider",
-        "Sets the default relay provider for the Wormhole Relayer contract",
+        "set-default-delivery-provider",
+        "Sets the default delivery provider for the Wormhole Relayer contract",
         (yargs) => {
           return yargs
             .option("chain", {
@@ -267,9 +267,9 @@ export const builder = function (y: typeof yargs) {
               choices: Object.keys(CHAINS),
               demandOption: true,
             } as const)
-            .option("relay-provider-address", {
-              alias: "f",
-              describe: "Address of the relay provider contract",
+            .option("delivery-provider-address", {
+              alias: "p",
+              describe: "Address of the delivery provider contract",
               type: "string",
               demandOption: true,
             })
@@ -280,7 +280,7 @@ export const builder = function (y: typeof yargs) {
             module: "WormholeRelayer",
             type: "SetDefaultDeliveryProvider",
             chain: toChainId(argv["chain"]),
-            relayProviderAddress: parseAddress(argv["chain"], argv["relay-provider-address"])
+            relayProviderAddress: parseAddress(argv["chain"], argv["delivery-provider-address"])
           };
           let v = makeVAA(
             GOVERNANCE_CHAIN,

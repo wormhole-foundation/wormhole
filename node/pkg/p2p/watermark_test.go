@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/test-go/testify/require"
+	"github.com/stretchr/testify/require"
 
 	"github.com/certusone/wormhole/node/pkg/accountant"
 	node_common "github.com/certusone/wormhole/node/pkg/common"

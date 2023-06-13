@@ -154,7 +154,7 @@ func Run(
 	signedGovCfg chan *gossipv1.SignedChainGovernorConfig,
 	signedGovSt chan *gossipv1.SignedChainGovernorStatus,
 	components *Components,
-	ibcFeatures *string,
+	ibcFeaturesFunc func() string,
 ) func(ctx context.Context) error {
 	if components == nil {
 		components = DefaultComponents()
@@ -307,8 +307,11 @@ func Run(
 						if acct != nil {
 							features = append(features, acct.FeatureString())
 						}
-						if ibcFeatures != nil && *ibcFeatures != "" {
-							features = append(features, *ibcFeatures)
+						if ibcFeaturesFunc != nil {
+							ibcFlags := ibcFeaturesFunc()
+							if ibcFlags != "" {
+								features = append(features, ibcFlags)
+							}
 						}
 
 						heartbeat := &gossipv1.Heartbeat{

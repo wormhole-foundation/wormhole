@@ -249,7 +249,10 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: "16"
-      - run: cd clients/js && make test
+      - run: |
+          cd clients/js && make test
+          make docs
+          git diff --name-only --exit-code && echo "✅ Generated CLI docs match committed docs" || (echo "❌ Generated CLI docs differs from committed CLI docs, run \`make docs\` and commit the result" >&2 && exit 1)
 
   # Verify wormhole chain unit tests
   wormchain:

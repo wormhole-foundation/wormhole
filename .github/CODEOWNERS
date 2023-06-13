@@ -51,16 +51,16 @@
 /node/pkg/governor/ @bruce-riley @claudijd @tbjump
 
 ## P2P
-/node/pkg/p2p/ @bruce-riley @hendrikhofstadt
+/node/pkg/p2p/ @bruce-riley @evan-gray @kev1n-peters @hendrikhofstadt
 
 ## Consensus / Processor
-/node/pkg/processor/ @bruce-riley @hendrikhofstadt
+/node/pkg/processor/ @bruce-riley @evan-gray @hendrikhofstadt
 
 ## Public RPC
 /node/pkg/publicrpc/ @bruce-riley @kev1n-peters
 
 ## Supervisor Framework
-/node/pkg/supervisor/ @hendrikhofstadt @bruce-riley
+/node/pkg/supervisor/ @hendrikhofstadt @bruce-riley @evan-gray
 
 ## Watchers
 /node/pkg/watchers @hendrikhofstadt @evan-gray @bruce-riley @panoel @kev1n-peters

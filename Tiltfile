@@ -290,10 +290,6 @@ def build_node_yaml():
 
             if wormchain:
                 container["command"] += [
-                    "--wormchainWS",
-                    "ws://wormchain:26657/websocket",
-                    "--wormchainLCD",
-                    "http://wormchain:1317",
                     "--wormchainURL",
                     "wormchain:9090",
                     "--wormchainKeyPath",

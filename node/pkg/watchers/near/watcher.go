@@ -265,6 +265,13 @@ func (e *Watcher) runTxProcessor(ctx context.Context) error {
 func (e *Watcher) Run(ctx context.Context) error {
 	logger := supervisor.Logger(ctx)
 
+	logger.Info("Starting watcher",
+		zap.String("watcher_name", "near"),
+		zap.Bool("mainnet", e.mainnet),
+		zap.String("wormholeAccount", e.wormholeAccount),
+		zap.String("nearRPC", e.nearRPC),
+	)
+
 	e.errC = make(chan error)
 
 	e.nearAPI = nearapi.NewNearApiImpl(nearapi.NewHttpNearRpc(e.nearRPC))
