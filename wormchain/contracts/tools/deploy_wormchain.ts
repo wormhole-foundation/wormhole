@@ -42,6 +42,9 @@ const readFileAsync = util.promisify(fs.readFile);
 type ContractName = string;
 const artifacts: ContractName[] = [
   "global_accountant.wasm",
+  "cw_wormhole.wasm",
+  "cw20_wrapped_2.wasm",
+  "cw_token_bridge.wasm",
   "wormchain_ibc_receiver.wasm",
 ];
 
@@ -268,6 +271,80 @@ async function main() {
     gas: "10000000",
   });
   console.log(`sent accounting chain registrations, tx: `, res.transactionHash);
+
+  const init_guardians = JSON.parse(process.env.INIT_SIGNERS);
+  if (!init_guardians || init_guardians.length === 0) {
+    throw "failed to get initial guardians from .env file.";
+  }
+
+  addresses["cw_wormhole.wasm"] = await instantiate(
+    codeIds["cw_wormhole.wasm"],
+    {
+      gov_chain: GOVERNANCE_CHAIN,
+      gov_address: Buffer.from(GOVERNANCE_EMITTER, "hex").toString("base64"),
+      guardian_set_expirity: 86400,
+      initial_guardian_set: {
+        addresses: init_guardians.map((hex) => {
+          return {
+            bytes: Buffer.from(hex, "hex").toString("base64"),
+          };
+        }),
+        expiration_time: 0,
+      },
+      chain_id: 3104,
+      fee_denom: "uworm",
+    },
+    "wormhole"
+  );
+
+  console.log(
+    "instantiated wormhole contract: ",
+    addresses["cw_wormhole.wasm"]
+  );
+
+  addresses["cw_token_bridge.wasm"] = await instantiate(
+    codeIds["cw_token_bridge.wasm"],
+    {
+      gov_chain: GOVERNANCE_CHAIN,
+      gov_address: Buffer.from(GOVERNANCE_EMITTER, "hex").toString("base64"),
+      wormhole_contract: addresses["cw_wormhole.wasm"],
+      wrapped_asset_code_id: codeIds["cw20_wrapped_2.wasm"],
+      chain_id: 3104,
+      native_denom: "uworm",
+      native_symbol: "WORM",
+      native_decimals: 6,
+    },
+    "tokenBridge"
+  );
+
+  console.log(
+    "instantiated token bridge contract: ",
+    addresses["cw_token_bridge.wasm"]
+  );
+
+  for (let vaa of accountingRegistrations) {
+    const tbRegMsg = client.wasm.msgExecuteContract({
+      sender: signer,
+      contract: addresses["cw_token_bridge.wasm"],
+      msg: toUtf8(
+        JSON.stringify({
+          submit_vaa: {
+            data: vaa,
+          },
+        })
+      ),
+      funds: [],
+    });
+    const tbRes = await client.signAndBroadcast(signer, [tbRegMsg], {
+      ...ZERO_FEE,
+      gas: "10000000",
+    });
+    console.log(
+      `sent chain registration to token bridge, tx: `,
+      tbRes.transactionHash,
+      vaa
+    );
+  }
 
   const wormchainIbcReceiverInstantiateMsg = {};
   addresses["wormchain_ibc_receiver.wasm"] = await instantiate(
