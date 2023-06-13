@@ -100,23 +100,26 @@ contract TestDeliveryProvider is Test {
         );
     }
 
-    function testCanUpdatePriceOnlyAsOwner(
-        address oracleOwner,
+    function testCanUpdatePriceOnlyAsPriceWallet(
+        address pricingWallet,
+        address maliciousUser,
         uint16 updateChainId,
         GasPrice updateGasPrice,
         WeiPrice updateNativeCurrencyPrice
     ) public {
-        vm.assume(oracleOwner != address(0));
-        vm.assume(oracleOwner != address(this));
+        vm.assume(maliciousUser != address(0));
+        vm.assume(pricingWallet != address(0));
+        vm.assume(maliciousUser != pricingWallet);
         vm.assume(updateChainId > 0);
         vm.assume(updateGasPrice.unwrap() > 0);
         vm.assume(updateNativeCurrencyPrice.unwrap() > 0);
 
         initializeDeliveryProvider();
+        deliveryProvider.updatePricingWallet(pricingWallet);
 
         // you shall not pass
-        vm.prank(oracleOwner);
-        vm.expectRevert(abi.encodeWithSignature("CallerMustBeOwner()"));
+        vm.prank(maliciousUser);
+        vm.expectRevert(abi.encodeWithSignature("CallerMustBePricingWallet()"));
         deliveryProvider.updatePrice(updateChainId, updateGasPrice, updateNativeCurrencyPrice);
     }
 
@@ -288,6 +291,8 @@ contract TestDeliveryProvider is Test {
         vm.assume(dstGasPrice * uint256(dstNativeCurrencyPrice) / srcNativeCurrencyPrice < 2 ** 72);
 
         vm.assume(gasOverhead < uint256(2)**31);
+
+
 
         // update the prices with reasonable values
         deliveryProvider.updatePrice(
