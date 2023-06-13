@@ -1,10 +1,14 @@
 package guardiand
 
 import (
+	"encoding/hex"
 	"log"
 	"os"
+	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/cobra"
+	"github.com/status-im/keycard-go/hexutils"
 	"google.golang.org/protobuf/encoding/prototext"
 
 	"github.com/certusone/wormhole/node/pkg/adminrpc"
@@ -30,5 +34,27 @@ func runGovernanceVAAVerify(cmd *cobra.Command, args []string) {
 		log.Fatalf("failed to deserialize: %v", err)
 	}
 
-	adminrpc.VerifyReq(&req)
+	timestamp := time.Unix(int64(req.Timestamp), 0)
+
+	for _, message := range req.Messages {
+		v, err := adminrpc.GovMsgToVaa(message, req.CurrentSetIndex, timestamp)
+
+		if err != nil {
+			log.Fatalf("invalid update: %v", err)
+		}
+
+		digest := v.SigningDigest().Bytes()
+		if err != nil {
+			panic(err)
+		}
+
+		b, err := v.Marshal()
+		if err != nil {
+			panic(err)
+		}
+
+		log.Printf("Serialized: %v", hex.EncodeToString(b))
+
+		log.Printf("VAA with digest %s: %+v", hexutils.BytesToHex(digest), spew.Sdump(v))
+	}
 }

@@ -145,6 +145,14 @@ func (e *Watcher) Run(ctx context.Context) error {
 	errC := make(chan error)
 	logger := supervisor.Logger(ctx)
 
+	logger.Info("Starting watcher",
+		zap.String("watcher_name", "cosmwasm"),
+		zap.String("urlWS", e.urlWS),
+		zap.String("urlLCD", e.urlLCD),
+		zap.String("contract", e.contract),
+		zap.String("chainID", e.chainID.String()),
+	)
+
 	logger.Info("connecting to websocket", zap.String("network", networkName), zap.String("url", e.urlWS))
 
 	c, _, err := websocket.Dial(ctx, e.urlWS, nil)
