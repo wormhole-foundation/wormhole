@@ -268,7 +268,7 @@ export const builder = function (y: typeof yargs) {
               demandOption: true,
             } as const)
             .option("relay-provider-address", {
-              alias: "f",
+              alias: "r",
               describe: "Address of the relay provider contract",
               type: "string",
               demandOption: true,
