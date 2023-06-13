@@ -172,10 +172,8 @@ var (
 	arbitrumRPC      *string
 	arbitrumContract *string
 
-	optimismRPC                *string
-	optimismContract           *string
-	optimismCtcRpc             *string
-	optimismCtcContractAddress *string
+	optimismRPC      *string
+	optimismContract *string
 
 	baseRPC      *string
 	baseContract *string
@@ -331,8 +329,6 @@ func init() {
 
 	optimismRPC = NodeCmd.Flags().String("optimismRPC", "", "Optimism RPC URL")
 	optimismContract = NodeCmd.Flags().String("optimismContract", "", "Optimism contract address")
-	optimismCtcRpc = NodeCmd.Flags().String("optimismCtcRpc", "", "Optimism CTC RPC")
-	optimismCtcContractAddress = NodeCmd.Flags().String("optimismCtcContractAddress", "", "Optimism CTC contract address")
 
 	baseRPC = NodeCmd.Flags().String("baseRPC", "", "Base RPC URL")
 	baseContract = NodeCmd.Flags().String("baseContract", "", "Base contract address")
@@ -1300,16 +1296,6 @@ func runNode(cmd *cobra.Command, args []string) {
 			chainObsvReqC[vaa.ChainIDOptimism] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			optimismWatcher := evm.NewEthWatcher(*optimismRPC, optimismContractAddr, "optimism", vaa.ChainIDOptimism, chainMsgC[vaa.ChainIDOptimism], nil, chainObsvReqC[vaa.ChainIDOptimism], *unsafeDevMode)
 
-			// If rootChainParams are set, pass them in for pre-Bedrock mode
-			if *optimismCtcRpc != "" || *optimismCtcContractAddress != "" {
-				if ethWatcher == nil {
-					log.Fatalf("if optimism (pre-bedrock) is enabled then ethereum must also be enabled.")
-				}
-				optimismWatcher.SetL1Finalizer(ethWatcher)
-				if err := optimismWatcher.SetRootChainParams(*optimismCtcRpc, *optimismCtcContractAddress); err != nil {
-					return err
-				}
-			}
 			if err := supervisor.Run(ctx, "optimismwatch", common.WrapWithScissors(optimismWatcher.Run, "optimismwatch")); err != nil {
 				return err
 			}
