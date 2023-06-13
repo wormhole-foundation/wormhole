@@ -396,7 +396,7 @@ func (w *Watcher) handleQueryBlockHeight(ctx context.Context, queryUrl string) e
 			}
 
 			readiness.SetReady(common.ReadinessIBCSyncing)
-			setFeatures(w.baseFeatures + "|" + abciInfo.Result.Response.Version)
+			setFeatures(w.baseFeatures + ":" + abciInfo.Result.Response.Version)
 		}
 	}
 }
