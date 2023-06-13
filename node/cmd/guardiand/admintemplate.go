@@ -76,9 +76,6 @@ func init() {
 	AdminClientWormholeRelayerSetDefaultDeliveryProviderCmd.Flags().AddFlagSet(governanceFlagSet)
 	TemplateCmd.AddCommand(AdminClientWormholeRelayerSetDefaultDeliveryProviderCmd)
 
-	AdminClientShutdownProofCmd.Flags().AddFlagSet(authProofFlagSet)
-	TemplateCmd.AddCommand(AdminClientShutdownProofCmd)
-
 	circleIntegrationChainIDFlagSet := pflag.NewFlagSet("circle-integ", pflag.ExitOnError)
 	circleIntegrationChainID = circleIntegrationChainIDFlagSet.String("chain-id", "", "Target chain ID")
 
