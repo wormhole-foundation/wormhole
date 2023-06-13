@@ -28,6 +28,10 @@ contract DeliveryProviderSetters is Context, DeliveryProviderState {
         _state.chainId = thisChain;
     }
 
+    function setPricingWallet(address newPricingWallet) internal {
+        _state.pricingWallet = newPricingWallet;
+    }
+
     function setWormholeRelayer(address payable coreRelayer) internal {
         _state.coreRelayer = coreRelayer;
     }
