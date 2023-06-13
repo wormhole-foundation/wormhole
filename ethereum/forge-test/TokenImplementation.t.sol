@@ -78,7 +78,7 @@ contract TestTokenImplementation is TokenImplementation, Test {
         address spender,
         uint256 amount,
         uint256 deadline
-    ) public view returns (SignatureSetup memory output) {
+    ) public returns (SignatureSetup memory output) {
         // prepare signer allowing for tokens to be spent
         uint256 sk = uint256(walletPrivateKey);
         output.allower = vm.addr(sk);
