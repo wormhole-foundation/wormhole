@@ -1,0 +1,92 @@
+{
+  "description": "This file contains the addresses for the contracts on each chain. If useLastRun is true, this file will be ignored, and the addresses will be taken from the lastrun.json of the deployment scripts.",
+  "useLastRun": true,
+  "deliveryProviders": [
+    {
+      "chainId": 6,
+      "address": "0xd5903a063f604D4615E5c2760b7b80D491564BBe"
+    },
+    {
+      "chainId": 14,
+      "address": "0x93d56f29542c156B3e36f10dE41124B499664ff7"
+    },
+    {
+      "chainId": 4,
+      "address": "0x813AB43ab264362c55BF35A1448d0fd8135049a6"
+    },
+    {
+      "chainId": 5,
+      "address": "0xBF684878906629E72079D4f07D75Ef7165238092"
+    },
+    {
+      "chainId": 16,
+      "address": "0xBF684878906629E72079D4f07D75Ef7165238092"
+    }
+  ],
+  "wormholeRelayers": [
+    {
+      "chainId": 6,
+      "address": "0xA3cF45939bD6260bcFe3D66bc73d60f19e49a8BB"
+    },
+    {
+      "chainId": 14,
+      "address": "0x306B68267Deb7c5DfCDa3619E22E9Ca39C374f84"
+    },
+    {
+      "chainId": 4,
+      "address": "0x80aC94316391752A193C1c47E27D382b507c93F3"
+    },
+    {
+      "chainId": 5,
+      "address": "0x0591C25ebd0580E0d4F27A82Fc2e24E7489CB5e0"
+    },
+    {
+      "chainId": 16,
+      "address": "0x0591C25ebd0580E0d4F27A82Fc2e24E7489CB5e0"
+    }
+  ],
+  "mockIntegrations": [
+    {
+      "chainId": 6,
+      "address": "0x5E52f3eB0774E5e5f37760BD3Fca64951D8F74Ae"
+    },
+    {
+      "chainId": 14,
+      "address": "0x7f1d8E809aBB3F6Dc9B90F0131C3E8308046E190"
+    },
+    {
+      "chainId": 4,
+      "address": "0xb6A04D6672F005787147472Be20d39741929Aa03"
+    },
+    {
+      "chainId": 5,
+      "address": "0x3bF0c43d88541BBCF92bE508ec41e540FbF28C56"
+    },
+    {
+      "chainId": 16,
+      "address": "0x3bF0c43d88541BBCF92bE508ec41e540FbF28C56"
+    }
+  ],
+  "create2Factories": [
+    {
+      "chainId": 6,
+      "address": "0xbB2C5134cCDAC02047D915aCd451B697E4D71E1a"
+    },
+    {
+      "chainId": 14,
+      "address": "0xF4325DD26aF3cEeAB3Bb35ECC916F332505d9847"
+    },
+    {
+      "chainId": 4,
+      "address": "0x1B8d30A267041693b7DAA3c24E47746A28885054"
+    },
+    {
+      "chainId": 5,
+      "address": "0xE49B157DA7B71308d32512ec150ffEa8677F4986"
+    },
+    {
+      "chainId": 16,
+      "address": "0xE49B157DA7B71308d32512ec150ffEa8677F4986"
+    }
+  ]
+}

@@ -146,7 +146,7 @@ contract("Bridge", function () {
 
         let before = await web3.eth.getStorageAt(TokenBridge.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
 
-        assert.equal(before.toLowerCase(), BridgeImplementation.address.toLowerCase());
+        assert.equal(BigInt(before), BigInt(BridgeImplementation.address));
 
         await initialized.methods.upgrade("0x" + vm).send({
             value: 0,
@@ -156,7 +156,7 @@ contract("Bridge", function () {
 
         let after = await web3.eth.getStorageAt(TokenBridge.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
 
-        assert.equal(after.toLowerCase(), mock.address.toLowerCase());
+        assert.equal(BigInt(after), BigInt(mock.address));
 
         const mockImpl = new web3.eth.Contract(MockBridgeImplementation.abi, TokenBridge.address);
 
@@ -362,7 +362,7 @@ contract("Bridge", function () {
                 gasLimit: 2000000
             });
         } catch (error) {
-            assert.equal(error.message, "Returned error: VM Exception while processing transaction: revert current metadata is up to date")
+            assert.include(error.message, "revert current metadata is up to date")
             failed = true
         }
         assert.ok(failed)
@@ -1145,7 +1145,7 @@ contract("Bridge", function () {
 
         // set WETH contract
         const mock = new web3.eth.Contract(MockBridgeImplementation.abi, TokenBridge.address);
-        mock.methods.testUpdateWETHAddress(WETH).send({
+        await mock.methods.testUpdateWETHAddress(WETH).send({
             from: accounts[0],
             gasLimit: 2000000
         });
@@ -1321,7 +1321,7 @@ contract("Bridge", function () {
                 gasLimit: 2000000
             });
         } catch (error) {
-            assert.equal(error.message, "Returned error: VM Exception while processing transaction: revert transfer exceeds max outstanding bridged token amount")
+            assert.include(error.message, "revert transfer exceeds max outstanding bridged token amount")
             failed = true
         }
 
@@ -1387,7 +1387,7 @@ contract("Bridge", function () {
 
             assert.fail("governance packet accepted")
         } catch (e) {
-            assert.equal(e.data[Object.keys(e.data)[0]].reason, "invalid fork")
+            assert.include(e.message, "revert invalid fork")
         }
     })
 
@@ -1482,7 +1482,7 @@ contract("Bridge", function () {
 
         let before = await web3.eth.getStorageAt(TokenBridge.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
 
-        assert.equal(before.toLowerCase(), lastDeployed.address.toLowerCase());
+        assert.equal(BigInt(before), BigInt(lastDeployed.address));
 
         let set = await initialized.methods.upgrade("0x" + vm).send({
             value: 0,
@@ -1492,7 +1492,7 @@ contract("Bridge", function () {
 
         let after = await web3.eth.getStorageAt(TokenBridge.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
 
-        assert.equal(after.toLowerCase(), mock.address.toLowerCase());
+        assert.equal(BigInt(after), BigInt(mock.address));
 
         const mockImpl = new web3.eth.Contract(MockBridgeImplementation.abi, TokenBridge.address);
 
