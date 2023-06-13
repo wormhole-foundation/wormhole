@@ -17,6 +17,10 @@ contract DeliveryProviderGetters is DeliveryProviderState {
         return _state.pendingOwner;
     }
 
+    function pricingWallet() public view returns (address) {
+        return _state.pricingWallet;
+    }
+
     function isInitialized(address impl) public view returns (bool) {
         return _state.initializedImplementations[impl];
     }
