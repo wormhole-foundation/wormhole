@@ -151,6 +151,15 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	logger := supervisor.Logger(ctx)
 
+	logger.Info("Starting watcher",
+		zap.String("watcher_name", "algorand"),
+		zap.String("indexerRPC", e.indexerRPC),
+		zap.String("indexerToken", e.indexerToken),
+		zap.String("algodRPC", e.algodRPC),
+		zap.String("algodToken", e.algodToken),
+		zap.Uint64("appid", e.appid),
+	)
+
 	logger.Info("Algorand watcher connecting to indexer  ", zap.String("url", e.indexerRPC))
 	logger.Info("Algorand watcher connecting to RPC node ", zap.String("url", e.algodRPC))
 

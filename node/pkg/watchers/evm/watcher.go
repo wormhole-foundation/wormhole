@@ -165,6 +165,15 @@ func NewEthWatcher(
 func (w *Watcher) Run(parentCtx context.Context) error {
 	logger := supervisor.Logger(parentCtx)
 
+	logger.Info("Starting watcher",
+		zap.String("watcher_name", "evm"),
+		zap.String("url", w.url),
+		zap.String("contract", w.contract.String()),
+		zap.String("networkName", w.networkName),
+		zap.String("chainID", w.chainID.String()),
+		zap.Bool("unsafeDevMode", w.unsafeDevMode),
+	)
+
 	// later on we will spawn multiple go-routines through `RunWithScissors`, i.e. catching panics.
 	// If any of them panic, this function will return, causing this child context to be canceled
 	// such that the other go-routines can free up resources
@@ -278,45 +287,21 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			return fmt.Errorf("creating arbitrum connector failed: %w", err)
 		}
 	} else if w.chainID == vaa.ChainIDOptimism && !w.unsafeDevMode {
-		if w.rootChainRpc != "" && w.rootChainContract != "" {
-			// We are in pre-Bedrock mode
-			if w.l1Finalizer == nil {
-				return fmt.Errorf("unable to create optimism watcher because the l1 finalizer is not set")
-			}
-			baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
-			if err != nil {
-				ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-				return fmt.Errorf("dialing eth client failed: %w", err)
-			}
-			finalizer, err := finalizers.NewOptimismFinalizer(timeout, logger, w.l1Finalizer, w.rootChainRpc, w.rootChainContract)
-			if err != nil {
-				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-				return fmt.Errorf("creating optimism finalizer failed: %w", err)
-			}
-			w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond, false, false)
-			if err != nil {
-				ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-				return fmt.Errorf("creating block poll connector failed: %w", err)
-			}
-		} else {
-			// We are in Bedrock mode
-			useFinalizedBlocks = true
-			safeBlocksSupported := true
-			logger.Info("using finalized blocks, will publish safe blocks")
-			baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
-			if err != nil {
-				ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-				return fmt.Errorf("dialing eth client failed: %w", err)
-			}
-			w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizers.NewDefaultFinalizer(), 250*time.Millisecond, useFinalizedBlocks, safeBlocksSupported)
-			if err != nil {
-				ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-				p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-				return fmt.Errorf("creating optimism connector failed: %w", err)
-			}
+		// This only supports Bedrock mode
+		useFinalizedBlocks = true
+		safeBlocksSupported := true
+		logger.Info("using finalized blocks, will publish safe blocks")
+		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
+		if err != nil {
+			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf("dialing eth client failed: %w", err)
+		}
+		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizers.NewDefaultFinalizer(), 250*time.Millisecond, useFinalizedBlocks, safeBlocksSupported)
+		if err != nil {
+			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf("creating optimism connector failed: %w", err)
 		}
 	} else if w.chainID == vaa.ChainIDPolygon && w.usePolygonCheckpointing() {
 		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)

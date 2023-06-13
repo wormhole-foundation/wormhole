@@ -1,7 +1,6 @@
 package guardiand
 
 import (
-	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -28,8 +27,6 @@ var templateGuardianIndex *int
 var chainID *string
 var address *string
 var module *string
-var shutdownGuardianKey *string
-var shutdownPubKey *string
 
 var circleIntegrationChainID *string
 var circleIntegrationFinality *string
@@ -60,10 +57,6 @@ func init() {
 	moduleFlagSet := pflag.NewFlagSet("module", pflag.ExitOnError)
 	module = moduleFlagSet.String("module", "", "Module name")
 
-	authProofFlagSet := pflag.NewFlagSet("auth-proof", pflag.ExitOnError)
-	shutdownGuardianKey = authProofFlagSet.String("guardian-key", "", "Guardian key to sign proof. File path or hex string")
-	shutdownPubKey = authProofFlagSet.String("proof-pub-key", "", "Public key to encode in proof")
-
 	templateGuardianIndex = TemplateCmd.PersistentFlags().Int("idx", 3, "Default current guardian set index")
 
 	setUpdateNumGuardians = AdminClientGuardianSetTemplateCmd.Flags().Int("num", 1, "Number of devnet guardians in example file")
@@ -79,9 +72,6 @@ func init() {
 	AdminClientTokenBridgeUpgradeContractCmd.Flags().AddFlagSet(governanceFlagSet)
 	AdminClientTokenBridgeUpgradeContractCmd.Flags().AddFlagSet(moduleFlagSet)
 	TemplateCmd.AddCommand(AdminClientTokenBridgeUpgradeContractCmd)
-
-	AdminClientShutdownProofCmd.Flags().AddFlagSet(authProofFlagSet)
-	TemplateCmd.AddCommand(AdminClientShutdownProofCmd)
 
 	circleIntegrationChainIDFlagSet := pflag.NewFlagSet("circle-integ", pflag.ExitOnError)
 	circleIntegrationChainID = circleIntegrationChainIDFlagSet.String("chain-id", "", "Target chain ID")
@@ -161,11 +151,6 @@ var AdminClientTokenBridgeUpgradeContractCmd = &cobra.Command{
 	Use:   "token-bridge-upgrade-contract",
 	Short: "Generate an empty token bridge contract upgrade template at specified path",
 	Run:   runTokenBridgeUpgradeContractTemplate,
-}
-var AdminClientShutdownProofCmd = &cobra.Command{
-	Use:   "shutdown-proof",
-	Short: "Generate an auth proof for shutdown voting on behalf of the guardian.",
-	Run:   runShutdownProofTemplate,
 }
 
 var AdminClientCircleIntegrationUpdateWormholeFinalityCmd = &cobra.Command{
@@ -339,51 +324,6 @@ func runTokenBridgeUpgradeContractTemplate(cmd *cobra.Command, args []string) {
 		panic(err)
 	}
 	fmt.Print(string(b))
-}
-
-func runShutdownProofTemplate(cmd *cobra.Command, args []string) {
-	// ensure values were passed
-	if *shutdownPubKey == "" {
-		log.Fatal("--proof-pub-key cannot be blank.")
-	}
-	if *shutdownGuardianKey == "" {
-		log.Fatal("--guardian-key cannot be blank.")
-	}
-
-	// load the guardian key that will sign the proof
-	var guardianKey *ecdsa.PrivateKey
-	var keyErr error
-	// check if the key is a hex string
-	_, hexDecodeErr := hex.DecodeString(*shutdownGuardianKey)
-	if hexDecodeErr == nil {
-		guardianKey, keyErr = crypto.HexToECDSA(*shutdownGuardianKey)
-	} else {
-		// the supplied guardian key is not hex, must be a file path to load
-		guardianKey, keyErr = loadGuardianKey(*shutdownGuardianKey)
-	}
-	if keyErr != nil {
-		log.Fatal("failed fetching guardian key.", keyErr)
-	}
-
-	// create the payload of the proof
-	pubKey := common.HexToAddress(*shutdownPubKey)
-	digest := crypto.Keccak256Hash(pubKey.Bytes())
-
-	// sign the payload of the proof
-	ethProof, err := crypto.Sign(digest.Bytes(), guardianKey)
-	if err != nil {
-		log.Fatal("failed creating proof.", err)
-	}
-
-	// log the public key in the proof and the public key that signed the proof
-	fmt.Printf(
-		"The following proof will allow public key \"%v\" to vote on behalf of guardian \"%v\":\n",
-		pubKey.Hex(),
-		crypto.PubkeyToAddress(guardianKey.PublicKey),
-	)
-
-	proofHex := hex.EncodeToString(ethProof)
-	fmt.Print(proofHex)
 }
 
 func runCircleIntegrationUpdateWormholeFinalityTemplate(cmd *cobra.Command, args []string) {

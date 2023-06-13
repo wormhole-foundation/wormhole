@@ -4,6 +4,7 @@ import { keccak256 } from "ethers/lib/utils";
 import { isNativeDenom } from "../terra";
 import {
   CHAIN_ID_INJECTIVE,
+  CHAIN_ID_SEI,
   CHAIN_ID_TERRA,
   CHAIN_ID_XPLA,
   coalesceCosmWasmChainId,
@@ -14,6 +15,7 @@ import {
 
 export const isNativeDenomInjective = (denom: string) => denom === "inj";
 export const isNativeDenomXpla = (denom: string) => denom === "axpla";
+export const isNativeDenomSei = (denom: string) => denom === "usei";
 
 export function isNativeCosmWasmDenom(
   chainId: CosmWasmChainId,
@@ -22,7 +24,8 @@ export function isNativeCosmWasmDenom(
   return (
     (isTerraChain(chainId) && isNativeDenom(address)) ||
     (chainId === CHAIN_ID_INJECTIVE && isNativeDenomInjective(address)) ||
-    (chainId === CHAIN_ID_XPLA && isNativeDenomXpla(address))
+    (chainId === CHAIN_ID_XPLA && isNativeDenomXpla(address)) ||
+    (chainId === CHAIN_ID_SEI && isNativeDenomSei(address))
   );
 }
 
