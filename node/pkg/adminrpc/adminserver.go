@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"math"
 	"math/big"
 	"math/rand"
@@ -19,7 +18,6 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	"github.com/holiman/uint256"
-	"github.com/status-im/keycard-go/hexutils"
 	"golang.org/x/exp/slices"
 
 	"github.com/certusone/wormhole/node/pkg/db"
@@ -32,7 +30,6 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
@@ -416,7 +413,7 @@ func ibcReceiverUpdateChannelChain(
 	return v, nil
 }
 
-func govMsgToVaa(message *nodev1.GovernanceMessage, currentSetIndex uint32, timestamp time.Time) (*vaa.VAA, error) {
+func GovMsgToVaa(message *nodev1.GovernanceMessage, currentSetIndex uint32, timestamp time.Time) (*vaa.VAA, error) {
 	var (
 		v   *vaa.VAA
 		err error
@@ -467,7 +464,7 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 	digests := make([][]byte, len(req.Messages))
 
 	for i, message := range req.Messages {
-		v, err = govMsgToVaa(message, req.CurrentSetIndex, timestamp)
+		v, err = GovMsgToVaa(message, req.CurrentSetIndex, timestamp)
 
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -852,30 +849,4 @@ func (s *nodePrivilegedService) DumpRPCs(ctx context.Context, req *nodev1.DumpRP
 	return &nodev1.DumpRPCsResponse{
 		Response: s.rpcMap,
 	}, nil
-}
-
-func VerifyReq(req *nodev1.InjectGovernanceVAARequest) {
-	timestamp := time.Unix(int64(req.Timestamp), 0)
-
-	for _, message := range req.Messages {
-		v, err := govMsgToVaa(message, req.CurrentSetIndex, timestamp)
-
-		if err != nil {
-			log.Fatalf("invalid update: %v", err)
-		}
-
-		digest := v.SigningDigest().Bytes()
-		if err != nil {
-			panic(err)
-		}
-
-		b, err := v.Marshal()
-		if err != nil {
-			panic(err)
-		}
-
-		log.Printf("Serialized: %v", hex.EncodeToString(b))
-
-		log.Printf("VAA with digest %s: %+v", hexutils.BytesToHex(digest), spew.Sdump(v))
-	}
 }

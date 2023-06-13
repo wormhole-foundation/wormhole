@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 
@@ -212,4 +213,40 @@ func TestParseIbcAllChannelChainsQueryResults(t *testing.T) {
 	assert.Equal(t, uint16(18), uint16(result.Data.ChannelChains[0][1].(float64))) //nolint:forcetypeassert
 	assert.Equal(t, expectedChannStr2, result.Data.ChannelChains[1][0].(string))   //nolint:forcetypeassert
 	assert.Equal(t, uint16(22), uint16(result.Data.ChannelChains[1][1].(float64))) //nolint:forcetypeassert
+}
+
+func TestConvertingWsUrlToHttpUrl(t *testing.T) {
+	assert.Equal(t, "http://wormchain:26657", convertWsUrlToHttpUrl("ws://wormchain:26657/websocket"))
+	assert.Equal(t, "http://wormchain:26657", convertWsUrlToHttpUrl("ws://wormchain:26657"))
+	assert.Equal(t, "http://wormchain:26657", convertWsUrlToHttpUrl("wormchain:26657"))
+}
+
+func TestParseAbciInfoResults(t *testing.T) {
+	// This came from the following query: http://localhost:26659/abci_info
+	respJson := []byte(`
+{
+  "jsonrpc": "2.0",
+  "id": -1,
+  "result": {
+    "response": {
+      "data": "wormchain",
+      "version": "v0.0.1",
+      "last_block_height": "2037",
+      "last_block_app_hash": "7lVJBWOpP+owbc0Gohn4htF6s2J2DrbjhdL9m79lAjU="
+    }
+  }
+}
+	`)
+
+	var resp abciInfoResults
+	err := json.Unmarshal(respJson, &resp)
+	require.NoError(t, err)
+
+	assert.Equal(t, "v0.0.1", resp.Result.Response.Version)
+	assert.Equal(t, "2037", resp.Result.Response.LastBlockHeight)
+
+	blockHeight, err := strconv.ParseInt(resp.Result.Response.LastBlockHeight, 10, 64)
+	require.NoError(t, err)
+	assert.Equal(t, int64(2037), blockHeight)
+	assert.Equal(t, float64(2037), float64(blockHeight)) // We need it as a float to post it to Prometheus.
 }

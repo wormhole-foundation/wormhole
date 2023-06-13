@@ -17,6 +17,7 @@
     "start": "npm run build && node ./build/main.js",
     "build": "esbuild src/main.ts --bundle --outfile=build/main.js --minify --platform=node --target=node16",
     "check": "tsc --noEmit",
+    "docs":"npx tsx src/doc.ts",
     "prepublishOnly": "npm run check",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
