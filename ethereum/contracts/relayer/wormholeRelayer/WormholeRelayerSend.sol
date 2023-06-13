@@ -380,7 +380,7 @@ abstract contract WormholeRelayerSend is WormholeRelayerBase, IWormholeRelayerSe
             sendParams.consistencyLevel,
             provider.getRewardAddress()
         );
-        
+
         if(!paymentSucceeded) 
             revert DeliveryProviderCannotReceivePayment();
     }
