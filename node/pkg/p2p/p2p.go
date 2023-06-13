@@ -205,12 +205,19 @@ func Run(
 		components = DefaultComponents()
 	}
 
-	return func(ctx context.Context) (re error) {
+	return func(ctx context.Context) error {
 		p2pReceiveChannelOverflow.WithLabelValues("observation").Add(0)
 		p2pReceiveChannelOverflow.WithLabelValues("signed_vaa_with_quorum").Add(0)
 		p2pReceiveChannelOverflow.WithLabelValues("signed_observation_request").Add(0)
 
 		logger := supervisor.Logger(ctx)
+
+		defer func() {
+			// TODO: Right now we're canceling the root context because it used to be the case that libp2p cannot be cleanly restarted.
+			// But that seems to no longer be the case. We may want to revisit this. See (https://github.com/libp2p/go-libp2p/issues/992) for background.
+			logger.Warn("p2p routine has exited, cancelling root context...")
+			rootCtxCancel()
+		}()
 
 		h, err := libp2p.New(
 			// Use the keypair we generated
@@ -252,9 +259,9 @@ func Run(
 		}
 
 		defer func() {
-			// TODO: libp2p cannot be cleanly restarted (https://github.com/libp2p/go-libp2p/issues/992)
-			logger.Error("p2p routine has exited, cancelling root context...", zap.Error(re))
-			rootCtxCancel()
+			if err := h.Close(); err != nil {
+				logger.Error("Error closing the host", zap.Error(err))
+			}
 		}()
 
 		nodeIdBytes, err := h.ID().Marshal()
@@ -275,12 +282,19 @@ func Run(
 			return fmt.Errorf("failed to join topic: %w", err)
 		}
 
+		defer func() {
+			if err := th.Close(); err != nil && !errors.Is(err, context.Canceled) {
+				logger.Error("Error closing the topic", zap.Error(err))
+			}
+		}()
+
 		// Increase the buffer size to prevent failed delivery
 		// to slower subscribers
 		sub, err := th.Subscribe(pubsub.WithBufferSize(1024))
 		if err != nil {
 			return fmt.Errorf("failed to subscribe topic: %w", err)
 		}
+		defer sub.Cancel()
 
 		// Make sure we connect to at least 1 bootstrap node (this is particularly important in a local devnet and CI
 		// as peer discovery can take a long time).
@@ -507,7 +521,7 @@ func Run(
 		}()
 
 		for {
-			envelope, err := sub.Next(ctx)
+			envelope, err := sub.Next(ctx) // Note: sub.Next(ctx) will return an error once ctx is canceled
 			if err != nil {
 				return fmt.Errorf("failed to receive pubsub message: %w", err)
 			}
