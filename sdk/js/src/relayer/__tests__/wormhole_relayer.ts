@@ -382,12 +382,12 @@ describe("Wormhole Relayer Tests", () => {
 
   test("Governance: Test Registering Chain", async () => {
 
-    const chain = 26;
+    const chain = 24;
 
     const currentAddress = await source.wormholeRelayer.getRegisteredWormholeRelayerContract(chain);
     console.log(`For Chain ${source.chainId}, registered chain ${chain} address: ${currentAddress}`);
 
-    const expectedNewRegisteredAddress = "11111111111111111111111111111111";
+    const expectedNewRegisteredAddress = "0x0000000000000000000000001234567890123456789012345678901234567892";
 
     const timestamp = (await source.wallet.provider.getBlock("latest")).timestamp;
     
