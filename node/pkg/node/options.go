@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/benbjohnson/clock"
 	"github.com/certusone/wormhole/node/pkg/accountant"
@@ -16,6 +17,7 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/reporter"
+	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/certusone/wormhole/node/pkg/watchers"
 	"github.com/certusone/wormhole/node/pkg/watchers/ibc"
 	"github.com/certusone/wormhole/node/pkg/watchers/interfaces"
@@ -151,7 +153,7 @@ func GuardianOptionGovernor(governorEnabled bool) *GuardianOption {
 func GuardianOptionStatusServer(statusAddr string) *GuardianOption {
 	return &GuardianOption{
 		name: "status-server",
-		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
+		f: func(_ context.Context, _ *zap.Logger, g *G) error {
 			if statusAddr != "" {
 				// Use a custom routing instead of using http.DefaultServeMux directly to avoid accidentally exposing packages
 				// that register themselves with it by default (like pprof).
@@ -171,11 +173,31 @@ func GuardianOptionStatusServer(statusAddr string) *GuardianOption {
 				// Prometheus metrics (safe to expose to untrusted clients)
 				router.Handle("/metrics", promhttp.Handler())
 
-				go func() {
+				// SECURITY: If making changes, ensure that we always do `router := mux.NewRouter()` before this to avoid accidentally exposing pprof
+				server := &http.Server{
+					Addr:              statusAddr,
+					Handler:           router,
+					ReadHeaderTimeout: time.Second, // SECURITY defense against Slowloris Attack
+					ReadTimeout:       time.Second,
+					WriteTimeout:      time.Second,
+				}
+
+				g.runnables["status-server"] = func(ctx context.Context) error {
+					logger := supervisor.Logger(ctx)
+					go func() {
+						if err := server.ListenAndServe(); err != http.ErrServerClosed {
+							logger.Error("status server crashed", zap.Error(err))
+						}
+					}()
 					logger.Info("status server listening", zap.String("status_addr", statusAddr))
-					// SECURITY: If making changes, ensure that we always do `router := mux.NewRouter()` before this to avoid accidentally exposing pprof
-					logger.Error("status server crashed", zap.Error(http.ListenAndServe(statusAddr, router))) // #nosec G114 local status server not vulnerable to DoS attack
-				}()
+
+					<-ctx.Done()
+					if err := server.Shutdown(context.Background()); err != nil { // We use context.Background() instead of ctx here because ctx is already canceled at this point and Shutdown would not work then.
+						logger := supervisor.Logger(ctx)
+						logger.Error("error while shutting down status server: ", zap.Error(err))
+					}
+					return nil
+				}
 			}
 			return nil
 		}}
