@@ -25,7 +25,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -52,40 +51,38 @@ func createPerChainQueryForTesting(
 	chainId vaa.ChainID,
 	block string,
 	numCalls int,
-) *gossipv1.PerChainQueryRequest {
-	callData := []*gossipv1.EthCallQueryRequest_EthCallData{}
+) *common.PerChainQueryRequest {
+	callData := []*common.EthCallData{}
 	for count := 0; count < numCalls; count++ {
-		callData = append(callData, &gossipv1.EthCallQueryRequest_EthCallData{
+		callData = append(callData, &common.EthCallData{
 			To:   []byte(fmt.Sprintf("%-20s", fmt.Sprintf("To for %d:%d", chainId, count))),
 			Data: []byte(fmt.Sprintf("CallData for %d:%d", chainId, count)),
 		})
 	}
 
-	callRequest := &gossipv1.EthCallQueryRequest{
-		Block:    block,
+	callRequest := &common.EthCallQueryRequest{
+		BlockId:  block,
 		CallData: callData,
 	}
 
-	return &gossipv1.PerChainQueryRequest{
-		ChainId: uint32(chainId),
-		Message: &gossipv1.PerChainQueryRequest_EthCallQueryRequest{
-			EthCallQueryRequest: callRequest,
-		},
+	return &common.PerChainQueryRequest{
+		ChainId: chainId,
+		Query:   callRequest,
 	}
 }
 
 // createSignedQueryRequestForTesting creates a query request object and signs it using the specified key.
 func createSignedQueryRequestForTesting(
 	sk *ecdsa.PrivateKey,
-	perChainQueries []*gossipv1.PerChainQueryRequest,
-) (*gossipv1.SignedQueryRequest, *gossipv1.QueryRequest) {
+	perChainQueries []*common.PerChainQueryRequest,
+) (*gossipv1.SignedQueryRequest, *common.QueryRequest) {
 	nonce += 1
-	queryRequest := &gossipv1.QueryRequest{
+	queryRequest := &common.QueryRequest{
 		Nonce:           nonce,
 		PerChainQueries: perChainQueries,
 	}
 
-	queryRequestBytes, err := proto.Marshal(queryRequest)
+	queryRequestBytes, err := queryRequest.Marshal()
 	if err != nil {
 		panic(err)
 	}
@@ -105,18 +102,18 @@ func createSignedQueryRequestForTesting(
 }
 
 // createExpectedResultsForTest generates an array of the results expected for a request. These results are returned by the watcher, and used to validate the response.
-func createExpectedResultsForTest(perChainQueries []*gossipv1.PerChainQueryRequest) []common.PerChainQueryResponse {
+func createExpectedResultsForTest(perChainQueries []*common.PerChainQueryRequest) []common.PerChainQueryResponse {
 	expectedResults := []common.PerChainQueryResponse{}
 	for _, pcq := range perChainQueries {
-		switch req := pcq.Message.(type) {
-		case *gossipv1.PerChainQueryRequest_EthCallQueryRequest:
+		switch req := pcq.Query.(type) {
+		case *common.EthCallQueryRequest:
 			now := time.Now()
-			blockNum, err := strconv.ParseInt(strings.TrimPrefix(req.EthCallQueryRequest.Block, "0x"), 16, 64)
+			blockNum, err := strconv.ParseInt(strings.TrimPrefix(req.BlockId, "0x"), 16, 64)
 			if err != nil {
 				panic("invalid blockNum!")
 			}
 			resp := []common.EthCallQueryResponse{}
-			for _, cd := range req.EthCallQueryRequest.CallData {
+			for _, cd := range req.CallData {
 				resp = append(resp, common.EthCallQueryResponse{
 					Number: big.NewInt(blockNum),
 					Hash:   ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"),
@@ -142,7 +139,7 @@ func validateResponseForTest(
 	t *testing.T,
 	response *common.QueryResponsePublication,
 	signedRequest *gossipv1.SignedQueryRequest,
-	queryRequest *gossipv1.QueryRequest,
+	queryRequest *common.QueryRequest,
 	expectedResults []common.PerChainQueryResponse,
 ) bool {
 	require.NotNil(t, response)
@@ -352,7 +349,7 @@ func createQueryHandlerForTestWithoutPublisher(t *testing.T, ctx context.Context
 				case <-ctx.Done():
 					return
 				case pcqr := <-chainQueryReqC:
-					require.Equal(t, chainId, pcqr.ChainID)
+					require.Equal(t, chainId, pcqr.Request.ChainId)
 					md.mutex.Lock()
 					md.incrementRequestsPerChainAlreadyLocked(chainId)
 					if md.shouldIgnoreAlreadyLocked(chainId) {
@@ -361,7 +358,7 @@ func createQueryHandlerForTestWithoutPublisher(t *testing.T, ctx context.Context
 						results := md.expectedResults[pcqr.RequestIdx].Responses
 						result := md.getStatusAlreadyLocked(chainId)
 						logger.Info("watcher returning", zap.String("chainId", chainId.String()), zap.Int("requestIdx", pcqr.RequestIdx), zap.Int("result", int(result)))
-						queryResponse := common.CreatePerChainQueryResponseInternal(pcqr.RequestID, pcqr.RequestIdx, pcqr.ChainID, result, results)
+						queryResponse := common.CreatePerChainQueryResponseInternal(pcqr.RequestID, pcqr.RequestIdx, pcqr.Request.ChainId, result, results)
 						md.queryResponseWriteC <- queryResponse
 					}
 					md.mutex.Unlock()
@@ -410,12 +407,12 @@ func TestInvalidQueries(t *testing.T) {
 
 	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
 
-	var perChainQueries []*gossipv1.PerChainQueryRequest
+	var perChainQueries []*common.PerChainQueryRequest
 	var signedQueryRequest *gossipv1.SignedQueryRequest
 
 	// Query with a bad signature should fail.
 	md.resetState()
-	perChainQueries = []*gossipv1.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
+	perChainQueries = []*common.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
 	signedQueryRequest, _ = createSignedQueryRequestForTesting(md.sk, perChainQueries)
 	signedQueryRequest.Signature[0] += 1 // Corrupt the signature.
 	md.signedQueryReqWriteC <- signedQueryRequest
@@ -423,38 +420,38 @@ func TestInvalidQueries(t *testing.T) {
 
 	// Query for an unsupported chain should fail. The supported chains are defined in supportedChains in query.go
 	md.resetState()
-	perChainQueries = []*gossipv1.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDAlgorand, "0x28d9630", 2)}
+	perChainQueries = []*common.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDAlgorand, "0x28d9630", 2)}
 	signedQueryRequest, _ = createSignedQueryRequestForTesting(md.sk, perChainQueries)
 	md.signedQueryReqWriteC <- signedQueryRequest
 	require.Nil(t, md.waitForResponse())
 
 	// Query with no per-chain queries should fail.
 	md.resetState()
-	signedQueryRequest, _ = createSignedQueryRequestForTesting(md.sk, []*gossipv1.PerChainQueryRequest{})
+	signedQueryRequest, _ = createSignedQueryRequestForTesting(md.sk, []*common.PerChainQueryRequest{})
 	md.signedQueryReqWriteC <- signedQueryRequest
 	require.Nil(t, md.waitForResponse())
 
 	// Query for an invalid chain should fail.
 	md.resetState()
-	perChainQueries = []*gossipv1.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
-	perChainQueries[0].ChainId = uint32(math.MaxUint16) + 1 // Corrupt the chain ID.
+	perChainQueries = []*common.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
+	perChainQueries[0].ChainId = vaa.ChainID(math.MaxUint16) // Corrupt the chain ID.
 	signedQueryRequest, _ = createSignedQueryRequestForTesting(md.sk, perChainQueries)
 	md.signedQueryReqWriteC <- signedQueryRequest
 	require.Nil(t, md.waitForResponse())
 
 	// Query for a chain that supports queries but that is not in the watcher channel map should fail.
 	md.resetState()
-	perChainQueries = []*gossipv1.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDSepolia, "0x28d9630", 2)}
+	perChainQueries = []*common.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDSepolia, "0x28d9630", 2)}
 	signedQueryRequest, _ = createSignedQueryRequestForTesting(md.sk, perChainQueries)
 	md.signedQueryReqWriteC <- signedQueryRequest
 	require.Nil(t, md.waitForResponse())
 
 	// Query for "latest" should fail.
 	md.resetState()
-	perChainQueries = []*gossipv1.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
-	switch req := perChainQueries[0].Message.(type) {
-	case *gossipv1.PerChainQueryRequest_EthCallQueryRequest:
-		req.EthCallQueryRequest.Block = "latest"
+	perChainQueries = []*common.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
+	switch req := perChainQueries[0].Query.(type) {
+	case *common.EthCallQueryRequest:
+		req.BlockId = "latest"
 	}
 	signedQueryRequest, _ = createSignedQueryRequestForTesting(md.sk, perChainQueries)
 	md.signedQueryReqWriteC <- signedQueryRequest
@@ -462,25 +459,18 @@ func TestInvalidQueries(t *testing.T) {
 
 	// A per-chain query with no call data should fail.
 	md.resetState()
-	perChainQueries = []*gossipv1.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 0)}
+	perChainQueries = []*common.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 0)}
 	signedQueryRequest, _ = createSignedQueryRequestForTesting(md.sk, perChainQueries)
 	md.signedQueryReqWriteC <- signedQueryRequest
 	require.Nil(t, md.waitForResponse())
 
 	// Wrong length "To" contract should fail.
 	md.resetState()
-	perChainQueries = []*gossipv1.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
-	switch req := perChainQueries[0].Message.(type) {
-	case *gossipv1.PerChainQueryRequest_EthCallQueryRequest:
-		req.EthCallQueryRequest.CallData[0].To = req.EthCallQueryRequest.CallData[0].To[2:]
+	perChainQueries = []*common.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
+	switch req := perChainQueries[0].Query.(type) {
+	case *common.EthCallQueryRequest:
+		req.CallData[0].To = req.CallData[0].To[2:]
 	}
-	signedQueryRequest, _ = createSignedQueryRequestForTesting(md.sk, perChainQueries)
-	md.signedQueryReqWriteC <- signedQueryRequest
-	require.Nil(t, md.waitForResponse())
-
-	// Invalid type of per-chain query should fail.
-	md.resetState()
-	perChainQueries = []*gossipv1.PerChainQueryRequest{{ChainId: uint32(vaa.ChainIDPolygon)}}
 	signedQueryRequest, _ = createSignedQueryRequestForTesting(md.sk, perChainQueries)
 	md.signedQueryReqWriteC <- signedQueryRequest
 	require.Nil(t, md.waitForResponse())
@@ -494,7 +484,7 @@ func TestSingleQueryShouldSucceed(t *testing.T) {
 	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
-	perChainQueries := []*gossipv1.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
+	perChainQueries := []*common.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
 	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(md.sk, perChainQueries)
 	expectedResults := createExpectedResultsForTest(queryRequest.PerChainQueries)
 	md.setExpectedResults(expectedResults)
@@ -518,7 +508,7 @@ func TestBatchOfTwoQueriesShouldSucceed(t *testing.T) {
 	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
-	perChainQueries := []*gossipv1.PerChainQueryRequest{
+	perChainQueries := []*common.PerChainQueryRequest{
 		createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2),
 		createPerChainQueryForTesting(vaa.ChainIDBSC, "0x28d9123", 3),
 	}
@@ -546,7 +536,7 @@ func TestQueryWithLimitedRetriesShouldSucceed(t *testing.T) {
 	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
-	perChainQueries := []*gossipv1.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
+	perChainQueries := []*common.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
 	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(md.sk, perChainQueries)
 	expectedResults := createExpectedResultsForTest(queryRequest.PerChainQueries)
 	md.setExpectedResults(expectedResults)
@@ -574,7 +564,7 @@ func TestQueryWithRetryDueToTimeoutShouldSucceed(t *testing.T) {
 	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
-	perChainQueries := []*gossipv1.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
+	perChainQueries := []*common.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
 	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(md.sk, perChainQueries)
 	expectedResults := createExpectedResultsForTest(queryRequest.PerChainQueries)
 	md.setExpectedResults(expectedResults)
@@ -601,7 +591,7 @@ func TestQueryWithTooManyRetriesShouldFail(t *testing.T) {
 	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
-	perChainQueries := []*gossipv1.PerChainQueryRequest{
+	perChainQueries := []*common.PerChainQueryRequest{
 		createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2),
 		createPerChainQueryForTesting(vaa.ChainIDBSC, "0x28d9123", 3),
 	}
@@ -634,7 +624,7 @@ func TestQueryWithLimitedRetriesOnMultipleChainsShouldSucceed(t *testing.T) {
 	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
-	perChainQueries := []*gossipv1.PerChainQueryRequest{
+	perChainQueries := []*common.PerChainQueryRequest{
 		createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2),
 		createPerChainQueryForTesting(vaa.ChainIDBSC, "0x28d9123", 3),
 	}
@@ -669,7 +659,7 @@ func TestFatalErrorOnPerChainQueryShouldCauseRequestToFail(t *testing.T) {
 	md := createQueryHandlerForTest(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
-	perChainQueries := []*gossipv1.PerChainQueryRequest{
+	perChainQueries := []*common.PerChainQueryRequest{
 		createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2),
 		createPerChainQueryForTesting(vaa.ChainIDBSC, "0x28d9123", 3),
 	}
@@ -699,7 +689,7 @@ func TestPublishRetrySucceeds(t *testing.T) {
 	md := createQueryHandlerForTestWithoutPublisher(t, ctx, logger, watcherChainsForTest)
 
 	// Create the request and the expected results. Give the expected results to the mock.
-	perChainQueries := []*gossipv1.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
+	perChainQueries := []*common.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
 	signedQueryRequest, queryRequest := createSignedQueryRequestForTesting(md.sk, perChainQueries)
 	expectedResults := createExpectedResultsForTest(queryRequest.PerChainQueries)
 	md.setExpectedResults(expectedResults)

@@ -185,31 +185,29 @@ func TestCrossChainQuery(t *testing.T) {
 	}
 	to, _ := hex.DecodeString("DDb64fE46a91D46ee29420539FC25FD07c5FEa3E") // WETH
 
-	callData := []*gossipv1.EthCallQueryRequest_EthCallData{
+	callData := []*common.EthCallData{
 		{
 			To:   to,
 			Data: data,
 		},
 	}
 
-	callRequest := &gossipv1.EthCallQueryRequest{
-		Block:    hexutil.EncodeBig(blockNum),
+	callRequest := &common.EthCallQueryRequest{
+		BlockId:  hexutil.EncodeBig(blockNum),
 		CallData: callData,
 	}
 
-	queryRequest := &gossipv1.QueryRequest{
+	queryRequest := &common.QueryRequest{
 		Nonce: 1,
-		PerChainQueries: []*gossipv1.PerChainQueryRequest{
+		PerChainQueries: []*common.PerChainQueryRequest{
 			{
 				ChainId: 2,
-				Message: &gossipv1.PerChainQueryRequest_EthCallQueryRequest{
-					EthCallQueryRequest: callRequest,
-				},
+				Query:   callRequest,
 			},
 		},
 	}
 
-	queryRequestBytes, err := proto.Marshal(queryRequest)
+	queryRequestBytes, err := queryRequest.Marshal()
 	if err != nil {
 		panic(err)
 	}

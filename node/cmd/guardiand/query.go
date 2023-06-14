@@ -15,7 +15,6 @@ import (
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
 
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -30,7 +29,7 @@ type (
 	// pendingQuery is the cache entry for a given query.
 	pendingQuery struct {
 		signedRequest *gossipv1.SignedQueryRequest
-		request       *gossipv1.QueryRequest
+		request       *common.QueryRequest
 		requestID     string
 		receiveTime   time.Time
 		queries       []*perChainQuery
@@ -141,14 +140,14 @@ func handleQueryRequestsImpl(
 				continue
 			}
 
-			var queryRequest gossipv1.QueryRequest
-			err = proto.Unmarshal(signedRequest.QueryRequest, &queryRequest)
+			var queryRequest common.QueryRequest
+			err = queryRequest.Unmarshal(signedRequest.QueryRequest)
 			if err != nil {
 				qLogger.Error("failed to unmarshal query request", zap.String("requestor", signerAddress.Hex()), zap.String("requestID", requestID), zap.Error(err))
 				continue
 			}
 
-			if err := common.ValidateQueryRequest(&queryRequest); err != nil {
+			if err := queryRequest.Validate(); err != nil {
 				qLogger.Error("received invalid message", zap.String("requestor", signerAddress.Hex()), zap.String("requestID", requestID), zap.Error(err))
 				continue
 			}
@@ -178,7 +177,6 @@ func handleQueryRequestsImpl(
 					req: &common.PerChainQueryInternal{
 						RequestID:  requestID,
 						RequestIdx: requestIdx,
-						ChainID:    chainID,
 						Request:    pcq,
 					},
 					channel: channel,
@@ -244,7 +242,7 @@ func handleQueryRequestsImpl(
 					}
 
 					responses = append(responses, common.PerChainQueryResponse{
-						ChainID:   uint32(resp.ChainID),
+						ChainID:   resp.ChainID,
 						Responses: resp.Results,
 					})
 				}
@@ -338,11 +336,11 @@ func (pcq *perChainQuery) ccqForwardToWatcher(qLogger *zap.Logger, receiveTime t
 	select {
 	// TODO: only send the query request itself and reassemble in this module
 	case pcq.channel <- pcq.req:
-		qLogger.Debug("forwarded query request to watcher", zap.String("requestID", pcq.req.RequestID), zap.Stringer("chainID", pcq.req.ChainID))
+		qLogger.Debug("forwarded query request to watcher", zap.String("requestID", pcq.req.RequestID), zap.Stringer("chainID", pcq.req.Request.ChainId))
 		pcq.lastUpdateTime = receiveTime
 	default:
 		// By leaving lastUpdateTime unset, we will retry next interval.
-		qLogger.Warn("failed to send query request to watcher, will retry next interval", zap.String("requestID", pcq.req.RequestID), zap.Stringer("chain_id", pcq.req.ChainID))
+		qLogger.Warn("failed to send query request to watcher, will retry next interval", zap.String("requestID", pcq.req.RequestID), zap.Stringer("chain_id", pcq.req.Request.ChainId))
 	}
 }
 

@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
-	"google.golang.org/protobuf/proto"
 )
 
 // QueryStatus is the status returned from the watcher to the query handler.
@@ -58,7 +57,7 @@ type QueryResponsePublication struct {
 }
 
 type PerChainQueryResponse struct {
-	ChainID   uint32
+	ChainID   vaa.ChainID
 	Responses []EthCallQueryResponse
 }
 
@@ -85,14 +84,14 @@ func (resp *QueryResponsePublication) RequestID() string {
 func MarshalQueryResponsePublication(msg *QueryResponsePublication) ([]byte, error) {
 	// TODO: copy request write checks to query module request handling
 	// TODO: only receive the unmarshalled query request (see note in query.go)
-	var queryRequest gossipv1.QueryRequest
-	err := proto.Unmarshal(msg.Request.QueryRequest, &queryRequest)
+	var queryRequest QueryRequest
+	err := queryRequest.Unmarshal(msg.Request.QueryRequest)
 	if err != nil {
 		return nil, fmt.Errorf("received invalid message from query module")
 	}
 
 	// Validate things before we start marshalling.
-	if err := ValidateQueryRequest(&queryRequest); err != nil {
+	if err := queryRequest.Validate(); err != nil {
 		return nil, fmt.Errorf("queryRequest is invalid: %w", err)
 	}
 
@@ -111,7 +110,7 @@ func MarshalQueryResponsePublication(msg *QueryResponsePublication) ([]byte, err
 	buf.Write(msg.Request.Signature[:])
 
 	// Request
-	qrBuf, err := MarshalQueryRequest(&queryRequest)
+	qrBuf, err := queryRequest.Marshal()
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal query request")
 	}
@@ -190,12 +189,13 @@ func UnmarshalQueryResponsePublication(data []byte) (*QueryResponsePublication, 
 	}
 	signedQueryRequest.Signature = signature[:]
 
-	queryRequest, err := UnmarshalQueryRequestFromReader(reader)
+	queryRequest := QueryRequest{}
+	err := queryRequest.UnmarshalFromReader(reader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal query request: %w", err)
 	}
 
-	queryRequestBytes, err := proto.Marshal(queryRequest)
+	queryRequestBytes, err := queryRequest.Marshal()
 	if err != nil {
 		return nil, err
 	}
@@ -223,11 +223,9 @@ func UnmarshalQueryResponsePublication(data []byte) (*QueryResponsePublication, 
 func UnmarshalQueryPerChainResponseFromReader(reader *bytes.Reader) (*PerChainQueryResponse, error) {
 	pcr := PerChainQueryResponse{}
 
-	chainID := uint32(0)
-	if err := binary.Read(reader, binary.BigEndian, &chainID); err != nil {
+	if err := binary.Read(reader, binary.BigEndian, &pcr.ChainID); err != nil {
 		return nil, fmt.Errorf("failed to read chain ID: %w", err)
 	}
-	pcr.ChainID = chainID
 
 	numResponses := uint8(0)
 	if err := binary.Read(reader, binary.BigEndian, &numResponses); err != nil {

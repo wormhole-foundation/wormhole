@@ -8,17 +8,16 @@ import (
 	"time"
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	ethCommon "github.com/ethereum/go-ethereum/common"
-
-	"google.golang.org/protobuf/proto"
 )
 
-func createQueryRequestForTesting() *gossipv1.QueryRequest {
+func createQueryRequestForTesting() *QueryRequest {
 	// Create a query request.
 	wethAbi, err := abi.JSON(strings.NewReader("[{\"constant\":true,\"inputs\":[],\"name\":\"name\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"totalSupply\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]"))
 	if err != nil {
@@ -36,7 +35,7 @@ func createQueryRequestForTesting() *gossipv1.QueryRequest {
 
 	to, _ := hex.DecodeString("0d500b1d8e8ef31e21c99d1db9a6444d3adf1270")
 	block := "0x28d9630"
-	callData := []*gossipv1.EthCallQueryRequest_EthCallData{
+	callData := []*EthCallData{
 		{
 			To:   to,
 			Data: data1,
@@ -46,21 +45,19 @@ func createQueryRequestForTesting() *gossipv1.QueryRequest {
 			Data: data2,
 		},
 	}
-	callRequest := &gossipv1.EthCallQueryRequest{
-		Block:    block,
+	callRequest := &EthCallQueryRequest{
+		BlockId:  block,
 		CallData: callData,
 	}
 
-	perChainQuery := &gossipv1.PerChainQueryRequest{
-		ChainId: 5,
-		Message: &gossipv1.PerChainQueryRequest_EthCallQueryRequest{
-			EthCallQueryRequest: callRequest,
-		},
+	perChainQuery := &PerChainQueryRequest{
+		ChainId: vaa.ChainIDPolygon,
+		Query:   callRequest,
 	}
 
-	queryRequest := &gossipv1.QueryRequest{
+	queryRequest := &QueryRequest{
 		Nonce:           1,
-		PerChainQueries: []*gossipv1.PerChainQueryRequest{perChainQuery},
+		PerChainQueries: []*PerChainQueryRequest{perChainQuery},
 	}
 
 	return queryRequest
@@ -71,32 +68,33 @@ func timeForTest(t time.Time) time.Time {
 	return time.UnixMicro(t.UnixMicro())
 }
 
-func TestQueryRequestProtoMarshalUnMarshal(t *testing.T) {
+func TestQueryRequestMarshalUnmarshal(t *testing.T) {
 	queryRequest := createQueryRequestForTesting()
-	queryRequestBytes, err := proto.Marshal(queryRequest)
+	queryRequestBytes, err := queryRequest.Marshal()
 	require.NoError(t, err)
 
-	var queryRequest2 gossipv1.QueryRequest
-	err = proto.Unmarshal(queryRequestBytes, &queryRequest2)
+	var queryRequest2 QueryRequest
+	err = queryRequest2.Unmarshal(queryRequestBytes)
 	require.NoError(t, err)
 
-	assert.True(t, QueryRequestEqual(queryRequest, &queryRequest2))
+	assert.True(t, queryRequest.Equal(&queryRequest2))
 }
 
-func TestQueryRequestMarshalUnMarshal(t *testing.T) {
-	queryRequest := createQueryRequestForTesting()
-	queryRequestBytes, err := MarshalQueryRequest(queryRequest)
-	require.NoError(t, err)
-
-	queryRequest2, err := UnmarshalQueryRequest(queryRequestBytes)
-	require.NoError(t, err)
-
-	assert.True(t, QueryRequestEqual(queryRequest, queryRequest2))
+func TestMarshalOfQueryRequestWithNoQueryShouldFail(t *testing.T) {
+	perChainQuery := &PerChainQueryRequest{
+		ChainId: vaa.ChainIDPolygon,
+	}
+	queryRequest := &QueryRequest{
+		Nonce:           1,
+		PerChainQueries: []*PerChainQueryRequest{perChainQuery},
+	}
+	_, err := queryRequest.Marshal()
+	require.Error(t, err)
 }
 
-func TestQueryResponseMarshalUnMarshal(t *testing.T) {
+func TestQueryResponseMarshalUnmarshal(t *testing.T) {
 	queryRequest := createQueryRequestForTesting()
-	queryRequestBytes, err := proto.Marshal(queryRequest)
+	queryRequestBytes, err := queryRequest.Marshal()
 	require.NoError(t, err)
 
 	sig := [65]byte{}
@@ -152,10 +150,9 @@ func TestQueryResponseMarshalUnMarshal(t *testing.T) {
 	assert.True(t, respPub.Equal(respPub2))
 }
 
-/*
-func TesMarshalUnMarshalQueryResponseWithNoResults(t *testing.T) {
+func TesMarshalUnmarshalQueryResponseWithNoResults(t *testing.T) {
 	queryRequest := createQueryRequestForTesting()
-	queryRequestBytes, err := proto.Marshal(queryRequest)
+	queryRequestBytes, err := queryRequest.Marshal()
 	require.NoError(t, err)
 
 	sig := [65]byte{}
@@ -165,8 +162,8 @@ func TesMarshalUnMarshalQueryResponseWithNoResults(t *testing.T) {
 	}
 
 	respPub := &QueryResponsePublication{
-		Request:   signedQueryRequest,
-		Responses: nil,
+		Request:           signedQueryRequest,
+		PerChainResponses: nil,
 	}
 
 	respPubBytes, err := MarshalQueryResponsePublication(respPub)
@@ -178,4 +175,3 @@ func TesMarshalUnMarshalQueryResponseWithNoResults(t *testing.T) {
 
 	assert.True(t, respPub.Equal(respPub2))
 }
-*/

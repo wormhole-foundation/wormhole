@@ -531,17 +531,17 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			case queryRequest := <-w.queryReqC:
 				// This can't happen unless there is a programming error - the caller
 				// is expected to send us only requests for our chainID.
-				if queryRequest.ChainID != w.chainID {
+				if queryRequest.Request.ChainId != w.chainID {
 					panic("ccqevm: invalid chain ID")
 				}
 
-				switch req := queryRequest.Request.Message.(type) {
-				case *gossipv1.PerChainQueryRequest_EthCallQueryRequest:
-					block := req.EthCallQueryRequest.Block
+				switch req := queryRequest.Request.Query.(type) {
+				case *common.EthCallQueryRequest:
+					block := req.BlockId
 					logger.Info("received query request",
 						zap.String("eth_network", w.networkName),
 						zap.String("block", block),
-						zap.Int("numRequests", len(req.EthCallQueryRequest.CallData)),
+						zap.Int("numRequests", len(req.CallData)),
 						zap.String("component", "ccqevm"),
 					)
 
@@ -589,7 +589,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					evmCallData := []EvmCallData{}
 
 					// Add each requested query to the batch.
-					for _, callData := range req.EthCallQueryRequest.CallData {
+					for _, callData := range req.CallData {
 						// like https://github.com/ethereum/go-ethereum/blob/master/ethclient/ethclient.go#L610
 						to := eth_common.BytesToAddress(callData.To)
 						data := eth_hexutil.Encode(callData.Data)
@@ -668,7 +668,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					resp := []common.EthCallQueryResponse{}
 
 					errFound := false
-					for idx := range req.EthCallQueryRequest.CallData {
+					for idx := range req.CallData {
 						if evmCallData[idx].callErr != nil {
 							logger.Error("failed to process query call request",
 								zap.Error(evmCallData[idx].callErr), zap.String("eth_network", w.networkName),
@@ -724,7 +724,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 
 				default:
 					logger.Warn("received unsupported request type",
-						zap.Any("payload", queryRequest.Request.Message),
+						zap.Uint8("payload", uint8(queryRequest.Request.Query.Type())),
 						zap.String("component", "ccqevm"),
 					)
 					w.ccqSendQueryResponse(logger, queryRequest, common.QueryFatalError, nil)
@@ -1151,7 +1151,7 @@ func (w *Watcher) SetMaxWaitConfirmations(maxWaitConfirmations uint64) {
 
 // ccqSendQueryResponse sends an error response back to the query handler.
 func (w *Watcher) ccqSendQueryResponse(logger *zap.Logger, req *common.PerChainQueryInternal, status common.QueryStatus, results []common.EthCallQueryResponse) {
-	queryResponse := common.CreatePerChainQueryResponseInternal(req.RequestID, req.RequestIdx, req.ChainID, status, results)
+	queryResponse := common.CreatePerChainQueryResponseInternal(req.RequestID, req.RequestIdx, req.Request.ChainId, status, results)
 	select {
 	case w.queryResponseC <- queryResponse:
 		logger.Debug("published query response error to handler", zap.String("component", "ccqevm"))
