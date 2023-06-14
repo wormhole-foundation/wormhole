@@ -100,7 +100,7 @@ contract TestDeliveryProvider is Test {
         );
     }
 
-    function testCanUpdatePriceOnlyAsPriceWallet(
+    function testCanUpdatePriceOnlyAsOwnerOrPriceWallet(
         address pricingWallet,
         address maliciousUser,
         uint16 updateChainId,
@@ -110,16 +110,26 @@ contract TestDeliveryProvider is Test {
         vm.assume(maliciousUser != address(0));
         vm.assume(pricingWallet != address(0));
         vm.assume(maliciousUser != pricingWallet);
+        vm.assume(maliciousUser != address(this));
         vm.assume(updateChainId > 0);
         vm.assume(updateGasPrice.unwrap() > 0);
         vm.assume(updateNativeCurrencyPrice.unwrap() > 0);
+        vm.assume(updateGasPrice.unwrap() < type(uint64).max);
+        vm.assume(updateNativeCurrencyPrice.unwrap() < type(uint128).max);
 
         initializeDeliveryProvider();
         deliveryProvider.updatePricingWallet(pricingWallet);
 
         // you shall not pass
         vm.prank(maliciousUser);
-        vm.expectRevert(abi.encodeWithSignature("CallerMustBePricingWallet()"));
+        vm.expectRevert(abi.encodeWithSignature("CallerMustBeOwnerOrPricingWallet()"));
+        deliveryProvider.updatePrice(updateChainId, updateGasPrice, updateNativeCurrencyPrice);
+
+        // pricing wallet
+        vm.prank(pricingWallet);
+        deliveryProvider.updatePrice(updateChainId, updateGasPrice, updateNativeCurrencyPrice);
+
+        // owner
         deliveryProvider.updatePrice(updateChainId, updateGasPrice, updateNativeCurrencyPrice);
     }
 

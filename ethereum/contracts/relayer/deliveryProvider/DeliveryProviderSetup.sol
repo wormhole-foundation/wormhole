@@ -19,8 +19,6 @@ contract DeliveryProviderSetup is DeliveryProviderSetters, ERC1967Upgrade {
 
         setOwner(_msgSender());
 
-        setPricingWallet(_msgSender());
-
         setChainId(chainId);
 
         _upgradeTo(implementation);

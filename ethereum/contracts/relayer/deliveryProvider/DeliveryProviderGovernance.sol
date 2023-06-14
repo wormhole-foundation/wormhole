@@ -31,7 +31,7 @@ abstract contract DeliveryProviderGovernance is
     error AddressIsZero();
     error CallerMustBePendingOwner();
     error CallerMustBeOwner();
-    error CallerMustBePricingWallet();
+    error CallerMustBeOwnerOrPricingWallet();
 
     event ContractUpgraded(address indexed oldContract, address indexed newContract);
     event ChainSupportUpdated(uint16 targetChain, bool isSupported);
@@ -111,13 +111,13 @@ abstract contract DeliveryProviderGovernance is
         emit TargetChainAddressUpdated(targetChain, newAddress);
     }
 
-    function updateDeliverGasOverhead(uint16 chainId, Gas newGasOverhead) external onlyPricingWallet {
+    function updateDeliverGasOverhead(uint16 chainId, Gas newGasOverhead) external onlyOwnerOrPricingWallet {
         updateDeliverGasOverheadImpl(chainId, newGasOverhead);
     }
 
     function updateDeliverGasOverheads(
         DeliveryProviderStructs.DeliverGasOverheadUpdate[] memory overheadUpdates
-    ) external onlyPricingWallet {
+    ) external onlyOwnerOrPricingWallet {
         uint256 updatesLength = overheadUpdates.length;
         for (uint256 i = 0; i < updatesLength;) {
             DeliveryProviderStructs.DeliverGasOverheadUpdate memory update = overheadUpdates[i];
@@ -138,13 +138,13 @@ abstract contract DeliveryProviderGovernance is
         uint16 updateChainId,
         GasPrice updateGasPrice,
         WeiPrice updateNativeCurrencyPrice
-    ) external onlyPricingWallet {
+    ) external onlyOwnerOrPricingWallet {
         updatePriceImpl(updateChainId, updateGasPrice, updateNativeCurrencyPrice);
     }
 
     function updatePrices(DeliveryProviderStructs.UpdatePrice[] memory updates)
         external
-        onlyPricingWallet
+        onlyOwnerOrPricingWallet
     {
         uint256 pricesLength = updates.length;
         for (uint256 i = 0; i < pricesLength;) {
@@ -174,13 +174,13 @@ abstract contract DeliveryProviderGovernance is
         setPriceInfo(updateChainId, updateGasPrice, updateNativeCurrencyPrice);
     }
 
-    function updateMaximumBudget(uint16 targetChain, Wei maximumTotalBudget) external onlyPricingWallet {
+    function updateMaximumBudget(uint16 targetChain, Wei maximumTotalBudget) external onlyOwnerOrPricingWallet {
         setMaximumBudget(targetChain, maximumTotalBudget);
     }
 
     function updateMaximumBudgets(DeliveryProviderStructs.MaximumBudgetUpdate[] memory updates)
         external
-        onlyPricingWallet
+        onlyOwnerOrPricingWallet
     {
         uint256 updatesLength = updates.length;
         for (uint256 i = 0; i < updatesLength;) {
@@ -196,13 +196,13 @@ abstract contract DeliveryProviderGovernance is
         uint16 targetChain,
         uint16 buffer,
         uint16 bufferDenominator
-    ) external onlyPricingWallet {
+    ) external onlyOwnerOrPricingWallet {
         updateAssetConversionBufferImpl(targetChain, buffer, bufferDenominator);
     }
 
     function updateAssetConversionBuffers(
         DeliveryProviderStructs.AssetConversionBufferUpdate[] memory updates
-    ) external onlyPricingWallet {
+    ) external onlyOwnerOrPricingWallet {
         uint256 updatesLength = updates.length;
         for (uint256 i = 0; i < updatesLength;) {
             DeliveryProviderStructs.AssetConversionBufferUpdate memory update = updates[i];
@@ -332,9 +332,9 @@ abstract contract DeliveryProviderGovernance is
         _;
     }
 
-    modifier onlyPricingWallet() {
-        if (pricingWallet() != _msgSender()) {
-            revert CallerMustBePricingWallet();
+    modifier onlyOwnerOrPricingWallet() {
+        if ((pricingWallet() != _msgSender()) && (owner() != _msgSender())) {
+            revert CallerMustBeOwnerOrPricingWallet();
         }
         _;
     }
