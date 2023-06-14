@@ -10,6 +10,9 @@
 /cosmwasm/ @jynnantonix @kcsongor @a5-pickle
 /ethereum/ @a5-pickle @calebrate @gator-boi @hendrikhofstadt @kcsongor
 /ethereum/contracts/relayer @chase-45 @derpy-duck @JoeHowarth 
+/ethereum/contracts/interfaces/relayer @chase-45 @derpy-duck @JoeHowarth 
+/ethereum/forge-test/relayer @chase-45 @derpy-duck @JoeHowarth 
+/ethereum/ts-scripts/relayer @chase-45 @derpy-duck @JoeHowarth 
 /near/ @jumpsiegel @evan-gray @hendrikhofstadt @kcsongor
 /solana/ @hendrikhofstadt @kcsongor @a5-pickle
 /sui/ @kcsongor @a5-pickle @gator-boi @heyitaki
