@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	_ "net/http/pprof" // #nosec G108 we are using a custom router (`router := mux.NewRouter()`) and thus not automatically expose pprof.
 	"os"
@@ -13,6 +14,7 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/cosmwasm"
 
@@ -969,6 +971,21 @@ func runNode(cmd *cobra.Command, args []string) {
 			logger.Fatal("Failed to parse hostname - are we running in devnet?")
 		}
 		priv = devnet.DeterministicP2PPrivKeyByIndex(int64(idx))
+
+		if idx != 0 {
+			// try to connect to guardian-0
+			for {
+				_, err := net.LookupIP("guardian-0.guardian")
+				if err == nil {
+					break
+				}
+				logger.Info("Error resolving guardian-0.guardian. Trying again...")
+				time.Sleep(time.Second)
+			}
+			// TODO this is a hack. If this is not the bootstrap Guardian, we wait 5s such that the bootstrap Guardian has enough time to start.
+			logger.Info("This is not a bootstrap Guardian. Waiting another 10 seconds so the bootstrap guardian to come online.")
+			time.Sleep(time.Second * 10)
+		}
 	} else {
 		priv, err = common.GetOrCreateNodeKey(logger, *nodeKeyPath)
 		if err != nil {
