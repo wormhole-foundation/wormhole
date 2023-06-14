@@ -240,6 +240,8 @@ Commands:
   worm generate upgrade                     Generate contract upgrade VAA
   worm generate attestation                 Generate a token attestation VAA
   worm generate recover-chain-id            Generate a recover chain ID VAA
+  worm generate                             Sets the default delivery provider
+  set-default-delivery-provider             for the Wormhole Relayer contract
 
 Options:
       --help                       Show help                           [boolean]
@@ -309,6 +311,8 @@ Commands:
   worm info upgrade                         Generate contract upgrade VAA
   worm info attestation                     Generate a token attestation VAA
   worm info recover-chain-id                Generate a recover chain ID VAA
+  worm info set-default-delivery-provider   Sets the default delivery provider
+                                            for the Wormhole Relayer contract
   worm info chain-id <chain>                Print the wormhole chain ID integer
                                             associated with the specified chain
                                             name
@@ -395,6 +399,8 @@ Commands:
   worm near upgrade                         Generate contract upgrade VAA
   worm near attestation                     Generate a token attestation VAA
   worm near recover-chain-id                Generate a recover chain ID VAA
+  worm near set-default-delivery-provider   Sets the default delivery provider
+                                            for the Wormhole Relayer contract
   worm near chain-id <chain>                Print the wormhole chain ID integer
                                             associated with the specified chain
                                             name
@@ -495,6 +501,8 @@ Commands:
   worm parse <vaa> upgrade                  Generate contract upgrade VAA
   worm parse <vaa> attestation              Generate a token attestation VAA
   worm parse <vaa> recover-chain-id         Generate a recover chain ID VAA
+  worm parse <vaa>                          Sets the default delivery provider
+  set-default-delivery-provider             for the Wormhole Relayer contract
   worm parse <vaa> chain-id <chain>         Print the wormhole chain ID integer
                                             associated with the specified chain
                                             name
@@ -607,6 +615,8 @@ Commands:
   attestation
   worm recover <digest> <signature>         Generate a recover chain ID VAA
   recover-chain-id
+  worm recover <digest> <signature>         Sets the default delivery provider
+  set-default-delivery-provider             for the Wormhole Relayer contract
   worm recover <digest> <signature>         Print the wormhole chain ID integer
   chain-id <chain>                          associated with the specified chain
                                             name
@@ -712,6 +722,8 @@ Commands:
   worm submit <vaa> upgrade                 Generate contract upgrade VAA
   worm submit <vaa> attestation             Generate a token attestation VAA
   worm submit <vaa> recover-chain-id        Generate a recover chain ID VAA
+  worm submit <vaa>                         Sets the default delivery provider
+  set-default-delivery-provider             for the Wormhole Relayer contract
   worm submit <vaa> chain-id <chain>        Print the wormhole chain ID integer
                                             associated with the specified chain
                                             name
@@ -825,6 +837,8 @@ Commands:
   worm sui upgrade                          Generate contract upgrade VAA
   worm sui attestation                      Generate a token attestation VAA
   worm sui recover-chain-id                 Generate a recover chain ID VAA
+  worm sui set-default-delivery-provider    Sets the default delivery provider
+                                            for the Wormhole Relayer contract
   worm sui chain-id <chain>                 Print the wormhole chain ID integer
                                             associated with the specified chain
                                             name
@@ -959,6 +973,8 @@ Commands:
   worm verify-vaa upgrade                   Generate contract upgrade VAA
   worm verify-vaa attestation               Generate a token attestation VAA
   worm verify-vaa recover-chain-id          Generate a recover chain ID VAA
+  worm verify-vaa                           Sets the default delivery provider
+  set-default-delivery-provider             for the Wormhole Relayer contract
   worm verify-vaa chain-id <chain>          Print the wormhole chain ID integer
                                             associated with the specified chain
                                             name

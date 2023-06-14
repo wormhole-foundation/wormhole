@@ -38,7 +38,7 @@ import "../../interfaces/relayer/TypedUnits.sol";
 import "../../libraries/relayer/ExecutionParameters.sol";
 
 abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelayerDelivery {
-    using WormholeRelayerSerde for *; //somewhat yucky but unclear what's a better alternative
+    using WormholeRelayerSerde for *; 
     using BytesParsing for bytes;
     using WeiLib for Wei;
     using GasLib for Gas;
@@ -52,23 +52,23 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         address payable relayerRefundAddress,
         bytes memory deliveryOverrides
     ) public payable {
+
+        // Parse and verify VAA containing delivery instructions, revert if invalid
         (IWormhole.VM memory vm, bool valid, string memory reason) =
             getWormhole().parseAndVerifyVM(encodedDeliveryVAA);
-
         if (!valid) {
             revert InvalidDeliveryVaa(reason);
         }
 
+        // Revert if the emitter of the VAA is not a Wormhole Relayer contract 
         bytes32 registeredWormholeRelayer = getRegisteredWormholeRelayerContract(vm.emitterChainId);
         if (vm.emitterAddress != registeredWormholeRelayer) {
             revert InvalidEmitter(vm.emitterAddress, registeredWormholeRelayer, vm.emitterChainId);
         }
-
+    
         DeliveryInstruction memory instruction = vm.payload.decodeDeliveryInstruction();
 
-        //"lock" as soon as possible (we could also lock after all checks have completed), but locking
-        //  early seems more defensive when it comes to additional code changes and does not change the
-        //  cost of the happy path.
+        // Lock the contract (and store some information about the delivery in temporary storage)
         startDelivery(
             fromWormholeFormat(instruction.targetAddress),
             fromWormholeFormat(instruction.refundDeliveryProvider),
@@ -90,6 +90,9 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             redeliveryHash: bytes32(0)
         });
 
+        // Decode information from the execution parameters
+        // (overriding them if there was an override requested)
+        // Assumes execution parameters and info are of version EVM_V1
         (
             deliveryVaaInfo.gasLimit,
             deliveryVaaInfo.targetChainRefundPerGasUnused,
@@ -97,6 +100,8 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             deliveryVaaInfo.redeliveryHash
         ) = getDeliveryParametersEvmV1(instruction, deliveryOverrides);
 
+        // Revert if msg.value is not enough to fund both the receiver value
+        // as well as the maximum possible refund 
         // Note: instruction's TargetNative is delivery's LocalNative
         LocalNative requiredFunds = (deliveryVaaInfo.gasLimit.toWei(
             deliveryVaaInfo.targetChainRefundPerGasUnused
@@ -105,14 +110,17 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             revert InsufficientRelayerFunds(msgValue(), requiredFunds);
         }
 
+        // Revert if the instruction's target chain is not this chain
         if (getChainId() != instruction.targetChain) {
             revert TargetChainIsNotThisChain(instruction.targetChain);
         }
 
+        // Revert if the VAAs delivered do not match the descriptions specified in the instruction
         checkVaaKeysWithVAAs(instruction.vaaKeys, encodedVMs);
 
         executeDelivery(deliveryVaaInfo);
 
+        // Unlock contract
         finishDelivery();
     }
 
@@ -166,6 +174,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
 
             // Check to see if gasLimit >= original gas limit, receiver value >= original receiver value, and refund >= original refund
             // If so, replace the corresponding variables with the overriden variables
+            // If not, revert
             (instruction.requestedReceiverValue, executionInfo) = decodeAndCheckOverridesEvmV1(
                 instruction.requestedReceiverValue, executionInfo, deliveryOverrides
             );
@@ -231,13 +240,13 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
      *
      * - Calculates how much gas from `vaaInfo.gasLimit` is left
      * - If the call succeeded and during execution of `receiveWormholeMessages` there were
-     *     forward(s), then it executes the forward if 
-     *     (gas left from vaaInfo.gasLimit) * (vaaInfo.targetChainRefundPerGasUnused) is enough
+     *     forward(s), and (gas left from vaaInfo.gasLimit) * (vaaInfo.targetChainRefundPerGasUnused) is enough extra funds
+     *     to execute the forward(s), then the forward(s) are executed
      * - else:
      *     revert the delivery to trigger a receiver failure (or forward request failure if 
      *     there were forward(s))
-     *     refund 'vaaInfo.targetChainRefundPerGasUnused'*(amount of vaaInfo.gasLimit unused) to deliveryInstruction.refundAddress
-     *     if the call reverted, refund `vaaInfo.receiverValue` to vaaInfo.deliveryInstruction.refundAddress
+     *     refund 'vaaInfo.targetChainRefundPerGasUnused'*(amount of vaaInfo.gasLimit unused) to vaaInfo.deliveryInstruction.refundAddress
+     *     if the call reverted, refund `vaaInfo.totalReceiverValue` to vaaInfo.deliveryInstruction.refundAddress
      * - refund anything leftover to the relayer
      *
      * @param vaaInfo struct specifying:
@@ -256,13 +265,22 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
      */
 
     function executeDelivery(DeliveryVAAInfo memory vaaInfo) private {
+
+        // If the targetAddress is the 0 address
+        // Then emit event and return
+        // (This is used for cross-chain refunds)
         if (checkIfCrossChainRefund(vaaInfo)) {
             return;
         }
 
         DeliveryResults memory results;
 
-        try //force external call
+        // Forces external call
+        // In order to catch reverts
+        // (If the user's contract requests a forward
+        // and there ends up not being enough funds,
+        // then we will revert this call)
+        try 
         this.executeInstruction(
             EvmDeliveryInstruction({
                 sourceChain: vaaInfo.sourceChain,
@@ -281,12 +299,17 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             results = DeliveryResults(
                 _gasUsed,
                 DeliveryStatus(_status),
-                //will carry the correct value regardless of outcome (empty if successful, error otherwise)
                 targetRevertDataTruncated
             );
         } 
         catch (bytes memory revertData) {
-            //decode returned error if it is one of three known types
+            // Should only revert if 
+            // 1) forward(s) were requested but not enough funds were available from the refund
+            // 2) forward(s) were requested, but the delivery provider requested for the forward reverted during execution
+            // 3) forward(s) were requested, but the payment of the delivery provider for the forward failed
+
+            // Decode returned error (into one of these three known types)
+            // obtaining the gas usage of targetAddress
             bool knownError;
             Gas gasUsed_;
             (gasUsed_, knownError) = tryDecodeExecuteInstructionError(revertData);
@@ -344,7 +367,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         external
         returns (uint8 status, Gas gasUsed, bytes memory targetRevertDataTruncated)
     {
-        //despite being external, we only allow ourselves to call this function (via CALL opcode)
+        //  despite being external, we only allow ourselves to call this function (via CALL opcode)
         //  used as a means to retroactively revert the call to the delivery target if the forwards
         //  can't be funded
         if (msg.sender != address(this)) {
@@ -363,10 +386,12 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
                 evmInstruction.deliveryHash
             ));
 
+            // Measure gas usage of call
             Gas preGas = Gas.wrap(gasleft());
 
             // Calls the `receiveWormholeMessages` endpoint on the contract `evmInstruction.targetAddress`
             // (with the gas limit and value specified in instruction, and `encodedVMs` as the input)
+            // If it reverts, returns the first 132 bytes of the revert message
             (success, targetRevertDataTruncated) = returnLengthBoundedCall(
                 deliveryTarget,
                 callData,
@@ -389,22 +414,27 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             ForwardInstruction[] storage forwardInstructions = getForwardInstructions();
 
             if (forwardInstructions.length > 0) {
-                //Calculate the amount of the transaction fee to refund to the user (multiply the maximum refund by the
-                //  fraction of gas unused)
+                // forward(s) were requested during execution of the call to targetAddress above
+
+                // Calculate the amount to refund the user for unused gas
                 LocalNative transactionFeeRefundAmount = (gasLimit - gasUsed).toWei(
                     evmInstruction.targetChainRefundPerGasUnused
                 ).asLocalNative();
+
+                // Check if refund amount is enough, and if so, emit forwards  
                 emitForward(gasUsed, transactionFeeRefundAmount, forwardInstructions);
+
+                // If we reach here (i.e. emitForward didn't revert) then the forward succeeded
                 status = uint8(DeliveryStatus.FORWARD_REQUEST_SUCCESS);
             }
         } else {
-            // Note that forward instructions should always be empty in this case.
+            // Call to 'receiveWormholeMessages' on targetAddress reverted
             status = uint8(DeliveryStatus.RECEIVER_FAILURE);
         }
     }
 
     /**
-     * - Checks if enough funds were passed into a forward
+     * - Checks if enough funds were passed into a forward (and reverts if not)
      * - Increases the 'extraReceiverValue' of the first forward in order to use all of the funds
      * - Publishes the DeliveryInstruction
      * - Pays the relayer's reward address to deliver the forward
@@ -420,12 +450,15 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
     ) private {
         LocalNative wormholeMessageFee = getWormholeMessageFee();
 
-        //Decode send requests and aggregate fee and payment
+        // Decode delivery instructions from each 'forward' request
         DeliveryInstruction[] memory instructions =
             new DeliveryInstruction[](forwardInstructions.length);
 
+        // Calculate total msg.value passed into all 'forward' requests
         LocalNative totalMsgValue;
+        // Calculate total fee for all 'forward' requests
         LocalNative totalFee;
+
         for (uint256 i = 0; i < forwardInstructions.length;) {
             unchecked {
                 totalMsgValue = totalMsgValue + forwardInstructions[i].msgValue;
@@ -439,8 +472,8 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             }
         }
 
-        //Combine refund amount with any additional funds which were passed in to the forward as
-        //  msg.value and check that enough funds were passed into the forward 
+        //  Combine refund amount with any additional funds which were passed in to the forward as
+        //  msg.value and check that this value is enough to fund all the forwards, reverting otherwise
         LocalNative fundsForForward;
         unchecked {
             fundsForForward = transactionFeeRefundAmount + totalMsgValue;
@@ -448,6 +481,9 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         if (fundsForForward.unwrap() < totalFee.unwrap()) {
             revert Cancelled(gasUsed, fundsForForward, totalFee);
         }
+        
+        // Simulates if the user had increased the 'paymentForExtraReceiverValue' field of their first forward
+        // to the maximum value such that the forward(s) would still have enough funds
 
         TargetNative extraReceiverValue;
         try IDeliveryProvider(
@@ -458,13 +494,13 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         } catch {
             revert DeliveryProviderReverted(gasUsed);
         }
-        //Increases the extraReceiverValue of the first forward in order to use all of the funds
+        
         unchecked {
             instructions[0].extraReceiverValue =
                 instructions[0].extraReceiverValue + extraReceiverValue;
         }
 
-        //Publishes the DeliveryInstruction and pays the associated deliveryProvider
+        //Publishes the DeliveryInstruction(s) for each forward request and pays the associated deliveryProvider
         for (uint256 i = 0; i < forwardInstructions.length;) {
             (, bool paymentSucceeded) = publishAndPay(
                 wormholeMessageFee,
@@ -504,7 +540,8 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             ).asNative().asLocalNative(); // NOTE: instruction's target is delivery's local
         }
 
-        //Total refund to the user
+        // Total refund to the user
+        // (If the forward succeeded, the 'transactionFeeRefundAmount' was used there already)
         LocalNative refundToRefundAddress = receiverValueRefundAmount
             + (
                 status == DeliveryStatus.FORWARD_REQUEST_SUCCESS
@@ -520,8 +557,7 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             deliveryInstruction.refundDeliveryProvider
         );
 
-        //Refund the relayer (their extra funds) + (the amount that the relayer spent on gas)
-        //  + (the users refund if that refund didn't succeed)
+        //If sending the user's refund failed, this gets added to the relayer's refund
         LocalNative leftoverUserRefund = refundToRefundAddress;
         if (
             refundStatus == RefundStatus.REFUND_SENT
@@ -530,9 +566,9 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             leftoverUserRefund = LocalNative.wrap(0);
         }
 
+        // Refund the relayer all remaining funds
         LocalNative relayerRefundAmount = calcRelayerRefundAmount(deliveryInstruction, transactionFeeRefundAmount, leftoverUserRefund);
 
-        //Refund the relay provider
         bool paymentSucceeded = pay(relayerRefundAddress, relayerRefundAmount);
         if(!paymentSucceeded) {
             revert DeliveryProviderCannotReceivePayment();
@@ -556,16 +592,21 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
         LocalNative refundAmount,
         bytes32 relayerAddress
     ) private returns (RefundStatus) {
-        //same chain refund
+        // User requested refund on this chain
         if (refundChain == getChainId()) {
             return pay(payable(fromWormholeFormat(refundAddress)), refundAmount)
                 ? RefundStatus.REFUND_SENT
                 : RefundStatus.REFUND_FAIL;
         }
 
-        //cross-chain refund
+        // User requested refund on a different chain
+        
         IDeliveryProvider deliveryProvider = IDeliveryProvider(fromWormholeFormat(relayerAddress));
+        
+        // Determine price of an 'empty' delivery
+        // (Note: assumes refund chain is an EVM chain)
         LocalNative baseDeliveryPrice;
+      
         try deliveryProvider.quoteDeliveryPrice(
             refundChain,
             TargetNative.wrap(0),
@@ -576,10 +617,12 @@ abstract contract WormholeRelayerDelivery is WormholeRelayerBase, IWormholeRelay
             return RefundStatus.CROSS_CHAIN_REFUND_FAIL_PROVIDER_NOT_SUPPORTED;
         }
 
-        // assuming refund chain is an EVM chain
+        // If the refundAmount is not greater than the 'empty delivery price', the refund does not go through
         if (refundAmount <= getWormholeMessageFee() + baseDeliveryPrice) {
             return RefundStatus.CROSS_CHAIN_REFUND_FAIL_NOT_ENOUGH;
         }
+        
+        // Request a 'send' with 'paymentForExtraReceiverValue' equal to the refund minus the 'empty delivery price'
         try IWormholeRelayerSend(address(this)).send{value: refundAmount.unwrap()}(
             refundChain,
             bytes32(0),
