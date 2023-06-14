@@ -181,14 +181,6 @@ function loadAndMergeConfig(flag: Flag): GRRelayerAppConfig {
       ? JSON.parse(process.env.FETCH_SOURCE_TX_HASH)
       : base.fetchSourceTxhash,
 
-    // concurrency: Number(process.env.RELAY_CONCURRENCY) || 5,
-    // influx: {
-    //   url: process.env.INFLUXDB_URL,
-    //   org: process.env.INFLUXDB_ORG,
-    //   bucket: process.env.INFLUXDB_BUCKET,
-    //   token: process.env.INFLUXDB_TOKEN,
-    // },
-
     redisClusterEndpoints: process.env.REDIS_CLUSTER_ENDPOINTS?.split(","), // "url1:port,url2:port"
     redisCluster: isRedisCluster
       ? {

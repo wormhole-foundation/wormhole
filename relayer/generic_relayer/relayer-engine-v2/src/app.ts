@@ -40,14 +40,14 @@ async function main() {
     wormholeRpcs,
   } = opts;
   app.spy(spyEndpoint);
-    const store = new RedisStorage({
-      redis,
-      redisClusterEndpoints,
-      redisCluster,
-      attempts: opts.workflows?.retries ?? 3,
-      namespace: name,
-      queueName: `${name}-relays`,
-    });
+  const store = new RedisStorage({
+    redis,
+    redisClusterEndpoints,
+    redisCluster,
+    attempts: opts.workflows?.retries ?? 3,
+    namespace: name,
+    queueName: `${name}-relays`,
+  });
 
   app.useStorage(store);
   app.logger(logger);
