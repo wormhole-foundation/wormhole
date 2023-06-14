@@ -1,6 +1,7 @@
 package node
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -15,21 +16,33 @@ import (
 	"google.golang.org/grpc"
 )
 
-func publicrpcTcpServiceRunnable(logger *zap.Logger, listenAddr string, publicRpcLogDetail common.GrpcLogDetail, db *db.Database, gst *common.GuardianSetState, gov *governor.ChainGovernor) (supervisor.Runnable, error) {
-	l, err := net.Listen("tcp", listenAddr)
+func publicrpcTcpServiceRunnable(logger *zap.Logger, listenAddr string, publicRpcLogDetail common.GrpcLogDetail, db *db.Database, gst *common.GuardianSetState, gov *governor.ChainGovernor) supervisor.Runnable {
+	return func(ctx context.Context) error {
+		l, err := net.Listen("tcp", listenAddr)
+		defer func() {
+			if err := l.Close(); err != nil {
+				logger.Error("error closing tcp socket", zap.Error(err))
+			}
+		}()
 
-	if err != nil {
-		return nil, fmt.Errorf("failed to listen: %w", err)
+		if err != nil {
+			return fmt.Errorf("failed to listen: %w", err)
+		}
+
+		logger.Info("publicrpc server listening", zap.String("addr", l.Addr().String()))
+
+		rpcServer := publicrpc.NewPublicrpcServer(logger, db, gst, gov)
+		grpcServer := common.NewInstrumentedGRPCServer(logger, publicRpcLogDetail)
+
+		publicrpcv1.RegisterPublicRPCServiceServer(grpcServer, rpcServer)
+
+		if err := supervisor.Run(ctx, "grpcserver", supervisor.GRPCServer(grpcServer, l, false)); err != nil {
+			return err
+		}
+
+		<-ctx.Done()
+		return nil
 	}
-
-	logger.Info("publicrpc server listening", zap.String("addr", l.Addr().String()))
-
-	rpcServer := publicrpc.NewPublicrpcServer(logger, db, gst, gov)
-	grpcServer := common.NewInstrumentedGRPCServer(logger, publicRpcLogDetail)
-
-	publicrpcv1.RegisterPublicRPCServiceServer(grpcServer, rpcServer)
-
-	return supervisor.GRPCServer(grpcServer, l, false), nil
 }
 
 func publicrpcUnixServiceRunnable(logger *zap.Logger, socketPath string, publicRpcLogDetail common.GrpcLogDetail, db *db.Database, gst *common.GuardianSetState, gov *governor.ChainGovernor) (supervisor.Runnable, *grpc.Server, error) {
