@@ -400,10 +400,7 @@ func GuardianOptionPublicrpcTcpService(publicRpc string, publicRpcLogDetail comm
 		name:         "publicrpc",
 		dependencies: []string{"db", "governor", "publicrpcsocket"},
 		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
-			publicrpcService, err := publicrpcTcpServiceRunnable(logger, publicRpc, publicRpcLogDetail, g.db, g.gst, g.gov)
-			if err != nil {
-				return err
-			}
+			publicrpcService := publicrpcTcpServiceRunnable(logger, publicRpc, publicRpcLogDetail, g.db, g.gst, g.gov)
 			g.runnables["publicrpc"] = publicrpcService
 			return nil
 		}}
