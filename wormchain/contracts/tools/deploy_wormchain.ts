@@ -272,6 +272,71 @@ async function main() {
   });
   console.log(`sent accounting chain registrations, tx: `, res.transactionHash);
 
+  const wormchainIbcReceiverInstantiateMsg = {};
+  addresses["wormchain_ibc_receiver.wasm"] = await instantiate(
+    codeIds["wormchain_ibc_receiver.wasm"],
+    wormchainIbcReceiverInstantiateMsg,
+    "wormchainIbcReceiver"
+  );
+  console.log(
+    "instantiated wormchain ibc receiver contract: ",
+    addresses["wormchain_ibc_receiver.wasm"]
+  );
+
+  // Generated VAA using
+  // `guardiand template ibc-receiver-update-channel-chain --channel-id channel-0 --chain-id 32 --target-chain-id 3104 > wormchain.prototxt`
+  // `guardiand admin governance-vaa-verify wormchain.prototxt`
+  let wormchainIbcReceiverWhitelistVaa: VAA<Other> = {
+    version: 1,
+    guardianSetIndex: 0,
+    signatures: [],
+    timestamp: 0,
+    nonce: 0,
+    emitterChain: GOVERNANCE_CHAIN,
+    emitterAddress: GOVERNANCE_EMITTER,
+    sequence: BigInt(Math.floor(Math.random() * 100000000)),
+    consistencyLevel: 0,
+    payload: {
+      type: "Other",
+      hex: `0000000000000000000000000000000000000000004962635265636569766572010c20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006368616e6e656c2d300020`,
+    },
+  };
+  wormchainIbcReceiverWhitelistVaa.signatures = sign(
+    VAA_SIGNERS,
+    wormchainIbcReceiverWhitelistVaa as unknown as VAA<Payload>
+  );
+  const wormchainIbcReceiverUpdateWhitelistMsg = {
+    submit_update_channel_chain: {
+      vaas: [
+        Buffer.from(
+          serialiseVAA(
+            wormchainIbcReceiverWhitelistVaa as unknown as VAA<Payload>
+          ),
+          "hex"
+        ).toString("base64"),
+      ],
+    },
+  };
+  const executeMsg = client.wasm.msgExecuteContract({
+    sender: signer,
+    contract: addresses["wormchain_ibc_receiver.wasm"],
+    msg: toUtf8(JSON.stringify(wormchainIbcReceiverUpdateWhitelistMsg)),
+    funds: [],
+  });
+  const updateIbcWhitelistRes = await client.signAndBroadcast(
+    signer,
+    [executeMsg],
+    {
+      ...ZERO_FEE,
+      gas: "10000000",
+    }
+  );
+  console.log(
+    "updated wormchain_ibc_receiver whitelist: ",
+    updateIbcWhitelistRes.transactionHash,
+    updateIbcWhitelistRes.code
+  );
+
   const init_guardians = JSON.parse(process.env.INIT_SIGNERS);
   if (!init_guardians || init_guardians.length === 0) {
     throw "failed to get initial guardians from .env file.";
@@ -345,71 +410,6 @@ async function main() {
       vaa
     );
   }
-
-  const wormchainIbcReceiverInstantiateMsg = {};
-  addresses["wormchain_ibc_receiver.wasm"] = await instantiate(
-    codeIds["wormchain_ibc_receiver.wasm"],
-    wormchainIbcReceiverInstantiateMsg,
-    "wormchainIbcReceiver"
-  );
-  console.log(
-    "instantiated wormchain ibc receiver contract: ",
-    addresses["wormchain_ibc_receiver.wasm"]
-  );
-
-  // Generated VAA using
-  // `guardiand template ibc-receiver-update-channel-chain --channel-id channel-0 --chain-id 32 --target-chain-id 3104 > wormchain.prototxt`
-  // `guardiand admin governance-vaa-verify wormchain.prototxt`
-  let wormchainIbcReceiverWhitelistVaa: VAA<Other> = {
-    version: 1,
-    guardianSetIndex: 0,
-    signatures: [],
-    timestamp: 0,
-    nonce: 0,
-    emitterChain: GOVERNANCE_CHAIN,
-    emitterAddress: GOVERNANCE_EMITTER,
-    sequence: BigInt(Math.floor(Math.random() * 100000000)),
-    consistencyLevel: 0,
-    payload: {
-      type: "Other",
-      hex: `0000000000000000000000000000000000000000004962635265636569766572010c20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006368616e6e656c2d300020`,
-    },
-  };
-  wormchainIbcReceiverWhitelistVaa.signatures = sign(
-    VAA_SIGNERS,
-    wormchainIbcReceiverWhitelistVaa as unknown as VAA<Payload>
-  );
-  const wormchainIbcReceiverUpdateWhitelistMsg = {
-    submit_update_channel_chain: {
-      vaas: [
-        Buffer.from(
-          serialiseVAA(
-            wormchainIbcReceiverWhitelistVaa as unknown as VAA<Payload>
-          ),
-          "hex"
-        ).toString("base64"),
-      ],
-    },
-  };
-  const executeMsg = client.wasm.msgExecuteContract({
-    sender: signer,
-    contract: addresses["wormchain_ibc_receiver.wasm"],
-    msg: toUtf8(JSON.stringify(wormchainIbcReceiverUpdateWhitelistMsg)),
-    funds: [],
-  });
-  const updateIbcWhitelistRes = await client.signAndBroadcast(
-    signer,
-    [executeMsg],
-    {
-      ...ZERO_FEE,
-      gas: "10000000",
-    }
-  );
-  console.log(
-    "updated wormchain_ibc_receiver whitelist: ",
-    updateIbcWhitelistRes.transactionHash,
-    updateIbcWhitelistRes.code
-  );
 }
 
 try {
