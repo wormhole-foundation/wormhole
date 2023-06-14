@@ -101,8 +101,13 @@ func PostSignedQueryRequest(signedQueryReqSendC chan<- *gossipv1.SignedQueryRequ
 // Implementation of QueryRequest.
 //
 
-// Marshal serializes the binary representation of a query request
+// Marshal serializes the binary representation of a query request.
+// This method calls Validate() and relies on it to range checks lengths, etc.
 func (queryRequest *QueryRequest) Marshal() ([]byte, error) {
+	if err := queryRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	buf := new(bytes.Buffer)
 
 	vaa.MustWrite(buf, binary.BigEndian, queryRequest.Nonce) // uint32
@@ -111,7 +116,7 @@ func (queryRequest *QueryRequest) Marshal() ([]byte, error) {
 	for _, perChainQuery := range queryRequest.PerChainQueries {
 		pcqBuf, err := perChainQuery.Marshal()
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal per chain query")
+			return nil, fmt.Errorf("failed to marshal per chain query: %w", err)
 		}
 		buf.Write(pcqBuf)
 	}
@@ -152,7 +157,10 @@ func (queryRequest *QueryRequest) UnmarshalFromReader(reader *bytes.Reader) erro
 func (queryRequest *QueryRequest) Validate() error {
 	// Nothing to validate on the Nonce.
 	if len(queryRequest.PerChainQueries) == 0 {
-		return fmt.Errorf("request does not contain any queries")
+		return fmt.Errorf("request does not contain any per chain queries")
+	}
+	if len(queryRequest.PerChainQueries) > math.MaxUint8 {
+		return fmt.Errorf("too many per chain queries")
 	}
 	for idx, perChainQuery := range queryRequest.PerChainQueries {
 		if err := perChainQuery.Validate(); err != nil {
@@ -183,13 +191,15 @@ func (left *QueryRequest) Equal(right *QueryRequest) bool {
 // Implementation of PerChainQueryRequest.
 //
 
-// Marshal serializes the binary representation of a per chain query request
+// Marshal serializes the binary representation of a per chain query request.
+// This method calls Validate() and relies on it to range checks lengths, etc.
 func (perChainQuery *PerChainQueryRequest) Marshal() ([]byte, error) {
+	if err := perChainQuery.Validate(); err != nil {
+		return nil, err
+	}
+
 	buf := new(bytes.Buffer)
 	vaa.MustWrite(buf, binary.BigEndian, perChainQuery.ChainId)
-	if perChainQuery.Query == nil {
-		return nil, fmt.Errorf("query is nil")
-	}
 	vaa.MustWrite(buf, binary.BigEndian, perChainQuery.Query.Type())
 	queryBuf, err := perChainQuery.Query.Marshal()
 	if err != nil {
@@ -296,11 +306,17 @@ func (e *EthCallQueryRequest) Type() ChainSpecificQueryType {
 	return EthCallQueryRequestType
 }
 
-// Marshal serializes the binary representation of an EVM eth_call request
+// Marshal serializes the binary representation of an EVM eth_call request.
+// This method calls Validate() and relies on it to range checks lengths, etc.
 func (ecd *EthCallQueryRequest) Marshal() ([]byte, error) {
+	if err := ecd.Validate(); err != nil {
+		return nil, err
+	}
+
 	buf := new(bytes.Buffer)
 	vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecd.BlockId)))
 	buf.Write([]byte(ecd.BlockId))
+
 	vaa.MustWrite(buf, binary.BigEndian, uint8(len(ecd.CallData)))
 	for _, callData := range ecd.CallData {
 		buf.Write(callData.To)
@@ -363,17 +379,26 @@ func (ecd *EthCallQueryRequest) UnmarshalFromReader(reader *bytes.Reader) error 
 // Validate does basic validation on an EVM eth_call query.
 func (ecd *EthCallQueryRequest) Validate() error {
 	if len(ecd.BlockId) > math.MaxUint32 {
-		return fmt.Errorf("request block id too long")
+		return fmt.Errorf("block id too long")
 	}
 	if !strings.HasPrefix(ecd.BlockId, "0x") {
-		return fmt.Errorf("request block id must be a hex number or hash starting with 0x")
+		return fmt.Errorf("block id must be a hex number or hash starting with 0x")
 	}
 	if len(ecd.CallData) == 0 {
-		return fmt.Errorf("per chain query does not contain any call data")
+		return fmt.Errorf("does not contain any call data")
+	}
+	if len(ecd.CallData) > math.MaxUint8 {
+		return fmt.Errorf("too many call data entries")
 	}
 	for _, callData := range ecd.CallData {
+		if callData.To == nil || len(callData.To) == 0 {
+			return fmt.Errorf("no call data to")
+		}
 		if len(callData.To) != EvmContractAddressLength {
 			return fmt.Errorf("invalid length for To contract")
+		}
+		if callData.Data == nil || len(callData.Data) == 0 {
+			return fmt.Errorf("no call data data")
 		}
 		if len(callData.Data) > math.MaxUint32 {
 			return fmt.Errorf("request data too long")

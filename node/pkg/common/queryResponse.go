@@ -146,8 +146,9 @@ func MarshalPerChainResponse(pcr *PerChainQueryResponse) ([]byte, error) {
 
 // ValidatePerChainResponse performs basic validation on a per chain query response.
 func ValidatePerChainResponse(pcr *PerChainQueryResponse) error {
-	if pcr.ChainID > math.MaxUint16 {
-		return fmt.Errorf("invalid chain ID")
+	str := pcr.ChainID.String()
+	if _, err := vaa.ChainIDFromString(str); err != nil {
+		return fmt.Errorf("invalid chainID: %d", uint16(pcr.ChainID))
 	}
 
 	for _, resp := range pcr.Responses {

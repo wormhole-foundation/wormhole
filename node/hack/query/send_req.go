@@ -366,7 +366,6 @@ func sendQueryAndGetRsp(queryRequest *common.QueryRequest, sk *ecdsa.PrivateKey,
 					logger.Info("per chain query response index", zap.Int("index", index))
 
 					var localCallData []*common.EthCallData
-					// localCallData := queryRequest.PerChainQueries[index].Query.(*common.EthCallQueryRequest).CallData
 
 					switch ecq := queryRequest.PerChainQueries[index].Query.(type) {
 					case *common.EthCallQueryRequest:
