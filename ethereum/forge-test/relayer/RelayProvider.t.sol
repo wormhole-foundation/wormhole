@@ -100,23 +100,36 @@ contract TestDeliveryProvider is Test {
         );
     }
 
-    function testCanUpdatePriceOnlyAsOwner(
-        address oracleOwner,
+    function testCanUpdatePriceOnlyAsOwnerOrPriceWallet(
+        address pricingWallet,
+        address maliciousUser,
         uint16 updateChainId,
         GasPrice updateGasPrice,
         WeiPrice updateNativeCurrencyPrice
     ) public {
-        vm.assume(oracleOwner != address(0));
-        vm.assume(oracleOwner != address(this));
+        vm.assume(maliciousUser != address(0));
+        vm.assume(pricingWallet != address(0));
+        vm.assume(maliciousUser != pricingWallet);
+        vm.assume(maliciousUser != address(this));
         vm.assume(updateChainId > 0);
         vm.assume(updateGasPrice.unwrap() > 0);
         vm.assume(updateNativeCurrencyPrice.unwrap() > 0);
+        vm.assume(updateGasPrice.unwrap() < type(uint64).max);
+        vm.assume(updateNativeCurrencyPrice.unwrap() < type(uint128).max);
 
         initializeDeliveryProvider();
+        deliveryProvider.updatePricingWallet(pricingWallet);
 
         // you shall not pass
-        vm.prank(oracleOwner);
-        vm.expectRevert(abi.encodeWithSignature("CallerMustBeOwner()"));
+        vm.prank(maliciousUser);
+        vm.expectRevert(abi.encodeWithSignature("CallerMustBeOwnerOrPricingWallet()"));
+        deliveryProvider.updatePrice(updateChainId, updateGasPrice, updateNativeCurrencyPrice);
+
+        // pricing wallet
+        vm.prank(pricingWallet);
+        deliveryProvider.updatePrice(updateChainId, updateGasPrice, updateNativeCurrencyPrice);
+
+        // owner
         deliveryProvider.updatePrice(updateChainId, updateGasPrice, updateNativeCurrencyPrice);
     }
 
@@ -288,6 +301,8 @@ contract TestDeliveryProvider is Test {
         vm.assume(dstGasPrice * uint256(dstNativeCurrencyPrice) / srcNativeCurrencyPrice < 2 ** 72);
 
         vm.assume(gasOverhead < uint256(2)**31);
+
+
 
         // update the prices with reasonable values
         deliveryProvider.updatePrice(

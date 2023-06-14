@@ -28,6 +28,8 @@ contract DeliveryProviderStorage {
         address owner;
         // Pending target of ownership transfer.
         address pendingOwner;
+        // Address that is allowed to modify pricing
+        address pricingWallet;
         // Address of the core relayer contract.
         address coreRelayer;
         // Dictionary of implementation contract -> initialized flag
