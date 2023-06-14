@@ -3,7 +3,7 @@ name: Publish generic relayer container image
 on:
   workflow_dispatch:
   push:
-    branches: ["main", "generic-relayer-merge", "gr/re-app-docker-push"]
+    branches: ["main"]
   release:
     types: [published]
 
