@@ -10,6 +10,7 @@
     "@truffle/hdwallet-provider": "^1.7.0",
     "@types/chai": "^4.3.5",
     "@types/mocha": "^8.2.3",
+    "@xlabs-xyz/ledger-signer": "0.0.3",
     "chai": "^4.3.7",
     "mocha": "^8.4.0",
     "truffle": "5.8.4",
