@@ -348,7 +348,8 @@ func sendQueryAndGetRsp(queryRequest *common.QueryRequest, sk *ecdsa.PrivateKey,
 		switch m := msg.Message.(type) {
 		case *gossipv1.GossipMessage_SignedQueryResponse:
 			logger.Info("query response received", zap.Any("response", m.SignedQueryResponse))
-			response, err := common.UnmarshalQueryResponsePublication(m.SignedQueryResponse.QueryResponse)
+			var response common.QueryResponsePublication
+			err := response.Unmarshal(m.SignedQueryResponse.QueryResponse)
 			if err != nil {
 				logger.Warn("failed to unmarshal response", zap.Error(err))
 				break

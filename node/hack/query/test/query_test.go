@@ -260,7 +260,8 @@ func TestCrossChainQuery(t *testing.T) {
 		switch m := msg.Message.(type) {
 		case *gossipv1.GossipMessage_SignedQueryResponse:
 			logger.Info("query response received", zap.Any("response", m.SignedQueryResponse))
-			response, err := common.UnmarshalQueryResponsePublication(m.SignedQueryResponse.QueryResponse)
+			var response common.QueryResponsePublication
+			err := response.Unmarshal(m.SignedQueryResponse.QueryResponse)
 			if err != nil {
 				logger.Fatal("failed to unmarshal response", zap.Error(err))
 			}

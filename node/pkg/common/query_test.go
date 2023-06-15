@@ -333,17 +333,18 @@ func TestQueryResponseMarshalUnmarshal(t *testing.T) {
 		},
 	}
 
-	respPubBytes, err := MarshalQueryResponsePublication(respPub)
+	respPubBytes, err := respPub.Marshal()
 	require.NoError(t, err)
 
-	respPub2, err := UnmarshalQueryResponsePublication(respPubBytes)
+	var respPub2 QueryResponsePublication
+	err = respPub2.Unmarshal(respPubBytes)
 	require.NoError(t, err)
 	require.NotNil(t, respPub2)
 
-	assert.True(t, respPub.Equal(respPub2))
+	assert.True(t, respPub.Equal(&respPub2))
 }
 
-func TestMarshalUnmarshalQueryResponseWithNoResults(t *testing.T) {
+func TestMarshalUnmarshalQueryResponseWithNoResultsShouldFail(t *testing.T) {
 	queryRequest := createQueryRequestForTesting(vaa.ChainIDPolygon)
 	queryRequestBytes, err := queryRequest.Marshal()
 	require.NoError(t, err)
@@ -359,14 +360,8 @@ func TestMarshalUnmarshalQueryResponseWithNoResults(t *testing.T) {
 		PerChainResponses: nil,
 	}
 
-	respPubBytes, err := MarshalQueryResponsePublication(respPub)
-	require.NoError(t, err)
-
-	respPub2, err := UnmarshalQueryResponsePublication(respPubBytes)
-	require.NoError(t, err)
-	require.NotNil(t, respPub2)
-
-	assert.True(t, respPub.Equal(respPub2))
+	_, err = respPub.Marshal()
+	require.Error(t, err)
 }
 
 func TestPostSignedQueryRequestShouldFailIfNoOneIsListening(t *testing.T) {
