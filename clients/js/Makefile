@@ -28,5 +28,8 @@ test: build
 	node build/main.js --version > /dev/null
 	./run_parse_tests
 
+docs:
+	npm run docs
+
 clean:
 	rm -rf build node_modules

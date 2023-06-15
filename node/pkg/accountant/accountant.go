@@ -28,14 +28,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	MainNetMode = 1
-	TestNetMode = 2
-	DevNetMode  = 3
-	GoTestMode  = 4
-	MockMode    = 5
-)
-
 // MsgChannelCapacity specifies the capacity of the message channel used to publish messages released from the accountant.
 // This channel should not back up, but if it does, the accountant will start dropping messages, which would require reobservations.
 const MsgChannelCapacity = 5 * batchSize
@@ -98,7 +90,7 @@ type Accountant struct {
 	pendingTransfersLock sync.Mutex
 	pendingTransfers     map[string]*pendingEntry // Key is the message ID (emitterChain/emitterAddr/seqNo)
 	subChan              chan *common.MessagePublication
-	env                  int
+	env                  common.Environment
 }
 
 // On startup, there can be a large number of re-submission requests.
@@ -117,7 +109,7 @@ func NewAccountant(
 	gk *ecdsa.PrivateKey, // the guardian key used for signing observation requests
 	gst *common.GuardianSetState, // used to get the current guardian set index when sending observation requests
 	msgChan chan<- *common.MessagePublication, // the channel where transfers received by the accountant runnable should be published
-	env int, // Controls the set of token bridges to be monitored
+	env common.Environment, // Controls the set of token bridges to be monitored
 ) *Accountant {
 	return &Accountant{
 		ctx:              ctx,
@@ -146,9 +138,9 @@ func (acct *Accountant) Start(ctx context.Context) error {
 	defer acct.pendingTransfersLock.Unlock()
 
 	emitterMap := sdk.KnownTokenbridgeEmitters
-	if acct.env == TestNetMode {
+	if acct.env == common.TestNet {
 		emitterMap = sdk.KnownTestnetTokenbridgeEmitters
-	} else if acct.env == DevNetMode || acct.env == GoTestMode || acct.env == MockMode {
+	} else if acct.env == common.UnsafeDevNet || acct.env == common.GoTest || acct.env == common.AccountantMock {
 		emitterMap = sdk.KnownDevnetTokenbridgeEmitters
 	}
 
@@ -176,12 +168,12 @@ func (acct *Accountant) Start(ctx context.Context) error {
 	}
 
 	// Start the watcher to listen to transfer events from the smart contract.
-	if acct.env == MockMode {
+	if acct.env == common.AccountantMock {
 		// We're not in a runnable context, so we can't use supervisor.
 		go func() {
 			_ = acct.worker(ctx)
 		}()
-	} else if acct.env != GoTestMode {
+	} else if acct.env != common.GoTest {
 		if err := supervisor.Run(ctx, "acctworker", common.WrapWithScissors(acct.worker, "acctworker")); err != nil {
 			return fmt.Errorf("failed to start submit observation worker: %w", err)
 		}
@@ -275,7 +267,7 @@ func (acct *Accountant) SubmitObservation(msg *common.MessagePublication) (bool,
 	}
 
 	// This transaction may take a while. Pass it off to the worker so we don't block the processor.
-	if acct.env != GoTestMode {
+	if acct.env != common.GoTest {
 		acct.logger.Info("submitting transfer to accountant for approval", zap.String("msgID", msgId), zap.Bool("canPublish", !acct.enforceFlag))
 		_ = acct.submitObservation(pe)
 	}

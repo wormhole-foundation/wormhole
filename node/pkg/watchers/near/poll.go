@@ -40,11 +40,18 @@ func (e *Watcher) recursivelyReadFinalizedBlocks(logger *zap.Logger, ctx context
 	// SECURITY: We know that this block is finalized because it is a parent of a finalized block.
 	e.finalizer.setFinalized(startBlock.Header)
 
+	logger.Debug(
+		"block_polled",
+		zap.String("log_msg_type", "block_poll"),
+		zap.Uint64("height", startBlock.Header.Height),
+		zap.String("block_hash", startBlock.Header.Hash),
+	)
+
 	// we want to avoid going too far back because that would increase the likelihood of error somewhere in the recursion stack.
 	// If we go back too far, we just report the error and terminate early.
 	if recursionDepth > maxFallBehindBlocks {
 		e.eventChan <- EVENT_NEAR_WATCHER_TOO_FAR_BEHIND
-		return nil
+		return errors.New("recursivelyReadFinalizedBlocks: maxFallBehindBlocks")
 	}
 
 	// recursion + stop condition
@@ -56,14 +63,9 @@ func (e *Watcher) recursivelyReadFinalizedBlocks(logger *zap.Logger, ctx context
 		}
 		err = e.recursivelyReadFinalizedBlocks(logger, ctx, prevBlock, stopHeight, chunkSink, recursionDepth+1)
 		if err != nil {
-			return err
+			// only log error because we still want to process the blocks up until the one that made the error
+			logger.Debug("recursivelyReadFinalizedBlocks error", zap.Error(err))
 		}
-
-		logger.Debug(
-			"block_polled",
-			zap.String("log_msg_type", "block_poll"),
-			zap.Uint64("height", startBlock.Header.Height),
-		)
 	}
 
 	chunks := startBlock.ChunkHashes()
@@ -98,6 +100,7 @@ func (e *Watcher) ReadFinalChunksSince(logger *zap.Logger, ctx context.Context, 
 
 		err = e.recursivelyReadFinalizedBlocks(logger, ctx, finalBlock, startHeight, chunkSink, 0)
 		if err != nil {
+			logger.Debug("recursivelyReadFinalizedBlocks error", zap.Error(err))
 			return startHeight, err
 		}
 	}

@@ -37,7 +37,14 @@ spec:
             - link-then-start
             - terra-wormchain
             - --debug-addr
-            - localhost:7597
+            - 0.0.0.0:7597
+            - --src-port
+            - wasm.terra1436kxs0w2es6xlqpp9rd35e3d0cjnw4sv8j3a7483sgks29jqwgsnyey7t
+            - --dst-port
+            - wasm.wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj
+            - --version
+            - ibc-wormhole-v1
+            - --override
           ports:
             - containerPort: 7597
               name: rest

@@ -36,6 +36,7 @@ As these 3rd party audits are completed and issues are sufficiently addressed, w
 - **[November 2022 - Zellic](https://storage.googleapis.com/wormhole-audits/Wormhole_Aptos_Audit_Report_Zellic_2022-11.pdf)**: _Aptos Integration_
 - **[February 2023 - OtterSec](https://storage.googleapis.com/wormhole-audits/Wormhole_OtterSec_Aptos_NFT_2023-02.pdf)**: _Aptos NFT Bridge_
 - **[April 2023 - Trail of Bits](https://storage.googleapis.com/wormhole-audits/Wormhole_Audit_Report_TrailOfBits_2023-04.pdf)**: _Guardian node: Governor and Watchers_
+- **[April 2023 - OtterSec](https://storage.googleapis.com/wormhole-audits/Wormhole_OtterSec_Sui_2023-04.pdf)**: _Sui Contracts_
 - **Q4 2022 - Halborn (DRAFT)**: _Wormchain_
 - **Q4 2022 - Halborn (DRAFT)**: _Accounting_
 - **Q4 2022 - Certik (DRAFT)**: _Ethereum Contracts_

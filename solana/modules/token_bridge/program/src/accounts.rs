@@ -1,4 +1,7 @@
-use crate::types::*;
+use crate::{
+    types::*,
+    TokenBridgeError,
+};
 use bridge::{
     accounts::BridgeData,
     api::ForeignAddress,
@@ -8,6 +11,7 @@ use solitaire::{
     processors::seeded::Seeded,
     *,
 };
+use spl_token_metadata::state::Key::MetadataV1;
 
 pub type AuthoritySigner<'b> = Derive<Info<'b>, "authority_signer">;
 pub type CustodySigner<'b> = Derive<Info<'b>, "custody_signer">;
@@ -99,5 +103,46 @@ impl<'b> Seeded<&SplTokenMetaDerivationData> for SplTokenMeta<'b> {
             spl_token_metadata::id().as_ref().to_vec(),
             data.mint.as_ref().to_vec(),
         ]
+    }
+}
+
+/// This method removes code duplication when checking token metadata. When metadata is read for
+/// attestation and transfers, Token Bridge does not invoke Metaplex's Token Metadata program, so
+/// it must validate the account the same way Token Metadata program does to ensure the correct
+/// account is passed into Token Bridge's instruction context.
+pub fn deserialize_and_verify_metadata(
+    info: &Info,
+    derivation_data: SplTokenMetaDerivationData,
+) -> Result<spl_token_metadata::state::Metadata> {
+    // Verify pda.
+    info.verify_derivation(&spl_token_metadata::id(), &derivation_data)?;
+
+    // There must be account data for token's metadata.
+    if info.data_is_empty() {
+        return Err(TokenBridgeError::NonexistentTokenMetadataAccount.into());
+    }
+
+    // Account must belong to Metaplex Token Metadata program.
+    if *info.owner != spl_token_metadata::id() {
+        return Err(TokenBridgeError::WrongAccountOwner.into());
+    }
+
+    // Account must be the expected Metadata length.
+    if info.data_len() != spl_token_metadata::state::MAX_METADATA_LEN {
+        return Err(TokenBridgeError::InvalidMetadata.into());
+    }
+
+    let mut data: &[u8] = &info.data.borrow_mut();
+
+    // Unfortunately we cannot use `map_err` easily, so we will match certain deserialization conditions.
+    match spl_token_metadata::utils::meta_deser_unchecked(&mut data) {
+        Ok(deserialized) => {
+            if deserialized.key == MetadataV1 {
+                Ok(deserialized)
+            } else {
+                Err(TokenBridgeError::NotMetadataV1Account.into())
+            }
+        }
+        _ => Err(TokenBridgeError::InvalidMetadata.into()),
     }
 }

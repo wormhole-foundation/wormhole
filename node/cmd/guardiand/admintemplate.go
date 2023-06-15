@@ -1,7 +1,6 @@
 package guardiand
 
 import (
-	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -28,8 +27,6 @@ var templateGuardianIndex *int
 var chainID *string
 var address *string
 var module *string
-var shutdownGuardianKey *string
-var shutdownPubKey *string
 
 var circleIntegrationChainID *string
 var circleIntegrationFinality *string
@@ -38,6 +35,20 @@ var circleIntegrationForeignEmitterAddress *string
 var circleIntegrationCircleDomain *string
 var circleIntegrationNewImplementationAddress *string
 
+var wormchainStoreCodeWasmHash *string
+
+var wormchainInstantiateContractCodeId *string
+var wormchainInstantiateContractInstantiationMsg *string
+var wormchainInstantiateContractLabel *string
+
+var wormchainMigrateContractCodeId *string
+var wormchainMigrateContractContractAddress *string
+var wormchainMigrateContractInstantiationMsg *string
+
+var ibcReceiverUpdateChannelChainTargetChainId *string
+var ibcReceiverUpdateChannelChainChannelId *string
+var ibcReceiverUpdateChannelChainChainId *string
+
 func init() {
 	governanceFlagSet := pflag.NewFlagSet("governance", pflag.ExitOnError)
 	chainID = governanceFlagSet.String("chain-id", "", "Chain ID")
@@ -45,10 +56,6 @@ func init() {
 
 	moduleFlagSet := pflag.NewFlagSet("module", pflag.ExitOnError)
 	module = moduleFlagSet.String("module", "", "Module name")
-
-	authProofFlagSet := pflag.NewFlagSet("auth-proof", pflag.ExitOnError)
-	shutdownGuardianKey = authProofFlagSet.String("guardian-key", "", "Guardian key to sign proof. File path or hex string")
-	shutdownPubKey = authProofFlagSet.String("proof-pub-key", "", "Public key to encode in proof")
 
 	templateGuardianIndex = TemplateCmd.PersistentFlags().Int("idx", 3, "Default current guardian set index")
 
@@ -66,8 +73,8 @@ func init() {
 	AdminClientTokenBridgeUpgradeContractCmd.Flags().AddFlagSet(moduleFlagSet)
 	TemplateCmd.AddCommand(AdminClientTokenBridgeUpgradeContractCmd)
 
-	AdminClientShutdownProofCmd.Flags().AddFlagSet(authProofFlagSet)
-	TemplateCmd.AddCommand(AdminClientShutdownProofCmd)
+	AdminClientWormholeRelayerSetDefaultDeliveryProviderCmd.Flags().AddFlagSet(governanceFlagSet)
+	TemplateCmd.AddCommand(AdminClientWormholeRelayerSetDefaultDeliveryProviderCmd)
 
 	circleIntegrationChainIDFlagSet := pflag.NewFlagSet("circle-integ", pflag.ExitOnError)
 	circleIntegrationChainID = circleIntegrationChainIDFlagSet.String("chain-id", "", "Target chain ID")
@@ -91,6 +98,33 @@ func init() {
 	AdminClientCircleIntegrationUpgradeContractImplementationCmd.Flags().AddFlagSet(circleIntegrationChainIDFlagSet)
 	AdminClientCircleIntegrationUpgradeContractImplementationCmd.Flags().AddFlagSet(circleIntegrationUpgradeContractImplementationFlagSet)
 	TemplateCmd.AddCommand(AdminClientCircleIntegrationUpgradeContractImplementationCmd)
+
+	wormchainStoreCodeFlagSet := pflag.NewFlagSet("wormchain-store-code", pflag.ExitOnError)
+	wormchainStoreCodeWasmHash = wormchainStoreCodeFlagSet.String("wasm-hash", "", "WASM Hash of the stored code")
+	AdminClientWormchainStoreCodeCmd.Flags().AddFlagSet(wormchainStoreCodeFlagSet)
+	TemplateCmd.AddCommand(AdminClientWormchainStoreCodeCmd)
+
+	wormchainInstantiateContractFlagSet := pflag.NewFlagSet("wormchain-instantiate-contract", pflag.ExitOnError)
+	wormchainInstantiateContractCodeId = wormchainInstantiateContractFlagSet.String("code-id", "", "code ID of the stored code")
+	wormchainInstantiateContractLabel = wormchainInstantiateContractFlagSet.String("label", "", "label")
+	wormchainInstantiateContractInstantiationMsg = wormchainInstantiateContractFlagSet.String("instantiation-msg", "", "instantiate message")
+	AdminClientWormchainInstantiateContractCmd.Flags().AddFlagSet(wormchainInstantiateContractFlagSet)
+	TemplateCmd.AddCommand(AdminClientWormchainInstantiateContractCmd)
+
+	wormchainMigrateContractFlagSet := pflag.NewFlagSet("wormchain-migrate-contract", pflag.ExitOnError)
+	wormchainMigrateContractCodeId = wormchainMigrateContractFlagSet.String("code-id", "", "code ID of the stored code")
+	wormchainMigrateContractContractAddress = wormchainMigrateContractFlagSet.String("contract-address", "", "contract address")
+	wormchainMigrateContractInstantiationMsg = wormchainMigrateContractFlagSet.String("instantiation-msg", "", "instantiate message")
+	AdminClientWormchainMigrateContractCmd.Flags().AddFlagSet(wormchainMigrateContractFlagSet)
+	TemplateCmd.AddCommand(AdminClientWormchainMigrateContractCmd)
+
+	// flags for the ibc-receiver-update-channel-chain command
+	ibcReceiverUpdateChannelChainFlagSet := pflag.NewFlagSet("ibc-mapping", pflag.ExitOnError)
+	ibcReceiverUpdateChannelChainTargetChainId = ibcReceiverUpdateChannelChainFlagSet.String("target-chain-id", "", "Target Chain ID for the governance VAA")
+	ibcReceiverUpdateChannelChainChannelId = ibcReceiverUpdateChannelChainFlagSet.String("channel-id", "", "IBC Channel ID on Wormchain")
+	ibcReceiverUpdateChannelChainChainId = ibcReceiverUpdateChannelChainFlagSet.String("chain-id", "", "IBC Chain ID that the channel ID corresponds to")
+	AdminClientIbcReceiverUpdateChannelChainCmd.Flags().AddFlagSet(ibcReceiverUpdateChannelChainFlagSet)
+	TemplateCmd.AddCommand(AdminClientIbcReceiverUpdateChannelChainCmd)
 }
 
 var TemplateCmd = &cobra.Command{
@@ -121,11 +155,6 @@ var AdminClientTokenBridgeUpgradeContractCmd = &cobra.Command{
 	Short: "Generate an empty token bridge contract upgrade template at specified path",
 	Run:   runTokenBridgeUpgradeContractTemplate,
 }
-var AdminClientShutdownProofCmd = &cobra.Command{
-	Use:   "shutdown-proof",
-	Short: "Generate an auth proof for shutdown voting on behalf of the guardian.",
-	Run:   runShutdownProofTemplate,
-}
 
 var AdminClientCircleIntegrationUpdateWormholeFinalityCmd = &cobra.Command{
 	Use:   "circle-integration-update-wormhole-finality",
@@ -143,6 +172,36 @@ var AdminClientCircleIntegrationUpgradeContractImplementationCmd = &cobra.Comman
 	Use:   "circle-integration-upgrade-contract-implementation",
 	Short: "Generate an empty circle integration upgrade contract implementation template at specified path",
 	Run:   runCircleIntegrationUpgradeContractImplementationTemplate,
+}
+
+var AdminClientWormchainStoreCodeCmd = &cobra.Command{
+	Use:   "wormchain-store-code",
+	Short: "Generate an empty wormchain store code template at specified path",
+	Run:   runWormchainStoreCodeTemplate,
+}
+
+var AdminClientWormchainInstantiateContractCmd = &cobra.Command{
+	Use:   "wormchain-instantiate-contract",
+	Short: "Generate an empty wormchain instantiate contract template at specified path",
+	Run:   runWormchainInstantiateContractTemplate,
+}
+
+var AdminClientWormchainMigrateContractCmd = &cobra.Command{
+	Use:   "wormchain-migrate-contract",
+	Short: "Generate an empty wormchain migrate contract template at specified path",
+	Run:   runWormchainMigrateContractTemplate,
+}
+
+var AdminClientIbcReceiverUpdateChannelChainCmd = &cobra.Command{
+	Use:   "ibc-receiver-update-channel-chain",
+	Short: "Generate an empty ibc receiver channelId to chainId mapping update template at specified path",
+	Run:   runIbcReceiverUpdateChannelChainTemplate,
+}
+
+var AdminClientWormholeRelayerSetDefaultDeliveryProviderCmd = &cobra.Command{
+	Use:   "wormhole-relayer-set-default-relay-provider",
+	Short: "Generate a 'set default relay provider' template for specified chain and address",
+	Run:   runWormholeRelayerSetDefaultDeliveryProviderTemplate,
 }
 
 func runGuardianSetTemplate(cmd *cobra.Command, args []string) {
@@ -276,51 +335,6 @@ func runTokenBridgeUpgradeContractTemplate(cmd *cobra.Command, args []string) {
 	fmt.Print(string(b))
 }
 
-func runShutdownProofTemplate(cmd *cobra.Command, args []string) {
-	// ensure values were passed
-	if *shutdownPubKey == "" {
-		log.Fatal("--proof-pub-key cannot be blank.")
-	}
-	if *shutdownGuardianKey == "" {
-		log.Fatal("--guardian-key cannot be blank.")
-	}
-
-	// load the guardian key that will sign the proof
-	var guardianKey *ecdsa.PrivateKey
-	var keyErr error
-	// check if the key is a hex string
-	_, hexDecodeErr := hex.DecodeString(*shutdownGuardianKey)
-	if hexDecodeErr == nil {
-		guardianKey, keyErr = crypto.HexToECDSA(*shutdownGuardianKey)
-	} else {
-		// the supplied guardian key is not hex, must be a file path to load
-		guardianKey, keyErr = loadGuardianKey(*shutdownGuardianKey)
-	}
-	if keyErr != nil {
-		log.Fatal("failed fetching guardian key.", keyErr)
-	}
-
-	// create the payload of the proof
-	pubKey := common.HexToAddress(*shutdownPubKey)
-	digest := crypto.Keccak256Hash(pubKey.Bytes())
-
-	// sign the payload of the proof
-	ethProof, err := crypto.Sign(digest.Bytes(), guardianKey)
-	if err != nil {
-		log.Fatal("failed creating proof.", err)
-	}
-
-	// log the public key in the proof and the public key that signed the proof
-	fmt.Printf(
-		"The following proof will allow public key \"%v\" to vote on behalf of guardian \"%v\":\n",
-		pubKey.Hex(),
-		crypto.PubkeyToAddress(guardianKey.PublicKey),
-	)
-
-	proofHex := hex.EncodeToString(ethProof)
-	fmt.Print(proofHex)
-}
-
 func runCircleIntegrationUpdateWormholeFinalityTemplate(cmd *cobra.Command, args []string) {
 	if *circleIntegrationChainID == "" {
 		log.Fatal("--chain-id must be specified.")
@@ -441,6 +455,204 @@ func runCircleIntegrationUpgradeContractImplementationTemplate(cmd *cobra.Comman
 					CircleIntegrationUpgradeContractImplementation: &nodev1.CircleIntegrationUpgradeContractImplementation{
 						TargetChainId:            uint32(chainID),
 						NewImplementationAddress: newImplementationAddress,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
+}
+
+func runWormchainStoreCodeTemplate(cmd *cobra.Command, args []string) {
+	if *wormchainStoreCodeWasmHash == "" {
+		log.Fatal("--wasm-hash must be specified.")
+	}
+
+	// Validate the string is valid hex.
+	buf, err := hex.DecodeString(*wormchainStoreCodeWasmHash)
+	if err != nil {
+		log.Fatal("invalid wasm-hash (expected hex): %w", err)
+	}
+
+	// Validate the string is the correct length.
+	if len(buf) != 32 {
+		log.Fatalf("wasm-hash (expected 32 bytes but received %d bytes)", len(buf))
+	}
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_WormchainStoreCode{
+					WormchainStoreCode: &nodev1.WormchainStoreCode{
+						WasmHash: string(*wormchainStoreCodeWasmHash),
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
+}
+
+func runWormchainInstantiateContractTemplate(cmd *cobra.Command, args []string) {
+	if *wormchainInstantiateContractCodeId == "" {
+		log.Fatal("--code-id must be specified.")
+	}
+	codeId, err := strconv.ParseUint(*wormchainInstantiateContractCodeId, 10, 64)
+	if err != nil {
+		log.Fatal("failed to parse code-id as uint64: ", err)
+	}
+	if *wormchainInstantiateContractLabel == "" {
+		log.Fatal("--label must be specified.")
+	}
+	if *wormchainInstantiateContractInstantiationMsg == "" {
+		log.Fatal("--instantiate-msg must be specified.")
+	}
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_WormchainInstantiateContract{
+					WormchainInstantiateContract: &nodev1.WormchainInstantiateContract{
+						CodeId:           codeId,
+						Label:            *wormchainInstantiateContractLabel,
+						InstantiationMsg: *wormchainInstantiateContractInstantiationMsg,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
+}
+
+func runWormchainMigrateContractTemplate(cmd *cobra.Command, args []string) {
+	if *wormchainMigrateContractCodeId == "" {
+		log.Fatal("--code-id must be specified.")
+	}
+	codeId, err := strconv.ParseUint(*wormchainMigrateContractCodeId, 10, 64)
+	if err != nil {
+		log.Fatal("failed to parse code-id as uint64: ", err)
+	}
+	if *wormchainMigrateContractContractAddress == "" {
+		log.Fatal("--contract-address must be specified.")
+	}
+	if *wormchainMigrateContractInstantiationMsg == "" {
+		log.Fatal("--instantiate-msg must be specified.")
+	}
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_WormchainMigrateContract{
+					WormchainMigrateContract: &nodev1.WormchainMigrateContract{
+						CodeId:           codeId,
+						Contract:         *wormchainMigrateContractContractAddress,
+						InstantiationMsg: *wormchainMigrateContractInstantiationMsg,
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
+}
+
+func runIbcReceiverUpdateChannelChainTemplate(cmd *cobra.Command, args []string) {
+	if *ibcReceiverUpdateChannelChainTargetChainId == "" {
+		log.Fatal("--target-chain-id must be specified")
+	}
+	targetChainId, err := parseChainID(*ibcReceiverUpdateChannelChainTargetChainId)
+	if err != nil {
+		log.Fatal("failed to parse chain id: ", err)
+	}
+
+	if *ibcReceiverUpdateChannelChainChannelId == "" {
+		log.Fatal("--channel-id must be specified")
+	}
+	if len(*ibcReceiverUpdateChannelChainChannelId) > 64 {
+		log.Fatal("invalid channel id length, must be <= 64")
+	}
+
+	if *ibcReceiverUpdateChannelChainChainId == "" {
+		log.Fatal("--chain-id must be specified")
+	}
+	chainId, err := parseChainID(*ibcReceiverUpdateChannelChainChainId)
+	if err != nil {
+		log.Fatal("failed to parse chain id: ", err)
+	}
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_IbcReceiverUpdateChannelChain{
+					IbcReceiverUpdateChannelChain: &nodev1.IbcReceiverUpdateChannelChain{
+						TargetChainId: uint32(targetChainId),
+						ChannelId:     *ibcReceiverUpdateChannelChainChannelId,
+						ChainId:       uint32(chainId),
+					},
+				},
+			},
+		},
+	}
+
+	b, err := prototext.MarshalOptions{Multiline: true}.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(string(b))
+
+}
+
+func runWormholeRelayerSetDefaultDeliveryProviderTemplate(cmd *cobra.Command, args []string) {
+	address, err := parseAddress(*address)
+	if err != nil {
+		log.Fatal(err)
+	}
+	chainID, err := parseChainID(*chainID)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	m := &nodev1.InjectGovernanceVAARequest{
+		CurrentSetIndex: uint32(*templateGuardianIndex),
+		Messages: []*nodev1.GovernanceMessage{
+			{
+				Sequence: rand.Uint64(),
+				Nonce:    rand.Uint32(),
+				Payload: &nodev1.GovernanceMessage_WormholeRelayerSetDefaultDeliveryProvider{
+					WormholeRelayerSetDefaultDeliveryProvider: &nodev1.WormholeRelayerSetDefaultDeliveryProvider{
+						ChainId:                           uint32(chainID),
+						NewDefaultDeliveryProviderAddress: address,
 					},
 				},
 			},

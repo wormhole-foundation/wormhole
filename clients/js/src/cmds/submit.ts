@@ -1,72 +1,91 @@
 import {
   assertChain,
+  ChainId,
   ChainName,
   CHAINS,
   coalesceChainName,
+  Contracts,
+  CONTRACTS,
   isEVMChain,
   isTerraChain,
   toChainName,
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import yargs from "yargs";
 import { execute_algorand } from "../algorand";
+import { execute_aptos } from "../aptos";
+import { submit as submitSei } from "../chains/sei";
+import { submit as submitSui } from "../chains/sui";
+import { NETWORK_OPTIONS } from "../consts";
 import { execute_evm } from "../evm";
 import { execute_injective } from "../injective";
 import { execute_near } from "../near";
-import { execute_sei } from "../sei";
 import { execute_solana } from "../solana";
-import { submit as submitSui } from "../sui";
 import { execute_terra } from "../terra";
-import * as vaa from "../vaa";
+import { assertNetwork } from "../utils";
+import { assertKnownPayload, impossible, parse, Payload, VAA } from "../vaa";
 import { execute_xpla } from "../xpla";
-import { execute_aptos } from "../aptos";
+import { NETWORKS } from "../consts";
+import { Network } from "../utils";
 
 export const command = "submit <vaa>";
 export const desc = "Execute a VAA";
-export const builder = (y: typeof yargs) => {
-  return y
+export const builder = (y: typeof yargs) =>
+  y
     .positional("vaa", {
       describe: "vaa",
       type: "string",
-      required: true,
+      demandOption: true,
     })
     .option("chain", {
       alias: "c",
       describe: "chain name",
-      type: "string",
-      choices: Object.keys(CHAINS),
-      required: false,
-    })
-    .option("network", {
-      alias: "n",
-      describe: "network",
-      type: "string",
-      choices: ["mainnet", "testnet", "devnet"],
-      required: true,
-    })
+      choices: Object.keys(CHAINS) as ChainName[],
+      demandOption: false,
+    } as const)
+    .option("network", NETWORK_OPTIONS)
     .option("contract-address", {
       alias: "a",
       describe: "Contract to submit VAA to (override config)",
       type: "string",
-      required: false,
+      demandOption: false,
     })
     .option("rpc", {
       describe: "RPC endpoint",
       type: "string",
-      required: false,
+      demandOption: false,
+    })
+    .option("all-chains", {
+      alias: "ac",
+      describe:
+        "Submit the VAA to all chains except for the origin chain specified in the payload",
+      type: "boolean",
+      default: false,
+      demandOption: false,
     });
-};
-export const handler = async (argv) => {
+export const handler = async (
+  argv: Awaited<ReturnType<typeof builder>["argv"]>
+) => {
   const vaa_hex = String(argv.vaa);
   const buf = Buffer.from(vaa_hex, "hex");
-  const parsed_vaa = vaa.parse(buf);
+  const parsed_vaa = parse(buf);
 
-  vaa.assertKnownPayload(parsed_vaa);
-
+  assertKnownPayload(parsed_vaa);
   console.log(parsed_vaa.payload);
 
   const network = argv.network.toUpperCase();
-  if (network !== "MAINNET" && network !== "TESTNET" && network !== "DEVNET") {
-    throw Error(`Unknown network: ${network}`);
+  assertNetwork(network);
+
+  if (argv["all-chains"]) {
+    if (argv.rpc) {
+      throw Error(`--rpc may not be specified with --all-chains`);
+    }
+
+    if (argv["contract-address"]) {
+      throw Error(`--contract_address may not be specified with --all-chains`);
+    }
+
+    await submitToAll(vaa_hex, parsed_vaa, buf, network);
+    return;
   }
 
   // We figure out the target chain to submit the VAA to.
@@ -89,7 +108,7 @@ export const handler = async (argv) => {
   const vaa_chain = toChainName(vaa_chain_id);
 
   // get chain from command line arg
-  const cli_chain = argv["chain"];
+  const cli_chain = argv.chain;
 
   let chain: ChainName;
   if (cli_chain !== undefined) {
@@ -104,58 +123,133 @@ export const handler = async (argv) => {
     chain = vaa_chain;
   }
 
+  await executeSubmit(
+    vaa_hex,
+    parsed_vaa,
+    buf,
+    network,
+    chain,
+    argv.rpc,
+    argv["contract-address"]
+  );
+};
+
+async function executeSubmit(
+  vaaHex: string,
+  parsedVaa: VAA<Payload>,
+  buf: Buffer,
+  network: Network,
+  chain: ChainName,
+  rpc: string | undefined,
+  contractAddress: string | undefined
+) {
   if (chain === "unset") {
     throw Error(
       "This VAA does not specify the target chain, please provide it by hand using the '--chain' flag."
     );
   } else if (isEVMChain(chain)) {
     await execute_evm(
-      parsed_vaa.payload,
+      parsedVaa.payload,
       buf,
       network,
       chain,
-      argv["contract-address"],
-      argv["rpc"]
+      contractAddress,
+      rpc
     );
   } else if (isTerraChain(chain)) {
-    await execute_terra(parsed_vaa.payload, buf, network, chain);
+    await execute_terra(parsedVaa.payload, buf, network, chain);
   } else if (chain === "solana" || chain === "pythnet") {
-    await execute_solana(parsed_vaa, buf, network, chain);
+    await execute_solana(parsedVaa, buf, network, chain);
   } else if (chain === "algorand") {
     await execute_algorand(
-      parsed_vaa.payload,
-      new Uint8Array(Buffer.from(vaa_hex, "hex")),
+      parsedVaa.payload,
+      new Uint8Array(Buffer.from(vaaHex, "hex")),
       network
     );
   } else if (chain === "near") {
-    await execute_near(parsed_vaa.payload, vaa_hex, network);
+    await execute_near(parsedVaa.payload, vaaHex, network);
   } else if (chain === "injective") {
-    await execute_injective(parsed_vaa.payload, buf, network);
+    await execute_injective(parsedVaa.payload, buf, network);
   } else if (chain === "xpla") {
-    await execute_xpla(parsed_vaa.payload, buf, network);
+    await execute_xpla(parsedVaa.payload, buf, network);
   } else if (chain === "sei") {
-    await execute_sei(parsed_vaa.payload, buf, network);
+    await submitSei(parsedVaa.payload, buf, network);
   } else if (chain === "osmosis") {
     throw Error("OSMOSIS is not supported yet");
   } else if (chain === "sui") {
-    await submitSui(parsed_vaa.payload, buf, network, argv["rpc"]);
+    await submitSui(parsedVaa.payload, buf, network, rpc);
   } else if (chain === "aptos") {
-    await execute_aptos(
-      parsed_vaa.payload,
-      buf,
-      network,
-      argv["contract-address"],
-      argv["rpc"]
-    );
+    await execute_aptos(parsedVaa.payload, buf, network, contractAddress, rpc);
   } else if (chain === "wormchain") {
     throw Error("Wormchain is not supported yet");
   } else if (chain === "btc") {
     throw Error("btc is not supported yet");
-  } else if (chain === "sei") {
-    throw Error("sei is not supported yet");
   } else {
     // If you get a type error here, hover over `chain`'s type and it tells you
     // which cases are not handled
-    vaa.impossible(chain);
+    impossible(chain);
   }
-};
+}
+
+async function submitToAll(
+  vaaHex: string,
+  parsedVaa: VAA<Payload>,
+  buf: Buffer,
+  network: Network
+) {
+  let skip_chain: ChainName = "unset";
+  if (parsedVaa.payload.type === "RegisterChain") {
+    skip_chain = toChainName(parsedVaa.payload.emitterChain as ChainId);
+  } else if (parsedVaa.payload.type === "AttestMeta") {
+    skip_chain = toChainName(parsedVaa.payload.tokenChain as ChainId);
+  } else {
+    throw Error(
+      `Invalid VAA payload type (${parsedVaa.payload.type}), only "RegisterChain" and "AttestMeta" are supported with --all-chains`
+    );
+  }
+
+  for (const chainStr in CHAINS) {
+    let chain = chainStr as ChainName;
+    if (chain === "unset") {
+      continue;
+    }
+    const n = NETWORKS[network][chain];
+    const contracts: Contracts = CONTRACTS[network][chain];
+    if (chain == skip_chain) {
+      console.log(`Skipping ${chain} because it's the origin chain`);
+      continue;
+    }
+    if (!n || !n.rpc) {
+      console.log(`Skipping ${chain} because the rpc is not defined`);
+      continue;
+    }
+    if (!contracts) {
+      console.log(
+        `Skipping ${chain} because the contract entry is not defined`
+      );
+      return true;
+    }
+    if (
+      (parsedVaa.payload.module === "TokenBridge" && !contracts.token_bridge) ||
+      (parsedVaa.payload.module === "NFTBridge" && !contracts.nft_bridge)
+    ) {
+      console.log(`Skipping ${chain} because the contract is not defined`);
+      continue;
+    }
+
+    console.log(`Submitting VAA to ${chain} ${network}`);
+    try {
+      await executeSubmit(
+        vaaHex,
+        parsedVaa,
+        buf,
+        network,
+        chain,
+        undefined,
+        undefined
+      );
+    } catch (e) {
+      console.error(`Failed to submit to ${chain}: `, e);
+    }
+  }
+}

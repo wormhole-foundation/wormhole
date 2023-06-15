@@ -1,0 +1,20 @@
+{
+  "guardianSetIndex": 0,
+  "description": "This file contains the chains against which all the scripts should run.",
+  "guardianRPC": "http://localhost:7071",
+  "chains": [
+    {
+      "description": "Ganache is supposed to be 1337, but the on-chain block.chainid returns 1",
+      "evmNetworkId": 1,
+      "chainId": 2,
+      "rpc": "http://localhost:8545",
+      "wormholeAddress": "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
+    },
+    {
+      "evmNetworkId": 1397,
+      "chainId": 4,
+      "rpc": "http://localhost:8546",
+      "wormholeAddress": "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550"
+    }
+  ]
+}

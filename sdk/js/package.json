@@ -1,6 +1,6 @@
 {
   "name": "@certusone/wormhole-sdk",
-  "version": "0.9.16",
+  "version": "0.9.18",
   "description": "SDK for interacting with Wormhole",
   "homepage": "https://wormhole.com",
   "main": "./lib/cjs/index.js",
@@ -11,15 +11,15 @@
   "sideEffects": false,
   "repository": "https://github.com/certusone/wormhole/tree/main/sdk/js",
   "scripts": {
-    "build-contracts": "npm run build --prefix ../../ethereum && node scripts/copyContracts.js && typechain --target=ethers-v5 --out-dir=src/ethers-contracts contracts/*.json",
+    "build-contracts": "cd ../../ethereum && npm run build && cd ../sdk/js && node scripts/copyContracts.js",
     "build-abis": "typechain --target=ethers-v5 --out-dir=src/ethers-contracts/abi src/abi/Wormhole.abi.json",
     "build-idl": "node scripts/compileAnchorIdls.js",
     "build-deps": "npm run build-abis && npm run build-contracts && npm run build-idl",
     "build-lib": "tsc -p tsconfig.json && tsc -p tsconfig-cjs.json && node scripts/copyEthersTypes.js",
     "build-all": "npm run build-deps && npm run build-lib",
     "docs": "typedoc src/index.ts",
-    "test": "jest --config jestconfig.json --verbose",
-    "test-ci": "NEAR_NO_LOGS=true jest --config jestconfig.json --verbose --setupFiles ./ci-config.js --forceExit",
+    "test": "DEV=true NETWORK=DEVNET jest --config jestconfig.json --verbose",
+    "test-ci": "NETWORK=DEVNET NEAR_NO_LOGS=true jest --config jestconfig.json --verbose --setupFiles ./ci-config.js --forceExit",
     "build": "npm run build-all",
     "format": "echo \"disabled: prettier --write \"src/**/*.ts\"\"",
     "lint": "tslint -p tsconfig.json",
@@ -69,9 +69,6 @@
     "@certusone/wormhole-sdk-proto-web": "0.0.6",
     "@certusone/wormhole-sdk-wasm": "^0.0.1",
     "@coral-xyz/borsh": "0.2.6",
-    "@injectivelabs/networks": "1.10.7",
-    "@injectivelabs/sdk-ts": "1.10.47",
-    "@injectivelabs/utils": "1.10.5",
     "@mysten/sui.js": "0.32.2",
     "@project-serum/anchor": "^0.25.0",
     "@solana/spl-token": "^0.3.5",
@@ -87,5 +84,10 @@
     "elliptic": "^6.5.4",
     "js-base64": "^3.6.1",
     "near-api-js": "^1.0.0"
+  },
+  "optionalDependencies": {
+    "@injectivelabs/networks": "1.10.12",
+    "@injectivelabs/sdk-ts": "1.10.72",
+    "@injectivelabs/utils": "1.10.12"
   }
 }

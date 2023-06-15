@@ -106,9 +106,9 @@ func newAccountantForTest(
 	gs := &common.GuardianSet{Keys: []ethCommon.Address{ethCommon.HexToAddress("0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe")}}
 	gst.Set(gs)
 
-	env := GoTestMode
+	env := common.GoTest
 	if wormchainConn != nil {
-		env = MockMode
+		env = common.AccountantMock
 	}
 
 	acct := NewAccountant(

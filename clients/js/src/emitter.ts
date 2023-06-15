@@ -2,22 +2,29 @@ import {
   ChainId,
   ChainName,
   isCosmWasmChain,
-} from "@certusone/wormhole-sdk/lib/cjs/utils/consts";
+} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+
+import {
+  getEmitterAddressAlgorand,
+  getEmitterAddressEth,
+  getEmitterAddressNear,
+  getEmitterAddressSolana,
+  getEmitterAddressTerra
+} from "@certusone/wormhole-sdk/lib/esm/bridge/getEmitterAddress";
 
 export async function getEmitterAddress(
   chain: ChainId | ChainName,
   addr: string
 ) {
-  const emitter = require("@certusone/wormhole-sdk/lib/cjs/bridge/getEmitterAddress");
   if (chain === "solana" || chain === "pythnet") {
     // TODO: Create an isSolanaChain()
-    addr = emitter.getEmitterAddressSolana(addr);
+    addr = getEmitterAddressSolana(addr);
   } else if (isCosmWasmChain(chain)) {
-    addr = await emitter.getEmitterAddressTerra(addr);
+    addr = await getEmitterAddressTerra(addr);
   } else if (chain === "algorand") {
-    addr = emitter.getEmitterAddressAlgorand(BigInt(addr));
+    addr = getEmitterAddressAlgorand(BigInt(addr));
   } else if (chain === "near") {
-    addr = emitter.getEmitterAddressNear(addr);
+    addr = getEmitterAddressNear(addr);
   } else if (chain === "aptos") {
     // TODO: There should be something in the SDK to do this.
     if (
@@ -45,16 +52,16 @@ export async function getEmitterAddress(
       addr = "ccceeb29348f71bdd22ffef43a2a19c1f5b5e17c5cca5411529120182672ade5";
     } else if (
       addr ===
-      "0x32422cb2f929b6a4e3f81b4791ea11ac2af896b310f3d9442aa1fe924ce0bab4"
+      "0x6fb10cdb7aa299e9a4308752dadecb049ff55a892de92992a1edbd7912b3d6da"
     ) {
       // Testnet TokenBridge
       addr =
-        "0xb22cd218bb63da447ac2704c1cc72727df6b5e981ee17a22176fd7b84c114610";
+        "0x40440411a170b4842ae7dee4f4a7b7a58bc0a98566e998850a7bb87bf5dc05b9";
     } else {
       throw Error(`Unsupported Sui address: ${addr}`);
     }
   } else {
-    addr = emitter.getEmitterAddressEth(addr);
+    addr = getEmitterAddressEth(addr);
   }
 
   return addr;

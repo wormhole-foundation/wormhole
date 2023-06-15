@@ -34,8 +34,9 @@ jobs:
           kubectl config set-context ci --namespace=$DEPLOY_NS
           kubectl config use-context ci
 
-      - run: tilt ci -- --ci --namespace=$DEPLOY_NS --num=2
-        timeout-minutes: 20
+      # temporarily set --guardiand_loglevel=info to debug https://github.com/wormhole-foundation/wormhole/issues/3052
+      - run: tilt ci -- --ci --namespace=$DEPLOY_NS --num=2 --guardiand_loglevel=info
+        timeout-minutes: 40
 
       # Clean up k8s resources
       - run: kubectl delete --namespace=$DEPLOY_NS service,statefulset,configmap,pod,job --all
@@ -48,7 +49,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.19.9"
+          go-version: "1.20.5"
       - run: make node
 
   algorand:
@@ -68,8 +69,9 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: "16"
-      - run: cd ethereum && ../scripts/install-foundry
-      - run: cd ethereum && PATH=$PATH:$HOME/.foundry/bin/ make test
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+      - run: cd ethereum && make test
 
   ethereum-upgrade:
     runs-on: ubuntu-20.04
@@ -78,6 +80,8 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: "16"
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
       - run: cd clients/js && make install
       - run: cd ethereum && make test-upgrade
 
@@ -177,7 +181,7 @@ jobs:
           export PATH="${HOME}/.local/share/solana/install/active_release/bin:${PATH}"
 
           mkdir -p "${BPF_OUT_DIR}"
-          cp modules/token_bridge/token-metadata/spl_token_metadata.so "${BPF_OUT_DIR}"
+          cp external/mpl_token_metadata.so "${BPF_OUT_DIR}"
 
           BPF_PACKAGES=(
             bridge/program/Cargo.toml
@@ -246,7 +250,10 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: "16"
-      - run: cd clients/js && make test
+      - run: |
+          cd clients/js && make test
+          make docs
+          git diff --name-only --exit-code && echo "✅ Generated CLI docs match committed docs" || (echo "❌ Generated CLI docs differs from committed CLI docs, run \`make docs\` and commit the result" >&2 && exit 1)
 
   # Verify wormhole chain unit tests
   wormchain:
@@ -262,15 +269,15 @@ jobs:
           git diff --name-only --exit-code && echo "✅ Generated proto matches committed proto" || (echo "❌ Generated proto differs from committed proto, run \`make proto -B\` and commit the result" >&2 && exit 1)
           make test
 
-  # Verify go sdk unit tests
+  # Verify go sdk unit/fuzz tests
   sdk_vaa:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.19.9"
-      - run: cd sdk/vaa && go test
+          go-version: "1.20.5"
+      - run: cd sdk/vaa && go test && go test -v -fuzz FuzzCalculateQuorum -run FuzzCalculateQuorum -fuzztime 15s
 
   # Run Go linters
   node-lint:
@@ -286,9 +293,9 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.19.9"
+          go-version: "1.20.5"
       - name: Install formatter
-        run: go install golang.org/x/tools/cmd/goimports@latest
+        run: go install golang.org/x/tools/cmd/goimports@v0.8.0
       - name: Formatting checks
         run: ./scripts/lint.sh -l -g format
       - name: Install linters
@@ -315,10 +322,10 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
         with:
-          go-version: "1.19.9"
+          go-version: "1.20.5"
       # The go-ethereum and celo-blockchain packages both implement secp256k1 using the exact same header, but that causes duplicate symbols.
       - name: Run golang tests
-        run: cd node && go test -v -race -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' ./...
+        run: cd node && go test -v -timeout 1m -race -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' ./...
 
   # Run Rust lints and tests
   rust-lint-and-tests:

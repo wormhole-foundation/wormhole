@@ -44,6 +44,10 @@ config.define_string("bigTableKeyPath", False, "Path to BigTable json key file")
 # for service links in the UI to work.
 config.define_string("webHost", False, "Public hostname for port forwards")
 
+# When running Tilt on a server, this can be used to set the public hostname Tilt runs on
+# for service links in the UI to work.
+config.define_string("guardiand_loglevel", False, "Log level for guardiand (debug, info, warn, error, dpanic, panic, fatal)")
+
 # Components
 config.define_bool("near", False, "Enable Near component")
 config.define_bool("sui", False, "Enable Sui component")
@@ -62,6 +66,9 @@ config.define_bool("node_metrics", False, "Enable Prometheus & Grafana for Guard
 config.define_bool("guardiand_governor", False, "Enable chain governor in guardiand")
 config.define_bool("wormchain", False, "Enable a wormchain node")
 config.define_bool("ibc_relayer", False, "Enable IBC relayer between cosmos chains")
+config.define_bool("redis", False, "Enable a redis instance")
+config.define_bool("generic_relayer", False, "Enable the generic relayer off-chain component")
+
 
 cfg = config.parse()
 num_guardians = int(cfg.get("num", "1"))
@@ -85,8 +92,16 @@ ci_tests = cfg.get("ci_tests", ci)
 guardiand_debug = cfg.get("guardiand_debug", False)
 node_metrics = cfg.get("node_metrics", False)
 guardiand_governor = cfg.get("guardiand_governor", False)
-ibc_relayer = cfg.get("ibc_relayer", False)
+ibc_relayer = cfg.get("ibc_relayer", ci)
 btc = cfg.get("btc", False)
+redis = cfg.get('redis', ci)
+generic_relayer = cfg.get("generic_relayer", ci)
+
+if ci:
+    guardiand_loglevel = cfg.get("guardiand_loglevel", "warn")
+else:
+    guardiand_loglevel = cfg.get("guardiand_loglevel", "info")
+
 
 if cfg.get("manual", False):
     trigger_mode = TRIGGER_MODE_MANUAL
@@ -101,13 +116,17 @@ if not ci:
 def k8s_yaml_with_ns(objects):
     return k8s_yaml(namespace_inject(objects, namespace))
 
-local_resource(
-    name = "const-gen",
-    deps = ["scripts", "clients", "ethereum/.env.test"],
-    cmd = 'tilt docker build -- --target const-export -f Dockerfile.const -o type=local,dest=. --build-arg num_guardians=%s .' % (num_guardians),
-    env = {"DOCKER_BUILDKIT": "1"},
-    allow_parallel = True,
-    trigger_mode = trigger_mode,
+docker_build(
+    ref = "cli-gen",
+    context = ".",
+    dockerfile = "Dockerfile.cli",
+)
+
+docker_build(
+    ref = "const-gen",
+    context = ".",
+    dockerfile = "Dockerfile.const",
+    build_args={"num_guardians": '%s' % (num_guardians)},
 )
 
 # node
@@ -125,7 +144,7 @@ docker_build(
     context = ".",
     dockerfile = "node/Dockerfile",
     target = "build",
-    ignore=["./sdk/js"]
+    ignore=["./sdk/js", "./relayer"]
 )
 
 def command_with_dlv(argv):
@@ -152,12 +171,11 @@ def build_node_yaml():
             if container["name"] != "guardiand":
                 fail("container 0 is not guardiand")
 
+            container["command"] += ["--logLevel="+guardiand_loglevel]
+
             if guardiand_debug:
                 container["command"] = command_with_dlv(container["command"])
-                container["command"] += ["--logLevel=debug"]
                 print(container["command"])
-            elif ci:
-                container["command"] += ["--logLevel=warn"]
 
             if gcpProject != "":
                 container["command"] += [
@@ -272,10 +290,6 @@ def build_node_yaml():
 
             if wormchain:
                 container["command"] += [
-                    "--wormchainWS",
-                    "ws://wormchain:26657/websocket",
-                    "--wormchainLCD",
-                    "http://wormchain:1317",
                     "--wormchainURL",
                     "wormchain:9090",
                     "--wormchainKeyPath",
@@ -287,7 +301,13 @@ def build_node_yaml():
                     "--accountantContract",
                     "wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465",
                     "--accountantCheckEnabled",
-                    "true"
+                    "true",
+                    "--ibcWS",
+                    "ws://wormchain:26657/websocket",
+                    "--ibcLCD",
+                    "http://wormchain:1317",
+                    "--ibcContract",
+                    "wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj"
                 ]
 
     return encode_yaml_stream(node_yaml_with_replicas)
@@ -425,7 +445,6 @@ if solana or pythnet:
             port_forward(8899, name = "Solana RPC [:8899]", host = webHost),
             port_forward(8900, name = "Solana WS [:8900]", host = webHost),
         ],
-        resource_deps = ["const-gen"],
         labels = ["solana"],
         trigger_mode = trigger_mode,
     )
@@ -438,8 +457,9 @@ docker_build(
     dockerfile = "./ethereum/Dockerfile",
 
     # ignore local node_modules (in case they're present)
-    ignore = ["./ethereum/node_modules"],
-
+    ignore = ["./node_modules"],
+    build_args = {"num_guardians": str(num_guardians), "dev": str(not ci)},
+  
     # sync external scripts for incremental development
     # (everything else needs to be restarted from scratch for determinism)
     #
@@ -450,7 +470,7 @@ docker_build(
     ],
 )
 
-if spy_relayer:
+if spy_relayer or redis or generic_relayer:
     docker_build(
         ref = "redis",
         context = ".",
@@ -458,16 +478,52 @@ if spy_relayer:
         dockerfile = "third_party/redis/Dockerfile",
     )
 
-    k8s_yaml_with_ns("devnet/redis.yaml")
-
+if spy_relayer or redis:
     k8s_resource(
         "redis",
         port_forwards = [
             port_forward(6379, name = "Redis Default [:6379]", host = webHost),
         ],
-        labels = ["spy-relayer"],
+        labels = ["redis"],
         trigger_mode = trigger_mode,
     )
+
+    k8s_yaml_with_ns("devnet/redis.yaml")
+
+if generic_relayer:
+    k8s_resource(
+        "redis-relayer",
+        port_forwards = [
+            port_forward(6378, name = "Generic Relayer Redis [:6378]", host = webHost),
+        ],
+        labels = ["redis-relayer"],
+        trigger_mode = trigger_mode,
+    )
+
+    k8s_yaml_with_ns("devnet/redis-relayer.yaml")
+
+
+
+if generic_relayer:
+    k8s_resource(
+        "relayer-engine",
+        resource_deps = ["guardian", "redis-relayer", "spy"],
+        port_forwards = [
+            port_forward(3003, container_port=3000, name = "Bullmq UI [:3003]", host = webHost),
+        ],
+        labels = ["relayer-engine"],
+        trigger_mode = trigger_mode,
+    )
+    docker_build(
+        ref = "relayer-engine",
+        context = ".",
+        only = ["./ethereum", "./relayer/generic_relayer", "./sdk", "./solana"],
+        dockerfile = "relayer/generic_relayer/relayer-engine-v2/Dockerfile",
+        ignore = ["./ethereum/node_modules", "./sdk/js/src/relayer/__tests__"]
+    )
+    k8s_yaml_with_ns("devnet/relayer-engine.yaml")
+
+if spy_relayer:
 
     docker_build(
         ref = "spy-relay-image",
@@ -521,7 +577,6 @@ k8s_resource(
     port_forwards = [
         port_forward(8545, name = "Ganache RPC [:8545]", host = webHost),
     ],
-    resource_deps = ["const-gen"],
     labels = ["evm"],
     trigger_mode = trigger_mode,
 )
@@ -534,7 +589,6 @@ if evm2:
         port_forwards = [
             port_forward(8546, name = "Ganache RPC [:8546]", host = webHost),
         ],
-        resource_deps = ["const-gen"],
         labels = ["evm"],
         trigger_mode = trigger_mode,
     )
@@ -581,7 +635,7 @@ if ci_tests:
         "accountant-ci-tests",
         labels = ["ci"],
         trigger_mode = trigger_mode,
-        resource_deps = ["const-gen"], # uses devnet-consts.json, but wormchain/contracts/tools/test_accountant.sh handles waiting for guardian, not having deps gets the build earlier
+        resource_deps = [], # uses devnet-consts.json, but wormchain/contracts/tools/test_accountant.sh handles waiting for guardian, not having deps gets the build earlier
     )
 
 if terra_classic:
@@ -605,7 +659,6 @@ if terra_classic:
             port_forward(26657, name = "Terra RPC [:26657]", host = webHost),
             port_forward(1317, name = "Terra LCD [:1317]", host = webHost),
         ],
-        resource_deps = ["const-gen"],
         labels = ["terra"],
         trigger_mode = trigger_mode,
     )
@@ -653,7 +706,6 @@ if terra2:
             port_forward(26658, container_port = 26657, name = "Terra 2 RPC [:26658]", host = webHost),
             port_forward(1318, container_port = 1317, name = "Terra 2 LCD [:1318]", host = webHost),
         ],
-        resource_deps = ["const-gen"],
         labels = ["terra2"],
         trigger_mode = trigger_mode,
     )
@@ -701,7 +753,6 @@ if algorand:
             port_forward(4002, name = "KMD [:4002]", host = webHost),
             port_forward(8980, name = "Indexer [:8980]", host = webHost),
         ],
-        resource_deps = ["const-gen"],
         labels = ["algorand"],
         trigger_mode = trigger_mode,
     )
@@ -715,7 +766,7 @@ if sui:
         context = ".",
         dockerfile = "sui/Dockerfile",
         ignore = ["./sui/sui.log*", "sui/sui.log*", "sui.log.*"],
-        only = ["./sui", "./clients/js"],
+        only = ["./sui"],
     )
 
     k8s_resource(
@@ -725,7 +776,6 @@ if sui:
             port_forward(5003, name = "Faucet [:5003]", host = webHost),
             port_forward(9184, name = "Prometheus [:9184]", host = webHost),
         ],
-        resource_deps = ["const-gen"],
         labels = ["sui"],
         trigger_mode = trigger_mode,
     )
@@ -753,7 +803,6 @@ if near:
             port_forward(3030, name = "Node [:3030]", host = webHost),
             port_forward(3031, name = "webserver [:3031]", host = webHost),
         ],
-        resource_deps = ["const-gen"],
         labels = ["near"],
         trigger_mode = trigger_mode,
     )
@@ -827,14 +876,13 @@ if wormchain:
             port_forward(9090, container_port = 9090, name = "GRPC", host = webHost),
             port_forward(26659, container_port = 26657, name = "TENDERMINT [:26659]", host = webHost)
         ],
-        resource_deps = ["const-gen"],
         labels = ["wormchain"],
         trigger_mode = trigger_mode,
     )
 
     k8s_resource(
         "wormchain-deploy",
-        resource_deps = ["const-gen", "wormchain"],
+        resource_deps = ["wormchain"],
         labels = ["wormchain"],
         trigger_mode = trigger_mode,
     )
@@ -854,7 +902,7 @@ if ibc_relayer:
         port_forwards = [
             port_forward(7597, name = "HTTPDEBUG [:7597]", host = webHost),
         ],
-        resource_deps = ["wormchain", "terra2-terrad"],
+        resource_deps = ["wormchain-deploy", "terra2-terrad"],
         labels = ["ibc-relayer"],
         trigger_mode = trigger_mode,
     )
@@ -895,7 +943,6 @@ if aptos:
             port_forward(6181, name = "FullNode [:6181]", host = webHost),
             port_forward(8081, name = "Faucet [:8081]", host = webHost),
         ],
-        resource_deps = ["const-gen"],
         labels = ["aptos"],
         trigger_mode = trigger_mode,
     )

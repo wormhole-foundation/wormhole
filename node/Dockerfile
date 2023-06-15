@@ -1,5 +1,5 @@
 # syntax=docker.io/docker/dockerfile:1.3@sha256:42399d4635eddd7a9b8a24be879d2f9a930d0ed040a61324cfdf59ef1357b3b2
-FROM --platform=linux/amd64 docker.io/golang:1.19.9@sha256:86901bd215ca2b33bdef68f70b999140252169bb55883bb29347334fa00b5b62 AS build
+FROM --platform=linux/amd64 docker.io/golang:1.20.5@sha256:4b1fc02d16fca272e5e6e6adc98396219b43ef663a377eef4a97e881d364393f AS build
 # libwasmvm.so is not compatible with arm
 
 # Support additional root CAs

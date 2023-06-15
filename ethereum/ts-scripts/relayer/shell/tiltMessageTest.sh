@@ -1,0 +1,1 @@
+ENV=tilt tsx ./ts-scripts/relayer/mockIntegration/messageTest.ts --from 2 --to 4

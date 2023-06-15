@@ -1,24 +1,24 @@
 {
-  version: 1,
-  guardianSetIndex: 0,
-  signatures: [
+  "version": 1,
+  "guardianSetIndex": 0,
+  "signatures": [
     {
-      guardianSetIndex: 0,
-      signature: '1890714264dbbc8022a58df0c12b436d588b20b6304b38c383bda1d7fc101bb2443081e6d42719bce602116a1491b10d4666967da9f8d922079759c972ed37b401'
+      "guardianSetIndex": 0,
+      "signature": "1890714264dbbc8022a58df0c12b436d588b20b6304b38c383bda1d7fc101bb2443081e6d42719bce602116a1491b10d4666967da9f8d922079759c972ed37b401"
     }
   ],
-  timestamp: 0,
-  nonce: 420751607,
-  emitterChain: 1,
-  emitterAddress: '0x0000000000000000000000000000000000000000000000000000000000000004',
-  sequence: 17854666897793422727n,
-  consistencyLevel: 32,
-  payload: {
-    module: 'TokenBridge',
-    type: 'RegisterChain',
-    chain: 0,
-    emitterChain: 1,
-    emitterAddress: '0x95f83a27e90c622a98c037353f271fd8f5f57b4dc18ebf5ff75a934724bd0491'
+  "timestamp": 0,
+  "nonce": 420751607,
+  "emitterChain": 1,
+  "emitterAddress": "0x0000000000000000000000000000000000000000000000000000000000000004",
+  "sequence": "17854666897793422727",
+  "consistencyLevel": 32,
+  "payload": {
+    "module": "TokenBridge",
+    "type": "RegisterChain",
+    "chain": 0,
+    "emitterChain": 1,
+    "emitterAddress": "0x95f83a27e90c622a98c037353f271fd8f5f57b4dc18ebf5ff75a934724bd0491"
   },
-  digest: '0xe596e88c14b9cd45c350bb4811b9a29bc1fc7069300e4204e034b1ab7c23d820'
+  "digest": "0xe596e88c14b9cd45c350bb4811b9a29bc1fc7069300e4204e034b1ab7c23d820"
 }

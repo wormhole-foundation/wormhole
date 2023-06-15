@@ -11,7 +11,7 @@ import {
 } from "../../../utils";
 import { deriveAddress, getAccountData } from "../../utils";
 
-export { deriveSplTokenMetadataKey } from "../../utils/splMetadata";
+export { deriveTokenMetadataKey } from "../../utils/tokenMetadata";
 
 export function deriveWrappedMintKey(
   tokenBridgeProgramId: PublicKeyInitData,

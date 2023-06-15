@@ -1,22 +1,22 @@
 {
-  version: 1,
-  guardianSetIndex: 0,
-  signatures: [
+  "version": 1,
+  "guardianSetIndex": 0,
+  "signatures": [
     {
-      guardianSetIndex: 0,
-      signature: 'e29d3ad180b153d68c3f445d75eaa62fcc99690945baaf4ad0463e9ce44f27f75da3d49f79722920aac81ba2be80f688895f174942fedc403bc4e5ce3555b77b00'
+      "guardianSetIndex": 0,
+      "signature": "e29d3ad180b153d68c3f445d75eaa62fcc99690945baaf4ad0463e9ce44f27f75da3d49f79722920aac81ba2be80f688895f174942fedc403bc4e5ce3555b77b00"
     }
   ],
-  timestamp: 1656354705,
-  nonce: 0,
-  emitterChain: 2,
-  emitterAddress: '0x000000000000000000000000f19a2a01b70519f67adb309a994ec8c69a967e8b',
-  sequence: 0n,
-  consistencyLevel: 1,
-  payload: {
-    type: 'Other',
-    hex: '46726f6d3a2065766d305c6e4d73673a2048656c6c6f20576f726c6421',
-    ascii: 'From: evm0\\nMsg: Hello World!'
+  "timestamp": 1656354705,
+  "nonce": 0,
+  "emitterChain": 2,
+  "emitterAddress": "0x000000000000000000000000f19a2a01b70519f67adb309a994ec8c69a967e8b",
+  "sequence": "0",
+  "consistencyLevel": 1,
+  "payload": {
+    "type": "Other",
+    "hex": "46726f6d3a2065766d305c6e4d73673a2048656c6c6f20576f726c6421",
+    "ascii": "From: evm0\\nMsg: Hello World!"
   },
-  digest: '0x8b7781f662ff1eed4827b770c0e735288948f0b56611f8cd73bf65e6b2a7a8ad'
+  "digest": "0x8b7781f662ff1eed4827b770c0e735288948f0b56611f8cd73bf65e6b2a7a8ad"
 }

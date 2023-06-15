@@ -244,8 +244,9 @@ const MAINNET = {
     nft_bridge: undefined,
   },
   sei: {
-    core: undefined,
-    token_bridge: undefined,
+    core: "sei1gjrrme22cyha4ht2xapn3f08zzw6z3d4uxx6fyy9zd5dyr3yxgzqqncdqn",
+    token_bridge:
+      "sei1smzlm9t79kur392nu9egl8p8je9j92q4gzguewj56a05kyxxra0qy0nuf3",
     nft_bridge: undefined,
   },
   wormchain: {
@@ -359,9 +360,9 @@ const TESTNET = {
     nft_bridge: undefined,
   },
   sui: {
-    core: "0x69ae41bdef4770895eb4e7aaefee5e4673acc08f6917b4856cf55549c4573ca8",
+    core: "0x31358d198147da50db32eda2562951d53973a0c0ad5ed738e9b17d88b213d790",
     token_bridge:
-      "0x32422cb2f929b6a4e3f81b4791ea11ac2af896b310f3d9442aa1fe924ce0bab4",
+      "0x6fb10cdb7aa299e9a4308752dadecb049ff55a892de92992a1edbd7912b3d6da",
     nft_bridge: undefined,
   },
   moonbeam: {

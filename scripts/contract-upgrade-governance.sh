@@ -234,6 +234,12 @@ guardiand template token-bridge-upgrade-contract \\
   --chain-id $chain --module \"NFTBridge\" \\
   --new-address $address"
     ;;
+  wormhole_relayer)
+    echo "\
+guardiand template token-bridge-upgrade-contract \\
+  --chain-id $chain --module \"WormholeRelayer\" \\
+  --new-address $address"
+    ;;
   *) echo "unknown module $module" >&2
      usage
      ;;
@@ -407,7 +413,7 @@ if [ "$evm" = true ]; then
 	Next, use the \`verify\` script to verify that the deployed bytecodes we are upgrading to match the build artifacts:
 
 	\`\`\`shell
-	wormhole/ethereum $ ./verify -r $(worm rpc mainnet $chain_name) -c $chain_name $(evm_artifact) $address
+	wormhole/ethereum $ ./verify -r $(worm info rpc mainnet $chain_name) -c $chain_name $(evm_artifact) $address
 	\`\`\`
 
 EOF

@@ -379,14 +379,11 @@ export async function redeemOnSui(
   if (!coinType) {
     throw new Error("Unable to fetch token coinType");
   }
-  const coreBridgePackageId = await getPackageId(
-    provider,
-    coreBridgeStateObjectId
-  );
-  const tokenBridgePackageId = await getPackageId(
-    provider,
-    tokenBridgeStateObjectId
-  );
+
+  const [coreBridgePackageId, tokenBridgePackageId] = await Promise.all([
+    getPackageId(provider, coreBridgeStateObjectId),
+    getPackageId(provider, tokenBridgeStateObjectId),
+  ]);
   const tx = new TransactionBlock();
   const [verifiedVAA] = tx.moveCall({
     target: `${coreBridgePackageId}::vaa::parse_and_verify`,

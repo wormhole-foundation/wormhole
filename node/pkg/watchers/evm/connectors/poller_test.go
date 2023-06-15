@@ -167,15 +167,18 @@ func TestBlockPoller(t *testing.T) {
 	var err error
 	var pollerStatus int
 
+	const pollerRunning = 1
+	const pollerExited = 2
+
 	// Start the poller running.
 	go func() {
 		mutex.Lock()
-		pollerStatus = 1
+		pollerStatus = pollerRunning
 		mutex.Unlock()
 		err := poller.run(ctx, logger)
 		require.NoError(t, err)
 		mutex.Lock()
-		pollerStatus = 2
+		pollerStatus = pollerExited
 		mutex.Unlock()
 	}()
 
@@ -211,7 +214,7 @@ func TestBlockPoller(t *testing.T) {
 	// First sleep a bit and make sure there were no start up errors.
 	time.Sleep(10 * time.Millisecond)
 	mutex.Lock()
-	require.Equal(t, 1, pollerStatus)
+	require.Equal(t, pollerRunning, pollerStatus)
 	require.NoError(t, err)
 	assert.Nil(t, block)
 	mutex.Unlock()
@@ -221,7 +224,7 @@ func TestBlockPoller(t *testing.T) {
 
 	time.Sleep(10 * time.Millisecond)
 	mutex.Lock()
-	require.Equal(t, 1, pollerStatus)
+	require.Equal(t, pollerRunning, pollerStatus)
 	require.NoError(t, err)
 	require.NotNil(t, block)
 	assert.Equal(t, uint64(0x309a0d), block.Number.Uint64())
@@ -233,7 +236,7 @@ func TestBlockPoller(t *testing.T) {
 	baseConnector.setBlockNumber(0x309a0d)
 	time.Sleep(10 * time.Millisecond)
 	mutex.Lock()
-	require.Equal(t, 1, pollerStatus)
+	require.Equal(t, pollerRunning, pollerStatus)
 	require.NoError(t, err)
 	require.Nil(t, block)
 	mutex.Unlock()
@@ -242,7 +245,7 @@ func TestBlockPoller(t *testing.T) {
 	baseConnector.setBlockNumber(0x309a0e)
 	time.Sleep(10 * time.Millisecond)
 	mutex.Lock()
-	require.Equal(t, 1, pollerStatus)
+	require.Equal(t, pollerRunning, pollerStatus)
 	require.NoError(t, err)
 	require.NotNil(t, block)
 	assert.Equal(t, uint64(0x309a0e), block.Number.Uint64())
@@ -258,7 +261,7 @@ func TestBlockPoller(t *testing.T) {
 
 	time.Sleep(10 * time.Millisecond)
 	mutex.Lock()
-	require.Equal(t, 1, pollerStatus)
+	require.Equal(t, pollerRunning, pollerStatus)
 	require.NoError(t, err)
 	require.Nil(t, block)
 	mutex.Unlock()
@@ -270,7 +273,7 @@ func TestBlockPoller(t *testing.T) {
 
 	time.Sleep(10 * time.Millisecond)
 	mutex.Lock()
-	require.Equal(t, 1, pollerStatus)
+	require.Equal(t, pollerRunning, pollerStatus)
 	require.NoError(t, err)
 	require.NotNil(t, block)
 	assert.Equal(t, uint64(0x309a0f), block.Number.Uint64())
@@ -284,7 +287,7 @@ func TestBlockPoller(t *testing.T) {
 
 	time.Sleep(10 * time.Millisecond)
 	mutex.Lock()
-	require.Equal(t, 1, pollerStatus)
+	require.Equal(t, pollerRunning, pollerStatus)
 	assert.Error(t, err)
 	assert.Nil(t, block)
 	baseConnector.setError(nil)
@@ -294,9 +297,22 @@ func TestBlockPoller(t *testing.T) {
 	// Post the next block and verify we get it (so we survived the RPC error).
 	baseConnector.setBlockNumber(0x309a10)
 
-	time.Sleep(10 * time.Millisecond)
+	// There may be a few errors already queued up. Loop for a bit before we give up.
+	success := false
+	for count := 0; (count < 20) && (!success); count++ {
+		time.Sleep(10 * time.Millisecond)
+		mutex.Lock()
+		if err == nil {
+			success = true
+		} else {
+			err = nil
+		}
+		mutex.Unlock()
+	}
+	require.True(t, success)
+
 	mutex.Lock()
-	require.Equal(t, 1, pollerStatus)
+	require.Equal(t, pollerRunning, pollerStatus)
 	require.NoError(t, err)
 	require.NotNil(t, block)
 	assert.Equal(t, uint64(0x309a10), block.Number.Uint64())
@@ -309,7 +325,7 @@ func TestBlockPoller(t *testing.T) {
 
 	time.Sleep(10 * time.Millisecond)
 	mutex.Lock()
-	require.Equal(t, 1, pollerStatus)
+	require.Equal(t, pollerRunning, pollerStatus)
 	require.NoError(t, err)
 	require.Nil(t, block)
 	mutex.Unlock()
@@ -319,7 +335,7 @@ func TestBlockPoller(t *testing.T) {
 
 	time.Sleep(10 * time.Millisecond)
 	mutex.Lock()
-	require.Equal(t, 1, pollerStatus)
+	require.Equal(t, pollerRunning, pollerStatus)
 	require.NoError(t, err)
 	require.NotNil(t, block)
 	assert.Equal(t, uint64(0x309a11), block.Number.Uint64())
@@ -332,7 +348,7 @@ func TestBlockPoller(t *testing.T) {
 
 	time.Sleep(10 * time.Millisecond)
 	mutex.Lock()
-	require.Equal(t, 1, pollerStatus)
+	require.Equal(t, pollerRunning, pollerStatus)
 	require.NoError(t, err)
 	require.NotNil(t, block)
 	assert.Equal(t, uint64(0x309a13), block.Number.Uint64())
@@ -346,7 +362,7 @@ func TestBlockPoller(t *testing.T) {
 
 	time.Sleep(10 * time.Millisecond)
 	mutex.Lock()
-	require.Equal(t, 1, pollerStatus)
+	require.Equal(t, pollerRunning, pollerStatus)
 	require.NoError(t, err)
 	require.NotNil(t, block)
 	assert.Equal(t, uint64(0x309a14), block.Number.Uint64())

@@ -1,4 +1,8 @@
 import {
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
+import {
   PublicKey,
   PublicKeyInitData,
   SystemProgram,
@@ -6,25 +10,21 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import {
-  ASSOCIATED_TOKEN_PROGRAM_ID,
-  TOKEN_PROGRAM_ID,
-} from "@solana/spl-token";
-import { createReadOnlyNftBridgeProgramInterface } from "../program";
-import { deriveClaimKey, derivePostedVaaKey } from "../../wormhole";
-import {
-  deriveEndpointKey,
-  deriveNftBridgeConfigKey,
-  deriveWrappedMintKey,
-  deriveWrappedMetaKey,
-  deriveMintAuthorityKey,
-} from "../accounts";
-import {
   isBytes,
   ParsedNftTransferVaa,
   parseNftTransferVaa,
   SignedVaa,
 } from "../../../vaa";
-import { SplTokenMetadataProgram } from "../../utils";
+import { TOKEN_METADATA_PROGRAM_ID } from "../../utils";
+import { deriveClaimKey, derivePostedVaaKey } from "../../wormhole";
+import {
+  deriveEndpointKey,
+  deriveMintAuthorityKey,
+  deriveNftBridgeConfigKey,
+  deriveWrappedMetaKey,
+  deriveWrappedMintKey,
+} from "../accounts";
+import { createReadOnlyNftBridgeProgramInterface } from "../program";
 
 export function createCompleteTransferWrappedInstruction(
   nftBridgeProgramId: PublicKeyInitData,
@@ -110,7 +110,7 @@ export function getCompleteTransferWrappedAccounts(
     rent: SYSVAR_RENT_PUBKEY,
     systemProgram: SystemProgram.programId,
     tokenProgram: TOKEN_PROGRAM_ID,
-    splMetadataProgram: SplTokenMetadataProgram.programId,
+    splMetadataProgram: TOKEN_METADATA_PROGRAM_ID,
     associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
     wormholeProgram: new PublicKey(wormholeProgramId),
   };

@@ -82,7 +82,7 @@ message GovernanceMessage {
     GuardianSetUpdate guardian_set = 10;
     ContractUpgrade contract_upgrade = 11;
 
-    // Token bridge and NFT module
+    // Token bridge, NFT module, and Wormhole Relayer module (for the first two) 
 
     BridgeRegisterChain bridge_register_chain = 12;
     BridgeUpgradeContract bridge_contract_upgrade = 13;
@@ -100,6 +100,11 @@ message GovernanceMessage {
     CircleIntegrationUpdateWormholeFinality circle_integration_update_wormhole_finality = 18;
     CircleIntegrationRegisterEmitterAndDomain circle_integration_register_emitter_and_domain = 19;
     CircleIntegrationUpgradeContractImplementation circle_integration_upgrade_contract_implementation = 20;
+
+    // IBC Receiver Integration
+    IbcReceiverUpdateChannelChain ibc_receiver_update_channel_chain = 21;
+    // Wormhole Relayer module
+    WormholeRelayerSetDefaultDeliveryProvider wormhole_relayer_set_default_delivery_provider = 22;
   }
 }
 
@@ -234,6 +239,23 @@ message CircleIntegrationRegisterEmitterAndDomain {
 message CircleIntegrationUpgradeContractImplementation {
   string new_implementation_address = 1;
   uint32 target_chain_id = 2;
+}
+
+message IbcReceiverUpdateChannelChain {
+  // Chain ID that this governance VAA should be redeemed on
+  uint32 target_chain_id = 1;
+  // IBC channel ID
+  string channel_id = 2;
+  // ChainID corresponding to the IBC channel
+  uint32 chain_id = 3;
+}
+
+message WormholeRelayerSetDefaultDeliveryProvider {
+  // ID of the chain of the Wormhole Relayer contract where the default delivery provider should be updated (uint16).
+  uint32 chain_id = 1;
+
+  // Hex-encoded address (without leading 0x) of the new default delivery provider contract address.
+  string new_default_delivery_provider_address = 2;
 }
 
 message FindMissingMessagesRequest {

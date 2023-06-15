@@ -1,18 +1,21 @@
-import { AptosAccount, TxnBuilderTypes, AptosClient, BCS } from "aptos";
-import { NETWORKS } from "./networks";
-import { impossible, Payload } from "./vaa";
-import { sha3_256 } from "js-sha3";
-import { ethers } from "ethers";
 import {
-  assertChain,
-  ChainId,
   CONTRACTS,
+  ChainId,
+  assertChain,
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+import { AptosAccount, AptosClient, BCS, TxnBuilderTypes } from "aptos";
+import { ethers } from "ethers";
+import { sha3_256 } from "js-sha3";
+import { NETWORKS } from "./consts";
+import { Network } from "./utils";
+import { Payload, impossible } from "./vaa";
+import { CHAINS, ensureHexPrefix } from "@certusone/wormhole-sdk";
+import { TokenBridgeState } from "@certusone/wormhole-sdk/lib/esm/aptos/types";
 
 export async function execute_aptos(
   payload: Payload,
   vaa: Buffer,
-  network: "MAINNET" | "TESTNET" | "DEVNET",
+  network: Network,
   contract: string | undefined,
   rpc: string | undefined
 ) {
@@ -24,11 +27,12 @@ export async function execute_aptos(
   const bcsVAA = serializer.getBytes();
 
   switch (payload.module) {
-    case "Core":
+    case "Core": {
       contract = contract ?? CONTRACTS[network][chain]["core"];
       if (contract === undefined) {
         throw Error("core bridge contract is undefined");
       }
+
       switch (payload.type) {
         case "GuardianSetUpgrade":
           console.log("Submitting new guardian set");
@@ -57,12 +61,15 @@ export async function execute_aptos(
         default:
           impossible(payload);
       }
+
       break;
-    case "NFTBridge":
+    }
+    case "NFTBridge": {
       contract = contract ?? CONTRACTS[network][chain]["nft_bridge"];
       if (contract === undefined) {
         throw Error("nft bridge contract is undefined");
       }
+
       switch (payload.type) {
         case "ContractUpgrade":
           console.log("Upgrading contract");
@@ -103,12 +110,15 @@ export async function execute_aptos(
         default:
           impossible(payload);
       }
+
       break;
-    case "TokenBridge":
+    }
+    case "TokenBridge": {
       contract = contract ?? CONTRACTS[network][chain]["token_bridge"];
       if (contract === undefined) {
         throw Error("token bridge contract is undefined");
       }
+
       switch (payload.type) {
         case "ContractUpgrade":
           console.log("Upgrading contract");
@@ -215,9 +225,12 @@ export async function execute_aptos(
           throw Error("Can't complete payload 3 transfer from CLI");
         default:
           impossible(payload);
-          break;
       }
+
       break;
+    }
+    case "WormholeRelayer":
+      throw Error("Wormhole Relayer not supported on Aptos");
     default:
       impossible(payload);
   }
@@ -250,7 +263,7 @@ export function deriveWrappedAssetAddress(
 export function deriveResourceAccount(
   deployer: Uint8Array, // 32 bytes
   seed: string
-) {
+): string {
   // from https://github.com/aptos-labs/aptos-core/blob/25696fd266498d81d346fe86e01c330705a71465/aptos-move/framework/aptos-framework/sources/account.move#L90-L95
   let DERIVE_RESOURCE_ACCOUNT_SCHEME = Buffer.alloc(1);
   DERIVE_RESOURCE_ACCOUNT_SCHEME.writeUInt8(255);
@@ -270,7 +283,7 @@ export async function callEntryFunc(
   func: string,
   ty_args: BCS.Seq<TxnBuilderTypes.TypeTag>,
   args: BCS.Seq<BCS.Bytes>
-) {
+): Promise<string> {
   let key: string | undefined = NETWORKS[network]["aptos"].key;
   if (key === undefined) {
     throw new Error("No key for aptos");
@@ -310,6 +323,7 @@ export async function callEntryFunc(
       throw new Error(`Transaction failed: ${tx.vm_status}`);
     }
   });
+
   // simulation successful... let's do it
   const bcsTxn = AptosClient.generateBCSTransaction(accountFrom, rawTxn);
   const transactionRes = await client.submitSignedBCSTransaction(bcsTxn);
@@ -324,4 +338,66 @@ function hex(x: string): Buffer {
     ethers.utils.hexlify(x, { allowMissingPrefix: true }).substring(2),
     "hex"
   );
+}
+
+export async function queryRegistrationsAptos(
+  network: Network,
+  module: "Core" | "NFTBridge" | "TokenBridge"
+): Promise<Object> {
+  const n = NETWORKS[network]["aptos"];
+  const client = new AptosClient(n.rpc);
+  const contracts = CONTRACTS[network]["aptos"];
+  let stateObjectId: string | undefined;
+
+  switch (module) {
+    case "TokenBridge":
+      stateObjectId = contracts.token_bridge;
+      if (stateObjectId === undefined) {
+        throw Error(`Unknown token bridge contract on ${network} for Aptos`);
+      }
+      break;
+    default:
+      throw new Error(`Invalid module: ${module}`);
+  }
+
+  stateObjectId = ensureHexPrefix(stateObjectId);
+  const state = (
+    await client.getAccountResource(
+      stateObjectId,
+      `${stateObjectId}::state::State`
+    )
+  ).data as TokenBridgeState;
+
+  const handle = state.registered_emitters.handle;
+
+  // Query the bridge registration for all the chains in parallel.
+  const registrations: string[][] = await Promise.all(
+    Object.entries(CHAINS)
+      .filter(([cname, _]) => cname !== "aptos" && cname !== "unset")
+      .map(async ([cname, cid]) => [
+        cname,
+        await (async () => {
+          let result = null;
+          try {
+            result = await client.getTableItem(handle, {
+              key_type: "u64",
+              value_type: "vector<u8>",
+              key: cid.toString(),
+            });
+          } catch {
+            // Not logging anything because a chain not registered returns an error.
+          }
+
+          return result;
+        })(),
+      ])
+  );
+
+  const results: { [key: string]: string } = {};
+  for (let [cname, queryResponse] of registrations) {
+    if (queryResponse) {
+      results[cname] = queryResponse;
+    }
+  }
+  return results;
 }

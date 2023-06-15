@@ -3,7 +3,7 @@ import {
   SUI_CLOCK_OBJECT_ID,
   TransactionBlock,
 } from "@mysten/sui.js";
-import { ethers, Overrides } from "ethers";
+import { Overrides, ethers } from "ethers";
 import {
   createWrappedOnAlgorand,
   createWrappedOnAptos,
@@ -46,14 +46,10 @@ export async function updateWrappedOnSui(
   coinPackageId: string,
   attestVAA: Uint8Array
 ): Promise<TransactionBlock> {
-  const coreBridgePackageId = await getPackageId(
-    provider,
-    coreBridgeStateObjectId
-  );
-  const tokenBridgePackageId = await getPackageId(
-    provider,
-    tokenBridgeStateObjectId
-  );
+  const [coreBridgePackageId, tokenBridgePackageId] = await Promise.all([
+    getPackageId(provider, coreBridgeStateObjectId),
+    getPackageId(provider, tokenBridgeStateObjectId),
+  ]);
 
   // Get coin metadata
   const coinType = getWrappedCoinType(coinPackageId);

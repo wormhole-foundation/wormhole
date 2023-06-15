@@ -2,13 +2,6 @@ import { SuiTransactionBlockResponse } from "@mysten/sui.js";
 import fs from "fs";
 import yargs from "yargs";
 import {
-  DEBUG_OPTIONS,
-  NETWORK_OPTIONS,
-  PRIVATE_KEY_OPTIONS,
-  RPC_OPTIONS,
-} from "../../consts";
-import { NETWORKS } from "../../networks";
-import {
   getProvider,
   getSigner,
   logCreatedObjects,
@@ -16,7 +9,14 @@ import {
   logTransactionDigest,
   logTransactionSender,
   publishPackage,
-} from "../../sui";
+} from "../../chains/sui";
+import {
+  DEBUG_OPTIONS,
+  NETWORKS,
+  NETWORK_OPTIONS,
+  PRIVATE_KEY_OPTIONS,
+  RPC_OPTIONS,
+} from "../../consts";
 import { Network, assertNetwork, checkBinary } from "../../utils";
 import { YargsAddCommandsFn } from "../Yargs";
 
@@ -27,16 +27,17 @@ export const addDeployCommands: YargsAddCommandsFn = (y: typeof yargs) =>
   y.command(
     "deploy <package-dir>",
     "Deploy a Sui package",
-    (yargs) => {
-      return yargs
+    (yargs) =>
+      yargs
         .positional("package-dir", {
           type: "string",
+          describe: "Path to package directory",
+          demandOption: true,
         })
         .option("network", NETWORK_OPTIONS)
         .option("debug", DEBUG_OPTIONS)
         .option("private-key", PRIVATE_KEY_OPTIONS)
-        .option("rpc", RPC_OPTIONS);
-    },
+        .option("rpc", RPC_OPTIONS),
     async (argv) => {
       checkBinary("sui", README_URL);
 

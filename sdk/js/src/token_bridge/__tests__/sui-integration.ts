@@ -424,7 +424,7 @@ describe("Sui SDK tests", () => {
       )
     ).toBe(true);
   });
-  test.only("Transfer non-SUI Sui token to Ethereum and back", async () => {
+  test("Transfer non-SUI Sui token to Ethereum and back", async () => {
     // Get COIN_8 coin type
     const res = await suiProvider.getOwnedObjects({
       owner: suiAddress,

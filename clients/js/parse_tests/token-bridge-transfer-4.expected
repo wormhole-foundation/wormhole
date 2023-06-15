@@ -1,27 +1,27 @@
 {
-  version: 1,
-  guardianSetIndex: 0,
-  signatures: [
+  "version": 1,
+  "guardianSetIndex": 0,
+  "signatures": [
     {
-      guardianSetIndex: 0,
-      signature: '1565b62bbf9978b1f9183ae985eb34f664fd4c850ec4ad8a38533281aec75eba2456f91c9a967cf4a70901aa0afed17ba39f1d779089b32eb88a47f7ea405e4b00'
+      "guardianSetIndex": 0,
+      "signature": "1565b62bbf9978b1f9183ae985eb34f664fd4c850ec4ad8a38533281aec75eba2456f91c9a967cf4a70901aa0afed17ba39f1d779089b32eb88a47f7ea405e4b00"
     }
   ],
-  timestamp: 0,
-  nonce: 637912343,
-  emitterChain: 1,
-  emitterAddress: '0x95f83a27e90c622a98c037353f271fd8f5f57b4dc18ebf5ff75a934724bd0491',
-  sequence: 5642641510889746365n,
-  consistencyLevel: 32,
-  payload: {
-    module: 'TokenBridge',
-    type: 'Transfer',
-    amount: 100000n,
-    tokenAddress: '0x165809739240a0ac03b98440fe8985548e3aa683cd0d4d9df5b5659669faa301',
-    tokenChain: 1,
-    toAddress: '0x000000000000000000000000c10820983f33456ce7beb3a046f5a83fa34f027d',
-    chain: 3104,
-    fee: 0n
+  "timestamp": 0,
+  "nonce": 637912343,
+  "emitterChain": 1,
+  "emitterAddress": "0x95f83a27e90c622a98c037353f271fd8f5f57b4dc18ebf5ff75a934724bd0491",
+  "sequence": "5642641510889746365",
+  "consistencyLevel": 32,
+  "payload": {
+    "module": "TokenBridge",
+    "type": "Transfer",
+    "amount": "100000",
+    "tokenAddress": "0x165809739240a0ac03b98440fe8985548e3aa683cd0d4d9df5b5659669faa301",
+    "tokenChain": 1,
+    "toAddress": "0x000000000000000000000000c10820983f33456ce7beb3a046f5a83fa34f027d",
+    "chain": 3104,
+    "fee": "0"
   },
-  digest: '0x559318082f6abb8b0fcf360d2a98be84a0ccf6602044882cc0d6764a374ae44d'
+  "digest": "0x559318082f6abb8b0fcf360d2a98be84a0ccf6602044882cc0d6764a374ae44d"
 }

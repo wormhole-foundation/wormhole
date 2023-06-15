@@ -1,5 +1,6 @@
 use crate::{
     accounts::{
+        deserialize_and_verify_metadata,
         AuthoritySigner,
         ConfigAccount,
         CoreBridge,
@@ -17,11 +18,7 @@ use crate::{
     messages::PayloadTransfer,
     types::*,
     TokenBridgeError,
-    TokenBridgeError::{
-        InvalidMetadata,
-        TokenNotNFT,
-        WrongAccountOwner,
-    },
+    TokenBridgeError::WrongAccountOwner,
 };
 use bridge::{
     api::PostMessageData,
@@ -50,7 +47,6 @@ use solitaire::{
     CreationLamports::Exempt,
     *,
 };
-use spl_token_metadata::state::Metadata;
 
 #[derive(FromAccounts)]
 pub struct TransferNative<'b> {
@@ -123,22 +119,9 @@ pub fn transfer_native(
     accs.custody
         .verify_derivation(ctx.program_id, &derivation_data)?;
 
-    let derivation_data: SplTokenMetaDerivationData = (&*accs).into();
-    accs.spl_metadata
-        .verify_derivation(&spl_token_metadata::id(), &derivation_data)?;
-
     // Verify mints
     if accs.from.mint != *accs.mint.info().key {
         return Err(TokenBridgeError::InvalidMint.into());
-    }
-
-    // Token must have metadata
-    if accs.spl_metadata.data_is_empty() {
-        return Err(TokenNotNFT.into());
-    }
-
-    if *accs.spl_metadata.owner != spl_token_metadata::id() {
-        return Err(WrongAccountOwner.into());
     }
 
     // Verify that the token is not a wrapped token
@@ -180,8 +163,7 @@ pub fn transfer_native(
     );
     invoke(&transfer_ix, ctx.accounts)?;
 
-    let metadata: Metadata =
-        Metadata::from_account_info(accs.spl_metadata.info()).ok_or(InvalidMetadata)?;
+    let metadata = deserialize_and_verify_metadata(&accs.spl_metadata, (&*accs).into())?;
 
     // Post message
     // Given there is no tokenID equivalent on Solana and each distinct token address is translated
@@ -326,21 +308,7 @@ pub fn transfer_wrapped(
     accs.wrapped_meta
         .verify_derivation(ctx.program_id, &derivation_data)?;
 
-    // Token must have metadata
-    if accs.spl_metadata.data_is_empty() {
-        return Err(TokenNotNFT.into());
-    }
-
-    let derivation_data: SplTokenMetaDerivationData = (&*accs).into();
-    accs.spl_metadata
-        .verify_derivation(&spl_token_metadata::id(), &derivation_data)?;
-
-    if *accs.spl_metadata.owner != spl_token_metadata::id() {
-        return Err(WrongAccountOwner.into());
-    }
-
-    let metadata: Metadata =
-        Metadata::from_account_info(accs.spl_metadata.info()).ok_or(InvalidMetadata)?;
+    let metadata = deserialize_and_verify_metadata(&accs.spl_metadata, (&*accs).into())?;
 
     // Post message
     let payload = PayloadTransfer {

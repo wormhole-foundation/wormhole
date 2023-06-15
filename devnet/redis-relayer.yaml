@@ -1,0 +1,45 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-relayer
+  labels:
+    app: redis-relayer
+spec:
+  selector:
+    app: redis-relayer
+  ports:
+    - port: 6378
+      targetPort: 6379
+      name: redis-relayer
+      protocol: TCP
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-relayer
+spec:
+  selector:
+    matchLabels:
+      app: redis-relayer
+  serviceName: redis-relayer
+  template:
+    metadata:
+      labels:
+        app: redis-relayer
+    spec:
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 0
+      containers:
+        - name: redis-relayer
+          image: redis
+          readinessProbe:
+            tcpSocket:
+              port: 6379
+            periodSeconds: 1
+            failureThreshold: 300
+          ports:
+            - containerPort: 6379
+              name: redis-relayer
+              protocol: TCP

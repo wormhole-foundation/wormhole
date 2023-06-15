@@ -17,4 +17,4 @@ solana-cli-config = "=1.10.31"
 solitaire = { path = "../../../solitaire/program" }
 solana-clap-utils = "=1.10.31"
 hex = "0.4.3"
-spl-token-metadata = { path = "../token-metadata" }
+spl-token-metadata = { git = "https://github.com/wormhole-foundation/metaplex-program-library", rev = "a7ab32ab0defd89c98f205c80ebdaf77ed60152d", package = "mpl-token-metadata" }

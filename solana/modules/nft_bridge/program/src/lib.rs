@@ -59,9 +59,10 @@ pub enum TokenBridgeError {
     TokenNotNative,
     UninitializedMint,
     WrongAccountOwner,
-    TokenNotNFT,
+    NonexistentTokenMetadataAccount,
     InvalidAssociatedAccount,
     InvalidRecipient,
+    NotMetadataV1Account,
 }
 
 impl From<TokenBridgeError> for SolitaireError {

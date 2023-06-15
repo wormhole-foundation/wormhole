@@ -19,6 +19,7 @@ pub mod accountant;
 mod arraystring;
 mod chain;
 pub mod core;
+pub mod ibc_receiver;
 pub mod nft;
 mod serde_array;
 pub mod token;

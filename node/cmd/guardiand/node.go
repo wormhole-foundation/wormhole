@@ -10,10 +10,9 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"runtime"
 	"strings"
 	"syscall"
-
-	"github.com/certusone/wormhole/node/pkg/watchers/wormchain"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/cosmwasm"
 
@@ -41,6 +40,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/devnet"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	"github.com/certusone/wormhole/node/pkg/node"
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	"github.com/certusone/wormhole/node/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -57,6 +57,7 @@ import (
 	"go.uber.org/zap"
 
 	ipfslog "github.com/ipfs/go-log/v2"
+	googleapi_option "google.golang.org/api/option"
 )
 
 var (
@@ -142,8 +143,6 @@ var (
 	nearRPC      *string
 	nearContract *string
 
-	wormchainWS            *string
-	wormchainLCD           *string
 	wormchainURL           *string
 	wormchainKeyPath       *string
 	wormchainKeyPassPhrase *string
@@ -173,10 +172,8 @@ var (
 	arbitrumRPC      *string
 	arbitrumContract *string
 
-	optimismRPC                *string
-	optimismContract           *string
-	optimismCtcRpc             *string
-	optimismCtcContractAddress *string
+	optimismRPC      *string
+	optimismContract *string
 
 	baseRPC      *string
 	baseContract *string
@@ -199,9 +196,11 @@ var (
 	tlsProdEnv  *bool
 
 	disableHeartbeatVerify *bool
-	disableTelemetry       *bool
 
-	telemetryKey *string
+	disableTelemetry            *bool
+	telemetryKey                *string
+	telemetryServiceAccountFile *string
+	telemetryProject            *string
 
 	bigTablePersistenceEnabled *bool
 	bigTableGCPProject         *string
@@ -296,8 +295,6 @@ func init() {
 	nearRPC = NodeCmd.Flags().String("nearRPC", "", "near RPC URL")
 	nearContract = NodeCmd.Flags().String("nearContract", "", "near contract")
 
-	wormchainWS = NodeCmd.Flags().String("wormchainWS", "", "Path to wormchaind root for websocket connection")
-	wormchainLCD = NodeCmd.Flags().String("wormchainLCD", "", "Path to LCD service root for http calls")
 	wormchainURL = NodeCmd.Flags().String("wormchainURL", "", "wormhole-chain gRPC URL")
 	wormchainKeyPath = NodeCmd.Flags().String("wormchainKeyPath", "", "path to wormhole-chain private key for signing transactions")
 	wormchainKeyPassPhrase = NodeCmd.Flags().String("wormchainKeyPassPhrase", "", "pass phrase used to unarmor the wormchain key file")
@@ -332,8 +329,6 @@ func init() {
 
 	optimismRPC = NodeCmd.Flags().String("optimismRPC", "", "Optimism RPC URL")
 	optimismContract = NodeCmd.Flags().String("optimismContract", "", "Optimism contract address")
-	optimismCtcRpc = NodeCmd.Flags().String("optimismCtcRpc", "", "Optimism CTC RPC")
-	optimismCtcContractAddress = NodeCmd.Flags().String("optimismCtcContractAddress", "", "Optimism CTC contract address")
 
 	baseRPC = NodeCmd.Flags().String("baseRPC", "", "Base RPC URL")
 	baseContract = NodeCmd.Flags().String("baseContract", "", "Base contract address")
@@ -360,6 +355,10 @@ func init() {
 
 	telemetryKey = NodeCmd.Flags().String("telemetryKey", "",
 		"Telemetry write key")
+	telemetryServiceAccountFile = NodeCmd.Flags().String("telemetryServiceAccountFile", "",
+		"Google Cloud credentials json for accessing Cloud Logging")
+	telemetryProject = NodeCmd.Flags().String("telemetryProject", defaultTelemetryProject,
+		"Google Cloud Project to use for Telemetry logging")
 
 	bigTablePersistenceEnabled = NodeCmd.Flags().Bool("bigTablePersistenceEnabled", false, "Turn on forwarding events to BigTable")
 	bigTableGCPProject = NodeCmd.Flags().String("bigTableGCPProject", "", "Google Cloud project ID for storing events")
@@ -621,14 +620,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	} else if *xplaLCD != "" || *xplaContract != "" {
 		logger.Fatal("If --xplaWS is not specified, then --xplaLCD and --xplaContract must not be specified")
 	}
-	if *wormchainWS != "" {
-		if *wormchainLCD == "" {
-			logger.Fatal("If --wormchainWS is specified, then --wormchainLCD must be specified")
-		}
-	} else if *wormchainLCD != "" {
-		logger.Fatal("If --wormchainWS is not specified, then --wormchainLCD must not be specified")
-	}
-
 	if *aptosRPC != "" {
 		if *aptosAccount == "" {
 			logger.Fatal("If --aptosRPC is specified, then --aptosAccount must be specified")
@@ -783,6 +774,25 @@ func runNode(cmd *cobra.Command, args []string) {
 		if *bigTableKeyPath == "" {
 			logger.Fatal("Please specify --bigTableKeyPath")
 		}
+	}
+
+	if *telemetryKey != "" && *telemetryServiceAccountFile != "" {
+		logger.Fatal("Please do not specify both --telemetryKey and --telemetryServiceAccountFile")
+	}
+
+	// Determine execution mode
+	// TODO: refactor usage of these variables elsewhere. *unsafeDevMode and *testnetMode should not be accessed directly.
+	var env common.Environment
+	if *unsafeDevMode {
+		env = common.UnsafeDevNet
+	} else if *testnetMode {
+		env = common.TestNet
+	} else {
+		env = common.MainNet
+	}
+
+	if *unsafeDevMode && *testnetMode {
+		logger.Fatal("Cannot be in unsafeDevMode and testnetMode at the same time.")
 	}
 
 	// Complain about Infura on mainnet.
@@ -966,17 +976,27 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	// Enable unless it is disabled. For devnet, only when --telemetryKey is set.
-	if !*disableTelemetry && (!*unsafeDevMode || *unsafeDevMode && *telemetryKey != "") {
-		logger.Info("Telemetry enabled")
+	var hasTelemetryCredential bool = *telemetryKey != "" || *telemetryServiceAccountFile != ""
 
-		if *telemetryKey == "" {
-			logger.Fatal("Please specify --telemetryKey")
+	// Enable unless it is disabled. For devnet, only when --telemetryKey is set.
+	if !*disableTelemetry && (!*unsafeDevMode || *unsafeDevMode && hasTelemetryCredential) {
+		if !hasTelemetryCredential {
+			logger.Fatal("Please either specify --telemetryKey or --telemetryServiceAccountFile or set --disableTelemetry=false")
 		}
 
-		creds, err := decryptTelemetryServiceAccount()
-		if err != nil {
-			logger.Fatal("Failed to decrypt telemetry service account", zap.Error(err))
+		var options []googleapi_option.ClientOption
+
+		if *telemetryKey != "" {
+			creds, err := decryptTelemetryServiceAccount()
+			if err != nil {
+				logger.Fatal("Failed to decrypt telemetry service account", zap.Error(err))
+			}
+
+			options = append(options, googleapi_option.WithCredentialsJSON(creds))
+		}
+
+		if *telemetryServiceAccountFile != "" {
+			options = append(options, googleapi_option.WithCredentialsFile(*telemetryServiceAccountFile))
 		}
 
 		// Get libp2p peer ID from private key
@@ -986,21 +1006,31 @@ func runNode(cmd *cobra.Command, args []string) {
 			logger.Fatal("Failed to get peer ID from private key", zap.Error(err))
 		}
 
-		tm, err := telemetry.New(context.Background(), telemetryProject, creds, *publicRpcLogToTelemetry, map[string]string{
+		labels := map[string]string{
 			"node_name":     *nodeName,
 			"node_key":      peerID.Pretty(),
 			"guardian_addr": guardianAddr,
 			"network":       *p2pNetworkID,
 			"version":       version.Version(),
-		})
+		}
+
+		skipPrivateLogs := !*publicRpcLogToTelemetry
+		tm, err := telemetry.New(context.Background(), *telemetryProject, skipPrivateLogs, labels, options...)
 		if err != nil {
 			logger.Fatal("Failed to initialize telemetry", zap.Error(err))
 		}
 		defer tm.Close()
 		logger = tm.WrapLogger(logger)
+
+		logger.Info("Telemetry enabled",
+			zap.String("publicRpcLogDetail", *publicRpcLogDetailStr),
+			zap.Bool("logPublicRpcToTelemetry", *publicRpcLogToTelemetry))
 	} else {
 		logger.Info("Telemetry disabled")
 	}
+
+	// log golang version
+	logger.Info("golang version", zap.String("golang_version", runtime.Version()))
 
 	// Redirect ipfs logs to plain zap
 	ipfslog.SetPrimaryCore(logger.Core())
@@ -1064,12 +1094,6 @@ func runNode(cmd *cobra.Command, args []string) {
 		} else {
 			acctLogger.Info("accountant is enabled but will not be enforced")
 		}
-		env := accountant.MainNetMode
-		if *testnetMode {
-			env = accountant.TestNetMode
-		} else if *unsafeDevMode {
-			env = accountant.DevNetMode
-		}
 		acct = accountant.NewAccountant(
 			rootCtx,
 			logger,
@@ -1091,12 +1115,6 @@ func runNode(cmd *cobra.Command, args []string) {
 	var gov *governor.ChainGovernor
 	if *chainGovernorEnabled {
 		logger.Info("chain governor is enabled")
-		env := governor.MainNetMode
-		if *testnetMode {
-			env = governor.TestNetMode
-		} else if *unsafeDevMode {
-			env = governor.DevNetMode
-		}
 		gov = governor.NewChainGovernor(logger, db, env)
 	} else {
 		logger.Info("chain governor is disabled")
@@ -1126,7 +1144,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			nil,
 			nil,
 			components,
-			&ibc.Features)); err != nil {
+			ibc.GetFeatures)); err != nil {
 			return err
 		}
 
@@ -1278,16 +1296,6 @@ func runNode(cmd *cobra.Command, args []string) {
 			chainObsvReqC[vaa.ChainIDOptimism] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			optimismWatcher := evm.NewEthWatcher(*optimismRPC, optimismContractAddr, "optimism", vaa.ChainIDOptimism, chainMsgC[vaa.ChainIDOptimism], nil, chainObsvReqC[vaa.ChainIDOptimism], *unsafeDevMode)
 
-			// If rootChainParams are set, pass them in for pre-Bedrock mode
-			if *optimismCtcRpc != "" || *optimismCtcContractAddress != "" {
-				if ethWatcher == nil {
-					log.Fatalf("if optimism (pre-bedrock) is enabled then ethereum must also be enabled.")
-				}
-				optimismWatcher.SetL1Finalizer(ethWatcher)
-				if err := optimismWatcher.SetRootChainParams(*optimismCtcRpc, *optimismCtcContractAddress); err != nil {
-					return err
-				}
-			}
 			if err := supervisor.Run(ctx, "optimismwatch", common.WrapWithScissors(optimismWatcher.Run, "optimismwatch")); err != nil {
 				return err
 			}
@@ -1342,16 +1350,6 @@ func runNode(cmd *cobra.Command, args []string) {
 			}
 		}
 
-		// Start Wormchain watcher only if configured
-		if shouldStart(wormchainWS) {
-			logger.Info("Starting Wormchain watcher")
-			common.MustRegisterReadinessSyncing(vaa.ChainIDWormchain)
-			chainObsvReqC[vaa.ChainIDWormchain] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
-			if err := supervisor.Run(ctx, "wormchainwatch",
-				wormchain.NewWatcher(*wormchainWS, *wormchainLCD, chainMsgC[vaa.ChainIDWormchain], chainObsvReqC[vaa.ChainIDWormchain]).Run); err != nil {
-				return err
-			}
-		}
 		if shouldStart(aptosRPC) {
 			logger.Info("Starting Aptos watcher")
 			common.MustRegisterReadinessSyncing(vaa.ChainIDAptos)
@@ -1521,7 +1519,45 @@ func runNode(cmd *cobra.Command, args []string) {
 			return err
 		}
 
-		adminService, err := adminServiceRunnable(logger, *adminSocketPath, injectWriteC, signedInWriteC, obsvReqSendWriteC, db, gst, gov, gk, ethRPC, ethContract, *testnetMode)
+		rpcMap := make(map[string]string)
+		rpcMap["acalaRPC"] = *acalaRPC
+		rpcMap["algorandIndexerRPC"] = *algorandIndexerRPC
+		rpcMap["algorandAlgodRPC"] = *algorandAlgodRPC
+		rpcMap["aptosRPC"] = *aptosRPC
+		rpcMap["arbitrumRPC"] = *arbitrumRPC
+		rpcMap["auroraRPC"] = *auroraRPC
+		rpcMap["avalancheRPC"] = *avalancheRPC
+		rpcMap["baseRPC"] = *baseRPC
+		rpcMap["bscRPC"] = *bscRPC
+		rpcMap["celoRPC"] = *celoRPC
+		rpcMap["ethRPC"] = *ethRPC
+		rpcMap["fantomRPC"] = *fantomRPC
+		rpcMap["ibcLCD"] = *ibcLCD
+		rpcMap["ibcWS"] = *ibcWS
+		rpcMap["karuraRPC"] = *karuraRPC
+		rpcMap["klaytnRPC"] = *klaytnRPC
+		rpcMap["moonbeamRPC"] = *moonbeamRPC
+		rpcMap["nearRPC"] = *nearRPC
+		rpcMap["neonRPC"] = *neonRPC
+		rpcMap["oasisRPC"] = *oasisRPC
+		rpcMap["optimismRPC"] = *optimismRPC
+		rpcMap["polygonRPC"] = *polygonRPC
+		rpcMap["pythnetRPC"] = *pythnetRPC
+		rpcMap["pythnetWS"] = *pythnetWS
+		rpcMap["sei"] = "IBC"
+		if env == common.TestNet {
+			rpcMap["sepoliaRPC"] = *sepoliaRPC
+		}
+		rpcMap["solanaRPC"] = *solanaRPC
+		rpcMap["suiRPC"] = *suiRPC
+		rpcMap["terraWS"] = *terraWS
+		rpcMap["terraLCD"] = *terraLCD
+		rpcMap["terra2WS"] = *terra2WS
+		rpcMap["terra2LCD"] = *terra2LCD
+		rpcMap["xplaWS"] = *xplaWS
+		rpcMap["xplaLCD"] = *xplaLCD
+
+		adminService, err := node.AdminServiceRunnable(logger, *adminSocketPath, injectWriteC, signedInWriteC, obsvReqSendWriteC, db, gst, gov, gk, ethRPC, ethContract, rpcMap)
 		if err != nil {
 			logger.Fatal("failed to create admin service socket", zap.Error(err))
 		}
@@ -1596,7 +1632,7 @@ func decryptTelemetryServiceAccount() ([]byte, error) {
 		return nil, fmt.Errorf("failed to decode: %w", err)
 	}
 
-	ciphertext, err := base64.StdEncoding.DecodeString(telemetryServiceAccount)
+	ciphertext, err := base64.StdEncoding.DecodeString(defaultTelemetryServiceAccountEnc)
 	if err != nil {
 		panic(err)
 	}

@@ -4,12 +4,16 @@
 
 # Chains
 
-/algorand/ @jumpsiegel
+/algorand/ @jumpsiegel @evan-gray @hendrikhofstadt @kcsongor
 /aptos/ @kcsongor @a5-pickle
-/bitcoin/ @conorpp @jumpsiegel
+/bitcoin/ @conorpp @jumpsiegel @evan-gray @hendrikhofstadt
 /cosmwasm/ @jynnantonix @kcsongor @a5-pickle
 /ethereum/ @a5-pickle @calebrate @gator-boi @hendrikhofstadt @kcsongor
-/near/ @jumpsiegel
+/ethereum/contracts/relayer @chase-45 @derpy-duck @JoeHowarth 
+/ethereum/contracts/interfaces/relayer @chase-45 @derpy-duck @JoeHowarth 
+/ethereum/forge-test/relayer @chase-45 @derpy-duck @JoeHowarth 
+/ethereum/ts-scripts/relayer @chase-45 @derpy-duck @JoeHowarth 
+/near/ @jumpsiegel @evan-gray @hendrikhofstadt @kcsongor
 /solana/ @hendrikhofstadt @kcsongor @a5-pickle
 /sui/ @kcsongor @a5-pickle @gator-boi @heyitaki
 /terra/ @kcsongor @a5-pickle
@@ -19,7 +23,8 @@
 
 /clients/ @kcsongor @kev1n-peters @evan-gray
 /lp_ui/ @evan-gray @kev1n-peters
-/relayer/ @evan-gray @kev1n-peters
+/relayer/spy_relayer @evan-gray @kev1n-peters
+/relayer/generic_relayer @chase-45 @derpy-duck @JoeHowarth 
 /scripts/ @evan-gray @kcsongor
 /sdk/ @bruce-riley @evan-gray
 /sdk/js-proto-node/ @evan-gray @kev1n-peters
@@ -37,7 +42,7 @@
 /node/ @bruce-riley @evan-gray @hendrikhofstadt
 
 ## Entrypoint / RPC
-/node/cmd/ @bruce-riley @panoel
+/node/cmd/ @bruce-riley @panoel @kev1n-peters @evan-gray
 
 ## DB
 /node/pkg/db/ @bruce-riley @kev1n-peters
@@ -46,19 +51,19 @@
 /node/pkg/accountant/ @bruce-riley @evan-gray @jynnantonix
 
 ## Governor
-/node/pkg/governor/ @bruce-riley @claudijd
+/node/pkg/governor/ @bruce-riley @claudijd @tbjump
 
 ## P2P
-/node/pkg/p2p/ @bruce-riley @hendrikhofstadt
+/node/pkg/p2p/ @bruce-riley @evan-gray @kev1n-peters @hendrikhofstadt
 
 ## Consensus / Processor
-/node/pkg/processor/ @bruce-riley @hendrikhofstadt
+/node/pkg/processor/ @bruce-riley @evan-gray @hendrikhofstadt
 
 ## Public RPC
 /node/pkg/publicrpc/ @bruce-riley @kev1n-peters
 
 ## Supervisor Framework
-/node/pkg/supervisor/ @hendrikhofstadt @bruce-riley
+/node/pkg/supervisor/ @hendrikhofstadt @bruce-riley @evan-gray
 
 ## Watchers
 /node/pkg/watchers @hendrikhofstadt @evan-gray @bruce-riley @panoel @kev1n-peters

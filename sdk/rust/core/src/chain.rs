@@ -39,8 +39,11 @@ pub enum Chain {
     Gnosis,
     Pythnet,
     Xpla,
-    Ropsten,
+    Btc,
+    Base,
+    Sei,
     Wormchain,
+    Sepolia,
 
     // Allow arbitrary u16s to support future chains.
     Unknown(u16),
@@ -77,8 +80,11 @@ impl From<u16> for Chain {
             25 => Chain::Gnosis,
             26 => Chain::Pythnet,
             28 => Chain::Xpla,
+            29 => Chain::Btc,
+            30 => Chain::Base,
+            32 => Chain::Sei,
             3104 => Chain::Wormchain,
-            10001 => Chain::Ropsten,
+            10002 => Chain::Sepolia,
             c => Chain::Unknown(c),
         }
     }
@@ -115,8 +121,11 @@ impl From<Chain> for u16 {
             Chain::Gnosis => 25,
             Chain::Pythnet => 26,
             Chain::Xpla => 28,
+            Chain::Btc => 29,
+            Chain::Base => 30,
+            Chain::Sei => 32,
             Chain::Wormchain => 3104,
-            Chain::Ropsten => 10001,
+            Chain::Sepolia => 10002,
             Chain::Unknown(c) => c,
         }
     }
@@ -153,7 +162,10 @@ impl fmt::Display for Chain {
             Self::Gnosis => f.write_str("Gnosis"),
             Self::Pythnet => f.write_str("Pythnet"),
             Self::Xpla => f.write_str("Xpla"),
-            Self::Ropsten => f.write_str("Ropsten"),
+            Self::Btc => f.write_str("Btc"),
+            Self::Base => f.write_str("Base"),
+            Self::Sei => f.write_str("Sei"),
+            Self::Sepolia => f.write_str("Sepolia"),
             Self::Wormchain => f.write_str("Wormchain"),
             Self::Unknown(v) => write!(f, "Unknown({v})"),
         }
@@ -197,7 +209,10 @@ impl FromStr for Chain {
             "Gnosis" | "gnosis" | "GNOSIS" => Ok(Chain::Gnosis),
             "Pythnet" | "pythnet" | "PYTHNET" => Ok(Chain::Pythnet),
             "Xpla" | "xpla" | "XPLA" => Ok(Chain::Xpla),
-            "Ropsten" | "ropsten" | "ROPSTEN" => Ok(Chain::Ropsten),
+            "Btc" | "btc" | "BTC" => Ok(Chain::Btc),
+            "Base" | "base" | "BASE" => Ok(Chain::Base),
+            "Sei" | "sei" | "SEI" => Ok(Chain::Sei),
+            "Sepolia" | "sepolia" | "SEPOLIA" => Ok(Chain::Sepolia),
             "Wormchain" | "wormchain" | "WORMCHAIN" => Ok(Chain::Wormchain),
             _ => {
                 let mut parts = s.split(&['(', ')']);

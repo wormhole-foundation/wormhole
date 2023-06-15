@@ -1,6 +1,7 @@
 package vaa
 
 import (
+	"bytes"
 	"encoding/hex"
 	"testing"
 
@@ -84,7 +85,7 @@ func TestBodyTokenBridgeRegisterChainSerialize(t *testing.T) {
 			name:     "panic_at_the_disco!",
 			panic:    true,
 			object:   BodyTokenBridgeRegisterChain{Module: "123456789012345678901234567890123", ChainID: 1, EmitterAddress: addr},
-			expected: "module longer than 32 byte",
+			expected: "payload longer than 32 bytes",
 		},
 	}
 	for _, testCase := range tests {
@@ -148,4 +149,63 @@ func TestBodyCircleIntegrationUpgradeContractImplementationSerialize(t *testing.
 		NewImplementationAddress: addr,
 	}
 	assert.Equal(t, expected, hex.EncodeToString(bodyCircleIntegrationUpgradeContractImplementation.Serialize()))
+}
+
+func TestBodyIbcReceiverUpdateChannelChain(t *testing.T) {
+	expected := "0000000000000000000000000000000000000000004962635265636569766572010c20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006368616e6e656c2d300013"
+
+	channelId := LeftPadIbcChannelId("channel-0")
+
+	bodyIbcReceiverUpdateChannelChain := BodyIbcReceiverUpdateChannelChain{
+		TargetChainId: ChainIDWormchain,
+		ChannelId:     channelId,
+		ChainId:       ChainIDInjective,
+	}
+	assert.Equal(t, expected, hex.EncodeToString(bodyIbcReceiverUpdateChannelChain.Serialize()))
+}
+
+func TestLeftPadBytes(t *testing.T) {
+	payload := "AAAA"
+	paddedPayload := LeftPadBytes(payload, int(8))
+
+	buf := &bytes.Buffer{}
+	buf.WriteByte(0x00)
+	buf.WriteByte(0x00)
+	buf.WriteByte(0x00)
+	buf.WriteByte(0x00)
+	buf.Write([]byte(payload))
+
+	assert.Equal(t, paddedPayload, buf)
+}
+
+func FuzzLeftPadBytes(f *testing.F) {
+	// Add examples to our fuzz corpus
+	f.Add("FOO", 8)
+	f.Add("123", 8)
+
+	f.Fuzz(func(t *testing.T, payload string, length int) {
+		// We know length could be negative, but we panic if it is in the implementation
+		if length < 0 {
+			t.Skip()
+		}
+
+		// We know we cannot left pad something shorter than the payload being provided, but we panic if it is
+		if len(payload) > length {
+			t.Skip()
+		}
+
+		paddedPayload := LeftPadBytes(payload, length)
+
+		// paddedPayload must always be equal to length
+		assert.Equal(t, paddedPayload.Len(), length)
+	})
+}
+
+func TestBodyWormholeRelayerSetDefaultDeliveryProviderSerialize(t *testing.T) {
+	expected := "0000000000000000000000000000000000576f726d686f6c6552656c617965720300040000000000000000000000000000000000000000000000000000000000000004"
+	bodyWormholeRelayerSetDefaultDeliveryProvider := BodyWormholeRelayerSetDefaultDeliveryProvider{
+		ChainID:                           4,
+		NewDefaultDeliveryProviderAddress: addr,
+	}
+	assert.Equal(t, expected, hex.EncodeToString(bodyWormholeRelayerSetDefaultDeliveryProvider.Serialize()))
 }
