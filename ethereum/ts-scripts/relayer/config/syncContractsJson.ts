@@ -28,14 +28,14 @@ async function main() {
   const contracts: ContractsJson = JSON.parse(String(blob));
   console.log("Old:");
   console.log(`${String(blob)}`);
-  contracts.deliveryProviders = [] as any;
-  contracts.wormholeRelayers = [] as any;
-  contracts.mockIntegrations = [] as any;
-  contracts.create2Factories = [] as any;
+  contracts.deliveryProviders = [];
+  contracts.wormholeRelayers = [];
+  contracts.mockIntegrations = [];
+  contracts.create2Factories = [];
   for (const chain of chains) {
     update(contracts.deliveryProviders, {
       chainId: chain.chainId,
-      address: getDeliveryProvider(chain).address,
+      address: (await getDeliveryProvider(chain)).address,
     });
     update(contracts.wormholeRelayers, {
       chainId: chain.chainId,
@@ -43,11 +43,11 @@ async function main() {
     });
     update(contracts.mockIntegrations, {
       chainId: chain.chainId,
-      address: getMockIntegration(chain).address,
+      address: (await getMockIntegration(chain)).address,
     });
     update(contracts.create2Factories, {
       chainId: chain.chainId,
-      address: getCreate2Factory(chain).address,
+      address: (await getCreate2Factory(chain)).address,
     });
   }
   const newStr = JSON.stringify(contracts, undefined, 2);

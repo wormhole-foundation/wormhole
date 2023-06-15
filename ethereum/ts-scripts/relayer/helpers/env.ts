@@ -13,7 +13,7 @@ import {
   Create2Factory,
   Create2Factory__factory,
 } from "../../../ethers-contracts";
-import { proxyContractSalt, setupContractSalt } from "./deployments";
+import { proxyContractSalt } from "./deployments";
 
 export type ChainInfo = {
   evmNetworkId: number;
@@ -279,7 +279,7 @@ export function loadGuardianKeys(): string[] {
   return output;
 }
 
-export function writeOutputFiles(output: any, processName: string) {
+export function writeOutputFiles(output: unknown, processName: string) {
   fs.mkdirSync(`./ts-scripts/relayer/output/${env}/${processName}`, {
     recursive: true,
   });
@@ -295,16 +295,27 @@ export function writeOutputFiles(output: any, processName: string) {
   );
 }
 
-export function getSigner(chain: ChainInfo): ethers.Wallet {
-  let provider = getProvider(chain);
-  let signer = new ethers.Wallet(loadPrivateKey(), provider);
+export async function getSigner(chain: ChainInfo): Promise<ethers.Signer> {
+  const provider = getProvider(chain);
+  const privateKey = loadPrivateKey();
+
+  if (privateKey === "ledger") {
+    if (process.env.LEDGER_BIP32_PATH === undefined) {
+      throw new Error(`Missing BIP32 derivation path.
+With ledger devices the path needs to be specified in env var 'LEDGER_BIP32_PATH'.`);
+    }
+    const { LedgerSigner } = await import("@xlabs-xyz/ledger-signer");
+    return LedgerSigner.create(provider, process.env.LEDGER_BIP32_PATH);
+  }
+
+  const signer = new ethers.Wallet(privateKey, provider);
   return signer;
 }
 
 export function getProvider(
   chain: ChainInfo
 ): ethers.providers.StaticJsonRpcProvider {
-  let provider = new ethers.providers.StaticJsonRpcProvider(
+  const provider = new ethers.providers.StaticJsonRpcProvider(
     loadChains().find((x: any) => x.chainId == chain.chainId)?.rpc || ""
   );
 
@@ -335,14 +346,14 @@ export function loadGuardianRpc(): string {
   return chain.guardianRPC;
 }
 
-export function getDeliveryProvider(
+export async function getDeliveryProvider(
   chain: ChainInfo,
   provider?: ethers.providers.StaticJsonRpcProvider
-): DeliveryProvider {
+): Promise<DeliveryProvider> {
   const thisChainsProvider = getDeliveryProviderAddress(chain);
   const contract = DeliveryProvider__factory.connect(
     thisChainsProvider,
-    provider || getSigner(chain)
+    provider || await getSigner(chain)
   );
   return contract;
 }
@@ -378,12 +389,13 @@ export async function getWormholeRelayerAddress(
   }
 
   if (!wormholeRelayerAddressesCache[chain.chainId]) {
-    const create2Factory = getCreate2Factory(chain);
-    const signer = getSigner(chain).address;
+    const create2Factory = await getCreate2Factory(chain);
+    const signer = await getSigner(chain);
+    const address = await signer.getAddress();
 
     wormholeRelayerAddressesCache[
       chain.chainId
-    ] = await create2Factory.computeProxyAddress(signer, proxyContractSalt);
+    ] = await create2Factory.computeProxyAddress(address, proxyContractSalt);
   }
 
   return wormholeRelayerAddressesCache[chain.chainId]!;
@@ -396,7 +408,7 @@ export async function getWormholeRelayer(
   const thisChainsRelayer = await getWormholeRelayerAddress(chain);
   return WormholeRelayer__factory.connect(
     thisChainsRelayer,
-    provider || getSigner(chain)
+    provider || await getSigner(chain)
   );
 }
 
@@ -413,11 +425,13 @@ export function getMockIntegrationAddress(chain: ChainInfo): string {
   return thisMock;
 }
 
-export function getMockIntegration(chain: ChainInfo): MockRelayerIntegration {
+export async function getMockIntegration(
+  chain: ChainInfo
+): Promise<MockRelayerIntegration> {
   const thisIntegration = getMockIntegrationAddress(chain);
   const contract = MockRelayerIntegration__factory.connect(
     thisIntegration,
-    getSigner(chain)
+    await getSigner(chain)
   );
   return contract;
 }
@@ -435,8 +449,10 @@ export function getCreate2FactoryAddress(chain: ChainInfo): string {
   return address;
 }
 
-export const getCreate2Factory = (chain: ChainInfo): Create2Factory =>
+export const getCreate2Factory = async (
+  chain: ChainInfo
+): Promise<Create2Factory> =>
   Create2Factory__factory.connect(
     getCreate2FactoryAddress(chain),
-    getSigner(chain)
+    await getSigner(chain)
   );

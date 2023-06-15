@@ -27,7 +27,7 @@ export async function sendMessage(
   ](targetChain.chainId, 0, 2000000, sourceProvider);
   console.log("relay quote: " + relayQuote);
 
-  const mockIntegration = getMockIntegration(sourceChain);
+  const mockIntegration = await getMockIntegration(sourceChain);
   const targetAddress = getMockIntegrationAddress(targetChain);
 
   const message = await mockIntegration.getMessage();
@@ -81,7 +81,7 @@ async function queryMessageOnTarget(
   targetChain: ChainInfo
 ): Promise<boolean> {
   let messageHistory: string[] = [];
-  const targetIntegration = getMockIntegration(targetChain);
+  const targetIntegration = await getMockIntegration(targetChain);
 
   let notFound = true;
   for (let i = 0; i < 20 && notFound; i++) {
