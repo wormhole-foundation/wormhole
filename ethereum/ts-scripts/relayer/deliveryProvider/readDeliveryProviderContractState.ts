@@ -50,7 +50,7 @@ async function readState(
   );
 
   try {
-    const deliveryProvider = getDeliveryProvider(chain, getProvider(chain));
+    const deliveryProvider = await getDeliveryProvider(chain, getProvider(chain));
     const contractAddress = getDeliveryProviderAddress(chain);
     console.log("Querying Relay Provider for code");
     const provider = getProvider(chain);

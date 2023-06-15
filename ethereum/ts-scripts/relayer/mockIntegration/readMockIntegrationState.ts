@@ -29,7 +29,7 @@ async function run() {
 type MockIntegrationContractState = {
   chainId: number;
   contractAddress: string;
-  messageHistory: string[][];
+  messageHistory: string[];
   registeredContracts: { chainId: number; contract: string }[];
 };
 
@@ -41,7 +41,7 @@ async function readState(
   );
 
   try {
-    const mockIntegration = getMockIntegration(chain);
+    const mockIntegration = await getMockIntegration(chain);
     const contractAddress = mockIntegration.address;
     const messageHistory = await mockIntegration.getMessageHistory();
     const registeredContracts: { chainId: number; contract: string }[] = [];

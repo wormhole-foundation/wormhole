@@ -1,8 +1,4 @@
-import {
-  init,
-  writeOutputFiles,
-  getOperatingChains,
-} from "../helpers/env";
+import { init, writeOutputFiles, getOperatingChains } from "../helpers/env";
 import { deployCreate2Factory } from "../helpers/deployments";
 
 const processName = "deployCreate2Factory";

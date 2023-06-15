@@ -7,13 +7,9 @@ import {
   getOperatingChains,
   getMockIntegrationAddress,
 } from "../helpers/env";
-import { deployMockIntegration } from "../helpers/deployments";
-import { BigNumber, BigNumberish, BytesLike } from "ethers";
-import {
-  tryNativeToHexString,
-  tryNativeToUint8Array,
-} from "@certusone/wormhole-sdk";
-import { MockRelayerIntegration__factory } from "../../../ethers-contracts";
+import { deployMockIntegration, buildOverrides } from "../helpers/deployments";
+import type { BigNumberish, BytesLike } from "ethers";
+import { tryNativeToHexString } from "@certusone/wormhole-sdk";
 import { wait } from "../helpers/utils";
 
 const processName = "deployMockIntegration";
@@ -27,21 +23,19 @@ async function run() {
     mockIntegrations: [] as Deployment[],
   };
 
-  for (let i = 0; i < operatingChains.length; i++) {
-    const mockIntegration = await deployMockIntegration(operatingChains[i]);
+  for (const chain of operatingChains) {
+    const mockIntegration = await deployMockIntegration(chain);
     output.mockIntegrations.push(mockIntegration);
   }
 
   writeOutputFiles(output, processName);
 
-  for (let i = 0; i < operatingChains.length; i++) {
-    console.log(
-      `Registering emitters for chainId ${operatingChains[i].chainId}`
-    );
+  for (const chain of operatingChains) {
+    console.log(`Registering emitters for chainId ${chain.chainId}`);
     // note: must use useLastRun = true
-    const mockIntegration = getMockIntegration(operatingChains[i]);
+    const mockIntegration = await getMockIntegration(chain);
 
-    const arg: {
+    const emitters: {
       chainId: BigNumberish;
       addr: BytesLike;
     }[] = chains.map((c, j) => ({
@@ -50,9 +44,11 @@ async function run() {
         "0x" + tryNativeToHexString(getMockIntegrationAddress(c), "ethereum"),
     }));
 
-    await mockIntegration
-      .registerEmitters(arg, { gasLimit: 500000 })
-      .then(wait);
+    const overrides = await buildOverrides(
+      () => mockIntegration.estimateGas.registerEmitters(emitters),
+      chain
+    );
+    await mockIntegration.registerEmitters(emitters, overrides).then(wait);
   }
 }
 

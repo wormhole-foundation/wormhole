@@ -18,7 +18,7 @@ async function main() {
 
   console.log("Checking networks before deploying...");
   for (const chain of chains) {
-    const signer = getSigner(chain);
+    const signer = await getSigner(chain);
     const network = await signer.provider?.getNetwork();
     const balance = await signer.getBalance();
     if (!network?.name || !balance) {
