@@ -11,7 +11,8 @@ members = [
     "packages/wormhole-bindings",
     "packages/cw_transcode",
     "contracts/wormhole-ibc",
-    "contracts/wormchain-ibc-receiver"
+    "contracts/wormchain-ibc-receiver",
+    "contracts/cross-chain"
 ]
 
 # Needed to prevent unwanted feature unification between normal builds and dev builds.  See
@@ -41,3 +42,4 @@ wormhole-cosmwasm = { path = "contracts/wormhole" }
 wormhole-sdk = { path = "../sdk/rust/core" }
 wormchain-ibc-receiver = { path = "contracts/wormchain-ibc-receiver" }
 wormhole-ibc = { path = "contracts/wormhole-ibc" }
+cross-chain = { path = "contracts/cross-chain" }

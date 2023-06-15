@@ -46,6 +46,7 @@ const artifacts: ContractName[] = [
   "cw_wormhole.wasm",
   "cw20_wrapped_2.wasm",
   "cw_token_bridge.wasm",
+  "cross_chain.wasm",
 ];
 
 const ARTIFACTS_PATH = "../artifacts/";
@@ -410,6 +411,29 @@ async function main() {
       vaa
     );
   }
+
+  console.log("Attempting to instantiate crossChain contract...");
+  addresses["cross_chain.wasm"] = await instantiate(
+    codeIds["cross_chain.wasm"],
+    {
+      gov_chain: GOVERNANCE_CHAIN,
+      gov_address: Buffer.from(GOVERNANCE_EMITTER, "hex").toString("base64"),
+      wormhole_contract: addresses["cw_wormhole.wasm"],
+      token_bridge_contract: addresses["cw_token_bridge.wasm"],
+      wrapped_asset_code_id: codeIds["cw20_wrapped_2.wasm"],
+      chain_id: 3104,
+      native_denom: "uworm",
+      native_symbol: "WORM",
+      native_decimals: 6,
+    },
+    "crossChain"
+  );
+  console.log(
+    "instantiated crossChain contract: ",
+    addresses["cross_chain.wasm"]
+  );
+
+  console.log("Attempting to attest the Worm token...");
 }
 
 try {
