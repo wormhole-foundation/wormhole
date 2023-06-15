@@ -26,3 +26,5 @@ const jsonFormat = winston.format.combine(
   winston.format.json(),
   winston.format.errors({ stack: true })
 );
+
+type ExecutionContext = {};
