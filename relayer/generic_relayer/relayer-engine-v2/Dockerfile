@@ -27,13 +27,14 @@ RUN if [ -e /certs/cert.pem ]; then npm config set cafile /certs/cert.pem; fi
 # git
 RUN if [ -e /certs/cert.pem ]; then git config --global http.sslCAInfo /certs/cert.pem; fi
 
+COPY --chown=node:node ./ethereum/ts-scripts/relayer/config/ ./ethereum/ts-scripts/relayer/config/
+
 #Path matters so as to not break imports
 WORKDIR /home/node/app/relayer/generic_relayer/relayer-engine-v2/
 
 # Only invalidate the npm install step if package.json changed
 COPY --chown=node:node /relayer/generic_relayer/relayer-engine-v2/package.json .
 COPY --chown=node:node /relayer/generic_relayer/relayer-engine-v2/package-lock.json .
-
 
 # We want to cache node_modules *and* incorporate it into the final image.
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
