@@ -3,23 +3,15 @@ import {
   deployDeliveryProviderProxy,
   deployDeliveryProviderSetup,
 } from "../helpers/deployments";
-import {
-  getOperatingChains,
-  getSigner,
-  init,
-  loadChains,
-  loadPrivateKey,
-  writeOutputFiles,
-} from "../helpers/env";
+import { Deployment, getOperatingChains, init, writeOutputFiles } from "../helpers/env";
 
 const processName = "deployDeliveryProvider";
 init();
 const chains = getOperatingChains();
-const privateKey = loadPrivateKey();
 
 async function run() {
   console.log(`Start ${processName}!`);
-  const output: any = {
+  const output: Record<string, Deployment[]> = {
     deliveryProviderImplementations: [],
     deliveryProviderSetups: [],
     deliveryProviderProxies: [],
