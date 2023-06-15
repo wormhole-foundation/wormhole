@@ -38,7 +38,7 @@ lib/forge-std:
 	forge install foundry-rs/forge-std@v1.5.5 --no-git --no-commit
 
 lib/openzeppelin-contracts:
-	forge install openzeppelin/openzeppelin-contracts@0457042d93d9dfd760dbaa06a4d2f1216fdbe297 --no-git --no-commit
+	forge install openzeppelin/openzeppelin-contracts@v4.9.1 --no-git --no-commit
 
 dependencies: node_modules forge_dependencies
 
