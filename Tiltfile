@@ -517,9 +517,8 @@ if generic_relayer:
     docker_build(
         ref = "relayer-engine",
         context = ".",
-        only = ["./ethereum", "./relayer/generic_relayer", "./sdk", "./solana"],
-        dockerfile = "relayer/generic_relayer/relayer-engine-v2/Dockerfile",
-        ignore = ["./ethereum/node_modules", "./sdk/js/src/relayer/__tests__"]
+        only = ["./relayer/generic_relayer"],
+        dockerfile = "relayer/generic_relayer/relayer-engine-v2/Dockerfile"
     )
     k8s_yaml_with_ns("devnet/relayer-engine.yaml")
 
