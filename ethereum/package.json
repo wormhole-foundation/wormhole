@@ -17,6 +17,7 @@
     "truffle-flattener": "^1.6.0",
     "truffle-plugin-verify": "^0.5.11",
     "ts-node": "^10.9.1",
+    "tsx": "^3.12.7",
     "typescript": "^4.9.5"
   },
   "scripts": {
@@ -37,7 +38,7 @@
     "deploy-relayers-evm1": "ENV=kubernetes CONTAINER=evm1 bash ./ts-scripts/relayer/shell/deployInContainer.sh",
     "deploy-relayers-evm2": "ENV=kubernetes CONTAINER=evm2 bash ./ts-scripts/relayer/shell/deployInContainer.sh",
     "typecheck": "tsc --noEmit --skipLibCheck"
-    },
+  },
   "author": "",
   "license": "ISC",
   "dependencies": {
