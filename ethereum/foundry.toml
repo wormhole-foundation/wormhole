@@ -27,5 +27,6 @@ multiline_func_header = "params_first"
 
 [profile.production]
 via_ir = true
+extra_output = ["metadata", "storageLayout", "evm.deployedBytecode.immutableReferences"]
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
