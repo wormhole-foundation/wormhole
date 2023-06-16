@@ -1,0 +1,76 @@
+{
+  "guardianSetIndex": 3,
+  "description": "This file contains the chains against which all the scripts should run.",
+  "chains": [
+    {
+      "description": "Ethereum",
+      "evmNetworkId": 1,
+      "chainId": 2,
+      "rpc": "https://rpc.ankr.com/eth",
+      "wormholeAddress": "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B"
+    },
+    {
+      "description": "BSC",
+      "evmNetworkId": 56,
+      "chainId": 4,
+      "rpc": "https://bsc-dataseed1.binance.org/",
+      "wormholeAddress": "0x98f3c9e6E3fAce36bAAd05FE09d375Ef1464288B"
+    },
+    {
+      "description": "Polygon",
+      "evmNetworkId": 137,
+      "chainId": 5,
+      "rpc": "https://polygon.llamarpc.com",
+      "wormholeAddress": "0x7A4B5a56256163F07b2C80A7cA55aBE66c4ec4d7"
+    },
+    {
+      "description": "Avalanche",
+      "evmNetworkId": 43114,
+      "chainId": 6,
+      "rpc": "https://api.avax.network/ext/bc/C/rpc",
+      "wormholeAddress": "0x54a8e5f9c4CbA08F9943965859F6c34eAF03E26c"
+    },
+    {
+      "description": "Fantom",
+      "evmNetworkId": 250,
+      "chainId": 10,
+      "rpc": "https://rpc3.fantom.network",
+      "wormholeAddress": "0x126783A6Cb203a3E35344528B26ca3a0489a1485"
+    },
+    {
+      "description": "Klaytn",
+      "evmNetworkId": 8217,
+      "chainId": 13,
+      "rpc": "https://klaytn.blockpi.network/v1/rpc/public",
+      "wormholeAddress": "0x0C21603c4f3a6387e241c0091A7EA39E43E90bb7"
+    },
+    {
+      "description": "Celo",
+      "evmNetworkId": 42220,
+      "chainId": 14,
+      "rpc": "https://forno.celo.org",
+      "wormholeAddress": "0xa321448d90d4e5b0A732867c18eA198e75CAC48E"
+    },
+    {
+      "description": "Moonbeam",
+      "evmNetworkId": 1284,
+      "chainId": 16,
+      "rpc": "https://rpc.api.moonbeam.network",
+      "wormholeAddress": "0xC8e2b0cD52Cf01b0Ce87d389Daa3d414d4cE29f3"
+    },
+    {
+      "description": "Arbitrum",
+      "evmNetworkId": 42161,
+      "chainId": 23,
+      "rpc": "https://rpc.arb1.arbitrum.gateway.fm",
+      "wormholeAddress": "0xa5f208e072434bC67592E4C49C1B991BA79BCA46"
+    },
+    {
+      "description": "Optimism",
+      "evmNetworkId": 10,
+      "chainId": 24,
+      "rpc": "https://optimism.api.onfinality.io/public",
+      "wormholeAddress": "0xEe91C335eab126dF5fDB3797EA9d6aD93aeC9722"
+    }
+  ]
+}
