@@ -199,8 +199,8 @@ var AdminClientIbcReceiverUpdateChannelChainCmd = &cobra.Command{
 }
 
 var AdminClientWormholeRelayerSetDefaultDeliveryProviderCmd = &cobra.Command{
-	Use:   "wormhole-relayer-set-default-relay-provider",
-	Short: "Generate a 'set default relay provider' template for specified chain and address",
+	Use:   "wormhole-relayer-set-default-delivery-provider",
+	Short: "Generate a 'set default delivery provider' template for specified chain and address",
 	Run:   runWormholeRelayerSetDefaultDeliveryProviderTemplate,
 }
 

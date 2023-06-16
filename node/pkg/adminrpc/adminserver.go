@@ -422,11 +422,11 @@ func wormholeRelayerSetDefaultDeliveryProvider(req *nodev1.WormholeRelayerSetDef
 
 	b, err := hex.DecodeString(req.NewDefaultDeliveryProviderAddress)
 	if err != nil {
-		return nil, errors.New("invalid new default relay provider address (expected hex)")
+		return nil, errors.New("invalid new default delivery provider address (expected hex)")
 	}
 
 	if len(b) != 32 {
-		return nil, errors.New("invalid new default relay provider address (expected 32 bytes)")
+		return nil, errors.New("invalid new default delivery provider address (expected 32 bytes)")
 	}
 
 	NewDefaultDeliveryProviderAddress := vaa.Address{}
