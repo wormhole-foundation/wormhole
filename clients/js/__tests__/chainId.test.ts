@@ -1,6 +1,5 @@
-import yargs from "yargs";
-import { describe, expect, it, jest } from "@jest/globals";
-import { run_worm_help_command } from "./utils-jest";
+import { describe, expect, it } from "@jest/globals";
+import { run_worm_command, run_worm_help_command } from "./utils-jest";
 
 describe("worm chain-id", () => {
   describe("check arguments", () => {
@@ -14,28 +13,18 @@ describe("worm chain-id", () => {
     });
   });
 
-  describe.skip("check functionality", () => {
-    const chainIdCommand = require("../src/cmds/info/chainId");
-
-    const SOLANA_CHAIN_ID = 1;
-    const ETHEREUM_CHAIN_ID = 2;
+  describe("check functionality", () => {
+    const SOLANA_CHAIN_ID = "1";
+    const ETHEREUM_CHAIN_ID = "2";
 
     it(`should return solana chain-id correctly`, async () => {
-      const consoleSpy = jest.spyOn(console, "log");
-
-      const command = yargs.command(chainIdCommand).help();
-      await command.parse(["chain-id", "solana"]);
-
-      expect(consoleSpy).toBeCalledWith(SOLANA_CHAIN_ID);
+      const output = run_worm_command("info chain-id solana");
+      expect(output).toContain(SOLANA_CHAIN_ID);
     });
 
     it(`should return ethereum chain-id correctly`, async () => {
-      const consoleSpy = jest.spyOn(console, "log");
-
-      const command = yargs.command(chainIdCommand).help();
-      await command.parse(["chain-id", "ethereum"]);
-
-      expect(consoleSpy).toBeCalledWith(ETHEREUM_CHAIN_ID);
+      const output = run_worm_command("info chain-id ethereum");
+      expect(output).toContain(ETHEREUM_CHAIN_ID);
     });
   });
 });
