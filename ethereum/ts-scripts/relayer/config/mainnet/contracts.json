@@ -1,0 +1,172 @@
+{
+  "description": "This file contains the addresses for the contracts on each chain. If useLastRun is true, this file will be ignored, and the addresses will be taken from the lastrun.json of the deployment scripts.",
+  "useLastRun": true,
+  "deliveryProviders": [
+    {
+      "chainId": 2,
+      "address": "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81"
+    },
+    {
+      "chainId": 4,
+      "address": "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81"
+    },
+    {
+      "chainId": 5,
+      "address": "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81"
+    },
+    {
+      "chainId": 6,
+      "address": "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81"
+    },
+    {
+      "chainId": 10,
+      "address": "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81"
+    },
+    {
+      "chainId": 13,
+      "address": "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81"
+    },
+    {
+      "chainId": 14,
+      "address": "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81"
+    },
+    {
+      "chainId": 16,
+      "address": "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81"
+    },
+    {
+      "chainId": 23,
+      "address": "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81"
+    },
+    {
+      "chainId": 24,
+      "address": "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81"
+    }
+  ],
+  "wormholeRelayers": [
+    {
+      "chainId": 2,
+      "address": "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911"
+    },
+    {
+      "chainId": 4,
+      "address": "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911"
+    },
+    {
+      "chainId": 5,
+      "address": "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911"
+    },
+    {
+      "chainId": 6,
+      "address": "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911"
+    },
+    {
+      "chainId": 10,
+      "address": "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911"
+    },
+    {
+      "chainId": 13,
+      "address": "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911"
+    },
+    {
+      "chainId": 14,
+      "address": "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911"
+    },
+    {
+      "chainId": 16,
+      "address": "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911"
+    },
+    {
+      "chainId": 23,
+      "address": "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911"
+    },
+    {
+      "chainId": 24,
+      "address": "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911"
+    }
+  ],
+  "mockIntegrations": [
+    {
+      "chainId": 2,
+      "address": "0xa507Ff8D183D2BEcc9Ff9F82DFeF4b074e1d0E05"
+    },
+    {
+      "chainId": 4,
+      "address": "0xa507Ff8D183D2BEcc9Ff9F82DFeF4b074e1d0E05"
+    },
+    {
+      "chainId": 5,
+      "address": "0xa507Ff8D183D2BEcc9Ff9F82DFeF4b074e1d0E05"
+    },
+    {
+      "chainId": 6,
+      "address": "0xa507Ff8D183D2BEcc9Ff9F82DFeF4b074e1d0E05"
+    },
+    {
+      "chainId": 10,
+      "address": "0xa507Ff8D183D2BEcc9Ff9F82DFeF4b074e1d0E05"
+    },
+    {
+      "chainId": 13,
+      "address": "0xa507Ff8D183D2BEcc9Ff9F82DFeF4b074e1d0E05"
+    },
+    {
+      "chainId": 14,
+      "address": "0xa507Ff8D183D2BEcc9Ff9F82DFeF4b074e1d0E05"
+    },
+    {
+      "chainId": 16,
+      "address": "0xa507Ff8D183D2BEcc9Ff9F82DFeF4b074e1d0E05"
+    },
+    {
+      "chainId": 23,
+      "address": "0xa507Ff8D183D2BEcc9Ff9F82DFeF4b074e1d0E05"
+    },
+    {
+      "chainId": 24,
+      "address": "0xa507Ff8D183D2BEcc9Ff9F82DFeF4b074e1d0E05"
+    }
+  ],
+  "create2Factories": [
+    {
+      "chainId": 2,
+      "address": "0xD7456983aF303D8811D0503631b6197C8a29248F"
+    },
+    {
+      "chainId": 4,
+      "address": "0xD7456983aF303D8811D0503631b6197C8a29248F"
+    },
+    {
+      "chainId": 5,
+      "address": "0xD7456983aF303D8811D0503631b6197C8a29248F"
+    },
+    {
+      "chainId": 6,
+      "address": "0xD7456983aF303D8811D0503631b6197C8a29248F"
+    },
+    {
+      "chainId": 10,
+      "address": "0xD7456983aF303D8811D0503631b6197C8a29248F"
+    },
+    {
+      "chainId": 13,
+      "address": "0xD7456983aF303D8811D0503631b6197C8a29248F"
+    },
+    {
+      "chainId": 14,
+      "address": "0xD7456983aF303D8811D0503631b6197C8a29248F"
+    },
+    {
+      "chainId": 16,
+      "address": "0xD7456983aF303D8811D0503631b6197C8a29248F"
+    },
+    {
+      "chainId": 23,
+      "address": "0xD7456983aF303D8811D0503631b6197C8a29248F"
+    },
+    {
+      "chainId": 24,
+      "address": "0xD7456983aF303D8811D0503631b6197C8a29248F"
+    }
+  ]
+}
