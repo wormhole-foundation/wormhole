@@ -35,6 +35,7 @@
 /sdk/vaa/ @bruce-riley @hendrikhofstadt
 /spydk/ @evan-gray
 /testing/ @a5-pickle @evan-gray
+/wormchain/contracts/tools/ @evan-gray @kev1n-peters @panoel
 
 # Guardiand node
 
