@@ -39,12 +39,8 @@ COPY --chown=node:node /relayer/generic_relayer/relayer-engine-v2/package-lock.j
 # We want to cache node_modules *and* incorporate it into the final image.
 RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
   --mount=type=cache,uid=1000,gid=1000,target=/relayer/generic_relayer/relayer-engine-v2/node_modules \
-  npm install  && \                                                 
+  npm ci  && \                                                 
   cp -R node_modules node_modules_cache
-  ## NOTE: The above should be an 'npm ci'; but it does not work for some reason
-  ## It is my understanding that this dockerfile will be changed in the future anyways
-  ## So will leave this in here for now 
-  ## DO NOT keep this in production
 
 # Amusingly, Debian's coreutils version has a bug where mv believes that
 # the target is on a different fs and does a full recursive copy for what
