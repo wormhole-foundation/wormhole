@@ -28,7 +28,7 @@ async function main() {
       process.exit(1);
     }
     console.log(`Balance ${balance.toString()}`);
-    console.log(`Network ${network.name} checked`);
+    console.log(`Network ${network.name} (${chain.chainId}) checked`);
   }
   console.log("");
   console.log("Networks checked");
