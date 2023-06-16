@@ -453,7 +453,6 @@ export async function execute_evm(
             break
           case "SetDefaultDeliveryProvider":
             console.log("Setting default relay provider")
-            console.log("Error: The published NPM SDK doesn't have the typechain binding for WormholeRelayer yet")
             console.log("Hash: " + (await rb.setDefaultDeliveryProvider(vaa, overrides)).hash)
             break
           default:
