@@ -30,7 +30,7 @@
   ],
   "dependencies": {
     "@celo-tools/celo-ethers-wrapper": "^0.1.0",
-    "@certusone/wormhole-sdk": "^0.9.18",
+    "@certusone/wormhole-sdk": "^0.9.19-beta.0",
     "@cosmjs/encoding": "^0.26.2",
     "@injectivelabs/networks": "^1.10.7",
     "@injectivelabs/sdk-ts": "^1.10.47",
