@@ -240,6 +240,11 @@ export async function buildOverrides(
     // We need to ensure we are using the correct tx envelope in that case.
     overrides.type = 0;
     overrides.gasPrice = ethers.utils.parseUnits("3", "gwei");
+  } else if (chain.chainId === 23) {
+    // Arbitrum gas price feeds are excessive on public endpoints too apparently.
+    overrides.type = 2;
+    overrides.maxFeePerGas = ethers.utils.parseUnits("0.3", "gwei");
+    overrides.maxPriorityFeePerGas = 0;
   }
   return overrides;
 }
