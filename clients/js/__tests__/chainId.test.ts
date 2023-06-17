@@ -15,17 +15,24 @@ describe("worm chain-id", () => {
   });
 
   describe("check functionality", () => {
-    const SOLANA_CHAIN_ID = CHAINS["solana"].toString();
-    const ETHEREUM_CHAIN_ID = CHAINS["ethereum"].toString();
+    type WormholeSDKChainName = keyof typeof CHAINS;
 
-    it(`should return solana chain-id correctly`, async () => {
-      const output = run_worm_command("info chain-id solana");
-      expect(output).toContain(SOLANA_CHAIN_ID);
-    });
+    const chains: WormholeSDKChainName[] = [
+      "solana",
+      "ethereum",
+      "near",
+      "wormchain",
+      "aptos",
+      "sui",
+      "avalanche",
+      "gnosis",
+    ];
 
-    it(`should return ethereum chain-id correctly`, async () => {
-      const output = run_worm_command("info chain-id ethereum");
-      expect(output).toContain(ETHEREUM_CHAIN_ID);
+    chains.forEach((chain) => {
+      it(`should return ${chain} chain-id correctly`, async () => {
+        const output = run_worm_command(`info chain-id ${chain}`);
+        expect(output).toContain(CHAINS[chain].toString());
+      });
     });
   });
 });
