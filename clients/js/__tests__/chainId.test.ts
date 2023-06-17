@@ -1,8 +1,9 @@
 import { describe, expect, it } from "@jest/globals";
 import { run_worm_command, run_worm_help_command } from "./utils-jest";
 import { CHAINS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+import { YARGS_COMMAND_FAILED } from "./yargs-errors";
 
-describe("worm chain-id", () => {
+describe("worm info chain-id", () => {
   describe("check arguments", () => {
     const FIRST_POSITIONAL_ARGUMENT = "<chain>";
 
@@ -24,6 +25,17 @@ describe("worm chain-id", () => {
         const output = run_worm_command(`info chain-id ${chain}`);
         expect(output).toContain(CHAINS[chain].toString());
       });
+    });
+  });
+
+  describe("check failures", () => {
+    it(`should fail if chain does not exist`, async () => {
+      const fakeChain = "IDontExist";
+      try {
+        run_worm_command(`info chain-id ${fakeChain}`);
+      } catch (error) {
+        expect((error as Error).message).toContain(YARGS_COMMAND_FAILED);
+      }
     });
   });
 });
