@@ -17,16 +17,7 @@ describe("worm chain-id", () => {
   describe("check functionality", () => {
     type WormholeSDKChainName = keyof typeof CHAINS;
 
-    const chains: WormholeSDKChainName[] = [
-      "solana",
-      "ethereum",
-      "near",
-      "wormchain",
-      "aptos",
-      "sui",
-      "avalanche",
-      "gnosis",
-    ];
+    const chains = Object.keys(CHAINS) as WormholeSDKChainName[];
 
     chains.forEach((chain) => {
       it(`should return ${chain} chain-id correctly`, async () => {
