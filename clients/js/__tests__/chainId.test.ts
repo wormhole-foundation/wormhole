@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
 import { run_worm_command, run_worm_help_command } from "./utils-jest";
+import { CHAINS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 
 describe("worm chain-id", () => {
   describe("check arguments", () => {
@@ -14,8 +15,8 @@ describe("worm chain-id", () => {
   });
 
   describe("check functionality", () => {
-    const SOLANA_CHAIN_ID = "1";
-    const ETHEREUM_CHAIN_ID = "2";
+    const SOLANA_CHAIN_ID = CHAINS["solana"].toString();
+    const ETHEREUM_CHAIN_ID = CHAINS["ethereum"].toString();
 
     it(`should return solana chain-id correctly`, async () => {
       const output = run_worm_command("info chain-id solana");
