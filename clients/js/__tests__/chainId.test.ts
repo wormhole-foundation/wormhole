@@ -5,13 +5,15 @@ import { YARGS_COMMAND_FAILED } from "./yargs-errors";
 
 describe("worm info chain-id", () => {
   describe("check arguments", () => {
-    const FIRST_POSITIONAL_ARGUMENT = "<chain>";
+    const args = ["chain"];
 
     it(`should have correct positional arguments`, async () => {
       // Run the command module with --help as argument
       const output = run_worm_help_command("info chain-id");
 
-      expect(output).toContain(FIRST_POSITIONAL_ARGUMENT);
+      args.forEach((arg) => {
+        expect(output).toContain(`<${arg}>`);
+      });
     });
   });
 
