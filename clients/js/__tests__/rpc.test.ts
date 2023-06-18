@@ -1,8 +1,10 @@
-import yargs from "yargs";
-import { describe, expect, it, jest } from "@jest/globals";
-import { test_command_positional_args } from "./utils-cli";
+import { describe, expect, it } from "@jest/globals";
+import { run_worm_command, test_command_positional_args } from "./utils-cli";
+import { NETWORKS as RPC_NETWORKS } from "../src/consts/networks";
+import { getChains, getNetworks } from "./utils";
+import { Network } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 
-describe("worm rpc", () => {
+describe("worm info rpc", () => {
   describe("check arguments", () => {
     //Args must be defined in their specific order
     const args = ["network", "chain"];
@@ -10,26 +12,20 @@ describe("worm rpc", () => {
     test_command_positional_args("info rpc", args);
   });
 
-  describe.skip("check functionality", () => {
-    const SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com";
-    const ETHEREUM_RPC_URL = "https://rpc.ankr.com/eth";
+  describe("check functionality", () => {
+    const chains = getChains();
+    const networks = getNetworks();
 
-    it(`should return solana mainnet rpc correctly`, async () => {
-      const consoleSpy = jest.spyOn(console, "log");
+    networks.forEach((network) => {
+      const NETWORK = network.toUpperCase() as Network;
 
-      const command = yargs.command(require("../src/cmds/rpc")).help();
-      await command.parse(["rpc", "mainnet", "solana"]);
+      chains.forEach((chain) => {
+        it(`should return ${chain} ${network} rpc correctly`, async () => {
+          const output = run_worm_command(`info rpc ${network} ${chain}`);
 
-      expect(consoleSpy).toBeCalledWith(SOLANA_RPC_URL);
-    });
-
-    it(`should return ethereum mainnet rpc correctly`, async () => {
-      const consoleSpy = jest.spyOn(console, "log");
-
-      const command = yargs.command(require("../src/cmds/rpc")).help();
-      await command.parse(["rpc", "mainnet", "ethereum"]);
-
-      expect(consoleSpy).toBeCalledWith(ETHEREUM_RPC_URL);
+          expect(output).toContain(String(RPC_NETWORKS[NETWORK][chain].rpc));
+        });
+      });
     });
   });
 });
