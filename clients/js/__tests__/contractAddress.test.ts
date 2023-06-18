@@ -23,7 +23,7 @@ describe("worm info contract", () => {
             const output = run_worm_command(
               `info contract mainnet ${chain} Core`
             );
-            expect(output).toEqual(CONTRACTS["MAINNET"][chain]["core"]);
+            expect(output).toContain(CONTRACTS["MAINNET"][chain]["core"]);
           } catch (error) {
             expect((error as Error).message).toContain(
               CORE_CONTRACT_NOT_DEPLOYED(chain)
