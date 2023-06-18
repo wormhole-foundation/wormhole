@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@jest/globals";
 import { run_worm_command, test_command_positional_args } from "./utils-cli";
 import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
-import { CORE_CONTRACT_NOT_DEPLOYED } from "./errors";
+import { CONTRACT_NOT_DEPLOYED } from "./errors";
 import { WormholeSDKChainName, getChains } from "./utils";
 
 describe("worm info contract", () => {
@@ -25,7 +25,7 @@ describe("worm info contract", () => {
             expect(output).toContain(CONTRACTS["MAINNET"][chain]["core"]);
           } catch (error) {
             expect((error as Error).message).toContain(
-              CORE_CONTRACT_NOT_DEPLOYED(chain)
+              CONTRACT_NOT_DEPLOYED(chain, "Core")
             );
           }
         });
@@ -38,7 +38,7 @@ describe("worm info contract", () => {
             expect(output).toContain(CONTRACTS["MAINNET"][chain]["nft_bridge"]);
           } catch (error) {
             expect((error as Error).message).toContain(
-              CORE_CONTRACT_NOT_DEPLOYED(chain)
+              CONTRACT_NOT_DEPLOYED(chain, "NFTBridge")
             );
           }
         });
@@ -53,7 +53,7 @@ describe("worm info contract", () => {
             );
           } catch (error) {
             expect((error as Error).message).toContain(
-              CORE_CONTRACT_NOT_DEPLOYED(chain)
+              CONTRACT_NOT_DEPLOYED(chain, "TokenBridge")
             );
           }
         });
