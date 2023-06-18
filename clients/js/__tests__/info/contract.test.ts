@@ -1,11 +1,11 @@
 import { describe, expect, it } from "@jest/globals";
-import { run_worm_command, test_command_positional_args } from "./utils-cli";
+import { run_worm_command, test_command_positional_args } from "../utils-cli";
 import {
   CONTRACTS,
   Network,
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
-import { CONTRACT_NOT_DEPLOYED } from "./errors";
-import { getChains, getNetworks } from "./utils";
+import { CONTRACT_NOT_DEPLOYED } from "../errors";
+import { getChains, getNetworks } from "../utils";
 
 describe("worm info contract", () => {
   describe("check arguments", () => {

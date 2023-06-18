@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@jest/globals";
-import { run_worm_command, test_command_positional_args } from "./utils-cli";
-import { NETWORKS as RPC_NETWORKS } from "../src/consts/networks";
-import { getChains, getNetworks } from "./utils";
+import { run_worm_command, test_command_positional_args } from "../utils-cli";
+import { NETWORKS as RPC_NETWORKS } from "../../src/consts/networks";
+import { getChains, getNetworks } from "../utils";
 import { Network } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 
 describe("worm info rpc", () => {

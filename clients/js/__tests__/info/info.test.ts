@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import { run_worm_help_command } from "./utils-cli";
+import { run_worm_help_command } from "../utils-cli";
 
 describe("worm info", () => {
   describe("check commands", () => {
