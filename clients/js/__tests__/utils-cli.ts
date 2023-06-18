@@ -33,7 +33,7 @@ export const run_worm_command = (commandArgs: string) => {
   return execSync(`${worm} ${commandArgs}`).toString();
 };
 
-const run_worm_help_command = (commandArgs: string) => {
+export const run_worm_help_command = (commandArgs: string) => {
   return run_worm_command(`${commandArgs} --help`);
 };
 
