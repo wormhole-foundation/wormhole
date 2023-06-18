@@ -1,19 +1,13 @@
 import yargs from "yargs";
 import { describe, expect, it, jest } from "@jest/globals";
-import { run_worm_help_command } from "./utils-jest";
+import { test_command_positional_args } from "./utils-jest";
 
 describe("worm info contract", () => {
   describe("check arguments", () => {
     //Args must be defined in their specific order
     const args = ["network", "chain", "module"];
 
-    it(`should have correct positional arguments`, async () => {
-      // Run the command module with --help as argument
-      const output = run_worm_help_command("info contract");
-      const expectedPositionalArgs = args.map((arg) => `<${arg}>`).join(" ");
-
-      expect(output).toContain(`info contract ${expectedPositionalArgs}`);
-    });
+    test_command_positional_args("info contract", args);
   });
 
   describe.skip("check functionality", () => {

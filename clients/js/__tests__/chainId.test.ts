@@ -1,20 +1,14 @@
 import { describe, expect, it } from "@jest/globals";
-import { run_worm_command, run_worm_help_command } from "./utils-jest";
+import { run_worm_command, test_command_positional_args } from "./utils-jest";
 import { CHAINS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { YARGS_COMMAND_FAILED } from "./yargs-errors";
 
 describe("worm info chain-id", () => {
   describe("check arguments", () => {
+    //Args must be defined in their specific order
     const args = ["chain"];
 
-    it(`should have correct positional arguments`, async () => {
-      // Run the command module with --help as argument
-      const output = run_worm_help_command("info chain-id");
-
-      args.forEach((arg) => {
-        expect(output).toContain(`<${arg}>`);
-      });
-    });
+    test_command_positional_args("info chain-id", args);
   });
 
   describe("check functionality", () => {
