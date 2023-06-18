@@ -1,9 +1,9 @@
 import yargs from "yargs";
 import { describe, expect, it } from "@jest/globals";
-import { run_worm_command, test_command_positional_args } from "./utils-jest";
+import { run_worm_command, test_command_positional_args } from "./utils-cli";
 import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
-import { WormholeSDKChainName, getChains } from "./chain-id.test";
 import { CORE_CONTRACT_NOT_DEPLOYED } from "./errors";
+import { WormholeSDKChainName, getChains } from "./utils";
 
 describe("worm info contract", () => {
   describe("check arguments", () => {
