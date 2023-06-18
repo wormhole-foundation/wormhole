@@ -1,6 +1,9 @@
-import yargs from "yargs";
-import { describe, expect, it } from "@jest/globals";
-import { test_command_flags, test_command_positional_args } from "./utils/cli";
+import { describe } from "@jest/globals";
+import {
+  Flag,
+  test_command_flags,
+  test_command_positional_args,
+} from "./utils/cli";
 
 describe("worm submit", () => {
   describe("check arguments", () => {
@@ -11,7 +14,13 @@ describe("worm submit", () => {
   });
 
   describe("check flags", () => {
-    const flags = ["chain", "network", "contract-address", "rpc", "all-chains"];
+    const flags: Flag[] = [
+      { name: "--chain", alias: "-c" },
+      { name: "--network", alias: "-n" },
+      { name: "--contract-address", alias: "-a" },
+      { name: "--rpc", alias: undefined },
+      { name: "--all-chains", alias: "--ac" },
+    ];
 
     test_command_flags("submit", flags);
   });
