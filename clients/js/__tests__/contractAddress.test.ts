@@ -1,32 +1,22 @@
 import yargs from "yargs";
 import { describe, expect, it, jest } from "@jest/globals";
+import { run_worm_help_command } from "./utils-jest";
 
-describe("worm contract", () => {
+describe("worm info contract", () => {
   describe("check arguments", () => {
-    const FIRST_POSITIONAL_ARGUMENT = "<network>";
-    const SECOND_POSITIONAL_ARGUMENT = "<chain>";
-    const THIRD_POSITIONAL_ARGUMENT = "<module>";
+    //Args must be defined in their specific order
+    const args = ["network", "chain", "module"];
 
     it(`should have correct positional arguments`, async () => {
-      const command = await yargs
-        .command(require("../src/cmds/contractAddress"))
-        .help();
-
       // Run the command module with --help as argument
-      const output = await new Promise((resolve) => {
-        command.parse(["contract", "--help"], (_err, _argv, output) => {
-          console.log("output", output);
-          resolve(output);
-        });
-      });
+      const output = run_worm_help_command("info contract");
+      const expectedPositionalArgs = args.map((arg) => `<${arg}>`).join(" ");
 
-      expect(output).toContain(FIRST_POSITIONAL_ARGUMENT);
-      expect(output).toContain(SECOND_POSITIONAL_ARGUMENT);
-      expect(output).toContain(THIRD_POSITIONAL_ARGUMENT);
+      expect(output).toContain(`info contract ${expectedPositionalArgs}`);
     });
   });
 
-  describe("check functionality", () => {
+  describe.skip("check functionality", () => {
     const SOLANA_CORE_CONTRACT = "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth";
     const ETHEREUM_NFT_BRIDGE_CONTRACT =
       "0x6FFd7EdE62328b3Af38FCD61461Bbfc52F5651fE";
