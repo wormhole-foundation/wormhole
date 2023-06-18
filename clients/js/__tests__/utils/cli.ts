@@ -56,3 +56,28 @@ export const test_command_positional_args = (
     expect(output).toContain(`worm ${command} ${expectedPositionalArgs}`);
   });
 };
+
+export const test_command_flags = (command: string, flags: string[]) => {
+  //NOTE: Guard condition to avoid passing infered `worm` keyword from command input
+  if (command.includes("worm")) {
+    throw new Error(
+      "initial 'worm' keyword must be excluded from command params, pass only worm specific commands."
+    );
+  }
+  //NOTE: Guard condition to prevent incorrect flag format input
+  if (flags.some((flag) => flag.includes("--"))) {
+    throw new Error(
+      "remove '--' prefix from flags input, pass only flag names."
+    );
+  }
+
+  it(`should have correct flags`, async () => {
+    // Run the command module with --help as argument
+    const output = run_worm_help_command(command);
+    const expectedFlags = flags.map((arg) => `--${arg}`);
+
+    expectedFlags.forEach((flag) => {
+      expect(output).toContain(flag);
+    });
+  });
+};
