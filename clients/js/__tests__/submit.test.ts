@@ -1,26 +1,18 @@
 import yargs from "yargs";
 import { describe, expect, it } from "@jest/globals";
+import { test_command_flags, test_command_positional_args } from "./utils/cli";
 
 describe("worm submit", () => {
   describe("check arguments", () => {
-    const FIRST_POSITIONAL_ARGUMENT = "<vaa>";
-    const REQUIRED_FIRST_FLAG = "--network";
-    const REQUIRED_SECOND_FLAG = "--chain";
+    //Args must be defined in their specific order
+    const args = ["vaa"];
 
-    it(`should have correct positional arguments`, async () => {
-      const command = await yargs.command(require("../src/cmds/submit")).help();
+    test_command_positional_args("submit", args);
+  });
 
-      // Run the command module with --help as argument
-      const output = await new Promise((resolve) => {
-        command.parse(["submit", "--help"], (_err, _argv, output) => {
-          console.log("output", output);
-          resolve(output);
-        });
-      });
+  describe("check flags", () => {
+    const flags = ["chain", "network", "contract-address", "rpc", "all-chains"];
 
-      expect(output).toContain(FIRST_POSITIONAL_ARGUMENT);
-      expect(output).toContain(REQUIRED_FIRST_FLAG);
-      expect(output).toContain(REQUIRED_SECOND_FLAG);
-    });
+    test_command_flags("submit", flags);
   });
 });
