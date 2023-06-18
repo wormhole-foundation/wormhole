@@ -4,7 +4,7 @@ import {
   CONTRACTS,
   Network,
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
-import { CONTRACT_NOT_DEPLOYED } from "../errors";
+import { CONTRACT_NOT_DEPLOYED, YARGS_COMMAND_FAILED } from "../errors";
 import { getChains, getNetworks } from "../utils";
 
 describe("worm info contract", () => {
@@ -66,6 +66,35 @@ describe("worm info contract", () => {
           });
         });
       });
+    });
+  });
+
+  describe("check failures", () => {
+    it(`should fail if network does not exist`, async () => {
+      const fakeNetwork = "DoesNotExist";
+      try {
+        run_worm_command(`info contract ${fakeNetwork} solana Core`);
+      } catch (error) {
+        expect((error as Error).message).toContain(YARGS_COMMAND_FAILED);
+      }
+    });
+
+    it(`should fail if chain does not exist`, async () => {
+      const fakeChain = "DoesNotExist";
+      try {
+        run_worm_command(`info contract mainnet ${fakeChain} Core`);
+      } catch (error) {
+        expect((error as Error).message).toContain(YARGS_COMMAND_FAILED);
+      }
+    });
+
+    it(`should fail if module (Core, NFTBridge, TokenBridge) does not exist`, async () => {
+      const fakeModule = "DoesNotExist";
+      try {
+        run_worm_command(`info contract mainnet solana ${fakeModule}`);
+      } catch (error) {
+        expect((error as Error).message).toContain(YARGS_COMMAND_FAILED);
+      }
     });
   });
 });
