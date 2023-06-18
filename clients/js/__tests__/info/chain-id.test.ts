@@ -1,8 +1,8 @@
 import { describe, expect, it } from "@jest/globals";
-import { run_worm_command, test_command_positional_args } from "../utils-cli";
+import { run_worm_command, test_command_positional_args } from "../utils/cli";
 import { CHAINS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
-import { YARGS_COMMAND_FAILED } from "../errors";
-import { WormholeSDKChainName, getChains } from "../utils";
+import { YARGS_COMMAND_FAILED } from "../utils/errors";
+import { WormholeSDKChainName, getChains } from "../utils/getters";
 
 describe("worm info chain-id", () => {
   describe("check arguments", () => {
