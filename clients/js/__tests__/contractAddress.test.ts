@@ -3,6 +3,7 @@ import { describe, expect, it } from "@jest/globals";
 import { run_worm_command, test_command_positional_args } from "./utils-jest";
 import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { WormholeSDKChainName, getChains } from "./chain-id.test";
+import { CORE_CONTRACT_NOT_DEPLOYED } from "./errors";
 
 describe("worm info contract", () => {
   describe("check arguments", () => {
@@ -18,10 +19,16 @@ describe("worm info contract", () => {
     describe("should return core mainnet contracts", () => {
       chains.forEach((chain) => {
         it(`should return ${chain} core mainnet contract correctly`, async () => {
-          const output = run_worm_command(
-            `info contract mainnet ${chain} Core`
-          );
-          expect(output).toEqual(CONTRACTS["MAINNET"][chain]["core"]);
+          try {
+            const output = run_worm_command(
+              `info contract mainnet ${chain} Core`
+            );
+            expect(output).toEqual(CONTRACTS["MAINNET"][chain]["core"]);
+          } catch (error) {
+            expect((error as Error).message).toContain(
+              CORE_CONTRACT_NOT_DEPLOYED(chain)
+            );
+          }
         });
       });
     });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@jest/globals";
 import { run_worm_command, test_command_positional_args } from "./utils-jest";
 import { CHAINS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
-import { YARGS_COMMAND_FAILED } from "./yargs-errors";
+import { YARGS_COMMAND_FAILED } from "./errors";
 
 export type WormholeSDKChainName = keyof typeof CHAINS;
 
