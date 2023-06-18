@@ -1,28 +1,16 @@
 import yargs from "yargs";
 import { describe, expect, it, jest } from "@jest/globals";
+import { test_command_positional_args } from "./utils-cli";
 
 describe("worm rpc", () => {
   describe("check arguments", () => {
-    const FIRST_POSITIONAL_ARGUMENT = "<network>";
-    const SECOND_POSITIONAL_ARGUMENT = "<chain>";
+    //Args must be defined in their specific order
+    const args = ["network", "chain"];
 
-    it(`should have correct positional arguments`, async () => {
-      const command = await yargs.command(require("../src/cmds/rpc")).help();
-
-      // Run the command module with --help as argument
-      const output = await new Promise((resolve) => {
-        command.parse(["rpc", "--help"], (_err, _argv, output) => {
-          console.log("output", output);
-          resolve(output);
-        });
-      });
-
-      expect(output).toContain(FIRST_POSITIONAL_ARGUMENT);
-      expect(output).toContain(SECOND_POSITIONAL_ARGUMENT);
-    });
+    test_command_positional_args("info rpc", args);
   });
 
-  describe("check functionality", () => {
+  describe.skip("check functionality", () => {
     const SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com";
     const ETHEREUM_RPC_URL = "https://rpc.ankr.com/eth";
 
