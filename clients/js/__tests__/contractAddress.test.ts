@@ -1,8 +1,11 @@
 import { describe, expect, it } from "@jest/globals";
 import { run_worm_command, test_command_positional_args } from "./utils-cli";
-import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+import {
+  CONTRACTS,
+  Network,
+} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { CONTRACT_NOT_DEPLOYED } from "./errors";
-import { WormholeSDKChainName, getChains } from "./utils";
+import { getChains, getNetworks } from "./utils";
 
 describe("worm info contract", () => {
   describe("check arguments", () => {
@@ -13,49 +16,54 @@ describe("worm info contract", () => {
   });
 
   describe("check functionality", () => {
-    const chains: WormholeSDKChainName[] = getChains();
+    const chains = getChains();
+    const networks = getNetworks();
 
-    describe("should return mainnet contracts", () => {
-      chains.forEach((chain) => {
-        it(`should return ${chain} core mainnet contract correctly`, async () => {
-          try {
-            const output = run_worm_command(
-              `info contract mainnet ${chain} Core`
-            );
-            expect(output).toContain(CONTRACTS["MAINNET"][chain]["core"]);
-          } catch (error) {
-            expect((error as Error).message).toContain(
-              CONTRACT_NOT_DEPLOYED(chain, "Core")
-            );
-          }
-        });
+    networks.forEach((network) => {
+      const NETWORK = network.toUpperCase() as Network;
 
-        it(`should return ${chain} NFTBridge mainnet contract correctly`, async () => {
-          try {
-            const output = run_worm_command(
-              `info contract mainnet ${chain} NFTBridge`
-            );
-            expect(output).toContain(CONTRACTS["MAINNET"][chain]["nft_bridge"]);
-          } catch (error) {
-            expect((error as Error).message).toContain(
-              CONTRACT_NOT_DEPLOYED(chain, "NFTBridge")
-            );
-          }
-        });
+      describe(`should return ${network} contracts`, () => {
+        chains.forEach((chain) => {
+          it(`should return ${chain} core ${network} contract correctly`, async () => {
+            try {
+              const output = run_worm_command(
+                `info contract ${network} ${chain} Core`
+              );
+              expect(output).toContain(CONTRACTS[NETWORK][chain]["core"]);
+            } catch (error) {
+              expect((error as Error).message).toContain(
+                CONTRACT_NOT_DEPLOYED(chain, "Core")
+              );
+            }
+          });
 
-        it(`should return ${chain} TokenBridge mainnet contract correctly`, async () => {
-          try {
-            const output = run_worm_command(
-              `info contract mainnet ${chain} TokenBridge`
-            );
-            expect(output).toContain(
-              CONTRACTS["MAINNET"][chain]["token_bridge"]
-            );
-          } catch (error) {
-            expect((error as Error).message).toContain(
-              CONTRACT_NOT_DEPLOYED(chain, "TokenBridge")
-            );
-          }
+          it(`should return ${chain} NFTBridge ${network} contract correctly`, async () => {
+            try {
+              const output = run_worm_command(
+                `info contract ${network} ${chain} NFTBridge`
+              );
+              expect(output).toContain(CONTRACTS[NETWORK][chain]["nft_bridge"]);
+            } catch (error) {
+              expect((error as Error).message).toContain(
+                CONTRACT_NOT_DEPLOYED(chain, "NFTBridge")
+              );
+            }
+          });
+
+          it(`should return ${chain} TokenBridge ${network} contract correctly`, async () => {
+            try {
+              const output = run_worm_command(
+                `info contract ${network} ${chain} TokenBridge`
+              );
+              expect(output).toContain(
+                CONTRACTS[NETWORK][chain]["token_bridge"]
+              );
+            } catch (error) {
+              expect((error as Error).message).toContain(
+                CONTRACT_NOT_DEPLOYED(chain, "TokenBridge")
+              );
+            }
+          });
         });
       });
     });
