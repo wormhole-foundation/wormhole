@@ -1,4 +1,3 @@
-import yargs from "yargs";
 import { describe, expect, it } from "@jest/globals";
 import { run_worm_command, test_command_positional_args } from "./utils-cli";
 import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
@@ -16,7 +15,7 @@ describe("worm info contract", () => {
   describe("check functionality", () => {
     const chains: WormholeSDKChainName[] = getChains();
 
-    describe("should return core mainnet contracts", () => {
+    describe("should return mainnet contracts", () => {
       chains.forEach((chain) => {
         it(`should return ${chain} core mainnet contract correctly`, async () => {
           try {
@@ -30,29 +29,35 @@ describe("worm info contract", () => {
             );
           }
         });
+
+        it(`should return ${chain} NFTBridge mainnet contract correctly`, async () => {
+          try {
+            const output = run_worm_command(
+              `info contract mainnet ${chain} NFTBridge`
+            );
+            expect(output).toContain(CONTRACTS["MAINNET"][chain]["nft_bridge"]);
+          } catch (error) {
+            expect((error as Error).message).toContain(
+              CORE_CONTRACT_NOT_DEPLOYED(chain)
+            );
+          }
+        });
+
+        it(`should return ${chain} TokenBridge mainnet contract correctly`, async () => {
+          try {
+            const output = run_worm_command(
+              `info contract mainnet ${chain} TokenBridge`
+            );
+            expect(output).toContain(
+              CONTRACTS["MAINNET"][chain]["token_bridge"]
+            );
+          } catch (error) {
+            expect((error as Error).message).toContain(
+              CORE_CONTRACT_NOT_DEPLOYED(chain)
+            );
+          }
+        });
       });
     });
-
-    // it.skip(`should return solana core mainnet contract correctly`, async () => {
-    //   const consoleSpy = jest.spyOn(console, "log");
-
-    //   const command = yargs
-    //     .command(require("../src/cmds/contractAddress"))
-    //     .help();
-    //   await command.parse(["contract", "mainnet", "solana", "Core"]);
-
-    //   expect(consoleSpy).toBeCalledWith(SOLANA_CORE_CONTRACT);
-    // });
-
-    // it.skip(`should return ethereum mainnet NFTBridge contract correctly`, async () => {
-    //   const consoleSpy = jest.spyOn(console, "log");
-
-    //   const command = yargs
-    //     .command(require("../src/cmds/contractAddress"))
-    //     .help();
-    //   await command.parse(["contract", "mainnet", "ethereum", "NFTBridge"]);
-
-    //   expect(consoleSpy).toBeCalledWith(ETHEREUM_NFT_BRIDGE_CONTRACT);
-    // });
   });
 });
