@@ -3,6 +3,12 @@ import { run_worm_command, test_command_positional_args } from "./utils-jest";
 import { CHAINS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { YARGS_COMMAND_FAILED } from "./yargs-errors";
 
+export type WormholeSDKChainName = keyof typeof CHAINS;
+
+export const getChains = () => {
+  return Object.keys(CHAINS) as WormholeSDKChainName[];
+};
+
 describe("worm info chain-id", () => {
   describe("check arguments", () => {
     //Args must be defined in their specific order
@@ -12,9 +18,7 @@ describe("worm info chain-id", () => {
   });
 
   describe("check functionality", () => {
-    type WormholeSDKChainName = keyof typeof CHAINS;
-
-    const chains = Object.keys(CHAINS) as WormholeSDKChainName[];
+    const chains = getChains();
 
     chains.forEach((chain) => {
       it(`should return ${chain} chain-id correctly`, async () => {
