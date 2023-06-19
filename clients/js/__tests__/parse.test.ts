@@ -1,6 +1,6 @@
-import yargs from "yargs";
-import { describe, expect, it, jest } from "@jest/globals";
-import { run_worm_command, test_command_positional_args } from "./utils/cli";
+import { describe, expect, it } from "@jest/globals";
+import { run_worm_command } from "./utils/cli";
+import { test_command_positional_args } from "./utils/tests";
 
 describe("worm parse", () => {
   describe("check arguments", () => {

@@ -3,7 +3,7 @@ import {
   Flag,
   test_command_flags,
   test_command_positional_args,
-} from "../utils/cli";
+} from "../utils/tests";
 
 describe("worm info wrapped", () => {
   describe("check arguments", () => {

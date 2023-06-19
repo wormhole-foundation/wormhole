@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
-import { run_worm_command, test_command_positional_args } from "./utils/cli";
+import { run_worm_command } from "./utils/cli";
+import { test_command_positional_args } from "./utils/tests";
 
 describe("worm recover", () => {
   describe("check arguments", () => {

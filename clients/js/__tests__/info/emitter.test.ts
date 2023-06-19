@@ -1,5 +1,5 @@
 import { describe } from "@jest/globals";
-import { test_command_positional_args } from "../utils/cli";
+import { test_command_positional_args } from "../utils/tests";
 
 describe("worm info emitter", () => {
   describe("check arguments", () => {

@@ -1,5 +1,5 @@
 import { describe } from "@jest/globals";
-import { Flag, test_command_flags } from "./utils/cli";
+import { Flag, test_command_flags } from "./utils/tests";
 
 describe("worm edit-vaa", () => {
   describe("check flags", () => {
