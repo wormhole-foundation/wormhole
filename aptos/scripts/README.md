@@ -29,7 +29,7 @@ Then build & deploy the contracts
 At this point you can send messages by running
 
 ``` shell
-worm send-example-message "hi mom"
+worm aptos -n devnet send-example-message "hi mom"
 ```
 
 ### Upgrades
@@ -45,7 +45,7 @@ Make a change to the contract, then rebuild and run the upgrade script:
 https://fullnode.devnet.aptoslabs.com/v1/spec#/operations/get_events_by_event_handle
 
 ``` shell
-curl --request GET --header 'Content-Type: application/json'  --url 'http://localhost:8080/v1/accounts/277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b/events/0x277fa055b6a73c42c0662d5236c65c864ccbf2d4abd21f174a30c8b786eab84b::state::WormholeMessageHandle/event?start=0' | jq
+curl --request GET --header 'Content-Type: application/json'  --url 'http://localhost:8080/v1/accounts/0xde0036a9600559e295d5f6802ef6f3f802f510366e0c23912b0655d972166017/events/0xde0036a9600559e295d5f6802ef6f3f802f510366e0c23912b0655d972166017::state::WormholeMessageHandle/event?start=0' | jq
 ```
 
 
