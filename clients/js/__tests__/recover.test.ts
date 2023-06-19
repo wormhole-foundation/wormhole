@@ -19,7 +19,7 @@ describe("worm recover", () => {
     //expected output
     const expectedAddress = "0x6FbEBc898F403E4773E95feB15E80C9A99c8348d";
 
-    it(`should return correct address from mock digest and signature`, async () => {
+    it(`should return correct address from digest and signature`, async () => {
       const output = run_worm_command(`recover ${digest} ${signature}`);
 
       expect(output).toContain(expectedAddress);
