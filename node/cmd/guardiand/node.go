@@ -994,10 +994,10 @@ func runNode(cmd *cobra.Command, args []string) {
 				case <-rootCtx.Done():
 					return
 				case response := <-c:
-					if response.ChainID != chainId {
+					if response.ChainId != chainId {
 						// SECURITY: This should never happen. If it does, a watcher has been compromised.
 						logger.Fatal("SECURITY CRITICAL: Received query response from a chain that was not marked as originating from that chain",
-							zap.Uint16("responseChainId", uint16(response.ChainID)),
+							zap.Uint16("responseChainId", uint16(response.ChainId)),
 							zap.Stringer("watcherChainId", chainId),
 						)
 					} else {

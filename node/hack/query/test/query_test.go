@@ -296,22 +296,28 @@ func TestCrossChainQuery(t *testing.T) {
 					break
 				}
 
-				pcq := response.PerChainResponses[0]
+				var pcq *common.EthCallQueryResponse
+				switch ecq := response.PerChainResponses[0].Response.(type) {
+				case *common.EthCallQueryResponse:
+					pcq = ecq
+				default:
+					panic("unsupported query type")
+				}
 
-				if len(pcq.Responses) == 0 {
+				if len(pcq.Results) == 0 {
 					logger.Warn("response did not contain any results", zap.Error(err))
 					break
 				}
 
-				for idx, resp := range pcq.Responses {
-					result, err := wethAbi.Methods[methodName].Outputs.Unpack(resp.Result)
+				for idx, resp := range pcq.Results {
+					result, err := wethAbi.Methods[methodName].Outputs.Unpack(resp)
 					if err != nil {
 						logger.Warn("failed to unpack result", zap.Error(err))
 						break
 					}
 
-					resultStr := hexutil.Encode(resp.Result)
-					logger.Info("found matching response", zap.Int("idx", idx), zap.String("number", resp.Number.String()), zap.String("hash", resp.Hash.String()), zap.String("time", resp.Time.String()), zap.Any("resultDecoded", result), zap.String("resultStr", resultStr))
+					resultStr := hexutil.Encode(resp)
+					logger.Info("found matching response", zap.Int("idx", idx), zap.String("number", pcq.Number.String()), zap.String("hash", pcq.Hash.String()), zap.String("time", pcq.Time.String()), zap.Any("resultDecoded", result), zap.String("resultStr", resultStr))
 				}
 
 				success = true

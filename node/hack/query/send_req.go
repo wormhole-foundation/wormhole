@@ -363,11 +363,10 @@ func sendQueryAndGetRsp(queryRequest *common.QueryRequest, sk *ecdsa.PrivateKey,
 					break
 				}
 				// Do double loop over responses
-				for index, pcq := range response.PerChainResponses {
+				for index := range response.PerChainResponses {
 					logger.Info("per chain query response index", zap.Int("index", index))
 
 					var localCallData []*common.EthCallData
-
 					switch ecq := queryRequest.PerChainQueries[index].Query.(type) {
 					case *common.EthCallQueryRequest:
 						localCallData = ecq.CallData
@@ -375,20 +374,28 @@ func sendQueryAndGetRsp(queryRequest *common.QueryRequest, sk *ecdsa.PrivateKey,
 						panic("unsupported query type")
 					}
 
-					if len(pcq.Responses) != len(localCallData) {
-						logger.Warn("unexpected number of results", zap.Int("expectedNum", len(localCallData)), zap.Int("expectedNum", len(pcq.Responses)))
+					var localResp *common.EthCallQueryResponse
+					switch ecq := response.PerChainResponses[index].Response.(type) {
+					case *common.EthCallQueryResponse:
+						localResp = ecq
+					default:
+						panic("unsupported query type")
+					}
+
+					if len(localResp.Results) != len(localCallData) {
+						logger.Warn("unexpected number of results", zap.Int("expectedNum", len(localCallData)), zap.Int("expectedNum", len(localResp.Results)))
 						break
 					}
 
-					for idx, resp := range pcq.Responses {
-						result, err := wethAbi.Methods[methods[idx]].Outputs.Unpack(resp.Result)
+					for idx, resp := range localResp.Results {
+						result, err := wethAbi.Methods[methods[idx]].Outputs.Unpack(resp)
 						if err != nil {
 							logger.Warn("failed to unpack result", zap.Error(err))
 							break
 						}
 
-						resultStr := hexutil.Encode(resp.Result)
-						logger.Info("found matching response", zap.Int("idx", idx), zap.String("number", resp.Number.String()), zap.String("hash", resp.Hash.String()), zap.String("time", resp.Time.String()), zap.String("method", methods[idx]), zap.Any("resultDecoded", result), zap.String("resultStr", resultStr))
+						resultStr := hexutil.Encode(resp)
+						logger.Info("found matching response", zap.Int("idx", idx), zap.String("number", localResp.Number.String()), zap.String("hash", localResp.Hash.String()), zap.String("time", localResp.Time.String()), zap.String("method", methods[idx]), zap.Any("resultDecoded", result), zap.String("resultStr", resultStr))
 					}
 				}
 			}

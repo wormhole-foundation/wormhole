@@ -21,6 +21,7 @@ type QueryRequest struct {
 	PerChainQueries []*PerChainQueryRequest
 }
 
+// PerChainQueryRequest represents a query request for a single chain.
 type PerChainQueryRequest struct {
 	// ChainId indicates which chain this query is destine for.
 	ChainId vaa.ChainID
@@ -223,7 +224,7 @@ func (perChainQuery *PerChainQueryRequest) UnmarshalFromReader(reader *bytes.Rea
 
 	qt := uint8(0)
 	if err := binary.Read(reader, binary.BigEndian, &qt); err != nil {
-		return fmt.Errorf("failed to read request chain: %w", err)
+		return fmt.Errorf("failed to read request type: %w", err)
 	}
 	queryType := ChainSpecificQueryType(qt)
 
@@ -235,7 +236,7 @@ func (perChainQuery *PerChainQueryRequest) UnmarshalFromReader(reader *bytes.Rea
 	case EthCallQueryRequestType:
 		q := EthCallQueryRequest{}
 		if err := q.UnmarshalFromReader(reader); err != nil {
-			return fmt.Errorf("failed to read request chain: %w", err)
+			return fmt.Errorf("failed to unmarshal eth call request: %w", err)
 		}
 		perChainQuery.Query = &q
 	default:
@@ -326,7 +327,7 @@ func (ecd *EthCallQueryRequest) Marshal() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// UnmarshalEthCallQueryRequest deserializes an EVM eth_call query from a byte array
+// Unmarshal deserializes an EVM eth_call query from a byte array
 func (ecd *EthCallQueryRequest) Unmarshal(data []byte) error {
 	reader := bytes.NewReader(data[:])
 	return ecd.UnmarshalFromReader(reader)

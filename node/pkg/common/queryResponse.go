@@ -33,45 +33,57 @@ const (
 type PerChainQueryResponseInternal struct {
 	RequestID  string
 	RequestIdx int
-	ChainID    vaa.ChainID
+	ChainId    vaa.ChainID
 	Status     QueryStatus
-	Results    []EthCallQueryResponse
+	Response   ChainSpecificResponse
 }
 
 // CreatePerChainQueryResponseInternal creates a PerChainQueryResponseInternal and returns a pointer to it.
-func CreatePerChainQueryResponseInternal(reqId string, reqIdx int, chainID vaa.ChainID, status QueryStatus, results []EthCallQueryResponse) *PerChainQueryResponseInternal {
+func CreatePerChainQueryResponseInternal(reqId string, reqIdx int, chainId vaa.ChainID, status QueryStatus, response ChainSpecificResponse) *PerChainQueryResponseInternal {
 	return &PerChainQueryResponseInternal{
 		RequestID:  reqId,
 		RequestIdx: reqIdx,
-		ChainID:    chainID,
+		ChainId:    chainId,
 		Status:     status,
-		Results:    results,
+		Response:   response,
 	}
 }
 
 var queryResponsePrefix = []byte("query_response_0000000000000000000|")
 
+// QueryResponsePublication is the response to a QueryRequest.
 type QueryResponsePublication struct {
 	Request           *gossipv1.SignedQueryRequest
-	PerChainResponses []PerChainQueryResponse
+	PerChainResponses []*PerChainQueryResponse
 }
 
+// PerChainQueryResponse represents a query response for a single chain.
 type PerChainQueryResponse struct {
-	ChainID   vaa.ChainID
-	Responses []EthCallQueryResponse
+	// ChainId indicates which chain this query was destine for.
+	ChainId vaa.ChainID
+
+	// Response is the chain specific query data.
+	Response ChainSpecificResponse
 }
 
+// ChainSpecificResponse is the interface that must be implemented by a chain specific response.
+type ChainSpecificResponse interface {
+	Type() ChainSpecificQueryType
+	Marshal() ([]byte, error)
+	Unmarshal(data []byte) error
+	UnmarshalFromReader(reader *bytes.Reader) error
+	Validate() error
+}
+
+// EthCallQueryResponse implements ChainSpecificResponse for an EVM eth_call query response.
 type EthCallQueryResponse struct {
 	Number *big.Int
 	Hash   common.Hash
 	Time   time.Time
-	Result []byte
-	// NOTE: If you modify this struct, please update the Equal() method for QueryResponsePublication.
-}
 
-const (
-	QUERY_REQUEST_TYPE_ETH_CALL = uint8(1)
-)
+	// Results is the array of responses matching CallData in EthCallQueryRequest
+	Results [][]byte
+}
 
 //
 // Implementation of QueryResponsePublication.
@@ -109,10 +121,6 @@ func (msg *QueryResponsePublication) Marshal() ([]byte, error) {
 
 // Unmarshal deserializes the binary representation of a query response
 func (msg *QueryResponsePublication) Unmarshal(data []byte) error {
-	// if len(data) < minMsgLength {
-	// 	return nil, fmt.Errorf("message is too short")
-	// }
-
 	reader := bytes.NewReader(data[:])
 
 	// Request
@@ -158,7 +166,7 @@ func (msg *QueryResponsePublication) Unmarshal(data []byte) error {
 		if err != nil {
 			return fmt.Errorf("failed to unmarshal per chain response: %w", err)
 		}
-		msg.PerChainResponses = append(msg.PerChainResponses, pcr)
+		msg.PerChainResponses = append(msg.PerChainResponses, &pcr)
 	}
 
 	return nil
@@ -182,9 +190,15 @@ func (msg *QueryResponsePublication) Validate() error {
 	if len(msg.PerChainResponses) > math.MaxUint8 {
 		return fmt.Errorf("too many per chain responses")
 	}
+	if len(msg.PerChainResponses) != len(queryRequest.PerChainQueries) {
+		return fmt.Errorf("number of responses does not match number of queries")
+	}
 	for idx, pcr := range msg.PerChainResponses {
 		if err := pcr.Validate(); err != nil {
 			return fmt.Errorf("failed to validate per chain query %d: %w", idx, err)
+		}
+		if pcr.Response.Type() != queryRequest.PerChainQueries[idx].Query.Type() {
+			return fmt.Errorf("type of response %d does not match the query", idx)
 		}
 	}
 	return nil
@@ -199,7 +213,7 @@ func (left *QueryResponsePublication) Equal(right *QueryResponsePublication) boo
 		return false
 	}
 	for idx := range left.PerChainResponses {
-		if !left.PerChainResponses[idx].Equal(&right.PerChainResponses[idx]) {
+		if !left.PerChainResponses[idx].Equal(right.PerChainResponses[idx]) {
 			return false
 		}
 	}
@@ -235,93 +249,75 @@ func GetQueryResponseDigestFromBytes(b []byte) common.Hash {
 //
 
 // Marshal marshalls a per chain query response.
-func (pcr *PerChainQueryResponse) Marshal() ([]byte, error) {
-	if err := pcr.Validate(); err != nil {
+func (perChainResponse *PerChainQueryResponse) Marshal() ([]byte, error) {
+	if err := perChainResponse.Validate(); err != nil {
 		return nil, err
 	}
 
 	buf := new(bytes.Buffer)
-	vaa.MustWrite(buf, binary.BigEndian, pcr.ChainID)
-	vaa.MustWrite(buf, binary.BigEndian, uint8(len(pcr.Responses)))
-	for _, resp := range pcr.Responses {
-		vaa.MustWrite(buf, binary.BigEndian, resp.Number.Uint64())
-		buf.Write(resp.Hash[:])
-		vaa.MustWrite(buf, binary.BigEndian, resp.Time.UnixMicro())
-		vaa.MustWrite(buf, binary.BigEndian, uint32(len(resp.Result)))
-		buf.Write(resp.Result)
+	vaa.MustWrite(buf, binary.BigEndian, perChainResponse.ChainId)
+	vaa.MustWrite(buf, binary.BigEndian, perChainResponse.Response.Type())
+	respBuf, err := perChainResponse.Response.Marshal()
+	if err != nil {
+		return nil, err
 	}
+	buf.Write(respBuf)
 	return buf.Bytes(), nil
 }
 
-func (pcr *PerChainQueryResponse) UnmarshalFromReader(reader *bytes.Reader) error {
-	if err := binary.Read(reader, binary.BigEndian, &pcr.ChainID); err != nil {
-		return fmt.Errorf("failed to read chain ID: %w", err)
+// Unmarshal deserializes the binary representation of a per chain query response from a byte array
+func (perChainResponse *PerChainQueryResponse) Unmarshal(data []byte) error {
+	reader := bytes.NewReader(data[:])
+	return perChainResponse.UnmarshalFromReader(reader)
+}
+
+// UnmarshalFromReader deserializes the binary representation of a per chain query response from an existing reader
+func (perChainResponse *PerChainQueryResponse) UnmarshalFromReader(reader *bytes.Reader) error {
+	if err := binary.Read(reader, binary.BigEndian, &perChainResponse.ChainId); err != nil {
+		return fmt.Errorf("failed to read response chain: %w", err)
 	}
 
-	numResponses := uint8(0)
-	if err := binary.Read(reader, binary.BigEndian, &numResponses); err != nil {
-		return fmt.Errorf("failed to read number of responses: %w", err)
+	qt := uint8(0)
+	if err := binary.Read(reader, binary.BigEndian, &qt); err != nil {
+		return fmt.Errorf("failed to read response type: %w", err)
+	}
+	queryType := ChainSpecificQueryType(qt)
+
+	if err := ValidatePerChainQueryRequestType(queryType); err != nil {
+		return err
 	}
 
-	for count := 0; count < int(numResponses); count++ {
-		queryResponse := EthCallQueryResponse{}
-
-		responseNumber := uint64(0)
-		if err := binary.Read(reader, binary.BigEndian, &responseNumber); err != nil {
-			return fmt.Errorf("failed to read response number: %w", err)
+	switch queryType {
+	case EthCallQueryRequestType:
+		r := EthCallQueryResponse{}
+		if err := r.UnmarshalFromReader(reader); err != nil {
+			return fmt.Errorf("failed to unmarshal eth call response: %w", err)
 		}
-		responseNumberBig := big.NewInt(0).SetUint64(responseNumber)
-		queryResponse.Number = responseNumberBig
-
-		responseHash := common.Hash{}
-		if n, err := reader.Read(responseHash[:]); err != nil || n != 32 {
-			return fmt.Errorf("failed to read response hash [%d]: %w", n, err)
-		}
-		queryResponse.Hash = responseHash
-
-		unixMicros := int64(0)
-		if err := binary.Read(reader, binary.BigEndian, &unixMicros); err != nil {
-			return fmt.Errorf("failed to read response timestamp: %w", err)
-		}
-		queryResponse.Time = time.UnixMicro(unixMicros)
-
-		responseResultLen := uint32(0)
-		if err := binary.Read(reader, binary.BigEndian, &responseResultLen); err != nil {
-			return fmt.Errorf("failed to read response len: %w", err)
-		}
-		responseResult := make([]byte, responseResultLen)
-		if n, err := reader.Read(responseResult[:]); err != nil || n != int(responseResultLen) {
-			return fmt.Errorf("failed to read result [%d]: %w", n, err)
-		}
-		queryResponse.Result = responseResult[:]
-
-		pcr.Responses = append(pcr.Responses, queryResponse)
+		perChainResponse.Response = &r
+	default:
+		return fmt.Errorf("unsupported query type: %d", queryType)
 	}
 
 	return nil
 }
 
 // ValidatePerChainResponse performs basic validation on a per chain query response.
-func (pcr *PerChainQueryResponse) Validate() error {
-	str := pcr.ChainID.String()
+func (perChainResponse *PerChainQueryResponse) Validate() error {
+	str := perChainResponse.ChainId.String()
 	if _, err := vaa.ChainIDFromString(str); err != nil {
-		return fmt.Errorf("invalid chainID: %d", uint16(pcr.ChainID))
+		return fmt.Errorf("invalid chainID: %d", uint16(perChainResponse.ChainId))
 	}
 
-	if len(pcr.Responses) == 0 {
-		return fmt.Errorf("response does not contain any responses")
-	}
-	if len(pcr.Responses) > math.MaxUint8 {
-		return fmt.Errorf("too many responses")
+	if perChainResponse.Response == nil {
+		return fmt.Errorf("response is nil")
 	}
 
-	for _, resp := range pcr.Responses {
-		if len(resp.Hash) != 32 {
-			return fmt.Errorf("invalid length for block hash")
-		}
-		if len(resp.Result) > math.MaxUint32 {
-			return fmt.Errorf("response data too long")
-		}
+	if err := ValidatePerChainQueryRequestType(perChainResponse.Response.Type()); err != nil {
+		return err
+	}
+
+	if err := perChainResponse.Response.Validate(); err != nil {
+		return fmt.Errorf("chain specific response is invalid: %w", err)
 	}
 
 	return nil
@@ -329,25 +325,162 @@ func (pcr *PerChainQueryResponse) Validate() error {
 
 // Equal checks for equality on two per chain query responses.
 func (left *PerChainQueryResponse) Equal(right *PerChainQueryResponse) bool {
-	if left.ChainID != right.ChainID {
+	if left.ChainId != right.ChainId {
 		return false
 	}
-	if len(left.Responses) != len(right.Responses) {
+
+	if left.Response == nil && right.Response == nil {
+		return true
+	}
+
+	if left.Response == nil || right.Response == nil {
 		return false
 	}
-	for idx := range left.Responses {
-		if left.Responses[idx].Number.Cmp(right.Responses[idx].Number) != 0 {
+
+	if left.Response.Type() != right.Response.Type() {
+		return false
+	}
+
+	switch leftEcq := left.Response.(type) {
+	case *EthCallQueryResponse:
+		switch rightEcd := right.Response.(type) {
+		case *EthCallQueryResponse:
+			return leftEcq.Equal(rightEcd)
+		default:
+			panic("unsupported query type on right") // We checked this above!
+		}
+	default:
+		panic("unsupported query type on left") // We checked this above!
+	}
+}
+
+//
+// Implementation of EthCallQueryResponse, which implements the ChainSpecificResponse for an EVM eth_call query response.
+//
+
+func (e *EthCallQueryResponse) Type() ChainSpecificQueryType {
+	return EthCallQueryRequestType
+}
+
+// Marshal serializes the binary representation of an EVM eth_call response.
+// This method calls Validate() and relies on it to range checks lengths, etc.
+func (ecr *EthCallQueryResponse) Marshal() ([]byte, error) {
+	if err := ecr.Validate(); err != nil {
+		return nil, err
+	}
+
+	buf := new(bytes.Buffer)
+	vaa.MustWrite(buf, binary.BigEndian, ecr.Number.Uint64())
+	buf.Write(ecr.Hash[:])
+	vaa.MustWrite(buf, binary.BigEndian, ecr.Time.UnixMicro())
+
+	vaa.MustWrite(buf, binary.BigEndian, uint8(len(ecr.Results)))
+	for idx := range ecr.Results {
+		vaa.MustWrite(buf, binary.BigEndian, uint32(len(ecr.Results[idx])))
+		buf.Write(ecr.Results[idx])
+	}
+
+	return buf.Bytes(), nil
+}
+
+// Unmarshal deserializes an EVM eth_call response from a byte array
+func (ecr *EthCallQueryResponse) Unmarshal(data []byte) error {
+	reader := bytes.NewReader(data[:])
+	return ecr.UnmarshalFromReader(reader)
+}
+
+// UnmarshalFromReader  deserializes an EVM eth_call response from a byte array
+func (ecr *EthCallQueryResponse) UnmarshalFromReader(reader *bytes.Reader) error {
+	responseNumber := uint64(0)
+	if err := binary.Read(reader, binary.BigEndian, &responseNumber); err != nil {
+		return fmt.Errorf("failed to read response number: %w", err)
+	}
+	ecr.Number = big.NewInt(0).SetUint64(responseNumber)
+
+	responseHash := common.Hash{}
+	if n, err := reader.Read(responseHash[:]); err != nil || n != 32 {
+		return fmt.Errorf("failed to read response hash [%d]: %w", n, err)
+	}
+	ecr.Hash = responseHash
+
+	unixMicros := int64(0)
+	if err := binary.Read(reader, binary.BigEndian, &unixMicros); err != nil {
+		return fmt.Errorf("failed to read response timestamp: %w", err)
+	}
+	ecr.Time = time.UnixMicro(unixMicros)
+
+	numResults := uint8(0)
+	if err := binary.Read(reader, binary.BigEndian, &numResults); err != nil {
+		return fmt.Errorf("failed to read number of results: %w", err)
+	}
+
+	for count := 0; count < int(numResults); count++ {
+		resultLen := uint32(0)
+		if err := binary.Read(reader, binary.BigEndian, &resultLen); err != nil {
+			return fmt.Errorf("failed to read result len: %w", err)
+		}
+		result := make([]byte, resultLen)
+		if n, err := reader.Read(result[:]); err != nil || n != int(resultLen) {
+			return fmt.Errorf("failed to read result [%d]: %w", n, err)
+		}
+
+		ecr.Results = append(ecr.Results, result)
+	}
+
+	return nil
+}
+
+// Validate does basic validation on an EVM eth_call response.
+func (ecr *EthCallQueryResponse) Validate() error {
+	if ecr.Number == nil {
+		return fmt.Errorf("number is nil")
+	}
+
+	if ecr.Number.Cmp(big.NewInt(0).SetUint64(math.MaxUint64)) > 0 {
+		return fmt.Errorf("number is too large to fit in uint64")
+	}
+
+	if len(ecr.Hash) != 32 {
+		return fmt.Errorf("invalid length for block hash")
+	}
+
+	if len(ecr.Results) == 0 {
+		return fmt.Errorf("does not contain any results")
+	}
+	if len(ecr.Results) > math.MaxUint8 {
+		return fmt.Errorf("too many results")
+	}
+	for _, result := range ecr.Results {
+		if len(result) > math.MaxUint32 {
+			return fmt.Errorf("result too long")
+		}
+	}
+	return nil
+}
+
+// Equal verifies that two EVM eth_call responses are equal.
+func (left *EthCallQueryResponse) Equal(right *EthCallQueryResponse) bool {
+	if left.Number != nil || right.Number != nil {
+		if left.Number == nil || right.Number == nil {
 			return false
 		}
-		if !bytes.Equal(left.Responses[idx].Hash.Bytes(), right.Responses[idx].Hash.Bytes()) {
-			return false
-		}
-		if left.Responses[idx].Time != right.Responses[idx].Time {
-			return false
-		}
-		if !bytes.Equal(left.Responses[idx].Result, right.Responses[idx].Result) {
+		if left.Number.Cmp(right.Number) != 0 {
 			return false
 		}
 	}
+
+	if !bytes.Equal(left.Hash.Bytes(), right.Hash.Bytes()) {
+		return false
+	}
+
+	if len(left.Results) != len(right.Results) {
+		return false
+	}
+	for idx := range left.Results {
+		if !bytes.Equal(left.Results[idx], right.Results[idx]) {
+			return false
+		}
+	}
+
 	return true
 }

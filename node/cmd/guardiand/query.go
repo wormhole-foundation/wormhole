@@ -205,7 +205,7 @@ func handleQueryRequestsImpl(
 
 		case resp := <-queryResponseReadC: // Response from a watcher.
 			if resp.Status == common.QuerySuccess {
-				if len(resp.Results) == 0 {
+				if resp.Response == nil {
 					qLogger.Error("received a successful query response with no results, dropping it!", zap.String("requestID", resp.RequestID))
 					continue
 				}
@@ -234,16 +234,16 @@ func handleQueryRequestsImpl(
 				}
 
 				// Build the list of per chain response publications and the overall query response publication.
-				responses := []common.PerChainQueryResponse{}
+				responses := []*common.PerChainQueryResponse{}
 				for _, resp := range pq.responses {
 					if resp == nil {
 						qLogger.Error("unexpected null response in pending query!", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx))
 						continue
 					}
 
-					responses = append(responses, common.PerChainQueryResponse{
-						ChainID:   resp.ChainID,
-						Responses: resp.Results,
+					responses = append(responses, &common.PerChainQueryResponse{
+						ChainId:  resp.ChainId,
+						Response: resp.Response,
 					})
 				}
 

@@ -112,18 +112,18 @@ func createExpectedResultsForTest(perChainQueries []*common.PerChainQueryRequest
 			if err != nil {
 				panic("invalid blockNum!")
 			}
-			resp := []common.EthCallQueryResponse{}
+			resp := &common.EthCallQueryResponse{
+				Number:  big.NewInt(blockNum),
+				Hash:    ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"),
+				Time:    timeForTest(timeForTest(now)),
+				Results: [][]byte{},
+			}
 			for _, cd := range req.CallData {
-				resp = append(resp, common.EthCallQueryResponse{
-					Number: big.NewInt(blockNum),
-					Hash:   ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"),
-					Time:   timeForTest(timeForTest(now)),
-					Result: []byte(hex.EncodeToString(cd.To) + ":" + hex.EncodeToString(cd.Data)),
-				})
+				resp.Results = append(resp.Results, []byte(hex.EncodeToString(cd.To)+":"+hex.EncodeToString(cd.Data)))
 			}
 			expectedResults = append(expectedResults, common.PerChainQueryResponse{
-				ChainID:   pcq.ChainId,
-				Responses: resp,
+				ChainId:  pcq.ChainId,
+				Response: resp,
 			})
 
 		default:
@@ -355,10 +355,10 @@ func createQueryHandlerForTestWithoutPublisher(t *testing.T, ctx context.Context
 					if md.shouldIgnoreAlreadyLocked(chainId) {
 						logger.Info("watcher ignoring query", zap.String("chainId", chainId.String()), zap.Int("requestIdx", pcqr.RequestIdx))
 					} else {
-						results := md.expectedResults[pcqr.RequestIdx].Responses
-						result := md.getStatusAlreadyLocked(chainId)
-						logger.Info("watcher returning", zap.String("chainId", chainId.String()), zap.Int("requestIdx", pcqr.RequestIdx), zap.Int("result", int(result)))
-						queryResponse := common.CreatePerChainQueryResponseInternal(pcqr.RequestID, pcqr.RequestIdx, pcqr.Request.ChainId, result, results)
+						results := md.expectedResults[pcqr.RequestIdx].Response
+						status := md.getStatusAlreadyLocked(chainId)
+						logger.Info("watcher returning", zap.String("chainId", chainId.String()), zap.Int("requestIdx", pcqr.RequestIdx), zap.Int("status", int(status)))
+						queryResponse := common.CreatePerChainQueryResponseInternal(pcqr.RequestID, pcqr.RequestIdx, pcqr.Request.ChainId, status, results)
 						md.queryResponseWriteC <- queryResponse
 					}
 					md.mutex.Unlock()
@@ -431,62 +431,6 @@ func TestInvalidQueries(t *testing.T) {
 	signedQueryRequest, _ = createSignedQueryRequestForTesting(md.sk, perChainQueries)
 	md.signedQueryReqWriteC <- signedQueryRequest
 	require.Nil(t, md.waitForResponse())
-
-	/*
-		 TODO: These tests should be done in common/query_test.go. Make sure they are there.
-			// Query with no per-chain queries should fail.
-			md.resetState()
-			queryRequest := &common.QueryRequest{
-				Nonce:           42,
-				PerChainQueries: []*common.PerChainQueryRequest{},
-			}
-			_, err = queryRequest.Marshal()
-			require.Error(t, err)
-
-			// Query for an invalid chain should fail.
-			md.resetState()
-			perChainQueries = []*common.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
-			perChainQueries[0].ChainId = vaa.ChainID(math.MaxUint16) // Corrupt the chain ID.
-
-			queryRequest = &common.QueryRequest{
-				Nonce:           42,
-				PerChainQueries: perChainQueries,
-			}
-			_, err = queryRequest.Marshal()
-			require.Error(t, err)
-
-			// Query for "latest" should fail.
-			md.resetState()
-			perChainQueries = []*common.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
-			switch req := perChainQueries[0].Query.(type) {
-			case *common.EthCallQueryRequest:
-				req.BlockId = "latest"
-			}
-			queryRequest = &common.QueryRequest{
-				Nonce:           42,
-				PerChainQueries: perChainQueries,
-			}
-			_, err = queryRequest.Marshal()
-			require.Error(t, err)
-
-			// A per-chain query with no call data should fail.
-			md.resetState()
-			perChainQueries = []*common.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 0)}
-			signedQueryRequest, _ = createSignedQueryRequestForTesting(md.sk, perChainQueries)
-			md.signedQueryReqWriteC <- signedQueryRequest
-			require.Nil(t, md.waitForResponse())
-
-			// Wrong length "To" contract should fail.
-			md.resetState()
-			perChainQueries = []*common.PerChainQueryRequest{createPerChainQueryForTesting(vaa.ChainIDPolygon, "0x28d9630", 2)}
-			switch req := perChainQueries[0].Query.(type) {
-			case *common.EthCallQueryRequest:
-				req.CallData[0].To = req.CallData[0].To[2:]
-			}
-			signedQueryRequest, _ = createSignedQueryRequestForTesting(md.sk, perChainQueries)
-			md.signedQueryReqWriteC <- signedQueryRequest
-			require.Nil(t, md.waitForResponse())
-	*/
 }
 
 func TestSingleQueryShouldSucceed(t *testing.T) {

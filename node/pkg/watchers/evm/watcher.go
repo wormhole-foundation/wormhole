@@ -665,7 +665,12 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						continue
 					}
 
-					resp := []common.EthCallQueryResponse{}
+					resp := common.EthCallQueryResponse{
+						Number:  blockResult.Number.ToInt(),
+						Hash:    blockResult.Hash,
+						Time:    time.Unix(int64(blockResult.Time), 0),
+						Results: [][]byte{},
+					}
 
 					errFound := false
 					for idx := range req.CallData {
@@ -710,16 +715,11 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.String("component", "ccqevm"),
 						)
 
-						resp = append(resp, common.EthCallQueryResponse{
-							Number: blockResult.Number.ToInt(),
-							Hash:   blockResult.Hash,
-							Time:   time.Unix(int64(blockResult.Time), 0),
-							Result: *evmCallData[idx].callResult,
-						})
+						resp.Results = append(resp.Results, *evmCallData[idx].callResult)
 					}
 
 					if !errFound {
-						w.ccqSendQueryResponse(logger, queryRequest, common.QuerySuccess, resp)
+						w.ccqSendQueryResponse(logger, queryRequest, common.QuerySuccess, &resp)
 					}
 
 				default:
@@ -1150,8 +1150,8 @@ func (w *Watcher) SetMaxWaitConfirmations(maxWaitConfirmations uint64) {
 }
 
 // ccqSendQueryResponse sends an error response back to the query handler.
-func (w *Watcher) ccqSendQueryResponse(logger *zap.Logger, req *common.PerChainQueryInternal, status common.QueryStatus, results []common.EthCallQueryResponse) {
-	queryResponse := common.CreatePerChainQueryResponseInternal(req.RequestID, req.RequestIdx, req.Request.ChainId, status, results)
+func (w *Watcher) ccqSendQueryResponse(logger *zap.Logger, req *common.PerChainQueryInternal, status common.QueryStatus, resp *common.EthCallQueryResponse) {
+	queryResponse := common.CreatePerChainQueryResponseInternal(req.RequestID, req.RequestIdx, req.Request.ChainId, status, resp)
 	select {
 	case w.queryResponseC <- queryResponse:
 		logger.Debug("published query response error to handler", zap.String("component", "ccqevm"))
