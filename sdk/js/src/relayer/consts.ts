@@ -64,6 +64,12 @@ const MAINNET: { [K in ChainName]?: AddressInfo } = {
   celo: {
     wormholeRelayerAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
   },
+  acala: {
+    wormholeRelayerAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
+  },
+  karura: {
+    wormholeRelayerAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
+  },
   moonbeam: {
     wormholeRelayerAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
   },
