@@ -1,10 +1,17 @@
-import { ChainId, Network, ChainName, CHAIN_ID_TO_NAME,} from "../";
+import { ChainId, Network, ChainName, CHAIN_ID_TO_NAME } from "../";
 import { ethers } from "ethers";
-import { WormholeRelayer__factory, WormholeRelayer } from "../ethers-contracts/";
+import {
+  WormholeRelayer__factory,
+  WormholeRelayer,
+} from "../ethers-contracts/";
 
-type AddressInfo = {wormholeRelayerAddress?: string, mockDeliveryProviderAddress?: string, mockIntegrationAddress?: string}
+type AddressInfo = {
+  wormholeRelayerAddress?: string;
+  mockDeliveryProviderAddress?: string;
+  mockIntegrationAddress?: string;
+};
 
-const TESTNET: {[K in ChainName]?: AddressInfo} = {
+const TESTNET: { [K in ChainName]?: AddressInfo } = {
   bsc: {
     wormholeRelayerAddress: "0x6Bf598B0eb6aef9B163565763Fe50e54d230eD4E",
   },
@@ -20,9 +27,9 @@ const TESTNET: {[K in ChainName]?: AddressInfo} = {
   moonbeam: {
     wormholeRelayerAddress: "0xd20d484eC6c57448d6871F91F4527260FD4aC141",
   },
-}
+};
 
-const DEVNET: {[K in ChainName]?: AddressInfo} = {
+const DEVNET: { [K in ChainName]?: AddressInfo } = {
   ethereum: {
     wormholeRelayerAddress: "0xE66C1Bc1b369EF4F376b84373E3Aa004E8F4C083",
     mockDeliveryProviderAddress: "0x1ef9e15c3bbf0555860b5009B51722027134d53a",
@@ -35,13 +42,41 @@ const DEVNET: {[K in ChainName]?: AddressInfo} = {
   },
 };
 
-const MAINNET: {[K in ChainName]?: AddressInfo} = {};
+const MAINNET: { [K in ChainName]?: AddressInfo } = {
+  ethereum: {
+    wormholeRelayerAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
+  },
+  bsc: {
+    wormholeRelayerAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
+  },
+  polygon: {
+    wormholeRelayerAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
+  },
+  avalanche: {
+    wormholeRelayerAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
+  },
+  fantom: {
+    wormholeRelayerAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
+  },
+  klaytn: {
+    wormholeRelayerAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
+  },
+  celo: {
+    wormholeRelayerAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
+  },
+  moonbeam: {
+    wormholeRelayerAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
+  },
+};
 
-export const RELAYER_CONTRACTS = {MAINNET, TESTNET, DEVNET};
+export const RELAYER_CONTRACTS = { MAINNET, TESTNET, DEVNET };
 
-export function getAddressInfo(chainName: ChainName, env: Network): AddressInfo {
+export function getAddressInfo(
+  chainName: ChainName,
+  env: Network
+): AddressInfo {
   const result: AddressInfo | undefined = RELAYER_CONTRACTS[env][chainName];
-  if(!result) throw Error(`No address info for chain ${chainName} on ${env}`);
+  if (!result) throw Error(`No address info for chain ${chainName} on ${env}`);
   return result;
 }
 
@@ -50,7 +85,10 @@ export function getWormholeRelayerAddress(
   env: Network
 ): string {
   const result = getAddressInfo(chainName, env).wormholeRelayerAddress;
-  if(!result) throw Error(`No Wormhole Relayer Address for chain ${chainName}, network ${env}`);
+  if (!result)
+    throw Error(
+      `No Wormhole Relayer Address for chain ${chainName}, network ${env}`
+    );
   return result;
 }
 
@@ -60,8 +98,12 @@ export function getWormholeRelayer(
   provider: ethers.providers.Provider | ethers.Signer,
   wormholeRelayerAddress?: string
 ): WormholeRelayer {
-  const thisChainsRelayer = wormholeRelayerAddress || getWormholeRelayerAddress(chainName, env);
-  const contract = WormholeRelayer__factory.connect(thisChainsRelayer, provider);
+  const thisChainsRelayer =
+    wormholeRelayerAddress || getWormholeRelayerAddress(chainName, env);
+  const contract = WormholeRelayer__factory.connect(
+    thisChainsRelayer,
+    provider
+  );
   return contract;
 }
 
