@@ -27,8 +27,10 @@ export type Flag = {
 };
 
 export const test_command_flags = (command: string, flags: Flag[]) => {
+  const wormCommandRegex = /^worm /;
+
   //NOTE: Guard condition to avoid passing infered `worm` keyword from command input
-  if (command.includes("worm")) {
+  if (new RegExp(wormCommandRegex).test(command)) {
     throw new Error(
       "initial 'worm' keyword must be excluded from command params, pass only worm specific commands."
     );
