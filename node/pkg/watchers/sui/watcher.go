@@ -223,12 +223,12 @@ func (w *Watcher) inspectBody(body SuiResult) error {
 
 	seq, err := strconv.ParseUint(*fields.Sequence, 10, 64)
 	if err != nil {
-		w.logger.Info("Sequence decode error", zap.String("Sequence", *fields.Sequence))
+		w.logger.Error("Sequence decode error", zap.String("Sequence", *fields.Sequence))
 		return err
 	}
 	ts, err := strconv.ParseInt(*fields.Timestamp, 10, 64)
 	if err != nil {
-		w.logger.Info("Timestamp decode error", zap.String("Timestamp", *fields.Timestamp))
+		w.logger.Error("Timestamp decode error", zap.String("Timestamp", *fields.Timestamp))
 		return err
 	}
 
