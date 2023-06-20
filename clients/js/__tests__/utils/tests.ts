@@ -60,7 +60,8 @@ export const test_command_flags = (
     const expectedFlagAlias = flags.map((arg) => arg.alias);
 
     expectedFlagAlias.forEach((alias) => {
-      if (alias) expect(output).toContain(alias);
+      // Regex to avoid false positives in alias (could be part of command flag substring)
+      if (alias) expect(output).toMatch(new RegExp(`${alias}(,| )`));
     });
   });
 };
