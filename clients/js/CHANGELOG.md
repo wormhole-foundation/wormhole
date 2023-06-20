@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.0.4
+
+### Changed
+
+- Add unit tests for all worm CLI commands (following `worm <command> --help` pattern)
+- Add unit tests to check functionality on the following commands:
+  - `worm parse`
+  - `worm recover`
+  - `worm info chain-id`
+  - `worm info rpc`
+  - `worm info contract`
+- Generate HTML tests report for every test run (`worm-cli-tests-report.html`)
+
 ## 0.0.3
 
 ### Changed
