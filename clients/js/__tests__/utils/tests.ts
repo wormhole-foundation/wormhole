@@ -3,10 +3,14 @@ import { run_worm_help_command } from "./cli";
 
 export const test_command_positional_args = (
   command: string,
-  args: string[]
+  args: string[],
+  skip?: boolean
 ) => {
+  if (skip) return;
+
   //NOTE: Guard condition to avoid passing infered `worm` keyword from command input
-  if (command.includes("worm")) {
+  const wormCommandRegex = /^worm /;
+  if (new RegExp(wormCommandRegex).test(command)) {
     throw new Error(
       "initial 'worm' keyword must be excluded from command params, pass only worm specific commands."
     );
@@ -26,15 +30,21 @@ export type Flag = {
   alias?: string;
 };
 
-export const test_command_flags = (command: string, flags: Flag[]) => {
-  const wormCommandRegex = /^worm /;
+export const test_command_flags = (
+  command: string,
+  flags: Flag[],
+  skip?: boolean
+) => {
+  if (skip) return;
 
   //NOTE: Guard condition to avoid passing infered `worm` keyword from command input
+  const wormCommandRegex = /^worm /;
   if (new RegExp(wormCommandRegex).test(command)) {
     throw new Error(
       "initial 'worm' keyword must be excluded from command params, pass only worm specific commands."
     );
   }
+
   // Run the command module with --help as argument
   const output = run_worm_help_command(command);
 
