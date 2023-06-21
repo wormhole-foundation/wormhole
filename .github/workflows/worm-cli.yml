@@ -34,9 +34,8 @@ jobs:
         run: |
           npm run test-ci
 
-      - name: Review tests HTML report
-        working-directory: ./clients/js
-        run: |
-          echo "Visit Worm CLI test report here: $HTML_TEST_REPORT_PATH"
-        env:
-          HTML_TEST_REPORT_PATH: ./html-report/worm-cli-tests-report.html # This is relative to working-directory
+      - name: Save HTML report as artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: worm-cli-test-report
+          path: ./clients/js/html-report/worm-cli-tests-report.html
