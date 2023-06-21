@@ -39,6 +39,7 @@ describe("worm info contract", () => {
           });
 
           //TODO: remove 'skip' once fix on wormhole SDK is merged & published (missing aptos testnet NFTBridge contract as consts)
+          // PR source: https://github.com/wormhole-foundation/wormhole/pull/3110
           it.skip(`should return ${chain} NFTBridge ${network} contract correctly`, async () => {
             try {
               const output = run_worm_command(
