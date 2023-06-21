@@ -54,7 +54,6 @@ type TestChain = {
   chainId: ChainId;
   name: ChainName;
   provider: ethers.providers.Provider;
-  coreWormhole: string;
   wallet: ethers.Wallet;
   wormholeRelayerAddress: string;
   mockIntegrationAddress: string;
@@ -91,7 +90,6 @@ const createTestChain = (name: ChainName) => {
     wallet,
     wormholeRelayerAddress: addressInfo.wormholeRelayerAddress,
     mockIntegrationAddress: addressInfo.mockIntegrationAddress,
-    coreWormhole: "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550", // todo: change to work with non-tilt testing set ups
     wormholeRelayer,
     mockIntegration,
   };
@@ -223,26 +221,28 @@ describe("Wormhole Relayer Tests", () => {
     console.log(`Sent message: ${arbitraryPayload}`);
 
     const deliverySeq = await Implementation__factory.connect(
-      source.coreWormhole,
+      CONTRACTS[network][sourceChain].core || "",
       source.provider
     ).nextSequence(source.wormholeRelayerAddress);
-    const rx = await testSend(arbitraryPayload);
 
-    const wormholeDevnetRpcs = ["http://localhost:7071/v1"];
+    console.log(`Got delivery seq: ${deliverySeq}`);
+    const rx = await testSend(arbitraryPayload);
 
     await sleep(1000);
 
-    const deliveryVaa = await getVAA(wormholeDevnetRpcs, {
+    const deliveryVaa = await getVAA(getGuardianRPC(network, ci), {
       emitterAddress: Buffer.from(
         tryNativeToUint8Array(source.wormholeRelayerAddress, "ethereum")
       ),
       chainId: source.chainId,
       sequence: deliverySeq,
     }, true);
+
+    console.log(`Got delivery VAA: ${deliveryVaa}`);
     const deliveryRx = await deliver(
       deliveryVaa,
       target.wallet,
-      wormholeDevnetRpcs,
+      getGuardianRPC(network, ci),
       network
     );
     console.log("Manual delivery tx hash", deliveryRx.transactionHash);
