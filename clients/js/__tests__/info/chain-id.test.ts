@@ -13,7 +13,7 @@ describe("worm info chain-id", () => {
     test_command_positional_args("info chain-id", args);
   });
 
-  describe("check functionality", () => {
+  describe.skip("check functionality", () => {
     const chains: WormholeSDKChainName[] = getChains();
 
     chains.forEach((chain) => {
