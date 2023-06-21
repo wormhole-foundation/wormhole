@@ -42,6 +42,7 @@ import {
 import { Wormhole__factory } from "../../../lib/cjs/ethers-contracts";
 import { getEmitterAddressEth } from "../../bridge";
 import { deliver } from "../relayer";
+import { env } from "process";
 
 const network: Network = getNetwork();
 const ci: boolean = isCI();
@@ -224,7 +225,7 @@ describe("Wormhole Relayer Tests", () => {
     const deliverySeq = await Implementation__factory.connect(
       source.coreWormhole,
       source.provider
-    ).nextSequence(getEmitterAddressEth(source.wormholeRelayerAddress));
+    ).nextSequence(source.wormholeRelayerAddress);
     const rx = await testSend(arbitraryPayload);
 
     const wormholeDevnetRpcs = ["http://localhost:7071/v1"];
@@ -242,7 +243,7 @@ describe("Wormhole Relayer Tests", () => {
       deliveryVaa,
       target.wallet,
       wormholeDevnetRpcs,
-      "DEVNET"
+      network
     );
     console.log("Manual delivery tx hash", deliveryRx.transactionHash);
     console.log("Manual delivery tx status", deliveryRx.status);
