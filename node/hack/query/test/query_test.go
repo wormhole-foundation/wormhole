@@ -185,31 +185,29 @@ func TestCrossChainQuery(t *testing.T) {
 	}
 	to, _ := hex.DecodeString("DDb64fE46a91D46ee29420539FC25FD07c5FEa3E") // WETH
 
-	callData := []*gossipv1.EthCallQueryRequest_EthCallData{
+	callData := []*common.EthCallData{
 		{
 			To:   to,
 			Data: data,
 		},
 	}
 
-	callRequest := &gossipv1.EthCallQueryRequest{
-		Block:    hexutil.EncodeBig(blockNum),
+	callRequest := &common.EthCallQueryRequest{
+		BlockId:  hexutil.EncodeBig(blockNum),
 		CallData: callData,
 	}
 
-	queryRequest := &gossipv1.QueryRequest{
+	queryRequest := &common.QueryRequest{
 		Nonce: 1,
-		PerChainQueries: []*gossipv1.PerChainQueryRequest{
+		PerChainQueries: []*common.PerChainQueryRequest{
 			{
 				ChainId: 2,
-				Message: &gossipv1.PerChainQueryRequest_EthCallQueryRequest{
-					EthCallQueryRequest: callRequest,
-				},
+				Query:   callRequest,
 			},
 		},
 	}
 
-	queryRequestBytes, err := proto.Marshal(queryRequest)
+	queryRequestBytes, err := queryRequest.Marshal()
 	if err != nil {
 		panic(err)
 	}
@@ -262,7 +260,8 @@ func TestCrossChainQuery(t *testing.T) {
 		switch m := msg.Message.(type) {
 		case *gossipv1.GossipMessage_SignedQueryResponse:
 			logger.Info("query response received", zap.Any("response", m.SignedQueryResponse))
-			response, err := common.UnmarshalQueryResponsePublication(m.SignedQueryResponse.QueryResponse)
+			var response common.QueryResponsePublication
+			err := response.Unmarshal(m.SignedQueryResponse.QueryResponse)
 			if err != nil {
 				logger.Fatal("failed to unmarshal response", zap.Error(err))
 			}
@@ -297,22 +296,28 @@ func TestCrossChainQuery(t *testing.T) {
 					break
 				}
 
-				pcq := response.PerChainResponses[0]
+				var pcq *common.EthCallQueryResponse
+				switch ecq := response.PerChainResponses[0].Response.(type) {
+				case *common.EthCallQueryResponse:
+					pcq = ecq
+				default:
+					panic("unsupported query type")
+				}
 
-				if len(pcq.Responses) == 0 {
+				if len(pcq.Results) == 0 {
 					logger.Warn("response did not contain any results", zap.Error(err))
 					break
 				}
 
-				for idx, resp := range pcq.Responses {
-					result, err := wethAbi.Methods[methodName].Outputs.Unpack(resp.Result)
+				for idx, resp := range pcq.Results {
+					result, err := wethAbi.Methods[methodName].Outputs.Unpack(resp)
 					if err != nil {
 						logger.Warn("failed to unpack result", zap.Error(err))
 						break
 					}
 
-					resultStr := hexutil.Encode(resp.Result)
-					logger.Info("found matching response", zap.Int("idx", idx), zap.String("number", resp.Number.String()), zap.String("hash", resp.Hash.String()), zap.String("time", resp.Time.String()), zap.Any("resultDecoded", result), zap.String("resultStr", resultStr))
+					resultStr := hexutil.Encode(resp)
+					logger.Info("found matching response", zap.Int("idx", idx), zap.Uint64("number", pcq.BlockNumber), zap.String("hash", pcq.Hash.String()), zap.String("time", pcq.Time.String()), zap.Any("resultDecoded", result), zap.String("resultStr", resultStr))
 				}
 
 				success = true
