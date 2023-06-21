@@ -181,7 +181,7 @@ func main() {
 	}
 
 	methods := []string{"name", "totalSupply"}
-	callData := []*gossipv1.EthCallQueryRequest_EthCallData{}
+	callData := []*common.EthCallData{}
 	to, _ := hex.DecodeString("0d500b1d8e8ef31e21c99d1db9a6444d3adf1270")
 
 	for _, method := range methods {
@@ -190,7 +190,7 @@ func main() {
 			panic(err)
 		}
 
-		callData = append(callData, &gossipv1.EthCallQueryRequest_EthCallData{
+		callData = append(callData, &common.EthCallData{
 			To:   to,
 			Data: data,
 		})
@@ -211,8 +211,8 @@ func main() {
 	// block := "0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"
 
 	// Start of query creation...
-	callRequest := &gossipv1.EthCallQueryRequest{
-		Block:    hexutil.EncodeBig(blockNum),
+	callRequest := &common.EthCallQueryRequest{
+		BlockId:  hexutil.EncodeBig(blockNum),
 		CallData: callData,
 	}
 
@@ -228,8 +228,8 @@ func main() {
 
 	// Second request...
 	blockNum = blockNum.Sub(blockNum, big.NewInt(5))
-	callRequest2 := &gossipv1.EthCallQueryRequest{
-		Block:    hexutil.EncodeBig(blockNum),
+	callRequest2 := &common.EthCallQueryRequest{
+		BlockId:  hexutil.EncodeBig(blockNum),
 		CallData: callData,
 	}
 	queryRequest2 := createQueryRequest(callRequest2)
@@ -239,7 +239,7 @@ func main() {
 	// Now, want to send a single query with multiple requests...
 	logger.Info("Starting multiquery test in 5...")
 	time.Sleep(time.Second * 5)
-	multiCallRequest := []*gossipv1.EthCallQueryRequest{callRequest, callRequest2}
+	multiCallRequest := []*common.EthCallQueryRequest{callRequest, callRequest2}
 	multQueryRequest := createQueryRequestWithMultipleRequests(multiCallRequest)
 	sendQueryAndGetRsp(multQueryRequest, sk, th, ctx, logger, sub, wethAbi, methods)
 
@@ -264,41 +264,37 @@ const (
 	GuardianKeyArmoredBlock = "WORMHOLE GUARDIAN PRIVATE KEY"
 )
 
-func createQueryRequest(callRequest *gossipv1.EthCallQueryRequest) *gossipv1.QueryRequest {
-	queryRequest := &gossipv1.QueryRequest{
+func createQueryRequest(callRequest *common.EthCallQueryRequest) *common.QueryRequest {
+	queryRequest := &common.QueryRequest{
 		Nonce: rand.Uint32(),
-		PerChainQueries: []*gossipv1.PerChainQueryRequest{
+		PerChainQueries: []*common.PerChainQueryRequest{
 			{
 				ChainId: 5,
-				Message: &gossipv1.PerChainQueryRequest_EthCallQueryRequest{
-					EthCallQueryRequest: callRequest,
-				},
+				Query:   callRequest,
 			},
 		},
 	}
 	return queryRequest
 }
 
-func createQueryRequestWithMultipleRequests(callRequests []*gossipv1.EthCallQueryRequest) *gossipv1.QueryRequest {
-	perChainQueries := []*gossipv1.PerChainQueryRequest{}
+func createQueryRequestWithMultipleRequests(callRequests []*common.EthCallQueryRequest) *common.QueryRequest {
+	perChainQueries := []*common.PerChainQueryRequest{}
 	for _, req := range callRequests {
-		perChainQueries = append(perChainQueries, &gossipv1.PerChainQueryRequest{
+		perChainQueries = append(perChainQueries, &common.PerChainQueryRequest{
 			ChainId: 5,
-			Message: &gossipv1.PerChainQueryRequest_EthCallQueryRequest{
-				EthCallQueryRequest: req,
-			},
+			Query:   req,
 		})
 	}
 
-	queryRequest := &gossipv1.QueryRequest{
+	queryRequest := &common.QueryRequest{
 		Nonce:           rand.Uint32(),
 		PerChainQueries: perChainQueries,
 	}
 	return queryRequest
 }
 
-func sendQueryAndGetRsp(queryRequest *gossipv1.QueryRequest, sk *ecdsa.PrivateKey, th *pubsub.Topic, ctx context.Context, logger *zap.Logger, sub *pubsub.Subscription, wethAbi abi.ABI, methods []string) {
-	queryRequestBytes, err := proto.Marshal(queryRequest)
+func sendQueryAndGetRsp(queryRequest *common.QueryRequest, sk *ecdsa.PrivateKey, th *pubsub.Topic, ctx context.Context, logger *zap.Logger, sub *pubsub.Subscription, wethAbi abi.ABI, methods []string) {
+	queryRequestBytes, err := queryRequest.Marshal()
 	if err != nil {
 		panic(err)
 	}
@@ -352,7 +348,8 @@ func sendQueryAndGetRsp(queryRequest *gossipv1.QueryRequest, sk *ecdsa.PrivateKe
 		switch m := msg.Message.(type) {
 		case *gossipv1.GossipMessage_SignedQueryResponse:
 			logger.Info("query response received", zap.Any("response", m.SignedQueryResponse))
-			response, err := common.UnmarshalQueryResponsePublication(m.SignedQueryResponse.QueryResponse)
+			var response common.QueryResponsePublication
+			err := response.Unmarshal(m.SignedQueryResponse.QueryResponse)
 			if err != nil {
 				logger.Warn("failed to unmarshal response", zap.Error(err))
 				break
@@ -366,25 +363,39 @@ func sendQueryAndGetRsp(queryRequest *gossipv1.QueryRequest, sk *ecdsa.PrivateKe
 					break
 				}
 				// Do double loop over responses
-				for index, pcq := range response.PerChainResponses {
+				for index := range response.PerChainResponses {
 					logger.Info("per chain query response index", zap.Int("index", index))
 
-					localCallData := queryRequest.PerChainQueries[index].GetEthCallQueryRequest().GetCallData()
+					var localCallData []*common.EthCallData
+					switch ecq := queryRequest.PerChainQueries[index].Query.(type) {
+					case *common.EthCallQueryRequest:
+						localCallData = ecq.CallData
+					default:
+						panic("unsupported query type")
+					}
 
-					if len(pcq.Responses) != len(localCallData) {
-						logger.Warn("unexpected number of results", zap.Int("expectedNum", len(localCallData)), zap.Int("expectedNum", len(pcq.Responses)))
+					var localResp *common.EthCallQueryResponse
+					switch ecq := response.PerChainResponses[index].Response.(type) {
+					case *common.EthCallQueryResponse:
+						localResp = ecq
+					default:
+						panic("unsupported query type")
+					}
+
+					if len(localResp.Results) != len(localCallData) {
+						logger.Warn("unexpected number of results", zap.Int("expectedNum", len(localCallData)), zap.Int("expectedNum", len(localResp.Results)))
 						break
 					}
 
-					for idx, resp := range pcq.Responses {
-						result, err := wethAbi.Methods[methods[idx]].Outputs.Unpack(resp.Result)
+					for idx, resp := range localResp.Results {
+						result, err := wethAbi.Methods[methods[idx]].Outputs.Unpack(resp)
 						if err != nil {
 							logger.Warn("failed to unpack result", zap.Error(err))
 							break
 						}
 
-						resultStr := hexutil.Encode(resp.Result)
-						logger.Info("found matching response", zap.Int("idx", idx), zap.String("number", resp.Number.String()), zap.String("hash", resp.Hash.String()), zap.String("time", resp.Time.String()), zap.String("method", methods[idx]), zap.Any("resultDecoded", result), zap.String("resultStr", resultStr))
+						resultStr := hexutil.Encode(resp)
+						logger.Info("found matching response", zap.Int("idx", idx), zap.Uint64("number", localResp.BlockNumber), zap.String("hash", localResp.Hash.String()), zap.String("time", localResp.Time.String()), zap.String("method", methods[idx]), zap.Any("resultDecoded", result), zap.String("resultStr", resultStr))
 					}
 				}
 			}
