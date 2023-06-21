@@ -3,6 +3,8 @@ package evm
 import (
 	"context"
 	"fmt"
+	"math"
+	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -526,6 +528,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	})
 
 	common.RunWithScissors(ctx, errC, "evm_fetch_query_req", func(ctx context.Context) error {
+		ccqMaxBlockNumber := big.NewInt(0).SetUint64(math.MaxUint64)
 		for {
 			select {
 			case <-ctx.Done():
@@ -533,17 +536,17 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 			case queryRequest := <-w.queryReqC:
 				// This can't happen unless there is a programming error - the caller
 				// is expected to send us only requests for our chainID.
-				if queryRequest.ChainID != w.chainID {
+				if queryRequest.Request.ChainId != w.chainID {
 					panic("ccqevm: invalid chain ID")
 				}
 
-				switch req := queryRequest.Request.Message.(type) {
-				case *gossipv1.PerChainQueryRequest_EthCallQueryRequest:
-					block := req.EthCallQueryRequest.Block
+				switch req := queryRequest.Request.Query.(type) {
+				case *common.EthCallQueryRequest:
+					block := req.BlockId
 					logger.Info("received query request",
 						zap.String("eth_network", w.networkName),
 						zap.String("block", block),
-						zap.Int("numRequests", len(req.EthCallQueryRequest.CallData)),
+						zap.Int("numRequests", len(req.CallData)),
 						zap.String("component", "ccqevm"),
 					)
 
@@ -591,7 +594,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					evmCallData := []EvmCallData{}
 
 					// Add each requested query to the batch.
-					for _, callData := range req.EthCallQueryRequest.CallData {
+					for _, callData := range req.CallData {
 						// like https://github.com/ethereum/go-ethereum/blob/master/ethclient/ethclient.go#L610
 						to := eth_common.BytesToAddress(callData.To)
 						data := eth_hexutil.Encode(callData.Data)
@@ -667,10 +670,26 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						continue
 					}
 
-					resp := []common.EthCallQueryResponse{}
+					if blockResult.Number.ToInt().Cmp(ccqMaxBlockNumber) > 0 {
+						logger.Error("block number too large",
+							zap.String("eth_network", w.networkName),
+							zap.String("block", block),
+							zap.Any("batch", batch),
+							zap.String("component", "ccqevm"),
+						)
+						w.ccqSendQueryResponse(logger, queryRequest, common.QueryRetryNeeded, nil)
+						continue
+					}
+
+					resp := common.EthCallQueryResponse{
+						BlockNumber: blockResult.Number.ToInt().Uint64(),
+						Hash:        blockResult.Hash,
+						Time:        time.Unix(int64(blockResult.Time), 0),
+						Results:     [][]byte{},
+					}
 
 					errFound := false
-					for idx := range req.EthCallQueryRequest.CallData {
+					for idx := range req.CallData {
 						if evmCallData[idx].callErr != nil {
 							logger.Error("failed to process query call request",
 								zap.Error(evmCallData[idx].callErr), zap.String("eth_network", w.networkName),
@@ -712,21 +731,16 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.String("component", "ccqevm"),
 						)
 
-						resp = append(resp, common.EthCallQueryResponse{
-							Number: blockResult.Number.ToInt(),
-							Hash:   blockResult.Hash,
-							Time:   time.Unix(int64(blockResult.Time), 0),
-							Result: *evmCallData[idx].callResult,
-						})
+						resp.Results = append(resp.Results, *evmCallData[idx].callResult)
 					}
 
 					if !errFound {
-						w.ccqSendQueryResponse(logger, queryRequest, common.QuerySuccess, resp)
+						w.ccqSendQueryResponse(logger, queryRequest, common.QuerySuccess, &resp)
 					}
 
 				default:
 					logger.Warn("received unsupported request type",
-						zap.Any("payload", queryRequest.Request.Message),
+						zap.Uint8("payload", uint8(queryRequest.Request.Query.Type())),
 						zap.String("component", "ccqevm"),
 					)
 					w.ccqSendQueryResponse(logger, queryRequest, common.QueryFatalError, nil)
@@ -1152,8 +1166,8 @@ func (w *Watcher) SetMaxWaitConfirmations(maxWaitConfirmations uint64) {
 }
 
 // ccqSendQueryResponse sends an error response back to the query handler.
-func (w *Watcher) ccqSendQueryResponse(logger *zap.Logger, req *common.PerChainQueryInternal, status common.QueryStatus, results []common.EthCallQueryResponse) {
-	queryResponse := common.CreatePerChainQueryResponseInternal(req.RequestID, req.RequestIdx, req.ChainID, status, results)
+func (w *Watcher) ccqSendQueryResponse(logger *zap.Logger, req *common.PerChainQueryInternal, status common.QueryStatus, resp *common.EthCallQueryResponse) {
+	queryResponse := common.CreatePerChainQueryResponseInternal(req.RequestID, req.RequestIdx, req.Request.ChainId, status, resp)
 	select {
 	case w.queryResponseC <- queryResponse:
 		logger.Debug("published query response error to handler", zap.String("component", "ccqevm"))
