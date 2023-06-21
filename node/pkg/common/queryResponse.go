@@ -184,7 +184,7 @@ func (msg *QueryResponsePublication) Validate() error {
 		return fmt.Errorf("query request is invalid: %w", err)
 	}
 
-	if len(msg.PerChainResponses) == 0 {
+	if len(msg.PerChainResponses) <= 0 {
 		return fmt.Errorf("response does not contain any per chain responses")
 	}
 	if len(msg.PerChainResponses) > math.MaxUint8 {
@@ -444,7 +444,7 @@ func (ecr *EthCallQueryResponse) Validate() error {
 		return fmt.Errorf("invalid length for block hash")
 	}
 
-	if len(ecr.Results) == 0 {
+	if len(ecr.Results) <= 0 {
 		return fmt.Errorf("does not contain any results")
 	}
 	if len(ecr.Results) > math.MaxUint8 {

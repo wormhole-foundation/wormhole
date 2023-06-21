@@ -323,7 +323,7 @@ func ccqParseAllowedRequesters(ccqAllowedRequesters string) (map[ethCommon.Addre
 		result[addr] = struct{}{}
 	}
 
-	if len(result) == 0 {
+	if len(result) <= 0 {
 		return nil, fmt.Errorf("no allowed requestors specified, ccqAllowedRequesters: `%s`", ccqAllowedRequesters)
 	}
 

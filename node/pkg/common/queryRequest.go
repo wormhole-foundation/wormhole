@@ -157,7 +157,7 @@ func (queryRequest *QueryRequest) UnmarshalFromReader(reader *bytes.Reader) erro
 // Validate does basic validation on a received query request.
 func (queryRequest *QueryRequest) Validate() error {
 	// Nothing to validate on the Nonce.
-	if len(queryRequest.PerChainQueries) == 0 {
+	if len(queryRequest.PerChainQueries) <= 0 {
 		return fmt.Errorf("request does not contain any per chain queries")
 	}
 	if len(queryRequest.PerChainQueries) > math.MaxUint8 {
@@ -385,24 +385,24 @@ func (ecd *EthCallQueryRequest) Validate() error {
 	if !strings.HasPrefix(ecd.BlockId, "0x") {
 		return fmt.Errorf("block id must be a hex number or hash starting with 0x")
 	}
-	if len(ecd.CallData) == 0 {
+	if len(ecd.CallData) <= 0 {
 		return fmt.Errorf("does not contain any call data")
 	}
 	if len(ecd.CallData) > math.MaxUint8 {
 		return fmt.Errorf("too many call data entries")
 	}
 	for _, callData := range ecd.CallData {
-		if callData.To == nil || len(callData.To) == 0 {
+		if callData.To == nil || len(callData.To) <= 0 {
 			return fmt.Errorf("no call data to")
 		}
 		if len(callData.To) != EvmContractAddressLength {
 			return fmt.Errorf("invalid length for To contract")
 		}
-		if callData.Data == nil || len(callData.Data) == 0 {
+		if callData.Data == nil || len(callData.Data) <= 0 {
 			return fmt.Errorf("no call data data")
 		}
 		if len(callData.Data) > math.MaxUint32 {
-			return fmt.Errorf("request data too long")
+			return fmt.Errorf("call data data too long")
 		}
 	}
 
