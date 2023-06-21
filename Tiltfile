@@ -15,6 +15,16 @@ def set_replicas_in_statefulset(config_yaml, statefulset_name,  num_replicas):
             obj["spec"]["replicas"] = num_replicas
     return config_yaml
 
+# set the env value of all containers in all jobs
+def set_env_in_jobs(config_yaml, name, value):
+    for obj in config_yaml:
+        if obj["kind"] == "Job":
+            for container in obj["spec"]["template"]["spec"]["containers"]:
+                if not "env" in container:
+                    container["env"] = []
+                container["env"].append({"name": name, "value": value})
+    return config_yaml
+
 allow_k8s_contexts("ci")
 
 # Disable telemetry by default
@@ -517,9 +527,8 @@ if generic_relayer:
     docker_build(
         ref = "relayer-engine",
         context = ".",
-        only = ["./ethereum", "./relayer/generic_relayer", "./sdk", "./solana"],
-        dockerfile = "relayer/generic_relayer/relayer-engine-v2/Dockerfile",
-        ignore = ["./ethereum/node_modules", "./sdk/js/src/relayer/__tests__"]
+        only = ["./relayer/generic_relayer", "./ethereum/ts-scripts/relayer/config"],
+        dockerfile = "relayer/generic_relayer/relayer-engine-v2/Dockerfile"
     )
     k8s_yaml_with_ns("devnet/relayer-engine.yaml")
 
@@ -616,7 +625,7 @@ if ci_tests:
         ],
     )
 
-    k8s_yaml_with_ns("devnet/tests.yaml")
+    k8s_yaml_with_ns(encode_yaml_stream(set_env_in_jobs(read_yaml_stream("devnet/tests.yaml"), "NUM_GUARDIANS", str(num_guardians))))
 
     # separate resources to parallelize docker builds
     k8s_resource(

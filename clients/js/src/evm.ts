@@ -3,7 +3,11 @@ import {
   BridgeImplementation__factory,
   Implementation__factory,
   NFTBridgeImplementation__factory,
+  WormholeRelayer__factory
 } from "@certusone/wormhole-sdk/lib/esm/ethers-contracts";
+import {
+  getWormholeRelayerAddress
+} from "@certusone/wormhole-sdk/lib/esm/relayer"
 import {
   CHAINS,
   CONTRACTS,
@@ -430,28 +434,26 @@ export async function execute_evm(
       break;
     }
     case "WormholeRelayer":
-        // TODO: Try to get contract address from SDK if it is undefined
-        // Needs SDK to be published with Wormhole Relayer contract addresses
+        contract_address = contract_address
+        ? contract_address
+        : getWormholeRelayerAddress(chain, network);
         if (contract_address === undefined) {
           throw Error(`Unknown Wormhole Relayer contract on ${network} for ${chain}`)
         }
-       // let rb = ethers_contracts.WormholeRelayer__factory.connect(contract_address, signer)
+        let rb = WormholeRelayer__factory.connect(contract_address, signer)
         switch (payload.type) {
           case "ContractUpgrade":
             console.log("Upgrading contract")
-            console.log("Error: The published NPM SDK doesn't have the typechain binding for WormholeRelayer yet")
-            //console.log("Hash: " + (await rb.submitContractUpgrade(vaa, overrides)).hash)
+            console.log("Hash: " + (await rb.submitContractUpgrade(vaa, overrides)).hash)
             console.log("Don't forget to verify the new implementation! See ethereum/VERIFY.md for instructions")
             break
           case "RegisterChain":
             console.log("Registering chain")
-            console.log("Error: The published NPM SDK doesn't have the typechain binding for WormholeRelayer yet")
-            //console.log("Hash: " + (await rb.registerWormholeRelayerContract(vaa, overrides)).hash)
+            console.log("Hash: " + (await rb.registerWormholeRelayerContract(vaa, overrides)).hash)
             break
           case "SetDefaultDeliveryProvider":
             console.log("Setting default relay provider")
-            console.log("Error: The published NPM SDK doesn't have the typechain binding for WormholeRelayer yet")
-            //console.log("Hash: " + (await rb.setDefaultDeliveryProvider(vaa, overrides)).hash)
+            console.log("Hash: " + (await rb.setDefaultDeliveryProvider(vaa, overrides)).hash)
             break
           default:
             impossible(payload)
