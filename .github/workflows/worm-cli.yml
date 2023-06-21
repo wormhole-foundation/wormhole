@@ -38,4 +38,5 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: worm-cli-test-report
-          path: ./clients/js/html-report/worm-cli-tests-report.html
+          # Must save entire folder as artifact to preview report as HTML
+          path: ./clients/js/html-report/
