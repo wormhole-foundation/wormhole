@@ -44,34 +44,34 @@ const DEVNET: { [K in ChainName]?: AddressInfo } = {
 
 const MAINNET: { [K in ChainName]?: AddressInfo } = {
   ethereum: {
-    wormholeRelayerAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
+    wormholeRelayerAddress: "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911",
   },
   bsc: {
-    wormholeRelayerAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
+    wormholeRelayerAddress: "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911",
   },
   polygon: {
-    wormholeRelayerAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
+    wormholeRelayerAddress: "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911",
   },
   avalanche: {
-    wormholeRelayerAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
+    wormholeRelayerAddress: "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911",
   },
   fantom: {
-    wormholeRelayerAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
+    wormholeRelayerAddress: "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911",
   },
   klaytn: {
-    wormholeRelayerAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
+    wormholeRelayerAddress: "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911",
   },
   celo: {
-    wormholeRelayerAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
+    wormholeRelayerAddress: "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911",
   },
   acala: {
-    wormholeRelayerAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
+    wormholeRelayerAddress: "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911",
   },
   karura: {
-    wormholeRelayerAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
+    wormholeRelayerAddress: "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911",
   },
   moonbeam: {
-    wormholeRelayerAddress: "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81",
+    wormholeRelayerAddress: "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911",
   },
 };
 
