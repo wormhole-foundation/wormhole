@@ -1,0 +1,42 @@
+name: Worm CLI
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  worm-cli:
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        node-version: [16.x]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install
+        working-directory: ./clients/js
+        run: |
+          npm ci
+
+      - name: build worm CLI (Makefile)
+        working-directory: ./clients/js
+        run: |
+          npm run make
+
+      - name: Run tests
+        working-directory: ./clients/js
+        run: |
+          npm run test-ci
+
+      - name: Review tests HTML report
+        working-directory: ./clients/js
+        run: |
+          echo "Visit Worm CLI test report here: $HTML_TEST_REPORT_PATH"
+        env:
+          HTML_TEST_REPORT_PATH: ./html-report/worm-cli-tests-report.html # This is relative to working-directory

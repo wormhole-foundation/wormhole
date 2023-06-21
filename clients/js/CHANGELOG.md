@@ -11,7 +11,8 @@
   - `worm info chain-id`
   - `worm info rpc`
   - `worm info contract`
-- Generate HTML tests report for every test run (`worm-cli-tests-report.html`)
+- Generate HTML tests report for every `npm run test` execution (`client/js/html-report/worm-cli-tests-report.html`)
+- Github Actions CI pipeline for Worm CLI `build` & `test` processes (`.github/workflows/worm-cli.yml`)
 
 ## 0.0.3
 
