@@ -13,7 +13,7 @@ describe("worm info rpc", () => {
     test_command_positional_args("info rpc", args);
   });
 
-  describe.skip("check functionality", () => {
+  describe("check functionality", () => {
     const chains = getChains();
     const networks = getNetworks();
 

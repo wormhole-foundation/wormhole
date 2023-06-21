@@ -16,7 +16,7 @@ describe("worm info contract", () => {
     test_command_positional_args("info contract", args);
   });
 
-  describe.skip("check functionality", () => {
+  describe("check functionality", () => {
     const chains = getChains();
     const networks = getNetworks();
 
