@@ -18,11 +18,11 @@ import (
 )
 
 const (
-	// requestTimeout indicates how long before a request is considered to have timed out.
-	requestTimeout = 1 * time.Minute
+	// RequestTimeout indicates how long before a request is considered to have timed out.
+	RequestTimeout = 1 * time.Minute
 
-	// retryInterval specifies how long we will wait between retry intervals. This is the interval of our ticker.
-	retryInterval = 10 * time.Second
+	// RetryInterval specifies how long we will wait between retry intervals. This is the interval of our ticker.
+	RetryInterval = 10 * time.Second
 )
 
 type (
@@ -58,7 +58,7 @@ func HandleQueryRequests(
 	queryResponseWriteC chan<- *QueryResponsePublication,
 	env common.Environment,
 ) {
-	handleQueryRequestsImpl(ctx, logger, signedQueryReqC, chainQueryReqC, allowedRequestors, queryResponseReadC, queryResponseWriteC, env, requestTimeout, retryInterval)
+	handleQueryRequestsImpl(ctx, logger, signedQueryReqC, chainQueryReqC, allowedRequestors, queryResponseReadC, queryResponseWriteC, env, RequestTimeout, RetryInterval)
 }
 
 // handleQueryRequestsImpl allows instantiating the handler in the test environment with shorter timeout and retry parameters.
