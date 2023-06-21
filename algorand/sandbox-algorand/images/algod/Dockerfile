@@ -39,7 +39,7 @@ COPY . /tmp
 RUN /tmp/images/algod/install.sh \
     -d "${BIN_DIR}" \
     -u "https://github.com/algorand/go-algorand" \
-    -b "v3.12.2-stable" \
+    -b "v3.16.2-stable" \
     -s ""
 
 # Configure network

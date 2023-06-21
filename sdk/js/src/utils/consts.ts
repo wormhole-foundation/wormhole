@@ -477,8 +477,8 @@ const DEVNET = {
     nft_bridge: undefined,
   },
   algorand: {
-    core: "4",
-    token_bridge: "6",
+    core: "1004",
+    token_bridge: "1006",
     nft_bridge: undefined,
   },
   aurora: {
