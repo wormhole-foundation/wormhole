@@ -1212,191 +1212,6 @@ func (x *SignedQueryRequest) GetSignature() []byte {
 	return nil
 }
 
-type QueryRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Nonce           uint32                  `protobuf:"varint,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
-	PerChainQueries []*PerChainQueryRequest `protobuf:"bytes,2,rep,name=per_chain_queries,json=perChainQueries,proto3" json:"per_chain_queries,omitempty"`
-}
-
-func (x *QueryRequest) Reset() {
-	*x = QueryRequest{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_gossip_v1_gossip_proto_msgTypes[14]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *QueryRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*QueryRequest) ProtoMessage() {}
-
-func (x *QueryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_gossip_v1_gossip_proto_msgTypes[14]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use QueryRequest.ProtoReflect.Descriptor instead.
-func (*QueryRequest) Descriptor() ([]byte, []int) {
-	return file_gossip_v1_gossip_proto_rawDescGZIP(), []int{14}
-}
-
-func (x *QueryRequest) GetNonce() uint32 {
-	if x != nil {
-		return x.Nonce
-	}
-	return 0
-}
-
-func (x *QueryRequest) GetPerChainQueries() []*PerChainQueryRequest {
-	if x != nil {
-		return x.PerChainQueries
-	}
-	return nil
-}
-
-type PerChainQueryRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	ChainId uint32 `protobuf:"varint,1,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
-	// Types that are assignable to Message:
-	//
-	//	*PerChainQueryRequest_EthCallQueryRequest
-	Message isPerChainQueryRequest_Message `protobuf_oneof:"message"`
-}
-
-func (x *PerChainQueryRequest) Reset() {
-	*x = PerChainQueryRequest{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_gossip_v1_gossip_proto_msgTypes[15]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *PerChainQueryRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PerChainQueryRequest) ProtoMessage() {}
-
-func (x *PerChainQueryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_gossip_v1_gossip_proto_msgTypes[15]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PerChainQueryRequest.ProtoReflect.Descriptor instead.
-func (*PerChainQueryRequest) Descriptor() ([]byte, []int) {
-	return file_gossip_v1_gossip_proto_rawDescGZIP(), []int{15}
-}
-
-func (x *PerChainQueryRequest) GetChainId() uint32 {
-	if x != nil {
-		return x.ChainId
-	}
-	return 0
-}
-
-func (m *PerChainQueryRequest) GetMessage() isPerChainQueryRequest_Message {
-	if m != nil {
-		return m.Message
-	}
-	return nil
-}
-
-func (x *PerChainQueryRequest) GetEthCallQueryRequest() *EthCallQueryRequest {
-	if x, ok := x.GetMessage().(*PerChainQueryRequest_EthCallQueryRequest); ok {
-		return x.EthCallQueryRequest
-	}
-	return nil
-}
-
-type isPerChainQueryRequest_Message interface {
-	isPerChainQueryRequest_Message()
-}
-
-type PerChainQueryRequest_EthCallQueryRequest struct {
-	EthCallQueryRequest *EthCallQueryRequest `protobuf:"bytes,3,opt,name=eth_call_query_request,json=ethCallQueryRequest,proto3,oneof"`
-}
-
-func (*PerChainQueryRequest_EthCallQueryRequest) isPerChainQueryRequest_Message() {}
-
-type EthCallQueryRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Block    string                             `protobuf:"bytes,1,opt,name=block,proto3" json:"block,omitempty"`
-	CallData []*EthCallQueryRequest_EthCallData `protobuf:"bytes,2,rep,name=call_data,json=callData,proto3" json:"call_data,omitempty"`
-}
-
-func (x *EthCallQueryRequest) Reset() {
-	*x = EthCallQueryRequest{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_gossip_v1_gossip_proto_msgTypes[16]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *EthCallQueryRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*EthCallQueryRequest) ProtoMessage() {}
-
-func (x *EthCallQueryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_gossip_v1_gossip_proto_msgTypes[16]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use EthCallQueryRequest.ProtoReflect.Descriptor instead.
-func (*EthCallQueryRequest) Descriptor() ([]byte, []int) {
-	return file_gossip_v1_gossip_proto_rawDescGZIP(), []int{16}
-}
-
-func (x *EthCallQueryRequest) GetBlock() string {
-	if x != nil {
-		return x.Block
-	}
-	return ""
-}
-
-func (x *EthCallQueryRequest) GetCallData() []*EthCallQueryRequest_EthCallData {
-	if x != nil {
-		return x.CallData
-	}
-	return nil
-}
-
 type SignedQueryResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1411,7 +1226,7 @@ type SignedQueryResponse struct {
 func (x *SignedQueryResponse) Reset() {
 	*x = SignedQueryResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gossip_v1_gossip_proto_msgTypes[17]
+		mi := &file_gossip_v1_gossip_proto_msgTypes[14]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1424,7 +1239,7 @@ func (x *SignedQueryResponse) String() string {
 func (*SignedQueryResponse) ProtoMessage() {}
 
 func (x *SignedQueryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_gossip_v1_gossip_proto_msgTypes[17]
+	mi := &file_gossip_v1_gossip_proto_msgTypes[14]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1437,7 +1252,7 @@ func (x *SignedQueryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignedQueryResponse.ProtoReflect.Descriptor instead.
 func (*SignedQueryResponse) Descriptor() ([]byte, []int) {
-	return file_gossip_v1_gossip_proto_rawDescGZIP(), []int{17}
+	return file_gossip_v1_gossip_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *SignedQueryResponse) GetQueryResponse() []byte {
@@ -1472,7 +1287,7 @@ type Heartbeat_Network struct {
 func (x *Heartbeat_Network) Reset() {
 	*x = Heartbeat_Network{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gossip_v1_gossip_proto_msgTypes[18]
+		mi := &file_gossip_v1_gossip_proto_msgTypes[15]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1485,7 +1300,7 @@ func (x *Heartbeat_Network) String() string {
 func (*Heartbeat_Network) ProtoMessage() {}
 
 func (x *Heartbeat_Network) ProtoReflect() protoreflect.Message {
-	mi := &file_gossip_v1_gossip_proto_msgTypes[18]
+	mi := &file_gossip_v1_gossip_proto_msgTypes[15]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1542,7 +1357,7 @@ type ChainGovernorConfig_Chain struct {
 func (x *ChainGovernorConfig_Chain) Reset() {
 	*x = ChainGovernorConfig_Chain{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gossip_v1_gossip_proto_msgTypes[19]
+		mi := &file_gossip_v1_gossip_proto_msgTypes[16]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1555,7 +1370,7 @@ func (x *ChainGovernorConfig_Chain) String() string {
 func (*ChainGovernorConfig_Chain) ProtoMessage() {}
 
 func (x *ChainGovernorConfig_Chain) ProtoReflect() protoreflect.Message {
-	mi := &file_gossip_v1_gossip_proto_msgTypes[19]
+	mi := &file_gossip_v1_gossip_proto_msgTypes[16]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1605,7 +1420,7 @@ type ChainGovernorConfig_Token struct {
 func (x *ChainGovernorConfig_Token) Reset() {
 	*x = ChainGovernorConfig_Token{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gossip_v1_gossip_proto_msgTypes[20]
+		mi := &file_gossip_v1_gossip_proto_msgTypes[17]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1618,7 +1433,7 @@ func (x *ChainGovernorConfig_Token) String() string {
 func (*ChainGovernorConfig_Token) ProtoMessage() {}
 
 func (x *ChainGovernorConfig_Token) ProtoReflect() protoreflect.Message {
-	mi := &file_gossip_v1_gossip_proto_msgTypes[20]
+	mi := &file_gossip_v1_gossip_proto_msgTypes[17]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1669,7 +1484,7 @@ type ChainGovernorStatus_EnqueuedVAA struct {
 func (x *ChainGovernorStatus_EnqueuedVAA) Reset() {
 	*x = ChainGovernorStatus_EnqueuedVAA{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gossip_v1_gossip_proto_msgTypes[21]
+		mi := &file_gossip_v1_gossip_proto_msgTypes[18]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1682,7 +1497,7 @@ func (x *ChainGovernorStatus_EnqueuedVAA) String() string {
 func (*ChainGovernorStatus_EnqueuedVAA) ProtoMessage() {}
 
 func (x *ChainGovernorStatus_EnqueuedVAA) ProtoReflect() protoreflect.Message {
-	mi := &file_gossip_v1_gossip_proto_msgTypes[21]
+	mi := &file_gossip_v1_gossip_proto_msgTypes[18]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1739,7 +1554,7 @@ type ChainGovernorStatus_Emitter struct {
 func (x *ChainGovernorStatus_Emitter) Reset() {
 	*x = ChainGovernorStatus_Emitter{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gossip_v1_gossip_proto_msgTypes[22]
+		mi := &file_gossip_v1_gossip_proto_msgTypes[19]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1752,7 +1567,7 @@ func (x *ChainGovernorStatus_Emitter) String() string {
 func (*ChainGovernorStatus_Emitter) ProtoMessage() {}
 
 func (x *ChainGovernorStatus_Emitter) ProtoReflect() protoreflect.Message {
-	mi := &file_gossip_v1_gossip_proto_msgTypes[22]
+	mi := &file_gossip_v1_gossip_proto_msgTypes[19]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1802,7 +1617,7 @@ type ChainGovernorStatus_Chain struct {
 func (x *ChainGovernorStatus_Chain) Reset() {
 	*x = ChainGovernorStatus_Chain{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_gossip_v1_gossip_proto_msgTypes[23]
+		mi := &file_gossip_v1_gossip_proto_msgTypes[20]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1815,7 +1630,7 @@ func (x *ChainGovernorStatus_Chain) String() string {
 func (*ChainGovernorStatus_Chain) ProtoMessage() {}
 
 func (x *ChainGovernorStatus_Chain) ProtoReflect() protoreflect.Message {
-	mi := &file_gossip_v1_gossip_proto_msgTypes[23]
+	mi := &file_gossip_v1_gossip_proto_msgTypes[20]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1848,61 +1663,6 @@ func (x *ChainGovernorStatus_Chain) GetRemainingAvailableNotional() uint64 {
 func (x *ChainGovernorStatus_Chain) GetEmitters() []*ChainGovernorStatus_Emitter {
 	if x != nil {
 		return x.Emitters
-	}
-	return nil
-}
-
-type EthCallQueryRequest_EthCallData struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	To   []byte `protobuf:"bytes,1,opt,name=to,proto3" json:"to,omitempty"`
-	Data []byte `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
-}
-
-func (x *EthCallQueryRequest_EthCallData) Reset() {
-	*x = EthCallQueryRequest_EthCallData{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_gossip_v1_gossip_proto_msgTypes[24]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *EthCallQueryRequest_EthCallData) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*EthCallQueryRequest_EthCallData) ProtoMessage() {}
-
-func (x *EthCallQueryRequest_EthCallData) ProtoReflect() protoreflect.Message {
-	mi := &file_gossip_v1_gossip_proto_msgTypes[24]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use EthCallQueryRequest_EthCallData.ProtoReflect.Descriptor instead.
-func (*EthCallQueryRequest_EthCallData) Descriptor() ([]byte, []int) {
-	return file_gossip_v1_gossip_proto_rawDescGZIP(), []int{16, 0}
-}
-
-func (x *EthCallQueryRequest_EthCallData) GetTo() []byte {
-	if x != nil {
-		return x.To
-	}
-	return nil
-}
-
-func (x *EthCallQueryRequest_EthCallData) GetData() []byte {
-	if x != nil {
-		return x.Data
 	}
 	return nil
 }
@@ -2145,44 +1905,17 @@ var file_gossip_v1_gossip_proto_rawDesc = []byte{
 	0x73, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x0c, 0x71, 0x75, 0x65, 0x72, 0x79, 0x52,
 	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1c, 0x0a, 0x09, 0x73, 0x69, 0x67, 0x6e, 0x61, 0x74,
 	0x75, 0x72, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x09, 0x73, 0x69, 0x67, 0x6e, 0x61,
-	0x74, 0x75, 0x72, 0x65, 0x22, 0x71, 0x0a, 0x0c, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x71,
-	0x75, 0x65, 0x73, 0x74, 0x12, 0x14, 0x0a, 0x05, 0x6e, 0x6f, 0x6e, 0x63, 0x65, 0x18, 0x01, 0x20,
-	0x01, 0x28, 0x0d, 0x52, 0x05, 0x6e, 0x6f, 0x6e, 0x63, 0x65, 0x12, 0x4b, 0x0a, 0x11, 0x70, 0x65,
-	0x72, 0x5f, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x5f, 0x71, 0x75, 0x65, 0x72, 0x69, 0x65, 0x73, 0x18,
-	0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x1f, 0x2e, 0x67, 0x6f, 0x73, 0x73, 0x69, 0x70, 0x2e, 0x76,
-	0x31, 0x2e, 0x50, 0x65, 0x72, 0x43, 0x68, 0x61, 0x69, 0x6e, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52,
-	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x52, 0x0f, 0x70, 0x65, 0x72, 0x43, 0x68, 0x61, 0x69, 0x6e,
-	0x51, 0x75, 0x65, 0x72, 0x69, 0x65, 0x73, 0x22, 0x93, 0x01, 0x0a, 0x14, 0x50, 0x65, 0x72, 0x43,
-	0x68, 0x61, 0x69, 0x6e, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
-	0x12, 0x19, 0x0a, 0x08, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01,
-	0x28, 0x0d, 0x52, 0x07, 0x63, 0x68, 0x61, 0x69, 0x6e, 0x49, 0x64, 0x12, 0x55, 0x0a, 0x16, 0x65,
-	0x74, 0x68, 0x5f, 0x63, 0x61, 0x6c, 0x6c, 0x5f, 0x71, 0x75, 0x65, 0x72, 0x79, 0x5f, 0x72, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1e, 0x2e, 0x67, 0x6f,
-	0x73, 0x73, 0x69, 0x70, 0x2e, 0x76, 0x31, 0x2e, 0x45, 0x74, 0x68, 0x43, 0x61, 0x6c, 0x6c, 0x51,
-	0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x48, 0x00, 0x52, 0x13, 0x65,
-	0x74, 0x68, 0x43, 0x61, 0x6c, 0x6c, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65,
-	0x73, 0x74, 0x42, 0x09, 0x0a, 0x07, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x22, 0xa7, 0x01,
-	0x0a, 0x13, 0x45, 0x74, 0x68, 0x43, 0x61, 0x6c, 0x6c, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x14, 0x0a, 0x05, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x18, 0x01,
-	0x20, 0x01, 0x28, 0x09, 0x52, 0x05, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x12, 0x47, 0x0a, 0x09, 0x63,
-	0x61, 0x6c, 0x6c, 0x5f, 0x64, 0x61, 0x74, 0x61, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x2a,
-	0x2e, 0x67, 0x6f, 0x73, 0x73, 0x69, 0x70, 0x2e, 0x76, 0x31, 0x2e, 0x45, 0x74, 0x68, 0x43, 0x61,
-	0x6c, 0x6c, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x2e, 0x45,
-	0x74, 0x68, 0x43, 0x61, 0x6c, 0x6c, 0x44, 0x61, 0x74, 0x61, 0x52, 0x08, 0x63, 0x61, 0x6c, 0x6c,
-	0x44, 0x61, 0x74, 0x61, 0x1a, 0x31, 0x0a, 0x0b, 0x45, 0x74, 0x68, 0x43, 0x61, 0x6c, 0x6c, 0x44,
-	0x61, 0x74, 0x61, 0x12, 0x0e, 0x0a, 0x02, 0x74, 0x6f, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52,
-	0x02, 0x74, 0x6f, 0x12, 0x12, 0x0a, 0x04, 0x64, 0x61, 0x74, 0x61, 0x18, 0x02, 0x20, 0x01, 0x28,
-	0x0c, 0x52, 0x04, 0x64, 0x61, 0x74, 0x61, 0x22, 0x5a, 0x0a, 0x13, 0x53, 0x69, 0x67, 0x6e, 0x65,
-	0x64, 0x51, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x25,
-	0x0a, 0x0e, 0x71, 0x75, 0x65, 0x72, 0x79, 0x5f, 0x72, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
-	0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x0d, 0x71, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x73,
-	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x1c, 0x0a, 0x09, 0x73, 0x69, 0x67, 0x6e, 0x61, 0x74, 0x75,
-	0x72, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x09, 0x73, 0x69, 0x67, 0x6e, 0x61, 0x74,
-	0x75, 0x72, 0x65, 0x42, 0x41, 0x5a, 0x3f, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f,
-	0x6d, 0x2f, 0x63, 0x65, 0x72, 0x74, 0x75, 0x73, 0x6f, 0x6e, 0x65, 0x2f, 0x77, 0x6f, 0x72, 0x6d,
-	0x68, 0x6f, 0x6c, 0x65, 0x2f, 0x6e, 0x6f, 0x64, 0x65, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x70, 0x72,
-	0x6f, 0x74, 0x6f, 0x2f, 0x67, 0x6f, 0x73, 0x73, 0x69, 0x70, 0x2f, 0x76, 0x31, 0x3b, 0x67, 0x6f,
-	0x73, 0x73, 0x69, 0x70, 0x76, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x74, 0x75, 0x72, 0x65, 0x22, 0x5a, 0x0a, 0x13, 0x53, 0x69, 0x67, 0x6e, 0x65, 0x64, 0x51, 0x75,
+	0x65, 0x72, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x25, 0x0a, 0x0e, 0x71,
+	0x75, 0x65, 0x72, 0x79, 0x5f, 0x72, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x0c, 0x52, 0x0d, 0x71, 0x75, 0x65, 0x72, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x12, 0x1c, 0x0a, 0x09, 0x73, 0x69, 0x67, 0x6e, 0x61, 0x74, 0x75, 0x72, 0x65, 0x18,
+	0x02, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x09, 0x73, 0x69, 0x67, 0x6e, 0x61, 0x74, 0x75, 0x72, 0x65,
+	0x42, 0x41, 0x5a, 0x3f, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x63,
+	0x65, 0x72, 0x74, 0x75, 0x73, 0x6f, 0x6e, 0x65, 0x2f, 0x77, 0x6f, 0x72, 0x6d, 0x68, 0x6f, 0x6c,
+	0x65, 0x2f, 0x6e, 0x6f, 0x64, 0x65, 0x2f, 0x70, 0x6b, 0x67, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x2f, 0x67, 0x6f, 0x73, 0x73, 0x69, 0x70, 0x2f, 0x76, 0x31, 0x3b, 0x67, 0x6f, 0x73, 0x73, 0x69,
+	0x70, 0x76, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -2197,7 +1930,7 @@ func file_gossip_v1_gossip_proto_rawDescGZIP() []byte {
 	return file_gossip_v1_gossip_proto_rawDescData
 }
 
-var file_gossip_v1_gossip_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_gossip_v1_gossip_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_gossip_v1_gossip_proto_goTypes = []interface{}{
 	(*GossipMessage)(nil),                   // 0: gossip.v1.GossipMessage
 	(*SignedHeartbeat)(nil),                 // 1: gossip.v1.SignedHeartbeat
@@ -2213,17 +1946,13 @@ var file_gossip_v1_gossip_proto_goTypes = []interface{}{
 	(*SignedChainGovernorStatus)(nil),       // 11: gossip.v1.SignedChainGovernorStatus
 	(*ChainGovernorStatus)(nil),             // 12: gossip.v1.ChainGovernorStatus
 	(*SignedQueryRequest)(nil),              // 13: gossip.v1.SignedQueryRequest
-	(*QueryRequest)(nil),                    // 14: gossip.v1.QueryRequest
-	(*PerChainQueryRequest)(nil),            // 15: gossip.v1.PerChainQueryRequest
-	(*EthCallQueryRequest)(nil),             // 16: gossip.v1.EthCallQueryRequest
-	(*SignedQueryResponse)(nil),             // 17: gossip.v1.SignedQueryResponse
-	(*Heartbeat_Network)(nil),               // 18: gossip.v1.Heartbeat.Network
-	(*ChainGovernorConfig_Chain)(nil),       // 19: gossip.v1.ChainGovernorConfig.Chain
-	(*ChainGovernorConfig_Token)(nil),       // 20: gossip.v1.ChainGovernorConfig.Token
-	(*ChainGovernorStatus_EnqueuedVAA)(nil), // 21: gossip.v1.ChainGovernorStatus.EnqueuedVAA
-	(*ChainGovernorStatus_Emitter)(nil),     // 22: gossip.v1.ChainGovernorStatus.Emitter
-	(*ChainGovernorStatus_Chain)(nil),       // 23: gossip.v1.ChainGovernorStatus.Chain
-	(*EthCallQueryRequest_EthCallData)(nil), // 24: gossip.v1.EthCallQueryRequest.EthCallData
+	(*SignedQueryResponse)(nil),             // 14: gossip.v1.SignedQueryResponse
+	(*Heartbeat_Network)(nil),               // 15: gossip.v1.Heartbeat.Network
+	(*ChainGovernorConfig_Chain)(nil),       // 16: gossip.v1.ChainGovernorConfig.Chain
+	(*ChainGovernorConfig_Token)(nil),       // 17: gossip.v1.ChainGovernorConfig.Token
+	(*ChainGovernorStatus_EnqueuedVAA)(nil), // 18: gossip.v1.ChainGovernorStatus.EnqueuedVAA
+	(*ChainGovernorStatus_Emitter)(nil),     // 19: gossip.v1.ChainGovernorStatus.Emitter
+	(*ChainGovernorStatus_Chain)(nil),       // 20: gossip.v1.ChainGovernorStatus.Chain
 }
 var file_gossip_v1_gossip_proto_depIdxs = []int32{
 	3,  // 0: gossip.v1.GossipMessage.signed_observation:type_name -> gossip.v1.SignedObservation
@@ -2235,21 +1964,18 @@ var file_gossip_v1_gossip_proto_depIdxs = []int32{
 	9,  // 6: gossip.v1.GossipMessage.signed_chain_governor_config:type_name -> gossip.v1.SignedChainGovernorConfig
 	11, // 7: gossip.v1.GossipMessage.signed_chain_governor_status:type_name -> gossip.v1.SignedChainGovernorStatus
 	13, // 8: gossip.v1.GossipMessage.signed_query_request:type_name -> gossip.v1.SignedQueryRequest
-	17, // 9: gossip.v1.GossipMessage.signed_query_response:type_name -> gossip.v1.SignedQueryResponse
-	18, // 10: gossip.v1.Heartbeat.networks:type_name -> gossip.v1.Heartbeat.Network
-	19, // 11: gossip.v1.ChainGovernorConfig.chains:type_name -> gossip.v1.ChainGovernorConfig.Chain
-	20, // 12: gossip.v1.ChainGovernorConfig.tokens:type_name -> gossip.v1.ChainGovernorConfig.Token
-	23, // 13: gossip.v1.ChainGovernorStatus.chains:type_name -> gossip.v1.ChainGovernorStatus.Chain
-	15, // 14: gossip.v1.QueryRequest.per_chain_queries:type_name -> gossip.v1.PerChainQueryRequest
-	16, // 15: gossip.v1.PerChainQueryRequest.eth_call_query_request:type_name -> gossip.v1.EthCallQueryRequest
-	24, // 16: gossip.v1.EthCallQueryRequest.call_data:type_name -> gossip.v1.EthCallQueryRequest.EthCallData
-	21, // 17: gossip.v1.ChainGovernorStatus.Emitter.enqueued_vaas:type_name -> gossip.v1.ChainGovernorStatus.EnqueuedVAA
-	22, // 18: gossip.v1.ChainGovernorStatus.Chain.emitters:type_name -> gossip.v1.ChainGovernorStatus.Emitter
-	19, // [19:19] is the sub-list for method output_type
-	19, // [19:19] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	14, // 9: gossip.v1.GossipMessage.signed_query_response:type_name -> gossip.v1.SignedQueryResponse
+	15, // 10: gossip.v1.Heartbeat.networks:type_name -> gossip.v1.Heartbeat.Network
+	16, // 11: gossip.v1.ChainGovernorConfig.chains:type_name -> gossip.v1.ChainGovernorConfig.Chain
+	17, // 12: gossip.v1.ChainGovernorConfig.tokens:type_name -> gossip.v1.ChainGovernorConfig.Token
+	20, // 13: gossip.v1.ChainGovernorStatus.chains:type_name -> gossip.v1.ChainGovernorStatus.Chain
+	18, // 14: gossip.v1.ChainGovernorStatus.Emitter.enqueued_vaas:type_name -> gossip.v1.ChainGovernorStatus.EnqueuedVAA
+	19, // 15: gossip.v1.ChainGovernorStatus.Chain.emitters:type_name -> gossip.v1.ChainGovernorStatus.Emitter
+	16, // [16:16] is the sub-list for method output_type
+	16, // [16:16] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_gossip_v1_gossip_proto_init() }
@@ -2427,42 +2153,6 @@ func file_gossip_v1_gossip_proto_init() {
 			}
 		}
 		file_gossip_v1_gossip_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*QueryRequest); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_gossip_v1_gossip_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*PerChainQueryRequest); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_gossip_v1_gossip_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*EthCallQueryRequest); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_gossip_v1_gossip_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*SignedQueryResponse); i {
 			case 0:
 				return &v.state
@@ -2474,7 +2164,7 @@ func file_gossip_v1_gossip_proto_init() {
 				return nil
 			}
 		}
-		file_gossip_v1_gossip_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
+		file_gossip_v1_gossip_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*Heartbeat_Network); i {
 			case 0:
 				return &v.state
@@ -2486,7 +2176,7 @@ func file_gossip_v1_gossip_proto_init() {
 				return nil
 			}
 		}
-		file_gossip_v1_gossip_proto_msgTypes[19].Exporter = func(v interface{}, i int) interface{} {
+		file_gossip_v1_gossip_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ChainGovernorConfig_Chain); i {
 			case 0:
 				return &v.state
@@ -2498,7 +2188,7 @@ func file_gossip_v1_gossip_proto_init() {
 				return nil
 			}
 		}
-		file_gossip_v1_gossip_proto_msgTypes[20].Exporter = func(v interface{}, i int) interface{} {
+		file_gossip_v1_gossip_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ChainGovernorConfig_Token); i {
 			case 0:
 				return &v.state
@@ -2510,7 +2200,7 @@ func file_gossip_v1_gossip_proto_init() {
 				return nil
 			}
 		}
-		file_gossip_v1_gossip_proto_msgTypes[21].Exporter = func(v interface{}, i int) interface{} {
+		file_gossip_v1_gossip_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ChainGovernorStatus_EnqueuedVAA); i {
 			case 0:
 				return &v.state
@@ -2522,7 +2212,7 @@ func file_gossip_v1_gossip_proto_init() {
 				return nil
 			}
 		}
-		file_gossip_v1_gossip_proto_msgTypes[22].Exporter = func(v interface{}, i int) interface{} {
+		file_gossip_v1_gossip_proto_msgTypes[19].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ChainGovernorStatus_Emitter); i {
 			case 0:
 				return &v.state
@@ -2534,20 +2224,8 @@ func file_gossip_v1_gossip_proto_init() {
 				return nil
 			}
 		}
-		file_gossip_v1_gossip_proto_msgTypes[23].Exporter = func(v interface{}, i int) interface{} {
+		file_gossip_v1_gossip_proto_msgTypes[20].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*ChainGovernorStatus_Chain); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_gossip_v1_gossip_proto_msgTypes[24].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*EthCallQueryRequest_EthCallData); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2571,16 +2249,13 @@ func file_gossip_v1_gossip_proto_init() {
 		(*GossipMessage_SignedQueryRequest)(nil),
 		(*GossipMessage_SignedQueryResponse)(nil),
 	}
-	file_gossip_v1_gossip_proto_msgTypes[15].OneofWrappers = []interface{}{
-		(*PerChainQueryRequest_EthCallQueryRequest)(nil),
-	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_gossip_v1_gossip_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   25,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
