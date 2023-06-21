@@ -3,6 +3,8 @@ package evm
 import (
 	"context"
 	"fmt"
+	"math"
+	"math/big"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -524,6 +526,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 	})
 
 	common.RunWithScissors(ctx, errC, "evm_fetch_query_req", func(ctx context.Context) error {
+		ccqMaxBlockNumber := big.NewInt(0).SetUint64(math.MaxUint64)
 		for {
 			select {
 			case <-ctx.Done():
@@ -665,11 +668,22 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						continue
 					}
 
+					if blockResult.Number.ToInt().Cmp(ccqMaxBlockNumber) > 0 {
+						logger.Error("block number too large",
+							zap.String("eth_network", w.networkName),
+							zap.String("block", block),
+							zap.Any("batch", batch),
+							zap.String("component", "ccqevm"),
+						)
+						w.ccqSendQueryResponse(logger, queryRequest, common.QueryRetryNeeded, nil)
+						continue
+					}
+
 					resp := common.EthCallQueryResponse{
-						Number:  blockResult.Number.ToInt(),
-						Hash:    blockResult.Hash,
-						Time:    time.Unix(int64(blockResult.Time), 0),
-						Results: [][]byte{},
+						BlockNumber: blockResult.Number.ToInt().Uint64(),
+						Hash:        blockResult.Hash,
+						Time:        time.Unix(int64(blockResult.Time), 0),
+						Results:     [][]byte{},
 					}
 
 					errFound := false

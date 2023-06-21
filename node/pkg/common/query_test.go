@@ -3,7 +3,6 @@ package common
 import (
 	"encoding/hex"
 	"fmt"
-	"math/big"
 	"strings"
 	"testing"
 	"time"
@@ -379,10 +378,10 @@ func createQueryResponseFromRequest(t *testing.T, queryRequest *QueryRequest) *Q
 			perChainResponses = append(perChainResponses, &PerChainQueryResponse{
 				ChainId: pcr.ChainId,
 				Response: &EthCallQueryResponse{
-					Number:  big.NewInt(int64(1000 + idx)),
-					Hash:    ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"),
-					Time:    timeForTest(time.Now()),
-					Results: results,
+					BlockNumber: uint64(1000 + idx),
+					Hash:        ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"),
+					Time:        timeForTest(time.Now()),
+					Results:     results,
 				},
 			})
 		default:
@@ -489,21 +488,6 @@ func TestMarshalUnmarshalQueryResponseWithNilResponseShouldFail(t *testing.T) {
 	respPub := createQueryResponseFromRequest(t, queryRequest)
 
 	respPub.PerChainResponses[0].Response = nil
-
-	_, err := respPub.Marshal()
-	require.Error(t, err)
-}
-
-func TestMarshalUnmarshalQueryResponseWithNilNumberShouldFail(t *testing.T) {
-	queryRequest := createQueryRequestForTesting(vaa.ChainIDPolygon)
-	respPub := createQueryResponseFromRequest(t, queryRequest)
-
-	switch resp := respPub.PerChainResponses[0].Response.(type) {
-	case *EthCallQueryResponse:
-		resp.Number = nil
-	default:
-		panic("invalid query type!")
-	}
 
 	_, err := respPub.Marshal()
 	require.Error(t, err)

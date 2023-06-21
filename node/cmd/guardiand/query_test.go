@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
-	"math/big"
 	"strconv"
 	"strings"
 	"sync"
@@ -108,15 +107,15 @@ func createExpectedResultsForTest(perChainQueries []*common.PerChainQueryRequest
 		switch req := pcq.Query.(type) {
 		case *common.EthCallQueryRequest:
 			now := time.Now()
-			blockNum, err := strconv.ParseInt(strings.TrimPrefix(req.BlockId, "0x"), 16, 64)
+			blockNum, err := strconv.ParseUint(strings.TrimPrefix(req.BlockId, "0x"), 16, 64)
 			if err != nil {
 				panic("invalid blockNum!")
 			}
 			resp := &common.EthCallQueryResponse{
-				Number:  big.NewInt(blockNum),
-				Hash:    ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"),
-				Time:    timeForTest(timeForTest(now)),
-				Results: [][]byte{},
+				BlockNumber: blockNum,
+				Hash:        ethCommon.HexToHash("0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"),
+				Time:        timeForTest(timeForTest(now)),
+				Results:     [][]byte{},
 			}
 			for _, cd := range req.CallData {
 				resp.Results = append(resp.Results, []byte(hex.EncodeToString(cd.To)+":"+hex.EncodeToString(cd.Data)))

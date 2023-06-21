@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
-	"math/big"
 	"time"
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
@@ -77,9 +76,9 @@ type ChainSpecificResponse interface {
 
 // EthCallQueryResponse implements ChainSpecificResponse for an EVM eth_call query response.
 type EthCallQueryResponse struct {
-	Number *big.Int
-	Hash   common.Hash
-	Time   time.Time
+	BlockNumber uint64
+	Hash        common.Hash
+	Time        time.Time
 
 	// Results is the array of responses matching CallData in EthCallQueryRequest
 	Results [][]byte
@@ -370,7 +369,7 @@ func (ecr *EthCallQueryResponse) Marshal() ([]byte, error) {
 	}
 
 	buf := new(bytes.Buffer)
-	vaa.MustWrite(buf, binary.BigEndian, ecr.Number.Uint64())
+	vaa.MustWrite(buf, binary.BigEndian, ecr.BlockNumber)
 	buf.Write(ecr.Hash[:])
 	vaa.MustWrite(buf, binary.BigEndian, ecr.Time.UnixMicro())
 
@@ -391,11 +390,9 @@ func (ecr *EthCallQueryResponse) Unmarshal(data []byte) error {
 
 // UnmarshalFromReader  deserializes an EVM eth_call response from a byte array
 func (ecr *EthCallQueryResponse) UnmarshalFromReader(reader *bytes.Reader) error {
-	responseNumber := uint64(0)
-	if err := binary.Read(reader, binary.BigEndian, &responseNumber); err != nil {
+	if err := binary.Read(reader, binary.BigEndian, &ecr.BlockNumber); err != nil {
 		return fmt.Errorf("failed to read response number: %w", err)
 	}
-	ecr.Number = big.NewInt(0).SetUint64(responseNumber)
 
 	responseHash := common.Hash{}
 	if n, err := reader.Read(responseHash[:]); err != nil || n != 32 {
@@ -432,13 +429,7 @@ func (ecr *EthCallQueryResponse) UnmarshalFromReader(reader *bytes.Reader) error
 
 // Validate does basic validation on an EVM eth_call response.
 func (ecr *EthCallQueryResponse) Validate() error {
-	if ecr.Number == nil {
-		return fmt.Errorf("number is nil")
-	}
-
-	if ecr.Number.Cmp(big.NewInt(0).SetUint64(math.MaxUint64)) > 0 {
-		return fmt.Errorf("number is too large to fit in uint64")
-	}
+	// Not checking for BlockNumber == 0, because maybe that could happen??
 
 	if len(ecr.Hash) != 32 {
 		return fmt.Errorf("invalid length for block hash")
@@ -460,13 +451,8 @@ func (ecr *EthCallQueryResponse) Validate() error {
 
 // Equal verifies that two EVM eth_call responses are equal.
 func (left *EthCallQueryResponse) Equal(right *EthCallQueryResponse) bool {
-	if left.Number != nil || right.Number != nil {
-		if left.Number == nil || right.Number == nil {
-			return false
-		}
-		if left.Number.Cmp(right.Number) != 0 {
-			return false
-		}
+	if left.BlockNumber != right.BlockNumber {
+		return false
 	}
 
 	if !bytes.Equal(left.Hash.Bytes(), right.Hash.Bytes()) {

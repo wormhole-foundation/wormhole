@@ -395,7 +395,7 @@ func sendQueryAndGetRsp(queryRequest *common.QueryRequest, sk *ecdsa.PrivateKey,
 						}
 
 						resultStr := hexutil.Encode(resp)
-						logger.Info("found matching response", zap.Int("idx", idx), zap.String("number", localResp.Number.String()), zap.String("hash", localResp.Hash.String()), zap.String("time", localResp.Time.String()), zap.String("method", methods[idx]), zap.Any("resultDecoded", result), zap.String("resultStr", resultStr))
+						logger.Info("found matching response", zap.Int("idx", idx), zap.Uint64("number", localResp.BlockNumber), zap.String("hash", localResp.Hash.String()), zap.String("time", localResp.Time.String()), zap.String("method", methods[idx]), zap.Any("resultDecoded", result), zap.String("resultStr", resultStr))
 					}
 				}
 			}

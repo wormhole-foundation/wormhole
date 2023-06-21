@@ -317,7 +317,7 @@ func TestCrossChainQuery(t *testing.T) {
 					}
 
 					resultStr := hexutil.Encode(resp)
-					logger.Info("found matching response", zap.Int("idx", idx), zap.String("number", pcq.Number.String()), zap.String("hash", pcq.Hash.String()), zap.String("time", pcq.Time.String()), zap.Any("resultDecoded", result), zap.String("resultStr", resultStr))
+					logger.Info("found matching response", zap.Int("idx", idx), zap.Uint64("number", pcq.BlockNumber), zap.String("hash", pcq.Hash.String()), zap.String("time", pcq.Time.String()), zap.Any("resultDecoded", result), zap.String("resultStr", resultStr))
 				}
 
 				success = true
