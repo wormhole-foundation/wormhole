@@ -83,6 +83,12 @@ const MAINNET: { [K in ChainName]?: AddressInfo } = {
   moonbeam: {
     wormholeRelayerAddress: "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911",
   },
+  arbitrum: {
+    wormholeRelayerAddress: "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911",
+  },
+  optimism: {
+    wormholeRelayerAddress: "0x27428DD2d3DD32A4D7f7C497eAaa23130d894911",
+  },
 };
 
 export const RELAYER_CONTRACTS = { MAINNET, TESTNET, DEVNET };
