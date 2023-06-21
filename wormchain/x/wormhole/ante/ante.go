@@ -33,6 +33,9 @@ func (wh WormholeIbcErrorDecorator) AnteHandle(request sdk.Request, tx sdk.Tx, s
 	case *ibcchanneltypes.MsgChannelOpenInit:
 		// we've verified it's the IBC Channel Open Init message.
 		// fail with the proper error message
+		// failing early uses 55613 gas in total. We need to use  59774 gas to get the same apphash.
+		// 59774 - 55613 = 4161
+		request.GasMeter().ConsumeGas(4161, "consuming extra gas so the transaction uses 59,774 gas")
 		return request, errors.New("failed to execute message; message index: 0: route not found to module: wasm: route not found")
 	default:
 		return next(request, tx, simulate)
