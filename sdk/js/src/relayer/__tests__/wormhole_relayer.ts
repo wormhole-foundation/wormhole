@@ -238,7 +238,7 @@ describe("Wormhole Relayer Tests", () => {
       ),
       chainId: source.chainId,
       sequence: deliverySeq,
-    });
+    }, true);
     const deliveryRx = await deliver(
       deliveryVaa,
       target.wallet,
