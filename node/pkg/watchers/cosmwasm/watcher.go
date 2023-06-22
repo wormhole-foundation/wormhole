@@ -105,13 +105,11 @@ func NewWatcher(
 	chainID vaa.ChainID) *Watcher {
 
 	// CosmWasm 1.0.0
+	// Terra Classic upgraded CosmWasm versions, so they now use the new format. Here is a message from their Discord:
+	//		The v2.1.1 upgrade will occur on blockheight 13215800 on June 14th (2023) at approximately 14:00 UTC.
+	// Queries for transactions before that block no longer work, so we don't have to worry about supporting them.
 	contractAddressFilterKey := "execute._contract_address"
 	contractAddressLogKey := "_contract_address"
-	if chainID == vaa.ChainIDTerra {
-		// CosmWasm <1.0.0
-		contractAddressFilterKey = "execute_contract.contract_address"
-		contractAddressLogKey = "contract_address"
-	}
 
 	// Do not add a leading slash
 	latestBlockURL := "blocks/latest"
@@ -405,6 +403,10 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 				logger.Debug("duplicate key in events", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("key", keyBase.String()), zap.String("value", valueBase.String()))
 				continue
 			}
+
+			logger.Debug("msg attribute",
+				zap.String("network", networkName),
+				zap.String("tx_hash", txHash), zap.String("key", string(key)), zap.String("value", string(value)))
 
 			mappedAttributes[string(key)] = string(value)
 		}
