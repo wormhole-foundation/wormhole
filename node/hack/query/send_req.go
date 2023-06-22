@@ -20,6 +20,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
+	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	ethCrypto "github.com/ethereum/go-ethereum/crypto"
@@ -181,7 +182,7 @@ func main() {
 	}
 
 	methods := []string{"name", "totalSupply"}
-	callData := []*common.EthCallData{}
+	callData := []*query.EthCallData{}
 	to, _ := hex.DecodeString("0d500b1d8e8ef31e21c99d1db9a6444d3adf1270")
 
 	for _, method := range methods {
@@ -190,7 +191,7 @@ func main() {
 			panic(err)
 		}
 
-		callData = append(callData, &common.EthCallData{
+		callData = append(callData, &query.EthCallData{
 			To:   to,
 			Data: data,
 		})
@@ -211,7 +212,7 @@ func main() {
 	// block := "0x9999bac44d09a7f69ee7941819b0a19c59ccb1969640cc513be09ef95ed2d8e2"
 
 	// Start of query creation...
-	callRequest := &common.EthCallQueryRequest{
+	callRequest := &query.EthCallQueryRequest{
 		BlockId:  hexutil.EncodeBig(blockNum),
 		CallData: callData,
 	}
@@ -228,7 +229,7 @@ func main() {
 
 	// Second request...
 	blockNum = blockNum.Sub(blockNum, big.NewInt(5))
-	callRequest2 := &common.EthCallQueryRequest{
+	callRequest2 := &query.EthCallQueryRequest{
 		BlockId:  hexutil.EncodeBig(blockNum),
 		CallData: callData,
 	}
@@ -239,7 +240,7 @@ func main() {
 	// Now, want to send a single query with multiple requests...
 	logger.Info("Starting multiquery test in 5...")
 	time.Sleep(time.Second * 5)
-	multiCallRequest := []*common.EthCallQueryRequest{callRequest, callRequest2}
+	multiCallRequest := []*query.EthCallQueryRequest{callRequest, callRequest2}
 	multQueryRequest := createQueryRequestWithMultipleRequests(multiCallRequest)
 	sendQueryAndGetRsp(multQueryRequest, sk, th, ctx, logger, sub, wethAbi, methods)
 
@@ -264,10 +265,10 @@ const (
 	GuardianKeyArmoredBlock = "WORMHOLE GUARDIAN PRIVATE KEY"
 )
 
-func createQueryRequest(callRequest *common.EthCallQueryRequest) *common.QueryRequest {
-	queryRequest := &common.QueryRequest{
+func createQueryRequest(callRequest *query.EthCallQueryRequest) *query.QueryRequest {
+	queryRequest := &query.QueryRequest{
 		Nonce: rand.Uint32(),
-		PerChainQueries: []*common.PerChainQueryRequest{
+		PerChainQueries: []*query.PerChainQueryRequest{
 			{
 				ChainId: 5,
 				Query:   callRequest,
@@ -277,23 +278,23 @@ func createQueryRequest(callRequest *common.EthCallQueryRequest) *common.QueryRe
 	return queryRequest
 }
 
-func createQueryRequestWithMultipleRequests(callRequests []*common.EthCallQueryRequest) *common.QueryRequest {
-	perChainQueries := []*common.PerChainQueryRequest{}
+func createQueryRequestWithMultipleRequests(callRequests []*query.EthCallQueryRequest) *query.QueryRequest {
+	perChainQueries := []*query.PerChainQueryRequest{}
 	for _, req := range callRequests {
-		perChainQueries = append(perChainQueries, &common.PerChainQueryRequest{
+		perChainQueries = append(perChainQueries, &query.PerChainQueryRequest{
 			ChainId: 5,
 			Query:   req,
 		})
 	}
 
-	queryRequest := &common.QueryRequest{
+	queryRequest := &query.QueryRequest{
 		Nonce:           rand.Uint32(),
 		PerChainQueries: perChainQueries,
 	}
 	return queryRequest
 }
 
-func sendQueryAndGetRsp(queryRequest *common.QueryRequest, sk *ecdsa.PrivateKey, th *pubsub.Topic, ctx context.Context, logger *zap.Logger, sub *pubsub.Subscription, wethAbi abi.ABI, methods []string) {
+func sendQueryAndGetRsp(queryRequest *query.QueryRequest, sk *ecdsa.PrivateKey, th *pubsub.Topic, ctx context.Context, logger *zap.Logger, sub *pubsub.Subscription, wethAbi abi.ABI, methods []string) {
 	queryRequestBytes, err := queryRequest.Marshal()
 	if err != nil {
 		panic(err)
@@ -301,7 +302,7 @@ func sendQueryAndGetRsp(queryRequest *common.QueryRequest, sk *ecdsa.PrivateKey,
 	numQueries := len(queryRequest.PerChainQueries)
 
 	// Sign the query request using our private key.
-	digest := common.QueryRequestDigest(common.UnsafeDevNet, queryRequestBytes)
+	digest := query.QueryRequestDigest(common.UnsafeDevNet, queryRequestBytes)
 	sig, err := ethCrypto.Sign(digest.Bytes(), sk)
 	if err != nil {
 		panic(err)
@@ -348,7 +349,7 @@ func sendQueryAndGetRsp(queryRequest *common.QueryRequest, sk *ecdsa.PrivateKey,
 		switch m := msg.Message.(type) {
 		case *gossipv1.GossipMessage_SignedQueryResponse:
 			logger.Info("query response received", zap.Any("response", m.SignedQueryResponse))
-			var response common.QueryResponsePublication
+			var response query.QueryResponsePublication
 			err := response.Unmarshal(m.SignedQueryResponse.QueryResponse)
 			if err != nil {
 				logger.Warn("failed to unmarshal response", zap.Error(err))
@@ -366,17 +367,17 @@ func sendQueryAndGetRsp(queryRequest *common.QueryRequest, sk *ecdsa.PrivateKey,
 				for index := range response.PerChainResponses {
 					logger.Info("per chain query response index", zap.Int("index", index))
 
-					var localCallData []*common.EthCallData
+					var localCallData []*query.EthCallData
 					switch ecq := queryRequest.PerChainQueries[index].Query.(type) {
-					case *common.EthCallQueryRequest:
+					case *query.EthCallQueryRequest:
 						localCallData = ecq.CallData
 					default:
 						panic("unsupported query type")
 					}
 
-					var localResp *common.EthCallQueryResponse
+					var localResp *query.EthCallQueryResponse
 					switch ecq := response.PerChainResponses[index].Response.(type) {
-					case *common.EthCallQueryResponse:
+					case *query.EthCallQueryResponse:
 						localResp = ecq
 					default:
 						panic("unsupported query type")
