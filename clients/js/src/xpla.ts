@@ -1,15 +1,21 @@
-import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+import {
+  CONTRACTS,
+  ChainName,
+} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import {
   Coin,
   Fee,
   LCDClient,
   MnemonicKey,
   MsgExecuteContract,
+  Wallet,
 } from "@xpla/xpla.js";
 import { fromUint8Array } from "js-base64";
 import { NETWORKS } from "./consts";
 import { Network } from "./utils";
 import { Payload, impossible } from "./vaa";
+import { transferFromXpla } from "@certusone/wormhole-sdk/lib/esm/token_bridge/transfer";
+import { tryNativeToUint8Array } from "@certusone/wormhole-sdk/lib/esm/utils";
 
 export async function execute_xpla(
   payload: Payload,
@@ -146,6 +152,50 @@ export async function execute_xpla(
     { axpla: "1700000000000000000" }
   );
 
+  await signAndSendTx(client, wallet, [transaction]);
+}
+
+export async function transferXpla(
+  dstChain: ChainName,
+  dstAddress: string,
+  tokenAddress: string,
+  amount: string,
+  network: Network,
+  rpc: string
+) {
+  const { key, chain_id } = NETWORKS[network].xpla;
+  if (!key) {
+    throw Error(`No ${network} key defined for XPLA`);
+  }
+  const { token_bridge } = CONTRACTS[network].xpla;
+  if (token_bridge == undefined) {
+    throw Error(`Unknown token bridge contract on ${network} for XPLA`);
+  }
+  const client = new LCDClient({
+    URL: rpc,
+    chainID: chain_id,
+  });
+  const wallet = client.wallet(
+    new MnemonicKey({
+      mnemonic: key,
+    })
+  );
+  const msgs = transferFromXpla(
+    wallet.key.accAddress,
+    token_bridge,
+    tokenAddress,
+    amount,
+    dstChain,
+    tryNativeToUint8Array(dstAddress, dstChain)
+  );
+  await signAndSendTx(client, wallet, msgs);
+}
+
+async function signAndSendTx(
+  client: LCDClient,
+  wallet: Wallet,
+  msgs: MsgExecuteContract[]
+) {
   const feeDenoms = ["axpla"];
   // const gasPrices = await axios
   //   .get("https://dimension-lcd.xpla.dev/v1/txs/gas_prices")
@@ -158,7 +208,7 @@ export async function execute_xpla(
       },
     ],
     {
-      msgs: [transaction],
+      msgs,
       memo: "",
       feeDenoms,
       // gasPrices,
@@ -167,7 +217,7 @@ export async function execute_xpla(
 
   wallet
     .createAndSignTx({
-      msgs: [transaction],
+      msgs,
       memo: "",
       fee: new Fee(
         feeEstimate.gas_limit,

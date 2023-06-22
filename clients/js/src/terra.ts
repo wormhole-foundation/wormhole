@@ -1,6 +1,7 @@
 import {
   CHAINS,
   CONTRACTS,
+  ChainName,
   TerraChainName,
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import {
@@ -9,12 +10,15 @@ import {
   LCDClient,
   MnemonicKey,
   MsgExecuteContract,
+  Wallet,
 } from "@terra-money/terra.js";
 import axios from "axios";
 import { fromUint8Array } from "js-base64";
 import { NETWORKS } from "./consts";
 import { Network } from "./utils";
 import { Payload, impossible } from "./vaa";
+import { transferFromTerra } from "@certusone/wormhole-sdk/lib/esm/token_bridge/transfer";
+import { tryNativeToUint8Array } from "@certusone/wormhole-sdk/lib/esm/utils";
 
 export async function execute_terra(
   payload: Payload,
@@ -152,6 +156,55 @@ export async function execute_terra(
     { uluna: 1000 }
   );
 
+  await signAndSendTx(terra, wallet, [transaction]);
+}
+
+export async function transferTerra(
+  srcChain: TerraChainName,
+  dstChain: ChainName,
+  dstAddress: string,
+  tokenAddress: string,
+  amount: string,
+  network: Network,
+  rpc: string
+) {
+  const n = NETWORKS[network][srcChain];
+  if (!n.key) {
+    throw Error(`No ${network} key defined for ${srcChain} (see networks.ts)`);
+  }
+  const { token_bridge } = CONTRACTS[network][srcChain];
+  if (!token_bridge) {
+    throw Error(`Unknown token bridge contract on ${network} for ${srcChain}`);
+  }
+
+  const terra = new LCDClient({
+    URL: rpc,
+    chainID: n.chain_id,
+    isClassic: srcChain === "terra",
+  });
+
+  const wallet = terra.wallet(
+    new MnemonicKey({
+      mnemonic: n.key,
+    })
+  );
+
+  const msgs = await transferFromTerra(
+    wallet.key.accAddress,
+    token_bridge,
+    tokenAddress,
+    amount,
+    dstChain,
+    tryNativeToUint8Array(dstAddress, dstChain)
+  );
+  await signAndSendTx(terra, wallet, msgs);
+}
+
+async function signAndSendTx(
+  terra: LCDClient,
+  wallet: Wallet,
+  msgs: MsgExecuteContract[]
+) {
   const feeDenoms = ["uluna"];
   const gasPrices = await axios
     .get("https://terra-classic-fcd.publicnode.com/v1/txs/gas_prices")
@@ -164,7 +217,7 @@ export async function execute_terra(
       },
     ],
     {
-      msgs: [transaction],
+      msgs,
       memo: "",
       feeDenoms,
       gasPrices,
@@ -173,7 +226,7 @@ export async function execute_terra(
 
   return wallet
     .createAndSignTx({
-      msgs: [transaction],
+      msgs,
       memo: "",
       fee: new Fee(
         feeEstimate.gas_limit,
