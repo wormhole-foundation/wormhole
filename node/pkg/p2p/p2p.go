@@ -13,6 +13,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/accountant"
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/version"
 	eth_common "github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -205,7 +206,7 @@ func Run(
 	ibcFeaturesFunc func() string,
 	ccqEnabled bool,
 	signedQueryReqC chan<- *gossipv1.SignedQueryRequest,
-	queryResponseReadC <-chan *node_common.QueryResponsePublication,
+	queryResponseReadC <-chan *query.QueryResponsePublication,
 ) func(ctx context.Context) error {
 	if components == nil {
 		components = DefaultComponents()
@@ -493,7 +494,7 @@ func Run(
 						logger.Error("failed to marshal query response", zap.Error(err), zap.String("component", "ccqp2p"))
 						continue
 					}
-					digest := node_common.GetQueryResponseDigestFromBytes(msgBytes)
+					digest := query.GetQueryResponseDigestFromBytes(msgBytes)
 					sig, err := ethcrypto.Sign(digest.Bytes(), gk)
 					if err != nil {
 						panic(err)
@@ -682,7 +683,7 @@ func Run(
 			case *gossipv1.GossipMessage_SignedQueryRequest:
 				if signedQueryReqC != nil {
 					if ccqEnabled {
-						if err := node_common.PostSignedQueryRequest(signedQueryReqC, m.SignedQueryRequest); err != nil {
+						if err := query.PostSignedQueryRequest(signedQueryReqC, m.SignedQueryRequest); err != nil {
 							logger.Warn("failed to handle query request", zap.Error(err), zap.String("component", "ccqp2p"))
 						}
 					} else {
