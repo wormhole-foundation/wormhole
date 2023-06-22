@@ -31,7 +31,7 @@ export function createWormholeRelayerUpgradeVAA(
     ["bytes32", "uint8", "uint16", "bytes32"],
     [
       wormholeRelayerModule,
-      1,
+      2,
       chain.chainId,
       "0x" + tryNativeToHexString(newAddress, "ethereum"),
     ]
