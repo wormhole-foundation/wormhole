@@ -57,6 +57,6 @@ export const WORMHOLE_CONFIG_TESTNET: WormholeConfig = {
     tokenBridgeAppId: BigInt("86525641")
 }
 export const WORMHOLE_CONFIG_DEVNET: WormholeConfig = {
-    coreBridgeAppId: BigInt("4"),
-    tokenBridgeAppId: BigInt("6")
+    coreBridgeAppId: BigInt("1004"),
+    tokenBridgeAppId: BigInt("1006")
 }
