@@ -19,6 +19,11 @@ func NewWatcherRunnable(
 	return func(ctx context.Context) error {
 		logger := supervisor.Logger(ctx)
 		supervisor.Signal(ctx, supervisor.SignalHealthy)
+
+		if c.L1FinalizerRequired != "" && c.l1Finalizer == nil {
+			logger.Fatal("Mock watcher: L1FinalizerRequired but not set.")
+		}
+
 		logger.Info("Mock Watcher running.")
 
 		for {

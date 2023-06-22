@@ -21,6 +21,7 @@ type WatcherConfig struct {
 	ObservationDb       ObservationDb                   // If the watcher receives a re-observation request with a TxHash in this map, it will make the corresponding observation in this map.
 	MockSetC            <-chan *common.GuardianSet
 	L1FinalizerRequired watchers.NetworkID // (optional)
+	l1Finalizer         interfaces.L1Finalizer
 }
 
 func (wc *WatcherConfig) GetNetworkID() watchers.NetworkID {
@@ -36,7 +37,7 @@ func (wc *WatcherConfig) RequiredL1Finalizer() watchers.NetworkID {
 }
 
 func (wc *WatcherConfig) SetL1Finalizer(l1finalizer interfaces.L1Finalizer) {
-	// empty
+	wc.l1Finalizer = l1finalizer
 }
 
 func (wc *WatcherConfig) Create(
