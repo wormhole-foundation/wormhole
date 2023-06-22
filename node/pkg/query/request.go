@@ -1,4 +1,4 @@
-package common
+package query
 
 import (
 	"bytes"
@@ -7,6 +7,7 @@ import (
 	"math"
 	"strings"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
@@ -74,12 +75,12 @@ type PerChainQueryInternal struct {
 }
 
 // QueryRequestDigest returns the query signing prefix based on the environment.
-func QueryRequestDigest(env Environment, b []byte) ethCommon.Hash {
+func QueryRequestDigest(env common.Environment, b []byte) ethCommon.Hash {
 	// TODO: should this use a different standard of signing messages, like https://eips.ethereum.org/EIPS/eip-712
 	var queryRequestPrefix []byte
-	if env == MainNet {
+	if env == common.MainNet {
 		queryRequestPrefix = []byte("mainnet_query_request_000000000000|")
-	} else if env == TestNet {
+	} else if env == common.TestNet {
 		queryRequestPrefix = []byte("testnet_query_request_000000000000|")
 	} else {
 		queryRequestPrefix = []byte("devnet_query_request_0000000000000|")
@@ -94,7 +95,7 @@ func PostSignedQueryRequest(signedQueryReqSendC chan<- *gossipv1.SignedQueryRequ
 	case signedQueryReqSendC <- req:
 		return nil
 	default:
-		return ErrChanFull
+		return common.ErrChanFull
 	}
 }
 

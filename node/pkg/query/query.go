@@ -1,4 +1,4 @@
-package guardiand
+package query
 
 import (
 	"context"
@@ -18,47 +18,47 @@ import (
 )
 
 const (
-	// requestTimeout indicates how long before a request is considered to have timed out.
-	requestTimeout = 1 * time.Minute
+	// RequestTimeout indicates how long before a request is considered to have timed out.
+	RequestTimeout = 1 * time.Minute
 
-	// retryInterval specifies how long we will wait between retry intervals. This is the interval of our ticker.
-	retryInterval = 10 * time.Second
+	// RetryInterval specifies how long we will wait between retry intervals. This is the interval of our ticker.
+	RetryInterval = 10 * time.Second
 )
 
 type (
 	// pendingQuery is the cache entry for a given query.
 	pendingQuery struct {
 		signedRequest *gossipv1.SignedQueryRequest
-		request       *common.QueryRequest
+		request       *QueryRequest
 		requestID     string
 		receiveTime   time.Time
 		queries       []*perChainQuery
-		responses     []*common.PerChainQueryResponseInternal
+		responses     []*PerChainQueryResponseInternal
 
 		// respPub is only populated when we need to retry sending the response to p2p.
-		respPub *common.QueryResponsePublication
+		respPub *QueryResponsePublication
 	}
 
 	// perChainQuery is the data associated with a single per chain query in a query request.
 	perChainQuery struct {
-		req            *common.PerChainQueryInternal
-		channel        chan *common.PerChainQueryInternal
+		req            *PerChainQueryInternal
+		channel        chan *PerChainQueryInternal
 		lastUpdateTime time.Time
 	}
 )
 
-// handleQueryRequests multiplexes observation requests to the appropriate chain
-func handleQueryRequests(
+// HandleQueryRequests multiplexes observation requests to the appropriate chain
+func HandleQueryRequests(
 	ctx context.Context,
 	logger *zap.Logger,
 	signedQueryReqC <-chan *gossipv1.SignedQueryRequest,
-	chainQueryReqC map[vaa.ChainID]chan *common.PerChainQueryInternal,
+	chainQueryReqC map[vaa.ChainID]chan *PerChainQueryInternal,
 	allowedRequestors map[ethCommon.Address]struct{},
-	queryResponseReadC <-chan *common.PerChainQueryResponseInternal,
-	queryResponseWriteC chan<- *common.QueryResponsePublication,
+	queryResponseReadC <-chan *PerChainQueryResponseInternal,
+	queryResponseWriteC chan<- *QueryResponsePublication,
 	env common.Environment,
 ) {
-	handleQueryRequestsImpl(ctx, logger, signedQueryReqC, chainQueryReqC, allowedRequestors, queryResponseReadC, queryResponseWriteC, env, requestTimeout, retryInterval)
+	handleQueryRequestsImpl(ctx, logger, signedQueryReqC, chainQueryReqC, allowedRequestors, queryResponseReadC, queryResponseWriteC, env, RequestTimeout, RetryInterval)
 }
 
 // handleQueryRequestsImpl allows instantiating the handler in the test environment with shorter timeout and retry parameters.
@@ -66,10 +66,10 @@ func handleQueryRequestsImpl(
 	ctx context.Context,
 	logger *zap.Logger,
 	signedQueryReqC <-chan *gossipv1.SignedQueryRequest,
-	chainQueryReqC map[vaa.ChainID]chan *common.PerChainQueryInternal,
+	chainQueryReqC map[vaa.ChainID]chan *PerChainQueryInternal,
 	allowedRequestors map[ethCommon.Address]struct{},
-	queryResponseReadC <-chan *common.PerChainQueryResponseInternal,
-	queryResponseWriteC chan<- *common.QueryResponsePublication,
+	queryResponseReadC <-chan *PerChainQueryResponseInternal,
+	queryResponseWriteC chan<- *QueryResponsePublication,
 	env common.Environment,
 	requestTimeoutImpl time.Duration,
 	retryIntervalImpl time.Duration,
@@ -119,7 +119,7 @@ func handleQueryRequestsImpl(
 			// - valid "block" strings
 
 			requestID := hex.EncodeToString(signedRequest.Signature)
-			digest := common.QueryRequestDigest(env, signedRequest.QueryRequest)
+			digest := QueryRequestDigest(env, signedRequest.QueryRequest)
 
 			signerBytes, err := ethCrypto.Ecrecover(digest.Bytes(), signedRequest.Signature)
 			if err != nil {
@@ -140,7 +140,7 @@ func handleQueryRequestsImpl(
 				continue
 			}
 
-			var queryRequest common.QueryRequest
+			var queryRequest QueryRequest
 			err = queryRequest.Unmarshal(signedRequest.QueryRequest)
 			if err != nil {
 				qLogger.Error("failed to unmarshal query request", zap.String("requestor", signerAddress.Hex()), zap.String("requestID", requestID), zap.Error(err))
@@ -155,7 +155,7 @@ func handleQueryRequestsImpl(
 			// Build the set of per chain queries and placeholders for the per chain responses.
 			errorFound := false
 			queries := []*perChainQuery{}
-			responses := make([]*common.PerChainQueryResponseInternal, len(queryRequest.PerChainQueries))
+			responses := make([]*PerChainQueryResponseInternal, len(queryRequest.PerChainQueries))
 			receiveTime := time.Now()
 
 			for requestIdx, pcq := range queryRequest.PerChainQueries {
@@ -174,7 +174,7 @@ func handleQueryRequestsImpl(
 				}
 
 				queries = append(queries, &perChainQuery{
-					req: &common.PerChainQueryInternal{
+					req: &PerChainQueryInternal{
 						RequestID:  requestID,
 						RequestIdx: requestIdx,
 						Request:    pcq,
@@ -204,7 +204,7 @@ func handleQueryRequestsImpl(
 			}
 
 		case resp := <-queryResponseReadC: // Response from a watcher.
-			if resp.Status == common.QuerySuccess {
+			if resp.Status == QuerySuccess {
 				if resp.Response == nil {
 					qLogger.Error("received a successful query response with no results, dropping it!", zap.String("requestID", resp.RequestID))
 					continue
@@ -234,20 +234,20 @@ func handleQueryRequestsImpl(
 				}
 
 				// Build the list of per chain response publications and the overall query response publication.
-				responses := []*common.PerChainQueryResponse{}
+				responses := []*PerChainQueryResponse{}
 				for _, resp := range pq.responses {
 					if resp == nil {
 						qLogger.Error("unexpected null response in pending query!", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx))
 						continue
 					}
 
-					responses = append(responses, &common.PerChainQueryResponse{
+					responses = append(responses, &PerChainQueryResponse{
 						ChainId:  resp.ChainId,
 						Response: resp.Response,
 					})
 				}
 
-				respPub := &common.QueryResponsePublication{
+				respPub := &QueryResponsePublication{
 					Request:           pq.signedRequest,
 					PerChainResponses: responses,
 				}
@@ -261,13 +261,13 @@ func handleQueryRequestsImpl(
 					qLogger.Warn("failed to publish query response to p2p, will retry publishing next interval", zap.String("requestID", resp.RequestID))
 					pq.respPub = respPub
 				}
-			} else if resp.Status == common.QueryRetryNeeded {
+			} else if resp.Status == QueryRetryNeeded {
 				if _, exists := pendingQueries[resp.RequestID]; exists {
 					qLogger.Warn("query failed, will retry next interval", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx))
 				} else {
 					qLogger.Warn("received a retry needed response with no outstanding query, dropping it", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx))
 				}
-			} else if resp.Status == common.QueryFatalError {
+			} else if resp.Status == QueryFatalError {
 				qLogger.Warn("received a fatal error response, dropping the whole request", zap.String("requestID", resp.RequestID), zap.Int("requestIdx", resp.RequestIdx))
 				delete(pendingQueries, resp.RequestID)
 			} else {
@@ -307,8 +307,8 @@ func handleQueryRequestsImpl(
 	}
 }
 
-// ccqParseAllowedRequesters parses a comma separated list of allowed requesters into a map to be used for look ups.
-func ccqParseAllowedRequesters(ccqAllowedRequesters string) (map[ethCommon.Address]struct{}, error) {
+// ParseAllowedRequesters parses a comma separated list of allowed requesters into a map to be used for look ups.
+func ParseAllowedRequesters(ccqAllowedRequesters string) (map[ethCommon.Address]struct{}, error) {
 	if ccqAllowedRequesters == "" {
 		return nil, fmt.Errorf("if cross chain query is enabled `--ccqAllowedRequesters` must be specified")
 	}
