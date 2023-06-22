@@ -145,7 +145,7 @@ export async function transferFromEthNative(
   tokenBridgeAddress: string,
   signer: ethers.Signer,
   amount: ethers.BigNumberish,
-  recipientChain: ChainId | ChainId,
+  recipientChain: ChainId | ChainName,
   recipientAddress: Uint8Array,
   relayerFee: ethers.BigNumberish = 0,
   overrides: PayableOverrides & { from?: string | Promise<string> } = {},
@@ -933,7 +933,9 @@ export async function transferFromSui(
   recipient: Uint8Array,
   feeAmount: bigint = BigInt(0),
   relayerFee: bigint = BigInt(0),
-  payload: Uint8Array | null = null
+  payload: Uint8Array | null = null,
+  coreBridgePackageId?: string,
+  tokenBridgePackageId?: string
 ) {
   if (payload !== null) {
     throw new Error("Sui transfer with payload not implemented");
@@ -948,9 +950,13 @@ export async function transferFromSui(
     );
   }
 
-  const [coreBridgePackageId, tokenBridgePackageId] = await Promise.all([
-    getPackageId(provider, coreBridgeStateObjectId),
-    getPackageId(provider, tokenBridgeStateObjectId),
+  [coreBridgePackageId, tokenBridgePackageId] = await Promise.all([
+    coreBridgePackageId
+      ? Promise.resolve(coreBridgePackageId)
+      : getPackageId(provider, coreBridgeStateObjectId),
+    tokenBridgePackageId
+      ? Promise.resolve(tokenBridgePackageId)
+      : getPackageId(provider, tokenBridgeStateObjectId),
   ]);
   const tx = new TransactionBlock();
   const [transferCoin] = (() => {

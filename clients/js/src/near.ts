@@ -1,10 +1,18 @@
-import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+import {
+  ChainName,
+  CONTRACTS,
+} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import BN from "bn.js";
 import { Account, connect, KeyPair } from "near-api-js";
 import { InMemoryKeyStore } from "near-api-js/lib/key_stores";
 import { NETWORKS } from "./consts";
 import { Network } from "./utils";
 import { impossible, Payload } from "./vaa";
+import {
+  transferNearFromNear,
+  transferTokenFromNear,
+} from "@certusone/wormhole-sdk/lib/esm/token_bridge/transfer";
+import { tryNativeToUint8Array } from "@certusone/wormhole-sdk/lib/esm/utils";
 
 export const execute_near = async (
   payload: Payload,
@@ -142,3 +150,62 @@ export const execute_near = async (
   const txHash = result1.transaction.hash + ":" + result2.transaction.hash;
   console.log("Hash: " + txHash);
 };
+
+export async function transferNear(
+  dstChain: ChainName,
+  dstAddress: string,
+  tokenAddress: string,
+  amount: string,
+  network: Network,
+  rpc: string
+) {
+  const { key, networkId, deployerAccount } = NETWORKS[network].near;
+  if (!key) {
+    throw Error(`No ${network} key defined for NEAR`);
+  }
+  const { core, token_bridge } = CONTRACTS[network].near;
+  if (core === undefined) {
+    throw Error(`Unknown core contract on ${network} for NEAR`);
+  }
+  if (token_bridge === undefined) {
+    throw Error(`Unknown token bridge contract on ${network} for NEAR`);
+  }
+  const keyStore = new InMemoryKeyStore();
+  keyStore.setKey(networkId, deployerAccount, KeyPair.fromString(key));
+  const near = await connect({
+    keyStore,
+    networkId,
+    nodeUrl: rpc,
+    headers: {},
+  });
+  const nearAccount = new Account(near.connection, deployerAccount);
+  if (tokenAddress === "native") {
+    const msg = await transferNearFromNear(
+      near.connection.provider,
+      core,
+      token_bridge,
+      BigInt(amount),
+      tryNativeToUint8Array(dstAddress, dstChain),
+      dstChain,
+      BigInt(0)
+    );
+    const result = await nearAccount.functionCall(msg);
+    console.log(result.transaction.hash);
+  } else {
+    const msgs = await transferTokenFromNear(
+      near.connection.provider,
+      nearAccount.accountId,
+      core,
+      token_bridge,
+      tokenAddress,
+      BigInt(amount),
+      tryNativeToUint8Array(dstAddress, dstChain),
+      dstChain,
+      BigInt(0)
+    );
+    for (const msg of msgs) {
+      const result = await nearAccount.functionCall(msg);
+      console.log(result.transaction.hash);
+    }
+  }
+}
