@@ -39,13 +39,6 @@ describe("worm info contract", () => {
           });
 
           it(`should return ${chain} NFTBridge ${network} contract correctly`, async () => {
-            //TODO: remove 'if statement' once fix on wormhole SDK is merged & published (missing aptos testnet NFTBridge contract as consts)
-            // PR source: https://github.com/wormhole-foundation/wormhole/pull/3110
-            if (chain === "aptos" && network === "testnet") {
-              expect(true).toBe(true);
-              return;
-            }
-
             try {
               const output = run_worm_command(
                 `info contract ${network} ${chain} NFTBridge`
