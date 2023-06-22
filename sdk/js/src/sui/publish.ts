@@ -12,16 +12,18 @@ export const publishCoin = async (
   coreBridgeStateObjectId: string,
   tokenBridgeStateObjectId: string,
   decimals: number,
-  signerAddress: string
+  signerAddress: string,
+  coreBridgePackageId?: string,
+  tokenBridgePackageId?: string
 ) => {
-  const coreBridgePackageId = await getPackageId(
-    provider,
-    coreBridgeStateObjectId
-  );
-  const tokenBridgePackageId = await getPackageId(
-    provider,
-    tokenBridgeStateObjectId
-  );
+  [coreBridgePackageId, tokenBridgePackageId] = await Promise.all([
+    coreBridgePackageId
+      ? Promise.resolve(coreBridgePackageId)
+      : getPackageId(provider, coreBridgeStateObjectId),
+    tokenBridgePackageId
+      ? Promise.resolve(tokenBridgePackageId)
+      : getPackageId(provider, tokenBridgeStateObjectId),
+  ]);
   const build = await getCoinBuildOutput(
     provider,
     coreBridgePackageId,

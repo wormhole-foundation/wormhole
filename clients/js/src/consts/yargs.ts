@@ -42,3 +42,7 @@ export const CHAIN_ID_OR_NAME_CHOICES = [
   ...Object.keys(CHAINS),
   ...Object.values(CHAINS),
 ] as (ChainName | ChainId)[];
+
+export const CHAIN_NAME_CHOICES = Object.keys(CHAINS).filter(
+  (c) => c !== "unset"
+) as ChainName[];
