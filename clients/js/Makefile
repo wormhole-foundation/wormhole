@@ -24,8 +24,12 @@ install: build
 test: build
 # This first invocation will set up the initial config, so that the warning
 # doesn't show up in the tests
+	npm run check
 	node build/main.js --version > /dev/null
 	./run_parse_tests
+
+docs:
+	npm run docs
 
 clean:
 	rm -rf build node_modules

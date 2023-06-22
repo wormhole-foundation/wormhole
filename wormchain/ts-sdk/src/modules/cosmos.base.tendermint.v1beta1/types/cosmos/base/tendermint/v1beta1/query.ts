@@ -96,6 +96,7 @@ export interface VersionInfo {
   build_tags: string;
   go_version: string;
   build_deps: Module[];
+  /** Since: cosmos-sdk 0.43 */
   cosmos_sdk_version: string;
 }
 

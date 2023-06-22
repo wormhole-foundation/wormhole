@@ -6,18 +6,10 @@ WORKDIR /tmp
 
 RUN git clone https://github.com/aptos-labs/aptos-core.git
 WORKDIR /tmp/aptos-core
+
+# Build aptos 1.0.4
+RUN git reset --hard 61615bb3326fc8770e6df04d52aec97afa9148df
 RUN cargo build -p aptos --profile cli
 
 FROM rust:1.62@sha256:5777f201f507075309c4d2d1c1e8d8219e654ae1de154c844341050016a64a0c as export-stage
 COPY --from=aptos-node /tmp/aptos-core/target/cli/aptos /usr/local/cargo/bin/aptos
-
-RUN apt-get update && apt-get -y install npm
-WORKDIR /tmp
-RUN npm install -g n typescript ts-node
-RUN n stable
-
-COPY clients/js  /tmp/clients/js
-
-WORKDIR /tmp/clients/js
-
-RUN make install

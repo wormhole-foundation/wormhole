@@ -119,7 +119,7 @@ spec:
             - name: POSTGRES_DB
               value: fcd
       restartPolicy: Always
-  serviceName: terra-fcd
+  serviceName: terra-postgres
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -199,7 +199,7 @@ spec:
             - name: TYPEORM_DATABASE
               value: fcd
             - name: TYPEORM_SYNCHRONIZE
-              value: "true"
+              value: "false"
             - name: TYPEORM_LOGGING
               value: "false"
             - name: TYPEORM_ENTITIES

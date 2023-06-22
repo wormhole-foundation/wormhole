@@ -209,7 +209,7 @@ mod tests {
             type Value = [u8; N];
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                write!(formatter, "an array of length {}", N)
+                write!(formatter, "an array of length {N}")
             }
 
             fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>

@@ -30,7 +30,7 @@ func newFinalizer(eventChan chan eventType, nearAPI nearapi.NearApi, mainnet boo
 	}
 }
 
-func (f Finalizer) isFinalizedCached(logger *zap.Logger, ctx context.Context, blockHash string) (nearapi.BlockHeader, bool) {
+func (f Finalizer) isFinalizedCached(logger *zap.Logger, blockHash string) (nearapi.BlockHeader, bool) {
 	if err := nearapi.IsWellFormedHash(blockHash); err != nil {
 		// SECURITY defense-in-depth: check if block hash is well-formed
 		logger.Error("blockHash invalid", zap.String("error_type", "invalid_hash"), zap.String("blockHash", blockHash), zap.Error(err))
@@ -38,7 +38,7 @@ func (f Finalizer) isFinalizedCached(logger *zap.Logger, ctx context.Context, bl
 	}
 
 	if b, ok := f.finalizedBlocksCache.Get(blockHash); ok {
-		blockHeader := b.(nearapi.BlockHeader)
+		blockHeader := b.(nearapi.BlockHeader) //nolint:forcetypeassert
 		// SECURITY In blocks < 74473147 message timestamps were computed differently and we don't want to re-observe these messages
 		if !f.mainnet || blockHeader.Height > 74473147 {
 			return blockHeader, true
@@ -58,7 +58,7 @@ func (f Finalizer) isFinalized(logger *zap.Logger, ctx context.Context, queriedB
 	logger.Debug("checking block finalization", zap.String("method", "isFinalized"), zap.String("parameters", queriedBlockHash))
 
 	// check cache first
-	if block, ok := f.isFinalizedCached(logger, ctx, queriedBlockHash); ok {
+	if block, ok := f.isFinalizedCached(logger, queriedBlockHash); ok {
 		return block, true
 	}
 
@@ -92,17 +92,17 @@ func (f Finalizer) isFinalized(logger *zap.Logger, ctx context.Context, queriedB
 		}
 
 		if queriedBlockHash == someFinalBlockHash {
-			f.setFinalized(logger, ctx, queriedBlock.Header)
+			f.setFinalized(queriedBlock.Header)
 			// block was marked as finalized in the cache, so this should succeed now.
 			// We don't return directly because setFinalized() contains some sanity checks.
-			return f.isFinalizedCached(logger, ctx, queriedBlockHash)
+			return f.isFinalizedCached(logger, queriedBlockHash)
 		}
 	}
 	// it seems like the block has not been finalized yet
 	return nearapi.BlockHeader{}, false
 }
 
-func (f Finalizer) setFinalized(logger *zap.Logger, ctx context.Context, blockHeader nearapi.BlockHeader) {
+func (f Finalizer) setFinalized(blockHeader nearapi.BlockHeader) {
 
 	// SECURITY defense-in-depth: don't cache obviously corrupted data.
 	if nearapi.IsWellFormedHash(blockHeader.Hash) != nil || blockHeader.Timestamp == 0 || blockHeader.Height == 0 {

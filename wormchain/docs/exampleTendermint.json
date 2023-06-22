@@ -13,7 +13,7 @@
               {
                 "events": [
                   {
-                    "type": "certusone.wormholechain.wormhole.EventPostedMessage",
+                    "type": "wormhole_foundation.wormchain.wormhole.EventPostedMessage",
                     "attributes": [
                       {
                         "key": "emitter",
@@ -178,7 +178,7 @@
                 ]
               },
               {
-                "type": "certusone.wormholechain.wormhole.EventPostedMessage",
+                "type": "wormhole_foundation.wormchain.wormhole.EventPostedMessage",
                 "attributes": [
                   {
                     "key": "ZW1pdHRlcg==",
@@ -213,7 +213,7 @@
       "transfer.amount": ["100uworm"],
       "tx.acc_seq": ["wormhole1wqwywkce50mg6077huy4j9y8lt80943ks5udzr/13"],
       "message.action": ["Transfer"],
-      "certusone.wormholechain.wormhole.EventPostedMessage.nonce": ["0"],
+      "wormhole_foundation.wormchain.wormhole.EventPostedMessage.nonce": ["0"],
       "tx.hash": [
         "0A623859DCEBE1DCAC077D6D8B459BBF6FB199B18FCC5A3B9518EB3F36F25BE5"
       ],
@@ -223,18 +223,20 @@
         "wormhole1zugu6cajc4z7ue29g9wnes9a5ep9cs7yu7rn3z"
       ],
       "transfer.recipient": ["wormhole1zugu6cajc4z7ue29g9wnes9a5ep9cs7yu7rn3z"],
-      "certusone.wormholechain.wormhole.EventPostedMessage.sequence": ["13"],
+      "wormhole_foundation.wormchain.wormhole.EventPostedMessage.sequence": [
+        "13"
+      ],
       "tx.height": ["8583"],
       "tx.signature": [
         "7S2taziRjKoisL0iSt1wq6VJixB+t+9YMOOD1F5lm/hvG1uxOOxM90c+QNWpwIq3O4FwyjG6IrodNN+uNOIX0A=="
       ],
       "coin_spent.amount": ["100uworm"],
-      "certusone.wormholechain.wormhole.EventPostedMessage.payload": [
+      "wormhole_foundation.wormchain.wormhole.EventPostedMessage.payload": [
         "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAdWhvbGUMIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
       ],
       "tm.event": ["Tx"],
       "transfer.sender": ["wormhole1wqwywkce50mg6077huy4j9y8lt80943ks5udzr"],
-      "certusone.wormholechain.wormhole.EventPostedMessage.emitter": [
+      "wormhole_foundation.wormchain.wormhole.EventPostedMessage.emitter": [
         "AAAAAAAAAAAAAAAAFxHNY7LFRe5lRUFdPMC9pkJcQ8Q="
       ]
     }

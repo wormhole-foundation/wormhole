@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"strconv"
 
-	"encoding/binary"
 	"encoding/hex"
 
 	"github.com/CosmWasm/wasmd/x/wasm/ioutils"
@@ -16,6 +15,7 @@ import (
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
+	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -132,15 +132,65 @@ func CmdInstantiateContract() *cobra.Command {
 				}
 				return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), &msg)
 			} else {
-				var hash [32]byte
-				keccak := sha3.NewLegacyKeccak256()
-				binary.Write(keccak, binary.BigEndian, msg.CodeID)
-				keccak.Write([]byte(msg.Label))
-				keccak.Write([]byte(msg.Msg))
-				keccak.Sum(hash[:0])
+				hash := vaa.CreateInstatiateCosmwasmContractHash(msg.CodeID, msg.Label, msg.Msg)
 				fmt.Println(hex.EncodeToString(hash[:]))
 				return nil
 			}
+		},
+	}
+
+	cmd.Flags().String("label", "", "A human-readable name for this contract in lists")
+	flags.AddTxFlagsToCmd(cmd)
+
+	return cmd
+}
+
+func CmdMigrateContract() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "migrate [contract] [code_id_uint64] [json_encoded_init_args] [vaa-hex]",
+		Short: "Migrate a wasmd contract, or just compute the hash for vaa if vaa is omitted",
+		Args:  cobra.RangeArgs(3, 4),
+		RunE: func(cmd *cobra.Command, args []string) (err error) {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+			hash_only := len(args) == 3
+
+			contract := args[0]
+
+			codeId, err := cast.ToUint64E(args[1])
+			if err != nil {
+				return err
+			}
+
+			initMsg := args[2]
+
+			vaaBz := []byte{}
+			if !hash_only {
+				vaaBz, err = hex.DecodeString(args[3])
+				if err != nil {
+					return err
+				}
+			}
+
+			msg := types.MsgMigrateContract{
+				Signer:   clientCtx.GetFromAddress().String(),
+				CodeID:   codeId,
+				Contract: contract,
+				Msg:      []byte(initMsg),
+				Vaa:      vaaBz,
+			}
+			if hash_only {
+				hash := vaa.CreateMigrateCosmwasmContractHash(msg.CodeID, msg.Contract, msg.Msg)
+				fmt.Println(hex.EncodeToString(hash[:]))
+				return nil
+			}
+
+			if err := msg.ValidateBasic(); err != nil {
+				return err
+			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), &msg)
 		},
 	}
 

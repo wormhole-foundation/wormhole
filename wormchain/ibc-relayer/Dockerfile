@@ -1,4 +1,4 @@
-FROM docker.io/golang:1.19.0@sha256:4c00329e17be6fedd8bd4412df454a205348da00f9e0e5d763380a29eb096b75
+FROM docker.io/golang:1.19.9@sha256:86901bd215ca2b33bdef68f70b999140252169bb55883bb29347334fa00b5b62
 
 #used for a readiness probe
 RUN apt-get update
@@ -18,7 +18,7 @@ COPY ./wormchain/ibc-relayer/chains /chains
 RUN rly config init
 RUN rly chains add-dir /chains
 RUN rly keys restore localterra default "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius" --coin-type 330
-RUN rly keys restore wormchain default "barrel eager leaf heart runway bridge crowd warm refuse anxiety blur rain desert good hill prison dune oyster abuse owner bless trash talk wheat"
+RUN rly keys restore wormchain default "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius"
 RUN rly paths new localterra wormchain terra-wormchain
 
 EXPOSE 7597

@@ -1,4 +1,5 @@
 import { Commitment, Connection, PublicKeyInitData } from "@solana/web3.js";
+import { AptosClient, Types } from "aptos";
 import { ethers } from "ethers";
 import { Bridge__factory } from "../ethers-contracts";
 import { getWrappedMeta } from "../solana/nftBridge";
@@ -43,3 +44,26 @@ export async function getIsWrappedAssetSolana(
 }
 
 export const getIsWrappedAssetSol = getIsWrappedAssetSolana;
+
+export async function getIsWrappedAssetAptos(
+  client: AptosClient,
+  nftBridgeAddress: string,
+  creatorAddress: string
+) {
+  try {
+    await client.getAccountResource(
+      creatorAddress,
+      `${nftBridgeAddress}::state::OriginInfo`
+    );
+    return true;
+  } catch (e: any) {
+    if (
+      (e instanceof Types.ApiError || e.errorCode === "resource_not_found") &&
+      e.status === 404
+    ) {
+      return false;
+    }
+
+    throw e;
+  }
+}

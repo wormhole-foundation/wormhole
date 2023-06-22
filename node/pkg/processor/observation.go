@@ -1,3 +1,4 @@
+//nolint:unparam // this will be refactored in https://github.com/wormhole-foundation/wormhole/pull/1953
 package processor
 
 import (
@@ -227,7 +228,7 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 	}
 
 	// Calculate digest for logging
-	digest := v.SigningMsg()
+	digest := v.SigningDigest()
 	hash := hex.EncodeToString(digest.Bytes())
 
 	if p.gs == nil {

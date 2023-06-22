@@ -72,8 +72,8 @@ spec:
             httpGet:
               port: 26657
           resources: {}
-        - name: terra2-contracts
-          image: terra2-contracts
+        - name: terra2-deploy
+          image: terra2-deploy
           command:
             - /bin/sh
             - -c
@@ -199,7 +199,7 @@ spec:
             - name: TYPEORM_DATABASE
               value: fcd
             - name: TYPEORM_SYNCHRONIZE
-              value: "true"
+              value: "false"
             - name: TYPEORM_LOGGING
               value: "false"
             - name: TYPEORM_ENTITIES

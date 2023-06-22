@@ -6,13 +6,16 @@
 | Test ERC20         |    ETH    |                                                            0x2D8BE6BF0baA74e0A907016679CaE9190e80dD0A | Tokens minted to Test Wallet                                                                                                                                        |
 | Test NFT           |    ETH    |                                                            0x5b9b42d6e4B2e4Bf8d42Eba32D46918e10899B66 | One minted to Test Wallet                                                                                                                                           |
 | Test WETH          |    ETH    |                                                            0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E | Tokens minted to Test Wallet                                                                                                                                        |
+| Test ERC20 GA      |    ETH    |                                                            0x4cFB3F70BF6a80397C2e634e5bDd85BC0bb189EE | Tokens minted to Test Wallet 9                                                                                                                                      |
 | Bridge Core        |    ETH    |                                                            0xC89Ce4735882C9F0f0FE26686c53074E09B0D550 |                                                                                                                                                                     |
 | Token Bridge       |    ETH    |                                                            0x0290FB167208Af455bB137780163b7B7a9a10C16 |                                                                                                                                                                     |
 | NFT Bridge         |    ETH    |                                                            0x26b4afb60d6c903165150c6f0aa14f8016be4aec |                                                                                                                                                                     |
 | Test Wallet        |    SOL    |                                                          6sbzC1eH4FTujJXWj51eQe25cYvr4xfXbJ1vAj7j2k5J | Key in `solana/keys/solana-devnet.json`                                                                                                                             |
+| Test Wallet 2      |    SOL    |                                                          7HrnXGAzG6mV93Lumk7yfyrNk2bpstq8YyesqojLj8mG | Key in `solana/keys/solana-devnet2.json`                                                                                                                            |
 | Example Token      |    SOL    |                                                          2WDq7wSs9zYrpx2kbHDA4RUTRch2CCTP6ZWaH4GNfnQQ | Tokens minted to Test Wallet                                                                                                                                        |
 | Example NFT        |    SOL    |                                                          BVxyYhm498L79r4HMQ9sxZ5bi41DmJmeWZ7SCS7Cyvna | One minted to Test Wallet                                                                                                                                           |
 | Example NFT 2      |    SOL    |                                                           nftMANh29jbMboVnbYt1AUAWFP9N4Jnckr9Zeq85WUs | One minted to Test Wallet                                                                                                                                           |
+| Example NFT 3      |    SOL    |                                                          AQJc65JzbzsT88JnGEXSqZaF8NFAXPo21fX4QUED4uRX | One minted to Test Wallet 2                                                                                                                                         |
 | Bridge Core        |    SOL    |                                                           Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o |                                                                                                                                                                     |
 | Token Bridge       |    SOL    |                                                          B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE |                                                                                                                                                                     |
 | NFT Bridge         |    SOL    |                                                           NFTWqJR8YnRVqPDvTJrYuLrQDitTG5AScqbeghi4zSA |                                                                                                                                                                     |
@@ -35,12 +38,12 @@ The terra testnet can be used just like a normal localterra network (can be sele
 
 ### Algorand
 
-The `admin.py` deployment tool can be used to generate a set of five prefunded accounts using the `--fundDevAccounts` option, with the following addresses  and mnemonics:
+The `admin.py` deployment tool can be used to generate a set of five prefunded accounts using the `--fundDevAccounts` option, with the following addresses and mnemonics:
 
 DEV7AREMQSPWWDDFFJ3A5OIMMDCZN4YT5U2MQBN76Y4J5ERQQ3MWPIHUYA 800M ALGO
 provide warfare better filter glory civil help jacket alpha penalty van fiber code upgrade web more curve sauce merit bike satoshi blame orphan absorb modify
 
-DEVBE5BIDJV6SWV7E3XPLB5DXZG2JYCWHGXBAQH6WNBZA3G7SQQ5HUJQII 
+DEVBE5BIDJV6SWV7E3XPLB5DXZG2JYCWHGXBAQH6WNBZA3G7SQQ5HUJQII
 album neglect very nasty input trick annual arctic spray task candy unfold letter drill glove sword flock omit dial rather session mesh slow abandon slab
 
 DEV3AURNEWR5TRFXIOBP2VTCTZIS52Q3XJHNJ57M4IZLMNZ5ABQ6M7AL6E

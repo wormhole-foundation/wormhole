@@ -37,6 +37,9 @@ func NewBlockPollConnector(ctx context.Context, baseConnector Connector, finaliz
 	if publishSafeBlocks && !useFinalized {
 		return nil, fmt.Errorf("publishSafeBlocks may only be enabled if useFinalized is enabled")
 	}
+	if finalizer == nil {
+		return nil, fmt.Errorf("finalizer must not be nil; Use finalizers.NewDefaultFinalizer() if you want to have no finalizer.")
+	}
 	connector := &BlockPollConnector{
 		Connector:         baseConnector,
 		Delay:             delay,
@@ -117,15 +120,12 @@ func (b *BlockPollConnector) pollBlocks(ctx context.Context, logger *zap.Logger,
 	// Use a timeout so that the call will fail and the runable will get restarted. This should not happen in mainnet, but if it does, we will need to
 	// investigate why the runable is dying and fix the underlying problem.
 
-	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-
 	lastPublishedBlock = lastBlock
 
 	// Fetch the latest block on the chain
 	// We could do this on every iteration such that if a new block is created while this function is being executed,
 	// it would automatically fetch new blocks but in order to reduce API load this will be done on the next iteration.
-	latestBlock, err := b.getBlock(timeout, logger, nil, safe)
+	latestBlock, err := b.getBlockWithTimeout(ctx, logger, nil, safe)
 	if err != nil {
 		logger.Error("failed to look up latest block",
 			zap.Uint64("lastSeenBlock", lastBlock.Number.Uint64()), zap.Error(err))
@@ -139,24 +139,22 @@ func (b *BlockPollConnector) pollBlocks(ctx context.Context, logger *zap.Logger,
 
 		// Try to fetch the next block between lastBlock and latestBlock
 		nextBlockNumber := new(big.Int).Add(lastPublishedBlock.Number, big.NewInt(1))
-		block, err := b.getBlock(timeout, logger, nextBlockNumber, safe)
+		block, err := b.getBlockWithTimeout(ctx, logger, nextBlockNumber, safe)
 		if err != nil {
 			logger.Error("failed to fetch next block",
 				zap.Uint64("block", nextBlockNumber.Uint64()), zap.Error(err))
 			return lastPublishedBlock, fmt.Errorf("failed to fetch next block (%d): %w", nextBlockNumber.Uint64(), err)
 		}
 
-		if b.finalizer != nil {
-			finalized, err := b.finalizer.IsBlockFinalized(timeout, block)
-			if err != nil {
-				logger.Error("failed to check block finalization",
-					zap.Uint64("block", block.Number.Uint64()), zap.Error(err))
-				return lastPublishedBlock, fmt.Errorf("failed to check block finalization (%d): %w", block.Number.Uint64(), err)
-			}
+		finalized, err := b.isBlockFinalizedWithTimeout(ctx, block)
+		if err != nil {
+			logger.Error("failed to check block finalization",
+				zap.Uint64("block", block.Number.Uint64()), zap.Error(err))
+			return lastPublishedBlock, fmt.Errorf("failed to check block finalization (%d): %w", block.Number.Uint64(), err)
+		}
 
-			if !finalized {
-				break
-			}
+		if !finalized {
+			break
 		}
 
 		b.blockFeed.Send(block)
@@ -164,6 +162,18 @@ func (b *BlockPollConnector) pollBlocks(ctx context.Context, logger *zap.Logger,
 	}
 
 	return
+}
+
+func (b *BlockPollConnector) getBlockWithTimeout(ctx context.Context, logger *zap.Logger, blockNumber *big.Int, safe bool) (*NewBlock, error) {
+	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	return b.getBlock(timeout, logger, blockNumber, safe)
+}
+
+func (b *BlockPollConnector) isBlockFinalizedWithTimeout(ctx context.Context, block *NewBlock) (bool, error) {
+	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	return b.finalizer.IsBlockFinalized(timeout, block)
 }
 
 func (b *BlockPollConnector) SubscribeForBlocks(ctx context.Context, errC chan error, sink chan<- *NewBlock) (ethereum.Subscription, error) {

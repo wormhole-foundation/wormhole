@@ -230,7 +230,7 @@ func TestStorePendingMsg(t *testing.T) {
 		ConsistencyLevel: 16,
 	}
 
-	pending := &PendingTransfer{ReleaseTime: msg.Timestamp.Add(time.Duration(time.Hour * 72)), Msg: *msg}
+	pending := &PendingTransfer{ReleaseTime: msg.Timestamp.Add(time.Hour * 72), Msg: *msg}
 
 	err3 := db.StorePendingMsg(pending)
 	require.NoError(t, err3)
@@ -258,7 +258,7 @@ func TestDeletePendingMsg(t *testing.T) {
 		ConsistencyLevel: 16,
 	}
 
-	pending := &PendingTransfer{ReleaseTime: msg.Timestamp.Add(time.Duration(time.Hour * 72)), Msg: *msg}
+	pending := &PendingTransfer{ReleaseTime: msg.Timestamp.Add(time.Hour * 72), Msg: *msg}
 
 	err3 := db.StorePendingMsg(pending)
 	require.NoError(t, err3)
@@ -454,7 +454,7 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 
 	// Write the first pending event in the old format.
 	pending1 := &PendingTransfer{
-		ReleaseTime: now.Add(time.Duration(time.Hour * 72)), // Since we are writing this in the old format, this will not get stored, but computed on reload.
+		ReleaseTime: now.Add(time.Hour * 72), // Since we are writing this in the old format, this will not get stored, but computed on reload.
 		Msg: common.MessagePublication{
 			TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 			Timestamp:        now,
@@ -470,11 +470,11 @@ func TestLoadingOldPendingTransfers(t *testing.T) {
 	db.storeOldPendingMsg(t, &pending1.Msg)
 	require.Nil(t, err)
 
-	now2 := now.Add(time.Duration(time.Second * 5))
+	now2 := now.Add(time.Second * 5)
 
 	// Write the second one in the new format.
 	pending2 := &PendingTransfer{
-		ReleaseTime: now2.Add(time.Duration(time.Hour * 71)), // Setting it to 71 hours so we can confirm it didn't get set to the default.
+		ReleaseTime: now2.Add(time.Hour * 71), // Setting it to 71 hours so we can confirm it didn't get set to the default.
 		Msg: common.MessagePublication{
 			TxHash:           eth_common.HexToHash("0x06f541f5ecfc43407c31587aa6ac3a689e8960f36dc23c332db5510dfc6a4063"),
 			Timestamp:        now2,
@@ -533,18 +533,16 @@ func marshalOldTransfer(xfer *Transfer) []byte {
 	return buf.Bytes()
 }
 
-func (d *Database) storeOldTransfer(t *testing.T, xfer *Transfer) error {
+func (d *Database) storeOldTransfer(xfer *Transfer) error {
 	key := []byte(fmt.Sprintf("%v%v", oldTransfer, xfer.MsgID))
 	b := marshalOldTransfer(xfer)
 
-	err := d.db.Update(func(txn *badger.Txn) error {
+	return d.db.Update(func(txn *badger.Txn) error {
 		if err := txn.Set(key, b); err != nil {
 			return err
 		}
 		return nil
 	})
-	require.NoError(t, err)
-	return nil
 }
 
 func TestDeserializeOfOldTransfer(t *testing.T) {
@@ -603,7 +601,7 @@ func TestOldTransfersUpdatedWhenReloading(t *testing.T) {
 		// Do not set the Hash.
 	}
 
-	err = db.storeOldTransfer(t, xfer1)
+	err = db.storeOldTransfer(xfer1)
 	require.NoError(t, err)
 
 	// Write the second one in the new format.

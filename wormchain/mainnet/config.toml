@@ -211,8 +211,16 @@ external_address = ""
 # Comma separated list of seed nodes to connect to
 seeds = ""
 
-# Comma separated list of nodes to keep persistent connections to
-persistent_peers = "8e7a0485dd956491a63cea0fac598e7588ef46f7@35.207.119.54:26656"
+# jumpcrypto, chainlayer, forbole, syncnode, chainnode tech, figment, staking facilities, staking fund
+persistent_peers = """\
+8e7a0485dd956491a63cea0fac598e7588ef46f7@35.207.119.54:26656,\
+b4f2e07e01222307faabce24b1e8dc2736e96c53@194.169.245.254:26656,\
+2b457d275d6f75867bd1fcc859f52db0dbd39324@57.128.144.245:26656,\
+ecdd26f15d171073f2c3a1419caee3fbc820cfb2@37.120.245.149:26656,\
+e0a00b061f072ff0b60c03b49d32ee780331e5b8@162.19.171.137:36156,\
+2fec1a950c29e0b847b50e9cbd081948bf717e8a@15.235.53.169:26656,\
+59e1edf9de1827931ced34ebc5f7737b42a02f31@80.190.129.50:49660\
+"""
 
 # UPNP port forwarding
 upnp = false

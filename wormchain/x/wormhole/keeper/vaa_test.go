@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	keepertest "github.com/wormhole-foundation/wormchain/testutil/keeper"
 	"github.com/wormhole-foundation/wormchain/x/wormhole/keeper"
 	"github.com/wormhole-foundation/wormchain/x/wormhole/types"
@@ -110,8 +111,11 @@ func sign(data common.Hash, key *ecdsa.PrivateKey, index uint8) *vaa.Signature {
 	}
 }
 
-func TestVerifySignature(t *testing.T) {
-	payload := vaa.SigningMsg([]byte{97, 97, 97, 97, 97, 97})
+func TestVerifyMessageSignature(t *testing.T) {
+	prefix := [32]byte{}
+	payload := []byte{97, 97, 97, 97, 97, 97}
+	digest, err := vaa.MessageSigningDigest(prefix[:], payload)
+	require.NoError(t, err)
 	privKey1, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 	privKey2, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 
@@ -154,13 +158,85 @@ func TestVerifySignature(t *testing.T) {
 			keeper.AppendGuardianSet(ctx, tc.guardianSet)
 
 			// build the signature
-			signature := sign(payload, tc.signer, 0)
+			signature := sign(digest, tc.signer, 0)
 			if tc.setSigIndex {
 				signature.Index = tc.sigIndex
 			}
 
 			// verify the signature
-			err := keeper.VerifySignature(ctx, payload.Bytes(), tc.guardianSet.Index, signature)
+			err := keeper.VerifyMessageSignature(ctx, prefix[:], payload, tc.guardianSet.Index, signature)
+
+			if tc.willError == true {
+				assert.NotNil(t, err)
+				assert.Equal(t, err, tc.err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestVerifyVaaSignature(t *testing.T) {
+	v := &vaa.VAA{
+		Version:          1,
+		GuardianSetIndex: 0,
+		Timestamp:        time.Now(),
+		Nonce:            1,
+		Sequence:         1,
+		Payload:          []byte{97, 97, 97, 97, 97, 97},
+	}
+	digest := v.SigningDigest()
+	privKey1, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+	privKey2, _ := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+
+	addr1 := crypto.PubkeyToAddress(privKey1.PublicKey)
+
+	addrsBytes := [][]byte{}
+	addrsBytes = append(addrsBytes, addr1.Bytes())
+
+	tests := []struct {
+		label       string
+		guardianSet types.GuardianSet
+		signer      *ecdsa.PrivateKey
+		setSigIndex bool
+		sigIndex    uint8
+		willError   bool
+		err         error
+	}{
+
+		{label: "ValidSigner",
+			guardianSet: types.GuardianSet{Index: 0, Keys: addrsBytes, ExpirationTime: 0},
+			signer:      privKey1,
+			willError:   false},
+		{label: "IndexOutOfBounds",
+			guardianSet: types.GuardianSet{Index: 0, Keys: addrsBytes, ExpirationTime: 0},
+			signer:      privKey1,
+			setSigIndex: true,
+			sigIndex:    1,
+			willError:   true,
+			// this out of bounds issue will trigger invalid signature from sdk.
+			err: types.ErrSignaturesInvalid},
+		{label: "InvalidSigner",
+			guardianSet: types.GuardianSet{Index: 0, Keys: addrsBytes, ExpirationTime: 0},
+			signer:      privKey2,
+			willError:   true,
+			err:         types.ErrSignaturesInvalid},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.label, func(t *testing.T) {
+			keeper, ctx := keepertest.WormholeKeeper(t)
+			keeper.AppendGuardianSet(ctx, tc.guardianSet)
+
+			// build the signature
+			signature := sign(digest, tc.signer, 0)
+			if tc.setSigIndex {
+				signature.Index = tc.sigIndex
+			}
+			v.Signatures = append(v.Signatures, signature)
+
+			// verify the signature
+			err := keeper.VerifyVAA(ctx, v)
 
 			if tc.willError == true {
 				assert.NotNil(t, err)
@@ -174,6 +250,12 @@ func TestVerifySignature(t *testing.T) {
 
 var lastestSequence = 1
 
+func signVaa(vaaToSign vaa.VAA, signers []*ecdsa.PrivateKey) vaa.VAA {
+	for i, key := range signers {
+		vaaToSign.AddSignature(key, uint8(i))
+	}
+	return vaaToSign
+}
 func generateVaa(index uint32, signers []*ecdsa.PrivateKey, emitterChain vaa.ChainID, payload []byte) vaa.VAA {
 	v := vaa.VAA{
 		Version:          uint8(1),
@@ -188,10 +270,7 @@ func generateVaa(index uint32, signers []*ecdsa.PrivateKey, emitterChain vaa.Cha
 		Payload:          payload,
 	}
 	lastestSequence = lastestSequence + 1
-	for i, key := range signers {
-		v.AddSignature(key, uint8(i))
-	}
-	return v
+	return signVaa(v, signers)
 }
 func resignVaa(v vaa.VAA, signers []*ecdsa.PrivateKey) vaa.VAA {
 	v.Signatures = []*vaa.Signature{}

@@ -1,12 +1,11 @@
 syntax = "proto3";
 package wormhole_foundation.wormchain.wormhole;
 
-import "wormhole/guardian_set.proto";
+import "wormhole/guardian.proto";
 import "wormhole/config.proto";
 import "wormhole/replay_protection.proto";
 import "wormhole/sequence_counter.proto";
 import "wormhole/consensus_guardian_set_index.proto";
-import "wormhole/guardian_validator.proto";
 // this line is used by starport scaffolding # genesis/proto/import
 import "gogoproto/gogo.proto";
 
@@ -20,5 +19,6 @@ message GenesisState {
   repeated SequenceCounter sequenceCounterList = 4 [(gogoproto.nullable) = false];
   ConsensusGuardianSetIndex consensusGuardianSetIndex = 5;
   repeated GuardianValidator guardianValidatorList = 6 [(gogoproto.nullable) = false];
+  repeated ValidatorAllowedAddress allowedAddresses = 7 [(gogoproto.nullable) = false];
   // this line is used by starport scaffolding # genesis/proto/state
 }

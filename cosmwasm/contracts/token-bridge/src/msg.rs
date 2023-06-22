@@ -1,7 +1,6 @@
 use cosmwasm_std::{Binary, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use terraswap::asset::{Asset, AssetInfo};
 
 use crate::token_address::{ExternalTokenId, TokenId};
 
@@ -116,4 +115,34 @@ pub struct IsVaaRedeemedResponse {
 #[serde(rename_all = "snake_case")]
 pub struct ChainRegistrationResponse {
     pub address: Binary,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct CompleteTransferResponse {
+    // All addresses are bech32-encoded strings.
+
+    // contract address if this minted or unlocked a cw20, otherwise none
+    pub contract: Option<String>,
+    // denom if this unlocked a native token, otherwise none
+    pub denom: Option<String>,
+    pub recipient: String,
+    pub amount: Uint128,
+    pub relayer: String,
+    pub fee: Uint128,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct Asset {
+    pub info: AssetInfo,
+    pub amount: Uint128,
+}
+
+/// AssetInfo contract_addr is usually passed from the cw20 hook
+/// so we can trust the contract_addr is properly validated.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AssetInfo {
+    Token { contract_addr: String },
+    NativeToken { denom: String },
 }

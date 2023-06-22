@@ -12,4 +12,4 @@ fi
 
 CHAIN_NAME="$1"
 
-DOCKER_ARGS="-p 8545:8545" ./foundry anvil --host 0.0.0.0 --base-fee 0 --fork-url $(worm rpc mainnet $CHAIN_NAME) --mnemonic "myth like bonus scare over problem client lizard pioneer submit female collect"
+DOCKER_ARGS="-p 8545:8545" ./foundry anvil --host 0.0.0.0 --base-fee 0 --fork-url $(worm info rpc mainnet $CHAIN_NAME) --mnemonic "myth like bonus scare over problem client lizard pioneer submit female collect"

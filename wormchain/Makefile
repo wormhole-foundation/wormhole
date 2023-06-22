@@ -3,7 +3,7 @@ GO_FILES=$(shell find . -name "*.go")
 # Address of the main tilt validator that the others should connect to
 TILT_VALADDRESS=wormholevaloper1cyyzpxplxdzkeea7kwsydadg87357qna87hzv8
 
-VERSION := $(shell echo $(shell git describe --tags 2> /dev/null || echo v0.0.1) | sed 's/^v//')
+VERSION := $(shell echo $(shell git describe --tags 2> /dev/null || echo v0.0.1))
 COMMIT := $(shell git log -1 --format='%h' 2> /dev/null || echo 'abc123')
 
 ldflags = \
@@ -17,20 +17,22 @@ BUILD_FLAGS := -ldflags '$(ldflags)'
 .PHONY: all
 all: client
 
-.PHONY: client
+.PHONY: client build/wormchaind
 client: build/wormchaind
 
 
 build/wormchaind: cmd/wormchaind/main.go $(GO_FILES)
+	@echo building "wormchaind-$(VERSION)"
 	go build -v $(BUILD_FLAGS) -tags ledger -o $@ $<
+	cp "$@" "$@"-"$(VERSION)"
 
 proto: $(PROTO_FILES)
-	docker build --target go-export -f Dockerfile.proto -o type=local,dest=. ..
+	DOCKER_BUILDKIT=1 docker build --target go-export -f Dockerfile.proto -o type=local,dest=. ..
 
 vue: $(GO_FILES) proto
 	mkdir -p $@
 	touch -m $@
-	docker build --target vue-export -f Dockerfile.proto -o type=local,dest=. ..
+	DOCKER_BUILDKIT=1 docker build --target vue-export -f Dockerfile.proto -o type=local,dest=. ..
 
 # For now this is a phony target so we just rebuild it each time instead of
 # tracking dependencies
@@ -43,6 +45,27 @@ ts-sdk: vue
 run: build/wormchaind
 	./$< start --home build  --log_level="debug"
 
+# get npm packages for contracts/tools
+contracts-tools-deps: contracts/tools/package-lock.json
+	npm ci --prefix=contracts/tools
+
+# get .env and devnet-consts.json for contracts/tools
+contracts-devnet-env:
+	cd .. && ./scripts/guardian-set-init.sh 1
+	cd .. && ./scripts/distribute-devnet-consts.sh
+
+# get wasm artifacts for cosmwasm contracts
+contracts-artifacts:
+	cd ../cosmwasm && $(MAKE) artifacts
+	cp -r ../cosmwasm/artifacts contracts
+
+# get everything needed to
+contracts-deploy-setup: contracts-tools-deps contracts-devnet-env contracts-artifacts
+
+# runs the contract deployment script
+contracts-deploy-local: contracts-deploy-setup
+	npm run deploy-wormchain --prefix=contracts/tools
+
 .PHONY: test
 test:
 	go test -v ./...
@@ -53,5 +76,5 @@ bootstrap:
 
 .PHONY: clean
 clean:
-	rm -rf build/wormchaind build/**/*.db build/**/*.wal vue
+	rm -rf build/wormchaind build/wormchaind-* build/**/*.db build/**/*.wal vue
 	echo "{\"height\":\"0\",\"round\":0,\"step\":0}" > build/data/priv_validator_state.json

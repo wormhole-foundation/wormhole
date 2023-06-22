@@ -1,5 +1,69 @@
 # Changelog
 
+## 0.9.18
+
+### Added
+
+Add support for Sei.
+
+### Changed
+
+injective parseSmartContractStateResponse fix
+
+## 0.9.17
+
+### Changed
+
+Normalize Sui types
+
+`unnormalizeSuiType` renamed to `trimSuiType`
+
+## 0.9.16
+
+### Changed
+
+Sui redeem fix
+
+## 0.9.15
+
+### Added
+
+Sui mainnet support
+
+## 0.9.14
+
+### Added
+
+Sei testnet support
+
+## 0.9.13
+
+### Added
+
+"sideEffects": false
+
+### Changed
+
+injective dependencies updated
+
+## 0.9.12
+
+### Added
+
+Sepolia testnet support
+
+## 0.9.11
+
+### Added
+
+Base testnet support
+
+## 0.9.10
+
+## Added
+
+Aptos NFT bridge support
+
 ## 0.9.9
 
 ## Changed

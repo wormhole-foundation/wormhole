@@ -105,16 +105,14 @@ func (gov *ChainGovernor) Status() string {
 	for _, ce := range gov.chains {
 		valueTrans := sumValue(ce.transfers, startTime)
 		s1 := fmt.Sprintf("chain: %v, dailyLimit: %v, total: %v, numPending: %v", ce.emitterChainId, ce.dailyLimit, valueTrans, len(ce.pending))
-		s2 := fmt.Sprintf("cgov: %v", s1)
 		resp += s1 + "\n"
-		gov.logger.Info(s2)
+		gov.logger.Info(s1)
 		if len(ce.pending) != 0 {
 			for idx, pe := range ce.pending {
 				value, _ := computeValue(pe.amount, pe.token)
 				s1 := fmt.Sprintf("chain: %v, pending[%v], value: %v, vaa: %v, timeStamp: %v, releaseTime: %v", ce.emitterChainId, idx, value,
 					pe.dbData.Msg.MessageIDString(), pe.dbData.Msg.Timestamp.String(), pe.dbData.ReleaseTime.String())
-				s2 := fmt.Sprintf("cgov: %v", s1)
-				gov.logger.Info(s2)
+				gov.logger.Info(s1)
 				resp += "   " + s1 + "\n"
 			}
 		}
@@ -138,7 +136,7 @@ func (gov *ChainGovernor) Reload() (string, error) {
 	}
 
 	if err := gov.loadFromDBAlreadyLocked(); err != nil {
-		gov.logger.Error("cgov: failed to load from the database", zap.Error(err))
+		gov.logger.Error("failed to load from the database", zap.Error(err))
 		return "", err
 	}
 
@@ -155,7 +153,7 @@ func (gov *ChainGovernor) DropPendingVAA(vaaId string) (string, error) {
 			msgId := pe.dbData.Msg.MessageIDString()
 			if msgId == vaaId {
 				value, _ := computeValue(pe.amount, pe.token)
-				gov.logger.Info("cgov: dropping pending vaa",
+				gov.logger.Info("dropping pending vaa",
 					zap.String("msgId", msgId),
 					zap.Uint64("value", value),
 					zap.Stringer("timeStamp", pe.dbData.Msg.Timestamp),
@@ -185,7 +183,7 @@ func (gov *ChainGovernor) ReleasePendingVAA(vaaId string) (string, error) {
 			msgId := pe.dbData.Msg.MessageIDString()
 			if msgId == vaaId {
 				value, _ := computeValue(pe.amount, pe.token)
-				gov.logger.Info("cgov: releasing pending vaa, should be published soon",
+				gov.logger.Info("releasing pending vaa, should be published soon",
 					zap.String("msgId", msgId),
 					zap.Uint64("value", value),
 					zap.Stringer("timeStamp", pe.dbData.Msg.Timestamp),
@@ -224,14 +222,14 @@ func (gov *ChainGovernor) resetReleaseTimerForTime(vaaId string, now time.Time) 
 			msgId := pe.dbData.Msg.MessageIDString()
 			if msgId == vaaId {
 				pe.dbData.ReleaseTime = now.Add(maxEnqueuedTime)
-				gov.logger.Info("cgov: updating the release time due to admin command",
+				gov.logger.Info("updating the release time due to admin command",
 					zap.String("msgId", msgId),
 					zap.Stringer("timeStamp", pe.dbData.Msg.Timestamp),
 					zap.Stringer("newReleaseTime", pe.dbData.ReleaseTime),
 				)
 
 				if err := gov.db.StorePendingMsg(&pe.dbData); err != nil {
-					gov.logger.Error("cgov: failed to store updated pending vaa", zap.String("msgID", msgId), zap.Error(err))
+					gov.logger.Error("failed to store updated pending vaa", zap.String("msgID", msgId), zap.Error(err))
 					return "", err
 				}
 
@@ -302,7 +300,7 @@ func (gov *ChainGovernor) GetEnqueuedVAAs() []*publicrpcv1.GovernorGetEnqueuedVA
 		for _, pe := range ce.pending {
 			value, err := computeValue(pe.amount, pe.token)
 			if err != nil {
-				gov.logger.Error("cgov: failed to compute value of pending transfer", zap.String("msgID", pe.dbData.Msg.MessageIDString()), zap.Error(err))
+				gov.logger.Error("failed to compute value of pending transfer", zap.String("msgID", pe.dbData.Msg.MessageIDString()), zap.Error(err))
 				value = 0
 			}
 
@@ -324,6 +322,10 @@ func (gov *ChainGovernor) GetEnqueuedVAAs() []*publicrpcv1.GovernorGetEnqueuedVA
 func (gov *ChainGovernor) IsVAAEnqueued(msgId *publicrpcv1.MessageID) (bool, error) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
+
+	if msgId == nil {
+		return false, fmt.Errorf("no message ID specified")
+	}
 
 	emitterChain := vaa.ChainID(msgId.EmitterChain)
 
@@ -396,7 +398,7 @@ var (
 		})
 )
 
-func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat, sendC chan []byte, gk *ecdsa.PrivateKey, ourAddr ethCommon.Address) {
+func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat, sendC chan<- []byte, gk *ecdsa.PrivateKey, ourAddr ethCommon.Address) {
 	gov.mutex.Lock()
 	defer gov.mutex.Unlock()
 
@@ -439,13 +441,13 @@ func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat, sendC chan []by
 			chain.String(), // chain_name
 			enabled,        // enabled
 			totalNotional,  // total_notional
-		).Set(float64(available))
+		).Set(available)
 
 		metricEnqueuedVAAs.WithLabelValues(
 			chainId,        // chain_id
 			chain.String(), // chain_name
 			enabled,        // enabled
-		).Set(float64(numPending))
+		).Set(numPending)
 	}
 
 	metricTotalEnqueuedVAAs.Set(float64(totalPending))
@@ -464,7 +466,7 @@ func (gov *ChainGovernor) CollectMetrics(hb *gossipv1.Heartbeat, sendC chan []by
 var governorMessagePrefixConfig = []byte("governor_config_000000000000000000|")
 var governorMessagePrefixStatus = []byte("governor_status_000000000000000000|")
 
-func (gov *ChainGovernor) publishConfig(hb *gossipv1.Heartbeat, sendC chan []byte, gk *ecdsa.PrivateKey, ourAddr ethCommon.Address) {
+func (gov *ChainGovernor) publishConfig(hb *gossipv1.Heartbeat, sendC chan<- []byte, gk *ecdsa.PrivateKey, ourAddr ethCommon.Address) {
 	chains := make([]*gossipv1.ChainGovernorConfig_Chain, 0)
 	for _, ce := range gov.chains {
 		chains = append(chains, &gossipv1.ChainGovernorConfig_Chain{
@@ -495,7 +497,7 @@ func (gov *ChainGovernor) publishConfig(hb *gossipv1.Heartbeat, sendC chan []byt
 
 	b, err := proto.Marshal(payload)
 	if err != nil {
-		gov.logger.Error("cgov: failed to marshal config message", zap.Error(err))
+		gov.logger.Error("failed to marshal config message", zap.Error(err))
 		return
 	}
 
@@ -521,7 +523,7 @@ func (gov *ChainGovernor) publishConfig(hb *gossipv1.Heartbeat, sendC chan []byt
 	sendC <- b
 }
 
-func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan []byte, startTime time.Time, gk *ecdsa.PrivateKey, ourAddr ethCommon.Address) {
+func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan<- []byte, startTime time.Time, gk *ecdsa.PrivateKey, ourAddr ethCommon.Address) {
 	chains := make([]*gossipv1.ChainGovernorStatus_Chain, 0)
 	numEnqueued := 0
 	for _, ce := range gov.chains {
@@ -536,7 +538,7 @@ func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan []byt
 		for _, pe := range ce.pending {
 			value, err := computeValue(pe.amount, pe.token)
 			if err != nil {
-				gov.logger.Error("cgov: failed to compute value of pending transfer", zap.String("msgID", pe.dbData.Msg.MessageIDString()), zap.Error(err))
+				gov.logger.Error("failed to compute value of pending transfer", zap.String("msgID", pe.dbData.Msg.MessageIDString()), zap.Error(err))
 				value = 0
 			}
 
@@ -574,7 +576,7 @@ func (gov *ChainGovernor) publishStatus(hb *gossipv1.Heartbeat, sendC chan []byt
 
 	b, err := proto.Marshal(payload)
 	if err != nil {
-		gov.logger.Error("cgov: failed to marshal status message", zap.Error(err))
+		gov.logger.Error("failed to marshal status message", zap.Error(err))
 		return
 	}
 

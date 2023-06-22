@@ -43,6 +43,7 @@ sed -i "s/external_address = \"\"/external_address = \"${hostname}:26656\"/g" ${
 
 if [ $instance -eq 0 ] && [ $NUM_GUARDIANS -ge 2 ]; then
   echo "$hostname: enabling seed mode in config.toml."
+  sed -i "s/pex = false/pex = true/g" ${home_path}/config/config.toml
   sed -i "s/seed_mode = false/seed_mode = true/g" ${home_path}/config/config.toml
 elif [ $instance -ge 1 ]; then
   echo "$hostname: adding seed address to config.toml."

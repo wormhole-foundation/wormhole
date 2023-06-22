@@ -3,12 +3,11 @@ package wormhole_foundation.wormchain.wormhole;
 
 import "google/api/annotations.proto";
 import "cosmos/base/query/v1beta1/pagination.proto";
-import "wormhole/guardian_set.proto";
+import "wormhole/guardian.proto";
 import "wormhole/config.proto";
 import "wormhole/replay_protection.proto";
 import "wormhole/sequence_counter.proto";
 import "wormhole/consensus_guardian_set_index.proto";
-import "wormhole/guardian_validator.proto";
 // this line is used by starport scaffolding # 1
 import "gogoproto/gogo.proto";
 
@@ -69,7 +68,37 @@ service Query {
 		option (google.api.http).get = "/wormhole_foundation/wormchain/wormhole/latest_guardian_set_index";
 	}
 
+	rpc AllowlistAll(QueryAllValidatorAllowlist) returns (QueryAllValidatorAllowlistResponse) {
+		option (google.api.http).get = "/wormhole_foundation/wormchain/wormhole/allowlist";
+	}
+
+	rpc Allowlist(QueryValidatorAllowlist) returns (QueryValidatorAllowlistResponse) {
+		option (google.api.http).get = "/wormhole_foundation/wormchain/wormhole/allowlist/{validator_address}";
+	}
+
 // this line is used by starport scaffolding # 2
+}
+
+message QueryAllValidatorAllowlist {
+	cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+
+// all allowlisted entries by all validators
+message QueryAllValidatorAllowlistResponse {
+	repeated ValidatorAllowedAddress allowlist = 1;
+	cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryValidatorAllowlist {
+	string validator_address = 1;
+	cosmos.base.query.v1beta1.PageRequest pagination = 2;
+}
+
+// all allowlisted entries by a specific validator
+message QueryValidatorAllowlistResponse {
+	string validator_address = 1;
+	repeated ValidatorAllowedAddress allowlist = 2;
+	cosmos.base.query.v1beta1.PageResponse pagination = 3;
 }
 
 message QueryGetGuardianSetRequest {

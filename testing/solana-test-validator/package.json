@@ -6,6 +6,7 @@
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
   },
   "dependencies": {
+    "@metaplex-foundation/mpl-token-metadata": "^2.11.1",
     "@project-serum/anchor": "0.25.0",
     "@solana/spl-token": "^0.3.1",
     "@solana/web3.js": "^1.53.0",

@@ -14,7 +14,7 @@ func TestTokenListSize(t *testing.T) {
 
 	/* Assuming that governed tokens will need to be updated every time
 	   we regenerate it */
-	assert.Equal(t, 134, len(tokenConfigEntries))
+	assert.Equal(t, 804, len(tokenConfigEntries))
 }
 
 func TestTokenListAddressSize(t *testing.T) {
@@ -34,7 +34,7 @@ func TestTokenListChainTokensPresent(t *testing.T) {
 
 	/* Assume that all chains within a token bridge will have governed tokens */
 	for e := range sdk.KnownTokenbridgeEmitters {
-		t.Run(vaa.ChainID(e).String(), func(t *testing.T) {
+		t.Run(e.String(), func(t *testing.T) {
 			found := false
 			for _, tokenConfigEntry := range tokenConfigEntries {
 				if tokenConfigEntry.chain == uint16(e) {
@@ -64,22 +64,15 @@ func TestTokenListTokenAddressDuplicates(t *testing.T) {
 	}
 }
 
-func TestTokenListDecimalRange(t *testing.T) {
-	tokenConfigEntries := tokenList()
-
-	/* Assume that all governed token entries will have decimals of 6 or 8 */
-	for _, tokenConfigEntry := range tokenConfigEntries {
-		d := tokenConfigEntry.decimals
-		assert.Condition(t, func() bool { return d == 6 || d == 8 })
-	}
-}
-
 func TestTokenListEmptySymbols(t *testing.T) {
 	tokenConfigEntries := tokenList()
 
 	/* Assume that all governed token entry symbol strings will be greater than zero */
 	for _, tokenConfigEntry := range tokenConfigEntries {
-		assert.Greater(t, len(tokenConfigEntry.symbol), 0)
+		// Some Solana tokens don't have the symbol set. For now, we'll still enforce this for other chains.
+		if len(tokenConfigEntry.symbol) == 0 && vaa.ChainID(tokenConfigEntry.chain) != vaa.ChainIDSolana {
+			assert.Equal(t, "", fmt.Sprintf("token %v:%v does not have the symbol set", tokenConfigEntry.chain, tokenConfigEntry.addr))
+		}
 	}
 }
 

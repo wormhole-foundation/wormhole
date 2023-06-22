@@ -27,6 +27,11 @@ var (
 			Name: "global_accountant_events_received",
 			Help: "Total number of accountant events received from the smart contract",
 		})
+	errorEventsReceived = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "global_accountant_error_events_received",
+			Help: "Total number of accountant error events received from the smart contract",
+		})
 	submitFailures = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "global_accountant_submit_failures",
@@ -46,5 +51,10 @@ var (
 		prometheus.CounterOpts{
 			Name: "global_accountant_connection_errors_total",
 			Help: "Total number of connection errors on accountant",
+		})
+	auditErrors = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "global_accountant_audit_errors_total",
+			Help: "Total number of audit errors detected by accountant",
 		})
 )

@@ -36,6 +36,9 @@ func InitGenesis(ctx sdk.Context, k keeper.Keeper, genState types.GenesisState) 
 	for _, elem := range genState.GuardianValidatorList {
 		k.SetGuardianValidator(ctx, elem)
 	}
+	for _, elem := range genState.AllowedAddresses {
+		k.SetValidatorAllowedAddress(ctx, elem)
+	}
 	// this line is used by starport scaffolding # genesis/module/init
 }
 
@@ -58,6 +61,7 @@ func ExportGenesis(ctx sdk.Context, k keeper.Keeper) *types.GenesisState {
 		genesis.ConsensusGuardianSetIndex = &consensusGuardianSetIndex
 	}
 	genesis.GuardianValidatorList = k.GetAllGuardianValidator(ctx)
+	genesis.AllowedAddresses = k.GetAllAllowedAddresses(ctx)
 	// this line is used by starport scaffolding # genesis/module/export
 
 	return genesis

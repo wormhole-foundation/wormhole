@@ -1,12 +1,17 @@
 import {
+  JsonRpcProvider,
+  SUI_CLOCK_OBJECT_ID,
+  TransactionBlock,
+} from "@mysten/sui.js";
+import {
   ACCOUNT_SIZE,
+  NATIVE_MINT,
+  TOKEN_PROGRAM_ID,
   createCloseAccountInstruction,
   createInitializeAccountInstruction,
   createTransferInstruction,
   getMinimumBalanceForRentExemptAccount,
   getMint,
-  NATIVE_MINT,
-  TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import {
   Commitment,
@@ -18,37 +23,37 @@ import {
   Transaction,
 } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
+import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
 import { Algodv2 } from "algosdk";
-import { ethers, Overrides } from "ethers";
-import { fromUint8Array } from "js-base64";
+import { AptosClient, Types } from "aptos";
 import BN from "bn.js";
+import { Overrides, ethers } from "ethers";
+import { fromUint8Array } from "js-base64";
+import { FunctionCallOptions } from "near-api-js/lib/account";
+import { Provider } from "near-api-js/lib/providers";
 import {
   TransactionSignerPair,
   _parseVAAAlgorand,
   _submitVAAAlgorand,
 } from "../algorand";
+import { completeTransferAndRegister } from "../aptos";
 import { Bridge__factory } from "../ethers-contracts";
+import {
+  createCompleteTransferNativeInstruction,
+  createCompleteTransferWrappedInstruction,
+} from "../solana/tokenBridge";
+import { getPackageId, getTokenCoinType, uint8ArrayToBCS } from "../sui";
 import {
   CHAIN_ID_NEAR,
   CHAIN_ID_SOLANA,
   ChainId,
   MAX_VAA_DECIMALS,
-  uint8ArrayToHex,
   callFunctionNear,
   hashLookup,
+  uint8ArrayToHex,
 } from "../utils";
-import { MsgExecuteContract as MsgExecuteContractInjective } from "@injectivelabs/sdk-ts";
-import {
-  createCompleteTransferNativeInstruction,
-  createCompleteTransferWrappedInstruction,
-} from "../solana/tokenBridge";
 import { SignedVaa, parseTokenTransferVaa } from "../vaa";
 import { getForeignAssetNear } from "./getForeignAsset";
-import { FunctionCallOptions } from "near-api-js/lib/account";
-import { Provider } from "near-api-js/lib/providers";
-import { MsgExecuteContract as XplaMsgExecuteContract } from "@xpla/xpla.js";
-import { AptosClient, Types } from "aptos";
-import { completeTransferAndRegister } from "../aptos";
 
 export async function redeemOnEth(
   tokenBridgeAddress: string,
@@ -85,31 +90,6 @@ export async function redeemOnTerra(
     },
   });
 }
-
-/**
- * Submits the supplied VAA to Injective
- * @param tokenBridgeAddress Address of Inj token bridge contract
- * @param walletAddress Address of wallet in inj format
- * @param signedVAA VAA with the attestation message
- * @returns Message to be broadcast
- */
-export async function submitVAAOnInjective(
-  tokenBridgeAddress: string,
-  walletAddress: string,
-  signedVAA: Uint8Array
-): Promise<MsgExecuteContractInjective> {
-  return MsgExecuteContractInjective.fromJSON({
-    contractAddress: tokenBridgeAddress,
-    sender: walletAddress,
-    exec: {
-      msg: {
-        data: fromUint8Array(signedVAA),
-      },
-      action: "submit_vaa",
-    },
-  });
-}
-export const redeemOnInjective = submitVAAOnInjective;
 
 export function redeemOnXpla(
   tokenBridgeAddress: string,
@@ -381,4 +361,56 @@ export function redeemOnAptos(
   transferVAA: Uint8Array
 ): Promise<Types.EntryFunctionPayload> {
   return completeTransferAndRegister(client, tokenBridgeAddress, transferVAA);
+}
+
+export async function redeemOnSui(
+  provider: JsonRpcProvider,
+  coreBridgeStateObjectId: string,
+  tokenBridgeStateObjectId: string,
+  transferVAA: Uint8Array
+): Promise<TransactionBlock> {
+  const { tokenAddress, tokenChain } = parseTokenTransferVaa(transferVAA);
+  const coinType = await getTokenCoinType(
+    provider,
+    tokenBridgeStateObjectId,
+    tokenAddress,
+    tokenChain
+  );
+  if (!coinType) {
+    throw new Error("Unable to fetch token coinType");
+  }
+
+  const [coreBridgePackageId, tokenBridgePackageId] = await Promise.all([
+    getPackageId(provider, coreBridgeStateObjectId),
+    getPackageId(provider, tokenBridgeStateObjectId),
+  ]);
+  const tx = new TransactionBlock();
+  const [verifiedVAA] = tx.moveCall({
+    target: `${coreBridgePackageId}::vaa::parse_and_verify`,
+    arguments: [
+      tx.object(coreBridgeStateObjectId),
+      tx.pure(uint8ArrayToBCS(transferVAA)),
+      tx.object(SUI_CLOCK_OBJECT_ID),
+    ],
+  });
+  const [tokenBridgeMessage] = tx.moveCall({
+    target: `${tokenBridgePackageId}::vaa::verify_only_once`,
+    arguments: [tx.object(tokenBridgeStateObjectId), verifiedVAA],
+  });
+  const [relayerReceipt] = tx.moveCall({
+    target: `${tokenBridgePackageId}::complete_transfer::authorize_transfer`,
+    arguments: [tx.object(tokenBridgeStateObjectId), tokenBridgeMessage],
+    typeArguments: [coinType],
+  });
+  const [coins] = tx.moveCall({
+    target: `${tokenBridgePackageId}::complete_transfer::redeem_relayer_payout`,
+    arguments: [relayerReceipt],
+    typeArguments: [coinType],
+  });
+  tx.moveCall({
+    target: `${tokenBridgePackageId}::coin_utils::return_nonzero`,
+    arguments: [coins],
+    typeArguments: [coinType],
+  });
+  return tx;
 }

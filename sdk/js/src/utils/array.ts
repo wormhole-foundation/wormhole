@@ -30,10 +30,13 @@ import {
   isEVMChain,
   isTerraChain,
   CHAIN_ID_XPLA,
+  CHAIN_ID_SEI,
   CHAIN_ID_BTC,
 } from "./consts";
 import { hashLookup } from "./near";
 import { getExternalAddressFromType, isValidAptosType } from "./aptos";
+import { isValidSuiAddress } from "@mysten/sui.js";
+import { isValidSuiType } from "../sui";
 
 /**
  *
@@ -63,8 +66,10 @@ export const nativeTerraHexToDenom = (h: string): string =>
 export const uint8ArrayToHex = (a: Uint8Array): string =>
   Buffer.from(a).toString("hex");
 
-export const hexToUint8Array = (h: string): Uint8Array =>
-  new Uint8Array(Buffer.from(h, "hex"));
+export const hexToUint8Array = (h: string): Uint8Array => {
+  if (h.startsWith("0x")) h = h.slice(2);
+  return new Uint8Array(Buffer.from(h, "hex"));
+};
 
 /**
  *
@@ -103,6 +108,8 @@ export const tryUint8ArrayToNative = (
     return humanAddress("wormhole", a.slice(-20));
   } else if (chainId === CHAIN_ID_XPLA) {
     return humanAddress("xpla", a.slice(-20));
+  } else if (chainId === CHAIN_ID_SEI) {
+    return humanAddress("sei", a.slice(-20));     
   } else if (chainId === CHAIN_ID_NEAR) {
     throw Error("uint8ArrayToNative: Use tryHexToNativeStringNear instead.");
   } else if (chainId === CHAIN_ID_OSMOSIS) {
@@ -232,7 +239,8 @@ export const tryNativeToHexString = (
   } else if (
     chainId === CHAIN_ID_TERRA2 ||
     chainId === CHAIN_ID_INJECTIVE ||
-    chainId === CHAIN_ID_XPLA
+    chainId === CHAIN_ID_XPLA ||
+    chainId === CHAIN_ID_SEI
   ) {
     return buildTokenId(chainId, address);
   } else if (chainId === CHAIN_ID_ALGORAND) {
@@ -244,7 +252,12 @@ export const tryNativeToHexString = (
   } else if (chainId === CHAIN_ID_OSMOSIS) {
     throw Error("hexToNativeString: Osmosis not supported yet.");
   } else if (chainId === CHAIN_ID_SUI) {
-    throw Error("hexToNativeString: Sui not supported yet.");
+    if (!isValidSuiType(address) && isValidSuiAddress(address)) {
+      return uint8ArrayToHex(
+        zeroPad(arrayify(address, { allowMissingPrefix: true }), 32)
+      );
+    }
+    throw Error("hexToNativeString: Sui types not supported yet.");
   } else if (chainId === CHAIN_ID_BTC) {
     throw Error("hexToNativeString: Btc not supported yet.");
   } else if (chainId === CHAIN_ID_APTOS) {
@@ -252,7 +265,9 @@ export const tryNativeToHexString = (
       return getExternalAddressFromType(address);
     }
 
-    return uint8ArrayToHex(zeroPad(arrayify(address, { allowMissingPrefix:true }), 32));
+    return uint8ArrayToHex(
+      zeroPad(arrayify(address, { allowMissingPrefix: true }), 32)
+    );
   } else if (chainId === CHAIN_ID_UNSET) {
     throw Error("hexToNativeString: Chain id unset");
   } else {

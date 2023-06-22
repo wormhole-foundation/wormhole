@@ -1,0 +1,19 @@
+{
+  "name": "@wormhole-foundation/tools-xpla",
+  "version": "0.0.1",
+  "description": "",
+  "main": "deploy_xpla.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@cosmjs/encoding": "^0.26.2",
+    "@xpla/xpla.js": "^0.2.1",
+    "dotenv": "^16.0.0",
+    "ethers": "^5.4.4",
+    "yargs": "^17.0.1"
+  }
+}

@@ -1,16 +1,3 @@
-import { GovernorCompatibilityBravo } from "@certusone/wormhole-sdk";
-import {
-  QueryClient,
-  setupAuthExtension,
-  setupBankExtension,
-  setupGovExtension,
-  setupIbcExtension,
-  setupMintExtension,
-  setupStakingExtension,
-  setupTxExtension,
-} from "@cosmjs/stargate";
-import { Tendermint34Client } from "@cosmjs/tendermint-rpc";
-import { Api as coreApi } from "../modules/certusone.wormholechain.wormhole/rest";
 import { Api as authApi } from "../modules/cosmos.auth.v1beta1/rest";
 import { Api as bankApi } from "../modules/cosmos.bank.v1beta1/rest";
 import { Api as baseApi } from "../modules/cosmos.base.tendermint.v1beta1/rest";
@@ -26,6 +13,8 @@ import { Api as stakingApi } from "../modules/cosmos.staking.v1beta1/rest";
 import { Api as txApi } from "../modules/cosmos.tx.v1beta1/rest";
 import { Api as upgradeApi } from "../modules/cosmos.upgrade.v1beta1/rest";
 import { Api as vestingApi } from "../modules/cosmos.vesting.v1beta1/rest";
+import { Api as wasmApi } from "../modules/cosmwasm.wasm.v1/rest";
+import { Api as coreApi } from "../modules/wormhole_foundation.wormchain.wormhole/rest";
 
 export type WormchainQueryClient = {
   core: coreApi<any>;
@@ -44,6 +33,7 @@ export type WormchainQueryClient = {
   tx: txApi<any>;
   upgrade: upgradeApi<any>;
   vesting: vestingApi<any>;
+  wasm: wasmApi<any>;
 };
 
 export function getWormholeQueryClient(
@@ -71,6 +61,7 @@ export function getWormholeQueryClient(
   const tx = new txApi({ baseUrl: lcdAddress });
   const upgrade = new upgradeApi({ baseUrl: lcdAddress });
   const vesting = new vestingApi({ baseUrl: lcdAddress });
+  const wasm = new wasmApi({ baseUrl: lcdAddress });
 
   return {
     core,
@@ -89,6 +80,7 @@ export function getWormholeQueryClient(
     tx,
     upgrade,
     vesting,
+    wasm,
   };
 }
 

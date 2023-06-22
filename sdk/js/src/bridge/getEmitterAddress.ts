@@ -3,9 +3,9 @@ import { decodeAddress, getApplicationAddress } from "algosdk";
 import { bech32 } from "bech32";
 import {
   arrayify,
-  sha256,
   BytesLike,
   Hexable,
+  sha256,
   zeroPad,
 } from "ethers/lib/utils";
 import { deriveWormholeEmitterKey } from "../solana/wormhole";
@@ -17,9 +17,7 @@ export function getEmitterAddressEth(
   return Buffer.from(zeroPad(arrayify(contractAddress), 32)).toString("hex");
 }
 
-export async function getEmitterAddressSolana(
-  programAddress: PublicKeyInitData
-) {
+export function getEmitterAddressSolana(programAddress: PublicKeyInitData) {
   return deriveWormholeEmitterKey(programAddress).toBuffer().toString("hex");
 }
 

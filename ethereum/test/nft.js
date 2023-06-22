@@ -140,7 +140,7 @@ contract("NFT", function () {
 
         let before = await web3.eth.getStorageAt(NFTBridge.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
 
-        assert.equal(before.toLowerCase(), NFTBridgeImplementation.address.toLowerCase());
+        assert.equal(BigInt(before), BigInt(NFTBridgeImplementation.address));
 
         await initialized.methods.upgrade("0x" + vm).send({
             value: 0,
@@ -150,7 +150,7 @@ contract("NFT", function () {
 
         let after = await web3.eth.getStorageAt(NFTBridge.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
 
-        assert.equal(after.toLowerCase(), mock.address.toLowerCase());
+        assert.equal(BigInt(after), BigInt(mock.address));
 
         const mockImpl = new web3.eth.Contract(MockBridgeImplementation.abi, NFTBridge.address);
 
@@ -599,7 +599,7 @@ contract("NFT", function () {
                 gasLimit: 2000000
             });
         } catch (e) {
-            assert.equal(e.message, "Returned error: VM Exception while processing transaction: revert ERC721: transfer caller is not owner nor approved")
+            assert.include(e.message, "revert ERC721: transfer caller is not owner nor approved")
             failed = true
         }
 
@@ -636,7 +636,7 @@ contract("NFT", function () {
                 gasLimit: 2000000
             });
         } catch (e) {
-            assert.equal(e.message, "Returned error: VM Exception while processing transaction: revert ERC721: transfer of token that is not own")
+            assert.include(e.message, "revert ERC721: transfer of token that is not own")
             failed = true
         }
 
@@ -679,7 +679,7 @@ contract("NFT", function () {
             await wrappedAsset.methods.ownerOf(tokenId).call();
             assert.fail("burned token still exists")
         } catch (e) {
-            assert.equal(e.data[Object.keys(e.data)[0]].reason, "ERC721: owner query for nonexistent token")
+            assert.include(e.message, "revert ERC721: owner query for nonexistent token")
         }
     })
 
@@ -742,7 +742,7 @@ contract("NFT", function () {
 
             assert.fail("governance packet accepted")
         } catch (e) {
-            assert.equal(e.data[Object.keys(e.data)[0]].reason, "invalid fork")
+            assert.include(e.message, "revert invalid fork")
         }
     })
 
@@ -837,7 +837,7 @@ contract("NFT", function () {
 
         let before = await web3.eth.getStorageAt(NFTBridge.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
 
-        assert.equal(before.toLowerCase(), lastDeployed.address.toLowerCase());
+        assert.equal(BigInt(before), BigInt(lastDeployed.address));
 
         let set = await initialized.methods.upgrade("0x" + vm).send({
             value: 0,
@@ -847,7 +847,7 @@ contract("NFT", function () {
 
         let after = await web3.eth.getStorageAt(NFTBridge.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
 
-        assert.equal(after.toLowerCase(), mock.address.toLowerCase());
+        assert.equal(BigInt(after), BigInt(mock.address));
 
         const mockImpl = new web3.eth.Contract(MockBridgeImplementation.abi, NFTBridge.address);
 

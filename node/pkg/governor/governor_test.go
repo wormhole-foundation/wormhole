@@ -1,3 +1,4 @@
+//nolint:unparam // we exclude the unparam linter because there are many cases here where parameters are static
 package governor
 
 import (
@@ -6,6 +7,8 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -77,7 +80,7 @@ func (gov *ChainGovernor) setTokenForTesting(tokenChainID vaa.ChainID, tokenAddr
 	decimalsFloat := big.NewFloat(math.Pow(10.0, float64(8)))
 	decimals, _ := decimalsFloat.Int(nil)
 
-	key := tokenKey{chain: vaa.ChainID(tokenChainID), addr: tokenAddr}
+	key := tokenKey{chain: tokenChainID, addr: tokenAddr}
 	te := &tokenEntry{cfgPrice: bigPrice, price: bigPrice, decimals: decimals, symbol: symbol, coinGeckoId: symbol, token: key}
 	gov.tokens[key] = te
 	cge, cgExists := gov.tokensByCoinGeckoId[te.coinGeckoId]
@@ -247,7 +250,7 @@ func newChainGovernorForTest(ctx context.Context) (*ChainGovernor, error) {
 
 	logger := zap.NewNop()
 	var db db.MockGovernorDB
-	gov := NewChainGovernor(logger, &db, GoTestMode)
+	gov := NewChainGovernor(logger, &db, common.GoTest)
 
 	err := gov.Run(ctx)
 	if err != nil {
@@ -1021,9 +1024,9 @@ func TestSmallerPendingTransfersAfterBigOneShouldGetReleased(t *testing.T) {
 func TestMainnetConfigIsValid(t *testing.T) {
 	logger := zap.NewNop()
 	var db db.MockGovernorDB
-	gov := NewChainGovernor(logger, &db, GoTestMode)
+	gov := NewChainGovernor(logger, &db, common.GoTest)
 
-	gov.env = MainNetMode
+	gov.env = common.TestNet
 	err := gov.initConfig()
 	require.NoError(t, err)
 }
@@ -1031,9 +1034,9 @@ func TestMainnetConfigIsValid(t *testing.T) {
 func TestTestnetConfigIsValid(t *testing.T) {
 	logger := zap.NewNop()
 	var db db.MockGovernorDB
-	gov := NewChainGovernor(logger, &db, GoTestMode)
+	gov := NewChainGovernor(logger, &db, common.GoTest)
 
-	gov.env = TestNetMode
+	gov.env = common.TestNet
 	err := gov.initConfig()
 	require.NoError(t, err)
 }
@@ -1502,11 +1505,11 @@ func TestDontReloadDuplicates(t *testing.T) {
 	assert.Equal(t, 4, len(pendings))
 
 	for _, p := range xfers {
-		gov.reloadTransfer(p, now, startTime)
+		gov.reloadTransfer(p)
 	}
 
 	for _, p := range pendings {
-		gov.reloadPendingTransfer(p, now)
+		gov.reloadPendingTransfer(p)
 	}
 
 	numTrans, valueTrans, numPending, valuePending := gov.getStatsForAllChains()
@@ -1718,4 +1721,74 @@ func TestReusedMsgIdWithDifferentPayloadGetsProcessed(t *testing.T) {
 	assert.Equal(t, 0, numPending)
 	assert.Equal(t, uint64(0), valuePending)
 	assert.Equal(t, 2, len(gov.msgsSeen))
+}
+
+func getIdsFromCoinGeckoQuery(t *testing.T, query string) []string {
+	unescaped, err := url.QueryUnescape(query)
+	require.NoError(t, err)
+
+	fields := strings.Split(unescaped, "?")
+	require.Equal(t, 2, len(fields))
+
+	u, err := url.ParseQuery(fields[1])
+	require.NoError(t, err)
+
+	idField, exists := u["ids"]
+	require.Equal(t, true, exists)
+	require.Equal(t, 1, len(idField))
+
+	return strings.Split(idField[0], ",")
+}
+
+func TestCoinGeckoQueries(t *testing.T) {
+	type testCase struct {
+		desc            string
+		numIds          int
+		chunkSize       int
+		expectedQueries int
+	}
+
+	tests := []testCase{
+		{numIds: 0, chunkSize: 100, expectedQueries: 0, desc: "Zero queries"},
+		{numIds: 42, chunkSize: 100, expectedQueries: 1, desc: "Easily fits in one"},
+		{numIds: 100, chunkSize: 100, expectedQueries: 1, desc: "Exactly fits in one"},
+		{numIds: 242, chunkSize: 207, expectedQueries: 2, desc: "Easily fits in two"},
+		{numIds: 414, chunkSize: 207, expectedQueries: 2, desc: "Exactly fits in two"},
+		{numIds: 5001, chunkSize: 207, expectedQueries: 25, desc: "A bunch of queries"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.desc, func(t *testing.T) {
+			ids := make([]string, tc.numIds)
+			for idx := 0; idx < tc.numIds; idx++ {
+				ids[idx] = fmt.Sprintf("id%d", idx)
+			}
+
+			queries := createCoinGeckoQueries(ids, tc.chunkSize)
+			require.Equal(t, tc.expectedQueries, len(queries))
+
+			results := make(map[string]string)
+			for _, query := range queries {
+				idsInQuery := getIdsFromCoinGeckoQuery(t, query)
+				require.GreaterOrEqual(t, tc.chunkSize, len(idsInQuery))
+				for _, id := range idsInQuery {
+					results[id] = id
+				}
+			}
+
+			require.Equal(t, tc.numIds, len(results))
+
+			for _, id := range ids {
+				if _, exists := results[id]; !exists {
+					assert.Equal(t, "id not found in query", id)
+				}
+				delete(results, id)
+			}
+			if len(results) != 0 {
+				for id := range results {
+					assert.Equal(t, "bogus id created by query", id)
+				}
+			}
+		})
+	}
 }

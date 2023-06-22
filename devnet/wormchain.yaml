@@ -92,3 +92,38 @@ spec:
               path: /
             periodSeconds: 5
       restartPolicy: Always
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: wormchain-deploy
+  name: wormchain-deploy
+spec:
+  selector:
+    matchLabels:
+      app: wormchain-deploy
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: wormchain-deploy
+    spec:
+      containers:
+        - name: wormchain-deploy
+          image: wormchain-deploy
+          command:
+            - /bin/sh
+            - -c
+            - "npm run deploy-wormchain --prefix=/app/tools && touch /app/tools/success && sleep infinity"
+          readinessProbe:
+            exec:
+              command:
+                - test
+                - -e
+                - "/app/tools/success"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      restartPolicy: Always

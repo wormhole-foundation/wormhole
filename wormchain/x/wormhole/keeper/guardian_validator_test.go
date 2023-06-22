@@ -23,8 +23,15 @@ func createNGuardianValidator(keeper *keeper.Keeper, ctx sdk.Context, n int) ([]
 		if err != nil {
 			panic(err)
 		}
-		addr := crypto.PubkeyToAddress(privKey.PublicKey)
-		items[i].GuardianKey = addr[:]
+		guardianAddr := crypto.PubkeyToAddress(privKey.PublicKey)
+		privKeyValidator, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+		if err != nil {
+			panic(err)
+		}
+
+		validatorAddr := crypto.PubkeyToAddress(privKeyValidator.PublicKey)
+		items[i].GuardianKey = guardianAddr[:]
+		items[i].ValidatorAddr = validatorAddr[:]
 		privKeys = append(privKeys, privKey)
 
 		keeper.SetGuardianValidator(ctx, items[i])

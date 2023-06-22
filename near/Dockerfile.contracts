@@ -1,3 +1,4 @@
+FROM const-gen AS const-export
 FROM ghcr.io/wormhole-foundation/near:0.2@sha256:c2089c5e93df2396d74f9c07e7cd3d76983fad97bddb202030ca442c2c00c3c2 AS near-contracts
 
 RUN mkdir -p /.npm /home/node/appa /home/node/.npm
@@ -9,7 +10,7 @@ USER 1000
 
 ADD --chown=1000:1000 package.json .
 ADD --chown=1000:1000 package-lock.json .
-ADD --chown=1000:1000 .env .env
+COPY --from=const-export --chown=1000:1000 .env .
 
 RUN npm ci
 

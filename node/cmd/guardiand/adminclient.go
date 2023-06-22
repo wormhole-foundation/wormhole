@@ -1,6 +1,7 @@
 package guardiand
 
 import (
+	"bufio"
 	"context"
 	"encoding/csv"
 	"encoding/hex"
@@ -18,6 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/mr-tron/base58"
 	"github.com/spf13/pflag"
+	"golang.org/x/crypto/sha3"
 
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
@@ -55,6 +57,7 @@ func init() {
 	AdminClientFindMissingMessagesCmd.Flags().AddFlagSet(pf)
 	AdminClientListNodes.Flags().AddFlagSet(pf)
 	DumpVAAByMessageID.Flags().AddFlagSet(pf)
+	DumpRPCs.Flags().AddFlagSet(pf)
 	SendObservationRequest.Flags().AddFlagSet(pf)
 	ClientChainGovernorStatusCmd.Flags().AddFlagSet(pf)
 	ClientChainGovernorReloadCmd.Flags().AddFlagSet(pf)
@@ -71,6 +74,7 @@ func init() {
 	AdminCmd.AddCommand(AdminClientListNodes)
 	AdminCmd.AddCommand(AdminClientSignWormchainAddress)
 	AdminCmd.AddCommand(DumpVAAByMessageID)
+	AdminCmd.AddCommand(DumpRPCs)
 	AdminCmd.AddCommand(SendObservationRequest)
 	AdminCmd.AddCommand(ClientChainGovernorStatusCmd)
 	AdminCmd.AddCommand(ClientChainGovernorReloadCmd)
@@ -80,6 +84,7 @@ func init() {
 	AdminCmd.AddCommand(PurgePythNetVaasCmd)
 	AdminCmd.AddCommand(SignExistingVaaCmd)
 	AdminCmd.AddCommand(SignExistingVaasFromCSVCmd)
+	AdminCmd.AddCommand(Keccak256Hash)
 }
 
 var AdminCmd = &cobra.Command{
@@ -176,6 +181,20 @@ var SignExistingVaasFromCSVCmd = &cobra.Command{
 	Short: "Signs a CSV [VAA_ID,VAA_HEX] of existing VAAs for a new guardian set using the local guardian key and writes it to a new CSV. VAAs that don't have quorum on the new set will be dropped.",
 	Run:   runSignExistingVaasFromCSV,
 	Args:  cobra.ExactArgs(4),
+}
+
+var DumpRPCs = &cobra.Command{
+	Use:   "dump-rpcs",
+	Short: "Displays the RPCs in use by the guardian",
+	Run:   runDumpRPCs,
+	Args:  cobra.ExactArgs(0),
+}
+
+var Keccak256Hash = &cobra.Command{
+	Use:   "keccak256",
+	Short: "Compute legacy keccak256 hash",
+	Run:   runKeccak256Hash,
+	Args:  cobra.ExactArgs(0),
 }
 
 func getAdminClient(ctx context.Context, addr string) (*grpc.ClientConn, nodev1.NodePrivilegedServiceClient, error) {
@@ -345,7 +364,9 @@ func runSendObservationRequest(cmd *cobra.Command, args []string) {
 		log.Fatalf("invalid chain ID: %v", err)
 	}
 
-	txHash, err := hex.DecodeString(args[1])
+	// Support tx with or without leading 0x so copy / pasta
+	// from monitoring tools is easier.
+	txHash, err := hex.DecodeString(strings.TrimPrefix(args[1], "0x"))
 	if err != nil {
 		txHash, err = base58.Decode(args[1])
 		if err != nil {
@@ -370,6 +391,26 @@ func runSendObservationRequest(cmd *cobra.Command, args []string) {
 	})
 	if err != nil {
 		log.Fatalf("failed to send observation request: %v", err)
+	}
+}
+
+func runDumpRPCs(cmd *cobra.Command, args []string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn, c, err := getAdminClient(ctx, *clientSocketPath)
+	if err != nil {
+		log.Fatalf("failed to get admin client: %v", err)
+	}
+	defer conn.Close()
+
+	resp, err := c.DumpRPCs(ctx, &nodev1.DumpRPCsRequest{})
+	if err != nil {
+		log.Fatalf("failed to run dump-rpcs: %s", err)
+	}
+
+	for parm, rpc := range resp.Response {
+		fmt.Println(parm, " = [", rpc, "]")
 	}
 }
 
@@ -641,4 +682,29 @@ func runSignExistingVaasFromCSV(cmd *cobra.Command, args []string) {
 
 	log.Printf("Successfully signed %d out of %d VAAs", counter, numOldVAAs)
 	newVAAWriter.Flush()
+}
+
+// This exposes keccak256 as a command line utility, mostly for validating goverance messages
+// that use this hash.  There isn't any common utility that computes this since this is nonstandard outside of evm.
+// It is used similar to other hashing utilities, e.g. `cat <file> | guardiand admin keccak256`.
+func runKeccak256Hash(cmd *cobra.Command, args []string) {
+	reader := bufio.NewReader(os.Stdin)
+	hash := sha3.NewLegacyKeccak256()
+	// ~10 MB chunks
+	buf := make([]byte, 10*1024*1024)
+	for {
+		count, err := reader.Read(buf)
+		if err != nil && err != io.EOF {
+			log.Fatalf("could not read: %v", err)
+		}
+		_, errHash := hash.Write(buf[:count])
+		if errHash != nil {
+			log.Fatalf("could not hash: %v", errHash)
+		}
+		if err == io.EOF {
+			break
+		}
+	}
+	digest := hash.Sum([]byte{})
+	fmt.Printf("%s", hex.EncodeToString(digest))
 }

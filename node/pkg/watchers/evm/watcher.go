@@ -72,15 +72,15 @@ type (
 		// Human-readable name of the Eth network, for logging and monitoring.
 		networkName string
 		// Readiness component
-		readiness readiness.Component
+		readinessSync readiness.Component
 		// VAA ChainID of the network we're connecting to.
 		chainID vaa.ChainID
 
 		// Channel to send new messages to.
-		msgChan chan *common.MessagePublication
+		msgC chan<- *common.MessagePublication
 
 		// Channel to send guardian set changes to.
-		// setChan can be set to nil if no guardian set changes are needed.
+		// setC can be set to nil if no guardian set changes are needed.
 		//
 		// We currently only fetch the guardian set from one primary chain, which should
 		// have this flag set to true, and false on all others.
@@ -88,11 +88,11 @@ type (
 		// The current primary chain is Ethereum (a mostly arbitrary decision because it
 		// has the best API - we might want to switch the primary chain to Solana once
 		// the governance mechanism lives there),
-		setChan chan *common.GuardianSet
+		setC chan<- *common.GuardianSet
 
 		// Incoming re-observation requests from the network. Pre-filtered to only
 		// include requests for our chainID.
-		obsvReqC chan *gossipv1.ObservationRequest
+		obsvReqC <-chan *gossipv1.ObservationRequest
 
 		pending   map[pendingKey]*pendingMessage
 		pendingMu sync.Mutex
@@ -139,11 +139,10 @@ func NewEthWatcher(
 	url string,
 	contract eth_common.Address,
 	networkName string,
-	readiness readiness.Component,
 	chainID vaa.ChainID,
-	messageEvents chan *common.MessagePublication,
-	setEvents chan *common.GuardianSet,
-	obsvReqC chan *gossipv1.ObservationRequest,
+	msgC chan<- *common.MessagePublication,
+	setC chan<- *common.GuardianSet,
+	obsvReqC <-chan *gossipv1.ObservationRequest,
 	unsafeDevMode bool,
 ) *Watcher {
 
@@ -151,22 +150,37 @@ func NewEthWatcher(
 		url:                  url,
 		contract:             contract,
 		networkName:          networkName,
-		readiness:            readiness,
+		readinessSync:        common.MustConvertChainIdToReadinessSyncing(chainID),
 		waitForConfirmations: false,
 		maxWaitConfirmations: 60,
 		chainID:              chainID,
-		msgChan:              messageEvents,
-		setChan:              setEvents,
+		msgC:                 msgC,
+		setC:                 setC,
 		obsvReqC:             obsvReqC,
 		pending:              map[pendingKey]*pendingMessage{},
 		unsafeDevMode:        unsafeDevMode,
 	}
 }
 
-func (w *Watcher) Run(ctx context.Context) error {
-	logger := supervisor.Logger(ctx)
+func (w *Watcher) Run(parentCtx context.Context) error {
+	logger := supervisor.Logger(parentCtx)
 
-	useFinalizedBlocks := (w.chainID == vaa.ChainIDEthereum && (!w.unsafeDevMode))
+	logger.Info("Starting watcher",
+		zap.String("watcher_name", "evm"),
+		zap.String("url", w.url),
+		zap.String("contract", w.contract.String()),
+		zap.String("networkName", w.networkName),
+		zap.String("chainID", w.chainID.String()),
+		zap.Bool("unsafeDevMode", w.unsafeDevMode),
+	)
+
+	// later on we will spawn multiple go-routines through `RunWithScissors`, i.e. catching panics.
+	// If any of them panic, this function will return, causing this child context to be canceled
+	// such that the other go-routines can free up resources
+	ctx, watcherContextCancelFunc := context.WithCancel(parentCtx)
+	defer watcherContextCancelFunc()
+
+	useFinalizedBlocks := ((w.chainID == vaa.ChainIDEthereum || w.chainID == vaa.ChainIDSepolia) && (!w.unsafeDevMode))
 	if (w.chainID == vaa.ChainIDKarura || w.chainID == vaa.ChainIDAcala) && (!w.unsafeDevMode) {
 		ufb, err := w.getAcalaMode(ctx)
 		if err != nil {
@@ -199,7 +213,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
 	} else if useFinalizedBlocks {
-		if w.chainID == vaa.ChainIDEthereum && !w.unsafeDevMode {
+		if (w.chainID == vaa.ChainIDEthereum || w.chainID == vaa.ChainIDSepolia) && !w.unsafeDevMode {
 			safeBlocksSupported = true
 			logger.Info("using finalized blocks, will publish safe blocks")
 		} else {
@@ -266,38 +280,28 @@ func (w *Watcher) Run(ctx context.Context) error {
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
 		finalizer := finalizers.NewArbitrumFinalizer(logger, w.l1Finalizer)
-		pollConnector, err := connectors.NewBlockPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond, false, false)
-		if err != nil {
-			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("creating block poll connector failed: %w", err)
-		}
-		w.ethConn, err = connectors.NewArbitrumConnector(ctx, pollConnector)
+		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond, false, false)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("creating arbitrum connector failed: %w", err)
 		}
 	} else if w.chainID == vaa.ChainIDOptimism && !w.unsafeDevMode {
-		if w.l1Finalizer == nil {
-			return fmt.Errorf("unable to create optimism watcher because the l1 finalizer is not set")
-		}
+		// This only supports Bedrock mode
+		useFinalizedBlocks = true
+		safeBlocksSupported := true
+		logger.Info("using finalized blocks, will publish safe blocks")
 		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("dialing eth client failed: %w", err)
 		}
-		finalizer, err := finalizers.NewOptimismFinalizer(timeout, logger, w.l1Finalizer, w.rootChainRpc, w.rootChainContract)
-		if err != nil {
-			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("creating optimism finalizer failed: %w", err)
-		}
-		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizer, 250*time.Millisecond, false, false)
+		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizers.NewDefaultFinalizer(), 250*time.Millisecond, useFinalizedBlocks, safeBlocksSupported)
 		if err != nil {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
-			return fmt.Errorf("creating block poll connector failed: %w", err)
+			return fmt.Errorf("creating optimism connector failed: %w", err)
 		}
 	} else if w.chainID == vaa.ChainIDPolygon && w.usePolygonCheckpointing() {
 		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
@@ -315,6 +319,19 @@ func (w *Watcher) Run(ctx context.Context) error {
 			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
 			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
 			return fmt.Errorf("failed to create polygon connector: %w", err)
+		}
+	} else if w.chainID == vaa.ChainIDBase && !w.unsafeDevMode {
+		baseConnector, err := connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
+		if err != nil {
+			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf("dialing eth client failed: %w", err)
+		}
+		w.ethConn, err = connectors.NewBlockPollConnector(ctx, baseConnector, finalizers.NewDefaultFinalizer(), 250*time.Millisecond, true, true)
+		if err != nil {
+			ethConnectionErrors.WithLabelValues(w.networkName, "dial_error").Inc()
+			p2p.DefaultRegistry.AddErrorCount(w.chainID, 1)
+			return fmt.Errorf("creating base connector failed: %w", err)
 		}
 	} else {
 		w.ethConn, err = connectors.NewEthereumConnector(timeout, w.networkName, w.url, w.contract, logger)
@@ -398,7 +415,8 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 				if err != nil {
 					logger.Error("failed to process observation request",
-						zap.Error(err), zap.String("eth_network", w.networkName))
+						zap.Error(err), zap.String("eth_network", w.networkName),
+						zap.String("tx_hash", tx.Hex()))
 					continue
 				}
 
@@ -412,7 +430,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 							zap.Uint64("observed_block", blockNumber),
 							zap.String("eth_network", w.networkName),
 						)
-						w.msgChan <- msg
+						w.msgC <- msg
 						continue
 					}
 
@@ -432,7 +450,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 								zap.Uint64("observed_block", blockNumber),
 								zap.String("eth_network", w.networkName),
 							)
-							w.msgChan <- msg
+							w.msgC <- msg
 						} else {
 							logger.Info("ignoring re-observed message publication transaction",
 								zap.Stringer("tx", msg.TxHash),
@@ -477,7 +495,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 							zap.Uint64("observed_block", blockNumber),
 							zap.String("eth_network", w.networkName),
 						)
-						w.msgChan <- msg
+						w.msgC <- msg
 					} else {
 						logger.Info("ignoring re-observed message publication transaction",
 							zap.Stringer("tx", msg.TxHash),
@@ -538,12 +556,13 @@ func (w *Watcher) Run(ctx context.Context) error {
 						zap.Stringer("tx", ev.Raw.TxHash),
 						zap.Uint64("block", ev.Raw.BlockNumber),
 						zap.Stringer("blockhash", ev.Raw.BlockHash),
+						zap.Uint64("blockTime", blockTime),
 						zap.Uint64("Sequence", ev.Sequence),
 						zap.Uint32("Nonce", ev.Nonce),
 						zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
 						zap.String("eth_network", w.networkName))
 
-					w.msgChan <- message
+					w.msgC <- message
 					ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
 					continue
 				}
@@ -552,6 +571,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 					zap.Stringer("tx", ev.Raw.TxHash),
 					zap.Uint64("block", ev.Raw.BlockNumber),
 					zap.Stringer("blockhash", ev.Raw.BlockHash),
+					zap.Uint64("blockTime", blockTime),
 					zap.Uint64("Sequence", ev.Sequence),
 					zap.Uint32("Nonce", ev.Nonce),
 					zap.Uint8("ConsistencyLevel", ev.ConsistencyLevel),
@@ -606,13 +626,13 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 				start := time.Now()
 				currentHash := ev.Hash
-				logger.Info("processing new header",
+				logger.Debug("processing new header",
 					zap.Stringer("current_block", ev.Number),
 					zap.Stringer("current_blockhash", currentHash),
 					zap.Bool("is_safe_block", ev.Safe),
 					zap.String("eth_network", w.networkName))
 				currentEthHeight.WithLabelValues(w.networkName).Set(float64(ev.Number.Int64()))
-				readiness.SetReady(w.readiness)
+				readiness.SetReady(w.readinessSync)
 				p2p.DefaultRegistry.SetNetworkStats(w.chainID, &gossipv1.Heartbeat_Network{
 					Height:          ev.Number.Int64(),
 					ContractAddress: w.contract.Hex(),
@@ -753,13 +773,13 @@ func (w *Watcher) Run(ctx context.Context) error {
 							zap.Stringer("current_blockhash", currentHash),
 							zap.String("eth_network", w.networkName))
 						delete(w.pending, key)
-						w.msgChan <- pLock.message
+						w.msgC <- pLock.message
 						ethMessagesConfirmed.WithLabelValues(w.networkName).Inc()
 					}
 				}
 
 				w.pendingMu.Unlock()
-				logger.Info("processed new header",
+				logger.Debug("processed new header",
 					zap.Stringer("current_block", ev.Number),
 					zap.Bool("is_safe_block", ev.Safe),
 					zap.Stringer("current_blockhash", currentHash),
@@ -771,7 +791,7 @@ func (w *Watcher) Run(ctx context.Context) error {
 
 	// Now that the init is complete, peg readiness. That will also happen when we process a new head, but chains
 	// that wait for finality may take a while to receive the first block and we don't want to hold up the init.
-	readiness.SetReady(w.readiness)
+	readiness.SetReady(w.readinessSync)
 
 	select {
 	case <-ctx.Done():
@@ -787,7 +807,7 @@ func (w *Watcher) fetchAndUpdateGuardianSet(
 	ethConn connectors.Connector,
 ) error {
 	msm := time.Now()
-	logger.Info("fetching guardian set")
+	logger.Debug("fetching guardian set")
 	timeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	idx, gs, err := fetchCurrentGuardianSet(timeout, ethConn)
@@ -809,8 +829,8 @@ func (w *Watcher) fetchAndUpdateGuardianSet(
 
 	w.currentGuardianSet = &idx
 
-	if w.setChan != nil {
-		w.setChan <- &common.GuardianSet{
+	if w.setC != nil {
+		w.setC <- &common.GuardianSet{
 			Keys:  gs.Keys,
 			Index: idx,
 		}

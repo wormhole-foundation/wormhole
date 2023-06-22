@@ -50,3 +50,10 @@ export const ETHEREUM_TOKEN_BRIDGE_ADDRESS =
 export const WETH_ADDRESS = "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E";
 export const ETHEREUM_NFT_BRIDGE_ADDRESS =
   "0x26b4afb60d6c903165150c6f0aa14f8016be4aec";
+
+// preloaded
+export const DEADBEEF_ADDRESS = "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+export const DEADBEEF_MINT_ADDRESS =
+  "HKa8mGMJJm2qnja4xmMaoeGqF4LBpGCyXVZuaiGYFaYY";
+export const DEADBEEF_METADATA_ADDRESS =
+  "A2mcN1tknMBAgMnCUF6ZT8tEJj1QE1AuCsquvXHgpWVJ";

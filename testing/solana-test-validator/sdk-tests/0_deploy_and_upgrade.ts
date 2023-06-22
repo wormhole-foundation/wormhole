@@ -69,7 +69,7 @@ describe("Deploy and Upgrade Programs", () => {
 
   describe("Wormhole (Core Bridge)", () => {
     it("Deploy and Initialize", async () => {
-      const artifactPath = `${__dirname}/../artifacts/bridge.so`;
+      const artifactPath = `${__dirname}/../artifacts-main/bridge.so`;
       const programIdPath = `${__dirname}/keys/${CORE_BRIDGE_ADDRESS}.json`;
       const upgradeAuthority = deriveUpgradeAuthorityKey(CORE_BRIDGE_ADDRESS);
 
@@ -176,7 +176,7 @@ describe("Deploy and Upgrade Programs", () => {
 
   describe("Token Bridge", () => {
     it("Deploy and Initialize", async () => {
-      const artifactPath = `${__dirname}/../artifacts/token_bridge.so`;
+      const artifactPath = `${__dirname}/../artifacts-main/token_bridge.so`;
       const programIdPath = `${__dirname}/keys/${TOKEN_BRIDGE_ADDRESS}.json`;
       const upgradeAuthority = deriveUpgradeAuthorityKey(TOKEN_BRIDGE_ADDRESS);
 
@@ -270,7 +270,7 @@ describe("Deploy and Upgrade Programs", () => {
 
   describe("NFT Bridge", () => {
     it("Deploy and Initialize", async () => {
-      const artifactPath = `${__dirname}/../artifacts/nft_bridge.so`;
+      const artifactPath = `${__dirname}/../artifacts-main/nft_bridge.so`;
       const programIdPath = `${__dirname}/keys/${NFT_BRIDGE_ADDRESS}.json`;
       const upgradeAuthority = deriveUpgradeAuthorityKey(NFT_BRIDGE_ADDRESS);
 

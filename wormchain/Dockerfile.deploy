@@ -1,0 +1,38 @@
+FROM const-gen AS const-export
+# This is a multi-stage docker file:
+#  1. The first stage contains the built contracts (wasm files)
+#  2. The second creates a node.js environment to deploy the contracts to devnet
+
+#  local cosmwasm image, built by tilt
+FROM cosmwasm_artifacts AS artifacts
+
+# Contract deployment stage
+FROM node:16-buster-slim@sha256:93c9fc3550f5f7d159f282027228e90e3a7f8bf38544758024f005e82607f546
+
+# Support additional root CAs
+COPY cert.pem* /certs/
+# Node
+ENV NODE_EXTRA_CA_CERTS=/certs/cert.pem
+ENV NODE_OPTIONS=--use-openssl-ca
+# npm
+RUN if [ -e /certs/cert.pem ]; then npm config set cafile /certs/cert.pem; fi
+
+RUN apt update && apt install netcat curl jq -y
+
+WORKDIR /app/tools
+
+COPY --from=artifacts / /app/artifacts
+
+COPY ./ts-sdk/package.json ./ts-sdk/package-lock.json /ts-sdk/
+RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
+    npm ci --prefix=/ts-sdk
+COPY ./ts-sdk /ts-sdk
+COPY --from=vue-export /vue /vue
+RUN npm run build --prefix=/ts-sdk
+
+COPY ./contracts/tools/package.json ./contracts/tools/package-lock.json /app/tools/
+RUN --mount=type=cache,uid=1000,gid=1000,target=/home/node/.npm \
+    npm ci
+COPY ./contracts/tools /app/tools
+COPY --from=const-export .env /app/tools/.env
+COPY --from=const-export devnet-consts.json /app/tools/devnet-consts.json

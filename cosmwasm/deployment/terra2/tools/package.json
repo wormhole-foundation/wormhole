@@ -1,0 +1,19 @@
+{
+  "name": "@wormhole-foundation/tools-terra2",
+  "version": "0.0.1",
+  "description": "",
+  "main": "deploy.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@cosmjs/encoding": "^0.26.2",
+    "@terra-money/terra.js": "^3.1.3",
+    "dotenv": "^16.0.0",
+    "ethers": "^5.4.4",
+    "yargs": "^17.0.1"
+  }
+}

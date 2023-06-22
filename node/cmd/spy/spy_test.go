@@ -62,7 +62,7 @@ func getVAA(chainID vaa.ChainID, emitterAddr vaa.Address, nonce uint32) *vaa.VAA
 }
 
 // helper method for *vaa.BatchVAA creation
-func getBatchVAA(chainID vaa.ChainID, txID []byte, nonce uint32, emitterAddr vaa.Address) *vaa.BatchVAA {
+func getBatchVAA(chainID vaa.ChainID, _ []byte, nonce uint32, emitterAddr vaa.Address) *vaa.BatchVAA {
 	v := getVAA(chainID, emitterAddr, nonce)
 	obs := &vaa.Observation{
 		Index:       uint8(0),
@@ -227,7 +227,7 @@ func init() {
 
 	lis = bufconn.Listen(bufSize)
 
-	grpcServer := common.NewInstrumentedGRPCServer(logger)
+	grpcServer := common.NewInstrumentedGRPCServer(logger, common.GrpcLogDetailFull)
 
 	mockedSpyServer = newSpyServer(logger)
 	spyv1.RegisterSpyRPCServiceServer(grpcServer, mockedSpyServer)
@@ -691,7 +691,7 @@ func TestSpyHandleGossipBatchVAABatchFilter(t *testing.T) {
 					return
 				}
 
-				if resType.SignedBatchVaa.Nonce != uint32(nonce) {
+				if resType.SignedBatchVaa.Nonce != nonce {
 					t.Fail()
 				}
 

@@ -26,14 +26,14 @@ import { Tendermint34Client } from "@cosmjs/tendermint-rpc";
 import {
   RpcStatus,
   HttpResponse,
-} from "../modules/certusone.wormholechain.wormhole/rest";
+} from "../modules/wormhole_foundation.wormchain.wormhole/rest";
 import {
   txClient,
   queryClient,
-} from "../modules/certusone.wormholechain.wormhole";
+} from "../modules/wormhole_foundation.wormchain.wormhole";
 import { keccak256 } from "ethers/lib/utils";
-import { MsgRegisterAccountAsGuardian } from "../modules/certusone.wormholechain.wormhole/types/wormhole/tx";
-import { GuardianKey } from "../modules/certusone.wormholechain.wormhole/types/wormhole/guardian_key";
+import { MsgRegisterAccountAsGuardian } from "../modules/wormhole_foundation.wormchain.wormhole/types/wormhole/tx";
+import { GuardianKey } from "../modules/wormhole_foundation.wormchain.wormhole/types/wormhole/guardian_key";
 let elliptic = require("elliptic"); //No TS defs?
 
 //https://tutorials.cosmos.network/academy/4-my-own-chain/cosmjs.html
@@ -183,7 +183,7 @@ export async function registerGuardianValidator(
 
   const args: MsgRegisterAccountAsGuardian = {
     signer: await getAddress(wallet),
-    guardianPubkey: GuardianKey.fromJSON(guardianPubkeyBase64), //TODO fix this type, it's bad
+    // guardianPubkey: GuardianKey.fromJSON(guardianPubkeyBase64), //TODO fix this type, it's bad
     signature: signature,
   };
 

@@ -1,5 +1,6 @@
 use crate::{
     accounts::{
+        deserialize_and_verify_metadata,
         ConfigAccount,
         CoreBridge,
         EmitterAccount,
@@ -10,7 +11,6 @@ use crate::{
     },
     messages::PayloadAssetMeta,
     types::*,
-    TokenBridgeError::*,
 };
 use bridge::{
     api::PostMessageData,
@@ -34,7 +34,6 @@ use solitaire::{
     },
     *,
 };
-use spl_token_metadata::state::Metadata;
 
 #[derive(FromAccounts)]
 pub struct AttestToken<'b> {
@@ -118,16 +117,7 @@ pub fn attest_token(
 
     // Assign metadata if an SPL Metadata account exists for the SPL token in question.
     if !accs.spl_metadata.data_is_empty() {
-        let derivation_data: SplTokenMetaDerivationData = (&*accs).into();
-        accs.spl_metadata
-            .verify_derivation(&spl_token_metadata::id(), &derivation_data)?;
-
-        if *accs.spl_metadata.owner != spl_token_metadata::id() {
-            return Err(WrongAccountOwner.into());
-        }
-
-        let metadata: Metadata =
-            Metadata::from_account_info(accs.spl_metadata.info()).ok_or(InvalidMetadata)?;
+        let metadata = deserialize_and_verify_metadata(&accs.spl_metadata, (&*accs).into())?;
         payload.name = metadata.data.name.clone();
         payload.symbol = metadata.data.symbol;
     }

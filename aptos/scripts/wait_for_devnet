@@ -1,4 +1,6 @@
 #!/bin/bash
 set -e
-while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' 0.0.0.0:8080/v1/-/healthy)" != "200" ]]; do sleep 5; done
-while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' 0.0.0.0:8081/health)" != "200" ]]; do sleep 5; done
+
+# Logic from https://github.com/aptos-labs/aptos-core/blob/95b4388ab0e5fec6971236232b7a179839980989/crates/aptos/e2e/local_testnet.py#L79
+while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' 0.0.0.0:8080/v1)" != "200" ]]; do sleep 5; done
+while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' 0.0.0.0:8081/health)" != "200" && "$(curl -s -o /dev/null -w ''%{http_code}'' 0.0.0.0:8081/)" != "200" ]]; do sleep 5; done

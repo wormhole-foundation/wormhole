@@ -1,45 +1,45 @@
 {
-  version: 1,
-  guardianSetIndex: 0,
-  signatures: [
+  "version": 1,
+  "guardianSetIndex": 0,
+  "signatures": [
     {
-      guardianSetIndex: 0,
-      signature: '7ac31b282c2aeeeb37f3385ee0de5f8e421d30b9e5ae8ba3d4375c1c77a86e77159bb697d9c456d6f8c02d22a94b1279b65b0d6a9957e7d3857423845ac758e300'
+      "guardianSetIndex": 0,
+      "signature": "7ac31b282c2aeeeb37f3385ee0de5f8e421d30b9e5ae8ba3d4375c1c77a86e77159bb697d9c456d6f8c02d22a94b1279b65b0d6a9957e7d3857423845ac758e300"
     }
   ],
-  timestamp: 1628094930,
-  nonce: 3,
-  emitterChain: 1,
-  emitterAddress: '0x0000000000000000000000000000000000000000000000000000000000000004',
-  sequence: 1337n,
-  consistencyLevel: 0,
-  payload: {
-    module: 'Core',
-    type: 'GuardianSetUpgrade',
-    chain: 0,
-    newGuardianSetIndex: 1,
-    newGuardianSetLength: 19,
-    newGuardianSet: [
-      '58cc3ae5c097b213ce3c81979e1b9f9570746aa5',
-      'ff6cb952589bde862c25ef4392132fb9d4a42157',
-      '114de8460193bdf3a2fcf81f86a09765f4762fd1',
-      '107a0086b32d7a0977926a205131d8731d39cbeb',
-      '8c82b2fd82faed2711d59af0f2499d16e726f6b2',
-      '11b39756c042441be6d8650b69b54ebe715e2343',
-      '54ce5b4d348fb74b958e8966e2ec3dbd4958a7cd',
-      'eb5f7389fa26941519f0863349c223b73a6ddee7',
-      '74a3bf913953d695260d88bc1aa25a4eee363ef0',
-      '000ac0076727b35fbea2dac28fee5ccb0fea768e',
-      'af45ced136b9d9e24903464ae889f5c8a723fc14',
-      'f93124b7c738843cbb89e864c862c38cddcccf95',
-      'd2cc37a4dc036a8d232b48f62cdd4731412f4890',
-      'da798f6896a3331f64b48c12d1d57fd9cbe70811',
-      '71aa1be1d36cafe3867910f99c09e347899c19c3',
-      '8192b6e7387ccd768277c17dab1b7a5027c0b3cf',
-      '178e21ad2e77ae06711549cfbb1f9c7a9d8096e8',
-      '5e1487f35515d02a92753504a8d75471b9f49edb',
-      '6fbebc898f403e4773e95feb15e80c9a99c8348d'
+  "timestamp": 1628094930,
+  "nonce": 3,
+  "emitterChain": 1,
+  "emitterAddress": "0x0000000000000000000000000000000000000000000000000000000000000004",
+  "sequence": "1337",
+  "consistencyLevel": 0,
+  "payload": {
+    "module": "Core",
+    "type": "GuardianSetUpgrade",
+    "chain": 0,
+    "newGuardianSetIndex": 1,
+    "newGuardianSetLength": 19,
+    "newGuardianSet": [
+      "58cc3ae5c097b213ce3c81979e1b9f9570746aa5",
+      "ff6cb952589bde862c25ef4392132fb9d4a42157",
+      "114de8460193bdf3a2fcf81f86a09765f4762fd1",
+      "107a0086b32d7a0977926a205131d8731d39cbeb",
+      "8c82b2fd82faed2711d59af0f2499d16e726f6b2",
+      "11b39756c042441be6d8650b69b54ebe715e2343",
+      "54ce5b4d348fb74b958e8966e2ec3dbd4958a7cd",
+      "eb5f7389fa26941519f0863349c223b73a6ddee7",
+      "74a3bf913953d695260d88bc1aa25a4eee363ef0",
+      "000ac0076727b35fbea2dac28fee5ccb0fea768e",
+      "af45ced136b9d9e24903464ae889f5c8a723fc14",
+      "f93124b7c738843cbb89e864c862c38cddcccf95",
+      "d2cc37a4dc036a8d232b48f62cdd4731412f4890",
+      "da798f6896a3331f64b48c12d1d57fd9cbe70811",
+      "71aa1be1d36cafe3867910f99c09e347899c19c3",
+      "8192b6e7387ccd768277c17dab1b7a5027c0b3cf",
+      "178e21ad2e77ae06711549cfbb1f9c7a9d8096e8",
+      "5e1487f35515d02a92753504a8d75471b9f49edb",
+      "6fbebc898f403e4773e95feb15e80c9a99c8348d"
     ]
   },
-  digest: '0xed3a5600d44b9dcc889daf0178dd69ab1e9356308194ba3628a7b720ae48a8d5'
+  "digest": "0xed3a5600d44b9dcc889daf0178dd69ab1e9356308194ba3628a7b720ae48a8d5"
 }

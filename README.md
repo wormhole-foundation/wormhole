@@ -2,8 +2,7 @@
 
 This monorepo contains the reference implementation of the [Wormhole protocol](https://wormholenetwork.com).
 
-To learn about how to use and build on Wormhole read the [Docs](http://docs.wormholenetwork.com/) or take a look at the 
-[xApp Book](https://book.wormholenetwork.com/).
+To learn about how to use and build on Wormhole read the [docs](http://book.wormholenetwork.com/).
 
 ----
 

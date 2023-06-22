@@ -356,7 +356,7 @@ contract("Wormhole", function () {
             await initialized.methods.parseAndVerifyVM("0x" + vm).call();
             assert.fail("accepted signature indexes being the same in a VM");
         } catch (e) {
-            assert.equal(e.data[Object.keys(e.data)[0]].reason, 'signature indices must be ascending')
+            assert.include(e.message, 'revert signature indices must be ascending')
         }
     })
 
@@ -538,7 +538,7 @@ contract("Wormhole", function () {
                 gasLimit: 1000000
             });
         } catch (e) {
-            assert.equal(e.message, "Returned error: VM Exception while processing transaction: revert Invalid key");
+            assert.include(e.message, "revert Invalid key");
             failed = true;
         }
 
@@ -655,7 +655,7 @@ contract("Wormhole", function () {
 
         let before = await web3.eth.getStorageAt(Wormhole.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
 
-        assert.equal(before.toLowerCase(), Implementation.address.toLowerCase());
+        assert.equal(BigInt(before), BigInt(Implementation.address));
 
         let set = await initialized.methods.submitContractUpgrade("0x" + vm).send({
             value: 0,
@@ -665,7 +665,7 @@ contract("Wormhole", function () {
 
         let after = await web3.eth.getStorageAt(Wormhole.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
 
-        assert.equal(after.toLowerCase(), mock.address.toLowerCase());
+        assert.equal(BigInt(after), BigInt(mock.address));
 
         const mockImpl = new web3.eth.Contract(MockImplementation.abi, Wormhole.address);
 
@@ -719,7 +719,7 @@ contract("Wormhole", function () {
             });
             assert.fail("recover chain ID governance packet on supported chain accepted")
         } catch (e) {
-            assert.equal(e.data[Object.keys(e.data)[0]].reason, "not a fork")
+            assert.include(e.message, "revert not a fork")
         }
     })
 
@@ -763,7 +763,7 @@ contract("Wormhole", function () {
             });
             assert.fail("governance packet of old guardian set accepted")
         } catch (e) {
-            assert.equal(e.data[Object.keys(e.data)[0]].reason, "not signed by current guardian set")
+            assert.include(e.message, "revert not signed by current guardian set")
         }
     })
 
@@ -843,7 +843,7 @@ contract("Wormhole", function () {
             });
             assert.fail("governance packet from wrong governance chain accepted")
         } catch (e) {
-            assert.equal(e.data[Object.keys(e.data)[0]].reason, "wrong governance chain")
+            assert.include(e.message, "revert wrong governance chain")
         }
     })
 
@@ -885,7 +885,7 @@ contract("Wormhole", function () {
             });
             assert.fail("governance packet from wrong governance contract accepted")
         } catch (e) {
-            assert.equal(e.data[Object.keys(e.data)[0]].reason, "wrong governance contract")
+            assert.include(e.message, "revert wrong governance contract")
         }
     })
 
@@ -937,7 +937,7 @@ contract("Wormhole", function () {
 
             assert.fail("governance packet accepted twice")
         } catch (e) {
-            assert.equal(e.data[Object.keys(e.data)[0]].reason, "governance action already consumed")
+            assert.include(e.message, "revert governance action already consumed")
         }
     })
 
@@ -1002,7 +1002,7 @@ contract("Wormhole", function () {
 
             assert.fail("governance packet accepted")
         } catch (e) {
-            assert.equal(e.data[Object.keys(e.data)[0]].reason, "invalid fork")
+            assert.include(e.message, "revert invalid fork")
         }
     })
 
@@ -1095,7 +1095,7 @@ contract("Wormhole", function () {
 
         let before = await web3.eth.getStorageAt(Wormhole.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
 
-        assert.equal(before.toLowerCase(), lastDeployed.address.toLowerCase());
+        assert.equal(BigInt(before), BigInt(lastDeployed.address));
 
         let set = await initialized.methods.submitContractUpgrade("0x" + vm).send({
             value: 0,
@@ -1105,7 +1105,7 @@ contract("Wormhole", function () {
 
         let after = await web3.eth.getStorageAt(Wormhole.address, "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc");
 
-        assert.equal(after.toLowerCase(), mock.address.toLowerCase());
+        assert.equal(BigInt(after), BigInt(mock.address));
 
         const mockImpl = new web3.eth.Contract(MockImplementation.abi, Wormhole.address);
 

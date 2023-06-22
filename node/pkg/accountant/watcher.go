@@ -80,75 +80,81 @@ func (acct *Accountant) handleEvents(ctx context.Context, evts <-chan tmCoreType
 		case e := <-evts:
 			tx, ok := e.Data.(tmTypes.EventDataTx)
 			if !ok {
-				acct.logger.Error("acctwatcher: unknown data from event subscription", zap.Stringer("e.Data", reflect.TypeOf(e.Data)), zap.Any("event", e))
+				acct.logger.Error("unknown data from event subscription", zap.Stringer("e.Data", reflect.TypeOf(e.Data)), zap.Any("event", e))
 				continue
 			}
 
 			for _, event := range tx.Result.Events {
-				if event.Type == "wasm-Transfer" {
-					xfer, err := parseWasmTransfer(acct.logger, event, acct.contract)
+				if event.Type == "wasm-Observation" {
+					evt, err := parseEvent[WasmObservation](acct.logger, event, "wasm-Observation", acct.contract)
 					if err != nil {
-						acct.logger.Error("acctwatcher: failed to parse wasm event", zap.Error(err), zap.Stringer("e.Data", reflect.TypeOf(e.Data)), zap.Any("event", event))
+						acct.logger.Error("failed to parse wasm transfer event", zap.Error(err), zap.Stringer("e.Data", reflect.TypeOf(e.Data)), zap.Any("event", event))
 						continue
 					}
 
 					eventsReceived.Inc()
-					acct.processPendingTransfer(xfer)
+					acct.processPendingTransfer(evt)
+				} else if event.Type == "wasm-ObservationError" {
+					evt, err := parseEvent[WasmObservationError](acct.logger, event, "wasm-ObservationError", acct.contract)
+					if err != nil {
+						acct.logger.Error("failed to parse wasm observation error event", zap.Error(err), zap.Stringer("e.Data", reflect.TypeOf(e.Data)), zap.Any("event", event))
+						continue
+					}
+
+					errorEventsReceived.Inc()
+					acct.handleTransferError(evt.Key.String(), evt.Error, "transfer error event received")
 				} else {
-					acct.logger.Debug("acctwatcher: ignoring non-transfer event", zap.String("eventType", event.Type))
+					acct.logger.Debug("ignoring uninteresting event", zap.String("eventType", event.Type))
 				}
 			}
 		}
 	}
 }
 
-// WasmTransfer represents a transfer event from the smart contract.
-type WasmTransfer struct {
-	TxHashBytes      []byte      `json:"tx_hash"`
-	Timestamp        uint32      `json:"timestamp"`
-	Nonce            uint32      `json:"nonce"`
-	EmitterChain     uint16      `json:"emitter_chain"`
-	EmitterAddress   vaa.Address `json:"emitter_address"`
-	Sequence         uint64      `json:"sequence"`
-	ConsistencyLevel uint8       `json:"consistency_level"`
-	Payload          []byte      `json:"payload"`
-}
+type (
+	// WasmObservation represents a transfer event from the smart contract.
+	WasmObservation Observation
 
-// parseWasmTransfer parses transfer events from the smart contract. All other event types are ignored.
-func parseWasmTransfer(logger *zap.Logger, event tmAbci.Event, contractAddress string) (*WasmTransfer, error) {
-	if event.Type != "wasm-Transfer" {
-		return nil, fmt.Errorf("not a WasmTransfer event: %s", event.Type)
+	// WasmObservationError represents an error event from the smart contract.
+	WasmObservationError struct {
+		Key   TransferKey `json:"key"`
+		Error string      `json:"error"`
 	}
+)
 
+func parseEvent[T any](logger *zap.Logger, event tmAbci.Event, name string, contractAddress string) (*T, error) {
 	attrs := make(map[string]json.RawMessage)
 	for _, attr := range event.Attributes {
 		if string(attr.Key) == "_contract_address" {
 			if string(attr.Value) != contractAddress {
-				return nil, fmt.Errorf("WasmTransfer event from unexpected contract: %s", string(attr.Value))
+				return nil, fmt.Errorf("%s event from unexpected contract: %s", name, string(attr.Value))
 			}
 		} else {
-			logger.Debug("acctwatcher: attribute", zap.String("key", string(attr.Key)), zap.String("value", string(attr.Value)))
+			logger.Debug("event attribute", zap.String("event", name), zap.String("key", string(attr.Key)), zap.String("value", string(attr.Value)))
 			attrs[string(attr.Key)] = attr.Value
 		}
 	}
 
 	attrBytes, err := json.Marshal(attrs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal event attributes: %w", err)
+		return nil, fmt.Errorf("failed to marshal %s event attributes: %w", name, err)
 	}
 
-	evt := new(WasmTransfer)
+	evt := new(T)
 	if err := json.Unmarshal(attrBytes, evt); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal WasmTransfer event: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal %s event: %w", name, err)
 	}
 
 	return evt, nil
 }
 
-// processPendingTransfer takes a WasmTransfer event, determines if we are expecting it, and if so, publishes it.
-func (acct *Accountant) processPendingTransfer(xfer *WasmTransfer) {
+// processPendingTransfer takes a WasmObservation event, determines if we are expecting it, and if so, publishes it.
+func (acct *Accountant) processPendingTransfer(xfer *WasmObservation) {
+	acct.pendingTransfersLock.Lock()
+	defer acct.pendingTransfersLock.Unlock()
+
 	acct.logger.Info("acctwatch: transfer event detected",
-		zap.String("tx_hash", hex.EncodeToString(xfer.TxHashBytes)),
+		zap.String("tx_hash", hex.EncodeToString(xfer.TxHash)),
 		zap.Uint32("timestamp", xfer.Timestamp),
 		zap.Uint32("nonce", xfer.Nonce),
 		zap.Stringer("emitter_chain", vaa.ChainID(xfer.EmitterChain)),
@@ -159,7 +165,7 @@ func (acct *Accountant) processPendingTransfer(xfer *WasmTransfer) {
 	)
 
 	msg := &common.MessagePublication{
-		TxHash:           ethCommon.BytesToHash(xfer.TxHashBytes),
+		TxHash:           ethCommon.BytesToHash(xfer.TxHash),
 		Timestamp:        time.Unix(int64(xfer.Timestamp), 0),
 		Nonce:            xfer.Nonce,
 		Sequence:         xfer.Sequence,
@@ -170,9 +176,6 @@ func (acct *Accountant) processPendingTransfer(xfer *WasmTransfer) {
 	}
 
 	msgId := msg.MessageIDString()
-
-	acct.pendingTransfersLock.Lock()
-	defer acct.pendingTransfersLock.Unlock()
 
 	pe, exists := acct.pendingTransfers[msgId]
 	if exists {
@@ -185,11 +188,11 @@ func (acct *Accountant) processPendingTransfer(xfer *WasmTransfer) {
 				zap.String("newDigest", digest),
 			)
 
-			acct.deletePendingTransfer(msgId)
+			acct.deletePendingTransferAlreadyLocked(msgId)
 			return
 		}
 		acct.logger.Info("acctwatch: pending transfer has been approved", zap.String("msgId", msgId))
-		acct.publishTransfer(pe)
+		acct.publishTransferAlreadyLocked(pe)
 		transfersApproved.Inc()
 	} else {
 		// TODO: We could issue a reobservation request here since it looks like other guardians have seen this transfer but we haven't.

@@ -502,7 +502,7 @@ fn handle_register_asset(
 
     Ok(Response::new()
         .add_attribute("action", "register_asset")
-        .add_attribute("asset_id", format!("{:?}", asset_id))
+        .add_attribute("asset_id", format!("{asset_id:?}"))
         .add_attribute("contract_addr", info.sender))
 }
 

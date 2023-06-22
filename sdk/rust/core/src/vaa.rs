@@ -246,17 +246,10 @@ impl<P: Serialize> Body<P> {
     /// and hashing the result using on-chain primitives.
     #[inline]
     pub fn digest(&self) -> anyhow::Result<Digest> {
-        self.digest_with_payload(&[])
-    }
-
-    /// Like `digest` but allows specifying an additional payload to include in the body hash.
-    pub fn digest_with_payload(&self, payload: &[u8]) -> anyhow::Result<Digest> {
         // The `body` of the VAA is hashed to produce a `digest` of the VAA.
         let hash: [u8; 32] = {
             let mut h = sha3::Keccak256::default();
             serde_wormhole::to_writer(&mut h, self).context("failed to serialize body")?;
-            h.write_all(payload)
-                .context("failed to hash extra payload")?;
             h.finalize().into()
         };
 
@@ -278,6 +271,11 @@ impl<P: Serialize> Body<P> {
 #[cfg(test)]
 mod test {
     use serde_wormhole::RawMessage;
+
+    use crate::{
+        token::{Action, GovernancePacket},
+        GOVERNANCE_EMITTER,
+    };
 
     use super::*;
 
@@ -354,5 +352,57 @@ mod test {
         let d3 = partial.digest().unwrap();
 
         assert_eq!(d1, d3);
+    }
+
+    #[test]
+    fn stable_digest() {
+        let data = [
+            0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04,
+            0x00, 0x00, 0x00, 0x00, 0x03, 0xb4, 0x56, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x54, 0x6f, 0x6b, 0x65, 0x6e, 0x42, 0x72, 0x69, 0x64, 0x67, 0x65, 0x01,
+            0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x02, 0x90, 0xfb, 0x16, 0x72, 0x08, 0xaf, 0x45, 0x5b, 0xb1, 0x37, 0x78,
+            0x01, 0x63, 0xb7, 0xb7, 0xa9, 0xa1, 0x0c, 0x16,
+        ];
+
+        let expected_digest = [
+            0x05, 0xd1, 0xfc, 0xc5, 0x31, 0x74, 0x6c, 0x7e, 0xfd, 0x7f, 0xee, 0xa2, 0x0a, 0x81,
+            0xd2, 0x79, 0x9f, 0x77, 0x7f, 0x30, 0x2b, 0x8a, 0x6a, 0x64, 0x24, 0xb8, 0x12, 0x09,
+            0xdc, 0x3f, 0x51, 0x1f,
+        ];
+
+        assert_eq!(expected_digest, digest(&data).unwrap().secp256k_hash);
+
+        let expected_body = Body {
+            timestamp: 1,
+            nonce: 1,
+            emitter_chain: Chain::Solana,
+            emitter_address: GOVERNANCE_EMITTER,
+            sequence: 62150328,
+            consistency_level: 0,
+            payload: GovernancePacket {
+                chain: Chain::Any,
+                action: Action::RegisterChain {
+                    chain: Chain::Ethereum,
+                    emitter_address: Address([
+                        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                        0x02, 0x90, 0xfb, 0x16, 0x72, 0x08, 0xaf, 0x45, 0x5b, 0xb1, 0x37, 0x78,
+                        0x01, 0x63, 0xb7, 0xb7, 0xa9, 0xa1, 0x0c, 0x16,
+                    ]),
+                },
+            },
+        };
+
+        let body = serde_wormhole::from_slice(&data).unwrap();
+        assert_eq!(expected_body, body);
+        assert_eq!(expected_digest, body.digest().unwrap().secp256k_hash);
+
+        // Deferred parsing of the payload should still produce the same digest.
+        let body = serde_wormhole::from_slice::<Body<&RawMessage>>(&data).unwrap();
+        assert_eq!(&data[51..], body.payload.get());
+        assert_eq!(expected_digest, body.digest().unwrap().secp256k_hash);
     }
 }

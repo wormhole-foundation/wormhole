@@ -266,11 +266,13 @@ func process(txRpc *rpc.TransactionWithMeta) (*solana.PublicKey, error) {
 	program, err := solana.PublicKeyFromBase58(*solanaAddr)
 	if err != nil {
 		log.Fatalf("Invalid program address: %v", err)
+		return nil, err
 	}
 
 	tx, err := txRpc.GetTransaction()
 	if err != nil {
 		log.Fatalf("Failed to unmarshal transaction: %v", err)
+		return nil, err
 	}
 
 	signature := tx.Signatures[0]

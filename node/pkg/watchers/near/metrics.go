@@ -74,10 +74,11 @@ func (e *Watcher) runMetrics(ctx context.Context) error {
 		case <-metricsIntervalTimer.C:
 			// compute and publish periodic metrics
 			l1 := e.transactionProcessingQueueCounter.Load()
-			l2 := len(e.chunkProcessingQueue)
+			l2 := len(e.transactionProcessingQueue)
+			l3 := len(e.chunkProcessingQueue)
 			txqueueLen.Set(float64(l1))
 			chunkqueueLen.Set(float64(l2))
-			logger.Info("metrics", zap.Int64("txqueueLen", l1), zap.Int("chunkqueueLen", l2))
+			logger.Debug("metrics", zap.Int64("txqueueWaiting", l1), zap.Int("txqueueReady", l2), zap.Int("chunkqueueLen", l3))
 
 		case event := <-e.eventChan:
 			switch event {

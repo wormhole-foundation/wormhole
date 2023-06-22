@@ -1,0 +1,29 @@
+[package]
+name = "accountant"
+version = "0.1.0"
+authors = ["Wormhole Project Contributors"]
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# for more explicit tests, cargo test --features=backtraces
+backtraces = ["cosmwasm-std/backtraces"]
+# use library feature to disable all instantiate/execute/query exports
+library = []
+
+[dependencies]
+anyhow = "1"
+cosmwasm-schema = "1"
+cosmwasm-std = "1"
+cw-storage-plus = "0.13.2"
+cw_transcode = "0.1.0"
+hex = { version = "0.4.3", features = ["serde"] }
+schemars = "0.8.8"
+serde = { version = "1.0.137", default-features = false }
+thiserror = "1"
+
+[dev-dependencies]
+anyhow = { version = "1", features = ["backtrace"] }
+serde-json-wasm = "0.4"

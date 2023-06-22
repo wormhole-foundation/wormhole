@@ -29,6 +29,11 @@ import (
 	"nhooyr.io/websocket/wsjson"
 )
 
+// ReadLimitSize can be used to increase the read limit size on the listening connection. The default read limit size is not large enough,
+// causing "failed to read: read limited at 32769 bytes" errors during testing. Increasing this limit effects an internal buffer that
+// is used to as part of the zero alloc/copy design.
+const ReadLimitSize = 524288
+
 type (
 	// Watcher is responsible for looking over a cosmwasm blockchain and reporting new transactions to the contract
 	Watcher struct {
@@ -36,14 +41,14 @@ type (
 		urlLCD   string
 		contract string
 
-		msgChan chan *common.MessagePublication
+		msgC chan<- *common.MessagePublication
 
 		// Incoming re-observation requests from the network. Pre-filtered to only
 		// include requests for our chainID.
-		obsvReqC chan *gossipv1.ObservationRequest
+		obsvReqC <-chan *gossipv1.ObservationRequest
 
 		// Readiness component
-		readiness readiness.Component
+		readinessSync readiness.Component
 		// VAA ChainID of the network we're connecting to.
 		chainID vaa.ChainID
 		// Key for contract address in the wasm logs
@@ -95,9 +100,8 @@ func NewWatcher(
 	urlWS string,
 	urlLCD string,
 	contract string,
-	lockEvents chan *common.MessagePublication,
-	obsvReqC chan *gossipv1.ObservationRequest,
-	readiness readiness.Component,
+	msgC chan<- *common.MessagePublication,
+	obsvReqC <-chan *gossipv1.ObservationRequest,
 	chainID vaa.ChainID) *Watcher {
 
 	// CosmWasm 1.0.0
@@ -112,8 +116,8 @@ func NewWatcher(
 	// Do not add a leading slash
 	latestBlockURL := "blocks/latest"
 
-	// Injective does things slightly differently than terra
-	if chainID == vaa.ChainIDInjective {
+	// Terra2 and Injective do things slightly differently than terra classic
+	if chainID == vaa.ChainIDInjective || chainID == vaa.ChainIDTerra2 {
 		latestBlockURL = "cosmos/base/tendermint/v1beta1/blocks/latest"
 	}
 
@@ -121,9 +125,9 @@ func NewWatcher(
 		urlWS:                    urlWS,
 		urlLCD:                   urlLCD,
 		contract:                 contract,
-		msgChan:                  lockEvents,
+		msgC:                     msgC,
 		obsvReqC:                 obsvReqC,
-		readiness:                readiness,
+		readinessSync:            common.MustConvertChainIdToReadinessSyncing(chainID),
 		chainID:                  chainID,
 		contractAddressFilterKey: contractAddressFilterKey,
 		contractAddressLogKey:    contractAddressLogKey,
@@ -132,7 +136,7 @@ func NewWatcher(
 }
 
 func (e *Watcher) Run(ctx context.Context) error {
-	networkName := vaa.ChainID(e.chainID).String()
+	networkName := e.chainID.String()
 
 	p2p.DefaultRegistry.SetNetworkStats(e.chainID, &gossipv1.Heartbeat_Network{
 		ContractAddress: e.contract,
@@ -140,6 +144,14 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 	errC := make(chan error)
 	logger := supervisor.Logger(ctx)
+
+	logger.Info("Starting watcher",
+		zap.String("watcher_name", "cosmwasm"),
+		zap.String("urlWS", e.urlWS),
+		zap.String("urlLCD", e.urlLCD),
+		zap.String("contract", e.contract),
+		zap.String("chainID", e.chainID.String()),
+	)
 
 	logger.Info("connecting to websocket", zap.String("network", networkName), zap.String("url", e.urlWS))
 
@@ -151,10 +163,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	}
 	defer c.Close(websocket.StatusNormalClosure, "")
 
-	// During testing, I got a message larger then the default
-	// 32768.  Increasing this limit effects an internal buffer that is used
-	// to as part of the zero alloc/copy design.
-	c.SetReadLimit(524288)
+	c.SetReadLimit(ReadLimitSize)
 
 	// Subscribe to smart contract transactions
 	params := [...]string{fmt.Sprintf("tm.event='Tx' AND %s='%s'", e.contractAddressFilterKey, e.contract)}
@@ -180,7 +189,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 	}
 	logger.Info("subscribed to new transaction events", zap.String("network", networkName))
 
-	readiness.SetReady(e.readiness)
+	readiness.SetReady(e.readinessSync)
 
 	common.RunWithScissors(ctx, errC, "cosmwasm_block_height", func(ctx context.Context) error {
 		t := time.NewTicker(5 * time.Second)
@@ -195,7 +204,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 			case <-t.C:
 				msm := time.Now()
 				// Query and report height and set currentSlotHeight
-				resp, err := client.Get(fmt.Sprintf("%s/%s", e.urlLCD, e.latestBlockURL))
+				resp, err := client.Get(fmt.Sprintf("%s/%s", e.urlLCD, e.latestBlockURL)) //nolint:noctx // TODO FIXME we should propagate context with Deadline here.
 				if err != nil {
 					logger.Error("query latest block response error", zap.String("network", networkName), zap.Error(err))
 					continue
@@ -214,12 +223,14 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				blockJSON := string(blocksBody)
 				latestBlock := gjson.Get(blockJSON, "block.header.height")
-				logger.Info("current height", zap.String("network", networkName), zap.Int64("block", latestBlock.Int()))
+				logger.Debug("current height", zap.String("network", networkName), zap.Int64("block", latestBlock.Int()))
 				currentSlotHeight.WithLabelValues(networkName).Set(float64(latestBlock.Int()))
 				p2p.DefaultRegistry.SetNetworkStats(e.chainID, &gossipv1.Heartbeat_Network{
 					Height:          latestBlock.Int(),
 					ContractAddress: e.contract,
 				})
+
+				readiness.SetReady(e.readinessSync)
 			}
 		}
 	})
@@ -243,7 +254,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 				}
 
 				// Query for tx by hash
-				resp, err := client.Get(fmt.Sprintf("%s/cosmos/tx/v1beta1/txs/%s", e.urlLCD, tx))
+				resp, err := client.Get(fmt.Sprintf("%s/cosmos/tx/v1beta1/txs/%s", e.urlLCD, tx)) //nolint:noctx // TODO FIXME we should propagate context with Deadline here.
 				if err != nil {
 					logger.Error("query tx response error", zap.String("network", networkName), zap.Error(err))
 					continue
@@ -273,7 +284,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, e.contractAddressLogKey)
 				for _, msg := range msgs {
-					e.msgChan <- msg
+					e.msgC <- msg
 					messagesConfirmed.WithLabelValues(networkName).Inc()
 				}
 			}
@@ -313,7 +324,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 				msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, e.contractAddressLogKey)
 				for _, msg := range msgs {
-					e.msgChan <- msg
+					e.msgC <- msg
 					messagesConfirmed.WithLabelValues(networkName).Inc()
 				}
 
@@ -331,7 +342,9 @@ func (e *Watcher) Run(ctx context.Context) error {
 }
 
 func EventsToMessagePublications(contract string, txHash string, events []gjson.Result, logger *zap.Logger, chainID vaa.ChainID, contractAddressKey string) []*common.MessagePublication {
-	networkName := vaa.ChainID(chainID).String()
+	// Injective does not base64 encode parameters (as of release v1.11.2).
+	b64Encoded := chainID != vaa.ChainIDInjective
+	networkName := chainID.String()
 	msgs := make([]*common.MessagePublication, 0, len(events))
 	for _, event := range events {
 		if !event.IsObject() {
@@ -339,6 +352,11 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 			continue
 		}
 		eventType := gjson.Get(event.String(), "type")
+		if eventType.String() == "recv_packet" {
+			logger.Warn("processing ibc-related events is disabled", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("event", event.String()))
+			return []*common.MessagePublication{}
+		}
+
 		if eventType.String() != "wasm" {
 			continue
 		}
@@ -365,15 +383,22 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 				continue
 			}
 
-			key, err := base64.StdEncoding.DecodeString(keyBase.String())
-			if err != nil {
-				logger.Warn("event key attribute is invalid", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("key", keyBase.String()))
-				continue
-			}
-			value, err := base64.StdEncoding.DecodeString(valueBase.String())
-			if err != nil {
-				logger.Warn("event value attribute is invalid", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("key", keyBase.String()), zap.String("value", valueBase.String()))
-				continue
+			var key, value []byte
+			if b64Encoded {
+				var err error
+				key, err = base64.StdEncoding.DecodeString(keyBase.String())
+				if err != nil {
+					logger.Warn("event key attribute is invalid", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("key", keyBase.String()))
+					continue
+				}
+				value, err = base64.StdEncoding.DecodeString(valueBase.String())
+				if err != nil {
+					logger.Warn("event value attribute is invalid", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("key", keyBase.String()), zap.String("value", valueBase.String()))
+					continue
+				}
+			} else {
+				key = []byte(keyBase.String())
+				value = []byte(valueBase.String())
 			}
 
 			if _, ok := mappedAttributes[string(key)]; ok {

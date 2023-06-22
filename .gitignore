@@ -13,6 +13,8 @@ venv
 .env
 .env.hex
 .env.0x
+devnet-consts.json
+!/scripts/devnet-consts.json
 bigtable-admin.json
 bigtable-writer.json
 **/cert.pem
@@ -29,3 +31,5 @@ bigtable-writer.json
 /solana/artifacts-mainnet/
 /ethereum/out/
 /ethereum/cache/
+sui.log.*
+sui/examples/wrapped_coin

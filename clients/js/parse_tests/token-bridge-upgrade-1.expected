@@ -1,23 +1,23 @@
 {
-  version: 1,
-  guardianSetIndex: 0,
-  signatures: [
+  "version": 1,
+  "guardianSetIndex": 0,
+  "signatures": [
     {
-      guardianSetIndex: 0,
-      signature: 'e3db309303b712a562e6aa2adc68bc10ff22328ab31ddb6a83706943a9da97bf11ba6e3b96395515868786898dc19ecd737d197b0d1a1f3f3c6aead5c1fe700900'
+      "guardianSetIndex": 0,
+      "signature": "e3db309303b712a562e6aa2adc68bc10ff22328ab31ddb6a83706943a9da97bf11ba6e3b96395515868786898dc19ecd737d197b0d1a1f3f3c6aead5c1fe700900"
     }
   ],
-  timestamp: 1,
-  nonce: 1,
-  emitterChain: 1,
-  emitterAddress: '0x0000000000000000000000000000000000000000000000000000000000000004',
-  sequence: 80072794n,
-  consistencyLevel: 0,
-  payload: {
-    module: 'TokenBridge',
-    type: 'ContractUpgrade',
-    chain: 10,
-    address: '0x0000000000000000000000000046da7a0320dd999438b4435dac82bf1dac13d2'
+  "timestamp": 1,
+  "nonce": 1,
+  "emitterChain": 1,
+  "emitterAddress": "0x0000000000000000000000000000000000000000000000000000000000000004",
+  "sequence": "80072794",
+  "consistencyLevel": 0,
+  "payload": {
+    "module": "TokenBridge",
+    "type": "ContractUpgrade",
+    "chain": 10,
+    "address": "0x0000000000000000000000000046da7a0320dd999438b4435dac82bf1dac13d2"
   },
-  digest: '0xf5725025d1d3f69d77d189e88b9be290618f1ceae355c1b116cb2d97d63f6029'
+  "digest": "0xf5725025d1d3f69d77d189e88b9be290618f1ceae355c1b116cb2d97d63f6029"
 }

@@ -134,7 +134,7 @@ impl<T, const N: usize> BoundedVec<T, N> {
     pub fn new(vec: Vec<T>) -> StdResult<Self> {
         if vec.len() > N {
             return Result::Err(StdError::GenericErr {
-                msg: format!("vector length exceeds {}", N),
+                msg: format!("vector length exceeds {N}"),
             });
         };
         Ok(Self { vec })

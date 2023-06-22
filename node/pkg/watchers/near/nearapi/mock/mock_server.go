@@ -41,7 +41,7 @@ func NewForwardingCachingServer(logger *zap.Logger, upstreamHost string, cacheDi
 	}
 }
 
-func check(e error) {
+func panicIfError(e error) {
 	if e != nil {
 		panic(e)
 	}
@@ -67,18 +67,21 @@ func serveCache(w http.ResponseWriter, req *http.Request, cacheDir string) (stri
 
 func returnFile(w http.ResponseWriter, fileName string) {
 	dat, err := os.ReadFile(fileName)
-	check(err)
-	_, err = w.Write(dat)
-	check(err)
+	panicIfError(err)
+	_, _ = w.Write(dat) // don't care about errors
 }
 
-func (s *ForwardingCachingServer) ProxyReq(logger *zap.Logger, req *http.Request) *http.Request {
+func (s *ForwardingCachingServer) ProxyReq(logger *zap.Logger, req *http.Request) (*http.Request, error) {
 	reqBody, err := io.ReadAll(req.Body)
-	check(err)
+
+	if err != nil {
+		return nil, err
+	}
+
 	req.Body = io.NopCloser(bytes.NewReader(reqBody))
 
 	url := fmt.Sprintf("%s%s", s.upstreamHost, req.RequestURI)
-	proxyReq, _ := http.NewRequest(req.Method, url, bytes.NewReader(reqBody))
+	proxyReq, _ := http.NewRequestWithContext(req.Context(), req.Method, url, bytes.NewReader(reqBody))
 
 	s.logger.Debug("proxy_req",
 		zap.String("url", url),
@@ -97,7 +100,7 @@ func (s *ForwardingCachingServer) ProxyReq(logger *zap.Logger, req *http.Request
 			zap.String("value", val[0]),
 		)
 	}
-	return proxyReq
+	return proxyReq, nil
 }
 
 func (s *ForwardingCachingServer) RewriteReq(reqBody []byte) []byte {
@@ -134,14 +137,17 @@ func (s *ForwardingCachingServer) ServeHTTP(w http.ResponseWriter, req *http.Req
 	} else if errors.Is(err, os.ErrNotExist) && s.upstreamHost == "" {
 		// cached file does not exist and no upstreamHost defined
 		w.WriteHeader(http.StatusNotFound)
-		_, err = w.Write([]byte("Not Found"))
-		check(err)
+		_, _ = w.Write([]byte("Not Found")) // don't care about errors here
 		return
 	} else if errors.Is(err, os.ErrNotExist) {
 		// upstream host is defined so we query upstream and save the response
 		cache_status = "cache_miss"
 
-		proxyReq := s.ProxyReq(s.logger, req)
+		proxyReq, err := s.ProxyReq(s.logger, req)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 
 		httpClient := http.Client{}
 		resp, err := httpClient.Do(proxyReq)
@@ -158,14 +164,13 @@ func (s *ForwardingCachingServer) ServeHTTP(w http.ResponseWriter, req *http.Req
 
 		// cache the result
 		err = os.WriteFile(filename, respBody, 0600)
-		check(err)
+		panicIfError(err)
 
 		// return the result
-		_, err = w.Write(respBody)
-		check(err)
+		_, _ = w.Write(respBody) // don't care about errors here
 	} else {
 		// Schrodinger: file may or may not exist. See err for details.
-		check(err)
+		panicIfError(err)
 	}
 
 	s.logger.Debug("request_received",

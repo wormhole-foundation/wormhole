@@ -1,6 +1,6 @@
 {
   "name": "@certusone/wormhole-sdk",
-  "version": "0.9.9",
+  "version": "0.9.18",
   "description": "SDK for interacting with Wormhole",
   "homepage": "https://wormhole.com",
   "main": "./lib/cjs/index.js",
@@ -8,17 +8,18 @@
   "files": [
     "lib/"
   ],
+  "sideEffects": false,
   "repository": "https://github.com/certusone/wormhole/tree/main/sdk/js",
   "scripts": {
-    "build-contracts": "npm run build --prefix ../../ethereum && node scripts/copyContracts.js && typechain --target=ethers-v5 --out-dir=src/ethers-contracts contracts/*.json",
+    "build-contracts": "cd ../../ethereum && make forge_dependencies && npm run build && cd ../sdk/js && node scripts/copyContracts.js",
     "build-abis": "typechain --target=ethers-v5 --out-dir=src/ethers-contracts/abi src/abi/Wormhole.abi.json",
     "build-idl": "node scripts/compileAnchorIdls.js",
     "build-deps": "npm run build-abis && npm run build-contracts && npm run build-idl",
     "build-lib": "tsc -p tsconfig.json && tsc -p tsconfig-cjs.json && node scripts/copyEthersTypes.js",
     "build-all": "npm run build-deps && npm run build-lib",
     "docs": "typedoc src/index.ts",
-    "test": "jest --config jestconfig.json --verbose",
-    "test-ci": "NEAR_NO_LOGS=true jest --config jestconfig.json --verbose --setupFiles ./ci-config.js --forceExit",
+    "test": "DEV=true NETWORK=DEVNET jest --config jestconfig.json --verbose",
+    "test-ci": "NETWORK=DEVNET NEAR_NO_LOGS=true jest --config jestconfig.json --verbose --setupFiles ./ci-config.js --forceExit",
     "build": "npm run build-all",
     "format": "echo \"disabled: prettier --write \"src/**/*.ts\"\"",
     "lint": "tslint -p tsconfig.json",
@@ -51,12 +52,15 @@
     "@types/node-fetch": "^2.6.2",
     "@types/react": "^17.0.19",
     "copy-dir": "^1.3.0",
+    "dotenv": "16.0.3",
     "ethers": "^5.6.8",
     "jest": "^27.3.1",
     "prettier": "^2.3.2",
+    "truffle": "^5.7.2",
     "ts-jest": "^27.0.7",
     "tslint": "^6.1.3",
     "tslint-config-prettier": "^1.18.0",
+    "typechain": "^5.0.0",
     "typedoc": "0.21.10",
     "typescript": "^4.3.5",
     "web3": "^1.6.1"
@@ -65,16 +69,14 @@
     "@certusone/wormhole-sdk-proto-web": "0.0.6",
     "@certusone/wormhole-sdk-wasm": "^0.0.1",
     "@coral-xyz/borsh": "0.2.6",
-    "@injectivelabs/networks": "^1.0.52",
-    "@injectivelabs/sdk-ts": "1.0.289",
-    "@injectivelabs/utils": "1.0.45",
+    "@mysten/sui.js": "0.32.2",
     "@project-serum/anchor": "^0.25.0",
     "@solana/spl-token": "^0.3.5",
     "@solana/web3.js": "^1.66.2",
     "@terra-money/terra.js": "^3.1.3",
     "@xpla/xpla.js": "^0.2.1",
     "algosdk": "^1.15.0",
-    "aptos": "^1.3.16",
+    "aptos": "1.5.0",
     "axios": "^0.24.0",
     "bech32": "^2.0.0",
     "binary-parser": "^2.2.1",
@@ -82,5 +84,10 @@
     "elliptic": "^6.5.4",
     "js-base64": "^3.6.1",
     "near-api-js": "^1.0.0"
+  },
+  "optionalDependencies": {
+    "@injectivelabs/networks": "1.10.12",
+    "@injectivelabs/sdk-ts": "1.10.72",
+    "@injectivelabs/utils": "1.10.12"
   }
 }

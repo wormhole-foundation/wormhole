@@ -21,7 +21,7 @@ const interateToStandardTransactionCount = async () => {
       to: accounts[0],
       from: accounts[0],
       value: 530,
-    })
+    });
   }
 
   const burnCount = await web3.eth.getTransactionCount(accounts[0], "latest");
@@ -31,7 +31,7 @@ const interateToStandardTransactionCount = async () => {
   return Promise.resolve();
 };
 
-module.exports = async function (callback) {
+module.exports = async function(callback) {
   try {
     const accounts = await web3.eth.getAccounts();
 
@@ -84,7 +84,7 @@ module.exports = async function (callback) {
 
     console.log("WETH token deployed at: " + wethAddress);
 
-    for (let idx = 2; idx < 10; idx++) {
+    for (let idx = 2; idx < 11; idx++) {
       await token.methods.mint(accounts[idx], "1000000000000000000000").send({
         from: accounts[0],
         gas: 1000000,
@@ -95,6 +95,25 @@ module.exports = async function (callback) {
     if (wethAddress !== "0xDDb64fE46a91D46ee29420539FC25FD07c5FEa3E") {
       throw new Error("unexpected WETH token address");
     }
+
+    // deploy token contract
+    const accountantTokenAddress = (
+      await ERC20.new("Accountant Test Token", "GA")
+    ).address;
+    const accountantToken = new web3.eth.Contract(
+      ERC20.abi,
+      accountantTokenAddress
+    );
+
+    console.log("Accountant test token deployed at: " + accountantTokenAddress);
+
+    // mint 1000 units
+    await accountantToken.methods
+      .mint(accounts[9], "1000000000000000000000")
+      .send({
+        from: accounts[0],
+        gas: 1000000,
+      });
 
     callback();
   } catch (e) {

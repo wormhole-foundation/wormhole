@@ -30,6 +30,19 @@ export enum SignMode {
    * Amino JSON and will be removed in the future
    */
   SIGN_MODE_LEGACY_AMINO_JSON = 127,
+  /**
+   * SIGN_MODE_EIP_191 - SIGN_MODE_EIP_191 specifies the sign mode for EIP 191 signing on the Cosmos
+   * SDK. Ref: https://eips.ethereum.org/EIPS/eip-191
+   *
+   * Currently, SIGN_MODE_EIP_191 is registered as a SignMode enum variant,
+   * but is not implemented on the SDK by default. To enable EIP-191, you need
+   * to pass a custom `TxConfig` that has an implementation of
+   * `SignModeHandler` for EIP-191. The SDK may decide to fully support
+   * EIP-191 in the future.
+   *
+   * Since: cosmos-sdk 0.45.2
+   */
+  SIGN_MODE_EIP_191 = 191,
   UNRECOGNIZED = -1,
 }
 
@@ -47,6 +60,9 @@ export function signModeFromJSON(object: any): SignMode {
     case 127:
     case "SIGN_MODE_LEGACY_AMINO_JSON":
       return SignMode.SIGN_MODE_LEGACY_AMINO_JSON;
+    case 191:
+    case "SIGN_MODE_EIP_191":
+      return SignMode.SIGN_MODE_EIP_191;
     case -1:
     case "UNRECOGNIZED":
     default:
@@ -64,6 +80,8 @@ export function signModeToJSON(object: SignMode): string {
       return "SIGN_MODE_TEXTUAL";
     case SignMode.SIGN_MODE_LEGACY_AMINO_JSON:
       return "SIGN_MODE_LEGACY_AMINO_JSON";
+    case SignMode.SIGN_MODE_EIP_191:
+      return "SIGN_MODE_EIP_191";
     default:
       return "UNKNOWN";
   }

@@ -1,10 +1,11 @@
-import { TransactionResponse } from "@solana/web3.js";
+import { TransactionResponse, VersionedTransactionResponse } from "@solana/web3.js";
 import { TxInfo } from "@terra-money/terra.js";
 import { TxInfo as XplaTxInfo } from "@xpla/xpla.js";
 import { AptosClient, Types } from "aptos";
 import { BigNumber, ContractReceipt } from "ethers";
 import { FinalExecutionOutcome } from "near-api-js/lib/providers";
 import { Implementation__factory } from "../ethers-contracts";
+import { SuiTransactionBlockResponse } from "@mysten/sui.js";
 
 export function parseSequenceFromLogEth(
   receipt: ContractReceipt,
@@ -104,7 +105,7 @@ export function parseSequenceFromLogInjective(info: any): string {
 }
 
 const SOLANA_SEQ_LOG = "Program log: Sequence: ";
-export function parseSequenceFromLogSolana(info: TransactionResponse) {
+export function parseSequenceFromLogSolana(info: TransactionResponse | VersionedTransactionResponse) {
   // TODO: better parsing, safer
   const sequence = info.meta?.logMessages
     ?.filter((msg) => msg.startsWith(SOLANA_SEQ_LOG))?.[0]
@@ -179,4 +180,16 @@ export function parseSequenceFromLogAptos(
   }
 
   return null;
+}
+
+export function parseSequenceFromLogSui(
+  originalCoreBridgePackageId: string,
+  response: SuiTransactionBlockResponse
+): string | null {
+  const event = response.events?.find(
+    (e) =>
+      e.type ===
+      `${originalCoreBridgePackageId}::publish_message::WormholeMessage`
+  );
+  return event?.parsedJson?.sequence || null;
 }

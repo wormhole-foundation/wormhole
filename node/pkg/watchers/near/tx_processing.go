@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -53,6 +54,7 @@ func (e *Watcher) processTx(logger *zap.Logger, ctx context.Context, job *transa
 		err = e.processOutcome(logger, ctx, job, receiptOutcome)
 		if err != nil {
 			logger.Debug("ProcessOutcome error: ", zap.Error(err))
+			return err
 		}
 	}
 	return nil
@@ -97,7 +99,7 @@ func (e *Watcher) processOutcome(logger *zap.Logger, ctx context.Context, job *t
 	outcomeBlockHeader, isFinalized := e.finalizer.isFinalized(logger, ctx, outcomeBlockHash.String())
 	if !isFinalized {
 		// If it has not, we return an error such that this transaction can be put back into the queue.
-		return errors.New("block not finalized yet")
+		return fmt.Errorf("block %s not finalized yet", outcomeBlockHash.String())
 	}
 
 	successValue := outcome.Get("status.SuccessValue")
@@ -115,7 +117,7 @@ func (e *Watcher) processOutcome(logger *zap.Logger, ctx context.Context, job *t
 	return nil // SUCCESS
 }
 
-func (e *Watcher) processWormholeLog(logger *zap.Logger, ctx context.Context, job *transactionProcessingJob, outcomeBlockHeader nearapi.BlockHeader, successValue string, log gjson.Result) error {
+func (e *Watcher) processWormholeLog(logger *zap.Logger, _ context.Context, job *transactionProcessingJob, outcomeBlockHeader nearapi.BlockHeader, successValue string, log gjson.Result) error {
 	event := log.String()
 
 	// SECURITY CRITICAL: Ensure that we're reading a correct log message.

@@ -29,8 +29,9 @@ type (
 		aptosAccount string
 		aptosHandle  string
 
-		msgChan  chan *common.MessagePublication
-		obsvReqC chan *gossipv1.ObservationRequest
+		msgC          chan<- *common.MessagePublication
+		obsvReqC      <-chan *gossipv1.ObservationRequest
+		readinessSync readiness.Component
 	}
 )
 
@@ -52,15 +53,16 @@ func NewWatcher(
 	aptosRPC string,
 	aptosAccount string,
 	aptosHandle string,
-	messageEvents chan *common.MessagePublication,
-	obsvReqC chan *gossipv1.ObservationRequest,
+	msgC chan<- *common.MessagePublication,
+	obsvReqC <-chan *gossipv1.ObservationRequest,
 ) *Watcher {
 	return &Watcher{
-		aptosRPC:     aptosRPC,
-		aptosAccount: aptosAccount,
-		aptosHandle:  aptosHandle,
-		msgChan:      messageEvents,
-		obsvReqC:     obsvReqC,
+		aptosRPC:      aptosRPC,
+		aptosAccount:  aptosAccount,
+		aptosHandle:   aptosHandle,
+		msgC:          msgC,
+		obsvReqC:      obsvReqC,
+		readinessSync: common.MustConvertChainIdToReadinessSyncing(vaa.ChainIDAptos),
 	}
 }
 
@@ -70,6 +72,13 @@ func (e *Watcher) Run(ctx context.Context) error {
 	})
 
 	logger := supervisor.Logger(ctx)
+
+	logger.Info("Starting watcher",
+		zap.String("watcher_name", "aptos"),
+		zap.String("aptosRPC", e.aptosRPC),
+		zap.String("aptosAccount", e.aptosAccount),
+		zap.String("aptosHandle", e.aptosHandle),
+	)
 
 	logger.Info("Aptos watcher connecting to RPC node ", zap.String("url", e.aptosRPC))
 
@@ -98,7 +107,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 				panic("invalid chain ID")
 			}
 
-			nativeSeq := binary.BigEndian.Uint64(r.TxHash)
+			// uint64 will read the *first* 8 bytes, but the sequence is stored in the *last* 8.
+			nativeSeq := binary.BigEndian.Uint64(r.TxHash[24:])
 
 			logger.Info("Received obsv request", zap.Uint64("tx_hash", nativeSeq))
 
@@ -208,7 +218,8 @@ func (e *Watcher) Run(ctx context.Context) error {
 
 			}
 
-			logger.Info(string(health) + string(eventsJson))
+			// TODO: Make this log more useful for humans
+			logger.Debug(string(health) + string(eventsJson))
 
 			pHealth := gjson.ParseBytes(health)
 
@@ -221,7 +232,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 					ContractAddress: e.aptosAccount,
 				})
 
-				readiness.SetReady(common.ReadinessAptosSyncing)
+				readiness.SetReady(e.readinessSync)
 			}
 		}
 	}
@@ -317,5 +328,5 @@ func (e *Watcher) observeData(logger *zap.Logger, data gjson.Result, nativeSeq u
 		zap.Uint8("consistencyLevel", observation.ConsistencyLevel),
 	)
 
-	e.msgChan <- observation
+	e.msgC <- observation
 }

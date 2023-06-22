@@ -4,18 +4,30 @@
 pragma solidity ^0.8.0;
 
 import "../contracts/Messages.sol";
+import "../contracts/Setters.sol";
 import "../contracts/Structs.sol";
 import "forge-std/Test.sol";
 
+contract ExportedMessages is Messages, Setters {
+    function storeGuardianSetPub(Structs.GuardianSet memory set, uint32 index) public {
+        return super.storeGuardianSet(set, index);
+    }
+}
+
 contract TestMessages is Test {
+  address constant testGuardianPub = 0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe;
+
+  // A valid VM with one signature from the testGuardianPublic key
+  bytes validVM = hex"01000000000100867b55fec41778414f0683e80a430b766b78801b7070f9198ded5e62f48ac7a44b379a6cf9920e42dbd06c5ebf5ec07a934a00a572aefc201e9f91c33ba766d900000003e800000001000b0000000000000000000000000000000000000000000000000000000000000eee00000000000005390faaaa";
+
   uint256 constant testGuardian = 93941733246223705020089879371323733820373732307041878556247502674739205313440;
 
-  Messages messages;
+  ExportedMessages messages;
 
   Structs.GuardianSet guardianSet;
 
   function setUp() public {
-    messages = new Messages();
+    messages = new ExportedMessages();
 
     // initialize guardian set with one guardian
     address[] memory keys = new address[](1);
@@ -115,5 +127,38 @@ contract TestMessages is Test {
     (bool valid, string memory reason) = messages.verifySignatures(message, sigs, guardianSet);
     assertEq(valid, true);
     assertEq(bytes(reason).length, 0);
+  }
+
+  // This test checks the possibility of getting a unsigned message verified through verifyVM
+  function testHashMismatchedVMIsNotVerified() public {
+    // Set the initial guardian set
+    address[] memory initialGuardians = new address[](1);
+    initialGuardians[0] = testGuardianPub;
+
+    // Create a guardian set
+    Structs.GuardianSet memory initialGuardianSet = Structs.GuardianSet({
+      keys: initialGuardians,
+      expirationTime: 0
+    });
+
+    messages.storeGuardianSetPub(initialGuardianSet, uint32(0));
+
+    // Confirm that the test VM is valid
+    (Structs.VM memory parsedValidVm, bool valid, string memory reason) = messages.parseAndVerifyVM(validVM);
+    require(valid, reason);
+    assertEq(valid, true);
+    assertEq(reason, "");
+
+    // Manipulate the payload of the vm
+    Structs.VM memory invalidVm = parsedValidVm;
+    invalidVm.payload = abi.encodePacked(
+        parsedValidVm.payload,
+        "malicious bytes in payload"
+    );
+
+    // Confirm that the verifyVM fails on invalid VM
+    (valid, reason) = messages.verifyVM(invalidVm);
+    assertEq(valid, false);
+    assertEq(reason, "vm.hash doesn't match body");
   }
 }

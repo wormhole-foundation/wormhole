@@ -1,0 +1,53 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: relayer-engine
+  labels:
+    app: redis
+spec:
+  clusterIP: None
+  selector:
+    app: relayer-engine
+  ports:
+    - port: 3000
+      name: bullmq
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: relayer-engine
+spec:
+  selector:
+    matchLabels:
+      app: relayer-engine
+  serviceName: relayer-engine
+  template:
+    metadata:
+      labels:
+        app: relayer-engine
+    spec:
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 0
+      containers:
+        - name: relayer-engine
+          image: relayer-engine
+          command:
+            - /bin/sh
+            - -c
+            - "npm run tiltkub"
+          env:
+            - name: REDIS_PORT
+              value: "6378"
+            - name: REDIS_HOST
+              value: "redis-relayer"
+          readinessProbe:
+            tcpSocket:
+              port: 3000
+            periodSeconds: 1
+            failureThreshold: 300
+          ports:
+            - containerPort: 3000
+              name: relayer-engine
+              protocol: TCP

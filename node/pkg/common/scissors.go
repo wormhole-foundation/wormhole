@@ -10,36 +10,56 @@ import (
 )
 
 var (
-	ScissorsErrors = promauto.NewCounterVec(
+	ScissorsErrorsCaught = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "scissor_errors_caught",
 			Help: "Total number of unhandled errors caught",
-		}, []string{"scissors", "name"})
+		}, []string{"name"})
+	ScissorsPanicsCaught = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "scissor_panics_caught",
+			Help: "Total number of panics caught",
+		}, []string{"name"})
 )
 
 // Start a go routine with recovering from any panic by sending an error to a error channel
 func RunWithScissors(ctx context.Context, errC chan error, name string, runnable supervisor.Runnable) {
+	ScissorsErrorsCaught.WithLabelValues(name).Add(0)
+	ScissorsPanicsCaught.WithLabelValues(name).Add(0)
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
+				var err error
 				switch x := r.(type) {
 				case error:
-					errC <- fmt.Errorf("%s: %w", name, x)
+					err = fmt.Errorf("%s: %w", name, x)
 				default:
-					errC <- fmt.Errorf("%s: %v", name, x)
+					err = fmt.Errorf("%s: %v", name, x)
 				}
-				ScissorsErrors.WithLabelValues("scissors", name).Inc()
+				// We don't want this to hang if the listener has already gone away.
+				select {
+				case errC <- err:
+				default:
+				}
+				ScissorsPanicsCaught.WithLabelValues(name).Inc()
 
 			}
 		}()
 		err := runnable(ctx)
 		if err != nil {
-			errC <- err
+			// We don't want this to hang if the listener has already gone away.
+			select {
+			case errC <- err:
+			default:
+			}
+			ScissorsErrorsCaught.WithLabelValues(name).Inc()
 		}
 	}()
 }
 
 func WrapWithScissors(runnable supervisor.Runnable, name string) supervisor.Runnable {
+	ScissorsErrorsCaught.WithLabelValues(name).Add(0)
+	ScissorsPanicsCaught.WithLabelValues(name).Add(0)
 	return func(ctx context.Context) (result error) {
 		defer func() {
 			if r := recover(); r != nil {
@@ -49,7 +69,7 @@ func WrapWithScissors(runnable supervisor.Runnable, name string) supervisor.Runn
 				default:
 					result = fmt.Errorf("%s: %v", name, x)
 				}
-				ScissorsErrors.WithLabelValues("scissors", name).Inc()
+				ScissorsPanicsCaught.WithLabelValues(name).Inc()
 			}
 		}()
 

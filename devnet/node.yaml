@@ -59,7 +59,7 @@ spec:
               - key: wormchainKey0
                 path: wormchainKey0
               - key: wormchainKey1
-                path: wormchainKey1               
+                path: wormchainKey1
       containers:
         - name: guardiand
           image: guardiand-image
@@ -103,20 +103,16 @@ spec:
             - ws://eth-devnet:8545
             - --neonRPC
             - ws://eth-devnet:8545
-            # - --wormchainWS
-            # - ws://guardian-validator:26657/websocket
-            # - --wormchainLCD
-            # - http://guardian-validator:1317
             # - --wormchainURL
-            # - guardian-validator:9090
+            # - wormchain:9090
             # - --wormchainKeyPath
             # - /tmp/mounted-keys/wormchain/wormchainKey
             # - --wormchainKeyPassPhrase
             # - test0000
             # - --accountantWS
-            # - http://guardian-validator:26657
+            # - http://wormchain:26657
             # - --accountantContract
-            # - wormhole1466nf3zuxpya8q9emxukd7vftaf6h4psr0a07srl5zw74zh84yjq4lyjmh    
+            # - wormhole14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9srrg465
             # - --accountantCheckEnabled=true
             # - --terraWS
             # - ws://terra-terrad:26657/websocket
@@ -165,8 +161,9 @@ spec:
             - /tmp/publicrpc.sock
             - --dataDir
             - /tmp/data
+            - --publicRpcLogDetail
+            - "full"
           # - --chainGovernorEnabled=true
-          #            - --logLevel=debug
           securityContext:
             capabilities:
               add:
@@ -199,5 +196,5 @@ metadata:
   name: node-wormchain-key
 type: Opaque
 data:
-  wormchainKey0: LS0tLS1CRUdJTiBURU5ERVJNSU5UIFBSSVZBVEUgS0VZLS0tLS0Ka2RmOiBiY3J5cHQKc2FsdDogNDc2ODc2NkE3OEZEN0ZBQjMwMUJGOTM5MUYwQ0Y2M0YKdHlwZTogc2VjcDI1NmsxCgpkbEZuN1ZqRk02RnJjYkdaVDRWeE5yRlE3SUhQS2RyVVBCRTYraW8yK0w0VFZqcis5emNIQTF3dzNubWtqNVFlCnVSekJWMjQyeUdTc3hNTTJZckI2Q1ZXdzlaWXJJY3JFeks1c0FuST0KPXB2aHkKLS0tLS1FTkQgVEVOREVSTUlOVCBQUklWQVRFIEtFWS0tLS0t 
-  wormchainKey1: LS0tLS1CRUdJTiBURU5ERVJNSU5UIFBSSVZBVEUgS0VZLS0tLS0Ka2RmOiBiY3J5cHQKc2FsdDogMjMyRTU2NDMyMjBBNTcwRkVEQjFFMTFFOTNFM0E4NEIKdHlwZTogc2VjcDI1NmsxCgpBZjJ3aXNLdlBDOW4vaExYcDZaS1k5S091aVNYZG1lb3VvSzd3QVJ3cmNtTDV3MGs0YjFDSE5xTEp3ZXU1OEFGCkdTWGJsU3oySzNuWEl1V2hJZWtSNXE5WGRuUko4cGhSRWltbFNZST0KPU1vY1QKLS0tLS1FTkQgVEVOREVSTUlOVCBQUklWQVRFIEtFWS0tLS0tCg==
+  wormchainKey0: LS0tLS1CRUdJTiBURU5ERVJNSU5UIFBSSVZBVEUgS0VZLS0tLS0Ka2RmOiBiY3J5cHQKc2FsdDogNDc2ODc2NkE3OEZEN0ZBQjMwMUJGOTM5MUYwQ0Y2M0YKdHlwZTogc2VjcDI1NmsxCgpkbEZuN1ZqRk02RnJjYkdaVDRWeE5yRlE3SUhQS2RyVVBCRTYraW8yK0w0VFZqcis5emNIQTF3dzNubWtqNVFlCnVSekJWMjQyeUdTc3hNTTJZckI2Q1ZXdzlaWXJJY3JFeks1c0FuST0KPXB2aHkKLS0tLS1FTkQgVEVOREVSTUlOVCBQUklWQVRFIEtFWS0tLS0t
+  wormchainKey1: LS0tLS1CRUdJTiBURU5ERVJNSU5UIFBSSVZBVEUgS0VZLS0tLS0Ka2RmOiBiY3J5cHQKc2FsdDogNzc1M0NCQTBBMUQ0NTJCMkE2QzlERDM4ODc3MTg0NEEKdHlwZTogc2VjcDI1NmsxCgpSYnhRVWRnK2ZHcjMzZTAyVWFFQW1YTDFlNFkrTGJUMFdqbnl4RVR3OXBoL2JXOGI0MzdhWmErOWlCc3NBa0UyCnRScUwvb0J1NWFnQXJocHNnWUgxNlhOWjJHMXRwY0R3V0dQZ1VWVT0KPUd6YUwKLS0tLS1FTkQgVEVOREVSTUlOVCBQUklWQVRFIEtFWS0tLS0t

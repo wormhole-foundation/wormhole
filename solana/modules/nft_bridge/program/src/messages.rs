@@ -244,7 +244,7 @@ impl SerializeGovernancePayload for GovernancePayloadUpgrade {
 impl DeserializeGovernancePayload for GovernancePayloadUpgrade {
 }
 
-#[cfg(feature = "no-entrypoint")]
+#[cfg(test)]
 #[allow(unused_imports)]
 mod tests {
     use crate::messages::{

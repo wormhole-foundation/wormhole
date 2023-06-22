@@ -1,8 +1,8 @@
 import { getNetworkInfo, Network } from "@injectivelabs/networks";
-import { DEFAULT_STD_FEE } from "@injectivelabs/utils";
+import { getStdFee, DEFAULT_STD_FEE } from "@injectivelabs/utils";
 import {
   PrivateKey,
-  TxGrpcClient,
+  TxGrpcApi,
   ChainGrpcWasmApi,
   ChainRestAuthApi,
   createTransaction,
@@ -40,7 +40,7 @@ import {
   tryNativeToUint8Array,
   uint8ArrayToHex,
 } from "..";
-import { CLUSTER } from "../token_bridge/__tests__/consts";
+import { CLUSTER } from "../token_bridge/__tests__/utils/consts";
 import algosdk, {
   Account,
   Algodv2,
@@ -65,7 +65,7 @@ function getEndPoint() {
 
 test.skip("testnet - injective contract is own admin", async () => {
   const network = getNetworkInfo(getEndPoint());
-  const client = new ChainGrpcWasmApi(network.sentryGrpcApi);
+  const client = new ChainGrpcWasmApi(network.grpc);
   const coreQueryResult = await client.fetchContractInfo(
     CONTRACTS.TESTNET.injective.core
   );
@@ -79,7 +79,7 @@ test.skip("testnet - injective contract is own admin", async () => {
 });
 test.skip("testnet - injective query guardian_set_info", async () => {
   const network = getNetworkInfo(getEndPoint());
-  const client = new ChainGrpcWasmApi(network.sentryGrpcApi);
+  const client = new ChainGrpcWasmApi(network.grpc);
   // https://k8s.testnet.lcd.injective.network/cosmwasm/wasm/v1/contract/inj1xx3aupmgv3ce537c0yce8zzd3sz567syuyedpg/smart/eyJndWFyZGlhbl9zZXRfaW5mbyI6e319
   const queryResult = await client.fetchSmartContractState(
     CONTRACTS.TESTNET.injective.core,
@@ -96,7 +96,7 @@ test.skip("testnet - injective query guardian_set_info", async () => {
 });
 test.skip("testnet - injective query state", async () => {
   const network = getNetworkInfo(getEndPoint());
-  const client = new ChainGrpcWasmApi(network.sentryGrpcApi);
+  const client = new ChainGrpcWasmApi(network.grpc);
   const queryResult = await client.fetchSmartContractState(
     CONTRACTS.TESTNET.injective.core,
     Buffer.from('{"get_state":{}}').toString("base64")
@@ -112,7 +112,7 @@ test.skip("testnet - injective query state", async () => {
 });
 test.skip("testnet - injective query token bridge", async () => {
   const network = getNetworkInfo(getEndPoint());
-  const client = new ChainGrpcWasmApi(network.sentryGrpcApi);
+  const client = new ChainGrpcWasmApi(network.grpc);
   // const wrappedAsset = await getIsWrappedAssetInjective(
   //   CONTRACTS.TESTNET.injective.token_bridge,
   //   "inj10jc4vr9vfq0ykkmfvfgz430w8z6hwdlqhdw9l8"
@@ -144,16 +144,16 @@ test.skip("testnet - injective attest native asset", async () => {
   //  Local consts
   const tba = CONTRACTS.TESTNET.injective.token_bridge;
   const network = getNetworkInfo(getEndPoint());
-  const client = new ChainGrpcWasmApi(network.sentryGrpcApi);
+  const client = new ChainGrpcWasmApi(network.grpc);
 
   // Set up Inj wallet
   const walletPKHash: string = process.env.ETH_KEY || "";
   const walletPK = PrivateKey.fromHex(walletPKHash);
   const walletInjAddr = walletPK.toBech32();
   const walletPublicKey = walletPK.toPublicKey().toBase64();
-  const accountDetails = await new ChainRestAuthApi(
-    network.sentryHttpApi
-  ).fetchAccount(walletInjAddr);
+  const accountDetails = await new ChainRestAuthApi(network.rest).fetchAccount(
+    walletInjAddr
+  );
 
   // Attest native inj
   const result = await attestFromInjective(tba, walletInjAddr, "inj");
@@ -162,12 +162,9 @@ test.skip("testnet - injective attest native asset", async () => {
   // Create the transaction
   console.log("creating transaction...");
   const { signBytes, txRaw } = createTransaction({
-    message: result.toDirectSign(),
+    message: result,
     memo: "",
-    fee: {
-      ...DEFAULT_STD_FEE,
-      gas: (parseInt(DEFAULT_STD_FEE.gas, 10) * 2.5).toString(),
-    },
+    fee: getStdFee((parseInt(DEFAULT_STD_FEE.gas, 10) * 2.5).toString()),
     pubKey: walletPublicKey,
     sequence: parseInt(accountDetails.account.base_account.sequence, 10),
     accountNumber: parseInt(
@@ -181,8 +178,8 @@ test.skip("testnet - injective attest native asset", async () => {
   const signature = await walletPK.sign(Buffer.from(signBytes));
 
   /** Append Signatures */
-  txRaw.setSignaturesList([signature]);
-  const txService = new TxGrpcClient(network.sentryGrpcApi);
+  txRaw.signatures = [signature];
+  const txService = new TxGrpcApi(network.grpc);
 
   console.log("Simulating transaction...");
   /** Simulate transaction */
@@ -249,16 +246,13 @@ test.skip("testnet - injective attest foreign asset", async () => {
 
   const network = getNetworkInfo(getEndPoint());
   /** Account Details **/
-  const accountDetails = await new ChainRestAuthApi(
-    network.sentryHttpApi
-  ).fetchAccount(walletInjAddr);
+  const accountDetails = await new ChainRestAuthApi(network.rest).fetchAccount(
+    walletInjAddr
+  );
   const { signBytes, txRaw } = createTransaction({
-    message: result.toDirectSign(),
+    message: result,
     memo: "",
-    fee: {
-      ...DEFAULT_STD_FEE,
-      gas: (parseInt(DEFAULT_STD_FEE.gas, 10) * 2.5).toString(),
-    },
+    fee: getStdFee((parseInt(DEFAULT_STD_FEE.gas, 10) * 2.5).toString()),
     pubKey: walletPublicKey,
     sequence: parseInt(accountDetails.account.base_account.sequence, 10),
     accountNumber: parseInt(
@@ -271,8 +265,8 @@ test.skip("testnet - injective attest foreign asset", async () => {
   const signature = await walletPK.sign(Buffer.from(signBytes));
 
   /** Append Signatures */
-  txRaw.setSignaturesList([signature]);
-  const txService = new TxGrpcClient(network.sentryGrpcApi);
+  txRaw.signatures = [signature];
+  const txService = new TxGrpcApi(network.grpc);
 
   /** Simulate transaction */
   const simulationResponse = await txService.simulate(txRaw);
@@ -294,7 +288,7 @@ test.skip("testnet - injective attest foreign asset", async () => {
 test.skip("testnet - injective get foreign asset", async () => {
   const tba = CONTRACTS.TESTNET.injective.token_bridge;
   const network = getNetworkInfo(getEndPoint());
-  const client = new ChainGrpcWasmApi(network.sentryGrpcApi);
+  const client = new ChainGrpcWasmApi(network.grpc);
   // const foreignAssetAddress = "inj10jc4vr9vfq0ykkmfvfgz430w8z6hwdlqhdw9l8";
   const foreignAssetAddress =
     "000000000000000000000000ae13d989dac2f0debff460ac112a837c89baa7cd";
@@ -397,10 +391,10 @@ test.skip("testnet - injective submit a vaa", async () => {
     const walletPublicKey = walletPK.toPublicKey().toBase64();
 
     const network = getNetworkInfo(getEndPoint());
-    const client = new ChainGrpcWasmApi(network.sentryGrpcApi);
+    const client = new ChainGrpcWasmApi(network.grpc);
     console.log("Getting account details...");
     const accountDetails = await new ChainRestAuthApi(
-      network.sentryHttpApi
+      network.rest
     ).fetchAccount(walletInjAddr);
     console.log("createWrappedOnInjective...", vaaBytes);
     const msg = await createWrappedOnInjective(tba, walletInjAddr, vaaBytes);
@@ -413,7 +407,7 @@ test.skip("testnet - injective submit a vaa", async () => {
     txFee.amount[0] = { amount: "250000000000000", denom: "inj" };
     txFee.gas = "500000";
     const { signBytes, txRaw } = createTransaction({
-      message: msg.toDirectSign(),
+      message: msg,
       memo: "",
       fee: txFee,
       pubKey: walletPublicKey,
@@ -431,9 +425,9 @@ test.skip("testnet - injective submit a vaa", async () => {
     const signature = await walletPK.sign(Buffer.from(signBytes));
 
     /** Append Signatures */
-    txRaw.setSignaturesList([signature]);
+    txRaw.signatures = [signature];
 
-    const txService = new TxGrpcClient(network.sentryGrpcApi);
+    const txService = new TxGrpcApi(network.grpc);
 
     console.log("simulate transaction...");
     /** Simulate transaction */
@@ -505,10 +499,10 @@ test.skip("testnet - injective submit a vaa", async () => {
     console.log("roi", roi);
     {
       const accountDetails = await new ChainRestAuthApi(
-        network.sentryHttpApi
+        network.rest
       ).fetchAccount(walletInjAddr);
       const { signBytes, txRaw } = createTransaction({
-        message: roi.toDirectSign(),
+        message: roi,
         memo: "",
         fee: txFee,
         pubKey: walletPublicKey,
@@ -526,9 +520,9 @@ test.skip("testnet - injective submit a vaa", async () => {
       const sig = await walletPK.sign(Buffer.from(signBytes));
 
       /** Append Signatures */
-      txRaw.setSignaturesList([sig]);
+      txRaw.signatures = [sig];
 
-      const txService = new TxGrpcClient(network.sentryGrpcApi);
+      const txService = new TxGrpcApi(network.grpc);
 
       console.log("simulate transaction...");
       /** Simulate transaction */
@@ -560,7 +554,7 @@ test.skip("testnet - injective submit a vaa", async () => {
       console.log("checking vaa:", signedVaa.vaaBytes);
       console.log("checking vaa:", uint8ArrayToHex(signedVaa.vaaBytes));
       const network = getNetworkInfo(getEndPoint());
-      const client = new ChainGrpcWasmApi(network.sentryGrpcApi);
+      const client = new ChainGrpcWasmApi(network.grpc);
       const queryResult = await client.fetchSmartContractState(
         CONTRACTS.TESTNET.injective.token_bridge,
         Buffer.from(
@@ -637,11 +631,11 @@ test.skip("Attest and transfer token from Injective to Algorand", async () => {
     Asset
   );
 
-  const accountDetails = await new ChainRestAuthApi(
-    network.sentryHttpApi
-  ).fetchAccount(walletInjAddr);
+  const accountDetails = await new ChainRestAuthApi(network.rest).fetchAccount(
+    walletInjAddr
+  );
   const { signBytes, txRaw } = createTransaction({
-    message: attestMsg.toDirectSign(),
+    message: attestMsg,
     memo: "",
     fee: txFee,
     pubKey: walletPublicKey,
@@ -659,9 +653,9 @@ test.skip("Attest and transfer token from Injective to Algorand", async () => {
   const signedMsg = await walletPK.sign(Buffer.from(signBytes));
 
   /** Append Signatures */
-  txRaw.setSignaturesList([signedMsg]);
+  txRaw.signatures = [signedMsg];
 
-  const txService = new TxGrpcClient(network.sentryGrpcApi);
+  const txService = new TxGrpcApi(network.grpc);
 
   console.log("simulate transaction...");
   /** Simulate transaction */
@@ -758,19 +752,16 @@ test.skip("Attest and transfer token from Injective to Algorand", async () => {
     decodeAddress(algoWallet.addr).publicKey
   );
   console.log("number of msgs = ", transferMsgs.length);
-  let xferMsgsSigned: MsgArg[] = transferMsgs.map((element) =>
-    element.toDirectSign()
-  );
   {
-    console.log("xferMsgsSigned", xferMsgsSigned);
+    console.log("xferMsgsSigned", transferMsgs);
     const { signBytes, txRaw } = createTransaction({
-      message: xferMsgsSigned,
+      message: transferMsgs,
       memo: "",
       fee: txFee,
       pubKey: walletPublicKey,
       sequence:
         parseInt(accountDetails.account.base_account.sequence, 10) +
-        xferMsgsSigned.length -
+        transferMsgs.length -
         1,
       accountNumber: parseInt(
         accountDetails.account.base_account.account_number,
@@ -785,9 +776,9 @@ test.skip("Attest and transfer token from Injective to Algorand", async () => {
     const signedMsg = await walletPK.sign(Buffer.from(signBytes));
 
     /** Append Signatures */
-    txRaw.setSignaturesList([signedMsg]);
+    txRaw.signatures = [signedMsg];
 
-    const txService = new TxGrpcClient(network.sentryGrpcApi);
+    const txService = new TxGrpcApi(network.grpc);
 
     console.log("simulate transaction...");
     /** Simulate transaction */

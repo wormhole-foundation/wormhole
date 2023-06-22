@@ -36,9 +36,9 @@ else
     usage
 fi
 
-WORMHOLE_ADDR=$(worm contract "$NETWORK" aptos Core)
-TOKEN_BRIDGE_ADDR=$(worm contract "$NETWORK" aptos TokenBridge)
-NFT_BRIDGE_ADDR=$(worm contract "$NETWORK" aptos NFTBridge)
+WORMHOLE_ADDR=$(worm info contract "$NETWORK" aptos Core)
+TOKEN_BRIDGE_ADDR=$(worm info contract "$NETWORK" aptos TokenBridge)
+NFT_BRIDGE_ADDR=$(worm info contract "$NETWORK" aptos NFTBridge)
 
 NAMED_ADDRS="wormhole=$WORMHOLE_ADDR,deployer=$DEPLOYER_ADDR,token_bridge=$TOKEN_BRIDGE_ADDR,nft_bridge=$NFT_BRIDGE_ADDR"
 

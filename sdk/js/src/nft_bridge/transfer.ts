@@ -1,4 +1,4 @@
-import { createApproveInstruction } from "@solana/spl-token";
+import { BN } from "@project-serum/anchor";
 import {
   Commitment,
   Connection,
@@ -8,8 +8,9 @@ import {
   Transaction,
 } from "@solana/web3.js";
 import { MsgExecuteContract } from "@terra-money/terra.js";
+import { Types } from "aptos";
 import { ethers, Overrides } from "ethers";
-import { BN } from "@project-serum/anchor";
+import { isBytes } from "ethers/lib/utils";
 import {
   NFTBridge__factory,
   NFTImplementation__factory,
@@ -27,7 +28,6 @@ import {
   coalesceChainId,
   createNonce,
 } from "../utils";
-import { isBytes } from "ethers/lib/utils";
 
 export async function transferFromEth(
   nftBridgeAddress: string,
@@ -168,4 +168,29 @@ export async function transferFromTerra(
       {}
     ),
   ];
+}
+
+export function transferFromAptos(
+  nftBridgeAddress: string,
+  creatorAddress: string,
+  collectionName: string,
+  tokenName: string,
+  propertyVersion: number,
+  recipientChain: ChainId | ChainName,
+  recipient: Uint8Array
+): Types.EntryFunctionPayload {
+  const recipientChainId = coalesceChainId(recipientChain);
+  return {
+    function: `${nftBridgeAddress}::transfer_nft::transfer_nft_entry`,
+    type_arguments: [],
+    arguments: [
+      creatorAddress,
+      collectionName,
+      tokenName,
+      propertyVersion,
+      recipientChainId,
+      recipient,
+      createNonce().readUInt32LE(0),
+    ],
+  };
 }

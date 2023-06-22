@@ -400,13 +400,19 @@ export interface TypesHeader {
   time?: string;
   last_block_id?: TypesBlockID;
 
-  /** @format byte */
+  /**
+   * commit from validators from the last block
+   * @format byte
+   */
   last_commit_hash?: string;
 
   /** @format byte */
   data_hash?: string;
 
-  /** @format byte */
+  /**
+   * validators for the current block
+   * @format byte
+   */
   validators_hash?: string;
 
   /** @format byte */
@@ -421,7 +427,10 @@ export interface TypesHeader {
   /** @format byte */
   last_results_hash?: string;
 
-  /** @format byte */
+  /**
+   * evidence included in the block
+   * @format byte
+   */
   evidence_hash?: string;
 
   /** @format byte */
@@ -505,6 +514,8 @@ export interface TypesVote {
 
   /** @format int32 */
   round?: number;
+
+  /** zero if vote is nil. */
   block_id?: TypesBlockID;
 
   /** @format date-time */
@@ -621,7 +632,11 @@ export interface V1Beta1PageRequest {
    */
   count_total?: boolean;
 
-  /** reverse is set to true if results are to be returned in the descending order. */
+  /**
+   * reverse is set to true if results are to be returned in the descending order.
+   *
+   * Since: cosmos-sdk 0.43
+   */
   reverse?: boolean;
 }
 

@@ -8,9 +8,8 @@ use std::{
     cmp::{max, min},
     str::FromStr,
 };
-use terraswap::asset::{Asset, AssetInfo};
 
-use wormhole::{
+use cw_wormhole::{
     byte_utils::{
         extend_address_to_32, extend_address_to_32_array, extend_string_to_32, get_string_from_32,
         ByteUtils,
@@ -31,8 +30,9 @@ use cosmwasm_std::{
 
 use crate::{
     msg::{
-        ChainRegistrationResponse, ExecuteMsg, ExternalIdResponse, InstantiateMsg,
-        IsVaaRedeemedResponse, MigrateMsg, QueryMsg, TransferInfoResponse, WrappedRegistryResponse,
+        Asset, AssetInfo, ChainRegistrationResponse, CompleteTransferResponse, ExecuteMsg,
+        ExternalIdResponse, InstantiateMsg, IsVaaRedeemedResponse, MigrateMsg, QueryMsg,
+        TransferInfoResponse, WrappedRegistryResponse,
     },
     state::{
         bridge_contracts, bridge_contracts_read, bridge_deposit, config, config_read,
@@ -395,8 +395,8 @@ fn handle_register_asset(
 
     Ok(Response::new()
         .add_attribute("action", "register_asset")
-        .add_attribute("token_chain", format!("{:?}", chain))
-        .add_attribute("token_address", format!("{:?}", token_address))
+        .add_attribute("token_chain", format!("{chain:?}"))
+        .add_attribute("token_address", format!("{token_address:?}"))
         .add_attribute("contract_addr", info.sender))
 }
 
@@ -424,13 +424,11 @@ fn handle_attest_meta(
 
     let token_address: [u8; 32] = match token_id {
         TokenId::Bank { denom } => Err(StdError::generic_err(format!(
-            "{} is native to this chain and should not be attested",
-            denom
+            "{denom} is native to this chain and should not be attested"
         ))),
         TokenId::Contract(ContractId::NativeCW20 { contract_address }) => {
             Err(StdError::generic_err(format!(
-                "Contract {} is native to this chain and should not be attested",
-                contract_address
+                "Contract {contract_address} is native to this chain and should not be attested"
             )))
         }
         TokenId::Contract(ContractId::ForeignToken {
@@ -889,6 +887,16 @@ fn handle_complete_transfer_token(
                 }))
             }
 
+            // serialize response data that will be returned to the caller
+            let response_data = to_binary(&CompleteTransferResponse {
+                contract: Some(contract_addr.clone()),
+                denom: None,
+                recipient: recipient.clone().into_string(),
+                amount: amount.into(),
+                relayer: relayer_address.to_string(),
+                fee: fee.into(),
+            })?;
+
             Ok(Response::new()
                 .add_messages(messages)
                 .add_attribute("action", "complete_transfer_wrapped")
@@ -896,7 +904,8 @@ fn handle_complete_transfer_token(
                 .add_attribute("recipient", recipient)
                 .add_attribute("amount", amount.to_string())
                 .add_attribute("relayer", relayer_address)
-                .add_attribute("fee", fee.to_string()))
+                .add_attribute("fee", fee.to_string())
+                .set_data(response_data))
         }
         ContractId::NativeCW20 { contract_address } => {
             // note -- here the amount is the amount the recipient will receive;
@@ -935,6 +944,16 @@ fn handle_complete_transfer_token(
                 }))
             }
 
+            // serialize response data that will be returned to the caller
+            let response_data = to_binary(&CompleteTransferResponse {
+                contract: Some(contract_address.to_string()),
+                denom: None,
+                recipient: recipient.clone().into_string(),
+                amount: amount.into(),
+                relayer: relayer_address.to_string(),
+                fee: fee.into(),
+            })?;
+
             Ok(Response::new()
                 .add_messages(messages)
                 .add_attribute("action", "complete_transfer_native")
@@ -942,7 +961,8 @@ fn handle_complete_transfer_token(
                 .add_attribute("contract", contract_address)
                 .add_attribute("amount", amount.to_string())
                 .add_attribute("relayer", relayer_address)
-                .add_attribute("fee", fee.to_string()))
+                .add_attribute("fee", fee.to_string())
+                .set_data(response_data))
         }
     }
 }
@@ -1025,6 +1045,16 @@ fn handle_complete_transfer_token_native(
         }));
     }
 
+    // serialize response data that will be returned to the caller
+    let response_data = to_binary(&CompleteTransferResponse {
+        contract: None,
+        denom: Some(denom.clone()),
+        recipient: recipient.clone().into_string(),
+        amount: amount.into(),
+        relayer: relayer_address.to_string(),
+        fee: fee.into(),
+    })?;
+
     Ok(Response::new()
         .add_messages(messages)
         .add_attribute("action", "complete_transfer_terra_native")
@@ -1032,7 +1062,8 @@ fn handle_complete_transfer_token_native(
         .add_attribute("denom", denom)
         .add_attribute("amount", amount.to_string())
         .add_attribute("relayer", relayer_address)
-        .add_attribute("fee", fee.to_string()))
+        .add_attribute("fee", fee.to_string())
+        .set_data(response_data))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1518,7 +1549,7 @@ fn query_transfer_info(deps: Deps, env: Env, vaa: &Binary) -> StdResult<Transfer
                 payload: info.payload,
             })
         }
-        other => Err(StdError::generic_err(format!("Invalid action: {}", other))),
+        other => Err(StdError::generic_err(format!("Invalid action: {other}"))),
     }
 }
 

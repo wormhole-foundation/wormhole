@@ -172,7 +172,11 @@ export interface V1Beta1PageRequest {
    */
   count_total?: boolean;
 
-  /** reverse is set to true if results are to be returned in the descending order. */
+  /**
+   * reverse is set to true if results are to be returned in the descending order.
+   *
+   * Since: cosmos-sdk 0.43
+   */
   reverse?: boolean;
 }
 
@@ -222,8 +226,10 @@ export interface V1Beta1QueryAccountResponse {
 }
 
 /**
- * QueryAccountsResponse is the response type for the Query/Accounts RPC method.
- */
+* QueryAccountsResponse is the response type for the Query/Accounts RPC method.
+
+Since: cosmos-sdk 0.43
+*/
 export interface V1Beta1QueryAccountsResponse {
   accounts?: ProtobufAny[];
 
@@ -436,7 +442,7 @@ export class HttpClient<SecurityDataType = unknown> {
  */
 export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDataType> {
   /**
-   * No description
+   * @description Since: cosmos-sdk 0.43
    *
    * @tags Query
    * @name QueryAccounts

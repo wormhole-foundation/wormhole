@@ -69,14 +69,15 @@ import (
 	upgradeclient "github.com/cosmos/cosmos-sdk/x/upgrade/client"
 	upgradekeeper "github.com/cosmos/cosmos-sdk/x/upgrade/keeper"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
-	"github.com/cosmos/ibc-go/v3/modules/apps/transfer"
-	ibctransferkeeper "github.com/cosmos/ibc-go/v3/modules/apps/transfer/keeper"
-	ibctransfertypes "github.com/cosmos/ibc-go/v3/modules/apps/transfer/types"
-	ibc "github.com/cosmos/ibc-go/v3/modules/core"
-	ibcclient "github.com/cosmos/ibc-go/v3/modules/core/02-client"
-	ibcporttypes "github.com/cosmos/ibc-go/v3/modules/core/05-port/types"
-	ibchost "github.com/cosmos/ibc-go/v3/modules/core/24-host"
-	ibckeeper "github.com/cosmos/ibc-go/v3/modules/core/keeper"
+	transfer "github.com/cosmos/ibc-go/v4/modules/apps/transfer"
+	ibctransferkeeper "github.com/cosmos/ibc-go/v4/modules/apps/transfer/keeper"
+	ibctransfertypes "github.com/cosmos/ibc-go/v4/modules/apps/transfer/types"
+	ibc "github.com/cosmos/ibc-go/v4/modules/core"
+	ibcclient "github.com/cosmos/ibc-go/v4/modules/core/02-client"
+	ibcporttypes "github.com/cosmos/ibc-go/v4/modules/core/05-port/types"
+	ibchost "github.com/cosmos/ibc-go/v4/modules/core/24-host"
+	ibcante "github.com/cosmos/ibc-go/v4/modules/core/ante"
+	ibckeeper "github.com/cosmos/ibc-go/v4/modules/core/keeper"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cast"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -93,6 +94,7 @@ import (
 
 	"github.com/wormhole-foundation/wormchain/docs"
 	wormholemodule "github.com/wormhole-foundation/wormchain/x/wormhole"
+	wormholemoduleante "github.com/wormhole-foundation/wormchain/x/wormhole/ante"
 	wormholeclient "github.com/wormhole-foundation/wormchain/x/wormhole/client"
 	wormholemodulekeeper "github.com/wormhole-foundation/wormchain/x/wormhole/keeper"
 	wormholemoduletypes "github.com/wormhole-foundation/wormchain/x/wormhole/types"
@@ -319,8 +321,6 @@ func New(
 		app.BankKeeper,
 	)
 
-	wormholeModule := wormholemodule.NewAppModule(appCodec, app.WormholeKeeper)
-
 	stakingKeeper := stakingkeeper.NewKeeper(
 		appCodec, keys[stakingtypes.StoreKey], app.AccountKeeper, app.BankKeeper, app.WormholeKeeper, app.GetSubspace(stakingtypes.ModuleName),
 	)
@@ -414,12 +414,15 @@ func New(
 	)
 	permissionedWasmKeeper := wasmkeeper.NewDefaultPermissionKeeper(app.wasmKeeper)
 	app.WormholeKeeper.SetWasmdKeeper(permissionedWasmKeeper)
+	// the wormhole module must be instantiated after the wasmd module
+	wormholeModule := wormholemodule.NewAppModule(appCodec, app.WormholeKeeper)
 
 	// this line is used by starport scaffolding # stargate/app/keeperDefinition
 
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := ibcporttypes.NewRouter()
-	ibcRouter.AddRoute(ibctransfertypes.ModuleName, transferIBCModule)
+	ibcRouter.AddRoute(ibctransfertypes.ModuleName, transferIBCModule).
+		AddRoute(wasm.ModuleName, wasm.NewIBCHandler(app.wasmKeeper, app.IBCKeeper.ChannelKeeper, app.IBCKeeper.ChannelKeeper))
 	// this line is used by starport scaffolding # ibc/app/router
 	app.IBCKeeper.SetRouter(ibcRouter)
 
@@ -552,7 +555,7 @@ func New(
 	app.SetInitChainer(app.InitChainer)
 	app.SetBeginBlocker(app.BeginBlocker)
 
-	anteHandler, err := ante.NewAnteHandler(
+	anteHandlerSdk, err := ante.NewAnteHandler(
 		ante.HandlerOptions{
 			AccountKeeper:   app.AccountKeeper,
 			BankKeeper:      app.BankKeeper,
@@ -564,8 +567,9 @@ func New(
 	if err != nil {
 		panic(err)
 	}
+	wrappedAnteHandler := WrapAnteHandler(anteHandlerSdk, app.WormholeKeeper, app.IBCKeeper)
 
-	app.SetAnteHandler(anteHandler)
+	app.SetAnteHandler(wrappedAnteHandler)
 	app.SetEndBlocker(app.EndBlocker)
 
 	if loadLatest {
@@ -580,6 +584,26 @@ func New(
 	app.scopedWasmKeeper = scopedWasmKeeper
 
 	return app
+}
+
+// Wrap the standard cosmos-sdk antehandlers with additional antehandlers:
+// - wormhole allowlist antehandler
+// - default ibc antehandler
+func WrapAnteHandler(originalHandler sdk.AnteHandler, wormKeeper wormholemodulekeeper.Keeper, ibcKeeper *ibckeeper.Keeper) sdk.AnteHandler {
+	whHandler := wormholemoduleante.NewWormholeAllowlistDecorator(wormKeeper)
+	ibcHandler := ibcante.NewAnteDecorator(ibcKeeper)
+	newHandlers := sdk.ChainAnteDecorators(whHandler, ibcHandler)
+	return func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
+		newCtx, err := originalHandler(ctx, tx, simulate)
+		if err != nil {
+			return newCtx, err
+		}
+		newCtx, err = newHandlers(newCtx, tx, simulate)
+		if err != nil {
+			return newCtx, err
+		}
+		return newCtx, err
+	}
 }
 
 // Name returns the name of the App

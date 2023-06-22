@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"sync"
 	"time"
 
@@ -32,18 +31,18 @@ import (
 
 type (
 	SolanaWatcher struct {
-		contract     solana.PublicKey
-		rawContract  string
-		rpcUrl       string
-		wsUrl        *string
-		commitment   rpc.CommitmentType
-		messageEvent chan *common.MessagePublication
-		obsvReqC     chan *gossipv1.ObservationRequest
-		errC         chan error
-		pumpData     chan []byte
-		rpcClient    *rpc.Client
+		contract    solana.PublicKey
+		rawContract string
+		rpcUrl      string
+		wsUrl       *string
+		commitment  rpc.CommitmentType
+		msgC        chan<- *common.MessagePublication
+		obsvReqC    <-chan *gossipv1.ObservationRequest
+		errC        chan error
+		pumpData    chan []byte
+		rpcClient   *rpc.Client
 		// Readiness component
-		readiness readiness.Component
+		readinessSync readiness.Component
 		// VAA ChainID of the network we're connecting to.
 		chainID vaa.ChainID
 		// Human readable name of network
@@ -179,23 +178,22 @@ func NewSolanaWatcher(
 	wsUrl *string,
 	contractAddress solana.PublicKey,
 	rawContract string,
-	messageEvents chan *common.MessagePublication,
-	obsvReqC chan *gossipv1.ObservationRequest,
+	msgC chan<- *common.MessagePublication,
+	obsvReqC <-chan *gossipv1.ObservationRequest,
 	commitment rpc.CommitmentType,
-	readiness readiness.Component,
 	chainID vaa.ChainID) *SolanaWatcher {
 	return &SolanaWatcher{
-		rpcUrl:       rpcUrl,
-		wsUrl:        wsUrl,
-		contract:     contractAddress,
-		rawContract:  rawContract,
-		messageEvent: messageEvents,
-		obsvReqC:     obsvReqC,
-		commitment:   commitment,
-		rpcClient:    rpc.New(rpcUrl),
-		readiness:    readiness,
-		chainID:      chainID,
-		networkName:  vaa.ChainID(chainID).String(),
+		rpcUrl:        rpcUrl,
+		wsUrl:         wsUrl,
+		contract:      contractAddress,
+		rawContract:   rawContract,
+		msgC:          msgC,
+		obsvReqC:      obsvReqC,
+		commitment:    commitment,
+		rpcClient:     rpc.New(rpcUrl),
+		readinessSync: common.MustConvertChainIdToReadinessSyncing(chainID),
+		chainID:       chainID,
+		networkName:   chainID.String(),
 	}
 }
 
@@ -227,7 +225,7 @@ func (s *SolanaWatcher) SetupSubscription(ctx context.Context) (error, *websocke
 }
 
 func (s *SolanaWatcher) SetupWebSocket(ctx context.Context) error {
-	if vaa.ChainID(s.chainID) != vaa.ChainIDPythNet {
+	if s.chainID != vaa.ChainIDPythNet {
 		panic("unsupported chain id")
 	}
 
@@ -246,24 +244,9 @@ func (s *SolanaWatcher) SetupWebSocket(ctx context.Context) error {
 			case <-ctx.Done():
 				return nil
 			default:
-				rCtx, cancel := context.WithTimeout(ctx, time.Second*300) // 5 minute
-				defer cancel()
-
-				if _, msg, err := ws.Read(rCtx); err != nil {
-					if errors.Is(err, context.DeadlineExceeded) {
-						// When a websocket context times out, it closes the websocket...  This means we have to re-subscribe
-						ws.Close(websocket.StatusNormalClosure, "")
-						err, ws = s.SetupSubscription(ctx)
-						if err != nil {
-							return err
-						}
-						continue
-					}
-
+				if msg, err := s.readWebSocketWithTimeout(ctx, ws); err != nil {
 					logger.Error(fmt.Sprintf("ReadMessage: '%s'", err.Error()))
-					if errors.Is(err, io.EOF) {
-						return err
-					}
+					return err
 				} else {
 					s.pumpData <- msg
 				}
@@ -272,6 +255,13 @@ func (s *SolanaWatcher) SetupWebSocket(ctx context.Context) error {
 	})
 
 	return nil
+}
+
+func (s *SolanaWatcher) readWebSocketWithTimeout(ctx context.Context, ws *websocket.Conn) ([]byte, error) {
+	rCtx, cancel := context.WithTimeout(ctx, time.Second*300) // 5 minute
+	defer cancel()
+	_, msg, err := ws.Read(rCtx)
+	return msg, err
 }
 
 func (s *SolanaWatcher) Run(ctx context.Context) error {
@@ -283,12 +273,27 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 
 	logger := supervisor.Logger(ctx)
 
+	wsUrl := ""
+	if s.wsUrl != nil {
+		wsUrl = *s.wsUrl
+	}
+
+	logger.Info("Starting watcher",
+		zap.String("watcher_name", "solana"),
+		zap.String("rpcUrl", s.rpcUrl),
+		zap.String("wsUrl", wsUrl),
+		zap.String("contract", contractAddr),
+		zap.String("rawContract", s.rawContract),
+	)
+
 	logger.Info("Solana watcher connecting to RPC node ", zap.String("url", s.rpcUrl))
 
 	s.errC = make(chan error)
 	s.pumpData = make(chan []byte)
 
-	if s.wsUrl != nil {
+	useWs := false
+	if s.wsUrl != nil && *s.wsUrl != "" {
+		useWs = true
 		err := s.SetupWebSocket(ctx)
 		if err != nil {
 			return err
@@ -341,13 +346,13 @@ func (s *SolanaWatcher) Run(ctx context.Context) error {
 					lastSlot = slot - 1
 				}
 				currentSolanaHeight.WithLabelValues(s.networkName, string(s.commitment)).Set(float64(slot))
-				readiness.SetReady(s.readiness)
+				readiness.SetReady(s.readinessSync)
 				p2p.DefaultRegistry.SetNetworkStats(s.chainID, &gossipv1.Heartbeat_Network{
 					Height:          int64(slot),
 					ContractAddress: contractAddr,
 				})
 
-				if s.wsUrl == nil {
+				if !useWs {
 					rangeStart := lastSlot + 1
 					rangeEnd := slot
 
@@ -431,7 +436,7 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 	if err != nil {
 		var rpcErr *jsonrpc.RPCError
 		if errors.As(err, &rpcErr) && (rpcErr.Code == -32007 /* SLOT_SKIPPED */ || rpcErr.Code == -32004 /* BLOCK_NOT_AVAILABLE */) {
-			logger.Info("empty slot", zap.Uint64("slot", slot),
+			logger.Debug("empty slot", zap.Uint64("slot", slot),
 				zap.Int("code", rpcErr.Code),
 				zap.String("commitment", string(s.commitment)))
 
@@ -722,7 +727,7 @@ func (s *SolanaWatcher) fetchMessageAccount(ctx context.Context, logger *zap.Log
 	return false
 }
 
-func (s *SolanaWatcher) processAccountSubscriptionData(ctx context.Context, logger *zap.Logger, data []byte) error {
+func (s *SolanaWatcher) processAccountSubscriptionData(_ context.Context, logger *zap.Logger, data []byte) error {
 	// Do we have an error on the subscription?
 	var e EventSubscriptionError
 	err := json.Unmarshal(data, &e)
@@ -830,7 +835,7 @@ func (s *SolanaWatcher) processMessageAccount(logger *zap.Logger, data []byte, a
 		zap.Uint8("consistency_level", observation.ConsistencyLevel),
 	)
 
-	s.messageEvent <- observation
+	s.msgC <- observation
 }
 
 // updateLatestBlock() updates the latest block number if the slot passed in is greater than the previous value.

@@ -4,73 +4,67 @@
 
 # Chains
 
-/algorand/ @jumpsiegel
-/aptos/ @kcsongor
-/bitcoin/ @conorpp @jumpsiegel
+/algorand/ @jumpsiegel @evan-gray @hendrikhofstadt @kcsongor
+/aptos/ @kcsongor @a5-pickle
+/bitcoin/ @conorpp @jumpsiegel @evan-gray @hendrikhofstadt
 /cosmwasm/ @jynnantonix @kcsongor @a5-pickle
 /ethereum/ @a5-pickle @calebrate @gator-boi @hendrikhofstadt @kcsongor
-/near/ @jumpsiegel
-/solana/ @hendrikhofstadt @jynnantonix @kcsongor
-/sui/ @kcsongor
-/terra/ @jynnantonix @kcsongor @a5-pickle
+/ethereum/contracts/relayer @chase-45 @derpy-duck @JoeHowarth 
+/ethereum/contracts/interfaces/relayer @chase-45 @derpy-duck @JoeHowarth 
+/ethereum/forge-test/relayer @chase-45 @derpy-duck @JoeHowarth 
+/ethereum/ts-scripts/relayer @chase-45 @derpy-duck @JoeHowarth 
+/near/ @jumpsiegel @evan-gray @hendrikhofstadt @kcsongor
+/solana/ @hendrikhofstadt @kcsongor @a5-pickle
+/sui/ @kcsongor @a5-pickle @gator-boi @heyitaki
+/terra/ @kcsongor @a5-pickle
 /wormchain/ @conorpp @hendrikhofstadt
 
 # Utilities
 
 /clients/ @kcsongor @kev1n-peters @evan-gray
 /lp_ui/ @evan-gray @kev1n-peters
-/relayer/ @evan-gray @kev1n-peters
+/relayer/spy_relayer @evan-gray @kev1n-peters
+/relayer/generic_relayer @chase-45 @derpy-duck @JoeHowarth 
 /scripts/ @evan-gray @kcsongor
-/sdk/ @bruce-riley @evan-gray @jynnantonix
+/sdk/ @bruce-riley @evan-gray
 /sdk/js-proto-node/ @evan-gray @kev1n-peters
 /sdk/js-proto-web/ @evan-gray @kev1n-peters
 /sdk/js-wasm/ @evan-gray @kev1n-peters
 /sdk/js/ @evan-gray @kev1n-peters
-/sdk/rust/ @hendrikhofstadt @jynnantonix
+/sdk/rust/ @hendrikhofstadt @a5-pickle
 /sdk/vaa/ @bruce-riley @hendrikhofstadt
 /spydk/ @evan-gray
 /testing/ @a5-pickle @evan-gray
+/wormchain/contracts/tools/ @evan-gray @kev1n-peters @panoel
 
 # Guardiand node
 
 ## Fallback
-/node/ @bruce-riley @leoluk @hendrikhofstadt
+/node/ @bruce-riley @evan-gray @hendrikhofstadt
 
 ## Entrypoint / RPC
-/node/cmd/ @bruce-riley @jynnantonix
+/node/cmd/ @bruce-riley @panoel @kev1n-peters @evan-gray
 
 ## DB
-/node/pkg/db/ @bruce-riley
+/node/pkg/db/ @bruce-riley @kev1n-peters
+
+## Accountant
+/node/pkg/accountant/ @bruce-riley @evan-gray @jynnantonix
 
 ## Governor
-/node/pkg/governor/ @bruce-riley @claudijd
+/node/pkg/governor/ @bruce-riley @claudijd @tbjump
 
 ## P2P
-/node/pkg/p2p/ @leoluk @hendrikhofstadt
+/node/pkg/p2p/ @bruce-riley @evan-gray @kev1n-peters @hendrikhofstadt
 
 ## Consensus / Processor
-/node/pkg/processor/ @jynnantonix @hendrikhofstadt
+/node/pkg/processor/ @bruce-riley @evan-gray @hendrikhofstadt
 
 ## Public RPC
-/node/pkg/publicrpc/ @bruce-riley
+/node/pkg/publicrpc/ @bruce-riley @kev1n-peters
 
 ## Supervisor Framework
-/node/pkg/supervisor/ @hendrikhofstadt @leoluk
+/node/pkg/supervisor/ @hendrikhofstadt @bruce-riley @evan-gray
 
-## Watcher - Algorand
-/node/pkg/watchers/algorand/ @evan-gray @jumpsiegel
-
-## Watcher - Aptos
-/node/pkg/watchers/aptos/ @jumpsiegel
-
-## Watcher - Cosmwasm
-/node/pkg/watchers/cosmwasm/ @evan-gray @hendrikhofstadt
-
-## Watcher - EVM
-/node/pkg/watchers/evm/ @bruce-riley @hendrikhofstadt
-
-## Watcher - NEAR
-/node/pkg/watchers/near/ @jumpsiegel
-
-## Watcher - Solana
-/node/pkg/watchers/solana/ @hendrikhofstadt
+## Watchers
+/node/pkg/watchers @hendrikhofstadt @evan-gray @bruce-riley @panoel @kev1n-peters

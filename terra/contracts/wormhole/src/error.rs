@@ -103,7 +103,7 @@ pub enum ContractError {
 impl ContractError {
     pub fn std(&self) -> StdError {
         StdError::GenericErr {
-            msg: format!("{}", self),
+            msg: format!("{self}"),
         }
     }
 

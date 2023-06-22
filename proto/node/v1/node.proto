@@ -49,6 +49,9 @@ service NodePrivilegedService {
 
   // SignExistingVAA signs an existing VAA for a new guardian set using the local guardian key.
   rpc SignExistingVAA (SignExistingVAARequest) returns (SignExistingVAAResponse);
+
+  // DumpRPCs returns the RPCs being used by the guardian
+  rpc DumpRPCs (DumpRPCsRequest) returns (DumpRPCsResponse);  
 }
 
 message InjectGovernanceVAARequest {
@@ -79,7 +82,7 @@ message GovernanceMessage {
     GuardianSetUpdate guardian_set = 10;
     ContractUpgrade contract_upgrade = 11;
 
-    // Token bridge and NFT module
+    // Token bridge, NFT module, and Wormhole Relayer module (for the first two) 
 
     BridgeRegisterChain bridge_register_chain = 12;
     BridgeUpgradeContract bridge_contract_upgrade = 13;
@@ -88,6 +91,20 @@ message GovernanceMessage {
 
     WormchainStoreCode wormchain_store_code = 14;
     WormchainInstantiateContract wormchain_instantiate_contract = 15;
+    WormchainMigrateContract wormchain_migrate_contract = 16;
+
+    // Global Accountant
+    AccountantModifyBalance accountant_modify_balance = 17;
+
+    // Circle Integration
+    CircleIntegrationUpdateWormholeFinality circle_integration_update_wormhole_finality = 18;
+    CircleIntegrationRegisterEmitterAndDomain circle_integration_register_emitter_and_domain = 19;
+    CircleIntegrationUpgradeContractImplementation circle_integration_upgrade_contract_implementation = 20;
+
+    // IBC Receiver Integration
+    IbcReceiverUpdateChannelChain ibc_receiver_update_channel_chain = 21;
+    // Wormhole Relayer module
+    WormholeRelayerSetDefaultDeliveryProvider wormhole_relayer_set_default_delivery_provider = 22;
   }
 }
 
@@ -130,6 +147,36 @@ message BridgeRegisterChain {
   string emitter_address = 3;
 }
 
+enum ModificationKind {
+  MODIFICATION_KIND_UNSPECIFIED = 0;
+  MODIFICATION_KIND_ADD = 1;
+  MODIFICATION_KIND_SUBTRACT = 2;
+}
+
+message AccountantModifyBalance {
+  // Module identifier of the accountant "GlobalAccountant"
+  string module = 1;
+  // ID of the chain to receive this modify.
+  uint32 target_chain_id = 2;
+
+  // The sequence number of this modification.  Each modification must be
+  // uniquely identifiable just by its sequnce number.
+  uint64 sequence = 3;
+  // U16 chain id of the account to be modified.
+  uint32 chain_id = 4;
+  // U16 the chain id of the native chain for the token.
+  uint32 token_chain = 5;
+  // The address of the token on its native chain, hex string encoded.
+  string token_address = 6;
+  // The kind of modification to be made.
+  ModificationKind kind = 7;
+  // The amount to be modified.  This should be a decimal formatted string indicating the
+  // "raw" amount, not adjusted by the decimals of the token.
+  string amount = 8;
+  // A human-readable reason for the modification (max 32 bytes).
+  string reason = 9;
+}
+
 // ContractUpgrade represents a Wormhole contract update to be submitted to and signed by the node.
 message ContractUpgrade {
   // ID of the chain where the Wormhole contract should be updated (uint8).
@@ -164,6 +211,51 @@ message WormchainInstantiateContract {
 
   // Json encoded message to be passed to the contract on instantiation
   string instantiation_msg = 3;
+}
+
+message WormchainMigrateContract {
+  // CodeID is the reference to the stored WASM code that the contract should migrate to.
+  uint64 code_id = 1;
+
+  // The address of the contract being migrated.
+  string contract = 2;
+
+  // Msg json encoded message to be passed to the contract on migration
+  string instantiation_msg = 3;
+}
+
+message CircleIntegrationUpdateWormholeFinality {
+  uint32 finality = 1;
+  uint32 target_chain_id = 2;
+}
+
+message CircleIntegrationRegisterEmitterAndDomain {
+  uint32 foreign_emitter_chain_id = 1;
+  string foreign_emitter_address = 2;
+  uint32 circle_domain = 3;
+  uint32 target_chain_id = 4;
+}
+
+message CircleIntegrationUpgradeContractImplementation {
+  string new_implementation_address = 1;
+  uint32 target_chain_id = 2;
+}
+
+message IbcReceiverUpdateChannelChain {
+  // Chain ID that this governance VAA should be redeemed on
+  uint32 target_chain_id = 1;
+  // IBC channel ID
+  string channel_id = 2;
+  // ChainID corresponding to the IBC channel
+  uint32 chain_id = 3;
+}
+
+message WormholeRelayerSetDefaultDeliveryProvider {
+  // ID of the chain of the Wormhole Relayer contract where the default delivery provider should be updated (uint16).
+  uint32 chain_id = 1;
+
+  // Hex-encoded address (without leading 0x) of the new default delivery provider contract address.
+  string new_default_delivery_provider_address = 2;
 }
 
 message FindMissingMessagesRequest {
@@ -245,4 +337,10 @@ message SignExistingVAARequest {
 
 message SignExistingVAAResponse {
   bytes vaa = 1;
+}
+
+message DumpRPCsRequest {}
+
+message DumpRPCsResponse {
+  map<string, string> response = 1;
 }

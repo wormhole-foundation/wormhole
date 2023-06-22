@@ -9,7 +9,7 @@ crate-type = ["cdylib", "lib"]
 name = "token_bridge"
 
 [features]
-no-entrypoint = ["solitaire/no-entrypoint", "instructions", "rand"]
+no-entrypoint = ["solitaire/no-entrypoint", "instructions"]
 trace = ["solitaire/trace"]
 wasm = ["no-entrypoint", "wasm-bindgen"]
 client = ["no-entrypoint"]
@@ -28,10 +28,9 @@ sha3 = "0.9.1"
 solana-program = "*"
 spl-token = { version = "=3.3.0", features = ["no-entrypoint"] }
 primitive-types = { version = "0.9.0", default-features = false }
-spl-token-metadata = { path = "../token-metadata" }
+spl-token-metadata = { git = "https://github.com/wormhole-foundation/metaplex-program-library", rev = "a7ab32ab0defd89c98f205c80ebdaf77ed60152d", package = "mpl-token-metadata" }
 wasm-bindgen = { version = "0.2.74", features = ["serde-serialize"], optional = true }
 serde = { version = "1.0", features = ["derive"] }
-rand = { version = "0.7.3", optional = true }
 
 [dev-dependencies]
 hex = "*"
@@ -40,5 +39,3 @@ libsecp256k1 = { version = "0.6.0", features = [] }
 rand = "0.7.3"
 solana-program-test = "=1.10.31"
 solana-sdk = "=1.10.31"
-spl-token = { version = "=3.3.0", features = ["no-entrypoint"] }
-spl-token-metadata = { path = "../token-metadata" }
