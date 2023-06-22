@@ -20,6 +20,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	nodev1 "github.com/certusone/wormhole/node/pkg/proto/node/v1"
+	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -185,21 +186,21 @@ func TestCrossChainQuery(t *testing.T) {
 	}
 	to, _ := hex.DecodeString("DDb64fE46a91D46ee29420539FC25FD07c5FEa3E") // WETH
 
-	callData := []*common.EthCallData{
+	callData := []*query.EthCallData{
 		{
 			To:   to,
 			Data: data,
 		},
 	}
 
-	callRequest := &common.EthCallQueryRequest{
+	callRequest := &query.EthCallQueryRequest{
 		BlockId:  hexutil.EncodeBig(blockNum),
 		CallData: callData,
 	}
 
-	queryRequest := &common.QueryRequest{
+	queryRequest := &query.QueryRequest{
 		Nonce: 1,
-		PerChainQueries: []*common.PerChainQueryRequest{
+		PerChainQueries: []*query.PerChainQueryRequest{
 			{
 				ChainId: 2,
 				Query:   callRequest,
@@ -213,7 +214,7 @@ func TestCrossChainQuery(t *testing.T) {
 	}
 
 	// Sign the query request using our private key.
-	digest := common.QueryRequestDigest(common.UnsafeDevNet, queryRequestBytes)
+	digest := query.QueryRequestDigest(common.UnsafeDevNet, queryRequestBytes)
 	sig, err := ethCrypto.Sign(digest.Bytes(), sk)
 	if err != nil {
 		panic(err)
@@ -260,13 +261,13 @@ func TestCrossChainQuery(t *testing.T) {
 		switch m := msg.Message.(type) {
 		case *gossipv1.GossipMessage_SignedQueryResponse:
 			logger.Info("query response received", zap.Any("response", m.SignedQueryResponse))
-			var response common.QueryResponsePublication
+			var response query.QueryResponsePublication
 			err := response.Unmarshal(m.SignedQueryResponse.QueryResponse)
 			if err != nil {
 				logger.Fatal("failed to unmarshal response", zap.Error(err))
 			}
 			if bytes.Equal(response.Request.QueryRequest, queryRequestBytes) && bytes.Equal(response.Request.Signature, sig) {
-				digest := common.GetQueryResponseDigestFromBytes(m.SignedQueryResponse.QueryResponse)
+				digest := query.GetQueryResponseDigestFromBytes(m.SignedQueryResponse.QueryResponse)
 				signerBytes, err := ethCrypto.Ecrecover(digest.Bytes(), m.SignedQueryResponse.Signature)
 				if err != nil {
 					logger.Fatal("failed to verify signature on response",
@@ -296,9 +297,9 @@ func TestCrossChainQuery(t *testing.T) {
 					break
 				}
 
-				var pcq *common.EthCallQueryResponse
+				var pcq *query.EthCallQueryResponse
 				switch ecq := response.PerChainResponses[0].Response.(type) {
-				case *common.EthCallQueryResponse:
+				case *query.EthCallQueryResponse:
 					pcq = ecq
 				default:
 					panic("unsupported query type")

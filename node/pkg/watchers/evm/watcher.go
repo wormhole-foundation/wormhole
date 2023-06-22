@@ -26,6 +26,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/certusone/wormhole/node/pkg/common"
+	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
@@ -98,10 +99,10 @@ type (
 
 		// Incoming query requests from the network. Pre-filtered to only
 		// include requests for our chainID.
-		queryReqC <-chan *common.PerChainQueryInternal
+		queryReqC <-chan *query.PerChainQueryInternal
 
 		// Outbound query responses to query requests
-		queryResponseC chan<- *common.PerChainQueryResponseInternal
+		queryResponseC chan<- *query.PerChainQueryResponseInternal
 
 		pending   map[pendingKey]*pendingMessage
 		pendingMu sync.Mutex
@@ -152,8 +153,8 @@ func NewEthWatcher(
 	msgC chan<- *common.MessagePublication,
 	setC chan<- *common.GuardianSet,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
-	queryReqC <-chan *common.PerChainQueryInternal,
-	queryResponseC chan<- *common.PerChainQueryResponseInternal,
+	queryReqC <-chan *query.PerChainQueryInternal,
+	queryResponseC chan<- *query.PerChainQueryResponseInternal,
 	unsafeDevMode bool,
 ) *Watcher {
 
@@ -542,7 +543,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 				}
 
 				switch req := queryRequest.Request.Query.(type) {
-				case *common.EthCallQueryRequest:
+				case *query.EthCallQueryRequest:
 					block := req.BlockId
 					logger.Info("received query request",
 						zap.String("eth_network", w.networkName),
@@ -645,7 +646,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.Any("batch", batch),
 							zap.String("component", "ccqevm"),
 						)
-						w.ccqSendQueryResponse(logger, queryRequest, common.QueryRetryNeeded, nil)
+						w.ccqSendQueryResponse(logger, queryRequest, query.QueryRetryNeeded, nil)
 						continue
 					}
 
@@ -656,7 +657,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.Any("batch", batch),
 							zap.String("component", "ccqevm"),
 						)
-						w.ccqSendQueryResponse(logger, queryRequest, common.QueryRetryNeeded, nil)
+						w.ccqSendQueryResponse(logger, queryRequest, query.QueryRetryNeeded, nil)
 						continue
 					}
 
@@ -667,7 +668,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.Any("batch", batch),
 							zap.String("component", "ccqevm"),
 						)
-						w.ccqSendQueryResponse(logger, queryRequest, common.QueryRetryNeeded, nil)
+						w.ccqSendQueryResponse(logger, queryRequest, query.QueryRetryNeeded, nil)
 						continue
 					}
 
@@ -678,11 +679,11 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 							zap.Any("batch", batch),
 							zap.String("component", "ccqevm"),
 						)
-						w.ccqSendQueryResponse(logger, queryRequest, common.QueryRetryNeeded, nil)
+						w.ccqSendQueryResponse(logger, queryRequest, query.QueryRetryNeeded, nil)
 						continue
 					}
 
-					resp := common.EthCallQueryResponse{
+					resp := query.EthCallQueryResponse{
 						BlockNumber: blockResult.Number.ToInt().Uint64(),
 						Hash:        blockResult.Hash,
 						Time:        time.Unix(int64(blockResult.Time), 0),
@@ -699,7 +700,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 								zap.Any("batch", batch),
 								zap.String("component", "ccqevm"),
 							)
-							w.ccqSendQueryResponse(logger, queryRequest, common.QueryRetryNeeded, nil)
+							w.ccqSendQueryResponse(logger, queryRequest, query.QueryRetryNeeded, nil)
 							errFound = true
 							break
 						}
@@ -714,7 +715,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 								zap.Any("batch", batch),
 								zap.String("component", "ccqevm"),
 							)
-							w.ccqSendQueryResponse(logger, queryRequest, common.QueryRetryNeeded, nil)
+							w.ccqSendQueryResponse(logger, queryRequest, query.QueryRetryNeeded, nil)
 							errFound = true
 							break
 						}
@@ -736,7 +737,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 					}
 
 					if !errFound {
-						w.ccqSendQueryResponse(logger, queryRequest, common.QuerySuccess, &resp)
+						w.ccqSendQueryResponse(logger, queryRequest, query.QuerySuccess, &resp)
 					}
 
 				default:
@@ -744,7 +745,7 @@ func (w *Watcher) Run(parentCtx context.Context) error {
 						zap.Uint8("payload", uint8(queryRequest.Request.Query.Type())),
 						zap.String("component", "ccqevm"),
 					)
-					w.ccqSendQueryResponse(logger, queryRequest, common.QueryFatalError, nil)
+					w.ccqSendQueryResponse(logger, queryRequest, query.QueryFatalError, nil)
 				}
 			}
 		}
@@ -1167,8 +1168,8 @@ func (w *Watcher) SetMaxWaitConfirmations(maxWaitConfirmations uint64) {
 }
 
 // ccqSendQueryResponse sends an error response back to the query handler.
-func (w *Watcher) ccqSendQueryResponse(logger *zap.Logger, req *common.PerChainQueryInternal, status common.QueryStatus, resp *common.EthCallQueryResponse) {
-	queryResponse := common.CreatePerChainQueryResponseInternal(req.RequestID, req.RequestIdx, req.Request.ChainId, status, resp)
+func (w *Watcher) ccqSendQueryResponse(logger *zap.Logger, req *query.PerChainQueryInternal, status query.QueryStatus, resp *query.EthCallQueryResponse) {
+	queryResponse := query.CreatePerChainQueryResponseInternal(req.RequestID, req.RequestIdx, req.Request.ChainId, status, resp)
 	select {
 	case w.queryResponseC <- queryResponse:
 		logger.Debug("published query response error to handler", zap.String("component", "ccqevm"))
