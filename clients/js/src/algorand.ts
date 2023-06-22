@@ -2,11 +2,16 @@ import {
   _submitVAAAlgorand,
   signSendAndConfirmAlgorand,
 } from "@certusone/wormhole-sdk/lib/esm/algorand";
-import { CONTRACTS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
+import {
+  CONTRACTS,
+  ChainName,
+} from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { Account, Algodv2, mnemonicToSecretKey } from "algosdk";
 import { NETWORKS } from "./consts";
 import { Network } from "./utils";
 import { Payload, impossible } from "./vaa";
+import { transferFromAlgorand } from "@certusone/wormhole-sdk/lib/esm/token_bridge/transfer";
+import { tryNativeToHexString } from "@certusone/wormhole-sdk/lib/esm/utils";
 
 export async function execute_algorand(
   payload: Payload,
@@ -25,16 +30,6 @@ export async function execute_algorand(
 
   const contracts = CONTRACTS[network][chainName];
   console.log("contracts", contracts);
-  const ALGORAND_HOST = {
-    algodToken: "",
-    algodServer: rpc,
-    algodPort: "",
-  };
-  if (network === "DEVNET") {
-    ALGORAND_HOST.algodToken =
-      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-    ALGORAND_HOST.algodPort = "4001";
-  }
 
   let target_contract: string;
   switch (payload.module) {
@@ -127,11 +122,7 @@ export async function execute_algorand(
 
   const target = BigInt(parseInt(target_contract));
   const CORE_ID = BigInt(parseInt(contracts.core));
-  const algodClient = new Algodv2(
-    ALGORAND_HOST.algodToken,
-    ALGORAND_HOST.algodServer,
-    ALGORAND_HOST.algodPort
-  );
+  const algodClient = getClient(network, rpc);
   const algoWallet: Account = mnemonicToSecretKey(key);
 
   // Create transaction
@@ -146,4 +137,60 @@ export async function execute_algorand(
   // Sign and send transaction
   const result = await signSendAndConfirmAlgorand(algodClient, txs, algoWallet);
   console.log("Confirmed in round:", result["confirmed-round"]);
+}
+
+export async function transferAlgorand(
+  dstChain: ChainName,
+  dstAddress: string,
+  tokenAddress: string,
+  amount: string,
+  network: Network,
+  rpc: string
+) {
+  const { key } = NETWORKS[network].algorand;
+  if (!key) {
+    throw Error(`No ${network} key defined for Algorand`);
+  }
+  const contracts = CONTRACTS[network].algorand;
+  const client = getClient(network, rpc);
+  const wallet: Account = mnemonicToSecretKey(key);
+  const CORE_ID = BigInt(parseInt(contracts.core));
+  const TOKEN_BRIDGE_ID = BigInt(parseInt(contracts.token_bridge));
+  const recipient = tryNativeToHexString(dstAddress, dstChain);
+  if (!recipient) {
+    throw new Error("Failed to convert recipient address");
+  }
+  const assetId = tokenAddress === "native" ? BigInt(0) : BigInt(tokenAddress);
+  const txs = await transferFromAlgorand(
+    client,
+    TOKEN_BRIDGE_ID,
+    CORE_ID,
+    wallet.addr,
+    assetId,
+    BigInt(amount),
+    recipient,
+    dstChain,
+    BigInt(0)
+  );
+  const result = await signSendAndConfirmAlgorand(client, txs, wallet);
+  console.log("Confirmed in round:", result["confirmed-round"]);
+}
+
+function getClient(network: Network, rpc: string) {
+  const ALGORAND_HOST = {
+    algodToken: "",
+    algodServer: rpc,
+    algodPort: "",
+  };
+  if (network === "DEVNET") {
+    ALGORAND_HOST.algodToken =
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    ALGORAND_HOST.algodPort = "4001";
+  }
+  const client = new Algodv2(
+    ALGORAND_HOST.algodToken,
+    ALGORAND_HOST.algodServer,
+    ALGORAND_HOST.algodPort
+  );
+  return client;
 }

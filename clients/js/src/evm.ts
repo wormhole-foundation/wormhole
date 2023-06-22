@@ -3,16 +3,16 @@ import {
   BridgeImplementation__factory,
   Implementation__factory,
   NFTBridgeImplementation__factory,
-  WormholeRelayer__factory
+  WormholeRelayer__factory,
 } from "@certusone/wormhole-sdk/lib/esm/ethers-contracts";
-import {
-  getWormholeRelayerAddress
-} from "@certusone/wormhole-sdk/lib/esm/relayer"
+import { getWormholeRelayerAddress } from "@certusone/wormhole-sdk/lib/esm/relayer";
 import {
   CHAINS,
   CONTRACTS,
+  ChainName,
   Contracts,
   EVMChainName,
+  toChainId,
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import axios from "axios";
 import { ethers } from "ethers";
@@ -20,6 +20,13 @@ import { solidityKeccak256 } from "ethers/lib/utils";
 import { NETWORKS } from "./consts";
 import { Network } from "./utils";
 import { Encoding, Payload, encode, impossible, typeWidth } from "./vaa";
+import {
+  approveEth,
+  getAllowanceEth,
+  transferFromEth,
+  transferFromEthNative,
+} from "@certusone/wormhole-sdk/lib/esm/token_bridge/transfer";
+import { tryNativeToUint8Array } from "@certusone/wormhole-sdk/lib/esm/utils";
 
 const _IMPLEMENTATION_SLOT =
   "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
@@ -264,6 +271,39 @@ export async function getImplementation(
   )[0];
 }
 
+async function getSigner(chain: EVMChainName, key: string, rpc: string) {
+  let provider: ethers.providers.JsonRpcProvider;
+  let signer: ethers.Wallet;
+  if (chain === "celo") {
+    provider = new celo.CeloProvider(rpc);
+    await provider.ready;
+    signer = new celo.CeloWallet(key, provider);
+  } else {
+    provider = new ethers.providers.JsonRpcProvider(rpc);
+    signer = new ethers.Wallet(key, provider);
+  }
+  // Here we apply a set of chain-specific overrides.
+  // NOTE: some of these might have only been tested on mainnet. If it fails in
+  // testnet (or devnet), they might require additional guards
+  let overrides: ethers.Overrides = {};
+  if (chain === "karura" || chain == "acala") {
+    overrides = await getKaruraGasParams(rpc);
+  } else if (chain === "polygon") {
+    const feeData = await provider.getFeeData();
+    overrides = {
+      maxFeePerGas: feeData.maxFeePerGas?.mul(50) || undefined,
+      maxPriorityFeePerGas: feeData.maxPriorityFeePerGas?.mul(50) || undefined,
+    };
+  } else if (chain === "klaytn" || chain === "fantom") {
+    overrides = { gasPrice: (await signer.getGasPrice()).toString() };
+  }
+  return {
+    signer,
+    provider,
+    overrides,
+  };
+}
+
 export async function execute_evm(
   payload: Payload,
   vaa: Buffer,
@@ -284,32 +324,7 @@ export async function execute_evm(
 
   const key: string = n.key;
   const contracts: Contracts = CONTRACTS[network][chain];
-  let provider: ethers.providers.JsonRpcProvider;
-  let signer: ethers.Wallet;
-  if (chain === "celo") {
-    provider = new celo.CeloProvider(rpc);
-    await provider.ready;
-    signer = new celo.CeloWallet(key, provider);
-  } else {
-    provider = new ethers.providers.JsonRpcProvider(rpc);
-    signer = new ethers.Wallet(key, provider);
-  }
-
-  // Here we apply a set of chain-specific overrides.
-  // NOTE: some of these might have only been tested on mainnet. If it fails in
-  // testnet (or devnet), they might require additional guards
-  let overrides: ethers.Overrides = {};
-  if (chain === "karura" || chain == "acala") {
-    overrides = await getKaruraGasParams(rpc);
-  } else if (chain === "polygon") {
-    const feeData = await provider.getFeeData();
-    overrides = {
-      maxFeePerGas: feeData.maxFeePerGas?.mul(50) || undefined,
-      maxPriorityFeePerGas: feeData.maxPriorityFeePerGas?.mul(50) || undefined,
-    };
-  } else if (chain === "klaytn" || chain === "fantom") {
-    overrides = { gasPrice: (await signer.getGasPrice()).toString() };
-  }
+  const { signer, overrides } = await getSigner(chain, key, rpc);
 
   switch (payload.module) {
     case "Core": {
@@ -434,36 +449,93 @@ export async function execute_evm(
       break;
     }
     case "WormholeRelayer":
-        contract_address = contract_address
+      contract_address = contract_address
         ? contract_address
         : getWormholeRelayerAddress(chain, network);
-        if (contract_address === undefined) {
-          throw Error(`Unknown Wormhole Relayer contract on ${network} for ${chain}`)
-        }
-        let rb = WormholeRelayer__factory.connect(contract_address, signer)
-        switch (payload.type) {
-          case "ContractUpgrade":
-            console.log("Upgrading contract")
-            console.log("Hash: " + (await rb.submitContractUpgrade(vaa, overrides)).hash)
-            console.log("Don't forget to verify the new implementation! See ethereum/VERIFY.md for instructions")
-            break
-          case "RegisterChain":
-            console.log("Registering chain")
-            console.log("Hash: " + (await rb.registerWormholeRelayerContract(vaa, overrides)).hash)
-            break
-          case "SetDefaultDeliveryProvider":
-            console.log("Setting default relay provider")
-            console.log("Hash: " + (await rb.setDefaultDeliveryProvider(vaa, overrides)).hash)
-            break
-          default:
-            impossible(payload)
-            break
-  
-        }
-        break
+      if (contract_address === undefined) {
+        throw Error(
+          `Unknown Wormhole Relayer contract on ${network} for ${chain}`
+        );
+      }
+      let rb = WormholeRelayer__factory.connect(contract_address, signer);
+      switch (payload.type) {
+        case "ContractUpgrade":
+          console.log("Upgrading contract");
+          console.log(
+            "Hash: " + (await rb.submitContractUpgrade(vaa, overrides)).hash
+          );
+          console.log(
+            "Don't forget to verify the new implementation! See ethereum/VERIFY.md for instructions"
+          );
+          break;
+        case "RegisterChain":
+          console.log("Registering chain");
+          console.log(
+            "Hash: " +
+              (await rb.registerWormholeRelayerContract(vaa, overrides)).hash
+          );
+          break;
+        case "SetDefaultDeliveryProvider":
+          console.log("Setting default relay provider");
+          console.log(
+            "Hash: " +
+              (await rb.setDefaultDeliveryProvider(vaa, overrides)).hash
+          );
+          break;
+        default:
+          impossible(payload);
+          break;
+      }
+      break;
     default:
       impossible(payload);
   }
+}
+
+export async function transferEVM(
+  srcChain: EVMChainName,
+  dstChain: ChainName,
+  dstAddress: string,
+  tokenAddress: string,
+  amount: string,
+  network: Network,
+  rpc: string
+) {
+  const n = NETWORKS[network][srcChain];
+  if (!n.key) {
+    throw Error(`No ${network} key defined for ${srcChain} (see networks.ts)`);
+  }
+  const { token_bridge } = CONTRACTS[network][srcChain];
+  if (!token_bridge) {
+    throw Error(`Unknown token bridge contract on ${network} for ${srcChain}`);
+  }
+  const { signer, overrides } = await getSigner(srcChain, n.key, rpc);
+  let tx;
+  if (tokenAddress === "native") {
+    tx = await transferFromEthNative(
+      token_bridge,
+      signer,
+      amount,
+      toChainId(dstChain),
+      tryNativeToUint8Array(dstAddress, dstChain)
+    );
+  } else {
+    const allowance = await getAllowanceEth(token_bridge, tokenAddress, signer);
+    if (allowance.lt(amount)) {
+      await approveEth(token_bridge, tokenAddress, signer, amount, overrides);
+    }
+    tx = await transferFromEth(
+      token_bridge,
+      signer,
+      tokenAddress,
+      amount,
+      dstChain,
+      tryNativeToUint8Array(dstAddress, dstChain),
+      undefined,
+      overrides
+    );
+  }
+  console.log(`Hash: ${tx.transactionHash}`);
 }
 
 /**

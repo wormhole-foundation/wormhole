@@ -1,3 +1,3 @@
 export * from "./structs";
 export * from "./consts";
-export * from "./relayer/relayer";
+export * from "./relayer";
