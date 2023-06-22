@@ -225,7 +225,8 @@ describe("Terra Integration Tests", () => {
     ).toBe(true);
   });
 
-  test("Attest and transfer Terra2 native token to Terra Classic", async () => {
+  // Temporarily disable terra tests until LocalTerra can be upgraded to support v2.1.1
+  test.skip("Attest and transfer Terra2 native token to Terra Classic", async () => {
     const attestMsg = await attestFromTerra(
       CONTRACTS.DEVNET.terra2.token_bridge,
       terraWalletAddress,
