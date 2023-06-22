@@ -58,8 +58,8 @@ import {
   WORMHOLE_RPC_HOSTS,
 } from "./utils/consts";
 
-const CORE_ID = BigInt(4);
-const TOKEN_BRIDGE_ID = BigInt(6);
+const CORE_ID = BigInt(1004);
+const TOKEN_BRIDGE_ID = BigInt(1006);
 
 jest.setTimeout(60000);
 
