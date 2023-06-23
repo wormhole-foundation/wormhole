@@ -1323,7 +1323,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			common.MustRegisterReadinessSyncing(vaa.ChainIDTerra)
 			chainObsvReqC[vaa.ChainIDTerra] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "terrawatch",
-				common.WrapWithScissors(cosmwasm.NewWatcher(*terraWS, *terraLCD, *terraContract, chainMsgC[vaa.ChainIDTerra], chainObsvReqC[vaa.ChainIDTerra], vaa.ChainIDTerra).Run, "terrawatch")); err != nil {
+				common.WrapWithScissors(cosmwasm.NewWatcher(*terraWS, *terraLCD, *terraContract, chainMsgC[vaa.ChainIDTerra], chainObsvReqC[vaa.ChainIDTerra], vaa.ChainIDTerra, *unsafeDevMode).Run, "terrawatch")); err != nil {
 				return err
 			}
 		}
@@ -1333,7 +1333,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			common.MustRegisterReadinessSyncing(vaa.ChainIDTerra2)
 			chainObsvReqC[vaa.ChainIDTerra2] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "terra2watch",
-				common.WrapWithScissors(cosmwasm.NewWatcher(*terra2WS, *terra2LCD, *terra2Contract, chainMsgC[vaa.ChainIDTerra2], chainObsvReqC[vaa.ChainIDTerra2], vaa.ChainIDTerra2).Run, "terra2watch")); err != nil {
+				common.WrapWithScissors(cosmwasm.NewWatcher(*terra2WS, *terra2LCD, *terra2Contract, chainMsgC[vaa.ChainIDTerra2], chainObsvReqC[vaa.ChainIDTerra2], vaa.ChainIDTerra2, *unsafeDevMode).Run, "terra2watch")); err != nil {
 				return err
 			}
 		}
@@ -1343,7 +1343,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			common.MustRegisterReadinessSyncing(vaa.ChainIDXpla)
 			chainObsvReqC[vaa.ChainIDXpla] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "xplawatch",
-				common.WrapWithScissors(cosmwasm.NewWatcher(*xplaWS, *xplaLCD, *xplaContract, chainMsgC[vaa.ChainIDXpla], chainObsvReqC[vaa.ChainIDXpla], vaa.ChainIDXpla).Run, "xplawatch")); err != nil {
+				common.WrapWithScissors(cosmwasm.NewWatcher(*xplaWS, *xplaLCD, *xplaContract, chainMsgC[vaa.ChainIDXpla], chainObsvReqC[vaa.ChainIDXpla], vaa.ChainIDXpla, *unsafeDevMode).Run, "xplawatch")); err != nil {
 				return err
 			}
 		}
@@ -1417,7 +1417,7 @@ func runNode(cmd *cobra.Command, args []string) {
 			common.MustRegisterReadinessSyncing(vaa.ChainIDInjective)
 			chainObsvReqC[vaa.ChainIDInjective] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
 			if err := supervisor.Run(ctx, "injectivewatch",
-				common.WrapWithScissors(cosmwasm.NewWatcher(*injectiveWS, *injectiveLCD, *injectiveContract, chainMsgC[vaa.ChainIDInjective], chainObsvReqC[vaa.ChainIDInjective], vaa.ChainIDInjective).Run, "injectivewatch")); err != nil {
+				common.WrapWithScissors(cosmwasm.NewWatcher(*injectiveWS, *injectiveLCD, *injectiveContract, chainMsgC[vaa.ChainIDInjective], chainObsvReqC[vaa.ChainIDInjective], vaa.ChainIDInjective, *unsafeDevMode).Run, "injectivewatch")); err != nil {
 				return err
 			}
 		}
