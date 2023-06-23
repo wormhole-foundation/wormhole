@@ -102,13 +102,18 @@ func NewWatcher(
 	contract string,
 	msgC chan<- *common.MessagePublication,
 	obsvReqC <-chan *gossipv1.ObservationRequest,
-	chainID vaa.ChainID) *Watcher {
+	chainID vaa.ChainID,
+	unsafeDevMode bool,
+) *Watcher {
 
 	// CosmWasm 1.0.0
 	contractAddressFilterKey := "execute._contract_address"
 	contractAddressLogKey := "_contract_address"
-	if chainID == vaa.ChainIDTerra {
-		// CosmWasm <1.0.0
+	if chainID == vaa.ChainIDTerra && unsafeDevMode {
+		// Terra Classic upgraded CosmWasm versions, so they now use the new format. Here is a message from their Discord:
+		//		The v2.1.1 upgrade will occur on blockheight 13215800 on June 14th (2023) at approximately 14:00 UTC.
+		// Queries for transactions before that block no longer work, so we don't have to worry about supporting them.
+		// It is going to take some work to upgrade our tilt environment, so for now, stick with the old format in dev.
 		contractAddressFilterKey = "execute_contract.contract_address"
 		contractAddressLogKey = "contract_address"
 	}
@@ -405,6 +410,10 @@ func EventsToMessagePublications(contract string, txHash string, events []gjson.
 				logger.Debug("duplicate key in events", zap.String("network", networkName), zap.String("tx_hash", txHash), zap.String("key", keyBase.String()), zap.String("value", valueBase.String()))
 				continue
 			}
+
+			logger.Debug("msg attribute",
+				zap.String("network", networkName),
+				zap.String("tx_hash", txHash), zap.String("key", string(key)), zap.String("value", string(value)))
 
 			mappedAttributes[string(key)] = string(value)
 		}
