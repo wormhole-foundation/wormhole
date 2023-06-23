@@ -1,4 +1,4 @@
-import yargs, { CommandModule } from "yargs";
+import yargs from "yargs";
 import * as chainId from "./chainId";
 import * as contract from "./contract";
 import * as emitter from "./emitter";
