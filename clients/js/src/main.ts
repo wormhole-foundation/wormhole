@@ -18,6 +18,7 @@ import * as sui from "./cmds/sui";
 import * as transfer from "./cmds/transfer";
 import * as verifyVaa from "./cmds/verifyVaa";
 import * as status from "./cmds/status";
+import { YargsCommandModule } from "./cmds/Yargs";
 
 // Note: When adding another subcommand here, please be sure to also include it
 // in the `cmds` array in `docs.ts` so it is properly documented.
@@ -25,17 +26,17 @@ yargs(hideBin(process.argv))
   // https://github.com/yargs/yargs/blob/main/docs/advanced.md#commanddirdirectory-opts
   // can't use `.commandDir` because bundling + tree-shaking
   .command(aptos)
-  .command(editVaa)
+  .command(editVaa as unknown as YargsCommandModule)
   .command(evm)
   .command(generate)
   .command(info)
   .command(near)
-  .command(parse)
-  .command(recover)
-  .command(submit)
+  .command(parse as unknown as YargsCommandModule)
+  .command(recover as unknown as YargsCommandModule)
+  .command(submit as unknown as YargsCommandModule)
   .command(sui)
-  .command(transfer)
-  .command(verifyVaa)
-  .command(status)
+  .command(transfer as unknown as YargsCommandModule)
+  .command(verifyVaa as unknown as YargsCommandModule)
+  .command(status as unknown as YargsCommandModule)
   .strict()
   .demandCommand().argv;
