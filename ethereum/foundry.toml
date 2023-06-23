@@ -7,6 +7,7 @@ src = "contracts"
 # We put the tests into the forge-test directory (instead of test) so that
 # truffle doesn't try to build them
 test = "forge-test"
+evm_version = "london"
 
 out = 'build-forge'
 libs = ['lib', 'node_modules']
