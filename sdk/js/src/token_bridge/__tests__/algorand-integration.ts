@@ -976,7 +976,7 @@ describe("Algorand tests", () => {
         const algoWallet: Account = tempAccts[0];
 
         const Fee: number = 0;
-        var testapp: number = 8;
+        var testapp: number = 1008;
         var dest = utils
           .hexZeroPad(BigNumber.from(testapp).toHexString(), 32)
           .substring(2);
