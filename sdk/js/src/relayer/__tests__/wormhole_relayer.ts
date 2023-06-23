@@ -107,6 +107,11 @@ const optionalParams = {
   sourceChainProvider: source.provider,
   targetChainProviders: myMap,
 };
+const optionalParamsTarget = {
+  environment: network,
+  sourceChainProvider: target.provider,
+  targetChainProviders: myMap,
+};
 
 // for signing wormhole messages
 const guardians = new MockGuardians(GUARDIAN_SET_INDEX, GUARDIAN_KEYS);
@@ -171,7 +176,7 @@ const testForward = async (
     targetChain,
     sourceChain,
     notEnoughExtraForwardingValue ? TOO_LOW_GAS_LIMIT : REASONABLE_GAS_LIMIT,
-    optionalParams
+    optionalParamsTarget
   );
   const value = await relayer.getPrice(
     sourceChain,
@@ -291,13 +296,13 @@ describe("Wormhole Relayer Tests", () => {
       targetChain,
       sourceChain,
       REASONABLE_GAS_LIMIT,
-      optionalParams
+      optionalParamsTarget
     );
     const valueNeededOnTargetChain2 = await relayer.getPrice(
       targetChain,
       targetChain,
       REASONABLE_GAS_LIMIT,
-      optionalParams
+      optionalParamsTarget
     );
 
     const value = await relayer.getPrice(
