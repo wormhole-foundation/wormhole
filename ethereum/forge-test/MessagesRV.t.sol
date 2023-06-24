@@ -106,8 +106,8 @@ contract TestMessagesRV is TestUtils {
     ) public {
         vm.assume(encoded.length > 0);
         vm.assume(paramsAreWellFormed(params));
-        vm.assume(outOfBoundsGuardian < params.guardianCount);
-        vm.assume(outOfBoundsAmount <= MAX_UINT8 - params.guardianCount);
+        outOfBoundsGuardian = bound(outOfBoundsGuardian, 0, params.guardianCount - 1);
+        outOfBoundsAmount = bound(outOfBoundsAmount, 0, MAX_UINT8 - params.guardianCount);
 
         bytes32 message = keccak256(encoded);
         Structs.GuardianSet memory guardianSet = generateGuardianSet(params);
