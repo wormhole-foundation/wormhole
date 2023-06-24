@@ -29,8 +29,7 @@ contract TestSetup is TestUtils {
         proxy = new Wormhole(address(setup), bytes(""));
 
         address[] memory keys = new address[](1);
-        keys[0] = 0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe;
-        //keys[0] = vm.addr(testGuardian);
+        keys[0] = 0xbeFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe; // vm.addr(testGuardian)
 
         //proxied setup
         proxiedSetup = Setup(address(proxy));
