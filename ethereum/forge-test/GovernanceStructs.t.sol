@@ -78,10 +78,41 @@ contract TestGovernanceStructs is TestUtils {
     }
 
     // Needs loop invariant for unbounded bytes type
-    function testContractUpgradeInvalidSize(bytes memory encodedUpgrade) public {
-        vm.assume(encodedUpgrade.length != 67);
+    function testParseContractUpgradeSizeTooSmall(bytes memory encodedUpgrade)
+        public
+    {
+        vm.assume(encodedUpgrade.length < 67);
+
+        if (32 < encodedUpgrade.length)
+            encodedUpgrade[32] = bytes1(0x01); // ensure correct action
 
         vm.expectRevert();
+
+        gs.parseContractUpgrade(encodedUpgrade);
+    }
+
+    // Needs loop invariant for unbounded bytes type
+    function testParseContractUpgradeSizeTooLarge(
+        bytes32 module,
+        uint16 chain,
+        bytes32 newContract,
+        bytes memory extraBytes
+    ) public {
+        vm.assume(0 < extraBytes.length);
+
+        uint8 action = 1;
+
+        bytes memory encodedUpgrade = abi.encodePacked(
+            module,
+            action,
+            chain,
+            newContract,
+            extraBytes
+        );
+
+        assertGt(encodedUpgrade.length, 67);
+
+        vm.expectRevert("invalid ContractUpgrade");
 
         gs.parseContractUpgrade(encodedUpgrade);
     }
@@ -151,12 +182,41 @@ contract TestGovernanceStructs is TestUtils {
     }
 
     // Needs loop invariant for unbounded bytes type
-    function testSetMessageFeeInvalidSize(bytes memory encodedSetMessageFee)
+    function testParseSetMessageFeeSizeTooSmall(bytes memory encodedSetMessageFee)
         public
     {
-        vm.assume(encodedSetMessageFee.length != 67);
+        vm.assume(encodedSetMessageFee.length < 67);
+
+        if (32 < encodedSetMessageFee.length)
+            encodedSetMessageFee[32] = bytes1(0x03); // ensure correct action
 
         vm.expectRevert();
+
+        gs.parseSetMessageFee(encodedSetMessageFee);
+    }
+
+    // Needs loop invariant for unbounded bytes type
+    function testParseSetMessageFeeSizeTooLarge(
+        bytes32 module,
+        uint16 chain,
+        uint256 messageFee,
+        bytes memory extraBytes
+    ) public {
+        vm.assume(0 < extraBytes.length);
+
+        uint8 action = 3;
+
+        bytes memory encodedSetMessageFee = abi.encodePacked(
+            module,
+            action,
+            chain,
+            messageFee,
+            extraBytes
+        );
+
+        assertGt(encodedSetMessageFee.length, 67);
+
+        vm.expectRevert("invalid SetMessageFee");
 
         gs.parseSetMessageFee(encodedSetMessageFee);
     }
@@ -233,12 +293,43 @@ contract TestGovernanceStructs is TestUtils {
     }
 
     // Needs loop invariant for unbounded bytes type
-    function testTransferFeesInvalidSize(bytes memory encodedTransferFees)
+    function testParseTransferFeesSizeTooSmall(bytes memory encodedTransferFees)
         public
     {
-        vm.assume(encodedTransferFees.length != 99);
+        vm.assume(encodedTransferFees.length < 99);
+
+        if (32 < encodedTransferFees.length)
+            encodedTransferFees[32] = bytes1(0x04); // ensure correct action
 
         vm.expectRevert();
+
+        gs.parseTransferFees(encodedTransferFees);
+    }
+
+    // Needs loop invariant for unbounded bytes type
+    function testParseTransferFeesSizeTooLarge(
+        bytes32 module,
+        uint16 chain,
+        uint256 amount,
+        bytes32 recipient,
+        bytes memory extraBytes
+    ) public {
+        vm.assume(0 < extraBytes.length);
+
+        uint8 action = 4;
+
+        bytes memory encodedTransferFees = abi.encodePacked(
+            module,
+            action,
+            chain,
+            amount,
+            recipient,
+            extraBytes
+        );
+
+        assertGt(encodedTransferFees.length, 99);
+
+        vm.expectRevert("invalid TransferFees");
 
         gs.parseTransferFees(encodedTransferFees);
     }
@@ -308,12 +399,41 @@ contract TestGovernanceStructs is TestUtils {
     }
 
     // Needs loop invariant for unbounded bytes type
-    function testRecoverChainIdInvalidSize(bytes memory encodedRecoverChainId)
+    function testParseRecoverChainIdSizeTooSmall(bytes memory encodedRecoverChainId)
         public
     {
-        vm.assume(encodedRecoverChainId.length != 67);
+        vm.assume(encodedRecoverChainId.length < 67);
+
+        if (32 < encodedRecoverChainId.length)
+            encodedRecoverChainId[32] = bytes1(0x05); // ensure correct action
 
         vm.expectRevert();
+
+        gs.parseRecoverChainId(encodedRecoverChainId);
+    }
+
+    // Needs loop invariant for unbounded bytes type
+    function testParseRecoverChainIdSizeTooLarge(
+        bytes32 module,
+        uint256 evmChainId,
+        uint16 newChainId,
+        bytes memory extraBytes
+    ) public {
+        vm.assume(0 < extraBytes.length);
+
+        uint8 action = 5;
+
+        bytes memory encodedRecoverChainId = abi.encodePacked(
+            module,
+            action,
+            evmChainId,
+            newChainId,
+            extraBytes
+        );
+
+        assertGt(encodedRecoverChainId.length, 67);
+
+        vm.expectRevert("invalid RecoverChainId");
 
         gs.parseRecoverChainId(encodedRecoverChainId);
     }
