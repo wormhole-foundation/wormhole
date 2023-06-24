@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 set -euxo pipefail
 
 forge_build() {
@@ -26,7 +27,7 @@ foundry_prove() {
         ${break_every_step}                \
         ${break_on_calls}                  \
         ${auto_abstract}                   \
-        ${tests}
+        ${tests[*]}
 }
 
 max_depth=5000
@@ -72,37 +73,38 @@ auto_abstract=
 
 # List of tests to symbolically execute
 
-tests=""
-tests+="--test TestSetters.testUpdateGuardianSetIndex_KEVM "
-tests+="--test TestSetters.testExpireGuardianSet_KEVM "
-tests+="--test TestSetters.testSetMessageFee_KEVM "
-tests+="--test TestSetters.testSetGovernanceContract_KEVM "
-tests+="--test TestSetters.testSetInitialized_KEVM "
-tests+="--test TestSetters.testSetGovernanceActionConsumed_KEVM "
-tests+="--test TestSetters.testSetChainId_KEVM "
-tests+="--test TestSetters.testSetGovernanceChainId_KEVM "
-tests+="--test TestSetters.testSetNextSequence_KEVM "
-tests+="--test TestSetters.testSetEvmChainId_Success_KEVM "
-tests+="--test TestSetters.testSetEvmChainId_Revert_KEVM "
-tests+="--test TestGetters.testGetGuardianSetIndex_KEVM "
-tests+="--test TestGetters.testGetMessageFee_KEVM "
-tests+="--test TestGetters.testGetGovernanceContract_KEVM "
-tests+="--test TestGetters.testIsInitialized_KEVM "
-tests+="--test TestGetters.testGetGovernanceActionConsumed_KEVM "
-tests+="--test TestGetters.testChainId_KEVM "
-tests+="--test TestGetters.testGovernanceChainId_KEVM "
-tests+="--test TestGetters.testNextSequence_KEVM "
-tests+="--test TestGetters.testEvmChainId_KEVM "
-tests+="--test TestGovernanceStructs.testParseContractUpgrade_KEVM "
-tests+="--test TestGovernanceStructs.testParseContractUpgradeWrongAction_KEVM "
-tests+="--test TestGovernanceStructs.testParseSetMessageFee_KEVM "
-tests+="--test TestGovernanceStructs.testParseSetMessageFeeWrongAction_KEVM "
-tests+="--test TestGovernanceStructs.testParseTransferFees_KEVM "
-tests+="--test TestGovernanceStructs.testParseTransferFeesWrongAction_KEVM "
-tests+="--test TestGovernanceStructs.testParseRecoverChainId_KEVM "
-tests+="--test TestGovernanceStructs.testParseRecoverChainIdWrongAction_KEVM "
-tests+="--test TestSetup.testInitialize_after_setup_revert_KEVM "
-tests+="--test TestSetup.testSetup_after_setup_revert_KEVM "
+tests=(
+    "--test TestSetters.testUpdateGuardianSetIndex_KEVM "
+    "--test TestSetters.testExpireGuardianSet_KEVM "
+    "--test TestSetters.testSetMessageFee_KEVM "
+    "--test TestSetters.testSetGovernanceContract_KEVM "
+    "--test TestSetters.testSetInitialized_KEVM "
+    "--test TestSetters.testSetGovernanceActionConsumed_KEVM "
+    "--test TestSetters.testSetChainId_KEVM "
+    "--test TestSetters.testSetGovernanceChainId_KEVM "
+    "--test TestSetters.testSetNextSequence_KEVM "
+    "--test TestSetters.testSetEvmChainId_Success_KEVM "
+    "--test TestSetters.testSetEvmChainId_Revert_KEVM "
+    "--test TestGetters.testGetGuardianSetIndex_KEVM "
+    "--test TestGetters.testGetMessageFee_KEVM "
+    "--test TestGetters.testGetGovernanceContract_KEVM "
+    "--test TestGetters.testIsInitialized_KEVM "
+    "--test TestGetters.testGetGovernanceActionConsumed_KEVM "
+    "--test TestGetters.testChainId_KEVM "
+    "--test TestGetters.testGovernanceChainId_KEVM "
+    "--test TestGetters.testNextSequence_KEVM "
+    "--test TestGetters.testEvmChainId_KEVM "
+    "--test TestGovernanceStructs.testParseContractUpgrade_KEVM "
+    "--test TestGovernanceStructs.testParseContractUpgradeWrongAction_KEVM "
+    "--test TestGovernanceStructs.testParseSetMessageFee_KEVM "
+    "--test TestGovernanceStructs.testParseSetMessageFeeWrongAction_KEVM "
+    "--test TestGovernanceStructs.testParseTransferFees_KEVM "
+    "--test TestGovernanceStructs.testParseTransferFeesWrongAction_KEVM "
+    "--test TestGovernanceStructs.testParseRecoverChainId_KEVM "
+    "--test TestGovernanceStructs.testParseRecoverChainIdWrongAction_KEVM "
+    "--test TestSetup.testInitialize_after_setup_revert_KEVM "
+    "--test TestSetup.testSetup_after_setup_revert_KEVM "
+)
 
 # Comment these lines as needed
 pkill kore-rpc || true
