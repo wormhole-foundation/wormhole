@@ -13,8 +13,7 @@ export async function sendMessage(
   sourceChain: ChainInfo,
   targetChain: ChainInfo,
   fetchSignedVaa: boolean = false,
-  queryMessageOnTargetFlag: boolean = true
-): Promise<boolean | undefined> {
+): Promise<boolean> {
   console.log(
     `Sending message from chain ${sourceChain.chainId} to ${targetChain.chainId}...`
   );
@@ -70,10 +69,7 @@ export async function sendMessage(
     }
   }
 
-  if (queryMessageOnTargetFlag) {
-    return await queryMessageOnTarget(sentMessage, targetChain);
-  }
-  console.log("");
+  return await queryMessageOnTarget(sentMessage, targetChain);
 }
 
 async function queryMessageOnTarget(

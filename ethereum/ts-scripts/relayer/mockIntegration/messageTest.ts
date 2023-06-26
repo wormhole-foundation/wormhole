@@ -1,9 +1,7 @@
 import {
   ChainInfo,
-  getWormholeRelayer,
   getOperatingChains,
   init,
-  loadChains,
 } from "../helpers/env";
 import { sendMessage } from "./messageUtils";
 
@@ -15,23 +13,18 @@ async function run() {
   const fetchSignedVaa = !!process.argv.find(
     (arg) => arg === "--fetchSignedVaa"
   );
-  const queryMessageOnTarget = !process.argv.find(
-    (arg) => arg === "--noQueryMessageOnTarget"
-  );
   console.log(chains);
   if (process.argv[2] === "--from" && process.argv[4] === "--to") {
     await sendMessage(
       getChainById(process.argv[3]),
       getChainById(process.argv[5]),
       fetchSignedVaa,
-      queryMessageOnTarget
     );
   } else if (process.argv[4] === "--from" && process.argv[2] === "--to") {
     await sendMessage(
       getChainById(process.argv[5]),
       getChainById(process.argv[3]),
       fetchSignedVaa,
-      queryMessageOnTarget
     );
   } else if (process.argv[2] === "--per-chain") {
     for (let i = 0; i < chains.length; ++i) {
@@ -39,7 +32,6 @@ async function run() {
         chains[i],
         chains[i === 0 ? chains.length - 1 : 0],
         fetchSignedVaa,
-        queryMessageOnTarget
       );
     }
   } else if (process.argv[2] === "--matrix") {
@@ -49,7 +41,6 @@ async function run() {
           chains[i],
           chains[j],
           fetchSignedVaa,
-          queryMessageOnTarget
         );
       }
     }
@@ -58,7 +49,6 @@ async function run() {
       chains[0],
       chains[1],
       fetchSignedVaa,
-      queryMessageOnTarget
     );
   }
 }
