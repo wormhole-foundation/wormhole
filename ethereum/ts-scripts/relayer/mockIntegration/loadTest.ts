@@ -48,7 +48,7 @@ async function main() {
   console.log(
     `Running test every ${period / 1000} seconds (${period /
       1000 /
-      60}} minutes)`
+      60}) minutes)`
   );
 
   runMetricsServer({ port: 1234 });
