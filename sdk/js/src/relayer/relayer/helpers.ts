@@ -7,8 +7,6 @@ import {
   tryNativeToHexString,
   isChain,
   CONTRACTS,
-  getSignedVAAWithRetry,
-  SignedVaa,
 } from "../../";
 import { BigNumber, ContractReceipt, ethers } from "ethers";
 import { getWormholeRelayer, RPCS_BY_CHAIN } from "../consts";
@@ -32,7 +30,6 @@ import {
 } from "../../ethers-contracts/";
 import { DeliveryEvent } from "../../ethers-contracts/WormholeRelayer";
 import { VaaKeyStruct } from "../../ethers-contracts/IWormholeRelayer.sol/IWormholeRelayer";
-import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
 
 export type DeliveryTargetInfo = {
   status: DeliveryStatus | string;
@@ -45,31 +42,6 @@ export type DeliveryTargetInfo = {
   revertString?: string; // Only defined if status is RECEIVER_FAILURE or FORWARD_REQUEST_FAILURE
   overrides?: DeliveryOverrideArgs;
 };
-
-export async function getVAA(
-  wormholeRPCs: string[] | string,
-  vaaKey: VaaKey,
-  isNode?: boolean
-): Promise<SignedVaa> {
-  if (typeof wormholeRPCs === "string") {
-    wormholeRPCs = [wormholeRPCs];
-  }
-  const vaa = await getSignedVAAWithRetry(
-    wormholeRPCs,
-    vaaKey.chainId! as ChainId,
-    vaaKey.emitterAddress!.toString("hex"),
-    vaaKey.sequence!.toBigInt().toString(),
-    isNode
-      ? {
-          transport: NodeHttpTransport(),
-        }
-      : {},
-    2000,
-    4
-  );
-
-  return Buffer.from(vaa.vaaBytes);
-}
 
 export function parseWormholeLog(log: ethers.providers.Log): {
   type: RelayerPayloadId;
