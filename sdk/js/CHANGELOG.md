@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.20
+
+### Added
+
+Generic relayer support
+
+### Changed
+
+Updated terra.js version
+
 ## 0.9.18
 
 ### Added
