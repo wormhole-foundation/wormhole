@@ -66,7 +66,12 @@ func (s *supervisor) processor(ctx context.Context) {
 			return
 		case <-gc.C:
 			if !clean {
-				s.processGC()
+				if s.processGC() {
+					s.ilogger.Info("root node cleaned up; supervisor processor exiting...", zap.Error(ctx.Err()))
+					s.processKill()
+					s.ilogger.Info("supervisor exited")
+					return
+				}
 			}
 			clean = true
 			cleanCycles += 1
@@ -220,7 +225,8 @@ func (s *supervisor) processDied(r *processorRequestDied) {
 // processGC runs the GC process. It's not really Garbage Collection, as in, it doesn't remove unnecessary tree nodes -
 // but it does find nodes that need to be restarted, find the subset that can and then schedules them for running.
 // As such, it's less of a Garbage Collector and more of a Necromancer. However, GC is a friendlier name.
-func (s *supervisor) processGC() {
+// Returns true if the root node was cleaned up, and false otherwise.
+func (s *supervisor) processGC() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -332,6 +338,8 @@ func (s *supervisor) processGC() {
 	want := make(map[string]bool)
 	// All DNs that need to be restarted and can be restarted by the GC process - a subset of 'want' DNs.
 	can := make(map[string]bool)
+	// All DNs that need to be cleaned up by the GC process.
+	cleanup := make(map[string]bool)
 	// The set difference between 'want' and 'can' are all nodes that should be restarted but can't yet (ie. because
 	// a child is still in the process of being canceled).
 
@@ -344,6 +352,12 @@ func (s *supervisor) processGC() {
 
 		cur := queue[0]
 		queue = queue[1:]
+
+		// If this node is ephemeral and is DONE, DEAD or CANCELED, it should be cleaned up.
+		if cur.ephemeral && (cur.state == nodeStateDead || cur.state == nodeStateCanceled || cur.state == nodeStateDone) {
+			cleanup[cur.dn()] = true
+			continue
+		}
 
 		// If this node is DEAD or CANCELED it should be restarted.
 		if cur.state == nodeStateDead || cur.state == nodeStateCanceled {
@@ -362,6 +376,21 @@ func (s *supervisor) processGC() {
 		// Otherwise, traverse further down the tree to see if something else needs to be done.
 		for _, c := range cur.children {
 			queue = append(queue, c)
+		}
+	}
+
+	// Clean up ephemeral nodes
+	for dn := range cleanup {
+		n := s.nodeByDN(dn)
+		s.ilogger.Debug("cleaning up dead ephemeral node", zap.String("dn", dn))
+		if n.parent != nil {
+			delete(n.parent.children, n.name)
+			n.parent.removeRunnableFromGroup(n.name)
+		} else {
+			if len(can) > 0 {
+				panic("root node should not be cleaned up; there are nodes that can be restarted")
+			}
+			return true
 		}
 	}
 
@@ -387,4 +416,6 @@ func (s *supervisor) processGC() {
 			}
 		}(n, bo)
 	}
+
+	return false
 }

@@ -32,6 +32,9 @@ type node struct {
 	// The current state of the runnable in this node.
 	state nodeState
 
+	// If the node is ephemeral. See SignalEphemeral.
+	ephemeral bool
+
 	// Backoff used to keep runnables from being restarted too fast.
 	bo *backoff.ExponentialBackOff
 
@@ -127,6 +130,23 @@ func (n *node) groupSiblings(name string) map[string]bool {
 		}
 	}
 	return nil
+}
+
+// removeRunnableFromGroup is a helper function to remove a given runnable by name from a runnable group within this
+// node.
+func (n *node) removeRunnableFromGroup(name string) {
+	for i, m := range n.groups {
+		if _, ok := m[name]; ok {
+			if len(m) == 1 {
+				// If the group is empty, remove it.
+				n.groups[i] = n.groups[len(n.groups)-1]
+				n.groups = n.groups[:len(n.groups)-1]
+			} else {
+				// If the group is not empty, remove the name from the group.
+				delete(m, name)
+			}
+		}
+	}
 }
 
 // newNode creates a new node with a given parent. It does not register it with the parent (as that depends on group
@@ -263,6 +283,14 @@ func (n *node) signal(signal SignalType) {
 		}
 		n.state = nodeStateDone
 		n.bo.Reset()
+	case SignalEphemeral:
+		if n.state != nodeStateHealthy {
+			panic(fmt.Errorf("node %s didn't signal healthy", n))
+		}
+		if len(n.children) != 0 {
+			panic(fmt.Errorf("node %s has children", n))
+		}
+		n.ephemeral = true
 	}
 }
 
