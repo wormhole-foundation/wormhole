@@ -279,6 +279,50 @@ func Run(
 			return fmt.Errorf("failed to subscribe topic: %w", err)
 		}
 
+		// Make sure we connect to at least 1 bootstrap node (this is particularly important in a local devnet and CI
+		// as peer discovery can take a long time).
+
+		// Count number of successful connection attempts. If we fail to connect to any bootstrap peer, kill the service
+		// TODO: Currently, returning from this function will lead to rootCtxCancel() being called in the defer() above.
+		// 		The service will then be restarted by Tilt/kubernetes
+		successes := 0
+		// Are we a bootstrap node? If so, it's okay to not have any peers.
+		bootstrapNode := false
+
+		for _, addr := range strings.Split(bootstrapPeers, ",") {
+			if addr == "" {
+				continue
+			}
+			ma, err := multiaddr.NewMultiaddr(addr)
+			if err != nil {
+				logger.Error("Invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
+				continue
+			}
+			pi, err := peer.AddrInfoFromP2pAddr(ma)
+			if err != nil {
+				logger.Error("Invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
+				continue
+			}
+
+			if pi.ID == h.ID() {
+				logger.Info("We're a bootstrap node")
+				bootstrapNode = true
+				continue
+			}
+
+			if err = h.Connect(ctx, *pi); err != nil {
+				logger.Error("Failed to connect to bootstrap peer", zap.String("peer", addr), zap.Error(err))
+			} else {
+				successes += 1
+			}
+		}
+
+		if successes == 0 && !bootstrapNode {
+			return fmt.Errorf("failed to connect to any bootstrap peer")
+		} else {
+			logger.Info("Connected to bootstrap peers", zap.Int("num", successes))
+		}
+
 		logger.Info("Node has been started", zap.String("peer_id", h.ID().String()),
 			zap.String("addrs", fmt.Sprintf("%v", h.Addrs())))
 
