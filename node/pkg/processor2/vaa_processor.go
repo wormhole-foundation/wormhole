@@ -25,6 +25,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+var PARALLELISM = runtime.NumCPU() / 2
+
 // VAAConsensusProcessor is a reactor for performing consensus on v1 VAA messages. It sits on top of a reactor.Manager and implements
 // VAA specific logic like persistence, signed VAA broadcasts, accounting and governor.
 type VAAConsensusProcessor struct {
@@ -110,12 +112,12 @@ func (p *VAAConsensusProcessor) Run(ctx context.Context) error {
 	wg := &sync.WaitGroup{}
 
 	// Processor for local message observations
-	for i := 0; i < runtime.NumCPU()/2; i++ {
+	for i := 0; i < PARALLELISM; i++ {
 		spawnChannelProcessor(ctx, wg, p.msgC, p.processMessageObservation)
 	}
 
 	// Processors for inbound signed VAAs
-	for i := 0; i < runtime.NumCPU()/2; i++ {
+	for i := 0; i < PARALLELISM; i++ {
 		spawnChannelProcessor(ctx, wg, p.signedInC, p.handleSignedVAA)
 	}
 

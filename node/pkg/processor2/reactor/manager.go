@@ -17,6 +17,8 @@ import (
 	"go.uber.org/zap"
 )
 
+var PARALLELISM = runtime.NumCPU() / 2
+
 // Manager handles the creation and maintenance of reactors for incoming local and foreign observations
 type Manager[K Observation] struct {
 	// group of the manager. This is a label for this manager and all associated reactors.
@@ -85,7 +87,7 @@ func (p *Manager[K]) Run(ctx context.Context) error {
 	p.logger = p.logger.With(zap.String("group", p.group))
 
 	wg := sync.WaitGroup{}
-	for i := 0; i < runtime.NumCPU()/2; i++ {
+	for i := 0; i < PARALLELISM; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

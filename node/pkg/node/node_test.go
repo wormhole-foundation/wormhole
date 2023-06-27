@@ -25,6 +25,8 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/devnet"
+	"github.com/certusone/wormhole/node/pkg/processor2"
+	"github.com/certusone/wormhole/node/pkg/processor2/reactor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
@@ -982,6 +984,8 @@ func BenchmarkConsensus(b *testing.B) {
 	require.Equal(b, b.N, 1)
 	CONSOLE_LOG_LEVEL = zap.WarnLevel
 	PROCESSOR_VERSION = 2
+	processor2.PARALLELISM = 2
+	reactor.PARALLELISM = 2
 	//CONSOLE_LOG_LEVEL = zap.InfoLevel
 	//CONSOLE_LOG_LEVEL = zap.DebugLevel
 
@@ -989,7 +993,7 @@ func BenchmarkConsensus(b *testing.B) {
 	//benchmarkConsensus(b, "1", 19, 500, 20) // panic: could not find [reactor-0x4b2863a46b48ca330fe7b82857bff6fa5d5e46bbd268fd17a8dad7c8fbd5c00b] (root.g-0.g.processor.vaa-reactor-manager.reactor-0x4b2863a46b48ca330fe7b82857bff6fa5d5e46bbd268fd17a8dad7c8fbd5c00b) in root.g-0.g.processor.vaa-reactor-manager (NODE_STATE_NEW)
 	//benchmarkConsensus(b, "1", 19, 200, 10) // panic (same as above)
 	//benchmarkConsensus(b, "1", 19, 100, 50) // with processor-v2: 50s
-	//benchmarkConsensus(b, "1", 19, 100, 10) // with processor-v2: 27s
+	benchmarkConsensus(b, "1", 19, 100, 10) // with processor-v2: 27s
 
 	//benchmarkConsensus(b, "1", 19, 1000, 30) // with processor-v1: 37s
 	//benchmarkConsensus(b, "1", 19, 1000, 20) // with processor-v1: 36s
