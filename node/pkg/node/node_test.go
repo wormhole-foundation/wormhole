@@ -62,6 +62,8 @@ const WAIT_FOR_METRICS = false
 // The level at which logs will be written to console; During testing, logs are produced and buffered at Debug level, because some tests need to look for certain entries.
 var CONSOLE_LOG_LEVEL = zap.InfoLevel
 
+var PROCESSOR_VERSION uint
+
 var TEST_ID_CTR atomic.Uint32
 
 func getTestId() uint {
@@ -189,7 +191,14 @@ func mockGuardianRunnable(testId uint, gs []*mockGuardian, mockGuardianIndex uin
 			GuardianOptionPublicWeb(mockPublicWeb(testId, mockGuardianIndex), publicSocketPath, "", false, path.Join(dataDir, "autocert")),
 			GuardianOptionAdminService(adminSocketPath, nil, nil, rpcMap),
 			GuardianOptionStatusServer(fmt.Sprintf("[::]:%d", mockStatusPort(testId, mockGuardianIndex))),
-			GuardianOptionProcessor(),
+		}
+
+		if PROCESSOR_VERSION == 1 {
+			guardianOptions = append(guardianOptions, GuardianOptionProcessor())
+		} else if PROCESSOR_VERSION == 2 {
+			guardianOptions = append(guardianOptions, GuardianOptionProcessor2())
+		} else {
+			return errors.New("unsupported processor version")
 		}
 
 		guardianNode := NewGuardianNode(
@@ -298,7 +307,7 @@ func waitForPromMetricGte(t testing.TB, testId uint, ctx context.Context, gs []*
 	}
 }
 
-// waitForVaa polls the publicRpc service every 5ms until there is a response.
+// waitForVaa polls the publicRpc service every 20ms until there is a response.
 func waitForVaa(ctx context.Context, c publicrpcv1.PublicRPCServiceClient, msgId *publicrpcv1.MessageID, mustNotReachQuorum bool) (*publicrpcv1.GetSignedVAAResponse, error) {
 	var r *publicrpcv1.GetSignedVAAResponse
 	var err error
@@ -321,7 +330,7 @@ func waitForVaa(ctx context.Context, c publicrpcv1.PublicRPCServiceClient, msgId
 			// no need to re-try because we're expecting an error.
 			return r, err
 		}
-		time.Sleep(time.Millisecond * 10)
+		time.Sleep(time.Millisecond * 20)
 	}
 }
 
@@ -971,10 +980,24 @@ func BenchmarkCrypto(b *testing.B) {
 // How to run: go test -v -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' -bench ^BenchmarkConsensus -benchtime=1x -count 1 -run ^$ > bench.log; tail bench.log
 func BenchmarkConsensus(b *testing.B) {
 	require.Equal(b, b.N, 1)
-	//CONSOLE_LOG_LEVEL = zap.DebugLevel
-	//CONSOLE_LOG_LEVEL = zap.InfoLevel
 	CONSOLE_LOG_LEVEL = zap.WarnLevel
-	benchmarkConsensus(b, "1", 19, 1000, 2) // ~28s
+	PROCESSOR_VERSION = 2
+	//CONSOLE_LOG_LEVEL = zap.InfoLevel
+	//CONSOLE_LOG_LEVEL = zap.DebugLevel
+
+	// Results with increased channel sizes:
+	//benchmarkConsensus(b, "1", 19, 500, 20) // panic: could not find [reactor-0x4b2863a46b48ca330fe7b82857bff6fa5d5e46bbd268fd17a8dad7c8fbd5c00b] (root.g-0.g.processor.vaa-reactor-manager.reactor-0x4b2863a46b48ca330fe7b82857bff6fa5d5e46bbd268fd17a8dad7c8fbd5c00b) in root.g-0.g.processor.vaa-reactor-manager (NODE_STATE_NEW)
+	//benchmarkConsensus(b, "1", 19, 200, 10) // panic (same as above)
+	//benchmarkConsensus(b, "1", 19, 100, 50) // with processor-v2: 50s
+	//benchmarkConsensus(b, "1", 19, 100, 10) // with processor-v2: 27s
+
+	//benchmarkConsensus(b, "1", 19, 1000, 30) // with processor-v1: 37s
+	//benchmarkConsensus(b, "1", 19, 1000, 20) // with processor-v1: 36s
+	//benchmarkConsensus(b, "1", 19, 100, 10) // with processor-v1: 3s
+
+	// Results before increasing channel sizes, i.e. stacked on release v2.18.7
+	//benchmarkConsensus(b, "1", 19, 100, 1) // with processor-v2: 43s
+	//benchmarkConsensus(b, "1", 19, 1000, 2) // ~28s
 	//benchmarkConsensus(b, "1", 19, 100, 2) // ~2s
 	//benchmarkConsensus(b, "1", 19, 100, 3) // sometimes fails, i.e. too much parallelism
 	//benchmarkConsensus(b, "1", 19, 100, 10) // sometimes fails, i.e. too much parallelism
@@ -989,7 +1012,7 @@ func benchmarkConsensus(t *testing.B, name string, numGuardians int, numMessages
 		testId := getTestId()
 		msgSeqStart := someMsgSequenceCounter
 
-		const testTimeout = time.Minute * 2
+		const testTimeout = time.Minute * 5
 		const guardianSetIndex = 5 // index of the active guardian set (can be anything, just needs to be set to something)
 
 		// Test's main lifecycle context.
