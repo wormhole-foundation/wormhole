@@ -10,8 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"go.uber.org/zap"
 
+	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
-	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
 var (
@@ -23,8 +23,9 @@ var (
 )
 
 // handleInjection processes a pre-populated VAA injected locally.
-func (p *Processor) handleInjection(ctx context.Context, v *vaa.VAA) {
+func (p *Processor) handleInjection(ctx context.Context, msg *common.MessagePublication) {
 	// Generate digest of the unsigned VAA.
+	v := msg.CreateVAA(0) // The guardian set index is not part of the digest, so we can pass in zero.
 	digest := v.SigningDigest()
 
 	// The internal originator is responsible for logging the full VAA, just log the digest here.

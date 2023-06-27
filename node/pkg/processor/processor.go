@@ -96,7 +96,7 @@ type Processor struct {
 	signedInC <-chan *gossipv1.SignedVAAWithQuorum
 
 	// injectC is a channel of VAAs injected locally.
-	injectC <-chan *vaa.VAA
+	injectC <-chan *common.MessagePublication
 
 	// gk is the node's guardian private key
 	gk *ecdsa.PrivateKey
@@ -137,7 +137,7 @@ func NewProcessor(
 	gossipSendC chan<- []byte,
 	obsvC chan *gossipv1.SignedObservation,
 	obsvReqSendC chan<- *gossipv1.ObservationRequest,
-	injectC <-chan *vaa.VAA,
+	injectC <-chan *common.MessagePublication,
 	signedInC <-chan *gossipv1.SignedVAAWithQuorum,
 	gk *ecdsa.PrivateKey,
 	gst *common.GuardianSetState,

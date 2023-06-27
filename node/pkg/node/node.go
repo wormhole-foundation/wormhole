@@ -13,7 +13,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/reporter"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 
-	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -66,7 +65,7 @@ type G struct {
 	// Outbound observation requests
 	obsvReqSendC channelPair[*gossipv1.ObservationRequest]
 	// Injected VAAs (manually generated rather than created via observation)
-	injectC channelPair[*vaa.VAA]
+	injectC channelPair[*common.MessagePublication]
 	// acctC is the channel where messages will be put after they reached quorum in the accountant.
 	acctC channelPair[*common.MessagePublication]
 }
@@ -94,7 +93,7 @@ func (g *G) initializeBasic(logger *zap.Logger, rootCtxCancel context.CancelFunc
 	g.signedInC = makeChannelPair[*gossipv1.SignedVAAWithQuorum](inboundSignedVaaBufferSize)
 	g.obsvReqC = makeChannelPair[*gossipv1.ObservationRequest](observationRequestOutboundBufferSize)
 	g.obsvReqSendC = makeChannelPair[*gossipv1.ObservationRequest](observationRequestInboundBufferSize)
-	g.injectC = makeChannelPair[*vaa.VAA](0)
+	g.injectC = makeChannelPair[*common.MessagePublication](0)
 	g.acctC = makeChannelPair[*common.MessagePublication](accountant.MsgChannelCapacity)
 
 	// Guardian set state managed by processor

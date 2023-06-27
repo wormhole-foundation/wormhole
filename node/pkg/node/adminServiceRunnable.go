@@ -18,7 +18,6 @@ import (
 	"github.com/certusone/wormhole/node/pkg/publicrpc"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
-	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
@@ -28,7 +27,7 @@ import (
 func adminServiceRunnable(
 	logger *zap.Logger,
 	socketPath string,
-	injectC chan<- *vaa.VAA,
+	injectC chan<- *common.MessagePublication,
 	signedInC chan<- *gossipv1.SignedVAAWithQuorum,
 	obsvReqSendC chan<- *gossipv1.ObservationRequest,
 	db *db.Database,
