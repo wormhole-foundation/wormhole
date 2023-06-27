@@ -542,6 +542,9 @@ func testConsensus(t *testing.T, testCases []testCase, numGuardians int) {
 		for i := 0; i < numGuardians; i++ {
 			gRun := mockGuardianRunnable(gs, uint(i), obsDb)
 			err := supervisor.Run(ctx, fmt.Sprintf("g-%d", i), gRun)
+			if i == 0 && numGuardians > 1 {
+				time.Sleep(time.Second) // give the bootstrap guardian some time to start up
+			}
 			assert.NoError(t, err)
 		}
 		logger.Info("All Guardians initiated.")
