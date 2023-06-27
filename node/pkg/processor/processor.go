@@ -95,9 +95,6 @@ type Processor struct {
 	// signedInC is a channel of inbound signed VAA observations from p2p
 	signedInC <-chan *gossipv1.SignedVAAWithQuorum
 
-	// injectC is a channel of VAAs injected locally.
-	injectC <-chan *vaa.VAA
-
 	// gk is the node's guardian private key
 	gk *ecdsa.PrivateKey
 
@@ -137,7 +134,6 @@ func NewProcessor(
 	gossipSendC chan<- []byte,
 	obsvC chan *gossipv1.SignedObservation,
 	obsvReqSendC chan<- *gossipv1.ObservationRequest,
-	injectC <-chan *vaa.VAA,
 	signedInC <-chan *gossipv1.SignedVAAWithQuorum,
 	gk *ecdsa.PrivateKey,
 	gst *common.GuardianSetState,
@@ -154,7 +150,6 @@ func NewProcessor(
 		obsvC:        obsvC,
 		obsvReqSendC: obsvReqSendC,
 		signedInC:    signedInC,
-		injectC:      injectC,
 		gk:           gk,
 		gst:          gst,
 		db:           db,
@@ -215,8 +210,6 @@ func (p *Processor) Run(ctx context.Context) error {
 				return fmt.Errorf("accountant published a message that is not covered by it: `%s`", k.MessageIDString())
 			}
 			p.handleMessage(ctx, k)
-		case v := <-p.injectC:
-			p.handleInjection(ctx, v)
 		case m := <-p.obsvC:
 			p.handleObservation(ctx, m)
 		case m := <-p.signedInC:
