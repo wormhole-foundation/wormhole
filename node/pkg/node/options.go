@@ -474,3 +474,49 @@ func GuardianOptionProcessor() *GuardianOption {
 			return nil
 		}}
 }
+
+// GuardianOptionProcessor2 enables the v2 processor, which is required to make consensus on messages.
+// Dependencies: db, governor, accountant
+func GuardianOptionProcessor2() *GuardianOption {
+	return &GuardianOption{
+		name: "processor",
+		// governor and accountant may be set to nil, but that choice needs to be made before the processor is configured
+		dependencies: []string{"db", "governor", "accountant"},
+
+		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
+
+			// Start routine to update guardian set state
+			go func() {
+				for {
+					select {
+					case <-ctx.Done():
+						return
+					case gs := <-g.setC.readC:
+						g.gst.Set(gs)
+						logger.Info("guardian set updated",
+							zap.Strings("set", gs.KeysAsHexStrings()),
+							zap.Uint32("index", gs.Index))
+					}
+				}
+			}()
+
+			g.runnables["processor"] = processor.NewProcessor(ctx,
+				g.db,
+				g.msgC.readC,
+				g.setC.readC,
+				g.gossipSendC,
+				g.obsvC,
+				g.obsvReqSendC.writeC,
+				g.injectC.readC,
+				g.signedInC.readC,
+				g.gk,
+				g.gst,
+				g.attestationEvents,
+				g.gov,
+				g.acct,
+				g.acctC.readC,
+			).Run
+
+			return nil
+		}}
+}
