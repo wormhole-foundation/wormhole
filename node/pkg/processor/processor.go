@@ -102,9 +102,6 @@ type Processor struct {
 	// signedInC is a channel of inbound signed VAA observations from p2p
 	signedInC <-chan *gossipv1.SignedVAAWithQuorum
 
-	// injectC is a channel of VAAs injected locally.
-	injectC <-chan *vaa.VAA
-
 	// gk is the node's guardian private key
 	gk *ecdsa.PrivateKey
 
@@ -158,7 +155,6 @@ func NewProcessor(
 	gossipSendC chan<- []byte,
 	obsvC chan *common.MsgWithTimeStamp[gossipv1.SignedObservation],
 	obsvReqSendC chan<- *gossipv1.ObservationRequest,
-	injectC <-chan *vaa.VAA,
 	signedInC <-chan *gossipv1.SignedVAAWithQuorum,
 	gk *ecdsa.PrivateKey,
 	gst *common.GuardianSetState,
@@ -176,7 +172,6 @@ func NewProcessor(
 		obsvC:        obsvC,
 		obsvReqSendC: obsvReqSendC,
 		signedInC:    signedInC,
-		injectC:      injectC,
 		gk:           gk,
 		gst:          gst,
 		db:           db,
@@ -237,7 +232,7 @@ func (p *Processor) Run(ctx context.Context) error {
 					continue
 				}
 			}
-			p.handleMessage(ctx, k)
+			p.handleMessage(k)
 
 		case k := <-p.acctReadC:
 			if p.acct == nil {
@@ -247,9 +242,7 @@ func (p *Processor) Run(ctx context.Context) error {
 			if !p.acct.IsMessageCoveredByAccountant(k) {
 				return fmt.Errorf("accountant published a message that is not covered by it: `%s`", k.MessageIDString())
 			}
-			p.handleMessage(ctx, k)
-		case v := <-p.injectC:
-			p.handleInjection(ctx, v)
+			p.handleMessage(k)
 		case m := <-p.obsvC:
 			observationChanDelay.Observe(float64(time.Since(m.Timestamp).Microseconds()))
 			p.handleObservation(ctx, m)
@@ -280,7 +273,7 @@ func (p *Processor) Run(ctx context.Context) error {
 								continue
 							}
 						}
-						p.handleMessage(ctx, k)
+						p.handleMessage(k)
 					}
 				}
 			}

@@ -18,6 +18,8 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	"github.com/holiman/uint256"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"golang.org/x/exp/slices"
 
 	"github.com/certusone/wormhole/node/pkg/db"
@@ -35,10 +37,18 @@ import (
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 )
 
+var (
+	vaaInjectionsTotal = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "wormhole_vaa_injections_total",
+			Help: "Total number of injected VAA queued for broadcast",
+		})
+)
+
 type nodePrivilegedService struct {
 	nodev1.UnimplementedNodePrivilegedServiceServer
 	db              *db.Database
-	injectC         chan<- *vaa.VAA
+	injectC         chan<- *common.MessagePublication
 	obsvReqSendC    chan<- *gossipv1.ObservationRequest
 	logger          *zap.Logger
 	signedInC       chan<- *gossipv1.SignedVAAWithQuorum
@@ -52,7 +62,7 @@ type nodePrivilegedService struct {
 
 func NewPrivService(
 	db *db.Database,
-	injectC chan<- *vaa.VAA,
+	injectC chan<- *common.MessagePublication,
 	obsvReqSendC chan<- *gossipv1.ObservationRequest,
 	logger *zap.Logger,
 	signedInC chan<- *gossipv1.SignedVAAWithQuorum,
@@ -609,7 +619,19 @@ func (s *nodePrivilegedService) InjectGovernanceVAA(ctx context.Context, req *no
 			zap.String("digest", digest.String()),
 		)
 
-		s.injectC <- v
+		vaaInjectionsTotal.Inc()
+
+		s.injectC <- &common.MessagePublication{
+			TxHash:           ethcommon.Hash{},
+			Timestamp:        v.Timestamp,
+			Nonce:            v.Nonce,
+			Sequence:         v.Sequence,
+			ConsistencyLevel: v.ConsistencyLevel,
+			EmitterChain:     v.EmitterChain,
+			EmitterAddress:   v.EmitterAddress,
+			Payload:          v.Payload,
+			Unreliable:       false,
+		}
 
 		digests[i] = digest.Bytes()
 	}
