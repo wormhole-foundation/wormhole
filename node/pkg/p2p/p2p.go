@@ -286,7 +286,9 @@ func Run(
 			ourAddr := ethcrypto.PubkeyToAddress(gk.PublicKey)
 
 			ctr := int64(0)
-			timer := time.NewTimer(time.Nanosecond) // Guardians should send out their first heartbeat immediately to speed up test runs.
+			// Guardians should send out their first heartbeat immediately to speed up test runs.
+			// But we also want to wait a little bit such that network connections can be established by then.
+			timer := time.NewTimer(time.Second * 2)
 			defer timer.Stop()
 
 			for {
