@@ -357,7 +357,7 @@ func GuardianOptionAdminService(socketPath string, ethRpc *string, ethContract *
 			adminService, err := adminServiceRunnable(
 				logger,
 				socketPath,
-				g.injectC.writeC,
+				g.msgC.writeC,
 				g.signedInC.writeC,
 				g.obsvReqSendC.writeC,
 				g.db,
@@ -460,7 +460,6 @@ func GuardianOptionProcessor() *GuardianOption {
 				g.gossipSendC,
 				g.obsvC,
 				g.obsvReqSendC.writeC,
-				g.injectC.readC,
 				g.signedInC.readC,
 				g.gk,
 				g.gst,
