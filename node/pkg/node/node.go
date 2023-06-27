@@ -165,6 +165,7 @@ func (g *G) Run(rootCtxCancel context.CancelFunc, options ...*GuardianOption) su
 			if err := g.acct.Start(ctx); err != nil {
 				logger.Fatal("acct: failed to start accountant", zap.Error(err))
 			}
+			defer g.acct.Close()
 		}
 
 		if g.gov != nil {
