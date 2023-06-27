@@ -833,8 +833,10 @@ func runNode(cmd *cobra.Command, args []string) {
 				logger.Info("Error resolving guardian-0.guardian. Trying again...")
 				time.Sleep(time.Second)
 			}
-			// TODO this is a hack. If this is not the bootstrap Guardian, we wait 5s such that the bootstrap Guardian has enough time to start.
-			logger.Info("This is not a bootstrap Guardian. Waiting another 10 seconds so the bootstrap guardian to come online.")
+			// TODO this is a hack. If this is not the bootstrap Guardian, we wait 10s such that the bootstrap Guardian has enough time to start.
+			// This may no longer be necessary because now the p2p.go ensures that it can connect to at least one bootstrap peer and will
+			// exit the whole guardian if it is unable to. Sleeping here for a bit may reduce overall startup time by preventing unnecessary restarts, though.
+			logger.Info("This is not a bootstrap Guardian. Waiting another 10 seconds for the bootstrap guardian to come online.")
 			time.Sleep(time.Second * 10)
 		}
 	} else {
