@@ -125,7 +125,7 @@ function runMetricsServer({ port }: any) {
         2
       )}`
     );
-    ctx.body = await register.getMetricsAsJSON();
+    ctx.body = await register.metrics();
   });
 
   app.use(router.routes());
