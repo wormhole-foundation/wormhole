@@ -217,7 +217,10 @@ func (perChainQuery *PerChainQueryRequest) Marshal() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Write the length of the query to facilitate on-chain parsing.
 	vaa.MustWrite(buf, binary.BigEndian, uint32(len(queryBuf)))
+
 	buf.Write(queryBuf)
 	return buf.Bytes(), nil
 }

@@ -105,7 +105,10 @@ func (msg *QueryResponsePublication) Marshal() ([]byte, error) {
 	vaa.MustWrite(buf, binary.BigEndian, vaa.ChainIDUnset)
 
 	buf.Write(msg.Request.Signature[:])
+
+	// Write the length of the query to facilitate on-chain parsing.
 	vaa.MustWrite(buf, binary.BigEndian, uint32(len(msg.Request.QueryRequest)))
+
 	buf.Write(msg.Request.QueryRequest)
 
 	// Per chain responses
