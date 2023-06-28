@@ -1,16 +1,21 @@
 // run this script with truffle exec
+//  node_modules/.bin/truffle exec scripts/test_query.js
 
 const jsonfile = require("jsonfile");
 const QueryResponseABI = jsonfile.readFileSync(
   "../build/contracts/QueryResponse.json"
 ).abi;
+
 const responseBytes =
-  "0x00004d2fded93c872040330a7d4a60cb4431d6c929c720437ed345daaff928f786f45fa31c825bad2714a69ca3f7d1324f8f9d51dc452fdfacff65ff4c6ad7e7390301010005000000000d500b1d8e8ef31e21c99d1db9a6444d3adf12700000000406fdde03000000066c6174657374000000000295f40396c790fb8cb9407de03f61daa46ef15a3c20d301e09af14c850185294c07580c6477b4cf000000600000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d57726170706564204d6174696300000000000000000000000000000000000000";
+  "0x010000ff0c222dc9e3655ec38e212e9792bf1860356d1277462b6bf747db865caca6fc08e6317b64ee3245264e371146b1d315d38c867fe1f69614368dc4430bb560f2000000005301dd9914c6010005010000004600000009307832613631616334020d500b1d8e8ef31e21c99d1db9a6444d3adf12700000000406fdde030d500b1d8e8ef31e21c99d1db9a6444d3adf12700000000418160ddd01000501000000b90000000002a61ac4c1adff9f6e180309e7d0d94c063338ddc61c1c4474cd6957c960efe659534d040005ff312e4f90c002000000600000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000d57726170706564204d6174696300000000000000000000000000000000000000000000200000000000000000000000000000000000000000007ae5649beabeddf889364a";
+
+const sigBytes =
+  "ba36cd576a0f9a8a37ec5ea6a174857922f2f170cd7ec62edcbe74b1cc7258d301e8690cfd627e608d63b5d165e2190ba081bb84f5cf473fd353109e152f72fa00";
 const sigs = [
   [
-    "0xb8320f25a42b2b4a832e18e5b68dc12f269d7d8a8d9d43c76107d74d4d7202eb",
-    "0x6d8258da2a60de95ebce1283ba6ec124a2301a864e35979ebb48af5981e0fae8",
-    "0x1b", // zero add 27
+    "0x" + sigBytes.substring(0, 64),
+    "0x" + sigBytes.substring(64, 128),
+    "0x" + (parseInt(sigBytes.substring(128, 130), 16) + 27).toString(16), // last byte plus magic 27
     "0x00",
   ],
 ];
@@ -34,22 +39,39 @@ module.exports = async function(callback) {
     const hashResult = await initialized.methods
       .getResponseHash(responseBytes)
       .call();
-    console.log(hashResult);
+    console.log("hash:", hashResult);
 
     const digestResult = await initialized.methods
       .getResponseDigest(responseBytes)
       .call();
-    console.log(digestResult);
+    console.log("digest:", digestResult);
 
     const verify = await initialized.methods
-      .verifyQueryResponse(responseBytes, sigs)
+      .verifyQueryResponseSignatures(responseBytes, sigs)
       .call();
-    console.log(verify);
+    console.log("verify result:", verify);
 
-    const result = await initialized.methods
-      .processStringResult(responseBytes, sigs)
+    const response = await initialized.methods
+      .parseAndVerifyQueryResponse(responseBytes, sigs)
       .call();
-    console.log(result);
+    console.log("response:", response);
+
+    for (let idx = 0; idx < response.responses.length; ++idx) {
+      const pcr = response.responses[idx];
+      if (pcr.queryType !== "1") {
+        console.error(
+          "eth query result" + idx + " has an invalid query type:",
+          pcr.queryType
+        );
+      } else {
+        const ethResult = await initialized.methods
+          .parseEthCallQueryResponse(pcr)
+          .call();
+        console.log("eth query result" + idx + ":", ethResult);
+      }
+    }
+
+    console.log("Test complete");
 
     callback();
   } catch (e) {
