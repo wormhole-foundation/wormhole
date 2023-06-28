@@ -106,7 +106,10 @@ func (msg *QueryResponsePublication) Marshal() ([]byte, error) {
 
 	buf.Write(msg.Request.Signature[:])
 
-	// Write the length of the response to facilitate on-chain parsing.
+	// Write the length of the request to facilitate on-chain parsing.
+	if len(msg.Request.QueryRequest) > math.MaxUint32 {
+		return nil, fmt.Errorf("request too long")
+	}
 	vaa.MustWrite(buf, binary.BigEndian, uint32(len(msg.Request.QueryRequest)))
 
 	buf.Write(msg.Request.QueryRequest)
@@ -281,6 +284,11 @@ func (perChainResponse *PerChainQueryResponse) Marshal() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Write the length of the response to facilitate on-chain parsing.
+	if len(respBuf) > math.MaxUint32 {
+		return nil, fmt.Errorf("response is too long")
+	}
 	vaa.MustWrite(buf, binary.BigEndian, uint32(len(respBuf)))
 	buf.Write(respBuf)
 	return buf.Bytes(), nil
@@ -311,7 +319,7 @@ func (perChainResponse *PerChainQueryResponse) UnmarshalFromReader(reader *bytes
 	// Skip the response length.
 	var respLength uint32
 	if err := binary.Read(reader, binary.BigEndian, &respLength); err != nil {
-		return fmt.Errorf("failed to read query length: %w", err)
+		return fmt.Errorf("failed to read response length: %w", err)
 	}
 
 	switch queryType {

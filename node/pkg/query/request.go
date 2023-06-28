@@ -219,6 +219,9 @@ func (perChainQuery *PerChainQueryRequest) Marshal() ([]byte, error) {
 	}
 
 	// Write the length of the query to facilitate on-chain parsing.
+	if len(queryBuf) > math.MaxUint32 {
+		return nil, fmt.Errorf("query too long")
+	}
 	vaa.MustWrite(buf, binary.BigEndian, uint32(len(queryBuf)))
 
 	buf.Write(queryBuf)
