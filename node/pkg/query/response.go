@@ -97,12 +97,21 @@ func (msg *QueryResponsePublication) Marshal() ([]byte, error) {
 
 	buf := new(bytes.Buffer)
 
+	vaa.MustWrite(buf, binary.BigEndian, uint8(1)) // version
+
 	// Source
 	// TODO: support writing off-chain and on-chain requests
 	// Here, unset represents an off-chain request
 	vaa.MustWrite(buf, binary.BigEndian, vaa.ChainIDUnset)
 
 	buf.Write(msg.Request.Signature[:])
+
+	// Write the length of the request to facilitate on-chain parsing.
+	if len(msg.Request.QueryRequest) > math.MaxUint32 {
+		return nil, fmt.Errorf("request too long")
+	}
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(msg.Request.QueryRequest)))
+
 	buf.Write(msg.Request.QueryRequest)
 
 	// Per chain responses
@@ -122,6 +131,15 @@ func (msg *QueryResponsePublication) Marshal() ([]byte, error) {
 func (msg *QueryResponsePublication) Unmarshal(data []byte) error {
 	reader := bytes.NewReader(data[:])
 
+	var version uint8
+	if err := binary.Read(reader, binary.BigEndian, &version); err != nil {
+		return fmt.Errorf("failed to read message version: %w", err)
+	}
+
+	if version != 1 {
+		return fmt.Errorf("unsupported message version: %d", version)
+	}
+
 	// Request
 	requestChain := vaa.ChainID(0)
 	if err := binary.Read(reader, binary.BigEndian, &requestChain); err != nil {
@@ -138,6 +156,12 @@ func (msg *QueryResponsePublication) Unmarshal(data []byte) error {
 		return fmt.Errorf("failed to read signature [%d]: %w", n, err)
 	}
 	signedQueryRequest.Signature = signature[:]
+
+	// Skip the query length.
+	queryRequestLen := uint32(0)
+	if err := binary.Read(reader, binary.BigEndian, &queryRequestLen); err != nil {
+		return fmt.Errorf("failed to read length of query request: %w", err)
+	}
 
 	queryRequest := QueryRequest{}
 	err := queryRequest.UnmarshalFromReader(reader)
@@ -260,6 +284,12 @@ func (perChainResponse *PerChainQueryResponse) Marshal() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Write the length of the response to facilitate on-chain parsing.
+	if len(respBuf) > math.MaxUint32 {
+		return nil, fmt.Errorf("response is too long")
+	}
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(respBuf)))
 	buf.Write(respBuf)
 	return buf.Bytes(), nil
 }
@@ -284,6 +314,12 @@ func (perChainResponse *PerChainQueryResponse) UnmarshalFromReader(reader *bytes
 
 	if err := ValidatePerChainQueryRequestType(queryType); err != nil {
 		return err
+	}
+
+	// Skip the response length.
+	var respLength uint32
+	if err := binary.Read(reader, binary.BigEndian, &respLength); err != nil {
+		return fmt.Errorf("failed to read response length: %w", err)
 	}
 
 	switch queryType {
