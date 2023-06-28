@@ -112,6 +112,7 @@ func (queryRequest *QueryRequest) Marshal() ([]byte, error) {
 
 	buf := new(bytes.Buffer)
 
+	vaa.MustWrite(buf, binary.BigEndian, uint8(1))           // version
 	vaa.MustWrite(buf, binary.BigEndian, queryRequest.Nonce) // uint32
 
 	vaa.MustWrite(buf, binary.BigEndian, uint8(len(queryRequest.PerChainQueries)))
@@ -134,6 +135,15 @@ func (queryRequest *QueryRequest) Unmarshal(data []byte) error {
 
 // UnmarshalFromReader deserializes the binary representation of a query request from an existing reader
 func (queryRequest *QueryRequest) UnmarshalFromReader(reader *bytes.Reader) error {
+	var version uint8
+	if err := binary.Read(reader, binary.BigEndian, &version); err != nil {
+		return fmt.Errorf("failed to read message version: %w", err)
+	}
+
+	if version != 1 {
+		return fmt.Errorf("unsupported message version: %d", version)
+	}
+
 	if err := binary.Read(reader, binary.BigEndian, &queryRequest.Nonce); err != nil {
 		return fmt.Errorf("failed to read request nonce: %w", err)
 	}
@@ -207,6 +217,13 @@ func (perChainQuery *PerChainQueryRequest) Marshal() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Write the length of the query to facilitate on-chain parsing.
+	if len(queryBuf) > math.MaxUint32 {
+		return nil, fmt.Errorf("query too long")
+	}
+	vaa.MustWrite(buf, binary.BigEndian, uint32(len(queryBuf)))
+
 	buf.Write(queryBuf)
 	return buf.Bytes(), nil
 }
@@ -231,6 +248,12 @@ func (perChainQuery *PerChainQueryRequest) UnmarshalFromReader(reader *bytes.Rea
 
 	if err := ValidatePerChainQueryRequestType(queryType); err != nil {
 		return err
+	}
+
+	// Skip the query length.
+	var queryLength uint32
+	if err := binary.Read(reader, binary.BigEndian, &queryLength); err != nil {
+		return fmt.Errorf("failed to read query length: %w", err)
 	}
 
 	switch queryType {
