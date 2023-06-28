@@ -348,7 +348,9 @@ func sendQueryAndGetRsp(queryRequest *query.QueryRequest, sk *ecdsa.PrivateKey, 
 		var isMatchingResponse bool
 		switch m := msg.Message.(type) {
 		case *gossipv1.GossipMessage_SignedQueryResponse:
-			logger.Info("query response received", zap.Any("response", m.SignedQueryResponse))
+			logger.Info("query response received", zap.Any("response", m.SignedQueryResponse),
+				zap.String("responseBytes", hexutil.Encode(m.SignedQueryResponse.QueryResponse)),
+				zap.String("sigBytes", hexutil.Encode(m.SignedQueryResponse.Signature)))
 			var response query.QueryResponsePublication
 			err := response.Unmarshal(m.SignedQueryResponse.QueryResponse)
 			if err != nil {
