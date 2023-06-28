@@ -447,10 +447,10 @@ class AlgoTest(PortalCore):
         player2 = self.getTemporaryAccount(client)
         player3 = self.getTemporaryAccount(client)
 
-        self.coreid = 4
+        self.coreid = 1004
         print("coreid = " + str(self.coreid))
 
-        self.tokenid = 6
+        self.tokenid = 1006
         print("token bridge " + str(self.tokenid) + " address " + get_application_address(self.tokenid))
 
         self.testid = self.createTestApp(client, player2)

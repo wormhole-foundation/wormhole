@@ -10,7 +10,7 @@ fi
 
 sed -i -e 's@export ALGOD_URL=""@export ALGOD_URL="https://github.com/algorand/go-algorand"@' \
        -e 's/export ALGOD_CHANNEL="stable"/export ALGOD_CHANNEL=""/'   \
-       -e 's/export ALGOD_BRANCH=""/export ALGOD_BRANCH="v3.9.2-stable"/'   \
+       -e 's/export ALGOD_BRANCH=""/export ALGOD_BRANCH="v3.16.2-stable"/'   \
        -e 's/export INDEXER_ENABLE_ALL_PARAMETERS="false"/export INDEXER_ENABLE_ALL_PARAMETERS="true"/'  _sandbox/config.dev
 
 cd _sandbox
