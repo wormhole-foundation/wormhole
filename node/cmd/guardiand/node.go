@@ -466,7 +466,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		// Deterministic ganache ETH devnet address.
 		*ethContract = unsafeDevModeEvmContractAddress(*ethContract)
 		*bscContract = unsafeDevModeEvmContractAddress(*bscContract)
-		// *polygonContract = unsafeDevModeEvmContractAddress(*polygonContract)
+		*polygonContract = unsafeDevModeEvmContractAddress(*polygonContract)
 		*avalancheContract = unsafeDevModeEvmContractAddress(*avalancheContract)
 		*oasisContract = unsafeDevModeEvmContractAddress(*oasisContract)
 		*auroraContract = unsafeDevModeEvmContractAddress(*auroraContract)
@@ -1349,6 +1349,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		node.GuardianOptionWatchers(watcherConfigs, ibcWatcherConfig),
 		node.GuardianOptionAccountant(*accountantContract, *accountantWS, *accountantCheckEnabled),
 		node.GuardianOptionGovernor(*chainGovernorEnabled),
+		node.GuardianOptionQueryHandler(*ccqEnabled, *ccqAllowedRequesters),
 		node.GuardianOptionAdminService(*adminSocketPath, ethRPC, ethContract, rpcMap),
 		node.GuardianOptionP2P(p2pKey, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, *p2pPort, ibc.GetFeatures),
 		node.GuardianOptionStatusServer(*statusAddr),

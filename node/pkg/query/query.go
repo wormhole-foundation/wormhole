@@ -9,6 +9,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/common"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/supervisor"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
@@ -23,9 +24,47 @@ const (
 
 	// RetryInterval specifies how long we will wait between retry intervals. This is the interval of our ticker.
 	RetryInterval = 10 * time.Second
+
+	// SignedQueryRequestChannelSize is the buffer size of the incoming query request channel.
+	SignedQueryRequestChannelSize = 50
+
+	// QueryRequestBufferSize is the buffer size of the per-network query request channel.
+	QueryRequestBufferSize = 25
 )
 
+func NewQueryHandler(
+	logger *zap.Logger,
+	env common.Environment,
+	allowedRequestorsStr string,
+	signedQueryReqC <-chan *gossipv1.SignedQueryRequest,
+	chainQueryReqC map[vaa.ChainID]chan *PerChainQueryInternal,
+	queryResponseReadC <-chan *PerChainQueryResponseInternal,
+	queryResponseWriteC chan<- *QueryResponsePublication,
+) *QueryHandler {
+	return &QueryHandler{
+		logger:               logger.With(zap.String("component", "ccq")),
+		env:                  env,
+		allowedRequestorsStr: allowedRequestorsStr,
+		signedQueryReqC:      signedQueryReqC,
+		chainQueryReqC:       chainQueryReqC,
+		queryResponseReadC:   queryResponseReadC,
+		queryResponseWriteC:  queryResponseWriteC,
+	}
+}
+
 type (
+	// QueryHandler defines the cross chain query handler.
+	QueryHandler struct {
+		logger               *zap.Logger
+		env                  common.Environment
+		allowedRequestorsStr string
+		signedQueryReqC      <-chan *gossipv1.SignedQueryRequest
+		chainQueryReqC       map[vaa.ChainID]chan *PerChainQueryInternal
+		queryResponseReadC   <-chan *PerChainQueryResponseInternal
+		queryResponseWriteC  chan<- *QueryResponsePublication
+		allowedRequestors    map[ethCommon.Address]struct{}
+	}
+
 	// pendingQuery is the cache entry for a given query.
 	pendingQuery struct {
 		signedRequest *gossipv1.SignedQueryRequest
@@ -47,18 +86,26 @@ type (
 	}
 )
 
-// HandleQueryRequests multiplexes observation requests to the appropriate chain
-func HandleQueryRequests(
-	ctx context.Context,
-	logger *zap.Logger,
-	signedQueryReqC <-chan *gossipv1.SignedQueryRequest,
-	chainQueryReqC map[vaa.ChainID]chan *PerChainQueryInternal,
-	allowedRequestors map[ethCommon.Address]struct{},
-	queryResponseReadC <-chan *PerChainQueryResponseInternal,
-	queryResponseWriteC chan<- *QueryResponsePublication,
-	env common.Environment,
-) {
-	handleQueryRequestsImpl(ctx, logger, signedQueryReqC, chainQueryReqC, allowedRequestors, queryResponseReadC, queryResponseWriteC, env, RequestTimeout, RetryInterval)
+// Start initializes the query handler and starts the runnable.
+func (qh *QueryHandler) Start(ctx context.Context) error {
+	qh.logger.Debug("entering Start", zap.String("enforceFlag", qh.allowedRequestorsStr))
+
+	var err error
+	qh.allowedRequestors, err = parseAllowedRequesters(qh.allowedRequestorsStr)
+	if err != nil {
+		return fmt.Errorf("failed to parse allowed requesters: %w", err)
+	}
+
+	if err := supervisor.Run(ctx, "query_handler", common.WrapWithScissors(qh.handleQueryRequests, "query_handler")); err != nil {
+		return fmt.Errorf("failed to start query handler routine: %w", err)
+	}
+
+	return nil
+}
+
+// handleQueryRequests multiplexes observation requests to the appropriate chain
+func (qh *QueryHandler) handleQueryRequests(ctx context.Context) error {
+	return handleQueryRequestsImpl(ctx, qh.logger, qh.signedQueryReqC, qh.chainQueryReqC, qh.allowedRequestors, qh.queryResponseReadC, qh.queryResponseWriteC, qh.env, RequestTimeout, RetryInterval)
 }
 
 // handleQueryRequestsImpl allows instantiating the handler in the test environment with shorter timeout and retry parameters.
@@ -73,7 +120,7 @@ func handleQueryRequestsImpl(
 	env common.Environment,
 	requestTimeoutImpl time.Duration,
 	retryIntervalImpl time.Duration,
-) {
+) error {
 	qLogger := logger.With(zap.String("component", "ccqhandler"))
 	qLogger.Info("cross chain queries are enabled", zap.Any("allowedRequestors", allowedRequestors), zap.String("env", string(env)))
 
@@ -106,7 +153,7 @@ func handleQueryRequestsImpl(
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return nil
 
 		case signedRequest := <-signedQueryReqC: // Inbound query request.
 			// requestor validation happens here
@@ -120,6 +167,8 @@ func handleQueryRequestsImpl(
 
 			requestID := hex.EncodeToString(signedRequest.Signature)
 			digest := QueryRequestDigest(env, signedRequest.QueryRequest)
+
+			qLogger.Info("received a query request", zap.String("requestID", requestID))
 
 			signerBytes, err := ethCrypto.Ecrecover(digest.Bytes(), signedRequest.Signature)
 			if err != nil {
@@ -296,7 +345,13 @@ func handleQueryRequestsImpl(
 					} else {
 						for requestIdx, pcq := range pq.queries {
 							if pq.responses[requestIdx] == nil && pcq.lastUpdateTime.Add(retryIntervalImpl).Before(now) {
-								qLogger.Info("retrying query request", zap.String("requestId", reqId), zap.Int("requestIdx", requestIdx), zap.Stringer("receiveTime", pq.receiveTime), zap.Stringer("lastUpdateTime", pcq.lastUpdateTime))
+								qLogger.Info("retrying query request",
+									zap.String("requestId", reqId),
+									zap.Int("requestIdx", requestIdx),
+									zap.Stringer("receiveTime", pq.receiveTime),
+									zap.Stringer("lastUpdateTime", pcq.lastUpdateTime),
+									zap.String("chainID", pq.queries[requestIdx].req.Request.ChainId.String()),
+								)
 								pcq.ccqForwardToWatcher(qLogger, pq.receiveTime)
 							}
 						}
@@ -307,8 +362,8 @@ func handleQueryRequestsImpl(
 	}
 }
 
-// ParseAllowedRequesters parses a comma separated list of allowed requesters into a map to be used for look ups.
-func ParseAllowedRequesters(ccqAllowedRequesters string) (map[ethCommon.Address]struct{}, error) {
+// parseAllowedRequesters parses a comma separated list of allowed requesters into a map to be used for look ups.
+func parseAllowedRequesters(ccqAllowedRequesters string) (map[ethCommon.Address]struct{}, error) {
 	if ccqAllowedRequesters == "" {
 		return nil, fmt.Errorf("if cross chain query is enabled `--ccqAllowedRequesters` must be specified")
 	}
