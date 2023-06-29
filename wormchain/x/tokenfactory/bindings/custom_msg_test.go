@@ -175,7 +175,8 @@ func TestMintMsg(t *testing.T) {
 	require.Equal(t, resp.Denom, coin.Denom)
 }
 
-func TestForceTransfer(t *testing.T) {
+// Capability is disabled
+/*func TestForceTransfer(t *testing.T) {
 	creator := RandomAccountAddress()
 	osmosis, ctx := SetupCustomApp(t, creator)
 
@@ -227,7 +228,7 @@ func TestForceTransfer(t *testing.T) {
 	require.Len(t, balances, 1)
 	coin := balances[0]
 	require.Equal(t, sdk.NewInt(100), coin.Amount)
-}
+}*/
 
 func TestBurnMsg(t *testing.T) {
 	creator := RandomAccountAddress()
@@ -265,7 +266,8 @@ func TestBurnMsg(t *testing.T) {
 	require.NoError(t, err)
 
 	// can burn from different address with burnFrom
-	amt, ok := sdk.NewIntFromString("1")
+	// Capability is disabled
+	/*amt, ok := sdk.NewIntFromString("1")
 	require.True(t, ok)
 	msg = bindings.TokenMsg{BurnTokens: &bindings.BurnTokens{
 		Denom:           sunDenom,
@@ -273,10 +275,11 @@ func TestBurnMsg(t *testing.T) {
 		BurnFromAddress: lucky.String(),
 	}}
 	err = executeCustom(t, ctx, osmosis, reflect, lucky, msg, sdk.Coin{})
-	require.NoError(t, err)
+	require.NoError(t, err)*/
 
 	// lucky needs to send balance to reflect contract to burn it
-	luckyBalance := osmosis.BankKeeper.GetAllBalances(ctx, lucky)
+	// Capability is disabled
+	/*luckyBalance := osmosis.BankKeeper.GetAllBalances(ctx, lucky)
 	err = osmosis.BankKeeper.SendCoins(ctx, lucky, reflect, luckyBalance)
 	require.NoError(t, err)
 
@@ -286,7 +289,7 @@ func TestBurnMsg(t *testing.T) {
 		BurnFromAddress: reflect.String(),
 	}}
 	err = executeCustom(t, ctx, osmosis, reflect, lucky, msg, sdk.Coin{})
-	require.NoError(t, err)
+	require.NoError(t, err)*/
 }
 
 type ReflectExec struct {

@@ -309,7 +309,8 @@ func TestMint(t *testing.T) {
 	}
 }
 
-func TestBurn(t *testing.T) {
+// Capability not enabled as all test use the burn from capability
+/*func TestBurn(t *testing.T) {
 	creator := RandomAccountAddress()
 	tokenz, ctx := SetupCustomApp(t, creator)
 
@@ -448,4 +449,4 @@ func TestBurn(t *testing.T) {
 			require.NoError(t, gotErr)
 		})
 	}
-}
+}*/
