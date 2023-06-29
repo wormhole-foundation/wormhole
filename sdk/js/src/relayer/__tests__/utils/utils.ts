@@ -3,7 +3,7 @@ import { PublicKey } from "@solana/web3.js";
 import { ethers } from "ethers";
 import {ETH_PRIVATE_KEY, Environment} from "../../../token_bridge/__tests__/utils/consts";
 
-const SAFE_RELAY_DELAY = 10000;
+const SAFE_RELAY_DELAY = 15000;
 
 const characters =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";

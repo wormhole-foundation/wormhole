@@ -71,6 +71,9 @@ const createTestChain = (name: ChainName) => {
     addressInfo.wormholeRelayerAddress =
       "0x53855d4b64E9A3CF59A84bc768adA716B5536BC5";
   }
+  if(network == "MAINNET") addressInfo.mockIntegrationAddress = "0xa507Ff8D183D2BEcc9Ff9F82DFeF4b074e1d0E05"
+  if(network == "MAINNET") addressInfo.mockDeliveryProviderAddress = "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81"
+
   if (!addressInfo.wormholeRelayerAddress)
     throw Error(`No core relayer address for ${name}`);
   if (!addressInfo.mockIntegrationAddress)
