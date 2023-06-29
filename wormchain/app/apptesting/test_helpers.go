@@ -1,4 +1,4 @@
-package app
+package apptesting
 
 import (
 	"encoding/json"
@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/CosmWasm/wasmd/x/wasm/keeper"
-	apphelpers "github.com/wormhole-foundation/wormchain/app/helpers"
+	"github.com/wormhole-foundation/wormchain/app"
 	appparams "github.com/wormhole-foundation/wormchain/app/params"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
@@ -23,7 +23,6 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmtypes "github.com/tendermint/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
-	"github.com/cosmos/cosmos-sdk/std"
 	"github.com/tendermint/spm/cosmoscmd"
 )
 
@@ -63,10 +62,10 @@ type EmptyAppOptions struct{}
 
 func (EmptyAppOptions) Get(_ string) interface{} { return nil }
 
-func Setup(t *testing.T, _ bool, _ uint) *App {
+func Setup(t *testing.T, _ bool, _ uint) *app.App {
 	t.Helper()
 
-	privVal := apphelpers.NewPV()
+	privVal := NewPV()
 	pubKey, err := privVal.GetPubKey()
 	require.NoError(t, err)
 	// create validator set with single validator
@@ -90,7 +89,7 @@ func Setup(t *testing.T, _ bool, _ uint) *App {
 // that also act as delegators. For simplicity, each validator is bonded with a delegation
 // of one consensus engine unit in the default token of the JunoApp from first genesis
 // account. A Nop logger is set in JunoApp.
-func SetupWithGenesisValSet(t *testing.T, valSet *tmtypes.ValidatorSet, genAccs []authtypes.GenesisAccount, balances ...banktypes.Balance) *App {
+func SetupWithGenesisValSet(t *testing.T, valSet *tmtypes.ValidatorSet, genAccs []authtypes.GenesisAccount, balances ...banktypes.Balance) *app.App {
 	t.Helper()
 
 	wormApp, genesisState := setup(true, 5)
@@ -120,33 +119,32 @@ func SetupWithGenesisValSet(t *testing.T, valSet *tmtypes.ValidatorSet, genAccs 
 	return wormApp
 }
 
-func setup(withGenesis bool, invCheckPeriod uint) (*App, GenesisState) {
+func setup(withGenesis bool, invCheckPeriod uint) (*app.App, app.GenesisState) {
 	db := dbm.NewMemDB()
-	encCdc := MakeEncodingConfig()
-	encoding := cosmoscmd.MakeEncodingConfig(ModuleBasics)
-	app := New(
+	encoding := cosmoscmd.MakeEncodingConfig(app.ModuleBasics)
+	wormApp := app.New(
 		log.NewNopLogger(),
 		db,
 		nil,
 		true,
 		map[int64]bool{},
-		DefaultNodeHome,
+		app.DefaultNodeHome,
 		invCheckPeriod,
 		encoding,
 		EmptyBaseAppOptions{},
 	)
 	if withGenesis {
-		return app.(*App), NewDefaultGenesisState(encCdc.Marshaler)
+		return wormApp.(*app.App), app.NewDefaultGenesisState(encoding.Marshaler)
 	}
 
-	return app.(*App), GenesisState{}
+	return wormApp.(*app.App), app.GenesisState{}
 }
 
 func genesisStateWithValSet(t *testing.T,
-	app *App, genesisState GenesisState,
+	app *app.App, genesisState app.GenesisState,
 	valSet *tmtypes.ValidatorSet, genAccs []authtypes.GenesisAccount,
 	balances ...banktypes.Balance,
-) GenesisState {
+) app.GenesisState {
 	// set genesis accounts
 	authGenesis := authtypes.NewGenesisState(authtypes.DefaultParams(), genAccs)
 	genesisState[authtypes.ModuleName] = app.AppCodec().MustMarshalJSON(authGenesis)
@@ -234,7 +232,7 @@ func RandomAccountAddress() sdk.AccAddress {
 	return addr
 }
 
-func ExecuteRawCustom(t *testing.T, ctx sdk.Context, app *App, contract sdk.AccAddress, sender sdk.AccAddress, msg json.RawMessage, funds sdk.Coin) error {
+func ExecuteRawCustom(t *testing.T, ctx sdk.Context, app *app.App, contract sdk.AccAddress, sender sdk.AccAddress, msg json.RawMessage, funds sdk.Coin) error {
 	t.Helper()
 	oracleBz, err := json.Marshal(msg)
 	require.NoError(t, err)
@@ -244,17 +242,7 @@ func ExecuteRawCustom(t *testing.T, ctx sdk.Context, app *App, contract sdk.AccA
 		coins = sdk.Coins{funds}
 	}
 
-	contractKeeper := keeper.NewDefaultPermissionKeeper(app.wasmKeeper)
+	contractKeeper := keeper.NewDefaultPermissionKeeper(app.GetWasmKeeper())
 	_, err = contractKeeper.Execute(ctx, contract, sender, oracleBz, coins)
 	return err
-}
-
-// MakeEncodingConfig creates an EncodingConfig for testing
-func MakeEncodingConfig() appparams.EncodingConfig {
-	encodingConfig := appparams.MakeEncodingConfig()
-	std.RegisterLegacyAminoCodec(encodingConfig.Amino)
-	std.RegisterInterfaces(encodingConfig.InterfaceRegistry)
-	ModuleBasics.RegisterLegacyAminoCodec(encodingConfig.Amino)
-	ModuleBasics.RegisterInterfaces(encodingConfig.InterfaceRegistry)
-	return encodingConfig
 }

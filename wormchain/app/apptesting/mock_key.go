@@ -1,4 +1,4 @@
-package helpers
+package apptesting
 
 import (
 	"github.com/tendermint/tendermint/crypto"
