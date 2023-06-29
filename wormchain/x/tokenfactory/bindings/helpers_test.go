@@ -16,10 +16,11 @@ import (
 
 	"github.com/CosmWasm/wasmd/x/wasm/keeper"
 	"github.com/wormhole-foundation/wormchain/app"
+	"github.com/wormhole-foundation/wormchain/app/apptesting"
 )
 
 func CreateTestInput(t *testing.T) (*app.App, sdk.Context) {
-	osmosis := app.Setup(t, true, 0)
+	osmosis := apptesting.Setup(t, true, 0)
 	ctx := osmosis.BaseApp.NewContext(false, tmproto.Header{Height: 1, ChainID: "osmosis-1", Time: time.Now().UTC()})
 	return osmosis, ctx
 }
