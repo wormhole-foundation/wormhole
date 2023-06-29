@@ -16,7 +16,6 @@ import * as recover from "./cmds/recover";
 import * as submit from "./cmds/submit";
 import * as sui from "./cmds/sui";
 import * as verifyVaa from "./cmds/verifyVaa";
-import * as status from "./cmds/status";
 
 
 const MD_TAG = "<!--CLI_USAGE-->";
@@ -41,7 +40,6 @@ async function getHelpText(cmd: any): Promise<string> {
     submit,
     sui,
     verifyVaa,
-    status
   ];
 
   const helpOutputs: Buffer[] = [];

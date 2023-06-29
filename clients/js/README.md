@@ -309,26 +309,6 @@ Options:
   -n, --network  Network    [required] [choices: "mainnet", "testnet", "devnet"]
 ```
 </details>
-
-<details>
-<summary> status <network> <chain> <tx> </summary>
-
-```sh
-Positionals:
-  network  Network                     [choices: "mainnet", "testnet", "devnet"]
-  chain    Source chain
-             [choices: "unset", "solana", "ethereum", "terra", "bsc", "polygon",
-        "avalanche", "oasis", "algorand", "aurora", "fantom", "karura", "acala",
-            "klaytn", "celo", "near", "moonbeam", "neon", "terra2", "injective",
-         "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
-                           "xpla", "btc", "base", "sei", "wormchain", "sepolia"]
-  tx       Source transaction hash                                      [string]
-
-Options:
-  --help     Show help                                                 [boolean]
-  --version  Show version number                                       [boolean]
-```
-</details>
 <!--CLI_USAGE-->
 
 ## Examples
