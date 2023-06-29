@@ -302,7 +302,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 				}
 
 				watcherName := string(wc.GetNetworkID()) + "watch"
-				logger.Info("Setting up watcher: " + watcherName)
+				logger.Debug("Setting up watcher: " + watcherName)
 
 				if wc.GetNetworkID() != "solana-confirmed" { // TODO this should not be a special case, see comment in common/readiness.go
 					common.MustRegisterReadinessSyncing(wc.GetChainID())
