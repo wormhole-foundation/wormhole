@@ -141,7 +141,6 @@ func GetWasmOpts(app *App, appOpts servertypes.AppOptions) []wasm.Option {
 	wasmOpts = append(wasmOpts, wasmkeeper.WithQueryPlugins(wormholemodulekeeper.NewCustomQueryHandler(app.WormholeKeeper)))
 
 	// Move custom query of token factory to stargate, still use custom msg which is tfOpts[1]
-	var bankBaseKeeper bankkeeper.BaseKeeper
 	bankBaseKeeper, ok := app.BankKeeper.(bankkeeper.BaseKeeper)
 	if !ok {
 		panic("Cannot cast bank keeper to bank basekeeper")
@@ -198,11 +197,7 @@ var (
 		tokenfactorytypes.ModuleName: {authtypes.Minter, authtypes.Burner},
 	}
 
-	tokenFactoryCapabilities = []string{
-		tokenfactorytypes.EnableBurnFrom,
-		tokenfactorytypes.EnableForceTransfer,
-		tokenfactorytypes.EnableSetMetadata,
-	}
+	tokenFactoryCapabilities = []string{}
 )
 
 var (

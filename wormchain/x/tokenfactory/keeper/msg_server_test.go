@@ -6,7 +6,7 @@ import (
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	//banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
 
 // TestMintDenomMsg tests TypeMsgMint message is emitted on a successful mint
@@ -180,7 +180,8 @@ func (suite *KeeperTestSuite) TestChangeAdminDenomMsg() {
 }
 
 // TestSetDenomMetaDataMsg tests TypeMsgSetDenomMetadata message is emitted on a successful denom metadata change
-func (suite *KeeperTestSuite) TestSetDenomMetaDataMsg() {
+// Capability disabled
+/*func (suite *KeeperTestSuite) TestSetDenomMetaDataMsg() {
 	// setup test
 	suite.SetupTest()
 	suite.CreateDefaultDenom()
@@ -210,7 +211,7 @@ func (suite *KeeperTestSuite) TestSetDenomMetaDataMsg() {
 				Name:    "OSMO",
 				Symbol:  "OSMO",
 			}),
-			expectedPass:          true,
+			expectedPass:          false,
 			expectedMessageEvents: 1,
 		},
 		{
@@ -244,4 +245,4 @@ func (suite *KeeperTestSuite) TestSetDenomMetaDataMsg() {
 			suite.AssertEventEmitted(ctx, types.TypeMsgSetDenomMetadata, tc.expectedMessageEvents)
 		})
 	}
-}
+}*/
