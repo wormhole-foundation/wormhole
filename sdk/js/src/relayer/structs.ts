@@ -22,11 +22,20 @@ export enum DeliveryStatus {
 }
 
 export enum RefundStatus {
-  RefundSent,
-  RefundFail,
-  CrossChainRefundSent,
-  CrossChainRefundFailProviderNotSupported,
-  CrossChainRefundFailNotEnough
+  RefundSent = "Refund Sent",
+  RefundFail = "Refund Fail",
+  CrossChainRefundSent = "Cross Chain Refund Sent",
+  CrossChainRefundFailProviderNotSupported = "Cross Chain Refund Fail - Provider does not support the refund chain",
+  CrossChainRefundFailNotEnough = "Cross Chain Refund Fail - Refund too low for cross chain refund"
+}
+
+export function parseRefundStatus(index: number) {
+  return index === 0 ? RefundStatus.RefundSent
+  : index === 1 ? RefundStatus.RefundFail
+  : index === 2 ? RefundStatus.CrossChainRefundSent
+  : index === 3 ? RefundStatus.CrossChainRefundFailProviderNotSupported
+  : index === 4 ? RefundStatus.CrossChainRefundFailNotEnough
+  : RefundStatus.CrossChainRefundFailProviderNotSupported;
 }
 
 export interface VaaKey {
@@ -356,7 +365,7 @@ export function parseForwardFailureError(
   const amountOfFundsNeeded = ethers.BigNumber.from(
     Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
   );
-  return `Not enough funds leftover for forward: Had ${amountOfFunds.toString()} wei and needed ${amountOfFundsNeeded.toString()} wei.`
+  return `Not enough funds leftover for forward: Had ${ethers.utils.formatEther(amountOfFunds)} and needed ${ethers.utils.formatEther(amountOfFundsNeeded)}.`
 }
 
 export function parseOverrideInfoFromDeliveryEvent(

@@ -21,6 +21,7 @@ import {
   VaaKey,
   DeliveryOverrideArgs,
   parseForwardFailureError,
+  parseRefundStatus
 } from "../structs";
 import {
   DeliveryProvider,
@@ -269,7 +270,7 @@ async function transformDeliveryEvents(
         sourceVaaSequence: x.args[2],
         sourceChain,
         gasUsed: BigNumber.from(x.args[5]),
-        refundStatus: x.args[6],
+        refundStatus: parseRefundStatus(x.args[6]),
         revertString:
           status == DeliveryStatus.ReceiverFailure
             ? x.args[7]
