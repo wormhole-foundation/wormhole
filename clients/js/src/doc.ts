@@ -17,10 +17,14 @@ import * as submit from "./cmds/submit";
 import * as sui from "./cmds/sui";
 import * as verifyVaa from "./cmds/verifyVaa";
 
+
 const MD_TAG = "<!--CLI_USAGE-->";
 
-async function getHelpText(name: string, cmd: any): Promise<string> {
-  return await cmd.builder(yargs).scriptName(`worm ${cmd.command}`).getHelp();
+async function getHelpText(cmd: any): Promise<string> {
+  // Note that `yargs` is called as a function to produce a fresh copy.
+  // Otherwise the imported module is effectively a singleton where state from 
+  // other commands is accumulated from repeat calls.
+  return await cmd.builder(yargs()).scriptName(`worm ${cmd.command}`).getHelp();
 }
 
 (async function () {
@@ -39,8 +43,8 @@ async function getHelpText(name: string, cmd: any): Promise<string> {
   ];
 
   const helpOutputs: Buffer[] = [];
-  for (const [name, cmd] of Object.entries(cmds)) {
-    const helpText = await getHelpText(name, cmd);
+  for (const cmd of cmds) {
+    const helpText = await getHelpText(cmd);
 
     helpOutputs.push(Buffer.from(`
 <details>
