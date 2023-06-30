@@ -318,7 +318,7 @@ def build_node_yaml():
                     "--ibcContract",
                     "wormhole1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq0kdhcj"
                 ]
-            
+
     return encode_yaml_stream(node_yaml_with_replicas)
 
 k8s_yaml_with_ns(build_node_yaml())
