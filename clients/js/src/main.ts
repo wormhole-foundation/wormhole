@@ -17,6 +17,7 @@ import * as submit from "./cmds/submit";
 import * as sui from "./cmds/sui";
 import * as transfer from "./cmds/transfer";
 import * as verifyVaa from "./cmds/verifyVaa";
+import * as status from "./cmds/status";
 
 // Note: When adding another subcommand here, please be sure to also include it
 // in the `cmds` array in `docs.ts` so it is properly documented.
@@ -35,5 +36,6 @@ yargs(hideBin(process.argv))
   .command(sui)
   .command(transfer)
   .command(verifyVaa)
+  .command(status)
   .strict()
   .demandCommand().argv;
