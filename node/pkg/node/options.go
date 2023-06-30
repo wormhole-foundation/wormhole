@@ -15,6 +15,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/p2p"
 	"github.com/certusone/wormhole/node/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
+	"github.com/certusone/wormhole/node/pkg/query"
 	"github.com/certusone/wormhole/node/pkg/readiness"
 	"github.com/certusone/wormhole/node/pkg/reporter"
 	"github.com/certusone/wormhole/node/pkg/supervisor"
@@ -71,6 +72,33 @@ func GuardianOptionP2P(p2pKey libp2p_crypto.PrivKey, networkId string, bootstrap
 				nil,
 				components,
 				ibcFeaturesFunc,
+				(g.queryHandler != nil),
+				g.signedQueryReqC.writeC,
+				g.queryResponsePublicationC.readC,
+			)
+
+			return nil
+		}}
+}
+
+// GuardianOptionQueryHandler configures the Cross Chain Query module.
+func GuardianOptionQueryHandler(ccqEnabled bool, allowedRequesters string) *GuardianOption {
+	return &GuardianOption{
+		name: "query",
+		f: func(ctx context.Context, logger *zap.Logger, g *G) error {
+			if !ccqEnabled {
+				logger.Info("ccq: cross chain query is disabled", zap.String("component", "ccq"))
+				return nil
+			}
+
+			g.queryHandler = query.NewQueryHandler(
+				logger,
+				g.env,
+				allowedRequesters,
+				g.signedQueryReqC.readC,
+				g.chainQueryReqC,
+				g.queryResponseC.readC,
+				g.queryResponsePublicationC.writeC,
 			)
 
 			return nil
@@ -273,6 +301,32 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 				}(chainMsgC[chainId], chainId)
 			}
 
+			// Per-chain query response channel
+			chainQueryResponseC := make(map[vaa.ChainID]chan *query.PerChainQueryResponseInternal)
+			// aggregate per-chain msgC into msgC.
+			// SECURITY defense-in-depth: This way we enforce that a watcher must set the msg.EmitterChain to its chainId, which makes the code easier to audit
+			for _, chainId := range vaa.GetAllNetworkIDs() {
+				chainQueryResponseC[chainId] = make(chan *query.PerChainQueryResponseInternal)
+				go func(c <-chan *query.PerChainQueryResponseInternal, chainId vaa.ChainID) {
+					for {
+						select {
+						case <-ctx.Done():
+							return
+						case response := <-c:
+							if response.ChainId != chainId {
+								// SECURITY: This should never happen. If it does, a watcher has been compromised.
+								logger.Fatal("SECURITY CRITICAL: Received query response from a chain that was not marked as originating from that chain",
+									zap.Uint16("responseChainId", uint16(response.ChainId)),
+									zap.Stringer("watcherChainId", chainId),
+								)
+							} else {
+								g.queryResponseC.writeC <- response
+							}
+						}
+					}
+				}(chainQueryResponseC[chainId], chainId)
+			}
+
 			watchers := make(map[watchers.NetworkID]interfaces.L1Finalizer)
 
 			for _, wc := range watcherConfigs {
@@ -288,6 +342,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 				}
 
 				chainObsvReqC[wc.GetChainID()] = make(chan *gossipv1.ObservationRequest, observationRequestBufferSize)
+				g.chainQueryReqC[wc.GetChainID()] = make(chan *query.PerChainQueryInternal, query.QueryRequestBufferSize)
 
 				if wc.RequiredL1Finalizer() != "" {
 					l1watcher, ok := watchers[wc.RequiredL1Finalizer()]
@@ -299,7 +354,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 					wc.SetL1Finalizer(l1watcher)
 				}
 
-				l1finalizer, runnable, err := wc.Create(chainMsgC[wc.GetChainID()], chainObsvReqC[wc.GetChainID()], g.setC.writeC, g.env)
+				l1finalizer, runnable, err := wc.Create(chainMsgC[wc.GetChainID()], chainObsvReqC[wc.GetChainID()], g.chainQueryReqC[wc.GetChainID()], chainQueryResponseC[wc.GetChainID()], g.setC.writeC, g.env)
 
 				if err != nil {
 					return fmt.Errorf("error creating watcher: %w", err)
