@@ -78,6 +78,12 @@ func NewGuardianNode(
 	g := G{
 		env: env,
 		gk:  gk,
+
+		// Cross Chain Query Handler channels
+		chainQueryReqC:            make(map[vaa.ChainID]chan *query.PerChainQueryInternal),
+		signedQueryReqC:           makeChannelPair[*gossipv1.SignedQueryRequest](query.SignedQueryRequestChannelSize),
+		queryResponseC:            makeChannelPair[*query.PerChainQueryResponseInternal](0),
+		queryResponsePublicationC: makeChannelPair[*query.QueryResponsePublication](0),
 	}
 	return &g
 }
