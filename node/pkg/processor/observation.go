@@ -227,6 +227,21 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 		return
 	}
 
+	// Check if we already store this VAA
+	_, err = p.getSignedVAA(*db.VaaIDFromVAA(v))
+	if err == nil {
+		p.logger.Debug("ignored SignedVAAWithQuorum message for VAA we already stored",
+			zap.String("vaaID", string(db.VaaIDFromVAA(v).Bytes())),
+		)
+		return
+	} else if err != db.ErrVAANotFound {
+		p.logger.Error("failed to look up VAA in database",
+			zap.String("vaaID", string(db.VaaIDFromVAA(v).Bytes())),
+			zap.Error(err),
+		)
+		return
+	}
+
 	// Calculate digest for logging
 	digest := v.SigningDigest()
 	hash := hex.EncodeToString(digest.Bytes())
@@ -257,21 +272,6 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 	//  - all signatures on the VAA are valid
 	//  - the signature's addresses match the node's current guardian set
 	//  - enough signatures are present for the VAA to reach quorum
-
-	// Check if we already store this VAA
-	_, err = p.getSignedVAA(*db.VaaIDFromVAA(v))
-	if err == nil {
-		p.logger.Debug("ignored SignedVAAWithQuorum message for VAA we already store",
-			zap.String("digest", hash),
-		)
-		return
-	} else if err != db.ErrVAANotFound {
-		p.logger.Error("failed to look up VAA in database",
-			zap.String("digest", hash),
-			zap.Error(err),
-		)
-		return
-	}
 
 	// Store signed VAA in database.
 	p.logger.Info("storing inbound signed VAA with quorum",

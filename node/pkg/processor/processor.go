@@ -265,6 +265,7 @@ func (p *Processor) storeSignedVAA(v *vaa.VAA) error {
 }
 
 func (p *Processor) getSignedVAA(id db.VAAID) (*vaa.VAA, error) {
+
 	if id.EmitterChain == vaa.ChainIDPythNet {
 		key := fmt.Sprintf("%v/%v", id.EmitterAddress, id.Sequence)
 		ret, exists := p.pythnetVaas[key]
@@ -272,6 +273,10 @@ func (p *Processor) getSignedVAA(id db.VAAID) (*vaa.VAA, error) {
 			return ret.v, nil
 		}
 
+		return nil, db.ErrVAANotFound
+	}
+
+	if p.db == nil {
 		return nil, db.ErrVAANotFound
 	}
 
