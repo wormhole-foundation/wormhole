@@ -154,7 +154,7 @@ func validateResponseForTest(
 }
 
 func TestParseAllowedRequestersSuccess(t *testing.T) {
-	ccqAllowedRequestersList, err := ParseAllowedRequesters(testSigner)
+	ccqAllowedRequestersList, err := parseAllowedRequesters(testSigner)
 	require.NoError(t, err)
 	require.NotNil(t, ccqAllowedRequestersList)
 	require.Equal(t, 1, len(ccqAllowedRequestersList))
@@ -164,7 +164,7 @@ func TestParseAllowedRequestersSuccess(t *testing.T) {
 	_, exists = ccqAllowedRequestersList[ethCommon.BytesToAddress(ethCommon.Hex2Bytes("beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBf"))]
 	require.False(t, exists)
 
-	ccqAllowedRequestersList, err = ParseAllowedRequesters("beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe,beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBf")
+	ccqAllowedRequestersList, err = parseAllowedRequesters("beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe,beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBf")
 	require.NoError(t, err)
 	require.NotNil(t, ccqAllowedRequestersList)
 	require.Equal(t, 2, len(ccqAllowedRequestersList))
@@ -176,17 +176,17 @@ func TestParseAllowedRequestersSuccess(t *testing.T) {
 }
 
 func TestParseAllowedRequestersFailsIfParameterEmpty(t *testing.T) {
-	ccqAllowedRequestersList, err := ParseAllowedRequesters("")
+	ccqAllowedRequestersList, err := parseAllowedRequesters("")
 	require.Error(t, err)
 	require.Nil(t, ccqAllowedRequestersList)
 
-	ccqAllowedRequestersList, err = ParseAllowedRequesters(",")
+	ccqAllowedRequestersList, err = parseAllowedRequesters(",")
 	require.Error(t, err)
 	require.Nil(t, ccqAllowedRequestersList)
 }
 
 func TestParseAllowedRequestersFailsIfInvalidParameter(t *testing.T) {
-	ccqAllowedRequestersList, err := ParseAllowedRequesters("Hello")
+	ccqAllowedRequestersList, err := parseAllowedRequesters("Hello")
 	require.Error(t, err)
 	require.Nil(t, ccqAllowedRequestersList)
 }
@@ -310,7 +310,7 @@ func createQueryHandlerForTestWithoutPublisher(t *testing.T, ctx context.Context
 	require.NoError(t, err)
 	require.NotNil(t, md.sk)
 
-	ccqAllowedRequestersList, err := ParseAllowedRequesters(testSigner)
+	ccqAllowedRequestersList, err := parseAllowedRequesters(testSigner)
 	require.NoError(t, err)
 
 	// Inbound observation requests from the p2p service (for all chains)
@@ -330,8 +330,11 @@ func createQueryHandlerForTestWithoutPublisher(t *testing.T, ctx context.Context
 
 	md.resetState()
 
-	go handleQueryRequestsImpl(ctx, logger, md.signedQueryReqReadC, md.chainQueryReqC, ccqAllowedRequestersList,
-		md.queryResponseReadC, md.queryResponsePublicationWriteC, common.GoTest, requestTimeoutForTest, retryIntervalForTest)
+	go func() {
+		err := handleQueryRequestsImpl(ctx, logger, md.signedQueryReqReadC, md.chainQueryReqC, ccqAllowedRequestersList,
+			md.queryResponseReadC, md.queryResponsePublicationWriteC, common.GoTest, requestTimeoutForTest, retryIntervalForTest)
+		assert.NoError(t, err)
+	}()
 
 	// Create a routine for each configured watcher. It will take a per chain query and return the corresponding expected result.
 	// It also pegs a counter of the number of requests the watcher received, for verification purposes.

@@ -302,7 +302,7 @@ def build_node_yaml():
                     "--gatewayLCD",
                     "http://wormchain:1317"
                 ]
-            
+
     return encode_yaml_stream(node_yaml_with_replicas)
 
 k8s_yaml_with_ns(build_node_yaml())
