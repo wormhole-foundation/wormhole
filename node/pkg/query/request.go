@@ -64,7 +64,6 @@ type EthCallData struct {
 	Data []byte
 }
 
-const SignedQueryRequestChannelSize = 50
 const EvmContractAddressLength = 20
 
 // PerChainQueryInternal is an internal representation of a query request that is passed to the watcher.
