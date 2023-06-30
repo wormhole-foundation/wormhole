@@ -160,7 +160,7 @@ export const RPCS_BY_CHAIN: {
     solana: "https://api.devnet.solana.com",
     terra: "https://bombay-lcd.terra.dev",
     ethereum: "https://rpc.ankr.com/eth_goerli",
-    bsc: "https://data-seed-prebsc-1-s1.binance.org:8545",
+    bsc: "https://bsc-testnet.publicnode.com",
     polygon: "https://rpc.ankr.com/polygon_mumbai",
     avalanche: "https://rpc.ankr.com/avalanche_fuji",
     oasis: "https://testnet.emerald.oasis.dev",
