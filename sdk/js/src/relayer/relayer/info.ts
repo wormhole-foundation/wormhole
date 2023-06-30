@@ -39,7 +39,6 @@ export type InfoRequestParams = {
   wormholeRelayerAddresses?: Map<ChainName, string>;
 };
 
-
 export type GetPriceOptParams = {
   environment?: Network;
   receiverValue?: ethers.BigNumberish;
@@ -235,9 +234,15 @@ export function stringifyWormholeRelayerInfo(info: DeliveryInfo): string {
       instruction.extraReceiverValue
     );
     stringifiedInfo += totalReceiverValue.gt(0)
-      ? `Amount to pass into target address: ${ethers.utils.formatEther(totalReceiverValue)} of ${targetChainName} currency ${
+      ? `Amount to pass into target address: ${ethers.utils.formatEther(
+          totalReceiverValue
+        )} of ${targetChainName} currency ${
           instruction.extraReceiverValue.gt(0)
-            ? `\n${ethers.utils.formatEther(instruction.requestedReceiverValue)} requested, ${ethers.utils.formatEther(instruction.extraReceiverValue)} additionally paid for`
+            ? `\n${ethers.utils.formatEther(
+                instruction.requestedReceiverValue
+              )} requested, ${ethers.utils.formatEther(
+                instruction.extraReceiverValue
+              )} additionally paid for`
             : ""
         }\n`
       : ``;
@@ -247,12 +252,17 @@ export function stringifyWormholeRelayerInfo(info: DeliveryInfo): string {
     );
     stringifiedInfo += `Gas limit: ${executionInfo.gasLimit} ${targetChainName} gas\n`;
 
-    const refundAddressChosen = instruction.refundAddress !== instruction.refundDeliveryProvider;
-    if(refundAddressChosen) {
-      stringifiedInfo += `Refund rate: ${ethers.utils.formatEther(executionInfo.targetChainRefundPerGasUnused)} of ${targetChainName} currency per unit of gas unused\n`;
-      stringifiedInfo += `Refund address: ${instruction.refundAddress.toString("hex")}\n`
+    const refundAddressChosen =
+      instruction.refundAddress !== instruction.refundDeliveryProvider;
+    if (refundAddressChosen) {
+      stringifiedInfo += `Refund rate: ${ethers.utils.formatEther(
+        executionInfo.targetChainRefundPerGasUnused
+      )} of ${targetChainName} currency per unit of gas unused\n`;
+      stringifiedInfo += `Refund address: ${instruction.refundAddress.toString(
+        "hex"
+      )}\n`;
     }
-    stringifiedInfo += `\n`
+    stringifiedInfo += `\n`;
     stringifiedInfo += info.targetChainStatus.events
 
       .map(
@@ -269,8 +279,19 @@ export function stringifyWormholeRelayerInfo(info: DeliveryInfo): string {
                     : e.revertString
                 }\n`
               : ""
-          }Gas used: ${e.gasUsed.toString()}\nTransaction fee used: ${ethers.utils.formatEther(executionInfo.targetChainRefundPerGasUnused
-            .mul(e.gasUsed))} of ${targetChainName} currency\n${(!refundAddressChosen || e.status === "Forward Request Success") ? "" : `Refund amount: ${ethers.utils.formatEther(executionInfo.targetChainRefundPerGasUnused.mul(executionInfo.gasLimit.sub(e.gasUsed)))} of ${targetChainName} currency \nRefund status: ${e.refundStatus}\n`}`
+          }Gas used: ${e.gasUsed.toString()}\nTransaction fee used: ${ethers.utils.formatEther(
+            executionInfo.targetChainRefundPerGasUnused.mul(e.gasUsed)
+          )} of ${targetChainName} currency\n${
+            !refundAddressChosen || e.status === "Forward Request Success"
+              ? ""
+              : `Refund amount: ${ethers.utils.formatEther(
+                  executionInfo.targetChainRefundPerGasUnused.mul(
+                    executionInfo.gasLimit.sub(e.gasUsed)
+                  )
+                )} of ${targetChainName} currency \nRefund status: ${
+                  e.refundStatus
+                }\n`
+          }`
       )
       .join("\n");
   } else if (
@@ -284,9 +305,9 @@ export function stringifyWormholeRelayerInfo(info: DeliveryInfo): string {
     const targetChainName =
       CHAIN_ID_TO_NAME[instruction.targetChainId as ChainId];
 
-    stringifiedInfo += `\nA refund of ${
-      ethers.utils.formatEther(instruction.extraReceiverValue)
-    } ${targetChainName} currency was requested to be sent to ${targetChainName}, address 0x${info.deliveryInstruction.refundAddress.toString(
+    stringifiedInfo += `\nA refund of ${ethers.utils.formatEther(
+      instruction.extraReceiverValue
+    )} ${targetChainName} currency was requested to be sent to ${targetChainName}, address 0x${info.deliveryInstruction.refundAddress.toString(
       "hex"
     )}\n\n`;
 
