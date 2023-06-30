@@ -133,8 +133,8 @@ export const RPCS_BY_CHAIN: {
   [key in Network]: { [key in ChainName]?: string };
 } = {
   MAINNET: {
-    ethereum: process.env.ETH_RPC,
-    bsc: process.env.BSC_RPC || "https://bsc-dataseed2.defibit.io",
+    ethereum: "https://rpc.ankr.com/eth",
+    bsc: "https://bsc-dataseed2.defibit.io",
     polygon: "https://rpc.ankr.com/polygon",
     avalanche: "https://rpc.ankr.com/avalanche",
     oasis: "https://emerald.oasis.dev",
@@ -154,13 +154,13 @@ export const RPCS_BY_CHAIN: {
     terra2: "https://phoenix-lcd.terra.dev",
     terra: "https://columbus-fcd.terra.dev",
     injective: "https://k8s.mainnet.lcd.injective.network",
-    solana: process.env.SOLANA_RPC ?? "https://api.mainnet-beta.solana.com",
+    solana: "https://api.mainnet-beta.solana.com",
   },
   TESTNET: {
     solana: "https://api.devnet.solana.com",
     terra: "https://bombay-lcd.terra.dev",
     ethereum: "https://rpc.ankr.com/eth_goerli",
-    bsc: "https://data-seed-prebsc-1-s1.binance.org:8545",
+    bsc: "https://bsc-testnet.publicnode.com",
     polygon: "https://rpc.ankr.com/polygon_mumbai",
     avalanche: "https://rpc.ankr.com/avalanche_fuji",
     oasis: "https://testnet.emerald.oasis.dev",
