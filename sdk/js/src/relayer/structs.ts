@@ -357,15 +357,24 @@ export function parseForwardFailureError(
   bytes: Buffer
 ): string {
   let idx = 4;
-  console.log(bytes.length);
-  const amountOfFunds = ethers.BigNumber.from(
-    Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
-  );
   idx += 32;
-  const amountOfFundsNeeded = ethers.BigNumber.from(
-    Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
-  );
-  return `Not enough funds leftover for forward: Had ${ethers.utils.formatEther(amountOfFunds)} and needed ${ethers.utils.formatEther(amountOfFundsNeeded)}.`
+  if(bytes.length <= idx) {
+    return `Delivery Provider failed in performing forward`
+  }
+  try {
+    const amountOfFunds = ethers.BigNumber.from(
+      Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
+    );
+    idx += 32;
+    const amountOfFundsNeeded = ethers.BigNumber.from(
+      Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
+    );
+    return `Not enough funds leftover for forward: Had ${ethers.utils.formatEther(amountOfFunds)} and needed ${ethers.utils.formatEther(amountOfFundsNeeded)}.`
+
+  } catch (err) {
+    return `Delivery Provider unexpectedly failed in performing forward`
+  }
+
 }
 
 export function parseOverrideInfoFromDeliveryEvent(
