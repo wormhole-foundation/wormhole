@@ -65,8 +65,6 @@ export async function getPriceAndRefundInfo(
     sourceChain,
     environment
   );
-  console.log(`Wormhole relayer address ${wormholeRelayerAddress}`);
-  console.log(`Provider ${sourceChainProvider}`);
   const sourceWormholeRelayer =
     ethers_contracts.IWormholeRelayer__factory.connect(
       wormholeRelayerAddress,
@@ -290,7 +288,7 @@ export function stringifyWormholeRelayerInfo(info: DeliveryInfo): string {
       ethers.utils.formatEther(instruction.extraReceiverValue)
     } ${targetChainName} currency was requested to be sent to ${targetChainName}, address 0x${info.deliveryInstruction.refundAddress.toString(
       "hex"
-    )}`;
+    )}\n\n`;
 
     stringifiedInfo += info.targetChainStatus.events
 
