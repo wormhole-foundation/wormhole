@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
+	"go.uber.org/zap"
 
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -154,4 +155,21 @@ func (msg *MessagePublication) CreateDigest() string {
 	v := msg.CreateVAA(0) // The guardian set index is not part of the digest, so we can pass in zero.
 	db := v.SigningDigest()
 	return hex.EncodeToString(db.Bytes())
+}
+
+// ZapFields takes some zap fields and appends zap fields related to the message. Example usage:
+// `logger.Info("logging something with a message", msg.ZapFields(zap.Int("some_other_field", 100))...)“
+// TODO refactor the codebase to use this function instead of manually logging the message with inconsistent fields
+func (msg *MessagePublication) ZapFields(fields ...zap.Field) []zap.Field {
+	return append(fields,
+		zap.Stringer("tx", msg.TxHash),
+		zap.Time("timestamp", msg.Timestamp),
+		zap.Uint32("nonce", msg.Nonce),
+		zap.Uint64("seq", msg.Sequence),
+		zap.Uint8("consistency", msg.ConsistencyLevel),
+		zap.Stringer("emitter_chain", msg.EmitterChain),
+		zap.Stringer("emitter_address", msg.EmitterAddress),
+		zap.String("message_id", string(msg.MessageID())),
+		zap.Bool("unreliable", msg.Unreliable),
+	)
 }

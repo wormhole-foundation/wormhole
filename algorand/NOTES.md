@@ -27,7 +27,7 @@ to switch to sandbox, change devnet/node.yaml
 put into dev/node.yaml
 
             - --algorandAppID
-            - "4"
+            - "1004"
 
 Install the algorand requirements
 

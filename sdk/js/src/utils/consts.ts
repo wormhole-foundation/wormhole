@@ -35,45 +35,54 @@ export const CHAINS = {
 } as const;
 
 export type ChainName = keyof typeof CHAINS;
-export type ChainId = typeof CHAINS[ChainName];
+export type ChainId = (typeof CHAINS)[ChainName];
 
 /**
  *
  * All the EVM-based chain names that Wormhole supports
  */
-export type EVMChainName =
-  | "ethereum"
-  | "bsc"
-  | "polygon"
-  | "avalanche"
-  | "oasis"
-  | "aurora"
-  | "fantom"
-  | "karura"
-  | "acala"
-  | "klaytn"
-  | "celo"
-  | "moonbeam"
-  | "neon"
-  | "arbitrum"
-  | "optimism"
-  | "gnosis"
-  | "base"
-  | "sepolia";
+export const EVMChainNames: ReadonlyArray<ChainName> = [
+  "ethereum",
+  "bsc",
+  "polygon",
+  "avalanche",
+  "oasis",
+  "aurora",
+  "fantom",
+  "karura",
+  "acala",
+  "klaytn",
+  "celo",
+  "moonbeam",
+  "neon",
+  "arbitrum",
+  "optimism",
+  "gnosis",
+  "base",
+  "sepolia",
+] as const;
+export type EVMChainName = (typeof EVMChainNames)[number];
 
-/**
+
+/*
  *
  * All the Solana-based chain names that Wormhole supports
  */
-export type SolanaChainName = "solana" | "pythnet";
+export const SolanaChainNames: ReadonlyArray<ChainName> = ["solana", "pythnet"] as const;
+export type SolanaChainName = (typeof SolanaChainNames)[number];
 
-export type CosmWasmChainName =
-  | "terra"
-  | "terra2"
-  | "injective"
-  | "xpla"
-  | "sei";
-export type TerraChainName = "terra" | "terra2";
+export const CosmWasmChainNames: ReadonlyArray<ChainName> = [
+  "terra",
+  "terra2",
+  "injective",
+  "xpla",
+  "sei",
+] as const;
+export type CosmWasmChainName = (typeof CosmWasmChainNames)[number];
+
+// TODO: why? these are dupe of entries in CosmWasm
+export const TerraChainNames: ReadonlyArray<ChainName> = ["terra", "terra2"] as const;
+export type TerraChainName = (typeof TerraChainNames)[number];
 
 export type Contracts = {
   core: string | undefined;
@@ -477,8 +486,8 @@ const DEVNET = {
     nft_bridge: undefined,
   },
   algorand: {
-    core: "4",
-    token_bridge: "6",
+    core: "1004",
+    token_bridge: "1006",
     nft_bridge: undefined,
   },
   aurora: {
@@ -681,7 +690,7 @@ export const CHAIN_ID_SEPOLIA = CHAINS["sepolia"];
 
 // This inverts the [[CHAINS]] object so that we can look up a chain by id
 export type ChainIdToName = {
-  -readonly [key in keyof typeof CHAINS as typeof CHAINS[key]]: key;
+  -readonly [key in keyof typeof CHAINS as (typeof CHAINS)[key]]: key;
 };
 export const CHAIN_ID_TO_NAME: ChainIdToName = Object.entries(CHAINS).reduce(
   (obj, [name, id]) => {
@@ -695,11 +704,21 @@ export const CHAIN_ID_TO_NAME: ChainIdToName = Object.entries(CHAINS).reduce(
  *
  * All the EVM-based chain ids that Wormhole supports
  */
-export type EVMChainId = typeof CHAINS[EVMChainName];
+export type EVMChainId = (typeof CHAINS)[EVMChainName];
 
-export type CosmWasmChainId = typeof CHAINS[CosmWasmChainName];
+/**
+ *
+ * All the Solana-based chain ids that Wormhole supports
+ */
+export type SolanaChainId = (typeof CHAINS)[SolanaChainName];
 
-export type TerraChainId = typeof CHAINS[TerraChainName];
+/**
+ *
+ * All the CosmWasm-based chain ids that Wormhole supports
+ */
+export type CosmWasmChainId = (typeof CHAINS)[CosmWasmChainName];
+
+export type TerraChainId = (typeof CHAINS)[TerraChainName];
 /**
  *
  * Returns true when called with a valid chain, and narrows the type in the
@@ -790,51 +809,29 @@ export function coalesceChainName(chain: ChainId | ChainName): ChainName {
 export function isEVMChain(
   chain: ChainId | ChainName
 ): chain is EVMChainId | EVMChainName {
-  let chainId = coalesceChainId(chain);
-  if (
-    chainId === CHAIN_ID_ETH ||
-    chainId === CHAIN_ID_BSC ||
-    chainId === CHAIN_ID_AVAX ||
-    chainId === CHAIN_ID_POLYGON ||
-    chainId === CHAIN_ID_OASIS ||
-    chainId === CHAIN_ID_AURORA ||
-    chainId === CHAIN_ID_FANTOM ||
-    chainId === CHAIN_ID_KARURA ||
-    chainId === CHAIN_ID_ACALA ||
-    chainId === CHAIN_ID_KLAYTN ||
-    chainId === CHAIN_ID_CELO ||
-    chainId === CHAIN_ID_MOONBEAM ||
-    chainId === CHAIN_ID_NEON ||
-    chainId === CHAIN_ID_ARBITRUM ||
-    chainId === CHAIN_ID_OPTIMISM ||
-    chainId === CHAIN_ID_GNOSIS ||
-    chainId === CHAIN_ID_BASE ||
-    chainId === CHAIN_ID_SEPOLIA
-  ) {
-    return isEVM(chainId);
-  } else {
-    return notEVM(chainId);
-  }
+  const chainName = coalesceChainName(chain);
+  return EVMChainNames.includes(chainName)
 }
 
 export function isCosmWasmChain(
   chain: ChainId | ChainName
 ): chain is CosmWasmChainId | CosmWasmChainName {
-  const chainId = coalesceChainId(chain);
-  return (
-    chainId === CHAIN_ID_TERRA ||
-    chainId === CHAIN_ID_TERRA2 ||
-    chainId === CHAIN_ID_INJECTIVE ||
-    chainId === CHAIN_ID_XPLA ||
-    chainId === CHAIN_ID_SEI
-  );
+  const chainName = coalesceChainName(chain);
+  return CosmWasmChainNames.includes(chainName);
 }
 
 export function isTerraChain(
   chain: ChainId | ChainName
 ): chain is TerraChainId | TerraChainName {
-  const chainId = coalesceChainId(chain);
-  return chainId === CHAIN_ID_TERRA || chainId === CHAIN_ID_TERRA2;
+  const chainName = coalesceChainName(chain);
+  return TerraChainNames.includes(chainName);
+}
+
+export function isSolanaChain(
+  chain: ChainId | ChainName
+): chain is SolanaChainId | SolanaChainName {
+  const chainName = coalesceChainName(chain);
+  return SolanaChainNames.includes(chainName);
 }
 
 /**
@@ -865,56 +862,3 @@ export const APTOS_TOKEN_BRIDGE_EMITTER_ADDRESS =
 
 export const TERRA_REDEEMED_CHECK_WALLET_ADDRESS =
   "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v";
-
-////////////////////////////////////////////////////////////////////////////////
-// Utilities
-
-/**
- * The [[isEVM]] and [[notEVM]] functions improve type-safety in [[isEVMChain]].
- *
- * As it turns out, typescript type predicates are unsound on their own,
- * allowing us to write something like this:
- *
- * ```typescript
- * function unsafeCoerce(n: number): n is 1 {
- *   return true
- * }
- * ```
- *
- * which is completely bogus. This happens presumably because the typescript
- * authors think of the type predicate mechanism as an escape hatch mechanism.
- * We want a more principled function though, that keeps us honest.
- *
- * in [[isEVMChain]], checking that disjunctive boolean expression actually
- * refines the type of chainId in both branches. In the "true" branch,
- * the type of chainId is narrowed to exactly the EVM chains, so calling
- * [[isEVM]] on it will typecheck, and similarly the "false" branch for the negation.
- * However, if we extend the [[EVMChainId]] type with a new EVM chain, this
- * function will no longer compile until the condition is extended.
- */
-
-/**
- *
- * Returns true when called with an [[EVMChainId]] or [[EVMChainName]], and fails to compile
- * otherwise
- */
-function isEVM(_: EVMChainId | EVMChainName): true {
-  return true;
-}
-
-/**
- *
- * Returns false when called with a non-[[EVMChainId]] and non-[[EVMChainName]]
- * argument, and fails to compile otherwise
- */
-function notEVM<T>(_: T extends EVMChainId | EVMChainName ? never : T): false {
-  return false;
-}
-
-// This just serves as a type assertion to ensure that [[EVMChainName]] is a
-// subset of [[ChainName]], since typescript provides no built-in way to express
-// this.
-function evm_chain_subset(e: EVMChainName): ChainName {
-  // will fail to compile if 'e' can't be typed as a [[ChainName]]
-  return e;
-}

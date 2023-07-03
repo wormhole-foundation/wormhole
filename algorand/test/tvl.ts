@@ -9,6 +9,7 @@ import {
   uint8ArrayToHex,
   toChainName,
   getOriginalAssetAlgorand,
+  CONTRACTS
 } from "@certusone/wormhole-sdk";
 
 export async function getNativeAlgoAddress(
@@ -45,7 +46,7 @@ async function firstTransaction() {
     port = 443;
     token = "";
   } else {
-    appid = 6;
+    appid = CONTRACTS["DEVNET"].algorand.token_bridge;
     algodToken =
       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     algodServer = "http://localhost";

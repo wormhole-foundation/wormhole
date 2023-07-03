@@ -345,7 +345,9 @@ describe("Sui SDK tests", () => {
       suiProvider,
       SUI_CORE_BRIDGE_STATE_OBJECT_ID,
       SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
-      slicedTransferFromEthVAA
+      slicedTransferFromEthVAA,
+      suiCoreBridgePackageId,
+      suiTokenBridgePackageId
     );
     const suiRedeemTxResult = await executeTransactionBlock(
       suiSigner,
@@ -467,7 +469,10 @@ describe("Sui SDK tests", () => {
       suiProvider,
       SUI_CORE_BRIDGE_STATE_OBJECT_ID,
       SUI_TOKEN_BRIDGE_STATE_OBJECT_ID,
-      coin8Type
+      coin8Type,
+      BigInt(0),
+      suiCoreBridgePackageId,
+      suiTokenBridgePackageId
     );
     result = await executeTransactionBlock(suiSigner, suiAttestTxPayload);
     result.effects?.status.status === "failure" &&

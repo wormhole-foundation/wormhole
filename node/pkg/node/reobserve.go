@@ -1,4 +1,4 @@
-package guardiand
+package node
 
 import (
 	"context"
