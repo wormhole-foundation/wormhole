@@ -17,8 +17,8 @@ import * as submit from "./cmds/submit";
 import * as sui from "./cmds/sui";
 import * as transfer from "./cmds/transfer";
 import * as verifyVaa from "./cmds/verifyVaa";
-import { YargsCommandModule } from "./cmds/Yargs";
 import * as status from "./cmds/status";
+import { YargsCommandModule } from "./cmds/Yargs";
 
 // Note: When adding another subcommand here, please be sure to also include it
 // in the `cmds` array in `docs.ts` so it is properly documented.
@@ -37,6 +37,6 @@ yargs(hideBin(process.argv))
   .command(sui)
   .command(transfer as unknown as YargsCommandModule)
   .command(verifyVaa as unknown as YargsCommandModule)
-  .command(status)
+  .command(status as unknown as YargsCommandModule)
   .strict()
   .demandCommand().argv;
