@@ -79,6 +79,7 @@ export const CosmWasmChainNames: ReadonlyArray<ChainName> = [
   "injective",
   "xpla",
   "sei",
+  "osmosis",
 ] as const;
 export type CosmWasmChainName = (typeof CosmWasmChainNames)[number];
 
