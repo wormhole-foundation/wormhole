@@ -165,7 +165,7 @@ const testSend = async (
     0,
     { value, gasLimit: REASONABLE_GAS_LIMIT }
   );
-  console.log("Sent delivery request!");
+  console.log(`Sent delivery request! Transaction hash ${tx.hash}`);
   await tx.wait();
   console.log("Message confirmed!");
 
