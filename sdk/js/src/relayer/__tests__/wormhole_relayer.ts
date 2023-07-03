@@ -49,8 +49,8 @@ import { getSignedVAAWithRetry } from "../../rpc";
 const network: Network = getNetwork();
 const ci: boolean = isCI();
 
-const sourceChain = network == "DEVNET" ? "ethereum" : "avalanche";
-const targetChain = network == "DEVNET" ? "bsc" : "celo";
+const sourceChain = network == "DEVNET" ? "ethereum" : "celo";
+const targetChain = network == "DEVNET" ? "bsc" : "avalanche";
 
 type TestChain = {
   chainId: ChainId;
