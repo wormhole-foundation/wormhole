@@ -1,5 +1,9 @@
 const algosdk = require("@certusone/wormhole-sdk/node_modules/algosdk");
 
+import {
+  CONTRACTS
+} from "@certusone/wormhole-sdk";
+
 import { calcLogicSigAccount } from "@certusone/wormhole-sdk/lib/cjs/algorand";
 
 export async function getNativeAlgoAddress(
@@ -36,7 +40,7 @@ async function firstTransaction() {
     port = 443;
     token = "";
   } else {
-    appid = 6;
+    appid = CONTRACTS["DEVNET"].algorand.token_bridge;
     algodToken =
       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     algodServer = "http://localhost";

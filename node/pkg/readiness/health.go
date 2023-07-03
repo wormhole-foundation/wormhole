@@ -12,6 +12,9 @@ import (
 )
 
 var (
+	// TODO is a hack to support running multiple guardians in one process;
+	// This package should be rewritten to support multiple registries in one process instead of using a global registry
+	NoPanic  = false
 	mu       = sync.Mutex{}
 	registry = map[string]bool{}
 )
@@ -23,7 +26,10 @@ func RegisterComponent(component Component) {
 	mu.Lock()
 	defer mu.Unlock()
 	if _, ok := registry[string(component)]; ok {
-		panic("component already registered")
+		if !NoPanic {
+			panic("component already registered")
+		}
+		return
 	}
 	registry[string(component)] = false
 }

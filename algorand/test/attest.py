@@ -519,8 +519,8 @@ class AlgoTest(PortalCore):
 
         seq = int(time.time())
 
-        self.coreid = 4
-        self.tokenid = 6
+        self.coreid = 1004
+        self.tokenid = 1006
 
 
         player = self.getTemporaryAccount(client)

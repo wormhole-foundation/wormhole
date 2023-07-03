@@ -13,7 +13,8 @@ import {
   parseWormholeRelayerSend,
   VaaKey,
 } from "../structs";
-import { DeliveryTargetInfo, getVAA } from "./helpers";
+import { DeliveryTargetInfo } from "./helpers";
+import { getSignedVAAWithRetry } from "../../rpc";
 
 export type DeliveryInfo = {
   type: RelayerPayloadId.Delivery;
@@ -121,7 +122,16 @@ export async function fetchAdditionalVaas(
   wormholeRPCs: string | string[],
   additionalVaaKeys: VaaKey[]
 ): Promise<SignedVaa[]> {
-  return Promise.all(
-    additionalVaaKeys.map(async (vaaKey) => getVAA(wormholeRPCs, vaaKey))
+  const rpcs = typeof wormholeRPCs === "string" ? [wormholeRPCs] : wormholeRPCs;
+  const vaas = await Promise.all(
+    additionalVaaKeys.map(async (vaaKey) =>
+      getSignedVAAWithRetry(
+        rpcs,
+        vaaKey.chainId as ChainId,
+        vaaKey.emitterAddress.toString("hex"),
+        vaaKey.sequence.toBigInt().toString()
+      )
+    )
   );
+  return vaas.map((vaa) => vaa.vaaBytes);
 }
