@@ -287,7 +287,22 @@ func (e *Watcher) Run(ctx context.Context) error {
 					continue
 				}
 
-				msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, e.contractAddressLogKey)
+				contractAddressLogKey := e.contractAddressLogKey
+				if e.chainID == vaa.ChainIDTerra {
+					// Terra Classic upgraded WASM versions starting at block 13215800. If this transaction is from before that, we need to use the old contract address format.
+					blockHeightStr := gjson.Get(txJSON, "tx_response.height")
+					if !blockHeightStr.Exists() {
+						logger.Error("failed to look up block height on old reobserved tx", zap.String("network", networkName), zap.String("txHash", txHash), zap.String("payload", txJSON))
+						continue
+					}
+					blockHeight := blockHeightStr.Int()
+					if blockHeight < 13215800 {
+						logger.Info("doing look up of old tx", zap.String("network", networkName), zap.String("txHash", txHash), zap.Int64("blockHeight", blockHeight))
+						contractAddressLogKey = "contract_address"
+					}
+				}
+
+				msgs := EventsToMessagePublications(e.contract, txHash, events.Array(), logger, e.chainID, contractAddressLogKey)
 				for _, msg := range msgs {
 					e.msgC <- msg
 					messagesConfirmed.WithLabelValues(networkName).Inc()
