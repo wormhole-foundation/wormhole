@@ -10,7 +10,9 @@ import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 // Based on the OpenZepplin ERC20 implementation, licensed under MIT
-contract TokenImplementation is TokenState, Context {
+contract TokenImplementation is TokenState, Context
+    // TODO create interface for credit/debit token
+ {
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
 
@@ -348,4 +350,75 @@ contract TokenImplementation is TokenState, Context {
     function _eip712DomainSalt() internal view returns (bytes32) {
         return keccak256(abi.encodePacked(_state.chainId, _state.nativeContract));
     }
+
+    modifier onlyVm() {
+        require(msg.sender == address(0), "Only VM can call");
+        _;
+    }
+
+    modifier onlyCeloChains() { // TODO add this after a first batch of testing
+        address celoRegistryAddress = address(0x000000000000000000000000000000000000ce10);
+        require(celoRegistryAddress.code.length == 0, "Only Celo chains should have bytecode in the Celo Registry address");
+        _;
+    }
+
+    /**
+     * @notice Alternative function to credit balance after making payments
+     * for gas on Celo Blockchain.
+     * @param from The account to reserve balance from
+     * @param value The amount of balance to reserve
+     * @dev Note that this function is called by the protocol when paying for tx fees in this
+     * currency. After the tx is executed, gas is refunded to the sender and credited to the
+     * various tx fee recipients via a call to `creditGasFees`. Note too that the events emitted
+     * by `creditGasFees` reflect the *net* gas fee payments for the transaction.
+     */
+    function debitGasFees(address from, uint256 value) external onlyVm {
+        _state.balances[from] = _state.balances[from] - value;
+    }
+
+    /**
+     * @notice Alternative function to credit balance after making payments
+     * for gas on Celo Blockchain.
+     * @param from The account to debit balance from
+     * @param feeRecipient Coinbase address
+     * @param gatewayFeeRecipient Gateway address
+     * @param communityFund Community fund address
+     * @param refund Amount to be refunded by the vm
+     * @param tipTxFee Coinbase fee
+     * @param baseTxFee Community fund fee
+     * @param gatewayFee Gateway fee
+     * @dev Note that this function is called by the protocol when paying for tx fees in this
+     * currency. Before the tx is executed, gas is debited from the sender via a call to
+     * `debitGasFees`. Note too that the events emitted by `creditGasFees` reflect the *net* gas fee
+     * payments for the transaction.
+     */
+    function creditGasFees(
+        address from,
+        address feeRecipient,
+        address gatewayFeeRecipient,
+        address communityFund,
+        uint256 refund,
+        uint256 tipTxFee,
+        uint256 gatewayFee,
+        uint256 baseTxFee
+    ) external onlyVm {
+        _state.balances[from] = _state.balances[from] + refund;
+        _creditGas(from, communityFund, baseTxFee);
+        _creditGas(from, feeRecipient, tipTxFee);
+        _creditGas(from, gatewayFeeRecipient, gatewayFee);
+    }
+
+    function _creditGas(
+        address from,
+        address to,
+        uint256 value
+    ) internal returns (uint256) {
+        if (to == address(0)) {
+            return 0;
+        }
+        _state.balances[to] = _state.balances[to] + value;
+        emit Transfer(from, to, value);
+        return value;
+    }
+
 }
