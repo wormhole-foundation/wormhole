@@ -51,12 +51,13 @@ export function parseNFTPayload(payload: Buffer): NFTTransferPayload {
 /**
  * TokenTransferPayload is the payload data for a Token transfer VAA.
  */
-export type TokenTransferPayload = Pick<TokenTransfer, "amount" | "fee"> & {
+export type TokenTransferPayload = Pick<TokenTransfer, "amount"> & {
   originAddress: string;
   originChain: number;
   targetAddress: string;
   targetChain: number;
   fromAddress?: string;
+  fee?: BigInt;
 };
 
 //     0   u256     amount
@@ -73,7 +74,7 @@ export function parseTransferPayload(payload: Buffer): TokenTransferPayload {
     originChain: parsed.tokenChain,
     targetAddress: parsed.to.toString("hex"),
     targetChain: parsed.toChain,
-    fee: parsed.fee === null ? null : parsed.fee,
+    fee: parsed.fee === null ? undefined : parsed.fee,
     fromAddress:
       parsed.fromAddress === null
         ? undefined
