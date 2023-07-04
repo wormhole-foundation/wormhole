@@ -45,6 +45,7 @@ async function main() {
   } else if (tryGetArg("--seconds")) {
     period = Number(getArg("--seconds")) * 1000;
   }
+
   console.log(
     `Running test every ${period / 1000} seconds (${period /
       1000 /
@@ -52,37 +53,41 @@ async function main() {
   );
 
   runMetricsServer({ port: 1234 });
+  const from = getChainById(getArg("--from") as string );
+  const to = getChainById(getArg("--to") as string);
+  runMessagesDrip(period, from, to);
+  runMessageBursts(from, to);
+}
 
+async function runMessagesDrip(period: number, from: ChainInfo, to: ChainInfo) {
   while (true) {
     console.log("Running test...");
-    await run();
-
+    await sendMessageAndEmitMetrics(from, to);
     console.log("Sleeping...");
     await new Promise((resolve) => setTimeout(resolve, period));
   }
 }
 
-async function run() {
-  if (tryGetArg("--from") && tryGetArg("--to")) {
-    await sendMessageAndEmitMetrics(
-      getChainById(getArg("--from")!),
-      getChainById(getArg("--to")!)
-    );
-  } else if (tryGetArg("--per-chain")) {
-    for (let i = 0; i < chains.length; ++i) {
-      await sendMessageAndEmitMetrics(
-        chains[i],
-        chains[i === 0 ? chains.length - 1 : 0]
-      );
-    }
-  } else if (tryGetArg("--matrix")) {
-    for (let i = 0; i < chains.length; ++i) {
-      for (let j = 0; i < chains.length; ++i) {
-        await sendMessageAndEmitMetrics(chains[i], chains[j]);
-      }
+function getRandomInt(max: number) {
+  return Math.floor(Math.random() * Math.floor(max)) + 1;
+}
+
+async function runMessageBursts(from: ChainInfo, to: ChainInfo) {
+  while (true) {
+    const nextWaitInMinutes = getRandomInt(10);
+    const nextBurstMessagesCount = getRandomInt(50);
+
+    console.log(`Next message burst will be in ${nextWaitInMinutes} minutes and contain ${nextBurstMessagesCount} messages`);
+
+    await new Promise((resolve) => setTimeout(resolve, nextWaitInMinutes * 60 * 1000));
+
+    console.log(`Starting message burst (${nextBurstMessagesCount} messages)...`);
+
+    for (let i = 0; i < nextBurstMessagesCount; i++) {
+      await sendMessageAndEmitMetrics(from, to);
     }
   }
-  await sendMessageAndEmitMetrics(chains[0], chains[1]);
+
 }
 
 async function sendMessageAndEmitMetrics(from: ChainInfo, to: ChainInfo) {
