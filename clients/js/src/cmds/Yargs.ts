@@ -17,4 +17,4 @@ export class Yargs {
 
 export type YargsAddCommandsFn = (y: typeof yargs) => typeof yargs;
 
-export type YargsCommandModule = CommandModule<any, any>;
+export type YargsCommandModule = CommandModule<{}, any>;
