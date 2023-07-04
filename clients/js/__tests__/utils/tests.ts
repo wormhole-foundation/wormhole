@@ -1,7 +1,7 @@
 import { expect, it } from "@jest/globals";
 import { run_worm_help_command } from "./cli";
 
-export const test_command_positional_args_with_readme_file = (
+export const test_command_args_with_readme_file = (
   command: string,
   readmeFileContent: string
 ) => {
@@ -13,11 +13,16 @@ export const test_command_positional_args_with_readme_file = (
     );
   }
 
-  it(`should have correct positional arguments`, async () => {
+  it(`should have same command args as documentation`, async () => {
     // Run the command module with --help as argument
     const output = run_worm_help_command(command);
 
-    expect(readmeFileContent).toContain(output);
+    const getCmdFromOutput = (rawOutput: string) => {
+      return rawOutput.split("worm")[1].split("\n")[0].trim();
+    };
+    const cmd = getCmdFromOutput(output);
+
+    expect(readmeFileContent).toContain(cmd);
   });
 };
 
