@@ -34,16 +34,10 @@ export const CLI_COMMAND_MODULES = [
   transfer,
   verifyVaa,
   status,
-] as YargsCommandModule[];
+];
 
-const yargsCLI = yargs(hideBin(process.argv));
-
-// Build CLI commands dinamically from CLI_COMMAND_MODULES list
-CLI_COMMAND_MODULES.forEach((cmd) => {
-  // https://github.com/yargs/yargs/blob/main/docs/advanced.md#commanddirdirectory-opts
-  // can't use `.commandDir` because bundling + tree-shaking
-  yargsCLI.command(cmd);
-});
-
-// run yargs CLI
-yargsCLI.strict().demandCommand().argv;
+yargs(hideBin(process.argv))
+  // Build CLI commands dinamically from CLI_COMMAND_MODULES list
+  .command(CLI_COMMAND_MODULES as YargsCommandModule[])
+  .strict()
+  .demandCommand().argv;
