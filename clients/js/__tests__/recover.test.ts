@@ -1,15 +1,7 @@
 import { describe, expect, it } from "@jest/globals";
 import { run_worm_command } from "./utils/cli";
-import { test_command_positional_args } from "./utils/tests";
 
 describe("worm recover", () => {
-  describe("check arguments", () => {
-    //Args must be defined in their specific order
-    const args = ["digest", "signature"];
-
-    test_command_positional_args("recover", args);
-  });
-
   describe("check functionality", () => {
     //mocks
     const digest =

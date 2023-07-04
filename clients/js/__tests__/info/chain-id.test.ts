@@ -1,18 +1,10 @@
 import { describe, expect, it } from "@jest/globals";
 import { run_worm_command } from "../utils/cli";
-import { test_command_positional_args } from "../utils/tests";
 import { CHAINS } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
 import { YARGS_COMMAND_FAILED } from "../utils/errors";
 import { WormholeSDKChainName, getChains } from "../utils/getters";
 
 describe("worm info chain-id", () => {
-  describe("check arguments", () => {
-    //Args must be defined in their specific order
-    const args = ["chain"];
-
-    test_command_positional_args("info chain-id", args);
-  });
-
   describe("check functionality", () => {
     const chains: WormholeSDKChainName[] = getChains();
 

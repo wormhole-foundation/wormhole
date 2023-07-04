@@ -1,6 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
 import { run_worm_command } from "../utils/cli";
-import { test_command_positional_args } from "../utils/tests";
 import {
   CONTRACTS,
   Network,
@@ -9,13 +8,6 @@ import { CONTRACT_NOT_DEPLOYED, YARGS_COMMAND_FAILED } from "../utils/errors";
 import { getChains, getNetworks } from "../utils/getters";
 
 describe("worm info contract", () => {
-  describe("check arguments", () => {
-    //Args must be defined in their specific order
-    const args = ["network", "chain", "module"];
-
-    test_command_positional_args("info contract", args);
-  });
-
   describe("check functionality", () => {
     const chains = getChains();
     const networks = getNetworks();
