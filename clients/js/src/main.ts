@@ -20,23 +20,30 @@ import * as verifyVaa from "./cmds/verifyVaa";
 import * as status from "./cmds/status";
 import { YargsCommandModule } from "./cmds/Yargs";
 
-// Note: When adding another subcommand here, please be sure to also include it
-// in the `cmds` array in `docs.ts` so it is properly documented.
-yargs(hideBin(process.argv))
+export const CLI_COMMAND_MODULES = [
+  aptos,
+  editVaa,
+  evm,
+  generate,
+  info,
+  near,
+  parse,
+  recover,
+  submit,
+  sui,
+  transfer,
+  verifyVaa,
+  status,
+] as YargsCommandModule[];
+
+const yargsCLI = yargs(hideBin(process.argv));
+
+// Build CLI commands dinamically from CLI_COMMAND_MODULES list
+CLI_COMMAND_MODULES.forEach((cmd) => {
   // https://github.com/yargs/yargs/blob/main/docs/advanced.md#commanddirdirectory-opts
   // can't use `.commandDir` because bundling + tree-shaking
-  .command(aptos)
-  .command(editVaa as unknown as YargsCommandModule)
-  .command(evm)
-  .command(generate)
-  .command(info)
-  .command(near)
-  .command(parse as unknown as YargsCommandModule)
-  .command(recover as unknown as YargsCommandModule)
-  .command(submit as unknown as YargsCommandModule)
-  .command(sui)
-  .command(transfer as unknown as YargsCommandModule)
-  .command(verifyVaa as unknown as YargsCommandModule)
-  .command(status as unknown as YargsCommandModule)
-  .strict()
-  .demandCommand().argv;
+  yargsCLI.command(cmd);
+});
+
+// run yargs CLI
+yargsCLI.strict().demandCommand().argv;
