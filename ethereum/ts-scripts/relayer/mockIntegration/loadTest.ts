@@ -55,8 +55,12 @@ async function main() {
   runMetricsServer({ port: 1234 });
   const from = getChainById(getArg("--from") as string );
   const to = getChainById(getArg("--to") as string);
+  
   runMessagesDrip(period, from, to);
-  runMessageBursts(from, to);
+  if (tryGetArg("--burst")) {
+    console.log("Running in burst mode");
+    runMessageBursts(from, to);
+  }
 }
 
 async function runMessagesDrip(period: number, from: ChainInfo, to: ChainInfo) {
