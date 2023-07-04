@@ -1,6 +1,26 @@
 import { expect, it } from "@jest/globals";
 import { run_worm_help_command } from "./cli";
 
+export const test_command_positional_args_with_readme_file = (
+  command: string,
+  readmeFileContent: string
+) => {
+  //NOTE: Guard condition to avoid passing infered `worm` keyword from command input
+  const wormCommandRegex = /^worm /;
+  if (new RegExp(wormCommandRegex).test(command)) {
+    throw new Error(
+      "initial 'worm' keyword must be excluded from command params, pass only worm specific commands."
+    );
+  }
+
+  it(`should have correct positional arguments`, async () => {
+    // Run the command module with --help as argument
+    const output = run_worm_help_command(command);
+
+    expect(readmeFileContent).toContain(output);
+  });
+};
+
 export const test_command_positional_args = (
   command: string,
   args: string[],
