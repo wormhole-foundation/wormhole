@@ -4,23 +4,23 @@
   "deliveryProviders": [
     {
       "chainId": 6,
-      "address": "0xd5903a063f604D4615E5c2760b7b80D491564BBe"
+      "address": "0x60a86b97a7596eBFd25fb769053894ed0D9A8366"
     },
     {
       "chainId": 14,
-      "address": "0x93d56f29542c156B3e36f10dE41124B499664ff7"
+      "address": "0x60a86b97a7596eBFd25fb769053894ed0D9A8366"
     },
     {
       "chainId": 4,
-      "address": "0x813AB43ab264362c55BF35A1448d0fd8135049a6"
+      "address": "0x60a86b97a7596eBFd25fb769053894ed0D9A8366"
     },
     {
       "chainId": 5,
-      "address": "0xBF684878906629E72079D4f07D75Ef7165238092"
+      "address": "0x60a86b97a7596eBFd25fb769053894ed0D9A8366"
     },
     {
       "chainId": 16,
-      "address": "0xBF684878906629E72079D4f07D75Ef7165238092"
+      "address": "0x60a86b97a7596eBFd25fb769053894ed0D9A8366"
     }
   ],
   "wormholeRelayers": [

@@ -25,7 +25,7 @@ import (
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 )
 
-func AdminServiceRunnable(
+func adminServiceRunnable(
 	logger *zap.Logger,
 	socketPath string,
 	injectC chan<- *vaa.VAA,

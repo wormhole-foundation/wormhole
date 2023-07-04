@@ -20,7 +20,7 @@ import {
   getArbitraryBytes32,
 } from "./utils/utils";
 import { getAddressInfo } from "../consts";
-import { getDefaultProvider, getVAA } from "../relayer/helpers";
+import { getDefaultProvider } from "../relayer/helpers";
 import {
   relayer,
   ethers_contracts,
@@ -43,6 +43,8 @@ import { Wormhole__factory } from "../../../lib/cjs/ethers-contracts";
 import { getEmitterAddressEth } from "../../bridge";
 import { deliver } from "../relayer";
 import { env } from "process";
+import { NodeHttpTransport } from "@improbable-eng/grpc-web-node-http-transport";
+import { getSignedVAAWithRetry } from "../../rpc";
 
 const network: Network = getNetwork();
 const ci: boolean = isCI();
@@ -105,6 +107,11 @@ myMap.set(targetChain, target.provider);
 const optionalParams = {
   environment: network,
   sourceChainProvider: source.provider,
+  targetChainProviders: myMap,
+};
+const optionalParamsTarget = {
+  environment: network,
+  sourceChainProvider: target.provider,
   targetChainProviders: myMap,
 };
 
@@ -171,7 +178,7 @@ const testForward = async (
     targetChain,
     sourceChain,
     notEnoughExtraForwardingValue ? TOO_LOW_GAS_LIMIT : REASONABLE_GAS_LIMIT,
-    optionalParams
+    optionalParamsTarget
   );
   const value = await relayer.getPrice(
     sourceChain,
@@ -230,17 +237,21 @@ describe("Wormhole Relayer Tests", () => {
 
     await sleep(1000);
 
-    const deliveryVaa = await getVAA(getGuardianRPC(network, ci), {
-      emitterAddress: Buffer.from(
-        tryNativeToUint8Array(source.wormholeRelayerAddress, "ethereum")
-      ),
-      chainId: source.chainId,
-      sequence: deliverySeq,
-    }, true);
+    const rpc = getGuardianRPC(network, ci);
+    const emitterAddress = Buffer.from(
+      tryNativeToUint8Array(source.wormholeRelayerAddress, "ethereum")
+    );
+    const deliveryVaa = await getSignedVAAWithRetry(
+      [rpc],
+      source.chainId,
+      emitterAddress.toString("hex"),
+      deliverySeq.toBigInt().toString(),
+      { transport: NodeHttpTransport() }
+    );
 
     console.log(`Got delivery VAA: ${deliveryVaa}`);
     const deliveryRx = await deliver(
-      deliveryVaa,
+      deliveryVaa.vaaBytes,
       target.wallet,
       getGuardianRPC(network, ci),
       network
@@ -291,13 +302,13 @@ describe("Wormhole Relayer Tests", () => {
       targetChain,
       sourceChain,
       REASONABLE_GAS_LIMIT,
-      optionalParams
+      optionalParamsTarget
     );
     const valueNeededOnTargetChain2 = await relayer.getPrice(
       targetChain,
       targetChain,
       REASONABLE_GAS_LIMIT,
-      optionalParams
+      optionalParamsTarget
     );
 
     const value = await relayer.getPrice(
@@ -505,7 +516,7 @@ describe("Wormhole Relayer Tests", () => {
         value: value,
         gasLimit: REASONABLE_GAS_LIMIT,
       },
-      true
+      { transport: NodeHttpTransport() }
     );
 
     console.log("redelivery tx:", redeliveryReceipt.hash);

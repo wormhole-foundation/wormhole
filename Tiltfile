@@ -274,7 +274,7 @@ def build_node_yaml():
             if algorand:
                 container["command"] += [
                     "--algorandAppID",
-                    "4",
+                    "1004",
                     "--algorandIndexerRPC",
                     "http://algorand:8980",
                     "--algorandIndexerToken",

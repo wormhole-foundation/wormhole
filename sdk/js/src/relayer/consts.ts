@@ -14,27 +14,27 @@ type AddressInfo = {
 const TESTNET: { [K in ChainName]?: AddressInfo } = {
   bsc: {
     wormholeRelayerAddress: "0x80aC94316391752A193C1c47E27D382b507c93F3",
-    mockDeliveryProviderAddress: "0x813AB43ab264362c55BF35A1448d0fd8135049a6",
+    mockDeliveryProviderAddress: "0x60a86b97a7596eBFd25fb769053894ed0D9A8366",
     mockIntegrationAddress: "0xb6A04D6672F005787147472Be20d39741929Aa03",
   },
   polygon: {
     wormholeRelayerAddress: "0x0591C25ebd0580E0d4F27A82Fc2e24E7489CB5e0",
-    mockDeliveryProviderAddress: "0xBF684878906629E72079D4f07D75Ef7165238092",
+    mockDeliveryProviderAddress: "0x60a86b97a7596eBFd25fb769053894ed0D9A8366",
     mockIntegrationAddress: "0x3bF0c43d88541BBCF92bE508ec41e540FbF28C56",
   },
   avalanche: {
     wormholeRelayerAddress: "0xA3cF45939bD6260bcFe3D66bc73d60f19e49a8BB",
-    mockDeliveryProviderAddress: "0xd5903a063f604D4615E5c2760b7b80D491564BBe",
+    mockDeliveryProviderAddress: "0x60a86b97a7596eBFd25fb769053894ed0D9A8366",
     mockIntegrationAddress: "0x5E52f3eB0774E5e5f37760BD3Fca64951D8F74Ae",
   },
   celo: {
     wormholeRelayerAddress: "0x306B68267Deb7c5DfCDa3619E22E9Ca39C374f84",
-    mockDeliveryProviderAddress: "0x93d56f29542c156B3e36f10dE41124B499664ff7",
+    mockDeliveryProviderAddress: "0x60a86b97a7596eBFd25fb769053894ed0D9A8366",
     mockIntegrationAddress: "0x7f1d8E809aBB3F6Dc9B90F0131C3E8308046E190",
   },
   moonbeam: {
     wormholeRelayerAddress: "0x0591C25ebd0580E0d4F27A82Fc2e24E7489CB5e0",
-    mockDeliveryProviderAddress: "0xBF684878906629E72079D4f07D75Ef7165238092",
+    mockDeliveryProviderAddress: "0x60a86b97a7596eBFd25fb769053894ed0D9A8366",
     mockIntegrationAddress: "0x3bF0c43d88541BBCF92bE508ec41e540FbF28C56",
   },
 };
@@ -133,8 +133,8 @@ export const RPCS_BY_CHAIN: {
   [key in Network]: { [key in ChainName]?: string };
 } = {
   MAINNET: {
-    ethereum: process.env.ETH_RPC,
-    bsc: process.env.BSC_RPC || "https://bsc-dataseed2.defibit.io",
+    ethereum: "https://rpc.ankr.com/eth",
+    bsc: "https://bsc-dataseed2.defibit.io",
     polygon: "https://rpc.ankr.com/polygon",
     avalanche: "https://rpc.ankr.com/avalanche",
     oasis: "https://emerald.oasis.dev",
@@ -154,13 +154,13 @@ export const RPCS_BY_CHAIN: {
     terra2: "https://phoenix-lcd.terra.dev",
     terra: "https://columbus-fcd.terra.dev",
     injective: "https://k8s.mainnet.lcd.injective.network",
-    solana: process.env.SOLANA_RPC ?? "https://api.mainnet-beta.solana.com",
+    solana: "https://api.mainnet-beta.solana.com",
   },
   TESTNET: {
     solana: "https://api.devnet.solana.com",
     terra: "https://bombay-lcd.terra.dev",
     ethereum: "https://rpc.ankr.com/eth_goerli",
-    bsc: "https://data-seed-prebsc-1-s1.binance.org:8545",
+    bsc: "https://bsc-testnet.publicnode.com",
     polygon: "https://rpc.ankr.com/polygon_mumbai",
     avalanche: "https://rpc.ankr.com/avalanche_fuji",
     oasis: "https://testnet.emerald.oasis.dev",
