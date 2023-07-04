@@ -351,14 +351,20 @@ contract TokenImplementation is TokenState, Context
         return keccak256(abi.encodePacked(_state.chainId, _state.nativeContract));
     }
 
+    /**
+     * @notice Reverts if not called by zero address
+    */
     modifier onlyVm() {
         require(msg.sender == address(0), "Only VM can call");
         _;
     }
 
-    modifier onlyCeloChains() { // TODO add this after a first batch of testing
+    /**
+     * @notice Reverts for non-Celo chains
+    */
+    modifier onlyCeloChains() {
         address celoRegistryAddress = address(0x000000000000000000000000000000000000ce10);
-        require(celoRegistryAddress.code.length == 0, "Only Celo chains should have bytecode in the Celo Registry address");
+        require(celoRegistryAddress.code.length != 0, "Only Celo chains should have bytecode in the Celo Registry address");
         _;
     }
 
@@ -371,8 +377,8 @@ contract TokenImplementation is TokenState, Context
      * currency. After the tx is executed, gas is refunded to the sender and credited to the
      * various tx fee recipients via a call to `creditGasFees`. Note too that the events emitted
      * by `creditGasFees` reflect the *net* gas fee payments for the transaction.
-     */
-    function debitGasFees(address from, uint256 value) external onlyVm {
+    */
+    function debitGasFees(address from, uint256 value) external onlyVm onlyCeloChains {
         _state.balances[from] = _state.balances[from] - value;
     }
 
@@ -391,7 +397,7 @@ contract TokenImplementation is TokenState, Context
      * currency. Before the tx is executed, gas is debited from the sender via a call to
      * `debitGasFees`. Note too that the events emitted by `creditGasFees` reflect the *net* gas fee
      * payments for the transaction.
-     */
+    */
     function creditGasFees(
         address from,
         address feeRecipient,
@@ -401,7 +407,7 @@ contract TokenImplementation is TokenState, Context
         uint256 tipTxFee,
         uint256 gatewayFee,
         uint256 baseTxFee
-    ) external onlyVm {
+    ) external onlyVm onlyCeloChains {
         _state.balances[from] = _state.balances[from] + refund;
         _creditGas(from, communityFund, baseTxFee);
         _creditGas(from, feeRecipient, tipTxFee);

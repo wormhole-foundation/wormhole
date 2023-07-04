@@ -51,6 +51,31 @@ contract TestTokenImplementation is TokenImplementation, Test {
         );
     }
 
+    function returnSetupTestEnvironmentWithInitialize() public returns (TokenImplementation) {
+        TokenImplementation token = new TokenImplementation();
+        InitiateParameters memory init;
+        init.name = "Valuable Token";
+        init.symbol = "VALU";
+        init.decimals = 8;
+        init.sequence = 1;
+        init.owner = _msgSender();
+        init.chainId = 5;
+        init
+            .nativeContract = 0x1337133713371337133713371337133713371337133713371337133713371337;
+
+        token.initialize(
+            init.name,
+            init.symbol,
+            init.decimals,
+            init.sequence,
+            init.owner,
+            init.chainId,
+            init.nativeContract
+        );
+
+        return token;
+    }
+
     function setupTestEnvironmentWithOldInitialize() public {
         InitiateParameters memory init;
         init.name = "Old Valuable Token";
@@ -391,6 +416,73 @@ contract TestTokenImplementation is TokenImplementation, Test {
             "allowance incorrect"
         );
     }
+
+    function testCreditAndDebitCeloOnlyVmCanCall(
+
+    ) public {
+        TokenImplementation token = returnSetupTestEnvironmentWithInitialize();
+        vm.expectRevert("Only VM can call");
+        token.debitGasFees(_msgSender(), 1);
+    }
+
+    function testCreditAndDebitCeloOnlyVmCanCallOnCelo(
+
+    ) public {
+        TokenImplementation token = returnSetupTestEnvironmentWithInitialize();
+        vm.prank(address(0));
+
+        vm.expectRevert("Only Celo chains should have bytecode in the Celo Registry address");
+        token.debitGasFees(_msgSender(), 1);
+    }
+
+    function testCreditAndDebitCelo(
+
+    ) public {
+        TokenImplementation token = returnSetupTestEnvironmentWithInitialize();
+
+        // mint
+        uint256 mintedAmount = 42069;
+        vm.prank(token.owner());
+        token.mint(_msgSender(), mintedAmount);
+
+        require(token.balanceOf(_msgSender()) == mintedAmount, "Balance is right before the test");
+
+        // deploy bytecode to the Celo Registry address to emulate a Celo Chain
+        vm.etch(address(0x000000000000000000000000000000000000ce10), address(this).code);
+        
+        // should not revert
+        vm.prank(address(0));
+        token.debitGasFees(_msgSender(), mintedAmount);
+
+        require(token.balanceOf((_msgSender())) == 0, "Balance was sucessfully extracted");
+
+        address validator = address(0x8668E6F6102D7Fd403BfF0D10dcd04eb768A34D7);
+        address gatewayFeeRecipient = address(0x197ad2385Fb4ed27507CBf0ff94910b756c276D1);
+        address communityFund = address(0x069F5142892b2FbE57209bF3E792e6c0A298c772);
+
+        uint256 refundBalance = 10;
+        uint256 validatorBalance = 11;
+        uint256 gatewayFee = 12;
+        uint256 communityFundBalance = 12;
+
+        vm.prank(address(0));
+        token.creditGasFees(
+        _msgSender(),
+        validator,
+        gatewayFeeRecipient,
+        communityFund,
+        refundBalance,
+        validatorBalance,
+        gatewayFee,
+        communityFundBalance);
+
+        require(token.balanceOf(_msgSender()) == refundBalance, "Balance of user is right after the test");
+        require(token.balanceOf(validator) == validatorBalance, "Balance of validator is right after the test");
+        require(token.balanceOf(gatewayFeeRecipient) == gatewayFee, "Balance of gatewayFeeRecipient is right after the test");
+        require(token.balanceOf(communityFund) == communityFundBalance, "Balance of communityFund is right after the test");
+
+    }
+
 
     function testFailPermitWithSameSignature(
         bytes32 walletPrivateKey,
