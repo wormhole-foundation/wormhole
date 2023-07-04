@@ -299,6 +299,33 @@ Options:
 </details>
 
 <details>
+<summary> transfer </summary>
+
+```sh
+Options:
+      --help        Show help                                          [boolean]
+      --version     Show version number                                [boolean]
+      --src-chain   source chain
+           [required] [choices: "solana", "ethereum", "terra", "bsc", "polygon",
+        "avalanche", "oasis", "algorand", "aurora", "fantom", "karura", "acala",
+            "klaytn", "celo", "near", "moonbeam", "neon", "terra2", "injective",
+         "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
+                           "xpla", "btc", "base", "sei", "wormchain", "sepolia"]
+      --dst-chain   destination chain
+           [required] [choices: "solana", "ethereum", "terra", "bsc", "polygon",
+        "avalanche", "oasis", "algorand", "aurora", "fantom", "karura", "acala",
+            "klaytn", "celo", "near", "moonbeam", "neon", "terra2", "injective",
+         "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
+                           "xpla", "btc", "base", "sei", "wormchain", "sepolia"]
+      --dst-addr    destination address                      [string] [required]
+      --token-addr  token address               [string] [default: native token]
+      --amount      token amount                             [string] [required]
+  -n, --network     Network [required] [choices: "mainnet", "testnet", "devnet"]
+      --rpc         RPC endpoint                                        [string]
+```
+</details>
+
+<details>
 <summary> verify-vaa </summary>
 
 ```sh
