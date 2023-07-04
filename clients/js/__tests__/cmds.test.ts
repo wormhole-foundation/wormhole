@@ -1,7 +1,7 @@
 import { describe } from "@jest/globals";
-import { test_command_positional_args_with_readme_file } from "./utils/tests";
+import { test_command_args_with_readme_file } from "./utils/tests";
 import * as fs from "fs";
-import { CLI_COMMAND_MODULES } from "../src/main";
+import { CLI_COMMAND_MODULES } from "../src/cmds";
 
 const readme = fs.readFileSync("./README.md", "utf8");
 
@@ -19,6 +19,6 @@ const commandNames = getCommandNamesFromCommandModules(CLI_COMMAND_MODULES);
 
 commandNames.forEach((cmd) => {
   describe(`worm ${cmd}`, () => {
-    test_command_positional_args_with_readme_file(cmd, readme);
+    test_command_args_with_readme_file(cmd, readme);
   });
 });

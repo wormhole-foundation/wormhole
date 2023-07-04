@@ -3,7 +3,7 @@ import yargs from "yargs";
 // Side effects are here to trigger before the afflicted libraries' on-import warnings can be emitted.
 // It is also imported so that it can side-effect without being tree-shaken.
 import "./side-effects";
-import { CLI_COMMAND_MODULES } from "./main";
+import { CLI_COMMAND_MODULES } from "./cmds";
 
 const MD_TAG = "<!--CLI_USAGE-->";
 
