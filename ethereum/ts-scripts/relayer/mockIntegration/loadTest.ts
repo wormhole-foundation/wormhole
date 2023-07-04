@@ -73,9 +73,11 @@ function getRandomInt(max: number) {
 }
 
 async function runMessageBursts(from: ChainInfo, to: ChainInfo) {
+  const minWaitBetweenBursts = tryGetArg('--min-burst-wait') ? Number(getArg('--min-burst-wait') as string) : 10;
+  const maxBurstMessages = tryGetArg('--max-burst-messages') ? Number(getArg('--max-burst-messages') as string) : 50;
   while (true) {
-    const nextWaitInMinutes = getRandomInt(10);
-    const nextBurstMessagesCount = getRandomInt(50);
+    const nextWaitInMinutes = getRandomInt(minWaitBetweenBursts);
+    const nextBurstMessagesCount = getRandomInt(maxBurstMessages);
 
     console.log(`Next message burst will be in ${nextWaitInMinutes} minutes and contain ${nextBurstMessagesCount} messages`);
 
