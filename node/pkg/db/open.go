@@ -30,7 +30,7 @@ func (l badgerZapLogger) Debugf(f string, v ...interface{}) {
 }
 
 func OpenDb(logger *zap.Logger, dataDir *string) *Database {
-	options := badger.DefaultOptions(dbPath)
+	var options badger.Options
 
 	if dataDir != nil {
 		dbPath := path.Join(*dataDir, "db")
