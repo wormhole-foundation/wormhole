@@ -211,7 +211,8 @@ var (
 	bigTableTopicName          *string
 	bigTableKeyPath            *string
 
-	chainGovernorEnabled *bool
+	chainGovernorEnabled  *bool
+	processorWorkerFactor *float64
 
 	gatewayRelayerContract      *string
 	gatewayRelayerKeyPath       *string
@@ -384,6 +385,7 @@ func init() {
 	bigTableKeyPath = NodeCmd.Flags().String("bigTableKeyPath", "", "Path to json Service Account key")
 
 	chainGovernorEnabled = NodeCmd.Flags().Bool("chainGovernorEnabled", false, "Run the chain governor")
+	processorWorkerFactor = NodeCmd.Flags().Float64("processorWorkerFactor", 0.0, "Multiplied by the number of available CPUs on the system to determine the number of workers that the processor uses. 0.0 means single worker")
 
 	gatewayRelayerContract = NodeCmd.Flags().String("gatewayRelayerContract", "", "Address of the smart contract on wormchain to receive relayed VAAs")
 	gatewayRelayerKeyPath = NodeCmd.Flags().String("gatewayRelayerKeyPath", "", "Path to gateway relayer private key for signing transactions")
@@ -1460,7 +1462,7 @@ func runNode(cmd *cobra.Command, args []string) {
 		node.GuardianOptionAdminService(*adminSocketPath, ethRPC, ethContract, rpcMap),
 		node.GuardianOptionP2P(p2pKey, *p2pNetworkID, *p2pBootstrap, *nodeName, *disableHeartbeatVerify, *p2pPort, ibc.GetFeatures),
 		node.GuardianOptionStatusServer(*statusAddr),
-		node.GuardianOptionProcessor(),
+		node.GuardianOptionProcessor(*processorWorkerFactor),
 	}
 
 	if shouldStart(publicGRPCSocketPath) {
