@@ -48,6 +48,7 @@ func TestHandleInboundSignedVAAWithQuorum_NilGuardianSet(t *testing.T) {
 	ctx := context.Background()
 	signedVAAWithQuorum := &gossipv1.SignedVAAWithQuorum{Vaa: marshalVAA}
 	processor := Processor{}
+	processor.gst = common.NewGuardianSetState(nil)
 	processor.logger = observedLogger
 
 	processor.handleInboundSignedVAAWithQuorum(ctx, signedVAAWithQuorum)
@@ -111,7 +112,8 @@ func TestHandleInboundSignedVAAWithQuorum(t *testing.T) {
 			ctx := context.Background()
 			signedVAAWithQuorum := &gossipv1.SignedVAAWithQuorum{Vaa: marshalVAA}
 			processor := Processor{}
-			processor.gs = &guardianSet
+			processor.gst = common.NewGuardianSetState(nil)
+			processor.gst.Set(&guardianSet)
 			processor.logger = observedLogger
 
 			processor.handleInboundSignedVAAWithQuorum(ctx, signedVAAWithQuorum)

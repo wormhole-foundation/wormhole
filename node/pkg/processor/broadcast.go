@@ -7,7 +7,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
-	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"google.golang.org/protobuf/proto"
 
@@ -50,20 +49,19 @@ func (p *Processor) broadcastSignature(
 	// Store our VAA in case we're going to submit it to Solana
 	hash := hex.EncodeToString(digest.Bytes())
 
-	if p.state.signatures[hash] == nil {
-		p.state.signatures[hash] = &state{
-			firstObserved: time.Now(),
-			nextRetry:     time.Now().Add(nextRetryDuration(0)),
-			signatures:    map[ethcommon.Address][]byte{},
-			source:        "loopback",
-		}
+	obsState, created := p.state.getOrCreateState(hash)
+	obsState.lock.Lock()
+	defer obsState.lock.Unlock()
+
+	if created {
+		obsState.source = "loopback"
+		obsState.nextRetry = time.Now().Add(nextRetryDuration(0))
 	}
 
-	p.state.signatures[hash].ourObservation = o
-	p.state.signatures[hash].ourMsg = msg
-	p.state.signatures[hash].txHash = txhash
-	p.state.signatures[hash].source = o.GetEmitterChain().String()
-	p.state.signatures[hash].gs = p.gs // guaranteed to match ourObservation - there's no concurrent access to p.gs
+	obsState.ourObservation = o
+	obsState.ourMsg = msg
+	obsState.txHash = txhash
+	obsState.source = o.GetEmitterChain().String()
 
 	// Fast path for our own signature
 	// send to obsvC directly if there is capacity, otherwise do it in a go routine.
