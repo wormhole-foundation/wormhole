@@ -114,7 +114,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 				chain = s.ourObservation.GetEmitterChain()
 			}
 
-			p.logger.Info("observation considered settled",
+			p.logger.Debug("observation considered settled",
 				zap.String("digest", hash),
 				zap.Duration("delta", delta),
 				zap.Int("have_sigs", hasSigs),
@@ -135,7 +135,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 			// observation that come in. Therefore, keep it for a reasonable amount of time.
 			// If a very late observation arrives after cleanup, a nil aggregation state will be created
 			// and then expired after a while (as noted in observation.go, this can be abused by a byzantine guardian).
-			p.logger.Info("expiring submitted observation", zap.String("digest", hash), zap.Duration("delta", delta))
+			p.logger.Debug("expiring submitted observation", zap.String("digest", hash), zap.Duration("delta", delta))
 			delete(p.state.signatures, hash)
 			aggregationStateExpiration.Inc()
 		case !s.submitted && ((s.ourMsg != nil && s.retryCount >= 14400 /* 120 hours */) || (s.ourMsg == nil && s.retryCount >= 10 /* 5 minutes */)):

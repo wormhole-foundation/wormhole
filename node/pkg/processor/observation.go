@@ -195,7 +195,7 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 		// 2/3+ majority required for VAA to be valid - wait until we have quorum to submit VAA.
 		quorum := vaa.CalculateQuorum(len(gs.Keys))
 
-		p.logger.Info("aggregation state for observation",
+		p.logger.Debug("aggregation state for observation", // 1.3M out of 3M info messages / hour / guardian
 			zap.String("digest", hash),
 			zap.Any("set", gs.KeysAsHexStrings()),
 			zap.Uint32("index", gs.Index),
@@ -208,11 +208,11 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 		if len(sigs) >= quorum && !p.state.signatures[hash].submitted {
 			p.state.signatures[hash].ourObservation.HandleQuorum(sigs, hash, p)
 		} else {
-			p.logger.Info("quorum not met or already submitted, doing nothing",
+			p.logger.Debug("quorum not met or already submitted, doing nothing", // 1.2M out of 3M info messages / hour / guardian
 				zap.String("digest", hash))
 		}
 	} else {
-		p.logger.Info("we have not yet seen this observation - temporarily storing signature",
+		p.logger.Debug("we have not yet seen this observation - temporarily storing signature", // 175K out of 3M info messages / hour / guardian
 			zap.String("digest", hash),
 			zap.Bools("aggregation", agg))
 
