@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	inboundObservationBufferSize         = 50
+	inboundObservationBufferSize         = 5000
 	inboundSignedVaaBufferSize           = 50
 	observationRequestOutboundBufferSize = 50
 	observationRequestInboundBufferSize  = 50
