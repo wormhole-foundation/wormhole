@@ -52,6 +52,8 @@ const ci: boolean = isCI();
 const sourceChain = network == "DEVNET" ? "ethereum" : "celo";
 const targetChain = network == "DEVNET" ? "bsc" : "avalanche";
 
+const testIfDevnet = () => network == "DEVNET" ? test : test.skip;
+
 type TestChain = {
   chainId: ChainId;
   name: ChainName;
@@ -535,7 +537,7 @@ describe("Wormhole Relayer Tests", () => {
 
   // GOVERNANCE TESTS
 
-  test("Governance: Test Registering Chain", async () => {
+  testIfDevnet()("Governance: Test Registering Chain", async () => {
     const chain = 24;
 
     const currentAddress =
@@ -572,7 +574,7 @@ describe("Wormhole Relayer Tests", () => {
     expect(newRegisteredAddress).toBe(expectedNewRegisteredAddress);
   });
 
-  test("Governance: Test Setting Default Relay Provider", async () => {
+  testIfDevnet()("Governance: Test Setting Default Relay Provider", async () => {
     const currentAddress =
       await source.wormholeRelayer.getDefaultDeliveryProvider();
     console.log(
@@ -628,7 +630,7 @@ describe("Wormhole Relayer Tests", () => {
     expect(originalDefaultDeliveryProvider).toBe(currentAddress);
   });
 
-  test("Governance: Test Upgrading Contract", async () => {
+  testIfDevnet()("Governance: Test Upgrading Contract", async () => {
     const IMPLEMENTATION_STORAGE_SLOT =
       "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
 
