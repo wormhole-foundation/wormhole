@@ -195,7 +195,7 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 		// 2/3+ majority required for VAA to be valid - wait until we have quorum to submit VAA.
 		quorum := vaa.CalculateQuorum(len(gs.Keys))
 
-		p.logger.Debug("aggregation state for observation", // 1.2M out of 3M info messages / hour / guardian
+		p.logger.Debug("aggregation state for observation", // 1.3M out of 3M info messages / hour / guardian
 			zap.String("digest", hash),
 			zap.Any("set", gs.KeysAsHexStrings()),
 			zap.Uint32("index", gs.Index),
