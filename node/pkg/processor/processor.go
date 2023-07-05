@@ -4,6 +4,10 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"math"
+	"runtime"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/certusone/wormhole/node/pkg/db"
@@ -47,6 +51,9 @@ type (
 
 	// state represents the local view of a given observation
 	state struct {
+		// Mutex protecting this particular state entry.
+		lock sync.Mutex
+
 		// First time this digest was seen (possibly even before we observed it ourselves).
 		firstObserved time.Time
 		// A re-observation request shall not be sent before this time.
@@ -76,9 +83,35 @@ type (
 
 	// aggregationState represents the node's aggregation of guardian signatures.
 	aggregationState struct {
-		signatures observationMap
+		// signaturesLock should be held when inserting / deleting / iterating over the map, but not when working with a single entry.
+		signaturesLock sync.Mutex
+		signatures     observationMap
 	}
 )
+
+// getOrCreateState returns the state for a given hash, creating it if it doesn't exist.  It grabs the lock.
+func (s *aggregationState) getOrCreateState(hash string) (*state, bool) {
+	s.signaturesLock.Lock()
+	defer s.signaturesLock.Unlock()
+
+	created := false
+	if _, ok := s.signatures[hash]; !ok {
+		created = true
+		s.signatures[hash] = &state{
+			firstObserved: time.Now(),
+			signatures:    make(map[ethcommon.Address][]byte),
+		}
+	}
+
+	return s.signatures[hash], created
+}
+
+// delete removes a state entry from the map. It grabs the lock.
+func (s *aggregationState) delete(hash string) {
+	s.signaturesLock.Lock()
+	defer s.signaturesLock.Unlock()
+	delete(s.signatures, hash)
+}
 
 type PythNetVaaEntry struct {
 	v          *vaa.VAA
@@ -116,7 +149,7 @@ type Processor struct {
 	// Runtime state
 
 	// gs is the currently valid guardian set
-	gs *common.GuardianSet
+	gs atomic.Pointer[common.GuardianSet]
 	// gst is managed by the processor and allows concurrent access to the
 	// guardian set by other components.
 	gst *common.GuardianSetState
@@ -126,10 +159,13 @@ type Processor struct {
 	// gk pk as eth address
 	ourAddr ethcommon.Address
 
-	governor    *governor.ChainGovernor
-	acct        *accountant.Accountant
-	acctReadC   <-chan *common.MessagePublication
-	pythnetVaas map[string]PythNetVaaEntry
+	governor  *governor.ChainGovernor
+	acct      *accountant.Accountant
+	acctReadC <-chan *common.MessagePublication
+
+	pythnetVaaLock sync.Mutex
+	pythnetVaas    map[string]PythNetVaaEntry
+	workerFactor   float64
 }
 
 var (
@@ -137,14 +173,14 @@ var (
 		prometheus.HistogramOpts{
 			Name:    "wormhole_signed_observation_channel_delay_us",
 			Help:    "Latency histogram for delay of signed observations in channel",
-			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10000.0},
+			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 250, 500, 750, 1000.0, 5000.0, 10000.0},
 		})
 
 	observationTotalDelay = promauto.NewHistogram(
 		prometheus.HistogramOpts{
 			Name:    "wormhole_signed_observation_total_delay_us",
 			Help:    "Latency histogram for total time to process signed observations",
-			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 1000.0, 5000.0, 10000.0},
+			Buckets: []float64{10.0, 20.0, 50.0, 100.0, 250, 500, 750, 1000.0, 5000.0, 10000.0},
 		})
 )
 
@@ -164,8 +200,8 @@ func NewProcessor(
 	g *governor.ChainGovernor,
 	acct *accountant.Accountant,
 	acctReadC <-chan *common.MessagePublication,
+	workerFactor float64,
 ) *Processor {
-
 	return &Processor{
 		msgC:         msgC,
 		setC:         setC,
@@ -180,21 +216,67 @@ func NewProcessor(
 
 		attestationEvents: attestationEvents,
 
-		logger:      supervisor.Logger(ctx),
-		state:       &aggregationState{observationMap{}},
-		ourAddr:     crypto.PubkeyToAddress(gk.PublicKey),
-		governor:    g,
-		acct:        acct,
-		acctReadC:   acctReadC,
-		pythnetVaas: make(map[string]PythNetVaaEntry),
+		logger:       supervisor.Logger(ctx).With(zap.String("component", "processor")),
+		state:        &aggregationState{signatures: observationMap{}},
+		ourAddr:      crypto.PubkeyToAddress(gk.PublicKey),
+		governor:     g,
+		acct:         acct,
+		acctReadC:    acctReadC,
+		pythnetVaas:  make(map[string]PythNetVaaEntry),
+		workerFactor: workerFactor,
 	}
 }
 
 func (p *Processor) Run(ctx context.Context) error {
-	cleanup := time.NewTicker(CleanupInterval)
+	if p.workerFactor < 0.0 {
+		return fmt.Errorf("workerFactor must be positive or zero")
+	}
+
+	var ret error
+	if p.workerFactor == 0.0 {
+		ret = p.RunOne(ctx, 1)
+	} else {
+
+		numWorkers := int(math.Ceil(float64(runtime.NumCPU()) * p.workerFactor))
+		p.logger.Info("processor configured to use workers", zap.Int("numWorkers", numWorkers), zap.Float64("workerFactor", p.workerFactor))
+
+		var w sync.WaitGroup
+		w.Add(numWorkers)
+
+		for workerId := 1; workerId <= numWorkers; workerId++ {
+			go func(ctx context.Context, workerId int) {
+				p.logger.Info("processor worker started", zap.Int("workerId", workerId))
+				err := p.RunOne(ctx, workerId)
+				if err != nil {
+					p.logger.Error("processor worker failed", zap.Int("workerId", workerId), zap.Error(err))
+				}
+				p.logger.Info("processor worker done", zap.Int("workerId", workerId))
+				w.Done()
+			}(ctx, workerId)
+		}
+
+		w.Wait()
+	}
+
+	// Log these as warnings so they show up in the benchmark logs.
+	metric := &dto.Metric{}
+	_ = observationChanDelay.Write(metric)
+	p.logger.Warn("PROCESSOR_METRICS", zap.Any("observationChannelDelay", metric.String()))
+
+	metric = &dto.Metric{}
+	_ = observationTotalDelay.Write(metric)
+	p.logger.Warn("PROCESSOR_METRICS", zap.Any("observationProcessingDelay", metric.String()))
+	return ret
+}
+
+func (p *Processor) RunOne(ctx context.Context, workerId int) error {
+	// Always start the timers to avoid nil pointer dereferences below. They will only be rearmed on worker 1.
+	cleanup := time.NewTimer(CleanupInterval)
+	defer cleanup.Stop()
 
 	// Always initialize the timer so don't have a nil pointer in the case below. It won't get rearmed after that.
 	govTimer := time.NewTimer(GovInterval)
+	defer govTimer.Stop()
 
 	for {
 		select {
@@ -202,22 +284,13 @@ func (p *Processor) Run(ctx context.Context) error {
 			if p.acct != nil {
 				p.acct.Close()
 			}
-
-			// Log these as warnings so they show up in the benchmark logs.
-			metric := &dto.Metric{}
-			_ = observationChanDelay.Write(metric)
-			p.logger.Warn("PROCESSOR_METRICS", zap.Any("observationChannelDelay", metric.String()))
-
-			metric = &dto.Metric{}
-			_ = observationTotalDelay.Write(metric)
-			p.logger.Warn("PROCESSOR_METRICS", zap.Any("observationProcessingDelay", metric.String()))
-
 			return ctx.Err()
-		case p.gs = <-p.setC:
+		case gs := <-p.setC:
+			p.gs.Store(gs)
 			p.logger.Info("guardian set updated",
-				zap.Strings("set", p.gs.KeysAsHexStrings()),
-				zap.Uint32("index", p.gs.Index))
-			p.gst.Set(p.gs)
+				zap.Strings("set", gs.KeysAsHexStrings()),
+				zap.Uint32("index", gs.Index))
+			p.gst.Set(gs)
 		case k := <-p.msgC:
 			if p.governor != nil {
 				if !p.governor.ProcessMsg(k) {
@@ -252,9 +325,12 @@ func (p *Processor) Run(ctx context.Context) error {
 		case m := <-p.signedInC:
 			p.handleInboundSignedVAAWithQuorum(ctx, m)
 		case <-cleanup.C:
-			p.handleCleanup(ctx)
+			if workerId == 1 {
+				cleanup.Reset(CleanupInterval)
+				p.handleCleanup(ctx)
+			}
 		case <-govTimer.C:
-			if p.governor != nil {
+			if p.governor != nil && workerId == 1 {
 				toBePublished, err := p.governor.CheckPending()
 				if err != nil {
 					return err
@@ -279,8 +355,6 @@ func (p *Processor) Run(ctx context.Context) error {
 						p.handleMessage(ctx, k)
 					}
 				}
-			}
-			if (p.governor != nil) || (p.acct != nil) {
 				govTimer.Reset(GovInterval)
 			}
 		}
@@ -290,6 +364,8 @@ func (p *Processor) Run(ctx context.Context) error {
 func (p *Processor) storeSignedVAA(v *vaa.VAA) error {
 	if v.EmitterChain == vaa.ChainIDPythNet {
 		key := fmt.Sprintf("%v/%v", v.EmitterAddress, v.Sequence)
+		p.pythnetVaaLock.Lock()
+		defer p.pythnetVaaLock.Unlock()
 		p.pythnetVaas[key] = PythNetVaaEntry{v: v, updateTime: time.Now()}
 		return nil
 	}
@@ -297,8 +373,9 @@ func (p *Processor) storeSignedVAA(v *vaa.VAA) error {
 }
 
 func (p *Processor) getSignedVAA(id db.VAAID) (*vaa.VAA, error) {
-
 	if id.EmitterChain == vaa.ChainIDPythNet {
+		p.pythnetVaaLock.Lock()
+		defer p.pythnetVaaLock.Unlock()
 		key := fmt.Sprintf("%v/%v", id.EmitterAddress, id.Sequence)
 		ret, exists := p.pythnetVaas[key]
 		if exists {

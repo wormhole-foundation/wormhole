@@ -111,7 +111,7 @@ func TestHandleInboundSignedVAAWithQuorum(t *testing.T) {
 			ctx := context.Background()
 			signedVAAWithQuorum := &gossipv1.SignedVAAWithQuorum{Vaa: marshalVAA}
 			processor := Processor{}
-			processor.gs = &guardianSet
+			processor.gs.Store(&guardianSet)
 			processor.logger = observedLogger
 
 			processor.handleInboundSignedVAAWithQuorum(ctx, signedVAAWithQuorum)

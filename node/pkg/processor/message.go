@@ -41,7 +41,8 @@ var (
 // handleMessage processes a message received from a chain and instantiates our deterministic copy of the VAA. An
 // event may be received multiple times and must be handled in an idempotent fashion.
 func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublication) {
-	if p.gs == nil {
+	gs := p.gs.Load()
+	if gs == nil {
 		p.logger.Warn("dropping observation since we haven't initialized our guardian set yet",
 			zap.Stringer("emitter_chain", k.EmitterChain),
 			zap.Stringer("emitter_address", k.EmitterAddress),
@@ -70,7 +71,7 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 	v := &VAA{
 		VAA: vaa.VAA{
 			Version:          vaa.SupportedVAAVersion,
-			GuardianSetIndex: p.gs.Index,
+			GuardianSetIndex: gs.Index,
 			Signatures:       nil,
 			Timestamp:        k.Timestamp,
 			Nonce:            k.Nonce,
