@@ -1,6 +1,7 @@
 package db
 
 import (
+	"fmt"
 	"os"
 	"path"
 
@@ -8,8 +9,28 @@ import (
 	"go.uber.org/zap"
 )
 
+type badgerZapLogger struct {
+	*zap.Logger
+}
+
+func (l badgerZapLogger) Errorf(f string, v ...interface{}) {
+	l.Error(fmt.Sprintf(f, v...))
+}
+
+func (l badgerZapLogger) Warningf(f string, v ...interface{}) {
+	l.Warn(fmt.Sprintf(f, v...))
+}
+
+func (l badgerZapLogger) Infof(f string, v ...interface{}) {
+	l.Info(fmt.Sprintf(f, v...))
+}
+
+func (l badgerZapLogger) Debugf(f string, v ...interface{}) {
+	l.Debug(fmt.Sprintf(f, v...))
+}
+
 func OpenDb(logger *zap.Logger, dataDir *string) *Database {
-	var options badger.Options
+	options := badger.DefaultOptions(dbPath)
 
 	if dataDir != nil {
 		dbPath := path.Join(*dataDir, "db")
@@ -21,6 +42,8 @@ func OpenDb(logger *zap.Logger, dataDir *string) *Database {
 	} else {
 		options = badger.DefaultOptions("").WithInMemory(true)
 	}
+
+	options = options.WithLogger(badgerZapLogger{logger})
 
 	db, err := badger.Open(options)
 	if err != nil {
