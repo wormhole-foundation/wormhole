@@ -203,7 +203,7 @@ const testForward = async (
     valueNeededOnTargetChain,
     { value: value, gasLimit: REASONABLE_GAS_LIMIT }
   );
-  console.log("Sent delivery request!");
+  console.log(`Sent delivery request! Transaction hash ${tx.hash}`);
   await tx.wait();
   console.log("Message confirmed!");
 
@@ -226,6 +226,50 @@ describe("Wormhole Relayer Tests", () => {
     console.log("Checking if message was relayed");
     const message = await target.mockIntegration.getMessage();
     expect(message).toBe(arbitraryPayload);
+  });
+
+  test("Executes a Delivery Success With Additional VAAs", async () => {
+    const arbitraryPayload = getArbitraryBytes32();
+    console.log(`Sent message: ${arbitraryPayload}`);
+
+    const wormhole = Implementation__factory.connect(
+      CONTRACTS[network][sourceChain].core || "",
+      source.wallet
+    );
+    const deliverySeq = await wormhole.nextSequence(source.wallet.address);
+    const msgTx = await wormhole.publishMessage(0, arbitraryPayload, 200);
+    await msgTx.wait();
+
+    const value = await relayer.getPrice(
+      sourceChain,
+      targetChain,
+      REASONABLE_GAS_LIMIT*2,
+      optionalParams
+    );
+    console.log(`Quoted gas delivery fee: ${value}`);
+
+    const tx = await source.mockIntegration.sendMessageWithAdditionalVaas([], target.chainId, REASONABLE_GAS_LIMIT*2, 0, [relayer.createVaaKey(
+      source.chainId,
+      Buffer.from(
+        tryNativeToUint8Array(source.wallet.address, "ethereum")
+      ),
+      deliverySeq
+    )], {value});
+
+    console.log(`Sent tx hash: ${tx.hash}`);
+
+    const rx = await tx.wait();
+
+    await waitForRelay();
+
+    console.log("Checking status using SDK");
+    const status = await getStatus(tx.hash);
+    expect(status).toBe("Delivery Success");
+
+    console.log("Checking if message was relayed");
+    const message = (await target.mockIntegration.getDeliveryData()).additionalVaas[0];
+    const parsedMessage = await wormhole.parseVM(message);
+    expect(parsedMessage.payload).toBe(arbitraryPayload);
   });
 
   test("Executes a Delivery Success with manual delivery", async () => {
@@ -354,7 +398,7 @@ describe("Wormhole Relayer Tests", () => {
     expect(message2).toBe(arbitraryPayload2);
   });
 
-  test("Executes a Forward Request Failure", async () => {
+  testIfDevnet()("Executes a Forward Request Failure", async () => {
     const arbitraryPayload1 = getArbitraryBytes32();
     const arbitraryPayload2 = getArbitraryBytes32();
     console.log(
@@ -379,7 +423,7 @@ describe("Wormhole Relayer Tests", () => {
     expect(message2).not.toBe(arbitraryPayload2);
   });
 
-  test("Test getPrice in Typescript SDK", async () => {
+  testIfDevnet()("Test getPrice in Typescript SDK", async () => {
     const price = await relayer.getPrice(
       sourceChain,
       targetChain,
