@@ -178,6 +178,9 @@ func mockGuardianRunnable(testId uint, gs []*mockGuardian, mockGuardianIndex uin
 		adminSocketPath := mockAdminStocket(testId, mockGuardianIndex)
 		rpcMap := make(map[string]string)
 
+		// We set this to None because we don't want to count these logs when counting the amount of logs generated per message
+		publicRpcLogDetail := common.GrpcLogDetailNone
+
 		// assemble all the options
 		guardianOptions := []*GuardianOption{
 			GuardianOptionDatabase(db),
@@ -185,8 +188,8 @@ func mockGuardianRunnable(testId uint, gs []*mockGuardian, mockGuardianIndex uin
 			GuardianOptionNoAccountant(), // disable accountant
 			GuardianOptionGovernor(true),
 			GuardianOptionP2P(gs[mockGuardianIndex].p2pKey, networkID, bootstrapPeers, nodeName, false, p2pPort, func() string { return "" }),
-			GuardianOptionPublicRpcSocket(publicSocketPath, common.GrpcLogDetailFull),
-			GuardianOptionPublicrpcTcpService(publicRpc, common.GrpcLogDetailFull),
+			GuardianOptionPublicRpcSocket(publicSocketPath, publicRpcLogDetail),
+			GuardianOptionPublicrpcTcpService(publicRpc, publicRpcLogDetail),
 			GuardianOptionPublicWeb(mockPublicWeb(testId, mockGuardianIndex), publicSocketPath, "", false, path.Join(dataDir, "autocert")),
 			GuardianOptionAdminService(adminSocketPath, nil, nil, rpcMap),
 			GuardianOptionStatusServer(fmt.Sprintf("[::]:%d", mockStatusPort(testId, mockGuardianIndex))),
@@ -212,11 +215,12 @@ func mockGuardianRunnable(testId uint, gs []*mockGuardian, mockGuardianIndex uin
 }
 
 // setupLogsCapture is a helper function for making a zap logger/observer combination for testing that certain logs have been made
-func setupLogsCapture(options ...zap.Option) (*zap.Logger, *observer.ObservedLogs) {
+func setupLogsCapture(options ...zap.Option) (*zap.Logger, *observer.ObservedLogs, *LogSizeCounter) {
 	observedCore, observedLogs := observer.New(zap.DebugLevel)
 	consoleLogger, _ := zap.NewDevelopment(zap.IncreaseLevel(CONSOLE_LOG_LEVEL))
-	parentLogger := zap.New(zapcore.NewTee(observedCore, consoleLogger.Core()), options...)
-	return parentLogger, observedLogs
+	lc := NewLogSizeCounter(zap.InfoLevel)
+	parentLogger := zap.New(zapcore.NewTee(observedCore, consoleLogger.Core(), lc.Core()), options...)
+	return parentLogger, observedLogs, lc
 }
 
 func waitForHeartbeatsInLogs(t testing.TB, zapObserver *observer.ObservedLogs, gs []*mockGuardian) {
@@ -578,7 +582,7 @@ func testConsensus(t *testing.T, testCases []testCase, numGuardians int) {
 	rootCtx, rootCtxCancel := context.WithTimeout(context.Background(), testTimeout)
 	defer rootCtxCancel()
 
-	zapLogger, zapObserver := setupLogsCapture()
+	zapLogger, zapObserver, _ := setupLogsCapture()
 
 	supervisor.New(rootCtx, zapLogger, func(ctx context.Context) error {
 		logger := supervisor.Logger(ctx)
@@ -843,7 +847,7 @@ func testGuardianConfigurations(t *testing.T, testCases []testCaseGuardianConfig
 		// The panic will be subsequently caught by the supervisor
 		fatalHook := make(fatalHook)
 		defer close(fatalHook)
-		zapLogger, zapObserver := setupLogsCapture(zap.WithFatalHook(fatalHook))
+		zapLogger, zapObserver, _ := setupLogsCapture(zap.WithFatalHook(fatalHook))
 
 		supervisor.New(rootCtx, zapLogger, func(ctx context.Context) error {
 			// Create a sub-context with cancel function that we can pass to G.run.
@@ -1000,7 +1004,8 @@ func BenchmarkConsensus(b *testing.B) {
 	//CONSOLE_LOG_LEVEL = zap.DebugLevel
 	//CONSOLE_LOG_LEVEL = zap.InfoLevel
 	CONSOLE_LOG_LEVEL = zap.WarnLevel
-	benchmarkConsensus(b, "1", 19, 1000, 2) // ~28s
+	//benchmarkConsensus(b, "1", 19, 1000, 2) // ~28s
+	benchmarkConsensus(b, "1", 19, 100, 1) // ~3s
 	//benchmarkConsensus(b, "1", 19, 100, 2) // ~2s
 	//benchmarkConsensus(b, "1", 19, 100, 3) // sometimes fails, i.e. too much parallelism
 	//benchmarkConsensus(b, "1", 19, 100, 10) // sometimes fails, i.e. too much parallelism
@@ -1022,7 +1027,7 @@ func benchmarkConsensus(t *testing.B, name string, numGuardians int, numMessages
 		rootCtx, rootCtxCancel := context.WithTimeout(context.Background(), testTimeout)
 		defer rootCtxCancel()
 
-		zapLogger, zapObserver := setupLogsCapture()
+		zapLogger, zapObserver, setupLogsCapture := setupLogsCapture()
 
 		supervisor.New(rootCtx, zapLogger, func(ctx context.Context) error {
 			logger := supervisor.Logger(ctx)
@@ -1083,6 +1088,7 @@ func benchmarkConsensus(t *testing.B, name string, numGuardians int, numMessages
 			c := publicrpcv1.NewPublicRPCServiceClient(conn)
 
 			logger.Info("-----------Beginning benchmark-----------")
+			setupLogsCapture.Reset()
 			t.ResetTimer()
 
 			// nextObsReadyC ensures that there are not more than `maxPendingObs` observations pending at any given point in time.
@@ -1129,6 +1135,9 @@ func benchmarkConsensus(t *testing.B, name string, numGuardians int, numMessages
 			// We're done!
 			logger.Info("Tests completed.")
 			t.StopTimer()
+			logsize := setupLogsCapture.Reset()
+			logsize = logsize / uint64(numMessages) / uint64(numGuardians) // normalize
+			logger.Warn("benchmarkConsensus: logsize report", zap.Uint64("logbytes_per_msg", logsize))
 			supervisor.Signal(ctx, supervisor.SignalDone)
 			rootCtxCancel()
 			return nil
