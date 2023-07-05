@@ -1,7 +1,6 @@
 package spy
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"net"
@@ -77,8 +76,6 @@ type spyServer struct {
 	logger          *zap.Logger
 	subsSignedVaa   map[string]*subscriptionSignedVaa
 	subsSignedVaaMu sync.Mutex
-	subsAllVaa      map[string]*subscriptionAllVaa
-	subsAllVaaMu    sync.Mutex
 }
 
 type message struct {
@@ -92,10 +89,6 @@ type filterSignedVaa struct {
 type subscriptionSignedVaa struct {
 	filters []filterSignedVaa
 	ch      chan message
-}
-type subscriptionAllVaa struct {
-	filters []*spyv1.FilterEntry
-	ch      chan *spyv1.SubscribeSignedVAAByTypeResponse
 }
 
 func subscriptionId() string {
@@ -130,174 +123,6 @@ func (s *spyServer) PublishSignedVAA(vaaBytes []byte) error {
 
 	}
 
-	return nil
-}
-
-// TransactionIdMatches checks if both TxIds have the same value.
-func TransactionIdMatches(g *gossipv1.SignedBatchVAAWithQuorum, t *spyv1.BatchFilter) bool {
-	return bytes.Equal(g.TxId, t.TxId)
-}
-
-// BatchMatchFilter asserts that the observation matches the values of the filter.
-func BatchMatchesFilter(g *gossipv1.SignedBatchVAAWithQuorum, f *spyv1.BatchFilter) bool {
-	// check the chain ID
-	if g.ChainId != uint32(f.ChainId) {
-		return false
-	}
-
-	// check the transaction ID
-	txMatch := TransactionIdMatches(g, f)
-	if !txMatch {
-		return false
-	}
-
-	// check the Nonce
-	if f.Nonce >= 1 {
-		// filter has a nonce, so make sure it matches
-		if g.Nonce != f.Nonce {
-			// filter's nonce does not match the nonce of the Batch.
-			return false
-		}
-	}
-
-	return true
-}
-
-// HandleGossipVAA compares a gossip message to client subscriptions & filters,
-// and forwards the VAA to those requesting it.
-func (s *spyServer) HandleGossipVAA(g *gossipv1.SignedVAAWithQuorum) error {
-	s.subsAllVaaMu.Lock()
-	defer s.subsAllVaaMu.Unlock()
-
-	v, err := vaa.Unmarshal(g.Vaa)
-	if err != nil {
-		s.logger.Error("failed unmarshaing VAA bytes from gossipv1.SignedVAAWithQuorum.",
-			zap.Error(err))
-		return err
-	}
-
-	// resType defines which oneof proto will be returned  - res type "SignedVaa" is *gossipv1.SignedVAAWithQuorum
-	resType := &spyv1.SubscribeSignedVAAByTypeResponse_SignedVaa{
-		SignedVaa: g,
-	}
-
-	// envelope is the highest level proto struct, the wrapper proto that contains one of the VAA types.
-	envelope := &spyv1.SubscribeSignedVAAByTypeResponse{
-		VaaType: resType,
-	}
-
-	// loop through the subscriptions and send responses to everyone that wants this VAA
-	for _, sub := range s.subsAllVaa {
-		if len(sub.filters) == 0 {
-			// this subscription has no filters, send them the VAA.
-			sub.ch <- envelope
-			continue
-		}
-
-		// this subscription has filters.
-		for _, filterEntry := range sub.filters {
-			filter := filterEntry.GetFilter()
-			switch t := filter.(type) {
-			case *spyv1.FilterEntry_EmitterFilter:
-				filterAddr := t.EmitterFilter.EmitterAddress
-				filterChain := vaa.ChainID(t.EmitterFilter.ChainId)
-
-				if v.EmitterChain == filterChain && v.EmitterAddress.String() == filterAddr {
-					// it is a match, send the response
-					sub.ch <- envelope
-				}
-			default:
-				panic(fmt.Sprintf("unsupported filter type in subscriptions: %T", filter))
-			}
-		}
-
-	}
-
-	return nil
-}
-
-// HandleGossipBatchVAA compares a gossip message to client subscriptions & filters,
-// and forwards the VAA to those requesting it.
-func (s *spyServer) HandleGossipBatchVAA(g *gossipv1.SignedBatchVAAWithQuorum) error {
-	s.subsAllVaaMu.Lock()
-	defer s.subsAllVaaMu.Unlock()
-
-	b, err := vaa.UnmarshalBatch(g.BatchVaa)
-	if err != nil {
-		s.logger.Error("failed unmarshaing BatchVAA bytes from gossipv1.SignedBatchVAAWithQuorum.",
-			zap.Error(err))
-		return err
-	}
-
-	// resType defines which oneof proto will be returned -
-	// res type "SignedBatchVaa" is *gossipv1.SignedBatchVAAWithQuorum
-	resType := &spyv1.SubscribeSignedVAAByTypeResponse_SignedBatchVaa{
-		SignedBatchVaa: g,
-	}
-
-	// envelope is the highest level proto struct, the wrapper proto that contains one of the VAA types.
-	envelope := &spyv1.SubscribeSignedVAAByTypeResponse{
-		VaaType: resType,
-	}
-
-	// loop through the subscriptions and send responses to everyone that wants this VAA
-	for _, sub := range s.subsAllVaa {
-		if len(sub.filters) == 0 {
-			// this subscription has no filters, send them the VAA.
-			sub.ch <- envelope
-			continue
-		}
-
-		// this subscription has filters.
-		for _, filterEntry := range sub.filters {
-			filter := filterEntry.GetFilter()
-			switch t := filter.(type) {
-			case *spyv1.FilterEntry_EmitterFilter:
-
-				filterChain := uint32(t.EmitterFilter.ChainId)
-				if g.ChainId != filterChain {
-					// VAA does not pass the filter
-					continue
-				}
-
-				// BatchVAAs do not have EmitterAddress at the top level - each Observation
-				// in the Batch has an EmitterAddress.
-
-				// In order to make it easier for integrators, allow subscribing to BatchVAAs by
-				// EmitterFilter. Send BatchVAAs to subscriptions with an EmitterFilter that
-				// matches 1 (or more) Observation(s) in the batch.
-
-				filterAddr := t.EmitterFilter.EmitterAddress
-
-				// check each Observation to see if it meets the criteria of the filter.
-				for _, obs := range b.Observations {
-					if obs.Observation.EmitterAddress.String() == filterAddr {
-						// it is a match, send the response to the subscriber.
-						sub.ch <- envelope
-						break
-					}
-
-				}
-			case *spyv1.FilterEntry_BatchFilter:
-				if BatchMatchesFilter(g, t.BatchFilter) {
-					sub.ch <- envelope
-				}
-			case *spyv1.FilterEntry_BatchTransactionFilter:
-				// make a BatchFilter struct from the BatchTransactionFilter since the latter is
-				// a subset of the former's properties, so we can use TransactionIdMatches.
-				batchFilter := &spyv1.BatchFilter{
-					ChainId: t.BatchTransactionFilter.ChainId,
-					TxId:    t.BatchTransactionFilter.TxId,
-				}
-
-				if BatchMatchesFilter(g, batchFilter) {
-					sub.ch <- envelope
-				}
-			default:
-				panic(fmt.Sprintf("unsupported filter type in subscriptions: %T", filter))
-			}
-		}
-	}
 	return nil
 }
 
@@ -358,73 +183,10 @@ func (s *spyServer) SubscribeSignedVAA(req *spyv1.SubscribeSignedVAARequest, res
 	}
 }
 
-// SubscribeSignedVAAByType fields requests for subscriptions. Each new subscription adds a channel and request params (filters)
-// to the map of active subscriptions.
-func (s *spyServer) SubscribeSignedVAAByType(req *spyv1.SubscribeSignedVAAByTypeRequest, resp spyv1.SpyRPCService_SubscribeSignedVAAByTypeServer) error {
-	var fi []*spyv1.FilterEntry
-	if req.Filters != nil {
-		for _, f := range req.Filters {
-			switch t := f.Filter.(type) {
-
-			case *spyv1.FilterEntry_EmitterFilter:
-				// validate the emitter address is valid by decoding it
-				_, err := vaa.StringToAddress(t.EmitterFilter.EmitterAddress)
-				if err != nil {
-					return status.Error(codes.InvalidArgument, fmt.Sprintf("failed to decode emitter address: %v", err))
-				}
-				fi = append(fi, &spyv1.FilterEntry{Filter: t})
-
-			case *spyv1.FilterEntry_BatchFilter,
-				*spyv1.FilterEntry_BatchTransactionFilter:
-				fi = append(fi, &spyv1.FilterEntry{Filter: t})
-			default:
-				return status.Error(codes.InvalidArgument, "unsupported filter type")
-			}
-		}
-	}
-
-	s.subsAllVaaMu.Lock()
-	id := subscriptionId()
-	sub := &subscriptionAllVaa{
-		ch:      make(chan *spyv1.SubscribeSignedVAAByTypeResponse, 1),
-		filters: fi,
-	}
-	s.subsAllVaa[id] = sub
-	s.subsAllVaaMu.Unlock()
-
-	defer func() {
-		for {
-			// The channel sender locks the subscription mutex before sending to the channel.
-			// If the channel is full, then the sender will block and we'll never be able to lock the mutex (resulting in deadlock).
-			// So we empty the channel before trying acquire the lock.
-			_ = DoWithTimeout(func() error { <-sub.ch; return nil }, time.Millisecond)
-			if s.subsAllVaaMu.TryLock() {
-				delete(s.subsAllVaa, id)
-				s.subsAllVaaMu.Unlock()
-				return
-			}
-		}
-	}()
-
-	for {
-		select {
-		case <-resp.Context().Done():
-			return resp.Context().Err()
-		case msg := <-sub.ch:
-			if err := DoWithTimeout(func() error {
-				return resp.Send(msg)
-			}, *sendTimeout); err != nil {
-				return err
-			}
-		}
-	}
-}
-
 func newSpyServer(logger *zap.Logger) *spyServer {
 	return &spyServer{
 		logger:        logger.Named("spyserver"),
 		subsSignedVaa: make(map[string]*subscriptionSignedVaa),
-		subsAllVaa:    make(map[string]*subscriptionAllVaa),
 	}
 }
 
@@ -556,9 +318,6 @@ func runSpy(cmd *cobra.Command, args []string) {
 					zap.Any("vaa", v.Vaa))
 				if err := s.PublishSignedVAA(v.Vaa); err != nil {
 					logger.Error("failed to publish signed VAA", zap.Error(err))
-				}
-				if err := s.HandleGossipVAA(v); err != nil {
-					logger.Error("failed to HandleGossipVAA", zap.Error(err))
 				}
 			}
 		}
