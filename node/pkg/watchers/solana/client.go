@@ -401,7 +401,7 @@ func (s *SolanaWatcher) retryFetchBlock(ctx context.Context, logger *zap.Logger,
 
 		time.Sleep(retryDelay)
 
-		logger.Info("retrying block",
+		logger.Debug("retrying block",
 			zap.Uint64("slot", slot),
 			zap.String("commitment", string(s.commitment)),
 			zap.Uint("retry", retry))
@@ -459,7 +459,7 @@ func (s *SolanaWatcher) fetchBlock(ctx context.Context, logger *zap.Logger, slot
 			}
 			return true
 		} else {
-			logger.Error("failed to request block", zap.Error(err), zap.Uint64("slot", slot),
+			logger.Debug("failed to request block", zap.Error(err), zap.Uint64("slot", slot),
 				zap.String("commitment", string(s.commitment)))
 			p2p.DefaultRegistry.AddErrorCount(s.chainID, 1)
 			solanaConnectionErrors.WithLabelValues(s.networkName, string(s.commitment), "get_confirmed_block_error").Inc()
