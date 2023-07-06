@@ -132,7 +132,7 @@ export async function loadAppConfig(): Promise<{
     ({ chainId, address }: ContractConfigEntry) =>
       (deliveryProviders[chainId] = ethers.utils.getAddress(address))
   );
-  contracts.wormholeRelayers.forEach(
+  (process.env.DEV === 'True' ? contracts.wormholeRelayersDev : contracts.wormholeRelayers).forEach(
     ({ chainId, address }: ContractConfigEntry) =>
       (wormholeRelayers[chainId] = ethers.utils.getAddress(address))
   );

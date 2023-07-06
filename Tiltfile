@@ -527,7 +527,8 @@ if generic_relayer:
         ref = "relayer-engine",
         context = ".",
         only = ["./relayer/generic_relayer", "./ethereum/ts-scripts/relayer/config"],
-        dockerfile = "relayer/generic_relayer/relayer-engine-v2/Dockerfile"
+        dockerfile = "relayer/generic_relayer/relayer-engine-v2/Dockerfile",
+        build_args = {"dev": str(not ci)}
     )
     k8s_yaml_with_ns("devnet/relayer-engine.yaml")
 
