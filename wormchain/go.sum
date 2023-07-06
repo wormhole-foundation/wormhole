@@ -1418,6 +1418,8 @@ github.com/mimoo/StrobeGo v0.0.0-20210601165009-122bf33a46e0/go.mod h1:43+3pMjjK
 github.com/minio/highwayhash v1.0.1/go.mod h1:BQskDq+xkJ12lmlUUi7U0M5Swg3EWR+dLTk+kldvVxY=
 github.com/minio/highwayhash v1.0.2 h1:Aak5U0nElisjDCfPSG79Tgzkn2gl66NxOMspRrKnA/g=
 github.com/minio/highwayhash v1.0.2/go.mod h1:BQskDq+xkJ12lmlUUi7U0M5Swg3EWR+dLTk+kldvVxY=
+github.com/misko9/wasmd v0.0.0-20230622232815-3e99503977ba h1:e8MPZGaOl9ltdYlOgwMc7rz+l7I2TsU9r/1cbPe6YJk=
+github.com/misko9/wasmd v0.0.0-20230622232815-3e99503977ba/go.mod h1:BcwmiI8b2fR2MGioz3HeVvON5QjSDfrnUbGu0gKRk5U=
 github.com/mistifyio/go-zfs v2.1.2-0.20190413222219-f784269be439+incompatible/go.mod h1:8AuVvqP/mXw1px98n46wfvcGfQ4ci2FwoAjKYxuo3Z4=
 github.com/mitchellh/cli v1.0.0/go.mod h1:hNIlj7HEI86fIcpObd7a0FcrxTWetlwJDGcceTlRvqc=
 github.com/mitchellh/cli v1.1.0/go.mod h1:xcISNoH86gajksDmfB23e/pu+B+GeFRMYmoHXxx3xhI=
@@ -2079,8 +2081,6 @@ github.com/willf/bitset v1.1.11-0.20200630133818-d5bec3311243/go.mod h1:RjeCKbqT
 github.com/willf/bitset v1.1.11/go.mod h1:83CECat5yLh5zVOf4P1ErAgKA5UDvKtgyUABdr3+MjI=
 github.com/wormhole-foundation/cosmos-sdk v0.45.9-wormhole-2 h1:ZHvVEU+03UbmUOLfSiXuZjsjirKDV32EToYpjlcknug=
 github.com/wormhole-foundation/cosmos-sdk v0.45.9-wormhole-2/go.mod h1:Z5M4TX7PsHNHlF/1XanI2DIpORQ+Q/st7oaeufEjnvU=
-github.com/wormhole-foundation/wasmd v0.30.0-wormchain-1 h1:1+u753gKU44slOOLNdk7LiE5QtZU+3joVuQuU2xW1Bg=
-github.com/wormhole-foundation/wasmd v0.30.0-wormchain-1/go.mod h1:BcwmiI8b2fR2MGioz3HeVvON5QjSDfrnUbGu0gKRk5U=
 github.com/wsddn/go-ecdh v0.0.0-20161211032359-48726bab9208/go.mod h1:IotVbo4F+mw0EzQ08zFqg7pK3FebNXpaMsRy2RT+Ees=
 github.com/xanzy/go-gitlab v0.31.0/go.mod h1:sPLojNBn68fMUWSxIJtdVVIP8uSBYqesTfDUseX11Ug=
 github.com/xanzy/go-gitlab v0.32.0/go.mod h1:sPLojNBn68fMUWSxIJtdVVIP8uSBYqesTfDUseX11Ug=
