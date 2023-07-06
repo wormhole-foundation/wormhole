@@ -165,10 +165,7 @@ func (msg *MessagePublication) ZapFields(fields ...zap.Field) []zap.Field {
 		zap.Stringer("tx", msg.TxHash),
 		zap.Time("timestamp", msg.Timestamp),
 		zap.Uint32("nonce", msg.Nonce),
-		zap.Uint64("seq", msg.Sequence),
 		zap.Uint8("consistency", msg.ConsistencyLevel),
-		zap.Stringer("emitter_chain", msg.EmitterChain),
-		zap.Stringer("emitter_address", msg.EmitterAddress),
 		zap.String("message_id", string(msg.MessageID())),
 		zap.Bool("unreliable", msg.Unreliable),
 	)

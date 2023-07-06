@@ -52,7 +52,7 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 		return
 	}
 
-	supervisor.Logger(ctx).Info("message publication confirmed",
+	p.logger.Debug("message publication confirmed",
 		zap.Stringer("emitter_chain", k.EmitterChain),
 		zap.Stringer("emitter_address", k.EmitterAddress),
 		zap.Uint32("nonce", k.Nonce),
@@ -137,7 +137,7 @@ func (p *Processor) handleMessage(ctx context.Context, k *common.MessagePublicat
 		panic(err)
 	}
 
-	p.logger.Info("observed and signed confirmed message publication",
+	p.logger.Debug("observed and signed confirmed message publication",
 		zap.Stringer("source_chain", k.EmitterChain),
 		zap.Stringer("txhash", k.TxHash),
 		zap.String("txhash_b58", base58.Encode(k.TxHash.Bytes())),

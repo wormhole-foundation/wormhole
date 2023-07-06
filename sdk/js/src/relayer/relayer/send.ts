@@ -22,6 +22,7 @@ export type SendOptionalParams = {
     }
   ];
   deliveryProviderAddress?: string;
+  wormholeRelayerAddress?: string;
   consistencyLevel?: ethers.BigNumberish;
   refundChainId?: ChainId;
   refundAddress?: string;
@@ -42,7 +43,7 @@ export async function sendToEvm(
   const targetChainId = CHAINS[targetChain];
 
   const environment = sendOptionalParams?.environment || "MAINNET";
-  const wormholeRelayerAddress = getWormholeRelayerAddress(
+  const wormholeRelayerAddress = sendOptionalParams?.wormholeRelayerAddress || getWormholeRelayerAddress(
     sourceChain,
     environment
   );

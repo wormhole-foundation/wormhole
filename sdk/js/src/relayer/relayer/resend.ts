@@ -19,13 +19,14 @@ export async function resendRaw(
   newGasLimit: BigNumber | number,
   newReceiverValue: BigNumber | number,
   deliveryProviderAddress: string,
-  overrides?: ethers.PayableOverrides
-) {
+  overrides?: ethers.PayableOverrides,
+  wormholeRelayerAddress?: string,
+): Promise<ethers.providers.TransactionResponse> {
   const provider = signer.provider;
 
   if (!provider) throw Error("No provider on signer");
 
-  const wormholeRelayer = getWormholeRelayer(sourceChain, environment, signer);
+  const wormholeRelayer = getWormholeRelayer(sourceChain, environment, signer, wormholeRelayerAddress);
 
   return wormholeRelayer.resendToEvm(
     vaaKeyToVaaKeyStruct(vaaKey),
@@ -35,6 +36,10 @@ export async function resendRaw(
     deliveryProviderAddress,
     overrides
   );
+}
+
+type ResendOptionalParams = {
+  wormholeRelayerAddress?: string;
 }
 
 export async function resend(
@@ -48,8 +53,9 @@ export async function resend(
   deliveryProviderAddress: string,
   wormholeRPCs: string[],
   overrides: ethers.PayableOverrides,
-  extraGrpcOpts = {}
-) {
+  extraGrpcOpts = {},
+  optionalParams?: ResendOptionalParams
+): Promise<ethers.providers.TransactionResponse> {
   const targetChainId = CHAINS[targetChain];
   const originalVAA = await getSignedVAAWithRetry(
     wormholeRPCs,
@@ -95,11 +101,7 @@ export async function resend(
     );
   }
 
-  const wormholeRelayer = getWormholeRelayer(sourceChain, environment, signer);
-  const deliveryProvider = getDeliveryProvider(
-    deliveryProviderAddress,
-    signer.provider!
-  );
+  const wormholeRelayer =  getWormholeRelayer(sourceChain, environment, signer, optionalParams?.wormholeRelayerAddress);
 
   const [deliveryPrice, refundPerUnitGas]: [BigNumber, BigNumber] =
     await wormholeRelayer[
@@ -132,6 +134,7 @@ export async function resend(
     newGasLimit,
     newReceiverValue,
     deliveryProviderAddress,
-    overrides
+    overrides,
+    optionalParams?.wormholeRelayerAddress
   );
 }
