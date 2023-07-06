@@ -23,11 +23,9 @@ export function createInitializeInstruction(
 ): TransactionInstruction {
   const methods = createReadOnlyWormholeProgramInterface(
     wormholeProgramId
-  ).methods.initialize(
-    guardianSetExpirationTime,
-    new BN(fee.toString()),
-    [...initialGuardians]
-  );
+  ).methods.initialize(guardianSetExpirationTime, new BN(fee.toString()), [
+    ...initialGuardians,
+  ]);
 
   // @ts-ignore
   return methods._ixFn(...methods._args, {

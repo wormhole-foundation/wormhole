@@ -7,7 +7,7 @@ export enum RelayerPayloadId {
 }
 
 export enum ExecutionInfoVersion {
-  EVM_V1 = 0
+  EVM_V1 = 0,
 }
 
 export enum DeliveryStatus {
@@ -26,16 +26,21 @@ export enum RefundStatus {
   RefundFail = "Refund Fail",
   CrossChainRefundSent = "Cross Chain Refund Sent",
   CrossChainRefundFailProviderNotSupported = "Cross Chain Refund Fail - Provider does not support the refund chain",
-  CrossChainRefundFailNotEnough = "Cross Chain Refund Fail - Refund too low for cross chain refund"
+  CrossChainRefundFailNotEnough = "Cross Chain Refund Fail - Refund too low for cross chain refund",
 }
 
 export function parseRefundStatus(index: number) {
-  return index === 0 ? RefundStatus.RefundSent
-  : index === 1 ? RefundStatus.RefundFail
-  : index === 2 ? RefundStatus.CrossChainRefundSent
-  : index === 3 ? RefundStatus.CrossChainRefundFailProviderNotSupported
-  : index === 4 ? RefundStatus.CrossChainRefundFailNotEnough
-  : RefundStatus.CrossChainRefundFailProviderNotSupported;
+  return index === 0
+    ? RefundStatus.RefundSent
+    : index === 1
+    ? RefundStatus.RefundFail
+    : index === 2
+    ? RefundStatus.CrossChainRefundSent
+    : index === 3
+    ? RefundStatus.CrossChainRefundFailProviderNotSupported
+    : index === 4
+    ? RefundStatus.CrossChainRefundFailNotEnough
+    : RefundStatus.CrossChainRefundFailProviderNotSupported;
 }
 
 export interface VaaKey {
@@ -184,7 +189,7 @@ export function parseWormholeRelayerSend(bytes: Buffer): DeliveryInstruction {
     refundDeliveryProvider,
     sourceDeliveryProvider,
     senderAddress,
-    vaaKeys: messages
+    vaaKeys: messages,
   };
 }
 
@@ -200,23 +205,22 @@ function parseVaaKey(bytes: Buffer, idx: number): [VaaKey, number] {
   const version = bytes.readUInt8(idx);
   idx += 1;
 
-    const chainId = bytes.readUInt16BE(idx);
-    idx += 2;
-    const emitterAddress = bytes.slice(idx, idx + 32);
-    idx += 32;
-    const sequence = ethers.BigNumber.from(
-      Uint8Array.prototype.subarray.call(bytes, idx, idx + 8)
-    );
-    idx += 8;
-    return [
-      {
-        chainId,
-        emitterAddress,
-        sequence,
-      },
-      idx,
-    ];
-  
+  const chainId = bytes.readUInt16BE(idx);
+  idx += 2;
+  const emitterAddress = bytes.slice(idx, idx + 32);
+  idx += 32;
+  const sequence = ethers.BigNumber.from(
+    Uint8Array.prototype.subarray.call(bytes, idx, idx + 8)
+  );
+  idx += 8;
+  return [
+    {
+      chainId,
+      emitterAddress,
+      sequence,
+    },
+    idx,
+  ];
 }
 
 export function parseEVMExecutionInfoV1(
@@ -226,7 +230,7 @@ export function parseEVMExecutionInfoV1(
   idx += 31;
   const version = bytes.readUInt8(idx);
   idx += 1;
-  if(version !== ExecutionInfoVersion.EVM_V1) {
+  if (version !== ExecutionInfoVersion.EVM_V1) {
     throw new Error("Unexpected Execution Info version");
   }
   const gasLimit = ethers.BigNumber.from(
@@ -267,10 +271,8 @@ export function parseWormholeRelayerResend(
   let newEncodedExecutionInfo;
   [newEncodedExecutionInfo, idx] = parsePayload(bytes, idx);
 
-
   const newSourceDeliveryProvider = bytes.slice(idx, idx + 32);
   idx += 32;
-
 
   const newSenderAddress = bytes.slice(idx, idx + 32);
   idx += 32;
@@ -280,14 +282,12 @@ export function parseWormholeRelayerResend(
     newRequestedReceiverValue,
     newEncodedExecutionInfo,
     newSourceDeliveryProvider,
-    newSenderAddress
+    newSenderAddress,
   };
 }
 
-export function executionInfoToString(
-  encodedExecutionInfo: Buffer
-): string {
-  const [parsed,] = parseEVMExecutionInfoV1(encodedExecutionInfo, 0)
+export function executionInfoToString(encodedExecutionInfo: Buffer): string {
+  const [parsed] = parseEVMExecutionInfoV1(encodedExecutionInfo, 0);
   return `Gas limit: ${parsed.gasLimit}, Target chain refund per unit gas unused: ${parsed.targetChainRefundPerGasUnused}`;
 }
 
@@ -311,11 +311,11 @@ export function deliveryInstructionsPrintable(
 }
 
 export function vaaKeyPrintable(ix: VaaKey): StringLeaves<VaaKey> {
-      return {
-        chainId: ix.chainId?.toString(),
-        emitterAddress: ix.emitterAddress?.toString("hex"),
-        sequence: ix.sequence?.toString(),
-      };
+  return {
+    chainId: ix.chainId?.toString(),
+    emitterAddress: ix.emitterAddress?.toString("hex"),
+    sequence: ix.sequence?.toString(),
+  };
 }
 
 export function redeliveryInstructionPrintable(
@@ -327,7 +327,7 @@ export function redeliveryInstructionPrintable(
     newRequestedReceiverValue: ix.newRequestedReceiverValue.toString(),
     newEncodedExecutionInfo: executionInfoToString(ix.newEncodedExecutionInfo),
     newSourceDeliveryProvider: ix.newSourceDeliveryProvider.toString("hex"),
-    newSenderAddress: ix.newSenderAddress.toString("hex")
+    newSenderAddress: ix.newSenderAddress.toString("hex"),
   };
 }
 
@@ -353,13 +353,11 @@ export function packOverrides(overrides: DeliveryOverrideArgs): string {
   return "0x" + packed;
 }
 
-export function parseForwardFailureError(
-  bytes: Buffer
-): string {
+export function parseForwardFailureError(bytes: Buffer): string {
   let idx = 4;
   idx += 32;
-  if(bytes.length <= idx) {
-    return `Delivery Provider failed in performing forward`
+  if (bytes.length <= idx) {
+    return `Delivery Provider failed in performing forward`;
   }
   try {
     const amountOfFunds = ethers.BigNumber.from(
@@ -369,12 +367,12 @@ export function parseForwardFailureError(
     const amountOfFundsNeeded = ethers.BigNumber.from(
       Uint8Array.prototype.subarray.call(bytes, idx, idx + 32)
     );
-    return `Not enough funds leftover for forward: Had ${ethers.utils.formatEther(amountOfFunds)} and needed ${ethers.utils.formatEther(amountOfFundsNeeded)}.`
-
+    return `Not enough funds leftover for forward: Had ${ethers.utils.formatEther(
+      amountOfFunds
+    )} and needed ${ethers.utils.formatEther(amountOfFundsNeeded)}.`;
   } catch (err) {
-    return `Delivery Provider unexpectedly failed in performing forward`
+    return `Delivery Provider unexpectedly failed in performing forward`;
   }
-
 }
 
 export function parseOverrideInfoFromDeliveryEvent(
@@ -397,7 +395,7 @@ export function parseOverrideInfoFromDeliveryEvent(
   return {
     newReceiverValue,
     newExecutionInfo,
-    redeliveryHash
+    redeliveryHash,
   };
 }
 

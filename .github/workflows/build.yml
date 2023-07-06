@@ -394,3 +394,11 @@ jobs:
         uses: actions/checkout@v2
       - run: chmod 755 ./scripts/check-npm-package-scopes.sh
       - run: ./scripts/check-npm-package-scopes.sh
+  prettier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+      - run: npx prettier --check ./clients/js/src
