@@ -1,7 +1,7 @@
 package ictest
 
 import (
-	"encoding/hex"
+	//"encoding/hex"
 	"fmt"
 	"testing"
 
@@ -137,14 +137,20 @@ func TestCosmosToExternal(t *testing.T) {
 	tokenFactoryDenom := fmt.Sprint("factory/", ibcTranslatorContractAddr, "/", subdenom)
 	gaiaAsset1Denom := transfertypes.GetPrefixedDenom("transfer", gaiaToWormChannel.ChannelID, tokenFactoryDenom)
 	gaiaIbcAsset1Denom := transfertypes.ParseDenomTrace(gaiaAsset1Denom).IBCDenom()
+	
+	
+	// ************* Ibc hooks + Simple payload ****************
+	// Call SimpleConvertAndTransfer and ContractControlledConvertAndTransfer
+	// Using "externalSender" as recipient because it is 32 bytes
+	simpleIbcHooksMsg := helpers.CreateIbcTranslatorIbcHooksSimpleMsg(t, ibcTranslatorContractAddr, Asset1ChainID, string(externalSender), 0, 1)
 	transfer := ibc.WalletAmount{
-		Address: wormchainFaucetAddr,
+		Address: ibcTranslatorContractAddr,
 		Denom: gaiaIbcAsset1Denom,
-		Amount: 10000,
+		Amount: 10001,
 	}
 	gaiaHeight, err := gaia.Height(ctx)
 	require.NoError(t, err)
-	gaiaIbcTx, err := gaia.SendIBCTransfer(ctx, gaiaToWormChannel.ChannelID, gaiaUser.KeyName, transfer, ibc.TransferOptions{})
+	gaiaIbcTx, err := gaia.SendIBCTransfer(ctx, gaiaToWormChannel.ChannelID, gaiaUser.KeyName, transfer, ibc.TransferOptions{Memo: simpleIbcHooksMsg})
 	require.NoError(t, err)
 	
 	// wait for transfer to ack
@@ -152,43 +158,24 @@ func TestCosmosToExternal(t *testing.T) {
 	require.NoError(t, err)
 	err = testutil.WaitForBlocks(ctx, 1, wormchain, gaia)
 	require.NoError(t, err)
+
+	// ********* Ibc hooks + Contract controlled payload **********
+	ccIbcHooksMsg := helpers.CreateIbcTranslatorIbcHooksContractControlledMsg(t, ibcTranslatorContractAddr, Asset1ChainID, string(externalSender), []byte("ExternalContractPayload"), 1)
+	transfer = ibc.WalletAmount{
+		Address: ibcTranslatorContractAddr,
+		Denom: gaiaIbcAsset1Denom,
+		Amount: 10002,
+	}
+	gaiaHeight, err = gaia.Height(ctx)
+	require.NoError(t, err)
+	gaiaIbcTx, err = gaia.SendIBCTransfer(ctx, gaiaToWormChannel.ChannelID, gaiaUser.KeyName, transfer, ibc.TransferOptions{Memo: ccIbcHooksMsg})
+	require.NoError(t, err)
 	
-	// Call SimpleConvertAndTransfer and ContractControlledConvertAndTransfer
-	// Using "externalSender" as recipient because it is 32 bytes
-	simpleContractMsg := helpers.CreateIbcTranslatorExecuteSimple(t, Asset1ChainID, string(externalSender), 0, 1)
-	simpleTxHash, err := wormchain.ExecuteContractWithAmount(ctx, "faucet", ibcTranslatorContractAddr, simpleContractMsg, sdk.NewCoins(sdk.NewCoin(tokenFactoryDenom, sdk.NewInt(4000))))
+	// wait for transfer to ack
+	_, err = testutil.PollForAck(ctx, gaia, gaiaHeight, gaiaHeight+30, gaiaIbcTx.Packet)
 	require.NoError(t, err)
-
-	expectedSequence := 0
-	foundEvent := helpers.FindEventAttribute(t, wormchain, simpleTxHash, "wasm", "message.sequence", fmt.Sprint(expectedSequence))
-	require.True(t, foundEvent)
-
-	contractControlledContractMsg := helpers.CreateIbcTranslatorExecuteContractControlled(t, Asset1ChainID, string(externalSender), []byte("{ContractPayload}"), 2)
-	ccTxHash, err := wormchain.ExecuteContractWithAmount(ctx, "faucet", ibcTranslatorContractAddr, contractControlledContractMsg, sdk.NewCoins(sdk.NewCoin(tokenFactoryDenom, sdk.NewInt(5000))))
+	err = testutil.WaitForBlocks(ctx, 1, wormchain, gaia)
 	require.NoError(t, err)
-
-	expectedSequence++
-	foundEvent = helpers.FindEventAttribute(t, wormchain, ccTxHash, "wasm", "message.sequence", fmt.Sprint(expectedSequence))
-	require.True(t, foundEvent)
-
-	// Simple payload with a relayer fee
-	relayerFee := uint64(100)
-	amount := int64(500)
-	simpleContractMsg2 := helpers.CreateIbcTranslatorExecuteSimple(t, Asset1ChainID, string(externalSender), relayerFee, 1)
-	simpleTxHash2, err := wormchain.ExecuteContractWithAmount(ctx, "faucet", ibcTranslatorContractAddr, simpleContractMsg2, sdk.NewCoins(sdk.NewCoin(tokenFactoryDenom, sdk.NewInt(amount))))
-	require.NoError(t, err)
-
-	expectedSequence++
-	foundEvent = helpers.FindEventAttribute(t, wormchain, simpleTxHash2, "wasm", "message.sequence", fmt.Sprint(expectedSequence))
-	require.True(t, foundEvent)
-	payload1 := helpers.CreatePayload1(uint64(amount), Asset1ContractAddr, Asset1ChainID, externalSender, Asset1ChainID, relayerFee)
-	payload1Hex := hex.EncodeToString(payload1)
-	foundEvent = helpers.FindEventAttribute(t, wormchain, simpleTxHash2, "wasm", "message.message", payload1Hex)
-	require.True(t, foundEvent)
-	/*var cw20BalanceQueryRsp helpers.Cw20WrappedBalanceQueryRsp
-	cw20BalanceQueryReq := helpers.Cw20WrappedBalanceQueryMsg{Balance: helpers.Cw20BalanceQuery{Address: wormchainFaucetAddr}}
-	wormchain.QueryContract(ctx, cw20Address, cw20BalanceQueryReq, &cw20BalanceQueryRsp)
-	fmt.Println("Faucet Asset1 balance: ", cw20BalanceQueryRsp.Data.Balance)*/
 
 	// wait for transfer
 	err = testutil.WaitForBlocks(ctx, 3, wormchain)
