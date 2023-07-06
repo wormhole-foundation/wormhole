@@ -244,3 +244,64 @@ type IbcTranslatorQueryRspMsg struct {
 type IbcTranslatorQueryRspObj struct {
 	Channel string `json:"channel,omitempty"`
 }
+
+// Code below is temporary for testing cosmos->external using ibc-hooks, but without our custom middleware
+type IbcTranslatorIbcHooksSimple struct {
+	Payload IbcTranslatorIbcHooksPayloadSimple `json:"wasm"`
+}
+
+type IbcTranslatorIbcHooksPayloadSimple struct {
+	Contract string `json:"contract"`
+	Msg IbcTranslatorExecuteSimple `json:"msg"`
+}
+
+func CreateIbcTranslatorIbcHooksSimpleMsg(t *testing.T, contract string, chainID uint16, recipient string, fee uint64, nonce uint32) string {
+	msg := IbcTranslatorIbcHooksSimple {
+		Payload: IbcTranslatorIbcHooksPayloadSimple{
+			Contract: contract,
+			Msg: IbcTranslatorExecuteSimple {
+				Msg: Simple{
+					Chain: chainID,
+					Recipient: []byte(recipient),
+					Fee: fmt.Sprint(fee),
+					Nonce: nonce,
+				},
+			},
+		},
+	}
+
+	msgBz, err := json.Marshal(msg)
+	require.NoError(t, err)
+
+	return string(msgBz)
+}
+
+type IbcTranslatorIbcHooksContractControlled struct {
+	Payload IbcTranslatorIbcHooksPayloadContractControlled `json:"wasm"`
+}
+
+type IbcTranslatorIbcHooksPayloadContractControlled struct {
+	Contract string `json:"contract"`
+	Msg IbcTranslatorExecuteContractControlled `json:"msg"`
+}
+
+func CreateIbcTranslatorIbcHooksContractControlledMsg(t *testing.T, contract string, chainID uint16, externalContract string, payload []byte, nonce uint32) string {
+	msg := IbcTranslatorIbcHooksContractControlled {
+		Payload: IbcTranslatorIbcHooksPayloadContractControlled{
+			Contract: contract,
+			Msg: IbcTranslatorExecuteContractControlled{
+				Msg: ContractControlled{
+					Chain: chainID,
+					Contract: []byte(externalContract),
+					Payload: payload,
+					Nonce: nonce,
+				},
+			},
+		},
+	}
+
+	msgBz, err := json.Marshal(msg)
+	require.NoError(t, err)
+
+	return string(msgBz)
+}
