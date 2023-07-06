@@ -15,7 +15,7 @@ require (
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.5.0
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0
 	github.com/improbable-eng/grpc-web v0.15.0
 	github.com/ipfs/go-log/v2 v2.5.1
 	github.com/libp2p/go-libp2p v0.27.0
@@ -39,7 +39,7 @@ require (
 	golang.org/x/sys v0.10.0
 	golang.org/x/time v0.3.0
 	google.golang.org/api v0.114.0
-	google.golang.org/genproto v0.0.0-20230525234025-438c736192d0 // indirect
+	google.golang.org/genproto v0.0.0-20230526203410-71b5a4ffd15e // indirect
 	google.golang.org/grpc v1.56.1
 	google.golang.org/protobuf v1.31.0
 )
@@ -60,7 +60,7 @@ require (
 	github.com/wormhole-foundation/wormchain v0.0.0-00010101000000-000000000000
 	github.com/wormhole-foundation/wormhole/sdk v0.0.0-20220926172624-4b38dc650bb0
 	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
-	google.golang.org/genproto/googleapis/api v0.0.0-20230525234020-1aefcd67740a
+	google.golang.org/genproto/googleapis/api v0.0.0-20230530153820-e85fd2cbaebc
 	nhooyr.io/websocket v1.8.7
 )
 
@@ -282,7 +282,7 @@ require (
 	go.uber.org/ratelimit v0.2.0 // indirect
 	golang.org/x/mod v0.10.0 // indirect
 	golang.org/x/net v0.12.0 // indirect
-	golang.org/x/oauth2 v0.7.0 // indirect
+	golang.org/x/oauth2 v0.8.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/term v0.10.0 // indirect
 	golang.org/x/text v0.11.0 // indirect
