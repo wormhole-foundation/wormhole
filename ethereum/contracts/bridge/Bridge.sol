@@ -20,6 +20,18 @@ import "./token/TokenImplementation.sol";
 contract Bridge is BridgeGovernance, ReentrancyGuard {
     using BytesLib for bytes;
 
+    /**
+     * @notice Emitted when a transfer is completed by the token bridge.
+     * @param emitterChainId Wormhole chain ID of emitter on the source chain.
+     * @param emitterAddress Address (bytes32 zero-left-padded) of emitter on the source chain.
+     * @param sequence Sequence of the Wormhole message.
+     */
+    event TransferRedeemed(
+        uint16 indexed emitterChainId,
+        bytes32 indexed emitterAddress,
+        uint64 indexed sequence
+    );
+
     /*
      *  @dev Produce a AssetMeta message for a given token
      */
@@ -496,6 +508,9 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
 
         require(!isTransferCompleted(vm.hash), "transfer already completed");
         setTransferCompleted(vm.hash);
+
+        // emit `TransferRedeemed` event
+        emit TransferRedeemed(vm.emitterChainId, vm.emitterAddress, vm.sequence);
 
         require(transfer.toChain == chainId(), "invalid target chain");
 
