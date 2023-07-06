@@ -274,7 +274,7 @@ func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gos
 	//  - enough signatures are present for the VAA to reach quorum
 
 	// Store signed VAA in database.
-	p.logger.Info("storing inbound signed VAA with quorum",
+	p.logger.Debug("storing inbound signed VAA with quorum",
 		zap.String("digest", hash),
 		zap.Any("vaa", v),
 		zap.String("bytes", hex.EncodeToString(m.Vaa)),
