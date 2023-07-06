@@ -1,7 +1,7 @@
-import { describe } from "@jest/globals";
-import { test_command_args_with_readme_file } from "./utils/tests";
+import { describe, it, expect } from "@jest/globals";
 import * as fs from "fs";
 import { CLI_COMMAND_MODULES } from "../src/cmds";
+import { run_worm_help_command } from "./utils/cli";
 
 const readme = fs.readFileSync("./README.md", "utf8");
 
@@ -15,10 +15,20 @@ const getCommandNamesFromCommandModules = (
     );
 };
 
+const getCommandWithArgsFromOutput = (rawOutput: string) => {
+  return rawOutput.split("worm")[1].split("\n")[0].trim();
+};
+
 const commandNames = getCommandNamesFromCommandModules(CLI_COMMAND_MODULES);
 
 commandNames.forEach((cmd) => {
   describe(`worm ${cmd}`, () => {
-    test_command_args_with_readme_file(cmd, readme);
+    it(`should have same command args as documentation`, async () => {
+      // Run the command module with --help as argument
+      const output = run_worm_help_command(cmd);
+      const commandWithArgs = getCommandWithArgsFromOutput(output);
+  
+      expect(readme).toContain(commandWithArgs);
+    });
   });
 });
