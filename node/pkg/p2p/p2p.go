@@ -585,7 +585,7 @@ func Run(
 						zap.Binary("raw", envelope.Data),
 						zap.String("from", envelope.GetFrom().String()))
 				} else {
-					logger.Info("valid signed observation request received",
+					logger.Debug("valid signed observation request received",
 						zap.Any("value", r),
 						zap.String("from", envelope.GetFrom().String()))
 
