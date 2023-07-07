@@ -31,4 +31,6 @@ var (
 	ErrConsensusSetNotUpdatable       = sdkerrors.Register(ModuleName, 1122, "cannot make changes to active consensus guardian set")
 	ErrInvalidHash                    = sdkerrors.Register(ModuleName, 1123, "could not verify the hash in governance action")
 	ErrGuardianIndexOutOfBounds       = sdkerrors.Register(ModuleName, 1124, "guardian index out of bounds for the guardian set")
+	ErrInvalidAllowlistContractAddr   = sdkerrors.Register(ModuleName, 1125, "contract addresses in the wasm allowlist msg and vaa do not match")
+	ErrInvalidAllowlistCodeId         = sdkerrors.Register(ModuleName, 1126, "code ids in the wasm allowlist msg and vaa do not match")
 )
