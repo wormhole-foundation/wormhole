@@ -2,53 +2,23 @@
   "addresses": [
     {
       "chainId": 6,
-      "rewardAddress": "0x61a51662f0B30Bf176484cAc5B4a033C497cB2f3",
-      "approvedSenders": [
-        {
-          "address": "0x61a51662f0B30Bf176484cAc5B4a033C497cB2f3",
-          "approved": true
-        }
-      ]
+      "rewardAddress": "0x61a51662f0B30Bf176484cAc5B4a033C497cB2f3"
     },
     {
       "chainId": 14,
-      "rewardAddress": "0x61a51662f0B30Bf176484cAc5B4a033C497cB2f3",
-      "approvedSenders": [
-        {
-          "address": "0x61a51662f0B30Bf176484cAc5B4a033C497cB2f3",
-          "approved": true
-        }
-      ]
+      "rewardAddress": "0x61a51662f0B30Bf176484cAc5B4a033C497cB2f3"
     },
     {
       "chainId": 5,
-      "rewardAddress": "0x61a51662f0B30Bf176484cAc5B4a033C497cB2f3",
-      "approvedSenders": [
-        {
-          "address": "0x61a51662f0B30Bf176484cAc5B4a033C497cB2f3",
-          "approved": true
-        }
-      ]
+      "rewardAddress": "0x61a51662f0B30Bf176484cAc5B4a033C497cB2f3"
     },
     {
       "chainId": 16,
-      "rewardAddress": "0x61a51662f0B30Bf176484cAc5B4a033C497cB2f3",
-      "approvedSenders": [
-        {
-          "address": "0x61a51662f0B30Bf176484cAc5B4a033C497cB2f3",
-          "approved": true
-        }
-      ]
+      "rewardAddress": "0x61a51662f0B30Bf176484cAc5B4a033C497cB2f3"
     },
     {
       "chainId": 4,
-      "rewardAddress": "0x61a51662f0B30Bf176484cAc5B4a033C497cB2f3",
-      "approvedSenders": [
-        {
-          "address": "0x61a51662f0B30Bf176484cAc5B4a033C497cB2f3",
-          "approved": true
-        }
-      ]
+      "rewardAddress": "0x61a51662f0B30Bf176484cAc5B4a033C497cB2f3"
     }
   ],
   "pricingInfo": [

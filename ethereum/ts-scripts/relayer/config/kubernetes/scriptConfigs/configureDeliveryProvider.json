@@ -2,23 +2,11 @@
   "addresses": [
     {
       "chainId": 2,
-      "rewardAddress": "0x22d491Bde2303f2f43325b2108D26f1eAbA1e32b",
-      "approvedSenders": [
-        {
-          "address": "0x22d491Bde2303f2f43325b2108D26f1eAbA1e32b",
-          "approved": true
-        }
-      ]
+      "rewardAddress": "0x22d491Bde2303f2f43325b2108D26f1eAbA1e32b"
     },
     {
       "chainId": 4,
-      "rewardAddress": "0x22d491Bde2303f2f43325b2108D26f1eAbA1e32b",
-      "approvedSenders": [
-        {
-          "address": "0x22d491Bde2303f2f43325b2108D26f1eAbA1e32b",
-          "approved": true
-        }
-      ]
+      "rewardAddress": "0x22d491Bde2303f2f43325b2108D26f1eAbA1e32b"
     }
   ],
 
