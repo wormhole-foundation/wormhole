@@ -1,6 +1,5 @@
-use cosmwasm_std::{CosmosMsg, CustomMsg};
 use cosmwasm_schema::cw_serde;
-
+use cosmwasm_std::{CosmosMsg, CustomMsg};
 
 /// A top-level Custom message for the token factory.
 /// It is embedded like this to easily allow adding other variants that are custom
@@ -71,11 +70,7 @@ impl TokenMsg {
         }
     }
 
-    pub fn burn_contract_tokens(
-        denom: String,
-        amount: u128,
-        burn_from_address: String,
-    ) -> Self {
+    pub fn burn_contract_tokens(denom: String, amount: u128, burn_from_address: String) -> Self {
         TokenMsg::BurnTokens {
             denom,
             amount,

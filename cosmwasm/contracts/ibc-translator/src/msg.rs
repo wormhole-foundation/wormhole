@@ -63,7 +63,7 @@ pub enum ExecuteMsg {
 #[derive(QueryResponses)]
 pub enum QueryMsg {
     #[returns(ChannelResponse)]
-    IbcChannel { chain_id: u16 }
+    IbcChannel { chain_id: u16 },
 }
 
 #[cw_serde]
@@ -73,7 +73,16 @@ pub struct ChannelResponse {
 
 #[cw_serde]
 pub enum GatewayIbcTokenBridgePayload {
-    Simple { chain: u16, recipient: Binary, fee: u128, nonce: u32 },
-    ContractControlled { chain: u16, contract: Binary, payload: Binary, nonce: u32 }
+    Simple {
+        chain: u16,
+        recipient: Binary,
+        fee: u128,
+        nonce: u32,
+    },
+    ContractControlled {
+        chain: u16,
+        contract: Binary,
+        payload: Binary,
+        nonce: u32,
+    },
 }
-
