@@ -98,12 +98,13 @@ import (
 	wormholeclient "github.com/wormhole-foundation/wormchain/x/wormhole/client"
 	wormholemodulekeeper "github.com/wormhole-foundation/wormchain/x/wormhole/keeper"
 	wormholemoduletypes "github.com/wormhole-foundation/wormchain/x/wormhole/types"
+
 	// this line is used by starport scaffolding # stargate/app/moduleImport
 
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory"
 	"github.com/wormhole-foundation/wormchain/x/tokenfactory/bindings"
-	tokenfactorytypes "github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 	tokenfactorykeeper "github.com/wormhole-foundation/wormchain/x/tokenfactory/keeper"
+	tokenfactorytypes "github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 )
 
 const (
@@ -193,7 +194,7 @@ var (
 		ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
 		wormholemoduletypes.ModuleName: nil,
 		// this line is used by starport scaffolding # stargate/app/maccPerms
-		wasm.ModuleName: {authtypes.Burner},
+		wasm.ModuleName:              {authtypes.Burner},
 		tokenfactorytypes.ModuleName: {authtypes.Minter, authtypes.Burner},
 	}
 
@@ -252,7 +253,7 @@ type App struct {
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper
 
-	WormholeKeeper wormholemodulekeeper.Keeper
+	WormholeKeeper     wormholemodulekeeper.Keeper
 	TokenFactoryKeeper tokenfactorykeeper.Keeper
 
 	// this line is used by starport scaffolding # stargate/app/keeperDeclaration

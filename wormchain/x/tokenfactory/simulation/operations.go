@@ -3,8 +3,6 @@ package simulation
 import (
 	"math/rand"
 
-	"github.com/wormhole-foundation/wormchain/app/params"
-	"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	simappparams "github.com/cosmos/cosmos-sdk/simapp/params"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -12,6 +10,8 @@ import (
 	simtypes "github.com/cosmos/cosmos-sdk/types/simulation"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/cosmos-sdk/x/simulation"
+	"github.com/wormhole-foundation/wormchain/app/params"
+	"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 )
 
 // Simulation operation weights constants

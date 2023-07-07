@@ -11,9 +11,9 @@ import (
 
 func (suite *KeeperTestSuite) TestMsgCreateDenom() {
 	//var (
-		//tokenFactoryKeeper = suite.App.TokenFactoryKeeper
-		//bankKeeper         = suite.App.BankKeeper
-		//denomCreationFee   = tokenFactoryKeeper.GetParams(suite.Ctx).DenomCreationFee
+	//tokenFactoryKeeper = suite.App.TokenFactoryKeeper
+	//bankKeeper         = suite.App.BankKeeper
+	//denomCreationFee   = tokenFactoryKeeper.GetParams(suite.Ctx).DenomCreationFee
 	//)
 
 	// Get balance of acc 0 before creating a denom
@@ -63,29 +63,29 @@ func (suite *KeeperTestSuite) TestMsgCreateDenom() {
 
 func (suite *KeeperTestSuite) TestCreateDenom() {
 	var (
-		//primaryDenom            = types.DefaultParams().DenomCreationFee[0].Denom
-		//secondaryDenom          = testhelpers.SecondaryDenom
-		//defaultDenomCreationFee = types.Params{DenomCreationFee: sdk.NewCoins(sdk.NewCoin(primaryDenom, sdk.NewInt(50000000)))}
-		//twoDenomCreationFee     = types.Params{DenomCreationFee: sdk.NewCoins(sdk.NewCoin(primaryDenom, sdk.NewInt(50000000)), sdk.NewCoin(secondaryDenom, sdk.NewInt(50000000)))}
-		//nilCreationFee          = types.Params{DenomCreationFee: nil}
-		//largeCreationFee        = types.Params{DenomCreationFee: sdk.NewCoins(sdk.NewCoin(primaryDenom, sdk.NewInt(5000000000)))}
+	//primaryDenom            = types.DefaultParams().DenomCreationFee[0].Denom
+	//secondaryDenom          = testhelpers.SecondaryDenom
+	//defaultDenomCreationFee = types.Params{DenomCreationFee: sdk.NewCoins(sdk.NewCoin(primaryDenom, sdk.NewInt(50000000)))}
+	//twoDenomCreationFee     = types.Params{DenomCreationFee: sdk.NewCoins(sdk.NewCoin(primaryDenom, sdk.NewInt(50000000)), sdk.NewCoin(secondaryDenom, sdk.NewInt(50000000)))}
+	//nilCreationFee          = types.Params{DenomCreationFee: nil}
+	//largeCreationFee        = types.Params{DenomCreationFee: sdk.NewCoins(sdk.NewCoin(primaryDenom, sdk.NewInt(5000000000)))}
 	)
 
 	for _, tc := range []struct {
-		desc             string
+		desc string
 		//denomCreationFee types.Params
-		setup            func()
-		subdenom         string
-		valid            bool
+		setup    func()
+		subdenom string
+		valid    bool
 	}{
 		{
-			desc:             "subdenom too long",
+			desc: "subdenom too long",
 			//denomCreationFee: defaultDenomCreationFee,
-			subdenom:         "assadsadsadasdasdsadsadsadsadsadsadsklkadaskkkdasdasedskhanhassyeunganassfnlksdflksafjlkasd",
-			valid:            false,
+			subdenom: "assadsadsadasdasdsadsadsadsadsadsadsklkadaskkkdasdasedskhanhassyeunganassfnlksdflksafjlkasd",
+			valid:    false,
 		},
 		{
-			desc:             "subdenom and creator pair already exists",
+			desc: "subdenom and creator pair already exists",
 			//denomCreationFee: defaultDenomCreationFee,
 			setup: func() {
 				_, err := suite.msgServer.CreateDenom(sdk.WrapSDKContext(suite.Ctx), types.NewMsgCreateDenom(suite.TestAccs[0].String(), "bitcoin"))
@@ -95,34 +95,34 @@ func (suite *KeeperTestSuite) TestCreateDenom() {
 			valid:    false,
 		},
 		{
-			desc:             "success case: defaultDenomCreationFee",
+			desc: "success case: defaultDenomCreationFee",
 			//denomCreationFee: defaultDenomCreationFee,
-			subdenom:         "evmos",
-			valid:            true,
+			subdenom: "evmos",
+			valid:    true,
 		},
 		{
-			desc:             "success case: twoDenomCreationFee",
+			desc: "success case: twoDenomCreationFee",
 			//denomCreationFee: twoDenomCreationFee,
-			subdenom:         "catcoin",
-			valid:            true,
+			subdenom: "catcoin",
+			valid:    true,
 		},
 		{
-			desc:             "success case: nilCreationFee",
+			desc: "success case: nilCreationFee",
 			//denomCreationFee: nilCreationFee,
-			subdenom:         "czcoin",
-			valid:            true,
+			subdenom: "czcoin",
+			valid:    true,
 		},
 		//{
 		//	desc:             "account doesn't have enough to pay for denom creation fee",
-			//denomCreationFee: largeCreationFee,
+		//denomCreationFee: largeCreationFee,
 		//	subdenom:         "tooexpensive",
 		//	valid:            false,
 		//},
 		{
-			desc:             "subdenom having invalid characters",
+			desc: "subdenom having invalid characters",
 			//denomCreationFee: defaultDenomCreationFee,
-			subdenom:         "bit/***///&&&/coin",
-			valid:            false,
+			subdenom: "bit/***///&&&/coin",
+			valid:    false,
 		},
 	} {
 		suite.SetupTest()
