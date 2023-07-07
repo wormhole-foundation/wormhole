@@ -64,6 +64,8 @@ interface ITokenBridge {
 
     event ContractUpgraded(address indexed oldContract, address indexed newContract);
 
+    event TransferRedeemed(uint16 indexed emitterChainId, bytes32 indexed emitterAddress, uint64 indexed sequence);
+
     function _parseTransferCommon(bytes memory encoded) external pure returns (Transfer memory transfer);
 
     function attestToken(address tokenAddress, uint32 nonce) external payable returns (uint64 sequence);
