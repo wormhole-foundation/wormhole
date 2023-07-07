@@ -19,6 +19,8 @@ service Msg {
   //  Instantiate creates a new smart contract instance for the given code id.
   rpc InstantiateContract(MsgInstantiateContract)
       returns (MsgInstantiateContractResponse);
+    
+  rpc AddInstantiateAllowlist(MsgAddInstiatiateAllowlist) returns (MsgAddInstiatiateAllowlistResponse);
 
   rpc MigrateContract(MsgMigrateContract)
     returns (MsgMigrateContractResponse);
@@ -97,6 +99,19 @@ message MsgInstantiateContractResponse {
   // Data contains base64-encoded bytes to returned from the contract
   bytes data = 2;
 }
+
+message MsgAddInstiatiateAllowlist {
+  // Signer is the actor that signed the messages
+  string signer = 1;
+  // Address is the bech32 address of the contract that can call wasm instantiate without a VAA
+  string address = 2;
+  // CodeID is the reference to the stored WASM code that can be instantiated
+  uint64 code_id = 3;
+  // vaa is the WormchainAllowlistInstantiateContract governance message
+  bytes vaa = 4;
+}
+
+message MsgAddInstiatiateAllowlistResponse {}
 
 // MsgMigrateContract runs a code upgrade/ downgrade for a smart contract
 message MsgMigrateContract {

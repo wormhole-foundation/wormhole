@@ -113,6 +113,7 @@ func WormholeKeeperAndWasmd(t testing.TB) (*keeper.Keeper, wasmkeeper.Keeper, *w
 		&wasm_handlers.PortKeeperHandler{},
 		scopedWasmKeeper,
 		&wasm_handlers.ICS20TransferPortSourceHandler{},
+		appapp.WormholeKeeper,
 		appapp.MsgServiceRouter(),
 		appapp.GRPCQueryRouter(),
 		wasmDir,
