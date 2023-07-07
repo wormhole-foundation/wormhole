@@ -3,18 +3,22 @@ use cosmwasm_std::entry_point;
 
 use anyhow::Context;
 use cosmwasm_std::{
-    to_binary, Binary, Deps, DepsMut, Empty, Env,
-    MessageInfo, Reply, Response, StdResult,
+    to_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Reply, Response, StdResult,
 };
 use cw2::set_contract_version;
 
 use crate::{
     bindings::TokenFactoryMsg,
-    msg::{ExecuteMsg, InstantiateMsg, QueryMsg, COMPLETE_TRANSFER_REPLY_ID, CREATE_DENOM_REPLY_ID},
-    state::{TOKEN_BRIDGE_CONTRACT, WORMHOLE_CONTRACT},
-    reply::{handle_complete_transfer_reply, handle_create_denom_reply},
-    execute::{complete_transfer_and_convert, convert_and_transfer, submit_update_chain_to_channel_map, TransferType},
+    execute::{
+        complete_transfer_and_convert, convert_and_transfer, submit_update_chain_to_channel_map,
+        TransferType,
+    },
+    msg::{
+        ExecuteMsg, InstantiateMsg, QueryMsg, COMPLETE_TRANSFER_REPLY_ID, CREATE_DENOM_REPLY_ID,
+    },
     query::query_ibc_channel,
+    reply::{handle_complete_transfer_reply, handle_create_denom_reply},
+    state::{TOKEN_BRIDGE_CONTRACT, WORMHOLE_CONTRACT},
 };
 
 // version info for migration info
@@ -66,21 +70,42 @@ pub fn execute(
             chain,
             fee,
             nonce,
-        } =>  convert_and_transfer(deps, info, env, recipient, chain, TransferType::Simple{ fee }, nonce),
+        } => convert_and_transfer(
+            deps,
+            info,
+            env,
+            recipient,
+            chain,
+            TransferType::Simple { fee },
+            nonce,
+        ),
         ExecuteMsg::ContractControlledConvertAndTransfer {
             contract,
             chain,
             payload,
             nonce,
-        } => convert_and_transfer(deps, info, env, contract, chain, TransferType::ContractControlled { payload }, nonce),
-        ExecuteMsg::SubmitUpdateChainToChannelMap { vaa } 
-            => submit_update_chain_to_channel_map(deps, env, info, vaa),
+        } => convert_and_transfer(
+            deps,
+            info,
+            env,
+            contract,
+            chain,
+            TransferType::ContractControlled { payload },
+            nonce,
+        ),
+        ExecuteMsg::SubmitUpdateChainToChannelMap { vaa } => {
+            submit_update_chain_to_channel_map(deps, env, info, vaa)
+        }
     }
 }
 
 /// Reply handler for various kinds of replies
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response<TokenFactoryMsg>, anyhow::Error> {
+pub fn reply(
+    deps: DepsMut,
+    env: Env,
+    msg: Reply,
+) -> Result<Response<TokenFactoryMsg>, anyhow::Error> {
     if msg.id == COMPLETE_TRANSFER_REPLY_ID {
         return handle_complete_transfer_reply(deps, env, msg);
     }
@@ -96,7 +121,6 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response<TokenFactor
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::IbcChannel { chain_id } => 
-            to_binary(&query_ibc_channel(deps, chain_id)?),
+        QueryMsg::IbcChannel { chain_id } => to_binary(&query_ibc_channel(deps, chain_id)?),
     }
 }

@@ -1,30 +1,29 @@
 #[cfg(not(feature = "library"))]
 use anyhow::{bail, ensure, Context};
 use cosmwasm_std::{
-    to_binary, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, Event,
-    MessageInfo, QueryRequest, Response, SubMsg, Uint128, WasmMsg, WasmQuery,
+    to_binary, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, Event, MessageInfo, QueryRequest,
+    Response, SubMsg, Uint128, WasmMsg, WasmQuery,
 };
 use cw_token_bridge::msg::{
-    Asset, AssetInfo, ExecuteMsg as TokenBridgeExecuteMsg,
-    QueryMsg as TokenBridgeQueryMsg, TransferInfoResponse,
+    Asset, AssetInfo, ExecuteMsg as TokenBridgeExecuteMsg, QueryMsg as TokenBridgeQueryMsg,
+    TransferInfoResponse,
 };
-use cw_wormhole::{
-    byte_utils::ByteUtils,
-    msg::QueryMsg as WormholeQueryMsg,
-    state::{ParsedVAA},
-};
+use cw_wormhole::{byte_utils::ByteUtils, msg::QueryMsg as WormholeQueryMsg, state::ParsedVAA};
 
 use cw20_wrapped_2::msg::ExecuteMsg as Cw20WrappedExecuteMsg;
+use std::str;
 use wormhole_sdk::{
     ibc_translator::{Action, GovernancePacket},
     Chain,
 };
-use std::str;
 
 use crate::{
-    msg::COMPLETE_TRANSFER_REPLY_ID,
-    state::{CURRENT_TRANSFER, CW_DENOMS, TOKEN_BRIDGE_CONTRACT, VAA_ARCHIVE, CHAIN_TO_CHANNEL_MAP, WORMHOLE_CONTRACT},
     bindings::{TokenFactoryMsg, TokenMsg},
+    msg::COMPLETE_TRANSFER_REPLY_ID,
+    state::{
+        CHAIN_TO_CHANNEL_MAP, CURRENT_TRANSFER, CW_DENOMS, TOKEN_BRIDGE_CONTRACT, VAA_ARCHIVE,
+        WORMHOLE_CONTRACT,
+    },
 };
 
 pub enum TransferType {
@@ -141,7 +140,7 @@ pub fn convert_and_transfer(
 
     // 3. token_bridge::initiate_transfer -- the cw20 tokens will be either burned or transferred to the token_bridge
     let token_bridge_transfer: TokenBridgeExecuteMsg = match transfer_type {
-        TransferType::Simple { fee } => TokenBridgeExecuteMsg::InitiateTransfer { 
+        TransferType::Simple { fee } => TokenBridgeExecuteMsg::InitiateTransfer {
             asset: Asset {
                 info: AssetInfo::Token {
                     contract_addr: cw20_contract_addr,
@@ -153,19 +152,21 @@ pub fn convert_and_transfer(
             fee,
             nonce,
         },
-        TransferType::ContractControlled { payload } => TokenBridgeExecuteMsg::InitiateTransferWithPayload {
-            asset: Asset {
-                info: AssetInfo::Token {
-                contract_addr: cw20_contract_addr,
+        TransferType::ContractControlled { payload } => {
+            TokenBridgeExecuteMsg::InitiateTransferWithPayload {
+                asset: Asset {
+                    info: AssetInfo::Token {
+                        contract_addr: cw20_contract_addr,
+                    },
+                    amount: bridging_coin.amount,
                 },
-                amount: bridging_coin.amount,
-            },
-            recipient_chain: chain,
-            recipient,
-            fee: Uint128::from(0u128),
-            payload,
-            nonce,
-        },
+                recipient_chain: chain,
+                recipient,
+                fee: Uint128::from(0u128),
+                payload,
+                nonce,
+            }
+        }
     };
     let initiate_transfer_msg = to_binary(&token_bridge_transfer)
         .context("could not serialize token bridge initiate_transfer msg")?;
@@ -227,7 +228,6 @@ pub fn submit_update_chain_to_channel_map(
     _info: MessageInfo,
     vaa: Binary,
 ) -> Result<Response<TokenFactoryMsg>, anyhow::Error> {
-
     // get the token bridge contract address from storage
     let wormhole_contract = WORMHOLE_CONTRACT
         .load(deps.storage)
@@ -247,7 +247,6 @@ pub fn submit_update_chain_to_channel_map(
             && vaa.emitter_address == wormhole_sdk::GOVERNANCE_EMITTER.0,
         "not a governance VAA"
     );
-
 
     // parse the governance packet
     let govpacket = serde_wormhole::from_slice::<GovernancePacket>(&vaa.payload)
@@ -286,10 +285,11 @@ pub fn submit_update_chain_to_channel_map(
                     &channel_id_trimmed.to_string(),
                 )
                 .context("failed to save channel chain")?;
-            Ok(Response::new()
-                .add_event(Event::new("UpdateChainToChannelMap")
+            Ok(Response::new().add_event(
+                Event::new("UpdateChainToChannelMap")
                     .add_attribute("chain_id", chain_id.to_string())
-                    .add_attribute("channel_id", channel_id_trimmed)))
+                    .add_attribute("channel_id", channel_id_trimmed),
+            ))
         }
     }
 }

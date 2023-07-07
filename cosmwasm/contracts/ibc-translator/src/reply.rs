@@ -1,18 +1,15 @@
+use crate::{
+    bindings::{TokenFactoryMsg, TokenMsg},
+    msg::{GatewayIbcTokenBridgePayload, CREATE_DENOM_REPLY_ID},
+    state::{CHAIN_TO_CHANNEL_MAP, CURRENT_TRANSFER, CW_DENOMS},
+};
 #[cfg(not(feature = "library"))]
 use anybuf::Anybuf;
 use anyhow::{ensure, Context};
 use cosmwasm_std::{
-    from_binary, Binary, Deps, DepsMut, Env, Reply, Response, SubMsg, 
-    CosmosMsg::Stargate,
+    from_binary, Binary, CosmosMsg::Stargate, Deps, DepsMut, Env, Reply, Response, SubMsg,
 };
-use cw_token_bridge::msg::{
-    CompleteTransferResponse,
-};
-use crate::{
-    bindings::{TokenFactoryMsg, TokenMsg},
-    msg::{CREATE_DENOM_REPLY_ID, GatewayIbcTokenBridgePayload},
-    state::{CHAIN_TO_CHANNEL_MAP, CURRENT_TRANSFER, CW_DENOMS},
-};
+use cw_token_bridge::msg::CompleteTransferResponse;
 
 pub fn handle_complete_transfer_reply(
     deps: DepsMut,
@@ -46,11 +43,16 @@ pub fn handle_complete_transfer_reply(
     // deserialize payload into the type we expect
     let payload: GatewayIbcTokenBridgePayload = serde_json_wasm::from_slice(&transfer_info.payload)
         .context("failed to deserialize transfer payload")?;
- 
+
     match payload {
-        GatewayIbcTokenBridgePayload::Simple { chain, recipient, fee: _, nonce: _ } => {
-            let recipient_decoded = String::from_utf8(recipient.to_vec()).context(format!(
-                "failed to convert {recipient} to utf8 string"))?;
+        GatewayIbcTokenBridgePayload::Simple {
+            chain,
+            recipient,
+            fee: _,
+            nonce: _,
+        } => {
+            let recipient_decoded = String::from_utf8(recipient.to_vec())
+                .context(format!("failed to convert {recipient} to utf8 string"))?;
             convert_cw20_to_bank_and_send(
                 deps,
                 env,
@@ -60,10 +62,15 @@ pub fn handle_complete_transfer_reply(
                 chain,
                 None,
             )
-        },
-        GatewayIbcTokenBridgePayload::ContractControlled { chain, contract, payload, nonce: _ } => {
-            let contract_decoded = String::from_utf8(contract.to_vec()).context(format!(
-                "failed to convert {contract} to utf8 string"))?;
+        }
+        GatewayIbcTokenBridgePayload::ContractControlled {
+            chain,
+            contract,
+            payload,
+            nonce: _,
+        } => {
+            let contract_decoded = String::from_utf8(contract.to_vec())
+                .context(format!("failed to convert {contract} to utf8 string"))?;
             convert_cw20_to_bank_and_send(
                 deps,
                 env,
@@ -111,8 +118,8 @@ pub fn convert_cw20_to_bank_and_send(
     if !CW_DENOMS.has(deps.storage, contract_addr.clone()) {
         // call into token factory to create the denom
         let create_denom = SubMsg::reply_on_success(
-            TokenMsg::CreateDenom { 
-                subdenom, 
+            TokenMsg::CreateDenom {
+                subdenom,
                 metadata: None,
             },
             CREATE_DENOM_REPLY_ID,
@@ -137,31 +144,31 @@ pub fn convert_cw20_to_bank_and_send(
         .context("chain id does not have an allowed channel")?;
 
     let payload_decoded = match payload {
-        Some(payload) => String::from_utf8(payload.to_vec()).context(format!(
-            "failed to convert {payload} to utf8 string"))?,
+        Some(payload) => String::from_utf8(payload.to_vec())
+            .context(format!("failed to convert {payload} to utf8 string"))?,
         None => "".to_string(),
     };
 
     // Create MsgTransfer protobuf message for Stargate
     let ibc_msg_transfer = Anybuf::new()
-        .append_string(1, &"transfer".to_string()) // source port
-        .append_string(2, &channel) // source channel
-        .append_message(3, 
+        .append_string(1, "transfer") // source port
+        .append_string(2, channel) // source channel
+        .append_message(
+            3,
             &Anybuf::new()
-                    .append_string(1, &tokenfactory_denom)
-                    .append_string(2, &amount.to_string())) // Token
-        .append_string(4, &env.contract.address) // sender
-        .append_string(5, &recipient) // receiver
-        .append_message(6, 
-            &Anybuf::new()
-                    .append_uint64(1, 0)
-                    .append_uint64(2, 0)) // TimeoutHeight
+                .append_string(1, tokenfactory_denom)
+                .append_string(2, amount.to_string()),
+        ) // Token
+        .append_string(4, env.contract.address) // sender
+        .append_string(5, recipient) // receiver
+        .append_message(6, &Anybuf::new().append_uint64(1, 0).append_uint64(2, 0)) // TimeoutHeight
         .append_uint64(7, env.block.time.plus_days(365).nanos()) // TimeoutTimestamp
-        .append_string(8, &payload_decoded); // Memo
+        .append_string(8, payload_decoded); // Memo
 
-    response = response.add_message(Stargate { 
-        type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(), 
-        value: ibc_msg_transfer.into_vec().into() });
+    response = response.add_message(Stargate {
+        type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
+        value: ibc_msg_transfer.into_vec().into(),
+    });
     Ok(response)
 }
 
@@ -169,7 +176,8 @@ pub fn convert_cw20_to_bank_and_send(
 fn contract_addr_to_base58(deps: Deps, contract_addr: String) -> Result<String, anyhow::Error> {
     // convert the contract address into bytes
     let contract_addr_bytes = deps.api.addr_canonicalize(&contract_addr).context(format!(
-        "could not canonicalize contract address {contract_addr}"))?;
+        "could not canonicalize contract address {contract_addr}"
+    ))?;
     let base_58_addr = bs58::encode(contract_addr_bytes.as_slice()).into_string();
     Ok(base_58_addr)
 }

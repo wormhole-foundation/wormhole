@@ -16,7 +16,8 @@ pub enum Action {
 }
 
 // MODULE = "IbcTranslator"
-pub const MODULE: [u8; 32] = *b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00IbcTranslator";
+pub const MODULE: [u8; 32] =
+    *b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00IbcTranslator";
 
 /// Represents the payload for a governance VAA targeted at the wormchain ibc translator contract.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
