@@ -69,15 +69,13 @@ flattened: $(patsubst contracts/%, flattened/%, $(FLATTEN_FILES))
 test: test-forge test-identifiers test-ganache
 
 .PHONY: test-dev
-test-dev: test-forge test-identifiers build-dev .env dependencies 
-	@if pgrep ganache-cli; then echo "Error: ganache-cli already running. Stop it before running tests"; exit 1; fi
-	. ./.env && npx ganache-cli --chain.vmErrorsOnRPCResponse --chain.chainId $$INIT_EVM_CHAIN_ID --wallet.defaultBalance 10000 --wallet.deterministic --chain.time="1970-01-01T00:00:00+00:00" --chain.asyncRequestProcessing=false > ganache.log &
-	sleep 5
-	npm test || (pkill ganache-cli && exit 1)
-	pkill ganache-cli || true
+test-dev: test-forge test-identifiers build-dev .env dependencies run-ganache
 
 .PHONY: test-ganache
-test-ganache: build .env dependencies
+test-ganache: build .env dependencies run-ganache
+
+.PHONY: run-ganache
+run-ganache:
 	@if pgrep ganache-cli; then echo "Error: ganache-cli already running. Stop it before running tests"; exit 1; fi
 	. ./.env && npx ganache-cli --chain.vmErrorsOnRPCResponse --chain.chainId $$INIT_EVM_CHAIN_ID --wallet.defaultBalance 10000 --wallet.deterministic --chain.time="1970-01-01T00:00:00+00:00" --chain.asyncRequestProcessing=false > ganache.log &
 	sleep 5
