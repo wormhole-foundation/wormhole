@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/btcsuite/btcutil/bech32"
 	"github.com/certusone/wormhole/node/pkg/watchers/evm/connectors"
 	"github.com/holiman/uint256"
 	"golang.org/x/exp/slices"
@@ -304,6 +305,33 @@ func wormchainMigrateContract(req *nodev1.WormchainMigrateContract, timestamp ti
 	return v, nil
 }
 
+func wormchainAllowlistInstantiateContract(req *nodev1.WormchainAllowlistInstantiateContract, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) { //nolint:unparam // error is always nil but kept to mirror function signature of other functions
+	// parse contract address into 32 bytes
+	// bech32 decode the string into bytes
+	hrp, decoded, err := bech32.Decode(req.Contract)
+	if err != nil {
+		return nil, fmt.Errorf("invalid bech32 contract address %w", err)
+	}
+
+	if hrp != "wormhole" {
+		return nil, fmt.Errorf("non-wormchain bech32 contract address: %s", req.Contract)
+	}
+
+	if len(decoded) != 32 {
+		return nil, fmt.Errorf("contract address is not 32 bytes: %s", req.Contract)
+	}
+
+	var decodedArr [32]byte
+	copy(decodedArr[:], decoded)
+
+	v := vaa.CreateGovernanceVAA(timestamp, nonce, sequence, guardianSetIndex, vaa.BodyWormchainAllowlistInstantiateContract{
+		ContractAddr: decodedArr,
+		CodeId:       req.CodeId,
+	}.Serialize())
+
+	return v, nil
+}
+
 // circleIntegrationUpdateWormholeFinality converts a nodev1.CircleIntegrationUpdateWormholeFinality to its canonical VAA representation
 // Returns an error if the data is invalid
 func circleIntegrationUpdateWormholeFinality(req *nodev1.CircleIntegrationUpdateWormholeFinality, timestamp time.Time, guardianSetIndex uint32, nonce uint32, sequence uint64) (*vaa.VAA, error) {
@@ -464,6 +492,8 @@ func GovMsgToVaa(message *nodev1.GovernanceMessage, currentSetIndex uint32, time
 		v, err = wormchainInstantiateContract(payload.WormchainInstantiateContract, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_WormchainMigrateContract:
 		v, err = wormchainMigrateContract(payload.WormchainMigrateContract, timestamp, currentSetIndex, message.Nonce, message.Sequence)
+	case *nodev1.GovernanceMessage_WormchainAllowlistInstantiateContract:
+		v, err = wormchainAllowlistInstantiateContract(payload.WormchainAllowlistInstantiateContract, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_CircleIntegrationUpdateWormholeFinality:
 		v, err = circleIntegrationUpdateWormholeFinality(payload.CircleIntegrationUpdateWormholeFinality, timestamp, currentSetIndex, message.Nonce, message.Sequence)
 	case *nodev1.GovernanceMessage_CircleIntegrationRegisterEmitterAndDomain:
