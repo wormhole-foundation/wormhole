@@ -12,8 +12,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 )
 
 // GetTxCmd returns the transaction commands for this module

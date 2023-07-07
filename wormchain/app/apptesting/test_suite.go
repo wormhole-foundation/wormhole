@@ -30,8 +30,8 @@ import (
 
 	authzcodec "github.com/wormhole-foundation/wormchain/x/tokenfactory/types/authzcodec"
 
-	"github.com/wormhole-foundation/wormchain/app"
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
+	"github.com/wormhole-foundation/wormchain/app"
 )
 
 type KeeperTestHelper struct {

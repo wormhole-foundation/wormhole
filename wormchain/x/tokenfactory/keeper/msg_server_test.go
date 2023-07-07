@@ -93,20 +93,20 @@ func (suite *KeeperTestSuite) TestBurnDenomMsg() {
 func (suite *KeeperTestSuite) TestCreateDenomMsg() {
 	//defaultDenomCreationFee := types.Params{DenomCreationFee: sdk.NewCoins(sdk.NewCoin(sdk.DefaultBondDenom, sdk.NewInt(50000000)))}
 	for _, tc := range []struct {
-		desc                  string
+		desc string
 		//denomCreationFee      types.Params
 		subdenom              string
 		valid                 bool
 		expectedMessageEvents int
 	}{
 		{
-			desc:             "subdenom too long",
+			desc: "subdenom too long",
 			//denomCreationFee: defaultDenomCreationFee,
-			subdenom:         "assadsadsadasdasdsadsadsadsadsadsadsklkadaskkkdasdasedskhanhassyeunganassfnlksdflksafjlkasd",
-			valid:            false,
+			subdenom: "assadsadsadasdasdsadsadsadsadsadsadsklkadaskkkdasdasedskhanhassyeunganassfnlksdflksafjlkasd",
+			valid:    false,
 		},
 		{
-			desc:                  "success case: defaultDenomCreationFee",
+			desc: "success case: defaultDenomCreationFee",
 			//denomCreationFee:      defaultDenomCreationFee,
 			subdenom:              "evmos",
 			valid:                 true,

@@ -9,6 +9,7 @@ import (
 
 	wasmbinding "github.com/wormhole-foundation/wormchain/x/tokenfactory/bindings"
 	bindings "github.com/wormhole-foundation/wormchain/x/tokenfactory/bindings/types"
+
 	//"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 
 	"github.com/stretchr/testify/require"
@@ -154,7 +155,6 @@ func TestChangeAdmin(t *testing.T) {
 			// Fund actor with 100 base denom creation fees
 			//actorAmount := sdk.NewCoins(sdk.NewCoin(types.DefaultParams().DenomCreationFee[0].Denom, types.DefaultParams().DenomCreationFee[0].Amount.MulRaw(100)))
 			//fundAccount(t, ctx, tokenz, tokenCreator, actorAmount)
-
 
 			var bankBaseKeeper bankkeeper.BaseKeeper
 			bankBaseKeeper, ok := tokenz.BankKeeper.(bankkeeper.BaseKeeper)

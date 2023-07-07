@@ -3,9 +3,9 @@ package simulation
 import (
 	"math/rand"
 
-	"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
+	"github.com/wormhole-foundation/wormchain/x/tokenfactory/types"
 )
 
 func RandDenomCreationFeeParam(r *rand.Rand) sdk.Coins {
