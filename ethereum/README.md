@@ -33,7 +33,7 @@ For each test run:
 
 Run `npx ganache-cli --chain.vmErrorsOnRPCResponse --chain.chainId 1 --wallet.defaultBalance 10000 --wallet.deterministic --chain.time="1970-01-01T00:00:00+00:00" --chain.asyncRequestProcessing=false` to start a chain.
 
-Run the all ethereum tests using `make test-dev`
+Run the all ethereum tests using `DEV=True make test`
 
 Run a specific test file using `npx truffle test test/wormhole.js`
 
