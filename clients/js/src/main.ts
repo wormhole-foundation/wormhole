@@ -10,6 +10,6 @@ import { CLI_COMMAND_MODULES } from "./cmds";
 yargs(hideBin(process.argv))
   // Build CLI commands dinamically from CLI_COMMAND_MODULES list
   // Documentation about command hierarchy can be found here: https://github.com/yargs/yargs/blob/main/docs/advanced.md#example-command-hierarchy-using-indexmjs
-  .command(CLI_COMMAND_MODULES as unknown as YargsCommandModule)
+  .command(CLI_COMMAND_MODULES as YargsCommandModule[])
   .strict()
   .demandCommand().argv;
