@@ -108,6 +108,10 @@ import (
 	ibchooks "github.com/wormhole-foundation/wormchain/x/ibc-hooks"
 	ibchookskeeper "github.com/wormhole-foundation/wormchain/x/ibc-hooks/keeper"
 	ibchookstypes "github.com/wormhole-foundation/wormchain/x/ibc-hooks/types"
+
+	packetforward "github.com/strangelove-ventures/packet-forward-middleware/v4/router"
+	packetforwardkeeper "github.com/strangelove-ventures/packet-forward-middleware/v4/router/keeper"
+	packetforwardtypes "github.com/strangelove-ventures/packet-forward-middleware/v4/router/types"
 )
 
 const (
@@ -185,6 +189,7 @@ var (
 		wasm.AppModuleBasic{},
 		tokenfactory.AppModuleBasic{},
 		ibchooks.AppModuleBasic{},
+		packetforward.AppModuleBasic{},
 	)
 
 	// module account permissions
@@ -266,6 +271,7 @@ type App struct {
 	TransferStack *ibchooks.IBCMiddleware
 	Ics20WasmHooks *ibchooks.WasmHooks
 	HooksICS4Wrapper ibchooks.ICS4Middleware
+	PacketForwardKeeper       *packetforwardkeeper.Keeper
 
 	// this line is used by starport scaffolding # stargate/app/keeperDeclaration
 	wasmKeeper       wasm.Keeper
@@ -305,7 +311,7 @@ func New(
 		evidencetypes.StoreKey, ibctransfertypes.StoreKey, capabilitytypes.StoreKey,
 		wormholemoduletypes.StoreKey,
 		// this line is used by starport scaffolding # stargate/app/storeKey
-		wasm.StoreKey, tokenfactorytypes.StoreKey, ibchookstypes.StoreKey,
+		wasm.StoreKey, tokenfactorytypes.StoreKey, ibchookstypes.StoreKey, packetforwardtypes.StoreKey,
 	)
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
 	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
@@ -386,13 +392,7 @@ func New(
 		appCodec, keys[ibchost.StoreKey], app.GetSubspace(ibchost.ModuleName), app.StakingKeeper, app.UpgradeKeeper, app.ScopedIBCKeeper,
 	)
 
-	// Configure the hooks keeper
-	hooksKeeper := ibchookskeeper.NewKeeper(
-		app.keys[ibchookstypes.StoreKey],
-	)
-	app.IBCHooksKeeper = &hooksKeeper
-
-	app.WireICS20PreWasmKeeper(appCodec, bApp, app.IBCHooksKeeper)
+	app.WireICS20PreWasmKeeper()
 
 	// register the proposal types
 	govRouter := govtypes.NewRouter()
@@ -504,6 +504,7 @@ func New(
 		wasm.NewAppModule(appCodec, &app.wasmKeeper, app.StakingKeeper, app.AccountKeeper, app.BankKeeper),
 		tokenfactory.NewAppModule(app.TokenFactoryKeeper, app.AccountKeeper, app.BankKeeper),
 		ibchooks.NewAppModule(app.AccountKeeper),
+		packetforward.NewAppModule(app.PacketForwardKeeper),
 	)
 
 	// During begin block slashing happens after distr.BeginBlocker so that
@@ -533,6 +534,7 @@ func New(
 		wasm.ModuleName,
 		tokenfactorytypes.ModuleName,
 		ibchookstypes.ModuleName,
+		packetforwardtypes.ModuleName,
 	)
 
 	app.mm.SetOrderEndBlockers(
@@ -558,6 +560,7 @@ func New(
 		wasm.ModuleName,
 		tokenfactorytypes.ModuleName,
 		ibchookstypes.ModuleName,
+		packetforwardtypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -591,6 +594,7 @@ func New(
 		wasm.ModuleName,
 		tokenfactorytypes.ModuleName,
 		ibchookstypes.ModuleName,
+		packetforwardtypes.ModuleName,
 	)
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
@@ -802,6 +806,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	// this line is used by starport scaffolding # stargate/app/paramSubspace
 	paramsKeeper.Subspace(wasm.ModuleName)
 	paramsKeeper.Subspace(tokenfactorytypes.ModuleName)
+	paramsKeeper.Subspace(packetforwardtypes.ModuleName).WithKeyTable(packetforwardtypes.ParamKeyTable())
 
 	return paramsKeeper
 }
@@ -813,19 +818,20 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 // * RecvPacket, message that originates from core IBC and goes down to app, the flow is the other way
 // channel.RecvPacket -> wormholeMW.OnRecvPackate -> ibc_hooks.OnRecvPacket -> forward.OnRecvPacket -> transfer.OnRecvPacket
 //
-// Note that the forward middleware is only integrated on the "reveive" direction. It can be safely skipped when sending.
-// Note also that the forward middleware is called "router", but we are using the name "forward" for clarity
-// This may later be renamed upstream: https://github.com/strangelove-ventures/packet-forward-middleware/issues/10
+// Note that the forward middleware and wormholeMW is only integrated on the "receive" direction. 
+// It can be safely skipped when sending.
 //
-// After this, the wasm keeper is required to be set on app.WasmHooks
-func (app *App) WireICS20PreWasmKeeper(
-	appCodec codec.Codec,
-	bApp *baseapp.BaseApp,
-	hooksKeeper *ibchookskeeper.Keeper,
-) {
+// After this, the wasm keeper is required to be set on app.Ics20WasmHooks
+func (app *App) WireICS20PreWasmKeeper() {
+	// Configure the hooks keeper
+	ibcHooksKeeper := ibchookskeeper.NewKeeper(
+		app.keys[ibchookstypes.StoreKey],
+	)
+	app.IBCHooksKeeper = &ibcHooksKeeper
+
 	// Setup the ICS4Wrapper used by the hooks middleware
 	wormPrefix := sdk.GetConfig().GetBech32AccountAddrPrefix()
-	wasmHooks := ibchooks.NewWasmHooks(hooksKeeper, nil, wormPrefix) // The contract keeper needs to be set later
+	wasmHooks := ibchooks.NewWasmHooks(&ibcHooksKeeper, nil, wormPrefix) // The contract keeper needs to be set later
 	app.Ics20WasmHooks = &wasmHooks
 	app.HooksICS4Wrapper = ibchooks.NewICS4Middleware(
 		app.IBCKeeper.ChannelKeeper,
@@ -834,10 +840,10 @@ func (app *App) WireICS20PreWasmKeeper(
 
 	// Create Transfer Keepers
 	transferKeeper := ibctransferkeeper.NewKeeper(
-		appCodec,
+		app.appCodec,
 		app.keys[ibctransfertypes.StoreKey],
 		app.GetSubspace(ibctransfertypes.ModuleName),
-		// The ICS4Wrapper is replaced by the rateLimitingICS4Wrapper instead of the channel
+		// The ICS4Wrapper is replaced by the HooksICS4Wrapper instead of the channel
 		app.HooksICS4Wrapper,
 		app.IBCKeeper.ChannelKeeper,
 		&app.IBCKeeper.PortKeeper,
@@ -850,26 +856,29 @@ func (app *App) WireICS20PreWasmKeeper(
 
 	// Packet Forward Middleware
 	// Initialize packet forward middleware router
-	/*appKeepers.PacketForwardKeeper = packetforwardkeeper.NewKeeper(
-		appCodec,
-		appKeepers.keys[packetforwardtypes.StoreKey],
-		appKeepers.GetSubspace(packetforwardtypes.ModuleName),
-		appKeepers.TransferKeeper,
-		appKeepers.IBCKeeper.ChannelKeeper,
-		appKeepers.DistrKeeper,
-		appKeepers.BankKeeper,
+	app.PacketForwardKeeper = packetforwardkeeper.NewKeeper(
+		app.appCodec,
+		app.keys[packetforwardtypes.StoreKey],
+		app.GetSubspace(packetforwardtypes.ModuleName),
+		app.TransferKeeper,
+		app.IBCKeeper.ChannelKeeper,
+		app.DistrKeeper,
+		app.BankKeeper,
 		// The ICS4Wrapper is replaced by the HooksICS4Wrapper instead of the channel so that sending can be overridden by the middleware
-		appKeepers.HooksICS4Wrapper,
+		app.HooksICS4Wrapper,
 	)
+	
+	// Set up transfer stack
+	// channel.RecvPacket -> wormholeMW.OnRecvPacket -> ibc_hooks.OnRecvPacket -> forward.OnRecvPacket -> transfer.OnRecvPacket
 	packetForwardMiddleware := packetforward.NewIBCMiddleware(
-		transfer.NewIBCModule(*appKeepers.TransferKeeper),
-		appKeepers.PacketForwardKeeper,
+		transfer.NewIBCModule(app.TransferKeeper),
+		app.PacketForwardKeeper,
 		0,
 		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp,
 		packetforwardkeeper.DefaultRefundTransferPacketTimeoutTimestamp,
-	)*/
+	)
 
 	// Hooks Middleware
-	hooksTransferModule := ibchooks.NewIBCMiddleware(transfer.NewIBCModule(app.TransferKeeper), &app.HooksICS4Wrapper)
+	hooksTransferModule := ibchooks.NewIBCMiddleware(packetForwardMiddleware, &app.HooksICS4Wrapper)
 	app.TransferStack = &hooksTransferModule
 }
