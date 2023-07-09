@@ -20,7 +20,7 @@ import (
 )
 
 // TestWormchain runs through a simple test case for each deliverable
-func TestCosmosToExternal(t *testing.T) {
+func TestCosmosToCosmos(t *testing.T) {
 	t.Parallel()
 
 	// Base setup
@@ -120,7 +120,7 @@ func TestCosmosToExternal(t *testing.T) {
 	// Add relayer fee
 	simplePayload := helpers.CreateGatewayIbcTokenBridgePayloadSimple(t, GaiaChainID, gaiaUser.Bech32Address(gaia.Config().Bech32Prefix), 0, 1)
 	externalSender := []byte{1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8 ,1, 2, 3, 4, 5, 6, 7, 8}
-	payload3 := helpers.CreatePayload3(wormchain.Config(), 30000, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, simplePayload)
+	payload3 := helpers.CreatePayload3(wormchain.Config(), 30123, Asset1ContractAddr, Asset1ChainID, ibcTranslatorContractAddr, uint16(vaa.ChainIDWormchain), externalSender, simplePayload)
 	completeTransferAndConvertMsg := helpers.IbcTranslatorCompleteTransferAndConvertMsg(t, ExternalChainId, ExternalChainEmitterAddr, payload3, guardians)
 	_, err = wormchain.ExecuteContract(ctx, "faucet", ibcTranslatorContractAddr, completeTransferAndConvertMsg)
 
@@ -138,18 +138,16 @@ func TestCosmosToExternal(t *testing.T) {
 	gaiaIbcAsset1Denom := transfertypes.ParseDenomTrace(gaiaAsset1Denom).IBCDenom()
 	
 	
-	// ************* Ibc hooks + Simple payload ****************
-	// Call SimpleConvertAndTransfer and ContractControlledConvertAndTransfer
-	// Using "externalSender" as recipient because it is 32 bytes
-	simpleIbcHooksMsg := helpers.CreateIbcTranslatorIbcHooksSimpleMsg(t, ibcTranslatorContractAddr, Asset1ChainID, string(externalSender), 0, 1)
+	// ************** PFM + Simple payload ****************
+	simplePfmMsg := helpers.CreatePfmSimpleMsg(t, osmoUser1.Bech32Address(osmosis.Config().Bech32Prefix), wormToOsmoChannel.ChannelID)
 	transfer := ibc.WalletAmount{
-		Address: ibcTranslatorContractAddr,
+		Address: wormchainFaucetAddr,
 		Denom: gaiaIbcAsset1Denom,
-		Amount: 10001,
+		Amount: 10012,
 	}
 	gaiaHeight, err := gaia.Height(ctx)
 	require.NoError(t, err)
-	gaiaIbcTx, err := gaia.SendIBCTransfer(ctx, gaiaToWormChannel.ChannelID, gaiaUser.KeyName, transfer, ibc.TransferOptions{Memo: simpleIbcHooksMsg})
+	gaiaIbcTx, err := gaia.SendIBCTransfer(ctx, gaiaToWormChannel.ChannelID, gaiaUser.KeyName, transfer, ibc.TransferOptions{Memo: simplePfmMsg})
 	require.NoError(t, err)
 	
 	// wait for transfer to ack
@@ -158,16 +156,16 @@ func TestCosmosToExternal(t *testing.T) {
 	err = testutil.WaitForBlocks(ctx, 1, wormchain, gaia)
 	require.NoError(t, err)
 
-	// ********* Ibc hooks + Contract controlled payload **********
-	ccIbcHooksMsg := helpers.CreateIbcTranslatorIbcHooksContractControlledMsg(t, ibcTranslatorContractAddr, Asset1ChainID, string(externalSender), []byte("ExternalContractPayload"), 1)
+	// ********* PFM + Contract controlled payload **********
+	ccPfmMsg := helpers.CreatePfmContractControlledMsg(t, ibcHooksContractAddr, wormToOsmoChannel.ChannelID, osmoUser2.Bech32Address(osmosis.Config().Bech32Prefix))
 	transfer = ibc.WalletAmount{
 		Address: ibcTranslatorContractAddr,
 		Denom: gaiaIbcAsset1Denom,
-		Amount: 10002,
+		Amount: 10013,
 	}
 	gaiaHeight, err = gaia.Height(ctx)
 	require.NoError(t, err)
-	gaiaIbcTx, err = gaia.SendIBCTransfer(ctx, gaiaToWormChannel.ChannelID, gaiaUser.KeyName, transfer, ibc.TransferOptions{Memo: ccIbcHooksMsg})
+	gaiaIbcTx, err = gaia.SendIBCTransfer(ctx, gaiaToWormChannel.ChannelID, gaiaUser.KeyName, transfer, ibc.TransferOptions{Memo: ccPfmMsg})
 	require.NoError(t, err)
 	
 	// wait for transfer to ack
@@ -199,6 +197,10 @@ func TestCosmosToExternal(t *testing.T) {
 	coins, err = osmosis.AllBalances(ctx, osmoUser2.Bech32Address(osmosis.Config().Bech32Prefix))
 	require.NoError(t, err)
 	fmt.Println("Osmo user2 coins: ", coins)
+
+	coins, err = osmosis.AllBalances(ctx, ibcHooksContractAddr)
+	require.NoError(t, err)
+	fmt.Println("Ibc Hooks contract coins: ", coins)
 
 	// IBC hooks required:
 	// Send a bridged token from foreign cosmos chain, over ibc to wormchain and out of wormchain (stretch, nice-to-have)
