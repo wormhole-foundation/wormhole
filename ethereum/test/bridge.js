@@ -581,6 +581,7 @@ contract("Bridge", function () {
     it("should transfer out locked assets for a valid transfer vm", async function () {
         const accounts = await web3.eth.getAccounts();
         const amount = "1000000000000000000";
+        const sequence = 1697;
 
         const token = new web3.eth.Contract(TokenImplementation.abi, TokenImplementation.address);
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
@@ -612,7 +613,7 @@ contract("Bridge", function () {
             0,
             testForeignChainId,
             testForeignBridgeContract,
-            0,
+            sequence,
             data,
             [
                 testSigner1PK
@@ -621,7 +622,7 @@ contract("Bridge", function () {
             0
         );
 
-        await initialized.methods.completeTransfer("0x" + vm).send({
+        const tx = await initialized.methods.completeTransfer("0x" + vm).send({
             value: 0,
             from: accounts[0],
             gasLimit: 2000000
@@ -632,6 +633,14 @@ contract("Bridge", function () {
 
         assert.equal(accountBalanceAfter.toString(10), amount);
         assert.equal(bridgeBalanceAfter.toString(10), "0");
+
+        // verify the `TransferRedeemed` event
+        const event = tx.events.TransferRedeemed;
+
+        assert.equal(event !== undefined, true);
+        assert.equal(event.returnValues.emitterChainId, testForeignChainId);
+        assert.equal(event.returnValues.emitterAddress, testForeignBridgeContract);
+        assert.equal(event.returnValues.sequence, sequence);
     })
 
     it("should deposit and log transfer with payload correctly", async function () {
@@ -719,6 +728,7 @@ contract("Bridge", function () {
     it("should transfer out locked assets for a valid transfer with payload vm", async function () {
         const accounts = await web3.eth.getAccounts();
         const amount = "1000000000000000000";
+        const sequence = 1111;
 
         const token = new web3.eth.Contract(TokenImplementation.abi, TokenImplementation.address);
         const initialized = new web3.eth.Contract(BridgeImplementationFullABI, TokenBridge.address);
@@ -751,7 +761,7 @@ contract("Bridge", function () {
             0,
             testForeignChainId,
             testForeignBridgeContract,
-            0,
+            sequence,
             data,
             [
                 testSigner1PK
@@ -760,7 +770,7 @@ contract("Bridge", function () {
             0
         );
 
-        await initialized.methods.completeTransferWithPayload("0x" + vm).send({
+        const tx = await initialized.methods.completeTransferWithPayload("0x" + vm).send({
             value: 0,
             from: accounts[0],
             gasLimit: 2000000
@@ -771,6 +781,14 @@ contract("Bridge", function () {
 
         assert.equal(accountBalanceAfter.toString(10), new BigNumber(accountBalanceBefore).plus(amount).toString(10));
         assert.equal(bridgeBalanceAfter.toString(10), "0");
+
+        // verify the `TransferRedeemed` event
+        const event = tx.events.TransferRedeemed;
+
+        assert.equal(event !== undefined, true);
+        assert.equal(event.returnValues.emitterChainId, testForeignChainId);
+        assert.equal(event.returnValues.emitterAddress, testForeignBridgeContract);
+        assert.equal(event.returnValues.sequence, sequence);
     })
 
     it("should mint bridged assets wrappers on transfer from another chain and handle fees correctly", async function () {
