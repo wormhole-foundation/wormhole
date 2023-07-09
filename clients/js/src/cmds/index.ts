@@ -13,6 +13,8 @@ import * as transfer from "./transfer";
 import * as verifyVaa from "./verifyVaa";
 import * as status from "./status";
 
+// Commands can be imported as an array of commands.
+// Documentation about command hierarchy can be found here: https://github.com/yargs/yargs/blob/main/docs/advanced.md#example-command-hierarchy-using-indexmjs
 export const CLI_COMMAND_MODULES = [
   aptos,
   editVaa,
