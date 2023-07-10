@@ -34,7 +34,6 @@ contract TestMessagesRV is TestUtils {
 
     function generateGuardianSet(GuardianSetParams memory params)
         internal
-		pure
         returns (Structs.GuardianSet memory)
     {
         for (uint8 i = 0; i < params.guardianCount; ++i)
