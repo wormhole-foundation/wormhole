@@ -1,6 +1,6 @@
 import { ChainInfo, getOperatingChains, init } from "../helpers/env";
 import { sendMessage } from "./messageUtils";
-import { register, Counter } from "prom-client";
+import { register, Counter, Histogram } from "prom-client";
 import Koa from "koa";
 import Router from "koa-router";
 
@@ -14,26 +14,20 @@ const sentCounter = new Counter({
   registers: [register],
 });
 
-const sentSuccessCounter = new Counter({
-  name: "sent_messages_success",
-  help: "Number of messages sent successfully",
-  labelNames: ["from", "to"],
-  registers: [register],
-});
-
-const sentFailedCounter = new Counter({
-  name: "sent_messages_failed",
-  help: "Number of messages failed to relay within 40 seconds",
-  labelNames: ["from", "to"],
-  registers: [register],
-});
-
 const failedToSendCounter = new Counter({
   name: "failed_to_send_messages",
   help: "Number of messages failed to send",
   labelNames: ["from", "to"],
   registers: [register],
 });
+
+const sentMessageDuration = new Histogram({
+  name: `worklow_processing_duration`,
+  help: "Processing time in ms for completed jobs (processing until completed)",
+  buckets: [200, 500, 1500, 3000, 5000, 6000, 7000, 8000, 12000, 15000, 20000],
+  labelNames: ["queue"],
+  registers: [register],
+})
 
 async function main() {
   console.log(process.argv);
@@ -53,14 +47,32 @@ async function main() {
   );
 
   runMetricsServer({ port: 1234 });
-  const from = getChainById(getArg("--from") as string );
+
+  const from = getChainById(getArg("--from") as string);
   const to = getChainById(getArg("--to") as string);
-  
-  runMessagesDrip(period, from, to);
-  if (tryGetArg("--burst")) {
-    console.log("Running in burst mode");
-    runMessageBursts(from, to);
+  const matrix = tryGetArg("--matrix") === 'true';
+  const burst = tryGetArg("--burst");
+
+  if (matrix) {
+    console.log("Running matrix test");
+    for (const fromChain of chains) {
+      for (const toChain of chains) {
+        if (fromChain.chainId === toChain.chainId) {
+          continue;
+        }
+     
+        runMessagesDrip(period, fromChain, toChain);
+        if (burst) runMessageBursts(fromChain, toChain);
+
+        // add some random small delay between chains
+        await new Promise(resolve => setTimeout(resolve, getRandomInt(50, 10)));
+      }
+    }
+    return;
   }
+
+  runMessagesDrip(period, from, to);
+  if (burst) runMessageBursts(from, to);
 }
 
 async function runMessagesDrip(period: number, from: ChainInfo, to: ChainInfo) {
@@ -94,18 +106,12 @@ async function runMessageBursts(from: ChainInfo, to: ChainInfo) {
       await sendMessageAndEmitMetrics(from, to);
     }
   }
-
 }
 
 async function sendMessageAndEmitMetrics(from: ChainInfo, to: ChainInfo) {
   try {
-    const didRelay = await sendMessage(from, to);
+    await sendMessage(from, to);
     sentCounter.inc({ from: from.chainId, to: to.chainId });
-
-    (didRelay ? sentSuccessCounter : sentFailedCounter).inc({
-      from: from.chainId,
-      to: to.chainId,
-    });
   } catch (e) {
     failedToSendCounter.inc({ from: from.chainId, to: to.chainId });
     console.error(
@@ -129,14 +135,6 @@ function runMetricsServer({ port }: any) {
   const router = new Router();
 
   router.get("/metrics", async (ctx: Koa.Context) => {
-    console.log("Metrics endpoint hit");
-    console.log(
-      `Metrics: ${JSON.stringify(
-        await register.getMetricsAsJSON(),
-        undefined,
-        2
-      )}`
-    );
     ctx.body = await register.metrics();
   });
 

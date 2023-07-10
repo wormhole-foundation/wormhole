@@ -14,9 +14,9 @@ export async function sendMessage(
   targetChain: ChainInfo,
   fetchSignedVaa: boolean = false,
 ): Promise<boolean> {
-  console.log(
-    `Sending message from chain ${sourceChain.chainId} to ${targetChain.chainId}...`
-  );
+  // console.log(
+  //   `Sending message from chain ${sourceChain.chainId} to ${targetChain.chainId}...`
+  // );
 
   const sourceRelayer = await getWormholeRelayer(sourceChain);
   const sourceProvider = await sourceRelayer.getDefaultDeliveryProvider();
@@ -24,16 +24,16 @@ export async function sendMessage(
   const relayQuote = await await sourceRelayer[
     "quoteEVMDeliveryPrice(uint16,uint256,uint256,address)"
   ](targetChain.chainId, 0, 2000000, sourceProvider);
-  console.log("relay quote: " + relayQuote);
+  // console.log("relay quote: " + relayQuote);
 
   const mockIntegration = getMockIntegration(sourceChain);
   const targetAddress = getMockIntegrationAddress(targetChain);
 
   const message = await mockIntegration.getMessage();
-  console.log("got message from integration " + message);
+  // console.log("got message from integration " + message);
 
   const sentMessage = "ID: " + String(Math.ceil(Math.random() * 10000));
-  console.log(`Sending message: ${sentMessage}`);
+  // console.log(`Sending message: ${sentMessage}`);
   const tx = await mockIntegration.sendMessage(
     Buffer.from(sentMessage),
     targetChain.chainId,
@@ -49,8 +49,8 @@ export async function sendMessage(
     rx,
     sourceChain.wormholeAddress
   );
-  console.log("Tx hash: ", rx.transactionHash);
-  console.log(`Sequences: ${sequences}`);
+  // console.log("Tx hash: ", rx.transactionHash);
+  // console.log(`Sequences: ${sequences}`);
   if (fetchSignedVaa) {
     for (let i = 0; i < 120; i++) {
       try {
@@ -76,31 +76,31 @@ async function queryMessageOnTarget(
   sentMessage: string,
   targetChain: ChainInfo
 ): Promise<boolean> {
-  let messageHistory: string[] = [];
-  const targetIntegration = getMockIntegration(targetChain);
+  // let messageHistory: string[] = [];
+  // const targetIntegration = getMockIntegration(targetChain);
 
-  let notFound = true;
-  for (let i = 0; i < 20 && notFound; i++) {
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 2000));
-    const messageHistoryResp = await targetIntegration.getMessageHistory();
-    messageHistory = messageHistoryResp.map((message) =>
-      ethers.utils.toUtf8String(message)
-    );
-    notFound = !messageHistory
-      .slice(messageHistory.length - 20)
-      .find((msg) => msg === sentMessage);
-    process.stdout.write("..");
-  }
-  console.log("");
-  if (notFound) {
-    console.log(`ERROR: Did not receive message!`);
-    return false;
-  }
+  // let notFound = true;
+  // for (let i = 0; i < 20 && notFound; i++) {
+  //   await new Promise<void>((resolve) => setTimeout(() => resolve(), 2000));
+  //   const messageHistoryResp = await targetIntegration.getMessageHistory();
+  //   messageHistory = messageHistoryResp.map((message) =>
+  //     ethers.utils.toUtf8String(message)
+  //   );
+  //   notFound = !messageHistory
+  //     .slice(messageHistory.length - 20)
+  //     .find((msg) => msg === sentMessage);
+  //   process.stdout.write("..");
+  // }
+  // console.log("");
+  // if (notFound) {
+  //   console.log(`ERROR: Did not receive message!`);
+  //   return false;
+  // }
 
-  console.log(
-    `Received message: ${messageHistory[messageHistory.length - 1][0]}`
-  );
-  console.log(`Received messageHistory: ${messageHistory.join(", ")}`);
+  // console.log(
+  //   `Received message: ${messageHistory[messageHistory.length - 1][0]}`
+  // );
+  // console.log(`Received messageHistory: ${messageHistory.join(", ")}`);
   return true;
 }
 
