@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest"
 )
 
 const (
@@ -89,7 +90,7 @@ Stages of the test:
 4) Check that all re-observed messages are correct
 */
 func (testCase *testCase) run(ctx context.Context) error {
-	logger := supervisor.Logger(ctx)
+	logger := zaptest.NewLogger(testCase.t).Named("near.test")
 
 	// Run the mock server
 	mockServer := mockserver.NewForwardingCachingServer(logger, testCase.upstreamHost, testCase.cacheDir, testCase.latestFinalBlocks)
@@ -205,11 +206,14 @@ func (testCase *testCase) setupAndRun(logger *zap.Logger) {
 	rootCtxCancel()
 	assert.NotEqual(testCase.t, err, context.DeadlineExceeded) // throw an error if timeout
 	assert.NoError(testCase.t, err)
+
+	// wait 10ms for things to shut down gracefully
+	time.Sleep(time.Millisecond * 10)
 }
 
 // TestWatcherSimple() tests the most simple case: "final" API only retruns one block which contains a Wormhole transaction. No re-observation requests.
 func TestWatcherSimple(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger := zaptest.NewLogger(t)
 
 	pl, _ := hex.DecodeString("0100000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000000000000f0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b00160000000000000000000000000000000000000000000000000000000000000000")
 	txHashBytes, _ := hex.DecodeString("88029cf0e7432cec04c266a3e72903ee6650b4624c7f9c8e22b04d78e18e87f8")
@@ -244,7 +248,7 @@ func TestWatcherSimple(t *testing.T) {
 
 // TestWatcherSimple2() tests the case where the "final" API returns a sequence of real blocks which contain a single Wormhole transaction. No re-observation requests.
 func TestWatcherSimple2(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger := zaptest.NewLogger(t)
 
 	pl, _ := hex.DecodeString("0100000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000000000000f0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b00160000000000000000000000000000000000000000000000000000000000000000")
 	txHashBytes, _ := hex.DecodeString("88029cf0e7432cec04c266a3e72903ee6650b4624c7f9c8e22b04d78e18e87f8")
@@ -287,7 +291,7 @@ func TestWatcherSimple2(t *testing.T) {
 // TestWatcherReobservation() tests the simple re-observation case: The "final" endpoint returns
 // the same unrelated block and there is a re-observation request for past data.
 func TestWatcherReobservation(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger := zaptest.NewLogger(t)
 
 	pl, _ := hex.DecodeString("0100000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000000000000f0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b00160000000000000000000000000000000000000000000000000000000000000000")
 	txHashBytes, _ := hex.DecodeString("88029cf0e7432cec04c266a3e72903ee6650b4624c7f9c8e22b04d78e18e87f8")
@@ -329,7 +333,7 @@ func TestWatcherReobservation(t *testing.T) {
 // TestWatcherDelayedFinal() tests the case where a block cannot be finalized by a parent having it as
 // last_final_block and instead needs to be finalized by having it observed as finalized during polling
 func TestWatcherDelayedFinal(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger := zaptest.NewLogger(t)
 
 	pl, _ := hex.DecodeString("0100000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000000000000f0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b00160000000000000000000000000000000000000000000000000000000000000000")
 	txHashBytes, _ := hex.DecodeString("88029cf0e7432cec04c266a3e72903ee6650b4624c7f9c8e22b04d78e18e87f8")
@@ -374,7 +378,7 @@ func TestWatcherDelayedFinal(t *testing.T) {
 // last_final_block and instead needs to be finalized by having it observed as finalized during polling
 // additionally, there is a large gap between polls
 func TestWatcherDelayedFinalAndGaps(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger := zaptest.NewLogger(t)
 
 	pl, _ := hex.DecodeString("0100000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000000000000f0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b00160000000000000000000000000000000000000000000000000000000000000000")
 	txHashBytes, _ := hex.DecodeString("88029cf0e7432cec04c266a3e72903ee6650b4624c7f9c8e22b04d78e18e87f8")
@@ -421,7 +425,7 @@ func TestWatcherDelayedFinalAndGaps(t *testing.T) {
 "6eCgeVSC4Hwm8tAVy4qNQpnLs4S9EpzRjGtAipwZ632A", // 76538236 block 7: tx3 receipt
 */
 func TestWatcherSynthetic(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger := zaptest.NewLogger(t)
 
 	pl, _ := hex.DecodeString("0100000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000000000000f0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b00160000000000000000000000000000000000000000000000000000000000000000")
 
@@ -514,7 +518,7 @@ func TestWatcherSynthetic(t *testing.T) {
 "6eCgeVSC4Hwm8tAVy4qNQpnLs4S9EpzRjGtAipwZ632A", // 76538236 block 7: tx3 receipt
 */
 func TestWatcherUnfinalized(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger := zaptest.NewLogger(t)
 
 	pl, _ := hex.DecodeString("0100000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000000000000f0108bc32f7de18a5f6e1e7d6ee7aff9f5fc858d0d87ac0da94dd8d2a5d267d6b00160000000000000000000000000000000000000000000000000000000000000000")
 
