@@ -60,7 +60,7 @@ var PROMETHEUS_METRIC_VALID_HEARTBEAT_RECEIVED = "wormhole_p2p_broadcast_message
 const WAIT_FOR_LOGS = true
 const WAIT_FOR_METRICS = false
 
-// The level at which logs will be written to console; During testing, logs are produced and buffered at Debug level, because some tests need to look for certain entries.
+// The level at which logs will be written to console; During testing, logs are produced and buffered at Info level, because some tests need to look for certain entries.
 var CONSOLE_LOG_LEVEL = zap.InfoLevel
 
 var TEST_ID_CTR atomic.Uint32
@@ -216,7 +216,7 @@ func mockGuardianRunnable(testId uint, gs []*mockGuardian, mockGuardianIndex uin
 
 // setupLogsCapture is a helper function for making a zap logger/observer combination for testing that certain logs have been made
 func setupLogsCapture(options ...zap.Option) (*zap.Logger, *observer.ObservedLogs, *LogSizeCounter) {
-	observedCore, observedLogs := observer.New(zap.DebugLevel)
+	observedCore, observedLogs := observer.New(zap.InfoLevel)
 	consoleLogger, _ := zap.NewDevelopment(zap.IncreaseLevel(CONSOLE_LOG_LEVEL))
 	lc := NewLogSizeCounter(zap.InfoLevel)
 	parentLogger := zap.New(zapcore.NewTee(observedCore, consoleLogger.Core(), lc.Core()), options...)
@@ -225,7 +225,7 @@ func setupLogsCapture(options ...zap.Option) (*zap.Logger, *observer.ObservedLog
 
 func waitForHeartbeatsInLogs(t testing.TB, zapObserver *observer.ObservedLogs, gs []*mockGuardian) {
 	// example log entry that we're looking for:
-	// 		DEBUG	root.g-2.g.p2p	p2p/p2p.go:465	valid signed heartbeat received	{"value": "node_name:\"g-0\"  timestamp:1685677055425243683  version:\"development\"  guardian_addr:\"0xeF2a03eAec928DD0EEAf35aD31e34d2b53152c07\"  boot_timestamp:1685677040424855922  p2p_node_id:\"\\x00$\\x08\\x01\\x12 \\x97\\xf3\\xbd\\x87\\x13\\x15(\\x1e\\x8b\\x83\\xedǩ\\xfd\\x05A\\x06aTD\\x90p\\xcc\\xdb<\\xddB\\xcfi\\xccވ\"", "from": "12D3KooWL3XJ9EMCyZvmmGXL2LMiVBtrVa2BuESsJiXkSj7333Jw"}
+	// 		INFO	root.g-2.g.p2p	p2p/p2p.go:465	valid signed heartbeat received	{"value": "node_name:\"g-0\"  timestamp:1685677055425243683  version:\"development\"  guardian_addr:\"0xeF2a03eAec928DD0EEAf35aD31e34d2b53152c07\"  boot_timestamp:1685677040424855922  p2p_node_id:\"\\x00$\\x08\\x01\\x12 \\x97\\xf3\\xbd\\x87\\x13\\x15(\\x1e\\x8b\\x83\\xedǩ\\xfd\\x05A\\x06aTD\\x90p\\xcc\\xdb<\\xddB\\xcfi\\xccވ\"", "from": "12D3KooWL3XJ9EMCyZvmmGXL2LMiVBtrVa2BuESsJiXkSj7333Jw"}
 	re := regexp.MustCompile("g-[0-9]+")
 
 	for readyCounter := 0; readyCounter < len(gs); {
