@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"math/big"
 	math_rand "math/rand"
 	"net/http"
@@ -245,6 +246,10 @@ func waitForHeartbeatsInMetrics(t *testing.T, ctx context.Context, gs []*mockGua
 		requests[i] = req
 	}
 
+	var httpClient = &http.Client{
+		Timeout: time.Second * 10,
+	}
+
 	// query them
 	for readyCounter := 0; readyCounter < len(gs); {
 		for i, g := range gs {
@@ -252,27 +257,33 @@ func waitForHeartbeatsInMetrics(t *testing.T, ctx context.Context, gs []*mockGua
 				continue
 			}
 
-			resp, err := http.DefaultClient.Do(requests[i])
-			if err != nil {
-				resp.Body.Close()
-				continue
-			}
+			ready := func() bool { // use anonymous function to have proper scope for the defer
+				resp, err := httpClient.Do(requests[i])
+				if err != nil {
+					return false
+				}
+				defer io.Copy(io.Discard, resp.Body) //nolint:errcheck //we don't care about the error
+				defer resp.Body.Close()
 
-			scanner := bufio.NewScanner(resp.Body)
-			for scanner.Scan() {
-				line := scanner.Bytes()
-				if bytes.HasPrefix(line, PROMETHEUS_METRIC_VALID_HEARTBEAT_RECEIVED) {
-					res, err := strconv.Atoi(string(bytes.Split(line, []byte(" "))[1])) // split at the space and convert to integer
-					assert.NoError(t, err)
-					if res > 0 {
-						g.ready = true
-						readyCounter++
-						break
+				scanner := bufio.NewScanner(resp.Body)
+				for scanner.Scan() {
+					line := scanner.Bytes()
+					if bytes.HasPrefix(line, PROMETHEUS_METRIC_VALID_HEARTBEAT_RECEIVED) {
+						res, err := strconv.Atoi(string(bytes.Split(line, []byte(" "))[1])) // split at the space and convert to integer
+						assert.NoError(t, err)
+						if res > 0 {
+							return true
+						}
 					}
 				}
+				return false
+			}()
+
+			if ready {
+				g.ready = true
+				readyCounter++
 			}
 
-			//logger.Info("node not ready yet", zap.Int("i", i))
 		}
 		time.Sleep(time.Second * 5)
 	}
@@ -388,6 +399,10 @@ func makeObsDb(tc []testCase) mock.ObservationDb {
 
 // #nosec G107 -- it's OK to make http requests with `statusAddr` because `statusAddr` is trusted.
 func testStatusServer(ctx context.Context, logger *zap.Logger, statusAddr string) error {
+	var httpClient = &http.Client{
+		Timeout: time.Second * 10,
+	}
+
 	// Check /readyz
 	for {
 		url := statusAddr + "/readyz"
@@ -395,13 +410,16 @@ func testStatusServer(ctx context.Context, logger *zap.Logger, statusAddr string
 		if err != nil {
 			return err
 		}
-		resp, err := http.DefaultClient.Do(req)
-		if err == nil {
-			resp.Body.Close()
-			break
+		resp, err := httpClient.Do(req)
+		if err != nil {
+			logger.Info("StatusServer error, waiting 100ms...", zap.String("url", url))
+			time.Sleep(time.Millisecond * 100)
+			continue // try again
 		}
-		logger.Info("StatusServer error, waiting 100ms...", zap.String("url", url))
-		time.Sleep(time.Millisecond * 100)
+		// success, we're done
+		io.Copy(io.Discard, resp.Body) //nolint:errcheck
+		resp.Body.Close()
+		break
 	}
 
 	// Check /metrics (prometheus)
@@ -411,13 +429,16 @@ func testStatusServer(ctx context.Context, logger *zap.Logger, statusAddr string
 		if err != nil {
 			return err
 		}
-		resp, err := http.DefaultClient.Do(req)
-		if err == nil {
-			resp.Body.Close()
-			break
+		resp, err := httpClient.Do(req)
+		if err != nil {
+			logger.Info("StatusServer error, waiting 100ms...", zap.String("url", url))
+			time.Sleep(time.Millisecond * 100)
+			continue // try again
 		}
-		logger.Info("StatusServer error, waiting 100ms...", zap.String("url", url))
-		time.Sleep(time.Millisecond * 100)
+		// success, we're done
+		io.Copy(io.Discard, resp.Body) //nolint:errcheck
+		resp.Body.Close()
+		break
 	}
 	return nil
 }
