@@ -105,6 +105,7 @@ contract TestMessagesRV is TestUtils {
     ) public {
         vm.assume(encoded.length > 0);
         vm.assume(paramsAreWellFormed(params));
+        vm.assume(params.guardianCount > 0);
         outOfBoundsGuardian = uint8(bound(outOfBoundsGuardian, 0, params.guardianCount - 1));
         outOfBoundsAmount = uint8(bound(outOfBoundsAmount, 0, MAX_UINT8 - params.guardianCount));
 
