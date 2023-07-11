@@ -24,6 +24,7 @@ import (
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest"
 )
 
 const (
@@ -323,7 +324,7 @@ func TestInterestingTransferShouldBeBlockedWhenEnforcingAccountant(t *testing.T)
 
 func TestForDeadlock(t *testing.T) {
 	ctx := context.Background()
-	logger, _ := zap.NewDevelopment()
+	logger := zaptest.NewLogger(t)
 	obsvReqWriteC := make(chan *gossipv1.ObservationRequest, 10)
 	acctChan := make(chan *common.MessagePublication, MsgChannelCapacity)
 	wormchainConn := MockAccountantWormchainConn{}
