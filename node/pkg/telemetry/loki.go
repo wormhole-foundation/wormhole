@@ -1,4 +1,5 @@
 // We are using promtail client version v2.8.2:
+// promtail must be added using commit hashes instead of version tags, see https://github.com/grafana/loki/issues/2826
 // go get github.com/grafana/loki/clients/pkg/promtail/client@9f809eda70babaf583bdf6bf335a28038f286618
 
 package telemetry
