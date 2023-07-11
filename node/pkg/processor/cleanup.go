@@ -54,8 +54,10 @@ var (
 )
 
 const (
-	settlementTime = time.Second * 30
-	retryTime      = time.Minute * 5
+	settlementTime    = time.Second * 30
+	retryTime         = time.Minute * 5
+	retryLimitOurs    = time.Hour * 24
+	retryLimitNotOurs = time.Hour
 )
 
 // handleCleanup handles periodic retransmissions and cleanup of observations
@@ -138,9 +140,9 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 			p.logger.Debug("expiring submitted observation", zap.String("digest", hash), zap.Duration("delta", delta))
 			delete(p.state.signatures, hash)
 			aggregationStateExpiration.Inc()
-		case !s.submitted && ((s.ourMsg != nil && s.retryCount >= 14400 /* 120 hours */) || (s.ourMsg == nil && s.retryCount >= 10 /* 5 minutes */)):
+		case !s.submitted && ((s.ourMsg != nil && delta > retryLimitOurs) || (s.ourMsg == nil && delta > retryLimitNotOurs)):
 			// Clearly, this horse is dead and continued beatings won't bring it closer to quorum.
-			p.logger.Info("expiring unsubmitted observation after exhausting retries", zap.String("digest", hash), zap.Duration("delta", delta))
+			p.logger.Info("expiring unsubmitted observation after exhausting retries", zap.String("digest", hash), zap.Duration("delta", delta), zap.Bool("weObserved", s.ourMsg != nil))
 			delete(p.state.signatures, hash)
 			aggregationStateTimeout.Inc()
 		case !s.submitted && delta.Minutes() >= 5 && time.Since(s.lastRetry) >= retryTime:
@@ -161,7 +163,8 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 				p.logger.Info("resubmitting observation",
 					zap.String("digest", hash),
 					zap.Duration("delta", delta),
-					zap.Uint("retry", s.retryCount))
+					zap.String("firstObserved", s.firstObserved.String()),
+				)
 				req := &gossipv1.ObservationRequest{
 					ChainId: uint32(s.ourObservation.GetEmitterChain()),
 					TxHash:  s.txHash,
@@ -170,7 +173,6 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 					p.logger.Warn("failed to broadcast re-observation request", zap.Error(err))
 				}
 				p.gossipSendC <- s.ourMsg
-				s.retryCount += 1
 				s.lastRetry = time.Now()
 				aggregationStateRetries.Inc()
 			} else {
