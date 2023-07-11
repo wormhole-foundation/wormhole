@@ -203,12 +203,12 @@ func Run(
 					}
 					ma, err := multiaddr.NewMultiaddr(addr)
 					if err != nil {
-						logger.Error("Invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
+						logger.Error("invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
 						continue
 					}
 					pi, err := peer.AddrInfoFromP2pAddr(ma)
 					if err != nil {
-						logger.Error("Invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
+						logger.Error("invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
 						continue
 					}
 					if pi.ID == h.ID() {
@@ -245,12 +245,12 @@ func Run(
 
 			if th != nil {
 				if err := th.Close(); err != nil && !errors.Is(err, context.Canceled) {
-					logger.Error("Error closing the topic", zap.Error(err))
+					logger.Error("error closing the topic", zap.Error(err))
 				}
 			}
 
 			if err := h.Close(); err != nil {
-				logger.Error("Error closing the host", zap.Error(err))
+				logger.Error("error closing the host", zap.Error(err))
 			}
 
 			logger.Info("p2p shut down.")
@@ -306,12 +306,12 @@ func Run(
 			}
 			ma, err := multiaddr.NewMultiaddr(addr)
 			if err != nil {
-				logger.Error("Invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
+				logger.Error("invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
 				continue
 			}
 			pi, err := peer.AddrInfoFromP2pAddr(ma)
 			if err != nil {
-				logger.Error("Invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
+				logger.Error("invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
 				continue
 			}
 
@@ -322,7 +322,7 @@ func Run(
 			}
 
 			if err = h.Connect(ctx, *pi); err != nil {
-				logger.Error("Failed to connect to bootstrap peer", zap.String("peer", addr), zap.Error(err))
+				logger.Error("failed to connect to bootstrap peer", zap.String("peer", addr), zap.Error(err))
 			} else {
 				successes += 1
 			}
