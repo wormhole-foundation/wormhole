@@ -928,9 +928,7 @@ func runNode(cmd *cobra.Command, args []string) {
 				zap.String("publicRpcLogDetail", *publicRpcLogDetailStr),
 				zap.Bool("logPublicRpcToTelemetry", *publicRpcLogToTelemetry))
 
-			logger.Info("BOINK: don't commit this!", zap.String("telemetryURL", *telemetryURL), zap.String("telemetryProject", *telemetryProject))
-
-			tm, err = telemetry.NewLokiCloudLogger(rootCtx, *telemetryURL, *telemetryProject, true, labels)
+			tm, err = telemetry.NewLokiCloudLogger(rootCtx, logger, *telemetryURL, "wormhole", *telemetryProject, true, labels)
 			if err != nil {
 				logger.Fatal("Failed to initialize telemetry", zap.Error(err))
 			}

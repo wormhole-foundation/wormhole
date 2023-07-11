@@ -36,7 +36,7 @@ func (logger *externalLoggerMock) log(time time.Time, message json.RawMessage, l
 	}
 
 }
-func (logger *externalLoggerMock) flush() error {
+func (logger *externalLoggerMock) close() error {
 	return nil
 }
 

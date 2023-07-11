@@ -29,7 +29,7 @@ func (logger *ExternalLoggerGoogleCloud) log(time time.Time, message json.RawMes
 	logger.Log(entry)
 }
 
-func (logger *ExternalLoggerGoogleCloud) flush() error {
+func (logger *ExternalLoggerGoogleCloud) close() error {
 	return logger.Flush()
 }
 
