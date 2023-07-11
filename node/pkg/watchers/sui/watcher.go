@@ -505,7 +505,7 @@ func (e *Watcher) Run(ctx context.Context) error {
 func (e *Watcher) fixSuiWsURL(logger *zap.Logger) error {
 	u, _ := url.Parse(e.suiWS)
 
-	// When the scheme is empty/nil or when the Host is empty but a scheme eis set
+	// When the scheme is empty/nil or when the Host is empty but a scheme is set
 	if u == nil || u.Scheme == "" || (u.Scheme != "" && u.Host == "") {
 		logger.Warn(fmt.Sprintf("DEPRECATED: Prefix --suiWS address with the url scheme e.g.: ws://%s or wss://%s", e.suiWS, e.suiWS))
 		u = &url.URL{Scheme: "ws", Host: e.suiWS}
