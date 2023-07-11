@@ -998,20 +998,17 @@ func BenchmarkCrypto(b *testing.B) {
 	})
 }
 
-// How to run: go test -v -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' -bench ^BenchmarkConsensus -benchtime=1x -count 1 -run ^$ > bench.log; tail bench.log
+// How to run:
+//
+//	go test -v -ldflags '-extldflags "-Wl,--allow-multiple-definition" ' -bench ^BenchmarkConsensus -benchtime=1x -count 1 -run ^$ > bench.log; tail bench.log
 func BenchmarkConsensus(b *testing.B) {
 	require.Equal(b, b.N, 1)
 	//CONSOLE_LOG_LEVEL = zap.DebugLevel
 	//CONSOLE_LOG_LEVEL = zap.InfoLevel
 	CONSOLE_LOG_LEVEL = zap.WarnLevel
-	//benchmarkConsensus(b, "1", 19, 1000, 2) // ~28s
-	benchmarkConsensus(b, "1", 19, 100, 1) // ~3s
-	//benchmarkConsensus(b, "1", 19, 100, 2) // ~2s
-	//benchmarkConsensus(b, "1", 19, 100, 3) // sometimes fails, i.e. too much parallelism
-	//benchmarkConsensus(b, "1", 19, 100, 10) // sometimes fails, i.e. too much parallelism
-	//benchmarkConsensus(b, "1", 19, 100, 1) // 3s
-	//benchmarkConsensus(b, "1", 19, 20, 1) // 0.6s
-	//benchmarkConsensus(b, "1", 19, 5, 1) // 0.2s
+	benchmarkConsensus(b, "1", 19, 1000, 10) // ~10s
+	//benchmarkConsensus(b, "1", 19, 1000, 5) // ~10s
+	//benchmarkConsensus(b, "1", 19, 1000, 1) // ~13s
 }
 
 func benchmarkConsensus(t *testing.B, name string, numGuardians int, numMessages int, maxPendingObs int) {
