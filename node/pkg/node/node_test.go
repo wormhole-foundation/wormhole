@@ -328,7 +328,12 @@ func someMessage() *common.MessagePublication {
 
 var tokenBridgeSequenceCounter uint64 = 0
 
+// governedMsg creates a token bridge message that will be in-scope for the governor module.
+// The transfer is of wrapped-SOL from Solana to Ethereum.
+// If shouldBeDelayed == true, then the amount will be set to 1_000_000_000_000 wSOL which should exceed the governor limit.
 func governedMsg(shouldBeDelayed bool) *common.MessagePublication {
+
+	// buildMockTransferPayloadBytes is copied from governor_test.go.
 	buildMockTransferPayloadBytes := func(
 		tokenChainID vaa.ChainID,
 		tokenAddrStr string,
