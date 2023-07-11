@@ -154,7 +154,7 @@ func mockGuardianRunnable(testId uint, gs []*mockGuardian, mockGuardianIndex uin
 				ChainID:          vaa.ChainIDSolana,
 				MockObservationC: gs[mockGuardianIndex].MockObservationC,
 				MockSetC:         gs[mockGuardianIndex].MockSetC,
-				ObservationDb:    obsDb, // TODO(future work) add observation DB to support re-observation request
+				ObservationDb:    obsDb,
 			},
 		}
 
@@ -249,7 +249,7 @@ func waitForHeartbeatsInLogs(t testing.TB, zapObserver *observer.ObservedLogs, g
 	}
 }
 
-// waitForPromMetricExceed waits until prometheus metric `metric` >= `min` on all guardians in `gs`.
+// waitForPromMetricGte waits until prometheus metric `metric` >= `min` on all guardians in `gs`.
 // WARNING: Currently, there is only a global registry for all prometheus metrics, leading to all guardian nodes writing to the same one.
 //
 //	As long as this is the case, you probably don't want to use this function.
@@ -257,7 +257,6 @@ func waitForPromMetricGte(t testing.TB, testId uint, ctx context.Context, gs []*
 	metricBytes := []byte(metric)
 	requests := make([]*http.Request, len(gs))
 	readyFlags := make([]bool, len(gs))
-	//logger := supervisor.Logger(ctx)
 
 	// create the prom api clients
 	for i := range gs {
@@ -304,7 +303,6 @@ func waitForPromMetricGte(t testing.TB, testId uint, ctx context.Context, gs []*
 				readyFlags[i] = true
 				readyCounter++
 			}
-
 		}
 		time.Sleep(time.Second * 5) // TODO
 	}
@@ -315,7 +313,6 @@ func waitForVaa(ctx context.Context, c publicrpcv1.PublicRPCServiceClient, msgId
 	var r *publicrpcv1.GetSignedVAAResponse
 	var err error
 
-	//logger := supervisor.Logger(ctx)
 	for {
 		select {
 		case <-ctx.Done():
@@ -862,7 +859,6 @@ func testGuardianConfigurations(t *testing.T, testCases []testCaseGuardianConfig
 			// wait for all options to get applied
 			// If we were expecting an error, we should never get past this point.
 			for len(zapObserver.FilterMessage("GuardianNode initialization done.").All()) == 0 {
-				//logger.Info("Guardian not yet initialized. Waiting 10ms...")
 				time.Sleep(time.Millisecond * 10)
 			}
 
@@ -973,7 +969,6 @@ func BenchmarkCrypto(b *testing.B) {
 	b.Run("ethcrypto (secp256k1)", func(b *testing.B) {
 
 		gk := devnet.InsecureDeterministicEcdsaKeyByIndex(ethcrypto.S256(), 0)
-		//gkc := ethcrypto.CompressPubkey(&gk.PublicKey)
 
 		b.Run("sign", func(b *testing.B) {
 			msgs := signingMsgs(b.N)
@@ -990,7 +985,6 @@ func BenchmarkCrypto(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				_, err := ethcrypto.Ecrecover(msgs[i], signatures[i])
 				assert.NoError(b, err)
-				//assert.Equal(b, signer, gkc)
 			}
 		})
 	})
@@ -1143,8 +1137,8 @@ func benchmarkConsensus(t *testing.B, name string, numGuardians int, numMessages
 		assert.NotEqual(t, rootCtx.Err(), context.DeadlineExceeded)
 		zapLogger.Info("Test root context cancelled, exiting...")
 
-		// wait for everything to shut down gracefully TODO since switching to portIds by `testId`, this is no longer necessary
-		//time.Sleep(time.Second * 11) // 11s is needed to gracefully shutdown libp2p
+		// wait for everything to shut down gracefully
+		//time.Sleep(time.Second * 11) // 11s is needed to gracefully shutdown libp2p, but since switching to dedicated ports per `testId`, this is no longer necessary
 		time.Sleep(time.Second * 1) // 1s is needed to gracefully shutdown BadgerDB
 	})
 }
