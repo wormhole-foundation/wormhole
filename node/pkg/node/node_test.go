@@ -42,6 +42,7 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest"
 	"go.uber.org/zap/zaptest/observer"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -215,9 +216,9 @@ func mockGuardianRunnable(testId uint, gs []*mockGuardian, mockGuardianIndex uin
 }
 
 // setupLogsCapture is a helper function for making a zap logger/observer combination for testing that certain logs have been made
-func setupLogsCapture(options ...zap.Option) (*zap.Logger, *observer.ObservedLogs, *LogSizeCounter) {
+func setupLogsCapture(t testing.TB, options ...zap.Option) (*zap.Logger, *observer.ObservedLogs, *LogSizeCounter) {
 	observedCore, observedLogs := observer.New(zap.InfoLevel)
-	consoleLogger, _ := zap.NewDevelopment(zap.IncreaseLevel(CONSOLE_LOG_LEVEL))
+	consoleLogger := zaptest.NewLogger(t, zaptest.Level(CONSOLE_LOG_LEVEL))
 	lc := NewLogSizeCounter(zap.InfoLevel)
 	parentLogger := zap.New(zapcore.NewTee(observedCore, consoleLogger.Core(), lc.Core()), options...)
 	return parentLogger, observedLogs, lc
@@ -582,7 +583,7 @@ func testConsensus(t *testing.T, testCases []testCase, numGuardians int) {
 	rootCtx, rootCtxCancel := context.WithTimeout(context.Background(), testTimeout)
 	defer rootCtxCancel()
 
-	zapLogger, zapObserver, _ := setupLogsCapture()
+	zapLogger, zapObserver, _ := setupLogsCapture(t)
 
 	supervisor.New(rootCtx, zapLogger, func(ctx context.Context) error {
 		logger := supervisor.Logger(ctx)
@@ -749,7 +750,8 @@ func testConsensus(t *testing.T, testCases []testCase, numGuardians int) {
 
 	<-rootCtx.Done()
 	assert.NotEqual(t, rootCtx.Err(), context.DeadlineExceeded)
-	zapLogger.Info("Test root context cancelled, exiting...")
+	zapLogger.Info("Test root context cancelled, waiting 10ms for everything to shut down properly...")
+	time.Sleep(time.Millisecond * 10)
 }
 
 type testCaseGuardianConfig struct {
@@ -847,7 +849,7 @@ func testGuardianConfigurations(t *testing.T, testCases []testCaseGuardianConfig
 		// The panic will be subsequently caught by the supervisor
 		fatalHook := make(fatalHook)
 		defer close(fatalHook)
-		zapLogger, zapObserver, _ := setupLogsCapture(zap.WithFatalHook(fatalHook))
+		zapLogger, zapObserver, _ := setupLogsCapture(t, zap.WithFatalHook(fatalHook))
 
 		supervisor.New(rootCtx, zapLogger, func(ctx context.Context) error {
 			// Create a sub-context with cancel function that we can pass to G.run.
@@ -1024,7 +1026,7 @@ func benchmarkConsensus(t *testing.B, name string, numGuardians int, numMessages
 		rootCtx, rootCtxCancel := context.WithTimeout(context.Background(), testTimeout)
 		defer rootCtxCancel()
 
-		zapLogger, zapObserver, setupLogsCapture := setupLogsCapture()
+		zapLogger, zapObserver, setupLogsCapture := setupLogsCapture(t)
 
 		supervisor.New(rootCtx, zapLogger, func(ctx context.Context) error {
 			logger := supervisor.Logger(ctx)

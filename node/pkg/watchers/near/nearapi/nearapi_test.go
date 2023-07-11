@@ -8,7 +8,7 @@ import (
 	"time"
 
 	mockserver "github.com/certusone/wormhole/node/pkg/watchers/near/nearapi/mock"
-	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest"
 
 	"github.com/certusone/wormhole/node/pkg/watchers/near/nearapi"
 	"github.com/stretchr/testify/assert"
@@ -52,7 +52,7 @@ func TestNearApi(t *testing.T) {
 	ctx, cancelFunc := context.WithTimeout(parentCtx, time.Second*5)
 	defer cancelFunc()
 
-	logger, _ := zap.NewDevelopment()
+	logger := zaptest.NewLogger(t)
 
 	mockServer := mockserver.NewForwardingCachingServer(logger, "https://rpc.mainnet.near.org", "mock/apitest/", nil)
 	mockHttpServer := httptest.NewServer(mockServer)
