@@ -339,7 +339,7 @@ func GuardianOptionWatchers(watcherConfigs []watchers.WatcherConfig, ibcWatcherC
 					readiness.RegisterComponent(common.ReadinessIBCSyncing)
 					g.runnablesWithScissors["ibcwatch"] = ibc.NewWatcher(ibcWatcherConfig.Websocket, ibcWatcherConfig.Lcd, ibcWatcherConfig.Contract, chainConfig).Run
 				} else {
-					return errors.New("Although IBC is enabled, there are no chains for it to monitor")
+					return errors.New("although IBC is enabled, there are no chains for it to monitor")
 				}
 			}
 
@@ -371,7 +371,7 @@ func GuardianOptionAdminService(socketPath string, ethRpc *string, ethContract *
 				rpcMap,
 			)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to create admin service: %w", err)
 			}
 			g.runnables["admin"] = adminService
 
@@ -389,7 +389,7 @@ func GuardianOptionPublicRpcSocket(publicGRPCSocketPath string, publicRpcLogDeta
 			// local public grpc service socket
 			publicrpcUnixService, publicrpcServer, err := publicrpcUnixServiceRunnable(logger, publicGRPCSocketPath, publicRpcLogDetail, g.db, g.gst, g.gov)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to create publicrpc service: %w", err)
 			}
 
 			g.runnables["publicrpcsocket"] = publicrpcUnixService
