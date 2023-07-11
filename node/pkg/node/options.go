@@ -48,6 +48,7 @@ func GuardianOptionP2P(p2pKey libp2p_crypto.PrivKey, networkId string, bootstrap
 
 			if g.env == common.GoTest {
 				components.WarnChannelOverflow = true
+				components.SignedHeartbeatLogLevel = zapcore.InfoLevel
 			}
 
 			g.runnables["p2p"] = p2p.Run(
