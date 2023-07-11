@@ -153,12 +153,12 @@ func bootstrapAddrs(logger *zap.Logger, bootstrapPeers string, self peer.ID) (bo
 		}
 		ma, err := multiaddr.NewMultiaddr(addr)
 		if err != nil {
-			logger.Error("Invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
+			logger.Error("invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
 			continue
 		}
 		pi, err := peer.AddrInfoFromP2pAddr(ma)
 		if err != nil {
-			logger.Error("Invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
+			logger.Error("invalid bootstrap address", zap.String("peer", addr), zap.Error(err))
 			continue
 		}
 		if pi.ID == self {
@@ -176,7 +176,7 @@ func connectToPeers(ctx context.Context, logger *zap.Logger, h host.Host, peers 
 	successes = 0
 	for _, p := range peers {
 		if err := h.Connect(ctx, p); err != nil {
-			logger.Error("Failed to connect to bootstrap peer", zap.String("peer", p.String()), zap.Error(err))
+			logger.Error("failed to connect to bootstrap peer", zap.String("peer", p.String()), zap.Error(err))
 		} else {
 			successes += 1
 		}
@@ -267,7 +267,7 @@ func Run(
 
 		defer func() {
 			if err := h.Close(); err != nil {
-				logger.Error("Error closing the host", zap.Error(err))
+				logger.Error("error closing the host", zap.Error(err))
 			}
 		}()
 
