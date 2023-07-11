@@ -27,7 +27,7 @@ func (logger *externalLoggerMock) log(time time.Time, message json.RawMessage, l
 	entry := google_cloud_logging.Entry{
 		Timestamp: time,
 		Payload:   message,
-		Severity:  logLevelSeverity[level],
+		Severity:  googleLogLevelSeverity[level],
 	}
 
 	_, err := google_cloud_logging.ToLogEntry(entry, "someProjectId")

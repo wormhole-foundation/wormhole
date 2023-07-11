@@ -189,10 +189,17 @@ var (
 
 	disableHeartbeatVerify *bool
 
-	disableTelemetry            *bool
+	disableTelemetry *bool
+
+	// Google cloud logging parameters
 	telemetryKey                *string
 	telemetryServiceAccountFile *string
-	telemetryProject            *string
+
+	// Loki cloud logging parameters
+	telemetryURL *string
+
+	// Shared cloud logging parameters
+	telemetryProject *string
 
 	bigTablePersistenceEnabled *bool
 	bigTableGCPProject         *string
@@ -351,6 +358,8 @@ func init() {
 		"Google Cloud credentials json for accessing Cloud Logging")
 	telemetryProject = NodeCmd.Flags().String("telemetryProject", defaultTelemetryProject,
 		"Google Cloud Project to use for Telemetry logging")
+
+	telemetryURL = NodeCmd.Flags().String("telemetryURL", "", "Loki cloud logging URL")
 
 	bigTablePersistenceEnabled = NodeCmd.Flags().Bool("bigTablePersistenceEnabled", false, "Turn on forwarding events to BigTable")
 	bigTableGCPProject = NodeCmd.Flags().String("bigTableGCPProject", "", "Google Cloud project ID for storing events")
@@ -888,27 +897,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		rootCtxCancel()
 	}()
 
-	var hasTelemetryCredential bool = *telemetryKey != "" || *telemetryServiceAccountFile != ""
+	var hasTelemetryCredential bool = *telemetryKey != "" || *telemetryServiceAccountFile != "" || *telemetryURL != ""
 
 	// Telemetry is enabled by default in mainnet/testnet. In devnet it is disabled by default
 	if !*disableTelemetry && (!*unsafeDevMode || *unsafeDevMode && hasTelemetryCredential) {
 		if !hasTelemetryCredential {
-			logger.Fatal("Please either specify --telemetryKey or --telemetryServiceAccountFile or set --disableTelemetry=false")
-		}
-
-		var options []googleapi_option.ClientOption
-
-		if *telemetryKey != "" {
-			creds, err := decryptTelemetryServiceAccount()
-			if err != nil {
-				logger.Fatal("Failed to decrypt telemetry service account", zap.Error(err))
-			}
-
-			options = append(options, googleapi_option.WithCredentialsJSON(creds))
-		}
-
-		if *telemetryServiceAccountFile != "" {
-			options = append(options, googleapi_option.WithCredentialsFile(*telemetryServiceAccountFile))
+			logger.Fatal("Please either specify --telemetryKey, --telemetryServiceAccountFile or --telemetryURL or set --disableTelemetry=false")
 		}
 
 		// Get libp2p peer ID from private key
@@ -927,18 +921,47 @@ func runNode(cmd *cobra.Command, args []string) {
 		}
 
 		skipPrivateLogs := !*publicRpcLogToTelemetry
-		tm, err := telemetry.New(context.Background(), *telemetryProject, skipPrivateLogs, labels, options...)
-		if err != nil {
-			logger.Fatal("Failed to initialize telemetry", zap.Error(err))
-		}
-		defer tm.Close()
-		logger = tm.WrapLogger(logger)
 
-		logger.Info("Telemetry enabled",
-			zap.String("publicRpcLogDetail", *publicRpcLogDetailStr),
-			zap.Bool("logPublicRpcToTelemetry", *publicRpcLogToTelemetry))
-	} else {
-		logger.Info("Telemetry disabled")
+		var tm *telemetry.Telemetry
+		if *telemetryURL != "" {
+			logger.Info("Using Loki telemetry logger",
+				zap.String("publicRpcLogDetail", *publicRpcLogDetailStr),
+				zap.Bool("logPublicRpcToTelemetry", *publicRpcLogToTelemetry))
+
+			logger.Info("BOINK: don't commit this!", zap.String("telemetryURL", *telemetryURL), zap.String("telemetryProject", *telemetryProject))
+
+			tm, err = telemetry.NewLokiCloudLogger(rootCtx, *telemetryURL, *telemetryProject, true, labels)
+			if err != nil {
+				logger.Fatal("Failed to initialize telemetry", zap.Error(err))
+			}
+		} else {
+			logger.Info("Using Google Cloud telemetry logger",
+				zap.String("publicRpcLogDetail", *publicRpcLogDetailStr),
+				zap.Bool("logPublicRpcToTelemetry", *publicRpcLogToTelemetry))
+
+			var options []googleapi_option.ClientOption
+
+			if *telemetryKey != "" {
+				creds, err := decryptTelemetryServiceAccount()
+				if err != nil {
+					logger.Fatal("Failed to decrypt telemetry service account", zap.Error(err))
+				}
+
+				options = append(options, googleapi_option.WithCredentialsJSON(creds))
+			}
+
+			if *telemetryServiceAccountFile != "" {
+				options = append(options, googleapi_option.WithCredentialsFile(*telemetryServiceAccountFile))
+			}
+
+			tm, err = telemetry.NewGoogleCloudLogger(context.Background(), *telemetryProject, skipPrivateLogs, labels, options...)
+			if err != nil {
+				logger.Fatal("Failed to initialize telemetry", zap.Error(err))
+			}
+		}
+
+		defer tm.Close()
+		logger = tm.WrapLogger(logger) // Wrap logger with telemetry logger
 	}
 
 	// log golang version
