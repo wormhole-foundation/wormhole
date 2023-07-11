@@ -222,7 +222,19 @@ func (p *Processor) handleObservation(ctx context.Context, m *gossipv1.SignedObs
 	}
 }
 
+func vaaId(data []byte) string {
+	lenSignatures := data[6]
+	return string(data[6+lenSignatures*66:])
+}
+
 func (p *Processor) handleInboundSignedVAAWithQuorum(ctx context.Context, m *gossipv1.SignedVAAWithQuorum) {
+
+	// Check if we have this VAA in the cache already
+	if ok, _ := p.vaaSeenCache.ContainsOrAdd(vaaId(m.Vaa), struct{}{}); ok {
+		p.logger.Debug("ignored SignedVAAWithQuorum message for VAA we already stored")
+		return
+	}
+
 	v, err := vaa.Unmarshal(m.Vaa)
 	if err != nil {
 		p.logger.Warn("received invalid VAA in SignedVAAWithQuorum message",

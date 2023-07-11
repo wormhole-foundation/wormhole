@@ -9,6 +9,7 @@ import (
 
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/governor"
+	lru "github.com/hashicorp/golang-lru"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -125,6 +126,8 @@ type Processor struct {
 	acct        *accountant.Accountant
 	acctReadC   <-chan *common.MessagePublication
 	pythnetVaas map[string]PythNetVaaEntry
+
+	vaaSeenCache *lru.Cache
 }
 
 func NewProcessor(
@@ -145,6 +148,8 @@ func NewProcessor(
 	acctReadC <-chan *common.MessagePublication,
 ) *Processor {
 
+	vaaSeenCache, _ := lru.New(5000)
+
 	return &Processor{
 		msgC:         msgC,
 		setC:         setC,
@@ -159,13 +164,14 @@ func NewProcessor(
 
 		attestationEvents: attestationEvents,
 
-		logger:      supervisor.Logger(ctx),
-		state:       &aggregationState{observationMap{}},
-		ourAddr:     crypto.PubkeyToAddress(gk.PublicKey),
-		governor:    g,
-		acct:        acct,
-		acctReadC:   acctReadC,
-		pythnetVaas: make(map[string]PythNetVaaEntry),
+		logger:       supervisor.Logger(ctx),
+		state:        &aggregationState{observationMap{}},
+		ourAddr:      crypto.PubkeyToAddress(gk.PublicKey),
+		governor:     g,
+		acct:         acct,
+		acctReadC:    acctReadC,
+		pythnetVaas:  make(map[string]PythNetVaaEntry),
+		vaaSeenCache: vaaSeenCache,
 	}
 }
 

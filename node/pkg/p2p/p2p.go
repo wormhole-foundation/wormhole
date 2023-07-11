@@ -42,6 +42,8 @@ import (
 
 const DefaultPort = 8999
 
+//const OUTBOUNT_MSG_INTERVAL_MAX = time.Millisecond * 20
+
 var (
 	p2pHeartbeatsSent = promauto.NewCounter(
 		prometheus.CounterOpts{
@@ -269,6 +271,21 @@ func Run(
 		topic := fmt.Sprintf("%s/%s", networkID, "broadcast")
 
 		logger.Info("Subscribing pubsub topic", zap.String("topic", topic))
+		// TODO consider adding
+		// 		pubsub.WithDirectPeers(bootstrappers)
+
+		/*
+			gossipParams := pubsub.DefaultGossipSubParams()
+			gossipParams.D = 19
+			gossipParams.Dlo = 5
+			gossipParams.Dhi = 27
+
+			ps, err := pubsub.NewGossipSub(ctx, h,
+				pubsub.WithPeerOutboundQueueSize(10000),
+				pubsub.WithValidateQueueSize(10000),
+				pubsub.WithGossipSubParams(gossipParams),
+			)
+		*/
 		ps, err := pubsub.NewGossipSub(ctx, h)
 		if err != nil {
 			panic(err)
@@ -448,6 +465,7 @@ func Run(
 					return
 				case msg := <-gossipSendC:
 					err := th.Publish(ctx, msg)
+					//time.Sleep(OUTBOUNT_MSG_INTERVAL_MAX)
 					p2pMessagesSent.Inc()
 					if err != nil {
 						logger.Error("failed to publish message from queue", zap.Error(err))
@@ -484,6 +502,7 @@ func Run(
 					obsvReqC <- msg
 
 					err = th.Publish(ctx, b)
+					//time.Sleep(OUTBOUNT_MSG_INTERVAL_MAX)
 					p2pMessagesSent.Inc()
 					if err != nil {
 						logger.Error("failed to publish observation request", zap.Error(err))
@@ -588,6 +607,8 @@ func Run(
 				select {
 				case obsvC <- m.SignedObservation:
 					p2pMessagesReceived.WithLabelValues("observation").Inc()
+
+					//logger.Error("received observation", zap.String("msg_id", m.SignedObservation.MessageId))
 				default:
 					if components.WarnChannelOverflow {
 						logger.Warn("Ignoring SignedObservation because obsvC full", zap.String("hash", hex.EncodeToString(m.SignedObservation.Hash)))
@@ -598,6 +619,8 @@ func Run(
 				select {
 				case signedInC <- m.SignedVaaWithQuorum:
 					p2pMessagesReceived.WithLabelValues("signed_vaa_with_quorum").Inc()
+					//vaa, _ := vaa.Unmarshal(m.SignedVaaWithQuorum.Vaa)
+					//logger.Error("received vaa", zap.String("msg_id", vaa.MessageID()))
 				default:
 					if components.WarnChannelOverflow {
 						// TODO do not log this in production

@@ -19,12 +19,13 @@ import (
 )
 
 const (
-	inboundObservationBufferSize         = 50
-	inboundSignedVaaBufferSize           = 50
-	observationRequestOutboundBufferSize = 50
-	observationRequestInboundBufferSize  = 50
+	gossipSendBufferSize                 = 5000
+	inboundObservationBufferSize         = 5000
+	inboundSignedVaaBufferSize           = 5000
+	observationRequestOutboundBufferSize = 5000
+	observationRequestInboundBufferSize  = 5000
 	// observationRequestBufferSize is the buffer size of the per-network reobservation channel
-	observationRequestBufferSize = 25
+	observationRequestBufferSize = 2500
 )
 
 type PrometheusCtxKey struct{}
@@ -87,13 +88,13 @@ func (g *G) initializeBasic(logger *zap.Logger, rootCtxCancel context.CancelFunc
 	g.rootCtxCancel = rootCtxCancel
 
 	// Setup various channels...
-	g.gossipSendC = make(chan []byte)
+	g.gossipSendC = make(chan []byte, gossipSendBufferSize)
 	g.obsvC = make(chan *gossipv1.SignedObservation, inboundObservationBufferSize)
 	g.msgC = makeChannelPair[*common.MessagePublication](0)
 	g.setC = makeChannelPair[*common.GuardianSet](1) // This needs to be a buffered channel because of a circular dependency between processor and accountant during startup.
 	g.signedInC = makeChannelPair[*gossipv1.SignedVAAWithQuorum](inboundSignedVaaBufferSize)
-	g.obsvReqC = makeChannelPair[*gossipv1.ObservationRequest](observationRequestOutboundBufferSize)
-	g.obsvReqSendC = makeChannelPair[*gossipv1.ObservationRequest](observationRequestInboundBufferSize)
+	g.obsvReqC = makeChannelPair[*gossipv1.ObservationRequest](observationRequestInboundBufferSize)
+	g.obsvReqSendC = makeChannelPair[*gossipv1.ObservationRequest](observationRequestOutboundBufferSize)
 	g.injectC = makeChannelPair[*vaa.VAA](0)
 	g.acctC = makeChannelPair[*common.MessagePublication](accountant.MsgChannelCapacity)
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"go.uber.org/zap"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -44,7 +45,13 @@ func (p *Processor) broadcastSignature(
 		panic(err)
 	}
 
-	p.gossipSendC <- msg
+	//p.logger.Error("broadcasting signature", zap.String("msg_id", obsv.MessageId))
+
+	select {
+	case p.gossipSendC <- msg:
+	default:
+		p.logger.Error("broadcasting signature: gossipSendC full", zap.String("msg_id", obsv.MessageId))
+	}
 
 	// Store our VAA in case we're going to submit it to Solana
 	hash := hex.EncodeToString(digest.Bytes())
@@ -87,5 +94,9 @@ func (p *Processor) broadcastSignedVAA(v *vaa.VAA) {
 		panic(err)
 	}
 
-	p.gossipSendC <- msg
+	select {
+	case p.gossipSendC <- msg:
+	default:
+		p.logger.Error("broadcasting signature: gossipSendC full", zap.String("msg_id", v.MessageID()))
+	}
 }
