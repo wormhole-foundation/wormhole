@@ -1,6 +1,5 @@
 use crate::{
-    bindings::{TokenFactoryMsg, TokenMsg},
-    msg::{GatewayIbcTokenBridgePayload, CREATE_DENOM_REPLY_ID},
+    msg::GatewayIbcTokenBridgePayload,
     state::{CHAIN_TO_CHANNEL_MAP, CURRENT_TRANSFER, CW_DENOMS},
 };
 #[cfg(not(feature = "library"))]
@@ -10,6 +9,7 @@ use cosmwasm_std::{
     from_binary, Binary, CosmosMsg::Stargate, Deps, DepsMut, Env, Reply, Response, SubMsg,
 };
 use cw_token_bridge::msg::CompleteTransferResponse;
+use wormhole_bindings::tokenfactory::{TokenFactoryMsg, TokenMsg};
 
 pub fn handle_complete_transfer_reply(
     deps: DepsMut,
@@ -88,22 +88,16 @@ pub fn convert_cw20_to_bank_and_send(
     env: Env,
     recipient: String,
     amount: u128,
-    contract_addr: String,
+    cw20_contract_addr: String,
     chain_id: u16,
     payload: Option<Binary>,
 ) -> Result<Response<TokenFactoryMsg>, anyhow::Error> {
-    // check the recipient and contract addresses are valid
-    // recipient will have a different bech32 prefix and fail
-    //deps.api
-    //    .addr_validate(&recipient)
-    //    .context(format!("invalid recipient address {}", recipient))?;
-
     deps.api
-        .addr_validate(&contract_addr)
-        .context(format!("invalid contract address {contract_addr}"))?;
+        .addr_validate(&cw20_contract_addr)
+        .context(format!("invalid contract address {cw20_contract_addr}"))?;
 
     // convert contract address into base64
-    let subdenom = contract_addr_to_base58(deps.as_ref(), contract_addr.clone())?;
+    let subdenom = contract_addr_to_base58(deps.as_ref(), cw20_contract_addr.clone())?;
     // format the token factory denom
     let tokenfactory_denom = "factory/".to_string()
         + env.contract.address.to_string().as_ref()
@@ -115,20 +109,17 @@ pub fn convert_cw20_to_bank_and_send(
     // check contract storage see if we've created a denom for this cw20 token yet
     // if we haven't created the denom, then create the denom
     // info.sender contains the cw20 contract address
-    if !CW_DENOMS.has(deps.storage, contract_addr.clone()) {
+    if !CW_DENOMS.has(deps.storage, cw20_contract_addr.clone()) {
         // call into token factory to create the denom
-        let create_denom = SubMsg::reply_on_success(
-            TokenMsg::CreateDenom {
-                subdenom,
-                metadata: None,
-            },
-            CREATE_DENOM_REPLY_ID,
-        );
+        let create_denom = SubMsg::new(TokenMsg::CreateDenom {
+            subdenom,
+            metadata: None,
+        });
         response = response.add_submessage(create_denom);
 
         // add the contract_addr => tokenfactory denom to storage
         CW_DENOMS
-            .save(deps.storage, contract_addr, &tokenfactory_denom)
+            .save(deps.storage, cw20_contract_addr, &tokenfactory_denom)
             .context("failed to save contract_addr => tokenfactory denom to storage")?;
     }
 
@@ -150,6 +141,7 @@ pub fn convert_cw20_to_bank_and_send(
     };
 
     // Create MsgTransfer protobuf message for Stargate
+    // https://github.com/cosmos/ibc-go/blob/main/proto/ibc/applications/transfer/v1/tx.proto#L27
     let ibc_msg_transfer = Anybuf::new()
         .append_string(1, "transfer") // source port
         .append_string(2, channel) // source channel
@@ -180,18 +172,4 @@ fn contract_addr_to_base58(deps: Deps, contract_addr: String) -> Result<String, 
     ))?;
     let base_58_addr = bs58::encode(contract_addr_bytes.as_slice()).into_string();
     Ok(base_58_addr)
-}
-
-pub fn handle_create_denom_reply(
-    _deps: DepsMut,
-    _env: Env,
-    msg: Reply,
-) -> Result<Response<TokenFactoryMsg>, anyhow::Error> {
-    // we should only be replying on success, if okay, expected token was created.
-    ensure!(
-        msg.result.is_ok(),
-        "msg result is not okay, we should never get here"
-    );
-
-    Ok(Response::new())
 }

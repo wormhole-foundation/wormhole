@@ -2,7 +2,6 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Binary, Uint128};
 
 pub const COMPLETE_TRANSFER_REPLY_ID: u64 = 1;
-pub const CREATE_DENOM_REPLY_ID: u64 = 2;
 
 #[cw_serde]
 pub struct InstantiateMsg {
