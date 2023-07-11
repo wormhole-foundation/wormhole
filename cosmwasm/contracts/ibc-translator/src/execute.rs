@@ -12,13 +12,13 @@ use cw_wormhole::{byte_utils::ByteUtils, msg::QueryMsg as WormholeQueryMsg, stat
 
 use cw20_wrapped_2::msg::ExecuteMsg as Cw20WrappedExecuteMsg;
 use std::str;
+use wormhole_bindings::tokenfactory::{TokenFactoryMsg, TokenMsg};
 use wormhole_sdk::{
     ibc_translator::{Action, GovernancePacket},
     Chain,
 };
 
 use crate::{
-    bindings::{TokenFactoryMsg, TokenMsg},
     msg::COMPLETE_TRANSFER_REPLY_ID,
     state::{
         CHAIN_TO_CHANNEL_MAP, CURRENT_TRANSFER, CW_DENOMS, TOKEN_BRIDGE_CONTRACT, VAA_ARCHIVE,
@@ -271,7 +271,10 @@ pub fn submit_update_chain_to_channel_map(
             channel_id,
             chain_id,
         } => {
-            ensure!(chain_id != Chain::Wormchain, "the wormchain-ibc-receiver contract should not maintain channel mappings to wormchain");
+            ensure!(
+                chain_id != Chain::Wormchain,
+                "the ibc-translator contract should not maintain channel mappings to wormchain"
+            );
 
             let channel_id_str =
                 str::from_utf8(&channel_id).context("failed to parse channel-id as utf-8")?;
