@@ -196,7 +196,7 @@ var (
 	telemetryServiceAccountFile *string
 
 	// Loki cloud logging parameters
-	telemetryURL *string
+	telemetryLokiURL *string
 
 	// Shared cloud logging parameters
 	telemetryProject *string
@@ -359,7 +359,7 @@ func init() {
 	telemetryProject = NodeCmd.Flags().String("telemetryProject", defaultTelemetryProject,
 		"Google Cloud Project to use for Telemetry logging")
 
-	telemetryURL = NodeCmd.Flags().String("telemetryURL", "", "Loki cloud logging URL")
+	telemetryLokiURL = NodeCmd.Flags().String("telemetryLokiURL", "", "Loki cloud logging URL")
 
 	bigTablePersistenceEnabled = NodeCmd.Flags().Bool("bigTablePersistenceEnabled", false, "Turn on forwarding events to BigTable")
 	bigTableGCPProject = NodeCmd.Flags().String("bigTableGCPProject", "", "Google Cloud project ID for storing events")
@@ -897,12 +897,19 @@ func runNode(cmd *cobra.Command, args []string) {
 		rootCtxCancel()
 	}()
 
-	var hasTelemetryCredential bool = *telemetryKey != "" || *telemetryServiceAccountFile != "" || *telemetryURL != ""
+	usingLoki := *telemetryLokiURL != ""
+	usingGCP := *telemetryKey != "" || *telemetryServiceAccountFile != ""
+
+	var hasTelemetryCredential bool = usingGCP || usingLoki
 
 	// Telemetry is enabled by default in mainnet/testnet. In devnet it is disabled by default
 	if !*disableTelemetry && (!*unsafeDevMode || *unsafeDevMode && hasTelemetryCredential) {
 		if !hasTelemetryCredential {
-			logger.Fatal("Please either specify --telemetryKey, --telemetryServiceAccountFile or --telemetryURL or set --disableTelemetry=false")
+			logger.Fatal("Please either specify --telemetryKey, --telemetryServiceAccountFile or --telemetryLokiURL or set --disableTelemetry=false")
+		}
+
+		if usingLoki && usingGCP {
+			logger.Fatal("May only enable one telemetry logger at a time, either specify --telemetryLokiURL or --telemetryKey/--telemetryServiceAccountFile")
 		}
 
 		// Get libp2p peer ID from private key
@@ -923,12 +930,12 @@ func runNode(cmd *cobra.Command, args []string) {
 		skipPrivateLogs := !*publicRpcLogToTelemetry
 
 		var tm *telemetry.Telemetry
-		if *telemetryURL != "" {
+		if usingLoki {
 			logger.Info("Using Loki telemetry logger",
 				zap.String("publicRpcLogDetail", *publicRpcLogDetailStr),
 				zap.Bool("logPublicRpcToTelemetry", *publicRpcLogToTelemetry))
 
-			tm, err = telemetry.NewLokiCloudLogger(rootCtx, logger, *telemetryURL, "wormhole", *telemetryProject, true, labels)
+			tm, err = telemetry.NewLokiCloudLogger(context.Background(), logger, *telemetryLokiURL, "wormhole", true, labels)
 			if err != nil {
 				logger.Fatal("Failed to initialize telemetry", zap.Error(err))
 			}
