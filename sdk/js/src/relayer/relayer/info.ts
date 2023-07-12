@@ -42,6 +42,7 @@ export type InfoRequestParams = {
 export type GetPriceOptParams = {
   environment?: Network;
   receiverValue?: ethers.BigNumberish;
+  wormholeRelayerAddress?: string;
   deliveryProviderAddress?: string;
   sourceChainProvider?: ethers.providers.Provider;
 };
@@ -60,7 +61,7 @@ export async function getPriceAndRefundInfo(
     throw Error(
       "No default RPC for this chain; pass in your own provider (as sourceChainProvider)"
     );
-  const wormholeRelayerAddress = getWormholeRelayerAddress(
+  const wormholeRelayerAddress = optionalParams?.wormholeRelayerAddress || getWormholeRelayerAddress(
     sourceChain,
     environment
   );
@@ -189,7 +190,7 @@ export function stringifyWormholeRelayerInfo(info: DeliveryInfo): string {
     info.deliveryInstruction.targetAddress.toString("hex") !==
       "0000000000000000000000000000000000000000000000000000000000000000"
   ) {
-    stringifiedInfo += `Found delivery request in transaction ${info.sourceTransactionHash} on ${info.sourceChain}\n`;
+    stringifiedInfo += `Found delivery request in transaction ${info.sourceTransactionHash} on ${info.sourceChain}\nfrom sender ${info.deliveryInstruction.senderAddress.toString("hex")} from ${info.sourceChain} with delivery sequence number ${info.sourceDeliverySequenceNumber}\n`;
     const numMsgs = info.deliveryInstruction.vaaKeys.length;
 
     const payload = info.deliveryInstruction.payload.toString("hex");
