@@ -16,7 +16,7 @@ import { getNetwork, PRIVATE_KEY, isCI } from "./utils/utils";
 const network: Network = getNetwork();
 const ci: boolean = isCI();
 
-const testIfDevnet = () => network == "DEVNET" ? test : test.skip;
+const testIfDevnet = () => (network == "DEVNET" ? test : test.skip);
 
 const sourceChain = network == "DEVNET" ? "ethereum" : "avalanche";
 const targetChain = network == "DEVNET" ? "bsc" : "celo";
@@ -26,7 +26,9 @@ const targetChainId = CHAINS[targetChain];
 
 describe("Relay Provider Test", () => {
   const addressInfo = getAddressInfo(sourceChain, network);
-  if(network == "MAINNET") addressInfo.mockDeliveryProviderAddress = "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81"
+  if (network == "MAINNET")
+    addressInfo.mockDeliveryProviderAddress =
+      "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81";
   const provider = getDefaultProvider(network, sourceChain, ci);
 
   // signers

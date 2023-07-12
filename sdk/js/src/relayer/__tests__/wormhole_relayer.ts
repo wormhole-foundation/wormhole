@@ -52,7 +52,7 @@ const ci: boolean = isCI();
 const sourceChain = network == "DEVNET" ? "ethereum" : "celo";
 const targetChain = network == "DEVNET" ? "bsc" : "avalanche";
 
-const testIfDevnet = () => network == "DEVNET" ? test : test.skip;
+const testIfDevnet = () => (network == "DEVNET" ? test : test.skip);
 
 type TestChain = {
   chainId: ChainId;
@@ -73,8 +73,12 @@ const createTestChain = (name: ChainName) => {
     addressInfo.wormholeRelayerAddress =
       "0x53855d4b64E9A3CF59A84bc768adA716B5536BC5";
   }
-  if(network == "MAINNET") addressInfo.mockIntegrationAddress = "0xa507Ff8D183D2BEcc9Ff9F82DFeF4b074e1d0E05"
-  if(network == "MAINNET") addressInfo.mockDeliveryProviderAddress = "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81"
+  if (network == "MAINNET")
+    addressInfo.mockIntegrationAddress =
+      "0xa507Ff8D183D2BEcc9Ff9F82DFeF4b074e1d0E05";
+  if (network == "MAINNET")
+    addressInfo.mockDeliveryProviderAddress =
+      "0x7A0a53847776f7e94Cc35742971aCb2217b0Db81";
 
   if (!addressInfo.wormholeRelayerAddress)
     throw Error(`No core relayer address for ${name}`);
@@ -113,13 +117,13 @@ const optionalParams = {
   environment: network,
   sourceChainProvider: source.provider,
   targetChainProviders: myMap,
-  wormholeRelayerAddress: source.wormholeRelayerAddress
+  wormholeRelayerAddress: source.wormholeRelayerAddress,
 };
 const optionalParamsTarget = {
   environment: network,
   sourceChainProvider: target.provider,
   targetChainProviders: myMap,
-  wormholeRelayerAddress: target.wormholeRelayerAddress
+  wormholeRelayerAddress: target.wormholeRelayerAddress,
 };
 
 // for signing wormhole messages
@@ -135,14 +139,13 @@ const TOO_LOW_GAS_LIMIT = 10000;
 const REASONABLE_GAS_LIMIT_FORWARDS = 900000;
 
 const wormholeRelayerAddresses = new Map<ChainName, string>();
-  wormholeRelayerAddresses.set(sourceChain, source.wormholeRelayerAddress);
-  wormholeRelayerAddresses.set(targetChain, target.wormholeRelayerAddress);
+wormholeRelayerAddresses.set(sourceChain, source.wormholeRelayerAddress);
+wormholeRelayerAddresses.set(targetChain, target.wormholeRelayerAddress);
 
 const getStatus = async (
   txHash: string,
   _sourceChain?: ChainName
 ): Promise<string> => {
-  
   const info = (await relayer.getWormholeRelayerInfo(
     _sourceChain || sourceChain,
     txHash,
@@ -150,7 +153,7 @@ const getStatus = async (
       environment: network,
       targetChainProviders: myMap,
       sourceChainProvider: myMap.get(_sourceChain || sourceChain),
-      wormholeRelayerAddresses
+      wormholeRelayerAddresses,
     }
   )) as relayer.DeliveryInfo;
   return info.targetChainStatus.events[0].status;
@@ -251,18 +254,25 @@ describe("Wormhole Relayer Tests", () => {
     const value = await relayer.getPrice(
       sourceChain,
       targetChain,
-      REASONABLE_GAS_LIMIT*2,
+      REASONABLE_GAS_LIMIT * 2,
       optionalParams
     );
     console.log(`Quoted gas delivery fee: ${value}`);
 
-    const tx = await source.mockIntegration.sendMessageWithAdditionalVaas([], target.chainId, REASONABLE_GAS_LIMIT*2, 0, [relayer.createVaaKey(
-      source.chainId,
-      Buffer.from(
-        tryNativeToUint8Array(source.wallet.address, "ethereum")
-      ),
-      deliverySeq
-    )], {value});
+    const tx = await source.mockIntegration.sendMessageWithAdditionalVaas(
+      [],
+      target.chainId,
+      REASONABLE_GAS_LIMIT * 2,
+      0,
+      [
+        relayer.createVaaKey(
+          source.chainId,
+          Buffer.from(tryNativeToUint8Array(source.wallet.address, "ethereum")),
+          deliverySeq
+        ),
+      ],
+      { value }
+    );
 
     console.log(`Sent tx hash: ${tx.hash}`);
 
@@ -275,7 +285,8 @@ describe("Wormhole Relayer Tests", () => {
     expect(status).toBe("Delivery Success");
 
     console.log("Checking if message was relayed");
-    const message = (await target.mockIntegration.getDeliveryData()).additionalVaas[0];
+    const message = (await target.mockIntegration.getDeliveryData())
+      .additionalVaas[0];
     const parsedMessage = await wormhole.parseVM(message);
     expect(parsedMessage.payload).toBe(arbitraryPayload);
   });
@@ -474,11 +485,10 @@ describe("Wormhole Relayer Tests", () => {
     const status = await getStatus(tx.hash);
     expect(status).toBe("Receiver Failure");
 
-    const info = (await relayer.getWormholeRelayerInfo(
-      sourceChain,
-      tx.hash,
-      {wormholeRelayerAddresses, ...optionalParams}
-    )) as relayer.DeliveryInfo;
+    const info = (await relayer.getWormholeRelayerInfo(sourceChain, tx.hash, {
+      wormholeRelayerAddresses,
+      ...optionalParams,
+    })) as relayer.DeliveryInfo;
 
     await waitForRelay();
 
@@ -549,7 +559,7 @@ describe("Wormhole Relayer Tests", () => {
     const info = (await relayer.getWormholeRelayerInfo(
       sourceChain,
       rx.transactionHash,
-      {wormholeRelayerAddresses, ...optionalParams}
+      { wormholeRelayerAddresses, ...optionalParams }
     )) as relayer.DeliveryInfo;
 
     console.log("Redelivering message");
@@ -574,7 +584,7 @@ describe("Wormhole Relayer Tests", () => {
         gasLimit: REASONABLE_GAS_LIMIT,
       },
       { transport: NodeHttpTransport() },
-      {wormholeRelayerAddress: source.wormholeRelayerAddress}
+      { wormholeRelayerAddress: source.wormholeRelayerAddress }
     );
 
     console.log("redelivery tx:", redeliveryReceipt.hash);
@@ -629,61 +639,66 @@ describe("Wormhole Relayer Tests", () => {
     expect(newRegisteredAddress).toBe(expectedNewRegisteredAddress);
   });
 
-  testIfDevnet()("Governance: Test Setting Default Relay Provider", async () => {
-    const currentAddress =
-      await source.wormholeRelayer.getDefaultDeliveryProvider();
-    console.log(
-      `For Chain ${source.chainId}, default relay provider: ${currentAddress}`
-    );
+  testIfDevnet()(
+    "Governance: Test Setting Default Relay Provider",
+    async () => {
+      const currentAddress =
+        await source.wormholeRelayer.getDefaultDeliveryProvider();
+      console.log(
+        `For Chain ${source.chainId}, default relay provider: ${currentAddress}`
+      );
 
-    const expectedNewDefaultDeliveryProvider =
-      "0x1234567890123456789012345678901234567892";
+      const expectedNewDefaultDeliveryProvider =
+        "0x1234567890123456789012345678901234567892";
 
-    const timestamp = (await source.wallet.provider.getBlock("latest"))
-      .timestamp;
-    const chain = source.chainId;
-    const firstMessage =
-      governance.publishWormholeRelayerSetDefaultDeliveryProvider(
-        timestamp,
-        chain,
+      const timestamp = (await source.wallet.provider.getBlock("latest"))
+        .timestamp;
+      const chain = source.chainId;
+      const firstMessage =
+        governance.publishWormholeRelayerSetDefaultDeliveryProvider(
+          timestamp,
+          chain,
+          expectedNewDefaultDeliveryProvider
+        );
+      const firstSignedVaa = guardians.addSignatures(
+        firstMessage,
+        guardianIndices
+      );
+
+      let tx = await source.wormholeRelayer.setDefaultDeliveryProvider(
+        firstSignedVaa
+      );
+      await tx.wait();
+
+      const newDefaultDeliveryProvider =
+        await source.wormholeRelayer.getDefaultDeliveryProvider();
+
+      expect(newDefaultDeliveryProvider).toBe(
         expectedNewDefaultDeliveryProvider
       );
-    const firstSignedVaa = guardians.addSignatures(
-      firstMessage,
-      guardianIndices
-    );
 
-    let tx = await source.wormholeRelayer.setDefaultDeliveryProvider(
-      firstSignedVaa
-    );
-    await tx.wait();
-
-    const newDefaultDeliveryProvider =
-      await source.wormholeRelayer.getDefaultDeliveryProvider();
-
-    expect(newDefaultDeliveryProvider).toBe(expectedNewDefaultDeliveryProvider);
-
-    const inverseFirstMessage =
-      governance.publishWormholeRelayerSetDefaultDeliveryProvider(
-        timestamp,
-        chain,
-        currentAddress
+      const inverseFirstMessage =
+        governance.publishWormholeRelayerSetDefaultDeliveryProvider(
+          timestamp,
+          chain,
+          currentAddress
+        );
+      const inverseFirstSignedVaa = guardians.addSignatures(
+        inverseFirstMessage,
+        guardianIndices
       );
-    const inverseFirstSignedVaa = guardians.addSignatures(
-      inverseFirstMessage,
-      guardianIndices
-    );
 
-    tx = await source.wormholeRelayer.setDefaultDeliveryProvider(
-      inverseFirstSignedVaa
-    );
-    await tx.wait();
+      tx = await source.wormholeRelayer.setDefaultDeliveryProvider(
+        inverseFirstSignedVaa
+      );
+      await tx.wait();
 
-    const originalDefaultDeliveryProvider =
-      await source.wormholeRelayer.getDefaultDeliveryProvider();
+      const originalDefaultDeliveryProvider =
+        await source.wormholeRelayer.getDefaultDeliveryProvider();
 
-    expect(originalDefaultDeliveryProvider).toBe(currentAddress);
-  });
+      expect(originalDefaultDeliveryProvider).toBe(currentAddress);
+    }
+  );
 
   testIfDevnet()("Governance: Test Upgrading Contract", async () => {
     const IMPLEMENTATION_STORAGE_SLOT =
