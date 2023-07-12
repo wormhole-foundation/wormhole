@@ -1,7 +1,28 @@
 import { BigNumber } from "@ethersproject/bignumber";
-import { parseNftTransferPayload, parseTokenTransferPayload } from "../vaa";
+import {
+  NftTransfer,
+  TokenTransfer,
+  parseNftTransferPayload,
+  parseTokenTransferPayload,
+} from "../vaa";
 
 export const METADATA_REPLACE = new RegExp("\u0000", "g");
+
+/**
+ * NFTTransferPayload is the payload data for a NFT transfer VAA.
+ */
+export type NFTTransferPayload = Pick<
+  NftTransfer,
+  "symbol" | "name" | "uri"
+> & {
+  originAddress: string;
+  originChain: number;
+  targetAddress: string;
+  fee?: BigNumber;
+  targetChain: number;
+  fromAddress?: string;
+  tokenId: BigNumber;
+};
 
 // note: actual first byte is message type
 //     0   [u8; 32] token_address
@@ -13,7 +34,7 @@ export const METADATA_REPLACE = new RegExp("\u0000", "g");
 //     131 [u8;len] uri
 //     ?   [u8; 32] recipient
 //     ?   u16      recipient_chain
-export function parseNFTPayload(payload: Buffer) {
+export function parseNFTPayload(payload: Buffer): NFTTransferPayload {
   const parsed = parseNftTransferPayload(payload);
   return {
     originAddress: parsed.tokenAddress.toString("hex"),
@@ -27,13 +48,25 @@ export function parseNFTPayload(payload: Buffer) {
   };
 }
 
+/**
+ * TokenTransferPayload is the payload data for a Token transfer VAA.
+ */
+export type TokenTransferPayload = Pick<TokenTransfer, "amount"> & {
+  originAddress: string;
+  originChain: number;
+  targetAddress: string;
+  targetChain: number;
+  fromAddress?: string;
+  fee?: BigInt;
+};
+
 //     0   u256     amount
 //     32  [u8; 32] token_address
 //     64  u16      token_chain
 //     66  [u8; 32] recipient
 //     98  u16      recipient_chain
 //     100 u256     fee
-export function parseTransferPayload(payload: Buffer) {
+export function parseTransferPayload(payload: Buffer): TokenTransferPayload {
   const parsed = parseTokenTransferPayload(payload);
   return {
     amount: parsed.amount,
@@ -48,28 +81,3 @@ export function parseTransferPayload(payload: Buffer) {
         : parsed.fromAddress.toString("hex"),
   };
 }
-
-//This returns a corrected amount, which accounts for the difference between the VAA
-//decimals, and the decimals of the asset.
-// const normalizeVaaAmount = (
-//   amount: bigint,
-//   assetDecimals: number
-// ): bigint => {
-//   const MAX_VAA_DECIMALS = 8;
-//   if (assetDecimals <= MAX_VAA_DECIMALS) {
-//     return amount;
-//   }
-//   const decimalStringVaa = formatUnits(amount, MAX_VAA_DECIMALS);
-//   const normalizedAmount = parseUnits(decimalStringVaa, assetDecimals);
-//   const normalizedBigInt = BigInt(truncate(normalizedAmount.toString(), 0));
-
-//   return normalizedBigInt;
-// };
-
-// function truncate(str: string, maxDecimalDigits: number) {
-//   if (str.includes(".")) {
-//     const parts = str.split(".");
-//     return parts[0] + "." + parts[1].slice(0, maxDecimalDigits);
-//   }
-//   return str;
-// }
