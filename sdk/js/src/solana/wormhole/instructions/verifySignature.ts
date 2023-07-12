@@ -70,7 +70,7 @@ export async function createVerifySignaturesInstructions(
   for (let i = 0; i < Math.ceil(guardianSignatures.length / batchSize); ++i) {
     const start = i * batchSize;
     const end = Math.min(guardianSignatures.length, (i + 1) * batchSize);
- 
+
     const signatureStatus = new Array(MAX_LEN_GUARDIAN_KEYS).fill(-1);
     const signatures: Buffer[] = [];
     const keys: Buffer[] = [];
@@ -123,9 +123,10 @@ function createVerifySignaturesInstruction(
   signatureSet: PublicKeyInitData,
   signatureStatus: number[]
 ): TransactionInstruction {
-  const methods = createReadOnlyWormholeProgramInterface(
-    wormholeProgramId
-  ).methods.verifySignatures(signatureStatus);
+  const methods =
+    createReadOnlyWormholeProgramInterface(
+      wormholeProgramId
+    ).methods.verifySignatures(signatureStatus);
 
   // @ts-ignore
   return methods._ixFn(...methods._args, {
