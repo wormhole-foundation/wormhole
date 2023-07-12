@@ -19,6 +19,9 @@ import (
 )
 
 const (
+	// gossipSendBufferSize configures the size of the gossip network send buffer
+	gossipSendBufferSize = 5000
+
 	// inboundObservationBufferSize configures the size of the obsvC channel that contains observations from other Guardians.
 	// One observation takes roughly 0.1ms to process on one core, so the whole queue could be processed in 1s
 	inboundObservationBufferSize = 10000
@@ -99,7 +102,7 @@ func (g *G) initializeBasic(logger *zap.Logger, rootCtxCancel context.CancelFunc
 	g.rootCtxCancel = rootCtxCancel
 
 	// Setup various channels...
-	g.gossipSendC = make(chan []byte)
+	g.gossipSendC = make(chan []byte, gossipSendBufferSize)
 	g.obsvC = make(chan *common.MsgWithTimeStamp[gossipv1.SignedObservation], inboundObservationBufferSize)
 	g.msgC = makeChannelPair[*common.MessagePublication](0)
 	g.setC = makeChannelPair[*common.GuardianSet](1) // This needs to be a buffered channel because of a circular dependency between processor and accountant during startup.
