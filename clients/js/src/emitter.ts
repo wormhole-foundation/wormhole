@@ -9,7 +9,7 @@ import {
   getEmitterAddressEth,
   getEmitterAddressNear,
   getEmitterAddressSolana,
-  getEmitterAddressTerra
+  getEmitterAddressTerra,
 } from "@certusone/wormhole-sdk/lib/esm/bridge/getEmitterAddress";
 
 export async function getEmitterAddress(

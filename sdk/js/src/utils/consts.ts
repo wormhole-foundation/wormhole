@@ -63,12 +63,14 @@ export const EVMChainNames: ReadonlyArray<ChainName> = [
 ] as const;
 export type EVMChainName = (typeof EVMChainNames)[number];
 
-
 /*
  *
  * All the Solana-based chain names that Wormhole supports
  */
-export const SolanaChainNames: ReadonlyArray<ChainName> = ["solana", "pythnet"] as const;
+export const SolanaChainNames: ReadonlyArray<ChainName> = [
+  "solana",
+  "pythnet",
+] as const;
 export type SolanaChainName = (typeof SolanaChainNames)[number];
 
 export const CosmWasmChainNames: ReadonlyArray<ChainName> = [
@@ -81,7 +83,10 @@ export const CosmWasmChainNames: ReadonlyArray<ChainName> = [
 export type CosmWasmChainName = (typeof CosmWasmChainNames)[number];
 
 // TODO: why? these are dupe of entries in CosmWasm
-export const TerraChainNames: ReadonlyArray<ChainName> = ["terra", "terra2"] as const;
+export const TerraChainNames: ReadonlyArray<ChainName> = [
+  "terra",
+  "terra2",
+] as const;
 export type TerraChainName = (typeof TerraChainNames)[number];
 
 export type Contracts = {
@@ -810,7 +815,7 @@ export function isEVMChain(
   chain: ChainId | ChainName
 ): chain is EVMChainId | EVMChainName {
   const chainName = coalesceChainName(chain);
-  return EVMChainNames.includes(chainName)
+  return EVMChainNames.includes(chainName);
 }
 
 export function isCosmWasmChain(
