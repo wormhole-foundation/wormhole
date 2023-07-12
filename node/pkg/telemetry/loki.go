@@ -73,6 +73,7 @@ func NewLokiCloudLogger(ctx context.Context, logger *zap.Logger, url string, pro
 	// The gkLogger is passed into the loki client, which expects a go-kit logger.
 	gkLogger := gkzap.NewZapSugarLogger(localLogger, zapcore.ErrorLevel)
 
+	// Loki pegs these metrics: https://github.com/grafana/loki/blob/main/clients/pkg/promtail/client/client.go#L71-L127
 	m := client.NewMetrics(prometheus.DefaultRegisterer)
 
 	serverURL := flagext.URLValue{}
