@@ -3,7 +3,7 @@ import {
   ChainName,
   assertChain,
 } from "@certusone/wormhole-sdk/lib/esm/utils/consts";
-import { relayer, Network, DeliveryStatus } from "@certusone/wormhole-sdk";
+import { relayer, Network } from "@certusone/wormhole-sdk";
 import yargs, { string } from "yargs";
 import { CONTRACTS, NETWORKS } from "../consts";
 import { assertNetwork } from "../utils";
@@ -88,7 +88,7 @@ export const handler = async (
   console.log(relayer.stringifyWormholeRelayerInfo(info));
   if (
     info.targetChainStatus.events[0].status ===
-    DeliveryStatus.DeliveryDidntHappenWithinRange
+    relayer.DeliveryStatus.DeliveryDidntHappenWithinRange
   ) {
     console.log(
       "Try using the '--block-start' and '--block-end' flags to specify a different block range"
