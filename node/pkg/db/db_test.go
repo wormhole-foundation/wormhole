@@ -3,8 +3,14 @@ package db
 import (
 	"crypto/ecdsa"
 	"crypto/rand"
+	"fmt"
+	math_rand "math/rand"
 	"os"
+	"runtime"
+	"sync"
+	"sync/atomic"
 
+	"github.com/dgraph-io/badger/v3"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 
@@ -12,6 +18,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func getVAA() vaa.VAA {
@@ -163,4 +170,68 @@ func TestFindEmitterSequenceGap(t *testing.T) {
 	assert.Equal(t, uint64(0x0), firstSeq)
 	assert.Equal(t, uint64(0x1), lastSeq)
 	assert.NoError(t, err)
+}
+
+// BenchmarkVaaLookup benchmarks db.GetSignedVAABytes
+// You need to set the environment variable WH_DBPATH to a path with a populated BadgerDB.
+// You may want to play with the CONCURRENCY parameter.
+func BenchmarkVaaLookup(b *testing.B) {
+	CONCURRENCY := runtime.NumCPU()
+	dbPath := os.Getenv("WH_DBPATH")
+	require.NotEqual(b, dbPath, "")
+
+	// open DB
+	optionsDB := badger.DefaultOptions(dbPath)
+	optionsDB.Logger = nil
+	badgerDb, err := badger.Open(optionsDB)
+	require.NoError(b, err)
+	db := &Database{
+		db: badgerDb,
+	}
+
+	if err != nil {
+		b.Error("failed to open database")
+	}
+	defer db.Close()
+
+	vaaIds := make(chan *VAAID, b.N)
+
+	for i := 0; i < b.N; i++ {
+		randId := math_rand.Intn(250000) //nolint
+		randId = 250000 - (i / 18)
+		vaaId, err := VaaIDFromString(fmt.Sprintf("4/000000000000000000000000b6f6d86a8f9879a9c87f643768d9efc38c1da6e7/%d", randId))
+		assert.NoError(b, err)
+		vaaIds <- vaaId
+	}
+
+	b.ResetTimer()
+
+	// actual timed code
+	var errCtr atomic.Int32
+	var wg sync.WaitGroup
+
+	for i := 0; i < CONCURRENCY; i++ {
+		wg.Add(1)
+		go func() {
+			for {
+				select {
+				case vaaId := <-vaaIds:
+					_, err = db.GetSignedVAABytes(*vaaId)
+					if err != nil {
+						fmt.Printf("error retrieving %s/%s/%d: %s\n", vaaId.EmitterChain, vaaId.EmitterAddress, vaaId.Sequence, err)
+						errCtr.Add(1)
+					}
+				default:
+					wg.Done()
+					return
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	if int(errCtr.Load()) > b.N/3 {
+		b.Error("More than 1/3 of GetSignedVAABytes failed.")
+	}
 }
