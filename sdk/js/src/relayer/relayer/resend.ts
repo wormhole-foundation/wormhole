@@ -20,13 +20,18 @@ export async function resendRaw(
   newReceiverValue: BigNumber | number,
   deliveryProviderAddress: string,
   overrides?: ethers.PayableOverrides,
-  wormholeRelayerAddress?: string,
+  wormholeRelayerAddress?: string
 ): Promise<ethers.providers.TransactionResponse> {
   const provider = signer.provider;
 
   if (!provider) throw Error("No provider on signer");
 
-  const wormholeRelayer = getWormholeRelayer(sourceChain, environment, signer, wormholeRelayerAddress);
+  const wormholeRelayer = getWormholeRelayer(
+    sourceChain,
+    environment,
+    signer,
+    wormholeRelayerAddress
+  );
 
   return wormholeRelayer.resendToEvm(
     vaaKeyToVaaKeyStruct(vaaKey),
@@ -40,7 +45,7 @@ export async function resendRaw(
 
 type ResendOptionalParams = {
   wormholeRelayerAddress?: string;
-}
+};
 
 export async function resend(
   signer: ethers.Signer,
@@ -101,7 +106,12 @@ export async function resend(
     );
   }
 
-  const wormholeRelayer =  getWormholeRelayer(sourceChain, environment, signer, optionalParams?.wormholeRelayerAddress);
+  const wormholeRelayer = getWormholeRelayer(
+    sourceChain,
+    environment,
+    signer,
+    optionalParams?.wormholeRelayerAddress
+  );
 
   const [deliveryPrice, refundPerUnitGas]: [BigNumber, BigNumber] =
     await wormholeRelayer[
