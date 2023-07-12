@@ -34,3 +34,4 @@ bigtable-writer.json
 sui.log.*
 sui/examples/wrapped_coin
 *.prof
+node.test
