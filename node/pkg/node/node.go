@@ -19,6 +19,7 @@ import (
 )
 
 const (
+	gossipSendBufferSize                 = 5000
 	inboundObservationBufferSize         = 5000
 	inboundSignedVaaBufferSize           = 500
 	observationRequestOutboundBufferSize = 500
@@ -87,7 +88,7 @@ func (g *G) initializeBasic(logger *zap.Logger, rootCtxCancel context.CancelFunc
 	g.rootCtxCancel = rootCtxCancel
 
 	// Setup various channels...
-	g.gossipSendC = make(chan []byte)
+	g.gossipSendC = make(chan []byte, gossipSendBufferSize)
 	g.obsvC = make(chan *gossipv1.SignedObservation, inboundObservationBufferSize)
 	g.msgC = makeChannelPair[*common.MessagePublication](0)
 	g.setC = makeChannelPair[*common.GuardianSet](1) // This needs to be a buffered channel because of a circular dependency between processor and accountant during startup.
