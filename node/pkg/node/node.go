@@ -20,11 +20,11 @@ import (
 
 const (
 	inboundObservationBufferSize         = 5000
-	inboundSignedVaaBufferSize           = 50
-	observationRequestOutboundBufferSize = 50
-	observationRequestInboundBufferSize  = 50
+	inboundSignedVaaBufferSize           = 500
+	observationRequestOutboundBufferSize = 500
+	observationRequestInboundBufferSize  = 500
 	// observationRequestBufferSize is the buffer size of the per-network reobservation channel
-	observationRequestBufferSize = 25
+	observationRequestBufferSize = 250
 )
 
 type PrometheusCtxKey struct{}
