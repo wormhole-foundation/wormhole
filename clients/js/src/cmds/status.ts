@@ -91,7 +91,7 @@ export const handler = async (
     DeliveryStatus.DeliveryDidntHappenWithinRange
   ) {
     console.log(
-      "Try using the '--block-start' and '--block-end' flags to specify a different block range";
+      "Try using the '--block-start' and '--block-end' flags to specify a different block range"
     );
   }
 };
