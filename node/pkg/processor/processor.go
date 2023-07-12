@@ -55,8 +55,6 @@ type (
 		settled bool
 		// Human-readable description of the VAA's source, used for metrics.
 		source string
-		// Number of times the cleanup service has attempted to retransmit this VAA.
-		retryCount uint
 		// Copy of the bytes we submitted (ourObservation, but signed and serialized). Used for retransmissions.
 		ourMsg []byte
 		// The hash of the transaction in which the observation was made.  Used for re-observation requests.
