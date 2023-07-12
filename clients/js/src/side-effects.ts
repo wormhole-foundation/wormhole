@@ -29,10 +29,10 @@ console.warn = function (x: string) {
 //
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 interface BigInt {
-    /** Convert to BigInt to string form in JSON.stringify */
-    toJSON: () => string;
+  /** Convert to BigInt to string form in JSON.stringify */
+  toJSON: () => string;
 }
 // Without this JSON.stringify() blows up
 (BigInt.prototype as any).toJSON = function () {
-    return this.toString();
+  return this.toString();
 };
