@@ -288,8 +288,8 @@ const TESTNET = {
     nft_bridge: "2rHhojZ7hpu1zA91nvZmT8TqWWvMcKmmNBCr2mKTtMq4",
   },
   terra: {
-    core: "terra1pd65m0q9tl3v8znnz5f5ltsfegyzah7g42cx5v",
-    token_bridge: "terra1pseddrv0yfsn76u4zxrjmtf45kdlmalswdv39a",
+    core: undefined,
+    token_bridge: undefined,
     nft_bridge: undefined,
   },
   ethereum: {
@@ -461,9 +461,9 @@ const DEVNET = {
     nft_bridge: "NFTWqJR8YnRVqPDvTJrYuLrQDitTG5AScqbeghi4zSA",
   },
   terra: {
-    core: "terra18vd8fpwxzck93qlwghaj6arh4p7c5n896xzem5",
-    token_bridge: "terra10pyejy66429refv3g35g2t7am0was7ya7kz2a4",
-    nft_bridge: "terra1plju286nnfj3z54wgcggd4enwaa9fgf5kgrgzl",
+    core: undefined,
+    token_bridge: undefined,
+    nft_bridge: undefined,
   },
   ethereum: {
     core: "0xC89Ce4735882C9F0f0FE26686c53074E09B0D550",

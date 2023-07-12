@@ -225,57 +225,57 @@ describe("Terra Integration Tests", () => {
     ).toBe(true);
   });
 
-  // Temporarily disable terra tests until LocalTerra can be upgraded to support v2.1.1
-  test.skip("Attest and transfer Terra2 native token to Terra Classic", async () => {
-    const attestMsg = await attestFromTerra(
-      CONTRACTS.DEVNET.terra2.token_bridge,
-      terraWalletAddress,
-      "uluna"
-    );
-    const attestSignedVaa = await terraBroadcastTxAndGetSignedVaa(
-      [attestMsg],
-      terraWallet
-    );
-    const createWrappedMsg = await createWrappedOnTerra(
-      CONTRACTS.DEVNET.terra.token_bridge,
-      terraClassicWalletAddress,
-      attestSignedVaa
-    );
-    await terraBroadcastAndWaitForExecution(
-      [createWrappedMsg],
-      terraClassicWallet,
-      true
-    );
-    // Transfer
-    const transferMsgs = await transferFromTerra(
-      terraWalletAddress,
-      CONTRACTS.DEVNET.terra2.token_bridge,
-      "uluna",
-      "1000000",
-      CHAIN_ID_TERRA,
-      tryNativeToUint8Array(terraClassicWalletAddress, CHAIN_ID_TERRA)
-    );
-    const transferSignedVaa = await terraBroadcastTxAndGetSignedVaa(
-      transferMsgs,
-      terraWallet
-    );
-    const redeemMsg = await redeemOnTerra(
-      CONTRACTS.DEVNET.terra.token_bridge,
-      terraClassicWalletAddress,
-      transferSignedVaa
-    );
-    await terraBroadcastAndWaitForExecution(
-      [redeemMsg],
-      terraClassicWallet,
-      true
-    );
-    expect(
-      await getIsTransferCompletedTerra(
-        CONTRACTS.DEVNET.terra.token_bridge,
-        transferSignedVaa,
-        lcdClassic,
-        TERRA_GAS_PRICES_URL
-      )
-    ).toBe(true);
-  });
+  // // Temporarily disable terra tests until LocalTerra can be upgraded to support v2.1.1
+  // test.skip("Attest and transfer Terra2 native token to Terra Classic", async () => {
+  //   const attestMsg = await attestFromTerra(
+  //     CONTRACTS.DEVNET.terra2.token_bridge,
+  //     terraWalletAddress,
+  //     "uluna"
+  //   );
+  //   const attestSignedVaa = await terraBroadcastTxAndGetSignedVaa(
+  //     [attestMsg],
+  //     terraWallet
+  //   );
+  //   const createWrappedMsg = await createWrappedOnTerra(
+  //     CONTRACTS.DEVNET.terra.token_bridge,
+  //     terraClassicWalletAddress,
+  //     attestSignedVaa
+  //   );
+  //   await terraBroadcastAndWaitForExecution(
+  //     [createWrappedMsg],
+  //     terraClassicWallet,
+  //     true
+  //   );
+  //   // Transfer
+  //   const transferMsgs = await transferFromTerra(
+  //     terraWalletAddress,
+  //     CONTRACTS.DEVNET.terra2.token_bridge,
+  //     "uluna",
+  //     "1000000",
+  //     CHAIN_ID_TERRA,
+  //     tryNativeToUint8Array(terraClassicWalletAddress, CHAIN_ID_TERRA)
+  //   );
+  //   const transferSignedVaa = await terraBroadcastTxAndGetSignedVaa(
+  //     transferMsgs,
+  //     terraWallet
+  //   );
+  //   const redeemMsg = await redeemOnTerra(
+  //     CONTRACTS.DEVNET.terra.token_bridge,
+  //     terraClassicWalletAddress,
+  //     transferSignedVaa
+  //   );
+  //   await terraBroadcastAndWaitForExecution(
+  //     [redeemMsg],
+  //     terraClassicWallet,
+  //     true
+  //   );
+  //   expect(
+  //     await getIsTransferCompletedTerra(
+  //       CONTRACTS.DEVNET.terra.token_bridge,
+  //       transferSignedVaa,
+  //       lcdClassic,
+  //       TERRA_GAS_PRICES_URL
+  //     )
+  //   ).toBe(true);
+  // });
 });
