@@ -248,7 +248,9 @@ func Run(
 			return fmt.Errorf("failed to join topic: %w", err)
 		}
 
-		sub, err := th.Subscribe()
+		// Increase the buffer size to prevent failed delivery
+		// to slower subscribers
+		sub, err := th.Subscribe(pubsub.WithBufferSize(1024))
 		if err != nil {
 			return fmt.Errorf("failed to subscribe topic: %w", err)
 		}
