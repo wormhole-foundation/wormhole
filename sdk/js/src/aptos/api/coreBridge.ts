@@ -5,7 +5,7 @@ import { ChainId } from "../../utils";
 
 export const upgradeGuardianSet = (
   coreBridgeAddress: string,
-  vaa: Uint8Array,
+  vaa: Uint8Array
 ): Types.EntryFunctionPayload => {
   if (!coreBridgeAddress) throw new Error("Need core bridge address.");
   return {
@@ -22,12 +22,17 @@ export const initWormhole = (
   chainId: ChainId,
   governanceChainId: number,
   governanceContract: Uint8Array,
-  initialGuardian: Uint8Array,
+  initialGuardian: Uint8Array
 ): Types.EntryFunctionPayload => {
   if (!coreBridgeAddress) throw new Error("Need core bridge address.");
   return {
     function: `${coreBridgeAddress}::wormhole::init`,
     type_arguments: [],
-    arguments: [chainId, governanceChainId, governanceContract, initialGuardian],
+    arguments: [
+      chainId,
+      governanceChainId,
+      governanceContract,
+      initialGuardian,
+    ],
   };
 };

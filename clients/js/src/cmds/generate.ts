@@ -82,8 +82,7 @@ export const builder = function (y: typeof yargs) {
               describe: "Module to register",
               choices: ["NFTBridge", "TokenBridge", "WormholeRelayer"],
               demandOption: true,
-            } as const)
-        ,
+            } as const),
         (argv) => {
           const module = argv["module"];
           assertChain(argv.chain);
@@ -272,7 +271,7 @@ export const builder = function (y: typeof yargs) {
               describe: "Address of the delivery provider contract",
               type: "string",
               demandOption: true,
-            })
+            });
         },
         (argv) => {
           assertChain(argv.chain);
@@ -280,7 +279,10 @@ export const builder = function (y: typeof yargs) {
             module: "WormholeRelayer",
             type: "SetDefaultDeliveryProvider",
             chain: toChainId(argv["chain"]),
-            relayProviderAddress: parseAddress(argv["chain"], argv["delivery-provider-address"])
+            relayProviderAddress: parseAddress(
+              argv["chain"],
+              argv["delivery-provider-address"]
+            ),
           };
           let v = makeVAA(
             GOVERNANCE_CHAIN,

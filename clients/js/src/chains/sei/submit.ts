@@ -120,7 +120,7 @@ export const submit = async (
       break;
     }
     case "WormholeRelayer":
-        throw Error("Wormhole Relayer not supported on Sei");
+      throw Error("Wormhole Relayer not supported on Sei");
     default:
       target_contract = impossible(payload);
       execute_msg = impossible(payload);

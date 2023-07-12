@@ -265,6 +265,4 @@ export class GovernanceEmitter extends MockEmitter {
       uptickSequence
     );
   }
-
-
 }

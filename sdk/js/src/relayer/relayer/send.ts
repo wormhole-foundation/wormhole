@@ -19,7 +19,7 @@ export type SendOptionalParams = {
       chainId?: ChainId;
       emitterAddress: string;
       sequenceNumber: ethers.BigNumberish;
-    }
+    },
   ];
   deliveryProviderAddress?: string;
   wormholeRelayerAddress?: string;
