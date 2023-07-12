@@ -5,7 +5,7 @@ import "gogoproto/gogo.proto";
 import "osmosis/tokenfactory/v1beta1/authorityMetadata.proto";
 import "osmosis/tokenfactory/v1beta1/params.proto";
 
-option go_package = "github.com/CosmosContracts/juno/x/tokenfactory/types";
+option go_package = "github.com/wormhole-foundation/wormchain/x/tokenfactory/types";
 
 // GenesisState defines the tokenfactory module's genesis state.
 message GenesisState {

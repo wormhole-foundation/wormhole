@@ -5,7 +5,7 @@ import "gogoproto/gogo.proto";
 import "cosmos/base/v1beta1/coin.proto";
 import "cosmos/bank/v1beta1/bank.proto";
 
-option go_package = "github.com/CosmosContracts/juno/x/tokenfactory/types";
+option go_package = "github.com/wormhole-foundation/wormchain/x/tokenfactory/types";
 
 // Msg defines the tokefactory module's gRPC message service.
 service Msg {
