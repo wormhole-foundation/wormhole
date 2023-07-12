@@ -87,7 +87,7 @@ export const handler = async (
 
   console.log(relayer.stringifyWormholeRelayerInfo(info));
   if (
-    info.targetChainStatus.events[0].status ==
+    info.targetChainStatus.events[0].status ===
     DeliveryStatus.DeliveryDidntHappenWithinRange
   ) {
     console.log(
