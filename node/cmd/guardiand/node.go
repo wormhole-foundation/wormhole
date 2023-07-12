@@ -194,12 +194,10 @@ var (
 	// Google cloud logging parameters
 	telemetryKey                *string
 	telemetryServiceAccountFile *string
+	telemetryProject            *string
 
 	// Loki cloud logging parameters
 	telemetryLokiURL *string
-
-	// Shared cloud logging parameters
-	telemetryProject *string
 
 	bigTablePersistenceEnabled *bool
 	bigTableGCPProject         *string
