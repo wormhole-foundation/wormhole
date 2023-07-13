@@ -1,20 +1,24 @@
-#[cfg(not(feature = "library"))]
 use anyhow::{bail, ensure, Context};
 use cosmwasm_std::{
-    to_binary, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, Event, MessageInfo, QueryRequest,
-    Response, SubMsg, Uint128, WasmMsg, WasmQuery,
+    to_binary, Binary, Coin, CosmosMsg, Deps, DepsMut, Empty, Env, Event, MessageInfo,
+    QueryRequest, Response, SubMsg, Uint128, WasmMsg, WasmQuery,
 };
 use cw_token_bridge::msg::{
     Asset, AssetInfo, ExecuteMsg as TokenBridgeExecuteMsg, QueryMsg as TokenBridgeQueryMsg,
     TransferInfoResponse,
 };
-use cw_wormhole::{byte_utils::ByteUtils, msg::QueryMsg as WormholeQueryMsg, state::ParsedVAA};
+use cw_wormhole::byte_utils::ByteUtils;
 
 use cw20_wrapped_2::msg::ExecuteMsg as Cw20WrappedExecuteMsg;
+use serde_wormhole::RawMessage;
 use std::str;
-use wormhole_bindings::tokenfactory::{TokenFactoryMsg, TokenMsg};
+use wormhole_bindings::{
+    tokenfactory::{TokenFactoryMsg, TokenMsg},
+    WormholeQuery,
+};
 use wormhole_sdk::{
     ibc_translator::{Action, GovernancePacket},
+    vaa::{Body, Header},
     Chain,
 };
 
@@ -22,7 +26,6 @@ use crate::{
     msg::COMPLETE_TRANSFER_REPLY_ID,
     state::{
         CHAIN_TO_CHANNEL_MAP, CURRENT_TRANSFER, CW_DENOMS, TOKEN_BRIDGE_CONTRACT, VAA_ARCHIVE,
-        WORMHOLE_CONTRACT,
     },
 };
 
@@ -33,7 +36,7 @@ pub enum TransferType {
 
 /// Calls into the wormhole token bridge to complete the payload3 transfer.
 pub fn complete_transfer_and_convert(
-    deps: DepsMut,
+    deps: DepsMut<WormholeQuery>,
     env: Env,
     info: MessageInfo,
     vaa: Binary,
@@ -98,7 +101,7 @@ pub fn complete_transfer_and_convert(
 }
 
 pub fn convert_and_transfer(
-    deps: DepsMut,
+    deps: DepsMut<WormholeQuery>,
     info: MessageInfo,
     env: Env,
     recipient: Binary,
@@ -180,7 +183,7 @@ pub fn convert_and_transfer(
 }
 
 pub fn parse_bank_token_factory_contract(
-    deps: DepsMut,
+    deps: DepsMut<WormholeQuery>,
     env: Env,
     coin: Coin,
 ) -> Result<String, anyhow::Error> {
@@ -211,7 +214,10 @@ pub fn parse_bank_token_factory_contract(
     Ok(cw20_contract_addr)
 }
 
-pub fn contract_addr_from_base58(deps: Deps, subdenom: &str) -> Result<String, anyhow::Error> {
+pub fn contract_addr_from_base58(
+    deps: Deps<WormholeQuery>,
+    subdenom: &str,
+) -> Result<String, anyhow::Error> {
     let decoded_addr = bs58::decode(subdenom)
         .into_vec()
         .context(format!("failed to decode base58 subdenom {subdenom}"))?;
@@ -223,34 +229,35 @@ pub fn contract_addr_from_base58(deps: Deps, subdenom: &str) -> Result<String, a
 }
 
 pub fn submit_update_chain_to_channel_map(
-    deps: DepsMut,
-    env: Env,
-    _info: MessageInfo,
+    deps: DepsMut<WormholeQuery>,
     vaa: Binary,
 ) -> Result<Response<TokenFactoryMsg>, anyhow::Error> {
-    // get the token bridge contract address from storage
-    let wormhole_contract = WORMHOLE_CONTRACT
-        .load(deps.storage)
-        .context("could not load token bridge contract address")?;
+    // parse the VAA header and data
+    let (header, data) = serde_wormhole::from_slice::<(Header, &RawMessage)>(&vaa)
+        .context("failed to parse VAA header")?;
 
-    let vaa: ParsedVAA = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: wormhole_contract,
-        msg: to_binary(&WormholeQueryMsg::VerifyVAA {
-            vaa,
-            block_time: env.block.time.seconds(),
-        })?,
-    }))?;
+    // Must be a version 1 VAA
+    ensure!(header.version == 1, "unsupported VAA version");
+
+    // call into wormchain to verify the VAA
+    deps.querier
+        .query::<Empty>(&WormholeQuery::VerifyVaa { vaa: vaa.clone() }.into())
+        .context("failed to verify vaa")?;
+
+    // parse the VAA body
+    let body = serde_wormhole::from_slice::<Body<&RawMessage>>(data)
+        .context("failed to parse VAA body")?;
 
     // validate this is a governance VAA
     ensure!(
-        Chain::from(vaa.emitter_chain) == Chain::Solana
-            && vaa.emitter_address == wormhole_sdk::GOVERNANCE_EMITTER.0,
+        body.emitter_chain == Chain::Solana
+            && body.emitter_address == wormhole_sdk::GOVERNANCE_EMITTER,
         "not a governance VAA"
     );
 
     // parse the governance packet
-    let govpacket = serde_wormhole::from_slice::<GovernancePacket>(&vaa.payload)
-        .context("failed to parse governance packet")?;
+    let govpacket: GovernancePacket =
+        serde_wormhole::from_slice(body.payload).context("failed to parse governance packet")?;
 
     // validate the governance VAA is directed to wormchain
     ensure!(
@@ -258,11 +265,16 @@ pub fn submit_update_chain_to_channel_map(
         "this governance VAA is for another chain"
     );
 
-    if VAA_ARCHIVE.has(deps.storage, vaa.hash.as_slice()) {
+    // governance VAA replay protection
+    let digest = body
+        .digest()
+        .context("failed to compute governance VAA digest")?;
+
+    if VAA_ARCHIVE.has(deps.storage, &digest.hash) {
         bail!("governance vaa already executed");
     }
     VAA_ARCHIVE
-        .save(deps.storage, vaa.hash.as_slice(), &true)
+        .save(deps.storage, &digest.hash, &true)
         .context("failed to save governance VAA to archive")?;
 
     // match the governance action and execute the corresponding logic

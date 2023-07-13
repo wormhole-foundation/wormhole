@@ -2,7 +2,6 @@ use crate::{
     msg::GatewayIbcTokenBridgePayload,
     state::{CHAIN_TO_CHANNEL_MAP, CURRENT_TRANSFER, CW_DENOMS},
 };
-#[cfg(not(feature = "library"))]
 use anybuf::Anybuf;
 use anyhow::{ensure, Context};
 use cosmwasm_std::{
