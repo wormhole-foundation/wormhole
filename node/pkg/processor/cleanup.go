@@ -172,7 +172,9 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 					p.logger.Error("failed to check if observation is already in DB, requesting reobservation", zap.String("hash", hash), zap.Error(err))
 				}
 
-				if !alreadyInDB {
+				if alreadyInDB {
+					p.logger.Debug("observation already in DB, not requesting reobservation", zap.String("digest", hash))
+				} else {
 					p.logger.Info("resubmitting observation",
 						zap.String("digest", hash),
 						zap.Duration("delta", delta),
@@ -234,6 +236,7 @@ func (p *Processor) signedVaaAlreadyInDB(hash string, s *state) (bool, error) {
 	vb, err := p.db.GetSignedVAABytes(*vaaID)
 	if err != nil {
 		if err == db.ErrVAANotFound {
+			p.logger.Debug("VAA not in DB", zap.String("digest", hash), zap.String("message_id", s.ourObservation.MessageID()))
 			return false, nil
 		} else {
 			return false, fmt.Errorf(`failed to look up message id "%s" in db: %w`, s.ourObservation.MessageID(), err)
@@ -245,5 +248,10 @@ func (p *Processor) signedVaaAlreadyInDB(hash string, s *state) (bool, error) {
 		return false, fmt.Errorf("failed to unmarshal VAA: %w", err)
 	}
 
-	return hash == hex.EncodeToString(v.SigningDigest().Bytes()), nil
+	oldHash := hex.EncodeToString(v.SigningDigest().Bytes())
+	if hash != oldHash {
+		p.logger.Debug("VAA already in DB but hash is different", zap.String("old_hash", oldHash), zap.String("new_hash", hash))
+	}
+
+	return true, nil
 }
