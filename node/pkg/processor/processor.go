@@ -21,6 +21,9 @@ import (
 	"github.com/wormhole-foundation/wormhole/sdk/vaa"
 )
 
+var GovInterval = time.Minute
+var CleanupInterval = time.Second * 30
+
 type (
 	// Observation defines the interface for any events observed by the guardian.
 	Observation interface {
@@ -165,10 +168,10 @@ func NewProcessor(
 }
 
 func (p *Processor) Run(ctx context.Context) error {
-	p.cleanup = time.NewTicker(30 * time.Second)
+	p.cleanup = time.NewTicker(CleanupInterval)
 
 	// Always initialize the timer so don't have a nil pointer in the case below. It won't get rearmed after that.
-	govTimer := time.NewTimer(time.Minute)
+	govTimer := time.NewTimer(GovInterval)
 
 	for {
 		select {
@@ -242,7 +245,7 @@ func (p *Processor) Run(ctx context.Context) error {
 				}
 			}
 			if (p.governor != nil) || (p.acct != nil) {
-				govTimer = time.NewTimer(time.Minute)
+				govTimer.Reset(GovInterval)
 			}
 		}
 	}

@@ -55,10 +55,12 @@ var (
 
 const (
 	settlementTime    = time.Second * 30
-	retryTime         = time.Minute * 5
 	retryLimitOurs    = time.Hour * 24
 	retryLimitNotOurs = time.Hour
-	firstRetryMinWait = time.Minute * 5
+)
+
+var (
+	FirstRetryMinWait = time.Minute * 5
 )
 
 // handleCleanup handles periodic retransmissions and cleanup of observations
@@ -146,7 +148,7 @@ func (p *Processor) handleCleanup(ctx context.Context) {
 			p.logger.Info("expiring unsubmitted observation after exhausting retries", zap.String("digest", hash), zap.Duration("delta", delta), zap.Bool("weObserved", s.ourMsg != nil))
 			delete(p.state.signatures, hash)
 			aggregationStateTimeout.Inc()
-		case !s.submitted && delta >= firstRetryMinWait && time.Since(s.nextRetry) >= 0:
+		case !s.submitted && delta >= FirstRetryMinWait && time.Since(s.nextRetry) >= 0:
 			// Poor observation has been unsubmitted for five minutes - clearly, something went wrong.
 			// If we have previously submitted an observation, and it was reliable, we can make another attempt to get
 			// it over the finish line by sending a re-observation request to the network and rebroadcasting our
