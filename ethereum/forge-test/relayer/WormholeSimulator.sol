@@ -322,7 +322,6 @@ contract SigningWormholeSimulator is WormholeSimulator {
      */
     function encodeAndSignMessage(IWormhole.VM memory vm_)
         public
-        view
         override
         returns (bytes memory signedMessage)
     {

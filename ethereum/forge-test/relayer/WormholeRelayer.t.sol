@@ -162,7 +162,7 @@ contract WormholeRelayerTests is Test {
         GasParameters memory gasParams,
         FeeParameters memory feeParams,
         uint32 minTargetGasLimit
-    ) public pure {
+    ) public {
         vm.assume(gasParams.evmGasOverhead > 0);
         vm.assume(gasParams.targetGasLimit > 0);
         vm.assume(feeParams.targetNativePrice > 0);
