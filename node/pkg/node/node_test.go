@@ -79,6 +79,7 @@ type mockGuardian struct {
 	guardianAddr     eth_common.Address
 	ready            bool
 	config           *guardianConfig
+	db               *db.Database
 }
 
 type guardianConfig struct {
@@ -145,6 +146,7 @@ func mockGuardianRunnable(gs []*mockGuardian, mockGuardianIndex uint, obsDb mock
 		_ = os.RemoveAll(dataDir) // delete any pre-existing data
 		db := db.OpenDb(logger, &dataDir)
 		defer db.Close()
+		gs[mockGuardianIndex].db = db
 
 		// set environment
 		env := common.GoTest
@@ -342,6 +344,8 @@ type testCase struct {
 	// if true, the test environment will inject a reobservation request signed by Guardian 1,
 	// as if that Guardian had made a manual reobservation request through an admin command
 	performManualReobservationRequest bool
+	// if true, we will put the VAA into each guardian's DB
+	prePopulateVAA bool
 	// if true, assert that a VAA eventually exists for this message
 	mustReachQuorum bool
 	// if true, assert that no VAA exists for this message at the end of the test.
@@ -519,6 +523,15 @@ func TestConsensus(t *testing.T) {
 	// define the test cases to be executed
 	// The ones with mustNotReachQuorum=true should be defined first to give them more time to execute.
 	testCases := []testCase{
+		{
+			// Only two Guardian gets the message, but one already has it in the local database.
+			// Hence the first Guardian (index 0) should not make an automatic re-observation request
+			// We currently don't explicitly verify the non-existence of the re-observation request, but can see it through the code coverage
+			msg:                 someMessage(),
+			numGuardiansObserve: 2,
+			mustReachQuorum:     true,
+			prePopulateVAA:      true,
+		},
 		{ // one malicious Guardian makes an observation + sends a re-observation request; this should not reach quorum
 			msg:                        someMessage(),
 			numGuardiansObserve:        1,
@@ -622,6 +635,16 @@ func testConsensus(t *testing.T, testCases []testCase, numGuardians int) {
 			assert.NoError(t, err)
 		}
 
+		// pre-populate VAAs
+		for _, testCase := range testCases {
+			if testCase.prePopulateVAA {
+				v := testCase.msg.CreateVAA(guardianSetIndex)
+				v.Signatures = []*vaa.Signature{{Index: 0}}
+				err := gs[0].db.StoreSignedVAA(v)
+				assert.NoError(t, err)
+			}
+		}
+
 		// Wait for them to connect each other and receive at least one heartbeat.
 		// This is necessary because if they have not joined the p2p network yet, gossip messages may get dropped silently.
 		assert.True(t, WAIT_FOR_LOGS || WAIT_FOR_METRICS)
@@ -723,8 +746,10 @@ func testConsensus(t *testing.T, testCases []testCase, numGuardians int) {
 				assert.NoError(t, err)
 
 				// Check signatures
-				err = returnedVaa.Verify(gsAddrList)
-				assert.NoError(t, err)
+				if !testCase.prePopulateVAA { // if the VAA is pre-populated with a dummy, then this is expected to fail
+					err = returnedVaa.Verify(gsAddrList)
+					assert.NoError(t, err)
+				}
 
 				// Match all the fields
 				assert.Equal(t, returnedVaa.Version, uint8(1))
