@@ -16,6 +16,7 @@ func RegisterCodec(cdc *codec.LegacyAmino) {
 	cdc.RegisterConcrete(&MsgMigrateContract{}, "wormhole/MigrateContract", nil)
 	cdc.RegisterConcrete(&MsgCreateAllowlistEntryRequest{}, "wormhole/CreateAllowlistEntryRequest", nil)
 	cdc.RegisterConcrete(&MsgDeleteAllowlistEntryRequest{}, "wormhole/DeleteAllowlistEntryRequest", nil)
+	cdc.RegisterConcrete(&MsgAddInstiatiateAllowlist{}, "wormhole/AddInstantiateAllowlist", nil)
 	// this line is used by starport scaffolding # 2
 }
 

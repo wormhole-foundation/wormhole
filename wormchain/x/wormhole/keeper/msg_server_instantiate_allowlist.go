@@ -59,7 +59,7 @@ func (k msgServer) AddInstantiateAllowlist(goCtx context.Context, msg *types.Msg
 	}
 
 	// add the <contractAddress, codeId> pair to storage
-	k.SetInstantiateAllowlist(ctx, types.WasmAllowedContractCodeId{
+	k.SetInstantiateAllowlist(ctx, types.WasmInstantiateAllowedContractCodeId{
 		ContractAddress: msg.Address,
 		CodeId:          msg.CodeId,
 	})
