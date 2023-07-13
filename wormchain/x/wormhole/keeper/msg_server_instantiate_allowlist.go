@@ -48,7 +48,7 @@ func (k msgServer) AddInstantiateAllowlist(goCtx context.Context, msg *types.Msg
 	}
 
 	// validate the <contractAddress, codeId> in the VAA payload match the ones in the message
-	var payloadBody *vaa.BodyWormchainAllowlistInstantiateContract
+	var payloadBody vaa.BodyWormchainAllowlistInstantiateContract
 	payloadBody.Deserialize(payload)
 	if !bytes.Equal(payloadBody.ContractAddr[:], addrBytes) {
 		return nil, types.ErrInvalidAllowlistContractAddr
