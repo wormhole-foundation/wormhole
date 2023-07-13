@@ -25,6 +25,7 @@ import (
 	"github.com/certusone/wormhole/node/pkg/common"
 	"github.com/certusone/wormhole/node/pkg/db"
 	"github.com/certusone/wormhole/node/pkg/devnet"
+	"github.com/certusone/wormhole/node/pkg/processor"
 	gossipv1 "github.com/certusone/wormhole/node/pkg/proto/gossip/v1"
 	publicrpcv1 "github.com/certusone/wormhole/node/pkg/proto/publicrpc/v1"
 	"github.com/certusone/wormhole/node/pkg/readiness"
@@ -505,6 +506,10 @@ func TestMain(m *testing.M) {
 
 // TestConsensus tests that a set of guardians can form consensus on certain messages and reject certain other messages
 func TestConsensus(t *testing.T) {
+	// adjust processor time intervals to make tests pass faster
+	processor.FirstRetryMinWait = time.Second * 3
+	processor.CleanupInterval = time.Second * 1
+
 	const numGuardians = 4 // Quorum will be 3 out of 4 guardians.
 
 	msgZeroEmitter := someMessage()
@@ -555,6 +560,11 @@ func TestConsensus(t *testing.T) {
 			numGuardiansObserve:               0,
 			mustReachQuorum:                   true,
 			performManualReobservationRequest: true,
+		},
+		{ // Only one Guardian makes the observation while watching and needs to do an automatic re-observation request.
+			msg:                 someMessage(),
+			numGuardiansObserve: 1,
+			mustReachQuorum:     true,
 		},
 		{ // Message covered by Governor that should pass immediately
 			msg:                 governedMsg(false),
