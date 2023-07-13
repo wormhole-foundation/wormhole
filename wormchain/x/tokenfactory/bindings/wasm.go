@@ -24,7 +24,7 @@ func RegisterCustomPlugins(
 	)
 
 	return []wasm.Option{
-	//	queryPluginOpt,
+		//	queryPluginOpt,
 		messengerDecoratorOpt,
 	}
 }

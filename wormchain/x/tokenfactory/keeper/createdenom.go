@@ -1,8 +1,6 @@
 package keeper
 
 import (
-	"fmt"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 
@@ -51,12 +49,6 @@ func (k Keeper) createDenomAfterValidation(ctx sdk.Context, creatorAddr string, 
 }
 
 func (k Keeper) validateCreateDenom(ctx sdk.Context, creatorAddr string, subdenom string) (newTokenDenom string, err error) {
-	// Temporary check until IBC bug is sorted out
-	if k.bankKeeper.HasSupply(ctx, subdenom) {
-		return "", fmt.Errorf("temporary error until IBC bug is sorted out, " +
-			"can't create subdenoms that are the same as a native denom")
-	}
-
 	denom, err := types.GetTokenDenom(creatorAddr, subdenom)
 	if err != nil {
 		return "", err
