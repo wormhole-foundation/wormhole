@@ -6,7 +6,6 @@ pub const COMPLETE_TRANSFER_REPLY_ID: u64 = 1;
 #[cw_serde]
 pub struct InstantiateMsg {
     pub token_bridge_contract: String,
-    pub wormhole_contract: String,
 }
 
 #[cw_serde]

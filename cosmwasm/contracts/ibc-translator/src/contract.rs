@@ -5,7 +5,7 @@ use anyhow::{bail, Context};
 use cosmwasm_std::{
     to_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Reply, Response, StdResult,
 };
-use wormhole_bindings::tokenfactory::TokenFactoryMsg;
+use wormhole_bindings::{tokenfactory::TokenFactoryMsg, WormholeQuery};
 
 use crate::{
     execute::{
@@ -15,7 +15,7 @@ use crate::{
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg, COMPLETE_TRANSFER_REPLY_ID},
     query::query_ibc_channel,
     reply::handle_complete_transfer_reply,
-    state::{TOKEN_BRIDGE_CONTRACT, WORMHOLE_CONTRACT},
+    state::TOKEN_BRIDGE_CONTRACT,
 };
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -29,10 +29,6 @@ pub fn instantiate(
         .save(deps.storage, &msg.token_bridge_contract)
         .context("failed to save token bridge contract address to storage")?;
 
-    WORMHOLE_CONTRACT
-        .save(deps.storage, &msg.wormhole_contract)
-        .context("failed to save wormhole contract address to storage")?;
-
     Ok(Response::new()
         .add_attribute("action", "instantiate")
         .add_attribute("owner", info.sender))
@@ -45,7 +41,7 @@ pub fn migrate(_deps: DepsMut, _env: Env, _msg: Empty) -> Result<Response, anyho
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    deps: DepsMut,
+    deps: DepsMut<WormholeQuery>,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
@@ -83,7 +79,7 @@ pub fn execute(
             nonce,
         ),
         ExecuteMsg::SubmitUpdateChainToChannelMap { vaa } => {
-            submit_update_chain_to_channel_map(deps, env, info, vaa)
+            submit_update_chain_to_channel_map(deps, vaa)
         }
     }
 }
