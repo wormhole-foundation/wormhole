@@ -17,9 +17,9 @@ var _ = strconv.Itoa(0)
 // StoreCodeCmd will upload code to be reused.
 func CmdCreateInstantiateAllowedContract() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "create-instantiate-allowed-contract [bech32 contract addr] [codeId] [vaa-hex]",
-		Short:   "Allowlist a contract address to be able to instantiate another contract",
-		Args:    cobra.ExactArgs(3),
+		Use:   "create-instantiate-allowed-contract [bech32 contract addr] [codeId] [vaa-hex]",
+		Short: "Allowlist a contract address to be able to instantiate another contract",
+		Args:  cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
@@ -40,8 +40,8 @@ func CmdCreateInstantiateAllowedContract() *cobra.Command {
 			msg := types.MsgAddInstiatiateAllowlist{
 				Signer:  clientCtx.GetFromAddress().String(),
 				Address: address,
-				CodeId: codeId,
-				Vaa: vaaBz,
+				CodeId:  codeId,
+				Vaa:     vaaBz,
 			}
 
 			if err = msg.ValidateBasic(); err != nil {
