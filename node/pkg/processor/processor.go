@@ -25,6 +25,9 @@ import (
 	dto "github.com/prometheus/client_model/go"
 )
 
+var GovInterval = time.Minute
+var CleanupInterval = time.Second * 30
+
 type (
 	// Observation defines the interface for any events observed by the guardian.
 	Observation interface {
@@ -122,8 +125,6 @@ type Processor struct {
 	state *aggregationState
 	// gk pk as eth address
 	ourAddr ethcommon.Address
-	// cleanup triggers periodic state cleanup
-	cleanup *time.Ticker
 
 	governor    *governor.ChainGovernor
 	acct        *accountant.Accountant
@@ -190,10 +191,10 @@ func NewProcessor(
 }
 
 func (p *Processor) Run(ctx context.Context) error {
-	p.cleanup = time.NewTicker(30 * time.Second)
+	cleanup := time.NewTicker(CleanupInterval)
 
 	// Always initialize the timer so don't have a nil pointer in the case below. It won't get rearmed after that.
-	govTimer := time.NewTimer(time.Minute)
+	govTimer := time.NewTimer(GovInterval)
 
 	for {
 		select {
@@ -250,7 +251,7 @@ func (p *Processor) Run(ctx context.Context) error {
 			p.handleObservation(ctx, m)
 		case m := <-p.signedInC:
 			p.handleInboundSignedVAAWithQuorum(ctx, m)
-		case <-p.cleanup.C:
+		case <-cleanup.C:
 			p.handleCleanup(ctx)
 		case <-govTimer.C:
 			if p.governor != nil {
@@ -280,7 +281,7 @@ func (p *Processor) Run(ctx context.Context) error {
 				}
 			}
 			if (p.governor != nil) || (p.acct != nil) {
-				govTimer = time.NewTimer(time.Minute)
+				govTimer.Reset(GovInterval)
 			}
 		}
 	}
