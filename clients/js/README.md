@@ -315,14 +315,16 @@ Options:
 
 ```sh
 Positionals:
-  network  Network                     [choices: "mainnet", "testnet", "devnet"]
-  chain    Source chain
+  network      Network                 [choices: "mainnet", "testnet", "devnet"]
+  chain        Source chain
              [choices: "unset", "solana", "ethereum", "terra", "bsc", "polygon",
         "avalanche", "oasis", "algorand", "aurora", "fantom", "karura", "acala",
             "klaytn", "celo", "near", "moonbeam", "neon", "terra2", "injective",
          "osmosis", "sui", "aptos", "arbitrum", "optimism", "gnosis", "pythnet",
                            "xpla", "btc", "base", "sei", "wormchain", "sepolia"]
-  tx       Source transaction hash                                      [string]
+  tx           Source transaction hash                                  [string]
+  block-start  Starting Block Range, i.e. -2048                         [string]
+  block-end    Ending Block Range, i.e. latest                          [string]
 
 Options:
   --help     Show help                                                 [boolean]
