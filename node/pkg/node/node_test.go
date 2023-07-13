@@ -713,7 +713,7 @@ func runConsensusTests(t *testing.T, testCases []testCase, numGuardians int) {
 			if testCase.mustNotReachQuorum {
 				assert.EqualError(t, err, "rpc error: code = NotFound desc = requested VAA not found in store")
 			} else if testCase.mustReachQuorum {
-				assert.NotNil(t, r)
+				require.NotNil(t, r)
 				returnedVaa, err := vaa.Unmarshal(r.VaaBytes)
 				assert.NoError(t, err)
 
