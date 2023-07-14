@@ -41,7 +41,7 @@ func InitGenesis(ctx sdk.Context, k keeper.Keeper, genState types.GenesisState) 
 	}
 	// Set all the contract/code_id pairs for the wasm instantiate allowlist
 	for _, elem := range genState.WasmInstantiateAllowlist {
-		k.SetInstantiateAllowlist(ctx, elem)
+		k.SetWasmInstantiateAllowlist(ctx, elem)
 	}
 	// this line is used by starport scaffolding # genesis/module/init
 }

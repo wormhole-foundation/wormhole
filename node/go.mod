@@ -371,6 +371,6 @@ replace github.com/wormhole-foundation/wormhole/sdk => ../sdk
 replace github.com/wormhole-foundation/wormchain => ../wormchain
 
 // replace github.com/CosmWasm/wasmd v0.30.0 => github.com/wormhole-foundation/wasmd v0.30.0-wormchain-1
-replace github.com/CosmWasm/wasmd => github.com/wormhole-foundation/wasmd v0.30.0-wormchain-1.0.20230706174913-e99aa2ac4302
+replace github.com/CosmWasm/wasmd => github.com/wormhole-foundation/wasmd v0.30.0-wormchain-1.0.20230714195933-d3b98b428ff1
 
 replace github.com/cosmos/cosmos-sdk => github.com/wormhole-foundation/cosmos-sdk v0.45.9-wormhole
