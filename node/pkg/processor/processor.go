@@ -42,8 +42,10 @@ type (
 	state struct {
 		// First time this digest was seen (possibly even before we observed it ourselves).
 		firstObserved time.Time
-		// The most recent time that a re-observation request was sent to the guardian network.
-		lastRetry time.Time
+		// A re-observation request shall not be sent before this time.
+		nextRetry time.Time
+		// Number of times we sent a re-observation request
+		retryCtr uint
 		// Copy of our observation.
 		ourObservation Observation
 		// Map of signatures seen by guardian. During guardian set updates, this may contain signatures belonging
